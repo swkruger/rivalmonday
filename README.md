@@ -62,7 +62,11 @@ The Jev live contract test (`packages/ai/src/decisions/jev.live.test.ts`) only r
 
 ## Database roles
 - `postgres` / Neon owner (owner) — migrations only. Must have `BYPASSRLS`.
-- `app_user` — application runtime; RLS always applies. Use `withTenant(db, ctx, fn)` for every tenant query. The `agency` table is read-only for `app_user` — agency writes go via the service role.
+- `app_user` — application runtime; RLS always applies. Use `withTenant(db, ctx, fn)` for every tenant query. The `agency` table is read-only for `app_user` — agency writes go via the service role. `audit_log`, `llm_call`, and `vendor_call` are also read-only for `app_user` (SELECT-only policies) — only `app_service` may insert/update/delete them.
 - `app_service` — `BYPASSRLS`; system jobs and ledger/audit writes only.
 
 Every table in the `public` schema must have row-level security enabled and forced; a guard test enforces this.
+
+Note that `app_user` can call `set_config` itself (it is a normal, unprivileged SQL function call, not a superuser-only operation), so RLS — not the inability to set tenant context — is the actual second barrier against cross-tenant access. Every tenant query must go through `withTenant`, which scopes `set_config` to the transaction, but a policy gap (like the one fixed for the ledger tables above) is what would actually let a forged `app.agency_id`/`app.client_scope` value read or write data it shouldn't; there is no lower layer beneath RLS to catch that.
+
+`apps/worker` currently connects with `DATABASE_URL` (the owner role) rather than a dedicated worker role, because pg-boss needs to create and migrate its own schema (`pgboss`) on startup, which requires DDL privileges that a least-privilege runtime role wouldn't have. A dedicated, least-privilege worker role (DDL only against the `pgboss` schema, RLS-scoped like `app_user` against `public`) is planned for Phase 7.
