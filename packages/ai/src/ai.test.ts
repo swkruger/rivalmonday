@@ -15,9 +15,15 @@ tasks:
 const scope = { agencyId: '00000000-0000-4000-8000-00000000000a', clientId: null };
 const q = { m: { type: 'noul', instructions: 'Meaningful?' } } satisfies Record<string, DecisionQuestion>;
 
-function harness(opts: { chatFails?: boolean; jevProbability?: number; jev?: boolean } = {}) {
+function harness(opts: { chatFails?: boolean; jevProbability?: number; jev?: boolean; ledgerFails?: boolean } = {}) {
   const records: LlmCallRecord[] = [];
-  const ledger: LedgerSink = { recordLlmCall: async (r) => { records.push(r); }, recordVendorCall: async () => {} };
+  const ledger: LedgerSink = {
+    recordLlmCall: async (r) => {
+      if (opts.ledgerFails) throw new Error('ledger down');
+      records.push(r);
+    },
+    recordVendorCall: async () => {},
+  };
   const complete = vi.fn(async (req: { model: string; jsonSchema?: unknown }) => {
     if (opts.chatFails) throw new Error('down');
     const text = req.jsonSchema ? JSON.stringify({ m: { probability: 0.99 } }) : 'brief';
@@ -52,6 +58,24 @@ describe('Ai facade', () => {
     const { ai, records } = harness({ chatFails: true });
     await expect(ai.chat('brief_writer', { messages: [] }, scope)).rejects.toThrow('down');
     expect(records[0]).toMatchObject({ ok: false, inputTokens: 0, costUsd: null });
+  });
+
+  it('resolves with the chat result even if the ledger write fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { ai, complete } = harness({ ledgerFails: true });
+    const r = await ai.chat('brief_writer', { messages: [{ role: 'user', content: 'x' }] }, scope);
+    expect(r.text).toBe('brief');
+    expect(complete).toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith('[ai] ledger write failed', expect.any(Error));
+    errorSpy.mockRestore();
+  });
+
+  it('rejects with the provider error, not the ledger error, when both the provider and the ledger fail', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { ai } = harness({ chatFails: true, ledgerFails: true });
+    await expect(ai.chat('brief_writer', { messages: [] }, scope)).rejects.toThrow('down');
+    expect(errorSpy).toHaveBeenCalledWith('[ai] ledger write failed', expect.any(Error));
+    errorSpy.mockRestore();
   });
 
   it('rejects unknown tasks and wrong task kinds', async () => {
