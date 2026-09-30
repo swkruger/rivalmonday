@@ -1,0 +1,99 @@
+id: dental
+name: Dental practices
+version: 1
+
+services:
+  - { id: cleaning_exam, name: Cleaning & exam, aliases: [checkup, hygiene visit, teeth cleaning] }
+  - { id: new_patient_special, name: New patient special, aliases: [new patient offer, first visit special] }
+  - { id: whitening, name: Teeth whitening, aliases: [zoom whitening, bleaching] }
+  - { id: invisalign, name: Invisalign / clear aligners, aliases: [clear aligners, clear braces] }
+  - { id: implants, name: Dental implants, aliases: [implant, all-on-4] }
+  - { id: crowns, name: Crowns, aliases: [same-day crowns, cerec] }
+  - { id: veneers, name: Veneers, aliases: [porcelain veneers] }
+  - { id: root_canal, name: Root canal, aliases: [endodontics] }
+  - { id: emergency_dental, name: Emergency dental, aliases: [same-day emergency, toothache] }
+  - { id: pediatric, name: Pediatric dentistry, aliases: [kids dentist, children] }
+  - { id: dentures, name: Dentures, aliases: [partials] }
+  - { id: membership_plan, name: In-house membership plan, aliases: [dental savings plan, no insurance plan] }
+  - { id: sedation, name: Sedation dentistry, aliases: [sleep dentistry, nitrous] }
+
+themes:
+  - { id: wait_time, name: Wait time, description: Time spent waiting in the office past the appointment time }
+  - { id: billing_insurance, name: Billing & insurance, description: Surprise bills, insurance handling, cost clarity }
+  - { id: staff_friendliness, name: Staff friendliness, description: Warmth and helpfulness of front desk and clinical staff }
+  - { id: pain_comfort, name: Pain & comfort, description: Gentleness, anxiety handling, comfort during treatment }
+  - { id: upsell_pressure, name: Upsell pressure, description: Pushing unnecessary treatment or cosmetic add-ons }
+  - { id: appointment_availability, name: Appointment availability, description: Ease of booking, same-week availability }
+  - { id: results_quality, name: Results quality, description: Outcome of treatment, aesthetics, durability }
+  - { id: cleanliness, name: Cleanliness, description: Clean, modern office and hygiene practices }
+
+type_weights:
+  price_change: 0.9
+  promo: 0.9
+  new_service: 0.8
+  service_removed: 0.4
+  service_area_change: 0.6
+  new_location: 1.0
+  hiring: 0.5
+  ad_started: 0.6
+  ad_stopped: 0.3
+  review_spike: 0.6
+  rating_change: 0.8
+  content: 0.2
+  cosmetic: 0.0
+
+move_thresholds:
+  hiring_push_postings_30d: 2
+  rating_drop_90d: 0.15
+  ad_surge_multiplier: 2.0
+  complaint_spike_multiplier: 2.0
+
+playbooks:
+  - id: new_patient_offer_response
+    trigger: promo
+    title: Answer a new-patient offer
+    template: >-
+      {{competitor}} launched {{offer}}. Match on perceived value rather than price: bundle exam, cleaning and
+      X-rays with a clear total, and feature it on your booking page and Google Business Profile.
+  - id: price_war_membership
+    trigger: price_war
+    title: Use a membership plan instead of discounting
+    template: >-
+      {{competitor}} keeps discounting. Promote your in-house membership plan for uninsured patients with a simple
+      annual price, rather than cutting individual treatment prices.
+  - id: territory_new_location
+    trigger: territory_expansion
+    title: Respond to a nearby new location
+    template: >-
+      {{competitor}} is moving into {{areas}}. Refresh location pages for those neighbourhoods, ask recent patients
+      from those ZIP codes for reviews, and target them with a new-patient offer for 60 days.
+  - id: new_service_cosmetic
+    trigger: new_service_line
+    title: Respond to a new treatment offering
+    template: >-
+      {{competitor}} now offers {{service}}. If you provide it, publish a dedicated page with before/after cases and
+      financing; if not, prepare a referral pathway and FAQ answer for the front desk.
+  - id: hiring_push_capacity
+    trigger: hiring_push
+    title: Prepare for added competitor capacity
+    template: >-
+      {{competitor}} is hiring (e.g. hygienists or associates), signalling expanded capacity. Protect recall
+      appointments with reminders and consider opening extra hygiene slots.
+  - id: promo_blitz_counter
+    trigger: promo_blitz
+    title: Counter a promo blitz
+    template: >-
+      {{competitor}} is promoting across channels. Run one clear, time-limited offer on a high-value service
+      (e.g. whitening with cleaning) and email lapsed patients.
+  - id: reputation_slump_capture
+    trigger: reputation_slump
+    title: Win patients unhappy with a competitor
+    template: >-
+      {{competitor}}'s reviews show rising complaints about {{theme}}. Emphasise your strength on {{theme}} in ads
+      and on your homepage, backed by recent reviews that mention it.
+  - id: ad_surge_watch
+    trigger: ad_surge
+    title: Protect visibility during an ad surge
+    template: >-
+      {{competitor}} has sharply increased advertising. Protect branded search terms and check that your new-patient
+      offer is visible in the same areas.

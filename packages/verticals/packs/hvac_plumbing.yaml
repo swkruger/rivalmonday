@@ -1,0 +1,102 @@
+id: hvac_plumbing
+name: HVAC & Plumbing
+version: 1
+
+services:
+  - { id: ac_tune_up, name: AC tune-up, aliases: [ac maintenance, ac check-up, cooling tune-up] }
+  - { id: furnace_tune_up, name: Furnace tune-up, aliases: [heating tune-up, furnace maintenance] }
+  - { id: ac_repair, name: AC repair, aliases: [air conditioning repair, cooling repair] }
+  - { id: ac_install, name: AC installation, aliases: [ac replacement, new air conditioner] }
+  - { id: furnace_repair, name: Furnace repair, aliases: [heating repair] }
+  - { id: furnace_install, name: Furnace installation, aliases: [furnace replacement, new furnace] }
+  - { id: heat_pump, name: Heat pump install & repair, aliases: [heat pump replacement, mini split] }
+  - { id: duct_cleaning, name: Duct cleaning, aliases: [air duct cleaning] }
+  - { id: drain_cleaning, name: Drain cleaning, aliases: [clogged drain, hydro jetting] }
+  - { id: water_heater, name: Water heater repair & install, aliases: [tankless water heater, hot water heater] }
+  - { id: leak_repair, name: Leak repair, aliases: [pipe repair, burst pipe] }
+  - { id: sewer_line, name: Sewer line service, aliases: [sewer repair, sewer camera inspection] }
+  - { id: emergency_service, name: 24/7 emergency service, aliases: [emergency plumber, emergency hvac, after-hours] }
+  - { id: maintenance_plan, name: Maintenance plan / membership, aliases: [service agreement, comfort club, membership] }
+  - { id: financing, name: Financing offer, aliases: [0% financing, monthly payments] }
+
+themes:
+  - { id: response_time, name: Response time, description: How quickly the company answers, schedules and arrives }
+  - { id: price_transparency, name: Price transparency, description: Clear quotes, no surprise or hidden fees }
+  - { id: technician_professionalism, name: Technician professionalism, description: Courtesy, expertise and conduct of technicians }
+  - { id: upsell_pressure, name: Upsell pressure, description: Pushing unnecessary replacements, add-ons or memberships }
+  - { id: scheduling, name: Scheduling & reliability, description: Keeping appointment windows, no-shows, rescheduling }
+  - { id: fix_quality, name: Fix quality, description: Problem solved the first time, no repeat visits }
+  - { id: communication, name: Communication, description: Updates, explanations and follow-up }
+  - { id: cleanliness, name: Cleanliness, description: Leaving the home clean, shoe covers, tidy work area }
+
+type_weights:
+  price_change: 1.0
+  promo: 0.85
+  new_service: 0.7
+  service_removed: 0.5
+  service_area_change: 0.9
+  new_location: 0.9
+  hiring: 0.5
+  ad_started: 0.6
+  ad_stopped: 0.3
+  review_spike: 0.6
+  rating_change: 0.7
+  content: 0.2
+  cosmetic: 0.0
+
+move_thresholds:
+  hiring_push_postings_30d: 3
+  rating_drop_90d: 0.2
+  ad_surge_multiplier: 2.0
+  complaint_spike_multiplier: 2.0
+
+playbooks:
+  - id: price_cut_bundle
+    trigger: price_change
+    title: Answer a price cut with a value bundle
+    template: >-
+      {{competitor}} cut {{service}} to {{new_price}}. Rather than matching, offer {{service}} at a comparable
+      price bundled with a visible extra (e.g. filter replacement or priority scheduling) and promote it on your
+      Google Business Profile and in ads covering the affected ZIP codes.
+  - id: price_war_hold_position
+    trigger: price_war
+    title: Hold price, sell certainty
+    template: >-
+      {{competitor}} is repeatedly discounting overlapping services. Avoid a race to the bottom: lead with guarantees
+      (upfront pricing, satisfaction guarantee, on-time promise) and a maintenance-plan offer that locks in customers.
+  - id: territory_defend
+    trigger: territory_expansion
+    title: Defend the territory they are entering
+    template: >-
+      {{competitor}} is expanding into {{areas}}. Publish or refresh service-area pages for those towns, post weekly
+      on your Google Business Profile, and raise Local Services Ads budget in the affected ZIP codes for 60 days.
+  - id: new_service_response
+    trigger: new_service_line
+    title: Respond to a new service line
+    template: >-
+      {{competitor}} launched {{service}}. If you offer it, make it prominent on your site and profile now; if not,
+      decide whether to add it or partner, and prepare a comparison answer for sales calls.
+  - id: hiring_push_capacity
+    trigger: hiring_push
+    title: Prepare for added competitor capacity
+    template: >-
+      {{competitor}} is hiring aggressively, signalling growth. Lock in existing customers with maintenance-plan
+      renewals and review your own recruiting message and pay against their postings.
+  - id: promo_blitz_counter
+    trigger: promo_blitz
+    title: Counter a promo blitz without discounting everything
+    template: >-
+      {{competitor}} is running promotions across several channels. Run one targeted, time-limited offer on your
+      highest-margin service and remind past customers by email/SMS.
+  - id: reputation_slump_capture
+    trigger: reputation_slump
+    title: Win customers unhappy with a competitor
+    template: >-
+      {{competitor}}'s reviews show rising complaints about {{theme}}. Highlight your strength on {{theme}} in ads and
+      on your homepage, backed by your own recent reviews that mention it.
+  - id: ad_surge_watch
+    trigger: ad_surge
+    title: Protect visibility during an ad surge
+    template: >-
+      {{competitor}} has sharply increased advertising. Check your impression share for core services, protect
+      branded search terms, and make sure your offer is visible where their ads run.
