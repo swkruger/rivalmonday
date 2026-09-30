@@ -6,18 +6,8 @@ try {
   // repo-root .env is optional (e.g. production, where env vars are injected directly)
 }
 
-import { z } from 'zod';
 import { createBoss, registerJobs } from './boss';
-import { defineJob } from './jobs';
-
-export const heartbeatJob = defineJob({
-  name: 'system-heartbeat',
-  schema: z.looseObject({}),
-  cron: '*/5 * * * *',
-  handler: async () => {
-    console.log(`[worker] heartbeat ${new Date().toISOString()}`);
-  },
-});
+import { heartbeatJob } from './jobs/heartbeat';
 
 const url = process.env.DATABASE_URL;
 if (!url) {
