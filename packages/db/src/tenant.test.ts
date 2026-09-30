@@ -83,12 +83,15 @@ describe('row-level security', () => {
   });
 
   it('cannot link a client belonging to another agency (client_id/agency_id integrity)', async () => {
+    // clientB1 is only seeded linked to competitorX (via agencyB); use competitorY here so
+    // this fails on the composite FK, not on the (client_id, competitor_id) primary key.
     const text = await errorText(
       withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) =>
-        tx.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientB1, competitorId: IDS.competitorX }),
+        tx.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientB1, competitorId: IDS.competitorY }),
       ),
     );
-    expect(text).toMatch(/foreign key|constraint/i);
+    expect(text).toMatch(/violates foreign key constraint/i);
+    expect(text).toContain('client_competitor_client_id_agency_id_client_id_agency_id_fk');
   });
 
   it('cannot insert a link for a client outside the scoped clientScope', async () => {
@@ -151,9 +154,15 @@ describe('row-level security', () => {
       SELECT c.relname AS name, c.relrowsecurity AS rls, c.relforcerowsecurity AS force
       FROM pg_class c
       JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relkind = 'r'
+      WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
     `);
     const unprotected = (rows as unknown as { name: string; rls: boolean; force: boolean }[]).filter((r) => !r.rls || !r.force);
     expect(unprotected).toEqual([]);
+  });
+
+  it('agency can still SELECT its own agency row under the SELECT-only policy', async () => {
+    const rows = await withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) => tx.select().from(agency));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.id).toBe(IDS.agencyA);
   });
 });
