@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Branding &amp; voice · Rival Monday</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#47A8E7; --secondary:#2A6BAC; --accent:#F5A524; --accent-text:#B45309;
+    --ink:#0B2540; --muted:#64748B; --line:#E2E8F0; --canvas:#F6F9FC; --surface:#fff;
+    --muted-surface:#EEF2F6; --muted-surface-2:#E2E8F0;
+    --success:#16A34A; --danger:#DC2626; --primary-soft:#E3F2FC; --primary-soft-text:#1F6FA8;
+    --shadow:0 1px 3px rgba(11,37,64,.06),0 1px 2px rgba(11,37,64,.04);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--canvas);font-size:14px}
+  .app{display:flex;min-height:100vh}
+  .side{width:232px;background:var(--surface);border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+  .logo{font-weight:800;font-size:24px;letter-spacing:-1px;padding:0 10px 18px}
+  .logo .r{color:var(--secondary)} .logo .m{color:var(--accent)}
+  .nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;color:#475569;text-decoration:none;font-weight:500}
+  .nav a svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8}
+  .nav a.active{background:var(--primary-soft);color:var(--primary-soft-text);font-weight:600}
+  .fri{background:var(--accent);color:#3B2300;font-weight:700;font-size:12px;padding:2px 9px;border-radius:99px}
+  .side .spacer{flex:1}
+  .agency{border-top:1px solid var(--line);padding:14px 10px 0;font-size:12px;color:var(--muted)}
+  .agency b{display:block;color:var(--ink);font-size:13px}
+  .main{flex:1;min-width:0}
+  .top{height:68px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 max(28px, calc((100% - 1560px) / 2 + 28px))}
+  .top .lbl{color:var(--muted)}
+  .select{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:270px;font-weight:600;background:#fff}
+  .select .dot{width:26px;height:26px;border-radius:7px;background:var(--secondary);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:800}
+  .select .chev{margin-left:auto;color:var(--muted)}
+  .top .sp{flex:1}
+  .avatar{width:38px;height:38px;border-radius:50%;background:var(--secondary);color:#fff;display:grid;place-items:center;font-weight:700}
+  .content{padding:26px 28px 40px;display:flex;flex-direction:column;gap:18px;max-width:1560px;margin:0 auto}
+  h1{font-size:26px;margin:0;letter-spacing:-.4px}
+  .sub{color:var(--muted);margin-top:4px}
+  .card{background:var(--surface);border-radius:14px;box-shadow:var(--shadow)}
+  .pill{font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;white-space:nowrap}
+  .pill.alert{background:#FEE2E2;color:#B91C1C}
+  .pill.brief{background:#FFF3DC;color:var(--accent-text)}
+  .pill.archive{background:var(--muted-surface-2);color:var(--ink)}
+  .pill.info{background:var(--primary-soft);color:var(--primary-soft-text)}
+
+  .ws{display:flex;align-items:center;gap:10px;font-weight:600}
+  .ws .dot{width:30px;height:30px;border-radius:8px;background:#0F766E;color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px}
+  .ws span{color:var(--muted);font-weight:500}
+  .count{margin-left:auto;background:var(--accent);color:#3B2300;font-size:11px;font-weight:700;border-radius:99px;padding:1px 7px}
+  .navsec{font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;padding:14px 12px 4px}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 14px;font:inherit;font-weight:600;font-size:13px;color:var(--ink)}
+  .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+  .gbtn{background:var(--muted-surface);color:var(--ink);border:0;border-radius:8px;padding:7px 11px;font:inherit;font-weight:600;font-size:12.5px}
+  .hdr{display:flex;align-items:flex-end;gap:14px}.hdr .sp{flex:1}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+  .tabs span{padding:10px 16px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tabs span.on{color:var(--secondary);border-color:var(--primary)}
+  .s-layout{display:grid;grid-template-columns:1fr 440px;gap:18px;align-items:start}
+  .sec{padding:22px;border-bottom:1px solid var(--line)}
+  .sec:last-child{border-bottom:0}
+  .sec h2{margin:0 0 4px;font-size:17px;display:flex;align-items:center;gap:8px}
+  .sec .d{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .tier{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--primary-soft);color:var(--primary-soft-text)}
+  .tier.plus{background:#FFF3DC;color:var(--accent-text)}
+  .fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .fld label{display:block;font-weight:600;font-size:13px;margin-bottom:6px}
+  .fld .in{border:1px solid var(--line);border-radius:9px;padding:10px 12px;background:#fff;display:flex;align-items:center;gap:10px}
+  .fld .help{font-size:12px;color:var(--muted);margin-top:5px}
+  .logo-row{display:grid;grid-template-columns:200px 120px 1fr;gap:14px;align-items:stretch}
+  .drop{background:var(--muted-surface);border-radius:12px;display:grid;place-items:center;padding:18px;text-align:center;color:var(--ink);font-size:12.5px}
+  .agency-logo{font-weight:800;font-size:22px;color:#134E4A;letter-spacing:-.5px}
+  .agency-logo span{color:#0D9488}
+  .sw{display:flex;gap:12px}
+  .swc{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;gap:10px;align-items:center;background:#fff}
+  .swc i{width:38px;height:38px;border-radius:8px;display:block}
+  .swc b{display:block;font-size:13px}.swc small{color:var(--muted);font-family:'JetBrains Mono',monospace}
+  .note{background:var(--muted-surface);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:12.5px;margin-top:12px;line-height:1.5}
+  .dns{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+  .dns td{padding:8px 6px;border-top:1px solid var(--line)}
+  .dns code{font-family:'JetBrains Mono',monospace;font-size:11.5px}
+  .ok{color:#15803D;font-weight:700}.pend{color:var(--accent-text);font-weight:700}
+  .seg3{display:inline-grid;grid-template-columns:repeat(3,110px);gap:6px}
+  .seg3 span{text-align:center;font-size:12.5px;font-weight:600;padding:8px 4px;border-radius:8px;border:1.5px solid var(--primary);color:var(--primary-soft-text);background:#fff}
+  .seg3 span.on{background:var(--primary);color:#fff}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .tchip{background:var(--muted-surface);color:var(--ink);border-radius:7px;padding:4px 10px;font-size:12.5px;font-weight:500}
+  .tchip.no{background:#FEE2E2;color:#991B1B}
+  /* preview */
+  .pv{position:sticky;top:18px;display:flex;flex-direction:column;gap:14px}
+  .pv-head{display:flex;align-items:center;gap:8px;padding:16px 18px 0}
+  .pv-head h2{margin:0;font-size:16px}.pv-head .sp{flex:1}
+  .mini{margin:12px 18px 18px;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:11px}
+  .mini .bar{background:var(--muted-surface);padding:6px 10px;font-size:10.5px;color:#475569;display:flex;gap:6px;align-items:center}
+  .mini .bar i{width:7px;height:7px;border-radius:50%;background:#CBD5E1;display:inline-block}
+  .mini .url{background:#fff;border-radius:5px;padding:2px 8px;margin-left:6px;flex:1}
+  .mini .app2{display:flex;height:250px}
+  .mini .s2{width:96px;border-right:1px solid var(--line);padding:10px 8px;display:flex;flex-direction:column;gap:4px;background:#fff;color:#475569}
+  .mini .s2 div{padding:4px 6px;border-radius:5px}
+  .mini .m2{flex:1;background:#F6F9FC;padding:10px;display:flex;flex-direction:column;gap:7px}
+  .mini .k{background:#fff;border-radius:7px;padding:7px;flex:1}
+  .mini .k b{display:block;font-size:16px;color:#134E4A}
+  .mail{margin:0 18px 18px;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:12px}
+  .mail .mh{background:var(--muted-surface);padding:10px 12px;line-height:1.6;color:var(--ink)}
+  .mail .mb{padding:12px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="logo"><span class="r">rival</span><span class="m">monday</span></div>
+    <nav class="nav">
+      <div class="navsec">Agency</div>
+      <a href="#"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Portfolio</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Approval queue <span class="count">7</span></a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/></svg>Clients</a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Prospecting</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/></svg>Playbooks</a>
+      <div class="navsec">Settings</div>
+      <a class="active" href="#"><svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><circle cx="17.5" cy="15.5" r="2.5"/></svg>Branding &amp; voice</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>Automation</a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5"/><path d="M16 11h6M19 8v6"/></svg>Users</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Usage &amp; limits</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="agency">Signed in as<b>Jordan Lee · Account manager</b>Summit Digital</div>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <div class="ws"><span class="dot">SD</span>Summit Digital <span>· Agency workspace</span></div>
+      <div class="sp"></div>
+      <div class="avatar">JL</div>
+    </header>
+
+        <div class="content">
+      <div class="hdr">
+        <div><h1>Branding &amp; voice</h1><div class="sub">Make Rival Monday look and sound like your agency. Your clients never see our name.</div></div>
+        <div class="sp"></div><button class="btn">Discard</button><button class="btn primary">Save changes</button>
+      </div>
+      <div class="tabs"><span class="on">White label</span><span>Domain &amp; email</span><span>AI voice</span><span>Legal pages</span><span>Billing</span></div>
+
+      <div class="s-layout">
+        <div class="card">
+          <div class="sec">
+            <h2>Names</h2>
+            <div class="d">What your clients see in the portal, emails and PDFs.</div>
+            <div class="fields">
+              <div class="fld"><label>Agency name</label><div class="in">Summit Digital</div></div>
+              <div class="fld"><label>Product name <span class="tier plus">Agency+</span></label><div class="in">Market Pulse</div><div class="help">Replaces "Rival Monday" everywhere clients look</div></div>
+              <div class="fld"><label>Assistant name</label><div class="in">Scout</div><div class="help">Default is "Friday"</div></div>
+              <div class="fld"><label>Weekly brief name <span class="tier plus">Agency+</span></label><div class="in">Monday Market Pulse</div></div>
+            </div>
+          </div>
+
+          <div class="sec">
+            <h2>Logo</h2>
+            <div class="d">A wide PNG or SVG with a transparent background works best. Add a square icon for browser tabs.</div>
+            <div class="logo-row">
+              <div class="drop"><div class="agency-logo">summit<span>digital</span></div></div>
+              <div class="drop"><div style="width:44px;height:44px;border-radius:10px;background:#0D9488;color:#fff;display:grid;place-items:center;font-weight:800">SD</div><div style="margin-top:6px">Favicon</div></div>
+              <div class="drop" style="border:2px dashed var(--muted-surface-2);background:#fff">Drop files here or <b style="color:var(--primary-soft-text)">browse</b><br><span style="color:var(--muted)">PNG, SVG · max 2 MB</span></div>
+            </div>
+          </div>
+
+          <div class="sec">
+            <h2>Colours</h2>
+            <div class="d">Your two brand colours replace ours. Status colours (green, red, orange) stay the same so alerts always read correctly.</div>
+            <div class="sw">
+              <div class="swc"><i style="background:#0D9488"></i><div><b>Primary</b><small>#0D9488</small></div></div>
+              <div class="swc"><i style="background:#134E4A"></i><div><b>Secondary</b><small>#134E4A</small></div></div>
+              <div class="swc" style="opacity:.6"><i style="background:#F5A524"></i><div><b>Accent (fixed)</b><small>#F5A524</small></div></div>
+            </div>
+            <div class="note">✔ White text on your primary colour reads well (contrast 3.7:1 for large text).</div>
+          </div>
+
+          <div class="sec">
+            <h2>Custom domain <span class="tier">Pro</span></h2>
+            <div class="d">Your clients log in at your address. We issue the SSL certificate automatically.</div>
+            <div class="fld"><div class="in">https:// <b>intel.summitdigital.com</b><span style="margin-left:auto" class="ok">● Live</span></div></div>
+            <table class="dns">
+              <tr><td>CNAME</td><td><code>intel</code></td><td><code>cname.vercel-dns.com</code></td><td class="ok">Verified</td></tr>
+              <tr><td>SSL</td><td colspan="2">Certificate issued 12 Sep 2026 · renews automatically</td><td class="ok">Active</td></tr>
+            </table>
+          </div>
+
+          <div class="sec">
+            <h2>Email sender <span class="tier">Pro</span></h2>
+            <div class="d">Briefs and alerts come from your address, and replies go to each client's account manager.</div>
+            <div class="fields">
+              <div class="fld"><label>From</label><div class="in">Summit Digital &lt;reports@summitdigital.com&gt;</div></div>
+              <div class="fld"><label>Replies go to</label><div class="in">The client's account manager</div></div>
+            </div>
+            <table class="dns">
+              <tr><td>SPF</td><td><code>summitdigital.com</code></td><td class="ok">Verified</td></tr>
+              <tr><td>DKIM</td><td><code>rm1._domainkey.summitdigital.com</code></td><td class="ok">Verified</td></tr>
+              <tr><td>DMARC</td><td><code>_dmarc.summitdigital.com</code></td><td class="pend">Recommended: add p=quarantine</td></tr>
+            </table>
+          </div>
+
+          <div class="sec">
+            <h2>AI voice</h2>
+            <div class="d">How Scout writes briefs, alerts and answers for your clients.</div>
+            <div class="fld" style="margin-bottom:14px"><label>Tone</label><div class="seg3"><span>Formal</span><span class="on">Friendly</span><span>Blunt</span></div></div>
+            <div class="fields">
+              <div class="fld"><label>Preferred terms</label><div class="chips"><span class="tchip">"customers", not "consumers"</span><span class="tchip">"tune-up"</span><span class="tchip">"your area"</span></div></div>
+              <div class="fld"><label>Never say</label><div class="chips"><span class="tchip no">"crush the competition"</span><span class="tchip no">"guaranteed"</span><span class="tchip no">"spy"</span></div></div>
+            </div>
+            <div class="fld" style="margin-top:14px"><label>Sign-off</label><div class="in" style="display:block;line-height:1.5">Questions? Reply to this email or book 15 minutes with me: {{booking_link}}. — {{account_manager}}</div></div>
+          </div>
+        </div>
+
+        <!-- preview -->
+        <div class="pv">
+          <div class="card">
+            <div class="pv-head"><h2>Live preview</h2><div class="sp"></div><button class="gbtn">Portal</button><button class="gbtn" style="background:var(--muted-surface-2)">Email</button></div>
+            <div class="mini">
+              <div class="bar"><i></i><i></i><i></i><span class="url">🔒 intel.summitdigital.com</span></div>
+              <div class="app2">
+                <div class="s2">
+                  <div style="font-weight:800;color:#134E4A;font-size:11px">summit<span style="color:#0D9488">digital</span></div>
+                  <div style="font-size:9.5px;color:#64748B;margin-top:-4px">Market Pulse</div>
+                  <div style="background:#CCFBF1;color:#0F766E;font-weight:600">Overview</div><div>Competitors</div><div>Changes</div><div>Reviews</div>
+                  <div>Ask <span style="background:#F5A524;color:#3B2300;font-weight:700;padding:0 5px;border-radius:99px">Scout</span></div>
+                </div>
+                <div class="m2">
+                  <div style="display:flex;gap:6px"><div class="k">Changes<b>14</b></div><div class="k">Price moves<b>2</b></div><div class="k">Rating<b>4.8</b></div></div>
+                  <div class="k" style="border-left:3px solid #0D9488;flex:none"><b style="font-size:11px;color:#0B2540">Smith HVAC cut its tune-up to $79</b>Changed Tue 22 Sep, plus 3 new ads…</div>
+                  <div class="k" style="background:#0D9488;color:#fff;flex:none">Ask <b style="display:inline;font-size:11px;color:#fff">Scout</b>: "Who's gaining on us?"</div>
+                </div>
+              </div>
+            </div>
+            <div class="mail">
+              <div class="mh"><b>From:</b> Summit Digital &lt;reports@summitdigital.com&gt;<br><b>Subject:</b> Your Monday Market Pulse · 28 Sep</div>
+              <div class="mb">Hi Dana, here are this week's 3 competitor moves worth your attention…<br><br><span style="color:var(--muted)">No "Rival Monday" anywhere: not in the headers, links or PDF file details.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

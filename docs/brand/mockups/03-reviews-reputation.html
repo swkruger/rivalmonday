@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reviews · Rival Monday</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#47A8E7; --secondary:#2A6BAC; --accent:#F5A524; --accent-text:#B45309;
+    --ink:#0B2540; --muted:#64748B; --line:#E2E8F0; --canvas:#F6F9FC; --surface:#fff;
+    --muted-surface:#EEF2F6; --muted-surface-2:#E2E8F0;
+    --success:#16A34A; --danger:#DC2626; --primary-soft:#E3F2FC; --primary-soft-text:#1F6FA8;
+    --shadow:0 1px 3px rgba(11,37,64,.06),0 1px 2px rgba(11,37,64,.04);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--canvas);font-size:14px}
+  .app{display:flex;min-height:100vh}
+  .side{width:232px;background:var(--surface);border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+  .logo{font-weight:800;font-size:24px;letter-spacing:-1px;padding:0 10px 18px}
+  .logo .r{color:var(--secondary)} .logo .m{color:var(--accent)}
+  .nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;color:#475569;text-decoration:none;font-weight:500}
+  .nav a svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8}
+  .nav a.active{background:var(--primary-soft);color:var(--primary-soft-text);font-weight:600}
+  .fri{background:var(--accent);color:#3B2300;font-weight:700;font-size:12px;padding:2px 9px;border-radius:99px}
+  .side .spacer{flex:1}
+  .agency{border-top:1px solid var(--line);padding:14px 10px 0;font-size:12px;color:var(--muted)}
+  .agency b{display:block;color:var(--ink);font-size:13px}
+  .main{flex:1;min-width:0}
+  .top{height:68px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 max(28px, calc((100% - 1560px) / 2 + 28px))}
+  .top .lbl{color:var(--muted)}
+  .select{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:270px;font-weight:600;background:#fff}
+  .select .dot{width:26px;height:26px;border-radius:7px;background:var(--secondary);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:800}
+  .select .chev{margin-left:auto;color:var(--muted)}
+  .top .sp{flex:1}
+  .avatar{width:38px;height:38px;border-radius:50%;background:var(--secondary);color:#fff;display:grid;place-items:center;font-weight:700}
+  .content{padding:26px 28px 40px;display:flex;flex-direction:column;gap:18px;max-width:1560px;margin:0 auto}
+  h1{font-size:26px;margin:0;letter-spacing:-.4px}
+  .sub{color:var(--muted);margin-top:4px}
+  .card{background:var(--surface);border-radius:14px;box-shadow:var(--shadow)}
+  .pill{font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;white-space:nowrap}
+  .pill.alert{background:#FEE2E2;color:#B91C1C}
+  .pill.brief{background:#FFF3DC;color:var(--accent-text)}
+  .pill.archive{background:var(--muted-surface-2);color:var(--ink)}
+  .pill.info{background:var(--primary-soft);color:var(--primary-soft-text)}
+
+  .grid{display:grid;gap:18px}
+  .kpis{grid-template-columns:repeat(4,1fr)}
+  .pad{padding:20px}
+  .card h3{margin:0 0 4px;font-size:14px;font-weight:600}
+  .kpi{font-size:34px;font-weight:800;color:var(--secondary);letter-spacing:-1px;margin:10px 0 4px;display:flex;align-items:center;gap:10px}
+  .pill.up{background:#DCFCE7;color:#15803D}
+  .pill.down{background:#FEE2E2;color:#B91C1C}
+  .hint{color:var(--muted);font-size:13px}
+  .card-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .card-head h2{font-size:17px;margin:0}
+  .card-head .sp{flex:1}
+  .link{color:var(--primary-soft-text);font-weight:600;text-decoration:none;font-size:13px}
+  .row2{grid-template-columns:1.7fr 1fr}
+  .row3{grid-template-columns:1fr 1.3fr}
+  /* heatmap */
+  table.hm{width:100%;border-collapse:separate;border-spacing:4px;font-size:13px}
+  .hm th{font-weight:600;color:#334155;text-align:center;padding:6px 4px;font-size:12.5px}
+  .hm th.you{color:var(--secondary)}
+  .hm td.t{font-weight:600;color:var(--ink);padding-right:8px;white-space:nowrap}
+  .hm td.c{text-align:center;border-radius:8px;padding:10px 4px;font-weight:700;font-size:12.5px}
+  .hm td.c small{display:block;font-weight:500;font-size:10.5px;opacity:.85}
+  .p3{background:#15803D;color:#fff}.p2{background:#4ADE80;color:#052e16}.p1{background:#DCFCE7;color:#14532D}
+  .n0{background:var(--muted-surface);color:var(--ink)}
+  .m1{background:#FEE2E2;color:#7F1D1D}.m2{background:#F87171;color:#450a0a}.m3{background:#B91C1C;color:#fff}
+  .hm td.sel{outline:3px solid var(--accent);outline-offset:1px}
+  .hm-legend{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);margin-top:10px}
+  .hm-legend i{width:22px;height:10px;border-radius:3px;display:inline-block}
+  /* distribution */
+  .dist{display:flex;flex-direction:column;gap:9px}
+  .dr{display:grid;grid-template-columns:32px 1fr 38px;gap:10px;align-items:center;font-size:13px}
+  .dr .s{color:var(--accent)}
+  .dbar{height:9px;background:var(--muted-surface);border-radius:99px;overflow:hidden}
+  .dbar i{display:block;height:100%;border-radius:99px;background:var(--primary)}
+  .dr .c{text-align:right;color:#334155}
+  /* insight cards */
+  .ins{display:flex;flex-direction:column;gap:12px}
+  .icard{background:var(--muted-surface);border-radius:12px;padding:14px 16px;color:var(--ink);line-height:1.5}
+  .icard h4{margin:0 0 4px;font-size:14px;display:flex;gap:8px;align-items:center}
+  .icard p{margin:0;font-size:13px}
+  .icard .ev{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+  .chip{display:inline-flex;font-size:12px;padding:3px 9px;border-radius:7px;background:var(--primary-soft);color:var(--primary-soft-text);font-weight:500;text-decoration:none}
+  /* reviews list */
+  .rv{padding:14px 0;border-bottom:1px solid var(--line)}
+  .rv:last-child{border-bottom:0}
+  .rv .top2{display:flex;gap:10px;align-items:center;font-size:12.5px;color:var(--muted)}
+  .rv .who{width:30px;height:30px;border-radius:50%;background:var(--muted-surface-2);display:grid;place-items:center;font-weight:700;color:#475569;font-size:11px}
+  .rv .biz{font-weight:600;color:var(--ink)}
+  .rv .stars{color:var(--accent);letter-spacing:1px}
+  .rv p{margin:8px 0 6px;line-height:1.5;color:var(--ink)}
+  .tagt{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:6px;margin-right:4px}
+  .tagt.neg{background:#FEE2E2;color:#991B1B}.tagt.pos{background:#DCFCE7;color:#166534}
+  .privacy{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="logo"><span class="r">rival</span><span class="m">monday</span></div>
+    <nav class="nav">
+      <a href="#"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Overview</a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/></svg>Competitors</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 7h11M4 12h16M4 17h8"/><circle cx="19" cy="7" r="2"/></svg>Changes</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M20 12 12 20l-8-8V4h8z"/><circle cx="8.5" cy="8.5" r="1.3"/></svg>Pricing</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l6 4V6L7 10z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg>Ads</a>
+      <a class="active" href="#"><svg viewBox="0 0 24 24"><path d="m12 3 2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6-4.5-4.2 6.1-.7z"/></svg>Reviews</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Local rankings</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M3 17 9 11l4 4 8-8"/><path d="M15 7h6v6"/></svg>Moves</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Recommendations</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Ask <span class="fri">Friday</span></a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/></svg>Settings</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="agency">Your account manager<b>Jordan Lee · Summit Digital</b>Book a call →</div>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <span class="lbl">Here's your overview for:</span>
+      <div class="select"><span class="dot">CA</span>Comfort Air Heating &amp; Cooling<span class="chev">▾</span></div>
+      <div class="sp"></div>
+      <div class="avatar">DK</div>
+    </header>
+
+        <div class="content">
+      <div>
+        <h1>Reviews &amp; reputation</h1>
+        <div class="sub">How customers talk about you and your competitors on Google · last 90 days · 5 competitors</div>
+      </div>
+
+      <section class="grid kpis">
+        <div class="card pad"><h3>Your rating</h3><div class="kpi">4.8 <span style="color:var(--accent);font-size:22px">★★★★★</span></div><div class="hint">Competitor average 4.5 · <b style="color:#15803D">+0.3</b></div></div>
+        <div class="card pad"><h3>New reviews (90 days)</h3><div class="kpi">64 <span class="pill up">+26%</span></div><div class="hint">Competitor average 41</div></div>
+        <div class="card pad"><h3>Reviews per month</h3><div class="kpi">21.3</div><div class="hint">Smith HVAC 24.0 is the only one ahead of you</div></div>
+        <div class="card pad"><h3>Replies to reviews</h3><div class="kpi">92% <span class="pill up">Best in area</span></div><div class="hint">Competitor average 48%</div></div>
+      </section>
+
+      <section class="grid row2">
+        <div class="card pad">
+          <div class="card-head"><h2>What customers talk about</h2><span class="pill info">8 themes</span><div class="sp"></div><a class="link" href="#">Manage themes →</a></div>
+          <table class="hm">
+            <thead><tr><th></th><th class="you">You</th><th>Smith HVAC</th><th>Peachtree Air</th><th>CoolBreeze</th><th>Buckhead P&amp;A</th><th>Metro Comfort</th></tr></thead>
+            <tbody>
+              <tr><td class="t">Response time</td><td class="c p3">+41<small>41% of reviews</small></td><td class="c p1">+12<small>18%</small></td><td class="c p2">+22<small>25%</small></td><td class="c m3 sel">−39<small>39%</small></td><td class="c p1">+9<small>14%</small></td><td class="c n0">+2<small>6%</small></td></tr>
+              <tr><td class="t">Price transparency</td><td class="c p2">+24<small>28%</small></td><td class="c p2">+26<small>30%</small></td><td class="c m1">−8<small>15%</small></td><td class="c m2">−19<small>22%</small></td><td class="c n0">+1<small>9%</small></td><td class="c p1">+10<small>12%</small></td></tr>
+              <tr><td class="t">Technician professionalism</td><td class="c p3">+36<small>38%</small></td><td class="c p3">+33<small>35%</small></td><td class="c p2">+27<small>30%</small></td><td class="c p1">+11<small>20%</small></td><td class="c p2">+21<small>24%</small></td><td class="c p2">+18<small>21%</small></td></tr>
+              <tr><td class="t">Upsell pressure</td><td class="c n0">−2<small>4%</small></td><td class="c m2">−17<small>19%</small></td><td class="c m1">−6<small>8%</small></td><td class="c m1">−9<small>11%</small></td><td class="c m1">−5<small>7%</small></td><td class="c n0">−1<small>3%</small></td></tr>
+              <tr><td class="t">Scheduling &amp; reliability</td><td class="c p2">+19<small>22%</small></td><td class="c p1">+8<small>15%</small></td><td class="c p1">+11<small>16%</small></td><td class="c m2">−21<small>26%</small></td><td class="c n0">+3<small>8%</small></td><td class="c p1">+7<small>10%</small></td></tr>
+              <tr><td class="t">Fix quality</td><td class="c p2">+22<small>25%</small></td><td class="c p2">+20<small>23%</small></td><td class="c p2">+19<small>22%</small></td><td class="c n0">+2<small>14%</small></td><td class="c p1">+12<small>16%</small></td><td class="c p1">+9<small>13%</small></td></tr>
+              <tr><td class="t">Communication</td><td class="c p2">+17<small>20%</small></td><td class="c p1">+10<small>14%</small></td><td class="c p1">+8<small>12%</small></td><td class="c m1">−12<small>18%</small></td><td class="c n0">+2<small>6%</small></td><td class="c n0">+4<small>7%</small></td></tr>
+              <tr><td class="t">Cleanliness</td><td class="c p1">+9<small>11%</small></td><td class="c p1">+6<small>9%</small></td><td class="c p1">+5<small>8%</small></td><td class="c n0">0<small>4%</small></td><td class="c p1">+7<small>9%</small></td><td class="c n0">+3<small>5%</small></td></tr>
+            </tbody>
+          </table>
+          <div class="hm-legend">Net sentiment (positive minus negative mentions, as % of reviews):
+            <i style="background:#B91C1C"></i><i style="background:#F87171"></i><i style="background:#FEE2E2"></i><i style="background:var(--muted-surface)"></i><i style="background:#DCFCE7"></i><i style="background:#4ADE80"></i><i style="background:#15803D"></i>
+            <span>negative → positive</span></div>
+        </div>
+
+        <div class="grid" style="align-content:start">
+          <div class="card pad">
+            <div class="card-head"><h2>Your rating mix</h2><div class="sp"></div><span class="hint">90 days</span></div>
+            <div class="dist">
+              <div class="dr"><span class="s">★ 5</span><div class="dbar"><i style="width:88%"></i></div><span class="c">56</span></div>
+              <div class="dr"><span class="s">★ 4</span><div class="dbar"><i style="width:9%"></i></div><span class="c">6</span></div>
+              <div class="dr"><span class="s">★ 3</span><div class="dbar"><i style="width:0%"></i></div><span class="c">0</span></div>
+              <div class="dr"><span class="s">★ 2</span><div class="dbar"><i style="width:2%;background:var(--danger)"></i></div><span class="c">1</span></div>
+              <div class="dr"><span class="s">★ 1</span><div class="dbar"><i style="width:2%;background:var(--danger)"></i></div><span class="c">1</span></div>
+            </div>
+          </div>
+          <div class="ins">
+            <div class="icard"><h4><span class="pill up">Your edge</span> Response time</h4><p>41% of your reviews praise how fast you respond. That's the highest in the area and twice the competitor average.</p></div>
+            <div class="icard"><h4><span class="pill down">Their weak spot</span> CoolBreeze: response time</h4><p>39% of CoolBreeze's recent reviews complain about slow response. That share has more than doubled in 30 days.</p>
+              <div class="ev"><a class="chip" href="#">7 reviews</a><a class="chip" href="#">Trend</a><a class="chip" href="#">Ask Friday</a></div></div>
+            <div class="icard"><h4><span class="pill down">Their weak spot</span> Smith HVAC: upsell pressure</h4><p>19% of Smith's reviews mention being pushed toward replacements. Worth contrasting with your "honest diagnosis" message.</p>
+              <div class="ev"><a class="chip" href="#">11 reviews</a></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid row3">
+        <div class="card pad">
+          <div class="card-head"><h2>Rating trend</h2><div class="sp"></div><span class="hint">12 months</span></div>
+          <div class="hm-legend" style="margin:0 0 8px"><i style="background:var(--secondary)"></i>You <i style="background:var(--primary)"></i>Smith HVAC <i style="background:var(--danger)"></i>CoolBreeze <i style="background:#CBD5E1"></i>Area average</div>
+          <svg viewBox="0 0 420 200" width="100%" role="img" aria-label="Average rating over 12 months">
+            <g stroke="#EEF2F7"><line x1="34" y1="20" x2="415" y2="20"/><line x1="34" y1="70" x2="415" y2="70"/><line x1="34" y1="120" x2="415" y2="120"/><line x1="34" y1="170" x2="415" y2="170"/></g>
+            <g fill="#94A3B8" font-size="10"><text x="6" y="24">5.0</text><text x="6" y="74">4.5</text><text x="6" y="124">4.0</text><text x="6" y="174">3.5</text><text x="34" y="192">Oct</text><text x="210" y="192">Apr</text><text x="392" y="192">Sep</text></g>
+            <polyline fill="none" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="4 4" points="36,72 70,71 104,72 138,70 172,71 206,70 240,71 274,70 308,72 342,71 376,72 412,70"/>
+            <polyline fill="none" stroke="#47A8E7" stroke-width="2.5" points="36,52 70,50 104,51 138,48 172,49 206,47 240,46 274,48 308,47 342,46 376,45 412,44"/>
+            <polyline fill="none" stroke="#DC2626" stroke-width="2.5" points="36,58 70,57 104,59 138,58 172,60 206,62 240,64 274,66 308,74 342,82 376,90 412,98"/>
+            <polyline fill="none" stroke="#2A6BAC" stroke-width="3" points="36,38 70,36 104,35 138,34 172,33 206,32 240,32 274,31 308,30 342,30 376,29 412,28"/>
+            <circle cx="412" cy="98" r="4" fill="#F5A524"/>
+          </svg>
+          <div class="hint">CoolBreeze has dropped from 4.4 to 4.1 since June, which the system flagged as a <b>reputation slump</b> move.</div>
+        </div>
+
+        <div class="card pad">
+          <div class="card-head"><h2>Latest competitor reviews</h2><div class="sp"></div><span class="privacy">🔒 Reviewer names hidden</span></div>
+          <div class="rv">
+            <div class="top2"><span class="who">R</span><span class="biz">CoolBreeze Mechanical</span><span class="stars">★★</span><span>· Google · 2 days ago</span></div>
+            <p>"Called three times over two days before anyone showed up. The repair itself was fine but the wait in this heat was brutal."</p>
+            <span class="tagt neg">Response time −</span><span class="tagt neg">Communication −</span><span class="tagt pos">Fix quality +</span>
+          </div>
+          <div class="rv">
+            <div class="top2"><span class="who">R</span><span class="biz">Smith HVAC</span><span class="stars">★★★★★</span><span>· Google · 4 days ago</span></div>
+            <p>"Got the $79 tune-up special, tech was friendly and thorough. He did push a new system pretty hard though."</p>
+            <span class="tagt pos">Technician +</span><span class="tagt pos">Price +</span><span class="tagt neg">Upsell pressure −</span>
+          </div>
+          <div class="rv">
+            <div class="top2"><span class="who">R</span><span class="biz">Peachtree Air Pros</span><span class="stars">★★★★★</span><span>· Google · 5 days ago</span></div>
+            <p>"Came out to Dunwoody same day. Clear price upfront, no surprises."</p>
+            <span class="tagt pos">Response time +</span><span class="tagt pos">Price transparency +</span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Changes · Rival Monday</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#47A8E7; --secondary:#2A6BAC; --accent:#F5A524; --accent-text:#B45309;
+    --ink:#0B2540; --muted:#64748B; --line:#E2E8F0; --canvas:#F6F9FC; --surface:#fff;
+    --muted-surface:#EEF2F6; --muted-surface-2:#E2E8F0;
+    --success:#16A34A; --danger:#DC2626; --primary-soft:#E3F2FC; --primary-soft-text:#1F6FA8;
+    --shadow:0 1px 3px rgba(11,37,64,.06),0 1px 2px rgba(11,37,64,.04);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--canvas);font-size:14px}
+  .app{display:flex;min-height:100vh}
+  .side{width:232px;background:var(--surface);border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+  .logo{font-weight:800;font-size:24px;letter-spacing:-1px;padding:0 10px 18px}
+  .logo .r{color:var(--secondary)} .logo .m{color:var(--accent)}
+  .nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;color:#475569;text-decoration:none;font-weight:500}
+  .nav a svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8}
+  .nav a.active{background:var(--primary-soft);color:var(--primary-soft-text);font-weight:600}
+  .fri{background:var(--accent);color:#3B2300;font-weight:700;font-size:12px;padding:2px 9px;border-radius:99px}
+  .side .spacer{flex:1}
+  .agency{border-top:1px solid var(--line);padding:14px 10px 0;font-size:12px;color:var(--muted)}
+  .agency b{display:block;color:var(--ink);font-size:13px}
+  .main{flex:1;min-width:0}
+  .top{height:68px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 max(28px, calc((100% - 1560px) / 2 + 28px))}
+  .top .lbl{color:var(--muted)}
+  .select{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:270px;font-weight:600;background:#fff}
+  .select .dot{width:26px;height:26px;border-radius:7px;background:var(--secondary);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:800}
+  .select .chev{margin-left:auto;color:var(--muted)}
+  .top .sp{flex:1}
+  .avatar{width:38px;height:38px;border-radius:50%;background:var(--secondary);color:#fff;display:grid;place-items:center;font-weight:700}
+  .content{padding:26px 28px 40px;display:flex;flex-direction:column;gap:18px;max-width:1560px;margin:0 auto}
+  h1{font-size:26px;margin:0;letter-spacing:-.4px}
+  .sub{color:var(--muted);margin-top:4px}
+  .card{background:var(--surface);border-radius:14px;box-shadow:var(--shadow)}
+  .pill{font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;white-space:nowrap}
+  .pill.alert{background:#FEE2E2;color:#B91C1C}
+  .pill.brief{background:#FFF3DC;color:var(--accent-text)}
+  .pill.archive{background:var(--muted-surface-2);color:var(--ink)}
+  .pill.info{background:var(--primary-soft);color:var(--primary-soft-text)}
+
+  /* filters */
+  .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 16px}
+  .f{display:flex;align-items:center;gap:8px;background:var(--muted-surface);color:var(--ink);border-radius:9px;padding:8px 12px;font-weight:500;font-size:13px}
+  .f b{font-weight:700}
+  .search{flex:1;min-width:220px;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;padding:8px 12px;color:var(--muted)}
+  .seg{display:flex;background:var(--muted-surface);border-radius:9px;padding:3px}
+  .seg span{padding:6px 11px;border-radius:7px;font-size:13px;font-weight:600;color:#475569}
+  .seg span.on{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
+
+  .layout{display:grid;grid-template-columns:420px 1fr;gap:18px;align-items:start}
+
+  /* feed */
+  .feed{padding:6px}
+  .day{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:12px 12px 6px}
+  .ev{display:grid;grid-template-columns:36px 1fr auto;gap:12px;padding:12px;border-radius:11px;cursor:pointer;align-items:start}
+  .ev:hover{background:#F8FAFC}
+  .ev.sel{background:var(--primary-soft);box-shadow:inset 3px 0 0 var(--primary)}
+  .ev .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center}
+  .ev .ic svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2}
+  .ev h4{margin:0;font-size:13.5px;line-height:1.35}
+  .ev .m{font-size:12px;color:var(--muted);margin-top:3px}
+  .score{font-weight:800;font-size:15px;color:var(--secondary);text-align:right}
+  .score small{display:block;margin-top:4px}
+
+  /* viewer */
+  .viewer{padding:20px}
+  .v-head{display:flex;gap:14px;align-items:flex-start}
+  .v-head h2{margin:0;font-size:20px;letter-spacing:-.3px}
+  .v-head .m{color:var(--muted);margin-top:4px}
+  .v-head .sp{flex:1}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 12px;font:inherit;font-weight:600;font-size:13px;color:var(--ink)}
+  .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:18px 0 16px}
+  .tabs span{padding:10px 14px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tabs span.on{color:var(--secondary);border-color:var(--primary)}
+  .shots{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .shot-lbl{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .shot-lbl b{color:var(--ink)}
+  .browser{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  .bar{background:var(--muted-surface);padding:7px 10px;display:flex;gap:6px;align-items:center;font-size:11px;color:#475569}
+  .bar i{width:8px;height:8px;border-radius:50%;background:#CBD5E1;display:inline-block}
+  .bar .url{background:#fff;border-radius:6px;padding:3px 8px;margin-left:6px;flex:1}
+  .site{padding:16px;font-size:12px}
+  .site .nav2{display:flex;gap:12px;color:#94A3B8;font-size:11px;margin-bottom:12px}
+  .site .brand{font-weight:800;color:#1e3a5f;margin-right:auto}
+  .site h5{margin:0 0 10px;font-size:15px;color:#1e293b}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .plan{border:1px solid #E2E8F0;border-radius:8px;padding:10px;position:relative}
+  .plan .n{font-weight:700;color:#334155;font-size:11.5px}
+  .plan .p{font-size:20px;font-weight:800;color:#0f172a;margin:6px 0}
+  .plan .d{color:#64748B;font-size:10.5px;line-height:1.35}
+  .hl-old{outline:2.5px solid var(--danger);outline-offset:2px;background:#FEF2F2}
+  .hl-new{outline:2.5px solid var(--success);outline-offset:2px;background:#F0FDF4}
+  .tag{position:absolute;top:-9px;right:8px;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:5px;color:#fff}
+  .masked{background:repeating-linear-gradient(45deg,#F1F5F9,#F1F5F9 6px,#E2E8F0 6px,#E2E8F0 12px);border-radius:6px;padding:8px;color:#64748B;font-size:10.5px;margin-top:10px;text-align:center}
+
+  .diff{margin-top:18px;background:var(--muted-surface);border-radius:12px;padding:14px 16px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;line-height:1.7;color:var(--ink)}
+  .diff .h{font-family:Inter;font-weight:700;font-size:13px;margin-bottom:6px;display:flex;gap:8px;align-items:center}
+  .del{background:#FEE2E2;color:#991B1B;text-decoration:line-through;padding:0 3px;border-radius:3px}
+  .ins{background:#DCFCE7;color:#166534;padding:0 3px;border-radius:3px}
+
+  .lower{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-top:18px}
+  .panel{background:var(--muted-surface);border-radius:12px;padding:14px 16px;color:var(--ink)}
+  .panel h3{margin:0 0 10px;font-size:14px}
+  .factor{display:grid;grid-template-columns:92px 1fr 44px;gap:10px;align-items:center;margin:8px 0;font-size:13px}
+  .fbar{height:8px;background:#fff;border-radius:99px;overflow:hidden}
+  .fbar i{display:block;height:100%;background:var(--secondary);border-radius:99px}
+  .factor .v{text-align:right;font-weight:700}
+  .formula{margin-top:10px;padding-top:10px;border-top:1px solid var(--muted-surface-2);font-size:13px;display:flex;justify-content:space-between;align-items:center}
+  .formula b{font-size:20px;color:var(--secondary)}
+  .seen{display:flex;gap:10px;margin-top:4px}
+  .adthumb{flex:1;background:#fff;border-radius:9px;padding:8px;font-size:11px;border:1px solid var(--line)}
+  .adthumb .img{height:58px;border-radius:6px;background:linear-gradient(135deg,#1e3a5f,#47A8E7);color:#fff;font-weight:800;display:grid;place-items:center;font-size:15px;margin-bottom:6px}
+  .kv{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:12.5px;margin-top:4px}
+  .kv span{color:#334155}
+  .kv code{font-family:'JetBrains Mono',monospace;font-size:11.5px;word-break:break-all}
+  .fb{display:flex;gap:8px;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+  .fb .q{color:var(--muted);font-size:13px;margin-right:4px}
+  .gbtn{background:var(--muted-surface);color:var(--ink);border:0;border-radius:9px;padding:8px 12px;font:inherit;font-weight:600;font-size:13px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="logo"><span class="r">rival</span><span class="m">monday</span></div>
+    <nav class="nav">
+      <a href="#"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Overview</a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/></svg>Competitors</a>
+      <a class="active" href="#"><svg viewBox="0 0 24 24"><path d="M4 7h11M4 12h16M4 17h8"/><circle cx="19" cy="7" r="2"/></svg>Changes</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M20 12 12 20l-8-8V4h8z"/><circle cx="8.5" cy="8.5" r="1.3"/></svg>Pricing</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l6 4V6L7 10z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg>Ads</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="m12 3 2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6-4.5-4.2 6.1-.7z"/></svg>Reviews</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Local rankings</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M3 17 9 11l4 4 8-8"/><path d="M15 7h6v6"/></svg>Moves</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Recommendations</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Ask <span class="fri">Friday</span></a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/></svg>Settings</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="agency">Your account manager<b>Jordan Lee · Summit Digital</b>Book a call →</div>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <span class="lbl">Here's your overview for:</span>
+      <div class="select"><span class="dot">CA</span>Comfort Air Heating &amp; Cooling<span class="chev">▾</span></div>
+      <div class="sp"></div>
+      <div class="avatar">DK</div>
+    </header>
+
+    <div class="content">
+      <div>
+        <h1>Changes</h1>
+        <div class="sub">Everything your competitors changed, scored for how much it matters to you. Every item links to proof.</div>
+      </div>
+
+      <div class="card filters">
+        <div class="search">🔍 Search changes, pages, ads…</div>
+        <div class="f">Competitor: <b>All (5)</b> ▾</div>
+        <div class="f">Type: <b>All</b> ▾</div>
+        <div class="f">Service: <b>All</b> ▾</div>
+        <div class="f">Last <b>30 days</b> ▾</div>
+        <div class="seg"><span class="on">Alerts + brief</span><span>All</span><span>Archived</span></div>
+      </div>
+
+      <div class="layout">
+        <!-- FEED -->
+        <div class="card feed">
+          <div class="day">This week</div>
+          <div class="ev sel">
+            <div class="ic" style="background:#FEE2E2;color:#B91C1C"><svg viewBox="0 0 24 24"><path d="M20 12 12 20l-8-8V4h8z"/><circle cx="8.5" cy="8.5" r="1.3"/></svg></div>
+            <div><h4>Smith HVAC · AC tune-up $99 → $79</h4><div class="m">Price change · Pricing page + 3 ads · Tue 22 Sep</div></div>
+            <div class="score">86<small><span class="pill alert">Alert</span></small></div>
+          </div>
+          <div class="ev">
+            <div class="ic" style="background:#FFF3DC;color:var(--accent-text)"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/></svg></div>
+            <div><h4>Peachtree Air Pros · New pages: Brookhaven, Dunwoody</h4><div class="m">Service-area change · Wed 23 Sep</div></div>
+            <div class="score">71<small><span class="pill alert">Alert</span></small></div>
+          </div>
+          <div class="ev">
+            <div class="ic" style="background:#FFF3DC;color:var(--accent-text)"><svg viewBox="0 0 24 24"><path d="m12 3 2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6-4.5-4.2 6.1-.7z"/></svg></div>
+            <div><h4>CoolBreeze · "Slow response" complaints ×2.3</h4><div class="m">Review spike · 7 reviews · 30 days</div></div>
+            <div class="score">64<small><span class="pill brief">Brief</span></small></div>
+          </div>
+          <div class="ev">
+            <div class="ic" style="background:var(--primary-soft);color:var(--primary-soft-text)"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l6 4V6L7 10z"/></svg></div>
+            <div><h4>Smith HVAC · 6 new Meta ads started</h4><div class="m">Ad started · merged into tune-up price event</div></div>
+            <div class="score">58<small><span class="pill brief">Brief</span></small></div>
+          </div>
+          <div class="ev">
+            <div class="ic" style="background:var(--primary-soft);color:var(--primary-soft-text)"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.8-3.6 3.4-5.5 6-5.5"/></svg></div>
+            <div><h4>Peachtree Air Pros · Hiring: HVAC Technician (Dunwoody)</h4><div class="m">Hiring · Careers page · Thu 24 Sep</div></div>
+            <div class="score">47<small><span class="pill brief">Brief</span></small></div>
+          </div>
+          <div class="day">Last week</div>
+          <div class="ev">
+            <div class="ic" style="background:var(--muted-surface);color:var(--ink)"><svg viewBox="0 0 24 24"><path d="M4 7h11M4 12h16M4 17h8"/></svg></div>
+            <div><h4>Metro Comfort Co. · New blog post: "5 signs your furnace…"</h4><div class="m">Content · Fri 18 Sep</div></div>
+            <div class="score" style="color:var(--muted)">12<small><span class="pill archive">Archived</span></small></div>
+          </div>
+          <div class="ev">
+            <div class="ic" style="background:var(--muted-surface);color:var(--ink)"><svg viewBox="0 0 24 24"><path d="M20 12 12 20l-8-8V4h8z"/></svg></div>
+            <div><h4>Buckhead Plumbing &amp; Air · "Fall furnace special" returned</h4><div class="m">Promo · runs every September (low novelty)</div></div>
+            <div class="score" style="color:var(--muted)">31<small><span class="pill archive">Archived</span></small></div>
+          </div>
+        </div>
+
+        <!-- VIEWER -->
+        <div class="card viewer">
+          <div class="v-head">
+            <div>
+              <h2>Smith HVAC cut its AC tune-up to $79 (was $99)</h2>
+              <div class="m">smithhvac.com/pricing · changed between Mon 21 Sep 06:12 and Tue 22 Sep 06:14 · also seen in 3 ads and 2 reviews</div>
+            </div>
+            <div class="sp"></div>
+            <span class="pill alert">Alert · 86</span>
+          </div>
+
+          <div class="tabs"><span class="on">Side by side</span><span>Text changes</span><span>Full page</span><span>Capture details</span></div>
+
+          <div class="shots">
+            <div>
+              <div class="shot-lbl"><b>Before</b><span>Mon 21 Sep 2026, 06:12</span></div>
+              <div class="browser">
+                <div class="bar"><i></i><i></i><i></i><span class="url">smithhvac.com/pricing</span></div>
+                <div class="site">
+                  <div class="nav2"><span class="brand">SMITH HVAC</span><span>Services</span><span>Pricing</span><span>Areas</span><span>Contact</span></div>
+                  <h5>Simple, upfront pricing</h5>
+                  <div class="plans">
+                    <div class="plan hl-old"><span class="tag" style="background:var(--danger)">Removed</span><div class="n">AC Tune-Up</div><div class="p">$99</div><div class="d">21-point inspection, refrigerant check</div></div>
+                    <div class="plan"><div class="n">Furnace Tune-Up</div><div class="p">$99</div><div class="d">Safety check, burner clean</div></div>
+                    <div class="plan"><div class="n">Diagnostic</div><div class="p">$89</div><div class="d">Waived with repair</div></div>
+                  </div>
+                  <div class="masked">Rotating testimonial, ignored (changes on every visit)</div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="shot-lbl"><b>After</b><span>Tue 22 Sep 2026, 06:14</span></div>
+              <div class="browser">
+                <div class="bar"><i></i><i></i><i></i><span class="url">smithhvac.com/pricing</span></div>
+                <div class="site">
+                  <div class="nav2"><span class="brand">SMITH HVAC</span><span>Services</span><span>Pricing</span><span>Areas</span><span>Contact</span></div>
+                  <h5>Simple, upfront pricing</h5>
+                  <div class="plans">
+                    <div class="plan hl-new"><span class="tag" style="background:var(--success)">Changed</span><div class="n">AC Tune-Up</div><div class="p">$79</div><div class="d">21-point inspection, refrigerant check. <b>Fall special, limited time</b></div></div>
+                    <div class="plan"><div class="n">Furnace Tune-Up</div><div class="p">$99</div><div class="d">Safety check, burner clean</div></div>
+                    <div class="plan"><div class="n">Diagnostic</div><div class="p">$89</div><div class="d">Waived with repair</div></div>
+                  </div>
+                  <div class="masked">Rotating testimonial, ignored (changes on every visit)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="diff">
+            <div class="h">Text changes <span class="pill archive">1 block changed · 1 price</span></div>
+            AC Tune-Up · <span class="del">$99</span> <span class="ins">$79</span><br>
+            21-point inspection, refrigerant check.<span class="ins"> Fall special — limited time</span>
+          </div>
+
+          <div class="lower">
+            <div class="panel">
+              <h3>Why this scored 86</h3>
+              <div class="factor"><span>Type</span><div class="fbar"><i style="width:100%"></i></div><span class="v">1.00</span></div>
+              <div class="factor"><span>Size</span><div class="fbar"><i style="width:95%"></i></div><span class="v">0.95</span></div>
+              <div class="factor"><span>Relevance</span><div class="fbar"><i style="width:100%"></i></div><span class="v">1.00</span></div>
+              <div class="factor"><span>Novelty</span><div class="fbar"><i style="width:90%"></i></div><span class="v">0.90</span></div>
+              <div class="formula"><span>Price change · 20% cut · a service you sell, in your ZIPs · first cut this year</span><b>86</b></div>
+            </div>
+            <div class="panel">
+              <h3>Also seen in</h3>
+              <div class="seen">
+                <div class="adthumb"><div class="img">$79 Tune-Up</div>Meta ad · started 22 Sep<br><span style="color:var(--muted)">Targeting not disclosed (US)</span></div>
+                <div class="adthumb"><div class="img" style="background:linear-gradient(135deg,#0f766e,#47A8E7)">Beat the Heat</div>Meta ad · started 22 Sep<br><span style="color:var(--muted)">+1 more</span></div>
+              </div>
+              <div style="margin-top:10px;font-size:12.5px">★★★★★ "Got the $79 tune-up, tech was great…" · 24 Sep</div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top:16px">
+            <h3>Capture details</h3>
+            <div class="kv">
+              <span>Source</span><span>Website · rendered by RivalMondayBot/1.0 · robots.txt allowed</span>
+              <span>Captured</span><span>Tue 22 Sep 2026 06:14:07 UTC · status OK</span>
+              <span>SHA-256</span><code>9f2c4e1a7b0d8c3f5e6a2b9d1c4f7e0a3b6d9c2e5f8a1b4d7c0e3f6a9b2c5d8e</code>
+              <span>Kept until</span><span>As long as this brief exists (linked to brief of 28 Sep)</span>
+            </div>
+          </div>
+
+          <div class="fb">
+            <span class="q">Was this useful?</span>
+            <button class="gbtn">👍 Useful</button><button class="gbtn">Not relevant</button><button class="gbtn">Wrong</button>
+            <div style="flex:1"></div>
+            <button class="btn">Ask Friday about this</button>
+            <button class="btn primary">Add recommendation</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

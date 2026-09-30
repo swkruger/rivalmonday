@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Approval queue · Rival Monday</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#47A8E7; --secondary:#2A6BAC; --accent:#F5A524; --accent-text:#B45309;
+    --ink:#0B2540; --muted:#64748B; --line:#E2E8F0; --canvas:#F6F9FC; --surface:#fff;
+    --muted-surface:#EEF2F6; --muted-surface-2:#E2E8F0;
+    --success:#16A34A; --danger:#DC2626; --primary-soft:#E3F2FC; --primary-soft-text:#1F6FA8;
+    --shadow:0 1px 3px rgba(11,37,64,.06),0 1px 2px rgba(11,37,64,.04);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--canvas);font-size:14px}
+  .app{display:flex;min-height:100vh}
+  .side{width:232px;background:var(--surface);border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+  .logo{font-weight:800;font-size:24px;letter-spacing:-1px;padding:0 10px 18px}
+  .logo .r{color:var(--secondary)} .logo .m{color:var(--accent)}
+  .nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;color:#475569;text-decoration:none;font-weight:500}
+  .nav a svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8}
+  .nav a.active{background:var(--primary-soft);color:var(--primary-soft-text);font-weight:600}
+  .fri{background:var(--accent);color:#3B2300;font-weight:700;font-size:12px;padding:2px 9px;border-radius:99px}
+  .side .spacer{flex:1}
+  .agency{border-top:1px solid var(--line);padding:14px 10px 0;font-size:12px;color:var(--muted)}
+  .agency b{display:block;color:var(--ink);font-size:13px}
+  .main{flex:1;min-width:0}
+  .top{height:68px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 max(28px, calc((100% - 1560px) / 2 + 28px))}
+  .top .lbl{color:var(--muted)}
+  .select{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:270px;font-weight:600;background:#fff}
+  .select .dot{width:26px;height:26px;border-radius:7px;background:var(--secondary);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:800}
+  .select .chev{margin-left:auto;color:var(--muted)}
+  .top .sp{flex:1}
+  .avatar{width:38px;height:38px;border-radius:50%;background:var(--secondary);color:#fff;display:grid;place-items:center;font-weight:700}
+  .content{padding:26px 28px 40px;display:flex;flex-direction:column;gap:18px;max-width:1560px;margin:0 auto}
+  h1{font-size:26px;margin:0;letter-spacing:-.4px}
+  .sub{color:var(--muted);margin-top:4px}
+  .card{background:var(--surface);border-radius:14px;box-shadow:var(--shadow)}
+  .pill{font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;white-space:nowrap}
+  .pill.alert{background:#FEE2E2;color:#B91C1C}
+  .pill.brief{background:#FFF3DC;color:var(--accent-text)}
+  .pill.archive{background:var(--muted-surface-2);color:var(--ink)}
+  .pill.info{background:var(--primary-soft);color:var(--primary-soft-text)}
+
+  .ws{display:flex;align-items:center;gap:10px;font-weight:600}
+  .ws .dot{width:30px;height:30px;border-radius:8px;background:#0F766E;color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px}
+  .ws span{color:var(--muted);font-weight:500}
+  .count{margin-left:auto;background:var(--accent);color:#3B2300;font-size:11px;font-weight:700;border-radius:99px;padding:1px 7px}
+  .navsec{font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;padding:14px 12px 4px}
+  .hdr{display:flex;align-items:flex-end;gap:14px}
+  .hdr .sp{flex:1}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 14px;font:inherit;font-weight:600;font-size:13px;color:var(--ink)}
+  .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+  .gbtn{background:var(--muted-surface);color:var(--ink);border:0;border-radius:8px;padding:6px 10px;font:inherit;font-weight:600;font-size:12.5px}
+  .q-layout{display:grid;grid-template-columns:330px 1fr 380px;gap:18px;align-items:start}
+  .pad{padding:18px}
+  .card-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .card-head h2{font-size:16px;margin:0}
+  .card-head .sp{flex:1}
+  .hint{color:var(--muted);font-size:12.5px}
+  /* client list */
+  .cl{display:flex;flex-direction:column;gap:4px}
+  .ci{display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center;padding:10px;border-radius:10px}
+  .ci.sel{background:var(--primary-soft);box-shadow:inset 3px 0 0 var(--primary)}
+  .ci .av{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:#fff;font-weight:800;font-size:11px}
+  .ci h4{margin:0;font-size:13.5px}
+  .ci .m{font-size:12px;color:var(--muted)}
+  .st{font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:99px;white-space:nowrap}
+  .st.ready{background:var(--primary-soft);color:var(--primary-soft-text)}
+  .st.review{background:#FFF3DC;color:var(--accent-text)}
+  .st.ok{background:#DCFCE7;color:#15803D}
+  .st.quiet{background:var(--muted-surface-2);color:var(--ink)}
+  /* draft */
+  .verify{display:flex;gap:10px;align-items:center;background:#F0FDF4;border:1px solid #BBF7D0;color:#14532D;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px}
+  .removed{background:var(--muted-surface);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px;line-height:1.5}
+  .removed s{color:#991B1B}
+  .di{display:grid;grid-template-columns:20px 1fr;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  .di.hi{border-left:4px solid var(--accent)}
+  .di .grip{color:#CBD5E1;font-weight:800;letter-spacing:-2px;cursor:grab;padding-top:2px}
+  .di h4{margin:0 0 6px;font-size:14.5px}
+  .di p{margin:4px 0;line-height:1.45;color:var(--ink)}
+  .di .act b{color:var(--secondary)}
+  .di .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  .chip{display:inline-flex;font-size:12px;padding:3px 9px;border-radius:7px;background:var(--primary-soft);color:var(--primary-soft-text);font-weight:500}
+  .ok-ic{color:#15803D;font-size:12px;font-weight:600}
+  .up{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--ink);background:var(--muted-surface-2);padding:3px 8px;border-radius:6px}
+  .unsure{border:1.5px dashed var(--accent);background:#FFFBF2;border-radius:12px;padding:14px;margin-bottom:12px}
+  .unsure h4{margin:0 0 6px;font-size:14px;display:flex;gap:8px;align-items:center}
+  .unsure p{margin:0 0 10px;font-size:13px;line-height:1.45}
+  .signoff{background:var(--muted-surface);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--ink);line-height:1.5}
+  .foot{display:flex;gap:10px;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+  .foot .sp{flex:1}
+  /* automation */
+  .auto{display:flex;flex-direction:column;gap:12px}
+  .ar{background:var(--muted-surface);border-radius:12px;padding:12px 14px}
+  .ar h4{margin:0 0 2px;font-size:13.5px;display:flex;align-items:center;gap:8px}
+  .ar .d{font-size:12px;color:#334155;margin-bottom:10px}
+  .seg3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .seg3 span{text-align:center;font-size:11.5px;font-weight:600;padding:7px 4px;border-radius:8px;border:1.5px solid var(--primary);color:var(--primary-soft-text);background:#fff}
+  .seg3 span.on{background:var(--primary);color:#fff}
+  .sc{font-size:11px;font-weight:700;padding:1px 7px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="logo"><span class="r">rival</span><span class="m">monday</span></div>
+    <nav class="nav">
+      <div class="navsec">Agency</div>
+      <a href="#"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Portfolio</a>
+      <a class="active" href="#"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Approval queue <span class="count">7</span></a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/></svg>Clients</a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Prospecting</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/></svg>Playbooks</a>
+      <div class="navsec">Settings</div>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><circle cx="17.5" cy="15.5" r="2.5"/></svg>Branding &amp; voice</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>Automation</a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5"/><path d="M16 11h6M19 8v6"/></svg>Users</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Usage &amp; limits</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="agency">Signed in as<b>Jordan Lee · Account manager</b>Summit Digital</div>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <div class="ws"><span class="dot">SD</span>Summit Digital <span>· Agency workspace</span></div>
+      <div class="sp"></div>
+      <div class="avatar">JL</div>
+    </header>
+
+    <div class="content">
+      <div class="hdr">
+        <div>
+          <h1>Approval queue</h1>
+          <div class="sub"><span class="fri">Friday</span> drafted 7 briefs for the week of 28 Sep · clients set to auto-send go out Monday 07:00 if left untouched</div>
+        </div>
+        <div class="sp"></div>
+        <button class="btn">Approve all verified</button>
+      </div>
+
+      <div class="q-layout">
+        <!-- clients -->
+        <div class="card pad">
+          <div class="card-head"><h2>This week</h2><div class="sp"></div><span class="hint">7 clients</span></div>
+          <div class="cl">
+            <div class="ci sel"><span class="av" style="background:var(--secondary)">CA</span><div><h4>Comfort Air Heating &amp; Cooling</h4><div class="m">3 items · 1 needs your call</div></div><span class="st review">Needs review</span></div>
+            <div class="ci"><span class="av" style="background:#7C3AED">BS</span><div><h4>Bright Smiles Dental</h4><div class="m">4 items · all verified</div></div><span class="st ready">Ready</span></div>
+            <div class="ci"><span class="av" style="background:#0F766E">NP</span><div><h4>North Perimeter Plumbing</h4><div class="m">3 items · edited by you</div></div><span class="st ok">Approved</span></div>
+            <div class="ci"><span class="av" style="background:#DB2777">DD</span><div><h4>Dunwoody Family Dentistry</h4><div class="m">2 items · all verified</div></div><span class="st ready">Ready</span></div>
+            <div class="ci"><span class="av" style="background:#EA580C">RH</span><div><h4>Roswell Heating &amp; Air</h4><div class="m">4 items · 2 alerts this week</div></div><span class="st ready">Ready</span></div>
+            <div class="ci"><span class="av" style="background:#64748B">SS</span><div><h4>Sandy Springs Smiles</h4><div class="m">No significant moves</div></div><span class="st quiet">Quiet week</span></div>
+            <div class="ci"><span class="av" style="background:#0891B2">MP</span><div><h4>Marietta Pro Plumbing</h4><div class="m">3 items · auto-send on</div></div><span class="st ok">Auto-send</span></div>
+          </div>
+        </div>
+
+        <!-- draft -->
+        <div class="card pad">
+          <div class="card-head"><h2>Comfort Air · draft brief</h2><div class="sp"></div><button class="gbtn">Preview as client</button><button class="gbtn">Preview email</button></div>
+
+          <div class="verify">✔ <div><b>11 of 11 remaining claims verified</b> against saved evidence. Every sentence links to a snapshot, ad or review.</div></div>
+          <div class="removed"><b>1 sentence removed by the fact-check:</b> <s>"…running in Facebook ads within 10 miles of you."</s> Meta doesn't show where US ads are targeted, so this couldn't be proven.</div>
+
+          <div class="di hi">
+            <span class="grip">⋮⋮</span>
+            <div>
+              <h4>Smith HVAC cut its AC tune-up to $79 (was $99)</h4>
+              <p>Changed on their pricing page on Tue 22 Sep, and 3 new Facebook/Instagram ads started the same day (targeting not disclosed). Two of their reviews this week mention the discount.</p>
+              <p class="act"><b>Suggested:</b> Keep your $99 price and offer a $99 tune-up + filter + priority scheduling bundle.</p>
+              <div class="row"><span class="chip">Snapshot</span><span class="chip">Ad 1</span><span class="chip">Ad 2</span><span class="chip">2 reviews</span><span class="ok-ic">✔ verified</span><span class="up">Upsell: Google Ads promo</span></div>
+              <div class="row"><button class="gbtn">Edit</button><button class="gbtn">Remove</button><button class="gbtn">Move down</button></div>
+            </div>
+          </div>
+
+          <div class="di">
+            <span class="grip">⋮⋮</span>
+            <div>
+              <h4>Peachtree Air Pros added service-area pages for Brookhaven and Dunwoody</h4>
+              <p>Two new town pages went live on 23 Sep, alongside a technician job post based in Dunwoody. Possible signal: expanding into your core area.</p>
+              <p class="act"><b>Suggested:</b> Refresh your Brookhaven and Dunwoody pages and post on your Google profile twice this week.</p>
+              <div class="row"><span class="chip">Page: Brookhaven</span><span class="chip">Page: Dunwoody</span><span class="chip">Job post</span><span class="ok-ic">✔ verified</span><span class="up">Upsell: Local SEO sprint</span></div>
+            </div>
+          </div>
+
+          <div class="unsure">
+            <h4><span class="fri">Friday</span> is unsure — your call</h4>
+            <p>Metro Comfort Co. changed the heading on its maintenance-plan page from "Comfort Club" to "Priority Club". Friday can't tell whether this is a rename or a new, pricier plan (confidence 58%).</p>
+            <div class="row"><span class="chip">Before/after</span><div style="flex:1"></div><button class="gbtn">Include in brief</button><button class="gbtn">It's just a rename</button></div>
+          </div>
+
+          <div class="signoff">Sign-off: <i>"Questions about any of this? Reply to this email or book 15 minutes with me: summitdigital.com/jordan. — Jordan"</i></div>
+
+          <div class="foot"><button class="gbtn">Send test to me</button><div class="sp"></div><button class="btn">Send now</button><button class="btn primary">Approve · send Mon 07:00</button></div>
+        </div>
+
+        <!-- automation -->
+        <div class="card pad">
+          <div class="card-head"><h2>Automation for Comfort Air</h2></div>
+          <div class="auto">
+            <div class="ar">
+              <h4>High-priority alerts <span class="sc" style="background:#FEE2E2;color:#B91C1C">score 70+</span></h4>
+              <div class="d">Price cuts, new competitors in your area, sudden rating drops</div>
+              <div class="seg3"><span>Manual</span><span class="on">AI · approval required</span><span>AI · fully automated</span></div>
+            </div>
+            <div class="ar">
+              <h4>Weekly brief <span class="sc" style="background:#FFF3DC;color:var(--accent-text)">score 40–69</span></h4>
+              <div class="d">Friday drafts it on Thursday night for you to review on Friday</div>
+              <div class="seg3"><span>Manual</span><span class="on">AI · approval required</span><span>AI · fully automated</span></div>
+            </div>
+            <div class="ar">
+              <h4>Recommendations</h4>
+              <div class="d">Suggested actions created from moves and your playbooks</div>
+              <div class="seg3"><span>Manual</span><span>AI · approval required</span><span class="on">AI · fully automated</span></div>
+            </div>
+            <div class="ar">
+              <h4>Client sees alerts</h4>
+              <div class="d">How high-priority alerts reach Comfort Air</div>
+              <div class="seg3"><span>Direct</span><span class="on">After my check</span><span>Weekly digest</span></div>
+            </div>
+            <div class="ar">
+              <h4>If I don't review in time</h4>
+              <div class="d">Brief not approved by Monday 07:00</div>
+              <div class="seg3"><span>Hold it</span><span class="on">Send verified items</span><span>Notify me only</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
