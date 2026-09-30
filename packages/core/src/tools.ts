@@ -142,16 +142,22 @@ export class ToolRegistry<D> {
       if (err instanceof ToolError) outcome = err.code;
       throw err;
     } finally {
-      await this.audit.record({
-        agencyId: ctx.agencyId,
-        userId: ctx.userId,
-        role: ctx.role,
-        tool: name,
-        inputHash,
-        outcome,
-        rowCount,
-        durationMs: this.now() - started,
-      });
+      try {
+        await this.audit.record({
+          agencyId: ctx.agencyId,
+          userId: ctx.userId,
+          role: ctx.role,
+          tool: name,
+          inputHash,
+          outcome,
+          rowCount,
+          durationMs: this.now() - started,
+        });
+      } catch (err) {
+        // eslint-disable-next-line no-console -- audit failures must be visible even though we fail closed below
+        console.error('[tools] audit write failed', err);
+        throw new ToolError('internal', 'Audit logging failed', { cause: err });
+      }
     }
   }
 }

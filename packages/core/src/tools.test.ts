@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createAccessContext } from './access';
 import { type AuditEvent, ToolError, ToolRegistry, toolkit } from './tools';
@@ -121,5 +121,31 @@ describe('ToolRegistry', () => {
     await expect(registry.invoke(viewer, 'rate_limited_tool', {})).rejects.toMatchObject({ code: 'rate_limited' });
     await expect(registry.invoke(viewer, 'broken', {})).rejects.toMatchObject({ code: 'internal' });
     await expect(registry.invoke(viewer, 'bad_output', {})).rejects.toMatchObject({ code: 'internal' });
+  });
+
+  describe('when the audit sink itself fails', () => {
+    let consoleError: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      consoleError.mockRestore();
+    });
+
+    it('fails closed with a typed internal error even though the tool itself succeeded', async () => {
+      const failingRegistry = new ToolRegistry<Deps>(
+        { greeting: 'hi' },
+        { record: async () => { throw new Error('audit sink down'); } },
+      );
+      failingRegistry.register(echo);
+
+      await expect(failingRegistry.invoke(viewer, 'echo', { message: 'there' })).rejects.toMatchObject({
+        code: 'internal',
+        message: 'Audit logging failed',
+      });
+      expect(consoleError).toHaveBeenCalledWith('[tools] audit write failed', expect.any(Error));
+    });
   });
 });
