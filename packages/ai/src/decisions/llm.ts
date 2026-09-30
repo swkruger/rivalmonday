@@ -60,7 +60,10 @@ export function createLlmDecisionProvider(chat: ChatProvider, opts: { model: str
         required: entries.map(([k]) => k),
         additionalProperties: false,
       };
-      const stateText = typeof state === 'string' ? state : JSON.stringify(state, null, 2);
+      const rawStateText = typeof state === 'string' ? state : JSON.stringify(state, null, 2);
+      // Neutralise tag-like delimiters so untrusted state cannot close the <state> block early
+      // or impersonate a fake "Questions:" section.
+      const stateText = rawStateText.replace(/<(\/?)state/gi, '&lt;$1state');
       const result = await chat.complete({
         model: opts.model,
         fallbacks: opts.fallbacks,
