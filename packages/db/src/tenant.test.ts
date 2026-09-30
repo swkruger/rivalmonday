@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
 import { agency, client, clientCompetitor, competitor } from './schema';
@@ -80,5 +80,80 @@ describe('row-level security', () => {
 
   it('service role bypasses RLS for system jobs', async () => {
     expect(await dbs.service.select().from(client)).toHaveLength(3);
+  });
+
+  it('cannot link a client belonging to another agency (client_id/agency_id integrity)', async () => {
+    const text = await errorText(
+      withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) =>
+        tx.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientB1, competitorId: IDS.competitorX }),
+      ),
+    );
+    expect(text).toMatch(/foreign key|constraint/i);
+  });
+
+  it('cannot insert a link for a client outside the scoped clientScope', async () => {
+    const text = await errorText(
+      withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: [IDS.clientA1] }, (tx) =>
+        tx.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorY }),
+      ),
+    );
+    expect(text).toMatch(/row-level security/i);
+  });
+
+  it('cannot move a client to another agency via UPDATE', async () => {
+    const text = await errorText(
+      withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) =>
+        tx.update(client).set({ agencyId: IDS.agencyB }).where(eq(client.id, IDS.clientA1)),
+      ),
+    );
+    expect(text).toMatch(/row-level security/i);
+  });
+
+  it('UPDATE/DELETE on an out-of-scope client silently affect zero rows and leave it untouched', async () => {
+    await withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, async (tx) => {
+      const updated = (await tx.update(client).set({ name: 'x' }).where(eq(client.id, IDS.clientB1))) as unknown as {
+        count: number;
+      };
+      expect(updated.count).toBe(0);
+      const deleted = (await tx.delete(client).where(eq(client.id, IDS.clientB1))) as unknown as { count: number };
+      expect(deleted.count).toBe(0);
+    });
+    const stillThere = await dbs.owner.select().from(client).where(eq(client.id, IDS.clientB1));
+    expect(stillThere).toHaveLength(1);
+    expect(stillThere[0]?.name).toBe('B1 HVAC');
+  });
+
+  it('app_user cannot write to the agency table; deleting it cannot cascade-wipe out-of-scope clients', async () => {
+    const deleteText = await errorText(
+      withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: [IDS.clientA1] }, (tx) => tx.delete(agency)),
+    );
+    expect(deleteText).toMatch(/permission denied/i);
+    const a2StillThere = await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA2));
+    expect(a2StillThere).toHaveLength(1);
+
+    const updateText = await errorText(
+      withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) => tx.update(agency).set({ name: 'Renamed' })),
+    );
+    expect(updateText).toMatch(/permission denied/i);
+  });
+
+  it('app_user cannot insert new competitors', async () => {
+    const text = await errorText(
+      withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) =>
+        tx.insert(competitor).values({ name: 'Sneaky Competitor', domain: 'sneaky.example' }),
+      ),
+    );
+    expect(text).toMatch(/row-level security/i);
+  });
+
+  it('every table in the public schema enables and forces row-level security', async () => {
+    const rows = await dbs.owner.execute(sql`
+      SELECT c.relname AS name, c.relrowsecurity AS rls, c.relforcerowsecurity AS force
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind = 'r'
+    `);
+    const unprotected = (rows as unknown as { name: string; rls: boolean; force: boolean }[]).filter((r) => !r.rls || !r.force);
+    expect(unprotected).toEqual([]);
   });
 });

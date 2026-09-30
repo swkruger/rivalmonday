@@ -15,6 +15,20 @@
       "when": 1790805393126,
       "tag": "0001_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790805756347,
+      "tag": "0002_tenant_integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790805798634,
+      "tag": "0003_agency_readonly",
+      "breakpoints": true
     }
   ]
 }
