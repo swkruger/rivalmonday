@@ -43,6 +43,13 @@
       "when": 1790806729029,
       "tag": "0005_ledger_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790808418472,
+      "tag": "0006_ledger_readonly",
+      "breakpoints": true
     }
   ]
 }

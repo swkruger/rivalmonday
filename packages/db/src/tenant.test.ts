@@ -1,6 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
+import { IDS, errorText, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
 import { agency, client, clientCompetitor, competitor } from './schema';
 import { withTenant } from './tenant';
 
@@ -12,17 +12,6 @@ beforeEach(async () => {
 });
 
 const ids = (rows: { id: string }[]) => rows.map((r) => r.id).sort();
-
-/** Drizzle 0.44 wraps driver errors (DrizzleQueryError); the Postgres message is on `cause`. */
-async function errorText(p: Promise<unknown>): Promise<string> {
-  try {
-    await p;
-  } catch (e) {
-    const err = e as { message?: string; cause?: { message?: string } };
-    return `${err.message ?? ''} ${err.cause?.message ?? ''}`;
-  }
-  throw new Error('expected promise to reject');
-}
 
 describe('row-level security', () => {
   it('returns nothing without tenant context (fail closed)', async () => {

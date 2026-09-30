@@ -8,6 +8,17 @@ export const testUrls = {
   service: process.env.TEST_SERVICE_DATABASE_URL ?? 'postgres://app_service:app_service@localhost:5432/cs_test',
 };
 
+/** Drizzle 0.44 wraps driver errors (DrizzleQueryError); the Postgres message is on `cause`. */
+export async function errorText(p: Promise<unknown>): Promise<string> {
+  try {
+    await p;
+  } catch (e) {
+    const err = e as { message?: string; cause?: { message?: string } };
+    return `${err.message ?? ''} ${err.cause?.message ?? ''}`;
+  }
+  throw new Error('expected promise to reject');
+}
+
 export function openTestDbs() {
   const owner = createDb(testUrls.owner);
   const app = createDb(testUrls.app);
