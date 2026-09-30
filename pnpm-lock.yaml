@@ -80,6 +80,9 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.4)(tsx@4.23.15)(yaml@2.9.1)
+      zod:
+        specifier: ^4.1.5
+        version: 4.6.5
 
   packages/verticals:
     dependencies:
