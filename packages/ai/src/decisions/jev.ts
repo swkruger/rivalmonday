@@ -72,6 +72,9 @@ export function createJevProvider(opts: JevOptions): DecisionProvider {
           if (!(a.choice in q.options)) throw new AiProviderError('jev', 200, `Answer for ${key} is not a valid option`, false);
           answers[key as K] = { type: 'choice', value: a.choice, probabilities: a.probabilities, confidence: a.confidence };
         } else if (a.type === 'score' && q.type === 'score') {
+          if (!Number.isInteger(a.score) || a.score < 0 || a.score >= q.levels.length) {
+            throw new AiProviderError('jev', 200, `Answer for ${key} is out of range`, false);
+          }
           answers[key as K] = { type: 'score', value: a.score, probabilities: a.probabilities, confidence: a.confidence };
         }
       }

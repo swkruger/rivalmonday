@@ -63,6 +63,12 @@ describe('Jev provider', () => {
     await expect(setup(bad).provider.decide('s', questions)).rejects.toThrow(/change_type/);
   });
 
+  it('throws when a score is out of range for the number of levels', async () => {
+    const bad = { ...jevResponse, answers: { ...jevResponse.answers, severity: { ...jevResponse.answers.severity, score: 3 } } };
+    await expect(setup(bad).provider.decide('s', questions)).rejects.toMatchObject({ provider: 'jev', retryable: false });
+    await expect(setup(bad).provider.decide('s', questions)).rejects.toThrow(/severity/);
+  });
+
   it('validates questions before calling the API', async () => {
     const { fetch, provider } = setup();
     await expect(provider.decide('s', { q: { type: 'score', instructions: 'x', levels: ['only one'] } })).rejects.toThrow(/2-10 levels/);
