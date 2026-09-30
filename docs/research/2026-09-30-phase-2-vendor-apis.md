@@ -1,0 +1,727 @@
+# Phase 2 Vendor API Reference (researched 2026-09-30)
+
+Purpose: exact, source-cited API contracts for implementing data collectors in the TypeScript/Node 24 SaaS. Every fact below is cited to the doc page it came from. Anything the research could not independently confirm is marked **UNVERIFIED**. Do not code strict TypeScript interfaces against UNVERIFIED nested fields without a live sandbox/test call first.
+
+Research method note: most DataForSEO/Apify/Meta pages were retrieved via an HTML-to-markdown fetch-and-summarize tool rather than raw JSON schema dumps. Where a sub-finding carries elevated transcription risk (deep nesting, exact casing), this is flagged inline even when the overall fact is otherwise confirmed.
+
+---
+
+## 1. DataForSEO v3
+
+**Auth:** HTTP Basic (`login:password`, base64-encoded in the `Authorization` header) against `https://api.dataforseo.com/v3`. This is standard across all DataForSEO v3 endpoints (confirmed explicitly on the Google Reviews doc page; treated as universal SDK convention for the other endpoints below — UNVERIFIED as independently restated on every individual page).
+
+**Sandbox:** CONFIRMED real. Base URL is `https://sandbox.dataforseo.com/v3` — swap only the hostname from `api.dataforseo.com`; same paths, same POST bodies, no code changes needed. Same account credentials as production (no separate sandbox key). Free — "Your account will not be charged for using Sandbox endpoints." Returns dummy/mock data, but response structure and field names are identical to production. Same rate limits as production apply in sandbox (2,000 calls/min; POST bodies limited to 100 tasks, or 1 task for live methods).
+Source: https://docs.dataforseo.com/v3/appendix-sandbox/ (note: the correct current path is `/v3/appendix-sandbox/`, **not** `/v3/sandbox/` — the latter 404s).
+
+### 1a. Google Maps SERP (with coordinates)
+
+Source: https://docs.dataforseo.com/v3/serp/google/maps/live/advanced/ ; pricing: https://dataforseo.com/pricing/serp/google-maps-serp-api
+
+**Endpoint (Live/synchronous):** `POST https://api.dataforseo.com/v3/serp/google/maps/live/advanced`
+(No task_post/task_get variant needed for this doc — Live is the endpoint modeled in the source brief; DataForSEO also offers Standard queue variants for Maps under `serp/google/maps/task_post` / `task_get`, not separately verified here.)
+
+**Request fields:**
+- `keyword` (string, required, ≤700 chars)
+- One of: `location_code` (integer) | `location_name` (string) | `location_coordinate` (string, format **"latitude,longitude,zoom"**, e.g. style `"53.476,-2.243,15z"`) — **UNVERIFIED**: a full literal worked example string was not visible in the fetched page text; the format description itself ("latitude,longitude,zoom") is confirmed.
+- One of: `language_code` (string) | `language_name` (string)
+- `depth` (integer, optional, default 100, max 700 — number of results)
+- `device` (string, optional: `"desktop"` | `"mobile"`, default `"desktop"`)
+- `os` (string, optional: `"windows"`/`"macos"` for desktop; `"android"`/`"ios"` for mobile)
+- `tag` (string, optional, ≤255 chars)
+- `max_crawl_pages` (integer, optional, max 100)
+- `url` (string, optional — direct search URL override)
+- `se_domain` (string, optional — custom search engine domain)
+- `search_this_area` (boolean, optional, default true)
+- `search_places` (boolean, optional, default true)
+
+**Response envelope (top level):**
+```
+version, status_code, status_message, time, cost, tasks_count, tasks_error, tasks[]
+```
+`tasks[]` item:
+```
+id, status_code, status_message, time, cost, result_count, path, data, result[]
+```
+`result[]` item:
+```
+keyword, type, se_domain, location_code, language_code, check_url, datetime,
+spell, refinement_chips, item_types, se_results_count, items_count, items[]
+```
+`items[]` item (type `"maps_search"` or `"maps_paid_item"`) — fields relevant to us:
+```
+type, rank_group, rank_absolute, domain, title, original_title, url,
+contact_url, contributor_url, book_online_url,
+rating: { rating_type, value, votes_count, rating_max },
+rating_distribution,
+snippet, address, address_info, place_id, phone,
+main_image, total_photos, category, additional_categories, category_ids,
+work_hours (timetable with day/open/close), current_status,
+feature_id, cid, latitude, longitude,
+is_claimed, local_justifications, is_directory_item, price_level, hotel_rating
+```
+`rating` **is a nested object** (`rating.value`, `rating.votes_count`, `rating.rating_type`, `rating.rating_max`) — confirmed. `place_id` and `cid` are both top-level item fields, not nested.
+
+**Cost:** Live Mode = **$0.002 per SERP page** (up to 1,000,000 SERPs = $2,000). Average turnaround ~6 seconds.
+
+### 1b. Business Data: Google My Business Info
+
+Sources: https://docs.dataforseo.com/v3/business_data/google/my_business_info/task_post/ ; https://docs.dataforseo.com/v3/business_data/google/my_business_info/task_get/ ; https://docs.dataforseo.com/v3/?p=18537 (Live doc); https://dataforseo.com/update/live-google-my-business-info-api
+
+**Endpoints:**
+- Live (sync): `POST https://api.dataforseo.com/v3/business_data/google/my_business_info/live` — note the exact path is `.../live`, **not** `.../live/advanced/` (that URL 404s).
+- Standard (async): `POST https://api.dataforseo.com/v3/business_data/google/my_business_info/task_post`
+- Result retrieval: `GET https://api.dataforseo.com/v3/business_data/google/my_business_info/task_get/{id}` (`{id}` = UUID from task_post response)
+
+**Querying by keyword vs place_id vs cid — IMPORTANT:** this endpoint has **no separate `place_id`/`cid` request fields**. There is a single **`keyword`** field (string, ≤700 chars) that also accepts the literal prefixes `cid:` or `place_id:` inside that same string, e.g. `keyword: "place_id:ChIJ..."` or `keyword: "cid:194604..."`.
+
+**Request fields:**
+```
+keyword             string   required  (business name, or "cid:<id>" / "place_id:<id>" prefix string)
+location_name        string   one-of (with location_code, location_coordinate)
+location_code        integer  one-of
+location_coordinate  string   one-of  "latitude,longitude,radius"
+language_name        string   one-of (with language_code)
+language_code        string   one-of
+priority             integer  optional  1=standard(default), 2=high priority (task_post only)
+tag                  string   optional  ≤255 chars
+postback_url         string   optional  (task_post only)
+pingback_url         string   optional  (task_post only)
+```
+
+**Response envelope:** same shape as 1a (`status_code`, `tasks[]` → `result[]` → `items[]`, `type: "google_business_info"`).
+
+**Item fields:**
+```
+type, rank_group, rank_absolute, position
+title, original_title, description, snippet
+category (primary, string), category_ids[], additional_categories[]
+cid, feature_id, place_id
+address (string)
+address_info: { borough, address, city, zip, region, country_code }   UNVERIFIED exact nesting
+phone, url, domain, contact_url, contributor_url, book_online_url
+logo, main_image, total_photos
+rating: { rating_type, value, votes_count, rating_max }
+rating_distribution: { "1":n ... "5":n }   UNVERIFIED exact key format (string vs int keys)
+work_time.work_hours.timetable: per-day { open:{hour,minute}, close:{hour,minute} }   UNVERIFIED exact dotting
+current_status  (opened / closed / temporarily_closed / closed_forever)
+popular_times.popular_times_by_days   UNVERIFIED structure
+latitude, longitude (float)
+is_claimed (boolean — this is the "verified" flag; no separate "verified" field documented)
+attributes (object)   UNVERIFIED exact shape
+place_topics (object — review keyword mentions)
+price_level (inexpensive/moderate/expensive/very_expensive)
+hotel_rating (1-5, hotels only)
+people_also_search[], local_business_links[]
+services[] (pricing — added by a later API update per changelog)
+is_directory_item, directory[]
+```
+No dedicated `reviews_count` field was confirmed on this endpoint separate from `rating.votes_count` — **UNVERIFIED: likely does not exist** (unlike the Reviews endpoint below, which does have a distinct `reviews_count`).
+
+**Cost:**
+- Live: **$0.0054 per profile** ($5.4 per 1,000)
+- Standard queue: **$0.0015 per profile** ($1.5 per 1,000)
+- Priority queue: **$0.003 per profile** ($3 per 1,000)
+
+### 1c. Business Data: Google Reviews
+
+Sources: https://docs.dataforseo.com/v3/business_data/google/reviews/task_post/ ; https://docs.dataforseo.com/v3/business_data/google/reviews/task_get/ ; https://docs.dataforseo.com/v3/business_data/google/reviews/tasks_ready/ ; https://dataforseo.com/pricing/business-data/google-reviews-api
+
+**No live/synchronous mode exists for Reviews** — confirmed explicitly: "Google Reviews API supports only the Standard method of data retrieval, which requires making separate POST and GET requests." (Live mode exists only for My Business Info, not Reviews.)
+
+**Endpoints:**
+- `POST https://api.dataforseo.com/v3/business_data/google/reviews/task_post`
+- `GET https://api.dataforseo.com/v3/business_data/google/reviews/task_get/{id}` (`{id}` = UUID, valid 30 days)
+- `GET https://api.dataforseo.com/v3/business_data/google/reviews/tasks_ready` — polling endpoint, up to 20 calls/min, up to 1000 ready tasks per call, 3-day retention post-completion. Each entry: `id`, `se` (`"google"`), `se_type` (`"reviews"`), `date_posted`, `tag`, `endpoint` (URL to fetch that task's result).
+
+**task_post request fields:**
+```
+keyword               string   one-of {keyword, cid, place_id} — exactly one required
+cid                    string   one-of  e.g. "194604053573767737"
+place_id               string   one-of  e.g. "ChIJ..." / "GhIJ..."
+location_name          string   one-of (with location_code, location_coordinate)
+location_code          integer  one-of
+location_coordinate    string   one-of  "latitude,longitude,radius" (min radius 199.9, max 7 decimals)
+language_name          string   one-of (with language_code)
+language_code          string   one-of
+depth                  integer  optional  default 10, max 4490 — number of reviews to retrieve; billing is per-10-reviews so multiples of 10 recommended
+sort_by                string   optional  default "relevant"; valid: "newest" | "highest_rating" | "lowest_rating" | "relevant"
+priority               integer  optional  1=normal(default), 2=high priority (extra charge)
+tag                    string   optional  ≤255 chars
+postback_url           string   optional  supports $id/$tag variables
+pingback_url           string   optional  supports $id/$tag variables
+```
+Both `place_id` and `cid` are first-class separate fields here (unlike My Business Info, which only has `keyword` with a prefix convention). No `search_after_token` field was found — **UNVERIFIED / likely does not exist**; pagination appears to be purely `depth`-based.
+
+**Response envelope:** same shape (`tasks[]` → `result[]` → `items[]`). Result-level (aggregate) fields: `keyword, type, se_domain, location_code, language_code, check_url, datetime, title, sub_title, rating (object), feature_id, place_id, cid, reviews_count, items_count`.
+
+**Review item fields (`items[]`):**
+```
+type, rank_group, rank_absolute, position, xpath
+review_text, original_review_text, original_language
+time_ago
+timestamp                string   UTC, format "yyyy-mm-dd hh:mm:ss +00:00"
+rating: { rating_type, value, votes_count, rating_max }   — per-review rating is rating.value (1-5)
+reviews_count             (documented at result level; item-level occurrence UNVERIFIED)
+photos_count
+local_guide               boolean
+profile_name
+profile_url
+profile_image_url         (reviewer's photo URL — NOT "profile_photo_url")
+review_url
+review_id
+owner_answer               string — FLAT STRING, not a nested {text, timestamp} object
+original_owner_answer       string
+owner_time_ago               string
+owner_timestamp               string (separate sibling field, same format as timestamp)
+images[]: { type, alt, url, image_url }
+review_highlights[]: { feature, assessment }
+```
+**Correction vs. common assumption:** `owner_answer` is a **flat string**, with `owner_timestamp` / `owner_time_ago` as separate sibling fields — not a nested `owner_answer.text` / `owner_answer.timestamp` object. No "helpful votes" field is documented for reviews.
+
+**Depth/pagination:** `depth` is the sole pagination lever — max reviews returned per task (default 10, max 4490); no offset/page field. `depth=700` → up to 700 reviews, billed as 70 units of 10.
+
+**Turnaround:** Standard queue up to 45 minutes; Priority queue (`priority:2`) up to 1 minute.
+
+**Cost:**
+- Standard queue: **$0.00075 per 10 reviews** ($75 per 1M reviews)
+- Priority queue: **$0.0015 per 10 reviews** ($150 per 1M reviews)
+
+**review_id stability:** not explicitly addressed by the docs fetched — treat as **UNVERIFIED** whether `review_id` is stable across repeated pulls of the same review (important for the data model's dedup key). Recommend a live test: pull the same place's reviews twice a week apart and diff `review_id` values before relying on it as a primary key.
+
+### 1d. Google Ads Transparency (SERP endpoints)
+
+Sources: https://docs.dataforseo.com/v3/serp/google/ads_advertisers/live/advanced/ ; https://docs.dataforseo.com/v3/serp/google/ads_search/live/advanced/ ; pricing: https://dataforseo.com/pricing/serp/google-ads-advertisers-serp-api ; https://dataforseo.com/pricing/serp/google-ads-search-serp-api
+
+**Correction vs. common assumption:** these are two functionally different endpoints, not a single advertiser+ads pair keyed by domain.
+
+**`ads_advertisers` — advertiser/account finder (keyword/name search, NOT a domain lookup):**
+`POST https://api.dataforseo.com/v3/serp/google/ads_advertisers/live/advanced`
+Request: `keyword` (string, required, ≤700 chars — advertiser name search, not a domain), `location_name`/`location_code`/`location_coordinate` ("latitude,longitude") optional, `priority` (1 normal/default, 2 high), `tag` (≤255 chars).
+Response `items[]`:
+```
+type: "ads_multi_account_advertiser" | "ads_advertiser" | "ads_domain"
+rank_group, rank_absolute
+title            (advertiser name)
+location         (country code)
+verified         (boolean)
+approx_ads_count (integer)
+advertiser_id    (present for single-advertiser results)
+domain           (present for domain-type results)
+advertisers[]    (nested account objects, present for multi-account results)
+```
+No `creative_id`, `first_shown`/`last_shown`, or preview/image URL on this endpoint.
+Cost: billed only for setting a task, at the Google Organic SERP base rate — Standard queue $0.0006/request ($600/1M), Priority queue $0.0012/request ($1,200/1M), despite the "/live/advanced" path name (turnaround framed as 5 min Standard / ~1 min Priority, not instant).
+
+**`ads_search` — creative-level endpoint (this is the one with creative_id/first_shown/last_shown/preview image):**
+`POST https://api.dataforseo.com/v3/serp/google/ads_search/live/advanced`
+Request: one of `target` (string, domain associated with advertiser) or `advertiser_ids` (array, max 25); optional `location_code`/`location_name`/`location_coordinate`; `depth` (default 40, max 120); `platform` (`"all"|"google_play"|"google_maps"|"google_search"|"google_shopping"|"youtube"`); `format` (`"all"|"text"|"image"|"video"`); `priority` (1/2); `tag`; `date_from`/`date_to` (yyyy-mm-dd, min date 2018-05-31).
+Response `items[]` (type `"ads_search"`):
+```
+type, rank_group, rank_absolute,
+advertiser_id, creative_id,
+title      (advertiser name)
+url        (ad transparency platform link)
+verified
+format     (text | image | video)
+preview_image: { url, height, width }
+first_shown, last_shown   (timestamps)
+```
+Preview image is nested at `preview_image.url`, not a bare `preview`/`image` field.
+Cost: Live Mode $0.002/SERP page of up to 40 results ($2,000/1M); Priority queue $0.0012/page (~1 min); Standard queue $0.0006/page (~5 min). Extra charges apply beyond 40 results/page — **UNVERIFIED exact multiplier/formula**.
+
+### 1e. Google Jobs SERP
+
+Sources: https://docs.dataforseo.com/v3/serp/google/jobs/overview/ ; https://docs.dataforseo.com/v3/serp/google/jobs/task_post/ ; https://docs.dataforseo.com/v3/serp/google/jobs/task_get/advanced/ ; https://dataforseo.com/pricing/serp/google-jobs-serp-api
+
+**Correction vs. common assumption: there is NO live/advanced endpoint for Jobs.** `.../jobs/live/advanced/` 404s, and the pricing page explicitly states no separate Live pricing/execution method is offered. Standard (task_post/tasks_ready/task_get) is the only mode.
+
+**Endpoints:**
+```
+POST https://api.dataforseo.com/v3/serp/google/jobs/task_post
+GET  https://api.dataforseo.com/v3/serp/google/jobs/tasks_ready
+GET  https://api.dataforseo.com/v3/serp/google/jobs/task_get/advanced/{id}
+GET  https://api.dataforseo.com/v3/serp/google/jobs/task_get/html/{id}
+GET  https://api.dataforseo.com/v3/serp/google/jobs/locations
+```
+
+**task_post request fields:**
+```
+keyword           string   required  (job title, ≤700 chars)
+location_code / location_name   one-of, required
+language_code / language_name   one-of, required
+depth             integer  optional  default 10, max 200 (results per SERP)
+priority          integer  optional  1 normal, 2 high
+tag               string   optional  ≤255 chars
+location_radius   string   optional  search radius in km, max 300
+employment_type   array    optional  "fulltime" | "partime" | "contractor" | "intern"
+                            NOTE: DataForSEO's own doc spells it "partime" (not "parttime") — quote verbatim, do not "fix" when implementing
+pingback_url, postback_url, postback_data ("regular"|"advanced"|"html", required if postback_url set)
+```
+
+**task_get/advanced response** — same envelope shape as other SERP endpoints. `items[]` item (type `"google_jobs_item"`):
+```
+type, rank_group, rank_absolute, position, xpath,
+job_id, title,
+employer_name, employer_url, employer_image_url,
+location,
+source_name, source_url,
+salary            (free-text string or null — NOT a structured min/max/currency object)
+contract_type,
+timestamp, time_ago,
+rectangle (object or null)
+```
+Field-name corrections vs. common guesses: posting recency is `time_ago` (plus raw `timestamp`), not `posted_at`; the listing URL is `source_url`, not `url`. **UNVERIFIED: whether a long-form `description` field exists in `items[]`** — the fetched doc text did not show one; recommend checking a live example response before assuming a description is available via the advanced JSON (it may only exist in the `task_get/html` variant).
+
+**Cost:** Standard queue normal priority $0.0006 per SERP page/10 results ($600/1M), turnaround up to 5 min; high priority $0.0012/page ($1,200/1M), turnaround ~1 min average.
+
+### 1f. Error codes / rate limits
+
+Sources: https://docs.dataforseo.com/v3/appendix/errors/ ; https://docs.dataforseo.com/v3/appendix-sandbox/ ; https://dataforseo.com/help-center/rate-limits-and-request-limits
+
+**Error structure:** every response has `status_code` (integer) and `status_message` (string) at both the top level and inside each `tasks[]` item. Code ranges: `20000`s = success (e.g. `20000` "ok.", `20100` "task created."), `40000`s = client error, `50000`s = server error.
+
+Specific codes quoted on the page:
+- `40100` — "you are not authorized to access this resource"
+- `40104` — account verification required before API use
+- `40202` — "the rate-limit per minute has been exceeded"
+- `40203` — daily cost limit exceeded
+- `40401` — "task not found"
+- `40403` — "results expired" (tasks older than 30 days)
+- `50401` — "internal error - timeout" (live-mode tasks exceeding 120 seconds)
+- `50301` — "3rd party api service unavailable"
+
+HTTP-level status is normally `200` even on API-level errors, but `401`, `402`, `404`, `500` can occur at the HTTP layer too.
+
+**Rate limits (production, from the help-center page):**
+- General: **2,000 requests/minute** across most endpoints
+- `task_post`: recommended max **100 tasks per POST call**
+- OnPage Instant Pages / Content Parsing Live / Page Screenshot: stricter **20 tasks max per request**
+- Database-dependent APIs (Content Analysis, Trends, Labs, Backlinks, AI Optimization, OnPage): max **30 simultaneous/concurrent requests** per endpoint
+- Live Google Ads (Keyword Data API — a different product area from the SERP ads endpoints in 1d): **12 requests/minute** — **UNVERIFIED** whether this specific figure also applies to `serp/google/ads_search`/`ads_advertisers`; treat those as falling under the general 2,000/min limit unless proven otherwise
+- Live Google Trends: 250 Live tasks/minute, system-wide (shared across all users)
+
+**UNVERIFIED:** no dedicated `docs.dataforseo.com/v3/appendix/rate-limits/` page was found; the authoritative numbers above come from the `dataforseo.com/help-center` page, not a `docs.dataforseo.com` page.
+
+---
+
+## 2. Apify — Meta/Facebook Ad Library scraping
+
+Caveat: Apify Store pages were mostly read via summarized fetch, so output field **casing** (camelCase vs snake_case) carries residual risk except where a raw OpenAPI spec was pulled directly (noted below). Recommend one live test run per actor before hard-coding TypeScript interfaces.
+
+### 2a. Actor selection
+
+| Actor slug | Users (total/monthly) | Rating | Notes |
+|---|---|---|---|
+| `apify/facebook-ads-scraper` (official) | 39,627 / 6,657 | 3.99/5 | Official Apify namespace |
+| `curious_coder/facebook-ads-library-scraper` | 42,841 / 6,040 | 4.78/5 (102 reviews) | Higher rated, last updated Jan 30, 2026 |
+| `tugkan/facebookads-scraper` | ~28,000 / 4,100 | 4.2/5 (52 reviews) | Smaller alternative |
+
+Recommendation: **`apify/facebook-ads-scraper`** as primary (official, maintained), **`curious_coder/facebook-ads-library-scraper`** as higher-rated alternative.
+
+Sources: https://apify.com/apify/facebook-ads-scraper , https://apify.com/curious_coder/facebook-ads-library-scraper , https://apify.com/tugkan/facebookads-scraper
+
+**UNVERIFIED:** a competitor marketing page (metapi.io/compare/apify) claimed Meta tightened Ad Library rate limits in Jan 2026 and that Apify actors "stop at 5K-7K records even when 50K exist, with no SLA." Treat this as unverified/biased marketing claim, not confirmed from Apify or Meta's own docs.
+
+**`apify/facebook-ads-scraper`** (actor ID for API calls: `apify~facebook-ads-scraper`)
+Input fields (HIGH-CONFIDENCE, from store page text):
+```json
+{
+  "startUrls": [{ "url": "https://www.facebook.com/ads/library/?country=ALL&ad_type=all&active_status=active&view_all_page_id=..." }],
+  "resultsLimit": 10,
+  "onlyTotal": false,
+  "includeAboutPage": false,
+  "isDetailsPerAd": false,
+  "activeStatus": "",
+  "sorting": "",
+  "onlyAdsNewerThan": "2024-01-01",
+  "onlyAdsOlderThan": "2024-12-31",
+  "enrichWithEcommerceData": false
+}
+```
+Country/ad-type/keyword/active-status filters are passed as **query params embedded in the `startUrls` URL itself** (e.g. `country=`, `ad_type=`, `active_status=`, `view_all_page_id=`), not as discrete top-level input fields. `resultsLimit` caps result count (empty = as many as possible).
+Output fields (casing UNVERIFIED — summarizer showed mixed forms):
+```json
+{
+  "adArchiveID": "...", "pageID": "...", "pageName": "Sephora",
+  "startDate": "...", "startDateFormatted": "...",
+  "endDate": "...", "endDateFormatted": "...",
+  "isActive": true,
+  "publisherPlatform": ["FACEBOOK", "INSTAGRAM", "THREADS"],
+  "snapshot": {
+    "body": { "text": "..." }, "title": "...",
+    "images": ["..."],
+    "videos": [{ "videoHdUrl": "...", "videoSdUrl": "...", "videoPreviewImageUrl": "..." }],
+    "linkUrl": "...", "ctaText": "...", "cards": ["..."]
+  },
+  "ecommerceData": ["... when enrichWithEcommerceData=true"]
+}
+```
+**UNVERIFIED:** exact field name for the Ad Library permalink/snapshot URL (`snapshotUrl`/`adSnapshotUrl`/`url`) — not confirmed in fetched text.
+Sources: https://apify.com/apify/facebook-ads-scraper/api , https://apify.com/apify/facebook-ads-scraper/output
+
+**`curious_coder/facebook-ads-library-scraper`** (actor ID: `curious_coder/facebook-ads-library-scraper` or `curious_coder~facebook-ads-library-scraper`)
+Input schema — **pulled verbatim from the actor's raw OpenAPI JSON** (`https://api.apify.com/v2/actors/XtaWFhbtfxyzqrFmd/builds/wYDFs3xTPOVCo9Wag/openapi.json`), so this is CONFIRMED, not summarized:
+```json
+{
+  "urls": [{ "url": "https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=IN&q=linkedin&search_type=keyword_unordered&media_type=all" }],
+  "scrapeAdDetails": false,
+  "limitPerSource": 100,
+  "count": 100,
+  "scrapePageAds.period": "",
+  "scrapePageAds.activeStatus": "all",
+  "scrapePageAds.sortBy": "impressions_desc",
+  "scrapePageAds.countryCode": "ALL",
+  "runTag": "",
+  "proxy": {}
+}
+```
+- `scrapePageAds.activeStatus`: enum `"all" | "active" | "inactive"`, default `"all"`
+- `scrapePageAds.sortBy`: enum `"impressions_desc" | "most_recent"`
+- `scrapePageAds.countryCode`: ISO 3166-1 alpha-2, or `"ALL"`
+- `scrapePageAds.period`: enum `"" | "last24h" | "last7d" | "last14d" | "last30d"`
+- `count`/`limitPerSource`: overlapping result-count caps ("actual number might exceed limit by up to 30")
+Output fields documented on the store page (casing UNVERIFIED): Ad ID, Ad Archive ID, Categories, Spend, Impressions, Start/End Dates, Page Name, Advertiser, Reach Estimate (full data-fields table not fully enumerable from the fetch).
+Sources: https://apify.com/curious_coder/facebook-ads-library-scraper/api
+
+### 2b. Running an Apify actor synchronously via the API — CONFIRMED
+
+Current official endpoint form uses `/actors/` (the older `/acts/` form still works as a legacy alias):
+```
+POST https://api.apify.com/v2/actors/{actorId}/run-sync-get-dataset-items
+GET  https://api.apify.com/v2/actors/{actorId}/run-sync-get-dataset-items   (no-input variant)
+```
+`{actorId}` format: `username~actor-name` (tilde) e.g. `apify~facebook-ads-scraper`, or the actor's internal alphanumeric ID.
+
+**Auth — both confirmed:**
+- Header (recommended): `Authorization: Bearer <token>`
+- Query param (documented but flagged by Apify as less secure since it lands in logs): `?token=<token>`
+
+**Request body:** JSON object matching the actor's input schema, sent as POST body.
+
+**Response:** a **raw JSON array** of dataset items directly (no `{data: ...}` wrapper). Other supported `format` values via query param: `json` (default), `jsonl`, `csv`, `html`, `xlsx`, `xml`, `rss`. Other params: `clean`, `limit`, `offset`, `fields`, `omit`, `timeout`, `memory`.
+
+**Timeout:** if the run exceeds **300 seconds**, the sync endpoint returns **HTTP 408**. For longer scrapes, use the async run endpoint + dataset-items endpoint and poll instead.
+
+Sources: https://docs.apify.com/api/v2 , https://docs.apify.com/api/v2/actor-run-sync-get-dataset-items-post , https://docs.apify.com/api/v2/actor-run-sync-get-dataset-items-get
+
+### 2c. ScrapeCreators Meta Ad Library API (fallback) — CONFIRMED official docs found
+
+Docs root: https://docs.scrapecreators.com
+
+**Search ads by keyword:**
+```
+GET https://api.scrapecreators.com/v1/facebook/adLibrary/search/ads
+```
+Auth header: `x-api-key: <key>` (required).
+Required param: `query` (string, search keyword).
+Optional: `sort_by` (`total_impressions`|`relevancy_monthly_grouped`), `search_type` (`keyword_unordered`|`keyword_exact_phrase`), `ad_type` (`all`|`political_and_issue_ads`), `country` (2-letter, default `ALL`), `language`, `status` (`ALL`|`ACTIVE`|`INACTIVE`, default `ACTIVE`), `media_type` (`ALL`|`IMAGE`|`VIDEO`|`MEME`|`IMAGE_AND_MEME`|`NONE`), `start_date`/`end_date` (`YYYY-MM-DD`), `cursor`, `trim`.
+Response: `searchResults[]` — each item has `ad_archive_id`, `collation_id`, `is_active`, `page_name`; top level also has `searchResultsCount`, `cursor`, `credits_charged`.
+Source: https://docs.scrapecreators.com/v1/facebook/adLibrary/search/ads
+
+**Get ads by page/company:**
+```
+GET https://api.scrapecreators.com/v1/facebook/adLibrary/company/ads
+```
+(POST also supported, for large cursor payloads.)
+Auth header: `x-api-key`. Required (one of): `pageId` or `companyName`. Optional: `country`, `status` (default `ACTIVE`), `media_type`, `language`, `sort_by`, `start_date`/`end_date`, `cursor`, `trim`.
+Response skeleton:
+```json
+{
+  "success": true,
+  "results": [{
+    "ad_archive_id": "...", "collation_id": "...", "collation_count": 1,
+    "is_active": true, "page_id": "...", "page_name": "...",
+    "start_date": 1710000000, "end_date": 1712000000,
+    "publisher_platform": ["FACEBOOK", "INSTAGRAM"],
+    "snapshot": {
+      "body": { "text": "..." }, "display_format": "VIDEO",
+      "images": ["..."],
+      "videos": [{ "video_hd_url": "...", "video_sd_url": "...", "video_preview_image_url": "..." }]
+    }
+  }],
+  "cursor": "...", "credits_remaining": 0, "credits_charged": 1
+}
+```
+Note: `start_date`/`end_date` here are **Unix timestamps** (integers) — distinct from the request's own `YYYY-MM-DD` date-string params.
+Source: https://docs.scrapecreators.com/v1/facebook/adLibrary/company/ads
+
+---
+
+## 3. Meta Graph API — Instagram Business Discovery
+
+Sources: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-facebook-login/business-discovery ; https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/business_discovery ; https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user ; https://developers.facebook.com/docs/instagram-platform/reference/instagram-media
+
+### 3a. Request format
+
+Pattern: `GET /<YOUR_APP_USER'S_IG_USER_ID>/business_discovery` — the call is made **against your own connected account's IG User ID**, with the target specified via `username()` field expansion. It is not a lookup keyed by the target's own ID.
+
+Confirmed example (quoted from the live doc):
+```
+GET https://graph.facebook.com/v26.0/17841405309211844
+    ?fields=business_discovery.username(bluebottle){followers_count,media_count}
+    &access_token=<YOUR_APP_USERS_INSTAGRAM_USER_ACCESS_TOKEN>
+```
+Response:
+```json
+{ "business_discovery": { "followers_count": 267793, "media_count": 1205, "id": "17841401441775531" }, "id": "17841405309211844" }
+```
+Nested media example (also quoted from the doc):
+```
+?fields=business_discovery.username(bluebottle){media{comments_count,like_count,view_count}}
+```
+Doc's own caveat (quoted): "Please note that `view_count` includes both paid and organic metrics." Also quoted: "performing a GET on any returned IG Media will fail due to insufficient permissions" — nested media data is read-only through the parent call, not independently fetchable.
+
+**Confirmed available fields** (from the IG User / IG Media reference "Fields" tables):
+- IG User node, Public fields: `alt_text`, `biography`, `followers_count`, `id`, `media_count`, `username`, `website`. (NOT public: `follows_count`, `has_profile_pic`, `is_published`, `legacy_instagram_user_id`, `name`, `profile_picture_url`.)
+- IG Media node, Public fields: `alt_text`, `caption`, `comments_count`, `id`, `is_shared_to_feed`, `media_audio_type`, `media_product_type`, `media_type`, `media_url`, `owner`, `permalink`, `shortcode`, `thumbnail_url`, `timestamp`, `username`, `view_count`, `reposts_count`, `total_comments_count`, `total_like_count`. (NOT public: `boost_ads_list`, `copyright_check_information`, `is_ai_generated`, `like_count`, `saved_count`, `shares_count`, `total_views_count`.)
+
+**Nuance:** `like_count` is not in the generic "Public" Media field set, yet Business Discovery's own example explicitly returns it — it's granted via Business Discovery's specific permission set (below), not the generic Public-field mechanism.
+
+`media_url` omission rule (quoted): "The `media_url` field is omitted for video media that contains copyrighted or licensed audio... It is also omitted for reels whose owner has turned off reel downloads, on requests that read another user's media: business discovery, tags, mentions, hashtag search, and collaborative media."
+
+**UNVERIFIED:** whether `profile_picture_url` resolves under `business_discovery` for a target — it is explicitly NOT marked Public on the IG User field table, so likely unavailable, despite third-party (non-Meta) examples showing it used. Also **UNVERIFIED**: `biography`/`website`/`username` are tagged Public in the generic table but no official Business Discovery example actually demonstrates requesting them on a target account.
+
+### 3b. Token, permissions, consent
+
+Business Discovery exists **only** under "Instagram API with Facebook Login" — confirmed absent from "Instagram API with Instagram Login" docs (zero mentions found there). Requires a connected Facebook Page + Facebook Login, not the native Instagram-Login-only product.
+
+**Token type:** a Facebook User access token (the reference page's Permissions section explicitly says "A Facebook User access token with the following permissions" — not a Page token, not an App token).
+
+**Permissions required** (quoted verbatim):
+> "A Facebook User access token with the following permissions:
+> - `instagram_basic`
+> - `instagram_manage_insights`
+> - `pages_read_engagement`
+>
+> If the token is from a User whose Page role was granted via the Business Manager, one of the following permissions is also required:
+> - `ads_management`
+> - `ads_read`"
+
+**Consent nuance:** no target consent is required. Only documented restriction (quoted): "Data about age-gated Instagram professional accounts will not be returned." Target just needs to be a public Instagram Business or Creator professional account (not personal), not age-gated.
+
+**UNVERIFIED:** a web-search claim that short-form scopes (e.g. `business_basic`) were deprecated Jan 27, 2025 in favor of `instagram_business_basic` for Instagram-Login apps — not independently re-verified against an official page in this session; the Facebook-Login scope trio above (`instagram_basic`/`instagram_manage_insights`/`pages_read_engagement`) IS directly confirmed.
+
+### 3c. Current Graph API version
+
+As of 2026-09-30 (from https://developers.facebook.com/docs/graph-api/changelog/versions):
+
+| Version | Release | Expiration |
+|---|---|---|
+| v26.0 (current/latest) | July 29, 2026 | TBD |
+| v25.0 | Feb 18, 2026 | July 29, 2028 |
+| v24.0 | Oct 8, 2025 | Feb 18, 2028 |
+| v23.0 | May 29, 2025 | Oct 8, 2027 |
+| v22.0 | Jan 21, 2025 | May 20, 2027 |
+| v21.0 | Oct 2, 2024 | Jan 21, 2027 |
+| v20.0 | May 21, 2024 | **Sept 24, 2026 — already expired** |
+| v19.0 and older | — | expired |
+
+Use **v26.0** for new implementation. The Business Discovery doc's own live example uses v26.0.
+
+### 3d. Rate limits
+
+Sources: https://developers.facebook.com/docs/instagram-platform/overview ; https://developers.facebook.com/docs/graph-api/overview/rate-limiting
+
+**Important carve-out** (quoted verbatim): "All endpoints are subject to Instagram Business Use Case rate limiting except for **Business Discovery** and **Hashtag Search** endpoints, which are subject to **Platform Rate limiting**." This means Business Discovery does **not** use the standard `4800 × impressions/24h` formula that applies to other Instagram Platform endpoints.
+
+Instead, generic Graph API Platform Rate Limits apply:
+- App-token formula (quoted): "Calls within one hour = 200 * Number of Users" (unique daily/weekly/monthly active users of the app), rolling one-hour window.
+- User-token calls (the type Business Discovery actually uses): "A user's call count is the number of calls a user can make during a rolling one hour window. Due to privacy concerns, we do not reveal actual call count values for users" — **no published numeric ceiling**.
+- Real-time usage surfaced via the `X-App-Usage` response header (JSON: `call_count`, `total_cputime`, `total_time`, each a % of the rolling hour's allotment); throttling occurs as any approaches 100.
+
+**Practical implication:** budget conservatively per connected customer token and monitor `X-App-Usage` on every response rather than hardcoding a call ceiling.
+
+---
+
+## 4. Cloudflare R2 via AWS SDK v3
+
+Sources: https://developers.cloudflare.com/r2/api/s3/api/ ; https://developers.cloudflare.com/r2/examples/aws/aws-sdk-js-v3/
+
+Current npm versions (registry.npmjs.org, Sept 2026): `@aws-sdk/client-s3` = **3.1144.0**; `@aws-sdk/s3-request-presigner` tracks the same release train (3.1144.0).
+
+**S3Client config:**
+```ts
+import { S3Client } from "@aws-sdk/client-s3";
+
+const S3 = new S3Client({
+  region: "auto",                                      // literal string "auto"; required by SDK, unused by R2
+  endpoint: `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: ACCESS_KEY_ID,
+    secretAccessKey: SECRET_ACCESS_KEY,
+  },
+});
+```
+Cloudflare notes empty-string region / `us-east-1` also work as aliases for compatibility, but `"auto"` is the documented value.
+
+**Commands:**
+```ts
+import { PutObjectCommand, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+
+await S3.send(new PutObjectCommand({ Bucket, Key, Body: fileBuffer, ContentType: "image/png" }));
+await S3.send(new GetObjectCommand({ Bucket, Key }));
+await S3.send(new HeadObjectCommand({ Bucket, Key }));
+```
+Supported ops per Cloudflare docs: GetObject, PutObject, HeadObject, DeleteObject(s), CopyObject, ListObjectsV2 (ListObjects also works, V2 recommended), full multipart set. **Documented unsupported:** `x-amz-acl`/grant headers, object locking/tagging, SSE-KMS, `x-amz-request-payer`, `x-amz-expected-bucket-owner`.
+
+**Presigned GET:**
+```ts
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+
+const command = new GetObjectCommand({ Bucket, Key });
+const url = await getSignedUrl(S3, command, { expiresIn: 3600 }); // seconds; default 900; max 604800 (7 days)
+```
+
+**Checksum incompatibility — CONFIRMED, current issue:** starting around AWS SDK for JS v3 3.729.0 (part of a broader SDK-wide default rollout), the client began automatically attaching CRC32 checksum headers (`x-amz-checksum-algorithm`, `x-amz-sdk-checksum-algorithm`, etc.) by default on requests like PutObject. R2's checksum support is partial — CRC-64/NVME is FULL_OBJECT-only, while CRC-32/CRC-32C/SHA-1/SHA-256 are COMPOSITE-type only — so R2 rejects the FULL_OBJECT-style header the newer SDK sends by default, producing errors like `Header 'x-amz-checksum-algorithm' with value 'CRC32' not implemented`.
+
+**Workaround** (confirmed via AWS SDK config docs + multiple third-party reports; **UNVERIFIED** whether Cloudflare's own R2 docs pages explicitly state this):
+```ts
+const S3 = new S3Client({
+  region: "auto",
+  endpoint: `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: { accessKeyId, secretAccessKey },
+  requestChecksumCalculation: "WHEN_REQUIRED",   // valid: "WHEN_SUPPORTED" (new SDK default) | "WHEN_REQUIRED"
+  responseChecksumValidation: "WHEN_REQUIRED",
+});
+```
+Also settable via env vars `AWS_REQUEST_CHECKSUM_CALCULATION` / `AWS_RESPONSE_CHECKSUM_VALIDATION`.
+
+---
+
+## 5. robots-parser (npm)
+
+Source: https://www.npmjs.com/package/robots-parser ; https://github.com/samclarke/robots-parser
+
+**Current version: 3.0.1**
+
+```js
+var robotsParser = require('robots-parser');
+
+var robots = robotsParser('http://www.example.com/robots.txt', [
+  'User-agent: *',
+  'Disallow: /dir/',
+  'Allow: /dir/test.html',
+  'Crawl-delay: 1',
+  'Sitemap: http://example.com/sitemap.xml',
+  'Host: example.com'
+].join('\n'));
+
+robots.isAllowed('http://www.example.com/test.html', 'Sams-Bot/1.0');        // true
+robots.isDisallowed('http://www.example.com/dir/test2.html', 'Sams-Bot/1.0'); // true
+robots.getCrawlDelay('Sams-Bot/1.0');  // 1 (seconds; undefined if not specified)
+robots.getSitemaps();                  // ['http://example.com/sitemap.xml']
+robots.getPreferredHost();             // 'example.com' or null
+```
+
+Full method list: `robotsParser(url, contents)` (constructor — `url` used for relative-path/origin resolution, `contents` is raw robots.txt text), `isAllowed(url, [ua])` → true/false/undefined, `isDisallowed(url, [ua])`, `isExplicitlyDisallowed(url, ua)` (like isDisallowed but no fallback to wildcard `*` rules), `getMatchingLineNumber(url, [ua])` (1-based, -1 if none, undefined for internal rules), `getCrawlDelay([ua])`, `getSitemaps()`, `getPreferredHost()`.
+
+---
+
+## 6. Playwright (npm `playwright`) + sharp
+
+Sources: https://playwright.dev/docs/api/class-browsertype ; https://playwright.dev/docs/api/class-page ; raw GitHub `microsoft/playwright/docs/src/api/class-page.md` ; https://playwright.dev/docs/screenshots
+
+**Current version: 1.63.0** (npm registry `playwright/latest`).
+
+Install: `npx playwright install chromium`
+
+```ts
+import { chromium } from 'playwright';
+
+const browser = await chromium.launch({ headless: true }); // headless defaults to true anyway
+const context = await browser.newContext({ userAgent: 'MyBot/1.0' });
+const page = await context.newPage();
+// browser.newPage() also exists as a shortcut creating an implicit context
+
+const response = await page.goto(url, {
+  timeout: 30000,
+  waitUntil: 'domcontentloaded',   // valid: 'load' | 'domcontentloaded' | 'networkidle' | 'commit'; default 'load'
+});
+const status = response?.status();   // CONFIRMED: response.status() gives the HTTP status code
+
+const html = await page.content();   // Promise<string>, full HTML incl. doctype
+
+const buf = await page.screenshot({
+  fullPage: true,
+  type: 'jpeg',       // valid: "png" | "jpeg" | "webp", default "png"
+  quality: 80,        // 0-100
+});
+```
+
+Exact quoted wording from Playwright's source on `quality`/`type`:
+> `quality` — "The quality of the image, between 0-100. Not applicable to `png` images. For `jpeg` the default is `80`. For `webp`, a quality of `100` (the default) produces a lossless image, while lower values use lossy compression."
+> `type` — "Specify screenshot type, defaults to `png`." Valid: `"png"|"jpeg"|"webp"`.
+
+So **quality applies to both jpeg and webp** (not just jpeg), ignored for png; default screenshot type is `png`.
+
+Other common `launch()` options: `executablePath`, `args`, `timeout` (default 30000ms), `slowMo`, `proxy`, `channel`, `downloadsPath`.
+
+**sharp (npm):** https://sharp.pixelplumbing.com/api-output ; current version **0.35.5**
+```js
+const sharp = require('sharp');
+const outBuffer = await sharp(inputBuffer).webp({ quality: 80 }).toBuffer();
+```
+`.webp({ quality })`: integer, range 1–100, default 80 (lossy). `.toBuffer()` → `Promise<Buffer>`; pass `{ resolveWithObject: true }` to get `{ data, info }` (info includes format/size/width/height/channels); callback form `(err, data, info)` also supported.
+
+---
+
+## 7. Sitemap parsing — fast-xml-parser
+
+Source: https://registry.npmjs.org/fast-xml-parser/latest ; GitHub `docs/v4,v5/2.XMLparseOptions.md`
+
+**Current version: 5.11.2** (note: a `docs/v6` folder exists upstream with only a Getting Started stub — **UNVERIFIED** whether v6 is released or still WIP; the v4/v5 API below is authoritative for the published 5.11.2 package).
+
+```js
+const { XMLParser } = require('fast-xml-parser');
+
+const options = {
+  ignoreAttributes: false,     // default TRUE (attributes dropped by default) — set false to keep attributes
+  attributeNamePrefix: '@_',
+  parseTagValue: true,         // parses numeric-looking tag text via the `strnum` package
+  isArray: (tagName, jPath, isLeafNode, isAttribute) => {
+    return ['urlset.url', 'sitemapindex.sitemap'].includes(jPath);
+  },
+};
+
+const parser = new XMLParser(options);
+const obj = parser.parse(xmlString);
+```
+
+**Key gotcha:** by default, fast-xml-parser only produces an array for a repeated tag when there is more than one occurrence; a sitemap with exactly one `<url>` (or a sitemap index with exactly one `<sitemap>`) parses as a **plain object**, not a one-element array, unless `isArray` forces it via the `jPath` match shown above. This breaks naive `.map()` code on single-URL sitemaps.
+
+- Regular sitemap shape: `{ urlset: { url: [ { loc, lastmod, changefreq, priority }, ... ] } }`
+- Sitemap index shape: `{ sitemapindex: { sitemap: [ { loc }, ... ] } }`
+
+`ignoreAttributes` can also take an array of attribute names, array of regexes, or a callback `(attrName, jPath) => boolean`. `parseTagValue` converts numeric-looking tag text to JS numbers via `strnum` (finer control via `numberParseOptions`). `isArray` signature: `(tagName, jPathOrMatcher, isLeafNode, isAttribute) => boolean`.
+
+---
+
+## Implementation notes
+
+**Sync vs async per DataForSEO endpoint (weekly batch collector):**
+- **Google Maps SERP** (1a): use **Live** (`.../live/advanced`) — synchronous, ~6s turnaround, cheap ($0.002/page). Good fit for a weekly per-location pull.
+- **Google My Business Info** (1b): use **Live** (`.../live`) for weekly refresh — $0.0054/profile is the highest per-call cost of these four, but sync simplicity is worth it at weekly cadence/volume. Fall back to Standard queue task_post/task_get ($0.0015/profile) if volume makes the Live premium matter.
+- **Google Reviews** (1c): **must** use task_post → tasks_ready (poll) → task_get — no live mode exists. Standard queue turnaround up to 45 min; budget the batch window accordingly, or pay for Priority (`priority:2`, ~1 min, 2x cost) if the weekly job is time-constrained.
+- **Google Ads Transparency** (1d): both `ads_advertisers` and `ads_search` support `/live/advanced` and are cheap ($0.0006–0.002/page) — use Live for both in a weekly batch.
+- **Google Jobs** (1e): **no live mode exists** — must use task_post/tasks_ready/task_get, same polling pattern as Reviews.
+
+**Expected costs per call (summary):**
+| Endpoint | Mode | Cost |
+|---|---|---|
+| Maps SERP | Live | $0.002/page |
+| My Business Info | Live | $0.0054/profile |
+| My Business Info | Standard/Priority queue | $0.0015 / $0.003 per profile |
+| Reviews | Standard/Priority queue | $0.00075 / $0.0015 per 10 reviews |
+| Ads Advertisers | Live (Standard/Priority-priced) | $0.0006 / $0.0012 per request |
+| Ads Search | Live/Priority/Standard | $0.002 / $0.0012 / $0.0006 per page (≤40 results) |
+| Jobs | Standard/Priority queue | $0.0006 / $0.0012 per page (10 results) |
+
+**Things that would change the data model:**
+- **Review IDs**: `review_id` stability across repeated pulls is **UNVERIFIED** — do not assume it's a safe long-term primary key without a live test (pull twice, diff). If unstable, dedup reviews by a composite key (place/cid + profile_name + timestamp + review_text hash) instead.
+- **Ads `first_shown`/`last_shown`**: confirmed available, but only on `ads_search` (creative-level), not `ads_advertisers` (account-level) — the two endpoints serve different purposes and should map to different model entities (Advertiser vs Creative).
+- **`owner_answer` is a flat string**, not `{text, timestamp}` — a naive nested-object model for business owner replies would need `owner_answer` + separate `owner_timestamp`/`owner_time_ago` fields instead.
+- **Jobs**: no structured salary (single free-text `salary` string) and possibly no `description` field in the advanced JSON (UNVERIFIED) — a structured `salary_min/max/currency` column would require ourselves to parse the free-text string, and a full job description may require the separate `task_get/html` variant rather than the JSON one.
+- **My Business Info** nested objects (`address_info`, `rating_distribution`, `work_time.work_hours.timetable`, `attributes`, `services[]`, `popular_times`) are UNVERIFIED in exact shape — treat as loosely-typed/`unknown` in TypeScript until a sandbox sample confirms real shapes, rather than writing strict interfaces now.
+- **Instagram Business Discovery**: `like_count` is available despite not being a generically "Public" field (it's granted via Business Discovery's specific permission grant) — don't assume other "non-Public" fields work the same way; `profile_picture_url` is likely NOT available (flagged Public=false) despite third-party examples suggesting otherwise — confirm before building a model column for it.
+- **Apify actor output casing** (camelCase fields like `adArchiveID`) is UNVERIFIED byte-for-byte — run one live sample through each candidate actor and lock the TS interface from the actual JSON, not from the store-page prose.
