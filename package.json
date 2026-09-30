@@ -1,0 +1,17 @@
+{
+  "name": "competitorspy",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.17.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test --concurrency=1",
+    "db:up": "docker compose up -d db",
+    "db:migrate": "pnpm --filter @cs/db migrate"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.6",
+    "typescript": "^5.9.2"
+  }
+}

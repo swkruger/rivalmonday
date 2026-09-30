@@ -1,0 +1,3 @@
+CREATE ROLE app_user LOGIN PASSWORD 'app_user';
+CREATE ROLE app_service LOGIN PASSWORD 'app_service' BYPASSRLS;
+CREATE DATABASE cs_test;
