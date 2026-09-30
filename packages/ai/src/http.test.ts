@@ -56,4 +56,12 @@ describe('postJson', () => {
       expect(d.calls).toBe(1);
     }
   });
+
+  it('throws AiProviderError for 200 with invalid JSON', async () => {
+    const d = deps([new Response('not json', { status: 200 })]);
+    const err = await postJson('p', 'u', {}, {}, d).catch((e) => e);
+    expect(err).toBeInstanceOf(AiProviderError);
+    expect(err).toMatchObject({ provider: 'p', status: 200, retryable: false });
+    expect(d.calls).toBe(1);
+  });
 });

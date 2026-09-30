@@ -53,7 +53,13 @@ export async function postJson(
       }
       throw new AiProviderError(provider, null, `Network error calling ${provider}`, true, { cause: err });
     }
-    if (res.ok) return res.json();
+    if (res.ok) {
+      try {
+        return await res.json();
+      } catch (err) {
+        throw new AiProviderError(provider, res.status, `${provider} returned invalid JSON`, false, { cause: err });
+      }
+    }
 
     const retryable = RETRYABLE_STATUS.has(res.status);
     if (retryable && canRetry) {
