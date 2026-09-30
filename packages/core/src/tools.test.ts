@@ -102,6 +102,15 @@ describe('ToolRegistry', () => {
     expect(events[0]?.outcome).toBe('invalid_input');
   });
 
+  it('returns invalid_input and audits once for unserialisable input', async () => {
+    const circular: Record<string, unknown> = { message: 'x' };
+    circular.self = circular;
+
+    await expect(registry.invoke(viewer, 'echo', circular)).rejects.toMatchObject({ code: 'invalid_input' });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ outcome: 'invalid_input', inputHash: 'unhashable' });
+  });
+
   it('returns not_found and permission_denied', async () => {
     await expect(registry.invoke(viewer, 'nope', {})).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(viewer, 'add_thing', {})).rejects.toMatchObject({ code: 'permission_denied' });

@@ -108,8 +108,14 @@ export class ToolRegistry<D> {
     const started = this.now();
     let outcome: AuditEvent['outcome'] = 'internal';
     let rowCount: number | null = null;
-    let inputHash = hashInput(rawInput);
+    let inputHash = 'unhashable';
     try {
+      try {
+        inputHash = hashInput(rawInput);
+      } catch (err) {
+        throw new ToolError('invalid_input', 'Input is not serialisable', { cause: err });
+      }
+
       const tool = this.tools.get(name);
       if (!tool) throw new ToolError('not_found', `Unknown tool: ${name}`);
       if (!isAllowed(ctx, tool)) throw new ToolError('permission_denied', `Not permitted: ${name}`);
