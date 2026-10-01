@@ -35,6 +35,10 @@ export const competitorSuggestion = pgTable(
     foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade'),
     unique('competitor_suggestion_client_place_unique').on(t.clientId, t.placeId),
     index('competitor_suggestion_agency_idx').on(t.agencyId),
+    // The status CHECK constraint and the column-scoped UPDATE grant live only in
+    // migrations/0011_suggestion_status_only.sql: adding `check(...)` here makes
+    // `drizzle-kit generate` propose a duplicate ADD CONSTRAINT migration (verified),
+    // since the snapshot has no record of that hand-written, custom-SQL migration.
   ],
 );
 
