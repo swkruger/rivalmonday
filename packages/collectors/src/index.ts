@@ -1,3 +1,4 @@
+export * from './evidence/recorder';
 export * from './web/blocked';
 export * from './web/polite';
 export * from './web/rate-limit';
