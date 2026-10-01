@@ -28,4 +28,18 @@ describe('collectSitemapUrls', () => {
     ]);
     expect(await collectSitemapUrls(fetchText, ['https://s.example/sitemap.xml'], { maxUrls: 1 })).toHaveLength(1);
   });
+
+  it('caps the number of sitemap files fetched per call (default 10)', async () => {
+    const fetchText = vi.fn(async () => ({ status: 200, body: single }));
+    const many = Array.from({ length: 20 }, (_, i) => `https://s.example/sitemap-${i}.xml`);
+    await collectSitemapUrls(fetchText, many);
+    expect(fetchText).toHaveBeenCalledTimes(10);
+  });
+
+  it('honours an explicit maxFiles option', async () => {
+    const fetchText = vi.fn(async () => ({ status: 200, body: single }));
+    const many = Array.from({ length: 20 }, (_, i) => `https://s.example/sitemap-${i}.xml`);
+    await collectSitemapUrls(fetchText, many, { maxFiles: 3 });
+    expect(fetchText).toHaveBeenCalledTimes(3);
+  });
 });

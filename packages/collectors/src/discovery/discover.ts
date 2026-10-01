@@ -1,9 +1,11 @@
 import type { Ai } from '@cs/ai';
+import type { PageType } from '@cs/core';
 import { type Db, trackedPage } from '@cs/db';
 import { sql } from 'drizzle-orm';
+import type { HostRateLimiter } from '../web/rate-limit';
 import type { Renderer, RenderStatus } from '../web/renderer';
 import type { RobotsPolicy } from '../web/robots';
-import type { FetchText } from '../web/user-agent';
+import { type FetchText, siteHost } from '../web/user-agent';
 import { classifyPage } from './classify';
 import { type CandidatePage, selectPages } from './select';
 import { collectSitemapUrls } from './sitemap';
@@ -14,7 +16,25 @@ export interface DiscoveryDeps {
   renderer: Renderer;
   robots: RobotsPolicy;
   fetchText: FetchText;
+  /** Crawler conduct (spec §4.2) applies to sitemap fetches too: ≥3s/host, honouring robots and crawl-delay. */
+  limiter: HostRateLimiter;
   ai: Ai;
+}
+
+/**
+ * Wraps `fetchText` so sitemap fetches obey the same crawler conduct as page renders: same site only
+ * (www-insensitive), robots-checked, and rate-limited per host. Cross-host or disallowed URLs are
+ * rejected (never reach the real `fetchText`); `collectSitemapUrls` treats that as a tolerable failure
+ * for that one file and moves on.
+ */
+function politeSitemapFetch(deps: DiscoveryDeps, homeHost: string): FetchText {
+  return async (url) => {
+    if (siteHost(url) !== homeHost) throw new Error(`cross-host sitemap url rejected: ${url}`);
+    const verdict = await deps.robots.check(url);
+    if (!verdict.allowed) throw new Error(`robots disallowed sitemap url: ${url}`);
+    await deps.limiter.wait(url, verdict.crawlDelaySeconds);
+    return deps.fetchText(url);
+  };
 }
 
 export async function discoverPages(
@@ -36,7 +56,8 @@ export async function discoverPages(
     }
     const verdict = await deps.robots.check(homeUrl);
     const sitemapSeeds = verdict.sitemaps.length > 0 ? verdict.sitemaps : [`https://${competitor.domain}/sitemap.xml`];
-    for (const raw of await collectSitemapUrls(deps.fetchText, sitemapSeeds)) {
+    const homeHost = siteHost(homeUrl);
+    for (const raw of await collectSitemapUrls(politeSitemapFetch(deps, homeHost), sitemapSeeds)) {
       const u = normalizeUrl(raw, competitor.domain);
       if (u && !candidates.has(u)) candidates.set(u, { url: u, source: 'sitemap' });
     }
@@ -45,7 +66,13 @@ export async function discoverPages(
     const ranked = [...candidates.values()].sort((a, b) => score(b) - score(a)).slice(0, opts.maxCandidates ?? 60);
     const classified: CandidatePage[] = [];
     for (const c of ranked) {
-      const { pageType } = await classifyPage(deps.ai, c);
+      let pageType: PageType;
+      try {
+        pageType = (await classifyPage(deps.ai, c)).pageType;
+      } catch {
+        // A single candidate's classifier failure must not abort discovery for the rest.
+        pageType = guessPageType(c.url, c.text) ?? 'other';
+      }
       classified.push({ url: c.url, pageType, source: c.source });
     }
     const selected = selectPages(classified, opts.max ?? 25);

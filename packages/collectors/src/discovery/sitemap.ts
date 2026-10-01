@@ -18,17 +18,24 @@ export function parseSitemap(xml: string): { urls: string[]; sitemaps: string[] 
   return { urls: locs(doc?.urlset?.url), sitemaps: locs(doc?.sitemapindex?.sitemap) };
 }
 
-export async function collectSitemapUrls(fetchText: FetchText, sitemapUrls: string[], opts: { maxUrls?: number; maxDepth?: number } = {}): Promise<string[]> {
+export async function collectSitemapUrls(
+  fetchText: FetchText,
+  sitemapUrls: string[],
+  opts: { maxUrls?: number; maxDepth?: number; maxFiles?: number } = {},
+): Promise<string[]> {
   const maxUrls = opts.maxUrls ?? 500;
   const maxDepth = opts.maxDepth ?? 2;
+  const maxFiles = opts.maxFiles ?? 10;
   const seen = new Set<string>();
   const out = new Set<string>();
+  let fetched = 0;
   let frontier = [...new Set(sitemapUrls)];
-  for (let depth = 0; depth <= maxDepth && frontier.length > 0 && out.size < maxUrls; depth++) {
+  for (let depth = 0; depth <= maxDepth && frontier.length > 0 && out.size < maxUrls && fetched < maxFiles; depth++) {
     const next: string[] = [];
     for (const sm of frontier) {
-      if (seen.has(sm) || out.size >= maxUrls) continue;
+      if (seen.has(sm) || out.size >= maxUrls || fetched >= maxFiles) continue;
       seen.add(sm);
+      fetched++;
       try {
         const res = await fetchText(sm);
         if (res.status < 200 || res.status >= 300) continue;
