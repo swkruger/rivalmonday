@@ -38,7 +38,17 @@ export function createPlaywrightRenderer(opts: { userAgent?: string; timeoutMs?:
   const timeoutMs = opts.timeoutMs ?? 30_000;
   const maxHeight = opts.maxScreenshotHeight ?? 8000;
   let browser: Promise<Browser> | null = null;
-  const getBrowser = () => (browser ??= chromium.launch({ headless: true }));
+  const getBrowser = () => {
+    if (!browser) {
+      // A rejected launch must not be cached forever (the worker keeps one renderer alive):
+      // clear it so the next render retries the launch instead of replaying the same failure.
+      browser = chromium.launch({ headless: true }).catch((err) => {
+        browser = null;
+        throw err;
+      });
+    }
+    return browser;
+  };
 
   return {
     async render(url) {

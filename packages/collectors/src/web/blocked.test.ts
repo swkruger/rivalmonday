@@ -12,4 +12,13 @@ describe('detectBlocked', () => {
     expect(detectBlocked(200, '<h1>AC tune-up $99</h1>')).toBe(false);
     expect(detectBlocked(null, '')).toBe(false);
   });
+  it('does not flag an ordinary page that merely contains a reCAPTCHA widget or the words "access denied"', () => {
+    expect(
+      detectBlocked(
+        200,
+        '<form><div class="g-recaptcha" data-sitekey="x"></div><script src="https://www.google.com/recaptcha/api.js"></script></form>',
+      ),
+    ).toBe(false);
+    expect(detectBlocked(200, '<p>Access denied? Call our office to reset your patient portal password.</p>')).toBe(false);
+  });
 });
