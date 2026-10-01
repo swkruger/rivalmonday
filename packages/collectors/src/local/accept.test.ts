@@ -34,6 +34,35 @@ describe('acceptSuggestion', () => {
     expect(await dbs.service.select().from(competitor).where(eq(competitor.placeId, 'p9'))).toEqual([expect.objectContaining({ id: competitorId })]);
   });
 
+  it('reuses an existing competitor matched by cid, backfilling its missing place id', async () => {
+    const [existing] = await dbs.service.insert(competitor).values({ name: 'Cool Air LLC', cid: '999' }).returning();
+    const ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'am', role: 'agency_admin', clientScope: 'all', features: [] });
+    const { competitorId } = await acceptSuggestion({ service: dbs.service, app: dbs.app }, ctx, SUG);
+    expect(competitorId).toBe(existing?.id);
+    const [c] = await dbs.service.select().from(competitor).where(eq(competitor.id, competitorId));
+    expect(c).toMatchObject({ placeId: 'p9', cid: '999' });
+  });
+
+  it('never merges onto a different competitor that happens to share a domain', async () => {
+    await dbs.service.insert(competitor).values({ name: 'Cool Air Other Branch', placeId: 'p8', domain: 'coolair.example' });
+    const ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'am', role: 'agency_admin', clientScope: 'all', features: [] });
+    const { competitorId } = await acceptSuggestion({ service: dbs.service, app: dbs.app }, ctx, SUG);
+    const [c] = await dbs.service.select().from(competitor).where(eq(competitor.id, competitorId));
+    expect(c).toMatchObject({ placeId: 'p9', domain: null });
+    const [p8] = await dbs.service.select().from(competitor).where(eq(competitor.placeId, 'p8'));
+    expect(p8?.id).not.toBe(competitorId);
+    expect(await dbs.service.select().from(clientCompetitor).where(eq(clientCompetitor.competitorId, p8!.id))).toHaveLength(0);
+  });
+
+  it('reuses an existing competitor matched by domain when it has no place id, backfilling place id and cid', async () => {
+    const [existing] = await dbs.service.insert(competitor).values({ name: 'Cool Air LLC', domain: 'coolair.example' }).returning();
+    const ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'am', role: 'agency_admin', clientScope: 'all', features: [] });
+    const { competitorId } = await acceptSuggestion({ service: dbs.service, app: dbs.app }, ctx, SUG);
+    expect(competitorId).toBe(existing?.id);
+    const [c] = await dbs.service.select().from(competitor).where(eq(competitor.id, competitorId));
+    expect(c).toMatchObject({ domain: 'coolair.example', placeId: 'p9', cid: '999' });
+  });
+
   it('refuses suggestions outside the caller scope', async () => {
     const ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'am', role: 'account_manager', clientScope: [IDS.clientA2], features: [] });
     await expect(acceptSuggestion({ service: dbs.service, app: dbs.app }, ctx, SUG)).rejects.toThrow(/not found/i);

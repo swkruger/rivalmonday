@@ -11,10 +11,13 @@ export async function suggestCompetitors(
 ): Promise<{ suggested: number; searches: number }> {
   const [c] = await deps.db.select().from(client).where(eq(client.id, clientId)).limit(1);
   if (!c) throw new Error(`Client ${clientId} not found`);
-  const keywords = c.keywords.slice(0, opts.maxKeywords ?? 2);
+  const maxKeywords = Math.min(opts.maxKeywords ?? 2, 5);
+  const keywords = c.keywords.slice(0, maxKeywords);
   if (keywords.length === 0 || !c.serviceArea) throw new Error('Client needs keywords and a service area before competitor discovery');
 
-  const points = gridPoints(c.serviceArea.center, c.serviceArea.radiusKm, opts.gridSize ?? 3);
+  // Bounds paid live DataForSEO calls: gridSize=7 × maxKeywords=5 is already 245 live searches.
+  const gridSize = Math.min(opts.gridSize ?? 3, 7);
+  const points = gridPoints(c.serviceArea.center, c.serviceArea.radiusKm, gridSize);
   const scope = { agencyId: c.agencyId, clientId: c.id };
   const agg = new Map<string, { name: string; domain: string | null; placeId: string | null; cid: string | null; rating: number | null; votes: number | null; appearances: number; bestRank: number }>();
   let searches = 0;

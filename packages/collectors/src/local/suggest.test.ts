@@ -32,4 +32,10 @@ describe('suggestCompetitors', () => {
   it('refuses clients without keywords or service area', async () => {
     await expect(suggestCompetitors({ db: dbs.service, dfs: fakeDfs(() => []) }, IDS.clientA2)).rejects.toThrow(/keywords|service area/i);
   });
+
+  it('caps gridSize at 7 and maxKeywords at 5 to bound paid live calls', async () => {
+    const dfs = fakeDfs(() => [dfsTask([{ items: [] }])]);
+    const r = await suggestCompetitors({ db: dbs.service, dfs }, IDS.clientA1, { gridSize: 99, maxKeywords: 1 });
+    expect(r.searches).toBe(7 * 7 * 1);
+  });
 });
