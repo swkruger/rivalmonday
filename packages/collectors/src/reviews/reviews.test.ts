@@ -87,7 +87,7 @@ describe('review tasks', () => {
     expect(vt?.status).toBe('done');
   });
 
-  it('never stores reviewer identity in the raw evidence payload (privacy at ingest, spec §4.5)', async () => {
+  it('never stores reviewer identity or review photos in the raw evidence payload (privacy at ingest, spec §4.5)', async () => {
     await dbs.service.insert(vendorTask).values({ vendor: 'dataforseo', kind: 'google_reviews', externalTaskId: TASK, competitorId: IDS.competitorX });
     const store = createMemoryStore();
     const dfs = fakeDfs((_m, path) => {
@@ -101,6 +101,7 @@ describe('review tasks', () => {
                   review_id: 'r1', rating: { value: 4 }, review_text: 'Call me at 404-555-0199', timestamp: '2026-09-20 10:00:00 +00:00',
                   profile_name: 'Jane Doe', profile_url: 'https://maps.google.com/contrib/1', profile_image_url: 'https://x/img.jpg',
                   original_review_text: 'Escríbeme a ana@x.com o al +34 612 345 678',
+                  images: [{ type: 'image', alt: 'photo', url: 'https://lh5.googleusercontent.com/review-photo-1', image_url: 'https://lh5.googleusercontent.com/review-photo-2' }],
                 },
               ],
             },
@@ -123,6 +124,7 @@ describe('review tasks', () => {
     expect(json).not.toMatch(/404.?555.?0199/);
     expect(json).not.toMatch(/ana@x\.com/);
     expect(json).not.toMatch(/612.?345.?678/);
+    expect(json).not.toMatch(/review-photo/);
     expect(json).toMatch(/reviewer_hash/);
   });
 

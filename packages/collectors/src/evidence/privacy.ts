@@ -39,6 +39,26 @@ const REVIEWER_LINK_KEYS = new Set([
   'user_image_url',
 ]);
 
+// Keys that carry a reviewer's display name under other vendors' / future field names. Each is
+// pseudonymised into `reviewer_hash` (like `profile_name`), never kept.
+const REVIEWER_NAME_KEYS = new Set(['profile_name', 'author_name', 'reviewer_name', 'user_name']);
+
+// Any other key with one of these prefixes describes the reviewer (ids, links, photos, counts of the
+// reviewer's own activity) and is dropped. Review payloads only — the scrubber is never applied to
+// business/ad/job payloads, where e.g. `profile_*` could be legitimate business data.
+const REVIEWER_KEY_PREFIXES = ['reviewer_', 'author_', 'profile_', 'user_'];
+
+// Reviewer-uploaded review photos (user decision 2026-10-01): any key whose name contains "image" or
+// "photo" (e.g. `images`, `review_images`, `photos`, `image_url`) is dropped when it holds a URL, an
+// array or an object. Plain numbers/booleans (e.g. DataForSEO's `photos_count`) are kept.
+const isPhotoKey = (lowerKey: string): boolean => lowerKey.includes('image') || lowerKey.includes('photo');
+const holdsPhotoData = (value: unknown): boolean =>
+  Array.isArray(value) || (value !== null && typeof value === 'object') || (typeof value === 'string' && /^(https?:)?\/\//i.test(value.trim()));
+
+// A review permalink that embeds the reviewer's Google contributor id identifies the reviewer.
+const isContributorLink = (lowerKey: string, value: unknown): boolean =>
+  lowerKey.endsWith('_url') && typeof value === 'string' && /contrib/i.test(value);
+
 // Matched case-insensitively against the object key, by suffix: covers review_text/owner_answer
 // plus DataForSEO's untranslated original_review_text/original_owner_answer (and any future
 // *_text/*_answer field) without having to enumerate every vendor key.
@@ -49,9 +69,11 @@ const isContactTextKey = (key: string): boolean => {
 };
 
 /**
- * Deep-copies `payload`, pseudonymising reviewer names and stripping reviewer profile
- * URLs/photos and redacting contact info from review/owner text, at any depth. Non-matching
- * data (review ids, review photos, etc.) passes through unchanged. Does not mutate `payload`.
+ * Deep-copies a REVIEWS payload, pseudonymising reviewer names, stripping reviewer profile
+ * URLs/ids/photos, reviewer-uploaded review photos and contributor-id permalinks, and redacting
+ * contact info from review/owner text, at any depth. Non-matching data (review ids, ratings,
+ * timestamps, photo counts, etc.) passes through unchanged. Does not mutate `payload`.
+ * Only for review payloads: its key rules would over-strip business/ad payloads.
  */
 export function scrubReviewerIdentity(payload: unknown, salt: string): unknown {
   if (Array.isArray(payload)) {
@@ -61,11 +83,20 @@ export function scrubReviewerIdentity(payload: unknown, salt: string): unknown {
     const out: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(payload as Record<string, unknown>)) {
       const lowerKey = key.toLowerCase();
-      if (key === 'profile_name') {
-        out.reviewer_hash = pseudonymizeReviewer(typeof value === 'string' ? value : null, salt);
+      if (REVIEWER_NAME_KEYS.has(lowerKey)) {
+        const hash = pseudonymizeReviewer(typeof value === 'string' ? value : null, salt);
+        if (out.reviewer_hash == null) out.reviewer_hash = hash;
         continue;
       }
-      if (REVIEWER_LINK_KEYS.has(lowerKey)) {
+      if (lowerKey === 'reviewer_hash') {
+        // Already pseudonymised (re-scrubbing a scrubbed payload) — keep it.
+        if (out.reviewer_hash == null) out.reviewer_hash = value;
+        continue;
+      }
+      if (REVIEWER_LINK_KEYS.has(lowerKey) || REVIEWER_KEY_PREFIXES.some((p) => lowerKey.startsWith(p))) {
+        continue;
+      }
+      if ((isPhotoKey(lowerKey) && holdsPhotoData(value)) || isContributorLink(lowerKey, value)) {
         continue;
       }
       if (isContactTextKey(key) && typeof value === 'string') {

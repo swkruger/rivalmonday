@@ -97,6 +97,7 @@ The worker also pulls paid-vendor data (Google Business Profile, Google/Meta ads
 
 - **Reviewer identity is never stored.** `upsertReviews`/`collectReadyReviews` compute `reviewerHash` as an HMAC-SHA256 of the reviewer's display name with `REVIEWER_HASH_SALT` (spec §4.5) — the name, profile URL and photo are discarded, not just omitted from the parsed row.
 - **The raw vendor evidence is scrubbed too**, not just the parsed `review` row: `scrubReviewerIdentity` strips reviewer identity from the gzipped `vendor_json` capture before it's written, so there is no evidence path that leaks a reviewer's name.
+- **Review photos are never stored either.** Photos a reviewer attached to a review (`images`, `review_images`, `photos`, any key containing `image`/`photo` that holds a URL, array or object) are stripped from the raw evidence along with reviewer ids/links (`reviewer_*`, `author_*`, `profile_*`, `user_*`, contributor-id permalinks); the parsed `review` row has no media column at all. Photo *counts* (`photos_count`) are kept.
 - **E-mail addresses and phone numbers found in review text are redacted** before storage (`redactContactInfo`).
 - **US-first scope:** every DataForSEO call uses `location_code: 2840` (United States) / `language_code: 'en'`; Meta Ad Library queries use `country=US`.
 - **Honest scope on Meta:** Meta does not disclose ad targeting for US commercial ads, so none is ever stored or inferred.

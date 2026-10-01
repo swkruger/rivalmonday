@@ -20,12 +20,12 @@ const item = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('upsertReviews', () => {
-  it('stores pseudonymised, redacted reviews without reviewer identity', async () => {
-    expect(await upsertReviews(dbs.service, IDS.competitorX, CAP, [item(), { junk: true }], salt)).toEqual({ upserted: 1, skipped: 1 });
+  it('stores pseudonymised, redacted reviews without reviewer identity or review photos', async () => {
+    expect(await upsertReviews(dbs.service, IDS.competitorX, CAP, [item({ images: [{ url: 'https://x/review-photo.jpg' }] }), { junk: true }], salt)).toEqual({ upserted: 1, skipped: 1 });
     const [r] = await dbs.service.select().from(review);
     expect(r).toMatchObject({ dedupeKey: 'id:r1', externalId: 'r1', rating: 2, text: 'Slow. Call [phone]', firstCaptureId: CAP });
     expect(r?.reviewerHash).toMatch(/^[0-9a-f]{64}$/);
-    expect(JSON.stringify(r)).not.toMatch(/Jane|contrib|img\.jpg/);
+    expect(JSON.stringify(r)).not.toMatch(/Jane|contrib|img\.jpg|review-photo/);
     expect(r?.postedAt?.toISOString()).toBe('2026-09-20T10:00:00.000Z');
   });
 
