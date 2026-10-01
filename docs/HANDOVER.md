@@ -59,7 +59,7 @@ Business model: first sold to the owning agency's own clients, then **wholesale 
 
 ## 3. Current state (2026-10-01)
 
-**Git:** `main` at `7c36943` holds Phases 0–2 (2a + 2b merged), pushed to `https://github.com/swkruger/rivalmonday` (private). Working tree clean, no open feature branches. Work happens on feature branches, merged locally, then pushed.
+**Git:** `main` holds Phases 0–2 (2a + 2b merged), pushed to `https://github.com/swkruger/rivalmonday` (private). Working tree clean, no open feature branches. Work happens on feature branches, merged locally, then pushed.
 
 **Phase 0 — Branding: DONE.** Validation items (GHL/Vendasta marketplace check, agency LOIs, counsel review) still open.
 
@@ -87,7 +87,7 @@ Tests: `pnpm typecheck && pnpm test` green (7 packages; collectors 197, worker 2
 
 ## 5. How to continue (next session checklist)
 
-1. Read this file and the roadmap carry-over sections. Check `git log --oneline -5` (expect `7c36943` on `main`) and `git status` (clean).
+1. Read this file and the roadmap carry-over sections. Check `git log --oneline -5` (latest commit on `main` is this handover update) and `git status` (clean).
 2. On or after **2026-10-08**: re-pull the Aire Serv reviews (`pnpm --filter @cs/worker collect-once --domain <aire serv domain> --place-id ChIJ6VlKPHqPT4YR479jLd01gZY --vendors`, then `--poll`) and compare `review_id`s for stability (roadmap carry-over).
 3. Write the **Phase 3 (intelligence engine)** plan with `superpowers:writing-plans` against the merged code, folding in the Phase 2 carry-over items (persist discovery homepage status; DB-level evidence immutability + `legal_hold`; Google-ad activity from `last_seen_at` and advertiser-id pinning; several Meta pages per franchise competitor; metaPageId/placeId discovery for accepted competitors; role checks on accept; edited reviews).
 4. Execute it with `superpowers:subagent-driven-development` (the user's chosen method: ledger in `.superpowers/sdd/<plan>/progress.md`, final whole-branch review on the most capable model, then `superpowers:finishing-a-development-branch` — the user chooses merge locally + push).
