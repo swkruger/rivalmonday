@@ -3,6 +3,12 @@ import { foreignKey, index, jsonb, pgTable, primaryKey, text, timestamp, unique,
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
+export interface ServiceArea {
+  center: { lat: number; lng: number };
+  radiusKm: number;
+  zips: string[];
+}
+
 export const agency = pgTable('agency', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
@@ -17,6 +23,10 @@ export const client = pgTable(
     name: text('name').notNull(),
     verticalId: text('vertical_id').notNull(),
     features: jsonb('features').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    services: jsonb('services').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    keywords: jsonb('keywords').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    serviceArea: jsonb('service_area').$type<ServiceArea | null>(),
+    placeId: text('place_id'),
     createdAt: createdAt(),
   },
   (t) => [
@@ -34,6 +44,8 @@ export const competitor = pgTable('competitor', {
   name: text('name').notNull(),
   domain: text('domain').unique(),
   placeId: text('place_id').unique(),
+  cid: text('cid').unique(),
+  metaPageId: text('meta_page_id'),
   createdAt: createdAt(),
 });
 

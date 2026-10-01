@@ -64,6 +64,20 @@
       "when": 1790814474877,
       "tag": "0008_evidence_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790830794782,
+      "tag": "0009_vendor_sources",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790830805689,
+      "tag": "0010_sources_rls",
+      "breakpoints": true
     }
   ]
 }

@@ -63,14 +63,37 @@ describe('evidence visibility', () => {
 });
 
 describe('privilege guard', () => {
-  it('app_user has no INSERT/UPDATE/DELETE on system and global tables', async () => {
-    const tables = ['agency', 'competitor', 'audit_log', 'llm_call', 'vendor_call', 'tracked_page', 'capture', 'evidence'];
-    // Build a SQL array literal: drizzle expands a bare JS array into a parameter *list*, not an array.
-    const tableArray = sql`ARRAY[${sql.join(tables.map((t) => sql`${t}`), sql`, `)}]::text[]`;
+  it('app_user has exactly the INSERT/UPDATE/DELETE grants on the allow-list, on every public table', async () => {
+    // Inverted guard: instead of checking a hard-coded table list (which silently stops covering a table
+    // that forgets its REVOKE), enumerate every table that actually exists in the public schema — drizzle's
+    // own migration bookkeeping lives in a separate "drizzle" schema, so there's nothing of ours to exclude
+    // here — and assert the full set of (table, privilege) pairs app_user can INSERT/UPDATE/DELETE on. Any
+    // future table that ships without its REVOKE shows up as an unexpected extra pair and fails this test.
+    //
+    // Allow-list, derived from the migrations:
+    //   client             INSERT/UPDATE/DELETE — FOR ALL tenant-isolation policy (0001); never revoked.
+    //   client_competitor  INSERT/UPDATE/DELETE — FOR ALL tenant-isolation policy (0001); never revoked.
+    //   competitor_suggestion UPDATE only        — 0010 revokes INSERT/DELETE but leaves UPDATE so app_user
+    //                                              can dismiss/accept suggestions within its own agency/client
+    //                                              scope (enforced by the competitor_suggestion_update policy).
+    // Every other public table (agency, competitor, tracked_page, capture, evidence, audit_log, llm_call,
+    // vendor_call, competitor_source, vendor_task, observation, review, ad, rank_snapshot) has had all three
+    // write privileges revoked from app_user and is writable only by app_service.
+    const allowList = [
+      { table: 'client', priv: 'DELETE' },
+      { table: 'client', priv: 'INSERT' },
+      { table: 'client', priv: 'UPDATE' },
+      { table: 'client_competitor', priv: 'DELETE' },
+      { table: 'client_competitor', priv: 'INSERT' },
+      { table: 'client_competitor', priv: 'UPDATE' },
+      { table: 'competitor_suggestion', priv: 'UPDATE' },
+    ];
     const rows = (await dbs.owner.execute(sql`
-      SELECT t AS table, p AS priv
-      FROM unnest(${tableArray}) AS t, unnest(ARRAY['INSERT','UPDATE','DELETE']) AS p
-      WHERE has_table_privilege('app_user', 'public.' || t, p)`)) as unknown as { table: string; priv: string }[];
-    expect(rows).toEqual([]);
+      SELECT t.tablename AS table, p.priv AS priv
+      FROM pg_tables t, unnest(ARRAY['INSERT', 'UPDATE', 'DELETE']) AS p(priv)
+      WHERE t.schemaname = 'public'
+        AND has_table_privilege('app_user', 'public.' || t.tablename, p.priv)
+      ORDER BY t.tablename, p.priv`)) as unknown as { table: string; priv: string }[];
+    expect(rows).toEqual(allowList);
   });
 });
