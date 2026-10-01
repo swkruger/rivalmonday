@@ -124,8 +124,16 @@ describe('DataForSEO fixtures (production unless noted, 2026-10-01)', () => {
   });
 
   it('reviews task_get (production): items parse with review_id, and nothing identifying survives the scrubber', () => {
-    const result = fixture('dfs-reviews-task-get.json') as Result[];
+    const live = fixture('dfs-reviews-task-get.json') as Result[];
     const salt = 's'.repeat(32);
+    // The fixture's names are already REDACTED, so add one synthetic named item in the live shape to
+    // prove the reviewer's name is removed from the owner reply as well as from the identity fields.
+    const template = live[0]?.items[0] as Record<string, unknown>;
+    const named = {
+      ...template, review_id: 'synthetic-pat', profile_name: 'Pat Example', profile_url: 'https://www.google.com/maps/contrib/123/reviews',
+      review_text: 'Quick and tidy install.', owner_answer: 'Thank you, Pat! We appreciate you choosing Aire Serv of Central Texas.',
+    };
+    const result = [{ ...live[0], items: [...(live[0]?.items ?? []), named] }] as Result[];
     const parsed = (result[0]?.items ?? []).map((i) => parseReviewItem(i, salt));
     expect(parsed.length).toBeGreaterThan(0);
     for (const r of parsed) {
@@ -138,5 +146,8 @@ describe('DataForSEO fixtures (production unless noted, 2026-10-01)', () => {
     const scrubbed = JSON.stringify(scrubReviewerIdentity(result, salt));
     expect(scrubbed).not.toMatch(/profile_|"images"|image_url|contrib|googleusercontent/);
     expect(scrubbed).toMatch(/reviewer_hash/);
+    expect(scrubbed).not.toMatch(/Pat/);
+    expect(scrubbed).toContain('Thank you, [name]! We appreciate you choosing Aire Serv of Central Texas.');
+    expect(parsed.at(-1)?.ownerAnswer).toBe('Thank you, [name]! We appreciate you choosing Aire Serv of Central Texas.');
   });
 });

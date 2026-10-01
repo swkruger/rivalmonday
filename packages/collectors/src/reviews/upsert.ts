@@ -32,12 +32,12 @@ export interface ParsedReview {
  * dedupe key. Returns null for an item that is unparseable or carries no review content. Nothing
  * else from the vendor item (profile URLs, photos, review_url, …) is ever carried over.
  */
-export function parseReviewItem(raw: unknown, salt: string): ParsedReview | null {
+export function parseReviewItem(raw: unknown, salt: string, businessNames: readonly (string | null | undefined)[] = []): ParsedReview | null {
   const p = reviewSchema.safeParse(raw);
   if (!p.success || (!p.data.review_id && !p.data.review_text && !p.data.timestamp)) return null;
   const i = p.data;
   const reviewerHash = pseudonymizeReviewer(i.profile_name, salt);
-  const clean = (t: string) => redactReviewerName(redactContactInfo(t), i.profile_name);
+  const clean = (t: string) => redactReviewerName(redactContactInfo(t), i.profile_name, businessNames);
   const text = i.review_text ? clean(i.review_text) : null;
   const postedAt = parseDfsTimestamp(i.timestamp);
   const rating = i.rating?.value != null ? Math.round(i.rating.value) : null;
@@ -48,14 +48,21 @@ export function parseReviewItem(raw: unknown, salt: string): ParsedReview | null
   };
 }
 
-export async function upsertReviews(db: Db, competitorId: string, captureId: string, items: unknown[], salt: string, now = new Date()): Promise<{ upserted: number; skipped: number }> {
+/**
+ * `businessNames` (the reviewed business's title / competitor name) keeps business-name words from
+ * being redacted as reviewer names. Dedupe falls back to a hash of the redacted text when a review has
+ * no review_id, so those keys depend on the redaction rules (see redactReviewerName).
+ */
+export async function upsertReviews(
+  db: Db, competitorId: string, captureId: string, items: unknown[], salt: string, now = new Date(), businessNames: readonly (string | null | undefined)[] = [],
+): Promise<{ upserted: number; skipped: number }> {
   // Keyed by dedupeKey (last occurrence wins): a single batch can contain the same review twice
   // (e.g. overlapping pages), and Postgres rejects an INSERT ... ON CONFLICT DO UPDATE that would
   // affect the same row twice in one statement, which would otherwise fail the whole task.
   const rowsByKey = new Map<string, typeof review.$inferInsert>();
   let skipped = 0;
   for (const raw of items) {
-    const parsed = parseReviewItem(raw, salt);
+    const parsed = parseReviewItem(raw, salt, businessNames);
     if (!parsed) {
       skipped++;
       continue;

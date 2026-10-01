@@ -48,8 +48,15 @@ export async function fetchMetaAdsApify(
       const e = errorItems.find((x) => x.errorCode !== 'ADS_NOT_FOUND')!;
       throw new VendorError('apify', null, `Apify actor error ${e.errorCode}: ${String(e.error ?? '')}`.trim(), false);
     }
+    // Real ads alongside an error item (other than ADS_NOT_FOUND) means the run may have stopped
+    // part-way: report it as truncated so missing ads are not marked ended.
+    const partialError = items.length > 0 && errorItems.some((e) => e.errorCode !== 'ADS_NOT_FOUND');
+    if (partialError) {
+      const codes = [...new Set(errorItems.map((e) => e.errorCode))].join(', ');
+      console.warn(`[apify] page ${pageId}: ${items.length} ads plus error item(s) ${codes}; treating the response as truncated`);
+    }
     ok = true;
-    return { items, truncated: items.length >= APIFY_META_COUNT };
+    return { items, truncated: partialError || items.length >= APIFY_META_COUNT };
   } catch (err) {
     if (err instanceof VendorError) throw err;
     throw new VendorError('apify', null, 'Network error calling Apify', true, { cause: err });

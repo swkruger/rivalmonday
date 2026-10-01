@@ -63,7 +63,15 @@ describe('fetchMetaAdsApify', () => {
     const opts = { token: 't', ledger, fetch: fetch as unknown as typeof globalThis.fetch };
     expect(await fetchMetaAdsApify(opts, '99')).toEqual({ items: [], truncated: false });
     await expect(fetchMetaAdsApify(opts, '99')).rejects.toMatchObject({ vendor: 'apify', retryable: false, message: 'Apify actor error SOMETHING_ELSE: Blocked' });
-    expect(await fetchMetaAdsApify(opts, '99')).toEqual({ items: [{ ad_archive_id: '1' }], truncated: false });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      // Real ads plus a non-ADS_NOT_FOUND error item: keep the ads, but flag the response truncated
+      // so collectMetaAds never marks missing ads ended on a possibly partial run.
+      expect(await fetchMetaAdsApify(opts, '99')).toEqual({ items: [{ ad_archive_id: '1' }], truncated: true });
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('SOMETHING_ELSE'));
+    } finally {
+      warn.mockRestore();
+    }
     expect(records.map((r) => [r.ok, r.units])).toEqual([[true, 0], [false, 0], [true, 1]]);
   });
 });

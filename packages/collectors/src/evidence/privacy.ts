@@ -69,19 +69,45 @@ const isContactTextKey = (key: string): boolean => {
   return CONTACT_TEXT_SUFFIXES.some((suffix) => lower.endsWith(suffix));
 };
 
+// Words in a display name that are not the person's name: titles, articles and the generic words of
+// placeholder names ("A Google User", "Texas Homeowner", "The Smith Family"). Never redacted alone.
+const NON_NAME_WORDS = new Set([
+  'the', 'of', 'and', 'a', 'an', 'de', 'la', 'le', 'van', 'von', 'da', 'del', 'di',
+  'mr', 'mrs', 'ms', 'miss', 'mx', 'dr', 'prof', 'rev', 'jr', 'sr', 'ii', 'iii', 'iv',
+  'family', 'user', 'google', 'customer', 'client', 'homeowner', 'owner', 'guest', 'anonymous', 'local', 'guide',
+  'team', 'home', 'house', 'my', 'our', 'mom', 'dad', 'llc', 'inc', 'co',
+]);
+
+/** Splits a name on whitespace and hyphens/dashes, trims non-letters, keeps words of 2+ letters. */
+const nameWords = (s: string): string[] =>
+  s.split(/[\s\u2010-\u2015-]+/u).map((w) => w.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '')).filter((w) => w.length >= 2);
+
+const capitalised = (w: string): string => w.charAt(0).toLocaleUpperCase('en-US') + w.slice(1).toLocaleLowerCase('en-US');
+
 /**
- * Replaces the reviewer's own name (the full name, then each word of it of 2+ letters) in `text`
- * with "[name]". Live-verified 2026-10-01: ~72% of owner replies address the reviewer by first name
- * ("Thank you, Mike!"), and a few repeat the full name — storing those would defeat pseudonymisation.
+ * Replaces the reviewer's own name in `text` with "[name]". Live-verified 2026-10-01: ~72% of owner
+ * replies address the reviewer by first name ("Thank you, Mike!"), a few repeat the full name.
+ * - the full display name is matched case-insensitively;
+ * - single name words (split on whitespace and hyphens) are matched only in their Capitalised form,
+ *   so "Will Hunt" does not redact "we will fix it";
+ * - titles/articles/generic placeholder words ("the", "Mr", "Family", "Google User", "Homeowner") and
+ *   any word of the business's own name (`businessNames`) are never redacted on their own.
+ * Note: review dedupe falls back to a hash of the stored (redacted) text when review_id is missing,
+ * so changing these rules changes those fallback keys.
  */
-export function redactReviewerName(text: string, name: string | null | undefined): string {
+export function redactReviewerName(text: string, name: string | null | undefined, businessNames: readonly (string | null | undefined)[] = []): string {
   const full = name?.trim();
   if (!full) return text;
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const words = [...new Set(full.split(/\s+/).map((w) => w.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '')).filter((w) => w.length >= 2))];
-  const terms = [...(full.length >= 2 ? [full] : []), ...words.sort((a, b) => b.length - a.length)];
+  const around = (term: string, flags: string) => new RegExp(`(?<![\\p{L}\\p{N}])${esc(term)}(?![\\p{L}\\p{N}])`, flags);
+  const business = new Set(businessNames.flatMap((b) => (b ? nameWords(b).map((w) => w.toLowerCase()) : [])));
   let out = text;
-  for (const term of terms) out = out.replace(new RegExp(`(?<![\\p{L}\\p{N}])${esc(term)}(?![\\p{L}\\p{N}])`, 'giu'), '[name]');
+  if (full.length >= 2) out = out.replace(around(full, 'giu'), '[name]');
+  // Each word in its Capitalised form and, when it has inner capitals (live: "McKenzie"-style names),
+  // as written — a lowercase or ALL-LOWER profile word ("mike") still only matches "Mike".
+  const keep = nameWords(full).filter((w) => !NON_NAME_WORDS.has(w.toLowerCase()) && !business.has(w.toLowerCase()));
+  const words = [...new Set(keep.flatMap((w) => (/\p{Lu}/u.test(w.slice(1)) && w !== w.toLocaleUpperCase('en-US') ? [capitalised(w), w] : [capitalised(w)])))];
+  for (const w of words.sort((a, b) => b.length - a.length)) out = out.replace(around(w, 'gu'), '[name]');
   return out;
 }
 
@@ -99,15 +125,20 @@ const REVIEWER_ACTIVITY_KEYS = new Set(['reviews_count', 'photos_count', 'local_
  * timestamps, the business's own reviews_count, etc.) passes through unchanged. Does not mutate `payload`.
  * Only for review payloads: its key rules would over-strip business/ad payloads.
  */
-export function scrubReviewerIdentity(payload: unknown, salt: string): unknown {
+export function scrubReviewerIdentity(payload: unknown, salt: string, businessNames: readonly (string | null | undefined)[] = []): unknown {
   if (Array.isArray(payload)) {
-    return payload.map((item) => scrubReviewerIdentity(item, salt));
+    return payload.map((item) => scrubReviewerIdentity(item, salt, businessNames));
   }
   if (payload !== null && typeof payload === 'object') {
     const out: Record<string, unknown> = {};
     const entries = Object.entries(payload as Record<string, unknown>);
     const reviewerName = entries.find(([k, v]) => REVIEWER_NAME_KEYS.has(k.toLowerCase()) && typeof v === 'string')?.[1] as string | undefined;
     const isReviewItem = reviewerName !== undefined || entries.some(([k]) => k.toLowerCase() === 'review_id' || k.toLowerCase() === 'reviewer_hash');
+    // A reviews result object carries the business's own `title` next to its `items`: its words are
+    // never redacted as reviewer names in the items below (e.g. reviewer "Texas Homeowner" vs the
+    // business "Aire Serv of Central Texas").
+    const resultTitle = !isReviewItem && Array.isArray((payload as Record<string, unknown>).items) ? (payload as Record<string, unknown>).title : undefined;
+    const names = typeof resultTitle === 'string' ? [...businessNames, resultTitle] : businessNames;
     for (const [key, value] of entries) {
       const lowerKey = key.toLowerCase();
       if (isReviewItem && REVIEWER_ACTIVITY_KEYS.has(lowerKey)) continue;
@@ -128,10 +159,10 @@ export function scrubReviewerIdentity(payload: unknown, salt: string): unknown {
         continue;
       }
       if (isContactTextKey(key) && typeof value === 'string') {
-        out[key] = redactReviewerName(redactContactInfo(value), reviewerName);
+        out[key] = redactReviewerName(redactContactInfo(value), reviewerName, names);
         continue;
       }
-      out[key] = scrubReviewerIdentity(value, salt);
+      out[key] = scrubReviewerIdentity(value, salt, names);
     }
     return out;
   }

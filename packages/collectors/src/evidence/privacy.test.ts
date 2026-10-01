@@ -37,9 +37,25 @@ describe('redactContactInfo', () => {
 describe('redactReviewerName', () => {
   it('replaces the full name and each name word, case-insensitively, on word boundaries', () => {
     expect(redactReviewerName('Thank you, Mike! Mike Ross, we appreciate it.', 'Mike Ross')).toBe('Thank you, [name]! [name], we appreciate it.');
-    expect(redactReviewerName('thanks MIKE', 'Mike R.')).toBe('thanks [name]');
+    expect(redactReviewerName('thanks MIKE R.', 'Mike R.')).toBe('thanks [name]');
     expect(redactReviewerName('Michael was great, unlike Mikey', 'Mike')).toBe('Michael was great, unlike Mikey');
     expect(redactReviewerName('Gracias, José!', 'José Núñez')).toBe('Gracias, [name]!');
+  });
+  it('matches single name words only in their Capitalised form', () => {
+    expect(redactReviewerName('Thanks Will, we will fix it', 'Will Hunt')).toBe('Thanks [name], we will fix it');
+    expect(redactReviewerName('thanks mike', 'Mike Ross')).toBe('thanks mike');
+  });
+  it('never redacts titles, articles or generic placeholder words on their own', () => {
+    expect(redactReviewerName('The technician fixed the unit, Smith family.', 'The Smith Family')).toBe('The technician fixed the unit, [name] family.');
+    expect(redactReviewerName('Thank you for the Google review, dear user!', 'A Google User')).toBe('Thank you for the Google review, dear user!');
+    expect(redactReviewerName('Thanks, Mr Ross', 'Mr. Ross')).toBe('Thanks, Mr [name]');
+  });
+  it('never redacts words of the business name', () => {
+    expect(redactReviewerName('Thanks for choosing Aire Serv of Central Texas!', 'Texas Homeowner', ['Aire Serv of Central Texas'])).toBe('Thanks for choosing Aire Serv of Central Texas!');
+  });
+  it('splits names on hyphens', () => {
+    expect(redactReviewerName('Thanks Mary! Jane says hi.', 'Mary-Jane Doe')).toBe('Thanks [name]! [name] says hi.');
+    expect(redactReviewerName('Thanks McKenzie and DeShawn!', 'McKenzie DeShawn')).toBe('Thanks [name] and [name]!');
   });
   it('leaves text alone without a name and ignores 1-letter initials', () => {
     expect(redactReviewerName('Thanks J for the review', 'J')).toBe('Thanks J for the review');
@@ -138,5 +154,13 @@ describe('scrubReviewerIdentity', () => {
     const out = scrubReviewerIdentity([{ title: 'Acme HVAC', reviews_count: 546, items: [{ review_id: 'r1', reviews_count: 3 }] }], salt) as Array<Record<string, unknown>>;
     expect(out[0]?.reviews_count).toBe(546);
     expect((out[0]?.items as Array<Record<string, unknown>>)[0]?.reviews_count).toBeUndefined();
+  });
+
+  it('uses the result-level business title so its words survive in owner replies', () => {
+    const out = scrubReviewerIdentity(
+      [{ title: 'Aire Serv of Central Texas', items: [{ review_id: 'r1', profile_name: 'Texas Homeowner', owner_answer: 'Thank you for choosing Aire Serv of Central Texas!' }] }],
+      salt,
+    ) as Array<{ items: Array<Record<string, unknown>> }>;
+    expect(out[0]?.items[0]?.owner_answer).toBe('Thank you for choosing Aire Serv of Central Texas!');
   });
 });

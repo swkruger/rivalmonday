@@ -1,4 +1,4 @@
-import { type Db, vendorTask } from '@cs/db';
+import { competitor, type Db, vendorTask } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { and, eq, inArray, lt, sql } from 'drizzle-orm';
 import { recordVendorCapture } from '../evidence/vendor-capture';
@@ -70,12 +70,18 @@ export async function collectReadyReviews(deps: { db: Db; store: ObjectStore; df
       // identity (name, profile URL, photo) or unredacted contact info — scrub before it is
       // gzipped and persisted. Parsed review rows still come from the raw `task.result` items
       // below; upsertReviews does its own hashing/redaction independently.
+      // The business's own name words are never treated as reviewer-name words (e.g. "Texas Homeowner"
+      // reviewing "Aire Serv of Central Texas"): pass the competitor name; the scrubber also picks up
+      // the result-level `title`.
+      const [comp] = await deps.db.select({ name: competitor.name }).from(competitor).where(eq(competitor.id, vt.competitorId)).limit(1);
+      const result0 = task.result[0] as { items?: unknown[]; title?: unknown } | undefined;
+      const businessNames = [comp?.name, typeof result0?.title === 'string' ? result0.title : null];
       const { captureId } = await recordVendorCapture(deps, {
         competitorId: vt.competitorId, source: 'google_reviews', collectorVersion: DFS_COLLECTOR_VERSION, status: 'ok',
-        payload: scrubReviewerIdentity(task.result, deps.salt),
+        payload: scrubReviewerIdentity(task.result, deps.salt, businessNames),
       });
-      const items = (task.result[0] as { items?: unknown[] } | undefined)?.items ?? [];
-      reviews += (await upsertReviews(deps.db, vt.competitorId, captureId, items, deps.salt)).upserted;
+      const items = result0?.items ?? [];
+      reviews += (await upsertReviews(deps.db, vt.competitorId, captureId, items, deps.salt, new Date(), businessNames)).upserted;
     },
   );
   return { ...r, reviews };
