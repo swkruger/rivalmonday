@@ -6,7 +6,13 @@
     "TEST_SERVICE_DATABASE_URL",
     "DATABASE_URL",
     "TYPESAFE_API_KEY",
-    "OPENROUTER_API_KEY"
+    "OPENROUTER_API_KEY",
+    "DATAFORSEO_LOGIN",
+    "DATAFORSEO_PASSWORD",
+    "DATAFORSEO_BASE_URL",
+    "APIFY_TOKEN",
+    "SCRAPECREATORS_API_KEY",
+    "REVIEWER_HASH_SALT"
   ],
   "tasks": {
     "typecheck": { "dependsOn": ["^typecheck"] },
