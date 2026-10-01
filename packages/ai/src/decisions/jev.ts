@@ -15,6 +15,7 @@ const answerSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('score'),
     score: z.number(),
+    legend: z.record(z.string(), z.string()).optional(),
     probabilities: z.record(z.string(), z.number()),
     confidence: z.number().min(0).max(1),
   }),
@@ -35,6 +36,26 @@ function toJevQuestion(q: DecisionQuestion): Record<string, unknown> {
     case 'noul':
       return q.criteria ? { type: 'noul', instructions: q.instructions, criteria: q.criteria } : { type: 'noul', instructions: q.instructions };
   }
+}
+
+/**
+ * Jev returns `score` as a probability-weighted average (e.g. 1.2); the discrete level is the
+ * 0-based key of `probabilities` with the highest probability. Returns null if any key is not a
+ * valid level index for this question, or if there are no keys.
+ */
+export function mostLikelyLevel(probabilities: Record<string, number>, levelCount: number): number | null {
+  let best: number | null = null;
+  let bestP = -1;
+  for (const [key, p] of Object.entries(probabilities)) {
+    if (!/^\d+$/.test(key)) return null;
+    const level = Number(key);
+    if (level >= levelCount) return null;
+    if (p > bestP || (p === bestP && best !== null && level < best)) {
+      best = level;
+      bestP = p;
+    }
+  }
+  return best;
 }
 
 export interface JevOptions {
@@ -72,10 +93,11 @@ export function createJevProvider(opts: JevOptions): DecisionProvider {
           if (!(a.choice in q.options)) throw new AiProviderError('jev', 200, `Answer for ${key} is not a valid option`, false);
           answers[key as K] = { type: 'choice', value: a.choice, probabilities: a.probabilities, confidence: a.confidence };
         } else if (a.type === 'score' && q.type === 'score') {
-          if (!Number.isInteger(a.score) || a.score < 0 || a.score >= q.levels.length) {
+          const level = mostLikelyLevel(a.probabilities, q.levels.length);
+          if (level === null) {
             throw new AiProviderError('jev', 200, `Answer for ${key} is out of range`, false);
           }
-          answers[key as K] = { type: 'score', value: a.score, probabilities: a.probabilities, confidence: a.confidence };
+          answers[key as K] = { type: 'score', value: level, expected: a.score, probabilities: a.probabilities, confidence: a.confidence };
         }
       }
       const { input_tokens, output_tokens } = parsed.data.usage;

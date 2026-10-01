@@ -5,7 +5,7 @@ export type DecisionQuestion =
 
 export type DecisionAnswer =
   | { type: 'choice'; value: string; probabilities: Record<string, number>; confidence: number }
-  | { type: 'score'; value: number; probabilities: Record<string, number>; confidence: number }
+  | { type: 'score'; value: number; expected?: number; probabilities: Record<string, number>; confidence: number }
   | { type: 'noul'; value: boolean; probability: number; confidence: number };
 
 export interface DecisionCall<K extends string> {

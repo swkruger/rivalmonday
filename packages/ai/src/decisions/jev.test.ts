@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createJevProvider } from './jev';
+import { createJevProvider, mostLikelyLevel } from './jev';
 import type { DecisionQuestion } from './types';
 
 const questions = {
@@ -13,7 +13,7 @@ const jevResponse = {
   answers: {
     meaningful: { type: 'noul', noul: 0.9 },
     change_type: { type: 'choice', choice: 'price_change', probabilities: { price_change: 0.93, cosmetic: 0.07 }, confidence: 0.93 },
-    severity: { type: 'score', score: 2, legend: {}, probabilities: { '0': 0.1, '1': 0.2, '2': 0.7 }, confidence: 0.7 },
+    severity: { type: 'score', score: 1.4, legend: { '0': 'minor', '1': 'moderate', '2': 'major' }, probabilities: { '0': 0.1, '1': 0.4, '2': 0.5 }, confidence: 0.5 },
   },
   usage: { input_tokens: 1_000_000, output_tokens: 3 },
 };
@@ -47,7 +47,7 @@ describe('Jev provider', () => {
     const r = await provider.decide('state', questions);
     expect(r.answers.meaningful).toEqual({ type: 'noul', value: true, probability: 0.9, confidence: expect.closeTo(0.8, 5) });
     expect(r.answers.change_type).toMatchObject({ type: 'choice', value: 'price_change', confidence: 0.93 });
-    expect(r.answers.severity).toMatchObject({ type: 'score', value: 2, confidence: 0.7 });
+    expect(r.answers.severity).toMatchObject({ type: 'score', value: 2, expected: 1.4, confidence: 0.5 });
     expect(r).toMatchObject({ model: 'jev-2026-09', inputTokens: 1_000_000, outputTokens: 3, costUsd: 0.042 });
   });
 
@@ -63,9 +63,14 @@ describe('Jev provider', () => {
     await expect(setup(bad).provider.decide('s', questions)).rejects.toThrow(/change_type/);
   });
 
-  it('throws when a score is out of range for the number of levels', async () => {
-    const bad = { ...jevResponse, answers: { ...jevResponse.answers, severity: { ...jevResponse.answers.severity, score: 3 } } };
+  it('throws when score probabilities name a level outside the question', async () => {
+    const bad = { ...jevResponse, answers: { ...jevResponse.answers, severity: { ...jevResponse.answers.severity, probabilities: { '0': 0.2, '3': 0.8 } } } };
     await expect(setup(bad).provider.decide('s', questions)).rejects.toMatchObject({ provider: 'jev', retryable: false });
+    await expect(setup(bad).provider.decide('s', questions)).rejects.toThrow(/severity/);
+  });
+
+  it('throws when score probabilities are empty', async () => {
+    const bad = { ...jevResponse, answers: { ...jevResponse.answers, severity: { ...jevResponse.answers.severity, probabilities: {} } } };
     await expect(setup(bad).provider.decide('s', questions)).rejects.toThrow(/severity/);
   });
 
@@ -75,5 +80,18 @@ describe('Jev provider', () => {
     const tooMany = Object.fromEntries(Array.from({ length: 256 }, (_, i) => [`o${i}`, 'd']));
     await expect(provider.decide('s', { q: { type: 'choice', instructions: 'x', options: tooMany } })).rejects.toThrow(/255/);
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('mostLikelyLevel', () => {
+  it('picks the highest-probability level and breaks ties toward the lower level', () => {
+    expect(mostLikelyLevel({ '0': 0, '1': 0.8, '2': 0.2 }, 3)).toBe(1);
+    expect(mostLikelyLevel({ '0': 0.5, '1': 0.5 }, 2)).toBe(0);
+  });
+  it('rejects non-integer, negative or out-of-range keys', () => {
+    expect(mostLikelyLevel({ a: 1 }, 3)).toBeNull();
+    expect(mostLikelyLevel({ '-1': 1 }, 3)).toBeNull();
+    expect(mostLikelyLevel({ '3': 1 }, 3)).toBeNull();
+    expect(mostLikelyLevel({}, 3)).toBeNull();
   });
 });
