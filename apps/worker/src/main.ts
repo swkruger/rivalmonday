@@ -9,6 +9,7 @@ try {
 import { createBoss, enqueue, registerJobs } from './boss';
 import { createWorkerDeps } from './deps';
 import { heartbeatJob } from './jobs/heartbeat';
+import { createVendorJobs } from './jobs/vendor';
 import { createWebJobs } from './jobs/web';
 
 const url = process.env.DATABASE_URL;
@@ -26,7 +27,15 @@ const web = createWebJobs(deps, {
     await enqueue(boss, web.capture, { trackedPageId });
   },
 });
-await registerJobs(boss, [heartbeatJob, web.schedule, web.capture, web.discover]);
+const vendor = createVendorJobs(deps, {
+  enqueueCollect: async (p) => {
+    await enqueue(boss, vendor.collect, p);
+  },
+  enqueueRankScan: async (clientId) => {
+    await enqueue(boss, vendor.rankScan, { clientId });
+  },
+});
+await registerJobs(boss, [heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, vendor.suggest]);
 console.log('[worker] started');
 
 // pg-boss 10's stop({ graceful: true, wait: true }) resolves only after in-flight handlers drain

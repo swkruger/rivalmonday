@@ -22,6 +22,7 @@ export * from './reviews/collect';
 export * from './reviews/post';
 export * from './reviews/upsert';
 export * from './schedule/due-pages';
+export * from './sources/due';
 export * from './sources/ensure';
 export * from './sources/kinds';
 export * from './vendors/apify';

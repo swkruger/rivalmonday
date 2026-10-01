@@ -74,6 +74,52 @@ The worker crawls and captures competitor web pages as immutable evidence.
 - **The bot information page `https://rivalmonday.com/bot` must exist before crawling real competitors.** Until then, only run `collect-once` against safe, non-competitor domains such as `example.com`.
 - **Crawler conduct (spec §4.2, non-negotiable):** User-Agent `Mozilla/5.0 (compatible; RivalMondayBot/1.0; +https://rivalmonday.com/bot)`, robots token `RivalMondayBot`; honours robots.txt per RFC 9309 (2xx → obey rules; 4xx → allow all; 5xx/unreachable → disallow all); at least 3 s between requests to the same host (or robots `Crawl-delay` if larger, capped at 60 s); no logins, no proxies, no anti-bot evasion; a challenge or 401/403/429 response is recorded as `blocked` and is never retried with different tactics.
 
+## Vendor sources (Phase 2b)
+
+The worker also pulls paid-vendor data (Google Business Profile, Google/Meta ads, Google reviews and job postings) and runs tenant-scoped local-rank scans, all via [DataForSEO](https://dataforseo.com) plus Apify/ScrapeCreators for Meta ads.
+
+- **Enrolling a competitor:** `ensureCompetitorSources` inserts one `competitor_source` row per `SOURCE_KINDS` (`gbp`, `reviews`, `ads_google`, `ads_meta`, `jobs`), due immediately. Set `competitor.placeId`/`cid` (Google Business Profile) and `competitor.metaPageId` (Meta Ad Library) so GBP, reviews and Meta ads collectors have something to query — `collect-once --vendors` does this for you (see below).
+- **Cadence:** every source is **weekly**. `vendor-schedule` (cron `*/30 * * * *`) claims due `competitor_source` rows with `FOR UPDATE SKIP LOCKED` (exactly-once across workers) and advances `next_due_at` by 7 days. `gbp`, `ads_google` and `ads_meta` are synchronous — each claimed row is enqueued as a `vendor-collect` job. `reviews` and `jobs` are asynchronous DataForSEO tasks — claimed rows are posted in a batch (`task_post`) and the results are picked up later by `vendor-poll` (cron `*/10 * * * *`, `tasks_ready` → `task_get`, expiring anything not ready after 48h).
+- **Rankings:** `rank-schedule` (cron `0 6 1 * *`, monthly) enqueues a `rank-scan` job per client with keywords + a service area; it scans a 7×7 grid of map points × up to 5 keywords (clamped) and stores one tenant-scoped `rank_snapshot` per keyword × grid point. `suggest-competitors` runs the same grid search to populate `competitor_suggestion` candidates for a client (not on a schedule — triggered from the app).
+- **No vendor credentials, no claiming:** `vendor-schedule` checks `WorkerDeps.vendorsConfigured()` (`DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD` both set) and returns immediately (logging once) when it's false, so nothing is claimed or stuck mid-cycle until DataForSEO is configured.
+- **Env vars** (see `.env.example`): `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` (required for all vendor jobs); `DATAFORSEO_BASE_URL` (optional — point at `https://sandbox.dataforseo.com/v3` for free mock data in real response shapes); `APIFY_TOKEN` and/or `SCRAPECREATORS_API_KEY` (Meta ads — Apify tried first, ScrapeCreators as fallback); `REVIEWER_HASH_SALT` (required before any review is ever collected — at least 32 random characters, **never change once reviews are stored**, or every reviewer hash changes and dedupe breaks).
+
+### Cost estimates
+
+- **DataForSEO, per competitor per month** ≈ **$0.07–0.09**: GBP profile $0.0054/profile (weekly), reviews $0.00075 per 10 reviews (weekly), Google ads $0.0006–0.002/request (weekly), job postings $0.0006/page (weekly).
+- **Geo-grid rank scans, per client per month** ≈ **$0.10–0.49**: a 7×7 grid × up to 5 keywords is at most 245 live searches at $0.002/search, run once a month.
+- DataForSEO requires a **$50 minimum deposit** on the account before any of the above runs.
+- **Meta ads (Apify `curious_coder~facebook-ads-library-scraper`)** ≈ **$0.75 per 1,000 ads**. Apify's Free plan includes $5/month of platform credit; the Starter plan is $29/month. ScrapeCreators is the fallback vendor when Apify fails or isn't configured.
+
+### Privacy
+
+- **Reviewer identity is never stored.** `upsertReviews`/`collectReadyReviews` compute `reviewerHash` as an HMAC-SHA256 of the reviewer's display name with `REVIEWER_HASH_SALT` (spec §4.5) — the name, profile URL and photo are discarded, not just omitted from the parsed row.
+- **The raw vendor evidence is scrubbed too**, not just the parsed `review` row: `scrubReviewerIdentity` strips reviewer identity from the gzipped `vendor_json` capture before it's written, so there is no evidence path that leaks a reviewer's name.
+- **E-mail addresses and phone numbers found in review text are redacted** before storage (`redactContactInfo`).
+- **US-first scope:** every DataForSEO call uses `location_code: 2840` (United States) / `language_code: 'en'`; Meta Ad Library queries use `country=US`.
+- **Honest scope on Meta:** Meta does not disclose ad targeting for US commercial ads, so none is ever stored or inferred.
+- **Rank snapshots are tenant-scoped** (not global like other vendor tables) — which keywords a client tracks, and where they rank, is itself sensitive to that client.
+
+### `collect-once --vendors` / `--web` / `--poll`
+
+```bash
+# Web-only (Phase 2a, unchanged) — requires https://rivalmonday.com/bot to exist first:
+pnpm --filter @cs/worker collect-once --domain example.com --name "Example Co"
+
+# Vendor sources only (safe before the bot page exists — no crawling): enrolls the competitor
+# (ensureCompetitorSources), runs gbp/ads_google/ads_meta synchronously, and posts reviews/jobs tasks.
+pnpm --filter @cs/worker collect-once --domain example.com --place-id ChIJ... --cid 1234567890 --meta-page-id 987654321 --vendors
+
+# Both web discovery/capture AND vendor sources in one run:
+pnpm --filter @cs/worker collect-once --domain example.com --vendors --web
+
+# Poll once for results of previously-posted reviews/jobs tasks (no --domain needed) — this is the
+# same work vendor-poll does on its cron; run it manually to see review/job results sooner:
+pnpm --filter @cs/worker collect-once --poll
+```
+
+`--vendors` without `--web` deliberately skips Phase 2a web discovery/capture so `collect-once --vendors` never crawls a real site. Reviews and job postings never appear immediately — they are posted as DataForSEO tasks and only land in the database once `vendor-poll` (or `collect-once --poll`) picks up the finished task.
+
 ## Database roles
 - `postgres` / Neon owner (owner) — migrations only. Must have `BYPASSRLS`.
 - `app_user` — application runtime; RLS always applies. Use `withTenant(db, ctx, fn)` for every tenant query. The `agency` table is read-only for `app_user` — agency writes go via the service role. `audit_log`, `llm_call`, and `vendor_call` are also read-only for `app_user` (SELECT-only policies) — only `app_service` may insert/update/delete them.
