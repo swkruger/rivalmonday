@@ -45,6 +45,24 @@ describe('jobs', () => {
     expect(dfsPost.calls[0]?.body).toEqual([{ keyword: 'Smith HVAC', location_code: 2840, language_code: 'en', depth: 20, tag: IDS.competitorX }]);
   });
 
+  it('maps posted job tasks to competitors by their echoed tag, falling back to position when tags are absent', async () => {
+    const T2 = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const batch = [{ id: IDS.competitorX, name: 'Smith HVAC' }, { id: IDS.competitorY, name: 'Bright Smiles' }];
+    const reversed = fakeDfs(() => [dfsTask([], { id: T2, statusCode: 20100, tag: IDS.competitorY }), dfsTask([], { id: TASK, statusCode: 20100, tag: IDS.competitorX })]);
+    await postJobTasks({ db: dbs.service, dfs: reversed }, batch);
+    let rows = await dbs.service.select().from(vendorTask);
+    expect(rows.find((v) => v.externalTaskId === TASK)?.competitorId).toBe(IDS.competitorX);
+    expect(rows.find((v) => v.externalTaskId === T2)?.competitorId).toBe(IDS.competitorY);
+
+    await truncateAll(dbs.owner);
+    await seedTenancy(dbs.owner);
+    const untagged = fakeDfs(() => [dfsTask([], { id: TASK, statusCode: 20100 }), dfsTask([], { id: T2, statusCode: 20100 })]);
+    await postJobTasks({ db: dbs.service, dfs: untagged }, batch);
+    rows = await dbs.service.select().from(vendorTask);
+    expect(rows.find((v) => v.externalTaskId === TASK)?.competitorId).toBe(IDS.competitorX);
+    expect(rows.find((v) => v.externalTaskId === T2)?.competitorId).toBe(IDS.competitorY);
+  });
+
   it('keeps earlier chunks posted when a later chunk fails with a VendorError, instead of losing them', async () => {
     let call = 0;
     const dfs = fakeDfs(() => {

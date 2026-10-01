@@ -21,7 +21,7 @@ describe('fetchMetaAdsScrapeCreators', () => {
   it('follows the cursor across pages, concatenating results with one ledger row per page', async () => {
     const { fetch, records, ledger } = setup([page([{ id: 'a' }], 'next-cursor'), page([{ id: 'b' }], null)]);
     const items = await fetchMetaAdsScrapeCreators({ apiKey: 'super-secret-key', ledger, fetch: fetch as unknown as typeof globalThis.fetch }, '99');
-    expect(items).toEqual([{ id: 'a' }, { id: 'b' }]);
+    expect(items).toEqual({ items: [{ id: 'a' }, { id: 'b' }], truncated: false });
     expect(records).toHaveLength(2);
     expect(records.every((r) => r.ok)).toBe(true);
     const [secondUrl] = fetch.mock.calls[1] as unknown as [string];
@@ -53,5 +53,12 @@ describe('fetchMetaAdsScrapeCreators', () => {
     expect(err).toBeInstanceOf(VendorError);
     expect(JSON.stringify({ message: err.message, vendor: err.vendor, code: err.code, retryable: err.retryable })).not.toContain('super-secret-key');
     expect(JSON.stringify(records)).not.toContain('super-secret-key');
+  });
+
+  it('reports truncated when the page limit stops the loop with a cursor still left', async () => {
+    const { fetch, ledger } = setup([page([{ id: 'a' }], 'c1'), page([{ id: 'b' }], 'c2')]);
+    const r = await fetchMetaAdsScrapeCreators({ apiKey: 'k', ledger, fetch: fetch as unknown as typeof globalThis.fetch, maxPages: 2 }, '99');
+    expect(r).toEqual({ items: [{ id: 'a' }, { id: 'b' }], truncated: true });
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

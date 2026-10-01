@@ -37,4 +37,11 @@ describe('mapsSearch', () => {
       name: 'VendorError', vendor: 'dataforseo', code: 40202, retryable: true,
     });
   });
+
+  it('throws a non-retryable VendorError when no task comes back (never an empty "nobody ranks" result)', async () => {
+    const dfs = fakeDfs(() => []);
+    await expect(mapsSearch(dfs, { keyword: 'ac repair', lat: 33.9, lng: -84.3 }, { agencyId: null, clientId: null })).rejects.toMatchObject({
+      name: 'VendorError', vendor: 'dataforseo', code: null, message: 'empty task', retryable: false,
+    });
+  });
 });

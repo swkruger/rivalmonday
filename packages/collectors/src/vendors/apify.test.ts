@@ -1,6 +1,6 @@
 import type { VendorCallRecord } from '@cs/core';
 import { describe, expect, it, vi } from 'vitest';
-import { APIFY_META_ACTOR, fetchMetaAdsApify } from './apify';
+import { APIFY_META_ACTOR, APIFY_META_COUNT, fetchMetaAdsApify } from './apify';
 import { VendorError } from './errors';
 
 function setup(responses: Response[]) {
@@ -40,5 +40,14 @@ describe('fetchMetaAdsApify', () => {
     expect(err).toBeInstanceOf(VendorError);
     expect(JSON.stringify({ message: err.message, vendor: err.vendor, code: err.code, retryable: err.retryable })).not.toContain('super-secret-token');
     expect(JSON.stringify(records)).not.toContain('super-secret-token');
+  });
+
+  it('reports truncated only when the run returned the full requested count', async () => {
+    const full = Array.from({ length: APIFY_META_COUNT }, (_, n) => ({ adArchiveID: String(n) }));
+    const { fetch, ledger } = setup([new Response(JSON.stringify(full), { status: 201 }), new Response(JSON.stringify([{ adArchiveID: '1' }]), { status: 201 })]);
+    const opts = { token: 't', ledger, fetch: fetch as unknown as typeof globalThis.fetch };
+    expect(await fetchMetaAdsApify(opts, '99')).toMatchObject({ truncated: true });
+    expect(await fetchMetaAdsApify(opts, '99')).toEqual({ items: [{ adArchiveID: '1' }], truncated: false });
+    expect(JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string)).toMatchObject({ count: APIFY_META_COUNT });
   });
 });

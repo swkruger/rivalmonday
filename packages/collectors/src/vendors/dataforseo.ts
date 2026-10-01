@@ -26,6 +26,35 @@ export interface DfsTask {
   statusCode: number;
   statusMessage: string;
   result: unknown[];
+  /** The `tag` sent with the task, echoed back by DataForSEO (under `data`, or top-level). */
+  tag?: string | null;
+}
+
+/** DataForSEO echoes the posted task under `data`; accept a top-level `tag` too. */
+function taskTag(t: Record<string, unknown>): string | null {
+  const data = t.data;
+  const fromData = data && typeof data === 'object' ? (data as Record<string, unknown>).tag : undefined;
+  if (typeof fromData === 'string' && fromData.length > 0) return fromData;
+  return typeof t.tag === 'string' && t.tag.length > 0 ? t.tag : null;
+}
+
+/**
+ * Pairs the tasks returned by a task_post with the batch items that were posted (each sent with
+ * `tag: item.id`). A task is matched by its echoed tag, accepted only when that tag belongs to
+ * this batch; only a task with no tag at all falls back to its array position. Each item is
+ * matched at most once.
+ */
+export function pairPostedTasks<C extends { id: string }>(tasks: DfsTask[], batch: C[]): { t: DfsTask; c: C }[] {
+  const byId = new Map(batch.map((c) => [c.id, c]));
+  const used = new Set<string>();
+  const out: { t: DfsTask; c: C }[] = [];
+  tasks.forEach((t, idx) => {
+    const c = t.tag ? byId.get(t.tag) : batch[idx];
+    if (!c || used.has(c.id)) return;
+    used.add(c.id);
+    out.push({ t, c });
+  });
+  return out;
 }
 
 export interface DataForSeoClient {
@@ -95,7 +124,7 @@ export function createDataForSeo(opts: DataForSeoOptions): DataForSeoClient {
           throw new VendorError('dataforseo', env.status_code, env.status_message, retryable);
         }
         ok = true;
-        return (env.tasks ?? []).map((t) => ({ id: t.id, statusCode: t.status_code, statusMessage: t.status_message, result: t.result ?? [] }));
+        return (env.tasks ?? []).map((t) => ({ id: t.id, statusCode: t.status_code, statusMessage: t.status_message, result: t.result ?? [], tag: taskTag(t) }));
       }
     } finally {
       await safeRecordVendorCall(opts.ledger, {

@@ -3,7 +3,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
 import { gunzipSync } from 'node:zlib';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { VendorError } from '../vendors/errors';
 import { collectReadyReviews, collectReadyTasks } from './collect';
@@ -26,6 +26,30 @@ describe('review tasks', () => {
     expect(dfs.calls[0]?.body).toEqual([{ place_id: 'p1', location_code: 2840, language_code: 'en', depth: 700, sort_by: 'newest', tag: IDS.competitorX }]);
     const [vt] = await dbs.service.select().from(vendorTask);
     expect(vt).toMatchObject({ externalTaskId: TASK, kind: 'google_reviews', status: 'pending', competitorId: IDS.competitorX });
+  });
+
+  it('maps posted tasks to competitors by their echoed tag, not by response position', async () => {
+    const T2 = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const dfs = fakeDfs(() => [
+      dfsTask([], { id: T2, statusCode: 20100, tag: IDS.competitorY }),
+      dfsTask([], { id: TASK, statusCode: 20100, tag: IDS.competitorX }),
+    ]);
+    const r = await postReviewTasks({ db: dbs.service, dfs }, [{ id: IDS.competitorX, placeId: 'p1', cid: null }, { id: IDS.competitorY, placeId: 'p2', cid: null }]);
+    expect(r.postedIds.sort()).toEqual([IDS.competitorX, IDS.competitorY].sort());
+    const rows = await dbs.service.select().from(vendorTask);
+    expect(rows.find((v) => v.externalTaskId === TASK)?.competitorId).toBe(IDS.competitorX);
+    expect(rows.find((v) => v.externalTaskId === T2)?.competitorId).toBe(IDS.competitorY);
+  });
+
+  it('ignores a task whose tag is not in the posted batch, and falls back to position only when tags are absent', async () => {
+    const T2 = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const dfsForeign = fakeDfs(() => [dfsTask([], { id: TASK, statusCode: 20100, tag: '00000000-0000-4000-8000-00000000dead' })]);
+    expect(await postReviewTasks({ db: dbs.service, dfs: dfsForeign }, [{ id: IDS.competitorX, placeId: 'p1', cid: null }])).toEqual({ posted: 0, postedIds: [], failedIds: [] });
+    const dfs = fakeDfs(() => [dfsTask([], { id: TASK, statusCode: 20100 }), dfsTask([], { id: T2, statusCode: 20100 })]);
+    await postReviewTasks({ db: dbs.service, dfs }, [{ id: IDS.competitorX, placeId: 'p1', cid: null }, { id: IDS.competitorY, placeId: 'p2', cid: null }]);
+    const rows = await dbs.service.select().from(vendorTask);
+    expect(rows.find((v) => v.externalTaskId === TASK)?.competitorId).toBe(IDS.competitorX);
+    expect(rows.find((v) => v.externalTaskId === T2)?.competitorId).toBe(IDS.competitorY);
   });
 
   it('keeps earlier chunks posted when a later chunk fails with a VendorError, instead of losing them', async () => {
@@ -124,5 +148,41 @@ describe('review tasks', () => {
     const rows = await dbs.service.select().from(vendorTask);
     expect(rows.find((v) => v.externalTaskId === TASK)?.status).toBe('done');
     expect(rows.find((v) => v.externalTaskId === STALE)?.status).toBe('failed');
+  });
+
+  it('leaves a task pending on a retryable VendorError, but marks it failed on a non-retryable one', async () => {
+    const T2 = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    await dbs.service.insert(vendorTask).values([
+      { vendor: 'dataforseo', kind: 'google_reviews', externalTaskId: TASK, competitorId: IDS.competitorX },
+      { vendor: 'dataforseo', kind: 'google_reviews', externalTaskId: T2, competitorId: IDS.competitorY },
+    ]);
+    const dfs = fakeDfs((_m, path) => {
+      if (path.endsWith('/tasks_ready')) return [dfsTask([{ id: TASK }, { id: T2 }])];
+      if (path.endsWith(TASK)) throw new VendorError('dataforseo', 40202, 'Rate limit', true);
+      throw new VendorError('dataforseo', 40501, 'Invalid field', false);
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const r = await collectReadyTasks({ db: dbs.service, dfs }, 'google_reviews', '/business_data/google/reviews/tasks_ready', (id) => `/business_data/google/reviews/task_get/${id}`, async () => {});
+      expect(r).toEqual({ collected: 0, failed: 1 });
+    } finally {
+      warn.mockRestore();
+    }
+    const rows = await dbs.service.select().from(vendorTask);
+    expect(rows.find((v) => v.externalTaskId === TASK)).toMatchObject({ status: 'pending', completedAt: null });
+    expect(rows.find((v) => v.externalTaskId === T2)).toMatchObject({ status: 'failed', error: 'Invalid field' });
+  });
+
+  it('leaves a task pending when task_get carries a retryable task-level status code (50xxx)', async () => {
+    await dbs.service.insert(vendorTask).values({ vendor: 'dataforseo', kind: 'google_reviews', externalTaskId: TASK, competitorId: IDS.competitorX });
+    const dfs = fakeDfs((_m, path) => (path.endsWith('/tasks_ready') ? [dfsTask([{ id: TASK }])] : [dfsTask([], { id: TASK, statusCode: 50000, statusMessage: 'Internal Error.' })]));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(await collectReadyTasks({ db: dbs.service, dfs }, 'google_reviews', '/business_data/google/reviews/tasks_ready', (id) => `/business_data/google/reviews/task_get/${id}`, async () => {})).toEqual({ collected: 0, failed: 0 });
+    } finally {
+      warn.mockRestore();
+    }
+    const [row] = await dbs.service.select().from(vendorTask);
+    expect(row).toMatchObject({ status: 'pending' });
   });
 });

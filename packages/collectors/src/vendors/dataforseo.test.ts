@@ -22,7 +22,7 @@ describe('DataForSEO client', () => {
   it('posts tasks with Basic auth and returns normalised tasks', async () => {
     const { client, fetch, records } = setup([ok([task([{ items: [] }])])]);
     const tasks = await client.post('/serp/google/maps/live/advanced', [{ keyword: 'ac repair' }], scope);
-    expect(tasks).toEqual([{ id: 'abc', statusCode: 20000, statusMessage: 'Ok.', result: [{ items: [] }] }]);
+    expect(tasks).toEqual([{ id: 'abc', statusCode: 20000, statusMessage: 'Ok.', result: [{ items: [] }], tag: null }]);
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('https://api.dataforseo.com/v3/serp/google/maps/live/advanced');
     expect((init.headers as Record<string, string>).authorization).toBe(`Basic ${Buffer.from('me:secret').toString('base64')}`);
@@ -79,5 +79,11 @@ describe('DataForSEO client', () => {
     await expect(client.post('/x', [{}], scope)).resolves.toHaveLength(1);
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  it('normalises the echoed tag from task.data.tag, or a top-level tag', async () => {
+    const { client } = setup([ok([{ ...task([]), data: { tag: 'from-data', keyword: 'x' } }, { ...task([]), tag: 'top-level' }, task([])])]);
+    const tasks = await client.post('/serp/google/jobs/task_post', [{ keyword: 'x' }], scope);
+    expect(tasks.map((t) => t.tag)).toEqual(['from-data', 'top-level', null]);
   });
 });

@@ -58,9 +58,12 @@ export async function mapsSearch(
     [{ keyword: q.keyword, location_coordinate: `${q.lat},${q.lng},${q.zoom ?? 14}z`, language_code: DFS_US.language_code, depth: q.depth ?? 20 }],
     scope,
   );
-  if (task && !isDfsOk(task.statusCode)) {
+  // No task back is an error, not "nobody ranks here": a rank snapshot must never record an
+  // empty result for a call that failed.
+  if (!task) throw new VendorError('dataforseo', null, 'empty task', false);
+  if (!isDfsOk(task.statusCode)) {
     throw new VendorError('dataforseo', task.statusCode, task.statusMessage, isRetryableDfsCode(task.statusCode));
   }
-  const raw = task?.result ?? [];
+  const raw = task.result ?? [];
   return { places: parseMapsItems(raw), raw };
 }

@@ -1,7 +1,14 @@
 import type { LedgerSink } from '@cs/core';
 import { safeRecordVendorCall, VendorError } from './errors';
 
-export async function fetchMetaAdsScrapeCreators(opts: { apiKey: string; ledger: LedgerSink; fetch?: typeof fetch; maxPages?: number }, pageId: string): Promise<unknown[]> {
+/**
+ * Follows the cursor for up to `maxPages` pages (default 3). `truncated` is true when the page
+ * limit stopped the loop with a cursor still left: more active ads exist than were fetched.
+ */
+export async function fetchMetaAdsScrapeCreators(
+  opts: { apiKey: string; ledger: LedgerSink; fetch?: typeof fetch; maxPages?: number },
+  pageId: string,
+): Promise<{ items: unknown[]; truncated: boolean }> {
   const doFetch = opts.fetch ?? globalThis.fetch;
   const out: unknown[] = [];
   let cursor: string | null = null;
@@ -31,5 +38,5 @@ export async function fetchMetaAdsScrapeCreators(opts: { apiKey: string; ledger:
     }
     if (!cursor) break;
   }
-  return out;
+  return { items: out, truncated: cursor !== null };
 }

@@ -1,5 +1,5 @@
 import { type Db, vendorTask } from '@cs/db';
-import { type DataForSeoClient, type DfsTask, DFS_US, isDfsOk } from '../vendors/dataforseo';
+import { type DataForSeoClient, type DfsTask, DFS_US, isDfsOk, pairPostedTasks } from '../vendors/dataforseo';
 import { VendorError } from '../vendors/errors';
 
 export async function postReviewTasks(
@@ -28,10 +28,10 @@ export async function postReviewTasks(
       failedIds.push(...batch.map((c) => c.id));
       continue;
     }
-    const rows = tasks
-      .map((t, idx) => ({ t, c: batch[idx] }))
-      .filter(({ t, c }) => c && isDfsOk(t.statusCode))
-      .map(({ t, c }) => ({ vendor: 'dataforseo', kind: 'google_reviews', externalTaskId: t.id, competitorId: (c as { id: string }).id }));
+    // Match tasks to competitors by the echoed tag (positional only when the tag is absent).
+    const rows = pairPostedTasks(tasks, batch)
+      .filter(({ t }) => isDfsOk(t.statusCode))
+      .map(({ t, c }) => ({ vendor: 'dataforseo', kind: 'google_reviews', externalTaskId: t.id, competitorId: c.id }));
     if (rows.length > 0) await deps.db.insert(vendorTask).values(rows).onConflictDoNothing();
     posted += rows.length;
     postedIds.push(...rows.map((r) => r.competitorId));

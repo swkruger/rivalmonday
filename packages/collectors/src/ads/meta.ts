@@ -49,20 +49,21 @@ export async function collectMetaAds(
 ): Promise<{ status: 'ok' | 'vendor_error' | 'skipped'; ads?: number; deactivated?: number; vendor?: string }> {
   if (!c.metaPageId) return { status: 'skipped' };
   const base = { competitorId: c.id, source: 'meta_ads', collectorVersion: META_COLLECTOR_VERSION };
-  const attempts: [string, () => Promise<unknown[]>][] = [];
+  const attempts: [string, () => Promise<{ items: unknown[]; truncated: boolean }>][] = [];
   if (deps.apify) attempts.push(['apify', () => fetchMetaAdsApify({ token: deps.apify!.token, ledger: deps.ledger, fetch: deps.fetch }, c.metaPageId!)]);
   if (deps.scrapeCreators) attempts.push(['scrapecreators', () => fetchMetaAdsScrapeCreators({ apiKey: deps.scrapeCreators!.apiKey, ledger: deps.ledger, fetch: deps.fetch }, c.metaPageId!)]);
   const errors: string[] = [];
   for (const [vendor, run] of attempts) {
     let raw: unknown[];
+    let truncated: boolean;
     try {
-      raw = await run();
+      ({ items: raw, truncated } = await run());
     } catch (err) {
       if (!(err instanceof VendorError)) throw err;
       errors.push(`${vendor}: ${err.code ?? ''} ${err.message}`.trim());
       continue;
     }
-    const { captureId } = await recordVendorCapture(deps, { ...base, status: 'ok', payload: { vendor, items: raw } });
+    const { captureId } = await recordVendorCapture(deps, { ...base, status: 'ok', payload: { vendor, items: raw, truncated } });
     const ads = raw.map(normalizeMetaAd).filter((a): a is NormalizedAd => a !== null);
     // Only the active set was requested, so anything previously active and now missing has ended —
     // unless the vendor handed back nothing at all. A fully empty response from a real advertiser
@@ -80,6 +81,12 @@ export async function collectMetaAds(
         markMissingInactive = false;
         console.warn(`[ads] meta competitor ${c.id}: vendor ${vendor} returned an empty response while active ads exist; skipping deactivation`);
       }
+    }
+    // A response cut off at the vendor's cap (Apify count / ScrapeCreators page limit) doesn't
+    // list every active ad, so ads beyond the cap must not be marked ended.
+    if (truncated) {
+      markMissingInactive = false;
+      console.warn(`[ads] meta competitor ${c.id}: vendor ${vendor} response was truncated at its cap (${raw.length} items); skipping deactivation`);
     }
     const r = await upsertAds(deps.db, c.id, 'meta', captureId, ads, { markMissingInactive });
     return { status: 'ok', ads: r.upserted, deactivated: r.deactivated, vendor };

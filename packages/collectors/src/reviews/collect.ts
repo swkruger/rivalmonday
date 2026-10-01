@@ -5,7 +5,7 @@ import { recordVendorCapture } from '../evidence/vendor-capture';
 import { scrubReviewerIdentity } from '../evidence/privacy';
 import { DFS_COLLECTOR_VERSION } from '../gbp/collect-gbp';
 import type { DataForSeoClient, DfsTask } from '../vendors/dataforseo';
-import { isDfsOk } from '../vendors/dataforseo';
+import { isDfsOk, isRetryableDfsCode, VendorError } from '../vendors/dataforseo';
 import { upsertReviews } from './upsert';
 
 export type VendorTaskRow = typeof vendorTask.$inferSelect;
@@ -29,11 +29,19 @@ export async function collectReadyTasks(
     for (const vt of pending) {
       try {
         const [task] = await deps.dfs.get(getPath(vt.externalTaskId), scope);
-        if (!task || !isDfsOk(task.statusCode)) throw new Error(task?.statusMessage ?? 'empty task');
+        if (!task) throw new VendorError('dataforseo', null, 'empty task', false);
+        if (!isDfsOk(task.statusCode)) throw new VendorError('dataforseo', task.statusCode, task.statusMessage, isRetryableDfsCode(task.statusCode));
         await handle(task, vt);
         await deps.db.update(vendorTask).set({ status: 'done', completedAt: sql`now()` }).where(eq(vendorTask.id, vt.id));
         collected++;
       } catch (err) {
+        // A retryable vendor error (rate limit, 50xxx, network) leaves the task pending: it is
+        // still in tasks_ready, so the next poll fetches it again (the 48h expiry below still
+        // bounds it). Anything else marks it failed.
+        if (err instanceof VendorError && err.retryable) {
+          console.warn(`[vendor-poll] ${kind} task ${vt.externalTaskId}: retryable vendor error (${err.code ?? 'n/a'} ${err.message}); left pending`);
+          continue;
+        }
         await deps.db.update(vendorTask).set({ status: 'failed', error: String(err instanceof Error ? err.message : err).slice(0, 500), completedAt: sql`now()` }).where(eq(vendorTask.id, vt.id));
         failed++;
       }

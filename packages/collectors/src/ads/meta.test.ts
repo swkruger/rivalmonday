@@ -3,6 +3,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { APIFY_META_COUNT } from '../vendors/apify';
 import { collectMetaAds, normalizeMetaAd } from './meta';
 
 const dbs = openTestDbs();
@@ -69,5 +70,37 @@ describe('collectMetaAds', () => {
     const fetch = vi.fn(async () => new Response('x', { status: 500 }));
     const r = await collectMetaAds({ db: dbs.service, store: createMemoryStore(), ledger, apify: { token: 't' }, fetch: fetch as unknown as typeof globalThis.fetch }, { id: IDS.competitorX, metaPageId: '99' });
     expect(r.status).toBe('vendor_error');
+  });
+
+  it('never ends active ads when the Apify response hit its count cap (truncated)', async () => {
+    await dbs.service.insert(ad).values({ competitorId: IDS.competitorX, platform: 'meta', externalId: 'OLD', isActive: true });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const full = Array.from({ length: APIFY_META_COUNT }, (_, n) => ({ ...apifyItem, adArchiveID: `A${n}` }));
+    const fetch = vi.fn(async () => new Response(JSON.stringify(full), { status: 201 }));
+    try {
+      const r = await collectMetaAds({ db: dbs.service, store: createMemoryStore(), ledger, apify: { token: 't' }, fetch: fetch as unknown as typeof globalThis.fetch }, { id: IDS.competitorX, metaPageId: '99' });
+      expect(r).toMatchObject({ status: 'ok', ads: APIFY_META_COUNT, deactivated: 0, vendor: 'apify' });
+      expect(warnSpy.mock.calls.some((c) => String(c[0]).includes('truncated'))).toBe(true);
+    } finally {
+      warnSpy.mockRestore();
+    }
+    const rows = await dbs.service.select().from(ad).where(eq(ad.externalId, 'OLD'));
+    expect(rows[0]).toMatchObject({ isActive: true, endedAt: null });
+  });
+
+  it('never ends active ads when ScrapeCreators stopped at its page limit with a cursor left (truncated)', async () => {
+    await dbs.service.insert(ad).values({ competitorId: IDS.competitorX, platform: 'meta', externalId: 'OLD', isActive: true });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let n = 0;
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ success: true, results: [{ ...scItem, ad_archive_id: `S${n++}` }], cursor: 'more' }), { status: 200 }));
+    try {
+      const r = await collectMetaAds({ db: dbs.service, store: createMemoryStore(), ledger, scrapeCreators: { apiKey: 'k' }, fetch: fetch as unknown as typeof globalThis.fetch }, { id: IDS.competitorX, metaPageId: '99' });
+      expect(r).toMatchObject({ status: 'ok', ads: 3, deactivated: 0, vendor: 'scrapecreators' });
+      expect(fetch).toHaveBeenCalledTimes(3);
+    } finally {
+      warnSpy.mockRestore();
+    }
+    const rows = await dbs.service.select().from(ad).where(eq(ad.externalId, 'OLD'));
+    expect(rows[0]).toMatchObject({ isActive: true, endedAt: null });
   });
 });
