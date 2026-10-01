@@ -36,11 +36,22 @@ describe('DataForSEO client', () => {
     expect(records[0]?.operation).toBe('/business_data/google/reviews/task_get');
   });
 
-  it('retries API rate limits (40202) then succeeds', async () => {
+  it('retries API rate limits (40202) then succeeds, logging exactly one ledger row', async () => {
     const limited = new Response(JSON.stringify({ status_code: 40202, status_message: 'rate limit', tasks: [] }), { status: 200 });
-    const { client, fetch } = setup([limited, ok([task([])])]);
+    const { client, fetch, records } = setup([limited, ok([task([])])]);
     await expect(client.post('/x', [{}], scope)).resolves.toHaveLength(1);
     expect(fetch).toHaveBeenCalledTimes(2);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ ok: true, costUsd: 0.002 });
+  });
+
+  it('retries any 50xxx API status code then succeeds, logging exactly one ledger row', async () => {
+    const serverError = new Response(JSON.stringify({ status_code: 50100, status_message: 'internal error', tasks: [] }), { status: 200 });
+    const { client, fetch, records } = setup([serverError, ok([task([])])]);
+    await expect(client.post('/x', [{}], scope)).resolves.toHaveLength(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ ok: true, costUsd: 0.002 });
   });
 
   it('throws a typed non-retryable error for auth failures and logs the failed call', async () => {

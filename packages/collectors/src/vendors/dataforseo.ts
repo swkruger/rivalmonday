@@ -46,8 +46,9 @@ export interface DataForSeoOptions {
 }
 
 export const isDfsOk = (code: number) => code >= 20000 && code < 30000;
+/** Retryable DataForSEO API status codes: the 40202 rate limit, plus any 50xxx server error. */
+export const isRetryableDfsCode = (code: number) => code === 40202 || (code >= 50000 && code < 60000);
 const RETRY_HTTP = new Set([408, 429, 500, 502, 503, 504]);
-const RETRY_API = new Set([40202, 50000, 50301, 50401]);
 const TASK_ID_SUFFIX = /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function createDataForSeo(opts: DataForSeoOptions): DataForSeoClient {
@@ -89,7 +90,7 @@ export function createDataForSeo(opts: DataForSeoOptions): DataForSeoClient {
         const env = parsed.data;
         cost = env.cost ?? null;
         if (!isDfsOk(env.status_code)) {
-          const retryable = RETRY_API.has(env.status_code);
+          const retryable = isRetryableDfsCode(env.status_code);
           if (retryable && canRetry) { await backoff(); continue; }
           throw new VendorError('dataforseo', env.status_code, env.status_message, retryable);
         }
