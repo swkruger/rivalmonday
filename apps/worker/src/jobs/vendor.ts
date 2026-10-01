@@ -28,13 +28,16 @@ export function createVendorJobs(
       for (const d of due) if (!BATCH.has(d.source)) await queue.enqueueCollect(d as { competitorId: string; source: 'gbp' | 'ads_google' | 'ads_meta' });
       if (batch.length > 0) {
         try {
-          await deps.postBatchTasks(batch);
+          // deps.postBatchTasks already resolves each source's status itself (posted/skipped, or
+          // released back to due-now as post_failed on a VendorError — reviews and jobs
+          // independently, so one failing never touches the other). Nothing here needs releasing:
+          // anything already marked this tick, by definition, must not be reset.
+          const { failed } = await deps.postBatchTasks(batch);
+          if (failed > 0) console.warn(`[vendor-schedule] ${failed} of ${batch.length} source(s) failed to post and were released for retry`);
         } catch (err) {
-          // A failed task_post must not silently lose a week of reviews/jobs collection for every
-          // source claimDueSources already advanced next_due_at on — release them back to
-          // due-now so the next tick retries instead of waiting 7 days.
-          console.error(`[vendor-schedule] postBatchTasks failed for ${batch.length} source(s); releasing for retry`, err);
-          await deps.releaseSources(batch, 'post_failed');
+          // Unexpected (non-VendorError) failure inside postBatchTasks itself, e.g. a DB error —
+          // some sources in the batch may already be correctly marked; just log it.
+          console.error(`[vendor-schedule] postBatchTasks failed unexpectedly for ${batch.length} source(s)`, err);
         }
       }
     },

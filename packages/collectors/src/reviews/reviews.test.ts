@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { gunzipSync } from 'node:zlib';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
+import { VendorError } from '../vendors/errors';
 import { collectReadyReviews, collectReadyTasks } from './collect';
 import { postReviewTasks } from './post';
 
@@ -19,10 +20,33 @@ const TASK = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 describe('review tasks', () => {
   it('posts one task per competitor and records it as pending', async () => {
     const dfs = fakeDfs(() => [dfsTask([], { id: TASK, statusCode: 20100, statusMessage: 'Task Created.' })]);
-    expect(await postReviewTasks({ db: dbs.service, dfs }, [{ id: IDS.competitorX, placeId: 'p1', cid: null, backfill: true }])).toEqual({ posted: 1, postedIds: [IDS.competitorX] });
+    expect(await postReviewTasks({ db: dbs.service, dfs }, [{ id: IDS.competitorX, placeId: 'p1', cid: null, backfill: true }])).toEqual({
+      posted: 1, postedIds: [IDS.competitorX], failedIds: [],
+    });
     expect(dfs.calls[0]?.body).toEqual([{ place_id: 'p1', location_code: 2840, language_code: 'en', depth: 700, sort_by: 'newest', tag: IDS.competitorX }]);
     const [vt] = await dbs.service.select().from(vendorTask);
     expect(vt).toMatchObject({ externalTaskId: TASK, kind: 'google_reviews', status: 'pending', competitorId: IDS.competitorX });
+  });
+
+  it('keeps earlier chunks posted when a later chunk fails with a VendorError, instead of losing them', async () => {
+    let call = 0;
+    const dfs = fakeDfs(() => {
+      call++;
+      if (call === 2) throw new VendorError('dataforseo', 50000, 'internal error', true);
+      return [dfsTask([], { id: TASK, statusCode: 20100, statusMessage: 'Task Created.' })];
+    });
+    const r = await postReviewTasks(
+      { db: dbs.service, dfs },
+      [
+        { id: IDS.competitorX, placeId: 'p1', cid: null },
+        { id: IDS.competitorY, placeId: 'p2', cid: null },
+      ],
+      1, // one competitor per chunk, so chunk 2 is the one that throws
+    );
+    expect(r).toEqual({ posted: 1, postedIds: [IDS.competitorX], failedIds: [IDS.competitorY] });
+    const rows = await dbs.service.select().from(vendorTask);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ competitorId: IDS.competitorX });
   });
 
   it('collects ready tasks into reviews and marks them done', async () => {

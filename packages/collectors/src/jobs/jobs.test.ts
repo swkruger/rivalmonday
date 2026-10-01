@@ -3,6 +3,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { createMemoryStore } from '@cs/storage';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
+import { VendorError } from '../vendors/errors';
 import { collectReadyJobs, employerMatches } from './collect';
 import { postJobTasks } from './post';
 
@@ -40,13 +41,34 @@ describe('jobs', () => {
         { id: IDS.competitorX, name: 'Smith HVAC' },
         { id: IDS.competitorY, name: '   ' },
       ]),
-    ).toEqual({ posted: 1, postedIds: [IDS.competitorX] });
+    ).toEqual({ posted: 1, postedIds: [IDS.competitorX], failedIds: [] });
     expect(dfsPost.calls[0]?.body).toEqual([{ keyword: 'Smith HVAC', location_code: 2840, language_code: 'en', depth: 20, tag: IDS.competitorX }]);
+  });
+
+  it('keeps earlier chunks posted when a later chunk fails with a VendorError, instead of losing them', async () => {
+    let call = 0;
+    const dfs = fakeDfs(() => {
+      call++;
+      if (call === 2) throw new VendorError('dataforseo', 50000, 'internal error', true);
+      return [dfsTask([], { id: TASK, statusCode: 20100 })];
+    });
+    const r = await postJobTasks(
+      { db: dbs.service, dfs },
+      [
+        { id: IDS.competitorX, name: 'Smith HVAC' },
+        { id: IDS.competitorY, name: 'Bright Smiles' },
+      ],
+      1, // one competitor per chunk, so chunk 2 is the one that throws
+    );
+    expect(r).toEqual({ posted: 1, postedIds: [IDS.competitorX], failedIds: [IDS.competitorY] });
+    const rows = await dbs.service.select().from(vendorTask);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ competitorId: IDS.competitorX });
   });
 
   it('posts, collects matching postings as observations', async () => {
     const dfsPost = fakeDfs(() => [dfsTask([], { id: TASK, statusCode: 20100 })]);
-    expect(await postJobTasks({ db: dbs.service, dfs: dfsPost }, [{ id: IDS.competitorX, name: 'Smith HVAC' }])).toEqual({ posted: 1, postedIds: [IDS.competitorX] });
+    expect(await postJobTasks({ db: dbs.service, dfs: dfsPost }, [{ id: IDS.competitorX, name: 'Smith HVAC' }])).toEqual({ posted: 1, postedIds: [IDS.competitorX], failedIds: [] });
     expect(dfsPost.calls[0]?.body).toEqual([{ keyword: 'Smith HVAC', location_code: 2840, language_code: 'en', depth: 20, tag: IDS.competitorX }]);
 
     const dfs = fakeDfs((_m, path) =>

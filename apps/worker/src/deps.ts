@@ -17,10 +17,15 @@ export interface WorkerDeps {
   /** True once DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD are both set — gates all vendor collection. */
   vendorsConfigured(): boolean;
   claimDueSources(limit: number): Promise<{ competitorId: string; source: SourceKind }[]>;
-  /** Releases claimed-but-not-run sources back to due-now and records `status` (e.g. a failed batch post). */
-  releaseSources(items: { competitorId: string; source: SourceKind }[], status: string): Promise<void>;
   runSource(competitorId: string, source: 'gbp' | 'ads_google' | 'ads_meta'): Promise<{ status: string }>;
-  postBatchTasks(items: { competitorId: string; source: 'reviews' | 'jobs' }[]): Promise<void>;
+  /**
+   * Posts reviews/jobs DataForSEO tasks. Reviews and jobs are handled independently: a failure
+   * posting one never touches the other. Each item ends up 'posted' (task created), released
+   * back to due-now with last_status 'post_failed' (a VendorError posting that chunk — retried
+   * next tick), or 'skipped' (the competitor was ineligible, e.g. no placeId/cid or blank name —
+   * never attempted). Returns how many sources were released for retry, for logging.
+   */
+  postBatchTasks(items: { competitorId: string; source: 'reviews' | 'jobs' }[]): Promise<{ failed: number }>;
   pollVendorTasks(): Promise<{
     reviews: { collected: number; failed: number; reviews: number } | { skipped: string };
     jobs: { collected: number; failed: number; postings: number };
@@ -97,7 +102,6 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     },
     vendorsConfigured: () => Boolean(env.DATAFORSEO_LOGIN && env.DATAFORSEO_PASSWORD),
     claimDueSources: (limit) => claimDueSources(getDb(), limit),
-    releaseSources: (items, status) => releaseSources(getDb(), items, status),
     async runSource(competitorId, source) {
       const [c] = await loadCompetitors([competitorId]);
       if (!c) {
@@ -123,21 +127,35 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     async postBatchTasks(items) {
       const reviewIds = items.filter((i) => i.source === 'reviews').map((i) => i.competitorId);
       const jobIds = items.filter((i) => i.source === 'jobs').map((i) => i.competitorId);
+      let failed = 0;
+      // Reviews and jobs are posted and resolved independently below: a VendorError in one must
+      // never affect the other's status (each has its own postedIds/failedIds from its own call).
       if (reviewIds.length > 0) {
         const rows = await loadCompetitors(reviewIds);
         const firstPull = new Set(((await getDb().execute(sql`
           SELECT c.id FROM competitor c WHERE c.id = ANY(ARRAY[${sql.join(reviewIds.map((id) => sql`${id}`), sql`, `)}]::uuid[])
             AND NOT EXISTS (SELECT 1 FROM review r WHERE r.competitor_id = c.id)`)) as unknown as { id: string }[]).map((r) => r.id));
-        const { postedIds } = await postReviewTasks({ db: getDb(), dfs: getDfs() }, rows.map((c) => ({ id: c.id, placeId: c.placeId, cid: c.cid, backfill: firstPull.has(c.id) })));
+        const { postedIds, failedIds } = await postReviewTasks({ db: getDb(), dfs: getDfs() }, rows.map((c) => ({ id: c.id, placeId: c.placeId, cid: c.cid, backfill: firstPull.has(c.id) })));
         const posted = new Set(postedIds);
-        for (const id of reviewIds) await markSourceResult(getDb(), id, 'reviews', posted.has(id) ? 'posted' : 'skipped');
+        const failedSet = new Set(failedIds);
+        for (const id of reviewIds) if (!failedSet.has(id)) await markSourceResult(getDb(), id, 'reviews', posted.has(id) ? 'posted' : 'skipped');
+        if (failedIds.length > 0) {
+          await releaseSources(getDb(), failedIds.map((id) => ({ competitorId: id, source: 'reviews' as const })), 'post_failed');
+          failed += failedIds.length;
+        }
       }
       if (jobIds.length > 0) {
         const rows = await loadCompetitors(jobIds);
-        const { postedIds } = await postJobTasks({ db: getDb(), dfs: getDfs() }, rows.map((c) => ({ id: c.id, name: c.name })));
+        const { postedIds, failedIds } = await postJobTasks({ db: getDb(), dfs: getDfs() }, rows.map((c) => ({ id: c.id, name: c.name })));
         const posted = new Set(postedIds);
-        for (const id of jobIds) await markSourceResult(getDb(), id, 'jobs', posted.has(id) ? 'posted' : 'skipped');
+        const failedSet = new Set(failedIds);
+        for (const id of jobIds) if (!failedSet.has(id)) await markSourceResult(getDb(), id, 'jobs', posted.has(id) ? 'posted' : 'skipped');
+        if (failedIds.length > 0) {
+          await releaseSources(getDb(), failedIds.map((id) => ({ competitorId: id, source: 'jobs' as const })), 'post_failed');
+          failed += failedIds.length;
+        }
       }
+      return { failed };
     },
     async pollVendorTasks() {
       const base = { db: getDb(), store: getStore(), dfs: getDfs() };

@@ -9,7 +9,7 @@ describe('vendor jobs', () => {
       claimDueSources: vi.fn(async () => [
         { competitorId: 'c1', source: 'reviews' }, { competitorId: 'c2', source: 'jobs' }, { competitorId: 'c1', source: 'gbp' }, { competitorId: 'c1', source: 'ads_meta' },
       ]),
-      postBatchTasks: vi.fn(async () => {}),
+      postBatchTasks: vi.fn(async () => ({ failed: 0 })),
     } as unknown as WorkerDeps;
     const enqueueCollect = vi.fn(async (_p: { competitorId: string; source: 'gbp' | 'ads_google' | 'ads_meta' }) => {});
     const jobs = createVendorJobs(deps, { enqueueCollect, enqueueRankScan: async () => {} });
@@ -29,27 +29,41 @@ describe('vendor jobs', () => {
 
   it('skips claiming when vendor credentials are not configured', async () => {
     const claimDueSources = vi.fn(async () => []);
-    const deps = { vendorsConfigured: () => false, claimDueSources, postBatchTasks: vi.fn(async () => {}) } as unknown as WorkerDeps;
+    const deps = { vendorsConfigured: () => false, claimDueSources, postBatchTasks: vi.fn(async () => ({ failed: 0 })) } as unknown as WorkerDeps;
     const jobs = createVendorJobs(deps, { enqueueCollect: async () => {}, enqueueRankScan: async () => {} });
     await jobs.schedule.handler({});
     expect(claimDueSources).not.toHaveBeenCalled();
   });
 
-  it('still enqueues the sync collects and releases the batch for retry when postBatchTasks fails', async () => {
-    const releaseSources = vi.fn(async () => {});
+  it('still enqueues the sync collects when postBatchTasks reports some sources released for retry (no throw)', async () => {
+    const postBatchTasks = vi.fn(async () => ({ failed: 1 }));
     const deps = {
       vendorsConfigured: () => true,
       claimDueSources: vi.fn(async () => [{ competitorId: 'c1', source: 'reviews' }, { competitorId: 'c2', source: 'gbp' }]),
-      postBatchTasks: vi.fn(async () => {
-        throw new Error('dfs down');
-      }),
-      releaseSources,
+      postBatchTasks,
     } as unknown as WorkerDeps;
     const enqueueCollect = vi.fn(async (_p: { competitorId: string; source: 'gbp' | 'ads_google' | 'ads_meta' }) => {});
     const jobs = createVendorJobs(deps, { enqueueCollect, enqueueRankScan: async () => {} });
     await expect(jobs.schedule.handler({})).resolves.toBeUndefined();
     expect(enqueueCollect).toHaveBeenCalledWith({ competitorId: 'c2', source: 'gbp' });
-    expect(releaseSources).toHaveBeenCalledWith([{ competitorId: 'c1', source: 'reviews' }], 'post_failed');
+    expect(postBatchTasks).toHaveBeenCalledWith([{ competitorId: 'c1', source: 'reviews' }]);
+  });
+
+  it('still enqueues the sync collects, and never releases anything itself, when postBatchTasks throws unexpectedly', async () => {
+    const deps = {
+      vendorsConfigured: () => true,
+      claimDueSources: vi.fn(async () => [{ competitorId: 'c1', source: 'reviews' }, { competitorId: 'c2', source: 'gbp' }]),
+      postBatchTasks: vi.fn(async () => {
+        throw new Error('db down');
+      }),
+    } as unknown as WorkerDeps;
+    const enqueueCollect = vi.fn(async (_p: { competitorId: string; source: 'gbp' | 'ads_google' | 'ads_meta' }) => {});
+    const jobs = createVendorJobs(deps, { enqueueCollect, enqueueRankScan: async () => {} });
+    // deps.postBatchTasks now owns all release/status decisions internally (per round-2 fix); vendor.ts
+    // has no releaseSources of its own any more, so there is nothing to assert it *didn't* call —
+    // this test documents that an unexpected throw is swallowed (logged) without crashing the tick.
+    await expect(jobs.schedule.handler({})).resolves.toBeUndefined();
+    expect(enqueueCollect).toHaveBeenCalledWith({ competitorId: 'c2', source: 'gbp' });
   });
 
   it('skips polling when vendor credentials are not configured', async () => {

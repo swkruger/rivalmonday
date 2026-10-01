@@ -1,20 +1,33 @@
 import { type Db, vendorTask } from '@cs/db';
-import { type DataForSeoClient, DFS_US, isDfsOk } from '../vendors/dataforseo';
+import { type DataForSeoClient, type DfsTask, DFS_US, isDfsOk } from '../vendors/dataforseo';
+import { VendorError } from '../vendors/errors';
 
 export async function postReviewTasks(
   deps: { db: Db; dfs: DataForSeoClient },
   competitors: { id: string; placeId: string | null; cid: string | null; backfill?: boolean }[],
-): Promise<{ posted: number; postedIds: string[] }> {
+  chunkSize = 100,
+): Promise<{ posted: number; postedIds: string[]; failedIds: string[] }> {
   const eligible = competitors.filter((c) => c.placeId || c.cid);
   let posted = 0;
   const postedIds: string[] = [];
-  for (let i = 0; i < eligible.length; i += 100) {
-    const batch = eligible.slice(i, i + 100);
-    const tasks = await deps.dfs.post(
-      '/business_data/google/reviews/task_post',
-      batch.map((c) => ({ ...(c.placeId ? { place_id: c.placeId } : { cid: c.cid }), ...DFS_US, depth: c.backfill ? 700 : 100, sort_by: 'newest', tag: c.id })),
-      { agencyId: null, clientId: null },
-    );
+  const failedIds: string[] = [];
+  for (let i = 0; i < eligible.length; i += chunkSize) {
+    const batch = eligible.slice(i, i + chunkSize);
+    let tasks: DfsTask[];
+    try {
+      tasks = await deps.dfs.post(
+        '/business_data/google/reviews/task_post',
+        batch.map((c) => ({ ...(c.placeId ? { place_id: c.placeId } : { cid: c.cid }), ...DFS_US, depth: c.backfill ? 700 : 100, sort_by: 'newest', tag: c.id })),
+        { agencyId: null, clientId: null },
+      );
+    } catch (err) {
+      // A whole-chunk failure (rate limit exhausted, HTTP error, …) must not lose the postedIds
+      // of chunks already posted earlier in this call — record this chunk as failed and keep
+      // going instead of throwing out of the loop. An unexpected (non-vendor) error still throws.
+      if (!(err instanceof VendorError)) throw err;
+      failedIds.push(...batch.map((c) => c.id));
+      continue;
+    }
     const rows = tasks
       .map((t, idx) => ({ t, c: batch[idx] }))
       .filter(({ t, c }) => c && isDfsOk(t.statusCode))
@@ -23,5 +36,5 @@ export async function postReviewTasks(
     posted += rows.length;
     postedIds.push(...rows.map((r) => r.competitorId));
   }
-  return { posted, postedIds };
+  return { posted, postedIds, failedIds };
 }
