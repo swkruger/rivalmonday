@@ -17,6 +17,7 @@ export * from './local/accept';
 export * from './local/grid';
 export * from './local/maps';
 export * from './local/suggest';
+export * from './rankings/scan';
 export * from './reviews/collect';
 export * from './reviews/post';
 export * from './reviews/upsert';
