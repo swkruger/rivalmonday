@@ -11,6 +11,8 @@ export * from './evidence/privacy';
 export * from './evidence/recorder';
 export * from './evidence/vendor-capture';
 export * from './gbp/collect-gbp';
+export * from './jobs/collect';
+export * from './jobs/post';
 export * from './local/accept';
 export * from './local/grid';
 export * from './local/maps';
