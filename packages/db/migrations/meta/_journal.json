@@ -85,6 +85,20 @@
       "when": 1790831205775,
       "tag": "0011_suggestion_status_only",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790893031741,
+      "tag": "0012_evidence_legal_hold",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790893041018,
+      "tag": "0013_evidence_immutable",
+      "breakpoints": true
     }
   ]
 }

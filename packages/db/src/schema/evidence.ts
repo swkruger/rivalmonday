@@ -30,14 +30,16 @@ export const capture = pgTable(
   'capture',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    competitorId: uuid('competitor_id').notNull().references(() => competitor.id, { onDelete: 'cascade' }),
-    trackedPageId: uuid('tracked_page_id').references(() => trackedPage.id, { onDelete: 'set null' }),
+    competitorId: uuid('competitor_id').notNull().references(() => competitor.id, { onDelete: 'restrict' }),
+    trackedPageId: uuid('tracked_page_id').references(() => trackedPage.id, { onDelete: 'restrict' }),
     source: text('source').notNull(), // 'web' | vendor source ids in Phase 2b
     url: text('url'),
     status: text('status').notNull(), // CaptureStatus
     httpStatus: integer('http_status'),
     error: text('error'),
     collectorVersion: text('collector_version').notNull(),
+    /** Spec §4.4: blocks retention deletion. The only column of a capture that may ever change. */
+    legalHold: boolean('legal_hold').notNull().default(false),
     capturedAt: timestamp('captured_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -51,7 +53,7 @@ export const evidence = pgTable(
   'evidence',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    captureId: uuid('capture_id').notNull().references(() => capture.id, { onDelete: 'cascade' }),
+    captureId: uuid('capture_id').notNull().references(() => capture.id, { onDelete: 'restrict' }),
     kind: text('kind').notNull(), // 'html' | 'text' | 'screenshot' | 'vendor_json'
     objectKey: text('object_key').notNull(),
     sha256: text('sha256').notNull(),
