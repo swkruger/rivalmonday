@@ -17,9 +17,24 @@ importers:
 
   apps/worker:
     dependencies:
+      '@cs/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
+      '@cs/collectors':
+        specifier: workspace:*
+        version: link:../../packages/collectors
       '@cs/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@cs/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@cs/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
+      drizzle-orm:
+        specifier: ^0.44.5
+        version: 0.44.7(pg@8.23.1)(postgres@3.4.9)
       pg-boss:
         specifier: ^10.3.2
         version: 10.4.2
