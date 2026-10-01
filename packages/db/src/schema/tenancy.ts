@@ -9,6 +9,12 @@ export interface ServiceArea {
   zips: string[];
 }
 
+/** Per-client routing thresholds (spec §6.3 "thresholds per client"); null = vertical pack defaults. */
+export interface ScoreThresholds {
+  alert: number;
+  brief: number;
+}
+
 export const agency = pgTable('agency', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
@@ -27,6 +33,7 @@ export const client = pgTable(
     keywords: jsonb('keywords').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     serviceArea: jsonb('service_area').$type<ServiceArea | null>(),
     placeId: text('place_id'),
+    scoreThresholds: jsonb('score_thresholds').$type<ScoreThresholds | null>(),
     createdAt: createdAt(),
   },
   (t) => [
