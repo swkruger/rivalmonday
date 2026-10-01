@@ -1,4 +1,5 @@
 export * from './ads/google';
+export * from './ads/meta';
 export * from './ads/upsert';
 export * from './capture/capture-page';
 export * from './discovery/classify';
@@ -20,9 +21,11 @@ export * from './reviews/upsert';
 export * from './schedule/due-pages';
 export * from './sources/ensure';
 export * from './sources/kinds';
+export * from './vendors/apify';
 export * from './vendors/dataforseo';
 export * from './vendors/dfs-time';
 export * from './vendors/errors';
+export * from './vendors/scrapecreators';
 export * from './web/blocked';
 export * from './web/polite';
 export * from './web/rate-limit';
