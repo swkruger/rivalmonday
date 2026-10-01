@@ -2,8 +2,8 @@ import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } fr
 import {
   capturePage, claimDuePages, claimDueSources, collectGbpProfile, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
   createDataForSeo, type DataForSeoClient, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
-  HostRateLimiter, markSourceResult, postJobTasks, postReviewTasks, type Renderer, requireSalt, RobotsPolicy, scanRankings, type SourceKind,
-  suggestCompetitors,
+  HostRateLimiter, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy, scanRankings,
+  type SourceKind, suggestCompetitors,
 } from '@cs/collectors';
 import type { CaptureStatus } from '@cs/core';
 import { client, competitor, createDb, createLedgerSink, type Db } from '@cs/db';
@@ -17,13 +17,32 @@ export interface WorkerDeps {
   /** True once DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD are both set — gates all vendor collection. */
   vendorsConfigured(): boolean;
   claimDueSources(limit: number): Promise<{ competitorId: string; source: SourceKind }[]>;
+  /** Releases claimed-but-not-run sources back to due-now and records `status` (e.g. a failed batch post). */
+  releaseSources(items: { competitorId: string; source: SourceKind }[], status: string): Promise<void>;
   runSource(competitorId: string, source: 'gbp' | 'ads_google' | 'ads_meta'): Promise<{ status: string }>;
   postBatchTasks(items: { competitorId: string; source: 'reviews' | 'jobs' }[]): Promise<void>;
-  pollVendorTasks(): Promise<{ reviews: { collected: number; failed: number }; jobs: { collected: number; failed: number } }>;
+  pollVendorTasks(): Promise<{
+    reviews: { collected: number; failed: number; reviews: number } | { skipped: string };
+    jobs: { collected: number; failed: number; postings: number };
+  }>;
   scanRankings(clientId: string): Promise<{ snapshots: number }>;
   listRankClients(): Promise<string[]>;
   suggestCompetitors(clientId: string): Promise<{ suggested: number; searches: number }>;
   close(): Promise<void>;
+}
+
+/**
+ * Returns a human-readable reason reviews must be skipped this poll (REVIEWER_HASH_SALT missing
+ * or too short), or null once the salt is usable. Pulled out of pollVendorTasks so the
+ * missing-salt branch is unit-testable without a live DB/DataForSEO client.
+ */
+export function reviewsSkipReason(env: NodeJS.ProcessEnv): string | null {
+  try {
+    requireSalt(env);
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
 }
 
 /** Everything is created lazily so importing this module has no side effects. */
@@ -57,6 +76,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     return dfs;
   };
   const loadCompetitors = (ids: string[]) => getDb().select().from(competitor).where(inArray(competitor.id, ids));
+  let warnedNoSalt = false;
   // A rejected init must not be cached forever (the worker keeps this deps object alive for its
   // whole lifetime): clear it so the next discoverPages call retries instead of replaying the same failure.
   const getAi = () =>
@@ -77,16 +97,28 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     },
     vendorsConfigured: () => Boolean(env.DATAFORSEO_LOGIN && env.DATAFORSEO_PASSWORD),
     claimDueSources: (limit) => claimDueSources(getDb(), limit),
+    releaseSources: (items, status) => releaseSources(getDb(), items, status),
     async runSource(competitorId, source) {
       const [c] = await loadCompetitors([competitorId]);
-      if (!c) return { status: 'missing' };
+      if (!c) {
+        await markSourceResult(getDb(), competitorId, source, 'missing');
+        return { status: 'missing' };
+      }
       const base = { db: getDb(), store: getStore() };
-      const r =
-        source === 'gbp' ? await collectGbpProfile({ ...base, dfs: getDfs() }, c)
-        : source === 'ads_google' ? await collectGoogleAds({ ...base, dfs: getDfs() }, c)
-        : await collectMetaAds({ ...base, ledger: createLedgerSink(getDb()), apify: env.APIFY_TOKEN ? { token: env.APIFY_TOKEN } : undefined, scrapeCreators: env.SCRAPECREATORS_API_KEY ? { apiKey: env.SCRAPECREATORS_API_KEY } : undefined }, c);
-      await markSourceResult(getDb(), competitorId, source, r.status);
-      return r;
+      try {
+        const r =
+          source === 'gbp' ? await collectGbpProfile({ ...base, dfs: getDfs() }, c)
+          : source === 'ads_google' ? await collectGoogleAds({ ...base, dfs: getDfs() }, c)
+          : await collectMetaAds({ ...base, ledger: createLedgerSink(getDb()), apify: env.APIFY_TOKEN ? { token: env.APIFY_TOKEN } : undefined, scrapeCreators: env.SCRAPECREATORS_API_KEY ? { apiKey: env.SCRAPECREATORS_API_KEY } : undefined }, c);
+        await markSourceResult(getDb(), competitorId, source, r.status);
+        return r;
+      } catch (err) {
+        // The collectors already catch VendorError internally (returning status: 'vendor_error');
+        // anything that reaches here is unexpected (DB error, bug, …) — record it rather than
+        // leaving the source's last_status stale, then let it propagate.
+        await markSourceResult(getDb(), competitorId, source, 'error');
+        throw err;
+      }
     },
     async postBatchTasks(items) {
       const reviewIds = items.filter((i) => i.source === 'reviews').map((i) => i.competitorId);
@@ -96,18 +128,30 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
         const firstPull = new Set(((await getDb().execute(sql`
           SELECT c.id FROM competitor c WHERE c.id = ANY(ARRAY[${sql.join(reviewIds.map((id) => sql`${id}`), sql`, `)}]::uuid[])
             AND NOT EXISTS (SELECT 1 FROM review r WHERE r.competitor_id = c.id)`)) as unknown as { id: string }[]).map((r) => r.id));
-        await postReviewTasks({ db: getDb(), dfs: getDfs() }, rows.map((c) => ({ id: c.id, placeId: c.placeId, cid: c.cid, backfill: firstPull.has(c.id) })));
-        for (const id of reviewIds) await markSourceResult(getDb(), id, 'reviews', 'posted');
+        const { postedIds } = await postReviewTasks({ db: getDb(), dfs: getDfs() }, rows.map((c) => ({ id: c.id, placeId: c.placeId, cid: c.cid, backfill: firstPull.has(c.id) })));
+        const posted = new Set(postedIds);
+        for (const id of reviewIds) await markSourceResult(getDb(), id, 'reviews', posted.has(id) ? 'posted' : 'skipped');
       }
       if (jobIds.length > 0) {
         const rows = await loadCompetitors(jobIds);
-        await postJobTasks({ db: getDb(), dfs: getDfs() }, rows.map((c) => ({ id: c.id, name: c.name })));
-        for (const id of jobIds) await markSourceResult(getDb(), id, 'jobs', 'posted');
+        const { postedIds } = await postJobTasks({ db: getDb(), dfs: getDfs() }, rows.map((c) => ({ id: c.id, name: c.name })));
+        const posted = new Set(postedIds);
+        for (const id of jobIds) await markSourceResult(getDb(), id, 'jobs', posted.has(id) ? 'posted' : 'skipped');
       }
     },
     async pollVendorTasks() {
       const base = { db: getDb(), store: getStore(), dfs: getDfs() };
-      const reviews = await collectReadyReviews({ ...base, salt: requireSalt(env) });
+      const skipReason = reviewsSkipReason(env);
+      let reviews: { collected: number; failed: number; reviews: number } | { skipped: string };
+      if (skipReason) {
+        if (!warnedNoSalt) {
+          warnedNoSalt = true;
+          console.log(`[vendor-poll] skipping reviews: ${skipReason}`);
+        }
+        reviews = { skipped: skipReason };
+      } else {
+        reviews = await collectReadyReviews({ ...base, salt: requireSalt(env) });
+      }
       const jobs = await collectReadyJobs(base);
       return { reviews, jobs };
     },

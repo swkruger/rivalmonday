@@ -19,7 +19,7 @@ const TASK = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 describe('review tasks', () => {
   it('posts one task per competitor and records it as pending', async () => {
     const dfs = fakeDfs(() => [dfsTask([], { id: TASK, statusCode: 20100, statusMessage: 'Task Created.' })]);
-    expect(await postReviewTasks({ db: dbs.service, dfs }, [{ id: IDS.competitorX, placeId: 'p1', cid: null, backfill: true }])).toEqual({ posted: 1 });
+    expect(await postReviewTasks({ db: dbs.service, dfs }, [{ id: IDS.competitorX, placeId: 'p1', cid: null, backfill: true }])).toEqual({ posted: 1, postedIds: [IDS.competitorX] });
     expect(dfs.calls[0]?.body).toEqual([{ place_id: 'p1', location_code: 2840, language_code: 'en', depth: 700, sort_by: 'newest', tag: IDS.competitorX }]);
     const [vt] = await dbs.service.select().from(vendorTask);
     expect(vt).toMatchObject({ externalTaskId: TASK, kind: 'google_reviews', status: 'pending', competitorId: IDS.competitorX });

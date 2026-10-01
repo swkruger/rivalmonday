@@ -18,3 +18,16 @@ export async function claimDueSources(db: Db, limit: number): Promise<{ competit
 export async function markSourceResult(db: Db, competitorId: string, source: SourceKind, status: string): Promise<void> {
   await db.execute(sql`UPDATE competitor_source SET last_status = ${status}, last_run_at = now() WHERE competitor_id = ${competitorId} AND source = ${source}`);
 }
+
+/**
+ * Releases previously-claimed sources back to due-now (undoing claimDueSources's 7-day advance)
+ * and records `status`. Used when something claimed this tick fails before it could really run
+ * (e.g. a batch task_post throws) — the alternative, leaving next_due_at 7 days out, would
+ * silently lose a week of collection for every source caught in that failure.
+ */
+export async function releaseSources(db: Db, items: { competitorId: string; source: SourceKind }[], status: string): Promise<void> {
+  if (items.length === 0) return;
+  await db.execute(sql`
+    UPDATE competitor_source SET next_due_at = now(), last_status = ${status}, last_run_at = now()
+     WHERE (competitor_id, source) IN (${sql.join(items.map((i) => sql`(${i.competitorId}::uuid, ${i.source})`), sql`, `)})`);
+}

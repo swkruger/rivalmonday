@@ -40,13 +40,13 @@ describe('jobs', () => {
         { id: IDS.competitorX, name: 'Smith HVAC' },
         { id: IDS.competitorY, name: '   ' },
       ]),
-    ).toEqual({ posted: 1 });
+    ).toEqual({ posted: 1, postedIds: [IDS.competitorX] });
     expect(dfsPost.calls[0]?.body).toEqual([{ keyword: 'Smith HVAC', location_code: 2840, language_code: 'en', depth: 20, tag: IDS.competitorX }]);
   });
 
   it('posts, collects matching postings as observations', async () => {
     const dfsPost = fakeDfs(() => [dfsTask([], { id: TASK, statusCode: 20100 })]);
-    expect(await postJobTasks({ db: dbs.service, dfs: dfsPost }, [{ id: IDS.competitorX, name: 'Smith HVAC' }])).toEqual({ posted: 1 });
+    expect(await postJobTasks({ db: dbs.service, dfs: dfsPost }, [{ id: IDS.competitorX, name: 'Smith HVAC' }])).toEqual({ posted: 1, postedIds: [IDS.competitorX] });
     expect(dfsPost.calls[0]?.body).toEqual([{ keyword: 'Smith HVAC', location_code: 2840, language_code: 'en', depth: 20, tag: IDS.competitorX }]);
 
     const dfs = fakeDfs((_m, path) =>

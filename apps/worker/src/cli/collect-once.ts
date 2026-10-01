@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import type { SourceKind } from '@cs/collectors';
 
 try {
   process.loadEnvFile(fileURLToPath(new URL('../../../../.env', import.meta.url)));
@@ -7,9 +8,9 @@ try {
   // optional
 }
 
-const { competitor, createDb, trackedPage } = await import('@cs/db');
+const { competitor, competitorSource, createDb, trackedPage } = await import('@cs/db');
 const { ensureCompetitorSources } = await import('@cs/collectors');
-const { eq } = await import('drizzle-orm');
+const { and, eq, inArray, sql } = await import('drizzle-orm');
 const { createWorkerDeps } = await import('../deps');
 
 const { values } = parseArgs({
@@ -86,14 +87,32 @@ try {
 
   if (values.vendors) {
     await ensureCompetitorSources(db, row.id);
-    for (const source of ['gbp', 'ads_google', 'ads_meta'] as const) {
-      console.log(`[vendors] ${source} → ${JSON.stringify(await deps.runSource(row.id, source))}`);
+    const vendorsOk = deps.vendorsConfigured();
+    if (!vendorsOk) {
+      console.log('[vendors] DATAFORSEO_LOGIN/DATAFORSEO_PASSWORD not set; skipping gbp/ads_google/reviews/jobs (DataForSEO sources) — running ads_meta only');
     }
-    await deps.postBatchTasks([{ competitorId: row.id, source: 'reviews' }, { competitorId: row.id, source: 'jobs' }]);
-    console.log(
-      '[vendors] reviews/jobs tasks posted — DataForSEO fulfills these asynchronously; results arrive via the vendor-poll cron job ' +
-        '(run `pnpm --filter @cs/worker collect-once --poll` to poll once manually).',
-    );
+    const sourcesToRun: readonly SourceKind[] = vendorsOk ? (['gbp', 'ads_google', 'ads_meta'] as const) : (['ads_meta'] as const);
+    const sourcesRun: SourceKind[] = [];
+    for (const source of sourcesToRun) {
+      console.log(`[vendors] ${source} → ${JSON.stringify(await deps.runSource(row.id, source as 'gbp' | 'ads_google' | 'ads_meta'))}`);
+      sourcesRun.push(source);
+    }
+    if (vendorsOk) {
+      await deps.postBatchTasks([{ competitorId: row.id, source: 'reviews' }, { competitorId: row.id, source: 'jobs' }]);
+      sourcesRun.push('reviews', 'jobs');
+      console.log(
+        '[vendors] reviews/jobs tasks posted — DataForSEO fulfills these asynchronously; results arrive via the vendor-poll cron job ' +
+          '(run `pnpm --filter @cs/worker collect-once --poll` to poll once manually).',
+      );
+    }
+    // A live worker's vendor-schedule claims whatever is due now; without this, every source just
+    // run here would also be immediately due for its next (weekly, or 700-depth backfill) run.
+    if (sourcesRun.length > 0) {
+      await db
+        .update(competitorSource)
+        .set({ nextDueAt: sql`now() + interval '7 days'` })
+        .where(and(eq(competitorSource.competitorId, row.id), inArray(competitorSource.source, sourcesRun)));
+    }
   }
 } finally {
   await deps.close();
