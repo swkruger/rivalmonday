@@ -30,17 +30,31 @@ export async function upsertAds(
   const byExternalId = new Map<string, NormalizedAd>();
   for (const a of ads) byExternalId.set(a.externalId, a);
   const rows = [...byExternalId.values()];
+  let upserted = 0;
   if (rows.length > 0) {
-    await db
+    const written = await db
       .insert(ad)
       .values(rows.map((a) => ({ ...a, competitorId, platform, firstSeenAt: now, lastSeenAt: now, firstCaptureId: captureId, lastCaptureId: captureId })))
       .onConflictDoUpdate({
         target: [ad.platform, ad.externalId],
+        // `(platform, external_id)` is globally unique, but a creative id can collide across two
+        // competitor rows for the same advertiser (duplicate competitor rows, franchise siblings).
+        // Never let that silently rewrite another competitor's ad row: a conflicting row is only
+        // actually updated when it already belongs to this competitor; otherwise it's skipped.
+        setWhere: sql`${ad.competitorId} = excluded.competitor_id`,
         set: {
           isActive: sql`excluded.is_active`, endedAt: sql`excluded.ended_at`, lastSeenAt: sql`excluded.last_seen_at`, lastCaptureId: sql`excluded.last_capture_id`,
           text: sql`coalesce(excluded.text, ${ad.text})`, mediaUrls: sql`excluded.media_urls`, publisherPlatforms: sql`excluded.publisher_platforms`,
         },
-      });
+      })
+      .returning({ id: ad.id });
+    upserted = written.length;
+    const skipped = rows.length - upserted;
+    if (skipped > 0) {
+      console.warn(
+        `[ads] competitor ${competitorId} (${platform}): ${skipped} creative(s) already belong to another competitor's ad row; flagging for merge review`,
+      );
+    }
   }
   let deactivated = 0;
   if (opts.markMissingInactive) {
@@ -54,5 +68,5 @@ export async function upsertAds(
       .returning({ id: ad.id });
     deactivated = result.length;
   }
-  return { upserted: rows.length, deactivated };
+  return { upserted, deactivated };
 }

@@ -1,6 +1,7 @@
 import { ad, capture } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NormalizedAd } from './upsert';
 import { upsertAds } from './upsert';
 
@@ -67,5 +68,38 @@ describe('upsertAds', () => {
     expect(c1).toMatchObject({ isActive: true });
     expect(c2).toMatchObject({ isActive: false });
     expect(c2?.endedAt?.toISOString()).toBe('2026-09-10T00:00:00.000Z');
+  });
+
+  it("never updates another competitor's ad row when a creative id collides across competitors", async () => {
+    await dbs.service.insert(ad).values({
+      competitorId: IDS.competitorY,
+      platform: 'google',
+      externalId: 'c9',
+      advertiserId: null,
+      format: null,
+      title: null,
+      text: null,
+      mediaUrls: [],
+      landingUrl: null,
+      publisherPlatforms: [],
+      startedAt: null,
+      endedAt: null,
+      isActive: true,
+      firstSeenAt: new Date('2026-09-01T00:00:00Z'),
+      lastSeenAt: new Date('2026-09-01T00:00:00Z'),
+      firstCaptureId: CAP1,
+      lastCaptureId: CAP1,
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await upsertAds(dbs.service, IDS.competitorX, 'google', CAP2, [makeAd({ externalId: 'c9' })], {
+      markMissingInactive: false,
+      now: new Date('2026-09-10T00:00:00Z'),
+    });
+    expect(result).toEqual({ upserted: 0, deactivated: 0 });
+    const [row] = await dbs.service.select().from(ad).where(eq(ad.externalId, 'c9'));
+    expect(row).toMatchObject({ competitorId: IDS.competitorY, lastCaptureId: CAP1 });
+    expect(row?.lastSeenAt.toISOString()).toBe('2026-09-01T00:00:00.000Z');
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
   });
 });
