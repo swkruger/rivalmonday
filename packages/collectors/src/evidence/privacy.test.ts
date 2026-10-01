@@ -53,6 +53,7 @@ describe('scrubReviewerIdentity', () => {
           profile_image_url: 'https://x/img.jpg',
           review_text: 'Call 404-555-0199',
           owner_answer: 'mail a@b.com',
+          original_review_text: 'Escríbeme a ana@x.com o al +34 612 345 678',
           images: [{ url: 'https://x/photo.jpg' }],
         },
       ],
@@ -67,6 +68,8 @@ describe('scrubReviewerIdentity', () => {
     expect(json).not.toContain('Jane');
     expect(json).not.toContain('contrib');
     expect(json).not.toContain('img.jpg');
+    expect(json).not.toContain('ana@x.com');
+    expect(json).not.toContain('612');
 
     const [group] = result as Array<{ items: Array<Record<string, unknown>> }>;
     const [item] = group.items;
@@ -76,6 +79,7 @@ describe('scrubReviewerIdentity', () => {
     expect(item.profile_image_url).toBeUndefined();
     expect(item.review_text).toBe('Call [phone]');
     expect(item.owner_answer).toBe('mail [email]');
+    expect(item.original_review_text).toBe('Escríbeme a [email] o al [phone]');
     expect(item.review_id).toBe('r1');
     expect(item.images).toEqual([{ url: 'https://x/photo.jpg' }]);
 

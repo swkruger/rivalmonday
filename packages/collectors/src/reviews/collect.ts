@@ -19,30 +19,34 @@ export async function collectReadyTasks(
   getPath: (id: string) => string,
   handle: (task: DfsTask, vt: VendorTaskRow) => Promise<void>,
 ): Promise<{ collected: number; failed: number }> {
+  const [ready] = await deps.dfs.get(readyPath, scope);
+  const readyIds = (ready?.result ?? []).map((r) => (r as { id?: unknown }).id).filter((id): id is string => typeof id === 'string');
+
+  let collected = 0;
+  let failed = 0;
+  if (readyIds.length > 0) {
+    const pending = await deps.db.select().from(vendorTask).where(and(eq(vendorTask.kind, kind), eq(vendorTask.status, 'pending'), inArray(vendorTask.externalTaskId, readyIds)));
+    for (const vt of pending) {
+      try {
+        const [task] = await deps.dfs.get(getPath(vt.externalTaskId), scope);
+        if (!task || !isDfsOk(task.statusCode)) throw new Error(task?.statusMessage ?? 'empty task');
+        await handle(task, vt);
+        await deps.db.update(vendorTask).set({ status: 'done', completedAt: sql`now()` }).where(eq(vendorTask.id, vt.id));
+        collected++;
+      } catch (err) {
+        await deps.db.update(vendorTask).set({ status: 'failed', error: String(err instanceof Error ? err.message : err).slice(0, 500), completedAt: sql`now()` }).where(eq(vendorTask.id, vt.id));
+        failed++;
+      }
+    }
+  }
+
+  // Expire stragglers *after* collecting: a task that only just turned ready (e.g. at hour 49) must
+  // still be fetched above, not marked failed before we ever checked tasks_ready for it.
   await deps.db
     .update(vendorTask)
     .set({ status: 'failed', error: 'not ready after 48h', completedAt: sql`now()` })
     .where(and(eq(vendorTask.kind, kind), eq(vendorTask.status, 'pending'), lt(vendorTask.postedAt, sql`now() - interval '48 hours'`)));
 
-  const [ready] = await deps.dfs.get(readyPath, scope);
-  const readyIds = (ready?.result ?? []).map((r) => (r as { id?: unknown }).id).filter((id): id is string => typeof id === 'string');
-  if (readyIds.length === 0) return { collected: 0, failed: 0 };
-  const pending = await deps.db.select().from(vendorTask).where(and(eq(vendorTask.kind, kind), eq(vendorTask.status, 'pending'), inArray(vendorTask.externalTaskId, readyIds)));
-
-  let collected = 0;
-  let failed = 0;
-  for (const vt of pending) {
-    try {
-      const [task] = await deps.dfs.get(getPath(vt.externalTaskId), scope);
-      if (!task || !isDfsOk(task.statusCode)) throw new Error(task?.statusMessage ?? 'empty task');
-      await handle(task, vt);
-      await deps.db.update(vendorTask).set({ status: 'done', completedAt: sql`now()` }).where(eq(vendorTask.id, vt.id));
-      collected++;
-    } catch (err) {
-      await deps.db.update(vendorTask).set({ status: 'failed', error: String(err instanceof Error ? err.message : err).slice(0, 500), completedAt: sql`now()` }).where(eq(vendorTask.id, vt.id));
-      failed++;
-    }
-  }
   return { collected, failed };
 }
 

@@ -16,7 +16,10 @@ const reviewSchema = z.looseObject({
 });
 
 export async function upsertReviews(db: Db, competitorId: string, captureId: string, items: unknown[], salt: string, now = new Date()): Promise<{ upserted: number; skipped: number }> {
-  const rows: (typeof review.$inferInsert)[] = [];
+  // Keyed by dedupeKey (last occurrence wins): a single batch can contain the same review twice
+  // (e.g. overlapping pages), and Postgres rejects an INSERT ... ON CONFLICT DO UPDATE that would
+  // affect the same row twice in one statement, which would otherwise fail the whole task.
+  const rowsByKey = new Map<string, typeof review.$inferInsert>();
   let skipped = 0;
   for (const raw of items) {
     const p = reviewSchema.safeParse(raw);
@@ -28,13 +31,16 @@ export async function upsertReviews(db: Db, competitorId: string, captureId: str
     const reviewerHash = pseudonymizeReviewer(i.profile_name, salt);
     const text = i.review_text ? redactContactInfo(i.review_text) : null;
     const postedAt = parseDfsTimestamp(i.timestamp);
-    const dedupeKey = i.review_id ? `id:${i.review_id}` : `h:${sha256Hex(`${reviewerHash ?? ''}|${postedAt?.toISOString() ?? ''}|${text ?? ''}`)}`;
-    rows.push({
-      competitorId, source: 'google', dedupeKey, externalId: i.review_id ?? null, rating: i.rating?.value != null ? Math.round(i.rating.value) : null,
+    const rating = i.rating?.value != null ? Math.round(i.rating.value) : null;
+    const dedupeKey = i.review_id ? `id:${i.review_id}` : `h:${sha256Hex(`${reviewerHash ?? ''}|${postedAt?.toISOString() ?? ''}|${rating ?? ''}|${text ?? ''}`)}`;
+    if (rowsByKey.has(dedupeKey)) skipped++;
+    rowsByKey.set(dedupeKey, {
+      competitorId, source: 'google', dedupeKey, externalId: i.review_id ?? null, rating,
       text, reviewerHash, postedAt, ownerAnswer: i.owner_answer ? redactContactInfo(i.owner_answer) : null,
       ownerAnsweredAt: parseDfsTimestamp(i.owner_timestamp), firstCaptureId: captureId, firstSeenAt: now, lastSeenAt: now,
     });
   }
+  const rows = [...rowsByKey.values()];
   if (rows.length > 0) {
     await db.insert(review).values(rows).onConflictDoUpdate({
       target: [review.competitorId, review.source, review.dedupeKey],

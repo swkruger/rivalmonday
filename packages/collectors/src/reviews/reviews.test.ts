@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { gunzipSync } from 'node:zlib';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
-import { collectReadyReviews } from './collect';
+import { collectReadyReviews, collectReadyTasks } from './collect';
 import { postReviewTasks } from './post';
 
 const dbs = openTestDbs();
@@ -52,6 +52,7 @@ describe('review tasks', () => {
                 {
                   review_id: 'r1', rating: { value: 4 }, review_text: 'Call me at 404-555-0199', timestamp: '2026-09-20 10:00:00 +00:00',
                   profile_name: 'Jane Doe', profile_url: 'https://maps.google.com/contrib/1', profile_image_url: 'https://x/img.jpg',
+                  original_review_text: 'Escríbeme a ana@x.com o al +34 612 345 678',
                 },
               ],
             },
@@ -72,6 +73,32 @@ describe('review tasks', () => {
     expect(json).not.toMatch(/contrib\/1/);
     expect(json).not.toMatch(/img\.jpg/);
     expect(json).not.toMatch(/404.?555.?0199/);
+    expect(json).not.toMatch(/ana@x\.com/);
+    expect(json).not.toMatch(/612.?345.?678/);
     expect(json).toMatch(/reviewer_hash/);
+  });
+
+  it('still fetches a task that only becomes ready after 48h, expiring only the ones that stay unready', async () => {
+    const postedAt = new Date(Date.now() - 49 * 3600 * 1000);
+    const STALE = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    await dbs.service.insert(vendorTask).values([
+      { vendor: 'dataforseo', kind: 'google_reviews', externalTaskId: TASK, competitorId: IDS.competitorX, postedAt },
+      { vendor: 'dataforseo', kind: 'google_reviews', externalTaskId: STALE, competitorId: IDS.competitorX, postedAt },
+    ]);
+    const dfs = fakeDfs((_m, path) => {
+      if (path.endsWith('/tasks_ready')) return [dfsTask([{ id: TASK, tag: IDS.competitorX }])];
+      return [dfsTask([{ items: [] }], { id: TASK })];
+    });
+    const r = await collectReadyTasks(
+      { db: dbs.service, dfs },
+      'google_reviews',
+      '/business_data/google/reviews/tasks_ready',
+      (id) => `/business_data/google/reviews/task_get/${id}`,
+      async () => {},
+    );
+    expect(r.collected).toBe(1);
+    const rows = await dbs.service.select().from(vendorTask);
+    expect(rows.find((v) => v.externalTaskId === TASK)?.status).toBe('done');
+    expect(rows.find((v) => v.externalTaskId === STALE)?.status).toBe('failed');
   });
 });

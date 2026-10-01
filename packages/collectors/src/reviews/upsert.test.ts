@@ -44,4 +44,20 @@ describe('upsertReviews', () => {
     const [r] = await dbs.service.select().from(review);
     expect(r?.dedupeKey).toMatch(/^h:[0-9a-f]{64}$/);
   });
+
+  it('collapses duplicate dedupeKeys within one batch instead of erroring (ON CONFLICT DO UPDATE cannot affect a row twice)', async () => {
+    const result = await upsertReviews(dbs.service, IDS.competitorX, CAP, [item(), item()], salt);
+    expect(result).toEqual({ upserted: 1, skipped: 1 });
+    const rows = await dbs.service.select().from(review);
+    expect(rows).toHaveLength(1);
+  });
+
+  it('includes the rating in the content-hash key, so text-less items with the same name/timestamp but different ratings are distinct reviews', async () => {
+    const noText = (rating: number) => item({ review_id: null, review_text: null, rating: { value: rating } });
+    const result = await upsertReviews(dbs.service, IDS.competitorX, CAP, [noText(4), noText(5)], salt);
+    expect(result).toEqual({ upserted: 2, skipped: 0 });
+    const rows = await dbs.service.select().from(review);
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.rating).sort()).toEqual([4, 5]);
+  });
 });

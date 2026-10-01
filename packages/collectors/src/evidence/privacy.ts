@@ -39,7 +39,14 @@ const REVIEWER_LINK_KEYS = new Set([
   'user_image_url',
 ]);
 
-const CONTACT_TEXT_KEYS = new Set(['review_text', 'owner_answer']);
+// Matched case-insensitively against the object key, by suffix: covers review_text/owner_answer
+// plus DataForSEO's untranslated original_review_text/original_owner_answer (and any future
+// *_text/*_answer field) without having to enumerate every vendor key.
+const CONTACT_TEXT_SUFFIXES = ['_text', '_answer'];
+const isContactTextKey = (key: string): boolean => {
+  const lower = key.toLowerCase();
+  return CONTACT_TEXT_SUFFIXES.some((suffix) => lower.endsWith(suffix));
+};
 
 /**
  * Deep-copies `payload`, pseudonymising reviewer names and stripping reviewer profile
@@ -61,7 +68,7 @@ export function scrubReviewerIdentity(payload: unknown, salt: string): unknown {
       if (REVIEWER_LINK_KEYS.has(lowerKey)) {
         continue;
       }
-      if (CONTACT_TEXT_KEYS.has(key) && typeof value === 'string') {
+      if (isContactTextKey(key) && typeof value === 'string') {
         out[key] = redactContactInfo(value);
         continue;
       }
