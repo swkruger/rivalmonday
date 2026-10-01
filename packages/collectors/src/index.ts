@@ -1,3 +1,5 @@
+export * from './ads/google';
+export * from './ads/upsert';
 export * from './capture/capture-page';
 export * from './discovery/classify';
 export * from './discovery/discover';
