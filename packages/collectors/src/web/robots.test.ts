@@ -47,4 +47,41 @@ describe('RobotsPolicy', () => {
     expect(fetchText).toHaveBeenCalledTimes(2);
     expect(fetchText).toHaveBeenCalledWith('https://site.example/robots.txt');
   });
+
+  it('treats a 429 robots.txt as unavailable, not allow-all', async () => {
+    const { p } = policy({ status: 429, body: '' });
+    expect(await p.check('https://site.example/anything')).toMatchObject({ allowed: false, reason: 'robots_unavailable' });
+  });
+
+  it('re-fetches an unavailable robots.txt after its shorter TTL while a rules verdict keeps the normal (longer) TTL', async () => {
+    let t = 0;
+    const now = () => t;
+    const fetchText = vi.fn(async (url: string) => {
+      if (url === 'https://flaky.example/robots.txt') return { status: 503, body: '' };
+      return { status: 200, body: robots };
+    });
+    // ttlMs = 24h (default-ish, use a big number); unavailableTtlMs = 1h.
+    const p = new RobotsPolicy(fetchText, now, 24 * 60 * 60 * 1000, 60 * 60 * 1000);
+
+    await p.check('https://flaky.example/');
+    expect(fetchText).toHaveBeenCalledTimes(1);
+
+    // Within the 1h unavailable TTL: still cached, no re-fetch.
+    t += 59 * 60 * 1000;
+    await p.check('https://flaky.example/');
+    expect(fetchText).toHaveBeenCalledTimes(1);
+
+    // Past 1h: re-fetched.
+    t += 2 * 60 * 1000;
+    await p.check('https://flaky.example/');
+    expect(fetchText).toHaveBeenCalledTimes(2);
+
+    // Meanwhile a normal `rules` verdict for a different origin stays cached well past 1h
+    // (it uses the long ttlMs, not the short unavailableTtlMs).
+    await p.check('https://site.example/a');
+    const callsBefore = fetchText.mock.calls.length;
+    t += 2 * 60 * 60 * 1000; // +2h, still under the 24h ttlMs
+    await p.check('https://site.example/b');
+    expect(fetchText).toHaveBeenCalledTimes(callsBefore);
+  });
 });

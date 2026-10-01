@@ -18,6 +18,12 @@ export class RobotsPolicy {
     private readonly fetchText: FetchText,
     private readonly now: () => number = Date.now,
     private readonly ttlMs: number = 24 * 60 * 60 * 1000,
+    /**
+     * `unavailable` (5xx/unreachable/429) is cached for much less than the normal TTL: it is
+     * usually transient (one timeout), and caching it for a full day would wrongly record
+     * weekly pages as robots_disallowed for a day. Defaults to 1 hour.
+     */
+    private readonly unavailableTtlMs: number = 60 * 60 * 1000,
   ) {}
 
   async check(url: string): Promise<RobotsVerdict> {
@@ -36,12 +42,18 @@ export class RobotsPolicy {
 
   private async load(origin: string): Promise<Parsed> {
     const hit = this.cache.get(origin);
-    if (hit && this.now() - hit.at <= this.ttlMs) return hit.parsed;
+    if (hit) {
+      const ttl = hit.parsed.kind === 'unavailable' ? this.unavailableTtlMs : this.ttlMs;
+      if (this.now() - hit.at <= ttl) return hit.parsed;
+    }
     const robotsUrl = `${origin}/robots.txt`;
     let parsed: Parsed;
     try {
       const res = await this.fetchText(robotsUrl);
+      // RFC 9309 §2.3.1.3 says 4xx → allow all, but common practice excludes 429 (rate
+      // limiting): the site is asking us to back off, not declaring it has no robots.txt.
       if (res.status >= 200 && res.status < 300) parsed = { kind: 'rules', robots: robotsParser(robotsUrl, res.body) };
+      else if (res.status === 429) parsed = { kind: 'unavailable' };
       else if (res.status >= 400 && res.status < 500) parsed = { kind: 'allow_all' };
       else parsed = { kind: 'unavailable' };
     } catch {
