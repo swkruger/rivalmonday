@@ -31,5 +31,7 @@ jobs:
       - name: Create roles and test database
         run: psql postgres://postgres:postgres@localhost:5432/cs_dev -f infra/db/init/01-roles.sql
       - run: pnpm install --frozen-lockfile
+      - name: Install Playwright chromium
+        run: pnpm --filter @cs/collectors exec playwright install --with-deps chromium
       - run: pnpm typecheck
       - run: pnpm test

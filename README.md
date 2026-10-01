@@ -56,9 +56,23 @@ pnpm test
 | `@cs/db` | Drizzle schema, migrations, RLS, `withTenant`, audit + ledger sinks |
 | `@cs/ai` | OpenRouter chat, Jev decisions, LLM decisions, confidence cascade, `Ai` facade (config: `packages/ai/config/ai.yaml`) |
 | `@cs/verticals` | Vertical packs (service catalogs, themes, weights, move thresholds, playbooks) |
+| `@cs/storage` | Evidence object store (R2 in production, local filesystem in development) |
+| `@cs/collectors` | Robots-aware politeness/rate limiting, Playwright rendering, page discovery, change detection and capture recording |
 | `@cs/worker` | pg-boss job runner |
 
 The Jev live contract test (`packages/ai/src/decisions/jev.live.test.ts`) only runs when `TYPESAFE_API_KEY` is set; otherwise it's skipped.
+
+## Collection (Phase 2a)
+
+The worker crawls and captures competitor web pages as immutable evidence.
+
+- **One-time setup:** `pnpm --filter @cs/collectors browsers` downloads the Playwright chromium binary used for rendering pages (CI installs it automatically — see below).
+- **Evidence store env vars:** set `EVIDENCE_FS_DIR=./.evidence` for a local filesystem store, or the four `R2_*` vars (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`) to use Cloudflare R2 in production. See `.env.example`. `.evidence/` is gitignored.
+- **Worker jobs:** `web-schedule` runs on a cron (`*/15 * * * *`) and claims up to 200 due tracked pages; `web-capture-page` renders one page, detects blocks/unchanged/errors, and writes evidence; `discover-pages` finds a competitor's trackable pages (sitemap + nav, AI-classified with a URL-keyword fallback).
+- **Manual one-off collection:** `pnpm --filter @cs/worker collect-once --domain <domain> [--name "<name>"]` upserts a competitor (service role), runs discovery, captures every tracked page once, and prints a summary table of `url`, `type`, `status`.
+- **The worker must run as a single replica.** Per-host rate limiting (≥ 3 s between requests to the same host) is held in-process; running two worker replicas would let two requests race past the limiter at once. Scaling out would need a shared (DB- or Redis-backed) limiter instead.
+- **The bot information page `https://rivalmonday.com/bot` must exist before crawling real competitors.** Until then, only run `collect-once` against safe, non-competitor domains such as `example.com`.
+- **Crawler conduct (spec §4.2, non-negotiable):** User-Agent `Mozilla/5.0 (compatible; RivalMondayBot/1.0; +https://rivalmonday.com/bot)`, robots token `RivalMondayBot`; honours robots.txt per RFC 9309 (2xx → obey rules; 4xx → allow all; 5xx/unreachable → disallow all); at least 3 s between requests to the same host (or robots `Crawl-delay` if larger, capped at 60 s); no logins, no proxies, no anti-bot evasion; a challenge or 401/403/429 response is recorded as `blocked` and is never retried with different tactics.
 
 ## Database roles
 - `postgres` / Neon owner (owner) — migrations only. Must have `BYPASSRLS`.
