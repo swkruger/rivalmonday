@@ -12,9 +12,34 @@ export const defaultFetchText: FetchText = async (url) => {
     redirect: 'follow',
     signal: AbortSignal.timeout(10_000),
   });
-  const buf = new Uint8Array(await res.arrayBuffer());
-  return { status: res.status, body: new TextDecoder().decode(buf.subarray(0, MAX_BODY)) };
+  return { status: res.status, body: await readCapped(res.body) };
 };
+
+/** Reads at most MAX_BODY bytes from a response stream, then cancels it so the rest is never downloaded. */
+async function readCapped(stream: ReadableStream<Uint8Array> | null): Promise<string> {
+  if (!stream) return '';
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (total < MAX_BODY) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      total += value.length;
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+  const buf = new Uint8Array(Math.min(total, MAX_BODY));
+  let offset = 0;
+  for (const chunk of chunks) {
+    const take = Math.min(chunk.length, buf.length - offset);
+    buf.set(take === chunk.length ? chunk : chunk.subarray(0, take), offset);
+    offset += take;
+  }
+  return new TextDecoder().decode(buf);
+}
 
 /** Hostname without a leading "www." — rate limits and same-site checks treat both as one site. */
 export function siteHost(url: string): string {
