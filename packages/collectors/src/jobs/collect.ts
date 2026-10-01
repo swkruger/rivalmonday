@@ -8,21 +8,43 @@ import { collectReadyTasks } from '../reviews/collect';
 import type { DataForSeoClient } from '../vendors/dataforseo';
 import { parseDfsTimestamp } from '../vendors/dfs-time';
 
-const norm = (s: string) => s.toLowerCase().replace(/\b(llc|inc|co|corp|company|ltd)\b/g, '').replace(/[^a-z0-9]+/g, '');
+const SUFFIX_TOKENS = new Set(['llc', 'inc', 'co', 'corp', 'company', 'ltd']);
+
+/** Lowercase, "&" → "and", split on non-alphanumerics, drop empty tokens and legal-suffix tokens. */
+const tokenize = (s: string): string[] =>
+  s
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 0 && !SUFFIX_TOKENS.has(t));
+
+/** True when `needle` appears as a contiguous run inside `haystack` (both token arrays). */
+const containsRun = (haystack: string[], needle: string[]): boolean => {
+  if (needle.length === 0 || needle.length > haystack.length) return false;
+  for (let i = 0; i <= haystack.length - needle.length; i++) {
+    if (needle.every((t, j) => haystack[i + j] === t)) return true;
+  }
+  return false;
+};
+
+const tokensEqual = (a: string[], b: string[]): boolean => a.length === b.length && a.every((t, i) => t === b[i]);
 
 /**
- * True when the vendor's `employer_name` plausibly refers to the given competitor. Normalised
- * names (lowercase alphanumerics, legal suffixes stripped) match if either contains the other —
- * except when one side is very short (< 4 chars, e.g. "AC"), where a substring match is too loose
- * (it would match "ACE Hardware") and we require exact equality instead.
+ * True when the vendor's `employer_name` plausibly refers to the given competitor. Both names are
+ * tokenized (lowercase, "&"→"and", split on non-alphanumerics, legal suffixes like "llc"/"inc"
+ * dropped) and match when one name's tokens appear as a contiguous run inside the other's — this
+ * requires whole-word boundaries, so "Walmart Van Furniture Movers" does not match "Art Van
+ * Furniture" even though the compacted strings would overlap. When either joined name is very
+ * short (< 4 chars, e.g. "AC"), a run match is too loose (it would match "ACE Hardware"), so we
+ * require the token lists to be exactly equal instead.
  */
 export function employerMatches(employer: string | null | undefined, competitorName: string): boolean {
   if (!employer) return false;
-  const a = norm(employer);
-  const b = norm(competitorName);
+  const a = tokenize(employer);
+  const b = tokenize(competitorName);
   if (a.length === 0 || b.length === 0) return false;
-  if (a.length < 4 || b.length < 4) return a === b;
-  return a.includes(b) || b.includes(a);
+  if (a.join('').length < 4 || b.join('').length < 4) return tokensEqual(a, b);
+  return containsRun(a, b) || containsRun(b, a);
 }
 
 const jobSchema = z.looseObject({

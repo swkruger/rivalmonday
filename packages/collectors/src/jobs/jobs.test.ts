@@ -27,6 +27,23 @@ describe('jobs', () => {
     expect(employerMatches('AC', 'AC')).toBe(true);
   });
 
+  it('matches whole words only, not cross-word substrings', () => {
+    expect(employerMatches('Walmart Van Furniture Movers', 'Art Van Furniture')).toBe(false);
+    expect(employerMatches('Art Van Furniture, Inc.', 'Art Van Furniture')).toBe(true);
+    expect(employerMatches('Smith & Sons Plumbing', 'Smith and Sons Plumbing')).toBe(true);
+  });
+
+  it('skips competitors with a blank name when posting', async () => {
+    const dfsPost = fakeDfs(() => [dfsTask([], { id: TASK, statusCode: 20100 })]);
+    expect(
+      await postJobTasks({ db: dbs.service, dfs: dfsPost }, [
+        { id: IDS.competitorX, name: 'Smith HVAC' },
+        { id: IDS.competitorY, name: '   ' },
+      ]),
+    ).toEqual({ posted: 1 });
+    expect(dfsPost.calls[0]?.body).toEqual([{ keyword: 'Smith HVAC', location_code: 2840, language_code: 'en', depth: 20, tag: IDS.competitorX }]);
+  });
+
   it('posts, collects matching postings as observations', async () => {
     const dfsPost = fakeDfs(() => [dfsTask([], { id: TASK, statusCode: 20100 })]);
     expect(await postJobTasks({ db: dbs.service, dfs: dfsPost }, [{ id: IDS.competitorX, name: 'Smith HVAC' }])).toEqual({ posted: 1 });
