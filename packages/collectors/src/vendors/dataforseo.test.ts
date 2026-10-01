@@ -70,6 +70,15 @@ describe('DataForSEO client', () => {
     await expect(bad.client.post('/x', [{}], scope)).rejects.toMatchObject({ retryable: false });
   });
 
+  it('includes the API status from a non-2xx envelope in the error message (e.g. 403 + 40104 unverified account)', async () => {
+    const body = { status_code: 40104, status_message: 'Please verify your account before using the API.', tasks: null };
+    const { client, records } = setup([new Response(JSON.stringify(body), { status: 403 })]);
+    const err = await client.post('/serp/google/maps/live/advanced', [{}], scope).catch((e) => e);
+    expect(err).toMatchObject({ code: 403, retryable: false });
+    expect(err.message).toBe('HTTP 403 from /serp/google/maps/live/advanced: 40104 Please verify your account before using the API.');
+    expect(records[0]).toMatchObject({ ok: false });
+  });
+
   it('never lets a ledger failure change the outcome', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const client = createDataForSeo({

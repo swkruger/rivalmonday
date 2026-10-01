@@ -24,20 +24,29 @@ export function normalizeMetaAd(raw: unknown): NormalizedAd | null {
   if (!externalId) return null;
   const snap = (pick(o, ['snapshot']) ?? {}) as Obj;
   const body = pick(snap, ['body']) as Obj | undefined;
-  const images = (Array.isArray(snap.images) ? snap.images : []).map((i) =>
-    typeof i === 'string' ? i : str(pick(i as Obj, ['original_image_url', 'originalImageUrl', 'resized_image_url', 'resizedImageUrl', 'url'])),
-  );
-  const videos = (Array.isArray(snap.videos) ? snap.videos : []).map((v) =>
-    str(pick(v as Obj, ['video_preview_image_url', 'videoPreviewImageUrl', 'video_hd_url', 'videoHdUrl', 'video_sd_url', 'videoSdUrl'])),
-  );
+  const imageUrl = (i: unknown) =>
+    typeof i === 'string' ? i : str(pick(i as Obj, ['original_image_url', 'originalImageUrl', 'resized_image_url', 'resizedImageUrl', 'url']));
+  const videoUrl = (v: unknown) => str(pick(v as Obj, ['video_preview_image_url', 'videoPreviewImageUrl', 'video_hd_url', 'videoHdUrl', 'video_sd_url', 'videoSdUrl']));
+  const images = (Array.isArray(snap.images) ? snap.images : []).map(imageUrl);
+  const videos = (Array.isArray(snap.videos) ? snap.videos : []).map(videoUrl);
+  // Live-verified 2026-10-01 (curious_coder actor): DCO and carousel ads carry their media and
+  // copy in `snapshot.cards[]` (each card has body/title/link_url plus the image and video URL
+  // fields), with empty `images`/`videos` and a templated `{{product.brand}}` body/title.
+  const cards = (Array.isArray(snap.cards) ? snap.cards : []).filter((c): c is Obj => Boolean(c) && typeof c === 'object');
+  const cardMedia = cards.map((c) => videoUrl(c) ?? imageUrl(c));
+  const firstCard = cards[0];
+  const real = (v: string | null) => (v && !/^\{\{.*\}\}$/.test(v.trim()) ? v : null);
+  const snapText = real(str(body && typeof body === 'object' ? pick(body, ['text']) : body));
   const platforms = pick(o, ['publisherPlatform', 'publisher_platform', 'publisherPlatforms']);
   const isActive = pick(o, ['isActive', 'is_active']);
   const start = parseDfsTimestamp(pick(o, ['startDate', 'start_date']));
   const end = parseDfsTimestamp(pick(o, ['endDate', 'end_date']));
   return {
     externalId, advertiserId: str(pick(o, ['pageID', 'pageId', 'page_id'])), format: str(pick(snap, ['display_format', 'displayFormat'])),
-    title: str(pick(snap, ['title'])), text: str(body ? pick(body, ['text']) : pick(snap, ['body'])),
-    mediaUrls: [...images, ...videos].filter((u): u is string => Boolean(u)), landingUrl: str(pick(snap, ['link_url', 'linkUrl'])),
+    title: real(str(pick(snap, ['title']))) ?? real(str(pick(firstCard, ['title']))),
+    text: snapText ?? real(str(pick(firstCard, ['body']))),
+    mediaUrls: [...new Set([...images, ...videos, ...cardMedia].filter((u): u is string => Boolean(u)))],
+    landingUrl: str(pick(snap, ['link_url', 'linkUrl'])) ?? str(pick(firstCard, ['link_url', 'linkUrl'])),
     publisherPlatforms: Array.isArray(platforms) ? platforms.filter((p): p is string => typeof p === 'string') : [],
     startedAt: start, endedAt: isActive === false ? end : null, isActive: isActive !== false,
   };

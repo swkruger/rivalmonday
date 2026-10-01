@@ -725,3 +725,32 @@ const obj = parser.parse(xmlString);
 - **My Business Info** nested objects (`address_info`, `rating_distribution`, `work_time.work_hours.timetable`, `attributes`, `services[]`, `popular_times`) are UNVERIFIED in exact shape — treat as loosely-typed/`unknown` in TypeScript until a sandbox sample confirms real shapes, rather than writing strict interfaces now.
 - **Instagram Business Discovery**: `like_count` is available despite not being a generically "Public" field (it's granted via Business Discovery's specific permission grant) — don't assume other "non-Public" fields work the same way; `profile_picture_url` is likely NOT available (flagged Public=false) despite third-party examples suggesting otherwise — confirm before building a model column for it.
 - **Apify actor output casing** (camelCase fields like `adArchiveID`) is UNVERIFIED byte-for-byte — run one live sample through each candidate actor and lock the TS interface from the actual JSON, not from the store-page prose.
+
+---
+
+## Verified 2026-10-01 (Phase 2b Task 12 — partial)
+
+### DataForSEO — NOT verified (account blocked)
+
+Every call was refused at the account level before any data was returned (no charge):
+
+- **Production** (`api.dataforseo.com`): HTTP **403** with envelope `status_code: 40104`, `"Please verify your account before using the API. You can complete verification in the user panel: https://app.dataforseo.com/ ."` — the free `appendix/user_data` endpoint still answers (balance shows the $1 trial credit).
+- **Sandbox** (`sandbox.dataforseo.com`): HTTP **403**, `40104` on the endpoints, and `appendix/user_data` reports task-level `40201` "We noticed some unusual activity in your DataForSEO account, so we've temporarily paused access as a precaution…".
+- **Verified fact:** DataForSEO sends its normal JSON envelope (with the API `status_code`) on non-2xx HTTP responses. The client now includes that code/message in the `VendorError` message (`HTTP 403 from <path>: 40104 …`), and `dataforseo.live.test.ts` skips (with a warning) on account-level `40104`/`40201` instead of failing the suite.
+- Still **UNVERIFIED** until the account is verified: `location_coordinate` `"lat,lng,14z"` acceptance, whether `data.tag` is echoed on `task_post`, `review_id` presence/stability, reviews item keys carrying photos/reviewer identity, maps/GBP/ads/jobs item shapes, actual `cost` per call, and same-name employers in jobs results. See the roadmap's Phase 2b carry-over.
+
+### Apify `curious_coder~facebook-ads-library-scraper` — verified live
+
+One discovery run (keyword search URL, `count: 10`, `scrapeAdDetails: false`, `scrapePageAds.*` as in `fetchMetaAdsApify`): HTTP **201** from `run-sync-get-dataset-items`, body a raw JSON array of 10 items. Input schema accepted as-is. Cost: actor is pay-per-event, **$0.00075 per ad** + $0.00005 per run start (Apify account usage after the run: $0.0076).
+
+- **Output is snake_case**, not the camelCase the store page suggested. Top-level keys: `ad_archive_id`, `ad_id` (null), `collation_id`, `collation_count`, `is_active`, `page_id`, `page_name`, `page_is_deleted`, `start_date`, `end_date`, `start_date_formatted`, `end_date_formatted`, `publisher_platform[]` (`FACEBOOK`, `INSTAGRAM`, `AUDIENCE_NETWORK`, `MESSENGER`), `categories[]`, `currency`, `spend`, `reach_estimate`, `impressions_with_index`, `total_active_time` (null for US commercial ads), `targeted_or_reached_countries`, `snapshot`, `url` (the input Ad Library URL), `ad_library_url` (`https://www.facebook.com/ads/library/?id=<ad_archive_id>` — the permalink), `total`, `position`, `ads_count`, plus `has_user_reported`, `report_count`, `menu_items`, `gated_type`, `fev_info`, `regional_regulation_data`, `hide_data_status`, `state_media_run_label`, `is_aaa_eligible`, `contains_digital_created_media`, `contains_sensitive_content`.
+- **Ids are strings** (`"2400251623508286"`); `start_date`/`end_date` are **Unix seconds** (integers). For an active ad `end_date` is "now/today", not a real end — `normalizeMetaAd` only uses it when `is_active === false`.
+- **`total`** on each item is the total number of ads matching the input URL (25,313 for the broad keyword search) — usable to compare against the returned count / the `count` cap.
+- `snapshot` keys: `body.text`, `title`, `caption`, `cta_text`, `cta_type`, `display_format` (`IMAGE`, `VIDEO`, `DCO`, …), `link_url`, `link_description`, `images[]` (`original_image_url`, `resized_image_url`, `watermarked_resized_image_url`, `image_crops`), `videos[]`, `cards[]`, `page_id`, `page_name`, `page_profile_uri`, `page_profile_picture_url`, `page_categories`, `page_like_count`, `byline`, `disclaimer_label`, `extra_*`, `branded_content`, `is_reshared`, `root_reshared_post`, `event`, `country_iso_code`, `additional_info`, `ec_certificates`, `brazil_tax_id`.
+- **DCO / carousel ads** keep their copy and media in `snapshot.cards[]` (each card: `body`, `title`, `caption`, `link_url`, `link_description`, `cta_text`, `original_image_url`, `resized_image_url`, `video_hd_url`, `video_sd_url`, `video_preview_image_url`, …) with empty `images`/`videos` and a templated `body.text` / `title` (`"{{product.brand}}"`, `"{{product.name}}"`). `normalizeMetaAd` now falls back to the first card's copy/link and collects card media, ignoring `{{…}}` templates.
+- A brand-specific page pull (`view_all_page_id`) was **not** run: the DataForSEO block stopped the production spot check, so the 200-item cap / `truncated` behaviour and the active-count comparison against the public Ad Library page remain to be checked with the rest of Task 12.
+- Fixture: `packages/collectors/test/fixtures/vendors/apify-meta-ad.json` (one IMAGE ad, one DCO ad; signed fbcdn query strings replaced with `REDACTED`), asserted by `src/vendors/fixtures.test.ts`.
+
+### ScrapeCreators — not verified
+
+No `SCRAPECREATORS_API_KEY` configured; the fallback is untested live.

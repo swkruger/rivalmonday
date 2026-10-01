@@ -112,7 +112,11 @@ export function createDataForSeo(opts: DataForSeoOptions): DataForSeoClient {
         if (!res.ok) {
           const retryable = RETRY_HTTP.has(res.status);
           if (retryable && canRetry) { await backoff(); continue; }
-          throw new VendorError('dataforseo', res.status, `HTTP ${res.status} from ${path}`, retryable);
+          // DataForSEO also sends its envelope on non-2xx responses (live-verified 2026-10-01: an
+          // unverified account gets HTTP 403 with status_code 40104) — surface it in the message.
+          const errEnv = envelopeSchema.safeParse(await res.json().catch(() => null));
+          const detail = errEnv.success ? `: ${errEnv.data.status_code} ${errEnv.data.status_message}` : '';
+          throw new VendorError('dataforseo', res.status, `HTTP ${res.status} from ${path}${detail}`, retryable);
         }
         const parsed = envelopeSchema.safeParse(await res.json().catch(() => null));
         if (!parsed.success) throw new VendorError('dataforseo', null, `Unexpected response from ${path}`, false, { cause: parsed.error });
