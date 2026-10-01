@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pseudonymizeReviewer, redactContactInfo, requireSalt, scrubReviewerIdentity } from './privacy';
+import { pseudonymizeReviewer, redactContactInfo, redactReviewerName, requireSalt, scrubReviewerIdentity } from './privacy';
 
 const salt = 's'.repeat(32);
 
@@ -34,6 +34,19 @@ describe('redactContactInfo', () => {
   });
 });
 
+describe('redactReviewerName', () => {
+  it('replaces the full name and each name word, case-insensitively, on word boundaries', () => {
+    expect(redactReviewerName('Thank you, Mike! Mike Ross, we appreciate it.', 'Mike Ross')).toBe('Thank you, [name]! [name], we appreciate it.');
+    expect(redactReviewerName('thanks MIKE', 'Mike R.')).toBe('thanks [name]');
+    expect(redactReviewerName('Michael was great, unlike Mikey', 'Mike')).toBe('Michael was great, unlike Mikey');
+    expect(redactReviewerName('Gracias, José!', 'José Núñez')).toBe('Gracias, [name]!');
+  });
+  it('leaves text alone without a name and ignores 1-letter initials', () => {
+    expect(redactReviewerName('Thanks J for the review', 'J')).toBe('Thanks J for the review');
+    expect(redactReviewerName('Thanks!', null)).toBe('Thanks!');
+  });
+});
+
 describe('requireSalt', () => {
   it('requires a long salt', () => {
     expect(() => requireSalt({})).toThrow(/REVIEWER_HASH_SALT/);
@@ -52,13 +65,14 @@ describe('scrubReviewerIdentity', () => {
           profile_url: 'https://maps/contrib/1',
           profile_image_url: 'https://x/img.jpg',
           review_text: 'Call 404-555-0199',
-          owner_answer: 'mail a@b.com',
+          owner_answer: 'Thanks Jane! mail a@b.com',
           original_review_text: 'Escríbeme a ana@x.com o al +34 612 345 678',
           images: [{ type: 'image', alt: 'x', url: 'https://x/photo.jpg', image_url: 'https://x/photo2.jpg' }],
           review_images: ['https://x/photo3.jpg'],
           photos: [{ src: 'https://x/photo4.jpg' }],
           Photo_Url: 'https://x/photo5.jpg',
           photos_count: 3,
+          reviews_count: 41,
           local_guide: true,
           author_name: 'Jane Doe',
           reviewer_id: '1234567890',
@@ -89,7 +103,7 @@ describe('scrubReviewerIdentity', () => {
     expect(item.profile_url).toBeUndefined();
     expect(item.profile_image_url).toBeUndefined();
     expect(item.review_text).toBe('Call [phone]');
-    expect(item.owner_answer).toBe('mail [email]');
+    expect(item.owner_answer).toBe('Thanks [name]! mail [email]');
     expect(item.original_review_text).toBe('Escríbeme a [email] o al [phone]');
     expect(item.review_id).toBe('r1');
     // Reviewer-uploaded review photos are stripped too (user decision 2026-10-01).
@@ -103,9 +117,11 @@ describe('scrubReviewerIdentity', () => {
     expect(item.profile_id).toBeUndefined();
     expect(item.user_url).toBeUndefined();
     expect(item.review_url).toBeUndefined();
+    // The reviewer's own activity counts / Local Guide flag are a fingerprint of the person: dropped.
+    expect(item.photos_count).toBeUndefined();
+    expect(item.reviews_count).toBeUndefined();
+    expect(item.local_guide).toBeUndefined();
     // Non-identifying review data survives.
-    expect(item.photos_count).toBe(3);
-    expect(item.local_guide).toBe(true);
     expect(item.rating).toEqual({ value: 5 });
 
     // input unchanged
@@ -116,5 +132,11 @@ describe('scrubReviewerIdentity', () => {
     const once = scrubReviewerIdentity([{ review_id: 'r2', profile_name: 'Ann', review_url: 'https://www.google.com/maps/reviews/data=!4m5' }], salt);
     expect(once).toEqual([{ review_id: 'r2', reviewer_hash: pseudonymizeReviewer('Ann', salt), review_url: 'https://www.google.com/maps/reviews/data=!4m5' }]);
     expect(scrubReviewerIdentity(once, salt)).toEqual(once);
+  });
+
+  it('keeps the business-level reviews_count on the result object', () => {
+    const out = scrubReviewerIdentity([{ title: 'Acme HVAC', reviews_count: 546, items: [{ review_id: 'r1', reviews_count: 3 }] }], salt) as Array<Record<string, unknown>>;
+    expect(out[0]?.reviews_count).toBe(546);
+    expect((out[0]?.items as Array<Record<string, unknown>>)[0]?.reviews_count).toBeUndefined();
   });
 });

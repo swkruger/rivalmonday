@@ -50,10 +50,11 @@ const REVIEWER_KEY_PREFIXES = ['reviewer_', 'author_', 'profile_', 'user_'];
 
 // Reviewer-uploaded review photos (user decision 2026-10-01): any key whose name contains "image" or
 // "photo" (e.g. `images`, `review_images`, `photos`, `image_url`) is dropped when it holds a URL, an
-// array or an object. Plain numbers/booleans (e.g. DataForSEO's `photos_count`) are kept.
+// array, an object or null (DataForSEO sends `images: null` on photo-less reviews). Plain
+// numbers/booleans (e.g. DataForSEO's `photos_count`) are kept.
 const isPhotoKey = (lowerKey: string): boolean => lowerKey.includes('image') || lowerKey.includes('photo');
 const holdsPhotoData = (value: unknown): boolean =>
-  Array.isArray(value) || (value !== null && typeof value === 'object') || (typeof value === 'string' && /^(https?:)?\/\//i.test(value.trim()));
+  value === null || Array.isArray(value) || (value !== null && typeof value === 'object') || (typeof value === 'string' && /^(https?:)?\/\//i.test(value.trim()));
 
 // A review permalink that embeds the reviewer's Google contributor id identifies the reviewer.
 const isContributorLink = (lowerKey: string, value: unknown): boolean =>
@@ -69,10 +70,33 @@ const isContactTextKey = (key: string): boolean => {
 };
 
 /**
+ * Replaces the reviewer's own name (the full name, then each word of it of 2+ letters) in `text`
+ * with "[name]". Live-verified 2026-10-01: ~72% of owner replies address the reviewer by first name
+ * ("Thank you, Mike!"), and a few repeat the full name — storing those would defeat pseudonymisation.
+ */
+export function redactReviewerName(text: string, name: string | null | undefined): string {
+  const full = name?.trim();
+  if (!full) return text;
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const words = [...new Set(full.split(/\s+/).map((w) => w.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '')).filter((w) => w.length >= 2))];
+  const terms = [...(full.length >= 2 ? [full] : []), ...words.sort((a, b) => b.length - a.length)];
+  let out = text;
+  for (const term of terms) out = out.replace(new RegExp(`(?<![\\p{L}\\p{N}])${esc(term)}(?![\\p{L}\\p{N}])`, 'giu'), '[name]');
+  return out;
+}
+
+// On a review item (an object carrying a reviewer name or a review_id), these describe the
+// *reviewer's* own activity (how many reviews/photos they have posted, Local Guide status) — a
+// fingerprint of the person, not data about the review. The result-level `reviews_count` (the
+// business's total) is on an object without a reviewer name/review_id and is kept.
+const REVIEWER_ACTIVITY_KEYS = new Set(['reviews_count', 'photos_count', 'local_guide']);
+
+/**
  * Deep-copies a REVIEWS payload, pseudonymising reviewer names, stripping reviewer profile
  * URLs/ids/photos, reviewer-uploaded review photos and contributor-id permalinks, and redacting
- * contact info from review/owner text, at any depth. Non-matching data (review ids, ratings,
- * timestamps, photo counts, etc.) passes through unchanged. Does not mutate `payload`.
+ * contact info and the reviewer's own name from review/owner text, and dropping the reviewer's
+ * activity counts on review items, at any depth. Non-matching data (review ids, ratings,
+ * timestamps, the business's own reviews_count, etc.) passes through unchanged. Does not mutate `payload`.
  * Only for review payloads: its key rules would over-strip business/ad payloads.
  */
 export function scrubReviewerIdentity(payload: unknown, salt: string): unknown {
@@ -81,8 +105,12 @@ export function scrubReviewerIdentity(payload: unknown, salt: string): unknown {
   }
   if (payload !== null && typeof payload === 'object') {
     const out: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(payload as Record<string, unknown>)) {
+    const entries = Object.entries(payload as Record<string, unknown>);
+    const reviewerName = entries.find(([k, v]) => REVIEWER_NAME_KEYS.has(k.toLowerCase()) && typeof v === 'string')?.[1] as string | undefined;
+    const isReviewItem = reviewerName !== undefined || entries.some(([k]) => k.toLowerCase() === 'review_id' || k.toLowerCase() === 'reviewer_hash');
+    for (const [key, value] of entries) {
       const lowerKey = key.toLowerCase();
+      if (isReviewItem && REVIEWER_ACTIVITY_KEYS.has(lowerKey)) continue;
       if (REVIEWER_NAME_KEYS.has(lowerKey)) {
         const hash = pseudonymizeReviewer(typeof value === 'string' ? value : null, salt);
         if (out.reviewer_hash == null) out.reviewer_hash = hash;
@@ -100,7 +128,7 @@ export function scrubReviewerIdentity(payload: unknown, salt: string): unknown {
         continue;
       }
       if (isContactTextKey(key) && typeof value === 'string') {
-        out[key] = redactContactInfo(value);
+        out[key] = redactReviewerName(redactContactInfo(value), reviewerName);
         continue;
       }
       out[key] = scrubReviewerIdentity(value, salt);

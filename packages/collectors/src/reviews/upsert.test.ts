@@ -31,10 +31,10 @@ describe('upsertReviews', () => {
 
   it('dedupes repeated pulls and picks up a later owner reply', async () => {
     await upsertReviews(dbs.service, IDS.competitorX, CAP, [item()], salt, new Date('2026-09-21T00:00:00Z'));
-    await upsertReviews(dbs.service, IDS.competitorX, CAP, [item({ owner_answer: 'Sorry! Email us at help@smith.example', owner_timestamp: '2026-09-22 09:00:00 +00:00' })], salt, new Date('2026-09-28T00:00:00Z'));
+    await upsertReviews(dbs.service, IDS.competitorX, CAP, [item({ owner_answer: 'Sorry Jane! Email us at help@smith.example', owner_timestamp: '2026-09-22 09:00:00 +00:00' })], salt, new Date('2026-09-28T00:00:00Z'));
     const rows = await dbs.service.select().from(review);
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ ownerAnswer: 'Sorry! Email us at [email]' });
+    expect(rows[0]).toMatchObject({ ownerAnswer: 'Sorry [name]! Email us at [email]' });
     expect(rows[0]?.lastSeenAt.toISOString()).toBe('2026-09-28T00:00:00.000Z');
     expect(rows[0]?.firstSeenAt.toISOString()).toBe('2026-09-21T00:00:00.000Z');
   });
