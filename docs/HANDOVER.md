@@ -25,7 +25,7 @@ Business model: first sold to the owning agency's own clients, then **wholesale 
 | [docs/brand/brand.md](brand/brand.md) + [docs/brand/mockups/](brand/mockups/) | Brand decisions, colour tokens, 5 example pages (design reference for Phase 5) |
 | [docs/research/2026-09-30-phase-2-vendor-apis.md](research/2026-09-30-phase-2-vendor-apis.md) | Vendor API contracts (DataForSEO, Apify, ScrapeCreators, Meta, R2, Playwright…); the **"Verified 2026-10-01"** section holds live-checked shapes, costs and quirks |
 | [docs/superpowers/plans/2026-09-30-phase-2a-evidence-and-web.md](superpowers/plans/2026-09-30-phase-2a-evidence-and-web.md) | Done (merged) |
-| [docs/superpowers/plans/2026-09-30-phase-2b-vendor-sources.md](superpowers/plans/2026-09-30-phase-2b-vendor-sources.md) | Done — see §3 for merge status |
+| [docs/superpowers/plans/2026-09-30-phase-2b-vendor-sources.md](superpowers/plans/2026-09-30-phase-2b-vendor-sources.md) | Done (merged) |
 
 ---
 
@@ -59,7 +59,7 @@ Business model: first sold to the owning agency's own clients, then **wholesale 
 
 ## 3. Current state (2026-10-01)
 
-**Git:** `main` holds Phase 1 + Phase 2a, pushed to `https://github.com/swkruger/rivalmonday` (private). Phase 2b is complete on branch `phase-2b-vendor-sources`; if `git log main` doesn't show it yet, merging + pushing is the next step. Work happens on feature branches, merged locally, then pushed.
+**Git:** `main` at `7c36943` holds Phases 0–2 (2a + 2b merged), pushed to `https://github.com/swkruger/rivalmonday` (private). Working tree clean, no open feature branches. Work happens on feature branches, merged locally, then pushed.
 
 **Phase 0 — Branding: DONE.** Validation items (GHL/Vendasta marketplace check, agency LOIs, counsel review) still open.
 
@@ -67,9 +67,9 @@ Business model: first sold to the owning agency's own clients, then **wholesale 
 
 **Phase 2a — Evidence & web: DONE (merged).** `@cs/storage` (memory / fs / R2 object store) and `@cs/collectors` (honest UA, RFC 9309 robots, per-host rate limit, Playwright renderer with block detection, hash-first immutable evidence recorder, page discovery from nav + sitemaps, exactly-once due-page claiming). Tables `tracked_page`, `capture`, `evidence` (migrations 0007–0008). Worker jobs `web-schedule`, `web-capture-page`, `discover-pages`; `collect-once` CLI.
 
-**Phase 2b — Vendor sources: DONE.** DataForSEO client (typed errors, retries, one `vendor_call` ledger row per call), vendor evidence capture, reviewer privacy (HMAC pseudonym; names, profile links, photos, activity counts and first-name greetings stripped from rows **and** stored evidence; e-mails/phones redacted), local-search competitor suggestions + acceptance, Google Business Profile, Google reviews (async), Google ads (filtered to the competitor's advertiser name), Meta ads (Apify; ScrapeCreators fallback never live-tested), Google Jobs, monthly geo-grid rank scans, `competitor_source` scheduling and six worker jobs (`vendor-schedule`, `vendor-collect`, `vendor-poll`, `rank-schedule`, `rank-scan`, `suggest-competitors`). Migrations 0009–0011 (app_user may update only `competitor_suggestion.status`). Live-verified 2026-10-01 against Aire Serv (spend ≈ $0.095); sanitised fixtures in `packages/collectors/test/fixtures/vendors/`.
+**Phase 2b — Vendor sources: DONE (merged).** DataForSEO client (typed errors, retries, one `vendor_call` ledger row per call), vendor evidence capture, reviewer privacy (HMAC pseudonym; names, profile links, photos, activity counts and first-name greetings stripped from rows **and** stored evidence; e-mails/phones redacted), local-search competitor suggestions + acceptance, Google Business Profile, Google reviews (async), Google ads (filtered to the competitor's advertiser name), Meta ads (Apify primary, ScrapeCreators fallback — both live-verified, identical results), Google Jobs, monthly geo-grid rank scans, `competitor_source` scheduling and six worker jobs (`vendor-schedule`, `vendor-collect`, `vendor-poll`, `rank-schedule`, `rank-scan`, `suggest-competitors`). Migrations 0009–0011 (app_user may update only `competitor_suggestion.status`). Live-verified 2026-10-01 against Aire Serv (place `ChIJ6VlKPHqPT4YR479jLd01gZY`; Meta page Aire Serv of Granbury `1825453601028298`; spend ≈ $0.095 + 1 ScrapeCreators credit); sanitised fixtures in `packages/collectors/test/fixtures/vendors/`.
 
-Tests: `pnpm typecheck && pnpm test` green (7 packages; collectors 193, worker 21). Neon occasionally times out (`ETIMEDOUT`) — re-run once.
+Tests: `pnpm typecheck && pnpm test` green (7 packages; collectors 197, worker 21). Neon occasionally times out (`ETIMEDOUT`) — re-run once.
 
 ---
 
@@ -78,7 +78,7 @@ Tests: `pnpm typecheck && pnpm test` green (7 packages; collectors 193, worker 2
 - Node 24.19 (winget), pnpm 10.34. Docker is **not** installed (use Neon).
 - Local PostgreSQL 17 service exists on the machine but is **not used** by this project.
 - Repo-root `.env` (gitignored, **never print or commit it**) currently contains: `NEON_OWNER_URL`, `DATABASE_URL` (owner → `cs_dev`), `APP_DATABASE_URL` (`app_user`), `SERVICE_DATABASE_URL` (`app_service`, BYPASSRLS), the three `TEST_*_DATABASE_URL` equivalents for `cs_test`, `OPENROUTER_API_KEY`, `TYPESAFE_API_KEY`, `APP_URL`.
-- Also set: `EVIDENCE_FS_DIR=./.evidence` (evidence lands in `apps/worker/.evidence/` when run via `pnpm --filter`), `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` (account verified and funded), `APIFY_TOKEN`, `REVIEWER_HASH_SALT` (never change it). Not set: `SCRAPECREATORS_API_KEY` (optional fallback), R2 vars (production). Setting `DATAFORSEO_BASE_URL=https://sandbox.dataforseo.com/v3` switches to the free sandbox.
+- Also set: `EVIDENCE_FS_DIR=./.evidence` (evidence lands in `apps/worker/.evidence/` when run via `pnpm --filter`), `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` (account verified and funded), `APIFY_TOKEN`, `REVIEWER_HASH_SALT` (never change it). `SCRAPECREATORS_API_KEY` is set too. Not set: R2 vars (production). Setting `DATAFORSEO_BASE_URL=https://sandbox.dataforseo.com/v3` switches to the free sandbox.
 - Commands: `pnpm install` · `pnpm typecheck` · `pnpm test` (turbo, `--concurrency=1` because DB tests share `cs_test`) · `pnpm db:migrate` (applies to `cs_dev`) · `pnpm --filter <pkg> test`.
 - Neon facts: owner role is **not superuser but has BYPASSRLS** (test harness relies on it); Postgres 18.6 on Neon vs 16 in CI/compose (carry-over to align).
 - Visual companion (brainstorming mockups) ran at `http://localhost:59017` from `.superpowers/brainstorm/` — ephemeral; mockups that matter are saved in `docs/brand/mockups/`.
@@ -87,7 +87,7 @@ Tests: `pnpm typecheck && pnpm test` green (7 packages; collectors 193, worker 2
 
 ## 5. How to continue (next session checklist)
 
-1. Read this file and the roadmap carry-over sections. Check `git log --oneline -5`, `git status`, and whether `phase-2b-vendor-sources` is merged into `main`; if not, run `pnpm typecheck && pnpm test`, merge locally, push.
+1. Read this file and the roadmap carry-over sections. Check `git log --oneline -5` (expect `7c36943` on `main`) and `git status` (clean).
 2. On or after **2026-10-08**: re-pull the Aire Serv reviews (`pnpm --filter @cs/worker collect-once --domain <aire serv domain> --place-id ChIJ6VlKPHqPT4YR479jLd01gZY --vendors`, then `--poll`) and compare `review_id`s for stability (roadmap carry-over).
 3. Write the **Phase 3 (intelligence engine)** plan with `superpowers:writing-plans` against the merged code, folding in the Phase 2 carry-over items (persist discovery homepage status; DB-level evidence immutability + `legal_hold`; Google-ad activity from `last_seen_at` and advertiser-id pinning; several Meta pages per franchise competitor; metaPageId/placeId discovery for accepted competitors; role checks on accept; edited reviews).
 4. Execute it with `superpowers:subagent-driven-development` (the user's chosen method: ledger in `.superpowers/sdd/<plan>/progress.md`, final whole-branch review on the most capable model, then `superpowers:finishing-a-development-branch` — the user chooses merge locally + push).
@@ -118,7 +118,7 @@ Tests: `pnpm typecheck && pnpm test` green (7 packages; collectors 193, worker 2
 ## 7. Open items owned by the user
 
 - Register **rivalmonday.com** / **.ai**; trademark knockout search; publish the bot page `https://rivalmonday.com/bot`.
-- Optionally add `SCRAPECREATORS_API_KEY` (Meta ads fallback, never live-tested). Create an **R2** bucket + token before production.
+- Create an **R2** bucket + token before production (development stores evidence on local disk).
 - Phase 0 validation: GoHighLevel/Vendasta marketplace check, 5 agency letters of intent, US counsel review (crawling, reviews privacy, AI claims about named competitors) before the pilot.
 - Confirm Jev pricing (0.042 $/M input is a placeholder).
 
