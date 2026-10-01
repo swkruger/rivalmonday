@@ -17,9 +17,11 @@ const openRouterTask = z.object({
   provider: z.literal('openrouter'),
   model: z.string().min(1),
   fallbacks: z.array(z.string().min(1)).default([]),
-  mode: z.enum(['chat', 'decisions']).default('chat'),
+  mode: z.enum(['chat', 'decisions', 'embeddings']).default('chat'),
   temperature: z.number().min(0).max(2).optional(),
   max_tokens: z.number().int().positive().optional(),
+  /** Embeddings only: requested vector width (must match the DB column width, 512). */
+  dimensions: z.number().int().positive().optional(),
 });
 
 const jevTask = z.object({

@@ -5,6 +5,7 @@ export * from './decisions/cascade';
 export * from './decisions/jev';
 export * from './decisions/llm';
 export * from './decisions/types';
+export * from './embeddings';
 export * from './env';
 export * from './http';
 export * from './openrouter';

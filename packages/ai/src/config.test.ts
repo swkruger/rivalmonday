@@ -36,5 +36,6 @@ tasks:
     for (const task of ['brief_writer', 'ask_assistant', 'value_extract', 'theme_discovery', 'llm_decisions', 'decisions']) {
       expect(cfg.tasks[task]).toBeDefined();
     }
+    expect(cfg.tasks.embeddings).toMatchObject({ provider: 'openrouter', mode: 'embeddings', model: 'openai/text-embedding-3-small', dimensions: 512 });
   });
 });

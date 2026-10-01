@@ -4,6 +4,7 @@ import type { AiConfig, ConfidenceThresholds, TaskConfig } from './config';
 import { CascadingDecisionProvider, type DecisionResult } from './decisions/cascade';
 import { createLlmDecisionProvider } from './decisions/llm';
 import type { DecisionProvider, DecisionQuestion } from './decisions/types';
+import type { EmbeddingProvider, EmbeddingResult } from './embeddings';
 
 /** Records a ledger row without letting a ledger-write failure mask the caller's real result/error. */
 async function safeRecord(ledger: LedgerSink, record: LlmCallRecord): Promise<void> {
@@ -14,14 +15,20 @@ async function safeRecord(ledger: LedgerSink, record: LlmCallRecord): Promise<vo
   }
 }
 
+export const EMBED_BATCH = 64;
+export const EMBED_MAX_CHARS = 8000;
+
 export interface Ai {
   chat(task: string, input: { messages: ChatMessage[]; jsonSchema?: JsonSchemaFormat }, scope: CallScope): Promise<ChatResult>;
   decide<K extends string>(task: string, state: unknown, questions: Record<K, DecisionQuestion>, scope: CallScope): Promise<DecisionResult<K>>;
+  embed(task: string, texts: string[], scope: CallScope): Promise<EmbeddingResult>;
 }
 
 export interface AiDeps {
   openrouter: ChatProvider;
-  jev: DecisionProvider | null;
+  /** Builds the Jev provider for a task's configured model (spec §7.2: models are configured per task). */
+  jev: ((model: string) => DecisionProvider) | null;
+  embeddings?: EmbeddingProvider;
   ledger: LedgerSink;
   now?: () => number;
 }
@@ -101,7 +108,7 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
         thresholds = t.min_confidence;
         const escalation = t.escalate_to ? llmDecisions(t.escalate_to, scope) : null;
         if (deps.jev) {
-          primary = recording(deps.jev, name, scope, t.model);
+          primary = recording(deps.jev(t.model), name, scope, t.model);
           fallback = escalation;
         } else if (escalation) {
           primary = escalation;
@@ -112,6 +119,40 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
         primary = llmDecisions(name, scope);
       }
       return new CascadingDecisionProvider(primary, fallback, thresholds).decide(state, questions);
+    },
+
+    async embed(name, texts, scope) {
+      const t = task(name);
+      if (t.provider !== 'openrouter' || t.mode !== 'embeddings') throw new Error(`Task ${name} is not an embeddings task`);
+      if (!deps.embeddings) throw new Error(`Task ${name} needs an embeddings provider`);
+      if (texts.length === 0) return { vectors: [], model: t.model, inputTokens: 0, costUsd: 0 };
+      const vectors: number[][] = [];
+      let inputTokens = 0;
+      let costUsd: number | null = 0;
+      let model = t.model;
+      for (let i = 0; i < texts.length; i += EMBED_BATCH) {
+        const input = texts.slice(i, i + EMBED_BATCH).map((s) => s.slice(0, EMBED_MAX_CHARS));
+        const started = now();
+        let r: EmbeddingResult;
+        try {
+          r = await deps.embeddings.embed({ model: t.model, input, dimensions: t.dimensions });
+        } catch (err) {
+          await safeRecord(deps.ledger, {
+            ...scope, task: name, provider: deps.embeddings.id, model: t.model,
+            inputTokens: 0, outputTokens: 0, costUsd: null, latencyMs: now() - started, ok: false,
+          });
+          throw err;
+        }
+        await safeRecord(deps.ledger, {
+          ...scope, task: name, provider: deps.embeddings.id, model: r.model,
+          inputTokens: r.inputTokens, outputTokens: 0, costUsd: r.costUsd, latencyMs: now() - started, ok: true,
+        });
+        vectors.push(...r.vectors);
+        inputTokens += r.inputTokens;
+        costUsd = costUsd === null || r.costUsd === null ? null : costUsd + r.costUsd;
+        model = r.model;
+      }
+      return { vectors, model, inputTokens, costUsd };
     },
   };
 }

@@ -39,7 +39,7 @@ function harness(opts: { chatFails?: boolean; jevProbability?: number; jev?: boo
     })) as unknown as DecisionProvider['decide'],
   };
   let t = 0;
-  const ai = createAi(config, { openrouter, jev: opts.jev === false ? null : jev, ledger, now: () => (t += 7) });
+  const ai = createAi(config, { openrouter, jev: opts.jev === false ? null : () => jev, ledger, now: () => (t += 7) });
   return { ai, records, complete };
 }
 
