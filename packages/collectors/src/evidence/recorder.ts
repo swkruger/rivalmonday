@@ -11,7 +11,7 @@ export const WEB_COLLECTOR_VERSION = 'web/1';
 export function normalizeText(text: string): string {
   return text
     .split('\n')
-    .map((line) => line.replace(/[ \t\f\v ]+/g, ' ').trim())
+    .map((line) => line.replace(/[ \t\f\v\u00a0]+/g, ' ').trim())
     .filter((line) => line.length > 0)
     .join('\n');
 }
@@ -55,15 +55,28 @@ export async function recordWebCapture(deps: RecorderDeps, input: WebCaptureInpu
 
   const capturedAt = now();
   if (last?.sha === textSha) {
-    await deps.db.insert(capture).values({ ...base, status: 'unchanged', capturedAt });
-    await deps.db.update(trackedPage).set({ lastCapturedAt: capturedAt }).where(eq(trackedPage.id, tp.id));
+    await deps.db.transaction(async (tx) => {
+      await tx.insert(capture).values({ ...base, status: 'unchanged', capturedAt });
+      await tx.update(trackedPage).set({ lastCapturedAt: capturedAt }).where(eq(trackedPage.id, tp.id));
+    });
     return { captureId, status: 'unchanged', evidenceKeys: [] };
   }
 
   const prefix = `evidence/${tp.competitorId}/${captureId}`;
   const htmlGz = new Uint8Array(gzipSync(page.html));
   const textBytes = new TextEncoder().encode(text);
-  const shot = await page.screenshot();
+
+  // Take the screenshot before any upload: if it throws, record the failure as its own
+  // immutable capture (status 'error') rather than losing the attempt or writing partial evidence.
+  let shot: Uint8Array;
+  try {
+    shot = await page.screenshot();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await deps.db.insert(capture).values({ ...base, status: 'error', error: `screenshot failed: ${message}`, capturedAt });
+    return { captureId, status: 'error', evidenceKeys: [] };
+  }
+
   const objects = [
     { kind: 'html', key: `${prefix}/page.html.gz`, body: htmlGz, contentType: 'application/gzip', sha: sha256Hex(page.html) },
     { kind: 'text', key: `${prefix}/text.txt`, body: textBytes, contentType: 'text/plain; charset=utf-8', sha: textSha },

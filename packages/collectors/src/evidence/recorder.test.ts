@@ -69,6 +69,20 @@ describe('recordWebCapture', () => {
     expect(r.evidenceKeys).toHaveLength(3);
   });
 
+  it('records a capture with status error when the screenshot fails, writing no evidence', async () => {
+    const store = createMemoryStore();
+    const put = vi.spyOn(store, 'put');
+    const p = page('AC tune-up $99', { screenshot: vi.fn(async () => { throw new Error('boom'); }) });
+    const r = await recordWebCapture({ db: dbs.service, store, now }, { trackedPage: tp, page: p });
+    expect(r).toMatchObject({ status: 'error', evidenceKeys: [] });
+    expect(put).not.toHaveBeenCalled();
+    expect(await dbs.service.select().from(evidence)).toEqual([]);
+    const caps = await dbs.service.select().from(capture).where(eq(capture.trackedPageId, PAGE));
+    expect(caps).toHaveLength(1);
+    expect(caps[0]).toMatchObject({ id: r.captureId, status: 'error' });
+    expect(caps[0]?.error).toContain('boom');
+  });
+
   it('records blocked/timeout/robots statuses without evidence', async () => {
     const store = createMemoryStore();
     for (const status of ['blocked', 'timeout', 'robots_disallowed', 'error'] as const) {
