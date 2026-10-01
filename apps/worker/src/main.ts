@@ -29,10 +29,16 @@ const web = createWebJobs(deps, {
 await registerJobs(boss, [heartbeatJob, web.schedule, web.capture, web.discover]);
 console.log('[worker] started');
 
+// pg-boss 10's stop({ graceful: true, wait: true }) resolves only after in-flight handlers drain
+// (or `timeout` elapses) — see node_modules/pg-boss/src/index.js `stop()`. Stopping pg-boss before
+// closing deps means a running web-capture-page job keeps its browser/DB pool until it finishes.
+let shuttingDown = false;
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    await boss.stop({ graceful: true, timeout: 30_000, wait: true });
     await deps.close();
-    await boss.stop({ graceful: true, timeout: 30_000 });
     process.exit(0);
   });
 }

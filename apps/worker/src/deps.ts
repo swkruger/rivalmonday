@@ -22,6 +22,9 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
   let renderer: Renderer | null = null;
   let ai: Promise<Ai> | null = null;
   const robots = new RobotsPolicy(defaultFetchText);
+  // In-process rate limiting: per-host politeness (spec §4.2) only holds with exactly one worker
+  // replica. The deployment is a single always-on worker container by design; scaling out to
+  // multiple replicas would need a shared (e.g. DB- or Redis-backed) limiter instead of this one.
   const limiter = new HostRateLimiter();
 
   const getDb = () => {
@@ -34,7 +37,15 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
   };
   const getStore = () => (store ??= createStoreFromEnv(env));
   const getRenderer = () => (renderer ??= createPoliteRenderer({ robots, limiter, renderer: createPlaywrightRenderer() }));
-  const getAi = () => (ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH).then((cfg) => createAiFromEnv(env, cfg, createLedgerSink(getDb()))));
+  // A rejected init must not be cached forever (the worker keeps this deps object alive for its
+  // whole lifetime): clear it so the next discoverPages call retries instead of replaying the same failure.
+  const getAi = () =>
+    (ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH)
+      .then((cfg) => createAiFromEnv(env, cfg, createLedgerSink(getDb())))
+      .catch((err) => {
+        ai = null;
+        throw err;
+      }));
 
   return {
     claimDuePages: (limit) => claimDuePages(getDb(), limit),
