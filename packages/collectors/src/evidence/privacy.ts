@@ -7,11 +7,17 @@ export function pseudonymizeReviewer(name: string | null | undefined, salt: stri
 }
 
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+// Non-NANP international numbers: "+", 1-3 digit country code, then at least 7 more digits
+// (grouped in 1-4 at a time) optionally separated by single spaces, dots, dashes or parens,
+// e.g. "+44 20 7946 0958", "+49 (30) 123456", "+33 1 23 45 67 89". Run before PHONE so each
+// number is consumed as exactly one match (PHONE would otherwise also match the NANP-shaped
+// tail of some of these).
+const INTL_PHONE = /\+\d{1,3}[\s.-]?\(?\d{1,4}\)?(?:[\s.-]?\d{2,4}){1,4}/g;
 // North American and international formats with at least 10 digits; won't match "$79" or "2026".
 const PHONE = /(?:\+?\d{1,3}[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/g;
 
 export function redactContactInfo(text: string): string {
-  return text.replace(EMAIL, '[email]').replace(PHONE, '[phone]');
+  return text.replace(EMAIL, '[email]').replace(INTL_PHONE, '[phone]').replace(PHONE, '[phone]');
 }
 
 export function requireSalt(env: NodeJS.ProcessEnv): string {

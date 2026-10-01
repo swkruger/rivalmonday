@@ -22,6 +22,16 @@ describe('redactContactInfo', () => {
     const out = redactContactInfo('Call me at (404) 555-0199 or +1 404.555.0199, mail jane@x.com. Paid $79 in 2026.');
     expect(out).toBe('Call me at [phone] or [phone], mail [email]. Paid $79 in 2026.');
   });
+
+  it('redacts non-NANP international phone numbers as exactly one token each', () => {
+    expect(redactContactInfo('Call +44 20 7946 0958 for support')).toBe('Call [phone] for support');
+    expect(redactContactInfo('Ring +49 (30) 123456 instead')).toBe('Ring [phone] instead');
+    expect(redactContactInfo('Or +33 1 23 45 67 89 anytime')).toBe('Or [phone] anytime');
+  });
+
+  it('leaves dates, zip codes and prices with no phone shape unchanged', () => {
+    expect(redactContactInfo('Paid $1,299 on 2026-09-20, zip 30338')).toBe('Paid $1,299 on 2026-09-20, zip 30338');
+  });
 });
 
 describe('requireSalt', () => {
