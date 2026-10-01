@@ -1,11 +1,11 @@
-import { competitor, observation } from '@cs/db';
+import { capture, competitor, observation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { VendorError } from '../vendors/errors';
-import { collectGbpProfile } from './collect-gbp';
+import { collectGbpProfile, isUniqueViolation } from './collect-gbp';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -49,6 +49,18 @@ describe('collectGbpProfile', () => {
     expect(r.status).toBe('vendor_error');
     const observations = await dbs.service.select().from(observation).where(eq(observation.competitorId, IDS.competitorX));
     expect(observations).toHaveLength(0);
+    const [cap] = await dbs.service.select().from(capture).where(eq(capture.id, r.captureId as string));
+    expect(cap).toMatchObject({ status: 'vendor_error', error: '40400 Not Found.' });
+  });
+
+  it('records a vendor_error capture when the envelope is OK but no task comes back', async () => {
+    const dfs = fakeDfs(() => []);
+    const r = await collectGbpProfile({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, placeId: 'p1', cid: null });
+    expect(r.status).toBe('vendor_error');
+    const [cap] = await dbs.service.select().from(capture).where(eq(capture.id, r.captureId as string));
+    expect(cap).toMatchObject({ status: 'vendor_error', error: 'empty task' });
+    const observations = await dbs.service.select().from(observation).where(eq(observation.competitorId, IDS.competitorX));
+    expect(observations).toHaveLength(0);
   });
 
   it('warns and still stores the observation when another competitor already holds the learned cid', async () => {
@@ -63,5 +75,19 @@ describe('collectGbpProfile', () => {
     expect(cx?.cid).toBeNull();
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
+  });
+});
+
+describe('isUniqueViolation', () => {
+  it('is true for a Drizzle-wrapped unique violation (code on cause)', () => {
+    expect(isUniqueViolation({ cause: { code: '23505' } })).toBe(true);
+  });
+
+  it('is true for a raw driver unique violation (code on the error itself)', () => {
+    expect(isUniqueViolation({ code: '23505' })).toBe(true);
+  });
+
+  it('is false for an unrelated error', () => {
+    expect(isUniqueViolation(new Error('connection reset'))).toBe(false);
   });
 });

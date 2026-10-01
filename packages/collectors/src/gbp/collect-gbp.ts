@@ -37,6 +37,12 @@ export function extractGbpProfile(item: unknown): Record<string, unknown> | null
   };
 }
 
+/** True for a Postgres unique-violation (SQLSTATE 23505), including Drizzle 0.44's driver-error wrapper. */
+export function isUniqueViolation(err: unknown): boolean {
+  const e = err as { code?: string; cause?: { code?: string } } | null | undefined;
+  return e?.code === '23505' || e?.cause?.code === '23505';
+}
+
 export async function collectGbpProfile(
   deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient },
   c: { id: string; placeId: string | null; cid: string | null },
@@ -48,12 +54,16 @@ export async function collectGbpProfile(
   try {
     const [task] = await deps.dfs.post('/business_data/google/my_business_info/live', [{ keyword, ...DFS_US }], { agencyId: null, clientId: null });
     // DataForSEO can return HTTP 200 with an OK envelope while an individual task still failed
-    // (e.g. place not found) — never record an empty 'ok' capture in that case.
-    if (task && !isDfsOk(task.statusCode)) {
+    // (e.g. place not found), or with no task at all — never record an empty 'ok' capture in either case.
+    if (!task) {
+      const r = await recordVendorCapture(deps, { ...base, status: 'vendor_error', error: 'empty task' });
+      return { status: 'vendor_error', captureId: r.captureId };
+    }
+    if (!isDfsOk(task.statusCode)) {
       const r = await recordVendorCapture(deps, { ...base, status: 'vendor_error', error: `${task.statusCode} ${task.statusMessage}` });
       return { status: 'vendor_error', captureId: r.captureId };
     }
-    raw = task?.result ?? [];
+    raw = task.result ?? [];
   } catch (err) {
     if (!(err instanceof VendorError)) throw err;
     const r = await recordVendorCapture(deps, { ...base, status: 'vendor_error', error: `${err.code ?? ''} ${err.message}`.trim() });
@@ -67,6 +77,7 @@ export async function collectGbpProfile(
       try {
         await deps.db.update(competitor).set({ cid: profile.cid }).where(and(eq(competitor.id, c.id), isNull(competitor.cid)));
       } catch (err) {
+        if (!isUniqueViolation(err)) throw err;
         // competitor.cid is unique: another competitor row already claims this cid. That means two
         // competitor rows describe the same business — flag for merge review in Phase 3 rather than fail.
         console.warn(`[gbp] competitor ${c.id} cid ${profile.cid} already claimed by another competitor; flagging for merge review`, err);
