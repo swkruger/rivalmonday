@@ -23,6 +23,11 @@ describe.skipIf(!login || !password)('DataForSEO sandbox contract', () => {
       }
       throw err;
     }
+    // The pause can also arrive as a task-level 40201 inside an OK (20000) envelope (seen live 2026-10-01).
+    if (t && (t.statusCode === 40104 || t.statusCode === 40201)) {
+      console.warn(`[dataforseo.live] SKIPPED — DataForSEO account blocked: task ${t.statusCode} ${t.statusMessage}`);
+      ctx.skip();
+    }
     expect(t?.statusCode).toBe(20000);
     expect(Array.isArray((t?.result[0] as { items?: unknown[] })?.items)).toBe(true);
   }, 60_000);
