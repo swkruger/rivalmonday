@@ -37,7 +37,17 @@ export async function fetchMetaAdsApify(
     if (!res.ok) throw new VendorError('apify', res.status, `Apify HTTP ${res.status}`, res.status === 408 || res.status >= 500);
     const body = await res.json().catch(() => null);
     if (!Array.isArray(body)) throw new VendorError('apify', null, 'Apify returned a non-array body', false);
-    items = body;
+    // Live-verified 2026-10-01: when the page has no matching ads the actor returns HTTP 201 with a
+    // single error item, e.g. {"error":"Ads not found","errorCode":"ADS_NOT_FOUND","url":…}, instead of
+    // an empty array. Error items are never ads: ADS_NOT_FOUND alone means an empty result; any other
+    // error code with no real ads is a vendor error (so it can never be read as "every ad ended").
+    const isErrorItem = (i: unknown) => Boolean(i) && typeof i === 'object' && typeof (i as { errorCode?: unknown }).errorCode === 'string';
+    const errorItems = body.filter(isErrorItem) as { error?: unknown; errorCode: string }[];
+    items = body.filter((i) => !isErrorItem(i));
+    if (items.length === 0 && errorItems.some((e) => e.errorCode !== 'ADS_NOT_FOUND')) {
+      const e = errorItems.find((x) => x.errorCode !== 'ADS_NOT_FOUND')!;
+      throw new VendorError('apify', null, `Apify actor error ${e.errorCode}: ${String(e.error ?? '')}`.trim(), false);
+    }
     ok = true;
     return { items, truncated: items.length >= APIFY_META_COUNT };
   } catch (err) {

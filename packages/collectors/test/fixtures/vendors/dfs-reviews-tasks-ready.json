@@ -1,0 +1,42 @@
+{
+  "version": "0.1.20260917",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0 sec.",
+  "cost": 0,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "10011842-2679-0300-2000-ff5fd559aa98",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0 sec.",
+      "cost": 0,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "business_data",
+        "google",
+        "reviews",
+        "tasks_ready"
+      ],
+      "data": {
+        "se_type": "reviews",
+        "se": "google",
+        "api": "business_data",
+        "function": "reviews"
+      },
+      "result": [
+        {
+          "id": "09290146-0001-0298-0000-f70a57955cb1",
+          "se": "google",
+          "se_type": "reviews",
+          "date_posted": "2026-09-29 01:46:18 +00:00",
+          "tag": "",
+          "endpoint": "/v3/business_data/google/reviews/task_get/09290146-0001-0298-0000-f70a57955cb1"
+        }
+      ]
+    }
+  ]
+}

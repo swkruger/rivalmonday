@@ -25,6 +25,14 @@ const gbpSchema = z.looseObject({
   attributes: z.unknown().optional(),
 });
 
+// Live-verified 2026-10-01: my_business_info has no top-level `current_status`; it is nested at
+// `work_time.work_hours.current_status` ("open" / "close" / …). Top-level is still accepted.
+function workTimeStatus(workTime: unknown): string | null {
+  const wh = workTime && typeof workTime === 'object' ? (workTime as { work_hours?: unknown }).work_hours : undefined;
+  const status = wh && typeof wh === 'object' ? (wh as { current_status?: unknown }).current_status : undefined;
+  return typeof status === 'string' ? status : null;
+}
+
 export function extractGbpProfile(item: unknown): Record<string, unknown> | null {
   const p = gbpSchema.safeParse(item);
   if (!p.success) return null;
@@ -32,7 +40,7 @@ export function extractGbpProfile(item: unknown): Record<string, unknown> | null
   return {
     title: i.title ?? null, category: i.category ?? null, additionalCategories: i.additional_categories ?? [],
     rating: i.rating?.value ?? null, votes: i.rating?.votes_count ?? null, phone: i.phone ?? null, url: i.url ?? null,
-    domain: i.domain ?? null, isClaimed: i.is_claimed ?? null, currentStatus: i.current_status ?? null, cid: i.cid ?? null,
+    domain: i.domain ?? null, isClaimed: i.is_claimed ?? null, currentStatus: i.current_status ?? workTimeStatus(i.work_time), cid: i.cid ?? null,
     placeId: i.place_id ?? null, workHours: i.work_time ?? null, services: i.services ?? null, attributes: i.attributes ?? null,
   };
 }

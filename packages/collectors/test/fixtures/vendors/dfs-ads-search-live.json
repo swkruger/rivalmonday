@@ -1,0 +1,77 @@
+[
+  {
+    "keyword": "aireserv.com",
+    "type": "ads_search",
+    "se_domain": "adstransparency.google.com",
+    "location_code": 2840,
+    "language_code": "en",
+    "check_url": "https://adstransparency.google.com/?region=US&domain=aireserv.com",
+    "datetime": "2026-10-01 18:44:17 +00:00",
+    "spell": null,
+    "refinement_chips": null,
+    "item_types": [
+      "ads_search"
+    ],
+    "se_results_count": 900,
+    "items_count": 40,
+    "items": [
+      {
+        "type": "ads_search",
+        "rank_group": 1,
+        "rank_absolute": 1,
+        "advertiser_id": "AR09867956064303972353",
+        "creative_id": "CR15920625214224859137",
+        "title": "Aire Serv SVP LLC",
+        "url": "https://adstransparency.google.com/advertiser/AR09867956064303972353/creative/CR15920625214224859137?region=US",
+        "verified": true,
+        "format": "text",
+        "preview_image": {
+          "url": "https://tpc.googlesyndication.com/archive/simgad/6725512472658098707",
+          "height": 283,
+          "width": 348
+        },
+        "preview_url": null,
+        "first_shown": "2023-08-30 14:17:47 +00:00",
+        "last_shown": "2026-10-01 18:20:53 +00:00"
+      },
+      {
+        "type": "ads_search",
+        "rank_group": 2,
+        "rank_absolute": 2,
+        "advertiser_id": "AR16418047126489006081",
+        "creative_id": "CR15224601385673687041",
+        "title": "Mr Rooter of Sioux Falls",
+        "url": "https://adstransparency.google.com/advertiser/AR16418047126489006081/creative/CR15224601385673687041?region=US",
+        "verified": true,
+        "format": "text",
+        "preview_image": {
+          "url": null,
+          "height": null,
+          "width": null
+        },
+        "preview_url": "REDACTED",
+        "first_shown": "2025-05-28 07:00:00 +00:00",
+        "last_shown": "2026-10-01 17:41:35 +00:00"
+      },
+      {
+        "type": "ads_search",
+        "rank_group": 5,
+        "rank_absolute": 5,
+        "advertiser_id": "AR11447192921745391617",
+        "creative_id": "CR06983296092318203905",
+        "title": "Aire Serv Heating & Air Conditioning",
+        "url": "https://adstransparency.google.com/advertiser/AR11447192921745391617/creative/CR06983296092318203905?region=US",
+        "verified": true,
+        "format": "text",
+        "preview_image": {
+          "url": "https://tpc.googlesyndication.com/archive/simgad/17397120831326455407",
+          "height": 509,
+          "width": 364
+        },
+        "preview_url": null,
+        "first_shown": "2024-08-15 15:47:42 +00:00",
+        "last_shown": "2026-10-01 17:37:05 +00:00"
+      }
+    ]
+  }
+]

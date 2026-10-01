@@ -79,6 +79,12 @@ describe('DataForSEO client', () => {
     expect(records[0]).toMatchObject({ ok: false });
   });
 
+  it('ledgers GET calls (task_get/tasks_ready) at zero cost even though task_get echoes the task cost', async () => {
+    const { client, records } = setup([ok([task([{ items: [] }])], { cost: 0.0006 })]);
+    await client.get('/serp/google/jobs/task_get/advanced/0a1b2c3d-0000-4000-8000-000000000001', scope);
+    expect(records[0]).toMatchObject({ operation: '/serp/google/jobs/task_get/advanced', costUsd: 0, ok: true });
+  });
+
   it('never lets a ledger failure change the outcome', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const client = createDataForSeo({

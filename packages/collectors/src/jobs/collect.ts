@@ -58,6 +58,28 @@ const jobSchema = z.looseObject({
   timestamp: z.union([z.string(), z.number()]).nullish(),
 });
 
+export interface JobPosting {
+  jobId: string;
+  title: string | null;
+  employer: string | null;
+  location: string | null;
+  sourceUrl: string | null;
+  salary: string | null;
+  contractType: string | null;
+  postedAt: string | null;
+}
+
+/** Pure parsing of one google_jobs_item; null when it has no job_id. */
+export function parseJobPosting(raw: unknown): JobPosting | null {
+  const p = jobSchema.safeParse(raw);
+  if (!p.success) return null;
+  const j = p.data;
+  return {
+    jobId: j.job_id, title: j.title ?? null, employer: j.employer_name ?? null, location: j.location ?? null, sourceUrl: j.source_url ?? null,
+    salary: j.salary ?? null, contractType: j.contract_type ?? null, postedAt: parseDfsTimestamp(j.timestamp)?.toISOString() ?? null,
+  };
+}
+
 export async function collectReadyJobs(deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient }): Promise<{ collected: number; failed: number; postings: number }> {
   let postings = 0;
   const r = await collectReadyTasks(deps, 'google_jobs', '/serp/google/jobs/tasks_ready', (id) => `/serp/google/jobs/task_get/advanced/${id}`, async (task, vt) => {
@@ -67,15 +89,9 @@ export async function collectReadyJobs(deps: { db: Db; store: ObjectStore; dfs: 
     const { captureId } = await recordVendorCapture(deps, { competitorId: c.id, source: 'google_jobs', collectorVersion: DFS_COLLECTOR_VERSION, status: 'ok', payload: task.result });
     const items = (task.result[0] as { items?: unknown[] } | undefined)?.items ?? [];
     const rows = items
-      .map((i) => jobSchema.safeParse(i))
-      .filter((p) => p.success && employerMatches(p.data.employer_name, c.name))
-      .map((p) => {
-        const j = (p as { data: z.infer<typeof jobSchema> }).data;
-        return {
-          competitorId: c.id, captureId, kind: 'job_posting', key: j.job_id,
-          data: { title: j.title ?? null, employer: j.employer_name ?? null, location: j.location ?? null, sourceUrl: j.source_url ?? null, salary: j.salary ?? null, contractType: j.contract_type ?? null, postedAt: parseDfsTimestamp(j.timestamp)?.toISOString() ?? null },
-        };
-      });
+      .map(parseJobPosting)
+      .filter((j): j is JobPosting => j !== null && employerMatches(j.employer, c.name))
+      .map(({ jobId, ...data }) => ({ competitorId: c.id, captureId, kind: 'job_posting', key: jobId, data }));
     // A task's items can repeat a job_id (vendor pagination/overlap); the observation unique key
     // is (capture_id, kind, key), so onConflictDoNothing is a safe within-task dedupe, not a bug.
     if (rows.length > 0) await deps.db.insert(observation).values(rows).onConflictDoNothing();

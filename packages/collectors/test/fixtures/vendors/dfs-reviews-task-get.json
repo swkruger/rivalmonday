@@ -1,0 +1,152 @@
+[
+  {
+    "keyword": "place_id:ChIJ6VlKPHqPT4YR479jLd01gZY",
+    "type": "google_reviews",
+    "se_domain": "google.com",
+    "location_code": 2840,
+    "language_code": "en",
+    "check_url": "https://www.google.com/search?q=Aire+Serv+of+Central+Texas+5387+Hwy+6+Ste+101%2C+Woodway%2C+TX+76712%2C+United+States&sort=newestFirst&hl=en&gl=US&gws_rd=cr&ie=UTF-8&oe=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+    "datetime": "2026-10-01 18:51:21 +00:00",
+    "title": "Aire Serv of Central Texas",
+    "sub_title": "5387 Hwy 6 Ste 101, Woodway, TX 76712, United States",
+    "rating": {
+      "rating_type": "Max5",
+      "value": 4.9,
+      "votes_count": 546,
+      "rating_max": 5
+    },
+    "feature_id": "0x864f8f7a3c4a59e9:0x968135dd2d63bfe3",
+    "place_id": "ChIJ6VlKPHqPT4YR479jLd01gZY",
+    "cid": "10845008601750421475",
+    "reviews_count": 546,
+    "items_count": 546,
+    "items": [
+      {
+        "type": "google_reviews_search",
+        "rank_group": 4,
+        "rank_absolute": 4,
+        "position": "left",
+        "xpath": null,
+        "review_text": "REDACTED did a wonderful job today. He came by for routine maintenance and found a gas leak.  We called the gas company and everything was fixed. Hooray",
+        "original_review_text": null,
+        "original_language": "en",
+        "time_ago": "Edited 2 weeks ago",
+        "timestamp": "2026-09-15 16:48:30 +00:00",
+        "rating": {
+          "rating_type": "Max5",
+          "value": 5,
+          "votes_count": null,
+          "rating_max": 5
+        },
+        "reviews_count": 4,
+        "photos_count": null,
+        "local_guide": false,
+        "profile_name": "REDACTED",
+        "profile_url": "REDACTED",
+        "review_url": "REDACTED",
+        "profile_image_url": "REDACTED",
+        "owner_answer": "[name], it means a lot to know your routine maintenance visit was handled so thoroughly and that our team member identified an important issue for you. Thank you for taking a moment to share this experience and for your trust in Aire Serv of Central Texas. We're glad everything was resolved and appreciate having you as a customer.",
+        "original_owner_answer": null,
+        "owner_time_ago": "Edited 2 weeks ago",
+        "owner_timestamp": "2026-09-17 18:44:50 +00:00",
+        "review_id": "ChdDSUhNMG9nS0VJQ0FnSUMtX2FLYWlRRRAB",
+        "images": null,
+        "review_highlights": [
+          {
+            "feature": "Price assessment",
+            "assessment": "Reasonable price"
+          },
+          {
+            "feature": "Price",
+            "assessment": "$1,000–1,200"
+          },
+          {
+            "feature": "Services",
+            "assessment": "HVAC system repair\nHVAC duct & vent cleaning"
+          },
+          {
+            "feature": "Positive",
+            "assessment": "Quality"
+          }
+        ]
+      },
+      {
+        "type": "google_reviews_search",
+        "rank_group": 27,
+        "rank_absolute": 27,
+        "position": "left",
+        "xpath": null,
+        "review_text": "REDACTED (reviewer named themselves in the text)",
+        "original_review_text": null,
+        "original_language": "en",
+        "time_ago": "Edited 2 months ago",
+        "timestamp": "2026-07-16 16:06:34 +00:00",
+        "rating": {
+          "rating_type": "Max5",
+          "value": 5,
+          "votes_count": null,
+          "rating_max": 5
+        },
+        "reviews_count": 12,
+        "photos_count": 2,
+        "local_guide": false,
+        "profile_name": "REDACTED",
+        "profile_url": "REDACTED",
+        "review_url": "REDACTED",
+        "profile_image_url": "REDACTED",
+        "owner_answer": "REDACTED (owner reply used a name that differs from the profile name)",
+        "original_owner_answer": null,
+        "owner_time_ago": "Edited 2 months ago",
+        "owner_timestamp": "2026-08-01 18:45:00 +00:00",
+        "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2kxaFNqWnVWRmg2ZDJWaU5WZFFVMXBaVTBadWFsRRAB",
+        "images": [
+          {
+            "type": "images_element",
+            "alt": null,
+            "url": null,
+            "image_url": "REDACTED"
+          },
+          {
+            "type": "images_element",
+            "alt": null,
+            "url": null,
+            "image_url": "REDACTED"
+          }
+        ],
+        "review_highlights": null
+      },
+      {
+        "type": "google_reviews_search",
+        "rank_group": 1,
+        "rank_absolute": 1,
+        "position": "left",
+        "xpath": null,
+        "review_text": null,
+        "original_review_text": null,
+        "original_language": null,
+        "time_ago": "Edited 2 days ago",
+        "timestamp": "2026-09-29 14:15:19 +00:00",
+        "rating": {
+          "rating_type": "Max5",
+          "value": 5,
+          "votes_count": null,
+          "rating_max": 5
+        },
+        "reviews_count": 8,
+        "photos_count": null,
+        "local_guide": false,
+        "profile_name": "REDACTED",
+        "profile_url": "REDACTED",
+        "review_url": "REDACTED",
+        "profile_image_url": "REDACTED",
+        "owner_answer": "Thank you, [name], for your 5-star rating. We appreciate you choosing Aire Serv of Central Texas and taking a moment to share your feedback. Your support means a lot to our team!",
+        "original_owner_answer": null,
+        "owner_time_ago": "Edited 2 days ago",
+        "owner_timestamp": "2026-09-29 18:44:50 +00:00",
+        "review_id": "Ci9DQUlRQUNvZENodHljRjlvT21ORldrTjZXbmh3VjJ4MmVrdHpVRkI1WmtweVJuYxAB",
+        "images": null,
+        "review_highlights": null
+      }
+    ]
+  }
+]

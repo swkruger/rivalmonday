@@ -1,0 +1,39 @@
+{
+  "version": "0.1.20260917",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0 sec.",
+  "cost": 0,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "10011842-2679-0298-2000-d2ffcde461c2",
+      "status_code": 20100,
+      "status_message": "Task Created.",
+      "time": "0 sec.",
+      "cost": 0,
+      "result_count": 0,
+      "path": [
+        "v3",
+        "business_data",
+        "google",
+        "reviews",
+        "task_post"
+      ],
+      "data": {
+        "api": "business_data",
+        "function": "reviews",
+        "place_id": "ChIJN1t_tDeuEmsRUsoyG83frY4",
+        "location_code": 2840,
+        "language_code": "en",
+        "depth": 100,
+        "sort_by": "newest",
+        "tag": "00000000-0000-4000-8000-0000000000aa",
+        "se_type": "reviews",
+        "se": "google"
+      },
+      "result": null
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+[
+  {
+    "keyword": "Aire Serv",
+    "type": "jobs",
+    "se_domain": "google.com",
+    "location_code": 2840,
+    "language_code": "en",
+    "check_url": "https://www.google.com/search?q=Aire%20Serv&udm=8&hl=en&gl=US&gws_rd=cr&ie=UTF-8&oe=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+    "datetime": "2026-10-01 18:44:47 +00:00",
+    "spell": null,
+    "refinement_chips": null,
+    "item_types": [
+      "google_jobs_item"
+    ],
+    "se_results_count": 0,
+    "items_count": 5,
+    "items": [
+      {
+        "type": "google_jobs_item",
+        "rank_group": 1,
+        "rank_absolute": 1,
+        "position": "right",
+        "xpath": "/html[1]/body[1]/div[3]/div[1]/div[13]/div[1]/div[2]/div[2]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[3]/div[1]/div[1]/div[1]/infinity-scrolling[1]/div[1]/div[1]/div[1]/div[1]",
+        "job_id": "gJdEOxrb9fxwDHxCAAAAAA==",
+        "title": "Profesional de HVAC",
+        "employer_name": "Aire Serv",
+        "employer_url": null,
+        "employer_image_url": "REDACTED",
+        "location": "United States",
+        "source_name": "via ZipRecruiter",
+        "source_url": "https://www.ziprecruiter.com/c/AireServ/Job/Profesional-de-HVAC/-in-Erie,CO?jid=2055a904ef642b64",
+        "salary": null,
+        "contract_type": "Full-time",
+        "timestamp": "2026-09-29 18:44:47 +00:00",
+        "time_ago": "2 days ago",
+        "rectangle": null
+      },
+      {
+        "type": "google_jobs_item",
+        "rank_group": 2,
+        "rank_absolute": 2,
+        "position": "right",
+        "xpath": "/html[1]/body[1]/div[3]/div[1]/div[13]/div[1]/div[2]/div[2]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[3]/div[1]/div[1]/div[1]/infinity-scrolling[1]/div[1]/div[1]/div[2]/div[1]",
+        "job_id": "eLiklbElftPFFTUUAAAAAA==",
+        "title": "HVAC Service and Maintenance Technician",
+        "employer_name": "Aire Serv of Woodstock",
+        "employer_url": null,
+        "employer_image_url": null,
+        "location": "United States",
+        "source_name": "via Teal",
+        "source_url": "https://www.tealhq.com/job/hvac-service-and-maintenance-technician_7ea1a2e617d50d4df2b0d97210dd2abdc44c0",
+        "salary": null,
+        "contract_type": "Full-time",
+        "timestamp": null,
+        "time_ago": null,
+        "rectangle": null
+      },
+      {
+        "type": "google_jobs_item",
+        "rank_group": 3,
+        "rank_absolute": 3,
+        "position": "right",
+        "xpath": "/html[1]/body[1]/div[3]/div[1]/div[13]/div[1]/div[2]/div[2]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[3]/div[1]/div[1]/div[1]/infinity-scrolling[1]/div[1]/div[1]/div[3]/div[1]",
+        "job_id": "n_hU3rW_i2PyPGbhAAAAAA==",
+        "title": "Fort Worth/Weatherford TX HVAC Service Tech/Installer",
+        "employer_name": "Aire Serv",
+        "employer_url": null,
+        "employer_image_url": null,
+        "location": "United States",
+        "source_name": "via Talents By Vaia",
+        "source_url": "https://talents.vaia.com/companies/aire-serv/fort-worth-weatherford-tx-hvac-service-tech-installer-111375021/",
+        "salary": "60K–80K a year",
+        "contract_type": "Full-time",
+        "timestamp": null,
+        "time_ago": null,
+        "rectangle": null
+      }
+    ]
+  }
+]

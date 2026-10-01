@@ -131,9 +131,12 @@ export function createDataForSeo(opts: DataForSeoOptions): DataForSeoClient {
         return (env.tasks ?? []).map((t) => ({ id: t.id, statusCode: t.status_code, statusMessage: t.status_message, result: t.result ?? [], tag: taskTag(t) }));
       }
     } finally {
+      // Billing happens at task creation (POST). Live-verified 2026-10-01: task_get echoes the task's
+      // original `cost` in its envelope, but the account balance does not change on a GET — so GET
+      // calls are ledgered at 0 to avoid double-counting the POST.
       await safeRecordVendorCall(opts.ledger, {
         ...scope, vendor: 'dataforseo', operation: path.replace(TASK_ID_SUFFIX, ''), units: body?.length ?? 1,
-        costUsd: ok ? cost : null, latencyMs: now() - started, ok,
+        costUsd: ok ? (method === 'GET' ? 0 : cost) : null, latencyMs: now() - started, ok,
       });
     }
   }

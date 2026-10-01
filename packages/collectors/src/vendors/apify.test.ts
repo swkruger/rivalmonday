@@ -50,4 +50,20 @@ describe('fetchMetaAdsApify', () => {
     expect(await fetchMetaAdsApify(opts, '99')).toEqual({ items: [{ adArchiveID: '1' }], truncated: false });
     expect(JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string)).toMatchObject({ count: APIFY_META_COUNT });
   });
+
+  it('treats the actor ADS_NOT_FOUND error item as an empty result, and other error items as a vendor error', async () => {
+    const notFound = [{ error: 'Ads not found', errorCode: 'ADS_NOT_FOUND', url: 'https://www.facebook.com/ads/library/?view_all_page_id=99' }];
+    const other = [{ error: 'Blocked', errorCode: 'SOMETHING_ELSE' }];
+    const mixed = [{ ad_archive_id: '1' }, { error: 'x', errorCode: 'SOMETHING_ELSE' }];
+    const { fetch, records, ledger } = setup([
+      new Response(JSON.stringify(notFound), { status: 201 }),
+      new Response(JSON.stringify(other), { status: 201 }),
+      new Response(JSON.stringify(mixed), { status: 201 }),
+    ]);
+    const opts = { token: 't', ledger, fetch: fetch as unknown as typeof globalThis.fetch };
+    expect(await fetchMetaAdsApify(opts, '99')).toEqual({ items: [], truncated: false });
+    await expect(fetchMetaAdsApify(opts, '99')).rejects.toMatchObject({ vendor: 'apify', retryable: false, message: 'Apify actor error SOMETHING_ELSE: Blocked' });
+    expect(await fetchMetaAdsApify(opts, '99')).toEqual({ items: [{ ad_archive_id: '1' }], truncated: false });
+    expect(records.map((r) => [r.ok, r.units])).toEqual([[true, 0], [false, 0], [true, 1]]);
+  });
 });

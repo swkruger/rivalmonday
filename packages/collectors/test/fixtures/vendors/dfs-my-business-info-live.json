@@ -1,0 +1,284 @@
+[
+  {
+    "keyword": "place_id:ChIJ6VlKPHqPT4YR479jLd01gZY",
+    "se_domain": "google.com",
+    "location_code": 2840,
+    "language_code": "en",
+    "check_url": "https://www.google.com/maps?cid=10845008601750421475&hl=en&gl=US",
+    "datetime": "2026-10-01 18:44:14 +00:00",
+    "item_types": [
+      "google_business_info"
+    ],
+    "items_count": 1,
+    "items": [
+      {
+        "type": "google_business_info",
+        "rank_group": 1,
+        "rank_absolute": 1,
+        "position": "left",
+        "title": "Aire Serv of Central Texas",
+        "original_title": null,
+        "description": "Aire Serv of Central Texas is a heating and air conditioning company you can rely on. Our service professionals provide installation, maintenance, and repair of heating, ventilation, air conditioning, and indoor air quality systems. Whether you need ac repair, furnace repair, or HVAC maintenance, we’ve got you covered. Our commitment to industry-leading customer service is backed by the Neighborly Done Right Promise™ - if it's not done right, we promise to make it right. We're locally owned and operated and we take our reputation seriously in order to earn the trust of the communities we live in and serve.",
+        "category": "HVAC contractor",
+        "category_ids": [
+          "hvac_contractor",
+          "air_conditioning_contractor",
+          "air_conditioning_repair_service",
+          "air_duct_cleaning_service",
+          "furnace_repair_service",
+          "heating_contractor"
+        ],
+        "additional_categories": [
+          "Air conditioning contractor",
+          "Air conditioning repair service",
+          "Air duct cleaning service",
+          "Furnace repair service",
+          "Heating contractor"
+        ],
+        "cid": "10845008601750421475",
+        "feature_id": "0x864f8f7a3c4a59e9:0x968135dd2d63bfe3",
+        "address": "5387 Hwy 6 Ste 101, Woodway, TX 76712",
+        "address_info": {
+          "borough": null,
+          "address": "5387 Hwy 6 Ste 101",
+          "city": "Woodway",
+          "zip": "76712",
+          "region": "Texas",
+          "country_code": "US"
+        },
+        "place_id": "ChIJ6VlKPHqPT4YR479jLd01gZY",
+        "phone": "REDACTED",
+        "url": "https://www.aireserv.com/central-texas/?cid=LSTL_ASV-US000187&utm_source=gmb&utm_campaign=local&utm_medium=organic?cid=LSTL_ASV-US000187&utm_source=gmb&utm_campaign=local&utm_medium=organic",
+        "contact_url": "https://www.aireserv.com/central-texas/request-appointment/?cid=LSTL_ASV-CA000188&utm_source=gmbappt&utm_medium=organic&utm_campaign=local",
+        "contributor_url": "REDACTED",
+        "book_online_url": "https://book.servicetitan.com/i9599ql1vjz8k5kdk0unc8um?rwg_token=AE37R_i8Qo2hJ4sFN-88WBnKKJAiuUIGZWVSpr57-YfaKL0uHOfi5NjimJ7lxVCaQY_Xg_vVyX058tVuIhHftbUlSBAGeH0xyw%3D%3D",
+        "domain": "www.aireserv.com",
+        "logo": "REDACTED",
+        "main_image": "REDACTED",
+        "total_photos": 484,
+        "snippet": "5387 Hwy 6 Ste 101, Woodway, TX 76712",
+        "latitude": 31.551520399999998,
+        "longitude": -97.2749855,
+        "is_claimed": true,
+        "questions_and_answers_count": null,
+        "attributes": {
+          "available_attributes": {
+            "from_the_business": [
+              "is_small_business"
+            ],
+            "service_options": [
+              "offers_online_estimates"
+            ],
+            "offerings": [
+              "has_service_installation",
+              "has_service_repair"
+            ],
+            "parking": [
+              "has_onsite_parking"
+            ]
+          },
+          "unavailable_attributes": null
+        },
+        "place_topics": {
+          "knowledgeable technician": 46,
+          "new system installation": 4,
+          "coil cleaning": 2,
+          "duct sealing": 2,
+          "courteous staff": 30,
+          "electrical problem diagnosis": 2,
+          "unit replacement": 4,
+          "polite technician": 5,
+          "quick diagnosis": 7,
+          "heater repair": 5
+        },
+        "rating": {
+          "rating_type": "Max5",
+          "value": 4.9,
+          "votes_count": 546,
+          "rating_max": null
+        },
+        "hotel_rating": null,
+        "price_level": null,
+        "rating_distribution": {
+          "1": 10,
+          "2": 2,
+          "3": 1,
+          "4": 18,
+          "5": 515
+        },
+        "people_also_search": [
+          {
+            "cid": "15895022513769860798",
+            "feature_id": "0x0:0xdc9676c2c616cebe",
+            "title": "Evergreen Heating and Cooling",
+            "rating": {
+              "rating_type": "Max5",
+              "value": 4.8,
+              "votes_count": 888,
+              "rating_max": null
+            }
+          },
+          {
+            "cid": "13883958407241393823",
+            "feature_id": "0x0:0xc0adba9c6bebe69f",
+            "title": "Comfort Air",
+            "rating": {
+              "rating_type": "Max5",
+              "value": 3.8,
+              "votes_count": 45,
+              "rating_max": null
+            }
+          },
+          {
+            "cid": "16423673440656772826",
+            "feature_id": "0x0:0xe3ec9bfa595d4eda",
+            "title": "Brazos Air Conditioning",
+            "rating": {
+              "rating_type": "Max5",
+              "value": 4.9,
+              "votes_count": 80,
+              "rating_max": null
+            }
+          },
+          {
+            "cid": "2823989214186823042",
+            "feature_id": "0x0:0x2730d33a6923dd82",
+            "title": "Waco Air Conditioning & Heating",
+            "rating": {
+              "rating_type": "Max5",
+              "value": 4.4,
+              "votes_count": 12,
+              "rating_max": null
+            }
+          },
+          {
+            "cid": "12812226009168380034",
+            "feature_id": "0x0:0xb1ce2bac5a808082",
+            "title": "Daily Service Company",
+            "rating": {
+              "rating_type": "Max5",
+              "value": 5,
+              "votes_count": 297,
+              "rating_max": null
+            }
+          }
+        ],
+        "work_time": {
+          "work_hours": {
+            "timetable": {
+              "sunday": [
+                {
+                  "open": {
+                    "hour": 0,
+                    "minute": 0
+                  },
+                  "close": {
+                    "hour": 24,
+                    "minute": 0
+                  }
+                }
+              ],
+              "monday": [
+                {
+                  "open": {
+                    "hour": 0,
+                    "minute": 0
+                  },
+                  "close": {
+                    "hour": 24,
+                    "minute": 0
+                  }
+                }
+              ],
+              "tuesday": [
+                {
+                  "open": {
+                    "hour": 0,
+                    "minute": 0
+                  },
+                  "close": {
+                    "hour": 24,
+                    "minute": 0
+                  }
+                }
+              ],
+              "wednesday": [
+                {
+                  "open": {
+                    "hour": 0,
+                    "minute": 0
+                  },
+                  "close": {
+                    "hour": 24,
+                    "minute": 0
+                  }
+                }
+              ],
+              "thursday": [
+                {
+                  "open": {
+                    "hour": 0,
+                    "minute": 0
+                  },
+                  "close": {
+                    "hour": 24,
+                    "minute": 0
+                  }
+                }
+              ],
+              "friday": [
+                {
+                  "open": {
+                    "hour": 0,
+                    "minute": 0
+                  },
+                  "close": {
+                    "hour": 24,
+                    "minute": 0
+                  }
+                }
+              ],
+              "saturday": [
+                {
+                  "open": {
+                    "hour": 0,
+                    "minute": 0
+                  },
+                  "close": {
+                    "hour": 24,
+                    "minute": 0
+                  }
+                }
+              ]
+            },
+            "current_status": "open"
+          }
+        },
+        "popular_times": null,
+        "local_business_links": null,
+        "is_directory_item": false,
+        "directory": null,
+        "services": [
+          {
+            "category": "Ducts",
+            "title": "Ducts",
+            "snippet": "Ducts Service",
+            "price": null
+          },
+          {
+            "category": "Heating & Cooling",
+            "title": "Heating & Cooling",
+            "snippet": "Heating & Cooling Service",
+            "price": null
+          },
+          {
+            "category": "Plumbing",
+            "title": "Plumbing",
+            "snippet": "Plumbing Service",
+            "price": null
+          }
+        ]
+      }
+    ]
+  }
+]
