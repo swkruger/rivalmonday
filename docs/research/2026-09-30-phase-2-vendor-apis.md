@@ -753,9 +753,18 @@ One discovery run (keyword search URL, `count: 10`, `scrapeAdDetails: false`, `s
 - A brand-specific page pull (`view_all_page_id`) was **not** run: the DataForSEO block stopped the production spot check, so the 200-item cap / `truncated` behaviour and the active-count comparison against the public Ad Library page remain to be checked with the rest of Task 12.
 - Fixture: `packages/collectors/test/fixtures/vendors/apify-meta-ad.json` (one IMAGE ad, one DCO ad; signed fbcdn query strings replaced with `REDACTED`), asserted by `src/vendors/fixtures.test.ts`.
 
-### ScrapeCreators — not verified
+### ScrapeCreators — verified 2026-10-01
 
-No `SCRAPECREATORS_API_KEY` configured; the fallback is untested live.
+`SCRAPECREATORS_API_KEY` configured; one live call via `fetchMetaAdsScrapeCreators` (`maxPages: 1`), same target as the Apify spot check: `GET /v1/facebook/adLibrary/company/ads?pageId=1825453601028298&country=US&status=ACTIVE`, page id `1825453601028298` (`Aire Serv of Granbury`).
+
+- **HTTP 200.** Envelope keys: `success` (`true`), `credits_remaining` (7099), `credits_charged` (**1**, for the whole page regardless of item count), `results[]`, `searchResultsCount` (**21**), `cursor`. `searchResultsCount` is undocumented (not in the skeleton in §2c above) but present on this call.
+- **21 active ads returned — exactly matching Apify's 21** for the same page (3 DCO + 18 IMAGE, same split as the Apify spot check above). One page was enough; the second page allowed by the task budget was not needed.
+- **Item shape is identical to Apify's**, not the `images: ["..."]` array-of-strings shown in the docs skeleton: top-level and `snapshot` keys are the same snake_case set (`ad_archive_id`, `page_id`, `is_active`, `start_date`/`end_date` as Unix seconds, `publisher_platform[]`, `snapshot.body.text`, `snapshot.display_format`, `snapshot.images[]` as objects with `original_image_url`/`resized_image_url`, `snapshot.cards[]` for DCO ads with the same per-card fields as Apify). One difference: each item also carries `start_date_string`/`end_date_string` (ISO 8601, e.g. `"2026-07-17T07:00:00.000Z"`) alongside the Unix-seconds fields — not present on the Apify fixture, not currently read by `normalizeMetaAd` (the Unix fields are sufficient).
+- Unlike the Apify DCO example (templated `"{{product.brand}}"` top-level body), **this vendor's DCO items carried real, non-templated text in the top-level `snapshot.body`/`title`** (matching the first card) — so the `{{…}}`-template fallback path in `normalizeMetaAd` wasn't exercised by this pull, only the plain-text path. The cards fallback is still exercised and still correct when a template *is* present (per the Apify fixture).
+- **All 21 items normalize cleanly with `normalizeMetaAd`** — externalId, advertiserId, format, text, mediaUrls, landingUrl, publisherPlatforms, startedAt/isActive all populated and sensible. **No normaliser changes were needed.**
+- **Bug found and fixed in the client, not the normaliser:** on the terminal page the vendor sends `"cursor": ""` (an empty string), not `null`/absent as the docs skeleton implies. `fetchMetaAdsScrapeCreators` was coalescing with `??`, which only replaces `null`/`undefined`, so `cursor` stayed `""` and the final `truncated: cursor !== null` check came out `true` on a *complete* response. Fixed to `cursor = body.cursor || null` so an empty string is treated the same as no cursor; `truncated` is now correctly `false` for this call. Locked by a new test in `scrapecreators.test.ts` asserting an empty-string cursor page yields `truncated: false`.
+- **Credits:** 1 credit charged for the single-page pull (21 items), `credits_remaining` 7099 beforehand on the account. Credits are charged per page/request, not per item.
+- Fixture: `packages/collectors/test/fixtures/vendors/scrapecreators-meta-ads.json` (envelope + 3 items — 1 DCO, 2 IMAGE; signed `fbcdn.net` CDN query strings replaced with `?REDACTED`), asserted by `src/vendors/fixtures.test.ts`.
 
 ### DataForSEO — verified live (2026-10-01, after the account was activated and funded)
 

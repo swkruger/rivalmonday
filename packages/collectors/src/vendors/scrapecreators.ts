@@ -27,7 +27,10 @@ export async function fetchMetaAdsScrapeCreators(
       if (!Array.isArray(body.results)) throw new VendorError('scrapecreators', null, 'Unexpected ScrapeCreators body', false);
       out.push(...body.results);
       credits = body.credits_charged ?? null;
-      cursor = body.cursor ?? null;
+      // Live-verified 2026-10-01: on the terminal page the vendor sends `cursor: ""` (an empty
+      // string), not `null`/absent. `??` only coalesces null/undefined, so it must be treated as
+      // falsy here too, or a complete response gets misreported as truncated.
+      cursor = body.cursor || null;
       ok = true;
     } catch (err) {
       if (err instanceof VendorError) throw err;

@@ -54,6 +54,58 @@ describe('Apify Meta Ad Library fixture (curious_coder/facebook-ads-library-scra
   });
 });
 
+describe('ScrapeCreators Meta Ad Library fixture (facebook/adLibrary/company/ads, live 2026-10-01)', () => {
+  const envelope = fixture('scrapecreators-meta-ads.json') as {
+    success: boolean;
+    credits_charged: number;
+    credits_remaining: number;
+    searchResultsCount: number;
+    cursor: string;
+    results: Record<string, unknown>[];
+  };
+
+  it('matches the documented envelope and is snake_case like Apify (same underlying FB shape)', () => {
+    expect(envelope.success).toBe(true);
+    expect(envelope.credits_charged).toBeGreaterThan(0);
+    expect(envelope.credits_remaining).toBeGreaterThan(0);
+    expect(typeof envelope.searchResultsCount).toBe('number');
+    for (const i of envelope.results) {
+      expect(i).toHaveProperty('ad_archive_id');
+      expect(i).toHaveProperty('page_id');
+      expect(i).toHaveProperty('is_active');
+      expect(i).not.toHaveProperty('adArchiveID');
+    }
+  });
+
+  it('normalises every item to sensible, non-null values', () => {
+    for (const raw of envelope.results) {
+      const ad = normalizeMetaAd(raw);
+      expect(ad).not.toBeNull();
+      expect(ad?.externalId).toMatch(/^\d+$/);
+      expect(ad?.advertiserId).toBe('1825453601028298');
+      expect(ad?.format).toMatch(/^[A-Z_]+$/);
+      expect(ad?.text).toBeTruthy();
+      expect(ad?.text).not.toMatch(/\{\{/);
+      expect(ad?.mediaUrls.length).toBeGreaterThan(0);
+      expect(ad?.mediaUrls.every((u) => u.includes('fbcdn') && u.includes('?REDACTED'))).toBe(true);
+      expect(ad?.landingUrl).toMatch(/^https?:\/\//);
+      expect(ad?.publisherPlatforms).toContain('FACEBOOK');
+      expect(ad?.isActive).toBe(true);
+      expect(ad?.endedAt).toBeNull();
+      expect(ad?.startedAt?.getUTCFullYear()).toBeGreaterThan(2010);
+      expect(ad?.startedAt?.getUTCFullYear()).toBeLessThan(2035);
+    }
+  });
+
+  it('takes copy and media from snapshot.cards for the DCO (carousel) item, same as Apify', () => {
+    const dco = envelope.results.find((i) => (i.snapshot as { display_format?: string }).display_format === 'DCO');
+    expect(dco).toBeDefined();
+    const ad = normalizeMetaAd(dco);
+    expect(ad?.title).not.toMatch(/\{\{/);
+    expect(ad?.mediaUrls.every((u) => u.includes('fbcdn'))).toBe(true);
+  });
+});
+
 type Result = { items: unknown[] } & Record<string, unknown>;
 type Envelope = { status_code: number; tasks: { id: string; status_code: number; cost: number; data: Record<string, unknown>; result: Result[] | null }[] };
 

@@ -61,4 +61,12 @@ describe('fetchMetaAdsScrapeCreators', () => {
     expect(r).toEqual({ items: [{ id: 'a' }, { id: 'b' }], truncated: true });
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+
+  it('treats an empty-string cursor (the live terminal-page value) as no cursor, not truncated', async () => {
+    // Live-verified 2026-10-01: the real API sends `"cursor": ""` on the last page, not null/absent.
+    const { fetch, ledger } = setup([page([{ id: 'a' }], '')]);
+    const r = await fetchMetaAdsScrapeCreators({ apiKey: 'k', ledger, fetch: fetch as unknown as typeof globalThis.fetch }, '99');
+    expect(r).toEqual({ items: [{ id: 'a' }], truncated: false });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
 });
