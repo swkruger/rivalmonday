@@ -135,7 +135,9 @@ describe('row-level security', () => {
         tx.insert(competitor).values({ name: 'Sneaky Competitor', domain: 'sneaky.example' }),
       ),
     );
-    expect(text).toMatch(/row-level security/i);
+    // Revoking INSERT on competitor (0008_evidence_rls) stops this one layer earlier,
+    // at the privilege check, before RLS gets a chance to evaluate the policy.
+    expect(text).toMatch(/permission denied/i);
   });
 
   it('every table in the public schema enables and forces row-level security', async () => {

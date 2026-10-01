@@ -50,6 +50,20 @@
       "when": 1790808418472,
       "tag": "0006_ledger_readonly",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790814462067,
+      "tag": "0007_evidence",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790814474877,
+      "tag": "0008_evidence_rls",
+      "breakpoints": true
     }
   ]
 }
