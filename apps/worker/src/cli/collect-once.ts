@@ -11,7 +11,7 @@ try {
 const { competitor, competitorSource, createDb, trackedPage } = await import('@cs/db');
 const { ensureCompetitorSources } = await import('@cs/collectors');
 const { and, eq, inArray, sql } = await import('drizzle-orm');
-const { createWorkerDeps } = await import('../deps');
+const { createWorkerDeps, reviewsSkipReason } = await import('../deps');
 
 const { values } = parseArgs({
   options: {
@@ -98,10 +98,14 @@ try {
       sourcesRun.push(source);
     }
     if (vendorsOk) {
+      // postBatchTasks itself refuses to post reviews without a usable salt (marking them
+      // 'skipped_no_salt'); say so here so the operator isn't told reviews were posted.
+      const reviewsSkip = reviewsSkipReason(process.env);
+      if (reviewsSkip) console.log(`[vendors] reviews skipped (not posted): ${reviewsSkip}`);
       await deps.postBatchTasks([{ competitorId: row.id, source: 'reviews' }, { competitorId: row.id, source: 'jobs' }]);
       sourcesRun.push('reviews', 'jobs');
       console.log(
-        '[vendors] reviews/jobs tasks posted — DataForSEO fulfills these asynchronously; results arrive via the vendor-poll cron job ' +
+        `[vendors] ${reviewsSkip ? 'jobs task' : 'reviews/jobs tasks'} posted — DataForSEO fulfills these asynchronously; results arrive via the vendor-poll cron job ` +
           '(run `pnpm --filter @cs/worker collect-once --poll` to poll once manually).',
       );
     }

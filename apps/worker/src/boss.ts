@@ -14,7 +14,10 @@ export async function registerJobs(
   opts: { pollingIntervalSeconds?: number } = {},
 ): Promise<void> {
   for (const job of jobs) {
-    await boss.createQueue(job.name);
+    // pg-boss mutates the options object it is given, so pass copies. createQueue is a no-op for an
+    // existing queue; updateQueue applies the options to queues created by an earlier deploy.
+    await boss.createQueue(job.name, job.queue ? { name: job.name, ...job.queue } : undefined);
+    if (job.queue) await boss.updateQueue(job.name, { name: job.name, ...job.queue });
     await boss.work(job.name, { pollingIntervalSeconds: opts.pollingIntervalSeconds ?? 2 }, async (batch) => {
       for (const item of batch) {
         await job.handler(job.schema.parse(item.data));

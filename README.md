@@ -83,7 +83,7 @@ The worker also pulls paid-vendor data (Google Business Profile, Google/Meta ads
 - **Rankings:** `rank-schedule` (cron `0 6 1 * *`, monthly) enqueues a `rank-scan` job per client with keywords + a service area; it scans a 7×7 grid of map points × up to 5 keywords (clamped) and stores one tenant-scoped `rank_snapshot` per keyword × grid point. `suggest-competitors` runs the same grid search to populate `competitor_suggestion` candidates for a client (not on a schedule — triggered from the app).
 - **No vendor credentials, no claiming:** `vendor-schedule`, `vendor-poll` and `rank-schedule` each check `WorkerDeps.vendorsConfigured()` (`DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD` both set) and return immediately (logging once per job) when it's false, so nothing is claimed, polled or fanned out until DataForSEO is configured.
 - **A failed batch post doesn't lose a week:** `vendor-schedule` enqueues the synchronous `gbp`/`ads_google`/`ads_meta` collects *before* posting the `reviews`/`jobs` batch; if that `task_post` call throws, the already-claimed batch sources are released back to due-now (`last_status = 'post_failed'`) instead of silently waiting out the 7-day advance `claimDueSources` already applied. Missing competitors and unexpected collector errors are recorded on the source too (`last_status` `'missing'`/`'error'`), and reviews/jobs sources a competitor was ineligible for (no `placeId`/`cid`, or a blank name) are marked `'skipped'` rather than `'posted'`.
-- **A missing/short `REVIEWER_HASH_SALT` only skips reviews, not jobs:** `vendor-poll` collects jobs independently of reviews — if the salt isn't usable yet, reviews are skipped (logged once) and job postings still collect normally.
+- **A missing/short `REVIEWER_HASH_SALT` only skips reviews, not jobs:** while the salt isn't usable, `vendor-schedule` (and `collect-once --vendors`) never posts paid review tasks — the reviews sources are marked `last_status = 'skipped_no_salt'` (logged once) — and `vendor-poll` skips reviews; job postings are posted and collected normally.
 - **Env vars** (see `.env.example`): `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` (required for all vendor jobs); `DATAFORSEO_BASE_URL` (optional — point at `https://sandbox.dataforseo.com/v3` for free mock data in real response shapes); `APIFY_TOKEN` and/or `SCRAPECREATORS_API_KEY` (Meta ads — Apify tried first, ScrapeCreators as fallback); `REVIEWER_HASH_SALT` (required before any review is ever collected — at least 32 random characters, **never change once reviews are stored**, or every reviewer hash changes and dedupe breaks).
 
 ### Cost estimates
@@ -121,6 +121,14 @@ pnpm --filter @cs/worker collect-once --poll
 ```
 
 `--vendors` without `--web` deliberately skips Phase 2a web discovery/capture so `collect-once --vendors` never crawls a real site. Reviews and job postings never appear immediately — they are posted as DataForSEO tasks and only land in the database once `vendor-poll` (or `collect-once --poll`) picks up the finished task.
+
+### Known limitations
+
+- **Google Jobs are matched by company name, nationwide.** The jobs task searches the competitor's name across the US and keeps postings whose employer name matches on whole words, so a same-name employer elsewhere in the country may appear. To be verified in the live check.
+- **Google ads are not marked ended** when they drop out of the results (unlike Meta ads, the Google endpoint is not an exhaustive list of active ads). Read a Google ad's activity from its `last_seen_at`, not `is_active`.
+- **Meta ads are only ended on a complete response.** If the vendor response hit its cap (Apify `count`, or ScrapeCreators' page limit with a cursor left) or came back empty while active ads exist, missing ads are left active and a warning is logged.
+- **Rank scans and competitor suggestions run once.** `rank-scan` and `suggest-competitors` are registered with no pg-boss retry and a 3-hour expiry, so a slow scan is never re-run (which would duplicate paid calls and snapshots); a vendor error on one grid point is logged and that point skipped.
+- **Run exactly one worker replica**, and don't run `collect-once --poll` while the worker is running — host rate limiting is in-process, and the poll loop is not safe to run concurrently with itself.
 
 ## Database roles
 - `postgres` / Neon owner (owner) — migrations only. Must have `BYPASSRLS`.

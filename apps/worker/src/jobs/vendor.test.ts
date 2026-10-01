@@ -92,4 +92,12 @@ describe('vendor jobs', () => {
     expect(listRankClients).not.toHaveBeenCalled();
     expect(enqueueRankScan).not.toHaveBeenCalled();
   });
+
+  it('registers rank-scan and suggest-competitors as single-shot queues (no retry, >= 2h expiry)', () => {
+    const jobs = createVendorJobs({} as WorkerDeps, { enqueueCollect: async () => {}, enqueueRankScan: async () => {} });
+    for (const job of [jobs.rankScan, jobs.suggest]) {
+      expect(job.queue?.retryLimit).toBe(0);
+      expect(job.queue?.expireInSeconds).toBeGreaterThanOrEqual(2 * 60 * 60);
+    }
+  });
 });

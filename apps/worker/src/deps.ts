@@ -23,14 +23,15 @@ export interface WorkerDeps {
    * posting one never touches the other. Each item ends up 'posted' (task created), released
    * back to due-now with last_status 'post_failed' (a VendorError posting that chunk — retried
    * next tick), or 'skipped' (the competitor was ineligible, e.g. no placeId/cid or blank name —
-   * never attempted). Returns how many sources were released for retry, for logging.
+   * never attempted). Reviews are not posted at all while REVIEWER_HASH_SALT is unusable (see
+   * reviewsSkipReason) — they are marked 'skipped_no_salt'. Returns how many sources were released for retry, for logging.
    */
   postBatchTasks(items: { competitorId: string; source: 'reviews' | 'jobs' }[]): Promise<{ failed: number }>;
   pollVendorTasks(): Promise<{
     reviews: { collected: number; failed: number; reviews: number } | { skipped: string };
     jobs: { collected: number; failed: number; postings: number };
   }>;
-  scanRankings(clientId: string): Promise<{ snapshots: number }>;
+  scanRankings(clientId: string): Promise<{ snapshots: number; failed: number }>;
   listRankClients(): Promise<string[]>;
   suggestCompetitors(clientId: string): Promise<{ suggested: number; searches: number }>;
   close(): Promise<void>;
@@ -76,7 +77,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
   const getDfs = () => {
     if (!dfs) {
       if (!env.DATAFORSEO_LOGIN || !env.DATAFORSEO_PASSWORD) throw new Error('DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD are required');
-      dfs = createDataForSeo({ login: env.DATAFORSEO_LOGIN, password: env.DATAFORSEO_PASSWORD, baseUrl: env.DATAFORSEO_BASE_URL ?? DFS_BASE_URL, ledger: createLedgerSink(getDb()) });
+      dfs = createDataForSeo({ login: env.DATAFORSEO_LOGIN, password: env.DATAFORSEO_PASSWORD, baseUrl: env.DATAFORSEO_BASE_URL || DFS_BASE_URL, ledger: createLedgerSink(getDb()) });
     }
     return dfs;
   };
@@ -130,7 +131,16 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       let failed = 0;
       // Reviews and jobs are posted and resolved independently below: a VendorError in one must
       // never affect the other's status (each has its own postedIds/failedIds from its own call).
-      if (reviewIds.length > 0) {
+      // Reviews can only be collected with a usable REVIEWER_HASH_SALT (vendor-poll skips them
+      // otherwise), so never pay to post tasks that would just expire unfetched.
+      const reviewsSkip = reviewIds.length > 0 ? reviewsSkipReason(env) : null;
+      if (reviewsSkip) {
+        if (!warnedNoSalt) {
+          warnedNoSalt = true;
+          console.log(`[vendor-schedule] not posting reviews: ${reviewsSkip}`);
+        }
+        for (const id of reviewIds) await markSourceResult(getDb(), id, 'reviews', 'skipped_no_salt');
+      } else if (reviewIds.length > 0) {
         const rows = await loadCompetitors(reviewIds);
         const firstPull = new Set(((await getDb().execute(sql`
           SELECT c.id FROM competitor c WHERE c.id = ANY(ARRAY[${sql.join(reviewIds.map((id) => sql`${id}`), sql`, `)}]::uuid[])

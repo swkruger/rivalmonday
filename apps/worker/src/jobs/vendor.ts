@@ -4,6 +4,13 @@ import { defineJob } from '../jobs';
 
 const BATCH = new Set(['reviews', 'jobs']);
 
+/**
+ * Paid, long-running jobs run exactly once: a rank scan is up to ~245 DataForSEO calls and must
+ * never be re-run by pg-boss's default retry (retryLimit 2) or killed by its default 15-minute
+ * expiry (an expired job is retried too) — either would duplicate paid calls and snapshots.
+ */
+export const SINGLE_SHOT_QUEUE = { retryLimit: 0, expireInSeconds: 3 * 60 * 60 } as const;
+
 export function createVendorJobs(
   deps: WorkerDeps,
   queue: { enqueueCollect(p: { competitorId: string; source: 'gbp' | 'ads_google' | 'ads_meta' }): Promise<void>; enqueueRankScan(clientId: string): Promise<void> },
@@ -78,13 +85,13 @@ export function createVendorJobs(
     },
   });
   const rankScan = defineJob({
-    name: 'rank-scan', schema: z.object({ clientId: z.uuid() }),
+    name: 'rank-scan', schema: z.object({ clientId: z.uuid() }), queue: SINGLE_SHOT_QUEUE,
     handler: async ({ clientId }) => {
       console.log(`[rank-scan] ${clientId} → ${JSON.stringify(await deps.scanRankings(clientId))}`);
     },
   });
   const suggest = defineJob({
-    name: 'suggest-competitors', schema: z.object({ clientId: z.uuid() }),
+    name: 'suggest-competitors', schema: z.object({ clientId: z.uuid() }), queue: SINGLE_SHOT_QUEUE,
     handler: async ({ clientId }) => {
       console.log(`[suggest-competitors] ${clientId} → ${JSON.stringify(await deps.suggestCompetitors(clientId))}`);
     },
