@@ -1,6 +1,7 @@
 import type { LedgerSink } from '@cs/core';
-import type { Db } from '@cs/db';
+import { ad, type Db } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
+import { and, eq } from 'drizzle-orm';
 import { recordVendorCapture } from '../evidence/vendor-capture';
 import { fetchMetaAdsApify } from '../vendors/apify';
 import { parseDfsTimestamp } from '../vendors/dfs-time';
@@ -63,8 +64,24 @@ export async function collectMetaAds(
     }
     const { captureId } = await recordVendorCapture(deps, { ...base, status: 'ok', payload: { vendor, items: raw } });
     const ads = raw.map(normalizeMetaAd).filter((a): a is NormalizedAd => a !== null);
-    // Only the active set was requested, so anything previously active and now missing has ended.
-    const r = await upsertAds(deps.db, c.id, 'meta', captureId, ads, { markMissingInactive: true });
+    // Only the active set was requested, so anything previously active and now missing has ended —
+    // unless the vendor handed back nothing at all. A fully empty response from a real advertiser
+    // with live ads is far more likely to be a vendor glitch than every ad ending at once, so an
+    // empty response never deactivates when active rows already exist; it's recorded as evidence
+    // and surfaced via a warning instead of silently wiping history.
+    let markMissingInactive = true;
+    if (raw.length === 0) {
+      const existingActive = await deps.db
+        .select({ id: ad.id })
+        .from(ad)
+        .where(and(eq(ad.competitorId, c.id), eq(ad.platform, 'meta'), eq(ad.isActive, true)))
+        .limit(1);
+      if (existingActive.length > 0) {
+        markMissingInactive = false;
+        console.warn(`[ads] meta competitor ${c.id}: vendor ${vendor} returned an empty response while active ads exist; skipping deactivation`);
+      }
+    }
+    const r = await upsertAds(deps.db, c.id, 'meta', captureId, ads, { markMissingInactive });
     return { status: 'ok', ads: r.upserted, deactivated: r.deactivated, vendor };
   }
   await recordVendorCapture(deps, { ...base, status: 'vendor_error', error: errors.join(' | ') || 'no Meta vendor configured' });

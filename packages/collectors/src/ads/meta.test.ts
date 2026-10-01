@@ -1,6 +1,7 @@
-import { ad } from '@cs/db';
+import { ad, capture } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { collectMetaAds, normalizeMetaAd } from './meta';
 
@@ -36,6 +37,20 @@ describe('collectMetaAds', () => {
     const rows = await dbs.service.select().from(ad);
     expect(rows.find((a) => a.externalId === 'OLD')).toMatchObject({ isActive: false });
     expect(rows.find((a) => a.externalId === 'A1')).toMatchObject({ isActive: true });
+  });
+
+  it('never ends active ads on an empty-but-successful vendor response (possible vendor glitch)', async () => {
+    await dbs.service.insert(ad).values({ competitorId: IDS.competitorX, platform: 'meta', externalId: 'OLD', isActive: true });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetch = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    const r = await collectMetaAds({ db: dbs.service, store: createMemoryStore(), ledger, apify: { token: 't' }, fetch: fetch as unknown as typeof globalThis.fetch }, { id: IDS.competitorX, metaPageId: '99' });
+    expect(r).toMatchObject({ status: 'ok', ads: 0, deactivated: 0, vendor: 'apify' });
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+    const [cap] = await dbs.service.select().from(capture).where(eq(capture.competitorId, IDS.competitorX));
+    expect(cap).toMatchObject({ status: 'ok' });
+    const rows = await dbs.service.select().from(ad);
+    expect(rows.find((a) => a.externalId === 'OLD')).toMatchObject({ isActive: true });
   });
 
   it('falls back to ScrapeCreators when Apify fails', async () => {

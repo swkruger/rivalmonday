@@ -14,8 +14,10 @@ export async function fetchMetaAdsScrapeCreators(opts: { apiKey: string; ledger:
     try {
       const res = await doFetch(`https://api.scrapecreators.com/v1/facebook/adLibrary/company/ads?${params}`, { headers: { 'x-api-key': opts.apiKey }, signal: AbortSignal.timeout(60_000) });
       if (!res.ok) throw new VendorError('scrapecreators', res.status, `ScrapeCreators HTTP ${res.status}`, res.status >= 500 || res.status === 429);
-      const body = (await res.json().catch(() => null)) as { results?: unknown[]; cursor?: string | null; credits_charged?: number } | null;
-      if (!body || !Array.isArray(body.results)) throw new VendorError('scrapecreators', null, 'Unexpected ScrapeCreators body', false);
+      const body = (await res.json().catch(() => null)) as { success?: boolean; results?: unknown[]; cursor?: string | null; credits_charged?: number } | null;
+      if (!body) throw new VendorError('scrapecreators', null, 'Unexpected ScrapeCreators body', false);
+      if (body.success === false) throw new VendorError('scrapecreators', null, 'ScrapeCreators reported success=false', false);
+      if (!Array.isArray(body.results)) throw new VendorError('scrapecreators', null, 'Unexpected ScrapeCreators body', false);
       out.push(...body.results);
       credits = body.credits_charged ?? null;
       cursor = body.cursor ?? null;
