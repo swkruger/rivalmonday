@@ -1,5 +1,5 @@
 import type { Ai } from '@cs/ai';
-import { redactForModel } from '@cs/collectors';
+import { isUniqueViolation, redactForModel } from '@cs/collectors';
 import { competitor, type Db, review, reviewAnalysis, themeProposal, type ThemeProposalStatus } from '@cs/db';
 import { and, desc, eq, gt, lte, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -88,14 +88,22 @@ export async function discoverTheme(
   const description = parsed?.description.trim().slice(0, 200) ?? '';
   const valid = parsed !== null && parsed.found && SLUG.test(parsed.id) && !themes.some((t) => t.id === parsed!.id) && name.length > 0 && description.length > 0;
   const status: ThemeProposalStatus = valid ? 'proposed' : 'none';
-  const [row] = await deps.db
-    .insert(themeProposal)
-    .values({
-      verticalId, themeId: valid ? parsed!.id : '', name: valid ? name : '', description: valid ? description : '', status,
-      otherCount: rows.length, sampleReviewIds: sample.slice(0, SAMPLE_IDS_KEPT).map((r) => r.id),
-    })
-    .returning({ id: themeProposal.id });
-  return { status: valid ? 'proposed' : 'none', proposalId: row!.id };
+  // The pending check above is check-then-insert (not transactional), so a concurrent run can slip a 'proposed'
+  // row in between: `theme_proposal_pending_unique` (one 'proposed' row per vertical) is the real guard, and a
+  // violation here means we lost the race, not that something is wrong — treat it the same as the early check.
+  try {
+    const [row] = await deps.db
+      .insert(themeProposal)
+      .values({
+        verticalId, themeId: valid ? parsed!.id : '', name: valid ? name : '', description: valid ? description : '', status,
+        otherCount: rows.length, sampleReviewIds: sample.slice(0, SAMPLE_IDS_KEPT).map((r) => r.id),
+      })
+      .returning({ id: themeProposal.id });
+    return { status: valid ? 'proposed' : 'none', proposalId: row!.id };
+  } catch (err) {
+    if (valid && isUniqueViolation(err)) return { skipped: 'a proposal is awaiting approval' };
+    throw err;
+  }
 }
 
 /** The AM's decision on a pending proposal (UI in Phase 5). Approved themes are asked for reviews analysed from now on. */

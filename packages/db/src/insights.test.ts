@@ -91,4 +91,12 @@ describe('review and price insight tables', () => {
       { verticalId: 'hvac_plumbing', themeId: '', name: '', description: '', status: 'none', otherCount: 21 },
     ]);
   });
+
+  it('at most one proposed proposal per vertical, even for a different theme id; a none row is still insertable while one is pending', async () => {
+    // beforeEach already seeded a 'proposed' warranty row for hvac_plumbing.
+    expect(
+      await errorText(dbs.service.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'other_theme', name: 'Other', description: 'd', otherCount: 1 })),
+    ).toMatch(/theme_proposal_pending_unique/);
+    await dbs.service.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: '', name: '', description: '', status: 'none', otherCount: 22 });
+  });
 });

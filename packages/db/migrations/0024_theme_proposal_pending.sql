@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "theme_proposal_pending_unique" ON "theme_proposal" USING btree ("vertical_id") WHERE status = 'proposed';

@@ -1,5 +1,7 @@
+import type { Ai } from '@cs/ai';
 import { review, reviewAnalysis, themeProposal } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeAi } from '../../test/fake-ai';
 import { day } from '../../test/seed';
@@ -69,6 +71,28 @@ describe('discoverTheme', () => {
   it('needs at least 20 unthemed reviews', async () => {
     await unthemed(19);
     expect(await discoverTheme({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now })).toEqual({ skipped: '19 unthemed review(s) since the last proposal' });
+  });
+
+  it('loses a check-then-insert race to a concurrent run and skips instead of throwing or double-proposing', async () => {
+    await unthemed(20);
+    // The pending check passes (no 'proposed' row yet), but a concurrent run commits one — for a *different*
+    // theme id — before this run's own insert, simulated by racing it from inside the fake chat call.
+    const raceAi: Ai = {
+      async chat() {
+        await dbs.service.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'other_theme', name: 'Other', description: 'd', status: 'proposed', otherCount: 1 });
+        return { text: JSON.stringify(WARRANTY), model: 'fake', inputTokens: 0, outputTokens: 0, costUsd: 0 };
+      },
+      async decide() {
+        throw new Error('not used by this test');
+      },
+      async embed() {
+        throw new Error('not used by this test');
+      },
+    };
+    expect(await discoverTheme({ db: dbs.service, ai: raceAi, packs }, 'hvac_plumbing', { now })).toEqual({ skipped: 'a proposal is awaiting approval' });
+    const proposed = await dbs.owner.select().from(themeProposal).where(eq(themeProposal.status, 'proposed'));
+    expect(proposed).toHaveLength(1);
+    expect(proposed[0]).toMatchObject({ themeId: 'other_theme' });
   });
 });
 

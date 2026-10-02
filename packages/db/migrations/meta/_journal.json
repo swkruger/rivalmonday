@@ -169,6 +169,13 @@
       "when": 1790942205346,
       "tag": "0023_review_price_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790947350329,
+      "tag": "0024_theme_proposal_pending",
+      "breakpoints": true
     }
   ]
 }

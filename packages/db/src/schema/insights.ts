@@ -55,6 +55,8 @@ export const themeProposal = pgTable(
   },
   (t) => [
     uniqueIndex('theme_proposal_live_unique').on(t.verticalId, t.themeId).where(sql`status IN ('proposed', 'approved')`),
+    /** At most one proposal awaiting a decision per vertical, regardless of theme id — closes the discoverTheme check-then-insert race. */
+    uniqueIndex('theme_proposal_pending_unique').on(t.verticalId).where(sql`status = 'proposed'`),
     index('theme_proposal_vertical_idx').on(t.verticalId, t.createdAt),
   ],
 );
