@@ -42,7 +42,8 @@ try {
     const s = scores.filter((x) => x.eventId === e.id).map((x) => `${x.clientId.slice(0, 8)}:${x.route}(${x.score})`).join(' ');
     console.log(`${e.occurredAt.toISOString().slice(0, 10)} ${e.changeType.padEnd(19)} ${e.summary}  [${s || 'unscored'}]`);
   }
-  if (args.insights) console.log(`[insights] ${JSON.stringify(await runReviewInsights({ db, ai, packs }, { competitorId: args.competitor }))}`);
+  const insights = args.insights ? await runReviewInsights({ db, ai, packs }, { competitorId: args.competitor }) : undefined;
+  if (insights) console.log(`[insights] ${JSON.stringify(insights)}`);
   if (args.moves) {
     const clientIds = args.competitor
       ? (await db.select({ id: clientCompetitor.clientId }).from(clientCompetitor).where(eq(clientCompetitor.competitorId, args.competitor))).map((r) => r.id)
@@ -58,12 +59,15 @@ try {
       console.log(`[benchmark] ${b.self ? '*' : ' '} ${b.name}: ${b.reviews} reviews, avg ${b.avgRating} (prev ${b.prevReviews} / ${b.prevAvgRating}); ${themes.join(', ') || 'no themes yet'}`);
     }
     const matrix = await priceMatrix({ db, packs }, args.client);
+    const serviceNames = new Map(matrix.services.map((s) => [s.id, s.name]));
     for (const row of matrix.rows) {
-      const cells = Object.entries(row.cells).map(([s, ps]) => `${s} ${ps.map((p) => `${p.qualifier === 'from' ? 'from ' : p.qualifier === 'up_to' ? 'up to ' : ''}$${p.amount}${p.unit === 'USD' ? '' : p.unit.slice(3)}`).join('/')}`);
+      const cells = Object.entries(row.cells).map(
+        ([s, ps]) => `${serviceNames.get(s) ?? s} ${ps.map((p) => `${p.qualifier === 'from' ? 'from ' : p.qualifier === 'up_to' ? 'up to ' : ''}$${p.amount}${p.unit === 'USD' ? '' : p.unit.slice(3)}`).join('/')}`,
+      );
       console.log(`[prices] ${row.name}: ${cells.join('; ') || 'no prices yet'}`);
     }
   }
-  if (result.errors > 0) process.exitCode = 1;
+  if (result.errors > 0 || (insights?.errors ?? 0) > 0) process.exitCode = 1;
 } finally {
   await close();
 }
