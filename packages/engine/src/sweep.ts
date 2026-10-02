@@ -74,9 +74,12 @@ export async function findEngineWork(db: Db, opts: { limit: number; competitorId
 
   const now = (opts.now ?? new Date()).toISOString();
   // Reviews of tracked competitors and of clients' own businesses; subject = this text version (see reviewSubjectId).
+  // Strip all whitespace at both ends (not just spaces, unlike bare btrim) to match analyzeReview's JS
+  // `text.trim()` — otherwise a review like "ok\n\n\n\n\n\n\n\n" clears this length check (btrim leaves the
+  // newlines) but then fails analyzeReview's own check, so the sweep claims it and it throws forever.
   const reviews = await db.execute(sql`
     SELECT r.id FROM review r
-    WHERE r.text IS NOT NULL AND length(btrim(r.text)) >= ${MIN_REVIEW_CHARS}::int
+    WHERE r.text IS NOT NULL AND length(regexp_replace(r.text, '^\\s+|\\s+$', '', 'g')) >= ${MIN_REVIEW_CHARS}::int
       AND r.posted_at >= ${now}::timestamptz - make_interval(days => ${REVIEW_ANALYSIS_DAYS}::int) ${only('r.competitor_id')}
       AND (EXISTS (SELECT 1 FROM client_competitor cc WHERE cc.competitor_id = r.competitor_id)
            OR EXISTS (SELECT 1 FROM client cl WHERE cl.self_competitor_id = r.competitor_id))

@@ -62,6 +62,12 @@ export async function discoverTheme(
 
   const pack = await deps.packs(verticalId);
   const themes = await themesForVertical(deps.db, pack);
+  // Rejected proposals carry no DB-level block against a repeat (theme_proposal_live_unique only covers
+  // 'proposed'/'approved'), so without this the model can propose the exact same rejected topic every time
+  // enough fresh "other" reviews accumulate. Tell it which ids are already rejected, and reject them again below.
+  const rejectedIds = new Set(
+    (await deps.db.selectDistinct({ id: themeProposal.themeId }).from(themeProposal).where(and(eq(themeProposal.verticalId, verticalId), eq(themeProposal.status, 'rejected')))).map((r) => r.id),
+  );
   const sample = rows.slice(0, THEME_DISCOVERY_SAMPLE);
   const listed = sample
     .map((r, i) => `${i + 1}. ${redactForModel(r.text ?? '', { businessNames: [r.competitorName] }).slice(0, SAMPLE_CHARS).replace(/<(\/?)reviews/gi, '&lt;$1reviews')}`)
@@ -72,7 +78,10 @@ export async function discoverTheme(
       jsonSchema: { name: 'theme_proposal', schema: proposalJson },
       messages: [
         { role: 'system', content: SYSTEM },
-        { role: 'user', content: `Business type: ${pack.name}\nEXISTING topics: ${themes.map((t) => `${t.id} (${t.name})`).join(', ')}\n<reviews>\n${listed}\n</reviews>` },
+        {
+          role: 'user',
+          content: `Business type: ${pack.name}\nEXISTING topics: ${themes.map((t) => `${t.id} (${t.name})`).join(', ')}\nREJECTED topics (already proposed and turned down — never propose these ids again): ${[...rejectedIds].join(', ') || 'none'}\n<reviews>\n${listed}\n</reviews>`,
+        },
       ],
     },
     PLATFORM,
@@ -86,7 +95,8 @@ export async function discoverTheme(
   }
   const name = parsed?.name.trim().slice(0, 60) ?? '';
   const description = parsed?.description.trim().slice(0, 200) ?? '';
-  const valid = parsed !== null && parsed.found && SLUG.test(parsed.id) && !themes.some((t) => t.id === parsed!.id) && name.length > 0 && description.length > 0;
+  const valid =
+    parsed !== null && parsed.found && SLUG.test(parsed.id) && !themes.some((t) => t.id === parsed!.id) && !rejectedIds.has(parsed.id) && name.length > 0 && description.length > 0;
   const status: ThemeProposalStatus = valid ? 'proposed' : 'none';
   // The pending check above is check-then-insert (not transactional), so a concurrent run can slip a 'proposed'
   // row in between: `theme_proposal_pending_unique` (one 'proposed' row per vertical) is the real guard, and a

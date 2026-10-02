@@ -68,6 +68,21 @@ describe('discoverTheme', () => {
     expect(await discoverTheme({ db: dbs.service, ai: proposing({ ...WARRANTY, id: 'Price Transparency!' }), packs }, 'hvac_plumbing', { now })).toMatchObject({ status: 'none' });
   });
 
+  it('never re-proposes a rejected theme id, and tells the model it was rejected', async () => {
+    await unthemed(20, day(-2));
+    const first = await discoverTheme({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now });
+    await decideThemeProposal(dbs.service, (first as { proposalId: string }).proposalId, 'rejected', 'am@agency.example');
+    // Analysed a day "in the future" so these rows are newer than the rejected proposal's DB-clock created_at, whatever the clock skew.
+    await unthemed(20, new Date(Date.now() + 86_400_000));
+    const ai = proposing(WARRANTY); // the model (incorrectly) proposes the same rejected id again
+    const second = await discoverTheme({ db: dbs.service, ai, packs }, 'hvac_plumbing', { now });
+    expect(second).toMatchObject({ status: 'none' }); // treated as invalid despite the model saying found=true
+    expect(ai.calls.chat[0]!.content).toContain('REJECTED topics');
+    expect(ai.calls.chat[0]!.content).toContain('warranty_claims');
+    const [p] = await dbs.owner.select().from(themeProposal).where(eq(themeProposal.id, (second as { proposalId: string }).proposalId));
+    expect(p).toMatchObject({ themeId: '', status: 'none' });
+  });
+
   it('needs at least 20 unthemed reviews', async () => {
     await unthemed(19);
     expect(await discoverTheme({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now })).toEqual({ skipped: '19 unthemed review(s) since the last proposal' });

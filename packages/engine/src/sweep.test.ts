@@ -1,4 +1,4 @@
-import { capture, changeEvent, detectedChange, eventScore, stageRun, trackedPage } from '@cs/db';
+import { capture, changeEvent, detectedChange, eventScore, review, stageRun, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { scoreEvent } from './score/score-stage';
@@ -98,5 +98,16 @@ describe('findEngineWork', () => {
     expect((await findEngineWork(dbs.service, { limit: 50 })).score).toContain(ev!.id);
     await scoreEvent({ db: dbs.service, packs: createPackLoader() }, ev!.id);
     expect((await findEngineWork(dbs.service, { limit: 50 })).score).not.toContain(ev!.id); // B1 tracks X but is not owed this score
+  });
+
+  it('agrees with analyzeReview\'s JS trim on whitespace-only padding ("ok" + newlines), not bare SQL btrim (spaces only)', async () => {
+    const [r] = await dbs.service
+      .insert(review)
+      .values({ competitorId: IDS.competitorX, dedupeKey: 'd1', text: 'ok\n\n\n\n\n\n\n\n', postedAt: new Date() })
+      .returning({ id: review.id });
+    // length('ok\n\n\n\n\n\n\n\n') is 10 (>= MIN_REVIEW_CHARS), but there are no leading/trailing spaces for bare
+    // btrim to strip, so a naive `length(btrim(r.text)) >= 10` check would offer this review; JS `.trim()`
+    // (what analyzeReview itself checks) strips the newlines too, leaving "ok" (2 chars) — never offer it.
+    expect((await findEngineWork(dbs.service, { limit: 50 })).reviews).not.toContain(r!.id);
   });
 });

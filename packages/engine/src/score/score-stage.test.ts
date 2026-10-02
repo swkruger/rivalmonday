@@ -99,6 +99,20 @@ describe('scoreEvent', () => {
     await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorX });
     expect(await scoreEvent({ db: dbs.service, packs: broken }, id)).toMatchObject({ scored: 2, failed: 1 });
   });
+
+  it('never scores a complaint-theme spike for a client whose vertical differs from details.verticalId', async () => {
+    // A2 (dental) also tracks competitor X (e.g. a franchise competitor spanning HVAC + dental).
+    await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorX });
+    const id = await event({
+      changeType: 'review_spike',
+      services: {},
+      facts: [],
+      details: { changeType: 'review_spike', verticalId: 'hvac_plumbing', theme: 'price_transparency', themeName: 'Price transparency', count: 4, windowDays: 30, baselineMean: 0.5 },
+    });
+    expect(await scoreEvent({ db: dbs.service, packs }, id)).toMatchObject({ scored: 2 }); // A1 and B1 (both hvac_plumbing), not A2 (dental)
+    const clientIds = (await dbs.owner.select().from(eventScore).where(eq(eventScore.eventId, id))).map((r) => r.clientId).sort();
+    expect(clientIds).toEqual([IDS.clientA1, IDS.clientB1].sort());
+  });
 });
 
 describe('tenant-private events and event age (Phase 3b)', () => {
