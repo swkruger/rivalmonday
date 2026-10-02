@@ -790,3 +790,36 @@ Sandbox pass (free; mock data, real shapes): maps live, my_business_info live, r
 **Jobs** (task_post depth 20 → 5 items, ready by the first poll): keys exactly §1e. No `description` field in the advanced JSON. `location` was `"United States"` on all 5 items (no city/state), `timestamp` often null, `salary` free text (`"60K–80K a year"`). Employers included `Aire Serv` and franchisees `Aire Serv of Woodstock`, `… of East Central Minnesota`, `… of the Sioux Empire` — the known same-name/other-states limitation, confirmed.
 
 **Apify page pull:** the brand page id (`100783472531475`, from a third-party listing) returned **one error item** `{"error":"Ads not found","errorCode":"ADS_NOT_FOUND","url":…}` (HTTP 201) — the national page runs no US ads; the brand advertises from franchisee pages (a keyword search showed ads from `Aire Serv of <city>` pages only). The old code counted that error item as a 1-item response (which would allow deactivating every stored ad); `fetchMetaAdsApify` now treats `ADS_NOT_FOUND` as an empty result and any other error item as a non-retryable `VendorError`. Re-pointed at the franchisee page `Aire Serv of Granbury` (`1825453601028298`): **21 ads, `total` = 21 on every item, so the response was complete** (well under the 200 cap, `truncated: false`); 3 DCO + 18 IMAGE; all `is_active`. The public Ad Library page is script-rendered and was not compared directly; the actor's `total` is the Ad Library's own count for the query.
+
+---
+
+## Verified 2026-10-01 — engine models
+
+Live contract test: `packages/engine/src/engine.live.test.ts` (`pnpm --filter @cs/engine test src/engine.live.test.ts`), run against real OpenRouter (and Jev via `TYPESAFE_API_KEY`) using the repo-root `.env` keys. Cost ≈ $0.001. Both tests passed.
+
+**OpenRouter embeddings endpoint — confirmed shape:**
+```
+POST https://openrouter.ai/api/v1/embeddings
+```
+Request body: `model`, `input[]` (string array), `dimensions`, `provider: { data_collection, zdr }`.
+Response: `data[{ index, embedding }]`, `usage: { prompt_tokens, cost }`.
+
+- `openai/text-embedding-3-small` at `dimensions: 512` **passes** the ZDR (zero-data-retention) policy — this is the model configured for the `embeddings` task in `packages/ai/config/ai.yaml`.
+- `voyageai/voyage-4-lite` does **not** pass ZDR — rejected, not usable for this pipeline.
+
+**Measured cosines (this run, `text-embedding-3-small` @ 512):**
+- Punctuation-only edit ("$89." vs "$89!"): **0.996**
+- "$89 → $69" price edit: **0.969**
+- Unrelated sentence (service-area change vs AC tune-up copy): **0.202**
+
+These match the calibration already recorded in `constraints.md` (0.996 / 0.969 / 0.20), confirming the model is stable run-to-run. Both are comfortably above `SEMANTIC_THRESHOLD = 0.95`; the price edit is caught by cosine alone here, though per spec the numeric rule layer is the one actually relied on for money changes (money is never masked regardless of cosine).
+
+**Decision providers and confidences (this run):** tagging a real "$89 → $69" AC tune-up price cut through `ai.decide('decisions', …)` resolved via the confidence cascade as:
+- `meaningful`: provider `llm`, confidence `0.84`
+- `change_type`: provider `jev`, confidence `1.00` → `price_change`
+- `service_hvac_plumbing`: provider `jev`, confidence `1.00` → `ac_tune_up`
+
+Result: `meaningful = true`, `type = price_change`, `services.hvac_plumbing = ac_tune_up`, `needsReview = []`. (Jev — the `TYPESAFE_API_KEY` deterministic/low-cost decision path — handled `change_type` and the service mapping with full confidence; the `meaningful` noul question fell through the cascade to the LLM at confidence 0.84. Since the change carries a money fact, `resolveTag`'s money-forces-meaningful rule would have made the result `meaningful = true` regardless of what either provider answered.)
+
+**pgvector:** version **0.8.6** on Neon (the `vector(512)` columns used for `capture_block.embedding`).
+

@@ -1,6 +1,6 @@
 # Rival Monday — Session Handover
 
-*Written 2026-09-30; updated 2026-10-01 after Phase 2 (2a + 2b). Start any new session by reading this file, then the documents it links. Keep it updated at the end of each session.*
+*Written 2026-09-30; updated 2026-10-01 after Phase 2 (2a + 2b) and again after Phase 3a. Start any new session by reading this file, then the documents it links. Keep it updated at the end of each session.*
 
 ---
 
@@ -69,7 +69,11 @@ Business model: first sold to the owning agency's own clients, then **wholesale 
 
 **Phase 2b — Vendor sources: DONE (merged).** DataForSEO client (typed errors, retries, one `vendor_call` ledger row per call), vendor evidence capture, reviewer privacy (HMAC pseudonym; names, profile links, photos, activity counts and first-name greetings stripped from rows **and** stored evidence; e-mails/phones redacted), local-search competitor suggestions + acceptance, Google Business Profile, Google reviews (async), Google ads (filtered to the competitor's advertiser name), Meta ads (Apify primary, ScrapeCreators fallback — both live-verified, identical results), Google Jobs, monthly geo-grid rank scans, `competitor_source` scheduling and six worker jobs (`vendor-schedule`, `vendor-collect`, `vendor-poll`, `rank-schedule`, `rank-scan`, `suggest-competitors`). Migrations 0009–0011 (app_user may update only `competitor_suggestion.status`). Live-verified 2026-10-01 against Aire Serv (place `ChIJ6VlKPHqPT4YR479jLd01gZY`; Meta page Aire Serv of Granbury `1825453601028298`; spend ≈ $0.095 + 1 ScrapeCreators credit); sanitised fixtures in `packages/collectors/test/fixtures/vendors/`.
 
-Tests: `pnpm typecheck && pnpm test` green (7 packages; collectors 197, worker 21). Neon occasionally times out (`ETIMEDOUT`) — re-run once.
+**Phase 3a — Web changes → scored events: DONE.** New package `@cs/engine` (main-content extraction + volatile-region masking, embeddings + cosine semantic diff, numeric rule layer with LLM fallback, tagging via `DecisionProvider` with the confidence cascade and a `decision_review` queue, per-client scoring with stored factor breakdown, idempotent versioned stages via `stage_run`). Migrations `0012`–`0016` (`0012_evidence_legal_hold`, `0013_evidence_immutable`, `0014_pgvector`, `0015_engine`, `0016_engine_rls`). Worker jobs `engine-sweep`/`engine-diff`/`engine-tag`/`engine-score` and the `engine-once` CLI (drains the engine inline against a real database for manual/smoke verification). Live-verified 2026-10-01 against real OpenRouter embeddings (`openai/text-embedding-3-small` @ 512) and Jev/LLM decisions — see the vendor-APIs doc's "Verified 2026-10-01 — engine models" section and `packages/engine/src/engine.live.test.ts`. Test counts: engine 102 (14 files, incl. the live contract test), worker 27 (incl. engine job tests).
+
+Tests: `pnpm typecheck && pnpm test` green (8 packages; collectors 197, engine 102, worker 27). Neon occasionally times out (`ETIMEDOUT`) — re-run once.
+
+**Outstanding before Phase 3a is fully closed:** the final whole-branch review of this branch (`phase-3a-engine`) is still to come — the controller runs it, not this document.
 
 ---
 
@@ -89,7 +93,7 @@ Tests: `pnpm typecheck && pnpm test` green (7 packages; collectors 197, worker 2
 
 1. Read this file and the roadmap carry-over sections. Check `git log --oneline -5` (latest commit on `main` is this handover update) and `git status` (clean).
 2. On or after **2026-10-08**: re-pull the Aire Serv reviews (`pnpm --filter @cs/worker collect-once --domain <aire serv domain> --place-id ChIJ6VlKPHqPT4YR479jLd01gZY --vendors`, then `--poll`) and compare `review_id`s for stability (roadmap carry-over).
-3. Write the **Phase 3 (intelligence engine)** plan with `superpowers:writing-plans` against the merged code, folding in the Phase 2 carry-over items (persist discovery homepage status; DB-level evidence immutability + `legal_hold`; Google-ad activity from `last_seen_at` and advertiser-id pinning; several Meta pages per franchise competitor; metaPageId/placeId discovery for accepted competitors; role checks on accept; edited reviews).
+3. Write the **Phase 3b plan** (structured sources, merge & moves) with `superpowers:writing-plans` against the merged code, folding in the Phase 3a carry-over items (stage versioning doesn't retract old outputs; volatile masks never expire / no AM unmask yet; `decision_review` has no resolution flow; events scored only within `SCORE_WINDOW_DAYS`; `EXTRACTOR_VERSION` bumps don't refresh `capture_block`; `extractZips` false positives/misses; unvalidated per-client `scoreThresholds`; score sweep has no backoff; `engine-once` doesn't validate its arguments) plus any still-open Phase 2 items.
 4. Execute it with `superpowers:subagent-driven-development` (the user's chosen method: ledger in `.superpowers/sdd/<plan>/progress.md`, final whole-branch review on the most capable model, then `superpowers:finishing-a-development-branch` — the user chooses merge locally + push).
 5. Never point the web crawler (`collect-once` without `--vendors`, or with `--web`) at real competitors until `https://rivalmonday.com/bot` exists. `--vendors` alone only calls vendor APIs.
 
@@ -100,7 +104,7 @@ Tests: `pnpm typecheck && pnpm test` green (7 packages; collectors 197, worker 2
 - **Drizzle `sql` + JS arrays:** a bare array inside `sql\`...\`` expands to a parameter *list*, not an array. Build arrays with ``sql`ARRAY[${sql.join(items.map((x) => sql`${x}`), sql`, `)}]::uuid[]` ``.
 - **Drizzle 0.44 wraps driver errors** (`DrizzleQueryError`); the Postgres message is on `err.cause.message` — use `errorText()` from `@cs/db/test-helpers`.
 - **drizzle-kit may order a composite FK before the unique constraint it needs** — reorder generated SQL by hand when tests fail on migrate (happened in `0002`).
-- **Never edit applied migrations** (`cs_dev` has `0000`–`0011`); add new ones. Custom SQL via `pnpm --filter @cs/db generate --custom --name=<x>` with `--> statement-breakpoint` separators.
+- **Never edit applied migrations** (`cs_dev` is now at `0016`); add new ones. Custom SQL via `pnpm --filter @cs/db generate --custom --name=<x>` with `--> statement-breakpoint` separators.
 - **RLS patterns:** tenant tables use `agency_id = app_agency_id() AND app_client_visible(client_id)`; global public-data tables use `app_competitor_visible(competitor_id)` (Phase 2a) and are **written only by the service role** (REVOKE INSERT/UPDATE/DELETE from `app_user`). Revoking changes error text from "row-level security" to "permission denied" — update tests accordingly. The guard test fails if a new public table lacks forced RLS.
 - **Turborepo strict env mode:** env vars reach tasks only if listed in `turbo.json` `globalPassThroughEnv` (already: `TEST_*`, `DATABASE_URL`, `TYPESAFE_API_KEY`, `OPENROUTER_API_KEY`, the DataForSEO/Apify/ScrapeCreators keys and `REVIEWER_HASH_SALT`).
 - **`.env` loading:** each package's `vitest.config.ts` / entry point calls `process.loadEnvFile(<repo-root>/.env)` in try/catch — count directory levels carefully (a wrong depth silently loads nothing; it bit us once).
@@ -112,6 +116,8 @@ Tests: `pnpm typecheck && pnpm test` green (7 packages; collectors 197, worker 2
 - **app_user privileges:** the privilege guard test enumerates every public table and asserts an exact allow-list (`client`, `client_competitor`, `competitor_suggestion` UPDATE(status) only). A new tenant table that app_user writes must be added there.
 - **Vendor quirks (live-verified):** DataForSEO can answer 200 with an OK envelope but a task-level error (check `isDfsOk` per task); `task_get` repeats the cost but isn't billed (ledgered at $0); `data.tag` echoes our competitor id (tasks are mapped by tag); Apify returns an error *item* for pages with no ads; `ads_search` by domain returns other advertisers' creatives (filtered by name); owner replies greet reviewers by first name (redacted).
 - **Commit trailer** on every commit: `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`. Never stage `.env`, `.claude/`, `App/`, `.superpowers/`.
+- **Naming (Phase 3a):** `EMBEDDING_DIMENSIONS` (`@cs/db`, = 512) is the single source of truth for embedding width — matches `vector(512)` columns and `dimensions: 512` in `ai.yaml`'s `embeddings` task. The engine's output row is `changeEvent` (table) / `ScoreFactors` (stored on `event_score`) — not "eventChange".
+- **Money changes are never masked:** per spec §6.1, any detected price/percent change always forces a web diff to be flagged and a tag result to be `meaningful`, regardless of volatile-block masking, model confidence, or what the LLM/Jev decision actually answered — see `gateChange` in `packages/engine/src/web/diff-stage.ts` and the `forced`/`money` logic in `resolveTag` (`packages/engine/src/tag/questions.ts`). Date- or duration-only changes are still detected but can be dismissed as cosmetic by the model; a low-confidence dismissal also writes a `decision_review` row.
 
 ---
 
@@ -124,4 +130,4 @@ Tests: `pnpm typecheck && pnpm test` green (7 packages; collectors 197, worker 2
 
 ## 8. Carry-over backlog
 
-All deferred review findings are listed, per phase, at the bottom of the [roadmap](superpowers/plans/2026-09-29-roadmap.md) ("Phase 1 carry-over", "Phase 2 carry-over", "Phase 2a carry-over" and the Phase 2b lines). Fold each into the matching phase plan when it is written.
+All deferred review findings are listed, per phase, at the bottom of the [roadmap](superpowers/plans/2026-09-29-roadmap.md) ("Phase 1 carry-over", "Phase 2 carry-over", "Phase 2a carry-over", the Phase 2b lines, and "Phase 3a carry-over"). Fold each into the matching phase plan when it is written.
