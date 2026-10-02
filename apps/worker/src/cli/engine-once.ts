@@ -1,5 +1,4 @@
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from 'node:util';
 
 try {
   process.loadEnvFile(fileURLToPath(new URL('../../../../.env', import.meta.url)));
@@ -8,12 +7,18 @@ try {
 }
 
 const { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } = await import('@cs/ai');
-const { changeEvent, createDb, createLedgerSink, eventScore } = await import('@cs/db');
-const { createPackLoader, drainEngine } = await import('@cs/engine');
+const { changeEvent, clientCompetitor, createDb, createLedgerSink, eventScore, move } = await import('@cs/db');
+const { createPackLoader, drainEngine, listMoveClients, updateMovesForClient } = await import('@cs/engine');
 const { createStoreFromEnv } = await import('@cs/storage');
 const { desc, eq, inArray } = await import('drizzle-orm');
+const { parseEngineArgs } = await import('./engine-args');
 
-const { values } = parseArgs({ options: { competitor: { type: 'string' }, rounds: { type: 'string', default: '10' } } });
+const args = parseEngineArgs(process.argv.slice(2));
+if ('error' in args) {
+  console.error(args.error);
+  process.exit(1);
+}
+
 const serviceUrl = process.env.SERVICE_DATABASE_URL;
 if (!serviceUrl || !process.env.OPENROUTER_API_KEY) {
   console.error('SERVICE_DATABASE_URL and OPENROUTER_API_KEY are required');
@@ -23,12 +28,13 @@ if (!serviceUrl || !process.env.OPENROUTER_API_KEY) {
 const { db, close } = createDb(serviceUrl);
 try {
   const ai = createAiFromEnv(process.env, await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH), createLedgerSink(db));
-  const result = await drainEngine({ db, store: createStoreFromEnv(process.env), ai, packs: createPackLoader() }, { competitorId: values.competitor, maxRounds: Number(values.rounds) });
+  const packs = createPackLoader();
+  const result = await drainEngine({ db, store: createStoreFromEnv(process.env), ai, packs }, { competitorId: args.competitor, maxRounds: args.rounds });
   console.log(JSON.stringify(result));
   const events = await db
     .select()
     .from(changeEvent)
-    .where(values.competitor ? eq(changeEvent.competitorId, values.competitor) : undefined)
+    .where(args.competitor ? eq(changeEvent.competitorId, args.competitor) : undefined)
     .orderBy(desc(changeEvent.createdAt))
     .limit(20);
   const scores = events.length > 0 ? await db.select().from(eventScore).where(inArray(eventScore.eventId, events.map((e) => e.id))) : [];
@@ -36,6 +42,15 @@ try {
     const s = scores.filter((x) => x.eventId === e.id).map((x) => `${x.clientId.slice(0, 8)}:${x.route}(${x.score})`).join(' ');
     console.log(`${e.occurredAt.toISOString().slice(0, 10)} ${e.changeType.padEnd(19)} ${e.summary}  [${s || 'unscored'}]`);
   }
+  if (args.moves) {
+    const clientIds = args.competitor
+      ? (await db.select({ id: clientCompetitor.clientId }).from(clientCompetitor).where(eq(clientCompetitor.competitorId, args.competitor))).map((r) => r.id)
+      : await listMoveClients(db);
+    for (const id of clientIds) console.log(`[moves] ${id.slice(0, 8)} → ${JSON.stringify(await updateMovesForClient({ db, packs }, id))}`);
+    const open = await db.select().from(move).where(args.competitor ? eq(move.competitorId, args.competitor) : undefined).orderBy(desc(move.updatedAt)).limit(20);
+    for (const m of open) console.log(`${m.status.padEnd(8)} ${m.moveType.padEnd(19)} ${m.confidence.toFixed(2)} ${m.summary}${m.closedAt ? ' (closed)' : ''}`);
+  }
+  if (result.errors > 0) process.exitCode = 1;
 } finally {
   await close();
 }

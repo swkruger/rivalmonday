@@ -7,7 +7,10 @@ import {
 } from '@cs/collectors';
 import type { CaptureStatus } from '@cs/core';
 import { client, competitor, createDb, createLedgerSink, type Db } from '@cs/db';
-import { createPackLoader, diffCapture, type EngineWork, findEngineWork, scoreEvent as runScoreStage, tagChange as runTagStage } from '@cs/engine';
+import {
+  createPackLoader, diffCapture, diffRankScan, type EngineWork, findEngineWork, listMoveClients, type MovesRunResult, scoreEvent as runScoreStage,
+  tagChange as runTagStage, updateMovesForClient,
+} from '@cs/engine';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
 
@@ -20,6 +23,9 @@ export interface WorkerDeps {
   tagChange(changeId: string): Promise<{ ran: boolean; eventId: string | null }>;
   scoreEvent(eventId: string): Promise<{ scored: number; failed: number }>;
   findEngineWork(limit: number): Promise<EngineWork>;
+  diffRankScan(scanId: string): Promise<{ ran: boolean; changeIds: string[] }>;
+  updateMoves(clientId: string): Promise<MovesRunResult>;
+  listMoveClients(): Promise<string[]>;
   discoverPages(competitorId: string): Promise<{ selected: number; candidates: number; homepageStatus: string } | { skipped: string }>;
   /** True once DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD are both set — gates all vendor collection. */
   vendorsConfigured(): boolean;
@@ -117,6 +123,12 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       return { scored, failed };
     },
     findEngineWork: (limit) => findEngineWork(getDb(), { limit }),
+    async diffRankScan(scanId) {
+      const r = await diffRankScan({ db: getDb() }, scanId);
+      return r.ran ? { ran: true, changeIds: r.result.changeIds } : { ran: false, changeIds: [] };
+    },
+    updateMoves: (clientId) => updateMovesForClient({ db: getDb(), packs }, clientId),
+    listMoveClients: () => listMoveClients(getDb()),
     async discoverPages(competitorId) {
       const [c] = await getDb().select().from(competitor).where(eq(competitor.id, competitorId)).limit(1);
       if (!c?.domain) return { skipped: 'competitor has no domain' };

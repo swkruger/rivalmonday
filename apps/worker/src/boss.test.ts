@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createBoss, enqueue, registerJobs } from './boss';
 import { defineJob } from './jobs';
@@ -26,9 +26,11 @@ const singleShotJob = defineJob({
   queue: { retryLimit: 0, expireInSeconds: 7200 },
 });
 
+const shortJob = defineJob({ name: 'test-short', schema: z.object({ id: z.string() }), handler: async () => {}, queue: { retryLimit: 0, policy: 'short' } });
+
 beforeAll(async () => {
   await boss.start();
-  await registerJobs(boss, [echoJob, singleShotJob], { pollingIntervalSeconds: 0.5 });
+  await registerJobs(boss, [echoJob, singleShotJob, shortJob], { pollingIntervalSeconds: 0.5 });
 });
 afterAll(async () => {
   await boss.stop({ graceful: false });
@@ -53,5 +55,23 @@ describe('worker jobs', () => {
     expect(job).toMatchObject({ retryLimit: 0 });
     expect(Number(job?.expireIn ? (job.expireIn as { hours?: number }).hours : 0)).toBe(2);
     await boss.deleteJob(singleShotJob.name, id as string);
+  });
+});
+
+describe('queue dedupe (Phase 3b)', () => {
+  it('keeps one queued job per singleton key on a short-policy queue', async () => {
+    expect((await boss.getQueue(shortJob.name))?.policy).toBe('short');
+    const a = await boss.send(shortJob.name, { id: 'x' }, { singletonKey: 'k', startAfter: 3600 });
+    const b = await boss.send(shortJob.name, { id: 'x' }, { singletonKey: 'k', startAfter: 3600 });
+    expect(a).toBeTruthy();
+    expect(b).toBeNull();
+    await boss.deleteJob(shortJob.name, a as string);
+  });
+
+  it('forwards the singleton key when enqueueing', async () => {
+    const send = vi.spyOn(boss, 'send').mockResolvedValueOnce('id');
+    await enqueue(boss, echoJob, { message: 'k' }, { singletonKey: 'abc' });
+    expect(send).toHaveBeenCalledWith('test-echo', { message: 'k' }, { singletonKey: 'abc' });
+    send.mockRestore();
   });
 });

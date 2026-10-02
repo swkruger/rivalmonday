@@ -3,16 +3,21 @@ import type { WorkerDeps } from '../deps';
 import { createEngineJobs } from './engine';
 
 const U = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-const queue = () => ({ enqueueDiff: vi.fn(async (_id: string) => {}), enqueueTag: vi.fn(async (_id: string) => {}), enqueueScore: vi.fn(async (_id: string) => {}) });
+const queue = () => ({
+  enqueueDiff: vi.fn(async (_id: string) => {}),
+  enqueueRankDiff: vi.fn(async (_id: string) => {}),
+  enqueueTag: vi.fn(async (_id: string) => {}),
+  enqueueScore: vi.fn(async (_id: string) => {}),
+});
 
 describe('engine jobs', () => {
   it('sweeps every 5 minutes and enqueues all found work', async () => {
-    const deps = { engineConfigured: () => true, findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [] })) } as unknown as WorkerDeps;
+    const deps = { engineConfigured: () => true, findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)] })) } as unknown as WorkerDeps;
     const q = queue();
     const jobs = createEngineJobs(deps, q);
     await jobs.sweep.handler({});
     expect(jobs.sweep.cron).toBe('*/5 * * * *');
-    expect([q.enqueueDiff.mock.calls, q.enqueueTag.mock.calls, q.enqueueScore.mock.calls]).toEqual([[[U(1)]], [[U(2)]], [[U(3)]]]);
+    expect([q.enqueueDiff.mock.calls, q.enqueueTag.mock.calls, q.enqueueScore.mock.calls, q.enqueueRankDiff.mock.calls]).toEqual([[[U(1)]], [[U(2)]], [[U(3)]], [[U(4)]]]);
   });
 
   it('skips the sweep without an OpenRouter key', async () => {
@@ -50,5 +55,19 @@ describe('engine jobs', () => {
     for (const job of [jobs.diff, jobs.tag, jobs.score]) {
       expect(job.queue?.retryLimit).toBe(0);
     }
+  });
+
+  it('chains rank diff → tag', async () => {
+    const deps = { diffRankScan: vi.fn(async () => ({ ran: true, changeIds: [U(5)] })) } as unknown as WorkerDeps;
+    const q = queue();
+    const jobs = createEngineJobs(deps, q);
+    await jobs.rankDiff.handler({ scanId: U(4) });
+    expect(deps.diffRankScan).toHaveBeenCalledWith(U(4));
+    expect(q.enqueueTag.mock.calls).toEqual([[U(5)]]);
+  });
+
+  it('uses the short policy so one subject is queued at most once', () => {
+    const jobs = createEngineJobs({} as WorkerDeps, queue());
+    for (const job of [jobs.diff, jobs.tag, jobs.score, jobs.rankDiff]) expect(job.queue).toMatchObject({ retryLimit: 0, policy: 'short' });
   });
 });

@@ -10,6 +10,7 @@ import { createBoss, enqueue, registerJobs } from './boss';
 import { createWorkerDeps } from './deps';
 import { createEngineJobs } from './jobs/engine';
 import { heartbeatJob } from './jobs/heartbeat';
+import { createMovesJobs } from './jobs/moves';
 import { createVendorJobs } from './jobs/vendor';
 import { createWebJobs } from './jobs/web';
 
@@ -25,13 +26,16 @@ await boss.start();
 const deps = createWorkerDeps(process.env);
 const engine = createEngineJobs(deps, {
   enqueueDiff: async (captureId) => {
-    await enqueue(boss, engine.diff, { captureId });
+    await enqueue(boss, engine.diff, { captureId }, { singletonKey: captureId });
+  },
+  enqueueRankDiff: async (scanId) => {
+    await enqueue(boss, engine.rankDiff, { scanId }, { singletonKey: scanId });
   },
   enqueueTag: async (changeId) => {
-    await enqueue(boss, engine.tag, { changeId });
+    await enqueue(boss, engine.tag, { changeId }, { singletonKey: changeId });
   },
   enqueueScore: async (eventId) => {
-    await enqueue(boss, engine.score, { eventId });
+    await enqueue(boss, engine.score, { eventId }, { singletonKey: eventId });
   },
 });
 const web = createWebJobs(deps, {
@@ -39,7 +43,7 @@ const web = createWebJobs(deps, {
     await enqueue(boss, web.capture, { trackedPageId });
   },
   enqueueDiff: async (captureId) => {
-    if (deps.engineConfigured()) await enqueue(boss, engine.diff, { captureId });
+    if (deps.engineConfigured()) await enqueue(boss, engine.diff, { captureId }, { singletonKey: captureId });
   },
 });
 const vendor = createVendorJobs(deps, {
@@ -50,9 +54,14 @@ const vendor = createVendorJobs(deps, {
     await enqueue(boss, vendor.rankScan, { clientId });
   },
 });
+const moves = createMovesJobs(deps, {
+  enqueueMovesClient: async (clientId) => {
+    await enqueue(boss, moves.client, { clientId }, { singletonKey: clientId });
+  },
+});
 await registerJobs(boss, [
   heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, vendor.suggest,
-  engine.sweep, engine.diff, engine.tag, engine.score,
+  engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, moves.nightly, moves.client,
 ]);
 console.log('[worker] started');
 
