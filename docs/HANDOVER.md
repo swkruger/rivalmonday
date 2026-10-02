@@ -1,6 +1,6 @@
 # Rival Monday — Session Handover
 
-*Written 2026-09-30; last updated 2026-10-01 after Phase 3a was merged and pushed. Start any new session by reading this file, then the documents it links. Keep it updated at the end of each session.*
+*Written 2026-09-30; last updated 2026-10-02 after Phase 3b's implementation (16 tasks) and live verification completed on branch `phase-3b-structured`. Start any new session by reading this file, then the documents it links. Keep it updated at the end of each session.*
 
 ---
 
@@ -27,6 +27,7 @@ Business model: first sold to the owning agency's own clients, then **wholesale 
 | [docs/superpowers/plans/2026-09-30-phase-2a-evidence-and-web.md](superpowers/plans/2026-09-30-phase-2a-evidence-and-web.md) | Done (merged) |
 | [docs/superpowers/plans/2026-09-30-phase-2b-vendor-sources.md](superpowers/plans/2026-09-30-phase-2b-vendor-sources.md) | Done (merged) |
 | [docs/superpowers/plans/2026-10-01-phase-3a-web-changes-to-scored-events.md](superpowers/plans/2026-10-01-phase-3a-web-changes-to-scored-events.md) | Done (merged). Its "Phase 3 overview" table defines the scope of **3b** and **3c** |
+| [docs/superpowers/plans/2026-10-01-phase-3b-structured-sources-merge-moves.md](superpowers/plans/2026-10-01-phase-3b-structured-sources-merge-moves.md) | Implementation done (16 tasks), live-verified 2026-10-02; branch `phase-3b-structured` awaiting its final whole-branch review and merge |
 
 ---
 
@@ -58,9 +59,9 @@ Business model: first sold to the owning agency's own clients, then **wholesale 
 
 ---
 
-## 3. Current state (2026-10-01)
+## 3. Current state (2026-10-02)
 
-**Git:** `main` holds Phases 0–2 and **3a**, pushed to `https://github.com/swkruger/rivalmonday` (private). Working tree clean, no open feature branches (`phase-3a-engine` was merged and deleted). Work happens on feature branches, merged locally, then pushed.
+**Git:** `main` holds Phases 0–2 and **3a**, pushed to `https://github.com/swkruger/rivalmonday` (private). Phase 3b's implementation and live verification are complete on branch `phase-3b-structured` (16 commits on top of `main`'s `4608168`); it has **not** been merged yet — the final whole-branch review is next. Work happens on feature branches, merged locally, then pushed.
 
 **Phase 0 — Branding: DONE.** Validation items (GHL/Vendasta marketplace check, agency LOIs, counsel review) still open.
 
@@ -74,7 +75,9 @@ Business model: first sold to the owning agency's own clients, then **wholesale 
 
 Decisions taken during 3a (all recorded in the plan/roadmap; don't re-litigate without reason): only price/percent changes force "meaningful" (dates/durations are detected but dismissable); low-confidence dismissals also go to `decision_review`; novelty discounts only repeats of the *same numeric change* (`factsSignature`), so successive price cuts are never archived as duplicates; engine queues use `retryLimit: 0` — the sweep is the only retry path.
 
-Tests: `pnpm typecheck && pnpm test` green (8 packages, 482 tests: collectors 197, engine 109, ai 58, db 47, worker 27, core 19, storage 15, verticals 10). Neon occasionally times out (`ETIMEDOUT`) — re-run once. The engine live test calls real OpenRouter/Jev (≈ $0.001 per run) whenever `OPENROUTER_API_KEY` is set.
+**Phase 3b — Structured sources, merge & moves: implementation + live verification DONE 2026-10-02 (branch `phase-3b-structured`, not yet merged).** Extends `@cs/engine` with: structured-source differs for ads (Google + Meta), GBP fields, Google reviews (velocity/rating), Google jobs and local rank scans, each grouped per capture and diffed only after a 10-minute settle delay; structured tagging (fixed type, service mapping, ad offer extraction); cross-channel merge (identical numeric facts merge without a model call; otherwise a Noul "same offer?" call at 0.8 confidence, within ±14 days, same tenant scope); the seven spec move rules (territory expansion, price war, new service line, hiring push, promo blitz, reputation slump, ad surge) as pure functions feeding a nightly `emerging → active → fading → closed` lifecycle with an evidence chain; size curves for the new structured types and an `alert_max_age_days` cap so old backlog events can no longer route to `alert`. Migrations `0017`–`0021`: `0017_vendor_history`/`0018_vendor_history_rls` (`ad.ended_capture_id`, `review_revision`, `rank_scan`/`rank_snapshot.scan_id`), `0019_engine_structured`/`0020_engine_structured_rls` (`detected_change`/`event` gain tenant columns + `channels`/`details`, new `move`/`move_event` tables), `0021_drop_meta_page_id` (drops the now-unused singular column after code moved to `meta_page_ids`). New worker jobs `engine-rank-diff` (diffs one rank scan), `moves-nightly` (cron `30 4 * * *`, enqueues one `moves-client` job per client that tracks at least one competitor) and `moves-client` (`policy: 'short'` + per-client `singletonKey`, runs the move rules over that client's last 90 days of scored events); `engine-once` gained a `--moves` flag, argument validation, and a non-zero exit code when `errors > 0`. Also closed from the 2b/3a carry-over: Google advertiser-id pinning (`competitor.google_advertiser_ids`, ≤ 25, `ads_search` at `depth: 120`) with "started/stopped" judged by our own `last_seen_at`; several Meta pages per competitor (`meta_page_ids`); edited reviews kept as `review_revision` history; same price in two blocks now merges to one event; routing now caps alert age; sweep re-enqueues dedupe via `singletonKey`. Live-verified 2026-10-02 against Aire Serv — see the vendor-APIs doc's "Verified 2026-10-02 — Phase 3b" section and §6 below for the gotchas. Deferred items (3c or later) are listed in the roadmap's new "Phase 3b carry-over" section; a final whole-branch review is next, then the 3c plan.
+
+Tests: `pnpm typecheck && pnpm test` green (8 packages, 578 tests: collectors 212, engine 169, ai 58, db 54, worker 35, core 20, storage 15 + 3 skipped, verticals 12). Neon occasionally times out (`ETIMEDOUT`) — re-run once. The engine live test calls real OpenRouter/Jev (≈ $0.001 per run) whenever `OPENROUTER_API_KEY` is set.
 
 ---
 
@@ -92,11 +95,12 @@ Tests: `pnpm typecheck && pnpm test` green (8 packages, 482 tests: collectors 19
 
 ## 5. How to continue (next session checklist)
 
-1. Read this file and the roadmap carry-over sections. Check `git log --oneline -5` (latest commit on `main` is this handover update) and `git status` (clean).
-2. On or after **2026-10-08**: re-pull the Aire Serv reviews (`pnpm --filter @cs/worker collect-once --domain <aire serv domain> --place-id ChIJ6VlKPHqPT4YR479jLd01gZY --vendors`, then `--poll`) and compare `review_id`s for stability (roadmap carry-over).
-3. Write the **Phase 3b plan** (structured sources, merge & moves) with `superpowers:writing-plans` against the merged code. Scope (from the 3a plan's "Phase 3 overview"): structured-source diffs feeding the same `detected_change` → `event` pipeline (ads started/stopped, review spike / rating change, hiring, GBP field changes, rank deltas) with size curves for those types; cross-channel merge (Noul "same offer?" within 14 days → one event with several `event_change` rows); nightly moves (7 rule templates, status/confidence/evidence chain, `move`/`move_event` tables). Fold in the 3b-tagged carry-over: Google-ad activity from our own `last_seen_at` + advertiser-id pinning; several Meta pages per franchise competitor; edited reviews (text history); same price in two blocks → two events (merge fixes it). Then pick the relevant items from the roadmap's "Phase 3a carry-over" section (routing ignores event age — must be settled before Phase 4 alerts; sweep enqueue dedupe; volatile learning on positional keys; churn-guard gaps).
-4. Execute it with `superpowers:subagent-driven-development` (the user's chosen method: ledger in `.superpowers/sdd/<plan>/progress.md`, final whole-branch review on the most capable model, then `superpowers:finishing-a-development-branch` — the user chooses merge locally + push).
-5. Never point the web crawler (`collect-once` without `--vendors`, or with `--web`) at real competitors until `https://rivalmonday.com/bot` exists. `--vendors` alone only calls vendor APIs.
+1. Read this file and the roadmap carry-over sections. Check `git log --oneline -5` and `git status`; `main` is still at Phase 3a — the 16 Phase 3b commits are on `phase-3b-structured` (not yet merged).
+2. **Finish and merge Phase 3b:** a final whole-branch review of `phase-3b-structured` is in progress (the Task 16 live-verification pass and this handover update are done; §3 above and the roadmap's "Phase 3b carry-over" section list what it found so far). Run it to completion, address or knowingly defer its findings, then `superpowers:finishing-a-development-branch` to merge locally and push — the user's chosen method.
+3. **Then write the Phase 3c plan** (reviews, prices & model ops) with `superpowers:writing-plans` against the merged code: review themes & benchmark (spec §6.5), price normalisation (§6.6), the NER/PII pass beyond contact details, Jev shadow evaluation, Anthropic-direct batch provider. Fold in the roadmap's "Phase 3b carry-over" deferred items (volatile learning on alignment, churn-guard gaps, camelCase consent tokens, `extractZips` accuracy, score-sweep backoff, stage-version retraction) and anything the whole-branch review adds.
+4. On or after **2026-10-08**: re-pull the Aire Serv reviews and ads (`pnpm --filter @cs/worker collect-once --domain aireserv.com --place-id ChIJ6VlKPHqPT4YR479jLd01gZY --meta-page-id 1825453601028298 --google-advertiser-id <id1> --google-advertiser-id <id2> --google-advertiser-id <id3> --vendors`, then `--poll`; budget ~45 minutes but the 2026-10-02 run was ready in ~12) and compare `review_id`s for stability (roadmap carry-over); this also gives the structured engine a second real capture to diff against the 2026-10-02 baseline.
+5. Execute the 3c plan with `superpowers:subagent-driven-development` (ledger in `.superpowers/sdd/<plan>/progress.md`, final whole-branch review on the most capable model, then `superpowers:finishing-a-development-branch`).
+6. Never point the web crawler (`collect-once` without `--vendors`, or with `--web`) at real competitors until `https://rivalmonday.com/bot` exists. `--vendors` alone only calls vendor APIs.
 
 ---
 
@@ -123,6 +127,10 @@ Tests: `pnpm typecheck && pnpm test` green (8 packages, 482 tests: collectors 19
 - **Captures and evidence are immutable at the DB level** (triggers block UPDATE/DELETE for every role; only `capture.legal_hold` may change). Competitors/tracked pages with captures can't be deleted (FK RESTRICT). Retention deletion is a Phase 7 feature.
 - **Naming (Phase 3a):** `EMBEDDING_DIMENSIONS` (`@cs/db`, = 512) is the single source of truth for embedding width — matches `vector(512)` columns and `dimensions: 512` in `ai.yaml`'s `embeddings` task. The engine's output row is `changeEvent` (table) / `ScoreFactors` (stored on `event_score`) — not "eventChange".
 - **Money changes are never masked:** per spec §6.1, any detected price/percent change always forces a web diff to be flagged and a tag result to be `meaningful`, regardless of volatile-block masking, model confidence, or what the LLM/Jev decision actually answered — see `gateChange` in `packages/engine/src/web/diff-stage.ts` and the `forced`/`money` logic in `resolveTag` (`packages/engine/src/tag/questions.ts`). Date- or duration-only changes are still detected but can be dismissed as cosmetic by the model; a low-confidence dismissal also writes a `decision_review` row.
+- **Vendor captures diff only after a 10-minute settle delay (Phase 3b):** collectors write ad/review/job/GBP rows *after* the `capture` row, so a structured diff run too soon would see nothing — the stage refuses to claim a capture younger than that, and the sweep simply skips it until next time. A capture posted this minute will not have a structured diff for at least 10 minutes.
+- **Rank changes/events are tenant-private (Phase 3b):** `rank_change` is the one `ChangeType` that is never global — rank scans come from one client's tracked keywords, so `detected_change`/`event` rows for it always carry `agency_id` **and** `client_id` (CHECK-constraint enforced), are scored only for that client, are hidden from every other tenant by RLS, and are never cross-channel merged with another event.
+- **Engine queues use the `short` pg-boss policy with a per-subject `singletonKey` (Phase 3b):** at most one *queued* job per subject (capture/change/event/client) — a subject still queued from the previous sweep is not enqueued again. This closed the Phase 3a "sweep re-enqueues have no dedupe" carry-over.
+- **`competitor.meta_page_id` is gone (Phase 3b, migration `0021`):** use `competitor.meta_page_ids` (plural, up to several Meta pages per franchise competitor) — the old singular column and any code reading it will not compile/run.
 
 ---
 
@@ -135,4 +143,4 @@ Tests: `pnpm typecheck && pnpm test` green (8 packages, 482 tests: collectors 19
 
 ## 8. Carry-over backlog
 
-All deferred review findings are listed, per phase, at the bottom of the [roadmap](superpowers/plans/2026-09-29-roadmap.md) ("Phase 1 carry-over", "Phase 2 carry-over", "Phase 2a carry-over", the Phase 2b lines, and "Phase 3a carry-over"). Fold each into the matching phase plan when it is written.
+All deferred review findings are listed, per phase, at the bottom of the [roadmap](superpowers/plans/2026-09-29-roadmap.md) ("Phase 1 carry-over", "Phase 2 carry-over", "Phase 2a carry-over", the Phase 2b lines, "Phase 3a carry-over" and "Phase 3b carry-over"). Fold each into the matching phase plan when it is written.
