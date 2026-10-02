@@ -53,6 +53,15 @@ export function extractZips(text: string): string[] {
   return [...new Set([...text.matchAll(/(?<![\d$,.-])\b\d{5}\b(?![\d,.-])/g)].map((m) => m[0]))];
 }
 
+/**
+ * A web change is an offer (feeds promo blitz / price war) when it is a promo, cuts a price or percent, or
+ * newly states one. A price rise is still a meaningful price change, but it is not a promotion.
+ */
+export function isWebOffer(type: string, facts: NumericChange[]): boolean {
+  if (type === 'promo') return true;
+  return facts.some((n) => MONEY_KINDS.has(n.kind) && ((n.pct !== null && n.pct < 0) || (n.before === null && n.after !== null)));
+}
+
 const trunc = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /** One-line event summary. Built from redacted text: summaries are later sent to models (Phase 4), evidence stays verbatim. */
@@ -135,7 +144,7 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
         changeId,
         {
           competitorId: row.change.competitorId, changeType: resolution.type, channels: ['web'], services: resolution.services, summary,
-          facts: row.change.numericChanges, details: { offer: resolution.type === 'promo' || row.change.numericChanges.some((n) => MONEY_KINDS.has(n.kind)) },
+          facts: row.change.numericChanges, details: { offer: isWebOffer(resolution.type, row.change.numericChanges) },
           zips: extractZips(row.change.afterText ?? row.change.beforeText ?? ''), embedding, confidence: resolution.confidence,
           needsReview: resolution.needsReview.length > 0, occurredAt: row.capturedAt,
         },

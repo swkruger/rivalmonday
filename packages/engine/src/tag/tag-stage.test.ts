@@ -49,6 +49,19 @@ describe('tagChange', () => {
     expect(await statusOf(id)).toBe('event');
   });
 
+  it('flags a web change as an offer only for a promo, a price cut or a newly added price — never a price rise', async () => {
+    const tag = async (before: string | null, after: string, kind = 'modified') => {
+      const id = await change(before, after, kind);
+      await tagChange({ db: dbs.service, ai: createFakeAi({ decide: tagResult({ meaningful: true, type: 'price_change', services: { hvac_plumbing: 'ac_tune_up' } }) }), packs }, id);
+      const [ev] = await dbs.owner.select({ e: changeEvent }).from(changeEvent).innerJoin(eventChange, eq(eventChange.eventId, changeEvent.id)).where(eq(eventChange.changeId, id));
+      return ev?.e;
+    };
+    const rise = await tag('AC Tune-Up $69', 'AC Tune-Up $89');
+    expect(rise).toMatchObject({ changeType: 'price_change', details: { offer: false } }); // still a meaningful price change
+    await dbs.owner.delete(changeEvent);
+    expect((await tag(null, 'AC Tune-Up now just $59', 'added')).details).toMatchObject({ offer: true });
+  });
+
   it('builds the event summary from redacted text (no contact details)', async () => {
     const id = await change(null, 'Now offering emergency AC repair, call 972-555-0100 any time', 'added');
     await tagChange({ db: dbs.service, ai: createFakeAi({ decide: tagResult({ meaningful: true, type: 'new_service' }) }), packs }, id);
