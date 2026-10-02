@@ -4,6 +4,14 @@ import { defineJob } from '../jobs';
 
 export const ENGINE_SWEEP_LIMIT = 100;
 
+/**
+ * Engine stage jobs must never retry themselves: runStage marks a run 'failed' and rethrows, so a
+ * pg-boss retry re-claims and re-fails the same stage_run attempts budget back to back. The
+ * engine-sweep cron is the only retry path (packages/engine/src/sweep.ts backs off exponentially
+ * per stage_run.attempts), which spaces retries out instead of burning MAX_STAGE_ATTEMPTS in minutes.
+ */
+export const ENGINE_STAGE_QUEUE = { retryLimit: 0 } as const;
+
 export function createEngineJobs(
   deps: WorkerDeps,
   queue: { enqueueDiff(captureId: string): Promise<void>; enqueueTag(changeId: string): Promise<void>; enqueueScore(eventId: string): Promise<void> },
@@ -28,7 +36,7 @@ export function createEngineJobs(
     },
   });
   const diff = defineJob({
-    name: 'engine-diff', schema: z.object({ captureId: z.uuid() }),
+    name: 'engine-diff', schema: z.object({ captureId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
     handler: async ({ captureId }) => {
       const r = await deps.diffCapture(captureId);
       for (const id of r.changeIds) await queue.enqueueTag(id);
@@ -36,14 +44,14 @@ export function createEngineJobs(
     },
   });
   const tag = defineJob({
-    name: 'engine-tag', schema: z.object({ changeId: z.uuid() }),
+    name: 'engine-tag', schema: z.object({ changeId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
     handler: async ({ changeId }) => {
       const r = await deps.tagChange(changeId);
       if (r.eventId) await queue.enqueueScore(r.eventId);
     },
   });
   const score = defineJob({
-    name: 'engine-score', schema: z.object({ eventId: z.uuid() }),
+    name: 'engine-score', schema: z.object({ eventId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
     handler: async ({ eventId }) => {
       console.log(`[engine-score] ${eventId} → ${JSON.stringify(await deps.scoreEvent(eventId))}`);
     },

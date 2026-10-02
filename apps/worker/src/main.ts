@@ -39,7 +39,7 @@ const web = createWebJobs(deps, {
     await enqueue(boss, web.capture, { trackedPageId });
   },
   enqueueDiff: async (captureId) => {
-    await enqueue(boss, engine.diff, { captureId });
+    if (deps.engineConfigured()) await enqueue(boss, engine.diff, { captureId });
   },
 });
 const vendor = createVendorJobs(deps, {

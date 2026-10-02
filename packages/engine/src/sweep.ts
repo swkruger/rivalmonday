@@ -13,13 +13,24 @@ export interface EngineWork {
 /** Events created this recently are (re)checked for missing client scores, e.g. a newly linked client. */
 export const SCORE_WINDOW_DAYS = 14;
 
+/**
+ * Base of the sweep's exponential retry backoff for a failed stage_run: offered again only after
+ * `RETRY_BACKOFF_MINUTES * 2^(attempts-1)` minutes since finished_at. Engine stage jobs run with
+ * retryLimit 0 (apps/worker/src/jobs/engine.ts) — the sweep is the only retry path — so without
+ * this backoff a short model outage would exhaust MAX_STAGE_ATTEMPTS for every subject in the
+ * outage window within minutes, permanently excluding them.
+ */
+export const RETRY_BACKOFF_MINUTES = 5;
+
 const ids = (rows: unknown) => (rows as { id: string }[]).map((r) => r.id);
 
 export async function findEngineWork(db: Db, opts: { limit: number; competitorId?: string; scoreWindowDays?: number }): Promise<EngineWork> {
   const only = (col: string) => (opts.competitorId ? sql`AND ${sql.raw(col)} = ${opts.competitorId}::uuid` : sql``);
   const finished = (stage: string, version: number, subject: string) => sql`
     EXISTS (SELECT 1 FROM stage_run s WHERE s.stage = ${stage} AND s.stage_version = ${version}::int AND s.subject_id = ${sql.raw(subject)}
-            AND (s.status = 'done' OR s.attempts >= ${MAX_STAGE_ATTEMPTS}::int))`;
+            AND (s.status = 'done' OR s.attempts >= ${MAX_STAGE_ATTEMPTS}::int
+                 OR (s.status = 'failed' AND s.finished_at IS NOT NULL
+                     AND s.finished_at > now() - make_interval(mins => ${RETRY_BACKOFF_MINUTES}::int * power(2, s.attempts - 1)::int))))`;
 
   const diff = await db.execute(sql`
     SELECT c.id FROM capture c

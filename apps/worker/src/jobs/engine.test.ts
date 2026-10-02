@@ -44,4 +44,11 @@ describe('engine jobs', () => {
     expect(() => jobs.diff.schema.parse({ captureId: 'nope' })).toThrow();
     expect(() => jobs.tag.schema.parse({ changeId: U(1) })).not.toThrow();
   });
+
+  it('registers diff, tag and score as no-retry queues (the sweep is the only retry path)', () => {
+    const jobs = createEngineJobs({} as WorkerDeps, queue());
+    for (const job of [jobs.diff, jobs.tag, jobs.score]) {
+      expect(job.queue?.retryLimit).toBe(0);
+    }
+  });
 });
