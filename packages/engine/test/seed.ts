@@ -30,6 +30,13 @@ export async function seedWebCapture(
   return id;
 }
 
+/** Inserts an ok vendor capture row (no evidence object — structured differs read the rows collectors wrote). */
+export async function seedVendorCapture(db: Db, input: { competitorId: string; source: string; capturedAt: Date; url?: string | null }): Promise<string> {
+  const id = randomUUID();
+  await db.insert(capture).values({ id, competitorId: input.competitorId, source: input.source, url: input.url ?? null, status: 'ok', collectorVersion: 'test/1', capturedAt: input.capturedAt });
+  return id;
+}
+
 /** 06:00 UTC on 2026-10-01 plus n days. */
 export const day = (n: number) => new Date(Date.UTC(2026, 9, 1 + n, 6));
 

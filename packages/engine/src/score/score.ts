@@ -1,5 +1,5 @@
 import type { ChangeType } from '@cs/core';
-import type { NumericChange, ScoreFactors, ScoreThresholds } from '@cs/db';
+import type { ChangeDetails, NumericChange, ScoreFactors, ScoreThresholds } from '@cs/db';
 import type { VerticalPack } from '@cs/verticals';
 
 export type Route = 'alert' | 'brief' | 'archive';
@@ -11,6 +11,9 @@ export interface ScoreInput {
   zips: string[];
   needsReview: boolean;
   maxSimilarity: number | null;
+  details: ChangeDetails;
+  /** Days between the event and the scoring run. */
+  ageDays: number;
 }
 
 export interface ClientProfile {
@@ -29,11 +32,28 @@ const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x
 
 export function sizeFactor(input: ScoreInput, pack: VerticalPack): number {
   const s = pack.scoring.size;
-  if (input.changeType === 'price_change') {
-    const pcts = input.facts.filter((f) => f.kind === 'price' && f.pct !== null).map((f) => Math.abs(f.pct!));
-    if (pcts.length > 0) return clamp(Math.max(...pcts) / s.price_pct_for_full, s.price_min, 1);
+  const d = input.details;
+  const curve = (x: number | undefined | null, full: number) =>
+    x === undefined || x === null || Number.isNaN(x) ? s.default : clamp(Math.abs(x) / full, s.structured_min, 1);
+  switch (input.changeType) {
+    case 'price_change': {
+      const pcts = input.facts.filter((f) => f.kind === 'price' && f.pct !== null).map((f) => Math.abs(f.pct!));
+      return pcts.length > 0 ? clamp(Math.max(...pcts) / s.price_pct_for_full, s.price_min, 1) : s.default;
+    }
+    case 'ad_started':
+    case 'ad_stopped':
+      return curve(d.count, s.ads_for_full);
+    case 'hiring':
+      return curve(d.count, s.jobs_for_full);
+    case 'review_spike':
+      return curve(d.z, s.review_z_for_full);
+    case 'rating_change':
+      return curve(d.ratingBefore !== undefined && d.ratingAfter !== undefined ? d.ratingAfter - d.ratingBefore : undefined, s.rating_delta_for_full);
+    case 'rank_change':
+      return curve(d.avgRankBefore !== undefined && d.avgRankAfter !== undefined ? d.avgRankBefore - d.avgRankAfter : undefined, s.rank_delta_for_full);
+    default:
+      return s.default;
   }
-  return s.default;
 }
 
 export function serviceOverlap(serviceId: string | null, clientServices: string[], pack: VerticalPack): number {
@@ -67,12 +87,14 @@ export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: 
   let route: Route = score >= thresholds.alert ? 'alert' : score >= thresholds.brief ? 'brief' : 'archive';
   const needsReviewCap = input.needsReview && route === 'alert';
   if (needsReviewCap) route = 'brief';
+  const staleCap = route === 'alert' && input.ageDays > pack.scoring.alert_max_age_days;
+  if (staleCap) route = 'brief';
   return {
     score,
     route,
     factors: {
       typeWeight, size, serviceOverlap: svc, territoryOverlap: territory, relevance, novelty, maxSimilarity: input.maxSimilarity,
-      needsReviewCap, thresholds: { alert: thresholds.alert, brief: thresholds.brief }, scoringVersion: pack.scoring.version,
+      needsReviewCap, staleCap, thresholds: { alert: thresholds.alert, brief: thresholds.brief }, scoringVersion: pack.scoring.version,
     },
   };
 }

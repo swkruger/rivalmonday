@@ -1,10 +1,11 @@
 import type { Ai } from '@cs/ai';
 import type { Db } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
+import { diffCapture } from './diff';
 import { scoreEvent } from './score/score-stage';
+import { diffRankScan } from './structured/rank';
 import { findEngineWork } from './sweep';
 import { type PackLoader, tagChange } from './tag/tag-stage';
-import { diffWebCapture } from './web/diff-stage';
 
 export interface DrainResult {
   diffs: number;
@@ -12,6 +13,7 @@ export interface DrainResult {
   tagged: number;
   events: number;
   scored: number;
+  rankDiffs: number;
   errors: number;
 }
 
@@ -20,7 +22,7 @@ export async function drainEngine(
   deps: { db: Db; store: ObjectStore; ai: Ai; packs: PackLoader },
   opts: { competitorId?: string; limit?: number; maxRounds?: number } = {},
 ): Promise<DrainResult> {
-  const r: DrainResult = { diffs: 0, changes: 0, tagged: 0, events: 0, scored: 0, errors: 0 };
+  const r: DrainResult = { diffs: 0, changes: 0, tagged: 0, events: 0, scored: 0, rankDiffs: 0, errors: 0 };
   const attempt = async (what: string, fn: () => Promise<void>) => {
     try {
       await fn();
@@ -31,13 +33,13 @@ export async function drainEngine(
   };
   for (let round = 0; round < (opts.maxRounds ?? 10); round++) {
     const work = await findEngineWork(deps.db, { limit: opts.limit ?? 100, competitorId: opts.competitorId });
-    if (work.diff.length + work.tag.length + work.score.length === 0) break;
+    if (work.diff.length + work.tag.length + work.score.length + work.rankDiff.length === 0) break;
     for (const id of work.diff) {
       await attempt(`diff ${id}`, async () => {
-        const o = await diffWebCapture(deps, id);
+        const o = await diffCapture(deps, id);
         if (o.ran) {
           r.diffs++;
-          r.changes += o.result.changeIds.length;
+          r.changes += o.changeIds.length;
         }
       });
     }
@@ -55,6 +57,15 @@ export async function drainEngine(
         const o = await scoreEvent(deps, id);
         r.scored += o.scored;
         r.errors += o.failed;
+      });
+    }
+    for (const id of work.rankDiff) {
+      await attempt(`rank diff ${id}`, async () => {
+        const o = await diffRankScan(deps, id);
+        if (o.ran) {
+          r.rankDiffs++;
+          r.changes += o.result.changeIds.length;
+        }
       });
     }
   }

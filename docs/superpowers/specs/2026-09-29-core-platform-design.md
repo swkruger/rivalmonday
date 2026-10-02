@@ -119,7 +119,7 @@ Crawler conduct: User-Agent `<Brand>Bot/1.0 (+https://<brand>/bot; contact@<bran
 - Every capture → `evidence` record: `id`, `source`, `url`, `captured_at`, `sha256`, `collector_version`, `status`, R2 object keys (html.gz, text, screenshot.webp, vendor JSON).
 - **Immutable, append-only**; `legal_hold` flag blocks deletion.
 - Collectors normalise into **typed observations** (price, service offered, ad creative, review, rank position, job posting, GBP field), each referencing an `evidence_id`.
-- Capture status enum: `ok | unchanged | blocked | robots_disallowed | vendor_error | timeout`; surfaced in the dashboard ("site blocks monitoring").
+- Capture status enum: `ok | unchanged | blocked | robots_disallowed | vendor_error | error | timeout`; surfaced in the dashboard ("site blocks monitoring"). (`error` added in Phase 3b, closing the Phase 2a carry-over.)
 
 ### 4.5 Privacy
 - Reviewer names → salted hash at ingest (dedupe only); identities never shown to clients or sent to models.
@@ -161,11 +161,11 @@ Stages communicate through the database; each stage is idempotent, keyed by `(ca
 ### 6.1 Change detection
 - **Web:** main-content extraction (strip nav/footer/scripts/cookie banners); **volatile-region learning** (a block changing in ≥ 3 of the last 5 captures without semantic significance is masked); block chunking and alignment (DOM path + text similarity); semantic change = embedding cosine below threshold.
 - **Numeric rule layer:** prices, percentages, dates, durations extracted as structured facts `(service?, value, unit, conditions)` via rules with LLM fallback; **any numeric change is always flagged**.
-- **Structured sources:** set differences — new/stopped ad, new review, rank delta, new/removed job, GBP field change.
+- **Structured sources:** set differences — new/stopped ad, new review, rank delta, new/removed job, GBP field change. Changes are **grouped per capture** (one `ads_started` change with a `count` rather than one per creative); each vendor capture is diffed only after a **10-minute settle delay** (collectors write ad/review/job/GBP rows after the capture row, so an earlier diff would see nothing — Phase 3b decision 6).
 
 ### 6.2 Tagging (via `DecisionProvider`)
 - **Meaningful vs cosmetic** gate (Noul).
-- **Type** (Choice) from: `price_change, promo, new_service, service_removed, service_area_change, new_location, hiring, ad_started, ad_stopped, review_spike, rating_change, content, cosmetic`.
+- **Type** (Choice) from: `price_change, promo, new_service, service_removed, service_area_change, new_location, hiring, ad_started, ad_stopped, review_spike, rating_change, rank_change, content, cosmetic`. `rank_change` (added Phase 3b) is **tenant-private**: a client's tracked keywords reveal its strategy, so rank changes and the events built from them carry `agency_id`/`client_id`, are visible to and scored for that one client only, and are never cross-channel merged.
 - **Service mapping** (Choice) to the client vertical's service catalog.
 - **Cross-channel merge** (Noul "same offer?"): same competitor + same service + same offer within 14 days → one event with multiple evidence items.
 
@@ -190,7 +190,7 @@ Weights and curves live in versioned vertical-pack YAML; every score stores its 
 | Reputation slump | rating drop ≥ threshold or complaint-theme spike |
 | Ad surge | active ads ≥ 2× the competitor's 90-day baseline |
 
-Each move has `status (emerging|active|fading)`, `confidence` (count and channel diversity of supporting events) and an evidence chain.
+Each move has a `status` lifecycle, `confidence` (count and channel diversity of supporting events) and an evidence chain (≥ 1 supporting event required — no evidence, no claim). Status (Phase 3b decision): `emerging` → `active` (held ≥ 7 days, or confidence ≥ 0.7) → `fading` (the rule no longer holds, or the newest evidence is over 30 days old) → closed (`closed_at`, the rule has not held for 30 days). Confidence = `0.4 + 0.15 × extra supporting events + 0.15 × extra channels`, capped at 1. Territory matching uses the client's ZIPs plus an optional `serviceArea.towns` list. The reputation-slump "complaint-theme spike" half of the rule waits for Phase 3c's review themes; rating-drop alone is live.
 
 ### 6.5 Review themes & benchmark
 - Seed themes per vertical (HVAC: response time, price transparency, technician professionalism, upsell pressure, scheduling, fix quality; dental equivalents in pack).

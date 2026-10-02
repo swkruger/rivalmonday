@@ -1,8 +1,10 @@
 import { capture, changeEvent, detectedChange, eventScore, stageRun, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { scoreEvent } from './score/score-stage';
 import { MAX_STAGE_ATTEMPTS } from './stage';
 import { findEngineWork } from './sweep';
+import { createPackLoader } from './tag/tag-stage';
 
 const minutesAgo = (n: number) => new Date(Date.now() - n * 60_000);
 
@@ -68,6 +70,33 @@ describe('findEngineWork', () => {
     const factors = { typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 1 };
     await dbs.service.insert(eventScore).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, eventId: id(21), score: 1, route: 'archive', factors, packVersion: 1 });
     const w = await findEngineWork(dbs.service, { limit: 10 });
-    expect(w).toEqual({ diff: [], tag: [id(11)], score: [id(21)] }); // B1 still lacks a score for 21; 22 is outside the window
+    expect(w).toEqual({ diff: [], tag: [id(11)], score: [id(21)], rankDiff: [] }); // B1 still lacks a score for 21; 22 is outside the window
+  });
+
+  it('offers settled vendor captures of sources that have a differ, and nothing else', async () => {
+    const mk = async (source: string, minutesAgo: number) => {
+      const [row] = await dbs.service
+        .insert(capture)
+        .values({ competitorId: IDS.competitorX, source, status: 'ok', collectorVersion: 'test/1', capturedAt: new Date(Date.now() - minutesAgo * 60_000) })
+        .returning({ id: capture.id });
+      return row!.id;
+    };
+    const settled = await mk('meta_ads', 15);
+    const fresh = await mk('meta_ads', 2);
+    const unknown = await mk('instagram', 15);
+    const w = await findEngineWork(dbs.service, { limit: 50 });
+    expect(w.diff).toContain(settled);
+    expect(w.diff).not.toContain(fresh);
+    expect(w.diff).not.toContain(unknown);
+  });
+
+  it('offers a tenant event for scoring only while its own client lacks a score', async () => {
+    const [ev] = await dbs.service
+      .insert(changeEvent)
+      .values({ competitorId: IDS.competitorX, agencyId: IDS.agencyA, clientId: IDS.clientA1, changeType: 'rank_change', summary: 'r', confidence: 1, occurredAt: new Date() })
+      .returning({ id: changeEvent.id });
+    expect((await findEngineWork(dbs.service, { limit: 50 })).score).toContain(ev!.id);
+    await scoreEvent({ db: dbs.service, packs: createPackLoader() }, ev!.id);
+    expect((await findEngineWork(dbs.service, { limit: 50 })).score).not.toContain(ev!.id); // B1 tracks X but is not owed this score
   });
 });

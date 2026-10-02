@@ -27,7 +27,7 @@ export async function registerJobs(
   }
 }
 
-export async function enqueue<T>(boss: PgBoss, job: JobDefinition<T>, data: T): Promise<string | null> {
+export async function enqueue<T>(boss: PgBoss, job: JobDefinition<T>, data: T, opts: { singletonKey?: string } = {}): Promise<string | null> {
   const payload = job.schema.parse(data);
-  return boss.send(job.name, payload as object);
+  return boss.send(job.name, payload as object, opts);
 }

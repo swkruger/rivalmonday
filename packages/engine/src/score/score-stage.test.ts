@@ -6,7 +6,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day } from '../../test/seed';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
 import { createPackLoader } from '../tag/tag-stage';
-import { factsSignature, scoreEvent } from './score-stage';
+import { detailsSignature, factsSignature, scoreEvent } from './score-stage';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -69,6 +69,19 @@ describe('scoreEvent', () => {
     expect(a1?.route).not.toBe('archive');
   });
 
+  it('does not archive a second, different rating drop, but still discounts an identical repeat', async () => {
+    const rating = (at: number, before: number, after: number) =>
+      event({ occurredAt: day(at), changeType: 'rating_change', channels: ['google_business_profile'], services: {}, facts: [], summary: 'Google rating changed', details: { changeType: 'rating_change', ratingBefore: before, ratingAfter: after } });
+    await rating(1, 4.6, 4.5);
+    const second = await rating(8, 4.5, 4.4);
+    await scoreEvent({ db: dbs.service, packs }, second);
+    const factorsOf = async (id: string) => (await dbs.owner.select().from(eventScore).where(eq(eventScore.eventId, id))).find((r) => r.clientId === IDS.clientA1)?.factors;
+    expect(await factorsOf(second)).toMatchObject({ maxSimilarity: null, novelty: 1 });
+    const repeat = await rating(9, 4.5, 4.4);
+    await scoreEvent({ db: dbs.service, packs }, repeat);
+    expect(await factorsOf(repeat)).toMatchObject({ maxSimilarity: 1, novelty: 0 });
+  });
+
   it('is idempotent, and scores a client that starts tracking the competitor later', async () => {
     const id = await event();
     await scoreEvent({ db: dbs.service, packs }, id);
@@ -88,6 +101,29 @@ describe('scoreEvent', () => {
   });
 });
 
+describe('tenant-private events and event age (Phase 3b)', () => {
+  it('scores a tenant event only for its own client, never for another agency tracking the competitor', async () => {
+    const id = await event({ changeType: 'rank_change', agencyId: IDS.agencyA, clientId: IDS.clientA1, facts: [], details: { avgRankBefore: 9, avgRankAfter: 3 } });
+    expect(await scoreEvent({ db: dbs.service, packs }, id)).toMatchObject({ scored: 1 });
+    expect((await dbs.owner.select().from(eventScore)).map((s) => s.clientId)).toEqual([IDS.clientA1]);
+  });
+
+  it('keeps novelty within the tenant scope: a global event ignores a tenant event with the same embedding', async () => {
+    await event({ changeType: 'promo', agencyId: IDS.agencyA, clientId: IDS.clientA1, facts: [], occurredAt: day(1) });
+    const id = await event({ changeType: 'promo', facts: [], occurredAt: day(5) });
+    await scoreEvent({ db: dbs.service, packs }, id);
+    const [b1] = await dbs.owner.select().from(eventScore).where(eq(eventScore.clientId, IDS.clientB1));
+    expect(b1?.factors.maxSimilarity).toBeNull();
+  });
+
+  it('caps a backlog event to brief when it is scored long after it happened', async () => {
+    const id = await event({ occurredAt: day(1) });
+    await scoreEvent({ db: dbs.service, packs }, id, { now: day(20) });
+    const [a1] = await dbs.owner.select().from(eventScore).where(eq(eventScore.clientId, IDS.clientA1));
+    expect(a1).toMatchObject({ route: 'brief', factors: { staleCap: true } });
+  });
+});
+
 describe('factsSignature', () => {
   const cut = (from: string, to: string) => diffFacts(extractNumericFacts(from), extractNumericFacts(to));
 
@@ -99,5 +135,16 @@ describe('factsSignature', () => {
 
   it('distinguishes different after-values', () => {
     expect(factsSignature(cut('$100', '$80'))).not.toBe(factsSignature(cut('$100', '$60')));
+  });
+});
+
+describe('detailsSignature', () => {
+  it('fingerprints the numbers behind structured events, and is null for everything else', () => {
+    expect(detailsSignature('rating_change', { ratingBefore: 4.6, ratingAfter: 4.5 })).toBe('rating|4.6|4.5');
+    expect(detailsSignature('rank_change', { keyword: 'ac repair', avgRankBefore: 3.2, avgRankAfter: 7 })).toBe('rank|ac repair|3.2|7');
+    expect(detailsSignature('review_spike', { count: 12, windowDays: 7, baselineMean: 2.5 })).toBe('reviews|12|7|2.5');
+    expect(detailsSignature('ad_started', { items: [{ id: 'B', label: 'b' }, { id: 'A', label: 'a' }] })).toBe('ad_started|A,B');
+    expect(detailsSignature('hiring', { items: [{ id: 'J1', label: 'Tech' }] })).toBe('hiring|J1');
+    expect(detailsSignature('price_change', {})).toBeNull();
   });
 });

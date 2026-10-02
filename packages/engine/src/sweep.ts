@@ -1,6 +1,8 @@
 import type { Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
 import { MAX_STAGE_ATTEMPTS } from './stage';
+import { RANK_DIFF_STAGE, RANK_DIFF_VERSION } from './structured/rank';
+import { VENDOR_DIFF_STAGE, VENDOR_DIFF_VERSION, VENDOR_SETTLE_MINUTES, vendorDiffSources } from './structured/vendor-diff';
 import { TAG_STAGE, TAG_VERSION } from './tag/tag-stage';
 import { WEB_DIFF_STAGE, WEB_DIFF_VERSION } from './web/diff-stage';
 
@@ -8,6 +10,7 @@ export interface EngineWork {
   diff: string[];
   tag: string[];
   score: string[];
+  rankDiff: string[];
 }
 
 /** Events created this recently are (re)checked for missing client scores, e.g. a newly linked client. */
@@ -38,6 +41,12 @@ export async function findEngineWork(db: Db, opts: { limit: number; competitorId
     WHERE c.source = 'web' AND c.status = 'ok' AND c.tracked_page_id IS NOT NULL ${only('c.competitor_id')}
       AND NOT ${finished(WEB_DIFF_STAGE, WEB_DIFF_VERSION, 'c.id')}
     ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
+  const vendorDiff = await db.execute(sql`
+    SELECT c.id FROM capture c
+    WHERE c.source IN (${sql.join(vendorDiffSources().map((s) => sql`${s}`), sql`, `)}) AND c.status = 'ok'
+      AND c.captured_at < now() - make_interval(mins => ${VENDOR_SETTLE_MINUTES}::int) ${only('c.competitor_id')}
+      AND NOT ${finished(VENDOR_DIFF_STAGE, VENDOR_DIFF_VERSION, 'c.id')}
+    ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
   const tag = await db.execute(sql`
     SELECT d.id FROM detected_change d
     WHERE d.status = 'pending' ${only('d.competitor_id')}
@@ -47,7 +56,16 @@ export async function findEngineWork(db: Db, opts: { limit: number; competitorId
     SELECT e.id FROM event e
     WHERE e.created_at >= now() - make_interval(days => ${opts.scoreWindowDays ?? SCORE_WINDOW_DAYS}::int) ${only('e.competitor_id')}
       AND EXISTS (SELECT 1 FROM client_competitor cc WHERE cc.competitor_id = e.competitor_id
+                  AND (e.client_id IS NULL OR cc.client_id = e.client_id)
                   AND NOT EXISTS (SELECT 1 FROM event_score s WHERE s.event_id = e.id AND s.client_id = cc.client_id))
     ORDER BY e.created_at ASC LIMIT ${opts.limit}`);
-  return { diff: ids(diff), tag: ids(tag), score: ids(score) };
+  // Rank scans are per client; a competitor filter (engine-once --competitor) does not apply to them.
+  // Aliased "rs", not "s" — the finished() helper above already aliases stage_run as "s".
+  const rankDiff = opts.competitorId
+    ? []
+    : await db.execute(sql`
+        SELECT rs.id FROM rank_scan rs
+        WHERE rs.status = 'done' AND rs.finished_at IS NOT NULL AND NOT ${finished(RANK_DIFF_STAGE, RANK_DIFF_VERSION, 'rs.id')}
+        ORDER BY rs.finished_at ASC LIMIT ${opts.limit}`);
+  return { diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score), rankDiff: ids(rankDiff) };
 }

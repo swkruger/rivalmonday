@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { CADENCES, CAPTURE_STATUSES, CHANGE_TYPES, MOVE_TYPES, PAGE_TYPES } from './domain';
+import { CADENCES, CAPTURE_STATUSES, CHANGE_TYPES, CHANNELS, MOVE_TYPES, PAGE_TYPES } from './domain';
 
 describe('domain constants', () => {
-  it('lists the spec change types', () => {
+  it('lists the spec change types plus rank_change (Phase 3b)', () => {
     expect(CHANGE_TYPES).toEqual([
       'price_change', 'promo', 'new_service', 'service_removed', 'service_area_change', 'new_location',
-      'hiring', 'ad_started', 'ad_stopped', 'review_spike', 'rating_change', 'content', 'cosmetic',
+      'hiring', 'ad_started', 'ad_stopped', 'review_spike', 'rating_change', 'rank_change', 'content', 'cosmetic',
     ]);
+  });
+
+  it('lists the channels a change can come from (capture sources plus rank scans)', () => {
+    expect(CHANNELS).toEqual(['web', 'google_ads', 'meta_ads', 'google_business_profile', 'google_reviews', 'google_jobs', 'rank']);
   });
 
   it('lists the spec move types', () => {

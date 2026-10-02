@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { VendorError } from '../vendors/errors';
-import { collectGbpProfile, isUniqueViolation } from './collect-gbp';
+import { collectGbpProfile, extractGbpProfile, isUniqueViolation } from './collect-gbp';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -90,4 +90,9 @@ describe('isUniqueViolation', () => {
   it('is false for an unrelated error', () => {
     expect(isUniqueViolation(new Error('connection reset'))).toBe(false);
   });
+});
+
+it('keeps the business address in the GBP profile (new-location signal, Phase 3b)', () => {
+  expect(extractGbpProfile({ title: 'Smith HVAC', address: '5387 Hwy 6 Ste 101, Woodway, TX 76712' })?.address).toBe('5387 Hwy 6 Ste 101, Woodway, TX 76712');
+  expect(extractGbpProfile({ title: 'Smith HVAC' })?.address).toBeNull();
 });

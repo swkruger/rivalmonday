@@ -1,16 +1,25 @@
 import type { Ai } from '@cs/ai';
 import { redactContactInfo } from '@cs/collectors';
 import {
-  capture, captureBlock, changeEvent, client, clientCompetitor, competitor, type Db, decisionReview, detectedChange, eventChange, type NumericChange, trackedPage,
+  capture, captureBlock, client, clientCompetitor, competitor, type Db, decisionReview, detectedChange, type NumericChange, trackedPage,
 } from '@cs/db';
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { and, eq } from 'drizzle-orm';
+import { MONEY_KINDS } from '../facts/numeric';
+import { findMergeTarget, writeEvent } from '../merge/merge';
 import { runStage, type StageOutcome } from '../stage';
 import { buildTagQuestions, buildTagState, resolveTag } from './questions';
+import { tagStructuredChange } from './structured';
 
 export const TAG_STAGE = 'tag';
 export const TAG_VERSION = 1;
 const PLATFORM = { agencyId: null, clientId: null } as const;
+
+export interface TagOutcome {
+  eventId: string | null;
+  /** True when the change was attached to an existing event (cross-channel merge, Task 11). */
+  merged: boolean;
+}
 
 export type PackLoader = (verticalId: string) => Promise<VerticalPack>;
 
@@ -44,6 +53,15 @@ export function extractZips(text: string): string[] {
   return [...new Set([...text.matchAll(/(?<![\d$,.-])\b\d{5}\b(?![\d,.-])/g)].map((m) => m[0]))];
 }
 
+/**
+ * A web change is an offer (feeds promo blitz / price war) when it is a promo, cuts a price or percent, or
+ * newly states one. A price rise is still a meaningful price change, but it is not a promotion.
+ */
+export function isWebOffer(type: string, facts: NumericChange[]): boolean {
+  if (type === 'promo') return true;
+  return facts.some((n) => MONEY_KINDS.has(n.kind) && ((n.pct !== null && n.pct < 0) || (n.before === null && n.after !== null)));
+}
+
 const trunc = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /** One-line event summary. Built from redacted text: summaries are later sent to models (Phase 4), evidence stays verbatim. */
@@ -65,7 +83,10 @@ export function buildSummary(change: { kind: string; beforeText: string | null; 
   return `${prefix}"${trunc(beforeText ?? '', 80)}" → "${trunc(afterText ?? '', 80)}"`;
 }
 
-export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, changeId: string): Promise<StageOutcome<{ eventId: string | null }>> {
+export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, changeId: string): Promise<StageOutcome<TagOutcome>> {
+  const [head] = await deps.db.select({ source: detectedChange.source }).from(detectedChange).where(eq(detectedChange.id, changeId)).limit(1);
+  if (!head) throw new Error(`detected_change ${changeId} not found`);
+  if (head.source !== 'web') return tagStructuredChange(deps, changeId);
   return runStage(
     deps.db,
     { stage: TAG_STAGE, version: TAG_VERSION, subjectId: changeId },
@@ -79,7 +100,7 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
         .where(eq(detectedChange.id, changeId))
         .limit(1);
       if (!row) throw new Error(`detected_change ${changeId} not found`);
-      if (row.change.status !== 'pending') return { row, resolution: null, answers: null, embedding: null };
+      if (row.change.status !== 'pending') return { row, resolution: null, answers: null, embedding: null, summary: '', target: null };
 
       const packs = await Promise.all((await competitorVerticals(deps.db, row.change.competitorId)).map(deps.packs));
       const state = buildTagState({
@@ -99,29 +120,38 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
           .limit(1);
         embedding = blk?.embedding ?? null;
       }
-      return { row, resolution, answers: result.answers as Record<string, unknown>, embedding };
+      const summary = buildSummary(row.change, row.pageUrl);
+      const target = resolution.meaningful
+        ? await findMergeTarget(deps, {
+            competitorId: row.change.competitorId, clientId: null, captureId: row.change.afterCaptureId, changeType: resolution.type, services: resolution.services, facts: row.change.numericChanges,
+            embedding, occurredAt: row.capturedAt, text: row.change.afterText ?? row.change.beforeText ?? '',
+          })
+        : null;
+      return { row, resolution, answers: result.answers as Record<string, unknown>, embedding, summary, target };
     },
-    async (tx, { row, resolution, answers, embedding }) => {
-      if (!resolution) return { eventId: null };
+    async (tx, { row, resolution, answers, embedding, summary, target }) => {
+      if (!resolution) return { eventId: null, merged: false };
       // Low-confidence answers still reach the AM review queue (spec §7.3), whether or not they produced an event.
       if (resolution.needsReview.length > 0) {
         await tx.insert(decisionReview).values({ subjectType: 'detected_change', subjectId: changeId, keys: resolution.needsReview, answers: answers ?? {} });
       }
       if (!resolution.meaningful) {
         await tx.update(detectedChange).set({ status: 'cosmetic' }).where(eq(detectedChange.id, changeId));
-        return { eventId: null };
+        return { eventId: null, merged: false };
       }
-      const [ev] = await tx
-        .insert(changeEvent)
-        .values({
-          competitorId: row.change.competitorId, changeType: resolution.type, services: resolution.services, summary: buildSummary(row.change, row.pageUrl),
-          facts: row.change.numericChanges, zips: extractZips(row.change.afterText ?? row.change.beforeText ?? ''), embedding,
-          confidence: resolution.confidence, needsReview: resolution.needsReview.length > 0, occurredAt: row.capturedAt,
-        })
-        .returning({ id: changeEvent.id });
-      await tx.insert(eventChange).values({ eventId: ev!.id, changeId });
+      const eventId = await writeEvent(
+        tx,
+        changeId,
+        {
+          competitorId: row.change.competitorId, changeType: resolution.type, channels: ['web'], services: resolution.services, summary,
+          facts: row.change.numericChanges, details: { offer: isWebOffer(resolution.type, row.change.numericChanges) },
+          zips: extractZips(row.change.afterText ?? row.change.beforeText ?? ''), embedding, confidence: resolution.confidence,
+          needsReview: resolution.needsReview.length > 0, occurredAt: row.capturedAt,
+        },
+        target,
+      );
       await tx.update(detectedChange).set({ status: 'event' }).where(eq(detectedChange.id, changeId));
-      return { eventId: ev!.id };
+      return { eventId, merged: target !== null };
     },
   );
 }

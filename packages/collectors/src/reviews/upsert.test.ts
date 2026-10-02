@@ -1,4 +1,4 @@
-import { capture, review } from '@cs/db';
+import { capture, review, reviewRevision } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { upsertReviews } from './upsert';
@@ -21,7 +21,7 @@ const item = (over: Record<string, unknown> = {}) => ({
 
 describe('upsertReviews', () => {
   it('stores pseudonymised, redacted reviews without reviewer identity or review photos', async () => {
-    expect(await upsertReviews(dbs.service, IDS.competitorX, CAP, [item({ images: [{ url: 'https://x/review-photo.jpg' }] }), { junk: true }], salt)).toEqual({ upserted: 1, skipped: 1 });
+    expect(await upsertReviews(dbs.service, IDS.competitorX, CAP, [item({ images: [{ url: 'https://x/review-photo.jpg' }] }), { junk: true }], salt)).toEqual({ upserted: 1, skipped: 1, edited: 0 });
     const [r] = await dbs.service.select().from(review);
     expect(r).toMatchObject({ dedupeKey: 'id:r1', externalId: 'r1', rating: 2, text: 'Slow. Call [phone]', firstCaptureId: CAP });
     expect(r?.reviewerHash).toMatch(/^[0-9a-f]{64}$/);
@@ -47,7 +47,7 @@ describe('upsertReviews', () => {
 
   it('collapses duplicate dedupeKeys within one batch instead of erroring (ON CONFLICT DO UPDATE cannot affect a row twice)', async () => {
     const result = await upsertReviews(dbs.service, IDS.competitorX, CAP, [item(), item()], salt);
-    expect(result).toEqual({ upserted: 1, skipped: 1 });
+    expect(result).toEqual({ upserted: 1, skipped: 1, edited: 0 });
     const rows = await dbs.service.select().from(review);
     expect(rows).toHaveLength(1);
   });
@@ -55,9 +55,35 @@ describe('upsertReviews', () => {
   it('includes the rating in the content-hash key, so text-less items with the same name/timestamp but different ratings are distinct reviews', async () => {
     const noText = (rating: number) => item({ review_id: null, review_text: null, rating: { value: rating } });
     const result = await upsertReviews(dbs.service, IDS.competitorX, CAP, [noText(4), noText(5)], salt);
-    expect(result).toEqual({ upserted: 2, skipped: 0 });
+    expect(result).toEqual({ upserted: 2, skipped: 0, edited: 0 });
     const rows = await dbs.service.select().from(review);
     expect(rows).toHaveLength(2);
     expect(rows.map((r) => r.rating).sort()).toEqual([4, 5]);
+  });
+});
+
+describe('edited reviews (Phase 3b)', () => {
+  const CAP2 = '00000000-0000-4000-8000-0000000000c2';
+  beforeEach(async () => {
+    await dbs.service.insert(capture).values({ id: CAP2, competitorId: IDS.competitorX, source: 'google_reviews', status: 'ok', collectorVersion: 'dfs/1' });
+  });
+
+  it('keeps the replaced version of an edited review as a revision and stores the new one', async () => {
+    await upsertReviews(dbs.service, IDS.competitorX, CAP, [item({ rating: { value: 2 }, review_text: 'Late and rude' })], salt);
+    const r = await upsertReviews(dbs.service, IDS.competitorX, CAP2, [item({ rating: { value: 4 }, review_text: 'Late, but they fixed it' })], salt);
+    expect(r).toEqual({ upserted: 1, skipped: 0, edited: 1 });
+    const [row] = await dbs.service.select().from(review);
+    expect(row).toMatchObject({ rating: 4, text: 'Late, but they fixed it' });
+    expect(await dbs.service.select({ rating: reviewRevision.rating, text: reviewRevision.text, by: reviewRevision.replacedByCaptureId }).from(reviewRevision)).toEqual([
+      { rating: 2, text: 'Late and rude', by: CAP2 },
+    ]);
+  });
+
+  it('treats an unchanged re-pull, or a pull without text, as no edit and never erases the text', async () => {
+    await upsertReviews(dbs.service, IDS.competitorX, CAP, [item({ rating: { value: 5 }, review_text: 'Great' })], salt);
+    expect((await upsertReviews(dbs.service, IDS.competitorX, CAP2, [item({ rating: { value: 5 }, review_text: 'Great' })], salt)).edited).toBe(0);
+    expect((await upsertReviews(dbs.service, IDS.competitorX, CAP2, [item({ rating: { value: 5 }, review_text: null })], salt)).edited).toBe(0);
+    expect((await dbs.service.select().from(review))[0]).toMatchObject({ rating: 5, text: 'Great' });
+    expect(await dbs.service.select().from(reviewRevision)).toEqual([]);
   });
 });

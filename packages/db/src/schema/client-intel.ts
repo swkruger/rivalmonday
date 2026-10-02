@@ -42,6 +42,25 @@ export const competitorSuggestion = pgTable(
   ],
 );
 
+/** One geo-grid rank scan run of a client (groups its snapshots so rank deltas compare scan to scan). Tenant-scoped. */
+export const rankScan = pgTable(
+  'rank_scan',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agencyId: uuid('agency_id').notNull().references(() => agency.id, { onDelete: 'cascade' }),
+    clientId: uuid('client_id').notNull(),
+    status: text('status').notNull().default('running'), // running | done | failed
+    snapshots: integer('snapshots').notNull().default(0),
+    failed: integer('failed').notNull().default(0),
+    startedAt: ts('started_at').notNull().defaultNow(),
+    finishedAt: ts('finished_at'),
+  },
+  (t) => [
+    foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade'),
+    index('rank_scan_client_idx').on(t.clientId, t.finishedAt),
+  ],
+);
+
 /** Local-pack results for one keyword at one grid point. Tenant-scoped (keywords reveal client strategy). */
 export const rankSnapshot = pgTable(
   'rank_snapshot',
@@ -53,6 +72,7 @@ export const rankSnapshot = pgTable(
     lat: doublePrecision('lat').notNull(),
     lng: doublePrecision('lng').notNull(),
     captureId: uuid('capture_id').references(() => capture.id, { onDelete: 'set null' }),
+    scanId: uuid('scan_id').references(() => rankScan.id, { onDelete: 'cascade' }),
     results: jsonb('results').$type<RankResult[]>().notNull(),
     capturedAt: ts('captured_at').notNull().defaultNow(),
   },

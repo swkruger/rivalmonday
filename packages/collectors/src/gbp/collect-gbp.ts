@@ -14,6 +14,7 @@ const gbpSchema = z.looseObject({
   additional_categories: z.array(z.string()).nullish(),
   rating: z.looseObject({ value: z.number().nullish(), votes_count: z.number().nullish() }).nullish(),
   phone: z.string().nullish(),
+  address: z.string().nullish(),
   url: z.string().nullish(),
   domain: z.string().nullish(),
   is_claimed: z.boolean().nullish(),
@@ -40,7 +41,7 @@ export function extractGbpProfile(item: unknown): Record<string, unknown> | null
   return {
     title: i.title ?? null, category: i.category ?? null, additionalCategories: i.additional_categories ?? [],
     rating: i.rating?.value ?? null, votes: i.rating?.votes_count ?? null, phone: i.phone ?? null, url: i.url ?? null,
-    domain: i.domain ?? null, isClaimed: i.is_claimed ?? null, currentStatus: i.current_status ?? workTimeStatus(i.work_time), cid: i.cid ?? null,
+    domain: i.domain ?? null, address: i.address ?? null, isClaimed: i.is_claimed ?? null, currentStatus: i.current_status ?? workTimeStatus(i.work_time), cid: i.cid ?? null,
     placeId: i.place_id ?? null, workHours: i.work_time ?? null, services: i.services ?? null, attributes: i.attributes ?? null,
   };
 }

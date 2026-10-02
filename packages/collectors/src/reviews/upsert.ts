@@ -1,5 +1,5 @@
-import { type Db, review } from '@cs/db';
-import { sql } from 'drizzle-orm';
+import { type Db, review, reviewRevision } from '@cs/db';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { pseudonymizeReviewer, redactContactInfo, redactReviewerName } from '../evidence/privacy';
 import { sha256Hex } from '../evidence/recorder';
@@ -55,7 +55,7 @@ export function parseReviewItem(raw: unknown, salt: string, businessNames: reado
  */
 export async function upsertReviews(
   db: Db, competitorId: string, captureId: string, items: unknown[], salt: string, now = new Date(), businessNames: readonly (string | null | undefined)[] = [],
-): Promise<{ upserted: number; skipped: number }> {
+): Promise<{ upserted: number; skipped: number; edited: number }> {
   // Keyed by dedupeKey (last occurrence wins): a single batch can contain the same review twice
   // (e.g. overlapping pages), and Postgres rejects an INSERT ... ON CONFLICT DO UPDATE that would
   // affect the same row twice in one statement, which would otherwise fail the whole task.
@@ -71,15 +71,35 @@ export async function upsertReviews(
     rowsByKey.set(parsed.dedupeKey, { competitorId, source: 'google', ...parsed, firstCaptureId: captureId, firstSeenAt: now, lastSeenAt: now });
   }
   const rows = [...rowsByKey.values()];
+  let edited = 0;
   if (rows.length > 0) {
-    await db.insert(review).values(rows).onConflictDoUpdate({
-      target: [review.competitorId, review.source, review.dedupeKey],
-      set: {
-        lastSeenAt: sql`excluded.last_seen_at`,
-        ownerAnswer: sql`coalesce(excluded.owner_answer, ${review.ownerAnswer})`,
-        ownerAnsweredAt: sql`coalesce(excluded.owner_answered_at, ${review.ownerAnsweredAt})`,
-      },
+    // Edited reviews (3b carry-over): the row keeps the latest version; the replaced one goes to
+    // review_revision. A pull that lacks text or rating is not an edit and never erases them.
+    // Reviews without a vendor review_id are keyed by a hash of their text, so editing one of those
+    // shows up as a new review instead (documented limitation).
+    const existing = await db
+      .select({ id: review.id, dedupeKey: review.dedupeKey, rating: review.rating, text: review.text })
+      .from(review)
+      .where(and(eq(review.competitorId, competitorId), eq(review.source, 'google'), inArray(review.dedupeKey, rows.map((r) => r.dedupeKey))));
+    const revisions = existing.flatMap((e) => {
+      const next = rowsByKey.get(e.dedupeKey)!;
+      const changed = (next.rating != null && next.rating !== e.rating) || (next.text != null && next.text !== e.text);
+      return changed ? [{ reviewId: e.id, competitorId, rating: e.rating, text: e.text, replacedAt: now, replacedByCaptureId: captureId }] : [];
+    });
+    edited = revisions.length;
+    await db.transaction(async (tx) => {
+      if (revisions.length > 0) await tx.insert(reviewRevision).values(revisions);
+      await tx.insert(review).values(rows).onConflictDoUpdate({
+        target: [review.competitorId, review.source, review.dedupeKey],
+        set: {
+          lastSeenAt: sql`excluded.last_seen_at`,
+          rating: sql`coalesce(excluded.rating, ${review.rating})`,
+          text: sql`coalesce(excluded.text, ${review.text})`,
+          ownerAnswer: sql`coalesce(excluded.owner_answer, ${review.ownerAnswer})`,
+          ownerAnsweredAt: sql`coalesce(excluded.owner_answered_at, ${review.ownerAnsweredAt})`,
+        },
+      });
     });
   }
-  return { upserted: rows.length, skipped };
+  return { upserted: rows.length, skipped, edited };
 }

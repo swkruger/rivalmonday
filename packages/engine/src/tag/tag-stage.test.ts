@@ -43,9 +43,23 @@ describe('tagChange', () => {
     const [ev] = await dbs.owner.select().from(changeEvent);
     expect(ev).toMatchObject({ competitorId: IDS.competitorX, changeType: 'price_change', services: { hvac_plumbing: 'ac_tune_up' }, needsReview: false, occurredAt: day(1) });
     expect(ev?.summary).toContain('$89 to $69');
+    expect(ev).toMatchObject({ channels: ['web'], details: { offer: true } }); // a money change is an offer
     expect(ev?.facts).toHaveLength(1);
     expect(await dbs.owner.select().from(eventChange)).toEqual([{ eventId: ev!.id, changeId: id }]);
     expect(await statusOf(id)).toBe('event');
+  });
+
+  it('flags a web change as an offer only for a promo, a price cut or a newly added price — never a price rise', async () => {
+    const tag = async (before: string | null, after: string, kind = 'modified') => {
+      const id = await change(before, after, kind);
+      await tagChange({ db: dbs.service, ai: createFakeAi({ decide: tagResult({ meaningful: true, type: 'price_change', services: { hvac_plumbing: 'ac_tune_up' } }) }), packs }, id);
+      const [ev] = await dbs.owner.select({ e: changeEvent }).from(changeEvent).innerJoin(eventChange, eq(eventChange.eventId, changeEvent.id)).where(eq(eventChange.changeId, id));
+      return ev?.e;
+    };
+    const rise = await tag('AC Tune-Up $69', 'AC Tune-Up $89');
+    expect(rise).toMatchObject({ changeType: 'price_change', details: { offer: false } }); // still a meaningful price change
+    await dbs.owner.delete(changeEvent);
+    expect((await tag(null, 'AC Tune-Up now just $59', 'added')).details).toMatchObject({ offer: true });
   });
 
   it('builds the event summary from redacted text (no contact details)', async () => {
@@ -54,6 +68,7 @@ describe('tagChange', () => {
     const [ev] = await dbs.owner.select().from(changeEvent);
     expect(ev?.summary).toContain('[phone]');
     expect(ev?.summary).not.toContain('972-555-0100');
+    expect(ev).toMatchObject({ channels: ['web'], details: { offer: false } }); // meaningful, but no promo or money fact
   });
 
   it('marks a wording-only change cosmetic without an event', async () => {
@@ -112,6 +127,8 @@ describe('tagChange', () => {
     const call = ai.calls.decide[0]!;
     expect(Object.keys(call.questions).sort()).toEqual(['change_type', 'meaningful', 'service_dental', 'service_hvac_plumbing']);
     expect(JSON.stringify(call.state)).not.toContain('555-0100');
-    expect((await dbs.owner.select().from(changeEvent))[0]?.services).toEqual({ dental: 'whitening', hvac_plumbing: null });
+    const [ev] = await dbs.owner.select().from(changeEvent);
+    expect(ev?.services).toEqual({ dental: 'whitening', hvac_plumbing: null });
+    expect(ev).toMatchObject({ changeType: 'promo', channels: ['web'], details: { offer: true } });
   });
 });
