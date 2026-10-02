@@ -867,7 +867,8 @@ A second `engine-once --competitor … --moves` run (≥ 10 minutes after the `-
 - A titled full name ("Dr. Patel") redacted as one unit — the bare title alone ("Dr.") is never redacted by itself.
 - A name following an occupational cue ("her hygienist Jessica", "my daughter Emma").
 - A first+last name introduced by "named" ("Tech named Carlos Ramirez"), redacted as the whole two-word span, not split.
-- Correctly leaves alone: every word of two tested business names ("Smith HVAC", "Hope and Faith Dental") even where a name shares a word with the business ("Mike" in a sentence that also redacts "Mike" the person — the business-name protection is phrase-span based, not word based, per the Task 1 ruling); text with no capital letters at all (fast-path skip, no `compromise` call).
+- Correctly leaves alone: every word of two tested business names ("Smith HVAC", "Hope and Faith Dental") even where a name shares a word with the business ("Mike" in a sentence that also redacts "Mike" the person — the business-name protection is phrase-span based, not word based, per the Task 1 ruling).
+- Lowercase names are also redacted: `compromise` detects person names regardless of capitalization (e.g. "ask for mike"), so there is no capital-letter fast path — an earlier version of this code skipped `compromise` entirely on text with no capital letters, which let an all-lowercase review's names reach the model; fixed at the final whole-branch review (name-occurrence replacement is now case-insensitive too).
 - No misses found against this sample set — no additional custom rule was needed beyond the library's own tagger (contrast the brief's "add the missed pattern as a rule" contingency, which wasn't triggered).
 
 ### `engine.live.test.ts` — review and price decisions (added Task 12)
