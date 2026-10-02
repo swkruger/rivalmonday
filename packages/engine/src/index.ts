@@ -16,5 +16,6 @@ export * from './structured/reviews';
 export * from './facts/numeric';
 export * from './tag/questions';
 export * from './tag/tag-stage';
+export * from './tag/structured';
 export * from './score/score';
 export * from './score/score-stage';

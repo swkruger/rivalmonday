@@ -35,6 +35,17 @@ export function tagResult(input: { meaningful: boolean; type: string; services?:
   };
 }
 
+/** Answers the structured tag questions: service_<vertical> choices and the ad `offer` Noul. */
+export function structuredResult(input: { services?: Record<string, string>; offer?: boolean; confidence?: number; needsReview?: string[] }): DecideFn {
+  return (_state, questions) => {
+    const answers: Record<string, ResolvedAnswer> = {};
+    for (const key of Object.keys(questions)) {
+      answers[key] = key === 'offer' ? noul(input.offer ?? false, input.confidence) : choice(input.services?.[key.replace(/^service_/, '')] ?? 'none', input.confidence);
+    }
+    return { answers, needsReview: input.needsReview ?? [] };
+  };
+}
+
 export interface FakeAi extends Ai {
   calls: { chat: { task: string; content: string }[]; decide: { state: unknown; questions: Record<string, DecisionQuestion> }[]; embed: string[][] };
 }

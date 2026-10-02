@@ -5,12 +5,20 @@ import {
 } from '@cs/db';
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { and, eq } from 'drizzle-orm';
+import { MONEY_KINDS } from '../facts/numeric';
 import { runStage, type StageOutcome } from '../stage';
 import { buildTagQuestions, buildTagState, resolveTag } from './questions';
+import { tagStructuredChange } from './structured';
 
 export const TAG_STAGE = 'tag';
 export const TAG_VERSION = 1;
 const PLATFORM = { agencyId: null, clientId: null } as const;
+
+export interface TagOutcome {
+  eventId: string | null;
+  /** True when the change was attached to an existing event (cross-channel merge, Task 11). */
+  merged: boolean;
+}
 
 export type PackLoader = (verticalId: string) => Promise<VerticalPack>;
 
@@ -65,7 +73,10 @@ export function buildSummary(change: { kind: string; beforeText: string | null; 
   return `${prefix}"${trunc(beforeText ?? '', 80)}" → "${trunc(afterText ?? '', 80)}"`;
 }
 
-export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, changeId: string): Promise<StageOutcome<{ eventId: string | null }>> {
+export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, changeId: string): Promise<StageOutcome<TagOutcome>> {
+  const [head] = await deps.db.select({ source: detectedChange.source }).from(detectedChange).where(eq(detectedChange.id, changeId)).limit(1);
+  if (!head) throw new Error(`detected_change ${changeId} not found`);
+  if (head.source !== 'web') return tagStructuredChange(deps, changeId);
   return runStage(
     deps.db,
     { stage: TAG_STAGE, version: TAG_VERSION, subjectId: changeId },
@@ -102,14 +113,14 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
       return { row, resolution, answers: result.answers as Record<string, unknown>, embedding };
     },
     async (tx, { row, resolution, answers, embedding }) => {
-      if (!resolution) return { eventId: null };
+      if (!resolution) return { eventId: null, merged: false };
       // Low-confidence answers still reach the AM review queue (spec §7.3), whether or not they produced an event.
       if (resolution.needsReview.length > 0) {
         await tx.insert(decisionReview).values({ subjectType: 'detected_change', subjectId: changeId, keys: resolution.needsReview, answers: answers ?? {} });
       }
       if (!resolution.meaningful) {
         await tx.update(detectedChange).set({ status: 'cosmetic' }).where(eq(detectedChange.id, changeId));
-        return { eventId: null };
+        return { eventId: null, merged: false };
       }
       const [ev] = await tx
         .insert(changeEvent)
@@ -117,11 +128,13 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
           competitorId: row.change.competitorId, changeType: resolution.type, services: resolution.services, summary: buildSummary(row.change, row.pageUrl),
           facts: row.change.numericChanges, zips: extractZips(row.change.afterText ?? row.change.beforeText ?? ''), embedding,
           confidence: resolution.confidence, needsReview: resolution.needsReview.length > 0, occurredAt: row.capturedAt,
+          channels: ['web'],
+          details: { offer: resolution.type === 'promo' || row.change.numericChanges.some((n) => MONEY_KINDS.has(n.kind)) },
         })
         .returning({ id: changeEvent.id });
       await tx.insert(eventChange).values({ eventId: ev!.id, changeId });
       await tx.update(detectedChange).set({ status: 'event' }).where(eq(detectedChange.id, changeId));
-      return { eventId: ev!.id };
+      return { eventId: ev!.id, merged: false };
     },
   );
 }
