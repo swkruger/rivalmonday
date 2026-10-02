@@ -102,4 +102,26 @@ describe('upsertAds', () => {
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
+
+  it('records the capture that ended an ad, scoped to one advertiser when asked', async () => {
+    await upsertAds(dbs.service, IDS.competitorX, 'meta', CAP1, [makeAd({ externalId: 'p1a', advertiserId: 'P1' }), makeAd({ externalId: 'p2a', advertiserId: 'P2' })], { markMissingInactive: false });
+    const r = await upsertAds(dbs.service, IDS.competitorX, 'meta', CAP2, [], { markMissingInactive: true, advertiserId: 'P1' });
+    expect(r.deactivated).toBe(1);
+    const rows = await dbs.service.select().from(ad);
+    expect(rows.find((a) => a.externalId === 'p1a')).toMatchObject({ isActive: false, endedCaptureId: CAP2 });
+    expect(rows.find((a) => a.externalId === 'p2a')).toMatchObject({ isActive: true, endedCaptureId: null });
+  });
+
+  it('sets ended_capture_id when a seen ad turns inactive, and clears it when the ad comes back', async () => {
+    await upsertAds(dbs.service, IDS.competitorX, 'google', CAP1, [makeAd()], { markMissingInactive: false });
+    await upsertAds(dbs.service, IDS.competitorX, 'google', CAP2, [makeAd({ isActive: false, endedAt: new Date('2026-09-10T00:00:00Z') })], { markMissingInactive: false });
+    expect((await dbs.service.select().from(ad))[0]).toMatchObject({ isActive: false, endedCaptureId: CAP2 });
+    await upsertAds(dbs.service, IDS.competitorX, 'google', CAP1, [makeAd()], { markMissingInactive: false });
+    expect((await dbs.service.select().from(ad))[0]).toMatchObject({ isActive: true, endedCaptureId: null });
+  });
+
+  it('never marks an ad that was first seen inactive as ended by that capture', async () => {
+    await upsertAds(dbs.service, IDS.competitorX, 'google', CAP1, [makeAd({ isActive: false })], { markMissingInactive: false });
+    expect((await dbs.service.select().from(ad))[0]).toMatchObject({ isActive: false, endedCaptureId: null });
+  });
 });

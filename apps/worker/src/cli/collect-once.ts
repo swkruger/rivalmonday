@@ -19,7 +19,8 @@ const { values } = parseArgs({
     name: { type: 'string' },
     'place-id': { type: 'string' },
     cid: { type: 'string' },
-    'meta-page-id': { type: 'string' },
+    'meta-page-id': { type: 'string', multiple: true },
+    'google-advertiser-id': { type: 'string', multiple: true },
     vendors: { type: 'boolean', default: false },
     web: { type: 'boolean', default: false },
     poll: { type: 'boolean', default: false },
@@ -27,7 +28,7 @@ const { values } = parseArgs({
 });
 
 const USAGE =
-  'Usage: pnpm --filter @cs/worker collect-once --domain example.com [--name "Example Co"] [--place-id <id>] [--cid <id>] [--meta-page-id <id>] [--vendors] [--web]\n' +
+  'Usage: pnpm --filter @cs/worker collect-once --domain example.com [--name "Example Co"] [--place-id <id>] [--cid <id>] [--meta-page-id <id> …] [--google-advertiser-id <id> …] [--vendors] [--web]\n' +
   '   or: pnpm --filter @cs/worker collect-once --poll';
 
 const serviceUrl = process.env.SERVICE_DATABASE_URL;
@@ -57,16 +58,19 @@ if (!domain) {
 const { db, close } = createDb(serviceUrl);
 const deps = createWorkerDeps(process.env);
 try {
+  const metaPageIds = values['meta-page-id'] ?? [];
+  const googleAdvertiserIds = values['google-advertiser-id'] ?? [];
   const [row] = await db
     .insert(competitor)
-    .values({ name: values.name ?? domain, domain, placeId: values['place-id'] ?? null, cid: values.cid ?? null, metaPageId: values['meta-page-id'] ?? null })
+    .values({ name: values.name ?? domain, domain, placeId: values['place-id'] ?? null, cid: values.cid ?? null, metaPageIds, googleAdvertiserIds })
     .onConflictDoUpdate({
       target: competitor.domain,
       set: {
         domain,
         ...(values['place-id'] ? { placeId: values['place-id'] } : {}),
         ...(values.cid ? { cid: values.cid } : {}),
-        ...(values['meta-page-id'] ? { metaPageId: values['meta-page-id'] } : {}),
+        ...(metaPageIds.length > 0 ? { metaPageIds } : {}),
+        ...(googleAdvertiserIds.length > 0 ? { googleAdvertiserIds } : {}),
       },
     })
     .returning();

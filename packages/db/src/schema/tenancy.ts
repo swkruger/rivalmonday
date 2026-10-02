@@ -54,8 +54,6 @@ export const competitor = pgTable('competitor', {
   domain: text('domain').unique(),
   placeId: text('place_id').unique(),
   cid: text('cid').unique(),
-  /** Deprecated by metaPageIds; dropped in migration 0021 (Phase 3b Task 4). */
-  metaPageId: text('meta_page_id'),
   /** Every Facebook page whose ads belong to this competitor (franchise brands run ads from franchisee pages). */
   metaPageIds: jsonb('meta_page_ids').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   /** Google Ads Transparency advertiser ids pinned to this competitor; when set, ads are queried by id, not by domain. */

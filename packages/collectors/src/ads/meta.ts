@@ -1,7 +1,7 @@
 import type { LedgerSink } from '@cs/core';
 import { ad, type Db } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull, or } from 'drizzle-orm';
 import { recordVendorCapture } from '../evidence/vendor-capture';
 import { fetchMetaAdsApify } from '../vendors/apify';
 import { parseDfsTimestamp } from '../vendors/dfs-time';
@@ -52,15 +52,44 @@ export function normalizeMetaAd(raw: unknown): NormalizedAd | null {
   };
 }
 
+export const metaPageUrl = (pageId: string) => `https://www.facebook.com/ads/library/?view_all_page_id=${pageId}`;
+
+export interface MetaPageResult {
+  pageId: string;
+  status: 'ok' | 'vendor_error';
+  ads?: number;
+  deactivated?: number;
+  vendor?: string;
+}
+
+type MetaDeps = { db: Db; store: ObjectStore; ledger: LedgerSink; apify?: { token: string }; scrapeCreators?: { apiKey: string }; fetch?: typeof fetch };
+
+/**
+ * Collects every Meta page of a competitor (franchise brands advertise from franchisee pages, 2b carry-over).
+ * Each page gets its own capture (url = metaPageUrl) and its own deactivation scope, so one page's pull
+ * never ends another page's ads.
+ */
 export async function collectMetaAds(
-  deps: { db: Db; store: ObjectStore; ledger: LedgerSink; apify?: { token: string }; scrapeCreators?: { apiKey: string }; fetch?: typeof fetch },
-  c: { id: string; metaPageId: string | null },
-): Promise<{ status: 'ok' | 'vendor_error' | 'skipped'; ads?: number; deactivated?: number; vendor?: string }> {
-  if (!c.metaPageId) return { status: 'skipped' };
-  const base = { competitorId: c.id, source: 'meta_ads', collectorVersion: META_COLLECTOR_VERSION };
+  deps: MetaDeps,
+  c: { id: string; metaPageIds: string[] },
+): Promise<{ status: 'ok' | 'vendor_error' | 'skipped'; ads: number; deactivated: number; pages: MetaPageResult[] }> {
+  const pages: MetaPageResult[] = [];
+  for (const pageId of c.metaPageIds) pages.push(await collectMetaPage(deps, c.id, pageId));
+  if (pages.length === 0) return { status: 'skipped', ads: 0, deactivated: 0, pages };
+  const ok = pages.filter((p) => p.status === 'ok');
+  return {
+    status: ok.length > 0 ? 'ok' : 'vendor_error',
+    ads: ok.reduce((n, p) => n + (p.ads ?? 0), 0),
+    deactivated: ok.reduce((n, p) => n + (p.deactivated ?? 0), 0),
+    pages,
+  };
+}
+
+async function collectMetaPage(deps: MetaDeps, competitorId: string, pageId: string): Promise<MetaPageResult> {
+  const base = { competitorId, source: 'meta_ads', collectorVersion: META_COLLECTOR_VERSION, url: metaPageUrl(pageId) };
   const attempts: [string, () => Promise<{ items: unknown[]; truncated: boolean }>][] = [];
-  if (deps.apify) attempts.push(['apify', () => fetchMetaAdsApify({ token: deps.apify!.token, ledger: deps.ledger, fetch: deps.fetch }, c.metaPageId!)]);
-  if (deps.scrapeCreators) attempts.push(['scrapecreators', () => fetchMetaAdsScrapeCreators({ apiKey: deps.scrapeCreators!.apiKey, ledger: deps.ledger, fetch: deps.fetch }, c.metaPageId!)]);
+  if (deps.apify) attempts.push(['apify', () => fetchMetaAdsApify({ token: deps.apify!.token, ledger: deps.ledger, fetch: deps.fetch }, pageId)]);
+  if (deps.scrapeCreators) attempts.push(['scrapecreators', () => fetchMetaAdsScrapeCreators({ apiKey: deps.scrapeCreators!.apiKey, ledger: deps.ledger, fetch: deps.fetch }, pageId)]);
   const errors: string[] = [];
   for (const [vendor, run] of attempts) {
     let raw: unknown[];
@@ -73,33 +102,34 @@ export async function collectMetaAds(
       continue;
     }
     const { captureId } = await recordVendorCapture(deps, { ...base, status: 'ok', payload: { vendor, items: raw, truncated } });
-    const ads = raw.map(normalizeMetaAd).filter((a): a is NormalizedAd => a !== null);
+    // An ad without a vendor page id belongs to the page we asked for.
+    const ads = raw.map(normalizeMetaAd).filter((a): a is NormalizedAd => a !== null).map((a) => ({ ...a, advertiserId: a.advertiserId ?? pageId }));
     // Only the active set was requested, so anything previously active and now missing has ended —
     // unless the vendor handed back nothing at all. A fully empty response from a real advertiser
     // with live ads is far more likely to be a vendor glitch than every ad ending at once, so an
-    // empty response never deactivates when active rows already exist; it's recorded as evidence
+    // empty response never deactivates when this page has active rows; it's recorded as evidence
     // and surfaced via a warning instead of silently wiping history.
     let markMissingInactive = true;
     if (raw.length === 0) {
       const existingActive = await deps.db
         .select({ id: ad.id })
         .from(ad)
-        .where(and(eq(ad.competitorId, c.id), eq(ad.platform, 'meta'), eq(ad.isActive, true)))
+        .where(and(eq(ad.competitorId, competitorId), eq(ad.platform, 'meta'), eq(ad.isActive, true), or(eq(ad.advertiserId, pageId), isNull(ad.advertiserId))))
         .limit(1);
       if (existingActive.length > 0) {
         markMissingInactive = false;
-        console.warn(`[ads] meta competitor ${c.id}: vendor ${vendor} returned an empty response while active ads exist; skipping deactivation`);
+        console.warn(`[ads] meta competitor ${competitorId} page ${pageId}: vendor ${vendor} returned an empty response while active ads exist; skipping deactivation`);
       }
     }
     // A response cut off at the vendor's cap (Apify count / ScrapeCreators page limit) doesn't
     // list every active ad, so ads beyond the cap must not be marked ended.
     if (truncated) {
       markMissingInactive = false;
-      console.warn(`[ads] meta competitor ${c.id}: vendor ${vendor} response was truncated at its cap (${raw.length} items); skipping deactivation`);
+      console.warn(`[ads] meta competitor ${competitorId} page ${pageId}: vendor ${vendor} response was truncated at its cap (${raw.length} items); skipping deactivation`);
     }
-    const r = await upsertAds(deps.db, c.id, 'meta', captureId, ads, { markMissingInactive });
-    return { status: 'ok', ads: r.upserted, deactivated: r.deactivated, vendor };
+    const r = await upsertAds(deps.db, competitorId, 'meta', captureId, ads, { markMissingInactive, advertiserId: pageId });
+    return { pageId, status: 'ok', ads: r.upserted, deactivated: r.deactivated, vendor };
   }
   await recordVendorCapture(deps, { ...base, status: 'vendor_error', error: errors.join(' | ') || 'no Meta vendor configured' });
-  return { status: 'vendor_error' };
+  return { pageId, status: 'vendor_error' };
 }
