@@ -14,7 +14,7 @@ const ev = (over: Partial<MoveEvent>): MoveEvent => ({
   id: `e${++n}`, changeType: 'content', channels: ['web'], occurredAt: day(95), services: { hvac_plumbing: null }, facts: [], zips: [], summary: '', details: {}, ...over,
 });
 const ctx = (over: Partial<MoveContext> = {}): MoveContext => ({
-  now, verticalId: 'hvac_plumbing', clientServices: ['ac_tune_up'], clientZips: ['75023'], clientTowns: ['Frisco'], thresholds: hvac.move_thresholds, ads: { activeNow: 2, baseline: 2, historyWeeks: 12 }, ...over,
+  now, verticalId: 'hvac_plumbing', clientServices: ['ac_tune_up'], clientZips: ['75023'], clientTowns: ['Frisco'], thresholds: hvac.move_thresholds, ads: { activeNow: 2, baseline: 2, historyWeeks: 12 }, serviceNames: { water_heater: 'Water heater installation' }, ...over,
 });
 const cut = (from: string, to: string) => diffFacts(extractNumericFacts(from), extractNumericFacts(to));
 const types = (events: MoveEvent[], c = ctx()) => detectMoves(events, c).map((f) => f.type);
@@ -41,6 +41,7 @@ describe('detectMoves', () => {
     const events = [ev({ changeType: 'promo' }), ev({ changeType: 'ad_started', channels: ['meta_ads'], details: { count: 3 }, occurredAt: day(90) })];
     expect(types(events)).toContain('price_war');
     expect(types([events[0]!, ev({ ...events[1]!, details: { count: 2 } })])).not.toContain('price_war');
+    expect(types([ev({ changeType: 'promo', occurredAt: day(60) }), events[1]!])).not.toContain('price_war'); // the promo is 40 days old
   });
 
   it('territory expansion: two kinds of signal touching the client ZIPs or towns', () => {
@@ -64,7 +65,8 @@ describe('detectMoves', () => {
   it('new service line: one merged launch event already carrying a GBP or ads channel confirms itself', () => {
     const merged = ev({ changeType: 'new_service', channels: ['google_business_profile', 'web'], services: { hvac_plumbing: 'water_heater' } });
     const [f] = detectMoves([merged], ctx());
-    expect(f).toMatchObject({ type: 'new_service_line', eventIds: [merged.id], channels: ['google_business_profile', 'web'] });
+    expect(f).toMatchObject({ type: 'new_service_line', eventIds: [merged.id], channels: ['google_business_profile', 'web'], summary: 'Launched a new service line: Water heater installation' });
+    expect(detectMoves([merged], ctx({ serviceNames: {} }))[0]?.summary).toBe('Launched a new service line: water_heater'); // falls back to the id
     expect(types([ev({ ...merged, channels: ['meta_ads', 'web'] })])).toContain('new_service_line');
     expect(types([ev({ ...merged, channels: ['web'] })])).not.toContain('new_service_line'); // web alone is not confirmed
   });

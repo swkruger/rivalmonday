@@ -38,6 +38,8 @@ export interface MoveContext {
   clientTowns: string[];
   thresholds: VerticalPack['move_thresholds'];
   ads: AdActivity;
+  /** Service id → display name from the client's vertical pack (move summaries). */
+  serviceNames: Record<string, string>;
 }
 
 export interface MoveFinding {
@@ -116,7 +118,7 @@ export function detectMoves(all: MoveEvent[], ctx: MoveContext): MoveFinding[] {
   const cuts = events.filter((e) => isCut(e) && overlapping(e));
   const recentStarts = events.filter((e) => e.changeType === 'ad_started' && within(e, now, 30));
   const startedAds = recentStarts.reduce((n, e) => n + count(e), 0);
-  const promos = events.filter((e) => e.changeType === 'promo');
+  const promos = events.filter((e) => e.changeType === 'promo' && within(e, now, 30)); // a promo backed by the same 30-day ad burst
   if (cuts.length >= t.price_war_cuts_90d) {
     out.push(finding('price_war', cuts, 2, `${cuts.length} price cuts on services you offer`, { cuts: cuts.length }));
   } else if (promos.length > 0 && startedAds >= t.ad_burst_starts_30d) {
@@ -131,7 +133,7 @@ export function detectMoves(all: MoveEvent[], ctx: MoveContext): MoveFinding[] {
       (e) => e !== web && service(e) === s && ((e.changeType === 'new_service' && e.channels.includes('google_business_profile')) || e.changeType === 'ad_started'),
     );
     if (confirm.length > 0 || web.channels.some((ch) => CONFIRMING_CHANNELS.has(ch))) {
-      out.push(finding('new_service_line', [web, ...confirm], 2, `Launched a new service line: ${s}`, { service: s }));
+      out.push(finding('new_service_line', [web, ...confirm], 2, `Launched a new service line: ${ctx.serviceNames[s] ?? s}`, { service: s }));
       break;
     }
   }

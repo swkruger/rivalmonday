@@ -67,6 +67,16 @@ describe('updateMovesForClient', () => {
     expect((await moves())[0]?.closedAt).toEqual(day(131));
   });
 
+  it('names the service in a new-service-line summary from the client pack', async () => {
+    const [e] = await dbs.service
+      .insert(changeEvent)
+      .values({ competitorId: IDS.competitorX, changeType: 'new_service', channels: ['google_business_profile', 'web'], services: { hvac_plumbing: 'water_heater' }, summary: 'added water heaters', confidence: 0.9, occurredAt: day(96) })
+      .returning({ id: changeEvent.id });
+    await dbs.service.insert(eventScore).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, eventId: e!.id, score: 80, route: 'alert', factors, packVersion: 1 });
+    await run(100);
+    expect((await moves()).find((m) => m.moveType === 'new_service_line')?.summary).toBe('Launched a new service line: Water heater repair & install');
+  });
+
   it('only uses events the client was scored for, and keeps moves private to the tenant', async () => {
     expect(await run(100, IDS.clientB1)).toEqual({ opened: 0, updated: 0, fading: 0, closed: 0 }); // B1 tracks X but has no scores
     await run(100);

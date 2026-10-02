@@ -74,6 +74,7 @@ export async function updateMovesForClient(deps: { db: Db; packs: PackLoader }, 
   const [c] = await deps.db.select().from(client).where(eq(client.id, clientId)).limit(1);
   if (!c) throw new Error(`client ${clientId} not found`);
   const pack = await deps.packs(c.verticalId);
+  const serviceNames = Object.fromEntries(pack.services.map((s) => [s.id, s.name]));
   const since = new Date(now.getTime() - MOVE_WINDOW_DAYS * DAY_MS);
   const links = await deps.db.select({ competitorId: clientCompetitor.competitorId }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId));
   const r: MovesRunResult = { opened: 0, updated: 0, fading: 0, closed: 0 };
@@ -89,7 +90,7 @@ export async function updateMovesForClient(deps: { db: Db; packs: PackLoader }, 
     }));
     const findings = detectMoves(events, {
       now, verticalId: c.verticalId, clientServices: c.services, clientZips: c.serviceArea?.zips ?? [], clientTowns: c.serviceArea?.towns ?? [],
-      thresholds: pack.move_thresholds, ads: await adActivity(deps.db, competitorId, now),
+      thresholds: pack.move_thresholds, ads: await adActivity(deps.db, competitorId, now), serviceNames,
     });
     const open = await deps.db.select().from(move).where(and(eq(move.clientId, clientId), eq(move.competitorId, competitorId), isNull(move.closedAt)));
 
