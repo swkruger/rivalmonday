@@ -6,7 +6,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day } from '../../test/seed';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
 import { createPackLoader } from '../tag/tag-stage';
-import { factsSignature, scoreEvent } from './score-stage';
+import { detailsSignature, factsSignature, scoreEvent } from './score-stage';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -69,6 +69,19 @@ describe('scoreEvent', () => {
     expect(a1?.route).not.toBe('archive');
   });
 
+  it('does not archive a second, different rating drop, but still discounts an identical repeat', async () => {
+    const rating = (at: number, before: number, after: number) =>
+      event({ occurredAt: day(at), changeType: 'rating_change', channels: ['google_business_profile'], services: {}, facts: [], summary: 'Google rating changed', details: { changeType: 'rating_change', ratingBefore: before, ratingAfter: after } });
+    await rating(1, 4.6, 4.5);
+    const second = await rating(8, 4.5, 4.4);
+    await scoreEvent({ db: dbs.service, packs }, second);
+    const factorsOf = async (id: string) => (await dbs.owner.select().from(eventScore).where(eq(eventScore.eventId, id))).find((r) => r.clientId === IDS.clientA1)?.factors;
+    expect(await factorsOf(second)).toMatchObject({ maxSimilarity: null, novelty: 1 });
+    const repeat = await rating(9, 4.5, 4.4);
+    await scoreEvent({ db: dbs.service, packs }, repeat);
+    expect(await factorsOf(repeat)).toMatchObject({ maxSimilarity: 1, novelty: 0 });
+  });
+
   it('is idempotent, and scores a client that starts tracking the competitor later', async () => {
     const id = await event();
     await scoreEvent({ db: dbs.service, packs }, id);
@@ -122,5 +135,16 @@ describe('factsSignature', () => {
 
   it('distinguishes different after-values', () => {
     expect(factsSignature(cut('$100', '$80'))).not.toBe(factsSignature(cut('$100', '$60')));
+  });
+});
+
+describe('detailsSignature', () => {
+  it('fingerprints the numbers behind structured events, and is null for everything else', () => {
+    expect(detailsSignature('rating_change', { ratingBefore: 4.6, ratingAfter: 4.5 })).toBe('rating|4.6|4.5');
+    expect(detailsSignature('rank_change', { keyword: 'ac repair', avgRankBefore: 3.2, avgRankAfter: 7 })).toBe('rank|ac repair|3.2|7');
+    expect(detailsSignature('review_spike', { count: 12, windowDays: 7, baselineMean: 2.5 })).toBe('reviews|12|7|2.5');
+    expect(detailsSignature('ad_started', { items: [{ id: 'B', label: 'b' }, { id: 'A', label: 'a' }] })).toBe('ad_started|A,B');
+    expect(detailsSignature('hiring', { items: [{ id: 'J1', label: 'Tech' }] })).toBe('hiring|J1');
+    expect(detailsSignature('price_change', {})).toBeNull();
   });
 });
