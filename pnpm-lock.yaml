@@ -29,9 +29,15 @@ importers:
       '@cs/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@cs/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       '@cs/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      '@cs/verticals':
+        specifier: workspace:*
+        version: link:../../packages/verticals
       drizzle-orm:
         specifier: ^0.44.5
         version: 0.44.7(pg@8.23.1)(postgres@3.4.9)

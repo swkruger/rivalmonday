@@ -7,12 +7,19 @@ import {
 } from '@cs/collectors';
 import type { CaptureStatus } from '@cs/core';
 import { client, competitor, createDb, createLedgerSink, type Db } from '@cs/db';
+import { createPackLoader, diffWebCapture, type EngineWork, findEngineWork, scoreEvent as runScoreStage, tagChange as runTagStage } from '@cs/engine';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
 
 export interface WorkerDeps {
   claimDuePages(limit: number): Promise<string[]>;
-  capturePage(trackedPageId: string): Promise<{ status: CaptureStatus | 'missing' }>;
+  capturePage(trackedPageId: string): Promise<{ status: CaptureStatus | 'missing'; captureId?: string }>;
+  /** True once OPENROUTER_API_KEY is set — gates the intelligence engine (embeddings + decisions). */
+  engineConfigured(): boolean;
+  diffCapture(captureId: string): Promise<{ ran: boolean; changeIds: string[] }>;
+  tagChange(changeId: string): Promise<{ ran: boolean; eventId: string | null }>;
+  scoreEvent(eventId: string): Promise<{ scored: number; failed: number }>;
+  findEngineWork(limit: number): Promise<EngineWork>;
   discoverPages(competitorId: string): Promise<{ selected: number; candidates: number; homepageStatus: string } | { skipped: string }>;
   /** True once DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD are both set — gates all vendor collection. */
   vendorsConfigured(): boolean;
@@ -62,6 +69,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
   // replica. The deployment is a single always-on worker container by design; scaling out to
   // multiple replicas would need a shared (e.g. DB- or Redis-backed) limiter instead of this one.
   const limiter = new HostRateLimiter();
+  const packs = createPackLoader();
 
   const getDb = () => {
     if (!db) {
@@ -96,6 +104,20 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
   return {
     claimDuePages: (limit) => claimDuePages(getDb(), limit),
     capturePage: (id) => capturePage({ db: getDb(), store: getStore(), renderer: getRenderer() }, id),
+    engineConfigured: () => Boolean(env.OPENROUTER_API_KEY),
+    async diffCapture(captureId) {
+      const r = await diffWebCapture({ db: getDb(), store: getStore(), ai: await getAi() }, captureId);
+      return r.ran ? { ran: true, changeIds: r.result.changeIds } : { ran: false, changeIds: [] };
+    },
+    async tagChange(changeId) {
+      const r = await runTagStage({ db: getDb(), ai: await getAi(), packs }, changeId);
+      return r.ran ? { ran: true, eventId: r.result.eventId } : { ran: false, eventId: null };
+    },
+    async scoreEvent(eventId) {
+      const { scored, failed } = await runScoreStage({ db: getDb(), packs }, eventId);
+      return { scored, failed };
+    },
+    findEngineWork: (limit) => findEngineWork(getDb(), { limit }),
     async discoverPages(competitorId) {
       const [c] = await getDb().select().from(competitor).where(eq(competitor.id, competitorId)).limit(1);
       if (!c?.domain) return { skipped: 'competitor has no domain' };

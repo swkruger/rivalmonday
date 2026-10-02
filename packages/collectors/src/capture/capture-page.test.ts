@@ -23,7 +23,8 @@ describe('capturePage', () => {
       html: '<p>$99</p>', text: '$99', links: [], error: null, screenshot: async () => new Uint8Array([1]), close,
     };
     const renderer: Renderer = { render: vi.fn(async () => page), close: async () => {} };
-    expect(await capturePage({ db: dbs.service, store: createMemoryStore(), renderer }, PAGE)).toEqual({ status: 'ok' });
+    const r = await capturePage({ db: dbs.service, store: createMemoryStore(), renderer }, PAGE);
+    expect(r).toMatchObject({ status: 'ok', captureId: expect.stringMatching(/^[0-9a-f-]{36}$/) });
     expect(renderer.render).toHaveBeenCalledWith('https://s.example/pricing');
     expect(close).toHaveBeenCalled();
     expect(await dbs.service.select().from(capture)).toHaveLength(1);

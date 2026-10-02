@@ -8,6 +8,7 @@ try {
 
 import { createBoss, enqueue, registerJobs } from './boss';
 import { createWorkerDeps } from './deps';
+import { createEngineJobs } from './jobs/engine';
 import { heartbeatJob } from './jobs/heartbeat';
 import { createVendorJobs } from './jobs/vendor';
 import { createWebJobs } from './jobs/web';
@@ -22,9 +23,23 @@ const boss = createBoss(url);
 await boss.start();
 
 const deps = createWorkerDeps(process.env);
+const engine = createEngineJobs(deps, {
+  enqueueDiff: async (captureId) => {
+    await enqueue(boss, engine.diff, { captureId });
+  },
+  enqueueTag: async (changeId) => {
+    await enqueue(boss, engine.tag, { changeId });
+  },
+  enqueueScore: async (eventId) => {
+    await enqueue(boss, engine.score, { eventId });
+  },
+});
 const web = createWebJobs(deps, {
   enqueueCapture: async (trackedPageId) => {
     await enqueue(boss, web.capture, { trackedPageId });
+  },
+  enqueueDiff: async (captureId) => {
+    await enqueue(boss, engine.diff, { captureId });
   },
 });
 const vendor = createVendorJobs(deps, {
@@ -35,7 +50,10 @@ const vendor = createVendorJobs(deps, {
     await enqueue(boss, vendor.rankScan, { clientId });
   },
 });
-await registerJobs(boss, [heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, vendor.suggest]);
+await registerJobs(boss, [
+  heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, vendor.suggest,
+  engine.sweep, engine.diff, engine.tag, engine.score,
+]);
 console.log('[worker] started');
 
 // pg-boss 10's stop({ graceful: true, wait: true }) resolves only after in-flight handlers drain

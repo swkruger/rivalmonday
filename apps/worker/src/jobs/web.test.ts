@@ -18,4 +18,13 @@ describe('web jobs', () => {
     expect(() => jobs.capture.schema.parse({ trackedPageId: 'nope' })).toThrow();
     expect(() => jobs.discover.schema.parse({ competitorId: '00000000-0000-4000-8000-0000000000f1' })).not.toThrow();
   });
+
+  it('enqueues an engine diff after an ok capture only', async () => {
+    const capturePage = vi.fn(async (id: string) => (id === 'a' ? { status: 'ok', captureId: 'cap-a' } : { status: 'unchanged' }));
+    const enqueueDiff = vi.fn(async (_id: string) => {});
+    const jobs = createWebJobs({ capturePage } as unknown as WorkerDeps, { enqueueCapture: async () => {}, enqueueDiff });
+    await jobs.capture.handler({ trackedPageId: 'a' });
+    await jobs.capture.handler({ trackedPageId: 'b' });
+    expect(enqueueDiff.mock.calls).toEqual([['cap-a']]);
+  });
 });

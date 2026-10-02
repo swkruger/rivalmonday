@@ -1,4 +1,6 @@
 export * from './stage';
+export * from './sweep';
+export * from './drain';
 export * from './web/extract';
 export * from './web/align';
 export * from './web/blocks';

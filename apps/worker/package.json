@@ -8,14 +8,17 @@
     "test": "vitest run",
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",
-    "collect-once": "tsx src/cli/collect-once.ts"
+    "collect-once": "tsx src/cli/collect-once.ts",
+    "engine-once": "tsx src/cli/engine-once.ts"
   },
   "dependencies": {
     "@cs/ai": "workspace:*",
     "@cs/collectors": "workspace:*",
     "@cs/core": "workspace:*",
     "@cs/db": "workspace:*",
+    "@cs/engine": "workspace:*",
     "@cs/storage": "workspace:*",
+    "@cs/verticals": "workspace:*",
     "drizzle-orm": "^0.44.5",
     "pg-boss": "^10.3.2",
     "zod": "^4.1.5"

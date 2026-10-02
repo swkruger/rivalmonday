@@ -4,7 +4,10 @@ import { defineJob } from '../jobs';
 
 export const WEB_SCHEDULE_BATCH = 200;
 
-export function createWebJobs(deps: WorkerDeps, queue: { enqueueCapture(trackedPageId: string): Promise<void> }) {
+export function createWebJobs(
+  deps: WorkerDeps,
+  queue: { enqueueCapture(trackedPageId: string): Promise<void>; enqueueDiff?(captureId: string): Promise<void> },
+) {
   const schedule = defineJob({
     name: 'web-schedule',
     schema: z.looseObject({}),
@@ -21,6 +24,7 @@ export function createWebJobs(deps: WorkerDeps, queue: { enqueueCapture(trackedP
     handler: async ({ trackedPageId }) => {
       const r = await deps.capturePage(trackedPageId);
       console.log(`[web-capture-page] ${trackedPageId} → ${r.status}`);
+      if (r.status === 'ok' && r.captureId && queue.enqueueDiff) await queue.enqueueDiff(r.captureId);
     },
   });
   const discover = defineJob({
