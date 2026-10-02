@@ -70,6 +70,18 @@ describe('upsertAds', () => {
     expect(c2?.endedAt?.toISOString()).toBe('2026-09-10T00:00:00.000Z');
   });
 
+  it('adopts a legacy null-advertiser row into the page that lists it, so other pages no longer end it', async () => {
+    await dbs.service.insert(ad).values({ competitorId: IDS.competitorX, platform: 'meta', externalId: 'm1', advertiserId: null, isActive: true });
+    await upsertAds(dbs.service, IDS.competitorX, 'meta', CAP1, [makeAd({ externalId: 'm1', advertiserId: '99', publisherPlatforms: ['facebook'] })], { markMissingInactive: true, advertiserId: '99' });
+    const [adopted] = await dbs.service.select().from(ad).where(eq(ad.externalId, 'm1'));
+    expect(adopted).toMatchObject({ advertiserId: '99', isActive: true });
+    const r = await upsertAds(dbs.service, IDS.competitorX, 'meta', CAP2, [], { markMissingInactive: true, advertiserId: '77' });
+    expect(r.deactivated).toBe(0);
+    // An already-known advertiser is never overwritten.
+    await upsertAds(dbs.service, IDS.competitorX, 'meta', CAP2, [makeAd({ externalId: 'm1', advertiserId: '55' })], { markMissingInactive: false });
+    expect((await dbs.service.select().from(ad).where(eq(ad.externalId, 'm1')))[0]?.advertiserId).toBe('99');
+  });
+
   it("never updates another competitor's ad row when a creative id collides across competitors", async () => {
     await dbs.service.insert(ad).values({
       competitorId: IDS.competitorY,
