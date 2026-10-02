@@ -15,7 +15,8 @@ import { type DataForSeoClient, VendorError } from '../vendors/dataforseo';
  *
  * A VendorError on one point is logged and counted in `failed`, and the scan moves on (no snapshot is
  * stored for that point) — the job runs once (no pg-boss retry), so aborting would lose the rest of an
- * already-paid scan. Any other error (DB, bug) marks the scan failed and still throws.
+ * already-paid scan. Any other error (DB, bug) marks the scan failed and still throws. A scan that stored
+ * no snapshot at all is marked failed too.
  */
 export async function scanRankings(
   deps: { db: Db; dfs: DataForSeoClient },
@@ -54,6 +55,7 @@ export async function scanRankings(
     await deps.db.update(rankScan).set({ status: 'failed', snapshots, failed, finishedAt: new Date() }).where(eq(rankScan.id, scanId));
     throw err;
   }
-  await deps.db.update(rankScan).set({ status: 'done', snapshots, failed, finishedAt: new Date() }).where(eq(rankScan.id, scanId));
+  // A scan that stored nothing (every point failed) is not a done scan: rank diff would treat it as one.
+  await deps.db.update(rankScan).set({ status: snapshots > 0 ? 'done' : 'failed', snapshots, failed, finishedAt: new Date() }).where(eq(rankScan.id, scanId));
   return { snapshots, failed, scanId };
 }

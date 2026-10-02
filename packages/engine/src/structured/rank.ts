@@ -10,6 +10,8 @@ export const NOT_FOUND_RANK = 21;
 export const RANK_DELTA_MIN = 3;
 /** … or the share of grid points where the competitor is in the top 3 moved by at least this much. */
 export const TOP3_SHARE_DELTA_MIN = 0.25;
+/** A keyword is compared only on at least this many grid points both scans cover — fewer is noise. */
+export const RANK_MIN_SHARED_POINTS = 4;
 const round = (x: number, d = 2) => Math.round(x * 10 ** d) / 10 ** d;
 
 export function competitorMatcher(c: { placeId: string | null; cid: string | null; domain: string | null }): (r: RankResult) => boolean {
@@ -68,6 +70,7 @@ export async function diffRankScan(deps: { db: Db }, scanId: string): Promise<St
       for (const c of tracked) {
         const match = competitorMatcher(c);
         for (const [keyword, p] of [...pairs].sort(([a], [b]) => a.localeCompare(b))) {
+          if (p.after.length < RANK_MIN_SHARED_POINTS) continue;
           const m0 = rankMetrics(p.before, match);
           const m1 = rankMetrics(p.after, match);
           if (m0.avgRank === NOT_FOUND_RANK && m1.avgRank === NOT_FOUND_RANK) continue;

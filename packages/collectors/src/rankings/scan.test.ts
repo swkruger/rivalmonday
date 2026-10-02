@@ -76,6 +76,19 @@ describe('scanRankings', () => {
     expect((await dbs.service.select().from(rankScan))[0]).toMatchObject({ status: 'failed' });
   });
 
+  it('marks a scan that stored no snapshots failed, not done', async () => {
+    const dfs = fakeDfs(() => {
+      throw new VendorError('dataforseo', 40402, 'Maps search failed.', false);
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(await scanRankings({ db: dbs.service, dfs }, IDS.clientA1, { gridSize: 3 })).toMatchObject({ snapshots: 0, failed: 9 });
+    } finally {
+      warn.mockRestore();
+    }
+    expect((await dbs.service.select().from(rankScan))[0]).toMatchObject({ status: 'failed', snapshots: 0, failed: 9 });
+  });
+
   it('creates no scan for a client without keywords', async () => {
     await dbs.service.update(client).set({ keywords: [] }).where(eq(client.id, IDS.clientA1));
     expect(await scanRankings({ db: dbs.service, dfs: fakeDfs(() => []) }, IDS.clientA1)).toEqual({ snapshots: 0, failed: 0, scanId: null });

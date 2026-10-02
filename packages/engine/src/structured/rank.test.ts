@@ -4,17 +4,17 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day } from '../../test/seed';
 import { findEngineWork } from '../sweep';
-import { competitorMatcher, diffRankScan, rankMetrics } from './rank';
+import { competitorMatcher, diffRankScan, RANK_MIN_SHARED_POINTS, rankMetrics } from './rank';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const POINTS = [[33.1, -96.1], [33.1, -96.2], [33.2, -96.1], [33.2, -96.2]] as const;
 const hit = (rank: number): RankResult[] => [{ rank, placeId: 'PX', cid: null, domain: null, title: 'Smith HVAC' }];
 
-async function scan(at: number, ranks: Record<string, number | null>) {
+async function scan(at: number, ranks: Record<string, number | null>, points: readonly (readonly [number, number])[] = POINTS) {
   const [s] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'done', startedAt: day(at), finishedAt: day(at) }).returning({ id: rankScan.id });
   for (const [keyword, rank] of Object.entries(ranks)) {
-    for (const [lat, lng] of POINTS) {
+    for (const [lat, lng] of points) {
       await dbs.service.insert(rankSnapshot).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, scanId: s!.id, keyword, lat, lng, results: rank === null ? [] : hit(rank), capturedAt: day(at) });
     }
   }
@@ -53,6 +53,14 @@ describe('diffRankScan', () => {
     });
     // B1 tracks competitor X too, but never sees A1's rank change.
     expect(await withTenant(dbs.app, { agencyId: IDS.agencyB, clientScope: 'all' }, (tx) => tx.select().from(detectedChange))).toEqual([]);
+  });
+
+  it('skips a keyword whose two scans share fewer than RANK_MIN_SHARED_POINTS grid points', async () => {
+    expect(RANK_MIN_SHARED_POINTS).toBe(4);
+    await scan(0, { 'ac repair': 10, 'furnace repair': 10 });
+    const s1 = await scan(30, { 'ac repair': 2 }, POINTS.slice(0, 3));
+    await diffRankScan({ db: dbs.service }, s1);
+    expect(await dbs.service.select().from(detectedChange)).toEqual([]);
   });
 
   it('ignores competitors the client does not track and competitors absent from both scans', async () => {
