@@ -5,3 +5,5 @@ export * from './web/blocks';
 export * from './web/volatile';
 export * from './web/diff-stage';
 export * from './facts/numeric';
+export * from './tag/questions';
+export * from './tag/tag-stage';
