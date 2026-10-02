@@ -3,4 +3,5 @@ export * from './web/extract';
 export * from './web/align';
 export * from './web/blocks';
 export * from './web/volatile';
+export * from './web/diff-stage';
 export * from './facts/numeric';
