@@ -19,6 +19,7 @@ export * from './tag/tag-stage';
 export * from './tag/structured';
 export * from './reviews/themes';
 export * from './reviews/benchmark';
+export * from './reviews/complaints';
 export * from './merge/merge';
 export * from './moves/rules';
 export * from './moves/moves-stage';

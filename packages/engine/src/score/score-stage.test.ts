@@ -142,7 +142,8 @@ describe('detailsSignature', () => {
   it('fingerprints the numbers behind structured events, and is null for everything else', () => {
     expect(detailsSignature('rating_change', { ratingBefore: 4.6, ratingAfter: 4.5 })).toBe('rating|4.6|4.5');
     expect(detailsSignature('rank_change', { keyword: 'ac repair', avgRankBefore: 3.2, avgRankAfter: 7 })).toBe('rank|ac repair|3.2|7');
-    expect(detailsSignature('review_spike', { count: 12, windowDays: 7, baselineMean: 2.5 })).toBe('reviews|12|7|2.5');
+    expect(detailsSignature('review_spike', { count: 12, windowDays: 7, baselineMean: 2.5 })).toBe('reviews||12|7|2.5');
+    expect(detailsSignature('review_spike', { theme: 'price_transparency', count: 4, windowDays: 30, baselineMean: 0.67 })).toBe('reviews|price_transparency|4|30|0.67');
     expect(detailsSignature('ad_started', { items: [{ id: 'B', label: 'b' }, { id: 'A', label: 'a' }] })).toBe('ad_started|A,B');
     expect(detailsSignature('hiring', { items: [{ id: 'J1', label: 'Tech' }] })).toBe('hiring|J1');
     expect(detailsSignature('price_change', {})).toBeNull();

@@ -30,7 +30,7 @@ export function detailsSignature(changeType: string, d: ChangeDetails): string |
     case 'rank_change':
       return `rank|${d.keyword ?? ''}|${d.avgRankBefore ?? ''}|${d.avgRankAfter ?? ''}`;
     case 'review_spike':
-      return `reviews|${d.count ?? ''}|${d.windowDays ?? ''}|${d.baselineMean ?? ''}`;
+      return `reviews|${d.theme ?? ''}|${d.count ?? ''}|${d.windowDays ?? ''}|${d.baselineMean ?? ''}`;
     case 'ad_started':
     case 'ad_stopped':
     case 'hiring':

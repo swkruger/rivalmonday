@@ -4,7 +4,7 @@ import { and, eq, gte, isNull, lte, ne, sql } from 'drizzle-orm';
 import type { PackLoader } from '../tag/tag-stage';
 import { type AdActivity, detectMoves, MOVE_WINDOW_DAYS, type MoveEvent, type MoveFinding } from './rules';
 
-export const MOVES_RULE_VERSION = 1;
+export const MOVES_RULE_VERSION = 2;
 /** A move is 'active' once it has held this long … */
 export const ACTIVE_AFTER_DAYS = 7;
 /** … or straight away at this confidence. */
