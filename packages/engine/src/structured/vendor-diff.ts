@@ -4,6 +4,7 @@ import { runStage, type StageOutcome } from '../stage';
 import { diffAds } from './ads';
 import { diffGbp } from './gbp';
 import { diffJobs } from './jobs';
+import { diffReviews } from './reviews';
 
 export const VENDOR_DIFF_STAGE = 'vendor_diff';
 export const VENDOR_DIFF_VERSION = 1;
@@ -31,6 +32,7 @@ const DIFFERS: Record<string, SourceDiffer> = {
   meta_ads: diffAds,
   google_business_profile: diffGbp,
   google_jobs: diffJobs,
+  google_reviews: diffReviews,
 };
 
 export const vendorDiffSources = (): string[] => Object.keys(DIFFERS);
