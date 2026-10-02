@@ -1,4 +1,4 @@
-import { capture, changeEvent, detectedChange, eventScore, stageRun, trackedPage } from '@cs/db';
+import { capture, changeEvent, detectedChange, eventScore, review, stageRun, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { scoreEvent } from './score/score-stage';
@@ -70,7 +70,7 @@ describe('findEngineWork', () => {
     const factors = { typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 1 };
     await dbs.service.insert(eventScore).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, eventId: id(21), score: 1, route: 'archive', factors, packVersion: 1 });
     const w = await findEngineWork(dbs.service, { limit: 10 });
-    expect(w).toEqual({ diff: [], tag: [id(11)], score: [id(21)], rankDiff: [] }); // B1 still lacks a score for 21; 22 is outside the window
+    expect(w).toEqual({ diff: [], tag: [id(11)], score: [id(21)], rankDiff: [], reviews: [], prices: [id(1)] }); // B1 still lacks a score for 21; 22 is outside the window
   });
 
   it('offers settled vendor captures of sources that have a differ, and nothing else', async () => {
@@ -98,5 +98,16 @@ describe('findEngineWork', () => {
     expect((await findEngineWork(dbs.service, { limit: 50 })).score).toContain(ev!.id);
     await scoreEvent({ db: dbs.service, packs: createPackLoader() }, ev!.id);
     expect((await findEngineWork(dbs.service, { limit: 50 })).score).not.toContain(ev!.id); // B1 tracks X but is not owed this score
+  });
+
+  it('agrees with analyzeReview\'s JS trim on whitespace-only padding ("ok" + newlines), not bare SQL btrim (spaces only)', async () => {
+    const [r] = await dbs.service
+      .insert(review)
+      .values({ competitorId: IDS.competitorX, dedupeKey: 'd1', text: 'ok\n\n\n\n\n\n\n\n', postedAt: new Date() })
+      .returning({ id: review.id });
+    // length('ok\n\n\n\n\n\n\n\n') is 10 (>= MIN_REVIEW_CHARS), but there are no leading/trailing spaces for bare
+    // btrim to strip, so a naive `length(btrim(r.text)) >= 10` check would offer this review; JS `.trim()`
+    // (what analyzeReview itself checks) strips the newlines too, leaving "ok" (2 chars) — never offer it.
+    expect((await findEngineWork(dbs.service, { limit: 50 })).reviews).not.toContain(r!.id);
   });
 });

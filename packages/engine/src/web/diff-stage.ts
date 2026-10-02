@@ -1,6 +1,6 @@
 import type { Ai } from '@cs/ai';
-import { redactContactInfo } from '@cs/collectors';
-import { capture, captureBlock, type Db, detectedChange, type NumericChange } from '@cs/db';
+import { redactForModel } from '@cs/collectors';
+import { capture, captureBlock, competitor, type Db, detectedChange, type NumericChange } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { and, desc, eq, lt } from 'drizzle-orm';
 import { diffFacts, extractFacts, type FactExtractor, llmFactExtractor, MONEY_KINDS } from '../facts/numeric';
@@ -80,13 +80,14 @@ export async function diffWebCapture(deps: EngineDeps, captureId: string, opts: 
   const [cap] = await deps.db.select().from(capture).where(eq(capture.id, captureId)).limit(1);
   if (!cap || cap.source !== 'web' || cap.status !== 'ok' || !cap.trackedPageId) throw new Error(`capture ${captureId} is not an ok web page capture`);
   const pageId = cap.trackedPageId;
-  const fallback = opts.factFallback ?? llmFactExtractor(deps.ai, PLATFORM);
 
   const outcome = await runStage(
     deps.db,
     { stage: WEB_DIFF_STAGE, version: WEB_DIFF_VERSION, subjectId: captureId },
     async () => {
       if ((await ensureBlocks(deps, captureId)) === 'busy') throw new Error(`blocks of capture ${captureId} are being extracted`);
+      const [comp] = await deps.db.select({ name: competitor.name }).from(competitor).where(eq(competitor.id, cap.competitorId)).limit(1);
+      const fallback = opts.factFallback ?? llmFactExtractor(deps.ai, PLATFORM, [comp?.name]);
       const [prev] = await deps.db
         .select({ id: capture.id })
         .from(capture)
@@ -103,7 +104,7 @@ export async function diffWebCapture(deps: EngineDeps, captureId: string, opts: 
       const need = new Map<string, StoredBlock>();
       for (const a of alignments) for (const b of [a.before, a.after]) if (b && !b.embedding) need.set(b.id, b);
       const embedded = [...need.values()];
-      const { vectors } = await deps.ai.embed('embeddings', embedded.map((b) => redactContactInfo(b.text)), PLATFORM);
+      const { vectors } = await deps.ai.embed('embeddings', embedded.map((b) => redactForModel(b.text, { businessNames: [comp?.name] })), PLATFORM);
       embedded.forEach((b, i) => {
         b.embedding = vectors[i]!;
       });

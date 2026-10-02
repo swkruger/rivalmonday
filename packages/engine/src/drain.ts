@@ -2,6 +2,8 @@ import type { Ai } from '@cs/ai';
 import type { Db } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { diffCapture } from './diff';
+import { extractPrices } from './prices/price-stage';
+import { analyzeReview } from './reviews/themes';
 import { scoreEvent } from './score/score-stage';
 import { diffRankScan } from './structured/rank';
 import { findEngineWork } from './sweep';
@@ -14,6 +16,8 @@ export interface DrainResult {
   events: number;
   scored: number;
   rankDiffs: number;
+  reviews: number;
+  prices: number;
   errors: number;
 }
 
@@ -22,7 +26,7 @@ export async function drainEngine(
   deps: { db: Db; store: ObjectStore; ai: Ai; packs: PackLoader },
   opts: { competitorId?: string; limit?: number; maxRounds?: number } = {},
 ): Promise<DrainResult> {
-  const r: DrainResult = { diffs: 0, changes: 0, tagged: 0, events: 0, scored: 0, rankDiffs: 0, errors: 0 };
+  const r: DrainResult = { diffs: 0, changes: 0, tagged: 0, events: 0, scored: 0, rankDiffs: 0, reviews: 0, prices: 0, errors: 0 };
   const attempt = async (what: string, fn: () => Promise<void>) => {
     try {
       await fn();
@@ -33,7 +37,7 @@ export async function drainEngine(
   };
   for (let round = 0; round < (opts.maxRounds ?? 10); round++) {
     const work = await findEngineWork(deps.db, { limit: opts.limit ?? 100, competitorId: opts.competitorId });
-    if (work.diff.length + work.tag.length + work.score.length + work.rankDiff.length === 0) break;
+    if (work.diff.length + work.tag.length + work.score.length + work.rankDiff.length + work.reviews.length + work.prices.length === 0) break;
     for (const id of work.diff) {
       await attempt(`diff ${id}`, async () => {
         const o = await diffCapture(deps, id);
@@ -66,6 +70,16 @@ export async function drainEngine(
           r.rankDiffs++;
           r.changes += o.result.changeIds.length;
         }
+      });
+    }
+    for (const id of work.reviews) {
+      await attempt(`review ${id}`, async () => {
+        if ((await analyzeReview(deps, id)).ran) r.reviews++;
+      });
+    }
+    for (const id of work.prices) {
+      await attempt(`prices ${id}`, async () => {
+        if ((await extractPrices(deps, id)).ran) r.prices++;
       });
     }
   }

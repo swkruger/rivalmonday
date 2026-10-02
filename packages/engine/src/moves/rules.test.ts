@@ -2,7 +2,7 @@ import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { day } from '../../test/seed';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
-import { AD_SURGE_MIN_HISTORY_WEEKS, detectMoves, type MoveContext, moveConfidence, type MoveEvent } from './rules';
+import { AD_SURGE_MIN_HISTORY_WEEKS, detectMoves, type MoveContext, moveConfidence, type MoveEvent, ratingDrawdown } from './rules';
 
 let hvac: VerticalPack;
 beforeAll(async () => {
@@ -84,10 +84,34 @@ describe('detectMoves', () => {
     expect(types([web, ev({ ...ad, occurredAt: day(70) })])).not.toContain('promo_blitz');
   });
 
-  it('reputation slump: rating drops adding up to the threshold', () => {
-    const drop = (a: number, b: number) => ev({ changeType: 'rating_change', channels: ['google_business_profile'], details: { ratingBefore: a, ratingAfter: b } });
+  it('reputation slump: a rating drawdown from the window peak (a recovery does not cancel the drop)', () => {
+    const drop = (a: number, b: number, at = day(95)) => ev({ changeType: 'rating_change', channels: ['google_business_profile'], details: { ratingBefore: a, ratingAfter: b }, occurredAt: at });
     expect(types([drop(4.6, 4.5), drop(4.5, 4.4)])).toContain('reputation_slump');
     expect(types([drop(4.6, 4.5)])).not.toContain('reputation_slump');
+    const dipAndRecover = [drop(4.8, 4.5, day(60)), drop(4.5, 4.6, day(90))];
+    expect(ratingDrawdown(dipAndRecover)).toBe(0.3);
+    expect(detectMoves(dipAndRecover, ctx()).find((f) => f.type === 'reputation_slump')).toMatchObject({ facts: { ratingDrop: 0.3 }, summary: 'Google rating down 0.3 in 90 days' });
+  });
+
+  it('reputation slump: a rating drawdown is deterministic for same-timestamp events regardless of input order (tie-break by id)', () => {
+    const at = day(95);
+    const a = ev({ id: 'r1', changeType: 'rating_change', channels: ['google_business_profile'], details: { ratingBefore: 5.0, ratingAfter: 4.0 }, occurredAt: at });
+    const b = ev({ id: 'r2', changeType: 'rating_change', channels: ['google_business_profile'], details: { ratingBefore: 4.0, ratingAfter: 4.5 }, occurredAt: at });
+    const c = ev({ id: 'r3', changeType: 'rating_change', channels: ['google_business_profile'], details: { ratingBefore: 4.5, ratingAfter: 3.0 }, occurredAt: at });
+    expect(ratingDrawdown([a, b, c])).toBe(2);
+    expect(ratingDrawdown([c, b, a])).toBe(2);
+    expect(ratingDrawdown([b, a, c])).toBe(2);
+  });
+
+  it('reputation slump: a complaint-theme spike for the client vertical in the last 30 days', () => {
+    const spike = (over: Partial<MoveEvent> = {}) =>
+      ev({ changeType: 'review_spike', channels: ['google_reviews'], details: { theme: 'price_transparency', themeName: 'Price transparency', verticalId: 'hvac_plumbing', count: 4 }, ...over });
+    expect(detectMoves([spike()], ctx()).find((f) => f.type === 'reputation_slump')).toMatchObject({
+      summary: 'Rising complaints about Price transparency', facts: { theme: 'Price transparency' },
+    });
+    expect(types([spike({ details: { theme: 'wait_time', themeName: 'Wait time', verticalId: 'dental', count: 4 } })])).not.toContain('reputation_slump');
+    expect(types([spike({ occurredAt: day(60) })])).not.toContain('reputation_slump'); // 40 days old
+    expect(types([ev({ changeType: 'review_spike', channels: ['google_reviews'], details: { count: 9, z: 3 } })])).not.toContain('reputation_slump'); // a velocity spike is not a complaint
   });
 
   it('ad surge: active ads at least the multiplier times the baseline, with a started-ad event as evidence', () => {

@@ -68,7 +68,7 @@ export async function discoverPages(
     for (const c of ranked) {
       let pageType: PageType;
       try {
-        pageType = (await classifyPage(deps.ai, c)).pageType;
+        pageType = (await classifyPage(deps.ai, { ...c, businessName: competitor.domain })).pageType;
       } catch {
         // A single candidate's classifier failure must not abort discovery for the rest.
         pageType = guessPageType(c.url, c.text) ?? 'other';

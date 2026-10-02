@@ -2,14 +2,15 @@ import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } fr
 import {
   capturePage, claimDuePages, claimDueSources, collectGbpProfile, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
   createDataForSeo, type DataForSeoClient, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
-  HostRateLimiter, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy, scanRankings,
-  type SourceKind, suggestCompetitors,
+  ensureSelfCompetitors, HostRateLimiter, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
+  scanRankings, type SourceKind, suggestCompetitors,
 } from '@cs/collectors';
 import type { CaptureStatus } from '@cs/core';
 import { client, competitor, createDb, createLedgerSink, type Db } from '@cs/db';
 import {
-  createPackLoader, diffCapture, diffRankScan, type EngineWork, findEngineWork, listMoveClients, type MovesRunResult, scoreEvent as runScoreStage,
-  tagChange as runTagStage, updateMovesForClient,
+  analyzeReview as runAnalyzeReview, createPackLoader, diffCapture, diffRankScan, type EngineWork, extractPrices as runExtractPrices, findEngineWork,
+  listMoveClients, type MovesRunResult, type ReviewInsightsResult, runReviewInsights, scoreEvent as runScoreStage, tagChange as runTagStage,
+  updateMovesForClient,
 } from '@cs/engine';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
@@ -23,12 +24,17 @@ export interface WorkerDeps {
   tagChange(changeId: string): Promise<{ ran: boolean; eventId: string | null }>;
   scoreEvent(eventId: string): Promise<{ scored: number; failed: number }>;
   findEngineWork(limit: number): Promise<EngineWork>;
+  analyzeReview(reviewId: string): Promise<{ ran: boolean }>;
+  extractPrices(captureId: string): Promise<{ ran: boolean; points: number; ended: number }>;
+  runReviewInsights(): Promise<ReviewInsightsResult>;
   diffRankScan(scanId: string): Promise<{ ran: boolean; changeIds: string[] }>;
   updateMoves(clientId: string): Promise<MovesRunResult>;
   listMoveClients(): Promise<string[]>;
   discoverPages(competitorId: string): Promise<{ selected: number; candidates: number; homepageStatus: string } | { skipped: string }>;
   /** True once DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD are both set — gates all vendor collection. */
   vendorsConfigured(): boolean;
+  /** Links clients with a place id to their own business as a self competitor (reviews + GBP only). */
+  ensureSelfCompetitors(): Promise<number>;
   claimDueSources(limit: number): Promise<{ competitorId: string; source: SourceKind }[]>;
   runSource(competitorId: string, source: 'gbp' | 'ads_google' | 'ads_meta'): Promise<{ status: string }>;
   /**
@@ -123,6 +129,16 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       return { scored, failed };
     },
     findEngineWork: (limit) => findEngineWork(getDb(), { limit }),
+    async analyzeReview(reviewId) {
+      return { ran: (await runAnalyzeReview({ db: getDb(), ai: await getAi(), packs }, reviewId)).ran };
+    },
+    async extractPrices(captureId) {
+      const r = await runExtractPrices({ db: getDb(), store: getStore(), ai: await getAi(), packs }, captureId);
+      return r.ran ? { ran: true, points: r.result.points, ended: r.result.ended } : { ran: false, points: 0, ended: 0 };
+    },
+    async runReviewInsights() {
+      return runReviewInsights({ db: getDb(), ai: await getAi(), packs });
+    },
     async diffRankScan(scanId) {
       const r = await diffRankScan({ db: getDb() }, scanId);
       return r.ran ? { ran: true, changeIds: r.result.changeIds } : { ran: false, changeIds: [] };
@@ -135,6 +151,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       return discoverPages({ db: getDb(), renderer: getRenderer(), robots, fetchText: defaultFetchText, limiter, ai: await getAi() }, { id: c.id, domain: c.domain });
     },
     vendorsConfigured: () => Boolean(env.DATAFORSEO_LOGIN && env.DATAFORSEO_PASSWORD),
+    ensureSelfCompetitors: () => ensureSelfCompetitors(getDb()),
     claimDueSources: (limit) => claimDueSources(getDb(), limit),
     async runSource(competitorId, source) {
       const [c] = await loadCompetitors([competitorId]);

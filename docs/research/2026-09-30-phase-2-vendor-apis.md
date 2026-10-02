@@ -858,3 +858,50 @@ A second `engine-once --competitor … --moves` run (≥ 10 minutes after the `-
 
 **What was and wasn't verified live:** verified — advertiser-id pinning end to end (request shape, depth 120 acceptance, cost, 0-dropped result), per-page Meta capture isolation, the ad-started structured diff grouping multiple new creatives into one change (trivially, with exactly one new ad), the reviews depth (backfill vs routine) behaviour, the 10-minute settle delay (the second `engine-once` run, not the first, is what picked up the reviews/jobs captures), the reviews/jobs/GBP/Meta "no change" paths against real vendor payloads with zero errors, global event `channels`, and the "no client → no score/no moves" paths. **Not verified live** (no real change occurred in the 13-hour window to exercise it): `ad_stopped`, GBP field changes, a genuine review-velocity spike, a rating change, a rank delta, cross-channel merge, and any of the seven move rules actually opening/transitioning a move — all of these are covered by `packages/engine/src/structured/*.test.ts`, `packages/engine/src/merge/merge.test.ts` and `packages/engine/src/moves/*.test.ts` with synthetic fixtures instead.
 
+## Verified 2026-10-02 — Phase 3c
+
+### `compromise` NER (model-privacy.ts), version 14.17.0
+
+`packages/collectors/src/evidence/model-privacy.test.ts` (6 tests, all pass) is the Task 1 sample set run against the real installed library (no mocking — `compromise` is pure offline JS, so unit tests already are the live check). Catches, correctly, with zero false positives against the tested business names and service vocabulary:
+- Bare first names repeated in the same text ("Mike … Thanks Mike!").
+- A titled full name ("Dr. Patel") redacted as one unit — the bare title alone ("Dr.") is never redacted by itself.
+- A name following an occupational cue ("her hygienist Jessica", "my daughter Emma").
+- A first+last name introduced by "named" ("Tech named Carlos Ramirez"), redacted as the whole two-word span, not split.
+- Correctly leaves alone: every word of two tested business names ("Smith HVAC", "Hope and Faith Dental") even where a name shares a word with the business ("Mike" in a sentence that also redacts "Mike" the person — the business-name protection is phrase-span based, not word based, per the Task 1 ruling).
+- Lowercase names are also redacted: `compromise` detects person names regardless of capitalization (e.g. "ask for mike"), so there is no capital-letter fast path — an earlier version of this code skipped `compromise` entirely on text with no capital letters, which let an all-lowercase review's names reach the model; fixed at the final whole-branch review (name-occurrence replacement is now case-insensitive too).
+- No misses found against this sample set — no additional custom rule was needed beyond the library's own tagger (contrast the brief's "add the missed pattern as a rule" contingency, which wasn't triggered).
+
+### `engine.live.test.ts` — review and price decisions (added Task 12)
+
+Run: `pnpm --filter @cs/engine exec vitest run src/engine.live.test.ts` (4 tests, all pass, ≈ $0.0003 this run). Extends the 2026-10-01 "engine models" live contract test with the two Phase 3c decision tasks:
+
+**Review decisions** — a redacted hidden-fee complaint ("Quoted $150 on the phone but the bill was $400 with fees nobody mentioned. Thanks Mike for being polite, I guess.", `redactForModel`'d with `businessNames: ['Smith HVAC']` first — the state sent to the model never contained "Mike") resolved through `ai.decide('review_decisions', …)`:
+- `sentiment`: provider `jev`, confidence `0.85` → very negative (level 0).
+- `theme_hvac_plumbing__price_transparency`: provider `jev`, confidence `0.94` → yes.
+- `theme_hvac_plumbing__response_time`: `jev:0.94`; `__upsell_pressure`: `jev:0.88`; `__scheduling`: `jev:0.92`; `__fix_quality`: `jev:0.92`; `__cleanliness`: `jev:0.96` (all answered yes/no by Jev alone, within the 0.85 task threshold).
+- Two questions escalated past Jev to the LLM provider (expected cascade behaviour, spec §7.1): `theme_hvac_plumbing__technician_professionalism` (`llm:0.70`) and `theme_hvac_plumbing__communication` (`llm:0.50`), plus `other_hvac_plumbing` (`llm:0.80`).
+- Resolved row: `themes: ["price_transparency"]`, `sentiment: 0` (very negative) — matches the complaint.
+
+**Price decisions** — `AC tune-up starting at $89 per system'` through `ai.decide('price_decisions', …)` resolved `service_hvac_plumbing` to `ac_tune_up` at confidence `1.00`, provider `jev` (probability mass 1.0 on `ac_tune_up`, 0 on every other service option).
+
+### Live run against `cs_dev` (Task 12 Step 3)
+
+`cs_dev` migrated to `0024` (`pnpm db:migrate`). **Finding:** `cs_dev` had no `agency`/`client` rows at all (not merely a client missing `place_id`, as the controller's Ruling R2 anticipated) — the existing `aireserv.com` competitor (546 reviews collected 2026-10-01/02) was tracked by no client. A minimal verification agency/client (`CS Dev Verification Agency` / `CS Dev Verification Client`, `vertical_id: hvac_plumbing`, `place_id` left **unset** — never invented) was created and linked to the existing competitor via `client_competitor`, so the Jev-only live sweep below would have real tracked data to analyse; no web crawl and no vendor collection were run (no `collect-once` call this session).
+
+**Budget check before running:** `SELECT count(*) FROM review WHERE text IS NOT NULL AND length(btrim(text)) >= 10 AND posted_at >= now() - interval '180 days'` → **43** reviews (well under the 400-review `--rounds` cap threshold; ran with the brief's suggested `--rounds 20`, which was never exhausted — all 43 cleared in round 1 of `findEngineWork`'s default 100-row limit).
+
+Command: `pnpm --filter @cs/worker engine-once --competitor e9f9cbd3-8834-43a4-a1af-a31224ca43d3 --insights --client <verification-client-id> --rounds 20`
+
+```
+{"diffs":0,"changes":0,"tagged":0,"events":0,"scored":1,"rankDiffs":0,"reviews":43,"prices":0,"errors":0}
+[insights] {"competitors":1,"spikes":0,"proposals":0,"errors":0}
+[benchmark]   Aire Serv: 28 reviews, avg 4.86 (prev 27 / 4.96); Response time 9% (1), Technician professionalism 93% (1), Upsell pressure 5% (1), Scheduling & reliability 20% (1), Fix quality 33% (1), Communication 56% (1)
+[prices] Aire Serv: no prices yet
+```
+
+- **43 reviews analysed, 0 errors.** `scored: 1` is a side effect of newly linking the client — it retro-scored one pre-existing `ad_started` event (from the 2026-10-02 Phase 3b pass) now that a client tracks the competitor, unrelated to reviews/prices.
+- **Insights:** 0 complaint-theme spikes, 0 theme proposals this pass (expected — 43 reviews is below the ≥ 20-unthemed-in-90-days theme-discovery trigger for any one theme, and no theme crossed the spike thresholds).
+- **Benchmark (aggregate shares only — no review text or reviewer identity printed or recorded anywhere in this doc):** Aire Serv shows 28 reviews analysed in the current 90-day window (27 in the previous), avg rating 4.86 (prev 4.96); six themes had at least one mention, from "Upsell pressure" 5% up to "Technician professionalism" 93%. No self-business row (the verification client has no `place_id`, so `client.self_competitor_id` is unset) — self-benchmarking remains unverified live (carried forward in the roadmap's "Phase 3c carry-over").
+- **Prices:** 0 — `cs_dev` has no `web`-source captures for `aireserv.com` (only vendor collection has ever been run against it, per the crawler-ban rule), so `price_extract` found no work. Price normalisation is live-verified only by its own test suite this session, not against a real web capture.
+- **Spend** (`SELECT task, provider, count(*), sum(cost_usd) FROM llm_call WHERE created_at > now() - interval '1 hour' GROUP BY 1, 2`): `review_decisions` (provider `jev`) × 43 calls = **$0.001228**; the Jev→LLM cascade's `llm_decisions` escalation (provider `llm`) × 43 calls = **$0.057435** (at least one of each review's per-theme/sentiment questions fell through to the LLM on every review). **Total ≈ $0.0587** — comfortably under the brief's "well under $1" budget.
+

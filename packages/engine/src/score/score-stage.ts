@@ -30,7 +30,7 @@ export function detailsSignature(changeType: string, d: ChangeDetails): string |
     case 'rank_change':
       return `rank|${d.keyword ?? ''}|${d.avgRankBefore ?? ''}|${d.avgRankAfter ?? ''}`;
     case 'review_spike':
-      return `reviews|${d.count ?? ''}|${d.windowDays ?? ''}|${d.baselineMean ?? ''}`;
+      return `reviews|${d.theme ?? ''}|${d.count ?? ''}|${d.windowDays ?? ''}|${d.baselineMean ?? ''}`;
     case 'ad_started':
     case 'ad_stopped':
     case 'hiring':
@@ -105,6 +105,10 @@ export async function scoreEvent(deps: { db: Db; packs: PackLoader }, eventId: s
       and(
         eq(clientCompetitor.competitorId, ev.competitorId),
         ev.clientId ? eq(client.id, ev.clientId) : undefined, // tenant-private events belong to one client
+        // A complaint-theme spike (`review_spike` with `details.verticalId` set) was raised for one specific
+        // vertical's theme list — never score it for a client of a different vertical tracking the same
+        // competitor (a franchise competitor can span verticals, e.g. HVAC + dental).
+        ev.details.verticalId ? eq(client.verticalId, ev.details.verticalId) : undefined,
         sql`NOT EXISTS (SELECT 1 FROM event_score s WHERE s.event_id = ${ev.id} AND s.client_id = ${client.id})`,
       ),
     );

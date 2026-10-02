@@ -84,6 +84,30 @@ describe('tagStructuredChange (via tagChange)', () => {
     expect(await dbs.owner.select().from(decisionReview)).toMatchObject([{ subjectId: id, keys: ['service_hvac_plumbing'] }]);
   });
 
+  it('builds the structured decision state and summary through the NER pass', async () => {
+    const id = await change({
+      afterText: 'Ask for Carlos Ramirez — AC tune-up $79',
+      details: { changeType: 'ad_started', count: 1, items: [{ id: 'A1', label: 'Ask for Carlos Ramirez — AC tune-up $79' }] },
+    });
+    const ai = createFakeAi({ decide: structuredResult({ services: { hvac_plumbing: 'ac_tune_up' } }) });
+    await tagChange({ db: dbs.service, ai, packs }, id);
+    expect(JSON.stringify(ai.calls.decide[0]!.state)).not.toContain('Carlos');
+    const [ev] = await dbs.owner.select().from(changeEvent);
+    expect(ev?.summary).toContain('[name]');
+    expect(ev?.summary).not.toContain('Carlos');
+  });
+
+  it('keeps a GBP title rename intact in the summary: the new (and old) name is never mistaken for a person', async () => {
+    const id = await change({
+      source: 'google_business_profile', kind: 'modified', blockKey: 'gbp:title',
+      beforeText: 'title: Smith HVAC', afterText: 'title: Smith Heating & Air',
+      details: { changeType: 'content', field: 'title' },
+    });
+    await tagChange({ db: dbs.service, ai: createFakeAi(), packs }, id); // 'content' isn't service-mapped: decide() is never called
+    const [ev] = await dbs.owner.select().from(changeEvent);
+    expect(ev?.summary).toBe('Google Business Profile title changed: Smith HVAC → Smith Heating & Air');
+  });
+
   it('asks a global change the service question of every vertical tracking the competitor', async () => {
     await dbs.owner.update(client).set({ verticalId: 'dental' }).where(eq(client.id, IDS.clientB1)); // a second vertical tracks X
     const id = await change({ source: 'google_business_profile', kind: 'added', blockKey: 'gbp:service:emergency plumbing', afterText: 'Emergency plumbing', details: { changeType: 'new_service', field: 'service' } });
@@ -96,8 +120,12 @@ describe('tagStructuredChange (via tagChange)', () => {
 
 describe('buildStructuredSummary', () => {
   it('does not repeat the GBP field label stored in the before/after text', () => {
-    expect(buildStructuredSummary({ source: 'google_business_profile', beforeText: 'title: Smith HVAC', afterText: 'title: Smith Heating & Air', details: { changeType: 'content', field: 'title' } }))
-      .toBe('Google Business Profile title changed: Smith HVAC → Smith Heating & Air');
+    expect(
+      buildStructuredSummary(
+        { source: 'google_business_profile', beforeText: 'title: Smith HVAC', afterText: 'title: Smith Heating & Air', details: { changeType: 'content', field: 'title' } },
+        ['Smith HVAC', 'Smith Heating & Air'],
+      ),
+    ).toBe('Google Business Profile title changed: Smith HVAC → Smith Heating & Air');
     expect(buildStructuredSummary({ source: 'google_business_profile', beforeText: 'Mon 8-5', afterText: 'Mon 7-6', details: { changeType: 'content', field: 'hours' } }))
       .toBe('Google Business Profile hours changed: Mon 8-5 → Mon 7-6');
   });

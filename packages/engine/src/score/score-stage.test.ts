@@ -99,6 +99,20 @@ describe('scoreEvent', () => {
     await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorX });
     expect(await scoreEvent({ db: dbs.service, packs: broken }, id)).toMatchObject({ scored: 2, failed: 1 });
   });
+
+  it('never scores a complaint-theme spike for a client whose vertical differs from details.verticalId', async () => {
+    // A2 (dental) also tracks competitor X (e.g. a franchise competitor spanning HVAC + dental).
+    await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorX });
+    const id = await event({
+      changeType: 'review_spike',
+      services: {},
+      facts: [],
+      details: { changeType: 'review_spike', verticalId: 'hvac_plumbing', theme: 'price_transparency', themeName: 'Price transparency', count: 4, windowDays: 30, baselineMean: 0.5 },
+    });
+    expect(await scoreEvent({ db: dbs.service, packs }, id)).toMatchObject({ scored: 2 }); // A1 and B1 (both hvac_plumbing), not A2 (dental)
+    const clientIds = (await dbs.owner.select().from(eventScore).where(eq(eventScore.eventId, id))).map((r) => r.clientId).sort();
+    expect(clientIds).toEqual([IDS.clientA1, IDS.clientB1].sort());
+  });
 });
 
 describe('tenant-private events and event age (Phase 3b)', () => {
@@ -142,7 +156,8 @@ describe('detailsSignature', () => {
   it('fingerprints the numbers behind structured events, and is null for everything else', () => {
     expect(detailsSignature('rating_change', { ratingBefore: 4.6, ratingAfter: 4.5 })).toBe('rating|4.6|4.5');
     expect(detailsSignature('rank_change', { keyword: 'ac repair', avgRankBefore: 3.2, avgRankAfter: 7 })).toBe('rank|ac repair|3.2|7');
-    expect(detailsSignature('review_spike', { count: 12, windowDays: 7, baselineMean: 2.5 })).toBe('reviews|12|7|2.5');
+    expect(detailsSignature('review_spike', { count: 12, windowDays: 7, baselineMean: 2.5 })).toBe('reviews||12|7|2.5');
+    expect(detailsSignature('review_spike', { theme: 'price_transparency', count: 4, windowDays: 30, baselineMean: 0.67 })).toBe('reviews|price_transparency|4|30|0.67');
     expect(detailsSignature('ad_started', { items: [{ id: 'B', label: 'b' }, { id: 'A', label: 'a' }] })).toBe('ad_started|A,B');
     expect(detailsSignature('hiring', { items: [{ id: 'J1', label: 'Tech' }] })).toBe('hiring|J1');
     expect(detailsSignature('price_change', {})).toBeNull();

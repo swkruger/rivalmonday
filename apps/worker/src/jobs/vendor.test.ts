@@ -6,6 +6,7 @@ describe('vendor jobs', () => {
   it('batches reviews/jobs into async task posts and enqueues the rest', async () => {
     const deps = {
       vendorsConfigured: () => true,
+      ensureSelfCompetitors: vi.fn(async () => 0),
       claimDueSources: vi.fn(async () => [
         { competitorId: 'c1', source: 'reviews' }, { competitorId: 'c2', source: 'jobs' }, { competitorId: 'c1', source: 'gbp' }, { competitorId: 'c1', source: 'ads_meta' },
       ]),
@@ -39,6 +40,7 @@ describe('vendor jobs', () => {
     const postBatchTasks = vi.fn(async () => ({ failed: 1 }));
     const deps = {
       vendorsConfigured: () => true,
+      ensureSelfCompetitors: vi.fn(async () => 0),
       claimDueSources: vi.fn(async () => [{ competitorId: 'c1', source: 'reviews' }, { competitorId: 'c2', source: 'gbp' }]),
       postBatchTasks,
     } as unknown as WorkerDeps;
@@ -52,6 +54,7 @@ describe('vendor jobs', () => {
   it('still enqueues the sync collects, and never releases anything itself, when postBatchTasks throws unexpectedly', async () => {
     const deps = {
       vendorsConfigured: () => true,
+      ensureSelfCompetitors: vi.fn(async () => 0),
       claimDueSources: vi.fn(async () => [{ competitorId: 'c1', source: 'reviews' }, { competitorId: 'c2', source: 'gbp' }]),
       postBatchTasks: vi.fn(async () => {
         throw new Error('db down');
@@ -64,6 +67,24 @@ describe('vendor jobs', () => {
     // this test documents that an unexpected throw is swallowed (logged) without crashing the tick.
     await expect(jobs.schedule.handler({})).resolves.toBeUndefined();
     expect(enqueueCollect).toHaveBeenCalledWith({ competitorId: 'c2', source: 'gbp' });
+  });
+
+  it('links self businesses before claiming due sources', async () => {
+    const order: string[] = [];
+    const deps = {
+      vendorsConfigured: () => true,
+      ensureSelfCompetitors: vi.fn(async () => {
+        order.push('self');
+        return 2;
+      }),
+      claimDueSources: vi.fn(async () => {
+        order.push('claim');
+        return [];
+      }),
+    } as unknown as WorkerDeps;
+    const jobs = createVendorJobs(deps, { enqueueCollect: vi.fn(), enqueueRankScan: vi.fn() });
+    await jobs.schedule.handler({});
+    expect(order).toEqual(['self', 'claim']);
   });
 
   it('skips polling when vendor credentials are not configured', async () => {

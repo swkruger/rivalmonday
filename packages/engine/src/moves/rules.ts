@@ -1,6 +1,7 @@
 import type { ChangeType, MoveType } from '@cs/core';
 import type { ChangeDetails, NumericChange } from '@cs/db';
 import type { VerticalPack } from '@cs/verticals';
+import { COMPLAINT_WINDOW_DAYS } from '../reviews/complaints';
 
 /** Spec §6.4: moves look at a competitor's last 90 days of events, per client. */
 export const MOVE_WINDOW_DAYS = 90;
@@ -89,6 +90,18 @@ function finding(type: MoveType, support: MoveEvent[], minEvents: number, summar
   };
 }
 
+/** Largest drop from the window's peak rating to any later rating: a later recovery does not cancel an earlier drop (3b final review). */
+export function ratingDrawdown(ratings: MoveEvent[]): number {
+  let peak = Number.NEGATIVE_INFINITY;
+  let drop = 0;
+  for (const e of [...ratings].sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime() || a.id.localeCompare(b.id))) {
+    peak = Math.max(peak, e.details.ratingBefore!);
+    drop = Math.max(drop, peak - e.details.ratingAfter!);
+    peak = Math.max(peak, e.details.ratingAfter!);
+  }
+  return Math.round(drop * 100) / 100;
+}
+
 /** Evaluates the seven spec §6.4 move rules over one competitor's events for one client. */
 export function detectMoves(all: MoveEvent[], ctx: MoveContext): MoveFinding[] {
   const now = ctx.now;
@@ -148,10 +161,24 @@ export function detectMoves(all: MoveEvent[], ctx: MoveContext): MoveFinding[] {
   const blitzChannels = new Set(blitz.flatMap((e) => e.channels));
   if (blitzChannels.size >= 2) out.push(finding('promo_blitz', blitz, 2, `Promotions running in ${blitzChannels.size} channels`, { channels: blitzChannels.size }));
 
-  // Reputation slump — rating drops add up (complaint-theme spike joins in Phase 3c).
+  // Reputation slump — a rating drawdown, or a complaint-theme spike (Phase 3c) for this client's vertical in the last 30 days.
   const ratings = events.filter((e) => e.changeType === 'rating_change' && e.details.ratingBefore !== undefined && e.details.ratingAfter !== undefined);
-  const delta = Math.round(ratings.reduce((n, e) => n + (e.details.ratingAfter! - e.details.ratingBefore!), 0) * 100) / 100;
-  if (ratings.length > 0 && delta <= -t.rating_drop_90d) out.push(finding('reputation_slump', ratings, 1, `Google rating down ${Math.abs(delta)} in 90 days`, { ratingDelta: delta }));
+  const drop = ratingDrawdown(ratings);
+  const ratingSlump = ratings.length > 0 && drop >= t.rating_drop_90d;
+  const complaints = events.filter(
+    (e) => e.changeType === 'review_spike' && e.details.theme !== undefined && (e.details.verticalId ?? ctx.verticalId) === ctx.verticalId && within(e, now, COMPLAINT_WINDOW_DAYS),
+  );
+  const themeNames = [...new Set(complaints.map((e) => e.details.themeName ?? e.details.theme!))];
+  if (ratingSlump || complaints.length > 0) {
+    const parts = [...(ratingSlump ? [`Google rating down ${drop} in 90 days`] : []), ...(themeNames.length > 0 ? [`rising complaints about ${themeNames.join(', ')}`] : [])];
+    const summary = parts.join('; ');
+    out.push(
+      finding('reputation_slump', [...(ratingSlump ? ratings : []), ...complaints], 1, summary.charAt(0).toUpperCase() + summary.slice(1), {
+        ...(ratingSlump ? { ratingDrop: drop } : {}),
+        ...(themeNames.length > 0 ? { theme: themeNames.join(', ') } : {}),
+      }),
+    );
+  }
 
   // Ad surge — active ads far above the 90-day baseline, backed by started-ad events.
   const started = events.filter((e) => e.changeType === 'ad_started');

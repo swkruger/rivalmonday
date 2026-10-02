@@ -1,9 +1,12 @@
 import { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
+import { redactForModel } from '@cs/collectors';
 import type { LlmCallRecord } from '@cs/core';
 import { loadVerticalPack } from '@cs/verticals';
 import { describe, expect, it } from 'vitest';
 import { diffFacts, extractNumericFacts } from './facts/numeric';
-import { buildTagQuestions, buildTagState, resolveTag } from './tag/questions';
+import { buildPriceQuestions } from './prices/price-stage';
+import { buildReviewQuestions, resolveReviewAnalysis } from './reviews/themes';
+import { buildTagQuestions, buildTagState, resolveTag, serviceQuestionKey } from './tag/questions';
 import { cosine, SEMANTIC_THRESHOLD } from './web/diff-stage';
 
 const key = process.env.OPENROUTER_API_KEY;
@@ -37,5 +40,29 @@ describe.skipIf(!key)('engine models (live)', () => {
     expect(r.meaningful).toBe(true);
     expect(['price_change', 'promo']).toContain(r.type);
     expect(r.services.hvac_plumbing).toBe('ac_tune_up');
+  }, 60_000);
+
+  it('review decisions: a hidden-fee complaint is about price transparency and negative', async () => {
+    const ai = createAiFromEnv(process.env, await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH), ledger);
+    const pack = await loadVerticalPack('hvac_plumbing');
+    const verticals = [{ pack, themes: pack.themes.map((t) => ({ id: t.id, name: t.name, description: t.description })) }];
+    const text = 'Quoted $150 on the phone but the bill was $400 with fees nobody mentioned. Thanks Mike for being polite, I guess.';
+    const state = { business_type: pack.name, rating: 1, review: redactForModel(text, { businessNames: ['Smith HVAC'] }) };
+    expect(state.review).not.toContain('Mike');
+    const result = await ai.decide('review_decisions', state, buildReviewQuestions(verticals), scope);
+    const [row] = resolveReviewAnalysis(result, verticals, { reviewId: 'live', competitorId: 'live', textSha: 'live' });
+    console.log(`[live] review ${JSON.stringify({ themes: row!.themes, sentiment: row!.sentiment, providers: Object.fromEntries(Object.entries(result.answers).map(([k, v]) => [k, `${v.provider}:${v.confidence.toFixed(2)}`])) })}`);
+    expect(row!.themes).toContain('price_transparency');
+    expect(row!.sentiment).not.toBeNull();
+    expect(row!.sentiment!).toBeLessThanOrEqual(1);
+  }, 60_000);
+
+  it('price decisions: a priced block maps to its service', async () => {
+    const ai = createAiFromEnv(process.env, await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH), ledger);
+    const pack = await loadVerticalPack('hvac_plumbing');
+    const state = { competitor: 'Smith HVAC', page_url: 'https://smithhvac.example/pricing', page_type: 'pricing', text: 'AC tune-up starting at $89 per system', prices: ['$89 per system'] };
+    const result = await ai.decide('price_decisions', state, buildPriceQuestions([pack]), scope);
+    console.log(`[live] price ${JSON.stringify(result.answers)}`);
+    expect(result.answers[serviceQuestionKey('hvac_plumbing')]?.value).toBe('ac_tune_up');
   }, 60_000);
 });

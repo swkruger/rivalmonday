@@ -1,5 +1,5 @@
 import type { Ai, DecisionQuestion } from '@cs/ai';
-import { redactContactInfo } from '@cs/collectors';
+import { redactForModel } from '@cs/collectors';
 import { CHANGE_TYPES, type ChangeType } from '@cs/core';
 import { capture, type ChangeDetails, changeEvent, client, competitor, type Db, decisionReview, detectedChange, rankScan } from '@cs/db';
 import type { VerticalPack } from '@cs/verticals';
@@ -22,6 +22,11 @@ const CHANNEL_LABEL: Record<string, string> = { meta_ads: 'Meta', google_ads: 'G
 const trunc = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const pct = (x: number | undefined) => `${Math.round((x ?? 0) * 100)}%`;
+/** gbp.ts stores scalar fields as "<field>: <value>"; strips that label, when present, to get the bare value. */
+const stripFieldLabel = (field: string | undefined, text: string): string => {
+  const label = `${field ?? ''}: `;
+  return field && text.startsWith(label) ? text.slice(label.length) : text;
+};
 
 export function buildStructuredQuestions(type: ChangeType, packs: VerticalPack[]): Record<string, DecisionQuestion> {
   const questions: Record<string, DecisionQuestion> = {};
@@ -46,7 +51,7 @@ export function serviceForKeyword(keyword: string, pack: VerticalPack): string |
 }
 
 /** One-line, redacted event summary of a structured change (summaries are later sent to models, Phase 4). */
-export function buildStructuredSummary(change: { source: string; beforeText: string | null; afterText: string | null; details: ChangeDetails }): string {
+export function buildStructuredSummary(change: { source: string; beforeText: string | null; afterText: string | null; details: ChangeDetails }, businessNames: readonly (string | null)[] = []): string {
   const d = change.details;
   const first = d.items?.[0]?.label ?? '';
   const more = (d.count ?? 0) > 1 ? ` and ${(d.count ?? 0) - 1} more` : '';
@@ -77,19 +82,18 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
       s = `Google rating ${d.ratingBefore} → ${d.ratingAfter}${d.votesAfter != null ? ` (${d.votesAfter} reviews)` : ''}`;
       break;
     case 'review_spike':
-      s = `${d.count} new Google reviews in ${d.windowDays} days (${d.z}σ above the usual ${d.baselineMean}/week)${d.avgRating != null ? `, average rating ${d.avgRating}` : ''}`;
+      s = d.theme
+        ? `Complaints about ${d.themeName ?? d.theme} up: ${d.count} in ${d.windowDays} days vs ${d.baselineMean} a month before`
+        : `${d.count} new Google reviews in ${d.windowDays} days (${d.z}σ above the usual ${d.baselineMean}/week)${d.avgRating != null ? `, average rating ${d.avgRating}` : ''}`;
       break;
     case 'rank_change':
       s = `"${d.keyword}": average map position ${d.avgRankBefore} → ${d.avgRankAfter}, top-3 share ${pct(d.top3Before)} → ${pct(d.top3After)}`;
       break;
     default: {
-      // gbp.ts stores scalar fields as "<field>: <value>"; the label is already in the sentence.
-      const label = `${d.field ?? ''}: `;
-      const bare = (t: string) => (d.field && t.startsWith(label) ? t.slice(label.length) : t);
-      s = `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(bare(before), 60)} → ${trunc(bare(after), 60)}`;
+      s = `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(stripFieldLabel(d.field, before), 60)} → ${trunc(stripFieldLabel(d.field, after), 60)}`;
     }
   }
-  return redactContactInfo(s);
+  return redactForModel(s, { businessNames });
 }
 
 /**
@@ -126,6 +130,15 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
       const scope = c.clientId ? { agencyId: c.agencyId, clientId: c.clientId } : PLATFORM;
       const text = (c.afterText ?? c.beforeText ?? '').slice(0, MAX_STATE_TEXT);
 
+      // A GBP title rename's new (and old) public name must never be mistaken for a person — it's
+      // the business's own name, just not yet (or no longer) the one stored on the competitor row.
+      const names: (string | null)[] = [row.competitorName];
+      if (c.details.field === 'title') {
+        if (c.beforeText) names.push(stripFieldLabel(c.details.field, c.beforeText));
+        if (c.afterText) names.push(stripFieldLabel(c.details.field, c.afterText));
+      }
+      const clean = redactForModel(text, { businessNames: names });
+
       let services: Record<string, string | null> = Object.fromEntries(packs.map((p) => [p.id, null]));
       let confidence = 1;
       let needsReview: string[] = [];
@@ -134,7 +147,7 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
       if (type === 'rank_change') {
         services = Object.fromEntries(packs.map((p) => [p.id, serviceForKeyword(c.details.keyword ?? '', p)]));
       } else if (SERVICE_MAPPED_TYPES.has(type) && packs.length > 0) {
-        const state = { competitor: row.competitorName, channel: c.source, change: type, text: redactContactInfo(text) };
+        const state = { competitor: row.competitorName, channel: c.source, change: type, text: clean };
         const result = await deps.ai.decide('decisions', state, buildStructuredQuestions(type, packs), scope);
         services = Object.fromEntries(
           packs.map((p) => {
@@ -150,15 +163,15 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
       }
 
       // Facts keep ~40 characters of context around each number: extract from redacted text so no phone/email lands in event.facts.
-      const facts = type === 'ad_started' ? diffFacts([], extractNumericFacts(redactContactInfo(text))) : [];
+      const facts = type === 'ad_started' ? diffFacts([], extractNumericFacts(clean)) : [];
       const money = facts.some((f) => MONEY_KINDS.has(f.kind));
       const details: ChangeDetails = type === 'ad_started' ? { ...c.details, offer: modelOffer || money } : c.details;
-      const summary = buildStructuredSummary({ source: c.source, beforeText: c.beforeText, afterText: c.afterText, details: c.details });
-      const zips = type === 'hiring' || type === 'new_location' || type === 'ad_started' ? extractZips(redactContactInfo(text)) : [];
+      const summary = buildStructuredSummary({ source: c.source, beforeText: c.beforeText, afterText: c.afterText, details: c.details }, names);
+      const zips = type === 'hiring' || type === 'new_location' || type === 'ad_started' ? extractZips(clean) : [];
       const { vectors } = await deps.ai.embed('embeddings', [summary], scope);
       const target = await findMergeTarget(
         deps,
-        { competitorId: c.competitorId, clientId: c.clientId, captureId: c.afterCaptureId, changeType: type, services, facts, embedding: vectors[0] ?? null, occurredAt, text },
+        { competitorId: c.competitorId, clientId: c.clientId, captureId: c.afterCaptureId, changeType: type, services, facts, embedding: vectors[0] ?? null, occurredAt, text, businessNames: names },
         scope,
       );
       return {

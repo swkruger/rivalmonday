@@ -11,6 +11,7 @@ import { createWorkerDeps } from './deps';
 import { createEngineJobs } from './jobs/engine';
 import { heartbeatJob } from './jobs/heartbeat';
 import { createMovesJobs } from './jobs/moves';
+import { createReviewJobs } from './jobs/reviews';
 import { createVendorJobs } from './jobs/vendor';
 import { createWebJobs } from './jobs/web';
 
@@ -37,6 +38,12 @@ const engine = createEngineJobs(deps, {
   enqueueScore: async (eventId) => {
     await enqueue(boss, engine.score, { eventId }, { singletonKey: eventId });
   },
+  enqueueReview: async (reviewId) => {
+    await enqueue(boss, engine.review, { reviewId }, { singletonKey: reviewId });
+  },
+  enqueuePrice: async (captureId) => {
+    await enqueue(boss, engine.price, { captureId }, { singletonKey: captureId });
+  },
 });
 const web = createWebJobs(deps, {
   enqueueCapture: async (trackedPageId) => {
@@ -59,9 +66,10 @@ const moves = createMovesJobs(deps, {
     await enqueue(boss, moves.client, { clientId }, { singletonKey: clientId });
   },
 });
+const reviews = createReviewJobs(deps);
 await registerJobs(boss, [
   heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, vendor.suggest,
-  engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, moves.nightly, moves.client,
+  engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.price, reviews.nightly, moves.nightly, moves.client,
 ]);
 console.log('[worker] started');
 

@@ -113,6 +113,16 @@ describe('diffWebCapture (golden fixtures)', () => {
     expect(c?.flags).toEqual(['semantic']);
   });
 
+  it('embeds the NER pass over a person name mentioned by a reviewer-style blurb', async () => {
+    const v1 = '<body><p class="desk">Welcome to our office</p></body>';
+    const v2 = '<body><p class="desk">Jessica at the front desk was wonderful, thank you Jessica!</p></body>';
+    const { store, after } = await twoCaptures(v1, v2);
+    const ai = createFakeAi();
+    await diffWebCapture({ db: dbs.service, store, ai }, after);
+    expect(ai.calls.embed.flat().some((t) => t.includes('Jessica'))).toBe(false);
+    expect(ai.calls.embed.flat().some((t) => t.includes('[name] at the front desk'))).toBe(true);
+  });
+
   it('stops recording a rotating block once it is learned volatile', async () => {
     const store = createMemoryStore();
     const page = await seedPage(dbs.service, IDS.competitorX);
