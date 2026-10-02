@@ -1,6 +1,6 @@
 import type { ChangeType } from '@cs/core';
 import { changeEvent, client, clientCompetitor, type Db, eventScore, move, type MoveDetails, moveEvent, type MoveStatus } from '@cs/db';
-import { and, eq, gte, isNull, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, isNull, lte, ne, sql } from 'drizzle-orm';
 import type { PackLoader } from '../tag/tag-stage';
 import { type AdActivity, detectMoves, MOVE_WINDOW_DAYS, type MoveEvent, type MoveFinding } from './rules';
 
@@ -84,7 +84,8 @@ export async function updateMovesForClient(deps: { db: Db; packs: PackLoader }, 
       .select({ e: changeEvent })
       .from(changeEvent)
       .innerJoin(eventScore, and(eq(eventScore.eventId, changeEvent.id), eq(eventScore.clientId, clientId)))
-      .where(and(eq(changeEvent.competitorId, competitorId), gte(changeEvent.occurredAt, since), lte(changeEvent.occurredAt, now), ne(changeEvent.changeType, 'cosmetic')));
+      .where(and(eq(changeEvent.competitorId, competitorId), gte(changeEvent.occurredAt, since), lte(changeEvent.occurredAt, now), ne(changeEvent.changeType, 'cosmetic')))
+      .orderBy(asc(changeEvent.occurredAt), asc(changeEvent.id));
     const events: MoveEvent[] = rows.map(({ e }) => ({
       id: e.id, changeType: e.changeType as ChangeType, channels: e.channels, occurredAt: e.occurredAt, services: e.services, facts: e.facts, zips: e.zips, summary: e.summary, details: e.details,
     }));

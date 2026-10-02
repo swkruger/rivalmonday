@@ -93,6 +93,16 @@ describe('detectMoves', () => {
     expect(detectMoves(dipAndRecover, ctx()).find((f) => f.type === 'reputation_slump')).toMatchObject({ facts: { ratingDrop: 0.3 }, summary: 'Google rating down 0.3 in 90 days' });
   });
 
+  it('reputation slump: a rating drawdown is deterministic for same-timestamp events regardless of input order (tie-break by id)', () => {
+    const at = day(95);
+    const a = ev({ id: 'r1', changeType: 'rating_change', channels: ['google_business_profile'], details: { ratingBefore: 5.0, ratingAfter: 4.0 }, occurredAt: at });
+    const b = ev({ id: 'r2', changeType: 'rating_change', channels: ['google_business_profile'], details: { ratingBefore: 4.0, ratingAfter: 4.5 }, occurredAt: at });
+    const c = ev({ id: 'r3', changeType: 'rating_change', channels: ['google_business_profile'], details: { ratingBefore: 4.5, ratingAfter: 3.0 }, occurredAt: at });
+    expect(ratingDrawdown([a, b, c])).toBe(2);
+    expect(ratingDrawdown([c, b, a])).toBe(2);
+    expect(ratingDrawdown([b, a, c])).toBe(2);
+  });
+
   it('reputation slump: a complaint-theme spike for the client vertical in the last 30 days', () => {
     const spike = (over: Partial<MoveEvent> = {}) =>
       ev({ changeType: 'review_spike', channels: ['google_reviews'], details: { theme: 'price_transparency', themeName: 'Price transparency', verticalId: 'hvac_plumbing', count: 4 }, ...over });

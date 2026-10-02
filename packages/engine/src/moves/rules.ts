@@ -1,6 +1,7 @@
 import type { ChangeType, MoveType } from '@cs/core';
 import type { ChangeDetails, NumericChange } from '@cs/db';
 import type { VerticalPack } from '@cs/verticals';
+import { COMPLAINT_WINDOW_DAYS } from '../reviews/complaints';
 
 /** Spec §6.4: moves look at a competitor's last 90 days of events, per client. */
 export const MOVE_WINDOW_DAYS = 90;
@@ -93,7 +94,7 @@ function finding(type: MoveType, support: MoveEvent[], minEvents: number, summar
 export function ratingDrawdown(ratings: MoveEvent[]): number {
   let peak = Number.NEGATIVE_INFINITY;
   let drop = 0;
-  for (const e of [...ratings].sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime())) {
+  for (const e of [...ratings].sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime() || a.id.localeCompare(b.id))) {
     peak = Math.max(peak, e.details.ratingBefore!);
     drop = Math.max(drop, peak - e.details.ratingAfter!);
     peak = Math.max(peak, e.details.ratingAfter!);
@@ -165,7 +166,7 @@ export function detectMoves(all: MoveEvent[], ctx: MoveContext): MoveFinding[] {
   const drop = ratingDrawdown(ratings);
   const ratingSlump = ratings.length > 0 && drop >= t.rating_drop_90d;
   const complaints = events.filter(
-    (e) => e.changeType === 'review_spike' && e.details.theme !== undefined && (e.details.verticalId ?? ctx.verticalId) === ctx.verticalId && within(e, now, 30),
+    (e) => e.changeType === 'review_spike' && e.details.theme !== undefined && (e.details.verticalId ?? ctx.verticalId) === ctx.verticalId && within(e, now, COMPLAINT_WINDOW_DAYS),
   );
   const themeNames = [...new Set(complaints.map((e) => e.details.themeName ?? e.details.theme!))];
   if (ratingSlump || complaints.length > 0) {
