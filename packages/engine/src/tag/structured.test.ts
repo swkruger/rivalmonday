@@ -109,8 +109,12 @@ describe('tagStructuredChange (via tagChange)', () => {
 
 describe('buildStructuredSummary', () => {
   it('does not repeat the GBP field label stored in the before/after text', () => {
-    expect(buildStructuredSummary({ source: 'google_business_profile', beforeText: 'title: Smith HVAC', afterText: 'title: Smith Heating & Air', details: { changeType: 'content', field: 'title' } }, ['Smith HVAC']))
-      .toBe('Google Business Profile title changed: Smith HVAC → Smith Heating & Air');
+    expect(
+      buildStructuredSummary(
+        { source: 'google_business_profile', beforeText: 'title: Smith HVAC', afterText: 'title: Smith Heating & Air', details: { changeType: 'content', field: 'title' } },
+        ['Smith HVAC', 'Smith Heating & Air'],
+      ),
+    ).toBe('Google Business Profile title changed: Smith HVAC → Smith Heating & Air');
     expect(buildStructuredSummary({ source: 'google_business_profile', beforeText: 'Mon 8-5', afterText: 'Mon 7-6', details: { changeType: 'content', field: 'hours' } }))
       .toBe('Google Business Profile hours changed: Mon 8-5 → Mon 7-6');
   });

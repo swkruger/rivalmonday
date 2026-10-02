@@ -23,6 +23,15 @@ describe('redactPersonNames (compromise NER)', () => {
     expect(redactPersonNames('no names here, just a $69 tune-up')).toBe('no names here, just a $69 tune-up');
     expect(personNames('Carlos Ramirez and Carlos came by')[0]).toBe('Carlos Ramirez');
   });
+
+  it('protects business-name phrase occurrences only, still redacting a real person who shares a word with the business', () => {
+    expect(redactPersonNames("Mike's AC Repair sent Mike, who was great. Thanks Mike!", ["Mike's AC Repair"])).toBe(
+      "Mike's AC Repair sent [name], who was great. Thanks [name]!",
+    );
+    const out = redactPersonNames('Mr. Smith was rude. Smith HVAC never called back.', ['Smith HVAC']);
+    expect(out).toContain('Smith HVAC');
+    expect(out).not.toMatch(/\bSmith\b(?!\sHVAC)/);
+  });
 });
 
 describe('redactHealthDetails', () => {

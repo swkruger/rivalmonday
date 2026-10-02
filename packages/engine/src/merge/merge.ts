@@ -27,6 +27,8 @@ export interface MergeSubject {
   occurredAt: Date;
   /** The change's own text (redacted before it reaches a model). */
   text: string;
+  /** The competitor's own name(s), so they are never mistaken for a person by the NER redaction pass. */
+  businessNames?: readonly (string | null)[];
 }
 
 export interface MergeTarget {
@@ -90,7 +92,7 @@ export async function findMergeTarget(deps: { db: Db; ai: Ai }, s: MergeSubject,
   const questions: Record<string, DecisionQuestion> = Object.fromEntries(
     candidates.map((_, i) => [`same_${i}`, { type: 'noul', instructions: `${SAME_OFFER_QUESTION} The existing change is "existing_${i}".` }]),
   );
-  const state = { new_change: redactForModel(s.text).slice(0, 1500), ...Object.fromEntries(candidates.map((c, i) => [`existing_${i}`, c.summary])) };
+  const state = { new_change: redactForModel(s.text, { businessNames: s.businessNames }).slice(0, 1500), ...Object.fromEntries(candidates.map((c, i) => [`existing_${i}`, c.summary])) };
   const result = await deps.ai.decide('decisions', state, questions, scope);
   let best: MergeTarget | null = null;
   for (const [i, c] of candidates.entries()) {

@@ -134,7 +134,7 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
       const target = resolution.meaningful
         ? await findMergeTarget(deps, {
             competitorId: row.change.competitorId, clientId: null, captureId: row.change.afterCaptureId, changeType: resolution.type, services: resolution.services, facts: row.change.numericChanges,
-            embedding, occurredAt: row.capturedAt, text: row.change.afterText ?? row.change.beforeText ?? '',
+            embedding, occurredAt: row.capturedAt, text: row.change.afterText ?? row.change.beforeText ?? '', businessNames: [row.competitorName],
           })
         : null;
       return { row, resolution, answers: result.answers as Record<string, unknown>, embedding, summary, target };

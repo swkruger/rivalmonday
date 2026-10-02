@@ -80,7 +80,6 @@ export async function diffWebCapture(deps: EngineDeps, captureId: string, opts: 
   const [cap] = await deps.db.select().from(capture).where(eq(capture.id, captureId)).limit(1);
   if (!cap || cap.source !== 'web' || cap.status !== 'ok' || !cap.trackedPageId) throw new Error(`capture ${captureId} is not an ok web page capture`);
   const pageId = cap.trackedPageId;
-  const fallback = opts.factFallback ?? llmFactExtractor(deps.ai, PLATFORM);
 
   const outcome = await runStage(
     deps.db,
@@ -88,6 +87,7 @@ export async function diffWebCapture(deps: EngineDeps, captureId: string, opts: 
     async () => {
       if ((await ensureBlocks(deps, captureId)) === 'busy') throw new Error(`blocks of capture ${captureId} are being extracted`);
       const [comp] = await deps.db.select({ name: competitor.name }).from(competitor).where(eq(competitor.id, cap.competitorId)).limit(1);
+      const fallback = opts.factFallback ?? llmFactExtractor(deps.ai, PLATFORM, [comp?.name]);
       const [prev] = await deps.db
         .select({ id: capture.id })
         .from(capture)

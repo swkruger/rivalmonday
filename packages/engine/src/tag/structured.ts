@@ -161,7 +161,7 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
       const { vectors } = await deps.ai.embed('embeddings', [summary], scope);
       const target = await findMergeTarget(
         deps,
-        { competitorId: c.competitorId, clientId: c.clientId, captureId: c.afterCaptureId, changeType: type, services, facts, embedding: vectors[0] ?? null, occurredAt, text },
+        { competitorId: c.competitorId, clientId: c.clientId, captureId: c.afterCaptureId, changeType: type, services, facts, embedding: vectors[0] ?? null, occurredAt, text, businessNames: names },
         scope,
       );
       return {
