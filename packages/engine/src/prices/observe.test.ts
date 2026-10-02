@@ -25,4 +25,22 @@ describe('pricesInBlock', () => {
     expect(amounts('Commercial projects over $250,000')).toEqual([]);
     expect(amounts('Drain cleaning $129 — yes, $129 flat')).toEqual([[129, 'USD', 'exact', false]]);
   });
+
+  it('handles repeated prices and classifies by correct position in text', () => {
+    expect(amounts('AC tune-up $89. Repairs get $89 off this month.')).toEqual([[89, 'USD', 'exact', false]]);
+  });
+
+  it('excludes discounts with optional modifiers before discount keywords', () => {
+    expect(amounts('$50 instant rebate on heat pumps')).toEqual([]);
+    expect(amounts('$500 trade-in credit toward a new system')).toEqual([]);
+    expect(amounts('Receive $100 back with a maintenance plan')).toEqual([]);
+  });
+
+  it('distinguishes off-peak from off discount', () => {
+    expect(amounts('Service calls $75 off-peak, $95 evenings')).toEqual([[75, 'USD', 'exact', false], [95, 'USD', 'exact', false]]);
+  });
+
+  it('detects promo when discount keyword appears after price', () => {
+    expect(amounts('Starting at $89 — book online and save time')).toEqual([[89, 'USD', 'from', true]]);
+  });
 });
