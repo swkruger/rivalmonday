@@ -1,7 +1,7 @@
 import type { Ai, DecisionQuestion } from '@cs/ai';
 import { redactContactInfo } from '@cs/collectors';
 import type { CallScope, ChangeType } from '@cs/core';
-import { changeEvent, type Db, eventChange, type NumericChange, type Tx } from '@cs/db';
+import { changeEvent, type Db, detectedChange, eventChange, type NumericChange, type Tx } from '@cs/db';
 import { and, cosineDistance, desc, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
 import { factsSignature } from '../score/score-stage';
 
@@ -18,6 +18,8 @@ const DAY_MS = 86_400_000;
 export interface MergeSubject {
   competitorId: string;
   clientId: string | null;
+  /** The change's after-capture (null for rank changes): identical facts in one capture are the same offer. */
+  captureId: string | null;
   changeType: ChangeType;
   services: Record<string, string | null>;
   facts: NumericChange[];
@@ -41,9 +43,11 @@ export const conflictingServices = (a: Record<string, string | null>, b: Record<
 
 /**
  * Spec §6.2 cross-channel merge: same competitor, same tenant scope, a mergeable type, within ±14 days.
- * Identical numeric facts merge deterministically (the same price on two blocks of one page); two price
- * changes with different numbers never merge; otherwise one Noul per candidate (≤ 3 sharing a service) in a
- * single decide call, merged into the most confident "yes" at or above MERGE_MIN_CONFIDENCE.
+ * Identical numeric facts merge deterministically when the two also share a mapped service or come from the
+ * same capture (the same price on two blocks of one page) — "$20" alone is not enough to call two offers
+ * the same, so other identical-facts candidates go to the model. Two price changes with different numbers
+ * never merge; otherwise one Noul per candidate (≤ 3 sharing a service or identical facts) in a single
+ * decide call, merged into the most confident "yes" at or above MERGE_MIN_CONFIDENCE.
  * `scope` is the usage scope of that call: the tenant for a tenant-private change, platform otherwise.
  */
 export async function findMergeTarget(deps: { db: Db; ai: Ai }, s: MergeSubject, scope: CallScope = PLATFORM): Promise<MergeTarget | null> {
@@ -62,14 +66,25 @@ export async function findMergeTarget(deps: { db: Db; ai: Ai }, s: MergeSubject,
     .orderBy(s.embedding ? cosineDistance(changeEvent.embedding, s.embedding) : desc(changeEvent.occurredAt))
     .limit(20);
 
-  if (s.facts.length > 0) {
-    const signature = factsSignature(s.facts);
-    const same = rows.find((r) => r.facts.length > 0 && factsSignature(r.facts) === signature && !conflictingServices(s.services, r.services));
+  const signature = s.facts.length > 0 ? factsSignature(s.facts) : null;
+  const sameFacts = (r: (typeof rows)[number]) => signature !== null && r.facts.length > 0 && factsSignature(r.facts) === signature && !conflictingServices(s.services, r.services);
+  const matches = rows.filter(sameFacts);
+  if (matches.length > 0) {
+    const sameCapture = new Set<string>();
+    if (s.captureId) {
+      const linked = await deps.db
+        .select({ eventId: eventChange.eventId })
+        .from(eventChange)
+        .innerJoin(detectedChange, eq(detectedChange.id, eventChange.changeId))
+        .where(and(inArray(eventChange.eventId, matches.map((r) => r.id)), eq(detectedChange.afterCaptureId, s.captureId)));
+      for (const l of linked) sameCapture.add(l.eventId);
+    }
+    const same = matches.find((r) => sharesService(s.services, r.services) || sameCapture.has(r.id));
     if (same) return { eventId: same.id, via: 'facts', confidence: 1 };
   }
 
   const bothPriced = (r: (typeof rows)[number]) => s.changeType === 'price_change' && r.changeType === 'price_change' && s.facts.length > 0 && r.facts.length > 0;
-  const candidates = rows.filter((r) => sharesService(s.services, r.services) && !bothPriced(r)).slice(0, MERGE_MAX_CANDIDATES);
+  const candidates = rows.filter((r) => sameFacts(r) || (sharesService(s.services, r.services) && !bothPriced(r))).slice(0, MERGE_MAX_CANDIDATES);
   if (candidates.length === 0) return null;
 
   const questions: Record<string, DecisionQuestion> = Object.fromEntries(

@@ -6,7 +6,7 @@ import { createFakeAi, type DecideFn, noul, structuredResult, tagResult } from '
 import { day, seedVendorCapture } from '../../test/seed';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
 import { createPackLoader, tagChange } from '../tag/tag-stage';
-import { conflictingServices, sharesService } from './merge';
+import { conflictingServices, findMergeTarget, sharesService } from './merge';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -73,6 +73,43 @@ describe('cross-channel merge', () => {
     const evs = await events();
     expect(evs).toHaveLength(1);
     expect((await dbs.owner.select().from(eventChange)).map((l) => l.eventId)).toEqual([evs[0]!.id, evs[0]!.id]);
+    expect(askedSame(ai)).toBe(0);
+  });
+
+  /** Tag questions → a meaningful change of `type` with no service mapped; same_<i> → "no". */
+  const unmapped = (type: string): DecideFn => (state, q) => {
+    const keys = Object.keys(q);
+    if (keys.every((k) => k.startsWith('same_'))) return { answers: Object.fromEntries(keys.map((k) => [k, noul(false, 0.95)])), needsReview: [] };
+    return tagResult({ meaningful: true, type })(state, q);
+  };
+
+  it('merges the same number in two blocks of one capture even without a mapped service', async () => {
+    const cap = await webCapture(1);
+    const ai = createFakeAi({ decide: unmapped('promo') });
+    await tagChange({ db: dbs.service, ai, packs }, await webChange(cap, 'div.hero#0', null, 'Save $20 on any repair this month'));
+    const r = await tagChange({ db: dbs.service, ai, packs }, await webChange(cap, 'li.offer#1', null, 'Any repair: $20 off'));
+    expect(r).toMatchObject({ ran: true, result: { merged: true } });
+    expect(await events()).toHaveLength(1);
+    expect(askedSame(ai)).toBe(0);
+  });
+
+  it('asks the model (no silent merge) for the same number on an unmapped service in a different capture', async () => {
+    const ai = createFakeAi({ decide: unmapped('promo') });
+    await tagChange({ db: dbs.service, ai, packs }, await webChange(await webCapture(1), 'div.hero#0', null, 'Save $20 on any repair this month'));
+    await tagChange({ db: dbs.service, ai, packs }, await webChange(await webCapture(5), 'div.hero#0', null, 'Refer a friend and get $20'));
+    expect(await events()).toHaveLength(2);
+    expect(askedSame(ai)).toBe(1);
+  });
+
+  it('never offers global events as merge candidates to a tenant-scoped change', async () => {
+    await dbs.service.insert(changeEvent).values({
+      competitorId: IDS.competitorX, changeType: 'ad_started', channels: ['meta_ads'], services: { hvac_plumbing: 'ac_tune_up' }, summary: 'New Meta ad: AC tune-up $69', confidence: 1, occurredAt: day(1),
+    });
+    const ai = createFakeAi({ decide: decide('ad_started', true) });
+    const target = await findMergeTarget({ db: dbs.service, ai }, {
+      competitorId: IDS.competitorX, clientId: IDS.clientA1, captureId: null, changeType: 'ad_started', services: { hvac_plumbing: 'ac_tune_up' }, facts: [], embedding: null, occurredAt: day(2), text: 'AC tune-up $69',
+    });
+    expect(target).toBeNull();
     expect(askedSame(ai)).toBe(0);
   });
 
