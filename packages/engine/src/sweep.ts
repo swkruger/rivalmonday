@@ -1,6 +1,7 @@
 import type { Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
 import { MAX_STAGE_ATTEMPTS } from './stage';
+import { RANK_DIFF_STAGE, RANK_DIFF_VERSION } from './structured/rank';
 import { VENDOR_DIFF_STAGE, VENDOR_DIFF_VERSION, VENDOR_SETTLE_MINUTES, vendorDiffSources } from './structured/vendor-diff';
 import { TAG_STAGE, TAG_VERSION } from './tag/tag-stage';
 import { WEB_DIFF_STAGE, WEB_DIFF_VERSION } from './web/diff-stage';
@@ -9,6 +10,7 @@ export interface EngineWork {
   diff: string[];
   tag: string[];
   score: string[];
+  rankDiff: string[];
 }
 
 /** Events created this recently are (re)checked for missing client scores, e.g. a newly linked client. */
@@ -56,5 +58,13 @@ export async function findEngineWork(db: Db, opts: { limit: number; competitorId
       AND EXISTS (SELECT 1 FROM client_competitor cc WHERE cc.competitor_id = e.competitor_id
                   AND NOT EXISTS (SELECT 1 FROM event_score s WHERE s.event_id = e.id AND s.client_id = cc.client_id))
     ORDER BY e.created_at ASC LIMIT ${opts.limit}`);
-  return { diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score) };
+  // Rank scans are per client; a competitor filter (engine-once --competitor) does not apply to them.
+  // Aliased "rs", not "s" — the finished() helper above already aliases stage_run as "s".
+  const rankDiff = opts.competitorId
+    ? []
+    : await db.execute(sql`
+        SELECT rs.id FROM rank_scan rs
+        WHERE rs.status = 'done' AND rs.finished_at IS NOT NULL AND NOT ${finished(RANK_DIFF_STAGE, RANK_DIFF_VERSION, 'rs.id')}
+        ORDER BY rs.finished_at ASC LIMIT ${opts.limit}`);
+  return { diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score), rankDiff: ids(rankDiff) };
 }

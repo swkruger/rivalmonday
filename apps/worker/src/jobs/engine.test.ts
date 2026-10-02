@@ -7,7 +7,7 @@ const queue = () => ({ enqueueDiff: vi.fn(async (_id: string) => {}), enqueueTag
 
 describe('engine jobs', () => {
   it('sweeps every 5 minutes and enqueues all found work', async () => {
-    const deps = { engineConfigured: () => true, findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)] })) } as unknown as WorkerDeps;
+    const deps = { engineConfigured: () => true, findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [] })) } as unknown as WorkerDeps;
     const q = queue();
     const jobs = createEngineJobs(deps, q);
     await jobs.sweep.handler({});
