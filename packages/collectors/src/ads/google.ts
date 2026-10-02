@@ -1,6 +1,6 @@
 import { ad, type Db } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
-import { and, eq, lt, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { recordVendorCapture } from '../evidence/vendor-capture';
 import { employerMatches } from '../jobs/collect';
@@ -47,13 +47,21 @@ export const GOOGLE_UNSEEN_DAYS = 21;
 const PINNED_DEPTH = 120;
 const DAY_MS = 86_400_000;
 
+/**
+ * The capture url is the request identity, so the vendor differ compares a pull only with earlier pulls of
+ * the same query: switching from domain mode to pinned advertisers (or changing the pinned set) starts a
+ * new silent baseline instead of reporting the whole difference as started/stopped ads.
+ */
+export const googleAdsCaptureUrl = (pinned: string[], domain: string | null): string =>
+  pinned.length > 0 ? `google-ads:advertisers=${[...pinned].sort().join(',')}` : `google-ads:domain=${domain ?? ''}`;
+
 export async function collectGoogleAds(
   deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient },
   c: { id: string; domain: string | null; name: string; googleAdvertiserIds?: string[] },
-): Promise<{ status: 'ok' | 'vendor_error' | 'skipped'; ads?: number; dropped?: number; ended?: number }> {
+): Promise<{ status: 'ok' | 'vendor_error' | 'skipped'; ads?: number; dropped?: number; ended?: number; retired?: number }> {
   const pinned = (c.googleAdvertiserIds ?? []).slice(0, 25); // ads_search accepts at most 25 advertiser ids
   if (pinned.length === 0 && !c.domain) return { status: 'skipped' };
-  const base = { competitorId: c.id, source: 'google_ads', collectorVersion: DFS_COLLECTOR_VERSION };
+  const base = { competitorId: c.id, source: 'google_ads', url: googleAdsCaptureUrl(pinned, c.domain), collectorVersion: DFS_COLLECTOR_VERSION };
   const request = pinned.length > 0
     ? { advertiser_ids: pinned, location_code: DFS_US.location_code, depth: PINNED_DEPTH }
     : { target: c.domain, location_code: DFS_US.location_code, depth: 40 };
@@ -97,10 +105,20 @@ export async function collectGoogleAds(
   }
   if (dropped > 0) console.log(`[ads] google competitor ${c.id}: dropped ${dropped} of ${ads.length + dropped} creatives from other advertisers`);
   await upsertAds(deps.db, c.id, 'google', captureId, ads, { markMissingInactive: false, now });
+  const active = and(eq(ad.competitorId, c.id), eq(ad.platform, 'google'), eq(ad.isActive, true));
+  // Pinned: creatives of other advertisers (kept from earlier domain-mode pulls) are no longer tracked —
+  // retire them silently (no ended capture, so no "stopped" change) rather than "stopping" them en masse later.
+  const retired = pinned.length > 0
+    ? await deps.db
+        .update(ad)
+        .set({ isActive: false, endedAt: sql`${ad.lastSeenAt}` })
+        .where(and(active, or(isNull(ad.advertiserId), notInArray(ad.advertiserId, pinned))))
+        .returning({ id: ad.id })
+    : [];
   const ended = await deps.db
     .update(ad)
     .set({ isActive: false, endedAt: sql`${ad.lastSeenAt}`, endedCaptureId: captureId })
-    .where(and(eq(ad.competitorId, c.id), eq(ad.platform, 'google'), eq(ad.isActive, true), lt(ad.lastSeenAt, new Date(now.getTime() - GOOGLE_UNSEEN_DAYS * DAY_MS))))
+    .where(and(active, lt(ad.lastSeenAt, new Date(now.getTime() - GOOGLE_UNSEEN_DAYS * DAY_MS)), pinned.length > 0 ? inArray(ad.advertiserId, pinned) : undefined))
     .returning({ id: ad.id });
-  return { status: 'ok', ads: ads.length, dropped, ended: ended.length };
+  return { status: 'ok', ads: ads.length, dropped, ended: ended.length, ...(pinned.length > 0 ? { retired: retired.length } : {}) };
 }

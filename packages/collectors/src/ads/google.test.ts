@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { VendorError } from '../vendors/errors';
-import { collectGoogleAds, GOOGLE_UNSEEN_DAYS, normalizeGoogleAd } from './google';
+import { collectGoogleAds, GOOGLE_UNSEEN_DAYS, googleAdsCaptureUrl, normalizeGoogleAd } from './google';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -124,5 +124,41 @@ describe('google ads attribution and activity (Phase 3b)', () => {
     const [gone] = await dbs.service.select().from(ad).where(eq(ad.externalId, 'gone'));
     const [cap] = await dbs.service.select().from(capture).where(eq(capture.source, 'google_ads'));
     expect(gone).toMatchObject({ isActive: false, endedCaptureId: cap!.id, endedAt: stale });
+  });
+
+  it('records the request identity as the capture url so a change of query mode starts a new baseline', async () => {
+    expect(googleAdsCaptureUrl(['AR2', 'AR1'], 'smithhvac.example')).toBe('google-ads:advertisers=AR1,AR2');
+    expect(googleAdsCaptureUrl([], 'smithhvac.example')).toBe('google-ads:domain=smithhvac.example');
+    const store = createMemoryStore();
+    await collectGoogleAds({ db: dbs.service, store, dfs: fakeDfs(() => [dfsTask([{ items: [] }])]) }, { id: IDS.competitorX, domain: 'smithhvac.example', name: 'Smith HVAC' });
+    await collectGoogleAds({ db: dbs.service, store, dfs: fakeDfs(() => [dfsTask([{ items: [] }])]) }, { id: IDS.competitorX, domain: 'smithhvac.example', name: 'Smith HVAC', googleAdvertiserIds: ['AR2', 'AR1'] });
+    await collectGoogleAds({ db: dbs.service, store, dfs: fakeDfs(() => []) }, { id: IDS.competitorX, domain: 'smithhvac.example', name: 'Smith HVAC', googleAdvertiserIds: ['AR1'] });
+    const caps = await dbs.service.select().from(capture).where(eq(capture.source, 'google_ads'));
+    expect(caps.map((c) => [c.status, c.url]).sort()).toEqual([
+      ['ok', 'google-ads:advertisers=AR1,AR2'],
+      ['ok', 'google-ads:domain=smithhvac.example'],
+      ['vendor_error', 'google-ads:advertisers=AR1'],
+    ]);
+  });
+
+  it('when pinned, silently ends active ads of other advertisers and only ends pinned ones after GOOGLE_UNSEEN_DAYS', async () => {
+    const stale = new Date(Date.now() - (GOOGLE_UNSEEN_DAYS + 1) * 86_400_000);
+    const fresh = new Date(Date.now() - 86_400_000);
+    await dbs.service.insert(ad).values([
+      { competitorId: IDS.competitorX, platform: 'google', externalId: 'domainOld', advertiserId: 'AR9', isActive: true, lastSeenAt: stale },
+      { competitorId: IDS.competitorX, platform: 'google', externalId: 'domainFresh', advertiserId: null, isActive: true, lastSeenAt: fresh },
+      { competitorId: IDS.competitorX, platform: 'google', externalId: 'pinnedGone', advertiserId: 'AR1', isActive: true, lastSeenAt: stale },
+      { competitorId: IDS.competitorX, platform: 'google', externalId: 'pinnedRecent', advertiserId: 'AR1', isActive: true, lastSeenAt: fresh },
+    ]);
+    const dfs = fakeDfs(() => [dfsTask([{ items: [item('c1', '2026-09-29 00:00:00 +00:00')] }])]);
+    const r = await collectGoogleAds({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, domain: 'smithhvac.example', name: 'Smith HVAC', googleAdvertiserIds: ['AR1'] });
+    expect(r).toMatchObject({ status: 'ok', ended: 1, retired: 2 });
+    const [cap] = await dbs.service.select().from(capture).where(eq(capture.source, 'google_ads'));
+    const rows = new Map((await dbs.service.select().from(ad)).map((a) => [a.externalId, a]));
+    expect(rows.get('pinnedGone')).toMatchObject({ isActive: false, endedCaptureId: cap!.id, endedAt: stale });
+    expect(rows.get('pinnedRecent')).toMatchObject({ isActive: true, endedCaptureId: null });
+    expect(rows.get('domainOld')).toMatchObject({ isActive: false, endedCaptureId: null, endedAt: stale });
+    expect(rows.get('domainFresh')).toMatchObject({ isActive: false, endedCaptureId: null, endedAt: fresh });
+    expect(rows.get('c1')).toMatchObject({ isActive: true });
   });
 });

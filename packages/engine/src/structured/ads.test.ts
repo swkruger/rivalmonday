@@ -1,6 +1,6 @@
 import { ad, detectedChange, stageRun } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { metaPageUrl } from '@cs/collectors';
+import { googleAdsCaptureUrl, metaPageUrl } from '@cs/collectors';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedVendorCapture } from '../../test/seed';
 import { diffVendorCapture } from './vendor-diff';
@@ -64,5 +64,28 @@ describe('diffVendorCapture — ads', () => {
     await diffVendorCapture({ db: dbs.service }, cap1, { now });
     expect(await diffVendorCapture({ db: dbs.service }, cap1, { now })).toEqual({ ran: false });
     expect(await dbs.service.select().from(detectedChange)).toHaveLength(1);
+  });
+});
+
+describe('diffVendorCapture — google ads', () => {
+  const googleAd = (externalId: string, over: Partial<typeof ad.$inferInsert> = {}) =>
+    dbs.service.insert(ad).values({ competitorId: IDS.competitorX, platform: 'google', externalId, advertiserId: 'AR1', title: 'Smith HVAC', isActive: true, startedAt: day(5), ...over });
+
+  it('starts a new baseline when the query switches from domain to pinned advertisers, and never reports retired ads as stopped', async () => {
+    const domainCap = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_ads', url: googleAdsCaptureUrl([], 'smithhvac.example'), capturedAt: day(0) });
+    const pinned1 = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_ads', url: googleAdsCaptureUrl(['AR1'], 'smithhvac.example'), capturedAt: day(7) });
+    const pinned2 = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_ads', url: googleAdsCaptureUrl(['AR1'], 'smithhvac.example'), capturedAt: day(14) });
+    await googleAd('FIRST_PINNED', { firstCaptureId: pinned1 });
+    await googleAd('DOMAIN_OLD', { advertiserId: 'AR9', firstCaptureId: domainCap, isActive: false, endedCaptureId: null }); // retired silently
+    await googleAd('NEW', { firstCaptureId: pinned2, startedAt: day(12) });
+    await googleAd('GONE', { firstCaptureId: pinned1, isActive: false, endedCaptureId: pinned2 });
+    expect(await diffVendorCapture({ db: dbs.service }, pinned1, { now })).toEqual({ ran: true, result: { baseline: true, changeIds: [] } });
+    const r = await diffVendorCapture({ db: dbs.service }, pinned2, { now });
+    expect(r.ran && r.result.changeIds).toHaveLength(2);
+    const rows = (await dbs.service.select().from(detectedChange)).sort((a, b) => a.kind.localeCompare(b.kind));
+    expect(rows.map((c) => [c.blockKey, c.beforeCaptureId, (c.details as { items: { id: string }[] }).items.map((i) => i.id)])).toEqual([
+      ['ads:google:started', pinned1, ['NEW']],
+      ['ads:google:stopped', pinned1, ['GONE']],
+    ]);
   });
 });
