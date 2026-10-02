@@ -16,6 +16,7 @@ export * from './structured/reviews';
 export * from './facts/numeric';
 export * from './prices/observe';
 export * from './prices/price-stage';
+export * from './prices/tracker';
 export * from './tag/questions';
 export * from './tag/tag-stage';
 export * from './tag/structured';
