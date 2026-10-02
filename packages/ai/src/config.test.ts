@@ -26,6 +26,11 @@ tasks:
 `)).toThrow(/escalate_to/);
   });
 
+  it('requires an embeddings task to set dimensions', () => {
+    expect(() => parseAiConfig('tasks:\n  embeddings: { provider: openrouter, model: e/small, mode: embeddings }')).toThrow(/dimensions/);
+    expect(parseAiConfig('tasks:\n  embeddings: { provider: openrouter, model: e/small, mode: embeddings, dimensions: 512 }').tasks.embeddings).toMatchObject({ dimensions: 512 });
+  });
+
   it('rejects unknown providers and bad thresholds', () => {
     expect(() => parseAiConfig('tasks:\n  x: { provider: magic, model: m }')).toThrow();
     expect(() => parseAiConfig('tasks:\n  d: { provider: jev, min_confidence: { default: 1.5 } }')).toThrow();

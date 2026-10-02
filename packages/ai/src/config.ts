@@ -20,7 +20,7 @@ const openRouterTask = z.object({
   mode: z.enum(['chat', 'decisions', 'embeddings']).default('chat'),
   temperature: z.number().min(0).max(2).optional(),
   max_tokens: z.number().int().positive().optional(),
-  /** Embeddings only: requested vector width (must match the DB column width, 512). */
+  /** Embeddings only, and required there: requested vector width (must match the DB column width, 512). */
   dimensions: z.number().int().positive().optional(),
 });
 
@@ -47,6 +47,13 @@ export const aiConfigSchema = z
   })
   .superRefine((cfg, ctx) => {
     for (const [name, task] of Object.entries(cfg.tasks)) {
+      if (task.provider === 'openrouter' && task.mode === 'embeddings' && task.dimensions === undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['tasks', name, 'dimensions'],
+          message: 'an embeddings task must set dimensions (the DB vector width)',
+        });
+      }
       if (task.provider !== 'jev' || !task.escalate_to) continue;
       const target = cfg.tasks[task.escalate_to];
       if (!target || target.provider !== 'openrouter' || target.mode !== 'decisions') {
