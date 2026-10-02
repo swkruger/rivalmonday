@@ -2,7 +2,7 @@ import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { day } from '../../test/seed';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
-import { detectMoves, type MoveContext, moveConfidence, type MoveEvent } from './rules';
+import { AD_SURGE_MIN_HISTORY_WEEKS, detectMoves, type MoveContext, moveConfidence, type MoveEvent } from './rules';
 
 let hvac: VerticalPack;
 beforeAll(async () => {
@@ -14,7 +14,7 @@ const ev = (over: Partial<MoveEvent>): MoveEvent => ({
   id: `e${++n}`, changeType: 'content', channels: ['web'], occurredAt: day(95), services: { hvac_plumbing: null }, facts: [], zips: [], summary: '', details: {}, ...over,
 });
 const ctx = (over: Partial<MoveContext> = {}): MoveContext => ({
-  now, verticalId: 'hvac_plumbing', clientServices: ['ac_tune_up'], clientZips: ['75023'], clientTowns: ['Frisco'], thresholds: hvac.move_thresholds, ads: { activeNow: 2, baseline: 2 }, ...over,
+  now, verticalId: 'hvac_plumbing', clientServices: ['ac_tune_up'], clientZips: ['75023'], clientTowns: ['Frisco'], thresholds: hvac.move_thresholds, ads: { activeNow: 2, baseline: 2, historyWeeks: 12 }, ...over,
 });
 const cut = (from: string, to: string) => diffFacts(extractNumericFacts(from), extractNumericFacts(to));
 const types = (events: MoveEvent[], c = ctx()) => detectMoves(events, c).map((f) => f.type);
@@ -90,8 +90,15 @@ describe('detectMoves', () => {
 
   it('ad surge: active ads at least the multiplier times the baseline, with a started-ad event as evidence', () => {
     const started = ev({ changeType: 'ad_started', channels: ['meta_ads'], details: { count: 1 } });
-    expect(types([started], ctx({ ads: { activeNow: 8, baseline: 3 } }))).toContain('ad_surge');
-    expect(types([started], ctx({ ads: { activeNow: 5, baseline: 3 } }))).not.toContain('ad_surge');
-    expect(types([], ctx({ ads: { activeNow: 8, baseline: 3 } }))).not.toContain('ad_surge'); // no evidence, no claim
+    expect(types([started], ctx({ ads: { activeNow: 8, baseline: 3, historyWeeks: 12 } }))).toContain('ad_surge');
+    expect(types([started], ctx({ ads: { activeNow: 5, baseline: 3, historyWeeks: 12 } }))).not.toContain('ad_surge');
+    expect(types([], ctx({ ads: { activeNow: 8, baseline: 3, historyWeeks: 12 } }))).not.toContain('ad_surge'); // no evidence, no claim
+  });
+
+  it('ad surge: needs AD_SURGE_MIN_HISTORY_WEEKS of ad history (a freshly onboarded competitor has no baseline yet)', () => {
+    const started = ev({ changeType: 'ad_started', channels: ['meta_ads'], details: { count: 1 } });
+    expect(AD_SURGE_MIN_HISTORY_WEEKS).toBe(4);
+    expect(types([started], ctx({ ads: { activeNow: 8, baseline: 0, historyWeeks: 3 } }))).not.toContain('ad_surge');
+    expect(types([started], ctx({ ads: { activeNow: 8, baseline: 3, historyWeeks: 4 } }))).toContain('ad_surge');
   });
 });

@@ -21,9 +21,14 @@ export interface MoveEvent {
 export interface AdActivity {
   /** Ads active now. */
   activeNow: number;
-  /** Average number of active ads over the past 90 days. */
+  /** Average number of active ads over the past 90 days (only weeks since we started collecting ads). */
   baseline: number;
+  /** Weekly sample points behind `baseline`. */
+  historyWeeks: number;
 }
+
+/** Ad surge needs this many weeks of ad history — a just-onboarded competitor has no baseline yet. */
+export const AD_SURGE_MIN_HISTORY_WEEKS = 4;
 
 export interface MoveContext {
   now: Date;
@@ -148,7 +153,7 @@ export function detectMoves(all: MoveEvent[], ctx: MoveContext): MoveFinding[] {
 
   // Ad surge — active ads far above the 90-day baseline, backed by started-ad events.
   const started = events.filter((e) => e.changeType === 'ad_started');
-  if (started.length > 0 && ctx.ads.activeNow >= t.ad_surge_multiplier * Math.max(ctx.ads.baseline, 1)) {
+  if (started.length > 0 && ctx.ads.historyWeeks >= AD_SURGE_MIN_HISTORY_WEEKS && ctx.ads.activeNow >= t.ad_surge_multiplier * Math.max(ctx.ads.baseline, 1)) {
     out.push(finding('ad_surge', started, 1, `${ctx.ads.activeNow} active ads vs ${ctx.ads.baseline} usually`, { activeNow: ctx.ads.activeNow, baseline: ctx.ads.baseline }));
   }
   return out;

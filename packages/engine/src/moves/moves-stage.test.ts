@@ -1,8 +1,8 @@
-import { ad, changeEvent, client, eventScore, move, moveEvent, withTenant } from '@cs/db';
+import { ad, capture, changeEvent, client, eventScore, move, moveEvent, withTenant } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { day } from '../../test/seed';
+import { day, seedVendorCapture } from '../../test/seed';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
 import { createPackLoader } from '../tag/tag-stage';
 import { adActivity, listMoveClients, nextStatus, updateMovesForClient } from './moves-stage';
@@ -92,7 +92,19 @@ describe('adActivity and listMoveClients', () => {
       ...[1, 2, 3, 4, 5, 6].map((i) => ({ ...base, externalId: `new${i}`, firstSeenAt: day(98) })),
       { ...base, externalId: 'ended', isActive: false, firstSeenAt: day(0), endedAt: day(10), lastSeenAt: day(10) },
     ]);
-    expect(await adActivity(dbs.service, IDS.competitorX, day(100))).toEqual({ activeNow: 9, baseline: 3 });
+    await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'meta_ads', capturedAt: day(0) });
+    expect(await adActivity(dbs.service, IDS.competitorX, day(100))).toEqual({ activeNow: 9, baseline: 3, historyWeeks: 12 });
+  });
+
+  it('averages only the weeks since our first ok ad capture (weeks before onboarding are not zero ads)', async () => {
+    const base = { competitorId: IDS.competitorX, platform: 'google', isActive: true };
+    await dbs.service.insert(ad).values([1, 2, 3].map((i) => ({ ...base, externalId: `a${i}`, firstSeenAt: day(70) })));
+    await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_business_profile', capturedAt: day(0) }); // not an ad capture
+    await dbs.service.insert(capture).values({ competitorId: IDS.competitorX, source: 'google_ads', status: 'vendor_error', collectorVersion: 'test/1', capturedAt: day(10) });
+    expect(await adActivity(dbs.service, IDS.competitorX, day(100))).toEqual({ activeNow: 3, baseline: 0, historyWeeks: 0 }); // no ok ad capture yet
+    await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_ads', capturedAt: day(70) });
+    // Sample points day(93), day(86), day(79), day(72) are on/after day(70): 4 weeks of 3 ads each.
+    expect(await adActivity(dbs.service, IDS.competitorX, day(100))).toEqual({ activeNow: 3, baseline: 3, historyWeeks: 4 });
   });
 
   it('lists every client that tracks a competitor', async () => {

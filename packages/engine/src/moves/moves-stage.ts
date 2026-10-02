@@ -20,20 +20,36 @@ export function nextStatus(firstDetectedAt: Date, f: Pick<MoveFinding, 'confiden
   return now.getTime() - firstDetectedAt.getTime() >= ACTIVE_AFTER_DAYS * DAY_MS || f.confidence >= ACTIVE_CONFIDENCE ? 'active' : 'emerging';
 }
 
-/** Active ads now vs the mean active count at 12 weekly points over the past 84 days (spec §6.4 ad surge). */
+/**
+ * Active ads now vs the mean active count at weekly points over the past 84 days (spec §6.4 ad surge). Only
+ * points on/after the competitor's first ok ad capture count — before it we simply were not looking, which
+ * is not the same as zero ads — and `historyWeeks` says how many points that left.
+ */
 export async function adActivity(db: Db, competitorId: string, now: Date): Promise<AdActivity> {
   const at = now.toISOString();
   const [row] = (await db.execute(sql`
+    WITH first_capture AS (
+      SELECT min(captured_at) AS t FROM capture
+      WHERE competitor_id = ${competitorId}::uuid AND source IN ('google_ads', 'meta_ads') AND status = 'ok'),
+    points AS (
+      SELECT w.i, ${at}::timestamptz - make_interval(days => 7 * w.i) AS at
+      FROM generate_series(1, 12) AS w(i), first_capture f
+      WHERE f.t IS NOT NULL AND ${at}::timestamptz - make_interval(days => 7 * w.i) >= f.t)
     SELECT
       (SELECT count(*)::int FROM ad WHERE competitor_id = ${competitorId}::uuid AND is_active) AS active_now,
       (SELECT coalesce(avg(n), 0)::float8 FROM (
          SELECT count(a.id) AS n
-         FROM generate_series(1, 12) AS w(i)
+         FROM points p
          LEFT JOIN ad a ON a.competitor_id = ${competitorId}::uuid
-           AND a.first_seen_at <= ${at}::timestamptz - make_interval(days => 7 * w.i)
-           AND (a.is_active OR coalesce(a.ended_at, a.last_seen_at) > ${at}::timestamptz - make_interval(days => 7 * w.i))
-         GROUP BY w.i) s) AS baseline`)) as unknown as { active_now: number; baseline: number }[];
-  return { activeNow: Number(row?.active_now ?? 0), baseline: Math.round(Number(row?.baseline ?? 0) * 10) / 10 };
+           AND a.first_seen_at <= p.at
+           AND (a.is_active OR coalesce(a.ended_at, a.last_seen_at) > p.at)
+         GROUP BY p.i) s) AS baseline,
+      (SELECT count(*)::int FROM points) AS history_weeks`)) as unknown as { active_now: number; baseline: number; history_weeks: number }[];
+  return {
+    activeNow: Number(row?.active_now ?? 0),
+    baseline: Math.round(Number(row?.baseline ?? 0) * 10) / 10,
+    historyWeeks: Number(row?.history_weeks ?? 0),
+  };
 }
 
 export async function listMoveClients(db: Db): Promise<string[]> {
