@@ -43,4 +43,9 @@ describe('pricesInBlock', () => {
   it('detects promo when discount keyword appears after price', () => {
     expect(amounts('Starting at $89 — book online and save time')).toEqual([[89, 'USD', 'from', true]]);
   });
+
+  it('advances cursor for skipped discounts to avoid re-resolving later prices', () => {
+    expect(amounts('$89 off this month. Tune-up $89.')).toEqual([[89, 'USD', 'exact', false]]);
+    expect(amounts('Save $89 today. Our tune-up is $89.')).toEqual([[89, 'USD', 'exact', true]]);
+  });
 });

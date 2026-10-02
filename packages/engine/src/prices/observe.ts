@@ -36,15 +36,16 @@ export function pricesInBlock(text: string): PriceObservation[] {
   const out: PriceObservation[] = [];
   let cursor = 0;
   for (const f of extractNumericFacts(text)) {
-    if (f.kind !== 'price' || typeof f.value !== 'number' || f.value > MAX_PRICE) continue;
+    if (f.kind !== 'price' || typeof f.value !== 'number') continue;
     const raw = f.raw.replace(/\s+/g, ' ');
     let at = text.indexOf(f.raw, cursor);
     if (at === -1) at = text.indexOf(f.raw);
+    cursor = at + f.raw.length;
+    if (f.value > MAX_PRICE) continue;
     const before = text.slice(Math.max(0, at - 40), at).replace(/\s+/g, ' ');
     const after = text.slice(at + f.raw.length, at + f.raw.length + 40).replace(/\s+/g, ' ');
     const c = classifyPrice(before, after);
     if (c.discount) continue;
-    cursor = at + f.raw.length;
     const key = `${f.value}|${f.unit}|${c.qualifier}`;
     if (seen.has(key)) continue;
     seen.add(key);
