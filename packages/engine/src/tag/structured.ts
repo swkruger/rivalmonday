@@ -1,5 +1,5 @@
 import type { Ai, DecisionQuestion } from '@cs/ai';
-import { redactContactInfo } from '@cs/collectors';
+import { redactForModel } from '@cs/collectors';
 import { CHANGE_TYPES, type ChangeType } from '@cs/core';
 import { capture, type ChangeDetails, changeEvent, client, competitor, type Db, decisionReview, detectedChange, rankScan } from '@cs/db';
 import type { VerticalPack } from '@cs/verticals';
@@ -46,7 +46,7 @@ export function serviceForKeyword(keyword: string, pack: VerticalPack): string |
 }
 
 /** One-line, redacted event summary of a structured change (summaries are later sent to models, Phase 4). */
-export function buildStructuredSummary(change: { source: string; beforeText: string | null; afterText: string | null; details: ChangeDetails }): string {
+export function buildStructuredSummary(change: { source: string; beforeText: string | null; afterText: string | null; details: ChangeDetails }, businessNames: readonly (string | null)[] = []): string {
   const d = change.details;
   const first = d.items?.[0]?.label ?? '';
   const more = (d.count ?? 0) > 1 ? ` and ${(d.count ?? 0) - 1} more` : '';
@@ -89,7 +89,7 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
       s = `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(bare(before), 60)} → ${trunc(bare(after), 60)}`;
     }
   }
-  return redactContactInfo(s);
+  return redactForModel(s, { businessNames });
 }
 
 /**
@@ -126,6 +126,9 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
       const scope = c.clientId ? { agencyId: c.agencyId, clientId: c.clientId } : PLATFORM;
       const text = (c.afterText ?? c.beforeText ?? '').slice(0, MAX_STATE_TEXT);
 
+      const names = [row.competitorName];
+      const clean = redactForModel(text, { businessNames: names });
+
       let services: Record<string, string | null> = Object.fromEntries(packs.map((p) => [p.id, null]));
       let confidence = 1;
       let needsReview: string[] = [];
@@ -134,7 +137,7 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
       if (type === 'rank_change') {
         services = Object.fromEntries(packs.map((p) => [p.id, serviceForKeyword(c.details.keyword ?? '', p)]));
       } else if (SERVICE_MAPPED_TYPES.has(type) && packs.length > 0) {
-        const state = { competitor: row.competitorName, channel: c.source, change: type, text: redactContactInfo(text) };
+        const state = { competitor: row.competitorName, channel: c.source, change: type, text: clean };
         const result = await deps.ai.decide('decisions', state, buildStructuredQuestions(type, packs), scope);
         services = Object.fromEntries(
           packs.map((p) => {
@@ -150,11 +153,11 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
       }
 
       // Facts keep ~40 characters of context around each number: extract from redacted text so no phone/email lands in event.facts.
-      const facts = type === 'ad_started' ? diffFacts([], extractNumericFacts(redactContactInfo(text))) : [];
+      const facts = type === 'ad_started' ? diffFacts([], extractNumericFacts(clean)) : [];
       const money = facts.some((f) => MONEY_KINDS.has(f.kind));
       const details: ChangeDetails = type === 'ad_started' ? { ...c.details, offer: modelOffer || money } : c.details;
-      const summary = buildStructuredSummary({ source: c.source, beforeText: c.beforeText, afterText: c.afterText, details: c.details });
-      const zips = type === 'hiring' || type === 'new_location' || type === 'ad_started' ? extractZips(redactContactInfo(text)) : [];
+      const summary = buildStructuredSummary({ source: c.source, beforeText: c.beforeText, afterText: c.afterText, details: c.details }, names);
+      const zips = type === 'hiring' || type === 'new_location' || type === 'ad_started' ? extractZips(clean) : [];
       const { vectors } = await deps.ai.embed('embeddings', [summary], scope);
       const target = await findMergeTarget(
         deps,

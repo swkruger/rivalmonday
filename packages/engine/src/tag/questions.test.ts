@@ -23,6 +23,14 @@ describe('tag questions', () => {
     expect(String(s.after)).toHaveLength(1500);
     expect(s.numeric_changes).toEqual(['price: $89 → $69 (-22.5%)']);
   });
+
+  it('buildTagState removes person names but keeps the competitor name (NER pass)', () => {
+    const s = buildTagState({
+      competitorName: 'Smith HVAC', pageUrl: 'https://smithhvac.example/', pageType: 'home', kind: 'added',
+      beforeText: null, afterText: 'Thanks Mike! Smith HVAC fixed our AC for $89. Call 972-555-0100', numericChanges: [],
+    });
+    expect(s.after).toBe('Thanks [name]! Smith HVAC fixed our AC for $89. Call [phone]');
+  });
 });
 
 describe('resolveTag', () => {

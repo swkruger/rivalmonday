@@ -1,5 +1,5 @@
 import type { Ai } from '@cs/ai';
-import { redactContactInfo } from '@cs/collectors';
+import { redactForModel } from '@cs/collectors';
 import {
   capture, captureBlock, client, clientCompetitor, competitor, type Db, decisionReview, detectedChange, type NumericChange, trackedPage,
 } from '@cs/db';
@@ -62,12 +62,22 @@ export function isWebOffer(type: string, facts: NumericChange[]): boolean {
   return facts.some((n) => MONEY_KINDS.has(n.kind) && ((n.pct !== null && n.pct < 0) || (n.before === null && n.after !== null)));
 }
 
+/** Event facts keep ~40 characters of context per number; that context is model input later (Phase 4), so it is redacted. */
+export function redactFacts(facts: NumericChange[], businessNames: readonly (string | null)[]): NumericChange[] {
+  const fix = (f: NumericChange['before']) => (f ? { ...f, context: redactForModel(f.context, { businessNames }) } : f);
+  return facts.map((n) => ({ ...n, before: fix(n.before), after: fix(n.after) }));
+}
+
 const trunc = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /** One-line event summary. Built from redacted text: summaries are later sent to models (Phase 4), evidence stays verbatim. */
-export function buildSummary(change: { kind: string; beforeText: string | null; afterText: string | null; numericChanges: NumericChange[] }, pageUrl: string | null): string {
-  const beforeText = change.beforeText === null ? null : redactContactInfo(change.beforeText);
-  const afterText = change.afterText === null ? null : redactContactInfo(change.afterText);
+export function buildSummary(
+  change: { kind: string; beforeText: string | null; afterText: string | null; numericChanges: NumericChange[] },
+  pageUrl: string | null,
+  businessNames: readonly (string | null)[] = [],
+): string {
+  const beforeText = change.beforeText === null ? null : redactForModel(change.beforeText, { businessNames });
+  const afterText = change.afterText === null ? null : redactForModel(change.afterText, { businessNames });
   let prefix = '';
   if (pageUrl) {
     try {
@@ -120,7 +130,7 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
           .limit(1);
         embedding = blk?.embedding ?? null;
       }
-      const summary = buildSummary(row.change, row.pageUrl);
+      const summary = buildSummary(row.change, row.pageUrl, [row.competitorName]);
       const target = resolution.meaningful
         ? await findMergeTarget(deps, {
             competitorId: row.change.competitorId, clientId: null, captureId: row.change.afterCaptureId, changeType: resolution.type, services: resolution.services, facts: row.change.numericChanges,
@@ -144,7 +154,7 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
         changeId,
         {
           competitorId: row.change.competitorId, changeType: resolution.type, channels: ['web'], services: resolution.services, summary,
-          facts: row.change.numericChanges, details: { offer: isWebOffer(resolution.type, row.change.numericChanges) },
+          facts: redactFacts(row.change.numericChanges, [row.competitorName]), details: { offer: isWebOffer(resolution.type, row.change.numericChanges) },
           zips: extractZips(row.change.afterText ?? row.change.beforeText ?? ''), embedding, confidence: resolution.confidence,
           needsReview: resolution.needsReview.length > 0, occurredAt: row.capturedAt,
         },

@@ -7,6 +7,7 @@ export * from './discovery/discover';
 export * from './discovery/select';
 export * from './discovery/sitemap';
 export * from './discovery/urls';
+export * from './evidence/model-privacy';
 export * from './evidence/privacy';
 export * from './evidence/recorder';
 export * from './evidence/vendor-capture';

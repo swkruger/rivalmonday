@@ -1,5 +1,5 @@
 import type { Ai, DecisionQuestion } from '@cs/ai';
-import { redactContactInfo } from '@cs/collectors';
+import { redactForModel } from '@cs/collectors';
 import type { CallScope, ChangeType } from '@cs/core';
 import { changeEvent, type Db, detectedChange, eventChange, type NumericChange, type Tx } from '@cs/db';
 import { and, cosineDistance, desc, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
@@ -90,7 +90,7 @@ export async function findMergeTarget(deps: { db: Db; ai: Ai }, s: MergeSubject,
   const questions: Record<string, DecisionQuestion> = Object.fromEntries(
     candidates.map((_, i) => [`same_${i}`, { type: 'noul', instructions: `${SAME_OFFER_QUESTION} The existing change is "existing_${i}".` }]),
   );
-  const state = { new_change: redactContactInfo(s.text).slice(0, 1500), ...Object.fromEntries(candidates.map((c, i) => [`existing_${i}`, c.summary])) };
+  const state = { new_change: redactForModel(s.text).slice(0, 1500), ...Object.fromEntries(candidates.map((c, i) => [`existing_${i}`, c.summary])) };
   const result = await deps.ai.decide('decisions', state, questions, scope);
   let best: MergeTarget | null = null;
   for (const [i, c] of candidates.entries()) {

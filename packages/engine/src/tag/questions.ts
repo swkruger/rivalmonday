@@ -1,5 +1,5 @@
 import type { DecisionQuestion, DecisionResult } from '@cs/ai';
-import { redactContactInfo } from '@cs/collectors';
+import { redactForModel } from '@cs/collectors';
 import type { ChangeType } from '@cs/core';
 import type { NumericChange } from '@cs/db';
 import type { VerticalPack } from '@cs/verticals';
@@ -58,7 +58,7 @@ export interface TagStateInput {
 }
 
 const MAX_STATE_TEXT = 1500;
-const clean = (t: string | null) => (t === null ? null : redactContactInfo(t).slice(0, MAX_STATE_TEXT));
+const clean = (t: string | null, names: readonly string[]) => (t === null ? null : redactForModel(t, { businessNames: names }).slice(0, MAX_STATE_TEXT));
 const showFact = (f: NumericChange['before']) => (f ? f.raw : 'none');
 
 export function describeNumeric(n: NumericChange): string {
@@ -72,8 +72,8 @@ export function buildTagState(input: TagStateInput): Record<string, unknown> {
     page_url: input.pageUrl,
     page_type: input.pageType,
     change: input.kind,
-    before: clean(input.beforeText),
-    after: clean(input.afterText),
+    before: clean(input.beforeText, [input.competitorName]),
+    after: clean(input.afterText, [input.competitorName]),
     numeric_changes: input.numericChanges.map(describeNumeric),
   };
 }

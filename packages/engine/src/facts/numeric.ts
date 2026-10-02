@@ -1,5 +1,5 @@
 import type { Ai } from '@cs/ai';
-import { redactContactInfo } from '@cs/collectors';
+import { redactForModel } from '@cs/collectors';
 import type { CallScope } from '@cs/core';
 import type { NumericChange, NumericFact, NumericKind } from '@cs/db';
 import { z } from 'zod';
@@ -117,7 +117,7 @@ const SYSTEM = [
 
 export function llmFactExtractor(ai: Ai, scope: CallScope): FactExtractor {
   return async (text) => {
-    const clean = redactContactInfo(text).slice(0, 2000);
+    const clean = redactForModel(text).slice(0, 2000);
     const r = await ai.chat(
       'value_extract',
       {
