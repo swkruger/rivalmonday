@@ -99,6 +99,10 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
     },
     async (tx, { row, resolution, answers, embedding }) => {
       if (!resolution) return { eventId: null };
+      // Low-confidence answers still reach the AM review queue (spec §7.3), whether or not they produced an event.
+      if (resolution.needsReview.length > 0) {
+        await tx.insert(decisionReview).values({ subjectType: 'detected_change', subjectId: changeId, keys: resolution.needsReview, answers: answers ?? {} });
+      }
       if (!resolution.meaningful) {
         await tx.update(detectedChange).set({ status: 'cosmetic' }).where(eq(detectedChange.id, changeId));
         return { eventId: null };
@@ -113,9 +117,6 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
         .returning({ id: changeEvent.id });
       await tx.insert(eventChange).values({ eventId: ev!.id, changeId });
       await tx.update(detectedChange).set({ status: 'event' }).where(eq(detectedChange.id, changeId));
-      if (resolution.needsReview.length > 0) {
-        await tx.insert(decisionReview).values({ subjectType: 'detected_change', subjectId: changeId, keys: resolution.needsReview, answers: answers ?? {} });
-      }
       return { eventId: ev!.id };
     },
   );

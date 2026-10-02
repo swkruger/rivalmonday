@@ -52,6 +52,18 @@ describe('resolveTag', () => {
     const r = resolveTag([], result({ meaningful: noul(true, 0.9), change_type: choice('new_service', 0.7), service_hvac_plumbing: choice('teleportation', 0.8) }, ['change_type']), packs);
     expect(r).toMatchObject({ services: { hvac_plumbing: null }, confidence: 0.7, needsReview: ['change_type'] });
   });
+
+  it('lets a date-only change be called cosmetic (only money forces meaningful)', () => {
+    const dateOnly = diffFacts(extractNumericFacts('Posted Sep 3'), extractNumericFacts('Posted Sep 10'));
+    const r = resolveTag(dateOnly, result({ meaningful: noul(false), change_type: choice('cosmetic') }), []);
+    expect(r).toMatchObject({ meaningful: false, type: 'cosmetic' });
+  });
+
+  it('keeps a date-only change tagged as promo when the model calls it meaningful', () => {
+    const dateOnly = diffFacts(extractNumericFacts('Posted Sep 3'), extractNumericFacts('Posted Sep 10'));
+    const r = resolveTag(dateOnly, result({ meaningful: noul(true), change_type: choice('promo') }), []);
+    expect(r).toMatchObject({ meaningful: true, type: 'promo' });
+  });
 });
 
 describe('summary and zips', () => {

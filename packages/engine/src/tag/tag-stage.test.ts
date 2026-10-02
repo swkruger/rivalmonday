@@ -69,6 +69,15 @@ describe('tagChange', () => {
     expect(await dbs.owner.select().from(decisionReview)).toMatchObject([{ subjectType: 'detected_change', subjectId: id, keys: ['change_type'] }]);
   });
 
+  it('queues a dismissed low-confidence change for review without creating an event', async () => {
+    const id = await change('Call us today', 'Call us now');
+    const ai = createFakeAi({ decide: tagResult({ meaningful: false, type: 'cosmetic', confidence: 0.6, needsReview: ['meaningful'] }) });
+    await tagChange({ db: dbs.service, ai, packs }, id);
+    expect(await statusOf(id)).toBe('cosmetic');
+    expect(await dbs.owner.select().from(changeEvent)).toEqual([]);
+    expect(await dbs.owner.select().from(decisionReview)).toMatchObject([{ subjectType: 'detected_change', subjectId: id, keys: ['meaningful'] }]);
+  });
+
   it('leaves the change pending and writes nothing when every model is down, then succeeds on retry', async () => {
     const id = await change('AC Tune-Up $89', 'AC Tune-Up $69');
     await expect(tagChange({ db: dbs.service, ai: createFakeAi({ decide: () => { throw new Error('jev and openrouter down'); } }), packs }, id)).rejects.toThrow('down');

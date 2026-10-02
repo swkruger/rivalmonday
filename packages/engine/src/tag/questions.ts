@@ -88,8 +88,8 @@ export interface TagResolution {
 
 export function resolveTag(numeric: NumericChange[], result: DecisionResult<string>, packs: VerticalPack[]): TagResolution {
   const a = result.answers;
-  const forced = numeric.length > 0; // spec §6.1: any numeric change is always flagged
   const money = numeric.some((n) => MONEY_KINDS.has(n.kind));
+  const forced = money; // spec §6.1: a money change (price/percent) is always flagged meaningful; date/duration-only changes are still detected and tagged, but may be called cosmetic
   const rawType = String(a.change_type?.value ?? 'content');
   let type: ChangeType = (WEB_CHANGE_TYPES as readonly string[]).includes(rawType) ? (rawType as ChangeType) : 'content';
   const meaningful = forced || (a.meaningful?.type === 'noul' ? a.meaningful.value : true);
