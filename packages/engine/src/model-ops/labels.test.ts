@@ -62,4 +62,16 @@ describe('gold labels', () => {
     const answers = await loadLabeledAnswers(dbs.service);
     expect(answers.map((a) => [a.role, a.provider, a.correct])).toEqual([['primary', 'jev', false], ['fallback', 'llm', true], ['final', 'engine', true]]);
   });
+
+  it('rejects mis-dashed 36-char UUID and reports error per-item, not as DB error', async () => {
+    const id = await sample();
+    const r = await importLabels(dbs.service, [
+      { sampleId: '0000000000-00-4000-8000-000000000999', questionKey: 'meaningful', label: 'true' },
+      { sampleId: id, questionKey: 'meaningful', label: 'yes' },
+    ], { labeledBy: 'owner' });
+    expect(r.imported).toBe(1);
+    expect(r.errors).toHaveLength(1);
+    expect(r.errors[0]).toMatch(/no such sample/);
+    expect((await dbs.owner.select().from(decisionLabel)).length).toBe(1);
+  });
 });

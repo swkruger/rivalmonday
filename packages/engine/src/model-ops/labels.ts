@@ -128,7 +128,7 @@ export async function importLabels(
 ): Promise<{ imported: number; errors: string[] }> {
   const errors: string[] = [];
   let imported = 0;
-  const ids = [...new Set(items.map((i) => i.sampleId))].filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+  const ids = [...new Set(items.map((i) => i.sampleId))].filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
   const samples = new Map(
     ids.length === 0 ? [] : (await db.select({ id: decisionSample.id, questions: decisionSample.questions }).from(decisionSample).where(inArray(decisionSample.id, ids))).map((s) => [s.id, s.questions]),
   );
