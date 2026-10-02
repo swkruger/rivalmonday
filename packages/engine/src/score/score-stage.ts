@@ -1,27 +1,57 @@
 import type { ChangeType } from '@cs/core';
-import { changeEvent, client, clientCompetitor, type Db, eventScore } from '@cs/db';
-import { and, cosineDistance, eq, gte, isNotNull, lt, ne, sql } from 'drizzle-orm';
+import { changeEvent, client, clientCompetitor, type Db, eventScore, type NumericChange } from '@cs/db';
+import { and, cosineDistance, desc, eq, gte, isNotNull, lt, ne, sql } from 'drizzle-orm';
 import type { PackLoader } from '../tag/tag-stage';
 import { type Route, scoreForClient } from './score';
 
-/** Highest cosine similarity to an earlier event of the same competitor inside the window (pgvector). */
+/**
+ * Order-insensitive signature of the numeric facts a change carries (kind, unit, before value, after value).
+ * Two events "say the same news" when their signatures match — used so novelty discounts a *repeat* of a
+ * price cut, not a second, different price cut on the same page block (which cosine-matches the first almost
+ * perfectly because the surrounding text is unchanged).
+ */
+export function factsSignature(facts: NumericChange[]): string {
+  return facts
+    .map((f) => `${f.kind}|${(f.before ?? f.after)?.unit ?? ''}|${f.before?.value ?? ''}|${f.after?.value ?? ''}`)
+    .sort()
+    .join(';');
+}
+
+/**
+ * Highest cosine similarity to an earlier event of the same competitor inside the window (pgvector).
+ * Spec §6.3's novelty factor exists to discount repeats of the *same* news. When the event carries numeric
+ * facts, only earlier events with the same facts signature count toward similarity — otherwise a second,
+ * different price cut on the same block (e.g. $100→$80 then $80→$60) would cosine-match the first change
+ * almost perfectly and get archived as a "repeat", silencing a real price war. An event with no facts falls
+ * back to plain max cosine over earlier events.
+ */
 export async function noveltySimilarity(
   db: Db,
-  ev: { id: string; competitorId: string; embedding: number[] | null; occurredAt: Date },
+  ev: { id: string; competitorId: string; embedding: number[] | null; occurredAt: Date; facts: NumericChange[] },
   windowDays: number,
 ): Promise<number | null> {
   if (!ev.embedding) return null;
   const since = new Date(ev.occurredAt.getTime() - windowDays * 86_400_000);
-  const [row] = await db
-    .select({ sim: sql<number | null>`max(1 - (${cosineDistance(changeEvent.embedding, ev.embedding)}))` })
+  const where = and(
+    eq(changeEvent.competitorId, ev.competitorId), ne(changeEvent.id, ev.id), isNotNull(changeEvent.embedding),
+    lt(changeEvent.occurredAt, ev.occurredAt), gte(changeEvent.occurredAt, since),
+  );
+  if (ev.facts.length === 0) {
+    const [row] = await db
+      .select({ sim: sql<number | null>`max(1 - (${cosineDistance(changeEvent.embedding, ev.embedding)}))` })
+      .from(changeEvent)
+      .where(where);
+    return row?.sim === null || row?.sim === undefined ? null : Number(row.sim);
+  }
+  const signature = factsSignature(ev.facts);
+  const sim = sql<number>`1 - (${cosineDistance(changeEvent.embedding, ev.embedding)})`;
+  const candidates = await db
+    .select({ id: changeEvent.id, facts: changeEvent.facts, sim })
     .from(changeEvent)
-    .where(
-      and(
-        eq(changeEvent.competitorId, ev.competitorId), ne(changeEvent.id, ev.id), isNotNull(changeEvent.embedding),
-        lt(changeEvent.occurredAt, ev.occurredAt), gte(changeEvent.occurredAt, since),
-      ),
-    );
-  return row?.sim === null || row?.sim === undefined ? null : Number(row.sim);
+    .where(where)
+    .orderBy(desc(sim));
+  const match = candidates.find((c) => factsSignature(c.facts) === signature);
+  return match ? Number(match.sim) : null;
 }
 
 export interface ScoreRunResult {

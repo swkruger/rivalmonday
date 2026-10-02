@@ -6,7 +6,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day } from '../../test/seed';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
 import { createPackLoader } from '../tag/tag-stage';
-import { scoreEvent } from './score-stage';
+import { factsSignature, scoreEvent } from './score-stage';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -60,6 +60,15 @@ describe('scoreEvent', () => {
     expect(a1?.route).toBe('archive');
   });
 
+  it('does not archive a second, different price cut on the same block', async () => {
+    await event({ occurredAt: day(1), facts: diffFacts(extractNumericFacts('$100'), extractNumericFacts('$80')) });
+    const id = await event({ occurredAt: day(30), facts: diffFacts(extractNumericFacts('$80'), extractNumericFacts('$60')) });
+    await scoreEvent({ db: dbs.service, packs }, id);
+    const [a1] = await dbs.owner.select().from(eventScore).where(eq(eventScore.clientId, IDS.clientA1));
+    expect(a1?.factors).toMatchObject({ maxSimilarity: null, novelty: 1 });
+    expect(a1?.route).not.toBe('archive');
+  });
+
   it('is idempotent, and scores a client that starts tracking the competitor later', async () => {
     const id = await event();
     await scoreEvent({ db: dbs.service, packs }, id);
@@ -76,5 +85,19 @@ describe('scoreEvent', () => {
     });
     await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorX });
     expect(await scoreEvent({ db: dbs.service, packs: broken }, id)).toMatchObject({ scored: 2, failed: 1 });
+  });
+});
+
+describe('factsSignature', () => {
+  const cut = (from: string, to: string) => diffFacts(extractNumericFacts(from), extractNumericFacts(to));
+
+  it('is order-insensitive', () => {
+    const a = [...cut('$100', '$80'), ...cut('AC tune-up for 10%', 'AC tune-up for 15%')];
+    const b = [...cut('AC tune-up for 10%', 'AC tune-up for 15%'), ...cut('$100', '$80')];
+    expect(factsSignature(a)).toBe(factsSignature(b));
+  });
+
+  it('distinguishes different after-values', () => {
+    expect(factsSignature(cut('$100', '$80'))).not.toBe(factsSignature(cut('$100', '$60')));
   });
 });
