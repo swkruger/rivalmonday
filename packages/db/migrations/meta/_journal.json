@@ -120,6 +120,20 @@
       "when": 1790895533429,
       "tag": "0016_engine_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790916025620,
+      "tag": "0017_vendor_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790916040429,
+      "tag": "0018_vendor_history_rls",
+      "breakpoints": true
     }
   ]
 }

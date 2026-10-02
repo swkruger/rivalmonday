@@ -7,6 +7,8 @@ export interface ServiceArea {
   center: { lat: number; lng: number };
   radiusKm: number;
   zips: string[];
+  /** Towns/cities served, matched case-insensitively against event text by the territory-expansion move (spec §6.4). */
+  towns?: string[];
 }
 
 /** Per-client routing thresholds (spec §6.3 "thresholds per client"); null = vertical pack defaults. */
@@ -52,7 +54,12 @@ export const competitor = pgTable('competitor', {
   domain: text('domain').unique(),
   placeId: text('place_id').unique(),
   cid: text('cid').unique(),
+  /** Deprecated by metaPageIds; dropped in migration 0021 (Phase 3b Task 4). */
   metaPageId: text('meta_page_id'),
+  /** Every Facebook page whose ads belong to this competitor (franchise brands run ads from franchisee pages). */
+  metaPageIds: jsonb('meta_page_ids').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  /** Google Ads Transparency advertiser ids pinned to this competitor; when set, ads are queried by id, not by domain. */
+  googleAdvertiserIds: jsonb('google_advertiser_ids').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   createdAt: createdAt(),
 });
 

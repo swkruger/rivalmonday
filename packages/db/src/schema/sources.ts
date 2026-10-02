@@ -92,6 +92,23 @@ export const ad = pgTable(
     lastSeenAt: ts('last_seen_at').notNull().defaultNow(),
     firstCaptureId: uuid('first_capture_id').references(() => capture.id, { onDelete: 'set null' }),
     lastCaptureId: uuid('last_capture_id').references(() => capture.id, { onDelete: 'set null' }),
+    /** The capture whose collection ended this ad (Meta: missing from the active set; Google: unseen too long). Cleared if the ad returns. */
+    endedCaptureId: uuid('ended_capture_id').references(() => capture.id, { onDelete: 'set null' }),
   },
   (t) => [unique('ad_platform_external_unique').on(t.platform, t.externalId), index('ad_competitor_active_idx').on(t.competitorId, t.isActive)],
+);
+
+/** The replaced version of an edited review (3b carry-over): the review row always holds the latest text. Immutable. */
+export const reviewRevision = pgTable(
+  'review_revision',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    reviewId: uuid('review_id').notNull().references(() => review.id, { onDelete: 'cascade' }),
+    competitorId: competitorRef(),
+    rating: integer('rating'),
+    text: text('text'),
+    replacedAt: ts('replaced_at').notNull().defaultNow(),
+    replacedByCaptureId: uuid('replaced_by_capture_id').references(() => capture.id, { onDelete: 'set null' }),
+  },
+  (t) => [index('review_revision_review_idx').on(t.reviewId, t.replacedAt)],
 );
