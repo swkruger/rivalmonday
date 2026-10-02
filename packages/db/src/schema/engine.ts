@@ -1,8 +1,9 @@
 import { sql } from 'drizzle-orm';
 import {
-  boolean, doublePrecision, foreignKey, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid, vector,
+  boolean, check, doublePrecision, foreignKey, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uniqueIndex, uuid, vector,
 } from 'drizzle-orm/pg-core';
 import { capture, trackedPage } from './evidence';
+import { rankScan } from './client-intel';
 import { agency, client, competitor, type ScoreThresholds } from './tenancy';
 
 const ts = (name: string) => timestamp(name, { withTimezone: true });
@@ -29,6 +30,53 @@ export interface NumericChange {
   after: NumericFact | null;
   /** Percent change for price pairs, one decimal; null otherwise. */
   pct: number | null;
+}
+
+export interface ChangeItem {
+  id: string;
+  label: string;
+}
+
+/**
+ * Structured facts of a detected change, copied onto its event. Set by the structured diffs (Phase 3b);
+ * web changes leave it empty except `offer`. `changeType` fixes the event type (no model choice).
+ */
+export interface ChangeDetails {
+  changeType?: string;
+  /** Ads started/stopped, new job postings, reviews in the window. */
+  count?: number;
+  items?: ChangeItem[];
+  /** GBP field that changed ('category', 'service', 'address', 'title', 'phone', 'domain', 'hours', 'status', 'rating'). */
+  field?: string;
+  /** Meta page the ads belong to. */
+  pageId?: string | null;
+  /** Review velocity: window length, baseline weekly mean and z-score; average rating of the window's reviews. */
+  windowDays?: number;
+  baselineMean?: number;
+  z?: number;
+  avgRating?: number | null;
+  ratingBefore?: number;
+  ratingAfter?: number;
+  votesBefore?: number | null;
+  votesAfter?: number | null;
+  /** Rank delta (tenant-private): keyword, average grid position and share of grid points in the top 3. */
+  keyword?: string;
+  avgRankBefore?: number;
+  avgRankAfter?: number;
+  top3Before?: number;
+  top3After?: number;
+  points?: number;
+  /** The change advertises a specific offer (ad copy with a deal, or a web promo / money change). */
+  offer?: boolean;
+}
+
+export type MoveStatus = 'emerging' | 'active' | 'fading';
+
+export interface MoveDetails {
+  eventCount: number;
+  channels: string[];
+  /** Rule-specific numbers behind the move (e.g. cuts: 2, activeNow: 9, baseline: 3). */
+  facts: Record<string, number | string>;
 }
 
 /** Spec §6.3: every score stores its factor breakdown for explainability. */
@@ -90,22 +138,29 @@ export const volatileBlock = pgTable(
   (t) => [primaryKey({ columns: [t.trackedPageId, t.blockKey] })],
 );
 
-/** A candidate change found by a diff stage, before tagging. Global, derived. */
+/** A candidate change found by a diff stage, before tagging. Global, derived — except rank changes, which are tenant-private. */
 export const detectedChange = pgTable(
   'detected_change',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     competitorId: competitorRef(),
     trackedPageId: uuid('tracked_page_id').references(() => trackedPage.id, { onDelete: 'cascade' }),
-    source: text('source').notNull(), // 'web' (3b adds structured sources)
+    source: text('source').notNull(), // Channel: 'web' | vendor capture source | 'rank'
     kind: text('kind').notNull(), // added | removed | modified
     beforeCaptureId: uuid('before_capture_id').references(() => capture.id),
-    afterCaptureId: uuid('after_capture_id').notNull().references(() => capture.id),
+    /** Evidence of the change: a capture (web, vendor) … */
+    afterCaptureId: uuid('after_capture_id').references(() => capture.id),
+    /** … or a tenant-private rank scan (exactly one of the two). */
+    rankScanId: uuid('rank_scan_id').references(() => rankScan.id, { onDelete: 'cascade' }),
+    /** Set (both) only for tenant-private changes. */
+    agencyId: uuid('agency_id').references(() => agency.id, { onDelete: 'cascade' }),
+    clientId: uuid('client_id'),
     blockKey: text('block_key'),
     beforeText: text('before_text'),
     afterText: text('after_text'),
     similarity: doublePrecision('similarity'),
     numericChanges: jsonb('numeric_changes').$type<NumericChange[]>().notNull().default(sql`'[]'::jsonb`),
+    details: jsonb('details').$type<ChangeDetails>().notNull().default(sql`'{}'::jsonb`),
     flags: jsonb('flags').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     status: text('status').notNull().default('pending'), // pending | event | cosmetic
     stageVersion: integer('stage_version').notNull(),
@@ -113,22 +168,32 @@ export const detectedChange = pgTable(
   },
   (t) => [
     unique('detected_change_unique').on(t.afterCaptureId, t.kind, t.blockKey, t.stageVersion),
+    unique('detected_change_rank_unique').on(t.rankScanId, t.competitorId, t.kind, t.blockKey, t.stageVersion),
     index('detected_change_status_idx').on(t.status, t.detectedAt),
     index('detected_change_page_key_idx').on(t.trackedPageId, t.blockKey),
+    foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade'),
+    check('detected_change_subject_check', sql`(after_capture_id IS NOT NULL) <> (rank_scan_id IS NOT NULL)`),
+    check('detected_change_tenant_check', sql`(client_id IS NULL) = (agency_id IS NULL)`),
   ],
 );
 
-/** A tagged, meaningful competitor event (spec §6.2). Global public fact; private scores live in event_score. */
+/** A tagged, meaningful competitor event (spec §6.2). Global public fact — except rank events, which are tenant-private. Private scores live in event_score. */
 export const changeEvent = pgTable(
   'event',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     competitorId: competitorRef(),
+    /** Set (both) only for tenant-private events. */
+    agencyId: uuid('agency_id').references(() => agency.id, { onDelete: 'cascade' }),
+    clientId: uuid('client_id'),
     changeType: text('change_type').notNull(), // ChangeType
+    /** Channels of every change merged into this event (spec §6.2 cross-channel merge). */
+    channels: jsonb('channels').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     /** Service id per vertical pack id (null = no single service). */
     services: jsonb('services').$type<Record<string, string | null>>().notNull().default(sql`'{}'::jsonb`),
     summary: text('summary').notNull(),
     facts: jsonb('facts').$type<NumericChange[]>().notNull().default(sql`'[]'::jsonb`),
+    details: jsonb('details').$type<ChangeDetails>().notNull().default(sql`'{}'::jsonb`),
     zips: jsonb('zips').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     embedding: embedding(),
     confidence: doublePrecision('confidence').notNull(),
@@ -136,7 +201,13 @@ export const changeEvent = pgTable(
     occurredAt: ts('occurred_at').notNull(),
     createdAt: ts('created_at').notNull().defaultNow(),
   },
-  (t) => [index('event_competitor_time_idx').on(t.competitorId, t.occurredAt), index('event_created_idx').on(t.createdAt)],
+  (t) => [
+    index('event_competitor_time_idx').on(t.competitorId, t.occurredAt),
+    index('event_created_idx').on(t.createdAt),
+    index('event_client_idx').on(t.clientId),
+    foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade'),
+    check('event_tenant_check', sql`(client_id IS NULL) = (agency_id IS NULL)`),
+  ],
 );
 
 /** Evidence chain: which detected changes an event is built from (3b merges several into one event). */
@@ -183,4 +254,43 @@ export const decisionReview = pgTable(
     resolvedAt: ts('resolved_at'),
   },
   (t) => [index('decision_review_open_idx').on(t.resolvedAt, t.createdAt)],
+);
+
+/** A detected competitor move (spec §6.4) for one client. Tenant-private; written by the nightly moves stage. */
+export const move = pgTable(
+  'move',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agencyId: uuid('agency_id').notNull().references(() => agency.id, { onDelete: 'cascade' }),
+    clientId: uuid('client_id').notNull(),
+    competitorId: competitorRef(),
+    moveType: text('move_type').notNull(), // MoveType
+    status: text('status').notNull(), // MoveStatus
+    confidence: doublePrecision('confidence').notNull(),
+    summary: text('summary').notNull(),
+    details: jsonb('details').$type<MoveDetails>().notNull().default(sql`'{"eventCount":0,"channels":[],"facts":{}}'::jsonb`),
+    ruleVersion: integer('rule_version').notNull(),
+    firstDetectedAt: ts('first_detected_at').notNull().defaultNow(),
+    /** Last nightly run at which the rule held. */
+    lastHeldAt: ts('last_held_at').notNull(),
+    /** Newest supporting event. */
+    lastEvidenceAt: ts('last_evidence_at').notNull(),
+    closedAt: ts('closed_at'),
+    updatedAt: ts('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade'),
+    index('move_client_idx').on(t.clientId, t.status),
+    uniqueIndex('move_open_unique').on(t.clientId, t.competitorId, t.moveType).where(sql`closed_at IS NULL`),
+  ],
+);
+
+/** Evidence chain of a move: the events supporting it. */
+export const moveEvent = pgTable(
+  'move_event',
+  {
+    moveId: uuid('move_id').notNull().references(() => move.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id').notNull().references(() => changeEvent.id, { onDelete: 'cascade' }),
+  },
+  (t) => [primaryKey({ columns: [t.moveId, t.eventId] }), index('move_event_event_idx').on(t.eventId)],
 );
