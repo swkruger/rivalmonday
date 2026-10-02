@@ -1,5 +1,6 @@
 import type { Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
+import { PRICE_STAGE, PRICE_VERSION } from './prices/price-stage';
 import { MIN_REVIEW_CHARS, REVIEW_ANALYSIS_DAYS, REVIEW_STAGE, REVIEW_VERSION } from './reviews/themes';
 import { MAX_STAGE_ATTEMPTS } from './stage';
 import { RANK_DIFF_STAGE, RANK_DIFF_VERSION } from './structured/rank';
@@ -13,6 +14,7 @@ export interface EngineWork {
   score: string[];
   rankDiff: string[];
   reviews: string[];
+  prices: string[];
 }
 
 /** Events created this recently are (re)checked for missing client scores, e.g. a newly linked client. */
@@ -81,5 +83,13 @@ export async function findEngineWork(db: Db, opts: { limit: number; competitorId
       AND NOT ${finished(REVIEW_STAGE, REVIEW_VERSION, "md5(r.id::text || '|' || r.text)::uuid")}
     ORDER BY r.posted_at DESC LIMIT ${opts.limit}`);
 
-  return { diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score), rankDiff: ids(rankDiff), reviews: ids(reviews) };
+  // Prices: every ok web capture of a competitor some client tracks, oldest first so spans build in order.
+  const prices = await db.execute(sql`
+    SELECT c.id FROM capture c
+    WHERE c.source = 'web' AND c.status = 'ok' AND c.tracked_page_id IS NOT NULL ${only('c.competitor_id')}
+      AND EXISTS (SELECT 1 FROM client_competitor cc WHERE cc.competitor_id = c.competitor_id)
+      AND NOT ${finished(PRICE_STAGE, PRICE_VERSION, 'c.id')}
+    ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
+
+  return { diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score), rankDiff: ids(rankDiff), reviews: ids(reviews), prices: ids(prices) };
 }
