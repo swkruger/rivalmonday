@@ -28,7 +28,6 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  * everywhere the business's own name isn't actually written).
  */
 export function personNames(text: string, businessNames: readonly (string | null | undefined)[] = []): string[] {
-  if (!/\p{Lu}/u.test(text)) return [];
   const found = (nlp(text).people().out('array') as string[])
     .map((n) => n.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, ''))
     .filter((n) => n.length >= 2 && words(n).some((w) => !TITLE_WORDS.has(w)));
@@ -68,7 +67,7 @@ export function redactPersonNames(text: string, businessNames: readonly (string 
   }
   const redact: Span[] = [];
   for (const name of names) {
-    for (const span of findSpans(text, name, 'gu')) {
+    for (const span of findSpans(text, name, 'giu')) {
       if (claimed.some((c) => overlaps(c, span))) continue;
       redact.push(span);
       claimed.push(span);

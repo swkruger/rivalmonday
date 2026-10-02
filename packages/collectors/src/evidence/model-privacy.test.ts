@@ -19,9 +19,14 @@ describe('redactPersonNames (compromise NER)', () => {
     );
   });
 
-  it('skips text without capital letters (fast path) and lists names longest first', () => {
+  it('leaves text with no detected names alone, and lists names longest first', () => {
     expect(redactPersonNames('no names here, just a $69 tune-up')).toBe('no names here, just a $69 tune-up');
     expect(personNames('Carlos Ramirez and Carlos came by')[0]).toBe('Carlos Ramirez');
+  });
+
+  it('redacts lowercase names too (compromise detects them; there is no capital-letter fast path)', () => {
+    expect(redactForModel('great service, ask for mike')).toBe('great service, ask for [name]');
+    expect(redactPersonNames('my hygienist jessica was so gentle with my daughter')).toBe('my hygienist [name] was so gentle with my daughter');
   });
 
   it('protects business-name phrase occurrences only, still redacting a real person who shares a word with the business', () => {
