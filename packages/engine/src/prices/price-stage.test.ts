@@ -8,7 +8,7 @@ import { choice, createFakeAi, type DecideFn } from '../../test/fake-ai';
 import { day, seedPage, seedWebCapture } from '../../test/seed';
 import { findEngineWork } from '../sweep';
 import { createPackLoader } from '../tag/tag-stage';
-import { extractPrices } from './price-stage';
+import { extractPrices, PRICE_MAX_BLOCKS } from './price-stage';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -67,6 +67,23 @@ describe('extractPrices', () => {
     expect((await points()).map((p) => [p.amount, p.endedAt])).toEqual([[89, null], [1299, null]]);
   });
 
+  it('a capture that ends spans without observing anything still advances the watermark, so a late older capture is still a no-op', async () => {
+    const ai = createFakeAi({ decide: byText() });
+    const deps = { db: dbs.service, store, ai, packs };
+    const c0 = await capture(page('$89'), day(0));
+    expect(await extractPrices(deps, c0)).toEqual({ ran: true, result: { points: 2, ended: 0 } });
+
+    // A blank pricing section: this capture observes nothing, so it never touches price_point.last_seen_at —
+    // the old (wrong) watermark would stay at c0's capture time, letting a later-arriving older capture through.
+    const blank = '<html><body><main><h2>Welcome</h2><p>Please call for current rates.</p></main></body></html>';
+    const c2 = await capture(blank, day(5));
+    expect(await extractPrices(deps, c2)).toEqual({ ran: true, result: { points: 0, ended: 2 } });
+
+    const c1 = await capture(page('$59'), day(3));
+    expect(await extractPrices(deps, c1)).toEqual({ ran: true, result: { points: 0, ended: 0, skipped: 'a newer capture of this page was already processed' } });
+    expect((await points()).map((p) => p.endedAt)).toEqual([day(5), day(5)]); // still ended by c2, not reopened by c1
+  });
+
   it('a low-confidence mapping is cached as "no service" and never re-asked', async () => {
     const ai = createFakeAi({ decide: byText(true) });
     const deps = { db: dbs.service, store, ai, packs };
@@ -88,5 +105,25 @@ describe('extractPrices', () => {
     expect(await extractPrices(deps, zCap)).toEqual({ ran: true, result: { points: 0, ended: 0, skipped: 'no client tracks this competitor' } });
     await extractPrices(deps, xCap);
     expect((await findEngineWork(dbs.service, { limit: 50 })).prices).toEqual([]);
+  });
+
+  it('a catalogue page past PRICE_MAX_BLOCKS never ends the spans its blocks were never re-mapped from', async () => {
+    const n = PRICE_MAX_BLOCKS + 2;
+    const catalog = `<html><body><main><h2>Our prices</h2>${Array.from({ length: n }, (_, i) => `<p>Service ${i} tune-up $${100 + i}</p>`).join('')}</main></body></html>`;
+    const allAcTuneUp: DecideFn = (_state, questions) => ({
+      answers: Object.fromEntries(Object.keys(questions).map((k) => [k, choice('ac_tune_up', 0.95)])),
+      needsReview: [],
+    });
+    const ai = createFakeAi({ decide: allAcTuneUp });
+    const deps = { db: dbs.service, store, ai, packs };
+    const c0 = await capture(catalog, day(0));
+    expect(await extractPrices(deps, c0)).toEqual({ ran: true, result: { points: PRICE_MAX_BLOCKS, ended: 0 } });
+    expect(await points()).toHaveLength(PRICE_MAX_BLOCKS);
+
+    // Same page, nothing changed: the first PRICE_MAX_BLOCKS spans are re-observed, but the ones beyond the
+    // cap were simply never looked at this capture — they must not be ended as if the price disappeared.
+    const c1 = await capture(catalog, day(1));
+    expect(await extractPrices(deps, c1)).toEqual({ ran: true, result: { points: 0, ended: 0 } });
+    expect(await points()).toHaveLength(PRICE_MAX_BLOCKS);
   });
 });

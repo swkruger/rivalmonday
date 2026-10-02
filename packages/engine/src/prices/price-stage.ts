@@ -1,9 +1,9 @@
 import type { Ai, DecisionQuestion } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
-import { capture, competitor, type Db, priceBlockMap, pricePoint, trackedPage } from '@cs/db';
+import { capture, competitor, type Db, priceBlockMap, pricePoint, stageRun, trackedPage } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import type { VerticalPack } from '@cs/verticals';
-import { and, eq, inArray, isNull, max } from 'drizzle-orm';
+import { and, eq, inArray, isNull, max, ne } from 'drizzle-orm';
 import { runStage, type StageOutcome } from '../stage';
 import { serviceQuestionKey } from '../tag/questions';
 import { competitorVerticals, type PackLoader } from '../tag/tag-stage';
@@ -54,15 +54,24 @@ export async function extractPrices(deps: { db: Db; store: ObjectStore; ai: Ai; 
     { stage: PRICE_STAGE, version: PRICE_VERSION, subjectId: captureId },
     async () => {
       const maps: (typeof priceBlockMap.$inferInsert)[] = [];
-      const skip = (skipped: string) => ({ skipped, observations: [] as Observed[], maps });
+      const skip = (skipped: string) => ({ skipped, observations: [] as Observed[], maps, truncated: false });
       const verticalIds = await competitorVerticals(deps.db, cap.competitorId);
       if (verticalIds.length === 0) return skip('no client tracks this competitor');
-      const [newest] = await deps.db.select({ at: max(pricePoint.lastSeenAt) }).from(pricePoint).where(eq(pricePoint.trackedPageId, pageId));
+      // The watermark is the newest capture of this page whose price_extract run is done — not the newest
+      // price_point.last_seen_at, which a capture that ends spans without observing anything new (a blank
+      // pricing section, or every block mapped to "no service") never advances, letting a later-arriving
+      // older capture slip past and reopen prices the newest capture already ended.
+      const [newest] = await deps.db
+        .select({ at: max(capture.capturedAt) })
+        .from(capture)
+        .innerJoin(stageRun, and(eq(stageRun.subjectId, capture.id), eq(stageRun.stage, PRICE_STAGE), eq(stageRun.stageVersion, PRICE_VERSION), eq(stageRun.status, 'done')))
+        .where(and(eq(capture.trackedPageId, pageId), ne(capture.id, captureId)));
       if (newest?.at && newest.at > cap.capturedAt) return skip('a newer capture of this page was already processed');
       if ((await ensureBlocks(deps, captureId)) === 'busy') throw new Error(`blocks of capture ${captureId} are being extracted`);
 
       const priced = (await loadBlocks(deps.db, captureId)).map((b) => ({ b, obs: pricesInBlock(b.text) })).filter((x) => x.obs.length > 0);
-      if (priced.length > PRICE_MAX_BLOCKS) console.warn(`[engine] capture ${captureId} has ${priced.length} priced blocks; mapping the first ${PRICE_MAX_BLOCKS}`);
+      const truncated = priced.length > PRICE_MAX_BLOCKS;
+      if (truncated) console.warn(`[engine] capture ${captureId} has ${priced.length} priced blocks; mapping the first ${PRICE_MAX_BLOCKS}`);
       const blocks = priced.slice(0, PRICE_MAX_BLOCKS);
       const shas = [...new Set(blocks.map((x) => x.b.textSha))];
       const known = shas.length > 0
@@ -98,7 +107,7 @@ export async function extractPrices(deps: { db: Db; store: ObjectStore; ai: Ai; 
           return serviceId ? obs.map((o) => ({ ...o, verticalId, serviceId, context: redactForModel(o.context, { businessNames: names }) })) : [];
         }),
       );
-      return { skipped: undefined as string | undefined, observations, maps };
+      return { skipped: undefined as string | undefined, observations, maps, truncated };
     },
     async (tx, c) => {
       if (c.maps.length > 0) await tx.insert(priceBlockMap).values(c.maps).onConflictDoNothing();
@@ -122,11 +131,15 @@ export async function extractPrices(deps: { db: Db; store: ObjectStore; ai: Ai; 
           points++;
         }
       }
+      // A truncated capture only ever saw the first PRICE_MAX_BLOCKS priced blocks, so a span whose block
+      // wasn't among them must not be ended here — it was never actually observed as missing.
       let ended = 0;
-      for (const p of open) {
-        if (seen.has(keyOf(p))) continue;
-        await tx.update(pricePoint).set({ endedAt: cap.capturedAt, endedCaptureId: cap.id }).where(eq(pricePoint.id, p.id));
-        ended++;
+      if (!c.truncated) {
+        for (const p of open) {
+          if (seen.has(keyOf(p))) continue;
+          await tx.update(pricePoint).set({ endedAt: cap.capturedAt, endedCaptureId: cap.id }).where(eq(pricePoint.id, p.id));
+          ended++;
+        }
       }
       return { points, ended };
     },
