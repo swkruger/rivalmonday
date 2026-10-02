@@ -9,6 +9,8 @@ export * from './web/volatile';
 export * from './web/diff-stage';
 export * from './structured/vendor-diff';
 export * from './structured/ads';
+export * from './structured/gbp';
+export * from './structured/jobs';
 export * from './facts/numeric';
 export * from './tag/questions';
 export * from './tag/tag-stage';

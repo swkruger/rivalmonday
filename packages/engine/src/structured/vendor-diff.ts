@@ -2,6 +2,8 @@ import { capture, type ChangeDetails, type Db, detectedChange } from '@cs/db';
 import { and, desc, eq, isNull, lt } from 'drizzle-orm';
 import { runStage, type StageOutcome } from '../stage';
 import { diffAds } from './ads';
+import { diffGbp } from './gbp';
+import { diffJobs } from './jobs';
 
 export const VENDOR_DIFF_STAGE = 'vendor_diff';
 export const VENDOR_DIFF_VERSION = 1;
@@ -27,6 +29,8 @@ export type SourceDiffer = (db: Db, cap: CaptureRow, prev: CaptureRow) => Promis
 const DIFFERS: Record<string, SourceDiffer> = {
   google_ads: diffAds,
   meta_ads: diffAds,
+  google_business_profile: diffGbp,
+  google_jobs: diffJobs,
 };
 
 export const vendorDiffSources = (): string[] => Object.keys(DIFFERS);
