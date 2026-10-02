@@ -32,7 +32,17 @@ const jevTask = z.object({
   shadow_rate: z.number().min(0).max(1).default(0),
 });
 
-const taskSchema = z.discriminatedUnion('provider', [openRouterTask, jevTask]);
+/** Anthropic Message Batches (Phase 3d decision 9). Prices are batch prices (already 50% of list), for the ledger. */
+const anthropicTask = z.object({
+  provider: z.literal('anthropic'),
+  model: z.string().min(1),
+  mode: z.literal('batch'),
+  max_tokens: z.number().int().positive().default(8000),
+  input_usd_per_mtok: z.number().nonnegative(),
+  output_usd_per_mtok: z.number().nonnegative(),
+});
+
+const taskSchema = z.discriminatedUnion('provider', [openRouterTask, jevTask, anthropicTask]);
 
 export const aiConfigSchema = z
   .object({
@@ -71,6 +81,7 @@ export type AiConfig = z.infer<typeof aiConfigSchema>;
 export type TaskConfig = AiConfig['tasks'][string];
 export type OpenRouterTask = z.infer<typeof openRouterTask>;
 export type JevTask = z.infer<typeof jevTask>;
+export type AnthropicTask = z.infer<typeof anthropicTask>;
 
 export const DEFAULT_AI_CONFIG_PATH = fileURLToPath(new URL('../config/ai.yaml', import.meta.url));
 

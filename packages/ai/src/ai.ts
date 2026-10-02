@@ -1,4 +1,5 @@
 import type { CallScope, DecisionSampleSink, LedgerSink, LlmCallRecord } from '@cs/core';
+import type { BatchItemResult, BatchProvider, BatchRequest } from './anthropic-batch';
 import type { ChatMessage, ChatProvider, ChatResult, JsonSchemaFormat } from './chat';
 import type { AiConfig, ConfidenceThresholds, TaskConfig } from './config';
 import { CascadingDecisionProvider, type DecisionResult } from './decisions/cascade';
@@ -22,6 +23,9 @@ export interface Ai {
   chat(task: string, input: { messages: ChatMessage[]; jsonSchema?: JsonSchemaFormat }, scope: CallScope): Promise<ChatResult>;
   decide<K extends string>(task: string, state: unknown, questions: Record<K, DecisionQuestion>, scope: CallScope): Promise<DecisionResult<K>>;
   embed(task: string, texts: string[], scope: CallScope): Promise<EmbeddingResult>;
+  batchAvailable(task: string): boolean;
+  submitBatch(task: string, requests: BatchRequest[], scope: CallScope): Promise<string>;
+  collectBatch(task: string, batchId: string, scope: CallScope): Promise<{ status: 'in_progress' } | { status: 'ended'; results: BatchItemResult[] }>;
 }
 
 export interface AiDeps {
@@ -37,6 +41,8 @@ export interface AiDeps {
   random?: () => number;
   /** Replaces every task's shadow_rate (AI_SHADOW_RATE, for a measurement run). */
   shadowRateOverride?: number;
+  /** Anthropic Message Batches; null/absent when ANTHROPIC_API_KEY is not set (batch tasks are then unavailable). */
+  batch?: BatchProvider | null;
 }
 
 export function createAi(config: AiConfig, deps: AiDeps): Ai {
@@ -182,6 +188,34 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
         model = r.model;
       }
       return { vectors, model, inputTokens, costUsd };
+    },
+
+    batchAvailable(name) {
+      const t = config.tasks[name];
+      return t?.provider === 'anthropic' && Boolean(deps.batch);
+    },
+
+    async submitBatch(name, requests, _scope) {
+      const t = task(name);
+      if (t.provider !== 'anthropic') throw new Error(`Task ${name} is not a batch task`);
+      if (!deps.batch) throw new Error(`Task ${name} needs ANTHROPIC_API_KEY`);
+      return deps.batch.submit({ model: t.model, maxTokens: t.max_tokens, requests });
+    },
+
+    /** Usage is ledgered when results are collected (one row per request), at the task's batch prices. */
+    async collectBatch(name, batchId, scope) {
+      const t = task(name);
+      if (t.provider !== 'anthropic') throw new Error(`Task ${name} is not a batch task`);
+      if (!deps.batch) throw new Error(`Task ${name} needs ANTHROPIC_API_KEY`);
+      if ((await deps.batch.status(batchId)) !== 'ended') return { status: 'in_progress' };
+      const results = await deps.batch.results(batchId);
+      for (const r of results) {
+        await safeRecord(deps.ledger, r.ok
+          ? { ...scope, task: name, provider: deps.batch.id, model: r.model, inputTokens: r.inputTokens, outputTokens: r.outputTokens,
+              costUsd: (r.inputTokens * t.input_usd_per_mtok + r.outputTokens * t.output_usd_per_mtok) / 1_000_000, latencyMs: 0, ok: true }
+          : { ...scope, task: name, provider: deps.batch.id, model: t.model, inputTokens: 0, outputTokens: 0, costUsd: null, latencyMs: 0, ok: false });
+      }
+      return { status: 'ended', results };
     },
   };
 }

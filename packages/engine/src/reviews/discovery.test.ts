@@ -103,6 +103,9 @@ describe('discoverTheme', () => {
       async embed() {
         throw new Error('not used by this test');
       },
+      batchAvailable: () => false,
+      async submitBatch() { throw new Error('not used by this test'); },
+      async collectBatch() { throw new Error('not used by this test'); },
     };
     expect(await discoverTheme({ db: dbs.service, ai: raceAi, packs }, 'hvac_plumbing', { now })).toEqual({ skipped: 'a proposal is awaiting approval' });
     const proposed = await dbs.owner.select().from(themeProposal).where(eq(themeProposal.status, 'proposed'));

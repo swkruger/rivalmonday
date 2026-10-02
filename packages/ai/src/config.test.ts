@@ -53,4 +53,12 @@ tasks:
     }
     expect(cfg.tasks.decisions).toBeUndefined();
   });
+
+  it('accepts an anthropic batch task and ships theme_discovery_batch (Phase 3d)', async () => {
+    const t = parseAiConfig('tasks:\n  b: { provider: anthropic, model: claude-sonnet-5, mode: batch, input_usd_per_mtok: 1, output_usd_per_mtok: 5 }').tasks.b;
+    expect(t).toMatchObject({ provider: 'anthropic', mode: 'batch', max_tokens: 8000 });
+    expect(() => parseAiConfig('tasks:\n  b: { provider: anthropic, model: m, mode: batch }')).toThrow();
+    const cfg = await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH);
+    expect(cfg.tasks.theme_discovery_batch).toMatchObject({ provider: 'anthropic', model: 'claude-sonnet-5', mode: 'batch' });
+  });
 });

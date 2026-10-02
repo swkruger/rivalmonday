@@ -37,6 +37,9 @@ function fakeAi(types: Record<string, string>): Ai {
       const value = types[url] ?? 'other';
       return { answers: { page_type: { type: 'choice', value, probabilities: { [value]: 0.95 }, confidence: 0.95, provider: 'jev' } }, needsReview: [] };
     }) as unknown as Ai['decide'],
+    batchAvailable: () => false,
+    async submitBatch() { throw new Error('not used by this test'); },
+    async collectBatch() { throw new Error('not used by this test'); },
   };
 }
 
@@ -148,6 +151,9 @@ describe('discoverPages', () => {
         const value = url === 'https://smithhvac.example/ac-repair' ? 'service' : 'home';
         return { answers: { page_type: { type: 'choice', value, probabilities: { [value]: 0.95 }, confidence: 0.95, provider: 'jev' } }, needsReview: [] };
       }) as unknown as Ai['decide'],
+      batchAvailable: () => false,
+      async submitBatch() { throw new Error('not used by this test'); },
+      async collectBatch() { throw new Error('not used by this test'); },
     };
     const result = await discoverPages(
       { db: dbs.service, renderer, robots, fetchText, limiter: noopLimiter(), ai },

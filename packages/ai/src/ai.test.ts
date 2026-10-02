@@ -10,6 +10,7 @@ tasks:
   brief_writer: { provider: openrouter, model: a/writer, fallbacks: [b/backup], temperature: 0.3 }
   llm_decisions: { provider: openrouter, model: a/small, mode: decisions }
   decisions: { provider: jev, escalate_to: llm_decisions, min_confidence: { default: 0.85 } }
+  theme_discovery_batch: { provider: anthropic, model: claude-sonnet-5, mode: batch, input_usd_per_mtok: 1, output_usd_per_mtok: 5 }
 `);
 
 const scope = { agencyId: '00000000-0000-4000-8000-00000000000a', clientId: null };
@@ -105,5 +106,29 @@ describe('Ai facade', () => {
     const { ai } = harness({ jev: false });
     const r = await ai.decide('decisions', 's', q, scope);
     expect(r.answers.m.provider).toBe('llm');
+  });
+
+  it('batch tasks: available only with a provider; collect ledgers one row per result at batch prices', async () => {
+    const provider = {
+      id: 'anthropic',
+      submit: vi.fn(async () => 'msgbatch_9'),
+      status: vi.fn(async () => 'ended' as const),
+      results: vi.fn(async () => [
+        { customId: 'hvac_plumbing', ok: true as const, text: '{}', model: 'claude-sonnet-5', inputTokens: 1_000_000, outputTokens: 100_000 },
+        { customId: 'dental', ok: false as const, error: 'expired' },
+      ]),
+    };
+    const records: LlmCallRecord[] = [];
+    const ledger: LedgerSink = { recordLlmCall: async (r) => { records.push(r); }, recordVendorCall: async () => {} };
+    const noBatch = createAi(config, { openrouter: { id: 'openrouter', complete: vi.fn() } as unknown as ChatProvider, jev: null, ledger });
+    expect(noBatch.batchAvailable('theme_discovery_batch')).toBe(false);
+    const ai = createAi(config, { openrouter: { id: 'openrouter', complete: vi.fn() } as unknown as ChatProvider, jev: null, ledger, batch: provider });
+    expect(ai.batchAvailable('theme_discovery_batch')).toBe(true);
+    expect(ai.batchAvailable('brief_writer')).toBe(false);
+    expect(await ai.submitBatch('theme_discovery_batch', [{ customId: 'hvac_plumbing', messages: [{ role: 'user', content: 'x' }] }], scope)).toBe('msgbatch_9');
+    const r = await ai.collectBatch('theme_discovery_batch', 'msgbatch_9', scope);
+    expect(r.status).toBe('ended');
+    expect(records.map((x) => [x.task, x.provider, x.ok, x.costUsd])).toEqual([['theme_discovery_batch', 'anthropic', true, 1.5], ['theme_discovery_batch', 'anthropic', false, null]]);
+    await expect(ai.chat('theme_discovery_batch', { messages: [] }, scope)).rejects.toThrow(/not a chat task/);
   });
 });
