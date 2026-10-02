@@ -55,6 +55,10 @@ export interface ChangeDetails {
   baselineMean?: number;
   z?: number;
   avgRating?: number | null;
+  /** Complaint-theme spike (Phase 3c): the theme, its display name and the vertical whose theme list it belongs to. */
+  theme?: string;
+  themeName?: string;
+  verticalId?: string;
   ratingBefore?: number;
   ratingAfter?: number;
   votesBefore?: number | null;

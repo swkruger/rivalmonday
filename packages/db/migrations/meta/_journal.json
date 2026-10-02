@@ -155,6 +155,20 @@
       "when": 1790917622350,
       "tag": "0021_drop_meta_page_id",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790942194447,
+      "tag": "0022_review_price",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790942205346,
+      "tag": "0023_review_price_rls",
+      "breakpoints": true
     }
   ]
 }

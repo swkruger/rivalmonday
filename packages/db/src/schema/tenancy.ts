@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { foreignKey, index, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { type AnyPgColumn, foreignKey, index, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
@@ -36,6 +36,8 @@ export const client = pgTable(
     serviceArea: jsonb('service_area').$type<ServiceArea | null>(),
     placeId: text('place_id'),
     scoreThresholds: jsonb('score_thresholds').$type<ScoreThresholds | null>(),
+    /** The client's own business as a global competitor row (reviews + GBP only), for the spec §6.5 benchmark. Never in client_competitor. */
+    selfCompetitorId: uuid('self_competitor_id').references((): AnyPgColumn => competitor.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
   },
   (t) => [
