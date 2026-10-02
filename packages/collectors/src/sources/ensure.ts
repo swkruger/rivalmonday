@@ -1,7 +1,7 @@
 import { competitorSource, type Db } from '@cs/db';
-import { SOURCE_KINDS } from './kinds';
+import { SOURCE_KINDS, type SourceKind } from './kinds';
 
-/** Creates a due-now schedule row for every vendor source of a competitor (idempotent). */
-export async function ensureCompetitorSources(db: Db, competitorId: string): Promise<void> {
-  await db.insert(competitorSource).values(SOURCE_KINDS.map((source) => ({ competitorId, source }))).onConflictDoNothing();
+/** Creates a due-now schedule row for each given vendor source of a competitor (default: all; idempotent). */
+export async function ensureCompetitorSources(db: Db, competitorId: string, sources: readonly SourceKind[] = SOURCE_KINDS): Promise<void> {
+  await db.insert(competitorSource).values(sources.map((source) => ({ competitorId, source }))).onConflictDoNothing();
 }

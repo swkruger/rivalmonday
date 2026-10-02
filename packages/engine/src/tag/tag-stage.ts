@@ -38,14 +38,15 @@ export function createPackLoader(load: (id: string) => Promise<VerticalPack> = (
   };
 }
 
-/** Verticals of every client tracking the competitor (service mapping is per vertical). */
+/** Verticals of every client tracking the competitor or owning it as its self business (service mapping and review themes are per vertical). */
 export async function competitorVerticals(db: Db, competitorId: string): Promise<string[]> {
-  const rows = await db
+  const tracked = await db
     .selectDistinct({ verticalId: client.verticalId })
     .from(clientCompetitor)
     .innerJoin(client, eq(client.id, clientCompetitor.clientId))
     .where(eq(clientCompetitor.competitorId, competitorId));
-  return rows.map((r) => r.verticalId).sort();
+  const own = await db.selectDistinct({ verticalId: client.verticalId }).from(client).where(eq(client.selfCompetitorId, competitorId));
+  return [...new Set([...tracked, ...own].map((r) => r.verticalId))].sort();
 }
 
 /** US ZIP codes in text; not part of a longer number, a price or a phone number. */

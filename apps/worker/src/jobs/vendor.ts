@@ -28,6 +28,8 @@ export function createVendorJobs(
         }
         return;
       }
+      const linked = await deps.ensureSelfCompetitors();
+      if (linked > 0) console.log(`[vendor-schedule] linked ${linked} client(s) to their own business for review benchmarking`);
       const due = await deps.claimDueSources(500);
       const batch = due.filter((d) => BATCH.has(d.source)) as { competitorId: string; source: 'reviews' | 'jobs' }[];
       // Enqueue the synchronous collects first: if the batch task_post below throws, those

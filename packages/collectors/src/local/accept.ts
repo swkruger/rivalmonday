@@ -10,7 +10,7 @@ type CompetitorRow = typeof competitor.$inferSelect;
  * shared domain is not (franchise brands, facebook.com, …) — only merge on domain when the
  * existing row has no place_id of its own that a different domain match could clobber.
  */
-async function findExistingCompetitor(
+export async function findExistingCompetitor(
   service: Db,
   s: { placeId: string | null; cid: string | null; domain: string | null },
 ): Promise<CompetitorRow | undefined> {

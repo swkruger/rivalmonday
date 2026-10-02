@@ -2,8 +2,8 @@ import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } fr
 import {
   capturePage, claimDuePages, claimDueSources, collectGbpProfile, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
   createDataForSeo, type DataForSeoClient, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
-  HostRateLimiter, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy, scanRankings,
-  type SourceKind, suggestCompetitors,
+  ensureSelfCompetitors, HostRateLimiter, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
+  scanRankings, type SourceKind, suggestCompetitors,
 } from '@cs/collectors';
 import type { CaptureStatus } from '@cs/core';
 import { client, competitor, createDb, createLedgerSink, type Db } from '@cs/db';
@@ -29,6 +29,8 @@ export interface WorkerDeps {
   discoverPages(competitorId: string): Promise<{ selected: number; candidates: number; homepageStatus: string } | { skipped: string }>;
   /** True once DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD are both set — gates all vendor collection. */
   vendorsConfigured(): boolean;
+  /** Links clients with a place id to their own business as a self competitor (reviews + GBP only). */
+  ensureSelfCompetitors(): Promise<number>;
   claimDueSources(limit: number): Promise<{ competitorId: string; source: SourceKind }[]>;
   runSource(competitorId: string, source: 'gbp' | 'ads_google' | 'ads_meta'): Promise<{ status: string }>;
   /**
@@ -135,6 +137,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       return discoverPages({ db: getDb(), renderer: getRenderer(), robots, fetchText: defaultFetchText, limiter, ai: await getAi() }, { id: c.id, domain: c.domain });
     },
     vendorsConfigured: () => Boolean(env.DATAFORSEO_LOGIN && env.DATAFORSEO_PASSWORD),
+    ensureSelfCompetitors: () => ensureSelfCompetitors(getDb()),
     claimDueSources: (limit) => claimDueSources(getDb(), limit),
     async runSource(competitorId, source) {
       const [c] = await loadCompetitors([competitorId]);
