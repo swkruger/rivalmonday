@@ -39,7 +39,7 @@ export function reviewResult(input: { themes?: string[]; other?: boolean; sentim
 }
 
 /** Answers the tag questions (meaningful, change_type, service_<vertical>) with fixed values. */
-export function tagResult(input: { meaningful: boolean; type: string; services?: Record<string, string>; confidence?: number; needsReview?: string[] }): DecideFn {
+export function tagResult(input: { meaningful: boolean; type: string; services?: Record<string, string>; confidence?: number; needsReview?: string[]; sampleId?: string }): DecideFn {
   return (_state, questions) => {
     const answers: Record<string, ResolvedAnswer> = {};
     for (const key of Object.keys(questions)) {
@@ -47,18 +47,18 @@ export function tagResult(input: { meaningful: boolean; type: string; services?:
       else if (key === 'change_type') answers[key] = choice(input.type, input.confidence);
       else answers[key] = choice(input.services?.[key.replace(/^service_/, '')] ?? 'none', input.confidence);
     }
-    return { answers, needsReview: input.needsReview ?? [] };
+    return { answers, needsReview: input.needsReview ?? [], sampleId: input.sampleId };
   };
 }
 
 /** Answers the structured tag questions: service_<vertical> choices and the ad `offer` Noul. */
-export function structuredResult(input: { services?: Record<string, string>; offer?: boolean; confidence?: number; needsReview?: string[] }): DecideFn {
+export function structuredResult(input: { services?: Record<string, string>; offer?: boolean; confidence?: number; needsReview?: string[]; sampleId?: string }): DecideFn {
   return (_state, questions) => {
     const answers: Record<string, ResolvedAnswer> = {};
     for (const key of Object.keys(questions)) {
       answers[key] = key === 'offer' ? noul(input.offer ?? false, input.confidence) : choice(input.services?.[key.replace(/^service_/, '')] ?? 'none', input.confidence);
     }
-    return { answers, needsReview: input.needsReview ?? [] };
+    return { answers, needsReview: input.needsReview ?? [], sampleId: input.sampleId };
   };
 }
 

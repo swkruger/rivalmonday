@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { errorText, IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
+import { createDecisionSampleSink } from './ledger';
 import { changeEvent, client, decisionLabel, decisionSample, modelBatch, scoreFailure, themeProposal } from './schema';
 import { withTenant } from './tenant';
 
@@ -18,6 +19,14 @@ const sample = () =>
     .returning({ id: decisionSample.id });
 
 describe('model-ops schema', () => {
+  it('createDecisionSampleSink writes a sample and returns its id', async () => {
+    const id = await createDecisionSampleSink(dbs.service).recordDecisionSample({
+      agencyId: null, clientId: null, task: 'tag_decisions', reason: 'review', state: { a: 1 }, questions: { m: {} }, primary: null, fallback: null, final: {}, needsReview: ['m'],
+    });
+    const [row] = await dbs.owner.select().from(decisionSample).where(sql`id = ${id}`);
+    expect(row).toMatchObject({ task: 'tag_decisions', reason: 'review', needsReview: ['m'] });
+  });
+
   it('stores a sample with one label per question key', async () => {
     const [s] = await sample();
     await dbs.service.insert(decisionLabel).values({ sampleId: s!.id, questionKey: 'meaningful', value: 'true', source: 'human', labeledBy: 'owner' });

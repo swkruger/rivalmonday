@@ -29,6 +29,7 @@ const jevTask = z.object({
   model: z.string().min(1).default('jev-latest'),
   escalate_to: z.string().min(1).optional(),
   min_confidence: thresholdsSchema.prefault({ default: 0.85 }),
+  shadow_rate: z.number().min(0).max(1).default(0),
 });
 
 const taskSchema = z.discriminatedUnion('provider', [openRouterTask, jevTask]);

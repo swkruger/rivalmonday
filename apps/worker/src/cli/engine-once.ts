@@ -7,7 +7,7 @@ try {
 }
 
 const { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } = await import('@cs/ai');
-const { changeEvent, clientCompetitor, createDb, createLedgerSink, eventScore, move } = await import('@cs/db');
+const { changeEvent, clientCompetitor, createDb, createDecisionSampleSink, createLedgerSink, eventScore, move } = await import('@cs/db');
 const { createPackLoader, drainEngine, listMoveClients, priceMatrix, reviewBenchmark, runReviewInsights, updateMovesForClient } = await import('@cs/engine');
 const { createStoreFromEnv } = await import('@cs/storage');
 const { desc, eq, inArray } = await import('drizzle-orm');
@@ -27,7 +27,7 @@ if (!serviceUrl || !process.env.OPENROUTER_API_KEY) {
 
 const { db, close } = createDb(serviceUrl);
 try {
-  const ai = createAiFromEnv(process.env, await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH), createLedgerSink(db));
+  const ai = createAiFromEnv(process.env, await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH), createLedgerSink(db), createDecisionSampleSink(db));
   const packs = createPackLoader();
   const result = await drainEngine({ db, store: createStoreFromEnv(process.env), ai, packs }, { competitorId: args.competitor, maxRounds: args.rounds });
   console.log(JSON.stringify(result));

@@ -1,4 +1,4 @@
-import { capture, changeEvent, clientCompetitor, decisionReview, detectedChange, eventChange, stageRun, trackedPage } from '@cs/db';
+import { capture, changeEvent, clientCompetitor, decisionReview, decisionSample, detectedChange, eventChange, stageRun, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -91,6 +91,14 @@ describe('tagChange', () => {
     await tagChange({ db: dbs.service, ai, packs }, id);
     expect((await dbs.owner.select().from(changeEvent))[0]?.needsReview).toBe(true);
     expect(await dbs.owner.select().from(decisionReview)).toMatchObject([{ subjectType: 'detected_change', subjectId: id, keys: ['change_type'] }]);
+  });
+
+  it('links the decision_review row to the decision sample (Phase 3d)', async () => {
+    const id = await change(null, 'Now offering heat pump installs across Collin County', 'added');
+    const [s] = await dbs.service.insert(decisionSample).values({ task: 'tag_decisions', reason: 'review', state: {}, questions: {}, final: {} }).returning({ id: decisionSample.id });
+    await tagChange({ db: dbs.service, ai: createFakeAi({ decide: tagResult({ meaningful: true, type: 'new_service', confidence: 0.6, needsReview: ['change_type'], sampleId: s!.id }) }), packs }, id);
+    const [r] = await dbs.owner.select().from(decisionReview);
+    expect(r?.sampleId).toBe(s!.id);
   });
 
   it('queues a dismissed low-confidence change for review without creating an event', async () => {

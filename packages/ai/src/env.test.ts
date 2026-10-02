@@ -27,6 +27,10 @@ describe('createAiFromEnv', () => {
     expect(() => createAiFromEnv({}, config, ledger)).toThrow(/OPENROUTER_API_KEY/);
   });
 
+  it('rejects an out-of-range AI_SHADOW_RATE', () => {
+    expect(() => createAiFromEnv({ OPENROUTER_API_KEY: 'k', AI_SHADOW_RATE: '2' }, config, ledger)).toThrow(/AI_SHADOW_RATE/);
+  });
+
   it('calls Jev with the configured model when TYPESAFE_API_KEY is set', async () => {
     const calls = stubFetch({ model: 'jev-9.0', answers: { m: { type: 'noul', noul: 0.97 } }, usage: { input_tokens: 5, output_tokens: 1 } });
     const ai = createAiFromEnv({ OPENROUTER_API_KEY: 'k', TYPESAFE_API_KEY: 't' }, config, ledger);

@@ -113,7 +113,7 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
         .where(eq(detectedChange.id, changeId))
         .limit(1);
       if (!row) throw new Error(`detected_change ${changeId} not found`);
-      if (row.change.status !== 'pending') return { row, resolution: null, answers: null, embedding: null, summary: '', target: null };
+      if (row.change.status !== 'pending') return { row, resolution: null, answers: null, embedding: null, summary: '', target: null, sampleId: null };
 
       const packs = await Promise.all((await competitorVerticals(deps.db, row.change.competitorId)).map(deps.packs));
       const state = buildTagState({
@@ -140,13 +140,13 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
             embedding, occurredAt: row.capturedAt, text: row.change.afterText ?? row.change.beforeText ?? '', businessNames: [row.competitorName],
           })
         : null;
-      return { row, resolution, answers: result.answers as Record<string, unknown>, embedding, summary, target };
+      return { row, resolution, answers: result.answers as Record<string, unknown>, embedding, summary, target, sampleId: result.sampleId ?? null };
     },
-    async (tx, { row, resolution, answers, embedding, summary, target }) => {
+    async (tx, { row, resolution, answers, embedding, summary, target, sampleId }) => {
       if (!resolution) return { eventId: null, merged: false };
       // Low-confidence answers still reach the AM review queue (spec §7.3), whether or not they produced an event.
       if (resolution.needsReview.length > 0) {
-        await tx.insert(decisionReview).values({ subjectType: 'detected_change', subjectId: changeId, keys: resolution.needsReview, answers: answers ?? {} });
+        await tx.insert(decisionReview).values({ subjectType: 'detected_change', subjectId: changeId, keys: resolution.needsReview, answers: answers ?? {}, sampleId });
       }
       if (!resolution.meaningful) {
         await tx.update(detectedChange).set({ status: 'cosmetic' }).where(eq(detectedChange.id, changeId));

@@ -145,6 +145,7 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
       let confidence = 1;
       let needsReview: string[] = [];
       let answers: Record<string, unknown> = {};
+      let sampleId: string | null = null;
       let modelOffer = false;
       if (type === 'rank_change') {
         services = Object.fromEntries(packs.map((p) => [p.id, serviceForKeyword(c.details.keyword ?? '', p)]));
@@ -162,6 +163,7 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
         confidence = Math.min(...Object.values(result.answers).map((a) => a.confidence));
         needsReview = result.needsReview;
         answers = result.answers as Record<string, unknown>;
+        sampleId = result.sampleId ?? null;
       }
 
       // Facts keep ~40 characters of context around each number: extract from redacted text so no phone/email lands in event.facts.
@@ -177,7 +179,7 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
         scope,
       );
       return {
-        needsReview, answers, target,
+        needsReview, answers, sampleId, target,
         values: {
           competitorId: c.competitorId, agencyId: c.agencyId, clientId: c.clientId, changeType: type, channels: [c.source], services, summary, facts, details, zips,
           embedding: vectors[0] ?? null, confidence, needsReview: needsReview.length > 0, occurredAt,
@@ -187,7 +189,7 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
     async (tx, computed) => {
       if (!computed) return { eventId: null, merged: false };
       if (computed.needsReview.length > 0) {
-        await tx.insert(decisionReview).values({ subjectType: 'detected_change', subjectId: changeId, keys: computed.needsReview, answers: computed.answers });
+        await tx.insert(decisionReview).values({ subjectType: 'detected_change', subjectId: changeId, keys: computed.needsReview, answers: computed.answers, sampleId: computed.sampleId });
       }
       const eventId = await writeEvent(tx, changeId, computed.values, computed.target);
       await tx.update(detectedChange).set({ status: 'event' }).where(eq(detectedChange.id, changeId));
