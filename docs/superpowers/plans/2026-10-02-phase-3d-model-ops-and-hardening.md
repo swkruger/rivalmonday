@@ -3711,7 +3711,7 @@ const WORD_BEFORE = new RegExp(`\\b(?:${STATE_NAMES.join('|')}|zip(?:\\s*codes?)
 /** A unit or count noun after the number means it is a quantity, not a ZIP. */
 const UNIT_AFTER = /^\s*(?:btus?\b|sq\.?\s*f(?:ee)?t\b|square\b|ft\b|feet\b|miles?\b|mi\b|lbs?\b|pounds?\b|gallons?\b|gal\b|seer2?\b|watts?\b|kwh?\b|hp\b|psi\b|cfm\b|tons?\b|%|hours?\b|hrs?\b|customers?\b|reviews?\b|homes?\b|happy\b)/i;
 /** Five digits, optional +4; not part of a longer number, a price, a phone/date, or a decimal. */
-const CANDIDATE = /(?<![\d$\-/#])(?<!\d[.,])(\d{5})(?:-\d{4})?(?![\d]|[.,]\d|-\d)/g;
+const CANDIDATE = /(?<![\d$\-#])(?<!\d[.,])(\d{5})(?:-\d{4})?(?![\d]|[.,]\d|-\d)/g;
 const LIST_SEP = /^\s*(?:[,;/&]|\band\b|\bor\b)\s*(?:\band\b|\bor\b)?\s*$/i;
 
 /** US ZIP codes stated as such (Phase 3d decision 17): a state or "ZIP" before it, or a list of two or more. */
