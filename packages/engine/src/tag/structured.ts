@@ -81,8 +81,12 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
     case 'rank_change':
       s = `"${d.keyword}": average map position ${d.avgRankBefore} → ${d.avgRankAfter}, top-3 share ${pct(d.top3Before)} → ${pct(d.top3After)}`;
       break;
-    default:
-      s = `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(before, 60)} → ${trunc(after, 60)}`;
+    default: {
+      // gbp.ts stores scalar fields as "<field>: <value>"; the label is already in the sentence.
+      const label = `${d.field ?? ''}: `;
+      const bare = (t: string) => (d.field && t.startsWith(label) ? t.slice(label.length) : t);
+      s = `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(bare(before), 60)} → ${trunc(bare(after), 60)}`;
+    }
   }
   return redactContactInfo(s);
 }
@@ -117,6 +121,8 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
         ? (await deps.db.select({ v: client.verticalId }).from(client).where(eq(client.id, c.clientId))).map((r) => r.v)
         : await competitorVerticals(deps.db, c.competitorId);
       const packs = await Promise.all(verticalIds.map(deps.packs));
+      // Usage is logged against the tenant for tenant-private (rank) changes; the null scope is reserved for global changes.
+      const scope = c.clientId ? { agencyId: c.agencyId, clientId: c.clientId } : PLATFORM;
       const text = (c.afterText ?? c.beforeText ?? '').slice(0, MAX_STATE_TEXT);
 
       let services: Record<string, string | null> = Object.fromEntries(packs.map((p) => [p.id, null]));
@@ -128,7 +134,7 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
         services = Object.fromEntries(packs.map((p) => [p.id, serviceForKeyword(c.details.keyword ?? '', p)]));
       } else if (SERVICE_MAPPED_TYPES.has(type) && packs.length > 0) {
         const state = { competitor: row.competitorName, channel: c.source, change: type, text: redactContactInfo(text) };
-        const result = await deps.ai.decide('decisions', state, buildStructuredQuestions(type, packs), PLATFORM);
+        const result = await deps.ai.decide('decisions', state, buildStructuredQuestions(type, packs), scope);
         services = Object.fromEntries(
           packs.map((p) => {
             const v = result.answers[serviceQuestionKey(p.id)]?.value;
@@ -148,7 +154,7 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
       const details: ChangeDetails = type === 'ad_started' ? { ...c.details, offer: modelOffer || money } : c.details;
       const summary = buildStructuredSummary({ source: c.source, beforeText: c.beforeText, afterText: c.afterText, details: c.details });
       const zips = type === 'hiring' || type === 'new_location' || type === 'ad_started' ? extractZips(redactContactInfo(text)) : [];
-      const { vectors } = await deps.ai.embed('embeddings', [summary], PLATFORM);
+      const { vectors } = await deps.ai.embed('embeddings', [summary], scope);
       return {
         needsReview, answers,
         values: {

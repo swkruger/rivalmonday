@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeAi, structuredResult } from '../../test/fake-ai';
 import { day, seedVendorCapture } from '../../test/seed';
-import { serviceForKeyword } from './structured';
+import { buildStructuredSummary, serviceForKeyword } from './structured';
 import { createPackLoader, tagChange } from './tag-stage';
 
 const dbs = openTestDbs();
@@ -91,6 +91,15 @@ describe('tagStructuredChange (via tagChange)', () => {
     await tagChange({ db: dbs.service, ai, packs }, id);
     expect(Object.keys(ai.calls.decide[0]!.questions).sort()).toEqual(['service_dental', 'service_hvac_plumbing']); // global change: every tracking vertical
     expect((await dbs.owner.select().from(changeEvent))[0]?.summary).toBe('Google Business Profile service added: "Emergency plumbing"');
+  });
+});
+
+describe('buildStructuredSummary', () => {
+  it('does not repeat the GBP field label stored in the before/after text', () => {
+    expect(buildStructuredSummary({ source: 'google_business_profile', beforeText: 'title: Smith HVAC', afterText: 'title: Smith Heating & Air', details: { changeType: 'content', field: 'title' } }))
+      .toBe('Google Business Profile title changed: Smith HVAC → Smith Heating & Air');
+    expect(buildStructuredSummary({ source: 'google_business_profile', beforeText: 'Mon 8-5', afterText: 'Mon 7-6', details: { changeType: 'content', field: 'hours' } }))
+      .toBe('Google Business Profile hours changed: Mon 8-5 → Mon 7-6');
   });
 });
 

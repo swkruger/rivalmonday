@@ -43,6 +43,7 @@ describe('tagChange', () => {
     const [ev] = await dbs.owner.select().from(changeEvent);
     expect(ev).toMatchObject({ competitorId: IDS.competitorX, changeType: 'price_change', services: { hvac_plumbing: 'ac_tune_up' }, needsReview: false, occurredAt: day(1) });
     expect(ev?.summary).toContain('$89 to $69');
+    expect(ev).toMatchObject({ channels: ['web'], details: { offer: true } }); // a money change is an offer
     expect(ev?.facts).toHaveLength(1);
     expect(await dbs.owner.select().from(eventChange)).toEqual([{ eventId: ev!.id, changeId: id }]);
     expect(await statusOf(id)).toBe('event');
@@ -54,6 +55,7 @@ describe('tagChange', () => {
     const [ev] = await dbs.owner.select().from(changeEvent);
     expect(ev?.summary).toContain('[phone]');
     expect(ev?.summary).not.toContain('972-555-0100');
+    expect(ev).toMatchObject({ channels: ['web'], details: { offer: false } }); // meaningful, but no promo or money fact
   });
 
   it('marks a wording-only change cosmetic without an event', async () => {
@@ -112,6 +114,8 @@ describe('tagChange', () => {
     const call = ai.calls.decide[0]!;
     expect(Object.keys(call.questions).sort()).toEqual(['change_type', 'meaningful', 'service_dental', 'service_hvac_plumbing']);
     expect(JSON.stringify(call.state)).not.toContain('555-0100');
-    expect((await dbs.owner.select().from(changeEvent))[0]?.services).toEqual({ dental: 'whitening', hvac_plumbing: null });
+    const [ev] = await dbs.owner.select().from(changeEvent);
+    expect(ev?.services).toEqual({ dental: 'whitening', hvac_plumbing: null });
+    expect(ev).toMatchObject({ changeType: 'promo', channels: ['web'], details: { offer: true } });
   });
 });
