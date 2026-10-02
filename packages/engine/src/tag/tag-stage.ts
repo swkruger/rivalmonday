@@ -1,11 +1,12 @@
 import type { Ai } from '@cs/ai';
 import { redactContactInfo } from '@cs/collectors';
 import {
-  capture, captureBlock, changeEvent, client, clientCompetitor, competitor, type Db, decisionReview, detectedChange, eventChange, type NumericChange, trackedPage,
+  capture, captureBlock, client, clientCompetitor, competitor, type Db, decisionReview, detectedChange, type NumericChange, trackedPage,
 } from '@cs/db';
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { and, eq } from 'drizzle-orm';
 import { MONEY_KINDS } from '../facts/numeric';
+import { findMergeTarget, writeEvent } from '../merge/merge';
 import { runStage, type StageOutcome } from '../stage';
 import { buildTagQuestions, buildTagState, resolveTag } from './questions';
 import { tagStructuredChange } from './structured';
@@ -90,7 +91,7 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
         .where(eq(detectedChange.id, changeId))
         .limit(1);
       if (!row) throw new Error(`detected_change ${changeId} not found`);
-      if (row.change.status !== 'pending') return { row, resolution: null, answers: null, embedding: null };
+      if (row.change.status !== 'pending') return { row, resolution: null, answers: null, embedding: null, summary: '', target: null };
 
       const packs = await Promise.all((await competitorVerticals(deps.db, row.change.competitorId)).map(deps.packs));
       const state = buildTagState({
@@ -110,9 +111,16 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
           .limit(1);
         embedding = blk?.embedding ?? null;
       }
-      return { row, resolution, answers: result.answers as Record<string, unknown>, embedding };
+      const summary = buildSummary(row.change, row.pageUrl);
+      const target = resolution.meaningful
+        ? await findMergeTarget(deps, {
+            competitorId: row.change.competitorId, clientId: null, changeType: resolution.type, services: resolution.services, facts: row.change.numericChanges,
+            embedding, occurredAt: row.capturedAt, text: row.change.afterText ?? row.change.beforeText ?? '',
+          })
+        : null;
+      return { row, resolution, answers: result.answers as Record<string, unknown>, embedding, summary, target };
     },
-    async (tx, { row, resolution, answers, embedding }) => {
+    async (tx, { row, resolution, answers, embedding, summary, target }) => {
       if (!resolution) return { eventId: null, merged: false };
       // Low-confidence answers still reach the AM review queue (spec §7.3), whether or not they produced an event.
       if (resolution.needsReview.length > 0) {
@@ -122,19 +130,19 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
         await tx.update(detectedChange).set({ status: 'cosmetic' }).where(eq(detectedChange.id, changeId));
         return { eventId: null, merged: false };
       }
-      const [ev] = await tx
-        .insert(changeEvent)
-        .values({
-          competitorId: row.change.competitorId, changeType: resolution.type, services: resolution.services, summary: buildSummary(row.change, row.pageUrl),
-          facts: row.change.numericChanges, zips: extractZips(row.change.afterText ?? row.change.beforeText ?? ''), embedding,
-          confidence: resolution.confidence, needsReview: resolution.needsReview.length > 0, occurredAt: row.capturedAt,
-          channels: ['web'],
-          details: { offer: resolution.type === 'promo' || row.change.numericChanges.some((n) => MONEY_KINDS.has(n.kind)) },
-        })
-        .returning({ id: changeEvent.id });
-      await tx.insert(eventChange).values({ eventId: ev!.id, changeId });
+      const eventId = await writeEvent(
+        tx,
+        changeId,
+        {
+          competitorId: row.change.competitorId, changeType: resolution.type, channels: ['web'], services: resolution.services, summary,
+          facts: row.change.numericChanges, details: { offer: resolution.type === 'promo' || row.change.numericChanges.some((n) => MONEY_KINDS.has(n.kind)) },
+          zips: extractZips(row.change.afterText ?? row.change.beforeText ?? ''), embedding, confidence: resolution.confidence,
+          needsReview: resolution.needsReview.length > 0, occurredAt: row.capturedAt,
+        },
+        target,
+      );
       await tx.update(detectedChange).set({ status: 'event' }).where(eq(detectedChange.id, changeId));
-      return { eventId: ev!.id, merged: false };
+      return { eventId, merged: target !== null };
     },
   );
 }

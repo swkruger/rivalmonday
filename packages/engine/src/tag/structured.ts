@@ -1,10 +1,11 @@
 import type { Ai, DecisionQuestion } from '@cs/ai';
 import { redactContactInfo } from '@cs/collectors';
 import { CHANGE_TYPES, type ChangeType } from '@cs/core';
-import { capture, type ChangeDetails, client, competitor, type Db, decisionReview, detectedChange, eventChange, changeEvent, rankScan } from '@cs/db';
+import { capture, type ChangeDetails, changeEvent, client, competitor, type Db, decisionReview, detectedChange, rankScan } from '@cs/db';
 import type { VerticalPack } from '@cs/verticals';
 import { eq } from 'drizzle-orm';
 import { diffFacts, extractNumericFacts, MONEY_KINDS } from '../facts/numeric';
+import { findMergeTarget, writeEvent } from '../merge/merge';
 import { runStage, type StageOutcome } from '../stage';
 import { serviceQuestionKey } from './questions';
 import { competitorVerticals, extractZips, type PackLoader, TAG_STAGE, TAG_VERSION, type TagOutcome } from './tag-stage';
@@ -155,8 +156,13 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
       const summary = buildStructuredSummary({ source: c.source, beforeText: c.beforeText, afterText: c.afterText, details: c.details });
       const zips = type === 'hiring' || type === 'new_location' || type === 'ad_started' ? extractZips(redactContactInfo(text)) : [];
       const { vectors } = await deps.ai.embed('embeddings', [summary], scope);
+      const target = await findMergeTarget(
+        deps,
+        { competitorId: c.competitorId, clientId: c.clientId, changeType: type, services, facts, embedding: vectors[0] ?? null, occurredAt, text },
+        scope,
+      );
       return {
-        needsReview, answers,
+        needsReview, answers, target,
         values: {
           competitorId: c.competitorId, agencyId: c.agencyId, clientId: c.clientId, changeType: type, channels: [c.source], services, summary, facts, details, zips,
           embedding: vectors[0] ?? null, confidence, needsReview: needsReview.length > 0, occurredAt,
@@ -168,10 +174,9 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
       if (computed.needsReview.length > 0) {
         await tx.insert(decisionReview).values({ subjectType: 'detected_change', subjectId: changeId, keys: computed.needsReview, answers: computed.answers });
       }
-      const [ev] = await tx.insert(changeEvent).values(computed.values).returning({ id: changeEvent.id });
-      await tx.insert(eventChange).values({ eventId: ev!.id, changeId });
+      const eventId = await writeEvent(tx, changeId, computed.values, computed.target);
       await tx.update(detectedChange).set({ status: 'event' }).where(eq(detectedChange.id, changeId));
-      return { eventId: ev!.id, merged: false };
+      return { eventId, merged: computed.target !== null };
     },
   );
 }
