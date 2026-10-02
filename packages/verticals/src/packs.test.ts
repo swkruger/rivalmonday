@@ -28,3 +28,14 @@ describe('pilot vertical packs', () => {
     await expect(loadVerticalPack('other', dir)).rejects.toThrow(/declares id "dental"/);
   });
 });
+
+describe('Phase 3b pack knobs', () => {
+  it.each(['hvac_plumbing', 'dental'])('%s weights rank_change and carries the structured size curves, age cap and move thresholds', async (id) => {
+    const p = await loadVerticalPack(id);
+    expect(p.type_weights.rank_change).toBe(0.5);
+    expect(p.scoring.version).toBe(2);
+    expect(p.scoring.size).toMatchObject({ ads_for_full: 5, jobs_for_full: 5, review_z_for_full: 4, rating_delta_for_full: 0.3, rank_delta_for_full: 5, structured_min: 0.3 });
+    expect(p.scoring.alert_max_age_days).toBe(7);
+    expect(p.move_thresholds).toMatchObject({ price_war_cuts_90d: 2, ad_burst_starts_30d: 3, promo_blitz_window_days: 14 });
+  });
+});

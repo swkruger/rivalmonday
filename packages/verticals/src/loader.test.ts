@@ -13,6 +13,7 @@ const weights = `
     ad_stopped: 0.3
     review_spike: 0.6
     rating_change: 0.7
+    rank_change: 0.5
     content: 0.2
     cosmetic: 0`;
 
