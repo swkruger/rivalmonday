@@ -18,5 +18,6 @@ export * from './tag/questions';
 export * from './tag/tag-stage';
 export * from './tag/structured';
 export * from './merge/merge';
+export * from './moves/rules';
 export * from './score/score';
 export * from './score/score-stage';
