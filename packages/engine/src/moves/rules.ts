@@ -90,7 +90,8 @@ export function detectMoves(all: MoveEvent[], ctx: MoveContext): MoveFinding[] {
   const service = (e: MoveEvent) => e.services[ctx.verticalId] ?? null;
   const out: MoveFinding[] = [];
 
-  // Territory expansion — ≥ 2 kinds of signal referencing the client's ZIPs or towns.
+  // Territory expansion — ≥ 2 kinds of signal referencing the client's ZIPs or towns, at least one of them a
+  // service-area / location signal: ads and job posts naming the client's town alone mean already local.
   if (ctx.clientZips.length > 0 || ctx.clientTowns.length > 0) {
     const signals = new Map<string, MoveEvent[]>();
     const add = (kind: string, e: MoveEvent) => signals.set(kind, [...(signals.get(kind) ?? []), e]);
@@ -100,7 +101,7 @@ export function detectMoves(all: MoveEvent[], ctx: MoveContext): MoveFinding[] {
       if (e.changeType === 'ad_started') add('ads', e);
       if (e.changeType === 'hiring') add('jobs', e);
     }
-    if (signals.size >= 2) {
+    if (signals.size >= 2 && (signals.has('web_area') || signals.has('gbp_area'))) {
       out.push(finding('territory_expansion', [...signals.values()].flat(), 2, `Expanding into your area (${[...signals.keys()].sort().join(', ')})`, { signals: signals.size }));
     }
   }

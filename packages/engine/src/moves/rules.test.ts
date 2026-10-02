@@ -50,6 +50,9 @@ describe('detectMoves', () => {
     expect(types([area, ev({ ...area, id: 'e-dup' })])).not.toContain('territory_expansion'); // one kind of signal twice
     expect(types([area, ev({ ...jobs, summary: '2 new job postings: Technician — Austin, TX' })])).not.toContain('territory_expansion');
     expect(types([area, jobs], ctx({ clientZips: [], clientTowns: [] }))).not.toContain('territory_expansion'); // no territory to compare
+    const ads = ev({ changeType: 'ad_started', channels: ['google_ads'], summary: 'New Google ads: AC tune-up in Frisco' });
+    expect(types([ads, jobs])).not.toContain('territory_expansion'); // ads + jobs naming the town: already local, not expanding
+    expect(types([area, ads])).toContain('territory_expansion');
   });
 
   it('new service line: a web launch confirmed by GBP or ads for the same service', () => {
