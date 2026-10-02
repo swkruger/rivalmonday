@@ -51,6 +51,9 @@ export function moveConfidence(eventCount: number, channelCount: number, minEven
   return Math.round(Math.min(1, c) * 100) / 100;
 }
 
+/** Channels whose launch of a service confirms a web launch (spec §6.4 new service line). */
+const CONFIRMING_CHANNELS = new Set(['google_business_profile', 'google_ads', 'meta_ads']);
+
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** The event names one of the client's ZIPs, or one of its towns as a whole word. */
@@ -114,13 +117,14 @@ export function detectMoves(all: MoveEvent[], ctx: MoveContext): MoveFinding[] {
     out.push(finding('price_war', [...promos, ...recentStarts], 2, `Promotion backed by ${startedAds} new ads`, { promos: promos.length, adsStarted: startedAds }));
   }
 
-  // New service line — a web launch confirmed by GBP or ads for the same service.
+  // New service line — a web launch confirmed by GBP or ads for the same service. Cross-channel merge folds
+  // the GBP/ads launch into the web event, so a web event whose own channels include them is confirmed too.
   for (const web of events.filter((e) => e.changeType === 'new_service' && e.channels.includes('web') && service(e) !== null)) {
     const s = service(web)!;
     const confirm = events.filter(
       (e) => e !== web && service(e) === s && ((e.changeType === 'new_service' && e.channels.includes('google_business_profile')) || e.changeType === 'ad_started'),
     );
-    if (confirm.length > 0) {
+    if (confirm.length > 0 || web.channels.some((ch) => CONFIRMING_CHANNELS.has(ch))) {
       out.push(finding('new_service_line', [web, ...confirm], 2, `Launched a new service line: ${s}`, { service: s }));
       break;
     }

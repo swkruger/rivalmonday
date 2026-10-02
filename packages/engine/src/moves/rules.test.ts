@@ -58,6 +58,14 @@ describe('detectMoves', () => {
     expect(types([web, ev({ changeType: 'ad_started', channels: ['google_ads'], services: { hvac_plumbing: 'ac_repair' } })])).not.toContain('new_service_line');
   });
 
+  it('new service line: one merged launch event already carrying a GBP or ads channel confirms itself', () => {
+    const merged = ev({ changeType: 'new_service', channels: ['google_business_profile', 'web'], services: { hvac_plumbing: 'water_heater' } });
+    const [f] = detectMoves([merged], ctx());
+    expect(f).toMatchObject({ type: 'new_service_line', eventIds: [merged.id], channels: ['google_business_profile', 'web'] });
+    expect(types([ev({ ...merged, channels: ['meta_ads', 'web'] })])).toContain('new_service_line');
+    expect(types([ev({ ...merged, channels: ['web'] })])).not.toContain('new_service_line'); // web alone is not confirmed
+  });
+
   it('hiring push: enough postings in 30 days', () => {
     expect(types([ev({ changeType: 'hiring', channels: ['google_jobs'], details: { count: 3 } })])).toContain('hiring_push');
     expect(types([ev({ changeType: 'hiring', channels: ['google_jobs'], details: { count: 3 }, occurredAt: day(60) })])).not.toContain('hiring_push');
