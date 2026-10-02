@@ -15,7 +15,16 @@ const NOISE = [
   'script', 'style', 'noscript', 'template', 'svg', 'iframe', 'canvas', 'object', 'nav', 'footer',
   '[role="navigation"]', '[role="contentinfo"]', '[aria-hidden="true"]', '[hidden]',
 ].join(',');
-const CONSENT = /cookie|consent|gdpr|ccpa|onetrust|cookiebot|truste|cc-window|cmp-/i;
+/**
+ * Consent-banner class/id tokens: a hyphen- or underscore-delimited segment of the token is a consent
+ * word ("cookie-notice", "cc-window", "truste-consent-track"), never a bare substring ("trusted-by",
+ * "cmp-container" stay).
+ */
+const CONSENT_SEGMENT = /(?:^|[-_])(?:cookies?|consent|gdpr|ccpa|onetrust|cookiebot|truste|cc-window)(?:$|[-_])/i;
+/** Vendor banner ids matched outright, even on a near-empty page (the wrapper guard does not apply). */
+const CONSENT_VENDOR_IDS = new Set(['onetrust-banner-sdk', 'onetrust-consent-sdk', 'cybotcookiebotdialog']);
+/** The consent filter never removes these: they are the page, not a banner. */
+const CONSENT_PROTECTED = new Set(['html', 'body', 'main', 'article']);
 const BLOCK_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'li', 'td', 'th', 'dt', 'dd', 'blockquote', 'figcaption', 'caption', 'summary', 'label', 'button', 'a']);
 const INLINE_TAGS = new Set(['span', 'strong', 'b', 'em', 'i', 'u', 'small', 'sup', 'sub', 'mark', 'br', 'abbr', 'time', 's', 'del', 'ins', 'img', 'picture', 'source', 'code', 'q', 'cite', 'font']);
 /** Hand-written class/id names only: generated ones (css-1x2y3z, sc-AbC12) carry digits and change between deploys. */
@@ -52,13 +61,32 @@ function textOf(node: DomNode): string {
 const hasNonInlineChild = (el: DomNode) => (el.children ?? []).some((c) => isTag(c) && !INLINE_TAGS.has(tagName(c)));
 const normalize = (s: string) => s.replace(/\s+/g, ' ').trim();
 
+const textLength = (node: DomNode) => normalize(textOf(node)).length;
+
+function removeConsentBanners($: cheerio.CheerioAPI): void {
+  const root = ($('body')[0] ?? $.root()[0]) as unknown as DomNode;
+  const bodyLength = textLength(root);
+  $('[id],[class]').each((_, el) => {
+    const $el = $(el);
+    const node = el as unknown as DomNode;
+    if (CONSENT_PROTECTED.has(tagName(node)) || ($el.attr('role') ?? '').toLowerCase() === 'main') return;
+    const id = $el.attr('id') ?? '';
+    if (CONSENT_VENDOR_IDS.has(id.toLowerCase())) {
+      $el.remove();
+      return;
+    }
+    const tokens = [id, ...($el.attr('class') ?? '').split(/\s+/)].filter(Boolean);
+    if (!tokens.some((t) => CONSENT_SEGMENT.test(t))) return;
+    // An element holding more than half of the page's text is a wrapper, not a banner.
+    if (textLength(node) > bodyLength / 2) return;
+    $el.remove();
+  });
+}
+
 export function extractBlocks(html: string): Block[] {
   const $ = cheerio.load(html);
   $(NOISE).remove();
-  $('[id],[class]').each((_, el) => {
-    const $el = $(el);
-    if (CONSENT.test($el.attr('id') ?? '') || CONSENT.test($el.attr('class') ?? '')) $el.remove();
-  });
+  removeConsentBanners($);
 
   const blocks: Block[] = [];
   const seen = new Map<string, number>();

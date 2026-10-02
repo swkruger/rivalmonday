@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { fixture } from '../../test/seed';
 import { extractBlocks, MAX_BLOCK_CHARS, MAX_BLOCKS } from './extract';
 
 const page = (body: string) => `<!doctype html><html><head><title>t</title><style>.x{color:red}</style></head><body>${body}</body></html>`;
@@ -13,6 +14,36 @@ describe('extractBlocks', () => {
       <script>var x = 1</script>
       <p hidden>secret</p><div aria-hidden="true">decor</div>
       <footer><p>© 2026 Smith HVAC</p></footer>`)).toEqual(['AC Repair in Plano']);
+  });
+
+  it('never lets the consent filter remove the page itself or a wrapper', () => {
+    const html = `<!doctype html><html><head><title>t</title></head><body class="home page cookies-not-set"><main><h1>AC Repair in Plano</h1><p>Same-day service</p></main></body></html>`;
+    expect(extractBlocks(html).map((b) => b.text)).toEqual(['AC Repair in Plano', 'Same-day service']);
+    // A consent-named wrapper holding most of the page is a wrapper, not a banner.
+    expect(texts(`<div class="cookie-wrapper"><h1>AC Repair in Plano</h1><p>Same-day service across Collin County</p></div><p>Call us</p>`))
+      .toEqual(['AC Repair in Plano', 'Same-day service across Collin County', 'Call us']);
+  });
+
+  it('still strips the #cookie-consent banner of the golden fixtures', async () => {
+    for (const name of ['hvac-home-v1.html', 'hvac-home-v2.html']) {
+      const out = extractBlocks(await fixture(name)).map((b) => b.text);
+      expect(out.length).toBeGreaterThan(3);
+      expect(out.filter((t) => /cookies/i.test(t))).toEqual([]);
+    }
+  });
+
+  it('matches consent words as whole class/id segments, not substrings', () => {
+    expect(texts(`<div class="cmp-container"><p>AC repair</p></div>`)).toEqual(['AC repair']);
+    expect(texts(`<div class="cmp-banner"><p>AC repair</p></div>`)).toEqual(['AC repair']);
+    expect(texts(`<section class="trusted-by"><p>Trusted by 10,000 homeowners</p></section>`)).toEqual(['Trusted by 10,000 homeowners']);
+    const main = `<h1>AC Repair in Plano</h1><p>Same-day service across Collin County, seven days a week.</p>`;
+    for (const banner of [
+      '<div class="cc-window cc-banner"><p>This site uses cookies</p></div>',
+      '<div class="site-cookie_notice"><p>This site uses cookies</p></div>',
+      '<div id="truste-consent-track"><p>This site uses cookies</p></div>',
+      '<div id="CybotCookiebotDialog"><p>This site uses cookies</p></div>',
+      '<div class="gdpr"><p>This site uses cookies</p></div>',
+    ]) expect(texts(banner + main)).toEqual(['AC Repair in Plano', 'Same-day service across Collin County, seven days a week.']);
   });
 
   it('keeps a header promo bar but not the header nav', () => {
