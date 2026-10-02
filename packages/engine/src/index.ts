@@ -19,5 +19,6 @@ export * from './tag/tag-stage';
 export * from './tag/structured';
 export * from './merge/merge';
 export * from './moves/rules';
+export * from './moves/moves-stage';
 export * from './score/score';
 export * from './score/score-stage';
