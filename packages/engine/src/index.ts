@@ -20,6 +20,7 @@ export * from './tag/structured';
 export * from './reviews/themes';
 export * from './reviews/benchmark';
 export * from './reviews/complaints';
+export * from './reviews/discovery';
 export * from './merge/merge';
 export * from './moves/rules';
 export * from './moves/moves-stage';
