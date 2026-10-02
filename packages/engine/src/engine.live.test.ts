@@ -7,6 +7,7 @@ import { diffFacts, extractNumericFacts } from './facts/numeric';
 import { buildPriceQuestions } from './prices/price-stage';
 import { buildReviewQuestions, resolveReviewAnalysis } from './reviews/themes';
 import { buildTagQuestions, buildTagState, resolveTag, serviceQuestionKey } from './tag/questions';
+import { TAG_DECISION_TASK } from './tag/tag-stage';
 import { cosine, SEMANTIC_THRESHOLD } from './web/diff-stage';
 
 const key = process.env.OPENROUTER_API_KEY;
@@ -34,7 +35,7 @@ describe.skipIf(!key)('engine models (live)', () => {
     const packs = [await loadVerticalPack('hvac_plumbing')];
     const numeric = diffFacts(extractNumericFacts('AC Tune-Up Only $89 per system'), extractNumericFacts('AC Tune-Up Only $69 per system'));
     const state = buildTagState({ competitorName: 'Smith HVAC', pageUrl: 'https://smithhvac.example/', pageType: 'home', kind: 'modified', beforeText: 'AC Tune-Up Only $89 per system', afterText: 'AC Tune-Up Only $69 per system', numericChanges: numeric });
-    const result = await ai.decide('decisions', state, buildTagQuestions(packs), scope);
+    const result = await ai.decide(TAG_DECISION_TASK, state, buildTagQuestions(packs), scope);
     const r = resolveTag(numeric, result, packs);
     console.log(`[live] tag ${JSON.stringify({ ...r, providers: Object.fromEntries(Object.entries(result.answers).map(([k, v]) => [k, `${v.provider}:${v.confidence.toFixed(2)}`])) })}`);
     expect(r.meaningful).toBe(true);

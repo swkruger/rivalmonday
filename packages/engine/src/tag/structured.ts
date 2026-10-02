@@ -13,6 +13,8 @@ import { competitorVerticals, extractZips, type PackLoader, TAG_STAGE, TAG_VERSI
 const PLATFORM = { agencyId: null, clientId: null } as const;
 const MAX_STATE_TEXT = 1500;
 
+export const STRUCTURED_DECISION_TASK = 'structured_decisions';
+
 /** Structured change types whose text names a service (ad copy, job titles, GBP categories/services): ask the service mapping. */
 export const SERVICE_MAPPED_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['ad_started', 'ad_stopped', 'hiring', 'new_service', 'service_removed']);
 export const OFFER_QUESTION =
@@ -148,7 +150,7 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
         services = Object.fromEntries(packs.map((p) => [p.id, serviceForKeyword(c.details.keyword ?? '', p)]));
       } else if (SERVICE_MAPPED_TYPES.has(type) && packs.length > 0) {
         const state = { competitor: row.competitorName, channel: c.source, change: type, text: clean };
-        const result = await deps.ai.decide('decisions', state, buildStructuredQuestions(type, packs), scope);
+        const result = await deps.ai.decide(STRUCTURED_DECISION_TASK, state, buildStructuredQuestions(type, packs), scope);
         services = Object.fromEntries(
           packs.map((p) => {
             const v = result.answers[serviceQuestionKey(p.id)]?.value;

@@ -48,6 +48,7 @@ describe('tagStructuredChange (via tagChange)', () => {
     expect(JSON.stringify(ai.calls.decide[0]!.state)).not.toContain('972-555-0100');
     expect(await dbs.owner.select().from(eventChange)).toEqual([{ eventId: ev!.id, changeId: id }]);
     expect((await dbs.owner.select().from(detectedChange))[0]?.status).toBe('event');
+    expect(ai.calls.decide.map((c) => c.task)).toEqual(['structured_decisions']);
   });
 
   it('builds a review spike event without any model decision', async () => {

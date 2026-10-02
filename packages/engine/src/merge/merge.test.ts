@@ -125,6 +125,7 @@ describe('cross-channel merge', () => {
     expect(await dbs.owner.select().from(eventChange)).toHaveLength(2);
     expect(askedSame(ai)).toBe(1);
     expect(JSON.stringify(ai.calls.decide.at(-1)!.state)).toContain('existing_0');
+    expect(ai.calls.decide.filter((c) => Object.keys(c.questions).some((k) => k.startsWith('same_'))).map((c) => c.task)).toEqual(['merge_decisions']);
   });
 
   it.each([

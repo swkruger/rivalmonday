@@ -13,6 +13,8 @@ import { tagStructuredChange } from './structured';
 
 export const TAG_STAGE = 'tag';
 export const TAG_VERSION = 1;
+/** ai.yaml task for web-change tagging decisions (Phase 3d: one task per decision use). */
+export const TAG_DECISION_TASK = 'tag_decisions';
 const PLATFORM = { agencyId: null, clientId: null } as const;
 
 export interface TagOutcome {
@@ -118,7 +120,7 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
         competitorName: row.competitorName, pageUrl: row.pageUrl, pageType: row.pageType, kind: row.change.kind,
         beforeText: row.change.beforeText, afterText: row.change.afterText, numericChanges: row.change.numericChanges,
       });
-      const result = await deps.ai.decide('decisions', state, buildTagQuestions(packs), PLATFORM);
+      const result = await deps.ai.decide(TAG_DECISION_TASK, state, buildTagQuestions(packs), PLATFORM);
       const resolution = resolveTag(row.change.numericChanges, result, packs);
 
       const blockCapture = row.change.kind === 'removed' ? row.change.beforeCaptureId : row.change.afterCaptureId;

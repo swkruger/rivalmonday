@@ -8,6 +8,7 @@ import { factsSignature } from '../score/score-stage';
 export const MERGE_WINDOW_DAYS = 14;
 export const MERGE_MIN_CONFIDENCE = 0.8;
 export const MERGE_MAX_CANDIDATES = 3;
+export const MERGE_DECISION_TASK = 'merge_decisions';
 /** Offers and service launches — the event types spec §6.2 merges across channels. */
 export const MERGEABLE_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['price_change', 'promo', 'ad_started', 'new_service']);
 export const SAME_OFFER_QUESTION =
@@ -93,7 +94,7 @@ export async function findMergeTarget(deps: { db: Db; ai: Ai }, s: MergeSubject,
     candidates.map((_, i) => [`same_${i}`, { type: 'noul', instructions: `${SAME_OFFER_QUESTION} The existing change is "existing_${i}".` }]),
   );
   const state = { new_change: redactForModel(s.text, { businessNames: s.businessNames }).slice(0, 1500), ...Object.fromEntries(candidates.map((c, i) => [`existing_${i}`, c.summary])) };
-  const result = await deps.ai.decide('decisions', state, questions, scope);
+  const result = await deps.ai.decide(MERGE_DECISION_TASK, state, questions, scope);
   let best: MergeTarget | null = null;
   for (const [i, c] of candidates.entries()) {
     const a = result.answers[`same_${i}`];

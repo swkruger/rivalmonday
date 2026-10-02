@@ -2,6 +2,8 @@ import type { Ai } from '@cs/ai';
 import { PAGE_TYPES, type PageType } from '@cs/core';
 import { redactForModel } from '../evidence/model-privacy';
 
+export const PAGE_DECISION_TASK = 'page_decisions';
+
 export const PAGE_TYPE_OPTIONS: Record<PageType, string> = {
   home: 'Homepage of the business',
   pricing: 'Prices, rates, fees or cost of services',
@@ -23,7 +25,7 @@ export const PAGE_TYPE_OPTIONS: Record<PageType, string> = {
  */
 export async function classifyPage(ai: Ai, candidate: { url: string; text?: string; businessName?: string | null }): Promise<{ pageType: PageType; needsReview: boolean }> {
   const result = await ai.decide(
-    'decisions',
+    PAGE_DECISION_TASK,
     { url: candidate.url, link_text: candidate.text ? redactForModel(candidate.text, { businessNames: [candidate.businessName] }) : null },
     { page_type: { type: 'choice', instructions: 'What kind of page on a local service business website is this, judging by its URL and link text?', options: PAGE_TYPE_OPTIONS } },
     { agencyId: null, clientId: null },

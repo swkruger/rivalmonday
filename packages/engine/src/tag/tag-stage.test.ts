@@ -47,6 +47,7 @@ describe('tagChange', () => {
     expect(ev?.facts).toHaveLength(1);
     expect(await dbs.owner.select().from(eventChange)).toEqual([{ eventId: ev!.id, changeId: id }]);
     expect(await statusOf(id)).toBe('event');
+    expect(ai.calls.decide.map((c) => c.task)).toEqual(['tag_decisions']);
   });
 
   it('flags a web change as an offer only for a promo, a price cut or a newly added price — never a price rise', async () => {
