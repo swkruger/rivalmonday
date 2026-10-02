@@ -152,10 +152,6 @@ export function llmFactExtractor(ai: Ai, scope: CallScope): FactExtractor {
 export async function extractFacts(text: string, fallback?: FactExtractor): Promise<NumericFact[]> {
   const facts = extractNumericFacts(text);
   if (!fallback || !needsLlmFallback(text, facts)) return facts;
-  try {
-    return [...facts, ...(await fallback(text))];
-  } catch (err) {
-    console.warn('[engine] value_extract fallback failed; using rule facts only', err);
-    return facts;
-  }
+  // A fallback failure propagates: swallowing it on one side only would make diffFacts report a phantom "price -> none".
+  return [...facts, ...(await fallback(text))];
 }

@@ -2,10 +2,10 @@ import { capture, detectedChange, stageRun } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { and, asc, eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeAi } from '../../test/fake-ai';
 import { day, fixture, seedPage, seedWebCapture } from '../../test/seed';
-import { cosine, diffWebCapture, gateChange } from './diff-stage';
+import { CHURN_MIN_CANDIDATES, CHURN_RATIO, cosine, diffWebCapture, gateChange } from './diff-stage';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -21,6 +21,7 @@ async function twoCaptures(v1: string, v2: string) {
   const after = await seedWebCapture(dbs.service, store, { competitorId: IDS.competitorX, trackedPageId: page, html: v2, capturedAt: day(1) });
   return { store, page, before, after };
 }
+const htmlPage = (body: string) => `<!doctype html><html><head><title>t</title></head><body>${body}</body></html>`;
 const changes = () => dbs.owner.select().from(detectedChange).orderBy(asc(detectedChange.blockKey));
 
 describe('cosine and gate', () => {
@@ -70,6 +71,28 @@ describe('diffWebCapture (golden fixtures)', () => {
     expect(r).toEqual({ ran: true, result: { baseline: true, changeIds: [], masked: 0, newlyMasked: [] } });
     expect(await changes()).toEqual([]);
     expect(ai.calls.embed).toEqual([]);
+  });
+
+  it('on whole-page churn (a redesign) keeps only the money changes, and warns', async () => {
+    expect([CHURN_RATIO, CHURN_MIN_CANDIDATES]).toEqual([0.5, 20]);
+    // Different wrappers give the paragraphs different keys, so they align as removed + added (a redesign).
+    const paras = (cls: string, text: (i: number) => string) => `<section class="${cls}">${Array.from({ length: 30 }, (_, i) => `<p>${text(i)}</p>`).join('')}</section>`;
+    const v1 = paras('about', (i) => `Legacy note about furnace upkeep, topic ${'q'.repeat(i + 1)}`) + `<div class="price">AC tune-up $89</div>`;
+    const v2 = paras('story', (i) => `Fresh story covering duct cleaning, entry ${'z'.repeat(i + 1)}`) + `<div class="price">AC tune-up now $69</div>`;
+    const { store, after } = await twoCaptures(htmlPage(v1), htmlPage(v2));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const r = await diffWebCapture({ db: dbs.service, store, ai: createFakeAi() }, after);
+      expect(r.ran && r.result.changeIds).toHaveLength(1);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[0]).toMatch(/heavy churn/);
+    } finally {
+      warn.mockRestore();
+    }
+    const rows = await changes();
+    expect(rows.map((c) => [c.kind, c.blockKey, c.beforeText, c.afterText])).toEqual([['modified', 'div.price#0', 'AC tune-up $89', 'AC tune-up now $69']]);
+    expect(rows[0]?.flags).toContain('numeric');
+    expect(rows[0]?.numericChanges).toMatchObject([{ kind: 'price', pct: -22.5 }]);
   });
 
   it('is idempotent: a re-delivered job writes nothing new', async () => {

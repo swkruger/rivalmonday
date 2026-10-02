@@ -19,6 +19,12 @@ export interface ClientProfile {
   thresholds: ScoreThresholds | null;
 }
 
+/**
+ * Change types whose ZIP codes describe territory. For any other type a 5-digit number is far more
+ * likely a model number or a capacity ("36000 BTU") than a ZIP, so territory does not apply (= 1).
+ */
+export const TERRITORIAL_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['service_area_change', 'new_location']);
+
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
 
 export function sizeFactor(input: ScoreInput, pack: VerticalPack): number {
@@ -53,7 +59,7 @@ export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: 
   const typeWeight = pack.type_weights[input.changeType];
   const size = sizeFactor(input, pack);
   const svc = serviceOverlap(input.serviceId, profile.services, pack);
-  const territory = territoryOverlap(input.zips, profile.zips, pack);
+  const territory = TERRITORIAL_TYPES.has(input.changeType) ? territoryOverlap(input.zips, profile.zips, pack) : 1;
   const relevance = svc * territory;
   const novelty = noveltyFactor(input.maxSimilarity, pack);
   const score = Math.round(100 * typeWeight * size * relevance * novelty * 10) / 10;

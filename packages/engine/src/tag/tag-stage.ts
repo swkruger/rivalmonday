@@ -1,4 +1,5 @@
 import type { Ai } from '@cs/ai';
+import { redactContactInfo } from '@cs/collectors';
 import {
   capture, captureBlock, changeEvent, client, clientCompetitor, competitor, type Db, decisionReview, detectedChange, eventChange, type NumericChange, trackedPage,
 } from '@cs/db';
@@ -45,7 +46,10 @@ export function extractZips(text: string): string[] {
 
 const trunc = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
+/** One-line event summary. Built from redacted text: summaries are later sent to models (Phase 4), evidence stays verbatim. */
 export function buildSummary(change: { kind: string; beforeText: string | null; afterText: string | null; numericChanges: NumericChange[] }, pageUrl: string | null): string {
+  const beforeText = change.beforeText === null ? null : redactContactInfo(change.beforeText);
+  const afterText = change.afterText === null ? null : redactContactInfo(change.afterText);
   let prefix = '';
   if (pageUrl) {
     try {
@@ -55,10 +59,10 @@ export function buildSummary(change: { kind: string; beforeText: string | null; 
     }
   }
   const price = change.numericChanges.find((n) => n.kind === 'price' && n.before && n.after);
-  if (price) return `${prefix}price changed from ${price.before!.raw} to ${price.after!.raw}${price.pct !== null ? ` (${price.pct > 0 ? '+' : ''}${price.pct}%)` : ''} — "${trunc(change.afterText ?? '', 80)}"`;
-  if (change.kind === 'added') return `${prefix}added "${trunc(change.afterText ?? '', 120)}"`;
-  if (change.kind === 'removed') return `${prefix}removed "${trunc(change.beforeText ?? '', 120)}"`;
-  return `${prefix}"${trunc(change.beforeText ?? '', 80)}" → "${trunc(change.afterText ?? '', 80)}"`;
+  if (price) return `${prefix}price changed from ${price.before!.raw} to ${price.after!.raw}${price.pct !== null ? ` (${price.pct > 0 ? '+' : ''}${price.pct}%)` : ''} — "${trunc(afterText ?? '', 80)}"`;
+  if (change.kind === 'added') return `${prefix}added "${trunc(afterText ?? '', 120)}"`;
+  if (change.kind === 'removed') return `${prefix}removed "${trunc(beforeText ?? '', 120)}"`;
+  return `${prefix}"${trunc(beforeText ?? '', 80)}" → "${trunc(afterText ?? '', 80)}"`;
 }
 
 export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, changeId: string): Promise<StageOutcome<{ eventId: string | null }>> {

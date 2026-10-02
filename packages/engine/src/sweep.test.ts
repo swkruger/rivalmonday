@@ -37,19 +37,19 @@ describe('findEngineWork', () => {
     expect((await findEngineWork(dbs.service, { limit: 10, competitorId: IDS.competitorY })).diff).toEqual([]);
   });
 
-  it('backs off a failed run exponentially (5 * 2^(attempts-1) minutes) from finished_at, oldest first', async () => {
+  it('backs off a failed run exponentially (30 * 2^(attempts-1) minutes) from finished_at, oldest first', async () => {
     await dbs.service.insert(capture).values([
       { id: id(1), competitorId: IDS.competitorX, trackedPageId: PAGE, source: 'web', status: 'ok', collectorVersion: 'web/1' },
       { id: id(2), competitorId: IDS.competitorX, trackedPageId: PAGE, source: 'web', status: 'ok', collectorVersion: 'web/1' },
       { id: id(3), competitorId: IDS.competitorX, trackedPageId: PAGE, source: 'web', status: 'ok', collectorVersion: 'web/1' },
     ]);
     await dbs.service.insert(stageRun).values([
-      // attempts 1, finished just now: within the 5-minute backoff — not yet eligible.
+      // attempts 1, finished just now: within the 30-minute backoff — not yet eligible.
       { stage: 'web_diff', stageVersion: 1, subjectId: id(1), status: 'failed', attempts: 1, finishedAt: new Date() },
-      // attempts 1, finished 6 minutes ago: past the 5-minute backoff — eligible again.
-      { stage: 'web_diff', stageVersion: 1, subjectId: id(2), status: 'failed', attempts: 1, finishedAt: minutesAgo(6) },
-      // attempts 2, finished 6 minutes ago: backoff is 10 minutes — not yet eligible.
-      { stage: 'web_diff', stageVersion: 1, subjectId: id(3), status: 'failed', attempts: 2, finishedAt: minutesAgo(6) },
+      // attempts 1, finished 31 minutes ago: past the 30-minute backoff — eligible again.
+      { stage: 'web_diff', stageVersion: 1, subjectId: id(2), status: 'failed', attempts: 1, finishedAt: minutesAgo(31) },
+      // attempts 2, finished 31 minutes ago: backoff is 60 minutes — not yet eligible.
+      { stage: 'web_diff', stageVersion: 1, subjectId: id(3), status: 'failed', attempts: 2, finishedAt: minutesAgo(31) },
     ]);
     expect((await findEngineWork(dbs.service, { limit: 10 })).diff).toEqual([id(2)]);
   });

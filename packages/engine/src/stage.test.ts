@@ -1,7 +1,7 @@
 import { stageRun } from '@cs/db';
 import { openTestDbs, truncateAll } from '@cs/db/test-helpers';
 import { and, eq, sql } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { claimStage, MAX_STAGE_ATTEMPTS, runStage, stageDone } from './stage';
 
 const dbs = openTestDbs();
@@ -36,9 +36,25 @@ describe('stage runner', () => {
     await expect(failing()).rejects.toThrow('boom');
     expect(await row(marker)).toBeUndefined();
     expect(await row()).toMatchObject({ status: 'failed', attempts: 1, error: 'boom' });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     for (let i = 2; i <= MAX_STAGE_ATTEMPTS; i++) await expect(failing()).rejects.toThrow('boom');
+    warn.mockRestore();
     expect((await row())?.attempts).toBe(MAX_STAGE_ATTEMPTS);
     expect(await runStage(dbs.service, key, async () => 1, async () => 1)).toEqual({ ran: false });
+  });
+
+  it('warns once a subject exhausts its attempts, and not before', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const failing = () => runStage(dbs.service, key, async () => { throw new Error('model down'); }, async () => 1);
+      for (let i = 1; i < MAX_STAGE_ATTEMPTS; i++) await expect(failing()).rejects.toThrow('model down');
+      expect(warn).not.toHaveBeenCalled();
+      await expect(failing()).rejects.toThrow('model down');
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[0]).toBe(`[engine] stage test v1 exhausted for subject ${key.subjectId}: model down`);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('marks a compute failure (e.g. a model outage) as failed without writing outputs', async () => {

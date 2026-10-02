@@ -36,9 +36,17 @@ export async function stageDone(db: Db, key: StageKey): Promise<boolean> {
   return row?.status === 'done';
 }
 
+/** Marks the run failed; warns when that failure used up the last of MAX_STAGE_ATTEMPTS (the subject is then left alone). */
 async function failStage(db: Db, key: StageKey, err: unknown): Promise<void> {
   const message = (err instanceof Error ? err.message : String(err)).slice(0, 2000);
-  await db.update(stageRun).set({ status: 'failed', error: message, finishedAt: new Date() }).where(whereKey(key));
+  const [row] = await db
+    .update(stageRun)
+    .set({ status: 'failed', error: message, finishedAt: new Date() })
+    .where(whereKey(key))
+    .returning({ attempts: stageRun.attempts });
+  if (row && row.attempts >= MAX_STAGE_ATTEMPTS) {
+    console.warn(`[engine] stage ${key.stage} v${key.version} exhausted for subject ${key.subjectId}: ${message}`);
+  }
 }
 
 /**

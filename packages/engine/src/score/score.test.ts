@@ -1,7 +1,7 @@
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
-import { noveltyFactor, scoreForClient, type ScoreInput } from './score';
+import { noveltyFactor, scoreForClient, type ScoreInput, TERRITORIAL_TYPES } from './score';
 
 let pack: VerticalPack;
 beforeAll(async () => {
@@ -35,8 +35,18 @@ describe('scoreForClient', () => {
   });
 
   it('applies territory overlap only when the event names ZIP codes', () => {
-    expect(scoreForClient(input({ zips: ['75024'] }), client, pack).factors.territoryOverlap).toBe(1);
-    expect(scoreForClient(input({ zips: ['10001'] }), client, pack).factors.territoryOverlap).toBe(0.3);
+    const area = (zips: string[]) => input({ changeType: 'service_area_change', facts: [], serviceId: null, zips });
+    expect(scoreForClient(area(['75024']), client, pack).factors.territoryOverlap).toBe(1);
+    expect(scoreForClient(area(['10001']), client, pack).factors.territoryOverlap).toBe(0.3);
+    expect(scoreForClient(area([]), client, pack).factors.territoryOverlap).toBe(1);
+  });
+
+  it('applies territory overlap only to territorial change types, so a stray 5-digit number cannot archive a price cut', () => {
+    expect([...TERRITORIAL_TYPES].sort()).toEqual(['new_location', 'service_area_change']);
+    const price = scoreForClient(input({ zips: ['10001'] }), { ...client, zips: ['75024'] }, pack);
+    expect(price.factors.territoryOverlap).toBe(1);
+    expect(price.route).toBe('alert');
+    expect(scoreForClient(input({ changeType: 'service_area_change', zips: ['10001'] }), { ...client, zips: ['75024'] }, pack).factors.territoryOverlap).toBe(0.3);
   });
 
   it('discounts repeats of earlier events (novelty)', () => {

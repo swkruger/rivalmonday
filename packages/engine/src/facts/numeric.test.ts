@@ -68,8 +68,8 @@ describe('LLM fallback', () => {
     expect(await extractFacts('Tune-ups starting at eighty-nine dollars', llmFactExtractor(broken, { agencyId: null, clientId: null }))).toEqual([]);
   });
 
-  it('falls back to rule facts when the model call fails', async () => {
+  it('propagates a failed model call, so the diff stage fails and is retried instead of inventing "price -> none"', async () => {
     const down = { chat: async () => { throw new Error('down'); } } as unknown as Ai;
-    expect(await extractFacts('Prices from seventy dollars', llmFactExtractor(down, { agencyId: null, clientId: null }))).toEqual([]);
+    await expect(extractFacts('Prices from seventy dollars', llmFactExtractor(down, { agencyId: null, clientId: null }))).rejects.toThrow('down');
   });
 });

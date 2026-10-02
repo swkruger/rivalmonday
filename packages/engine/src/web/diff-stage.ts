@@ -15,6 +15,13 @@ export const WEB_DIFF_VERSION = 1;
 export const SEMANTIC_THRESHOLD = 0.95;
 /** Shorter added/removed blocks ("New!", "Menu") are noise unless they carry a number. */
 export const MIN_STRUCTURAL_CHARS = 20;
+/**
+ * Whole-page churn guard: when added + removed blocks reach CHURN_RATIO of the larger capture and at
+ * least CHURN_MIN_CANDIDATES changes pass the gate (a redesign or a half-rendered page), only money
+ * changes are kept, so a single capture cannot fan out into hundreds of paid tag decisions.
+ */
+export const CHURN_RATIO = 0.5;
+export const CHURN_MIN_CANDIDATES = 20;
 const PLATFORM = { agencyId: null, clientId: null } as const;
 
 export type ChangeFlag = 'semantic' | 'numeric' | 'structural' | 'masked';
@@ -101,7 +108,7 @@ export async function diffWebCapture(deps: EngineDeps, captureId: string, opts: 
         b.embedding = vectors[i]!;
       });
 
-      const candidates: Candidate[] = [];
+      let candidates: Candidate[] = [];
       let masked = 0;
       for (const a of alignments) {
         const numeric = diffFacts(a.before ? await extractFacts(a.before.text, fallback) : [], a.after ? await extractFacts(a.after.text, fallback) : []);
@@ -109,6 +116,15 @@ export async function diffWebCapture(deps: EngineDeps, captureId: string, opts: 
         const flags = gateChange(a, numeric, similarity, maskedKeys);
         if (flags) candidates.push({ alignment: a, numeric, similarity, flags });
         else if (a.kind === 'modified' && maskedKeys.has(a.before!.blockKey)) masked++;
+      }
+      const structural = alignments.filter((a) => a.kind === 'added' || a.kind === 'removed').length;
+      if (structural >= CHURN_RATIO * Math.max(before.length, after.length) && candidates.length >= CHURN_MIN_CANDIDATES) {
+        const total = candidates.length;
+        candidates = candidates.filter((c) => c.numeric.some((n) => MONEY_KINDS.has(n.kind)));
+        console.warn(
+          `[engine] heavy churn on page ${pageId} (capture ${captureId} vs ${prev.id}): ${structural} added/removed of ${before.length}→${after.length} blocks; ` +
+            `kept ${candidates.length} money change(s) of ${total} candidates`,
+        );
       }
       return { prevId: prev.id, candidates, masked, embedded };
     },

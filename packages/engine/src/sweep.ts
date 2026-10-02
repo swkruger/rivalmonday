@@ -18,9 +18,10 @@ export const SCORE_WINDOW_DAYS = 14;
  * `RETRY_BACKOFF_MINUTES * 2^(attempts-1)` minutes since finished_at. Engine stage jobs run with
  * retryLimit 0 (apps/worker/src/jobs/engine.ts) — the sweep is the only retry path — so without
  * this backoff a short model outage would exhaust MAX_STAGE_ATTEMPTS for every subject in the
- * outage window within minutes, permanently excluding them.
+ * outage window within minutes, permanently excluding them. A base of 30 gives 30/60/120/240
+ * minutes between the MAX_STAGE_ATTEMPTS attempts: a horizon of about 7.5 hours.
  */
-export const RETRY_BACKOFF_MINUTES = 5;
+export const RETRY_BACKOFF_MINUTES = 30;
 
 const ids = (rows: unknown) => (rows as { id: string }[]).map((r) => r.id);
 

@@ -48,6 +48,14 @@ describe('tagChange', () => {
     expect(await statusOf(id)).toBe('event');
   });
 
+  it('builds the event summary from redacted text (no contact details)', async () => {
+    const id = await change(null, 'Now offering emergency AC repair, call 972-555-0100 any time', 'added');
+    await tagChange({ db: dbs.service, ai: createFakeAi({ decide: tagResult({ meaningful: true, type: 'new_service' }) }), packs }, id);
+    const [ev] = await dbs.owner.select().from(changeEvent);
+    expect(ev?.summary).toContain('[phone]');
+    expect(ev?.summary).not.toContain('972-555-0100');
+  });
+
   it('marks a wording-only change cosmetic without an event', async () => {
     const id = await change('Call us today', 'Call us now');
     await tagChange({ db: dbs.service, ai: createFakeAi({ decide: tagResult({ meaningful: false, type: 'cosmetic' }) }), packs }, id);
