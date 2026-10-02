@@ -38,7 +38,7 @@ export interface WorkerDeps {
     reviews: { collected: number; failed: number; reviews: number } | { skipped: string };
     jobs: { collected: number; failed: number; postings: number };
   }>;
-  scanRankings(clientId: string): Promise<{ snapshots: number; failed: number }>;
+  scanRankings(clientId: string): Promise<{ snapshots: number; failed: number; scanId: string | null }>;
   listRankClients(): Promise<string[]>;
   suggestCompetitors(clientId: string): Promise<{ suggested: number; searches: number }>;
   close(): Promise<void>;
