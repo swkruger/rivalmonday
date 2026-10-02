@@ -48,6 +48,18 @@ describe('diffGbpProfiles', () => {
   it('ignores a profile without the field on either side', () => {
     expect(diffGbpProfiles({ ...base, address: null, rating: null }, { ...base, address: '9 Elm St', rating: 4.1 })).toEqual([]);
   });
+
+  it('does not flap services or additional categories when one pull omits them', () => {
+    const omitted = { ...base, services: null, additionalCategories: null };
+    expect(diffGbpProfiles(base, omitted)).toEqual([]);
+    expect(diffGbpProfiles(omitted, base)).toEqual([]);
+    expect(diffGbpProfiles({ ...base, category: null }, { ...base, category: 'Plumber' })).toEqual([]);
+    // The primary category is still compared when both pulls have it, even if one omits the additional ones.
+    expect(keys(diffGbpProfiles(omitted, { ...base, category: 'Plumber', additionalCategories: null }))).toEqual([
+      ['added', 'gbp:category:plumber', 'new_service'],
+      ['removed', 'gbp:category:hvac contractor', 'service_removed'],
+    ]);
+  });
 });
 
 describe('diffVendorCapture — google_business_profile', () => {

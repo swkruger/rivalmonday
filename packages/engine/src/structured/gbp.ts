@@ -24,10 +24,19 @@ export interface GbpProfile {
   workHours?: unknown;
 }
 
-const categories = (p: GbpProfile) => [p.category, ...(p.additionalCategories ?? [])].filter((x): x is string => typeof x === 'string' && x.length > 0);
-const services = (p: GbpProfile) =>
-  Array.isArray(p.services)
-    ? p.services.map((s) => (s && typeof s === 'object' ? (s as { title?: unknown }).title : null)).filter((t): t is string => typeof t === 'string' && t.length > 0)
+const present = (x: unknown): x is string => typeof x === 'string' && x.length > 0;
+/**
+ * A pull that omits a list (null, not []) says nothing about it — diffing it as empty would report every
+ * entry removed, then added back on the next pull. So each part is compared only when both pulls carry it:
+ * the primary category when both have one, the additional categories and services when both are arrays.
+ */
+const categories = (p: GbpProfile, other: GbpProfile) => [
+  ...(present(p.category) && present(other.category) ? [p.category] : []),
+  ...(Array.isArray(p.additionalCategories) && Array.isArray(other.additionalCategories) ? p.additionalCategories.filter(present) : []),
+];
+const services = (p: GbpProfile, other: GbpProfile) =>
+  Array.isArray(p.services) && Array.isArray(other.services)
+    ? p.services.map((s) => (s && typeof s === 'object' ? (s as { title?: unknown }).title : null)).filter(present)
     : [];
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
 
@@ -44,8 +53,8 @@ function hoursText(p: GbpProfile): string | null {
 export function diffGbpProfiles(before: GbpProfile, after: GbpProfile): StructuredChange[] {
   const out: StructuredChange[] = [];
   for (const [field, list] of [['category', categories], ['service', services]] as const) {
-    const was = new Map(list(before).map((x) => [norm(x), x]));
-    const now = new Map(list(after).map((x) => [norm(x), x]));
+    const was = new Map(list(before, after).map((x) => [norm(x), x]));
+    const now = new Map(list(after, before).map((x) => [norm(x), x]));
     for (const [k, x] of now) if (!was.has(k)) out.push({ kind: 'added', blockKey: `gbp:${field}:${k}`, beforeText: null, afterText: x, details: { changeType: 'new_service', field } });
     for (const [k, x] of was) if (!now.has(k)) out.push({ kind: 'removed', blockKey: `gbp:${field}:${k}`, beforeText: x, afterText: null, details: { changeType: 'service_removed', field } });
   }
