@@ -6,7 +6,7 @@ import { createFakeAi, type DecideFn, noul, structuredResult, tagResult } from '
 import { day, seedVendorCapture } from '../../test/seed';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
 import { createPackLoader, tagChange } from '../tag/tag-stage';
-import { conflictingServices, findMergeTarget, sharesService } from './merge';
+import { conflictingServices, findMergeTarget, sharesService, writeEvent } from './merge';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -150,6 +150,30 @@ describe('cross-channel merge', () => {
     await tagChange({ db: dbs.service, ai, packs }, await adChange(20, 'Spring special — AC tune-up + free filter'));
     expect(await events()).toHaveLength(2);
     expect(askedSame(ai)).toBe(0);
+  });
+});
+
+describe('writeEvent merge', () => {
+  it('folds the merged change into the event: union of ZIPs, offer if either is, the larger count', async () => {
+    const [ev] = await dbs.service
+      .insert(changeEvent)
+      .values({
+        competitorId: IDS.competitorX, changeType: 'ad_started', channels: ['web'], services: { hvac_plumbing: 'ac_tune_up' }, summary: 'AC tune-up $69', confidence: 1, occurredAt: day(1),
+        zips: ['75034', '75023'], details: { offer: false, count: 2 },
+      })
+      .returning({ id: changeEvent.id });
+    const merge = (changeId: string, zips: string[], details: Record<string, unknown>) =>
+      dbs.service.transaction((tx) =>
+        writeEvent(
+          tx, changeId,
+          { competitorId: IDS.competitorX, changeType: 'ad_started', channels: ['meta_ads'], services: {}, summary: 'x', confidence: 1, occurredAt: day(2), zips, details },
+          { eventId: ev!.id, via: 'same_offer', confidence: 0.9 },
+        ),
+      );
+    await merge(await adChange(4, 'AC tune-up $69 in Frisco'), ['75001', '75023'], { changeType: 'ad_started', offer: true, count: 5 });
+    await merge(await adChange(5, 'AC tune-up $69'), [], { changeType: 'ad_started', offer: false, count: 1 });
+    const [after] = await events();
+    expect(after).toMatchObject({ channels: ['meta_ads', 'web'], zips: ['75001', '75023', '75034'], details: { offer: true, count: 5 } });
   });
 });
 

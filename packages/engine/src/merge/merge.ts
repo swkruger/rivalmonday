@@ -102,18 +102,34 @@ export async function findMergeTarget(deps: { db: Db; ai: Ai }, s: MergeSubject,
   return best;
 }
 
-/** Inserts the event — or, with a merge target, links the change to that event and adds its channels. Returns the event id. */
+/**
+ * Inserts the event — or, with a merge target, links the change to that event and folds the change in:
+ * its channels and ZIPs are added, the event is an offer if either is, and keeps the larger item count.
+ * The event is not re-scored. Returns the event id.
+ */
 export async function writeEvent(tx: Tx, changeId: string, values: typeof changeEvent.$inferInsert, target: MergeTarget | null): Promise<string> {
   if (!target) {
     const [ev] = await tx.insert(changeEvent).values(values).returning({ id: changeEvent.id });
     await tx.insert(eventChange).values({ eventId: ev!.id, changeId });
     return ev!.id;
   }
-  const [t] = await tx.select({ channels: changeEvent.channels }).from(changeEvent).where(eq(changeEvent.id, target.eventId)).for('update');
+  const [t] = await tx
+    .select({ channels: changeEvent.channels, zips: changeEvent.zips, details: changeEvent.details })
+    .from(changeEvent)
+    .where(eq(changeEvent.id, target.eventId))
+    .for('update');
   if (!t) throw new Error(`merge target event ${target.eventId} vanished`);
+  const add = values.details ?? {};
+  const details = { ...t.details };
+  if (t.details.offer !== undefined || add.offer !== undefined) details.offer = t.details.offer === true || add.offer === true;
+  if (t.details.count !== undefined || add.count !== undefined) details.count = Math.max(t.details.count ?? 0, add.count ?? 0);
   await tx
     .update(changeEvent)
-    .set({ channels: [...new Set([...t.channels, ...(values.channels ?? [])])].sort() })
+    .set({
+      channels: [...new Set([...t.channels, ...(values.channels ?? [])])].sort(),
+      zips: [...new Set([...t.zips, ...(values.zips ?? [])])].sort(),
+      details,
+    })
     .where(eq(changeEvent.id, target.eventId));
   await tx.insert(eventChange).values({ eventId: target.eventId, changeId });
   return target.eventId;
