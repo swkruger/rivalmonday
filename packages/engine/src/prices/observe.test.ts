@@ -40,6 +40,13 @@ describe('pricesInBlock', () => {
     expect(amounts('Service calls $75 off-peak, $95 evenings')).toEqual([[75, 'USD', 'exact', false], [95, 'USD', 'exact', false]]);
   });
 
+  it('never treats a coupon, voucher or gift card face value as a price', () => {
+    expect(amounts('AC tune-up $89. Print this $25 coupon!')).toEqual([[89, 'USD', 'exact', true]]);
+    expect(amounts('use our $50 voucher')).toEqual([]);
+    expect(amounts('Get a $100 gift card with any install')).toEqual([]);
+    expect(amounts('$50-off coupon')).toEqual([]);
+  });
+
   it('detects promo when discount keyword appears after price', () => {
     expect(amounts('Starting at $89 — book online and save time')).toEqual([[89, 'USD', 'from', true]]);
   });
