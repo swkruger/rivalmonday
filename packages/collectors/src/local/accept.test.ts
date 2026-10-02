@@ -1,9 +1,10 @@
 import { createAccessContext } from '@cs/core';
-import { clientCompetitor, competitor, competitorSource, competitorSuggestion } from '@cs/db';
+import { client, clientCompetitor, competitor, competitorSource, competitorSuggestion } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { acceptSuggestion } from './accept';
+import { ensureSelfCompetitor } from './self';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -61,6 +62,29 @@ describe('acceptSuggestion', () => {
     expect(competitorId).toBe(existing?.id);
     const [c] = await dbs.service.select().from(competitor).where(eq(competitor.id, competitorId));
     expect(c).toMatchObject({ domain: 'coolair.example', placeId: 'p9', cid: '999' });
+  });
+
+  it('reusing another client\'s self-competitor row never leaks tenant-written client.name, and backfills domain/name from the accepting agency\'s suggestion', async () => {
+    // A1's self business: ensureSelfCompetitor names the row from client.name (tenant-private), no domain.
+    await dbs.owner.update(client).set({ placeId: 'place-shared' }).where(eq(client.id, IDS.clientA1));
+    const selfResult = await ensureSelfCompetitor(dbs.service, IDS.clientA1);
+    const selfCompetitorId = (selfResult as { competitorId: string }).competitorId;
+    expect((await dbs.service.select().from(competitor).where(eq(competitor.id, selfCompetitorId)))[0]).toMatchObject({ name: 'A1 HVAC', domain: null });
+
+    // Agency B independently discovers the same place and accepts a suggestion with a real domain and GBP name.
+    const sugB = '00000000-0000-4000-8000-0000000000d2';
+    await dbs.service
+      .insert(competitorSuggestion)
+      .values({ id: sugB, agencyId: IDS.agencyB, clientId: IDS.clientB1, name: 'Real Biz GBP Name', domain: 'realbiz.example', placeId: 'place-shared', appearances: 2, overlapScore: 0.5 });
+    const ctxB = createAccessContext({ agencyId: IDS.agencyB, userId: 'am', role: 'account_manager', clientScope: [IDS.clientB1], features: [] });
+    const { competitorId } = await acceptSuggestion({ service: dbs.service, app: dbs.app }, ctxB, sugB);
+
+    expect(competitorId).toBe(selfCompetitorId); // reused A1's self row, not a second one
+    const [c] = await dbs.service.select().from(competitor).where(eq(competitor.id, competitorId));
+    expect(c).toMatchObject({ name: 'Real Biz GBP Name', domain: 'realbiz.example', placeId: 'place-shared' }); // name no longer A1's tenant-written client.name
+    expect(await dbs.service.select().from(clientCompetitor).where(eq(clientCompetitor.competitorId, competitorId))).toContainEqual(
+      expect.objectContaining({ agencyId: IDS.agencyB, clientId: IDS.clientB1 }),
+    ); // B1 tracks it
   });
 
   it('refuses suggestions outside the caller scope', async () => {

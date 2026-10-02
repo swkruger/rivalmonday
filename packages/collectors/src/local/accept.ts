@@ -1,5 +1,5 @@
 import type { AccessContext } from '@cs/core';
-import { clientCompetitor, competitor, competitorSuggestion, type Db, withTenant } from '@cs/db';
+import { client, clientCompetitor, competitor, competitorSuggestion, type Db, withTenant } from '@cs/db';
 import { and, eq, isNull } from 'drizzle-orm';
 import { ensureCompetitorSources } from '../sources/ensure';
 
@@ -39,9 +39,20 @@ export async function acceptSuggestion(deps: { service: Db; app: Db }, ctx: Acce
   if (existing) {
     competitorId = existing.id;
     // Backfill only columns the existing row is missing — never overwrite a value it already has.
-    const patch: { placeId?: string; cid?: string } = {};
+    const patch: { placeId?: string; cid?: string; domain?: string; name?: string } = {};
     if (!existing.placeId && s.placeId) patch.placeId = s.placeId;
     if (!existing.cid && s.cid) patch.cid = s.cid;
+    if (!existing.domain && s.domain) {
+      // Same guard as the insert branch below: don't steal a domain another competitor row already owns.
+      const [domainClash] = await deps.service.select().from(competitor).where(eq(competitor.domain, s.domain)).limit(1);
+      if (!domainClash) patch.domain = s.domain;
+    }
+    // A row reused as a client's self business (ensureSelfCompetitor) was named from that client's own
+    // `client.name` — tenant-private data that must never leak to a second agency reusing the same row for
+    // its own suggestion. If this row is anyone's self business, replace the name with this suggestion's
+    // (the GBP title), which is public business data, not tenant data.
+    const [selfRef] = await deps.service.select({ id: client.id }).from(client).where(eq(client.selfCompetitorId, competitorId)).limit(1);
+    if (selfRef && s.name) patch.name = s.name;
     if (Object.keys(patch).length > 0) {
       await deps.service.update(competitor).set(patch).where(eq(competitor.id, competitorId));
     }
