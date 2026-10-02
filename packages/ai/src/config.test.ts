@@ -38,7 +38,7 @@ tasks:
 
   it('loads the shipped default config', async () => {
     const cfg = await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH);
-    for (const task of ['brief_writer', 'ask_assistant', 'value_extract', 'theme_discovery', 'llm_decisions', 'decisions']) {
+    for (const task of ['brief_writer', 'ask_assistant', 'value_extract', 'theme_discovery', 'llm_decisions', 'decisions', 'review_decisions', 'price_decisions']) {
       expect(cfg.tasks[task]).toBeDefined();
     }
     expect(cfg.tasks.embeddings).toMatchObject({ provider: 'openrouter', mode: 'embeddings', model: 'openai/text-embedding-3-small', dimensions: 512 });

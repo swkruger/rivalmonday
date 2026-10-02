@@ -1,5 +1,6 @@
 import type { Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
+import { MIN_REVIEW_CHARS, REVIEW_ANALYSIS_DAYS, REVIEW_STAGE, REVIEW_VERSION } from './reviews/themes';
 import { MAX_STAGE_ATTEMPTS } from './stage';
 import { RANK_DIFF_STAGE, RANK_DIFF_VERSION } from './structured/rank';
 import { VENDOR_DIFF_STAGE, VENDOR_DIFF_VERSION, VENDOR_SETTLE_MINUTES, vendorDiffSources } from './structured/vendor-diff';
@@ -11,6 +12,7 @@ export interface EngineWork {
   tag: string[];
   score: string[];
   rankDiff: string[];
+  reviews: string[];
 }
 
 /** Events created this recently are (re)checked for missing client scores, e.g. a newly linked client. */
@@ -28,7 +30,7 @@ export const RETRY_BACKOFF_MINUTES = 30;
 
 const ids = (rows: unknown) => (rows as { id: string }[]).map((r) => r.id);
 
-export async function findEngineWork(db: Db, opts: { limit: number; competitorId?: string; scoreWindowDays?: number }): Promise<EngineWork> {
+export async function findEngineWork(db: Db, opts: { limit: number; competitorId?: string; scoreWindowDays?: number; now?: Date }): Promise<EngineWork> {
   const only = (col: string) => (opts.competitorId ? sql`AND ${sql.raw(col)} = ${opts.competitorId}::uuid` : sql``);
   const finished = (stage: string, version: number, subject: string) => sql`
     EXISTS (SELECT 1 FROM stage_run s WHERE s.stage = ${stage} AND s.stage_version = ${version}::int AND s.subject_id = ${sql.raw(subject)}
@@ -67,5 +69,17 @@ export async function findEngineWork(db: Db, opts: { limit: number; competitorId
         SELECT rs.id FROM rank_scan rs
         WHERE rs.status = 'done' AND rs.finished_at IS NOT NULL AND NOT ${finished(RANK_DIFF_STAGE, RANK_DIFF_VERSION, 'rs.id')}
         ORDER BY rs.finished_at ASC LIMIT ${opts.limit}`);
-  return { diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score), rankDiff: ids(rankDiff) };
+
+  const now = (opts.now ?? new Date()).toISOString();
+  // Reviews of tracked competitors and of clients' own businesses; subject = this text version (see reviewSubjectId).
+  const reviews = await db.execute(sql`
+    SELECT r.id FROM review r
+    WHERE r.text IS NOT NULL AND length(btrim(r.text)) >= ${MIN_REVIEW_CHARS}::int
+      AND r.posted_at >= ${now}::timestamptz - make_interval(days => ${REVIEW_ANALYSIS_DAYS}::int) ${only('r.competitor_id')}
+      AND (EXISTS (SELECT 1 FROM client_competitor cc WHERE cc.competitor_id = r.competitor_id)
+           OR EXISTS (SELECT 1 FROM client cl WHERE cl.self_competitor_id = r.competitor_id))
+      AND NOT ${finished(REVIEW_STAGE, REVIEW_VERSION, "md5(r.id::text || '|' || r.text)::uuid")}
+    ORDER BY r.posted_at DESC LIMIT ${opts.limit}`);
+
+  return { diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score), rankDiff: ids(rankDiff), reviews: ids(reviews) };
 }
