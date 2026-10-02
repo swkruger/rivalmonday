@@ -93,12 +93,14 @@ describe('row-level security', () => {
   });
 
   it('cannot move a client to another agency via UPDATE', async () => {
+    // Phase 3d (0026): client UPDATE is column-level and agency_id isn't one of the granted columns,
+    // so this is now stopped by the privilege check, before RLS gets a chance to evaluate a policy.
     const text = await errorText(
       withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) =>
         tx.update(client).set({ agencyId: IDS.agencyB }).where(eq(client.id, IDS.clientA1)),
       ),
     );
-    expect(text).toMatch(/row-level security/i);
+    expect(text).toMatch(/permission denied/i);
   });
 
   it('UPDATE/DELETE on an out-of-scope client silently affect zero rows and leave it untouched', async () => {

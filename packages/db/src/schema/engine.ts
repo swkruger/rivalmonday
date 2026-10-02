@@ -1,9 +1,11 @@
 import { sql } from 'drizzle-orm';
 import {
+  type AnyPgColumn,
   boolean, check, doublePrecision, foreignKey, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uniqueIndex, uuid, vector,
 } from 'drizzle-orm/pg-core';
 import { capture, trackedPage } from './evidence';
 import { rankScan } from './client-intel';
+import { decisionSample } from './model-ops';
 import { agency, client, competitor, type ScoreThresholds } from './tenancy';
 
 const ts = (name: string) => timestamp(name, { withTimezone: true });
@@ -140,6 +142,7 @@ export const volatileBlock = pgTable(
     trackedPageId: uuid('tracked_page_id').notNull().references(() => trackedPage.id, { onDelete: 'cascade' }),
     blockKey: text('block_key').notNull(),
     maskedAt: ts('masked_at').notNull().defaultNow(),
+    unmaskedAt: ts('unmasked_at'), // set by an AM unmask: the block is never auto-masked again
   },
   (t) => [primaryKey({ columns: [t.trackedPageId, t.blockKey] })],
 );
@@ -168,7 +171,7 @@ export const detectedChange = pgTable(
     numericChanges: jsonb('numeric_changes').$type<NumericChange[]>().notNull().default(sql`'[]'::jsonb`),
     details: jsonb('details').$type<ChangeDetails>().notNull().default(sql`'{}'::jsonb`),
     flags: jsonb('flags').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
-    status: text('status').notNull().default('pending'), // pending | event | cosmetic
+    status: text('status').notNull().default('pending'), // pending | event | cosmetic | superseded | suppressed
     stageVersion: integer('stage_version').notNull(),
     detectedAt: ts('detected_at').notNull().defaultNow(),
   },
@@ -206,6 +209,9 @@ export const changeEvent = pgTable(
     needsReview: boolean('needs_review').notNull().default(false),
     occurredAt: ts('occurred_at').notNull(),
     createdAt: ts('created_at').notNull().defaultNow(),
+    /** Soft retraction (Phase 3d): superseded by a newer stage version, or rejected by an AM. Every reader excludes it. */
+    retractedAt: ts('retracted_at'),
+    retractionReason: text('retraction_reason'), // 'superseded' | 'review'
   },
   (t) => [
     index('event_competitor_time_idx').on(t.competitorId, t.occurredAt),
@@ -258,6 +264,10 @@ export const decisionReview = pgTable(
     answers: jsonb('answers').$type<Record<string, unknown>>().notNull(),
     createdAt: ts('created_at').notNull().defaultNow(),
     resolvedAt: ts('resolved_at'),
+    sampleId: uuid('sample_id').references((): AnyPgColumn => decisionSample.id, { onDelete: 'set null' }),
+    resolvedBy: text('resolved_by'),
+    /** The AM's answers, keyed by question key. */
+    resolution: jsonb('resolution').$type<Record<string, string | boolean>>(),
   },
   (t) => [index('decision_review_open_idx').on(t.resolvedAt, t.createdAt)],
 );

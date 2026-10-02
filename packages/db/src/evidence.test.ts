@@ -88,6 +88,12 @@ describe('privilege guard', () => {
     //                                              Task 4, later trusts to create/link a GLOBAL competitor via
     //                                              the service role). The competitor_suggestion_update RLS
     //                                              policy further confines which rows that UPDATE can touch.
+    //   client UPDATE         — now column-level (0026 Phase 3d): the table-wide UPDATE is revoked and only the
+    //                           editable columns (features, keywords, name, place_id, score_thresholds,
+    //                           service_area, services, vertical_id) are re-granted, so app_user can never point
+    //                           self_competitor_id at an arbitrary competitor or move a client to another agency
+    //                           via agency_id. The (client, UPDATE) pair below still shows up because
+    //                           has_any_column_privilege reports true for any granted column.
     // Every other public table (agency, competitor, tracked_page, capture, evidence, audit_log, llm_call,
     // vendor_call, competitor_source, vendor_task, observation, review, ad, rank_snapshot) has had all
     // write privileges revoked from app_user and is writable only by app_service.
@@ -119,5 +125,13 @@ describe('privilege guard', () => {
       WHERE grantee = 'app_user' AND table_schema = 'public' AND table_name = 'competitor_suggestion' AND privilege_type = 'UPDATE'
       ORDER BY column_name`)) as unknown as { column_name: string }[];
     expect(rows.map((r) => r.column_name)).toEqual(['status']);
+  });
+
+  it('app_user can UPDATE only the editable columns of client (never self_competitor_id or agency_id)', async () => {
+    const rows = (await dbs.owner.execute(sql`
+      SELECT column_name FROM information_schema.column_privileges
+      WHERE grantee = 'app_user' AND table_schema = 'public' AND table_name = 'client' AND privilege_type = 'UPDATE'
+      ORDER BY column_name`)) as unknown as { column_name: string }[];
+    expect(rows.map((r) => r.column_name)).toEqual(['features', 'keywords', 'name', 'place_id', 'score_thresholds', 'service_area', 'services', 'vertical_id']);
   });
 });
