@@ -64,6 +64,7 @@ export async function findMergeTarget(deps: { db: Db; ai: Ai }, s: MergeSubject,
       and(
         eq(changeEvent.competitorId, s.competitorId), s.clientId ? eq(changeEvent.clientId, s.clientId) : isNull(changeEvent.clientId),
         inArray(changeEvent.changeType, [...MERGEABLE_TYPES]), gte(changeEvent.occurredAt, from), lte(changeEvent.occurredAt, to),
+        isNull(changeEvent.retractedAt),
       ),
     )
     .orderBy(s.embedding ? cosineDistance(changeEvent.embedding, s.embedding) : desc(changeEvent.occurredAt))

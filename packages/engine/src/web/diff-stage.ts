@@ -3,6 +3,7 @@ import { redactForModel } from '@cs/collectors';
 import { capture, captureBlock, competitor, type Db, detectedChange, type NumericChange } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { and, desc, eq, lt } from 'drizzle-orm';
+import { supersedePriorChanges } from '../events/retract';
 import { diffFacts, extractFacts, type FactExtractor, llmFactExtractor, MONEY_KINDS } from '../facts/numeric';
 import { runStage, type StageOutcome } from '../stage';
 import { type Alignment, alignBlocks } from './align';
@@ -130,6 +131,7 @@ export async function diffWebCapture(deps: EngineDeps, captureId: string, opts: 
       return { prevId: prev.id, candidates, masked, embedded };
     },
     async (tx, c) => {
+      await supersedePriorChanges(tx, { afterCaptureId: captureId, source: 'web' }, WEB_DIFF_VERSION);
       for (const b of c.embedded) await tx.update(captureBlock).set({ embedding: b.embedding }).where(eq(captureBlock.id, b.id));
       if (c.candidates.length === 0) return { baseline: c.prevId === null, changeIds: [] as string[], masked: c.masked };
       const rows = await tx

@@ -60,7 +60,7 @@ export async function noveltySimilarity(
   const scope = ev.clientId ? or(isNull(changeEvent.clientId), eq(changeEvent.clientId, ev.clientId)) : isNull(changeEvent.clientId);
   const where = and(
     eq(changeEvent.competitorId, ev.competitorId), ne(changeEvent.id, ev.id), isNotNull(changeEvent.embedding),
-    lt(changeEvent.occurredAt, ev.occurredAt), gte(changeEvent.occurredAt, since), scope,
+    lt(changeEvent.occurredAt, ev.occurredAt), gte(changeEvent.occurredAt, since), scope, isNull(changeEvent.retractedAt),
   );
   const details = detailsSignature(ev.changeType, ev.details);
   if (ev.facts.length === 0 && details === null) {
@@ -95,6 +95,8 @@ export interface ScoreRunResult {
 export async function scoreEvent(deps: { db: Db; packs: PackLoader }, eventId: string, opts: { now?: Date } = {}): Promise<ScoreRunResult> {
   const [ev] = await deps.db.select().from(changeEvent).where(eq(changeEvent.id, eventId)).limit(1);
   if (!ev) throw new Error(`event ${eventId} not found`);
+  const empty: ScoreRunResult = { scored: 0, failed: 0, routes: { alert: 0, brief: 0, archive: 0 } };
+  if (ev.retractedAt) return empty; // Phase 3d: a retracted event is never (re)scored
   const now = opts.now ?? new Date();
   const ageDays = Math.max(0, (now.getTime() - ev.occurredAt.getTime()) / 86_400_000);
   const clients = await deps.db

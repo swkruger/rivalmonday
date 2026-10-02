@@ -13,6 +13,7 @@ export * from './structured/gbp';
 export * from './structured/jobs';
 export * from './structured/rank';
 export * from './structured/reviews';
+export * from './events/retract';
 export * from './facts/numeric';
 export * from './prices/observe';
 export * from './prices/price-stage';

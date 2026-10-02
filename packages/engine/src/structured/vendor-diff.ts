@@ -1,5 +1,6 @@
 import { capture, type ChangeDetails, type Db, detectedChange } from '@cs/db';
 import { and, desc, eq, isNull, lt } from 'drizzle-orm';
+import { supersedePriorChanges } from '../events/retract';
 import { runStage, type StageOutcome } from '../stage';
 import { diffAds } from './ads';
 import { diffGbp } from './gbp';
@@ -72,6 +73,7 @@ export async function diffVendorCapture(
       return { prev, changes: prev ? await differ(deps.db, cap, prev) : [] };
     },
     async (tx, { prev, changes }) => {
+      await supersedePriorChanges(tx, { afterCaptureId: cap.id, source: cap.source }, VENDOR_DIFF_VERSION);
       if (!prev || changes.length === 0) return { baseline: prev === null, changeIds: [] as string[] };
       const rows = await tx
         .insert(detectedChange)

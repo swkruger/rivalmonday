@@ -84,7 +84,7 @@ export async function updateMovesForClient(deps: { db: Db; packs: PackLoader }, 
       .select({ e: changeEvent })
       .from(changeEvent)
       .innerJoin(eventScore, and(eq(eventScore.eventId, changeEvent.id), eq(eventScore.clientId, clientId)))
-      .where(and(eq(changeEvent.competitorId, competitorId), gte(changeEvent.occurredAt, since), lte(changeEvent.occurredAt, now), ne(changeEvent.changeType, 'cosmetic')))
+      .where(and(eq(changeEvent.competitorId, competitorId), gte(changeEvent.occurredAt, since), lte(changeEvent.occurredAt, now), ne(changeEvent.changeType, 'cosmetic'), isNull(changeEvent.retractedAt)))
       .orderBy(asc(changeEvent.occurredAt), asc(changeEvent.id));
     const events: MoveEvent[] = rows.map(({ e }) => ({
       id: e.id, changeType: e.changeType as ChangeType, channels: e.channels, occurredAt: e.occurredAt, services: e.services, facts: e.facts, zips: e.zips, summary: e.summary, details: e.details,
