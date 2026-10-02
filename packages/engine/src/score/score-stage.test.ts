@@ -88,6 +88,29 @@ describe('scoreEvent', () => {
   });
 });
 
+describe('tenant-private events and event age (Phase 3b)', () => {
+  it('scores a tenant event only for its own client, never for another agency tracking the competitor', async () => {
+    const id = await event({ changeType: 'rank_change', agencyId: IDS.agencyA, clientId: IDS.clientA1, facts: [], details: { avgRankBefore: 9, avgRankAfter: 3 } });
+    expect(await scoreEvent({ db: dbs.service, packs }, id)).toMatchObject({ scored: 1 });
+    expect((await dbs.owner.select().from(eventScore)).map((s) => s.clientId)).toEqual([IDS.clientA1]);
+  });
+
+  it('keeps novelty within the tenant scope: a global event ignores a tenant event with the same embedding', async () => {
+    await event({ changeType: 'promo', agencyId: IDS.agencyA, clientId: IDS.clientA1, facts: [], occurredAt: day(1) });
+    const id = await event({ changeType: 'promo', facts: [], occurredAt: day(5) });
+    await scoreEvent({ db: dbs.service, packs }, id);
+    const [b1] = await dbs.owner.select().from(eventScore).where(eq(eventScore.clientId, IDS.clientB1));
+    expect(b1?.factors.maxSimilarity).toBeNull();
+  });
+
+  it('caps a backlog event to brief when it is scored long after it happened', async () => {
+    const id = await event({ occurredAt: day(1) });
+    await scoreEvent({ db: dbs.service, packs }, id, { now: day(20) });
+    const [a1] = await dbs.owner.select().from(eventScore).where(eq(eventScore.clientId, IDS.clientA1));
+    expect(a1).toMatchObject({ route: 'brief', factors: { staleCap: true } });
+  });
+});
+
 describe('factsSignature', () => {
   const cut = (from: string, to: string) => diffFacts(extractNumericFacts(from), extractNumericFacts(to));
 

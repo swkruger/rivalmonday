@@ -89,6 +89,8 @@ export interface ScoreFactors {
   novelty: number;
   maxSimilarity: number | null;
   needsReviewCap: boolean;
+  /** True when an alert was capped to brief because the event was older than the pack's alert_max_age_days (Phase 3b). */
+  staleCap?: boolean;
   thresholds: ScoreThresholds;
   scoringVersion: number;
 }

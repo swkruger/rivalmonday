@@ -56,6 +56,7 @@ export async function findEngineWork(db: Db, opts: { limit: number; competitorId
     SELECT e.id FROM event e
     WHERE e.created_at >= now() - make_interval(days => ${opts.scoreWindowDays ?? SCORE_WINDOW_DAYS}::int) ${only('e.competitor_id')}
       AND EXISTS (SELECT 1 FROM client_competitor cc WHERE cc.competitor_id = e.competitor_id
+                  AND (e.client_id IS NULL OR cc.client_id = e.client_id)
                   AND NOT EXISTS (SELECT 1 FROM event_score s WHERE s.event_id = e.id AND s.client_id = cc.client_id))
     ORDER BY e.created_at ASC LIMIT ${opts.limit}`);
   // Rank scans are per client; a competitor filter (engine-once --competitor) does not apply to them.

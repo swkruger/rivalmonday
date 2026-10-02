@@ -1,14 +1,16 @@
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
-import { noveltyFactor, scoreForClient, type ScoreInput, TERRITORIAL_TYPES } from './score';
+import { noveltyFactor, scoreForClient, type ScoreInput, sizeFactor, TERRITORIAL_TYPES } from './score';
 
 let pack: VerticalPack;
 beforeAll(async () => {
   pack = await loadVerticalPack('hvac_plumbing');
 });
 const cut = (from: string, to: string) => diffFacts(extractNumericFacts(from), extractNumericFacts(to));
-const input = (over: Partial<ScoreInput> = {}): ScoreInput => ({ changeType: 'price_change', facts: cut('$100', '$80'), serviceId: 'ac_tune_up', zips: [], needsReview: false, maxSimilarity: null, ...over });
+const input = (over: Partial<ScoreInput> = {}): ScoreInput => ({
+  changeType: 'price_change', facts: cut('$100', '$80'), serviceId: 'ac_tune_up', zips: [], needsReview: false, maxSimilarity: null, details: {}, ageDays: 0, ...over,
+});
 const client = { services: ['ac_tune_up'], zips: ['75024'], thresholds: null };
 
 describe('scoreForClient', () => {
@@ -62,5 +64,27 @@ describe('scoreForClient', () => {
 
   it('honours per-client thresholds', () => {
     expect(scoreForClient(input({ facts: cut('$100', '$90') }), { ...client, thresholds: { alert: 45, brief: 20 } }, pack).route).toBe('alert');
+  });
+});
+
+describe('structured size curves and the alert age cap (Phase 3b)', () => {
+  const structured = (over: Partial<ScoreInput>) => input({ changeType: 'ad_started', facts: [], serviceId: null, ...over });
+
+  it('sizes structured events from their details', () => {
+    expect(sizeFactor(structured({ changeType: 'ad_started', details: { count: 2 } }), pack)).toBeCloseTo(0.4);
+    expect(sizeFactor(structured({ changeType: 'ad_stopped', details: { count: 1 } }), pack)).toBeCloseTo(0.3); // floor
+    expect(sizeFactor(structured({ changeType: 'hiring', details: { count: 12 } }), pack)).toBe(1); // cap
+    expect(sizeFactor(structured({ changeType: 'review_spike', details: { z: 2 } }), pack)).toBeCloseTo(0.5);
+    expect(sizeFactor(structured({ changeType: 'rating_change', details: { ratingBefore: 4.6, ratingAfter: 4.45 } }), pack)).toBeCloseTo(0.5);
+    expect(sizeFactor(structured({ changeType: 'rank_change', details: { avgRankBefore: 9, avgRankAfter: 3 } }), pack)).toBe(1);
+    expect(sizeFactor(structured({ changeType: 'review_spike', details: {} }), pack)).toBe(pack.scoring.size.default);
+  });
+
+  it('never alerts on an event older than alert_max_age_days; caps it to brief and says so', () => {
+    const profile = { services: ['ac_tune_up'], zips: [], thresholds: null };
+    const fresh = scoreForClient(input({ ageDays: 2 }), profile, pack); // the default input is a 20% cut on ac_tune_up
+    const stale = scoreForClient(input({ ageDays: 10 }), profile, pack);
+    expect([fresh.route, fresh.factors.staleCap]).toEqual(['alert', false]);
+    expect([stale.route, stale.factors.staleCap, stale.score]).toEqual(['brief', true, fresh.score]);
   });
 });
