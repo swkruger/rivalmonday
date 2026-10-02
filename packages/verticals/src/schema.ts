@@ -46,6 +46,24 @@ export const verticalPackSchema = z.object({
       }),
     )
     .superRefine(uniqueIds('playbook')),
+  /** Spec §6.3 scoring knobs; versioned with the pack so every score records what produced it. */
+  scoring: z
+    .object({
+      version: z.number().int().positive().default(1),
+      routing: z
+        .object({ alert: z.number().min(0).max(100).default(70), brief: z.number().min(0).max(100).default(40) })
+        .prefault({})
+        .refine((r) => r.brief < r.alert, 'routing.brief must be below routing.alert'),
+      size: z
+        .object({ default: weight.default(0.6), price_pct_for_full: z.number().positive().default(20), price_min: weight.default(0.3) })
+        .prefault({}),
+      relevance: z
+        .object({ matched: weight.default(1), unmapped: weight.default(0.6), unmatched: weight.default(0.2), outside_territory: weight.default(0.3) })
+        .prefault({}),
+      novelty_similarity_floor: z.number().min(0).max(0.99).default(0.5),
+      novelty_window_days: z.number().int().positive().default(365),
+    })
+    .prefault({}),
 });
 
 export type VerticalPack = z.infer<typeof verticalPackSchema>;

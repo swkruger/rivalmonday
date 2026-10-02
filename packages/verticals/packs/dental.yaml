@@ -48,6 +48,14 @@ move_thresholds:
   ad_surge_multiplier: 2.0
   complaint_spike_multiplier: 2.0
 
+scoring:
+  version: 1
+  routing: { alert: 70, brief: 40 }
+  size: { default: 0.6, price_pct_for_full: 25, price_min: 0.3 }
+  relevance: { matched: 1.0, unmapped: 0.6, unmatched: 0.2, outside_territory: 0.3 }
+  novelty_similarity_floor: 0.5
+  novelty_window_days: 365
+
 playbooks:
   - id: new_patient_offer_response
     trigger: promo

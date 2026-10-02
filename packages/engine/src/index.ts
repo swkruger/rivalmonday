@@ -7,3 +7,5 @@ export * from './web/diff-stage';
 export * from './facts/numeric';
 export * from './tag/questions';
 export * from './tag/tag-stage';
+export * from './score/score';
+export * from './score/score-stage';

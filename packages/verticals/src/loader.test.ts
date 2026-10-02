@@ -45,6 +45,16 @@ describe('parseVerticalPack', () => {
     expect(pack.type_weights.price_change).toBe(1);
   });
 
+  it('applies scoring defaults when a pack omits the scoring section', () => {
+    const pack = parseVerticalPack(valid, 'test.yaml');
+    expect(pack.scoring).toMatchObject({ version: 1, routing: { alert: 70, brief: 40 }, novelty_similarity_floor: 0.5, novelty_window_days: 365 });
+  });
+
+  it('rejects routing where brief is not below alert', () => {
+    const bad = `${valid}scoring:\n  routing: { alert: 40, brief: 70 }\n`;
+    expect(() => parseVerticalPack(bad, 'bad.yaml')).toThrow(/routing\.brief must be below routing\.alert/);
+  });
+
   it('rejects a missing change-type weight, naming the file and path', () => {
     const broken = valid.replace('    cosmetic: 0', '');
     expect(() => parseVerticalPack(broken, 'broken.yaml')).toThrow(/broken\.yaml[\s\S]*type_weights[\s\S]*cosmetic/);

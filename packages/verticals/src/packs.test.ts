@@ -17,6 +17,8 @@ describe('pilot vertical packs', () => {
     expect(pack.type_weights.cosmetic).toBe(0);
     const triggers = new Set(pack.playbooks.map((p) => p.trigger));
     for (const move of MOVE_TYPES) expect(triggers).toContain(move);
+    expect(pack.scoring.routing).toEqual({ alert: 70, brief: 40 });
+    expect(pack.scoring.size.price_pct_for_full).toBeGreaterThan(0);
   });
 
   it('rejects unknown ids and mismatched declared ids', async () => {
