@@ -1,10 +1,10 @@
 import type { Ai } from '@cs/ai';
 import type { Db } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
+import { diffCapture } from './diff';
 import { scoreEvent } from './score/score-stage';
 import { findEngineWork } from './sweep';
 import { type PackLoader, tagChange } from './tag/tag-stage';
-import { diffWebCapture } from './web/diff-stage';
 
 export interface DrainResult {
   diffs: number;
@@ -34,10 +34,10 @@ export async function drainEngine(
     if (work.diff.length + work.tag.length + work.score.length === 0) break;
     for (const id of work.diff) {
       await attempt(`diff ${id}`, async () => {
-        const o = await diffWebCapture(deps, id);
+        const o = await diffCapture(deps, id);
         if (o.ran) {
           r.diffs++;
-          r.changes += o.result.changeIds.length;
+          r.changes += o.changeIds.length;
         }
       });
     }

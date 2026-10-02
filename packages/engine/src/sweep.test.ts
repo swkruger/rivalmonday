@@ -70,4 +70,21 @@ describe('findEngineWork', () => {
     const w = await findEngineWork(dbs.service, { limit: 10 });
     expect(w).toEqual({ diff: [], tag: [id(11)], score: [id(21)] }); // B1 still lacks a score for 21; 22 is outside the window
   });
+
+  it('offers settled vendor captures of sources that have a differ, and nothing else', async () => {
+    const mk = async (source: string, minutesAgo: number) => {
+      const [row] = await dbs.service
+        .insert(capture)
+        .values({ competitorId: IDS.competitorX, source, status: 'ok', collectorVersion: 'test/1', capturedAt: new Date(Date.now() - minutesAgo * 60_000) })
+        .returning({ id: capture.id });
+      return row!.id;
+    };
+    const settled = await mk('meta_ads', 15);
+    const fresh = await mk('meta_ads', 2);
+    const unknown = await mk('instagram', 15);
+    const w = await findEngineWork(dbs.service, { limit: 50 });
+    expect(w.diff).toContain(settled);
+    expect(w.diff).not.toContain(fresh);
+    expect(w.diff).not.toContain(unknown);
+  });
 });

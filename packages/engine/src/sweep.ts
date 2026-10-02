@@ -1,6 +1,7 @@
 import type { Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
 import { MAX_STAGE_ATTEMPTS } from './stage';
+import { VENDOR_DIFF_STAGE, VENDOR_DIFF_VERSION, VENDOR_SETTLE_MINUTES, vendorDiffSources } from './structured/vendor-diff';
 import { TAG_STAGE, TAG_VERSION } from './tag/tag-stage';
 import { WEB_DIFF_STAGE, WEB_DIFF_VERSION } from './web/diff-stage';
 
@@ -38,6 +39,12 @@ export async function findEngineWork(db: Db, opts: { limit: number; competitorId
     WHERE c.source = 'web' AND c.status = 'ok' AND c.tracked_page_id IS NOT NULL ${only('c.competitor_id')}
       AND NOT ${finished(WEB_DIFF_STAGE, WEB_DIFF_VERSION, 'c.id')}
     ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
+  const vendorDiff = await db.execute(sql`
+    SELECT c.id FROM capture c
+    WHERE c.source IN (${sql.join(vendorDiffSources().map((s) => sql`${s}`), sql`, `)}) AND c.status = 'ok'
+      AND c.captured_at < now() - make_interval(mins => ${VENDOR_SETTLE_MINUTES}::int) ${only('c.competitor_id')}
+      AND NOT ${finished(VENDOR_DIFF_STAGE, VENDOR_DIFF_VERSION, 'c.id')}
+    ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
   const tag = await db.execute(sql`
     SELECT d.id FROM detected_change d
     WHERE d.status = 'pending' ${only('d.competitor_id')}
@@ -49,5 +56,5 @@ export async function findEngineWork(db: Db, opts: { limit: number; competitorId
       AND EXISTS (SELECT 1 FROM client_competitor cc WHERE cc.competitor_id = e.competitor_id
                   AND NOT EXISTS (SELECT 1 FROM event_score s WHERE s.event_id = e.id AND s.client_id = cc.client_id))
     ORDER BY e.created_at ASC LIMIT ${opts.limit}`);
-  return { diff: ids(diff), tag: ids(tag), score: ids(score) };
+  return { diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score) };
 }

@@ -7,7 +7,7 @@ import {
 } from '@cs/collectors';
 import type { CaptureStatus } from '@cs/core';
 import { client, competitor, createDb, createLedgerSink, type Db } from '@cs/db';
-import { createPackLoader, diffWebCapture, type EngineWork, findEngineWork, scoreEvent as runScoreStage, tagChange as runTagStage } from '@cs/engine';
+import { createPackLoader, diffCapture, type EngineWork, findEngineWork, scoreEvent as runScoreStage, tagChange as runTagStage } from '@cs/engine';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
 
@@ -106,8 +106,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     capturePage: (id) => capturePage({ db: getDb(), store: getStore(), renderer: getRenderer() }, id),
     engineConfigured: () => Boolean(env.OPENROUTER_API_KEY),
     async diffCapture(captureId) {
-      const r = await diffWebCapture({ db: getDb(), store: getStore(), ai: await getAi() }, captureId);
-      return r.ran ? { ran: true, changeIds: r.result.changeIds } : { ran: false, changeIds: [] };
+      return diffCapture({ db: getDb(), store: getStore(), ai: await getAi() }, captureId);
     },
     async tagChange(changeId) {
       const r = await runTagStage({ db: getDb(), ai: await getAi(), packs }, changeId);
