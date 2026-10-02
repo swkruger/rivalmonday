@@ -22,6 +22,11 @@ const CHANNEL_LABEL: Record<string, string> = { meta_ads: 'Meta', google_ads: 'G
 const trunc = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const pct = (x: number | undefined) => `${Math.round((x ?? 0) * 100)}%`;
+/** gbp.ts stores scalar fields as "<field>: <value>"; strips that label, when present, to get the bare value. */
+const stripFieldLabel = (field: string | undefined, text: string): string => {
+  const label = `${field ?? ''}: `;
+  return field && text.startsWith(label) ? text.slice(label.length) : text;
+};
 
 export function buildStructuredQuestions(type: ChangeType, packs: VerticalPack[]): Record<string, DecisionQuestion> {
   const questions: Record<string, DecisionQuestion> = {};
@@ -83,10 +88,7 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
       s = `"${d.keyword}": average map position ${d.avgRankBefore} → ${d.avgRankAfter}, top-3 share ${pct(d.top3Before)} → ${pct(d.top3After)}`;
       break;
     default: {
-      // gbp.ts stores scalar fields as "<field>: <value>"; the label is already in the sentence.
-      const label = `${d.field ?? ''}: `;
-      const bare = (t: string) => (d.field && t.startsWith(label) ? t.slice(label.length) : t);
-      s = `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(bare(before), 60)} → ${trunc(bare(after), 60)}`;
+      s = `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(stripFieldLabel(d.field, before), 60)} → ${trunc(stripFieldLabel(d.field, after), 60)}`;
     }
   }
   return redactForModel(s, { businessNames });
@@ -126,7 +128,13 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
       const scope = c.clientId ? { agencyId: c.agencyId, clientId: c.clientId } : PLATFORM;
       const text = (c.afterText ?? c.beforeText ?? '').slice(0, MAX_STATE_TEXT);
 
-      const names = [row.competitorName];
+      // A GBP title rename's new (and old) public name must never be mistaken for a person — it's
+      // the business's own name, just not yet (or no longer) the one stored on the competitor row.
+      const names: (string | null)[] = [row.competitorName];
+      if (c.details.field === 'title') {
+        if (c.beforeText) names.push(stripFieldLabel(c.details.field, c.beforeText));
+        if (c.afterText) names.push(stripFieldLabel(c.details.field, c.afterText));
+      }
       const clean = redactForModel(text, { businessNames: names });
 
       let services: Record<string, string | null> = Object.fromEntries(packs.map((p) => [p.id, null]));
