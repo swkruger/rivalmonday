@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeAi } from '../../test/fake-ai';
 import { day, seedPage, seedVendorCapture, seedWebCapture } from '../../test/seed';
+import { diffFacts, extractNumericFacts } from '../facts/numeric';
 import { findMergeTarget } from '../merge/merge';
 import { scoreEvent } from '../score/score-stage';
 import { findEngineWork } from '../sweep';
@@ -46,6 +47,23 @@ async function eventFor(changeIds: string[], over: Partial<typeof changeEvent.$i
   return ev!.id;
 }
 
+/** A web price change merged with a Google ad change into one event (Task 2 fixture: rebuilding text after a detach). */
+async function seedMergedPriceAndAd() {
+  const store = createMemoryStore();
+  const page = await seedPage(dbs.service, IDS.competitorX);
+  const cap = await seedWebCapture(dbs.service, store, { competitorId: IDS.competitorX, trackedPageId: page, html: html('<p>AC tune-up $69</p>'), capturedAt: day(1) });
+  const ads = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_ads', capturedAt: day(1) });
+  const numericChanges = diffFacts(extractNumericFacts('$89'), extractNumericFacts('$69'));
+  const webChangeId = await change(cap, { beforeText: 'AC tune-up $89', afterText: 'AC tune-up $69', numericChanges, detectedAt: day(1) });
+  const adChangeId = await change(ads, {
+    source: 'google_ads', kind: 'added', blockKey: 'ads', afterText: null,
+    details: { changeType: 'ad_started', count: 1, items: [{ id: 'a1', label: 'Tune-up special' }] },
+    detectedAt: new Date(day(1).getTime() + 60_000),
+  });
+  const eventId = await eventFor([webChangeId, adChangeId], { channels: ['google_ads', 'web'], summary: 'price changed from $89 to $69', facts: numericChanges });
+  return { eventId, webChangeId };
+}
+
 describe('event retraction (Phase 3d decision 6)', () => {
   it('retractEvent keeps the event row but removes its scores', async () => {
     const { cap } = await webCapture();
@@ -77,6 +95,18 @@ describe('event retraction (Phase 3d decision 6)', () => {
     const ev = await eventFor([web]);
     expect(await dbs.service.transaction((tx) => detachChange(tx, web, 'review'))).toEqual({ eventId: ev, retracted: true });
     expect(await dbs.owner.select().from(eventChange)).toHaveLength(1);
+  });
+
+  it('rebuilds a surviving event summary and facts from its remaining change', async () => {
+    // web price change (first, owns summary/facts) merged with a Google ad change
+    const { eventId, webChangeId } = await seedMergedPriceAndAd();
+    await dbs.service.transaction((tx) => detachChange(tx, webChangeId, 'review'));
+    const [e] = await dbs.owner.select().from(changeEvent).where(eq(changeEvent.id, eventId));
+    expect(e?.retractedAt).toBeNull();
+    expect(e?.channels).toEqual(['google_ads']);
+    expect(e?.summary).toMatch(/new Google ad/i);
+    expect(e?.summary).not.toMatch(/price changed/);
+    expect(e?.facts).toEqual([]);
   });
 });
 

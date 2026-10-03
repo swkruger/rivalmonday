@@ -1,7 +1,30 @@
-import { changeEvent, decisionReview, detectedChange, eventChange, eventScore, moveEvent, type Tx } from '@cs/db';
-import { and, eq, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
+import { changeEvent, competitor, decisionReview, detectedChange, eventChange, eventScore, moveEvent, trackedPage, type Tx } from '@cs/db';
+import { and, asc, eq, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
+import { buildStructuredSummary } from '../tag/structured';
+import { buildSummary, redactFacts } from '../tag/tag-stage';
 
 export type RetractionReason = 'superseded' | 'review';
+
+/**
+ * After a change is detached, the event's summary and facts must describe the evidence it still has (briefs read
+ * them, Phase 4a): the oldest remaining live change provides the summary, every remaining change its facts.
+ */
+export async function rebuildEventText(tx: Tx, eventId: string): Promise<void> {
+  const rows = await tx
+    .select({ change: detectedChange, name: competitor.name, pageUrl: trackedPage.url })
+    .from(eventChange)
+    .innerJoin(detectedChange, eq(detectedChange.id, eventChange.changeId))
+    .innerJoin(competitor, eq(competitor.id, detectedChange.competitorId))
+    .leftJoin(trackedPage, eq(trackedPage.id, detectedChange.trackedPageId))
+    .where(and(eq(eventChange.eventId, eventId), eq(detectedChange.status, 'event')))
+    .orderBy(asc(detectedChange.detectedAt), asc(detectedChange.id));
+  const first = rows[0];
+  if (!first) return;
+  const names = [first.name];
+  const summary = first.change.source === 'web' ? buildSummary(first.change, first.pageUrl, names) : buildStructuredSummary(first.change, names);
+  const facts = redactFacts(rows.flatMap((r) => r.change.numericChanges), names);
+  await tx.update(changeEvent).set({ summary, facts }).where(eq(changeEvent.id, eventId));
+}
 
 /**
  * Soft-retracts an event (Phase 3d decision 6): the row and its evidence chain stay for audit; its per-client
@@ -35,6 +58,7 @@ export async function detachChange(tx: Tx, changeId: string, reason: RetractionR
     .innerJoin(detectedChange, eq(detectedChange.id, eventChange.changeId))
     .where(eq(eventChange.eventId, link.eventId));
   await tx.update(changeEvent).set({ channels: channels.map((c) => c.source).sort() }).where(eq(changeEvent.id, link.eventId));
+  await rebuildEventText(tx, link.eventId);
   return { eventId: link.eventId, retracted: false };
 }
 
