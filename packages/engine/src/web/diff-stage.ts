@@ -149,6 +149,6 @@ export async function diffWebCapture(deps: EngineDeps, captureId: string, opts: 
     },
   );
   if (!outcome.ran) return outcome;
-  const newlyMasked = await learnVolatileBlocks(deps.db, pageId);
-  return { ran: true, result: { ...outcome.result, newlyMasked } };
+  const learned = await learnVolatileBlocks(deps.db, pageId);
+  return { ran: true, result: { ...outcome.result, newlyMasked: learned.masked } };
 }

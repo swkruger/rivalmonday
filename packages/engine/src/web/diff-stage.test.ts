@@ -133,6 +133,9 @@ describe('diffWebCapture (golden fixtures)', () => {
       const id = await seedWebCapture(dbs.service, store, { competitorId: IDS.competitorX, trackedPageId: page, html: html(quotes[i]!), capturedAt: day(i) });
       const r = await diffWebCapture({ db: dbs.service, store, ai: createFakeAi() }, id);
       results.push(r.ran ? r.result : null);
+      // A downstream tag/review stage resolves a pending change well before the next day's diff runs; simulate
+      // that here so the next iteration's volatile learner sees it as tagged, not still pending (Task 12).
+      await dbs.service.update(detectedChange).set({ status: 'cosmetic' }).where(and(eq(detectedChange.trackedPageId, page), eq(detectedChange.status, 'pending')));
     }
     expect(results.map((r) => r?.changeIds.length)).toEqual([0, 1, 1, 1, 0, 0]);
     expect(results[3]?.newlyMasked).toEqual(['section.quote>blockquote#0']);
