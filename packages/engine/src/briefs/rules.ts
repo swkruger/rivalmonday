@@ -65,8 +65,8 @@ export function numberTokens(text: string): NumberToken[] {
 function numberSupported(t: NumberToken, evidence: NumberToken[], year: number): boolean {
   if (t.kind === 'plain' && t.value === year) return true;
   if (t.kind === 'percent') return evidence.some((e) => e.kind === 'percent' && Math.abs(Math.abs(e.value) - t.value) <= 1);
-  if (t.kind === 'money') return evidence.some((e) => (e.kind === 'money' || e.kind === 'plain') && Math.abs(e.value - t.value) < 0.005);
-  return evidence.some((e) => Math.abs(e.value - t.value) < 0.005);
+  if (t.kind === 'money') return evidence.some((e) => e.kind === 'money' && Math.abs(e.value - t.value) < 0.005);
+  return evidence.some((e) => e.kind === 'plain' && Math.abs(e.value - t.value) < 0.005);
 }
 
 const label = (t: NumberToken) => (t.kind === 'money' ? `$${t.value}` : t.kind === 'percent' ? `${t.value}%` : String(t.value));
@@ -75,15 +75,15 @@ const hasWord = (text: string, word: string) => new RegExp(`(^|[^A-Za-z0-9])${wo
 export function checkSentence(sentence: string, ev: RuleEvidence, ctx: RuleContext): { ok: boolean; reasons: string[] } {
   const reasons: string[] = [];
   const evNumbers = numberTokens(ev.text);
-  // ZIPs are judged by the ZIP rule below; a ZIP the evidence lists must not also fail as an unknown number.
-  const withoutKnownZips = sentence.replace(/\b\d{5}\b/g, (z) => (ev.zips.includes(z) ? ' ' : z));
-  for (const t of numberTokens(withoutKnownZips)) if (!numberSupported(t, evNumbers, ctx.year)) reasons.push(`number ${label(t)} is not in the evidence`);
+  // 5-digit tokens are ZIP-shaped; the ZIP rule below judges them, so exclude them all from the number check.
+  const withoutZips = sentence.replace(/\b\d{5}\b/g, ' ');
+  for (const t of numberTokens(withoutZips)) if (!numberSupported(t, evNumbers, ctx.year)) reasons.push(`number ${label(t)} is not in the evidence`);
 
   const allowed = new Set(dateTokens(ev.text));
   for (const d of ev.captureDates) for (const off of [-1, 0, 1]) allowed.add(new Date(d.getTime() + off * 86_400_000).toISOString().slice(5, 10));
   for (const md of dateTokens(sentence)) if (!allowed.has(md)) reasons.push(`date ${md} is not in the evidence`);
 
-  for (const zip of sentence.match(/\b\d{5}\b/g) ?? []) if (!ev.zips.includes(zip) && !ev.text.includes(zip)) reasons.push(`ZIP ${zip} is not in the evidence`);
+  for (const zip of sentence.match(/\b\d{5}\b/g) ?? []) if (!ev.zips.includes(zip) && !new RegExp(`\\b${zip}\\b`).test(ev.text)) reasons.push(`ZIP ${zip} is not in the evidence`);
   for (const town of ctx.clientTowns) if (hasWord(sentence, town) && !hasWord(ev.text, town)) reasons.push(`place ${town} is not in the evidence`);
   if (/\btarget(s|ed|ing)?\b/i.test(sentence) && !/\btarget/i.test(ev.text)) reasons.push('targeting claim without targeting evidence');
 

@@ -35,6 +35,11 @@ describe('numbers', () => {
   it('allows the current year', () => {
     expect(ok('It is their first price cut of 2026.')).toBe(true);
   });
+
+  it('matches number kinds strictly, not across money/plain', () => {
+    expect(ok('That is an 89-point jump.')).toBe(false);
+    expect(ok('They charge $3 now.')).toBe(false);
+  });
 });
 
 describe('dates', () => {
@@ -54,6 +59,7 @@ describe('geography and names', () => {
   it('requires geographic evidence for ZIPs, client towns and targeting claims', () => {
     expect(ok('They now mention 75034.')).toBe(true);
     expect(ok('They now mention 75035.')).toBe(false);
+    expect(checkSentence('They now mention 75035.', ev, ctx)).toEqual({ ok: false, reasons: ['ZIP 75035 is not in the evidence'] });
     expect(ok('The ads target Frisco homeowners.')).toBe(false);
     expect(ok('They are expanding into Plano.')).toBe(false);
   });
