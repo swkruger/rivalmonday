@@ -1,5 +1,5 @@
 import { type AccessContext, canAccessClient, isAgencyRole, ToolError } from '@cs/core';
-import { brief, briefItem, competitor, type Db, feedback, recommendation, withTenant } from '@cs/db';
+import { brief, briefItem, competitor, type Db, feedback, recommendation, type Tx, withTenant } from '@cs/db';
 import { and, asc, eq } from 'drizzle-orm';
 import type { PackLoader } from '../tag/tag-stage';
 import { loadEventEvidence } from './evidence';
@@ -35,6 +35,17 @@ const requireReady = (b: typeof brief.$inferSelect) => {
   if (b.status !== 'ready') throw new ToolError('invalid_input', `Brief is ${b.status}, not ready for review`);
 };
 
+/**
+ * Locks the brief row for the duration of the write transaction and re-checks `ready`: the earlier check (against
+ * an unlocked read, before this transaction opened) is only an early-exit — without this, a concurrent approval
+ * could select its items and commit between that check and this write, landing an edit/drop/reorder after approval.
+ */
+async function lockReadyBrief(tx: Tx, briefId: string): Promise<typeof brief.$inferSelect> {
+  const [row] = await tx.select().from(brief).where(eq(brief.id, briefId)).for('update');
+  if (!row || row.status !== 'ready') throw new ToolError('invalid_input', `Brief is ${row?.status ?? 'gone'}, not ready for review`);
+  return row;
+}
+
 export async function getBrief(deps: Pick<ReviewDeps, 'app'>, ctx: AccessContext, briefId: string): Promise<BriefView> {
   const b = await visibleBrief(deps.app, ctx, briefId);
   const agency = isAgencyRole(ctx.role);
@@ -63,6 +74,7 @@ export async function editBriefItem(deps: ReviewDeps, ctx: AccessContext, itemId
   const warnings = Object.values(changes).flatMap((text) => splitSentences(text).flatMap((sentence) => checkSentence(sentence, ev, rules).reasons));
 
   await deps.service.transaction(async (tx) => {
+    await lockReadyBrief(tx, item.briefId);
     await tx.update(briefItem).set({ ...changes, editedBy: ctx.userId }).where(eq(briefItem.id, itemId));
     await tx.insert(feedback).values({
       agencyId: item.agencyId, clientId: item.clientId, subjectType: 'brief_item', subjectId: itemId, kind: 'edit', actor: ctx.userId,
@@ -77,6 +89,9 @@ export async function dropBriefItem(deps: ReviewDeps, ctx: AccessContext, itemId
   const { item, b } = await visibleItem(deps.app, ctx, itemId);
   requireReady(b);
   await deps.service.transaction(async (tx) => {
+    await lockReadyBrief(tx, item.briefId);
+    const [current] = await tx.select({ status: briefItem.status }).from(briefItem).where(eq(briefItem.id, itemId)).for('update');
+    if (!current || current.status === 'dropped') throw new ToolError('invalid_input', 'Brief item is already dropped');
     await tx.update(briefItem).set({ status: 'dropped' }).where(eq(briefItem.id, itemId));
     await tx.insert(feedback).values({ agencyId: item.agencyId, clientId: item.clientId, subjectType: 'brief_item', subjectId: itemId, kind: 'drop', actor: ctx.userId, reason: reason ?? null });
   });
@@ -86,14 +101,15 @@ export async function reorderBriefItems(deps: ReviewDeps, ctx: AccessContext, br
   requireAgency(ctx);
   const b = await visibleBrief(deps.app, ctx, briefId);
   requireReady(b);
-  const active = await deps.service.select({ id: briefItem.id, ord: briefItem.ord }).from(briefItem).where(and(eq(briefItem.briefId, briefId), eq(briefItem.status, 'active'))).orderBy(asc(briefItem.ord));
-  if (itemIds.length !== active.length || new Set(itemIds).size !== itemIds.length || !itemIds.every((id) => active.some((a) => a.id === id))) {
-    throw new ToolError('invalid_input', "The new order must list exactly the brief's active items");
-  }
-  // Reuse the active set's existing ord values (already ascending), just permuted: a dropped item keeps its own
-  // ord, so renumbering from 0 could collide with one (the brief_id, ord constraint covers every status).
-  const ords = active.map((a) => a.ord);
   await deps.service.transaction(async (tx) => {
+    await lockReadyBrief(tx, briefId);
+    const active = await tx.select({ id: briefItem.id, ord: briefItem.ord }).from(briefItem).where(and(eq(briefItem.briefId, briefId), eq(briefItem.status, 'active'))).orderBy(asc(briefItem.ord));
+    if (itemIds.length !== active.length || new Set(itemIds).size !== itemIds.length || !itemIds.every((id) => active.some((a) => a.id === id))) {
+      throw new ToolError('invalid_input', "The new order must list exactly the brief's active items");
+    }
+    // Reuse the active set's existing ord values (already ascending), just permuted: a dropped item keeps its own
+    // ord, so renumbering from 0 could collide with one (the brief_id, ord constraint covers every status).
+    const ords = active.map((a) => a.ord);
     for (const [i, id] of itemIds.entries()) await tx.update(briefItem).set({ ord: ords[i] }).where(eq(briefItem.id, id));
     await tx.insert(feedback).values({ agencyId: b.agencyId, clientId: b.clientId, subjectType: 'brief', subjectId: briefId, kind: 'reorder', actor: ctx.userId, before: { order: active.map((a) => a.id) }, after: { order: itemIds } });
   });
@@ -113,7 +129,8 @@ export async function approveBrief(deps: ReviewDeps, ctx: AccessContext, briefId
     const claimed = await tx.update(brief).set({ status: 'approved', approvedAt: new Date(), approvedBy: ctx.userId, updatedAt: new Date() }).where(and(eq(brief.id, briefId), eq(brief.status, 'ready'))).returning({ id: brief.id });
     if (claimed.length === 0) throw new ToolError('invalid_input', 'Brief is no longer ready for review');
     const active = await tx.select().from(briefItem).where(and(eq(briefItem.briefId, briefId), eq(briefItem.status, 'active')));
-    if (active.length > 0) await tx.insert(recommendation).values(active.map(recommendationFromItem)).onConflictDoNothing();
-    return { recommendations: active.length };
+    if (active.length === 0) return { recommendations: 0 };
+    const inserted = await tx.insert(recommendation).values(active.map(recommendationFromItem)).onConflictDoNothing().returning({ id: recommendation.id });
+    return { recommendations: inserted.length };
   });
 }

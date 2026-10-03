@@ -13,8 +13,12 @@ const deps = () => ({ service: dbs.service, app: dbs.app, packs: createPackLoade
 const am = createAccessContext({ agencyId: IDS.agencyA, userId: 'am-1', role: 'account_manager', clientScope: 'all', features: [] });
 const otherAgency = createAccessContext({ agencyId: IDS.agencyB, userId: 'am-2', role: 'account_manager', clientScope: 'all', features: [] });
 const owner = createAccessContext({ agencyId: IDS.agencyA, userId: 'own-1', role: 'client_owner', clientScope: [IDS.clientA1], features: [] });
+const baseItem = (briefId: string, eventId: string) => ({
+  briefId, agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, whatChanged: 'The pricing page shows $69, down from $89.', whyItMatters: 'y', recommendedAction: 'Bundle a filter.', confidence: 0.9, effort: 'L', impact: 'M', eventIds: [eventId], evidenceIds: ['ev'], upsellTag: 'ppc', playbookId: 'price_cut_bundle',
+});
 let briefId: string;
 let items: string[];
+let base: ReturnType<typeof baseItem>;
 
 beforeEach(async () => {
   await truncateAll(dbs.owner);
@@ -22,7 +26,7 @@ beforeEach(async () => {
   const e = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(-1), createdAt: day(-1) });
   const [b] = await dbs.service.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, deliveryDate: '2026-10-05', periodStart: day(-7), periodEnd: day(0), status: 'ready', summary: 's' }).returning({ id: brief.id });
   briefId = b!.id;
-  const base = { briefId, agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, whatChanged: 'The pricing page shows $69, down from $89.', whyItMatters: 'y', recommendedAction: 'Bundle a filter.', confidence: 0.9, effort: 'L', impact: 'M', eventIds: [e.eventId], evidenceIds: ['ev'], upsellTag: 'ppc', playbookId: 'price_cut_bundle' };
+  base = baseItem(briefId, e.eventId);
   items = (await dbs.service.insert(briefItem).values([{ ...base, ord: 0, headline: 'First' }, { ...base, ord: 1, headline: 'Second' }]).returning({ id: briefItem.id })).map((r) => r.id);
 });
 
@@ -47,11 +51,24 @@ describe('brief review', () => {
 
   it('drop, reorder and rate record feedback; client roles are refused', async () => {
     await dropBriefItem(deps(), am, items[0]!, 'not relevant');
+    await expect(dropBriefItem(deps(), am, items[0]!)).rejects.toMatchObject({ code: 'invalid_input' }); // already dropped: no extra feedback
     await expect(reorderBriefItems(deps(), am, briefId, [items[1]!, items[0]!])).rejects.toThrow(/active items/);
     await reorderBriefItems(deps(), am, briefId, [items[1]!]);
     await rateBriefItem(deps(), am, items[1]!, true);
     expect((await dbs.owner.select().from(feedback)).map((f) => f.kind).sort()).toEqual(['drop', 'rating', 'reorder']);
     await expect(dropBriefItem(deps(), owner, items[1]!)).rejects.toMatchObject({ code: 'permission_denied' });
+  });
+
+  it('reorder permutes the active set, keyed by position: a dropped item keeps its own ord', async () => {
+    const [a, b] = items;
+    const [c] = (await dbs.service.insert(briefItem).values({ ...base, ord: 2, headline: 'Third' }).returning({ id: briefItem.id })).map((r) => r.id);
+    await dropBriefItem(deps(), am, b!);
+    await reorderBriefItems(deps(), am, briefId, [c!, a!]);
+    const view = await getBrief(deps(), am, briefId);
+    expect(view.items.filter((i) => i.status === 'active').sort((x, y) => x.ord - y.ord).map((i) => i.id)).toEqual([c, a]);
+    expect(view.items.find((i) => i.id === b)).toMatchObject({ status: 'dropped', ord: 1 }); // unchanged
+    const [f] = await dbs.owner.select().from(feedback).where(eq(feedback.kind, 'reorder'));
+    expect(f).toMatchObject({ before: { order: [a, c] }, after: { order: [c, a] } });
   });
 
   it('approval creates one recommendation per active item, once', async () => {
