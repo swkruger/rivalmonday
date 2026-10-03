@@ -1,6 +1,6 @@
-import { competitor, type Db, observation } from '@cs/db';
+import { client, competitor, type Db, observation } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { recordVendorCapture } from '../evidence/vendor-capture';
 import { type DataForSeoClient, DFS_US, isDfsOk } from '../vendors/dataforseo';
@@ -91,6 +91,12 @@ export async function collectGbpProfile(
         // competitor rows describe the same business — flag for merge review in Phase 3 rather than fail.
         console.warn(`[gbp] competitor ${c.id} cid ${profile.cid} already claimed by another competitor; flagging for merge review`, err);
       }
+    }
+    // Phase 3d decision 22: a self business is named from its public GBP title, never from a client's private name.
+    const title = typeof profile.title === 'string' ? profile.title.trim() : '';
+    if (title) {
+      const [self] = await deps.db.select({ id: client.id }).from(client).where(eq(client.selfCompetitorId, c.id)).limit(1);
+      if (self) await deps.db.update(competitor).set({ name: title }).where(and(eq(competitor.id, c.id), ne(competitor.name, title)));
     }
   }
   return { status: 'ok', captureId };

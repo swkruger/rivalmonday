@@ -69,3 +69,9 @@ export function hasPermission(ctx: AccessContext, permission: Permission): boole
 export function canAccessClient(ctx: AccessContext, clientId: string): boolean {
   return ctx.clientScope === 'all' || ctx.clientScope.includes(clientId);
 }
+
+/** Spec §3: account managers and admins manage competitors; a client owner only with the manage_competitors feature. */
+export function canManageCompetitors(ctx: AccessContext): boolean {
+  if (isAgencyRole(ctx.role)) return true;
+  return hasPermission(ctx, 'manage') && ctx.features.has('manage_competitors');
+}

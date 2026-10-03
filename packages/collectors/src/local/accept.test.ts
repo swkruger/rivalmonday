@@ -93,4 +93,13 @@ describe('acceptSuggestion', () => {
     const ctxB = createAccessContext({ agencyId: IDS.agencyB, userId: 'x', role: 'agency_admin', clientScope: 'all', features: [] });
     await expect(acceptSuggestion({ service: dbs.service, app: dbs.app }, ctxB, SUG)).rejects.toThrow(/not found/i);
   });
+
+  it('refuses client viewers and client owners without manage_competitors (spec §3)', async () => {
+    for (const [role, features] of [['client_viewer', ['manage_competitors']], ['client_owner', []]] as const) {
+      const ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'u', role, clientScope: [IDS.clientA1], features: [...features] });
+      await expect(acceptSuggestion({ service: dbs.service, app: dbs.app }, ctx, SUG)).rejects.toMatchObject({ code: 'permission_denied' });
+    }
+    const owner = createAccessContext({ agencyId: IDS.agencyA, userId: 'u', role: 'client_owner', clientScope: [IDS.clientA1], features: ['manage_competitors'] });
+    await expect(acceptSuggestion({ service: dbs.service, app: dbs.app }, owner, SUG)).resolves.toHaveProperty('competitorId');
+  });
 });

@@ -17,11 +17,13 @@ export interface PriceObservation {
 /**
  * A dollar amount followed by these words is a discount, rebate, credit, deposit, or a coupon/voucher/gift-card
  * face value — not the price of a service. "off" right after the amount is a discount whether written with a
- * space ("$50 off") or a hyphen ("$50-off"); "off-peak" is a time-of-day qualifier, not a discount, so it is
- * deliberately excluded (the amount stays a price — see "distinguishes off-peak from off discount").
+ * space ("$50 off") or a hyphen ("$50-off"); "off-peak", "off-season", and "off-hours" are time qualifiers, not
+ * discounts, so they are deliberately excluded (the amount stays a price — see "distinguishes off-peak from off discount").
  */
 const DISCOUNT_AFTER =
-  /^\s*(?:(?:instant|mail-in|trade-in|cash|utility|manufacturer'?s?|federal|tax|bonus)\s+)?(?:-?off\b(?!-peak)|discount|rebate|credit|savings?\b|back\b|down\b|deposit|coupon\b|voucher\b|gift\s*card\b|instant\s+savings\b)/i;
+  /^\s*(?:(?:instant|mail-in|trade-in|cash|utility|manufacturer'?s?|federal|tax|bonus)\s+)?(?:-?off\b(?![- ](?:peak|season|hours?)\b)|discount|rebate|credit|savings?\b|back\b|down\b|deposit|coupon\b|voucher\b|gift\s*card\b|instant\s+savings\b)/i;
+/** A price named as the old one ("was $129", "reg. $150", "originally $90") is superseded, not observed. */
+const SUPERSEDED_BEFORE = /\b(?:was|reg(?:ular(?:ly)?)?\.?|regular\s+price|originally|normally|retail(?:\s+price)?|list\s+price)\s*:?\s*$/i;
 const DISCOUNT_BEFORE = /\b(?:save|saving|savings of)(?:\s+up\s+to)?\s*$/i;
 const FROM_BEFORE = /\b(?:from|starting(?:\s+at)?|starts\s+at|as\s+low\s+as)\s*$/i;
 const UP_TO_BEFORE = /\bup\s+to\s*$/i;
@@ -51,7 +53,7 @@ export function pricesInBlock(text: string): PriceObservation[] {
     const before = text.slice(Math.max(0, at - 40), at).replace(/\s+/g, ' ');
     const after = text.slice(at + f.raw.length, at + f.raw.length + 40).replace(/\s+/g, ' ');
     const c = classifyPrice(before, after);
-    if (c.discount) continue;
+    if (c.discount || SUPERSEDED_BEFORE.test(before)) continue;
     const key = `${f.value}|${f.unit}|${c.qualifier}`;
     if (seen.has(key)) continue;
     seen.add(key);
