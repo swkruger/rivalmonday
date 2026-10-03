@@ -1,5 +1,5 @@
-import { changeEvent, detectedChange, eventChange, eventScore, moveEvent, type Tx } from '@cs/db';
-import { and, eq, isNull, lt, ne, sql } from 'drizzle-orm';
+import { changeEvent, decisionReview, detectedChange, eventChange, eventScore, moveEvent, type Tx } from '@cs/db';
+import { and, eq, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
 
 export type RetractionReason = 'superseded' | 'review';
 
@@ -42,7 +42,8 @@ export type SupersedeSubject = { afterCaptureId: string; source: string } | { ra
 
 /**
  * Phase 3d decision 7: when a diff stage re-runs a subject under a newer stage version, that subject's changes from
- * older versions are superseded and withdrawn from their events. Complaint spikes (`details.theme`, written by the
+ * older versions are superseded and withdrawn from their events, and their open AM reviews are closed as moot
+ * (`resolved_by = 'system:superseded'`). Complaint spikes (`details.theme`, written by the
  * nightly review-insights run against a reviews capture) are not diff output and are never touched.
  */
 export async function supersedePriorChanges(tx: Tx, subject: SupersedeSubject, version: number): Promise<{ superseded: number; retracted: number }> {
@@ -57,5 +58,11 @@ export async function supersedePriorChanges(tx: Tx, subject: SupersedeSubject, v
     .returning({ id: detectedChange.id });
   let retracted = 0;
   for (const { id } of old) if ((await detachChange(tx, id, 'superseded'))?.retracted) retracted++;
+  if (old.length > 0) {
+    await tx
+      .update(decisionReview)
+      .set({ resolvedAt: new Date(), resolvedBy: 'system:superseded', resolution: { superseded: true } })
+      .where(and(eq(decisionReview.subjectType, 'detected_change'), inArray(decisionReview.subjectId, old.map((o) => o.id)), isNull(decisionReview.resolvedAt)));
+  }
   return { superseded: old.length, retracted };
 }

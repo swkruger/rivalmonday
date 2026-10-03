@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { choice, noul } from '../../test/fake-ai';
 import { day, seedPage, seedVendorCapture, seedWebCapture } from '../../test/seed';
+import { supersedePriorChanges } from '../events/retract';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
 import { createPackLoader } from '../tag/tag-stage';
 import { listOpenReviews, resolveDecisionReview } from './resolve';
@@ -119,6 +120,38 @@ describe('resolveDecisionReview (Phase 3d decision 8)', () => {
     await expect(resolveDecisionReview(deps, id, { answers: { nope: true }, resolvedBy: 'am' })).rejects.toThrow(/unknown question "nope"/);
     expect((await dbs.owner.select().from(decisionReview))[0]?.resolvedAt).toBeNull();
     await resolveDecisionReview(deps, id, { answers: { meaningful: false }, resolvedBy: 'am' });
+    await expect(resolveDecisionReview(deps, id, { answers: { meaningful: true }, resolvedBy: 'am' })).rejects.toThrow(/already resolved/);
+  });
+
+  it('hides and refuses a review whose change was superseded (left open by older data)', async () => {
+    const ch = await webChange('cosmetic');
+    const id = await review(ch, ['meaningful'], modelSaid(false, 'cosmetic'));
+    await dbs.service.update(detectedChange).set({ status: 'superseded' }).where(eq(detectedChange.id, ch));
+    const [first] = await dbs.owner.select().from(detectedChange).where(eq(detectedChange.id, ch));
+    const [sup] = await dbs.service
+      .insert(detectedChange)
+      .values({ competitorId: IDS.competitorX, trackedPageId: first!.trackedPageId, source: 'web', kind: 'added', afterCaptureId: first!.afterCaptureId, blockKey: 'body>p#1', afterText: 'x', status: 'suppressed', stageVersion: 1 })
+      .returning({ id: detectedChange.id });
+    const suppressed = sup!.id;
+    await review(suppressed, ['meaningful'], modelSaid(false, 'cosmetic'));
+    expect(await listOpenReviews(dbs.service)).toEqual([]);
+    await expect(resolveDecisionReview(deps, id, { answers: { meaningful: true }, resolvedBy: 'am' })).rejects.toThrow(/superseded by a newer stage version/);
+    expect((await dbs.owner.select().from(detectedChange).where(eq(detectedChange.id, ch)))[0]?.status).toBe('superseded');
+    expect((await dbs.owner.select().from(decisionReview).where(eq(decisionReview.id, id)))[0]?.resolvedAt).toBeNull();
+    expect(await dbs.owner.select().from(changeEvent)).toEqual([]);
+  });
+
+  it('supersedePriorChanges closes the open reviews of the changes it supersedes', async () => {
+    const ch = await webChange('event');
+    const ev = await event([ch]);
+    const id = await review(ch, ['meaningful'], modelSaid(true, 'new_service'));
+    const [row] = await dbs.owner.select().from(detectedChange).where(eq(detectedChange.id, ch));
+    expect(await dbs.service.transaction((tx) => supersedePriorChanges(tx, { afterCaptureId: row!.afterCaptureId!, source: 'web' }, 2))).toEqual({ superseded: 1, retracted: 1 });
+    expect(await listOpenReviews(dbs.service)).toEqual([]);
+    const [rev] = await dbs.owner.select().from(decisionReview).where(eq(decisionReview.id, id));
+    expect(rev).toMatchObject({ resolvedBy: 'system:superseded', resolution: { superseded: true } });
+    expect(rev!.resolvedAt).not.toBeNull();
+    expect((await dbs.owner.select().from(changeEvent).where(eq(changeEvent.id, ev)))[0]?.retractionReason).toBe('superseded');
     await expect(resolveDecisionReview(deps, id, { answers: { meaningful: true }, resolvedBy: 'am' })).rejects.toThrow(/already resolved/);
   });
 

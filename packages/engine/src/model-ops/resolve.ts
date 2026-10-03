@@ -1,7 +1,7 @@
 import type { DecisionQuestion, ResolvedAnswer } from '@cs/ai';
 import type { ChangeType } from '@cs/core';
 import { changeEvent, client, competitor, type Db, decisionLabel, decisionReview, decisionSample, detectedChange, eventChange, eventScore } from '@cs/db';
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, notInArray, sql } from 'drizzle-orm';
 import { detachChange } from '../events/retract';
 import { writeEvent } from '../merge/merge';
 import { scoreEvent } from '../score/score-stage';
@@ -24,6 +24,9 @@ export interface OpenReview {
   competitorName: string;
 }
 
+/** Change statuses whose reviews are moot: superseded (replaced by a newer stage version's output) or suppressed (churn guard, never tagged). */
+const CLOSED_CHANGE_STATUSES = ['superseded', 'suppressed'];
+
 /** The AM review queue (spec §7.3), oldest first. Phase 5 puts a screen on this. */
 export async function listOpenReviews(db: Db, limit = 50): Promise<OpenReview[]> {
   return db
@@ -34,7 +37,7 @@ export async function listOpenReviews(db: Db, limit = 50): Promise<OpenReview[]>
     .from(decisionReview)
     .innerJoin(detectedChange, eq(detectedChange.id, decisionReview.subjectId))
     .innerJoin(competitor, eq(competitor.id, detectedChange.competitorId))
-    .where(and(isNull(decisionReview.resolvedAt), eq(decisionReview.subjectType, 'detected_change')))
+    .where(and(isNull(decisionReview.resolvedAt), eq(decisionReview.subjectType, 'detected_change'), notInArray(detectedChange.status, CLOSED_CHANGE_STATUSES)))
     .orderBy(asc(decisionReview.createdAt))
     .limit(limit);
 }
@@ -73,6 +76,8 @@ export async function resolveDecisionReview(
   if (rev.subjectType !== 'detected_change') throw new Error(`decision_review ${reviewId} has unsupported subject ${rev.subjectType}`);
   const [ch] = await db.select().from(detectedChange).where(eq(detectedChange.id, rev.subjectId)).limit(1);
   if (!ch) throw new Error(`detected_change ${rev.subjectId} not found`);
+  if (ch.status === 'superseded') throw new Error(`decision_review ${reviewId}: detected_change ${ch.id} was superseded by a newer stage version; nothing to resolve`);
+  if (ch.status === 'suppressed') throw new Error(`decision_review ${reviewId}: detected_change ${ch.id} is suppressed; nothing to resolve`);
   const [sample] = rev.sampleId ? await db.select().from(decisionSample).where(eq(decisionSample.id, rev.sampleId)).limit(1) : [];
 
   const verticalIds = ch.clientId ? (await db.select({ v: client.verticalId }).from(client).where(eq(client.id, ch.clientId))).map((r) => r.v) : await competitorVerticals(db, ch.competitorId);
