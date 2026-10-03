@@ -5,7 +5,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeAi } from '../../test/fake-ai';
 import { day, fixture, seedPage, seedWebCapture } from '../../test/seed';
-import { CHURN_MIN_CANDIDATES, CHURN_RATIO, cosine, diffWebCapture, gateChange } from './diff-stage';
+import { CHURN_MIN_CANDIDATES, CHURN_RATIO, churnCount, cosine, diffWebCapture, gateChange } from './diff-stage';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -68,7 +68,7 @@ describe('diffWebCapture (golden fixtures)', () => {
     const only = await seedWebCapture(dbs.service, store, { competitorId: IDS.competitorX, trackedPageId: page, html: await fixture('hvac-home-v1.html'), capturedAt: day(0) });
     const ai = createFakeAi();
     const r = await diffWebCapture({ db: dbs.service, store, ai }, only);
-    expect(r).toEqual({ ran: true, result: { baseline: true, changeIds: [], masked: 0, newlyMasked: [] } });
+    expect(r).toEqual({ ran: true, result: { baseline: true, changeIds: [], masked: 0, newlyMasked: [], suppressed: 0 } });
     expect(await changes()).toEqual([]);
     expect(ai.calls.embed).toEqual([]);
   });
@@ -84,15 +84,19 @@ describe('diffWebCapture (golden fixtures)', () => {
     try {
       const r = await diffWebCapture({ db: dbs.service, store, ai: createFakeAi() }, after);
       expect(r.ran && r.result.changeIds).toHaveLength(1);
+      expect(r.ran && r.result.suppressed).toBe(60);
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn.mock.calls[0]?.[0]).toMatch(/heavy churn/);
     } finally {
       warn.mockRestore();
     }
     const rows = await changes();
-    expect(rows.map((c) => [c.kind, c.blockKey, c.beforeText, c.afterText])).toEqual([['modified', 'div.price#0', 'AC tune-up $89', 'AC tune-up now $69']]);
-    expect(rows[0]?.flags).toContain('numeric');
-    expect(rows[0]?.numericChanges).toMatchObject([{ kind: 'price', pct: -22.5 }]);
+    const pending = rows.filter((c) => c.status === 'pending');
+    expect(pending.map((c) => [c.kind, c.blockKey, c.beforeText, c.afterText])).toEqual([['modified', 'div.price#0', 'AC tune-up $89', 'AC tune-up now $69']]);
+    expect(pending[0]?.flags).toContain('numeric');
+    expect(pending[0]?.numericChanges).toMatchObject([{ kind: 'price', pct: -22.5 }]);
+    expect(rows.filter((c) => c.status === 'suppressed')).toHaveLength(60);
+    expect(rows.filter((c) => c.status === 'suppressed').every((c) => c.flags?.includes('churn'))).toBe(true);
   });
 
   it('is idempotent: a re-delivered job writes nothing new', async () => {
@@ -154,5 +158,37 @@ describe('diffWebCapture (golden fixtures)', () => {
   it('refuses non-web captures', async () => {
     await dbs.service.insert(capture).values({ id: '00000000-0000-4000-8000-0000000000c9', competitorId: IDS.competitorX, source: 'google_ads', status: 'ok', collectorVersion: 'dfs/1' });
     await expect(diffWebCapture({ db: dbs.service, store: createMemoryStore(), ai: createFakeAi() }, '00000000-0000-4000-8000-0000000000c9')).rejects.toThrow(/not an ok web page/);
+  });
+});
+
+describe('churn guard (Phase 3d decision 16)', () => {
+  const rows = (texts: string[]) => texts.map((t) => `<p>${t}</p>`).join('');
+  const before = Array.from({ length: 24 }, (_, i) => `Our team has served Plano families for many years, paragraph number ${i} about comfort`);
+  const after = Array.from({ length: 24 }, (_, i) => `Brand new marketing copy written by an agency for spring, section ${i} talks quality`);
+
+  it('a full copy rewrite that keeps the DOM embeds and gates only the money change, and stores the rest as suppressed', async () => {
+    const { store, after: cap } = await twoCaptures(
+      htmlPage(rows([...before, 'AC tune-up only $89 per system'])),
+      htmlPage(rows([...after, 'AC tune-up only $69 per system'])),
+    );
+    const ai = createFakeAi();
+    const fallback = vi.fn(async () => []);
+    const r = await diffWebCapture({ db: dbs.service, store, ai }, cap, { factFallback: fallback });
+    expect(r.ran && r.result.suppressed).toBe(24);
+    expect(fallback).not.toHaveBeenCalled();
+    expect(ai.calls.embed.flat()).toEqual(['AC tune-up only $89 per system', 'AC tune-up only $69 per system']);
+    const all = await changes();
+    expect(all.filter((c) => c.status === 'pending').map((c) => c.afterText)).toEqual(['AC tune-up only $69 per system']);
+    expect(all.filter((c) => c.status === 'suppressed')).toHaveLength(24);
+    expect(all.find((c) => c.status === 'suppressed')?.flags).toEqual(['churn']);
+  }, 30000);
+
+  it('counts same-key rewrites as churn but not small edits', () => {
+    const b = (t: string, key: string) => ({ id: key, ord: 0, path: 'p', blockKey: key, text: t, textSha: t, embedding: null });
+    expect(churnCount([
+      { kind: 'modified', before: b('Fast friendly AC repair in Plano', 'p#0'), after: b('Fast friendly AC repair in Frisco', 'p#0') },
+      { kind: 'modified', before: b('Fast friendly AC repair in Plano', 'p#1'), after: b('Totally different words appear now', 'p#1') },
+      { kind: 'added', before: null, after: b('New block', 'p#2') },
+    ])).toBe(2);
   });
 });

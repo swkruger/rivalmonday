@@ -6,7 +6,7 @@ import { and, desc, eq, lt } from 'drizzle-orm';
 import { supersedePriorChanges } from '../events/retract';
 import { diffFacts, extractFacts, type FactExtractor, llmFactExtractor, MONEY_KINDS } from '../facts/numeric';
 import { runStage, type StageOutcome } from '../stage';
-import { type Alignment, alignBlocks } from './align';
+import { type Alignment, alignBlocks, MOVE_SIMILARITY, shapeSimilarity } from './align';
 import { ensureBlocks, loadBlocks, type StoredBlock } from './blocks';
 import { learnVolatileBlocks, maskedBlockKeys } from './volatile';
 
@@ -17,12 +17,14 @@ export const SEMANTIC_THRESHOLD = 0.95;
 /** Shorter added/removed blocks ("New!", "Menu") are noise unless they carry a number. */
 export const MIN_STRUCTURAL_CHARS = 20;
 /**
- * Whole-page churn guard: when added + removed blocks reach CHURN_RATIO of the larger capture and at
- * least CHURN_MIN_CANDIDATES changes pass the gate (a redesign or a half-rendered page), only money
- * changes are kept, so a single capture cannot fan out into hundreds of paid tag decisions.
+ * Whole-page churn guard: when churnCount() reaches CHURN_RATIO of the larger capture and at least
+ * CHURN_MIN_CANDIDATES (a redesign or a half-rendered page), only money changes go through the model
+ * (embedding + gating); everything else is stored as a 'suppressed' row instead of paid work.
  */
 export const CHURN_RATIO = 0.5;
 export const CHURN_MIN_CANDIDATES = 20;
+/** Cap on how many non-money changes a single churned capture writes as 'suppressed' rows. */
+export const CHURN_SUPPRESSED_MAX = 200;
 const PLATFORM = { agencyId: null, clientId: null } as const;
 
 export type ChangeFlag = 'semantic' | 'numeric' | 'structural' | 'masked';
@@ -38,6 +40,14 @@ export interface DiffResult {
   changeIds: string[];
   masked: number;
   newlyMasked: string[];
+  suppressed: number;
+}
+
+/** Added + removed blocks + same-key rewrites (shape similarity below MOVE_SIMILARITY): a cheap, model-free churn measure. */
+export function churnCount(alignments: Alignment<StoredBlock>[]): number {
+  return alignments.filter(
+    (a) => a.kind === 'added' || a.kind === 'removed' || (a.kind === 'modified' && shapeSimilarity(a.before!.text, a.after!.text) < MOVE_SIMILARITY),
+  ).length;
 }
 
 export function cosine(a: number[], b: number[]): number {
@@ -95,45 +105,66 @@ export async function diffWebCapture(deps: EngineDeps, captureId: string, opts: 
         .where(and(eq(capture.trackedPageId, pageId), eq(capture.source, 'web'), eq(capture.status, 'ok'), lt(capture.capturedAt, cap.capturedAt)))
         .orderBy(desc(capture.capturedAt))
         .limit(1);
-      if (!prev) return { prevId: null, candidates: [] as Candidate[], masked: 0, embedded: [] as StoredBlock[] };
+      if (!prev) return { prevId: null, candidates: [] as Candidate[], masked: 0, embedded: [] as StoredBlock[], suppressed: [] as { alignment: Alignment<StoredBlock>; numeric: NumericChange[] }[] };
       if ((await ensureBlocks(deps, prev.id)) === 'busy') throw new Error(`blocks of capture ${prev.id} are being extracted`);
 
       const [before, after, maskedKeys] = await Promise.all([loadBlocks(deps.db, prev.id), loadBlocks(deps.db, captureId), maskedBlockKeys(deps.db, pageId)]);
       const alignments = alignBlocks(before, after).filter((a) => a.kind !== 'unchanged');
 
-      // Embed (redacted) every involved block that has no stored embedding yet.
+      // Phase 3d decision 16: measure churn before any paid work. On a churned page numbers come from rules only
+      // (no LLM fallback), only money changes are embedded and gated, and everything else is kept as 'suppressed'.
+      const churned = churnCount(alignments);
+      const churn = churned >= CHURN_RATIO * Math.max(before.length, after.length) && churned >= CHURN_MIN_CANDIDATES;
+      const facts = (text: string) => extractFacts(text, churn ? undefined : fallback);
+      const withNumbers: { alignment: Alignment<StoredBlock>; numeric: NumericChange[] }[] = [];
+      for (const a of alignments) {
+        withNumbers.push({ alignment: a, numeric: diffFacts(a.before ? await facts(a.before.text) : [], a.after ? await facts(a.after.text) : []) });
+      }
+      const money = (n: NumericChange[]) => n.some((x) => MONEY_KINDS.has(x.kind));
+      const toGate = churn ? withNumbers.filter((w) => money(w.numeric)) : withNumbers;
+      const suppressed = churn ? withNumbers.filter((w) => !money(w.numeric)).slice(0, CHURN_SUPPRESSED_MAX) : [];
+      if (churn) {
+        console.warn(
+          `[engine] heavy churn on page ${pageId} (capture ${captureId} vs ${prev.id}): ${churned} churned of ${before.length}→${after.length} blocks; ` +
+            `gating ${toGate.length} money change(s), suppressing ${withNumbers.length - toGate.length}`,
+        );
+      }
+
+      // Embed (redacted) every block of the alignments we gate that has no stored embedding yet.
       const need = new Map<string, StoredBlock>();
-      for (const a of alignments) for (const b of [a.before, a.after]) if (b && !b.embedding) need.set(b.id, b);
+      for (const { alignment: a } of toGate) for (const b of [a.before, a.after]) if (b && !b.embedding) need.set(b.id, b);
       const embedded = [...need.values()];
       const { vectors } = await deps.ai.embed('embeddings', embedded.map((b) => redactForModel(b.text, { businessNames: [comp?.name] })), PLATFORM);
       embedded.forEach((b, i) => {
         b.embedding = vectors[i]!;
       });
 
-      let candidates: Candidate[] = [];
+      const candidates: Candidate[] = [];
       let masked = 0;
-      for (const a of alignments) {
-        const numeric = diffFacts(a.before ? await extractFacts(a.before.text, fallback) : [], a.after ? await extractFacts(a.after.text, fallback) : []);
+      for (const { alignment: a, numeric } of toGate) {
         const similarity = a.kind === 'modified' ? cosine(a.before!.embedding!, a.after!.embedding!) : null;
         const flags = gateChange(a, numeric, similarity, maskedKeys);
         if (flags) candidates.push({ alignment: a, numeric, similarity, flags });
         else if (a.kind === 'modified' && maskedKeys.has(a.before!.blockKey)) masked++;
       }
-      const structural = alignments.filter((a) => a.kind === 'added' || a.kind === 'removed').length;
-      if (structural >= CHURN_RATIO * Math.max(before.length, after.length) && candidates.length >= CHURN_MIN_CANDIDATES) {
-        const total = candidates.length;
-        candidates = candidates.filter((c) => c.numeric.some((n) => MONEY_KINDS.has(n.kind)));
-        console.warn(
-          `[engine] heavy churn on page ${pageId} (capture ${captureId} vs ${prev.id}): ${structural} added/removed of ${before.length}→${after.length} blocks; ` +
-            `kept ${candidates.length} money change(s) of ${total} candidates`,
-        );
-      }
-      return { prevId: prev.id, candidates, masked, embedded };
+      return { prevId: prev.id, candidates, masked, embedded, suppressed };
     },
     async (tx, c) => {
       await supersedePriorChanges(tx, { afterCaptureId: captureId, source: 'web' }, WEB_DIFF_VERSION);
       for (const b of c.embedded) await tx.update(captureBlock).set({ embedding: b.embedding }).where(eq(captureBlock.id, b.id));
-      if (c.candidates.length === 0) return { baseline: c.prevId === null, changeIds: [] as string[], masked: c.masked };
+      if (c.suppressed.length > 0) {
+        await tx
+          .insert(detectedChange)
+          .values(
+            c.suppressed.map(({ alignment: a, numeric }) => ({
+              competitorId: cap.competitorId, trackedPageId: pageId, source: 'web', kind: a.kind, beforeCaptureId: c.prevId, afterCaptureId: captureId,
+              blockKey: (a.after ?? a.before)!.blockKey, beforeText: a.before?.text ?? null, afterText: a.after?.text ?? null,
+              numericChanges: numeric, flags: ['churn'], status: 'suppressed', stageVersion: WEB_DIFF_VERSION,
+            })),
+          )
+          .onConflictDoNothing();
+      }
+      if (c.candidates.length === 0) return { baseline: c.prevId === null, changeIds: [] as string[], masked: c.masked, suppressed: c.suppressed.length };
       const rows = await tx
         .insert(detectedChange)
         .values(
@@ -145,7 +176,7 @@ export async function diffWebCapture(deps: EngineDeps, captureId: string, opts: 
         )
         .onConflictDoNothing()
         .returning({ id: detectedChange.id });
-      return { baseline: false, changeIds: rows.map((r) => r.id), masked: c.masked };
+      return { baseline: false, changeIds: rows.map((r) => r.id), masked: c.masked, suppressed: c.suppressed.length };
     },
   );
   if (!outcome.ran) return outcome;
