@@ -38,9 +38,27 @@ tasks:
 
   it('loads the shipped default config', async () => {
     const cfg = await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH);
-    for (const task of ['brief_writer', 'ask_assistant', 'value_extract', 'theme_discovery', 'llm_decisions', 'decisions', 'review_decisions', 'price_decisions']) {
+    for (const task of ['brief_writer', 'ask_assistant', 'value_extract', 'theme_discovery', 'llm_decisions', 'review_decisions', 'price_decisions']) {
       expect(cfg.tasks[task]).toBeDefined();
     }
     expect(cfg.tasks.embeddings).toMatchObject({ provider: 'openrouter', mode: 'embeddings', model: 'openai/text-embedding-3-small', dimensions: 512 });
+  });
+
+  it('gives every decision use its own Jev task escalating to llm_decisions, and no shared "decisions" task (Phase 3d)', async () => {
+    const cfg = await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH);
+    for (const name of ['tag_decisions', 'structured_decisions', 'merge_decisions', 'page_decisions', 'review_decisions', 'price_decisions']) {
+      const t = cfg.tasks[name];
+      expect(t?.provider, name).toBe('jev');
+      if (t?.provider === 'jev') expect(t.escalate_to, name).toBe('llm_decisions');
+    }
+    expect(cfg.tasks.decisions).toBeUndefined();
+  });
+
+  it('accepts an anthropic batch task and ships theme_discovery_batch (Phase 3d)', async () => {
+    const t = parseAiConfig('tasks:\n  b: { provider: anthropic, model: claude-sonnet-5, mode: batch, input_usd_per_mtok: 1, output_usd_per_mtok: 5 }').tasks.b;
+    expect(t).toMatchObject({ provider: 'anthropic', mode: 'batch', max_tokens: 8000 });
+    expect(() => parseAiConfig('tasks:\n  b: { provider: anthropic, model: m, mode: batch }')).toThrow();
+    const cfg = await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH);
+    expect(cfg.tasks.theme_discovery_batch).toMatchObject({ provider: 'anthropic', model: 'claude-sonnet-5', mode: 'batch' });
   });
 });

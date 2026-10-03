@@ -13,9 +13,16 @@ tasks:
   value_extract:   { provider: openrouter, model: anthropic/claude-haiku-4.5 }
   theme_discovery: { provider: openrouter, model: anthropic/claude-sonnet-5 }
   llm_decisions:   { provider: openrouter, model: anthropic/claude-haiku-4.5, mode: decisions }
-  decisions:       { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 } }
-  # Per-use decision tasks (Phase 3c) so each decision type can move to the LLM by config alone (spec §7.3).
-  review_decisions: { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 } }
-  price_decisions: { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 } }
+  # Per-use decision tasks (Phase 3c/3d): each decision type routes, escalates and is shadow-sampled on its own,
+  # so it can move to the LLM by config alone (spec §7.3). There is no shared "decisions" task.
+  tag_decisions:        { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
+  structured_decisions: { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
+  merge_decisions:      { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
+  page_decisions:       { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
+  review_decisions:     { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.02 }
+  price_decisions:      { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
   # Verified 2026-10-01: ZDR-compatible ($0.02/M tokens). voyageai/voyage-4-lite fails the ZDR policy.
   embeddings:      { provider: openrouter, model: openai/text-embedding-3-small, mode: embeddings, dimensions: 512 }
+  # Opt-in (Phase 3d decision 9): used only when ANTHROPIC_API_KEY is set; otherwise theme discovery stays on theme_discovery.
+  # Anthropic Message Batches: claude-sonnet-5 at batch prices ($2/$10 list → $1/$5 per MTok). Not OpenRouter ZDR-routed.
+  theme_discovery_batch: { provider: anthropic, model: claude-sonnet-5, mode: batch, max_tokens: 8000, input_usd_per_mtok: 1.0, output_usd_per_mtok: 5.0 }

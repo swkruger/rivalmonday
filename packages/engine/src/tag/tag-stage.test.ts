@@ -1,4 +1,4 @@
-import { capture, changeEvent, clientCompetitor, decisionReview, detectedChange, eventChange, stageRun, trackedPage } from '@cs/db';
+import { capture, changeEvent, clientCompetitor, decisionReview, decisionSample, detectedChange, eventChange, stageRun, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -47,6 +47,7 @@ describe('tagChange', () => {
     expect(ev?.facts).toHaveLength(1);
     expect(await dbs.owner.select().from(eventChange)).toEqual([{ eventId: ev!.id, changeId: id }]);
     expect(await statusOf(id)).toBe('event');
+    expect(ai.calls.decide.map((c) => c.task)).toEqual(['tag_decisions']);
   });
 
   it('flags a web change as an offer only for a promo, a price cut or a newly added price — never a price rise', async () => {
@@ -92,6 +93,14 @@ describe('tagChange', () => {
     expect(await dbs.owner.select().from(decisionReview)).toMatchObject([{ subjectType: 'detected_change', subjectId: id, keys: ['change_type'] }]);
   });
 
+  it('links the decision_review row to the decision sample (Phase 3d)', async () => {
+    const id = await change(null, 'Now offering heat pump installs across Collin County', 'added');
+    const [s] = await dbs.service.insert(decisionSample).values({ task: 'tag_decisions', reason: 'review', state: {}, questions: {}, final: {} }).returning({ id: decisionSample.id });
+    await tagChange({ db: dbs.service, ai: createFakeAi({ decide: tagResult({ meaningful: true, type: 'new_service', confidence: 0.6, needsReview: ['change_type'], sampleId: s!.id }) }), packs }, id);
+    const [r] = await dbs.owner.select().from(decisionReview);
+    expect(r?.sampleId).toBe(s!.id);
+  });
+
   it('queues a dismissed low-confidence change for review without creating an event', async () => {
     const id = await change('Call us today', 'Call us now');
     const ai = createFakeAi({ decide: tagResult({ meaningful: false, type: 'cosmetic', confidence: 0.6, needsReview: ['meaningful'] }) });
@@ -109,6 +118,33 @@ describe('tagChange', () => {
     expect((await dbs.owner.select().from(stageRun).where(eq(stageRun.subjectId, id)))[0]).toMatchObject({ stage: 'tag', status: 'failed' });
     await tagChange({ db: dbs.service, ai: createFakeAi({ decide: tagResult({ meaningful: true, type: 'price_change' }) }), packs }, id);
     expect(await statusOf(id)).toBe('event');
+  });
+
+  it('writes nothing when a newer diff supersedes the change while the model is deciding', async () => {
+    const id = await change('AC Tune-Up $89', 'AC Tune-Up $69');
+    const decide = tagResult({ meaningful: true, type: 'price_change', confidence: 0.4, needsReview: ['change_type'] });
+    const ai = createFakeAi({
+      decide: async (state, questions) => {
+        await dbs.service.update(detectedChange).set({ status: 'superseded' }).where(eq(detectedChange.id, id));
+        return decide(state, questions);
+      },
+    });
+    expect(await tagChange({ db: dbs.service, ai, packs }, id)).toMatchObject({ ran: true, result: { eventId: null, merged: false } });
+    expect(await dbs.owner.select().from(changeEvent)).toEqual([]);
+    expect(await dbs.owner.select().from(decisionReview)).toEqual([]);
+    expect(await statusOf(id)).toBe('superseded');
+  });
+
+  it('keeps a superseded change superseded when a dismissed decision commits late', async () => {
+    const id = await change('Call us today', 'Call us now');
+    const ai = createFakeAi({
+      decide: async (state, questions) => {
+        await dbs.service.update(detectedChange).set({ status: 'superseded' }).where(eq(detectedChange.id, id));
+        return tagResult({ meaningful: false, type: 'cosmetic' })(state, questions);
+      },
+    });
+    await tagChange({ db: dbs.service, ai, packs }, id);
+    expect(await statusOf(id)).toBe('superseded');
   });
 
   it('is idempotent', async () => {

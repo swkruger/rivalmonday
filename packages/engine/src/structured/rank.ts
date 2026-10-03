@@ -1,5 +1,6 @@
 import { clientCompetitor, competitor, type Db, detectedChange, type RankResult, rankScan, rankSnapshot } from '@cs/db';
 import { and, desc, eq, lt } from 'drizzle-orm';
+import { supersedePriorChanges } from '../events/retract';
 import { runStage, type StageOutcome } from '../stage';
 
 export const RANK_DIFF_STAGE = 'rank_diff';
@@ -87,6 +88,7 @@ export async function diffRankScan(deps: { db: Db }, scanId: string): Promise<St
       return { baseline: false, rows };
     },
     async (tx, { baseline, rows }) => {
+      await supersedePriorChanges(tx, { rankScanId: scanId }, RANK_DIFF_VERSION);
       if (rows.length === 0) return { baseline, changeIds: [] as string[] };
       const inserted = await tx.insert(detectedChange).values(rows).onConflictDoNothing().returning({ id: detectedChange.id });
       return { baseline, changeIds: inserted.map((r) => r.id) };

@@ -1,0 +1,2 @@
+ALTER TABLE "volatile_block" ADD COLUMN "key_capture_id" uuid;--> statement-breakpoint
+ALTER TABLE "volatile_block" ADD CONSTRAINT "volatile_block_key_capture_id_capture_id_fk" FOREIGN KEY ("key_capture_id") REFERENCES "public"."capture"("id") ON DELETE no action ON UPDATE no action;

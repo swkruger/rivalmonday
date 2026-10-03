@@ -1,4 +1,4 @@
-import type { AccessContext } from '@cs/core';
+import { canManageCompetitors, type AccessContext, ToolError } from '@cs/core';
 import { client, clientCompetitor, competitor, competitorSuggestion, type Db, withTenant } from '@cs/db';
 import { and, eq, isNull } from 'drizzle-orm';
 import { ensureCompetitorSources } from '../sources/ensure';
@@ -31,6 +31,7 @@ export async function findExistingCompetitor(
 
 /** Visibility is checked through RLS as the caller; the global competitor is written by the service role. */
 export async function acceptSuggestion(deps: { service: Db; app: Db }, ctx: AccessContext, suggestionId: string): Promise<{ competitorId: string }> {
+  if (!canManageCompetitors(ctx)) throw new ToolError('permission_denied', 'This role may not manage competitors');
   const [s] = await withTenant(deps.app, ctx, (tx) => tx.select().from(competitorSuggestion).where(eq(competitorSuggestion.id, suggestionId)).limit(1));
   if (!s) throw new Error('Suggestion not found');
 

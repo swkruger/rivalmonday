@@ -10,6 +10,7 @@ import { createBoss, enqueue, registerJobs } from './boss';
 import { createWorkerDeps } from './deps';
 import { createEngineJobs } from './jobs/engine';
 import { heartbeatJob } from './jobs/heartbeat';
+import { createModelOpsJobs } from './jobs/model-ops';
 import { createMovesJobs } from './jobs/moves';
 import { createReviewJobs } from './jobs/reviews';
 import { createVendorJobs } from './jobs/vendor';
@@ -67,9 +68,11 @@ const moves = createMovesJobs(deps, {
   },
 });
 const reviews = createReviewJobs(deps);
+const modelOps = createModelOpsJobs(deps);
 await registerJobs(boss, [
   heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, vendor.suggest,
   engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.price, reviews.nightly, moves.nightly, moves.client,
+  modelOps.batchPoll,
 ]);
 console.log('[worker] started');
 

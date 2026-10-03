@@ -1,4 +1,5 @@
-import type { CallScope, LedgerSink, LlmCallRecord } from '@cs/core';
+import type { CallScope, DecisionSampleSink, LedgerSink, LlmCallRecord } from '@cs/core';
+import type { BatchItemResult, BatchProvider, BatchRequest } from './anthropic-batch';
 import type { ChatMessage, ChatProvider, ChatResult, JsonSchemaFormat } from './chat';
 import type { AiConfig, ConfidenceThresholds, TaskConfig } from './config';
 import { CascadingDecisionProvider, type DecisionResult } from './decisions/cascade';
@@ -22,6 +23,9 @@ export interface Ai {
   chat(task: string, input: { messages: ChatMessage[]; jsonSchema?: JsonSchemaFormat }, scope: CallScope): Promise<ChatResult>;
   decide<K extends string>(task: string, state: unknown, questions: Record<K, DecisionQuestion>, scope: CallScope): Promise<DecisionResult<K>>;
   embed(task: string, texts: string[], scope: CallScope): Promise<EmbeddingResult>;
+  batchAvailable(task: string): boolean;
+  submitBatch(task: string, requests: BatchRequest[], scope: CallScope): Promise<string>;
+  collectBatch(task: string, batchId: string, scope: CallScope): Promise<{ status: 'in_progress' } | { status: 'ended'; results: BatchItemResult[] }>;
 }
 
 export interface AiDeps {
@@ -31,10 +35,36 @@ export interface AiDeps {
   embeddings?: EmbeddingProvider;
   ledger: LedgerSink;
   now?: () => number;
+  /** Where shadow samples and still-needs-review decisions are kept (spec §7.3). Without it nothing is sampled. */
+  samples?: DecisionSampleSink;
+  /** Uniform [0, 1) source for shadow sampling (tests inject a fixed value). */
+  random?: () => number;
+  /** Replaces every task's shadow_rate (AI_SHADOW_RATE, for a measurement run). */
+  shadowRateOverride?: number;
+  /** Anthropic Message Batches; null/absent when ANTHROPIC_API_KEY is not set (batch tasks are then unavailable). */
+  batch?: BatchProvider | null;
 }
 
 export function createAi(config: AiConfig, deps: AiDeps): Ai {
   const now = deps.now ?? Date.now;
+  const random = deps.random ?? Math.random;
+
+  /** Best-effort: a failed sample write is logged and never changes the decision. */
+  async function keepSample<K extends string>(
+    name: string, scope: CallScope, state: unknown, questions: Record<K, DecisionQuestion>, result: DecisionResult<K>, sampled: boolean,
+  ): Promise<DecisionResult<K>> {
+    if (!deps.samples || (!sampled && result.needsReview.length === 0)) return result;
+    try {
+      const sampleId = await deps.samples.recordDecisionSample({
+        ...scope, task: name, reason: sampled ? 'shadow' : 'review', state, questions,
+        primary: result.trace?.primary ?? null, fallback: result.trace?.fallback ?? null, final: result.answers, needsReview: result.needsReview,
+      });
+      return { ...result, sampleId };
+    } catch (err) {
+      console.error('[ai] decision sample write failed', err);
+      return { ...result, sampleId: null };
+    }
+  }
 
   function task(name: string): TaskConfig {
     const t = config.tasks[name];
@@ -67,10 +97,10 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
     };
   }
 
-  function llmDecisions(name: string, scope: CallScope): DecisionProvider {
+  function llmDecisions(name: string, scope: CallScope, ledgerTask = name): DecisionProvider {
     const t = task(name);
     if (t.provider !== 'openrouter' || t.mode !== 'decisions') throw new Error(`Task ${name} is not a decision task`);
-    return recording(createLlmDecisionProvider(deps.openrouter, { model: t.model, fallbacks: t.fallbacks }), name, scope, t.model);
+    return recording(createLlmDecisionProvider(deps.openrouter, { model: t.model, fallbacks: t.fallbacks }), ledgerTask, scope, t.model);
   }
 
   return {
@@ -103,10 +133,13 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
       let primary: DecisionProvider;
       let fallback: DecisionProvider | null = null;
       let thresholds: ConfidenceThresholds = { default: 0 };
+      let rate = 0;
 
       if (t.provider === 'jev') {
         thresholds = t.min_confidence;
-        const escalation = t.escalate_to ? llmDecisions(t.escalate_to, scope) : null;
+        rate = deps.shadowRateOverride ?? t.shadow_rate;
+        const sampled = deps.samples !== undefined && deps.jev !== null && t.escalate_to !== undefined && rate > 0 && random() < rate;
+        const escalation = t.escalate_to ? llmDecisions(t.escalate_to, scope, sampled ? `${t.escalate_to}:shadow` : t.escalate_to) : null;
         if (deps.jev) {
           primary = recording(deps.jev(t.model), name, scope, t.model);
           fallback = escalation;
@@ -115,10 +148,12 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
         } else {
           throw new Error(`Task ${name} needs Jev but TYPESAFE_API_KEY is not configured`);
         }
-      } else {
-        primary = llmDecisions(name, scope);
+        const result = await new CascadingDecisionProvider(primary, fallback, thresholds).decide(state, questions, { shadow: sampled });
+        return keepSample(name, scope, state, questions, result, sampled);
       }
-      return new CascadingDecisionProvider(primary, fallback, thresholds).decide(state, questions);
+      primary = llmDecisions(name, scope);
+      const result = await new CascadingDecisionProvider(primary, null, thresholds).decide(state, questions);
+      return keepSample(name, scope, state, questions, result, false);
     },
 
     async embed(name, texts, scope) {
@@ -153,6 +188,34 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
         model = r.model;
       }
       return { vectors, model, inputTokens, costUsd };
+    },
+
+    batchAvailable(name) {
+      const t = config.tasks[name];
+      return t?.provider === 'anthropic' && Boolean(deps.batch);
+    },
+
+    async submitBatch(name, requests, _scope) {
+      const t = task(name);
+      if (t.provider !== 'anthropic') throw new Error(`Task ${name} is not a batch task`);
+      if (!deps.batch) throw new Error(`Task ${name} needs ANTHROPIC_API_KEY`);
+      return deps.batch.submit({ model: t.model, maxTokens: t.max_tokens, requests });
+    },
+
+    /** Usage is ledgered when results are collected (one row per request), at the task's batch prices. */
+    async collectBatch(name, batchId, scope) {
+      const t = task(name);
+      if (t.provider !== 'anthropic') throw new Error(`Task ${name} is not a batch task`);
+      if (!deps.batch) throw new Error(`Task ${name} needs ANTHROPIC_API_KEY`);
+      if ((await deps.batch.status(batchId)) !== 'ended') return { status: 'in_progress' };
+      const results = await deps.batch.results(batchId);
+      for (const r of results) {
+        await safeRecord(deps.ledger, r.ok
+          ? { ...scope, task: name, provider: deps.batch.id, model: r.model, inputTokens: r.inputTokens, outputTokens: r.outputTokens,
+              costUsd: (r.inputTokens * t.input_usd_per_mtok + r.outputTokens * t.output_usd_per_mtok) / 1_000_000, latencyMs: 0, ok: true }
+          : { ...scope, task: name, provider: deps.batch.id, model: t.model, inputTokens: 0, outputTokens: 0, costUsd: null, latencyMs: 0, ok: false });
+      }
+      return { status: 'ended', results };
     },
   };
 }

@@ -75,6 +75,11 @@ export function noveltyFactor(maxSimilarity: number | null, pack: VerticalPack):
   return clamp((1 - maxSimilarity) / (1 - floor), 0, 1);
 }
 
+/** Phase 3d decision 13: numbers, 0 ≤ brief < alert ≤ 100 (the DB CHECK enforces the same on client rows). */
+export function validThresholds(t: ScoreThresholds | null | undefined): t is ScoreThresholds {
+  return !!t && Number.isFinite(t.alert) && Number.isFinite(t.brief) && t.brief >= 0 && t.alert <= 100 && t.brief < t.alert;
+}
+
 export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: VerticalPack): { score: number; route: Route; factors: ScoreFactors } {
   const typeWeight = pack.type_weights[input.changeType];
   const size = sizeFactor(input, pack);
@@ -83,7 +88,8 @@ export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: 
   const relevance = svc * territory;
   const novelty = noveltyFactor(input.maxSimilarity, pack);
   const score = Math.round(100 * typeWeight * size * relevance * novelty * 10) / 10;
-  const thresholds = profile.thresholds ?? pack.scoring.routing;
+  if (profile.thresholds && !validThresholds(profile.thresholds)) console.warn('[engine] invalid client score thresholds; using the pack routing', profile.thresholds);
+  const thresholds = validThresholds(profile.thresholds) ? profile.thresholds : pack.scoring.routing;
   let route: Route = score >= thresholds.alert ? 'alert' : score >= thresholds.brief ? 'brief' : 'archive';
   const needsReviewCap = input.needsReview && route === 'alert';
   if (needsReviewCap) route = 'brief';

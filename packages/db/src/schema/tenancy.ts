@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { type AnyPgColumn, foreignKey, index, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { type AnyPgColumn, check, foreignKey, index, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
@@ -46,6 +46,17 @@ export const client = pgTable(
     // enforces that a client_competitor row's agency_id matches its client's real agency —
     // RLS alone can't catch a cross-tenant client_id since FK checks run as the table owner.
     unique('client_id_agency_id_unique').on(t.id, t.agencyId),
+    // Phase 3d decision 13: numbers, 0 ≤ brief < alert ≤ 100. The `?` key-existence checks come first so a
+    // missing key makes the AND chain FALSE outright — without them, jsonb_typeof/->> on an absent key
+    // yields NULL, and NULL inside this OR is silently treated as "satisfies the check" by Postgres.
+    check(
+      'client_score_thresholds_check',
+      sql`score_thresholds IS NULL OR (
+        (score_thresholds ? 'alert') AND (score_thresholds ? 'brief')
+        AND jsonb_typeof(score_thresholds->'alert') = 'number' AND jsonb_typeof(score_thresholds->'brief') = 'number'
+        AND (score_thresholds->>'brief')::numeric >= 0 AND (score_thresholds->>'alert')::numeric <= 100
+        AND (score_thresholds->>'brief')::numeric < (score_thresholds->>'alert')::numeric)`,
+    ),
   ],
 );
 

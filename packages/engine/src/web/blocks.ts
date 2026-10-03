@@ -35,11 +35,12 @@ export async function ensureBlocks(deps: { db: Db; store: ObjectStore }, capture
       return { competitorId: row.c.competitorId, trackedPageId: row.c.trackedPageId, blocks: extractBlocks(new TextDecoder().decode(gunzipSync(gz))) };
     },
     async (tx, c) => {
+      // A newer EXTRACTOR_VERSION re-extracts: drop the old version's blocks (their embeddings are recomputed on the next diff).
+      await tx.delete(captureBlock).where(eq(captureBlock.captureId, captureId));
       if (c.blocks.length === 0) return;
       await tx
         .insert(captureBlock)
-        .values(c.blocks.map((b) => ({ captureId, competitorId: c.competitorId, trackedPageId: c.trackedPageId, ord: b.ord, blockKey: b.blockKey, path: b.path, text: b.text, textSha: sha256Hex(b.text) })))
-        .onConflictDoNothing();
+        .values(c.blocks.map((b) => ({ captureId, competitorId: c.competitorId, trackedPageId: c.trackedPageId, ord: b.ord, blockKey: b.blockKey, path: b.path, text: b.text, textSha: sha256Hex(b.text) })));
     },
   );
   if (r.ran) return 'extracted';

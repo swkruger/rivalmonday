@@ -1,18 +1,21 @@
 import type { Ai } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
 import {
-  capture, captureBlock, client, clientCompetitor, competitor, type Db, decisionReview, detectedChange, type NumericChange, trackedPage,
+  capture, captureBlock, changeEvent, client, clientCompetitor, competitor, type Db, decisionReview, detectedChange, type NumericChange, trackedPage,
 } from '@cs/db';
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { and, eq } from 'drizzle-orm';
 import { MONEY_KINDS } from '../facts/numeric';
+import { extractZips } from '../geo/zips';
 import { findMergeTarget, writeEvent } from '../merge/merge';
 import { runStage, type StageOutcome } from '../stage';
-import { buildTagQuestions, buildTagState, resolveTag } from './questions';
+import { buildTagQuestions, buildTagState, resolveTag, type TagResolution } from './questions';
 import { tagStructuredChange } from './structured';
 
 export const TAG_STAGE = 'tag';
 export const TAG_VERSION = 1;
+/** ai.yaml task for web-change tagging decisions (Phase 3d: one task per decision use). */
+export const TAG_DECISION_TASK = 'tag_decisions';
 const PLATFORM = { agencyId: null, clientId: null } as const;
 
 export interface TagOutcome {
@@ -49,10 +52,7 @@ export async function competitorVerticals(db: Db, competitorId: string): Promise
   return [...new Set([...tracked, ...own].map((r) => r.verticalId))].sort();
 }
 
-/** US ZIP codes in text; not part of a longer number, a price or a phone number. */
-export function extractZips(text: string): string[] {
-  return [...new Set([...text.matchAll(/(?<![\d$,.-])\b\d{5}\b(?![\d,.-])/g)].map((m) => m[0]))];
-}
+export { extractZips } from '../geo/zips';
 
 /**
  * A web change is an offer (feeds promo blitz / price war) when it is a promo, cuts a price or percent, or
@@ -94,6 +94,49 @@ export function buildSummary(
   return `${prefix}"${trunc(beforeText ?? '', 80)}" → "${trunc(afterText ?? '', 80)}"`;
 }
 
+export interface WebChangeRow {
+  change: typeof detectedChange.$inferSelect;
+  competitorName: string;
+  pageUrl: string | null;
+  pageType: string | null;
+  capturedAt: Date;
+}
+
+export async function loadWebChange(db: Db, changeId: string): Promise<WebChangeRow | undefined> {
+  const [row] = await db
+    .select({ change: detectedChange, competitorName: competitor.name, pageUrl: trackedPage.url, pageType: trackedPage.pageType, capturedAt: capture.capturedAt })
+    .from(detectedChange)
+    .innerJoin(competitor, eq(competitor.id, detectedChange.competitorId))
+    .innerJoin(capture, eq(capture.id, detectedChange.afterCaptureId))
+    .leftJoin(trackedPage, eq(trackedPage.id, detectedChange.trackedPageId))
+    .where(eq(detectedChange.id, changeId))
+    .limit(1);
+  return row;
+}
+
+/** The embedding of the change's block (the before block for a removal), stored by the diff stage. */
+export async function blockEmbedding(db: Db, change: typeof detectedChange.$inferSelect): Promise<number[] | null> {
+  const blockCapture = change.kind === 'removed' ? change.beforeCaptureId : change.afterCaptureId;
+  if (!blockCapture || !change.blockKey) return null;
+  const [blk] = await db
+    .select({ embedding: captureBlock.embedding })
+    .from(captureBlock)
+    .where(and(eq(captureBlock.captureId, blockCapture), eq(captureBlock.blockKey, change.blockKey)))
+    .limit(1);
+  return blk?.embedding ?? null;
+}
+
+/** Event values of a meaningful web change (shared by the tag stage and decision-review resolution). */
+export function webEventValues(row: WebChangeRow, resolution: TagResolution, embedding: number[] | null): typeof changeEvent.$inferInsert {
+  const c = row.change;
+  return {
+    competitorId: c.competitorId, changeType: resolution.type, channels: ['web'], services: resolution.services,
+    summary: buildSummary(c, row.pageUrl, [row.competitorName]), facts: redactFacts(c.numericChanges, [row.competitorName]),
+    details: { offer: isWebOffer(resolution.type, c.numericChanges) }, zips: extractZips(c.afterText ?? c.beforeText ?? ''), embedding,
+    confidence: resolution.confidence, needsReview: resolution.needsReview.length > 0, occurredAt: row.capturedAt,
+  };
+}
+
 export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, changeId: string): Promise<StageOutcome<TagOutcome>> {
   const [head] = await deps.db.select({ source: detectedChange.source }).from(detectedChange).where(eq(detectedChange.id, changeId)).limit(1);
   if (!head) throw new Error(`detected_change ${changeId} not found`);
@@ -102,66 +145,42 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
     deps.db,
     { stage: TAG_STAGE, version: TAG_VERSION, subjectId: changeId },
     async () => {
-      const [row] = await deps.db
-        .select({ change: detectedChange, competitorName: competitor.name, pageUrl: trackedPage.url, pageType: trackedPage.pageType, capturedAt: capture.capturedAt })
-        .from(detectedChange)
-        .innerJoin(competitor, eq(competitor.id, detectedChange.competitorId))
-        .innerJoin(capture, eq(capture.id, detectedChange.afterCaptureId))
-        .leftJoin(trackedPage, eq(trackedPage.id, detectedChange.trackedPageId))
-        .where(eq(detectedChange.id, changeId))
-        .limit(1);
+      const row = await loadWebChange(deps.db, changeId);
       if (!row) throw new Error(`detected_change ${changeId} not found`);
-      if (row.change.status !== 'pending') return { row, resolution: null, answers: null, embedding: null, summary: '', target: null };
+      if (row.change.status !== 'pending') return { row, resolution: null, answers: null, embedding: null, target: null, sampleId: null };
 
       const packs = await Promise.all((await competitorVerticals(deps.db, row.change.competitorId)).map(deps.packs));
       const state = buildTagState({
         competitorName: row.competitorName, pageUrl: row.pageUrl, pageType: row.pageType, kind: row.change.kind,
         beforeText: row.change.beforeText, afterText: row.change.afterText, numericChanges: row.change.numericChanges,
       });
-      const result = await deps.ai.decide('decisions', state, buildTagQuestions(packs), PLATFORM);
+      const result = await deps.ai.decide(TAG_DECISION_TASK, state, buildTagQuestions(packs), PLATFORM);
       const resolution = resolveTag(row.change.numericChanges, result, packs);
 
-      const blockCapture = row.change.kind === 'removed' ? row.change.beforeCaptureId : row.change.afterCaptureId;
-      let embedding: number[] | null = null;
-      if (blockCapture && row.change.blockKey) {
-        const [blk] = await deps.db
-          .select({ embedding: captureBlock.embedding })
-          .from(captureBlock)
-          .where(and(eq(captureBlock.captureId, blockCapture), eq(captureBlock.blockKey, row.change.blockKey)))
-          .limit(1);
-        embedding = blk?.embedding ?? null;
-      }
-      const summary = buildSummary(row.change, row.pageUrl, [row.competitorName]);
+      const embedding = await blockEmbedding(deps.db, row.change);
       const target = resolution.meaningful
         ? await findMergeTarget(deps, {
             competitorId: row.change.competitorId, clientId: null, captureId: row.change.afterCaptureId, changeType: resolution.type, services: resolution.services, facts: row.change.numericChanges,
             embedding, occurredAt: row.capturedAt, text: row.change.afterText ?? row.change.beforeText ?? '', businessNames: [row.competitorName],
           })
         : null;
-      return { row, resolution, answers: result.answers as Record<string, unknown>, embedding, summary, target };
+      return { row, resolution, answers: result.answers as Record<string, unknown>, embedding, target, sampleId: result.sampleId ?? null };
     },
-    async (tx, { row, resolution, answers, embedding, summary, target }) => {
+    async (tx, { row, resolution, answers, embedding, target, sampleId }) => {
       if (!resolution) return { eventId: null, merged: false };
+      // Claim the transition first: a diff at a stage-version bump may have superseded the change while the model ran.
+      const [claimed] = await tx
+        .update(detectedChange)
+        .set({ status: resolution.meaningful ? 'event' : 'cosmetic' })
+        .where(and(eq(detectedChange.id, changeId), eq(detectedChange.status, 'pending')))
+        .returning({ id: detectedChange.id });
+      if (!claimed) return { eventId: null, merged: false };
       // Low-confidence answers still reach the AM review queue (spec §7.3), whether or not they produced an event.
       if (resolution.needsReview.length > 0) {
-        await tx.insert(decisionReview).values({ subjectType: 'detected_change', subjectId: changeId, keys: resolution.needsReview, answers: answers ?? {} });
+        await tx.insert(decisionReview).values({ subjectType: 'detected_change', subjectId: changeId, keys: resolution.needsReview, answers: answers ?? {}, sampleId });
       }
-      if (!resolution.meaningful) {
-        await tx.update(detectedChange).set({ status: 'cosmetic' }).where(eq(detectedChange.id, changeId));
-        return { eventId: null, merged: false };
-      }
-      const eventId = await writeEvent(
-        tx,
-        changeId,
-        {
-          competitorId: row.change.competitorId, changeType: resolution.type, channels: ['web'], services: resolution.services, summary,
-          facts: redactFacts(row.change.numericChanges, [row.competitorName]), details: { offer: isWebOffer(resolution.type, row.change.numericChanges) },
-          zips: extractZips(row.change.afterText ?? row.change.beforeText ?? ''), embedding, confidence: resolution.confidence,
-          needsReview: resolution.needsReview.length > 0, occurredAt: row.capturedAt,
-        },
-        target,
-      );
-      await tx.update(detectedChange).set({ status: 'event' }).where(eq(detectedChange.id, changeId));
+      if (!resolution.meaningful) return { eventId: null, merged: false };
+      const eventId = await writeEvent(tx, changeId, webEventValues(row, resolution, embedding), target);
       return { eventId, merged: target !== null };
     },
   );

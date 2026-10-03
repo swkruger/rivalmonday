@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 
-export const EXTRACTOR_VERSION = 1;
+export const EXTRACTOR_VERSION = 2; // 2: camelCase/compound consent tokens (Phase 3d)
 export const MAX_BLOCKS = 400;
 export const MAX_BLOCK_CHARS = 2000;
 
@@ -20,7 +20,13 @@ const NOISE = [
  * word ("cookie-notice", "cc-window", "truste-consent-track"), never a bare substring ("trusted-by",
  * "cmp-container" stay).
  */
-const CONSENT_SEGMENT = /(?:^|[-_])(?:cookies?|consent|gdpr|ccpa|onetrust|cookiebot|truste|cc-window)(?:$|[-_])/i;
+const CONSENT_SEGMENT =
+  /(?:^|[-_])(?:cookies?|consent|gdpr|ccpa|onetrust|cookiebot|truste|cc-window|cookiebanner|cookiebar|cookienotice|cookieconsent|cmplz)(?:$|[-_])/i;
+
+/** "CookieLawInfo" → "cookie-law-info", "cookieBar" → "cookie-bar": camelCase boundaries become segment breaks. */
+export function consentTokens(token: string): string {
+  return token.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+}
 /** Vendor banner ids matched outright, even on a near-empty page (the wrapper guard does not apply). */
 const CONSENT_VENDOR_IDS = new Set(['onetrust-banner-sdk', 'onetrust-consent-sdk', 'cybotcookiebotdialog']);
 /** The consent filter never removes these: they are the page, not a banner. */
@@ -76,7 +82,7 @@ function removeConsentBanners($: cheerio.CheerioAPI): void {
       return;
     }
     const tokens = [id, ...($el.attr('class') ?? '').split(/\s+/)].filter(Boolean);
-    if (!tokens.some((t) => CONSENT_SEGMENT.test(t))) return;
+    if (!tokens.some((t) => CONSENT_SEGMENT.test(consentTokens(t)))) return;
     // An element holding more than half of the page's text is a wrapper, not a banner.
     if (textLength(node) > bodyLength / 2) return;
     $el.remove();

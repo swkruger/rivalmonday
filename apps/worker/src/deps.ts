@@ -6,11 +6,11 @@ import {
   scanRankings, type SourceKind, suggestCompetitors,
 } from '@cs/collectors';
 import type { CaptureStatus } from '@cs/core';
-import { client, competitor, createDb, createLedgerSink, type Db } from '@cs/db';
+import { client, competitor, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import {
-  analyzeReview as runAnalyzeReview, createPackLoader, diffCapture, diffRankScan, type EngineWork, extractPrices as runExtractPrices, findEngineWork,
-  listMoveClients, type MovesRunResult, type ReviewInsightsResult, runReviewInsights, scoreEvent as runScoreStage, tagChange as runTagStage,
-  updateMovesForClient,
+  analyzeReview as runAnalyzeReview, type BatchCollectResult, collectModelBatches, createPackLoader, diffCapture, diffRankScan, type EngineWork,
+  extractPrices as runExtractPrices, findEngineWork, listMoveClients, type MovesRunResult, type ReviewInsightsResult, runReviewInsights,
+  scoreEvent as runScoreStage, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
@@ -27,6 +27,7 @@ export interface WorkerDeps {
   analyzeReview(reviewId: string): Promise<{ ran: boolean }>;
   extractPrices(captureId: string): Promise<{ ran: boolean; points: number; ended: number }>;
   runReviewInsights(): Promise<ReviewInsightsResult>;
+  collectModelBatches(): Promise<BatchCollectResult>;
   diffRankScan(scanId: string): Promise<{ ran: boolean; changeIds: string[] }>;
   updateMoves(clientId: string): Promise<MovesRunResult>;
   listMoveClients(): Promise<string[]>;
@@ -107,7 +108,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
   // whole lifetime): clear it so the next discoverPages call retries instead of replaying the same failure.
   const getAi = () =>
     (ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH)
-      .then((cfg) => createAiFromEnv(env, cfg, createLedgerSink(getDb())))
+      .then((cfg) => createAiFromEnv(env, cfg, createLedgerSink(getDb()), createDecisionSampleSink(getDb())))
       .catch((err) => {
         ai = null;
         throw err;
@@ -139,6 +140,9 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     async runReviewInsights() {
       return runReviewInsights({ db: getDb(), ai: await getAi(), packs });
     },
+    async collectModelBatches() {
+      return collectModelBatches({ db: getDb(), ai: await getAi() });
+    },
     async diffRankScan(scanId) {
       const r = await diffRankScan({ db: getDb() }, scanId);
       return r.ran ? { ran: true, changeIds: r.result.changeIds } : { ran: false, changeIds: [] };
@@ -148,7 +152,10 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     async discoverPages(competitorId) {
       const [c] = await getDb().select().from(competitor).where(eq(competitor.id, competitorId)).limit(1);
       if (!c?.domain) return { skipped: 'competitor has no domain' };
-      return discoverPages({ db: getDb(), renderer: getRenderer(), robots, fetchText: defaultFetchText, limiter, ai: await getAi() }, { id: c.id, domain: c.domain });
+      return discoverPages(
+        { db: getDb(), store: getStore(), renderer: getRenderer(), robots, fetchText: defaultFetchText, limiter, ai: await getAi() },
+        { id: c.id, domain: c.domain, name: c.name },
+      );
     },
     vendorsConfigured: () => Boolean(env.DATAFORSEO_LOGIN && env.DATAFORSEO_PASSWORD),
     ensureSelfCompetitors: () => ensureSelfCompetitors(getDb()),

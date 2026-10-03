@@ -55,4 +55,22 @@ describe('pricesInBlock', () => {
     expect(amounts('$89 off this month. Tune-up $89.')).toEqual([[89, 'USD', 'exact', false]]);
     expect(amounts('Save $89 today. Our tune-up is $89.')).toEqual([[89, 'USD', 'exact', true]]);
   });
+
+  it('keeps off-season / off peak / off-hours prices; still drops "$50 off" (3c carry-over)', () => {
+    expect(pricesInBlock('AC tune-up $79 off-season special').map((p) => p.amount)).toEqual([79]);
+    expect(pricesInBlock('Furnace check $99 off peak').map((p) => p.amount)).toEqual([99]);
+    expect(pricesInBlock('Emergency visit $149 off-hours').map((p) => p.amount)).toEqual([149]);
+    expect(pricesInBlock('$50 off any repair')).toEqual([]);
+    expect(pricesInBlock('$50-off any repair')).toEqual([]);
+  });
+
+  it('drops the superseded half of "was $X now $Y", but keeps a lone superseded price (3c carry-over)', () => {
+    expect(pricesInBlock('AC tune-up: was $129, now $99').map((p) => p.amount)).toEqual([99]);
+    expect(pricesInBlock('Reg. $150 — today only $120').map((p) => p.amount)).toEqual([120]);
+    expect(pricesInBlock('Regularly $200, sale price $150').map((p) => p.amount)).toEqual([150]);
+    expect(pricesInBlock('Originally $90').map((p) => p.amount)).toEqual([90]);
+    expect(pricesInBlock('Furnace tune-up normally $89').map((p) => p.amount)).toEqual([89]);
+    expect(pricesInBlock('Fall Maintenance Plan Reg: $89').map((p) => p.amount)).toEqual([89]);
+    expect(pricesInBlock('was $129, now $50 off').map((p) => p.amount)).toEqual([129]);
+  });
 });

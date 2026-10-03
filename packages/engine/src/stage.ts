@@ -14,6 +14,16 @@ export const STALE_RUN_MINUTES = 30;
 /** After this many failed attempts a subject is left alone (no endless paid retries); it stays visible as `failed`. */
 export const MAX_STAGE_ATTEMPTS = 5;
 
+/**
+ * Base of the sweep's exponential retry backoff for a failed stage_run (or score_failure row): offered again
+ * only after `RETRY_BACKOFF_MINUTES * 2^(attempts-1)` minutes since finished_at/failed_at. Engine stage jobs
+ * run with retryLimit 0 (apps/worker/src/jobs/engine.ts) — the sweep is the only retry path — so without this
+ * backoff a short model outage would exhaust MAX_STAGE_ATTEMPTS for every subject in the outage window within
+ * minutes, permanently excluding them. A base of 30 gives 30/60/120/240 minutes between the MAX_STAGE_ATTEMPTS
+ * attempts: a horizon of about 7.5 hours.
+ */
+export const RETRY_BACKOFF_MINUTES = 30;
+
 const whereKey = (key: StageKey) =>
   and(eq(stageRun.stage, key.stage), eq(stageRun.stageVersion, key.version), eq(stageRun.subjectId, key.subjectId));
 

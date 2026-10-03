@@ -1,10 +1,12 @@
-import { changeEvent, client, clientCompetitor, EMBEDDING_DIMENSIONS, eventScore, withTenant } from '@cs/db';
+import { changeEvent, client, clientCompetitor, EMBEDDING_DIMENSIONS, eventScore, scoreFailure, withTenant } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { loadVerticalPack } from '@cs/verticals';
-import { asc, eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { asc, eq, sql } from 'drizzle-orm';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { day } from '../../test/seed';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
+import { MAX_STAGE_ATTEMPTS } from '../stage';
+import { findEngineWork } from '../sweep';
 import { createPackLoader } from '../tag/tag-stage';
 import { detailsSignature, factsSignature, scoreEvent } from './score-stage';
 
@@ -112,6 +114,36 @@ describe('scoreEvent', () => {
     expect(await scoreEvent({ db: dbs.service, packs }, id)).toMatchObject({ scored: 2 }); // A1 and B1 (both hvac_plumbing), not A2 (dental)
     const clientIds = (await dbs.owner.select().from(eventScore).where(eq(eventScore.eventId, id))).map((r) => r.clientId).sort();
     expect(clientIds).toEqual([IDS.clientA1, IDS.clientB1].sort());
+  });
+
+  it('backs off a failing (event, client) pair and forgets the failure after a success', async () => {
+    const id = await event();
+    const broken = async (v: string) => {
+      if (v === 'hvac_plumbing') throw new Error('pack unavailable');
+      return loadVerticalPack(v);
+    };
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(await scoreEvent({ db: dbs.service, packs: createPackLoader(broken) }, id)).toMatchObject({ scored: 0, failed: 2 });
+    const failures = await dbs.owner.select().from(scoreFailure);
+    expect(failures.map((f) => f.attempts)).toEqual([1, 1]);
+    // Inside the backoff window neither the sweep nor scoreEvent retries the pair.
+    expect((await findEngineWork(dbs.service, { limit: 10 })).score).not.toContain(id);
+    expect(await scoreEvent({ db: dbs.service, packs }, id)).toMatchObject({ scored: 0, failed: 0 });
+    // Once the window has passed it is retried, scored, and the failure row is gone.
+    await dbs.owner.execute(sql`UPDATE score_failure SET failed_at = now() - interval '2 hours'`);
+    expect((await findEngineWork(dbs.service, { limit: 10 })).score).toContain(id);
+    expect(await scoreEvent({ db: dbs.service, packs }, id)).toMatchObject({ scored: 2, failed: 0 });
+    expect(await dbs.owner.select().from(scoreFailure)).toEqual([]);
+    err.mockRestore();
+  });
+
+  it('gives up on a pair after MAX_STAGE_ATTEMPTS failures', async () => {
+    const id = await event();
+    await dbs.service.insert(scoreFailure).values([
+      { eventId: id, clientId: IDS.clientA1, agencyId: IDS.agencyA, attempts: MAX_STAGE_ATTEMPTS, failedAt: day(-30) },
+      { eventId: id, clientId: IDS.clientB1, agencyId: IDS.agencyB, attempts: MAX_STAGE_ATTEMPTS, failedAt: day(-30) },
+    ]);
+    expect((await findEngineWork(dbs.service, { limit: 10 })).score).not.toContain(id);
   });
 });
 

@@ -48,6 +48,22 @@ describe('tagStructuredChange (via tagChange)', () => {
     expect(JSON.stringify(ai.calls.decide[0]!.state)).not.toContain('972-555-0100');
     expect(await dbs.owner.select().from(eventChange)).toEqual([{ eventId: ev!.id, changeId: id }]);
     expect((await dbs.owner.select().from(detectedChange))[0]?.status).toBe('event');
+    expect(ai.calls.decide.map((c) => c.task)).toEqual(['structured_decisions']);
+  });
+
+  it('writes nothing when a newer diff supersedes the change while the model is deciding', async () => {
+    const id = await change({ afterText: 'Spring AC check', details: { changeType: 'ad_started', count: 1, items: [{ id: 'A1', label: 'Spring AC check' }] } });
+    const decide = structuredResult({ services: { hvac_plumbing: 'ac_tune_up' }, confidence: 0.4, needsReview: ['service_hvac_plumbing'] });
+    const ai = createFakeAi({
+      decide: async (state, questions) => {
+        await dbs.service.update(detectedChange).set({ status: 'superseded' }).where(eq(detectedChange.id, id));
+        return decide(state, questions);
+      },
+    });
+    expect(await tagChange({ db: dbs.service, ai, packs }, id)).toMatchObject({ ran: true, result: { eventId: null, merged: false } });
+    expect(await dbs.owner.select().from(changeEvent)).toEqual([]);
+    expect(await dbs.owner.select().from(decisionReview)).toEqual([]);
+    expect((await dbs.owner.select().from(detectedChange))[0]?.status).toBe('superseded');
   });
 
   it('builds a review spike event without any model decision', async () => {

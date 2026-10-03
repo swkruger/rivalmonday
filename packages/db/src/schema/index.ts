@@ -3,5 +3,6 @@ export * from './engine';
 export * from './evidence';
 export * from './insights';
 export * from './ledger';
+export * from './model-ops';
 export * from './sources';
 export * from './tenancy';

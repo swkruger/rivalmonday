@@ -1,7 +1,7 @@
-import { capture, competitor, observation } from '@cs/db';
+import { capture, client, competitor, observation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
-import { eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { VendorError } from '../vendors/errors';
@@ -95,4 +95,20 @@ describe('isUniqueViolation', () => {
 it('keeps the business address in the GBP profile (new-location signal, Phase 3b)', () => {
   expect(extractGbpProfile({ title: 'Smith HVAC', address: '5387 Hwy 6 Ste 101, Woodway, TX 76712' })?.address).toBe('5387 Hwy 6 Ste 101, Woodway, TX 76712');
   expect(extractGbpProfile({ title: 'Smith HVAC' })?.address).toBeNull();
+});
+
+describe('self business naming from GBP', () => {
+  it('names a self business from its public GBP title, never from a client name (3c carry-over)', async () => {
+    await dbs.owner.update(client).set({ selfCompetitorId: IDS.competitorX }).where(eq(client.id, IDS.clientA2));
+    await dbs.owner.update(competitor).set({ name: 'A2 private client name' }).where(eq(competitor.id, IDS.competitorX));
+    const dfs = fakeDfs(() => [dfsTask([{ items: [{ ...item, title: 'Smith Heating & Air' }] }])]);
+    await collectGbpProfile({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, placeId: 'p1', cid: null });
+    expect((await dbs.owner.select().from(competitor).where(eq(competitor.id, IDS.competitorX)))[0]?.name).toBe('Smith Heating & Air');
+  });
+
+  it('leaves the name of an ordinary competitor alone', async () => {
+    const dfs = fakeDfs(() => [dfsTask([{ items: [{ ...item, title: 'Smith Heating & Air' }] }])]);
+    await collectGbpProfile({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, placeId: 'p1', cid: null });
+    expect((await dbs.owner.select().from(competitor).where(eq(competitor.id, IDS.competitorX)))[0]?.name).toBe('Smith HVAC');
+  });
 });

@@ -2,7 +2,7 @@
 export const BOT_TOKEN = 'RivalMondayBot';
 export const BOT_USER_AGENT = `Mozilla/5.0 (compatible; ${BOT_TOKEN}/1.0; +https://rivalmonday.com/bot)`;
 
-export type FetchText = (url: string) => Promise<{ status: number; body: string }>;
+export type FetchText = (url: string) => Promise<{ status: number; body: string; finalUrl?: string }>;
 
 const MAX_BODY = 512 * 1024;
 
@@ -12,7 +12,7 @@ export const defaultFetchText: FetchText = async (url) => {
     redirect: 'follow',
     signal: AbortSignal.timeout(10_000),
   });
-  return { status: res.status, body: await readCapped(res.body) };
+  return { status: res.status, body: await readCapped(res.body), finalUrl: res.url || url };
 };
 
 /** Reads at most MAX_BODY bytes from a response stream, then cancels it so the rest is never downloaded. */

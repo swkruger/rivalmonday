@@ -1,5 +1,5 @@
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
 import { noveltyFactor, scoreForClient, type ScoreInput, sizeFactor, TERRITORIAL_TYPES } from './score';
 
@@ -64,6 +64,15 @@ describe('scoreForClient', () => {
 
   it('honours per-client thresholds', () => {
     expect(scoreForClient(input({ facts: cut('$100', '$90') }), { ...client, thresholds: { alert: 45, brief: 20 } }, pack).route).toBe('alert');
+  });
+
+  it('falls back to the pack routing when a client threshold row is malformed', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const r = scoreForClient(input(), { ...client, thresholds: { alert: 30, brief: 60 } }, pack);
+    expect(r.factors.thresholds).toEqual({ alert: 70, brief: 40 });
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+    expect(scoreForClient(input(), { ...client, thresholds: { alert: 90, brief: 50 } }, pack).factors.thresholds).toEqual({ alert: 90, brief: 50 });
   });
 });
 

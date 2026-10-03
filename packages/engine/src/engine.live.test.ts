@@ -1,12 +1,13 @@
 import { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
-import type { LlmCallRecord } from '@cs/core';
+import type { DecisionSampleRecord, LlmCallRecord } from '@cs/core';
 import { loadVerticalPack } from '@cs/verticals';
 import { describe, expect, it } from 'vitest';
 import { diffFacts, extractNumericFacts } from './facts/numeric';
 import { buildPriceQuestions } from './prices/price-stage';
 import { buildReviewQuestions, resolveReviewAnalysis } from './reviews/themes';
 import { buildTagQuestions, buildTagState, resolveTag, serviceQuestionKey } from './tag/questions';
+import { TAG_DECISION_TASK } from './tag/tag-stage';
 import { cosine, SEMANTIC_THRESHOLD } from './web/diff-stage';
 
 const key = process.env.OPENROUTER_API_KEY;
@@ -34,7 +35,7 @@ describe.skipIf(!key)('engine models (live)', () => {
     const packs = [await loadVerticalPack('hvac_plumbing')];
     const numeric = diffFacts(extractNumericFacts('AC Tune-Up Only $89 per system'), extractNumericFacts('AC Tune-Up Only $69 per system'));
     const state = buildTagState({ competitorName: 'Smith HVAC', pageUrl: 'https://smithhvac.example/', pageType: 'home', kind: 'modified', beforeText: 'AC Tune-Up Only $89 per system', afterText: 'AC Tune-Up Only $69 per system', numericChanges: numeric });
-    const result = await ai.decide('decisions', state, buildTagQuestions(packs), scope);
+    const result = await ai.decide(TAG_DECISION_TASK, state, buildTagQuestions(packs), scope);
     const r = resolveTag(numeric, result, packs);
     console.log(`[live] tag ${JSON.stringify({ ...r, providers: Object.fromEntries(Object.entries(result.answers).map(([k, v]) => [k, `${v.provider}:${v.confidence.toFixed(2)}`])) })}`);
     expect(r.meaningful).toBe(true);
@@ -65,4 +66,19 @@ describe.skipIf(!key)('engine models (live)', () => {
     console.log(`[live] price ${JSON.stringify(result.answers)}`);
     expect(result.answers[serviceQuestionKey('hvac_plumbing')]?.value).toBe('ac_tune_up');
   }, 60_000);
+
+  it.skipIf(!process.env.TYPESAFE_API_KEY)('shadow sampling: one tag decision answered by Jev and the LLM, recorded as a sample', async () => {
+    const samples: DecisionSampleRecord[] = [];
+    const sink = { recordDecisionSample: async (r: DecisionSampleRecord) => { samples.push(r); return 'live-sample'; } };
+    const ai = createAiFromEnv({ ...process.env, AI_SHADOW_RATE: '1' }, await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH), ledger, sink);
+    const packs = [await loadVerticalPack('hvac_plumbing')];
+    const numeric = diffFacts(extractNumericFacts('AC Tune-Up Only $89 per system'), extractNumericFacts('AC Tune-Up Only $69 per system'));
+    const state = buildTagState({ competitorName: 'Smith HVAC', pageUrl: 'https://smithhvac.example/', pageType: 'home', kind: 'modified', beforeText: 'AC Tune-Up Only $89 per system', afterText: 'AC Tune-Up Only $69 per system', numericChanges: numeric });
+    const r = await ai.decide('tag_decisions', state, buildTagQuestions(packs), scope);
+    console.log(`[live] shadow ${JSON.stringify({ primary: Object.keys(samples[0]?.primary?.answers ?? {}), fallback: Object.keys(samples[0]?.fallback?.answers ?? {}) })}`);
+    expect(r.sampleId).toBe('live-sample');
+    expect(samples[0]).toMatchObject({ reason: 'shadow', primary: { provider: 'jev' }, fallback: { provider: 'llm' } });
+    expect(Object.keys(samples[0]!.fallback!.answers).sort()).toEqual(Object.keys(buildTagQuestions(packs)).sort());
+    expect(records.some((x) => x.task === 'llm_decisions:shadow')).toBe(true);
+  }, 90_000);
 });

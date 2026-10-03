@@ -1,4 +1,4 @@
-import type { Ai, ChatResult, DecisionQuestion, DecisionResult, EmbeddingResult, ResolvedAnswer } from '@cs/ai';
+import type { Ai, BatchItemResult, BatchRequest, ChatResult, DecisionQuestion, DecisionResult, EmbeddingResult, ResolvedAnswer } from '@cs/ai';
 import { EMBEDDING_DIMENSIONS } from '@cs/db';
 
 /** Deterministic bag-of-words embedding; digits are ignored, so "$89" and "$69" embed identically. */
@@ -39,7 +39,7 @@ export function reviewResult(input: { themes?: string[]; other?: boolean; sentim
 }
 
 /** Answers the tag questions (meaningful, change_type, service_<vertical>) with fixed values. */
-export function tagResult(input: { meaningful: boolean; type: string; services?: Record<string, string>; confidence?: number; needsReview?: string[] }): DecideFn {
+export function tagResult(input: { meaningful: boolean; type: string; services?: Record<string, string>; confidence?: number; needsReview?: string[]; sampleId?: string }): DecideFn {
   return (_state, questions) => {
     const answers: Record<string, ResolvedAnswer> = {};
     for (const key of Object.keys(questions)) {
@@ -47,27 +47,39 @@ export function tagResult(input: { meaningful: boolean; type: string; services?:
       else if (key === 'change_type') answers[key] = choice(input.type, input.confidence);
       else answers[key] = choice(input.services?.[key.replace(/^service_/, '')] ?? 'none', input.confidence);
     }
-    return { answers, needsReview: input.needsReview ?? [] };
+    return { answers, needsReview: input.needsReview ?? [], sampleId: input.sampleId };
   };
 }
 
 /** Answers the structured tag questions: service_<vertical> choices and the ad `offer` Noul. */
-export function structuredResult(input: { services?: Record<string, string>; offer?: boolean; confidence?: number; needsReview?: string[] }): DecideFn {
+export function structuredResult(input: { services?: Record<string, string>; offer?: boolean; confidence?: number; needsReview?: string[]; sampleId?: string }): DecideFn {
   return (_state, questions) => {
     const answers: Record<string, ResolvedAnswer> = {};
     for (const key of Object.keys(questions)) {
       answers[key] = key === 'offer' ? noul(input.offer ?? false, input.confidence) : choice(input.services?.[key.replace(/^service_/, '')] ?? 'none', input.confidence);
     }
-    return { answers, needsReview: input.needsReview ?? [] };
+    return { answers, needsReview: input.needsReview ?? [], sampleId: input.sampleId };
   };
 }
 
 export interface FakeAi extends Ai {
-  calls: { chat: { task: string; content: string }[]; decide: { task: string; state: unknown; questions: Record<string, DecisionQuestion> }[]; embed: string[][] };
+  calls: {
+    chat: { task: string; content: string }[];
+    decide: { task: string; state: unknown; questions: Record<string, DecisionQuestion> }[];
+    embed: string[][];
+    batches: { task: string; requests: BatchRequest[] }[];
+  };
 }
 
-export function createFakeAi(opts: { decide?: DecideFn; chat?: (task: string, content: string) => string } = {}): FakeAi {
-  const calls: FakeAi['calls'] = { chat: [], decide: [], embed: [] };
+export function createFakeAi(opts: {
+  decide?: DecideFn;
+  chat?: (task: string, content: string) => string;
+  batch?: {
+    submit?: (task: string, requests: BatchRequest[]) => string;
+    collect?: (task: string, batchId: string) => { status: 'in_progress' } | { status: 'ended'; results: BatchItemResult[] };
+  };
+} = {}): FakeAi {
+  const calls: FakeAi['calls'] = { chat: [], decide: [], embed: [], batches: [] };
   return {
     calls,
     async chat(task, input) {
@@ -84,6 +96,16 @@ export function createFakeAi(opts: { decide?: DecideFn; chat?: (task: string, co
     async embed(_task, texts) {
       calls.embed.push(texts);
       return { vectors: texts.map(fakeEmbedding), model: 'fake-embed', inputTokens: 0, costUsd: 0 } satisfies EmbeddingResult;
+    },
+    batchAvailable: () => opts.batch !== undefined,
+    async submitBatch(task, requests) {
+      calls.batches.push({ task, requests });
+      if (!opts.batch?.submit) throw new Error('fake ai: no batch submit handler');
+      return opts.batch.submit(task, requests);
+    },
+    async collectBatch(task, batchId) {
+      if (!opts.batch?.collect) throw new Error('fake ai: no batch collect handler');
+      return opts.batch.collect(task, batchId);
     },
   };
 }

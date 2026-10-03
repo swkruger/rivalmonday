@@ -30,3 +30,26 @@ describe('polite renderer', () => {
     expect(limiter.wait).toHaveBeenCalledWith('https://site.example/', 7);
   });
 });
+
+describe('redirect checks (Phase 3d decision 18)', () => {
+  const page = (requestedUrl: string, finalUrl: string) => ({
+    requestedUrl, finalUrl, httpStatus: 200, status: 'ok' as const, title: 't', html: '<p>x</p>', text: 'x', links: [], error: null,
+    screenshot: async () => new Uint8Array(), close: vi.fn(async () => {}),
+  });
+  const robots = new RobotsPolicy(async () => ({ status: 200, body: 'User-agent: *\nDisallow: /private' }));
+  const limiter = { wait: async () => {} } as unknown as HostRateLimiter;
+
+  it('drops a page that redirected to another site', async () => {
+    const p = page('https://smithhvac.example/', 'https://other.example/');
+    const r = await createPoliteRenderer({ robots, limiter, renderer: { render: async () => p, close: async () => {} } }).render('https://smithhvac.example/');
+    expect(r).toMatchObject({ status: 'error', error: 'redirected off-site to other.example' });
+    expect(p.close).toHaveBeenCalled();
+  });
+
+  it('drops a page that redirected to a robots-disallowed path, and keeps same-site www/https redirects', async () => {
+    const bad = page('https://smithhvac.example/a', 'https://smithhvac.example/private/a');
+    expect((await createPoliteRenderer({ robots, limiter, renderer: { render: async () => bad, close: async () => {} } }).render('https://smithhvac.example/a')).status).toBe('robots_disallowed');
+    const ok = page('http://smithhvac.example/', 'https://www.smithhvac.example/');
+    expect((await createPoliteRenderer({ robots, limiter, renderer: { render: async () => ok, close: async () => {} } }).render('http://smithhvac.example/')).status).toBe('ok');
+  });
+});

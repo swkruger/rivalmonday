@@ -17,11 +17,13 @@ export interface PriceObservation {
 /**
  * A dollar amount followed by these words is a discount, rebate, credit, deposit, or a coupon/voucher/gift-card
  * face value — not the price of a service. "off" right after the amount is a discount whether written with a
- * space ("$50 off") or a hyphen ("$50-off"); "off-peak" is a time-of-day qualifier, not a discount, so it is
- * deliberately excluded (the amount stays a price — see "distinguishes off-peak from off discount").
+ * space ("$50 off") or a hyphen ("$50-off"); "off-peak", "off-season", and "off-hours" are time qualifiers, not
+ * discounts, so they are deliberately excluded (the amount stays a price — see "distinguishes off-peak from off discount").
  */
 const DISCOUNT_AFTER =
-  /^\s*(?:(?:instant|mail-in|trade-in|cash|utility|manufacturer'?s?|federal|tax|bonus)\s+)?(?:-?off\b(?!-peak)|discount|rebate|credit|savings?\b|back\b|down\b|deposit|coupon\b|voucher\b|gift\s*card\b|instant\s+savings\b)/i;
+  /^\s*(?:(?:instant|mail-in|trade-in|cash|utility|manufacturer'?s?|federal|tax|bonus)\s+)?(?:-?off\b(?![- ](?:peak|season|hours?)\b)|discount|rebate|credit|savings?\b|back\b|down\b|deposit|coupon\b|voucher\b|gift\s*card\b|instant\s+savings\b)/i;
+/** A price named as the old one ("was $129", "reg. $150", "originally $90") is superseded, not observed. */
+const SUPERSEDED_BEFORE = /\b(?:was|reg(?:ular(?:ly)?)?\.?|regular\s+price|originally|normally|retail(?:\s+price)?|list\s+price)\s*:?\s*$/i;
 const DISCOUNT_BEFORE = /\b(?:save|saving|savings of)(?:\s+up\s+to)?\s*$/i;
 const FROM_BEFORE = /\b(?:from|starting(?:\s+at)?|starts\s+at|as\s+low\s+as)\s*$/i;
 const UP_TO_BEFORE = /\bup\s+to\s*$/i;
@@ -41,6 +43,11 @@ export function pricesInBlock(text: string): PriceObservation[] {
   const seen = new Set<string>();
   const out: PriceObservation[] = [];
   let cursor = 0;
+  // Collect all candidate prices first (excluding discounts and max-price violations)
+  const candidates: Array<{
+    observation: PriceObservation;
+    isSuperseded: boolean;
+  }> = [];
   for (const f of extractNumericFacts(text)) {
     if (f.kind !== 'price' || typeof f.value !== 'number') continue;
     const raw = f.raw.replace(/\s+/g, ' ');
@@ -52,10 +59,29 @@ export function pricesInBlock(text: string): PriceObservation[] {
     const after = text.slice(at + f.raw.length, at + f.raw.length + 40).replace(/\s+/g, ' ');
     const c = classifyPrice(before, after);
     if (c.discount) continue;
+    const isSuperseded = SUPERSEDED_BEFORE.test(before);
     const key = `${f.value}|${f.unit}|${c.qualifier}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ amount: f.value, unit: f.unit, qualifier: c.qualifier, promo, raw, context: f.context });
+    candidates.push({
+      observation: { amount: f.value, unit: f.unit, qualifier: c.qualifier, promo, raw, context: f.context },
+      isSuperseded,
+    });
+  }
+  // Filter: drop a superseded price only if a later non-superseded price survives
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i];
+    if (candidate.isSuperseded) {
+      // Check if any later candidate survives (is not superseded and not a discount)
+      const hasLaterPrice = candidates.slice(i + 1).some((c) => !c.isSuperseded);
+      if (!hasLaterPrice) {
+        // No later price, so keep this one even though it's marked superseded
+        out.push(candidate.observation);
+      }
+      // Otherwise skip it (later price exists, so this is truly superseded)
+    } else {
+      out.push(candidate.observation);
+    }
   }
   return out;
 }
