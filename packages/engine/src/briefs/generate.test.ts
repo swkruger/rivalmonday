@@ -80,6 +80,46 @@ describe('generateBrief', () => {
     expect(await run(ai)).toMatchObject({ status: 'ready', kind: 'quiet', items: 0 });
   });
 
+  describe('a stale run reclaimed by a newer attempt', () => {
+    // On the first run's first verifier call: age its claim past the stale window and let a second run reclaim and finish.
+    // The verifier makes several decide calls; only the first one reclaims.
+    const reclaimDuring = (then: () => void) => {
+      let reclaimed = false;
+      return async (s: unknown, qs: Record<string, unknown>) => {
+        if (!reclaimed) {
+          reclaimed = true;
+          await dbs.service.update(brief).set({ updatedAt: new Date(Date.now() - 31 * 60_000) }).where(eq(brief.clientId, IDS.clientA1));
+          expect(await run()).toMatchObject({ status: 'ready', kind: 'standard', items: 1 });
+        }
+        then();
+        return supportAll(s, qs);
+      };
+    };
+
+    it('stores nothing at commit and leaves the newer ready brief intact', async () => {
+      await seedEvent();
+      const first = createFakeAi({ chat: () => draft(['C1']), decide: reclaimDuring(() => {}) });
+      expect(await run(first)).toEqual({ status: 'skipped', reason: 'superseded by a newer attempt' });
+      expect(await dbs.owner.select().from(briefItem)).toHaveLength(1);
+      expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ status: 'ready', kind: 'standard', attempts: 2, error: null });
+    });
+
+    it('does not flip the newer ready brief to failed when the stale run errors', async () => {
+      await seedEvent();
+      const first = createFakeAi({ chat: () => draft(['C1']), decide: reclaimDuring(() => { throw new Error('verifier down'); }) });
+      expect(await run(first)).toEqual({ status: 'skipped', reason: 'superseded by a newer attempt' });
+      expect(await dbs.owner.select().from(briefItem)).toHaveLength(1);
+      expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ status: 'ready', attempts: 2, error: null });
+    });
+  });
+
+  it('stores the driver message when Drizzle wraps a database error', async () => {
+    await seedEvent();
+    const cause = new Error('connection terminated unexpectedly');
+    const ai = createFakeAi({ chat: () => draft(['C1']), decide: () => { throw Object.assign(new Error('Failed query: select 1'), { cause }); } });
+    expect(await run(ai)).toMatchObject({ status: 'failed', error: 'connection terminated unexpectedly' });
+  });
+
   it('starts the next period at the previous brief end', async () => {
     await run();
     await seedEvent({ occurredAt: day(5), createdAt: day(5) });

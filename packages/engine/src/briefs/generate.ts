@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm';
 import type { PackLoader } from '../tag/tag-stage';
 import { candidateEventIds, candidateEvidenceIds, gatherBriefCandidates, loadBriefClient } from './gather';
 import { candidateTrigger, playbookFor, resolvePlaybooks } from './playbooks';
-import { briefDue, briefPeriod, deliveryDateFor, safeTimezone } from './schedule';
+import { briefDue, briefPeriod, deliveryDateFor, localParts, safeTimezone } from './schedule';
 import { selectBriefItems } from './select';
 import { trendSnapshot } from './trend';
 import { verifyDraft } from './verify';
@@ -19,8 +19,11 @@ export type BriefRunResult =
   | { status: 'failed'; briefId: string; error: string }
   | { status: 'skipped'; reason: string };
 
-/** Claims the (client, delivery date) brief: new, or failed with attempts left, or a stale 'generating' row. */
-async function claimBrief(db: Db, c: { id: string; agencyId: string }, deliveryDate: string, period: { start: Date; end: Date }): Promise<{ id: string } | { skipped: string }> {
+/**
+ * Claims the (client, delivery date) brief: new, or failed with attempts left, or a stale 'generating' row.
+ * The returned `attempts` is the fencing token: a reclaim bumps it, so a superseded run's writes match zero rows.
+ */
+async function claimBrief(db: Db, c: { id: string; agencyId: string }, deliveryDate: string, period: { start: Date; end: Date }): Promise<{ id: string; attempts: number } | { skipped: string }> {
   const rows = (await db.execute(sql`
     INSERT INTO brief (agency_id, client_id, delivery_date, period_start, period_end, status, attempts)
     VALUES (${c.agencyId}::uuid, ${c.id}::uuid, ${deliveryDate}::date, ${period.start.toISOString()}::timestamptz, ${period.end.toISOString()}::timestamptz, 'generating', 1)
@@ -29,18 +32,29 @@ async function claimBrief(db: Db, c: { id: string; agencyId: string }, deliveryD
           period_start = EXCLUDED.period_start, period_end = EXCLUDED.period_end
       WHERE (brief.status = 'failed' AND brief.attempts < ${BRIEF_MAX_ATTEMPTS}::int)
          OR (brief.status = 'generating' AND brief.updated_at < now() - make_interval(mins => ${BRIEF_STALE_MINUTES}::int))
-    RETURNING brief.id`)) as unknown as { id: string }[];
-  if (rows[0]) return rows[0];
+    RETURNING brief.id, brief.attempts`)) as unknown as { id: string; attempts: number }[];
+  if (rows[0]) return { id: rows[0].id, attempts: Number(rows[0].attempts) };
   const [existing] = await db.select({ status: brief.status, attempts: brief.attempts }).from(brief).where(and(eq(brief.clientId, c.id), eq(brief.deliveryDate, deliveryDate)));
   if (existing?.status === 'failed') return { skipped: `failed after ${existing.attempts} attempts` };
   return { skipped: `a brief for ${deliveryDate} is already ${existing?.status ?? 'claimed'}` };
+}
+
+/** Drizzle wraps driver errors; the Postgres message is on `cause`. */
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    const cause = (err as { cause?: unknown }).cause;
+    if (cause instanceof Error && cause.message) return cause.message;
+    return err.message;
+  }
+  return String(err);
 }
 
 export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader }, clientId: string, opts: { now?: Date } = {}): Promise<BriefRunResult> {
   const now = opts.now ?? new Date();
   const [row] = await deps.db.select({ id: client.id, agencyId: client.agencyId, timezone: client.timezone }).from(client).where(eq(client.id, clientId)).limit(1);
   if (!row) throw new Error(`client ${clientId} not found`);
-  const deliveryDate = deliveryDateFor(now, safeTimezone(row.timezone));
+  const tz = safeTimezone(row.timezone);
+  const deliveryDate = deliveryDateFor(now, tz);
   const [prev] = await deps.db
     .select({ end: brief.periodEnd })
     .from(brief)
@@ -51,6 +65,8 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
   const claim = await claimBrief(deps.db, row, deliveryDate, period);
   if ('skipped' in claim) return { status: 'skipped', reason: claim.skipped };
   const briefId = claim.id;
+  /** Only the run holding the current claim may write: a stale run reclaimed by a newer attempt matches zero rows. */
+  const owned = and(eq(brief.id, briefId), eq(brief.status, 'generating'), eq(brief.attempts, claim.attempts));
   const scope = { agencyId: row.agencyId, clientId };
 
   try {
@@ -63,16 +79,20 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
     if (selected.length > 0) {
       playbooks = await resolvePlaybooks(deps.db, c.agencyId, pack);
       const draft = await writeBrief(deps.ai, scope, c, selected, playbooks);
-      verified = await verifyDraft(deps.ai, scope, c, selected, draft, { year: now.getUTCFullYear() });
+      verified = await verifyDraft(deps.ai, scope, c, selected, draft, { year: localParts(now, tz).year });
     }
 
-    return await deps.db.transaction(async (tx) => {
+    return await deps.db.transaction(async (tx): Promise<BriefRunResult> => {
       // Commit-time re-check (Review Focus 4): an event retracted while the model was writing must not reach the brief.
       const ids = verified.items.flatMap((i) => candidateEventIds(i.candidate));
       const retracted = ids.length === 0 ? [] : (await tx.select({ id: changeEvent.id }).from(changeEvent).where(and(inArray(changeEvent.id, ids), isNotNull(changeEvent.retractedAt)))).map((r) => r.id);
       const items = verified.items.filter((i) => candidateEventIds(i.candidate).every((id) => !retracted.includes(id)));
       const dropped = { items: verified.dropped.items + (verified.items.length - items.length), sentences: verified.dropped.sentences };
       const kind: BriefKind = items.length > 0 ? 'standard' : 'quiet';
+      const summary = kind === 'quiet' ? QUIET_SUMMARY : items.length === verified.items.length ? verified.summary : `${items.length} competitor update${items.length === 1 ? '' : 's'} this week.`;
+      // Fence first: if a newer attempt reclaimed this brief, store nothing.
+      const won = await tx.update(brief).set({ status: 'ready', kind, summary, trend, dropped, generatedAt: new Date(), updatedAt: new Date() }).where(owned).returning({ id: brief.id });
+      if (won.length === 0) return { status: 'skipped', reason: 'superseded by a newer attempt' };
       if (items.length > 0) {
         await tx.insert(briefItem).values(items.map((i, ord) => ({
           briefId, agencyId: row.agencyId, clientId, ord, competitorId: i.candidate.competitorId,
@@ -82,13 +102,15 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
           upsellTag: i.upsell_tag === 'none' ? null : i.upsell_tag, playbookId: playbookFor(playbooks, candidateTrigger(i.candidate))?.id ?? null,
         })));
       }
-      const summary = kind === 'quiet' ? QUIET_SUMMARY : items.length === verified.items.length ? verified.summary : `${items.length} competitor update${items.length === 1 ? '' : 's'} this week.`;
-      await tx.update(brief).set({ status: 'ready', kind, summary, trend, dropped, generatedAt: new Date(), updatedAt: new Date() }).where(eq(brief.id, briefId));
       return { status: 'ready' as const, briefId, kind, items: items.length, dropped };
     });
   } catch (err) {
-    const error = (err instanceof Error ? err.message : String(err)).slice(0, 2000);
-    await deps.db.update(brief).set({ status: 'failed', error, updatedAt: new Date() }).where(eq(brief.id, briefId));
+    const error = errorMessage(err).slice(0, 2000);
+    const marked = await deps.db.update(brief).set({ status: 'failed', error, updatedAt: new Date() }).where(owned).returning({ id: brief.id });
+    if (marked.length === 0) {
+      console.warn(`[briefs] superseded brief ${briefId} attempt ${claim.attempts} for client ${clientId} failed: ${error}`);
+      return { status: 'skipped', reason: 'superseded by a newer attempt' };
+    }
     console.warn(`[briefs] brief ${briefId} for client ${clientId} failed: ${error}`);
     return { status: 'failed', briefId, error };
   }

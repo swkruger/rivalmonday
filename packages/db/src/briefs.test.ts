@@ -36,6 +36,22 @@ describe('brief tables', () => {
     expect(await errorText(seedBrief())).toMatch(/brief_client_delivery_unique/);
   });
 
+  it('allows one item per (brief, ord), checked at commit so a reorder can swap ords in one transaction', async () => {
+    const { briefId } = await seedBrief();
+    const item = {
+      briefId, agencyId: IDS.agencyA, clientId: IDS.clientA1, ord: 0, competitorId: IDS.competitorX, headline: 'h',
+      whatChanged: 'x', whyItMatters: 'y', recommendedAction: 'z', confidence: 0.9, effort: 'M', impact: 'H',
+    } as const;
+    expect(await errorText(dbs.service.insert(briefItem).values(item))).toMatch(/brief_item_brief_ord_unique/);
+    const [second] = await dbs.service.insert(briefItem).values({ ...item, ord: 1 }).returning({ id: briefItem.id });
+    await dbs.service.transaction(async (tx) => {
+      await tx.update(briefItem).set({ ord: 1 }).where(sql`${briefItem.briefId} = ${briefId} AND ${briefItem.id} <> ${second!.id}`);
+      await tx.update(briefItem).set({ ord: 0 }).where(sql`${briefItem.id} = ${second!.id}`);
+    });
+    const ords = await dbs.service.select({ id: briefItem.id, ord: briefItem.ord }).from(briefItem);
+    expect(ords.find((o) => o.id === second!.id)?.ord).toBe(0);
+  });
+
   it('rejects unknown statuses, kinds and recommendation enums', async () => {
     const base = { agencyId: IDS.agencyA, clientId: IDS.clientA1, periodStart: new Date(), periodEnd: new Date() };
     expect(await errorText(dbs.service.insert(brief).values({ ...base, deliveryDate: '2026-10-12', status: 'sending' }))).toMatch(/brief_status_check/);
