@@ -4,4 +4,6 @@ export * from './playbooks';
 export * from './rules';
 export * from './schedule';
 export * from './select';
+export * from './support';
+export * from './verify';
 export * from './writer';

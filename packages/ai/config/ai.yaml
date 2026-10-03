@@ -21,6 +21,8 @@ tasks:
   page_decisions:       { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
   review_decisions:     { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.02 }
   price_decisions:      { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
+  # Phase 4a: brief/recommendation support checks (spec §7.4) — its own task so accuracy, τ and routing are tunable alone.
+  verifier_decisions:   { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
   # Verified 2026-10-01: ZDR-compatible ($0.02/M tokens). voyageai/voyage-4-lite fails the ZDR policy.
   embeddings:      { provider: openrouter, model: openai/text-embedding-3-small, mode: embeddings, dimensions: 512 }
   # Opt-in (Phase 3d decision 9): used only when ANTHROPIC_API_KEY is set; otherwise theme discovery stays on theme_discovery.
