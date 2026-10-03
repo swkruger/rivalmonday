@@ -8,3 +8,4 @@ export * from './support';
 export * from './trend';
 export * from './verify';
 export * from './writer';
+export * from './generate';
