@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fixture } from '../../test/seed';
-import { extractBlocks, MAX_BLOCK_CHARS, MAX_BLOCKS } from './extract';
+import { consentTokens, extractBlocks, MAX_BLOCK_CHARS, MAX_BLOCKS } from './extract';
 
 const page = (body: string) => `<!doctype html><html><head><title>t</title><style>.x{color:red}</style></head><body>${body}</body></html>`;
 const texts = (body: string) => extractBlocks(page(body)).map((b) => b.text);
@@ -84,5 +84,20 @@ describe('extractBlocks', () => {
 
   it('collapses whitespace and decodes entities', () => {
     expect(texts(`<p>Heating &amp;\n   Cooling&nbsp;Experts</p>`)).toEqual(['Heating & Cooling Experts']);
+  });
+
+  it('strips camelCase and compound consent banners but keeps look-alike content (3a carry-over)', () => {
+    const blocks = extractBlocks(`<body>
+      <main><h1>Smith HVAC</h1><p>AC tune-up $79 for new customers this spring only</p>
+      <section class="trustedBy"><p>Trusted by 2,000 Plano homeowners since 1998</p></section></main>
+      <div class="cookieConsent"><p>We use cookies to improve your experience</p></div>
+      <div id="CookieLawInfo"><p>This website uses cookies</p></div>
+      <div class="cmplz-cookiebanner"><p>Manage consent preferences</p></div>
+      <div class="cookieBar"><p>Accept all cookies</p></div>
+    </body>`).map((b) => b.text);
+    expect(blocks.join(' ')).not.toMatch(/cookies|consent/i);
+    expect(blocks).toContain('Trusted by 2,000 Plano homeowners since 1998');
+    expect(consentTokens('CookieLawInfo')).toBe('cookie-law-info');
+    expect(consentTokens('cmplz-cookiebanner')).toBe('cmplz-cookiebanner');
   });
 });
