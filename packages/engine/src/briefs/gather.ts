@@ -95,7 +95,10 @@ export async function gatherBriefCandidates(
     .from(move)
     .innerJoin(competitor, eq(competitor.id, move.competitorId))
     .where(and(eq(move.clientId, c.id), isNull(move.closedAt), inArray(move.status, ['emerging', 'active']),
-      or(gt(move.firstDetectedAt, period.start), gt(move.lastEvidenceAt, period.start)), lte(move.firstDetectedAt, period.end)));
+      or(
+        and(gt(move.firstDetectedAt, period.start), lte(move.firstDetectedAt, period.end)),
+        and(gt(move.lastEvidenceAt, period.start), lte(move.lastEvidenceAt, period.end)),
+      )));
   const moveLinks = openMoves.length === 0 ? [] : await deps.db
     .select({ moveId: moveEvent.moveId, e: changeEvent, name: competitor.name, score: eventScore.score, route: eventScore.route })
     .from(moveEvent)

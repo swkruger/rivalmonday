@@ -73,6 +73,39 @@ describe('gatherBriefCandidates', () => {
     expect(moves).toHaveLength(1);
     expect(moves[0]).toMatchObject({ moveType: 'price_war', score: 55.5, events: [expect.objectContaining({ eventId: a.eventId })] });
   });
+
+  it('gathers a move first detected inside the period even when its evidence is older', async () => {
+    await dbs.service.insert(move).values({
+      agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, moveType: 'price_war', status: 'active', confidence: 0.5, summary: 'Smith HVAC expands',
+      details: { eventCount: 0, channels: [], facts: {} }, ruleVersion: 2, firstDetectedAt: day(1), lastHeldAt: day(1), lastEvidenceAt: day(-5),
+    });
+    const { moves } = await gatherBriefCandidates(deps(), await loadBriefClient(deps(), IDS.clientA1), period);
+    expect(moves.map((m) => m.moveType)).toEqual(['price_war']);
+  });
+
+  it('skips a closed move and a fading move', async () => {
+    await dbs.service.insert(move).values([
+      {
+        agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, moveType: 'price_war', status: 'active', confidence: 0.5, summary: 'closed move',
+        details: { eventCount: 0, channels: [], facts: {} }, ruleVersion: 2, firstDetectedAt: day(1), lastHeldAt: day(1), lastEvidenceAt: day(1), closedAt: day(2),
+      },
+      {
+        agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, moveType: 'territory_expansion', status: 'fading', confidence: 0.5, summary: 'fading move',
+        details: { eventCount: 0, channels: [], facts: {} }, ruleVersion: 2, firstDetectedAt: day(1), lastHeldAt: day(1), lastEvidenceAt: day(1),
+      },
+    ]);
+    const { moves } = await gatherBriefCandidates(deps(), await loadBriefClient(deps(), IDS.clientA1), period);
+    expect(moves).toEqual([]);
+  });
+
+  it('skips a move whose detection and evidence both fall outside the period, including evidence after it ends', async () => {
+    await dbs.service.insert(move).values({
+      agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, moveType: 'price_war', status: 'active', confidence: 0.5, summary: 'out of window',
+      details: { eventCount: 0, channels: [], facts: {} }, ruleVersion: 2, firstDetectedAt: day(-10), lastHeldAt: day(10), lastEvidenceAt: day(10),
+    });
+    const { moves } = await gatherBriefCandidates(deps(), await loadBriefClient(deps(), IDS.clientA1), period);
+    expect(moves).toEqual([]);
+  });
 });
 
 describe('escapeEvidence', () => {
