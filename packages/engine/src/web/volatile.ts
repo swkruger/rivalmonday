@@ -71,7 +71,7 @@ export async function maskedBlockKeys(db: Db, trackedPageId: string): Promise<Se
 export async function unmaskBlock(db: Db, trackedPageId: string, blockKey: string): Promise<void> {
   await db
     .insert(volatileBlock)
-    .values({ trackedPageId, blockKey, unmaskedAt: new Date() })
+    .values({ trackedPageId, blockKey, unmaskedAt: sql`now()` })
     .onConflictDoUpdate({ target: [volatileBlock.trackedPageId, volatileBlock.blockKey], set: { unmaskedAt: sql`now()` } });
 }
 
@@ -92,44 +92,69 @@ export async function learnVolatileBlocks(db: Db, trackedPageId: string): Promis
   const ids = caps.map((c) => c.id).reverse();
   const chains = blockChains(await Promise.all(ids.map((id) => loadBlocks(db, id))));
 
-  // A block with an event is never masked. A change still pending also protects it (not yet tagged, may still
-  // matter) — except the capture just diffed this call, whose own change is inherently fresh-pending at this
-  // instant (learnVolatileBlocks runs immediately after diffWebCapture writes it); only an EARLIER evaluation's
-  // still-unresolved pending change should block this one.
+  // A block with an event is never masked (full window: an event is a finished decision, recency doesn't
+  // matter). A change still pending also protects it (not yet tagged, may still matter) — except the capture
+  // just diffed this call, whose own change is inherently fresh-pending at this instant (learnVolatileBlocks
+  // runs immediately after diffWebCapture writes it); only an EARLIER evaluation's still-unresolved pending
+  // change should block this one.
   const priorIds = ids.slice(0, -1);
-  const protectedKeys = new Set(
-    (
-      await db
-        .select({ blockKey: detectedChange.blockKey })
-        .from(detectedChange)
-        .where(
-          and(
-            eq(detectedChange.trackedPageId, trackedPageId),
-            or(
-              and(eq(detectedChange.status, 'event'), inArray(detectedChange.afterCaptureId, ids)),
-              and(eq(detectedChange.status, 'pending'), inArray(detectedChange.afterCaptureId, priorIds)),
-            ),
-          ),
-        )
-    ).map((r) => r.blockKey),
-  );
+  const protectedRows = await db
+    .select({ blockKey: detectedChange.blockKey, status: detectedChange.status })
+    .from(detectedChange)
+    .where(
+      and(
+        eq(detectedChange.trackedPageId, trackedPageId),
+        or(
+          and(eq(detectedChange.status, 'event'), inArray(detectedChange.afterCaptureId, ids)),
+          and(eq(detectedChange.status, 'pending'), inArray(detectedChange.afterCaptureId, priorIds)),
+        ),
+      ),
+    );
+  const eventKeys = new Set(protectedRows.filter((r) => r.status === 'event').map((r) => r.blockKey));
+  const protectedKeys = new Set(protectedRows.map((r) => r.blockKey));
+
   const rows = await db.select().from(volatileBlock).where(eq(volatileBlock.trackedPageId, trackedPageId));
   const masked = new Set(rows.filter((r) => r.unmaskedAt === null).map((r) => r.blockKey));
   const manual = new Set(rows.filter((r) => r.unmaskedAt !== null).map((r) => r.blockKey));
   const live = chains.filter((c) => c.lastKey !== null);
-  const liveKeys = new Set(live.map((c) => c.lastKey!));
 
+  // A block never gets a fresh automatic mask while any key its chain has ever held is already masked (it's
+  // being tracked below, possibly under an older key) or was manually unmasked (an AM's call stands forever).
   const newly = live
-    .filter((c) => !masked.has(c.lastKey!) && !manual.has(c.lastKey!) && isVolatile(c.history, c.keys.some((k) => protectedKeys.has(k))))
+    .filter((c) => !c.keys.some((k) => manual.has(k) || masked.has(k)) && isVolatile(c.history, c.keys.some((k) => protectedKeys.has(k))))
     .map((c) => c.lastKey!);
+
+  // Existing masks follow their block, not its position: find the chain that carried each masked key k and
+  // decide from THAT chain's current state — move the mask to its current key if the key shifted (an
+  // insertion/removal elsewhere renumbered it), or lift it (expire) when the block has gone fully stable for
+  // the whole window, was tied to a change that turned out to be an event, reached a key an AM manually
+  // unmasked, or no chain carries it any more at all (the window has aged past where it ever existed).
   const fullWindow = ids.length === VOLATILE_TRANSITIONS + 1;
-  const expired = [...masked].filter((k) => {
-    if (!liveKeys.has(k)) return true; // no block carries this key any more
-    const c = live.find((x) => x.lastKey === k)!;
-    return fullWindow && countChanges(c.history) === 0;
-  });
+  const expired: string[] = [];
+  const moved: { from: string; to: string }[] = [];
+  for (const k of masked) {
+    const c = chains.find((chain) => chain.keys.includes(k));
+    if (!c) {
+      expired.push(k); // no chain in this window ever carried this key
+      continue;
+    }
+    const manualChain = c.keys.some((key) => manual.has(key));
+    const eventChain = c.keys.some((key) => eventKeys.has(key));
+    const stable = fullWindow && countChanges(c.history) === 0;
+    if (manualChain || eventChain || stable || c.lastKey === null) {
+      expired.push(k);
+      continue;
+    }
+    if (c.lastKey !== k) moved.push({ from: k, to: c.lastKey });
+  }
 
   if (newly.length > 0) await db.insert(volatileBlock).values(newly.map((blockKey) => ({ trackedPageId, blockKey }))).onConflictDoNothing();
+  if (moved.length > 0) {
+    await db.insert(volatileBlock).values(moved.map((m) => ({ trackedPageId, blockKey: m.to }))).onConflictDoNothing();
+    await db
+      .delete(volatileBlock)
+      .where(and(eq(volatileBlock.trackedPageId, trackedPageId), inArray(volatileBlock.blockKey, moved.map((m) => m.from)), isNull(volatileBlock.unmaskedAt)));
+  }
   if (expired.length > 0) await db.delete(volatileBlock).where(and(eq(volatileBlock.trackedPageId, trackedPageId), inArray(volatileBlock.blockKey, expired), isNull(volatileBlock.unmaskedAt)));
   return { masked: newly, unmasked: expired };
 }

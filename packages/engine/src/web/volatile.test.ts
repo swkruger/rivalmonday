@@ -1,6 +1,7 @@
 import { changeEvent, detectedChange, eventChange, volatileBlock } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedPage, seedWebCapture } from '../../test/seed';
 import { ensureBlocks, loadBlocks, type StoredBlock } from './blocks';
@@ -128,13 +129,43 @@ describe('learnVolatileBlocks', () => {
     expect(await maskedBlockKeys(dbs.service, rotating.page)).toEqual(new Set());
   });
 
-  it('keeps an existing mask when a list item is inserted above it (Review Focus 4)', async () => {
-    const quotes = ['Quote one is here', 'Quote two is here', 'Quote three is here', 'Quote four is here', 'Quote five is here', 'Quote six is here'];
+  it('moves an existing mask onto its block\'s current key when a list item is inserted above it (Review Focus 4)', async () => {
+    const quotes = ['Quote one is here', 'Quote two is here', 'Quote three is here', 'Quote three is here', 'Quote four is here', 'Quote five is here'];
     // A rotating testimonial in a list; from capture 3 on, a new item sits above it, shifting its positional key.
+    // Day 3 repeats day 2's text so alignBlocks ties the identity to this block by its (position-independent)
+    // exact-text match on the day of the insertion, rather than by the coincidence of the vacated key.
     const { page, caps } = await seedSeries(quotes.map((q, i) => (i < 3 ? ul(q, 'Call us for AC repair today') : ul('Now hiring technicians in Plano', q, 'Call us for AC repair today'))));
     const original = await quoteKey(caps[0]!);
     await dbs.service.insert(volatileBlock).values({ trackedPageId: page, blockKey: original });
     expect((await learnVolatileBlocks(dbs.service, page)).unmasked).toEqual([]);
-    expect(await maskedBlockKeys(dbs.service, page)).toContain(original);
+    const current = (await loadBlocks(dbs.service, caps[5]!)).find((b) => b.text === quotes[5])!.blockKey;
+    expect(current).not.toBe(original);
+    // The mask followed the block to its new position — it is not left behind on the inserted item's key.
+    expect(await maskedBlockKeys(dbs.service, page)).toEqual(new Set([current]));
+  });
+
+  it('never re-masks a manual unmask after its key shifts (Review Focus 4)', async () => {
+    const quotes = ['Quote one is here', 'Quote two is here', 'Quote three is here', 'Quote three is here', 'Quote four is here', 'Quote five is here'];
+    const { page, caps } = await seedSeries(quotes.map((q, i) => (i < 3 ? ul(q, 'Call us for AC repair today') : ul('Now hiring technicians in Plano', q, 'Call us for AC repair today'))));
+    const original = await quoteKey(caps[0]!);
+    await unmaskBlock(dbs.service, page, original);
+    expect((await learnVolatileBlocks(dbs.service, page)).masked).toEqual([]);
+    expect(await maskedBlockKeys(dbs.service, page)).toEqual(new Set());
+  });
+
+  it('masks when only the newest change is pending, then lifts the mask once that change is confirmed an event', async () => {
+    const quotes = ['Quote one is here', 'Quote two is here', 'Quote three is here', 'Quote four is here'];
+    const { page, caps } = await seedSeries(quotes.map((q) => `<blockquote>${q}</blockquote>`));
+    const key = await quoteKey(caps[0]!);
+    const [chg] = await dbs.service
+      .insert(detectedChange)
+      .values({ competitorId: IDS.competitorX, trackedPageId: page, source: 'web', kind: 'modified', afterCaptureId: caps[3]!, blockKey: key, status: 'pending', stageVersion: 1 })
+      .returning({ id: detectedChange.id });
+    // The only pending change is on the capture just diffed — it never blocks masking (the narrowing's boundary).
+    expect(await learnVolatileBlocks(dbs.service, page)).toEqual({ masked: [key], unmasked: [] });
+
+    // The change is later confirmed a genuine event; the mask lifts even though the capture window is unchanged.
+    await dbs.service.update(detectedChange).set({ status: 'event' }).where(eq(detectedChange.id, chg!.id));
+    expect((await learnVolatileBlocks(dbs.service, page)).unmasked).toEqual([key]);
   });
 });
