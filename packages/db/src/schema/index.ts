@@ -1,3 +1,4 @@
+export * from './briefs';
 export * from './client-intel';
 export * from './engine';
 export * from './evidence';

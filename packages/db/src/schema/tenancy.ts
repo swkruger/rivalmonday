@@ -38,6 +38,8 @@ export const client = pgTable(
     scoreThresholds: jsonb('score_thresholds').$type<ScoreThresholds | null>(),
     /** The client's own business as a global competitor row (reviews + GBP only), for the spec §6.5 benchmark. Never in client_competitor. */
     selfCompetitorId: uuid('self_competitor_id').references((): AnyPgColumn => competitor.id, { onDelete: 'set null' }),
+    /** IANA time zone of the business (Phase 4a): briefs are generated Thursday night and delivered Monday morning local time. */
+    timezone: text('timezone').notNull().default('America/Chicago'),
     createdAt: createdAt(),
   },
   (t) => [
@@ -57,6 +59,8 @@ export const client = pgTable(
         AND (score_thresholds->>'brief')::numeric >= 0 AND (score_thresholds->>'alert')::numeric <= 100
         AND (score_thresholds->>'brief')::numeric < (score_thresholds->>'alert')::numeric)`,
     ),
+    // Shape only (Area/City[/Sub]); the application also validates with Intl before use and falls back to the default.
+    check('client_timezone_check', sql`timezone ~ '^[A-Za-z]+(/[A-Za-z0-9_+-]+){1,2}$' OR timezone = 'UTC'`),
   ],
 );
 
