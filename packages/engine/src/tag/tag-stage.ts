@@ -6,6 +6,7 @@ import {
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { and, eq } from 'drizzle-orm';
 import { MONEY_KINDS } from '../facts/numeric';
+import { extractZips } from '../geo/zips';
 import { findMergeTarget, writeEvent } from '../merge/merge';
 import { runStage, type StageOutcome } from '../stage';
 import { buildTagQuestions, buildTagState, resolveTag, type TagResolution } from './questions';
@@ -51,10 +52,7 @@ export async function competitorVerticals(db: Db, competitorId: string): Promise
   return [...new Set([...tracked, ...own].map((r) => r.verticalId))].sort();
 }
 
-/** US ZIP codes in text; not part of a longer number, a price or a phone number. */
-export function extractZips(text: string): string[] {
-  return [...new Set([...text.matchAll(/(?<![\d$,.-])\b\d{5}\b(?![\d,.-])/g)].map((m) => m[0]))];
-}
+export { extractZips } from '../geo/zips';
 
 /**
  * A web change is an offer (feeds promo blitz / price war) when it is a promo, cuts a price or percent, or
