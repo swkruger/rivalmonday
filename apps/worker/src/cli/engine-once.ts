@@ -40,7 +40,8 @@ try {
   const scores = events.length > 0 ? await db.select().from(eventScore).where(inArray(eventScore.eventId, events.map((e) => e.id))) : [];
   for (const e of events) {
     const s = scores.filter((x) => x.eventId === e.id).map((x) => `${x.clientId.slice(0, 8)}:${x.route}(${x.score})`).join(' ');
-    console.log(`${e.occurredAt.toISOString().slice(0, 10)} ${e.changeType.padEnd(19)} ${e.summary}  [${s || 'unscored'}]`);
+    const retracted = e.retractedAt ? ` (retracted: ${e.retractionReason ?? 'unknown'})` : '';
+    console.log(`${e.occurredAt.toISOString().slice(0, 10)} ${e.changeType.padEnd(19)} ${e.summary}  [${s || 'unscored'}]${retracted}`);
   }
   const insights = args.insights ? await runReviewInsights({ db, ai, packs }, { competitorId: args.competitor }) : undefined;
   if (insights) console.log(`[insights] ${JSON.stringify(insights)}`);
