@@ -9,3 +9,5 @@ export * from './trend';
 export * from './verify';
 export * from './writer';
 export * from './generate';
+export * from './review';
+export * from './recommendations';

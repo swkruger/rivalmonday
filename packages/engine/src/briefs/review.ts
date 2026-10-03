@@ -1,0 +1,119 @@
+import { type AccessContext, canAccessClient, isAgencyRole, ToolError } from '@cs/core';
+import { brief, briefItem, competitor, type Db, feedback, recommendation, withTenant } from '@cs/db';
+import { and, asc, eq } from 'drizzle-orm';
+import type { PackLoader } from '../tag/tag-stage';
+import { loadEventEvidence } from './evidence';
+import { loadBriefClient } from './gather';
+import { recommendationFromItem } from './recommendations';
+import { checkSentence, splitSentences } from './rules';
+
+export type ReviewDeps = { service: Db; app: Db; packs: PackLoader };
+export interface BriefView {
+  brief: typeof brief.$inferSelect;
+  items: (typeof briefItem.$inferSelect)[];
+}
+type ItemRow = typeof briefItem.$inferSelect;
+const EDITABLE = ['headline', 'whatChanged', 'whyItMatters', 'recommendedAction'] as const;
+
+function requireAgency(ctx: AccessContext) {
+  if (!isAgencyRole(ctx.role)) throw new ToolError('permission_denied', 'Only agency roles may review briefs');
+}
+
+async function visibleBrief(app: Db, ctx: AccessContext, briefId: string) {
+  const [b] = await withTenant(app, ctx, (tx) => tx.select().from(brief).where(eq(brief.id, briefId)).limit(1));
+  if (!b || !canAccessClient(ctx, b.clientId)) throw new ToolError('not_found', 'Brief not found');
+  return b;
+}
+
+async function visibleItem(app: Db, ctx: AccessContext, itemId: string): Promise<{ item: ItemRow; b: typeof brief.$inferSelect }> {
+  const [item] = await withTenant(app, ctx, (tx) => tx.select().from(briefItem).where(eq(briefItem.id, itemId)).limit(1));
+  if (!item) throw new ToolError('not_found', 'Brief item not found');
+  return { item, b: await visibleBrief(app, ctx, item.briefId) };
+}
+
+const requireReady = (b: typeof brief.$inferSelect) => {
+  if (b.status !== 'ready') throw new ToolError('invalid_input', `Brief is ${b.status}, not ready for review`);
+};
+
+export async function getBrief(deps: Pick<ReviewDeps, 'app'>, ctx: AccessContext, briefId: string): Promise<BriefView> {
+  const b = await visibleBrief(deps.app, ctx, briefId);
+  const agency = isAgencyRole(ctx.role);
+  if (!agency && b.status !== 'approved' && b.status !== 'sent') throw new ToolError('not_found', 'Brief not found');
+  const items = await withTenant(deps.app, ctx, (tx) => tx.select().from(briefItem).where(eq(briefItem.briefId, briefId)).orderBy(asc(briefItem.ord)));
+  return { brief: b, items: agency ? items : items.filter((i) => i.status === 'active').map((i) => ({ ...i, upsellTag: null })) };
+}
+
+export async function editBriefItem(deps: ReviewDeps, ctx: AccessContext, itemId: string, patch: Partial<Record<(typeof EDITABLE)[number], string>>): Promise<{ warnings: string[] }> {
+  requireAgency(ctx);
+  const { item, b } = await visibleItem(deps.app, ctx, itemId);
+  requireReady(b);
+  const changes = Object.fromEntries(EDITABLE.filter((k) => patch[k] !== undefined && patch[k]!.trim() !== item[k]).map((k) => [k, patch[k]!.trim()])) as Partial<Record<(typeof EDITABLE)[number], string>>;
+  if (Object.keys(changes).length === 0) return { warnings: [] };
+  if (Object.values(changes).some((v) => v.length === 0 || v.length > 1200)) throw new ToolError('invalid_input', 'Edited text must be 1–1200 characters');
+
+  const c = await loadBriefClient({ db: deps.service, packs: deps.packs }, item.clientId);
+  const [own] = await deps.service.select({ name: competitor.name }).from(competitor).where(eq(competitor.id, item.competitorId));
+  const evidence = await loadEventEvidence(deps.service, item.eventIds, [own?.name ?? '', c.name]);
+  const changesList = [...evidence.values()].flat();
+  const ev = {
+    text: changesList.map((x) => x.text).join('\n'), captureDates: changesList.map((x) => x.capturedAt).filter((d): d is Date => d !== null),
+    zips: [], competitorNames: own ? [own.name] : [],
+  };
+  const rules = { trackedCompetitorNames: c.competitorNames, clientTowns: c.towns, year: new Date().getUTCFullYear() };
+  const warnings = Object.values(changes).flatMap((text) => splitSentences(text).flatMap((sentence) => checkSentence(sentence, ev, rules).reasons));
+
+  await deps.service.transaction(async (tx) => {
+    await tx.update(briefItem).set({ ...changes, editedBy: ctx.userId }).where(eq(briefItem.id, itemId));
+    await tx.insert(feedback).values({
+      agencyId: item.agencyId, clientId: item.clientId, subjectType: 'brief_item', subjectId: itemId, kind: 'edit', actor: ctx.userId,
+      before: Object.fromEntries(Object.keys(changes).map((k) => [k, item[k as (typeof EDITABLE)[number]]])), after: changes,
+    });
+  });
+  return { warnings };
+}
+
+export async function dropBriefItem(deps: ReviewDeps, ctx: AccessContext, itemId: string, reason?: string): Promise<void> {
+  requireAgency(ctx);
+  const { item, b } = await visibleItem(deps.app, ctx, itemId);
+  requireReady(b);
+  await deps.service.transaction(async (tx) => {
+    await tx.update(briefItem).set({ status: 'dropped' }).where(eq(briefItem.id, itemId));
+    await tx.insert(feedback).values({ agencyId: item.agencyId, clientId: item.clientId, subjectType: 'brief_item', subjectId: itemId, kind: 'drop', actor: ctx.userId, reason: reason ?? null });
+  });
+}
+
+export async function reorderBriefItems(deps: ReviewDeps, ctx: AccessContext, briefId: string, itemIds: string[]): Promise<void> {
+  requireAgency(ctx);
+  const b = await visibleBrief(deps.app, ctx, briefId);
+  requireReady(b);
+  const active = await deps.service.select({ id: briefItem.id, ord: briefItem.ord }).from(briefItem).where(and(eq(briefItem.briefId, briefId), eq(briefItem.status, 'active'))).orderBy(asc(briefItem.ord));
+  if (itemIds.length !== active.length || new Set(itemIds).size !== itemIds.length || !itemIds.every((id) => active.some((a) => a.id === id))) {
+    throw new ToolError('invalid_input', "The new order must list exactly the brief's active items");
+  }
+  // Reuse the active set's existing ord values (already ascending), just permuted: a dropped item keeps its own
+  // ord, so renumbering from 0 could collide with one (the brief_id, ord constraint covers every status).
+  const ords = active.map((a) => a.ord);
+  await deps.service.transaction(async (tx) => {
+    for (const [i, id] of itemIds.entries()) await tx.update(briefItem).set({ ord: ords[i] }).where(eq(briefItem.id, id));
+    await tx.insert(feedback).values({ agencyId: b.agencyId, clientId: b.clientId, subjectType: 'brief', subjectId: briefId, kind: 'reorder', actor: ctx.userId, before: { order: active.map((a) => a.id) }, after: { order: itemIds } });
+  });
+}
+
+export async function rateBriefItem(deps: ReviewDeps, ctx: AccessContext, itemId: string, useful: boolean, reason?: string): Promise<void> {
+  requireAgency(ctx);
+  const { item } = await visibleItem(deps.app, ctx, itemId);
+  await deps.service.insert(feedback).values({ agencyId: item.agencyId, clientId: item.clientId, subjectType: 'brief_item', subjectId: itemId, kind: 'rating', actor: ctx.userId, after: { useful }, reason: reason ?? null });
+}
+
+export async function approveBrief(deps: ReviewDeps, ctx: AccessContext, briefId: string): Promise<{ recommendations: number }> {
+  requireAgency(ctx);
+  const b = await visibleBrief(deps.app, ctx, briefId);
+  requireReady(b);
+  return deps.service.transaction(async (tx) => {
+    const claimed = await tx.update(brief).set({ status: 'approved', approvedAt: new Date(), approvedBy: ctx.userId, updatedAt: new Date() }).where(and(eq(brief.id, briefId), eq(brief.status, 'ready'))).returning({ id: brief.id });
+    if (claimed.length === 0) throw new ToolError('invalid_input', 'Brief is no longer ready for review');
+    const active = await tx.select().from(briefItem).where(and(eq(briefItem.briefId, briefId), eq(briefItem.status, 'active')));
+    if (active.length > 0) await tx.insert(recommendation).values(active.map(recommendationFromItem)).onConflictDoNothing();
+    return { recommendations: active.length };
+  });
+}

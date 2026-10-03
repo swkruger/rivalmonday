@@ -1,0 +1,67 @@
+import { createAccessContext } from '@cs/core';
+import { brief, briefItem, feedback, recommendation } from '@cs/db';
+import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { eq } from 'drizzle-orm';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { day, seedScoredEvent } from '../../test/seed';
+import { createPackLoader } from '../tag/tag-stage';
+import { approveBrief, dropBriefItem, editBriefItem, getBrief, rateBriefItem, reorderBriefItems } from './review';
+
+const dbs = openTestDbs();
+afterAll(() => dbs.closeAll());
+const deps = () => ({ service: dbs.service, app: dbs.app, packs: createPackLoader() });
+const am = createAccessContext({ agencyId: IDS.agencyA, userId: 'am-1', role: 'account_manager', clientScope: 'all', features: [] });
+const otherAgency = createAccessContext({ agencyId: IDS.agencyB, userId: 'am-2', role: 'account_manager', clientScope: 'all', features: [] });
+const owner = createAccessContext({ agencyId: IDS.agencyA, userId: 'own-1', role: 'client_owner', clientScope: [IDS.clientA1], features: [] });
+let briefId: string;
+let items: string[];
+
+beforeEach(async () => {
+  await truncateAll(dbs.owner);
+  await seedTenancy(dbs.owner);
+  const e = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(-1), createdAt: day(-1) });
+  const [b] = await dbs.service.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, deliveryDate: '2026-10-05', periodStart: day(-7), periodEnd: day(0), status: 'ready', summary: 's' }).returning({ id: brief.id });
+  briefId = b!.id;
+  const base = { briefId, agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, whatChanged: 'The pricing page shows $69, down from $89.', whyItMatters: 'y', recommendedAction: 'Bundle a filter.', confidence: 0.9, effort: 'L', impact: 'M', eventIds: [e.eventId], evidenceIds: ['ev'], upsellTag: 'ppc', playbookId: 'price_cut_bundle' };
+  items = (await dbs.service.insert(briefItem).values([{ ...base, ord: 0, headline: 'First' }, { ...base, ord: 1, headline: 'Second' }]).returning({ id: briefItem.id })).map((r) => r.id);
+});
+
+describe('brief review', () => {
+  it('AMs see the full brief; client roles see nothing before approval and never the upsell tag', async () => {
+    expect((await getBrief(deps(), am, briefId)).items[0]?.upsellTag).toBe('ppc');
+    await expect(getBrief(deps(), owner, briefId)).rejects.toMatchObject({ code: 'not_found' });
+    await approveBrief(deps(), am, briefId);
+    const view = await getBrief(deps(), owner, briefId);
+    expect(view.items.map((i) => i.upsellTag)).toEqual([null, null]);
+    await expect(getBrief(deps(), otherAgency, briefId)).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('edits store before/after feedback and return rule warnings without blocking', async () => {
+    const r = await editBriefItem(deps(), am, items[0]!, { whatChanged: 'They now charge $49.' });
+    expect(r.warnings).toEqual(['number $49 is not in the evidence']);
+    const [i] = await dbs.owner.select().from(briefItem).where(eq(briefItem.id, items[0]!));
+    expect(i).toMatchObject({ whatChanged: 'They now charge $49.', editedBy: 'am-1' });
+    const [f] = await dbs.owner.select().from(feedback);
+    expect(f).toMatchObject({ kind: 'edit', subjectType: 'brief_item', actor: 'am-1', before: { whatChanged: 'The pricing page shows $69, down from $89.' }, after: { whatChanged: 'They now charge $49.' } });
+  });
+
+  it('drop, reorder and rate record feedback; client roles are refused', async () => {
+    await dropBriefItem(deps(), am, items[0]!, 'not relevant');
+    await expect(reorderBriefItems(deps(), am, briefId, [items[1]!, items[0]!])).rejects.toThrow(/active items/);
+    await reorderBriefItems(deps(), am, briefId, [items[1]!]);
+    await rateBriefItem(deps(), am, items[1]!, true);
+    expect((await dbs.owner.select().from(feedback)).map((f) => f.kind).sort()).toEqual(['drop', 'rating', 'reorder']);
+    await expect(dropBriefItem(deps(), owner, items[1]!)).rejects.toMatchObject({ code: 'permission_denied' });
+  });
+
+  it('approval creates one recommendation per active item, once', async () => {
+    await dropBriefItem(deps(), am, items[0]!);
+    expect(await approveBrief(deps(), am, briefId)).toEqual({ recommendations: 1 });
+    const recs = await dbs.owner.select().from(recommendation);
+    expect(recs).toHaveLength(1);
+    expect(recs[0]).toMatchObject({ briefItemId: items[1], title: 'Bundle a filter.', rationale: 'The pricing page shows $69, down from $89.', status: 'todo', source: 'brief', owner: 'client', upsellTag: 'ppc', effort: 'L', impact: 'M' });
+    expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ status: 'approved', approvedBy: 'am-1' });
+    await expect(approveBrief(deps(), am, briefId)).rejects.toThrow(/ready/);
+    await expect(editBriefItem(deps(), am, items[1]!, { headline: 'x' })).rejects.toThrow(/ready/);
+  });
+});
