@@ -153,6 +153,65 @@ describe('learnVolatileBlocks', () => {
     expect(await maskedBlockKeys(dbs.service, page)).toEqual(new Set());
   });
 
+  it('resolves a masked key to the chain holding it now, not the first chain that ever held it, across a removal above it (fix round 2)', async () => {
+    const store = createMemoryStore();
+    const page = await seedPage(dbs.service, IDS.competitorX, `https://smithhvac.example/${seriesCounter++}`);
+    const a = 'Alpha item stays the same';
+    const b = 'Beta item stays the same';
+    const quotes = ['Quote zero is here', 'Quote one is here', 'Quote two is here', 'Quote two is here', 'Quote four is here', 'Quote five is here'];
+    // Days 0-2: [A, B, Q]; day 3 removes B. Q's day-3 text repeats day 2's so alignBlocks ties Q's own identity
+    // through the removal by exact text (position-independent), not by colliding with B's vacated key — the
+    // same precedent as the insertion test above. Days 4-5 are two further captures after the removal.
+    const bodies = quotes.map((q, i) => (i < 3 ? ul(a, b, q) : ul(a, q)));
+    const caps: string[] = [];
+    const seedCapture = async (i: number) => {
+      const cap = await seedWebCapture(dbs.service, store, { competitorId: IDS.competitorX, trackedPageId: page, html: `<body>${bodies[i]}</body>`, capturedAt: day(i) });
+      await ensureBlocks({ db: dbs.service, store }, cap);
+      caps.push(cap);
+    };
+    for (let i = 0; i <= 4; i++) await seedCapture(i);
+
+    const originalKey = (await loadBlocks(dbs.service, caps[0]!)).find((blk) => blk.text === quotes[0])!.blockKey;
+    await dbs.service.insert(volatileBlock).values({ trackedPageId: page, blockKey: originalKey });
+
+    // Call 1: the mask moves from Q's pre-removal key onto its post-removal key (B never shared that key yet).
+    expect((await learnVolatileBlocks(dbs.service, page)).unmasked).toEqual([]);
+    let current = (await loadBlocks(dbs.service, caps[4]!)).find((blk) => blk.text === quotes[4])!.blockKey;
+    expect(await maskedBlockKeys(dbs.service, page)).toEqual(new Set([current]));
+
+    // Call 2, one capture later: B's dead chain and Q's live chain now both carry that same key, at different
+    // captures. A lookup that returns the first chain created to ever hold the key (array order) resolves to
+    // B's dead chain and wrongly expires the mask; it must resolve to whichever chain holds the key now.
+    await seedCapture(5);
+    expect((await learnVolatileBlocks(dbs.service, page)).unmasked).toEqual([]);
+    current = (await loadBlocks(dbs.service, caps[5]!)).find((blk) => blk.text === quotes[5])!.blockKey;
+    expect(await maskedBlockKeys(dbs.service, page)).toEqual(new Set([current]));
+  });
+
+  it('moves two adjacent masked blocks together when a removal above them shifts both keys (fix round 2)', async () => {
+    const x = 'Removed filler item';
+    const p1 = 'First steady block';
+    const p2 = 'Second steady block';
+    const { page, caps } = await seedSeries([ul(x, p1, p2), ul(x, p1, p2), ul(x, p1, p2), ul(p1, p2)]);
+    const key1 = (await loadBlocks(dbs.service, caps[0]!)).find((blk) => blk.text === p1)!.blockKey;
+    const key2 = (await loadBlocks(dbs.service, caps[0]!)).find((blk) => blk.text === p2)!.blockKey;
+    await dbs.service.insert(volatileBlock).values([
+      { trackedPageId: page, blockKey: key1 },
+      { trackedPageId: page, blockKey: key2 },
+    ]);
+
+    expect((await learnVolatileBlocks(dbs.service, page)).unmasked).toEqual([]);
+
+    const currentKey1 = (await loadBlocks(dbs.service, caps[3]!)).find((blk) => blk.text === p1)!.blockKey;
+    const currentKey2 = (await loadBlocks(dbs.service, caps[3]!)).find((blk) => blk.text === p2)!.blockKey;
+    expect(currentKey1).not.toBe(key1);
+    expect(currentKey2).not.toBe(key2);
+    // p2's new key (currentKey2) is p1's OLD key (key1) — a key that is both a "from" and a "to" in the same
+    // move batch. Both masks must land on their new keys; neither is lost to a delete that treats a key still
+    // in use by the OTHER move as abandoned.
+    expect(await maskedBlockKeys(dbs.service, page)).toEqual(new Set([currentKey1, currentKey2]));
+  });
+
   it('masks when only the newest change is pending, then lifts the mask once that change is confirmed an event', async () => {
     const quotes = ['Quote one is here', 'Quote two is here', 'Quote three is here', 'Quote four is here'];
     const { page, caps } = await seedSeries(quotes.map((q) => `<blockquote>${q}</blockquote>`));
