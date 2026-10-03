@@ -168,16 +168,19 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
     },
     async (tx, { row, resolution, answers, embedding, target, sampleId }) => {
       if (!resolution) return { eventId: null, merged: false };
+      // Claim the transition first: a diff at a stage-version bump may have superseded the change while the model ran.
+      const [claimed] = await tx
+        .update(detectedChange)
+        .set({ status: resolution.meaningful ? 'event' : 'cosmetic' })
+        .where(and(eq(detectedChange.id, changeId), eq(detectedChange.status, 'pending')))
+        .returning({ id: detectedChange.id });
+      if (!claimed) return { eventId: null, merged: false };
       // Low-confidence answers still reach the AM review queue (spec §7.3), whether or not they produced an event.
       if (resolution.needsReview.length > 0) {
         await tx.insert(decisionReview).values({ subjectType: 'detected_change', subjectId: changeId, keys: resolution.needsReview, answers: answers ?? {}, sampleId });
       }
-      if (!resolution.meaningful) {
-        await tx.update(detectedChange).set({ status: 'cosmetic' }).where(eq(detectedChange.id, changeId));
-        return { eventId: null, merged: false };
-      }
+      if (!resolution.meaningful) return { eventId: null, merged: false };
       const eventId = await writeEvent(tx, changeId, webEventValues(row, resolution, embedding), target);
-      await tx.update(detectedChange).set({ status: 'event' }).where(eq(detectedChange.id, changeId));
       return { eventId, merged: target !== null };
     },
   );

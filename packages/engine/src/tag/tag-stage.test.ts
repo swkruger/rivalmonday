@@ -120,6 +120,33 @@ describe('tagChange', () => {
     expect(await statusOf(id)).toBe('event');
   });
 
+  it('writes nothing when a newer diff supersedes the change while the model is deciding', async () => {
+    const id = await change('AC Tune-Up $89', 'AC Tune-Up $69');
+    const decide = tagResult({ meaningful: true, type: 'price_change', confidence: 0.4, needsReview: ['change_type'] });
+    const ai = createFakeAi({
+      decide: async (state, questions) => {
+        await dbs.service.update(detectedChange).set({ status: 'superseded' }).where(eq(detectedChange.id, id));
+        return decide(state, questions);
+      },
+    });
+    expect(await tagChange({ db: dbs.service, ai, packs }, id)).toMatchObject({ ran: true, result: { eventId: null, merged: false } });
+    expect(await dbs.owner.select().from(changeEvent)).toEqual([]);
+    expect(await dbs.owner.select().from(decisionReview)).toEqual([]);
+    expect(await statusOf(id)).toBe('superseded');
+  });
+
+  it('keeps a superseded change superseded when a dismissed decision commits late', async () => {
+    const id = await change('Call us today', 'Call us now');
+    const ai = createFakeAi({
+      decide: async (state, questions) => {
+        await dbs.service.update(detectedChange).set({ status: 'superseded' }).where(eq(detectedChange.id, id));
+        return tagResult({ meaningful: false, type: 'cosmetic' })(state, questions);
+      },
+    });
+    await tagChange({ db: dbs.service, ai, packs }, id);
+    expect(await statusOf(id)).toBe('superseded');
+  });
+
   it('is idempotent', async () => {
     const id = await change('AC Tune-Up $89', 'AC Tune-Up $69');
     const ai = createFakeAi({ decide: tagResult({ meaningful: true, type: 'price_change' }) });

@@ -3,7 +3,7 @@ import { redactForModel } from '@cs/collectors';
 import { CHANGE_TYPES, type ChangeType } from '@cs/core';
 import { capture, type ChangeDetails, changeEvent, client, competitor, type Db, decisionReview, detectedChange, rankScan } from '@cs/db';
 import type { VerticalPack } from '@cs/verticals';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { diffFacts, extractNumericFacts, MONEY_KINDS } from '../facts/numeric';
 import { findMergeTarget, writeEvent } from '../merge/merge';
 import { runStage, type StageOutcome } from '../stage';
@@ -188,11 +188,17 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
     },
     async (tx, computed) => {
       if (!computed) return { eventId: null, merged: false };
+      // Claim the transition first: a diff at a stage-version bump may have superseded the change while the model ran.
+      const [claimed] = await tx
+        .update(detectedChange)
+        .set({ status: 'event' })
+        .where(and(eq(detectedChange.id, changeId), eq(detectedChange.status, 'pending')))
+        .returning({ id: detectedChange.id });
+      if (!claimed) return { eventId: null, merged: false };
       if (computed.needsReview.length > 0) {
         await tx.insert(decisionReview).values({ subjectType: 'detected_change', subjectId: changeId, keys: computed.needsReview, answers: computed.answers, sampleId: computed.sampleId });
       }
       const eventId = await writeEvent(tx, changeId, computed.values, computed.target);
-      await tx.update(detectedChange).set({ status: 'event' }).where(eq(detectedChange.id, changeId));
       return { eventId, merged: computed.target !== null };
     },
   );
