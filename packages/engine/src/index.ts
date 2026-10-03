@@ -34,3 +34,4 @@ export * from './model-ops/batches';
 export * from './model-ops/labels';
 export * from './model-ops/report';
 export * from './model-ops/resolve';
+export * from './briefs';
