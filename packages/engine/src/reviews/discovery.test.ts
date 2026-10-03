@@ -1,12 +1,13 @@
-import type { Ai } from '@cs/ai';
-import { review, reviewAnalysis, themeProposal } from '@cs/db';
+import type { Ai, BatchItemResult } from '@cs/ai';
+import { modelBatch, review, reviewAnalysis, themeProposal } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeAi } from '../../test/fake-ai';
 import { day } from '../../test/seed';
+import { collectModelBatches } from '../model-ops/batches';
 import { createPackLoader } from '../tag/tag-stage';
-import { decideThemeProposal, discoverTheme, runReviewInsights } from './discovery';
+import { decideThemeProposal, discoverTheme, runReviewInsights, THEME_BATCH_TASK } from './discovery';
 import { buildReviewQuestions, themeKey, themesForVertical } from './themes';
 
 const dbs = openTestDbs();
@@ -118,6 +119,61 @@ describe('runReviewInsights', () => {
   it('runs complaint detection per analysed competitor and discovery per vertical, counting errors', async () => {
     await unthemed(20);
     const r = await runReviewInsights({ db: dbs.service, ai: proposing(WARRANTY), packs }, { now });
-    expect(r).toEqual({ competitors: 1, spikes: 0, proposals: 1, errors: 0 });
+    expect(r).toEqual({ competitors: 1, spikes: 0, proposals: 1, errors: 0, batched: 0 });
+  });
+});
+
+type Collect = (task: string, batchId: string) => { status: 'in_progress' } | { status: 'ended'; results: BatchItemResult[] };
+const batching = (collect?: Collect) => createFakeAi({ batch: { submit: () => 'msgbatch_1', collect } });
+
+describe('batched theme discovery (Phase 3d decision 10)', () => {
+  it('submits one request per eligible vertical and records the batch instead of calling chat', async () => {
+    await unthemed(20);
+    const ai = batching();
+    const r = await runReviewInsights({ db: dbs.service, ai, packs }, { now });
+    expect(r).toMatchObject({ batched: 1, proposals: 0, errors: 0 });
+    expect(ai.calls.chat).toEqual([]);
+    expect(ai.calls.batches[0]!.task).toBe(THEME_BATCH_TASK);
+    expect(ai.calls.batches[0]!.requests.map((q) => q.customId)).toEqual(['hvac_plumbing']);
+    expect(JSON.stringify(ai.calls.batches[0]!.requests)).not.toContain('Mike');
+    const [b] = await dbs.owner.select().from(modelBatch);
+    expect(b).toMatchObject({ providerBatchId: 'msgbatch_1', purpose: 'theme_discovery', status: 'submitted', requestCount: 1 });
+    expect(Object.keys(b!.items)).toEqual(['hvac_plumbing']);
+    // A vertical with a batch in flight is not sent again.
+    expect((await runReviewInsights({ db: dbs.service, ai, packs }, { now })).batched).toBe(0);
+  });
+
+  it('applies an ended batch: proposes the theme and closes the batch', async () => {
+    await unthemed(20);
+    await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
+    const ai = batching(() => ({ status: 'ended', results: [{ customId: 'hvac_plumbing', ok: true, text: JSON.stringify(WARRANTY), model: 'claude-sonnet-5', inputTokens: 1, outputTokens: 1 }] }));
+    expect(await collectModelBatches({ db: dbs.service, ai }, { now })).toEqual({ checked: 1, ended: 1, applied: 1, failed: 0, expired: 0 });
+    expect((await dbs.owner.select().from(themeProposal))[0]).toMatchObject({ themeId: 'warranty_claims', status: 'proposed', otherCount: 20 });
+    expect((await dbs.owner.select().from(modelBatch))[0]?.status).toBe('ended');
+  });
+
+  it('a failed request writes nothing, so the same reviews are offered again next night', async () => {
+    await unthemed(20);
+    await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
+    await collectModelBatches({ db: dbs.service, ai: batching(() => ({ status: 'ended', results: [{ customId: 'hvac_plumbing', ok: false, error: 'expired' }] })) }, { now });
+    expect(await dbs.owner.select().from(themeProposal)).toEqual([]);
+    expect((await discoverTheme({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now }))).toMatchObject({ status: 'proposed' });
+  });
+
+  it('a result for a vertical that got a pending proposal meanwhile is skipped, never a second pending row', async () => {
+    await unthemed(20);
+    await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
+    await dbs.service.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'other_theme', name: 'Other', description: 'd', status: 'proposed', otherCount: 1 });
+    const ai = batching(() => ({ status: 'ended', results: [{ customId: 'hvac_plumbing', ok: true, text: JSON.stringify(WARRANTY), model: 'm', inputTokens: 1, outputTokens: 1 }] }));
+    expect(await collectModelBatches({ db: dbs.service, ai }, { now })).toMatchObject({ ended: 1, applied: 0 });
+    expect((await dbs.owner.select().from(themeProposal)).filter((p) => p.status === 'proposed')).toHaveLength(1);
+  });
+
+  it('marks a batch still unfinished after 26 hours as failed', async () => {
+    await unthemed(20);
+    await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
+    const later = new Date(Date.now() + 27 * 3_600_000);
+    expect(await collectModelBatches({ db: dbs.service, ai: batching(() => ({ status: 'in_progress' })) }, { now: later })).toMatchObject({ expired: 1 });
+    expect((await dbs.owner.select().from(modelBatch))[0]).toMatchObject({ status: 'failed', error: expect.stringMatching(/26 h/) });
   });
 });

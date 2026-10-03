@@ -30,6 +30,7 @@ export * from './moves/rules';
 export * from './moves/moves-stage';
 export * from './score/score';
 export * from './score/score-stage';
+export * from './model-ops/batches';
 export * from './model-ops/labels';
 export * from './model-ops/report';
 export * from './model-ops/resolve';

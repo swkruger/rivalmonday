@@ -8,9 +8,9 @@ import {
 import type { CaptureStatus } from '@cs/core';
 import { client, competitor, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import {
-  analyzeReview as runAnalyzeReview, createPackLoader, diffCapture, diffRankScan, type EngineWork, extractPrices as runExtractPrices, findEngineWork,
-  listMoveClients, type MovesRunResult, type ReviewInsightsResult, runReviewInsights, scoreEvent as runScoreStage, tagChange as runTagStage,
-  updateMovesForClient,
+  analyzeReview as runAnalyzeReview, type BatchCollectResult, collectModelBatches, createPackLoader, diffCapture, diffRankScan, type EngineWork,
+  extractPrices as runExtractPrices, findEngineWork, listMoveClients, type MovesRunResult, type ReviewInsightsResult, runReviewInsights,
+  scoreEvent as runScoreStage, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
@@ -27,6 +27,7 @@ export interface WorkerDeps {
   analyzeReview(reviewId: string): Promise<{ ran: boolean }>;
   extractPrices(captureId: string): Promise<{ ran: boolean; points: number; ended: number }>;
   runReviewInsights(): Promise<ReviewInsightsResult>;
+  collectModelBatches(): Promise<BatchCollectResult>;
   diffRankScan(scanId: string): Promise<{ ran: boolean; changeIds: string[] }>;
   updateMoves(clientId: string): Promise<MovesRunResult>;
   listMoveClients(): Promise<string[]>;
@@ -138,6 +139,9 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     },
     async runReviewInsights() {
       return runReviewInsights({ db: getDb(), ai: await getAi(), packs });
+    },
+    async collectModelBatches() {
+      return collectModelBatches({ db: getDb(), ai: await getAi() });
     },
     async diffRankScan(scanId) {
       const r = await diffRankScan({ db: getDb() }, scanId);
