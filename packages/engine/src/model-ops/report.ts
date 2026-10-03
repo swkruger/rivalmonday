@@ -7,6 +7,9 @@ export const REPORT_SWITCH_MARGIN = 0.05;
 const ROLE_ORDER: ReportRole[] = ['primary', 'fallback', 'final'];
 
 export interface LabeledAnswer {
+  /** The decision_sample and question key the answer belongs to: primary and fallback answers pair on these. */
+  sampleId: string;
+  key: string;
   task: string;
   family: string;
   role: ReportRole;
@@ -77,12 +80,28 @@ export function computeDecisionReport(items: LabeledAnswer[]): ReportRow[] {
   }));
   rows.sort((a, b) => a.task.localeCompare(b.task) || a.family.localeCompare(b.family) || ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role) || a.provider.localeCompare(b.provider));
   for (const p of rows.filter((r) => r.role === 'primary')) {
-    const f = rows.find((r) => r.role === 'fallback' && r.task === p.task && r.family === p.family);
-    if (f && p.n >= REPORT_MIN_LABELS && f.n >= REPORT_MIN_LABELS && f.accuracy - p.accuracy >= REPORT_SWITCH_MARGIN) {
-      p.note = `LLM is ${Math.round((f.accuracy - p.accuracy) * 100)} points more accurate on ${Math.min(p.n, f.n)} labels — consider routing ${p.task} to llm_decisions in ai.yaml`;
+    const pairs = pairedAnswers(items, p);
+    const gain = pairs.length === 0 ? 0 : (pairs.filter((x) => x.fallback).length - pairs.filter((x) => x.primary).length) / pairs.length;
+    // The epsilon keeps an exact 5-point gap (e.g. 85/100 vs 80/100) from losing to float rounding.
+    if (pairs.length >= REPORT_MIN_LABELS && gain >= REPORT_SWITCH_MARGIN - 1e-9) {
+      p.note = `LLM is ${Math.round(gain * 100)} points more accurate on ${pairs.length} paired labels — consider routing ${p.task} to llm_decisions in ai.yaml`;
     }
   }
   return rows;
+}
+
+/**
+ * The (sample, key) questions both this primary provider and a fallback answered, as correctness pairs. The routing
+ * note compares only these: the per-role rows are built from different question mixes (a cascade's fallback only
+ * answers the keys it was escalated, or everything when the primary failed), so their accuracies are not comparable.
+ */
+function pairedAnswers(items: LabeledAnswer[], primary: ReportRow): { primary: boolean; fallback: boolean }[] {
+  const id = (x: LabeledAnswer) => `${x.sampleId}\u0000${x.key}`;
+  const inGroup = (x: LabeledAnswer) => x.task === primary.task && x.family === primary.family;
+  const fallback = new Map(items.filter((x) => inGroup(x) && x.role === 'fallback').map((x) => [id(x), x.correct]));
+  return items
+    .filter((x) => inGroup(x) && x.role === 'primary' && x.provider === primary.provider && fallback.has(id(x)))
+    .map((x) => ({ primary: x.correct, fallback: fallback.get(id(x))! }));
 }
 
 /** Every labelled question of every sample, once per role that answered it. */
@@ -96,7 +115,7 @@ export async function loadLabeledAnswers(db: Db, opts: { task?: string; since?: 
   for (const { s, key, label } of rows) {
     const push = (role: ReportRole, provider: string, answer: unknown) => {
       if (!answer) return;
-      out.push({ task: s.task, family: questionFamily(key), role, provider, probability: answerProbability(answer), correct: String((answer as AnyAnswer).value) === label });
+      out.push({ sampleId: s.id, key, task: s.task, family: questionFamily(key), role, provider, probability: answerProbability(answer), correct: String((answer as AnyAnswer).value) === label });
     };
     const side = (role: ReportRole, sa: SampleAnswers | null) => sa && push(role, sa.provider, sa.answers[key]);
     side('primary', s.primary);
