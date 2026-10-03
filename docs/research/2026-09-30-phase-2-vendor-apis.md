@@ -905,3 +905,35 @@ Command: `pnpm --filter @cs/worker engine-once --competitor e9f9cbd3-8834-43a4-a
 - **Prices:** 0 — `cs_dev` has no `web`-source captures for `aireserv.com` (only vendor collection has ever been run against it, per the crawler-ban rule), so `price_extract` found no work. Price normalisation is live-verified only by its own test suite this session, not against a real web capture.
 - **Spend** (`SELECT task, provider, count(*), sum(cost_usd) FROM llm_call WHERE created_at > now() - interval '1 hour' GROUP BY 1, 2`): `review_decisions` (provider `jev`) × 43 calls = **$0.001228**; the Jev→LLM cascade's `llm_decisions` escalation (provider `llm`) × 43 calls = **$0.057435** (at least one of each review's per-theme/sentiment questions fell through to the LLM on every review). **Total ≈ $0.0587** — comfortably under the brief's "well under $1" budget.
 
+## Verified 2026-10-03 — Phase 3d
+
+### Live shadow contract test (`engine.live.test.ts`)
+
+Run: `pnpm --filter @cs/engine exec vitest run engine.live` (5 tests, all pass, ≈ $0.0006 this run — the 4 pre-existing contract tests plus the new shadow-sampling test, which adds one extra LLM call). Ran again, unchanged, as part of the full suite (`pnpm test`) later the same session. The new test forces `AI_SHADOW_RATE: '1'` on `createAiFromEnv` and passes a `DecisionSampleSink`, so a single `tag_decisions` call asks **both** providers every question instead of only the ones that fall below threshold:
+
+```
+[live] shadow {"primary":["meaningful","change_type","service_hvac_plumbing"],"fallback":["meaningful","change_type","service_hvac_plumbing"]}
+```
+
+Both `primary` (Jev) and `fallback` (LLM) answered all three questions (confirming shadow mode, not the normal cascade's partial fallback); the sink recorded one `decision_sample` row (`reason: 'shadow'`) and the extra LLM call was ledgered as `llm_decisions:shadow`.
+
+### Live shadow run on `cs_dev` (Task 17 Step 2)
+
+`REVIEW_STAGE` confirmed as `'review_themes'` (`packages/engine/src/reviews/themes.ts:10`). Deleted the 10 most recent `review_themes` `stage_run` rows for `aireserv.com` (`e9f9cbd3-8834-43a4-a1af-a31224ca43d3`) via `psql` (available on PATH; no `tsx` script needed), then re-ran with full shadow sampling:
+
+```bash
+AI_SHADOW_RATE=1 pnpm --filter @cs/worker engine-once --competitor e9f9cbd3-8834-43a4-a1af-a31224ca43d3 --rounds 1
+# {"diffs":0,"changes":0,"tagged":0,"events":0,"scored":0,"rankDiffs":0,"reviews":10,"prices":0,"errors":0}
+```
+
+- **10 `review_decisions` shadow samples written**, every one with `primary.provider = 'jev'` and `fallback.provider = 'llm'` (`SELECT task, reason, primary_answers->>'provider', fallback_answers->>'provider', count(*) FROM decision_sample WHERE created_at > now() - interval '15 minutes' GROUP BY 1,2,3,4` → `review_decisions | shadow | jev | llm | 10`).
+- **Spend** (`llm_call` rows since the run started): `llm_decisions:shadow` (provider `llm`) × 10 = **$0.027033**; `review_decisions` (provider `jev`) × 10 = **$0.000289**. **Total ≈ $0.0273** (brief estimated ≈ $0.03).
+- **Jev-vs-LLM agreement** on these 10 samples, computed directly from `primary_answers`/`fallback_answers` (no labels involved): **96/100 answers agree (96.0%)** across the 10 questions × 10 samples. Per-question: `sentiment`, `other_hvac_plumbing`, `__communication`, `__price_transparency`, `__scheduling`, `__technician_professionalism`, `__upsell_pressure` all 10/10; `__response_time` and `__cleanliness` 9/10; `__fix_quality` 8/10 (the weakest agreement, still 80%).
+- `decisions export --out <temp>/rm-labels.csv --task review_decisions --limit 10` wrote **100 unlabelled questions** (10 samples × 10 questions) to the OS temp directory (outside the repo, never committed) — `wrote 100 unlabelled question(s) to …/rm-labels.csv — fill in the "label" column, then run: decisions import …`. No row was labelled or imported (labels are the owner's to add).
+- `decisions report` → `No labelled decisions yet. Export samples with 'decisions export', label them, then 'decisions import'.` (expected — no labels exist).
+- `decisions reviews --limit 5` → `no open reviews` (expected — the shadow run's cascade resolved every question above threshold; nothing was sent to `decision_review`). No `decision_review` row was resolved.
+
+### Anthropic Message Batches — not run live
+
+`ANTHROPIC_API_KEY` is not set in this environment, so `pnpm --filter @cs/ai exec vitest run anthropic-batch.live` was not run (its `describe.skipIf(!key)` would skip it anyway). The batch path (`packages/ai/src/anthropic-batch.ts`) is verified by its unit suite only (`anthropic-batch.test.ts`, 7 tests, all passing as part of the full `@cs/ai` run). Installed SDK: `@anthropic-ai/sdk@^0.131.0`. Live verification of a real batch submit/poll/collect round trip remains open until a key is provided (carried to the roadmap's Phase 3d carry-over).
+
