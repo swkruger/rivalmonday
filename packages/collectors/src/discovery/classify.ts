@@ -23,10 +23,13 @@ export const PAGE_TYPE_OPTIONS: Record<PageType, string> = {
  * page content, so it goes through `redactForModel` like every other model input (spec §4.5) — pass the
  * competitor's own domain/name when the caller has one, so it's never mistaken for a person's name.
  */
-export async function classifyPage(ai: Ai, candidate: { url: string; text?: string; businessName?: string | null }): Promise<{ pageType: PageType; needsReview: boolean }> {
+export async function classifyPage(
+  ai: Ai,
+  candidate: { url: string; text?: string; businessNames?: readonly (string | null | undefined)[] },
+): Promise<{ pageType: PageType; needsReview: boolean }> {
   const result = await ai.decide(
     PAGE_DECISION_TASK,
-    { url: candidate.url, link_text: candidate.text ? redactForModel(candidate.text, { businessNames: [candidate.businessName] }) : null },
+    { url: candidate.url, link_text: candidate.text ? redactForModel(candidate.text, { businessNames: candidate.businessNames ?? [] }) : null },
     { page_type: { type: 'choice', instructions: 'What kind of page on a local service business website is this, judging by its URL and link text?', options: PAGE_TYPE_OPTIONS } },
     { agencyId: null, clientId: null },
   );

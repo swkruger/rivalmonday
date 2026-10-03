@@ -152,7 +152,10 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     async discoverPages(competitorId) {
       const [c] = await getDb().select().from(competitor).where(eq(competitor.id, competitorId)).limit(1);
       if (!c?.domain) return { skipped: 'competitor has no domain' };
-      return discoverPages({ db: getDb(), renderer: getRenderer(), robots, fetchText: defaultFetchText, limiter, ai: await getAi() }, { id: c.id, domain: c.domain });
+      return discoverPages(
+        { db: getDb(), store: getStore(), renderer: getRenderer(), robots, fetchText: defaultFetchText, limiter, ai: await getAi() },
+        { id: c.id, domain: c.domain, name: c.name },
+      );
     },
     vendorsConfigured: () => Boolean(env.DATAFORSEO_LOGIN && env.DATAFORSEO_PASSWORD),
     ensureSelfCompetitors: () => ensureSelfCompetitors(getDb()),
