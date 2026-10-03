@@ -9,7 +9,7 @@ const STATE_NAMES = [
 /** Upper-case state abbreviation right before the number ("TX 75201", "TX, 75201"). Case-sensitive on purpose. */
 const ABBR_BEFORE = new RegExp(`(?:^|[^A-Za-z])(?:${STATE_ABBR})\\.?,?\\s*$`);
 /** State name or "zip/postal code(s)" right before the number. */
-const WORD_BEFORE = new RegExp(`\\b(?:${STATE_NAMES.join('|')}|zip(?:\\s*codes?)?|postal\\s*codes?)\\s*[:#,]?\\s*$`, 'i');
+const WORD_BEFORE = new RegExp(`\\b(?:${STATE_NAMES.join('|')}|zip(?:\\s*codes?)?|postal\\s*codes?)\\s*[:,]?\\s*$`, 'i');
 /** A unit or count noun after the number means it is a quantity, not a ZIP. */
 const UNIT_AFTER = /^\s*(?:btus?\b|sq\.?\s*f(?:ee)?t\b|square\b|ft\b|feet\b|miles?\b|mi\b|lbs?\b|pounds?\b|gallons?\b|gal\b|seer2?\b|watts?\b|kwh?\b|hp\b|psi\b|cfm\b|tons?\b|%|hours?\b|hrs?\b|customers?\b|reviews?\b|homes?\b|happy\b)/i;
 /** Five digits, optional +4; not part of a longer number, a price, a phone/date, or a decimal. */
@@ -22,9 +22,10 @@ export function extractZips(text: string): string[] {
   for (const m of text.matchAll(CANDIDATE)) {
     const start = m.index!;
     const end = start + m[0].length;
-    if (UNIT_AFTER.test(text.slice(end, end + 20))) continue;
     const before = text.slice(Math.max(0, start - 40), start);
-    found.push({ zip: m[1]!, start, end, context: ABBR_BEFORE.test(before) || WORD_BEFORE.test(before) });
+    const context = ABBR_BEFORE.test(before) || WORD_BEFORE.test(before);
+    if (!context && UNIT_AFTER.test(text.slice(end, end + 20))) continue;
+    found.push({ zip: m[1]!, start, end, context });
   }
   const accepted = found.map((f, i) => {
     if (f.context) return true;

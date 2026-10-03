@@ -10,6 +10,9 @@ describe('extractZips (Phase 3d decision 17)', () => {
     ['Now serving 75034 and 75035! Call 972-555-0100. Systems from $12000.', ['75034', '75035']],
     ['Areas we serve: 75201/75204', ['75201', '75204']],
     ['zip 75093', ['75093']],
+    ["We've serviced over 500 Plano, TX 75024 homes since 2010.", ['75024']],
+    ['Katy, TX 77494 customers', ['77494']],
+    ['Frisco, TX 75034 reviews', ['75034']],
   ])('reads %s', (text, zips) => {
     expect(extractZips(text)).toEqual(zips);
   });
