@@ -15,10 +15,47 @@ describe('moves jobs', () => {
   });
 
   it('updates one client per job', async () => {
-    const deps = { updateMoves: vi.fn(async () => ({ opened: 1, updated: 0, fading: 0, closed: 0 })) } as unknown as WorkerDeps;
+    const deps = { updateMoves: vi.fn(async () => ({ opened: 1, updated: 0, fading: 0, closed: 0 })), engineConfigured: () => false } as unknown as WorkerDeps;
     const jobs = createMovesJobs(deps, { enqueueMovesClient: vi.fn() });
     await jobs.client.handler({ clientId: U(3) });
     expect(deps.updateMoves).toHaveBeenCalledWith(U(3));
     expect(() => jobs.client.schema.parse({ clientId: 'x' })).toThrow();
+  });
+
+  it('runs move recommendations after updateMoves when the engine is configured', async () => {
+    const deps = {
+      updateMoves: vi.fn(async () => ({ opened: 1, updated: 0, fading: 0, closed: 0 })),
+      engineConfigured: () => true,
+      recommendForMoves: vi.fn(async () => ({ created: 1, skipped: 0, failed: 0 })),
+    } as unknown as WorkerDeps;
+    const jobs = createMovesJobs(deps, { enqueueMovesClient: vi.fn() });
+    await jobs.client.handler({ clientId: U(3) });
+    expect(deps.recommendForMoves).toHaveBeenCalledWith(U(3));
+  });
+
+  it('does not run move recommendations when the engine is not configured', async () => {
+    const deps = {
+      updateMoves: vi.fn(async () => ({ opened: 1, updated: 0, fading: 0, closed: 0 })),
+      engineConfigured: () => false,
+      recommendForMoves: vi.fn(),
+    } as unknown as WorkerDeps;
+    const jobs = createMovesJobs(deps, { enqueueMovesClient: vi.fn() });
+    await jobs.client.handler({ clientId: U(3) });
+    expect(deps.recommendForMoves).not.toHaveBeenCalled();
+  });
+
+  it('logs and swallows a recommendForMoves rejection instead of failing the job', async () => {
+    const deps = {
+      updateMoves: vi.fn(async () => ({ opened: 1, updated: 0, fading: 0, closed: 0 })),
+      engineConfigured: () => true,
+      recommendForMoves: vi.fn(async () => {
+        throw new Error('boom');
+      }),
+    } as unknown as WorkerDeps;
+    const jobs = createMovesJobs(deps, { enqueueMovesClient: vi.fn() });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await expect(jobs.client.handler({ clientId: U(3) })).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('boom'));
+    warn.mockRestore();
   });
 });

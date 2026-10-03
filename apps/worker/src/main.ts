@@ -8,6 +8,7 @@ try {
 
 import { createBoss, enqueue, registerJobs } from './boss';
 import { createWorkerDeps } from './deps';
+import { createBriefJobs } from './jobs/briefs';
 import { createEngineJobs } from './jobs/engine';
 import { heartbeatJob } from './jobs/heartbeat';
 import { createModelOpsJobs } from './jobs/model-ops';
@@ -67,12 +68,17 @@ const moves = createMovesJobs(deps, {
     await enqueue(boss, moves.client, { clientId }, { singletonKey: clientId });
   },
 });
+const briefs = createBriefJobs(deps, {
+  enqueueBriefClient: async (clientId) => {
+    await enqueue(boss, briefs.client, { clientId }, { singletonKey: clientId });
+  },
+});
 const reviews = createReviewJobs(deps);
 const modelOps = createModelOpsJobs(deps);
 await registerJobs(boss, [
   heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, vendor.suggest,
   engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.price, reviews.nightly, moves.nightly, moves.client,
-  modelOps.batchPoll,
+  modelOps.batchPoll, briefs.schedule, briefs.client,
 ]);
 console.log('[worker] started');
 

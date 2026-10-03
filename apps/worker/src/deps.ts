@@ -8,9 +8,9 @@ import {
 import type { CaptureStatus } from '@cs/core';
 import { client, competitor, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import {
-  analyzeReview as runAnalyzeReview, type BatchCollectResult, collectModelBatches, createPackLoader, diffCapture, diffRankScan, type EngineWork,
-  extractPrices as runExtractPrices, findEngineWork, listMoveClients, type MovesRunResult, type ReviewInsightsResult, runReviewInsights,
-  scoreEvent as runScoreStage, tagChange as runTagStage, updateMovesForClient,
+  analyzeReview as runAnalyzeReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createPackLoader, diffCapture, diffRankScan,
+  type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, listBriefDueClients, listMoveClients, type MovesRunResult,
+  recommendForMoves, type ReviewInsightsResult, runReviewInsights, scoreEvent as runScoreStage, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
@@ -31,6 +31,10 @@ export interface WorkerDeps {
   diffRankScan(scanId: string): Promise<{ ran: boolean; changeIds: string[] }>;
   updateMoves(clientId: string): Promise<MovesRunResult>;
   listMoveClients(): Promise<string[]>;
+  /** Clients whose weekly brief window is open and whose brief is missing, retryable, or stale (spec §9.1). */
+  listBriefDueClients(now: Date): Promise<string[]>;
+  generateBrief(clientId: string): Promise<BriefRunResult>;
+  recommendForMoves(clientId: string): Promise<{ created: number; skipped: number; failed: number }>;
   discoverPages(competitorId: string): Promise<{ selected: number; candidates: number; homepageStatus: string } | { skipped: string }>;
   /** True once DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD are both set — gates all vendor collection. */
   vendorsConfigured(): boolean;
@@ -149,6 +153,9 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     },
     updateMoves: (clientId) => updateMovesForClient({ db: getDb(), packs }, clientId),
     listMoveClients: () => listMoveClients(getDb()),
+    listBriefDueClients: (now) => listBriefDueClients(getDb(), now),
+    generateBrief: async (clientId) => generateBrief({ db: getDb(), ai: await getAi(), packs }, clientId),
+    recommendForMoves: async (clientId) => recommendForMoves({ db: getDb(), ai: await getAi(), packs }, clientId),
     async discoverPages(competitorId) {
       const [c] = await getDb().select().from(competitor).where(eq(competitor.id, competitorId)).limit(1);
       if (!c?.domain) return { skipped: 'competitor has no domain' };

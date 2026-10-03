@@ -10,6 +10,7 @@
     "start": "tsx src/main.ts",
     "collect-once": "tsx src/cli/collect-once.ts",
     "engine-once": "tsx src/cli/engine-once.ts",
+    "brief-once": "tsx src/cli/brief-once.ts",
     "decisions": "tsx src/cli/decisions.ts"
   },
   "dependencies": {
