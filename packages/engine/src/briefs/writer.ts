@@ -84,13 +84,14 @@ export function buildWriterPrompt(c: BriefClient, candidates: BriefCandidate[], 
     const pb = playbookFor(playbooks, candidateTrigger(cand));
     const head = [`Competitor: ${cand.competitorName}`, `Kind: ${cand.kind === 'move' ? `pattern (${cand.moveType})` : cand.changeType}`];
     if (pb) head.push(`Playbook: ${renderPlaybook(pb.template, playbookVars(cand))}`);
-    return `<candidate id="${candidateRef(i)}">\n${head.join('\n')}\n<evidence>\n${candidateEvidenceText(cand)}\n</evidence>\n</candidate>`;
+    // Competitor names (and playbook vars derived from them) come from scraped pages, so escape the head block too.
+    return `<candidate id="${candidateRef(i)}">\n${escapeEvidence(head.join('\n'))}\n<evidence>\n${candidateEvidenceText(cand)}\n</evidence>\n</candidate>`;
   });
-  const context = [
+  const context = escapeEvidence([
     `Business: ${c.name} (${c.verticalName})`,
     `Services: ${c.serviceNames.join(', ') || 'not set'}`,
     `Service area towns: ${c.towns.join(', ') || 'not set'}`,
-  ].join('\n');
+  ].join('\n'));
   return { jsonSchema: draftJson, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: `${context}\n\nCANDIDATES:\n${blocks.join('\n')}` }] };
 }
 
