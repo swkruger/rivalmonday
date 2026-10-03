@@ -1,5 +1,6 @@
-import { capture, changeEvent, detectedChange, eventScore, review, stageRun, trackedPage } from '@cs/db';
+import { capture, changeEvent, clientCompetitor, detectedChange, eventScore, review, stageRun, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { scoreEvent } from './score/score-stage';
 import { MAX_STAGE_ATTEMPTS } from './stage';
@@ -65,7 +66,9 @@ describe('findEngineWork', () => {
     await dbs.service.insert(stageRun).values({ stage: 'web_diff', stageVersion: 1, subjectId: id(1), status: 'done' });
     await dbs.service.insert(changeEvent).values([
       { id: id(21), competitorId: IDS.competitorX, changeType: 'promo', summary: 's', confidence: 1, occurredAt: new Date() },
-      { id: id(22), competitorId: IDS.competitorX, changeType: 'promo', summary: 's', confidence: 1, occurredAt: new Date(), createdAt: new Date('2025-01-01') },
+      // Old on both counts (occurred and created long ago): outside the window itself, and the client link
+      // (seeded "now") is not late enough to need the lookback path either since occurredAt is also old.
+      { id: id(22), competitorId: IDS.competitorX, changeType: 'promo', summary: 's', confidence: 1, occurredAt: new Date('2025-01-01'), createdAt: new Date('2025-01-01') },
     ]);
     const factors = { typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 1 };
     await dbs.service.insert(eventScore).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, eventId: id(21), score: 1, route: 'archive', factors, packVersion: 1 });
@@ -109,5 +112,27 @@ describe('findEngineWork', () => {
     // btrim to strip, so a naive `length(btrim(r.text)) >= 10` check would offer this review; JS `.trim()`
     // (what analyzeReview itself checks) strips the newlines too, leaving "ok" (2 chars) — never offer it.
     expect((await findEngineWork(dbs.service, { limit: 50 })).reviews).not.toContain(r!.id);
+  });
+
+  it('does not offer a complaint spike to clients of another vertical (3c carry-over)', async () => {
+    // A2 is dental and tracks Y; a hvac complaint spike on Y has no hvac client to score it for.
+    const [ev] = await dbs.service
+      .insert(changeEvent)
+      .values({ competitorId: IDS.competitorY, changeType: 'review_spike', summary: 's', confidence: 1, occurredAt: new Date(), details: { verticalId: 'hvac_plumbing', theme: 'response_time' } })
+      .returning({ id: changeEvent.id });
+    expect((await findEngineWork(dbs.service, { limit: 10 })).score).not.toContain(ev!.id);
+  });
+
+  it('offers recent history to a newly linked client, but not events older than the lookback', async () => {
+    const old = new Date(Date.now() - 40 * 86_400_000);
+    const ancient = new Date(Date.now() - 120 * 86_400_000);
+    const [recentish] = await dbs.service.insert(changeEvent).values({ competitorId: IDS.competitorY, changeType: 'promo', summary: 's', confidence: 1, occurredAt: old, createdAt: old }).returning({ id: changeEvent.id });
+    const [tooOld] = await dbs.service.insert(changeEvent).values({ competitorId: IDS.competitorY, changeType: 'promo', summary: 's', confidence: 1, occurredAt: ancient, createdAt: ancient }).returning({ id: changeEvent.id });
+    await dbs.owner.update(clientCompetitor).set({ createdAt: old }).where(eq(clientCompetitor.competitorId, IDS.competitorY));
+    expect((await findEngineWork(dbs.service, { limit: 10 })).score).not.toContain(recentish!.id); // link is old too
+    await dbs.owner.update(clientCompetitor).set({ createdAt: new Date() }).where(eq(clientCompetitor.competitorId, IDS.competitorY));
+    const work = (await findEngineWork(dbs.service, { limit: 10 })).score;
+    expect(work).toContain(recentish!.id);
+    expect(work).not.toContain(tooOld!.id);
   });
 });

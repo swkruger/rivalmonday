@@ -1,8 +1,15 @@
 import type { ChangeType } from '@cs/core';
-import { type ChangeDetails, changeEvent, client, clientCompetitor, type Db, eventScore, type NumericChange } from '@cs/db';
-import { and, cosineDistance, desc, eq, gte, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import { type ChangeDetails, changeEvent, client, clientCompetitor, type Db, eventScore, type NumericChange, scoreFailure } from '@cs/db';
+import { type AnyColumn, and, cosineDistance, desc, eq, gte, isNotNull, isNull, lt, ne, or, type SQL, sql } from 'drizzle-orm';
+import { MAX_STAGE_ATTEMPTS, RETRY_BACKOFF_MINUTES } from '../stage';
 import type { PackLoader } from '../tag/tag-stage';
 import { type Route, scoreForClient } from './score';
+
+/** A pair that failed recently (exponential backoff, like the stage sweep) or MAX_STAGE_ATTEMPTS times is skipped. */
+export const scoreBackoff = (eventId: SQL | string, clientId: SQL | AnyColumn) => sql`EXISTS (
+  SELECT 1 FROM score_failure f WHERE f.event_id = ${eventId}::uuid AND f.client_id = ${clientId}
+    AND (f.attempts >= ${MAX_STAGE_ATTEMPTS}::int
+         OR f.failed_at > now() - make_interval(mins => ${RETRY_BACKOFF_MINUTES}::int * power(2, f.attempts - 1)::int)))`;
 
 /**
  * Order-insensitive signature of the numeric facts a change carries (kind, unit, before value, after value).
@@ -112,6 +119,7 @@ export async function scoreEvent(deps: { db: Db; packs: PackLoader }, eventId: s
         // competitor (a franchise competitor can span verticals, e.g. HVAC + dental).
         ev.details.verticalId ? eq(client.verticalId, ev.details.verticalId) : undefined,
         sql`NOT EXISTS (SELECT 1 FROM event_score s WHERE s.event_id = ${ev.id} AND s.client_id = ${client.id})`,
+        sql`NOT ${scoreBackoff(ev.id, client.id)}`,
       ),
     );
 
@@ -139,9 +147,17 @@ export async function scoreEvent(deps: { db: Db; packs: PackLoader }, eventId: s
         result.scored++;
         result.routes[s.route]++;
       }
+      await deps.db.delete(scoreFailure).where(and(eq(scoreFailure.eventId, ev.id), eq(scoreFailure.clientId, c.id)));
     } catch (err) {
       result.failed++;
       console.error(`[engine] scoring event ${ev.id} for client ${c.id} failed`, err);
+      const message = (err instanceof Error ? err.message : String(err)).slice(0, 2000);
+      const [f] = await deps.db
+        .insert(scoreFailure)
+        .values({ eventId: ev.id, clientId: c.id, agencyId: c.agencyId, error: message })
+        .onConflictDoUpdate({ target: [scoreFailure.eventId, scoreFailure.clientId], set: { attempts: sql`${scoreFailure.attempts} + 1`, error: message, failedAt: sql`now()` } })
+        .returning({ attempts: scoreFailure.attempts });
+      if (f && f.attempts >= MAX_STAGE_ATTEMPTS) console.warn(`[engine] scoring event ${ev.id} for client ${c.id} exhausted: ${message}`);
     }
   }
   return result;
