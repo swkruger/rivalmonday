@@ -143,6 +143,9 @@ export const volatileBlock = pgTable(
     blockKey: text('block_key').notNull(),
     maskedAt: ts('masked_at').notNull().defaultNow(),
     unmaskedAt: ts('unmasked_at'), // set by an AM unmask: the block is never auto-masked again
+    // The capture blockKey was read from (the window's newest at write time) — a key is only meaningful
+    // relative to that capture; null for a manual unmask, which isn't tied to any one capture's layout.
+    keyCaptureId: uuid('key_capture_id').references(() => capture.id),
   },
   (t) => [primaryKey({ columns: [t.trackedPageId, t.blockKey] })],
 );

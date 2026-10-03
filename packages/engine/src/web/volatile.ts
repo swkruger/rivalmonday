@@ -78,10 +78,11 @@ export async function maskedBlockKeys(db: Db, trackedPageId: string): Promise<Se
 
 /** An AM's unmask (UI in Phase 5): the block is diffed normally from now on and never auto-masked again. */
 export async function unmaskBlock(db: Db, trackedPageId: string, blockKey: string): Promise<void> {
+  // A manual row isn't tied to any one capture's layout, so key_capture_id is cleared (not resolved via it).
   await db
     .insert(volatileBlock)
-    .values({ trackedPageId, blockKey, unmaskedAt: sql`now()` })
-    .onConflictDoUpdate({ target: [volatileBlock.trackedPageId, volatileBlock.blockKey], set: { unmaskedAt: sql`now()` } });
+    .values({ trackedPageId, blockKey, unmaskedAt: sql`now()`, keyCaptureId: null })
+    .onConflictDoUpdate({ target: [volatileBlock.trackedPageId, volatileBlock.blockKey], set: { unmaskedAt: sql`now()`, keyCaptureId: null } });
 }
 
 export async function learnVolatileBlocks(db: Db, trackedPageId: string): Promise<{ masked: string[]; unmasked: string[] }> {
@@ -99,7 +100,15 @@ export async function learnVolatileBlocks(db: Db, trackedPageId: string): Promis
     .limit(VOLATILE_TRANSITIONS + 1);
   if (caps.length < VOLATILE_MIN_CHANGES + 1) return { masked: [], unmasked: [] };
   const ids = caps.map((c) => c.id).reverse();
+  const newestId = ids.at(-1)!;
   const chains = blockChains(await Promise.all(ids.map((id) => loadBlocks(db, id))));
+
+  // A key is only meaningful relative to the capture it was recorded against — positions are reused by
+  // different blocks over the life of a window, so a bare key string can match the WRONG chain at a
+  // DIFFERENT time than the one a row (automatic mask, manual unmask, or detected change) actually meant.
+  // Every lookup below resolves through chainAt at the specific capture index the row is pinned to, landing
+  // on exactly one chain, never on "whichever chain happens to share that key string at some other moment."
+  const chainAt = (idx: number, k: string): BlockChain | undefined => chains.find((c) => c.keyHistory[idx] === k);
 
   // A block with an event is never masked (full window: an event is a finished decision, recency doesn't
   // matter). A change still pending also protects it (not yet tagged, may still matter) — except the capture
@@ -108,7 +117,7 @@ export async function learnVolatileBlocks(db: Db, trackedPageId: string): Promis
   // change should block this one.
   const priorIds = ids.slice(0, -1);
   const protectedRows = await db
-    .select({ blockKey: detectedChange.blockKey, status: detectedChange.status })
+    .select({ blockKey: detectedChange.blockKey, status: detectedChange.status, afterCaptureId: detectedChange.afterCaptureId })
     .from(detectedChange)
     .where(
       and(
@@ -119,90 +128,64 @@ export async function learnVolatileBlocks(db: Db, trackedPageId: string): Promis
         ),
       ),
     );
-  const eventKeys = new Set(protectedRows.filter((r) => r.status === 'event').map((r) => r.blockKey));
-  const protectedKeys = new Set(protectedRows.map((r) => r.blockKey));
+  const eventChains = new Set<BlockChain>();
+  const protectedChains = new Set<BlockChain>(); // event OR a still-pending change from an earlier evaluation
+  for (const r of protectedRows) {
+    const capIdx = r.afterCaptureId ? ids.indexOf(r.afterCaptureId) : -1;
+    const c = capIdx >= 0 && r.blockKey ? chainAt(capIdx, r.blockKey) : undefined;
+    if (!c) continue;
+    protectedChains.add(c);
+    if (r.status === 'event') eventChains.add(c);
+  }
 
   const rows = await db.select().from(volatileBlock).where(eq(volatileBlock.trackedPageId, trackedPageId));
-  const masked = new Set(rows.filter((r) => r.unmaskedAt === null).map((r) => r.blockKey));
-  const manual = new Set(rows.filter((r) => r.unmaskedAt !== null).map((r) => r.blockKey));
+  const oldRows = rows.filter((r) => r.unmaskedAt === null); // automatic masks: the only rows this function ever writes
+  const manualRows = rows.filter((r) => r.unmaskedAt !== null);
+  const manualKeys = new Set(manualRows.map((r) => r.blockKey)); // never written to, whichever chain claims the string
+  // A manual row never carries a key_capture_id (unmaskBlock clears it), so — like a null/stale automatic
+  // row — it resolves against the window's oldest capture.
+  const manualChains = new Set(manualRows.map((r) => chainAt(0, r.blockKey)).filter((c): c is BlockChain => c != null));
   const live = chains.filter((c) => c.lastKey !== null);
-
-  // A block never gets a fresh automatic mask while any key its chain has ever held is already masked (it's
-  // being tracked below, possibly under an older key) or was manually unmasked (an AM's call stands forever).
-  const newly = live
-    .filter((c) => !c.keys.some((k) => manual.has(k) || masked.has(k)) && isVolatile(c.history, c.keys.some((k) => protectedKeys.has(k))))
-    .map((c) => c.lastKey!);
-
-  // Resolve a masked key k to the chain that holds (or most recently held) it — not just any chain whose
-  // history ever passed through k, and not just the first one created. The same key value passes through
-  // several different chains over the life of a window (an adjacent block can arrive at it from elsewhere
-  // just as easily as its original holder can leave it — e.g. a removal above a run of blocks shifts EVERY
-  // one of them up by one key at once), so neither "first chain created" nor "chain with the single latest
-  // occurrence" is a safe rule on its own:
-  //  1. If a chain was already sitting at k at the very start of this window and is still alive (however far
-  //     it has since moved), it IS k's owner — prefer it outright, even over a chain that currently sits at k
-  //     having arrived there later from somewhere else (that arrival is coincidence of position, not identity).
-  //  2. Otherwise (k's original window-start holder has died, or nothing held k at window-start at all) fall
-  //     back to whichever chain most recently held k — excluding a chain that sprang into existence already
-  //     holding k (no earlier capture in this window shows it at all): that one inherited a vacated position
-  //     rather than being the block k used to represent, the mirror of the separately-tracked alignBlocks
-  //     same-key pairing issue — this guards our own bookkeeping when alignBlocks does keep chains apart.
-  const chainForKey = (k: string): BlockChain | undefined => {
-    const rooted = chains.find((c) => c.keyHistory[0] === k);
-    if (rooted?.lastKey != null) return rooted;
-    let best: BlockChain | undefined;
-    let bestIdx = -1;
-    for (const c of chains) {
-      const firstLiveIdx = c.keyHistory.findIndex((key) => key !== null);
-      if (firstLiveIdx > 0 && c.keyHistory[firstLiveIdx] === k) continue;
-      const idx = c.keyHistory.lastIndexOf(k);
-      if (idx > bestIdx) {
-        bestIdx = idx;
-        best = c;
-      }
-    }
-    return best;
-  };
-
-  // Existing masks follow their block, not its position: resolve each masked key k to the chain that carries
-  // it and decide from THAT chain's current state — move the mask to its current key if the key shifted (an
-  // insertion/removal elsewhere renumbered it), or lift it (expire) when the block has gone fully stable for
-  // the whole window, was tied to a change that turned out to be an event, reached a key an AM manually
-  // unmasked, or no chain carries it any more at all (the window has aged past where it ever existed).
   const fullWindow = ids.length === VOLATILE_TRANSITIONS + 1;
+
+  const finalKeys = new Set<string>();
   const expired: string[] = [];
-  const moved: { from: string; to: string }[] = [];
-  for (const k of masked) {
-    const c = chainForKey(k);
-    if (!c) {
-      expired.push(k); // no chain in this window ever carried this key
+  for (const row of oldRows) {
+    const idx = row.keyCaptureId ? ids.indexOf(row.keyCaptureId) : -1;
+    const c = chainAt(idx >= 0 ? idx : 0, row.blockKey);
+    const stable = c != null && fullWindow && countChanges(c.history) === 0;
+    if (!c || c.lastKey === null || manualChains.has(c) || eventChains.has(c) || stable) {
+      expired.push(row.blockKey); // dead, gone from this window, manually cleared, eventful, or fully stable
       continue;
     }
-    const manualChain = c.keys.some((key) => manual.has(key));
-    const eventChain = c.keys.some((key) => eventKeys.has(key));
-    const stable = fullWindow && countChanges(c.history) === 0;
-    if (manualChain || eventChain || stable || c.lastKey === null) {
-      expired.push(k);
-      continue;
-    }
-    if (c.lastKey !== k) moved.push({ from: k, to: c.lastKey });
+    finalKeys.add(c.lastKey); // same key (refreshed) or moved — either way, this is where it lives now
   }
 
-  if (newly.length > 0) await db.insert(volatileBlock).values(newly.map((blockKey) => ({ trackedPageId, blockKey }))).onConflictDoNothing();
-  if (moved.length > 0) {
-    // Adjacent blocks can shift together (e.g. a removal above both moves k2→k1 AND k1→k0 in the same call):
-    // a key can be both a "from" and a "to" in the same batch. Only delete a "from" key that ISN'T also a
-    // "to" of this batch, or the insert-then-delete would wipe out a position another move just landed on.
-    // Both writes run in one transaction so the relocation is never observed half-applied.
-    const toKeys = new Set(moved.map((m) => m.to));
-    const deleteFrom = moved.map((m) => m.from).filter((from) => !toKeys.has(from));
-    await db.transaction(async (tx) => {
-      await tx.insert(volatileBlock).values(moved.map((m) => ({ trackedPageId, blockKey: m.to }))).onConflictDoNothing();
-      if (deleteFrom.length > 0) {
-        await tx.delete(volatileBlock).where(and(eq(volatileBlock.trackedPageId, trackedPageId), inArray(volatileBlock.blockKey, deleteFrom), isNull(volatileBlock.unmaskedAt)));
-      }
-    });
-  }
-  if (expired.length > 0) await db.delete(volatileBlock).where(and(eq(volatileBlock.trackedPageId, trackedPageId), inArray(volatileBlock.blockKey, expired), isNull(volatileBlock.unmaskedAt)));
+  // A block never gets a fresh automatic mask while its chain is already accounted for above (whatever key it
+  // now sits at) or was manually unmasked (an AM's call stands forever).
+  const newly = live.filter((c) => !finalKeys.has(c.lastKey!) && !manualChains.has(c) && isVolatile(c.history, protectedChains.has(c))).map((c) => c.lastKey!);
+  for (const k of newly) finalKeys.add(k);
+  // Belt and suspenders: a different chain can coincidentally resolve to the exact string a manual row uses
+  // (positions are reused over time) — the write path must never touch that row regardless of which chain
+  // claims the string, so strip any manual key out of the final set no matter how it got proposed.
+  for (const k of manualKeys) finalKeys.delete(k);
+
+  // Apply the whole relocation — deletes of keys no longer in the final set, upserts of every key that is —
+  // in one transaction. A key in the final set is never deleted, even if it is also some OTHER row's old key
+  // (adjacent masked blocks can shift into each other's old positions in the same call). Manual rows are
+  // never touched: deletes only ever target automatic rows, and finalKeys never contains a manual key.
+  const oldKeys = oldRows.map((r) => r.blockKey);
+  const toDelete = oldKeys.filter((k) => !finalKeys.has(k));
+  await db.transaction(async (tx) => {
+    if (toDelete.length > 0) {
+      await tx.delete(volatileBlock).where(and(eq(volatileBlock.trackedPageId, trackedPageId), inArray(volatileBlock.blockKey, toDelete), isNull(volatileBlock.unmaskedAt)));
+    }
+    if (finalKeys.size > 0) {
+      await tx
+        .insert(volatileBlock)
+        .values([...finalKeys].map((blockKey) => ({ trackedPageId, blockKey, keyCaptureId: newestId })))
+        .onConflictDoUpdate({ target: [volatileBlock.trackedPageId, volatileBlock.blockKey], set: { keyCaptureId: newestId } });
+    }
+  });
   return { masked: newly, unmasked: expired };
 }
