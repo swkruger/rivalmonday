@@ -1,6 +1,6 @@
 # Rival Monday — Session Handover
 
-*Written 2026-09-30; last updated 2026-10-03 after Phase 3d was implemented (per task + live verification; final whole-branch review and merge to `main` still pending — see §5). Start any new session by reading this file, then the documents it links. Keep it updated at the end of each session.*
+*Written 2026-09-30; last updated 2026-10-03 after Phase 3d was implemented, reviewed (per task + final whole-branch review and its fix wave), live-verified, merged into `main` and pushed. Start any new session by reading this file, then the documents it links. Keep it updated at the end of each session.*
 
 ---
 
@@ -29,7 +29,7 @@ Business model: first sold to the owning agency's own clients, then **wholesale 
 | [docs/superpowers/plans/2026-10-01-phase-3a-web-changes-to-scored-events.md](superpowers/plans/2026-10-01-phase-3a-web-changes-to-scored-events.md) | Done (merged). Its "Phase 3 overview" table defines the scope of **3b** and **3c** |
 | [docs/superpowers/plans/2026-10-01-phase-3b-structured-sources-merge-moves.md](superpowers/plans/2026-10-01-phase-3b-structured-sources-merge-moves.md) | Done (merged 2026-10-02). Its "Phase 3 overview" table in the 3a plan defines the scope of **3c** |
 | [docs/superpowers/plans/2026-10-02-phase-3c-reviews-and-prices.md](superpowers/plans/2026-10-02-phase-3c-reviews-and-prices.md) | Done (merged 2026-10-02) |
-| [docs/superpowers/plans/2026-10-02-phase-3d-model-ops-and-hardening.md](superpowers/plans/2026-10-02-phase-3d-model-ops-and-hardening.md) | Done 2026-10-03 (branch `phase-3d-model-ops-hardening`). Its "Phase 3 overview" table defines the scope of **Phase 4** (briefs, next) |
+| [docs/superpowers/plans/2026-10-02-phase-3d-model-ops-and-hardening.md](superpowers/plans/2026-10-02-phase-3d-model-ops-and-hardening.md) | Done (merged 2026-10-03). Its "Phase 3 overview" table defines the scope of **Phase 4** (briefs, next) |
 
 ---
 
@@ -63,7 +63,7 @@ Business model: first sold to the owning agency's own clients, then **wholesale 
 
 ## 3. Current state (2026-10-03)
 
-**Git:** `main` holds Phases 0–2, **3a**, **3b** and **3c**, pushed to `https://github.com/swkruger/rivalmonday` (private). **Phase 3d is implemented and live-verified on feature branch `phase-3d-model-ops-hardening` (not yet merged)** — all 17 tasks complete, each with its own review; the final whole-branch review and merge to `main` are the next step (§5). `cs_dev` is migrated to `0027` (applied during 3d's Task 2 and Task 12). Work happens on feature branches, merged locally, then pushed.
+**Git:** `main` holds Phases 0–2, **3a**, **3b**, **3c** and **3d** (3d merged from `phase-3d-model-ops-hardening` at `a417787`, branch deleted), pushed to `https://github.com/swkruger/rivalmonday` (private). Working tree clean, no open feature branches. Phase 3d's final whole-branch review (most capable model) found 3 Important cross-task issues — fixed before merge (a superseded change's open review is hidden/refused/auto-closed; tag commits claim `status = 'pending'` before writing, closing a race with supersede; the routing note uses paired answers) — and its residuals are in the roadmap's "Phase 3d carry-over". Full suite on the merged tree: 785 passed + 4 skipped. `cs_dev` is migrated to `0027` (applied during 3d's Task 2 and Task 12). Work happens on feature branches, merged locally, then pushed.
 
 **Phase 0 — Branding: DONE.** Validation items (GHL/Vendasta marketplace check, agency LOIs, counsel review) still open.
 
@@ -101,10 +101,10 @@ Tests: `pnpm typecheck && pnpm test` green (8 packages, **778 tests passing + 4 
 
 ## 5. How to continue (next session checklist)
 
-1. Read this file and the roadmap carry-over sections. Check `git log --oneline -5` and `git status` on branch `phase-3d-model-ops-hardening` (expect all 17 Phase 3d tasks committed, each with its own clean per-task review; not yet merged to `main`).
-2. **Run Phase 3d's final whole-branch review** (most capable model) per `superpowers:subagent-driven-development`'s process, fix anything it finds, then merge with `superpowers:finishing-a-development-branch`. Phase 3d plan: [docs/superpowers/plans/2026-10-02-phase-3d-model-ops-and-hardening.md](superpowers/plans/2026-10-02-phase-3d-model-ops-and-hardening.md).
+1. Read this file and the roadmap carry-over sections. Check `git log --oneline -5` and `git status` (expect a clean `main`, in sync with `origin/main`, holding Phase 3d).
+2. Phase 3d is merged and its final review is done. Before acting on the accuracy report's "consider routing to the LLM" note, restrict its pairing to `reason = 'shadow'` samples (roadmap "Phase 3d carry-over").
 3. **Owner: label the exported CSV.** This session's live `cs_dev` shadow run wrote 100 unlabelled `review_decisions` questions (10 samples × 10 questions) to a CSV in the OS temp directory (never committed — see the vendor-APIs doc's "Verified 2026-10-03 — Phase 3d" section for the exact command). Fill in the `label` column, then run `pnpm --filter @cs/worker decisions import --in <file> --by <your name>` followed by `pnpm --filter @cs/worker decisions report` to get real accuracy/ECE numbers instead of "No labelled decisions yet…".
-4. **Write the Phase 4 plan** (briefs, recommendations & alerts — spec §8.5, §9) with `superpowers:writing-plans` against the merged 3d code, once merged. Fold in the roadmap's "Phase 3d carry-over" section (and anything still open from 2a/3a/3b/3c).
+4. **Write the Phase 4 plan** (briefs, recommendations & alerts — spec §8.5, §9) with `superpowers:writing-plans` against the merged 3d code. Fold in the roadmap's "Phase 3d carry-over" section (and anything still open from 2a/3a/3b/3c).
 5. On or after **2026-10-08**: re-pull the Aire Serv reviews and ads (`pnpm --filter @cs/worker collect-once --domain aireserv.com --place-id ChIJ6VlKPHqPT4YR479jLd01gZY --meta-page-id 1825453601028298 --google-advertiser-id <id1> --google-advertiser-id <id2> --google-advertiser-id <id3> --vendors`, then `--poll`; budget ~45 minutes but the 2026-10-02 run was ready in ~12) and compare `review_id`s for stability (roadmap carry-over); this also gives the structured engine a second real capture to diff against the 2026-10-02 baseline.
 6. **Set a `place_id` on the `CS Dev Verification Client`** created in `cs_dev` in the Phase 3c session (agency `CS Dev Verification Agency` id `aaf5e009-974b-4ce8-b7ec-b722c5c66b1c`; client `CS Dev Verification Client` id `25f99947-4559-4150-ab5d-dd432540aca0`, `vertical_id: hvac_plumbing`, `place_id` currently `NULL`, linked to the existing `aireserv.com` competitor — id `e9f9cbd3-8834-43a4-a1af-a31224ca43d3` — via `client_competitor`) — or point it at a different real place — to live-verify the self-business benchmark path (`client.self_competitor_id`), still untested live (no `place_id` means `ensureSelfCompetitor` has nothing to match/create against, and `price_point` is also still empty since `cs_dev` has no `web`-source captures of `aireserv.com`, only vendor collection — see §6). Still unset as of this session (Task 17 did not touch it — only existing data was used). Review/rename/remove this verification agency and client before Phase 5's real onboarding flow exists; it is clearly named so it's easy to find and is not meant to look like a real customer.
 7. Never point the web crawler (`collect-once` without `--vendors`, or with `--web`) at real competitors until `https://rivalmonday.com/bot` exists. `--vendors` alone only calls vendor APIs.
