@@ -43,6 +43,11 @@ export function pricesInBlock(text: string): PriceObservation[] {
   const seen = new Set<string>();
   const out: PriceObservation[] = [];
   let cursor = 0;
+  // Collect all candidate prices first (excluding discounts and max-price violations)
+  const candidates: Array<{
+    observation: PriceObservation;
+    isSuperseded: boolean;
+  }> = [];
   for (const f of extractNumericFacts(text)) {
     if (f.kind !== 'price' || typeof f.value !== 'number') continue;
     const raw = f.raw.replace(/\s+/g, ' ');
@@ -53,11 +58,30 @@ export function pricesInBlock(text: string): PriceObservation[] {
     const before = text.slice(Math.max(0, at - 40), at).replace(/\s+/g, ' ');
     const after = text.slice(at + f.raw.length, at + f.raw.length + 40).replace(/\s+/g, ' ');
     const c = classifyPrice(before, after);
-    if (c.discount || SUPERSEDED_BEFORE.test(before)) continue;
+    if (c.discount) continue;
+    const isSuperseded = SUPERSEDED_BEFORE.test(before);
     const key = `${f.value}|${f.unit}|${c.qualifier}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ amount: f.value, unit: f.unit, qualifier: c.qualifier, promo, raw, context: f.context });
+    candidates.push({
+      observation: { amount: f.value, unit: f.unit, qualifier: c.qualifier, promo, raw, context: f.context },
+      isSuperseded,
+    });
+  }
+  // Filter: drop a superseded price only if a later non-superseded price survives
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i];
+    if (candidate.isSuperseded) {
+      // Check if any later candidate survives (is not superseded and not a discount)
+      const hasLaterPrice = candidates.slice(i + 1).some((c) => !c.isSuperseded);
+      if (!hasLaterPrice) {
+        // No later price, so keep this one even though it's marked superseded
+        out.push(candidate.observation);
+      }
+      // Otherwise skip it (later price exists, so this is truly superseded)
+    } else {
+      out.push(candidate.observation);
+    }
   }
   return out;
 }

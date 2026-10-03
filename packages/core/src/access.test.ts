@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessClient, canManageCompetitors, createAccessContext, hasPermission, isAgencyRole } from './access';
+import { canAccessClient, canManageCompetitors, createAccessContext, hasPermission, isAgencyRole, type Feature, type Role } from './access';
 
 const A = '00000000-0000-4000-8000-00000000000a';
 const C1 = '00000000-0000-4000-8000-0000000000c1';
@@ -61,7 +61,7 @@ describe('permissions', () => {
   });
 
   it('canManageCompetitors: agency roles always; a client owner only with manage_competitors; a viewer never', () => {
-    const ctx = (role: any, features: any = []) =>
+    const ctx = (role: Role, features: Feature[] = []) =>
       createAccessContext({ agencyId: A, userId: 'u', role, clientScope: role === 'agency_admin' || role === 'account_manager' ? 'all' : [C1], features });
     expect(canManageCompetitors(ctx('agency_admin'))).toBe(true);
     expect(canManageCompetitors(ctx('account_manager'))).toBe(true);
