@@ -207,14 +207,18 @@ export async function runReviewInsights(deps: { db: Db; ai: Ai; packs: PackLoade
     }
   }
   const verticals = (await deps.db.selectDistinct({ id: reviewAnalysis.verticalId }).from(reviewAnalysis).where(scope)).map((v) => v.id);
-  if (deps.ai.batchAvailable(THEME_BATCH_TASK)) {
+  let sync = !deps.ai.batchAvailable(THEME_BATCH_TASK);
+  if (!sync) {
     try {
       r.batched = (await submitThemeDiscoveryBatch(deps, verticals, { now: opts.now })).submitted.length;
     } catch (err) {
-      r.errors++;
-      console.error(`[review-insights] theme-discovery batch failed: ${err instanceof Error ? err.message : String(err)}`);
+      // A rejected submission (e.g. a misconfigured key) must not cost the night's discovery: fall back to the sync path.
+      // Nothing was recorded (the model_batch row is written only after a successful submit), so no vertical is in flight.
+      console.warn(`[review-insights] theme-discovery batch submit failed, running synchronously: ${err instanceof Error ? err.name : 'error'}: ${err instanceof Error ? err.message.slice(0, 300) : String(err).slice(0, 300)}`);
+      sync = true;
     }
-  } else {
+  }
+  if (sync) {
     for (const id of verticals) {
       try {
         const d = await discoverTheme(deps, id, { now: opts.now });

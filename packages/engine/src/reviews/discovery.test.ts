@@ -143,6 +143,21 @@ describe('batched theme discovery (Phase 3d decision 10)', () => {
     expect((await runReviewInsights({ db: dbs.service, ai, packs }, { now })).batched).toBe(0);
   });
 
+  it('falls back to the synchronous path when the batch submit throws, recording the proposal without an error', async () => {
+    await unthemed(20);
+    const ai = createFakeAi({
+      chat: () => JSON.stringify(WARRANTY),
+      batch: { submit: () => { throw new Error('400 invalid_request_error: key not scoped to a workspace'); } },
+    });
+    const r = await runReviewInsights({ db: dbs.service, ai, packs }, { now });
+    expect(r).toMatchObject({ batched: 0, proposals: 1, errors: 0 });
+    expect(ai.calls.batches).toHaveLength(1);
+    expect(ai.calls.chat.map((c) => c.task)).toEqual(['theme_discovery']);
+    expect(await dbs.service.select().from(modelBatch)).toEqual([]);
+    const [p] = await dbs.service.select().from(themeProposal);
+    expect(p).toMatchObject({ verticalId: 'hvac_plumbing', status: 'proposed' });
+  });
+
   it('applies an ended batch: proposes the theme and closes the batch', async () => {
     await unthemed(20);
     await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
