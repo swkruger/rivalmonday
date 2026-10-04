@@ -1,5 +1,9 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
+// Every .tsx file in this package needs this exact two-line pragma above (checked by jsx-pragma.test.ts):
+// tsx (the production worker's loader) only applies jsx: "react-jsx" to files matched by the one tsconfig
+// nearest its own cwd, so a file reached from another workspace package's cwd would otherwise silently
+// fall back to the classic React.createElement transform and crash with "React is not defined".
 import { Body, Container, Head, Html, Img, Preview, Section, Text } from 'react-email';
 import type { ReactNode } from 'react';
 import type { Branding } from './branding';
