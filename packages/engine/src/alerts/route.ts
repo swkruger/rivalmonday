@@ -6,7 +6,7 @@ import { safeTimezone } from '../briefs/schedule';
 import { type DeliveryConfig, loadBranding, notify } from '../delivery/outbox';
 import { localClock } from '../delivery/time';
 import type { PackLoader } from '../tag/tag-stage';
-import { lockClientAlerts } from './create';
+import { lockClientAlerts, withdrawAlerts } from './create';
 import { writeAlertText } from './write';
 
 export const ALERTS_PER_DAY = 3;
@@ -33,7 +33,7 @@ const competitorName = async (tx: Tx, id: string) => (await tx.select({ name: co
 export async function releaseAlert(tx: Tx, cfg: DeliveryConfig, a: AlertRow, now: Date): Promise<ReleaseOutcome> {
   const [ev] = await tx.select({ retractedAt: changeEvent.retractedAt }).from(changeEvent).where(eq(changeEvent.id, a.eventId));
   if (!ev || ev.retractedAt) {
-    await tx.update(alert).set({ status: 'withdrawn', updatedAt: now }).where(eq(alert.id, a.id));
+    await withdrawAlerts(tx, [a.id], now);
     return 'withdrawn';
   }
   const c = await clientOf(tx, a.clientId);
@@ -85,7 +85,7 @@ export async function processAlert(deps: AlertDeps, alertId: string, now: Date):
     const [a] = await tx.select().from(alert).where(and(eq(alert.id, alertId), eq(alert.status, 'drafting'))).for('update');
     if (!a) return { status: 'skipped' as const };
     if (!text) {
-      await tx.update(alert).set({ status: 'withdrawn', updatedAt: now }).where(eq(alert.id, a.id));
+      await withdrawAlerts(tx, [a.id], now);
       return { status: 'withdrawn' as const, release: 'withdrawn' as const };
     }
     const [w] = await tx.update(alert).set({ headline: text.headline, body: text.body, written: text.written, evidenceIds: text.evidenceIds, updatedAt: now }).where(eq(alert.id, a.id)).returning();

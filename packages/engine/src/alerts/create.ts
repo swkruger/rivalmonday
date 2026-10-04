@@ -1,5 +1,5 @@
-import { alert, alertEvent, changeEvent, client, type Db, eventScore } from '@cs/db';
-import { and, asc, desc, eq, gt, isNull, lt, lte, ne, notInArray, sql } from 'drizzle-orm';
+import { alert, alertEvent, changeEvent, client, type Db, eventScore, type Tx } from '@cs/db';
+import { and, asc, desc, eq, gt, inArray, isNull, lt, lte, ne, notInArray, sql } from 'drizzle-orm';
 
 export const ALERT_LOOKBACK_HOURS = 48;
 export const ALERT_MERGE_HOURS = 72;
@@ -15,6 +15,17 @@ export interface SweepResult {
 
 /** Serialises alert creation/merging and throttled release for one client (transaction-level advisory lock). */
 export const lockClientAlerts = (clientId: string) => sql`SELECT pg_advisory_xact_lock(hashtext(${`alerts:${clientId}`}))`;
+
+/**
+ * Every withdraw goes through here (the caller holds lockClientAlerts). Merged events other than the alert's own
+ * (retracted) primary are released from it, so the next sweep re-alerts those still-live events within its lookback
+ * instead of losing them inside a dead alert.
+ */
+export async function withdrawAlerts(tx: Tx, alertIds: string[], now: Date): Promise<void> {
+  if (alertIds.length === 0) return;
+  await tx.update(alert).set({ status: 'withdrawn', updatedAt: now }).where(inArray(alert.id, alertIds));
+  await tx.delete(alertEvent).where(and(inArray(alertEvent.alertId, alertIds), sql`${alertEvent.eventId} <> (SELECT a.event_id FROM alert a WHERE a.id = ${alertEvent.alertId})`));
+}
 
 /**
  * Decision 6: every recent, live, alert-routed event becomes an alert for its client, or joins that client's live
@@ -35,7 +46,7 @@ export async function sweepAlerts(db: Db, now: Date, limit = 100): Promise<Sweep
     .orderBy(asc(eventScore.scoredAt), asc(changeEvent.id))
     .limit(limit);
 
-  for (const r of rows) {
+  async function sweepRow(r: (typeof rows)[number]) {
     await db.transaction(async (tx) => {
       await tx.execute(lockClientAlerts(r.clientId));
       const [already] = await tx.select({ id: alertEvent.alertId }).from(alertEvent).where(and(eq(alertEvent.clientId, r.clientId), eq(alertEvent.eventId, r.e.id)));
@@ -47,7 +58,7 @@ export async function sweepAlerts(db: Db, now: Date, limit = 100): Promise<Sweep
         .from(alert)
         .innerJoin(changeEvent, eq(changeEvent.id, alert.eventId))
         .where(and(
-          eq(alert.clientId, r.clientId), eq(alert.competitorId, r.e.competitorId), eq(changeEvent.changeType, r.e.changeType),
+          eq(alert.clientId, r.clientId), eq(alert.competitorId, r.e.competitorId), eq(changeEvent.changeType, r.e.changeType), isNull(changeEvent.retractedAt),
           service === null ? sql`${svc} IS NULL` : sql`${svc} = ${service}`,
           notInArray(alert.status, ['dismissed', 'withdrawn', 'expired']), gt(alert.createdAt, new Date(now.getTime() - ALERT_MERGE_HOURS * HOUR)),
         ))
@@ -66,6 +77,15 @@ export async function sweepAlerts(db: Db, now: Date, limit = 100): Promise<Sweep
       await tx.insert(alertEvent).values({ alertId: a!.id, agencyId: r.agencyId, clientId: r.clientId, eventId: r.e.id });
       out.created++;
     });
+  }
+
+  for (const r of rows) {
+    // One failing row (a constraint race, a bad payload) must not block every later tick: log it and move on.
+    try {
+      await sweepRow(r);
+    } catch (err) {
+      console.warn(`[alerts] sweeping event ${r.e.id} for client ${r.clientId} failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   const expired = await db

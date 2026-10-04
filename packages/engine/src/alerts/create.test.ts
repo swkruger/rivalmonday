@@ -1,9 +1,12 @@
 import { alert, alertEvent, changeEvent, client, eventScore } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import type { Db } from '@cs/db';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { day, seedScoredEvent, TEST_FACTORS } from '../../test/seed';
-import { sweepAlerts } from './create';
+import type { DeliveryConfig } from '../delivery/outbox';
+import { lockClientAlerts, sweepAlerts } from './create';
+import { releaseAlert } from './route';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -59,6 +62,49 @@ describe('sweepAlerts', () => {
     expect((await sweepAlerts(dbs.service, day(1))).created).toBe(1);
     await seed({ scoredAt: day(5), occurredAt: day(5) });
     expect((await sweepAlerts(dbs.service, day(5))).created).toBe(1);
+  });
+
+  it('never merges into an alert whose primary event was retracted (superseded): the new event gets its own alert', async () => {
+    const first = await seed();
+    await sweepAlerts(dbs.service, NOW);
+    await dbs.owner.update(changeEvent).set({ retractedAt: day(1) }).where(eq(changeEvent.id, first.eventId));
+    const second = await seed({ scoredAt: day(1), occurredAt: day(1) });
+    expect(await sweepAlerts(dbs.service, day(1))).toMatchObject({ created: 1, merged: 0 });
+    expect((await alerts())[1]!.eventId).toBe(second.eventId);
+  });
+
+  it('frees the merged events of a withdrawn alert, so the next sweep re-alerts the live one', async () => {
+    const first = await seed();
+    await sweepAlerts(dbs.service, NOW);
+    const second = await seed({ scoredAt: day(1), occurredAt: day(1) });
+    expect((await sweepAlerts(dbs.service, day(1))).merged).toBe(1);
+    await dbs.owner.update(changeEvent).set({ retractedAt: day(1) }).where(eq(changeEvent.id, first.eventId));
+    const [a] = await alerts();
+    const delivery: DeliveryConfig = { appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)], fromAddress: 'b@agency.example' };
+    expect(await dbs.service.transaction(async (tx) => {
+      await tx.execute(lockClientAlerts(IDS.clientA1));
+      return releaseAlert(tx, delivery, a!, day(1));
+    })).toBe('withdrawn');
+    expect((await dbs.owner.select().from(alertEvent)).map((r) => r.eventId)).toEqual([first.eventId]);
+    expect(await sweepAlerts(dbs.service, day(1))).toMatchObject({ created: 1, merged: 0 });
+    const live = (await alerts()).filter((x) => x.status !== 'withdrawn');
+    expect(live.map((x) => x.eventId)).toEqual([second.eventId]);
+  });
+
+  it('logs and skips a row whose transaction fails, and still sweeps the rest', async () => {
+    await seed();
+    await seed({ services: { hvac_plumbing: 'furnace_repair' } });
+    let calls = 0;
+    const flaky = Object.create(dbs.service) as Db;
+    flaky.transaction = ((fn: Parameters<Db['transaction']>[0]) => (calls++ === 0 ? Promise.reject(new Error('boom')) : dbs.service.transaction(fn))) as Db['transaction'];
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect((await sweepAlerts(flaky, NOW)).created).toBe(1);
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/\[alerts\] sweeping event .* failed: boom/));
+    } finally {
+      warn.mockRestore();
+    }
+    expect((await sweepAlerts(dbs.service, NOW)).created).toBe(1);
   });
 
   it('alerts each client that scored the shared event separately', async () => {

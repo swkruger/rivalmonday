@@ -3,7 +3,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm';
 import { safeTimezone } from '../briefs/schedule';
 import { type DeliveryConfig, loadBranding, notify, personalLink } from '../delivery/outbox';
 import { localClock } from '../delivery/time';
-import { lockClientAlerts } from './create';
+import { lockClientAlerts, withdrawAlerts } from './create';
 
 export const DIGEST_LOCAL_HOUR = 17;
 
@@ -33,7 +33,7 @@ export async function runAlertDigests(deps: { db: Db; delivery: DeliveryConfig }
         .for('update', { of: alert });
       const gone = rows.filter((r) => r.retractedAt);
       if (gone.length > 0) {
-        await tx.update(alert).set({ status: 'withdrawn', updatedAt: now }).where(inArray(alert.id, gone.map((r) => r.a.id)));
+        await withdrawAlerts(tx, gone.map((r) => r.a.id), now);
         out.withdrawn += gone.length;
       }
       const live = rows.filter((r) => !r.retractedAt);
