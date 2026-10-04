@@ -3,7 +3,8 @@ import { playbookOverride } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { loadVerticalPack } from '@cs/verticals';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { renderPlaybook, resolvePlaybooks, playbookFor, upsertPlaybookOverride } from './playbooks';
+import type { EventCandidate } from './gather';
+import { playbookVars, renderPlaybook, resolvePlaybooks, playbookFor, upsertPlaybookOverride } from './playbooks';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -19,6 +20,12 @@ describe('playbooks', () => {
   it('renders placeholders and fills missing values with neutral words', () => {
     expect(renderPlaybook('{{competitor}} cut {{service}} to {{new_price}} in {{areas}}.', { competitor: 'Smith HVAC', service: 'AC tune-up' }))
       .toBe('Smith HVAC cut AC tune-up to a lower price in new areas.');
+  });
+
+  it('fills {{theme}} from the theme name, falling back to the theme id', () => {
+    const ev = (details: Record<string, string>) => ({ kind: 'event', competitorName: 'Smith HVAC', facts: [], zips: [], serviceName: null, details }) as unknown as EventCandidate;
+    expect(playbookVars(ev({ themeName: 'Late arrivals', theme: 'late_arrival' })).theme).toBe('Late arrivals');
+    expect(playbookVars(ev({ theme: 'late_arrival' })).theme).toBe('late_arrival');
   });
 
   it('applies agency overrides and disables', async () => {

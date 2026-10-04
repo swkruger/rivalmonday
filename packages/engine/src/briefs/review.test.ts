@@ -1,5 +1,5 @@
 import { createAccessContext } from '@cs/core';
-import { brief, briefItem, feedback, recommendation } from '@cs/db';
+import { brief, briefItem, changeEvent, feedback, move, recommendation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -17,6 +17,7 @@ const baseItem = (briefId: string, eventId: string) => ({
   briefId, agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, whatChanged: 'The pricing page shows $69, down from $89.', whyItMatters: 'y', recommendedAction: 'Bundle a filter.', confidence: 0.9, effort: 'L', impact: 'M', eventIds: [eventId], evidenceIds: ['ev'], upsellTag: 'ppc', playbookId: 'price_cut_bundle',
 });
 let briefId: string;
+let eventId: string;
 let items: string[];
 let base: ReturnType<typeof baseItem>;
 
@@ -26,6 +27,7 @@ beforeEach(async () => {
   const e = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(-1), createdAt: day(-1) });
   const [b] = await dbs.service.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, deliveryDate: '2026-10-05', periodStart: day(-7), periodEnd: day(0), status: 'ready', summary: 's' }).returning({ id: brief.id });
   briefId = b!.id;
+  eventId = e.eventId;
   base = baseItem(briefId, e.eventId);
   items = (await dbs.service.insert(briefItem).values([{ ...base, ord: 0, headline: 'First' }, { ...base, ord: 1, headline: 'Second' }]).returning({ id: briefItem.id })).map((r) => r.id);
 });
@@ -80,5 +82,37 @@ describe('brief review', () => {
     expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ status: 'approved', approvedBy: 'am-1' });
     await expect(approveBrief(deps(), am, briefId)).rejects.toThrow(/ready/);
     await expect(editBriefItem(deps(), am, items[1]!, { headline: 'x' })).rejects.toThrow(/ready/);
+  });
+
+  it('approval marks items whose evidence was retracted after the brief was ready as dropped, with system feedback, and recommends nothing for them', async () => {
+    await dbs.service.update(changeEvent).set({ retractedAt: new Date(), retractionReason: 'review' }).where(eq(changeEvent.id, eventId));
+    expect(await approveBrief(deps(), am, briefId)).toEqual({ recommendations: 0 });
+    expect(await dbs.owner.select().from(recommendation)).toHaveLength(0);
+    expect((await dbs.owner.select().from(briefItem)).map((i) => i.status)).toEqual(['dropped', 'dropped']);
+    const fb = await dbs.owner.select().from(feedback);
+    expect(fb).toHaveLength(2);
+    for (const f of fb) expect(f).toMatchObject({ kind: 'drop', subjectType: 'brief_item', actor: 'system', reason: 'evidence retracted' });
+    expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ status: 'approved' });
+  });
+
+  it('approval adds no recommendation for an item whose move already has a live one; a dismissed one does not block', async () => {
+    const [m] = await dbs.service.insert(move).values({
+      agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, moveType: 'price_war', status: 'active', confidence: 0.7, summary: 's',
+      details: { eventCount: 1, channels: ['web'], facts: {} }, ruleVersion: 2, firstDetectedAt: day(-10), lastHeldAt: day(0), lastEvidenceAt: day(-2),
+    }).returning({ id: move.id });
+    await dbs.service.update(briefItem).set({ moveId: m!.id }).where(eq(briefItem.id, items[0]!));
+    await dbs.service.insert(recommendation).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, title: 't', rationale: 'r', moveId: m!.id, effort: 'L', impact: 'M', owner: 'agency', source: 'move' });
+    expect(await approveBrief(deps(), am, briefId)).toEqual({ recommendations: 1 });
+    expect((await dbs.owner.select().from(recommendation)).filter((r) => r.source === 'brief').map((r) => r.briefItemId)).toEqual([items[1]]);
+  });
+
+  it('approval still recommends for a move whose only earlier recommendation was dismissed', async () => {
+    const [m] = await dbs.service.insert(move).values({
+      agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, moveType: 'price_war', status: 'active', confidence: 0.7, summary: 's',
+      details: { eventCount: 1, channels: ['web'], facts: {} }, ruleVersion: 2, firstDetectedAt: day(-10), lastHeldAt: day(0), lastEvidenceAt: day(-2),
+    }).returning({ id: move.id });
+    await dbs.service.update(briefItem).set({ moveId: m!.id }).where(eq(briefItem.id, items[0]!));
+    await dbs.service.insert(recommendation).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, title: 't', rationale: 'r', moveId: m!.id, effort: 'L', impact: 'M', owner: 'agency', source: 'move', status: 'dismissed', dismissReason: 'no' });
+    expect(await approveBrief(deps(), am, briefId)).toEqual({ recommendations: 2 });
   });
 });

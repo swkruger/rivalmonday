@@ -1,17 +1,18 @@
 import type { Ai } from '@cs/ai';
 import { type AccessContext, canAccessClient, hasPermission, ToolError } from '@cs/core';
 import {
-  type briefItem, changeEvent, competitor, type Db, eventScore, feedback, move, moveEvent, recommendation,
+  type briefItem, changeEvent, client, competitor, type Db, eventScore, feedback, move, moveEvent, recommendation,
   type RecommendationStatus, withTenant,
 } from '@cs/db';
-import { and, desc, eq, isNull, notExists, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, ne, notExists, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { PackLoader } from '../tag/tag-stage';
 import { escapeEvidence, loadEventEvidence } from './evidence';
 import { type EventCandidate, loadBriefClient, MOVE_EVIDENCE_EVENTS, type MoveCandidate } from './gather';
 import { type Playbook, playbookFor, playbookVars, renderPlaybook, resolvePlaybooks } from './playbooks';
+import { localParts, safeTimezone } from './schedule';
 import { verifyText } from './verify';
-import { candidateEvidenceText, UPSELL_TAGS } from './writer';
+import { candidateContextText, periodLine, UPSELL_TAGS } from './writer';
 
 /** Spec §8.5: each approved brief item's recommended action becomes a tracked recommendation. */
 export function recommendationFromItem(item: typeof briefItem.$inferSelect): typeof recommendation.$inferInsert {
@@ -47,7 +48,9 @@ const SYSTEM = [
 
 /** Spec §8.5 move-triggered playbooks: one recommendation per active move; its rationale passes the brief verifier. */
 export async function recommendForMoves(deps: { db: Db; ai: Ai; packs: PackLoader }, clientId: string, opts: { now?: Date } = {}): Promise<{ created: number; skipped: number; failed: number }> {
-  const year = (opts.now ?? new Date()).getUTCFullYear();
+  const now = opts.now ?? new Date();
+  const [tz] = await deps.db.select({ timezone: client.timezone }).from(client).where(eq(client.id, clientId)).limit(1);
+  const year = localParts(now, safeTimezone(tz?.timezone)).year;
   const out = { created: 0, skipped: 0, failed: 0 };
   const c = await loadBriefClient(deps, clientId);
   const pack = await deps.packs(c.verticalId);
@@ -57,7 +60,10 @@ export async function recommendForMoves(deps: { db: Db; ai: Ai; packs: PackLoade
     .from(move)
     .innerJoin(competitor, eq(competitor.id, move.competitorId))
     .where(and(eq(move.clientId, clientId), eq(move.status, 'active'), isNull(move.closedAt),
-      notExists(deps.db.select({ one: sql`1` }).from(recommendation).where(and(eq(recommendation.moveId, move.id), eq(recommendation.source, 'move'))))));
+      // One live recommendation per move whatever its source (an approved brief may already have made one); a dismissed
+      // brief recommendation does not block, but a move recommendation never comes back once written (even dismissed).
+      notExists(deps.db.select({ one: sql`1` }).from(recommendation).where(and(eq(recommendation.moveId, move.id),
+        or(eq(recommendation.source, 'move'), ne(recommendation.status, 'dismissed')))))));
   for (const { m, name } of moves) {
     try {
       const pb: Playbook | undefined = playbookFor(playbooks, m.moveType);
@@ -91,20 +97,27 @@ export async function recommendForMoves(deps: { db: Db; ai: Ai; packs: PackLoade
       // Business/competitor names and the rendered playbook (vars drawn from scraped facts) are untrusted like the
       // evidence block below; escape them the same way before they sit in the prompt (Task 7 injection ruling).
       const head = `Business: ${c.name} (${c.verticalName})\nCompetitor: ${name}\nPLAYBOOK: ${pb.title} — ${renderPlaybook(pb.template, playbookVars(cand))}`;
-      const user = `${escapeEvidence(head)}\n<evidence>\n${candidateEvidenceText(cand)}\n</evidence>`;
+      // A move has no brief period: its period runs from first detection to now, so relative time words are judged
+      // against the whole life of the pattern (its supporting events can predate first detection; the period line for
+      // a move candidate never claims they all fall inside it).
+      const period = { start: m.firstDetectedAt, end: now };
+      const user = `${escapeEvidence(`${head}\n${periodLine(period)}`)}\n<evidence>\n${candidateContextText(cand)}\n</evidence>`;
       const res = await deps.ai.chat(PLAYBOOK_WRITER_TASK, { jsonSchema: recJson, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: user }] }, scope);
       const parsed = recSchema.safeParse(JSON.parse(res.text));
       if (!parsed.success) throw new Error('invalid recommendation from playbook_writer');
-      const verified = await verifyText(deps.ai, scope, c, [cand], parsed.data.rationale, 'fact', { year });
+      const verified = await verifyText(deps.ai, scope, c, [cand], parsed.data.rationale, 'fact', { year, period });
       if (!verified.kept) {
         out.skipped++;
         continue;
       }
+      // The title is model-written too: deterministic rules only (it is advice); anything dropped → the playbook's own title.
+      const titleCheck = await verifyText(deps.ai, scope, c, [cand], parsed.data.title, null, { year, period });
+      const title = titleCheck.dropped === 0 && titleCheck.kept ? parsed.data.title : pb.title;
       const evidenceIds = [...new Set(events.flatMap((e) => e.changes.flatMap((ch) => ch.evidenceIds)))].sort();
       const inserted = await deps.db
         .insert(recommendation)
         .values({
-          agencyId: c.agencyId, clientId, title: parsed.data.title, rationale: verified.kept, evidenceIds, eventIds: events.map((e) => e.eventId), moveId: m.id,
+          agencyId: c.agencyId, clientId, title, rationale: verified.kept, evidenceIds, eventIds: events.map((e) => e.eventId), moveId: m.id,
           playbookId: pb.id, effort: parsed.data.effort, impact: parsed.data.impact, owner: parsed.data.owner, source: 'move',
           upsellTag: parsed.data.upsell_tag === 'none' ? null : parsed.data.upsell_tag,
         })
