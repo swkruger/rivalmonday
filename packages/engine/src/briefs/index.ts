@@ -12,4 +12,5 @@ export * from './verify';
 export * from './writer';
 export * from './generate';
 export * from './review';
+export * from './deliver';
 export * from './recommendations';
