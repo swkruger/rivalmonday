@@ -123,6 +123,23 @@ export async function rateBriefItem(deps: ReviewDeps, ctx: AccessContext, itemId
 }
 
 /**
+ * No evidence, no claim: system-drops the brief's active items whose events were retracted (a `drop` feedback with
+ * actor `system`, reason 'evidence retracted'), inside the caller's transaction. Recommendations are not touched.
+ * Used at approval and again by `deliverBrief` just before sending. Returns the dropped item ids.
+ */
+export async function dropRetractedItems(tx: Tx, briefId: string): Promise<string[]> {
+  const active = await tx.select().from(briefItem).where(and(eq(briefItem.briefId, briefId), eq(briefItem.status, 'active')));
+  const eventIds = [...new Set(active.flatMap((i) => i.eventIds))];
+  if (eventIds.length === 0) return [];
+  const retracted = new Set((await tx.select({ id: changeEvent.id }).from(changeEvent).where(and(inArray(changeEvent.id, eventIds), isNotNull(changeEvent.retractedAt)))).map((r) => r.id));
+  const stale = active.filter((i) => i.eventIds.some((id) => retracted.has(id)));
+  if (stale.length === 0) return [];
+  await tx.update(briefItem).set({ status: 'dropped' }).where(inArray(briefItem.id, stale.map((i) => i.id)));
+  await tx.insert(feedback).values(stale.map((i) => ({ agencyId: i.agencyId, clientId: i.clientId, subjectType: 'brief_item', subjectId: i.id, kind: 'drop', actor: 'system', reason: 'evidence retracted' })));
+  return stale.map((i) => i.id);
+}
+
+/**
  * Approves a ready brief inside the caller's transaction: claims it, system-drops items whose evidence was retracted,
  * recomputes the summary from what is left (decision 10), and turns the surviving items into recommendations.
  */
@@ -130,15 +147,7 @@ export async function approveBriefTx(tx: Tx, briefId: string, actor: string, now
   const [claimed] = await tx.update(brief).set({ status: 'approved', approvedAt: now, approvedBy: actor, updatedAt: now }).where(and(eq(brief.id, briefId), eq(brief.status, 'ready'))).returning();
   if (!claimed) throw new ToolError('invalid_input', 'Brief is no longer ready for review');
   const active = await tx.select().from(briefItem).where(and(eq(briefItem.briefId, briefId), eq(briefItem.status, 'active')));
-  // An event retracted after the brief became ready: its items no longer have evidence, so they are dropped (as a
-  // system drop with feedback) and recommend nothing — no evidence, no claim.
-  const eventIds = [...new Set(active.flatMap((i) => i.eventIds))];
-  const retracted = new Set(eventIds.length === 0 ? [] : (await tx.select({ id: changeEvent.id }).from(changeEvent).where(and(inArray(changeEvent.id, eventIds), isNotNull(changeEvent.retractedAt)))).map((r) => r.id));
-  const stale = active.filter((i) => i.eventIds.some((id) => retracted.has(id)));
-  if (stale.length > 0) {
-    await tx.update(briefItem).set({ status: 'dropped' }).where(inArray(briefItem.id, stale.map((i) => i.id)));
-    await tx.insert(feedback).values(stale.map((i) => ({ agencyId: i.agencyId, clientId: i.clientId, subjectType: 'brief_item', subjectId: i.id, kind: 'drop', actor: 'system', reason: 'evidence retracted' })));
-  }
+  const stale = new Set(await dropRetractedItems(tx, briefId));
   const all = await tx.select({ status: briefItem.status }).from(briefItem).where(eq(briefItem.briefId, briefId));
   const final = finalBriefSummary(claimed as { kind: BriefKind; summary: string }, all);
   if (final.kind !== claimed.kind || final.summary !== claimed.summary) await tx.update(brief).set(final).where(eq(brief.id, briefId));
@@ -148,7 +157,7 @@ export async function approveBriefTx(tx: Tx, briefId: string, actor: string, now
   // One live recommendation per move: skip an item whose move already has one that is not dismissed (any source).
   const moveIds = [...new Set(active.map((i) => i.moveId).filter((id): id is string => id !== null))];
   const covered = new Set(moveIds.length === 0 ? [] : (await tx.select({ moveId: recommendation.moveId }).from(recommendation).where(and(inArray(recommendation.moveId, moveIds), ne(recommendation.status, 'dismissed')))).map((r) => r.moveId));
-  const recommend = active.filter((i) => !stale.includes(i) && !(i.moveId && covered.has(i.moveId)));
+  const recommend = active.filter((i) => !stale.has(i.id) && !(i.moveId && covered.has(i.moveId)));
   if (recommend.length === 0) return { recommendations: 0 };
   const inserted = await tx.insert(recommendation).values(recommend.map(recommendationFromItem)).onConflictDoNothing().returning({ id: recommendation.id });
   return { recommendations: inserted.length };

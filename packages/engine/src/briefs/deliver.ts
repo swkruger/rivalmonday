@@ -6,7 +6,7 @@ import type { Conn } from '../delivery/contacts';
 import { replyToFor } from '../delivery/contacts';
 import { type DeliveryConfig, loadBranding, notify, personalLink } from '../delivery/outbox';
 import { addDays, localClock } from '../delivery/time';
-import { approveBriefTx } from './review';
+import { approveBriefTx, dropRetractedItems } from './review';
 import { safeTimezone } from './schedule';
 import { finalBriefSummary } from './summary';
 
@@ -48,11 +48,13 @@ export function briefEmailProps(v: BriefDeliveryView, opts: { recipientName: str
   };
 }
 
-/** Sends one approved brief: final summary (decision 10), status 'sent', client notifications — one transaction. */
+/** Sends one approved brief: drops retracted-evidence items, final summary (decision 10), status 'sent', client notifications — one transaction. */
 export async function deliverBrief(deps: { db: Db; delivery: DeliveryConfig }, briefId: string, now: Date): Promise<{ notifications: number } | { skipped: string }> {
   return deps.db.transaction(async (tx) => {
     const [locked] = await tx.select().from(brief).where(eq(brief.id, briefId)).for('update');
     if (!locked || locked.status !== 'approved') return { skipped: `brief is ${locked?.status ?? 'gone'}` };
+    // Evidence retracted after approval: drop those items before the summary is recomputed (decision 10).
+    await dropRetractedItems(tx, briefId);
     const all = await tx.select({ status: briefItem.status }).from(briefItem).where(eq(briefItem.briefId, briefId));
     const final = finalBriefSummary(locked as { kind: 'standard' | 'quiet'; summary: string }, all);
     await tx.update(brief).set({ ...final, status: 'sent', sentAt: now, updatedAt: now }).where(eq(brief.id, briefId));

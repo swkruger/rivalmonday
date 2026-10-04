@@ -1,5 +1,5 @@
 import { createAccessContext } from '@cs/core';
-import { brief, briefItem, client, feedback, notification } from '@cs/db';
+import { brief, briefItem, changeEvent, client, feedback, notification } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -8,6 +8,7 @@ import { addContact } from '../delivery/contacts';
 import type { DeliveryConfig } from '../delivery/outbox';
 import { deliverBrief, deliverDueBriefs, sendBriefNow } from './deliver';
 import { QUIET_SUMMARY } from './generate';
+import { approveBriefTx } from './review';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -97,6 +98,35 @@ describe('deliverDueBriefs', () => {
   it('leaves a brief more than 6 days past its delivery date for "send now"', async () => {
     await seedBrief('approved', [{ ord: 0, headline: 'H0' }], { deliveryDate: '2026-10-26' });
     expect((await deliverDueBriefs(deps(), MON_0705)).sent).toEqual([]);
+  });
+});
+
+describe('deliverBrief — evidence retracted after approval', () => {
+  const emailProps = async () => ((await sentRows()).find((r) => r.channel === 'email')!.payload as { props: { items: { headline: string }[]; summary: string; kind: string } }).props;
+
+  it('drops the item whose event was retracted and recomputes the summary as the count line', async () => {
+    const id = await seedBrief('ready', [{ ord: 0, headline: 'Kept' }, { ord: 1, headline: 'Retracted' }]);
+    const other = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(26) });
+    const [, gone] = await dbs.owner.select().from(briefItem).where(eq(briefItem.briefId, id)).orderBy(briefItem.ord);
+    await dbs.owner.update(briefItem).set({ eventIds: [other.eventId] }).where(eq(briefItem.id, gone!.id));
+    await dbs.service.transaction((tx) => approveBriefTx(tx, id, 'am-1', day(30)));
+    await dbs.owner.update(changeEvent).set({ retractedAt: day(31) }).where(eq(changeEvent.id, other.eventId));
+    await deliverBrief(deps(), id, MON_0705);
+    const props = await emailProps();
+    expect(props.items.map((i) => i.headline)).toEqual(['Kept']);
+    expect(props.summary).toBe('1 competitor update this week.');
+    expect(await read(id)).toMatchObject({ status: 'sent', summary: '1 competitor update this week.' });
+    expect(await dbs.owner.select().from(feedback).where(eq(feedback.subjectId, gone!.id))).toMatchObject([{ kind: 'drop', actor: 'system', reason: 'evidence retracted' }]);
+  });
+
+  it('turns the brief quiet when every item lost its evidence', async () => {
+    const id = await seedBrief('ready', [{ ord: 0, headline: 'Only' }]);
+    await dbs.service.transaction((tx) => approveBriefTx(tx, id, 'am-1', day(30)));
+    const [item] = await dbs.owner.select().from(briefItem).where(eq(briefItem.briefId, id));
+    await dbs.owner.update(changeEvent).set({ retractedAt: day(31) }).where(eq(changeEvent.id, item!.eventIds[0]!));
+    await deliverBrief(deps(), id, MON_0705);
+    expect(await emailProps()).toMatchObject({ items: [], kind: 'quiet', summary: QUIET_SUMMARY });
+    expect(await read(id)).toMatchObject({ status: 'sent', kind: 'quiet', summary: QUIET_SUMMARY });
   });
 });
 
