@@ -969,3 +969,46 @@ The first live `brief_writer` call (then `anthropic/claude-sonnet-5`, fallback `
 ### Anthropic Message Batches — live check fails (API key not workspace-scoped)
 
 `pnpm --filter @cs/ai exec vitest run anthropic-batch.live` → **FAIL** in ~0.2 s, no spend: `400 invalid_request_error — "This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id header with the ID of the workspace to use."` The fix belongs to the owner: issue a workspace-scoped key (or unset `ANTHROPIC_API_KEY`). Since Phase 4a, a batch submit **rejected by the provider** no longer costs the night's theme discovery: `runReviewInsights` logs a warning, counts it in `batchFallbacks` and runs the synchronous `theme_discovery` path for those verticals. A failure *after* a successful submit (recording the `model_batch` row) is an error naming the provider batch id, with no synchronous re-run — that batch is in flight and must be reconciled by hand.
+
+## Verified 2026-10-04 — Phase 4b
+
+### Postmark email API — not run live (no token); request/response shape confirmed by unit tests
+
+`POSTMARK_SERVER_TOKEN` was not set this session (file outbox only — §4 of the HANDOVER), so `createPostmarkTransport` (`packages/email/src/transport.ts`) was never exercised against the real API; its request/response shape is covered end-to-end by `packages/email/src/transport.test.ts` against a faked `fetch`, not a live call:
+
+```
+POST https://api.postmarkapp.com/email
+Body: { From, To, ReplyTo, Subject, HtmlBody, TextBody,
+        MessageStream: 'outbound' (or opts.messageStream),
+        TrackOpens: false, TrackLinks: 'None',
+        Tag, Metadata }
+```
+- Success: HTTP `200` with `{ ErrorCode: 0, MessageID, Message }`.
+- **Permanent failure (never retried):** HTTP `422` with `ErrorCode` `300` (invalid recipient) or `406` (inactive recipient) → thrown as `PermanentEmailError`.
+- Any other non-2xx response, or a non-zero `ErrorCode` not in `{300, 406}` (e.g. a `503`), is a plain `Error` — retried by the dispatcher's normal backoff.
+- `TrackOpens`/`TrackLinks` are forced off (`false`/`'None'`) so a signed deep link reaches the recipient unchanged (decision 13).
+
+### React Email — installed versions and a deprecated-package swap
+
+Installed: **`react-email@6.11.0`** + **`@react-email/render@2.1.0`** (`packages/email/package.json`). `renderEmail` (`packages/email/src/render.ts`) is **async**: `await render(el)` and `await render(el, { plainText: true })`, run in parallel via `Promise.all` for the HTML and plain-text bodies.
+
+Ruling made at Task 5: the plan's originally-named `@react-email/components@1.0.12` is **deprecated** ("no longer supported" per its own package notice); React Email 6 moved its JSX components (`Html`, `Body`, `Button`, `Row`, `Column`, …) into the `react-email` package itself, verified to re-export the same component set. Swapped in; `@react-email/render` stayed at 2.1.0 — the still-supported rendering path, unaffected by the deprecation.
+
+### `tsx` resolves only one tsconfig per process — a template that compiles fine under `tsc`/vitest can still crash in production
+
+Found during Task 19's live `deliver-once dispatch` run: every `@cs/email` `.tsx` template crashed with `ReferenceError: React is not defined` the moment it was rendered from `apps/worker`'s `tsx src/main.ts` entry point — the exact path the production worker uses for every email it sends. Root cause: `tsx` (v4.23.15, via `get-tsconfig`) resolves **exactly one** tsconfig per process, at loader-initialization time, matched against *that one* tsconfig's own `include` glob — it never walks up from each individual file to find its own nearest tsconfig the way `tsc -p .` or vitest's project-aware resolver do. `packages/email/src/**/*.tsx`, reached through the `apps/worker/node_modules/@cs/email` workspace symlink but resolved by Node to its real path under `packages/email`, didn't match `apps/worker/tsconfig.json`'s `include`, so esbuild fell back to the **classic** JSX transform (`React.createElement`, no global `React` in scope) even though `packages/email/tsconfig.json` itself correctly says `jsx: "react-jsx"` — that correct config was simply never consulted for a file outside the one tsconfig `tsx` happened to load. Unit tests never caught this because `packages/email/vitest.config.ts` forces `esbuild: { jsx: 'automatic' }` directly, bypassing tsconfig resolution entirely.
+
+**Fix:** a two-line self-describing JSX pragma at the top of every `.tsx` file in `packages/email/src` — `/** @jsxRuntime automatic */` then `/** @jsxImportSource react */` — which esbuild honours regardless of which (if any) tsconfig was resolved for that file. Verified directly against esbuild (`transformSync`, no `tsconfigRaw` at all) and against `tsc` (both `jsx: "react-jsx"` and `jsx: "react"` project configs). A guard test (`packages/email/src/jsx-pragma.test.ts`) walks every `.tsx` under `src/` and now fails the suite if a future template file is added without the pragma. **General hazard, not `@cs/email`-specific:** any workspace package's `.tsx`/JSX-pragma-sensitive source consumed via `tsx` from a *different* package's cwd is exposed to this — `@cs/email` is the only such source crossing that boundary today.
+
+### Live alert-writer dry run on `cs_dev` (Task 19 Step 3)
+
+`deliver-once alert-dry --client 25f99947-4559-4150-ab5d-dd432540aca0 --event <id>` against the verification client's one real event (`ad_started`, "Aire Serv of Iowa City" competitor):
+
+- **Writer:** `alert_writer` (`anthropic/claude-sonnet-4.6`) produced a true headline — "Aire Serv of Iowa City launched a new Google ad on October 2, 2026." — **$0.0024**.
+- **Verifier:** the deterministic rules passed; the support Noul (`verifier_decisions`, τ 0.85) asked both Jev and its escalation path (`llm_decisions` → `anthropic/claude-haiku-4.5`, i.e. a Jev → Haiku escalation) — **both answered `true` at confidence 0.84**, just under τ 0.85.
+- **Result:** `alert.written = 'template'`. The headline was true but not confidently supported enough to clear the threshold, so the evidence-derived template (`"<Competitor>: <change label>"` + `"What we saw: <event summary>"`) was sent instead of the verified model text — exactly what decision 7 specifies ("the template is never an unsupported claim").
+- **Total cost ≈ $0.0029** (writer + verifier calls). This repeats the Phase 4a dry run's τ-strictness finding on brief text (0.36/0.16 confidence on short true statements) — now confirmed a second time, on alert text, and closer to the line (0.84 vs τ 0.85). See the HANDOVER §5 item 3 / §7 note on labelling `verifier_decisions` samples before changing τ or routing.
+
+### Playwright PDF metadata check (Task 19 Step 4)
+
+`deliver-once pdf --brief 576fc129-6409-4e28-8484-07798ed4e823 --out <scratchpad>/brief.pdf`: **1 page, 34 KB**. Every `pdf-lib` Info-dictionary field (`Title`, `Author`, `Subject`, `Creator`, `Producer`) read back as the **agency's** name/branding, not Playwright/Chromium's own defaults — no `HeadlessChrome` or `Skia` string anywhere in the file, and `Keywords` was empty (cleared per decision 16). Confirms the "branded PDF with clean metadata" requirement (spec §9.2) end to end against a real render, not just the unit suite.
