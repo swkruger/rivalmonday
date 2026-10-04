@@ -937,3 +937,34 @@ AI_SHADOW_RATE=1 pnpm --filter @cs/worker engine-once --competitor e9f9cbd3-8834
 
 `ANTHROPIC_API_KEY` is not set in this environment, so `pnpm --filter @cs/ai exec vitest run anthropic-batch.live` was not run (its `describe.skipIf(!key)` would skip it anyway). The batch path (`packages/ai/src/anthropic-batch.ts`) is verified by its unit suite only (`anthropic-batch.test.ts`, 7 tests, all passing as part of the full `@cs/ai` run). Installed SDK: `@anthropic-ai/sdk@^0.131.0`. Live verification of a real batch submit/poll/collect round trip remains open until a key is provided (carried to the roadmap's Phase 3d carry-over).
 
+
+## Verified 2026-10-03 — Phase 4a
+
+### OpenRouter: `anthropic/claude-sonnet-5` has no ZDR endpoint serving strict `json_schema`
+
+The first live `brief_writer` call (then `anthropic/claude-sonnet-5`, fallback `openai/gpt-5-mini`) failed with `openrouter returned 404: No endpoints found that can handle the requested parameters` (routing funnel: 10 initial endpoints → 5 after the regional-surcharge filter → 2 after the data-policy filter → none supporting the parameters). Tiny direct probes with our exact request shape (`response_format: { type: 'json_schema', strict: true }`, `provider: { data_collection: 'deny', zdr: true, require_parameters: true }`):
+
+| Model | ZDR + strict json_schema |
+|---|---|
+| `anthropic/claude-sonnet-5` | **404** (also 404 with `zdr: false`; OK *without* json_schema, served by Amazon Bedrock) |
+| `openai/gpt-5-mini`, `openai/gpt-5`, `openai/gpt-5.1` | **404** (the data-policy filter removes the last endpoint) |
+| `anthropic/claude-sonnet-4.6`, `anthropic/claude-sonnet-4.5`, `anthropic/claude-opus-4.5`, `anthropic/claude-haiku-4.5` | OK (Amazon Bedrock) |
+| `google/gemini-2.5-flash` | OK (Google) |
+
+**Fix (config only):** `brief_writer`, `playbook_writer` and `theme_discovery` now route to `anthropic/claude-sonnet-4.6` with fallback `anthropic/claude-haiku-4.5`. The synchronous `theme_discovery` had the same latent problem since Phase 3c (it also sends a JSON schema to sonnet-5). Re-probe before moving any JSON-schema task back to a newer model: OpenRouter endpoint support for structured outputs differs per model and changes over time, and unit tests (fake AI) cannot catch it.
+
+### Live writer + verifier dry run on `cs_dev` (Task 15)
+
+`cs_dev` has no qualifying brief candidate: its only event (`ad_started`, "1 new Google ad: "12 Star Service, LLC DBA: Aire Serv of Iowa City"", 2026-10-02) scores 18 → route `archive`, and there are no moves. `brief-once --client 25f99947… --now 2026-10-09T03:30:00Z` (with and without `--force`) therefore stored an honest **quiet** brief (no model call; trend snapshot: Aire Serv 6 reviews, avg 5.0 vs 5.0, 109 active ads, 1 event). To exercise the model path, a temporary script (not committed) built an `EventCandidate` from that real event and called `writeBrief` → `verifyDraft` with the real AI and `AI_SHADOW_RATE=1`, storing no brief:
+
+- **Writer:** served by `anthropic/claude-sonnet-4.6`; 955 input / 206 output tokens; **$0.005955**; 9.0 s. Draft headline "Aire Serv of Iowa City launched a new Google ad this week."; what_changed "A new Google ad appeared on October 2, 2026 for '12 Star Service, LLC DBA: Aire Serv of Iowa City'."; a hedged why_it_matters; two recommended-action sentences, `upsell_tag: ppc`.
+- **Deterministic rules:** every sentence passed except the action sentence "Review what terms Aire Serv may be targeting…" → `targeting claim without targeting evidence` (dropped).
+- **Support Noul (`verifier_decisions`):** the headline was asked first. Jev said supported at confidence 0.36 (p 0.68); the shadow LLM said *unsupported* (p 0.35) — below τ 0.85 either way, so it counted as unsupported, the headline failed and **the whole item was dropped** (the real pipeline would have stored a quiet brief). The likely trigger is "this week", which the evidence doesn't state. That's the intended safe side: dropping beats an unsupported claim.
+- **Playbook writer** (same prompt as `recommendForMoves`, `ad_surge` playbook, on the same event): `anthropic/claude-sonnet-4.6`, 666 / 104 tokens, **$0.003558**. Rationale sentence 1 ("Aire Serv launched a new Google ad as of 2026-10-02…") — Jev true at 0.16, LLM true at 0.84 → still below 0.85 → unsupported; sentence 2 (advice in the rationale) — both false. No sentence survived → no recommendation would be stored.
+- **Verifier calls:** 2 `verifier_decisions` Jev calls (3 questions), $0.0000365; 2 `llm_decisions:shadow` calls, $0.001213; 2 `decision_sample` rows (`reason: shadow`). Jev/LLM agreed on 2 of 3 answers. `decisions export --task verifier_decisions --limit 30` wrote 3 unlabelled questions to a CSV in the OS temp directory (outside the repo).
+- **Spend:** ≈ **$0.0108** for the dry run plus ≈ $0.002 for the OpenRouter probes (not ledgered). The plan's estimate of ≈ $0.04 per standard brief (~6k in / ~1.5k out) still stands for a 5-item brief; a 1-item draft costs ≈ $0.006.
+- **Observation for pilot tuning:** at τ 0.85 the verifier is strict on plain, true facts (Jev's noul confidence on short factual statements is low), so expect many items to drop. Watch the brief `dropped` counts on real data, and label `verifier_decisions` samples before changing τ.
+
+### Anthropic Message Batches — live check fails (API key not workspace-scoped)
+
+`pnpm --filter @cs/ai exec vitest run anthropic-batch.live` → **FAIL** in ~0.2 s, no spend: `400 invalid_request_error — "This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id header with the ID of the workspace to use."` The fix belongs to the owner: issue a workspace-scoped key (or unset `ANTHROPIC_API_KEY`). Since Phase 4a, a rejected batch submit no longer costs the night's theme discovery: `runReviewInsights` logs a warning and falls back to the synchronous `theme_discovery` path for those verticals.
