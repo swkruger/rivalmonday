@@ -1,0 +1,75 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Brand tokens (docs/brand/brand.md). --primary, --secondary, --primary-soft(-text) are overridden per agency
+   on <html style="…"> by themeVars(); everything else is fixed. */
+:root {
+  --primary: #47A8E7;
+  --secondary: #2A6BAC;
+  --amber: #F5A524;
+  --amber-text: #3B2300;
+  --accent-text: #B45309;
+  --ink: #0B2540;
+  --muted-ink: #64748B;
+  --line: #E2E8F0;
+  --canvas: #F6F9FC;
+  --surface: #FFFFFF;
+  --muted-surface: #EEF2F6;
+  --muted-surface-2: #E2E8F0;
+  --success: #16A34A;
+  --danger: #DC2626;
+  --primary-soft: #E3F2FC;
+  --primary-soft-text: #1F6FA8;
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), Inter, system-ui, sans-serif;
+  --color-primary: var(--primary);
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: #FFFFFF;
+  /* Brand amber (fixed, never agency-overridable) — "monday" in the wordmark,
+     the Friday badge, high-priority markers. NOT the same as shadcn's
+     semantic `accent` below, which is a neutral hover/focus surface. */
+  --color-amber: var(--amber);
+  --color-amber-text: var(--amber-text);
+  --color-accent-text: var(--accent-text);
+  --color-ink: var(--ink);
+  --color-muted-ink: var(--muted-ink);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-muted-surface: var(--muted-surface);
+  --color-muted-surface-2: var(--muted-surface-2);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-text: var(--primary-soft-text);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  /* shadcn/ui semantic names. `accent`/`accent-foreground` are the
+     hover/focus surface shadcn components use (DropdownMenu/Select items,
+     etc.) — mapped to the muted surface + ink, not to brand amber. */
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink);
+  --color-muted: var(--muted-surface);
+  --color-muted-foreground: var(--muted-ink);
+  --color-accent: var(--muted-surface);
+  --color-accent-foreground: var(--ink);
+  --color-border: var(--line);
+  --color-input: var(--line);
+  --color-ring: var(--primary);
+  --color-destructive: var(--danger);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 2px);
+  --shadow-card: 0 1px 3px rgba(11, 37, 64, .06), 0 1px 2px rgba(11, 37, 64, .04);
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground font-sans text-sm; }
+}
