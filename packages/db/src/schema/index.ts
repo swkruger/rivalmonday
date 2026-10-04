@@ -1,3 +1,4 @@
+export * from './access';
 export * from './briefs';
 export * from './client-intel';
 export * from './delivery';

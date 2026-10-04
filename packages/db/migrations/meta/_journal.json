@@ -232,6 +232,27 @@
       "when": 1791081320738,
       "tag": "0032_delivery_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791150276505,
+      "tag": "0033_membership",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1791150292634,
+      "tag": "0034_membership_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1791150294917,
+      "tag": "0035_auth",
+      "breakpoints": true
     }
   ]
 }
