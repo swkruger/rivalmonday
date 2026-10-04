@@ -1,4 +1,6 @@
 import { PDFDocument } from 'pdf-lib';
+import type { Browser } from 'playwright';
+import { chromium } from 'playwright';
 import { afterAll, describe, expect, it } from 'vitest';
 import { cleanPdfMetadata, createPdfRenderer } from './pdf';
 
@@ -28,4 +30,27 @@ describe('pdf', () => {
     const out = await PDFDocument.load(await cleanPdfMetadata(await src.save(), meta, new Date('2026-10-05T12:00:00Z')), { updateMetadata: false });
     expect([out.getProducer(), out.getCreator(), out.getModificationDate()?.toISOString()]).toEqual(['Acme Marketing', 'Acme Marketing', '2026-10-05T12:00:00.000Z']);
   });
+
+  it('recovers when the cached browser disconnects after a successful render (worker is long-lived)', async () => {
+    const launched: Browser[] = [];
+    const recovering = createPdfRenderer(async () => {
+      const b = await chromium.launch({ headless: true });
+      launched.push(b);
+      return b;
+    });
+    try {
+      const html = '<html><body><h1>One</h1></body></html>';
+      await recovering(html, meta, { allowUrls: [] });
+      expect(launched).toHaveLength(1);
+
+      await launched[0]!.close(); // simulates the browser process dying underneath us, without renderer.close() being called
+
+      const bytes = await recovering(html, meta, { allowUrls: [] });
+      expect(launched).toHaveLength(2); // relaunched instead of reusing the dead handle
+      const doc = await PDFDocument.load(bytes, { updateMetadata: false });
+      expect(doc.getPageCount()).toBeGreaterThanOrEqual(1);
+    } finally {
+      await recovering.close();
+    }
+  }, 60_000);
 });
