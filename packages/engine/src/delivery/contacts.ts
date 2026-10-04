@@ -29,6 +29,8 @@ export interface NewContact {
   timezone?: string | null;
   quietHours?: QuietHours | null;
   clientScope?: string[] | null;
+  /** Phase 5a: the user this contact belongs to, when one is known at creation. */
+  userId?: string | null;
 }
 
 const AGENCY_ROLES: ContactRole[] = ['agency_admin', 'account_manager'];
@@ -63,7 +65,7 @@ export async function recipientsFor(db: Conn, input: { agencyId: string; clientI
   return out;
 }
 
-export async function addContact(db: Db, input: NewContact): Promise<string> {
+export async function addContact(db: Conn, input: NewContact): Promise<string> {
   const email = input.email.trim();
   if (!EMAIL.test(email)) throw new ToolError('invalid_input', 'Invalid email address');
   if (input.timezone && safeTimezone(input.timezone) !== input.timezone) throw new ToolError('invalid_input', `Unknown time zone ${input.timezone}`);
@@ -76,7 +78,7 @@ export async function addContact(db: Db, input: NewContact): Promise<string> {
     .insert(contact)
     .values({
       agencyId: input.agencyId, clientId: agencyRole ? null : input.clientId ?? null, role: input.role, email, name: input.name ?? null,
-      timezone: input.timezone || null, quietHours: input.quietHours ?? null, clientScope: input.clientScope ?? null,
+      timezone: input.timezone || null, quietHours: input.quietHours ?? null, clientScope: input.clientScope ?? null, userId: input.userId ?? null,
     })
     .returning({ id: contact.id });
   return row!.id;

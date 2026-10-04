@@ -293,6 +293,40 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.4)(jiti@2.6.1)(tsx@4.23.15)(yaml@2.9.1)
 
+  packages/tools:
+    dependencies:
+      '@cs/core':
+        specifier: workspace:*
+        version: link:../core
+      '@cs/db':
+        specifier: workspace:*
+        version: link:../db
+      '@cs/email':
+        specifier: workspace:*
+        version: link:../email
+      '@cs/engine':
+        specifier: workspace:*
+        version: link:../engine
+      drizzle-orm:
+        specifier: ^0.44.5
+        version: 0.44.7(pg@8.23.1)(postgres@3.4.9)
+      zod:
+        specifier: ^4.1.5
+        version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: ^22.18.0
+        version: 22.20.4
+      postgres:
+        specifier: ^3.4.7
+        version: 3.4.9
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.4)(jiti@2.6.1)(tsx@4.23.15)(yaml@2.9.1)
+
   packages/verticals:
     dependencies:
       '@cs/core':

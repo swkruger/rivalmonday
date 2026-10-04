@@ -1,0 +1,25 @@
+{
+  "name": "@cs/tools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cs/core": "workspace:*",
+    "@cs/db": "workspace:*",
+    "@cs/email": "workspace:*",
+    "@cs/engine": "workspace:*",
+    "drizzle-orm": "^0.44.5",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "postgres": "^3.4.7",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
