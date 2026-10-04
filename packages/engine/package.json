@@ -13,6 +13,7 @@
     "@cs/collectors": "workspace:*",
     "@cs/core": "workspace:*",
     "@cs/db": "workspace:*",
+    "@cs/email": "workspace:*",
     "@cs/storage": "workspace:*",
     "@cs/verticals": "workspace:*",
     "cheerio": "^1.2.0",

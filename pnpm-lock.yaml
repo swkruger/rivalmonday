@@ -233,6 +233,9 @@ importers:
       '@cs/db':
         specifier: workspace:*
         version: link:../db
+      '@cs/email':
+        specifier: workspace:*
+        version: link:../email
       '@cs/storage':
         specifier: workspace:*
         version: link:../storage
