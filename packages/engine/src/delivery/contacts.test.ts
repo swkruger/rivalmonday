@@ -72,4 +72,9 @@ describe('addContact validation', () => {
     await expect(add({ email: 'nope' })).rejects.toThrow(/email/);
     await expect(add({ email: 'x@a.example', role: 'account_manager', clientId: null, clientScope: ['not-a-uuid'] })).rejects.toThrow(/client scope/);
   });
+
+  it('rejects an unknown role and a client role with no client id', async () => {
+    await expect(addContact(dbs.service, { agencyId: IDS.agencyA, role: 'bogus' as never, email: 'a@a1.example' })).rejects.toThrow(/role/);
+    await expect(addContact(dbs.service, { agencyId: IDS.agencyA, role: 'client_owner', clientId: null, email: 'a@a1.example' })).rejects.toThrow(/client id/);
+  });
 });

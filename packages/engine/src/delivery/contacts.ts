@@ -32,6 +32,7 @@ export interface NewContact {
 }
 
 const AGENCY_ROLES: ContactRole[] = ['agency_admin', 'account_manager'];
+const ALL_ROLES: ContactRole[] = ['agency_admin', 'account_manager', 'client_owner', 'client_viewer'];
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 /** Active contacts that should get `kind` about this client, each with the personal channels their preferences leave on. */
@@ -67,7 +68,9 @@ export async function addContact(db: Db, input: NewContact): Promise<string> {
   if (!EMAIL.test(email)) throw new ToolError('invalid_input', 'Invalid email address');
   if (input.timezone && safeTimezone(input.timezone) !== input.timezone) throw new ToolError('invalid_input', `Unknown time zone ${input.timezone}`);
   if (input.quietHours && (parseHhmm(input.quietHours.start) === null || parseHhmm(input.quietHours.end) === null)) throw new ToolError('invalid_input', 'quiet hours must be HH:MM');
+  if (!ALL_ROLES.includes(input.role)) throw new ToolError('invalid_input', `Invalid role ${input.role}`);
   const agencyRole = AGENCY_ROLES.includes(input.role);
+  if (!agencyRole && !input.clientId) throw new ToolError('invalid_input', 'a client role requires a client id');
   if (input.clientScope && (!agencyRole || !input.clientScope.every(isUuid))) throw new ToolError('invalid_input', 'client scope is only for agency staff and must list client ids');
   const [row] = await db
     .insert(contact)
