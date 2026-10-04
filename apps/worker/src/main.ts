@@ -9,7 +9,7 @@ try {
 import { createBoss, enqueue, registerJobs } from './boss';
 import { createWorkerDeps } from './deps';
 import { createBriefJobs } from './jobs/briefs';
-import { createDeliveryJobs } from './jobs/delivery';
+import { createDeliveryJobs, warnIfDeliveryUnconfigured } from './jobs/delivery';
 import { createEngineJobs } from './jobs/engine';
 import { heartbeatJob } from './jobs/heartbeat';
 import { createModelOpsJobs } from './jobs/model-ops';
@@ -94,6 +94,7 @@ await registerJobs(boss, [
   delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,
 ]);
 console.log('[worker] started');
+warnIfDeliveryUnconfigured(deps);
 
 // pg-boss 10's stop({ graceful: true, wait: true }) resolves only after in-flight handlers drain
 // (or `timeout` elapses) — see node_modules/pg-boss/src/index.js `stop()`. Stopping pg-boss before

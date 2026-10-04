@@ -8,6 +8,11 @@ export interface DeliveryQueue {
   enqueueReportPdf(reportId: string): Promise<void>;
 }
 
+/** M-f: one start-up warning (never the values) when delivery is not configured, so a silent no-op worker is noticed. */
+export function warnIfDeliveryUnconfigured(deps: Pick<WorkerDeps, 'deliveryConfigured'>, warn: (msg: string) => void = console.warn): void {
+  if (!deps.deliveryConfigured()) warn('[worker] delivery is not configured (APP_URL and LINK_SIGNING_SECRET of at least 32 characters): alerts, digests, briefs and reports will not be sent');
+}
+
 /** Phase 4b: alerts, digests, the outbox dispatcher, Monday brief delivery, PDFs and quarterly reports. */
 export function createDeliveryJobs(deps: WorkerDeps, queue: DeliveryQueue) {
   const ready = () => deps.deliveryConfigured();
@@ -46,8 +51,10 @@ export function createDeliveryJobs(deps: WorkerDeps, queue: DeliveryQueue) {
     name: 'briefs-deliver', schema: tick, cron: '10 * * * *',
     handler: async () => {
       if (!ready()) return;
-      const r = await deps.deliverDueBriefs(new Date());
-      for (const id of r.sent) await queue.enqueueBriefPdf(id);
+      const now = new Date();
+      const r = await deps.deliverDueBriefs(now);
+      // Also re-offer recently sent briefs whose PDF never rendered (the email links it); singletonKey dedupes.
+      for (const id of new Set([...r.sent, ...(await deps.listBriefsMissingPdf(now))])) await queue.enqueueBriefPdf(id);
       if (r.sent.length + r.autoApproved + r.overdue > 0) console.log(`[briefs-deliver] sent ${r.sent.length} (auto ${r.autoApproved}), overdue ${r.overdue}`);
     },
   });
@@ -59,8 +66,9 @@ export function createDeliveryJobs(deps: WorkerDeps, queue: DeliveryQueue) {
     name: 'reports-quarterly', schema: tick, cron: '20 * * * *',
     handler: async () => {
       if (!ready()) return;
-      const r = await deps.runQuarterlyReports(new Date());
-      for (const id of r.created) await queue.enqueueReportPdf(id);
+      const now = new Date();
+      const r = await deps.runQuarterlyReports(now);
+      for (const id of new Set([...r.created, ...(await deps.listReportsMissingPdf(now))])) await queue.enqueueReportPdf(id);
       if (r.created.length > 0) console.log(`[reports-quarterly] created ${r.created.length}`);
     },
   });

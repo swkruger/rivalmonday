@@ -10,7 +10,7 @@ import { client, competitor, createDb, createDecisionSampleSink, createLedgerSin
 import {
   analyzeReview as runAnalyzeReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createPackLoader, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
-  type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, listBriefDueClients, listMoveClients, type MovesRunResult,
+  type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, listBriefDueClients, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   notifyBriefOutcome, processAlert, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
@@ -71,8 +71,12 @@ export interface WorkerDeps {
   deliverDueBriefs(now: Date): Promise<{ sent: string[]; autoApproved: number; overdue: number }>;
   notifyBriefOutcome(result: BriefRunResult, now: Date): Promise<number>;
   renderBriefPdf(briefId: string): Promise<{ key: string } | { skipped: string }>;
+  /** Sent briefs (last 7 days) whose PDF never rendered — re-enqueued by the hourly delivery tick. */
+  listBriefsMissingPdf(now: Date): Promise<string[]>;
   runQuarterlyReports(now: Date): Promise<{ created: string[] }>;
   renderReportPdf(reportId: string): Promise<{ key: string }>;
+  /** Sent trend reports (last 7 days) whose PDF never rendered — re-enqueued by the hourly reports tick. */
+  listReportsMissingPdf(now: Date): Promise<string[]>;
   close(): Promise<void>;
 }
 
@@ -293,6 +297,8 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     renderBriefPdf: (briefId) => renderBriefPdf({ db: getDb(), store: getStore(), pdf: getPdf() }, briefId),
     runQuarterlyReports: (now) => runQuarterlyReports({ db: getDb(), packs, delivery: getDelivery() }, now),
     renderReportPdf: (reportId) => renderReportPdf({ db: getDb(), store: getStore(), pdf: getPdf() }, reportId),
+    listBriefsMissingPdf: (now) => listBriefsMissingPdf(getDb(), now),
+    listReportsMissingPdf: (now) => listReportsMissingPdf(getDb(), now),
     async close() {
       await renderer?.close();
       await pdf?.close();
