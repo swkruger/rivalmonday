@@ -11,7 +11,8 @@
     "collect-once": "tsx src/cli/collect-once.ts",
     "engine-once": "tsx src/cli/engine-once.ts",
     "brief-once": "tsx src/cli/brief-once.ts",
-    "decisions": "tsx src/cli/decisions.ts"
+    "decisions": "tsx src/cli/decisions.ts",
+    "deliver-once": "tsx src/cli/deliver-once.ts"
   },
   "dependencies": {
     "@cs/ai": "workspace:*",

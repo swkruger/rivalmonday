@@ -17,7 +17,9 @@ export function createBriefJobs(deps: WorkerDeps, queue: { enqueueBriefClient(cl
   const client = defineJob({
     name: 'brief-client', schema: z.object({ clientId: z.uuid() }), queue: { policy: 'short', retryLimit: 0 },
     handler: async ({ clientId }) => {
-      console.log(`[brief-client] ${clientId} → ${JSON.stringify(await deps.generateBrief(clientId))}`);
+      const r = await deps.generateBrief(clientId);
+      console.log(`[brief-client] ${clientId} → ${JSON.stringify(r)}`);
+      if (deps.deliveryConfigured()) await deps.notifyBriefOutcome(r, new Date());
     },
   });
   return { schedule, client };

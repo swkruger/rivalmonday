@@ -13,7 +13,14 @@
     "DATAFORSEO_BASE_URL",
     "APIFY_TOKEN",
     "SCRAPECREATORS_API_KEY",
-    "REVIEWER_HASH_SALT"
+    "REVIEWER_HASH_SALT",
+    "APP_URL",
+    "LINK_SIGNING_SECRET",
+    "LINK_SIGNING_SECRET_PREVIOUS",
+    "EMAIL_FROM",
+    "EMAIL_OUTBOX_DIR",
+    "POSTMARK_SERVER_TOKEN",
+    "POSTMARK_MESSAGE_STREAM"
   ],
   "tasks": {
     "typecheck": { "dependsOn": ["^typecheck"] },

@@ -20,8 +20,15 @@ describe('brief jobs', () => {
   });
 
   it('client job generates the brief', async () => {
-    const deps = { generateBrief: vi.fn(async () => ({ status: 'ready', briefId: 'b', kind: 'quiet', items: 0, dropped: { items: 0, sentences: 0 } })) } as unknown as WorkerDeps;
+    const deps = { generateBrief: vi.fn(async () => ({ status: 'ready', briefId: 'b', kind: 'quiet', items: 0, dropped: { items: 0, sentences: 0 } })), deliveryConfigured: () => false } as unknown as WorkerDeps;
     await createBriefJobs(deps, { enqueueBriefClient: vi.fn() }).client.handler({ clientId: '00000000-0000-4000-8000-0000000000a1' });
     expect(deps.generateBrief).toHaveBeenCalledWith('00000000-0000-4000-8000-0000000000a1');
+  });
+
+  it('client job tells the AM the outcome once delivery is configured', async () => {
+    const result = { status: 'ready', briefId: 'b', kind: 'quiet', items: 0, dropped: { items: 0, sentences: 0 } };
+    const deps = { generateBrief: vi.fn(async () => result), deliveryConfigured: () => true, notifyBriefOutcome: vi.fn(async () => 2) } as unknown as WorkerDeps;
+    await createBriefJobs(deps, { enqueueBriefClient: vi.fn() }).client.handler({ clientId: '00000000-0000-4000-8000-0000000000a1' });
+    expect(deps.notifyBriefOutcome).toHaveBeenCalledWith(result, expect.any(Date));
   });
 });

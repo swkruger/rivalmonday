@@ -8,12 +8,16 @@ import {
 import type { CaptureStatus } from '@cs/core';
 import { client, competitor, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import {
-  analyzeReview as runAnalyzeReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createPackLoader, diffCapture, diffRankScan,
+  analyzeReview as runAnalyzeReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createPackLoader, createWebhookSender,
+  deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
   type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, listBriefDueClients, listMoveClients, type MovesRunResult,
-  recommendForMoves, type ReviewInsightsResult, runReviewInsights, scoreEvent as runScoreStage, tagChange as runTagStage, updateMovesForClient,
+  notifyBriefOutcome, processAlert, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
+  runReviewInsights, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
+import { createEmailTransportFromEnv } from '@cs/email';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
+import { createPdfRenderer } from './pdf';
 
 export interface WorkerDeps {
   claimDuePages(limit: number): Promise<string[]>;
@@ -58,6 +62,17 @@ export interface WorkerDeps {
   scanRankings(clientId: string): Promise<{ snapshots: number; failed: number; scanId: string | null }>;
   listRankClients(): Promise<string[]>;
   suggestCompetitors(clientId: string): Promise<{ suggested: number; searches: number }>;
+  /** True once APP_URL and LINK_SIGNING_SECRET (at least 32 characters) are set — gates every delivery job. */
+  deliveryConfigured(): boolean;
+  sweepAlerts(now: Date): Promise<SweepResult>;
+  processAlert(alertId: string, now: Date): Promise<{ status: string; release?: string }>;
+  runAlertDigests(now: Date): Promise<{ clients: number; alerts: number; withdrawn: number }>;
+  dispatchNotifications(now: Date): Promise<{ sent: number; failed: number; retried: number }>;
+  deliverDueBriefs(now: Date): Promise<{ sent: string[]; autoApproved: number; overdue: number }>;
+  notifyBriefOutcome(result: BriefRunResult, now: Date): Promise<number>;
+  renderBriefPdf(briefId: string): Promise<{ key: string } | { skipped: string }>;
+  runQuarterlyReports(now: Date): Promise<{ created: string[] }>;
+  renderReportPdf(reportId: string): Promise<{ key: string }>;
   close(): Promise<void>;
 }
 
@@ -107,6 +122,21 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     return dfs;
   };
   const loadCompetitors = (ids: string[]) => getDb().select().from(competitor).where(inArray(competitor.id, ids));
+  const delivery = deliveryConfigFromEnv(env);
+  const getDelivery = () => {
+    if (!delivery) throw new Error('APP_URL and LINK_SIGNING_SECRET (at least 32 characters) are required for delivery');
+    return delivery;
+  };
+  let senders: Parameters<typeof dispatchDue>[0]['senders'] | null = null;
+  const getSenders = () => {
+    if (!senders) {
+      const web = createWebhookSender({ db: getDb() });
+      senders = { email: createEmailSender({ transport: createEmailTransportFromEnv(env, createLedgerSink(getDb())), fromAddress: getDelivery().fromAddress }), slack: web, teams: web };
+    }
+    return senders;
+  };
+  let pdf: ReturnType<typeof createPdfRenderer> | null = null;
+  const getPdf = () => (pdf ??= createPdfRenderer());
   let warnedNoSalt = false;
   // A rejected init must not be cached forever (the worker keeps this deps object alive for its
   // whole lifetime): clear it so the next discoverPages call retries instead of replaying the same failure.
@@ -253,8 +283,19 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       return rows.map((r) => r.id);
     },
     suggestCompetitors: (clientId) => suggestCompetitors({ db: getDb(), dfs: getDfs() }, clientId),
+    deliveryConfigured: () => delivery !== null,
+    sweepAlerts: (now) => sweepAlerts(getDb(), now),
+    processAlert: async (alertId, now) => processAlert({ db: getDb(), ai: await getAi(), packs, delivery: getDelivery() }, alertId, now),
+    runAlertDigests: (now) => runAlertDigests({ db: getDb(), delivery: getDelivery() }, now),
+    dispatchNotifications: (now) => dispatchDue({ db: getDb(), senders: getSenders() }, now),
+    deliverDueBriefs: (now) => deliverDueBriefs({ db: getDb(), delivery: getDelivery() }, now),
+    notifyBriefOutcome: (result, now) => notifyBriefOutcome({ db: getDb(), delivery: getDelivery() }, result, now),
+    renderBriefPdf: (briefId) => renderBriefPdf({ db: getDb(), store: getStore(), pdf: getPdf() }, briefId),
+    runQuarterlyReports: (now) => runQuarterlyReports({ db: getDb(), packs, delivery: getDelivery() }, now),
+    renderReportPdf: (reportId) => renderReportPdf({ db: getDb(), store: getStore(), pdf: getPdf() }, reportId),
     async close() {
       await renderer?.close();
+      await pdf?.close();
       await db?.close();
     },
   };
