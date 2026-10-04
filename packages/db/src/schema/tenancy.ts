@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
-import { type AnyPgColumn, check, foreignKey, index, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { type AnyPgColumn, boolean, check, foreignKey, index, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import type { AgencyBranding } from './delivery';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
@@ -20,6 +21,8 @@ export interface ScoreThresholds {
 export const agency = pgTable('agency', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
+  /** Per-agency white-label settings (spec §5.1), edited by Phase 5. */
+  branding: jsonb('branding').$type<AgencyBranding | null>(),
   createdAt: createdAt(),
 });
 
@@ -40,6 +43,10 @@ export const client = pgTable(
     selfCompetitorId: uuid('self_competitor_id').references((): AnyPgColumn => competitor.id, { onDelete: 'set null' }),
     /** IANA time zone of the business (Phase 4a): briefs are generated Thursday night and delivered Monday morning local time. */
     timezone: text('timezone').notNull().default('America/Chicago'),
+    /** Spec §9.3 client alert mode — an agency decision (service role only, no app_user column grant). */
+    alertMode: text('alert_mode').notNull().default('after_am_check'),
+    /** Spec §9.1.6: send an untouched ready brief automatically on Monday 07:00 local. Agency decision. */
+    briefAutoSend: boolean('brief_auto_send').notNull().default(false),
     createdAt: createdAt(),
   },
   (t) => [
@@ -61,6 +68,7 @@ export const client = pgTable(
     ),
     // Shape only (Area/City[/Sub]); the application also validates with Intl before use and falls back to the default.
     check('client_timezone_check', sql`timezone ~ '^[A-Za-z]+(/[A-Za-z0-9_+-]+){1,2}$' OR timezone = 'UTC'`),
+    check('client_alert_mode_check', sql`alert_mode IN ('direct', 'after_am_check', 'digest_only')`),
   ],
 );
 

@@ -218,6 +218,20 @@
       "when": 1791068129845,
       "tag": "0030_brief_item_ord_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791081304269,
+      "tag": "0031_delivery",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791081320738,
+      "tag": "0032_delivery_rls",
+      "breakpoints": true
     }
   ]
 }

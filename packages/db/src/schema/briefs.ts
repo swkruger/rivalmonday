@@ -62,6 +62,8 @@ export const brief = pgTable(
     generatedAt: ts('generated_at'),
     approvedAt: ts('approved_at'),
     approvedBy: text('approved_by'),
+    sentAt: ts('sent_at'),
+    pdfKey: text('pdf_key'),
     createdAt: ts('created_at').notNull().defaultNow(),
     updatedAt: ts('updated_at').notNull().defaultNow(),
   },
