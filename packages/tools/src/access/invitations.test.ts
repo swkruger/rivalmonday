@@ -114,4 +114,17 @@ describe('acceptInvitations', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]!.role).toBe('client_owner');
   });
+
+  it('survives two concurrent acceptances for the same user without a raw unique-violation, leaving exactly one membership', async () => {
+    await seedUser(dbs.owner, 'u1', 'p@e.co');
+    await createInvitation(dbs.service, { agencyId: IDS.agencyA, email: 'p@e.co', role: 'agency_admin', invitedBy: 'x' }, NOW);
+    const results = await Promise.all([
+      acceptInvitations(dbs.service, { id: 'u1', email: 'p@e.co' }, NOW),
+      acceptInvitations(dbs.service, { id: 'u1', email: 'p@e.co' }, NOW),
+    ]);
+    expect(results.every((ids) => Array.isArray(ids))).toBe(true);
+    const rows = await dbs.service.select().from(membership);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ userId: 'u1', agencyId: IDS.agencyA, role: 'agency_admin' });
+  });
 });

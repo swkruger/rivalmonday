@@ -95,23 +95,18 @@ export async function acceptInvitations(service: Db, user: { id: string; email: 
     const ids: string[] = [];
     for (const inv of pending) {
       const contactId = await contactFor(tx, inv, user);
-      const [existing] = await tx
-        .select({ id: membership.id })
-        .from(membership)
-        .where(and(eq(membership.userId, user.id), eq(membership.agencyId, inv.agencyId), sameClient(membership.clientId, inv.clientId)))
-        .for('update');
-      let membershipId: string;
-      if (existing) {
-        await tx.update(membership).set({ role: inv.role, clientScope: inv.clientScope, contactId }).where(eq(membership.id, existing.id));
-        membershipId = existing.id;
-      } else {
-        const [m] = await tx.insert(membership).values({
-          userId: user.id, agencyId: inv.agencyId, role: inv.role, clientId: inv.clientId, clientScope: inv.clientScope, contactId, createdBy: inv.invitedBy, createdAt: now,
-        }).returning({ id: membership.id });
-        membershipId = m!.id;
-      }
+      // Upserted, not select-then-branch: two concurrent acceptInvitations calls for the same user (e.g. two
+      // sign-in requests racing) must not both take an insert path and raise a raw unique-violation on
+      // membership_user_scope_unique — Postgres resolves the race itself via the ON CONFLICT clause.
+      const clientScopeJson = inv.clientScope == null ? null : JSON.stringify(inv.clientScope);
+      const [row] = (await tx.execute(sql`
+        INSERT INTO membership (user_id, agency_id, role, client_id, client_scope, contact_id, created_by, created_at)
+        VALUES (${user.id}, ${inv.agencyId}, ${inv.role}, ${inv.clientId}, ${clientScopeJson}::jsonb, ${contactId}, ${inv.invitedBy}, ${now.toISOString()}::timestamptz)
+        ON CONFLICT (user_id, agency_id, coalesce(client_id, '00000000-0000-0000-0000-000000000000'::uuid)) DO UPDATE
+          SET role = EXCLUDED.role, client_scope = EXCLUDED.client_scope, contact_id = EXCLUDED.contact_id
+        RETURNING id`)) as unknown as { id: string }[];
       await tx.update(invitation).set({ acceptedAt: now, acceptedBy: user.id }).where(eq(invitation.id, inv.id));
-      ids.push(membershipId);
+      ids.push(row!.id);
     }
     return ids;
   });
