@@ -115,6 +115,17 @@ describe('acceptInvitations', () => {
     expect(rows[0]!.role).toBe('client_owner');
   });
 
+  it('never demotes an existing agency_admin membership, even from a pre-existing pending invitation (defence in depth)', async () => {
+    await seedUser(dbs.owner, 'u1', 'admin@e.co');
+    await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'agency_admin', createdBy: 'x' });
+    // Inserted directly, bypassing inviteMember's same-scope guard, to model an invitation created before that guard existed.
+    await dbs.service.insert(invitation).values({ agencyId: IDS.agencyA, email: 'admin@e.co', role: 'account_manager', invitedBy: 'x', expiresAt: new Date('2026-10-19T12:00:00Z') });
+    await acceptInvitations(dbs.service, { id: 'u1', email: 'admin@e.co' }, NOW);
+    const rows = await dbs.service.select().from(membership);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ role: 'agency_admin', clientScope: null });
+  });
+
   it('survives two concurrent acceptances for the same user without a raw unique-violation, leaving exactly one membership', async () => {
     await seedUser(dbs.owner, 'u1', 'p@e.co');
     await createInvitation(dbs.service, { agencyId: IDS.agencyA, email: 'p@e.co', role: 'agency_admin', invitedBy: 'x' }, NOW);

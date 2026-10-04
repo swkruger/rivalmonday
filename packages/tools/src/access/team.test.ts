@@ -41,6 +41,10 @@ describe('inviteMember', () => {
   it('refuses client roles', async () => {
     await expect(inviteMember(dbs.service, owner, { email: 'v@e.co', role: 'client_viewer', clientId: IDS.clientA1 }, NOW)).rejects.toMatchObject({ code: 'permission_denied' });
   });
+
+  it('refuses to invite an existing admin’s email as account_manager (would demote them on sign-in, bypassing the last-admin check)', async () => {
+    await expect(inviteMember(dbs.service, admin, { email: 'admin@e.co', role: 'account_manager' }, NOW)).rejects.toMatchObject({ code: 'invalid_input' });
+  });
 });
 
 describe('listTeam', () => {
