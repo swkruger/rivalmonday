@@ -56,7 +56,8 @@ describe('trend report', () => {
   it('renders the deterministic numbers as tables', async () => {
     const r = await renderEmail({ template: 'trend_report', props: report });
     expect(r.subject).toBe('A1 HVAC: competitor trends for 2026-Q3');
-    for (const s of ['price_change', '12', 'Price war', 'Smith HVAC', '3 done']) expect(r.text).toContain(s);
+    for (const s of ['Price change: 3', 'New ads: 5', '12', 'Price war', 'Smith HVAC', '3 done']) expect(r.text).toContain(s);
+    expect(r.text).not.toMatch(/price_change|ad_started/);
     expect(await renderTrendReportDocument({ ...report, link: null })).toContain('@page');
   });
 });

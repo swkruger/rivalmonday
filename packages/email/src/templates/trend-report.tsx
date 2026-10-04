@@ -2,6 +2,7 @@
 /** @jsxImportSource react */
 import { Button, Heading, Link, Section, Text } from 'react-email';
 import { button, greeting, Layout, panel } from '../layout';
+import { changeTypeLabel } from '../labels';
 import type { TrendReportEmailProps } from '../types';
 import { TrendTable } from './trend-table';
 
@@ -18,7 +19,7 @@ export function TrendReportEmail(p: TrendReportEmailProps & { variant?: 'email' 
       <TrendTable branding={p.branding} windowDays={d.windowDays} businesses={d.businesses} />
       <Section style={panel(p.branding)} className="card">
         <Heading as="h3" style={{ fontSize: 16, margin: '0 0 6px' }}>Competitor changes we tracked</Heading>
-        {Object.entries(d.eventsByType).sort((a, b) => b[1] - a[1]).map(([type, n]) => <Text key={type} style={{ margin: 0 }}>{`${type}: ${n}`}</Text>)}
+        {Object.entries(d.eventsByType).sort((a, b) => b[1] - a[1]).map(([type, n]) => <Text key={type} style={{ margin: 0 }}>{`${changeTypeLabel(type)}: ${n}`}</Text>)}
       </Section>
       {d.moves.length > 0 ? (
         <Section style={panel(p.branding)} className="card">

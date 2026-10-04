@@ -1,5 +1,6 @@
 import type { Ai, JsonSchemaFormat } from '@cs/ai';
 import { changeEvent, client, competitor, type Db, eventScore } from '@cs/db';
+import { CHANGE_LABELS } from '@cs/email';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { escapeEvidence, loadEventEvidence } from '../briefs/evidence';
@@ -10,12 +11,6 @@ import { candidateContextText, periodLine } from '../briefs/writer';
 import type { PackLoader } from '../tag/tag-stage';
 
 export const ALERT_WRITER_TASK = 'alert_writer';
-
-export const CHANGE_LABELS: Record<string, string> = {
-  price_change: 'price change', promo: 'new promotion', new_service: 'new service', service_removed: 'service removed',
-  service_area_change: 'service area change', new_location: 'new location', hiring: 'hiring', ad_started: 'new ads', ad_stopped: 'ads stopped',
-  review_spike: 'complaint spike in reviews', rating_change: 'rating change', rank_change: 'local ranking change', content: 'website change', cosmetic: 'minor change',
-};
 
 /** Decision 7 fallback: a type label plus the event summary, which is itself part of the verifier's evidence. */
 export function templateAlert(c: { competitorName: string; changeType: string; summary: string }): { headline: string; body: string } {
