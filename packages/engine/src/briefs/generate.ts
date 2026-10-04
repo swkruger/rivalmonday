@@ -7,7 +7,7 @@ import { candidateTrigger, playbookFor, resolvePlaybooks } from './playbooks';
 import { briefDue, briefPeriod, deliveryDateFor, localParts, safeTimezone } from './schedule';
 import { selectBriefItems } from './select';
 import { trendSnapshot } from './trend';
-import { verifyDraft } from './verify';
+import { verifyDraft, type VerifiedItem } from './verify';
 import { writeBrief } from './writer';
 
 export const BRIEF_MAX_ATTEMPTS = 3;
@@ -37,6 +37,17 @@ async function claimBrief(db: Db, c: { id: string; agencyId: string }, deliveryD
   const [existing] = await db.select({ status: brief.status, attempts: brief.attempts }).from(brief).where(and(eq(brief.clientId, c.id), eq(brief.deliveryDate, deliveryDate)));
   if (existing?.status === 'failed') return { skipped: `failed after ${existing.attempts} attempts` };
   return { skipped: `a brief for ${deliveryDate} is already ${existing?.status ?? 'claimed'}` };
+}
+
+/**
+ * Items that may be stored: each must cite at least one event (no evidence, no claim — never a move with nothing
+ * left behind it) and none of its events may have been retracted since it was gathered.
+ */
+export function committableItems(items: VerifiedItem[], retractedIds: string[]): VerifiedItem[] {
+  return items.filter((i) => {
+    const ids = candidateEventIds(i.candidate);
+    return ids.length > 0 && ids.every((id) => !retractedIds.includes(id));
+  });
 }
 
 /** Drizzle wraps driver errors; the Postgres message is on `cause`. */
@@ -78,15 +89,15 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
     let playbooks: Awaited<ReturnType<typeof resolvePlaybooks>> = [];
     if (selected.length > 0) {
       playbooks = await resolvePlaybooks(deps.db, c.agencyId, pack);
-      const draft = await writeBrief(deps.ai, scope, c, selected, playbooks);
-      verified = await verifyDraft(deps.ai, scope, c, selected, draft, { year: localParts(now, tz).year });
+      const draft = await writeBrief(deps.ai, scope, c, selected, playbooks, period);
+      verified = await verifyDraft(deps.ai, scope, c, selected, draft, { year: localParts(now, tz).year, period });
     }
 
     return await deps.db.transaction(async (tx): Promise<BriefRunResult> => {
       // Commit-time re-check (Review Focus 4): an event retracted while the model was writing must not reach the brief.
       const ids = verified.items.flatMap((i) => candidateEventIds(i.candidate));
       const retracted = ids.length === 0 ? [] : (await tx.select({ id: changeEvent.id }).from(changeEvent).where(and(inArray(changeEvent.id, ids), isNotNull(changeEvent.retractedAt)))).map((r) => r.id);
-      const items = verified.items.filter((i) => candidateEventIds(i.candidate).every((id) => !retracted.includes(id)));
+      const items = committableItems(verified.items, retracted);
       const dropped = { items: verified.dropped.items + (verified.items.length - items.length), sentences: verified.dropped.sentences };
       const kind: BriefKind = items.length > 0 ? 'standard' : 'quiet';
       const summary = kind === 'quiet' ? QUIET_SUMMARY : items.length === verified.items.length ? verified.summary : `${items.length} competitor update${items.length === 1 ? '' : 's'} this week.`;

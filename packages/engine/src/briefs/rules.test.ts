@@ -53,6 +53,13 @@ describe('dates', () => {
     expect(ok('The change appeared on October 1.')).toBe(true);
     expect(ok('The change appeared on Sept 20.')).toBe(false);
   });
+
+  it('a brief-period line adds its dates as allowed dates but none of its digits as numbers', () => {
+    const withPeriod = { ...ev, text: `Brief period: 2026-09-25 to 2026-10-02. Every EVIDENCE item below was detected in this period.\n${ev.text}` };
+    expect(checkSentence('The change appeared on Sept 25.', withPeriod, ctx).ok).toBe(true);
+    expect(checkSentence('They launched 25 new ads.', withPeriod, ctx).ok).toBe(false);
+    expect(checkSentence('They launched 2 new ads.', withPeriod, ctx).ok).toBe(false);
+  });
 });
 
 describe('geography and names', () => {
@@ -62,6 +69,11 @@ describe('geography and names', () => {
     expect(checkSentence('They now mention 75035.', ev, ctx)).toEqual({ ok: false, reasons: ['ZIP 75035 is not in the evidence'] });
     expect(ok('The ads target Frisco homeowners.')).toBe(false);
     expect(ok('They are expanding into Plano.')).toBe(false);
+  });
+
+  it('treats a $-prefixed 5-digit number as money, not a ZIP', () => {
+    expect(checkSentence('They now quote $50000 for a system.', ev, ctx)).toEqual({ ok: false, reasons: ['number $50000 is not in the evidence'] });
+    expect(checkSentence('They now quote $50000 for a system.', { ...ev, text: `${ev.text}\nNumbers: $40000 → $50000` }, ctx).ok).toBe(true);
   });
 
   it('rejects a sentence naming a tracked competitor that is not cited', () => {

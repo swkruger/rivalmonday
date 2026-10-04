@@ -47,10 +47,13 @@ export const TEST_FACTORS: ScoreFactors = {
   typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 2,
 };
 
-/** Seeds a fully-scored event: a web capture with one metadata-only evidence row, a live (`status: 'event'`) detected_change, the event, its event_change link and the client's event_score. */
+/**
+ * Seeds a fully-scored event: a web capture with one metadata-only evidence row, a live (`status: 'event'`) detected_change, the event, its event_change link and the client's event_score.
+ * `scoredAt` defaults to `createdAt` (else `occurredAt`) so tests stay independent of the wall clock.
+ */
 export async function seedScoredEvent(db: Db, input: {
   competitorId: string; clientId: string; agencyId: string; changeType?: string; score?: number; route?: 'alert' | 'brief' | 'archive';
-  occurredAt: Date; createdAt?: Date; summary?: string; before?: string; after?: string; services?: Record<string, string | null>;
+  occurredAt: Date; createdAt?: Date; scoredAt?: Date; summary?: string; before?: string; after?: string; services?: Record<string, string | null>;
 }): Promise<{ eventId: string; changeId: string; captureId: string }> {
   const pageId = await seedPage(db, input.competitorId, `https://smithhvac.example/p-${randomUUID().slice(0, 8)}`, 'pricing');
   // Metadata rows only (no object store needed): briefs read evidence ids, never the stored bytes.
@@ -69,6 +72,6 @@ export async function seedScoredEvent(db: Db, input: {
     confidence: 0.95, occurredAt: input.occurredAt, ...(input.createdAt ? { createdAt: input.createdAt } : {}),
   }).returning({ id: changeEvent.id });
   await db.insert(eventChange).values({ eventId: ev!.id, changeId: ch!.id });
-  await db.insert(eventScore).values({ agencyId: input.agencyId, clientId: input.clientId, eventId: ev!.id, score: input.score ?? 55, route: input.route ?? 'brief', factors: TEST_FACTORS, packVersion: 1 });
+  await db.insert(eventScore).values({ agencyId: input.agencyId, clientId: input.clientId, eventId: ev!.id, score: input.score ?? 55, route: input.route ?? 'brief', factors: TEST_FACTORS, packVersion: 1, scoredAt: input.scoredAt ?? input.createdAt ?? input.occurredAt });
   return { eventId: ev!.id, changeId: ch!.id, captureId };
 }

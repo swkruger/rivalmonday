@@ -1,11 +1,13 @@
-import { brief, briefItem, changeEvent, client } from '@cs/db';
+import { brief, briefItem, changeEvent, client, move, moveEvent } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeAi, noul } from '../../test/fake-ai';
 import { day, seedScoredEvent } from '../../test/seed';
 import { createPackLoader } from '../tag/tag-stage';
-import { generateBrief, listBriefDueClients, QUIET_SUMMARY } from './generate';
+import type { EventCandidate, MoveCandidate } from './gather';
+import { committableItems, generateBrief, listBriefDueClients, QUIET_SUMMARY } from './generate';
+import type { VerifiedItem } from './verify';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -80,6 +82,20 @@ describe('generateBrief', () => {
     expect(await run(ai)).toMatchObject({ status: 'ready', kind: 'quiet', items: 0 });
   });
 
+  it('writes a quiet brief when an open move\'s supporting events were all retracted (its stale summary is not evidence)', async () => {
+    const e = await seedEvent();
+    const [m] = await dbs.service.insert(move).values({
+      agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, moveType: 'price_war', status: 'active', confidence: 0.9, summary: 'Smith HVAC cut prices twice',
+      details: { eventCount: 1, channels: ['web'], facts: { cuts: 2 } }, ruleVersion: 2, firstDetectedAt: day(-10), lastHeldAt: day(0), lastEvidenceAt: day(-1),
+    }).returning({ id: move.id });
+    await dbs.service.insert(moveEvent).values({ moveId: m!.id, eventId: e.eventId });
+    await dbs.service.update(changeEvent).set({ retractedAt: day(-1), retractionReason: 'review' }).where(eq(changeEvent.id, e.eventId));
+    const ai = createFakeAi({ chat: () => draft(['C1'], 'Smith HVAC cut prices twice.'), decide: supportAll });
+    expect(await run(ai)).toMatchObject({ status: 'ready', kind: 'quiet', items: 0 });
+    expect(ai.calls.chat).toHaveLength(0);
+    expect(await dbs.owner.select().from(briefItem)).toHaveLength(0);
+  });
+
   describe('a stale run reclaimed by a newer attempt', () => {
     // On the first run's first verifier call: age its claim past the stale window and let a second run reclaim and finish.
     // The verifier makes several decide calls; only the first one reclaims.
@@ -149,5 +165,16 @@ describe('listBriefDueClients', () => {
     expect(due.sort()).toEqual([IDS.clientA1, IDS.clientB1].sort());
     await run();
     expect(await listBriefDueClients(dbs.service, NOW)).not.toContain(IDS.clientA1);
+  });
+});
+
+describe('committableItems', () => {
+  const ev = { kind: 'event', eventId: 'e1' } as EventCandidate;
+  const item = (candidate: EventCandidate | MoveCandidate) => ({ candidate }) as VerifiedItem;
+  it('refuses an item citing no events and an item citing a retracted event', () => {
+    const empty = item({ kind: 'move', moveId: 'm', events: [] as EventCandidate[] } as MoveCandidate);
+    const live = item(ev);
+    const gone = item({ ...ev, eventId: 'e2' });
+    expect(committableItems([empty, live, gone], ['e2'])).toEqual([live]);
   });
 });

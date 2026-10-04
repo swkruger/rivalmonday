@@ -67,10 +67,20 @@ const path = (u: string | null) => {
   }
 };
 
-/** The exact evidence text of a candidate: the writer sees it and the verifier checks claims against it. */
+export interface BriefPeriod {
+  start: Date;
+  end: Date;
+}
+
+/** `Brief period: <start> to <end>` (UTC dates): lets the writer and verifier read relative time words like "this week". */
+export const periodLine = (p: BriefPeriod) => `Brief period: ${day(p.start)} to ${day(p.end)}`;
+
+/**
+ * The verifier's evidence for a candidate: live event summaries and change texts only. A move's own summary is never
+ * evidence (it was written from the events at detection time and goes stale when they are retracted).
+ */
 export function candidateEvidenceText(c: BriefCandidate): string {
   const lines: string[] = [];
-  if (c.kind === 'move') lines.push(escapeEvidence(`Detected pattern: ${c.summary}`));
   for (const e of candidateEvents(c)) {
     lines.push(escapeEvidence(`Event: ${e.summary}`));
     // Packs are escaped when loaded; escaping again here is idempotent and covers candidates built elsewhere.
@@ -79,18 +89,25 @@ export function candidateEvidenceText(c: BriefCandidate): string {
   return lines.join('\n');
 }
 
-export function buildWriterPrompt(c: BriefClient, candidates: BriefCandidate[], playbooks: Playbook[]): { messages: ChatMessage[]; jsonSchema: JsonSchemaFormat } {
+/** What the writer sees for a candidate: a move's pattern line as context, then exactly the verifier's evidence. */
+export function candidateContextText(c: BriefCandidate): string {
+  const evidence = candidateEvidenceText(c);
+  return c.kind === 'move' ? `${escapeEvidence(`Detected pattern: ${c.summary}`)}\n${evidence}` : evidence;
+}
+
+export function buildWriterPrompt(c: BriefClient, candidates: BriefCandidate[], playbooks: Playbook[], period: BriefPeriod): { messages: ChatMessage[]; jsonSchema: JsonSchemaFormat } {
   const blocks = candidates.map((cand, i) => {
     const pb = playbookFor(playbooks, candidateTrigger(cand));
     const head = [`Competitor: ${cand.competitorName}`, `Kind: ${cand.kind === 'move' ? `pattern (${cand.moveType})` : cand.changeType}`];
     if (pb) head.push(`Playbook: ${renderPlaybook(pb.template, playbookVars(cand))}`);
     // Competitor names (and playbook vars derived from them) come from scraped pages, so escape the head block too.
-    return `<candidate id="${candidateRef(i)}">\n${escapeEvidence(head.join('\n'))}\n<evidence>\n${candidateEvidenceText(cand)}\n</evidence>\n</candidate>`;
+    return `<candidate id="${candidateRef(i)}">\n${escapeEvidence(head.join('\n'))}\n<evidence>\n${candidateContextText(cand)}\n</evidence>\n</candidate>`;
   });
   const context = escapeEvidence([
     `Business: ${c.name} (${c.verticalName})`,
     `Services: ${c.serviceNames.join(', ') || 'not set'}`,
     `Service area towns: ${c.towns.join(', ') || 'not set'}`,
+    `${periodLine(period)}. Prefer the dates shown in the evidence over relative time words like "this week".`,
   ].join('\n'));
   return { jsonSchema: draftJson, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: `${context}\n\nCANDIDATES:\n${blocks.join('\n')}` }] };
 }
@@ -109,8 +126,8 @@ export function parseDraft(text: string, refs: string[]): BriefDraft {
   return { summary: p.data.summary.trim(), items };
 }
 
-export async function writeBrief(ai: Ai, scope: CallScope, c: BriefClient, candidates: BriefCandidate[], playbooks: Playbook[]): Promise<BriefDraft> {
-  const { messages, jsonSchema } = buildWriterPrompt(c, candidates, playbooks);
+export async function writeBrief(ai: Ai, scope: CallScope, c: BriefClient, candidates: BriefCandidate[], playbooks: Playbook[], period: BriefPeriod): Promise<BriefDraft> {
+  const { messages, jsonSchema } = buildWriterPrompt(c, candidates, playbooks, period);
   const res = await ai.chat(BRIEF_WRITER_TASK, { messages, jsonSchema }, scope);
   return parseDraft(res.text, candidates.map((_, i) => candidateRef(i)));
 }

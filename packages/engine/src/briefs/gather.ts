@@ -84,7 +84,9 @@ export async function gatherBriefCandidates(
   const rows = await eventRows(
     and(
       inArray(eventScore.route, ['brief', 'alert']),
-      gt(changeEvent.createdAt, period.start), lte(changeEvent.createdAt, period.end),
+      // Windowed on when the event was scored for this client (not created): an event scored after its brief ran
+      // (late scoring, a late-linked client) is featured next week instead of never.
+      gt(eventScore.scoredAt, period.start), lte(eventScore.scoredAt, period.end),
       gt(changeEvent.occurredAt, new Date(period.end.getTime() - BRIEF_EVENT_MAX_AGE_DAYS * DAY_MS)),
       sql`NOT ${featuredBefore(c.id)}`,
     ),
@@ -120,13 +122,16 @@ export async function gatherBriefCandidates(
   for (const { name, ids } of byCompetitor.values()) for (const [k, v] of await loadEventEvidence(deps.db, ids, names(name))) evidenceByEvent.set(k, v);
 
   const events = rows.map((r) => toCandidate(r, evidenceByEvent.get(r.e.id) ?? []));
-  const moves: MoveCandidate[] = openMoves.map(({ m, name }) => {
+  const moves: MoveCandidate[] = openMoves.flatMap(({ m, name }): MoveCandidate[] => {
     const support = moveLinks.filter((l) => l.moveId === m.id).slice(0, MOVE_EVIDENCE_EVENTS).map((l) => toCandidate(l, evidenceByEvent.get(l.e.id) ?? []));
+    // No evidence, no claim: a move whose supporting events were all retracted (retraction unlinks them; the nightly
+    // moves run closes the move later) has only its stale summary left, which is never evidence.
+    if (support.length === 0) return [];
     const best = Math.max(c.briefThreshold, ...support.map((s) => s.score));
-    return {
+    return [{
       kind: 'move', moveId: m.id, competitorId: m.competitorId, competitorName: name, moveType: m.moveType, status: m.status, confidence: m.confidence,
       summary: m.summary, facts: m.details.facts, score: Math.round(Math.min(100, best + 10 * m.confidence) * 10) / 10, occurredAt: m.lastEvidenceAt, events: support,
-    };
+    }];
   });
   return { events, moves };
 }

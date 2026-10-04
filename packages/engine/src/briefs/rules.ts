@@ -19,7 +19,9 @@ const MONTH_DAY = /\b(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\.
 const ISO_DATE = /\b(\d{4})-(\d{2})-(\d{2})\b/g;
 const SLASH_DATE = /\b(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?\b/g;
 const NUMBER = /(\$\s?)?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?\s?(%|percent\b)?/gi;
-const ABBREVIATIONS = /\b(?:St|Ave|Rd|Dr|Blvd|Mr|Mrs|Ms|Dr|Inc|Co|Ltd|vs|approx|No)\.$/;
+/** ZIP-shaped: a standalone 5-digit number not prefixed by `$` ("$50000" is money). */
+const ZIP = /(?<!\$)\b\d{5}\b/g;
+const ABBREVIATIONS =/\b(?:St|Ave|Rd|Dr|Blvd|Mr|Mrs|Ms|Dr|Inc|Co|Ltd|vs|approx|No)\.$/;
 const pad = (n: number) => String(n).padStart(2, '0');
 const validMd = (m: number, d: number) => m >= 1 && m <= 12 && d >= 1 && d <= 31;
 
@@ -75,15 +77,15 @@ const hasWord = (text: string, word: string) => new RegExp(`(^|[^A-Za-z0-9])${wo
 export function checkSentence(sentence: string, ev: RuleEvidence, ctx: RuleContext): { ok: boolean; reasons: string[] } {
   const reasons: string[] = [];
   const evNumbers = numberTokens(ev.text);
-  // 5-digit tokens are ZIP-shaped; the ZIP rule below judges them, so exclude them all from the number check.
-  const withoutZips = sentence.replace(/\b\d{5}\b/g, ' ');
+  // ZIP-shaped tokens are judged by the ZIP rule below, so exclude them from the number check.
+  const withoutZips = sentence.replace(ZIP, ' ');
   for (const t of numberTokens(withoutZips)) if (!numberSupported(t, evNumbers, ctx.year)) reasons.push(`number ${label(t)} is not in the evidence`);
 
   const allowed = new Set(dateTokens(ev.text));
   for (const d of ev.captureDates) for (const off of [-1, 0, 1]) allowed.add(new Date(d.getTime() + off * 86_400_000).toISOString().slice(5, 10));
   for (const md of dateTokens(sentence)) if (!allowed.has(md)) reasons.push(`date ${md} is not in the evidence`);
 
-  for (const zip of sentence.match(/\b\d{5}\b/g) ?? []) if (!ev.zips.includes(zip) && !new RegExp(`\\b${zip}\\b`).test(ev.text)) reasons.push(`ZIP ${zip} is not in the evidence`);
+  for (const zip of sentence.match(ZIP) ?? []) if (!ev.zips.includes(zip) && !new RegExp(`\\b${zip}\\b`).test(ev.text)) reasons.push(`ZIP ${zip} is not in the evidence`);
   for (const town of ctx.clientTowns) if (hasWord(sentence, town) && !hasWord(ev.text, town)) reasons.push(`place ${town} is not in the evidence`);
   if (/\btarget(s|ed|ing)?\b/i.test(sentence) && !/\btarget/i.test(ev.text)) reasons.push('targeting claim without targeting evidence');
 

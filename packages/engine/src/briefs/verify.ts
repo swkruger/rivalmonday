@@ -4,7 +4,7 @@ import type { BriefDropStats } from '@cs/db';
 import { type BriefCandidate, type BriefClient, candidateEvents } from './gather';
 import { checkSentence, type RuleContext, type RuleEvidence, splitSentences } from './rules';
 import { type ClaimMode, supportCheck } from './support';
-import { type BriefDraft, candidateEvidenceText, candidateRef, type DraftItem } from './writer';
+import { type BriefDraft, type BriefPeriod, candidateEvidenceText, candidateRef, type DraftItem, periodLine } from './writer';
 
 export interface VerifiedItem extends DraftItem {
   candidate: BriefCandidate;
@@ -14,6 +14,11 @@ export interface VerifiedBrief {
   items: VerifiedItem[];
   dropped: BriefDropStats;
 }
+export interface VerifyOptions {
+  year: number;
+  /** The period the claims are about: "this week" and similar are judged against it. */
+  period: BriefPeriod;
+}
 
 const FIELDS: { field: 'headline' | 'what_changed' | 'why_it_matters' | 'recommended_action'; mode: ClaimMode | null }[] = [
   { field: 'headline', mode: 'fact' },
@@ -22,10 +27,22 @@ const FIELDS: { field: 'headline' | 'what_changed' | 'why_it_matters' | 'recomme
   { field: 'recommended_action', mode: null }, // advice: deterministic rules only
 ];
 
-export function ruleEvidenceFor(cands: BriefCandidate[]): RuleEvidence {
+/**
+ * The period line heading the verifier's evidence. Event candidates were gathered because they were detected (scored)
+ * in the period, so that is stated; a move's supporting events may predate it, so for moves only the dates are given.
+ * Its ISO dates become allowed dates for the rules check; numbers ignore them (dates are stripped first).
+ */
+function periodHeader(cands: BriefCandidate[], period: BriefPeriod): string {
+  return cands.every((c) => c.kind === 'event')
+    ? `${periodLine(period)}. Every EVIDENCE item below was detected in this period.`
+    : `${periodLine(period)}.`;
+}
+
+/** Live event summaries and change texts only (never a move's summary), headed by the period line. */
+export function ruleEvidenceFor(cands: BriefCandidate[], period: BriefPeriod): RuleEvidence {
   const events = cands.flatMap(candidateEvents);
   return {
-    text: cands.map(candidateEvidenceText).join('\n'),
+    text: [periodHeader(cands, period), ...cands.map(candidateEvidenceText)].join('\n'),
     captureDates: events.flatMap((e) => e.changes.map((c) => c.capturedAt)).filter((d): d is Date => d !== null),
     zips: [...new Set(events.flatMap((e) => e.zips))],
     competitorNames: [...new Set(cands.map((c) => c.competitorName))],
@@ -36,9 +53,9 @@ const ruleContext = (c: BriefClient, year: number): RuleContext => ({ trackedCom
 
 /** Verifies one block of text against the cited candidates; returns the surviving sentences joined. */
 export async function verifyText(
-  ai: Ai, scope: CallScope, c: BriefClient, cands: BriefCandidate[], text: string, mode: ClaimMode | null, opts: { year: number },
+  ai: Ai, scope: CallScope, c: BriefClient, cands: BriefCandidate[], text: string, mode: ClaimMode | null, opts: VerifyOptions,
 ): Promise<{ kept: string; dropped: number }> {
-  const ev = ruleEvidenceFor(cands);
+  const ev = ruleEvidenceFor(cands, opts.period);
   const sentences = splitSentences(text);
   const passing = sentences.map((s, i) => ({ key: `s${i}`, sentence: s, mode: mode ?? 'fact' })).filter((x) => checkSentence(x.sentence, ev, ruleContext(c, opts.year)).ok);
   const supported = mode === null ? new Set(passing.map((p) => p.key)) : await supportCheck(ai, scope, ev.text, passing);
@@ -46,7 +63,7 @@ export async function verifyText(
   return { kept: kept.join(' '), dropped: sentences.length - kept.length };
 }
 
-export async function verifyDraft(ai: Ai, scope: CallScope, c: BriefClient, candidates: BriefCandidate[], draft: BriefDraft, opts: { year: number }): Promise<VerifiedBrief> {
+export async function verifyDraft(ai: Ai, scope: CallScope, c: BriefClient, candidates: BriefCandidate[], draft: BriefDraft, opts: VerifyOptions): Promise<VerifiedBrief> {
   const dropped: BriefDropStats = { items: 0, sentences: 0 };
   const items: VerifiedItem[] = [];
   for (const d of draft.items) {
