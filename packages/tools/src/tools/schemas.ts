@@ -1,0 +1,50 @@
+import { z } from 'zod';
+
+const iso = z.string();
+const uuid = z.string().uuid();
+
+export const ClientSummary = z.object({ id: uuid, name: z.string(), verticalId: z.string(), timezone: z.string() });
+export type ClientSummary = z.infer<typeof ClientSummary>;
+
+export const ClientProfile = ClientSummary.extend({
+  services: z.array(z.string()),
+  keywords: z.array(z.string()),
+  features: z.array(z.string()),
+  /** Agency roles only (decision 10); null for client roles. */
+  alertMode: z.enum(['direct', 'after_am_check', 'digest_only']).nullable(),
+  briefAutoSend: z.boolean().nullable(),
+});
+export type ClientProfile = z.infer<typeof ClientProfile>;
+
+export const BriefSummary = z.object({
+  id: uuid, clientId: uuid, deliveryDate: z.string(), status: z.string(), kind: z.string(), summary: z.string(), sentAt: iso.nullable(), hasPdf: z.boolean(),
+});
+export type BriefSummary = z.infer<typeof BriefSummary>;
+
+export const BriefItemView = z.object({
+  id: uuid, ord: z.number().int(), competitorId: uuid, competitorName: z.string(), headline: z.string(), whatChanged: z.string(), whyItMatters: z.string(),
+  recommendedAction: z.string(), confidence: z.number(), effort: z.string(), impact: z.string(), evidenceIds: z.array(z.string()), status: z.string(),
+  /** Agency-only (spec §8.5): always null for client roles. */
+  upsellTag: z.string().nullable(),
+});
+export type BriefItemView = z.infer<typeof BriefItemView>;
+
+export const BriefDetail = BriefSummary.extend({ periodStart: iso, periodEnd: iso, approvedAt: iso.nullable(), items: z.array(BriefItemView) });
+export type BriefDetail = z.infer<typeof BriefDetail>;
+
+export const AlertSummary = z.object({
+  id: uuid, clientId: uuid, competitorName: z.string(), headline: z.string(), score: z.number(), status: z.string(), createdAt: iso, deliveredAt: iso.nullable(),
+});
+export type AlertSummary = z.infer<typeof AlertSummary>;
+
+export const AlertDetail = AlertSummary.extend({ body: z.string(), evidenceIds: z.array(z.string()), written: z.string().nullable() });
+export type AlertDetail = z.infer<typeof AlertDetail>;
+
+export const ReportSummary = z.object({ id: uuid, clientId: uuid, quarter: z.string(), status: z.string(), sentAt: iso.nullable(), hasPdf: z.boolean() });
+export type ReportSummary = z.infer<typeof ReportSummary>;
+
+export const ReportDetail = ReportSummary.extend({ periodStart: iso, periodEnd: iso, data: z.record(z.string(), z.unknown()).nullable() });
+export type ReportDetail = z.infer<typeof ReportDetail>;
+
+export const listInput = (max: number) => z.object({ clientId: uuid, limit: z.number().int().min(1).max(max).default(Math.min(20, max)) });
+export const toIso = (d: Date | null) => (d ? d.toISOString() : null);
