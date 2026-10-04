@@ -4,7 +4,7 @@ import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
-import { briefPdfKey, renderBriefPdf } from './pdf';
+import { briefPdfKey, listBriefsMissingPdf, renderBriefPdf } from './pdf';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -13,9 +13,9 @@ beforeEach(async () => {
   await seedTenancy(dbs.owner);
 });
 
-async function seedBrief(status: 'ready' | 'approved' | 'sent') {
+async function seedBrief(status: 'ready' | 'approved' | 'sent', deliveryDate = '2026-10-05') {
   const ev = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(0) });
-  const [b] = await dbs.service.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, deliveryDate: '2026-10-05', periodStart: day(-7), periodEnd: day(0), status, summary: 'S.' }).returning();
+  const [b] = await dbs.service.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, deliveryDate, periodStart: day(-7), periodEnd: day(0), status, summary: 'S.' }).returning();
   for (const [ord, headline, s] of [[4, 'Kept second', 'active'], [1, 'Kept first', 'active'], [2, 'Dropped one', 'dropped']] as const) {
     await dbs.service.insert(briefItem).values({ briefId: b!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1, ord, competitorId: IDS.competitorX, headline, whatChanged: 'w', whyItMatters: 'y', recommendedAction: 'r', confidence: 0.9, effort: 'L', impact: 'M', eventIds: [ev.eventId], upsellTag: 'lsa', status: s });
   }
@@ -42,5 +42,18 @@ describe('renderBriefPdf', () => {
   it('skips a brief that is not approved or sent', async () => {
     const id = await seedBrief('ready');
     expect(await renderBriefPdf({ db: dbs.service, store: createMemoryStore(), pdf: async () => new Uint8Array() }, id)).toEqual({ skipped: 'brief is ready' });
+  });
+});
+
+describe('listBriefsMissingPdf', () => {
+  it('lists sent briefs from the last 7 days that have no PDF yet', async () => {
+    const missing = await seedBrief('sent', '2026-10-05');
+    const done = await seedBrief('sent', '2026-10-12');
+    const old = await seedBrief('sent', '2026-09-28');
+    await seedBrief('approved', '2026-10-19');
+    await dbs.owner.update(brief).set({ sentAt: day(5) }).where(eq(brief.status, 'sent'));
+    await dbs.owner.update(brief).set({ pdfKey: 'k' }).where(eq(brief.id, done));
+    await dbs.owner.update(brief).set({ sentAt: day(-3) }).where(eq(brief.id, old));
+    expect(await listBriefsMissingPdf(dbs.service, day(10))).toEqual([missing]);
   });
 });

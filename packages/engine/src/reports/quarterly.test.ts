@@ -1,4 +1,4 @@
-import { alert, brief, changeEvent, client, move, notification, recommendation, trendReport } from '@cs/db';
+import { alert, brief, changeEvent, client, move, moveEvent, notification, recommendation, trendReport } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -6,7 +6,7 @@ import { seedScoredEvent } from '../../test/seed';
 import { addContact } from '../delivery/contacts';
 import type { DeliveryConfig } from '../delivery/outbox';
 import { createPackLoader } from '../tag/tag-stage';
-import { computeTrendReport, previousQuarter, runQuarterlyReports } from './quarterly';
+import { computeTrendReport, listReportsMissingPdf, previousQuarter, runQuarterlyReports } from './quarterly';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -37,10 +37,10 @@ describe('computeTrendReport', () => {
     const gone = await seed({});
     await dbs.owner.update(changeEvent).set({ retractedAt: at('2026-08-02T00:00:00Z') }).where(eq(changeEvent.id, gone.eventId));
     await seed({ scoredAt: at('2026-10-02T00:00:00Z'), occurredAt: at('2026-10-02T00:00:00Z') }); // next quarter
-    await dbs.service.insert(move).values({
-      agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, moveType: 'price_war', status: 'active', confidence: 0.7, summary: 's',
-      ruleVersion: 2, firstDetectedAt: at('2026-08-10T00:00:00Z'), lastHeldAt: at('2026-08-12T00:00:00Z'), lastEvidenceAt: at('2026-08-12T00:00:00Z'),
-    });
+    const mv = { agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, status: 'active', confidence: 0.7, summary: 's', ruleVersion: 2, lastHeldAt: at('2026-08-12T00:00:00Z'), lastEvidenceAt: at('2026-08-12T00:00:00Z') } as const;
+    const [live] = await dbs.service.insert(move).values({ ...mv, moveType: 'price_war', firstDetectedAt: at('2026-08-10T00:00:00Z') }).returning({ id: move.id });
+    const [dead] = await dbs.service.insert(move).values({ ...mv, moveType: 'promo_blitz', firstDetectedAt: at('2026-08-11T00:00:00Z') }).returning({ id: move.id });
+    await dbs.service.insert(moveEvent).values([{ moveId: live!.id, eventId: a.eventId }, { moveId: dead!.id, eventId: gone.eventId }]); // dead: its only event is retracted
     await dbs.service.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, deliveryDate: '2026-08-10', periodStart: Q3.start, periodEnd: Q3.end, status: 'sent', sentAt: at('2026-08-10T12:00:00Z') });
     await dbs.service.insert(alert).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, eventId: a.eventId, score: 80, status: 'delivered', mode: 'direct', delivery: 'immediate', deliveredAt: at('2026-08-01T13:00:00Z') });
     const rec = { agencyId: IDS.agencyA, clientId: IDS.clientA1, title: 't', rationale: 'r', effort: 'L', impact: 'M', owner: 'client', source: 'brief', createdAt: at('2026-08-11T00:00:00Z') } as const;
@@ -48,7 +48,7 @@ describe('computeTrendReport', () => {
     const d = await computeTrendReport({ db: dbs.service, packs }, IDS.clientA1, Q3, '2026-Q3');
     expect(d).toMatchObject({
       quarter: '2026-Q3', windowDays: 90, eventsByType: { price_change: 1, ad_started: 1 }, briefsSent: 1, alertsDelivered: 1,
-      moves: [{ moveType: 'price_war', competitorName: 'Smith HVAC', status: 'active', firstDetectedAt: '2026-08-10' }],
+      moves: [{ moveType: 'price_war', competitorName: 'Smith HVAC', status: 'active', firstDetectedAt: '2026-08-10' }], // the move with only retracted evidence is left out
       recommendations: { created: 3, done: 1, inProgress: 0, dismissed: 1 },
     });
   });
@@ -78,5 +78,17 @@ describe('runQuarterlyReports', () => {
     expect((await run(at('2026-10-05T13:30:00Z'))).created).toEqual([]);
     await dbs.owner.update(client).set({ createdAt: at('2026-06-01T00:00:00Z') });
     expect((await run(at('2026-10-09T13:30:00Z'))).created).toEqual([]);
+  });
+});
+
+describe('listReportsMissingPdf', () => {
+  it('lists sent reports from the last 7 days that have no PDF yet', async () => {
+    const base = { agencyId: IDS.agencyA, periodStart: Q3.start, periodEnd: Q3.end, status: 'sent' as const, data: null };
+    const rows = await dbs.service.insert(trendReport).values([
+      { ...base, clientId: IDS.clientA1, quarter: '2026-Q3', sentAt: at('2026-10-05T13:30:00Z') },
+      { ...base, clientId: IDS.clientA2, quarter: '2026-Q3', sentAt: at('2026-10-05T13:30:00Z'), pdfKey: 'k' },
+      { ...base, clientId: IDS.clientA1, quarter: '2026-Q2', sentAt: at('2026-07-05T13:30:00Z') },
+    ]).returning({ id: trendReport.id });
+    expect(await listReportsMissingPdf(dbs.service, at('2026-10-06T00:00:00Z'))).toEqual([rows[0]!.id]);
   });
 });

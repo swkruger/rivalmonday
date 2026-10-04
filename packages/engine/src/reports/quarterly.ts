@@ -1,7 +1,7 @@
-import { alert, brief, changeEvent, client, competitor, type Db, eventScore, move, recommendation, type TrendReportData, trendReport } from '@cs/db';
+import { alert, brief, changeEvent, client, competitor, type Db, eventScore, move, moveEvent, recommendation, type TrendReportData, trendReport } from '@cs/db';
 import { renderTrendReportDocument, type TrendReportEmailProps } from '@cs/email';
-import { and, eq, gte, isNull, lt, ne, sql } from 'drizzle-orm';
-import type { PdfDeps } from '../briefs/pdf';
+import { and, eq, gt, gte, isNull, lt, ne, sql } from 'drizzle-orm';
+import { PDF_CATCHUP_DAYS, type PdfDeps } from '../briefs/pdf';
 import { safeTimezone } from '../briefs/schedule';
 import { trendSnapshot } from '../briefs/trend';
 import { type DeliveryConfig, loadBranding, notify, personalLink } from '../delivery/outbox';
@@ -38,7 +38,11 @@ export async function computeTrendReport(deps: { db: Db; packs: PackLoader }, cl
     .select({ moveType: move.moveType, name: competitor.name, status: move.status, closedAt: move.closedAt, first: move.firstDetectedAt })
     .from(move)
     .innerJoin(competitor, eq(competitor.id, move.competitorId))
-    .where(and(eq(move.clientId, clientId), inPeriod(move.firstDetectedAt, period)))
+    .where(and(
+      eq(move.clientId, clientId), inPeriod(move.firstDetectedAt, period),
+      // No evidence, no claim: a move counts only while at least one of its events is live.
+      sql`EXISTS (SELECT 1 FROM ${moveEvent} me JOIN ${changeEvent} ce ON ce.id = me.event_id WHERE me.move_id = ${move.id} AND ce.retracted_at IS NULL)`,
+    ))
     .orderBy(move.firstDetectedAt);
   const [briefs] = await deps.db.select({ n: count }).from(brief).where(and(eq(brief.clientId, clientId), eq(brief.status, 'sent'), inPeriod(brief.sentAt, period)));
   const [alerts] = await deps.db.select({ n: count }).from(alert).where(and(eq(alert.clientId, clientId), eq(alert.status, 'delivered'), inPeriod(alert.deliveredAt, period)));
@@ -92,6 +96,13 @@ export async function runQuarterlyReports(deps: { db: Db; packs: PackLoader; del
     }
   }
   return { created };
+}
+
+/** Sent reports from the last 7 days whose PDF never rendered (the email already links it): the hourly tick re-enqueues them. */
+export async function listReportsMissingPdf(db: Db, now: Date): Promise<string[]> {
+  const rows = await db.select({ id: trendReport.id }).from(trendReport)
+    .where(and(eq(trendReport.status, 'sent'), isNull(trendReport.pdfKey), gt(trendReport.sentAt, new Date(now.getTime() - PDF_CATCHUP_DAYS * 86_400_000))));
+  return rows.map((r) => r.id);
 }
 
 export const reportPdfKey = (agencyId: string, reportId: string) => `reports/${agencyId}/${reportId}.pdf`;
