@@ -3,6 +3,7 @@ import type { CallScope } from '@cs/core';
 import type { BriefDropStats } from '@cs/db';
 import { type BriefCandidate, type BriefClient, candidateEvents } from './gather';
 import { checkSentence, type RuleContext, type RuleEvidence, splitSentences } from './rules';
+import { countSummary } from './summary';
 import { type ClaimMode, supportCheck } from './support';
 import { type BriefDraft, type BriefPeriod, candidateEvidenceText, candidateRef, type DraftItem, periodLine } from './writer';
 
@@ -93,6 +94,6 @@ export async function verifyDraft(ai: Ai, scope: CallScope, c: BriefClient, cand
     dropped.sentences += r.dropped;
     summary = r.kept;
   }
-  if (!summary && items.length > 0) summary = `${items.length} competitor update${items.length === 1 ? '' : 's'} this week.`;
+  if (!summary && items.length > 0) summary = countSummary(items.length);
   return { summary, items, dropped };
 }

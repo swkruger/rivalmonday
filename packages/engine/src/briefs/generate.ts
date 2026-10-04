@@ -6,6 +6,7 @@ import { candidateEventIds, candidateEvidenceIds, gatherBriefCandidates, loadBri
 import { candidateTrigger, playbookFor, resolvePlaybooks } from './playbooks';
 import { briefDue, briefPeriod, deliveryDateFor, localParts, safeTimezone } from './schedule';
 import { selectBriefItems } from './select';
+import { countSummary } from './summary';
 import { trendSnapshot } from './trend';
 import { verifyDraft, type VerifiedItem } from './verify';
 import { writeBrief } from './writer';
@@ -100,7 +101,7 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
       const items = committableItems(verified.items, retracted);
       const dropped = { items: verified.dropped.items + (verified.items.length - items.length), sentences: verified.dropped.sentences };
       const kind: BriefKind = items.length > 0 ? 'standard' : 'quiet';
-      const summary = kind === 'quiet' ? QUIET_SUMMARY : items.length === verified.items.length ? verified.summary : `${items.length} competitor update${items.length === 1 ? '' : 's'} this week.`;
+      const summary = kind === 'quiet' ? QUIET_SUMMARY : items.length === verified.items.length ? verified.summary : countSummary(items.length);
       // Fence first: if a newer attempt reclaimed this brief, store nothing.
       const won = await tx.update(brief).set({ status: 'ready', kind, summary, trend, dropped, generatedAt: new Date(), updatedAt: new Date() }).where(owned).returning({ id: brief.id });
       if (won.length === 0) return { status: 'skipped', reason: 'superseded by a newer attempt' };

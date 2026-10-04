@@ -5,7 +5,8 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
 import { createPackLoader } from '../tag/tag-stage';
-import { approveBrief, dropBriefItem, editBriefItem, getBrief, rateBriefItem, reorderBriefItems } from './review';
+import { QUIET_SUMMARY } from './generate';
+import { approveBrief, approveBriefTx, dropBriefItem, editBriefItem, getBrief, rateBriefItem, reorderBriefItems } from './review';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -114,5 +115,48 @@ describe('brief review', () => {
     await dbs.service.update(briefItem).set({ moveId: m!.id }).where(eq(briefItem.id, items[0]!));
     await dbs.service.insert(recommendation).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, title: 't', rationale: 'r', moveId: m!.id, effort: 'L', impact: 'M', owner: 'agency', source: 'move', status: 'dismissed', dismissReason: 'no' });
     expect(await approveBrief(deps(), am, briefId)).toEqual({ recommendations: 2 });
+  });
+});
+
+describe('approval recomputes the summary (binding before any send)', () => {
+  // The file's top-level beforeEach already seeds a brief at (clientA1, 2026-10-05); clear it so readyBrief's own
+  // insert at that same (client, delivery date) key does not collide with it.
+  beforeEach(async () => {
+    await truncateAll(dbs.owner);
+    await seedTenancy(dbs.owner);
+  });
+  async function readyBrief(statuses: ('active' | 'dropped')[]) {
+    const ev = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(-1) });
+    const [b] = await dbs.service.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, deliveryDate: '2026-10-05', periodStart: day(-7), periodEnd: day(0), status: 'ready', kind: 'standard', summary: 'Smith HVAC cut a price and raised another.' }).returning();
+    for (const [ord, status] of statuses.entries()) {
+      await dbs.service.insert(briefItem).values({ briefId: b!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1, ord, competitorId: IDS.competitorX, headline: `H${ord}`, whatChanged: 'w', whyItMatters: 'y', recommendedAction: 'r', confidence: 0.9, effort: 'L', impact: 'M', eventIds: [ev.eventId], evidenceIds: [], status });
+    }
+    return b!.id;
+  }
+  const read = async (id: string) => (await dbs.owner.select().from(brief).where(eq(brief.id, id)))[0]!;
+
+  it('keeps the summary when nothing was dropped', async () => {
+    const id = await readyBrief(['active', 'active']);
+    await approveBrief(deps(), am, id);
+    expect(await read(id)).toMatchObject({ status: 'approved', kind: 'standard', summary: 'Smith HVAC cut a price and raised another.' });
+  });
+
+  it('uses the count line after an AM drop, and the quiet summary when nothing is left', async () => {
+    const one = await readyBrief(['active', 'dropped']);
+    await approveBrief(deps(), am, one);
+    expect(await read(one)).toMatchObject({ kind: 'standard', summary: '1 competitor update this week.' });
+    await truncateAll(dbs.owner);
+    await seedTenancy(dbs.owner);
+    const none = await readyBrief(['dropped']);
+    await approveBrief(deps(), am, none);
+    expect(await read(none)).toMatchObject({ kind: 'quiet', summary: QUIET_SUMMARY });
+  });
+
+  it('records a system approval as feedback', async () => {
+    const id = await readyBrief(['active']);
+    await dbs.service.transaction((tx) => approveBriefTx(tx, id, 'system', day(4), { auto: true }));
+    expect(await read(id)).toMatchObject({ status: 'approved', approvedBy: 'system' });
+    const [f] = await dbs.owner.select().from(feedback).where(eq(feedback.subjectId, id));
+    expect(f).toMatchObject({ subjectType: 'brief', kind: 'status', actor: 'system', after: { status: 'approved', auto: true } });
   });
 });
