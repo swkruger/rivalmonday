@@ -76,7 +76,7 @@ export async function addContact(db: Db, input: NewContact): Promise<string> {
     .insert(contact)
     .values({
       agencyId: input.agencyId, clientId: agencyRole ? null : input.clientId ?? null, role: input.role, email, name: input.name ?? null,
-      timezone: input.timezone ?? null, quietHours: input.quietHours ?? null, clientScope: input.clientScope ?? null,
+      timezone: input.timezone || null, quietHours: input.quietHours ?? null, clientScope: input.clientScope ?? null,
     })
     .returning({ id: contact.id });
   return row!.id;

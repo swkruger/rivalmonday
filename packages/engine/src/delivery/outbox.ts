@@ -1,5 +1,5 @@
 import { type LinkTarget, MIN_LINK_SECRET_LENGTH, signLink } from '@cs/core';
-import { agency, agencyWebhook, type Channel, type Db, notification, type NotificationKind } from '@cs/db';
+import { agency, agencyWebhook, alert, changeEvent, type Channel, contact, type Db, notification, type NotificationKind } from '@cs/db';
 import { type Branding, type EmailPayload, type EmailTransport, PermanentEmailError, renderEmail, resolveBranding } from '@cs/email';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { type Audience, type Conn, type Recipient, recipientsFor, replyToFor } from './contacts';
@@ -97,7 +97,26 @@ export interface ChannelSender {
 /** The recipient or destination can never accept this message: fail it without retrying. */
 export class PermanentSendError extends Error {}
 export const DISPATCH_MAX_ATTEMPTS = 5;
-export const SENDING_STALE_MINUTES = 10;
+/**
+ * A 'sending' row older than this is re-claimed. It must exceed one dispatcher tick's worst case — the claim limit (50)
+ * × the Postmark request timeout (15 s) ≈ 12.5 min — or a slow but healthy tick would have its rows sent twice.
+ */
+export const SENDING_STALE_MINUTES = 30;
+
+/** Last check before an external send: why this row must not go out any more (null = send it). */
+async function undeliverableReason(db: Db, n: NotificationRow): Promise<string | null> {
+  if (n.contactId) {
+    const [c] = await db.select({ active: contact.active }).from(contact).where(eq(contact.id, n.contactId));
+    if (!c?.active) return 'recipient contact is inactive';
+  }
+  if (n.kind === 'alert') {
+    const [a] = await db.select({ status: alert.status, retractedAt: changeEvent.retractedAt }).from(alert).innerJoin(changeEvent, eq(changeEvent.id, alert.eventId)).where(eq(alert.id, n.subjectId));
+    if (!a) return 'alert no longer exists';
+    if (a.status === 'withdrawn' || a.status === 'dismissed') return `alert was ${a.status}`;
+    if (a.retractedAt) return 'alert evidence was retracted';
+  }
+  return null;
+}
 
 /** Sends due outbox rows (decision 3). One replica; SKIP LOCKED keeps a second dispatcher run from double-claiming. */
 export async function dispatchDue(deps: { db: Db; senders: Partial<Record<Channel | 'sms', ChannelSender>> }, now: Date, limit = 50): Promise<{ sent: number; failed: number; retried: number }> {
@@ -117,6 +136,8 @@ export async function dispatchDue(deps: { db: Db; senders: Partial<Record<Channe
     try {
       const sender = deps.senders[n.channel as Channel | 'sms'];
       if (!sender) throw new PermanentSendError(`no sender for channel ${n.channel}`);
+      const skip = await undeliverableReason(deps.db, n);
+      if (skip) throw new PermanentSendError(`not sent: ${skip}`);
       const r = await sender.send(n, now);
       await deps.db.update(notification).set({ status: 'sent', sentAt: now, providerId: r.providerId, error: null }).where(mine);
       out.sent++;
@@ -146,7 +167,8 @@ export function createEmailSender(opts: { transport: EmailTransport; fromAddress
       const b = p.props.branding;
       try {
         const res = await opts.transport.send(
-          { from: `${quoteName(b.fromName)} <${b.fromEmail ?? opts.fromAddress}>`, to: n.address, replyTo: p.replyTo, subject: r.subject, html: r.html, text: r.text, tag: n.kind, metadata: { notification: n.id } },
+          // Always the configured address: branding.fromEmail waits for Phase 2 per-agency sending domains (decision 13).
+          { from: `${quoteName(b.fromName)} <${opts.fromAddress}>`, to: n.address, replyTo: p.replyTo, subject: r.subject, html: r.html, text: r.text, tag: n.kind, metadata: { notification: n.id } },
           { agencyId: n.agencyId, clientId: n.clientId },
         );
         return { providerId: res.providerId };

@@ -1,9 +1,10 @@
 import { verifyLink } from '@cs/core';
-import { agencyWebhook, client, notification } from '@cs/db';
+import { agencyWebhook, alert, changeEvent, client, contact, notification } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport, type EmailPayload, PermanentEmailError, resolveBranding } from '@cs/email';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { day, seedScoredEvent } from '../../test/seed';
 import { addContact } from './contacts';
 import { type ChannelSender, createEmailSender, type DeliveryConfig, dispatchDue, notify, type NotifyInput, PermanentSendError } from './outbox';
 
@@ -73,7 +74,7 @@ describe('dispatchDue', () => {
   async function pendingEmail(o: Partial<typeof notification.$inferInsert> = {}) {
     const c = await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: `o${Math.random()}@a1.example` });
     const [n] = await dbs.service.insert(notification).values({
-      agencyId: IDS.agencyA, clientId: IDS.clientA1, contactId: c, channel: 'email', kind: 'alert', subjectType: 'alert', subjectId: IDS.clientA1,
+      agencyId: IDS.agencyA, clientId: IDS.clientA1, contactId: c, channel: 'email', kind: 'brief', subjectType: 'brief', subjectId: IDS.clientA1,
       dedupeKey: `k${Math.random()}`, title: 'H', body: 'B', address: 'o@a1.example', payload: { ...payload('https://app.example/l/x'), replyTo: null }, status: 'pending', notBefore: NOW, ...o,
     }).returning();
     return n!;
@@ -110,12 +111,52 @@ describe('dispatchDue', () => {
     expect(r).toEqual({ sent: 0, failed: 2, retried: 0 });
   });
 
-  it('re-claims a row stuck in sending only after 10 minutes', async () => {
-    const n = await pendingEmail({ status: 'sending', claimedAt: new Date(NOW.getTime() - 9 * 60_000), attempts: 1 });
+  it('re-claims a row stuck in sending only after 30 minutes (longer than a worst-case tick of 50 × 15 s)', async () => {
+    const n = await pendingEmail({ status: 'sending', claimedAt: new Date(NOW.getTime() - 15 * 60_000), attempts: 1 });
     const ok = { email: sender(async () => ({ providerId: 'p' })) };
     expect((await dispatchDue({ db: dbs.service, senders: ok }, NOW)).sent).toBe(0);
-    await dbs.owner.update(notification).set({ claimedAt: new Date(NOW.getTime() - 11 * 60_000) }).where(eq(notification.id, n.id));
+    await dbs.owner.update(notification).set({ claimedAt: new Date(NOW.getTime() - 31 * 60_000) }).where(eq(notification.id, n.id));
     expect((await dispatchDue({ db: dbs.service, senders: ok }, NOW)).sent).toBe(1);
+  });
+
+  it('fails, without sending or retrying, a row whose recipient contact was deactivated', async () => {
+    const n = await pendingEmail();
+    await dbs.owner.update(contact).set({ active: false }).where(eq(contact.id, n.contactId!));
+    const send = vi.fn(async () => ({ providerId: 'p' }));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(await dispatchDue({ db: dbs.service, senders: { email: sender(send) } }, NOW)).toEqual({ sent: 0, failed: 1, retried: 0 });
+    } finally {
+      warn.mockRestore();
+    }
+    expect(send).not.toHaveBeenCalled();
+    expect((await dbs.owner.select().from(notification).where(eq(notification.id, n.id)))[0]).toMatchObject({ status: 'failed', error: 'not sent: recipient contact is inactive', attempts: 1 });
+  });
+
+  it('fails an alert email whose alert was withdrawn or dismissed or whose evidence was retracted; sends a live one', async () => {
+    const alertFor = async (status: 'delivered' | 'withdrawn' | 'dismissed', retract = false) => {
+      const e = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, route: 'alert', occurredAt: day(4), services: { hvac_plumbing: `svc_${Math.random()}` } });
+      if (retract) await dbs.owner.update(changeEvent).set({ retractedAt: day(5) }).where(eq(changeEvent.id, e.eventId));
+      const [a] = await dbs.service.insert(alert).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, eventId: e.eventId, score: 80, status, mode: 'direct', ...(status === 'dismissed' ? { dismissReason: 'n/a' } : {}) }).returning();
+      return (await pendingEmail({ kind: 'alert', subjectType: 'alert', subjectId: a!.id })).id;
+    };
+    const live = await alertFor('delivered');
+    const withdrawn = await alertFor('withdrawn');
+    const dismissed = await alertFor('dismissed');
+    const retracted = await alertFor('delivered', true);
+    const send = vi.fn(async () => ({ providerId: 'p' }));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(await dispatchDue({ db: dbs.service, senders: { email: sender(send) } }, NOW)).toEqual({ sent: 1, failed: 3, retried: 0 });
+    } finally {
+      warn.mockRestore();
+    }
+    expect(send).toHaveBeenCalledTimes(1);
+    const errorOf = async (id: string) => (await dbs.owner.select().from(notification).where(eq(notification.id, id)))[0]!;
+    expect(await errorOf(live)).toMatchObject({ status: 'sent' });
+    expect(await errorOf(withdrawn)).toMatchObject({ status: 'failed', error: 'not sent: alert was withdrawn' });
+    expect(await errorOf(dismissed)).toMatchObject({ status: 'failed', error: 'not sent: alert was dismissed' });
+    expect(await errorOf(retracted)).toMatchObject({ status: 'failed', error: 'not sent: alert evidence was retracted' });
   });
 });
 
@@ -126,6 +167,16 @@ describe('email sender', () => {
     const row = { id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...payload('https://app.example/l/x'), replyTo: 'am@a.example' } } as never;
     await s.send(row, NOW);
     expect(transport.sent[0]).toMatchObject({ from: '"Agency A" <briefs@agency.example>', to: 'o@a1.example', replyTo: 'am@a.example', subject: 'H', tag: 'alert', metadata: { notification: 'n1' } });
+  });
+
+  it('ignores branding.fromEmail until Phase 2 per-agency sending domains: always the configured address', async () => {
+    const transport = createMemoryTransport();
+    const s = createEmailSender({ transport, fromAddress: 'briefs@agency.example' });
+    const own = resolveBranding('Agency A', { fromName: 'Team A', fromEmail: 'hello@agency-a.example' });
+    const p = { ...payload('https://app.example/l/x'), replyTo: null };
+    const row = { id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...p, props: { ...p.props, branding: own } } } as never;
+    await s.send(row, NOW);
+    expect(transport.sent[0]!.from).toBe('"Team A" <briefs@agency.example>');
   });
 
   it('turns a permanent transport error into a permanent send error', async () => {

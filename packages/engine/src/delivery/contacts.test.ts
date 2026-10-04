@@ -65,6 +65,12 @@ describe('recipients', () => {
 });
 
 describe('addContact validation', () => {
+  it('stores an empty time zone as null, so the client zone applies', async () => {
+    const id = await add({ email: 'blank@a1.example', timezone: '' });
+    expect((await dbs.owner.select().from(contact).where(eq(contact.id, id)))[0]!.timezone).toBeNull();
+    expect((await forClient())[0]).toMatchObject({ contactId: id, timezone: 'America/Los_Angeles' });
+  });
+
   it('rejects bad zones, quiet hours, scopes on client roles and bad addresses', async () => {
     await expect(add({ email: 'a@a1.example', timezone: 'Mars/Olympus' })).rejects.toThrow(/time zone/);
     await expect(add({ email: 'a@a1.example', quietHours: { start: '9pm', end: '07:00' } })).rejects.toThrow(/quiet hours/);
