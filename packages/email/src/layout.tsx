@@ -1,4 +1,4 @@
-import { Body, Container, Head, Html, Img, Preview, Section, Text } from '@react-email/components';
+import { Body, Container, Head, Html, Img, Preview, Section, Text } from 'react-email';
 import type { ReactNode } from 'react';
 import type { Branding } from './branding';
 

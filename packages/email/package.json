@@ -13,10 +13,10 @@
   "dependencies": {
     "@cs/core": "workspace:*",
     "@cs/db": "workspace:*",
-    "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.1.0",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "react-email": "^6.11.0"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
