@@ -1012,3 +1012,7 @@ Found during Task 19's live `deliver-once dispatch` run: every `@cs/email` `.tsx
 ### Playwright PDF metadata check (Task 19 Step 4)
 
 `deliver-once pdf --brief 576fc129-6409-4e28-8484-07798ed4e823 --out <scratchpad>/brief.pdf`: **1 page, 34 KB**. Every `pdf-lib` Info-dictionary field (`Title`, `Author`, `Subject`, `Creator`, `Producer`) read back as the **agency's** name/branding, not Playwright/Chromium's own defaults — no `HeadlessChrome` or `Skia` string anywhere in the file, and `Keywords` was empty (cleared per decision 16). Confirms the "branded PDF with clean metadata" requirement (spec §9.2) end to end against a real render, not just the unit suite.
+
+### Follow-up 2026-10-04 (later): first live Postmark send, Anthropic batch re-check
+- **Postmark, live:** one real send through the production path (`createEmailSender` + `createPostmarkTransport`, the rendered quiet brief email from the `cs_dev` outbox run) to the owner's own address, from `swkruger@nofingers.ai` (Postmark test account, 100/month, DKIM verified). Accepted: `MessageID 0fe3c4d0-00a3-478b-92a2-86b88ec60f2a`; one `vendor_call` row `postmark/email`, 1 unit, $0.0015, ok. Delivery/rendering in the mail client is for the owner to confirm.
+- **Anthropic batch live test:** the key is now workspace-scoped (the earlier "not scoped to a workspace" error is gone) but the submit fails with `400 invalid_request_error` "Your credit balance is too low to access the Anthropic API" — needs account credit, not a code change.
