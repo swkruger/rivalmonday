@@ -2,7 +2,9 @@ import { render } from '@react-email/render';
 import { createElement, type ReactElement } from 'react';
 import { AgencyNoticeEmail } from './templates/agency-notice';
 import { AlertEmail, alertSubject } from './templates/alert';
+import { BriefEmail, briefSubject } from './templates/brief';
 import { DigestEmail, digestSubject } from './templates/digest';
+import { TrendReportEmail, trendReportSubject } from './templates/trend-report';
 import type { EmailPayload, RenderedEmail } from './types';
 
 function element(p: EmailPayload): { el: ReactElement; subject: string } {
@@ -13,6 +15,10 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
       return { el: createElement(DigestEmail, p.props), subject: digestSubject(p.props) };
     case 'agency_notice':
       return { el: createElement(AgencyNoticeEmail, p.props), subject: p.props.title };
+    case 'brief':
+      return { el: createElement(BriefEmail, p.props), subject: briefSubject(p.props) };
+    case 'trend_report':
+      return { el: createElement(TrendReportEmail, p.props), subject: trendReportSubject(p.props) };
     default:
       throw new Error(`No email template for ${(p as { template: string }).template}`);
   }
