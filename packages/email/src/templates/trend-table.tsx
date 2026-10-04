@@ -1,3 +1,5 @@
+/** @jsxRuntime automatic */
+/** @jsxImportSource react */
 import { Column, Row, Section, Text } from 'react-email';
 import type { TrendBusiness } from '@cs/db';
 import type { Branding } from '../branding';
