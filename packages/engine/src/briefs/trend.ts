@@ -7,8 +7,8 @@ import type { PackLoader } from '../tag/tag-stage';
 export const TREND_WINDOW_DAYS = 30;
 
 /** Spec §9.1.5 trend snapshot: deterministic numbers from stored data (rendered by Phase 4b), never model-written. */
-export async function trendSnapshot(deps: { db: Db; packs: PackLoader }, clientId: string, period: { start: Date; end: Date }): Promise<TrendSnapshot> {
-  const bench = await reviewBenchmark(deps, clientId, { now: period.end, windowDays: TREND_WINDOW_DAYS });
+export async function trendSnapshot(deps: { db: Db; packs: PackLoader }, clientId: string, period: { start: Date; end: Date }, windowDays = TREND_WINDOW_DAYS): Promise<TrendSnapshot> {
+  const bench = await reviewBenchmark(deps, clientId, { now: period.end, windowDays });
   const businesses = [];
   for (const b of bench.businesses) {
     businesses.push({
@@ -21,5 +21,5 @@ export async function trendSnapshot(deps: { db: Db; packs: PackLoader }, clientI
     .from(eventScore)
     .innerJoin(changeEvent, eq(changeEvent.id, eventScore.eventId))
     .where(and(eq(eventScore.clientId, clientId), isNull(changeEvent.retractedAt), gt(changeEvent.createdAt, period.start), lte(changeEvent.createdAt, period.end)));
-  return { windowDays: TREND_WINDOW_DAYS, events: n?.n ?? 0, businesses };
+  return { windowDays, events: n?.n ?? 0, businesses };
 }
