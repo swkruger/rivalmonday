@@ -152,7 +152,19 @@ export async function discoverTheme(
   return applyThemeProposal(deps.db, prep.context, res.text);
 }
 
-/** One batch for every vertical that has enough unthemed reviews and nothing in flight (custom_id = vertical id). */
+/** The provider rejected the batch submission: nothing is in flight anywhere, so the caller may run the sync path instead. */
+export class BatchSubmitError extends Error {
+  constructor(cause: unknown) {
+    super(`theme-discovery batch submit failed: ${cause instanceof Error ? `${cause.name}: ${cause.message.slice(0, 300)}` : String(cause).slice(0, 300)}`, { cause });
+    this.name = 'BatchSubmitError';
+  }
+}
+
+/**
+ * One batch for every vertical that has enough unthemed reviews and nothing in flight (custom_id = vertical id).
+ * Throws `BatchSubmitError` only when the provider submit itself fails; a failure after a successful submit (recording
+ * the `model_batch` row) throws a plain error naming the provider batch id — that batch is in flight and must not be re-run.
+ */
 export async function submitThemeDiscoveryBatch(
   deps: { db: Db; ai: Ai; packs: PackLoader },
   verticalIds: string[],
@@ -166,11 +178,22 @@ export async function submitThemeDiscoveryBatch(
     else prepared.push(p);
   }
   if (prepared.length === 0) return { batchId: null, submitted: [], skipped };
-  const batchId = await deps.ai.submitBatch(THEME_BATCH_TASK, prepared.map((p) => ({ customId: p.context.verticalId, messages: p.messages, jsonSchema: p.jsonSchema })), PLATFORM);
-  await deps.db.insert(modelBatch).values({
-    task: THEME_BATCH_TASK, provider: 'anthropic', providerBatchId: batchId, purpose: THEME_BATCH_PURPOSE,
-    items: Object.fromEntries(prepared.map((p) => [p.context.verticalId, p.context])), requestCount: prepared.length,
-  });
+  let batchId: string;
+  try {
+    batchId = await deps.ai.submitBatch(THEME_BATCH_TASK, prepared.map((p) => ({ customId: p.context.verticalId, messages: p.messages, jsonSchema: p.jsonSchema })), PLATFORM);
+  } catch (err) {
+    throw new BatchSubmitError(err);
+  }
+  try {
+    await deps.db.insert(modelBatch).values({
+      task: THEME_BATCH_TASK, provider: 'anthropic', providerBatchId: batchId, purpose: THEME_BATCH_PURPOSE,
+      items: Object.fromEntries(prepared.map((p) => [p.context.verticalId, p.context])), requestCount: prepared.length,
+    });
+  } catch (err) {
+    const cause = (err as { cause?: unknown }).cause;
+    const msg = cause instanceof Error ? cause.message : err instanceof Error ? err.message : String(err);
+    throw new Error(`theme-discovery batch ${batchId} was submitted but not recorded (reconcile it by hand): ${msg}`, { cause: err });
+  }
   return { batchId, submitted: prepared.map((p) => p.context.verticalId), skipped };
 }
 
@@ -189,12 +212,14 @@ export interface ReviewInsightsResult {
   spikes: number;
   proposals: number;
   batched: number;
+  /** Nights' verticals that ran synchronously because the batch submit was rejected (watch for a persistent fallback). */
+  batchFallbacks: number;
   errors: number;
 }
 
 /** Nightly: complaint spikes for every competitor with analysed reviews, then theme discovery per vertical. One failure never stops the rest. */
 export async function runReviewInsights(deps: { db: Db; ai: Ai; packs: PackLoader }, opts: { now?: Date; competitorId?: string } = {}): Promise<ReviewInsightsResult> {
-  const r: ReviewInsightsResult = { competitors: 0, spikes: 0, proposals: 0, batched: 0, errors: 0 };
+  const r: ReviewInsightsResult = { competitors: 0, spikes: 0, proposals: 0, batched: 0, batchFallbacks: 0, errors: 0 };
   const scope = opts.competitorId ? eq(reviewAnalysis.competitorId, opts.competitorId) : undefined;
   const competitors = await deps.db.selectDistinct({ id: reviewAnalysis.competitorId }).from(reviewAnalysis).where(scope);
   for (const { id } of competitors) {
@@ -212,10 +237,16 @@ export async function runReviewInsights(deps: { db: Db; ai: Ai; packs: PackLoade
     try {
       r.batched = (await submitThemeDiscoveryBatch(deps, verticals, { now: opts.now })).submitted.length;
     } catch (err) {
-      // A rejected submission (e.g. a misconfigured key) must not cost the night's discovery: fall back to the sync path.
-      // Nothing was recorded (the model_batch row is written only after a successful submit), so no vertical is in flight.
-      console.warn(`[review-insights] theme-discovery batch submit failed, running synchronously: ${err instanceof Error ? err.name : 'error'}: ${err instanceof Error ? err.message.slice(0, 300) : String(err).slice(0, 300)}`);
-      sync = true;
+      if (err instanceof BatchSubmitError) {
+        // The provider rejected the submission (e.g. a misconfigured key): nothing is in flight, so run the sync path tonight.
+        console.warn(`[review-insights] ${err.message}; running theme discovery synchronously`);
+        r.batchFallbacks++;
+        sync = true;
+      } else {
+        // Anything after a successful submit (e.g. recording the model_batch row): a batch may be in flight — never re-run it.
+        r.errors++;
+        console.error(`[review-insights] ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
   if (sync) {

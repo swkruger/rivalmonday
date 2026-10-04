@@ -4,7 +4,7 @@ import { createReviewJobs } from './reviews';
 
 describe('reviews-nightly', () => {
   it('runs nightly before moves, once, and only with the engine configured', async () => {
-    const runReviewInsights = vi.fn(async () => ({ competitors: 2, spikes: 1, proposals: 0, errors: 0 }));
+    const runReviewInsights = vi.fn(async () => ({ competitors: 2, spikes: 1, proposals: 0, batched: 0, batchFallbacks: 0, errors: 0 }));
     const on = createReviewJobs({ engineConfigured: () => true, runReviewInsights } as unknown as WorkerDeps);
     expect(on.nightly.cron).toBe('15 4 * * *');
     expect(on.nightly.queue).toMatchObject({ retryLimit: 0 });

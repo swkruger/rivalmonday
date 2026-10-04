@@ -2,7 +2,7 @@ import type { Ai, BatchItemResult } from '@cs/ai';
 import { modelBatch, review, reviewAnalysis, themeProposal } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeAi } from '../../test/fake-ai';
 import { day } from '../../test/seed';
 import { collectModelBatches } from '../model-ops/batches';
@@ -119,7 +119,7 @@ describe('runReviewInsights', () => {
   it('runs complaint detection per analysed competitor and discovery per vertical, counting errors', async () => {
     await unthemed(20);
     const r = await runReviewInsights({ db: dbs.service, ai: proposing(WARRANTY), packs }, { now });
-    expect(r).toEqual({ competitors: 1, spikes: 0, proposals: 1, errors: 0, batched: 0 });
+    expect(r).toEqual({ competitors: 1, spikes: 0, proposals: 1, errors: 0, batched: 0, batchFallbacks: 0 });
   });
 });
 
@@ -150,12 +150,37 @@ describe('batched theme discovery (Phase 3d decision 10)', () => {
       batch: { submit: () => { throw new Error('400 invalid_request_error: key not scoped to a workspace'); } },
     });
     const r = await runReviewInsights({ db: dbs.service, ai, packs }, { now });
-    expect(r).toMatchObject({ batched: 0, proposals: 1, errors: 0 });
+    expect(r).toMatchObject({ batched: 0, batchFallbacks: 1, proposals: 1, errors: 0 });
     expect(ai.calls.batches).toHaveLength(1);
     expect(ai.calls.chat.map((c) => c.task)).toEqual(['theme_discovery']);
     expect(await dbs.service.select().from(modelBatch)).toEqual([]);
     const [p] = await dbs.service.select().from(themeProposal);
     expect(p).toMatchObject({ verticalId: 'hvac_plumbing', status: 'proposed' });
+  });
+
+  it('an error after a successful submit (recording the batch) is counted and never re-run synchronously', async () => {
+    await unthemed(20);
+    const ai = createFakeAi({ chat: () => JSON.stringify(WARRANTY), batch: { submit: () => 'msgbatch_orphan' } });
+    // Wrap the service db so only the model_batch insert fails; every read goes through unchanged.
+    const db = new Proxy(dbs.service, {
+      get(t, p, recv) {
+        if (p === 'insert') return (table: unknown) => (table === modelBatch ? { values: async () => { throw new Error('insert failed'); } } : t.insert(table as never));
+        const v = Reflect.get(t, p, recv);
+        return typeof v === 'function' ? v.bind(t) : v;
+      },
+    });
+    const errors: string[] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((m: string) => void errors.push(m));
+    try {
+      const r = await runReviewInsights({ db, ai, packs }, { now });
+      expect(r).toMatchObject({ batched: 0, batchFallbacks: 0, proposals: 0, errors: 1 });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(ai.calls.batches).toHaveLength(1);
+    expect(ai.calls.chat).toEqual([]);
+    expect(errors.join(' ')).toContain('msgbatch_orphan');
+    expect(await dbs.service.select().from(themeProposal)).toEqual([]);
   });
 
   it('applies an ended batch: proposes the theme and closes the batch', async () => {
