@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { callTool } from '@/server/tools';
+import { timezoneOptions } from '@/server/timezones';
 import { AddRecipientForm, DeactivateRecipientButton, DeliveryForm } from './delivery-controls';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,13 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
   return (
     <>
       <h1 className="text-[26px] font-extrabold tracking-tight">Delivery — {profile.name}</h1>
-      <DeliveryForm clientId={clientId} alertMode={profile.alertMode ?? 'after_am_check'} briefAutoSend={profile.briefAutoSend ?? false} timezone={profile.timezone} />
+      <DeliveryForm
+        clientId={clientId}
+        alertMode={profile.alertMode ?? 'after_am_check'}
+        briefAutoSend={profile.briefAutoSend ?? false}
+        timezone={profile.timezone}
+        timezoneOptions={timezoneOptions(profile.timezone)}
+      />
       <Card>
         <CardHeader>
           <CardTitle>Recipients</CardTitle>

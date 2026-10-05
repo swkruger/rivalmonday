@@ -5,4 +5,5 @@ export * from './inbox';
 export * from './preferences';
 export * from './registry';
 export * from './settings';
+export * from './timezone';
 export * from './tools/schemas';

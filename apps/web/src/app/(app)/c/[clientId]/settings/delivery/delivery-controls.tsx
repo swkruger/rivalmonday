@@ -5,7 +5,6 @@ import type { FormResult } from '@/server/forms';
 import { addRecipientAction, deactivateRecipientAction, saveDeliveryAction } from './actions';
 
 const selectClass = 'h-9 w-full max-w-sm rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
-const TIMEZONES: string[] = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
 
 const MODES: { value: 'direct' | 'after_am_check' | 'digest_only'; label: string; help: string }[] = [
   { value: 'direct', label: 'Direct', help: 'Alerts go to the client at once.' },
@@ -13,7 +12,21 @@ const MODES: { value: 'direct' | 'after_am_check' | 'digest_only'; label: string
   { value: 'digest_only', label: 'Digest only', help: 'Alerts wait for the 17:00 digest.' },
 ];
 
-export function DeliveryForm({ clientId, alertMode, briefAutoSend, timezone }: { clientId: string; alertMode: string; briefAutoSend: boolean; timezone: string }) {
+export function DeliveryForm({
+  clientId,
+  alertMode,
+  briefAutoSend,
+  timezone,
+  timezoneOptions,
+}: {
+  clientId: string;
+  alertMode: string;
+  briefAutoSend: boolean;
+  timezone: string;
+  /** Built server-side (`timezoneOptions()` in `@/server/timezones`) and passed down so the server-rendered
+   * and hydrated `<select>` list the exact same options — never built again here (Review Focus / fix round 1). */
+  timezoneOptions: string[];
+}) {
   const [state, formAction, pending] = useActionState(saveDeliveryAction, { ok: true } as FormResult);
   const [autoSend, setAutoSend] = useState(briefAutoSend);
 
@@ -49,7 +62,7 @@ export function DeliveryForm({ clientId, alertMode, briefAutoSend, timezone }: {
       <div className="flex flex-col gap-2">
         <Label htmlFor="timezone">Business time zone</Label>
         <select id="timezone" name="timezone" defaultValue={timezone} className={selectClass}>
-          {TIMEZONES.map((tz) => (
+          {timezoneOptions.map((tz) => (
             <option key={tz} value={tz}>
               {tz}
             </option>
