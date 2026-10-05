@@ -58,6 +58,13 @@ describe('SidebarNav', () => {
     expect(activeHrefOf()).toBe(`/c/${CLIENT_ID}/settings/profile`);
   });
 
+  it('highlights Competitors (not a deeper match) on /c/<uuid>/competitors/<other uuid>', () => {
+    const OTHER_ID = '22222222-2222-2222-2222-222222222222';
+    pathname = `/c/${CLIENT_ID}/competitors/${OTHER_ID}`;
+    render(<SidebarNav flags={agencyAdmin} />);
+    expect(activeHrefOf()).toBe(`/c/${CLIENT_ID}/competitors`);
+  });
+
   it('highlights a non-agency viewer’s fixed Overview on their own client path', () => {
     pathname = `/c/${CLIENT_ID}`;
     render(<SidebarNav flags={clientViewer} />);

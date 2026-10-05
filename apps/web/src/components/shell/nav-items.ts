@@ -8,7 +8,7 @@
 export interface NavItem {
   href: string;
   label: string;
-  icon: 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile';
+  icon: 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -34,6 +34,7 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
     if (clientId) {
       items.push({ href: `/c/${clientId}`, label: 'Overview', icon: 'overview' });
       items.push({ href: `/c/${clientId}/settings/profile`, label: 'Profile', icon: 'profile' });
+      items.push({ href: `/c/${clientId}/competitors`, label: 'Competitors', icon: 'competitors' });
       items.push({ href: `/c/${clientId}/settings/delivery`, label: 'Delivery', icon: 'delivery' });
     }
   } else {
