@@ -1,4 +1,4 @@
-import { RIVAL_MONDAY_TOKENS } from '@cs/email/branding';
+import { type Branding, RIVAL_MONDAY_TOKENS } from '@cs/email/branding';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const safe = (v: string, fallback: string) => (HEX.test(v) ? v : fallback);
@@ -18,7 +18,7 @@ const DEFAULT_SOFT = { soft: '#E3F2FC', text: '#1F6FA8' };
  * `primary`/`secondary` are per-agency; `accent` (brand amber) is fixed and
  * lives in styles.css, not here.
  */
-export function themeVars(b: { primary: string; secondary: string }): Record<string, string> {
+export function themeVars(b: Pick<Branding, 'primary' | 'secondary'>): Record<string, string> {
   const primary = safe(b.primary, RIVAL_MONDAY_TOKENS.primary);
   const secondary = safe(b.secondary, RIVAL_MONDAY_TOKENS.secondary);
   const isDefault = primary.toLowerCase() === RIVAL_MONDAY_TOKENS.primary.toLowerCase();
