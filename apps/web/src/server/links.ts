@@ -2,6 +2,7 @@ import { type AccessContext, isAgencyRole, isUuid, LINK_TARGETS, type LinkTarget
 import { alert, brief, briefItem, contact, type Db, trendReport, withTenant } from '@cs/db';
 import { listMemberships } from '@cs/tools';
 import { and, eq } from 'drizzle-orm';
+import type { Viewer } from './viewer';
 
 /** Decision 7: every deep-link target's destination inside the app. */
 export function destinationPath(t: LinkTarget, id: string, clientId: string, briefIdForItem?: string): string {
@@ -66,6 +67,19 @@ export async function openLink(input: { service: Db; token: string; secrets: rea
   // Agency contacts (client_id NULL) never get a guest session — sign in and let the membership carry access.
   if (c.clientId === null) return { kind: 'sign-in', next: to };
   return { kind: 'redirect', to, guest: { contactId: c.id, agencyId: claims.agency, clientId: claims.client } };
+}
+
+export type GoGate = { kind: 'ok'; viewer: Extract<Viewer, { kind: 'user' }> } | { kind: 'no-access' } | { kind: 'sign-in' };
+
+/**
+ * Fix round 1 (review): `/go/` must send only an unauthenticated or guest viewer to `/sign-in` — `sign-in/page.tsx`
+ * redirects any other already-present viewer straight back to `next`, so a `member-less` signed-in user (no
+ * membership) sent there would loop forever. That viewer goes to `/no-access` instead, same as `requireContext`.
+ */
+export function goGate(viewer: Viewer | null): GoGate {
+  if (viewer?.kind === 'user') return { kind: 'ok', viewer };
+  if (viewer?.kind === 'member-less') return { kind: 'no-access' };
+  return { kind: 'sign-in' };
 }
 
 /** Unsigned `/go/<target>/<id>` webhook links (Slack/Teams): resolve the destination through what this viewer may see via RLS. */

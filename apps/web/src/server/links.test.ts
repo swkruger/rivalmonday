@@ -4,7 +4,8 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedAuthUsers, truncateAuth } from '../../test/auth-fixtures';
-import { destinationPath, goDestination, openLink } from './links';
+import { destinationPath, goDestination, goGate, openLink } from './links';
+import type { Viewer } from './viewer';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -43,6 +44,36 @@ describe('destinationPath', () => {
     expect(destinationPath('trend_report_pdf', 'R', 'C')).toBe('/files/report/R');
     expect(destinationPath('digest', 'X', 'C')).toBe('/inbox');
     expect(destinationPath('notifications', 'C', 'C')).toBe('/inbox');
+  });
+});
+
+describe('goGate (fix round 1: /go must not loop a member-less viewer through /sign-in)', () => {
+  const userViewer: Viewer = {
+    kind: 'user',
+    userId: 'u1',
+    email: 'p@e.co',
+    name: 'Pat',
+    ctx: createAccessContext({ agencyId: IDS.agencyA, userId: 'u1', role: 'agency_admin', clientScope: 'all', features: [] }),
+    membership: { id: 'm1', agencyId: IDS.agencyA, agencyName: 'Agency A', role: 'agency_admin', clientId: null, clientName: null, clientScope: null, contactId: null, createdAt: NOW },
+    memberships: [],
+  };
+  const memberLessViewer: Viewer = { kind: 'member-less', userId: 'u1', email: 'p@e.co', name: 'Pat' };
+  const guestViewer: Viewer = { kind: 'guest', contactId: 'c1', ctx: createAccessContext({ agencyId: IDS.agencyA, userId: 'contact:x', role: 'client_viewer', clientScope: [IDS.clientA1], features: [] }) };
+
+  it('lets a signed-in user through, carrying the narrowed viewer', () => {
+    expect(goGate(userViewer)).toEqual({ kind: 'ok', viewer: userViewer });
+  });
+
+  it('sends a signed-in user with no membership to /no-access, not /sign-in (would loop forever)', () => {
+    expect(goGate(memberLessViewer)).toEqual({ kind: 'no-access' });
+  });
+
+  it('sends an unauthenticated visitor to /sign-in', () => {
+    expect(goGate(null)).toEqual({ kind: 'sign-in' });
+  });
+
+  it('sends a guest (contact link) viewer to /sign-in — guest sessions never satisfy /go', () => {
+    expect(goGate(guestViewer)).toEqual({ kind: 'sign-in' });
   });
 });
 
