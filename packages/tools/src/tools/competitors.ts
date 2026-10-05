@@ -158,7 +158,7 @@ export const addCompetitor = defineTool({
     if (!competitorId) {
       const inserted = await deps.service.insert(competitor).values({ name: input.name.trim(), domain, placeId }).onConflictDoNothing().returning({ id: competitor.id });
       competitorId = inserted[0]?.id ?? (await findExistingCompetitor(deps.service, { placeId, cid: null, domain }))?.id;
-      if (!competitorId) throw new ToolError('invalid_input', 'That competitor could not be added — try again');
+      if (!competitorId) throw new ToolError('internal', 'That competitor could not be added — try again');
     }
     await withTenant(deps.app, ctx, (tx) => tx.insert(clientCompetitor).values({ agencyId: ctx.agencyId, clientId: input.clientId, competitorId: competitorId! }).onConflictDoNothing());
     await ensureCompetitorSources(deps.service, competitorId);

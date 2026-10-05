@@ -118,6 +118,13 @@ describe('manual competitors', () => {
   it('removes a competitor; its alerts still list with a fallback name (Review Focus 3)', async () => {
     const [e] = await dbs.owner.insert(changeEvent).values({ competitorId: IDS.competitorX, changeType: 'price_change', summary: 's', confidence: 0.9, occurredAt: new Date() }).returning();
     await dbs.owner.insert(alert).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, eventId: e!.id, score: 80, headline: 'Price cut', status: 'delivered', mode: 'direct' });
+    // Cross-scope (Review Focus 1): neither an AM outside the client's scope nor another agency's admin may remove this link.
+    await expect(registry.invoke(amA1, 'remove_competitor', { clientId: IDS.clientA2, competitorId: IDS.competitorX })).rejects.toMatchObject({ code: 'not_found' });
+    const otherAgencyAdmin = ctx('agency_admin', 'all', [], IDS.agencyB);
+    await expect(registry.invoke(otherAgencyAdmin, 'remove_competitor', { clientId: IDS.clientA1, competitorId: IDS.competitorX })).rejects.toMatchObject({ code: 'not_found' });
+    const stillLinked = await dbs.owner.select().from(clientCompetitor).where(and(eq(clientCompetitor.clientId, IDS.clientA1), eq(clientCompetitor.competitorId, IDS.competitorX)));
+    expect(stillLinked).toHaveLength(1);
+
     await registry.invoke(amA1, 'remove_competitor', { clientId: IDS.clientA1, competitorId: IDS.competitorX });
     const { items } = (await registry.invoke(amA1, 'list_alerts', { clientId: IDS.clientA1 })) as { items: { competitorName: string }[] };
     expect(items).toEqual([expect.objectContaining({ competitorName: 'Competitor' })]);
