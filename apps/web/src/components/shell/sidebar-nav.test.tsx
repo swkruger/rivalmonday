@@ -52,6 +52,12 @@ describe('SidebarNav', () => {
     expect(screen.queryByRole('link', { name: 'Overview' })).toBeNull();
   });
 
+  it('shows Profile for agency users inside a client', () => {
+    pathname = `/c/${CLIENT_ID}/settings/profile`;
+    render(<SidebarNav flags={agencyAdmin} />);
+    expect(activeHrefOf()).toBe(`/c/${CLIENT_ID}/settings/profile`);
+  });
+
   it('highlights a non-agency viewer’s fixed Overview on their own client path', () => {
     pathname = `/c/${CLIENT_ID}`;
     render(<SidebarNav flags={clientViewer} />);

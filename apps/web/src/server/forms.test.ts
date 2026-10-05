@@ -1,6 +1,6 @@
 import { ToolError } from '@cs/core';
 import { describe, expect, it } from 'vitest';
-import { parseBrandingForm, parseDeliveryForm, parseInviteForm, toFormResult } from './forms';
+import { parseBrandingForm, parseClientProfileForm, parseDeliveryForm, parseInviteForm, toFormResult } from './forms';
 
 const fd = (o: Record<string, string | string[]>) => {
   const f = new FormData();
@@ -32,6 +32,36 @@ describe('parseDeliveryForm', () => {
     expect(parseDeliveryForm(fd({ alertMode: 'direct', briefAutoSend: 'on', timezone: 'America/Denver' }))).toEqual({ alertMode: 'direct', briefAutoSend: true, timezone: 'America/Denver' });
     expect(parseDeliveryForm(fd({ alertMode: 'digest_only' }))).toEqual({ alertMode: 'digest_only', briefAutoSend: false });
     expect(parseDeliveryForm(fd({ alertMode: 'loud' }))).toEqual({ error: 'Choose an alert mode' });
+  });
+});
+
+describe('parseClientProfileForm', () => {
+  const fd = (entries: [string, string][]) => {
+    const f = new FormData();
+    for (const [k, v] of entries) f.append(k, v);
+    return f;
+  };
+
+  it('parses a full profile', () => {
+    const r = parseClientProfileForm(fd([
+      ['name', ' Comfort Air '], ['verticalId', 'hvac_plumbing'], ['services', 'ac_tune_up'], ['services', 'furnace_tune_up'],
+      ['keywords', 'ac repair\nhvac\n'], ['center', '33.9526, -84.3346'], ['radiusKm', '15'], ['zips', '30338, 30346 30350'],
+      ['towns', 'Dunwoody\nSandy Springs'], ['placeId', ''], ['timezone', 'America/New_York'],
+    ]));
+    expect(r).toEqual({
+      name: 'Comfort Air', verticalId: 'hvac_plumbing', services: ['ac_tune_up', 'furnace_tune_up'], keywords: ['ac repair', 'hvac'], placeId: null, timezone: 'America/New_York',
+      serviceArea: { center: { lat: 33.9526, lng: -84.3346 }, radiusKm: 15, zips: ['30338', '30346', '30350'], towns: ['Dunwoody', 'Sandy Springs'] },
+    });
+  });
+
+  it('leaves the service area empty when no centre and no ZIPs are given', () => {
+    const r = parseClientProfileForm(fd([['name', 'X'], ['verticalId', 'dental'], ['center', ''], ['radiusKm', ''], ['zips', '']]));
+    expect(r).toMatchObject({ serviceArea: null, services: [], keywords: [] });
+  });
+
+  it('explains an unreadable centre or radius', () => {
+    expect(parseClientProfileForm(fd([['name', 'X'], ['center', 'Dunwoody'], ['radiusKm', '10']]))).toEqual({ error: 'Enter the centre as "latitude, longitude" (e.g. 33.95, -84.33)' });
+    expect(parseClientProfileForm(fd([['name', 'X'], ['center', '33.9, -84.3'], ['radiusKm', 'far']]))).toEqual({ error: 'Enter the radius in kilometres' });
   });
 });
 

@@ -1,5 +1,6 @@
 import { isUuid, type Role, ROLES, ToolError } from '@cs/core';
 import type { AgencyBranding, AlertMode } from '@cs/db';
+import type { ServiceAreaInput } from '@cs/tools';
 
 export type FormResult = { ok: true; message?: string } | { ok: false; error: string };
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
@@ -28,6 +29,40 @@ export function parseDeliveryForm(fd: FormData): { alertMode: AlertMode; briefAu
   if (!MODES.includes(mode as AlertMode)) return { error: 'Choose an alert mode' };
   const tz = str(fd, 'timezone');
   return { alertMode: mode as AlertMode, briefAutoSend: fd.get('briefAutoSend') === 'on', ...(tz ? { timezone: tz } : {}) };
+}
+
+export interface ClientProfileFields {
+  name: string;
+  verticalId: string;
+  services: string[];
+  keywords: string[];
+  serviceArea: ServiceAreaInput | null;
+  placeId: string | null;
+  timezone?: string;
+}
+
+const lines = (v: string) => v.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+const CENTER = /^\s*(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$/;
+
+/** Range checks happen in the tool (`clientInputProblems`); this only reads the form. */
+export function parseClientProfileForm(fd: FormData): ClientProfileFields | { error: string } {
+  const center = str(fd, 'center');
+  const radius = str(fd, 'radiusKm');
+  const zips = str(fd, 'zips').split(/[\s,;]+/).filter(Boolean);
+  let serviceArea: ServiceAreaInput | null = null;
+  if (center || zips.length) {
+    const m = CENTER.exec(center);
+    if (!m) return { error: 'Enter the centre as "latitude, longitude" (e.g. 33.95, -84.33)' };
+    const radiusKm = Number(radius);
+    if (!radius || !Number.isFinite(radiusKm)) return { error: 'Enter the radius in kilometres' };
+    const towns = lines(str(fd, 'towns'));
+    serviceArea = { center: { lat: Number(m[1]), lng: Number(m[2]) }, radiusKm, zips, ...(towns.length ? { towns } : {}) };
+  }
+  const tz = str(fd, 'timezone');
+  return {
+    name: str(fd, 'name'), verticalId: str(fd, 'verticalId'), services: fd.getAll('services').map(String), keywords: lines(str(fd, 'keywords')),
+    serviceArea, placeId: str(fd, 'placeId') || null, ...(tz ? { timezone: tz } : {}),
+  };
 }
 
 export function toFormResult(e: unknown): FormResult {
