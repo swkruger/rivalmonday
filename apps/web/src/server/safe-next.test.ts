@@ -16,5 +16,12 @@ describe('safeNext (Review Focus 2)', () => {
     ['/a\nb', '/'],
     ['/%5Cevil.com', '/%5Cevil.com'],
     ['/a\u0000b', '/'],
+    // Review finding (Critical): new URL() collapses dot segments, so these must be re-checked on the
+    // *normalised* output (otherwise each resolves to the protocol-relative `//evil.com`).
+    ['/.//evil.com', '/'],
+    ['/..//evil.com', '/'],
+    ['/a/..//evil.com', '/'],
+    ['/%2e//evil.com', '/'],
+    ['/%2e%2e//evil.com', '/'],
   ])('%s → %s', (raw, want) => expect(safeNext(raw)).toBe(want));
 });

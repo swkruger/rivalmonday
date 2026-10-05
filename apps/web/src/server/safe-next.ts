@@ -5,7 +5,11 @@ export function safeNext(raw: string | null | undefined): string {
   try {
     const u = new URL(raw, 'http://local.invalid');
     if (u.origin !== 'http://local.invalid') return '/';
-    return `${u.pathname}${u.search}${u.hash}`;
+    // `new URL` collapses dot segments (including %2e/%2E-encoded ones), which can turn e.g. `/.//evil.com` into
+    // the protocol-relative path `//evil.com` — re-validate the *normalised* output, not just the raw input.
+    const out = `${u.pathname}${u.search}${u.hash}`;
+    if (out[0] !== '/' || out[1] === '/' || out[1] === '\\' || out.includes('\\')) return '/';
+    return out;
   } catch {
     return '/';
   }
