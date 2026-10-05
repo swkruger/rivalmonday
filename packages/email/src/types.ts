@@ -54,12 +54,18 @@ export interface TrendReportEmailProps extends Base {
   link: string | null;
   pdfLink: string | null;
 }
+export interface SignInEmailProps {
+  branding: Branding;
+  url: string;
+  expiresMinutes: number;
+}
 export type EmailPayload =
   | { template: 'alert'; props: AlertEmailProps }
   | { template: 'alert_digest'; props: DigestEmailProps }
   | { template: 'agency_notice'; props: AgencyNoticeProps }
   | { template: 'brief'; props: BriefEmailProps }
-  | { template: 'trend_report'; props: TrendReportEmailProps };
+  | { template: 'trend_report'; props: TrendReportEmailProps }
+  | { template: 'sign_in'; props: SignInEmailProps };
 export interface RenderedEmail {
   subject: string;
   html: string;

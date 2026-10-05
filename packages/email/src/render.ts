@@ -4,6 +4,7 @@ import { AgencyNoticeEmail } from './templates/agency-notice';
 import { AlertEmail, alertSubject } from './templates/alert';
 import { BriefEmail, briefSubject } from './templates/brief';
 import { DigestEmail, digestSubject } from './templates/digest';
+import { SignInEmail, signInSubject } from './templates/sign-in';
 import { TrendReportEmail, trendReportSubject } from './templates/trend-report';
 import type { EmailPayload, RenderedEmail } from './types';
 
@@ -17,6 +18,8 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
       return { el: createElement(AgencyNoticeEmail, p.props), subject: p.props.title };
     case 'brief':
       return { el: createElement(BriefEmail, p.props), subject: briefSubject(p.props) };
+    case 'sign_in':
+      return { el: createElement(SignInEmail, p.props), subject: signInSubject(p.props) };
     case 'trend_report':
       return { el: createElement(TrendReportEmail, p.props), subject: trendReportSubject(p.props) };
     default:
