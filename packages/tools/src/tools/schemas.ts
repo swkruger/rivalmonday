@@ -56,5 +56,11 @@ export type ReportSummary = z.infer<typeof ReportSummary>;
 export const ReportDetail = ReportSummary.extend({ periodStart: iso, periodEnd: iso, data: z.record(z.string(), z.unknown()).nullable() });
 export type ReportDetail = z.infer<typeof ReportDetail>;
 
+export const SuggestionView = z.object({
+  id: uuid, name: z.string(), domain: z.string().nullable(), placeId: z.string().nullable(), rating: z.number().nullable(), votes: z.number().nullable(),
+  appearances: z.number(), bestRank: z.number().nullable(), overlapScore: z.number(),
+});
+export type SuggestionView = z.infer<typeof SuggestionView>;
+
 export const listInput = (max: number) => z.object({ clientId: uuid, limit: z.number().int().min(1).max(max).default(Math.min(20, max)) });
 export const toIso = (d: Date | null) => (d ? d.toISOString() : null);

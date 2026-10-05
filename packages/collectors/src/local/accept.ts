@@ -33,7 +33,7 @@ export async function findExistingCompetitor(
 export async function acceptSuggestion(deps: { service: Db; app: Db }, ctx: AccessContext, suggestionId: string): Promise<{ competitorId: string }> {
   if (!canManageCompetitors(ctx)) throw new ToolError('permission_denied', 'This role may not manage competitors');
   const [s] = await withTenant(deps.app, ctx, (tx) => tx.select().from(competitorSuggestion).where(eq(competitorSuggestion.id, suggestionId)).limit(1));
-  if (!s) throw new Error('Suggestion not found');
+  if (!s) throw new ToolError('not_found', 'Suggestion not found');
 
   let competitorId: string;
   const existing = await findExistingCompetitor(deps.service, s);

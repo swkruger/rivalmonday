@@ -102,4 +102,9 @@ describe('acceptSuggestion', () => {
     const owner = createAccessContext({ agencyId: IDS.agencyA, userId: 'u', role: 'client_owner', clientScope: [IDS.clientA1], features: ['manage_competitors'] });
     await expect(acceptSuggestion({ service: dbs.service, app: dbs.app }, owner, SUG)).resolves.toHaveProperty('competitorId');
   });
+
+  it('reports an unknown or invisible suggestion as a not_found ToolError', async () => {
+    const adminCtx = createAccessContext({ agencyId: IDS.agencyA, userId: 'am', role: 'agency_admin', clientScope: 'all', features: [] });
+    await expect(acceptSuggestion({ service: dbs.service, app: dbs.app }, adminCtx, '00000000-0000-4000-8000-00000000dead')).rejects.toMatchObject({ code: 'not_found' });
+  });
 });
