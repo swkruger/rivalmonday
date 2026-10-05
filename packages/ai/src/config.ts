@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { z } from 'zod';
@@ -83,7 +84,9 @@ export type OpenRouterTask = z.infer<typeof openRouterTask>;
 export type JevTask = z.infer<typeof jevTask>;
 export type AnthropicTask = z.infer<typeof anthropicTask>;
 
-export const DEFAULT_AI_CONFIG_PATH = fileURLToPath(new URL('../config/ai.yaml', import.meta.url));
+// Not `new URL('../config/ai.yaml', import.meta.url)`: bundlers (Turbopack/webpack) pattern-match that literal
+// form and try to resolve/copy the target as a module/asset (see packages/db/src/migrate.ts for the same fix).
+export const DEFAULT_AI_CONFIG_PATH = join(dirname(fileURLToPath(import.meta.url)), '..', 'config', 'ai.yaml');
 
 export function parseAiConfig(yamlText: string): AiConfig {
   const result = aiConfigSchema.safeParse(parse(yamlText));

@@ -1,11 +1,14 @@
 import { readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { z } from 'zod';
 import { type VerticalPack, verticalPackSchema } from './schema';
 
-export const PACKS_DIR = fileURLToPath(new URL('../packs', import.meta.url));
+// Not `new URL('../packs', import.meta.url)`: bundlers (Turbopack/webpack) pattern-match that literal form and
+// try to resolve/copy '../packs' as a module/asset, which fails since it's a plain directory of .yaml files
+// read at runtime, not a bundlable resource (see packages/db/src/migrate.ts for the same fix).
+export const PACKS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'packs');
 
 export function parseVerticalPack(yamlText: string, source: string): VerticalPack {
   const result = verticalPackSchema.safeParse(parse(yamlText));
