@@ -1,11 +1,11 @@
 import { canAccessClient, toolkit, ToolError } from '@cs/core';
-import { acceptSuggestion } from '@cs/collectors';
+import { acceptSuggestion, ensureCompetitorSources, findExistingCompetitor } from '@cs/collectors';
 import { client, clientCompetitor, competitor, competitorSuggestion, trackedPage, type Tx, withTenant } from '@cs/db';
-import { and, count, desc, eq, ne } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type ToolDeps } from '../deps';
 import { COMPETITOR_LIMIT } from '../limits';
-import { SuggestionView } from './schemas';
+import { SuggestionView, TrackedCompetitor } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -95,4 +95,91 @@ export const dismissCompetitorSuggestion = defineTool({
   },
 });
 
-export const competitorTools = [listCompetitorSuggestions, requestCompetitorSuggestions, acceptCompetitorSuggestion, dismissCompetitorSuggestion];
+const HOST = /^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+
+/** "https://www.Smith.com/x" → "smith.com"; null when it isn't a host name. */
+export function normalizeDomain(raw: string): string | null {
+  const s = raw.trim().toLowerCase();
+  if (!s) return null;
+  let host: string;
+  try {
+    host = new URL(/^https?:\/\//.test(s) ? s : `https://${s}`).hostname;
+  } catch {
+    return null;
+  }
+  host = host.replace(/^www\./, '');
+  return HOST.test(host) ? host : null;
+}
+
+export const listClientCompetitors = defineTool({
+  name: 'list_client_competitors',
+  description: 'List the competitors a client tracks, with their number of active tracked pages.',
+  input: z.object({ clientId: uuid }),
+  output: z.object({ items: z.array(TrackedCompetitor) }),
+  permission: 'read',
+  async handler(ctx, { clientId }, deps) {
+    if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+    const rows = await withTenant(deps.app, ctx, (tx) =>
+      tx
+        .select({
+          id: competitor.id, name: competitor.name, domain: competitor.domain, placeId: competitor.placeId, addedAt: clientCompetitor.createdAt,
+          activePages: sql<number>`(select count(*)::int from tracked_page tp where tp.competitor_id = ${competitor.id} and tp.active)`,
+        })
+        .from(clientCompetitor)
+        .innerJoin(competitor, eq(competitor.id, clientCompetitor.competitorId))
+        .where(eq(clientCompetitor.clientId, clientId))
+        .orderBy(asc(competitor.name)));
+    return { items: rows.map((r) => ({ ...r, addedAt: r.addedAt.toISOString() })) };
+  },
+});
+
+export const addCompetitor = defineTool({
+  name: 'add_competitor',
+  description: 'Track a competitor by website and/or Google place id.',
+  input: z.object({ clientId: uuid, name: z.string().min(1).max(120), domain: z.string().max(300).optional(), placeId: z.string().max(300).optional() }),
+  output: z.object({ competitorId: uuid, discovery: z.enum(['queued', 'disabled', 'not_needed']) }),
+  permission: 'manage',
+  feature: 'manage_competitors',
+  async handler(ctx, input, deps) {
+    if (!canAccessClient(ctx, input.clientId)) throw new ToolError('not_found', 'Client not found');
+    const domain = input.domain?.trim() ? normalizeDomain(input.domain) : null;
+    if (input.domain?.trim() && !domain) throw new ToolError('invalid_input', 'That website doesn’t look like a domain (e.g. smithhvac.com)');
+    const placeId = input.placeId?.trim() || null;
+    if (placeId && !/^[A-Za-z0-9_-]{10,200}$/.test(placeId)) throw new ToolError('invalid_input', 'Google place id looks wrong');
+    if (!domain && !placeId) throw new ToolError('invalid_input', 'Give the competitor’s website or Google place id');
+    const [visible] = await withTenant(deps.app, ctx, (tx) => tx.select({ id: client.id }).from(client).where(eq(client.id, input.clientId)));
+    if (!visible) throw new ToolError('not_found', 'Client not found');
+
+    // Reuse a global row by place/cid first; for a typed website, the exact domain owner is that business.
+    let row = await findExistingCompetitor(deps.service, { placeId, cid: null, domain });
+    if (!row && domain) row = (await deps.service.select().from(competitor).where(eq(competitor.domain, domain)).limit(1))[0];
+    await withTenant(deps.app, ctx, (tx) => assertRoomForCompetitor(tx, input.clientId, row?.id ?? null));
+    let competitorId = row?.id;
+    if (!competitorId) {
+      const inserted = await deps.service.insert(competitor).values({ name: input.name.trim(), domain, placeId }).onConflictDoNothing().returning({ id: competitor.id });
+      competitorId = inserted[0]?.id ?? (await findExistingCompetitor(deps.service, { placeId, cid: null, domain }))?.id;
+      if (!competitorId) throw new ToolError('invalid_input', 'That competitor could not be added — try again');
+    }
+    await withTenant(deps.app, ctx, (tx) => tx.insert(clientCompetitor).values({ agencyId: ctx.agencyId, clientId: input.clientId, competitorId: competitorId! }).onConflictDoNothing());
+    await ensureCompetitorSources(deps.service, competitorId);
+    return { competitorId, discovery: await startDiscovery(deps, competitorId) };
+  },
+});
+
+export const removeCompetitor = defineTool({
+  name: 'remove_competitor',
+  description: 'Stop tracking a competitor for a client. History is kept; collection stops once no client tracks it.',
+  input: z.object({ clientId: uuid, competitorId: uuid }),
+  output: z.object({ removed: z.literal(true) }),
+  permission: 'manage',
+  feature: 'manage_competitors',
+  async handler(ctx, { clientId, competitorId }, deps) {
+    if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Competitor not found');
+    const rows = await withTenant(deps.app, ctx, (tx) =>
+      tx.delete(clientCompetitor).where(and(eq(clientCompetitor.clientId, clientId), eq(clientCompetitor.competitorId, competitorId))).returning({ id: clientCompetitor.competitorId }));
+    if (rows.length === 0) throw new ToolError('not_found', 'Competitor not found');
+    return { removed: true as const };
+  },
+});
+
+export const competitorTools = [listCompetitorSuggestions, requestCompetitorSuggestions, acceptCompetitorSuggestion, dismissCompetitorSuggestion, listClientCompetitors, addCompetitor, removeCompetitor];

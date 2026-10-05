@@ -62,5 +62,8 @@ export const SuggestionView = z.object({
 });
 export type SuggestionView = z.infer<typeof SuggestionView>;
 
+export const TrackedCompetitor = z.object({ id: uuid, name: z.string(), domain: z.string().nullable(), placeId: z.string().nullable(), addedAt: iso, activePages: z.number().int() });
+export type TrackedCompetitor = z.infer<typeof TrackedCompetitor>;
+
 export const listInput = (max: number) => z.object({ clientId: uuid, limit: z.number().int().min(1).max(max).default(Math.min(20, max)) });
 export const toIso = (d: Date | null) => (d ? d.toISOString() : null);

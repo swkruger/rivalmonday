@@ -1,8 +1,9 @@
-import { competitorSource } from '@cs/db';
+import { client, competitor, competitorSource } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { claimDueSources, markSourceResult, releaseSources } from './due';
+import { SOURCE_KINDS } from './kinds';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -23,6 +24,22 @@ describe('claimDueSources', () => {
     await markSourceResult(dbs.service, IDS.competitorX, 'gbp', 'ok');
     const rows = (await dbs.service.execute(sql`SELECT last_status FROM competitor_source WHERE source = 'gbp' AND competitor_id = ${IDS.competitorX}`)) as unknown as { last_status: string }[];
     expect(rows[0]?.last_status).toBe('ok');
+  });
+
+  it('never claims vendor sources of a competitor nobody tracks; a self business keeps gbp/reviews', async () => {
+    // Competitor U: no client_competitor link and not a self business. Competitor S: some client's self_competitor_id.
+    const [u] = await dbs.owner.insert(competitor).values({ name: 'Untracked Co' }).returning();
+    const [s] = await dbs.owner.insert(competitor).values({ name: 'Self Co' }).returning();
+    await dbs.owner.update(client).set({ selfCompetitorId: s!.id }).where(eq(client.id, IDS.clientA1));
+    await dbs.service.insert(competitorSource).values(
+      SOURCE_KINDS.flatMap((source) => [
+        { competitorId: u!.id, source, nextDueAt: sql`now() - interval '1 minute'` },
+        { competitorId: s!.id, source, nextDueAt: sql`now() - interval '1 minute'` },
+      ]),
+    );
+    const claimed = await claimDueSources(dbs.service, 100);
+    expect(claimed.filter((c) => c.competitorId === u!.id)).toEqual([]);
+    expect(claimed.filter((c) => c.competitorId === s!.id).map((c) => c.source).sort()).toEqual(['gbp', 'reviews']);
   });
 });
 

@@ -1,10 +1,11 @@
 import { type AccessContext, createAccessContext, type Feature } from '@cs/core';
-import { client, clientCompetitor, competitor, competitorSuggestion, trackedPage } from '@cs/db';
+import { alert, changeEvent, client, clientCompetitor, competitor, competitorSuggestion, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EnqueueJob } from '../deps';
 import { createToolRegistry } from '../registry';
+import { normalizeDomain } from './competitors';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -92,5 +93,36 @@ describe('suggestions', () => {
     await expect(registry.invoke(amA1, 'dismiss_competitor_suggestion', { suggestionId: other })).rejects.toMatchObject({ code: 'not_found' });
     const foreign = await suggest(IDS.clientB1, IDS.agencyB, 'B1 only', 'ChIJb1onlyb1on');
     await expect(registry.invoke(admin, 'accept_competitor_suggestion', { suggestionId: foreign })).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('manual competitors', () => {
+  it('normalises websites to a bare host', () => {
+    expect(normalizeDomain('https://www.SmithHVAC.com/about?x=1')).toBe('smithhvac.com');
+    expect(normalizeDomain('smithhvac.com')).toBe('smithhvac.com');
+    expect(normalizeDomain('not a domain')).toBeNull();
+  });
+
+  it('adds by website, reusing an existing global row, and lists tracked competitors', async () => {
+    await dbs.owner.update(competitor).set({ domain: 'smithhvac.com' }).where(eq(competitor.id, IDS.competitorX));
+    const r = (await registry.invoke(amA1, 'add_competitor', { clientId: IDS.clientA1, name: 'Ignored Name', domain: 'https://smithhvac.com' })) as { competitorId: string };
+    expect(r.competitorId).toBe(IDS.competitorX);
+    const n = (await registry.invoke(admin, 'add_competitor', { clientId: IDS.clientA2, name: 'Fresh Plumbing', domain: 'freshplumbing.com' })) as { competitorId: string; discovery: string };
+    expect(n.discovery).toBe('disabled');
+    const { items } = (await registry.invoke(admin, 'list_client_competitors', { clientId: IDS.clientA2 })) as { items: { name: string }[] };
+    expect(items.map((i) => i.name).sort()).toEqual(['Bright Smiles', 'Fresh Plumbing']);
+    await expect(registry.invoke(amA1, 'add_competitor', { clientId: IDS.clientA1, name: 'X' })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(registry.invoke(amA1, 'add_competitor', { clientId: IDS.clientA2, name: 'X', domain: 'x.com' })).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('removes a competitor; its alerts still list with a fallback name (Review Focus 3)', async () => {
+    const [e] = await dbs.owner.insert(changeEvent).values({ competitorId: IDS.competitorX, changeType: 'price_change', summary: 's', confidence: 0.9, occurredAt: new Date() }).returning();
+    await dbs.owner.insert(alert).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, eventId: e!.id, score: 80, headline: 'Price cut', status: 'delivered', mode: 'direct' });
+    await registry.invoke(amA1, 'remove_competitor', { clientId: IDS.clientA1, competitorId: IDS.competitorX });
+    const { items } = (await registry.invoke(amA1, 'list_alerts', { clientId: IDS.clientA1 })) as { items: { competitorName: string }[] };
+    expect(items).toEqual([expect.objectContaining({ competitorName: 'Competitor' })]);
+    await expect(registry.invoke(amA1, 'remove_competitor', { clientId: IDS.clientA1, competitorId: IDS.competitorX })).rejects.toMatchObject({ code: 'not_found' });
+    // Re-adding works.
+    await registry.invoke(amA1, 'add_competitor', { clientId: IDS.clientA1, name: 'Smith HVAC', placeId: 'ChIJsmithsmith1' });
   });
 });

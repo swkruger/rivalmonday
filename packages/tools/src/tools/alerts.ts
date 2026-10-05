@@ -18,10 +18,10 @@ export const listAlerts = defineTool({
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
     const where = isAgencyRole(ctx.role) ? eq(alert.clientId, clientId) : and(eq(alert.clientId, clientId), eq(alert.status, 'delivered'));
     const rows = await withTenant(deps.app, ctx, (tx) =>
-      tx.select({ a: alert, competitorName: competitor.name }).from(alert).innerJoin(competitor, eq(competitor.id, alert.competitorId)).where(where).orderBy(desc(alert.createdAt)).limit(limit));
+      tx.select({ a: alert, competitorName: competitor.name }).from(alert).leftJoin(competitor, eq(competitor.id, alert.competitorId)).where(where).orderBy(desc(alert.createdAt)).limit(limit));
     return {
       items: rows.map(({ a, competitorName }) => ({
-        id: a.id, clientId: a.clientId, competitorName, headline: a.headline, score: a.score, status: a.status, createdAt: a.createdAt.toISOString(), deliveredAt: toIso(a.deliveredAt),
+        id: a.id, clientId: a.clientId, competitorName: competitorName ?? 'Competitor', headline: a.headline, score: a.score, status: a.status, createdAt: a.createdAt.toISOString(), deliveredAt: toIso(a.deliveredAt),
       })),
     };
   },
