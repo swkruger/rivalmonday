@@ -20,10 +20,22 @@
     "EMAIL_FROM",
     "EMAIL_OUTBOX_DIR",
     "POSTMARK_SERVER_TOKEN",
-    "POSTMARK_MESSAGE_STREAM"
+    "POSTMARK_MESSAGE_STREAM",
+    "APP_DATABASE_URL",
+    "SERVICE_DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "DEFAULT_AGENCY_ID",
+    "EVIDENCE_FS_DIR",
+    "R2_ACCOUNT_ID",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "R2_BUCKET"
   ],
   "tasks": {
     "typecheck": { "dependsOn": ["^typecheck"] },
-    "test": { "cache": false }
+    "test": { "cache": false },
+    "build": { "dependsOn": ["^build"], "outputs": [".next/**", "!.next/cache/**"] }
   }
 }

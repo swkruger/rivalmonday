@@ -1,0 +1,50 @@
+{
+  "name": "@cs/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc -p .",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "admin": "tsx scripts/admin.ts"
+  },
+  "dependencies": {
+    "@cs/core": "workspace:*",
+    "@cs/db": "workspace:*",
+    "@cs/email": "workspace:*",
+    "@cs/engine": "workspace:*",
+    "@cs/storage": "workspace:*",
+    "@cs/tools": "workspace:*",
+    "@cs/ui": "workspace:*",
+    "better-auth": "1.7.7",
+    "drizzle-orm": "^0.44.5",
+    "kysely": "^0.28.17",
+    "lucide-react": "^1.52.0",
+    "next": "16.3.8",
+    "pg": "^8.23.1",
+    "pg-boss": "^10.3.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^22.18.0",
+    "@types/pg": "^8.15.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "jsdom": "^30.1.2",
+    "postgres": "^3.4.7",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
