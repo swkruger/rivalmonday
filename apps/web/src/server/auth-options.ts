@@ -17,6 +17,11 @@ export interface AuthDeps {
   pool: Pool;
   sendEmail: (to: string, payload: EmailPayload) => Promise<void>;
   branding: () => Promise<Branding>;
+  /**
+   * Schedules work that must neither delay nor fail the response (Next's `after()` in the app). The sign-in-link
+   * right-check and send run here so invited and uninvited emails get the same response in the same time (decision 2).
+   */
+  runInBackground: (task: Promise<unknown>) => void;
   now?: () => Date;
 }
 
@@ -32,6 +37,7 @@ export function buildAuthOptions(deps: AuthDeps): BetterAuthOptions {
     baseURL: deps.env.appUrl,
     secret: deps.env.authSecret,
     trustedOrigins: [deps.env.appUrl],
+    advanced: { backgroundTasks: { handler: deps.runInBackground } },
     database: { dialect: new PostgresDialect({ pool: deps.pool }), type: 'postgres', schemaName: 'auth' },
     rateLimit: { enabled: true, storage: 'database', window: 60, max: 100 },
     session: { expiresIn: 60 * 60 * 24 * 14, updateAge: 60 * 60 * 24 },
@@ -40,10 +46,16 @@ export function buildAuthOptions(deps: AuthDeps): BetterAuthOptions {
     plugins: [
       magicLink({
         expiresIn: MAGIC_LINK_MINUTES * 60,
-        // Decision 2: no link for people without a right to sign in; the response is identical either way.
-        sendMagicLink: async ({ email, url }) => {
-          if (!(await hasSignInRight(deps.service, email, now()))) return;
-          await deps.sendEmail(email, { template: 'sign_in', props: { branding: await deps.branding(), url, expiresMinutes: MAGIC_LINK_MINUTES } });
+        // Decision 2: no link for people without a right to sign in. The check and the send run in the background, so the
+        // response (status, body and timing) is the same either way and a failed send never surfaces to the caller.
+        sendMagicLink: ({ email, url }) => {
+          deps.runInBackground((async () => {
+            if (!(await hasSignInRight(deps.service, email, now()))) return;
+            await deps.sendEmail(email, { template: 'sign_in', props: { branding: await deps.branding(), url, expiresMinutes: MAGIC_LINK_MINUTES } });
+          })().catch((e: unknown) => {
+            // Never log the link or token; the error text comes from the DB, the renderer or the transport.
+            console.error(`[auth] sign-in link not sent: ${e instanceof Error ? e.message : String(e)}`);
+          }));
         },
       }),
     ],

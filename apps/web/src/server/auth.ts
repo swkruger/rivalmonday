@@ -3,6 +3,7 @@ import { createLedgerSink } from '@cs/db';
 import { createEmailTransportFromEnv, renderEmail } from '@cs/email';
 import { betterAuth } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
+import { after } from 'next/server';
 import { Pool } from 'pg';
 import { buildAuthOptions } from './auth-options';
 import { defaultBranding } from './branding';
@@ -16,6 +17,7 @@ function create() {
   const options = buildAuthOptions({
     env, service, pool: new Pool({ connectionString: env.serviceDatabaseUrl, max: 5 }),
     branding: () => defaultBranding(service, env),
+    runInBackground: (task) => after(task),
     sendEmail: async (to, payload) => {
       const r = await renderEmail(payload);
       await transport.send({ from: env.emailFrom, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'sign_in', metadata: {} }, { agencyId: null, clientId: null });
