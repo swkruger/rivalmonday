@@ -9,10 +9,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cs/collectors": "workspace:*",
     "@cs/core": "workspace:*",
     "@cs/db": "workspace:*",
     "@cs/email": "workspace:*",
     "@cs/engine": "workspace:*",
+    "@cs/verticals": "workspace:*",
     "drizzle-orm": "^0.44.5",
     "zod": "^4.1.5"
   },

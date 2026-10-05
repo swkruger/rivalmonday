@@ -22,4 +22,10 @@ describe('parseWebEnv', () => {
   it('lists every problem at once', () => {
     expect(() => parseWebEnv({ ...ok, BETTER_AUTH_SECRET: 'short', APP_URL: undefined, DEFAULT_AGENCY_ID: 'nope' } as unknown as NodeJS.ProcessEnv)).toThrow(/BETTER_AUTH_SECRET[\s\S]*APP_URL[\s\S]*DEFAULT_AGENCY_ID/);
   });
+
+  it('reads WEB_MONITORING_ENABLED as an explicit opt-in', () => {
+    expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).webMonitoring).toBe(false);
+    expect(parseWebEnv({ ...ok, WEB_MONITORING_ENABLED: 'yes' } as unknown as NodeJS.ProcessEnv).webMonitoring).toBe(false);
+    expect(parseWebEnv({ ...ok, WEB_MONITORING_ENABLED: 'true' } as unknown as NodeJS.ProcessEnv).webMonitoring).toBe(true);
+  });
 });

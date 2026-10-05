@@ -30,6 +30,7 @@ export function createWebJobs(
   const discover = defineJob({
     name: 'discover-pages',
     schema: z.object({ competitorId: z.uuid() }),
+    queue: { policy: 'short' },
     handler: async ({ competitorId }) => {
       const r = await deps.discoverPages(competitorId);
       console.log(`[discover-pages] ${competitorId} → ${JSON.stringify(r)}`);

@@ -34,6 +34,7 @@ export default defineConfig({
       POSTMARK_SERVER_TOKEN: '',
       GOOGLE_CLIENT_ID: '',
       DEFAULT_AGENCY_ID: '',
+      WEB_MONITORING_ENABLED: '',
       EVIDENCE_FS_DIR: fileURLToPath(new URL('./test-results/evidence', import.meta.url)),
     },
   },

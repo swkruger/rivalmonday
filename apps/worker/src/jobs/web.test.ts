@@ -27,4 +27,9 @@ describe('web jobs', () => {
     await jobs.capture.handler({ trackedPageId: 'b' });
     expect(enqueueDiff.mock.calls).toEqual([['cap-a']]);
   });
+
+  it('dedupes queued page discovery per competitor (short policy)', () => {
+    const jobs = createWebJobs({} as WorkerDeps, { enqueueCapture: async () => {} });
+    expect(jobs.discover.queue?.policy).toBe('short');
+  });
 });

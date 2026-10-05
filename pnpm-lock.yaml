@@ -38,6 +38,9 @@ importers:
       '@cs/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@cs/verticals':
+        specifier: workspace:*
+        version: link:../../packages/verticals
       better-auth:
         specifier: 1.7.7
         version: 1.7.7(drizzle-kit@0.31.11)(drizzle-orm@0.44.7(@types/pg@8.23.1)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9))(next@16.3.8(@playwright/test@1.63.0)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(pg@8.23.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@3.2.7(@types/node@22.20.4)(jiti@2.7.0)(jsdom@30.1.2(@noble/hashes@2.4.0))(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1))
@@ -392,6 +395,9 @@ importers:
 
   packages/tools:
     dependencies:
+      '@cs/collectors':
+        specifier: workspace:*
+        version: link:../collectors
       '@cs/core':
         specifier: workspace:*
         version: link:../core
@@ -404,6 +410,9 @@ importers:
       '@cs/engine':
         specifier: workspace:*
         version: link:../engine
+      '@cs/verticals':
+        specifier: workspace:*
+        version: link:../verticals
       drizzle-orm:
         specifier: ^0.44.5
         version: 0.44.7(@types/pg@8.23.1)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9)

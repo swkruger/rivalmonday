@@ -1,4 +1,5 @@
 import 'server-only';
+import type { EnqueueJob } from '@cs/tools';
 import PgBoss from 'pg-boss';
 import { webEnv } from './env';
 import type { Enqueue } from './files';
@@ -19,7 +20,7 @@ export interface Boss {
  * `started` to `null` before rethrowing, so the caller that hit the failure still sees it, but the *next*
  * `enqueue` call launches and starts a fresh boss instead of being stuck forever.
  */
-export function createBossQueue(launch: () => Boss): { enqueue: Enqueue } {
+export function createBossQueue(launch: () => Boss): { enqueue: EnqueueJob } {
   let started: Promise<Boss> | null = null;
 
   function boss(): Promise<Boss> {
@@ -44,5 +45,7 @@ export function createBossQueue(launch: () => Boss): { enqueue: Enqueue } {
 
 const queue = createBossQueue(() => new PgBoss({ connectionString: webEnv().queueDatabaseUrl, supervise: false, schedule: false, migrate: false, max: 2 }));
 
+/** Every job the web app starts (PDF renders, competitor suggestions, page discovery). */
+export const enqueueJob: EnqueueJob = queue.enqueue;
 /** The worker's `short` policy on `brief-pdf`/`report-pdf` dedupes by `singletonKey`, so repeated page refreshes don't pile up renders. */
 export const enqueue: Enqueue = queue.enqueue;

@@ -41,4 +41,11 @@ describe('createBossQueue', () => {
     expect(working.start).toHaveBeenCalledTimes(1);
     expect(working.send).toHaveBeenCalledTimes(3);
   });
+
+  it('enqueues the 5b-1 onboarding jobs with their singleton keys', async () => {
+    const working = fakeBoss();
+    const { enqueue } = createBossQueue(() => working);
+    await enqueue('suggest-competitors', { clientId: 'c1' }, 'suggest:c1');
+    expect(working.send).toHaveBeenCalledWith('suggest-competitors', { clientId: 'c1' }, { singletonKey: 'suggest:c1' });
+  });
 });

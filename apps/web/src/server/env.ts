@@ -12,6 +12,8 @@ export interface WebEnv {
   emailFrom: string;
   google: { clientId: string; clientSecret: string } | null;
   defaultAgencyId: string | null;
+  /** Decision 7 (5b-1): crawl competitor websites only when explicitly enabled (no bot page yet). */
+  webMonitoring: boolean;
 }
 
 export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
@@ -40,6 +42,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     emailFrom: env.EMAIL_FROM?.trim() || (appUrl ? `briefs@${safeHost(appUrl)}` : ''),
     google: env.GOOGLE_CLIENT_ID?.trim() && env.GOOGLE_CLIENT_SECRET?.trim() ? { clientId: env.GOOGLE_CLIENT_ID.trim(), clientSecret: env.GOOGLE_CLIENT_SECRET.trim() } : null,
     defaultAgencyId,
+    webMonitoring: env.WEB_MONITORING_ENABLED?.trim() === 'true',
   };
   if (problems.length) throw new Error(`Web app configuration problems:\n- ${problems.join('\n- ')}`);
   return parsed;

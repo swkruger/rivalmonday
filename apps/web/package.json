@@ -20,6 +20,7 @@
     "@cs/storage": "workspace:*",
     "@cs/tools": "workspace:*",
     "@cs/ui": "workspace:*",
+    "@cs/verticals": "workspace:*",
     "better-auth": "1.7.7",
     "drizzle-orm": "^0.44.5",
     "kysely": "^0.28.17",
