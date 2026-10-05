@@ -1,6 +1,7 @@
 export * from './access/invitations';
 export * from './access/memberships';
 export * from './access/team';
+export * from './client-input';
 export * from './deps';
 export * from './inbox';
 export * from './preferences';

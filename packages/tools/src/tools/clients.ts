@@ -32,6 +32,7 @@ export const getClientProfile = defineTool({
     const agency = isAgencyRole(ctx.role);
     return {
       id: c.id, name: c.name, verticalId: c.verticalId, timezone: c.timezone, services: c.services, keywords: c.keywords, features: c.features,
+      serviceArea: c.serviceArea ?? null, placeId: c.placeId,
       alertMode: agency ? (c.alertMode as ClientProfile['alertMode']) : null, briefAutoSend: agency ? c.briefAutoSend : null,
     };
   },

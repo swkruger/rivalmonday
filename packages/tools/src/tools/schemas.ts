@@ -6,10 +6,20 @@ const uuid = z.string().uuid();
 export const ClientSummary = z.object({ id: uuid, name: z.string(), verticalId: z.string(), timezone: z.string() });
 export type ClientSummary = z.infer<typeof ClientSummary>;
 
+export const ServiceAreaInput = z.object({
+  center: z.object({ lat: z.number(), lng: z.number() }),
+  radiusKm: z.number(),
+  zips: z.array(z.string()).max(200),
+  towns: z.array(z.string()).max(60).optional(),
+});
+export type ServiceAreaInput = z.infer<typeof ServiceAreaInput>;
+
 export const ClientProfile = ClientSummary.extend({
   services: z.array(z.string()),
   keywords: z.array(z.string()),
   features: z.array(z.string()),
+  serviceArea: ServiceAreaInput.nullable(),
+  placeId: z.string().nullable(),
   /** Agency roles only (decision 10); null for client roles. */
   alertMode: z.enum(['direct', 'after_am_check', 'digest_only']).nullable(),
   briefAutoSend: z.boolean().nullable(),
