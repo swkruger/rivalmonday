@@ -35,3 +35,7 @@ jobs:
         run: pnpm --filter @cs/collectors exec playwright install --with-deps chromium
       - run: pnpm typecheck
       - run: pnpm test
+      - name: Install Playwright chromium for web E2E
+        run: pnpm --filter @cs/web exec playwright install --with-deps chromium
+      - name: Web E2E
+        run: pnpm --filter @cs/web e2e
