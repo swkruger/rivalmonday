@@ -1,6 +1,6 @@
 import { canAccessClient, FEATURES, toolkit, ToolError } from '@cs/core';
 import { client, withTenant } from '@cs/db';
-import type { VerticalPack } from '@cs/verticals';
+import { listVerticalPacks, type VerticalPack } from '@cs/verticals';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { type ClientInput, cleanClientInput, clientInputProblems } from '../client-input';
@@ -12,12 +12,15 @@ const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
 const Features = z.array(z.enum(FEATURES)).max(FEATURES.length);
 
+/**
+ * Fix round 1 (#2): decide "unknown vertical" against the real pack catalog instead of
+ * swallowing every loader error into invalid_input. A genuine loader failure (corrupt/missing
+ * YAML for a vertical id that IS in the catalog) propagates uncaught and the registry reports
+ * it as `internal`, not a user-fixable input error.
+ */
 async function packFor(deps: ToolDeps, verticalId: string): Promise<VerticalPack> {
-  try {
-    return await packsOf(deps)(verticalId);
-  } catch {
-    throw new ToolError('invalid_input', `Unknown vertical: ${verticalId}`);
-  }
+  if (!(await listVerticalPacks()).includes(verticalId)) throw new ToolError('invalid_input', `Unknown vertical: ${verticalId}`);
+  return packsOf(deps)(verticalId);
 }
 
 function validated(input: ClientInput, pack: VerticalPack): ClientInput {
@@ -61,22 +64,24 @@ export const updateClientProfile = defineTool({
   permission: 'agency',
   async handler(ctx, { clientId, ...patch }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
-    const [current] = await withTenant(deps.app, ctx, (tx) => tx.select().from(client).where(eq(client.id, clientId)));
-    if (!current) throw new ToolError('not_found', 'Client not found');
-    const pack = await packFor(deps, current.verticalId);
-    // `current.features` may hold unknown legacy strings; drop them here so an unknown value never survives a save.
-    const currentFeatures = (current.features as string[]).filter((f) => (FEATURES as readonly string[]).includes(f));
-    const merged = validated(
-      {
-        name: patch.name ?? current.name, services: patch.services ?? current.services, keywords: patch.keywords ?? current.keywords,
-        serviceArea: patch.serviceArea === undefined ? current.serviceArea : patch.serviceArea, placeId: patch.placeId === undefined ? current.placeId : patch.placeId,
-        features: (patch.features ?? currentFeatures) as ClientInput['features'],
-      },
-      pack,
-    );
-    await withTenant(deps.app, ctx, (tx) =>
-      tx.update(client).set({ name: merged.name, services: merged.services, keywords: merged.keywords, serviceArea: merged.serviceArea, placeId: merged.placeId, features: merged.features }).where(eq(client.id, clientId)),
-    );
+    // Fix round 1 (#1): read-modify-write in ONE transaction with `for('update')`, so two
+    // concurrent partial updates can't interleave and clobber each other (lost-update race).
+    await withTenant(deps.app, ctx, async (tx) => {
+      const [current] = await tx.select().from(client).where(eq(client.id, clientId)).for('update');
+      if (!current) throw new ToolError('not_found', 'Client not found');
+      const pack = await packFor(deps, current.verticalId);
+      // `current.features` may hold unknown legacy strings; drop them here so an unknown value never survives a save.
+      const currentFeatures = (current.features as string[]).filter((f) => (FEATURES as readonly string[]).includes(f));
+      const merged = validated(
+        {
+          name: patch.name ?? current.name, services: patch.services ?? current.services, keywords: patch.keywords ?? current.keywords,
+          serviceArea: patch.serviceArea === undefined ? current.serviceArea : patch.serviceArea, placeId: patch.placeId === undefined ? current.placeId : patch.placeId,
+          features: (patch.features ?? currentFeatures) as ClientInput['features'],
+        },
+        pack,
+      );
+      await tx.update(client).set({ name: merged.name, services: merged.services, keywords: merged.keywords, serviceArea: merged.serviceArea, placeId: merged.placeId, features: merged.features }).where(eq(client.id, clientId));
+    });
     return { clientId };
   },
 });

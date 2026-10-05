@@ -59,4 +59,11 @@ describe('update_client_profile', () => {
     await expect(registry.invoke(owner, 'update_client_profile', { clientId: IDS.clientA1, name: 'x' })).rejects.toMatchObject({ code: 'permission_denied' });
     await expect(registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, services: ['root_canal'] })).rejects.toMatchObject({ code: 'invalid_input' });
   });
+
+  it('drops an unknown legacy feature string on an unrelated patch, keeping valid ones', async () => {
+    await dbs.owner.update(client).set({ features: ['dashboard', 'legacy_flag'] }).where(eq(client.id, IDS.clientA1));
+    await registry.invoke(amA1, 'update_client_profile', { clientId: IDS.clientA1, name: 'A1 HVAC' });
+    const [row] = await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1));
+    expect(row!.features).toEqual(['dashboard']);
+  });
 });
