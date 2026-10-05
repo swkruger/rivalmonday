@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { LINK_TTL_SECONDS, signLink, verifyLink } from './links';
 
@@ -36,5 +37,14 @@ describe('deep links', () => {
     expect(() => signLink('short', claims, NOW)).toThrow(/at least 32/);
     const bad = signLink(SECRET, { ...claims, t: 'admin' as never }, NOW);
     expect(verifyLink([SECRET], bad, NOW)).toBeNull();
+  });
+
+  it('refuses a validly signed payload with no `iat` (T15 #4: NaN must not skip the revocation check)', () => {
+    // Same HMAC-SHA256-over-the-base64url-payload scheme `signLink`/`verifyLink` use, built by hand so the
+    // payload can omit `iat` — something `signLink` itself can never produce.
+    const withoutIat = { v: 1, ...claims, exp: Math.floor(NOW.getTime() / 1000) + LINK_TTL_SECONDS };
+    const payload = Buffer.from(JSON.stringify(withoutIat)).toString('base64url');
+    const sig = createHmac('sha256', SECRET).update(payload).digest('base64url');
+    expect(verifyLink([SECRET], `${payload}.${sig}`, NOW)).toBeNull();
   });
 });

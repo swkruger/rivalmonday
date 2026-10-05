@@ -47,6 +47,6 @@ export function verifyLink(secrets: readonly string[], token: string, now = new 
   } catch {
     return null;
   }
-  if (c.v !== 1 || !LINK_TARGETS.includes(c.t) || typeof c.exp !== 'number' || c.exp * 1000 <= now.getTime()) return null;
+  if (c.v !== 1 || !LINK_TARGETS.includes(c.t) || typeof c.iat !== 'number' || typeof c.exp !== 'number' || c.exp * 1000 <= now.getTime()) return null;
   return c;
 }

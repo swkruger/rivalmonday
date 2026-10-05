@@ -45,7 +45,9 @@ export async function openLink(input: { service: Db; token: string; secrets: rea
 
   const [c] = await input.service.select().from(contact).where(eq(contact.id, claims.sub));
   if (!c || !c.active || c.agencyId !== claims.agency || (c.clientId !== null && c.clientId !== claims.client)) return { kind: 'expired' };
-  if (c.linksRevokedBefore && claims.iat * 1000 < c.linksRevokedBefore.getTime()) return { kind: 'expired' };
+  // Defense in depth alongside the `typeof c.iat !== 'number'` guard in `verifyLink` (T15 #4): fail closed instead
+  // of letting `NaN < x` silently skip the revocation check if `iat` were ever missing here.
+  if (typeof claims.iat !== 'number' || (c.linksRevokedBefore && claims.iat * 1000 < c.linksRevokedBefore.getTime())) return { kind: 'expired' };
 
   // Review Focus 1: a signed-in user who is not this link's own contact gets nothing — not even the generic
   // "expired" response, which would hide the fact that a session is already active.

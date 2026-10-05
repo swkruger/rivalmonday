@@ -1,10 +1,10 @@
 import { isAgencyRole } from '@cs/core';
 import type { ClientSummary } from '@cs/tools';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@cs/ui';
-import Link from 'next/link';
 import { SignOutButton } from '@/components/sign-out-button';
 import type { Viewer } from '@/server/viewer';
 import { ClientSwitcher } from './client-switcher';
+import { GuestSignOutButton } from './guest-sign-out-button';
 import { InboxBell } from './inbox-bell';
 import { MembershipSwitcher } from './membership-switcher';
 
@@ -55,9 +55,8 @@ export function TopBar({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <Link href="/sign-in" className="flex-shrink-0 font-semibold text-primary-soft-text">
-            Sign in
-          </Link>
+          // Important I1 (final review): a guest reaching "Sign out" (not "Sign in") can always end their session.
+          <GuestSignOutButton />
         )}
       </div>
     </header>

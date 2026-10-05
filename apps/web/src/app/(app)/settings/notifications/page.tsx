@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { NOTIFICATION_KIND_LABELS } from '@/server/inbox';
+import { timezoneOptions } from '@/server/timezones';
 import { ContactForm } from './contact-form';
 import { PrefSwitch } from './pref-switch';
 
@@ -51,7 +52,7 @@ export default async function NotificationSettingsPage() {
                   })}
                 </TableBody>
               </Table>
-              <ContactForm contactId={s.contactId} timezone={s.timezone} quietHours={s.quietHours} />
+              <ContactForm contactId={s.contactId} timezone={s.timezone} quietHours={s.quietHours} timezoneOptions={timezoneOptions(s.timezone ?? 'UTC')} />
             </CardContent>
           </Card>
         ))

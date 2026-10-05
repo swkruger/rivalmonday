@@ -3,9 +3,21 @@ import { Button, Input, Label } from '@cs/ui';
 import { useActionState } from 'react';
 import { updateContactAction } from './actions';
 
-const TIMEZONES: string[] = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
-
-export function ContactForm({ contactId, timezone, quietHours }: { contactId: string; timezone: string | null; quietHours: { start: string; end: string } | null }) {
+export function ContactForm({
+  contactId,
+  timezone,
+  quietHours,
+  timezoneOptions,
+}: {
+  contactId: string;
+  timezone: string | null;
+  quietHours: { start: string; end: string } | null;
+  /** Built server-side (`timezoneOptions()` in `@/server/timezones`) and passed down so the server-rendered and
+   * hydrated `<select>` list the exact same options — never built again here from `Intl.supportedValuesOf`
+   * (Important I2, final review: that caused a hydration mismatch, omitted `'UTC'`, and silently cleared a
+   * stored zone missing from the browser's list on save). */
+  timezoneOptions: string[];
+}) {
   const [state, formAction, pending] = useActionState(updateContactAction, { error: null });
 
   return (
@@ -25,7 +37,7 @@ export function ContactForm({ contactId, timezone, quietHours }: { contactId: st
           className="h-9 w-full max-w-sm rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
           <option value="">Business time zone</option>
-          {TIMEZONES.map((tz) => (
+          {timezoneOptions.map((tz) => (
             <option key={tz} value={tz}>
               {tz}
             </option>
