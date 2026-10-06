@@ -1,7 +1,7 @@
 import type { Branding } from '@cs/email';
 import { Wordmark } from '@cs/ui';
 import type { NavRoleFlags } from './nav-items';
-import { SidebarNav } from './sidebar-nav';
+import { type NavClient, SidebarNav } from './sidebar-nav';
 
 /**
  * 232px white column (docs/brand/mockups/01-client-overview.html `.side`). `branding.logoUrl` is only ever `https`
@@ -12,10 +12,10 @@ import { SidebarNav } from './sidebar-nav';
  * client-side navigation, so anything here that must track the current URL (the active highlight, the
  * client-scoped items) has to read it live via `usePathname()` instead of a prop computed once on the server.
  */
-export function Sidebar({ branding, flags }: { branding: Branding; flags: NavRoleFlags }) {
+export function Sidebar({ branding, flags, clients }: { branding: Branding; flags: NavRoleFlags; clients: NavClient[] }) {
   const whiteLabel = branding.displayName !== 'Rival Monday';
   return (
-    <aside className="flex w-[232px] flex-shrink-0 flex-col gap-1 border-r border-line bg-surface px-3.5 py-[22px]">
+    <aside className="sticky top-0 flex h-screen w-[232px] flex-shrink-0 flex-col gap-1 overflow-y-auto border-r border-line bg-surface px-3.5 py-[22px]">
       <div className="px-2.5 pb-[18px]">
         {branding.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -24,9 +24,8 @@ export function Sidebar({ branding, flags }: { branding: Branding; flags: NavRol
           <Wordmark name={whiteLabel ? branding.displayName : undefined} />
         )}
       </div>
-      <SidebarNav flags={flags} />
-      <div className="flex-1" />
-      <div className="border-t border-line px-2.5 pt-3.5 text-xs text-muted-ink">{branding.displayName}</div>
+      <SidebarNav flags={flags} clients={clients} />
+      <div className="px-3 pt-4 text-[11px] text-muted-ink">{branding.displayName}</div>
     </aside>
   );
 }

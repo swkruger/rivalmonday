@@ -5,9 +5,13 @@
  * `NavRoleFlags` below and calls the same `navItemsFor` so both sides agree on the item list.
  */
 
+/** Sidebar section: agency-wide pages, the open client's pages, then the viewer's account and agency settings. */
+export type NavGroup = 'agency' | 'client' | 'account';
+
 export interface NavItem {
   href: string;
   label: string;
+  group: NavGroup;
   icon: 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'approvals' | 'alerts' | 'recommendations';
 }
 
@@ -29,28 +33,31 @@ export function clientIdFromPath(pathname: string): string | null {
 /** 5c adds its modules here; only screens that exist are listed. Mirrors the old `navFor` in `@/server/nav`. */
 export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavItem[] {
   const items: NavItem[] = [];
+  const agency = (href: string, label: string, icon: NavItem['icon']) => items.push({ href, label, icon, group: 'agency' });
+  const forClient = (href: string, label: string, icon: NavItem['icon']) => items.push({ href, label, icon, group: 'client' });
+  const account = (href: string, label: string, icon: NavItem['icon']) => items.push({ href, label, icon, group: 'account' });
   if (flags.isAgency) {
-    items.push({ href: '/agency', label: 'Portfolio', icon: 'clients' });
-    items.push({ href: '/agency/approvals', label: 'Approvals', icon: 'approvals' });
-    items.push({ href: '/agency/alerts', label: 'Alert review', icon: 'alerts' });
+    agency('/agency', 'Portfolio', 'clients');
+    agency('/agency/approvals', 'Approvals', 'approvals');
+    agency('/agency/alerts', 'Alert review', 'alerts');
     if (clientId) {
-      items.push({ href: `/c/${clientId}`, label: 'Overview', icon: 'overview' });
-      items.push({ href: `/c/${clientId}/recommendations`, label: 'Recommendations', icon: 'recommendations' });
-      items.push({ href: `/c/${clientId}/settings/profile`, label: 'Profile', icon: 'profile' });
-      items.push({ href: `/c/${clientId}/competitors`, label: 'Competitors', icon: 'competitors' });
-      items.push({ href: `/c/${clientId}/settings/delivery`, label: 'Delivery', icon: 'delivery' });
+      forClient(`/c/${clientId}`, 'Overview', 'overview');
+      forClient(`/c/${clientId}/recommendations`, 'Recommendations', 'recommendations');
+      forClient(`/c/${clientId}/competitors`, 'Competitors', 'competitors');
+      forClient(`/c/${clientId}/settings/profile`, 'Profile', 'profile');
+      forClient(`/c/${clientId}/settings/delivery`, 'Delivery', 'delivery');
     }
   } else {
-    items.push({ href: flags.homePath, label: 'Overview', icon: 'overview' });
-    items.push({ href: `${flags.homePath}/recommendations`, label: 'Recommendations', icon: 'recommendations' });
+    forClient(flags.homePath, 'Overview', 'overview');
+    forClient(`${flags.homePath}/recommendations`, 'Recommendations', 'recommendations');
   }
-  items.push({ href: '/inbox', label: 'Inbox', icon: 'inbox' });
-  if (flags.isAgency) items.push({ href: '/agency/team', label: 'Team', icon: 'team' });
+  account('/inbox', 'Inbox', 'inbox');
+  if (flags.isAgency) account('/agency/team', 'Team', 'team');
   if (flags.isAgencyAdmin) {
-    items.push({ href: '/agency/branding', label: 'Branding', icon: 'branding' });
-    items.push({ href: '/agency/webhooks', label: 'Slack & Teams', icon: 'webhooks' });
+    account('/agency/branding', 'Branding', 'branding');
+    account('/agency/webhooks', 'Slack & Teams', 'webhooks');
   }
-  if (flags.isUser) items.push({ href: '/settings/notifications', label: 'Notifications', icon: 'bell' });
+  if (flags.isUser) account('/settings/notifications', 'Notifications', 'bell');
   return items;
 }
 

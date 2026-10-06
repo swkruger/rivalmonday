@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NavRoleFlags } from './nav-items';
 
@@ -98,5 +98,51 @@ describe('SidebarNav', () => {
     render(<SidebarNav flags={agencyAdmin} />);
     expect(activeHrefOf()).toBe(`/c/${CLIENT_ID}/recommendations`);
     expect(screen.getByRole('link', { name: 'Recommendations' }).getAttribute('href')).toBe(`/c/${CLIENT_ID}/recommendations`);
+  });
+});
+
+describe('SidebarNav sections', () => {
+  const clients = [{ id: CLIENT_ID, name: 'Comfort Air Heating & Cooling' }];
+  const linkNames = (group: HTMLElement) => within(group).getAllByRole('link').map((l) => l.textContent);
+
+  it('labels the agency and account sections and invites picking a client when none is open', () => {
+    pathname = '/agency';
+    render(<SidebarNav flags={agencyAdmin} clients={clients} />);
+    expect(linkNames(screen.getByRole('group', { name: 'Agency' }))).toEqual(['Portfolio', 'Approvals', 'Alert review']);
+    expect(linkNames(screen.getByRole('group', { name: 'Account' }))).toEqual(['Inbox', 'Team', 'Branding', 'Slack & Teams', 'Notifications']);
+    expect(screen.getByText('Select a client from Portfolio')).toBeTruthy();
+    expect(screen.queryByRole('group', { name: /^Client/ })).toBeNull();
+  });
+
+  it('groups the open client’s pages in a panel named after the client', () => {
+    pathname = `/c/${CLIENT_ID}/competitors`;
+    render(<SidebarNav flags={agencyAdmin} clients={clients} />);
+    const panel = screen.getByRole('group', { name: 'Client: Comfort Air Heating & Cooling' });
+    expect(linkNames(panel)).toEqual(['Overview', 'Recommendations', 'Competitors', 'Profile', 'Delivery']);
+    expect(within(panel).getByText('Comfort Air Heating & Cooling')).toBeTruthy();
+    expect(within(panel).getByText('CA')).toBeTruthy();
+    expect(screen.queryByText('Select a client from Portfolio')).toBeNull();
+  });
+
+  it('falls back to a plain Client label when the open client is not in the list', () => {
+    pathname = `/c/${CLIENT_ID}`;
+    render(<SidebarNav flags={agencyAdmin} clients={[]} />);
+    expect(linkNames(screen.getByRole('group', { name: 'Client' }))).toContain('Overview');
+  });
+
+  it('marks exactly one link as the current page', () => {
+    pathname = `/c/${CLIENT_ID}/settings/delivery`;
+    render(<SidebarNav flags={agencyAdmin} clients={clients} />);
+    const current = screen.getAllByRole('link').filter((l) => l.getAttribute('aria-current') === 'page');
+    expect(current.map((l) => l.getAttribute('href'))).toEqual([`/c/${CLIENT_ID}/settings/delivery`]);
+  });
+
+  it('gives client users no agency section, client panel or placeholder', () => {
+    pathname = `/c/${CLIENT_ID}`;
+    render(<SidebarNav flags={clientViewer} clients={[]} />);
+    expect(screen.queryByRole('group', { name: 'Agency' })).toBeNull();
+    expect(screen.queryByRole('group', { name: /^Client/ })).toBeNull();
+    expect(screen.queryByText('Select a client from Portfolio')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Overview' })).toBeTruthy();
   });
 });

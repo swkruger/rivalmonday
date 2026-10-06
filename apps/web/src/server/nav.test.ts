@@ -16,12 +16,22 @@ describe('navFor', () => {
   it('gives account managers team but not branding/webhooks, plus client pages inside a client', () => {
     const hrefs = navFor({ kind: 'user', ctx: ctx('account_manager') }, C).map((n) => n.href);
     expect(hrefs).toEqual([
-      '/agency', '/agency/approvals', '/agency/alerts', `/c/${C}`, `/c/${C}/recommendations`, `/c/${C}/settings/profile`, `/c/${C}/competitors`, `/c/${C}/settings/delivery`,
+      '/agency', '/agency/approvals', '/agency/alerts', `/c/${C}`, `/c/${C}/recommendations`, `/c/${C}/competitors`, `/c/${C}/settings/profile`, `/c/${C}/settings/delivery`,
       '/inbox', '/agency/team', '/settings/notifications',
     ]);
   });
   it('gives client users their overview, inbox and preferences', () => {
     expect(navFor({ kind: 'user', ctx: ctx('client_viewer') }, C).map((n) => n.href)).toEqual([`/c/${C}`, `/c/${C}/recommendations`, '/inbox', '/settings/notifications']);
+  });
+  it('puts every item in the agency, client or account group', () => {
+    const groups = (role: Parameters<typeof ctx>[0]) =>
+      Object.fromEntries(navFor({ kind: 'user', ctx: ctx(role) }, C).map((n) => [n.href, n.group]));
+    expect(groups('agency_admin')).toEqual({
+      '/agency': 'agency', '/agency/approvals': 'agency', '/agency/alerts': 'agency',
+      [`/c/${C}`]: 'client', [`/c/${C}/recommendations`]: 'client', [`/c/${C}/competitors`]: 'client', [`/c/${C}/settings/profile`]: 'client', [`/c/${C}/settings/delivery`]: 'client',
+      '/inbox': 'account', '/agency/team': 'account', '/agency/branding': 'account', '/agency/webhooks': 'account', '/settings/notifications': 'account',
+    });
+    expect(groups('client_viewer')).toEqual({ [`/c/${C}`]: 'client', [`/c/${C}/recommendations`]: 'client', '/inbox': 'account', '/settings/notifications': 'account' });
   });
   it('gives guests no settings', () => {
     expect(navFor({ kind: 'guest', ctx: ctx('client_viewer') }, C).map((n) => n.href)).toEqual([`/c/${C}`, `/c/${C}/recommendations`, '/inbox']);
