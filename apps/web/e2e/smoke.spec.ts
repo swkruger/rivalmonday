@@ -1,15 +1,12 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { OWNER_LINK_FILE } from '../playwright.config';
-import { latestMagicLink } from './helpers';
+import { requestMagicLink } from './helpers';
 
 test('an invited admin signs in by magic link and sees the themed client list', async ({ page }) => {
   await page.goto('/agency');
   await expect(page).toHaveURL(/\/sign-in\?next=%2Fagency/);
-  await page.getByLabel(/email/i).fill('admin@e2e.test');
-  await page.getByRole('button', { name: /email me a sign-in link/i }).click();
-  await expect(page).toHaveURL(/check-email/);
-  await page.goto(await latestMagicLink());
+  await page.goto(await requestMagicLink(page, 'admin@e2e.test'));
   await expect(page).toHaveURL(/\/agency$/);
   await expect(page.getByRole('link', { name: 'E2E HVAC' })).toBeVisible();
   const primary = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim());
@@ -30,9 +27,6 @@ test('a client opens a signed email link as a read-only guest without agency dat
 
 test('sign-in never redirects off-site (Review Focus 2)', async ({ page }) => {
   await page.goto('/sign-in?next=//evil.example/x');
-  await page.getByLabel(/email/i).fill('admin@e2e.test');
-  await page.getByRole('button', { name: /email me a sign-in link/i }).click();
-  await expect(page).toHaveURL(/check-email/);
-  await page.goto(await latestMagicLink());
+  await page.goto(await requestMagicLink(page, 'admin@e2e.test'));
   expect(new URL(page.url()).host).toBe('localhost:3100');
 });

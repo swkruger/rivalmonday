@@ -1,8 +1,28 @@
+import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { signIn } from './helpers';
 
+/**
+ * One magic-link sign-in for the whole file, reused as storage state by every test. Better Auth's magic-link plugin
+ * allows 5 requests per IP per rolling 60 s on `/sign-in/magic-link` and `/magic-link/verify` (correct production
+ * behaviour), and every Playwright request comes from one IP; signing in per test put the suite at exactly 5.
+ */
+const ADMIN_STATE = fileURLToPath(new URL('../test-results/admin-state.json', import.meta.url));
+
+test.beforeAll(async ({ browser }, testInfo) => {
+  // `test.use({ storageState })` below also applies to contexts made here, so start this one explicitly empty.
+  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+  const page = await context.newPage();
+  await signIn(page, 'admin@e2e.test');
+  await expect(page).toHaveURL(/\/agency$/);
+  await context.storageState({ path: ADMIN_STATE });
+  await context.close();
+});
+
+test.use({ storageState: ADMIN_STATE });
+
 test('an admin adds a client and lands on its competitors page', async ({ page }) => {
-  await signIn(page, 'admin@e2e.test', '/agency/clients/new');
+  await page.goto('/agency/clients/new');
   await page.getByLabel('Business name').fill('E2E Dental');
   await page.getByLabel('Vertical').selectOption('dental');
   await page.getByLabel(/search keywords/i).fill('dentist\nteeth cleaning');
@@ -16,7 +36,7 @@ test('an admin adds a client and lands on its competitors page', async ({ page }
 });
 
 test('an admin approves the ready brief and its recommendation appears on the board', async ({ page }) => {
-  await signIn(page, 'admin@e2e.test', '/agency/approvals');
+  await page.goto('/agency/approvals');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
   await expect(page.getByText('Smith HVAC launched a $49 drain-cleaning promo').first()).toBeVisible();
   await page.getByRole('button', { name: /approve/i }).click();
@@ -28,7 +48,7 @@ test('an admin approves the ready brief and its recommendation appears on the bo
 });
 
 test('an admin dismisses a pending alert with a reason', async ({ page }) => {
-  await signIn(page, 'admin@e2e.test', '/agency/alerts');
+  await page.goto('/agency/alerts');
   await expect(page.getByText('Smith HVAC started a $49 promo')).toBeVisible();
   await page.getByRole('button', { name: /dismiss/i }).first().click();
   await page.getByRole('dialog').getByRole('textbox').fill('Client already knows');
