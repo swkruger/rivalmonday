@@ -42,6 +42,16 @@ describe('brief email', () => {
     expect(html).not.toContain('https://app.example/l/pdf');
     expect(html).toContain('Headline 2');
   });
+
+  it('keeps the trend table columns aligned: header and every business row share one table', async () => {
+    // One table per row lets each row size its own columns, so a long name pushes its numbers right.
+    const html = await renderBriefDocument({ ...brief, link: null, pdfLink: null });
+    const header = html.indexOf('New reviews');
+    const lastRow = html.indexOf('Smith HVAC', header);
+    expect(header).toBeGreaterThan(-1);
+    expect(lastRow).toBeGreaterThan(header);
+    expect(html.slice(header, lastRow)).not.toContain('<table');
+  });
 });
 
 describe('trend report', () => {
