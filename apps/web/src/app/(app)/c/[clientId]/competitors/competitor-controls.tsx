@@ -1,6 +1,6 @@
 'use client';
-import type { SuggestionView } from '@cs/tools';
-import { Button, Card, CardContent, CardHeader, CardTitle, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label } from '@cs/ui';
+import type { SuggestionView, TrackedCompetitor } from '@cs/tools';
+import { Button, Card, CardContent, CardHeader, CardTitle, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { useActionState } from 'react';
 import type { FormResult } from '@/server/forms';
@@ -20,30 +20,47 @@ function Message({ state }: { state: FormResult }) {
   return null;
 }
 
-function AcceptSuggestionForm({ clientId, suggestion, atLimit, limit }: { clientId: string; suggestion: SuggestionView; atLimit: boolean; limit: number }) {
-  const [state, formAction, pending] = useActionState(acceptSuggestionAction, { ok: true } as FormResult);
+/** The last row-level result, tagged with the row it was for so a refusal shows in its own dialog. */
+type RowResult = FormResult & { rowId?: string };
+type RowAction = (fd: FormData) => void;
+
+/**
+ * Final-review fix: accept/dismiss state lives in `SuggestionsPanel` (and remove state in `TrackedCompetitorsTable`),
+ * which stay mounted. Each action revalidates the page on success, which removes the suggestion row (or the tracked
+ * competitor row and its dialog) in the same update; state held in the row would vanish before its message painted.
+ */
+async function suggestionAction(prev: RowResult, fd: FormData): Promise<RowResult> {
+  const r = fd.get('intent') === 'dismiss' ? await dismissSuggestionAction(prev, fd) : await acceptSuggestionAction(prev, fd);
+  return { ...r, rowId: String(fd.get('suggestionId') ?? '') };
+}
+
+async function removeAction(prev: RowResult, fd: FormData): Promise<RowResult> {
+  const r = await removeCompetitorAction(prev, fd);
+  return { ...r, rowId: String(fd.get('competitorId') ?? '') };
+}
+
+function AcceptSuggestionForm({ clientId, suggestion, atLimit, limit, action, pending }: { clientId: string; suggestion: SuggestionView; atLimit: boolean; limit: number; action: RowAction; pending: boolean }) {
   return (
-    <form action={formAction} className="flex flex-col items-end gap-2">
+    <form action={action}>
+      <input type="hidden" name="intent" value="accept" />
       <input type="hidden" name="clientId" value={clientId} />
       <input type="hidden" name="suggestionId" value={suggestion.id} />
       <Button type="submit" size="sm" disabled={atLimit || pending} title={atLimit ? `This client already tracks ${limit} competitors` : undefined} aria-label={`Accept ${suggestion.name}`}>
         Accept
       </Button>
-      <Message state={state} />
     </form>
   );
 }
 
-function DismissSuggestionForm({ clientId, suggestion }: { clientId: string; suggestion: SuggestionView }) {
-  const [state, formAction, pending] = useActionState(dismissSuggestionAction, { ok: true } as FormResult);
+function DismissSuggestionForm({ clientId, suggestion, action, pending }: { clientId: string; suggestion: SuggestionView; action: RowAction; pending: boolean }) {
   return (
-    <form action={formAction} className="flex flex-col items-end gap-2">
+    <form action={action}>
+      <input type="hidden" name="intent" value="dismiss" />
       <input type="hidden" name="clientId" value={clientId} />
       <input type="hidden" name="suggestionId" value={suggestion.id} />
       <Button type="submit" size="sm" variant="outline" disabled={pending} aria-label={`Dismiss ${suggestion.name}`}>
         Dismiss
       </Button>
-      <Message state={state} />
     </form>
   );
 }
@@ -68,6 +85,7 @@ export function SuggestionsPanel({
   limit?: number;
 }) {
   const [state, formAction, pending] = useActionState(requestSuggestionsAction, { ok: true } as FormResult);
+  const [rowState, rowAction, rowPending] = useActionState(suggestionAction, { ok: true } as RowResult);
   return (
     <Card>
       <CardHeader>
@@ -90,6 +108,7 @@ export function SuggestionsPanel({
           <p className="text-sm text-muted-foreground">Searches Google Maps across the service area (paid, about a minute of work in the background)</p>
           <Message state={state} />
         </form>
+        <Message state={rowState} />
         {suggestions.length > 0 && (
           <div className="flex flex-col gap-4">
             {suggestions.map((s) => (
@@ -103,8 +122,8 @@ export function SuggestionsPanel({
                   <p className="text-sm text-muted-foreground">Overlap {Math.round(s.overlapScore * 100)}%</p>
                 </div>
                 <div className="flex gap-2">
-                  <AcceptSuggestionForm clientId={clientId} suggestion={s} atLimit={atLimit} limit={limit} />
-                  <DismissSuggestionForm clientId={clientId} suggestion={s} />
+                  <AcceptSuggestionForm clientId={clientId} suggestion={s} atLimit={atLimit} limit={limit} action={rowAction} pending={rowPending} />
+                  <DismissSuggestionForm clientId={clientId} suggestion={s} action={rowAction} pending={rowPending} />
                 </div>
               </div>
             ))}
@@ -142,8 +161,7 @@ export function AddCompetitorForm({ clientId, atLimit, limit }: { clientId: stri
   );
 }
 
-export function RemoveCompetitorButton({ clientId, competitorId, name }: { clientId: string; competitorId: string; name: string }) {
-  const [state, formAction, pending] = useActionState(removeCompetitorAction, { ok: true } as FormResult);
+function RemoveCompetitorButton({ clientId, competitorId, name, action, pending, result }: { clientId: string; competitorId: string; name: string; action: RowAction; pending: boolean; result: RowResult }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -156,8 +174,8 @@ export function RemoveCompetitorButton({ clientId, competitorId, name }: { clien
           <DialogTitle>Stop tracking {name}?</DialogTitle>
           <DialogDescription>Its history is kept, and collection stops if no other client tracks it.</DialogDescription>
         </DialogHeader>
-        <Message state={state} />
-        <form action={formAction}>
+        {!result.ok && result.rowId === competitorId && <Message state={result} />}
+        <form action={action}>
           <input type="hidden" name="clientId" value={clientId} />
           <input type="hidden" name="competitorId" value={competitorId} />
           <DialogFooter>
@@ -168,5 +186,47 @@ export function RemoveCompetitorButton({ clientId, competitorId, name }: { clien
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** The tracked-competitors table; a successful removal's message shows above it (a refusal shows in the open dialog). */
+export function TrackedCompetitorsTable({ clientId, items }: { clientId: string; items: TrackedCompetitor[] }) {
+  const [result, action, pending] = useActionState(removeAction, { ok: true } as RowResult);
+  return (
+    <div className="flex flex-col gap-4">
+      {result.ok && <Message state={result} />}
+      {items.length === 0 ? (
+        <p className="text-muted-foreground">None yet — accept a suggestion or add one below.</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Website</TableHead>
+              <TableHead>Pages monitored</TableHead>
+              <TableHead>Since</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((c) => (
+              <TableRow key={c.id}>
+                <TableCell>
+                  <Link href={`/c/${clientId}/competitors/${c.id}`} className="font-semibold text-primary-soft-text">
+                    {c.name}
+                  </Link>
+                </TableCell>
+                <TableCell>{c.domain ?? '—'}</TableCell>
+                <TableCell>{c.activePages}</TableCell>
+                <TableCell>{c.addedAt.slice(0, 10)}</TableCell>
+                <TableCell>
+                  <RemoveCompetitorButton clientId={clientId} competitorId={c.id} name={c.name} action={action} pending={pending} result={result} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </div>
   );
 }

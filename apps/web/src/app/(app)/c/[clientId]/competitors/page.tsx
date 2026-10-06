@@ -1,12 +1,11 @@
 import { isAgencyRole } from '@cs/core';
 import type { ClientProfile, SuggestionView, TrackedCompetitor } from '@cs/tools';
 import { COMPETITOR_LIMIT } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
-import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
-import { AddCompetitorForm, RemoveCompetitorButton, SuggestionsPanel } from './competitor-controls';
+import { AddCompetitorForm, SuggestionsPanel, TrackedCompetitorsTable } from './competitor-controls';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,38 +30,7 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
           <CardTitle>Tracked competitors</CardTitle>
         </CardHeader>
         <CardContent>
-          {tracked.items.length === 0 ? (
-            <p className="text-muted-foreground">None yet — accept a suggestion or add one below.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Website</TableHead>
-                  <TableHead>Pages monitored</TableHead>
-                  <TableHead>Since</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tracked.items.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell>
-                      <Link href={`/c/${clientId}/competitors/${c.id}`} className="font-semibold text-primary-soft-text">
-                        {c.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{c.domain ?? '—'}</TableCell>
-                    <TableCell>{c.activePages}</TableCell>
-                    <TableCell>{c.addedAt.slice(0, 10)}</TableCell>
-                    <TableCell>
-                      <RemoveCompetitorButton clientId={clientId} competitorId={c.id} name={c.name} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <TrackedCompetitorsTable clientId={clientId} items={tracked.items} />
           <div className="mt-5 border-t border-line pt-5">
             <AddCompetitorForm clientId={clientId} atLimit={atLimit} limit={COMPETITOR_LIMIT} />
           </div>

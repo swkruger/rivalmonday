@@ -21,21 +21,36 @@ function Message({ state }: { state: FormResult }) {
   return null;
 }
 
-function ApproveButton({ alertId }: { alertId: string }) {
-  const [state, formAction, pending] = useActionState(approveAlertAction, { ok: true } as FormResult);
+/** The last approve or dismiss result, tagged with what it was for so a dismiss refusal shows in its own dialog. */
+type QueueResult = FormResult & { intent?: 'approve' | 'dismiss'; alertId?: string };
+type QueueAction = (fd: FormData) => void;
+
+/**
+ * Final-review fix: one action state for every card's approve and dismiss, held by `AlertList`, which stays mounted.
+ * Both actions revalidate the queue on success, which removes the card (or, for a digest-held approve, its button)
+ * in the same update; state held in the card would vanish before the engine's outcome could paint (plan decision 13).
+ */
+async function queueAction(prev: QueueResult, fd: FormData): Promise<QueueResult> {
+  const intent = fd.get('intent') === 'dismiss' ? 'dismiss' : 'approve';
+  const alertId = String(fd.get('alertId') ?? '');
+  const r = intent === 'dismiss' ? await dismissAlertAction(prev, fd) : await approveAlertAction(prev, fd);
+  return { ...r, intent, alertId };
+}
+
+function ApproveButton({ alertId, action, pending }: { alertId: string; action: QueueAction; pending: boolean }) {
   return (
-    <form action={formAction} className="flex flex-col gap-2">
+    <form action={action}>
+      <input type="hidden" name="intent" value="approve" />
       <input type="hidden" name="alertId" value={alertId} />
       <Button type="submit" disabled={pending}>
         Approve &amp; send
       </Button>
-      <Message state={state} />
     </form>
   );
 }
 
-function DismissDialog({ alertId }: { alertId: string }) {
-  const [state, formAction, pending] = useActionState(dismissAlertAction, { ok: true } as FormResult);
+function DismissDialog({ alertId, action, pending, result }: { alertId: string; action: QueueAction; pending: boolean; result: QueueResult }) {
+  const ownError = !result.ok && result.intent === 'dismiss' && result.alertId === alertId;
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -46,8 +61,9 @@ function DismissDialog({ alertId }: { alertId: string }) {
           <DialogTitle>Dismiss this alert?</DialogTitle>
           <DialogDescription>Nothing is sent to the client. A reason is required.</DialogDescription>
         </DialogHeader>
-        <Message state={state} />
-        <form action={formAction} className="flex flex-col gap-4">
+        {ownError && <Message state={result} />}
+        <form action={action} className="flex flex-col gap-4">
+          <input type="hidden" name="intent" value="dismiss" />
           <input type="hidden" name="alertId" value={alertId} />
           <div className="flex flex-col gap-2">
             <Label htmlFor={`reason-${alertId}`}>Reason</Label>
@@ -65,8 +81,8 @@ function DismissDialog({ alertId }: { alertId: string }) {
 }
 
 /** One alert waiting for review, or held for the 17:00 digest (read-only aside from Dismiss, since it was already approved). */
-export function AlertCard({ alert }: { alert: AlertQueueRow }) {
-  const pending = alert.status === 'pending_review';
+function AlertCard({ alert, action, pending, result }: { alert: AlertQueueRow; action: QueueAction; pending: boolean; result: QueueResult }) {
+  const pendingReview = alert.status === 'pending_review';
   return (
     <article className="rounded-[14px] bg-surface p-6 shadow-card">
       <div className="flex flex-wrap items-center gap-1.5">
@@ -83,9 +99,32 @@ export function AlertCard({ alert }: { alert: AlertQueueRow }) {
       </div>
       {alert.written === 'template' && <p className="mt-2 text-muted-foreground">Friday couldn’t verify its own wording, so this uses the evidence summary.</p>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        {pending && <ApproveButton alertId={alert.id} />}
-        <DismissDialog alertId={alert.id} />
+        {pendingReview && <ApproveButton alertId={alert.id} action={action} pending={pending} />}
+        <DismissDialog alertId={alert.id} action={action} pending={pending} result={result} />
       </div>
     </article>
+  );
+}
+
+/**
+ * The alert queue plus a flash line above it with the last approve/dismiss outcome. A dismiss refusal is shown in
+ * that alert's dialog instead (the dialog is still open, covering the page).
+ */
+export function AlertList({ items }: { items: AlertQueueRow[] }) {
+  const [result, action, pending] = useActionState(queueAction, { ok: true } as QueueResult);
+  const flash = result.ok || result.intent !== 'dismiss';
+  return (
+    <>
+      {flash && <Message state={result} />}
+      {items.length === 0 ? (
+        <p className="text-muted-foreground">No alerts waiting — nice.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {items.map((item) => (
+            <AlertCard key={item.id} alert={item} action={action} pending={pending} result={result} />
+          ))}
+        </div>
+      )}
+    </>
   );
 }
