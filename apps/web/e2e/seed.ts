@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { signLink } from '@cs/core';
-import { agency, brief, briefItem, client, clientCompetitor, competitor, contact, createDb } from '@cs/db';
+import { agency, alert, brief, briefItem, changeEvent, client, clientCompetitor, competitor, contact, createDb } from '@cs/db';
 import { createInvitation } from '@cs/tools';
 import { E2E_LINK_SECRET, OUTBOX, OWNER_LINK_FILE } from '../playwright.config';
 
@@ -46,6 +46,52 @@ export async function seed(): Promise<void> {
       effort: 'L',
       impact: 'H',
       upsellTag: 'ppc_audit',
+    });
+
+    const [readyBrief] = await db
+      .insert(brief)
+      .values({
+        agencyId,
+        clientId,
+        deliveryDate: '2026-10-12',
+        periodStart: new Date('2026-10-06T00:00:00Z'),
+        periodEnd: new Date('2026-10-12T00:00:00Z'),
+        status: 'ready',
+        summary: 'Smith HVAC made one notable move this week.',
+      })
+      .returning();
+
+    await db.insert(briefItem).values({
+      agencyId,
+      clientId,
+      briefId: readyBrief!.id,
+      ord: 1,
+      competitorId: comp!.id,
+      headline: 'Smith HVAC launched a $49 drain-cleaning promo',
+      whatChanged: 'Smith HVAC launched a $49 drain-cleaning promo.',
+      whyItMatters: 'This undercuts the standard drain-cleaning offer in the service area.',
+      recommendedAction: 'Run a $49 drain-cleaning bundle',
+      confidence: 0.9,
+      effort: 'L',
+      impact: 'H',
+      upsellTag: 'ppc_audit',
+    });
+
+    const [event] = await db
+      .insert(changeEvent)
+      .values({ competitorId: comp!.id, changeType: 'promo', summary: 'Smith HVAC launched a $49 drain-cleaning promo.', confidence: 0.9, occurredAt: new Date() })
+      .returning();
+
+    await db.insert(alert).values({
+      agencyId,
+      clientId,
+      competitorId: comp!.id,
+      eventId: event!.id,
+      score: 81,
+      headline: 'Smith HVAC started a $49 promo',
+      body: 'Smith HVAC launched a $49 drain-cleaning promo.',
+      status: 'pending_review',
+      mode: 'after_am_check',
     });
 
     await createInvitation(db, { agencyId, email: 'admin@e2e.test', role: 'agency_admin', invitedBy: 'e2e-seed' });

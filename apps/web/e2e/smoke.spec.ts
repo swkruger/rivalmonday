@@ -1,20 +1,7 @@
-import { readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
-import { OUTBOX, OWNER_LINK_FILE } from '../playwright.config';
-
-async function latestMagicLink(): Promise<string> {
-  for (let i = 0; i < 40; i++) {
-    const files = (await readdir(OUTBOX).catch(() => [] as string[])).filter((f) => f.endsWith('.json')).sort();
-    if (files.length) {
-      const msg = JSON.parse(await readFile(join(OUTBOX, files.at(-1)!), 'utf8')) as { text: string };
-      const m = /https?:\/\/\S+magic-link\/verify\S+/.exec(msg.text);
-      if (m) return m[0];
-    }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error('no magic link in the outbox');
-}
+import { OWNER_LINK_FILE } from '../playwright.config';
+import { latestMagicLink } from './helpers';
 
 test('an invited admin signs in by magic link and sees the themed client list', async ({ page }) => {
   await page.goto('/agency');
