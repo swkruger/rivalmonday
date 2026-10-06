@@ -274,7 +274,8 @@ function SendNowDialog({ briefId, state, formAction, pending }: { briefId: strin
 /**
  * `status === 'ready'` is the only state that can still be approved; `ready` or `approved` can still be sent now.
  * The send-now message shows inside its dialog while the dialog exists (a refusal leaves the status unchanged) and
- * in the footer once a successful send has removed the dialog.
+ * in the footer once a successful send has removed the dialog. A send supersedes the approve message (fix round 2):
+ * that one shows only while the brief can still be sent, so approve → send now leaves just the send message.
  */
 export function ReviewFooter({ briefId, clientId, status, autoSend }: { briefId: string; clientId: string; status: string; autoSend: boolean }) {
   const [approveState, approveFormAction, approvePending] = useActionState(approveAction, { ok: true } as FormResult);
@@ -289,8 +290,7 @@ export function ReviewFooter({ briefId, clientId, status, autoSend }: { briefId:
           {canSend && <SendNowDialog briefId={briefId} state={sendState} formAction={sendFormAction} pending={sendPending} />}
         </div>
       </div>
-      <Message state={approveState} />
-      {!canSend && <Message state={sendState} />}
+      {canSend ? <Message state={approveState} /> : <Message state={sendState} />}
     </div>
   );
 }

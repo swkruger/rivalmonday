@@ -20,12 +20,17 @@ export async function outboxSnapshot(): Promise<Set<string>> {
   return new Set(await outboxFiles());
 }
 
-/** The magic link from the first email that was not in `before` (waits up to 10 s for it to land). */
-export async function newMagicLink(before: Set<string>): Promise<string> {
+/**
+ * The magic link from the first email to `email` that was not in `before` (waits up to 10 s for it to land).
+ * `to` is a string in the file transport's JSON; an array is accepted too in case that ever changes.
+ */
+export async function newMagicLink(before: Set<string>, email: string): Promise<string> {
   for (let i = 0; i < 40; i++) {
     for (const f of (await outboxFiles()).filter((name) => !before.has(name))) {
       try {
-        const msg = JSON.parse(await readFile(join(OUTBOX, f), 'utf8')) as { text: string };
+        const msg = JSON.parse(await readFile(join(OUTBOX, f), 'utf8')) as { to: string | string[]; text: string };
+        const to = (Array.isArray(msg.to) ? msg.to : [msg.to]).map((a) => a.toLowerCase());
+        if (!to.includes(email.toLowerCase())) continue;
         const m = /https?:\/\/\S+magic-link\/verify\S+/.exec(msg.text);
         if (m) return m[0];
       } catch {
@@ -34,7 +39,7 @@ export async function newMagicLink(before: Set<string>): Promise<string> {
     }
     await new Promise((r) => setTimeout(r, 250));
   }
-  throw new Error('no new magic link in the outbox');
+  throw new Error(`no new magic link to ${email} in the outbox ${OUTBOX} within 10 s`);
 }
 
 /** Request a magic link from the sign-in form already open in `page` and return it. */
@@ -43,7 +48,7 @@ export async function requestMagicLink(page: Page, email: string): Promise<strin
   await page.getByLabel(/email/i).fill(email);
   await page.getByRole('button', { name: /email me a sign-in link/i }).click();
   await expect(page).toHaveURL(/check-email/);
-  return newMagicLink(before);
+  return newMagicLink(before, email);
 }
 
 export async function signIn(page: Page, email: string, next = '/agency'): Promise<void> {

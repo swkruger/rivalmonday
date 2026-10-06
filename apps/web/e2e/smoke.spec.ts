@@ -12,7 +12,8 @@ test('an invited admin signs in by magic link and sees the themed client list', 
   const primary = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim());
   expect(primary.toLowerCase()).toBe('#7a3ee8');
   await page.getByRole('link', { name: 'E2E HVAC' }).click();
-  await page.getByRole('link', { name: /week of/i }).first().click();
+  // The seed also has a `ready` brief for 2026-10-12 (listed first); this test is about the sent 2026-10-05 one.
+  await page.getByRole('link', { name: /week of 2026-10-05/i }).click();
   await expect(page.getByText('Upsell: ppc_audit')).toBeVisible();
 });
 

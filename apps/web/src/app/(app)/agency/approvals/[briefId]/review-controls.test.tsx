@@ -73,6 +73,24 @@ describe('approval review controls', () => {
     expect(screen.getAllByText(/sent to 2 recipient/i)).toHaveLength(1);
   });
 
+  it('shows only the send message after approve then send now', async () => {
+    approveMock.mockReset();
+    sendNowMock.mockReset();
+    approveMock.mockResolvedValueOnce({ ok: true, message: 'Approved — it goes out Monday 07:00. 1 recommendation(s) created.' });
+    sendNowMock.mockResolvedValueOnce({ ok: true, message: 'Sent to 2 recipient(s). The PDF is being prepared.' });
+    const { rerender } = render(<ReviewFooter briefId="b1" clientId="c1" status="ready" autoSend={false} />);
+    fireEvent.click(screen.getByRole('button', { name: /approve/i }));
+    await screen.findByText(/approved — it goes out monday/i);
+    rerender(<ReviewFooter briefId="b1" clientId="c1" status="approved" autoSend={false} />);
+    fireEvent.click(screen.getByRole('button', { name: /send now/i }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /send now/i }));
+    await waitFor(() => expect(sendNowMock).toHaveBeenCalledTimes(1));
+    await screen.findByText(/sent to 2 recipient/i);
+    rerender(<ReviewFooter briefId="b1" clientId="c1" status="sent" autoSend={false} />);
+    expect(screen.getAllByText(/sent to 2 recipient/i)).toHaveLength(1);
+    expect(screen.queryByText(/approved — it goes out monday/i)).toBeNull();
+  });
+
   it('submits the freshly toggled value, not the stale pre-toggle one', async () => {
     autoSendMock.mockReset();
     autoSendMock.mockResolvedValueOnce({ ok: true });
