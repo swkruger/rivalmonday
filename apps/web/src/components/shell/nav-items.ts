@@ -8,7 +8,7 @@
 export interface NavItem {
   href: string;
   label: string;
-  icon: 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'approvals' | 'alerts';
+  icon: 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'approvals' | 'alerts' | 'recommendations';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -35,12 +35,14 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
     items.push({ href: '/agency/alerts', label: 'Alert review', icon: 'alerts' });
     if (clientId) {
       items.push({ href: `/c/${clientId}`, label: 'Overview', icon: 'overview' });
+      items.push({ href: `/c/${clientId}/recommendations`, label: 'Recommendations', icon: 'recommendations' });
       items.push({ href: `/c/${clientId}/settings/profile`, label: 'Profile', icon: 'profile' });
       items.push({ href: `/c/${clientId}/competitors`, label: 'Competitors', icon: 'competitors' });
       items.push({ href: `/c/${clientId}/settings/delivery`, label: 'Delivery', icon: 'delivery' });
     }
   } else {
     items.push({ href: flags.homePath, label: 'Overview', icon: 'overview' });
+    items.push({ href: `${flags.homePath}/recommendations`, label: 'Recommendations', icon: 'recommendations' });
   }
   items.push({ href: '/inbox', label: 'Inbox', icon: 'inbox' });
   if (flags.isAgency) items.push({ href: '/agency/team', label: 'Team', icon: 'team' });

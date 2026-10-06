@@ -9,17 +9,22 @@ const ctx = (role: 'agency_admin' | 'account_manager' | 'client_owner' | 'client
 
 describe('navFor', () => {
   it('gives admins agency settings', () => {
-    expect(navFor({ kind: 'user', ctx: ctx('agency_admin') }, null).map((n) => n.href)).toEqual(['/agency', '/inbox', '/agency/team', '/agency/branding', '/agency/webhooks', '/settings/notifications']);
+    expect(navFor({ kind: 'user', ctx: ctx('agency_admin') }, null).map((n) => n.href)).toEqual([
+      '/agency', '/agency/approvals', '/agency/alerts', '/inbox', '/agency/team', '/agency/branding', '/agency/webhooks', '/settings/notifications',
+    ]);
   });
   it('gives account managers team but not branding/webhooks, plus client pages inside a client', () => {
     const hrefs = navFor({ kind: 'user', ctx: ctx('account_manager') }, C).map((n) => n.href);
-    expect(hrefs).toEqual(['/agency', `/c/${C}`, `/c/${C}/settings/delivery`, '/inbox', '/agency/team', '/settings/notifications']);
+    expect(hrefs).toEqual([
+      '/agency', '/agency/approvals', '/agency/alerts', `/c/${C}`, `/c/${C}/recommendations`, `/c/${C}/settings/profile`, `/c/${C}/competitors`, `/c/${C}/settings/delivery`,
+      '/inbox', '/agency/team', '/settings/notifications',
+    ]);
   });
   it('gives client users their overview, inbox and preferences', () => {
-    expect(navFor({ kind: 'user', ctx: ctx('client_viewer') }, C).map((n) => n.href)).toEqual([`/c/${C}`, '/inbox', '/settings/notifications']);
+    expect(navFor({ kind: 'user', ctx: ctx('client_viewer') }, C).map((n) => n.href)).toEqual([`/c/${C}`, `/c/${C}/recommendations`, '/inbox', '/settings/notifications']);
   });
   it('gives guests no settings', () => {
-    expect(navFor({ kind: 'guest', ctx: ctx('client_viewer') }, C).map((n) => n.href)).toEqual([`/c/${C}`, '/inbox']);
+    expect(navFor({ kind: 'guest', ctx: ctx('client_viewer') }, C).map((n) => n.href)).toEqual([`/c/${C}`, `/c/${C}/recommendations`, '/inbox']);
   });
 });
 

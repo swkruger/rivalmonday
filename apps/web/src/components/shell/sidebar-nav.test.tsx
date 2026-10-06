@@ -86,4 +86,17 @@ describe('SidebarNav', () => {
     // Non-agency roles never get the agency-only client-scoped Delivery item.
     expect(screen.queryByRole('link', { name: 'Delivery' })).toBeNull();
   });
+
+  it('shows a client viewer Recommendations linking to their own client', () => {
+    pathname = `/c/${CLIENT_ID}`;
+    render(<SidebarNav flags={clientViewer} />);
+    expect(screen.getByRole('link', { name: 'Recommendations' }).getAttribute('href')).toBe(`/c/${CLIENT_ID}/recommendations`);
+  });
+
+  it('highlights Recommendations for an agency admin on /c/<uuid>/recommendations', () => {
+    pathname = `/c/${CLIENT_ID}/recommendations`;
+    render(<SidebarNav flags={agencyAdmin} />);
+    expect(activeHrefOf()).toBe(`/c/${CLIENT_ID}/recommendations`);
+    expect(screen.getByRole('link', { name: 'Recommendations' }).getAttribute('href')).toBe(`/c/${CLIENT_ID}/recommendations`);
+  });
 });
