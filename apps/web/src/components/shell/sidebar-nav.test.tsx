@@ -23,10 +23,11 @@ beforeEach(() => {
 });
 
 describe('SidebarNav', () => {
-  it('highlights Clients on /agency', () => {
+  it('highlights Portfolio on /agency', () => {
     pathname = '/agency';
     render(<SidebarNav flags={agencyAdmin} />);
     expect(activeHrefOf()).toBe('/agency');
+    expect(screen.getByRole('link', { name: 'Portfolio' }).getAttribute('href')).toBe('/agency');
     // No client selected yet, so the client-scoped items aren't shown at all.
     expect(screen.queryByRole('link', { name: 'Overview' })).toBeNull();
   });

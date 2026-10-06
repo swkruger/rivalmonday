@@ -26,11 +26,11 @@ export function clientIdFromPath(pathname: string): string | null {
   return CLIENT_PATH.exec(pathname)?.[1] ?? null;
 }
 
-/** 5b/5c add their modules here; only screens that exist are listed. Mirrors the old `navFor` in `@/server/nav`. */
+/** 5c adds its modules here; only screens that exist are listed. Mirrors the old `navFor` in `@/server/nav`. */
 export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavItem[] {
   const items: NavItem[] = [];
   if (flags.isAgency) {
-    items.push({ href: '/agency', label: 'Clients', icon: 'clients' });
+    items.push({ href: '/agency', label: 'Portfolio', icon: 'clients' });
     if (clientId) {
       items.push({ href: `/c/${clientId}`, label: 'Overview', icon: 'overview' });
       items.push({ href: `/c/${clientId}/settings/profile`, label: 'Profile', icon: 'profile' });
