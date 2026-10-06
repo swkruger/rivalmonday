@@ -122,10 +122,14 @@ export async function rateBriefItem(deps: ReviewDeps, ctx: AccessContext, itemId
   await deps.service.insert(feedback).values({ agencyId: item.agencyId, clientId: item.clientId, subjectType: 'brief_item', subjectId: itemId, kind: 'rating', actor: ctx.userId, after: { useful }, reason: reason ?? null });
 }
 
+/** Spec §8.5 / 5b-1 decision 14: a recommendation dismissed because its item's evidence was retracted before delivery. */
+export const RECOMMENDATION_WITHDRAWN_REASON = 'Evidence withdrawn before delivery';
+
 /**
  * No evidence, no claim: system-drops the brief's active items whose events were retracted (a `drop` feedback with
- * actor `system`, reason 'evidence retracted'), inside the caller's transaction. Recommendations are not touched.
- * Used at approval and again by `deliverBrief` just before sending. Returns the dropped item ids.
+ * actor `system`, reason 'evidence retracted'), inside the caller's transaction, and dismisses those items' still-
+ * `todo` recommendations (4b parked item; 5b-1 decision 14). Recommendations someone already started or finished
+ * are left alone. Used at approval and again by `deliverBrief` just before sending. Returns the dropped item ids.
  */
 export async function dropRetractedItems(tx: Tx, briefId: string): Promise<string[]> {
   const active = await tx.select().from(briefItem).where(and(eq(briefItem.briefId, briefId), eq(briefItem.status, 'active')));
@@ -136,6 +140,17 @@ export async function dropRetractedItems(tx: Tx, briefId: string): Promise<strin
   if (stale.length === 0) return [];
   await tx.update(briefItem).set({ status: 'dropped' }).where(inArray(briefItem.id, stale.map((i) => i.id)));
   await tx.insert(feedback).values(stale.map((i) => ({ agencyId: i.agencyId, clientId: i.clientId, subjectType: 'brief_item', subjectId: i.id, kind: 'drop', actor: 'system', reason: 'evidence retracted' })));
+  const withdrawn = await tx
+    .update(recommendation)
+    .set({ status: 'dismissed', dismissReason: RECOMMENDATION_WITHDRAWN_REASON, updatedAt: new Date() })
+    .where(and(inArray(recommendation.briefItemId, stale.map((i) => i.id)), eq(recommendation.status, 'todo')))
+    .returning({ id: recommendation.id, agencyId: recommendation.agencyId, clientId: recommendation.clientId });
+  if (withdrawn.length) {
+    await tx.insert(feedback).values(withdrawn.map((r) => ({
+      agencyId: r.agencyId, clientId: r.clientId, subjectType: 'recommendation', subjectId: r.id, kind: 'status', actor: 'system',
+      before: { status: 'todo' }, after: { status: 'dismissed' }, reason: RECOMMENDATION_WITHDRAWN_REASON,
+    })));
+  }
   return stale.map((i) => i.id);
 }
 

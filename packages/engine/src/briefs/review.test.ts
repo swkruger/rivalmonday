@@ -1,12 +1,14 @@
 import { createAccessContext } from '@cs/core';
 import { brief, briefItem, changeEvent, feedback, move, recommendation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
 import { createPackLoader } from '../tag/tag-stage';
 import { QUIET_SUMMARY } from './generate';
-import { approveBrief, approveBriefTx, dropBriefItem, editBriefItem, getBrief, rateBriefItem, reorderBriefItems } from './review';
+import {
+  approveBrief, approveBriefTx, dropBriefItem, dropRetractedItems, editBriefItem, getBrief, RECOMMENDATION_WITHDRAWN_REASON, rateBriefItem, reorderBriefItems,
+} from './review';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -94,6 +96,33 @@ describe('brief review', () => {
     expect(fb).toHaveLength(2);
     for (const f of fb) expect(f).toMatchObject({ kind: 'drop', subjectType: 'brief_item', actor: 'system', reason: 'evidence retracted' });
     expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ status: 'approved' });
+  });
+
+  it('dismisses the todo recommendation of an item dropped because its evidence was retracted (4b parked item)', async () => {
+    const evA = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(-2), createdAt: day(-2) });
+    const evB = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(-3), createdAt: day(-3) });
+    const [approvedBrief] = await dbs.service.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, deliveryDate: '2026-09-28', periodStart: day(-14), periodEnd: day(-7), status: 'approved', summary: 's' }).returning({ id: brief.id });
+    const approvedBriefId = approvedBrief!.id;
+    const [itemA, itemB] = (await dbs.service.insert(briefItem).values([
+      { ...base, briefId: approvedBriefId, ord: 0, headline: 'A', eventIds: [evA.eventId] },
+      { ...base, briefId: approvedBriefId, ord: 1, headline: 'B', eventIds: [evB.eventId] },
+    ]).returning({ id: briefItem.id })).map((r) => r.id);
+    const [recA] = await dbs.service.insert(recommendation).values({
+      agencyId: IDS.agencyA, clientId: IDS.clientA1, title: 'Rec A', rationale: 'r', briefItemId: itemA, effort: 'L', impact: 'M', owner: 'client', source: 'brief', status: 'todo',
+    }).returning({ id: recommendation.id });
+    const [recB] = await dbs.service.insert(recommendation).values({
+      agencyId: IDS.agencyA, clientId: IDS.clientA1, title: 'Rec B', rationale: 'r', briefItemId: itemB, effort: 'L', impact: 'M', owner: 'client', source: 'brief', status: 'in_progress',
+    }).returning({ id: recommendation.id });
+    await dbs.service.update(changeEvent).set({ retractedAt: new Date(), retractionReason: 'review' }).where(inArray(changeEvent.id, [evA.eventId, evB.eventId]));
+
+    const dropped = await dbs.service.transaction((tx) => dropRetractedItems(tx, approvedBriefId));
+    expect(dropped.sort()).toEqual([itemA, itemB].sort());
+    const [recAAfter] = await dbs.owner.select().from(recommendation).where(eq(recommendation.id, recA!.id));
+    expect(recAAfter).toMatchObject({ status: 'dismissed', dismissReason: RECOMMENDATION_WITHDRAWN_REASON });
+    const [recBAfter] = await dbs.owner.select().from(recommendation).where(eq(recommendation.id, recB!.id));
+    expect(recBAfter!.status).toBe('in_progress');
+    const fb = await dbs.owner.select().from(feedback).where(and(eq(feedback.subjectType, 'recommendation'), eq(feedback.subjectId, recAAfter!.id)));
+    expect(fb).toEqual([expect.objectContaining({ kind: 'status', actor: 'system', reason: RECOMMENDATION_WITHDRAWN_REASON })]);
   });
 
   it('approval adds no recommendation for an item whose move already has a live one; a dismissed one does not block', async () => {
