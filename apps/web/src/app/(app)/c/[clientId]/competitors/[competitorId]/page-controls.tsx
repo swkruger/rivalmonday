@@ -1,7 +1,7 @@
 'use client';
 import type { TrackedPageView } from '@cs/tools';
 import { Button, Input, Label, Switch } from '@cs/ui';
-import { useActionState, useRef, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import type { FormResult } from '@/server/forms';
 import { addPageAction, setPinAction } from '../actions';
 
@@ -22,10 +22,35 @@ function Message({ state }: { state: FormResult }) {
   return null;
 }
 
+/**
+ * Review Fix 1: the toggle is optimistic (flips immediately, before the server confirms), so a failed
+ * `setPinAction` must roll the switch back to the last server-confirmed value — otherwise it shows the wrong
+ * state until a full navigation. `confirmedRef` holds that last-known-good value; `attemptedRef` holds the value
+ * of the in-flight attempt. The effect below is keyed on `state` (the `useActionState` result) and reconciles
+ * once that result lands: adopt the attempt as confirmed on success, revert to `confirmedRef` on failure. A
+ * second toggle while one is already in flight is ignored (checked at the top of `onCheckedChange`, and the
+ * switch is also visually `disabled`) so attemptedRef/confirmedRef never have to track more than one attempt.
+ */
 export function PinPageSwitch({ clientId, competitorId, page }: { clientId: string; competitorId: string; page: TrackedPageView }) {
   const [state, formAction, pending] = useActionState(setPinAction, { ok: true } as FormResult);
   const [pinned, setPinned] = useState(page.pinned);
+  const [submitting, setSubmitting] = useState(false);
+  const confirmedRef = useRef(page.pinned);
+  const attemptedRef = useRef<boolean | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (attemptedRef.current === null) return; // no attempt has completed yet (e.g. first mount)
+    const attempted = attemptedRef.current;
+    attemptedRef.current = null;
+    if (state.ok) {
+      confirmedRef.current = attempted;
+    } else {
+      setPinned(confirmedRef.current);
+    }
+    setSubmitting(false);
+  }, [state]);
+
   return (
     <form ref={formRef} action={formAction} className="flex flex-col gap-1">
       <input type="hidden" name="clientId" value={clientId} />
@@ -34,9 +59,12 @@ export function PinPageSwitch({ clientId, competitorId, page }: { clientId: stri
       <input type="hidden" name="pinned" value={pinned ? 'true' : 'false'} />
       <Switch
         checked={pinned}
-        disabled={pending}
+        disabled={pending || submitting}
         onCheckedChange={(next) => {
+          if (pending || submitting) return; // ignore a second toggle while one is in flight
+          attemptedRef.current = next;
           setPinned(next);
+          setSubmitting(true);
           // Let the hidden `pinned` input re-render with `next` before the form submits.
           requestAnimationFrame(() => formRef.current?.requestSubmit());
         }}

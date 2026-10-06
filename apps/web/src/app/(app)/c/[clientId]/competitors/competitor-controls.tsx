@@ -20,13 +20,13 @@ function Message({ state }: { state: FormResult }) {
   return null;
 }
 
-function AcceptSuggestionForm({ clientId, suggestion, atLimit }: { clientId: string; suggestion: SuggestionView; atLimit: boolean }) {
+function AcceptSuggestionForm({ clientId, suggestion, atLimit, limit }: { clientId: string; suggestion: SuggestionView; atLimit: boolean; limit: number }) {
   const [state, formAction, pending] = useActionState(acceptSuggestionAction, { ok: true } as FormResult);
   return (
     <form action={formAction} className="flex flex-col items-end gap-2">
       <input type="hidden" name="clientId" value={clientId} />
       <input type="hidden" name="suggestionId" value={suggestion.id} />
-      <Button type="submit" size="sm" disabled={atLimit || pending} title={atLimit ? 'This client already tracks 5 competitors' : undefined} aria-label={`Accept ${suggestion.name}`}>
+      <Button type="submit" size="sm" disabled={atLimit || pending} title={atLimit ? `This client already tracks ${limit} competitors` : undefined} aria-label={`Accept ${suggestion.name}`}>
         Accept
       </Button>
       <Message state={state} />
@@ -53,11 +53,19 @@ export function SuggestionsPanel({
   ready,
   suggestions,
   atLimit,
+  /**
+   * Review Fix 2: the caller (`page.tsx`, a server file) passes the real `COMPETITOR_LIMIT` from `@cs/tools` so
+   * the "at limit" copy never hardcodes the number. This component is `'use client'` and must not import a
+   * runtime value from `@cs/tools` itself (common.md: don't pull server-only packages into client components —
+   * pass data as props), so the default here only covers the brief's fixed test call, which omits the prop.
+   */
+  limit = 5,
 }: {
   clientId: string;
   ready: boolean;
   suggestions: SuggestionView[];
   atLimit: boolean;
+  limit?: number;
 }) {
   const [state, formAction, pending] = useActionState(requestSuggestionsAction, { ok: true } as FormResult);
   return (
@@ -95,7 +103,7 @@ export function SuggestionsPanel({
                   <p className="text-sm text-muted-foreground">Overlap {Math.round(s.overlapScore * 100)}%</p>
                 </div>
                 <div className="flex gap-2">
-                  <AcceptSuggestionForm clientId={clientId} suggestion={s} atLimit={atLimit} />
+                  <AcceptSuggestionForm clientId={clientId} suggestion={s} atLimit={atLimit} limit={limit} />
                   <DismissSuggestionForm clientId={clientId} suggestion={s} />
                 </div>
               </div>
@@ -107,7 +115,7 @@ export function SuggestionsPanel({
   );
 }
 
-export function AddCompetitorForm({ clientId, atLimit }: { clientId: string; atLimit: boolean }) {
+export function AddCompetitorForm({ clientId, atLimit, limit }: { clientId: string; atLimit: boolean; limit: number }) {
   const [state, formAction, pending] = useActionState(addCompetitorAction, { ok: true } as FormResult);
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -126,7 +134,7 @@ export function AddCompetitorForm({ clientId, atLimit }: { clientId: string; atL
           <Label htmlFor="competitor-place-id">Google place id (optional)</Label>
           <Input id="competitor-place-id" name="placeId" className="w-56" />
         </div>
-        <Button type="submit" disabled={atLimit || pending} title={atLimit ? 'This client already tracks 5 competitors' : undefined}>
+        <Button type="submit" disabled={atLimit || pending} title={atLimit ? `This client already tracks ${limit} competitors` : undefined}>
           Add competitor
         </Button>
       </div>

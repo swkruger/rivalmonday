@@ -64,11 +64,17 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
             </Table>
           )}
           <div className="mt-5 border-t border-line pt-5">
-            <AddCompetitorForm clientId={clientId} atLimit={atLimit} />
+            <AddCompetitorForm clientId={clientId} atLimit={atLimit} limit={COMPETITOR_LIMIT} />
           </div>
         </CardContent>
       </Card>
-      <SuggestionsPanel clientId={clientId} ready={profile.keywords.length > 0 && profile.serviceArea !== null} suggestions={suggestions.items} atLimit={atLimit} />
+      <SuggestionsPanel
+        clientId={clientId}
+        ready={profile.keywords.length > 0 && profile.serviceArea !== null}
+        suggestions={suggestions.items}
+        atLimit={atLimit}
+        limit={COMPETITOR_LIMIT}
+      />
     </>
   );
 }

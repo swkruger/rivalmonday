@@ -13,10 +13,12 @@ export default async function CompetitorPagesPage({ params }: { params: Promise<
   const { clientId, competitorId } = await params;
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const tracked = await callTool<{ items: TrackedCompetitor[] }>(ctx, 'list_client_competitors', { clientId });
+  const [tracked, pages] = await Promise.all([
+    callTool<{ items: TrackedCompetitor[] }>(ctx, 'list_client_competitors', { clientId }),
+    callTool<{ items: TrackedPageView[] }>(ctx, 'list_tracked_pages', { clientId, competitorId }),
+  ]);
   const competitor = tracked.items.find((c) => c.id === competitorId);
   if (!competitor) notFound();
-  const pages = await callTool<{ items: TrackedPageView[] }>(ctx, 'list_tracked_pages', { clientId, competitorId });
 
   return (
     <>
