@@ -1,11 +1,11 @@
 'use client';
 
-import { Bell, Building2, Inbox, LayoutDashboard, Palette, Send, Swords, UserCog, Users, Webhook } from 'lucide-react';
+import { Bell, Building2, ClipboardCheck, Inbox, LayoutDashboard, Palette, Send, Swords, UserCog, Users, Webhook } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { activeHref, clientIdFromPath, type NavItem, type NavRoleFlags, navItemsFor } from './nav-items';
 
-const ICONS = { clients: Users, overview: LayoutDashboard, inbox: Inbox, team: UserCog, branding: Palette, webhooks: Webhook, bell: Bell, delivery: Send, profile: Building2, competitors: Swords } as const satisfies Record<NavItem['icon'], unknown>;
+const ICONS = { clients: Users, overview: LayoutDashboard, inbox: Inbox, team: UserCog, branding: Palette, webhooks: Webhook, bell: Bell, delivery: Send, profile: Building2, competitors: Swords, approvals: ClipboardCheck } as const satisfies Record<NavItem['icon'], unknown>;
 
 /**
  * Client component so the active highlight and client-scoped items (`/c/<id>`, `/c/<id>/settings/delivery`) track

@@ -59,6 +59,12 @@ describe('SidebarNav', () => {
     expect(activeHrefOf()).toBe(`/c/${CLIENT_ID}/settings/profile`);
   });
 
+  it('highlights Approvals on /agency/approvals/<uuid>', () => {
+    pathname = `/agency/approvals/${CLIENT_ID}`;
+    render(<SidebarNav flags={agencyAdmin} />);
+    expect(activeHrefOf()).toBe('/agency/approvals');
+  });
+
   it('highlights Competitors (not a deeper match) on /c/<uuid>/competitors/<other uuid>', () => {
     const OTHER_ID = '22222222-2222-2222-2222-222222222222';
     pathname = `/c/${CLIENT_ID}/competitors/${OTHER_ID}`;

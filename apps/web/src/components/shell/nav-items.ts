@@ -8,7 +8,7 @@
 export interface NavItem {
   href: string;
   label: string;
-  icon: 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors';
+  icon: 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'approvals';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -31,6 +31,7 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
   const items: NavItem[] = [];
   if (flags.isAgency) {
     items.push({ href: '/agency', label: 'Portfolio', icon: 'clients' });
+    items.push({ href: '/agency/approvals', label: 'Approvals', icon: 'approvals' });
     if (clientId) {
       items.push({ href: `/c/${clientId}`, label: 'Overview', icon: 'overview' });
       items.push({ href: `/c/${clientId}/settings/profile`, label: 'Profile', icon: 'profile' });
