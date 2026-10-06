@@ -6,6 +6,7 @@ export * from './deps';
 export * from './inbox';
 export * from './limits';
 export * from './preferences';
+export * from './pressure';
 export * from './registry';
 export * from './settings';
 export * from './timezone';

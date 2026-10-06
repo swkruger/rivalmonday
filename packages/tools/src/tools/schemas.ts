@@ -72,3 +72,11 @@ export type TrackedPageView = z.infer<typeof TrackedPageView>;
 
 export const listInput = (max: number) => z.object({ clientId: uuid, limit: z.number().int().min(1).max(max).default(Math.min(20, max)) });
 export const toIso = (d: Date | null) => (d ? d.toISOString() : null);
+
+export const PressureView = z.object({ score: z.number().int(), level: z.enum(['low', 'elevated', 'high']), reasons: z.array(z.string()) });
+export const PortfolioRow = z.object({
+  clientId: uuid, name: z.string(), verticalId: z.string(), pressure: PressureView, topCompetitor: z.string().nullable(),
+  alertsPending: z.number().int(), alertsDelivered7d: z.number().int(), briefToApprove: z.object({ id: uuid, deliveryDate: z.string() }).nullable(),
+  openRecommendations: z.number().int(), lastActivityAt: iso.nullable(),
+});
+export type PortfolioRow = z.infer<typeof PortfolioRow>;
