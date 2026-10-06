@@ -230,21 +230,23 @@ function AutoSendSwitch({ briefId, clientId, autoSend }: { briefId: string; clie
   );
 }
 
-function ApproveButton({ briefId }: { briefId: string }) {
-  const [state, formAction, pending] = useActionState(approveAction, { ok: true } as FormResult);
+/**
+ * Fix round 1 (Task 15): the approve and send-now action states live in `ReviewFooter`, not in the button/dialog.
+ * Both actions revalidate the page on success, which flips `status` (`ready` -> `approved`, or -> `sent`) and
+ * unmounts the button or dialog in the same update; state held there would vanish before its message could paint.
+ */
+function ApproveButton({ briefId, formAction, pending }: { briefId: string; formAction: (fd: FormData) => void; pending: boolean }) {
   return (
-    <form action={formAction} className="flex flex-col gap-2">
+    <form action={formAction}>
       <input type="hidden" name="briefId" value={briefId} />
       <Button type="submit" disabled={pending}>
         Approve · send Mon 07:00
       </Button>
-      <Message state={state} />
     </form>
   );
 }
 
-function SendNowDialog({ briefId }: { briefId: string }) {
-  const [state, formAction, pending] = useActionState(sendNowAction, { ok: true } as FormResult);
+function SendNowDialog({ briefId, state, formAction, pending }: { briefId: string; state: FormResult; formAction: (fd: FormData) => void; pending: boolean }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -269,15 +271,26 @@ function SendNowDialog({ briefId }: { briefId: string }) {
   );
 }
 
-/** `status === 'ready'` is the only state that can still be approved; `ready` or `approved` can still be sent now. */
+/**
+ * `status === 'ready'` is the only state that can still be approved; `ready` or `approved` can still be sent now.
+ * The send-now message shows inside its dialog while the dialog exists (a refusal leaves the status unchanged) and
+ * in the footer once a successful send has removed the dialog.
+ */
 export function ReviewFooter({ briefId, clientId, status, autoSend }: { briefId: string; clientId: string; status: string; autoSend: boolean }) {
+  const [approveState, approveFormAction, approvePending] = useActionState(approveAction, { ok: true } as FormResult);
+  const [sendState, sendFormAction, sendPending] = useActionState(sendNowAction, { ok: true } as FormResult);
+  const canSend = status === 'ready' || status === 'approved';
   return (
-    <div className="flex flex-wrap items-center gap-4 rounded-[14px] bg-surface p-6 shadow-card">
-      <AutoSendSwitch briefId={briefId} clientId={clientId} autoSend={autoSend} />
-      <div className="ml-auto flex items-center gap-3">
-        {status === 'ready' && <ApproveButton briefId={briefId} />}
-        {(status === 'ready' || status === 'approved') && <SendNowDialog briefId={briefId} />}
+    <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
+      <div className="flex flex-wrap items-center gap-4">
+        <AutoSendSwitch briefId={briefId} clientId={clientId} autoSend={autoSend} />
+        <div className="ml-auto flex items-center gap-3">
+          {status === 'ready' && <ApproveButton briefId={briefId} formAction={approveFormAction} pending={approvePending} />}
+          {canSend && <SendNowDialog briefId={briefId} state={sendState} formAction={sendFormAction} pending={sendPending} />}
+        </div>
       </div>
+      <Message state={approveState} />
+      {!canSend && <Message state={sendState} />}
     </div>
   );
 }
