@@ -29,6 +29,36 @@ export async function findExistingCompetitor(
   return undefined;
 }
 
+/**
+ * Applied when a new link reuses an existing global competitor row (accepting a suggestion, or `add_competitor`).
+ * Backfills only columns the row is missing — never overwrites a value it already has — and, if the row is any
+ * client's self business, replaces its name with `source.name` (see the comment below).
+ */
+export async function patchReusedCompetitor(
+  service: Db,
+  existing: CompetitorRow,
+  source: { placeId: string | null; cid: string | null; domain: string | null; name: string | null },
+): Promise<void> {
+  const competitorId = existing.id;
+  const patch: { placeId?: string; cid?: string; domain?: string; name?: string } = {};
+  if (!existing.placeId && source.placeId) patch.placeId = source.placeId;
+  if (!existing.cid && source.cid) patch.cid = source.cid;
+  if (!existing.domain && source.domain) {
+    // Same guard as acceptSuggestion's insert branch: don't steal a domain another competitor row already owns.
+    const [domainClash] = await service.select().from(competitor).where(eq(competitor.domain, source.domain)).limit(1);
+    if (!domainClash) patch.domain = source.domain;
+  }
+  // A row reused as a client's self business (ensureSelfCompetitor) was named from that client's own
+  // `client.name` — tenant-private data that must never leak to a second agency reusing the same row. If this
+  // row is anyone's self business, replace the name with the caller's (the GBP title of a suggestion, or the
+  // name typed into add_competitor), which is the second agency's own data, not the first agency's.
+  const [selfRef] = await service.select({ id: client.id }).from(client).where(eq(client.selfCompetitorId, competitorId)).limit(1);
+  if (selfRef && source.name) patch.name = source.name;
+  if (Object.keys(patch).length > 0) {
+    await service.update(competitor).set(patch).where(eq(competitor.id, competitorId));
+  }
+}
+
 /** Visibility is checked through RLS as the caller; the global competitor is written by the service role. */
 export async function acceptSuggestion(deps: { service: Db; app: Db }, ctx: AccessContext, suggestionId: string): Promise<{ competitorId: string }> {
   if (!canManageCompetitors(ctx)) throw new ToolError('permission_denied', 'This role may not manage competitors');
@@ -39,24 +69,7 @@ export async function acceptSuggestion(deps: { service: Db; app: Db }, ctx: Acce
   const existing = await findExistingCompetitor(deps.service, s);
   if (existing) {
     competitorId = existing.id;
-    // Backfill only columns the existing row is missing — never overwrite a value it already has.
-    const patch: { placeId?: string; cid?: string; domain?: string; name?: string } = {};
-    if (!existing.placeId && s.placeId) patch.placeId = s.placeId;
-    if (!existing.cid && s.cid) patch.cid = s.cid;
-    if (!existing.domain && s.domain) {
-      // Same guard as the insert branch below: don't steal a domain another competitor row already owns.
-      const [domainClash] = await deps.service.select().from(competitor).where(eq(competitor.domain, s.domain)).limit(1);
-      if (!domainClash) patch.domain = s.domain;
-    }
-    // A row reused as a client's self business (ensureSelfCompetitor) was named from that client's own
-    // `client.name` — tenant-private data that must never leak to a second agency reusing the same row for
-    // its own suggestion. If this row is anyone's self business, replace the name with this suggestion's
-    // (the GBP title), which is public business data, not tenant data.
-    const [selfRef] = await deps.service.select({ id: client.id }).from(client).where(eq(client.selfCompetitorId, competitorId)).limit(1);
-    if (selfRef && s.name) patch.name = s.name;
-    if (Object.keys(patch).length > 0) {
-      await deps.service.update(competitor).set(patch).where(eq(competitor.id, competitorId));
-    }
+    await patchReusedCompetitor(deps.service, existing, s);
   } else {
     // A different competitor may already hold this domain (with a different place_id, so it
     // didn't qualify as a merge above) — never insert a second row with the same unique domain.

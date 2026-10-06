@@ -66,7 +66,7 @@ export const updateClientProfile = defineTool({
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
     // Fix round 1 (#1): read-modify-write in ONE transaction with `for('update')`, so two
     // concurrent partial updates can't interleave and clobber each other (lost-update race).
-    await withTenant(deps.app, ctx, async (tx) => {
+    const placeChanged = await withTenant(deps.app, ctx, async (tx) => {
       const [current] = await tx.select().from(client).where(eq(client.id, clientId)).for('update');
       if (!current) throw new ToolError('not_found', 'Client not found');
       const pack = await packFor(deps, current.verticalId);
@@ -81,7 +81,13 @@ export const updateClientProfile = defineTool({
         pack,
       );
       await tx.update(client).set({ name: merged.name, services: merged.services, keywords: merged.keywords, serviceArea: merged.serviceArea, placeId: merged.placeId, features: merged.features }).where(eq(client.id, clientId));
+      return merged.placeId !== current.placeId;
     });
+    // Final review: the self business was found by the old place id. Unlink it so benchmarks stop using the wrong
+    // business and its paid gbp/reviews sources stop being claimed (unless something else still needs them); the next
+    // schedule tick re-links from the new place id (`ensureSelfCompetitors`). app_user cannot write this column
+    // (migration 0026), so the service Db writes it, after the RLS-checked update above proved access.
+    if (placeChanged) await deps.service.update(client).set({ selfCompetitorId: null }).where(eq(client.id, clientId));
     return { clientId };
   },
 });

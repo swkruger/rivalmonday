@@ -1,5 +1,5 @@
 import { canAccessClient, toolkit, ToolError } from '@cs/core';
-import { acceptSuggestion, ensureCompetitorSources, findExistingCompetitor } from '@cs/collectors';
+import { acceptSuggestion, ensureCompetitorSources, findExistingCompetitor, patchReusedCompetitor } from '@cs/collectors';
 import { client, clientCompetitor, competitor, competitorSuggestion, trackedPage, type Tx, withTenant } from '@cs/db';
 import { and, asc, count, desc, eq, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -155,6 +155,9 @@ export const addCompetitor = defineTool({
     if (!row && domain) row = (await deps.service.select().from(competitor).where(eq(competitor.domain, domain)).limit(1))[0];
     await withTenant(deps.app, ctx, (tx) => assertRoomForCompetitor(tx, input.clientId, row?.id ?? null));
     let competitorId = row?.id;
+    // Final review: same reuse patch as acceptSuggestion — backfill missing columns, and if the row is any client's
+    // self business (named from that client's private client.name), rename it to the name typed here.
+    if (row) await patchReusedCompetitor(deps.service, row, { placeId, cid: null, domain, name: input.name.trim() });
     if (!competitorId) {
       const inserted = await deps.service.insert(competitor).values({ name: input.name.trim(), domain, placeId }).onConflictDoNothing().returning({ id: competitor.id });
       competitorId = inserted[0]?.id ?? (await findExistingCompetitor(deps.service, { placeId, cid: null, domain }))?.id;

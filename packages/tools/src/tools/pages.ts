@@ -13,12 +13,15 @@ const DAILY = new Set(['home', 'pricing', 'promo']);
 /** Same split as discovery's `selectPages`: home/pricing/promo daily, everything else weekly. */
 export const defaultCadence = (pageType: string): 'daily' | 'weekly' => (DAILY.has(pageType) ? 'daily' : 'weekly');
 
-/** RLS proof that the caller's client tracks this competitor (Review Focus 1) — global rows are then written with the service Db. */
-async function requireTracked(app: Db, ctx: AccessContext, clientId: string, competitorId: string): Promise<void> {
-  if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Competitor not found');
+/**
+ * RLS proof that the caller's client tracks this competitor (Review Focus 1) — global rows are then written with the service Db.
+ * `message` lets a caller keep one refusal for every not-found case (Phase 6 MCP returns messages verbatim).
+ */
+async function requireTracked(app: Db, ctx: AccessContext, clientId: string, competitorId: string, message = 'Competitor not found'): Promise<void> {
+  if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', message);
   const [link] = await withTenant(app, ctx, (tx) =>
     tx.select({ id: clientCompetitor.competitorId }).from(clientCompetitor).where(and(eq(clientCompetitor.clientId, clientId), eq(clientCompetitor.competitorId, competitorId))));
-  if (!link) throw new ToolError('not_found', 'Competitor not found');
+  if (!link) throw new ToolError('not_found', message);
 }
 
 const view = (p: typeof trackedPage.$inferSelect): TrackedPageView => ({
@@ -47,7 +50,7 @@ export const setPagePin = defineTool({
   async handler(ctx, { clientId, pageId, pinned }, deps) {
     const [p] = await deps.service.select().from(trackedPage).where(eq(trackedPage.id, pageId));
     if (!p) throw new ToolError('not_found', 'Page not found');
-    await requireTracked(deps.app, ctx, clientId, p.competitorId);
+    await requireTracked(deps.app, ctx, clientId, p.competitorId, 'Page not found');
     await deps.service.update(trackedPage).set({ pinned, cadence: pinned ? 'daily' : defaultCadence(p.pageType) }).where(eq(trackedPage.id, pageId));
     return { pageId };
   },

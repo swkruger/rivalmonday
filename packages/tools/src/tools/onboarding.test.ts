@@ -1,7 +1,8 @@
 import { type AccessContext, type AuditEvent, createAccessContext } from '@cs/core';
-import { client } from '@cs/db';
+import { claimDueSources, ensureSelfCompetitor } from '@cs/collectors';
+import { client, competitorSource } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createToolRegistry } from '../registry';
 
@@ -65,5 +66,39 @@ describe('update_client_profile', () => {
     await registry.invoke(amA1, 'update_client_profile', { clientId: IDS.clientA1, name: 'A1 HVAC' });
     const [row] = await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1));
     expect(row!.features).toEqual(['dashboard']);
+  });
+
+  // Final review: the self business was found by place id, so a corrected or cleared place id must unlink it.
+  describe('own-business link on a place id change', () => {
+    const selfOf = async () => (await dbs.owner.select({ s: client.selfCompetitorId }).from(client).where(eq(client.id, IDS.clientA1)))[0]?.s ?? null;
+    const linkSelf = async () => {
+      await dbs.owner.update(client).set({ placeId: 'place-a1-wrong' }).where(eq(client.id, IDS.clientA1));
+      const r = (await ensureSelfCompetitor(dbs.service, IDS.clientA1)) as { competitorId: string };
+      expect(await selfOf()).toBe(r.competitorId);
+      return r.competitorId;
+    };
+
+    it('unlinks the self competitor when the place id changes, so its gbp/reviews are no longer claimed', async () => {
+      const selfId = await linkSelf();
+      await registry.invoke(amA1, 'update_client_profile', { clientId: IDS.clientA1, placeId: 'place-a1-right' });
+      expect(await selfOf()).toBeNull();
+      expect((await dbs.owner.select({ p: client.placeId }).from(client).where(eq(client.id, IDS.clientA1)))[0]?.p).toBe('place-a1-right');
+      // Nobody else uses the old row as self business or tracks it: its paid sources stay due but unclaimed.
+      await dbs.service.update(competitorSource).set({ nextDueAt: sql`now() - interval '1 minute'` }).where(eq(competitorSource.competitorId, selfId));
+      expect((await claimDueSources(dbs.service, 1000)).filter((c) => c.competitorId === selfId)).toEqual([]);
+    });
+
+    it('unlinks when the place id is cleared', async () => {
+      await linkSelf();
+      await registry.invoke(amA1, 'update_client_profile', { clientId: IDS.clientA1, placeId: null });
+      expect(await selfOf()).toBeNull();
+    });
+
+    it('keeps the link when the place id is unchanged or not part of the patch', async () => {
+      const selfId = await linkSelf();
+      await registry.invoke(amA1, 'update_client_profile', { clientId: IDS.clientA1, placeId: 'place-a1-wrong', name: 'A1 HVAC Co' });
+      await registry.invoke(amA1, 'update_client_profile', { clientId: IDS.clientA1, keywords: ['furnace repair'] });
+      expect(await selfOf()).toBe(selfId);
+    });
   });
 });

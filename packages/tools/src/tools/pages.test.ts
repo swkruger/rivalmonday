@@ -41,6 +41,13 @@ describe('tracked pages', () => {
     await expect(reg(false).invoke(amA1, 'set_page_pin', { clientId: IDS.clientA2, pageId: pricing, pinned: true })).rejects.toMatchObject({ code: 'not_found' });
   });
 
+  it('refuses a missing page and an out-of-scope page with the same message (final review)', async () => {
+    const missing = reg(false).invoke(amA1, 'set_page_pin', { clientId: IDS.clientA1, pageId: '00000000-0000-4000-8000-000000000000', pinned: true });
+    await expect(missing).rejects.toMatchObject({ code: 'not_found', message: 'Page not found' });
+    const outOfScope = reg(false).invoke(amA1, 'set_page_pin', { clientId: IDS.clientA2, pageId: pricing, pinned: true });
+    await expect(outOfScope).rejects.toMatchObject({ code: 'not_found', message: 'Page not found' });
+  });
+
   it('adds manual pages only with monitoring on, on the competitor’s own host, under the cap (Review Focus 5)', async () => {
     const input = { clientId: IDS.clientA1, competitorId: IDS.competitorX, url: 'https://www.smithhvac.com/specials#top', pageType: 'promo' };
     await expect(reg(false).invoke(amA1, 'add_tracked_page', input)).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringContaining('monitoring') });

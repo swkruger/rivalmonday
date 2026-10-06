@@ -4,6 +4,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EnqueueJob } from '../deps';
+import { ensureSelfCompetitor } from '@cs/collectors';
 import { createToolRegistry } from '../registry';
 import { normalizeDomain } from './competitors';
 
@@ -107,6 +108,8 @@ describe('manual competitors', () => {
     await dbs.owner.update(competitor).set({ domain: 'smithhvac.com' }).where(eq(competitor.id, IDS.competitorX));
     const r = (await registry.invoke(amA1, 'add_competitor', { clientId: IDS.clientA1, name: 'Ignored Name', domain: 'https://smithhvac.com' })) as { competitorId: string };
     expect(r.competitorId).toBe(IDS.competitorX);
+    // Not anyone's self business: the reused row keeps its own name.
+    expect((await dbs.owner.select({ n: competitor.name }).from(competitor).where(eq(competitor.id, IDS.competitorX)))[0]?.n).not.toBe('Ignored Name');
     const n = (await registry.invoke(admin, 'add_competitor', { clientId: IDS.clientA2, name: 'Fresh Plumbing', domain: 'freshplumbing.com' })) as { competitorId: string; discovery: string };
     expect(n.discovery).toBe('disabled');
     const { items } = (await registry.invoke(admin, 'list_client_competitors', { clientId: IDS.clientA2 })) as { items: { name: string }[] };
@@ -131,5 +134,20 @@ describe('manual competitors', () => {
     await expect(registry.invoke(amA1, 'remove_competitor', { clientId: IDS.clientA1, competitorId: IDS.competitorX })).rejects.toMatchObject({ code: 'not_found' });
     // Re-adding works.
     await registry.invoke(amA1, 'add_competitor', { clientId: IDS.clientA1, name: 'Smith HVAC', placeId: 'ChIJsmithsmith1' });
+  });
+
+  it("renames a reused row that is another agency's self business, so its private client name never leaks (final review)", async () => {
+    await dbs.owner.update(client).set({ placeId: 'ChIJa1hvacplace1' }).where(eq(client.id, IDS.clientA1));
+    const { competitorId: selfId } = (await ensureSelfCompetitor(dbs.service, IDS.clientA1)) as { competitorId: string };
+    const [a1] = await dbs.owner.select({ name: client.name }).from(client).where(eq(client.id, IDS.clientA1));
+    expect((await dbs.owner.select({ n: competitor.name }).from(competitor).where(eq(competitor.id, selfId)))[0]?.n).toBe(a1!.name);
+
+    const adminB = ctx('agency_admin', 'all', [], IDS.agencyB);
+    const r = (await registry.invoke(adminB, 'add_competitor', { clientId: IDS.clientB1, name: 'Cool Breeze Air', placeId: 'ChIJa1hvacplace1' })) as { competitorId: string };
+    expect(r.competitorId).toBe(selfId);
+    const { items } = (await registry.invoke(adminB, 'list_client_competitors', { clientId: IDS.clientB1 })) as { items: { id: string; name: string }[] };
+    const reused = items.find((i) => i.id === selfId);
+    expect(reused?.name).toBe('Cool Breeze Air');
+    expect(items.map((i) => i.name)).not.toContain(a1!.name);
   });
 });
