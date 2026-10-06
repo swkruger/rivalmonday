@@ -5,16 +5,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
+import { STATUS_LABEL } from './status';
 
 export const dynamic = 'force-dynamic';
-
-const STATUS_LABEL: Record<string, string> = {
-  ready: 'Needs review',
-  approved: 'Approved',
-  sent: 'Sent',
-  failed: 'Failed — retrying',
-  generating: 'Drafting',
-};
 
 export default async function ApprovalsPage() {
   const { ctx } = await requireContext();

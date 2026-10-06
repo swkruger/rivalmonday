@@ -1,7 +1,7 @@
 'use client';
 import type { BriefItemView } from '@cs/tools';
 import { Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, Switch } from '@cs/ui';
-import { useActionState, useRef, useState } from 'react';
+import { useActionState, useOptimistic, useState, useTransition } from 'react';
 import type { FormResult } from '@/server/forms';
 import { approveAction, autoSendAction, dropItemAction, editItemAction, moveItemAction, rateItemAction, sendNowAction } from './actions';
 
@@ -190,29 +190,43 @@ export function ReviewItem({ briefId, item, editable, first, last }: { briefId: 
   );
 }
 
+/**
+ * Fix round 1: matches the codebase's established pattern for action-backed switches (`WebhookToggle` in
+ * `webhook-controls.tsx`, `PrefSwitch` in `pref-switch.tsx`) — `useOptimistic` + `useTransition`, calling the
+ * server action directly with a `FormData` built from the new value, instead of submitting a real `<form>`.
+ * `useOptimistic` shows `next` only while the transition is pending; if the action fails (no `revalidatePath`,
+ * so the `autoSend` prop this component receives never changes) the optimistic value reverts to the original
+ * `autoSend` once the transition settles, and the action's error is shown via `Message`. `isPending` both
+ * disables the switch and is checked before starting a new transition, so a toggle mid-flight is ignored rather
+ * than queued.
+ */
 function AutoSendSwitch({ briefId, clientId, autoSend }: { briefId: string; clientId: string; autoSend: boolean }) {
-  const [state, formAction, pending] = useActionState(autoSendAction, { ok: true } as FormResult);
-  const [checked, setChecked] = useState(autoSend);
-  const formRef = useRef<HTMLFormElement>(null);
+  const [checked, setChecked] = useOptimistic(autoSend);
+  const [result, setResult] = useState<FormResult>({ ok: true });
+  const [isPending, startTransition] = useTransition();
   return (
-    <form ref={formRef} action={formAction} className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center gap-3">
-        <input type="hidden" name="clientId" value={clientId} />
-        <input type="hidden" name="briefId" value={briefId} />
-        <input type="hidden" name="enabled" value={String(checked)} />
         <Switch
           checked={checked}
-          disabled={pending}
+          disabled={isPending}
           aria-label="Send untouched briefs automatically on Monday 07:00"
           onCheckedChange={(next: boolean) => {
-            setChecked(next);
-            formRef.current?.requestSubmit();
+            if (isPending) return;
+            startTransition(async () => {
+              setChecked(next);
+              const fd = new FormData();
+              fd.set('clientId', clientId);
+              fd.set('briefId', briefId);
+              fd.set('enabled', String(next));
+              setResult(await autoSendAction({ ok: true }, fd));
+            });
           }}
         />
         <span className="text-sm">Send untouched briefs automatically on Monday 07:00</span>
       </div>
-      <Message state={state} />
-    </form>
+      <Message state={result} />
+    </div>
   );
 }
 
