@@ -155,9 +155,10 @@ export const addCompetitor = defineTool({
     if (!row && domain) row = (await deps.service.select().from(competitor).where(eq(competitor.domain, domain)).limit(1))[0];
     await withTenant(deps.app, ctx, (tx) => assertRoomForCompetitor(tx, input.clientId, row?.id ?? null));
     let competitorId = row?.id;
-    // Final review: same reuse patch as acceptSuggestion — backfill missing columns, and if the row is any client's
-    // self business (named from that client's private client.name), rename it to the name typed here.
-    if (row) await patchReusedCompetitor(deps.service, row, { placeId, cid: null, domain, name: input.name.trim() });
+    // Final review: if the reused row is any client's self business (named from that client's private client.name),
+    // rename it to the name typed here. No identifier backfill: typed place ids/domains are unverified and must not
+    // be written onto a shared row another agency already collects for.
+    if (row) await patchReusedCompetitor(deps.service, row, { placeId, cid: null, domain, name: input.name.trim() }, { backfill: false });
     if (!competitorId) {
       const inserted = await deps.service.insert(competitor).values({ name: input.name.trim(), domain, placeId }).onConflictDoNothing().returning({ id: competitor.id });
       competitorId = inserted[0]?.id ?? (await findExistingCompetitor(deps.service, { placeId, cid: null, domain }))?.id;

@@ -143,11 +143,22 @@ describe('manual competitors', () => {
     expect((await dbs.owner.select({ n: competitor.name }).from(competitor).where(eq(competitor.id, selfId)))[0]?.n).toBe(a1!.name);
 
     const adminB = ctx('agency_admin', 'all', [], IDS.agencyB);
-    const r = (await registry.invoke(adminB, 'add_competitor', { clientId: IDS.clientB1, name: 'Cool Breeze Air', placeId: 'ChIJa1hvacplace1' })) as { competitorId: string };
+    const r = (await registry.invoke(adminB, 'add_competitor', { clientId: IDS.clientB1, name: 'Cool Breeze Air', placeId: 'ChIJa1hvacplace1', domain: 'typed-domain.com' })) as { competitorId: string };
     expect(r.competitorId).toBe(selfId);
     const { items } = (await registry.invoke(adminB, 'list_client_competitors', { clientId: IDS.clientB1 })) as { items: { id: string; name: string }[] };
     const reused = items.find((i) => i.id === selfId);
     expect(reused?.name).toBe('Cool Breeze Air');
     expect(items.map((i) => i.name)).not.toContain(a1!.name);
+    // Only the rename: the typed website is not written onto the shared self row.
+    expect((await dbs.owner.select({ d: competitor.domain }).from(competitor).where(eq(competitor.id, selfId)))[0]?.d).toBeNull();
+  });
+
+  it('never writes typed identifiers onto a reused shared row (re-review of the final fix)', async () => {
+    await dbs.owner.update(competitor).set({ domain: 'smithhvac.com', placeId: null }).where(eq(competitor.id, IDS.competitorX));
+    const adminB = ctx('agency_admin', 'all', [], IDS.agencyB);
+    const r = (await registry.invoke(adminB, 'add_competitor', { clientId: IDS.clientB1, name: 'Smith HVAC', domain: 'smithhvac.com', placeId: 'ChIJmistyped00001' })) as { competitorId: string };
+    expect(r.competitorId).toBe(IDS.competitorX);
+    const [x] = await dbs.owner.select().from(competitor).where(eq(competitor.id, IDS.competitorX));
+    expect(x).toMatchObject({ placeId: null, domain: 'smithhvac.com', cid: null });
   });
 });

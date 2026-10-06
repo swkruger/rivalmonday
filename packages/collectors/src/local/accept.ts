@@ -33,17 +33,20 @@ export async function findExistingCompetitor(
  * Applied when a new link reuses an existing global competitor row (accepting a suggestion, or `add_competitor`).
  * Backfills only columns the row is missing — never overwrites a value it already has — and, if the row is any
  * client's self business, replaces its name with `source.name` (see the comment below).
+ * `backfill: false` applies only that rename: `add_competitor` passes user-typed identifiers, which must never be
+ * written onto a shared row another agency already collects for (re-review of the final fix).
  */
 export async function patchReusedCompetitor(
   service: Db,
   existing: CompetitorRow,
   source: { placeId: string | null; cid: string | null; domain: string | null; name: string | null },
+  { backfill = true }: { backfill?: boolean } = {},
 ): Promise<void> {
   const competitorId = existing.id;
   const patch: { placeId?: string; cid?: string; domain?: string; name?: string } = {};
-  if (!existing.placeId && source.placeId) patch.placeId = source.placeId;
-  if (!existing.cid && source.cid) patch.cid = source.cid;
-  if (!existing.domain && source.domain) {
+  if (backfill && !existing.placeId && source.placeId) patch.placeId = source.placeId;
+  if (backfill && !existing.cid && source.cid) patch.cid = source.cid;
+  if (backfill && !existing.domain && source.domain) {
     // Same guard as acceptSuggestion's insert branch: don't steal a domain another competitor row already owns.
     const [domainClash] = await service.select().from(competitor).where(eq(competitor.domain, source.domain)).limit(1);
     if (!domainClash) patch.domain = source.domain;
