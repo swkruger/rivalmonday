@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import type { FormResult } from '@/server/forms';
-import { runTool } from '@/server/run-tool';
+import { runTool, type ToolResult } from '@/server/run-tool';
 
 /** Re-derives the viewer's context on every call (never trusts the form for identity); `clientId` is just the
  * resource being acted on and is re-checked by the tool itself (`canAccessClient`). */
@@ -32,6 +32,14 @@ export async function requestSuggestionsAction(_p: FormResult, fd: FormData): Pr
   const ctx = await agencyCtx();
   const clientId = s(fd, 'clientId');
   return done(clientId, await runTool(ctx, 'request_competitor_suggestions', { clientId }), 'Searching Google Maps — suggestions appear here in a few minutes.');
+}
+
+export type SearchState = 'idle' | 'queued' | 'running' | 'done' | 'failed';
+
+/** Polled by `SuggestionsPanel` after "Find competitors" until the background search finishes. */
+export async function searchStatusAction(clientId: string): Promise<ToolResult<{ state: SearchState; finishedAt: string | null }>> {
+  const ctx = await agencyCtx();
+  return runTool(ctx, 'get_competitor_search_status', { clientId });
 }
 
 export async function acceptSuggestionAction(_p: FormResult, fd: FormData): Promise<FormResult> {

@@ -5,11 +5,11 @@ import { createToolRegistry, type ToolDeps } from '@cs/tools';
 import { notFound } from 'next/navigation';
 import { dbs } from './db';
 import { webEnv } from './env';
-import { enqueueJob } from './queue';
+import { enqueueJob, jobStatus } from './queue';
 
 let cached: ToolRegistry<ToolDeps> | null = null;
 export const registry = () =>
-  (cached ??= createToolRegistry({ ...dbs(), delivery: deliveryConfigFromEnv(process.env), enqueue: enqueueJob, webMonitoring: webEnv().webMonitoring }));
+  (cached ??= createToolRegistry({ ...dbs(), delivery: deliveryConfigFromEnv(process.env), enqueue: enqueueJob, jobStatus, webMonitoring: webEnv().webMonitoring }));
 
 /**
  * Controller requirement: `permission_denied` and `not_found` must become a 404, never a 403 or a page that

@@ -3,7 +3,7 @@ import { acceptSuggestion, ensureCompetitorSources, findExistingCompetitor, patc
 import { client, clientCompetitor, competitor, competitorSuggestion, trackedPage, type Tx, withTenant } from '@cs/db';
 import { and, asc, count, desc, eq, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { enqueueOf, type ToolDeps } from '../deps';
+import { enqueueOf, type JobState, jobStatusOf, type ToolDeps } from '../deps';
 import { COMPETITOR_LIMIT } from '../limits';
 import { SuggestionView, TrackedCompetitor } from './schemas';
 
@@ -58,6 +58,25 @@ export const requestCompetitorSuggestions = defineTool({
     if (c.keywords.length === 0 || !c.serviceArea) throw new ToolError('invalid_input', 'Add at least one keyword and a service area to the client profile first');
     await enqueueOf(deps)('suggest-competitors', { clientId }, `suggest:${clientId}`);
     return { queued: true as const };
+  },
+});
+
+const SEARCH_STATE: Record<JobState, 'queued' | 'running' | 'done' | 'failed'> = {
+  created: 'queued', retry: 'running', active: 'running', completed: 'done', failed: 'failed', cancelled: 'failed',
+};
+
+export const getCompetitorSearchStatus = defineTool({
+  name: 'get_competitor_search_status',
+  description: 'Whether the client’s latest competitor search is queued, running, done or failed — the web page polls it after "Find competitors".',
+  input: z.object({ clientId: uuid }),
+  output: z.object({ state: z.enum(['idle', 'queued', 'running', 'done', 'failed']), finishedAt: z.string().nullable() }),
+  permission: 'agency',
+  async handler(ctx, { clientId }, deps) {
+    if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+    const job = await jobStatusOf(deps)('suggest-competitors', `suggest:${clientId}`);
+    if (!job) return { state: 'idle' as const, finishedAt: null };
+    const state = SEARCH_STATE[job.state];
+    return { state, finishedAt: state === 'done' || state === 'failed' ? (job.completedOn?.toISOString() ?? null) : null };
   },
 });
 
@@ -186,4 +205,4 @@ export const removeCompetitor = defineTool({
   },
 });
 
-export const competitorTools = [listCompetitorSuggestions, requestCompetitorSuggestions, acceptCompetitorSuggestion, dismissCompetitorSuggestion, listClientCompetitors, addCompetitor, removeCompetitor];
+export const competitorTools = [listCompetitorSuggestions, requestCompetitorSuggestions, getCompetitorSearchStatus, acceptCompetitorSuggestion, dismissCompetitorSuggestion, listClientCompetitors, addCompetitor, removeCompetitor];

@@ -1,10 +1,12 @@
 'use client';
 import type { SuggestionView, TrackedCompetitor } from '@cs/tools';
 import { Button, Card, CardContent, CardHeader, CardTitle, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useActionState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useActionState, useEffect, useState } from 'react';
 import type { FormResult } from '@/server/forms';
-import { acceptSuggestionAction, addCompetitorAction, dismissSuggestionAction, removeCompetitorAction, requestSuggestionsAction } from './actions';
+import { acceptSuggestionAction, addCompetitorAction, dismissSuggestionAction, removeCompetitorAction, requestSuggestionsAction, type SearchState, searchStatusAction } from './actions';
 
 function Message({ state }: { state: FormResult }) {
   if (!state.ok && state.error) {
@@ -65,6 +67,91 @@ function DismissSuggestionForm({ clientId, suggestion, action, pending }: { clie
   );
 }
 
+const FAST_POLL_MS = 5_000;
+const SLOW_POLL_MS = 10_000;
+const FAST_FOR_MS = 60_000;
+const GIVE_UP_MS = 10 * 60_000;
+
+type Progress = 'searching' | 'done' | 'failed' | 'gave_up' | null;
+
+/**
+ * Follows the background competitor search: every 5 s for the first minute, then every 10 s, for up to 10 minutes
+ * (a search is 18 paid map lookups, usually 1–4 minutes). When it finishes the page data is re-fetched so the new
+ * suggestions appear without a reload. A search already running when the page loads is picked up the same way.
+ */
+function useSearchProgress(clientId: string, initialSearch: SearchState, request: FormResult): Progress {
+  const router = useRouter();
+  const [progress, setProgress] = useState<Progress>(initialSearch === 'queued' || initialSearch === 'running' ? 'searching' : null);
+
+  // Each accepted "Find competitors" request is a new result object, so this starts (or restarts) the watch.
+  useEffect(() => {
+    if (request.ok && request.message) setProgress('searching');
+  }, [request]);
+
+  useEffect(() => {
+    if (progress !== 'searching') return;
+    const started = Date.now();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
+    const schedule = () => {
+      const elapsed = Date.now() - started;
+      if (elapsed >= GIVE_UP_MS) {
+        setProgress('gave_up');
+        return;
+      }
+      timer = setTimeout(check, elapsed < FAST_FOR_MS ? FAST_POLL_MS : SLOW_POLL_MS);
+    };
+    const check = async () => {
+      const r = await searchStatusAction(clientId).catch(() => null);
+      if (stopped) return;
+      // `idle` means the job is gone from the queue (archived), which only happens after it finished.
+      if (r?.ok && (r.data.state === 'done' || r.data.state === 'idle')) {
+        setProgress('done');
+        router.refresh();
+      } else if (r?.ok && r.data.state === 'failed') {
+        setProgress('failed');
+      } else {
+        schedule();
+      }
+    };
+    schedule();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [progress, clientId, router]);
+
+  return progress;
+}
+
+function SearchProgress({ progress, found }: { progress: Progress; found: number }) {
+  if (progress === 'searching') {
+    return (
+      <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">
+        Searching Google Maps — this usually takes 1–4 minutes. Suggestions appear here when it finishes.
+      </p>
+    );
+  }
+  if (progress === 'done') {
+    return (
+      <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">
+        {found > 0 ? `Search finished — ${found} suggestion${found === 1 ? '' : 's'} below.` : 'Search finished — no new businesses found.'}
+      </p>
+    );
+  }
+  if (progress === 'failed') {
+    return (
+      <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+        The search failed — please try again.
+      </p>
+    );
+  }
+  if (progress === 'gave_up') {
+    return <p className="rounded-lg bg-muted-surface p-3 text-ink">Still searching — check back in a few minutes.</p>;
+  }
+  return null;
+}
+
 export function SuggestionsPanel({
   clientId,
   ready,
@@ -77,14 +164,19 @@ export function SuggestionsPanel({
    * pass data as props), so the default here only covers the brief's fixed test call, which omits the prop.
    */
   limit = 5,
+  initialSearch = 'idle',
 }: {
   clientId: string;
   ready: boolean;
   suggestions: SuggestionView[];
   atLimit: boolean;
   limit?: number;
+  /** The latest search's state when the page rendered, so a search still running after a reload keeps being followed. */
+  initialSearch?: SearchState;
 }) {
   const [state, formAction, pending] = useActionState(requestSuggestionsAction, { ok: true } as FormResult);
+  const progress = useSearchProgress(clientId, initialSearch, state);
+  const searching = progress === 'searching';
   const [rowState, rowAction, rowPending] = useActionState(suggestionAction, { ok: true } as RowResult);
   return (
     <Card>
@@ -102,11 +194,19 @@ export function SuggestionsPanel({
         )}
         <form action={formAction} className="flex flex-col gap-2">
           <input type="hidden" name="clientId" value={clientId} />
-          <Button type="submit" disabled={!ready || pending} className="self-start">
-            Find competitors
+          <Button type="submit" disabled={!ready || pending || searching} className="self-start">
+            {searching ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                Searching…
+              </>
+            ) : (
+              'Find competitors'
+            )}
           </Button>
-          <p className="text-sm text-muted-foreground">Searches Google Maps across the service area (paid, about a minute of work in the background)</p>
-          <Message state={state} />
+          <p className="text-sm text-muted-foreground">Searches Google Maps across the service area (paid; runs in the background, usually 1–4 minutes)</p>
+          {!state.ok && <Message state={state} />}
+          <SearchProgress progress={progress} found={suggestions.length} />
         </form>
         <Message state={rowState} />
         {suggestions.length > 0 && (

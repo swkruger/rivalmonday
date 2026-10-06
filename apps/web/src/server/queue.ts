@@ -1,5 +1,7 @@
 import 'server-only';
-import type { EnqueueJob } from '@cs/tools';
+import { createDb, type Db } from '@cs/db';
+import type { EnqueueJob, JobState, JobStatusLookup, QueueJob } from '@cs/tools';
+import { sql } from 'drizzle-orm';
 import PgBoss from 'pg-boss';
 import { webEnv } from './env';
 import type { Enqueue } from './files';
@@ -49,3 +51,27 @@ const queue = createBossQueue(() => new PgBoss({ connectionString: webEnv().queu
 export const enqueueJob: EnqueueJob = queue.enqueue;
 /** The worker's `short` policy on `brief-pdf`/`report-pdf` dedupes by `singletonKey`, so repeated page refreshes don't pile up renders. */
 export const enqueue: Enqueue = queue.enqueue;
+
+type JobRow = { state: JobState; created_on: Date; completed_on: Date | null };
+
+/** Maps the newest pg-boss row for a queue + singleton key; `query` is injectable so a test needn't build pg-boss tables. */
+export function createJobStatusLookup(query: (job: QueueJob, singletonKey: string) => Promise<JobRow[]>): JobStatusLookup {
+  return async (job, singletonKey) => {
+    const [row] = await query(job, singletonKey);
+    return row ? { state: row.state, createdOn: new Date(row.created_on), completedOn: row.completed_on ? new Date(row.completed_on) : null } : null;
+  };
+}
+
+let queueDb: Db | null = null;
+
+/**
+ * Read-only look at the worker's `pgboss.job` table (owner URL, like enqueue). Completed jobs are archived after a
+ * while, which reads as "no job" — fine for the one caller, which only polls a search it just started.
+ */
+export const jobStatus: JobStatusLookup = createJobStatusLookup(async (job, singletonKey) => {
+  queueDb ??= createDb(webEnv().queueDatabaseUrl).db;
+  return (await queueDb.execute(sql`
+    SELECT state, created_on, completed_on FROM pgboss.job
+     WHERE name = ${job} AND singleton_key = ${singletonKey}
+     ORDER BY created_on DESC LIMIT 1`)) as unknown as JobRow[];
+});

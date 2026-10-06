@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
+import type { SearchState } from './actions';
 import { AddCompetitorForm, SuggestionsPanel, TrackedCompetitorsTable } from './competitor-controls';
 
 export const dynamic = 'force-dynamic';
@@ -13,10 +14,11 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
   const { clientId } = await params;
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const [profile, tracked, suggestions] = await Promise.all([
+  const [profile, tracked, suggestions, search] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<{ items: TrackedCompetitor[] }>(ctx, 'list_client_competitors', { clientId }),
     callTool<{ items: SuggestionView[] }>(ctx, 'list_competitor_suggestions', { clientId }),
+    callTool<{ state: SearchState }>(ctx, 'get_competitor_search_status', { clientId }),
   ]);
   const atLimit = tracked.items.length >= COMPETITOR_LIMIT;
   return (
@@ -40,6 +42,7 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
         clientId={clientId}
         ready={profile.keywords.length > 0 && profile.serviceArea !== null}
         suggestions={suggestions.items}
+        initialSearch={search.state}
         atLimit={atLimit}
         limit={COMPETITOR_LIMIT}
       />

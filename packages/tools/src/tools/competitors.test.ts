@@ -3,7 +3,7 @@ import { alert, changeEvent, client, clientCompetitor, competitor, competitorSug
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EnqueueJob } from '../deps';
+import type { EnqueueJob, JobStatusLookup } from '../deps';
 import { ensureSelfCompetitor } from '@cs/collectors';
 import { createToolRegistry } from '../registry';
 import { normalizeDomain } from './competitors';
@@ -11,7 +11,8 @@ import { normalizeDomain } from './competitors';
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const enqueue = vi.fn<EnqueueJob>(async () => {});
-const reg = (webMonitoring: boolean) => createToolRegistry({ app: dbs.app, service: dbs.service, enqueue, webMonitoring }, { audit: { record: async () => {} } });
+const jobStatus = vi.fn<JobStatusLookup>(async () => null);
+const reg = (webMonitoring: boolean) => createToolRegistry({ app: dbs.app, service: dbs.service, enqueue, jobStatus, webMonitoring }, { audit: { record: async () => {} } });
 const registry = reg(false);
 const ctx = (role: AccessContext['role'], scope: AccessContext['clientScope'], features: Feature[] = [], agencyId: string = IDS.agencyA) =>
   createAccessContext({ agencyId, userId: `u-${role}`, role, clientScope: scope, features });
@@ -26,6 +27,8 @@ async function suggest(clientId: string, agencyId: string, name: string, placeId
 
 beforeEach(async () => {
   enqueue.mockClear();
+  jobStatus.mockReset();
+  jobStatus.mockResolvedValue(null);
   await truncateAll(dbs.owner);
   await seedTenancy(dbs.owner);
 });
@@ -41,6 +44,33 @@ describe('request_competitor_suggestions', () => {
   it('is agency-only and scoped', async () => {
     await expect(registry.invoke(ctx('client_owner', [IDS.clientA1], ['manage_competitors']), 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
     await expect(registry.invoke(amA1, 'request_competitor_suggestions', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('get_competitor_search_status', () => {
+  const status = (c: AccessContext = admin) => registry.invoke(c, 'get_competitor_search_status', { clientId: IDS.clientA1 });
+
+  it('is idle when this client has never searched', async () => {
+    await expect(status()).resolves.toEqual({ state: 'idle', finishedAt: null });
+    expect(jobStatus).toHaveBeenCalledWith('suggest-competitors', `suggest:${IDS.clientA1}`);
+  });
+
+  it('maps the latest search job to queued, running, done or failed', async () => {
+    const created = new Date('2026-10-06T20:21:06Z');
+    const finished = new Date('2026-10-06T20:22:05Z');
+    const cases = [
+      ['created', 'queued', null], ['retry', 'running', null], ['active', 'running', null],
+      ['completed', 'done', finished.toISOString()], ['failed', 'failed', finished.toISOString()], ['cancelled', 'failed', finished.toISOString()],
+    ] as const;
+    for (const [job, state, finishedAt] of cases) {
+      jobStatus.mockResolvedValueOnce({ state: job, createdOn: created, completedOn: finishedAt ? finished : null });
+      await expect(status()).resolves.toEqual({ state, finishedAt });
+    }
+  });
+
+  it('is agency-only and scoped', async () => {
+    await expect(status(ctx('client_owner', [IDS.clientA1], ['manage_competitors']))).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(amA1, 'get_competitor_search_status', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
   });
 });
 
