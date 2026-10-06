@@ -1,4 +1,4 @@
-import { canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
+import { type AccessContext, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
 import { brief, competitor, withTenant } from '@cs/db';
 import { getBrief } from '@cs/engine';
 import { and, desc, eq, inArray } from 'drizzle-orm';
@@ -27,6 +27,24 @@ export const listBriefs = defineTool({
   },
 });
 
+export async function briefDetail(deps: ToolDeps, ctx: AccessContext, briefId: string): Promise<BriefDetail> {
+  const view = await getBrief({ app: deps.app }, ctx, briefId); // 4a: visibility, status gate and upsell stripping
+  const competitorIds = [...new Set(view.items.map((i) => i.competitorId))];
+  const names = competitorIds.length
+    ? await withTenant(deps.app, ctx, (tx) => tx.select({ id: competitor.id, name: competitor.name }).from(competitor).where(inArray(competitor.id, competitorIds)))
+    : [];
+  const nameOf = new Map(names.map((n) => [n.id, n.name]));
+  const agency = isAgencyRole(ctx.role);
+  return {
+    ...summary(view.brief), periodStart: view.brief.periodStart.toISOString(), periodEnd: view.brief.periodEnd.toISOString(), approvedAt: toIso(view.brief.approvedAt),
+    items: view.items.map((i) => ({
+      id: i.id, ord: i.ord, competitorId: i.competitorId, competitorName: nameOf.get(i.competitorId) ?? 'Competitor', headline: i.headline, whatChanged: i.whatChanged,
+      whyItMatters: i.whyItMatters, recommendedAction: i.recommendedAction, confidence: i.confidence, effort: i.effort, impact: i.impact, evidenceIds: i.evidenceIds,
+      status: i.status, upsellTag: agency ? i.upsellTag : null,
+    })),
+  };
+}
+
 export const getBriefTool = defineTool({
   name: 'get_brief',
   description: 'Get one weekly brief with its items. Client roles see approved or sent briefs only, without agency-only tags.',
@@ -34,21 +52,7 @@ export const getBriefTool = defineTool({
   output: BriefDetail,
   permission: 'read',
   async handler(ctx, { briefId }, deps) {
-    const view = await getBrief({ app: deps.app }, ctx, briefId); // 4a: visibility, status gate and upsell stripping
-    const competitorIds = [...new Set(view.items.map((i) => i.competitorId))];
-    const names = competitorIds.length
-      ? await withTenant(deps.app, ctx, (tx) => tx.select({ id: competitor.id, name: competitor.name }).from(competitor).where(inArray(competitor.id, competitorIds)))
-      : [];
-    const nameOf = new Map(names.map((n) => [n.id, n.name]));
-    const agency = isAgencyRole(ctx.role);
-    return {
-      ...summary(view.brief), periodStart: view.brief.periodStart.toISOString(), periodEnd: view.brief.periodEnd.toISOString(), approvedAt: toIso(view.brief.approvedAt),
-      items: view.items.map((i) => ({
-        id: i.id, ord: i.ord, competitorId: i.competitorId, competitorName: nameOf.get(i.competitorId) ?? 'Competitor', headline: i.headline, whatChanged: i.whatChanged,
-        whyItMatters: i.whyItMatters, recommendedAction: i.recommendedAction, confidence: i.confidence, effort: i.effort, impact: i.impact, evidenceIds: i.evidenceIds,
-        status: i.status, upsellTag: agency ? i.upsellTag : null,
-      })),
-    };
+    return briefDetail(deps, ctx, briefId);
   },
 });
 

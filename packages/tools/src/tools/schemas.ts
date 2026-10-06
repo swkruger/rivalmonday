@@ -42,6 +42,14 @@ export type BriefItemView = z.infer<typeof BriefItemView>;
 export const BriefDetail = BriefSummary.extend({ periodStart: iso, periodEnd: iso, approvedAt: iso.nullable(), items: z.array(BriefItemView) });
 export type BriefDetail = z.infer<typeof BriefDetail>;
 
+export const BriefQueueRow = z.object({
+  briefId: uuid, clientId: uuid, clientName: z.string(), deliveryDate: z.string(), status: z.string(), kind: z.string(),
+  activeItems: z.number().int(), droppedItems: z.number().int(), touched: z.boolean(), autoSend: z.boolean(),
+});
+export type BriefQueueRow = z.infer<typeof BriefQueueRow>;
+export const BriefReview = BriefDetail.extend({ clientName: z.string(), autoSend: z.boolean(), touched: z.boolean(), factCheck: z.object({ items: z.number().int(), sentences: z.number().int() }) });
+export type BriefReview = z.infer<typeof BriefReview>;
+
 export const AlertSummary = z.object({
   id: uuid, clientId: uuid, competitorName: z.string(), headline: z.string(), score: z.number(), status: z.string(), createdAt: iso, deliveredAt: iso.nullable(),
 });

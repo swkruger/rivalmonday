@@ -6,6 +6,7 @@ import { onboardingTools } from './onboarding';
 import { pageTools } from './pages';
 import { portfolioTools } from './portfolio';
 import { reportTools } from './reports';
+import { reviewTools } from './review';
 
 /** Every registered tool. Each 5b-1 task appends its array here. */
-export const allTools = [...clientTools, ...briefTools, ...alertTools, ...reportTools, ...onboardingTools, ...competitorTools, ...pageTools, ...portfolioTools];
+export const allTools = [...clientTools, ...briefTools, ...alertTools, ...reportTools, ...onboardingTools, ...competitorTools, ...pageTools, ...portfolioTools, ...reviewTools];
