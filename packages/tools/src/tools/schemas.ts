@@ -58,6 +58,12 @@ export type AlertSummary = z.infer<typeof AlertSummary>;
 export const AlertDetail = AlertSummary.extend({ body: z.string(), evidenceIds: z.array(z.string()), written: z.string().nullable() });
 export type AlertDetail = z.infer<typeof AlertDetail>;
 
+export const AlertQueueRow = z.object({
+  id: uuid, clientId: uuid, clientName: z.string(), competitorName: z.string(), headline: z.string(), body: z.string(), score: z.number(), status: z.string(),
+  heldForDigest: z.boolean(), written: z.string().nullable(), evidenceCount: z.number().int(), createdAt: iso,
+});
+export type AlertQueueRow = z.infer<typeof AlertQueueRow>;
+
 export const ReportSummary = z.object({ id: uuid, clientId: uuid, quarter: z.string(), status: z.string(), sentAt: iso.nullable(), hasPdf: z.boolean() });
 export type ReportSummary = z.infer<typeof ReportSummary>;
 
