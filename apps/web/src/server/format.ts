@@ -1,5 +1,8 @@
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+const USD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const formatUsd = (n: number): string => USD.format(n);
+
 /** Server-rendered relative time (no client clock → no hydration mismatch). */
 export function relativeTime(iso: string | null, now: Date): string {
   if (!iso) return 'No activity yet';

@@ -72,6 +72,12 @@ describe('SidebarNav', () => {
     expect(screen.getByRole('link', { name: 'Alert review' }).getAttribute('href')).toBe('/agency/alerts');
   });
 
+  it('shows Usage & limits to agency users', () => {
+    pathname = '/agency/usage';
+    render(<SidebarNav flags={agencyAdmin} />);
+    expect(activeHrefOf()).toBe('/agency/usage');
+  });
+
   it('highlights Competitors (not a deeper match) on /c/<uuid>/competitors/<other uuid>', () => {
     const OTHER_ID = '22222222-2222-2222-2222-222222222222';
     pathname = `/c/${CLIENT_ID}/competitors/${OTHER_ID}`;
@@ -108,7 +114,7 @@ describe('SidebarNav sections', () => {
   it('labels the agency and account sections and invites picking a client when none is open', () => {
     pathname = '/agency';
     render(<SidebarNav flags={agencyAdmin} clients={clients} />);
-    expect(linkNames(screen.getByRole('group', { name: 'Agency' }))).toEqual(['Portfolio', 'Approvals', 'Alert review']);
+    expect(linkNames(screen.getByRole('group', { name: 'Agency' }))).toEqual(['Portfolio', 'Approvals', 'Alert review', 'Usage & limits']);
     expect(linkNames(screen.getByRole('group', { name: 'Account' }))).toEqual(['Inbox', 'Team', 'Branding', 'Slack & Teams', 'Notifications']);
     expect(screen.getByText('Select a client from Portfolio')).toBeTruthy();
     expect(screen.queryByRole('group', { name: /^Client/ })).toBeNull();

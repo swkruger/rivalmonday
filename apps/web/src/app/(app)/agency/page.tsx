@@ -4,6 +4,7 @@ import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow }
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PressureBadge } from '@/components/pressure-badge';
+import { SpendBadge } from '@/components/spend-badge';
 import { requireContext } from '@/server/current-viewer';
 import { relativeTime } from '@/server/format';
 import { callTool } from '@/server/tools';
@@ -84,6 +85,7 @@ export default async function AgencyPortfolioPage() {
             <TableRow>
               <TableHead>Client</TableHead>
               <TableHead>Pressure</TableHead>
+              <TableHead>Budget</TableHead>
               <TableHead>Alerts</TableHead>
               <TableHead>Brief</TableHead>
               <TableHead>Open actions</TableHead>
@@ -105,6 +107,9 @@ export default async function AgencyPortfolioPage() {
                     {row.topCompetitor && <span>{row.topCompetitor}</span>}
                   </div>
                   {row.pressure.reasons.length > 0 && <div className="text-muted-ink">{row.pressure.reasons.join(' · ')}</div>}
+                </TableCell>
+                <TableCell>
+                  <SpendBadge spend={row.spend} />
                 </TableCell>
                 <TableCell>
                   {row.alertsPending > 0 ? (
