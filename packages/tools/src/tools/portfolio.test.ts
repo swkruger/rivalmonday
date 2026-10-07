@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { alert, brief, changeEvent, eventScore, move, recommendation } from '@cs/db';
+import { alert, brief, changeEvent, eventScore, llmCall, move, recommendation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createToolRegistry } from '../registry';
@@ -8,6 +8,7 @@ const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const registry = createToolRegistry({ app: dbs.app, service: dbs.service }, { audit: { record: async () => {} } });
 const ctx = (role: AccessContext['role'], scope: AccessContext['clientScope'], agencyId: string = IDS.agencyA) => createAccessContext({ agencyId, userId: `u-${role}`, role, clientScope: scope, features: [] });
+const admin = ctx('agency_admin', 'all');
 const day = 86_400_000;
 
 async function scored(score: number, route: string, ageDays: number, retracted = false): Promise<string> {
@@ -51,5 +52,11 @@ describe('get_portfolio', () => {
     const { items } = (await registry.invoke(ctx('account_manager', [IDS.clientA1]), 'get_portfolio', {})) as { items: { clientId: string }[] };
     expect(items.map((i) => i.clientId)).toEqual([IDS.clientA1]);
     await expect(registry.invoke(ctx('client_owner', [IDS.clientA1]), 'get_portfolio', {})).rejects.toMatchObject({ code: 'permission_denied' });
+  });
+
+  it('includes month-to-date spend against the cap', async () => {
+    await dbs.owner.insert(llmCall).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, task: 't', provider: 'p', model: 'm', inputTokens: 1, outputTokens: 1, costUsd: 16, latencyMs: 1, ok: true });
+    const { items } = (await registry.invoke(admin, 'get_portfolio', {})) as { items: { clientId: string; spend: { level: string; monthToDateUsd: number } }[] };
+    expect(items.find((i) => i.clientId === IDS.clientA1)!.spend).toMatchObject({ level: 'over', monthToDateUsd: 16 });
   });
 });

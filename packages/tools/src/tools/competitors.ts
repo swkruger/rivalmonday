@@ -4,7 +4,6 @@ import { client, clientCompetitor, competitor, competitorSuggestion, trackedPage
 import { and, asc, count, desc, eq, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type JobState, jobStatusOf, type ToolDeps } from '../deps';
-import { COMPETITOR_LIMIT } from '../limits';
 import { SuggestionView, TrackedCompetitor } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -23,11 +22,13 @@ export async function startDiscovery(deps: ToolDeps, competitorId: string): Prom
   return 'queued';
 }
 
-/** Decision 5. Call inside the caller's tenant transaction; a competitor already linked to the client doesn't count twice. */
+/** Decision 6 (5b-2): the client's own `competitor_limit`. Call inside the caller's tenant transaction; a competitor already linked doesn't count twice. */
 export async function assertRoomForCompetitor(tx: Tx, clientId: string, competitorId: string | null): Promise<void> {
+  const [c] = await tx.select({ limit: client.competitorLimit }).from(client).where(eq(client.id, clientId));
+  if (!c) throw new ToolError('not_found', 'Client not found');
   const where = competitorId ? and(eq(clientCompetitor.clientId, clientId), ne(clientCompetitor.competitorId, competitorId)) : eq(clientCompetitor.clientId, clientId);
   const [row] = await tx.select({ n: count() }).from(clientCompetitor).where(where);
-  if ((row?.n ?? 0) >= COMPETITOR_LIMIT) throw new ToolError('invalid_input', `A client can track at most ${COMPETITOR_LIMIT} competitors — remove one first`);
+  if ((row?.n ?? 0) >= c.limit) throw new ToolError('invalid_input', `This client can track at most ${c.limit} competitor${c.limit === 1 ? '' : 's'} — remove one first or raise its limit`);
 }
 
 export const listCompetitorSuggestions = defineTool({
@@ -134,12 +135,13 @@ export const listClientCompetitors = defineTool({
   name: 'list_client_competitors',
   description: 'List the competitors a client tracks, with their number of active tracked pages.',
   input: z.object({ clientId: uuid }),
-  output: z.object({ items: z.array(TrackedCompetitor) }),
+  output: z.object({ items: z.array(TrackedCompetitor), limit: z.number().int() }),
   permission: 'read',
   async handler(ctx, { clientId }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
-    const rows = await withTenant(deps.app, ctx, (tx) =>
-      tx
+    const { c, rows } = await withTenant(deps.app, ctx, async (tx) => {
+      const [c] = await tx.select({ limit: client.competitorLimit }).from(client).where(eq(client.id, clientId));
+      const rows = await tx
         .select({
           id: competitor.id, name: competitor.name, domain: competitor.domain, placeId: competitor.placeId, addedAt: clientCompetitor.createdAt,
           activePages: sql<number>`(select count(*)::int from tracked_page tp where tp.competitor_id = ${competitor.id} and tp.active)`,
@@ -147,8 +149,11 @@ export const listClientCompetitors = defineTool({
         .from(clientCompetitor)
         .innerJoin(competitor, eq(competitor.id, clientCompetitor.competitorId))
         .where(eq(clientCompetitor.clientId, clientId))
-        .orderBy(asc(competitor.name)));
-    return { items: rows.map((r) => ({ ...r, addedAt: r.addedAt.toISOString() })) };
+        .orderBy(asc(competitor.name));
+      return { c, rows };
+    });
+    if (!c) throw new ToolError('not_found', 'Client not found');
+    return { items: rows.map((r) => ({ ...r, addedAt: r.addedAt.toISOString() })), limit: c.limit };
   },
 });
 

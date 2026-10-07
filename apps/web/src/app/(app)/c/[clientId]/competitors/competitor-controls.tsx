@@ -158,10 +158,11 @@ export function SuggestionsPanel({
   suggestions,
   atLimit,
   /**
-   * Review Fix 2: the caller (`page.tsx`, a server file) passes the real `COMPETITOR_LIMIT` from `@cs/tools` so
-   * the "at limit" copy never hardcodes the number. This component is `'use client'` and must not import a
-   * runtime value from `@cs/tools` itself (common.md: don't pull server-only packages into client components —
-   * pass data as props), so the default here only covers the brief's fixed test call, which omits the prop.
+   * Review Fix 2: the caller (`page.tsx`, a server file) passes the client's real `competitorLimit`
+   * (from `list_client_competitors`'s `limit`, 5b-2 decision 6) so the "at limit" copy never hardcodes the
+   * number. This component is `'use client'` and must not import a runtime value from `@cs/tools` itself
+   * (common.md: don't pull server-only packages into client components — pass data as props), so the default
+   * here only covers the brief's fixed test call, which omits the prop.
    */
   limit = 5,
   initialSearch = 'idle',

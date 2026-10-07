@@ -10,5 +10,6 @@ export * from './pressure';
 export * from './registry';
 export * from './settings';
 export * from './timezone';
+export * from './usage';
 export * from './tools/schemas';
 export { type Discovery, assertRoomForCompetitor, startDiscovery } from './tools/competitors';

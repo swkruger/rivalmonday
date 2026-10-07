@@ -3,7 +3,7 @@ import { z } from 'zod';
 const iso = z.string();
 const uuid = z.string().uuid();
 
-export const ClientSummary = z.object({ id: uuid, name: z.string(), verticalId: z.string(), timezone: z.string() });
+export const ClientSummary = z.object({ id: uuid, name: z.string(), verticalId: z.string(), timezone: z.string(), status: z.enum(['active', 'prospect']) });
 export type ClientSummary = z.infer<typeof ClientSummary>;
 
 export const ServiceAreaInput = z.object({
@@ -93,10 +93,20 @@ export const RecommendationView = z.object({
 });
 export type RecommendationView = z.infer<typeof RecommendationView>;
 
+export const SpendView = z.object({ monthToDateUsd: z.number(), capUsd: z.number(), ratio: z.number(), level: z.enum(['ok', 'warning', 'over']) });
+export type SpendView = z.infer<typeof SpendView>;
+
+export const UsageRow = z.object({
+  clientId: uuid, name: z.string(), status: z.enum(['active', 'prospect']), spend: SpendView, competitorLimit: z.number().int(), competitors: z.number().int(),
+  /** Decision 6: Ask arrives in Phase 6 — always null for now. */
+  questions: z.object({ used: z.null(), quota: z.null() }),
+});
+export type UsageRow = z.infer<typeof UsageRow>;
+
 export const PressureView = z.object({ score: z.number().int(), level: z.enum(['low', 'elevated', 'high']), reasons: z.array(z.string()) });
 export const PortfolioRow = z.object({
   clientId: uuid, name: z.string(), verticalId: z.string(), pressure: PressureView, topCompetitor: z.string().nullable(),
   alertsPending: z.number().int(), alertsDelivered7d: z.number().int(), briefToApprove: z.object({ id: uuid, deliveryDate: z.string() }).nullable(),
-  openRecommendations: z.number().int(), lastActivityAt: iso.nullable(),
+  openRecommendations: z.number().int(), lastActivityAt: iso.nullable(), spend: SpendView,
 });
 export type PortfolioRow = z.infer<typeof PortfolioRow>;

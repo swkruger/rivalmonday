@@ -15,7 +15,7 @@ export const listClients = defineTool({
   permission: 'agency',
   async handler(ctx, _input, deps) {
     const rows = await withTenant(deps.app, ctx, (tx) => tx.select().from(client).orderBy(asc(client.name)));
-    return { items: rows.map((c) => ({ id: c.id, name: c.name, verticalId: c.verticalId, timezone: c.timezone })) };
+    return { items: rows.map((c) => ({ id: c.id, name: c.name, verticalId: c.verticalId, timezone: c.timezone, status: c.status })) };
   },
 });
 
@@ -31,7 +31,7 @@ export const getClientProfile = defineTool({
     if (!c) throw new ToolError('not_found', 'Client not found');
     const agency = isAgencyRole(ctx.role);
     return {
-      id: c.id, name: c.name, verticalId: c.verticalId, timezone: c.timezone, services: c.services, keywords: c.keywords, features: c.features,
+      id: c.id, name: c.name, verticalId: c.verticalId, timezone: c.timezone, status: c.status, services: c.services, keywords: c.keywords, features: c.features,
       serviceArea: c.serviceArea ?? null, placeId: c.placeId,
       alertMode: agency ? (c.alertMode as ClientProfile['alertMode']) : null, briefAutoSend: agency ? c.briefAutoSend : null,
     };
