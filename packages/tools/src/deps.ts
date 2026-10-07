@@ -25,6 +25,8 @@ export interface ToolDeps {
   jobStatus?: JobStatusLookup;
   /** Decision 7: website crawling (page discovery, manual pages) only when true. */
   webMonitoring?: boolean;
+  /** 5b-2 decision 2: lower-cased emails allowed to use the platform model-ops queues (PLATFORM_ADMIN_EMAILS). */
+  platformAdmins?: readonly string[];
 }
 
 let bundledPacks: PackLoader | null = null;

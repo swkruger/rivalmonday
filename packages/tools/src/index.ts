@@ -5,6 +5,7 @@ export * from './client-input';
 export * from './deps';
 export * from './inbox';
 export * from './limits';
+export * from './platform';
 export * from './preferences';
 export * from './pressure';
 export * from './registry';

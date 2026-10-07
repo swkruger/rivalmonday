@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cs/ai": "workspace:*",
     "@cs/collectors": "workspace:*",
     "@cs/core": "workspace:*",
     "@cs/db": "workspace:*",

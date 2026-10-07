@@ -118,3 +118,14 @@ export const PortfolioRow = z.object({
   openRecommendations: z.number().int(), lastActivityAt: iso.nullable(), spend: SpendView,
 });
 export type PortfolioRow = z.infer<typeof PortfolioRow>;
+
+export const ReviewQuestionView = z.object({
+  key: z.string(), type: z.enum(['noul', 'choice', 'score']), instructions: z.string(),
+  options: z.array(z.object({ value: z.string(), label: z.string() })), modelAnswer: z.string().nullable(), confidence: z.number().nullable(),
+});
+export type ReviewQuestionView = z.infer<typeof ReviewQuestionView>;
+export const DecisionReviewView = z.object({
+  id: uuid, createdAt: iso, competitorName: z.string(), source: z.string(), kind: z.string(), beforeText: z.string().nullable(), afterText: z.string().nullable(),
+  questions: z.array(ReviewQuestionView),
+});
+export type DecisionReviewView = z.infer<typeof DecisionReviewView>;

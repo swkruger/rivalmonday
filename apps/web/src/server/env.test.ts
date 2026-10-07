@@ -28,4 +28,9 @@ describe('parseWebEnv', () => {
     expect(parseWebEnv({ ...ok, WEB_MONITORING_ENABLED: 'yes' } as unknown as NodeJS.ProcessEnv).webMonitoring).toBe(false);
     expect(parseWebEnv({ ...ok, WEB_MONITORING_ENABLED: 'true' } as unknown as NodeJS.ProcessEnv).webMonitoring).toBe(true);
   });
+
+  it('reads PLATFORM_ADMIN_EMAILS as a normalised list', () => {
+    expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).platformAdmins).toEqual([]);
+    expect(parseWebEnv({ ...ok, PLATFORM_ADMIN_EMAILS: 'A@b.co, c@d.co' } as unknown as NodeJS.ProcessEnv).platformAdmins).toEqual(['a@b.co', 'c@d.co']);
+  });
 });

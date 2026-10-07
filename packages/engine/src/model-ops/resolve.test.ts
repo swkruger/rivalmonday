@@ -1,14 +1,14 @@
 import { changeEvent, decisionLabel, decisionReview, decisionSample, detectedChange, eventChange, eventScore } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { choice, noul } from '../../test/fake-ai';
 import { day, seedPage, seedVendorCapture, seedWebCapture } from '../../test/seed';
 import { supersedePriorChanges } from '../events/retract';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
 import { createPackLoader } from '../tag/tag-stage';
-import { listOpenReviews, resolveDecisionReview } from './resolve';
+import { listOpenReviews, resolveDecisionReview, reviewQuestions } from './resolve';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -136,6 +136,7 @@ describe('resolveDecisionReview (Phase 3d decision 8)', () => {
     await review(suppressed, ['meaningful'], modelSaid(false, 'cosmetic'));
     expect(await listOpenReviews(dbs.service)).toEqual([]);
     await expect(resolveDecisionReview(deps, id, { answers: { meaningful: true }, resolvedBy: 'am' })).rejects.toThrow(/superseded by a newer stage version/);
+    await expect(resolveDecisionReview(deps, id, { answers: { meaningful: true }, resolvedBy: 'am' })).rejects.toMatchObject({ code: 'invalid_input' });
     expect((await dbs.owner.select().from(detectedChange).where(eq(detectedChange.id, ch)))[0]?.status).toBe('superseded');
     expect((await dbs.owner.select().from(decisionReview).where(eq(decisionReview.id, id)))[0]?.resolvedAt).toBeNull();
     expect(await dbs.owner.select().from(changeEvent)).toEqual([]);
@@ -159,5 +160,79 @@ describe('resolveDecisionReview (Phase 3d decision 8)', () => {
     const ch = await webChange('cosmetic');
     const id = await review(ch, ['meaningful'], modelSaid(false, 'cosmetic'), false);
     expect(await resolveDecisionReview(deps, id, { answers: { meaningful: true }, resolvedBy: 'am' })).toMatchObject({ action: 'created', labels: 0 });
+  });
+
+  it('lets exactly one of two concurrent resolutions win (Review Focus 3)', async () => {
+    const ch = await webChange('cosmetic');
+    const id = await review(ch, ['meaningful'], modelSaid(false, 'cosmetic'));
+    const answers = { meaningful: true, change_type: 'new_service', service_hvac_plumbing: 'duct_cleaning' };
+    const results = await Promise.allSettled([
+      resolveDecisionReview(deps, id, { answers, resolvedBy: 'op1' }),
+      resolveDecisionReview(deps, id, { answers, resolvedBy: 'op2' }),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const lost = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+    expect(lost.reason).toMatchObject({ code: 'invalid_input', message: expect.stringMatching(/already resolved/) });
+    expect(await dbs.owner.select().from(changeEvent)).toHaveLength(1);
+  });
+
+  /** Holds `close` (which locks the change row) open until a resolve is blocked on that lock, then commits it. */
+  async function closeWhileResolving(close: (tx: Parameters<Parameters<typeof dbs.service.transaction>[0]>[0]) => Promise<unknown>, resolve: () => Promise<unknown>) {
+    let resolving: Promise<unknown> | undefined;
+    await dbs.service.transaction(async (tx) => {
+      await close(tx);
+      resolving = resolve();
+      resolving.catch(() => {}); // observed below, after the commit
+      for (let i = 0; i < 200; i++) {
+        const [w] = await dbs.owner.execute<{ n: number }>(sql`select count(*)::int as n from pg_locks where not granted`);
+        if ((w?.n ?? 0) > 0) return;
+        await new Promise((r) => setTimeout(r, 25));
+      }
+      throw new Error('the resolve never blocked on the change lock');
+    });
+    return resolving!;
+  }
+
+  it('a supersede that commits mid-resolve wins: no relink, no event, invalid_input (Review Focus 3)', async () => {
+    const ch = await webChange('cosmetic');
+    const id = await review(ch, ['meaningful'], modelSaid(false, 'cosmetic'));
+    const [row] = await dbs.owner.select().from(detectedChange).where(eq(detectedChange.id, ch));
+    const resolving = closeWhileResolving(
+      (tx) => supersedePriorChanges(tx, { afterCaptureId: row!.afterCaptureId!, source: 'web' }, 2),
+      () => resolveDecisionReview(deps, id, { answers: { meaningful: true, change_type: 'new_service', service_hvac_plumbing: 'duct_cleaning' }, resolvedBy: 'op' }),
+    );
+    await expect(resolving).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringMatching(/superseded or suppressed while it was being resolved/) });
+    expect(await dbs.owner.select().from(changeEvent)).toEqual([]);
+    expect(await dbs.owner.select().from(eventChange)).toEqual([]);
+    expect((await dbs.owner.select().from(detectedChange).where(eq(detectedChange.id, ch)))[0]?.status).toBe('superseded');
+    expect((await dbs.owner.select().from(decisionReview).where(eq(decisionReview.id, id)))[0]).toMatchObject({ resolvedBy: 'system:superseded' });
+    expect(await dbs.owner.select().from(decisionLabel)).toEqual([]);
+  });
+
+  it('a suppression that commits mid-resolve leaves the review open and creates nothing (Review Focus 3)', async () => {
+    const ch = await webChange('cosmetic');
+    const id = await review(ch, ['meaningful'], modelSaid(false, 'cosmetic'));
+    const resolving = closeWhileResolving(
+      (tx) => tx.update(detectedChange).set({ status: 'suppressed' }).where(eq(detectedChange.id, ch)),
+      () => resolveDecisionReview(deps, id, { answers: { meaningful: true }, resolvedBy: 'op' }),
+    );
+    await expect(resolving).rejects.toMatchObject({ code: 'invalid_input' });
+    expect(await dbs.owner.select().from(changeEvent)).toEqual([]);
+    expect((await dbs.owner.select().from(decisionReview).where(eq(decisionReview.id, id)))[0]?.resolvedAt).toBeNull();
+  });
+
+  it('refuses user-fixable problems as invalid_input and a missing review as not_found', async () => {
+    const ch = await webChange('cosmetic');
+    const id = await review(ch, ['change_type'], modelSaid(true, 'content'));
+    await expect(resolveDecisionReview(deps, id, { answers: { change_type: 'banana' }, resolvedBy: 'op' })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(resolveDecisionReview(deps, id, { answers: { nope: 'true' }, resolvedBy: 'op' })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(resolveDecisionReview(deps, '00000000-0000-4000-8000-000000000999', { answers: {}, resolvedBy: 'op' })).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('returns the open questions of a review', async () => {
+    const ch = await webChange('cosmetic');
+    const id = await review(ch, ['meaningful', 'change_type'], modelSaid(false, 'cosmetic'));
+    const qs = await reviewQuestions(deps, id);
+    expect(qs.map((q) => [q.key, q.question.type])).toEqual([['meaningful', 'noul'], ['change_type', 'choice']]);
   });
 });

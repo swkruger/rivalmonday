@@ -395,6 +395,9 @@ importers:
 
   packages/tools:
     dependencies:
+      '@cs/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@cs/collectors':
         specifier: workspace:*
         version: link:../collectors

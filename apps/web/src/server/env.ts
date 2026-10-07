@@ -1,5 +1,5 @@
 import 'server-only';
-import { isUuid, MIN_LINK_SECRET_LENGTH } from '@cs/core';
+import { isUuid, MIN_LINK_SECRET_LENGTH, normalizeAdminEmails } from '@cs/core';
 
 export interface WebEnv {
   appUrl: string;
@@ -14,6 +14,8 @@ export interface WebEnv {
   defaultAgencyId: string | null;
   /** Decision 7 (5b-1): crawl competitor websites only when explicitly enabled (no bot page yet). */
   webMonitoring: boolean;
+  /** 5b-2 decision 2: emails of platform operators (lower-cased). */
+  platformAdmins: string[];
 }
 
 export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
@@ -43,6 +45,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     google: env.GOOGLE_CLIENT_ID?.trim() && env.GOOGLE_CLIENT_SECRET?.trim() ? { clientId: env.GOOGLE_CLIENT_ID.trim(), clientSecret: env.GOOGLE_CLIENT_SECRET.trim() } : null,
     defaultAgencyId,
     webMonitoring: env.WEB_MONITORING_ENABLED?.trim() === 'true',
+    platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
   };
   if (problems.length) throw new Error(`Web app configuration problems:\n- ${problems.join('\n- ')}`);
   return parsed;

@@ -1,5 +1,5 @@
 import type { DecisionQuestion, ResolvedAnswer } from '@cs/ai';
-import type { ChangeType } from '@cs/core';
+import { type ChangeType, ToolError } from '@cs/core';
 import { changeEvent, client, competitor, type Db, decisionLabel, decisionReview, decisionSample, detectedChange, eventChange, eventScore } from '@cs/db';
 import { and, asc, eq, isNull, notInArray, sql } from 'drizzle-orm';
 import { detachChange } from '../events/retract';
@@ -46,17 +46,53 @@ export async function listOpenReviews(db: Db, limit = 50): Promise<OpenReview[]>
 function humanAnswer(key: string, q: DecisionQuestion, raw: string | boolean): ResolvedAnswer {
   if (q.type === 'noul') {
     const v = typeof raw === 'boolean' ? raw : raw === 'true' ? true : raw === 'false' ? false : null;
-    if (v === null) throw new Error(`answer for ${key} must be true or false (got "${raw}")`);
+    if (v === null) throw new ToolError('invalid_input', `answer for ${key} must be true or false (got "${raw}")`);
     return { type: 'noul', value: v, probability: v ? 1 : 0, confidence: 1, provider: 'human' };
   }
   if (q.type === 'choice') {
     const v = String(raw);
-    if (!(v in q.options)) throw new Error(`answer for ${key} must be one of ${Object.keys(q.options).join('|')} (got "${v}")`);
+    if (!(v in q.options)) throw new ToolError('invalid_input', `answer for ${key} must be one of ${Object.keys(q.options).join('|')} (got "${v}")`);
     return { type: 'choice', value: v, probabilities: { [v]: 1 }, confidence: 1, provider: 'human' };
   }
   const v = Number(raw);
-  if (!Number.isInteger(v) || v < 0 || v >= q.levels.length) throw new Error(`answer for ${key} must be a level from 0 to ${q.levels.length - 1} (got "${raw}")`);
+  if (!Number.isInteger(v) || v < 0 || v >= q.levels.length) throw new ToolError('invalid_input', `answer for ${key} must be a level from 0 to ${q.levels.length - 1} (got "${raw}")`);
   return { type: 'score', value: v, probabilities: { [String(v)]: 1 }, confidence: 1, provider: 'human' };
+}
+
+type ReviewRow = typeof decisionReview.$inferSelect;
+type ChangeRow = typeof detectedChange.$inferSelect;
+type SampleRow = typeof decisionSample.$inferSelect;
+interface ReviewContext {
+  rev: ReviewRow;
+  ch: ChangeRow;
+  sample: SampleRow | undefined;
+  packs: Awaited<ReturnType<PackLoader>>[];
+  questions: Record<string, DecisionQuestion>;
+}
+
+/** Loads an open review with its change, sample, packs and questions; refuses resolved or closed ones (5b-2 decision 3). */
+async function reviewContext(deps: { db: Db; packs: PackLoader }, reviewId: string): Promise<ReviewContext> {
+  const { db } = deps;
+  const [rev] = await db.select().from(decisionReview).where(eq(decisionReview.id, reviewId)).limit(1);
+  if (!rev) throw new ToolError('not_found', `decision_review ${reviewId} not found`);
+  if (rev.resolvedAt) throw new ToolError('invalid_input', `decision_review ${reviewId} is already resolved`);
+  if (rev.subjectType !== 'detected_change') throw new ToolError('not_found', `decision_review ${reviewId} has unsupported subject ${rev.subjectType}`);
+  const [ch] = await db.select().from(detectedChange).where(eq(detectedChange.id, rev.subjectId)).limit(1);
+  if (!ch) throw new ToolError('not_found', `detected_change ${rev.subjectId} not found`);
+  if (ch.status === 'superseded') throw new ToolError('invalid_input', `decision_review ${reviewId}: detected_change ${ch.id} was superseded by a newer stage version; nothing to resolve`);
+  if (ch.status === 'suppressed') throw new ToolError('invalid_input', `decision_review ${reviewId}: detected_change ${ch.id} is suppressed; nothing to resolve`);
+  const [sample] = rev.sampleId ? await db.select().from(decisionSample).where(eq(decisionSample.id, rev.sampleId)).limit(1) : [];
+  const verticalIds = ch.clientId ? (await db.select({ v: client.verticalId }).from(client).where(eq(client.id, ch.clientId))).map((r) => r.v) : await competitorVerticals(db, ch.competitorId);
+  const packs = await Promise.all(verticalIds.map(deps.packs));
+  const questions = (sample?.questions as Record<string, DecisionQuestion> | undefined) ??
+    (ch.source === 'web' ? buildTagQuestions(packs) : buildStructuredQuestions(ch.details.changeType as ChangeType, packs));
+  return { rev, ch, sample, packs, questions };
+}
+
+/** 5b-2: the questions an operator must answer for this review (its `keys`), for the platform review screen. */
+export async function reviewQuestions(deps: { db: Db; packs: PackLoader }, reviewId: string): Promise<{ key: string; question: DecisionQuestion }[]> {
+  const { rev, questions } = await reviewContext(deps, reviewId);
+  return rev.keys.filter((k) => questions[k]).map((k) => ({ key: k, question: questions[k]! }));
 }
 
 /**
@@ -70,36 +106,16 @@ export async function resolveDecisionReview(
   input: { answers: Record<string, string | boolean>; resolvedBy: string },
 ): Promise<{ action: ResolveAction; eventId: string | null; labels: number }> {
   const { db } = deps;
-  const [rev] = await db.select().from(decisionReview).where(eq(decisionReview.id, reviewId)).limit(1);
-  if (!rev) throw new Error(`decision_review ${reviewId} not found`);
-  if (rev.resolvedAt) throw new Error(`decision_review ${reviewId} is already resolved`);
-  if (rev.subjectType !== 'detected_change') throw new Error(`decision_review ${reviewId} has unsupported subject ${rev.subjectType}`);
-  const [ch] = await db.select().from(detectedChange).where(eq(detectedChange.id, rev.subjectId)).limit(1);
-  if (!ch) throw new Error(`detected_change ${rev.subjectId} not found`);
-  if (ch.status === 'superseded') throw new Error(`decision_review ${reviewId}: detected_change ${ch.id} was superseded by a newer stage version; nothing to resolve`);
-  if (ch.status === 'suppressed') throw new Error(`decision_review ${reviewId}: detected_change ${ch.id} is suppressed; nothing to resolve`);
-  const [sample] = rev.sampleId ? await db.select().from(decisionSample).where(eq(decisionSample.id, rev.sampleId)).limit(1) : [];
-
-  const verticalIds = ch.clientId ? (await db.select({ v: client.verticalId }).from(client).where(eq(client.id, ch.clientId))).map((r) => r.v) : await competitorVerticals(db, ch.competitorId);
-  const packs = await Promise.all(verticalIds.map(deps.packs));
-  const questions = (sample?.questions as Record<string, DecisionQuestion> | undefined) ??
-    (ch.source === 'web' ? buildTagQuestions(packs) : buildStructuredQuestions(ch.details.changeType as ChangeType, packs));
+  const { rev, ch, sample, packs, questions } = await reviewContext(deps, reviewId);
 
   const human: Record<string, ResolvedAnswer> = {};
   for (const [key, raw] of Object.entries(input.answers)) {
     const q = questions[key];
-    if (!q) throw new Error(`unknown question "${key}" for decision_review ${reviewId}`);
+    if (!q) throw new ToolError('invalid_input', `unknown question "${key}" for decision_review ${reviewId}`);
     human[key] = humanAnswer(key, q, raw);
   }
   const merged = { ...(rev.answers as Record<string, ResolvedAnswer>), ...human };
 
-  const [link] = await db
-    .select({ eventId: eventChange.eventId })
-    .from(eventChange)
-    .innerJoin(changeEvent, eq(changeEvent.id, eventChange.eventId))
-    .where(and(eq(eventChange.changeId, ch.id), isNull(changeEvent.retractedAt)))
-    .limit(1);
-  const eventId: string | null = link?.eventId ?? null;
   // Loaded before the transaction: loadWebChange/blockEmbedding take the pool Db.
   const webRow = ch.source === 'web' ? await loadWebChange(db, ch.id) : undefined;
   const embedding = webRow ? await blockEmbedding(db, webRow.change) : null;
@@ -108,8 +124,28 @@ export async function resolveDecisionReview(
   // reassignments made inside a nested closure, so a captured `let` stays narrowed to its initial
   // literal at every read after the (awaited) call that mutates it.
   const outcome = await db.transaction(async (tx) => {
+    // 5b-2 decision 3 (3d carry-over, amended F5): lock the change and re-check it first — the same change-then-review
+    // order as supersedePriorChanges, so the two can't deadlock — then claim the review. A supersede or suppression that
+    // committed after reviewContext() stops here; of two concurrent resolves, the second claims nothing.
+    const [locked] = await tx.select({ status: detectedChange.status }).from(detectedChange).where(eq(detectedChange.id, ch.id)).for('update');
+    if (!locked || CLOSED_CHANGE_STATUSES.includes(locked.status)) {
+      throw new ToolError('invalid_input', `decision_review ${reviewId}: detected_change ${ch.id} was superseded or suppressed while it was being resolved; nothing to resolve`);
+    }
+    const claimed = await tx
+      .update(decisionReview)
+      .set({ resolvedAt: new Date(), resolvedBy: input.resolvedBy, resolution: input.answers })
+      .where(and(eq(decisionReview.id, reviewId), isNull(decisionReview.resolvedAt)))
+      .returning({ id: decisionReview.id });
+    if (claimed.length === 0) throw new ToolError('invalid_input', `decision_review ${reviewId} is already resolved`);
+    // Read after the lock: the live event link as of now, not as of reviewContext().
+    const [link] = await tx
+      .select({ eventId: eventChange.eventId })
+      .from(eventChange)
+      .innerJoin(changeEvent, eq(changeEvent.id, eventChange.eventId))
+      .where(and(eq(eventChange.changeId, ch.id), isNull(changeEvent.retractedAt)))
+      .limit(1);
     let action: ResolveAction = 'unchanged';
-    let newEventId = eventId;
+    let newEventId: string | null = link?.eventId ?? null;
     let labels = 0;
     if (ch.source === 'web') {
       const res = resolveTag(ch.numericChanges, { answers: merged, needsReview: [] }, packs);
@@ -147,7 +183,6 @@ export async function resolveDecisionReview(
       await tx.delete(eventScore).where(eq(eventScore.eventId, newEventId));
       action = 'updated';
     }
-    await tx.update(decisionReview).set({ resolvedAt: new Date(), resolvedBy: input.resolvedBy, resolution: input.answers }).where(eq(decisionReview.id, reviewId));
     if (sample) {
       for (const [key, a] of Object.entries(human)) {
         const value = String(a.value);
