@@ -3,7 +3,7 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createEmailTransportFromEnv, createFileTransport, createPostmarkTransport, PermanentEmailError, POSTMARK_URL } from './transport';
+import { createEmailTransportFromEnv, createFileTransport, createPostmarkTransport, isPostmarkTestServer, PermanentEmailError, POSTMARK_URL } from './transport';
 
 const msg = { from: 'Acme <briefs@acme.example>', to: 'pat@a1.example', replyTo: 'sam@acme.example', subject: 'S', html: '<p>h</p>', text: 'h', tag: 'alert', metadata: { notification: 'n1' } };
 const scope = { agencyId: 'a', clientId: 'c' };
@@ -45,6 +45,24 @@ describe('postmark transport', () => {
     expect(err).toBeInstanceOf(Error);
     expect(err).not.toBeInstanceOf(PermanentEmailError);
     expect(l.calls.map((c) => [c.ok, c.costUsd])).toEqual([[false, null], [false, null]]);
+  });
+});
+
+describe('Postmark test server (5b-2 decision 7)', () => {
+  it('ledgers an accepted test-server send at $0 under email_test', async () => {
+    const rows: VendorCallRecord[] = [];
+    const ledger = { recordLlmCall: async () => {}, recordVendorCall: async (r: VendorCallRecord) => void rows.push(r) };
+    const fetch = async () => new Response(JSON.stringify({ ErrorCode: 0, MessageID: 'm1' }), { status: 200 });
+    const t = createPostmarkTransport({ token: 'x', ledger, fetch: fetch as typeof globalThis.fetch, testServer: true });
+    await t.send(msg, { agencyId: null, clientId: null });
+    expect(rows[0]).toMatchObject({ vendor: 'postmark', operation: 'email_test', costUsd: 0, ok: true });
+  });
+
+  it('detects a test server from POSTMARK_TEST_SERVER or the sandbox token', () => {
+    expect(isPostmarkTestServer({ POSTMARK_SERVER_TOKEN: 'live' })).toBe(false);
+    expect(isPostmarkTestServer({ POSTMARK_SERVER_TOKEN: 'live', POSTMARK_TEST_SERVER: 'true' })).toBe(true);
+    expect(isPostmarkTestServer({ POSTMARK_SERVER_TOKEN: 'POSTMARK_API_TEST' })).toBe(true);
+    expect(isPostmarkTestServer({ POSTMARK_SERVER_TOKEN: 'live', POSTMARK_TEST_SERVER: 'yes' })).toBe(false);
   });
 });
 

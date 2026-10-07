@@ -21,12 +21,19 @@ export interface EmailTransport {
 export class PermanentEmailError extends Error {}
 
 export const POSTMARK_URL = 'https://api.postmarkapp.com/email';
+/** Postmark's documented sandbox token: accepted, never delivered. */
+export const POSTMARK_SANDBOX_TOKEN = 'POSTMARK_API_TEST';
 /** Placeholder list price (~$15 per 10k); confirm with the owner's Postmark plan before costs feed budget caps. */
 export const POSTMARK_USD_PER_EMAIL = 0.0015;
 /** Postmark API error codes that are about the recipient, not the request or the service (300 invalid To, 406 inactive). */
 const PERMANENT_CODES = new Set([300, 406]);
 
-export function createPostmarkTransport(opts: { token: string; ledger: LedgerSink; fetch?: typeof fetch; messageStream?: string }): EmailTransport {
+/** 5b-2 decision 7: a test/sandbox server accepts and logs messages but never delivers them — they must not count as spend. */
+export function isPostmarkTestServer(env: NodeJS.ProcessEnv): boolean {
+  return env.POSTMARK_TEST_SERVER?.trim() === 'true' || env.POSTMARK_SERVER_TOKEN?.trim() === POSTMARK_SANDBOX_TOKEN;
+}
+
+export function createPostmarkTransport(opts: { token: string; ledger: LedgerSink; fetch?: typeof fetch; messageStream?: string; testServer?: boolean }): EmailTransport {
   const doFetch = opts.fetch ?? fetch;
   return {
     kind: 'postmark',
@@ -52,7 +59,7 @@ export function createPostmarkTransport(opts: { token: string; ledger: LedgerSin
         const text = `Postmark ${res.status} (code ${body.ErrorCode ?? '?'}): ${body.Message ?? 'no message'}`;
         throw res.status === 422 && PERMANENT_CODES.has(body.ErrorCode ?? -1) ? new PermanentEmailError(text) : new Error(text);
       } finally {
-        await opts.ledger.recordVendorCall({ ...scope, vendor: 'postmark', operation: 'email', units: 1, costUsd: ok ? POSTMARK_USD_PER_EMAIL : null, latencyMs: Date.now() - started, ok });
+        await opts.ledger.recordVendorCall({ ...scope, vendor: 'postmark', operation: opts.testServer ? 'email_test' : 'email', units: 1, costUsd: ok ? (opts.testServer ? 0 : POSTMARK_USD_PER_EMAIL) : null, latencyMs: Date.now() - started, ok });
       }
     },
   };
@@ -79,6 +86,6 @@ export function createMemoryTransport(): EmailTransport & { sent: OutgoingEmail[
 }
 
 export function createEmailTransportFromEnv(env: NodeJS.ProcessEnv, ledger: LedgerSink): EmailTransport {
-  if (env.POSTMARK_SERVER_TOKEN) return createPostmarkTransport({ token: env.POSTMARK_SERVER_TOKEN, ledger, messageStream: env.POSTMARK_MESSAGE_STREAM || undefined });
+  if (env.POSTMARK_SERVER_TOKEN) return createPostmarkTransport({ token: env.POSTMARK_SERVER_TOKEN, ledger, messageStream: env.POSTMARK_MESSAGE_STREAM || undefined, testServer: isPostmarkTestServer(env) });
   return createFileTransport(env.EMAIL_OUTBOX_DIR || './.outbox');
 }
