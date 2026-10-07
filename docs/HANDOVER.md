@@ -1,6 +1,6 @@
 # Rival Monday — Session Handover
 
-*Written 2026-09-30; last updated **2026-10-07** for a fresh session to start Phase 5b-2. **State: Phases 0–2, 3a–3d, 4a, 4b, 5a and 5b-1 are merged to `main` and pushed, plus the four fixes from the owner's early check of 5b-1 (§3 "Early owner verification": Find competitors skips a failed grid point and refreshes itself, aligned brief trend table, grouped sidebar) — `main` at `d55bd61` or later, no open feature branches, working tree clean; full suite 1324 passed + 3 skipped, E2E 6/6. Owner decision 2026-10-06: the remaining live verification is **deferred until all of Phase 5 is complete** — one combined owner session after 5b-2 and 5c (checklist in §5 item 2; most 5b-1 steps already passed). **Next: write the 5b-2 plan (agency operations, §5 item 2) from the [5b-1 plan](superpowers/plans/2026-10-05-phase-5b1-agency-workflow.md)'s "Phase 5b split" table, then execute it on branch `phase-5b2-operations` (subagent-driven), then 5c.** Start any new session by reading this file, then the documents it links. Keep it updated at the end of each session.*
+*Written 2026-09-30; last updated **2026-10-07** — the **5b-2 plan is written and owner-approved** ([plan](superpowers/plans/2026-10-07-phase-5b2-agency-operations.md), 18 tasks); next session starts executing it on branch `phase-5b2-operations` (subagent-driven). **State: Phases 0–2, 3a–3d, 4a, 4b, 5a and 5b-1 are merged to `main` and pushed, plus the four fixes from the owner's early check of 5b-1 (§3 "Early owner verification": Find competitors skips a failed grid point and refreshes itself, aligned brief trend table, grouped sidebar) — `main` at `d55bd61` or later, no open feature branches, working tree clean; full suite 1324 passed + 3 skipped, E2E 6/6. Owner decision 2026-10-06: the remaining live verification is **deferred until all of Phase 5 is complete** — one combined owner session after 5b-2 and 5c (checklist in §5 item 2; most 5b-1 steps already passed). **Next: execute the approved [5b-2 plan](superpowers/plans/2026-10-07-phase-5b2-agency-operations.md) on branch `phase-5b2-operations` (subagent-driven, §5 item 2), then write and run 5c.** Start any new session by reading this file, then the documents it links. Keep it updated at the end of each session.*
 
 ---
 
@@ -33,7 +33,8 @@ Business model: first sold to the owning agency's own clients, then **wholesale 
 | [docs/superpowers/plans/2026-10-03-phase-4a-briefs-and-recommendations.md](superpowers/plans/2026-10-03-phase-4a-briefs-and-recommendations.md) | Done (merged) |
 | [docs/superpowers/plans/2026-10-03-phase-4b-alerts-and-delivery.md](superpowers/plans/2026-10-03-phase-4b-alerts-and-delivery.md) | Done (merged 2026-10-04) |
 | [docs/superpowers/plans/2026-10-04-phase-5a-app-foundation-and-auth.md](superpowers/plans/2026-10-04-phase-5a-app-foundation-and-auth.md) | Done (merged 2026-10-05). Its "Phase 5 overview" table defines **5c** |
-| [docs/superpowers/plans/2026-10-05-phase-5b1-agency-workflow.md](superpowers/plans/2026-10-05-phase-5b1-agency-workflow.md) | **Done, merged 2026-10-06** — live verification deferred to the end of Phase 5. Its "Phase 5b split" table defines **5b-2** (next plan to write) |
+| [docs/superpowers/plans/2026-10-05-phase-5b1-agency-workflow.md](superpowers/plans/2026-10-05-phase-5b1-agency-workflow.md) | **Done, merged 2026-10-06** — live verification deferred to the end of Phase 5. Its "Phase 5b split" table defines **5b-2** |
+| [docs/superpowers/plans/2026-10-07-phase-5b2-agency-operations.md](superpowers/plans/2026-10-07-phase-5b2-agency-operations.md) | **Next — written and owner-approved 2026-10-07, not started.** 18 tasks: usage & limits, playbooks editor, platform-operator queues + claim fix, prospecting snapshot, auth/audit hardening, 5b-1 carry-over |
 
 ---
 
@@ -140,14 +141,35 @@ Tests on `fix/owner-verification-findings` (`93d51ad`): `pnpm typecheck` 12/12; 
 ## 5. How to continue (next session checklist)
 
 1. Read this file and the roadmap carry-over sections (newest: "Phase 5b-1 carry-over", which now ends with "Owner-verification fixes carry-over"). Check `git log --oneline -5` (expect `d55bd61` or later on `main`) and `git status` (clean). Everything through 5b-1 and its owner-verification fixes is merged; no feature branch is open. Don't re-litigate the 5b-1 owner decisions or the approved sidebar/search-progress designs.
-2. **Next: write the 5b-2 plan, then execute it.** Use superpowers:writing-plans, then superpowers:subagent-driven-development on a new branch `phase-5b2-operations`. Scope comes from the [5b-1 plan](superpowers/plans/2026-10-05-phase-5b1-agency-workflow.md)'s "Phase 5b split" table (owner decisions there are binding):
-   - playbook overrides editor;
-   - theme proposals + `decision_review` resolution queue for **platform operators** (`PLATFORM_ADMIN_EMAILS`), with the `resolveDecisionReview` claim fix;
-   - usage & limits — per-client monthly cap, **default $15**, spend vs cap from the ledger, 80 % warning (enforcement stays Phase 7), configurable competitor limit (today the constant `COMPETITOR_LIMIT = 5` in `packages/tools/src/limits.ts`), Postmark test-server ledger fix, question-quota placeholder;
-   - **prospecting snapshot report** — prospect = a client in `prospect` status; one GBP + ads pull + a small 3×3 rank scan; deterministic landscape report, no model text; convertible to a client;
-   - the remaining 5a auth/audit hardening — `session.create.before` refusal for Google users without a sign-in right, hashed magic-link tokens, audit-logging the 5a service-function mutations, m2–m4, the multi-membership `/c/[clientId]` switch.
+2. **Next: execute the approved 5b-2 plan.** The plan is [2026-10-07-phase-5b2-agency-operations.md](superpowers/plans/2026-10-07-phase-5b2-agency-operations.md): 18 tasks, owner-approved 2026-10-07, nothing implemented yet.
+   - **How:** create branch `phase-5b2-operations` from `main` and run superpowers:subagent-driven-development task by task. Each task gets a fresh implementer and a reviewer, then a final whole-branch review on the most capable model (Task 18 Step 5).
+   - **What's in it:**
 
-   Also fold in from the roadmap's "Phase 5b-1 carry-over" whatever fits 5b-2 (e.g. a server-side "requested in the last N minutes" throttle on `request_competitor_suggestions` — the UI already blocks a second click while `get_competitor_search_status` says a search is running, but the tool doesn't — aligning `PinPageSwitch` with the `useOptimistic` pattern, atomic `updateRecommendationStatus`). Follow the 5b-1 conventions in §6: every web read/write is a registered tool; action messages live in a component that stays mounted; E2E specs reuse one signed-in session; new agency pages go in the sidebar's `agency` group and new client pages in its `client` group (`navItemsFor`, `nav-items.ts`). Before running E2E, check free memory — `next build` crashed twice on 2026-10-06 when Windows had < 4 GB free commit (§6). After 5b-2: write and run **5c** (client workspace intelligence — the 5a plan's "Phase 5 overview" table).
+     | Tasks | Delivers |
+     |---|---|
+     | 1–4 | Usage & limits (migrations `0036`/`0037`: `client.status`, `monthly_cap_usd`, `competitor_limit`, `prospect_report`) |
+     | 5–6 | Playbooks editor |
+     | 7–9 | Platform-operator decision-review and theme queues + the `resolveDecisionReview` claim fix |
+     | 10–13 | Prospecting (no recurring work for prospects; `prospect-snapshot` worker job; deterministic report; convert) |
+     | 14 | Auth hardening (Google refusal, hashed tokens, m3) |
+     | 15 | Settings writes as audited tools (m2, m4) |
+     | 16 | Multi-membership switch |
+     | 17 | 5b-1 carry-over (search throttle, `PinPageSwitch`, atomic recommendation status) |
+     | 18 | E2E, full suite, final review, docs |
+
+   - **The plan's decisions 1–18 are binding — don't re-litigate them.** Notable ones:
+     - usage counts only client-attributed ledger rows; shared collection allocation is Phase 7;
+     - only agency admins edit playbooks and limits;
+     - a prospect's own business gets a GBP pull only;
+     - converting a prospect starts weekly paid collection.
+   - **Owner action before live verification:** add `PLATFORM_ADMIN_EMAILS=<owner email>` and `POSTMARK_TEST_SERVER=true` to `.env`. Ask first; never print `.env`. Tests and E2E don't need them — `playwright.config.ts` sets its own.
+   - **Conventions** (the plan's Global Constraints, §6):
+     - every web read/write is a registered tool;
+     - action messages live in a component that stays mounted;
+     - E2E specs reuse one signed-in session;
+     - new agency pages go in the sidebar's `agency` group.
+   - **Before running E2E**, check free memory: `next build` crashed twice on 2026-10-06 when Windows had < 4 GB free commit (§6).
+   - **After 5b-2 merges:** write and run **5c** (client workspace intelligence — the 5a plan's "Phase 5 overview" table). Then do the combined end-of-Phase-5 owner verification below; Task 18 appends its 5b-2 steps here.
 
    **End-of-Phase-5 owner verification on `cs_dev` (deferred; do it with the owner only after 5c is merged).** 5b-1 steps — the owner ran most of them early on 2026-10-06 (§3, "Early owner verification"):
    - ✅ restart the worker once so `policy: 'short'` applies to `suggest-competitors`/`discover-pages`;
