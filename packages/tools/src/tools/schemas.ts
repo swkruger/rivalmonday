@@ -103,6 +103,14 @@ export const UsageRow = z.object({
 });
 export type UsageRow = z.infer<typeof UsageRow>;
 
+export const PlaybookView = z.object({
+  id: z.string(), trigger: z.string(), packTitle: z.string(), packTemplate: z.string(), title: z.string(), template: z.string(),
+  overridden: z.boolean(), disabled: z.boolean(), updatedAt: iso.nullable(),
+});
+export type PlaybookView = z.infer<typeof PlaybookView>;
+export const PlaybookVertical = z.object({ id: z.string(), name: z.string(), playbooks: z.array(PlaybookView) });
+export type PlaybookVertical = z.infer<typeof PlaybookVertical>;
+
 export const PressureView = z.object({ score: z.number().int(), level: z.enum(['low', 'elevated', 'high']), reasons: z.array(z.string()) });
 export const PortfolioRow = z.object({
   clientId: uuid, name: z.string(), verticalId: z.string(), pressure: PressureView, topCompetitor: z.string().nullable(),

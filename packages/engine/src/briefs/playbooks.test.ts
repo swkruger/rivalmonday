@@ -4,7 +4,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { loadVerticalPack } from '@cs/verticals';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { EventCandidate } from './gather';
-import { playbookVars, renderPlaybook, resolvePlaybooks, playbookFor, upsertPlaybookOverride } from './playbooks';
+import { playbookVars, renderPlaybook, resolvePlaybooks, playbookFor, unknownPlaybookVars, upsertPlaybookOverride } from './playbooks';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -36,6 +36,12 @@ describe('playbooks', () => {
     expect(playbookFor(list, 'price_change')).toMatchObject({ template: 'Bundle {{service}}.', source: 'agency', title: 'Answer a price cut with a value bundle' });
     expect(playbookFor(list, 'ad_surge')).toBeUndefined();
     expect(playbookFor(await resolvePlaybooks(dbs.service, IDS.agencyB, pack), 'ad_surge')).toBeDefined();
+  });
+
+  it('lists unknown placeholders, whatever their spelling', () => {
+    expect(unknownPlaybookVars('Beat {{competitor}} on {{ service }}.')).toEqual([]);
+    expect(unknownPlaybookVars('Hi {{client}} and {{ Competitor }} and {{client}}')).toEqual(['client', 'Competitor']);
+    expect(unknownPlaybookVars('Plain text')).toEqual([]);
   });
 
   it('refuses client roles, unknown playbooks and oversized templates', async () => {

@@ -6,6 +6,11 @@ import type { BriefCandidate } from './gather';
 
 export const PLAYBOOK_TEMPLATE_MAX = 2000;
 
+/** Placeholders a playbook template may use (5b-2 decision 5); `renderPlaybook` fills them from the evidence. */
+export const PLAYBOOK_VARS = ['competitor', 'service', 'new_price', 'areas', 'theme'] as const;
+export type PlaybookVar = (typeof PLAYBOOK_VARS)[number];
+export const PLAYBOOK_TITLE_MAX = 200;
+
 export interface Playbook {
   id: string;
   trigger: string;
@@ -16,10 +21,16 @@ export interface Playbook {
 
 const FALLBACK: Record<string, string> = {
   competitor: 'the competitor', service: 'this service', new_price: 'a lower price', areas: 'new areas', theme: 'this topic',
-};
+} satisfies Record<PlaybookVar, string>;
 
 export function renderPlaybook(template: string, vars: Record<string, string | undefined>): string {
   return template.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_, k: string) => vars[k]?.trim() || FALLBACK[k] || 'this');
+}
+
+/** Every `{{…}}` in the template that isn't a known placeholder, in order, de-duplicated (case-sensitive: renderPlaybook only fills lower-case names). */
+export function unknownPlaybookVars(template: string): string[] {
+  const names = [...template.matchAll(/\{\{\s*([^{}]*?)\s*\}\}/g)].map((m) => m[1]!);
+  return [...new Set(names.filter((n) => !(PLAYBOOK_VARS as readonly string[]).includes(n)))];
 }
 
 export const candidateTrigger = (c: BriefCandidate) => (c.kind === 'move' ? c.moveType : c.changeType);
@@ -62,7 +73,7 @@ export async function upsertPlaybookOverride(
   const template = input.template?.trim() || null;
   const title = input.title?.trim() || null;
   if (template && template.length > PLAYBOOK_TEMPLATE_MAX) throw new Error(`template must be at most ${PLAYBOOK_TEMPLATE_MAX} characters`);
-  if (title && title.length > 200) throw new Error('title must be at most 200 characters');
+  if (title && title.length > PLAYBOOK_TITLE_MAX) throw new Error(`title must be at most ${PLAYBOOK_TITLE_MAX} characters`);
   const values = { agencyId: ctx.agencyId, verticalId: input.verticalId, playbookId: input.playbookId, title, template, disabledBy: input.disabled ? ctx.userId : null, updatedBy: ctx.userId, updatedAt: new Date() };
   await deps.service
     .insert(playbookOverride)
