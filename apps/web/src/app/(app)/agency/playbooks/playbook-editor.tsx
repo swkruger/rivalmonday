@@ -28,11 +28,11 @@ export function PlaybookEditor({ verticalId, playbook: p, canEdit, action }: { v
           <input type="hidden" name="disabled" value={p.disabled ? 'true' : 'false'} />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`title-${id}`}>Title</Label>
-            <Input id={`title-${id}`} name="title" defaultValue={p.title} maxLength={200} />
+            <Input key={p.title} id={`title-${id}`} name="title" defaultValue={p.title} maxLength={200} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`template-${id}`}>Template</Label>
-            <textarea id={`template-${id}`} name="template" defaultValue={p.template} rows={4} maxLength={2000} className={area} />
+            <textarea key={p.template} id={`template-${id}`} name="template" defaultValue={p.template} rows={4} maxLength={2000} className={area} />
             <p className="text-xs text-muted-ink">Placeholders: {'{{competitor}} {{service}} {{new_price}} {{areas}} {{theme}}'}</p>
           </div>
           <div className="flex flex-wrap gap-2">

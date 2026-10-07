@@ -26,4 +26,15 @@ describe('PlaybookEditor', () => {
     rerender(<PlaybookEditor verticalId="hvac_plumbing" playbook={{ ...pb, overridden: true }} canEdit action={action} />);
     expect(screen.getByRole('button', { name: /reset to standard/i })).toBeTruthy();
   });
+
+  it('picks up the pack text after a reset, instead of keeping the stale edited text', () => {
+    const action = vi.fn(async (_prev: FormResult, _fd: FormData) => ({ ok: true as const, message: 'Back to the standard playbook.' }));
+    const edited = { ...pb, title: 'My edited title', template: 'My edited template {{service}}.', overridden: true };
+    const { rerender } = render(<PlaybookEditor verticalId="hvac_plumbing" playbook={edited} canEdit action={action} />);
+    expect((screen.getByLabelText('Template') as HTMLTextAreaElement).value).toBe('My edited template {{service}}.');
+    // After a successful reset the server clears the override, so the next render's PlaybookView carries the pack's own title/template again.
+    rerender(<PlaybookEditor verticalId="hvac_plumbing" playbook={pb} canEdit action={action} />);
+    expect((screen.getByLabelText('Template') as HTMLTextAreaElement).value).toBe(pb.template);
+    expect((screen.getByLabelText('Title') as HTMLInputElement).value).toBe(pb.title);
+  });
 });
