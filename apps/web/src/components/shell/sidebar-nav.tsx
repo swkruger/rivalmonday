@@ -1,11 +1,11 @@
 'use client';
 
-import { Bell, Building2, ClipboardCheck, Gauge, Inbox, LayoutDashboard, ListChecks, Palette, Send, Siren, Swords, UserCog, Users, Webhook } from 'lucide-react';
+import { Bell, BookOpen, Building2, ClipboardCheck, Gauge, Inbox, LayoutDashboard, ListChecks, Palette, Send, Siren, Swords, UserCog, Users, Webhook } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { activeHref, clientIdFromPath, type NavGroup, type NavItem, type NavRoleFlags, navItemsFor } from './nav-items';
 
-const ICONS = { clients: Users, overview: LayoutDashboard, inbox: Inbox, team: UserCog, branding: Palette, webhooks: Webhook, bell: Bell, delivery: Send, profile: Building2, competitors: Swords, approvals: ClipboardCheck, alerts: Siren, recommendations: ListChecks, usage: Gauge } as const satisfies Record<NavItem['icon'], unknown>;
+const ICONS = { clients: Users, overview: LayoutDashboard, inbox: Inbox, team: UserCog, branding: Palette, webhooks: Webhook, bell: Bell, delivery: Send, profile: Building2, competitors: Swords, approvals: ClipboardCheck, alerts: Siren, recommendations: ListChecks, usage: Gauge, playbooks: BookOpen } as const satisfies Record<NavItem['icon'], unknown>;
 
 export interface NavClient {
   id: string;

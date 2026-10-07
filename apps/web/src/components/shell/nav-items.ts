@@ -12,7 +12,7 @@ export interface NavItem {
   href: string;
   label: string;
   group: NavGroup;
-  icon: 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'approvals' | 'alerts' | 'recommendations' | 'usage';
+  icon: 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'approvals' | 'alerts' | 'recommendations' | 'usage' | 'playbooks';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -41,6 +41,7 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
     agency('/agency/approvals', 'Approvals', 'approvals');
     agency('/agency/alerts', 'Alert review', 'alerts');
     agency('/agency/usage', 'Usage & limits', 'usage');
+    agency('/agency/playbooks', 'Playbooks', 'playbooks');
     if (clientId) {
       forClient(`/c/${clientId}`, 'Overview', 'overview');
       forClient(`/c/${clientId}/recommendations`, 'Recommendations', 'recommendations');
