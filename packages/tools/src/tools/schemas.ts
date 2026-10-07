@@ -129,3 +129,9 @@ export const DecisionReviewView = z.object({
   questions: z.array(ReviewQuestionView),
 });
 export type DecisionReviewView = z.infer<typeof DecisionReviewView>;
+
+export const ThemeProposalView = z.object({
+  id: uuid, verticalId: z.string(), verticalName: z.string(), themeId: z.string(), name: z.string(), description: z.string(),
+  status: z.enum(['proposed', 'approved', 'rejected']), otherCount: z.number().int(), createdAt: iso, decidedAt: iso.nullable(), samples: z.array(z.string()),
+});
+export type ThemeProposalView = z.infer<typeof ThemeProposalView>;
