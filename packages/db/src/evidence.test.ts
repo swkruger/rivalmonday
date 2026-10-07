@@ -97,8 +97,8 @@ describe('privilege guard', () => {
     // Every other public table (agency, competitor, tracked_page, capture, evidence, audit_log, llm_call,
     // vendor_call, competitor_source, vendor_task, observation, review, ad, rank_snapshot, brief, brief_item,
     // recommendation, playbook_override, feedback, contact, notification_pref, agency_webhook, notification,
-    // alert, alert_event, trend_report) has had all write privileges revoked from app_user and is writable
-    // only by app_service.
+    // alert, alert_event, trend_report, prospect_report) has had all write privileges revoked from app_user and is
+    // writable only by app_service.
     const allowList = [
       { table: 'client', priv: 'DELETE' },
       { table: 'client', priv: 'INSERT' },

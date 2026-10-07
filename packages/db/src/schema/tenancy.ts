@@ -1,8 +1,12 @@
 import { sql } from 'drizzle-orm';
-import { type AnyPgColumn, boolean, check, foreignKey, index, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { type AnyPgColumn, boolean, check, doublePrecision, foreignKey, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 import type { AgencyBranding } from './delivery';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
+
+export const CLIENT_STATUSES = ['active', 'prospect'] as const;
+/** 5b-2 decision 8: a prospect is a client being pitched — it gets one snapshot and no recurring work until converted. */
+export type ClientStatus = (typeof CLIENT_STATUSES)[number];
 
 export interface ServiceArea {
   center: { lat: number; lng: number };
@@ -47,6 +51,12 @@ export const client = pgTable(
     alertMode: text('alert_mode').notNull().default('after_am_check'),
     /** Spec §9.1.6: send an untouched ready brief automatically on Monday 07:00 local. Agency decision. */
     briefAutoSend: boolean('brief_auto_send').notNull().default(false),
+    /** 5b-2 decision 8 (service role only). */
+    status: text('status').$type<ClientStatus>().notNull().default('active'),
+    /** 5b-2 decision 6: monthly AI + vendor spend cap in USD (warning at 80 %; enforcement is Phase 7). Service role only. */
+    monthlyCapUsd: doublePrecision('monthly_cap_usd').notNull().default(15),
+    /** 5b-2 decision 6: how many competitors this client may track (spec §4.1 "tier limit configurable"). Service role only. */
+    competitorLimit: integer('competitor_limit').notNull().default(5),
     createdAt: createdAt(),
   },
   (t) => [
@@ -69,6 +79,9 @@ export const client = pgTable(
     // Shape only (Area/City[/Sub]); the application also validates with Intl before use and falls back to the default.
     check('client_timezone_check', sql`timezone ~ '^[A-Za-z]+(/[A-Za-z0-9_+-]+){1,2}$' OR timezone = 'UTC'`),
     check('client_alert_mode_check', sql`alert_mode IN ('direct', 'after_am_check', 'digest_only')`),
+    check('client_status_check', sql`status IN ('active', 'prospect')`),
+    check('client_monthly_cap_check', sql`monthly_cap_usd > 0 AND monthly_cap_usd <= 10000`),
+    check('client_competitor_limit_check', sql`competitor_limit BETWEEN 1 AND 10`),
   ],
 );
 

@@ -1,4 +1,5 @@
-import { doublePrecision, foreignKey, index, integer, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { check, doublePrecision, foreignKey, index, integer, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 import { capture } from './evidence';
 import { agency, client } from './tenancy';
 
@@ -79,5 +80,45 @@ export const rankSnapshot = pgTable(
   (t) => [
     foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade'),
     index('rank_snapshot_client_idx').on(t.clientId, t.keyword, t.capturedAt),
+  ],
+);
+
+export interface ProspectRank { keyword: string; found: number; top3: number; averageRank: number | null }
+export interface ProspectBusiness {
+  competitorId: string;
+  name: string;
+  self: boolean;
+  gbp: { rating: number | null; reviews: number | null; category: string | null; extraCategories: number } | null;
+  /** null = not checked (no domain / no Meta page to look up). */
+  ads: { google: number | null; meta: number | null };
+  ranks: ProspectRank[];
+}
+/** 5b-2 decision 11: deterministic landscape report — no model text. */
+export interface ProspectReportData {
+  generatedAt: string;
+  keywords: string[];
+  /** Grid points per keyword (9 for the 3×3 scan). */
+  points: number;
+  scanId: string | null;
+  businesses: ProspectBusiness[];
+  notes: string[];
+}
+
+export const prospectReport = pgTable(
+  'prospect_report',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agencyId: uuid('agency_id').notNull().references(() => agency.id, { onDelete: 'cascade' }),
+    clientId: uuid('client_id').notNull(),
+    status: text('status').$type<'running' | 'ready' | 'failed'>().notNull(),
+    data: jsonb('data').$type<ProspectReportData | null>(),
+    error: text('error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (t) => [
+    foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade'),
+    check('prospect_report_status_check', sql`status IN ('running', 'ready', 'failed')`),
+    index('prospect_report_client_idx').on(t.clientId, t.createdAt),
   ],
 );
