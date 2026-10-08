@@ -206,3 +206,13 @@ export const EvidenceView = z.object({
   citedBy: z.array(z.object({ eventId: uuid, summary: z.string(), typeLabel: z.string(), occurredAt: iso })),
 });
 export type EvidenceView = z.infer<typeof EvidenceView>;
+
+// 5c-1 moves (Task 10): currently tracked competitors with at least one live event (decision 10).
+export const MoveRow = z.object({
+  id: uuid, competitorId: uuid, competitorName: z.string(), moveType: z.string(), label: z.string(),
+  status: z.enum(['emerging', 'active', 'fading', 'closed']), confidence: z.number(), summary: z.string(), eventCount: z.number().int(),
+  channels: z.array(z.string()), firstDetectedAt: iso, lastEvidenceAt: iso.nullable(), closedAt: iso.nullable(),
+});
+export type MoveRow = z.infer<typeof MoveRow>;
+export const MoveDetail = MoveRow.extend({ facts: z.array(DetailLineView), events: z.array(EventRow) });
+export type MoveDetail = z.infer<typeof MoveDetail>;

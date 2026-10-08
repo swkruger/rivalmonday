@@ -3,7 +3,7 @@
  * never exported from the package index. Importing it opens the test Dbs and closes them after the file.
  */
 import { type AccessContext, createAccessContext, type Feature } from '@cs/core';
-import { capture, changeEvent, type ChangeDetails, competitor, detectedChange, eventChange, eventScore, evidence, type NumericChange, type ScoreFactors, trackedPage } from '@cs/db';
+import { capture, changeEvent, type ChangeDetails, competitor, detectedChange, eventChange, eventScore, evidence, move, moveEvent, type NumericChange, type ScoreFactors, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createPackLoader } from '@cs/engine';
 import { asc, eq } from 'drizzle-orm';
@@ -160,4 +160,37 @@ export async function seedCapture(o: SeedCaptureOptions = {}): Promise<SeededCap
     objectKeys[kind] = objectKey;
   }
   return { captureId: c!.id, ids, objectKeys };
+}
+
+export interface SeedMoveOptions {
+  closed?: boolean;
+  /** `move.status` when not closed (the shown status is 'closed' once `closedAt` is set). Default 'active'. */
+  status?: string;
+  /** Default competitor X. */
+  competitorId?: string;
+  /** `move_open_unique` only blocks a second OPEN move of the same (client, competitor, moveType) — use a different type, or close the first. Default 'price_war'. */
+  moveType?: string;
+  agencyId?: string;
+  clientId?: string;
+}
+
+/** A move plus its `move_event` evidence-chain rows (Task 3's `move`/`move_event` schema). Returns the move id. */
+export async function seedMove(eventIds: string[], o: SeedMoveOptions = {}): Promise<string> {
+  const now = new Date();
+  const [m] = await dbs.owner.insert(move).values({
+    agencyId: o.agencyId ?? IDS.agencyA,
+    clientId: o.clientId ?? IDS.clientA1,
+    competitorId: o.competitorId ?? IDS.competitorX,
+    moveType: o.moveType ?? 'price_war',
+    status: o.status ?? 'active',
+    confidence: 0.7,
+    summary: 'Price war',
+    ruleVersion: 1,
+    firstDetectedAt: now,
+    lastHeldAt: now,
+    lastEvidenceAt: now,
+    closedAt: o.closed ? now : null,
+  }).returning();
+  for (const eventId of eventIds) await dbs.owner.insert(moveEvent).values({ moveId: m!.id, eventId });
+  return m!.id;
 }
