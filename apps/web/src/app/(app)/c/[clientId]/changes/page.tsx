@@ -1,5 +1,5 @@
-import { hasFeature } from '@cs/core';
-import { changeTypeOptions, channelLabel, type ClientProfile, type EventRow, type TrackedCompetitor } from '@cs/tools';
+import { hasFeature, hasPermission } from '@cs/core';
+import { changeTypeOptions, channelLabel, type ClientProfile, type CompareView, type EventDetail, type EventRow, type TrackedCompetitor } from '@cs/tools';
 import { Card, CardContent } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -9,6 +9,7 @@ import { verticalOptions } from '@/server/verticals';
 import { FeedList, FilterBar } from './feed';
 import { groupByWeek } from './group';
 import { changesHref, parseChangesParams } from './params';
+import { EventViewer } from './viewer';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,6 +62,14 @@ export default async function ChangesPage({
   const selectedId = p.event ?? rows[0]?.eventId;
   const groups = groupByWeek(rows, new Date());
 
+  let detail: EventDetail | null = null;
+  let compare: CompareView | null = null;
+  if (selectedId) {
+    detail = await callTool<EventDetail>(ctx, 'get_event', { clientId, eventId: selectedId });
+    const changeId = p.change && detail.changes.some((c) => c.changeId === p.change) ? p.change : detail.changes[0]?.changeId;
+    compare = changeId ? await callTool<CompareView>(ctx, 'compare_snapshots', { clientId, changeId }) : null;
+  }
+
   return (
     <>
       <div>
@@ -104,10 +113,14 @@ export default async function ChangesPage({
         </Card>
 
         <div>
-          {selectedId ? (
-            <Card>
-              <CardContent className="py-10 text-center text-muted-foreground">Loading the evidence viewer arrives in the next task.</CardContent>
-            </Card>
+          {detail ? (
+            <EventViewer
+              clientId={clientId}
+              params={p}
+              detail={detail}
+              compare={compare}
+              canGiveFeedback={hasPermission(ctx, 'feedback') && !ctx.userId.startsWith('contact:')}
+            />
           ) : (
             <EmptyViewer />
           )}
