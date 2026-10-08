@@ -8,7 +8,8 @@ export const eventRowSelect = {
   eventId: changeEvent.id, competitorId: changeEvent.competitorId, competitorName: competitor.name, changeType: changeEvent.changeType,
   channels: changeEvent.channels, services: changeEvent.services, summary: changeEvent.summary, score: eventScore.score, route: eventScore.route,
   occurredAt: changeEvent.occurredAt, scoredAt: eventScore.scoredAt,
-  evidenceCount: sql<number>`(SELECT count(*)::int FROM event_change ec WHERE ec.event_id = ${changeEvent.id})`,
+  /** Live changes only (`detected_change.status = 'event'`), matching what `get_event` lists. */
+  evidenceCount: sql<number>`(SELECT count(*)::int FROM event_change ec JOIN detected_change dc ON dc.id = ec.change_id WHERE ec.event_id = ${changeEvent.id} AND dc.status = 'event')`,
 };
 
 type Row = {

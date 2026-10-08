@@ -79,8 +79,19 @@ describe('get_event', () => {
     const e = await seedEvent({ score: 86, route: 'alert', ageDays: 1 });
     await dbs.owner.update(detectedChange).set({ status: 'superseded' }).where(eq(detectedChange.id, e.changeId));
     expect(((await registry.invoke(am, 'get_event', { clientId: IDS.clientA1, eventId: e.eventId })) as EventDetail).changes).toEqual([]);
+    expect((await search(am)).items).toEqual([expect.objectContaining({ eventId: e.eventId, evidenceCount: 0 })]);
     const r = await seedEvent({ score: 86, route: 'alert', ageDays: 1, retracted: true });
     await expect(registry.invoke(am, 'get_event', { clientId: IDS.clientA1, eventId: r.eventId })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(otherAgency, 'get_event', { clientId: IDS.clientA1, eventId: e.eventId })).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('is not found for a competitor the client no longer tracks, or an event scored only for another client (Review Focus 1)', async () => {
+    // A1 still tracks X here, so only the missing A1 score hides the A2-only event.
+    const a2Only = await seedEvent({ score: 86, route: 'alert', ageDays: 1, clientId: IDS.clientA2 });
+    await expect(registry.invoke(am, 'get_event', { clientId: IDS.clientA1, eventId: a2Only.eventId })).rejects.toMatchObject({ code: 'not_found' });
+    const dropped = await seedEvent({ score: 86, route: 'alert', ageDays: 1 });
+    expect((await registry.invoke(am, 'get_event', { clientId: IDS.clientA1, eventId: dropped.eventId })) as EventDetail).toMatchObject({ eventId: dropped.eventId });
+    await dbs.owner.delete(clientCompetitor).where(eq(clientCompetitor.clientId, IDS.clientA1));
+    await expect(registry.invoke(am, 'get_event', { clientId: IDS.clientA1, eventId: dropped.eventId })).rejects.toMatchObject({ code: 'not_found' });
   });
 });
