@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { contact, invitation, membership } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, testUrls, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport, renderEmail, resolveBranding } from '@cs/email';
@@ -39,6 +40,8 @@ const auth = betterAuth(buildAuthOptions({
 const post = (path: string, body: unknown) =>
   auth.handler(new Request(`http://localhost:3000/api/auth${path}`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' }, body: JSON.stringify(body) }));
 const linkFromMail = () => /https?:\/\/[^\s"]+magic-link\/verify[^\s"]+/.exec(mail.sent.at(-1)!.text)![0];
+// Mirrors Better Auth's `defaultKeyHasher` (magic-link/utils.mjs): SHA-256 digest, base64url, no padding.
+const hashedToken = (token: string) => createHash('sha256').update(token).digest('base64url');
 
 beforeEach(async () => {
   mail.sent.length = 0;
@@ -116,7 +119,9 @@ describe('5b-2 hardening (decision 14)', () => {
     const token = new URL(linkFromMail()).searchParams.get('token')!;
     const rows = [...(await dbs.owner.execute<{ identifier: string; value: string }>(sql`select identifier, value from auth.verification`))];
     expect(rows.length).toBeGreaterThan(0);
-    expect(rows.some((r) => r.identifier === token || r.value.includes(token))).toBe(false);
+    // Discriminates plain vs. hashed storage: the stored identifier is `magic-link:<hash>`, never `magic-link:<rawToken>`.
+    expect(rows.some((r) => r.identifier === `magic-link:${hashedToken(token)}`)).toBe(true);
+    expect(rows.some((r) => r.identifier === `magic-link:${token}`)).toBe(false);
     const verify = await auth.handler(new Request(linkFromMail()));
     expect(verify.headers.get('set-cookie')).toMatch(/session_token/);
   });
