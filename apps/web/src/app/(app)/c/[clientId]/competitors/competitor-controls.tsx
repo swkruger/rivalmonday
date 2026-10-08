@@ -166,7 +166,7 @@ export function SuggestionsPanel({
    */
   limit = 5,
   initialSearch = 'idle',
-  canSearch = true,
+  canSearch,
 }: {
   clientId: string;
   ready: boolean;
