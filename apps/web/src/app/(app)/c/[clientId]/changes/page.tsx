@@ -4,7 +4,7 @@ import { Card, CardContent } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
-import { callTool } from '@/server/tools';
+import { callTool, tryCallTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
 import { FeedList, FilterBar } from './feed';
 import { groupByWeek } from './group';
@@ -13,10 +13,10 @@ import { EventViewer } from './viewer';
 
 export const dynamic = 'force-dynamic';
 
-function EmptyViewer() {
+function EmptyViewer({ message }: { message: string }) {
   return (
     <Card>
-      <CardContent className="py-10 text-center text-muted-foreground">Select a change on the left to see the evidence behind it.</CardContent>
+      <CardContent className="py-10 text-center text-muted-foreground">{message}</CardContent>
     </Card>
   );
 }
@@ -65,7 +65,13 @@ export default async function ChangesPage({
   let detail: EventDetail | null = null;
   let compare: CompareView | null = null;
   if (selectedId) {
-    detail = await callTool<EventDetail>(ctx, 'get_event', { clientId, eventId: selectedId });
+    // A bookmarked `?event=` may be retracted, removed or not this client's: the feed still renders and the viewer
+    // says so (same text for every case — no existence leak). The page-level gates above still 404.
+    detail = p.event
+      ? await tryCallTool<EventDetail>(ctx, 'get_event', { clientId, eventId: selectedId })
+      : await callTool<EventDetail>(ctx, 'get_event', { clientId, eventId: selectedId });
+  }
+  if (detail) {
     const changeId = p.change && detail.changes.some((c) => c.changeId === p.change) ? p.change : detail.changes[0]?.changeId;
     compare = changeId ? await callTool<CompareView>(ctx, 'compare_snapshots', { clientId, changeId }) : null;
   }
@@ -122,7 +128,7 @@ export default async function ChangesPage({
               canGiveFeedback={hasPermission(ctx, 'feedback') && !ctx.userId.startsWith('contact:')}
             />
           ) : (
-            <EmptyViewer />
+            <EmptyViewer message={selectedId ? 'This change is no longer available.' : 'Select a change on the left to see the evidence behind it.'} />
           )}
         </div>
       </div>

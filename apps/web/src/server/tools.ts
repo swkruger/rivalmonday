@@ -30,3 +30,21 @@ export async function callTool<T>(ctx: AccessContext, name: string, input: unkno
     throw e;
   }
 }
+
+/**
+ * For a page's *selected* item whose id comes from the URL (`?event=`, `?move=`): a stale, retracted, foreign or
+ * malformed id gives `null` — all alike, so nothing leaks about other tenants — and the page shows "no longer
+ * available" instead of a 404. Page-level gates (client access, flags) must still use `callTool`.
+ */
+export function createTryCallTool(reg: () => Pick<ToolRegistry<ToolDeps>, 'invoke'>) {
+  return async function tryCallTool<T>(ctx: AccessContext, name: string, input: unknown): Promise<T | null> {
+    try {
+      return (await reg().invoke(ctx, name, input)) as T;
+    } catch (e) {
+      if (isHiddenToolError(e)) return null;
+      throw e;
+    }
+  };
+}
+
+export const tryCallTool = createTryCallTool(registry);

@@ -46,6 +46,21 @@ test('a move shows its evidence chain and the competitor profile its timeline', 
   await expect(page.getByRole('link', { name: /AC tune-up to \$79/ })).toBeVisible();
 });
 
+test('a stale ?event= or ?move= id keeps the page and says the item is gone', async ({ page }) => {
+  const stale = '00000000-0000-4000-8000-00000000dead';
+  await page.goto('/agency');
+  await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
+  const clientId = /\/c\/([0-9a-f-]{36})/.exec(page.url())![1];
+  const changes = await page.goto(`/c/${clientId}/changes?event=${stale}`);
+  expect(changes?.status()).toBe(200);
+  await expect(page.getByText('This change is no longer available.')).toBeVisible();
+  await expect(page.getByRole('link', { name: /Smith HVAC cut its AC tune-up to \$79/ })).toBeVisible();
+  const moves = await page.goto(`/c/${clientId}/moves?move=${stale}`);
+  expect(moves?.status()).toBe(200);
+  await expect(page.getByText('This move is no longer available.')).toBeVisible();
+  await expect(page.getByRole('link', { name: /Price war · Smith HVAC/ })).toBeVisible();
+});
+
 test('the overview shows the KPIs, pressure and ad chart', async ({ page }) => {
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();

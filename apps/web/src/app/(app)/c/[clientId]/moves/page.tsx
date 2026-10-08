@@ -4,7 +4,7 @@ import { Card, CardContent } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
-import { callTool } from '@/server/tools';
+import { callTool, tryCallTool } from '@/server/tools';
 import { changesHref } from '../changes/params';
 import { RoutePill } from '../changes/feed';
 import { MoveCard, movesHref } from './move-card';
@@ -105,7 +105,13 @@ export default async function MovesPage({
 
   const { items } = await callTool<{ items: MoveRow[] }>(ctx, 'list_moves', { clientId, status });
   const selectedId = moveParam ?? items[0]?.id;
-  const detail = selectedId ? await callTool<MoveDetail>(ctx, 'get_move', { clientId, moveId: selectedId }) : null;
+  // A bookmarked `?move=` may be closed out of its events, removed or not this client's: the list still renders and
+  // the panel says so (same text for every case — no existence leak). The page-level gates above still 404.
+  const detail = !selectedId
+    ? null
+    : moveParam
+      ? await tryCallTool<MoveDetail>(ctx, 'get_move', { clientId, moveId: selectedId })
+      : await callTool<MoveDetail>(ctx, 'get_move', { clientId, moveId: selectedId });
 
   return (
     <>
@@ -162,7 +168,9 @@ export default async function MovesPage({
             </Card>
           ) : (
             <Card>
-              <CardContent className="py-10 text-center text-muted-foreground">Select a move on the left to see its evidence chain.</CardContent>
+              <CardContent className="py-10 text-center text-muted-foreground">
+                {selectedId ? 'This move is no longer available.' : 'Select a move on the left to see its evidence chain.'}
+              </CardContent>
             </Card>
           )}
         </div>
