@@ -1,11 +1,14 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { signLink } from '@cs/core';
-import { agency, alert, brief, briefItem, changeEvent, client, clientCompetitor, competitor, contact, createDb } from '@cs/db';
+import { agency, alert, brief, briefItem, changeEvent, client, clientCompetitor, competitor, contact, createDb, llmCall, prospectReport, themeProposal } from '@cs/db';
 import { createInvitation } from '@cs/tools';
 import { E2E_LINK_SECRET, OUTBOX, OWNER_LINK_FILE } from '../playwright.config';
 
-/** Seeds `cs_test` for the E2E smoke run: one agency, one client, one competitor, a sent brief, an invitation and a client contact. */
+/**
+ * Seeds `cs_test` for the E2E smoke run: one agency, one client, one competitor, a sent brief, an invitation and a
+ * client contact; plus (5b-2) near-cap spend, a prospect with a ready snapshot, and a pending theme proposal.
+ */
 export async function seed(): Promise<void> {
   const { db, close } = createDb(process.env.TEST_DATABASE_URL!);
   try {
@@ -95,6 +98,23 @@ export async function seed(): Promise<void> {
     });
 
     await createInvitation(db, { agencyId, email: 'admin@e2e.test', role: 'agency_admin', invitedBy: 'e2e-seed' });
+
+    // 5b-2: spend near the cap (decision 6), a prospect with a ready snapshot (decisions 8–11), a pending theme proposal (decision 4).
+    await db.insert(llmCall).values({ agencyId, clientId, task: 'brief_writer', provider: 'openrouter', model: 'm', inputTokens: 1, outputTokens: 1, costUsd: 13, latencyMs: 1, ok: true });
+    const [prospect] = await db
+      .insert(client)
+      .values({ agencyId, name: 'E2E Prospect Dental', verticalId: 'dental', status: 'prospect', keywords: ['dentist'], serviceArea: { center: { lat: 33.95, lng: -84.33 }, radiusKm: 10, zips: [] } })
+      .returning();
+    const [rival] = await db.insert(competitor).values({ name: 'Bright Smiles E2E', placeId: 'ChIJe2eBrightSmile1' }).returning();
+    await db.insert(clientCompetitor).values({ agencyId, clientId: prospect!.id, competitorId: rival!.id });
+    await db.insert(prospectReport).values({
+      agencyId, clientId: prospect!.id, status: 'ready', finishedAt: new Date(),
+      data: {
+        generatedAt: new Date().toISOString(), keywords: ['dentist'], points: 9, scanId: null, notes: [],
+        businesses: [{ competitorId: rival!.id, name: 'Bright Smiles E2E', self: false, gbp: { rating: 4.4, reviews: 120, category: 'Dentist', extraCategories: 1 }, ads: { google: 2, meta: null }, ranks: [{ keyword: 'dentist', found: 5, top3: 2, averageRank: 3.4 }] }],
+      },
+    });
+    await db.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'e2e_hidden_fees', name: 'E2E hidden fees', description: 'Unexpected trip fees', otherCount: 12, sampleReviewIds: [] });
 
     const [ownerContact] = await db.insert(contact).values({ agencyId, clientId, role: 'client_owner', email: 'owner@e2e.test' }).returning();
 

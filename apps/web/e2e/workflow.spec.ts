@@ -55,3 +55,39 @@ test('an admin dismisses a pending alert with a reason', async ({ page }) => {
   await page.getByRole('dialog').getByRole('button', { name: /dismiss/i }).click();
   await expect(page.getByText('No alerts waiting — nice.')).toBeVisible();
 });
+
+test('usage shows the near-cap warning and an admin raises the cap', async ({ page }) => {
+  await page.goto('/agency/usage');
+  await expect(page.getByText(/87% · near cap/)).toBeVisible();
+  await page.getByLabel('Monthly cap for E2E HVAC (USD)').fill('30');
+  await page.getByRole('button', { name: 'Save limits for E2E HVAC' }).click();
+  await expect(page.getByText('Limits saved.')).toBeVisible();
+  await expect(page.getByText(/43%/)).toBeVisible();
+});
+
+test('an admin edits a playbook and an unknown placeholder is refused', async ({ page }) => {
+  await page.goto('/agency/playbooks');
+  const card = page.locator('form').filter({ has: page.locator('input[name="playbookId"][value="price_cut_bundle"]') });
+  await card.getByLabel('Template').fill('Hi {{client}}');
+  await card.getByRole('button', { name: 'Save' }).click();
+  await expect(card.getByRole('alert')).toContainText('{{client}}');
+  await card.getByLabel('Template').fill('Bundle {{service}} instead of matching {{competitor}}.');
+  await card.getByRole('button', { name: 'Save' }).click();
+  await expect(card.getByText('Playbook saved.')).toBeVisible();
+});
+
+test('a platform operator approves a theme proposal', async ({ page }) => {
+  await page.goto('/platform/themes');
+  await page.getByRole('button', { name: 'Approve E2E hidden fees' }).click();
+  await expect(page.getByText('Approved “E2E hidden fees”.')).toBeVisible();
+});
+
+test('a prospect’s landscape report shows and the prospect converts to a client', async ({ page }) => {
+  await page.goto('/agency/prospects');
+  await page.getByRole('link', { name: 'E2E Prospect Dental' }).click();
+  await expect(page.getByRole('table', { name: 'Map visibility' }).getByText('5/9 · top 3: 2 · avg 3.4')).toBeVisible();
+  await page.getByRole('button', { name: 'Convert to client' }).click();
+  await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}$/);
+  await page.goto('/agency');
+  await expect(page.getByRole('link', { name: 'E2E Prospect Dental' })).toBeVisible();
+});
