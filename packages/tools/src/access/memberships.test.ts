@@ -3,7 +3,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
-import { accessContextFor, guestAccessFor, listMemberships, pickMembership } from './memberships';
+import { accessContextFor, coversClient, guestAccessFor, listMemberships, pickMembership } from './memberships';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -53,6 +53,18 @@ describe('accessContextFor', () => {
     const ctx = await accessContextFor(dbs.service, 'u1', m!);
     expect(ctx.clientScope).toEqual([IDS.clientA1]);
     expect([...ctx.features]).toEqual(['dashboard']);
+  });
+});
+
+describe('coversClient (5b-2 decision 16)', () => {
+  const base = { id: 'm', agencyName: 'A', clientName: null, contactId: null, createdAt: new Date() };
+  it('matches agency admins and unrestricted AMs of the client’s agency, scoped AMs in scope, and client roles of that client', () => {
+    expect(coversClient({ ...base, agencyId: IDS.agencyA, role: 'agency_admin', clientId: null, clientScope: null }, IDS.clientA1, IDS.agencyA)).toBe(true);
+    expect(coversClient({ ...base, agencyId: IDS.agencyB, role: 'agency_admin', clientId: null, clientScope: null }, IDS.clientA1, IDS.agencyA)).toBe(false);
+    expect(coversClient({ ...base, agencyId: IDS.agencyA, role: 'account_manager', clientId: null, clientScope: null }, IDS.clientA1, IDS.agencyA)).toBe(true);
+    expect(coversClient({ ...base, agencyId: IDS.agencyA, role: 'account_manager', clientId: null, clientScope: [IDS.clientA2] }, IDS.clientA1, IDS.agencyA)).toBe(false);
+    expect(coversClient({ ...base, agencyId: IDS.agencyA, role: 'client_viewer', clientId: IDS.clientA1, clientScope: null }, IDS.clientA1, IDS.agencyA)).toBe(true);
+    expect(coversClient({ ...base, agencyId: IDS.agencyA, role: 'client_viewer', clientId: IDS.clientA2, clientScope: null }, IDS.clientA1, IDS.agencyA)).toBe(false);
   });
 });
 

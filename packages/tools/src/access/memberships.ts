@@ -33,6 +33,14 @@ export function pickMembership(list: MembershipSummary[], wantedId: string | und
   return list.find((m) => m.id === wantedId) ?? list[0] ?? null;
 }
 
+/** 5b-2 decision 16: whether this membership grants access to `clientId` (whose agency is `clientAgencyId`). */
+export function coversClient(m: MembershipSummary, clientId: string, clientAgencyId: string): boolean {
+  if (m.agencyId !== clientAgencyId) return false;
+  if (m.role === 'agency_admin') return true;
+  if (m.role === 'account_manager') return m.clientScope === null || m.clientScope.includes(clientId);
+  return m.clientId === clientId;
+}
+
 const knownFeatures = (raw: unknown): Feature[] =>
   Array.isArray(raw) ? raw.filter((f): f is Feature => (FEATURES as readonly string[]).includes(f as string)) : [];
 

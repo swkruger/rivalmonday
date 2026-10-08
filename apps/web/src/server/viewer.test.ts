@@ -44,4 +44,17 @@ describe('resolveViewer', () => {
     await dbs.service.update(contact).set({ active: false });
     expect(await resolveViewer({ service: dbs.service, session: null, guestCookie: cookie, linkSecrets: S, now: NOW })).toBeNull();
   });
+
+  it('uses a membership that covers the client in the path when the cookie’s one does not (decision 16)', async () => {
+    const [own] = await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'client_owner', clientId: IDS.clientA1, createdBy: 't', createdAt: new Date('2026-10-01T00:00:00Z') }).returning();
+    const [adminB] = await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyB, role: 'agency_admin', createdBy: 't' }).returning();
+    const forB1 = await resolveViewer({ service: dbs.service, session, membershipCookie: own!.id, clientHint: IDS.clientB1, linkSecrets: S, now: NOW });
+    expect(forB1).toMatchObject({ kind: 'user', membership: { id: adminB!.id } });
+    const forA1 = await resolveViewer({ service: dbs.service, session, membershipCookie: adminB!.id, clientHint: IDS.clientA1, linkSecrets: S, now: NOW });
+    expect(forA1).toMatchObject({ kind: 'user', membership: { id: own!.id } });
+    const uncovered = await resolveViewer({ service: dbs.service, session, membershipCookie: own!.id, clientHint: IDS.clientA2, linkSecrets: S, now: NOW });
+    expect(uncovered).toMatchObject({ kind: 'user', membership: { id: own!.id } });
+    const bogus = await resolveViewer({ service: dbs.service, session, membershipCookie: own!.id, clientHint: 'not-a-uuid', linkSecrets: S, now: NOW });
+    expect(bogus).toMatchObject({ kind: 'user', membership: { id: own!.id } });
+  });
 });

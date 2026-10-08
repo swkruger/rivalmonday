@@ -1,6 +1,7 @@
-import type { AccessContext } from '@cs/core';
-import type { Db } from '@cs/db';
-import { accessContextFor, guestAccessFor, listMemberships, type MembershipSummary, pickMembership } from '@cs/tools';
+import { isUuid, type AccessContext } from '@cs/core';
+import { client, type Db } from '@cs/db';
+import { accessContextFor, coversClient, guestAccessFor, listMemberships, type MembershipSummary, pickMembership } from '@cs/tools';
+import { eq } from 'drizzle-orm';
 import { verifyGuest } from './guest';
 
 export const MEMBERSHIP_COOKIE = 'rm_membership';
@@ -20,12 +21,19 @@ export async function resolveViewer(input: {
   membershipCookie?: string;
   guestCookie?: string;
   linkSecrets: readonly string[];
+  clientHint?: string | null;
   now?: Date;
 }): Promise<Viewer | null> {
   const { service, session } = input;
   if (session) {
     const memberships = await listMemberships(service, session.userId);
-    const m = pickMembership(memberships, input.membershipCookie);
+    let m = pickMembership(memberships, input.membershipCookie);
+    // Decision 16 (5a carry-over): a link into /c/<id> opens under a membership that covers that client, without changing the cookie.
+    const hint = input.clientHint;
+    if (m && hint && isUuid(hint) && memberships.length > 1) {
+      const [c] = await service.select({ agencyId: client.agencyId }).from(client).where(eq(client.id, hint));
+      if (c && !coversClient(m, hint, c.agencyId)) m = memberships.find((x) => coversClient(x, hint, c.agencyId)) ?? m;
+    }
     if (!m) return { kind: 'member-less', ...session };
     return { kind: 'user', ...session, ctx: await accessContextFor(service, session.userId, m), membership: m, memberships };
   }

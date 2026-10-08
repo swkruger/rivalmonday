@@ -3,6 +3,7 @@ import type { AccessContext } from '@cs/core';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
+import { clientIdFromPath } from '@/components/shell/nav-items';
 import { auth } from './auth';
 import { dbs } from './db';
 import { webEnv } from './env';
@@ -13,6 +14,10 @@ import { MEMBERSHIP_COOKIE, resolveViewer, type Viewer } from './viewer';
 /**
  * Review Focus 4: `cache()` scopes this to a single request only (React resets it between requests), so the
  * membership/AccessContext is always rebuilt from the database on the next request — never cached across requests.
+ *
+ * Decision 16 limitation: the clientHint comes from the `x-rm-path` header, set once per request by `proxy.ts`. A
+ * later client-side navigation away from `/c/<id>` without a full page load keeps this cached viewer's membership
+ * until the next full load (HANDOVER §6 L1).
  */
 export const getViewer = cache(async (): Promise<Viewer | null> => {
   const [h, jar] = [await headers(), await cookies()];
@@ -23,6 +28,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     membershipCookie: jar.get(MEMBERSHIP_COOKIE)?.value,
     guestCookie: jar.get(GUEST_COOKIE)?.value,
     linkSecrets: webEnv().linkSecrets,
+    clientHint: clientIdFromPath(h.get('x-rm-path') ?? ''),
   });
 });
 
