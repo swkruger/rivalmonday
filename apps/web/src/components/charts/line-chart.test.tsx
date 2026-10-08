@@ -21,7 +21,10 @@ describe('LineChart', () => {
       { key: 'b', name: 'Peachtree', points: [2, 3, 3, 4] },
     ]} />);
     const svg = screen.getByRole('img', { name: /Active competitor ads/ });
-    expect(svg.querySelectorAll('polyline[data-series="a"]')).toHaveLength(2);
+    expect(svg.querySelectorAll('polyline[data-series="a"]')).toHaveLength(1);
+    const marker = svg.querySelector('circle[data-marker="a"]');
+    expect(marker?.getAttribute('fill')).toBe(SERIES_COLORS[0]);
+    expect(marker?.getAttribute('r')).toBe('3');
     expect(svg.querySelector('polyline[data-series="a"]')?.getAttribute('stroke')).toBe(SERIES_COLORS[0]);
     expect(screen.getByText('Smith HVAC', { selector: 'li *' })).toBeTruthy();
     expect(screen.getAllByRole('row')).toHaveLength(5); // header + 4 weeks
@@ -38,5 +41,12 @@ describe('LineChart', () => {
   it('paints Other grey', () => {
     render(<LineChart title="T" valueLabel="ads" labels={labels} series={[{ key: 'other', name: 'Other', points: [1, 1, 1, 1] }, { key: 'a', name: 'A', points: [1, 1, 1, 1] }]} />);
     expect(document.querySelector('polyline[data-series="other"]')?.getAttribute('stroke')).toBe(OTHER_COLOR);
+    expect(document.querySelector('polyline[data-series="a"]')?.getAttribute('stroke')).toBe(SERIES_COLORS[0]);
+  });
+
+  it('labels the y axis with exact integers for small maxima', () => {
+    const { container } = render(<LineChart title="T" valueLabel="ads" labels={labels} series={[{ key: 'a', name: 'A', points: [1, 3, 5, 7] }]} />);
+    const ticks = [...container.querySelectorAll('svg > g > text')].map((n) => n.textContent);
+    expect(ticks).toEqual(['0', '4', '8']);
   });
 });

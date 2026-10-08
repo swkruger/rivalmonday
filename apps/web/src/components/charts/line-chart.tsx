@@ -27,9 +27,10 @@ export function foldSeries(series: ChartSeries[], max = 5): ChartSeries[] {
 }
 
 const niceMax = (v: number) => {
-  if (v <= 5) return 5;
+  if (v <= 4) return 4;
   const p = 10 ** Math.floor(Math.log10(v));
-  return Math.ceil(v / p) * p;
+  const n = Math.ceil(v / p) * p;
+  return n % 2 === 0 ? n : n + 1; // even, so the mid gridline is an integer
 };
 const shortDate = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -99,7 +100,10 @@ export function LineChart({
           const li = lastIndex(s.points);
           return (
             <g key={s.key}>
-              {runs(s.points).map((r, k) => (
+              {runs(s.points).map((r, k) =>
+                r.length === 1 ? (
+                  <circle key={k} data-marker={s.key} cx={r[0]![0]} cy={r[0]![1]} r={3} fill={color} />
+                ) : (
                 <polyline
                   key={k}
                   data-series={s.key}
@@ -110,7 +114,8 @@ export function LineChart({
                   strokeLinejoin="round"
                   strokeLinecap="round"
                 />
-              ))}
+                ),
+              )}
               {li >= 0 && <circle cx={x(li)} cy={y(s.points[li]!)} r={4} fill={color} stroke="#FFFFFF" strokeWidth={2} />}
               {s.points.map((v, i) =>
                 v === null ? null : (
