@@ -14,6 +14,7 @@ import { createEngineJobs } from './jobs/engine';
 import { heartbeatJob } from './jobs/heartbeat';
 import { createModelOpsJobs } from './jobs/model-ops';
 import { createMovesJobs } from './jobs/moves';
+import { createProspectJobs } from './jobs/prospects';
 import { createReviewJobs } from './jobs/reviews';
 import { createVendorJobs } from './jobs/vendor';
 import { createWebJobs } from './jobs/web';
@@ -76,6 +77,7 @@ const briefs = createBriefJobs(deps, {
 });
 const reviews = createReviewJobs(deps);
 const modelOps = createModelOpsJobs(deps);
+const prospects = createProspectJobs(deps);
 const delivery = createDeliveryJobs(deps, {
   enqueueAlert: async (alertId) => {
     await enqueue(boss, delivery.alertProcess, { alertId }, { singletonKey: alertId });
@@ -88,7 +90,7 @@ const delivery = createDeliveryJobs(deps, {
   },
 });
 await registerJobs(boss, [
-  heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, vendor.suggest,
+  heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, vendor.suggest, prospects.snapshot,
   engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.price, reviews.nightly, moves.nightly, moves.client,
   modelOps.batchPoll, briefs.schedule, briefs.client,
   delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,

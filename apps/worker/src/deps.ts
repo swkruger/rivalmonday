@@ -2,8 +2,8 @@ import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } fr
 import {
   capturePage, claimDuePages, claimDueSources, collectGbpProfile, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
   createDataForSeo, type DataForSeoClient, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
-  ensureSelfCompetitors, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
-  scanRankings, type SourceKind, suggestCompetitors,
+  ensureSelfCompetitors, failProspectReport, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
+  runProspectSnapshot, scanRankings, type SourceKind, suggestCompetitors,
 } from '@cs/collectors';
 import type { CaptureStatus } from '@cs/core';
 import { competitor, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
@@ -61,6 +61,8 @@ export interface WorkerDeps {
   }>;
   scanRankings(clientId: string): Promise<{ snapshots: number; failed: number; scanId: string | null }>;
   listRankClients(): Promise<string[]>;
+  /** 5b-2 decision 10: the one-off prospect snapshot (vendor pulls + 3×3 rank scan + deterministic report). Never throws. */
+  runProspectSnapshot(clientId: string, reportId: string): Promise<{ status: 'ready' | 'failed' }>;
   suggestCompetitors(clientId: string): Promise<{ suggested: number; searches: number }>;
   /** True once APP_URL and LINK_SIGNING_SECRET (at least 32 characters) are set — gates every delivery job. */
   deliveryConfigured(): boolean;
@@ -152,6 +154,30 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
         throw err;
       }));
 
+  const vendorsConfigured = () => Boolean(env.DATAFORSEO_LOGIN && env.DATAFORSEO_PASSWORD);
+  const runSource: WorkerDeps['runSource'] = async (competitorId, source) => {
+    const [c] = await loadCompetitors([competitorId]);
+    if (!c) {
+      await markSourceResult(getDb(), competitorId, source, 'missing');
+      return { status: 'missing' };
+    }
+    const base = { db: getDb(), store: getStore() };
+    try {
+      const r =
+        source === 'gbp' ? await collectGbpProfile({ ...base, dfs: getDfs() }, c)
+        : source === 'ads_google' ? await collectGoogleAds({ ...base, dfs: getDfs() }, c)
+        : await collectMetaAds({ ...base, ledger: createLedgerSink(getDb()), apify: env.APIFY_TOKEN ? { token: env.APIFY_TOKEN } : undefined, scrapeCreators: env.SCRAPECREATORS_API_KEY ? { apiKey: env.SCRAPECREATORS_API_KEY } : undefined }, c);
+      await markSourceResult(getDb(), competitorId, source, r.status);
+      return r;
+    } catch (err) {
+      // The collectors already catch VendorError internally (returning status: 'vendor_error');
+      // anything that reaches here is unexpected (DB error, bug, …) — record it rather than
+      // leaving the source's last_status stale, then let it propagate.
+      await markSourceResult(getDb(), competitorId, source, 'error');
+      throw err;
+    }
+  };
+
   return {
     claimDuePages: (limit) => claimDuePages(getDb(), limit),
     capturePage: (id) => capturePage({ db: getDb(), store: getStore(), renderer: getRenderer() }, id),
@@ -198,31 +224,10 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
         { id: c.id, domain: c.domain, name: c.name },
       );
     },
-    vendorsConfigured: () => Boolean(env.DATAFORSEO_LOGIN && env.DATAFORSEO_PASSWORD),
+    vendorsConfigured,
     ensureSelfCompetitors: () => ensureSelfCompetitors(getDb()),
     claimDueSources: (limit) => claimDueSources(getDb(), limit),
-    async runSource(competitorId, source) {
-      const [c] = await loadCompetitors([competitorId]);
-      if (!c) {
-        await markSourceResult(getDb(), competitorId, source, 'missing');
-        return { status: 'missing' };
-      }
-      const base = { db: getDb(), store: getStore() };
-      try {
-        const r =
-          source === 'gbp' ? await collectGbpProfile({ ...base, dfs: getDfs() }, c)
-          : source === 'ads_google' ? await collectGoogleAds({ ...base, dfs: getDfs() }, c)
-          : await collectMetaAds({ ...base, ledger: createLedgerSink(getDb()), apify: env.APIFY_TOKEN ? { token: env.APIFY_TOKEN } : undefined, scrapeCreators: env.SCRAPECREATORS_API_KEY ? { apiKey: env.SCRAPECREATORS_API_KEY } : undefined }, c);
-        await markSourceResult(getDb(), competitorId, source, r.status);
-        return r;
-      } catch (err) {
-        // The collectors already catch VendorError internally (returning status: 'vendor_error');
-        // anything that reaches here is unexpected (DB error, bug, …) — record it rather than
-        // leaving the source's last_status stale, then let it propagate.
-        await markSourceResult(getDb(), competitorId, source, 'error');
-        throw err;
-      }
-    },
+    runSource,
     async postBatchTasks(items) {
       const reviewIds = items.filter((i) => i.source === 'reviews').map((i) => i.competitorId);
       const jobIds = items.filter((i) => i.source === 'jobs').map((i) => i.competitorId);
@@ -283,6 +288,16 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     },
     scanRankings: (clientId) => scanRankings({ db: getDb(), dfs: getDfs() }, clientId),
     listRankClients: () => rankClients(getDb()),
+    async runProspectSnapshot(clientId, reportId) {
+      if (!vendorsConfigured()) {
+        await failProspectReport(getDb(), reportId, 'Vendor APIs are not configured (DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD)');
+        return { status: 'failed' as const };
+      }
+      return runProspectSnapshot(
+        { db: getDb(), runSource, scanRankings: (id, opts) => scanRankings({ db: getDb(), dfs: getDfs() }, id, opts) },
+        clientId, reportId,
+      );
+    },
     suggestCompetitors: (clientId) => suggestCompetitors({ db: getDb(), dfs: getDfs() }, clientId),
     deliveryConfigured: () => delivery !== null,
     sweepAlerts: (now) => sweepAlerts(getDb(), now),
