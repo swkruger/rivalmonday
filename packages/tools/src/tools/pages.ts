@@ -17,7 +17,7 @@ export const defaultCadence = (pageType: string): 'daily' | 'weekly' => (DAILY.h
  * RLS proof that the caller's client tracks this competitor (Review Focus 1) — global rows are then written with the service Db.
  * `message` lets a caller keep one refusal for every not-found case (Phase 6 MCP returns messages verbatim).
  */
-async function requireTracked(app: Db, ctx: AccessContext, clientId: string, competitorId: string, message = 'Competitor not found'): Promise<void> {
+export async function requireTracked(app: Db, ctx: AccessContext, clientId: string, competitorId: string, message = 'Competitor not found'): Promise<void> {
   if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', message);
   const [link] = await withTenant(app, ctx, (tx) =>
     tx.select({ id: clientCompetitor.competitorId }).from(clientCompetitor).where(and(eq(clientCompetitor.clientId, clientId), eq(clientCompetitor.competitorId, competitorId))));

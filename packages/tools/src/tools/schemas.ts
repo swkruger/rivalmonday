@@ -216,3 +216,18 @@ export const MoveRow = z.object({
 export type MoveRow = z.infer<typeof MoveRow>;
 export const MoveDetail = MoveRow.extend({ facts: z.array(DetailLineView), events: z.array(EventRow) });
 export type MoveDetail = z.infer<typeof MoveDetail>;
+
+// 5c-1 competitor profile and timeline (Task 12).
+export const CompetitorProfile = z.object({
+  competitorId: uuid, name: z.string(), domain: z.string().nullable(), placeId: z.string().nullable(), addedAt: iso,
+  gbp: z.object({ rating: z.number().nullable(), reviews: z.number().nullable(), category: z.string().nullable() }).nullable(), gbpAsOf: iso.nullable(),
+  activeAds: z.object({ google: z.number().int(), meta: z.number().int() }), pressure: PressureView, openMoves: z.number().int(),
+  sources: z.array(z.object({ source: z.string(), label: z.string(), active: z.boolean(), lastRunAt: iso.nullable(), lastStatus: z.string().nullable() })),
+  pages: z.object({ active: z.number().int(), blocked: z.number().int() }),
+});
+export type CompetitorProfile = z.infer<typeof CompetitorProfile>;
+export const TimelineItem = z.object({
+  kind: z.enum(['event', 'move']), id: uuid, at: iso, title: z.string(), label: z.string(), score: z.number().int().nullable(),
+  route: z.enum(['alert', 'brief', 'archive']).nullable(), status: z.string().nullable(),
+});
+export type TimelineItem = z.infer<typeof TimelineItem>;
