@@ -6,14 +6,12 @@ import { packsOf, type ToolDeps } from '../deps';
 import { MOVE_LABELS } from '../pressure';
 import { eventRowSelect, toEventRow } from '../workspace/events-read';
 import { humanise } from '../workspace/labels';
-import { clientEvents, eventJoin, workspaceClient } from '../workspace/scope';
+import { clientEvents, eventJoin, liveEventCount, workspaceClient } from '../workspace/scope';
 import { MoveDetail, MoveRow, toIso } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
 
-/** Decision 10: live supporting events only (the quarterly-report rule). */
-export const liveEventCount = sql<number>`(SELECT count(*)::int FROM move_event me JOIN event e ON e.id = me.event_id WHERE me.move_id = ${move.id} AND e.retracted_at IS NULL)`;
 
 const moveSelect = {
   id: move.id, competitorId: move.competitorId, competitorName: competitor.name, moveType: move.moveType, status: move.status, confidence: move.confidence,

@@ -1,6 +1,6 @@
 import { type AccessContext, canAccessClient, ToolError } from '@cs/core';
-import { changeEvent, client, clientCompetitor, eventScore, withTenant } from '@cs/db';
-import { and, desc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
+import { changeEvent, client, clientCompetitor, eventScore, move, withTenant } from '@cs/db';
+import { and, desc, eq, inArray, isNull, type SQL, sql } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
 
 export interface WorkspaceClient {
@@ -50,3 +50,7 @@ export async function requireVisibleEvent(deps: ToolDeps, ctx: AccessContext, cl
 
 /** Escapes `\`, `%` and `_` for a LIKE/ILIKE pattern (Postgres' default escape character is `\`). */
 export const escapeLike = (s: string): string => s.replace(/[\\%_]/g, (m) => `\\${m}`);
+
+/** Decision 10: live supporting events of a move (the quarterly-report rule). Moves, the profile and pressure
+ * count or list a move only while this is > 0. */
+export const liveEventCount = sql<number>`(SELECT count(*)::int FROM move_event me JOIN event e ON e.id = me.event_id WHERE me.move_id = ${move.id} AND e.retracted_at IS NULL)`;

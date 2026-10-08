@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { alert, brief, changeEvent, client, eventScore, llmCall, move, recommendation } from '@cs/db';
+import { alert, brief, changeEvent, client, eventScore, llmCall, move, moveEvent, recommendation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -30,7 +30,9 @@ describe('get_portfolio', () => {
     await scored(90, 'archive', 1); // archive never counts
     await scored(95, 'alert', 3, true); // retracted never counts
     await scored(99, 'alert', 40); // older than 30 days
-    await dbs.owner.insert(move).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, moveType: 'ad_surge', status: 'active', confidence: 0.5, summary: 'm', ruleVersion: 2, lastHeldAt: new Date(), lastEvidenceAt: new Date() });
+    // F16: a move counts toward pressure only while it keeps a live event.
+    const [m] = await dbs.owner.insert(move).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, moveType: 'ad_surge', status: 'active', confidence: 0.5, summary: 'm', ruleVersion: 2, lastHeldAt: new Date(), lastEvidenceAt: new Date() }).returning();
+    await dbs.owner.insert(moveEvent).values({ moveId: m!.id, eventId });
     await dbs.owner.insert(alert).values([
       { agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, eventId, score: 86, status: 'pending_review', mode: 'after_am_check' },
     ]);

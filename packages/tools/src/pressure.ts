@@ -1,6 +1,7 @@
 import { changeEvent, clientCompetitor, competitor, eventScore, move, type Tx } from '@cs/db';
 import { changeTypeLabel } from '@cs/email';
-import { and, eq, gte, inArray, isNull } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
+import { liveEventCount } from './workspace/scope';
 
 export interface PressureSignal {
   weight: number;
@@ -50,7 +51,7 @@ export async function pressureByClient(tx: Tx, clientIds: string[], now: Date): 
       .from(eventScore).innerJoin(changeEvent, eq(changeEvent.id, eventScore.eventId))
       .where(and(inArray(eventScore.clientId, clientIds), inArray(eventScore.route, ['alert', 'brief']), gte(eventScore.scoredAt, since), isNull(changeEvent.retractedAt))),
     tx.select({ clientId: move.clientId, competitorId: move.competitorId, moveType: move.moveType, status: move.status, confidence: move.confidence })
-      .from(move).where(and(inArray(move.clientId, clientIds), isNull(move.closedAt))),
+      .from(move).where(and(inArray(move.clientId, clientIds), isNull(move.closedAt), sql`${liveEventCount} > 0`)),
   ]);
   const key = (c: string, k: string) => `${c}|${k}`;
   const signals = new Map<string, PressureSignal[]>();

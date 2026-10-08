@@ -3,7 +3,7 @@ import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { AdActivityView, WorkspaceOverview } from './schemas';
-import { ctx, day, dbs, registry, resetWorkspace, seedAds, seedEvent, seedGbpRating } from './workspace-fixtures';
+import { ctx, day, dbs, registry, resetWorkspace, seedAds, seedEvent, seedGbpRating, seedMove } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
 const owner = ctx('client_owner', [IDS.clientA1], ['dashboard']);
@@ -62,6 +62,17 @@ describe('get_workspace_overview', () => {
     const o = (await registry.invoke(owner, 'get_workspace_overview', { clientId: IDS.clientA1 })) as WorkspaceOverview;
     expect(o).toMatchObject({ clientId: IDS.clientA1, trackedCompetitors: 1, changes7d: 2, alerts7d: 1, priceMoves7d: 1, priceCuts7d: 1, activeAds: null, activeAds7dAgo: null, pitchSnapshot: false });
     expect(o.pressure[0]).toMatchObject({ competitorId: IDS.competitorX, name: 'Smith HVAC' });
+  });
+
+  it('counts toward pressure only moves that keep a live event (F16, Review Focus 3)', async () => {
+    const gone = await seedEvent({ score: 90, route: 'alert', ageDays: 1, retracted: true });
+    await seedMove([gone.eventId], { status: 'active' });
+    const quiet = (await registry.invoke(owner, 'get_workspace_overview', { clientId: IDS.clientA1 })) as WorkspaceOverview;
+    expect(quiet.pressure[0]!.pressure).toEqual({ score: 0, level: 'low', reasons: ['Quiet'] });
+    const live = await seedEvent({ score: 10, route: 'archive', ageDays: 1 });
+    await seedMove([live.eventId], { status: 'active', moveType: 'ad_surge' });
+    const o = (await registry.invoke(owner, 'get_workspace_overview', { clientId: IDS.clientA1 })) as WorkspaceOverview;
+    expect(o.pressure[0]!.pressure).toMatchObject({ score: 56, reasons: ['Ad surge'] });
   });
 
   it('sums active ads now and a week ago from the weekly series', async () => {

@@ -7,8 +7,7 @@ import { packsOf, type ToolDeps } from '../deps';
 import { MOVE_LABELS, pressureByClient } from '../pressure';
 import { eventRowSelect, toEventRow } from '../workspace/events-read';
 import { sourceLabel } from '../workspace/labels';
-import { clientEvents, eventJoin, workspaceClient } from '../workspace/scope';
-import { liveEventCount } from './moves';
+import { clientEvents, eventJoin, liveEventCount, workspaceClient } from '../workspace/scope';
 import { requireTracked } from './pages';
 import { CompetitorProfile, TimelineItem, toIso } from './schemas';
 
