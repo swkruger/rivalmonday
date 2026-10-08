@@ -1,13 +1,13 @@
 'use client';
 
-import { Activity, Bell, BookOpen, Building2, ClipboardCheck, Gauge, Inbox, LayoutDashboard, ListChecks, Palette, Scale, Send, Siren, Swords, Tags, Telescope, UserCog, Users, Webhook } from 'lucide-react';
+import { Activity, Bell, BookOpen, Building2, ClipboardCheck, Gauge, Inbox, LayoutDashboard, ListChecks, Palette, Scale, Send, Siren, Swords, Tags, Telescope, TrendingUp, UserCog, Users, Webhook } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { activeHref, clientIdFromPath, type NavGroup, type NavItem, type NavRoleFlags, navItemsFor } from './nav-items';
 
 const ICONS = {
   clients: Users, overview: LayoutDashboard, inbox: Inbox, team: UserCog, branding: Palette, webhooks: Webhook, bell: Bell, delivery: Send, profile: Building2, competitors: Swords,
-  changes: Activity, approvals: ClipboardCheck, alerts: Siren, recommendations: ListChecks, usage: Gauge, playbooks: BookOpen, reviews: Scale, themes: Tags, prospects: Telescope,
+  changes: Activity, moves: TrendingUp, approvals: ClipboardCheck, alerts: Siren, recommendations: ListChecks, usage: Gauge, playbooks: BookOpen, reviews: Scale, themes: Tags, prospects: Telescope,
 } as const satisfies Record<NavItem['icon'], unknown>;
 
 export interface NavClient {

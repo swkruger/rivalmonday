@@ -133,6 +133,20 @@ describe('SidebarNav', () => {
     expect(screen.queryByRole('link', { name: 'Changes' })).toBeNull();
   });
 
+  it('shows a client owner with the dashboard flag Moves right after Changes', () => {
+    pathname = `/c/${CLIENT_ID}`;
+    const { container } = render(<SidebarNav flags={clientOwnerWithDashboard} />);
+    const names = Array.from(container.querySelectorAll('a')).map((a) => a.textContent);
+    expect(names.indexOf('Moves')).toBe(names.indexOf('Changes') + 1);
+    expect(screen.getByRole('link', { name: 'Moves' }).getAttribute('href')).toBe(`/c/${CLIENT_ID}/moves`);
+  });
+
+  it('hides Moves from a client owner without the dashboard flag', () => {
+    pathname = `/c/${CLIENT_ID}`;
+    render(<SidebarNav flags={clientViewer} />);
+    expect(screen.queryByRole('link', { name: 'Moves' })).toBeNull();
+  });
+
   it('highlights Recommendations for an agency admin on /c/<uuid>/recommendations', () => {
     pathname = `/c/${CLIENT_ID}/recommendations`;
     render(<SidebarNav flags={agencyAdmin} />);
@@ -158,7 +172,7 @@ describe('SidebarNav sections', () => {
     pathname = `/c/${CLIENT_ID}/competitors`;
     render(<SidebarNav flags={agencyAdmin} clients={clients} />);
     const panel = screen.getByRole('group', { name: 'Client: Comfort Air Heating & Cooling' });
-    expect(linkNames(panel)).toEqual(['Overview', 'Competitors', 'Changes', 'Recommendations', 'Profile', 'Delivery']);
+    expect(linkNames(panel)).toEqual(['Overview', 'Competitors', 'Changes', 'Moves', 'Recommendations', 'Profile', 'Delivery']);
     expect(within(panel).getByText('Comfort Air Heating & Cooling')).toBeTruthy();
     expect(within(panel).getByText('CA')).toBeTruthy();
     expect(screen.queryByText('Select a client from Portfolio')).toBeNull();

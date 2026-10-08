@@ -276,9 +276,13 @@ export function EventViewer({
               <h3 className="text-sm font-semibold text-ink">Part of moves</h3>
               <div className="flex flex-wrap gap-2">
                 {detail.moves.map((m) => (
-                  <span key={m.id} className="rounded-md bg-muted-surface-2 px-2 py-1 text-xs font-medium text-muted-foreground">
+                  <Link
+                    key={m.id}
+                    href={`/c/${clientId}/moves?status=all&move=${m.id}`}
+                    className="rounded-md bg-muted-surface-2 px-2 py-1 text-xs font-medium text-muted-foreground hover:text-ink"
+                  >
                     {m.label} · {m.status}
-                  </span>
+                  </Link>
                 ))}
               </div>
             </div>
