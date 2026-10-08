@@ -1,8 +1,8 @@
 import { isAbsolute, resolve } from 'node:path';
 import { type AccessContext, isUuid, ToolError, type ToolRegistry } from '@cs/core';
-import { brief, type Db, trendReport } from '@cs/db';
+import { brief, type Db, evidence, trendReport } from '@cs/db';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
-import type { BriefDetail, ReportDetail, ToolDeps } from '@cs/tools';
+import { type BriefDetail, evidenceContentType, type EvidenceView, type ReportDetail, type ToolDeps } from '@cs/tools';
 import { eq } from 'drizzle-orm';
 
 export type Enqueue = (job: 'brief-pdf' | 'report-pdf', payload: { briefId: string } | { reportId: string }, singletonKey: string) => Promise<void>;
@@ -85,6 +85,48 @@ export async function servePdf(input: {
       'content-type': 'application/pdf',
       'content-disposition': `inline; filename="${found.filename}"`,
       'cache-control': 'private, no-store',
+    },
+  });
+}
+
+/**
+ * Decision 6: access through `get_evidence` first (same 404 for unknown, foreign and unservable ids), then the
+ * object store. `html`/`vendor_json` are never served raw — page HTML is untrusted competitor markup. F7: the
+ * servable kinds and their content types come from `evidenceContentType` (`@cs/tools`), the single source of truth
+ * also used by `get_evidence`'s `servable` flag — no second list here.
+ */
+export async function serveEvidence(input: {
+  clientId: string;
+  evidenceId: string;
+  ctx: AccessContext;
+  registry: ToolRegistry<ToolDeps>;
+  service: Db;
+  store: ObjectStore;
+}): Promise<Response> {
+  if (!isUuid(input.clientId) || !isUuid(input.evidenceId)) return notFound();
+
+  let view: EvidenceView;
+  try {
+    view = (await input.registry.invoke(input.ctx, 'get_evidence', { clientId: input.clientId, evidenceId: input.evidenceId })) as EvidenceView;
+  } catch (e) {
+    if (e instanceof ToolError && (e.code === 'not_found' || e.code === 'permission_denied' || e.code === 'invalid_input')) return notFound();
+    throw e;
+  }
+  if (!view.servable) return notFound();
+  const type = evidenceContentType(view.kind);
+  if (!type) return notFound();
+
+  const [row] = await input.service.select({ key: evidence.objectKey }).from(evidence).where(eq(evidence.id, input.evidenceId));
+  const bytes = row ? await input.store.get(row.key) : null;
+  if (!bytes) return notFound();
+
+  return new Response(new Uint8Array(bytes), {
+    status: 200,
+    headers: {
+      'content-type': type,
+      'x-content-type-options': 'nosniff',
+      'cache-control': 'private, no-store',
+      'content-disposition': 'inline',
     },
   });
 }

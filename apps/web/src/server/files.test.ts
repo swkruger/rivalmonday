@@ -1,11 +1,11 @@
 import { createAccessContext } from '@cs/core';
-import { brief, trendReport } from '@cs/db';
+import { brief, capture, evidence, trackedPage, trendReport } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { createMemoryStore } from '@cs/storage';
+import { createMemoryStore, type ObjectStore } from '@cs/storage';
 import { createToolRegistry } from '@cs/tools';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resolveEvidenceDir, servePdf } from './files';
+import { resolveEvidenceDir, serveEvidence, servePdf } from './files';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -73,6 +73,76 @@ describe('servePdf', () => {
     const [rep] = await dbs.owner.insert(trendReport).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, quarter: '2026-Q3', periodStart: NOW, periodEnd: NOW, status: 'ready' }).returning();
     const admin = createAccessContext({ agencyId: IDS.agencyA, userId: 'a', role: 'agency_admin', clientScope: 'all', features: [] });
     expect((await serve('report', rep!.id, admin).res).status).toBe(404);
+  });
+});
+
+describe('serveEvidence', () => {
+  const am = createAccessContext({ agencyId: IDS.agencyA, userId: 'am', role: 'account_manager', clientScope: 'all', features: [] });
+  const ownerA2 = createAccessContext({ agencyId: IDS.agencyA, userId: 'o2', role: 'client_owner', clientScope: [IDS.clientA2], features: [] });
+  let store: ObjectStore;
+  let ids: { screenshot: string; text: string; html: string };
+  let missingObjectScreenshotId: string;
+
+  beforeEach(async () => {
+    store = createMemoryStore();
+    const [page] = await dbs.owner
+      .insert(trackedPage)
+      .values({ competitorId: IDS.competitorX, url: 'https://smithhvac.example/pricing', pageType: 'pricing', source: 'nav', cadence: 'daily' })
+      .returning();
+    const [cap] = await dbs.owner
+      .insert(capture)
+      .values({ competitorId: IDS.competitorX, trackedPageId: page!.id, source: 'web', url: page!.url, status: 'ok', collectorVersion: 't', capturedAt: NOW })
+      .returning();
+    const kinds: Array<{ kind: 'screenshot' | 'text' | 'html'; contentType: string }> = [
+      { kind: 'screenshot', contentType: 'image/webp' },
+      { kind: 'text', contentType: 'text/plain' },
+      { kind: 'html', contentType: 'text/html' },
+    ];
+    const seeded: Record<string, string> = {};
+    for (const { kind, contentType } of kinds) {
+      const objectKey = `evidence/${IDS.competitorX}/${cap!.id}/${kind}`;
+      const [row] = await dbs.owner.insert(evidence).values({ captureId: cap!.id, kind, objectKey, sha256: `${kind}-sha`, bytes: 10, contentType }).returning();
+      seeded[kind] = row!.id;
+      if (kind !== 'html') await store.put(objectKey, new Uint8Array([1, 2, 3]), contentType);
+    }
+    ids = { screenshot: seeded.screenshot!, text: seeded.text!, html: seeded.html! };
+
+    // A second screenshot evidence row whose object is never put into the store.
+    const [cap2] = await dbs.owner
+      .insert(capture)
+      .values({ competitorId: IDS.competitorX, trackedPageId: page!.id, source: 'web', url: page!.url, status: 'ok', collectorVersion: 't', capturedAt: NOW })
+      .returning();
+    const missingKey = `evidence/${IDS.competitorX}/${cap2!.id}/screenshot`;
+    const [missingRow] = await dbs.owner
+      .insert(evidence)
+      .values({ captureId: cap2!.id, kind: 'screenshot', objectKey: missingKey, sha256: 'missing-sha', bytes: 10, contentType: 'image/webp' })
+      .returning();
+    missingObjectScreenshotId = missingRow!.id;
+  });
+
+  it('streams a screenshot and a text file with safe headers', async () => {
+    const r = await serveEvidence({ clientId: IDS.clientA1, evidenceId: ids.screenshot, ctx: am, registry, service: dbs.service, store });
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-type')).toBe('image/webp');
+    expect(r.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(r.headers.get('cache-control')).toBe('private, no-store');
+    const t = await serveEvidence({ clientId: IDS.clientA1, evidenceId: ids.text, ctx: am, registry, service: dbs.service, store });
+    expect(t.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+  });
+
+  it('never serves html or vendor json, other tenants, bad ids or missing objects (Review Focus 1, 5)', async () => {
+    const cases = [
+      { clientId: IDS.clientA1, evidenceId: ids.html, ctx: am },
+      { clientId: IDS.clientA1, evidenceId: ids.screenshot, ctx: otherAgency },
+      { clientId: IDS.clientA2, evidenceId: ids.screenshot, ctx: ownerA2 },
+      { clientId: 'nope', evidenceId: ids.screenshot, ctx: am },
+      { clientId: IDS.clientA1, evidenceId: missingObjectScreenshotId, ctx: am },
+    ];
+    for (const c of cases) {
+      const r = await serveEvidence({ ...c, registry, service: dbs.service, store });
+      expect(r.status).toBe(404);
+      expect(await r.text()).toBe('Not found');
+    }
   });
 });
 
