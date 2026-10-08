@@ -17,6 +17,11 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
   const p = await callTool<ClientProfile>(ctx, 'get_client_profile', { clientId });
   return (
     <>
+      {p.status === 'prospect' && (
+        <Link href={`/agency/prospects/${clientId}`} className="text-sm font-semibold text-primary-soft-text">
+          ← Back to the prospect
+        </Link>
+      )}
       <h1 className="text-[26px] font-extrabold tracking-tight">Profile — {p.name}</h1>
       <p className="text-muted-foreground">
         Time zone and delivery live under <Link href={`/c/${clientId}/settings/delivery`} className="font-semibold text-primary-soft-text">Delivery</Link>.

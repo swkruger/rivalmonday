@@ -1,6 +1,7 @@
 import { isAgencyRole } from '@cs/core';
 import type { ClientProfile, SuggestionView, TrackedCompetitor } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
@@ -22,6 +23,11 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
   const atLimit = tracked.items.length >= tracked.limit;
   return (
     <>
+      {profile.status === 'prospect' && (
+        <Link href={`/agency/prospects/${clientId}`} className="text-sm font-semibold text-primary-soft-text">
+          ← Back to the prospect
+        </Link>
+      )}
       <h1 className="text-[26px] font-extrabold tracking-tight">Competitors — {profile.name}</h1>
       <p className="text-muted-foreground">
         Track 3–5 direct competitors ({tracked.items.length} of {tracked.limit}).

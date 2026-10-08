@@ -14,7 +14,7 @@ export interface NavItem {
   group: NavGroup;
   icon:
     | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'approvals' | 'alerts' | 'recommendations' | 'usage' | 'playbooks'
-    | 'reviews' | 'themes';
+    | 'reviews' | 'themes' | 'prospects';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -44,6 +44,7 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
     agency('/agency', 'Portfolio', 'clients');
     agency('/agency/approvals', 'Approvals', 'approvals');
     agency('/agency/alerts', 'Alert review', 'alerts');
+    agency('/agency/prospects', 'Prospects', 'prospects');
     agency('/agency/usage', 'Usage & limits', 'usage');
     agency('/agency/playbooks', 'Playbooks', 'playbooks');
     if (clientId) {

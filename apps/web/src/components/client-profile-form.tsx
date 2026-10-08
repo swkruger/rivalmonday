@@ -17,8 +17,11 @@ interface Initial {
 }
 
 type Props =
-  | { mode: 'create'; action: (prev: FormResult, fd: FormData) => Promise<FormResult>; verticals: VerticalOption[]; timezoneOptions: string[]; initial?: undefined; clientId?: undefined }
-  | { mode: 'edit'; action: (prev: FormResult, fd: FormData) => Promise<FormResult>; verticals: VerticalOption[]; initial: Initial; clientId: string; timezoneOptions?: undefined };
+  | {
+      mode: 'create'; action: (prev: FormResult, fd: FormData) => Promise<FormResult>; verticals: VerticalOption[]; timezoneOptions: string[];
+      submitLabel?: string; initial?: undefined; clientId?: undefined;
+    }
+  | { mode: 'edit'; action: (prev: FormResult, fd: FormData) => Promise<FormResult>; verticals: VerticalOption[]; initial: Initial; clientId: string; timezoneOptions?: undefined; submitLabel?: undefined };
 
 export function ClientProfileForm(props: Props) {
   const [state, formAction, pending] = useActionState(props.action, { ok: true } as FormResult);
@@ -98,7 +101,7 @@ export function ClientProfileForm(props: Props) {
         </div>
       )}
 
-      <Button type="submit" disabled={pending} className="self-start">{props.mode === 'create' ? 'Create client' : 'Save profile'}</Button>
+      <Button type="submit" disabled={pending} className="self-start">{props.mode === 'create' ? (props.submitLabel ?? 'Create client') : 'Save profile'}</Button>
     </form>
   );
 }

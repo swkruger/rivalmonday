@@ -19,6 +19,11 @@ describe('ClientProfileForm', () => {
     expect(screen.getByLabelText('Cleaning')).toBeTruthy();
   });
 
+  it('carries a custom submit label in create mode', () => {
+    render(<ClientProfileForm mode="create" submitLabel="Create prospect" action={vi.fn()} verticals={verticals} timezoneOptions={['America/Chicago']} />);
+    expect(screen.getByRole('button', { name: 'Create prospect' })).toBeTruthy();
+  });
+
   it('fixes the vertical and pre-fills values when editing', () => {
     render(
       <ClientProfileForm mode="edit" action={vi.fn()} verticals={verticals} clientId="c1"
