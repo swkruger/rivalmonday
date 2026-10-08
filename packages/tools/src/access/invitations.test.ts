@@ -126,6 +126,16 @@ describe('acceptInvitations', () => {
     expect(rows[0]).toMatchObject({ role: 'agency_admin', clientScope: null });
   });
 
+  it('leaves an admin’s linked contact role and scope alone when an older invitation would demote them (m3)', async () => {
+    await seedUser(dbs.owner, 'u1', 'admin@e.co');
+    const [c] = await dbs.service.insert(contact).values({ agencyId: IDS.agencyA, role: 'agency_admin', email: 'admin@e.co', userId: 'u1' }).returning();
+    await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'agency_admin', contactId: c!.id, createdBy: 'x' });
+    await dbs.service.insert(invitation).values({ agencyId: IDS.agencyA, email: 'admin@e.co', role: 'account_manager', clientScope: [IDS.clientA1], invitedBy: 'x', expiresAt: new Date('2026-10-19T12:00:00Z') });
+    await acceptInvitations(dbs.service, { id: 'u1', email: 'admin@e.co' }, NOW);
+    const [after] = await dbs.service.select().from(contact).where(eq(contact.id, c!.id));
+    expect(after).toMatchObject({ role: 'agency_admin', clientScope: null, userId: 'u1', active: true });
+  });
+
   it('survives two concurrent acceptances for the same user without a raw unique-violation, leaving exactly one membership', async () => {
     await seedUser(dbs.owner, 'u1', 'p@e.co');
     await createInvitation(dbs.service, { agencyId: IDS.agencyA, email: 'p@e.co', role: 'agency_admin', invitedBy: 'x' }, NOW);

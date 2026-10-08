@@ -72,16 +72,19 @@ export async function hasSignInRight(service: Db, email: string, now = new Date(
 }
 
 /** Links (or creates) the contact that receives this member's notifications (decision 5). */
-async function contactFor(tx: Tx, inv: typeof invitation.$inferSelect, user: { id: string; name?: string | null }): Promise<string> {
+async function contactFor(tx: Tx, inv: typeof invitation.$inferSelect, user: { id: string; name?: string | null }, keepRole: boolean): Promise<string> {
   const [existing] = await tx.select({ id: contact.id }).from(contact).where(and(
     eq(contact.agencyId, inv.agencyId), sameClient(contact.clientId, inv.clientId), sql`lower(${contact.email}) = ${inv.email}`,
   ));
   if (existing) {
-    await tx.update(contact).set({ userId: user.id, active: true, role: inv.role, clientScope: inv.clientScope ?? null }).where(eq(contact.id, existing.id));
+    // m3: the never-demote rule the membership upsert applies must hold for the linked contact too — an older
+    // invitation accepted after the user is already an agency_admin elsewhere must not rewrite their contact's role/scope.
+    await tx.update(contact).set(keepRole ? { userId: user.id, active: true } : { userId: user.id, active: true, role: inv.role, clientScope: inv.clientScope ?? null }).where(eq(contact.id, existing.id));
     return existing.id;
   }
   return addContact(tx, {
-    agencyId: inv.agencyId, clientId: inv.clientId, role: inv.role as Role, email: inv.email, name: user.name ?? null, clientScope: inv.clientScope ?? null, userId: user.id,
+    agencyId: inv.agencyId, clientId: inv.clientId, role: keepRole ? 'agency_admin' : (inv.role as Role), email: inv.email, name: user.name ?? null,
+    clientScope: keepRole ? null : (inv.clientScope ?? null), userId: user.id,
   });
 }
 
@@ -94,7 +97,13 @@ export async function acceptInvitations(service: Db, user: { id: string; email: 
     )).for('update');
     const ids: string[] = [];
     for (const inv of pending) {
-      const contactId = await contactFor(tx, inv, user);
+      // m3 (5a final review): the same never-demote rule the membership upsert applies must hold for the linked contact.
+      const [held] = await tx
+        .select({ role: membership.role })
+        .from(membership)
+        .where(and(eq(membership.userId, user.id), eq(membership.agencyId, inv.agencyId), sameClient(membership.clientId, inv.clientId)));
+      const keepRole = held?.role === 'agency_admin' && inv.role !== 'agency_admin';
+      const contactId = await contactFor(tx, inv, user, keepRole);
       // Upserted, not select-then-branch: two concurrent acceptInvitations calls for the same user (e.g. two
       // sign-in requests racing) must not both take an insert path and raise a raw unique-violation on
       // membership_user_scope_unique — Postgres resolves the race itself via the ON CONFLICT clause.

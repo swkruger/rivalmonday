@@ -46,6 +46,9 @@ export function buildAuthOptions(deps: AuthDeps): BetterAuthOptions {
     plugins: [
       magicLink({
         expiresIn: MAGIC_LINK_MINUTES * 60,
+        // Decision 14: only a hash of the token is stored in auth.verification; the verify endpoint hashes the
+        // incoming token itself before looking it up, so nothing else here changes.
+        storeToken: 'hashed',
         // Decision 2: no link for people without a right to sign in. The check and the send run in the background, so the
         // response (status, body and timing) is the same either way and a failed send never surfaces to the caller.
         sendMagicLink: ({ email, url }) => {
@@ -68,6 +71,13 @@ export function buildAuthOptions(deps: AuthDeps): BetterAuthOptions {
       },
       session: {
         create: {
+          // 5b-2 decision 14 (5a carry-over): a Google user whose memberships were all removed still has an account; refuse the
+          // session outright instead of landing them on /no-access. Invited users still pass (a pending invitation is a right).
+          before: async (session) => {
+            const rows = [...(await deps.service.execute<{ email: string }>(sql`select email from auth."user" where id = ${session.userId}`))];
+            const email = rows[0]?.email;
+            return email && (await hasSignInRight(deps.service, email, now())) ? undefined : false;
+          },
           // Better Auth 1.7.7 runs `after` hooks once the enclosing adapter transaction has committed (and this
           // adapter config uses none), so the user row is visible to the separate service connection here.
           after: async (session) => {

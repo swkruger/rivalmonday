@@ -107,3 +107,27 @@ describe('magic link sign-in', () => {
     }
   });
 });
+
+describe('5b-2 hardening (decision 14)', () => {
+  it('stores only a hash of the magic-link token, and the link still signs in', async () => {
+    await dbs.service.insert(invitation).values({ agencyId: IDS.agencyA, email: 'hash@example.com', role: 'agency_admin', invitedBy: 't', expiresAt: new Date(Date.now() + 86_400_000) });
+    await post('/sign-in/magic-link', { email: 'hash@example.com', callbackURL: '/' });
+    await flush();
+    const token = new URL(linkFromMail()).searchParams.get('token')!;
+    const rows = [...(await dbs.owner.execute<{ identifier: string; value: string }>(sql`select identifier, value from auth.verification`))];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.some((r) => r.identifier === token || r.value.includes(token))).toBe(false);
+    const verify = await auth.handler(new Request(linkFromMail()));
+    expect(verify.headers.get('set-cookie')).toMatch(/session_token/);
+  });
+
+  it('refuses a session for a user who has lost every sign-in right (e.g. a Google user whose memberships were removed)', async () => {
+    const opts = buildAuthOptions({ env, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null), runInBackground: () => {}, sendEmail: async () => {} });
+    const before = opts.databaseHooks!.session!.create!.before!;
+    await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values ('g1', 'G', 'google@example.com', true)`);
+    const session = { userId: 'g1', token: 't', expiresAt: new Date(Date.now() + 3_600_000), createdAt: new Date(), updatedAt: new Date() };
+    expect(await before(session as never, undefined as never)).toBe(false);
+    await dbs.service.insert(membership).values({ userId: 'g1', agencyId: IDS.agencyA, role: 'agency_admin', createdBy: 't' });
+    expect(await before(session as never, undefined as never)).not.toBe(false);
+  });
+});
