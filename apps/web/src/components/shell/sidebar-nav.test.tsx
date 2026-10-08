@@ -154,6 +154,20 @@ describe('SidebarNav', () => {
     expect(screen.queryByRole('link', { name: 'Moves' })).toBeNull();
   });
 
+  it('shows a client owner with the flags Services & area, Alert rules and AI connections', () => {
+    pathname = `/c/${CLIENT_ID}`;
+    render(<SidebarNav flags={{ ...clientOwnerWithDashboard, alertRules: true, mcp: true }} />);
+    expect(screen.getByRole('link', { name: 'Services & area' }).getAttribute('href')).toBe(`/c/${CLIENT_ID}/settings/profile`);
+    expect(screen.getByRole('link', { name: 'Alert rules' }).getAttribute('href')).toBe(`/c/${CLIENT_ID}/settings/alerts`);
+    expect(screen.getByRole('link', { name: 'AI connections' }).getAttribute('href')).toBe(`/c/${CLIENT_ID}/settings/ai`);
+  });
+
+  it('hides the settings items from a client owner without the flags', () => {
+    pathname = `/c/${CLIENT_ID}`;
+    render(<SidebarNav flags={clientViewer} />);
+    for (const n of ['Services & area', 'Alert rules', 'AI connections']) expect(screen.queryByRole('link', { name: n })).toBeNull();
+  });
+
   it('highlights Recommendations for an agency admin on /c/<uuid>/recommendations', () => {
     pathname = `/c/${CLIENT_ID}/recommendations`;
     render(<SidebarNav flags={agencyAdmin} />);
@@ -179,7 +193,7 @@ describe('SidebarNav sections', () => {
     pathname = `/c/${CLIENT_ID}/competitors`;
     render(<SidebarNav flags={agencyAdmin} clients={clients} />);
     const panel = screen.getByRole('group', { name: 'Client: Comfort Air Heating & Cooling' });
-    expect(linkNames(panel)).toEqual(['Overview', 'Competitors', 'Changes', 'Moves', 'Recommendations', 'Profile', 'Delivery']);
+    expect(linkNames(panel)).toEqual(['Overview', 'Competitors', 'Changes', 'Moves', 'Recommendations', 'Profile', 'Delivery', 'Alert rules', 'AI connections']);
     expect(within(panel).getByText('Comfort Air Heating & Cooling')).toBeTruthy();
     expect(within(panel).getByText('CA')).toBeTruthy();
     expect(screen.queryByText('Select a client from Portfolio')).toBeNull();

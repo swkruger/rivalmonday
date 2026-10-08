@@ -14,7 +14,7 @@ export interface NavItem {
   group: NavGroup;
   icon:
     | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'approvals' | 'alerts' | 'recommendations'
-    | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects';
+    | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -81,8 +81,11 @@ function clientModules(flags: NavRoleFlags, base: string, add: (href: string, la
   if (flags.isAgency) {
     add(`${base}/settings/profile`, 'Profile', 'profile');
     add(`${base}/settings/delivery`, 'Delivery', 'delivery');
+  } else if (flags.dashboard) {
+    add(`${base}/settings/profile`, 'Services & area', 'profile');
   }
-  // Task 19: Services & area (client users), Alert rules, AI connections
+  if (flags.alertRules) add(`${base}/settings/alerts`, 'Alert rules', 'alertRules');
+  if (flags.mcp) add(`${base}/settings/ai`, 'AI connections', 'ai');
 }
 
 function isActive(href: string, active: string): boolean {
