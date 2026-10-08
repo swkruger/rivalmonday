@@ -13,12 +13,13 @@ import type {
 import Link from 'next/link';
 import { foldSeries, LineChart } from '@/components/charts/line-chart';
 import { ClientHomeBasic } from '@/components/client-home-basic';
+import { AlertLinkList, BriefLinkList } from '@/components/client-lists';
 import { EvidenceChips } from '@/components/evidence-chips';
 import { StatCard } from '@/components/stat-card';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { MoveCard, movesHref } from './moves/move-card';
-import { kpiCards } from './overview-kpis';
+import { activeBriefItems, kpiCards } from './overview-kpis';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,14 +36,14 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
     callTool<WorkspaceOverview>(ctx, 'get_workspace_overview', { clientId }),
     callTool<AdActivityView>(ctx, 'get_ad_activity', { clientId, weeks: 12 }),
     callTool<{ items: MoveRow[] }>(ctx, 'list_moves', { clientId }),
-    callTool<{ items: BriefSummary[] }>(ctx, 'list_briefs', { clientId, limit: 1 }),
-    callTool<{ items: AlertSummary[] }>(ctx, 'list_alerts', { clientId, limit: 5 }),
+    callTool<{ items: BriefSummary[] }>(ctx, 'list_briefs', { clientId, limit: 10 }),
+    callTool<{ items: AlertSummary[] }>(ctx, 'list_alerts', { clientId, limit: 10 }),
     callTool<{ items: RecommendationView[] }>(ctx, 'list_recommendations', { clientId }),
     callTool<{ items: ReportSummary[] }>(ctx, 'list_trend_reports', { clientId }),
   ]);
   const first = briefs.items[0];
   const latest = first ? await callTool<BriefDetail>(ctx, 'get_brief', { briefId: first.id }) : null;
-  const items = latest ? [...latest.items].sort((a, b) => a.ord - b.ord) : [];
+  const items = latest ? activeBriefItems(latest.items) : [];
   const delivered = latest && (latest.status === 'approved' || latest.status === 'sent') ? latest : null;
   const openRecs = recs.items.filter((r) => r.status === 'todo' || r.status === 'in_progress');
   const n = overview.trackedCompetitors;
@@ -66,7 +67,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {kpiCards(overview).map((k) => (
+        {kpiCards(overview, { agency: isAgencyRole(ctx.role) }).map((k) => (
           <StatCard key={k.title} {...k} />
         ))}
       </div>
@@ -127,13 +128,8 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
           </section>
           <section className={cardCls}>
             <h2 className="font-semibold">Recent alerts</h2>
-            <div className="mt-3 flex flex-col gap-2">
-              {alerts.items.length === 0 && <p className="text-muted-foreground">No alerts.</p>}
-              {alerts.items.map((a) => (
-                <Link key={a.id} href={`/c/${clientId}/alerts/${a.id}`} className="rounded-lg px-2 py-1 hover:bg-muted-surface">
-                  <span className="font-semibold">{a.competitorName}</span> — {a.headline}
-                </Link>
-              ))}
+            <div className="mt-3">
+              <AlertLinkList clientId={clientId} items={alerts.items} />
             </div>
           </section>
         </div>
@@ -188,17 +184,25 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
         </section>
       </div>
 
-      <section className={cardCls}>
-        <h2 className="font-semibold">Quarterly reports</h2>
-        <div className="mt-3 flex flex-col gap-2">
-          {reports.items.length === 0 && <p className="text-muted-foreground">The first report arrives after a full quarter.</p>}
-          {reports.items.map((r) => (
-            <Link key={r.id} href={`/c/${clientId}/reports/${r.id}`} className="rounded-lg px-2 py-1 hover:bg-muted-surface">
-              {r.quarter}
-            </Link>
-          ))}
-        </div>
-      </section>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section className={cardCls}>
+          <h2 className="font-semibold">Past briefs</h2>
+          <div className="mt-3">
+            <BriefLinkList clientId={clientId} items={briefs.items.slice(1)} empty="No earlier briefs." />
+          </div>
+        </section>
+        <section className={cardCls}>
+          <h2 className="font-semibold">Quarterly reports</h2>
+          <div className="mt-3 flex flex-col gap-2">
+            {reports.items.length === 0 && <p className="text-muted-foreground">The first report arrives after a full quarter.</p>}
+            {reports.items.map((r) => (
+              <Link key={r.id} href={`/c/${clientId}/reports/${r.id}`} className="rounded-lg px-2 py-1 hover:bg-muted-surface">
+                {r.quarter}
+              </Link>
+            ))}
+          </div>
+        </section>
+      </div>
     </>
   );
 }

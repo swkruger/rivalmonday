@@ -27,8 +27,11 @@ function ratingPill(self: number | null, avg: number | null): Pill | null {
   return { text: 'On par with the area', tone: 'info' };
 }
 
-/** The four Overview KPI cards (mockup 01). Pure: every missing figure degrades to "—" with an honest hint. */
-export function kpiCards(o: WorkspaceOverview): KpiCard[] {
+/**
+ * The four Overview KPI cards (mockup 01). Pure: every missing figure degrades to "—" with an honest hint. The
+ * "add your place id" hint is for agency roles only — client users can't edit the profile.
+ */
+export function kpiCards(o: WorkspaceOverview, { agency }: { agency: boolean }): KpiCard[] {
   return [
     {
       title: 'Changes this week',
@@ -54,10 +57,17 @@ export function kpiCards(o: WorkspaceOverview): KpiCard[] {
       pill: ratingPill(o.rating.self, o.rating.competitorAverage),
       hint:
         o.rating.self === null
-          ? 'Add your Google place id to compare'
+          ? agency
+            ? 'Add your Google place id to compare'
+            : 'Not available yet'
           : o.rating.competitorAverage === null
             ? 'No competitor ratings yet'
             : `Competitor average ${o.rating.competitorAverage}`,
     },
   ];
+}
+
+/** The latest brief's items as the Overview shows them: active ones only, in brief order (dropped items have no badge here). */
+export function activeBriefItems<T extends { ord: number; status: string }>(items: readonly T[]): T[] {
+  return items.filter((i) => i.status === 'active').sort((a, b) => a.ord - b.ord);
 }

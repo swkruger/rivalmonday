@@ -1,8 +1,9 @@
 import type { AccessContext } from '@cs/core';
 import type { AlertSummary, BriefSummary, ClientProfile, ReportSummary } from '@cs/tools';
-import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
 import { callTool } from '@/server/tools';
+import { AlertLinkList, BriefLinkList } from './client-lists';
 
 /** The 5a client home, kept for client users without the `dashboard` feature (briefs-only plans). */
 export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx: AccessContext }) {
@@ -23,17 +24,8 @@ export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx
           <CardHeader>
             <CardTitle>Weekly briefs</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            {briefs.items.length === 0 && <p className="text-muted-foreground">No briefs yet. The first one arrives on a Monday morning.</p>}
-            {briefs.items.map((b) => (
-              <Link key={b.id} href={`/c/${clientId}/briefs/${b.id}`} className="flex items-center gap-3 rounded-lg bg-muted-surface px-3 py-2 hover:bg-muted-surface-2">
-                <span className="font-semibold">Week of {b.deliveryDate}</span>
-                <span className="truncate text-muted-foreground">{b.summary}</span>
-                <Badge variant="secondary" className="ml-auto">
-                  {b.status}
-                </Badge>
-              </Link>
-            ))}
+          <CardContent>
+            <BriefLinkList clientId={clientId} items={briefs.items} empty="No briefs yet. The first one arrives on a Monday morning." />
           </CardContent>
         </Card>
         <div className="flex flex-col gap-5">
@@ -41,13 +33,8 @@ export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx
             <CardHeader>
               <CardTitle>Alerts</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              {alerts.items.length === 0 && <p className="text-muted-foreground">No alerts.</p>}
-              {alerts.items.map((a) => (
-                <Link key={a.id} href={`/c/${clientId}/alerts/${a.id}`} className="rounded-lg px-2 py-1 hover:bg-muted-surface">
-                  <span className="font-semibold">{a.competitorName}</span> — {a.headline}
-                </Link>
-              ))}
+            <CardContent>
+              <AlertLinkList clientId={clientId} items={alerts.items} />
             </CardContent>
           </Card>
           <Card>
