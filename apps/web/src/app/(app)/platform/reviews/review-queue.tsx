@@ -1,20 +1,26 @@
 'use client';
 import type { DecisionReviewView } from '@cs/tools';
 import { Button } from '@cs/ui';
-import { useQueueAction, type QueueAction } from '../use-queue-action';
+import { useActionState } from 'react';
+import type { FormResult } from '@/server/forms';
 
 const selectClass = 'h-9 w-full max-w-md rounded-md border border-input bg-transparent px-3 text-sm shadow-xs';
+type Action = (prev: FormResult, fd: FormData) => Promise<FormResult>;
 
-/** The result lives here, above the items, because a resolved item disappears on revalidate (HANDOVER §6). */
-export function ReviewQueue({ items, action }: { items: DecisionReviewView[]; action: QueueAction }) {
-  const { result, pending, submit } = useQueueAction(action);
+/**
+ * One action state for every item's Resolve, held here (not per item) so the result survives the resolved item
+ * leaving the list on revalidate (HANDOVER §6; precedent `AlertList`). The dispatcher is handed straight to each
+ * item's native `<form action={formAction}>`, so the browser/React build the submitted FormData, not this component.
+ */
+export function ReviewQueue({ items, action }: { items: DecisionReviewView[]; action: Action }) {
+  const [result, formAction, pending] = useActionState(action, { ok: true } as FormResult);
   return (
     <div className="flex flex-col gap-5">
       {!result.ok && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{result.error}</p>}
       {result.ok && result.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{result.message}</p>}
       {items.length === 0 && <p className="text-muted-foreground">Nothing waiting for review.</p>}
       {items.map((item) => (
-        <form key={item.id} onSubmit={submit} className="flex flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card">
+        <form key={item.id} action={formAction} className="flex flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card">
           <input type="hidden" name="reviewId" value={item.id} />
           <div className="text-sm text-muted-ink">{item.competitorName} · {item.source} · {item.kind} · {item.createdAt.slice(0, 10)}</div>
           <div className="grid gap-3 md:grid-cols-2">
