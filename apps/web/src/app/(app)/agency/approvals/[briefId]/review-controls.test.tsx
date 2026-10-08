@@ -25,14 +25,15 @@ const item = { id: 'i1', ord: 1, competitorId: 'c', competitorName: 'Smith HVAC'
 
 describe('approval review controls', () => {
   it('offers editing on a ready brief, with first/last move buttons disabled', () => {
-    render(<ReviewItem briefId="b1" item={item} editable first last />);
+    render(<ReviewItem briefId="b1" clientId="c1" item={item} editable first last />);
     expect(screen.getByRole('button', { name: /edit/i })).toBeTruthy();
     expect((screen.getByRole('button', { name: /move up/i }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Upsell: ppc_audit')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Evidence 1' }).getAttribute('href')).toBe('/c/c1/evidence/e1');
   });
 
   it('is read-only once approved, but still ratable', () => {
-    render(<ReviewItem briefId="b1" item={item} editable={false} first last />);
+    render(<ReviewItem briefId="b1" clientId="c1" item={item} editable={false} first last />);
     expect(screen.queryByRole('button', { name: /edit/i })).toBeNull();
     expect(screen.getByRole('button', { name: 'Useful' })).toBeTruthy();
   });

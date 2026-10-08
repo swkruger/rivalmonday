@@ -22,7 +22,8 @@ describe('BriefView', () => {
     const { container } = render(<BriefView brief={brief} agency={false} />);
     expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Headline 1', 'Headline 2']);
     expect(container.querySelector('#item-00000000-0000-4000-8000-000000000001')).not.toBeNull();
-    expect(screen.getAllByText(/2 evidence items/)).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: 'Evidence 1' })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: 'Evidence 1' })[0]!.getAttribute('href')).toBe(`/c/${C}/evidence/e1`);
     expect(screen.queryByText(/ppc_audit/)).toBeNull();
     expect(screen.getByRole('link', { name: /download pdf/i }).getAttribute('href')).toBe(`/files/brief/${brief.id}`);
   });
@@ -61,7 +62,8 @@ describe('AlertView', () => {
     expect(screen.getByRole('heading', { level: 2, name: alert.headline })).toBeTruthy();
     expect(screen.getByText('Smith HVAC')).toBeTruthy();
     expect(screen.getByText(alert.body)).toBeTruthy();
-    expect(screen.getByText(/3 evidence items/)).toBeTruthy();
+    expect(screen.getAllByRole('link', { name: /^Evidence \d/ })).toHaveLength(3);
+    expect(screen.getByRole('link', { name: 'Evidence 1' }).getAttribute('href')).toBe(`/c/${C}/evidence/e1`);
   });
 });
 

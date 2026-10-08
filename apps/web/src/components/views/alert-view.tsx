@@ -1,5 +1,6 @@
 import type { AlertDetail } from '@cs/tools';
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { EvidenceChips } from '@/components/evidence-chips';
 
 /**
  * The `written === 'template'` note tells an agency reader the model text failed verification and a
@@ -19,9 +20,7 @@ export function AlertView({ alert, agency }: { alert: AlertDetail; agency: boole
       <CardContent className="flex flex-col gap-3">
         <h2 className="text-[17px] font-bold">{alert.headline}</h2>
         <p className="leading-relaxed">{alert.body}</p>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="rounded-md bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-soft-text">{alert.evidenceIds.length} evidence items</span>
-        </div>
+        <EvidenceChips clientId={alert.clientId} ids={alert.evidenceIds} />
         {agency && alert.written === 'template' && (
           <p className="text-sm text-muted-foreground">Template text (the model text did not pass verification).</p>
         )}

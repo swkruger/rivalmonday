@@ -2,6 +2,7 @@
 import type { RecommendationView } from '@cs/tools';
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label } from '@cs/ui';
 import { useActionState } from 'react';
+import { EvidenceChips } from '@/components/evidence-chips';
 import type { FormResult } from '@/server/forms';
 
 type SetStatusAction = (prev: FormResult, fd: FormData) => Promise<FormResult>;
@@ -120,8 +121,8 @@ function RecommendationCard({ item, clientId, canEdit, agency, action }: { item:
         <span className="rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">Impact {item.impact}</span>
         <span className="rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">{item.owner === 'client' ? 'For you' : 'Agency'}</span>
         <span className="rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">{SOURCE_LABEL[item.source] ?? item.source}</span>
-        <span className="rounded-md bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-soft-text">{item.evidenceIds.length} evidence items</span>
         {agency && item.upsellTag && <span className="rounded-md bg-[#FFF3DC] px-2 py-0.5 text-xs font-semibold text-accent-text">Upsell: {item.upsellTag}</span>}
+        <EvidenceChips clientId={clientId} ids={item.evidenceIds} />
       </div>
       {canEdit &&
         (item.status === 'done' ? (

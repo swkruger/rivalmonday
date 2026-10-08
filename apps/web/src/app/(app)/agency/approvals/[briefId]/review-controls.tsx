@@ -2,6 +2,7 @@
 import type { BriefItemView } from '@cs/tools';
 import { Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, Switch } from '@cs/ui';
 import { useActionState, useOptimistic, useState, useTransition } from 'react';
+import { EvidenceChips } from '@/components/evidence-chips';
 import type { FormResult } from '@/server/forms';
 import { approveAction, autoSendAction, dropItemAction, editItemAction, moveItemAction, rateItemAction, sendNowAction } from './actions';
 
@@ -155,7 +156,7 @@ function RateButtons({ item }: { item: BriefItemView }) {
  * Active items can be edited/removed/reordered while the brief is `ready`; rating is always available for an
  * active item so the agency can tell the engine which recommendations landed, even after the brief is sent.
  */
-export function ReviewItem({ briefId, item, editable, first, last }: { briefId: string; item: BriefItemView; editable: boolean; first: boolean; last: boolean }) {
+export function ReviewItem({ briefId, clientId, item, editable, first, last }: { briefId: string; clientId: string; item: BriefItemView; editable: boolean; first: boolean; last: boolean }) {
   const dropped = item.status !== 'active';
   return (
     <article
@@ -171,7 +172,7 @@ export function ReviewItem({ briefId, item, editable, first, last }: { briefId: 
         <b className="text-secondary">Suggested:</b> {item.recommendedAction}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <span className="rounded-md bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-soft-text">{item.evidenceIds.length} evidence items</span>
+        <EvidenceChips clientId={clientId} ids={item.evidenceIds} />
         {item.upsellTag && <span className="rounded-md bg-[#FFF3DC] px-2 py-0.5 text-xs font-semibold text-accent-text">Upsell: {item.upsellTag}</span>}
         {dropped && <Badge variant="outline">Dropped</Badge>}
         <span className="ml-auto rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">Confidence {Math.round(item.confidence * 100)}%</span>

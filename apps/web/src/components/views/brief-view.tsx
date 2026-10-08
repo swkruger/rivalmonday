@@ -1,5 +1,6 @@
 import type { BriefDetail } from '@cs/tools';
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { EvidenceChips } from '@/components/evidence-chips';
 
 /**
  * Item ids are exposed as `#item-<id>` anchors so Task 15's email deep links can scroll straight to one.
@@ -36,7 +37,7 @@ export function BriefView({ brief, agency }: { brief: BriefDetail; agency: boole
               <b className="text-secondary">Recommended:</b> {i.recommendedAction}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="rounded-md bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-soft-text">{i.evidenceIds.length} evidence items</span>
+              <EvidenceChips clientId={brief.clientId} ids={i.evidenceIds} />
               {agency && i.upsellTag && <span className="rounded-md bg-[#FFF3DC] px-2 py-0.5 text-xs font-semibold text-accent-text">Upsell: {i.upsellTag}</span>}
               {agency && i.status !== 'active' && <Badge variant="outline">{i.status}</Badge>}
               <span className="ml-auto rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">Confidence {Math.round(i.confidence * 100)}%</span>

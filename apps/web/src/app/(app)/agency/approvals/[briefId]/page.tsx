@@ -52,6 +52,7 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
           <ReviewItem
             key={item.id}
             briefId={brief.id}
+            clientId={brief.clientId}
             item={item}
             editable={editable}
             first={item.status === 'active' && active[0]?.id === item.id}
