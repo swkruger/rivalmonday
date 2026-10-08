@@ -156,3 +156,29 @@ export const ProspectRow = z.object({
   report: z.object({ id: uuid, status: ProspectReportStatus, createdAt: iso }).nullable(),
 });
 export type ProspectRow = z.infer<typeof ProspectRow>;
+
+/** 5c-1 workspace: one scored event as a client sees it (decision 3). */
+export const EventRow = z.object({
+  eventId: uuid, competitorId: uuid, competitorName: z.string(), changeType: z.string(), typeLabel: z.string(), channels: z.array(z.string()), summary: z.string(),
+  score: z.number().int(), route: z.enum(['alert', 'brief', 'archive']), serviceId: z.string().nullable(), serviceName: z.string().nullable(),
+  occurredAt: iso, scoredAt: iso, evidenceCount: z.number().int(),
+});
+export type EventRow = z.infer<typeof EventRow>;
+export const FactView = z.object({ kind: z.string(), before: z.string().nullable(), after: z.string().nullable(), pct: z.number().nullable() });
+export type FactView = z.infer<typeof FactView>;
+export const DetailLineView = z.object({ label: z.string(), value: z.string() });
+export const ScoreFactorsView = z.object({
+  typeWeight: z.number(), size: z.number(), relevance: z.number(), serviceOverlap: z.number(), territoryOverlap: z.number(), novelty: z.number(),
+  thresholds: z.object({ alert: z.number(), brief: z.number() }),
+});
+export type ScoreFactorsView = z.infer<typeof ScoreFactorsView>;
+export const ChangeView = z.object({
+  changeId: uuid, channel: z.string(), channelLabel: z.string(), kind: z.string(), pageUrl: z.string().nullable(),
+  beforeCaptureId: uuid.nullable(), afterCaptureId: uuid.nullable(), detectedAt: iso, hasTextDiff: z.boolean(),
+});
+export type ChangeView = z.infer<typeof ChangeView>;
+export const EventDetail = EventRow.extend({
+  facts: z.array(FactView), details: z.array(DetailLineView), factors: ScoreFactorsView, changes: z.array(ChangeView),
+  moves: z.array(z.object({ id: uuid, label: z.string(), status: z.string() })),
+});
+export type EventDetail = z.infer<typeof EventDetail>;
