@@ -247,3 +247,10 @@ export const WorkspaceOverview = z.object({
   pitchSnapshot: z.boolean(),
 });
 export type WorkspaceOverview = z.infer<typeof WorkspaceOverview>;
+
+// 5c-1 alert rules (Task 18): a client score thresholds, or the pack defaults when none are set.
+export const AlertRulesView = z.object({
+  alert: z.number().int(), brief: z.number().int(), custom: z.boolean(),
+  defaults: z.object({ alert: z.number().int(), brief: z.number().int() }),
+});
+export type AlertRulesView = z.infer<typeof AlertRulesView>;

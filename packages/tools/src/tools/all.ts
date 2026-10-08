@@ -1,4 +1,5 @@
 import { alertQueueTools } from './alert-queue';
+import { alertRuleTools } from './alert-rules';
 import { alertTools } from './alerts';
 import { briefTools } from './briefs';
 import { clientTools } from './clients';
@@ -22,4 +23,4 @@ import { themeTools } from './themes';
 import { usageTools } from './usage';
 
 /** Every registered tool. Each 5b-1/5b-2 task appends its array here. */
-export const allTools = [...clientTools, ...briefTools, ...alertTools, ...alertQueueTools, ...reportTools, ...onboardingTools, ...competitorTools, ...pageTools, ...portfolioTools, ...reviewTools, ...recommendationTools, ...usageTools, ...playbookTools, ...modelOpsTools, ...themeTools, ...prospectTools, ...settingsTools, ...eventTools, ...evidenceTools, ...moveTools, ...competitorProfileTools, ...overviewTools];
+export const allTools = [...clientTools, ...briefTools, ...alertTools, ...alertQueueTools, ...reportTools, ...onboardingTools, ...competitorTools, ...pageTools, ...portfolioTools, ...reviewTools, ...recommendationTools, ...usageTools, ...playbookTools, ...modelOpsTools, ...themeTools, ...prospectTools, ...settingsTools, ...eventTools, ...evidenceTools, ...moveTools, ...competitorProfileTools, ...overviewTools, ...alertRuleTools];
