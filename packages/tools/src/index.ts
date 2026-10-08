@@ -12,11 +12,10 @@ export * from './registry';
 export * from './settings';
 export * from './timezone';
 export * from './usage';
-export * from './workspace/ads';
-export * from './workspace/events-read';
-export * from './workspace/evidence-access';
+// Workspace internals (scope, evidence access, ad series, event reads) are DB-touching and stay private: apps read
+// through the registry. Only the pure helpers below are public.
+export { EVIDENCE_CONTENT_TYPES, evidenceContentType, type ServableEvidenceKind } from './workspace/evidence-access';
 export * from './workspace/labels';
-export * from './workspace/scope';
 export * from './workspace/word-diff';
 export * from './tools/schemas';
 export { type Discovery, assertRoomForCompetitor, startDiscovery } from './tools/competitors';
