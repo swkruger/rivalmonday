@@ -1,8 +1,11 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { signLink } from '@cs/core';
-import { agency, alert, brief, briefItem, changeEvent, client, clientCompetitor, competitor, contact, createDb, llmCall, prospectReport, themeProposal } from '@cs/db';
+import { ad, agency, alert, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, contact, createDb, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, prospectReport, themeProposal, trackedPage } from '@cs/db';
+import { createStoreFromEnv } from '@cs/storage';
+import { eq } from 'drizzle-orm';
 import { createInvitation } from '@cs/tools';
+import { resolveEvidenceDir } from '../src/server/files';
 import { E2E_LINK_SECRET, OUTBOX, OWNER_LINK_FILE } from '../playwright.config';
 
 /**
@@ -15,7 +18,7 @@ export async function seed(): Promise<void> {
     const [a] = await db.insert(agency).values({ name: 'E2E Agency', branding: { primary: '#7A3EE8' } }).returning();
     const agencyId = a!.id;
 
-    const [c] = await db.insert(client).values({ agencyId, name: 'E2E HVAC', verticalId: 'hvac_plumbing' }).returning();
+    const [c] = await db.insert(client).values({ agencyId, name: 'E2E HVAC', verticalId: 'hvac_plumbing', features: ['dashboard', 'alert_rules', 'manage_competitors'] }).returning();
     const clientId = c!.id;
 
     const [comp] = await db.insert(competitor).values({ name: 'Smith HVAC' }).returning();
@@ -35,7 +38,7 @@ export async function seed(): Promise<void> {
       .returning();
     const briefId = b!.id;
 
-    await db.insert(briefItem).values({
+    const [sentItem] = await db.insert(briefItem).values({
       agencyId,
       clientId,
       briefId,
@@ -49,7 +52,7 @@ export async function seed(): Promise<void> {
       effort: 'L',
       impact: 'H',
       upsellTag: 'ppc_audit',
-    });
+    }).returning();
 
     const [readyBrief] = await db
       .insert(brief)
@@ -84,6 +87,8 @@ export async function seed(): Promise<void> {
       .insert(changeEvent)
       .values({ competitorId: comp!.id, changeType: 'promo', summary: 'Smith HVAC launched a $49 drain-cleaning promo.', confidence: 0.9, occurredAt: new Date() })
       .returning();
+
+    await seedWorkspace(db, { agencyId, clientId, competitorId: comp!.id, sentItemId: sentItem!.id });
 
     await db.insert(alert).values({
       agencyId,
@@ -127,4 +132,64 @@ export async function seed(): Promise<void> {
 
   await rm(OUTBOX, { recursive: true, force: true });
   await mkdir(OUTBOX, { recursive: true });
+}
+
+const DAY = 86_400_000;
+const WEBP = Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA', 'base64');
+const SHA = 'a'.repeat(64);
+
+/** 5c-1: a tracked page with two web captures + evidence, a price-change event with a move, and a Google Ads history. */
+async function seedWorkspace(
+  db: ReturnType<typeof createDb>['db'],
+  o: { agencyId: string; clientId: string; competitorId: string; sentItemId: string },
+): Promise<void> {
+  const { agencyId, clientId, competitorId } = o;
+  const store = createStoreFromEnv({ ...process.env, EVIDENCE_FS_DIR: resolveEvidenceDir(resolve(import.meta.dirname, '../test-results/evidence'), resolve(import.meta.dirname, '..'))! });
+  const [page] = await db.insert(trackedPage).values({ competitorId, url: 'https://smithhvac.example/pricing', pageType: 'pricing', source: 'manual', cadence: 'daily' }).returning();
+
+  const caps: { id: string; shot: string }[] = [];
+  for (const days of [2, 1]) {
+    const [c] = await db.insert(capture).values({ competitorId, trackedPageId: page!.id, source: 'web', url: page!.url, status: 'ok', collectorVersion: 'e2e', capturedAt: new Date(Date.now() - days * DAY) }).returning();
+    let shot = '';
+    for (const [kind, name, contentType, body] of [
+      ['screenshot', 'screenshot.webp', 'image/webp', WEBP],
+      ['text', 'text.txt', 'text/plain', Buffer.from('AC tune-up')],
+      ['html', 'page.html', 'text/html', Buffer.from('<p>AC tune-up</p>')],
+    ] as const) {
+      const objectKey = `evidence/${competitorId}/${c!.id}/${name}`;
+      await store.put(objectKey, body, contentType);
+      const [ev] = await db.insert(evidence).values({ captureId: c!.id, kind, objectKey, sha256: SHA, bytes: body.length, contentType }).returning();
+      if (kind === 'screenshot') shot = ev!.id;
+    }
+    caps.push({ id: c!.id, shot });
+  }
+  const [before, after] = caps as [(typeof caps)[number], (typeof caps)[number]];
+
+  const [ch] = await db.insert(detectedChange).values({
+    competitorId, trackedPageId: page!.id, source: 'web', kind: 'modified', beforeCaptureId: before.id, afterCaptureId: after.id,
+    beforeText: 'AC tune-up $99', afterText: 'AC tune-up $79', status: 'event', stageVersion: 1, detectedAt: new Date(Date.now() - DAY),
+  }).returning();
+  const occurredAt = new Date(Date.now() - DAY);
+  const [ev] = await db.insert(changeEvent).values({
+    competitorId, changeType: 'price_change', channels: ['web'], services: { hvac_plumbing: 'ac_tune_up' },
+    summary: 'Smith HVAC cut its AC tune-up to $79 (was $99)',
+    facts: [{ kind: 'price', before: { kind: 'price', value: 99, unit: 'USD', raw: '$99', context: 'AC tune-up' }, after: { kind: 'price', value: 79, unit: 'USD', raw: '$79', context: 'AC tune-up' }, pct: -20.2 }],
+    confidence: 0.9, occurredAt,
+  }).returning();
+  await db.insert(eventChange).values({ eventId: ev!.id, changeId: ch!.id });
+  await db.insert(eventScore).values({
+    agencyId, clientId, eventId: ev!.id, score: 86, route: 'alert', packVersion: 1, scoredAt: new Date(),
+    factors: { typeWeight: 1, size: 0.95, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 0.9, maxSimilarity: 0.1, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 1 },
+  });
+  const [mv] = await db.insert(move).values({
+    agencyId, clientId, competitorId, moveType: 'price_war', status: 'active', confidence: 0.7, summary: 'Price war',
+    details: { eventCount: 1, channels: ['web'], facts: {} }, ruleVersion: 2, firstDetectedAt: occurredAt, lastHeldAt: new Date(), lastEvidenceAt: occurredAt,
+  }).returning();
+  await db.insert(moveEvent).values({ moveId: mv!.id, eventId: ev!.id });
+
+  const adsAt = new Date(Date.now() - 20 * DAY);
+  const [adsCap] = await db.insert(capture).values({ competitorId, source: 'google_ads', status: 'ok', collectorVersion: 'e2e', capturedAt: adsAt }).returning();
+  await db.insert(ad).values({ competitorId, platform: 'google', externalId: 'e2e-ad-1', title: 'AC tune-up special', isActive: true, firstSeenAt: adsAt, lastSeenAt: new Date(), firstCaptureId: adsCap!.id, lastCaptureId: adsCap!.id });
+
+  await db.update(briefItem).set({ evidenceIds: [after.shot] }).where(eq(briefItem.id, o.sentItemId));
 }

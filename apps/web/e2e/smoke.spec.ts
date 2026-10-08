@@ -12,8 +12,8 @@ test('an invited admin signs in by magic link and sees the themed client list', 
   const primary = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim());
   expect(primary.toLowerCase()).toBe('#7a3ee8');
   await page.getByRole('link', { name: 'E2E HVAC' }).click();
-  // The seed also has a `ready` brief for 2026-10-12 (listed first); this test is about the sent 2026-10-05 one.
-  await page.getByRole('link', { name: /week of 2026-10-05/i }).click();
+  // The Overview (5c-1) shows the latest brief — the seed's `ready` one for 2026-10-12 — with an "Open brief" link.
+  await page.getByRole('link', { name: 'Open brief' }).click();
   await expect(page.getByText('Upsell: ppc_audit')).toBeVisible();
 });
 
@@ -23,6 +23,17 @@ test('a client opens a signed email link as a read-only guest without agency dat
   await expect(page.getByText(/viewing this through an email link/i)).toBeVisible();
   await expect(page.getByText(/ppc_audit/)).toHaveCount(0);
   const res = await page.goto('/agency');
+  expect(res?.status()).toBe(404);
+});
+
+test('a guest opens the evidence behind a brief item and gets no agency-only pages', async ({ page }) => {
+  await page.goto((await readFile(OWNER_LINK_FILE, 'utf8')).trim());
+  const clientId = /\/c\/([0-9a-f-]{36})\//.exec(page.url())![1];
+  await page.getByRole('link', { name: 'Evidence 1' }).click();
+  await expect(page.getByRole('img', { name: /Snapshot of/ })).toBeVisible();
+  await expect(page.getByText('SHA-256').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Useful' })).toHaveCount(0);
+  const res = await page.goto(`/c/${clientId}/pitch-snapshot`);
   expect(res?.status()).toBe(404);
 });
 
