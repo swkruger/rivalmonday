@@ -231,3 +231,19 @@ export const TimelineItem = z.object({
   route: z.enum(['alert', 'brief', 'archive']).nullable(), status: z.string().nullable(),
 });
 export type TimelineItem = z.infer<typeof TimelineItem>;
+
+// 5c-1 overview (Task 15). Ad points are null before the competitor's first ad check (decision 13).
+export const AdActivityView = z.object({
+  weeks: z.array(z.string()),
+  series: z.array(z.object({ competitorId: uuid, name: z.string(), points: z.array(z.number().int().nullable()) })),
+});
+export type AdActivityView = z.infer<typeof AdActivityView>;
+export const WorkspaceOverview = z.object({
+  clientId: uuid, trackedCompetitors: z.number().int(), zips: z.number().int(),
+  changes7d: z.number().int(), alerts7d: z.number().int(), priceMoves7d: z.number().int(), priceCuts7d: z.number().int(),
+  activeAds: z.number().int().nullable(), activeAds7dAgo: z.number().int().nullable(),
+  rating: z.object({ self: z.number().nullable(), competitorAverage: z.number().nullable() }),
+  pressure: z.array(z.object({ competitorId: uuid, name: z.string(), pressure: PressureView })),
+  pitchSnapshot: z.boolean(),
+});
+export type WorkspaceOverview = z.infer<typeof WorkspaceOverview>;

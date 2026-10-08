@@ -9,6 +9,7 @@ import { evidenceTools } from './evidence';
 import { modelOpsTools } from './model-ops';
 import { moveTools } from './moves';
 import { onboardingTools } from './onboarding';
+import { overviewTools } from './overview';
 import { pageTools } from './pages';
 import { playbookTools } from './playbooks';
 import { portfolioTools } from './portfolio';
@@ -21,4 +22,4 @@ import { themeTools } from './themes';
 import { usageTools } from './usage';
 
 /** Every registered tool. Each 5b-1/5b-2 task appends its array here. */
-export const allTools = [...clientTools, ...briefTools, ...alertTools, ...alertQueueTools, ...reportTools, ...onboardingTools, ...competitorTools, ...pageTools, ...portfolioTools, ...reviewTools, ...recommendationTools, ...usageTools, ...playbookTools, ...modelOpsTools, ...themeTools, ...prospectTools, ...settingsTools, ...eventTools, ...evidenceTools, ...moveTools, ...competitorProfileTools];
+export const allTools = [...clientTools, ...briefTools, ...alertTools, ...alertQueueTools, ...reportTools, ...onboardingTools, ...competitorTools, ...pageTools, ...portfolioTools, ...reviewTools, ...recommendationTools, ...usageTools, ...playbookTools, ...modelOpsTools, ...themeTools, ...prospectTools, ...settingsTools, ...eventTools, ...evidenceTools, ...moveTools, ...competitorProfileTools, ...overviewTools];

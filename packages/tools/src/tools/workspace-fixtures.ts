@@ -3,7 +3,7 @@
  * never exported from the package index. Importing it opens the test Dbs and closes them after the file.
  */
 import { type AccessContext, createAccessContext, type Feature } from '@cs/core';
-import { capture, changeEvent, type ChangeDetails, competitor, detectedChange, eventChange, eventScore, evidence, move, moveEvent, type NumericChange, type ScoreFactors, trackedPage } from '@cs/db';
+import { ad, capture, changeEvent, type ChangeDetails, competitor, detectedChange, eventChange, eventScore, evidence, move, moveEvent, type NumericChange, observation, type ScoreFactors, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createPackLoader } from '@cs/engine';
 import { asc, eq } from 'drizzle-orm';
@@ -193,4 +193,25 @@ export async function seedMove(eventIds: string[], o: SeedMoveOptions = {}): Pro
   }).returning();
   for (const eventId of eventIds) await dbs.owner.insert(moveEvent).values({ moveId: m!.id, eventId });
   return m!.id;
+}
+
+export interface SeedAdsOptions {
+  /** `captured_at` of an ok `google_ads` capture — decision 13's "first ad check". Omit for none. */
+  firstCheckAt?: Date;
+  /** Default competitor X. */
+  competitorId?: string;
+  ads?: Omit<typeof ad.$inferInsert, 'competitorId'>[];
+}
+
+/** Ad rows for a competitor, optionally preceded by the ok ad capture that starts its weekly series (decision 13). */
+export async function seedAds(o: SeedAdsOptions): Promise<void> {
+  const competitorId = o.competitorId ?? IDS.competitorX;
+  if (o.firstCheckAt) await dbs.owner.insert(capture).values({ competitorId, source: 'google_ads', status: 'ok', collectorVersion: 't', capturedAt: o.firstCheckAt });
+  if (o.ads?.length) await dbs.owner.insert(ad).values(o.ads.map((a) => ({ ...a, competitorId })));
+}
+
+/** A `gbp_profile` observation (with its GBP capture) carrying `rating` and 10 votes, observed at `at` (default now). */
+export async function seedGbpRating(competitorId: string, rating: number, at: Date = new Date()): Promise<void> {
+  const [c] = await dbs.owner.insert(capture).values({ competitorId, source: 'google_business_profile', status: 'ok', collectorVersion: 't', capturedAt: at }).returning();
+  await dbs.owner.insert(observation).values({ competitorId, captureId: c!.id, kind: 'gbp_profile', key: 'profile', data: { rating, votes: 10 }, observedAt: at });
 }

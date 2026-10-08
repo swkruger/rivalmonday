@@ -12,6 +12,7 @@ export * from './registry';
 export * from './settings';
 export * from './timezone';
 export * from './usage';
+export * from './workspace/ads';
 export * from './workspace/events-read';
 export * from './workspace/evidence-access';
 export * from './workspace/labels';
