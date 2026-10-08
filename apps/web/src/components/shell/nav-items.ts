@@ -13,8 +13,8 @@ export interface NavItem {
   label: string;
   group: NavGroup;
   icon:
-    | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'approvals' | 'alerts' | 'recommendations' | 'usage' | 'playbooks'
-    | 'reviews' | 'themes' | 'prospects';
+    | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'approvals' | 'alerts' | 'recommendations' | 'usage'
+    | 'playbooks' | 'reviews' | 'themes' | 'prospects';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -74,7 +74,8 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
 function clientModules(flags: NavRoleFlags, base: string, add: (href: string, label: string, icon: NavItem['icon']) => void): void {
   add(base, 'Overview', 'overview');
   if (flags.isAgency) add(`${base}/competitors`, 'Competitors', 'competitors'); // Task 14 widens this to `flags.dashboard`
-  // Task 8: Changes · 5c-2: Pricing, Ads, Reviews, Local rankings · Task 11: Moves
+  if (flags.dashboard) add(`${base}/changes`, 'Changes', 'changes');
+  // 5c-2: Pricing, Ads, Reviews, Local rankings · Task 11: Moves
   add(`${base}/recommendations`, 'Recommendations', 'recommendations');
   if (flags.isAgency) {
     add(`${base}/settings/profile`, 'Profile', 'profile');

@@ -18,6 +18,7 @@ const clientViewer: NavRoleFlags = {
   isAgency: false, isAgencyAdmin: false, isUser: true, homePath: `/c/${CLIENT_ID}`,
   dashboard: false, manageCompetitors: false, alertRules: false, mcp: false,
 };
+const clientOwnerWithDashboard: NavRoleFlags = { ...clientViewer, dashboard: true };
 
 function activeHrefOf(): string | null {
   const active = screen.queryAllByRole('link').find((link) => link.className.includes('bg-primary-soft'));
@@ -118,6 +119,20 @@ describe('SidebarNav', () => {
     expect(screen.getByRole('link', { name: 'Recommendations' }).getAttribute('href')).toBe(`/c/${CLIENT_ID}/recommendations`);
   });
 
+  it('shows a client owner with the dashboard flag Changes right after Overview (no Competitors item yet for client roles)', () => {
+    pathname = `/c/${CLIENT_ID}`;
+    const { container } = render(<SidebarNav flags={clientOwnerWithDashboard} />);
+    const names = Array.from(container.querySelectorAll('a')).map((a) => a.textContent);
+    expect(names.indexOf('Changes')).toBe(names.indexOf('Overview') + 1);
+    expect(screen.getByRole('link', { name: 'Changes' }).getAttribute('href')).toBe(`/c/${CLIENT_ID}/changes`);
+  });
+
+  it('hides Changes from a client owner without the dashboard flag', () => {
+    pathname = `/c/${CLIENT_ID}`;
+    render(<SidebarNav flags={clientViewer} />);
+    expect(screen.queryByRole('link', { name: 'Changes' })).toBeNull();
+  });
+
   it('highlights Recommendations for an agency admin on /c/<uuid>/recommendations', () => {
     pathname = `/c/${CLIENT_ID}/recommendations`;
     render(<SidebarNav flags={agencyAdmin} />);
@@ -143,7 +158,7 @@ describe('SidebarNav sections', () => {
     pathname = `/c/${CLIENT_ID}/competitors`;
     render(<SidebarNav flags={agencyAdmin} clients={clients} />);
     const panel = screen.getByRole('group', { name: 'Client: Comfort Air Heating & Cooling' });
-    expect(linkNames(panel)).toEqual(['Overview', 'Competitors', 'Recommendations', 'Profile', 'Delivery']);
+    expect(linkNames(panel)).toEqual(['Overview', 'Competitors', 'Changes', 'Recommendations', 'Profile', 'Delivery']);
     expect(within(panel).getByText('Comfort Air Heating & Cooling')).toBeTruthy();
     expect(within(panel).getByText('CA')).toBeTruthy();
     expect(screen.queryByText('Select a client from Portfolio')).toBeNull();
