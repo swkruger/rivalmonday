@@ -304,7 +304,7 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove }: { client
     <div className="flex flex-col gap-4">
       {result.ok && <Message state={result} />}
       {items.length === 0 ? (
-        <p className="text-muted-foreground">None yet — accept a suggestion or add one below.</p>
+        <p className="text-muted-foreground">{canRemove ? 'None yet — accept a suggestion or add one below.' : 'No competitors tracked yet.'}</p>
       ) : (
         <Table>
           <TableHeader>

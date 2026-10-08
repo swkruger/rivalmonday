@@ -32,6 +32,19 @@ describe('client owner views', () => {
     expect(screen.getByText('Your account manager can look for more competitors for you.')).toBeTruthy();
   });
 
+  it('never polls the search status when canSearch is false, even if a search is running', async () => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    try {
+      render(<SuggestionsPanel clientId="c1" ready suggestions={[]} initialSearch="running" atLimit={false} limit={5} canSearch={false} />);
+      await act(() => vi.advanceTimersByTimeAsync(30_000));
+      expect(searchStatusAction).not.toHaveBeenCalled();
+      expect(screen.queryByRole('status')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('shows no remove button when the user may not manage competitors', () => {
     render(<TrackedCompetitorsTable clientId="c1" items={[{ id: 'x', name: 'Smith HVAC', domain: null, placeId: null, addedAt: '2026-10-01T00:00:00Z', activePages: 0 }]} canRemove={false} />);
     expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull();

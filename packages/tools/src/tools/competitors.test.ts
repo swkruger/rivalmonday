@@ -42,6 +42,20 @@ describe('client owner self-service', () => {
   });
 });
 
+describe('mutating manage tools', () => {
+  const U = '00000000-0000-4000-8000-0000000000f1';
+  const calls: [string, Record<string, unknown>][] = [
+    ['accept_competitor_suggestion', { suggestionId: U }],
+    ['dismiss_competitor_suggestion', { suggestionId: U }],
+    ['add_competitor', { clientId: IDS.clientA1, name: 'X', domain: 'x.com' }],
+    ['remove_competitor', { clientId: IDS.clientA1, competitorId: U }],
+  ];
+  it.each(calls)('%s denies an owner without manage_competitors and a viewer with it', async (tool, input) => {
+    await expect(registry.invoke(ctx('client_owner', [IDS.clientA1], ['dashboard']), tool, input)).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ctx('client_viewer', [IDS.clientA1], ['dashboard', 'manage_competitors']), tool, input)).rejects.toMatchObject({ code: 'permission_denied' });
+  });
+});
+
 describe('request_competitor_suggestions', () => {
   it('needs keywords and a service area, then enqueues one deduped job', async () => {
     await expect(registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input' });
