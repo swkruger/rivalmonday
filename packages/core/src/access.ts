@@ -75,3 +75,8 @@ export function canManageCompetitors(ctx: AccessContext): boolean {
   if (isAgencyRole(ctx.role)) return true;
   return hasPermission(ctx, 'manage') && ctx.features.has('manage_competitors');
 }
+
+/** 5c-1 decision 2: agency roles bypass per-client flags (as the registry does); client roles need the flag. */
+export function hasFeature(ctx: AccessContext, feature: Feature): boolean {
+  return isAgencyRole(ctx.role) || ctx.features.has(feature);
+}

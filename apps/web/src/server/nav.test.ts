@@ -16,7 +16,7 @@ describe('navFor', () => {
   it('gives account managers team but not branding/webhooks, plus client pages inside a client', () => {
     const hrefs = navFor({ kind: 'user', ctx: ctx('account_manager') }, C).map((n) => n.href);
     expect(hrefs).toEqual([
-      '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/usage', '/agency/playbooks', `/c/${C}`, `/c/${C}/recommendations`, `/c/${C}/competitors`, `/c/${C}/settings/profile`, `/c/${C}/settings/delivery`,
+      '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/usage', '/agency/playbooks', `/c/${C}`, `/c/${C}/competitors`, `/c/${C}/recommendations`, `/c/${C}/settings/profile`, `/c/${C}/settings/delivery`,
       '/inbox', '/agency/team', '/settings/notifications',
     ]);
   });
@@ -52,5 +52,12 @@ describe('navFlagsFor', () => {
     expect(navFlagsFor({ ...user, email: 'Owner@E.co' }, ['owner@e.co']).isPlatformOperator).toBe(true);
     const guest = { kind: 'guest' as const, ctx: ctx('client_viewer') };
     expect(navFlagsFor(guest, ['owner@e.co']).isPlatformOperator).toBe(false);
+  });
+
+  it('passes the client feature flags to the nav (agency roles get every flag)', () => {
+    const owner = createAccessContext({ agencyId: A, userId: 'u', role: 'client_owner', clientScope: [C], features: ['dashboard', 'alert_rules'] });
+    expect(navFlagsFor({ kind: 'user', ctx: owner, email: 'o@x.test' })).toMatchObject({ dashboard: true, alertRules: true, manageCompetitors: false, mcp: false });
+    const am = createAccessContext({ agencyId: A, userId: 'u', role: 'account_manager', clientScope: 'all', features: [] });
+    expect(navFlagsFor({ kind: 'user', ctx: am, email: 'am@x.test' })).toMatchObject({ dashboard: true, alertRules: true, manageCompetitors: true, mcp: true });
   });
 });

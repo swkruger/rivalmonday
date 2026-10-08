@@ -25,6 +25,11 @@ export interface NavRoleFlags {
   homePath: string;
   /** 5b-2 decision 2. */
   isPlatformOperator?: boolean;
+  /** 5c-1 decision 2 — always true for agency roles. */
+  dashboard: boolean;
+  manageCompetitors: boolean;
+  alertRules: boolean;
+  mcp: boolean;
 }
 
 const CLIENT_PATH = /^\/c\/([0-9a-f-]{36})/;
@@ -47,16 +52,9 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
     agency('/agency/prospects', 'Prospects', 'prospects');
     agency('/agency/usage', 'Usage & limits', 'usage');
     agency('/agency/playbooks', 'Playbooks', 'playbooks');
-    if (clientId) {
-      forClient(`/c/${clientId}`, 'Overview', 'overview');
-      forClient(`/c/${clientId}/recommendations`, 'Recommendations', 'recommendations');
-      forClient(`/c/${clientId}/competitors`, 'Competitors', 'competitors');
-      forClient(`/c/${clientId}/settings/profile`, 'Profile', 'profile');
-      forClient(`/c/${clientId}/settings/delivery`, 'Delivery', 'delivery');
-    }
+    if (clientId) clientModules(flags, `/c/${clientId}`, forClient);
   } else {
-    forClient(flags.homePath, 'Overview', 'overview');
-    forClient(`${flags.homePath}/recommendations`, 'Recommendations', 'recommendations');
+    clientModules(flags, flags.homePath, forClient);
   }
   account('/inbox', 'Inbox', 'inbox');
   if (flags.isAgency) account('/agency/team', 'Team', 'team');
@@ -70,6 +68,19 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
     account('/platform/themes', 'Theme proposals', 'themes');
   }
   return items;
+}
+
+/** Client modules in mockup order (5c-1 Global Constraints). Later tasks add their item at the marked spot. */
+function clientModules(flags: NavRoleFlags, base: string, add: (href: string, label: string, icon: NavItem['icon']) => void): void {
+  add(base, 'Overview', 'overview');
+  if (flags.isAgency) add(`${base}/competitors`, 'Competitors', 'competitors'); // Task 14 widens this to `flags.dashboard`
+  // Task 8: Changes · 5c-2: Pricing, Ads, Reviews, Local rankings · Task 11: Moves
+  add(`${base}/recommendations`, 'Recommendations', 'recommendations');
+  if (flags.isAgency) {
+    add(`${base}/settings/profile`, 'Profile', 'profile');
+    add(`${base}/settings/delivery`, 'Delivery', 'delivery');
+  }
+  // Task 19: Services & area (client users), Alert rules, AI connections
 }
 
 function isActive(href: string, active: string): boolean {

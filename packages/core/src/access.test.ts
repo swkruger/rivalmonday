@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessClient, canManageCompetitors, createAccessContext, hasPermission, isAgencyRole, type Feature, type Role } from './access';
+import { canAccessClient, canManageCompetitors, createAccessContext, hasFeature, hasPermission, isAgencyRole, type Feature, type Role } from './access';
 
 const A = '00000000-0000-4000-8000-00000000000a';
 const C1 = '00000000-0000-4000-8000-0000000000c1';
@@ -68,5 +68,18 @@ describe('permissions', () => {
     expect(canManageCompetitors(ctx('client_owner'))).toBe(false);
     expect(canManageCompetitors(ctx('client_owner', ['manage_competitors']))).toBe(true);
     expect(canManageCompetitors(ctx('client_viewer', ['manage_competitors']))).toBe(false);
+  });
+});
+
+describe('hasFeature', () => {
+  const make = (role: Role, features: Feature[]) =>
+    createAccessContext({ agencyId: A, userId: 'u', role, clientScope: role === 'agency_admin' || role === 'account_manager' ? 'all' : [C1], features });
+  it('is always true for agency roles', () => {
+    expect(hasFeature(make('account_manager', []), 'dashboard')).toBe(true);
+  });
+  it('follows the client flags for client roles', () => {
+    expect(hasFeature(make('client_owner', ['dashboard']), 'dashboard')).toBe(true);
+    expect(hasFeature(make('client_owner', []), 'dashboard')).toBe(false);
+    expect(hasFeature(make('client_viewer', ['alert_rules']), 'mcp')).toBe(false);
   });
 });
