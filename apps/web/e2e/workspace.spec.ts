@@ -50,6 +50,7 @@ test('a stale ?event= or ?move= id keeps the page and says the item is gone', as
   const stale = '00000000-0000-4000-8000-00000000dead';
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
+  await page.waitForURL(/\/c\/[0-9a-f-]{36}/);
   const clientId = /\/c\/([0-9a-f-]{36})/.exec(page.url())![1];
   const changes = await page.goto(`/c/${clientId}/changes?event=${stale}`);
   expect(changes?.status()).toBe(200);
