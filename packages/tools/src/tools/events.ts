@@ -1,13 +1,13 @@
 import { CHANGE_TYPES, toolkit, ToolError } from '@cs/core';
-import { changeEvent, clientCompetitor, competitor, detectedChange, eventChange, eventScore, move, moveEvent, trackedPage, withTenant } from '@cs/db';
+import { changeEvent, clientCompetitor, competitor, detectedChange, eventChange, eventScore, feedback, move, moveEvent, trackedPage, withTenant } from '@cs/db';
 import { and, asc, desc, eq, gte, ilike, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
 import { MOVE_LABELS } from '../pressure';
 import { eventRowSelect, toEventRow } from '../workspace/events-read';
 import { channelLabel, detailLines, factView } from '../workspace/labels';
-import { clientEvents, escapeLike, eventJoin, workspaceClient } from '../workspace/scope';
-import { EventDetail, EventRow } from './schemas';
+import { clientEvents, escapeLike, eventJoin, requireVisibleEvent, workspaceClient } from '../workspace/scope';
+import { EventDetail, EventRow, FEEDBACK_VERDICTS } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -77,6 +77,11 @@ export const getEvent = defineTool({
     const moves = await withTenant(deps.app, ctx, (tx) =>
       tx.select({ id: move.id, moveType: move.moveType, status: move.status, closedAt: move.closedAt }).from(moveEvent).innerJoin(move, eq(move.id, moveEvent.moveId))
         .where(and(eq(moveEvent.eventId, eventId), eq(move.clientId, c.id))));
+    const [fb] = await withTenant(deps.app, ctx, (tx) =>
+      tx.select({ after: feedback.after }).from(feedback)
+        .where(and(eq(feedback.clientId, c.id), eq(feedback.subjectType, 'event'), eq(feedback.subjectId, eventId), eq(feedback.actor, ctx.userId)))
+        .orderBy(desc(feedback.createdAt)).limit(1));
+    const verdict = fb?.after?.verdict;
     const f = r.factors;
     return {
       ...toEventRow(r, c.verticalId, names),
@@ -88,8 +93,29 @@ export const getEvent = defineTool({
         beforeCaptureId: ch.beforeCaptureId, afterCaptureId: ch.afterCaptureId, detectedAt: ch.detectedAt.toISOString(), hasTextDiff: ch.beforeText !== null || ch.afterText !== null,
       })),
       moves: moves.map((m) => ({ id: m.id, label: MOVE_LABELS[m.moveType] ?? m.moveType, status: m.closedAt ? 'closed' : m.status })),
+      myFeedback: FEEDBACK_VERDICTS.includes(verdict as never) ? (verdict as (typeof FEEDBACK_VERDICTS)[number]) : null,
     };
   },
 });
 
-export const eventTools = [searchEvents, getEvent];
+export const submitFeedback = defineTool({
+  name: 'submit_feedback',
+  description: 'Rate a detected competitor change as useful, not relevant or wrong (optionally with a reason).',
+  input: z.object({ clientId: uuid, eventId: uuid, verdict: z.enum(FEEDBACK_VERDICTS), reason: z.string().trim().max(500).optional() }),
+  output: z.object({ ok: z.literal(true) }),
+  permission: 'feedback',
+  feature: 'dashboard',
+  async handler(ctx, input, deps) {
+    // Guests are client_viewers (no `feedback` permission) — this is a second barrier for any future guest role.
+    if (ctx.userId.startsWith('contact:')) throw new ToolError('permission_denied', 'Sign in to give feedback');
+    const c = await workspaceClient(deps, ctx, input.clientId);
+    await requireVisibleEvent(deps, ctx, c.id, input.eventId);
+    await deps.service.insert(feedback).values({
+      agencyId: ctx.agencyId, clientId: c.id, subjectType: 'event', subjectId: input.eventId, kind: 'rating',
+      after: { verdict: input.verdict }, reason: input.reason || null, actor: ctx.userId,
+    });
+    return { ok: true as const };
+  },
+});
+
+export const eventTools = [searchEvents, getEvent, submitFeedback];

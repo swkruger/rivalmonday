@@ -1,5 +1,5 @@
-import type { AccessContext } from '@cs/core';
-import { clientCompetitor, detectedChange, move, moveEvent } from '@cs/db';
+import { type AccessContext, createAccessContext } from '@cs/core';
+import { clientCompetitor, detectedChange, feedback, move, moveEvent } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -93,5 +93,31 @@ describe('get_event', () => {
     expect((await registry.invoke(am, 'get_event', { clientId: IDS.clientA1, eventId: dropped.eventId })) as EventDetail).toMatchObject({ eventId: dropped.eventId });
     await dbs.owner.delete(clientCompetitor).where(eq(clientCompetitor.clientId, IDS.clientA1));
     await expect(registry.invoke(am, 'get_event', { clientId: IDS.clientA1, eventId: dropped.eventId })).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('submit_feedback', () => {
+  const viewer = ctx('client_viewer', [IDS.clientA1], ['dashboard']);
+  it('records a verdict that get_event shows back to the same user only', async () => {
+    const e = await seedEvent({ score: 86, route: 'alert', ageDays: 1 });
+    await registry.invoke(owner, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'not_relevant', reason: 'We stopped offering tune-ups' });
+    await new Promise((r) => setTimeout(r, 5));
+    await registry.invoke(owner, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'useful' });
+    const mine = (await registry.invoke(owner, 'get_event', { clientId: IDS.clientA1, eventId: e.eventId })) as EventDetail;
+    expect(mine.myFeedback).toBe('useful');
+    expect(((await registry.invoke(am, 'get_event', { clientId: IDS.clientA1, eventId: e.eventId })) as EventDetail).myFeedback).toBeNull();
+    const rows = await dbs.owner.select().from(feedback).where(eq(feedback.subjectId, e.eventId));
+    expect(rows.map((r) => [r.subjectType, r.kind, r.actor])).toEqual([['event', 'rating', 'u-client_owner'], ['event', 'rating', 'u-client_owner']]);
+  });
+
+  it('refuses viewers, guests, flagless owners, retracted events and bad verdicts (Review Focus 2, 3)', async () => {
+    const e = await seedEvent({ score: 86, route: 'alert', ageDays: 1 });
+    const r = await seedEvent({ score: 86, route: 'alert', ageDays: 1, retracted: true });
+    const guest = createAccessContext({ agencyId: IDS.agencyA, userId: 'contact:x', role: 'client_viewer', clientScope: [IDS.clientA1], features: ['dashboard'] });
+    await expect(registry.invoke(viewer, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'useful' })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(guest, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'useful' })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ownerNoDash, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'useful' })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(owner, 'submit_feedback', { clientId: IDS.clientA1, eventId: r.eventId, verdict: 'useful' })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(owner, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'meh' })).rejects.toMatchObject({ code: 'invalid_input' });
   });
 });

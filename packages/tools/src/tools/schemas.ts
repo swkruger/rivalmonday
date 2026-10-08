@@ -177,9 +177,12 @@ export const ChangeView = z.object({
   beforeCaptureId: uuid.nullable(), afterCaptureId: uuid.nullable(), detectedAt: iso, hasTextDiff: z.boolean(),
 });
 export type ChangeView = z.infer<typeof ChangeView>;
+/** 5c-1 Task 7: the viewer's own verdict on an event, via `submit_feedback`. */
+export const FEEDBACK_VERDICTS = ['useful', 'not_relevant', 'wrong'] as const;
 export const EventDetail = EventRow.extend({
   facts: z.array(FactView), details: z.array(DetailLineView), factors: ScoreFactorsView, changes: z.array(ChangeView),
   moves: z.array(z.object({ id: uuid, label: z.string(), status: z.string() })),
+  myFeedback: z.enum(FEEDBACK_VERDICTS).nullable(),
 });
 export type EventDetail = z.infer<typeof EventDetail>;
 
