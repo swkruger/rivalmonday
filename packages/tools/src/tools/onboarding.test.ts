@@ -43,6 +43,14 @@ describe('create_client', () => {
     await expect(registry.invoke(admin, 'create_client', { ...input, services: ['nope'] })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringContaining('Unknown service') });
     await expect(registry.invoke(admin, 'create_client', { ...input, timezone: 'Mars/Base' })).rejects.toMatchObject({ code: 'invalid_input' });
   });
+
+  it('creates active clients by default, prospects on request, and returns status on the profile', async () => {
+    const { clientId } = (await registry.invoke(admin, 'create_client', { name: 'Plain HVAC', verticalId: 'hvac_plumbing', services: [], keywords: [], serviceArea: null, placeId: null })) as { clientId: string };
+    expect(await registry.invoke(admin, 'get_client_profile', { clientId })).toMatchObject({ status: 'active' });
+    const prospect = (await registry.invoke(admin, 'create_client', { ...input, name: 'Pitch HVAC', status: 'prospect' })) as { clientId: string };
+    expect(await registry.invoke(admin, 'get_client_profile', { clientId: prospect.clientId })).toMatchObject({ status: 'prospect' });
+    await expect(registry.invoke(admin, 'create_client', { ...input, status: 'archived' })).rejects.toMatchObject({ code: 'invalid_input' });
+  });
 });
 
 describe('update_client_profile', () => {

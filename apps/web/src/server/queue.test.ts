@@ -48,6 +48,13 @@ describe('createBossQueue', () => {
     await enqueue('suggest-competitors', { clientId: 'c1' }, 'suggest:c1');
     expect(working.send).toHaveBeenCalledWith('suggest-competitors', { clientId: 'c1' }, { singletonKey: 'suggest:c1' });
   });
+
+  it('enqueues the 5b-2 prospect snapshot with its per-client singleton key', async () => {
+    const working = fakeBoss();
+    const { enqueue } = createBossQueue(() => working);
+    await enqueue('prospect-snapshot', { clientId: 'c1', reportId: 'r1' }, 'prospect:c1');
+    expect(working.send).toHaveBeenCalledWith('prospect-snapshot', { clientId: 'c1', reportId: 'r1' }, { singletonKey: 'prospect:c1' });
+  });
 });
 
 describe('createJobStatusLookup', () => {

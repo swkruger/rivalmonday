@@ -1,5 +1,5 @@
 import { canAccessClient, FEATURES, toolkit, ToolError } from '@cs/core';
-import { client, withTenant } from '@cs/db';
+import { client, CLIENT_STATUSES, withTenant } from '@cs/db';
 import { listVerticalPacks, type VerticalPack } from '@cs/verticals';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -32,10 +32,11 @@ function validated(input: ClientInput, pack: VerticalPack): ClientInput {
 
 export const createClient = defineTool({
   name: 'create_client',
-  description: 'Create a client business for this agency (agency users who cover all clients).',
+  description: 'Create a client business — or a prospect being pitched — for this agency (agency users who cover all clients).',
   input: z.object({
     name: z.string().max(200), verticalId: z.string().max(40), services: z.array(z.string().max(80)).max(255), keywords: z.array(z.string().max(120)).max(20),
     serviceArea: ServiceAreaInput.nullable(), placeId: z.string().max(300).nullable(), timezone: z.string().max(64).optional(), features: Features.default([]),
+    status: z.enum(CLIENT_STATUSES).default('active'),
   }),
   output: z.object({ clientId: uuid }),
   permission: 'agency',
@@ -47,7 +48,7 @@ export const createClient = defineTool({
     if (input.timezone !== undefined && !validTimezone(input.timezone)) throw new ToolError('invalid_input', 'Unknown time zone');
     const [row] = await deps.service
       .insert(client)
-      .values({ agencyId: ctx.agencyId, name: c.name, verticalId: pack.id, services: c.services, keywords: c.keywords, serviceArea: c.serviceArea, placeId: c.placeId, features: c.features, ...(input.timezone ? { timezone: input.timezone } : {}) })
+      .values({ agencyId: ctx.agencyId, status: input.status, name: c.name, verticalId: pack.id, services: c.services, keywords: c.keywords, serviceArea: c.serviceArea, placeId: c.placeId, features: c.features, ...(input.timezone ? { timezone: input.timezone } : {}) })
       .returning({ id: client.id });
     return { clientId: row!.id };
   },

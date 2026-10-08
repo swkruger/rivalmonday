@@ -8,6 +8,7 @@ import { onboardingTools } from './onboarding';
 import { pageTools } from './pages';
 import { playbookTools } from './playbooks';
 import { portfolioTools } from './portfolio';
+import { prospectTools } from './prospects';
 import { recommendationTools } from './recommendations';
 import { reportTools } from './reports';
 import { reviewTools } from './review';
@@ -15,4 +16,4 @@ import { themeTools } from './themes';
 import { usageTools } from './usage';
 
 /** Every registered tool. Each 5b-1/5b-2 task appends its array here. */
-export const allTools = [...clientTools, ...briefTools, ...alertTools, ...alertQueueTools, ...reportTools, ...onboardingTools, ...competitorTools, ...pageTools, ...portfolioTools, ...reviewTools, ...recommendationTools, ...usageTools, ...playbookTools, ...modelOpsTools, ...themeTools];
+export const allTools = [...clientTools, ...briefTools, ...alertTools, ...alertQueueTools, ...reportTools, ...onboardingTools, ...competitorTools, ...pageTools, ...portfolioTools, ...reviewTools, ...recommendationTools, ...usageTools, ...playbookTools, ...modelOpsTools, ...themeTools, ...prospectTools];

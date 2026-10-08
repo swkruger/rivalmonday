@@ -135,3 +135,24 @@ export const ThemeProposalView = z.object({
   status: z.enum(['proposed', 'approved', 'rejected']), otherCount: z.number().int(), createdAt: iso, decidedAt: iso.nullable(), samples: z.array(z.string()),
 });
 export type ThemeProposalView = z.infer<typeof ThemeProposalView>;
+
+const ProspectRankView = z.object({ keyword: z.string(), found: z.number().int(), top3: z.number().int(), averageRank: z.number().nullable() });
+const ProspectBusinessView = z.object({
+  competitorId: uuid, name: z.string(), self: z.boolean(),
+  gbp: z.object({ rating: z.number().nullable(), reviews: z.number().nullable(), category: z.string().nullable(), extraCategories: z.number().int() }).nullable(),
+  ads: z.object({ google: z.number().int().nullable(), meta: z.number().int().nullable() }), ranks: z.array(ProspectRankView),
+});
+/** Zod mirror of `ProspectReportData` (5b-2 decision 11). */
+export const ProspectReportDataView = z.object({
+  generatedAt: iso, keywords: z.array(z.string()), points: z.number().int(), scanId: uuid.nullable(), businesses: z.array(ProspectBusinessView), notes: z.array(z.string()),
+});
+const ProspectReportStatus = z.enum(['running', 'ready', 'failed']);
+export const ProspectReportView = z.object({
+  id: uuid, status: ProspectReportStatus, createdAt: iso, finishedAt: iso.nullable(), error: z.string().nullable(), data: ProspectReportDataView.nullable(),
+});
+export type ProspectReportView = z.infer<typeof ProspectReportView>;
+export const ProspectRow = z.object({
+  clientId: uuid, name: z.string(), verticalId: z.string(), createdAt: iso, competitors: z.number().int(), keywords: z.number().int(), hasServiceArea: z.boolean(),
+  report: z.object({ id: uuid, status: ProspectReportStatus, createdAt: iso }).nullable(),
+});
+export type ProspectRow = z.infer<typeof ProspectRow>;
