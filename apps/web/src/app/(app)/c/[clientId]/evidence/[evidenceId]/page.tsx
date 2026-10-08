@@ -3,6 +3,7 @@ import type { EvidenceView } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { EvidenceImage } from '@/components/evidence-image';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 
@@ -57,8 +58,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
         <CardContent>
           {evidence.kind === 'screenshot' ? (
             <div className="max-h-[720px] overflow-auto">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <EvidenceImage
                 src={fileHref}
                 alt={`Snapshot of ${evidence.url ?? evidence.competitorName} captured ${captured}`}
                 className="w-full rounded-lg border border-line"

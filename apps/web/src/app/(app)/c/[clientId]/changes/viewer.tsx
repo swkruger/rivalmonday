@@ -7,6 +7,7 @@ import type { CompareView, EventDetail, SnapshotSide } from '@cs/tools';
 import { humanise } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
+import { EvidenceImage } from '@/components/evidence-image';
 import { submitFeedbackAction } from './actions';
 import { DiffText } from './diff-text';
 import { FeedbackButtons } from './feedback-buttons';
@@ -57,8 +58,7 @@ function Snapshot({ clientId, label, side, pageUrl }: { clientId: string; label:
           <p className="p-4 text-sm text-muted-foreground">No snapshot was stored for this capture.</p>
         ) : (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`/files/evidence/${clientId}/${side.screenshot.evidenceId}`} alt={`${label} snapshot of ${pageUrl ?? ''}`} loading="lazy" className="w-full" />
+            <EvidenceImage src={`/files/evidence/${clientId}/${side.screenshot.evidenceId}`} alt={`${label} snapshot of ${pageUrl ?? ''}`} loading="lazy" className="w-full" />
             {side.screenshot.fallback && (
               <p className="border-t border-line p-2 text-xs text-muted-foreground">
                 Page unchanged at this capture — showing the snapshot from {formatShortDate(side.screenshot.capturedAt)}
