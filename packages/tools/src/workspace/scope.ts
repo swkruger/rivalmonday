@@ -1,6 +1,6 @@
 import { type AccessContext, canAccessClient, ToolError } from '@cs/core';
 import { changeEvent, client, clientCompetitor, eventScore, withTenant } from '@cs/db';
-import { and, eq, isNull, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
 
 export interface WorkspaceClient {
@@ -31,11 +31,21 @@ export const eventJoin = {
 /** Decision 3 condition — scored for this client and not retracted. Every workspace event reader uses it. */
 export const clientEvents = (clientId: string): SQL => and(eq(eventScore.clientId, clientId), isNull(changeEvent.retractedAt))!;
 
-export async function requireVisibleEvent(deps: ToolDeps, ctx: AccessContext, clientId: string, eventId: string): Promise<void> {
+/**
+ * Of `eventIds`, the newest one this client may see under decision 3 (one RLS query), or null. Used when a change is
+ * linked to several events (merges): the change is visible when any of them is.
+ */
+export async function firstVisibleEvent(deps: ToolDeps, ctx: AccessContext, clientId: string, eventIds: string[]): Promise<string | null> {
+  if (eventIds.length === 0) return null;
   const [e] = await withTenant(deps.app, ctx, (tx) =>
     tx.select({ id: changeEvent.id }).from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked)
-      .where(and(clientEvents(clientId), eq(changeEvent.id, eventId))));
-  if (!e) throw new ToolError('not_found', 'Change not found');
+      .where(and(clientEvents(clientId), inArray(changeEvent.id, eventIds)))
+      .orderBy(desc(changeEvent.occurredAt), desc(changeEvent.id)).limit(1));
+  return e?.id ?? null;
+}
+
+export async function requireVisibleEvent(deps: ToolDeps, ctx: AccessContext, clientId: string, eventId: string): Promise<void> {
+  if (!(await firstVisibleEvent(deps, ctx, clientId, [eventId]))) throw new ToolError('not_found', 'Change not found');
 }
 
 /** Escapes `\`, `%` and `_` for a LIKE/ILIKE pattern (Postgres' default escape character is `\`). */

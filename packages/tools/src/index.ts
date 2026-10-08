@@ -13,6 +13,7 @@ export * from './settings';
 export * from './timezone';
 export * from './usage';
 export * from './workspace/events-read';
+export * from './workspace/evidence-access';
 export * from './workspace/labels';
 export * from './workspace/scope';
 export * from './workspace/word-diff';

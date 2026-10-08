@@ -182,3 +182,24 @@ export const EventDetail = EventRow.extend({
   moves: z.array(z.object({ id: uuid, label: z.string(), status: z.string() })),
 });
 export type EventDetail = z.infer<typeof EventDetail>;
+
+// 5c-1 evidence (Task 4).
+export const SnapshotSide = z.object({
+  captureId: uuid, capturedAt: iso, status: z.string(),
+  screenshot: z.object({ evidenceId: uuid, capturedAt: iso, fallback: z.boolean() }).nullable(),
+  textEvidenceId: uuid.nullable(), hash: z.string().nullable(),
+});
+export type SnapshotSide = z.infer<typeof SnapshotSide>;
+export const CompareView = z.object({
+  changeId: uuid, eventId: uuid, channel: z.string(), channelLabel: z.string(), kind: z.string(), pageUrl: z.string().nullable(),
+  before: SnapshotSide.nullable(), after: SnapshotSide.nullable(),
+  diff: z.array(z.object({ op: z.enum(['equal', 'insert', 'delete']), text: z.string() })), facts: z.array(FactView), details: z.array(DetailLineView),
+});
+export type CompareView = z.infer<typeof CompareView>;
+export const EvidenceView = z.object({
+  evidenceId: uuid, kind: z.string(), sha256: z.string(), bytes: z.number().int(), contentType: z.string(), captureId: uuid, capturedAt: iso, captureStatus: z.string(),
+  channel: z.string(), channelLabel: z.string(), url: z.string().nullable(), collectorVersion: z.string(), legalHold: z.boolean(),
+  competitorId: uuid, competitorName: z.string(), servable: z.boolean(),
+  citedBy: z.array(z.object({ eventId: uuid, summary: z.string(), typeLabel: z.string(), occurredAt: iso })),
+});
+export type EvidenceView = z.infer<typeof EvidenceView>;

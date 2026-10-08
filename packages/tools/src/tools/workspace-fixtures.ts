@@ -3,7 +3,7 @@
  * never exported from the package index. Importing it opens the test Dbs and closes them after the file.
  */
 import { type AccessContext, createAccessContext, type Feature } from '@cs/core';
-import { capture, changeEvent, type ChangeDetails, competitor, detectedChange, eventChange, eventScore, type NumericChange, type ScoreFactors, trackedPage } from '@cs/db';
+import { capture, changeEvent, type ChangeDetails, competitor, detectedChange, eventChange, eventScore, evidence, type NumericChange, type ScoreFactors, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createPackLoader } from '@cs/engine';
 import { asc, eq } from 'drizzle-orm';
@@ -72,6 +72,8 @@ export interface SeedEventOptions {
   clientId?: string;
   /** Default `occurred_at`. */
   scoredAt?: Date;
+  /** Reuse existing captures for the change instead of inserting two new ones (e.g. from `seedCapture`). */
+  captures?: { before: string; after: string };
 }
 
 export interface SeededEvent {
@@ -95,8 +97,8 @@ export async function seedEvent(o: SeedEventOptions): Promise<SeededEvent> {
   const trackedPageId = o.pageId ?? (await pageOf(competitorId));
   const [page] = await dbs.owner.select({ url: trackedPage.url }).from(trackedPage).where(eq(trackedPage.id, trackedPageId));
   const shot = { competitorId, trackedPageId, source, url: page!.url, status: 'ok', collectorVersion: 't' };
-  const [before] = await dbs.owner.insert(capture).values({ ...shot, capturedAt: new Date(at.getTime() - day) }).returning();
-  const [after] = await dbs.owner.insert(capture).values({ ...shot, capturedAt: at }).returning();
+  const before = o.captures ? { id: o.captures.before } : (await dbs.owner.insert(capture).values({ ...shot, capturedAt: new Date(at.getTime() - day) }).returning())[0];
+  const after = o.captures ? { id: o.captures.after } : (await dbs.owner.insert(capture).values({ ...shot, capturedAt: at }).returning())[0];
   const [ch] = await dbs.owner.insert(detectedChange).values({
     competitorId, trackedPageId, source, kind: 'modified', beforeCaptureId: before!.id, afterCaptureId: after!.id, beforeText: 'AC tune-up $99', afterText: 'AC tune-up $79',
     numericChanges: o.facts ?? [], details: o.details ?? {}, status: o.changeStatus ?? 'event', stageVersion: 1, detectedAt: at,
@@ -110,4 +112,52 @@ export async function seedEvent(o: SeedEventOptions): Promise<SeededEvent> {
     agencyId: o.agencyId ?? IDS.agencyA, clientId: o.clientId ?? IDS.clientA1, eventId: e!.id, score: o.score, route: o.route, factors: FACTORS, packVersion: 1, scoredAt: o.scoredAt ?? at,
   });
   return { eventId: e!.id, changeId: ch!.id, beforeCaptureId: before!.id, afterCaptureId: after!.id, pageId: trackedPageId };
+}
+
+export type EvidenceKind = 'html' | 'text' | 'screenshot' | 'vendor_json';
+
+export interface SeedCaptureOptions {
+  /** `captured_at`. Default now. */
+  at?: Date;
+  /** Capture status. Default 'ok'. */
+  status?: string;
+  /** One evidence row per kind. Default `['html', 'text', 'screenshot']`; `[]` for none (an `unchanged` capture). */
+  kinds?: EvidenceKind[];
+  /** Default competitor X. */
+  competitorId?: string;
+  /** Default: the competitor's first tracked page (one is created when it has none). */
+  pageId?: string;
+  /** Default 'web'. */
+  source?: string;
+}
+
+export interface SeededCapture {
+  captureId: string;
+  /** Evidence id per seeded kind. */
+  ids: Partial<Record<EvidenceKind, string>>;
+  /** Object-store key per seeded kind (`evidence/<competitorId>/<captureId>/<kind>`) — nothing is written to the store. */
+  objectKeys: Partial<Record<EvidenceKind, string>>;
+}
+
+/**
+ * A capture of a tracked page plus its evidence rows. sha256 is `<kind>-sha-<first 4 chars of the capture id>`, bytes 10,
+ * content type `image/webp` for screenshots, `text/html` for html, `application/json` for vendor_json, else `text/plain`.
+ */
+export async function seedCapture(o: SeedCaptureOptions = {}): Promise<SeededCapture> {
+  const competitorId = o.competitorId ?? IDS.competitorX;
+  const trackedPageId = o.pageId ?? (await pageOf(competitorId));
+  const [page] = await dbs.owner.select({ url: trackedPage.url }).from(trackedPage).where(eq(trackedPage.id, trackedPageId));
+  const [c] = await dbs.owner.insert(capture).values({
+    competitorId, trackedPageId, source: o.source ?? 'web', url: page!.url, status: o.status ?? 'ok', collectorVersion: 't', capturedAt: o.at ?? new Date(),
+  }).returning();
+  const ids: SeededCapture['ids'] = {};
+  const objectKeys: SeededCapture['objectKeys'] = {};
+  for (const kind of o.kinds ?? ['html', 'text', 'screenshot']) {
+    const objectKey = `evidence/${competitorId}/${c!.id}/${kind}`;
+    const contentType = { screenshot: 'image/webp', html: 'text/html', vendor_json: 'application/json', text: 'text/plain' }[kind];
+    const [e] = await dbs.owner.insert(evidence).values({ captureId: c!.id, kind, objectKey, sha256: `${kind}-sha-${c!.id.slice(0, 4)}`, bytes: 10, contentType }).returning();
+    ids[kind] = e!.id;
+    objectKeys[kind] = objectKey;
+  }
+  return { captureId: c!.id, ids, objectKeys };
 }
