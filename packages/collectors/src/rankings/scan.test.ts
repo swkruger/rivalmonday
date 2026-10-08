@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { VendorError } from '../vendors/dataforseo';
-import { scanRankings } from './scan';
+import { listRankClients, scanRankings } from './scan';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -93,5 +93,14 @@ describe('scanRankings', () => {
     await dbs.service.update(client).set({ keywords: [] }).where(eq(client.id, IDS.clientA1));
     expect(await scanRankings({ db: dbs.service, dfs: fakeDfs(() => []) }, IDS.clientA1)).toEqual({ snapshots: 0, failed: 0, scanId: null });
     expect(await dbs.service.select().from(rankScan)).toEqual([]);
+  });
+});
+
+describe('listRankClients', () => {
+  it('lists active clients with keywords and a service area for the monthly scan (5b-2 decision 9)', async () => {
+    const area = { center: { lat: 32.44, lng: -97.79 }, radiusKm: 10, zips: [] };
+    await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: area }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ keywords: ['dentist'], serviceArea: area, status: 'prospect' }).where(eq(client.id, IDS.clientA2));
+    expect(await listRankClients(dbs.service)).toEqual([IDS.clientA1]);
   });
 });

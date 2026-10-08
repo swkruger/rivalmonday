@@ -4,9 +4,10 @@ import type { SourceKind } from './kinds';
 
 /**
  * Claims due vendor sources exactly once across concurrent schedulers by advancing next_due_at in one statement.
- * Untracked competitors are skipped (5b-1 decision 8): their rows stay due and resume when a client tracks
- * them again. A client's own business (never in client_competitor) keeps collecting gbp/reviews only — the
- * ('gbp', 'reviews') literal below must stay in sync with `SELF_SOURCES` in `local/self.ts`.
+ * Untracked competitors — and competitors only prospects track (5b-2 decision 9) — are skipped (5b-1 decision 8):
+ * their rows stay due and resume when an active client tracks them. An active client's own business (never in
+ * client_competitor) keeps collecting gbp/reviews only; a prospect's does not. The ('gbp', 'reviews') literal
+ * below must stay in sync with `SELF_SOURCES` in `local/self.ts`.
  */
 export async function claimDueSources(db: Db, limit: number): Promise<{ competitorId: string; source: SourceKind }[]> {
   const rows = (await db.execute(sql`
@@ -14,8 +15,9 @@ export async function claimDueSources(db: Db, limit: number): Promise<{ competit
      WHERE (competitor_id, source) IN (
        SELECT competitor_id, source FROM competitor_source cs
         WHERE active AND next_due_at <= now()
-          AND (EXISTS (SELECT 1 FROM client_competitor cc WHERE cc.competitor_id = cs.competitor_id)
-               OR (cs.source IN ('gbp', 'reviews') AND EXISTS (SELECT 1 FROM client c WHERE c.self_competitor_id = cs.competitor_id)))
+          AND (EXISTS (SELECT 1 FROM client_competitor cc JOIN client cl ON cl.id = cc.client_id
+                        WHERE cc.competitor_id = cs.competitor_id AND cl.status = 'active')
+               OR (cs.source IN ('gbp', 'reviews') AND EXISTS (SELECT 1 FROM client c WHERE c.self_competitor_id = cs.competitor_id AND c.status = 'active')))
         ORDER BY next_due_at LIMIT ${limit}
         FOR UPDATE SKIP LOCKED)
     RETURNING competitor_id, source`)) as unknown as { competitor_id: string; source: SourceKind }[];

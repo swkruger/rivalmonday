@@ -52,8 +52,13 @@ export async function adActivity(db: Db, competitorId: string, now: Date): Promi
   };
 }
 
+/** Active clients that track at least one competitor; prospects get no moves (5b-2 decision 9). */
 export async function listMoveClients(db: Db): Promise<string[]> {
-  const rows = await db.selectDistinct({ id: clientCompetitor.clientId }).from(clientCompetitor);
+  const rows = await db
+    .selectDistinct({ id: clientCompetitor.clientId })
+    .from(clientCompetitor)
+    .innerJoin(client, eq(client.id, clientCompetitor.clientId))
+    .where(eq(client.status, 'active'));
   return rows.map((r) => r.id);
 }
 

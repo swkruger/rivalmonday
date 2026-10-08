@@ -3,6 +3,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { claimDueSources, markSourceResult, releaseSources } from './due';
+import { ensureCompetitorSources } from './ensure';
 import { SOURCE_KINDS } from './kinds';
 
 const dbs = openTestDbs();
@@ -40,6 +41,20 @@ describe('claimDueSources', () => {
     const claimed = await claimDueSources(dbs.service, 100);
     expect(claimed.filter((c) => c.competitorId === u!.id)).toEqual([]);
     expect(claimed.filter((c) => c.competitorId === s!.id).map((c) => c.source).sort()).toEqual(['gbp', 'reviews']);
+  });
+
+  it('never claims a competitor only prospects track, nor a prospect’s own business; resumes on convert (5b-2 decision 9)', async () => {
+    // A2 (the only client tracking Y) is a prospect; B1 is a prospect too, but X is still tracked by active A1.
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2));
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientB1));
+    const [self] = await dbs.owner.insert(competitor).values({ name: 'A2 Dental', placeId: 'ChIJprospectSelf01' }).returning();
+    await dbs.owner.update(client).set({ selfCompetitorId: self!.id }).where(eq(client.id, IDS.clientA2));
+    await ensureCompetitorSources(dbs.service, IDS.competitorX);
+    await ensureCompetitorSources(dbs.service, IDS.competitorY);
+    await ensureCompetitorSources(dbs.service, self!.id, ['gbp', 'reviews']);
+    expect(new Set((await claimDueSources(dbs.service, 100)).map((c) => c.competitorId))).toEqual(new Set([IDS.competitorX]));
+    await dbs.owner.update(client).set({ status: 'active' }).where(eq(client.id, IDS.clientA2));
+    expect(new Set((await claimDueSources(dbs.service, 100)).map((c) => c.competitorId))).toEqual(new Set([IDS.competitorY, self!.id]));
   });
 });
 

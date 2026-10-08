@@ -1,4 +1,4 @@
-import { capture, changeEvent, clientCompetitor, detectedChange, eventScore, review, stageRun, trackedPage } from '@cs/db';
+import { capture, changeEvent, client, clientCompetitor, detectedChange, eventScore, rankScan, review, stageRun, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -134,5 +134,15 @@ describe('findEngineWork', () => {
     const work = (await findEngineWork(dbs.service, { limit: 10 })).score;
     expect(work).toContain(recentish!.id);
     expect(work).not.toContain(tooOld!.id);
+  });
+
+  it('offers rank scans of active clients only, and picks up a converted prospect’s scan (5b-2 decision 9)', async () => {
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2));
+    const done = { status: 'done', startedAt: minutesAgo(10), finishedAt: minutesAgo(5) } as const;
+    const [active] = await dbs.service.insert(rankScan).values({ ...done, agencyId: IDS.agencyA, clientId: IDS.clientA1 }).returning({ id: rankScan.id });
+    const [prospect] = await dbs.service.insert(rankScan).values({ ...done, agencyId: IDS.agencyA, clientId: IDS.clientA2 }).returning({ id: rankScan.id });
+    expect((await findEngineWork(dbs.service, { limit: 10 })).rankDiff).toEqual([active!.id]);
+    await dbs.owner.update(client).set({ status: 'active' }).where(eq(client.id, IDS.clientA2));
+    expect((await findEngineWork(dbs.service, { limit: 10 })).rankDiff.sort()).toEqual([active!.id, prospect!.id].sort());
   });
 });

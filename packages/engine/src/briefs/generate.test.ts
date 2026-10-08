@@ -166,6 +166,12 @@ describe('listBriefDueClients', () => {
     await run();
     expect(await listBriefDueClients(dbs.service, NOW)).not.toContain(IDS.clientA1);
   });
+
+  it('never schedules a brief for a prospect (5b-2 decision 9)', async () => {
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2));
+    // Thursday 2026-10-01 22:30 in Chicago — inside the brief window for every client in the default time zone.
+    expect((await listBriefDueClients(dbs.service, NOW)).sort()).toEqual([IDS.clientA1, IDS.clientB1].sort());
+  });
 });
 
 describe('committableItems', () => {

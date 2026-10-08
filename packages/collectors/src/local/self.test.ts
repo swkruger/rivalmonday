@@ -39,4 +39,12 @@ describe('ensureSelfCompetitor', () => {
     expect(await ensureSelfCompetitors(dbs.service)).toBe(1);
     expect(await ensureSelfCompetitors(dbs.service)).toBe(0);
   });
+
+  it('does not link a prospect’s own business on the schedule tick; an active client is still linked (5b-2 decision 9)', async () => {
+    await dbs.owner.update(client).set({ placeId: 'ChIJactiveSelf01' }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ status: 'prospect', placeId: 'ChIJprospectSelf02' }).where(eq(client.id, IDS.clientA2));
+    expect(await ensureSelfCompetitors(dbs.service)).toBe(1);
+    expect(await selfOf(IDS.clientA1)).not.toBeNull();
+    expect(await selfOf(IDS.clientA2)).toBeNull();
+  });
 });

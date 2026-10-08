@@ -147,6 +147,28 @@ describe('scoreEvent', () => {
   });
 });
 
+describe('prospects (5b-2 decision 9)', () => {
+  it('never scores an event for a prospect and the sweep never offers it', async () => {
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2)); // the only client tracking Y
+    const [ev] = await dbs.service
+      .insert(changeEvent)
+      .values({ competitorId: IDS.competitorY, changeType: 'promo', channels: ['web'], summary: 'Bright Smiles started a promo', confidence: 0.9, occurredAt: new Date() })
+      .returning();
+    expect((await findEngineWork(dbs.service, { limit: 50 })).score).not.toContain(ev!.id);
+    expect((await scoreEvent({ db: dbs.service, packs }, ev!.id)).scored).toBe(0);
+    expect(await dbs.owner.select().from(eventScore)).toEqual([]);
+  });
+
+  it('still scores a shared competitor for its active client, never for the prospect sharing it', async () => {
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientB1)); // B1 and A1 both track X
+    const id = await event({ occurredAt: new Date() });
+    expect((await findEngineWork(dbs.service, { limit: 50 })).score).toContain(id);
+    expect((await scoreEvent({ db: dbs.service, packs }, id)).scored).toBe(1);
+    expect((await dbs.owner.select({ c: eventScore.clientId }).from(eventScore)).map((r) => r.c)).toEqual([IDS.clientA1]);
+    expect((await findEngineWork(dbs.service, { limit: 50 })).score).not.toContain(id); // B1 lacks a score but is never offered
+  });
+});
+
 describe('tenant-private events and event age (Phase 3b)', () => {
   it('scores a tenant event only for its own client, never for another agency tracking the competitor', async () => {
     const id = await event({ changeType: 'rank_change', agencyId: IDS.agencyA, clientId: IDS.clientA1, facts: [], details: { avgRankBefore: 9, avgRankAfter: 3 } });

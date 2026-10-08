@@ -1,6 +1,6 @@
-import { clientCompetitor, competitor, trackedPage } from '@cs/db';
+import { client, clientCompetitor, competitor, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { claimDuePages } from './due-pages';
 
@@ -58,5 +58,24 @@ describe('claimDuePages', () => {
     const claimed = await claimDuePages(dbs.service, 100);
     expect(claimed).toContain(pageOfT!.id);
     expect(claimed).not.toContain(pageOfU!.id);
+  });
+
+  it('skips pages of competitors only prospects track; a competitor an active client shares still runs (5b-2 decision 9)', async () => {
+    // A2 (the only client tracking Y) is a prospect; B1 is a prospect too, but X is still tracked by active A1.
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2));
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientB1));
+    const [x] = await dbs.service
+      .insert(trackedPage)
+      .values({ competitorId: IDS.competitorX, url: 'https://smithhvac.example/', pageType: 'home', source: 'nav', cadence: 'daily' })
+      .returning({ id: trackedPage.id });
+    const [yPage] = await dbs.service
+      .insert(trackedPage)
+      .values({ competitorId: IDS.competitorY, url: 'https://brightsmiles.example/', pageType: 'home', source: 'nav', cadence: 'daily' })
+      .returning({ id: trackedPage.id });
+    const claimed = await claimDuePages(dbs.service, 10);
+    expect(claimed).toContain(x!.id);
+    expect(claimed).not.toContain(yPage!.id);
+    await dbs.owner.update(client).set({ status: 'active' }).where(eq(client.id, IDS.clientA2));
+    expect(await claimDuePages(dbs.service, 10)).toEqual([yPage!.id]);
   });
 });

@@ -73,6 +73,12 @@ describe('runQuarterlyReports', () => {
     expect((await run(at('2026-10-05T14:30:00Z'))).created).toEqual([]);
   });
 
+  it('never creates a quarterly report for a prospect (5b-2 decision 9)', async () => {
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2));
+    await run(at('2026-10-05T13:30:00Z')); // 08:30 CDT
+    expect((await dbs.owner.select({ c: trendReport.clientId }).from(trendReport)).map((r) => r.c).sort()).toEqual([IDS.clientA1, IDS.clientB1].sort());
+  });
+
   it('skips clients created after the quarter ended and days after the first week', async () => {
     await dbs.owner.update(client).set({ createdAt: at('2026-10-02T00:00:00Z') });
     expect((await run(at('2026-10-05T13:30:00Z'))).created).toEqual([]);

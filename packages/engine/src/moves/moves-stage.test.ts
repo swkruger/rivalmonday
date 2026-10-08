@@ -120,4 +120,10 @@ describe('adActivity and listMoveClients', () => {
   it('lists every client that tracks a competitor', async () => {
     expect((await listMoveClients(dbs.service)).sort()).toEqual([IDS.clientA1, IDS.clientA2, IDS.clientB1].sort());
   });
+
+  it('lists only active clients for the nightly moves run (5b-2 decision 9)', async () => {
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2));
+    const ids = await listMoveClients(dbs.service);
+    expect(ids.sort()).toEqual([IDS.clientA1, IDS.clientB1].sort());
+  });
 });

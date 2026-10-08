@@ -113,6 +113,7 @@ export async function scoreEvent(deps: { db: Db; packs: PackLoader }, eventId: s
     .where(
       and(
         eq(clientCompetitor.competitorId, ev.competitorId),
+        eq(client.status, 'active'), // 5b-2 decision 9: never score for a prospect
         ev.clientId ? eq(client.id, ev.clientId) : undefined, // tenant-private events belong to one client
         // A complaint-theme spike (`review_spike` with `details.verticalId` set) was raised for one specific
         // vertical's theme list — never score it for a client of a different vertical tracking the same

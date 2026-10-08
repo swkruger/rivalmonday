@@ -60,7 +60,10 @@ export async function computeTrendReport(deps: { db: Db; packs: PackLoader }, cl
 /** Decision 17: hourly; in the first week of a quarter, from 08:00 client-local, last quarter's report for every client. */
 export async function runQuarterlyReports(deps: { db: Db; packs: PackLoader; delivery: DeliveryConfig }, now: Date): Promise<{ created: string[] }> {
   const created: string[] = [];
-  const clients = await deps.db.select({ id: client.id, agencyId: client.agencyId, name: client.name, timezone: client.timezone, createdAt: client.createdAt }).from(client);
+  const clients = await deps.db
+    .select({ id: client.id, agencyId: client.agencyId, name: client.name, timezone: client.timezone, createdAt: client.createdAt })
+    .from(client)
+    .where(eq(client.status, 'active')); // 5b-2 decision 9: prospects get no quarterly reports
   for (const c of clients) {
     const tz = safeTimezone(c.timezone);
     const clock = localClock(now, tz);

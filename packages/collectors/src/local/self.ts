@@ -29,9 +29,12 @@ export async function ensureSelfCompetitor(db: Db, clientId: string): Promise<{ 
   return { competitorId };
 }
 
-/** Links every client that has a place id but no self business yet; returns how many were linked. */
+/**
+ * Links every active client that has a place id but no self business yet; returns how many were linked.
+ * Prospects are skipped (5b-2 decision 9) — the prospect snapshot links its own business via `ensureSelfCompetitor`.
+ */
 export async function ensureSelfCompetitors(db: Db): Promise<number> {
-  const rows = await db.select({ id: client.id }).from(client).where(and(isNotNull(client.placeId), isNull(client.selfCompetitorId)));
+  const rows = await db.select({ id: client.id }).from(client).where(and(isNotNull(client.placeId), isNull(client.selfCompetitorId), eq(client.status, 'active')));
   let linked = 0;
   for (const { id } of rows) if ('competitorId' in (await ensureSelfCompetitor(db, id))) linked++;
   return linked;

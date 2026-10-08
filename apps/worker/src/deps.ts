@@ -2,11 +2,11 @@ import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } fr
 import {
   capturePage, claimDuePages, claimDueSources, collectGbpProfile, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
   createDataForSeo, type DataForSeoClient, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
-  ensureSelfCompetitors, HostRateLimiter, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
+  ensureSelfCompetitors, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   scanRankings, type SourceKind, suggestCompetitors,
 } from '@cs/collectors';
 import type { CaptureStatus } from '@cs/core';
-import { client, competitor, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
+import { competitor, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import {
   analyzeReview as runAnalyzeReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createPackLoader, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
@@ -282,10 +282,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       return { reviews, jobs };
     },
     scanRankings: (clientId) => scanRankings({ db: getDb(), dfs: getDfs() }, clientId),
-    async listRankClients() {
-      const rows = await getDb().select({ id: client.id }).from(client).where(sql`${client.serviceArea} IS NOT NULL AND jsonb_array_length(${client.keywords}) > 0`);
-      return rows.map((r) => r.id);
-    },
+    listRankClients: () => rankClients(getDb()),
     suggestCompetitors: (clientId) => suggestCompetitors({ db: getDb(), dfs: getDfs() }, clientId),
     deliveryConfigured: () => delivery !== null,
     sweepAlerts: (now) => sweepAlerts(getDb(), now),

@@ -1,6 +1,7 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { alert, brief, changeEvent, eventScore, llmCall, move, recommendation } from '@cs/db';
+import { alert, brief, changeEvent, client, eventScore, llmCall, move, recommendation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createToolRegistry } from '../registry';
 
@@ -58,5 +59,11 @@ describe('get_portfolio', () => {
     await dbs.owner.insert(llmCall).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, task: 't', provider: 'p', model: 'm', inputTokens: 1, outputTokens: 1, costUsd: 16, latencyMs: 1, ok: true });
     const { items } = (await registry.invoke(admin, 'get_portfolio', {})) as { items: { clientId: string; spend: { level: string; monthToDateUsd: number } }[] };
     expect(items.find((i) => i.clientId === IDS.clientA1)!.spend).toMatchObject({ level: 'over', monthToDateUsd: 16 });
+  });
+
+  it('leaves prospects off the portfolio (5b-2 decision 9)', async () => {
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2));
+    const { items } = (await registry.invoke(admin, 'get_portfolio', {})) as { items: { clientId: string }[] };
+    expect(items.map((i) => i.clientId)).toEqual([IDS.clientA1]);
   });
 });

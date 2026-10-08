@@ -66,6 +66,8 @@ export async function findEngineWork(db: Db, opts: { limit: number; competitorId
           AND (e.client_id IS NULL OR cc.client_id = e.client_id)
           -- A complaint spike belongs to one vertical's theme list (3c): only that vertical's clients score it.
           AND (e.details->>'verticalId' IS NULL OR cl.vertical_id = e.details->>'verticalId')
+          -- 5b-2 decision 9: prospects get no scores (so no alerts or brief content) until converted.
+          AND cl.status = 'active'
           -- Recent events, or recent history for a client linked recently (decision 12).
           AND (e.created_at >= now() - make_interval(days => ${window}::int)
                OR (cc.created_at >= now() - make_interval(days => ${window}::int)
@@ -75,11 +77,13 @@ export async function findEngineWork(db: Db, opts: { limit: number; competitorId
     ORDER BY e.created_at ASC LIMIT ${opts.limit}`);
   // Rank scans are per client; a competitor filter (engine-once --competitor) does not apply to them.
   // Aliased "rs", not "s" — the finished() helper above already aliases stage_run as "s".
+  // Only active clients' scans (5b-2 decision 9): a prospect's snapshot scans wait, undiffed, until it converts.
   const rankDiff = opts.competitorId
     ? []
     : await db.execute(sql`
-        SELECT rs.id FROM rank_scan rs
-        WHERE rs.status = 'done' AND rs.finished_at IS NOT NULL AND NOT ${finished(RANK_DIFF_STAGE, RANK_DIFF_VERSION, 'rs.id')}
+        SELECT rs.id FROM rank_scan rs JOIN client cl ON cl.id = rs.client_id
+        WHERE rs.status = 'done' AND rs.finished_at IS NOT NULL AND cl.status = 'active'
+          AND NOT ${finished(RANK_DIFF_STAGE, RANK_DIFF_VERSION, 'rs.id')}
         ORDER BY rs.finished_at ASC LIMIT ${opts.limit}`);
 
   const now = (opts.now ?? new Date()).toISOString();

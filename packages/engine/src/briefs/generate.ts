@@ -129,11 +129,11 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
 }
 
 /**
- * Clients whose Thursday-night window is open and whose brief for that Monday is missing, retryable or stale.
+ * Active clients (prospects get no briefs, 5b-2 decision 9) whose Thursday-night window is open and whose brief for that Monday is missing, retryable or stale.
  * Scans every client with one brief lookup each: fine at pilot scale (≤ 15 clients); Phase 7 scale needs a set-based query.
  */
 export async function listBriefDueClients(db: Db, now: Date): Promise<string[]> {
-  const clients = await db.select({ id: client.id, timezone: client.timezone }).from(client);
+  const clients = await db.select({ id: client.id, timezone: client.timezone }).from(client).where(eq(client.status, 'active'));
   const due: string[] = [];
   for (const c of clients) {
     const tz = safeTimezone(c.timezone);

@@ -1,5 +1,5 @@
 import { client, type Db, type RankResult, rankScan, rankSnapshot } from '@cs/db';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { gridPoints } from '../local/grid';
 import { mapsSearch } from '../local/maps';
 import { type DataForSeoClient, VendorError } from '../vendors/dataforseo';
@@ -58,4 +58,13 @@ export async function scanRankings(
   // A scan that stored nothing (every point failed) is not a done scan: rank diff would treat it as one.
   await deps.db.update(rankScan).set({ status: snapshots > 0 ? 'done' : 'failed', snapshots, failed, finishedAt: new Date() }).where(eq(rankScan.id, scanId));
   return { snapshots, failed, scanId };
+}
+
+/** Clients due a monthly rank scan: active (5b-2 decision 9), with a service area and at least one keyword. */
+export async function listRankClients(db: Db): Promise<string[]> {
+  const rows = await db
+    .select({ id: client.id })
+    .from(client)
+    .where(sql`${client.serviceArea} IS NOT NULL AND jsonb_array_length(${client.keywords}) > 0 AND ${client.status} = 'active'`);
+  return rows.map((r) => r.id);
 }
