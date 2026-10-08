@@ -1,6 +1,6 @@
 # Rival Monday — Session Handover
 
-*Written 2026-09-30; last updated **2026-10-08** — **Phase 5b-2 is complete** ([plan](superpowers/plans/2026-10-07-phase-5b2-agency-operations.md), 18 tasks) on branch `phase-5b2-operations` (from `main` `a11ba61`; head `bd1b595`), final whole-branch review clean (0 Critical, 0 Important, 8 Minor, all parked), full suite 1419 passed + 3 skipped, E2E 10/10 — **not yet merged; merging it is the owner's call.** **State: Phases 0–2, 3a–3d, 4a, 4b, 5a and 5b-1 are merged to `main` and pushed, plus the four fixes from the owner's early check of 5b-1 (§3 "Early owner verification": Find competitors skips a failed grid point and refreshes itself, aligned brief trend table, grouped sidebar) — `main` at `d55bd61`; branch `phase-5b2-operations` holds the completed, unmerged 5b-2 work, working tree clean. Owner decision 2026-10-06: the remaining live verification is **deferred until all of Phase 5 is complete** — one combined owner session after 5b-2 and 5c (checklist in §5 item 2; most 5b-1 steps already passed, 5b-2's steps now appended). **Next: the owner merges `phase-5b2-operations` to `main`, then write and execute 5c.** Start any new session by reading this file, then the documents it links. Keep it updated at the end of each session.*
+*Written 2026-09-30; last updated **2026-10-08** — **Phase 5b-2 is merged to `main` and pushed** (fast-forward to `51924a7` on 2026-10-08; [plan](superpowers/plans/2026-10-07-phase-5b2-agency-operations.md), 18 tasks; final whole-branch review clean, full suite 1419 passed + 3 skipped, E2E 10/10). **State: Phases 0–2, 3a–3d, 4a, 4b, 5a, 5b-1 (+ its owner-verification fixes) and 5b-2 are all on `main`, pushed; no open feature branches; working tree clean. `cs_dev` is still migrated only to `0035` — run `pnpm db:migrate` (applies `0036`/`0037`) before any live use of the 5b-2 screens.** Owner decision 2026-10-06: the remaining live verification is **deferred until all of Phase 5 is complete** — one combined owner session after 5c (checklist in §5 item 2). **Next: write the Phase 5c plan (client workspace intelligence), get owner approval, then execute it subagent-driven on a new branch — §5 item 2.** Start any new session by reading this file, then the documents it links. Keep it updated at the end of each session.*
 
 ---
 
@@ -34,7 +34,8 @@ Business model: first sold to the owning agency's own clients, then **wholesale 
 | [docs/superpowers/plans/2026-10-03-phase-4b-alerts-and-delivery.md](superpowers/plans/2026-10-03-phase-4b-alerts-and-delivery.md) | Done (merged 2026-10-04) |
 | [docs/superpowers/plans/2026-10-04-phase-5a-app-foundation-and-auth.md](superpowers/plans/2026-10-04-phase-5a-app-foundation-and-auth.md) | Done (merged 2026-10-05). Its "Phase 5 overview" table defines **5c** |
 | [docs/superpowers/plans/2026-10-05-phase-5b1-agency-workflow.md](superpowers/plans/2026-10-05-phase-5b1-agency-workflow.md) | **Done, merged 2026-10-06** — live verification deferred to the end of Phase 5. Its "Phase 5b split" table defines **5b-2** |
-| [docs/superpowers/plans/2026-10-07-phase-5b2-agency-operations.md](superpowers/plans/2026-10-07-phase-5b2-agency-operations.md) | **Done 2026-10-08, final review clean, not yet merged — merge is the owner's call.** 18 tasks: usage & limits, playbooks editor, platform-operator queues + claim fix, prospecting snapshot, auth/audit hardening, 5b-1 carry-over |
+| [docs/superpowers/plans/2026-10-07-phase-5b2-agency-operations.md](superpowers/plans/2026-10-07-phase-5b2-agency-operations.md) | **Done, merged 2026-10-08 (`51924a7`)** — live verification deferred to the end of Phase 5. 18 tasks: usage & limits, playbooks editor, platform-operator queues + claim fix, prospecting snapshot, auth/audit hardening, 5b-1 carry-over |
+| 5c plan — *not written yet* | **Next.** Scope = the "5c" row of the 5a plan's "Phase 5 overview" table (client workspace intelligence). Save it as `docs/superpowers/plans/<date>-phase-5c-client-workspace.md` |
 
 ---
 
@@ -68,9 +69,9 @@ Business model: first sold to the owning agency's own clients, then **wholesale 
 
 ---
 
-## 3. Current state (2026-10-07)
+## 3. Current state (2026-10-08)
 
-**Git:** `main` holds Phases 0–2, 3a–3d, 4a, 4b, **5a** and **5b-1**, pushed to `https://github.com/swkruger/rivalmonday` (private). 4a merged at `c616933`; 4b fast-forwarded at `40f2e97`; 5a fast-forwarded at `3044e61`; 5b-1 fast-forwarded at `a769f67` (branch `phase-5b1-workflow` deleted) plus docs commit `69ceca8`; the owner-verification fixes fast-forwarded at `425208a` (branch `fix/owner-verification-findings` deleted) plus docs commit `d55bd61`. Working tree clean, no open feature branches. `cs_dev` is migrated to `0035` (5b-1 added no migration). Work happens on feature branches, merged locally, then pushed. (Older per-phase notes follow below; the Phase 3d review summary that used to sit here is in the Phase 3d paragraph and the roadmap.) Branch `phase-5b2-operations` (from `main` `a11ba61`; head `bd1b595`) holds the completed Phase 5b-2 work — final review clean, full suite and E2E green — not yet merged; merging it is the owner's call (Phase 5b-2 paragraph below).
+**Git (2026-10-08):** `main` at `51924a7` holds everything through **5b-2**, pushed; branch `phase-5b2-operations` was fast-forwarded and deleted. No open feature branches, working tree clean. `cs_dev` is still at migration `0035` — 5b-2 added `0036_agency_ops`/`0037_agency_ops_rls`; run `pnpm db:migrate` before using the new screens against `cs_dev`. Earlier history: `main` held Phases 0–2, 3a–3d, 4a, 4b, **5a** and **5b-1**, pushed to `https://github.com/swkruger/rivalmonday` (private). 4a merged at `c616933`; 4b fast-forwarded at `40f2e97`; 5a fast-forwarded at `3044e61`; 5b-1 fast-forwarded at `a769f67` (branch `phase-5b1-workflow` deleted) plus docs commit `69ceca8`; the owner-verification fixes fast-forwarded at `425208a` (branch `fix/owner-verification-findings` deleted) plus docs commit `d55bd61`. Working tree clean, no open feature branches. `cs_dev` is migrated to `0035` (5b-1 added no migration). Work happens on feature branches, merged locally, then pushed. (Older per-phase notes follow below; the Phase 3d review summary that used to sit here is in the Phase 3d paragraph and the roadmap.) Branch `phase-5b2-operations` (from `main` `a11ba61`; head `bd1b595`) holds the completed Phase 5b-2 work — final review clean, full suite and E2E green — not yet merged; merging it is the owner's call (Phase 5b-2 paragraph below).
 
 **Phase 0 — Branding: DONE.** Validation items (GHL/Vendasta marketplace check, agency LOIs, counsel review) still open.
 
@@ -151,35 +152,22 @@ Tests: full suite on `bd1b595` (`npx turbo run test --concurrency=1 --continue`,
 
 ## 5. How to continue (next session checklist)
 
-1. Read this file and the roadmap carry-over sections (newest: "Phase 5b-1 carry-over", which now ends with "Owner-verification fixes carry-over"). Check `git log --oneline -5` (expect `d55bd61` or later on `main`) and `git status` (clean). Everything through 5b-1 and its owner-verification fixes is merged; no feature branch is open. Don't re-litigate the 5b-1 owner decisions or the approved sidebar/search-progress designs.
-2. **5b-2 is done — not yet merged. Next: the owner merges `phase-5b2-operations` to `main`, then write and execute 5c.** The plan is [2026-10-07-phase-5b2-agency-operations.md](superpowers/plans/2026-10-07-phase-5b2-agency-operations.md): 18 tasks, all complete on branch `phase-5b2-operations` (head `bd1b595`), final review clean, full suite and E2E green (HANDOVER §3's Phase 5b-2 paragraph).
-   - **What it delivered:**
-
-     | Tasks | Delivers |
-     |---|---|
-     | 1–4 | Usage & limits (migrations `0036`/`0037`: `client.status`, `monthly_cap_usd`, `competitor_limit`, `prospect_report`) |
-     | 5–6 | Playbooks editor |
-     | 7–9 | Platform-operator decision-review and theme queues + the `resolveDecisionReview` claim fix |
-     | 10–13 | Prospecting (no recurring work for prospects; `prospect-snapshot` worker job; deterministic report; convert) |
-     | 14 | Auth hardening (Google refusal, hashed tokens, m3) |
-     | 15 | Settings writes as audited tools (m2, m4) |
-     | 16 | Multi-membership switch |
-     | 17 | 5b-1 carry-over (search throttle, `PinPageSwitch`, atomic recommendation status) |
-     | 18 | E2E, full suite, final review, docs |
-
-   - **The plan's decisions 1–18 are binding — don't re-litigate them.** Notable ones:
-     - usage counts only client-attributed ledger rows; shared collection allocation is Phase 7;
-     - only agency admins edit playbooks and limits;
-     - a prospect's own business gets a GBP pull only;
-     - converting a prospect starts weekly paid collection.
-   - **Owner action before live verification:** add `PLATFORM_ADMIN_EMAILS=<owner email>` and `POSTMARK_TEST_SERVER=true` to `.env`. Ask first; never print `.env`. Tests and E2E don't need them — `playwright.config.ts` sets its own.
-   - **Conventions** (the plan's Global Constraints, §6):
-     - every web read/write is a registered tool;
-     - action messages live in a component that stays mounted;
-     - E2E specs reuse one signed-in session;
-     - new agency pages go in the sidebar's `agency` group.
+1. Read this file, then the roadmap's newest carry-over sections ("Phase 5b-2 carry-over", "Phase 5b-1 carry-over"). Check `git log --oneline -5` (expect `51924a7` or later on `main`) and `git status` (clean). Everything through 5b-2 is merged and pushed; no feature branch is open. Don't re-litigate the 5b-1/5b-2 owner decisions (5b-2 plan decisions 1–18 and the pre-flight rulings recorded in its §3 paragraph) or the approved sidebar/search-progress designs.
+2. **Next: Phase 5c — client workspace intelligence. Nothing is written yet.**
+   - **Scope** (binding, from the "5c" row of the [5a plan](superpowers/plans/2026-10-04-phase-5a-app-foundation-and-auth.md)'s "Phase 5 overview" table): Overview (module 1); competitors profile & timeline (2); changes feed + evidence viewer with before/after screenshots, highlighted diff and hash (3); pricing-tracker charts (4); ads archive (5); reviews & reputation theme heatmap/benchmark (6); local-rankings geo-grid heatmap + share of voice (7); moves (8); client settings — services & area, competitors & pages, alert rules / score thresholds, AI-connections placeholder for Phase 6 (11); and the remaining spec §8.2 read tools these screens need. Design references: the spec §5 module list and [docs/brand/mockups/](brand/mockups/).
+   - **Fold in carry-over** tagged for 5c: client-owner self-service competitor management UI (5b-1 decision 1 / "Phase 5b-1 carry-over"), and anything in the "Phase 5b-2 carry-over" that touches these screens.
+   - **Process** (owner preference, §2): superpowers:brainstorming for any open design questions with the owner → superpowers:writing-plans (phases with small tasks, same shape as the 5b-1/5b-2 plans: Global Constraints, Review Focus, Decisions, File structure, per-task TDD steps) → **owner approval** → branch `phase-5c-workspace` from `main` → superpowers:subagent-driven-development (fresh implementer + reviewer per task, pre-flight conflict scan first, final whole-branch review on the most capable model) → merge only with the owner's go-ahead. If 5c is too big for one plan, split it (5c-1/5c-2) as 5b was.
+   - **Data reality on `cs_dev`:** no web captures (crawling banned until the bot page exists, item 6), so evidence before/after screenshots, web diffs and the pricing tracker have no live data — build and test them on `cs_test` fixtures; `cs_dev` has vendor data (GBP, reviews, ads, rank scans) for the `CS Dev Verification Client` and its 5 competitors.
+   - **Conventions** (the 5b plans' Global Constraints, §6):
+     - every web read/write is a registered `@cs/tools` tool (`runTool`/`callTool`), id inputs `z.string().uuid()`;
+     - action messages live in a component that stays mounted; server-action switches use `useOptimistic`;
+     - client modules go in the sidebar's `client` group (5b-1 sidebar design);
+     - `upsell_tag` is stripped for client roles on every new read path; every event reader filters `retracted_at IS NULL`;
+     - E2E specs reuse one signed-in session.
    - **Before running E2E**, check free memory: `next build` crashed twice on 2026-10-06 when Windows had < 4 GB free commit (§6).
-   - **After the owner merges 5b-2:** write and run **5c** (client workspace intelligence — the 5a plan's "Phase 5 overview" table). Then do the combined end-of-Phase-5 owner verification below, which now includes 5b-2's steps.
+   - **After 5c merges:** run the combined end-of-Phase-5 owner verification below (5b-1, 5b-2 and 5c steps).
+   - **Owner actions before that verification:** `pnpm db:migrate` on `cs_dev` (to `0037`, plus any 5c migration); add `PLATFORM_ADMIN_EMAILS=<owner email>` and `POSTMARK_TEST_SERVER=true` to `.env` — ask first, never print `.env` (tests/E2E don't need them).
+   - **5b-2 recap** (details in §3's Phase 5b-2 paragraph): usage & limits (`client.status`/`monthly_cap_usd`/`competitor_limit`, `prospect_report`), playbooks editor, platform-operator review/theme queues + `resolveDecisionReview` claim fix, prospecting snapshot (`prospect-snapshot` worker job, deterministic report, convert), auth hardening, settings writes as audited tools, multi-membership switch, 5b-1 carry-over.
 
    **End-of-Phase-5 owner verification on `cs_dev` (deferred; do it with the owner only after 5c is merged).** 5b-1 steps — the owner ran most of them early on 2026-10-06 (§3, "Early owner verification"):
    - ✅ restart the worker once so `policy: 'short'` applies to `suggest-competitors`/`discover-pages`;
@@ -192,7 +180,8 @@ Tests: full suite on `bd1b595` (`npx turbo run test --concurrency=1 --continue`,
    - ⏳ check the Recommendations board after an approval with items, and rate items there — needs a brief with items (same dependency as the alerts step);
    - **new:** look over the grouped sidebar as agency admin, both on Portfolio and inside a client.
 
-   **5b-2 steps (added 2026-10-08, decided 2026-10-06; do these once `phase-5b2-operations` is merged):**
+   **5b-2 steps (added 2026-10-08; 5b-2 is merged):**
+   - run `pnpm db:migrate` (cs_dev → `0037`) and add the two `.env` vars above;
    - restart the worker so the new `prospect-snapshot` job registers;
    - check `/agency/usage` numbers against `llm_call`/`vendor_call` for the month;
    - set a cap and a competitor limit, and see the competitors page show the new limit;
