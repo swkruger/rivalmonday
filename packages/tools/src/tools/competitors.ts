@@ -4,6 +4,7 @@ import { client, clientCompetitor, competitor, competitorSuggestion, trackedPage
 import { and, asc, count, desc, eq, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type JobState, jobStatusOf, type ToolDeps } from '../deps';
+import { SUGGEST_COOLDOWN_MINUTES } from '../limits';
 import { SuggestionView, TrackedCompetitor } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -57,6 +58,14 @@ export const requestCompetitorSuggestions = defineTool({
     const [c] = await withTenant(deps.app, ctx, (tx) => tx.select({ keywords: client.keywords, serviceArea: client.serviceArea }).from(client).where(eq(client.id, clientId)));
     if (!c) throw new ToolError('not_found', 'Client not found');
     if (c.keywords.length === 0 || !c.serviceArea) throw new ToolError('invalid_input', 'Add at least one keyword and a service area to the client profile first');
+    // 5b-2 decision 17 (5b-1 Minor 1): the UI blocks a second click, but the tool must not start a second paid search either.
+    if (deps.jobStatus) {
+      const job = await deps.jobStatus('suggest-competitors', `suggest:${clientId}`);
+      if (job && (job.state === 'created' || job.state === 'retry' || job.state === 'active')) throw new ToolError('invalid_input', 'A competitor search is already running for this client');
+      if (job?.state === 'completed' && job.completedOn && Date.now() - job.completedOn.getTime() < SUGGEST_COOLDOWN_MINUTES * 60_000) {
+        throw new ToolError('invalid_input', 'A search just finished — its suggestions are below. You can search again in a few minutes.');
+      }
+    }
     await enqueueOf(deps)('suggest-competitors', { clientId }, `suggest:${clientId}`);
     return { queued: true as const };
   },

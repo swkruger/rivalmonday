@@ -47,6 +47,25 @@ describe('request_competitor_suggestions', () => {
   });
 });
 
+describe('request_competitor_suggestions throttle (decision 17)', () => {
+  const area = { center: { lat: 32.44, lng: -97.79 }, radiusKm: 10, zips: [] };
+  const withJob = (job: Awaited<ReturnType<JobStatusLookup>>) =>
+    createToolRegistry({ app: dbs.app, service: dbs.service, enqueue: async () => {}, jobStatus: async () => job }, { audit: { record: async () => {} } });
+  beforeEach(async () => {
+    await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: area }).where(eq(client.id, IDS.clientA1));
+  });
+  it('refuses while a search is queued or running, and for 10 minutes after one finished', async () => {
+    const now = Date.now();
+    for (const state of ['created', 'active', 'retry'] as const) {
+      await expect(withJob({ state, createdOn: new Date(now), completedOn: null }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringMatching(/already running/) });
+    }
+    await expect(withJob({ state: 'completed', createdOn: new Date(now - 300_000), completedOn: new Date(now - 120_000) }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(withJob({ state: 'completed', createdOn: new Date(now - 3_600_000), completedOn: new Date(now - 11 * 60_000) }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toEqual({ queued: true });
+    await expect(withJob({ state: 'failed', createdOn: new Date(now - 60_000), completedOn: new Date(now - 30_000) }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toEqual({ queued: true });
+    await expect(withJob(null).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toEqual({ queued: true });
+  });
+});
+
 describe('get_competitor_search_status', () => {
   const status = (c: AccessContext = admin) => registry.invoke(c, 'get_competitor_search_status', { clientId: IDS.clientA1 });
 

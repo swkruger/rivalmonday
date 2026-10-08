@@ -135,11 +135,14 @@ export async function recommendForMoves(deps: { db: Db; ai: Ai; packs: PackLoade
 /** Spec §8.5 status tracking; agency roles and client owners (never viewers). Every change is stored as feedback. */
 export async function updateRecommendationStatus(deps: { service: Db; app: Db }, ctx: AccessContext, id: string, status: RecommendationStatus, reason?: string): Promise<void> {
   if (!hasPermission(ctx, 'manage')) throw new ToolError('permission_denied', 'This role may not change recommendations');
-  const [r] = await withTenant(deps.app, ctx, (tx) => tx.select().from(recommendation).where(eq(recommendation.id, id)).limit(1));
-  if (!r || !canAccessClient(ctx, r.clientId)) throw new ToolError('not_found', 'Recommendation not found');
+  const [visible] = await withTenant(deps.app, ctx, (tx) => tx.select({ clientId: recommendation.clientId }).from(recommendation).where(eq(recommendation.id, id)).limit(1));
+  if (!visible || !canAccessClient(ctx, visible.clientId)) throw new ToolError('not_found', 'Recommendation not found');
   if (status === 'dismissed' && !reason?.trim()) throw new ToolError('invalid_input', 'A dismissal needs a reason');
-  if (r.status === status) return;
+  // 5b-2 decision 17 (5b-1 Minor 6): read, update and record feedback under one row lock, so concurrent changes serialise
+  // and every feedback row's `before` is the status it actually replaced.
   await deps.service.transaction(async (tx) => {
+    const [r] = await tx.select().from(recommendation).where(eq(recommendation.id, id)).for('update');
+    if (!r || r.status === status) return;
     await tx.update(recommendation).set({ status, dismissReason: status === 'dismissed' ? reason!.trim() : null, updatedAt: new Date() }).where(eq(recommendation.id, id));
     await tx.insert(feedback).values({ agencyId: r.agencyId, clientId: r.clientId, subjectType: 'recommendation', subjectId: id, kind: 'status', actor: ctx.userId, before: { status: r.status }, after: { status }, reason: reason?.trim() || null });
   });

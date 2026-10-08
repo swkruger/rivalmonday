@@ -1,7 +1,7 @@
 import { createAccessContext } from '@cs/core';
 import { client, feedback, move, moveEvent, recommendation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeAi, noul } from '../../test/fake-ai';
 import { day, seedScoredEvent } from '../../test/seed';
@@ -98,5 +98,26 @@ describe('updateRecommendationStatus', () => {
       ['status', { status: 'todo' }, { status: 'in_progress' }],
       ['status', { status: 'in_progress' }, { status: 'dismissed' }],
     ]);
+  });
+});
+
+describe('updateRecommendationStatus concurrency (decision 17)', () => {
+  const am = createAccessContext({ agencyId: IDS.agencyA, userId: 'am', role: 'account_manager', clientScope: [IDS.clientA1], features: [] });
+  let recId: string;
+
+  beforeEach(async () => {
+    const [r] = await dbs.service
+      .insert(recommendation)
+      .values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, title: 't', rationale: 'r', effort: 'L', impact: 'M', owner: 'client', source: 'brief' })
+      .returning({ id: recommendation.id });
+    recId = r!.id;
+  });
+
+  it('serialises concurrent status changes so feedback history never skips a step (decision 17)', async () => {
+    const deps = { service: dbs.service, app: dbs.app };
+    await Promise.all([updateRecommendationStatus(deps, am, recId, 'in_progress'), updateRecommendationStatus(deps, am, recId, 'done')]);
+    const rows = await dbs.owner.select().from(feedback).where(eq(feedback.subjectId, recId)).orderBy(asc(feedback.createdAt), asc(feedback.id));
+    expect(rows).toHaveLength(2);
+    expect((rows[1]!.before as { status: string }).status).toBe((rows[0]!.after as { status: string }).status);
   });
 });

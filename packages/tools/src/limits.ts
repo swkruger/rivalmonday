@@ -7,3 +7,5 @@ export const MAX_MONTHLY_CAP_USD = 10000;
 export const SPEND_WARNING_RATIO = 0.8;
 /** Spec §4.1: cap ≈ 25 tracked pages per competitor. */
 export const MAX_ACTIVE_PAGES = 25;
+/** Decision 17 (5b-2): a new paid competitor search waits this long after the last one finished. */
+export const SUGGEST_COOLDOWN_MINUTES = 10;
