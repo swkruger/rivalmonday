@@ -119,12 +119,19 @@ describe('SidebarNav', () => {
     expect(screen.getByRole('link', { name: 'Recommendations' }).getAttribute('href')).toBe(`/c/${CLIENT_ID}/recommendations`);
   });
 
-  it('shows a client owner with the dashboard flag Changes right after Overview (no Competitors item yet for client roles)', () => {
+  it('shows a client owner with the dashboard flag Competitors between Overview and Changes', () => {
     pathname = `/c/${CLIENT_ID}`;
     const { container } = render(<SidebarNav flags={clientOwnerWithDashboard} />);
     const names = Array.from(container.querySelectorAll('a')).map((a) => a.textContent);
-    expect(names.indexOf('Changes')).toBe(names.indexOf('Overview') + 1);
+    expect(names.indexOf('Competitors')).toBe(names.indexOf('Overview') + 1);
+    expect(names.indexOf('Changes')).toBe(names.indexOf('Competitors') + 1);
     expect(screen.getByRole('link', { name: 'Changes' }).getAttribute('href')).toBe(`/c/${CLIENT_ID}/changes`);
+  });
+
+  it('hides Competitors from a client owner without the dashboard flag', () => {
+    pathname = `/c/${CLIENT_ID}`;
+    render(<SidebarNav flags={clientViewer} />);
+    expect(screen.queryByRole('link', { name: 'Competitors' })).toBeNull();
   });
 
   it('hides Changes from a client owner without the dashboard flag', () => {

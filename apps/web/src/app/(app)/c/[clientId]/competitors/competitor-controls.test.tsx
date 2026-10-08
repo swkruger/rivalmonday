@@ -13,15 +13,28 @@ const { SuggestionsPanel, TrackedCompetitorsTable } = await import('./competitor
 
 describe('SuggestionsPanel', () => {
   it('explains what is missing before suggestions can be requested', () => {
-    render(<SuggestionsPanel clientId="c1" ready={false} suggestions={[]} atLimit={false} />);
+    render(<SuggestionsPanel clientId="c1" ready={false} suggestions={[]} atLimit={false} canSearch />);
     expect(screen.getByText(/add at least one keyword and a service area/i)).toBeTruthy();
     expect((screen.getByRole('button', { name: /find competitors/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('lists suggestions with accept disabled at the competitor limit', () => {
-    render(<SuggestionsPanel clientId="c1" ready suggestions={[{ id: 's1', name: 'Peachtree Air', domain: 'peachtreeair.com', placeId: 'p', rating: 4.6, votes: 120, appearances: 7, bestRank: 2, overlapScore: 0.82 }]} atLimit />);
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[{ id: 's1', name: 'Peachtree Air', domain: 'peachtreeair.com', placeId: 'p', rating: 4.6, votes: 120, appearances: 7, bestRank: 2, overlapScore: 0.82 }]} atLimit canSearch />);
     expect(screen.getByText('Peachtree Air')).toBeTruthy();
     expect((screen.getByRole('button', { name: /accept peachtree air/i }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe('client owner views', () => {
+  it('hides the paid search for client owners and shows a hint instead', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} initialSearch="idle" atLimit={false} limit={5} canSearch={false} />);
+    expect(screen.queryByRole('button', { name: /Find competitors/ })).toBeNull();
+    expect(screen.getByText('Your account manager can look for more competitors for you.')).toBeTruthy();
+  });
+
+  it('shows no remove button when the user may not manage competitors', () => {
+    render(<TrackedCompetitorsTable clientId="c1" items={[{ id: 'x', name: 'Smith HVAC', domain: null, placeId: null, addedAt: '2026-10-01T00:00:00Z', activePages: 0 }]} canRemove={false} />);
+    expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull();
   });
 });
 
@@ -40,7 +53,7 @@ describe('SuggestionsPanel search progress', () => {
   afterEach(() => vi.useRealTimers());
 
   async function startSearch() {
-    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} />);
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} canSearch />);
     await act(async () => {
       fireEvent.click(findButton());
     });
@@ -90,7 +103,7 @@ describe('SuggestionsPanel search progress', () => {
   });
 
   it('picks up a search that was already running when the page loaded', async () => {
-    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} initialSearch="running" />);
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} initialSearch="running" canSearch />);
     expect(screen.getByText(/searching google maps/i)).toBeTruthy();
     vi.mocked(searchStatusAction).mockResolvedValue(status('done'));
     await tick(5000);
@@ -98,7 +111,7 @@ describe('SuggestionsPanel search progress', () => {
   });
 
   it('does not poll when no search is running', async () => {
-    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} initialSearch="done" />);
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} initialSearch="done" canSearch />);
     await tick(30_000);
     expect(searchStatusAction).not.toHaveBeenCalled();
   });
@@ -113,38 +126,38 @@ describe('row messages survive revalidation', () => {
   it('keeps the accept message after the suggestion row is gone', async () => {
     const msg = 'Competitor added. Website monitoring is off — only ads, reviews and Google profile data are collected.';
     vi.mocked(acceptSuggestionAction).mockResolvedValueOnce({ ok: true, message: msg });
-    const { rerender } = render(<SuggestionsPanel clientId="c1" ready suggestions={[suggestion]} atLimit={false} />);
+    const { rerender } = render(<SuggestionsPanel clientId="c1" ready suggestions={[suggestion]} atLimit={false} canSearch />);
     fireEvent.click(screen.getByRole('button', { name: /accept peachtree air/i }));
     await waitFor(() => expect(acceptSuggestionAction).toHaveBeenCalledTimes(1));
     expect((vi.mocked(acceptSuggestionAction).mock.calls[0]![1] as FormData).get('suggestionId')).toBe('s1');
-    rerender(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} />);
+    rerender(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} canSearch />);
     await waitFor(() => expect(screen.getByText(msg)).toBeTruthy());
   });
 
   it('keeps the dismiss message after the suggestion row is gone', async () => {
     vi.mocked(dismissSuggestionAction).mockResolvedValueOnce({ ok: true, message: 'Suggestion hidden.' });
-    const { rerender } = render(<SuggestionsPanel clientId="c1" ready suggestions={[suggestion]} atLimit={false} />);
+    const { rerender } = render(<SuggestionsPanel clientId="c1" ready suggestions={[suggestion]} atLimit={false} canSearch />);
     fireEvent.click(screen.getByRole('button', { name: /dismiss peachtree air/i }));
     await waitFor(() => expect(dismissSuggestionAction).toHaveBeenCalledTimes(1));
     expect(acceptSuggestionAction).not.toHaveBeenCalled();
-    rerender(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} />);
+    rerender(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} canSearch />);
     await waitFor(() => expect(screen.getByText('Suggestion hidden.')).toBeTruthy());
   });
 
   it('keeps the remove message after the tracked row is gone', async () => {
     vi.mocked(removeCompetitorAction).mockResolvedValueOnce({ ok: true, message: 'Competitor removed. Its history is kept.' });
-    const { rerender } = render(<TrackedCompetitorsTable clientId="c1" items={[tracked]} />);
+    const { rerender } = render(<TrackedCompetitorsTable clientId="c1" items={[tracked]} canRemove />);
     fireEvent.click(screen.getByRole('button', { name: /^remove$/i }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /stop tracking/i }));
     await waitFor(() => expect(removeCompetitorAction).toHaveBeenCalledTimes(1));
-    rerender(<TrackedCompetitorsTable clientId="c1" items={[]} />);
+    rerender(<TrackedCompetitorsTable clientId="c1" items={[]} canRemove />);
     await waitFor(() => expect(screen.getByText('Competitor removed. Its history is kept.')).toBeTruthy());
     expect(screen.getByText(/None yet/)).toBeTruthy();
   });
 
   it('shows a remove refusal inside the open dialog', async () => {
     vi.mocked(removeCompetitorAction).mockResolvedValueOnce({ ok: false, error: 'Not found' });
-    render(<TrackedCompetitorsTable clientId="c1" items={[tracked]} />);
+    render(<TrackedCompetitorsTable clientId="c1" items={[tracked]} canRemove />);
     fireEvent.click(screen.getByRole('button', { name: /^remove$/i }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /stop tracking/i }));
     await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toBe('Not found'));

@@ -79,17 +79,17 @@ type Progress = 'searching' | 'done' | 'failed' | 'gave_up' | null;
  * (a search is 18 paid map lookups, usually 1–4 minutes). When it finishes the page data is re-fetched so the new
  * suggestions appear without a reload. A search already running when the page loads is picked up the same way.
  */
-function useSearchProgress(clientId: string, initialSearch: SearchState, request: FormResult): Progress {
+function useSearchProgress(clientId: string, initialSearch: SearchState, request: FormResult, enabled = true): Progress {
   const router = useRouter();
-  const [progress, setProgress] = useState<Progress>(initialSearch === 'queued' || initialSearch === 'running' ? 'searching' : null);
+  const [progress, setProgress] = useState<Progress>(enabled && (initialSearch === 'queued' || initialSearch === 'running') ? 'searching' : null);
 
   // Each accepted "Find competitors" request is a new result object, so this starts (or restarts) the watch.
   useEffect(() => {
-    if (request.ok && request.message) setProgress('searching');
-  }, [request]);
+    if (enabled && request.ok && request.message) setProgress('searching');
+  }, [request, enabled]);
 
   useEffect(() => {
-    if (progress !== 'searching') return;
+    if (!enabled || progress !== 'searching') return;
     const started = Date.now();
     let timer: ReturnType<typeof setTimeout> | undefined;
     let stopped = false;
@@ -119,7 +119,7 @@ function useSearchProgress(clientId: string, initialSearch: SearchState, request
       stopped = true;
       clearTimeout(timer);
     };
-  }, [progress, clientId, router]);
+  }, [progress, clientId, router, enabled]);
 
   return progress;
 }
@@ -166,6 +166,7 @@ export function SuggestionsPanel({
    */
   limit = 5,
   initialSearch = 'idle',
+  canSearch = true,
 }: {
   clientId: string;
   ready: boolean;
@@ -174,9 +175,11 @@ export function SuggestionsPanel({
   limit?: number;
   /** The latest search's state when the page rendered, so a search still running after a reload keeps being followed. */
   initialSearch?: SearchState;
+  /** Paid search is agency-only; client owners only review suggestions. */
+  canSearch: boolean;
 }) {
   const [state, formAction, pending] = useActionState(requestSuggestionsAction, { ok: true } as FormResult);
-  const progress = useSearchProgress(clientId, initialSearch, state);
+  const progress = useSearchProgress(clientId, initialSearch, state, canSearch);
   const searching = progress === 'searching';
   const [rowState, rowAction, rowPending] = useActionState(suggestionAction, { ok: true } as RowResult);
   return (
@@ -185,7 +188,7 @@ export function SuggestionsPanel({
         <CardTitle>Suggested competitors</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        {!ready && (
+        {canSearch && !ready && (
           <p className="text-muted-foreground">
             Add at least one keyword and a service area to the client profile before searching.{' '}
             <Link href={`/c/${clientId}/settings/profile`} className="font-semibold text-primary-soft-text">
@@ -193,22 +196,26 @@ export function SuggestionsPanel({
             </Link>
           </p>
         )}
-        <form action={formAction} className="flex flex-col gap-2">
-          <input type="hidden" name="clientId" value={clientId} />
-          <Button type="submit" disabled={!ready || pending || searching} className="self-start">
-            {searching ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                Searching…
-              </>
-            ) : (
-              'Find competitors'
-            )}
-          </Button>
-          <p className="text-sm text-muted-foreground">Searches Google Maps across the service area (paid; runs in the background, usually 1–4 minutes)</p>
-          {!state.ok && <Message state={state} />}
-          <SearchProgress progress={progress} found={suggestions.length} />
-        </form>
+        {canSearch ? (
+          <form action={formAction} className="flex flex-col gap-2">
+            <input type="hidden" name="clientId" value={clientId} />
+            <Button type="submit" disabled={!ready || pending || searching} className="self-start">
+              {searching ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  Searching…
+                </>
+              ) : (
+                'Find competitors'
+              )}
+            </Button>
+            <p className="text-sm text-muted-foreground">Searches Google Maps across the service area (paid; runs in the background, usually 1–4 minutes)</p>
+            {!state.ok && <Message state={state} />}
+            <SearchProgress progress={progress} found={suggestions.length} />
+          </form>
+        ) : (
+          <p className="text-sm text-muted-foreground">Your account manager can look for more competitors for you.</p>
+        )}
         <Message state={rowState} />
         {suggestions.length > 0 && (
           <div className="flex flex-col gap-4">
@@ -291,7 +298,7 @@ function RemoveCompetitorButton({ clientId, competitorId, name, action, pending,
 }
 
 /** The tracked-competitors table; a successful removal's message shows above it (a refusal shows in the open dialog). */
-export function TrackedCompetitorsTable({ clientId, items }: { clientId: string; items: TrackedCompetitor[] }) {
+export function TrackedCompetitorsTable({ clientId, items, canRemove }: { clientId: string; items: TrackedCompetitor[]; canRemove: boolean }) {
   const [result, action, pending] = useActionState(removeAction, { ok: true } as RowResult);
   return (
     <div className="flex flex-col gap-4">
@@ -306,7 +313,7 @@ export function TrackedCompetitorsTable({ clientId, items }: { clientId: string;
               <TableHead>Website</TableHead>
               <TableHead>Pages monitored</TableHead>
               <TableHead>Since</TableHead>
-              <TableHead />
+              {canRemove && <TableHead />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -320,9 +327,11 @@ export function TrackedCompetitorsTable({ clientId, items }: { clientId: string;
                 <TableCell>{c.domain ?? '—'}</TableCell>
                 <TableCell>{c.activePages}</TableCell>
                 <TableCell>{c.addedAt.slice(0, 10)}</TableCell>
-                <TableCell>
-                  <RemoveCompetitorButton clientId={clientId} competitorId={c.id} name={c.name} action={action} pending={pending} result={result} />
-                </TableCell>
+                {canRemove && (
+                  <TableCell>
+                    <RemoveCompetitorButton clientId={clientId} competitorId={c.id} name={c.name} action={action} pending={pending} result={result} />
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

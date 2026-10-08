@@ -23,6 +23,10 @@ describe('navFor', () => {
   it('gives client users their overview, inbox and preferences', () => {
     expect(navFor({ kind: 'user', ctx: ctx('client_viewer') }, C).map((n) => n.href)).toEqual([`/c/${C}`, `/c/${C}/recommendations`, '/inbox', '/settings/notifications']);
   });
+  it('gives a client owner with the dashboard feature Competitors, Changes and Moves after Overview', () => {
+    const owner = createAccessContext({ agencyId: A, userId: 'u', role: 'client_owner', clientScope: [C], features: ['dashboard'] });
+    expect(navFor({ kind: 'user', ctx: owner }, C).map((n) => n.href)).toEqual([`/c/${C}`, `/c/${C}/competitors`, `/c/${C}/changes`, `/c/${C}/moves`, `/c/${C}/recommendations`, '/inbox', '/settings/notifications']);
+  });
   it('puts every item in the agency, client or account group', () => {
     const groups = (role: Parameters<typeof ctx>[0]) =>
       Object.fromEntries(navFor({ kind: 'user', ctx: ctx(role) }, C).map((n) => [n.href, n.group]));

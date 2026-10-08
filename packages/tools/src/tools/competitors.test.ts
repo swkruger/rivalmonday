@@ -33,6 +33,15 @@ beforeEach(async () => {
   await seedTenancy(dbs.owner);
 });
 
+describe('client owner self-service', () => {
+  it('lets a flagged owner add a competitor and denies an unflagged one', async () => {
+    const flagged = ctx('client_owner', [IDS.clientA1], ['dashboard', 'manage_competitors']);
+    await expect(registry.invoke(flagged, 'add_competitor', { clientId: IDS.clientA1, name: 'Owner Added HVAC', domain: 'owneradded.com' })).resolves.toMatchObject({ competitorId: expect.any(String) });
+    await expect(registry.invoke(ctx('client_owner', [IDS.clientA1], ['dashboard']), 'add_competitor', { clientId: IDS.clientA1, name: 'Nope', domain: 'nope.com' })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(flagged, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+  });
+});
+
 describe('request_competitor_suggestions', () => {
   it('needs keywords and a service area, then enqueues one deduped job', async () => {
     await expect(registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input' });

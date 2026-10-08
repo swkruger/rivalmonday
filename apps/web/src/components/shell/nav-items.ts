@@ -73,7 +73,7 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
 /** Client modules in mockup order (5c-1 Global Constraints). Later tasks add their item at the marked spot. */
 function clientModules(flags: NavRoleFlags, base: string, add: (href: string, label: string, icon: NavItem['icon']) => void): void {
   add(base, 'Overview', 'overview');
-  if (flags.isAgency) add(`${base}/competitors`, 'Competitors', 'competitors'); // Task 14 widens this to `flags.dashboard`
+  if (flags.dashboard) add(`${base}/competitors`, 'Competitors', 'competitors');
   if (flags.dashboard) add(`${base}/changes`, 'Changes', 'changes');
   // 5c-2: Pricing, Ads, Reviews, Local rankings
   if (flags.dashboard) add(`${base}/moves`, 'Moves', 'moves');

@@ -8,8 +8,14 @@ import { runTool, type ToolResult } from '@/server/run-tool';
 
 /** Re-derives the viewer's context on every call (never trusts the form for identity); `clientId` is just the
  * resource being acted on and is re-checked by the tool itself (`canAccessClient`). */
-async function agencyCtx(): Promise<AccessContext> {
+async function memberCtx(): Promise<AccessContext> {
   const { ctx } = await requireContext();
+  return ctx;
+}
+
+/** Paid search, page pins and manual page adds stay agency-only (5c-1 decision 15). */
+async function agencyCtx(): Promise<AccessContext> {
+  const ctx = await memberCtx();
   if (!isAgencyRole(ctx.role)) notFound();
   return ctx;
 }
@@ -43,25 +49,25 @@ export async function searchStatusAction(clientId: string): Promise<ToolResult<{
 }
 
 export async function acceptSuggestionAction(_p: FormResult, fd: FormData): Promise<FormResult> {
-  const ctx = await agencyCtx();
+  const ctx = await memberCtx();
   const r = await runTool<{ discovery: string }>(ctx, 'accept_competitor_suggestion', { suggestionId: s(fd, 'suggestionId') });
   return done(s(fd, 'clientId'), r, `Competitor added. ${r.ok ? DISCOVERY[r.data.discovery] : ''}`.trim());
 }
 
 export async function dismissSuggestionAction(_p: FormResult, fd: FormData): Promise<FormResult> {
-  const ctx = await agencyCtx();
+  const ctx = await memberCtx();
   return done(s(fd, 'clientId'), await runTool(ctx, 'dismiss_competitor_suggestion', { suggestionId: s(fd, 'suggestionId') }), 'Suggestion hidden.');
 }
 
 export async function addCompetitorAction(_p: FormResult, fd: FormData): Promise<FormResult> {
-  const ctx = await agencyCtx();
+  const ctx = await memberCtx();
   const clientId = s(fd, 'clientId');
   const r = await runTool<{ discovery: string }>(ctx, 'add_competitor', { clientId, name: s(fd, 'name'), domain: s(fd, 'domain') || undefined, placeId: s(fd, 'placeId') || undefined });
   return done(clientId, r, `Competitor added. ${r.ok ? DISCOVERY[r.data.discovery] : ''}`.trim());
 }
 
 export async function removeCompetitorAction(_p: FormResult, fd: FormData): Promise<FormResult> {
-  const ctx = await agencyCtx();
+  const ctx = await memberCtx();
   const clientId = s(fd, 'clientId');
   return done(clientId, await runTool(ctx, 'remove_competitor', { clientId, competitorId: s(fd, 'competitorId') }), 'Competitor removed. Its history is kept.');
 }
