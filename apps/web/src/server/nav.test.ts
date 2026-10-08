@@ -1,6 +1,6 @@
 import { createAccessContext } from '@cs/core';
 import { describe, expect, it } from 'vitest';
-import { homePath, navFor } from './nav';
+import { homePath, navFlagsFor, navFor } from './nav';
 
 const A = '00000000-0000-4000-8000-00000000000a';
 const C = '00000000-0000-4000-8000-0000000000a1';
@@ -42,5 +42,15 @@ describe('homePath', () => {
   it('routes agency roles to the client list and client roles to their client', () => {
     expect(homePath(ctx('account_manager'))).toBe('/agency');
     expect(homePath(ctx('client_owner'))).toBe(`/c/${C}`);
+  });
+});
+
+describe('navFlagsFor', () => {
+  it('flags platform operators by their signed-in email, never guests', () => {
+    const user = { kind: 'user' as const, ctx: ctx('agency_admin'), email: 'someone@e.co' };
+    expect(navFlagsFor(user, ['owner@e.co']).isPlatformOperator).toBe(false);
+    expect(navFlagsFor({ ...user, email: 'Owner@E.co' }, ['owner@e.co']).isPlatformOperator).toBe(true);
+    const guest = { kind: 'guest' as const, ctx: ctx('client_viewer') };
+    expect(navFlagsFor(guest, ['owner@e.co']).isPlatformOperator).toBe(false);
   });
 });

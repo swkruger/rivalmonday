@@ -7,6 +7,7 @@ import { Sidebar } from '@/components/shell/sidebar';
 import { TopBar } from '@/components/shell/top-bar';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
+import { webEnv } from '@/server/env';
 import { navFlagsFor } from '@/server/nav';
 import { themeForViewer } from '@/server/theme';
 import { callTool } from '@/server/tools';
@@ -34,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const unread = await unreadCount(dbs().service, viewer.kind === 'guest' ? { contactId: viewer.contactId } : { userId: viewer.userId });
   return (
     <div className="flex min-h-screen bg-canvas">
-      <Sidebar branding={branding} flags={navFlagsFor(viewer)} clients={clients.map(({ id, name }) => ({ id, name }))} />
+      <Sidebar branding={branding} flags={navFlagsFor(viewer, webEnv().platformAdmins)} clients={clients.map(({ id, name }) => ({ id, name }))} />
       <div className="flex min-w-0 flex-1 flex-col">
         {viewer.kind === 'guest' && <GuestBanner />}
         <TopBar viewer={viewer} clients={clients} clientName={clientName} unread={unread} />

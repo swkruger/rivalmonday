@@ -12,7 +12,9 @@ export interface NavItem {
   href: string;
   label: string;
   group: NavGroup;
-  icon: 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'approvals' | 'alerts' | 'recommendations' | 'usage' | 'playbooks';
+  icon:
+    | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'approvals' | 'alerts' | 'recommendations' | 'usage' | 'playbooks'
+    | 'reviews' | 'themes';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -21,6 +23,8 @@ export interface NavRoleFlags {
   isAgencyAdmin: boolean;
   isUser: boolean;
   homePath: string;
+  /** 5b-2 decision 2. */
+  isPlatformOperator?: boolean;
 }
 
 const CLIENT_PATH = /^\/c\/([0-9a-f-]{36})/;
@@ -60,6 +64,10 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
     account('/agency/webhooks', 'Slack & Teams', 'webhooks');
   }
   if (flags.isUser) account('/settings/notifications', 'Notifications', 'bell');
+  if (flags.isPlatformOperator) {
+    account('/platform/reviews', 'Model reviews', 'reviews');
+    account('/platform/themes', 'Theme proposals', 'themes');
+  }
   return items;
 }
 

@@ -157,4 +157,13 @@ describe('SidebarNav sections', () => {
     expect(screen.queryByText('Select a client from Portfolio')).toBeNull();
     expect(screen.getByRole('link', { name: 'Overview' })).toBeTruthy();
   });
+
+  it('shows the platform queues only to platform operators', () => {
+    pathname = '/agency';
+    const { rerender } = render(<SidebarNav flags={agencyAdmin} />);
+    expect(screen.queryByRole('link', { name: 'Model reviews' })).toBeNull();
+    rerender(<SidebarNav flags={{ ...agencyAdmin, isPlatformOperator: true }} />);
+    expect(screen.getByRole('link', { name: 'Model reviews' }).getAttribute('href')).toBe('/platform/reviews');
+    expect(screen.getByRole('link', { name: 'Theme proposals' }).getAttribute('href')).toBe('/platform/themes');
+  });
 });
