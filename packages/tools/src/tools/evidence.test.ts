@@ -2,6 +2,7 @@ import { alert, brief, briefItem, changeEvent, clientCompetitor, detectedChange 
 import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { evidenceContentType } from '../workspace/evidence-access';
 import { firstVisibleEvent } from '../workspace/scope';
 import type { CompareView, EvidenceView } from './schemas';
 import { ctx, day, dbs, registry, resetWorkspace, seedCapture, seedEvent } from './workspace-fixtures';
@@ -9,6 +10,7 @@ import { ctx, day, dbs, registry, resetWorkspace, seedCapture, seedEvent } from 
 const am = ctx('account_manager', 'all');
 const viewerBriefsOnly = ctx('client_viewer', [IDS.clientA1]);
 const ownerA1NoDash = ctx('client_owner', [IDS.clientA1]);
+const viewerDash = ctx('client_viewer', [IDS.clientA1], ['dashboard']);
 const ownerA2 = ctx('client_owner', [IDS.clientA2], ['dashboard']);
 const otherAgency = ctx('agency_admin', 'all', [], IDS.agencyB);
 
@@ -109,7 +111,7 @@ describe('firstVisibleEvent (F8)', () => {
 });
 
 describe('get_evidence', () => {
-  it('opens evidence for any client role (no dashboard flag) and lists the live changes that cite it', async () => {
+  it('opens evidence for any client role (no dashboard flag); only dashboard users get the live changes that cite it (decision 7)', async () => {
     const b = await cap(new Date(Date.now() - 2 * day));
     const a = await cap(new Date(Date.now() - day));
     const { eventId } = await changeBetween(b.captureId, a.captureId);
@@ -117,10 +119,14 @@ describe('get_evidence', () => {
     await changeBetween(b.captureId, a.captureId, { status: 'superseded' });
     const v = await getEvidence(viewerBriefsOnly, a.ids.screenshot!);
     expect(v).toMatchObject({ kind: 'screenshot', servable: true, competitorName: 'Smith HVAC', channelLabel: 'Website', captureStatus: 'ok', contentType: 'image/webp', legalHold: false });
-    expect(v.citedBy.map((c) => c.eventId)).toEqual([eventId]);
-    expect(v.citedBy[0]).toMatchObject({ typeLabel: 'Price change', summary: 'Smith HVAC cut its AC tune-up to $79' });
+    expect(v.citedBy).toEqual([]);
+    const withDash = await getEvidence(viewerDash, a.ids.screenshot!);
+    expect(withDash.citedBy.map((c) => c.eventId)).toEqual([eventId]);
+    expect(withDash.citedBy[0]).toMatchObject({ typeLabel: 'Price change', summary: 'Smith HVAC cut its AC tune-up to $79' });
+    expect((await getEvidence(am, a.ids.screenshot!)).citedBy.map((c) => c.eventId)).toEqual([eventId]);
     expect((await getEvidence(am, a.ids.html!)).servable).toBe(false);
     expect((await getEvidence(am, a.ids.text!)).servable).toBe(true);
+    expect(['screenshot', 'text', 'html', 'vendor_json', 'toString'].map(evidenceContentType)).toEqual(['image/webp', 'text/plain; charset=utf-8', undefined, undefined, undefined]);
   });
 
   it('keeps evidence open after the competitor is removed only while a visible brief item cites that competitor (decision 7)', async () => {

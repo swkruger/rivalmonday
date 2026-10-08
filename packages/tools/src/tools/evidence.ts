@@ -1,4 +1,4 @@
-import { toolkit, ToolError } from '@cs/core';
+import { hasFeature, toolkit, ToolError } from '@cs/core';
 import { capture, changeEvent, clientCompetitor, competitor, detectedChange, eventChange, eventScore, evidence, trackedPage, withTenant } from '@cs/db';
 import { changeTypeLabel } from '@cs/email';
 import { and, desc, eq, or } from 'drizzle-orm';
@@ -28,8 +28,8 @@ export const getEvidence = defineTool({
       .from(evidence).innerJoin(capture, eq(capture.id, evidence.captureId)).innerJoin(competitor, eq(competitor.id, capture.competitorId))
       .where(eq(evidence.id, evidenceId));
     if (!row || !(await competitorLinked(deps, ctx, c.id, row.competitorId))) throw new ToolError('not_found', 'Evidence not found');
-    // Decision 7: "part of these changes" only through decision 3's rule, and only live changes.
-    const cited = await withTenant(deps.app, ctx, (tx) =>
+    // Decision 7: "part of these changes" only for users with `dashboard`, through decision 3's rule, and only live changes.
+    const cited = !hasFeature(ctx, 'dashboard') ? [] : await withTenant(deps.app, ctx, (tx) =>
       tx.selectDistinct({ eventId: changeEvent.id, summary: changeEvent.summary, changeType: changeEvent.changeType, occurredAt: changeEvent.occurredAt })
         .from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked)
         .innerJoin(eventChange, eq(eventChange.eventId, changeEvent.id)).innerJoin(detectedChange, eq(detectedChange.id, eventChange.changeId))

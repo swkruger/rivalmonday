@@ -7,10 +7,15 @@ import type { SnapshotSide } from '../tools/schemas';
 /**
  * Decision 6: the only evidence kinds ever served as files, with the content type they are served as. `html` and
  * `vendor_json` are never served raw (untrusted competitor markup). The single source of truth: `get_evidence`'s
- * `servable` flag is derived from it, and the file route takes its content type from it.
+ * `servable` flag is derived from it, and the file route takes its content type from `evidenceContentType`.
  */
-export const EVIDENCE_CONTENT_TYPES: Readonly<Record<string, string>> = { screenshot: 'image/webp', text: 'text/plain; charset=utf-8' };
-export const SERVABLE_EVIDENCE: ReadonlySet<string> = new Set(Object.keys(EVIDENCE_CONTENT_TYPES));
+export const EVIDENCE_CONTENT_TYPES = { screenshot: 'image/webp', text: 'text/plain; charset=utf-8' } as const;
+export type ServableEvidenceKind = keyof typeof EVIDENCE_CONTENT_TYPES;
+export const SERVABLE_EVIDENCE: ReadonlySet<string> = new Set<string>(Object.keys(EVIDENCE_CONTENT_TYPES));
+
+/** The content type an evidence kind is served as, or undefined when it is never served (`html`, `vendor_json`, unknown). */
+export const evidenceContentType = (kind: string): (typeof EVIDENCE_CONTENT_TYPES)[ServableEvidenceKind] | undefined =>
+  Object.hasOwn(EVIDENCE_CONTENT_TYPES, kind) ? EVIDENCE_CONTENT_TYPES[kind as ServableEvidenceKind] : undefined;
 
 /**
  * Decision 7: tracked now, or cited by this client's alert / active brief item — for client roles only a delivered alert
