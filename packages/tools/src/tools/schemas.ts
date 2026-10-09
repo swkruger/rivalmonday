@@ -296,3 +296,14 @@ export const ThemeBenchmarkView = z.object({
   })),
 });
 export type ThemeBenchmarkView = z.infer<typeof ThemeBenchmarkView>;
+
+export const RatingTrendView = z.object({
+  months: z.array(z.string()),
+  selfPending: z.boolean(),
+  businesses: z.array(z.object({
+    competitorId: uuid, name: z.string(), self: z.boolean(), gbpRating: z.number().nullable(), reviews90d: z.number().int(), perMonth: z.number(),
+    replyRate: z.number().nullable(), mix: z.array(z.number().int()).length(5),
+    monthly: z.array(z.object({ reviews: z.number().int(), avgRating: z.number().nullable() })),
+  })),
+});
+export type RatingTrendView = z.infer<typeof RatingTrendView>;
