@@ -144,7 +144,7 @@ describe('SidebarNav', () => {
     pathname = `/c/${CLIENT_ID}`;
     const { unmount } = render(<SidebarNav flags={clientOwnerWithDashboard} />);
     const names = screen.getAllByRole('link').map((l) => l.textContent?.trim());
-    expect(names.slice(names.indexOf('Changes'), names.indexOf('Moves') + 1)).toEqual(['Changes', 'Pricing', 'Ads', 'Reviews', 'Moves']);
+    expect(names.slice(names.indexOf('Changes'), names.indexOf('Moves') + 1)).toEqual(['Changes', 'Pricing', 'Ads', 'Reviews', 'Local rankings', 'Moves']);
     unmount();
     render(<SidebarNav flags={clientViewer} />);
     expect(screen.queryByRole('link', { name: 'Pricing' })).toBeNull();
@@ -195,7 +195,7 @@ describe('SidebarNav sections', () => {
     pathname = `/c/${CLIENT_ID}/competitors`;
     render(<SidebarNav flags={agencyAdmin} clients={clients} />);
     const panel = screen.getByRole('group', { name: 'Client: Comfort Air Heating & Cooling' });
-    expect(linkNames(panel)).toEqual(['Overview', 'Competitors', 'Changes', 'Pricing', 'Ads', 'Reviews', 'Moves', 'Recommendations', 'Profile', 'Delivery', 'Alert rules', 'AI connections']);
+    expect(linkNames(panel)).toEqual(['Overview', 'Competitors', 'Changes', 'Pricing', 'Ads', 'Reviews', 'Local rankings', 'Moves', 'Recommendations', 'Profile', 'Delivery', 'Alert rules', 'AI connections']);
     expect(within(panel).getByText('Comfort Air Heating & Cooling')).toBeTruthy();
     expect(within(panel).getByText('CA')).toBeTruthy();
     expect(screen.queryByText('Select a client from Portfolio')).toBeNull();
