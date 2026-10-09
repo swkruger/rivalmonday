@@ -31,7 +31,8 @@ export default async function RankingsPage({ params, searchParams }: {
   // A stale business (removed competitor) or scan id falls back to the defaults and says so.
   const picked = await tryCallTool<GeoGridView>(ctx, 'get_geogrid', { clientId, ...(keyword ? { keyword } : {}), ...(business ? { business } : {}), ...(scanId ? { scanId } : {}) });
   const geo = picked ?? (await callTool<GeoGridView>(ctx, 'get_geogrid', { clientId, ...(keyword ? { keyword } : {}) }));
-  const sov = geo.setup === 'ready' ? await callTool<ShareOfVoiceView>(ctx, 'get_share_of_voice', { clientId, ...(sovKeyword ? { keyword: sovKeyword } : {}) }) : null;
+  const noBusiness = geo.setup === 'ready' && geo.business === null;
+  const sov = geo.setup === 'ready' && !noBusiness ? await callTool<ShareOfVoiceView>(ctx, 'get_share_of_voice', { clientId, ...(sovKeyword ? { keyword: sovKeyword } : {}) }) : null;
   const chosen = geo.businesses.find((b) => b.key === geo.business);
   const chosenName = chosen ? (chosen.self ? 'You' : chosen.name) : '';
   const summary = `Top 3 at ${geo.top3} of ${geo.points} points · average rank ${geo.avgRank ?? '—'}`;
@@ -50,6 +51,11 @@ export default async function RankingsPage({ params, searchParams }: {
         </p>
       ) : geo.setup === 'no_scan' ? (
         <p className="rounded-lg bg-muted-surface p-3 text-ink">The first monthly rank scan hasn’t run yet.</p>
+      ) : noBusiness ? (
+        <p className="rounded-lg bg-muted-surface p-3 text-ink">
+          Add your place id or track a competitor.
+          {isAgencyRole(ctx.role) && <> <Link href={`/c/${clientId}/settings/profile`} className="font-semibold text-primary-soft-text">Open Profile</Link></>}
+        </p>
       ) : (
         <>
           {!picked && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">That selection is no longer available, so the defaults are shown.</p>}

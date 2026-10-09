@@ -43,12 +43,11 @@ export default async function CompetitorProfilePage({
   if (!hasFeature(ctx, 'dashboard')) notFound();
   const raw = Number(Array.isArray(sp.days) ? sp.days[0] : sp.days);
   const days = (PERIODS as readonly number[]).includes(raw) ? raw : 90;
-  const [profile, timeline, pages] = await Promise.all([
+  // One batch: a bad id makes get_competitor_profile throw not_found (-> 404); Promise.all handles the sibling calls' rejections.
+  const [profile, timeline, pages, matrix, ads, benchmark, geo] = await Promise.all([
     callTool<CompetitorProfile>(ctx, 'get_competitor_profile', { clientId, competitorId }),
     callTool<{ items: TimelineItem[] }>(ctx, 'get_competitor_timeline', { clientId, competitorId, days }),
     callTool<{ items: TrackedPageView[] }>(ctx, 'list_tracked_pages', { clientId, competitorId }),
-  ]);
-  const [matrix, ads, benchmark, geo] = await Promise.all([
     callTool<PriceMatrixView>(ctx, 'get_price_matrix', { clientId, competitorId }),
     callTool<AdList>(ctx, 'list_ads', { clientId, competitorId, limit: 3 }),
     callTool<ThemeBenchmarkView>(ctx, 'get_theme_benchmark', { clientId }),
