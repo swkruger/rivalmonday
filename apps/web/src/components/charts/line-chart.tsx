@@ -13,17 +13,36 @@ const last = (p: (number | null)[]): number => {
   return -Infinity;
 };
 
-export function foldSeries(series: ChartSeries[], max = 5): ChartSeries[] {
+export interface FoldOptions {
+  /** How the folded series combine: sum for counts, mean/min for ratings and prices. Nulls are ignored. */
+  aggregate?: 'sum' | 'mean' | 'min';
+  /** Series keys that are always kept and never folded (e.g. "You"). They come first. */
+  pin?: string[];
+  /** Name of the folded series. */
+  label?: string;
+}
+
+const AGGREGATE: Record<NonNullable<FoldOptions['aggregate']>, (v: number[]) => number> = {
+  sum: (v) => v.reduce((a, b) => a + b, 0),
+  mean: (v) => v.reduce((a, b) => a + b, 0) / v.length,
+  min: (v) => Math.min(...v),
+};
+
+export function foldSeries(series: ChartSeries[], max = 5, opts: FoldOptions = {}): ChartSeries[] {
   if (series.length <= max) return series;
-  const ranked = [...series].sort((a, b) => last(b.points) - last(a.points) || a.name.localeCompare(b.name, 'en'));
-  const kept = ranked.slice(0, max - 1).sort((a, b) => a.name.localeCompare(b.name, 'en'));
-  const rest = ranked.slice(max - 1);
+  const { aggregate = 'sum', pin = [], label = 'Other' } = opts;
+  const pinned = series.filter((s) => pin.includes(s.key));
+  const free = series.filter((s) => !pin.includes(s.key));
+  const ranked = [...free].sort((a, b) => last(b.points) - last(a.points) || a.name.localeCompare(b.name, 'en'));
+  const keep = Math.max(0, max - pinned.length - 1);
+  const kept = ranked.slice(0, keep).sort((a, b) => a.name.localeCompare(b.name, 'en'));
+  const rest = ranked.slice(keep);
   const len = Math.max(...series.map((s) => s.points.length));
   const points = Array.from({ length: len }, (_, i) => {
     const vals = rest.map((s) => s.points[i]).filter((v): v is number => v !== null && v !== undefined);
-    return vals.length ? vals.reduce((a, b) => a + b, 0) : null;
+    return vals.length ? AGGREGATE[aggregate](vals) : null;
   });
-  return [...kept, { key: 'other', name: 'Other', points }];
+  return [...pinned, ...kept, { key: 'other', name: label, points }];
 }
 
 const niceMax = (v: number) => {
@@ -70,7 +89,8 @@ export function LineChart({
   const R = 12;
   const T = 10;
   const B = 22;
-  const yMax = yMaxProp ?? niceMax(Math.max(...all));
+  const dataMax = Math.max(...all);
+  const yMax = yMaxProp === undefined ? niceMax(dataMax) : Math.max(yMaxProp, dataMax);
   const x = (i: number) => L + (labels.length === 1 ? 0 : (i * (W - L - R)) / (labels.length - 1));
   const y = (v: number) => T + (1 - v / yMax) * (H - T - B);
   const named = series.filter((s) => s.key !== 'other');
@@ -169,7 +189,7 @@ export function LineChart({
           </thead>
           <tbody>
             {labels.map((l, i) => (
-              <tr key={l}>
+              <tr key={`${i}-${l}`}>
                 <th scope="row" className="font-normal">
                   {labelOf(l)}
                 </th>

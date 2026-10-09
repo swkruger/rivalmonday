@@ -2,7 +2,7 @@ import { hasFeature, isAgencyRole } from '@cs/core';
 import type { RatingTrendView, ReviewList, ThemeBenchmarkView } from '@cs/tools';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { foldSeries, LineChart } from '@/components/charts/line-chart';
+import { LineChart } from '@/components/charts/line-chart';
 import { ThemeHeatmap } from '@/components/charts/theme-heatmap';
 import { StatCard } from '@/components/stat-card';
 import { requireContext } from '@/server/current-viewer';
@@ -11,6 +11,7 @@ import { callTool, tryCallTool } from '@/server/tools';
 import { RatingMix } from './rating-mix';
 import { ReviewItem } from './review-item';
 import { SelfNotice } from './self-notice';
+import { trendSeries } from './trend-series';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,10 +52,7 @@ export default async function ReviewsPage({ params, searchParams }: {
     ...(business ? { business } : {}), ...(themeId ? { theme: themeId } : {}), ...(stars ? { stars: String(stars) } : {}), ...(text ? { q: text } : {}),
     days: String(days), offset: String(offset + PAGE),
   });
-  const trendSeries = foldSeries(
-    [...trend.businesses].sort((a, b) => a.name.localeCompare(b.name, 'en'))
-      .map((b) => ({ key: b.competitorId, name: b.self ? 'You' : b.name, points: b.monthly.map((m) => m.avgRating) })),
-  );
+  const trendSeriesList = trendSeries(trend);
 
   return (
     <>
@@ -87,7 +85,7 @@ export default async function ReviewsPage({ params, searchParams }: {
         </section>
         <section className="rounded-[14px] bg-surface p-6 shadow-card">
           <h2 className="mb-3 text-lg font-bold text-ink">Rating trend</h2>
-          <LineChart title="Average stars per month" labels={trend.months} series={trendSeries} valueLabel="stars" yMax={5} period="month" formatValue={(v) => v.toFixed(1)} />
+          <LineChart title="Average stars per month" labels={trend.months} series={trendSeriesList} valueLabel="stars" yMax={5} period="month" formatValue={(v) => v.toFixed(1)} />
         </section>
       </div>
 

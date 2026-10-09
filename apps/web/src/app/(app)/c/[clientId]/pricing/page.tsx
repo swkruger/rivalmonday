@@ -2,12 +2,13 @@ import { hasFeature } from '@cs/core';
 import type { PriceHistoryView, PriceMatrixView } from '@cs/tools';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { foldSeries, LineChart } from '@/components/charts/line-chart';
+import { LineChart } from '@/components/charts/line-chart';
 import { requireContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
 import { one, uuidParam } from '@/server/search-params';
 import { callTool, tryCallTool } from '@/server/tools';
 import { pricingHref } from './format';
+import { historySeries } from './history-series';
 import { PriceCard } from './price-card';
 
 export const dynamic = 'force-dynamic';
@@ -84,7 +85,7 @@ export default async function PricingPage({ params, searchParams }: {
                       <LineChart
                         title={`${history.serviceName} price history`}
                         labels={history.labels}
-                        series={foldSeries(history.series.map((s) => ({ key: s.competitorId, name: s.name, points: s.points })))}
+                        series={historySeries(history)}
                         valueLabel="lowest price"
                         formatValue={(v) => `$${Math.round(v).toLocaleString('en-US')}`}
                       />

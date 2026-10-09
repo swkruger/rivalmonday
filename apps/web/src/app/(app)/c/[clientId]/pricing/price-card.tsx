@@ -41,7 +41,7 @@ export function PriceCard({ row, services, selectedServiceId, hrefFor, children 
                   </span>
                   <span className="font-bold text-secondary">{cell.prices.map(formatPrice).join(' · ')}</span>
                   {cell.prices.some((p) => p.promo) && <span className="rounded-full bg-[#FFF3DC] px-2 py-0.5 text-xs font-bold text-accent-text">PROMO</span>}
-                  {change && <span title="Change against 90 days ago" className={`rounded-full px-2 py-0.5 text-xs font-bold ${CHANGE_TONE[change.tone]}`}>{change.text}</span>}
+                  {change && <span title="Change against 90 days ago" className={`rounded-full px-2 py-0.5 text-xs font-bold ${CHANGE_TONE[change.tone]}`}><span aria-hidden>{change.text}</span><span className="sr-only">{`${change.tone} ${change.text.slice(2)} since 90 days ago`}</span></span>}
                 </Link>
               </li>
             );

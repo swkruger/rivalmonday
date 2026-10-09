@@ -29,6 +29,14 @@ describe('PriceCard', () => {
     expect(screen.getByRole('link', { name: /Furnace repair/ }).textContent).toContain('from $129');
   });
 
+  it('gives the change pill screen-reader wording', () => {
+    const up = { ...row, cells: [{ ...row.cells[0]!, change: { before: 79, after: 99 } }] };
+    const { rerender } = render(<PriceCard row={row} services={services} selectedServiceId={null} hrefFor={() => '#'} />);
+    expect(screen.getByText('down $20 since 90 days ago').className).toContain('sr-only');
+    rerender(<PriceCard row={up} services={services} selectedServiceId={null} hrefFor={() => '#'} />);
+    expect(screen.getByText('up $20 since 90 days ago')).toBeTruthy();
+  });
+
   it('says so when the competitor shows no prices', () => {
     render(<PriceCard row={{ ...row, cells: [] }} services={services} selectedServiceId={null} hrefFor={() => '#'} />);
     expect(screen.getByText('No prices seen on its website yet.')).toBeTruthy();

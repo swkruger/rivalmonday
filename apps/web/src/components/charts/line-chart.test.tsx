@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { foldSeries, LineChart, OTHER_COLOR, SERIES_COLORS } from './line-chart';
 
 const labels = ['2026-09-17', '2026-09-24', '2026-10-01', '2026-10-08'];
@@ -93,5 +93,55 @@ describe('LineChart', () => {
     // the stray 9 must not stretch the axis (it would be 0/5/10) or draw a second point
     expect([...container.querySelectorAll('svg > g > text')].map((n) => n.textContent)).toEqual(['0', '2', '4']);
     expect(container.querySelectorAll('svg title')).toHaveLength(1);
+  });
+});
+
+describe('foldSeries aggregates', () => {
+  const mk = (name: string, points: (number | null)[]) => ({ key: name, name, points });
+  const base = [mk('A', [9, 9]), mk('B', [8, 8]), mk('C', [7, 7]), mk('D', [6, 6]), mk('E', [4, null]), mk('F', [2, null])];
+
+  it('means the folded series and ignores nulls', () => {
+    const f = foldSeries(base, 5, { aggregate: 'mean' });
+    expect(f.at(-1)!.points).toEqual([3, null]);
+  });
+
+  it('takes the minimum of the folded series and ignores nulls', () => {
+    const f = foldSeries([...base.slice(0, 4), mk('E', [4, 5]), mk('F', [2, null])], 5, { aggregate: 'min' });
+    expect(f.at(-1)!.points).toEqual([2, 5]);
+  });
+
+  it('is null in a bucket where every folded value is null, for every mode', () => {
+    for (const aggregate of ['sum', 'mean', 'min'] as const) {
+      expect(foldSeries(base, 5, { aggregate }).at(-1)!.points[1]).toBeNull();
+    }
+  });
+
+  it('labels Other as asked', () => {
+    expect(foldSeries(base, 5, { label: 'Other (average)' }).at(-1)!.name).toBe('Other (average)');
+  });
+
+  it('never folds a pinned series, even when it is the lowest', () => {
+    const f = foldSeries([mk('You', [1, 1]), ...base], 5, { pin: ['You'], aggregate: 'mean' });
+    expect(f).toHaveLength(5);
+    expect(f[0]!.name).toBe('You');
+    expect(f.at(-1)!.name).toBe('Other');
+    expect(f.at(-1)!.points).toEqual([4, 6]);
+    expect(f.slice(1, 4).map((x) => x.name)).toEqual(['A', 'B', 'C']);
+  });
+});
+
+describe('LineChart robustness', () => {
+  it('extends the axis when a value goes above yMax', () => {
+    const { container } = render(<LineChart title="T" valueLabel="x" labels={labels} yMax={5} series={[{ key: 'a', name: 'A', points: [1, 2, 6, 3] }]} />);
+    const ticks = [...container.querySelectorAll('svg > g > text')].map((n) => n.textContent);
+    expect(ticks).toEqual(['0', '3', '6']);
+  });
+
+  it('logs no duplicate-key warning when two labels are the same', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<LineChart title="T" valueLabel="x" labels={['2026-10-01', '2026-10-01']} series={[{ key: 'a', name: 'A', points: [1, 2] }]} />);
+    const keyWarnings = err.mock.calls.filter((c) => String(c[0]).includes('same key'));
+    err.mockRestore();
+    expect(keyWarnings).toHaveLength(0);
   });
 });

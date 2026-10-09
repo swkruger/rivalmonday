@@ -83,6 +83,7 @@ export default async function AdsPage({ params, searchParams }: {
         <p className="rounded-lg bg-muted-surface p-3 text-ink">No ads match these filters.</p>
       ) : (
         <>
+          <h2 className="sr-only">Ads</h2>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {list.items.map((a) => <AdCard key={a.id} ad={a} />)}
           </div>
