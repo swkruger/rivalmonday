@@ -11,3 +11,4 @@ export * from './ads';
 export * from './names';
 export * from './reviews';
 export * from './rankings';
+export * from './briefs';
