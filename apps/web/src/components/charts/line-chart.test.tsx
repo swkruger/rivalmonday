@@ -12,6 +12,13 @@ describe('foldSeries', () => {
     expect(f.map((x) => x.name)).toEqual(['C3', 'C4', 'C5', 'C6', 'Other']);
     expect(f[4]!.points).toEqual([null, 3, 3, 3]);
   });
+
+  it('breaks ties alphabetically, ranks an all-null series last, and gives Other null points when the folded rest has no data', () => {
+    const s = (name: string, points: (number | null)[]) => ({ key: name, name, points });
+    const folded = foldSeries([s('E', [1]), s('D', [1]), s('C', [5]), s('B', [null]), s('A', [5]), s('F', [null])]);
+    expect(folded.map((x) => x.name)).toEqual(['A', 'C', 'D', 'E', 'Other']);
+    expect(folded.at(-1)!.points).toEqual([null]);
+  });
 });
 
 describe('LineChart', () => {
@@ -48,5 +55,34 @@ describe('LineChart', () => {
     const { container } = render(<LineChart title="T" valueLabel="ads" labels={labels} series={[{ key: 'a', name: 'A', points: [1, 3, 5, 7] }]} />);
     const ticks = [...container.querySelectorAll('svg > g > text')].map((n) => n.textContent);
     expect(ticks).toEqual(['0', '4', '8']);
+  });
+
+  it('formats values, fixes the axis top and labels months (decision 15)', () => {
+    render(
+      <LineChart
+        title="Rating trend"
+        labels={['2026-09', '2026-10']}
+        series={[{ key: 'a', name: 'You', points: [4.5, 4.75] }]}
+        valueLabel="stars"
+        yMax={5}
+        period="month"
+        formatValue={(v) => v.toFixed(1)}
+      />,
+    );
+    expect(screen.getByText('5.0')).toBeTruthy(); // the axis top
+    expect(screen.getByText('2.5')).toBeTruthy(); // the mid gridline, not rounded to 3
+    expect(screen.getByRole('img').getAttribute('aria-label')).toBe('Rating trend. Latest: You 4.8.');
+    expect(screen.getAllByText('Oct 2026').length).toBeGreaterThan(0);
+    expect(screen.getByRole('columnheader', { name: 'Month' })).toBeTruthy();
+    expect(document.querySelector('title')!.textContent).toBe('You: 4.5 stars (Sep 2026)');
+  });
+
+  it('gives the table a caption and header scopes, and ignores points beyond the labels', () => {
+    render(<LineChart title="Ads" labels={['2026-10-01']} series={[{ key: 'a', name: 'A', points: [3, 9] }]} valueLabel="ads" period="scan" />);
+    const table = screen.getByRole('table');
+    expect(table.querySelector('caption')!.textContent).toBe('Ads');
+    expect(table.querySelector('th[scope="col"]')!.textContent).toBe('Scan of');
+    expect(table.querySelectorAll('th[scope="row"]')).toHaveLength(1);
+    expect(screen.queryByText('9')).toBeNull();
   });
 });

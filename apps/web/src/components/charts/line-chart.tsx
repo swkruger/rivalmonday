@@ -15,8 +15,8 @@ const last = (p: (number | null)[]): number => {
 
 export function foldSeries(series: ChartSeries[], max = 5): ChartSeries[] {
   if (series.length <= max) return series;
-  const ranked = [...series].sort((a, b) => last(b.points) - last(a.points) || a.name.localeCompare(b.name));
-  const kept = ranked.slice(0, max - 1).sort((a, b) => a.name.localeCompare(b.name));
+  const ranked = [...series].sort((a, b) => last(b.points) - last(a.points) || a.name.localeCompare(b.name, 'en'));
+  const kept = ranked.slice(0, max - 1).sort((a, b) => a.name.localeCompare(b.name, 'en'));
   const rest = ranked.slice(max - 1);
   const len = Math.max(...series.map((s) => s.points.length));
   const points = Array.from({ length: len }, (_, i) => {
@@ -34,20 +34,34 @@ const niceMax = (v: number) => {
 };
 const shortDate = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const monthLabel = (ym: string) => new Date(`${ym}-01T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+type Period = 'week' | 'month' | 'scan';
+const HEAD: Record<Period, string> = { week: 'Week of', month: 'Month', scan: 'Scan of' };
 
 export function LineChart({
   title,
   labels,
-  series,
+  series: input,
   valueLabel,
   height = 180,
+  formatValue,
+  yMax: yMaxProp,
+  period = 'week',
 }: {
   title: string;
   labels: string[];
   series: ChartSeries[];
   valueLabel: string;
   height?: number;
+  formatValue?: (v: number) => string;
+  yMax?: number;
+  period?: Period;
 }) {
+  const series = input.map((s) => ({ ...s, points: s.points.slice(0, labels.length) }));
+  const labelOf = (l: string) => (period === 'month' ? monthLabel(l) : shortDate(l));
+  const fmt = formatValue ?? ((v: number) => String(v));
+  const tick = formatValue ?? ((v: number) => String(Math.round(v)));
+  const when = (l: string) => (period === 'month' ? labelOf(l) : `${period === 'scan' ? 'scan of' : 'week of'} ${labelOf(l)}`);
   const all = series.flatMap((s) => s.points.filter((v): v is number => v !== null));
   if (all.length === 0) return <p className="text-sm text-muted-foreground">No data yet.</p>;
   const W = 600;
@@ -56,12 +70,12 @@ export function LineChart({
   const R = 12;
   const T = 10;
   const B = 22;
-  const yMax = niceMax(Math.max(...all));
+  const yMax = yMaxProp ?? niceMax(Math.max(...all));
   const x = (i: number) => L + (labels.length === 1 ? 0 : (i * (W - L - R)) / (labels.length - 1));
   const y = (v: number) => T + (1 - v / yMax) * (H - T - B);
   const named = series.filter((s) => s.key !== 'other');
   const colorOf = (s: ChartSeries) => (s.key === 'other' ? OTHER_COLOR : SERIES_COLORS[named.indexOf(s) % SERIES_COLORS.length]!);
-  const latest = (s: ChartSeries) => (last(s.points) === -Infinity ? 'no data' : String(last(s.points)));
+  const latest = (s: ChartSeries) => (last(s.points) === -Infinity ? 'no data' : fmt(last(s.points)));
   const summary = series.map((s) => `${s.name} ${latest(s)}`).join(', ');
   const runs = (p: (number | null)[]) => {
     const out: [number, number][][] = [];
@@ -86,13 +100,13 @@ export function LineChart({
           <g key={f}>
             <line x1={L} x2={W - R} y1={y(yMax * f)} y2={y(yMax * f)} stroke="#E2E8F0" strokeWidth={1} />
             <text x={L - 6} y={y(yMax * f) + 4} textAnchor="end" fontSize={11} fill="#64748B">
-              {Math.round(yMax * f)}
+              {tick(yMax * f)}
             </text>
           </g>
         ))}
         {[...new Set([0, Math.floor((labels.length - 1) / 2), labels.length - 1])].map((i) => (
           <text key={i} x={x(i)} y={H - 6} textAnchor="middle" fontSize={11} fill="#64748B">
-            {shortDate(labels[i]!)}
+            {labelOf(labels[i]!)}
           </text>
         ))}
         {series.map((s) => {
@@ -120,7 +134,7 @@ export function LineChart({
               {s.points.map((v, i) =>
                 v === null ? null : (
                   <circle key={i} cx={x(i)} cy={y(v)} r={8} fill="transparent">
-                    <title>{`${s.name}: ${v} ${valueLabel} (week of ${shortDate(labels[i]!)})`}</title>
+                    <title>{`${s.name}: ${fmt(v)} ${valueLabel} (${when(labels[i]!)})`}</title>
                   </circle>
                 ),
               )}
@@ -141,20 +155,25 @@ export function LineChart({
       <details className="text-xs">
         <summary className="cursor-pointer text-muted-foreground">Show as table</summary>
         <table className="mt-2 w-full text-left">
+          <caption className="sr-only">{title}</caption>
           <thead>
             <tr>
-              <th>Week of</th>
+              <th scope="col">{HEAD[period]}</th>
               {series.map((s) => (
-                <th key={s.key}>{s.name}</th>
+                <th key={s.key} scope="col">
+                  {s.name}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {labels.map((l, i) => (
               <tr key={l}>
-                <td>{shortDate(l)}</td>
+                <th scope="row" className="font-normal">
+                  {labelOf(l)}
+                </th>
                 {series.map((s) => (
-                  <td key={s.key}>{s.points[i] ?? '—'}</td>
+                  <td key={s.key}>{s.points[i] == null ? '—' : fmt(s.points[i]!)}</td>
                 ))}
               </tr>
             ))}
