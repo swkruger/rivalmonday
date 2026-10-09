@@ -7,3 +7,4 @@ export * from './tenancy';
 export * from './changes';
 export * from './evidence';
 export * from './pricing';
+export * from './ads';
