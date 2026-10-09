@@ -10,16 +10,22 @@ export interface WorkspaceClient {
   services: string[];
   zips: number;
   selfCompetitorId: string | null;
+  /** 5c-2: the client's own Google place id (the self business falls back to it for rank matching). */
+  placeId: string | null;
+  /** 5c-2: rank-scan keywords. */
+  keywords: string[];
+  /** 5c-2: service-area radius; null when no service area is set. */
+  radiusKm: number | null;
 }
 
 /** The client row through RLS — `not_found` for anything out of scope (spec §11). */
 export async function workspaceClient(deps: ToolDeps, ctx: AccessContext, clientId: string): Promise<WorkspaceClient> {
   if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
   const [c] = await withTenant(deps.app, ctx, (tx) =>
-    tx.select({ id: client.id, name: client.name, verticalId: client.verticalId, services: client.services, serviceArea: client.serviceArea, selfCompetitorId: client.selfCompetitorId })
+    tx.select({ id: client.id, name: client.name, verticalId: client.verticalId, services: client.services, serviceArea: client.serviceArea, selfCompetitorId: client.selfCompetitorId, placeId: client.placeId, keywords: client.keywords })
       .from(client).where(eq(client.id, clientId)));
   if (!c) throw new ToolError('not_found', 'Client not found');
-  return { id: c.id, name: c.name, verticalId: c.verticalId, services: c.services ?? [], zips: c.serviceArea?.zips.length ?? 0, selfCompetitorId: c.selfCompetitorId };
+  return { id: c.id, name: c.name, verticalId: c.verticalId, services: c.services ?? [], zips: c.serviceArea?.zips.length ?? 0, selfCompetitorId: c.selfCompetitorId, placeId: c.placeId, keywords: c.keywords ?? [], radiusKm: c.serviceArea?.radiusKm ?? null };
 }
 
 /** Decision 3 joins: event_score → event, and the event's competitor still tracked by this client. */

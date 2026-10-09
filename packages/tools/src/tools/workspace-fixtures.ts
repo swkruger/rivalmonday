@@ -2,8 +2,9 @@
  * Shared test setup for the client-workspace tool tests (5c-1). Imported only by `*.test.ts` files —
  * never exported from the package index. Importing it opens the test Dbs and closes them after the file.
  */
+import { randomUUID } from 'node:crypto';
 import { type AccessContext, createAccessContext, type Feature } from '@cs/core';
-import { ad, capture, changeEvent, type ChangeDetails, competitor, detectedChange, eventChange, eventScore, evidence, move, moveEvent, type NumericChange, observation, type ScoreFactors, trackedPage } from '@cs/db';
+import { ad, capture, changeEvent, type ChangeDetails, client, competitor, detectedChange, eventChange, eventScore, evidence, move, moveEvent, type NumericChange, observation, pricePoint, type PriceQualifier, rankScan, rankSnapshot, type RankResult, review, reviewAnalysis, type ScoreFactors, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createPackLoader } from '@cs/engine';
 import { asc, eq } from 'drizzle-orm';
@@ -214,4 +215,138 @@ export async function seedAds(o: SeedAdsOptions): Promise<void> {
 export async function seedGbpRating(competitorId: string, rating: number, at: Date = new Date()): Promise<void> {
   const [c] = await dbs.owner.insert(capture).values({ competitorId, source: 'google_business_profile', status: 'ok', collectorVersion: 't', capturedAt: at }).returning();
   await dbs.owner.insert(observation).values({ competitorId, captureId: c!.id, kind: 'gbp_profile', key: 'profile', data: { rating, votes: 10 }, observedAt: at });
+}
+
+/** A date `days` days before now (controller ruling: shared by the 5c-2 test files). */
+export const ago = (days: number): Date => new Date(Date.now() - days * day);
+
+/** The client's own business as a global competitor row linked by `client.self_competitor_id` (spec §6.5). Returns its id. */
+export async function seedSelf(o: { clientId?: string; name?: string; placeId?: string | null; domain?: string | null } = {}): Promise<string> {
+  const [s] = await dbs.owner.insert(competitor).values({ name: o.name ?? 'A1 HVAC', placeId: o.placeId === undefined ? 'self-place' : o.placeId, domain: o.domain ?? null }).returning();
+  await dbs.owner.update(client).set({ selfCompetitorId: s!.id }).where(eq(client.id, o.clientId ?? IDS.clientA1));
+  return s!.id;
+}
+
+/** Sets a competitor's Google place id (rank results match on it). */
+export async function setPlace(competitorId: string, placeId: string): Promise<void> {
+  await dbs.owner.update(competitor).set({ placeId }).where(eq(competitor.id, competitorId));
+}
+
+export interface SeedPriceOptions {
+  serviceId: string;
+  amount: number;
+  /** `first_seen_at`. */
+  from: Date;
+  /** `ended_at`; omit or null for a price still shown. */
+  to?: Date | null;
+  /** Default competitor X. */
+  competitorId?: string;
+  /** Default 'USD'. */
+  unit?: string;
+  /** Default 'exact'. */
+  qualifier?: PriceQualifier;
+  promo?: boolean;
+  /** Default 'hvac_plumbing'. */
+  verticalId?: string;
+}
+
+/**
+ * A `price_point` span on the competitor's first tracked page, with a capture at `from` (and one at `to` when ended).
+ * `price_point_open_unique` forbids two OPEN rows with the same (page, vertical, service, unit, qualifier, amount).
+ */
+export async function seedPrice(o: SeedPriceOptions): Promise<string> {
+  const competitorId = o.competitorId ?? IDS.competitorX;
+  const trackedPageId = await pageOf(competitorId);
+  const first = await seedCapture({ competitorId, pageId: trackedPageId, at: o.from, kinds: [] });
+  const ended = o.to ? await seedCapture({ competitorId, pageId: trackedPageId, at: o.to, kinds: [] }) : null;
+  const [p] = await dbs.owner.insert(pricePoint).values({
+    competitorId, trackedPageId, verticalId: o.verticalId ?? 'hvac_plumbing', serviceId: o.serviceId, amount: o.amount, unit: o.unit ?? 'USD',
+    qualifier: o.qualifier ?? 'exact', promo: o.promo ?? false, raw: `$${o.amount}`, context: `${o.serviceId} $${o.amount}`,
+    firstSeenAt: o.from, lastSeenAt: o.to ?? new Date(), firstCaptureId: first.captureId, lastCaptureId: first.captureId,
+    endedAt: o.to ?? null, endedCaptureId: ended?.captureId ?? null,
+  }).returning();
+  return p!.id;
+}
+
+export interface SeedReviewOptions {
+  /** Default competitor X. */
+  competitorId?: string;
+  /** Default 5; null for a rating-less review. */
+  rating?: number | null;
+  /** Default 'Great service'. */
+  text?: string | null;
+  /** Default now; null for an undated review. */
+  postedAt?: Date | null;
+  ownerAnswer?: string | null;
+  /** Default 'hash-secret' — tests assert it never appears in tool output. */
+  reviewerHash?: string;
+  /** A `review_analysis` row for `verticalId` (default 'hvac_plumbing'); omit for an unanalysed review. */
+  analysis?: { asked: string[]; themes: string[]; sentiment: number | null };
+  verticalId?: string;
+}
+
+export async function seedReview(o: SeedReviewOptions = {}): Promise<string> {
+  const competitorId = o.competitorId ?? IDS.competitorX;
+  const [r] = await dbs.owner.insert(review).values({
+    competitorId, dedupeKey: randomUUID(), rating: o.rating === undefined ? 5 : o.rating, text: o.text === undefined ? 'Great service' : o.text,
+    reviewerHash: o.reviewerHash ?? 'hash-secret', postedAt: o.postedAt === undefined ? new Date() : o.postedAt,
+    ownerAnswer: o.ownerAnswer ?? null, ownerAnsweredAt: o.ownerAnswer ? new Date() : null,
+  }).returning();
+  if (o.analysis) {
+    await dbs.owner.insert(reviewAnalysis).values({
+      reviewId: r!.id, verticalId: o.verticalId ?? 'hvac_plumbing', competitorId, textSha: 'sha', asked: o.analysis.asked, themes: o.analysis.themes,
+      sentiment: o.analysis.sentiment, confidence: 0.9, analysisVersion: 1,
+    });
+  }
+  return r!.id;
+}
+
+/** A local-pack result matched by place id. */
+export const rr = (rank: number, placeId: string, title: string = placeId): RankResult => ({ rank, placeId, cid: null, domain: null, title });
+
+export interface GridSnapshot {
+  keyword: string;
+  lat: number;
+  lng: number;
+  results: RankResult[];
+}
+
+/**
+ * Snapshots of a size×size grid for one keyword, laid out like `gridPoints`: row r (north → south) is lat 32 − 0.01·r,
+ * column c (west → east) is lng −97 + 0.01·c. `results(r, c)` gives that point's local pack, or null for a failed point.
+ */
+export function gridSnapshots(keyword: string, size: number, results: (row: number, col: number) => RankResult[] | null): GridSnapshot[] {
+  const round = (n: number) => Math.round(n * 1e6) / 1e6;
+  const out: GridSnapshot[] = [];
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const res = results(r, c);
+      if (res) out.push({ keyword, lat: round(32 - 0.01 * r), lng: round(-97 + 0.01 * c), results: res });
+    }
+  }
+  return out;
+}
+
+export interface SeedRankScanOptions {
+  finishedAt: Date;
+  snapshots: GridSnapshot[];
+  /** Default 'done'. */
+  status?: 'done' | 'failed' | 'running';
+  /** Default agency A / client A1. */
+  agencyId?: string;
+  clientId?: string;
+}
+
+/** A rank scan with its snapshots (tenant rows). Returns the scan id. */
+export async function seedRankScan(o: SeedRankScanOptions): Promise<string> {
+  const agencyId = o.agencyId ?? IDS.agencyA;
+  const clientId = o.clientId ?? IDS.clientA1;
+  const status = o.status ?? 'done';
+  const [s] = await dbs.owner.insert(rankScan).values({
+    agencyId, clientId, status, snapshots: o.snapshots.length, startedAt: o.finishedAt, finishedAt: status === 'running' ? null : o.finishedAt,
+  }).returning();
+  if (o.snapshots.length) {
+    await dbs.owner.insert(rankSnapshot).values(o.snapshots.map((x) => ({ agencyId, clientId, scanId: s!.id, keyword: x.keyword, lat: x.lat, lng: x.lng, results: x.results, capturedAt: o.finishedAt })));
+  }
+  return s!.id;
 }

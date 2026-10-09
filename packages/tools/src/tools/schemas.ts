@@ -254,3 +254,6 @@ export const AlertRulesView = z.object({
   defaults: z.object({ alert: z.number().int(), brief: z.number().int() }),
 });
 export type AlertRulesView = z.infer<typeof AlertRulesView>;
+
+// 5c-2 data views. A business is the client's own ('self') or a tracked competitor id.
+export const BusinessKey = z.union([z.literal('self'), uuid]);
