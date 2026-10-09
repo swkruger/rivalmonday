@@ -1,17 +1,12 @@
-import postgres from 'postgres';
-import { runMigrations } from '../src/migrate';
+import { databaseNameOf } from '../src/environments';
+import { resetDatabase } from '../src/reset';
 import { testUrls } from './helpers';
 
+/** Test databases must end with `_test`; the reset itself then demands that exact name (spec §7). */
 export default async function setup(): Promise<void> {
-  const sql = postgres(testUrls.owner, { max: 1, onnotice: () => {} });
-  try {
-    const [{ current_database: name }] = await sql<{ current_database: string }[]>`select current_database()`;
-    if (!name.endsWith('_test')) {
-      throw new Error(`Refusing to reset database "${name}": test database names must end with _test`);
-    }
-    await sql.unsafe('DROP SCHEMA IF EXISTS drizzle CASCADE; DROP SCHEMA IF EXISTS auth CASCADE; DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;');
-  } finally {
-    await sql.end();
+  const name = databaseNameOf(testUrls.owner);
+  if (!name.endsWith('_test')) {
+    throw new Error(`Refusing to reset database "${name}": test database names must end with _test`);
   }
-  await runMigrations(testUrls.owner);
+  await resetDatabase(testUrls.owner, name);
 }
