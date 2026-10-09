@@ -12,3 +12,5 @@ export * from './names';
 export * from './reviews';
 export * from './rankings';
 export * from './briefs';
+export * from './agency';
+export * from './platform';
