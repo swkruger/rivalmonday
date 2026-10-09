@@ -1,5 +1,7 @@
 # Phase 5c-2 — Client Workspace Data Views (Pricing, Ads, Reviews & Reputation, Local Rankings, Responsive Shell) Implementation Plan
 
+> **Status: done 2026-10-09 on branch `phase-5c2-data-views` (HEAD `d39f972`) — merged only with the owner's go-ahead.** The final review and its fix wave are recorded in `docs/HANDOVER.md` §3, and the leftover minors in the roadmap's "Phase 5c-2 carry-over".
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Finish the client workspace of spec §5.2. This plan adds:
