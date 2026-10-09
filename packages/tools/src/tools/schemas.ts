@@ -268,3 +268,9 @@ export const PriceMatrixView = z.object({
   })),
 });
 export type PriceMatrixView = z.infer<typeof PriceMatrixView>;
+
+export const PriceHistoryView = z.object({
+  serviceId: z.string(), serviceName: z.string(), labels: z.array(z.string()),
+  series: z.array(z.object({ competitorId: uuid, name: z.string(), points: z.array(z.number().nullable()) })),
+});
+export type PriceHistoryView = z.infer<typeof PriceHistoryView>;

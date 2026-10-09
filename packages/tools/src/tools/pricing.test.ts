@@ -1,8 +1,8 @@
-import { client } from '@cs/db';
+import { client, clientCompetitor, competitor } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { PriceMatrixView } from './schemas';
+import type { PriceHistoryView, PriceMatrixView } from './schemas';
 import { ago, ctx, dbs, registry, resetWorkspace, seedPrice } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
@@ -53,5 +53,37 @@ describe('get_price_matrix', () => {
   it('is not found for another agency and needs dashboard for clients (Review Focus 4)', async () => {
     await expect(registry.invoke(otherAgency, 'get_price_matrix', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(ownerNoDash, 'get_price_matrix', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+  });
+});
+
+describe('get_price_history', () => {
+  it('samples the day’s lowest USD price weekly up to today, null before the first sighting (decision 4, Review Focus 3)', async () => {
+    await seedPrice({ serviceId: 'ac_tune_up', amount: 99, from: ago(60), to: ago(20) });
+    await seedPrice({ serviceId: 'ac_tune_up', amount: 79, from: ago(20) });
+    const r = (await registry.invoke(owner, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'ac_tune_up' })) as PriceHistoryView;
+    expect(r.serviceName).toBe('AC tune-up');
+    expect(r.labels).toHaveLength(13); // 91 days, every 7th counting back from today
+    expect(r.labels.at(-1)).toBe(new Date().toISOString().slice(0, 10));
+    expect(r.series).toHaveLength(1);
+    const pts = r.series[0]!.points;
+    expect(pts).toHaveLength(13);
+    expect(pts[0]).toBeNull();
+    expect(pts).toContain(99);
+    expect(pts.at(-1)).toBe(79);
+  });
+
+  it('sizes the labels by period and leaves out tracked competitors without a price', async () => {
+    const [z] = await dbs.owner.insert(competitor).values({ name: 'Zed Air', domain: 'zed.example' }).returning();
+    await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: z!.id });
+    await seedPrice({ serviceId: 'ac_tune_up', amount: 79, from: ago(2) });
+    const r = (await registry.invoke(am, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'ac_tune_up', days: 180 })) as PriceHistoryView;
+    expect(r.labels).toHaveLength(26);
+    expect(r.series.map((s) => s.name)).toEqual(['Smith HVAC']);
+  });
+
+  it('refuses an unknown service and an untracked competitor', async () => {
+    await expect(registry.invoke(am, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'nope' })).rejects.toMatchObject({ code: 'invalid_input', message: 'Unknown service' });
+    await expect(registry.invoke(am, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'ac_tune_up', competitorId: IDS.competitorY })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(ownerNoDash, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'ac_tune_up' })).rejects.toMatchObject({ code: 'permission_denied' });
   });
 });

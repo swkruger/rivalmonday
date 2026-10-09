@@ -1,12 +1,13 @@
-import { toolkit } from '@cs/core';
+import { ToolError, toolkit } from '@cs/core';
 import { type Db, pricePoint } from '@cs/db';
-import { priceMatrix } from '@cs/engine';
+import { dailySeries, priceHistory, priceMatrix } from '@cs/engine';
 import { and, eq, gt, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
+import { workspaceBusinesses } from '../workspace/business';
 import { workspaceClient } from '../workspace/scope';
 import { requireTracked } from './pages';
-import { PriceMatrixView } from './schemas';
+import { PriceHistoryView, PriceMatrixView } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -67,4 +68,46 @@ export const getPriceMatrix = defineTool({
   },
 });
 
-export const pricingTools = [getPriceMatrix];
+/** Every 7th index counting back from the last (today), oldest first. */
+const weeklyIndexes = (n: number): number[] => {
+  const out: number[] = [];
+  for (let i = n - 1; i >= 0; i -= 7) out.unshift(i);
+  return out;
+};
+
+export const getPriceHistory = defineTool({
+  name: 'get_price_history',
+  description: 'Weekly lowest price of one service for each tracked competitor; empty (null) before a price was seen.',
+  input: z.object({
+    clientId: uuid,
+    serviceId: z.string().regex(/^[a-z0-9_]{1,64}$/),
+    competitorId: uuid.optional(),
+    days: z.union([z.literal(90), z.literal(180), z.literal(365)]).default(90),
+  }),
+  output: PriceHistoryView,
+  permission: 'read',
+  feature: 'dashboard',
+  async handler(ctx, input, deps) {
+    const c = await workspaceClient(deps, ctx, input.clientId);
+    const pack = await packsOf(deps)(c.verticalId);
+    const service = pack.services.find((s) => s.id === input.serviceId);
+    if (!service) throw new ToolError('invalid_input', 'Unknown service');
+    if (input.competitorId) await requireTracked(deps.app, ctx, c.id, input.competitorId);
+    const tracked = (await workspaceBusinesses(deps, ctx, c)).filter((b) => !b.self && (!input.competitorId || b.key === input.competitorId));
+    const now = new Date();
+    const since = new Date(now.getTime() - input.days * DAY);
+    const days = dailySeries([], since, now);
+    const idx = weeklyIndexes(days.length);
+    const series: PriceHistoryView['series'] = [];
+    for (const b of tracked) {
+      // Global price_point rows — visibility proved by workspaceBusinesses (RLS).
+      const spans = await priceHistory(deps.service, { competitorId: b.competitorId!, verticalId: c.verticalId, serviceId: service.id, since });
+      const daily = dailySeries(spans, since, now);
+      const points = idx.map((i) => daily[i]!.min);
+      if (points.some((p) => p !== null)) series.push({ competitorId: b.competitorId!, name: b.name, points });
+    }
+    return { serviceId: service.id, serviceName: service.name, labels: idx.map((i) => days[i]!.date), series };
+  },
+});
+
+export const pricingTools = [getPriceMatrix, getPriceHistory];
