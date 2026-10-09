@@ -15,3 +15,12 @@ export function parseDevArgs(argv: string[]): { env: EnvName | null; rest: strin
   }
   return { env, rest };
 }
+
+/**
+ * Review Focus 2: `next dev` listens on 0.0.0.0 by default, so a LAN client could forge `Host: localhost`. Bind to
+ * 127.0.0.1 unless the caller chose a hostname with `-H` or `--hostname`.
+ */
+export function withLocalHostname(args: string[]): string[] {
+  const chosen = args.some((a) => a === '-H' || a === '--hostname' || a.startsWith('-H=') || a.startsWith('--hostname='));
+  return chosen ? args : [...args, '-H', '127.0.0.1'];
+}
