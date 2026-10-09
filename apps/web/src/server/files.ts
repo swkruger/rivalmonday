@@ -1,9 +1,10 @@
 import { isAbsolute, resolve } from 'node:path';
 import { type AccessContext, isUuid, ToolError, type ToolRegistry } from '@cs/core';
 import { brief, type Db, evidence, trendReport } from '@cs/db';
-import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
+import type { ObjectStore } from '@cs/storage';
 import { type BriefDetail, evidenceContentType, type EvidenceView, type ReportDetail, type ToolDeps } from '@cs/tools';
 import { eq } from 'drizzle-orm';
+import { BACKGROUND_OFF } from './background-off';
 
 export type Enqueue = (job: 'brief-pdf' | 'report-pdf', payload: { briefId: string } | { reportId: string }, singletonKey: string) => Promise<void>;
 
@@ -13,15 +14,16 @@ export function resolveEvidenceDir(dir: string | undefined, webCwd: string): str
   return isAbsolute(dir) ? resolve(dir) : resolve(webCwd, '..', 'worker', dir);
 }
 
-let store: ObjectStore | null = null;
-export const webStore = (): ObjectStore =>
-  (store ??= createStoreFromEnv({ ...process.env, EVIDENCE_FS_DIR: resolveEvidenceDir(process.env.EVIDENCE_FS_DIR, process.cwd()) }));
-
 const notFound = () => new Response('Not found', { status: 404 });
 const preparing = () =>
   new Response(
     '<!doctype html><meta charset="utf-8"><title>Preparing PDF</title><body style="font-family:system-ui;padding:40px">Preparing your PDF… this page refreshes automatically.</body>',
     { status: 202, headers: { 'content-type': 'text/html; charset=utf-8', refresh: '5', 'cache-control': 'no-store' } },
+  );
+const renderingOff = () =>
+  new Response(
+    '<!doctype html><meta charset="utf-8"><title>PDF rendering is off</title><body style="font-family:system-ui;padding:40px">PDF rendering is off while browsing DEMO or TEST data.</body>',
+    { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } },
   );
 
 interface Located {
@@ -72,8 +74,14 @@ export async function servePdf(input: {
 
   const bytes = found.key ? await input.store.get(found.key) : null;
   if (!bytes) {
-    if (input.kind === 'brief') await input.enqueue('brief-pdf', { briefId: input.id }, input.id);
-    else await input.enqueue('report-pdf', { reportId: input.id }, input.id);
+    try {
+      if (input.kind === 'brief') await input.enqueue('brief-pdf', { briefId: input.id }, input.id);
+      else await input.enqueue('report-pdf', { reportId: input.id }, input.id);
+    } catch (e) {
+      // S7: DEMO and TEST refuse background jobs; browsing there shows a plain note instead of an error page.
+      if (e instanceof ToolError && e.message === BACKGROUND_OFF) return renderingOff();
+      throw e;
+    }
     return preparing();
   }
 

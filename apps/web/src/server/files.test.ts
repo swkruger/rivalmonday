@@ -1,10 +1,11 @@
-import { createAccessContext } from '@cs/core';
+import { createAccessContext, ToolError } from '@cs/core';
 import { brief, capture, evidence, trackedPage, trendReport } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore, type ObjectStore } from '@cs/storage';
 import { createToolRegistry } from '@cs/tools';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { BACKGROUND_OFF } from './background-off';
 import { resolveEvidenceDir, serveEvidence, servePdf } from './files';
 
 const dbs = openTestDbs();
@@ -51,6 +52,16 @@ describe('servePdf', () => {
     expect(r.headers.get('refresh')).toBe('5');
     expect(await r.text()).toMatch(/preparing/i);
     expect(enqueue).toHaveBeenCalledWith('brief-pdf', { briefId: sentId }, sentId);
+  });
+
+  it('answers 200 with a plain note when background jobs are off (DEMO or TEST)', async () => {
+    const enqueue = vi.fn(async () => {
+      throw new ToolError('invalid_input', BACKGROUND_OFF);
+    });
+    const r = await servePdf({ kind: 'brief', id: sentId, ctx: owner, registry, service: dbs.service, store: createMemoryStore(), enqueue });
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-type')).toMatch(/text\/html/);
+    expect(await r.text()).toContain('PDF rendering is off while browsing DEMO or TEST data.');
   });
 
   it('re-renders when the key is set but the object is missing', async () => {

@@ -8,7 +8,7 @@ import { Sidebar } from '@/components/shell/sidebar';
 import { TopBar } from '@/components/shell/top-bar';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
-import { webEnv } from '@/server/env';
+import { platformAdmins } from '@/server/runtime-env';
 import { navFlagsFor } from '@/server/nav';
 import { themeForViewer } from '@/server/theme';
 import { callTool } from '@/server/tools';
@@ -34,7 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         : ((await withTenant(dbs().app, ctx, (tx) => tx.select({ name: client.name }).from(client).where(eq(client.id, singleClientId))))[0]?.name ?? null)
       : null;
   const unread = await unreadCount(dbs().service, viewer.kind === 'guest' ? { contactId: viewer.contactId } : { userId: viewer.userId });
-  const flags = navFlagsFor(viewer, webEnv().platformAdmins);
+  const flags = navFlagsFor(viewer, platformAdmins());
   const navClients = clients.map(({ id, name }) => ({ id, name }));
   const menu = (
     <MobileNav displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} flags={flags} clients={navClients} />

@@ -23,6 +23,9 @@ importers:
       '@cs/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@cs/demo':
+        specifier: workspace:*
+        version: link:../../packages/demo
       '@cs/email':
         specifier: workspace:*
         version: link:../../packages/email

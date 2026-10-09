@@ -1,6 +1,7 @@
 import { getViewer } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
-import { serveEvidence, webStore } from '@/server/files';
+import { serveEvidence } from '@/server/files';
+import { webStore } from '@/server/store';
 import { registry } from '@/server/tools';
 
 export const dynamic = 'force-dynamic';

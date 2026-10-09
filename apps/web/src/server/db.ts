@@ -1,14 +1,26 @@
 import 'server-only';
 import { createDb, type Db } from '@cs/db';
-import { webEnv } from './env';
+import { perEnv } from './env-cache';
+import { envUrls } from './runtime-env';
 
-let cached: { app: Db; service: Db } | null = null;
+interface DbSet {
+  app: Db;
+  service: Db;
+  close(): Promise<void>;
+}
 
-/** One pool per role per server process (Fluid compute reuses it across requests). */
+/** One pool per role per environment per server process (Fluid compute reuses it across requests). */
+const sets = perEnv<DbSet>(
+  (name) => {
+    const u = envUrls(name);
+    const app = createDb(u.app);
+    const service = createDb(u.service);
+    return { app: app.db, service: service.db, close: async () => { await Promise.all([app.close(), service.close()]); } };
+  },
+  (s) => s.close(),
+);
+
 export function dbs(): { app: Db; service: Db } {
-  if (!cached) {
-    const env = webEnv();
-    cached = { app: createDb(env.appDatabaseUrl).db, service: createDb(env.serviceDatabaseUrl).db };
-  }
-  return cached;
+  const { app, service } = sets();
+  return { app, service };
 }

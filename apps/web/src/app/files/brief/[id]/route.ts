@@ -1,6 +1,7 @@
 import { getViewer } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
-import { servePdf, webStore } from '@/server/files';
+import { servePdf } from '@/server/files';
+import { webStore } from '@/server/store';
 import { enqueue } from '@/server/queue';
 import { registry } from '@/server/tools';
 

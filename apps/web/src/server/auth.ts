@@ -1,5 +1,5 @@
 import 'server-only';
-import { createLedgerSink } from '@cs/db';
+import { createLedgerSink, type EnvName } from '@cs/db';
 import { createEmailTransportFromEnv, renderEmail } from '@cs/email';
 import { betterAuth } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
@@ -8,14 +8,17 @@ import { Pool } from 'pg';
 import { buildAuthOptions } from './auth-options';
 import { defaultBranding } from './branding';
 import { dbs } from './db';
+import { perEnv } from './env-cache';
 import { webEnv } from './env';
+import { envUrls } from './runtime-env';
 
-function create() {
+function create(name: EnvName) {
   const env = webEnv();
   const { service } = dbs();
   const transport = createEmailTransportFromEnv(process.env, createLedgerSink(service));
+  const pool = new Pool({ connectionString: envUrls(name).service, max: 5 });
   const options = buildAuthOptions({
-    env, service, pool: new Pool({ connectionString: env.serviceDatabaseUrl, max: 5 }),
+    env, service, pool,
     branding: () => defaultBranding(service, env),
     runInBackground: (task) => after(task),
     sendEmail: async (to, payload) => {
@@ -24,8 +27,9 @@ function create() {
     },
   });
   // nextCookies() must be the last plugin so cookies set by server actions reach the response.
-  return betterAuth({ ...options, plugins: [...(options.plugins ?? []), nextCookies()] });
+  return { auth: betterAuth({ ...options, plugins: [...(options.plugins ?? []), nextCookies()] }), pool };
 }
 
-let instance: ReturnType<typeof create> | null = null;
-export const auth = () => (instance ??= create());
+/** One Better Auth instance (and its pool) per environment: sessions live in each database's `auth` schema. */
+const instances = perEnv(create, (v) => v.pool.end());
+export const auth = () => instances().auth;

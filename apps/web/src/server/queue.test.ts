@@ -1,5 +1,12 @@
-import { describe, expect, it, vi } from 'vitest';
-import { type Boss, createBossQueue, createJobStatusLookup } from './queue';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { ToolError } from '@cs/core';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { BACKGROUND_OFF, type Boss, createBossQueue, createJobStatusLookup, refuseJobs } from './queue';
+
+const createDbMock = vi.hoisted(() => vi.fn());
+vi.mock('@cs/db', async (orig) => ({ ...(await orig<typeof import('@cs/db')>()), createDb: createDbMock }));
 
 function fakeBoss(opts: { startError?: Error } = {}): Boss {
   return {
@@ -8,6 +15,7 @@ function fakeBoss(opts: { startError?: Error } = {}): Boss {
       if (opts.startError) throw opts.startError;
     }),
     send: vi.fn(async () => 'job-id'),
+    stop: vi.fn(async () => {}),
   };
 }
 
@@ -66,5 +74,49 @@ describe('createJobStatusLookup', () => {
     await expect(lookup('suggest-competitors', 'suggest:c1')).resolves.toEqual({ state: 'failed', createdOn: created, completedOn: completed });
     expect(query).toHaveBeenCalledWith('suggest-competitors', 'suggest:c1');
     await expect(lookup('suggest-competitors', 'suggest:c2')).resolves.toBeNull();
+  });
+});
+
+describe('refuseJobs (deviation 9, Review Focus 4)', () => {
+  it('refuses every job with a message the user can read', async () => {
+    await expect(refuseJobs('suggest-competitors', { clientId: 'x' }, 'x')).rejects.toSatisfy((e: unknown) => e instanceof ToolError && e.code === 'invalid_input' && e.message === BACKGROUND_OFF);
+  });
+});
+
+describe('createBossQueue stop (S8)', () => {
+  it('stops a started boss non-gracefully and is a no-op when never started', async () => {
+    const working = fakeBoss();
+    const q = createBossQueue(() => working);
+    await q.stop();
+    expect(working.stop).not.toHaveBeenCalled();
+    await q.enqueue('brief-pdf', { briefId: 'b1' }, 'b1');
+    await q.stop();
+    expect(working.stop).toHaveBeenCalledWith({ graceful: false });
+  });
+});
+
+describe('queue in DEMO or TEST', () => {
+  let dir: string | null = null;
+  afterEach(async () => {
+    const { clearEnvCaches } = await import('./env-cache');
+    await clearEnvCaches();
+    vi.unstubAllEnvs();
+    if (dir) rmSync(dir, { recursive: true, force: true });
+    dir = null;
+    createDbMock.mockReset();
+  });
+
+  it('refuses to enqueue and reads job status as no job without connecting', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'web-queue-'));
+    const file = join(dir, 'dev-env.json');
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('DEV_PANEL', '1');
+    vi.stubEnv('RM_DEV_ENV_FILE', file);
+    const { writeDevEnv } = await import('./dev-guard');
+    await writeDevEnv(file, 'demo');
+    const { enqueueJob, jobStatus } = await import('./queue');
+    await expect(enqueueJob('suggest-competitors', { clientId: 'x' }, 'x')).rejects.toThrow(BACKGROUND_OFF);
+    await expect(jobStatus('suggest-competitors', 'x')).resolves.toBeNull();
+    expect(createDbMock).not.toHaveBeenCalled();
   });
 });

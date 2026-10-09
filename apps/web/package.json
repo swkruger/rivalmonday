@@ -15,6 +15,7 @@
   "dependencies": {
     "@cs/core": "workspace:*",
     "@cs/db": "workspace:*",
+    "@cs/demo": "workspace:*",
     "@cs/email": "workspace:*",
     "@cs/engine": "workspace:*",
     "@cs/storage": "workspace:*",

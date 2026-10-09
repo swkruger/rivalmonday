@@ -9,7 +9,7 @@ try {
 
 const config: NextConfig = {
   // Workspace packages ship TypeScript source.
-  transpilePackages: ['@cs/core', '@cs/db', '@cs/email', '@cs/engine', '@cs/storage', '@cs/tools', '@cs/ui', '@cs/ai', '@cs/collectors', '@cs/verticals'],
+  transpilePackages: ['@cs/core', '@cs/db', '@cs/demo', '@cs/email', '@cs/engine', '@cs/storage', '@cs/tools', '@cs/ui', '@cs/ai', '@cs/collectors', '@cs/verticals'],
   // Native/heavy server dependencies pulled in through @cs/engine → @cs/collectors; never bundled.
   serverExternalPackages: ['playwright', 'playwright-core', 'pg-boss', 'pg', 'postgres', 'compromise', 'cheerio', 'pdf-lib'],
   poweredByHeader: false,
