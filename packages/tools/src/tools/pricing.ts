@@ -98,14 +98,13 @@ export const getPriceHistory = defineTool({
     const since = new Date(now.getTime() - input.days * DAY);
     const days = dailySeries([], since, now);
     const idx = weeklyIndexes(days.length);
-    const series: PriceHistoryView['series'] = [];
-    for (const b of tracked) {
-      // Global price_point rows — visibility proved by workspaceBusinesses (RLS).
+    // Global price_point rows — visibility proved by workspaceBusinesses (RLS). One query per competitor, run together.
+    const all = await Promise.all(tracked.map(async (b) => {
       const spans = await priceHistory(deps.service, { competitorId: b.competitorId!, verticalId: c.verticalId, serviceId: service.id, since });
       const daily = dailySeries(spans, since, now);
-      const points = idx.map((i) => daily[i]!.min);
-      if (points.some((p) => p !== null)) series.push({ competitorId: b.competitorId!, name: b.name, points });
-    }
+      return { competitorId: b.competitorId!, name: b.name, points: idx.map((i) => daily[i]!.min) };
+    }));
+    const series: PriceHistoryView['series'] = all.filter((s) => s.points.some((p) => p !== null));
     return { serviceId: service.id, serviceName: service.name, labels: idx.map((i) => days[i]!.date), series };
   },
 });

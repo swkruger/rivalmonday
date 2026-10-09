@@ -22,6 +22,10 @@ beforeEach(async () => {
 });
 
 describe('list_ads', () => {
+  it('rejects an offset above 5000', async () => {
+    await expect(registry.invoke(am, 'list_ads', { clientId: IDS.clientA1, offset: 5001 })).rejects.toMatchObject({ code: 'invalid_input' });
+  });
+
   it('lists active ads of tracked competitors by default, newest first (decision 5)', async () => {
     const r = (await registry.invoke(owner, 'list_ads', { clientId: IDS.clientA1 })) as AdList;
     expect(r.items.map((a) => a.title)).toEqual(['$49 tune-up', 'No advertiser id']);

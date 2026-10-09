@@ -67,13 +67,14 @@ export const getGeogrid = defineTool({
     const lats = [...new Set(snaps.map((s) => s.lat))].sort((a, b) => b - a);
     const lngs = [...new Set(snaps.map((s) => s.lng))].sort((a, b) => a - b);
     const match = business ? competitorMatcher(business) : () => false;
-    const rankIn = (results: RankResult[]) => results.find(match)?.rank ?? NOT_FOUND_RANK;
+    // No business to rank (no place id, no tracked competitor) is no data, never "not in the top 20".
+    const rankIn = (results: RankResult[]): number | null => (business ? (results.find(match)?.rank ?? NOT_FOUND_RANK) : null);
     const cells = lats.map((lat) => lngs.map((lng) => {
       const s = snaps.find((x) => x.keyword === keyword && x.lat === lat && x.lng === lng);
       return s ? rankIn(s.results) : null;
     }));
     const summary = (kw: string) => {
-      const ranks = snaps.filter((s) => s.keyword === kw).map((s) => rankIn(s.results));
+      const ranks = snaps.filter((s) => s.keyword === kw).map((s) => rankIn(s.results)).filter((r): r is number => r !== null);
       return { keyword: kw, top3: ranks.filter((r) => r <= 3).length, points: ranks.length, avgRank: ranks.length ? r1(ranks.reduce((a, b) => a + b, 0) / ranks.length) : null };
     };
     const current = keyword ? summary(keyword) : { top3: 0, points: 0, avgRank: null };

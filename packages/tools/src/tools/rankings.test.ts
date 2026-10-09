@@ -1,4 +1,4 @@
-import { client } from '@cs/db';
+import { client, clientCompetitor } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -70,6 +70,17 @@ describe('get_geogrid', () => {
     expect(r.scans.map((s) => s.id)).toEqual([mine]);
     await expect(registry.invoke(am, 'get_geogrid', { clientId: IDS.clientA1, scanId: a2 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(am, 'get_geogrid', { clientId: IDS.clientA1, scanId: b1 })).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('returns no-data cells and no average when the client has no business to rank (not a grid of 21)', async () => {
+    await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: AREA }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.delete(clientCompetitor).where(eq(clientCompetitor.clientId, IDS.clientA1));
+    await seedRankScan({ finishedAt: ago(5), snapshots: acRepair() });
+    const r = (await registry.invoke(am, 'get_geogrid', { clientId: IDS.clientA1 })) as GeoGridView;
+    expect([r.setup, r.business, r.businesses]).toEqual(['ready', null, []]);
+    expect(r.cells.flat().every((c) => c === null)).toBe(true);
+    expect([r.top3, r.points, r.avgRank]).toEqual([0, 0, null]);
+    expect(r.keywordSummaries).toEqual([{ keyword: 'ac repair', top3: 0, points: 0, avgRank: null }]);
   });
 
   it('reports the setup state, and refuses an untracked business and a missing dashboard flag', async () => {

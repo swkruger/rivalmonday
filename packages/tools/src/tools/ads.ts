@@ -28,7 +28,7 @@ export const listAds = defineTool({
     competitorId: uuid.optional(),
     platform: z.enum(['meta', 'google']).optional(),
     status: z.enum(['active', 'ended', 'all']).default('active'),
-    offset: z.number().int().min(0).default(0),
+    offset: z.number().int().min(0).max(5000).default(0),
     limit: z.number().int().min(1).max(100).default(50),
   }),
   output: AdList,

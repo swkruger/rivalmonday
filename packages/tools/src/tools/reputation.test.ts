@@ -1,7 +1,7 @@
 import { client } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { monthKeys } from './reputation';
 import type { RatingTrendView, ReviewList, ThemeBenchmarkView } from './schemas';
 import { ago, ctx, dbs, registry, resetWorkspace, seedGbpRating, seedReview, seedSelf } from './workspace-fixtures';
@@ -45,7 +45,12 @@ describe('monthKeys', () => {
 });
 
 describe('get_rating_trend', () => {
+  // Freeze only Date (DB drivers need real timers) so a run at a UTC month boundary cannot shift the month keys.
+  afterEach(() => vi.useRealTimers());
+
   it('gives per-business rating, velocity, reply rate, mix and monthly stars (decision 8)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-15T12:00:00Z'));
     const selfId = await seedSelf();
     await seedGbpRating(selfId, 4.7);
     const now = new Date();
@@ -86,6 +91,10 @@ describe('get_rating_trend', () => {
 });
 
 describe('search_reviews', () => {
+  it('rejects an offset above 5000', async () => {
+    await expect(registry.invoke(am, 'search_reviews', { clientId: IDS.clientA1, offset: 5001 })).rejects.toMatchObject({ code: 'invalid_input' });
+  });
+
   beforeEach(async () => {
     const selfId = await seedSelf();
     await seedReview({ competitorId: selfId, rating: 5, text: 'Fast and friendly', postedAt: ago(2), analysis: { asked: ['response_time'], themes: ['response_time'], sentiment: 4 } });

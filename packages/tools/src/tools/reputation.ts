@@ -122,7 +122,7 @@ export const searchReviews = defineTool({
     stars: z.number().int().min(1).max(5).optional(),
     text: z.string().trim().min(1).max(100).optional(),
     days: z.union([z.literal(30), z.literal(90), z.literal(365)]).default(90),
-    offset: z.number().int().min(0).default(0),
+    offset: z.number().int().min(0).max(5000).default(0),
   }),
   output: ReviewList,
   permission: 'read',
