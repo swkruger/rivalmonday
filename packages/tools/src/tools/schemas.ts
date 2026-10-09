@@ -315,3 +315,22 @@ export const ReviewView = z.object({
 export type ReviewView = z.infer<typeof ReviewView>;
 export const ReviewList = z.object({ items: z.array(ReviewView), hasMore: z.boolean() });
 export type ReviewList = z.infer<typeof ReviewList>;
+export const ScanRef = z.object({ id: uuid, finishedAt: iso });
+export const GeoGridView = z.object({
+  setup: z.enum(['ready', 'no_keywords', 'no_scan']),
+  scan: ScanRef.nullable(),
+  scans: z.array(ScanRef),
+  keywords: z.array(z.string()),
+  keyword: z.string().nullable(),
+  businesses: z.array(z.object({ key: z.string(), name: z.string(), self: z.boolean() })),
+  business: z.string().nullable(),
+  size: z.number().int(),
+  /** Rows north → south, columns west → east; null = no data for the point; 21 = not in the top 20. */
+  cells: z.array(z.array(z.number().int().nullable())),
+  top3: z.number().int(),
+  points: z.number().int(),
+  avgRank: z.number().nullable(),
+  keywordSummaries: z.array(z.object({ keyword: z.string(), top3: z.number().int(), points: z.number().int(), avgRank: z.number().nullable() })),
+  radiusKm: z.number().nullable(),
+});
+export type GeoGridView = z.infer<typeof GeoGridView>;
