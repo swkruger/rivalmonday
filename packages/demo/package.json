@@ -14,7 +14,8 @@
     "coverage:readme": "tsx src/cli/coverage-readme.ts",
     "reset": "tsx src/cli/reset.ts",
     "links": "tsx src/cli/links.ts",
-    "snapshot": "tsx src/cli/snapshot.ts"
+    "snapshot": "tsx src/cli/snapshot.ts",
+    "restore": "tsx src/cli/restore.ts"
   },
   "dependencies": {
     "@cs/collectors": "workspace:*",

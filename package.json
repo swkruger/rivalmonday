@@ -10,6 +10,7 @@
     "db:up": "docker compose up -d db",
     "db:migrate": "pnpm --filter @cs/db migrate",
     "db:snapshot": "pnpm --filter @cs/demo snapshot",
+    "db:restore": "pnpm --filter @cs/demo restore",
     "dev:web": "pnpm --filter @cs/web dev",
     "build": "turbo run build",
     "demo:reset": "pnpm --filter @cs/demo reset",
