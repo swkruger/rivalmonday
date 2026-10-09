@@ -26,7 +26,7 @@ function fakeDeps(exists: boolean): { deps: RestoreDeps; calls: string[] } {
     deps: {
       exists: vi.fn(async () => exists),
       versions: step('versions'),
-      snapshot: step('snapshot'),
+      snapshot: vi.fn(async () => { calls.push('snapshot'); return { folder: 'backups/20261009-140322-cs_dev-pre-restore' }; }),
       moveAside: step('moveAside'),
       wipe: step('wipe'),
       create: step('create'),
@@ -93,7 +93,7 @@ describe('restoreSnapshot (Review Focus 5)', () => {
     const { deps, calls } = fakeDeps(true);
     const r = await restoreSnapshot({ ...base(), into: 'cs_dev', prompt: async () => 'cs_dev', deps });
     expect(calls).toEqual(['versions', 'snapshot', 'moveAside', 'wipe', 'pgRestore', 'unzip']);
-    expect(r).toEqual({ target: 'cs_dev', differences: [], restoreErrors: false });
+    expect(r).toEqual({ target: 'cs_dev', differences: [], restoreErrors: false, previous: { snapshot: 'backups/20261009-140322-cs_dev-pre-restore', evidenceAside: expect.stringContaining('-aside-20261009-140322') } });
   });
 
   it('labels the pre-restore snapshot so its folder never collides with another snapshot', async () => {
@@ -115,5 +115,30 @@ describe('restoreSnapshot (Review Focus 5)', () => {
     const { deps } = fakeDeps(false);
     deps.counts = vi.fn(async () => ({ 'public.agency': 0 }));
     expect((await restoreSnapshot({ ...base(), prompt: async () => '', deps })).differences).toEqual(['public.agency: expected 1, got 0']);
+  });
+
+  it('names the snapshot and the evidence aside when the wipe fails', async () => {
+    const { deps } = fakeDeps(true);
+    deps.wipe = vi.fn(async () => { throw new Error('boom'); });
+    const err = await restoreSnapshot({ ...base(), into: 'cs_dev', prompt: async () => 'cs_dev', deps }).catch((e: Error) => e.message);
+    expect(err).toContain('backups/20261009-140322-cs_dev-pre-restore');
+    expect(err).toContain('-aside-20261009-140322');
+  });
+
+  it('names both locations when pg_restore throws', async () => {
+    const { deps } = fakeDeps(true);
+    deps.pgRestore = vi.fn(async () => { throw new Error('boom'); });
+    const err = await restoreSnapshot({ ...base(), into: 'cs_dev', prompt: async () => 'cs_dev', deps }).catch((e: Error) => e.message);
+    expect(err).toContain('backups/20261009-140322-cs_dev-pre-restore');
+    expect(err).toContain('-aside-20261009-140322');
+  });
+
+  it('returns both locations when pg_restore exits non-zero', async () => {
+    const { deps } = fakeDeps(true);
+    deps.pgRestore = vi.fn(async () => ({ code: 1, stderr: 'some error' }));
+    const r = await restoreSnapshot({ ...base(), into: 'cs_dev', prompt: async () => 'cs_dev', deps });
+    expect(r.restoreErrors).toBe(true);
+    expect(r.previous?.snapshot).toContain('pre-restore');
+    expect(r.previous?.evidenceAside).toContain('-aside-');
   });
 });

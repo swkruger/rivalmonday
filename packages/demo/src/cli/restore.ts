@@ -13,8 +13,14 @@ try {
   const folder = resolve(process.env.INIT_CWD ?? process.cwd(), args.folder);
   const dev = resolveEnvironment('dev', { repoRoot: repoRoot() });
   const r = await restoreSnapshot({ folder, into: args.into, maintenanceUrl: dev.ownerUrl, repoRoot: repoRoot(), prompt: (q) => rl.question(q) });
-  console.log(`Restored into ${r.target}.`);
-  if (r.differences.length || r.restoreErrors) process.exitCode = 1;
+  if (r.restoreErrors) {
+    console.error(`WARNING: pg_restore reported errors, so ${r.target} may be incomplete.`);
+    if (r.previous) console.error(`Your previous data is in ${r.previous.snapshot}; the previous evidence is in ${r.previous.evidenceAside}.`);
+    process.exitCode = 1;
+  } else {
+    console.log(`Restored into ${r.target}.`);
+    if (r.differences.length) process.exitCode = 1;
+  }
 } catch (e) {
   console.error(`[restore] failed: ${redactPgOutput(e instanceof Error ? e.message : String(e))}`);
   process.exitCode = 1;
