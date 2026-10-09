@@ -70,10 +70,7 @@ test('the overview shows the KPIs, pressure and ad chart', async ({ page }) => {
   await expect(page.getByRole('img', { name: /Active competitor ads per week/ })).toBeVisible();
 });
 
-// KNOWN APP GAP (Task 20 finding): the app shell has no mobile layout — the sidebar is a fixed 232px column at every width,
-// leaving ~158px for content at 390px, so the top bar and the Overview cards overflow (scrollWidth 648 vs 390). Fixing it
-// needs a responsive shell (collapsible nav), which is outside this task; un-fixme once the shell is responsive.
-test.fixme('the overview has no horizontal page scroll at 390 px', async ({ page }) => {
+test('the overview has no horizontal page scroll at 390 px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();

@@ -10,6 +10,7 @@ export * from './components/input';
 export * from './components/label';
 export * from './components/select';
 export * from './components/separator';
+export * from './components/sheet';
 export * from './components/switch';
 export * from './components/table';
 export * from './components/wordmark';

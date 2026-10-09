@@ -20,15 +20,18 @@ export function TopBar({
   clients,
   clientName,
   unread,
+  menu,
 }: {
   viewer: Exclude<Viewer, { kind: 'member-less' }>;
   clients: ClientSummary[];
   clientName: string | null;
   unread: number;
+  menu?: React.ReactNode;
 }) {
   return (
     <header className="flex h-[68px] flex-shrink-0 items-center border-b border-line bg-surface">
-      <div className="mx-auto flex w-full max-w-[1560px] items-center gap-3.5 px-7">
+      <div className="mx-auto flex w-full max-w-[1560px] items-center gap-3.5 px-4 lg:px-7">
+        {menu}
         {isAgencyRole(viewer.ctx.role) ? (
           <ClientSwitcher clients={clients} />
         ) : (

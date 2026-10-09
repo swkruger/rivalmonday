@@ -154,6 +154,7 @@ export function LineChart({
       )}
       <details className="text-xs">
         <summary className="cursor-pointer text-muted-foreground">Show as table</summary>
+        <div className="overflow-x-auto">
         <table className="mt-2 w-full text-left">
           <caption className="sr-only">{title}</caption>
           <thead>
@@ -179,6 +180,7 @@ export function LineChart({
             ))}
           </tbody>
         </table>
+        </div>
       </details>
     </figure>
   );

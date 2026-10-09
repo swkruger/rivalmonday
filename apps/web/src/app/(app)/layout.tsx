@@ -3,6 +3,7 @@ import { client, withTenant } from '@cs/db';
 import { type ClientSummary, unreadCount } from '@cs/tools';
 import { eq } from 'drizzle-orm';
 import { GuestBanner } from '@/components/shell/guest-banner';
+import { MobileNav } from '@/components/shell/mobile-nav';
 import { Sidebar } from '@/components/shell/sidebar';
 import { TopBar } from '@/components/shell/top-bar';
 import { requireContext } from '@/server/current-viewer';
@@ -33,13 +34,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         : ((await withTenant(dbs().app, ctx, (tx) => tx.select({ name: client.name }).from(client).where(eq(client.id, singleClientId))))[0]?.name ?? null)
       : null;
   const unread = await unreadCount(dbs().service, viewer.kind === 'guest' ? { contactId: viewer.contactId } : { userId: viewer.userId });
+  const flags = navFlagsFor(viewer, webEnv().platformAdmins);
+  const navClients = clients.map(({ id, name }) => ({ id, name }));
+  const menu = (
+    <MobileNav displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} flags={flags} clients={navClients} />
+  );
   return (
     <div className="flex min-h-screen bg-canvas">
-      <Sidebar branding={branding} flags={navFlagsFor(viewer, webEnv().platformAdmins)} clients={clients.map(({ id, name }) => ({ id, name }))} />
+      <Sidebar branding={branding} flags={flags} clients={navClients} />
       <div className="flex min-w-0 flex-1 flex-col">
         {viewer.kind === 'guest' && <GuestBanner />}
-        <TopBar viewer={viewer} clients={clients} clientName={clientName} unread={unread} />
-        <main className="mx-auto flex w-full max-w-[1560px] flex-col gap-5 px-7 pb-10 pt-6">{children}</main>
+        <TopBar viewer={viewer} clients={clients} clientName={clientName} unread={unread} menu={menu} />
+        <main className="mx-auto flex w-full max-w-[1560px] flex-col gap-5 px-4 pb-10 pt-6 lg:px-7">{children}</main>
       </div>
     </div>
   );

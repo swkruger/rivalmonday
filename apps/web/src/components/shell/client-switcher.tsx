@@ -10,7 +10,7 @@ export function ClientSwitcher({ clients }: { clients: ClientSummary[] }) {
   const currentClientId = clientIdFromPath(usePathname());
   return (
     <Select value={currentClientId ?? undefined} onValueChange={(id) => router.push(`/c/${id}`)}>
-      <SelectTrigger className="min-w-[270px] font-semibold">
+      <SelectTrigger className="min-w-0 max-w-[270px] font-semibold sm:min-w-[270px]">
         <SelectValue placeholder="Choose a client" />
       </SelectTrigger>
       <SelectContent>

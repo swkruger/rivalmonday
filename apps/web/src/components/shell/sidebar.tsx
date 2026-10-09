@@ -15,7 +15,7 @@ import { type NavClient, SidebarNav } from './sidebar-nav';
 export function Sidebar({ branding, flags, clients }: { branding: Branding; flags: NavRoleFlags; clients: NavClient[] }) {
   const whiteLabel = branding.displayName !== 'Rival Monday';
   return (
-    <aside className="sticky top-0 flex h-screen w-[232px] flex-shrink-0 flex-col gap-1 overflow-y-auto border-r border-line bg-surface px-3.5 py-[22px]">
+    <aside className="sticky top-0 hidden h-screen w-[232px] flex-shrink-0 flex-col gap-1 overflow-y-auto border-r border-line bg-surface px-3.5 py-[22px] lg:flex">
       <div className="px-2.5 pb-[18px]">
         {branding.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
