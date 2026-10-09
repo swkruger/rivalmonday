@@ -307,3 +307,11 @@ export const RatingTrendView = z.object({
   })),
 });
 export type RatingTrendView = z.infer<typeof RatingTrendView>;
+
+export const ReviewView = z.object({
+  reviewId: uuid, competitorId: uuid, name: z.string(), self: z.boolean(), rating: z.number().int().nullable(), text: z.string().nullable(),
+  postedAt: iso.nullable(), themes: z.array(z.object({ id: z.string(), name: z.string() })), sentiment: z.number().nullable(), ownerAnswer: z.string().nullable(),
+});
+export type ReviewView = z.infer<typeof ReviewView>;
+export const ReviewList = z.object({ items: z.array(ReviewView), hasMore: z.boolean() });
+export type ReviewList = z.infer<typeof ReviewList>;

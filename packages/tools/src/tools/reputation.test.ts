@@ -3,7 +3,7 @@ import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { monthKeys } from './reputation';
-import type { RatingTrendView, ThemeBenchmarkView } from './schemas';
+import type { RatingTrendView, ReviewList, ThemeBenchmarkView } from './schemas';
 import { ago, ctx, dbs, registry, resetWorkspace, seedGbpRating, seedReview, seedSelf } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
@@ -82,5 +82,50 @@ describe('get_rating_trend', () => {
   it('refuses another agency and needs dashboard', async () => {
     await expect(registry.invoke(otherAgency, 'get_rating_trend', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(ownerNoDash, 'get_rating_trend', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+  });
+});
+
+describe('search_reviews', () => {
+  beforeEach(async () => {
+    const selfId = await seedSelf();
+    await seedReview({ competitorId: selfId, rating: 5, text: 'Fast and friendly', postedAt: ago(2), analysis: { asked: ['response_time'], themes: ['response_time'], sentiment: 4 } });
+    await seedReview({ rating: 2, text: 'Tech was late and pushy', postedAt: ago(1), ownerAnswer: 'Sorry!', analysis: { asked: ['response_time', 'upsell_pressure'], themes: ['response_time', 'upsell_pressure'], sentiment: 0 } });
+    await seedReview({ rating: 4, text: 'Fair price, 100% happy', postedAt: ago(100) });
+    await seedReview({ competitorId: IDS.competitorY, text: 'Other client’s competitor', postedAt: ago(1) });
+  });
+
+  it('returns text as published, never the reviewer, newest first, sentiment on the -1..+1 scale (decision 6)', async () => {
+    const r = (await registry.invoke(owner, 'search_reviews', { clientId: IDS.clientA1 })) as ReviewList;
+    expect(r.items.map((i) => [i.name, i.self, i.text])).toEqual([['Smith HVAC', false, 'Tech was late and pushy'], ['A1 HVAC', true, 'Fast and friendly']]);
+    expect(r.items[0]).toMatchObject({ rating: 2, ownerAnswer: 'Sorry!', sentiment: -1, themes: [{ id: 'response_time', name: 'Response time' }, { id: 'upsell_pressure', name: 'Upsell pressure' }] });
+    expect(r.items[1]?.sentiment).toBe(1);
+    expect(JSON.stringify(r)).not.toContain('hash-secret');
+    expect(r.hasMore).toBe(false);
+  });
+
+  it('filters by business, theme, stars, text (escaped) and period', async () => {
+    const q = async (input: Record<string, unknown>) => ((await registry.invoke(am, 'search_reviews', { clientId: IDS.clientA1, ...input })) as ReviewList).items.map((i) => i.text);
+    expect(await q({ business: 'self' })).toEqual(['Fast and friendly']);
+    expect(await q({ business: IDS.competitorX, themeId: 'upsell_pressure' })).toEqual(['Tech was late and pushy']);
+    expect(await q({ stars: 5 })).toEqual(['Fast and friendly']);
+    expect(await q({ text: 'LATE' })).toEqual(['Tech was late and pushy']);
+    expect(await q({ text: '100%', days: 365 })).toEqual(['Fair price, 100% happy']);
+    expect(await q({ text: '%', days: 30 })).toEqual([]);
+    expect(await q({ days: 365 })).toHaveLength(3);
+  });
+
+  it('refuses an unknown theme, an untracked competitor and a missing self business (Review Focus 2)', async () => {
+    await expect(registry.invoke(am, 'search_reviews', { clientId: IDS.clientA1, themeId: 'nope' })).rejects.toMatchObject({ code: 'invalid_input', message: 'Unknown theme' });
+    await expect(registry.invoke(am, 'search_reviews', { clientId: IDS.clientA1, business: IDS.competitorY })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(ctx('account_manager', 'all'), 'search_reviews', { clientId: IDS.clientA2, business: 'self' })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(ownerNoDash, 'search_reviews', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+  });
+
+  it('pages 20 at a time', async () => {
+    for (let i = 0; i < 20; i++) await seedReview({ text: `bulk ${i}`, postedAt: ago(3) });
+    const first = (await registry.invoke(am, 'search_reviews', { clientId: IDS.clientA1 })) as ReviewList;
+    expect([first.items.length, first.hasMore]).toEqual([20, true]);
+    const second = (await registry.invoke(am, 'search_reviews', { clientId: IDS.clientA1, offset: 20 })) as ReviewList;
+    expect([second.items.length, second.hasMore]).toEqual([2, false]);
   });
 });

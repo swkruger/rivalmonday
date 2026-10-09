@@ -1,13 +1,13 @@
 import { gbpSummary } from '@cs/collectors';
-import { toolkit } from '@cs/core';
-import { observation, review } from '@cs/db';
-import { reviewBenchmark, themesForVertical } from '@cs/engine';
-import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
+import { ToolError, toolkit } from '@cs/core';
+import { observation, review, reviewAnalysis } from '@cs/db';
+import { reviewBenchmark, sentimentScore, themesForVertical } from '@cs/engine';
+import { and, desc, eq, gte, ilike, inArray, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
-import { workspaceBusinesses } from '../workspace/business';
-import { workspaceClient } from '../workspace/scope';
-import { RatingTrendView, ThemeBenchmarkView } from './schemas';
+import { pickBusiness, workspaceBusinesses } from '../workspace/business';
+import { escapeLike, workspaceClient } from '../workspace/scope';
+import { BusinessKey, RatingTrendView, ReviewList, ThemeBenchmarkView } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -110,4 +110,58 @@ export const getRatingTrend = defineTool({
   },
 });
 
-export const reputationTools = [getThemeBenchmark, getRatingTrend];
+const REVIEW_PAGE = 20;
+
+export const searchReviews = defineTool({
+  name: 'search_reviews',
+  description: 'Search Google reviews of your business and tracked competitors by business, theme, stars or text. Reviewer identities are never returned.',
+  input: z.object({
+    clientId: uuid,
+    business: BusinessKey.optional(),
+    themeId: z.string().regex(/^[a-z0-9_]{1,64}$/).optional(),
+    stars: z.number().int().min(1).max(5).optional(),
+    text: z.string().trim().min(1).max(100).optional(),
+    days: z.union([z.literal(30), z.literal(90), z.literal(365)]).default(90),
+    offset: z.number().int().min(0).default(0),
+  }),
+  output: ReviewList,
+  permission: 'read',
+  feature: 'dashboard',
+  async handler(ctx, input, deps) {
+    const c = await workspaceClient(deps, ctx, input.clientId);
+    // A self business known only by place id has no review rows, so it is not searchable (pickBusiness -> not_found).
+    const all = (await workspaceBusinesses(deps, ctx, c)).filter((b) => b.competitorId !== null);
+    const scope = input.business ? [pickBusiness(all, input.business)] : all;
+    const themes = await themesForVertical(deps.service, await packsOf(deps)(c.verticalId));
+    if (input.themeId && !themes.some((t) => t.id === input.themeId)) throw new ToolError('invalid_input', 'Unknown theme');
+    if (scope.length === 0) return { items: [], hasMore: false };
+    const byId = new Map(scope.map((b) => [b.competitorId!, b]));
+    const themeName = new Map(themes.map((t) => [t.id, t.name]));
+    const conds: SQL[] = [inArray(review.competitorId, [...byId.keys()]), gte(review.postedAt, new Date(Date.now() - input.days * DAY))];
+    if (input.stars) conds.push(eq(review.rating, input.stars));
+    if (input.text) conds.push(ilike(review.text, `%${escapeLike(input.text)}%`));
+    if (input.themeId) conds.push(sql`${reviewAnalysis.themes} @> ${JSON.stringify([input.themeId])}::jsonb`);
+    // Global review rows - visibility proved by workspaceBusinesses (RLS). reviewer_hash is never selected (spec 4.5).
+    const rows = await deps.service
+      .select({ id: review.id, competitorId: review.competitorId, rating: review.rating, text: review.text, postedAt: review.postedAt, ownerAnswer: review.ownerAnswer, themes: reviewAnalysis.themes, sentiment: reviewAnalysis.sentiment })
+      .from(review)
+      .leftJoin(reviewAnalysis, and(eq(reviewAnalysis.reviewId, review.id), eq(reviewAnalysis.verticalId, c.verticalId)))
+      .where(and(...conds))
+      .orderBy(sql`${review.postedAt} DESC NULLS LAST`, desc(review.id))
+      .offset(input.offset).limit(REVIEW_PAGE + 1);
+    return {
+      items: rows.slice(0, REVIEW_PAGE).map((r) => {
+        const b = byId.get(r.competitorId)!;
+        return {
+          reviewId: r.id, competitorId: r.competitorId, name: b.name, self: b.self, rating: r.rating, text: r.text, postedAt: r.postedAt ? r.postedAt.toISOString() : null,
+          themes: (r.themes ?? []).map((id) => ({ id, name: themeName.get(id) ?? id })),
+          // Same -1..+1 scale as get_theme_benchmark (engine sentimentScore), not the raw 0-4 level.
+          sentiment: r.sentiment == null ? null : sentimentScore(r.sentiment), ownerAnswer: r.ownerAnswer,
+        };
+      }),
+      hasMore: rows.length > REVIEW_PAGE,
+    };
+  },
+});
+
+export const reputationTools = [getThemeBenchmark, getRatingTrend, searchReviews];
