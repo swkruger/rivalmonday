@@ -49,13 +49,13 @@ describe('seedReviews', () => {
   it('contains the searchable phrase once, leaves one competitor without reviews, and hashes reviewers with the salt', async () => {
     expect(await countRows(dbs.owner, sql`select count(*)::int as n from review where text ilike ${`%${LATE_PHRASE}%`}`)).toBe(1);
     expect(await dbs.owner.select().from(review).where(eq(review.competitorId, ctx.ids.noData.reviews))).toHaveLength(0);
-    const possible = new Set<string>();
+    const possible = new Set<string | null>();
     for (const f of FIRST_NAMES) for (const i of LAST_INITIALS) possible.add(pseudonymizeReviewer(`${f} ${i}.`, TEST_SALT));
     const hashes = await dbs.owner.select({ hash: review.reviewerHash }).from(review);
     expect(hashes.length).toBeGreaterThan(0);
     for (const h of hashes) {
       expect(h.hash).toMatch(/^[0-9a-f]{64}$/);
-      expect(possible.has(h.hash ?? '')).toBe(true);
+      expect(possible.has(h.hash)).toBe(true);
     }
   });
 
