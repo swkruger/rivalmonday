@@ -100,7 +100,7 @@ export const getPriceHistory = defineTool({
     const idx = weeklyIndexes(days.length);
     const series: PriceHistoryView['series'] = [];
     for (const b of tracked) {
-      // Global price_point rows — visibility proved by workspaceBusinesses (RLS).
+      // Global price_point rows â€” visibility proved by workspaceBusinesses (RLS).
       const spans = await priceHistory(deps.service, { competitorId: b.competitorId!, verticalId: c.verticalId, serviceId: service.id, since });
       const daily = dailySeries(spans, since, now);
       const points = idx.map((i) => daily[i]!.min);

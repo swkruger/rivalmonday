@@ -57,7 +57,7 @@ describe('get_price_matrix', () => {
 });
 
 describe('get_price_history', () => {
-  it('samples the day’s lowest USD price weekly up to today, null before the first sighting (decision 4, Review Focus 3)', async () => {
+  it('samples the dayâ€™s lowest USD price weekly up to today, null before the first sighting (decision 4, Review Focus 3)', async () => {
     await seedPrice({ serviceId: 'ac_tune_up', amount: 99, from: ago(60), to: ago(20) });
     await seedPrice({ serviceId: 'ac_tune_up', amount: 79, from: ago(20) });
     const r = (await registry.invoke(owner, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'ac_tune_up' })) as PriceHistoryView;
