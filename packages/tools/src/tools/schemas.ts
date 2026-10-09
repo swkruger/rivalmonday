@@ -334,3 +334,12 @@ export const GeoGridView = z.object({
   radiusKm: z.number().nullable(),
 });
 export type GeoGridView = z.infer<typeof GeoGridView>;
+
+export const ShareOfVoiceView = z.object({
+  keyword: z.string().nullable(),
+  keywords: z.array(z.string()),
+  scans: z.array(ScanRef),
+  /** Shares 0–1 per scan (null when the scan had no top-3 results); the last series is `other_businesses`. */
+  series: z.array(z.object({ key: z.string(), name: z.string(), self: z.boolean(), points: z.array(z.number().nullable()) })),
+});
+export type ShareOfVoiceView = z.infer<typeof ShareOfVoiceView>;

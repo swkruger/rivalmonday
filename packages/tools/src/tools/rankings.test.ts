@@ -2,7 +2,7 @@ import { client } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { GeoGridView } from './schemas';
+import type { GeoGridView, ShareOfVoiceView } from './schemas';
 import { ago, ctx, dbs, gridSnapshots, registry, resetWorkspace, rr, seedRankScan, seedSelf, setPlace } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
@@ -81,5 +81,48 @@ describe('get_geogrid', () => {
     await expect(registry.invoke(am, 'get_geogrid', { clientId: IDS.clientA1, business: IDS.competitorY })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(am, 'get_geogrid', { clientId: IDS.clientA1, business: 'self' })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(ownerNoDash, 'get_geogrid', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+  });
+});
+
+describe('get_share_of_voice', () => {
+  it('splits the top-3 slots between you, competitors and other businesses per scan (decision 10)', async () => {
+    await setupClient();
+    const a = await seedRankScan({
+      finishedAt: ago(40),
+      snapshots: [
+        ...gridSnapshots('ac repair', 1, () => [rr(1, 'self-place'), rr(2, 'px'), rr(3, 'o1')]),
+        ...gridSnapshots('plumber', 1, () => [rr(1, 'o1'), rr(2, 'o2'), rr(3, 'o3')]),
+      ],
+    });
+    const b = await seedRankScan({ finishedAt: ago(5), snapshots: gridSnapshots('ac repair', 2, () => [rr(1, 'px'), rr(2, 'o1'), rr(3, 'o2'), rr(4, 'self-place')]) });
+    const c = await seedRankScan({ finishedAt: ago(1), snapshots: gridSnapshots('ac repair', 1, () => []) });
+    await seedRankScan({ finishedAt: ago(1), snapshots: gridSnapshots('ac repair', 1, () => [rr(1, 'px')]), clientId: IDS.clientA2 });
+
+    const r = (await registry.invoke(owner, 'get_share_of_voice', { clientId: IDS.clientA1 })) as ShareOfVoiceView;
+    expect(r.scans.map((s) => s.id)).toEqual([a, b, c]);
+    expect([r.keyword, r.keywords]).toEqual([null, ['ac repair', 'plumber']]);
+    expect(r.series.map((s) => [s.key, s.name, s.self, s.points])).toEqual([
+      ['self', 'A1 HVAC', true, [0.167, 0, null]],
+      [IDS.competitorX, 'Smith HVAC', false, [0.167, 0.333, null]],
+      ['other_businesses', 'Other businesses', false, [0.667, 0.667, null]],
+    ]);
+  });
+
+  it('filters one keyword, limits the scans, and treats an unknown keyword as all', async () => {
+    await setupClient();
+    await seedRankScan({
+      finishedAt: ago(40),
+      snapshots: [
+        ...gridSnapshots('ac repair', 1, () => [rr(1, 'self-place'), rr(2, 'px'), rr(3, 'o1')]),
+        ...gridSnapshots('plumber', 1, () => [rr(1, 'o1'), rr(2, 'o2'), rr(3, 'o3')]),
+      ],
+    });
+    const newest = await seedRankScan({ finishedAt: ago(5), snapshots: gridSnapshots('ac repair', 1, () => [rr(1, 'px')]) });
+    const one = (await registry.invoke(am, 'get_share_of_voice', { clientId: IDS.clientA1, keyword: 'ac repair' })) as ShareOfVoiceView;
+    expect(one.series[0]!.points[0]).toBeCloseTo(0.333, 3);
+    const last = (await registry.invoke(am, 'get_share_of_voice', { clientId: IDS.clientA1, scans: 1 })) as ShareOfVoiceView;
+    expect(last.scans.map((s) => s.id)).toEqual([newest]);
+    expect(((await registry.invoke(am, 'get_share_of_voice', { clientId: IDS.clientA1, keyword: 'zzz' })) as ShareOfVoiceView).keyword).toBeNull();
+    await expect(registry.invoke(ownerNoDash, 'get_share_of_voice', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
   });
 });
