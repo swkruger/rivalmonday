@@ -22,6 +22,8 @@ export interface AuthDeps {
    * right-check and send run here so invited and uninvited emails get the same response in the same time (decision 2).
    */
   runInBackground: (task: Promise<unknown>) => void;
+  /** Dev panel only (deviation 4): receives each sign-in URL synchronously, before the background send. */
+  onMagicLink?: (email: string, url: string) => void;
   now?: () => Date;
 }
 
@@ -52,6 +54,7 @@ export function buildAuthOptions(deps: AuthDeps): BetterAuthOptions {
         // Decision 2: no link for people without a right to sign in. The check and the send run in the background, so the
         // response (status, body and timing) is the same either way and a failed send never surfaces to the caller.
         sendMagicLink: ({ email, url }) => {
+          deps.onMagicLink?.(email, url);
           deps.runInBackground((async () => {
             if (!(await hasSignInRight(deps.service, email, now()))) return;
             await deps.sendEmail(email, { template: 'sign_in', props: { branding: await deps.branding(), url, expiresMinutes: MAGIC_LINK_MINUTES } });

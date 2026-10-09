@@ -136,3 +136,19 @@ describe('5b-2 hardening (decision 14)', () => {
     expect(await before(session as never, undefined as never)).not.toBe(false);
   });
 });
+
+describe('onMagicLink (dev panel sign-in, deviation 4)', () => {
+  it('hands the verify URL to the hook synchronously, before the background send', async () => {
+    const seen: [string, string][] = [];
+    const devAuth = betterAuth(buildAuthOptions({
+      env, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null),
+      runInBackground: (task) => void background.push(task), sendEmail: async () => {},
+      onMagicLink: (email, url) => seen.push([email, url]),
+    }));
+    await (devAuth.api as unknown as { signInMagicLink: (a: unknown) => Promise<unknown> }).signInMagicLink({ body: { email: 'someone@example.com', callbackURL: '/agency' }, headers: new Headers() });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]![0]).toBe('someone@example.com');
+    expect(seen[0]![1]).toMatch(/\/api\/auth\/magic-link\/verify\?token=[^&]+&callbackURL=%2Fagency/);
+    await flush();
+  });
+});

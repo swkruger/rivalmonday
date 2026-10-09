@@ -3,7 +3,7 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createEmailTransportFromEnv, createFileTransport, createPostmarkTransport, isPostmarkTestServer, PermanentEmailError, POSTMARK_URL } from './transport';
+import { createConsoleTransport, createEmailTransportFromEnv, createFileTransport, createPostmarkTransport, isPostmarkTestServer, PermanentEmailError, POSTMARK_URL } from './transport';
 
 const msg = { from: 'Acme <briefs@acme.example>', to: 'pat@a1.example', replyTo: 'sam@acme.example', subject: 'S', html: '<p>h</p>', text: 'h', tag: 'alert', metadata: { notification: 'n1' } };
 const scope = { agencyId: 'a', clientId: 'c' };
@@ -79,5 +79,17 @@ describe('file transport', () => {
   it('is the default without a Postmark token', () => {
     expect(createEmailTransportFromEnv({ EMAIL_OUTBOX_DIR: '/tmp/x' }, ledger().sink).kind).toBe('file');
     expect(createEmailTransportFromEnv({ POSTMARK_SERVER_TOKEN: 'tok' }, ledger().sink).kind).toBe('postmark');
+  });
+});
+
+describe('createConsoleTransport (demo spec §5.5)', () => {
+  it('logs the message and sends nothing anywhere', async () => {
+    const lines: string[] = [];
+    const t = createConsoleTransport((l) => lines.push(l));
+    const r = await t.send({ from: 'a@x.co', to: 'admin@demo.rivalmonday.test', replyTo: null, subject: 'Sign in', html: '<p>hi</p>', text: 'Open https://x/verify', tag: 'sign_in', metadata: {} }, { agencyId: null, clientId: null });
+    expect(t.kind).toBe('console');
+    expect(r.providerId).toMatch(/^console:/);
+    expect(lines.join('\n')).toContain('admin@demo.rivalmonday.test');
+    expect(lines.join('\n')).toContain('https://x/verify');
   });
 });

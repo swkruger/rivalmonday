@@ -1,13 +1,16 @@
 import 'server-only';
 import { createLedgerSink, type EnvName } from '@cs/db';
-import { createEmailTransportFromEnv, renderEmail } from '@cs/email';
+import { renderEmail } from '@cs/email';
 import { betterAuth } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
 import { after } from 'next/server';
 import { Pool } from 'pg';
 import { buildAuthOptions } from './auth-options';
 import { defaultBranding } from './branding';
+import { processGuardOn } from './dev-guard';
+import { devHooks } from './dev-hooks';
 import { dbs } from './db';
+import { webEmailTransport } from './email-transport';
 import { perEnv } from './env-cache';
 import { webEnv } from './env';
 import { envUrls } from './runtime-env';
@@ -15,10 +18,11 @@ import { envUrls } from './runtime-env';
 function create(name: EnvName) {
   const env = webEnv();
   const { service } = dbs();
-  const transport = createEmailTransportFromEnv(process.env, createLedgerSink(service));
+  const transport = webEmailTransport(processGuardOn(), process.env, createLedgerSink(service));
   const pool = new Pool({ connectionString: envUrls(name).service, max: 5 });
   const options = buildAuthOptions({
     env, service, pool,
+    onMagicLink: (email, url) => devHooks.onMagicLink?.(email, url),
     branding: () => defaultBranding(service, env),
     runInBackground: (task) => after(task),
     sendEmail: async (to, payload) => {

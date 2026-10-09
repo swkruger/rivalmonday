@@ -14,7 +14,7 @@ export interface OutgoingEmail {
   metadata: Record<string, string>;
 }
 export interface EmailTransport {
-  readonly kind: 'postmark' | 'file' | 'memory';
+  readonly kind: 'postmark' | 'file' | 'memory' | 'console';
   send(msg: OutgoingEmail, scope: CallScope): Promise<{ providerId: string }>;
 }
 /** The address can never receive this message (invalid, inactive, suppressed): do not retry. */
@@ -83,6 +83,20 @@ export function createFileTransport(dir: string): EmailTransport {
 export function createMemoryTransport(): EmailTransport & { sent: OutgoingEmail[] } {
   const sent: OutgoingEmail[] = [];
   return { kind: 'memory', sent, send: async (msg) => (sent.push(msg), { providerId: `mem:${sent.length}` }) };
+}
+
+/** Demo spec §5.5: the dev panel's sender — prints the message, sends nothing. Only the web app's guard selects it. */
+export function createConsoleTransport(log: (line: string) => void = console.log): EmailTransport {
+  let n = 0;
+  return {
+    kind: 'console',
+    async send(msg) {
+      n++;
+      log(`[email:console] to=${msg.to} subject=${JSON.stringify(msg.subject)}
+${msg.text}`);
+      return { providerId: `console:${n}` };
+    },
+  };
 }
 
 export function createEmailTransportFromEnv(env: NodeJS.ProcessEnv, ledger: LedgerSink): EmailTransport {
