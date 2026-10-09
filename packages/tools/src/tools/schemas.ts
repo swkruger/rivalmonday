@@ -274,3 +274,12 @@ export const PriceHistoryView = z.object({
   series: z.array(z.object({ competitorId: uuid, name: z.string(), points: z.array(z.number().nullable()) })),
 });
 export type PriceHistoryView = z.infer<typeof PriceHistoryView>;
+
+export const AdView = z.object({
+  id: uuid, competitorId: uuid, competitorName: z.string(), platform: z.enum(['meta', 'google']), format: z.string().nullable(),
+  title: z.string().nullable(), text: z.string().nullable(), landingUrl: z.string().nullable(),
+  firstSeenAt: iso, lastSeenAt: iso, endedAt: iso.nullable(), active: z.boolean(), libraryUrl: z.string().nullable(),
+});
+export type AdView = z.infer<typeof AdView>;
+export const AdList = z.object({ items: z.array(AdView), hasMore: z.boolean() });
+export type AdList = z.infer<typeof AdList>;
