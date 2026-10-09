@@ -13,6 +13,13 @@ describe('foldSeries', () => {
     expect(f[4]!.points).toEqual([null, 3, 3, 3]);
   });
 
+  it('keeps the alphabetically first of tied series when a tie straddles the cut', () => {
+    const s = (name: string) => ({ key: name, name, points: [1] });
+    const folded = foldSeries([s('C'), s('A'), s('D'), s('B')], 3);
+    expect(folded.map((x) => x.name)).toEqual(['A', 'B', 'Other']);
+    expect(folded.at(-1)!.points).toEqual([2]);
+  });
+
   it('breaks ties alphabetically, ranks an all-null series last, and gives Other null points when the folded rest has no data', () => {
     const s = (name: string, points: (number | null)[]) => ({ key: name, name, points });
     const folded = foldSeries([s('E', [1]), s('D', [1]), s('C', [5]), s('B', [null]), s('A', [5]), s('F', [null])]);
@@ -78,11 +85,13 @@ describe('LineChart', () => {
   });
 
   it('gives the table a caption and header scopes, and ignores points beyond the labels', () => {
-    render(<LineChart title="Ads" labels={['2026-10-01']} series={[{ key: 'a', name: 'A', points: [3, 9] }]} valueLabel="ads" period="scan" />);
+    const { container } = render(<LineChart title="Ads" labels={['2026-10-01']} series={[{ key: 'a', name: 'A', points: [3, 9] }]} valueLabel="ads" period="scan" />);
     const table = screen.getByRole('table');
     expect(table.querySelector('caption')!.textContent).toBe('Ads');
     expect(table.querySelector('th[scope="col"]')!.textContent).toBe('Scan of');
     expect(table.querySelectorAll('th[scope="row"]')).toHaveLength(1);
-    expect(screen.queryByText('9')).toBeNull();
+    // the stray 9 must not stretch the axis (it would be 0/5/10) or draw a second point
+    expect([...container.querySelectorAll('svg > g > text')].map((n) => n.textContent)).toEqual(['0', '2', '4']);
+    expect(container.querySelectorAll('svg title')).toHaveLength(1);
   });
 });
