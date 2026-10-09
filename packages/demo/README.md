@@ -29,26 +29,26 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/team` | admin | `fn:listTeam`, `list_clients` | — |
 | `/agency/usage` | admin | `get_usage` | — |
 | `/agency/webhooks` | admin | `fn:listWebhooks` | — |
-| `/c/[clientId]` | admin | `get_workspace_overview`, `get_ad_activity`, `list_alerts`, `list_briefs`, `list_moves`, `list_recommendations`, `list_trend_reports` | — |
-| `/c/[clientId] (client owner)` | ownerLoneStar | `get_workspace_overview`, `list_briefs` | — |
-| `/c/[clientId]/ads` | admin | `list_ads` | `list_ads`: one competitor runs no ads |
+| `/c/[clientId]` | admin | `get_client_profile`, `get_workspace_overview`, `get_ad_activity`, `get_brief`, `list_alerts`, `list_briefs`, `list_moves`, `list_recommendations`, `list_trend_reports` | — |
+| `/c/[clientId] (client owner)` | ownerLoneStar | `get_workspace_overview`, `list_briefs`, `get_brief` | — |
+| `/c/[clientId]/ads` | admin | `get_ad_activity`, `list_ads` | `list_ads`: one competitor runs no ads |
 | `/c/[clientId]/alerts/[alertId]` | admin | `get_alert` | — |
 | `/c/[clientId]/briefs/[briefId]` | ownerLoneStar | `get_brief` | — |
-| `/c/[clientId]/changes` | admin | `search_events`, `get_event`, `compare_snapshots`, `list_client_competitors` | — |
-| `/c/[clientId]/competitors` | admin | `list_client_competitors`, `list_competitor_suggestions` | — |
-| `/c/[clientId]/competitors/[competitorId]` | admin | `get_competitor_profile`, `get_competitor_timeline`, `list_tracked_pages` | — |
+| `/c/[clientId]/changes` | admin | `search_events`, `get_event`, `compare_snapshots`, `list_client_competitors`, `get_client_profile` | — |
+| `/c/[clientId]/competitors` | admin | `get_client_profile`, `list_client_competitors`, `list_competitor_suggestions`, `get_competitor_search_status` | — |
+| `/c/[clientId]/competitors/[competitorId]` | admin | `get_competitor_profile`, `get_competitor_timeline`, `list_tracked_pages`, `get_price_matrix`, `list_ads`, `get_theme_benchmark`, `get_geogrid` | — |
 | `/c/[clientId]/evidence/[evidenceId]` | admin | `get_evidence` | — |
 | `/c/[clientId]/moves` | admin | `list_moves`, `get_move` | — |
-| `/c/[clientId]/pitch-snapshot` | admin | `get_prospect_report` | — |
+| `/c/[clientId]/pitch-snapshot` | admin | `get_client_profile`, `get_prospect_report` | — |
 | `/c/[clientId]/pricing` | admin | `get_price_matrix`, `get_price_history` | `get_price_history`: one competitor shows no prices |
 | `/c/[clientId]/rankings` | admin | `get_geogrid`, `get_share_of_voice` | `get_geogrid`: one competitor never ranks |
 | `/c/[clientId]/rankings (Brazos)` | admin | `get_geogrid` | — |
-| `/c/[clientId]/recommendations` | admin | `list_recommendations` | — |
+| `/c/[clientId]/recommendations` | admin | `get_client_profile`, `list_recommendations` | — |
 | `/c/[clientId]/reports/[reportId]` | admin | `get_trend_report` | — |
 | `/c/[clientId]/reviews` | admin | `get_theme_benchmark`, `get_rating_trend`, `search_reviews` | — |
 | `/c/[clientId]/reviews (Brazos)` | admin | `get_rating_trend` | `search_reviews`: Brazos has no own business ("add your place id"); `search_reviews`: one competitor has no reviews |
 | `/c/[clientId]/settings/ai` | admin | `get_client_profile` | — |
-| `/c/[clientId]/settings/alerts` | admin | `get_alert_rules` | — |
+| `/c/[clientId]/settings/alerts` | admin | `get_client_profile`, `get_alert_rules` | — |
 | `/c/[clientId]/settings/delivery` | admin | `get_client_profile` | — |
 | `/c/[clientId]/settings/profile` | admin | `get_client_profile` | — |
 | `/inbox` | admin | `fn:listInbox` | — |

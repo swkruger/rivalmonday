@@ -28,9 +28,19 @@ const none = () => ({});
 /** Lone Star's first event and move (the ids lists hold both active clients). */
 const lsEvent = (ids: DemoIds) => ids.events.find((e) => e.client === 'loneStar')!;
 const lsMove = (ids: DemoIds) => ids.moves.find((m) => m.client === 'loneStar')!;
+/** The competitor the profile-page entry opens (not one of the `noData` competitors). */
+const lsComp = (ids: DemoIds) => ids.competitors.loneStar[0]!.id;
+/** Most workspace pages read the client profile for their header or settings. */
+const lsProfile: CoverageCall = { tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' };
 
 /** Pages that show forms only (no seeded data to check). */
 export const NO_DATA_ROUTES = ['/agency/clients/new', '/agency/prospects/new'] as const;
+
+/**
+ * Tools read by `(app)/layout.tsx` on every page. They are checked once, in the screen entry named here, rather
+ * than in every entry; the coverage test requires each layout read to be listed and its entry to call it.
+ */
+export const SHARED_READS: Readonly<Record<string, string>> = { list_clients: '/agency/team' };
 
 /** Spec §4.9: every screen route, the tool calls it makes, and the empty states left on purpose. */
 export const SCREENS: readonly ScreenCoverage[] = [
@@ -54,8 +64,11 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/agency/webhooks', as: 'admin', calls: [{ tool: 'fn:listWebhooks', input: none }] },
   {
     route: '/c/[clientId]', as: 'admin', calls: [
+      lsProfile,
       { tool: 'get_workspace_overview', input: (ids) => ({ clientId: ls(ids) }), path: 'pressure.*.pressure.score' },
-      { tool: 'get_ad_activity', input: (ids) => ({ clientId: ls(ids) }), path: 'series.*.points' },
+      { tool: 'get_ad_activity', input: (ids) => ({ clientId: ls(ids), weeks: 12 }), path: 'series.*.points' },
+      // The overview opens the newest brief in the list: the agency sees the ready one first.
+      { tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.readyLoneStar }), path: 'items' },
       { tool: 'list_alerts', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       { tool: 'list_briefs', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       { tool: 'list_moves', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
@@ -63,9 +76,19 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'list_trend_reports', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
     ],
   },
-  { route: '/c/[clientId] (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'get_workspace_overview', input: (ids) => ({ clientId: ls(ids) }), path: 'pressure.*.pressure.score' }, { tool: 'list_briefs', input: (ids) => ({ clientId: ls(ids) }), path: 'items' }] },
+  {
+    route: '/c/[clientId] (client owner)', as: 'ownerLoneStar', calls: [
+      { tool: 'get_workspace_overview', input: (ids) => ({ clientId: ls(ids) }), path: 'pressure.*.pressure.score' },
+      { tool: 'list_briefs', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
+      // A client owner sees sent briefs only; the newest is the first of `sentLoneStar` (this week's Monday).
+      { tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.sentLoneStar[0] }), path: 'items' },
+    ],
+  },
   {
     route: '/c/[clientId]/ads', as: 'admin', calls: [
+      // The page's own inputs: 12 weeks of activity, then the list filtered to active ads by default.
+      { tool: 'get_ad_activity', input: (ids) => ({ clientId: ls(ids), weeks: 12 }), path: 'series.*.points' },
+      { tool: 'list_ads', input: (ids) => ({ clientId: ls(ids), status: 'active', offset: 0 }), path: 'items' },
       { tool: 'list_ads', input: (ids) => ({ clientId: ls(ids), status: 'all' }), path: 'items' },
       { tool: 'list_ads', input: (ids) => ({ clientId: ls(ids), competitorId: ids.noData.ads, status: 'all' }), path: 'items', expect: 'empty', why: 'one competitor runs no ads' },
     ],
@@ -78,19 +101,27 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'get_event', input: (ids) => ({ clientId: ls(ids), eventId: lsEvent(ids).id }), path: 'changes' },
       { tool: 'compare_snapshots', input: (ids) => ({ clientId: ls(ids), changeId: lsEvent(ids).changeId }), path: 'after' },
       { tool: 'list_client_competitors', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
+      lsProfile,
     ],
   },
   {
     route: '/c/[clientId]/competitors', as: 'admin', calls: [
+      lsProfile,
       { tool: 'list_client_competitors', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       { tool: 'list_competitor_suggestions', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
+      // Job progress lives in the worker's queue, not in seeded tables: the demo shows the idle state ("Find competitors").
+      { tool: 'get_competitor_search_status', input: (ids) => ({ clientId: ls(ids) }), path: 'state' },
     ],
   },
   {
     route: '/c/[clientId]/competitors/[competitorId]', as: 'admin', calls: [
-      { tool: 'get_competitor_profile', input: (ids) => ({ clientId: ls(ids), competitorId: ids.competitors.loneStar[0]!.id }), path: 'gbp' },
-      { tool: 'get_competitor_timeline', input: (ids) => ({ clientId: ls(ids), competitorId: ids.competitors.loneStar[0]!.id }), path: 'items' },
-      { tool: 'list_tracked_pages', input: (ids) => ({ clientId: ls(ids), competitorId: ids.competitors.loneStar[0]!.id }), path: 'items' },
+      { tool: 'get_competitor_profile', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids) }), path: 'gbp' },
+      { tool: 'get_competitor_timeline', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids), days: 90 }), path: 'items' },
+      { tool: 'list_tracked_pages', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids) }), path: 'items' },
+      { tool: 'get_price_matrix', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids) }), path: 'rows.*.cells.*.prices' },
+      { tool: 'list_ads', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids), limit: 3 }), path: 'items' },
+      { tool: 'get_theme_benchmark', input: (ids) => ({ clientId: ls(ids) }), path: 'businesses.*.reviews' },
+      { tool: 'get_geogrid', input: (ids) => ({ clientId: ls(ids), business: lsComp(ids) }), path: 'top3' },
     ],
   },
   { route: '/c/[clientId]/evidence/[evidenceId]', as: 'admin', calls: [{ tool: 'get_evidence', input: (ids) => ({ clientId: ls(ids), evidenceId: lsEvent(ids).evidenceIds[0] }), path: 'citedBy' }] },
@@ -100,7 +131,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'get_move', input: (ids) => ({ clientId: ls(ids), moveId: lsMove(ids).id }), path: 'events' },
     ],
   },
-  { route: '/c/[clientId]/pitch-snapshot', as: 'admin', calls: [{ tool: 'get_prospect_report', input: (ids) => ({ clientId: ls(ids) }), path: 'report.data.businesses.*.gbp' }] },
+  { route: '/c/[clientId]/pitch-snapshot', as: 'admin', calls: [lsProfile, { tool: 'get_prospect_report', input: (ids) => ({ clientId: ls(ids) }), path: 'report.data.businesses.*.gbp' }] },
   {
     route: '/c/[clientId]/pricing', as: 'admin', calls: [
       { tool: 'get_price_matrix', input: (ids) => ({ clientId: ls(ids) }), path: 'rows.*.cells.*.prices' },
@@ -116,7 +147,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
     ],
   },
   { route: '/c/[clientId]/rankings (Brazos)', as: 'admin', calls: [{ tool: 'get_geogrid', input: (ids) => ({ clientId: bz(ids) }), path: 'cells' }] },
-  { route: '/c/[clientId]/recommendations', as: 'admin', calls: [{ tool: 'list_recommendations', input: (ids) => ({ clientId: ls(ids) }), path: 'items' }] },
+  { route: '/c/[clientId]/recommendations', as: 'admin', calls: [lsProfile, { tool: 'list_recommendations', input: (ids) => ({ clientId: ls(ids) }), path: 'items' }] },
   { route: '/c/[clientId]/reports/[reportId]', as: 'admin', calls: [{ tool: 'get_trend_report', input: (ids) => ({ reportId: ids.reportId }), path: 'data' }] },
   {
     route: '/c/[clientId]/reviews', as: 'admin', calls: [
@@ -133,7 +164,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
     ],
   },
   { route: '/c/[clientId]/settings/ai', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'name' }] },
-  { route: '/c/[clientId]/settings/alerts', as: 'admin', calls: [{ tool: 'get_alert_rules', input: (ids) => ({ clientId: ls(ids) }), path: 'custom' }] },
+  { route: '/c/[clientId]/settings/alerts', as: 'admin', calls: [lsProfile, { tool: 'get_alert_rules', input: (ids) => ({ clientId: ls(ids) }), path: 'custom' }] },
   { route: '/c/[clientId]/settings/delivery', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'serviceArea' }] },
   { route: '/c/[clientId]/settings/profile', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' }] },
   { route: '/inbox', as: 'admin', calls: [{ tool: 'fn:listInbox', input: none }] },
@@ -167,6 +198,12 @@ export function isNonEmpty(v: unknown): boolean {
   if (Array.isArray(v)) return v.some(isNonEmpty);
   if (typeof v === 'object') return Object.values(v as Record<string, unknown>).some(isNonEmpty);
   return true;
+}
+
+/** Tool names a page module reads: string literals passed to `callTool`/`tryCallTool` (apps/web/src/server/tools.ts). */
+export function toolReadsOf(source: string): string[] {
+  const names = [...source.matchAll(/\b(?:callTool|tryCallTool)\s*(?:<[^'"`]*?>)?\(\s*\w+\s*,\s*['"]([a-z_]+)['"]/g)].map((m) => m[1]!);
+  return [...new Set(names)].sort();
 }
 
 /** The route of a coverage entry without its "(…)" suffix. */
