@@ -3,8 +3,9 @@ import { observation, review, reviewAnalysis } from '@cs/db';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { loadVerticalPack } from '@cs/verticals';
-import { eq, sql } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { EVENT_SPECS } from './changes';
 import { createSeedContext, type SeedContext } from './context';
 import { FIRST_NAMES, HVAC_THEMES, LAST_INITIALS, LATE_PHRASE } from './names';
 import { seedReviews } from './reviews';
@@ -61,10 +62,43 @@ describe('seedReviews', () => {
 
   it('gives every business a GBP profile with a rating, except the no-reviews competitor (no rating)', async () => {
     const obs = await dbs.owner.select().from(observation).where(eq(observation.kind, 'gbp_profile'));
-    expect(obs).toHaveLength(13);
+    expect(obs).toHaveLength(16); // 13 businesses + 3 older profiles before rating changes
     const empty = obs.find((o) => o.competitorId === ctx.ids.noData.reviews)!;
     expect(empty.data.rating).toBeNull();
     expect(obs.find((o) => o.competitorId === ctx.ids.selfLoneStar)!.data.rating).toEqual(expect.any(Number));
     expect(ctx.ids.sampleReviewIds).toHaveLength(3);
+  });
+
+  it('backs every review_spike event with at least `count` low-rated reviews on its theme in the window', async () => {
+    const spikes = EVENT_SPECS.filter((e) => e.type === 'review_spike');
+    expect(spikes.length).toBeGreaterThan(0);
+    for (const e of spikes) {
+      const d = e.details as unknown as { theme: string; count: number; windowDays: number };
+      const compId = ctx.ids.competitors[e.client][e.comp]!.id;
+      const end = ctx.clock.now.getTime() - (e.days + 0.25) * 86_400_000;
+      const rows = await dbs.owner.select({ postedAt: review.postedAt, rating: review.rating, themes: reviewAnalysis.themes }).from(review).innerJoin(reviewAnalysis, eq(reviewAnalysis.reviewId, review.id)).where(eq(review.competitorId, compId));
+      const inWindow = rows.filter((r) => r.themes.includes(d.theme) && (r.rating ?? 5) <= 2 && r.postedAt!.getTime() <= end && r.postedAt!.getTime() >= end - d.windowDays * 86_400_000);
+      expect(inWindow.length).toBeGreaterThanOrEqual(d.count);
+    }
+  });
+
+  it('backs every rating_change event with before/after review means and GBP observations', async () => {
+    const changes = EVENT_SPECS.filter((e) => e.type === 'rating_change');
+    expect(changes.length).toBe(3);
+    for (const e of changes) {
+      const d = e.details as unknown as { ratingBefore: number; ratingAfter: number };
+      const compId = ctx.ids.competitors[e.client][e.comp]!.id;
+      const at = ctx.clock.now.getTime() - (e.days + 0.25) * 86_400_000;
+      const rows = await dbs.owner.select({ postedAt: review.postedAt, rating: review.rating }).from(review).where(eq(review.competitorId, compId));
+      const mean = (xs: typeof rows) => xs.reduce((a, r) => a + r.rating!, 0) / xs.length;
+      expect(Math.abs(mean(rows.filter((r) => r.postedAt!.getTime() < at)) - d.ratingBefore)).toBeLessThanOrEqual(0.15);
+      expect(Math.abs(mean(rows.filter((r) => r.postedAt!.getTime() >= at)) - d.ratingAfter)).toBeLessThanOrEqual(0.15);
+      const obs = await dbs.owner.select().from(observation).where(eq(observation.competitorId, compId)).orderBy(asc(observation.observedAt));
+      const gbp = obs.filter((o) => o.kind === 'gbp_profile');
+      expect(gbp).toHaveLength(2);
+      expect(gbp[0]!.observedAt.getTime()).toBeLessThan(at);
+      expect(gbp[0]!.data.rating).toBe(d.ratingBefore);
+      expect(gbp[1]!.data.rating).toBe(d.ratingAfter);
+    }
   });
 });
