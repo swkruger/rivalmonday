@@ -1,4 +1,5 @@
-import { capture, changeEvent, detectedChange, evidence, move, moveEvent } from '@cs/db';
+import { createHash } from 'node:crypto';
+import { capture, changeEvent, detectedChange, evidence, eventScore, move, moveEvent } from '@cs/db';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
@@ -36,6 +37,39 @@ describe('seedChanges', () => {
   it('covers every severity and the web, ad, review, profile and jobs sources', () => {
     expect(new Set(ctx.ids.events.map((e) => e.route))).toEqual(new Set(['alert', 'brief', 'archive']));
     expect(new Set(ctx.ids.events.map((e) => e.source))).toEqual(new Set(['web', 'google_ads', 'meta_ads', 'google_reviews', 'google_business_profile', 'google_jobs']));
+  });
+
+  it('gives each client enough alert and brief events, old and recent, for the later areas', async () => {
+    const rows = await dbs.owner.select({ clientId: eventScore.clientId, route: eventScore.route, occurredAt: changeEvent.occurredAt })
+      .from(eventScore).innerJoin(changeEvent, eq(changeEvent.id, eventScore.eventId));
+    const now = ctx.clock.now.getTime();
+    const count = (client: 'loneStar' | 'brazos') => {
+      const mine = rows.filter((r) => r.clientId === ctx.ids.clients[client]);
+      const live = mine.filter((r) => r.route !== 'archive');
+      return {
+        older: live.filter((r) => now - r.occurredAt.getTime() > 7 * DAY).length,
+        recent: live.filter((r) => now - r.occurredAt.getTime() <= 7 * DAY).length,
+        alerts: mine.filter((r) => r.route === 'alert').length,
+      };
+    };
+    const ls = count('loneStar');
+    expect(ls.older).toBeGreaterThanOrEqual(8);
+    expect(ls.recent).toBeGreaterThanOrEqual(4);
+    expect(ls.alerts).toBeGreaterThanOrEqual(2);
+    const bz = count('brazos');
+    expect(bz.older).toBeGreaterThanOrEqual(4);
+    expect(bz.alerts).toBeGreaterThanOrEqual(1);
+  });
+
+  it('stores every evidence file with a matching sha256 and size', async () => {
+    const all = await dbs.owner.select().from(evidence);
+    expect(all.length).toBeGreaterThan(0);
+    for (const row of all) {
+      const bytes = await store.get(row.objectKey);
+      expect(bytes, row.objectKey).toBeTruthy();
+      expect(createHash('sha256').update(bytes!).digest('hex')).toBe(row.sha256);
+      expect(bytes!.byteLength).toBe(row.bytes);
+    }
   });
 
   it('gives each web change a before and an after capture with html, text and a real WebP screenshot', async () => {
