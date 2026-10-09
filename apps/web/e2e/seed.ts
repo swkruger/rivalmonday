@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { signLink } from '@cs/core';
-import { ad, agency, alert, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, contact, createDb, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, prospectReport, themeProposal, trackedPage } from '@cs/db';
+import { ad, agency, alert, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, contact, createDb, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
 import { createStoreFromEnv } from '@cs/storage';
 import { eq } from 'drizzle-orm';
 import { createInvitation } from '@cs/tools';
@@ -18,10 +18,10 @@ export async function seed(): Promise<void> {
     const [a] = await db.insert(agency).values({ name: 'E2E Agency', branding: { primary: '#7A3EE8' } }).returning();
     const agencyId = a!.id;
 
-    const [c] = await db.insert(client).values({ agencyId, name: 'E2E HVAC', verticalId: 'hvac_plumbing', features: ['dashboard', 'alert_rules', 'manage_competitors'] }).returning();
+    const [c] = await db.insert(client).values({ agencyId, name: 'E2E HVAC', verticalId: 'hvac_plumbing', features: ['dashboard', 'alert_rules', 'manage_competitors'], keywords: ['ac repair'], serviceArea: { center: { lat: 32.4, lng: -97.79 }, radiusKm: 25, zips: ['76048'] }, placeId: 'e2e-self-place' }).returning();
     const clientId = c!.id;
 
-    const [comp] = await db.insert(competitor).values({ name: 'Smith HVAC' }).returning();
+    const [comp] = await db.insert(competitor).values({ name: 'Smith HVAC', placeId: 'e2e-smith-place' }).returning();
     await db.insert(clientCompetitor).values({ agencyId, clientId, competitorId: comp!.id });
 
     const [b] = await db
@@ -190,6 +190,41 @@ async function seedWorkspace(
   const adsAt = new Date(Date.now() - 20 * DAY);
   const [adsCap] = await db.insert(capture).values({ competitorId, source: 'google_ads', status: 'ok', collectorVersion: 'e2e', capturedAt: adsAt }).returning();
   await db.insert(ad).values({ competitorId, platform: 'google', externalId: 'e2e-ad-1', title: 'AC tune-up special', isActive: true, firstSeenAt: adsAt, lastSeenAt: new Date(), firstCaptureId: adsCap!.id, lastCaptureId: adsCap!.id });
+
+  // 5c-2 data views.
+  const ago = (days: number) => new Date(Date.now() - days * DAY);
+  await db.insert(pricePoint).values([
+    { competitorId, trackedPageId: page!.id, verticalId: 'hvac_plumbing', serviceId: 'ac_tune_up', amount: 99, unit: 'USD', qualifier: 'exact', promo: false, raw: '$99', context: 'AC tune-up $99',
+      firstSeenAt: ago(120), lastSeenAt: ago(2), firstCaptureId: before.id, lastCaptureId: before.id, endedAt: ago(1), endedCaptureId: after.id },
+    { competitorId, trackedPageId: page!.id, verticalId: 'hvac_plumbing', serviceId: 'ac_tune_up', amount: 79, unit: 'USD', qualifier: 'exact', promo: true, raw: '$79', context: 'AC tune-up $79',
+      firstSeenAt: ago(1), lastSeenAt: new Date(), firstCaptureId: after.id, lastCaptureId: after.id },
+  ]);
+
+  await db.insert(ad).values({ competitorId, platform: 'meta', externalId: 'e2e-meta-1', title: 'Spring AC special', text: 'Book a $49 tune-up this week.', isActive: true, firstSeenAt: adsAt, lastSeenAt: new Date(), firstCaptureId: adsCap!.id, lastCaptureId: adsCap!.id });
+
+  const [self] = await db.insert(competitor).values({ name: 'E2E HVAC', placeId: 'e2e-self-place' }).returning();
+  await db.update(client).set({ selfCompetitorId: self!.id }).where(eq(client.id, clientId));
+  const [r1] = await db.insert(review).values({ competitorId, dedupeKey: 'e2e-r1', rating: 2, text: 'The technician was late and pushy.', reviewerHash: 'e2e-hash-1', postedAt: ago(3) }).returning();
+  const [r2] = await db.insert(review).values({ competitorId: self!.id, dedupeKey: 'e2e-r2', rating: 5, text: 'Fast and friendly service.', reviewerHash: 'e2e-hash-2', postedAt: ago(4) }).returning();
+  await db.insert(reviewAnalysis).values([
+    { reviewId: r1!.id, verticalId: 'hvac_plumbing', competitorId, textSha: 'e2e', asked: ['response_time', 'upsell_pressure'], themes: ['response_time', 'upsell_pressure'], sentiment: 0, confidence: 0.9, analysisVersion: 1 },
+    { reviewId: r2!.id, verticalId: 'hvac_plumbing', competitorId: self!.id, textSha: 'e2e', asked: ['response_time'], themes: ['response_time'], sentiment: 4, confidence: 0.9, analysisVersion: 1 },
+  ]);
+
+  const [scan] = await db.insert(rankScan).values({ agencyId, clientId, status: 'done', snapshots: 8, startedAt: ago(2), finishedAt: ago(2) }).returning();
+  const res = (rank: number, placeId: string, title: string) => ({ rank, placeId, cid: null, domain: null, title });
+  const round = (n: number) => Math.round(n * 1e6) / 1e6;
+  const snaps = [];
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      if (r === 2 && c === 2) continue; // a failed point → "no data"
+      const results = r === 0
+        ? [res(1, 'e2e-self-place', 'E2E HVAC'), res(2, 'e2e-smith-place', 'Smith HVAC'), res(3, 'e2e-other', 'Other Air')]
+        : [res(1, 'e2e-smith-place', 'Smith HVAC'), res(2, 'e2e-other', 'Other Air'), res(3, 'e2e-other-2', 'Third Air'), res(5, 'e2e-self-place', 'E2E HVAC')];
+      snaps.push({ agencyId, clientId, scanId: scan!.id, keyword: 'ac repair', lat: round(32.45 - 0.05 * r), lng: round(-97.84 + 0.05 * c), results, capturedAt: ago(2) });
+    }
+  }
+  await db.insert(rankSnapshot).values(snaps);
 
   await db.update(briefItem).set({ evidenceIds: [after.shot] }).where(eq(briefItem.id, o.sentItemId));
 }

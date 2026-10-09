@@ -101,14 +101,14 @@ export default async function CompetitorProfilePage({
         </Kpi>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <PricesSection clientId={clientId} competitorId={competitorId} matrix={matrix} />
         <AdsSection clientId={clientId} competitorId={competitorId} ads={ads} />
         <ReviewsSection clientId={clientId} competitorId={competitorId} benchmark={benchmark} />
         <RankingsSection clientId={clientId} competitorId={competitorId} geo={geo} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
         <Card>
           <CardHeader>
             <CardTitle>Timeline</CardTitle>

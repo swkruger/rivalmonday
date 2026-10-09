@@ -24,7 +24,7 @@ import { activeBriefItems, kpiCards } from './overview-kpis';
 export const dynamic = 'force-dynamic';
 
 const BAR: Record<'low' | 'elevated' | 'high', string> = { high: 'bg-[#DC2626]', elevated: 'bg-amber', low: 'bg-primary' };
-const cardCls = 'rounded-[14px] bg-surface p-6 shadow-card';
+const cardCls = 'min-w-0 rounded-[14px] bg-surface p-6 shadow-card';
 const linkCls = 'font-semibold text-primary-soft-text';
 
 export default async function ClientHome({ params }: { params: Promise<{ clientId: string }> }) {

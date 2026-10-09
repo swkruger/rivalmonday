@@ -1,21 +1,7 @@
-import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { signIn } from './helpers';
+import { ADMIN_STATE, ensureAdminState } from './admin-session';
 
-/** One sign-in for the whole file (magic-link rate limit, HANDOVER §6), reused as storage state — same pattern as workflow.spec.ts. */
-const ADMIN_STATE = fileURLToPath(new URL('../test-results/admin-state.json', import.meta.url));
-
-test.beforeAll(async ({ browser }, testInfo) => {
-  // workflow.spec.ts (earlier in the run) already saved a session; sign in again only when running this file alone.
-  if (existsSync(ADMIN_STATE)) return;
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
-  const page = await context.newPage();
-  await signIn(page, 'admin@e2e.test');
-  await expect(page).toHaveURL(/\/agency$/);
-  await context.storageState({ path: ADMIN_STATE });
-  await context.close();
-});
+test.beforeAll(async ({ browser }, testInfo) => ensureAdminState(browser, testInfo));
 
 test.use({ storageState: ADMIN_STATE });
 

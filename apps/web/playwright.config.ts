@@ -16,6 +16,9 @@ export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
   fullyParallel: false,
   workers: 1,
+  // Pages query a remote Neon DB (hundreds of ms per round trip); the 5c-2 pages make several each.
+  timeout: 90_000,
+  expect: { timeout: 15_000 },
   use: { baseURL: `http://localhost:${PORT}` },
   webServer: {
     command: `pnpm build && pnpm start --port ${PORT}`,
