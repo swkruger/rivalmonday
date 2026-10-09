@@ -11,9 +11,14 @@ export const metadata: Metadata = { title: 'Rival Monday', robots: { index: fals
 /** Review Focus 5: `style` only ever carries the validated hex colours `themeVars` returns — never raw agency input. */
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { style } = await themeForViewer(await getViewer());
+  // Spec 5.3: constant-folded away in production builds, so no panel code is bundled there.
+  const banner = process.env.NODE_ENV !== 'production' ? await (await import('@/dev-panel/mount')).devBanner() : null;
   return (
     <html lang="en" className={inter.variable} style={style as React.CSSProperties}>
-      <body>{children}</body>
+      <body>
+        {banner}
+        {children}
+      </body>
     </html>
   );
 }

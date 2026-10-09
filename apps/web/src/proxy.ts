@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { safeNext } from './server/safe-next';
 
-const PUBLIC = [/^\/sign-in(\/|$)/, /^\/api\/auth\//, /^\/l\//, /^\/health$/, /^\/link-expired$/, /^\/link-other-account$/, /^\/_next\//, /^\/favicon/];
+const PUBLIC = [/^\/sign-in(\/|$)/, /^\/api\/auth\//, /^\/l\//, /^\/health$/, /^\/link-expired$/, /^\/link-other-account$/, /^\/_next\//, /^\/favicon/, /^\/dev-panel\//];
 
 /**
  * Cheap presence check only — it just gates on whether *some* session or guest cookie exists so unauthenticated
