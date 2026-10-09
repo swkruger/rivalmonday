@@ -14,3 +14,5 @@ export * from './rankings';
 export * from './briefs';
 export * from './agency';
 export * from './platform';
+export * from './coverage';
+export * from './seed';

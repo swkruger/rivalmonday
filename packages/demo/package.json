@@ -10,7 +10,8 @@
   },
   "scripts": {
     "typecheck": "tsc -p .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "coverage:readme": "tsx src/cli/coverage-readme.ts"
   },
   "dependencies": {
     "@cs/collectors": "workspace:*",
