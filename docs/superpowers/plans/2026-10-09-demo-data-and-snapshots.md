@@ -55,7 +55,11 @@ Each item names the spec text, why it cannot be done as written, and what this p
 8. **§3 "TEST … the test store".** This is ambiguous. **This plan** uses `apps/web/test-results/evidence`, the store the E2E seed writes to `cs_test`.
 9. **Not in the spec: background jobs while browsing DEMO or TEST.** The web app's pg-boss queue uses `cs_dev`'s owner URL. A DEMO action that enqueues a job (for example accepting a suggestion, or rendering a PDF) would hand `cs_demo` ids to the real worker, which calls paid vendors.
    - **This plan:** in DEMO and TEST, enqueueing refuses with "Background jobs are switched off while browsing DEMO or TEST data.", and job status reads as "no job".
-   - **Side effect:** PDF links in DEMO show an error page.
+   - **Owner decision (2026-10-09):** the seed pre-renders placeholder PDFs for the sent briefs, the ready brief and the trend report (Task 9, Step 3a), so downloads work in DEMO while jobs stay refused.
+
+**Owner confirmations (2026-10-09):**
+- Deviations 1–3 accepted: Lakeside stays dental, 2 pending theme proposals, and Brazos shows "add your place id".
+- Deviations 4–14 were summarised to the owner, who raised no objection. Deviation 9 is amended as above.
 10. **Not in the spec: the platform operator needs a membership.** `hasSignInRight` requires a membership or an invitation, so `operator@demo.rivalmonday.test` is seeded as an `account_manager` of Brazos Digital.
 11. **§4.1 "6 competitors for Lone Star Cooling".** The default `competitor_limit` is 5 (CHECK 1–10), so Lone Star is seeded with `competitor_limit = 8`.
 12. **§4.6 "8 weekly `rank_scan`s per active client with keywords".** Brazos also gets 3 keywords and 8 scans. With no own business, it then shows the "no own business" grid states.
@@ -2897,16 +2901,85 @@ export async function seedBriefs(ctx: SeedContext): Promise<void> {
 
   **Check before running.** The dismissed status needs a 4th recommendation in the cycle. Lone Star's 4 sent briefs give 8 items, so `STATUS_CYCLE` reaches every status twice. Brazos continues its own count from 0, which is fine.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [ ] **Step 3a: Pre-render placeholder PDFs** (owner decision, 2026-10-09: demo brief and report downloads must work without the worker).
 
-Run: `pnpm --filter @cs/demo exec vitest run src/briefs.test.ts` (timeout 600000)
+  1. **Add a failing test** to `packages/demo/src/pdf.test.ts`:
+
+```ts
+import { describe, expect, it } from 'vitest';
+import { demoPdf } from './pdf';
+
+describe('demoPdf', () => {
+  it('builds a PDF whose xref offsets point at each object', () => {
+    const bytes = demoPdf('Demo brief', ['Line one', 'Line (two) \\ three']);
+    const text = new TextDecoder('latin1').decode(bytes);
+    expect(text.startsWith('%PDF-1.4')).toBe(true);
+    expect(text.trimEnd().endsWith('%%EOF')).toBe(true);
+    const xref = Number(/startxref\n(\d+)/.exec(text)![1]);
+    expect(text.slice(xref, xref + 4)).toBe('xref');
+    const offsets = [...text.slice(xref).matchAll(/^(\d{10}) 00000 n $/gm)].map((m) => Number(m[1]));
+    expect(offsets).toHaveLength(5);
+    offsets.forEach((o, i) => expect(text.slice(o, o + `${i + 1} 0 obj`.length)).toBe(`${i + 1} 0 obj`));
+    expect(text).toContain('(Line \\(two\\) \\\\ three)');
+  });
+});
+```
+
+  2. **Then create `packages/demo/src/pdf.ts`.** It is a one-page PDF in Helvetica, with no dependencies:
+
+```ts
+const esc = (s: string) => s.replace(/[\\()]/g, (c) => `\\${c}`).replace(/[^\x20-\x7e]/g, '?');
+
+/** A one-page placeholder PDF (title plus lines) for demo brief and report downloads. */
+export function demoPdf(title: string, lines: string[]): Uint8Array {
+  const text = [`BT /F1 18 Tf 56 760 Td (${esc(title)}) Tj ET`, ...lines.map((l, i) => `BT /F1 11 Tf 56 ${728 - i * 16} Td (${esc(l)}) Tj ET`)].join('\n');
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+    `<< /Length ${text.length} >>\nstream\n${text}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  let out = '%PDF-1.4\n';
+  const offsets: number[] = [];
+  objects.forEach((body, i) => { offsets.push(out.length); out += `${i + 1} 0 obj\n${body}\nendobj\n`; });
+  const xref = out.length;
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}`;
+  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return new TextEncoder().encode(out);
+}
+```
+
+  3. **Wire it in.** At the end of `seedBriefs` in `briefs.ts`, after all brief and trend-report rows are inserted, write a PDF for each sent brief, the ready brief and the trend report, then set `pdfKey`:
+
+```ts
+const pdfs: { id: string; table: typeof brief | typeof trendReport; title: string }[] = [
+  ...[...ctx.ids.briefs.sentLoneStar, ...ctx.ids.briefs.sentBrazos, ctx.ids.briefs.readyLoneStar].map((id) => ({ id, table: brief, title: 'Weekly competitor brief (demo)' })),
+  { id: ctx.ids.reportId, table: trendReport, title: 'Quarterly competitor trends (demo)' },
+];
+for (const p of pdfs) {
+  const key = `demo/pdf/${p.id}.pdf`;
+  await ctx.store.put(key, demoPdf(p.title, ['Brazos Digital - demo data', 'This placeholder stands in for the rendered PDF.']), 'application/pdf');
+  await ctx.db.update(p.table).set({ pdfKey: key }).where(eq(p.table.id, p.id));
+}
+```
+
+     Import `demoPdf` from `./pdf` and `eq` from `drizzle-orm`.
+
+  4. **Extend `briefs.test.ts`.** Every sent brief, the ready brief and the report must have a non-null `pdfKey`, and `ctx.store.get(pdfKey)` must return bytes starting with `%PDF`. The quiet brief keeps `pdfKey` null.
+
+  5. **Order check:** `/files/brief/<id>` serves the stored PDF straight from `pdfKey`, before any enqueue (`apps/web/src/server/files.ts:73`). That means demo downloads work while jobs stay refused (deviation 9).
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `pnpm --filter @cs/demo exec vitest run src/briefs.test.ts src/pdf.test.ts` (timeout 600000)
 Expected: PASS. Then `pnpm --filter @cs/demo typecheck`: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/demo/src/briefs.ts packages/demo/src/briefs.test.ts packages/demo/src/index.ts
-git commit -m "feat(demo): briefs, recommendations, alerts and a trend report"
+git add packages/demo/src/briefs.ts packages/demo/src/briefs.test.ts packages/demo/src/pdf.ts packages/demo/src/pdf.test.ts packages/demo/src/index.ts
+git commit -m "feat(demo): briefs, recommendations, alerts, a trend report and placeholder PDFs"
 ```
 
 ---
