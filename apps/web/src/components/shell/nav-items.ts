@@ -13,7 +13,7 @@ export interface NavItem {
   label: string;
   group: NavGroup;
   icon:
-    | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'approvals' | 'alerts' | 'recommendations'
+    | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'approvals' | 'alerts' | 'recommendations'
     | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects';
 }
 
@@ -76,7 +76,8 @@ function clientModules(flags: NavRoleFlags, base: string, add: (href: string, la
   if (flags.dashboard) add(`${base}/competitors`, 'Competitors', 'competitors');
   if (flags.dashboard) add(`${base}/changes`, 'Changes', 'changes');
   if (flags.dashboard) add(`${base}/pricing`, 'Pricing', 'pricing');
-  // 5c-2: Ads, Reviews, Local rankings
+  if (flags.dashboard) add(`${base}/ads`, 'Ads', 'ads');
+  // 5c-2: Reviews, Local rankings
   if (flags.dashboard) add(`${base}/moves`, 'Moves', 'moves');
   add(`${base}/recommendations`, 'Recommendations', 'recommendations');
   if (flags.isAgency) {
