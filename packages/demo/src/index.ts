@@ -6,3 +6,4 @@ export * from './random';
 export * from './tenancy';
 export * from './changes';
 export * from './evidence';
+export * from './pricing';
