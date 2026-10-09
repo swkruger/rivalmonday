@@ -11,7 +11,9 @@
   "scripts": {
     "typecheck": "tsc -p .",
     "test": "vitest run",
-    "coverage:readme": "tsx src/cli/coverage-readme.ts"
+    "coverage:readme": "tsx src/cli/coverage-readme.ts",
+    "reset": "tsx src/cli/reset.ts",
+    "links": "tsx src/cli/links.ts"
   },
   "dependencies": {
     "@cs/collectors": "workspace:*",

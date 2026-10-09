@@ -6,5 +6,7 @@ coverage/
 .superpowers/
 .claude/
 /App/
-.evidence/
+.evidence*/
 .outbox/
+/backups/
+/.dev-env.json
