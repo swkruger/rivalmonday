@@ -4,6 +4,7 @@ import { createMemoryStore } from '@cs/storage';
 import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { seedAds } from './ads';
+import { adItemIds, EVENT_SPECS } from './changes';
 import { createSeedContext, type SeedContext } from './context';
 import { seedTenancy } from './tenancy';
 import { resetDemoTables, TEST_SALT } from './test-support';
@@ -22,7 +23,7 @@ beforeAll(async () => {
 describe('seedAds', () => {
   it('writes about 30 Google and Meta ads, active and ended, exactly one without a title', async () => {
     const rows = await dbs.owner.select().from(ad);
-    expect(rows).toHaveLength(30);
+    expect(rows).toHaveLength(31);
     expect(new Set(rows.map((r) => r.platform))).toEqual(new Set(['google', 'meta']));
     expect(rows.some((r) => r.isActive && r.endedAt === null)).toBe(true);
     const ended = rows.filter((r) => !r.isActive);
@@ -33,6 +34,30 @@ describe('seedAds', () => {
     }
     expect(rows.filter((r) => r.title === null)).toHaveLength(1);
     for (const r of rows) expect(r.lastSeenAt.getTime()).toBeGreaterThanOrEqual(r.firstSeenAt.getTime());
+  });
+
+  it('has matching ad rows for every ad event, by external id and timing', async () => {
+    const rows = await dbs.owner.select().from(ad);
+    const specs = EVENT_SPECS.filter((s) => s.type === 'ad_started' || s.type === 'ad_stopped');
+    expect(specs.length).toBeGreaterThan(0);
+    for (const spec of specs) {
+      const comp = ctx.ids.competitors[spec.client][spec.comp]!;
+      const platform = spec.source === 'google_ads' ? 'google' : 'meta';
+      const ids = adItemIds(spec);
+      expect(ids.length).toBeGreaterThan(0);
+      const at = ctx.clock.daysAgo(spec.days + 0.25).getTime();
+      for (const id of ids) {
+        const r = rows.find((x) => x.externalId === id);
+        expect(r, id).toBeDefined();
+        expect(r!.competitorId).toBe(comp.id);
+        expect(r!.platform).toBe(platform);
+        if (spec.type === 'ad_started') expect(Math.abs(r!.firstSeenAt.getTime() - at)).toBeLessThanOrEqual(1000);
+        else {
+          expect(r!.isActive).toBe(false);
+          expect(Math.abs(r!.endedAt!.getTime() - at)).toBeLessThanOrEqual(1000);
+        }
+      }
+    }
   });
 
   it('leaves one competitor with no ads and no ad checks on purpose', async () => {
