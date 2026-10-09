@@ -1,5 +1,5 @@
 import { hasFeature, isAgencyRole, PAGE_TYPES } from '@cs/core';
-import type { CompetitorProfile, TimelineItem, TrackedPageView } from '@cs/tools';
+import type { AdList, CompetitorProfile, GeoGridView, PriceMatrixView, ThemeBenchmarkView, TimelineItem, TrackedPageView } from '@cs/tools';
 import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -9,6 +9,7 @@ import { webEnv } from '@/server/env';
 import { relativeTime } from '@/server/format';
 import { callTool } from '@/server/tools';
 import { AddPageForm, PinPageSwitch } from './page-controls';
+import { AdsSection, PricesSection, RankingsSection, ReviewsSection } from './sections';
 import { Timeline } from './timeline';
 
 export const dynamic = 'force-dynamic';
@@ -47,6 +48,12 @@ export default async function CompetitorProfilePage({
     callTool<{ items: TimelineItem[] }>(ctx, 'get_competitor_timeline', { clientId, competitorId, days }),
     callTool<{ items: TrackedPageView[] }>(ctx, 'list_tracked_pages', { clientId, competitorId }),
   ]);
+  const [matrix, ads, benchmark, geo] = await Promise.all([
+    callTool<PriceMatrixView>(ctx, 'get_price_matrix', { clientId, competitorId }),
+    callTool<AdList>(ctx, 'list_ads', { clientId, competitorId, limit: 3 }),
+    callTool<ThemeBenchmarkView>(ctx, 'get_theme_benchmark', { clientId }),
+    callTool<GeoGridView>(ctx, 'get_geogrid', { clientId, business: competitorId }),
+  ]);
   const now = new Date();
   const agency = isAgencyRole(ctx.role);
 
@@ -67,7 +74,7 @@ export default async function CompetitorProfilePage({
         <Kpi label="Google rating">
           {profile.gbp ? (
             <>
-              <span className="text-xl font-extrabold">{profile.gbp.rating ?? '—'} ★</span>
+              <span className="text-[34px] font-extrabold leading-tight text-secondary">{profile.gbp.rating ?? '—'} ★</span>
               <span className="text-sm text-muted-foreground">{profile.gbp.reviews ?? 0} reviews</span>
               {profile.gbpAsOf && <span className="text-xs text-muted-foreground">as of {fmtDate(profile.gbpAsOf)}</span>}
             </>
@@ -76,24 +83,30 @@ export default async function CompetitorProfilePage({
           )}
         </Kpi>
         <Kpi label="Active ads">
-          <span className="text-xl font-extrabold">
+          <span className="text-[34px] font-extrabold leading-tight text-secondary">{profile.activeAds.google + profile.activeAds.meta}</span>
+          <span className="text-sm text-muted-foreground">
             Google {profile.activeAds.google} · Meta {profile.activeAds.meta}
           </span>
         </Kpi>
         <Kpi label="Open moves">
-          <Link href={`/c/${clientId}/moves`} className="text-xl font-extrabold text-primary-soft-text">
+          <Link href={`/c/${clientId}/moves`} className="text-[34px] font-extrabold leading-tight text-primary-soft-text">
             {profile.openMoves}
           </Link>
         </Kpi>
         <Kpi label="Pages monitored">
-          <span className="text-xl font-extrabold">{profile.pages.active}</span>
+          <span className="text-[34px] font-extrabold leading-tight text-secondary">{profile.pages.active}</span>
           {profile.pages.blocked > 0 && (
             <span className="w-fit rounded-md bg-[#FEE2E2] px-2 py-0.5 text-xs font-semibold text-[#B91C1C]">Site blocks monitoring</span>
           )}
         </Kpi>
       </div>
 
-      {/* 5c-2 adds Pricing, Ads, Reviews and Rankings sections here. */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <PricesSection clientId={clientId} competitorId={competitorId} matrix={matrix} />
+        <AdsSection clientId={clientId} competitorId={competitorId} ads={ads} />
+        <ReviewsSection clientId={clientId} competitorId={competitorId} benchmark={benchmark} />
+        <RankingsSection clientId={clientId} competitorId={competitorId} geo={geo} />
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
         <Card>
@@ -123,17 +136,21 @@ export default async function CompetitorProfilePage({
               <CardTitle>Collection status</CardTitle>
             </CardHeader>
             <CardContent>
+              {profile.sources.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No data sources yet.</p>
+              ) : (
               <ul className="flex flex-col gap-2 text-sm">
                 {profile.sources.map((s) => (
                   <li key={s.source} className="flex items-baseline justify-between gap-2">
                     <span className="font-semibold text-ink">{s.label}</span>
                     <span className="text-muted-foreground">
-                      {s.lastRunAt ? `${relativeTime(s.lastRunAt, now)} · ${s.lastStatus ?? ''}` : 'Not run yet'}
+                      {s.lastRunAt ? `${relativeTime(s.lastRunAt, now)}${s.lastStatus ? ` · ${s.lastStatus}` : ''}` : 'Not run yet'}
                       {s.active ? '' : ' · paused'}
                     </span>
                   </li>
                 ))}
               </ul>
+              )}
             </CardContent>
           </Card>
           <PagesCard clientId={clientId} competitorId={competitorId} pages={pages.items} agency={agency} />
