@@ -283,3 +283,16 @@ export const AdView = z.object({
 export type AdView = z.infer<typeof AdView>;
 export const AdList = z.object({ items: z.array(AdView), hasMore: z.boolean() });
 export type AdList = z.infer<typeof AdList>;
+export const ThemeBenchmarkView = z.object({
+  windowDays: z.number().int(), from: iso, to: iso,
+  themes: z.array(z.object({ id: z.string(), name: z.string() })),
+  businesses: z.array(z.object({
+    competitorId: uuid, name: z.string(), self: z.boolean(), reviews: z.number().int(), avgRating: z.number().nullable(),
+    prevReviews: z.number().int(), prevAvgRating: z.number().nullable(),
+    themes: z.array(z.object({
+      themeId: z.string(), mentions: z.number().int(), asked: z.number().int(), share: z.number().nullable(), sentiment: z.number().nullable(),
+      shareDelta: z.number().nullable(), sentimentDelta: z.number().nullable(),
+    })),
+  })),
+});
+export type ThemeBenchmarkView = z.infer<typeof ThemeBenchmarkView>;
