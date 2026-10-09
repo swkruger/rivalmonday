@@ -314,6 +314,9 @@ importers:
       postgres:
         specifier: ^3.4.7
         version: 3.4.9
+      sharp:
+        specifier: ^0.34.5
+        version: 0.34.5
     devDependencies:
       '@cs/engine':
         specifier: workspace:*

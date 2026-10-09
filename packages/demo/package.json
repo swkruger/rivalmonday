@@ -19,7 +19,8 @@
     "@cs/storage": "workspace:*",
     "@cs/tools": "workspace:*",
     "drizzle-orm": "^0.44.5",
-    "postgres": "^3.4.7"
+    "postgres": "^3.4.7",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@cs/engine": "workspace:*",
