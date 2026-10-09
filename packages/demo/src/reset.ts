@@ -13,7 +13,8 @@ export async function clearDemoEvidence(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true });
 }
 
-const roleOf = (url: string) => decodeURIComponent(new URL(url).username);
+/** The role (user name) in a postgres URL; shared by reset and the restore task. */
+export const roleOf = (url: string) => decodeURIComponent(new URL(url).username);
 
 /** Spec §7 `demo:reset`: create cs_demo if missing, wipe, migrate, seed, write evidence, return sign-in links. */
 export async function runDemoReset(o: { repoRoot: string; env?: NodeJS.ProcessEnv; now?: Date; log?: (line: string) => void }): Promise<DemoLink[]> {

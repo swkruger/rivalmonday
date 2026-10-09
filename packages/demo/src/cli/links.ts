@@ -1,4 +1,4 @@
-import { createDb, resolveEnvironment } from '@cs/db';
+import { createDb, redactSecrets, resolveEnvironment } from '@cs/db';
 import { demoSignInLinks } from '../links';
 import { printDemoLinks } from '../reset';
 import { loadRepoEnv, repoRoot } from './repo';
@@ -16,6 +16,6 @@ try {
     await close();
   }
 } catch (e) {
-  console.error(`[links] failed: ${e instanceof Error ? e.message : String(e)}`);
+  console.error(`[links] failed: ${redactSecrets(e instanceof Error ? e.message : String(e))}`);
   process.exitCode = 1;
 }

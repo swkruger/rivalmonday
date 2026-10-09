@@ -13,7 +13,8 @@
     "test": "vitest run",
     "coverage:readme": "tsx src/cli/coverage-readme.ts",
     "reset": "tsx src/cli/reset.ts",
-    "links": "tsx src/cli/links.ts"
+    "links": "tsx src/cli/links.ts",
+    "snapshot": "tsx src/cli/snapshot.ts"
   },
   "dependencies": {
     "@cs/collectors": "workspace:*",
@@ -22,8 +23,10 @@
     "@cs/storage": "workspace:*",
     "@cs/tools": "workspace:*",
     "drizzle-orm": "^0.44.5",
+    "fflate": "^0.8.3",
     "postgres": "^3.4.7",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@cs/engine": "workspace:*",

@@ -7,9 +7,18 @@ const ROLE = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
 
 export const NEON_CREATE_HINT = (name: string) => `Create database ${name} in the Neon console, then re-run.`;
 
-/** Errors never carry a URL, password or host: strips postgres URLs and *.neon.tech hostnames from text. */
+/**
+ * Errors never carry a URL, password or host. Strips postgres URLs, `user:pass@`, `@host[:port]`, `host=` values,
+ * *.neon.tech hostnames and bare IPv4 addresses (with optional port). Role and database names are left alone.
+ */
 export function redactSecrets(text: string): string {
-  return text.replace(/postgres(?:ql)?:\/\/\S+/gi, '<redacted>').replace(/\b[\w.-]+\.neon\.tech\b/gi, '<host>');
+  return text
+    .replace(/postgres(?:ql)?:\/\/\S+/gi, '<redacted>')
+    .replace(/[\w.%+-]+:[^\s@/:"']+@/g, '<redacted>@')
+    .replace(/@(?!<)[\w.-]+(?::\d+)?/g, '@<host>')
+    .replace(/\b(host(?:addr)?)=('[^']*'|"[^"]*"|[^\s,;]+)/gi, '$1=<host>')
+    .replace(/\b[\w.-]+\.neon\.tech\b/gi, '<host>')
+    .replace(/\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?\b/g, '<host>');
 }
 
 const connect = (url: string) => postgres(url, { max: 1, onnotice: () => {} });

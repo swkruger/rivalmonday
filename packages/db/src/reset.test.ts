@@ -70,3 +70,13 @@ describe('redactSecrets / IDENT', () => {
     expect(IDENT.test('Bad-Name')).toBe(false);
   });
 });
+
+describe('redactSecrets (broadened, S5)', () => {
+  it('also strips host= values, user:pass@, @host:port and bare IPv4 addresses', () => {
+    expect(redactSecrets('connection to server at "ep-x.us-east-2.aws.neon.tech" (1.2.3.4), port 5432 failed: FATAL: password authentication failed for user "neondb_owner"')).toBe(
+      'connection to server at "<host>" (<host>), port 5432 failed: FATAL: password authentication failed for user "neondb_owner"',
+    );
+    expect(redactSecrets('host=db.internal port=5432')).toBe('host=<host> port=5432');
+    expect(redactSecrets('owner:pw@10.0.0.5:5432/x')).toBe('<redacted>@<host>/x');
+  });
+});
