@@ -1,17 +1,30 @@
 import 'server-only';
 import { type AccessContext, ToolError, type ToolRegistry } from '@cs/core';
+import type { EnvName } from '@cs/db';
 import { deliveryConfigFromEnv } from '@cs/engine';
 import { createToolRegistry, type ToolDeps } from '@cs/tools';
 import { notFound } from 'next/navigation';
 import { dbs } from './db';
 import { webEnv } from './env';
 import { perEnv } from './env-cache';
-import { enqueueJob, jobStatus } from './queue';
+import { enqueueFor, jobStatusFor } from './queue';
 import { platformAdmins } from './runtime-env';
 
-const registries = perEnv(() =>
-  createToolRegistry({ ...dbs(), delivery: deliveryConfigFromEnv(process.env), enqueue: enqueueJob, jobStatus, webMonitoring: webEnv().webMonitoring, platformAdmins: platformAdmins() }));
-export const registry = () => registries();
+/**
+ * Final-review I1: every dependency is resolved by the environment the registry is built for, never by the live
+ * one at call time — a DEMO request still in flight when the owner switches to DEV must not enqueue on cs_dev.
+ */
+const registries = perEnv((name: EnvName) =>
+  createToolRegistry({
+    ...dbs(name),
+    delivery: deliveryConfigFromEnv(process.env),
+    enqueue: enqueueFor(name),
+    jobStatus: jobStatusFor(name),
+    webMonitoring: webEnv().webMonitoring,
+    platformAdmins: platformAdmins(name),
+  }));
+/** The live environment's registry, or the named environment's when `name` is given. */
+export const registry = (name?: EnvName) => registries(name);
 
 /**
  * Controller requirement: `permission_denied` and `not_found` must become a 404, never a 403 or a page that

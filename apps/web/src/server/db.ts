@@ -1,5 +1,5 @@
 import 'server-only';
-import { createDb, type Db } from '@cs/db';
+import { createDb, type Db, type EnvName } from '@cs/db';
 import { perEnv } from './env-cache';
 import { envUrls } from './runtime-env';
 
@@ -20,7 +20,8 @@ const sets = perEnv<DbSet>(
   (s) => s.close(),
 );
 
-export function dbs(): { app: Db; service: Db } {
-  const { app, service } = sets();
+/** The live environment's pools, or the named environment's when `name` is given (final-review I1). */
+export function dbs(name?: EnvName): { app: Db; service: Db } {
+  const { app, service } = sets(name);
   return { app, service };
 }

@@ -1,4 +1,5 @@
 import 'server-only';
+import type { EnvName } from '@cs/db';
 import { createFsStore, createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { perEnv } from './env-cache';
 import { resolveEvidenceDir } from './files';
@@ -10,4 +11,5 @@ const stores = perEnv<ObjectStore>((name) =>
     ? createStoreFromEnv({ ...process.env, EVIDENCE_FS_DIR: resolveEvidenceDir(process.env.EVIDENCE_FS_DIR, process.cwd()) })
     : createFsStore(envEvidenceDir(name)));
 
-export const webStore = (): ObjectStore => stores();
+/** The live environment's store, or the named environment's when `name` is given (final-review I1). */
+export const webStore = (name?: EnvName): ObjectStore => stores(name);

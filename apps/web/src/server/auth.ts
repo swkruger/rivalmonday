@@ -17,7 +17,7 @@ import { envUrls } from './runtime-env';
 
 function create(name: EnvName) {
   const env = webEnv();
-  const { service } = dbs();
+  const { service } = dbs(name);
   const transport = webEmailTransport(processGuardOn(), process.env, createLedgerSink(service));
   const pool = new Pool({ connectionString: envUrls(name).service, max: 5 });
   const options = buildAuthOptions({

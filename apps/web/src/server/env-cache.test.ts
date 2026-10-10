@@ -27,3 +27,12 @@ describe('perEnv', () => {
     expect(get()).not.toBe(first);
   });
 });
+
+describe('perEnv with an explicit environment (final-review I1)', () => {
+  it('builds and returns the named environment regardless of the live one', () => {
+    const get = perEnv((name: EnvName) => ({ name }), undefined, () => 'dev');
+    expect(get('demo').name).toBe('demo');
+    expect(get().name).toBe('dev');
+    expect(get('demo')).toBe(get('demo'));
+  });
+});

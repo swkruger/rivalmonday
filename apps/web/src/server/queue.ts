@@ -1,6 +1,6 @@
 import 'server-only';
 import { ToolError } from '@cs/core';
-import { createDb, type Db } from '@cs/db';
+import { createDb, type Db, type EnvName } from '@cs/db';
 import type { EnqueueJob, JobState, JobStatusLookup, QueueJob } from '@cs/tools';
 import { sql } from 'drizzle-orm';
 import PgBoss from 'pg-boss';
@@ -69,10 +69,23 @@ const queues = perEnv<{ enqueue: EnqueueJob; stop(): Promise<void> }>(
   (q) => q.stop(),
 );
 
-/** Every job the web app starts (PDF renders, competitor suggestions, page discovery). */
-export const enqueueJob: EnqueueJob = (job, payload, singletonKey) => queues().enqueue(job, payload, singletonKey);
-/** The worker's `short` policy on `brief-pdf`/`report-pdf` dedupes by `singletonKey`, so repeated page refreshes don't pile up renders. */
-export const enqueue: Enqueue = (job, payload, singletonKey) => queues().enqueue(job, payload, singletonKey);
+/** cs_dev's real queue, always — never the live environment's (final-review I1). */
+const devEnqueue: EnqueueJob = (job, payload, singletonKey) => queues('dev').enqueue(job, payload, singletonKey);
+
+/**
+ * Final-review I1: the enqueue for one named environment. Anything built for DEMO or TEST (a registry, a `/files`
+ * request) must take its enqueue from here by name, so an owner switching to DEV mid-request cannot send DEMO ids
+ * to cs_dev's worker.
+ */
+export const enqueueFor = (name: EnvName): EnqueueJob => (name === 'dev' ? devEnqueue : refuseJobs);
+/**
+ * The PDF routes' narrower view of `enqueueFor`. The worker's `short` policy on `brief-pdf`/`report-pdf` dedupes by
+ * `singletonKey`, so repeated page refreshes don't pile up renders.
+ */
+export const pdfEnqueueFor = (name: EnvName): Enqueue => enqueueFor(name);
+
+/** Every job the web app starts (PDF renders, competitor suggestions, page discovery), for the live environment. */
+export const enqueueJob: EnqueueJob = (job, payload, singletonKey) => enqueueFor(activeEnvName())(job, payload, singletonKey);
 
 type JobRow = { state: JobState; created_on: Date; completed_on: Date | null };
 
@@ -90,11 +103,16 @@ let queueDb: Db | null = null;
  * Read-only look at the worker's `pgboss.job` table (owner URL, like enqueue). Completed jobs are archived after a
  * while, which reads as "no job" — fine for the one caller, which only polls a search it just started.
  */
-export const jobStatus: JobStatusLookup = createJobStatusLookup(async (job, singletonKey) => {
-  if (activeEnvName() !== 'dev') return [];
+const devJobStatus: JobStatusLookup = createJobStatusLookup(async (job, singletonKey) => {
   queueDb ??= createDb(envUrls('dev').owner).db;
   return (await queueDb.execute(sql`
     SELECT state, created_on, completed_on FROM pgboss.job
      WHERE name = ${job} AND singleton_key = ${singletonKey}
      ORDER BY created_on DESC LIMIT 1`)) as unknown as JobRow[];
 });
+const noJob: JobStatusLookup = async () => null;
+
+/** Final-review I1: DEMO and TEST have no queue, so they read every job as "no job" without connecting. */
+export const jobStatusFor = (name: EnvName): JobStatusLookup => (name === 'dev' ? devJobStatus : noJob);
+/** The live environment's job status lookup. */
+export const jobStatus: JobStatusLookup = (job, singletonKey) => jobStatusFor(activeEnvName())(job, singletonKey);

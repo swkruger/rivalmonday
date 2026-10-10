@@ -27,4 +27,4 @@ export function platformAdminsFor(base: readonly string[], name: EnvName, guardO
   return guardOn && name !== 'dev' && !base.includes(DEMO_OPERATOR_EMAIL) ? [...base, DEMO_OPERATOR_EMAIL] : [...base];
 }
 
-export const platformAdmins = (): string[] => platformAdminsFor(webEnv().platformAdmins, activeEnvName(), processGuardOn());
+export const platformAdmins = (name: EnvName = activeEnvName()): string[] => platformAdminsFor(webEnv().platformAdmins, name, processGuardOn());
