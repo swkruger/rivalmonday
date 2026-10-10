@@ -1,4 +1,4 @@
-import { type EnvName, isEnvName } from '@cs/db';
+import { type EnvName, isEnvName, redactSecrets } from '@cs/db';
 import { isLocalHost, requestGuardOn } from '@/server/dev-guard';
 import { GUEST_COOKIE } from '@/server/guest';
 import { MEMBERSHIP_COOKIE } from '@/server/viewer';
@@ -17,8 +17,11 @@ export interface PanelDeps {
   setEnv(name: EnvName): Promise<void>;
   clearCaches(): Promise<void>;
   links(name: EnvName, origin: string): Promise<PanelLink[]>;
-  /** Progress lines of a child process; the last line is `exit <code>`. */
-  run(command: 'reset' | 'snapshot'): AsyncIterable<string>;
+  /**
+   * Progress lines of a child process; the last line is `exit <code>`. Aborting `signal` kills the child; the lines
+   * still end with its exit, and only once it has exited.
+   */
+  run(command: 'reset' | 'snapshot', signal?: AbortSignal): AsyncIterable<string>;
   signIn(req: Request, token: string): Promise<Response>;
 }
 
@@ -87,19 +90,33 @@ export function createPanelHandler(deps: PanelDeps) {
         if (deps.env() !== 'demo') return json({ error: 'Reset is only available while DEMO is live' }, 409);
         if (resetting) return json({ error: 'A reset is already running' }, 409);
         resetting = true;
-        const lines = deps.run('reset');
+        // Final-review M1: a client that goes away mid-reset kills the child; `resetting` stays true until the child
+        // has actually exited (the lines end only then), so no second reset or switch can start over it.
+        const abort = new AbortController();
+        const lines = deps.run('reset', abort.signal);
         const enc = new TextEncoder();
+        let cancelled = false;
+        const send = (controller: ReadableStreamDefaultController<Uint8Array>, text: string) => {
+          if (!cancelled) controller.enqueue(enc.encode(text));
+        };
+        req.signal?.addEventListener('abort', () => abort.abort(), { once: true });
         const stream = new ReadableStream<Uint8Array>({
           async start(controller) {
             try {
-              for await (const line of lines) controller.enqueue(enc.encode(`${line}\n`));
+              for await (const line of lines) send(controller, `${line}
+`);
             } catch (e) {
-              controller.enqueue(enc.encode(`error ${e instanceof Error ? e.message : String(e)}\n`));
+              send(controller, `error ${redactSecrets(e instanceof Error ? e.message : String(e))}
+`);
             } finally {
               resetting = false;
               await deps.clearCaches().catch(() => {}); // the seed replaced every table: drop pooled connections and prepared statements
-              controller.close();
+              if (!cancelled) controller.close();
             }
+          },
+          cancel() {
+            cancelled = true;
+            abort.abort();
           },
         });
         return new Response(stream, { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', [PANEL_HEADER]: 'handler' } });

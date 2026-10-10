@@ -6,6 +6,7 @@ import { captureMagicLink, devSignIn, type SignInDeps } from './sign-in';
 const SECRET = 's'.repeat(40);
 const CONTACT = '11111111-1111-4111-8111-111111111111';
 const token = signLink(SECRET, { sub: CONTACT, agency: CONTACT, client: CONTACT, t: 'notifications', id: CONTACT });
+const briefToken = signLink(SECRET, { sub: CONTACT, agency: CONTACT, client: CONTACT, t: 'brief', id: CONTACT });
 const expiredToken = signLink(SECRET, { sub: CONTACT, agency: CONTACT, client: CONTACT, t: 'notifications', id: CONTACT }, new Date(Date.now() - 400 * 24 * 3600 * 1000));
 
 function deps(o: { env?: EnvName; contact?: { email: string; userId: string | null; active: boolean } | null; url?: string | null } = {}): SignInDeps {
@@ -35,6 +36,7 @@ describe('devSignIn (Review Focus 3)', () => {
     ['DEV is live', deps({ env: 'dev' }), token],
     ['a tampered token', deps(), `${token}x`],
     ['an expired token', deps(), expiredToken],
+    ['a valid token of another link type', deps(), briefToken],
     ['a non-demo contact', deps({ contact: { email: 'owner@nofingers.ai', userId: 'u', active: true } }), token],
     ['a look-alike demo domain', deps({ contact: { email: 'x@demo.rivalmonday.test.evil.example', userId: 'u', active: true } }), token],
     ['an inactive contact', deps({ contact: { email: 'admin@demo.rivalmonday.test', userId: 'u', active: false } }), token],

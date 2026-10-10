@@ -123,6 +123,45 @@ describe('actions (spec 5.2)', () => {
     expect(await again.text()).toBe('reset started\nexit 0\n');
   });
 
+  it('aborts the reset when the client goes away, and stays resetting until the child has exited (final-review M1)', async () => {
+    const demo = setup('demo');
+    let signal!: AbortSignal;
+    let exited!: () => void;
+    const childExit = new Promise<void>((r) => {
+      exited = r;
+    });
+    demo.deps.run = vi.fn(async function* (_cmd: 'reset' | 'snapshot', s?: AbortSignal) {
+      signal = s!;
+      yield 'reset started';
+      await new Promise((r) => s!.addEventListener('abort', r));
+      await childExit;
+      yield 'exit 1';
+    });
+    const handle = createPanelHandler(demo.deps);
+    const res = await handle('POST', req('POST', '/dev-panel/api/reset'), ['api', 'reset']);
+    const reader = res.body!.getReader();
+    await reader.read();
+    await reader.cancel();
+    expect(signal.aborted).toBe(true);
+    const state = async () => (await (await handle('GET', req('GET', '/dev-panel/api/state'), ['api', 'state'])).json()) as { resetting: boolean };
+    expect((await state()).resetting).toBe(true);
+    exited();
+    await vi.waitFor(async () => expect((await state()).resetting).toBe(false));
+  });
+
+  it('redacts secrets from a streamed reset error (final-review M4)', async () => {
+    const demo = setup('demo');
+    demo.deps.run = vi.fn(async function* () {
+      yield 'reset started';
+      throw new Error('connect postgresql://owner:hunter2@ep-x.neon.tech/cs_demo failed');
+    });
+    const res = await createPanelHandler(demo.deps)('POST', req('POST', '/dev-panel/api/reset'), ['api', 'reset']);
+    const text = await res.text();
+    expect(text).toContain('error connect <redacted> failed');
+    expect(text).not.toContain('hunter2');
+    expect(text).not.toContain('neon.tech');
+  });
+
   it('takes a snapshot only in DEV and reports the folder', async () => {
     expect((await setup('demo').handle('POST', req('POST', '/dev-panel/api/snapshot'), ['api', 'snapshot'])).status).toBe(409);
     const res = await setup('dev').handle('POST', req('POST', '/dev-panel/api/snapshot'), ['api', 'snapshot']);

@@ -68,3 +68,32 @@ describe('takeSnapshot (Review Focus 5)', () => {
     expect(deps.calls).toEqual([]);
   });
 });
+
+describe('takeSnapshot warnings (final-review M2)', () => {
+  const run = async (env: NodeJS.ProcessEnv, makeDir: boolean) => {
+    if (makeDir) mkdirSync(join(root, 'ev'), { recursive: true });
+    const lines: string[] = [];
+    await takeSnapshot({ ...opts(fake()), env, log: (l) => lines.push(l) });
+    return lines.filter((l) => l.includes('warning'));
+  };
+
+  it('warns, without failing, when the evidence directory is missing', async () => {
+    const warnings = await run({}, false);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain(join(root, 'ev'));
+    expect(warnings[0]).toMatch(/does not exist/);
+  });
+
+  it('warns that evidence may be in R2 when R2_* is set, naming the variables but never their values', async () => {
+    const warnings = await run({ R2_ACCOUNT_ID: 'acct-secret-value', R2_BUCKET: 'bucket-secret-value', R2_EMPTY: '' }, true);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('R2_ACCOUNT_ID');
+    expect(warnings[0]).toContain('R2_BUCKET');
+    expect(warnings[0]).not.toContain('R2_EMPTY');
+    expect(warnings[0]).not.toContain('secret-value');
+  });
+
+  it('prints no warning for an existing evidence directory and no R2 configuration', async () => {
+    expect(await run({}, true)).toEqual([]);
+  });
+});

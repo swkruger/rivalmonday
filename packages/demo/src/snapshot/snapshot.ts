@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { assertDatabase } from '@cs/db';
 import postgres from 'postgres';
@@ -39,6 +39,19 @@ export interface SnapshotOptions {
   deps?: SnapshotDeps;
 }
 
+/**
+ * Final-review M2: printed, never fatal. A missing evidence directory zips to nothing, and with `R2_*` set DEV
+ * evidence may live in R2, which a snapshot does not copy. Only variable names are printed, never their values.
+ */
+export async function evidenceWarnings(evidenceDir: string, env: NodeJS.ProcessEnv): Promise<string[]> {
+  const out: string[] = [];
+  const isDir = await stat(evidenceDir).then((s) => s.isDirectory(), () => false);
+  if (!isDir) out.push(`[snapshot] warning: the evidence directory ${evidenceDir} does not exist; the snapshot will hold no evidence files.`);
+  const r2 = Object.keys(env).filter((k) => k.startsWith('R2_') && env[k]?.trim()).sort();
+  if (r2.length) out.push(`[snapshot] warning: ${r2.join(', ')} ${r2.length === 1 ? 'is' : 'are'} set, so DEV evidence may be stored in R2; only ${evidenceDir} is zipped, never R2.`);
+  return out;
+}
+
 /** Spec §6.1. Never prints or stores the connection URL, password or host. */
 export async function takeSnapshot(o: SnapshotOptions): Promise<{ folder: string; manifest: SnapshotManifest }> {
   assertDatabase(o.ownerUrl, o.expected);
@@ -65,6 +78,7 @@ export async function takeSnapshot(o: SnapshotOptions): Promise<{ folder: string
     log(`[snapshot] dumping ${o.expected}...`);
     const dump = await d.runPg(pgToolPath('pg_dump', env), ['-Fc', '-f', join(folder, 'db.dump')], pgEnv(o.ownerUrl));
     if (dump.code !== 0) throw new Error(`pg_dump failed: ${redactPgOutput(dump.stderr.trim())}`);
+    for (const w of await evidenceWarnings(o.evidenceDir, env)) log(w);
     log('[snapshot] zipping evidence...');
     const evidence = await zipDirectory(o.evidenceDir, join(folder, 'evidence.zip'));
     const manifest: SnapshotManifest = {

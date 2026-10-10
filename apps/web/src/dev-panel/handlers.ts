@@ -26,7 +26,7 @@ export const handleDevPanel = createPanelHandler({
     const links = await demoSignInLinks(dbs().service, { secret: webEnv().linkSecrets[0]!, baseUrl: origin });
     return links.map((l) => ({ label: l.label, email: l.email, url: l.url }));
   },
-  run: (command) => spawnLines('pnpm', [...COMMANDS[command]], webRepoRoot()),
+  run: (command, signal) => spawnLines('pnpm', [...COMMANDS[command]], webRepoRoot(), signal),
   signIn: (req, token) =>
     devSignIn(
       {

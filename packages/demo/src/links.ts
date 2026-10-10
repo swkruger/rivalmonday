@@ -1,7 +1,7 @@
 import { signLink } from '@cs/core';
 import { contact, type Db } from '@cs/db';
 import { and, eq, isNotNull, like } from 'drizzle-orm';
-import { DEMO_DOMAIN, DEMO_USERS, type DemoUserKey } from './users';
+import { DEMO_DOMAIN, DEMO_LINK_TARGET, DEMO_USERS, type DemoUserKey } from './users';
 
 export * from './users';
 
@@ -26,7 +26,7 @@ export async function demoSignInLinks(service: Db, opts: { secret: string; baseU
   for (const u of DEMO_USERS) {
     const c = rows.find((r) => r.email.toLowerCase() === u.email);
     if (!c) continue;
-    const token = signLink(opts.secret, { sub: c.id, agency: c.agencyId, client: c.clientId ?? c.agencyId, t: 'notifications', id: c.id }, opts.now);
+    const token = signLink(opts.secret, { sub: c.id, agency: c.agencyId, client: c.clientId ?? c.agencyId, t: DEMO_LINK_TARGET, id: c.id }, opts.now);
     out.push({ key: u.key, label: u.label, email: u.email, url: `${base}${DEMO_SIGN_IN_PATH}/${token}` });
   }
   return out;

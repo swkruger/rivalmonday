@@ -1,6 +1,8 @@
 /** Spec §4.1 / §5.5: an undeliverable domain (RFC 2606 `.test`). */
 export const DEMO_DOMAIN = 'demo.rivalmonday.test';
 export const DEMO_OPERATOR_EMAIL = `operator@${DEMO_DOMAIN}`;
+/** The link type (`t` claim) every demo sign-in link is signed with; the dev-panel sign-in accepts no other. */
+export const DEMO_LINK_TARGET = 'notifications' as const;
 
 export type DemoUserKey = 'operator' | 'admin' | 'member' | 'ownerLoneStar' | 'ownerBrazos';
 
