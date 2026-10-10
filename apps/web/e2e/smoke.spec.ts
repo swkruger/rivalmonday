@@ -43,3 +43,13 @@ test('sign-in never redirects off-site (Review Focus 2)', async ({ page }) => {
   await page.goto(await requestMagicLink(page, 'admin@e2e.test'));
   expect(new URL(page.url()).host).toBe('localhost:3100');
 });
+
+test('a production build has no dev panel, even with DEV_PANEL=1 (spec §5.3, §8)', async ({ page, request }) => {
+  await page.goto('/sign-in');
+  await expect(page.locator('[data-rm-dev-panel]')).toHaveCount(0);
+  for (const path of ['/dev-panel/api/state', '/dev-panel/api/links', '/dev-panel/sign-in/anything']) {
+    expect((await request.get(path)).status()).toBe(404);
+  }
+  const post = await request.post('/dev-panel/api/switch', { headers: { 'x-rm-dev-panel': '1', origin: 'http://localhost:3100' }, data: { env: 'demo' } });
+  expect(post.status()).toBe(404);
+});

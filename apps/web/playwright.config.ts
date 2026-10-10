@@ -21,12 +21,14 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   use: { baseURL: `http://localhost:${PORT}` },
   webServer: {
-    command: `pnpm build && pnpm start --port ${PORT}`,
+    command: `pnpm build && pnpm check:no-dev-panel && pnpm start --port ${PORT}`,
     url: `http://localhost:${PORT}/health`,
     timeout: 300_000,
     reuseExistingServer: false,
     env: {
       APP_URL: `http://localhost:${PORT}`,
+      // A production server must ignore this (spec 5.3).
+      DEV_PANEL: '1',
       APP_DATABASE_URL: process.env.TEST_APP_DATABASE_URL!,
       SERVICE_DATABASE_URL: process.env.TEST_SERVICE_DATABASE_URL!,
       DATABASE_URL: process.env.TEST_DATABASE_URL!,
