@@ -49,6 +49,25 @@ pnpm typecheck
 pnpm test
 ```
 
+## Demo data, dev panel and snapshots
+
+Local only (spec: `docs/superpowers/specs/2026-10-09-demo-data-and-snapshots-design.md`).
+
+| Command | What it does |
+|---|---|
+| `pnpm demo:reset` | Creates `cs_demo` if it is missing (same Neon server and roles as `cs_dev`), then wipes, migrates and seeds it with fictional HVAC/plumbing data, writes evidence to `apps/worker/.evidence-demo`, and prints sign-in links |
+| `pnpm demo:dev` | Runs the web app with the dev panel on and DEMO selected |
+| `pnpm dev` (or `pnpm dev:web`) | Runs the web app with the dev panel on; the database comes from `.dev-env.json` (DEV by default) |
+| `pnpm demo:links` | Prints fresh sign-in links for the demo users |
+| `pnpm db:snapshot` | Dumps `cs_dev` and zips its evidence into `backups/<timestamp>-cs_dev/` with a manifest |
+| `pnpm db:restore <folder> [--into <db>]` | Restores into a new `cs_dev_restore_<timestamp>` database (default), or over an existing one only after you type its name and a fresh snapshot is taken; never into a test database |
+
+- **The banner:** a coloured strip shows the live database — DEV (amber, real data), DEMO (blue) or TEST (grey, wiped by test runs). Click it to switch database, reset the demo data, or take a snapshot.
+- **The guard:** the panel exists only when `NODE_ENV` is not `production`, `DEV_PANEL=1` (set by the dev scripts) and the host is `localhost` or `127.0.0.1`.
+- **No outside calls:** nothing here calls a vendor or an AI model, crawls a site or sends email. Sign-in emails go to the console while the panel is on, and background jobs are switched off while DEMO or TEST is live.
+- **Snapshots need `pg_dump` and `pg_restore` at least as new as the server** (Neon runs PostgreSQL 18). Set `PG_BIN` to a folder of portable PostgreSQL 18 client binaries if your PATH has an older version.
+- **If Neon refuses `CREATE DATABASE`:** create `cs_demo` in the Neon console, then re-run `pnpm demo:reset`.
+
 ## Packages
 | Package | Purpose |
 |---|---|
@@ -59,6 +78,7 @@ pnpm test
 | `@cs/storage` | Evidence object store (R2 in production, local filesystem in development) |
 | `@cs/collectors` | Robots-aware politeness/rate limiting, Playwright rendering, page discovery, change detection and capture recording |
 | `@cs/worker` | pg-boss job runner |
+| `@cs/demo` | Fictional demo data seed, screen-coverage list, and the demo reset and snapshot/restore CLIs |
 
 The Jev live contract test (`packages/ai/src/decisions/jev.live.test.ts`) only runs when `TYPESAFE_API_KEY` is set; otherwise it's skipped.
 

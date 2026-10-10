@@ -56,10 +56,6 @@ Each item names the spec text, why it cannot be done as written, and what this p
 9. **Not in the spec: background jobs while browsing DEMO or TEST.** The web app's pg-boss queue uses `cs_dev`'s owner URL. A DEMO action that enqueues a job (for example accepting a suggestion, or rendering a PDF) would hand `cs_demo` ids to the real worker, which calls paid vendors.
    - **This plan:** in DEMO and TEST, enqueueing refuses with "Background jobs are switched off while browsing DEMO or TEST data.", and job status reads as "no job".
    - **Owner decision (2026-10-09):** the seed pre-renders placeholder PDFs for the sent briefs, the ready brief and the trend report (Task 9, Step 3a), so downloads work in DEMO while jobs stay refused.
-
-**Owner confirmations (2026-10-09):**
-- Deviations 1–3 accepted: Lakeside stays dental, 2 pending theme proposals, and Brazos shows "add your place id".
-- Deviations 4–14 were summarised to the owner, who raised no objection. Deviation 9 is amended as above.
 10. **Not in the spec: the platform operator needs a membership.** `hasSignInRight` requires a membership or an invitation, so `operator@demo.rivalmonday.test` is seeded as an `account_manager` of Brazos Digital.
 11. **§4.1 "6 competitors for Lone Star Cooling".** The default `competitor_limit` is 5 (CHECK 1–10), so Lone Star is seeded with `competitor_limit = 8`.
 12. **§4.6 "8 weekly `rank_scan`s per active client with keywords".** Brazos also gets 3 keywords and 8 scans. With no own business, it then shows the "no own business" grid states.
@@ -67,6 +63,10 @@ Each item names the spec text, why it cannot be done as written, and what this p
 14. **§6.2 restore.** Restore runs `pg_restore --clean --if-exists --no-owner`. In a database whose `public` schema was recreated by our wipe, `pg_dump` emits `CREATE SCHEMA public`, which would otherwise error on a fresh target.
     - Restore also refuses any target ending in `_test`, not only `cs_test`.
     - `--into <name>` for a database that does not exist creates it (the default path).
+
+**Owner confirmations (2026-10-09):**
+- Deviations 1–3 accepted: Lakeside stays dental, 2 pending theme proposals, and Brazos shows "add your place id".
+- Deviations 4–14 were summarised to the owner, who raised no objection. Deviation 9 is amended as above.
 
 ## Global Constraints
 
@@ -136,9 +136,9 @@ Each item names the spec text, why it cannot be done as written, and what this p
 **`packages/demo/`** (new package `@cs/demo`)
 - `package.json`, `tsconfig.json`, `vitest.config.ts`, `README.md` (Tasks 3, 11).
 - `src/random.ts`, `src/clock.ts`, `src/geo.ts`, `src/ids.ts`, `src/context.ts`, `src/users.ts`, `src/links.ts`, `src/test-support.ts`, `src/index.ts` (Task 3).
-- `src/tenancy.ts` (Task 3), `src/evidence.ts` + `src/changes.ts` (Task 4), `src/pricing.ts` (Task 5), `src/ads.ts` (Task 6), `src/names.ts` + `src/reviews.ts` (Task 7), `src/rankings.ts` (Task 8), `src/briefs.ts` (Task 9), `src/agency.ts` + `src/platform.ts` (Task 10). Each has a `*.test.ts`.
+- `src/tenancy.ts` (Task 3), `src/evidence.ts` + `src/changes.ts` (Task 4), `src/pricing.ts` (Task 5), `src/ads.ts` (Task 6), `src/names.ts` + `src/reviews.ts` (Task 7), `src/rankings.ts` (Task 8), `src/briefs.ts` + `src/pdf.ts` (Task 9), `src/agency.ts` + `src/platform.ts` (Task 10). Each has a `*.test.ts`.
 - `src/seed.ts`, `src/coverage.ts`, `src/coverage.test.ts`, `src/cli/coverage-readme.ts` (Task 11).
-- `src/reset.ts` + test, `src/cli/reset.ts`, `src/cli/links.ts` (Task 12).
+- `src/reset.ts` + test, `src/cli/reset.ts`, `src/cli/links.ts`, `src/cli/repo.ts` (Task 12).
 - `src/snapshot/pg-tools.ts`, `src/snapshot/manifest.ts`, `src/snapshot/zip.ts`, `src/snapshot/snapshot.ts`, tests, and `src/cli/snapshot.ts` (Task 16).
 - `src/snapshot/restore.ts` + tests, `src/cli/restore.ts` (Task 17).
 
@@ -149,14 +149,14 @@ Each item names the spec text, why it cannot be done as written, and what this p
 - `src/server/dev-guard.ts` + test (Task 13).
 - `src/server/env-cache.ts` + test, `src/server/runtime-env.ts` + test, `src/server/store.ts` (Task 14).
 - Modified in Task 14: `src/server/db.ts` + new test, `src/server/files.ts` (drop `webStore`), `src/server/auth.ts`, `src/server/tools.ts`, `src/server/queue.ts` + test, `src/app/(app)/layout.tsx`, the three `src/app/files/**/route.ts`.
-- Task 15: `src/server/dev-hooks.ts` (create); `src/server/auth-options.ts` + test and `src/server/auth.ts` (modify).
+- Task 15: `src/server/email-transport.ts` + test, `src/server/dev-hooks.ts` (create); `src/server/auth-options.ts` + test and `src/server/auth.ts` (modify).
 - Task 18:
   - `src/dev-panel/handler.ts` + test, `src/dev-panel/sign-in.ts` + test, `src/dev-panel/spawn-lines.ts`, `src/dev-panel/handlers.ts`, `src/dev-panel/banner.tsx` + test, `src/dev-panel/mount.tsx`;
   - `src/app/dev-panel/[...path]/route.ts`;
   - `src/app/layout.tsx`, `src/proxy.ts` (modify);
   - `scripts/dev.ts`, `scripts/dev-args.ts` + test;
   - `package.json`.
-- Task 19: `scripts/check-no-dev-panel.ts` + test, `playwright.panel.config.ts`, `e2e-panel/panel.spec.ts`, `e2e/smoke.spec.ts` + `playwright.config.ts` + `tsconfig.json` (modify).
+- Task 19: `scripts/check-no-dev-panel.ts`, `scripts/no-dev-panel.ts` + `scripts/no-dev-panel.test.ts`, `playwright.panel.config.ts`, `e2e-panel/panel.spec.ts`, `e2e/smoke.spec.ts` + `playwright.config.ts` + `tsconfig.json` (modify).
 
 **Root**
 - `package.json` — scripts (Tasks 12, 16, 17, 18).
@@ -6541,7 +6541,7 @@ Local only (spec: `docs/superpowers/specs/2026-10-09-demo-data-and-snapshots-des
     - the demo seed's coverage test as the place a new screen registers;
     - restore order;
     - the theme-proposal limit (deviation 1).
-  - Record the owner's answers to the "Spec deviations" in §2 once given.
+  - The owner's answers to the "Spec deviations" were given 2026-10-09 and are recorded in §2.
 
 - [ ] **Step 3: Check for stray CRLF and files that must not be staged**
 
