@@ -1,4 +1,4 @@
-import { readFile, rename, stat } from 'node:fs/promises';
+import { readdir, readFile, rename, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { databaseExists, ensureDatabase, IDENT, resolveEnvironment, wipeDatabase, withDatabase } from '@cs/db';
 import postgres from 'postgres';
@@ -35,6 +35,8 @@ export interface RestoreDeps {
   /** Throws the version message when pg_restore (or pg_dump, when `needDump`) is older than the server. */
   versions(maintenanceUrl: string, env: NodeJS.ProcessEnv, needDump: boolean): Promise<void>;
   snapshot(o: Parameters<typeof takeSnapshot>[0]): Promise<{ folder: string }>;
+  /** True when `dir` exists and holds at least one entry. */
+  hasFiles(dir: string): Promise<boolean>;
   moveAside(dir: string, to: string): Promise<void>;
   wipe(targetUrl: string, target: string): Promise<void>;
   create(maintenanceUrl: string, target: string, roles: string[]): Promise<unknown>;
@@ -59,6 +61,7 @@ export function realRestoreDeps(): RestoreDeps {
       }
     },
     snapshot: takeSnapshot,
+    hasFiles: async (dir) => (await readdir(dir).catch(() => [])).length > 0,
     async moveAside(dir, to) {
       if (await exists(dir)) await rename(dir, to);
     },
@@ -118,7 +121,23 @@ export async function restoreSnapshot(o: RestoreOptions): Promise<{ target: stri
   const evidenceDir = envName ? resolveEnvironment(envName, { repoRoot: o.repoRoot, env }).evidenceDir : join(o.repoRoot, 'apps', 'worker', `.evidence-restore-${stamp}`);
 
   let previous: { snapshot: string; evidenceAside: string } | undefined;
-  const lost = () => (previous ? `Your previous data is in ${previous.snapshot}; the previous evidence is in ${previous.evidenceAside}. Restore it with: pnpm db:restore ${previous.snapshot} --into ${target}` : '');
+  // Final-review I2: what has happened so far, so a failure message tells the truth about the database and evidence.
+  let snapshotFolder: string | undefined;
+  let movedAside: string | undefined;
+  let changed = false;
+  const aside = `${evidenceDir}-aside-${stamp}`;
+  const moveEvidenceAside = async () => {
+    await d.moveAside(evidenceDir, aside);
+    movedAside = aside;
+    log(`[restore] existing evidence (if any) moved to ${aside}`);
+  };
+  const evidenceNote = () => (movedAside ? `The previous evidence is in ${movedAside}.` : `The existing evidence was not moved (still in ${evidenceDir}).`);
+  const lost = () =>
+    [
+      snapshotFolder ? `Your previous data is in ${snapshotFolder}.` : '',
+      movedAside ? `The previous evidence is in ${movedAside}.` : '',
+      snapshotFolder ? `Restore it with: pnpm db:restore ${snapshotFolder} --into ${target}` : '',
+    ].filter(Boolean).join(' ');
   let r: { code: number; stderr: string };
   let differences: string[];
   try {
@@ -128,29 +147,37 @@ export async function restoreSnapshot(o: RestoreOptions): Promise<{ target: stri
       // 5-7. snapshot, move evidence aside, wipe.
       log(`[restore] taking a fresh snapshot of ${target} first...`);
       const snap = await d.snapshot({ ownerUrl: targetUrl, expected: target, evidenceDir, backupsDir: join(o.repoRoot, 'backups'), now, env, label: 'pre-restore', log });
-      const aside = `${evidenceDir}-aside-${stamp}`;
+      snapshotFolder = snap.folder;
       previous = { snapshot: snap.folder, evidenceAside: aside };
       log(`[restore] previous data saved to ${snap.folder}`);
-      await d.moveAside(evidenceDir, aside);
-      log(`[restore] existing evidence (if any) moved to ${aside}`);
+      await moveEvidenceAside();
+      changed = true;
       await d.wipe(targetUrl, target);
     } else {
+      // Final-review M3: never unzip over evidence that is already there (a dropped database's leftovers).
+      if (await d.hasFiles(evidenceDir)) await moveEvidenceAside();
       const roles = [env.APP_DATABASE_URL, env.SERVICE_DATABASE_URL].filter((u): u is string => !!u).map(roleOf);
       log(`[restore] creating ${target}...`);
+      changed = true;
       await d.create(o.maintenanceUrl, target, roles);
     }
 
     // 8. restore.
     log(`[restore] restoring ${manifest.sourceDatabase} (${manifest.createdAt}) into ${target}...`);
     r = await d.pgRestore(targetUrl, dump, env);
-    if (r.code !== 0) log(`[restore] pg_restore reported problems:\n${redactPgOutput(r.stderr.trim())}`);
+    if (r.code !== 0) log(`[restore] pg_restore reported problems:
+${redactPgOutput(r.stderr.trim())}`);
     const files = await d.unzip(evidenceZip, evidenceDir);
     log(`[restore] ${files} evidence files written to ${evidenceDir}`);
     differences = compareCounts(manifest.tables, await d.counts(targetUrl));
   } catch (e) {
-    // Before the first change (or on the confirmation) nothing needs recovering; afterwards say where the old data is.
-    if (!previous) throw e;
-    throw new Error(`Restore failed after the target was changed: ${redactPgOutput(e instanceof Error ? e.message : String(e))}. ${lost()}`);
+    const message = redactPgOutput(e instanceof Error ? e.message : String(e));
+    // Nothing was done yet (a refused confirmation, a failed snapshot): the original error says it all.
+    if (!snapshotFolder && !movedAside) throw e;
+    if (!changed) {
+      throw new Error(`Restore failed before ${target} was changed: ${message}. Nothing was changed in the database.${snapshotFolder ? ` A fresh snapshot of it is in ${snapshotFolder}.` : ''} ${evidenceNote()}`);
+    }
+    throw new Error(`Restore failed after the target was changed: ${message}. ${lost()}`);
   }
   log(differences.length ? `[restore] row counts differ:\n  ${differences.join('\n  ')}` : '[restore] row counts match the manifest');
   return { target, differences, restoreErrors: r.code !== 0, ...(previous ? { previous } : {}) };

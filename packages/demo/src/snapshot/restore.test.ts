@@ -27,6 +27,7 @@ function fakeDeps(exists: boolean): { deps: RestoreDeps; calls: string[] } {
       exists: vi.fn(async () => exists),
       versions: step('versions'),
       snapshot: vi.fn(async () => { calls.push('snapshot'); return { folder: 'backups/20261009-140322-cs_dev-pre-restore' }; }),
+      hasFiles: vi.fn(async () => false),
       moveAside: step('moveAside'),
       wipe: step('wipe'),
       create: step('create'),
@@ -121,7 +122,40 @@ describe('restoreSnapshot (Review Focus 5)', () => {
     const { deps } = fakeDeps(true);
     deps.wipe = vi.fn(async () => { throw new Error('boom'); });
     const err = await restoreSnapshot({ ...base(), into: 'cs_dev', prompt: async () => 'cs_dev', deps }).catch((e: Error) => e.message);
+    expect(err).toContain('Restore failed after the target was changed');
     expect(err).toContain('backups/20261009-140322-cs_dev-pre-restore');
+    expect(err).toContain('-aside-20261009-140322');
+  });
+
+  it('says nothing was changed when moving the evidence aside fails (final-review I2)', async () => {
+    const { deps, calls } = fakeDeps(true);
+    deps.moveAside = vi.fn(async () => { throw new Error('EBUSY: resource busy'); });
+    const err = await restoreSnapshot({ ...base(), into: 'cs_dev', prompt: async () => 'cs_dev', deps }).catch((e: Error) => e.message);
+    expect(err).not.toContain('after the target was changed');
+    expect(err).toContain('Nothing was changed in the database');
+    expect(err).toContain('EBUSY');
+    expect(err).toContain('backups/20261009-140322-cs_dev-pre-restore');
+    expect(err).toMatch(/evidence was not moved/);
+    expect(calls).not.toContain('wipe');
+  });
+
+  it('moves a non-empty evidence directory aside before creating a new database (final-review M3)', async () => {
+    const { deps, calls } = fakeDeps(false);
+    deps.hasFiles = vi.fn(async () => true);
+    const logs: string[] = [];
+    await restoreSnapshot({ ...base(), log: (l) => logs.push(l), prompt: async () => '', deps });
+    expect(calls).toEqual(['versions', 'moveAside', 'create', 'pgRestore', 'unzip']);
+    const [dir, to] = vi.mocked(deps.moveAside).mock.calls[0]!;
+    expect(to).toBe(`${dir}-aside-20261009-140322`);
+    expect(logs.join('\n')).toContain(`existing evidence (if any) moved to ${to}`);
+  });
+
+  it('names the moved-aside evidence when a create-path restore fails afterwards (final-review M3)', async () => {
+    const { deps } = fakeDeps(false);
+    deps.hasFiles = vi.fn(async () => true);
+    deps.pgRestore = vi.fn(async () => { throw new Error('boom'); });
+    const err = await restoreSnapshot({ ...base(), prompt: async () => '', deps }).catch((e: Error) => e.message);
+    expect(err).toContain('Restore failed after the target was changed');
     expect(err).toContain('-aside-20261009-140322');
   });
 
