@@ -66,6 +66,8 @@ Local only (spec: `docs/superpowers/specs/2026-10-09-demo-data-and-snapshots-des
 - **The guard:** the panel exists only when `NODE_ENV` is not `production`, `DEV_PANEL=1` (set by the dev scripts) and the host is `localhost` or `127.0.0.1`.
 - **No outside calls:** nothing here calls a vendor or an AI model, crawls a site or sends email. Sign-in emails go to the console while the panel is on, and background jobs are switched off while DEMO or TEST is live.
 - **Snapshots need `pg_dump` and `pg_restore` at least as new as the server** (Neon runs PostgreSQL 18). Set `PG_BIN` to a folder of portable PostgreSQL 18 client binaries if your PATH has an older version.
+- **Stop the worker and the web app before `pnpm db:restore` over `cs_dev`:** dropping the schema can block on their open connections, and their writes during the restore make the row-count check report differences.
+- **Row counts are read outside the dump's snapshot:** a snapshot taken while the worker is writing can show small count differences on restore that are not data loss. Stop the worker first for an exact match.
 - **If Neon refuses `CREATE DATABASE`:** create `cs_demo` in the Neon console, then re-run `pnpm demo:reset`.
 
 ## Packages
