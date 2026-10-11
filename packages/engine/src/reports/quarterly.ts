@@ -1,3 +1,4 @@
+import { PDF_KEY_SUFFIX } from '@cs/core';
 import { alert, brief, changeEvent, client, competitor, type Db, eventScore, move, moveEvent, recommendation, type TrendReportData, trendReport } from '@cs/db';
 import { renderTrendReportDocument, type TrendReportEmailProps } from '@cs/email';
 import { and, eq, gt, gte, isNull, lt, ne, sql } from 'drizzle-orm';
@@ -108,7 +109,7 @@ export async function listReportsMissingPdf(db: Db, now: Date): Promise<string[]
   return rows.map((r) => r.id);
 }
 
-export const reportPdfKey = (agencyId: string, reportId: string) => `reports/${agencyId}/${reportId}.pdf`;
+export const reportPdfKey = (agencyId: string, reportId: string) => `reports/${agencyId}/${reportId}${PDF_KEY_SUFFIX}`;
 
 export async function renderReportPdf(deps: PdfDeps, reportId: string): Promise<{ key: string }> {
   const [row] = await deps.db.select({ r: trendReport, name: client.name }).from(trendReport).innerJoin(client, eq(client.id, trendReport.clientId)).where(eq(trendReport.id, reportId));

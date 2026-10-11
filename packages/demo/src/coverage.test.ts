@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } 
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { type AccessContext, ToolError } from '@cs/core';
+import { type AccessContext, isCurrentPdfKey, ToolError } from '@cs/core';
 import { databaseNameOf } from '@cs/db';
 import { openTestDbs, testUrls } from '@cs/db/test-helpers';
 import { createFsStore } from '@cs/storage';
@@ -155,6 +155,8 @@ describe('file routes outside (app): /files/brief, /files/report, /files/evidenc
     for (const r of pdfs) {
       const bytes = r.key ? await store.get(r.key) : null;
       if (!bytes || Buffer.from(bytes.subarray(0, 4)).toString('latin1') !== '%PDF') bad.push(`${r.what} ${r.id}: ${r.key ? 'object missing or not a PDF' : 'no pdf_key'}`);
+      // The web serves only keys of the current PDF layout; an older key would show "PDF rendering is off" in DEMO.
+      else if (!isCurrentPdfKey(r.key!)) bad.push(`${r.what} ${r.id}: pdf_key is not of the current layout version`);
     }
     expect(bad).toEqual([]);
   });

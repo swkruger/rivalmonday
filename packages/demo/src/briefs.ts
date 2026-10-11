@@ -1,3 +1,4 @@
+import { PDF_KEY_SUFFIX } from '@cs/core';
 import { ad, alert, alertEvent, brief, briefItem, feedback, recommendation, review, trendReport, type TrendBusiness, type TrendReportData, type TrendSnapshot } from '@cs/db';
 import { and, eq, gte, inArray, sql } from 'drizzle-orm';
 import { atUtc, DAY, notAfter } from './clock';
@@ -215,7 +216,7 @@ async function seedTrendReport(ctx: SeedContext): Promise<void> {
 async function seedPdfs(ctx: SeedContext): Promise<void> {
   const { db, ids, store } = ctx;
   const put = async (id: string, title: string): Promise<string> => {
-    const key = `demo/pdf/${id}.pdf`;
+    const key = `demo/pdf/${id}${PDF_KEY_SUFFIX}`;
     await store.put(key, demoPdf(title, ['Brazos Digital - demo data', 'This placeholder stands in for the rendered PDF.']), 'application/pdf');
     return key;
   };
