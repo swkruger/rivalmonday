@@ -76,6 +76,29 @@ test('an admin edits a playbook and an unknown placeholder is refused', async ({
   await expect(card.getByText('Playbook saved.')).toBeVisible();
 });
 
+test('an admin turns a client feature on and off on the profile page', async ({ page }) => {
+  await page.goto('/agency');
+  await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
+  await page.waitForURL(/\/c\/[0-9a-f-]{36}/);
+  const clientId = /\/c\/([0-9a-f-]{36})/.exec(page.url())![1];
+  await page.goto(`/c/${clientId}/settings/profile`);
+  const ai = page.getByLabel(/AI connections/);
+  await expect(page.getByLabel(/Client dashboard/)).toBeChecked();
+  await expect(ai).not.toBeChecked();
+  await ai.check();
+  await page.getByRole('button', { name: 'Save features' }).click();
+  await expect(page.getByText('Features saved.')).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel(/AI connections/)).toBeChecked();
+  // Back to the seed's features, so later tests see the client unchanged.
+  await page.getByLabel(/AI connections/).uncheck();
+  await page.getByRole('button', { name: 'Save features' }).click();
+  await expect(page.getByText('Features saved.')).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel(/AI connections/)).not.toBeChecked();
+  await expect(page.getByLabel(/Alert rules/)).toBeChecked();
+});
+
 test('a platform operator approves a theme proposal', async ({ page }) => {
   await page.goto('/platform/themes');
   await page.getByRole('button', { name: 'Approve E2E hidden fees' }).click();

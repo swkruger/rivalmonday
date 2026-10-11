@@ -1,5 +1,5 @@
 'use server';
-import { isAgencyRole } from '@cs/core';
+import { type Feature, FEATURES, isAgencyRole } from '@cs/core';
 import { revalidatePath } from 'next/cache';
 import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
@@ -17,4 +17,15 @@ export async function updateProfileAction(_prev: FormResult, formData: FormData)
   if (!r.ok) return r;
   revalidatePath(`/c/${clientId}`, 'layout');
   return { ok: true, message: 'Profile saved.' };
+}
+
+export async function saveFeaturesAction(_prev: FormResult, formData: FormData): Promise<FormResult> {
+  const { ctx } = await requireContext();
+  if (!isAgencyRole(ctx.role)) notFound();
+  const clientId = String(formData.get('clientId') ?? '');
+  const features = [...new Set(formData.getAll('feature').map(String))].filter((f): f is Feature => (FEATURES as readonly string[]).includes(f));
+  const r = await runTool(ctx, 'update_client_profile', { clientId, features });
+  if (!r.ok) return r;
+  revalidatePath(`/c/${clientId}`, 'layout');
+  return { ok: true, message: 'Features saved.' };
 }
