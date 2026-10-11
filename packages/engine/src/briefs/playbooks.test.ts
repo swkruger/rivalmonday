@@ -1,7 +1,7 @@
 import { createAccessContext } from '@cs/core';
 import { playbookOverride } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { loadVerticalPack } from '@cs/verticals';
+import { listVerticalPacks, loadVerticalPack } from '@cs/verticals';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { EventCandidate } from './gather';
 import { playbookVars, renderPlaybook, resolvePlaybooks, playbookFor, unknownPlaybookVars, upsertPlaybookOverride } from './playbooks';
@@ -26,6 +26,12 @@ describe('playbooks', () => {
     const ev = (details: Record<string, string>) => ({ kind: 'event', competitorName: 'Smith HVAC', facts: [], zips: [], serviceName: null, details }) as unknown as EventCandidate;
     expect(playbookVars(ev({ themeName: 'Late arrivals', theme: 'late_arrival' })).theme).toBe('Late arrivals');
     expect(playbookVars(ev({ theme: 'late_arrival' })).theme).toBe('late_arrival');
+  });
+
+  it('every built-in playbook uses only the known placeholders, so its standard text can be saved as an edit', async () => {
+    for (const id of await listVerticalPacks()) {
+      for (const p of (await loadVerticalPack(id)).playbooks) expect(unknownPlaybookVars(p.template), `${id}/${p.id}`).toEqual([]);
+    }
   });
 
   it('applies agency overrides and disables', async () => {

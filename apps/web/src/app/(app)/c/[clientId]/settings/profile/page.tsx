@@ -7,7 +7,8 @@ import { ServicesAreaSummary } from '@/components/services-area-summary';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
-import { updateProfileAction } from './actions';
+import { saveFeaturesAction, updateProfileAction } from './actions';
+import { ClientFeaturesForm } from './client-features-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
         mode="edit" action={updateProfileAction} verticals={await verticalOptions()} clientId={clientId}
         initial={{ name: p.name, verticalId: p.verticalId, services: p.services, keywords: p.keywords, placeId: p.placeId, serviceArea: p.serviceArea }}
       />
+      <ClientFeaturesForm clientId={clientId} features={p.features} action={saveFeaturesAction} />
     </>
   );
 }
