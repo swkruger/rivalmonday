@@ -67,7 +67,7 @@ playbooks:
     trigger: promo
     title: Answer a new-patient offer
     template: >-
-      {{competitor}} launched {{offer}}. Match on perceived value rather than price: bundle exam, cleaning and
+      {{competitor}} launched a new-patient offer. Match on perceived value rather than price: bundle exam, cleaning and
       X-rays with a clear total, and feature it on your booking page and Google Business Profile.
   - id: price_war_membership
     trigger: price_war
