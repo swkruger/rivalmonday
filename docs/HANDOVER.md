@@ -1,6 +1,6 @@
 # Rival Monday — Session Handover
 
-*Written 2026-09-30; last updated **2026-10-11** — **Phase 5 is COMPLETE and owner-verified (2026-10-11).** The end-of-Phase-5 owner verification ran on `cs_dev`, and its fixes were merged to `main` and pushed (`e1088c0`): client feature switches on Profile, and the dental playbook placeholder. Results are in §5 item 2, "Result (2026-10-11)". **State: `main` holds Phases 0–2, 3a–3d, 4a, 4b and 5a–5c-2, the demo data/dev panel/snapshots tool (`c21bde6`) and the verification fixes (`e1088c0`), all pushed.** `cs_dev` is at migration `0037` (the latest). **Next: plan Phase 6 (MCP server & Ask) in a new session on a new branch (§5 item 1).** In parallel, a small Phase 5 polish batch is being done in another session on its own branch (§5 item 1, "Parallel work"). Start any new session by reading this file, then the documents it links. Keep it updated at the end of each session.*
+*Written 2026-09-30; last updated **2026-10-11** — **Phase 5 is COMPLETE and owner-verified (2026-10-11).** The end-of-Phase-5 owner verification ran on `cs_dev`, and its fixes were merged to `main` and pushed (`e1088c0`): client feature switches on Profile, and the dental playbook placeholder. Results are in §5 item 2, "Result (2026-10-11)". **State: `main` holds Phases 0–2, 3a–3d, 4a, 4b and 5a–5c-2, the demo data/dev panel/snapshots tool (`c21bde6`) the verification fixes (`e1088c0`) and the Phase 5 polish batch (`65e0683`, [work file](work/phase5-polish.md)), all pushed.** `cs_dev` is at migration `0037` (the latest). **Next: plan Phase 6 (MCP server & Ask) in a new session on a new branch (§5 item 1).** Start any new session by reading this file, then the documents it links. Keep it updated at the end of each session.*
 
 ---
 
@@ -239,9 +239,8 @@ Tests: the full suite (`npx turbo run test --concurrency=1 --continue`) was gree
      4. superpowers:subagent-driven-development, with a pre-flight conflict scan.
      5. Merge only with the owner's go-ahead.
    - **Parallel work:**
-     - A Phase 5 polish batch runs in another session on its own branch. Scope: PDFs open in a new tab; stored PDFs are re-rendered after template changes; phone and client-grid layout; a dev-panel "view as client".
-     - Expect it to touch `apps/web` (shell, PDF links, files routes), `packages/engine` (PDF rendering) and `packages/demo` (dev panel).
-     - Keep Phase 6 planning to new docs. If both branches edit this file or the roadmap, merge by keeping both sides' sections.
+     - The Phase 5 polish batch is merged and pushed (`65e0683`): PDFs open in a new tab, stored PDFs re-render when `PDF_LAYOUT_VERSION` is raised, `/agency` fits phones and tablets. The dev-panel "view as client" was not built. See [work/phase5-polish.md](work/phase5-polish.md).
+     - Phase 7 infrastructure work (deployment, worker DB role, Postgres alignment, CI check, Postmark webhooks, soft-delete/retention, observability) can run in its own worktree alongside Phase 6.
    - **Never re-litigate:** §2; the 5b-1/5b-2 plan decisions; the 5c-1 plan's decisions 1–19; the 5c-2 plan's decisions 1–16.
 
 2. **Phase 5c-2 — the client workspace data views: DONE and merged 2026-10-09 (`cac524e`); Phase 5 is complete ([plan](superpowers/plans/2026-10-08-phase-5c2-data-views.md); §3 has the results). Done: the combined end-of-Phase-5 owner verification below (signed off 2026-10-11) — the demo data (`pnpm demo:reset`, `pnpm demo:dev`) lets the owner look through every screen first. Before launch also look at the page latency on the remote DB (§3, Known issues).** The planning notes below are kept for reference.

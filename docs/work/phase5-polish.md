@@ -4,7 +4,7 @@
 **Plan/spec:** none (bounded changes, each approved in chat 2026-10-11)
 
 ## Status (overwrite)
-Done and committed, not merged:
+Done, merged to `main` (`65e0683`) and pushed 2026-10-11; branch deleted:
 1. PDF and captured-file links open in a new browser tab (`20b1784`).
 2. Stored brief and report PDFs are re-rendered after a layout change (`144e577`).
 3. Portfolio (`/agency`) layout:
@@ -15,7 +15,7 @@ Done and committed, not merged:
 Full E2E 28/28 before the card change; the data-views, smoke and workflow specs (22) pass after it.
 
 ## Next (overwrite)
-Owner: look at `/agency` on a phone and on desktop, then give the go-ahead to merge.
+Nothing. Dev-panel "view as client" (in the original scope) was not built; pick it up separately if still wanted.
 
 ## Interfaces this branch adds or changes
 - `@cs/core` exports `PDF_LAYOUT_VERSION` (now 2), `PDF_KEY_SUFFIX` (`.v2.pdf`) and `isCurrentPdfKey(key)` (`packages/core/src/pdf-layout.ts`).
