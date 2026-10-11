@@ -17,7 +17,19 @@ const brief: BriefDetail = {
   items: [item(2), item(1, { upsellTag: 'ppc_audit' }), item(3, { status: 'dropped' })],
 };
 
+const opensInNewTab = (a: HTMLElement) => {
+  expect(a.getAttribute('target')).toBe('_blank');
+  expect(a.getAttribute('rel')).toContain('noopener');
+};
+
 describe('BriefView', () => {
+  it('opens the PDF in a new browser tab', () => {
+    render(<BriefView brief={brief} agency={false} />);
+    const a = screen.getByRole('link', { name: 'Download PDF' });
+    expect(a.getAttribute('href')).toBe(`/files/brief/${brief.id}`);
+    opensInNewTab(a);
+  });
+
   it('renders active items in ord order with anchors and evidence counts', () => {
     const { container } = render(<BriefView brief={brief} agency={false} />);
     expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Headline 1', 'Headline 2']);
@@ -87,5 +99,6 @@ describe('ReportView', () => {
     };
     render(<ReportView report={report} />);
     expect(screen.getByText('This report has no data.')).toBeTruthy();
+    opensInNewTab(screen.getByRole('link', { name: 'Download PDF' }));
   });
 });

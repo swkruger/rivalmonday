@@ -15,7 +15,7 @@ export function BriefView({ brief, agency }: { brief: BriefDetail; agency: boole
         <CardTitle className="text-[17px]">Week of {brief.deliveryDate}</CardTitle>
         {agency && <Badge variant="secondary">{brief.status}</Badge>}
         {deliverable && (
-          <a href={`/files/brief/${brief.id}`} className="ml-auto font-semibold text-primary-soft-text">
+          <a href={`/files/brief/${brief.id}`} target="_blank" rel="noopener noreferrer" className="ml-auto font-semibold text-primary-soft-text">
             Download PDF
           </a>
         )}

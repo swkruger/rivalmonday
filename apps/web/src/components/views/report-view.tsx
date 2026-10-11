@@ -17,7 +17,7 @@ export function ReportView({ report }: { report: ReportDetail }) {
       <CardHeader className="flex flex-row items-center gap-3">
         <h2 className="text-[17px] font-semibold leading-none">Competitor trends — {report.quarter}</h2>
         {report.status === 'sent' && (
-          <a href={`/files/report/${report.id}`} className="ml-auto font-semibold text-primary-soft-text">
+          <a href={`/files/report/${report.id}`} target="_blank" rel="noopener noreferrer" className="ml-auto font-semibold text-primary-soft-text">
             Download PDF
           </a>
         )}
