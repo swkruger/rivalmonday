@@ -5,7 +5,37 @@ Evidence-backed competitor intelligence for local-service businesses, delivered 
 Docs: [feasibility study](docs/research/2026-09-29-competitor-intel-feasibility-study.md) ·
 [core platform spec](docs/superpowers/specs/2026-09-29-core-platform-design.md) ·
 [roadmap](docs/superpowers/plans/2026-09-29-roadmap.md) ·
-[brand](docs/brand/brand.md)
+[brand](docs/brand/brand.md) ·
+[state](docs/STATE.md) ·
+[backlog](docs/BACKLOG.md) ·
+[architecture](docs/ARCHITECTURE.md) ·
+[ops runbook](docs/OPS.md)
+
+## Working on this repo with Claude Code
+
+Every session starts small and reads more only when it needs to. The root `CLAUDE.md` loads automatically with the decisions, process and essential rules. Each package's `CLAUDE.md` with its gotchas loads only when a session works in that package.
+
+| When | Run | What it does |
+|---|---|---|
+| Start of every session | `/rm-start` | 15-line briefing: this branch, the state of `main`, and the other in-flight branches |
+| New phase or workstream | `/rm-kickoff <phase> [branch]` | Creates a worktree in `../CompetitorSpy-wt/<branch>`, a branch and `docs/work/<branch>.md`; a subagent writes a phase brief ending in open questions; then brainstorming starts |
+| End of every session | `/rm-wrap-up` | Rewrites this branch's work file, puts new gotchas in the right package `CLAUDE.md`, checks the size caps, commits the docs |
+| Branch finished, owner says go | `/rm-merge <branch>` | Runs the full tests, folds the work file into STATE/BACKLOG/ARCHITECTURE, merges into `main`, pushes, removes the worktree, flags affected workstreams |
+
+**A phase, step by step:** `/rm-kickoff phase-6` → brainstorm the brief's open questions → spec with **new decisions only** (`docs/superpowers/specs/`) → a **lean plan** (interfaces, tests and a pattern to follow per task; see `CLAUDE.md`) → owner approves → subagent-driven development (a pre-flight rebase and assumption check first) → `/rm-wrap-up` each session → `/rm-merge`.
+
+**Running workstreams in parallel** (e.g. planning Phase 6 while a polish batch is being coded):
+- One **worktree and one Claude Code session per branch**. Never run two sessions in the same folder.
+- Each branch writes only its own `docs/work/<branch>.md`. Other sessions read it with `git show <branch>:docs/work/<branch>.md`.
+- `STATE.md`, `BACKLOG.md`, `ARCHITECTURE.md` and the roadmap are updated only by `/rm-merge`, so parallel branches don't conflict on them.
+- A plan written ahead lists what it assumes from unmerged branches. Execution waits for those merges, then rebases and re-checks the assumptions.
+
+**Where things live:**
+- [STATE.md](docs/STATE.md): the state of `main`, ≤ 5 KB, overwritten each time, never appended.
+- `docs/work/`: one file per in-flight branch.
+- [BACKLOG.md](docs/BACKLOG.md): open items grouped by target phase.
+- `docs/gotchas-cross-cutting.md`, plus each package's `CLAUDE.md`.
+- `docs/archive/`: the old handover and the full roadmap, kept for history only.
 
 ## Prerequisites
 - Node 24 (>=22), pnpm 10 (`corepack enable`)
