@@ -4,7 +4,10 @@ dist/
 .env
 coverage/
 .superpowers/
-.claude/
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/rm-*/
 /App/
 .evidence*/
 .outbox/

@@ -1,0 +1,13 @@
+# @cs/demo — working notes
+Demo-data seeding for `cs_demo` (screen coverage, sign-in links) and the `db:snapshot`/`db:restore` tooling.
+
+## Gotchas
+- **`cs_demo`** lives on the same Neon server and roles as `cs_dev`; `pnpm demo:reset` creates it (if Neon refuses `CREATE DATABASE`, create `cs_demo` in the Neon console and re-run).
+- **A demo reset invalidates old sign-in links:** every demo contact gets a new id. Use fresh ones (`pnpm demo:links`, or the dev panel after the reset finishes).
+- **A new screen registers in the seed's coverage test:** add seed data (`src/<area>.ts` called from `seed.ts`) and an entry in `src/coverage.ts`; `coverage.test.ts` fails for an unlisted screen or an empty listed tool. Then `pnpm --filter @cs/demo coverage:readme` refreshes the README table. The coverage test seeds ~400 reviews and 2,000 rank snapshots on Neon and takes several minutes.
+- **Theme-proposal limit:** `theme_proposal_pending_unique` allows one `proposed` row per vertical, so the demo has 2 pending proposals (not the spec's 3) plus one approved and one rejected; Lakeside Family Dental is seeded as a dental prospect to make the second possible.
+- **Snapshot/restore order is load-bearing:** `restoreSnapshot` runs every check (folder and manifest, typed name, client tool versions, target not `_test`) before anything destructive, and takes the fresh snapshot before moving evidence aside or wiping — keep the ordering tests green.
+- **PG tools:** `db:snapshot`/`db:restore` refuse PostgreSQL 17 client tools (Neon runs 18): set `PG_BIN` to a folder of PG 18 `pg_dump`/`pg_restore` (owner's: `D:\Program Files\PostgreSQL\18\bin`; it's in turbo's `globalPassThroughEnv`). The round-trip test is skipped without `PG_BIN`.
+- **Stop the worker and web app before `db:restore` over `cs_dev`:** `DROP SCHEMA` can block on their connections, and concurrent writes make the row-count check report differences. Manifest row counts are read outside `pg_dump`'s snapshot, so a snapshot taken while the worker writes can show small count differences that are not data loss.
+- **Restore failure messages:** before the wipe (or create) it says nothing was changed and names the fresh snapshot and whether evidence was moved aside; after, it names the snapshot and the moved-aside evidence. A create-path restore moves a non-empty evidence directory aside instead of unzipping over it. `db:snapshot` warns (doesn't fail) when the evidence directory is missing or `R2_*` is set (DEV evidence may then be in R2, which is not zipped).
+- Git-ignored: `backups/` (snapshots), `.evidence*/` (including `apps/worker/.evidence-demo`).
