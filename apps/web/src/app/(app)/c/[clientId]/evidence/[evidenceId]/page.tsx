@@ -65,7 +65,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
               />
             </div>
           ) : evidence.kind === 'text' ? (
-            <a href={fileHref} className="font-semibold text-primary-soft-text">
+            <a href={fileHref} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-soft-text">
               Open the captured text
             </a>
           ) : (

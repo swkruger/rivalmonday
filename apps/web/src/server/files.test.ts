@@ -1,6 +1,7 @@
 import { createAccessContext, ToolError } from '@cs/core';
 import { brief, capture, evidence, trackedPage, trendReport } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { briefPdfKey } from '@cs/engine';
 import { createMemoryStore, type ObjectStore } from '@cs/storage';
 import { createToolRegistry } from '@cs/tools';
 import { eq } from 'drizzle-orm';
@@ -35,7 +36,7 @@ function serve(kind: 'brief' | 'report', id: string, ctx = owner, store = create
 describe('servePdf', () => {
   it('streams a stored PDF inline', async () => {
     const store = createMemoryStore();
-    const key = `briefs/${IDS.agencyA}/${sentId}.pdf`;
+    const key = briefPdfKey(IDS.agencyA, sentId);
     await store.put(key, new Uint8Array([37, 80, 68, 70]), 'application/pdf');
     await dbs.owner.update(brief).set({ pdfKey: key }).where(eq(brief.id, sentId));
     const r = await serve('brief', sentId, owner, store).res;
@@ -51,6 +52,16 @@ describe('servePdf', () => {
     expect(r.status).toBe(202);
     expect(r.headers.get('refresh')).toBe('5');
     expect(await r.text()).toMatch(/preparing/i);
+    expect(enqueue).toHaveBeenCalledWith('brief-pdf', { briefId: sentId }, sentId);
+  });
+
+  it('re-renders a PDF stored with an older layout instead of serving it', async () => {
+    const store = createMemoryStore();
+    const old = `briefs/${IDS.agencyA}/${sentId}.pdf`; // the unversioned key of layout 1
+    await store.put(old, new Uint8Array([37, 80, 68, 70]), 'application/pdf');
+    await dbs.owner.update(brief).set({ pdfKey: old }).where(eq(brief.id, sentId));
+    const { res, enqueue } = serve('brief', sentId, owner, store);
+    expect((await res).status).toBe(202);
     expect(enqueue).toHaveBeenCalledWith('brief-pdf', { briefId: sentId }, sentId);
   });
 

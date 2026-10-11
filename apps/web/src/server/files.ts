@@ -1,5 +1,5 @@
 import { isAbsolute, resolve } from 'node:path';
-import { type AccessContext, isUuid, ToolError, type ToolRegistry } from '@cs/core';
+import { type AccessContext, isCurrentPdfKey, isUuid, ToolError, type ToolRegistry } from '@cs/core';
 import { brief, type Db, evidence, trendReport } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { type BriefDetail, evidenceContentType, type EvidenceView, type ReportDetail, type ToolDeps } from '@cs/tools';
@@ -72,7 +72,8 @@ export async function servePdf(input: {
   }
   if (!found) return notFound();
 
-  const bytes = found.key ? await input.store.get(found.key) : null;
+  // A PDF stored with an older layout (PDF_LAYOUT_VERSION) is not served: it is rendered again, under the current key.
+  const bytes = found.key && isCurrentPdfKey(found.key) ? await input.store.get(found.key) : null;
   if (!bytes) {
     try {
       if (input.kind === 'brief') await input.enqueue('brief-pdf', { briefId: input.id }, input.id);

@@ -1,3 +1,4 @@
+import { PDF_KEY_SUFFIX } from '@cs/core';
 import { brief, type Db } from '@cs/db';
 import { type PdfRenderer, renderBriefDocument } from '@cs/email';
 import type { ObjectStore } from '@cs/storage';
@@ -19,7 +20,7 @@ export async function listBriefsMissingPdf(db: Db, now: Date): Promise<string[]>
   return rows.map((r) => r.id);
 }
 
-export const briefPdfKey = (agencyId: string, briefId: string) => `briefs/${agencyId}/${briefId}.pdf`;
+export const briefPdfKey = (agencyId: string, briefId: string) => `briefs/${agencyId}/${briefId}${PDF_KEY_SUFFIX}`;
 
 /** The client's view of an approved or sent brief as a branded PDF (decision 16); linked from the email, not attached. */
 export async function renderBriefPdf(deps: PdfDeps, briefId: string): Promise<{ key: string } | { skipped: string }> {
