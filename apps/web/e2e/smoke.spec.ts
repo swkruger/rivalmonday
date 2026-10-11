@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { OWNER_LINK_FILE } from '../playwright.config';
 import { requestMagicLink } from './helpers';
 
-test('an invited admin signs in by magic link and sees the themed client list', async ({ page }) => {
+test('an invited admin signs in by magic link and sees the themed client list', { tag: ['@smoke', '@auth', '@clients', '@briefs'] }, async ({ page }) => {
   await page.goto('/agency');
   await expect(page).toHaveURL(/\/sign-in\?next=%2Fagency/);
   await page.goto(await requestMagicLink(page, 'admin@e2e.test'));
@@ -18,7 +18,7 @@ test('an invited admin signs in by magic link and sees the themed client list', 
   await expect(page.getByText('Upsell: ppc_audit')).toBeVisible();
 });
 
-test('a client opens a signed email link as a read-only guest without agency data', async ({ page }) => {
+test('a client opens a signed email link as a read-only guest without agency data', { tag: ['@smoke', '@guest', '@auth', '@briefs'] }, async ({ page }) => {
   await page.goto((await readFile(OWNER_LINK_FILE, 'utf8')).trim());
   await expect(page.getByRole('heading', { name: 'Smith HVAC cut AC tune-ups to $59' })).toBeVisible();
   await expect(page.getByText(/viewing this through an email link/i)).toBeVisible();
@@ -27,7 +27,7 @@ test('a client opens a signed email link as a read-only guest without agency dat
   expect(res?.status()).toBe(404);
 });
 
-test('a guest opens the evidence behind a brief item and gets no agency-only pages', async ({ page }) => {
+test('a guest opens the evidence behind a brief item and gets no agency-only pages', { tag: ['@guest', '@evidence', '@briefs', '@prospects'] }, async ({ page }) => {
   await page.goto((await readFile(OWNER_LINK_FILE, 'utf8')).trim());
   const clientId = /\/c\/([0-9a-f-]{36})\//.exec(page.url())![1];
   await page.getByRole('link', { name: 'Evidence 1' }).click();
@@ -38,13 +38,13 @@ test('a guest opens the evidence behind a brief item and gets no agency-only pag
   expect(res?.status()).toBe(404);
 });
 
-test('sign-in never redirects off-site (Review Focus 2)', async ({ page }) => {
+test('sign-in never redirects off-site (Review Focus 2)', { tag: ['@auth'] }, async ({ page }) => {
   await page.goto('/sign-in?next=//evil.example/x');
   await page.goto(await requestMagicLink(page, 'admin@e2e.test'));
   expect(new URL(page.url()).host).toBe('localhost:3100');
 });
 
-test('a production build has no dev panel, even with DEV_PANEL=1 (spec §5.3, §8)', async ({ page, request }) => {
+test('a production build has no dev panel, even with DEV_PANEL=1 (spec §5.3, §8)', { tag: ['@dev-panel'] }, async ({ page, request }) => {
   await page.goto('/sign-in');
   await expect(page.locator('[data-rm-dev-panel]')).toHaveCount(0);
   for (const path of ['/dev-panel/api/state', '/dev-panel/api/links', '/dev-panel/sign-in/anything']) {

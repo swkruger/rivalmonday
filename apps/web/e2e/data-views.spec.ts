@@ -16,7 +16,7 @@ async function openClient(page: Page): Promise<string> {
 
 const noSideScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
-test('pricing shows the competitor card and opens a price history', async ({ page }) => {
+test('pricing shows the competitor card and opens a price history', { tag: ['@pricing'] }, async ({ page }) => {
   await openClient(page);
   await page.getByRole('link', { name: 'Pricing' }).click();
   const tune = page.getByRole('link', { name: /AC tune-up/ });
@@ -26,7 +26,7 @@ test('pricing shows the competitor card and opens a price history', async ({ pag
   await expect(page.getByRole('img', { name: /AC tune-up price history/ })).toBeVisible();
 });
 
-test('ads lists creatives with a library link', async ({ page }) => {
+test('ads lists creatives with a library link', { tag: ['@ads'] }, async ({ page }) => {
   await openClient(page);
   await page.getByRole('link', { name: 'Ads', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Spring AC special' })).toBeVisible();
@@ -34,7 +34,7 @@ test('ads lists creatives with a library link', async ({ page }) => {
   await expect(page.getByText('Targeting not disclosed (US)').first()).toBeVisible();
 });
 
-test('reviews shows the heatmap and searches review text', async ({ page }) => {
+test('reviews shows the heatmap and searches review text', { tag: ['@reviews'] }, async ({ page }) => {
   const clientId = await openClient(page);
   await page.getByRole('link', { name: 'Reviews', exact: true }).click();
   await expect(page.getByRole('img', { name: /What customers talk about/ })).toBeVisible();
@@ -43,7 +43,7 @@ test('reviews shows the heatmap and searches review text', async ({ page }) => {
   await expect(page.getByText('No reviews match.')).toBeVisible();
 });
 
-test('local rankings draws the geo-grid and share of voice', async ({ page }) => {
+test('local rankings draws the geo-grid and share of voice', { tag: ['@rankings'] }, async ({ page }) => {
   await openClient(page);
   await page.getByRole('link', { name: 'Local rankings' }).click();
   await expect(page.getByRole('img', { name: /Local rankings for ac repair/ })).toBeVisible();
@@ -51,7 +51,7 @@ test('local rankings draws the geo-grid and share of voice', async ({ page }) =>
   await expect(page.getByRole('img', { name: /Share of top-3 local-pack slots/ })).toBeVisible();
 });
 
-test('the competitor profile shows prices, ads, reviews and rankings', async ({ page }) => {
+test('the competitor profile shows prices, ads, reviews and rankings', { tag: ['@competitors', '@pricing', '@ads', '@reviews', '@rankings'] }, async ({ page }) => {
   await openClient(page);
   await page.getByRole('link', { name: 'Competitors' }).click();
   await page.getByRole('link', { name: 'Smith HVAC', exact: true }).click();
@@ -63,7 +63,7 @@ test('the competitor profile shows prices, ads, reviews and rankings', async ({ 
 test.describe('as the client owner', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('the nav lists the four data views when the client has the dashboard', async ({ page }) => {
+  test('the nav lists the four data views when the client has the dashboard', { tag: ['@nav', '@guest'] }, async ({ page }) => {
     await page.goto((await readFile(OWNER_LINK_FILE, 'utf8')).trim());
     for (const name of ['Pricing', 'Ads', 'Reviews', 'Local rankings']) {
       await expect(page.getByRole('link', { name, exact: true }).first()).toBeVisible();
@@ -74,7 +74,7 @@ test.describe('as the client owner', () => {
 test.describe('at 390 px', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test('no module page scrolls sideways (Review Focus 5)', async ({ page }) => {
+  test('no module page scrolls sideways (Review Focus 5)', { tag: ['@responsive', '@overview', '@pricing', '@ads', '@reviews', '@rankings', '@competitors'] }, async ({ page }) => {
     const clientId = await openClient(page);
     for (const path of ['', '/pricing', '/ads', '/reviews', '/rankings', '/competitors']) {
       await page.goto(`/c/${clientId}${path}`);
@@ -85,7 +85,7 @@ test.describe('at 390 px', () => {
     expect(await noSideScroll(page), 'competitor profile fits').toBe(true);
   });
 
-  test('the portfolio shows each client as a block with every field in view', async ({ page }) => {
+  test('the portfolio shows each client as a block with every field in view', { tag: ['@responsive', '@clients'] }, async ({ page }) => {
     await page.goto('/agency');
     const card = page.getByRole('listitem').filter({ has: page.getByRole('link', { name: 'E2E HVAC' }) });
     await expect(card.getByRole('link', { name: /Approve week of 2026-10-12/ })).toBeInViewport();
@@ -94,7 +94,7 @@ test.describe('at 390 px', () => {
     expect(await noSideScroll(page), 'portfolio fits').toBe(true);
   });
 
-  test('the menu opens a drawer that navigates and closes', async ({ page }) => {
+  test('the menu opens a drawer that navigates and closes', { tag: ['@responsive', '@nav', '@pricing'] }, async ({ page }) => {
     const clientId = await openClient(page);
     await page.getByRole('button', { name: 'Open menu' }).click();
     await page.getByRole('dialog').getByRole('link', { name: 'Pricing' }).click();

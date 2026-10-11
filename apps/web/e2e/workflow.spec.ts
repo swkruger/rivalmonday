@@ -21,7 +21,7 @@ test.beforeAll(async ({ browser }, testInfo) => {
 
 test.use({ storageState: ADMIN_STATE });
 
-test('an admin adds a client and lands on its competitors page', async ({ page }) => {
+test('an admin adds a client and lands on its competitors page', { tag: ['@clients', '@competitors'] }, async ({ page }) => {
   await page.goto('/agency/clients/new');
   await page.getByLabel('Business name').fill('E2E Dental');
   await page.getByLabel('Vertical').selectOption('dental');
@@ -35,7 +35,7 @@ test('an admin adds a client and lands on its competitors page', async ({ page }
   await expect(page.getByRole('button', { name: /find competitors/i })).toBeEnabled();
 });
 
-test('an admin approves the ready brief and its recommendation appears on the board', async ({ page }) => {
+test('an admin approves the ready brief and its recommendation appears on the board', { tag: ['@briefs', '@recommendations', '@clients'] }, async ({ page }) => {
   await page.goto('/agency/approvals');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
   await expect(page.getByText('Smith HVAC launched a $49 drain-cleaning promo').first()).toBeVisible();
@@ -47,7 +47,7 @@ test('an admin approves the ready brief and its recommendation appears on the bo
   await expect(page.getByRole('region', { name: 'To do' }).getByText('Run a $49 drain-cleaning bundle')).toBeVisible();
 });
 
-test('an admin dismisses a pending alert with a reason', async ({ page }) => {
+test('an admin dismisses a pending alert with a reason', { tag: ['@alerts'] }, async ({ page }) => {
   await page.goto('/agency/alerts');
   await expect(page.getByText('Smith HVAC started a $49 promo')).toBeVisible();
   await page.getByRole('button', { name: /dismiss/i }).first().click();
@@ -56,7 +56,7 @@ test('an admin dismisses a pending alert with a reason', async ({ page }) => {
   await expect(page.getByText('No alerts waiting — nice.')).toBeVisible();
 });
 
-test('usage shows the near-cap warning and an admin raises the cap', async ({ page }) => {
+test('usage shows the near-cap warning and an admin raises the cap', { tag: ['@usage'] }, async ({ page }) => {
   await page.goto('/agency/usage');
   await expect(page.getByText(/87% · near cap/)).toBeVisible();
   await page.getByLabel('Monthly cap for E2E HVAC (USD)').fill('30');
@@ -65,7 +65,7 @@ test('usage shows the near-cap warning and an admin raises the cap', async ({ pa
   await expect(page.getByText(/43%/)).toBeVisible();
 });
 
-test('an admin edits a playbook and an unknown placeholder is refused', async ({ page }) => {
+test('an admin edits a playbook and an unknown placeholder is refused', { tag: ['@playbooks'] }, async ({ page }) => {
   await page.goto('/agency/playbooks');
   const card = page.locator('form').filter({ has: page.locator('input[name="playbookId"][value="price_cut_bundle"]') });
   await card.getByLabel('Template').fill('Hi {{client}}');
@@ -76,7 +76,7 @@ test('an admin edits a playbook and an unknown placeholder is refused', async ({
   await expect(card.getByText('Playbook saved.')).toBeVisible();
 });
 
-test('an admin turns a client feature on and off on the profile page', async ({ page }) => {
+test('an admin turns a client feature on and off on the profile page', { tag: ['@profile', '@clients'] }, async ({ page }) => {
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
   await page.waitForURL(/\/c\/[0-9a-f-]{36}/);
@@ -99,13 +99,13 @@ test('an admin turns a client feature on and off on the profile page', async ({ 
   await expect(page.getByLabel(/Alert rules/)).toBeChecked();
 });
 
-test('a platform operator approves a theme proposal', async ({ page }) => {
+test('a platform operator approves a theme proposal', { tag: ['@platform', '@reviews'] }, async ({ page }) => {
   await page.goto('/platform/themes');
   await page.getByRole('button', { name: 'Approve E2E hidden fees' }).click();
   await expect(page.getByText('Approved “E2E hidden fees”.')).toBeVisible();
 });
 
-test('a prospect’s landscape report shows and the prospect converts to a client', async ({ page }) => {
+test('a prospect’s landscape report shows and the prospect converts to a client', { tag: ['@prospects', '@clients'] }, async ({ page }) => {
   await page.goto('/agency/prospects');
   await page.getByRole('link', { name: 'E2E Prospect Dental' }).click();
   await expect(page.getByRole('table', { name: 'Map visibility' }).getByText('5/9 · top 3: 2 · avg 3.4')).toBeVisible();

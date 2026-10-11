@@ -5,7 +5,7 @@ test.beforeAll(async ({ browser }, testInfo) => ensureAdminState(browser, testIn
 
 test.use({ storageState: ADMIN_STATE });
 
-test('the changes feed opens the evidence viewer with both snapshots and the text diff', async ({ page }) => {
+test('the changes feed opens the evidence viewer with both snapshots and the text diff', { tag: ['@changes', '@evidence'] }, async ({ page }) => {
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
   await page.getByRole('link', { name: 'Changes' }).click();
@@ -21,7 +21,7 @@ test('the changes feed opens the evidence viewer with both snapshots and the tex
   await expect(page.getByText('Thanks — saved.')).toBeVisible();
 });
 
-test('a move shows its evidence chain and the competitor profile its timeline', async ({ page }) => {
+test('a move shows its evidence chain and the competitor profile its timeline', { tag: ['@moves', '@evidence', '@competitors'] }, async ({ page }) => {
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
   await page.getByRole('link', { name: 'Moves' }).click();
@@ -32,7 +32,7 @@ test('a move shows its evidence chain and the competitor profile its timeline', 
   await expect(page.getByRole('link', { name: /AC tune-up to \$79/ })).toBeVisible();
 });
 
-test('a stale ?event= or ?move= id keeps the page and says the item is gone', async ({ page }) => {
+test('a stale ?event= or ?move= id keeps the page and says the item is gone', { tag: ['@changes', '@moves'] }, async ({ page }) => {
   const stale = '00000000-0000-4000-8000-00000000dead';
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
@@ -48,7 +48,7 @@ test('a stale ?event= or ?move= id keeps the page and says the item is gone', as
   await expect(page.getByRole('link', { name: /Price war · Smith HVAC/ })).toBeVisible();
 });
 
-test('the overview shows the KPIs, pressure and ad chart', async ({ page }) => {
+test('the overview shows the KPIs, pressure and ad chart', { tag: ['@overview'] }, async ({ page }) => {
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
   await expect(page.getByText('Competitor price moves')).toBeVisible();
@@ -56,7 +56,7 @@ test('the overview shows the KPIs, pressure and ad chart', async ({ page }) => {
   await expect(page.getByRole('img', { name: /Active competitor ads per week/ })).toBeVisible();
 });
 
-test('the overview has no horizontal page scroll at 390 px', async ({ page }) => {
+test('the overview has no horizontal page scroll at 390 px', { tag: ['@responsive', '@overview'] }, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
@@ -65,7 +65,7 @@ test('the overview has no horizontal page scroll at 390 px', async ({ page }) =>
   expect(fits).toBe(true);
 });
 
-test('alert rules refuse a brief above the alert and reset to the defaults', async ({ page }) => {
+test('alert rules refuse a brief above the alert and reset to the defaults', { tag: ['@alert-rules'] }, async ({ page }) => {
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
   await page.getByRole('link', { name: 'Alert rules' }).click();
