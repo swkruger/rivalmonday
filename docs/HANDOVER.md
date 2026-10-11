@@ -1,6 +1,6 @@
 # Rival Monday — Session Handover
 
-*Written 2026-09-30; last updated **2026-10-11** — **Demo data, dev panel and snapshots is COMPLETE and merged to `main` and pushed 2026-10-09 (fast-forward to `c21bde6`; branch deleted); 20 tasks, final whole-branch review clean after one fix wave** ([plan](superpowers/plans/2026-10-09-demo-data-and-snapshots.md), [spec](superpowers/specs/2026-10-09-demo-data-and-snapshots-design.md)); a local-only tool: a fictional `cs_demo` database, a dev panel banner and a `cs_dev` snapshot/restore (§3). Before it, **Phase 5c-2 (client workspace data views — Pricing, Ads, Reviews, Local rankings, responsive shell) is complete and MERGED to `main` (`cac524e`, pushed 2026-10-09; branch `phase-5c2-data-views` deleted)** ([plan](superpowers/plans/2026-10-08-phase-5c2-data-views.md), 19 tasks; final whole-branch review: 1 Critical, 2 Important and several minors, all fixed in one fix wave, scoped re-review clean; E2E 25/25), after **Phase 5c-1** ([plan](superpowers/plans/2026-10-08-phase-5c1-client-workspace-core.md), `bac8349`). **State: `main` holds Phases 0–2, 3a–3d, 4a, 4b, 5a, 5b-1 (+ its owner-verification fixes), 5b-2 (`51924a7`), 5c-1 (`bac8349`) and 5c-2 (`cac524e`), all pushed — Phase 5 is complete — plus the demo data/dev panel/snapshots tool (`c21bde6`). No open feature branches. No migration in 5c-1 or 5c-2. `cs_dev` was migrated to `0037` (the latest) by the owner on 2026-10-11, right after the first real snapshot (`backups/20261011-200754-cs_dev/`, taken before the migration).** Owner decision 2026-10-06: the remaining live verification is **deferred until all of Phase 5 is complete** — one combined owner session, now due (checklist in §5 item 2); the demo data lets the owner look through every screen first. Start any new session by reading this file, then the documents it links. Keep it updated at the end of each session.*
+*Written 2026-09-30; last updated **2026-10-11** — **Phase 5 is COMPLETE and owner-verified (2026-10-11).** The end-of-Phase-5 owner verification ran on `cs_dev`, and its fixes were merged to `main` and pushed (`e1088c0`): client feature switches on Profile, and the dental playbook placeholder. Results are in §5 item 2, "Result (2026-10-11)". **State: `main` holds Phases 0–2, 3a–3d, 4a, 4b and 5a–5c-2, the demo data/dev panel/snapshots tool (`c21bde6`) and the verification fixes (`e1088c0`), all pushed.** `cs_dev` is at migration `0037` (the latest). **Next: plan Phase 6 (MCP server & Ask) in a new session on a new branch (§5 item 1).** In parallel, a small Phase 5 polish batch is being done in another session on its own branch (§5 item 1, "Parallel work"). Start any new session by reading this file, then the documents it links. Keep it updated at the end of each session.*
 
 ---
 
@@ -73,7 +73,15 @@ Business model: first sold to the owning agency's own clients, then **wholesale 
 
 ---
 
-## 3. Current state (2026-10-09)
+## 3. Current state (2026-10-11)
+
+**End-of-Phase-5 owner verification: DONE 2026-10-11.** The owner ran the combined checklist on `cs_dev` and signed off Phase 5. Fixes were merged to `main` and pushed (`e1088c0`):
+- client feature switches on the Profile page (`09d155d`);
+- the dental playbook's unknown `{{offer}}` placeholder, plus a test that checks every pack playbook against `PLAYBOOK_VARS` (`181dfe1`);
+- `cs_dev` data fixes: the stale brief PDF was cleared, and Aire Serv's Iowa City franchisee advertiser was unpinned.
+
+Findings and new backlog are in the roadmap's "End-of-Phase-5 owner verification findings (2026-10-11)". Waived until real data exists: approving alerts per outcome, and rating on the Recommendations board. Both need real competitor changes, expected from the weekly pull of 2026-10-13.
+
 
 **Demo data, dev panel and snapshots - COMPLETE and merged to `main` and pushed 2026-10-09 (fast-forward to `c21bde6`; branch deleted); final whole-branch review clean after one fix wave.** Plan: [2026-10-09-demo-data-and-snapshots.md](superpowers/plans/2026-10-09-demo-data-and-snapshots.md), 20 tasks, all implemented and task-reviewed. A local-only tool; nothing in it reaches production. **No migration.**
 - **`cs_demo`:** `pnpm demo:reset` creates the database if missing, wipes, migrates and seeds it with fictional HVAC/plumbing data (new package `@cs/demo`, one file per area, deterministic from `DEMO_SEED`, timestamps relative to the seeding moment), writes evidence to `apps/worker/.evidence-demo` and prints sign-in links; `pnpm demo:links` prints fresh ones. `packages/demo/src/coverage.ts` lists every app screen with the tools that must return data there, and `coverage.test.ts` fails when a screen is missing or a listed tool is empty (README table: `packages/demo/README.md`).
@@ -204,8 +212,39 @@ Tests: the full suite (`npx turbo run test --concurrency=1 --continue`) was gree
 
 ## 5. How to continue (next session checklist)
 
-1. Read this file, then the roadmap's newest carry-over sections ("Phase 5c-1 carry-over", then "Phase 5b-2 carry-over", "Phase 5b-1 carry-over"). Check `git log --oneline -5` (expect `c21bde6` — the demo tool merged — or later on `main`) and `git status` (clean). Everything through 5c-2 and the demo data/dev panel/snapshots tool is merged and pushed (also read the roadmap's "Phase 5c-2 carry-over" and "Demo data, dev panel and snapshots carry-over"); no open feature branches. Don't re-litigate the owner decisions already taken: §2, the 5b-1/5b-2 plan decisions, the 5c-1 plan's decisions 1–19 plus its execution rulings (§3's Phase 5c-1 paragraph), and the approved sidebar/search-progress designs.
-2. **Phase 5c-2 — the client workspace data views: DONE and merged 2026-10-09 (`cac524e`); Phase 5 is complete ([plan](superpowers/plans/2026-10-08-phase-5c2-data-views.md); §3 has the results). Next: the combined end-of-Phase-5 owner verification below — the demo data (`pnpm demo:reset`, `pnpm demo:dev`) lets the owner look through every screen first. Before launch also look at the page latency on the remote DB (§3, Known issues).** The planning notes below are kept for reference.
+1. **Next: plan Phase 6, the MCP server and Ask, in a new session on a new branch.** Phase 5 is complete; everything is on `main` and pushed.
+   - **Start:**
+     - Read this file, then the roadmap row for Phase 6 and the spec sections it cites: [core-platform spec](superpowers/specs/2026-09-29-core-platform-design.md) §8.2 Tools, §8.3 MCP server (`apps/mcp`) and §8.4 Ask assistant.
+     - Check `git log --oneline -5` (expect `e1088c0` or later) and `git status`.
+     - Create branch `phase-6-planning` from `main`.
+   - **Roadmap scope** (row 6): the full tool catalogue (§8.2); remote MCP (Streamable HTTP, OAuth 2.1 + DCR, personal access tokens, resources, prompts, `search`/`fetch`); the Ask assistant with grounding, prompt-injection defence and quotas; the Ask UI (module 10).
+   - **Inputs already decided or built — don't re-litigate:**
+     - Better Auth is self-hosted *because* Phase 6 needs its OAuth 2.1 provider for MCP (§2, Auth).
+     - `@cs/tools` holds the registry, shared with Phase 6: role-checked, audited, every web read is a registered tool.
+     - The client features `mcp` and `ask` exist. Agency roles can switch them on under Profile → Client features: `mcp` has a switch; `ask` has none yet and gets one with the Ask UI.
+     - `/c/<id>/settings/ai` is a placeholder "AI connections" page that Phase 6 makes real.
+     - Recommendations already allow `source = 'ask'`.
+   - **Carry-over to fold into the Phase 6 plan:**
+     - Phase 1: the registry reveals `not_found` vs `permission_denied`, so tool names can be enumerated; `countRows` only recognises `{items}` outputs; log the original handler error when the audit write also fails.
+     - Phase 4a: `ask_assistant` still routes to `anthropic/claude-sonnet-5`. Re-probe ZDR and strict `json_schema` support on OpenRouter first (vendor-APIs doc, "Verified 2026-10-03 — Phase 4a").
+     - Phases 5b-1, 5c-1 and 5c-2:
+       - an audit-exempt read class for polled tools;
+       - the list tools' `detail=summary|full`, and dashboard deep links in results;
+       - "Add recommendation" and "Ask Friday" buttons in the evidence viewer.
+     - Phase 5b-2: enforcing caps (pausing Ask at 100 %) is Phase 7. Decide with the owner whether Ask quotas need it earlier.
+   - **Process** (owner preference, §2):
+     1. superpowers:brainstorming with the owner. Phase 6 is large, so first decide whether to split it like Phase 5 (for example 6a tool catalogue + MCP, and 6b Ask + UI).
+     2. Write the spec or plan with superpowers:writing-plans, in the same shape as the 5c plans.
+     3. Owner approval.
+     4. superpowers:subagent-driven-development, with a pre-flight conflict scan.
+     5. Merge only with the owner's go-ahead.
+   - **Parallel work:**
+     - A Phase 5 polish batch runs in another session on its own branch. Scope: PDFs open in a new tab; stored PDFs are re-rendered after template changes; phone and client-grid layout; a dev-panel "view as client".
+     - Expect it to touch `apps/web` (shell, PDF links, files routes), `packages/engine` (PDF rendering) and `packages/demo` (dev panel).
+     - Keep Phase 6 planning to new docs. If both branches edit this file or the roadmap, merge by keeping both sides' sections.
+   - **Never re-litigate:** §2; the 5b-1/5b-2 plan decisions; the 5c-1 plan's decisions 1–19; the 5c-2 plan's decisions 1–16.
+
+2. **Phase 5c-2 — the client workspace data views: DONE and merged 2026-10-09 (`cac524e`); Phase 5 is complete ([plan](superpowers/plans/2026-10-08-phase-5c2-data-views.md); §3 has the results). Done: the combined end-of-Phase-5 owner verification below (signed off 2026-10-11) — the demo data (`pnpm demo:reset`, `pnpm demo:dev`) lets the owner look through every screen first. Before launch also look at the page latency on the remote DB (§3, Known issues).** The planning notes below are kept for reference.
    - **Planning session 2026-10-08 — done:** brainstorm with the owner (superpowers:brainstorming), then the plan (superpowers:writing-plans). The owner's answers (binding, recorded as plan decisions 1–16 — don't re-ask):
      - scope: modules 4–7 plus profile sections plus nav, and **the responsive app shell is IN** (drawer below 1024 px; enables the 390 px `test.fixme`); the **volatile-mask unmask UI stays OUT** (carry-over);
      - Pricing = **one card per competitor** (not a matrix); a selected service's history chart opens under the card; no "you" column (own-site prices are deferred);
