@@ -4,10 +4,10 @@
 **Spec/plan:** `docs/superpowers/{specs,plans}/2026-10-11-phase-6a-mcp*.md` (d1-d13, P1-P18)
 
 ## Status (overwrite)
-**6a implemented** (Tasks 0-15 reviewed clean). Final whole-branch review: "with fixes" (affected 14/14, e2e 30/30). The fix wave is in (consent redirect host + Read only default, guest 404 on `/c/<id>/settings/ai`, d12 on event/move summaries, name/code-only MCP error log, ads evidence kinds, docs); re-review pending. **6b (Ask / Friday) not started.**
+**6a done and ready to merge:** Tasks 0-15 reviewed, final whole-branch review + one fix wave, re-review clean. Branch-wide `test:affected` 14/14, `e2e:affected` 30/30. Tree clean; migrations 0038-0041 **not yet applied to `cs_dev`**. **6b (Ask / Friday) not started.**
 
 ## Next (overwrite)
-1. Re-review of the fix wave, owner verification (below), then `/rm-merge phase-6` with the owner's go-ahead.
+1. Owner: go-ahead for `/rm-merge phase-6` (full unit + E2E there; migrate `cs_dev` 0038-0041), then the owner verification steps below. Undecided copy: "Token revoked." / "App disconnected.".
 2. Plan 6b (`/rm-kickoff`, brainstorming). Open: **(6)** Ask model: re-probe sonnet-5 ZDR + strict `json_schema` on OpenRouter, else sonnet-4.6; **(7)** grounding vs streaming (rec: verify, then stream); **(8)** quota (rec: per-client monthly limit; cap pause stays Phase 7); **(10)** agency view of Ask threads (rec: toggle + read-only view). Missing tables: `ask_thread`, `ask_message`.
 
 ## Interfaces this branch adds or changes
