@@ -59,6 +59,16 @@ export async function oauthClientName(service: Db, oauthClientId: string): Promi
   return { name: rows[0].name?.trim() || null };
 }
 
+/** Host (with the port when non-default) of a redirect_uri, shown on the consent page; null when absent or unparseable. */
+export function redirectHostOf(redirectUri: string | null): string | null {
+  if (!redirectUri) return null;
+  try {
+    return new URL(redirectUri).host || null;
+  } catch {
+    return null;
+  }
+}
+
 /** Rebuilds the signed OAuth query from Next's `searchParams` (repeated keys arrive as arrays; order does not matter). */
 export function oauthQueryFrom(params: Record<string, string | string[] | undefined>): string {
   const q = new URLSearchParams();

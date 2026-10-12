@@ -103,12 +103,15 @@ test('a client owner picks a workspace on the consent page', { tag: ['@ai-connec
     await page.goto(await requestMagicLink(page, 'mcp-owner@e2e.test'));
     await expect(page).toHaveURL(/\/oauth\/consent\?/);
     await expect(page.getByText('Connect E2E Assistant to Rival Monday')).toBeVisible();
+    await expect(page.getByText("After you allow, you'll be sent to 127.0.0.1:47123.")).toBeVisible();
 
     // 4. The picker lists both workspaces; choose the second, read only.
     const picker = page.getByLabel('Workspace');
     const options = (await picker.locator('option').allTextContents()).sort();
     expect(options).toEqual([`${clients.first.name} (E2E Agency)`, `${clients.second.name} (E2E Agency)`].sort());
     await picker.selectOption({ label: `${clients.second.name} (E2E Agency)` });
+    // Read only is the default; checking it again is a no-op that keeps the step explicit.
+    await expect(page.getByRole('radio', { name: /^Read only/ })).toBeChecked();
     await page.getByRole('radio', { name: /^Read only/ }).check();
     await page.getByRole('button', { name: 'Allow' }).click();
     await expect.poll(() => callback?.searchParams.get('code') ?? null).not.toBeNull();

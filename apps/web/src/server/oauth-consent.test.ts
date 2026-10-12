@@ -12,7 +12,7 @@ import { APP, oauthHarness, pathOf, queryOf } from '../../test/oauth-fixtures';
 import { buildAuthOptions } from './auth-options';
 import type { WebEnv } from './env';
 import { safeNext } from './safe-next';
-import { bindConsent, type ConsentTarget, consentOptions, createVerifyOAuth, oauthClientName, oauthQueryFrom, oauthResumePath, pickConsent } from './oauth-consent';
+import { bindConsent, type ConsentTarget, consentOptions, createVerifyOAuth, oauthClientName, oauthQueryFrom, oauthResumePath, pickConsent, redirectHostOf } from './oauth-consent';
 
 const dbs = openTestDbs();
 const pool = new Pool({ connectionString: testUrls.service });
@@ -166,6 +166,22 @@ describe('oauthClientName, oauthQueryFrom, oauthResumePath', () => {
     expect(await oauthResumePath(params, 'secret', no)).toBeNull();
     expect(await oauthResumePath({ client_id: 'c' }, 'secret', yes)).toBeNull();
     expect(await oauthResumePath({ next: '/x' }, 'secret', yes)).toBeNull();
+  });
+});
+
+describe('redirectHostOf', () => {
+  it('returns the redirect_uri host, with the port only when it is not the default', () => {
+    expect(redirectHostOf('http://127.0.0.1:47123/callback')).toBe('127.0.0.1:47123');
+    expect(redirectHostOf('https://claude.ai/api/mcp/auth_callback')).toBe('claude.ai');
+    expect(redirectHostOf('https://app.example.com:443/cb')).toBe('app.example.com');
+    expect(redirectHostOf('https://app.example.com:8443/cb')).toBe('app.example.com:8443');
+  });
+
+  it('is null when the redirect_uri is missing, unparseable or has no host', () => {
+    expect(redirectHostOf(null)).toBeNull();
+    expect(redirectHostOf('')).toBeNull();
+    expect(redirectHostOf('not a url')).toBeNull();
+    expect(redirectHostOf('cursor:callback')).toBeNull();
   });
 });
 

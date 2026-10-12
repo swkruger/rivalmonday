@@ -14,14 +14,21 @@ const ACCESS: Record<TokenScope, string> = {
 };
 const selectClass = 'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
-export function ConsentForm({ appName, productName, oauthQuery, options }: { appName: string; productName: string; oauthQuery: string; options: ConsentFormOption[] }) {
+export function ConsentForm({ appName, productName, oauthQuery, options, redirectHost = null }: {
+  appName: string;
+  productName: string;
+  oauthQuery: string;
+  options: ConsentFormOption[];
+  /** Host (and non-default port) of the verified redirect_uri; null omits the line. */
+  redirectHost?: string | null;
+}) {
   const [state, formAction, pending] = useActionState(decideConsent, { ok: true } as FormResult);
   const [membershipId, setMembershipId] = useState(options[0]?.membershipId ?? '');
   const selected = options.find((o) => o.membershipId === membershipId) ?? options[0];
-  // Default = the highest level this workspace offers; reset when the workspace changes.
-  const [scope, setScope] = useState<TokenScope | undefined>(selected?.scopes.at(-1));
+  // Default = the lowest level (Read only, owner decision); the user can pick higher. Resets when the workspace changes.
+  const [scope, setScope] = useState<TokenScope | undefined>(undefined);
   const offered = selected?.scopes ?? [];
-  const chosen = scope && offered.includes(scope) ? scope : offered.at(-1);
+  const chosen = scope && offered.includes(scope) ? scope : offered.includes('read') ? 'read' : offered[0];
 
   return (
     <form action={formAction} className="flex flex-col gap-5">
@@ -38,6 +45,11 @@ export function ConsentForm({ appName, productName, oauthQuery, options }: { app
           <p className="text-ink">
             <strong>{appName}</strong> wants to use your {productName} data. It will act as you, within the access you choose.
           </p>
+          {redirectHost && (
+            <p className="text-ink">
+              After you allow, you&apos;ll be sent to <strong>{redirectHost}</strong>.
+            </p>
+          )}
           <div className="flex flex-col gap-2">
             {options.length === 1 ? (
               <>

@@ -6,7 +6,7 @@ import { defaultBranding } from '@/server/branding';
 import { getViewer } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { webEnv } from '@/server/env';
-import { consentOptions, oauthClientName, oauthQueryFrom } from '@/server/oauth-consent';
+import { consentOptions, oauthClientName, oauthQueryFrom, redirectHostOf } from '@/server/oauth-consent';
 import { safeNext } from '@/server/safe-next';
 import { ConsentForm } from './consent-form';
 
@@ -43,6 +43,7 @@ export default async function ConsentPage({ searchParams }: { searchParams: Prom
         appName={appName}
         productName={productName}
         oauthQuery={oauthQuery}
+        redirectHost={redirectHostOf(q.get('redirect_uri'))}
         options={options.map((o) => ({ membershipId: o.membershipId, label: o.label, scopes: o.scopes }))}
       />
     </AuthCard>
