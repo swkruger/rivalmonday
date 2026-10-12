@@ -35,10 +35,9 @@
     "PG_BIN",
     "TEST_DB_FULL_RESET"
   ],
-  "futureFlags": { "affectedUsingTaskInputs": true },
   "tasks": {
     "typecheck": { "dependsOn": ["^typecheck"] },
-    "test": { "cache": false, "inputs": ["$TURBO_DEFAULT$", "!**/*.md"] },
+    "test": { "cache": false },
     "build": { "dependsOn": ["^build"], "outputs": [".next/**", "!.next/cache/**"] }
   }
 }

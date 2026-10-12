@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-// Affected-only unit tests: packages changed since <base> (and their dependents) via `turbo --affected`, and inside
-// each package only the test files whose import graph reaches a changed file (`vitest --changed <base>`).
+// Affected-only unit tests: packages with code changes since <base> plus everything that depends on them
+// (turbo `--filter=...<pkg>`), and inside each package only the test files whose import graph reaches a changed
+// file (`vitest --changed <base>`). Docs (`*.md`, `docs/`, `.claude/`) never select anything.
 // The full suite (`pnpm test`) runs at /rm-merge and in CI.
 //
 //   pnpm test:affected [--base <ref>] [--dry-run] [--packages-only]
 import { execFileSync, spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
@@ -38,20 +40,30 @@ const GRAPH_BLIND = [
 const blind = changed.filter((f) => GRAPH_BLIND.some((re) => re.test(f)));
 const fileLevel = !flag('--packages-only') && blind.length === 0;
 
-const turbo = ['turbo', 'run', 'test', '--affected', '--concurrency=1', '--continue'];
-const turboArgs = fileLevel ? [...turbo, '--', '--changed', base, '--passWithNoTests'] : turbo;
+const IGNORED = [/\.md$/, /^docs\//, /^\.claude\//];
+const ROOT_WIDE = [/^package\.json$/, /^pnpm-lock\.yaml$/, /^pnpm-workspace\.yaml$/, /^turbo\.json$/, /^tsconfig[^/]*\.json$/];
+const code = changed.filter((f) => !IGNORED.some((re) => re.test(f)));
+const everything = code.some((f) => ROOT_WIDE.some((re) => re.test(f)));
+const dirs = [...new Set(code.map((f) => /^((?:apps|packages)\/[^/]+)\//.exec(f)?.[1]).filter(Boolean))];
+const names = dirs.map((d) => JSON.parse(readFileSync(`${d}/package.json`, 'utf8')).name).filter(Boolean);
+const filters = everything ? [] : names.map((n) => `--filter=...${n}`);
 
-console.log(`base ${base.slice(0, 10)} · ${changed.length} changed file(s)`);
+console.log(`base ${base.slice(0, 10)} · ${changed.length} changed file(s), ${code.length} code`);
+if (!everything && filters.length === 0) {
+  console.log('No code changes in apps/ or packages/ — nothing to test.');
+  process.exit(0);
+}
 if (blind.length) console.log(`package-level (import graph can't see): ${blind.slice(0, 5).join(', ')}${blind.length > 5 ? ' …' : ''}`);
-else console.log(fileLevel ? 'file-level: vitest --changed inside each affected package' : 'package-level (--packages-only)');
+else console.log(fileLevel ? 'file-level: vitest --changed inside each selected package' : 'package-level (--packages-only)');
 
-const env = { ...process.env, TURBO_SCM_BASE: base };
-const dry = spawnSync('npx', [...turbo, '--dry=json'], { encoding: 'utf8', env, shell: true });
+const turbo = ['turbo', 'run', 'test', '--concurrency=1', '--continue', ...filters];
+const turboArgs = fileLevel ? [...turbo, '--', '--changed', base, '--passWithNoTests'] : turbo;
+const dry = spawnSync('npx', [...turbo, '--dry=json'], { encoding: 'utf8', shell: true });
 const pkgs = dry.status === 0 ? JSON.parse(dry.stdout).tasks.map((t) => t.package) : [];
-console.log(pkgs.length ? `affected packages: ${pkgs.join(' ')}` : 'No affected packages — nothing to test.');
-if (flag('--dry-run') || pkgs.length === 0) process.exit(dry.status === 0 ? 0 : 1);
+console.log(`${everything ? 'root config changed → all packages: ' : 'packages: '}${pkgs.join(' ')}`);
+if (flag('--dry-run')) process.exit(dry.status === 0 ? 0 : 1);
 
 const started = Date.now();
-const run = spawnSync('npx', turboArgs, { stdio: 'inherit', env, shell: true });
+const run = spawnSync('npx', turboArgs, { stdio: 'inherit', shell: true });
 console.log(`test:affected finished in ${Math.round((Date.now() - started) / 1000)} s`);
 process.exit(run.status ?? 1);
