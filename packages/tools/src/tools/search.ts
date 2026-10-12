@@ -1,26 +1,23 @@
 import { redactForModel } from '@cs/collectors';
-import { type AccessContext, appLinkFor, type AppTarget, canAccessClient, hasFeature, isAgencyRole, toolkit, ToolError } from '@cs/core';
-import { alert, brief, briefItem, changeEvent, client, clientCompetitor, competitor, eventScore, recommendation, review, withTenant } from '@cs/db';
+import { type AccessContext, appLinkFor, type AppTarget, hasFeature, isAgencyRole, toolkit } from '@cs/core';
+import { alert, brief, briefItem, changeEvent, clientCompetitor, competitor, eventScore, recommendation, review, withTenant } from '@cs/db';
 import { changeTypeLabel } from '@cs/email';
 import { and, type AnyColumn, asc, cosineDistance, desc, eq, inArray, isNotNull, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { rrfMerge } from '../search/rrf';
+import { AGENCY_BRIEF_STATUSES, CLIENT_BRIEF_STATUSES, DASHBOARD_ITEM_TYPES, searchClient } from '../search/scope';
 import { workspaceBusinesses } from '../workspace/business';
-import { clientEvents, eventJoin, type WorkspaceClient, workspaceClient } from '../workspace/scope';
+import { clientEvents, eventJoin, type WorkspaceClient } from '../workspace/scope';
 
 const { defineTool } = toolkit<ToolDeps>();
 
 export const SEARCH_TYPES = ['event', 'brief_item', 'recommendation', 'alert', 'review', 'page'] as const;
 type SearchType = (typeof SEARCH_TYPES)[number];
-/** Workspace types: client roles need the `dashboard` feature (silently dropped otherwise). */
-const DASHBOARD_TYPES: ReadonlySet<SearchType> = new Set(['event', 'review', 'page']);
 const FTS_PER_TYPE = 30;
 const VECTOR_PER_KIND = 20;
 const SNIPPET_CHARS = 300;
 const HEADLINE_OPTS = 'StartSel="",StopSel="",MaxWords=35,MinWords=15';
-const CLIENT_BRIEF_STATUSES = ['approved', 'sent'];
-const AGENCY_BRIEF_STATUSES = ['ready', 'approved', 'sent'];
 
 /** One ranked candidate; `snippet` is raw text, redacted only when the result is shaped. */
 interface Hit {
@@ -33,26 +30,6 @@ interface Hit {
 }
 
 const SearchResult = z.object({ id: z.string(), title: z.string(), snippet: z.string(), url: z.string() });
-
-/**
- * d6 / Review focus 1: the one client this search runs for. Bound (one-client) contexts use their client; otherwise
- * `clientId` is required unless exactly one active client is in scope. Inaccessible or non-active clients are `not_found`.
- */
-async function searchClient(deps: ToolDeps, ctx: AccessContext, clientId: string | undefined): Promise<WorkspaceClient> {
-  let id = clientId;
-  if (!id && ctx.clientScope !== 'all' && ctx.clientScope.length === 1) id = ctx.clientScope[0];
-  if (!id) {
-    const active = await withTenant(deps.app, ctx, (tx) =>
-      tx.select({ id: client.id }).from(client).where(eq(client.status, 'active')).orderBy(asc(client.name), asc(client.id)).limit(2));
-    if (active.length > 1) throw new ToolError('invalid_input', 'Pass clientId: you can see more than one client.');
-    if (!active[0]) throw new ToolError('not_found', 'Client not found');
-    id = active[0].id;
-  }
-  if (!canAccessClient(ctx, id)) throw new ToolError('not_found', 'Client not found');
-  const [row] = await withTenant(deps.app, ctx, (tx) => tx.select({ status: client.status }).from(client).where(eq(client.id, id)));
-  if (row?.status !== 'active') throw new ToolError('not_found', 'Client not found');
-  return workspaceClient(deps, ctx, id);
-}
 
 const tsv = (table: string): SQL => sql.raw(`"${table}".search_tsv`);
 const pathOf = (url: string): string => {
@@ -195,7 +172,7 @@ export const search = defineTool({
   async handler(ctx, input, deps) {
     const c = await searchClient(deps, ctx, input.clientId);
     const dashboard = hasFeature(ctx, 'dashboard');
-    const types = new Set((input.types ?? SEARCH_TYPES).filter((t) => dashboard || !DASHBOARD_TYPES.has(t)));
+    const types = new Set((input.types ?? SEARCH_TYPES).filter((t) => dashboard || !DASHBOARD_ITEM_TYPES.has(t)));
     if (types.size === 0) return { results: [] };
     const fts = await ftsHits(deps, ctx, c, types, input.query);
     let vector: Hit[] = [];
