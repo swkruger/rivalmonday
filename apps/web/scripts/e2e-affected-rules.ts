@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@playbooks',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -67,11 +67,11 @@ export const RULES: Rule[] = [
 
   // --- Web routes ---
   // --- AI connections (MCP server, OAuth consent, AI settings pages) ---
-  // Ruling R2: `tags: []` (smoke only) until Task 13 adds the `@ai-connections` tag together with its spec; then these become that tag.
-  { pattern: /^packages\/mcp\//, tags: [], why: 'AI connections (MCP server)' },
-  { pattern: re(`${APP}(?:mcp/|\\.well-known/|oauth/)`), tags: [], why: 'AI connections (MCP route, OAuth metadata/consent)' },
-  { pattern: re(`${APP}\\(app\\)/(?:agency|c/\\[clientId\\]/settings|settings)/ai/`), tags: [], why: 'AI connections settings' },
-  { pattern: re(`${SERVER}(?:mcp|oauth-consent)\\.ts$`), tags: [], why: 'AI connections server module' },
+  { pattern: /^packages\/mcp\//, tags: ['@ai-connections'], why: 'AI connections (MCP server)' },
+  { pattern: re(`${APP}(?:mcp/|\\.well-known/|oauth/)`), tags: ['@ai-connections'], why: 'AI connections (MCP route, OAuth metadata/consent)' },
+  { pattern: re(`${APP}\\(app\\)/(?:agency|c/\\[clientId\\]/settings|settings)/ai/`), tags: ['@ai-connections'], why: 'AI connections settings' },
+  { pattern: re(`${SERVER}(?:mcp|oauth-consent|ai-connections)\\.ts$`), tags: ['@ai-connections'], why: 'AI connections server module' },
+  { pattern: re(`${COMP}ai-connections\\.tsx$`), tags: ['@ai-connections'], why: 'AI connections cards' },
 
   { pattern: re(`${APP}(?:sign-in/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in and link-error pages' },
   { pattern: re(`${APP}(?:l/|go/|files/)`), tags: GUEST_FILES, why: 'signed links and stored files' },
@@ -127,6 +127,7 @@ export const RULES: Rule[] = [
 
   // --- Domain packages: keyword rules (more specific first) ---
   kw('alert-rules', ['@alert-rules'], 'alert rules'),
+  kw('api-tokens|oauth', ['@ai-connections'], 'AI connections (tokens, OAuth)'),
   kw('word-diff|events|evidence|diff|changes', ['@changes', '@evidence'], 'events/evidence/diff'),
   kw('pric', ['@pricing'], 'pricing'),
   kw('playbook', ['@playbooks'], 'playbooks'),

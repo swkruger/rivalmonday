@@ -6,11 +6,12 @@ import { createStoreFromEnv } from '@cs/storage';
 import { eq } from 'drizzle-orm';
 import { createInvitation } from '@cs/tools';
 import { resolveEvidenceDir } from '../src/server/files';
-import { E2E_LINK_SECRET, OUTBOX, OWNER_LINK_FILE } from '../playwright.config';
+import { E2E_LINK_SECRET, MCP_CLIENTS_FILE, OUTBOX, OWNER_LINK_FILE } from '../playwright.config';
 
 /**
  * Seeds `cs_test` for the E2E smoke run: one agency, one client, one competitor, a sent brief, an invitation and a
- * client contact; plus (5b-2) near-cap spend, a prospect with a ready snapshot, and a pending theme proposal.
+ * client contact; plus (5b-2) near-cap spend, a prospect with a ready snapshot, and a pending theme proposal; plus
+ * (6a) two more active clients with AI connections on, and an invited owner of both.
  */
 export async function seed(): Promise<void> {
   const { db, close } = createDb(process.env.TEST_DATABASE_URL!);
@@ -122,6 +123,16 @@ export async function seed(): Promise<void> {
     await db.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'e2e_hidden_fees', name: 'E2E hidden fees', description: 'Unexpected trip fees', otherCount: 12, sampleReviewIds: [] });
 
     const [ownerContact] = await db.insert(contact).values({ agencyId, clientId, role: 'client_owner', email: 'owner@e2e.test' }).returning();
+
+    // Phase 6a: a client owner of two active clients with AI connections on (the consent page's workspace picker).
+    // Separate clients, so E2E HVAC keeps `mcp` off for the profile-features test.
+    const mcpClients = await db.insert(client).values([
+      { agencyId, name: 'First Heating Co', verticalId: 'hvac_plumbing', features: ['mcp'], keywords: ['furnace repair'] },
+      { agencyId, name: 'Second Plumbing Co', verticalId: 'hvac_plumbing', features: ['mcp'], keywords: ['plumber'] },
+    ]).returning({ id: client.id, name: client.name });
+    for (const m of mcpClients) await createInvitation(db, { agencyId, email: 'mcp-owner@e2e.test', role: 'client_owner', clientId: m.id, invitedBy: 'e2e-seed' });
+    await mkdir(dirname(MCP_CLIENTS_FILE), { recursive: true });
+    await writeFile(MCP_CLIENTS_FILE, JSON.stringify({ first: mcpClients[0], second: mcpClients[1] }));
 
     const token = signLink(E2E_LINK_SECRET, { sub: ownerContact!.id, agency: agencyId, client: clientId, t: 'brief', id: briefId });
     await mkdir(dirname(OWNER_LINK_FILE), { recursive: true });
