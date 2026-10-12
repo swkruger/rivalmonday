@@ -18,7 +18,7 @@ const noSideScroll = (page: Page) => page.evaluate(() => document.documentElemen
 
 test('pricing shows the competitor card and opens a price history', { tag: ['@pricing'] }, async ({ page }) => {
   await openClient(page);
-  await page.getByRole('link', { name: 'Pricing' }).click();
+  await page.getByRole('link', { name: 'Pricing', exact: true }).click();
   const tune = page.getByRole('link', { name: /AC tune-up/ });
   await expect(tune).toContainText('$79');
   await expect(tune).toContainText('▼ $20');
@@ -45,7 +45,7 @@ test('reviews shows the heatmap and searches review text', { tag: ['@reviews'] }
 
 test('local rankings draws the geo-grid and share of voice', { tag: ['@rankings'] }, async ({ page }) => {
   await openClient(page);
-  await page.getByRole('link', { name: 'Local rankings' }).click();
+  await page.getByRole('link', { name: 'Local rankings', exact: true }).click();
   await expect(page.getByRole('img', { name: /Local rankings for ac repair/ })).toBeVisible();
   await expect(page.getByText('Top 3 at 3 of 8 points · average rank 3.5').first()).toBeVisible();
   await expect(page.getByRole('img', { name: /Share of top-3 local-pack slots/ })).toBeVisible();
@@ -53,7 +53,7 @@ test('local rankings draws the geo-grid and share of voice', { tag: ['@rankings'
 
 test('the competitor profile shows prices, ads, reviews and rankings', { tag: ['@competitors', '@pricing', '@ads', '@reviews', '@rankings'] }, async ({ page }) => {
   await openClient(page);
-  await page.getByRole('link', { name: 'Competitors' }).click();
+  await page.getByRole('link', { name: 'Competitors', exact: true }).click();
   await page.getByRole('link', { name: 'Smith HVAC', exact: true }).click();
   await page.waitForURL(/\/competitors\/[0-9a-f-]{36}/);
   for (const name of ['Prices', 'Ads', 'Reviews', 'Local rankings']) await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
@@ -97,7 +97,7 @@ test.describe('at 390 px', () => {
   test('the menu opens a drawer that navigates and closes', { tag: ['@responsive', '@nav', '@pricing'] }, async ({ page }) => {
     const clientId = await openClient(page);
     await page.getByRole('button', { name: 'Open menu' }).click();
-    await page.getByRole('dialog').getByRole('link', { name: 'Pricing' }).click();
+    await page.getByRole('dialog').getByRole('link', { name: 'Pricing', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/c/${clientId}/pricing`));
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.getByRole('button', { name: 'Open menu' }).click();

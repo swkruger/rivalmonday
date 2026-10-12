@@ -43,7 +43,7 @@ test('an admin approves the ready brief and its recommendation appears on the bo
   await expect(page.getByText(/approved — it goes out monday/i)).toBeVisible();
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).click();
-  await page.getByRole('link', { name: 'Recommendations' }).click();
+  await page.getByRole('link', { name: 'Recommendations', exact: true }).click();
   await expect(page.getByRole('region', { name: 'To do' }).getByText('Run a $49 drain-cleaning bundle')).toBeVisible();
 });
 

@@ -8,7 +8,7 @@ test.use({ storageState: ADMIN_STATE });
 test('the changes feed opens the evidence viewer with both snapshots and the text diff', { tag: ['@changes', '@evidence'] }, async ({ page }) => {
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
-  await page.getByRole('link', { name: 'Changes' }).click();
+  await page.getByRole('link', { name: 'Changes', exact: true }).click();
   await page.getByRole('link', { name: /Smith HVAC cut its AC tune-up to \$79/ }).click();
   const shots = page.getByRole('img', { name: /snapshot of https:\/\/smithhvac\.example\/pricing/ });
   await expect(shots).toHaveCount(2);
@@ -24,10 +24,10 @@ test('the changes feed opens the evidence viewer with both snapshots and the tex
 test('a move shows its evidence chain and the competitor profile its timeline', { tag: ['@moves', '@evidence', '@competitors'] }, async ({ page }) => {
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
-  await page.getByRole('link', { name: 'Moves' }).click();
+  await page.getByRole('link', { name: 'Moves', exact: true }).click();
   await expect(page.getByRole('link', { name: /Price war · Smith HVAC/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Smith HVAC cut its AC tune-up/ })).toBeVisible();
-  await page.getByRole('link', { name: 'Competitors' }).click();
+  await page.getByRole('link', { name: 'Competitors', exact: true }).click();
   await page.getByRole('link', { name: 'Smith HVAC', exact: true }).click();
   await expect(page.getByRole('link', { name: /AC tune-up to \$79/ })).toBeVisible();
 });
@@ -68,7 +68,7 @@ test('the overview has no horizontal page scroll at 390 px', { tag: ['@responsiv
 test('alert rules refuse a brief above the alert and reset to the defaults', { tag: ['@alert-rules'] }, async ({ page }) => {
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
-  await page.getByRole('link', { name: 'Alert rules' }).click();
+  await page.getByRole('link', { name: 'Alert rules', exact: true }).click();
   await page.getByLabel('Instant alert from score').fill('50');
   await page.getByLabel('Weekly brief from score').fill('60');
   await page.getByRole('button', { name: 'Save' }).click();
