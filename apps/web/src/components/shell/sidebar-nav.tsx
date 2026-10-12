@@ -1,13 +1,13 @@
 'use client';
 
-import { Activity, BadgeDollarSign, Bell, BookOpen, Building2, ClipboardCheck, Gauge, Inbox, LayoutDashboard, ListChecks, MapPin, Megaphone, Palette, Plug, Scale, Send, Siren, SlidersHorizontal, Star, Swords, Tags, Telescope, TrendingUp, UserCog, Users, Webhook } from 'lucide-react';
+import { Activity, BadgeDollarSign, Bell, BookOpen, Building2, ClipboardCheck, Gauge, Inbox, LayoutDashboard, ListChecks, MapPin, Megaphone, MessageCircle, Palette, Plug, Scale, Send, Siren, SlidersHorizontal, Star, Swords, Tags, Telescope, TrendingUp, UserCog, Users, Webhook } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { activeHref, clientIdFromPath, type NavGroup, type NavItem, type NavRoleFlags, navItemsFor } from './nav-items';
 
 const ICONS = {
   clients: Users, overview: LayoutDashboard, inbox: Inbox, team: UserCog, branding: Palette, webhooks: Webhook, bell: Bell, delivery: Send, profile: Building2, competitors: Swords,
-  changes: Activity, moves: TrendingUp, pricing: BadgeDollarSign, ads: Megaphone, rankings: MapPin, reputation: Star, approvals: ClipboardCheck, alerts: Siren, recommendations: ListChecks, usage: Gauge, playbooks: BookOpen, reviews: Scale, themes: Tags, prospects: Telescope, alertRules: SlidersHorizontal, ai: Plug,
+  changes: Activity, moves: TrendingUp, pricing: BadgeDollarSign, ads: Megaphone, rankings: MapPin, reputation: Star, approvals: ClipboardCheck, alerts: Siren, recommendations: ListChecks, usage: Gauge, playbooks: BookOpen, reviews: Scale, themes: Tags, prospects: Telescope, alertRules: SlidersHorizontal, ai: Plug, ask: MessageCircle,
 } as const satisfies Record<NavItem['icon'], unknown>;
 
 export interface NavClient {
@@ -35,7 +35,14 @@ function NavLink({ item, current, compact = false }: { item: NavItem; current: b
       }
     >
       <Icon className="h-4 w-4 flex-shrink-0" strokeWidth={1.9} />
-      <span className="truncate">{item.label}</span>
+      {item.pill ? (
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span>{item.label.slice(0, item.label.length - item.pill.length).trimEnd()}</span>{' '}
+          <span className="truncate rounded-full bg-amber px-2 py-px text-xs font-bold text-amber-text">{item.pill}</span>
+        </span>
+      ) : (
+        <span className="truncate">{item.label}</span>
+      )}
     </Link>
   );
 }

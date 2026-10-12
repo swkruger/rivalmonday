@@ -1,5 +1,6 @@
 import { createAccessContext } from '@cs/core';
 import { describe, expect, it } from 'vitest';
+import { navItemsFor } from '@/components/shell/nav-items';
 import { homePath, navFlagsFor, navFor } from './nav';
 
 const A = '00000000-0000-4000-8000-00000000000a';
@@ -16,7 +17,7 @@ describe('navFor', () => {
   it('gives account managers team but not branding/webhooks, plus client pages inside a client', () => {
     const hrefs = navFor({ kind: 'user', ctx: ctx('account_manager') }, C).map((n) => n.href);
     expect(hrefs).toEqual([
-      '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/usage', '/agency/playbooks', `/c/${C}`, `/c/${C}/competitors`, `/c/${C}/changes`, `/c/${C}/pricing`, `/c/${C}/ads`, `/c/${C}/reviews`, `/c/${C}/rankings`, `/c/${C}/moves`, `/c/${C}/recommendations`, `/c/${C}/settings/profile`, `/c/${C}/settings/delivery`, `/c/${C}/settings/alerts`, `/c/${C}/settings/ai`,
+      '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/usage', '/agency/playbooks', `/c/${C}`, `/c/${C}/competitors`, `/c/${C}/changes`, `/c/${C}/pricing`, `/c/${C}/ads`, `/c/${C}/reviews`, `/c/${C}/rankings`, `/c/${C}/moves`, `/c/${C}/recommendations`, `/c/${C}/ask`, `/c/${C}/settings/profile`, `/c/${C}/settings/delivery`, `/c/${C}/settings/alerts`, `/c/${C}/settings/ai`,
       '/inbox', '/agency/team', '/agency/ai', '/settings/notifications',
     ]);
   });
@@ -32,7 +33,7 @@ describe('navFor', () => {
       Object.fromEntries(navFor({ kind: 'user', ctx: ctx(role) }, C).map((n) => [n.href, n.group]));
     expect(groups('agency_admin')).toEqual({
       '/agency': 'agency', '/agency/approvals': 'agency', '/agency/alerts': 'agency', '/agency/prospects': 'agency', '/agency/usage': 'agency', '/agency/playbooks': 'agency',
-      [`/c/${C}`]: 'client', [`/c/${C}/recommendations`]: 'client', [`/c/${C}/competitors`]: 'client', [`/c/${C}/changes`]: 'client', [`/c/${C}/pricing`]: 'client', [`/c/${C}/ads`]: 'client', [`/c/${C}/reviews`]: 'client', [`/c/${C}/rankings`]: 'client', [`/c/${C}/moves`]: 'client', [`/c/${C}/settings/profile`]: 'client', [`/c/${C}/settings/delivery`]: 'client', [`/c/${C}/settings/alerts`]: 'client', [`/c/${C}/settings/ai`]: 'client',
+      [`/c/${C}`]: 'client', [`/c/${C}/recommendations`]: 'client', [`/c/${C}/ask`]: 'client', [`/c/${C}/competitors`]: 'client', [`/c/${C}/changes`]: 'client', [`/c/${C}/pricing`]: 'client', [`/c/${C}/ads`]: 'client', [`/c/${C}/reviews`]: 'client', [`/c/${C}/rankings`]: 'client', [`/c/${C}/moves`]: 'client', [`/c/${C}/settings/profile`]: 'client', [`/c/${C}/settings/delivery`]: 'client', [`/c/${C}/settings/alerts`]: 'client', [`/c/${C}/settings/ai`]: 'client',
       '/inbox': 'account', '/agency/team': 'account', '/agency/ai': 'account', '/agency/branding': 'account', '/agency/webhooks': 'account', '/settings/notifications': 'account',
     });
     expect(groups('client_viewer')).toEqual({ [`/c/${C}`]: 'client', [`/c/${C}/recommendations`]: 'client', '/inbox': 'account', '/settings/notifications': 'account' });
@@ -47,6 +48,29 @@ describe('navFor AI connections', () => {
     const withMcp = createAccessContext({ agencyId: A, userId: 'contact:x', role: 'client_owner', clientScope: [C], features: ['mcp'] });
     expect(navFor({ kind: 'guest', ctx: withMcp }, C).map((n) => n.href)).not.toContain(`/c/${C}/settings/ai`);
     expect(navFor({ kind: 'user', ctx: { ...withMcp, userId: 'u' } }, C).map((n) => n.href)).toContain(`/c/${C}/settings/ai`);
+  });
+});
+
+describe('navFor Ask', () => {
+  const withAsk = (userId = 'u') => createAccessContext({ agencyId: A, userId, role: 'client_viewer', clientScope: [C], features: ['ask'] });
+
+  it('shows "Ask {assistantName}" with the pill after Recommendations, only with the ask feature', () => {
+    const items = navFor({ kind: 'user', ctx: withAsk() }, C);
+    expect(items.map((n) => n.href)).toEqual([`/c/${C}`, `/c/${C}/recommendations`, `/c/${C}/ask`, '/inbox', '/settings/notifications']);
+    expect(items.find((n) => n.href === `/c/${C}/ask`)).toEqual({ href: `/c/${C}/ask`, label: 'Ask Friday', pill: 'Friday', icon: 'ask', group: 'client' });
+    expect(navFor({ kind: 'user', ctx: ctx('client_viewer') }, C).map((n) => n.href)).not.toContain(`/c/${C}/ask`);
+  });
+
+  it('uses the agency assistant name', () => {
+    const flags = navFlagsFor({ kind: 'user', ctx: withAsk() }, [], 'Max');
+    expect(flags).toMatchObject({ ask: true, assistantName: 'Max' });
+    expect(navItemsFor(flags, C).find((n) => n.icon === 'ask')).toMatchObject({ label: 'Ask Max', pill: 'Max' });
+  });
+
+  it('never shows Ask to guests, even with the feature', () => {
+    const guestCtx = createAccessContext({ agencyId: A, userId: 'contact:x', role: 'client_owner', clientScope: [C], features: ['ask'] });
+    expect(navFlagsFor({ kind: 'guest', ctx: guestCtx }).ask).toBe(false);
+    expect(navFor({ kind: 'guest', ctx: guestCtx }, C).map((n) => n.href)).not.toContain(`/c/${C}/ask`);
   });
 });
 

@@ -14,14 +14,21 @@ const m = vi.hoisted(() => ({
   kind: 'user' as string,
   runTool: null as unknown as Mock,
   revalidated: [] as string[],
+  redirected: null as string | null,
 }));
 
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ viewer: { kind: m.kind }, ctx: m.ctx }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ app: dbs.app, service: dbs.service }) }));
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.runTool(...a) }));
 vi.mock('next/cache', () => ({ revalidatePath: (p: string) => void m.revalidated.push(p) }));
+vi.mock('next/navigation', () => ({
+  redirect: (p: string) => {
+    m.redirected = p;
+    throw new Error('NEXT_REDIRECT');
+  },
+}));
 
-const { confirmAskAction, saveAskRecommendation } = await import('./actions');
+const { confirmAskAction, deleteAskThreadAction, saveAskRecommendation } = await import('./actions');
 
 const ctxFor = (userId: string): AccessContext =>
   createAccessContext({ agencyId: IDS.agencyA, userId, role: 'client_owner', clientScope: [IDS.clientA1], features: ['ask', 'dashboard'] });
@@ -48,6 +55,7 @@ beforeEach(async () => {
   m.ctx = ctxFor('u1');
   m.kind = 'user';
   m.revalidated = [];
+  m.redirected = null;
   m.runTool = vi.fn(async () => ({ ok: true, data: { id: 'r1', url: '/x' } }));
 });
 
@@ -129,5 +137,36 @@ describe('saveAskRecommendation', () => {
     ]) await expect(saveAskRecommendation(bad)).resolves.toMatchObject({ ok: false });
     expect(m.runTool).not.toHaveBeenCalled();
     await expect(saveAskRecommendation({ ...good, title: 'abc', rationale: 'x'.repeat(10), evidenceIds: Array.from({ length: 10 }, () => EV1) })).resolves.toMatchObject({ ok: true });
+  });
+});
+
+describe('deleteAskThreadAction', () => {
+  const fd = (o: Record<string, string>) => {
+    const f = new FormData();
+    for (const [k, v] of Object.entries(o)) f.set(k, v);
+    return f;
+  };
+  const T = '22222222-2222-4222-8222-222222222222';
+
+  it('runs delete_my_ask_thread and revalidates the Ask pages', async () => {
+    await expect(deleteAskThreadAction({ ok: true }, fd({ clientId: IDS.clientA1, threadId: T }))).resolves.toEqual({ ok: true });
+    expect(m.runTool).toHaveBeenCalledWith(m.ctx, 'delete_my_ask_thread', { threadId: T });
+    expect(m.revalidated).toContain(`/c/${IDS.clientA1}/ask`);
+    expect(m.redirected).toBeNull();
+  });
+
+  it('deleting the open thread goes back to a new question', async () => {
+    await expect(deleteAskThreadAction({ ok: true }, fd({ clientId: IDS.clientA1, threadId: T, active: '1' }))).rejects.toThrow('NEXT_REDIRECT');
+    expect(m.redirected).toBe(`/c/${IDS.clientA1}/ask`);
+  });
+
+  it('a refusal is "Not found"; guests never reach the tool', async () => {
+    m.runTool = vi.fn(async () => ({ ok: false, error: 'Not found' }));
+    await expect(deleteAskThreadAction({ ok: true }, fd({ clientId: IDS.clientA1, threadId: T, active: '1' }))).resolves.toEqual({ ok: false, error: 'Not found' });
+    expect(m.redirected).toBeNull();
+    m.kind = 'guest';
+    m.runTool.mockClear();
+    await expect(deleteAskThreadAction({ ok: true }, fd({ clientId: IDS.clientA1, threadId: T }))).resolves.toEqual({ ok: false, error: 'Not found' });
+    expect(m.runTool).not.toHaveBeenCalled();
   });
 });

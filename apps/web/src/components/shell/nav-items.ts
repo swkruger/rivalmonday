@@ -12,9 +12,11 @@ export interface NavItem {
   href: string;
   label: string;
   group: NavGroup;
+  /** Rendered as the assistant pill after the label's first word ("Ask" + the orange "Friday" pill). */
+  pill?: string;
   icon:
     | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
-    | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects';
+    | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects' | 'ask';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -30,6 +32,10 @@ export interface NavRoleFlags {
   manageCompetitors: boolean;
   alertRules: boolean;
   mcp: boolean;
+  /** 6b: signed-in users with the `ask` feature (never guests, Q2). */
+  ask?: boolean;
+  /** 6b e10: the agency's assistant name ("Friday" when unset). */
+  assistantName?: string;
 }
 
 const CLIENT_PATH = /^\/c\/([0-9a-f-]{36})/;
@@ -43,7 +49,7 @@ export function clientIdFromPath(pathname: string): string | null {
 export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavItem[] {
   const items: NavItem[] = [];
   const agency = (href: string, label: string, icon: NavItem['icon']) => items.push({ href, label, icon, group: 'agency' });
-  const forClient = (href: string, label: string, icon: NavItem['icon']) => items.push({ href, label, icon, group: 'client' });
+  const forClient = (href: string, label: string, icon: NavItem['icon'], pill?: string) => items.push({ href, label, ...(pill ? { pill } : {}), icon, group: 'client' });
   const account = (href: string, label: string, icon: NavItem['icon']) => items.push({ href, label, icon, group: 'account' });
   if (flags.isAgency) {
     agency('/agency', 'Portfolio', 'clients');
@@ -74,7 +80,7 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
 }
 
 /** Client modules in mockup order (5c-1 Global Constraints). Later tasks add their item at the marked spot. */
-function clientModules(flags: NavRoleFlags, base: string, add: (href: string, label: string, icon: NavItem['icon']) => void): void {
+function clientModules(flags: NavRoleFlags, base: string, add: (href: string, label: string, icon: NavItem['icon'], pill?: string) => void): void {
   add(base, 'Overview', 'overview');
   if (flags.dashboard) add(`${base}/competitors`, 'Competitors', 'competitors');
   if (flags.dashboard) add(`${base}/changes`, 'Changes', 'changes');
@@ -84,6 +90,10 @@ function clientModules(flags: NavRoleFlags, base: string, add: (href: string, la
   if (flags.dashboard) add(`${base}/rankings`, 'Local rankings', 'rankings');
   if (flags.dashboard) add(`${base}/moves`, 'Moves', 'moves');
   add(`${base}/recommendations`, 'Recommendations', 'recommendations');
+  if (flags.ask) {
+    const name = flags.assistantName?.trim() || 'Friday';
+    add(`${base}/ask`, `Ask ${name}`, 'ask', name);
+  }
   if (flags.isAgency) {
     add(`${base}/settings/profile`, 'Profile', 'profile');
     add(`${base}/settings/delivery`, 'Delivery', 'delivery');

@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic';
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { viewer, ctx } = await requireContext();
-  const { branding } = await themeForViewer(viewer);
+  const { branding, assistantName } = await themeForViewer(viewer);
   const clients = isAgencyRole(ctx.role) ? (await callTool<{ items: ClientSummary[] }>(ctx, 'list_clients', {})).items : [];
   // Client/guest roles always have exactly one client (Review Focus — createAccessContext enforces it), so their
   // top-bar name isn't path-dependent: it's always "their" client, not whichever `/c/<id>` page they're currently on.
@@ -34,7 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         : ((await withTenant(dbs().app, ctx, (tx) => tx.select({ name: client.name }).from(client).where(eq(client.id, singleClientId))))[0]?.name ?? null)
       : null;
   const unread = await unreadCount(dbs().service, viewer.kind === 'guest' ? { contactId: viewer.contactId } : { userId: viewer.userId });
-  const flags = navFlagsFor(viewer, platformAdmins());
+  const flags = navFlagsFor(viewer, platformAdmins(), assistantName);
   const navClients = clients.map(({ id, name }) => ({ id, name }));
   const menu = (
     <MobileNav displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} flags={flags} clients={navClients} />

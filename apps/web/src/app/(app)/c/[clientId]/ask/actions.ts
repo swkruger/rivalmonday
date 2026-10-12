@@ -4,9 +4,11 @@ import { isUuid } from '@cs/core';
 import { askMessage, askThread, withTenant } from '@cs/db';
 import { eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
+import type { FormResult } from '@/server/forms';
 import { runTool, type ToolResult } from '@/server/run-tool';
 
 const NOT_FOUND = { ok: false as const, error: 'Not found' };
@@ -108,4 +110,22 @@ export async function saveAskRecommendation(input: {
   if (!r.ok) return r;
   revalidatePath(`/c/${rest.clientId}/recommendations`);
   return { ok: true, data: { id: r.data.id } };
+}
+
+const field = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
+
+/**
+ * Thread delete for the author (spec "Web"): `delete_my_ask_thread` through `runTool` (author-only in the tool and RLS).
+ * Deleting the open thread goes back to a new question; otherwise the list just refreshes.
+ */
+export async function deleteAskThreadAction(_prev: FormResult, fd: FormData): Promise<FormResult> {
+  const { viewer, ctx } = await requireContext();
+  if (viewer.kind !== 'user') return NOT_FOUND;
+  const clientId = field(fd, 'clientId');
+  if (!isUuid(clientId)) return NOT_FOUND;
+  const r = await runTool(ctx, 'delete_my_ask_thread', { threadId: field(fd, 'threadId') });
+  if (!r.ok) return r;
+  revalidatePath(`/c/${clientId}/ask`, 'layout');
+  if (field(fd, 'active') === '1') redirect(`/c/${clientId}/ask`);
+  return { ok: true };
 }

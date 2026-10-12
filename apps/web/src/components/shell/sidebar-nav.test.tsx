@@ -30,6 +30,15 @@ beforeEach(() => {
 });
 
 describe('SidebarNav', () => {
+  it('shows "Ask {assistantName}" with the orange pill', () => {
+    pathname = `/c/${CLIENT_ID}/ask`;
+    render(<SidebarNav flags={{ ...clientViewer, ask: true, assistantName: 'Max' }} />);
+    const link = screen.getByRole('link', { name: 'Ask Max' });
+    expect(link.getAttribute('href')).toBe(`/c/${CLIENT_ID}/ask`);
+    expect(within(link).getByText('Max').className).toContain('bg-amber');
+    expect(activeHrefOf()).toBe(`/c/${CLIENT_ID}/ask`);
+  });
+
   it('highlights Portfolio on /agency', () => {
     pathname = '/agency';
     render(<SidebarNav flags={agencyAdmin} />);

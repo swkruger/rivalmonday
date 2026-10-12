@@ -8,7 +8,7 @@ export function homePath(ctx: AccessContext): string {
 }
 
 /** Reduces a viewer's `AccessContext` to the plain flags `navItemsFor` needs, so client components never import `@cs/core`. */
-export function navFlagsFor(v: { kind: 'user' | 'guest'; ctx: AccessContext; email?: string }, platformAdmins: readonly string[] = []): NavRoleFlags {
+export function navFlagsFor(v: { kind: 'user' | 'guest'; ctx: AccessContext; email?: string }, platformAdmins: readonly string[] = [], assistantName = 'Friday'): NavRoleFlags {
   const isPlatformOperator = v.kind === 'user' && !!v.email && platformAdmins.includes(v.email.toLowerCase());
   return {
     isAgency: isAgencyRole(v.ctx.role),
@@ -20,6 +20,9 @@ export function navFlagsFor(v: { kind: 'user' | 'guest'; ctx: AccessContext; ema
     manageCompetitors: canManageCompetitors(v.ctx),
     alertRules: hasFeature(v.ctx, 'alert_rules'),
     mcp: v.kind === 'user' && hasFeature(v.ctx, 'mcp'),
+    // Q2: guests have no Ask (and a magic-link contact id is never a thread author).
+    ask: v.kind === 'user' && !v.ctx.userId.startsWith('contact:') && hasFeature(v.ctx, 'ask'),
+    assistantName,
   };
 }
 
