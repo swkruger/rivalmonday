@@ -6,7 +6,7 @@ import { type AccessContext, isCurrentPdfKey, ToolError } from '@cs/core';
 import { databaseNameOf } from '@cs/db';
 import { openTestDbs, testUrls } from '@cs/db/test-helpers';
 import { createFsStore } from '@cs/storage';
-import { accessContextFor, createToolRegistry, getAgencyBranding, listInbox, listMemberships, listTeam, listWebhooks, myNotificationSettings } from '@cs/tools';
+import { accessContextFor, createToolRegistry, getAgencyBranding, getReviewableAskThread, listInbox, listMemberships, listReviewableAskThreads, listTeam, listWebhooks, myNotificationSettings } from '@cs/tools';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { baseRoute, isNonEmpty, NO_DATA_ROUTES, pathExists, README_MARKERS, renderCoverageTable, SCREENS, SHARED_READS, toolReadsOf, valueAt } from './coverage';
@@ -35,6 +35,8 @@ const FUNCTIONS: Record<string, Fn> = {
   'fn:getAgencyBranding': (ctx) => getAgencyBranding(dbs.service, ctx),
   'fn:listTeam': (ctx) => listTeam(dbs.service, ctx),
   'fn:listWebhooks': (ctx) => listWebhooks(dbs.service, ctx),
+  'fn:listReviewableAskThreads': (ctx) => listReviewableAskThreads({ service: dbs.service, platformAdmins: [DEMO_OPERATOR_EMAIL] }, ctx, {}),
+  'fn:getReviewableAskThread': (ctx) => getReviewableAskThread({ service: dbs.service, platformAdmins: [DEMO_OPERATOR_EMAIL] }, ctx, '00000000-0000-4000-8000-000000000000'),
   'fn:listInbox': (_ctx, userId) => listInbox(dbs.service, { userId }),
   'fn:myNotificationSettings': (_ctx, userId) => myNotificationSettings(dbs.service, userId),
 };

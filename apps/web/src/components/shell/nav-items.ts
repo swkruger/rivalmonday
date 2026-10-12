@@ -75,6 +75,7 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
   if (flags.isPlatformOperator) {
     account('/platform/reviews', 'Model reviews', 'reviews');
     account('/platform/themes', 'Theme proposals', 'themes');
+    account('/platform/ask', 'Ask review', 'ask');
   }
   return items;
 }

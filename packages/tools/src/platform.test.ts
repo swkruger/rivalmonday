@@ -1,8 +1,10 @@
 import { createAccessContext } from '@cs/core';
+import { askMessage, askThread, auditLog, client } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../test/fixtures';
-import { isPlatformOperator, normalizeAdminEmails, requirePlatformOperator } from './platform';
+import { getReviewableAskThread, isPlatformOperator, listReviewableAskThreads, normalizeAdminEmails, requirePlatformOperator } from './platform';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -36,5 +38,63 @@ describe('platform operators (decision 2, Review Focus 2)', () => {
     const deps = { service: dbs.service, platformAdmins: ['op@example.com'] };
     await expect(requirePlatformOperator(deps, as('op'))).resolves.toBeUndefined();
     await expect(requirePlatformOperator(deps, as('admin'))).rejects.toMatchObject({ code: 'permission_denied' });
+  });
+});
+
+describe('platform Ask review (6b e6)', () => {
+  const deps = () => ({ service: dbs.service, platformAdmins: ['op@example.com'] });
+  async function thread(clientId: string, title: string, msgs: { status?: 'ok' | 'quota' | 'refused' | 'error'; removed?: number }[] = []): Promise<string> {
+    const [t] = await dbs.owner.insert(askThread).values({ agencyId: IDS.agencyA, clientId, userId: 'admin', title }).returning({ id: askThread.id });
+    for (const m of msgs) {
+      await dbs.owner.insert(askMessage).values({
+        threadId: t!.id, agencyId: IDS.agencyA, clientId, userId: 'admin', role: 'assistant', content: 'answer', status: m.status ?? 'ok',
+        trace: { model: 'm', steps: [], guard: 'ok', removedSentences: m.removed ?? 0, deadlineHit: false, costUsd: 0 },
+      });
+    }
+    return t!.id;
+  }
+
+  it('non-operator rejected', async () => {
+    const id = await thread(IDS.clientA1, 'T');
+    await expect(listReviewableAskThreads(deps(), as('admin'), {})).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(getReviewableAskThread(deps(), as('admin'), id)).rejects.toMatchObject({ code: 'permission_denied' });
+  });
+
+  it("disallowed client's threads absent from list and not_found by id", async () => {
+    const ok = await thread(IDS.clientA1, 'Allowed');
+    const hidden = await thread(IDS.clientA2, 'Hidden');
+    await dbs.owner.update(client).set({ askReviewAllowed: false }).where(eq(client.id, IDS.clientA2));
+    const list = await listReviewableAskThreads(deps(), as('op'), {});
+    expect(list.items.map((i) => i.id)).toEqual([ok]);
+    expect(list.items[0]).toMatchObject({ agencyName: 'Agency A', clientName: 'A1 HVAC' });
+    await expect(getReviewableAskThread(deps(), as('op'), hidden)).rejects.toMatchObject({ code: 'not_found' });
+    await expect(getReviewableAskThread(deps(), as('op'), '00000000-0000-4000-8000-000000000999')).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('view writes one audit row', async () => {
+    const id = await thread(IDS.clientA1, 'T', [{}]);
+    const t = await getReviewableAskThread(deps(), as('op'), id);
+    expect(t.messages).toHaveLength(1);
+    const rows = await dbs.owner.select().from(auditLog).where(eq(auditLog.tool, 'platform_view_ask_thread'));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ channel: 'web', userId: 'op', outcome: 'ok' });
+    await listReviewableAskThreads(deps(), as('op'), {});
+    expect(await dbs.owner.select().from(auditLog).where(eq(auditLog.tool, 'platform_view_ask_thread'))).toHaveLength(1);
+  });
+
+  it('flags computed from trace and status', async () => {
+    await thread(IDS.clientA1, 'Flagged', [{ removed: 2 }, { removed: 1, status: 'error' }, { status: 'refused' }, { status: 'quota' }]);
+    await thread(IDS.clientA1, 'Clean', [{}]);
+    const list = await listReviewableAskThreads(deps(), as('op'), {});
+    const by = Object.fromEntries(list.items.map((i) => [i.id, i.flags]));
+    const flagged = list.items.find((i) => by[i.id]!.removed === 3)!;
+    expect(flagged.flags).toEqual({ removed: 3, error: true, refused: true, quota: true });
+    expect(list.items.find((i) => i.flags.removed === 0)!.flags).toEqual({ removed: 0, error: false, refused: false, quota: false });
+    const paged = await listReviewableAskThreads(deps(), as('op'), { limit: 1 });
+    expect(paged.items).toHaveLength(1);
+    expect(paged.nextCursor).toBeTruthy();
+    const next = await listReviewableAskThreads(deps(), as('op'), { limit: 1, cursor: paged.nextCursor! });
+    expect(next.items).toHaveLength(1);
+    expect(next.nextCursor).toBeNull();
   });
 });

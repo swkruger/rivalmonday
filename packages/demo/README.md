@@ -57,6 +57,8 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/settings/profile` | admin | `get_client_profile` | — |
 | `/inbox` | admin | `fn:listInbox` | — |
 | `/inbox (client owner)` | ownerLoneStar | `fn:listInbox` | — |
+| `/platform/ask` | operator | — | `fn:listReviewableAskThreads`: no Ask threads seeded yet |
+| `/platform/ask/[threadId]` | operator | — | `fn:getReviewableAskThread`: no Ask threads seeded yet |
 | `/platform/reviews` | operator | `list_decision_reviews` | — |
 | `/platform/themes` | operator | `list_theme_proposals` | — |
 | `/settings/notifications` | admin | `fn:myNotificationSettings` | — |
