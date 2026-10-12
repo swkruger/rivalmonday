@@ -32,6 +32,8 @@ cp "$MAIN_WT/.claude/settings.json" "$MAIN_WT/.claude/settings.local.json" "$WT/
 
 ## 2. Phase brief (delegate — keep the main context lean)
 
+**Already planned? Skip the brief.** If `docs/work/<branch>.md` already exists on `main` (phases planned ahead and merged as docs, e.g. `phase-8`, `phase-8b`, `phase-9`), do **not** dispatch a brief subagent or brainstorm again — its spec + plan are owner-approved. Instead: read only its Status / Next / Decisions / Assumes sections, update **Base** to the current `main` sha and Status to "execution started <date>", commit `docs(<branch>): start execution`, then go straight to the plan's **Task 0 (pre-flight)** and `superpowers:subagent-driven-development` — only if the work file doesn't say the owner put dev on hold (ask first if it does). Steps 2–3 below apply only when there is no work file yet.
+
 Dispatch ONE `general-purpose` subagent (it reads the big docs; you only get the brief). Prompt it with the topic, `$WT`, and:
 
 > Write `docs/work/<branch>.md` in `$WT` using the template in `docs/work/README.md`, plus a **Brief** section (≤ 8 KB total) containing:
