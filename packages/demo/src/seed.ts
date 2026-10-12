@@ -2,6 +2,7 @@ import { assertDatabase, createDb } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { sql } from 'drizzle-orm';
 import { seedAds } from './ads';
+import { seedAi } from './ai';
 import { seedAgency } from './agency';
 import { seedBriefs } from './briefs';
 import { seedChanges } from './changes';
@@ -35,6 +36,7 @@ const STEPS: readonly [string, (ctx: SeedContext) => Promise<void>][] = [
   ['briefs, alerts and reports', seedBriefs],
   ['agency', seedAgency],
   ['platform queues', seedPlatform],
+  ['AI connections', seedAi],
 ];
 
 /** Spec §4: fills an empty, migrated database with the fictional demo set. Both guards run before anything is written. */

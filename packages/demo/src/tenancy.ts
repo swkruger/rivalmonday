@@ -26,7 +26,7 @@ interface ClientSpec {
 
 export const CLIENT_SPECS: Record<DemoClientKey, ClientSpec> = {
   loneStar: {
-    name: 'Lone Star Cooling', verticalId: 'hvac_plumbing', status: 'active', features: ['dashboard', 'alert_rules', 'manage_competitors'],
+    name: 'Lone Star Cooling', verticalId: 'hvac_plumbing', status: 'active', features: ['dashboard', 'alert_rules', 'manage_competitors', 'mcp'],
     services: ['ac_tune_up', 'ac_repair', 'ac_install', 'furnace_tune_up', 'furnace_repair', 'duct_cleaning', 'maintenance_plan'],
     keywords: ['ac repair granbury', 'hvac contractor', 'furnace repair'],
     serviceArea: { center: GRANBURY, radiusKm: 25, zips: ['76048', '76049', '76050'], towns: ['Granbury', 'Acton', 'Tolar', 'Lipan'] },

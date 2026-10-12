@@ -18,6 +18,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | Screen | Signed in as | Tools that must return data | Empty on purpose |
 |---|---|---|---|
 | `/agency` | admin | `get_portfolio` | — |
+| `/agency/ai` | admin | `list_api_tokens` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
 | `/agency/alerts` | admin | `list_alert_queue` | — |
 | `/agency/approvals` | admin | `list_brief_queue` | — |
 | `/agency/approvals/[briefId]` | admin | `get_brief_review` | — |
@@ -47,7 +48,8 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/reports/[reportId]` | admin | `get_trend_report` | — |
 | `/c/[clientId]/reviews` | admin | `get_theme_benchmark`, `get_rating_trend`, `search_reviews` | — |
 | `/c/[clientId]/reviews (Brazos)` | admin | `get_rating_trend` | `search_reviews`: Brazos has no own business ("add your place id"); `search_reviews`: one competitor has no reviews |
-| `/c/[clientId]/settings/ai` | admin | `get_client_profile` | — |
+| `/c/[clientId]/settings/ai` | admin | `get_client_profile`, `list_api_tokens` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
+| `/c/[clientId]/settings/ai (client owner)` | ownerLoneStar | `get_client_profile`, `list_api_tokens` | — |
 | `/c/[clientId]/settings/alerts` | admin | `get_client_profile`, `get_alert_rules` | — |
 | `/c/[clientId]/settings/delivery` | admin | `get_client_profile` | — |
 | `/c/[clientId]/settings/profile` | admin | `get_client_profile` | — |

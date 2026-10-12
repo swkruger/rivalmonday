@@ -45,6 +45,12 @@ export const SHARED_READS: Readonly<Record<string, string>> = { list_clients: '/
 /** Spec §4.9: every screen route, the tool calls it makes, and the empty states left on purpose. */
 export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/agency', as: 'admin', calls: [{ tool: 'get_portfolio', input: none, path: 'items' }] },
+  {
+    route: '/agency/ai', as: 'admin', calls: [
+      { tool: 'list_api_tokens', input: none, path: 'items' },
+      { tool: 'list_oauth_grants', input: none, path: 'items', expect: 'empty', why: 'OAuth grants need a real AI app to connect' },
+    ],
+  },
   { route: '/agency/alerts', as: 'admin', calls: [{ tool: 'list_alert_queue', input: none, path: 'items' }] },
   { route: '/agency/approvals', as: 'admin', calls: [{ tool: 'list_brief_queue', input: none, path: 'items' }] },
   { route: '/agency/approvals/[briefId]', as: 'admin', calls: [{ tool: 'get_brief_review', input: (ids) => ({ briefId: ids.briefs.readyLoneStar }), path: 'items' }] },
@@ -163,7 +169,19 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'search_reviews', input: (ids) => ({ clientId: bz(ids), business: ids.noData.reviews, days: 365 }), path: 'items', expect: 'empty', why: 'one competitor has no reviews' },
     ],
   },
-  { route: '/c/[clientId]/settings/ai', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'name' }] },
+  {
+    route: '/c/[clientId]/settings/ai', as: 'admin', calls: [
+      { tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'name' },
+      { tool: 'list_api_tokens', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
+      { tool: 'list_oauth_grants', input: (ids) => ({ clientId: ls(ids) }), path: 'items', expect: 'empty', why: 'OAuth grants need a real AI app to connect' },
+    ],
+  },
+  {
+    route: '/c/[clientId]/settings/ai (client owner)', as: 'ownerLoneStar', calls: [
+      { tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'name' },
+      { tool: 'list_api_tokens', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
+    ],
+  },
   { route: '/c/[clientId]/settings/alerts', as: 'admin', calls: [lsProfile, { tool: 'get_alert_rules', input: (ids) => ({ clientId: ls(ids) }), path: 'custom' }] },
   { route: '/c/[clientId]/settings/delivery', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'serviceArea' }] },
   { route: '/c/[clientId]/settings/profile', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' }] },
