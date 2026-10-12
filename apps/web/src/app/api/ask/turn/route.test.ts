@@ -106,6 +106,7 @@ describe('POST /api/ask/turn', () => {
     expect(res.status).toBe(200);
     const evs = await events(res);
     const [row] = await dbs.owner.select().from(askMessage).where(eq(askMessage.status, 'quota'));
+    expect(res.headers.get('x-ask-thread-id')).toBe(row!.threadId);
     expect(evs).toEqual([{ type: 'final', messageId: row!.id, content: ASK_COPY.quota, citations: [], action: null, status: 'quota' }]);
     expect(ASK_COPY.quota).toBe("You have reached this month's quota.");
   });
@@ -124,6 +125,12 @@ describe('POST /api/ask/turn', () => {
       { type: 'final', messageId: last.id, content: `Acme cut its AC tune-up to $69 [ev:${EV1}].`, citations: [`ev:${EV1}`], action: null, status: 'ok' },
     ]);
     expect(rows.map((r) => r.role)).toEqual(['user', 'assistant']);
+    expect(res.headers.get('x-ask-thread-id')).toBe(last.threadId);
+    // A follow-up in the same thread reports the same id.
+    m.script = ANSWER;
+    const again = await post({ clientId: IDS.clientA1, threadId: last.threadId, question: 'And Bolt?' });
+    expect(again.headers.get('x-ask-thread-id')).toBe(last.threadId);
+    await again.text();
   });
 
   it('the ASK_FAKE_AI script answers through runTurn citing the first evidence id', async () => {
@@ -145,7 +152,9 @@ describe('POST /api/ask/turn', () => {
 
   it('a failure before the turn starts → error final with the default name', async () => {
     m.depsFail = true;
-    const evs = await events(await post({ clientId: IDS.clientA1, question: 'What changed?' }));
+    const res = await post({ clientId: IDS.clientA1, question: 'What changed?' });
+    expect(res.headers.get('x-ask-thread-id')).toBeNull();
+    const evs = await events(res);
     expect(evs).toEqual([{ type: 'final', messageId: '', content: ASK_COPY.error('Friday'), citations: [], action: null, status: 'error' }]);
   });
 

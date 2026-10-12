@@ -80,13 +80,14 @@ async function addActionMessage(ctx: Awaited<ReturnType<typeof requireContext>>[
   });
 }
 
+/** `add_recommendation`'s own limits, so the save dialog, this action and the tool agree. */
 const SaveInput = z.object({
   clientId: z.string().uuid(),
-  title: z.string().trim().min(1).max(120),
-  rationale: z.string().trim().min(1).max(2000),
+  title: z.string().trim().min(3).max(120),
+  rationale: z.string().trim().min(10).max(1000),
   effort: z.enum(['L', 'M', 'H']),
   impact: z.enum(['L', 'M', 'H']).optional(),
-  evidenceIds: z.array(z.string().uuid()).min(1).max(20),
+  evidenceIds: z.array(z.string().uuid()).min(1).max(10),
 });
 
 /** The save dialog (Ask answer / evidence viewer): `add_recommendation` on the `ask` channel (`source = 'ask'`). */

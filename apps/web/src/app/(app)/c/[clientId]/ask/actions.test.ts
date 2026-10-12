@@ -117,9 +117,17 @@ describe('saveAskRecommendation', () => {
   });
 
   it('rejects malformed input without calling the tool', async () => {
-    const bad = { clientId: IDS.clientA1, title: '', rationale: 'x', effort: 'L' as const, evidenceIds: [EV1] };
-    await expect(saveAskRecommendation(bad)).resolves.toMatchObject({ ok: false });
-    await expect(saveAskRecommendation({ ...bad, title: 'ok', evidenceIds: Array.from({ length: 21 }, () => EV1) })).resolves.toMatchObject({ ok: false });
+    const good = { clientId: IDS.clientA1, title: 'Match it', rationale: 'Acme cut its price.', effort: 'L' as const, evidenceIds: [EV1] };
+    // add_recommendation's limits: title 3–120, rationale 10–1000, 1–10 evidence ids.
+    for (const bad of [
+      { ...good, title: 'ab' },
+      { ...good, title: 'x'.repeat(121) },
+      { ...good, rationale: 'too short' },
+      { ...good, rationale: 'x'.repeat(1001) },
+      { ...good, evidenceIds: [] },
+      { ...good, evidenceIds: Array.from({ length: 11 }, () => EV1) },
+    ]) await expect(saveAskRecommendation(bad)).resolves.toMatchObject({ ok: false });
     expect(m.runTool).not.toHaveBeenCalled();
+    await expect(saveAskRecommendation({ ...good, title: 'abc', rationale: 'x'.repeat(10), evidenceIds: Array.from({ length: 10 }, () => EV1) })).resolves.toMatchObject({ ok: true });
   });
 });

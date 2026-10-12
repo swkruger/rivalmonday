@@ -210,5 +210,7 @@ export async function handleAskTurn(req: Request, o: AskTurnOptions): Promise<Re
   } catch {
     // outside a request scope (tests): the turn still runs
   }
-  return new Response(stream, { status: 200, headers: SSE_HEADERS });
+  // The thread a new question created (or continued), so the page can follow it; absent only when the turn never began.
+  const headers = begun ? { ...SSE_HEADERS, 'x-ask-thread-id': begun.threadId } : SSE_HEADERS;
+  return new Response(stream, { status: 200, headers });
 }
