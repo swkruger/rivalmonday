@@ -19,7 +19,7 @@ export function navFlagsFor(v: { kind: 'user' | 'guest'; ctx: AccessContext; ema
     dashboard: hasFeature(v.ctx, 'dashboard'),
     manageCompetitors: canManageCompetitors(v.ctx),
     alertRules: hasFeature(v.ctx, 'alert_rules'),
-    mcp: hasFeature(v.ctx, 'mcp'),
+    mcp: v.kind === 'user' && hasFeature(v.ctx, 'mcp'),
   };
 }
 

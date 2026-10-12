@@ -10,14 +10,14 @@ const ctx = (role: 'agency_admin' | 'account_manager' | 'client_owner' | 'client
 describe('navFor', () => {
   it('gives admins agency settings', () => {
     expect(navFor({ kind: 'user', ctx: ctx('agency_admin') }, null).map((n) => n.href)).toEqual([
-      '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/usage', '/agency/playbooks', '/inbox', '/agency/team', '/agency/branding', '/agency/webhooks', '/settings/notifications',
+      '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/usage', '/agency/playbooks', '/inbox', '/agency/team', '/agency/ai', '/agency/branding', '/agency/webhooks', '/settings/notifications',
     ]);
   });
   it('gives account managers team but not branding/webhooks, plus client pages inside a client', () => {
     const hrefs = navFor({ kind: 'user', ctx: ctx('account_manager') }, C).map((n) => n.href);
     expect(hrefs).toEqual([
       '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/usage', '/agency/playbooks', `/c/${C}`, `/c/${C}/competitors`, `/c/${C}/changes`, `/c/${C}/pricing`, `/c/${C}/ads`, `/c/${C}/reviews`, `/c/${C}/rankings`, `/c/${C}/moves`, `/c/${C}/recommendations`, `/c/${C}/settings/profile`, `/c/${C}/settings/delivery`, `/c/${C}/settings/alerts`, `/c/${C}/settings/ai`,
-      '/inbox', '/agency/team', '/settings/notifications',
+      '/inbox', '/agency/team', '/agency/ai', '/settings/notifications',
     ]);
   });
   it('gives client users their overview, inbox and preferences', () => {
@@ -33,12 +33,20 @@ describe('navFor', () => {
     expect(groups('agency_admin')).toEqual({
       '/agency': 'agency', '/agency/approvals': 'agency', '/agency/alerts': 'agency', '/agency/prospects': 'agency', '/agency/usage': 'agency', '/agency/playbooks': 'agency',
       [`/c/${C}`]: 'client', [`/c/${C}/recommendations`]: 'client', [`/c/${C}/competitors`]: 'client', [`/c/${C}/changes`]: 'client', [`/c/${C}/pricing`]: 'client', [`/c/${C}/ads`]: 'client', [`/c/${C}/reviews`]: 'client', [`/c/${C}/rankings`]: 'client', [`/c/${C}/moves`]: 'client', [`/c/${C}/settings/profile`]: 'client', [`/c/${C}/settings/delivery`]: 'client', [`/c/${C}/settings/alerts`]: 'client', [`/c/${C}/settings/ai`]: 'client',
-      '/inbox': 'account', '/agency/team': 'account', '/agency/branding': 'account', '/agency/webhooks': 'account', '/settings/notifications': 'account',
+      '/inbox': 'account', '/agency/team': 'account', '/agency/ai': 'account', '/agency/branding': 'account', '/agency/webhooks': 'account', '/settings/notifications': 'account',
     });
     expect(groups('client_viewer')).toEqual({ [`/c/${C}`]: 'client', [`/c/${C}/recommendations`]: 'client', '/inbox': 'account', '/settings/notifications': 'account' });
   });
   it('gives guests no settings', () => {
     expect(navFor({ kind: 'guest', ctx: ctx('client_viewer') }, C).map((n) => n.href)).toEqual([`/c/${C}`, `/c/${C}/recommendations`, '/inbox']);
+  });
+});
+
+describe('navFor AI connections', () => {
+  it('hides AI connections from guests even when the client has the mcp feature (the token tools refuse guests)', () => {
+    const withMcp = createAccessContext({ agencyId: A, userId: 'contact:x', role: 'client_owner', clientScope: [C], features: ['mcp'] });
+    expect(navFor({ kind: 'guest', ctx: withMcp }, C).map((n) => n.href)).not.toContain(`/c/${C}/settings/ai`);
+    expect(navFor({ kind: 'user', ctx: { ...withMcp, userId: 'u' } }, C).map((n) => n.href)).toContain(`/c/${C}/settings/ai`);
   });
 });
 

@@ -57,7 +57,10 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
     clientModules(flags, flags.homePath, forClient);
   }
   account('/inbox', 'Inbox', 'inbox');
-  if (flags.isAgency) account('/agency/team', 'Team', 'team');
+  if (flags.isAgency) {
+    account('/agency/team', 'Team', 'team');
+    account('/agency/ai', 'AI connections', 'ai');
+  }
   if (flags.isAgencyAdmin) {
     account('/agency/branding', 'Branding', 'branding');
     account('/agency/webhooks', 'Slack & Teams', 'webhooks');

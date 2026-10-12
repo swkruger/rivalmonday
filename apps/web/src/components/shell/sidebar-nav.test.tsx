@@ -170,6 +170,20 @@ describe('SidebarNav', () => {
     for (const n of ['Services & area', 'Alert rules', 'AI connections']) expect(screen.queryByRole('link', { name: n })).toBeNull();
   });
 
+  it('shows agency users the agency-wide AI connections page and highlights it on /agency/ai', () => {
+    pathname = '/agency/ai';
+    render(<SidebarNav flags={{ ...agencyAdmin, isAgencyAdmin: false }} />);
+    expect(screen.getByRole('link', { name: 'AI connections' }).getAttribute('href')).toBe('/agency/ai');
+    expect(activeHrefOf()).toBe('/agency/ai');
+  });
+
+  it('never shows client users the agency AI connections page', () => {
+    pathname = `/c/${CLIENT_ID}`;
+    render(<SidebarNav flags={{ ...clientOwnerWithDashboard, mcp: true }} />);
+    const hrefs = screen.getAllByRole('link', { name: 'AI connections' }).map((l) => l.getAttribute('href'));
+    expect(hrefs).toEqual([`/c/${CLIENT_ID}/settings/ai`]);
+  });
+
   it('highlights Recommendations for an agency admin on /c/<uuid>/recommendations', () => {
     pathname = `/c/${CLIENT_ID}/recommendations`;
     render(<SidebarNav flags={agencyAdmin} />);
@@ -186,7 +200,7 @@ describe('SidebarNav sections', () => {
     pathname = '/agency';
     render(<SidebarNav flags={agencyAdmin} clients={clients} />);
     expect(linkNames(screen.getByRole('group', { name: 'Agency' }))).toEqual(['Portfolio', 'Approvals', 'Alert review', 'Prospects', 'Usage & limits', 'Playbooks']);
-    expect(linkNames(screen.getByRole('group', { name: 'Account' }))).toEqual(['Inbox', 'Team', 'Branding', 'Slack & Teams', 'Notifications']);
+    expect(linkNames(screen.getByRole('group', { name: 'Account' }))).toEqual(['Inbox', 'Team', 'AI connections', 'Branding', 'Slack & Teams', 'Notifications']);
     expect(screen.getByText('Select a client from Portfolio')).toBeTruthy();
     expect(screen.queryByRole('group', { name: /^Client/ })).toBeNull();
   });

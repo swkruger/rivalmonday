@@ -4,6 +4,7 @@ import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { deletePluginConsent, revokePluginTokens } from '../access/oauth';
 import type { ToolDeps } from '../deps';
+import { ApiTokenView, OAuthGrantView } from './schemas';
 
 /**
  * Phase 6a Task 12: web-only tools behind the "AI connections" pages. A PAT's plaintext exists only in
@@ -15,15 +16,6 @@ const iso = (d: Date | null) => (d ? d.toISOString() : null);
 const MAX_ACTIVE_TOKENS = 20;
 const Scope = z.enum(TOKEN_SCOPES);
 const OK = z.object({ ok: z.literal(true) });
-
-export const ApiTokenView = z.object({
-  id: uuid, name: z.string(), prefix: z.string(), scope: Scope, clientId: z.string().nullable(), clientName: z.string().nullable(),
-  ownerUserId: z.string(), ownerName: z.string().nullable(), createdAt: z.string(), lastUsedAt: z.string().nullable(), mine: z.boolean(),
-});
-export const OAuthGrantView = z.object({
-  id: uuid, appName: z.string(), scope: Scope, clientId: z.string().nullable(), clientName: z.string().nullable(),
-  ownerName: z.string().nullable(), connectedAt: z.string(), mine: z.boolean(),
-});
 
 function requireSignedIn(ctx: AccessContext) {
   if (ctx.userId.startsWith('contact:')) throw new ToolError('permission_denied', 'Sign in to manage AI connections');

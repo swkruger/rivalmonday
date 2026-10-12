@@ -358,3 +358,16 @@ export const ShareOfVoiceView = z.object({
   series: z.array(z.object({ key: z.string(), name: z.string(), self: z.boolean(), points: z.array(z.number().nullable()) })),
 });
 export type ShareOfVoiceView = z.infer<typeof ShareOfVoiceView>;
+
+/** Phase 6a: AI connections views (`list_api_tokens` / `list_oauth_grants`). Scope values mirror `TOKEN_SCOPES` (`@cs/core`). */
+const TokenScopeView = z.enum(['read', 'feedback', 'manage']);
+export const ApiTokenView = z.object({
+  id: uuid, name: z.string(), prefix: z.string(), scope: TokenScopeView, clientId: z.string().nullable(), clientName: z.string().nullable(),
+  ownerUserId: z.string(), ownerName: z.string().nullable(), createdAt: iso, lastUsedAt: iso.nullable(), mine: z.boolean(),
+});
+export type ApiTokenView = z.infer<typeof ApiTokenView>;
+export const OAuthGrantView = z.object({
+  id: uuid, appName: z.string(), scope: TokenScopeView, clientId: z.string().nullable(), clientName: z.string().nullable(),
+  ownerName: z.string().nullable(), connectedAt: iso, mine: z.boolean(),
+});
+export type OAuthGrantView = z.infer<typeof OAuthGrantView>;
