@@ -64,6 +64,11 @@ export function BrandingForm({ initial, agencyName }: { initial: AgencyBranding;
             <Label htmlFor="signOff">Email sign-off</Label>
             <Input id="signOff" name="signOff" value={draft.signOff ?? ''} onChange={(e) => set('signOff')(e.target.value)} placeholder="Questions? Reply to this email." />
           </div>
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            <Label htmlFor="assistantName">Assistant name</Label>
+            <Input id="assistantName" name="assistantName" maxLength={30} value={draft.assistantName ?? ''} onChange={(e) => set('assistantName')(e.target.value)} placeholder="Friday" />
+            <p className="text-sm text-muted-foreground">What your clients call the Ask assistant. Leave blank for Friday.</p>
+          </div>
         </div>
         <input type="hidden" name="primary" value={draft.primary ?? ''} />
         <input type="hidden" name="secondary" value={draft.secondary ?? ''} />

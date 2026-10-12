@@ -1,10 +1,14 @@
-import { hasFeature } from '@cs/core';
+import { hasFeature, hasPermission } from '@cs/core';
 import type { EvidenceView } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { RATIONALE_MAX, SaveRecommendationDialog, TITLE_MAX } from '@/components/ask/save-recommendation-dialog';
 import { EvidenceImage } from '@/components/evidence-image';
+import { assistantNameFor } from '@/server/ask';
 import { requireContext } from '@/server/current-viewer';
+import { dbs } from '@/server/db';
+import { saveAskRecommendation } from '../../ask/actions';
 import { callTool } from '@/server/tools';
 
 export const dynamic = 'force-dynamic';
@@ -37,9 +41,14 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
  */
 export default async function EvidencePage({ params }: { params: Promise<{ clientId: string; evidenceId: string }> }) {
   const { clientId, evidenceId } = await params;
-  const { ctx } = await requireContext();
+  const { viewer, ctx } = await requireContext();
   const evidence = await callTool<EvidenceView>(ctx, 'get_evidence', { clientId, evidenceId });
   const captured = formatUtc(evidence.capturedAt);
+  // Ask entry points: signed-in users with the `ask` feature (never guests, Q2). "Add recommendation" mirrors
+  // `add_recommendation` itself: `feedback` permission and the `dashboard` feature.
+  const canAsk = viewer.kind === 'user' && !ctx.userId.startsWith('contact:') && hasFeature(ctx, 'ask');
+  const canRecommend = canAsk && hasPermission(ctx, 'feedback') && hasFeature(ctx, 'dashboard');
+  const assistantName = canAsk ? await assistantNameFor(dbs().service, ctx.agencyId) : null;
   const fileHref = `/files/evidence/${clientId}/${evidenceId}`;
 
   return (
@@ -50,6 +59,24 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
           {evidence.channelLabel} · captured {captured} · status {evidence.captureStatus}
         </p>
       </div>
+
+      {assistantName && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href={`/c/${clientId}/ask?seed=${evidenceId}`} className="inline-flex h-9 items-center rounded-md bg-amber px-4 text-sm font-semibold text-[#3B2300]">
+            {`Ask ${assistantName} about this`}
+          </Link>
+          {canRecommend && (
+            <SaveRecommendationDialog
+              clientId={clientId}
+              evidenceIds={[evidenceId]}
+              defaultTitle={`Respond to ${evidence.competitorName}`.slice(0, TITLE_MAX)}
+              defaultRationale={`Based on ${evidence.channelLabel} evidence for ${evidence.competitorName}, captured ${captured}.`.slice(0, RATIONALE_MAX)}
+              saveAction={saveAskRecommendation}
+              triggerLabel="Add recommendation"
+            />
+          )}
+        </div>
+      )}
 
       <Card>
         <CardHeader>

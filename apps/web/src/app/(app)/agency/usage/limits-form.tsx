@@ -9,12 +9,15 @@ export function LimitsForm({
   clientName,
   capUsd,
   competitorLimit,
+  askQuota,
 }: {
   action: (prev: FormResult, fd: FormData) => Promise<FormResult>;
   clientId: string;
   clientName: string;
   capUsd: number;
   competitorLimit: number;
+  /** Questions per month; passed for agency admins only (the tool enforces it too). */
+  askQuota?: number;
 }) {
   const [state, formAction, pending] = useActionState(action, { ok: true } as FormResult);
 
@@ -49,6 +52,22 @@ export function LimitsForm({
           className="w-20"
         />
       </div>
+      {askQuota !== undefined && (
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={`quota-${clientId}`}>Questions per month</Label>
+          <Input
+            id={`quota-${clientId}`}
+            name="askMonthlyQuota"
+            type="number"
+            step="1"
+            min="0"
+            max="100000"
+            defaultValue={askQuota}
+            aria-label={`Questions per month for ${clientName}`}
+            className="w-28"
+          />
+        </div>
+      )}
       <Button type="submit" disabled={pending} aria-label={`Save limits for ${clientName}`}>
         Save
       </Button>

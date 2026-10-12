@@ -9,6 +9,7 @@ import { formatUsd } from '@/server/format';
 import { callTool } from '@/server/tools';
 import { saveLimitsAction } from './actions';
 import { LimitsForm } from './limits-form';
+import { QuestionsCell } from './questions-cell';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,10 +72,12 @@ export default async function UsagePage() {
                 {row.competitors} of {row.competitorLimit}
                 {row.competitors > row.competitorLimit && <div className="text-amber-text">Over limit</div>}
               </TableCell>
-              <TableCell className="text-muted-ink">Ask arrives in Phase 6</TableCell>
+              <TableCell>
+                <QuestionsCell questions={row.questions} />
+              </TableCell>
               {ctx.role === 'agency_admin' && (
                 <TableCell>
-                  <LimitsForm key={row.clientId} action={saveLimitsAction} clientId={row.clientId} clientName={row.name} capUsd={row.spend.capUsd} competitorLimit={row.competitorLimit} />
+                  <LimitsForm key={row.clientId} action={saveLimitsAction} clientId={row.clientId} clientName={row.name} capUsd={row.spend.capUsd} competitorLimit={row.competitorLimit} askQuota={row.questions.quota} />
                 </TableCell>
               )}
             </TableRow>

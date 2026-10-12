@@ -4,6 +4,30 @@ import { describe, expect, it, vi } from 'vitest';
 import type { FormResult } from '@/server/forms';
 import { ClientFeaturesForm } from './client-features-form';
 
+describe('ClientFeaturesForm review toggle', () => {
+  const action = vi.fn(async (_p: FormResult, _fd: FormData) => ({ ok: true as const, message: 'Features saved.' }));
+  it('review toggle hidden for account_manager and client roles', () => {
+    for (const role of ['account_manager', 'client_owner', 'client_viewer'] as const) {
+      const { unmount } = render(<ClientFeaturesForm clientId="c1" features={['ask']} action={action} role={role} reviewAllowed />);
+      expect(screen.queryByLabelText(/Allow review to improve answers/)).toBeNull();
+      unmount();
+    }
+  });
+  it('shows the ask switch and, for agency_admin, an editable review toggle posted with the form', async () => {
+    render(<ClientFeaturesForm clientId="c1" features={['ask']} action={action} role="agency_admin" reviewAllowed />);
+    expect((screen.getByLabelText(/^Ask assistant/) as HTMLInputElement).checked).toBe(true);
+    const review = screen.getByLabelText(/Allow review to improve answers/) as HTMLInputElement;
+    expect(review.checked).toBe(true);
+    fireEvent.click(review);
+    fireEvent.click(screen.getByRole('button', { name: 'Save features' }));
+    await waitFor(() => expect(action).toHaveBeenCalled());
+    const fd = action.mock.calls.at(-1)![1];
+    expect(fd.get('askReviewPresent')).toBe('1');
+    expect(fd.get('askReviewAllowed')).toBeNull();
+    expect(fd.getAll('feature')).toEqual(['ask']);
+  });
+});
+
 describe('ClientFeaturesForm', () => {
   it('shows the current features and posts the checked ones', async () => {
     const action = vi.fn(async (_p: FormResult, _fd: FormData) => ({ ok: true as const, message: 'Features saved.' }));

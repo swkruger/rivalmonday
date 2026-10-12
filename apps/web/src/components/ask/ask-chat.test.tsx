@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const router = { replace: vi.fn(), refresh: vi.fn(), push: vi.fn() };
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
+const finalFrame = `data: ${JSON.stringify({ type: 'final', messageId: '44444444-4444-4444-8444-444444444444', content: 'Acme cut prices.', citations: [], action: null, status: 'ok' })}\n\n`;
+const turnResponse = () => new Response(finalFrame, { status: 200, headers: { 'x-ask-thread-id': '22222222-2222-4222-8222-222222222222' } });
 const { AskChat, readAskStream } = await import('./ask-chat');
 const { ConfirmCard } = await import('./confirm-card');
 
@@ -84,6 +86,32 @@ describe('AskChat', () => {
     render(<AskChat {...base} threadId={null} reviewAllowed={false} messages={[]} initialQuestion="What does this tell us?" />);
     expect((screen.getByLabelText('Ask Friday a question') as HTMLTextAreaElement).value).toBe('What does this tell us?');
     expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('q param auto-sends once', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => turnResponse());
+    vi.stubGlobal('fetch', fetchMock);
+    const props = { ...base, threadId: null, reviewAllowed: false, messages: [], initialQuestion: 'What changed this week?', autoSend: true };
+    const { rerender } = render(<AskChat {...props} />);
+    await act(async () => {});
+    rerender(<AskChat {...props} />);
+    await act(async () => {});
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({ clientId: C, question: 'What changed this week?' });
+    expect(router.replace).toHaveBeenCalledWith(`/c/${C}/ask`);
+    vi.unstubAllGlobals();
+  });
+
+  it('seed param pre-fills, does not send', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => turnResponse());
+    vi.stubGlobal('fetch', fetchMock);
+    render(<AskChat {...base} threadId={null} reviewAllowed={false} messages={[]} initialQuestion="What does this tell us?" seedEvidenceId={E1} />);
+    await act(async () => {});
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect((screen.getByLabelText('Ask Friday a question') as HTMLTextAreaElement).value).toBe('What does this tell us?');
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Ask' })));
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({ clientId: C, question: 'What does this tell us?', seedEvidenceId: E1 });
     vi.unstubAllGlobals();
   });
 

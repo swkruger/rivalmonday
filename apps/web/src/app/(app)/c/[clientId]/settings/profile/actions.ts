@@ -24,7 +24,12 @@ export async function saveFeaturesAction(_prev: FormResult, formData: FormData):
   if (!isAgencyRole(ctx.role)) notFound();
   const clientId = String(formData.get('clientId') ?? '');
   const features = [...new Set(formData.getAll('feature').map(String))].filter((f): f is Feature => (FEATURES as readonly string[]).includes(f));
-  const r = await runTool(ctx, 'update_client_profile', { clientId, features });
+  const r = await runTool(ctx, 'update_client_profile', {
+    clientId,
+    features,
+    // Admin-only: the checkbox is rendered for agency_admin alone, and the tool refuses everyone else.
+    ...(formData.get('askReviewPresent') === '1' ? { askReviewAllowed: formData.get('askReviewAllowed') === 'on' } : {}),
+  });
   if (!r.ok) return r;
   revalidatePath(`/c/${clientId}`, 'layout');
   return { ok: true, message: 'Features saved.' };

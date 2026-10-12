@@ -174,6 +174,8 @@ export function AskChat(props: AskChatProps) {
   useEffect(() => {
     if (!props.autoSend || !props.initialQuestion || autoSent.current) return;
     autoSent.current = true;
+    // Strip `?q=` so a reload or back-navigation never re-asks.
+    router.replace(threadId ? `/c/${clientId}/ask/${threadId}` : `/c/${clientId}/ask`);
     void send(props.initialQuestion);
     // Sends once on mount (Task 10's `?q=`); later prop changes never re-send.
     // eslint-disable-next-line react-hooks/exhaustive-deps

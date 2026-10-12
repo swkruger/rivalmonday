@@ -16,7 +16,13 @@ import { confirmAskAction, deleteAskThreadAction, saveAskRecommendation } from '
  * every read is a registered tool (Q13), so a foreign/missing thread or an out-of-scope client is a 404 too.
  * Nothing here reads usage or quota (e4).
  */
-export async function AskScreen({ clientId, threadId }: { clientId: string; threadId: string | null }) {
+export async function AskScreen({ clientId, threadId, initialQuestion, autoSend, seedEvidenceId }: {
+  clientId: string;
+  threadId: string | null;
+  initialQuestion?: string;
+  autoSend?: boolean;
+  seedEvidenceId?: string;
+}) {
   const { viewer, ctx } = await requireContext();
   if (viewer.kind !== 'user' || ctx.userId.startsWith('contact:') || !hasFeature(ctx, 'ask')) notFound();
   const [starters, threads, thread] = await Promise.all([
@@ -55,6 +61,9 @@ export async function AskScreen({ clientId, threadId }: { clientId: string; thre
           starters={starters.questions}
           confirmAction={confirmAskAction}
           saveAction={saveAskRecommendation}
+          {...(initialQuestion ? { initialQuestion } : {})}
+          {...(autoSend ? { autoSend } : {})}
+          {...(seedEvidenceId ? { seedEvidenceId } : {})}
         />
       </div>
     </>

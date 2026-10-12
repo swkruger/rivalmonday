@@ -3,6 +3,7 @@ import type { AlertSummary, BriefSummary, ClientProfile, ReportSummary } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
 import { callTool } from '@/server/tools';
+import { AskCard } from './ask/ask-card';
 import { AlertLinkList, BriefLinkList } from './client-lists';
 
 /** The 5a client home, kept for client users without the `dashboard` feature (briefs-only plans). */
@@ -29,6 +30,7 @@ export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx
           </CardContent>
         </Card>
         <div className="flex flex-col gap-5">
+          <AskCard clientId={clientId} ctx={ctx} />
           <Card>
             <CardHeader>
               <CardTitle>Alerts</CardTitle>

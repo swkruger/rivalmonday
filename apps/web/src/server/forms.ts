@@ -13,7 +13,7 @@ export function parseInviteForm(fd: FormData): { email: string; role: Role; clie
 }
 
 /** The accent is not overridable (brand.md), so it has no form field. */
-const BRANDING_FIELDS = ['displayName', 'logoUrl', 'primary', 'secondary', 'fromName', 'signOff'] as const;
+const BRANDING_FIELDS = ['displayName', 'logoUrl', 'primary', 'secondary', 'fromName', 'signOff', 'assistantName'] as const;
 export function parseBrandingForm(fd: FormData): AgencyBranding {
   const out: AgencyBranding = {};
   for (const k of BRANDING_FIELDS) {

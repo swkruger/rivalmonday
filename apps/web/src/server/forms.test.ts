@@ -27,6 +27,13 @@ describe('parseBrandingForm', () => {
   });
 });
 
+describe('parseBrandingForm assistantName', () => {
+  it('keeps the assistant name so a branding save preserves it, and a blank field clears it', () => {
+    expect(parseBrandingForm(fd({ displayName: 'Acme', assistantName: ' Robin ' }))).toEqual({ displayName: 'Acme', assistantName: 'Robin' });
+    expect(parseBrandingForm(fd({ displayName: 'Acme', assistantName: '   ' }))).toEqual({ displayName: 'Acme' });
+  });
+});
+
 describe('parseDeliveryForm', () => {
   it('parses mode, auto-send checkbox and timezone', () => {
     expect(parseDeliveryForm(fd({ alertMode: 'direct', briefAutoSend: 'on', timezone: 'America/Denver' }))).toEqual({ alertMode: 'direct', briefAutoSend: true, timezone: 'America/Denver' });

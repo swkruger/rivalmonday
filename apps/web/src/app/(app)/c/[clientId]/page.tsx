@@ -11,6 +11,7 @@ import type {
   WorkspaceOverview,
 } from '@cs/tools';
 import Link from 'next/link';
+import { AskCard } from '@/components/ask/ask-card';
 import { foldSeries, LineChart } from '@/components/charts/line-chart';
 import { ClientHomeBasic } from '@/components/client-home-basic';
 import { AlertLinkList, BriefLinkList } from '@/components/client-lists';
@@ -106,6 +107,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
         </section>
 
         <div className="flex flex-col gap-5">
+          <AskCard clientId={clientId} ctx={ctx} />
           <section className={cardCls}>
             <h2 className="font-semibold">Competitive pressure</h2>
             <div className="mt-3 flex flex-col gap-3">

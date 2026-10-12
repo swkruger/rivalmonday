@@ -3,17 +3,21 @@ import { Button } from '@cs/ui';
 import { useActionState } from 'react';
 import type { FormResult } from '@/server/forms';
 
-/** The features with a switch. `ask` has no screen yet, so it has no switch; a client that has it keeps it (hidden input). */
+/** The features with a switch; a client keeps any feature without one (hidden input). */
 const SWITCHES: { value: string; label: string; help: string }[] = [
   { value: 'dashboard', label: 'Client dashboard', help: 'Client users get the workspace: overview, changes, moves, pricing, ads, reviews and rankings.' },
   { value: 'alert_rules', label: 'Alert rules', help: 'Client owners can change the alert and brief thresholds.' },
   { value: 'manage_competitors', label: 'Manage competitors', help: 'Client owners can add and remove the competitors they track.' },
+  { value: 'ask', label: 'Ask assistant', help: 'Client users can ask the assistant questions about their competitors, answered from the monitored evidence.' },
   { value: 'mcp', label: 'AI connections', help: 'Shows the AI connections page (coming soon).' },
 ];
 
-export function ClientFeaturesForm({ clientId, features, action }: {
+export function ClientFeaturesForm({ clientId, features, action, role, reviewAllowed = true }: {
   clientId: string;
   features: string[];
+  /** The review toggle is for agency admins only (the tool enforces it too). */
+  role?: string;
+  reviewAllowed?: boolean;
   action: (prev: FormResult, fd: FormData) => Promise<FormResult>;
 }) {
   const [state, formAction, pending] = useActionState(action, { ok: true } as FormResult);
@@ -36,6 +40,18 @@ export function ClientFeaturesForm({ clientId, features, action }: {
           </label>
         ))}
       </fieldset>
+      {role === 'agency_admin' && (
+        <>
+          <input type="hidden" name="askReviewPresent" value="1" />
+          <label className="flex items-start gap-3 rounded-lg border border-line p-3">
+            <input type="checkbox" name="askReviewAllowed" defaultChecked={reviewAllowed} className="mt-1 h-4 w-4" />
+            <span>
+              <span className="block font-medium">Allow review to improve answers</span>
+              <span className="block text-sm text-muted-foreground">Lets the platform team read this client&apos;s Ask conversations to improve answer quality.</span>
+            </span>
+          </label>
+        </>
+      )}
       {!state.ok && state.error && (
         <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
           {state.error}

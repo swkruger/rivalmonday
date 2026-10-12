@@ -28,6 +28,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
       </>
     );
   }
+  const reviewAllowed = ctx.role === 'agency_admin' ? (await callTool<{ reviewAllowed: boolean }>(ctx, 'get_ask_starters', { clientId })).reviewAllowed : true;
   return (
     <>
       {p.status === 'prospect' && (
@@ -43,7 +44,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
         mode="edit" action={updateProfileAction} verticals={await verticalOptions()} clientId={clientId}
         initial={{ name: p.name, verticalId: p.verticalId, services: p.services, keywords: p.keywords, placeId: p.placeId, serviceArea: p.serviceArea }}
       />
-      <ClientFeaturesForm clientId={clientId} features={p.features} action={saveFeaturesAction} />
+      <ClientFeaturesForm clientId={clientId} features={p.features} action={saveFeaturesAction} role={ctx.role} reviewAllowed={reviewAllowed} />
     </>
   );
 }

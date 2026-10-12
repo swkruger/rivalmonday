@@ -16,10 +16,11 @@ export async function saveLimitsAction(_p: FormResult, fd: FormData): Promise<Fo
   if (!isAgencyRole(ctx.role)) notFound();
   const monthlyCapUsd = num(fd, 'monthlyCapUsd');
   const competitorLimit = num(fd, 'competitorLimit');
-  if ((monthlyCapUsd !== undefined && Number.isNaN(monthlyCapUsd)) || (competitorLimit !== undefined && Number.isNaN(competitorLimit))) {
+  const askMonthlyQuota = num(fd, 'askMonthlyQuota');
+  if ([monthlyCapUsd, competitorLimit, askMonthlyQuota].some((n) => n !== undefined && Number.isNaN(n))) {
     return { ok: false, error: 'Enter a number' };
   }
-  const r = await runTool(ctx, 'set_client_limits', { clientId: String(fd.get('clientId') ?? ''), monthlyCapUsd, competitorLimit });
+  const r = await runTool(ctx, 'set_client_limits', { clientId: String(fd.get('clientId') ?? ''), monthlyCapUsd, competitorLimit, ...(askMonthlyQuota !== undefined ? { askMonthlyQuota } : {}) });
   if (!r.ok) return r;
   revalidatePath('/agency/usage');
   return { ok: true, message: 'Limits saved.' };
