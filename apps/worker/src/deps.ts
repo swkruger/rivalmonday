@@ -14,6 +14,7 @@ import {
   notifyBriefOutcome, processAlert, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
+import { generateStarters } from '@cs/ask';
 import { createEmailTransportFromEnv } from '@cs/email';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
@@ -38,6 +39,8 @@ export interface WorkerDeps {
   /** Clients whose weekly brief window is open and whose brief is missing, retryable, or stale (spec §9.1). */
   listBriefDueClients(now: Date): Promise<string[]>;
   generateBrief(clientId: string): Promise<BriefRunResult>;
+  /** Phase 6b: model-written starter questions for one client (null = nothing written). */
+  generateAskStarters(clientId: string): Promise<string[] | null>;
   recommendForMoves(clientId: string): Promise<{ created: number; skipped: number; failed: number }>;
   discoverPages(competitorId: string): Promise<{ selected: number; candidates: number; homepageStatus: string } | { skipped: string }>;
   /** True once DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD are both set — gates all vendor collection. */
@@ -215,6 +218,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     listMoveClients: () => listMoveClients(getDb()),
     listBriefDueClients: (now) => listBriefDueClients(getDb(), now),
     generateBrief: async (clientId) => generateBrief({ db: getDb(), ai: await getAi(), packs }, clientId),
+    generateAskStarters: async (clientId) => generateStarters({ service: getDb(), ai: await getAi() }, clientId),
     recommendForMoves: async (clientId) => recommendForMoves({ db: getDb(), ai: await getAi(), packs }, clientId),
     async discoverPages(competitorId) {
       const [c] = await getDb().select().from(competitor).where(eq(competitor.id, competitorId)).limit(1);

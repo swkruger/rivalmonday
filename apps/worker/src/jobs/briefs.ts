@@ -3,7 +3,7 @@ import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
 
 /** Spec §9.1: hourly tick; each client's brief is generated in its own job on its Thursday night (local time). */
-export function createBriefJobs(deps: WorkerDeps, queue: { enqueueBriefClient(clientId: string): Promise<void> }) {
+export function createBriefJobs(deps: WorkerDeps, queue: { enqueueBriefClient(clientId: string): Promise<void>; enqueueAskStarters(clientId: string): Promise<void> }) {
   const schedule = defineJob({
     name: 'briefs-schedule', schema: z.looseObject({}), cron: '5 * * * *',
     handler: async () => {
@@ -20,6 +20,8 @@ export function createBriefJobs(deps: WorkerDeps, queue: { enqueueBriefClient(cl
       const r = await deps.generateBrief(clientId);
       console.log(`[brief-client] ${clientId} → ${JSON.stringify(r)}`);
       if (deps.deliveryConfigured()) await deps.notifyBriefOutcome(r, new Date());
+      // Phase 6b: fresh starter questions after a written brief (standard or quiet); a failed/skipped brief gets none.
+      if (r.status === 'ready') await queue.enqueueAskStarters(clientId);
     },
   });
   return { schedule, client };

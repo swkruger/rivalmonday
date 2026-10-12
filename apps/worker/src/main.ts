@@ -8,6 +8,7 @@ try {
 
 import { createBoss, enqueue, registerJobs } from './boss';
 import { createWorkerDeps } from './deps';
+import { createAskJobs } from './jobs/ask';
 import { createBriefJobs } from './jobs/briefs';
 import { createDeliveryJobs, warnIfDeliveryUnconfigured } from './jobs/delivery';
 import { createEngineJobs } from './jobs/engine';
@@ -70,9 +71,13 @@ const moves = createMovesJobs(deps, {
     await enqueue(boss, moves.client, { clientId }, { singletonKey: clientId });
   },
 });
+const ask = createAskJobs(deps);
 const briefs = createBriefJobs(deps, {
   enqueueBriefClient: async (clientId) => {
     await enqueue(boss, briefs.client, { clientId }, { singletonKey: clientId });
+  },
+  enqueueAskStarters: async (clientId) => {
+    await enqueue(boss, ask.starters, { clientId }, { singletonKey: clientId });
   },
 });
 const reviews = createReviewJobs(deps);
@@ -92,7 +97,7 @@ const delivery = createDeliveryJobs(deps, {
 await registerJobs(boss, [
   heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, vendor.suggest, prospects.snapshot,
   engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.price, reviews.nightly, moves.nightly, moves.client,
-  modelOps.batchPoll, briefs.schedule, briefs.client,
+  modelOps.batchPoll, briefs.schedule, briefs.client, ask.starters,
   delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,
 ]);
 console.log('[worker] started');
