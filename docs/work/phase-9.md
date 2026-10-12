@@ -23,7 +23,7 @@ None yet.
 None yet.
 
 ## New backlog (target → item)
-None yet.
+- [ ] **Later (9b follow-up)** → Review annual billing option for agency → client subscriptions (9b ships monthly only) — *from 9b brainstorm 2026-10-12*
 
 ## Owner verification steps
 TBD.
