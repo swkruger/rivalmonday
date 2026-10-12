@@ -32,6 +32,6 @@ Conflicts in `docs/STATE.md` / `BACKLOG.md` / `ARCHITECTURE.md`: keep both sides
 
 ## 4. Publish and clean up
 1. `git push origin main` (after confirming with the owner if not already said).
-2. `git worktree remove ../CompetitorSpy-wt/<branch>` (ask first if it has untracked files besides `.env`/`node_modules`), `git branch -d <branch>`.
+2. Drop the branch's test database if it has one (`DROP DATABASE cs_<branch>_test` on the local cluster). `git worktree remove ../CompetitorSpy-wt/<branch>` (ask first if it has untracked files besides `.env`/`node_modules`), `git branch -d <branch>`.
 3. **Impact on other workstreams:** for each remaining unmerged branch, read its work file's "Assumes from other branches"; list any assumption this merge broke or changed, and tell the user which session must re-check (they rebase in their own worktree — don't touch it from here).
 4. Summarise in ≤ 6 lines: merged sha, test numbers, migrations, owner steps, affected workstreams.

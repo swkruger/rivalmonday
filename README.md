@@ -30,6 +30,12 @@ Every session starts small and reads more only when it needs to. The root `CLAUD
 - `STATE.md`, `BACKLOG.md`, `ARCHITECTURE.md` and the roadmap are updated only by `/rm-merge`, so parallel branches don't conflict on them.
 - A plan written ahead lists what it assumes from unmerged branches. Execution waits for those merges, then rebases and re-checks the assumptions.
 
+**Tests: affected first, full at the end of a phase:**
+- `pnpm test:affected [--base main]` runs only the packages with code changes, plus the packages that depend on them, and inside those only the test files whose imports changed. Docs-only changes run nothing.
+- `pnpm --filter @cs/web e2e:affected [--base main] [--dry-run]` runs the E2E tests tagged for the changed modules plus `@smoke`, and rebuilds the app only when its code changed.
+- `pnpm test` and `pnpm --filter @cs/web e2e` are the full runs. `/rm-merge` asks before running them, and CI runs both on every push.
+- Point the `TEST_*` URLs at the local test cluster (`bash scripts/local-test-db.sh setup`, then `env`). The full suite takes ~12 min there, against 38–48 min on Neon.
+
 **Where things live:**
 - [STATE.md](docs/STATE.md): the state of `main`, ≤ 5 KB, overwritten each time, never appended.
 - `docs/work/`: one file per in-flight branch.

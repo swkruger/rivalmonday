@@ -16,7 +16,15 @@ WT="$MAIN_WT/../CompetitorSpy-wt/<branch>"
 git -C "$MAIN_WT" fetch -q origin 2>/dev/null; git -C "$MAIN_WT" worktree add -b <branch> "$WT" main
 cp "$MAIN_WT/.env" "$WT/.env"            # gitignored; never print or commit it
 ```
-- Planning-only branch: skip `pnpm install`. Implementation branch: run `pnpm install` in `$WT` (background).
+- Planning-only branch: skip `pnpm install`. Implementation branch: run `pnpm install` in `$WT` (background), and give it **its own test database** on the local test cluster so parallel worktrees never collide on `cs_test`:
+  ```bash
+  bash "$MAIN_WT/scripts/local-test-db.sh" status || bash "$MAIN_WT/scripts/local-test-db.sh" start
+  DB="cs_$(echo <branch> | tr -c 'a-z0-9
+' '_' | cut -c1-40)_test"
+  PGPASSWORD=postgres /d/rm-pg/pg18/bin/psql.exe -h 127.0.0.1 -p 5444 -U postgres -qc "CREATE DATABASE $DB"
+  sed -i -E "s#^(TEST_[A-Z_]*DATABASE_URL=postgres://[^@]+@)[^/]+/[a-z0-9_]+#J7.0.0.1:5444/$DB#" "$WT/.env"
+  ```
+  (The roles are cluster-wide; the first test run migrates the new database. E2E still uses port 3100 — don't run two E2E suites at once.)
 - Tell the user: **open a new Claude Code session in `$WT`** for this workstream (or continue here if this session has no other branch work). All file edits for this workstream happen under `$WT`.
 
 ## 2. Phase brief (delegate — keep the main context lean)
