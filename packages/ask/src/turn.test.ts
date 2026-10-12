@@ -1,5 +1,5 @@
 import { type AccessContext, type AuditEvent, createAccessContext, ToolError, ToolRegistry, toolkit } from '@cs/core';
-import { askMessage, askThread, auditLog } from '@cs/db';
+import { askMessage, askThread, auditLog, capture, evidence } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import type { ToolDeps } from '@cs/tools';
 import { asc, eq, sql } from 'drizzle-orm';
@@ -282,5 +282,38 @@ describe('runTurn', () => {
     expect(sys).toContain(`The user is viewing evidence ev:${EV1}.`);
     // seeding pre-allows nothing: the model must call get_evidence to cite it
     expect(last.citations).toEqual([]);
+  });
+
+  it('history excludes the question of a refused turn', async () => {
+    const first = await start('Write me a poem about cats');
+    await dbs.owner.insert(askMessage).values({ threadId: first.threadId, agencyId: IDS.agencyA, clientId: IDS.clientA1, userId: 'u-owner', role: 'assistant', content: ASK_COPY.refused, status: 'refused' });
+    const { ai } = await turn([{ kind: 'chat', reply: { text: 'Ok.' } }], { question: 'Now?', threadId: first.threadId });
+    expect(ai.calls.chat[0]!.messages.filter((m) => m.role !== 'system').map((m) => m.content)).toEqual(['Now?']);
+  });
+
+  it('evidence text fallback used for get_evidence ids', async () => {
+    const seed = async (competitorId: string, objectKey: string) => {
+      const [c] = await dbs.owner.insert(capture).values({ competitorId, source: 'web', url: `https://${objectKey}.example/pricing`, status: 'ok', collectorVersion: 't' }).returning();
+      const [e] = await dbs.owner.insert(evidence).values({ captureId: c!.id, kind: 'text', objectKey, sha256: `sha-${objectKey}`, bytes: 10, contentType: 'text/plain' }).returning();
+      return e!.id;
+    };
+    const inScope = await seed(IDS.competitorX, 'k-x'); // tracked by A1
+    const outOfScope = await seed(IDS.competitorY, 'k-y'); // tracked by A2 only: the owner (A1) can't see it
+    const store = new Map([['k-x', 'AC tune-up now $79 at Smith HVAC'], ['k-y', 'Teeth cleaning now $50']]);
+    const toolDeps = { app: dbs.app, service: dbs.service, evidenceStore: { get: async (k: string) => (store.has(k) ? new TextEncoder().encode(store.get(k)) : null) } } as ToolDeps;
+    const getEv = (id: string) => ({ name: 'get_evidence', args: { clientId: IDS.clientA1, evidenceId: id } });
+    const { ai, last } = await turn(
+      [
+        { kind: 'chat', reply: { toolCalls: [getEv(inScope), getEv(outOfScope)] } },
+        { kind: 'chat', reply: { text: `Smith HVAC charges $79 for a tune-up [ev:${inScope}]. Bright Smiles charges $50 for cleaning [ev:${outOfScope}].` } },
+        { kind: 'support', repeat: true, verdict: (s, ev) => (s.includes('$79') ? ev.includes('$79') : ev.includes('$50')) },
+      ],
+      { extra: { toolDeps } },
+    );
+    expect(last.citations).toEqual([`ev:${inScope}`]);
+    expect(last.content).toBe(`Smith HVAC charges $79 for a tune-up [ev:${inScope}]. ${ASK_COPY.noEvidence}`);
+    const evidenceSeen = ai.calls.decide.filter((d) => d.task === 'verifier_decisions').map((d) => (d.state as { evidence: string }).evidence).join(' | ');
+    expect(evidenceSeen).toContain('AC tune-up now $79');
+    expect(evidenceSeen).not.toContain('Teeth cleaning');
   });
 });

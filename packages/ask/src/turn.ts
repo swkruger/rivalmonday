@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 import type { Ai, ChatMessage, ChatTool, DecisionQuestion } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
-import { type AccessContext, type AuditSink, type CallScope, countRows, ToolError, type ToolRegistry } from '@cs/core';
+import { type AccessContext, type AuditSink, type CallScope, countRows, createAccessContext, ToolError, type ToolRegistry } from '@cs/core';
 import { agency, askMessage, askThread, client, clientCompetitor, competitor, createAuditSink, type Db, withTenant } from '@cs/db';
-import { ASK_WRITE_TOOLS, type ToolDeps } from '@cs/tools';
+import { ASK_WRITE_TOOLS, fetchItem, type ToolDeps } from '@cs/tools';
 import { and, asc, eq } from 'drizzle-orm';
 import { type AskAction, type AskWriteTool, actionSummary } from './actions';
 import { groundAnswer } from './grounding';
@@ -99,11 +99,14 @@ function nodeText(tool: string, node: Record<string, unknown>): string {
   return strings(node.title, node.headline, node.summary).join('\n');
 }
 
-/** Adds every evidence id in a tool result to `evidence` ('ev:<id>' → text, capped per id). */
-function collectEvidence(tool: string, result: unknown, evidence: Map<string, string>, depth = 0): void {
+/**
+ * Adds every evidence id in a tool result to `evidence` ('ev:<id>' → text, capped per id). `bodied` collects the ids
+ * that got real text (not just `get_evidence` metadata); the rest may get evidence-access text before grounding.
+ */
+function collectEvidence(tool: string, result: unknown, evidence: Map<string, string>, bodied: Set<string>, depth = 0): void {
   if (depth > 8 || result === null || typeof result !== 'object') return;
   if (Array.isArray(result)) {
-    for (const r of result) collectEvidence(tool, r, evidence, depth + 1);
+    for (const r of result) collectEvidence(tool, r, evidence, bodied, depth + 1);
     return;
   }
   const node = result as Record<string, unknown>;
@@ -117,10 +120,44 @@ function collectEvidence(tool: string, result: unknown, evidence: Map<string, st
     if (typeof id !== 'string' || !UUID.test(id)) continue;
     const key = `ev:${id.toLowerCase()}`;
     const prev = evidence.get(key) ?? '';
+    if (text && tool !== 'get_evidence') bodied.add(key);
     if (text && !prev.includes(text)) evidence.set(key, (prev ? `${prev}\n${text}` : text).slice(0, EVIDENCE_TEXT_CHARS));
     else if (!evidence.has(key)) evidence.set(key, prev);
   }
-  for (const [k, v] of Object.entries(node)) if (k !== 'metadata' && v && typeof v === 'object') collectEvidence(tool, v, evidence, depth + 1);
+  for (const [k, v] of Object.entries(node)) if (k !== 'metadata' && v && typeof v === 'object') collectEvidence(tool, v, evidence, bodied, depth + 1);
+}
+
+const MARKER = /\[ev:([0-9a-f-]{36})\]/gi;
+
+/**
+ * Spec "Grounding": for ids cited in the draft whose text from this turn's results is empty or metadata-only, add the
+ * evidence-access text (the `fetch` tool's reader: decision 7 access rule, active client, d12 redaction), read for the
+ * thread's client only. Anything the caller can't see, or a read failure, leaves the id as it is.
+ */
+async function addEvidenceAccessText(
+  deps: AskDeps, ctx: AccessContext, clientId: string, draft: string, evidence: Map<string, string>, bodied: ReadonlySet<string>,
+  redact: (t: string) => string,
+): Promise<void> {
+  const wanted = [...new Set([...draft.matchAll(MARKER)].map((m) => `ev:${m[1]!.toLowerCase()}`))].filter((k) => evidence.has(k) && !bodied.has(k));
+  if (wanted.length === 0) return;
+  let scoped: AccessContext;
+  try {
+    // Only the thread's client: evidence visible through another client of this user never grounds this thread.
+    scoped = createAccessContext({ agencyId: ctx.agencyId, userId: ctx.userId, role: ctx.role, clientScope: [clientId], features: [...ctx.features] });
+  } catch {
+    return;
+  }
+  await Promise.all(wanted.map(async (key) => {
+    try {
+      const item = await fetchItem(deps.toolDeps, scoped, 'evidence', key.slice(3));
+      if (item.metadata.client_id !== clientId || !item.text.trim()) return;
+      const prev = evidence.get(key) ?? '';
+      const body = redact(item.text);
+      evidence.set(key, (prev ? `${body}\n${prev}` : body).slice(0, EVIDENCE_TEXT_CHARS));
+    } catch {
+      // not visible (not_found) or storage unavailable: the id keeps only this turn's text
+    }
+  }));
 }
 
 function parseArgs(raw: string): { ok: true; value: unknown } | { ok: false } {
@@ -224,9 +261,16 @@ export async function runTurn(
 
   const turnLines = [`The business is ${clientName || 'the selected client'} (clientId ${thread.clientId}). Today is ${now().toISOString().slice(0, 10)}.`];
   if (input.seedEvidenceId && UUID.test(input.seedEvidenceId)) turnLines.push(`The user is viewing evidence ev:${input.seedEvidenceId}.`);
-  const history: ChatMessage[] = messages
-    .slice(0, at)
-    .filter((m) => (m.role === 'user' || m.role === 'assistant') && !SKIP_STATUSES.has(m.status))
+  // A skipped (quota/refused/error/cancelled) answer also drops its question, so a refused question never reaches the model later.
+  const prior = messages.slice(0, at);
+  const dropped = new Set<number>();
+  prior.forEach((m, i) => {
+    if (!SKIP_STATUSES.has(m.status)) return;
+    dropped.add(i);
+    if (m.role === 'assistant' && prior[i - 1]?.role === 'user') dropped.add(i - 1);
+  });
+  const history: ChatMessage[] = prior
+    .filter((m, i) => (m.role === 'user' || m.role === 'assistant') && !dropped.has(i))
     .slice(-HISTORY)
     .map((m) => (m.role === 'user' ? { role: 'user' as const, content: redact(m.content) } : { role: 'assistant' as const, content: m.content }));
   const chat: ChatMessage[] = [
@@ -237,6 +281,7 @@ export async function runTurn(
   ];
 
   const evidence = new Map<string, string>();
+  const bodied = new Set<string>();
   const addCost = (c: number | null) => {
     trace.costUsd = trace.costUsd === null || c === null ? null : trace.costUsd + c;
   };
@@ -290,7 +335,7 @@ export async function runTurn(
           try {
             result = await deps.registry.invoke(ctx, call.name, parsed.value, { channel: 'ask' });
             rows = countRows(result);
-            collectEvidence(call.name, result, evidence);
+            collectEvidence(call.name, result, evidence, bodied);
           } catch (err) {
             error = err instanceof ToolError ? err.code : 'internal';
           }
@@ -299,6 +344,7 @@ export async function runTurn(
         chat.push({ role: 'tool', toolCallId: call.id, content: dataBlock(call.name, error ? { error } : result) });
       }
     }
+    await addEvidenceAccessText(deps, ctx, thread.clientId, draft, evidence, bodied, redact);
     const grounded = await groundAnswer(deps.ai, scope, draft, evidence);
     trace.removedSentences = grounded.removed;
     return { role: 'assistant', content: grounded.content, status: 'ok', citations: grounded.citations };

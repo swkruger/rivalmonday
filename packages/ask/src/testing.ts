@@ -20,7 +20,7 @@ export type ScriptedStep =
   | { kind: 'chat'; reply: ScriptedReply | ((req: ScriptedChatRequest) => ScriptedReply); repeat?: boolean }
   /** `verdict(sentence)` decides one claim (the sentence quoted in the support question). Grounding makes one call per
    * citation group, so a step meant for the whole answer needs `repeat: true`. */
-  | { kind: 'support'; verdict: boolean | ((sentence: string) => boolean); repeat?: boolean };
+  | { kind: 'support'; verdict: boolean | ((sentence: string, evidence: string) => boolean); repeat?: boolean };
 
 export type ScriptedAskAi = Ai & {
   calls: {
@@ -41,6 +41,12 @@ function take<S extends ScriptedStep>(queue: S[]): S | undefined {
 function claimOf(instructions: string): string {
   const m = /"([^"]*)"$/.exec(instructions);
   return m ? m[1]! : instructions;
+}
+
+/** The EVIDENCE string a supportCheck call was given. */
+function evidenceOf(state: unknown): string {
+  const e = (state as { evidence?: unknown } | null)?.evidence;
+  return typeof e === 'string' ? e : '';
 }
 
 /** A deterministic `Ai` for Ask tests and the E2E fake (never calls a provider). */
@@ -87,7 +93,7 @@ export function createScriptedAskAi(script: ScriptedStep[]): ScriptedAskAi {
       const verdict = step?.verdict ?? true;
       const answers = Object.fromEntries(keys.map((k) => {
         const q = questions[k] as DecisionQuestion;
-        const value = typeof verdict === 'function' ? verdict(claimOf(q.instructions)) : verdict;
+        const value = typeof verdict === 'function' ? verdict(claimOf(q.instructions), evidenceOf(state)) : verdict;
         return [k, { type: 'noul', value, probability: value ? 0.97 : 0.03, confidence: 0.94, provider: 'scripted' } satisfies ResolvedAnswer];
       }));
       return { answers: answers as never, needsReview: [] };
