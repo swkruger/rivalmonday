@@ -19,6 +19,7 @@ export const getAdActivity = defineTool({
   input: z.object({ clientId: uuid, weeks: z.number().int().min(4).max(26).default(12), competitorId: uuid.optional() }),
   output: AdActivityView,
   permission: 'read',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
   async handler(ctx, input, deps) {
     const c = await workspaceClient(deps, ctx, input.clientId);

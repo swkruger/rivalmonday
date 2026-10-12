@@ -95,7 +95,8 @@ describe('trend reports', () => {
 });
 
 it('audits every call, including refusals', async () => {
-  await registry.invoke(admin, 'list_clients', {});
-  await registry.invoke(owner, 'list_clients', {}).catch(() => {});
-  expect(audit.map((a) => [a.tool, a.outcome])).toEqual([['list_clients', 'ok'], ['list_clients', 'permission_denied']]);
+  await registry.invoke(admin, 'list_prospects', {});
+  await registry.invoke(owner, 'list_prospects', {}).catch(() => {});
+  await registry.invoke(admin, 'list_clients', {}); // audit: 'skip-web' - polled by the layout, no web row
+  expect(audit.map((a) => [a.tool, a.outcome])).toEqual([['list_prospects', 'ok'], ['list_prospects', 'permission_denied']]);
 });

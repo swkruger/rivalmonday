@@ -4,6 +4,7 @@ import { and, desc, eq, inArray, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { workspaceBusinesses } from '../workspace/business';
+import { forChannel } from '../workspace/model-text';
 import { workspaceClient } from '../workspace/scope';
 import { requireTracked } from './pages';
 import { AdList, toIso } from './schemas';
@@ -33,8 +34,9 @@ export const listAds = defineTool({
   }),
   output: AdList,
   permission: 'read',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
-  async handler(ctx, input, deps) {
+  async handler(ctx, input, deps, meta) {
     const c = await workspaceClient(deps, ctx, input.clientId);
     if (input.competitorId) await requireTracked(deps.app, ctx, c.id, input.competitorId);
     const tracked = (await workspaceBusinesses(deps, ctx, c)).filter((b) => !b.self && (!input.competitorId || b.key === input.competitorId));
@@ -49,7 +51,7 @@ export const listAds = defineTool({
     return {
       items: rows.slice(0, input.limit).map((a) => ({
         id: a.id, competitorId: a.competitorId, competitorName: names.get(a.competitorId)!, platform: a.platform as 'meta' | 'google',
-        format: a.format, title: a.title, text: a.text, landingUrl: a.landingUrl,
+        format: a.format, title: forChannel(meta, a.title, [names.get(a.competitorId)]), text: forChannel(meta, a.text, [names.get(a.competitorId)]), landingUrl: a.landingUrl,
         firstSeenAt: a.firstSeenAt.toISOString(), lastSeenAt: a.lastSeenAt.toISOString(), endedAt: toIso(a.endedAt), active: a.isActive, libraryUrl: libraryUrl(a),
       })),
       hasMore: rows.length > input.limit,

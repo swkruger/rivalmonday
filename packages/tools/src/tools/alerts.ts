@@ -14,6 +14,7 @@ export const listAlerts = defineTool({
   input: listInput(100),
   output: z.object({ items: z.array(AlertSummary) }),
   permission: 'read',
+  channels: ['web', 'mcp'],
   async handler(ctx, { clientId, limit }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
     const where = isAgencyRole(ctx.role) ? eq(alert.clientId, clientId) : and(eq(alert.clientId, clientId), eq(alert.status, 'delivered'));

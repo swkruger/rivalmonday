@@ -16,6 +16,7 @@ export const listRecommendations = defineTool({
   input: z.object({ clientId: uuid }),
   output: z.object({ items: z.array(RecommendationView) }),
   permission: 'read',
+  channels: ['web', 'mcp'],
   async handler(ctx, { clientId }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
     const rows = await withTenant(deps.app, ctx, (tx) => tx.select().from(recommendation).where(eq(recommendation.clientId, clientId)).orderBy(desc(recommendation.updatedAt)).limit(300));
@@ -36,6 +37,8 @@ export const updateRecommendationStatusTool = defineTool({
   input: z.object({ recommendationId: uuid, status: z.enum(STATUSES), reason: z.string().max(500).optional() }),
   output: z.object({ ok: z.literal(true) }),
   permission: 'manage',
+  channels: ['web', 'mcp'],
+  mcpScope: 'feedback',
   async handler(ctx, { recommendationId, status, reason }, deps) {
     await updateRecommendationStatus({ service: deps.service, app: deps.app }, ctx, recommendationId, status, reason?.trim() || undefined);
     return { ok: true as const };

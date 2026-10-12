@@ -81,6 +81,7 @@ export const getCompetitorSearchStatus = defineTool({
   input: z.object({ clientId: uuid }),
   output: z.object({ state: z.enum(['idle', 'queued', 'running', 'done', 'failed']), finishedAt: z.string().nullable() }),
   permission: 'agency',
+  audit: 'skip-web',
   async handler(ctx, { clientId }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
     const job = await jobStatusOf(deps)('suggest-competitors', `suggest:${clientId}`);
@@ -146,6 +147,7 @@ export const listClientCompetitors = defineTool({
   input: z.object({ clientId: uuid }),
   output: z.object({ items: z.array(TrackedCompetitor), limit: z.number().int() }),
   permission: 'read',
+  channels: ['web', 'mcp'],
   async handler(ctx, { clientId }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
     const { c, rows } = await withTenant(deps.app, ctx, async (tx) => {

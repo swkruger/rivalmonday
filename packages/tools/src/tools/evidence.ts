@@ -6,6 +6,7 @@ import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { competitorLinked, SERVABLE_EVIDENCE, snapshotSide } from '../workspace/evidence-access';
 import { channelLabel, detailLines, factView } from '../workspace/labels';
+import { forChannel } from '../workspace/model-text';
 import { clientEvents, eventJoin, firstVisibleEvent, workspaceClient } from '../workspace/scope';
 import { wordDiff } from '../workspace/word-diff';
 import { CompareView, EvidenceView } from './schemas';
@@ -19,7 +20,8 @@ export const getEvidence = defineTool({
   input: z.object({ clientId: uuid, evidenceId: uuid }),
   output: EvidenceView,
   permission: 'read', // decision 2: no dashboard flag — brief/alert chips must work for briefs-only clients
-  async handler(ctx, { clientId, evidenceId }, deps) {
+  channels: ['web', 'mcp'],
+  async handler(ctx, { clientId, evidenceId }, deps, meta) {
     const c = await workspaceClient(deps, ctx, clientId);
     const [row] = await deps.service
       .select({ id: evidence.id, kind: evidence.kind, sha256: evidence.sha256, bytes: evidence.bytes, contentType: evidence.contentType, captureId: capture.id,
@@ -41,7 +43,7 @@ export const getEvidence = defineTool({
       capturedAt: row.capturedAt.toISOString(), captureStatus: row.status, channel: row.source, channelLabel: channelLabel(row.source), url: row.url ?? null,
       collectorVersion: row.collectorVersion, legalHold: row.legalHold, competitorId: row.competitorId, competitorName: row.competitorName,
       servable: SERVABLE_EVIDENCE.has(row.kind),
-      citedBy: cited.map((e) => ({ eventId: e.eventId, summary: e.summary, typeLabel: changeTypeLabel(e.changeType), occurredAt: e.occurredAt.toISOString() })),
+      citedBy: cited.map((e) => ({ eventId: e.eventId, summary: forChannel(meta, e.summary, [row.competitorName]), typeLabel: changeTypeLabel(e.changeType), occurredAt: e.occurredAt.toISOString() })),
     };
   },
 });
@@ -52,14 +54,15 @@ export const compareSnapshots = defineTool({
   input: z.object({ clientId: uuid, changeId: uuid }),
   output: CompareView,
   permission: 'read',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
-  async handler(ctx, { clientId, changeId }, deps) {
+  async handler(ctx, { clientId, changeId }, deps, meta) {
     const c = await workspaceClient(deps, ctx, clientId);
     const [ch] = await deps.service
-      .select({ id: detectedChange.id, source: detectedChange.source, kind: detectedChange.kind, pageUrl: trackedPage.url,
+      .select({ id: detectedChange.id, competitorName: competitor.name, source: detectedChange.source, kind: detectedChange.kind, pageUrl: trackedPage.url,
         beforeCaptureId: detectedChange.beforeCaptureId, afterCaptureId: detectedChange.afterCaptureId, beforeText: detectedChange.beforeText, afterText: detectedChange.afterText,
         numericChanges: detectedChange.numericChanges, details: detectedChange.details })
-      .from(detectedChange).leftJoin(trackedPage, eq(trackedPage.id, detectedChange.trackedPageId))
+      .from(detectedChange).innerJoin(competitor, eq(competitor.id, detectedChange.competitorId)).leftJoin(trackedPage, eq(trackedPage.id, detectedChange.trackedPageId))
       .where(and(eq(detectedChange.id, changeId), eq(detectedChange.status, 'event')));
     if (!ch) throw new ToolError('not_found', 'Change not found');
     // F8: a change may be linked to several events (merges) — it is visible when any of them is.
@@ -70,7 +73,7 @@ export const compareSnapshots = defineTool({
     const hasText = ch.beforeText !== null || ch.afterText !== null;
     return {
       changeId: ch.id, eventId, channel: ch.source, channelLabel: channelLabel(ch.source), kind: ch.kind, pageUrl: ch.pageUrl ?? null, before, after,
-      diff: hasText ? wordDiff(ch.beforeText ?? '', ch.afterText ?? '') : [],
+      diff: hasText ? wordDiff(forChannel(meta, ch.beforeText ?? '', [ch.competitorName]), forChannel(meta, ch.afterText ?? '', [ch.competitorName])) : [],
       facts: (ch.numericChanges ?? []).map(factView), details: detailLines(ch.details),
     };
   },

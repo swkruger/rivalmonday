@@ -38,6 +38,7 @@ export const listMoves = defineTool({
   input: z.object({ clientId: uuid, status: z.enum(['open', 'closed', 'all']).default('open'), competitorId: uuid.optional() }),
   output: z.object({ items: z.array(MoveRow) }),
   permission: 'read',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
   async handler(ctx, input, deps) {
     const c = await workspaceClient(deps, ctx, input.clientId);
@@ -58,6 +59,7 @@ export const getMove = defineTool({
   input: z.object({ clientId: uuid, moveId: uuid }),
   output: MoveDetail,
   permission: 'read',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
   async handler(ctx, { clientId, moveId }, deps) {
     const c = await workspaceClient(deps, ctx, clientId);

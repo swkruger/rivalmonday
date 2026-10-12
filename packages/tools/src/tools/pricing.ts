@@ -38,6 +38,7 @@ export const getPriceMatrix = defineTool({
   input: z.object({ clientId: uuid, competitorId: uuid.optional() }),
   output: PriceMatrixView,
   permission: 'read',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
   async handler(ctx, input, deps) {
     const c = await workspaceClient(deps, ctx, input.clientId);
@@ -86,6 +87,7 @@ export const getPriceHistory = defineTool({
   }),
   output: PriceHistoryView,
   permission: 'read',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
   async handler(ctx, input, deps) {
     const c = await workspaceClient(deps, ctx, input.clientId);

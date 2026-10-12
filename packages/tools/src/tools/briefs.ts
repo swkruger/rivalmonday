@@ -19,6 +19,7 @@ export const listBriefs = defineTool({
   input: listInput(52),
   output: z.object({ items: z.array(BriefSummary) }),
   permission: 'read',
+  channels: ['web', 'mcp'],
   async handler(ctx, { clientId, limit }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
     const where = isAgencyRole(ctx.role) ? eq(brief.clientId, clientId) : and(eq(brief.clientId, clientId), inArray(brief.status, CLIENT_VISIBLE));
@@ -51,6 +52,7 @@ export const getBriefTool = defineTool({
   input: z.object({ briefId: z.string().uuid() }),
   output: BriefDetail,
   permission: 'read',
+  channels: ['web', 'mcp'],
   async handler(ctx, { briefId }, deps) {
     return briefDetail(deps, ctx, briefId);
   },

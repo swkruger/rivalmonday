@@ -43,6 +43,8 @@ export const setAlertRules = defineTool({
   input: z.object({ clientId: uuid, alert: z.number().optional(), brief: z.number().optional(), reset: z.boolean().default(false) }),
   output: AlertRulesView,
   permission: 'manage',
+  channels: ['web', 'mcp'],
+  mcpScope: 'manage',
   feature: 'alert_rules',
   async handler(ctx, input, deps) {
     const { c } = await thresholdsOf(deps, ctx, input.clientId);

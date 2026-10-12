@@ -63,6 +63,8 @@ export const updateClientProfile = defineTool({
   }),
   output: z.object({ clientId: uuid }),
   permission: 'agency',
+  channels: ['web', 'mcp'],
+  mcpScope: 'manage',
   async handler(ctx, { clientId, ...patch }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
     // Fix round 1 (#1): read-modify-write in ONE transaction with `for('update')`, so two

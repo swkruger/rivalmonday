@@ -13,6 +13,8 @@ export const listClients = defineTool({
   input: z.object({}),
   output: z.object({ items: z.array(ClientSummary) }),
   permission: 'agency',
+  channels: ['web', 'mcp'],
+  audit: 'skip-web',
   async handler(ctx, _input, deps) {
     const rows = await withTenant(deps.app, ctx, (tx) => tx.select().from(client).orderBy(asc(client.name)));
     return { items: rows.map((c) => ({ id: c.id, name: c.name, verticalId: c.verticalId, timezone: c.timezone, status: c.status })) };
@@ -25,6 +27,7 @@ export const getClientProfile = defineTool({
   input: z.object({ clientId: z.string().uuid() }),
   output: ClientProfile,
   permission: 'read',
+  channels: ['web', 'mcp'],
   async handler(ctx, { clientId }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
     const [c] = await withTenant(deps.app, ctx, (tx) => tx.select().from(client).where(eq(client.id, clientId)));

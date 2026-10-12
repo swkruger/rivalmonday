@@ -61,6 +61,8 @@ export const runProspectSnapshotTool = defineTool({
   input: z.object({ clientId: uuid }),
   output: z.object({ reportId: uuid }),
   permission: 'agency',
+  channels: ['web', 'mcp'],
+  mcpScope: 'manage',
   async handler(ctx, { clientId }, deps) {
     await visibleClient(deps, ctx, clientId);
     const enqueue = enqueueOf(deps);
@@ -94,6 +96,7 @@ export const getProspectReport = defineTool({
   input: z.object({ clientId: uuid }),
   output: z.object({ report: ProspectReportView.nullable() }),
   permission: 'agency',
+  audit: 'skip-web',
   async handler(ctx, { clientId }, deps) {
     await visibleClient(deps, ctx, clientId);
     const [r] = await withTenant(deps.app, ctx, (tx) => tx.select().from(prospectReport).where(eq(prospectReport.clientId, clientId)).orderBy(desc(prospectReport.createdAt)).limit(1));

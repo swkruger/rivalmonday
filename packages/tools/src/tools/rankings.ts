@@ -35,6 +35,7 @@ export const getGeogrid = defineTool({
   input: z.object({ clientId: uuid, keyword: z.string().trim().min(1).max(100).optional(), business: BusinessKey.optional(), scanId: uuid.optional() }),
   output: GeoGridView,
   permission: 'read',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
   async handler(ctx, input, deps) {
     const c = await workspaceClient(deps, ctx, input.clientId);
@@ -95,6 +96,7 @@ export const getShareOfVoice = defineTool({
   input: z.object({ clientId: uuid, keyword: z.string().trim().min(1).max(100).optional(), scans: z.number().int().min(1).max(12).default(6) }),
   output: ShareOfVoiceView,
   permission: 'read',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
   async handler(ctx, input, deps) {
     const c = await workspaceClient(deps, ctx, input.clientId);

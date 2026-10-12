@@ -6,6 +6,7 @@ import { and, desc, eq, gte, ilike, inArray, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
 import { pickBusiness, workspaceBusinesses } from '../workspace/business';
+import { forChannel } from '../workspace/model-text';
 import { escapeLike, workspaceClient } from '../workspace/scope';
 import { BusinessKey, RatingTrendView, ReviewList, ThemeBenchmarkView } from './schemas';
 
@@ -19,6 +20,7 @@ export const getThemeBenchmark = defineTool({
   input: z.object({ clientId: uuid }),
   output: ThemeBenchmarkView,
   permission: 'read',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
   async handler(ctx, { clientId }, deps) {
     const c = await workspaceClient(deps, ctx, clientId);
@@ -52,6 +54,7 @@ export const getRatingTrend = defineTool({
   input: z.object({ clientId: uuid, months: z.union([z.literal(6), z.literal(12)]).default(12) }),
   output: RatingTrendView,
   permission: 'read',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
   async handler(ctx, input, deps) {
     const c = await workspaceClient(deps, ctx, input.clientId);
@@ -126,8 +129,9 @@ export const searchReviews = defineTool({
   }),
   output: ReviewList,
   permission: 'read',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
-  async handler(ctx, input, deps) {
+  async handler(ctx, input, deps, meta) {
     const c = await workspaceClient(deps, ctx, input.clientId);
     // A self business known only by place id has no review rows, so it is not searchable (pickBusiness -> not_found).
     const all = (await workspaceBusinesses(deps, ctx, c)).filter((b) => b.competitorId !== null);
@@ -153,10 +157,10 @@ export const searchReviews = defineTool({
       items: rows.slice(0, REVIEW_PAGE).map((r) => {
         const b = byId.get(r.competitorId)!;
         return {
-          reviewId: r.id, competitorId: r.competitorId, name: b.name, self: b.self, rating: r.rating, text: r.text, postedAt: r.postedAt ? r.postedAt.toISOString() : null,
+          reviewId: r.id, competitorId: r.competitorId, name: b.name, self: b.self, rating: r.rating, text: forChannel(meta, r.text, [b.name]), postedAt: r.postedAt ? r.postedAt.toISOString() : null,
           themes: (r.themes ?? []).map((id) => ({ id, name: themeName.get(id) ?? id })),
           // Same -1..+1 scale as get_theme_benchmark (engine sentimentScore), not the raw 0-4 level.
-          sentiment: r.sentiment == null ? null : sentimentScore(r.sentiment), ownerAnswer: r.ownerAnswer,
+          sentiment: r.sentiment == null ? null : sentimentScore(r.sentiment), ownerAnswer: forChannel(meta, r.ownerAnswer, [b.name]),
         };
       }),
       hasMore: rows.length > REVIEW_PAGE,

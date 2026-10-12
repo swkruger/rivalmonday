@@ -19,6 +19,7 @@ export const getUsage = defineTool({
   input: z.object({}),
   output: z.object({ month: z.string(), items: z.array(UsageRow), agencyLevelUsd: z.number().nullable() }),
   permission: 'agency',
+  channels: ['web', 'mcp'],
   async handler(ctx, _input, deps) {
     const now = new Date();
     const since = monthStart(now);

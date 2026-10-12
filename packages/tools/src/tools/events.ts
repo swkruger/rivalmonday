@@ -30,6 +30,7 @@ export const searchEvents = defineTool({
   }),
   output: z.object({ items: z.array(EventRow), hasMore: z.boolean() }),
   permission: 'read',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
   async handler(ctx, input, deps) {
     const c = await workspaceClient(deps, ctx, input.clientId);
@@ -57,6 +58,7 @@ export const getEvent = defineTool({
   input: z.object({ clientId: uuid, eventId: uuid }),
   output: EventDetail,
   permission: 'read',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
   async handler(ctx, { clientId, eventId }, deps) {
     const c = await workspaceClient(deps, ctx, clientId);
@@ -104,6 +106,7 @@ export const submitFeedback = defineTool({
   input: z.object({ clientId: uuid, eventId: uuid, verdict: z.enum(FEEDBACK_VERDICTS), reason: z.string().trim().max(500).optional() }),
   output: z.object({ ok: z.literal(true) }),
   permission: 'feedback',
+  channels: ['web', 'mcp'],
   feature: 'dashboard',
   async handler(ctx, input, deps) {
     // Guests are client_viewers (no `feedback` permission) — this is a second barrier for any future guest role.

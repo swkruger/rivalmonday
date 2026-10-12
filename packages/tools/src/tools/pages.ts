@@ -47,6 +47,8 @@ export const setPagePin = defineTool({
   input: z.object({ clientId: uuid, pageId: uuid, pinned: z.boolean() }),
   output: z.object({ pageId: uuid }),
   permission: 'agency',
+  channels: ['web', 'mcp'],
+  mcpScope: 'manage',
   async handler(ctx, { clientId, pageId, pinned }, deps) {
     const [p] = await deps.service.select().from(trackedPage).where(eq(trackedPage.id, pageId));
     if (!p) throw new ToolError('not_found', 'Page not found');
