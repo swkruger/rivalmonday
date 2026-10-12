@@ -34,6 +34,8 @@ export const E2E_SERVER_ENV: Record<string, string> = {
   WEB_MONITORING_ENABLED: '',
   PLATFORM_ADMIN_EMAILS: 'admin@e2e.test',
   EVIDENCE_FS_DIR: fileURLToPath(new URL('./test-results/evidence', import.meta.url)),
+  // 6b Q1: Ask answers from a deterministic script (never OpenRouter); refused when VERCEL_ENV=production.
+  ASK_FAKE_AI: '1',
 };
 
 /** `E2E_SKIP_BUILD=1` (set by `e2e:affected` after its own, stamp-checked build) only starts the server. */

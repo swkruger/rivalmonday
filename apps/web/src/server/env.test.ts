@@ -33,4 +33,12 @@ describe('parseWebEnv', () => {
     expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).platformAdmins).toEqual([]);
     expect(parseWebEnv({ ...ok, PLATFORM_ADMIN_EMAILS: 'A@b.co, c@d.co' } as unknown as NodeJS.ProcessEnv).platformAdmins).toEqual(['a@b.co', 'c@d.co']);
   });
+
+  it('reads ASK_FAKE_AI and refuses it in production', () => {
+    expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).askFakeAi).toBe(false);
+    expect(parseWebEnv({ ...ok, ASK_FAKE_AI: '1' } as unknown as NodeJS.ProcessEnv).askFakeAi).toBe(true);
+    expect(parseWebEnv({ ...ok, ASK_FAKE_AI: '1', VERCEL_ENV: 'preview' } as unknown as NodeJS.ProcessEnv).askFakeAi).toBe(true);
+    expect(() => parseWebEnv({ ...ok, ASK_FAKE_AI: '1', VERCEL_ENV: 'production' } as unknown as NodeJS.ProcessEnv)).toThrow(/ASK_FAKE_AI/);
+    expect(parseWebEnv({ ...ok, VERCEL_ENV: 'production' } as unknown as NodeJS.ProcessEnv).askFakeAi).toBe(false);
+  });
 });

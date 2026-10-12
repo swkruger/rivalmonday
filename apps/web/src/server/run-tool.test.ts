@@ -14,6 +14,13 @@ describe('runTool', () => {
     await expect(createRunTool(reg(async () => { throw new ToolError('permission_denied', 'secret'); }))(ctx, 't', {})).resolves.toEqual({ ok: false, error: 'Not found' });
     await expect(createRunTool(reg(async () => { throw new ToolError('not_found', 'secret'); }))(ctx, 't', {})).resolves.toEqual({ ok: false, error: 'Not found' });
   });
+  it('passes the channel to the registry (default web)', async () => {
+    const seen: unknown[] = [];
+    const run = createRunTool(() => ({ invoke: async (_c: unknown, _n: string, _i: unknown, opts?: unknown) => { seen.push(opts); return {}; } }));
+    await run(ctx, 't', {});
+    await run(ctx, 't', {}, { channel: 'ask' });
+    expect(seen).toEqual([{ channel: 'web' }, { channel: 'ask' }]);
+  });
   it('lets internal failures reach the error boundary', async () => {
     await expect(createRunTool(reg(async () => { throw new ToolError('internal', 'boom'); }))(ctx, 't', {})).rejects.toThrow('boom');
   });

@@ -26,6 +26,9 @@ importers:
       '@cs/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@cs/ask':
+        specifier: workspace:*
+        version: link:../../packages/ask
       '@cs/core':
         specifier: workspace:*
         version: link:../../packages/core

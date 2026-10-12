@@ -73,6 +73,9 @@ export const RULES: Rule[] = [
   { pattern: re(`${SERVER}(?:mcp|oauth-consent|ai-connections)\\.ts$`), tags: ['@ai-connections'], why: 'AI connections server module' },
   { pattern: re(`${COMP}ai-connections\\.tsx$`), tags: ['@ai-connections'], why: 'AI connections cards' },
 
+  // --- Ask assistant (6b); its E2E (@ask) arrives with the Ask pages ---
+  { pattern: re(`(?:${APP}api/ask/|${C}ask/|${SERVER}ask\\.ts$)`), tags: [], why: 'Ask route, actions and server wiring' },
+
   { pattern: re(`${APP}(?:sign-in/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in and link-error pages' },
   { pattern: re(`${APP}(?:l/|go/|files/)`), tags: GUEST_FILES, why: 'signed links and stored files' },
   { pattern: re(`${APP}dev-panel/`), tags: ['@dev-panel'], why: 'dev-panel route shell' },

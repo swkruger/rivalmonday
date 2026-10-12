@@ -20,6 +20,7 @@
     "@better-auth/oauth-provider": "1.7.7",
     "@better-auth/utils": "0.4.2",
     "@cs/ai": "workspace:*",
+    "@cs/ask": "workspace:*",
     "@cs/core": "workspace:*",
     "@cs/db": "workspace:*",
     "@cs/demo": "workspace:*",

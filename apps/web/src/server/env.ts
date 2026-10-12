@@ -16,6 +16,8 @@ export interface WebEnv {
   webMonitoring: boolean;
   /** 5b-2 decision 2: emails of platform operators (lower-cased). */
   platformAdmins: string[];
+  /** 6b Q1: Ask runs on a deterministic scripted AI (E2E only; refused when VERCEL_ENV=production). */
+  askFakeAi: boolean;
 }
 
 export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
@@ -37,6 +39,8 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
   const previous = env.LINK_SIGNING_SECRET_PREVIOUS?.trim();
   const defaultAgencyId = env.DEFAULT_AGENCY_ID?.trim() || null;
   if (defaultAgencyId && !isUuid(defaultAgencyId)) problems.push('DEFAULT_AGENCY_ID must be a uuid');
+  const askFake = env.ASK_FAKE_AI?.trim() ?? '';
+  if (askFake && env.VERCEL_ENV?.trim() === 'production') problems.push('ASK_FAKE_AI must not be set in production');
   const parsed: WebEnv = {
     appUrl, authSecret,
     appDatabaseUrl: need('APP_DATABASE_URL'), serviceDatabaseUrl: need('SERVICE_DATABASE_URL'), queueDatabaseUrl: need('DATABASE_URL'),
@@ -46,6 +50,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     defaultAgencyId,
     webMonitoring: env.WEB_MONITORING_ENABLED?.trim() === 'true',
     platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
+    askFakeAi: askFake === '1',
   };
   if (problems.length) throw new Error(`Web app configuration problems:\n- ${problems.join('\n- ')}`);
   return parsed;
