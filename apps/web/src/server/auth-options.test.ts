@@ -7,7 +7,8 @@ import { sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { truncateAuth } from '../../test/auth-fixtures';
-import { buildAuthOptions } from './auth-options';
+import { oauthHarness, pathOf, queryOf, REDIRECT } from '../../test/oauth-fixtures';
+import { buildAuthOptions, oauthOptions } from './auth-options';
 import type { WebEnv } from './env';
 
 const dbs = openTestDbs();
@@ -150,5 +151,70 @@ describe('onMagicLink (dev panel sign-in, deviation 4)', () => {
     expect(seen[0]![0]).toBe('someone@example.com');
     expect(seen[0]![1]).toMatch(/\/api\/auth\/magic-link\/verify\?token=[^&]+&callbackURL=%2Fagency/);
     await flush();
+  });
+});
+
+describe('OAuth provider (Phase 6a Task 11)', () => {
+  const links: string[] = [];
+  const oauthAuth = betterAuth(buildAuthOptions({
+    env, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null),
+    runInBackground: (task) => void background.push(task), sendEmail: async () => {}, onMagicLink: (_e, url) => void links.push(url),
+  }));
+  const h = () => oauthHarness(oauthAuth, () => links.at(-1), flush);
+  const registered = async () => [...(await dbs.owner.execute<{ applicationType: string | null; tokenEndpointAuthMethod: string | null }>(sql`select "applicationType", "tokenEndpointAuthMethod" from auth."oauthClient"`))];
+  const reg = (redirect_uris: string[], token_endpoint_auth_method?: string) =>
+    h().register({ client_name: 'X', redirect_uris, grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'], ...(token_endpoint_auth_method ? { token_endpoint_auth_method } : {}) });
+
+  it('oauthOptions: scopes, hashed opaque tokens, 1 h access / 30 day refresh, the /mcp resource and only code + refresh grants', () => {
+    expect(oauthOptions('https://app.example')).toMatchObject({
+      loginPage: '/sign-in', consentPage: '/oauth/consent', scopes: ['offline_access', 'read', 'feedback', 'manage'],
+      disableJwtPlugin: true, storeTokens: 'hashed', allowDynamicClientRegistration: true, allowUnauthenticatedClientRegistration: true,
+      clientRegistrationDefaultScopes: ['read', 'offline_access'], clientRegistrationAllowedScopes: ['feedback', 'manage'],
+      resources: ['https://app.example/mcp'], clientRegistrationDefaultResources: ['https://app.example/mcp'],
+      grantTypes: ['authorization_code', 'refresh_token'], accessTokenExpiresIn: 3600, refreshTokenExpiresIn: 2_592_000,
+    });
+  });
+
+  it('registers a public loopback client (Claude Code style, no application_type) as native', async () => {
+    for (const uri of ['http://127.0.0.1:33418/callback', 'http://localhost:9000/cb', 'http://[::1]:7000/cb']) {
+      const r = await reg([uri], 'none');
+      expect(r.status, uri).toBe(201);
+      expect(r.body.application_type, uri).toBe('native');
+    }
+    expect((await registered()).every((c) => c.applicationType === 'native' && c.tokenEndpointAuthMethod === 'none')).toBe(true);
+  });
+
+  it('does not rewrite a confidential loopback client (it stays web and is refused)', async () => {
+    for (const method of ['client_secret_basic', 'client_secret_post', undefined]) {
+      const r = await reg([REDIRECT], method);
+      expect(r.status, String(method)).toBe(400);
+      expect(r.body.error, String(method)).toBe('invalid_redirect_uri');
+    }
+    expect(await registered()).toEqual([]);
+  });
+
+  it('keeps refusing non-loopback http and mixed loopback + non-loopback redirects from a public client', async () => {
+    for (const uris of [['http://evil.example/cb'], [REDIRECT, 'http://evil.example/cb'], ['http://127.0.0.2/cb']]) {
+      const r = await reg(uris, 'none');
+      expect(r.status, uris.join()).toBe(400);
+      expect(r.body.error, uris.join()).toBe('invalid_redirect_uri');
+    }
+    expect(await registered()).toEqual([]);
+  });
+
+  it('leaves an explicit application_type alone', async () => {
+    const r = await h().register({ client_name: 'X', redirect_uris: [REDIRECT], token_endpoint_auth_method: 'none', application_type: 'web', grant_types: ['authorization_code'], response_types: ['code'] });
+    expect(r.status).toBe(400);
+  });
+
+  it('a signed-out authorize goes to /sign-in carrying the signed query', async () => {
+    const harness = h();
+    const clientId = await harness.registerPublic();
+    const a = await harness.call(harness.authorizeUrl(clientId).url, { headers: { accept: 'text/html' } });
+    expect(a.status).toBe(302);
+    expect(pathOf(a.location!)).toBe('/sign-in');
+    const q = new URLSearchParams(queryOf(a.location!));
+    expect(q.get('client_id')).toBe(clientId);
+    expect(q.get('sig')).toBeTruthy();
   });
 });

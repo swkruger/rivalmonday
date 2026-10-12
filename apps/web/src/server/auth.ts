@@ -36,4 +36,4 @@ function create(name: EnvName) {
 
 /** One Better Auth instance (and its pool) per environment: sessions live in each database's `auth` schema. */
 const instances = perEnv(create, (v) => v.pool.end());
-export const auth = () => instances().auth;
+export const auth = (name?: EnvName) => instances(name).auth;

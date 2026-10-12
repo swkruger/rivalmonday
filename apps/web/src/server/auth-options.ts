@@ -1,7 +1,9 @@
+import { oauthProvider } from '@better-auth/oauth-provider';
 import type { Db } from '@cs/db';
 import type { Branding, EmailPayload } from '@cs/email';
-import { acceptInvitations, hasSignInRight } from '@cs/tools';
+import { acceptInvitations, dropUnboundConsents, hasSignInRight } from '@cs/tools';
 import type { BetterAuthOptions } from 'better-auth';
+import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { magicLink } from 'better-auth/plugins/magic-link';
 import { sql } from 'drizzle-orm';
 import { PostgresDialect } from 'kysely';
@@ -26,6 +28,68 @@ export interface AuthDeps {
   onMagicLink?: (email: string, url: string) => void;
   now?: () => Date;
 }
+
+/**
+ * Phase 6a: OAuth 2.1 provider for MCP clients (config proven by the Task 1 spike). Opaque access tokens stored as
+ * SHA-256 hashes; public clients may register themselves (DCR); every token is for the `<appUrl>/mcp` resource.
+ * `resources` + `clientRegistrationDefaultResources` are required (`enforcePerClientResources` defaults to true);
+ * `clientRegistrationAllowedScopes` lets clients ask for feedback/manage; `grantTypes` drops client_credentials.
+ */
+export function oauthOptions(appUrl: string) {
+  const resource = `${appUrl}/mcp`;
+  return {
+    loginPage: '/sign-in',
+    consentPage: '/oauth/consent',
+    scopes: ['offline_access', 'read', 'feedback', 'manage'],
+    disableJwtPlugin: true,
+    storeTokens: 'hashed' as const,
+    allowDynamicClientRegistration: true,
+    allowUnauthenticatedClientRegistration: true,
+    clientRegistrationDefaultScopes: ['read', 'offline_access'],
+    clientRegistrationAllowedScopes: ['feedback', 'manage'],
+    resources: [resource],
+    clientRegistrationDefaultResources: [resource],
+    grantTypes: ['authorization_code' as const, 'refresh_token' as const],
+    accessTokenExpiresIn: 60 * 60,
+    refreshTokenExpiresIn: 30 * 24 * 60 * 60,
+  };
+}
+
+const LOOPBACK_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
+const isHttpLoopback = (u: unknown): boolean => {
+  try {
+    const x = new URL(String(u));
+    return x.protocol === 'http:' && LOOPBACK_HOSTS.includes(x.hostname);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Rulings R5 + R10: Claude Code registers http loopback redirects without `application_type`; the plugin defaults to
+ * `web`, which refuses them. A PUBLIC client (`token_endpoint_auth_method: 'none'`) whose redirect URIs are ALL http
+ * loopback is registered as `native` (RFC 8252). Anything else is left for the plugin to judge unchanged.
+ */
+export function publicLoopbackAsNative(body: unknown): Record<string, unknown> | null {
+  if (!body || typeof body !== 'object') return null;
+  const b = body as Record<string, unknown>;
+  if (b.application_type !== undefined || b.token_endpoint_auth_method !== 'none') return null;
+  const uris = b.redirect_uris;
+  if (!Array.isArray(uris) || uris.length === 0 || !uris.every(isHttpLoopback)) return null;
+  return { ...b, application_type: 'native' };
+}
+
+/**
+ * The consent endpoint dispatches `/oauth2/authorize` internally (through hooks) right after saving the consent and
+ * before our action binds it; that inner call must not drop the consent it is completing.
+ */
+const isConsentRequest = (req: Request | undefined): boolean => {
+  try {
+    return req !== undefined && new URL(req.url).pathname.endsWith('/oauth2/consent');
+  } catch {
+    return false;
+  }
+};
 
 /**
  * Better Auth options shared by the app, the admin CLI and tests (no `server-only` here).
@@ -64,7 +128,26 @@ export function buildAuthOptions(deps: AuthDeps): BetterAuthOptions {
           }));
         },
       }),
+      oauthProvider(oauthOptions(deps.env.appUrl)),
     ],
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === '/oauth2/register') {
+          const body = publicLoopbackAsNative(ctx.body);
+          return body ? { context: { body } } : undefined;
+        }
+        if (ctx.path === '/oauth2/authorize' && !isConsentRequest(ctx.request)) {
+          // Ruling R9: a plugin consent whose oauth_grant_binding is revoked (or was never written) would let authorize
+          // skip /oauth/consent and mint a token our verifier refuses. Drop such consents first so the user is asked
+          // again and the binding is rewritten. No session = the plugin sends them to sign in; this runs on the resume.
+          const session = await getSessionFromCtx(ctx);
+          if (!session) return;
+          const clientId = (ctx.query as Record<string, unknown> | undefined)?.client_id;
+          await dropUnboundConsents(deps.service, session.user.id, typeof clientId === 'string' ? clientId : null);
+        }
+        return undefined;
+      }),
+    },
     databaseHooks: {
       user: {
         create: {

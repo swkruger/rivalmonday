@@ -16,7 +16,7 @@ export async function seedAuthUsers(owner: Db, ...users: AuthUserSeed[]): Promis
   }
 }
 
-/** Empties every Better Auth table: users (cascading to sessions, accounts and memberships), verification tokens and rate-limit counters. */
+/** Empties every Better Auth table: users (cascading to sessions, accounts and memberships), verification tokens, rate-limit counters and the OAuth clients (cascading to tokens and consents). `oauthResource` is kept: the plugin seeds it from config once per instance. */
 export async function truncateAuth(owner: Db): Promise<void> {
-  await owner.execute(sql`truncate auth."user", auth.verification, auth."rateLimit" cascade`);
+  await owner.execute(sql`truncate auth."user", auth.verification, auth."rateLimit", auth."oauthClient", auth."oauthClientAssertion" cascade`);
 }

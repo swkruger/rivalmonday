@@ -13,8 +13,9 @@ afterAll(async () => {
   await dbs.closeAll();
 });
 
-// If this fails after a Better Auth upgrade, add a NEW migration with the SQL compileMigrations() prints — never edit 0035.
-it('migration 0035 matches what Better Auth expects (no pending auth migrations)', async () => {
+// If this fails after a Better Auth (or oauth-provider) upgrade, add a NEW migration with the SQL compileMigrations()
+// prints — never edit 0035 or 0041.
+it('migrations 0035 (core) and 0041 (oauth-provider) match what Better Auth expects (no pending auth migrations)', async () => {
   const env: WebEnv = { appUrl: 'http://localhost:3000', appDatabaseUrl: '', serviceDatabaseUrl: '', queueDatabaseUrl: '', authSecret: 's'.repeat(40), linkSecrets: ['l'.repeat(40)], emailFrom: 'x@y.co', google: null, defaultAgencyId: null, webMonitoring: false, platformAdmins: [] };
   const opts = buildAuthOptions({ env, service: dbs.service, pool, sendEmail: async () => {}, runInBackground: () => {}, branding: async () => resolveBranding('x', null) });
   const warnings: string[] = [];
