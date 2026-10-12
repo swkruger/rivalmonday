@@ -1,117 +1,69 @@
-# phase-6 - MCP server & Ask assistant "Friday"
+# phase-6 - Remote MCP server (6a) and Ask assistant "Friday" (6b)
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-6   **Base:** main @ 1c4a7fd
-**Plan/spec:** not yet written
+**Kind:** feature   **Worktree:** ../CompetitorSpy-wt/phase-6   **Base:** main @ 1c4a7fd
+**Spec/plan:** `docs/superpowers/{specs,plans}/2026-10-11-phase-6a-mcp*.md` (d1-d13, P1-P18)
 
 ## Status (overwrite)
-Kicked off 2026-10-11; brief below. No spec, plan or code yet.
+**6a implemented** (Tasks 0-15, all reviewed clean); the final whole-branch review (most capable model, `test:affected` + `e2e:affected` with default base) and one fix wave are pending. **Must fix in that wave:** a guest viewer on `/c/<id>/settings/ai` gets an error page (`list_api_tokens` permission_denied) instead of `notFound()`. Triage: `resources.ts` upsell offset-0 misattribution; `errors.ts` logs `cause` (may carry query params); unchecked `BriefView` cast; `ApiTokenView`/`OAuthGrantView` unexported; `add_recommendation` inserts not in one tx. **6b (Ask / Friday) not started.**
 
 ## Next (overwrite)
-Owner answers the open questions (Q1 first) in `superpowers:brainstorming`; then spec (new decisions only).
+1. Final review + fix wave, owner verification (below), then `/rm-merge phase-6` with the owner's go-ahead.
+2. Plan 6b (`/rm-kickoff`, brainstorming). Open: **(6)** Ask model: re-probe sonnet-5 ZDR + strict `json_schema` on OpenRouter, else sonnet-4.6; **(7)** grounding vs streaming (rec: verify, then stream); **(8)** quota (rec: per-client monthly limit; cap pause stays Phase 7); **(10)** agency view of Ask threads (rec: toggle + read-only view). Missing tables: `ask_thread`, `ask_message`.
 
 ## Interfaces this branch adds or changes
-None yet. Next free migration: **`0038`** (latest applied `0037_agency_ops_rls.sql`).
+**Migrations (next free: `0042`):**
+- `0038_mcp` (generated): `api_token` (`id, agency_id, user_id -> auth.user, client_id?, name 1-80, token_hash unique, token_prefix, scope read|feedback|manage, created_at, last_used_at, revoked_at`); `oauth_grant_binding` (`consent_id` text PK = `auth."oauthConsent".id`, `id` uuid unique = audit `token_id`, `oauth_client_id`, `agency_id`, `user_id`, `client_id?`, `scope`, timestamps); `mcp_rate_window` (`token_key, window_kind minute|day, window_start, count`; PK on the first three); `audit_log.channel` (default `'web'`) + `token_id` + index + check; `recommendation.source` gains `'mcp'`.
+- `0039_mcp_rls` (custom): RLS + grants (`app_user`: column-limited SELECT on `api_token` without `token_hash`, `UPDATE (revoked_at)` on both token tables; inserts service-role only) and the SQL-only `search_tsv` generated columns + GIN indexes (review, recommendation, brief_item, event, alert).
+- `0040_feedback_kind_created` (R12): `feedback_kind_check` adds `'created'`.
+- `0041_auth_oauth` (custom): the 7 `auth."oauth*"` tables verbatim from `docs/work/phase-6-oauth-schema.sql` + GRANTs to `app_service`.
+- `withTenant` also sets `app.user_id` / `app.role` (SQL `app_user_id()`, `app_role()`); `TenantScope` gained `userId`/`role`.
+
+**`@cs/core`:** `tokens.ts` (`TokenScope`, `PAT_PREFIX='rm_pat_'`, `generatePat`, `hashPat` sha256 hex, `isPatFormat`, `scopeCovers`, `grantableScopes`, `effectiveScope`). Registry `Tool` gains `channels?: ToolChannel[]` (default `['web']`), `audit?: 'always'|'skip-web'`, `mcpScope?` (default from `permission` via `mcpScopeOf`); handler 4th arg `CallMeta {channel, tokenId}`; `invoke(ctx, name, input, opts?: CallOptions {channel, tokenId?, tokenScope?})`, same for `list`/`describe` (default `{channel:'web'}`); hidden = unknown = `not_found` (identical text); audit rows carry `channel`/`tokenId`.
+
+**`@cs/mcp` (new):** `resolveBearer`, `tokenAccess`, `touchPat`, `ResolvedToken`, `VerifyOAuth`; `createMcpServer`, `SERVER_VERSION`; `handleMcpRequest(req, McpHandlerDeps {service, registry, deps, appUrl, verifyOAuth})`; `checkRateLimit`, `RATE_LIMITS`; `toToolResult`, `RateLimitedError`; `productNameFor`, `DEFAULT_PRODUCT_NAME`. SDK pinned 1.30.1.
+
+**`@cs/tools`:** `ToolDeps` + `appUrl?`, `embedQuery?(text, scope)`, `evidenceStore?{get(key)}`. New tools: `search` and `fetch` (ChatGPT shapes; `fetchItem`, `parseItemId`, `ITEM_TYPES` exported), `add_recommendation` (`channels ['mcp']`, source `'mcp'`), `create_api_token` (plaintext only in the return), `list_api_tokens`, `revoke_api_token`, `list_oauth_grants`, `revoke_oauth_grant`. List tools take `cursor`, `limit` (off-web <= 50), `detail=summary|full`; rows carry `evidenceIds` + `url`. Helpers: `paging.ts` (`pageOf`, `detailOf`), `workspace/model-text.ts` `forChannel` (d12), `access/oauth.ts` (`revokePluginTokens`, `deletePluginConsent`, `consentIdFor`, `dropUnboundConsents`).
+
+**Routes (`apps/web`):** `POST /mcp` (GET/DELETE 405); `/.well-known/oauth-protected-resource` (hand-built PRM, `authorization_servers:[<app>/api/auth]`); `/.well-known/oauth-authorization-server[/api/auth]`; `/oauth/consent` (page + action + form); `/agency/ai` and `/c/<id>/settings/ai` (AI connections); `/sign-in` resumes the OAuth authorize. Better Auth `oauthProvider` plugin (`@better-auth/oauth-provider@1.7.7`, `@better-auth/utils@0.4.2` exact) with `before` hooks (loopback DCR to native; authorize drops unbound consents). Server: `server/mcp.ts` (`mcpDeps`), `server/oauth-consent.ts`. E2E tag `@ai-connections`.
 
 ## Assumes from other branches
-None: `git branch --no-merged main` lists no other branch (2026-10-11).
+None. `phase-7-planning` (docs only) assumes our `api_token`/OAuth tables and a unified registry `not_found`; no code overlap.
 
 ## Decisions (owner-approved)
-None yet.
+Spec d1-d13 are binding: see the spec (d5 channel allowlist, d9 rate limits, d12 redaction, d13 no validity caching). Plan-local, approved 2026-10-12:
+- P1 keep `invoke/list/describe(ctx, ..., opts?)` (spec says `call`); default channel `web`. P2 handlers get `meta` as 4th arg.
+- P3 hidden = unknown error; audit row keeps `permission_denied`. P4 a client role without the client's `mcp` feature sees no tools (not 401).
+- P5 camelCase inputs; `search`/`fetch` keep ChatGPT output shapes. P6 GUCs + grants as in 0039. P7 binding `id` + `oauth_client_id`. P8 effective OAuth scope = binding scope capped by live role.
+- P9 consent picker = memberships; binding written by the auth flow (service role). P10 token tools: `read`, feature `mcp`, no guests, <= 20 active PATs per user.
+- P11 `url` = `/go/<t>/<id>` for brief/brief_item/alert, direct paths otherwise, absolute via `appUrl`. P12 cursor = base64url `{"o":offset}`; `detail` default summary off-web, full on web.
+- P13 `search_tsv` SQL-only; no ANN index. P14 new `add_recommendation`. P15 white-label name = `branding.displayName` else "Rival Monday".
+- P16 `embedQuery` only in `dev` with `OPENROUTER_API_KEY`. P17 rate limits count `tools/call` + `resources/read`. P18 `fetch` of global types with an agency token uses the first active in-scope client that sees it.
+
+Rulings that changed behaviour:
+- R1 channel allowlist test converges as tools land. R5/R10 loopback DCR hook sets `native` only for public (`none`) clients with all-loopback redirects. R6 consent accept/deny goes through `auth().handler(new Request(...))`, not `auth().api`.
+- R7 `/sign-in` resumes the OAuth authorize. R9 prior consent would skip `/oauth/consent`: the authorize hook deletes plugin consents without an active binding, and `verifyOAuth` fails closed without one.
+- R11/R13 reviewers run `test:affected --base <task BASE>` in the background (default base re-tests the whole branch, ~12 min).
+
+## Spike findings (condensed; SQL in `docs/work/phase-6-oauth-schema.sql`)
+- **Issuer** = `<appUrl>/api/auth`; serve metadata at the root and at the RFC 8414 path-inserted URL; PRM is hand-built (the plugin's says `authorization_servers:[appUrl]`).
+- **Opaque tokens** (SHA-256 base64url at rest); `requireActiveAccessToken` throws on revoked/expired/unknown/client-disabled/session-gone (DB read per call). `aud` = `<app>/mcp`. TTL 1 h access / 30 d refresh (rotating, needs `offline_access`).
+- **Consent binding key** = `auth."oauthConsent".id` (text; no unique index on `(clientId,userId)`, so `ORDER BY "updatedAt" DESC LIMIT 1`). The consent-page query is signed (`verifyOAuthQueryParams`), valid 600 s.
+- **Revoke** = `UPDATE ... SET revoked = now()` on access and refresh tables; deleting the consent alone does not kill tokens. Web sign-out kills that session's access tokens only.
+- **Loopback DCR:** Claude Code's `http://localhost` redirects need the native hook; a prior same-scope consent skips the page (R9).
 
 ## New backlog (target -> item)
-None yet.
+- Later: REST API (spec §8.1) over the registry. Phase 7: tier gating of `mcp`/`ask`.
+- MCP `manage` scope for client roles (agency roles only in 6a).
+- ANN vector index (P13). 6b: `'ask'` channel on `add_recommendation` (source allowed already).
+- `search` pages are vector-only: empty without `embedQuery` (add FTS or prod embeddings).
+- Consent page shows the registrant-chosen app name (DCR): **owner decision** on also showing the redirect host (copy change).
+- `test:affected` default base re-tests the whole branch; consider a narrower default.
+- Deferred minors: undecided revoke success copy; `revoke_oauth_grant` partial failure leaves the plugin consent (fail-closed); second authorize tab's `dropUnboundConsents` can delete a just-accepted unbound consent; `fetch` brief text uncapped; model-written titles not redacted.
 
 ## Owner verification steps
-TBD.
+1. Local: with your go-ahead, `pnpm db:migrate` on `cs_dev`; `pnpm dev:web`; create a token at `/agency/ai`; `claude mcp add --transport http rival-monday http://localhost:3000/mcp --header "Authorization: Bearer rm_pat_..."`; ask Claude Code "What changed at aireserv.com this month?" and check the answer cites evidence ids; revoke the token and confirm the next call fails.
+2. If live: on the deployed host (e.g. https://rivalmonday.app), Claude.ai -> Add custom connector `https://<host>/mcp` -> sign in -> pick the workspace and access -> ask a question -> disconnect from AI connections and confirm the next call fails.
+3. Decide the open copy items above.
 
-## Brief
-
-### 1. Scope (roadmap row 6, spec §8.2-8.4, ~3 wks)
-- **Catalogue (§8.2):** add `search` (semantic over evidence text) + `fetch` (any item by id); map `update_service_area`/`update_services` (have `update_client_profile`), `pin_page` (= `set_page_pin`), `run_prospecting_brief` (= `run_prospect_snapshot`). Results carry `evidence_ids` + deep links; lists paginate with `detail=summary|full`.
-- **MCP (§8.3):** Streamable HTTP `/mcp`, stateless, official TS SDK, Zod->JSON Schema; OAuth 2.1 (PKCE, DCR) + consent picking the client workspace, scopes `read`/`feedback`/`manage`; PATs; resources `evidence://{id}`, `brief://{id}`; 4 prompts; ChatGPT-shaped `search`/`fetch`; white-label names; tier/`mcp`-flag gating, per-token rate limits, metering; typed errors, no existence leaks.
-- **Ask (§8.4, §3):** persisted per-client threads, streaming, tools filtered by access context, UI-confirmed writes; starter questions; grounding (cited ids + Jev Noul post-check, unsupported sentences replaced, "Possible reason"); injection defence; quota, prompt caching, <= 8 steps; agency voice; agency thread visibility on by default, disclosed, per-client toggle.
-- **UI (§5.2):** module 10 Ask, Overview starter questions, evidence-viewer buttons, AI connections (module 11).
-
-### 2. Already built - reuse, don't rebuild
-- `@cs/core`: `tools.ts` (registry, `ToolError` codes incl. `rate_limited`/`quota_exceeded`, audit), `access.ts` (`FEATURES` has `ask`, `mcp`), `links.ts` + `/go/<target>/<id>` deep links.
-- `@cs/tools`: `registry.ts`, `tools/all.ts`, `tools/schemas.ts`, `workspace/scope.ts`, ~80 tools (briefs, alerts, recommendations, `submit_feedback`, events/evidence, all data views).
-- `apps/web/src/server/`: `run-tool.ts`, `tools.ts` (`callTool`, `isHiddenToolError`), `current-viewer.ts`, Better Auth 1.7.7 (`auth.ts`, `auth-options.ts`, schema `auth`; no OAuth-provider plugin yet).
-- `@cs/ai`: `config/ai.yaml` `ask_assistant` (sonnet-5, unverified), OpenRouter chat/embeddings, Jev cascade, `llm_call` ledger; pgvector `embedding` in `db/src/schema/engine.ts`.
-- `redactForModel`: `packages/collectors/src/evidence/model-privacy.ts`.
-- Usage placeholder `questions: { used: null, quota: null }` (`tools/usage.ts`); limits `set_client_limits`, `tools/src/limits.ts`. `recommendation.source` allows `'ask'`.
-- Missing tables (§10.4): `ask_thread`, `ask_message`, `api_token`, `oauth_client`.
-- UI: `/c/[clientId]/settings/ai/page.tsx` placeholder, `EvidenceChips`, evidence viewer, `@cs/ui`; register screens in `packages/demo/src/coverage.ts`.
-
-### 3. Binding decisions (do not re-open)
-- Better Auth self-hosted, hosts the MCP OAuth provider; access in own `membership` (CLAUDE.md; 5a d1).
-- `@cs/tools` shared by web/MCP/Ask, `@cs/core` registry mechanics (5a d9); web writes via `runTool`.
-- OpenRouter + Jev cascade; tau 0.85 fixed. `redactForModel`; `upsell_tag` agency-only; filter `retracted_at IS NULL`, `client.status = 'active'`.
-- Page refusals 404; typed errors, no existence leaks (§11). Friday renamable, orange pill.
-
-### 4. Backlog to fold in (verbatim, BACKLOG § Phase 6)
-Tools & registry:
-- [ ] Registry reveals `not_found` vs `permission_denied`, so tool names can be enumerated — *from Phase 1 review*
-- [ ] `countRows` only recognises `{items}` outputs — *from Phase 1 review*
-- [ ] Log the original handler error when the audit write also fails — *from Phase 1 review*
-- [ ] Audit-exempt read class for polled/navigation reads: `get_competitor_search_status` writes ≈ 15–40 `audit_log` rows per search; `(app)/layout.tsx`'s `list_clients` writes one per agency navigation — *from 5a, 5b-1 owner verification*
-- [ ] List tools' `detail=summary|full`, and dashboard deep links in results — *from 5c-2 (decision 16)*
-- [ ] Brief tools in the catalogue (`list_briefs`, `get_brief`, …; §8.2) — check what 5a already registered — *from 4a "Not in 4a"*
-- [ ] Every new read path over `brief_item`/`recommendation` strips `upsell_tag` for client roles (spec §8.5; RLS can't hide a column) — *from 4a cross-phase*
-- [ ] Client-facing readers filter by status: `brief` approved/sent, items `active`, hide `feedback`/`playbook_override`; `alert` delivered only; `trend_report` — or tighten RLS — *from 4a/4b cross-phase*
-- [ ] Renderers sort brief items by `ord`; never assume ords are 0-based or contiguous — *from 4a cross-phase*
-
-Ask:
-- [ ] `ask_assistant` still routes to `anthropic/claude-sonnet-5`: re-probe ZDR + strict `json_schema` on OpenRouter first (vendor-APIs doc, "Verified 2026-10-03 — Phase 4a"); `brief_writer`/`playbook_writer`/`theme_discovery` moved to sonnet-4.6 for the same reason — *from 4a*
-- [ ] Ask "save as recommendation" (`recommendation.source = 'ask'` already allowed) — *from 4a "Not in 4a"*
-- [ ] "Add recommendation" and "Ask Friday" buttons in the evidence viewer — *from 5c-1 (decision 19)*
-- [ ] Ask question quota (5b-2 left a placeholder); decide with the owner whether pausing Ask at 100 % of cap is needed before Phase 7 — *from 5b-2 (decision 18)*
-- [ ] `ask` client-feature switch on Profile → Client features (kept on save today) ships with the Ask UI — *from HANDOVER §5, 2026-10-11*
-- [ ] `/c/<id>/settings/ai` "AI connections" placeholder becomes real — *from HANDOVER §5*
-
-### 5. In-flight workstreams
-Confirmed: no unmerged branches besides `phase-6` (which equals main). Next migration `0038`.
-
-### 6. Open questions for the owner
-1. **Split?** (a) 6a catalogue hardening + MCP/OAuth/PATs, 6b Ask/Friday + UI; (b) 6a catalogue, 6b MCP, 6c Ask; (c) one phase. **Rec: (a).**
-2. **Where MCP runs:** (a) `/mcp` route in `apps/web` (shares Better Auth), MCP code in its own package; (b) separate `apps/mcp` (§10.1). **Rec: (a).**
-3. **OAuth 2.1 + DCR:** (a) Better Auth OAuth-provider/MCP plugin after a spike (PKCE, DCR, consent + workspace pick, refresh); (b) hand-rolled; (c) Auth.js + OAuth server (§14). **Rec: (a), (c) if spike fails.**
-4. **Token scope:** (a) each grant/PAT = one user + one client; (b) agency tokens span allowed clients, tools take `client_id`; (c) agency's choice. **Rec: (b) agency roles, (a) client roles.**
-5. **`search` backend:** (a) pgvector; (b) full-text now, semantic later; (c) hybrid. **Rec: (c) if embeddings cover evidence text, else (b).**
-6. **Ask model:** (a) re-probe sonnet-5 ZDR first, else sonnet-4.6; (b) sonnet-4.6 now. **Rec: (a).**
-7. **Grounding vs streaming:** (a) stream tool progress, verify, then stream the verified answer; (b) stream draft, strike unsupported; (c) verify per sentence. **Rec: (a).**
-8. **Quota:** (a) per-client monthly question limit, hard stop; budget-cap pause stays Phase 7; (b) also pause at 100 % cap now; (c) per-tier (needs tiers). **Rec: (a).**
-9. **Writes in Ask/MCP:** (a) allowlist (save as recommendation, `update_recommendation_status`, `submit_feedback`, `set_alert_rules`); (b) all the role permits. **Rec: (a).**
-10. **Agency view of Ask threads:** (a) toggle + read-only agency view in the Ask phase; (b) toggle now, view later. **Rec: (a).**
-11. **Audit-exempt reads:** (a) `noAudit` on named web polled/nav reads (MCP/Ask always audited); (b) sampling. **Rec: (a).**
-12. **REST (§8.1):** (a) out of Phase 6; (b) thin REST over the registry. **Rec: (a).**
-
-## Spike findings (Task 1)
-In-process Vitest (`auth.handler`), scratch DB, 2026-10-12. **PASS: gates 2–8 all work; Tasks 10–11 proceed with the corrections below.**
-
-1. **Deps:** `@better-auth/oauth-provider@1.7.7` peers resolve to our `better-auth@1.7.7`. Add **`@better-auth/utils@0.4.2` (exact) to `apps/web` too.** Otherwise pnpm gives the plugin utils 0.5.0 and a second `@better-auth/core`. Schema: `docs/work/phase-6-oauth-schema.sql` (verbatim `compileMigrations()`, 7 `auth."oauth*"` tables; nothing pending after it).
-2. **DCR:** `POST /api/auth/oauth2/register` with `token_endpoint_auth_method:'none'` → 201 `client_id`. **Catch:** missing `application_type` defaults to `web`, which rejects `http://localhost|127.0.0.1` redirects (400 `invalid_redirect_uri`), as Claude Code registers. Fix: hook below sets `native` for all-loopback redirects.
-3. **Authorize, signed out:** 302 to `/sign-in?<authorize params>&exp&ba_iat&ba_param…&sig`, with **no `next`**. Resume = magic-link `callbackURL = /api/auth/oauth2/authorize?<same query>`: verify 302 → authorize → 302 `/oauth/consent` (extra `sig/exp/ba_*` ignored; `safeNext` accepts it; no `/oauth2/continue`). **`/sign-in` must map `client_id`+`sig` to that `next`** (form and already-signed-in redirect).
-4. **Consent:** `/oauth/consent` gets the authorize params + `exp, ba_iat, ba_param` (repeated), `sig`. Valid 600 s (`codeExpiresIn`). `verifyOAuthQueryParams(q, secret)` (`@better-auth/oauth-provider`): true; false if tampered; order-insensitive (rebuild `q` from `searchParams`, arrays as repeated keys). **Accept/deny:** `auth.api.oauth2Consent` throws 401 "request not found" without `request` (returns a `Response` with one), so use the handler (corrections) → `{redirect:true,url}`; deny → `…?error=access_denied`. **Prior consent with same/narrower scopes + resources skips the page**; wider scopes show it again.
-5. **Binding key:** `auth."oauthConsent".id` (text, 32 chars, not a uuid). Reach it by `(userId, clientId)` = payload `sub`/`client_id`; `referenceId` stays null (no `consentReferenceId`). **No unique index** on `(clientId,userId)`: keep `ORDER BY "updatedAt" DESC LIMIT 1`. App name: `auth."oauthClient".name` by `"clientId"`.
-6. **Token:** `POST /api/auth/oauth2/token` (form, `code_verifier`, `resource`) → `{access_token (opaque), refresh_token, expires_in, token_type:'Bearer', scope}`. Refresh works with `offline_access` and rotates (old RT `revoked`+`rotatedAt`; old AT lives to expiry). TTLs: `accessTokenExpiresIn`, `refreshTokenExpiresIn`, `codeExpiresIn` (s).
-7. **Verify (route handler):** `getOAuthProviderApi({ context: await auth().$context } as GenericEndpointContext, OAUTH_OPTIONS).requireActiveAccessToken(token)` → `{active, sub, client_id, aud, exp, scope, sid, …}`. `aud` = `<app>/mcp`, absent if no `resource`. **Throws** APIError 401 `invalid_token` if revoked/expired/unknown/client disabled/session gone. DB read per call (d13). Stored `token` = SHA-256 base64url.
-8. **Revocation:** `UPDATE auth."oauthAccessToken"/"oauthRefreshToken" SET revoked = now()` → next verify throws, refresh 400 `invalid_grant`. **Deleting the consent alone does NOT kill tokens** (AT active, refresh 200): always revoke rows too (binding lookup fails closed anyway). **Web sign-out revokes that session's ATs; RTs survive, so clients recover by refresh.**
-9. **Metadata:** issuer = **`<appUrl>/api/auth`**. Serve `/.well-known/oauth-authorization-server` **and** the RFC 8414 path-inserted `/.well-known/oauth-authorization-server/api/auth` via `oauthProviderAuthServerMetadata(auth() as never)` (one `[[...path]]` route). Resource-client `getProtectedResourceMetadata` gives `authorization_servers:[<appUrl>]` (≠ issuer): **hand-build** PRM. `app/.well-known/*/[[...path]]/route.ts` builds under Next 16.3.8.
-
-**Working config** (`OAUTH_OPTIONS`, exported from `auth-options.ts`, `a = env.appUrl`):
-`{ loginPage:'/sign-in', consentPage:'/oauth/consent', scopes:['offline_access','read','feedback','manage'], disableJwtPlugin:true, storeTokens:'hashed', allowDynamicClientRegistration:true, allowUnauthenticatedClientRegistration:true, clientRegistrationDefaultScopes:['read','offline_access'], clientRegistrationAllowedScopes:['feedback','manage'], resources:[`${a}/mcp`], clientRegistrationDefaultResources:[`${a}/mcp`], grantTypes:['authorization_code','refresh_token'], accessTokenExpiresIn:3600, refreshTokenExpiresIn:2592000 }`
-`resources`+`…DefaultResources` are required (`enforcePerClientResources` defaults true); `…AllowedScopes` lets clients request `feedback`/`manage`; `grantTypes` drops `client_credentials`. Loopback hook (`hooks.before: createAuthMiddleware(async (ctx) => {…})`, `better-auth/api`):
-```ts
-if (ctx.path !== '/oauth2/register' || !ctx.body || ctx.body.application_type !== undefined) return;
-const lb = (u: unknown) => { try { const x = new URL(String(u)); return x.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(x.hostname); } catch { return false; } };
-const uris: unknown = ctx.body.redirect_uris;
-if (Array.isArray(uris) && uris.length > 0 && uris.every(lb)) return { context: { body: { ...ctx.body, application_type: 'native' } } };
-```
-
-**Plan corrections (plan says → actual):**
-- T10 PRM `authorization_servers: ['<issuer from Task 1>']` → `[`${appUrl}/api/auth`]`.
-- T11 `revokePluginTokens` and `consentIdFor` → **confirmed as written**.
-- T11 `(await auth().api.oauth2Consent({ headers: h, body: {...} })).url` (both) → `const r = await auth().handler(new Request(`${appUrl}/api/auth/oauth2/consent`, { method:'POST', headers:{ cookie: h.get('cookie') ?? '', origin: appUrl, 'content-type':'application/json' }, body: JSON.stringify({ accept, oauth_query: oauthQuery }) })); if (!r.ok) → expired-request error; to = (await r.json()).url`. (`auth().api` lacks plugin types anyway.)
-- T11 `verifyOAuth` → item 7 in try/catch (throw → null); `aud` (string|array), when present, must include `${appUrl}/mcp`; then `consentIdFor(service, sub, client_id)`.
-- T11 metadata path-inserted variant → **yes** (`[[...path]]`).
-- T11 package.json → + `@better-auth/utils@0.4.2` exact; config as above + hook; also modify `app/sign-in/page.tsx` (+ form) for the OAuth `next`; migration = SQL file + GRANTs on 7 tables.
+## ARCHITECTURE notes for `/rm-merge`
+Add `@cs/mcp` (bearer resolution, stateless per-request server, resources `evidence://`/`brief://`, 4 prompts, rate limit); registry channels/scopes/audit; the new tools; web routes and `oauthProvider` consent flow above; the new tables; migrations 0038-0041. STATE: next migration `0042`; move Phase 6 BACKLOG items done here (catalogue, audit-exempt reads via `skip-web`, `detail`/deep links, brief tools) out and file the items above.

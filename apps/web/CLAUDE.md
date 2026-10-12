@@ -25,6 +25,9 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **Guest cookies (`rm_guest`): 24 hours, client contacts only, re-checked every request:** issued only for a client contact opening `/l/<token>` with no signed-in user; every request re-validates `active` and `links_revoked_before` against the cookie's `iat` (no cache beyond per-request React `cache()`), so deactivation ends the session on the next request.
 - **A relative `EVIDENCE_FS_DIR` resolves against `apps/worker/`,** not `apps/web`, so both processes share the evidence directory in dev.
 
+- **`/mcp` and `/.well-known/*` are public in `proxy.ts`** (Bearer token / public metadata; `/oauth/consent` stays behind the session). A new route under them needs its own auth; a new `/mcp`-adjacent path must be added to the proxy `PUBLIC` list and the e2e rules.
+- **Consent binding order (`/oauth/consent` action):** re-derive workspace and scope from live memberships (`pickConsent`), ask the plugin to accept, write the `oauth_grant_binding` (`bindConsent`), and only then redirect. If the bind fails the code never leaves the server. A plugin consent without an active binding is deleted on authorize so the page always reappears.
+
 ### UI patterns
 - **Action-result state must survive `revalidatePath`:** a `useActionState` message rendered only inside the button/dialog that triggered it vanishes when the revalidated status unmounts that component. Hoist it to an always-mounted component — copy `ReviewFooter`, `AlertList`, `SuggestionsPanel`, `TrackedCompetitorsTable`. A switch backed by a server action uses `useOptimistic` + `startTransition` as in `AutoSendSwitch`, not `PinPageSwitch`'s hand-rolled ref/RAF approach.
 - **`LineChart` callers must pass series name-sorted:** colours follow position in the kept set.
