@@ -16,8 +16,10 @@ const MCP_READ_TOOLS = [
   'get_evidence', 'compare_snapshots', 'get_price_matrix', 'get_price_history', 'list_ads', 'get_ad_activity', 'get_theme_benchmark', 'search_reviews',
   'get_rating_trend', 'get_geogrid', 'get_share_of_voice', 'list_moves', 'get_move', 'list_briefs', 'get_brief', 'list_recommendations', 'list_alerts', 'get_usage',
 ];
-const MCP_FEEDBACK_TOOLS = ['submit_feedback', 'update_recommendation_status'];
+const MCP_FEEDBACK_TOOLS = ['submit_feedback', 'update_recommendation_status', 'add_recommendation'];
 const MCP_MANAGE_TOOLS = ['set_alert_rules', 'update_client_profile', 'set_page_pin', 'run_prospect_snapshot'];
+/** Ruling R1: tools that exist only on the mcp channel. */
+const MCP_ONLY_TOOLS = ['add_recommendation'];
 const SKIP_WEB_TOOLS = ['list_clients', 'get_competitor_search_status', 'get_prospect_report'];
 
 const mcpTools = allTools.filter((t) => (t.channels ?? ['web']).includes('mcp'));
@@ -56,7 +58,7 @@ describe('mcp channel tagging', () => {
   it('no web-only tool leaks into mcp', () => {
     const allowed = new Set([...MCP_READ_TOOLS, ...MCP_FEEDBACK_TOOLS, ...MCP_MANAGE_TOOLS]);
     expect(mcpTools.filter((t) => !allowed.has(t.name)).map((t) => t.name)).toEqual([]);
-    for (const t of mcpTools) expect(t.channels, t.name).toContain('web');
+    for (const t of mcpTools.filter((x) => !MCP_ONLY_TOOLS.includes(x.name))) expect(t.channels, t.name).toContain('web');
     expect(registry.describe(admin, { channel: 'mcp', tokenScope: 'manage' }).map((d) => d.name)).not.toContain('approve_brief');
   });
 });
