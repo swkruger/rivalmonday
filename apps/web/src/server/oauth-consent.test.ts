@@ -1,4 +1,5 @@
 import { verifyOAuthQueryParams } from '@better-auth/oauth-provider';
+import { consentIdFor } from '@cs/tools';
 import { client, invitation, membership, oauthGrantBinding } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, testUrls, truncateAll } from '@cs/db/test-helpers';
 import { resolveBranding } from '@cs/email';
@@ -11,7 +12,7 @@ import { APP, oauthHarness, pathOf, queryOf } from '../../test/oauth-fixtures';
 import { buildAuthOptions } from './auth-options';
 import type { WebEnv } from './env';
 import { safeNext } from './safe-next';
-import { bindConsent, consentOptions, createVerifyOAuth, oauthClientName, oauthQueryFrom, oauthResumePath, pickConsent } from './oauth-consent';
+import { bindConsent, type ConsentTarget, consentOptions, createVerifyOAuth, oauthClientName, oauthQueryFrom, oauthResumePath, pickConsent } from './oauth-consent';
 
 const dbs = openTestDbs();
 const pool = new Pool({ connectionString: testUrls.service });
@@ -112,10 +113,10 @@ describe('bindConsent', () => {
     await pluginToken('t-u2', 'u2', 'oc1');
   });
 
-  it('inserts', async () => {
+  it('inserts, revoking stray plugin tokens of that user and OAuth client (no previous binding: fix round 1)', async () => {
     await bindConsent(dbs.service, { consentId: 'c1', oauthClientId: 'oc1', userId: 'u1', target });
     expect(await dbs.service.select().from(oauthGrantBinding)).toMatchObject([{ consentId: 'c1', oauthClientId: 'oc1', userId: 'u1', agencyId: IDS.agencyA, clientId: null, scope: 'read', revokedAt: null }]);
-    expect(await revokedTokens()).toEqual([]);
+    expect(await revokedTokens()).toEqual(['t-u1']);
   });
 
   it('re-consent with a different workspace revokes earlier tokens', async () => {
@@ -135,11 +136,12 @@ describe('bindConsent', () => {
 
   it('same re-consent keeps tokens and the binding id', async () => {
     await bindConsent(dbs.service, { consentId: 'c1', oauthClientId: 'oc1', userId: 'u1', target });
+    await pluginToken('t-u1-after', 'u1', 'oc1');
     const [before] = await dbs.service.select().from(oauthGrantBinding);
     await bindConsent(dbs.service, { consentId: 'c1', oauthClientId: 'oc1', userId: 'u1', target });
     const [after] = await dbs.service.select().from(oauthGrantBinding);
     expect(after!.id).toBe(before!.id);
-    expect(await revokedTokens()).toEqual([]);
+    expect(await revokedTokens()).toEqual(['t-u1']); // only the stray token from before the first bind
   });
 });
 
@@ -191,17 +193,19 @@ describe('OAuth flow end to end (in-process)', () => {
     return { clientId, verifier, oauthQuery: queryOf(consentPage.location!), userId };
   }
 
-  async function connect(harness: ReturnType<typeof h>) {
+  async function connect(harness: ReturnType<typeof h>, target: ConsentTarget = { agencyId: IDS.agencyA, clientId: null, scope: 'read' }) {
     const c = await toConsent(harness);
     const accepted = await harness.consent(c.oauthQuery, true);
     expect(accepted.status).toBe(200);
     const consentId = String([...(await dbs.owner.execute<{ id: string }>(sql`select id from auth."oauthConsent"`))][0]!.id);
-    await bindConsent(dbs.service, { consentId, oauthClientId: c.clientId, userId: c.userId, target: { agencyId: IDS.agencyA, clientId: null, scope: 'read' } });
+    await bindConsent(dbs.service, { consentId, oauthClientId: c.clientId, userId: c.userId, target });
     const code = new URL(accepted.body.url as string).searchParams.get('code')!;
     const tok = await harness.exchange(c.clientId, code, c.verifier);
     expect(tok.status).toBe(200);
-    return { ...c, consentId, accessToken: tok.body.access_token as string };
+    return { ...c, consentId, accessToken: tok.body.access_token as string, refreshToken: tok.body.refresh_token as string };
   }
+  const refresh = (harness: ReturnType<typeof h>, clientId: string, refreshToken: string) =>
+    harness.call('/api/auth/oauth2/token', { method: 'POST', form: { grant_type: 'refresh_token', refresh_token: refreshToken, client_id: clientId } });
 
   it('verifyOAuth: a bound token verifies to its user and consent', async () => {
     const c = await connect(h());
@@ -264,6 +268,45 @@ describe('OAuth flow end to end (in-process)', () => {
     const c = await toConsent(harness);
     expect((await harness.consent(c.oauthQuery, true)).status).toBe(200);
     // The action failed before bindConsent (no binding row); the stale plugin consent must not skip the page.
+    const again = await harness.call(harness.authorizeUrl(c.clientId).url, { headers: { accept: 'text/html' } });
+    expect(pathOf(again.location!)).toBe('/oauth/consent');
+  });
+
+  it('fix 1: re-consent after a binding was revoked (binding only) never revives the old access or refresh token', async () => {
+    const harness = h();
+    const c = await connect(harness);
+    await dbs.service.update(oauthGrantBinding).set({ revokedAt: new Date() }); // as app_user's UPDATE (revoked_at) path does
+    const { url, verifier } = harness.authorizeUrl(c.clientId);
+    const again = await harness.call(url, { headers: { accept: 'text/html' } });
+    expect(pathOf(again.location!)).toBe('/oauth/consent');
+    const accepted = await harness.consent(queryOf(again.location!), true);
+    const consentId = (await consentIdFor(dbs.service, c.userId, c.clientId))!;
+    expect(consentId).not.toBe(c.consentId);
+    await bindConsent(dbs.service, { consentId, oauthClientId: c.clientId, userId: c.userId, target: { agencyId: IDS.agencyA, clientId: IDS.clientA1, scope: 'read' } });
+    const fresh = await harness.exchange(c.clientId, new URL(accepted.body.url as string).searchParams.get('code')!, verifier);
+    expect(fresh.status).toBe(200);
+    expect(await verifyOAuth(fresh.body.access_token as string)).toEqual({ userId: c.userId, consentId });
+    expect(await verifyOAuth(c.accessToken)).toBeNull();
+    expect((await refresh(harness, c.clientId, c.refreshToken)).status).toBe(400);
+  });
+
+  it('fix 2: after the bound membership is removed, authorize shows the consent page (no silent code) and old tokens die', async () => {
+    const harness = h();
+    const c = await connect(harness);
+    await dbs.service.delete(membership).where(eq(membership.userId, c.userId));
+    const again = await harness.call(harness.authorizeUrl(c.clientId).url, { headers: { accept: 'text/html' } });
+    expect(pathOf(again.location!)).toBe('/oauth/consent');
+    expect((await dbs.service.select().from(oauthGrantBinding))[0]!.revokedAt).not.toBeNull();
+    expect((await refresh(harness, c.clientId, c.refreshToken)).status).toBe(400);
+  });
+
+  it('fix 2: after the bound client becomes a prospect, authorize shows the consent page', async () => {
+    const harness = h();
+    const c = await connect(harness, { agencyId: IDS.agencyA, clientId: IDS.clientA1, scope: 'read' });
+    await member(c.userId, 'client_owner', IDS.clientA1);
+    const skipped = await harness.call(harness.authorizeUrl(c.clientId).url, { headers: { accept: 'text/html' } });
+    expect(new URL(skipped.location!).searchParams.get('code')).toBeTruthy(); // live client role and active client: skips
+    await dbs.service.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA1));
     const again = await harness.call(harness.authorizeUrl(c.clientId).url, { headers: { accept: 'text/html' } });
     expect(pathOf(again.location!)).toBe('/oauth/consent');
   });

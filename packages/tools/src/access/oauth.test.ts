@@ -1,6 +1,6 @@
-import { oauthGrantBinding } from '@cs/db';
+import { client as clientTable, membership, oauthGrantBinding } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { consentIdFor, deletePluginConsent, dropUnboundConsents, revokePluginTokens } from './oauth';
@@ -16,8 +16,11 @@ const token = (table: 'oauthAccessToken' | 'oauthRefreshToken', id: string, user
 const revoked = async (table: 'oauthAccessToken' | 'oauthRefreshToken') =>
   [...(await dbs.owner.execute<{ id: string }>(sql`select id from auth.${sql.identifier(table)} where revoked is not null order by id`))].map((r) => r.id);
 const consents = async () => [...(await dbs.owner.execute<{ id: string }>(sql`select id from auth."oauthConsent" order by id`))].map((r) => r.id);
-const bind = (consentId: string, userId: string, oauthClientId: string, revokedAt: Date | null = null) =>
-  dbs.service.insert(oauthGrantBinding).values({ consentId, oauthClientId, userId, agencyId: IDS.agencyA, clientId: null, scope: 'read', revokedAt });
+const bind = (consentId: string, userId: string, oauthClientId: string, revokedAt: Date | null = null, clientId: string | null = null) =>
+  dbs.service.insert(oauthGrantBinding).values({ consentId, oauthClientId, userId, agencyId: IDS.agencyA, clientId, scope: 'read', revokedAt });
+const member = (userId: string, role: 'agency_admin' | 'client_owner', clientId: string | null = null) =>
+  dbs.service.insert(membership).values({ userId, agencyId: IDS.agencyA, role, clientId, createdBy: 't' });
+const activeBindings = async () => (await dbs.service.select().from(oauthGrantBinding)).filter((b) => b.revokedAt === null).map((b) => b.consentId).sort();
 
 beforeEach(async () => {
   await truncateAll(dbs.owner);
@@ -27,6 +30,8 @@ beforeEach(async () => {
   await seedUser(dbs.owner, 'u2', 'u2@e.co');
   await client('c1');
   await client('c2');
+  await member('u1', 'agency_admin');
+  await member('u2', 'agency_admin');
 });
 
 describe('plugin table helpers', () => {
@@ -77,5 +82,52 @@ describe('plugin table helpers', () => {
     await bind('x', 'u2', 'c1');
     await dropUnboundConsents(dbs.service, 'u1', 'c1');
     expect(await consents()).toEqual([]);
+  });
+
+  it('revokes plugin tokens for every pair whose consent it drops, and only those', async () => {
+    await consent('bound', 'u1', 'c1', '2026-01-01');
+    await consent('unbound', 'u1', 'c2', '2026-01-01');
+    await bind('bound', 'u1', 'c1');
+    for (const [id, u, c] of [['a-u1c1', 'u1', 'c1'], ['a-u1c2', 'u1', 'c2'], ['a-u2c2', 'u2', 'c2']] as const) await token('oauthAccessToken', id, u, c);
+    await token('oauthRefreshToken', 'r-u1c2', 'u1', 'c2');
+    await dropUnboundConsents(dbs.service, 'u1', null);
+    expect(await revoked('oauthAccessToken')).toEqual(['a-u1c2']);
+    expect(await revoked('oauthRefreshToken')).toEqual(['r-u1c2']);
+  });
+
+  it('a binding whose membership is gone no longer counts: binding revoked, consent dropped, tokens revoked', async () => {
+    await consent('bound', 'u1', 'c1', '2026-01-01');
+    await bind('bound', 'u1', 'c1');
+    await token('oauthAccessToken', 'a1', 'u1', 'c1');
+    await dbs.service.delete(membership).where(eq(membership.userId, 'u1'));
+    await dropUnboundConsents(dbs.service, 'u1', 'c1');
+    expect(await consents()).toEqual([]);
+    expect(await activeBindings()).toEqual([]);
+    expect(await revoked('oauthAccessToken')).toEqual(['a1']);
+  });
+
+  it('an agency-wide binding needs an agency role; a client-bound one needs a client role for that client and an active client', async () => {
+    await dbs.service.delete(membership).where(eq(membership.userId, 'u1'));
+    await member('u1', 'client_owner', IDS.clientA1);
+    await consent('agencyWide', 'u1', 'c1', '2026-01-01');
+    await consent('clientBound', 'u1', 'c2', '2026-01-01');
+    await bind('agencyWide', 'u1', 'c1');
+    await bind('clientBound', 'u1', 'c2', null, IDS.clientA1);
+    await dropUnboundConsents(dbs.service, 'u1', null);
+    expect(await consents()).toEqual(['clientBound']);
+    expect(await activeBindings()).toEqual(['clientBound']);
+    await dbs.service.update(clientTable).set({ status: 'prospect' }).where(eq(clientTable.id, IDS.clientA1));
+    await dropUnboundConsents(dbs.service, 'u1', null);
+    expect(await consents()).toEqual([]);
+    expect(await activeBindings()).toEqual([]);
+  });
+
+  it('another user losing a membership does not touch this user', async () => {
+    await consent('mine', 'u1', 'c1', '2026-01-01');
+    await bind('mine', 'u1', 'c1');
+    await dbs.service.delete(membership).where(eq(membership.userId, 'u2'));
+    await dropUnboundConsents(dbs.service, 'u2', null);
+    expect(await consents()).toEqual(['mine']);
+    expect(await activeBindings()).toEqual(['mine']);
   });
 });

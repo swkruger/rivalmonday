@@ -37,12 +37,15 @@ export function pickConsent(options: ConsentOption[], membershipId: string, scop
 /**
  * Review focus 4: written after the plugin accepted the consent and BEFORE the browser gets the redirect carrying the
  * code. A re-consent that changes workspace, scope or user revokes every token issued under the old binding.
+ * Fix round 1: plugin tokens are keyed by (user, OAuth client), not by consent, so a NEW binding (no previous row for
+ * this consent id) also revokes that pair's tokens; otherwise a token minted under an earlier, dropped consent would
+ * come back to life under this binding. Safe: the code this consent issues has not been exchanged yet.
  */
 export async function bindConsent(service: Db, b: { consentId: string; oauthClientId: string; userId: string; target: ConsentTarget }): Promise<void> {
   await service.transaction(async (tx) => {
     const [prev] = await tx.select().from(oauthGrantBinding).where(eq(oauthGrantBinding.consentId, b.consentId)).for('update');
     const changed = prev && (prev.revokedAt !== null || prev.userId !== b.userId || prev.agencyId !== b.target.agencyId || prev.clientId !== b.target.clientId || prev.scope !== b.target.scope);
-    if (changed) await revokePluginTokens(tx, b.userId, b.oauthClientId);
+    if (!prev || changed) await revokePluginTokens(tx, b.userId, b.oauthClientId);
     await tx.insert(oauthGrantBinding)
       .values({ consentId: b.consentId, oauthClientId: b.oauthClientId, userId: b.userId, agencyId: b.target.agencyId, clientId: b.target.clientId, scope: b.target.scope })
       .onConflictDoUpdate({ target: oauthGrantBinding.consentId, set: { oauthClientId: b.oauthClientId, userId: b.userId, agencyId: b.target.agencyId, clientId: b.target.clientId, scope: b.target.scope, revokedAt: null, createdAt: new Date() } });
