@@ -212,12 +212,18 @@ importers:
 
   packages/ask:
     dependencies:
+      '@cs/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@cs/core':
         specifier: workspace:*
         version: link:../core
       '@cs/db':
         specifier: workspace:*
         version: link:../db
+      '@cs/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@cs/tools':
         specifier: workspace:*
         version: link:../tools
