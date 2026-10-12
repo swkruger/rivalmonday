@@ -21,7 +21,7 @@ export const getCompetitorProfile = defineTool({
   input: z.object({ clientId: uuid, competitorId: uuid }),
   output: CompetitorProfile,
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
   async handler(ctx, { clientId, competitorId }, deps) {
     const c = await workspaceClient(deps, ctx, clientId);
@@ -68,7 +68,7 @@ export const getCompetitorTimeline = defineTool({
   input: z.object({ clientId: uuid, competitorId: uuid, days: z.union([z.literal(30), z.literal(90), z.literal(365)]).default(90) }),
   output: z.object({ items: z.array(TimelineItem) }),
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
   async handler(ctx, input, deps) {
     const c = await workspaceClient(deps, ctx, input.clientId);

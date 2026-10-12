@@ -36,7 +36,7 @@ export const listAds = defineTool({
   }),
   output: AdPage,
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
   async handler(ctx, input, deps, meta) {
     const c = await workspaceClient(deps, ctx, input.clientId);

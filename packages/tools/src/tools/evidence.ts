@@ -20,7 +20,7 @@ export const getEvidence = defineTool({
   input: z.object({ clientId: uuid, evidenceId: uuid }),
   output: EvidenceView,
   permission: 'read', // decision 2: no dashboard flag — brief/alert chips must work for briefs-only clients
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   async handler(ctx, { clientId, evidenceId }, deps, meta) {
     const c = await workspaceClient(deps, ctx, clientId);
     const [row] = await deps.service
@@ -54,7 +54,7 @@ export const compareSnapshots = defineTool({
   input: z.object({ clientId: uuid, changeId: uuid }),
   output: CompareView,
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
   async handler(ctx, { clientId, changeId }, deps, meta) {
     const c = await workspaceClient(deps, ctx, clientId);

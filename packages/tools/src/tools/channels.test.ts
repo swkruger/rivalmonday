@@ -4,6 +4,7 @@ import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { ASK_WRITE_TOOLS } from '../ask-tools';
 import { allTools } from './all';
 import { ago, ctx, dbs, registry, resetWorkspace, seedAds, seedCapture, seedEvent, seedMove, seedReview } from './workspace-fixtures';
 
@@ -188,5 +189,43 @@ describe('d12 redaction on non-web channels', () => {
     expect(`${viaMcp.items[0]!.title}${viaMcp.items[0]!.text}`).not.toContain('555-0147');
     const viaWeb = (await registry.invoke(admin, 'list_ads', { clientId: IDS.clientA1 })) as { items: { text: string }[] };
     expect(viaWeb.items[0]!.text).toContain(PHONE);
+  });
+});
+
+describe('ask channel tagging (Q4)', () => {
+  const ASK_TOOLS = [...MCP_READ_TOOLS, ...ASK_WRITE_TOOLS].sort();
+  const TOKEN_GRANT_TOOLS = ['create_api_token', 'list_api_tokens', 'revoke_api_token', 'list_oauth_grants', 'revoke_oauth_grant'];
+  const askTools = allTools.filter((t) => (t.channels ?? ['web']).includes('ask'));
+  const askClient = (features: string[]) => ctx('client_viewer', [IDS.clientA1], features as never);
+
+  it('ask set is exactly the mcp read tools plus the three writes', () => {
+    const derived = allTools
+      .filter((t) => ((t.channels ?? ['web']).includes('mcp') && mcpScopeOf(t) === 'read') || (ASK_WRITE_TOOLS as readonly string[]).includes(t.name))
+      .map((t) => t.name)
+      .sort();
+    expect(askTools.map((t) => t.name).sort()).toEqual(derived);
+    expect(derived).toEqual(ASK_TOOLS);
+    expect(ASK_WRITE_TOOLS).toEqual(['submit_feedback', 'update_recommendation_status', 'add_recommendation']);
+  });
+
+  it('every ask tool also keeps its other channels (explicit literal)', () => {
+    for (const t of askTools.filter((x) => !MCP_ONLY_TOOLS.includes(x.name))) expect(t.channels, t.name).toEqual(['web', 'mcp', 'ask']);
+    expect(allTools.find((t) => t.name === 'add_recommendation')!.channels).toEqual(['mcp', 'ask']);
+  });
+
+  it('token tools not visible on ask', () => {
+    const names = registry.describe(admin, { channel: 'ask' }).map((d) => d.name);
+    for (const n of TOKEN_GRANT_TOOLS) expect(names, n).not.toContain(n);
+    expect(names.sort()).toEqual(ASK_TOOLS);
+  });
+
+  it('client_viewer without ask feature sees no tools on ask', () => {
+    expect(registry.list(askClient(['dashboard']), { channel: 'ask' })).toEqual([]);
+  });
+
+  it('client role sees no agency-only tool on ask', () => {
+    const names = registry.list(askClient(['dashboard', 'ask']), { channel: 'ask' }).map((t) => t.name);
+    expect(names).not.toContain('add_recommendation');
+    for (const n of [...TOKEN_GRANT_TOOLS, 'set_alert_rules', 'update_client_profile', 'set_page_pin', 'run_prospect_snapshot']) expect(names, n).not.toContain(n);
   });
 });

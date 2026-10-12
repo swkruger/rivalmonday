@@ -20,7 +20,7 @@ export const listBriefs = defineTool({
   input: pagedListInput(52),
   output: z.object({ items: pagedItems(BriefSummary), nextCursor: z.string().nullable().optional() }),
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   async handler(ctx, input, deps, meta) {
     const { clientId } = input;
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
@@ -71,7 +71,7 @@ export const getBriefTool = defineTool({
   input: z.object({ briefId: z.string().uuid() }),
   output: BriefDetail,
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   async handler(ctx, { briefId }, deps) {
     return briefDetail(deps, ctx, briefId);
   },

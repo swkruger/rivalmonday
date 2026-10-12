@@ -56,3 +56,12 @@ describe('add_recommendation', () => {
     expect(list.items).toMatchObject([{ id: out.id, source: 'mcp', owner: 'agency' }]);
   });
 });
+
+describe('add_recommendation via ask', () => {
+  it('add_recommendation via ask stores source ask', async () => {
+    const cap = await seedCapture();
+    const out = (await registry.invoke(am, 'add_recommendation', { ...base, evidenceIds: [cap.ids.text] }, { channel: 'ask' })) as { id: string };
+    const [r] = await dbs.owner.select().from(recommendation).where(eq(recommendation.id, out.id));
+    expect(r).toMatchObject({ source: 'ask', status: 'todo' });
+  });
+});

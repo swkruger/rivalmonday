@@ -14,7 +14,7 @@ export const listClients = defineTool({
   input: z.object({ limit: z.number().int().min(1).max(1000).optional(), ...pageFields }),
   output: z.object({ items: pagedItems(ClientSummary), nextCursor: z.string().nullable().optional() }),
   permission: 'agency',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   audit: 'skip-web',
   async handler(ctx, input, deps, meta) {
     const { offset, limit } = pageOf(input, meta, 1000);
@@ -33,7 +33,7 @@ export const getClientProfile = defineTool({
   input: z.object({ clientId: z.string().uuid() }),
   output: ClientProfile,
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   async handler(ctx, { clientId }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
     const [c] = await withTenant(deps.app, ctx, (tx) => tx.select().from(client).where(eq(client.id, clientId)));

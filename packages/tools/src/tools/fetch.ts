@@ -15,7 +15,7 @@ export const fetchTool = defineTool({
     metadata: z.object({ type: z.string(), client_id: z.string(), evidence_ids: z.array(z.string()), occurred_at: z.string().optional() }),
   }),
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   async handler(ctx, { id }, deps) {
     const parsed = parseItemId(id);
     if (!parsed) throw new ToolError('not_found', 'Not found');

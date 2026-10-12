@@ -168,7 +168,7 @@ export const search = defineTool({
   }),
   output: z.object({ results: z.array(SearchResult) }),
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   async handler(ctx, input, deps) {
     const c = await searchClient(deps, ctx, input.clientId);
     const dashboard = hasFeature(ctx, 'dashboard');

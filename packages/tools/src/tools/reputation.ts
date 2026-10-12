@@ -21,7 +21,7 @@ export const getThemeBenchmark = defineTool({
   input: z.object({ clientId: uuid }),
   output: ThemeBenchmarkView,
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
   async handler(ctx, { clientId }, deps) {
     const c = await workspaceClient(deps, ctx, clientId);
@@ -55,7 +55,7 @@ export const getRatingTrend = defineTool({
   input: z.object({ clientId: uuid, months: z.union([z.literal(6), z.literal(12)]).default(12) }),
   output: RatingTrendView,
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
   async handler(ctx, input, deps) {
     const c = await workspaceClient(deps, ctx, input.clientId);
@@ -130,7 +130,7 @@ export const searchReviews = defineTool({
   }),
   output: ReviewPage,
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
   async handler(ctx, input, deps, meta) {
     const c = await workspaceClient(deps, ctx, input.clientId);

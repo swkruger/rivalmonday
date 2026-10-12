@@ -27,7 +27,7 @@ export const addRecommendation = defineTool({
   output: z.object({ id: uuid, url: z.string() }),
   permission: 'feedback',
   feature: 'dashboard',
-  channels: ['mcp'],
+  channels: ['mcp', 'ask'],
   async handler(ctx, input, deps, meta) {
     if (ctx.userId.startsWith('contact:')) throw new ToolError('permission_denied', 'Sign in to add a recommendation');
     const c = await workspaceClient(deps, ctx, input.clientId);

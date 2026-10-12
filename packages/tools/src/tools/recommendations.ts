@@ -17,7 +17,7 @@ export const listRecommendations = defineTool({
   input: z.object({ clientId: uuid, limit: z.number().int().min(1).max(300).optional(), ...pageFields }),
   output: z.object({ items: pagedItems(RecommendationView), nextCursor: z.string().nullable().optional() }),
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   async handler(ctx, input, deps, meta) {
     const { clientId } = input;
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
@@ -49,7 +49,7 @@ export const updateRecommendationStatusTool = defineTool({
   input: z.object({ recommendationId: uuid, status: z.enum(STATUSES), reason: z.string().max(500).optional() }),
   output: z.object({ ok: z.literal(true) }),
   permission: 'manage',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   mcpScope: 'feedback',
   async handler(ctx, { recommendationId, status, reason }, deps) {
     await updateRecommendationStatus({ service: deps.service, app: deps.app }, ctx, recommendationId, status, reason?.trim() || undefined);

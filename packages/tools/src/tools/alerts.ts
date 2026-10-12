@@ -15,7 +15,7 @@ export const listAlerts = defineTool({
   input: pagedListInput(100),
   output: z.object({ items: pagedItems(AlertSummary), nextCursor: z.string().nullable().optional() }),
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   async handler(ctx, input, deps, meta) {
     const { clientId } = input;
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');

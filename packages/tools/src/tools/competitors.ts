@@ -148,7 +148,7 @@ export const listClientCompetitors = defineTool({
   input: z.object({ clientId: uuid, limit: z.number().int().min(1).max(200).optional(), ...pageFields }),
   output: z.object({ items: pagedItems(TrackedCompetitor), limit: z.number().int(), nextCursor: z.string().nullable().optional() }),
   permission: 'read',
-  channels: ['web', 'mcp'],
+  channels: ['web', 'mcp', 'ask'],
   async handler(ctx, input, deps, meta) {
     const { clientId } = input;
     const { offset, limit: pageLimit } = pageOf(input, meta, 200);
