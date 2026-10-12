@@ -110,8 +110,8 @@ export type SpendView = z.infer<typeof SpendView>;
 
 export const UsageRow = z.object({
   clientId: uuid, name: z.string(), status: z.enum(['active', 'prospect']), spend: SpendView, competitorLimit: z.number().int(), competitors: z.number().int(),
-  /** Decision 6: Ask arrives in Phase 6 — always null for now. */
-  questions: z.object({ used: z.null(), quota: z.null() }),
+  /** Counting Ask questions this UTC month vs the client's monthly quota. Agency-only: get_usage never reaches client roles. */
+  questions: z.object({ used: z.number().int(), quota: z.number().int() }),
 });
 export type UsageRow = z.infer<typeof UsageRow>;
 

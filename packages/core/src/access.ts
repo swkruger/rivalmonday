@@ -80,3 +80,7 @@ export function canManageCompetitors(ctx: AccessContext): boolean {
 export function hasFeature(ctx: AccessContext, feature: Feature): boolean {
   return isAgencyRole(ctx.role) || ctx.features.has(feature);
 }
+
+export function isClientRole(role: Role): boolean {
+  return role === 'client_owner' || role === 'client_viewer';
+}

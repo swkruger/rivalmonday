@@ -1,7 +1,7 @@
 import { canAccessClient, FEATURES, toolkit, ToolError } from '@cs/core';
 import { client, CLIENT_STATUSES, withTenant } from '@cs/db';
 import { listVerticalPacks, type VerticalPack } from '@cs/verticals';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { type ClientInput, cleanClientInput, clientInputProblems } from '../client-input';
 import { packsOf, type ToolDeps } from '../deps';
@@ -60,13 +60,15 @@ export const updateClientProfile = defineTool({
   input: z.object({
     clientId: uuid, name: z.string().max(200).optional(), services: z.array(z.string().max(80)).max(255).optional(), keywords: z.array(z.string().max(120)).max(20).optional(),
     serviceArea: ServiceAreaInput.nullable().optional(), placeId: z.string().max(300).nullable().optional(), features: Features.optional(),
+    askReviewAllowed: z.boolean().optional(),
   }),
   output: z.object({ clientId: uuid }),
   permission: 'agency',
   channels: ['web', 'mcp'],
   mcpScope: 'manage',
-  async handler(ctx, { clientId, ...patch }, deps) {
+  async handler(ctx, { clientId, askReviewAllowed, ...patch }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+    if (askReviewAllowed !== undefined && ctx.role !== 'agency_admin') throw new ToolError('permission_denied', 'Only agency admins change this setting');
     // Fix round 1 (#1): read-modify-write in ONE transaction with `for('update')`, so two
     // concurrent partial updates can't interleave and clobber each other (lost-update race).
     const placeChanged = await withTenant(deps.app, ctx, async (tx) => {
@@ -91,6 +93,8 @@ export const updateClientProfile = defineTool({
     // schedule tick re-links from the new place id (`ensureSelfCompetitors`). app_user cannot write this column
     // (migration 0026), so the service Db writes it, after the RLS-checked update above proved access.
     if (placeChanged) await deps.service.update(client).set({ selfCompetitorId: null }).where(eq(client.id, clientId));
+    // app_user cannot write ask_review_allowed (column grants), so the service Db does, after the RLS-checked read above proved access.
+    if (askReviewAllowed !== undefined) await deps.service.update(client).set({ askReviewAllowed }).where(and(eq(client.id, clientId), eq(client.agencyId, ctx.agencyId)));
     return { clientId };
   },
 });

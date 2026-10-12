@@ -33,6 +33,18 @@ describe('settings writes are audited tools (m4)', () => {
     expect(audit.map((a) => [a.tool, a.outcome])).toEqual([['invite_member', 'ok'], ['revoke_invitation', 'ok']]);
   });
 
+  it('assistantName trimmed, >30 rejected, empty clears', async () => {
+    const stored = async () => (await dbs.owner.select().from(agency).where(eq(agency.id, IDS.agencyA)))[0]!.branding;
+    await registry.invoke(admin, 'update_agency_branding', { displayName: 'Peak', assistantName: '  Ally  ' });
+    expect(await stored()).toMatchObject({ assistantName: 'Ally' });
+    await registry.invoke(admin, 'update_agency_branding', { assistantName: 'x'.repeat(30) });
+    expect((await stored())!.assistantName).toHaveLength(30);
+    await expect(registry.invoke(admin, 'update_agency_branding', { assistantName: 'x'.repeat(31) })).rejects.toMatchObject({ code: 'invalid_input' });
+    expect((await stored())!.assistantName).toHaveLength(30);
+    await registry.invoke(admin, 'update_agency_branding', { displayName: 'Peak', assistantName: '   ' });
+    expect((await stored())!.assistantName).toBeUndefined();
+  });
+
   it('saves branding (admins only) and audits the refusal too', async () => {
     await registry.invoke(admin, 'update_agency_branding', { displayName: 'Peak Digital', primary: '#112233' });
     expect((await dbs.owner.select().from(agency).where(eq(agency.id, IDS.agencyA)))[0]!.branding).toMatchObject({ displayName: 'Peak Digital', primary: '#112233' });

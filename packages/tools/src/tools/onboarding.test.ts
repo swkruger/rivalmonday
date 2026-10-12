@@ -110,3 +110,17 @@ describe('update_client_profile', () => {
     });
   });
 });
+
+describe('update_client_profile askReviewAllowed', () => {
+  it('askReviewAllowed admin-only', async () => {
+    expect((await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1)))[0]!.askReviewAllowed).toBe(true);
+    await registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, askReviewAllowed: false });
+    expect((await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1)))[0]!.askReviewAllowed).toBe(false);
+    await expect(registry.invoke(amAll, 'update_client_profile', { clientId: IDS.clientA1, askReviewAllowed: true })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(owner, 'update_client_profile', { clientId: IDS.clientA1, askReviewAllowed: true })).rejects.toMatchObject({ code: 'not_found' });
+    expect((await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1)))[0]!.askReviewAllowed).toBe(false);
+    // other profile edits by an AM stay allowed and leave the flag alone
+    await registry.invoke(amAll, 'update_client_profile', { clientId: IDS.clientA1, name: 'Renamed' });
+    expect((await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1)))[0]).toMatchObject({ name: 'Renamed', askReviewAllowed: false });
+  });
+});

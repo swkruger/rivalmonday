@@ -58,7 +58,7 @@ export const revokeInvitationTool = defineTool({
 export const updateAgencyBrandingTool = defineTool({
   name: 'update_agency_branding',
   description: 'Save the agency’s white-label branding (agency admins).',
-  input: z.object({ displayName: text(200), logoUrl: text(1000), primary: text(20), secondary: text(20), fromName: text(200), signOff: text(600) }),
+  input: z.object({ displayName: text(200), logoUrl: text(1000), primary: text(20), secondary: text(20), fromName: text(200), signOff: text(600), assistantName: text(200) }),
   output: OK,
   permission: 'agency',
   async handler(ctx, input, deps) {

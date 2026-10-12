@@ -1,7 +1,7 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { client, clientCompetitor, competitor, llmCall } from '@cs/db';
+import { askMessage, askThread, client, clientCompetitor, competitor, llmCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createToolRegistry } from '../registry';
 
@@ -18,7 +18,7 @@ beforeEach(async () => {
   await seedTenancy(dbs.owner);
 });
 
-type Usage = { month: string; items: { clientId: string; spend: { monthToDateUsd: number; capUsd: number; level: string }; competitorLimit: number; competitors: number; questions: { used: null; quota: null } }[]; agencyLevelUsd: number | null };
+type Usage = { month: string; items: { clientId: string; spend: { monthToDateUsd: number; capUsd: number; level: string }; competitorLimit: number; competitors: number; questions: { used: number; quota: number } }[]; agencyLevelUsd: number | null };
 
 describe('get_usage', () => {
   it('shows spend vs cap per client in scope; agency-level spend only for scope all', async () => {
@@ -27,13 +27,53 @@ describe('get_usage', () => {
     const all = (await registry.invoke(admin, 'get_usage', {})) as Usage;
     const a1 = all.items.find((i) => i.clientId === IDS.clientA1)!;
     expect(a1.spend).toMatchObject({ monthToDateUsd: 8.5, capUsd: 10, level: 'warning' });
-    expect(a1).toMatchObject({ competitorLimit: 5, competitors: 1, questions: { used: null, quota: null } });
+    expect(a1).toMatchObject({ competitorLimit: 5, competitors: 1, questions: { used: 0, quota: 100 } });
     expect(all.items.map((i) => i.clientId).sort()).toEqual([IDS.clientA1, IDS.clientA2].sort());
     expect(all.agencyLevelUsd).toBe(0);
     const scoped = (await registry.invoke(am, 'get_usage', {})) as Usage;
     expect(scoped.items.map((i) => i.clientId)).toEqual([IDS.clientA1]);
     expect(scoped.agencyLevelUsd).toBeNull();
     await expect(registry.invoke(owner, 'get_usage', {})).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('get_usage questions', () => {
+  it('get_usage.questions used/quota', async () => {
+    await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values ('u-a', 'a', 'a@example.com', true), ('u-b', 'b', 'b@example.com', true) on conflict (id) do nothing`);
+    await dbs.owner.update(client).set({ askMonthlyQuota: 7 }).where(eq(client.id, IDS.clientA1));
+    const mk = async (userId: string, counts: boolean, createdAt?: Date) => {
+      const [t] = await dbs.owner.insert(askThread).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, userId, title: 't' }).returning();
+      await dbs.owner.insert(askMessage).values({ threadId: t!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1, userId, role: 'user', content: 'q', countsTowardQuota: counts, ...(createdAt ? { createdAt } : {}) });
+    };
+    await mk('u-a', true);
+    await mk('u-b', true);
+    await mk('u-a', false); // agency-style, not counted
+    await mk('u-b', true, new Date(Date.now() - 70 * 86_400_000)); // previous months
+    const r = (await registry.invoke(admin, 'get_usage', {})) as Usage;
+    expect(r.items.find((i) => i.clientId === IDS.clientA1)!.questions).toEqual({ used: 2, quota: 7 });
+    expect(r.items.find((i) => i.clientId === IDS.clientA2)!.questions).toEqual({ used: 0, quota: 100 });
+  });
+
+  it('get_usage refuses client roles', async () => {
+    const viewer = ctx('client_viewer', [IDS.clientA1]);
+    await expect(registry.invoke(viewer, 'get_usage', {})).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(owner, 'get_usage', {})).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('set_client_limits askMonthlyQuota', () => {
+  it('askMonthlyQuota admin-only and bounds', async () => {
+    await registry.invoke(admin, 'set_client_limits', { clientId: IDS.clientA1, askMonthlyQuota: 0 });
+    expect((await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1)))[0]!.askMonthlyQuota).toBe(0);
+    await registry.invoke(admin, 'set_client_limits', { clientId: IDS.clientA1, askMonthlyQuota: 100000 });
+    expect((await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1)))[0]!.askMonthlyQuota).toBe(100000);
+    for (const bad of [-1, 100001, 2.5, Number.NaN]) {
+      await expect(registry.invoke(admin, 'set_client_limits', { clientId: IDS.clientA1, askMonthlyQuota: bad })).rejects.toMatchObject({ code: 'invalid_input' });
+    }
+    await expect(registry.invoke(am, 'set_client_limits', { clientId: IDS.clientA1, askMonthlyQuota: 5 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(owner, 'set_client_limits', { clientId: IDS.clientA1, askMonthlyQuota: 5 })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(admin, 'set_client_limits', { clientId: IDS.clientB1, askMonthlyQuota: 5 })).rejects.toMatchObject({ code: 'not_found' });
+    expect((await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1)))[0]!.askMonthlyQuota).toBe(100000);
   });
 });
 

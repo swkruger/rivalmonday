@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessClient, canManageCompetitors, createAccessContext, hasFeature, hasPermission, isAgencyRole, type Feature, type Role } from './access';
+import { canAccessClient, canManageCompetitors, createAccessContext, hasFeature, hasPermission, isAgencyRole, isClientRole, type Feature, type Role } from './access';
 
 const A = '00000000-0000-4000-8000-00000000000a';
 const C1 = '00000000-0000-4000-8000-0000000000c1';
@@ -81,5 +81,11 @@ describe('hasFeature', () => {
     expect(hasFeature(make('client_owner', ['dashboard']), 'dashboard')).toBe(true);
     expect(hasFeature(make('client_owner', []), 'dashboard')).toBe(false);
     expect(hasFeature(make('client_viewer', ['alert_rules']), 'mcp')).toBe(false);
+  });
+});
+
+describe('isClientRole', () => {
+  it('is true only for client_owner and client_viewer', () => {
+    expect((['agency_admin', 'account_manager', 'client_owner', 'client_viewer'] as const).map(isClientRole)).toEqual([false, false, true, true]);
   });
 });
