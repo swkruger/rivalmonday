@@ -94,7 +94,7 @@ describe('privilege guard', () => {
     //                           app_user can never point self_competitor_id at an arbitrary competitor or move a
     //                           client to another agency via agency_id. The (client, UPDATE) pair below still shows
     //                           up because has_any_column_privilege reports true for any granted column.
-    //   api_token / oauth_grant_binding UPDATE — column-level (Phase 6a): only revoked_at is granted; inserts are service role.
+    //   api_token / oauth_grant_binding UPDATE â€” column-level (Phase 6a): only revoked_at is granted; inserts are service role.
     // Every other public table (agency, competitor, tracked_page, capture, evidence, audit_log, llm_call,
     // vendor_call, competitor_source, vendor_task, observation, review, ad, rank_snapshot, brief, brief_item,
     // recommendation, playbook_override, feedback, contact, notification_pref, agency_webhook, notification,
