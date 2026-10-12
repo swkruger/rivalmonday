@@ -33,6 +33,13 @@ const lsComp = (ids: DemoIds) => ids.competitors.loneStar[0]!.id;
 /** Most workspace pages read the client profile for their header or settings. */
 const lsProfile: CoverageCall = { tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' };
 
+/** Both Ask routes render the same screen (`ask-screen.tsx`): starters, the user's threads and (on a thread) that thread. */
+const askCalls: CoverageCall[] = [
+  { tool: 'get_ask_starters', input: (ids) => ({ clientId: ls(ids) }), path: 'questions' },
+  { tool: 'list_my_ask_threads', input: (ids) => ({ clientId: ls(ids) }), path: 'items', expect: 'empty', why: 'no Ask threads seeded yet' },
+  { tool: 'get_my_ask_thread', input: () => ({ threadId: '00000000-0000-4000-8000-000000000000' }), expect: 'not_found', why: 'no Ask threads seeded yet' },
+];
+
 /** Pages that show forms only (no seeded data to check). */
 export const NO_DATA_ROUTES = ['/agency/clients/new', '/agency/prospects/new'] as const;
 
@@ -100,6 +107,9 @@ export const SCREENS: readonly ScreenCoverage[] = [
     ],
   },
   { route: '/c/[clientId]/alerts/[alertId]', as: 'admin', calls: [{ tool: 'get_alert', input: (ids) => ({ alertId: ids.alerts.delivered }), path: 'body' }] },
+  // 6b Task 9: Ask pages; the seeded threads (and data expectations for them) arrive with Task 12.
+  { route: '/c/[clientId]/ask', as: 'admin', calls: askCalls },
+  { route: '/c/[clientId]/ask/[threadId]', as: 'admin', calls: askCalls },
   { route: '/c/[clientId]/briefs/[briefId]', as: 'ownerLoneStar', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.sentLoneStar[0] }), path: 'items' }] },
   {
     route: '/c/[clientId]/changes', as: 'admin', calls: [

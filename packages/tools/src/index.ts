@@ -23,3 +23,4 @@ export * from './tools/schemas';
 export { type Discovery, assertRoomForCompetitor, startDiscovery } from './tools/competitors';
 // Shared by the `fetch` tool and the MCP `evidence://` / `brief://` resources (@cs/mcp); every refusal is `not_found`.
 export { type FetchOutput, fetchItem, ITEM_TYPES, type ItemType, parseItemId } from './search/fetch-item';
+export type { AskActionView, AskMessageView, AskThreadSummary, AskThreadView } from './tools/ask-threads';

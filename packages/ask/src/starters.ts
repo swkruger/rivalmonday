@@ -5,13 +5,8 @@ import { askStarter, changeEvent, client, clientCompetitor, competitor, type Db 
 import { and, desc, eq, gte, inArray, isNull, or } from 'drizzle-orm';
 import { z } from 'zod';
 
-/** UI fallback when a client has no starter row yet (spec "Starters (worker)"). */
-export const GENERIC_STARTERS: readonly string[] = [
-  'What changed at my competitors this week?',
-  'Which competitor is most active this month?',
-  "How do our reviews compare with competitors'?",
-  'Have any competitors changed their prices recently?',
-];
+/** UI fallback when a client has no starter row yet; defined in `@cs/tools` (its `get_ask_starters` read uses it). */
+export { GENERIC_STARTERS } from '@cs/tools';
 
 const TASK = 'ask_starters';
 const MAX_EVENTS = 20;

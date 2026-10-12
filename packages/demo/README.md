@@ -34,6 +34,8 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId] (client owner)` | ownerLoneStar | `get_workspace_overview`, `list_briefs`, `get_brief` | — |
 | `/c/[clientId]/ads` | admin | `get_ad_activity`, `list_ads` | `list_ads`: one competitor runs no ads |
 | `/c/[clientId]/alerts/[alertId]` | admin | `get_alert` | — |
+| `/c/[clientId]/ask` | admin | `get_ask_starters` | `list_my_ask_threads`: no Ask threads seeded yet; `get_my_ask_thread`: no Ask threads seeded yet |
+| `/c/[clientId]/ask/[threadId]` | admin | `get_ask_starters` | `list_my_ask_threads`: no Ask threads seeded yet; `get_my_ask_thread`: no Ask threads seeded yet |
 | `/c/[clientId]/briefs/[briefId]` | ownerLoneStar | `get_brief` | — |
 | `/c/[clientId]/changes` | admin | `search_events`, `get_event`, `compare_snapshots`, `list_client_competitors`, `get_client_profile` | — |
 | `/c/[clientId]/competitors` | admin | `get_client_profile`, `list_client_competitors`, `list_competitor_suggestions`, `get_competitor_search_status` | — |
