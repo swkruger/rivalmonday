@@ -84,3 +84,34 @@ Confirmed: no unmerged branches besides `phase-6` (which equals main). Next migr
 10. **Agency view of Ask threads:** (a) toggle + read-only agency view in the Ask phase; (b) toggle now, view later. **Rec: (a).**
 11. **Audit-exempt reads:** (a) `noAudit` on named web polled/nav reads (MCP/Ask always audited); (b) sampling. **Rec: (a).**
 12. **REST (§8.1):** (a) out of Phase 6; (b) thin REST over the registry. **Rec: (a).**
+
+## Spike findings (Task 1)
+In-process Vitest (`auth.handler`), scratch DB, 2026-10-12. **PASS: gates 2–8 all work; Tasks 10–11 proceed with the corrections below.**
+
+1. **Deps:** `@better-auth/oauth-provider@1.7.7` peers resolve to our `better-auth@1.7.7`. Add **`@better-auth/utils@0.4.2` (exact) to `apps/web` too.** Otherwise pnpm gives the plugin utils 0.5.0 and a second `@better-auth/core`. Schema: `docs/work/phase-6-oauth-schema.sql` (verbatim `compileMigrations()`, 7 `auth."oauth*"` tables; nothing pending after it).
+2. **DCR:** `POST /api/auth/oauth2/register` with `token_endpoint_auth_method:'none'` → 201 `client_id`. **Catch:** missing `application_type` defaults to `web`, which rejects `http://localhost|127.0.0.1` redirects (400 `invalid_redirect_uri`), as Claude Code registers. Fix: hook below sets `native` for all-loopback redirects.
+3. **Authorize, signed out:** 302 to `/sign-in?<authorize params>&exp&ba_iat&ba_param…&sig`, with **no `next`**. Resume = magic-link `callbackURL = /api/auth/oauth2/authorize?<same query>`: verify 302 → authorize → 302 `/oauth/consent` (extra `sig/exp/ba_*` ignored; `safeNext` accepts it; no `/oauth2/continue`). **`/sign-in` must map `client_id`+`sig` to that `next`** (form and already-signed-in redirect).
+4. **Consent:** `/oauth/consent` gets the authorize params + `exp, ba_iat, ba_param` (repeated), `sig`. Valid 600 s (`codeExpiresIn`). `verifyOAuthQueryParams(q, secret)` (`@better-auth/oauth-provider`): true; false if tampered; order-insensitive (rebuild `q` from `searchParams`, arrays as repeated keys). **Accept/deny:** `auth.api.oauth2Consent` throws 401 "request not found" without `request` (returns a `Response` with one), so use the handler (corrections) → `{redirect:true,url}`; deny → `…?error=access_denied`. **Prior consent with same/narrower scopes + resources skips the page**; wider scopes show it again.
+5. **Binding key:** `auth."oauthConsent".id` (text, 32 chars, not a uuid). Reach it by `(userId, clientId)` = payload `sub`/`client_id`; `referenceId` stays null (no `consentReferenceId`). **No unique index** on `(clientId,userId)`: keep `ORDER BY "updatedAt" DESC LIMIT 1`. App name: `auth."oauthClient".name` by `"clientId"`.
+6. **Token:** `POST /api/auth/oauth2/token` (form, `code_verifier`, `resource`) → `{access_token (opaque), refresh_token, expires_in, token_type:'Bearer', scope}`. Refresh works with `offline_access` and rotates (old RT `revoked`+`rotatedAt`; old AT lives to expiry). TTLs: `accessTokenExpiresIn`, `refreshTokenExpiresIn`, `codeExpiresIn` (s).
+7. **Verify (route handler):** `getOAuthProviderApi({ context: await auth().$context } as GenericEndpointContext, OAUTH_OPTIONS).requireActiveAccessToken(token)` → `{active, sub, client_id, aud, exp, scope, sid, …}`. `aud` = `<app>/mcp`, absent if no `resource`. **Throws** APIError 401 `invalid_token` if revoked/expired/unknown/client disabled/session gone. DB read per call (d13). Stored `token` = SHA-256 base64url.
+8. **Revocation:** `UPDATE auth."oauthAccessToken"/"oauthRefreshToken" SET revoked = now()` → next verify throws, refresh 400 `invalid_grant`. **Deleting the consent alone does NOT kill tokens** (AT active, refresh 200): always revoke rows too (binding lookup fails closed anyway). **Web sign-out revokes that session's ATs; RTs survive, so clients recover by refresh.**
+9. **Metadata:** issuer = **`<appUrl>/api/auth`**. Serve `/.well-known/oauth-authorization-server` **and** the RFC 8414 path-inserted `/.well-known/oauth-authorization-server/api/auth` via `oauthProviderAuthServerMetadata(auth() as never)` (one `[[...path]]` route). Resource-client `getProtectedResourceMetadata` gives `authorization_servers:[<appUrl>]` (≠ issuer): **hand-build** PRM. `app/.well-known/*/[[...path]]/route.ts` builds under Next 16.3.8.
+
+**Working config** (`OAUTH_OPTIONS`, exported from `auth-options.ts`, `a = env.appUrl`):
+`{ loginPage:'/sign-in', consentPage:'/oauth/consent', scopes:['offline_access','read','feedback','manage'], disableJwtPlugin:true, storeTokens:'hashed', allowDynamicClientRegistration:true, allowUnauthenticatedClientRegistration:true, clientRegistrationDefaultScopes:['read','offline_access'], clientRegistrationAllowedScopes:['feedback','manage'], resources:[`${a}/mcp`], clientRegistrationDefaultResources:[`${a}/mcp`], grantTypes:['authorization_code','refresh_token'], accessTokenExpiresIn:3600, refreshTokenExpiresIn:2592000 }`
+`resources`+`…DefaultResources` are required (`enforcePerClientResources` defaults true); `…AllowedScopes` lets clients request `feedback`/`manage`; `grantTypes` drops `client_credentials`. Loopback hook (`hooks.before: createAuthMiddleware(async (ctx) => {…})`, `better-auth/api`):
+```ts
+if (ctx.path !== '/oauth2/register' || !ctx.body || ctx.body.application_type !== undefined) return;
+const lb = (u: unknown) => { try { const x = new URL(String(u)); return x.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(x.hostname); } catch { return false; } };
+const uris: unknown = ctx.body.redirect_uris;
+if (Array.isArray(uris) && uris.length > 0 && uris.every(lb)) return { context: { body: { ...ctx.body, application_type: 'native' } } };
+```
+
+**Plan corrections (plan says → actual):**
+- T10 PRM `authorization_servers: ['<issuer from Task 1>']` → `[`${appUrl}/api/auth`]`.
+- T11 `revokePluginTokens` and `consentIdFor` → **confirmed as written**.
+- T11 `(await auth().api.oauth2Consent({ headers: h, body: {...} })).url` (both) → `const r = await auth().handler(new Request(`${appUrl}/api/auth/oauth2/consent`, { method:'POST', headers:{ cookie: h.get('cookie') ?? '', origin: appUrl, 'content-type':'application/json' }, body: JSON.stringify({ accept, oauth_query: oauthQuery }) })); if (!r.ok) → expired-request error; to = (await r.json()).url`. (`auth().api` lacks plugin types anyway.)
+- T11 `verifyOAuth` → item 7 in try/catch (throw → null); `aud` (string|array), when present, must include `${appUrl}/mcp`; then `consentIdFor(service, sub, client_id)`.
+- T11 metadata path-inserted variant → **yes** (`[[...path]]`).
+- T11 package.json → + `@better-auth/utils@0.4.2` exact; config as above + hook; also modify `app/sign-in/page.tsx` (+ form) for the OAuth `next`; migration = SQL file + GRANTs on 7 tables.
