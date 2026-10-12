@@ -10,7 +10,7 @@ argument-hint: <branch>
 
 ## 1. Verify on the branch (in its worktree)
 1. `git status` clean (commit or ask about leftovers). `git fetch -q origin; git rebase main` (or merge `main` in if the branch was shared/pushed — ask).
-2. Run `pnpm typecheck` and the full suite in the background: `npx turbo run test --concurrency=1 --continue` (~20–50 min); E2E (`pnpm --filter @cs/web e2e`) if `apps/web` changed. Report real numbers; failures stop the merge (use superpowers:systematic-debugging).
+2. Run `pnpm typecheck` and `pnpm test:affected --base main` first (fast feedback). Then **ask the owner**: "Run the full unit suite (~N min) and full E2E (~N min) now?" — quote the last measured times from `docs/gotchas-cross-cutting.md`. On yes: `npx turbo run test --concurrency=1 --continue` and `pnpm --filter @cs/web e2e` in the background, one after the other (never concurrently). On no: record "full suite deferred to CI" in the merge summary. Report real numbers; failures stop the merge (use superpowers:systematic-debugging).
 3. If the branch added a screen: `pnpm --filter @cs/demo test` (demo coverage list).
 
 ## 2. Fold the work file into the shared docs (on the branch, one docs commit)

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { openTestDbs, seedTenancy, testUrls, truncateAll } from '../test/helpers';
 import { databaseNameOf } from './environments';
 import { MIGRATIONS_FOLDER } from './migrate';
-import { databaseExists, dropScratchDatabase, ensureDatabase, IDENT, redactSecrets, resetDatabase, wipeDatabase } from './reset';
+import { databaseExists, dropScratchDatabase, ensureDatabase, IDENT, migrationsFingerprint, prepareTestDatabase, redactSecrets, resetDatabase, wipeDatabase } from './reset';
 import { agency } from './schema';
 
 const name = databaseNameOf(testUrls.owner);
@@ -37,6 +37,53 @@ describe('wipeDatabase / resetDatabase', () => {
       await dbs.closeAll();
     }
   }, 120_000);
+});
+
+describe('prepareTestDatabase / truncateAll', () => {
+  it('fingerprints the migrations deterministically', () => {
+    expect(migrationsFingerprint()).toMatch(/^[0-9a-f]{64}$/);
+    expect(migrationsFingerprint()).toBe(migrationsFingerprint());
+  });
+
+  it('rebuilds once, then only empties the tables while the migrations are unchanged', async () => {
+    process.env.TEST_DB_FULL_RESET = '1';
+    try {
+      expect(await prepareTestDatabase(testUrls.owner, name)).toBe('migrated');
+    } finally {
+      delete process.env.TEST_DB_FULL_RESET;
+    }
+    const dbs = openTestDbs();
+    try {
+      await seedTenancy(dbs.owner);
+      expect(await prepareTestDatabase(testUrls.owner, name)).toBe('truncated');
+      expect(await dbs.owner.select().from(agency)).toHaveLength(0);
+      const journal = JSON.parse(readFileSync(join(MIGRATIONS_FOLDER, 'meta', '_journal.json'), 'utf8')) as { entries: unknown[] };
+      const [row] = [...(await dbs.owner.execute<{ n: number }>(sql`select count(*)::int as n from drizzle.__drizzle_migrations`))];
+      expect(Number(row!.n)).toBe(journal.entries.length);
+    } finally {
+      await dbs.closeAll();
+    }
+  }, 120_000);
+
+  it('refuses any database but the exact expected test database', async () => {
+    await expect(prepareTestDatabase(testUrls.owner, 'cs_dev')).rejects.toThrow(/expected exactly "cs_dev"/);
+  });
+
+  it('truncateAll empties every public table, foreign keys included', async () => {
+    const dbs = openTestDbs();
+    try {
+      await seedTenancy(dbs.owner);
+      await truncateAll(dbs.owner);
+      const [row] = [
+        ...(await dbs.owner.execute<{ n: number }>(sql`
+          select coalesce(sum((xpath('/row/c/text()', query_to_xml(format('select count(*) as c from public.%I', tablename), false, true, '')))[1]::text::int), 0)::int as n
+          from pg_tables where schemaname = 'public'`)),
+      ];
+      expect(Number(row!.n)).toBe(0);
+    } finally {
+      await dbs.closeAll();
+    }
+  });
 });
 
 describe('ensureDatabase', () => {

@@ -33,14 +33,35 @@ export function openTestDbs() {
   };
 }
 
-/** Truncates every table in the public schema (except drizzle bookkeeping, which lives in schema "drizzle"). */
+/**
+ * Empties every table in the public schema (except drizzle bookkeeping, which lives in schema "drizzle") and restarts
+ * its sequences. Runs before most tests, so speed matters: each TRUNCATE swaps a table's data files, ~1.2 s for 52
+ * tables on Windows. A superuser (local test cluster, CI) DELETEs with FK triggers off instead (~5–75 ms on test-sized
+ * data); other owners (Neon's owner is not superuser) fall back to a single TRUNCATE statement (~0.4 s).
+ */
 export async function truncateAll(db: Db): Promise<void> {
-  await db.execute(sql`
-    DO $$ DECLARE t text; BEGIN
-      FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
-        EXECUTE format('TRUNCATE TABLE public.%I RESTART IDENTITY CASCADE', t);
-      END LOOP;
-    END $$;`);
+  try {
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`SET LOCAL session_replication_role = replica`);
+      await tx.execute(sql`
+        DO $$ DECLARE t text; s record; BEGIN
+          FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+            EXECUTE format('DELETE FROM public.%I', t);
+          END LOOP;
+          FOR s IN SELECT schemaname, sequencename, start_value FROM pg_sequences WHERE schemaname = 'public' LOOP
+            PERFORM setval(format('%I.%I', s.schemaname, s.sequencename)::regclass, s.start_value, false);
+          END LOOP;
+        END $$;`);
+    });
+  } catch (e) {
+    const err = e as { code?: string; cause?: { code?: string } };
+    if ((err.cause?.code ?? err.code) !== '42501') throw e; // insufficient_privilege: not a superuser
+    await db.execute(sql`
+      DO $$ BEGIN
+        EXECUTE (SELECT 'TRUNCATE TABLE ' || string_agg(format('public.%I', tablename), ', ') || ' RESTART IDENTITY CASCADE'
+                 FROM pg_tables WHERE schemaname = 'public');
+      END $$;`);
+  }
 }
 
 export const IDS = {

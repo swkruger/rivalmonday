@@ -1,6 +1,9 @@
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import postgres from 'postgres';
 import { assertDatabase } from './environments';
-import { runMigrations } from './migrate';
+import { MIGRATIONS_FOLDER, runMigrations } from './migrate';
 
 export const IDENT = /^[a-z_][a-z0-9_]{0,62}$/;
 const ROLE = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
@@ -42,6 +45,59 @@ export async function wipeDatabase(ownerUrl: string, expected: string): Promise<
 export async function resetDatabase(ownerUrl: string, expected: string): Promise<void> {
   await wipeDatabase(ownerUrl, expected);
   await runMigrations(ownerUrl);
+}
+
+/** Fingerprint of every migration file (SQL + drizzle journal); a change means the schema must be rebuilt. */
+export function migrationsFingerprint(folder: string = MIGRATIONS_FOLDER): string {
+  const hash = createHash('sha256');
+  const walk = (dir: string, rel: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path, `${rel}${entry.name}/`);
+      else hash.update(`${rel}${entry.name}\0`).update(readFileSync(path)).update('\0');
+    }
+  };
+  walk(folder, '');
+  return hash.digest('hex');
+}
+
+const META = 'cs_test_meta';
+
+/**
+ * Test-run start: wipe + migrate only when the migrations changed since the last run (or `TEST_DB_FULL_RESET=1`);
+ * otherwise empty every table in `public` and `auth`, which is what a fresh migrate leaves (no migration seeds data).
+ * The fingerprint lives in its own schema, which the wipe never drops; it is cleared before a rebuild and written only
+ * after a successful migrate, so an interrupted run always rebuilds next time.
+ */
+export async function prepareTestDatabase(ownerUrl: string, expected: string): Promise<'migrated' | 'truncated'> {
+  assertDatabase(ownerUrl, expected);
+  if (!expected.endsWith('_test')) throw new Error(`Refusing to prepare database "${expected}": test database names must end with _test`);
+  const fingerprint = migrationsFingerprint();
+  const sql = connect(ownerUrl);
+  try {
+    const [row] = await sql<{ current_database: string }[]>`select current_database()`;
+    if (row?.current_database !== expected) throw new Error(`Refusing to prepare database "${row?.current_database}": expected exactly "${expected}"`);
+    await sql.unsafe(`CREATE SCHEMA IF NOT EXISTS ${META}; CREATE TABLE IF NOT EXISTS ${META}.fingerprint (value text NOT NULL)`);
+    const [stored] = await sql<{ value: string }[]>`select value from cs_test_meta.fingerprint limit 1`;
+    if (process.env.TEST_DB_FULL_RESET !== '1' && stored?.value === fingerprint) {
+      const [list] = await sql<{ tables: string | null }[]>`
+        select string_agg(format('%I.%I', schemaname, tablename), ', ') as tables
+        from pg_tables where schemaname in ('public', 'auth')`;
+      if (list?.tables) await sql.unsafe(`TRUNCATE TABLE ${list.tables} RESTART IDENTITY CASCADE`);
+      return 'truncated';
+    }
+    await sql`delete from cs_test_meta.fingerprint`;
+  } finally {
+    await sql.end();
+  }
+  await resetDatabase(ownerUrl, expected);
+  const done = connect(ownerUrl);
+  try {
+    await done`insert into cs_test_meta.fingerprint (value) values (${fingerprint})`;
+  } finally {
+    await done.end();
+  }
+  return 'migrated';
 }
 
 export async function databaseExists(maintenanceUrl: string, name: string): Promise<boolean> {

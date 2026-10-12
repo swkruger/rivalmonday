@@ -7,6 +7,7 @@
   "scripts": {
     "typecheck": "turbo run typecheck",
     "test": "turbo run test --concurrency=1",
+    "test:affected": "node scripts/test-affected.mjs",
     "db:up": "docker compose up -d db",
     "db:migrate": "pnpm --filter @cs/db migrate",
     "db:snapshot": "pnpm --filter @cs/demo snapshot",
