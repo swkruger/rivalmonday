@@ -6,5 +6,5 @@ export async function seedUser(owner: Db, id: string, email: string, verified = 
 }
 
 export async function truncateAuth(owner: Db): Promise<void> {
-  await owner.execute(sql`truncate auth."user", auth.verification, auth."rateLimit" cascade`);
+  await owner.execute(sql`truncate auth."user", auth.verification, auth."rateLimit", auth."oauthClient", auth."oauthClientAssertion" cascade`);
 }

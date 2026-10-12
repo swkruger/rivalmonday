@@ -288,6 +288,13 @@
       "when": 1791790753297,
       "tag": "0040_feedback_kind_created",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1791797751956,
+      "tag": "0041_auth_oauth",
+      "breakpoints": true
     }
   ]
 }
