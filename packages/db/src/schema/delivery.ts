@@ -36,6 +36,8 @@ export interface AgencyBranding {
   /** Phase 2 per-agency sending domains; MVP sends from EMAIL_FROM. */
   fromEmail?: string;
   signOff?: string;
+  /** Phase 6b: name of the Ask assistant (default "Friday"). */
+  assistantName?: string;
 }
 
 /** Spec §9.2 quarterly trend report: deterministic numbers only, never model-written. */

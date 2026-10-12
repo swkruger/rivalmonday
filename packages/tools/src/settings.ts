@@ -23,7 +23,7 @@ function isUniqueViolation(err: unknown): boolean {
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 /** Keys this layer accepts and stores. `accent` is intentionally absent: `resolveBranding` always returns the fixed accent. */
-const LIMITS: Record<Exclude<keyof AgencyBranding, 'accent'>, number> = { displayName: 80, logoUrl: 500, primary: 7, secondary: 7, fromName: 80, fromEmail: 200, signOff: 300 };
+const LIMITS: Record<Exclude<keyof AgencyBranding, 'accent'>, number> = { displayName: 80, logoUrl: 500, primary: 7, secondary: 7, fromName: 80, fromEmail: 200, signOff: 300, assistantName: 40 };
 type StorableKey = keyof typeof LIMITS;
 
 function clean(input: AgencyBranding): AgencyBranding {

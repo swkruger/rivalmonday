@@ -57,6 +57,10 @@ export const client = pgTable(
     monthlyCapUsd: doublePrecision('monthly_cap_usd').notNull().default(15),
     /** 5b-2 decision 6: how many competitors this client may track (spec §4.1 "tier limit configurable"). Service role only. */
     competitorLimit: integer('competitor_limit').notNull().default(5),
+    /** Phase 6b: Ask questions per month for client roles (service role only). */
+    askMonthlyQuota: integer('ask_monthly_quota').notNull().default(100),
+    /** Phase 6b: platform may review this client's Ask threads (agency admin decision; service role only). */
+    askReviewAllowed: boolean('ask_review_allowed').notNull().default(true),
     createdAt: createdAt(),
   },
   (t) => [
@@ -82,6 +86,7 @@ export const client = pgTable(
     check('client_status_check', sql`status IN ('active', 'prospect')`),
     check('client_monthly_cap_check', sql`monthly_cap_usd > 0 AND monthly_cap_usd <= 10000`),
     check('client_competitor_limit_check', sql`competitor_limit BETWEEN 1 AND 10`),
+    check('client_ask_monthly_quota_check', sql`ask_monthly_quota BETWEEN 0 AND 100000`),
   ],
 );
 
