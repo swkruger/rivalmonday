@@ -2,7 +2,7 @@ import { IDS } from '@cs/db/test-helpers';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { libraryUrl } from './ads';
 import type { AdList } from './schemas';
-import { ago, ctx, registry, resetWorkspace, seedAds } from './workspace-fixtures';
+import { ago, ctx, registry, resetWorkspace, seedAds, seedCapture } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
 const owner = ctx('client_owner', [IDS.clientA1], ['dashboard']);
@@ -55,5 +55,17 @@ describe('libraryUrl', () => {
   it('escapes ids and has no Google link without an advertiser id', () => {
     expect(libraryUrl({ platform: 'meta', externalId: 'a b', advertiserId: null })).toBe('https://www.facebook.com/ads/library/?id=a%20b');
     expect(libraryUrl({ platform: 'google', externalId: 'g', advertiserId: null })).toBeNull();
+  });
+});
+
+describe('list_ads summary (mcp)', () => {
+  const mcp = { channel: 'mcp' as const, tokenId: 'pat-1', tokenScope: 'read' as const };
+
+  it('evidenceIds carry only text/screenshot evidence of the ad capture, never html or vendor_json', async () => {
+    const cap = await seedCapture({ source: 'meta_ads', kinds: ['html', 'text', 'screenshot', 'vendor_json'] });
+    await seedAds({ ads: [{ platform: 'meta', externalId: 'm9', title: 'Captured ad', isActive: true, firstSeenAt: ago(0), lastSeenAt: ago(0), firstCaptureId: cap.captureId }] });
+    const out = (await registry.invoke(am, 'list_ads', { clientId: IDS.clientA1 }, mcp)) as { items: { title: string; evidenceIds: string[] }[] };
+    const row = out.items.find((i) => i.title === 'Captured ad')!;
+    expect([...row.evidenceIds].sort()).toEqual([cap.ids.text!, cap.ids.screenshot!].sort());
   });
 });

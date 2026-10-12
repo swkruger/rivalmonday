@@ -55,11 +55,12 @@ export const listAds = defineTool({
       .orderBy(desc(ad.isActive), desc(ad.lastSeenAt), desc(ad.id)).offset(offset).limit(limit + 1);
     const page = pageResult(rows, limit, offset);
     if (detailOf(input, meta) === 'summary') {
-      // The ad's capture evidence (first sighting, else latest), if any; global rows, visibility proved above.
+      // The ad's text/screenshot capture evidence (first sighting, else latest), as eventEvidenceIds; global rows, visibility proved above.
       const captureOf = new Map(page.rows.map((a) => [a.id, a.firstCaptureId ?? a.lastCaptureId]));
       const captureIds = [...new Set([...captureOf.values()].filter((v): v is string => !!v))];
       const ev = captureIds.length
-        ? await deps.service.select({ captureId: evidence.captureId, id: evidence.id }).from(evidence).where(inArray(evidence.captureId, captureIds)).orderBy(asc(evidence.kind), asc(evidence.id))
+        ? await deps.service.select({ captureId: evidence.captureId, id: evidence.id }).from(evidence)
+          .where(and(inArray(evidence.captureId, captureIds), inArray(evidence.kind, ['text', 'screenshot']))).orderBy(asc(evidence.kind), asc(evidence.id))
         : [];
       return {
         items: page.rows.map((a) => {
