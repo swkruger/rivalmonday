@@ -46,6 +46,14 @@ describe('resolveAffected', () => {
     expect(resolve('packages/email/src/templates/sign-in.tsx').tags).toEqual(['@auth', '@smoke']);
   });
 
+  it('maps AI-connection paths to smoke only (until Task 13 adds the tag) and settings/ai off the delivery rule', () => {
+    for (const f of ['packages/mcp/src/handler.ts', 'apps/web/src/app/mcp/route.ts', 'apps/web/src/app/.well-known/oauth-protected-resource/[[...path]]/route.ts', 'apps/web/src/app/oauth/consent/page.tsx', 'apps/web/src/app/(app)/c/[clientId]/settings/ai/page.tsx', 'apps/web/src/app/(app)/agency/ai/page.tsx', 'apps/web/src/server/mcp.ts', 'apps/web/src/server/oauth-consent.ts']) {
+      expect(resolve(f), f).toMatchObject({ mode: 'some', tags: ['@smoke'] });
+      expect(matchRule(f).why, f).toMatch(/AI connections/);
+    }
+    expect(matchRule('apps/web/src/app/(app)/c/[clientId]/settings/delivery/page.tsx').why).toMatch(/settings page/);
+  });
+
   it('runs everything for an unknown package file, a migration, or a shared foundation', () => {
     expect(resolve('packages/tools/src/registry.ts').mode).toBe('all');
     expect(resolve('packages/email/src/render.ts').mode).toBe('all');

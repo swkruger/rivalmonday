@@ -17,6 +17,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@cs/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@cs/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -32,6 +35,9 @@ importers:
       '@cs/engine':
         specifier: workspace:*
         version: link:../../packages/engine
+      '@cs/mcp':
+        specifier: workspace:*
+        version: link:../../packages/mcp
       '@cs/storage':
         specifier: workspace:*
         version: link:../../packages/storage

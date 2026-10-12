@@ -1,6 +1,7 @@
 import 'server-only';
+import { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile, type Ai } from '@cs/ai';
 import { type AccessContext, ToolError, type ToolRegistry } from '@cs/core';
-import type { EnvName } from '@cs/db';
+import { createLedgerSink, type Db, type EnvName } from '@cs/db';
 import { deliveryConfigFromEnv } from '@cs/engine';
 import { createToolRegistry, type ToolDeps } from '@cs/tools';
 import { notFound } from 'next/navigation';
@@ -9,20 +10,49 @@ import { webEnv } from './env';
 import { perEnv } from './env-cache';
 import { enqueueFor, jobStatusFor } from './queue';
 import { platformAdmins } from './runtime-env';
+import { webStore } from './store';
+
+/**
+ * P16: query embeddings for `search` exist only in the `dev` environment with an OpenRouter key (DEMO/TEST/E2E never
+ * call OpenRouter). The AI client is built lazily on the first query; a failure there makes `search` fall back to FTS.
+ */
+function embedQueryFor(name: EnvName, service: Db): ToolDeps['embedQuery'] {
+  if (name !== 'dev' || !process.env.OPENROUTER_API_KEY) return undefined;
+  let ai: Promise<Ai> | undefined;
+  return async (text, scope) => {
+    ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH).then((cfg) => createAiFromEnv(process.env, cfg, createLedgerSink(service)));
+    const client = await ai.catch((e: unknown) => {
+      ai = undefined; // do not cache a failed build
+      throw e;
+    });
+    const r = await client.embed('embeddings', [text], scope);
+    return r.vectors[0]!;
+  };
+}
 
 /**
  * Final-review I1: every dependency is resolved by the environment the registry is built for, never by the live
  * one at call time — a DEMO request still in flight when the owner switches to DEV must not enqueue on cs_dev.
+ * Also handed to the MCP server.
  */
-const registries = perEnv((name: EnvName) =>
-  createToolRegistry({
-    ...dbs(name),
+export const toolDeps = perEnv((name: EnvName): ToolDeps => {
+  const { app, service } = dbs(name);
+  const store = webStore(name);
+  return {
+    app,
+    service,
     delivery: deliveryConfigFromEnv(process.env),
     enqueue: enqueueFor(name),
     jobStatus: jobStatusFor(name),
     webMonitoring: webEnv().webMonitoring,
     platformAdmins: platformAdmins(name),
-  }));
+    appUrl: webEnv().appUrl,
+    evidenceStore: { get: (key) => store.get(key) },
+    embedQuery: embedQueryFor(name, service),
+  };
+});
+
+const registries = perEnv((name: EnvName) => createToolRegistry(toolDeps(name)));
 /** The live environment's registry, or the named environment's when `name` is given. */
 export const registry = (name?: EnvName) => registries(name);
 

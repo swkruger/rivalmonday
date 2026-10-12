@@ -17,11 +17,13 @@
     "admin": "tsx scripts/admin.ts"
   },
   "dependencies": {
+    "@cs/ai": "workspace:*",
     "@cs/core": "workspace:*",
     "@cs/db": "workspace:*",
     "@cs/demo": "workspace:*",
     "@cs/email": "workspace:*",
     "@cs/engine": "workspace:*",
+    "@cs/mcp": "workspace:*",
     "@cs/storage": "workspace:*",
     "@cs/tools": "workspace:*",
     "@cs/ui": "workspace:*",

@@ -66,6 +66,13 @@ export const RULES: Rule[] = [
   { pattern: /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|tsconfig\.base\.json)$/, tags: 'all', why: 'workspace config' },
 
   // --- Web routes ---
+  // --- AI connections (MCP server, OAuth consent, AI settings pages) ---
+  // Ruling R2: `tags: []` (smoke only) until Task 13 adds the `@ai-connections` tag together with its spec; then these become that tag.
+  { pattern: /^packages\/mcp\//, tags: [], why: 'AI connections (MCP server)' },
+  { pattern: re(`${APP}(?:mcp/|\\.well-known/|oauth/)`), tags: [], why: 'AI connections (MCP route, OAuth metadata/consent)' },
+  { pattern: re(`${APP}\\(app\\)/(?:agency|c/\\[clientId\\]/settings|settings)/ai/`), tags: [], why: 'AI connections settings' },
+  { pattern: re(`${SERVER}(?:mcp|oauth-consent)\\.ts$`), tags: [], why: 'AI connections server module' },
+
   { pattern: re(`${APP}(?:sign-in/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in and link-error pages' },
   { pattern: re(`${APP}(?:l/|go/|files/)`), tags: GUEST_FILES, why: 'signed links and stored files' },
   { pattern: re(`${APP}dev-panel/`), tags: ['@dev-panel'], why: 'dev-panel route shell' },
@@ -93,7 +100,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${C}reviews/`), tags: ['@reviews'], why: 'reviews view' },
   { pattern: re(`${C}settings/alerts/`), tags: ['@alert-rules'], why: 'alert rules' },
   { pattern: re(`${C}settings/profile/`), tags: ['@profile', '@clients'], why: 'client profile and features' },
-  { pattern: re(`${C}settings/(?:ai|delivery)/`), tags: [], why: 'no E2E covers this settings page' },
+  { pattern: re(`${C}settings/delivery/`), tags: [], why: 'no E2E covers this settings page' },
   { pattern: re(`${APP}\\(app\\)/platform/`), tags: ['@platform', '@reviews'], why: 'platform review/theme queues' },
   { pattern: re(`${APP}\\(app\\)/(?:inbox|settings/notifications)/`), tags: [], why: 'no E2E covers this page' },
 
