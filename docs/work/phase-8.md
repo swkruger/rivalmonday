@@ -1,23 +1,26 @@
 # phase-8 — Platform admin console (agency list, growth, activity; read-only agency view)
 
 **Kind:** feature   **Worktree:** ../CompetitorSpy-wt/phase-8   **Base:** main @ 6c14877
-**Plan/spec:** none yet (new phase; not in the roadmap, which ends at row 7; Phase 7 deferred by owner)
+**Plan/spec:** 8a spec `docs/superpowers/specs/2026-10-12-phase-8a-platform-console-design.md` (d1–d9); 8a plan `docs/superpowers/plans/2026-10-12-phase-8a-platform-console.md` (P1–P5, Tasks 0–9). New phase, not yet in the roadmap.
 
 ## Status (overwrite)
-Kicked off 2026-10-12: brief below; brainstorming not started.
+8a spec approved 2026-10-12; 8a plan written, awaiting owner approval. 8b (read-only agency drill-down, client-data privacy) not brainstormed.
 
 ## Next (overwrite)
-Owner: answer Brief §6 in `superpowers:brainstorming`; then spec → lean plan.
+1. Owner approves the 8a plan and picks the execution method.
+2. Execution waits for phase-6 to merge (or owner accepts stacking); then Task 0 pre-flight (rebase, re-check assumptions, take next free migration).
+3. 8b brainstorm after 8a (Brief §6 Q2, Q8).
 
 ## Interfaces this branch adds or changes
-None yet. Migrations: next free at execution time, currently ≥ `0043` (phase-6 owns 0038–0043).
+None yet. Planned (8a): tables `platform_admin`, `agency_daily_stat`, `platform_audit_log` (service role only; next free migration ≥ `0044`); `PlatformRole`, `platformRole`, `requirePlatformOperator(deps, ctx, min?)`; `navFlagsFor(v, isPlatformOperator: boolean)`; tools `platform_overview`, `list_platform_agencies`, `get_platform_agency`, `list_platform_activity`; job `platform-daily-stats`; routes `/platform`, `/platform/agencies[/id]`, `/platform/health`; CLI `platform-admin`; E2E tag `@platform`.
 
 ## Assumes from other branches
 - **phase-6:** migrations `0038`–`0041` (done), `0042_ask`/`0043_ask_rls` (planned); `withTenant` sets `app.user_id`/`app.role`; registry `channels`/`audit`/`mcpScope`, `CallOptions`, hidden = `not_found`; `audit_log` + `channel`, `token_id`. 6b Task 11 adds `/platform/ask` (service-role helpers in `tools/src/platform.ts`, `requirePlatformOperator`, audit `platform_view_ask_thread`) + a nav entry. Activity sources: `api_token.last_used_at`, `ask_thread`/`ask_message`, audit rows by `channel`.
 - **phase-7-planning (parked):** 7a decision 4 plans `/platform/health` + `platform_health` tool (`tools/src/platform-health.ts`, `ToolDeps.queueStats`), no migrations. Its gate `PLATFORM_ADMIN_EMAILS` **already exists on main**; only page/tool are new. Shared files: `nav-items.ts`, `deps.ts`, `tools/all.ts`, `server/tools.ts`.
 
 ## Decisions (owner-approved)
-None yet.
+- Split 8a (list + growth/activity) / 8b (drill-down). Console will later host agency management (add/delete/suspend), agency comms, income statement.
+- Spec d1–d9 binding: `platform_admin` table (owner|staff|viewer) + env list as permanent owners; nightly `agency_daily_stat`; service-role reads behind `requirePlatformOperator`; no writes in 8a; health tab placeholder; names/statuses only; all platform reads audited.
 
 ## New backlog (target → item)
 None yet.
