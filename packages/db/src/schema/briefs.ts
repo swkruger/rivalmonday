@@ -182,6 +182,6 @@ export const feedback = pgTable(
   (t) => [
     index('feedback_subject_idx').on(t.subjectType, t.subjectId),
     clientFk(t),
-    check('feedback_kind_check', sql`kind IN ('edit', 'drop', 'reorder', 'rating', 'status')`),
+    check('feedback_kind_check', sql`kind IN ('edit', 'drop', 'reorder', 'rating', 'status', 'created')`),
   ],
 );

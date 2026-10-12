@@ -80,6 +80,14 @@ describe('brief tables', () => {
   });
 });
 
+describe('feedback kinds', () => {
+  it('accepts a created feedback row for a recommendation and still rejects unknown kinds', async () => {
+    const row = { agencyId: IDS.agencyA, clientId: IDS.clientA1, subjectType: 'recommendation', subjectId: IDS.clientA1, actor: 'u1' };
+    await dbs.service.insert(feedback).values({ ...row, kind: 'created' });
+    await expect(dbs.service.insert(feedback).values({ ...row, kind: 'bogus' })).rejects.toThrow();
+  });
+});
+
 describe('brief RLS', () => {
   it('shows briefs, items, recommendations and feedback only to the owning tenant', async () => {
     const { briefId, itemId } = await seedBrief();
