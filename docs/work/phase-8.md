@@ -4,12 +4,11 @@
 **Plan/spec:** 8a spec `docs/superpowers/specs/2026-10-12-phase-8a-platform-console-design.md` (d1–d9); 8a plan `docs/superpowers/plans/2026-10-12-phase-8a-platform-console.md` (P1–P5, Tasks 0–9). New phase, not yet in the roadmap.
 
 ## Status (overwrite)
-8a spec approved 2026-10-12; 8a plan written, awaiting owner approval. 8b (read-only agency drill-down, client-data privacy) not brainstormed.
+8a spec and plan **owner-approved 2026-10-12**; execution = subagent-driven, blocked until phase-6 merges. 8b (read-only agency drill-down, client-data privacy) not brainstormed.
 
 ## Next (overwrite)
-1. Owner approves the 8a plan and picks the execution method.
-2. Execution waits for phase-6 to merge (or owner accepts stacking); then Task 0 pre-flight (rebase, re-check assumptions, take next free migration).
-3. 8b brainstorm after 8a (Brief §6 Q2, Q8).
+1. Execution (subagent-driven) waits for phase-6 to merge (or owner accepts stacking); then Task 0 pre-flight (rebase, re-check assumptions, take next free migration).
+2. 8b brainstorm after 8a (Brief §6 Q2, Q8).
 
 ## Interfaces this branch adds or changes
 None yet. Planned (8a): tables `platform_admin`, `agency_daily_stat`, `platform_audit_log` (service role only; next free migration ≥ `0044`); `PlatformRole`, `platformRole`, `requirePlatformOperator(deps, ctx, min?)`; `navFlagsFor(v, isPlatformOperator: boolean)`; tools `platform_overview`, `list_platform_agencies`, `get_platform_agency`, `list_platform_activity`; job `platform-daily-stats`; routes `/platform`, `/platform/agencies[/id]`, `/platform/health`; CLI `platform-admin`; E2E tag `@platform`.
