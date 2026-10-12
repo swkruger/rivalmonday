@@ -1,14 +1,15 @@
 import { gbpSummary } from '@cs/collectors';
-import { ToolError, toolkit } from '@cs/core';
+import { appLinkFor, ToolError, toolkit } from '@cs/core';
 import { observation, review, reviewAnalysis } from '@cs/db';
 import { reviewBenchmark, sentimentScore, themesForVertical } from '@cs/engine';
 import { and, desc, eq, gte, ilike, inArray, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
+import { detailOf, pageOf, pageResult } from '../paging';
 import { pickBusiness, workspaceBusinesses } from '../workspace/business';
 import { forChannel } from '../workspace/model-text';
 import { escapeLike, workspaceClient } from '../workspace/scope';
-import { BusinessKey, RatingTrendView, ReviewList, ThemeBenchmarkView } from './schemas';
+import { BusinessKey, pageFields, RatingTrendView, ReviewPage, ThemeBenchmarkView } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -113,8 +114,6 @@ export const getRatingTrend = defineTool({
   },
 });
 
-const REVIEW_PAGE = 20;
-
 export const searchReviews = defineTool({
   name: 'search_reviews',
   description: 'Search Google reviews of your business and tracked competitors by business, theme, stars or text. Reviewer identities are never returned.',
@@ -126,13 +125,18 @@ export const searchReviews = defineTool({
     text: z.string().trim().min(1).max(100).optional(),
     days: z.union([z.literal(30), z.literal(90), z.literal(365)]).default(90),
     offset: z.number().int().min(0).max(5000).default(0),
+    limit: z.number().int().min(1).max(50).optional(),
+    ...pageFields,
   }),
-  output: ReviewList,
+  output: ReviewPage,
   permission: 'read',
   channels: ['web', 'mcp'],
   feature: 'dashboard',
   async handler(ctx, input, deps, meta) {
     const c = await workspaceClient(deps, ctx, input.clientId);
+    const paged = pageOf(input, meta, 20);
+    const limit = paged.limit;
+    const offset = input.cursor ? paged.offset : input.offset;
     // A self business known only by place id has no review rows, so it is not searchable (pickBusiness -> not_found).
     const all = (await workspaceBusinesses(deps, ctx, c)).filter((b) => b.competitorId !== null);
     const scope = input.business ? [pickBusiness(all, input.business)] : all;
@@ -152,9 +156,22 @@ export const searchReviews = defineTool({
       .leftJoin(reviewAnalysis, and(eq(reviewAnalysis.reviewId, review.id), eq(reviewAnalysis.verticalId, c.verticalId)))
       .where(and(...conds))
       .orderBy(sql`${review.postedAt} DESC NULLS LAST`, desc(review.id))
-      .offset(input.offset).limit(REVIEW_PAGE + 1);
+      .offset(offset).limit(limit + 1);
+    const page = pageResult(rows, limit, offset);
+    if (detailOf(input, meta) === 'summary') {
+      return {
+        items: page.rows.map((r) => {
+          const b = byId.get(r.competitorId)!;
+          return {
+            id: r.id, title: `${b.name} review${r.rating ? `, ${r.rating}\u2605` : ''}`, date: r.postedAt ? r.postedAt.toISOString() : null, evidenceIds: [],
+            url: appLinkFor(deps.appUrl, { t: 'review', clientId: c.id, id: r.id }),
+          };
+        }),
+        hasMore: page.hasMore, nextCursor: page.nextCursor,
+      };
+    }
     return {
-      items: rows.slice(0, REVIEW_PAGE).map((r) => {
+      items: page.rows.map((r) => {
         const b = byId.get(r.competitorId)!;
         return {
           reviewId: r.id, competitorId: r.competitorId, name: b.name, self: b.self, rating: r.rating, text: forChannel(meta, r.text, [b.name]), postedAt: r.postedAt ? r.postedAt.toISOString() : null,
@@ -163,7 +180,8 @@ export const searchReviews = defineTool({
           sentiment: r.sentiment == null ? null : sentimentScore(r.sentiment), ownerAnswer: forChannel(meta, r.ownerAnswer, [b.name]),
         };
       }),
-      hasMore: rows.length > REVIEW_PAGE,
+      hasMore: page.hasMore,
+      nextCursor: page.nextCursor,
     };
   },
 });

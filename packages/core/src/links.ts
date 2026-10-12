@@ -50,3 +50,37 @@ export function verifyLink(secrets: readonly string[], token: string, now = new 
   if (c.v !== 1 || !LINK_TARGETS.includes(c.t) || typeof c.iat !== 'number' || typeof c.exp !== 'number' || c.exp * 1000 <= now.getTime()) return null;
   return c;
 }
+
+/** P11: in-app destinations for MCP `url` fields. `/go/<t>/<id>` resolves the client itself; the rest need the client id in the path. */
+export type AppTarget =
+  | { t: 'brief' | 'brief_item' | 'alert'; id: string }
+  | { t: 'event' | 'evidence' | 'recommendation' | 'review' | 'move' | 'competitor'; clientId: string; id: string }
+  | { t: 'page'; clientId: string; competitorId: string }
+  | { t: 'client'; clientId: string };
+
+export function appPath(t: AppTarget): string {
+  switch (t.t) {
+    case 'brief':
+    case 'brief_item':
+    case 'alert':
+      return `/go/${t.t}/${t.id}`;
+    case 'event':
+      return `/c/${t.clientId}/changes?event=${t.id}`;
+    case 'evidence':
+      return `/c/${t.clientId}/evidence/${t.id}`;
+    case 'recommendation':
+      return `/c/${t.clientId}/recommendations`;
+    case 'review':
+      return `/c/${t.clientId}/reviews`;
+    case 'move':
+      return `/c/${t.clientId}/moves?move=${t.id}`;
+    case 'competitor':
+      return `/c/${t.clientId}/competitors/${t.id}`;
+    case 'page':
+      return `/c/${t.clientId}/competitors/${t.competitorId}`;
+    case 'client':
+      return `/c/${t.clientId}`;
+  }
+}
+
+export const appLinkFor = (base: string | undefined, t: AppTarget): string => `${base ?? ''}${appPath(t)}`;

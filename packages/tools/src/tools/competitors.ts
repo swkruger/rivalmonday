@@ -1,11 +1,12 @@
-import { canAccessClient, toolkit, ToolError } from '@cs/core';
+import { appLinkFor, canAccessClient, toolkit, ToolError } from '@cs/core';
 import { acceptSuggestion, ensureCompetitorSources, findExistingCompetitor, patchReusedCompetitor } from '@cs/collectors';
 import { client, clientCompetitor, competitor, competitorSuggestion, trackedPage, type Tx, withTenant } from '@cs/db';
 import { and, asc, count, desc, eq, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type JobState, jobStatusOf, type ToolDeps } from '../deps';
 import { SUGGEST_COOLDOWN_MINUTES } from '../limits';
-import { SuggestionView, TrackedCompetitor } from './schemas';
+import { detailOf, pageOf, pageResult } from '../paging';
+import { pageFields, pagedItems, SuggestionView, TrackedCompetitor } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -144,11 +145,13 @@ export function normalizeDomain(raw: string): string | null {
 export const listClientCompetitors = defineTool({
   name: 'list_client_competitors',
   description: 'List the competitors a client tracks, with their number of active tracked pages.',
-  input: z.object({ clientId: uuid }),
-  output: z.object({ items: z.array(TrackedCompetitor), limit: z.number().int() }),
+  input: z.object({ clientId: uuid, limit: z.number().int().min(1).max(200).optional(), ...pageFields }),
+  output: z.object({ items: pagedItems(TrackedCompetitor), limit: z.number().int(), nextCursor: z.string().nullable().optional() }),
   permission: 'read',
   channels: ['web', 'mcp'],
-  async handler(ctx, { clientId }, deps) {
+  async handler(ctx, input, deps, meta) {
+    const { clientId } = input;
+    const { offset, limit: pageLimit } = pageOf(input, meta, 200);
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
     const { c, rows } = await withTenant(deps.app, ctx, async (tx) => {
       const [c] = await tx.select({ limit: client.competitorLimit }).from(client).where(eq(client.id, clientId));
@@ -160,11 +163,18 @@ export const listClientCompetitors = defineTool({
         .from(clientCompetitor)
         .innerJoin(competitor, eq(competitor.id, clientCompetitor.competitorId))
         .where(eq(clientCompetitor.clientId, clientId))
-        .orderBy(asc(competitor.name));
+        .orderBy(asc(competitor.name), asc(competitor.id)).offset(offset).limit(pageLimit + 1);
       return { c, rows };
     });
     if (!c) throw new ToolError('not_found', 'Client not found');
-    return { items: rows.map((r) => ({ ...r, addedAt: r.addedAt.toISOString() })), limit: c.limit };
+    const page = pageResult(rows, pageLimit, offset);
+    if (detailOf(input, meta) === 'summary') {
+      return {
+        items: page.rows.map((r) => ({ id: r.id, title: r.name, date: r.addedAt.toISOString(), evidenceIds: [], url: appLinkFor(deps.appUrl, { t: 'competitor', clientId, id: r.id }) })),
+        limit: c.limit, nextCursor: page.nextCursor,
+      };
+    }
+    return { items: page.rows.map((r) => ({ ...r, addedAt: r.addedAt.toISOString() })), limit: c.limit, nextCursor: page.nextCursor };
   },
 });
 

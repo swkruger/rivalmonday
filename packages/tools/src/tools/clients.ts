@@ -1,23 +1,29 @@
-import { canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
+import { appLinkFor, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
 import { client, withTenant } from '@cs/db';
 import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../registry';
-import { ClientProfile, ClientSummary } from './schemas';
+import { detailOf, pageOf, pageResult } from '../paging';
+import { ClientProfile, ClientSummary, pageFields, pagedItems } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 
 export const listClients = defineTool({
   name: 'list_clients',
   description: 'List the client businesses this agency user can see.',
-  input: z.object({}),
-  output: z.object({ items: z.array(ClientSummary) }),
+  input: z.object({ limit: z.number().int().min(1).max(1000).optional(), ...pageFields }),
+  output: z.object({ items: pagedItems(ClientSummary), nextCursor: z.string().nullable().optional() }),
   permission: 'agency',
   channels: ['web', 'mcp'],
   audit: 'skip-web',
-  async handler(ctx, _input, deps) {
-    const rows = await withTenant(deps.app, ctx, (tx) => tx.select().from(client).orderBy(asc(client.name)));
-    return { items: rows.map((c) => ({ id: c.id, name: c.name, verticalId: c.verticalId, timezone: c.timezone, status: c.status })) };
+  async handler(ctx, input, deps, meta) {
+    const { offset, limit } = pageOf(input, meta, 1000);
+    const fetched = await withTenant(deps.app, ctx, (tx) => tx.select().from(client).orderBy(asc(client.name), asc(client.id)).offset(offset).limit(limit + 1));
+    const { rows, nextCursor } = pageResult(fetched, limit, offset);
+    if (detailOf(input, meta) === 'summary') {
+      return { items: rows.map((c) => ({ id: c.id, title: c.name, date: null, evidenceIds: [], url: appLinkFor(deps.appUrl, { t: 'client', clientId: c.id }) })), nextCursor };
+    }
+    return { items: rows.map((c) => ({ id: c.id, name: c.name, verticalId: c.verticalId, timezone: c.timezone, status: c.status })), nextCursor };
   },
 });
 

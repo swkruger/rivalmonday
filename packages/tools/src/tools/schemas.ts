@@ -85,6 +85,18 @@ export const TrackedPageView = z.object({
 export type TrackedPageView = z.infer<typeof TrackedPageView>;
 
 export const listInput = (max: number) => z.object({ clientId: uuid, limit: z.number().int().min(1).max(max).default(Math.min(20, max)) });
+
+/** P12: MCP summary row shared by the paged list tools. `url` is an in-app deep link (P11). */
+export const SummaryRow = z.object({ id: z.string(), title: z.string(), date: z.string().nullable(), evidenceIds: z.array(z.string()), url: z.string() });
+export type SummaryRow = z.infer<typeof SummaryRow>;
+export const pageFields = {
+  detail: z.enum(['summary', 'full']).optional().describe('summary (default over MCP) or full rows'),
+  cursor: z.string().max(200).optional(),
+};
+/** `limit` is optional (no schema default): `pageOf` applies the channel's default. */
+export const pagedListInput = (max: number) => z.object({ clientId: uuid, limit: z.number().int().min(1).max(max).optional(), ...pageFields });
+/** A page of full rows or summary rows (an empty page matches the first member). */
+export const pagedItems = <T extends z.ZodType>(full: T) => z.union([z.array(full), z.array(SummaryRow)]);
 export const toIso = (d: Date | null) => (d ? d.toISOString() : null);
 
 export const RecommendationView = z.object({
@@ -282,6 +294,8 @@ export const AdView = z.object({
 });
 export type AdView = z.infer<typeof AdView>;
 export const AdList = z.object({ items: z.array(AdView), hasMore: z.boolean() });
+/** The tool's output: full rows (web, `detail=full`) or summary rows. */
+export const AdPage = z.object({ items: pagedItems(AdView), hasMore: z.boolean(), nextCursor: z.string().nullable().optional() });
 export type AdList = z.infer<typeof AdList>;
 export const ThemeBenchmarkView = z.object({
   windowDays: z.number().int(), from: iso, to: iso,
@@ -314,6 +328,7 @@ export const ReviewView = z.object({
 });
 export type ReviewView = z.infer<typeof ReviewView>;
 export const ReviewList = z.object({ items: z.array(ReviewView), hasMore: z.boolean() });
+export const ReviewPage = z.object({ items: pagedItems(ReviewView), hasMore: z.boolean(), nextCursor: z.string().nullable().optional() });
 export type ReviewList = z.infer<typeof ReviewList>;
 export const ScanRef = z.object({ id: uuid, finishedAt: iso });
 export const GeoGridView = z.object({

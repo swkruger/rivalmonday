@@ -123,7 +123,7 @@ describe('d12 redaction on non-web channels', () => {
   it('search_reviews over mcp redacts a person name', async () => {
     await seedReview({ text: 'Dave Thompson showed up late and was rude', ownerAnswer: `Sorry, Dave Thompson will call you at ${PHONE}`, postedAt: ago(1) });
     const input = { clientId: IDS.clientA1 };
-    const viaMcp = (await registry.invoke(admin, 'search_reviews', input, mcp('read'))) as { items: { text: string; ownerAnswer: string }[] };
+    const viaMcp = (await registry.invoke(admin, 'search_reviews', { ...input, detail: 'full' }, mcp('read'))) as { items: { text: string; ownerAnswer: string }[] };
     expect(viaMcp.items[0]!.text).not.toContain('Thompson');
     expect(viaMcp.items[0]!.text).toContain('[name]');
     expect(viaMcp.items[0]!.ownerAnswer).not.toContain('555-0147');
@@ -133,7 +133,7 @@ describe('d12 redaction on non-web channels', () => {
 
   it('list_ads over mcp redacts creative text; web does not', async () => {
     await seedAds({ ads: [{ platform: 'meta', externalId: 'a1', title: `Call ${PHONE}`, text: `Ask for ${PHONE} today`, isActive: true, firstSeenAt: ago(3), lastSeenAt: ago(1) }] });
-    const viaMcp = (await registry.invoke(admin, 'list_ads', { clientId: IDS.clientA1 }, mcp('read'))) as { items: { title: string; text: string }[] };
+    const viaMcp = (await registry.invoke(admin, 'list_ads', { clientId: IDS.clientA1, detail: 'full' }, mcp('read'))) as { items: { title: string; text: string }[] };
     expect(viaMcp.items).toHaveLength(1);
     expect(`${viaMcp.items[0]!.title}${viaMcp.items[0]!.text}`).not.toContain('555-0147');
     const viaWeb = (await registry.invoke(admin, 'list_ads', { clientId: IDS.clientA1 })) as { items: { text: string }[] };

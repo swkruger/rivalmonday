@@ -1,10 +1,11 @@
-import { canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
+import { appLinkFor, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
 import { recommendation, withTenant } from '@cs/db';
 import { updateRecommendationStatus } from '@cs/engine';
 import { desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
-import { RecommendationView, toIso } from './schemas';
+import { detailOf, pageOf, pageResult } from '../paging';
+import { pageFields, pagedItems, RecommendationView, toIso } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -13,15 +14,26 @@ const STATUSES = ['todo', 'in_progress', 'done', 'dismissed'] as const;
 export const listRecommendations = defineTool({
   name: 'list_recommendations',
   description: 'Recommended next steps for a client, newest first, with their status.',
-  input: z.object({ clientId: uuid }),
-  output: z.object({ items: z.array(RecommendationView) }),
+  input: z.object({ clientId: uuid, limit: z.number().int().min(1).max(300).optional(), ...pageFields }),
+  output: z.object({ items: pagedItems(RecommendationView), nextCursor: z.string().nullable().optional() }),
   permission: 'read',
   channels: ['web', 'mcp'],
-  async handler(ctx, { clientId }, deps) {
+  async handler(ctx, input, deps, meta) {
+    const { clientId } = input;
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
-    const rows = await withTenant(deps.app, ctx, (tx) => tx.select().from(recommendation).where(eq(recommendation.clientId, clientId)).orderBy(desc(recommendation.updatedAt)).limit(300));
+    const { offset, limit } = pageOf(input, meta, 300);
+    const fetched = await withTenant(deps.app, ctx, (tx) =>
+      tx.select().from(recommendation).where(eq(recommendation.clientId, clientId)).orderBy(desc(recommendation.updatedAt), desc(recommendation.id)).offset(offset).limit(limit + 1));
+    const { rows, nextCursor } = pageResult(fetched, limit, offset);
+    if (detailOf(input, meta) === 'summary') {
+      return {
+        items: rows.map((r) => ({ id: r.id, title: r.title, date: r.updatedAt.toISOString(), evidenceIds: r.evidenceIds, url: appLinkFor(deps.appUrl, { t: 'recommendation', clientId, id: r.id }) })),
+        nextCursor,
+      };
+    }
     const agency = isAgencyRole(ctx.role);
     return {
+      nextCursor,
       items: rows.map((r) => ({
         id: r.id, title: r.title, rationale: r.rationale, effort: r.effort, impact: r.impact, owner: r.owner, status: r.status as (typeof STATUSES)[number],
         dismissReason: r.dismissReason, dueAt: toIso(r.dueAt), source: r.source, evidenceIds: r.evidenceIds, upsellTag: agency ? r.upsellTag : null,

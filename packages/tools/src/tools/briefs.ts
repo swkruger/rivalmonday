@@ -1,10 +1,11 @@
-import { type AccessContext, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
-import { brief, competitor, withTenant } from '@cs/db';
+import { type AccessContext, appLinkFor, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
+import { brief, briefItem, competitor, withTenant } from '@cs/db';
 import { getBrief } from '@cs/engine';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
+import { detailOf, pageOf, pageResult } from '../paging';
 import type { ToolDeps } from '../registry';
-import { BriefDetail, BriefSummary, listInput, toIso } from './schemas';
+import { BriefDetail, BriefSummary, pagedItems, pagedListInput, toIso } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const CLIENT_VISIBLE = ['approved', 'sent'];
@@ -16,15 +17,33 @@ const summary = (b: typeof brief.$inferSelect): BriefSummary => ({
 export const listBriefs = defineTool({
   name: 'list_briefs',
   description: 'List weekly briefs for a client, newest delivery date first.',
-  input: listInput(52),
-  output: z.object({ items: z.array(BriefSummary) }),
+  input: pagedListInput(52),
+  output: z.object({ items: pagedItems(BriefSummary), nextCursor: z.string().nullable().optional() }),
   permission: 'read',
   channels: ['web', 'mcp'],
-  async handler(ctx, { clientId, limit }, deps) {
+  async handler(ctx, input, deps, meta) {
+    const { clientId } = input;
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+    const { offset, limit } = pageOf(input, meta, 20);
     const where = isAgencyRole(ctx.role) ? eq(brief.clientId, clientId) : and(eq(brief.clientId, clientId), inArray(brief.status, CLIENT_VISIBLE));
-    const rows = await withTenant(deps.app, ctx, (tx) => tx.select().from(brief).where(where).orderBy(desc(brief.deliveryDate)).limit(limit));
-    return { items: rows.map(summary) };
+    const fetched = await withTenant(deps.app, ctx, (tx) => tx.select().from(brief).where(where).orderBy(desc(brief.deliveryDate), desc(brief.id)).offset(offset).limit(limit + 1));
+    const { rows, nextCursor } = pageResult(fetched, limit, offset);
+    if (detailOf(input, meta) === 'full') return { items: rows.map(summary), nextCursor };
+    // Active items only: dropped items never reach the reader (same rule as get_brief).
+    const items = rows.length
+      ? await withTenant(deps.app, ctx, (tx) =>
+        tx.select({ briefId: briefItem.briefId, evidenceIds: briefItem.evidenceIds }).from(briefItem).where(and(inArray(briefItem.briefId, rows.map((b) => b.id)), eq(briefItem.status, 'active'))).orderBy(asc(briefItem.ord)))
+      : [];
+    const evidenceOf = new Map<string, string[]>();
+    for (const i of items) {
+      const list = evidenceOf.get(i.briefId) ?? [];
+      for (const id of i.evidenceIds) if (!list.includes(id)) list.push(id);
+      evidenceOf.set(i.briefId, list);
+    }
+    return {
+      items: rows.map((b) => ({ id: b.id, title: `Weekly brief ${b.deliveryDate}`, date: b.deliveryDate, evidenceIds: evidenceOf.get(b.id) ?? [], url: appLinkFor(deps.appUrl, { t: 'brief', id: b.id }) })),
+      nextCursor,
+    };
   },
 });
 

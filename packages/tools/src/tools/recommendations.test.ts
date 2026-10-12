@@ -42,3 +42,22 @@ describe('recommendations (Review Focus 4)', () => {
     await expect(registry.invoke(ownerA2, 'update_recommendation_status', { recommendationId: recId, status: 'done' })).rejects.toMatchObject({ code: 'not_found' });
   });
 });
+
+
+describe('list_recommendations paging and detail', () => {
+  const mcp = { channel: 'mcp' as const, tokenId: 'pat-1', tokenScope: 'read' as const };
+
+  it('summary over mcp has title, updatedAt, evidenceIds and the recommendations page url', async () => {
+    await dbs.owner.update(recommendation).set({ evidenceIds: ['ev-1'] }).where(eq(recommendation.id, recId));
+    const out = (await registry.invoke(am, 'list_recommendations', { clientId: IDS.clientA1 }, mcp)) as { items: { id: string; date: string; url: string; evidenceIds: string[]; title: string }[]; nextCursor: string | null };
+    expect(out.items).toHaveLength(1);
+    expect(out.items[0]).toMatchObject({ id: recId, title: 'Offer a tune-up bundle', evidenceIds: ['ev-1'], url: `/c/${IDS.clientA1}/recommendations` });
+    expect(out.items[0]!.date).toMatch(/^\d{4}-\d\d-\d\dT/);
+    expect(out.nextCursor).toBeNull();
+  });
+
+  it('web call without detail returns full rows unchanged', async () => {
+    const out = (await registry.invoke(am, 'list_recommendations', { clientId: IDS.clientA1 })) as { items: Record<string, unknown>[] };
+    expect(out.items[0]).toMatchObject({ rationale: 'Smith HVAC cut its price.', status: 'todo', upsellTag: 'ppc_audit' });
+  });
+});

@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { LINK_TTL_SECONDS, signLink, verifyLink } from './links';
+import { appLinkFor, appPath, LINK_TTL_SECONDS, signLink, verifyLink } from './links';
 
 const SECRET = 'a'.repeat(32);
 const OLD = 'b'.repeat(32);
@@ -46,5 +46,26 @@ describe('deep links', () => {
     const payload = Buffer.from(JSON.stringify(withoutIat)).toString('base64url');
     const sig = createHmac('sha256', SECRET).update(payload).digest('base64url');
     expect(verifyLink([SECRET], `${payload}.${sig}`, NOW)).toBeNull();
+  });
+});
+
+describe('app paths', () => {
+  const c = 'c1';
+  it('appPath per target', () => {
+    expect(appPath({ t: 'brief', id: 'b1' })).toBe('/go/brief/b1');
+    expect(appPath({ t: 'brief_item', id: 'i1' })).toBe('/go/brief_item/i1');
+    expect(appPath({ t: 'alert', id: 'a1' })).toBe('/go/alert/a1');
+    expect(appPath({ t: 'event', clientId: c, id: 'e1' })).toBe('/c/c1/changes?event=e1');
+    expect(appPath({ t: 'evidence', clientId: c, id: 'v1' })).toBe('/c/c1/evidence/v1');
+    expect(appPath({ t: 'recommendation', clientId: c, id: 'r1' })).toBe('/c/c1/recommendations');
+    expect(appPath({ t: 'review', clientId: c, id: 'rv' })).toBe('/c/c1/reviews');
+    expect(appPath({ t: 'move', clientId: c, id: 'm1' })).toBe('/c/c1/moves?move=m1');
+    expect(appPath({ t: 'competitor', clientId: c, id: 'x1' })).toBe('/c/c1/competitors/x1');
+    expect(appPath({ t: 'page', clientId: c, competitorId: 'x2' })).toBe('/c/c1/competitors/x2');
+    expect(appPath({ t: 'client', clientId: c })).toBe('/c/c1');
+  });
+  it('appLinkFor prefixes the base when given', () => {
+    expect(appLinkFor('https://rm.test', { t: 'brief', id: 'b1' })).toBe('https://rm.test/go/brief/b1');
+    expect(appLinkFor(undefined, { t: 'client', clientId: 'c1' })).toBe('/c/c1');
   });
 });

@@ -4,7 +4,7 @@ import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { EventDetail, EventRow } from './schemas';
-import { ctx, dbs, registry, resetWorkspace, seedEvent } from './workspace-fixtures';
+import { ctx, dbs, registry, resetWorkspace, seedCapture, seedEvent } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
 const owner = ctx('client_owner', [IDS.clientA1], ['dashboard']);
@@ -119,5 +119,39 @@ describe('submit_feedback', () => {
     await expect(registry.invoke(ownerNoDash, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'useful' })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(owner, 'submit_feedback', { clientId: IDS.clientA1, eventId: r.eventId, verdict: 'useful' })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(owner, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'meh' })).rejects.toMatchObject({ code: 'invalid_input' });
+  });
+});
+
+
+describe('search_events paging and detail', () => {
+  const mcp = { channel: 'mcp' as const, tokenId: 'pat-1', tokenScope: 'read' as const };
+  const page = (input: Record<string, unknown>) =>
+    registry.invoke(am, 'search_events', { clientId: IDS.clientA1, ...input }, mcp) as Promise<{ items: { id: string; title: string; date: string; evidenceIds: string[]; url: string }[]; nextCursor: string | null }>;
+
+  it('search_events paginates with nextCursor and no overlap', async () => {
+    for (let i = 1; i <= 5; i++) await seedEvent({ score: 80, route: 'alert', ageDays: i });
+    const p1 = await page({ limit: 2 });
+    const p2 = await page({ limit: 2, cursor: p1.nextCursor! });
+    const p3 = await page({ limit: 2, cursor: p2.nextCursor! });
+    expect([p1.items.length, p2.items.length, p3.items.length, p3.nextCursor]).toEqual([2, 2, 1, null]);
+    expect(new Set([...p1.items, ...p2.items, ...p3.items].map((i) => i.id)).size).toBe(5);
+  });
+
+  it('summary rows carry competitor: summary, text/screenshot evidence ids and an event link', async () => {
+    const before = await seedCapture({ kinds: ['html', 'text'] });
+    const after = await seedCapture({ kinds: ['html', 'text', 'screenshot'] });
+    const { eventId } = await seedEvent({ score: 86, route: 'alert', ageDays: 1, captures: { before: before.captureId, after: after.captureId } });
+    const out = await page({});
+    expect(out.items).toHaveLength(1);
+    expect(out.items[0]).toMatchObject({ id: eventId, title: 'Smith HVAC: Smith HVAC cut its AC tune-up to $79', url: `/c/${IDS.clientA1}/changes?event=${eventId}` });
+    expect([...out.items[0]!.evidenceIds].sort()).toEqual([before.ids.text!, after.ids.text!, after.ids.screenshot!].sort());
+  });
+
+  it('web call without detail returns full rows unchanged', async () => {
+    await seedEvent({ score: 86, route: 'alert', ageDays: 1 });
+    const r = await search(am);
+    expect(r.items[0]).toMatchObject({ typeLabel: 'Price change', score: 86 });
+    expect(r.hasMore).toBe(false);
+    expect((await search(am, { limit: 1, offset: 0 })).hasMore).toBe(false);
   });
 });

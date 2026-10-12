@@ -1,4 +1,4 @@
-import { ToolError } from '@cs/core';
+import { type CallScope, ToolError } from '@cs/core';
 import type { Db } from '@cs/db';
 import { createPackLoader, type DeliveryConfig, type PackLoader } from '@cs/engine';
 
@@ -27,6 +27,12 @@ export interface ToolDeps {
   webMonitoring?: boolean;
   /** 5b-2 decision 2: lower-cased emails allowed to use the platform model-ops queues (PLATFORM_ADMIN_EMAILS). */
   platformAdmins?: readonly string[];
+  /** P11: public app origin; makes MCP row `url`s absolute (absent: root-relative paths). */
+  appUrl?: string;
+  /** P16: query embedding for `search` (dev environment with an OpenRouter key only); absent: full-text search only. */
+  embedQuery?: (text: string, scope: CallScope) => Promise<number[]>;
+  /** Evidence bytes by object key, for `fetch` and the MCP evidence resources. */
+  evidenceStore?: { get(key: string): Promise<Uint8Array | null> };
 }
 
 let bundledPacks: PackLoader | null = null;

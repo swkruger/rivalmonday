@@ -1,13 +1,15 @@
-import { CHANGE_TYPES, toolkit, ToolError } from '@cs/core';
+import { appLinkFor, CHANGE_TYPES, toolkit, ToolError } from '@cs/core';
 import { changeEvent, clientCompetitor, competitor, detectedChange, eventChange, eventScore, feedback, move, moveEvent, trackedPage, withTenant } from '@cs/db';
 import { and, asc, desc, eq, gte, ilike, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
 import { MOVE_LABELS } from '../pressure';
-import { eventRowSelect, toEventRow } from '../workspace/events-read';
+import { detailOf, pageOf, pageResult } from '../paging';
+import { eventEvidenceIds, eventRowSelect, toEventRow } from '../workspace/events-read';
 import { channelLabel, detailLines, factView } from '../workspace/labels';
+import { forChannel } from '../workspace/model-text';
 import { clientEvents, escapeLike, eventJoin, requireVisibleEvent, workspaceClient } from '../workspace/scope';
-import { EventDetail, EventRow, FEEDBACK_VERDICTS } from './schemas';
+import { EventDetail, EventRow, FEEDBACK_VERDICTS, pageFields, pagedItems } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -25,15 +27,19 @@ export const searchEvents = defineTool({
     days: z.union([z.literal(7), z.literal(30), z.literal(90), z.literal(365)]).default(30),
     minScore: z.number().int().min(0).max(100).optional(),
     query: z.string().trim().min(1).max(100).optional(),
-    limit: z.number().int().min(1).max(100).default(50),
+    limit: z.number().int().min(1).max(100).optional(),
     offset: z.number().int().min(0).max(5000).default(0),
+    ...pageFields,
   }),
-  output: z.object({ items: z.array(EventRow), hasMore: z.boolean() }),
+  output: z.object({ items: pagedItems(EventRow), hasMore: z.boolean(), nextCursor: z.string().nullable().optional() }),
   permission: 'read',
   channels: ['web', 'mcp'],
   feature: 'dashboard',
-  async handler(ctx, input, deps) {
+  async handler(ctx, input, deps, meta) {
     const c = await workspaceClient(deps, ctx, input.clientId);
+    const paged = pageOf(input, meta, 50);
+    const limit = paged.limit;
+    const offset = input.cursor ? paged.offset : input.offset;
     const pack = await packsOf(deps)(c.verticalId);
     const names = new Map(pack.services.map((s) => [s.id, s.name]));
     const conds = [clientEvents(c.id), gte(changeEvent.occurredAt, new Date(Date.now() - input.days * DAY))];
@@ -47,8 +53,19 @@ export const searchEvents = defineTool({
     const rows = await withTenant(deps.app, ctx, (tx) =>
       tx.select(eventRowSelect).from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked)
         .innerJoin(competitor, eq(competitor.id, changeEvent.competitorId))
-        .where(and(...conds)).orderBy(desc(changeEvent.occurredAt), desc(changeEvent.id)).limit(input.limit + 1).offset(input.offset));
-    return { items: rows.slice(0, input.limit).map((r) => toEventRow(r, c.verticalId, names)), hasMore: rows.length > input.limit };
+        .where(and(...conds)).orderBy(desc(changeEvent.occurredAt), desc(changeEvent.id)).limit(limit + 1).offset(offset));
+    const page = pageResult(rows, limit, offset);
+    if (detailOf(input, meta) === 'summary') {
+      const evidence = await eventEvidenceIds(deps, page.rows.map((r) => r.eventId)); // visibility proved by the query above
+      return {
+        items: page.rows.map((r) => ({
+          id: r.eventId, title: `${r.competitorName}: ${forChannel(meta, r.summary, [r.competitorName])}`.slice(0, 160), date: r.occurredAt.toISOString(),
+          evidenceIds: evidence.get(r.eventId) ?? [], url: appLinkFor(deps.appUrl, { t: 'event', clientId: c.id, id: r.eventId }),
+        })),
+        hasMore: page.hasMore, nextCursor: page.nextCursor,
+      };
+    }
+    return { items: page.rows.map((r) => toEventRow(r, c.verticalId, names)), hasMore: page.hasMore, nextCursor: page.nextCursor };
   },
 });
 
