@@ -63,6 +63,9 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Exercise `/link-other-account` live (never run live) — *from 5a*
 - [ ] Review/rename/remove the `CS Dev Verification Agency`/`Client` (`aaf5e009-…`/`25f99947-…`) before real onboarding — *from HANDOVER §5 item 5*
 
+## Phase 9b follow-ups
+- [ ] Review an annual billing option for agency → client subscriptions (9b ships monthly only) — *from 9b brainstorm 2026-10-12*
+
 ## Polish (small UI/UX fixes, any time)
 
 ### Workflow & behaviour
