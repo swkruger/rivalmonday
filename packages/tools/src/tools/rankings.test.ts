@@ -91,7 +91,7 @@ describe('get_geogrid', () => {
     expect([r.setup, r.scans]).toEqual(['no_scan', []]);
     await expect(registry.invoke(am, 'get_geogrid', { clientId: IDS.clientA1, business: IDS.competitorY })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(am, 'get_geogrid', { clientId: IDS.clientA1, business: 'self' })).rejects.toMatchObject({ code: 'not_found' });
-    await expect(registry.invoke(ownerNoDash, 'get_geogrid', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ownerNoDash, 'get_geogrid', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
   });
 });
 
@@ -134,6 +134,6 @@ describe('get_share_of_voice', () => {
     const last = (await registry.invoke(am, 'get_share_of_voice', { clientId: IDS.clientA1, scans: 1 })) as ShareOfVoiceView;
     expect(last.scans.map((s) => s.id)).toEqual([newest]);
     expect(((await registry.invoke(am, 'get_share_of_voice', { clientId: IDS.clientA1, keyword: 'zzz' })) as ShareOfVoiceView).keyword).toBeNull();
-    await expect(registry.invoke(ownerNoDash, 'get_share_of_voice', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ownerNoDash, 'get_share_of_voice', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
   });
 });

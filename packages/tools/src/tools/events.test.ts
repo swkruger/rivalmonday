@@ -58,7 +58,7 @@ describe('search_events', () => {
   it('needs the dashboard flag for client users and hides other tenants (Review Focus 1, 2)', async () => {
     await seedEvent({ score: 86, route: 'alert', ageDays: 1 });
     expect((await search(owner)).items).toHaveLength(1);
-    await expect(search(ownerNoDash)).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(search(ownerNoDash)).rejects.toMatchObject({ code: 'not_found' });
     await expect(search(otherAgency)).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(owner, 'search_events', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
   });
@@ -114,9 +114,9 @@ describe('submit_feedback', () => {
     const e = await seedEvent({ score: 86, route: 'alert', ageDays: 1 });
     const r = await seedEvent({ score: 86, route: 'alert', ageDays: 1, retracted: true });
     const guest = createAccessContext({ agencyId: IDS.agencyA, userId: 'contact:x', role: 'client_viewer', clientScope: [IDS.clientA1], features: ['dashboard'] });
-    await expect(registry.invoke(viewer, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'useful' })).rejects.toMatchObject({ code: 'permission_denied' });
-    await expect(registry.invoke(guest, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'useful' })).rejects.toMatchObject({ code: 'permission_denied' });
-    await expect(registry.invoke(ownerNoDash, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'useful' })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(viewer, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'useful' })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(guest, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'useful' })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(ownerNoDash, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'useful' })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(owner, 'submit_feedback', { clientId: IDS.clientA1, eventId: r.eventId, verdict: 'useful' })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(owner, 'submit_feedback', { clientId: IDS.clientA1, eventId: e.eventId, verdict: 'meh' })).rejects.toMatchObject({ code: 'invalid_input' });
   });

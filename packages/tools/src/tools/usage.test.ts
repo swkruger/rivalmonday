@@ -33,7 +33,7 @@ describe('get_usage', () => {
     const scoped = (await registry.invoke(am, 'get_usage', {})) as Usage;
     expect(scoped.items.map((i) => i.clientId)).toEqual([IDS.clientA1]);
     expect(scoped.agencyLevelUsd).toBeNull();
-    await expect(registry.invoke(owner, 'get_usage', {})).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(owner, 'get_usage', {})).rejects.toMatchObject({ code: 'not_found' });
   });
 });
 
@@ -50,7 +50,7 @@ describe('set_client_limits (Review Focus 4)', () => {
       await expect(registry.invoke(admin, 'set_client_limits', { clientId: IDS.clientA1, ...bad })).rejects.toMatchObject({ code: 'invalid_input' });
     }
     await expect(registry.invoke(am, 'set_client_limits', { clientId: IDS.clientA1, competitorLimit: 6 })).rejects.toMatchObject({ code: 'permission_denied' });
-    await expect(registry.invoke(owner, 'set_client_limits', { clientId: IDS.clientA1, competitorLimit: 6 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(owner, 'set_client_limits', { clientId: IDS.clientA1, competitorLimit: 6 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(admin, 'set_client_limits', { clientId: IDS.clientB1, competitorLimit: 6 })).rejects.toMatchObject({ code: 'not_found' });
     const [c] = await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1));
     expect(c).toMatchObject({ monthlyCapUsd: 15, competitorLimit: 5 });

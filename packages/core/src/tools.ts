@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { type TokenScope, scopeCovers } from './tokens';
 import { type AccessContext, type Feature, type Permission, type Role, hasPermission, isAgencyRole } from './access';
 
 export type ToolErrorCode = 'not_found' | 'permission_denied' | 'invalid_input' | 'rate_limited' | 'quota_exceeded' | 'internal';
@@ -13,6 +14,10 @@ export class ToolError extends Error {
   }
 }
 
+export type ToolChannel = 'web' | 'mcp' | 'ask';
+export interface CallOptions { channel: ToolChannel; tokenId?: string; tokenScope?: TokenScope }
+export interface CallMeta { channel: ToolChannel; tokenId: string | null }
+
 export interface ToolDefinition<I extends z.ZodType, O extends z.ZodType, D> {
   name: string;
   description: string;
@@ -20,7 +25,13 @@ export interface ToolDefinition<I extends z.ZodType, O extends z.ZodType, D> {
   output: O;
   permission: Permission;
   feature?: Feature;
-  handler: (ctx: AccessContext, input: z.output<I>, deps: D) => Promise<z.input<O>>;
+  /** Channels this tool is exposed on; default web only. */
+  channels?: readonly ToolChannel[];
+  /** 'skip-web' = no audit row for web calls (other channels always audit). */
+  audit?: 'always' | 'skip-web';
+  /** Minimum MCP token scope; default derived from `permission` (see mcpScopeOf). */
+  mcpScope?: TokenScope;
+  handler: (ctx: AccessContext, input: z.output<I>, deps: D, meta: CallMeta) => Promise<z.input<O>>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- registry stores heterogeneous tool shapes
@@ -40,6 +51,8 @@ export interface AuditEvent {
   role: Role;
   tool: string;
   inputHash: string;
+  channel: ToolChannel;
+  tokenId: string | null;
   outcome: 'ok' | ToolErrorCode;
   rowCount: number | null;
   durationMs: number;
@@ -57,19 +70,38 @@ export interface ToolDescription {
 
 const TOOL_NAME = /^[a-z][a-z0-9_]{1,63}$/;
 
-function isAllowed<D>(ctx: AccessContext, tool: AnyTool<D>): boolean {
+export function mcpScopeOf(tool: { permission: Permission; mcpScope?: TokenScope }): TokenScope {
+  if (tool.mcpScope) return tool.mcpScope;
+  if (tool.permission === 'manage' || tool.permission === 'feedback') return tool.permission;
+  return 'read'; // read and agency → read
+}
+
+const CHANNEL_FEATURE: Partial<Record<ToolChannel, Feature>> = { mcp: 'mcp', ask: 'ask' };
+function isVisible<D>(ctx: AccessContext, tool: AnyTool<D>, opts: CallOptions): boolean {
+  if (!(tool.channels ?? ['web']).includes(opts.channel)) return false;
   if (!hasPermission(ctx, tool.permission)) return false;
-  if (tool.feature && !isAgencyRole(ctx.role) && !ctx.features.has(tool.feature)) return false;
+  const agency = isAgencyRole(ctx.role);
+  if (tool.feature && !agency && !ctx.features.has(tool.feature)) return false;
+  const chf = CHANNEL_FEATURE[opts.channel];
+  if (chf && !agency && !ctx.features.has(chf)) return false;
+  if (opts.channel === 'mcp' && !opts.tokenScope) return false; // P4: fail closed
+  if (opts.tokenScope && !scopeCovers(opts.tokenScope, mcpScopeOf(tool))) return false;
   return true;
 }
+
+const WEB: CallOptions = { channel: 'web' };
 
 function hashInput(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value ?? null)).digest('hex');
 }
 
-function countRows(data: unknown): number | null {
-  if (data && typeof data === 'object' && 'items' in data && Array.isArray((data as { items: unknown }).items)) {
-    return (data as { items: unknown[] }).items.length;
+export function countRows(data: unknown): number | null {
+  if (Array.isArray(data)) return data.length;
+  if (data && typeof data === 'object') {
+    for (const key of ['items', 'results'] as const) {
+      const v = (data as Record<string, unknown>)[key];
+      if (Array.isArray(v)) return v.length;
+    }
   }
   return null;
 }
@@ -92,23 +124,25 @@ export class ToolRegistry<D> {
     return this;
   }
 
-  list(ctx: AccessContext): AnyTool<D>[] {
-    return [...this.tools.values()].filter((t) => isAllowed(ctx, t));
+  list(ctx: AccessContext, opts: CallOptions = WEB): AnyTool<D>[] {
+    return [...this.tools.values()].filter((t) => isVisible(ctx, t, opts));
   }
 
-  describe(ctx: AccessContext): ToolDescription[] {
-    return this.list(ctx).map((t) => ({
+  describe(ctx: AccessContext, opts: CallOptions = WEB): ToolDescription[] {
+    return this.list(ctx, opts).map((t) => ({
       name: t.name,
       description: t.description,
-      inputSchema: z.toJSONSchema(t.input) as Record<string, unknown>,
+      inputSchema: z.toJSONSchema(t.input, { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>,
     }));
   }
 
-  async invoke(ctx: AccessContext, name: string, rawInput: unknown): Promise<unknown> {
+  async invoke(ctx: AccessContext, name: string, rawInput: unknown, opts: CallOptions = WEB): Promise<unknown> {
     const started = this.now();
     let outcome: AuditEvent['outcome'] = 'internal';
     let rowCount: number | null = null;
     let inputHash = 'unhashable';
+    let failure: unknown;
+    const tool = this.tools.get(name);
     try {
       try {
         inputHash = hashInput(rawInput);
@@ -116,9 +150,12 @@ export class ToolRegistry<D> {
         throw new ToolError('invalid_input', 'Input is not serialisable', { cause: err });
       }
 
-      const tool = this.tools.get(name);
       if (!tool) throw new ToolError('not_found', `Unknown tool: ${name}`);
-      if (!isAllowed(ctx, tool)) throw new ToolError('permission_denied', `Not permitted: ${name}`);
+      if (!isVisible(ctx, tool, opts)) {
+        // P3: identical error to unknown (404-not-403); the audit row keeps permission_denied.
+        outcome = 'permission_denied';
+        throw new ToolError('not_found', `Unknown tool: ${name}`);
+      }
 
       const parsed = tool.input.safeParse(rawInput);
       if (!parsed.success) throw new ToolError('invalid_input', z.prettifyError(parsed.error));
@@ -126,7 +163,7 @@ export class ToolRegistry<D> {
 
       let raw: unknown;
       try {
-        raw = await tool.handler(ctx, parsed.data, this.deps);
+        raw = await tool.handler(ctx, parsed.data, this.deps, { channel: opts.channel, tokenId: opts.tokenId ?? null });
       } catch (err) {
         if (err instanceof ToolError) throw err;
         throw new ToolError('internal', `Tool ${name} failed`, { cause: err });
@@ -139,21 +176,29 @@ export class ToolRegistry<D> {
       outcome = 'ok';
       return out.data;
     } catch (err) {
-      if (err instanceof ToolError) outcome = err.code;
+      failure = err;
+      if (outcome !== 'permission_denied' && err instanceof ToolError) outcome = err.code;
+      else if (outcome !== 'permission_denied') outcome = 'internal';
       throw err;
     } finally {
-      try {
+      if (!(tool?.audit === 'skip-web' && opts.channel === 'web')) try {
         await this.audit.record({
           agencyId: ctx.agencyId,
           userId: ctx.userId,
           role: ctx.role,
           tool: name,
           inputHash,
+          channel: opts.channel,
+          tokenId: opts.tokenId ?? null,
           outcome,
           rowCount,
           durationMs: this.now() - started,
         });
       } catch (err) {
+        if (failure !== undefined) {
+          // eslint-disable-next-line no-console -- the original tool error must not be lost behind the audit failure
+          console.error('[tools] tool error before audit failure', failure);
+        }
         // eslint-disable-next-line no-console -- audit failures must be visible even though we fail closed below
         console.error('[tools] audit write failed', err);
         throw new ToolError('internal', 'Audit logging failed', { cause: err });

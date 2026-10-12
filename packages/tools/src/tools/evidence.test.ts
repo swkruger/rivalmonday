@@ -76,7 +76,7 @@ describe('compare_snapshots', () => {
 
   it('needs the dashboard flag for client users (Review Focus 2)', async () => {
     const { changeId } = await seedEvent({ score: 86, route: 'alert', ageDays: 1 });
-    await expect(compare(ownerA1NoDash, changeId)).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(compare(ownerA1NoDash, changeId)).rejects.toMatchObject({ code: 'not_found' });
   });
 
   it('compares through the linked event of the change, and is not found when that event is scored only for another client', async () => {

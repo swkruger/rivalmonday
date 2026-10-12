@@ -57,9 +57,10 @@ describe('decision-review queue (Review Focus 2)', () => {
 
   it('refuses every operator tool to non-operator admins, AMs, client users and guests; malformed input is invalid_input', async () => {
     const resolve = { reviewId, answers: { meaningful: 'true' } };
+    // Admins and AMs reach the handler (permission_denied); owners and guests never see the tool (not_found).
     for (const ctx of [admin, am, owner, guest]) {
-      await expect(registry.invoke(ctx, 'list_decision_reviews', {})).rejects.toMatchObject({ code: 'permission_denied' });
-      await expect(registry.invoke(ctx, 'resolve_decision_review', resolve)).rejects.toMatchObject({ code: 'permission_denied' });
+      await expect(registry.invoke(ctx, 'list_decision_reviews', {})).rejects.toMatchObject({ code: expect.stringMatching(/^(permission_denied|not_found)$/) });
+      await expect(registry.invoke(ctx, 'resolve_decision_review', resolve)).rejects.toMatchObject({ code: expect.stringMatching(/^(permission_denied|not_found)$/) });
     }
     await expect(registry.invoke(op, 'resolve_decision_review', { reviewId: 'not-a-uuid', answers: { meaningful: 'false' } })).rejects.toMatchObject({ code: 'invalid_input' });
     await expect(registry.invoke(op, 'resolve_decision_review', { reviewId, answers: {} })).rejects.toMatchObject({ code: 'invalid_input' });

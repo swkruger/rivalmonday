@@ -43,7 +43,7 @@ describe('clients', () => {
   it('list_clients is agency-only and tenant-scoped', async () => {
     const out = (await registry.invoke(admin, 'list_clients', {})) as { items: { name: string }[] };
     expect(out.items.map((c) => c.name).sort()).toEqual(['A1 HVAC', 'A2 Dental']);
-    await expect(registry.invoke(owner, 'list_clients', {})).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(owner, 'list_clients', {})).rejects.toMatchObject({ code: 'not_found' });
   });
 
   it('get_client_profile hides agency fields from clients and refuses other tenants', async () => {

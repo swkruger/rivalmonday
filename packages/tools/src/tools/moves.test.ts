@@ -36,7 +36,7 @@ describe('list_moves', () => {
   });
 
   it('needs dashboard for client users; other tenants see nothing', async () => {
-    await expect(registry.invoke(ownerNoDash, 'list_moves', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ownerNoDash, 'list_moves', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(otherAgency, 'list_moves', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
   });
 });

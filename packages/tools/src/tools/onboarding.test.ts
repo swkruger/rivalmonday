@@ -38,7 +38,7 @@ describe('create_client', () => {
 
   it('refuses restricted AMs, client roles, unknown verticals and bad input', async () => {
     await expect(registry.invoke(amA1, 'create_client', input)).rejects.toMatchObject({ code: 'permission_denied' });
-    await expect(registry.invoke(owner, 'create_client', input)).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(owner, 'create_client', input)).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(admin, 'create_client', { ...input, verticalId: 'bakery' })).rejects.toMatchObject({ code: 'invalid_input' });
     await expect(registry.invoke(admin, 'create_client', { ...input, services: ['nope'] })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringContaining('Unknown service') });
     await expect(registry.invoke(admin, 'create_client', { ...input, timezone: 'Mars/Base' })).rejects.toMatchObject({ code: 'invalid_input' });
@@ -65,7 +65,7 @@ describe('update_client_profile', () => {
   it('refuses clients out of scope (Review Focus 1), client roles and invalid services', async () => {
     await expect(registry.invoke(amA1, 'update_client_profile', { clientId: IDS.clientA2, name: 'x' })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(ctx('agency_admin', 'all', IDS.agencyB), 'update_client_profile', { clientId: IDS.clientA1, name: 'x' })).rejects.toMatchObject({ code: 'not_found' });
-    await expect(registry.invoke(owner, 'update_client_profile', { clientId: IDS.clientA1, name: 'x' })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(owner, 'update_client_profile', { clientId: IDS.clientA1, name: 'x' })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, services: ['root_canal'] })).rejects.toMatchObject({ code: 'invalid_input' });
   });
 

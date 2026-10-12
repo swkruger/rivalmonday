@@ -45,7 +45,7 @@ describe('get_ad_activity', () => {
 
   it('is not found for another agency and needs dashboard for clients', async () => {
     await expect(registry.invoke(otherAgency, 'get_ad_activity', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
-    await expect(registry.invoke(ownerNoDash, 'get_ad_activity', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ownerNoDash, 'get_ad_activity', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
   });
 });
 
@@ -95,7 +95,7 @@ describe('get_workspace_overview', () => {
     await dbs.owner.insert(prospectReport).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'ready', finishedAt: new Date(), data: prospectData });
     expect(((await registry.invoke(am, 'get_workspace_overview', { clientId: IDS.clientA1 })) as WorkspaceOverview).pitchSnapshot).toBe(true);
     expect(((await registry.invoke(owner, 'get_workspace_overview', { clientId: IDS.clientA1 })) as WorkspaceOverview).pitchSnapshot).toBe(false);
-    await expect(registry.invoke(ownerNoDash, 'get_workspace_overview', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ownerNoDash, 'get_workspace_overview', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(otherAgency, 'get_workspace_overview', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
   });
 

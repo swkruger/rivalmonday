@@ -54,7 +54,7 @@ describe('get_portfolio', () => {
   it('respects scope and is agency-only', async () => {
     const { items } = (await registry.invoke(ctx('account_manager', [IDS.clientA1]), 'get_portfolio', {})) as { items: { clientId: string }[] };
     expect(items.map((i) => i.clientId)).toEqual([IDS.clientA1]);
-    await expect(registry.invoke(ctx('client_owner', [IDS.clientA1]), 'get_portfolio', {})).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ctx('client_owner', [IDS.clientA1]), 'get_portfolio', {})).rejects.toMatchObject({ code: 'not_found' });
   });
 
   it('includes month-to-date spend against the cap', async () => {

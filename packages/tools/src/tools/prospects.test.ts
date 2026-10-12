@@ -73,10 +73,10 @@ describe('prospects (decisions 8–12, Review Focus 1)', () => {
     await expect(registry.invoke(admin, 'run_prospect_snapshot', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringMatching(/competitor/) });
     await expect(registry.invoke(admin, 'run_prospect_snapshot', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input' });
     await expect(registry.invoke(amA1, 'run_prospect_snapshot', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
-    await expect(registry.invoke(owner, 'run_prospect_snapshot', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(owner, 'run_prospect_snapshot', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(admin, 'run_prospect_snapshot', { clientId: IDS.clientB1 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(admin, 'get_prospect_report', { clientId: IDS.clientB1 })).rejects.toMatchObject({ code: 'not_found' });
-    await expect(registry.invoke(owner, 'list_prospects', {})).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(owner, 'list_prospects', {})).rejects.toMatchObject({ code: 'not_found' });
     expect(queued).toEqual([]);
     expect(await dbs.owner.select().from(prospectReport)).toEqual([]);
   });

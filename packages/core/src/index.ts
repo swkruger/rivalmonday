@@ -5,3 +5,4 @@ export * from './links';
 export * from './platform';
 export * from './tools';
 export * from './pdf-layout';
+export * from './tokens';

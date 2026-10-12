@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createAccessContext } from './access';
-import { type AuditEvent, ToolError, ToolRegistry, toolkit } from './tools';
+import { type AuditEvent, ToolError, ToolRegistry, countRows, mcpScopeOf, toolkit } from './tools';
 
 const A = '00000000-0000-4000-8000-00000000000a';
 const C1 = '00000000-0000-4000-8000-0000000000c1';
@@ -111,9 +111,9 @@ describe('ToolRegistry', () => {
     expect(events[0]).toMatchObject({ outcome: 'invalid_input', inputHash: 'unhashable' });
   });
 
-  it('returns not_found and permission_denied', async () => {
+  it('returns not_found for unknown tools and not_found (audited permission_denied) for hidden ones', async () => {
     await expect(registry.invoke(viewer, 'nope', {})).rejects.toMatchObject({ code: 'not_found' });
-    await expect(registry.invoke(viewer, 'add_thing', {})).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(viewer, 'add_thing', {})).rejects.toMatchObject({ code: 'not_found' });
     expect(events.map((e) => e.outcome)).toEqual(['not_found', 'permission_denied']);
   });
 
@@ -147,5 +147,132 @@ describe('ToolRegistry', () => {
       });
       expect(consoleError).toHaveBeenCalledWith('[tools] audit write failed', expect.any(Error));
     });
+  });
+});
+
+const mcpRead = defineTool({
+  name: 'mcp_read', description: 'mcp read', input: z.object({}), output: z.object({ ok: z.boolean() }),
+  permission: 'read', channels: ['mcp'], handler: async () => ({ ok: true }),
+});
+const mcpFeedback = defineTool({
+  name: 'mcp_feedback', description: 'mcp feedback', input: z.object({}), output: z.object({ ok: z.boolean() }),
+  permission: 'read', channels: ['mcp'], mcpScope: 'feedback', handler: async () => ({ ok: true }),
+});
+const mcpManage = defineTool({
+  name: 'mcp_manage', description: 'mcp manage', input: z.object({}), output: z.object({ ok: z.boolean() }),
+  permission: 'read', channels: ['mcp'], mcpScope: 'manage', handler: async () => ({ ok: true }),
+});
+const agencyOnlyManage = defineTool({
+  name: 'agency_manage', description: 'agency manage', input: z.object({}), output: z.object({ ok: z.boolean() }),
+  permission: 'agency', channels: ['web', 'mcp'], mcpScope: 'manage', handler: async () => ({ ok: true }),
+});
+const quiet = defineTool({
+  name: 'quiet', description: 'skip-web audit', input: z.object({}), output: z.object({ ok: z.boolean() }),
+  permission: 'read', channels: ['web', 'mcp'], audit: 'skip-web', handler: async () => ({ ok: true }),
+});
+const metaProbe = defineTool({
+  name: 'meta_probe', description: 'returns meta', input: z.object({}),
+  output: z.object({ channel: z.string(), tokenId: z.string().nullable() }),
+  permission: 'read', channels: ['web', 'mcp'], handler: async (_c, _i, _d, meta) => meta,
+});
+
+describe('channels and token scopes', () => {
+  const mcpOwner = createAccessContext({ agencyId: A, userId: 'o', role: 'client_owner', clientScope: [C1], features: ['mcp'] });
+  const names = (ctx: typeof admin, opts?: Parameters<typeof registry.list>[1]) => registry.list(ctx, opts).map((t) => t.name).sort();
+
+  beforeEach(() => {
+    registry.register(mcpRead, mcpFeedback, mcpManage, agencyOnlyManage, quiet, metaProbe);
+  });
+
+  it('defaults to channel web and hides mcp-only tools from web', () => {
+    expect(names(admin)).not.toContain('mcp_read');
+    expect(names(admin)).toContain('echo');
+    expect(names(admin, { channel: 'web' })).not.toContain('mcp_read');
+  });
+
+  it('mcp channel requires tokenScope', () => {
+    expect(names(admin, { channel: 'mcp' })).toEqual([]);
+    expect(names(admin, { channel: 'mcp', tokenScope: 'read' })).toContain('mcp_read');
+  });
+
+  it('token scope read hides feedback and manage tools', () => {
+    const read = names(admin, { channel: 'mcp', tokenScope: 'read' });
+    expect(read).toContain('mcp_read');
+    expect(read).not.toContain('mcp_feedback');
+    expect(read).not.toContain('mcp_manage');
+    const fb = names(admin, { channel: 'mcp', tokenScope: 'feedback' });
+    expect(fb).toContain('mcp_feedback');
+    expect(fb).not.toContain('mcp_manage');
+  });
+
+  it('mcpScope overrides permission (agency tool with mcpScope manage)', () => {
+    expect(names(admin, { channel: 'mcp', tokenScope: 'feedback' })).not.toContain('agency_manage');
+    expect(names(admin, { channel: 'mcp', tokenScope: 'manage' })).toContain('agency_manage');
+    expect(mcpScopeOf({ permission: 'agency' })).toBe('read');
+    expect(mcpScopeOf({ permission: 'agency', mcpScope: 'manage' })).toBe('manage');
+  });
+
+  it('client role without mcp feature sees no mcp tools; agency role does', () => {
+    const opts = { channel: 'mcp', tokenScope: 'read' } as const;
+    expect(names(ownerNoFeature, opts)).toEqual([]);
+    expect(names(mcpOwner, opts)).toContain('mcp_read');
+    expect(names(admin, opts)).toContain('mcp_read');
+  });
+
+  it('unknown and hidden tools throw identical not_found', async () => {
+    const a = await registry.invoke(admin, 'nope', {}).catch((e: ToolError) => e);
+    const b = await registry.invoke(admin, 'mcp_read', {}).catch((e: ToolError) => e);
+    expect(a).toBeInstanceOf(ToolError);
+    expect((b as ToolError).code).toBe((a as ToolError).code);
+    expect((b as ToolError).code).toBe('not_found');
+    expect((b as ToolError).message.replace('mcp_read', 'X')).toBe((a as ToolError).message.replace('nope', 'X'));
+  });
+
+  it('hidden call audits permission_denied', async () => {
+    await registry.invoke(admin, 'mcp_read', {}).catch(() => {});
+    expect(events.at(-1)).toMatchObject({ tool: 'mcp_read', outcome: 'permission_denied' });
+  });
+
+  it('skip-web skips audit on web only', async () => {
+    await registry.invoke(viewer, 'quiet', {});
+    expect(events).toHaveLength(0);
+    await registry.invoke(admin, 'quiet', {}, { channel: 'mcp', tokenScope: 'read', tokenId: 't1' });
+    expect(events).toHaveLength(1);
+  });
+
+  it('audit row carries channel and tokenId', async () => {
+    await registry.invoke(viewer, 'echo', { message: 'x' });
+    expect(events.at(-1)).toMatchObject({ channel: 'web', tokenId: null });
+    await registry.invoke(admin, 'mcp_read', {}, { channel: 'mcp', tokenScope: 'read', tokenId: 'tok-1' });
+    expect(events.at(-1)).toMatchObject({ channel: 'mcp', tokenId: 'tok-1' });
+  });
+
+  it('handler receives meta', async () => {
+    expect(await registry.invoke(admin, 'meta_probe', {})).toEqual({ channel: 'web', tokenId: null });
+    expect(await registry.invoke(admin, 'meta_probe', {}, { channel: 'mcp', tokenScope: 'read', tokenId: 'tok-9' }))
+      .toEqual({ channel: 'mcp', tokenId: 'tok-9' });
+  });
+});
+
+describe('countRows', () => {
+  it('handles items, arrays, results, other', () => {
+    expect(countRows({ items: [1, 2] })).toBe(2);
+    expect(countRows([1, 2, 3])).toBe(3);
+    expect(countRows({ results: [1] })).toBe(1);
+    expect(countRows({ ok: true })).toBeNull();
+    expect(countRows(null)).toBeNull();
+  });
+});
+
+describe('error logging', () => {
+  it('logs the handler error before the audit error', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const r = new ToolRegistry<Deps>({ greeting: 'hi' }, { record: async () => { throw new Error('sink down'); } });
+    r.register(broken);
+    await expect(r.invoke(viewer, 'broken', {})).rejects.toMatchObject({ code: 'internal', message: 'Audit logging failed' });
+    expect(spy.mock.calls[0]?.[0]).toBe('[tools] tool error before audit failure');
+    expect(spy.mock.calls[0]?.[1]).toMatchObject({ code: 'internal' });
+    expect(spy.mock.calls[1]?.[0]).toBe('[tools] audit write failed');
+    spy.mockRestore();
   });
 });

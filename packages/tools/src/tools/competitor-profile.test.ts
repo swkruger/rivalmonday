@@ -35,7 +35,7 @@ describe('get_competitor_profile', () => {
   it('is not found for an untracked or foreign competitor (Review Focus 1)', async () => {
     await expect(registry.invoke(owner, 'get_competitor_profile', { clientId: IDS.clientA1, competitorId: IDS.competitorY })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(otherAgency, 'get_competitor_profile', { clientId: IDS.clientA1, competitorId: IDS.competitorX })).rejects.toMatchObject({ code: 'not_found' });
-    await expect(registry.invoke(ownerNoDash, 'get_competitor_profile', { clientId: IDS.clientA1, competitorId: IDS.competitorX })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ownerNoDash, 'get_competitor_profile', { clientId: IDS.clientA1, competitorId: IDS.competitorX })).rejects.toMatchObject({ code: 'not_found' });
   });
 });
 

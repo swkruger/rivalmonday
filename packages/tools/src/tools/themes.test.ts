@@ -36,16 +36,17 @@ describe('theme proposals (Review Focus 2)', () => {
   });
 
   it('refuses every operator tool to non-operator admins, AMs, client users and guests; nothing changes', async () => {
+    // Admins and AMs reach the handler (permission_denied); owners and guests never see the tool (not_found).
     for (const ctx of [admin, am, owner, guest]) {
-      await expect(registry.invoke(ctx, 'list_theme_proposals', {})).rejects.toMatchObject({ code: 'permission_denied' });
-      await expect(registry.invoke(ctx, 'decide_theme_proposal', { proposalId, decision: 'approved' })).rejects.toMatchObject({ code: 'permission_denied' });
+      await expect(registry.invoke(ctx, 'list_theme_proposals', {})).rejects.toMatchObject({ code: expect.stringMatching(/^(permission_denied|not_found)$/) });
+      await expect(registry.invoke(ctx, 'decide_theme_proposal', { proposalId, decision: 'approved' })).rejects.toMatchObject({ code: expect.stringMatching(/^(permission_denied|not_found)$/) });
     }
     expect((await dbs.owner.select().from(themeProposal).where(eq(themeProposal.id, proposalId)))[0]).toMatchObject({ status: 'proposed', decidedBy: null });
   });
 
   it('refuses everyone when no operators are configured', async () => {
     const none = createToolRegistry({ app: dbs.app, service: dbs.service }, { audit: { record: async () => {} } });
-    await expect(none.invoke(op, 'list_theme_proposals', {})).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(none.invoke(op, 'list_theme_proposals', {})).rejects.toMatchObject({ code: expect.stringMatching(/^(permission_denied|not_found)$/) });
   });
 
   it('approves once; a second decision is invalid_input', async () => {

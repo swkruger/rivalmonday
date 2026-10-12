@@ -32,10 +32,10 @@ describe('alert rules', () => {
   });
 
   it('needs the alert_rules flag, and manage to change (Review Focus 2)', async () => {
-    await expect(registry.invoke(ownerNoRules, 'get_alert_rules', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
-    await expect(set(ownerNoRules, { alert: 60, brief: 30 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ownerNoRules, 'get_alert_rules', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(set(ownerNoRules, { alert: 60, brief: 30 })).rejects.toMatchObject({ code: 'not_found' });
     expect(await registry.invoke(viewerRules, 'get_alert_rules', { clientId: IDS.clientA1 })).toMatchObject({ alert: 70 });
-    await expect(set(viewerRules, { alert: 60, brief: 30 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(set(viewerRules, { alert: 60, brief: 30 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(ctx('agency_admin', 'all', [], IDS.agencyB), 'set_alert_rules', { clientId: IDS.clientA1, alert: 60, brief: 30 })).rejects.toMatchObject({ code: 'not_found' });
   });
 

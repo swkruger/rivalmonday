@@ -6,7 +6,9 @@ import { auditLog } from './schema';
 export function createAuditSink(db: Db): AuditSink {
   return {
     async record(event) {
-      await db.insert(auditLog).values(event);
+      // Task 3 writes channel/token_id
+      const { channel: _channel, tokenId: _tokenId, ...row } = event;
+      await db.insert(auditLog).values(row);
     },
   };
 }

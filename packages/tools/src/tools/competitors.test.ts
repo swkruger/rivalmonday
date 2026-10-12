@@ -37,8 +37,8 @@ describe('client owner self-service', () => {
   it('lets a flagged owner add a competitor and denies an unflagged one', async () => {
     const flagged = ctx('client_owner', [IDS.clientA1], ['dashboard', 'manage_competitors']);
     await expect(registry.invoke(flagged, 'add_competitor', { clientId: IDS.clientA1, name: 'Owner Added HVAC', domain: 'owneradded.com' })).resolves.toMatchObject({ competitorId: expect.any(String) });
-    await expect(registry.invoke(ctx('client_owner', [IDS.clientA1], ['dashboard']), 'add_competitor', { clientId: IDS.clientA1, name: 'Nope', domain: 'nope.com' })).rejects.toMatchObject({ code: 'permission_denied' });
-    await expect(registry.invoke(flagged, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ctx('client_owner', [IDS.clientA1], ['dashboard']), 'add_competitor', { clientId: IDS.clientA1, name: 'Nope', domain: 'nope.com' })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(flagged, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
   });
 });
 
@@ -51,8 +51,8 @@ describe('mutating manage tools', () => {
     ['remove_competitor', { clientId: IDS.clientA1, competitorId: U }],
   ];
   it.each(calls)('%s denies an owner without manage_competitors and a viewer with it', async (tool, input) => {
-    await expect(registry.invoke(ctx('client_owner', [IDS.clientA1], ['dashboard']), tool, input)).rejects.toMatchObject({ code: 'permission_denied' });
-    await expect(registry.invoke(ctx('client_viewer', [IDS.clientA1], ['dashboard', 'manage_competitors']), tool, input)).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ctx('client_owner', [IDS.clientA1], ['dashboard']), tool, input)).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(ctx('client_viewer', [IDS.clientA1], ['dashboard', 'manage_competitors']), tool, input)).rejects.toMatchObject({ code: 'not_found' });
   });
 });
 
@@ -65,7 +65,7 @@ describe('request_competitor_suggestions', () => {
   });
 
   it('is agency-only and scoped', async () => {
-    await expect(registry.invoke(ctx('client_owner', [IDS.clientA1], ['manage_competitors']), 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ctx('client_owner', [IDS.clientA1], ['manage_competitors']), 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(amA1, 'request_competitor_suggestions', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
   });
 });
@@ -111,7 +111,7 @@ describe('get_competitor_search_status', () => {
   });
 
   it('is agency-only and scoped', async () => {
-    await expect(status(ctx('client_owner', [IDS.clientA1], ['manage_competitors']))).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(status(ctx('client_owner', [IDS.clientA1], ['manage_competitors']))).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(amA1, 'get_competitor_search_status', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
   });
 });
@@ -122,7 +122,7 @@ describe('suggestions', () => {
     await dbs.owner.insert(competitorSuggestion).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, name: 'High', placeId: 'ChIJhighhigh1', appearances: 9, overlapScore: 0.95 });
     const { items } = (await registry.invoke(amA1, 'list_competitor_suggestions', { clientId: IDS.clientA1 })) as { items: { name: string }[] };
     expect(items.map((i) => i.name)).toEqual(['High', 'Low']);
-    await expect(registry.invoke(owner, 'list_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(owner, 'list_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(ctx('client_owner', [IDS.clientA1], ['manage_competitors']), 'list_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toBeTruthy();
   });
 

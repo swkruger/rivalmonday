@@ -35,7 +35,7 @@ describe('recommendations (Review Focus 4)', () => {
   it('lets owners and agencies change status, never viewers; dismissal needs a reason', async () => {
     await registry.invoke(owner, 'update_recommendation_status', { recommendationId: recId, status: 'in_progress' });
     expect((await dbs.owner.select().from(recommendation).where(eq(recommendation.id, recId)))[0]!.status).toBe('in_progress');
-    await expect(registry.invoke(viewer, 'update_recommendation_status', { recommendationId: recId, status: 'done' })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(viewer, 'update_recommendation_status', { recommendationId: recId, status: 'done' })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(am, 'update_recommendation_status', { recommendationId: recId, status: 'dismissed' })).rejects.toMatchObject({ code: 'invalid_input' });
     await registry.invoke(am, 'update_recommendation_status', { recommendationId: recId, status: 'dismissed', reason: 'Client already runs this offer' });
     expect((await dbs.owner.select().from(recommendation).where(eq(recommendation.id, recId)))[0]).toMatchObject({ status: 'dismissed', dismissReason: 'Client already runs this offer' });

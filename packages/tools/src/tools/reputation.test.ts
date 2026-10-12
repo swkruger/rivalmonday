@@ -34,7 +34,7 @@ describe('get_theme_benchmark', () => {
     const r = (await registry.invoke(am, 'get_theme_benchmark', { clientId: IDS.clientA1 })) as ThemeBenchmarkView;
     expect(r.businesses.map((b) => b.self)).toEqual([false]);
     await expect(registry.invoke(otherAgency, 'get_theme_benchmark', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
-    await expect(registry.invoke(ownerNoDash, 'get_theme_benchmark', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ownerNoDash, 'get_theme_benchmark', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
   });
 });
 
@@ -86,7 +86,7 @@ describe('get_rating_trend', () => {
 
   it('refuses another agency and needs dashboard', async () => {
     await expect(registry.invoke(otherAgency, 'get_rating_trend', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
-    await expect(registry.invoke(ownerNoDash, 'get_rating_trend', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ownerNoDash, 'get_rating_trend', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
   });
 });
 
@@ -127,7 +127,7 @@ describe('search_reviews', () => {
     await expect(registry.invoke(am, 'search_reviews', { clientId: IDS.clientA1, themeId: 'nope' })).rejects.toMatchObject({ code: 'invalid_input', message: 'Unknown theme' });
     await expect(registry.invoke(am, 'search_reviews', { clientId: IDS.clientA1, business: IDS.competitorY })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(ctx('account_manager', 'all'), 'search_reviews', { clientId: IDS.clientA2, business: 'self' })).rejects.toMatchObject({ code: 'not_found' });
-    await expect(registry.invoke(ownerNoDash, 'search_reviews', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(ownerNoDash, 'search_reviews', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
   });
 
   it('pages 20 at a time', async () => {
