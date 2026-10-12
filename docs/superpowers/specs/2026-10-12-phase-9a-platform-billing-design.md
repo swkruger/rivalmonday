@@ -21,6 +21,7 @@ Rival Monday charges agencies: free pilot or 30-day trial, then a monthly plan (
 - **e12 UI.** Stripe Checkout + Customer Portal for card data, invoices and cancellation; our `/agency/settings/billing` summary page (agency admin only). Portal plan switching off.
 - **e13 Emails.** Stripe sends receipts, invoices and payment retries; Postmark sends lifecycle notices in Rival Monday branding to agency admins.
 - **e14 Sync.** Stripe webhook route with signature check + event-id dedupe; nightly reconciliation (Stripe wins); seat sync from client activation/deactivation tools.
+- **e16 Cap exemption.** `agency_billing.seat_cap_exempt` lifts e7's 3-client cap for a `pilot` agency; set/cleared **by platform owners only** (`set_seat_cap_exempt`), audited. Not set automatically for existing agencies.
 - **e15 Console.** Plan editor, codes, invite links, per-agency billing panel and actions, MRR tile; MRR + paid seats added to `agency_daily_stat`. Full income statement later.
 
 ## Data model (service role only: RLS forced, no policies, no `app_user` grants; next free migration numbers at execution time)
@@ -50,7 +51,7 @@ CREATE TABLE agency_billing (
   trial_ends_at timestamptz, pilot_ends_at timestamptz, past_due_since timestamptz,
   cancel_at timestamptz, review_flagged_at timestamptz,
   billable_seats_synced integer, seat_sync_pending boolean NOT NULL DEFAULT false,
-  attached_coupon_id text,
+  attached_coupon_id text, seat_cap_exempt boolean NOT NULL DEFAULT false,
   state_changed_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -114,6 +115,7 @@ Every transition writes `agency_billing_event` and enqueues its email (outbox, s
 
 ## `@cs/billing` package
 - `BillingGateway` interface: `createCustomer`, `createCheckoutSession`, `createPortalSession`, `updateSeatQuantity(subId, qty, { prorate: boolean })`, `getSubscription`, `upcomingInvoice`, `listInvoices`, `createPrices(plan)`, `createCoupon`, `createPromotionCode`, `deactivatePromotionCode`, `attachCustomerDiscount`, `verifyWebhook(rawBody, signature)`. `stripeGateway(secretKey)` (pinned `stripe` SDK, exact version) and `fakeGateway()` (in-memory, for tests, DEMO and TEST).
+- `billingAccess` — cap applies in `pilot` (unless `seat_cap_exempt`) and `trialing`.
 - `billingAccess(db, agencyId): Promise<{ state; canAddActiveClient: boolean; readOnly: boolean; suspended: boolean; activeClients: number; includedSeats: number }>`.
 - `startAgencyTrial(db, gw, agencyId, opts: { offer: 'pilot'|'trial'; pilotEndsAt?: Date; couponId?: string })` — for Phase 10.
 - `syncSeats(db, gw, agencyId)` — active subscription: qty = max(0, active − included); increase → prorate now; decrease → no proration (takes effect at renewal). Gateway failure → `seat_sync_pending = true`, never fails the client change.
@@ -121,7 +123,7 @@ Every transition writes `agency_billing_event` and enqueues its email (outbox, s
 
 ## Tools (`@cs/tools`, writes via `runTool`)
 Agency (role `agency_admin`; everyone else `permission_denied` → 404): `get_billing_summary` (plan, state, dates, seats used/included/extra, next invoice estimate, discount, recent invoices), `create_checkout_session` → `{ url }`, `create_portal_session` → `{ url }`, `redeem_discount_code({ code })`, `get_seat_report` (active clients `{ id, name, activatedAt }`) + CSV route `/agency/settings/billing/seats.csv` (same tool).
-Platform (`requirePlatformOperator(deps, ctx, min)`): `list_plans` (viewer), `create_plan_version` (owner), `list_discount_codes` (viewer), `create_discount_code` / `revoke_discount_code` (owner), `list_invite_links` (staff), `create_invite_link` → `{ url, token }` shown once / `revoke_invite_link` (staff), `get_agency_billing` (viewer), `grant_pilot` / `end_pilot` / `extend_trial` / `attach_agency_discount` (staff), `get_billing_overview` (viewer: MRR, paid seats, agencies by state).
+Platform (`requirePlatformOperator(deps, ctx, min)`): `list_plans` (viewer), `create_plan_version` (owner), `list_discount_codes` (viewer), `create_discount_code` / `revoke_discount_code` (owner), `list_invite_links` (staff), `create_invite_link` → `{ url, token }` shown once / `revoke_invite_link` (staff), `get_agency_billing` (viewer), `grant_pilot` / `end_pilot` / `extend_trial` / `attach_agency_discount` (staff), `set_seat_cap_exempt({ agencyId, exempt })` (owner; only meaningful in `pilot`), `get_billing_overview` (viewer: MRR, paid seats, agencies by state).
 Existing tools changed: `create_client` (active), `convert_prospect`, client reactivation → check `billingAccess.canAddActiveClient` (error code `billing_seat_limit`), then `syncSeats` after commit. Web write tools refuse with `service_paused` in `read_only`/`suspended`, except billing, team and sign-out flows.
 
 ## Enforcement
