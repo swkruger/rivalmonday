@@ -75,7 +75,7 @@ In `invoke` (and `list`/`describe` visibility), when `ctx.support` is set:
 ## UI
 - `/platform/agencies/[id]`: "View as agency" (owner/staff only) → dialog "Why are you opening this agency? (shown to the agency)", required reason, buttons "Start read-only session" / "Cancel"; recent sessions list. `?ended=1` toast "Support session ended."
 - Support banner (all `/agency/*`, `/c/*` pages while in session; accent `#F5A524`, text `#3B2300`, fixed top): "Viewing **{agencyName}** as platform · read only · {reason} · {n} min left · **Exit**". Countdown client-side; server authoritative.
-- Write controls hidden: pages receive the set of permitted tool names (existing pattern for role-based hiding) computed with the support context, so `write` tools are simply absent. `read_only_session` errors render the g10 copy inline.
+- Write controls hidden: the app layout provides a `readOnly` flag (`ctx.support` set) through a React context; every write control (buttons, forms, menus that call a server action backed by a `write` tool) checks it. Server-side refusal (g10) remains the guarantee. `read_only_session` errors render the g10 copy inline.
 - Ask module in session: "Ask conversations are private to their authors."
 - Nav shows "Back to platform".
 - `/agency/settings/platform-access` (agency admin; others 404): sessions list + toggle "Email me when Rival Monday support opens a session".

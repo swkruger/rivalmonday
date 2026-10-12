@@ -1,13 +1,14 @@
 # phase-8b — Read-only agency drill-down for platform admins
 
 **Kind:** feature   **Worktree:** ../CompetitorSpy-wt/phase-8b   **Base:** main @ 6c14877
-**Plan/spec:** none yet. Parent: 8a spec/plan on `phase-8` (`docs/superpowers/specs/2026-10-12-phase-8a-platform-console-design.md`).
+**Plan/spec:** 8b spec `docs/superpowers/specs/2026-10-12-phase-8b-support-sessions-design.md` (g1–g11); plan `docs/superpowers/plans/2026-10-12-phase-8b-support-sessions.md` (S1–S4, Tasks 0–9). Parent: 8a spec/plan on `phase-8` (`docs/superpowers/specs/2026-10-12-phase-8a-platform-console-design.md`).
 
 ## Status (overwrite)
-Kickoff brief written; not brainstormed. Builds on 8a (approved, unbuilt, waits on phase-6).
+8b spec owner-approved 2026-10-12 (support sessions = "view as agency" incl. client workspaces, read-only, reasoned, 60 min); plan written, awaiting owner approval. Execution after phase-6 + phase-8 merge.
 
 ## Next (overwrite)
-Owner answers Brief §6 → `superpowers:brainstorming` → 8b spec.
+1. Owner approves the 8b plan + execution method.
+2. After phase-6 and phase-8 merge: Task 0 pre-flight (rebase, inventory direct service calls).
 
 ## Interfaces this branch adds or changes
 None yet.
