@@ -1,13 +1,14 @@
 # phase-9 — Billing (platform → agency subscriptions; agency → client billing TBD)
 
 **Kind:** feature   **Worktree:** ../CompetitorSpy-wt/phase-9   **Base:** main @ 6c14877
-**Plan/spec:** none yet. New phase, not in the roadmap (roadmap ends at row 7; Phase 7 deferred by owner).
+**Plan/spec:** 9a spec `docs/superpowers/specs/2026-10-12-phase-9a-platform-billing-design.md` (e1–e16); 9a plan `docs/superpowers/plans/2026-10-12-phase-9a-platform-billing.md` (P1–P5, Tasks 0–12). 9b (Stripe Connect) parked until pilot feedback.
 
 ## Status (overwrite)
-Kickoff brief written; brainstorming not started.
+9a spec owner-approved 2026-10-12; 9a plan written, awaiting owner approval. Execution needs phase-6 **and** phase-8 merged (order 6 → 8 → 9) and an owner Stripe test account.
 
 ## Next (overwrite)
-Owner + agent: `superpowers:brainstorming` from Brief §6, starting with Q1 (sub-phase split).
+1. Owner approves the 9a plan + execution method.
+2. After phase-6 and phase-8 merge: Task 0 pre-flight (rebase, Stripe test keys from owner, scheduler inventory).
 
 ## Interfaces this branch adds or changes
 None yet.
