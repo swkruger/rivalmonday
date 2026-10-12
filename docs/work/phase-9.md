@@ -4,10 +4,10 @@
 **Plan/spec:** 9a spec `docs/superpowers/specs/2026-10-12-phase-9a-platform-billing-design.md` (e1–e16); 9a plan `docs/superpowers/plans/2026-10-12-phase-9a-platform-billing.md` (P1–P5, Tasks 0–12). 9b (Stripe Connect) parked until pilot feedback.
 
 ## Status (overwrite)
-9a spec owner-approved 2026-10-12; 9a plan written, awaiting owner approval. Execution needs phase-6 **and** phase-8 merged (order 6 → 8 → 9) and an owner Stripe test account.
+9a spec owner-approved 2026-10-12; 9a plan **owner-approved 2026-10-12** (subagent-driven). 9b (Stripe Connect) being planned now; execution of 9b only after pilot feedback. Execution needs phase-6 **and** phase-8 merged (order 6 → 8 → 9) and an owner Stripe test account.
 
 ## Next (overwrite)
-1. Owner approves the 9a plan + execution method.
+1. Brainstorm + spec + plan 9b on this branch.
 2. After phase-6 and phase-8 merge: Task 0 pre-flight (rebase, Stripe test keys from owner, scheduler inventory).
 
 ## Interfaces this branch adds or changes
