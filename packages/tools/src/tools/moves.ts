@@ -7,6 +7,7 @@ import { MOVE_LABELS } from '../pressure';
 import { detailOf, pageOf, pageResult } from '../paging';
 import { eventEvidenceIds, eventRowSelect, toEventRow } from '../workspace/events-read';
 import { humanise } from '../workspace/labels';
+import { summaryForChannel } from '../workspace/model-text';
 import { clientEvents, eventJoin, liveEventCount, workspaceClient } from '../workspace/scope';
 import { MoveDetail, MoveRow, pageFields, pagedItems, toIso } from './schemas';
 
@@ -52,7 +53,7 @@ export const listMoves = defineTool({
       tx.select(moveSelect).from(move).innerJoin(clientCompetitor, trackedMove).innerJoin(competitor, eq(competitor.id, move.competitorId))
         .where(and(...conds)).orderBy(desc(sql`coalesce(${move.lastEvidenceAt}, ${move.firstDetectedAt})`), desc(move.id)).offset(offset).limit(limit + 1));
     const { rows, nextCursor } = pageResult(fetched, limit, offset);
-    if (detailOf(input, meta) === 'full') return { items: rows.map(toMoveRow), nextCursor };
+    if (detailOf(input, meta) === 'full') return { items: rows.map((m) => toMoveRow(summaryForChannel(meta, m))), nextCursor };
     // Evidence of the move's live events only (decision 3 joins, RLS), at most 10 ids per move.
     const links = rows.length
       ? await withTenant(deps.app, ctx, (tx) =>
@@ -85,7 +86,7 @@ export const getMove = defineTool({
   permission: 'read',
   channels: ['web', 'mcp'],
   feature: 'dashboard',
-  async handler(ctx, { clientId, moveId }, deps) {
+  async handler(ctx, { clientId, moveId }, deps, meta) {
     const c = await workspaceClient(deps, ctx, clientId);
     const pack = await packsOf(deps)(c.verticalId);
     const names = new Map(pack.services.map((s) => [s.id, s.name]));
@@ -97,7 +98,7 @@ export const getMove = defineTool({
         .innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked).innerJoin(competitor, eq(competitor.id, changeEvent.competitorId))
         .where(and(eq(moveEvent.moveId, moveId), clientEvents(c.id))).orderBy(desc(changeEvent.occurredAt));
       const facts = Object.entries(m.details?.facts ?? {}).map(([k, v]) => ({ label: humanise(k), value: String(v) }));
-      return { ...toMoveRow(m), facts, events: events.map((e) => toEventRow(e, c.verticalId, names)) };
+      return { ...toMoveRow(summaryForChannel(meta, m)), facts, events: events.map((e) => toEventRow(summaryForChannel(meta, e), c.verticalId, names)) };
     });
   },
 });

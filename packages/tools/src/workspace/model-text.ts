@@ -11,3 +11,8 @@ export function forChannel(meta: CallMeta, text: string | null, businessNames: r
   if (text === null || meta.channel === 'web') return text;
   return redactForModel(text, { businessNames });
 }
+
+/** d12 for event/move rows: their `summary` goes through `forChannel`, with the competitor's name kept. Web rows pass through unchanged. */
+export function summaryForChannel<T extends { summary: string; competitorName: string }>(meta: CallMeta, row: T): T {
+  return meta.channel === 'web' ? row : { ...row, summary: forChannel(meta, row.summary, [row.competitorName]) };
+}

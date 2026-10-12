@@ -7,7 +7,7 @@ import { MOVE_LABELS } from '../pressure';
 import { detailOf, pageOf, pageResult } from '../paging';
 import { eventEvidenceIds, eventRowSelect, toEventRow } from '../workspace/events-read';
 import { channelLabel, detailLines, factView } from '../workspace/labels';
-import { forChannel } from '../workspace/model-text';
+import { forChannel, summaryForChannel } from '../workspace/model-text';
 import { clientEvents, escapeLike, eventJoin, requireVisibleEvent, workspaceClient } from '../workspace/scope';
 import { EventDetail, EventRow, FEEDBACK_VERDICTS, pageFields, pagedItems } from './schemas';
 
@@ -65,7 +65,7 @@ export const searchEvents = defineTool({
         hasMore: page.hasMore, nextCursor: page.nextCursor,
       };
     }
-    return { items: page.rows.map((r) => toEventRow(r, c.verticalId, names)), hasMore: page.hasMore, nextCursor: page.nextCursor };
+    return { items: page.rows.map((r) => toEventRow(summaryForChannel(meta, r), c.verticalId, names)), hasMore: page.hasMore, nextCursor: page.nextCursor };
   },
 });
 
@@ -77,7 +77,7 @@ export const getEvent = defineTool({
   permission: 'read',
   channels: ['web', 'mcp'],
   feature: 'dashboard',
-  async handler(ctx, { clientId, eventId }, deps) {
+  async handler(ctx, { clientId, eventId }, deps, meta) {
     const c = await workspaceClient(deps, ctx, clientId);
     const pack = await packsOf(deps)(c.verticalId);
     const names = new Map(pack.services.map((s) => [s.id, s.name]));
@@ -103,7 +103,7 @@ export const getEvent = defineTool({
     const verdict = fb?.after?.verdict;
     const f = r.factors;
     return {
-      ...toEventRow(r, c.verticalId, names),
+      ...toEventRow(summaryForChannel(meta, r), c.verticalId, names),
       facts: (r.facts ?? []).map(factView),
       details: detailLines(r.details),
       factors: { typeWeight: f.typeWeight, size: f.size, relevance: f.relevance, serviceOverlap: f.serviceOverlap, territoryOverlap: f.territoryOverlap, novelty: f.novelty, thresholds: f.thresholds },

@@ -1,11 +1,11 @@
 import { mcpScopeOf, type TokenScope } from '@cs/core';
-import { brief, briefItem, detectedChange, recommendation } from '@cs/db';
+import { brief, briefItem, detectedChange, move, recommendation } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { allTools } from './all';
-import { ago, ctx, dbs, registry, resetWorkspace, seedAds, seedCapture, seedEvent, seedReview } from './workspace-fixtures';
+import { ago, ctx, dbs, registry, resetWorkspace, seedAds, seedCapture, seedEvent, seedMove, seedReview } from './workspace-fixtures';
 
 /**
  * Binding allowlists (spec d5). Later tasks append their tool to the matching set:
@@ -132,6 +132,53 @@ describe('d12 redaction on non-web channels', () => {
     expect(viaMcp.items[0]!.ownerAnswer).not.toContain('555-0147');
     const viaWeb = (await registry.invoke(admin, 'search_reviews', input)) as { items: { text: string }[] };
     expect(viaWeb.items[0]!.text).toContain('Dave Thompson');
+  });
+
+  const phoneEvent = () => seedEvent({ score: 86, route: 'alert', ageDays: 0, summary: `Smith HVAC now says call ${PHONE} for a quote` });
+
+  it('search_events (detail full) over mcp redacts the event summary; web does not', async () => {
+    await phoneEvent();
+    const input = { clientId: IDS.clientA1, detail: 'full' };
+    const viaMcp = (await registry.invoke(admin, 'search_events', input, mcp('read'))) as { items: { summary: string }[] };
+    expect(viaMcp.items).toHaveLength(1);
+    expect(viaMcp.items[0]!.summary).not.toContain('555-0147');
+    expect(viaMcp.items[0]!.summary).toContain('Smith HVAC');
+    const viaWeb = (await registry.invoke(admin, 'search_events', input)) as { items: { summary: string }[] };
+    expect(viaWeb.items[0]!.summary).toContain(PHONE);
+  });
+
+  it('get_event over mcp redacts the event summary; web does not', async () => {
+    const { eventId } = await phoneEvent();
+    const input = { clientId: IDS.clientA1, eventId };
+    const viaMcp = (await registry.invoke(admin, 'get_event', input, mcp('read'))) as { summary: string };
+    expect(viaMcp.summary).not.toContain('555-0147');
+    const viaWeb = (await registry.invoke(admin, 'get_event', input)) as { summary: string };
+    expect(viaWeb.summary).toContain(PHONE);
+  });
+
+  it('list_moves (detail full) over mcp redacts the move summary; web does not', async () => {
+    const { eventId } = await phoneEvent();
+    const m = await seedMove([eventId]);
+    await dbs.owner.update(move).set({ summary: `Price war: call ${PHONE}` }).where(eq(move.id, m));
+    const input = { clientId: IDS.clientA1, detail: 'full' };
+    const viaMcp = (await registry.invoke(admin, 'list_moves', input, mcp('read'))) as { items: { summary: string }[] };
+    expect(viaMcp.items).toHaveLength(1);
+    expect(viaMcp.items[0]!.summary).not.toContain('555-0147');
+    const viaWeb = (await registry.invoke(admin, 'list_moves', input)) as { items: { summary: string }[] };
+    expect(viaWeb.items[0]!.summary).toContain(PHONE);
+  });
+
+  it('get_move over mcp redacts the move and event summaries; web does not', async () => {
+    const { eventId } = await phoneEvent();
+    const m = await seedMove([eventId]);
+    await dbs.owner.update(move).set({ summary: `Price war: call ${PHONE}` }).where(eq(move.id, m));
+    const input = { clientId: IDS.clientA1, moveId: m };
+    const viaMcp = (await registry.invoke(admin, 'get_move', input, mcp('read'))) as { summary: string; events: { summary: string }[] };
+    expect(viaMcp.summary).not.toContain('555-0147');
+    expect(viaMcp.events[0]!.summary).not.toContain('555-0147');
+    const viaWeb = (await registry.invoke(admin, 'get_move', input)) as { summary: string; events: { summary: string }[] };
+    expect(viaWeb.summary).toContain(PHONE);
+    expect(viaWeb.events[0]!.summary).toContain(PHONE);
   });
 
   it('list_ads over mcp redacts creative text; web does not', async () => {
