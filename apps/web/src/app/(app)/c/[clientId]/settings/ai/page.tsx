@@ -13,8 +13,10 @@ export const dynamic = 'force-dynamic';
 /** Phase 6a: a client's AI connections. Client roles create client-bound tokens here (P10); agency roles only see this client's lists. */
 export default async function AiConnectionsPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
-  const { ctx } = await requireContext();
-  if (!hasFeature(ctx, 'mcp')) notFound();
+  const { viewer, ctx } = await requireContext();
+  // Page refusals are 404s, decided before any tool call: signed-link guests never manage tokens (P10), and client
+  // roles need the client's `mcp` feature (agency roles bypass it in `hasFeature`).
+  if (viewer.kind === 'guest' || !hasFeature(ctx, 'mcp')) notFound();
   const profile = await callTool<ClientProfile>(ctx, 'get_client_profile', { clientId });
   const [tokens, grants] = await Promise.all([
     callTool<{ items: ApiTokenView[] }>(ctx, 'list_api_tokens', { clientId }),
