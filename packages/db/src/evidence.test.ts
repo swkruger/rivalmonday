@@ -94,12 +94,14 @@ describe('privilege guard', () => {
     //                           app_user can never point self_competitor_id at an arbitrary competitor or move a
     //                           client to another agency via agency_id. The (client, UPDATE) pair below still shows
     //                           up because has_any_column_privilege reports true for any granted column.
+    //   api_token / oauth_grant_binding UPDATE — column-level (Phase 6a): only revoked_at is granted; inserts are service role.
     // Every other public table (agency, competitor, tracked_page, capture, evidence, audit_log, llm_call,
     // vendor_call, competitor_source, vendor_task, observation, review, ad, rank_snapshot, brief, brief_item,
     // recommendation, playbook_override, feedback, contact, notification_pref, agency_webhook, notification,
     // alert, alert_event, trend_report, prospect_report) has had all write privileges revoked from app_user and is
     // writable only by app_service.
     const allowList = [
+      { table: 'api_token', priv: 'UPDATE' },
       { table: 'client', priv: 'DELETE' },
       { table: 'client', priv: 'INSERT' },
       { table: 'client', priv: 'UPDATE' },
@@ -107,6 +109,7 @@ describe('privilege guard', () => {
       { table: 'client_competitor', priv: 'INSERT' },
       { table: 'client_competitor', priv: 'UPDATE' },
       { table: 'competitor_suggestion', priv: 'UPDATE' },
+      { table: 'oauth_grant_binding', priv: 'UPDATE' },
     ];
     const rows = (await dbs.owner.execute(sql`
       SELECT t.tablename AS table, p.priv AS priv

@@ -67,6 +67,13 @@ describe('row-level security', () => {
     await expect(withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: [] }, async () => 1)).rejects.toThrow(/clientScope/);
   });
 
+  it('withTenant sets app.user_id and app.role (null when absent)', async () => {
+    const read = async (scope: Parameters<typeof withTenant>[1]) =>
+      withTenant(dbs.app, scope, async (tx) => ((await tx.execute(sql`select app_user_id() as u, app_role() as r`)) as unknown as { u: string | null; r: string | null }[])[0]);
+    expect(await read({ agencyId: IDS.agencyA, clientScope: 'all', userId: 'u1', role: 'agency_admin' })).toEqual({ u: 'u1', r: 'agency_admin' });
+    expect(await read({ agencyId: IDS.agencyA, clientScope: 'all' })).toEqual({ u: null, r: null });
+  });
+
   it('service role bypasses RLS for system jobs', async () => {
     expect(await dbs.service.select().from(client)).toHaveLength(3);
   });

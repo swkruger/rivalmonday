@@ -144,7 +144,7 @@ export const recommendation = pgTable(
     check('recommendation_effort_check', sql`effort IN ('L', 'M', 'H')`),
     check('recommendation_impact_check', sql`impact IN ('L', 'M', 'H')`),
     check('recommendation_owner_check', sql`owner IN ('client', 'agency')`),
-    check('recommendation_source_check', sql`source IN ('brief', 'move', 'ask')`),
+    check('recommendation_source_check', sql`source IN ('brief', 'move', 'ask', 'mcp')`),
   ],
 );
 

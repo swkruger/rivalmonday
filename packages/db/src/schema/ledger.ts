@@ -1,4 +1,6 @@
-import { boolean, doublePrecision, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import type { ToolChannel } from '@cs/core';
+import { sql } from 'drizzle-orm';
+import { boolean, check, doublePrecision, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { agency, client } from './tenancy';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
@@ -15,9 +17,17 @@ export const auditLog = pgTable(
     outcome: text('outcome').notNull(),
     rowCount: integer('row_count'),
     durationMs: integer('duration_ms').notNull(),
+    /** Phase 6a: which surface made the call. */
+    channel: text('channel').$type<ToolChannel>().notNull().default('web'),
+    /** Phase 6a: api_token.id or oauth_grant_binding.id for mcp calls. */
+    tokenId: uuid('token_id'),
     createdAt: createdAt(),
   },
-  (t) => [index('audit_log_agency_created_idx').on(t.agencyId, t.createdAt)],
+  (t) => [
+    index('audit_log_agency_created_idx').on(t.agencyId, t.createdAt),
+    index('audit_log_token_created_idx').on(t.tokenId, t.createdAt).where(sql`token_id IS NOT NULL`),
+    check('audit_log_channel_check', sql`channel IN ('web', 'mcp', 'ask')`),
+  ],
 );
 
 export const llmCall = pgTable(

@@ -2,7 +2,7 @@ import { type AccessContext, isUuid } from '@cs/core';
 import { sql } from 'drizzle-orm';
 import type { Db, Tx } from './client';
 
-export type TenantScope = Pick<AccessContext, 'agencyId' | 'clientScope'>;
+export type TenantScope = Pick<AccessContext, 'agencyId' | 'clientScope'> & Partial<Pick<AccessContext, 'userId' | 'role'>>;
 
 /**
  * Runs fn in a transaction with transaction-local tenant settings that RLS policies read.
@@ -19,7 +19,7 @@ export async function withTenant<T>(db: Db, scope: TenantScope, fn: (tx: Tx) => 
   }
   return db.transaction(async (tx) => {
     await tx.execute(
-      sql`select set_config('app.agency_id', ${scope.agencyId}, true), set_config('app.client_scope', ${clientScope}, true)`,
+      sql`select set_config('app.agency_id', ${scope.agencyId}, true), set_config('app.client_scope', ${clientScope}, true), set_config('app.user_id', ${scope.userId ?? ''}, true), set_config('app.role', ${scope.role ?? ''}, true)`,
     );
     return fn(tx);
   });
