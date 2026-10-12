@@ -19,3 +19,5 @@ export * from './workspace/labels';
 export * from './workspace/word-diff';
 export * from './tools/schemas';
 export { type Discovery, assertRoomForCompetitor, startDiscovery } from './tools/competitors';
+// Shared by the `fetch` tool and the MCP `evidence://` / `brief://` resources (@cs/mcp); every refusal is `not_found`.
+export { type FetchOutput, fetchItem, ITEM_TYPES, type ItemType, parseItemId } from './search/fetch-item';
