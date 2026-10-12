@@ -17,7 +17,7 @@ interface Mapped { code: ToolErrorCode; message: string; retry_after_s?: number 
 
 /**
  * Client-safe view of an error. 404-not-403: `permission_denied` reads as `not_found`. Anything unexpected is hidden
- * behind one message and its cause logged (never the input).
+ * behind one message and logged as name/codes only (never the message, params or input).
  */
 function mapError(e: unknown, what: string): Mapped {
   if (e instanceof ToolError) {
@@ -36,9 +36,34 @@ function mapError(e: unknown, what: string): Mapped {
         break;
     }
   }
-  // eslint-disable-next-line no-console -- the cause must be visible to operators; the client only sees INTERNAL
-  console.error(`[mcp] ${what} failed`, (e as { cause?: unknown } | null)?.cause ?? e);
+  // eslint-disable-next-line no-console -- operators need to see the failure; the client only sees INTERNAL
+  console.error(`[mcp] ${what} failed`, logFields(e));
   return { code: 'internal', message: INTERNAL };
+}
+
+const PG_CODE = /^[0-9A-Z]{5}$/;
+
+/**
+ * What an internal failure logs: the original error's name, the ToolError code and the Postgres SQLSTATE found along the
+ * cause chain. Never a message, `detail`, params or the cause object: Drizzle puts query params (user input) in them.
+ */
+function logFields(e: unknown): { error: string; code?: ToolErrorCode; pgCode?: string } {
+  const tool = e instanceof ToolError ? e : null;
+  const original = tool?.cause ?? e;
+  const out: { error: string; code?: ToolErrorCode; pgCode?: string } = {
+    error: original instanceof Error ? original.name : typeof original,
+  };
+  if (tool) out.code = tool.code;
+  let cur: unknown = original;
+  for (let depth = 0; depth < 5 && cur && typeof cur === 'object'; depth++) {
+    const code = (cur as { code?: unknown }).code;
+    if (!(cur instanceof ToolError) && typeof code === 'string' && PG_CODE.test(code)) {
+      out.pgCode = code;
+      break;
+    }
+    cur = (cur as { cause?: unknown }).cause;
+  }
+  return out;
 }
 
 export function toToolResult(e: unknown, toolName: string): CallToolResult {

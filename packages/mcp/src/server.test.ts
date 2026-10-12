@@ -44,7 +44,12 @@ const fakes = new ToolRegistry<ToolDeps>(deps, { record: async () => {} }).regis
   }),
   defineTool({
     name: 'boom', description: 'Throws a plain error.', input: z.object({}), output: z.object({}), permission: 'read', channels: ['mcp'],
-    handler: async () => { throw new Error(SECRET); },
+    // Drizzle-style: the wrapper's message and the driver error's detail carry the query params (user input).
+    handler: async () => {
+      throw new Error(`Failed query: select 1 where x = $1 params: input-secret ${SECRET}`, {
+        cause: Object.assign(new Error(`duplicate key: ${SECRET}`), { code: '23505', detail: 'Key (x)=(input-secret) already exists.' }),
+      });
+    },
   }),
 );
 
@@ -141,13 +146,17 @@ describe('tools', () => {
     expect(errorOf(await call(client, 'denied'))).toEqual({ code: 'not_found', message: 'Not found' });
   });
 
-  it('internal hides and logs the cause', async () => {
+  it('internal hides the error and logs only its name, ToolError code and postgres code (no message, params or cause)', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { client } = await connect(admin, 'read', { registry: fakes });
     const r = await call(client, 'boom', { password: 'input-secret' });
     expect(JSON.stringify(r)).not.toContain('hunter2');
-    expect(log).toHaveBeenCalledWith('[mcp] tool boom failed', expect.objectContaining({ message: SECRET }));
-    expect(JSON.stringify(log.mock.calls)).not.toContain('input-secret');
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0]![0]).toBe('[mcp] tool boom failed');
+    expect(log.mock.calls[0]![1]).toEqual({ error: 'Error', code: 'internal', pgCode: '23505' });
+    const logged = JSON.stringify(log.mock.calls, (_k, v: unknown) => (v instanceof Error ? { message: v.message, cause: v.cause } : v));
+    expect(logged).not.toContain('input-secret');
+    expect(logged).not.toContain('hunter2');
   });
 
   it('rate_limited has retry_after_s', async () => {
