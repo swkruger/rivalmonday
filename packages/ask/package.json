@@ -3,13 +3,17 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
   "scripts": {
     "typecheck": "tsc -p .",
     "test": "vitest run"
   },
   "dependencies": {
     "@cs/ai": "workspace:*",
+    "@cs/collectors": "workspace:*",
     "@cs/core": "workspace:*",
     "@cs/db": "workspace:*",
     "@cs/engine": "workspace:*",
