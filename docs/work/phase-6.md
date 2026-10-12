@@ -1,14 +1,15 @@
 # phase-6 - Remote MCP server (6a) and Ask assistant "Friday" (6b)
 
 **Kind:** feature   **Worktree:** ../CompetitorSpy-wt/phase-6   **Base:** main @ 1c4a7fd
-**Spec/plan:** `docs/superpowers/{specs,plans}/2026-10-11-phase-6a-mcp*.md` (d1-d13, P1-P18)
+**Spec/plan:** 6a `docs/superpowers/{specs,plans}/2026-10-11-phase-6a-mcp*.md` (d1-d13, P1-P18); 6b `docs/superpowers/specs/2026-10-12-phase-6b-ask-design.md` (e1-e11) + `docs/superpowers/plans/2026-10-12-phase-6b-ask.md` (Tasks 0-13, Q1-Q13)
 
 ## Status (overwrite)
-**6a done** on this branch: Tasks 0-15 reviewed, final review + fix wave, re-review clean; branch-wide `test:affected` 14/14, `e2e:affected` 30/30. Tree clean; migrations 0038-0041 not applied to `cs_dev`. **6b (Ask / Friday) next, on this same branch/worktree** - no merge in between.
+**6a done** (reviewed; `test:affected` 14/14, `e2e:affected` 30/30; migrations 0038-0041 not applied to `cs_dev`). **6b spec + plan owner-approved 2026-10-12** (incl. Q1 new env var `ASK_FAKE_AI`, E2E only); not started. **6c = knowledge base** (own spec after 6b; e11).
 
 ## Next (overwrite)
-1. Fresh session here: plan 6b (brainstorming -> spec -> lean plan -> owner approval -> SDD). Open: **(6)** Ask model: re-probe sonnet-5 ZDR + strict `json_schema` on OpenRouter, else sonnet-4.6; **(7)** grounding vs streaming (rec: verify, then stream); **(8)** quota (rec: per-client monthly limit; cap pause stays Phase 7); **(10)** agency view of Ask threads (rec: toggle + read-only view). Missing tables: `ask_thread`, `ask_message` (next migration `0042`).
-2. After 6b: one `/rm-merge phase-6` with the owner's go-ahead (full unit + full E2E, migrate `cs_dev`), then the owner verification steps below. Undecided copy: "Token revoked." / "App disconnected.".
+1. Fresh session: `superpowers:subagent-driven-development` on the 6b plan, starting with Task 0 pre-flight (next migrations `0042_ask`, `0043_ask_rls`).
+2. After 6b: brainstorm 6c (knowledge base: platform/agency/client-level sources; help docs, community Q&A, blogs; `[kb:]` citations).
+3. After 6c: one `/rm-merge phase-6` with the owner's go-ahead (full unit + full E2E, migrate `cs_dev`), then owner verification below. Undecided copy: "Token revoked." / "App disconnected.".
 
 ## Interfaces this branch adds or changes
 **Migrations (next free: `0042`):**
@@ -36,7 +37,8 @@ Spec d1-d13 binding (d5 allowlist, d9 rate limits, d12 redaction, d13 no validit
 - P11 `url` = `/go/<t>/<id>` for brief/brief_item/alert, else direct paths. P12 cursor base64url `{"o":offset}`; `detail` summary off-web. P13 `search_tsv` SQL-only; no ANN index. P14 `add_recommendation`.
 - P15 white-label name = `branding.displayName` else "Rival Monday". P16 `embedQuery` only in `dev`. P17 rate limits count `tools/call` + `resources/read`. P18 `fetch` of global types uses the first active in-scope client.
 - **Consent page (owner, 2026-10-12):** under the lead line "After you allow, you'll be sent to **{host}**." (redirect_uri host, port if non-default; omitted if unparseable); Access defaults to Read only.
-- **One merge for all of Phase 6 (owner, 2026-10-12):** 6b is built on `phase-6` after 6a; owner checks, full tests and `/rm-merge` happen once, after 6b.
+- **One merge for all of Phase 6 (owner, 2026-10-12):** 6b then 6c are built on `phase-6`; owner checks, full tests and `/rm-merge` happen once, after 6c.
+- **6b (owner, 2026-10-12):** spec e1-e11 and plan Q1-Q13 binding; Ask model probe 2026-10-12: sonnet-5 OK for ZDR + tools + strict json_schema + caching.
 
 Rulings (R = behaviour unless marked *process*):
 - R1 channel allowlist test converges as tools land (*process*). R2 `@ai-connections` tag added with its spec (*process*). R3 owner verification names the deployed host (*docs*). R4 Task 0 setup done at kickoff (*process*).
