@@ -1,6 +1,6 @@
 import type { CallScope, DecisionSampleSink, LedgerSink, LlmCallRecord } from '@cs/core';
 import type { BatchItemResult, BatchProvider, BatchRequest } from './anthropic-batch';
-import type { ChatMessage, ChatProvider, ChatResult, JsonSchemaFormat } from './chat';
+import type { ChatMessage, ChatProvider, ChatResult, ChatTool, JsonSchemaFormat } from './chat';
 import type { AiConfig, ConfidenceThresholds, TaskConfig } from './config';
 import { CascadingDecisionProvider, type DecisionResult } from './decisions/cascade';
 import { createLlmDecisionProvider } from './decisions/llm';
@@ -21,6 +21,7 @@ export const EMBED_MAX_CHARS = 8000;
 
 export interface Ai {
   chat(task: string, input: { messages: ChatMessage[]; jsonSchema?: JsonSchemaFormat }, scope: CallScope): Promise<ChatResult>;
+  chatWithTools(task: string, req: { messages: ChatMessage[]; tools: ChatTool[]; toolChoice?: 'auto' | 'none' }, scope: CallScope): Promise<ChatResult>;
   decide<K extends string>(task: string, state: unknown, questions: Record<K, DecisionQuestion>, scope: CallScope): Promise<DecisionResult<K>>;
   embed(task: string, texts: string[], scope: CallScope): Promise<EmbeddingResult>;
   batchAvailable(task: string): boolean;
@@ -103,30 +104,38 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
     return recording(createLlmDecisionProvider(deps.openrouter, { model: t.model, fallbacks: t.fallbacks }), ledgerTask, scope, t.model);
   }
 
-  return {
-    async chat(name, input, scope) {
-      const t = task(name);
-      if (t.provider !== 'openrouter' || t.mode !== 'chat') throw new Error(`Task ${name} is not a chat task`);
-      const started = now();
-      let result;
-      try {
-        result = await deps.openrouter.complete({
-          ...input, model: t.model, fallbacks: t.fallbacks, temperature: t.temperature, maxTokens: t.max_tokens,
-        });
-      } catch (err) {
-        await safeRecord(deps.ledger, {
-          ...scope, task: name, provider: deps.openrouter.id, model: t.model,
-          inputTokens: 0, outputTokens: 0, costUsd: null, latencyMs: now() - started, ok: false,
-        });
-        throw err;
-      }
-      await safeRecord(deps.ledger, {
-        ...scope, task: name, provider: deps.openrouter.id, model: result.model,
-        inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: result.costUsd,
-        latencyMs: now() - started, ok: true,
+  async function runChat(
+    name: string,
+    input: { messages: ChatMessage[]; jsonSchema?: JsonSchemaFormat; tools?: ChatTool[]; toolChoice?: 'auto' | 'none' },
+    scope: CallScope,
+  ): Promise<ChatResult> {
+    const t = task(name);
+    if (t.provider !== 'openrouter' || t.mode !== 'chat') throw new Error(`Task ${name} is not a chat task`);
+    const started = now();
+    let result;
+    try {
+      result = await deps.openrouter.complete({
+        ...input, model: t.model, fallbacks: t.fallbacks, temperature: t.temperature, maxTokens: t.max_tokens,
       });
-      return result;
-    },
+    } catch (err) {
+      await safeRecord(deps.ledger, {
+        ...scope, task: name, provider: deps.openrouter.id, model: t.model,
+        inputTokens: 0, outputTokens: 0, costUsd: null, latencyMs: now() - started, ok: false,
+      });
+      throw err;
+    }
+    await safeRecord(deps.ledger, {
+      ...scope, task: name, provider: deps.openrouter.id, model: result.model,
+      inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: result.costUsd,
+      latencyMs: now() - started, ok: true,
+    });
+    return result;
+  }
+
+  return {
+    chat: (name, input, scope) => runChat(name, input, scope),
+
+    chatWithTools: (name, req, scope) => runChat(name, req, scope),
 
     async decide(name, state, questions, scope) {
       const t = task(name);

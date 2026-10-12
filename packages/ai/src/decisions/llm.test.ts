@@ -10,7 +10,7 @@ const questions = {
 } satisfies Record<string, DecisionQuestion>;
 
 function chatReturning(text: string) {
-  const complete = vi.fn(async (_req: ChatRequest) => ({ text, model: 'm', inputTokens: 100, outputTokens: 20, costUsd: 0.0002 }));
+  const complete = vi.fn(async (_req: ChatRequest) => ({ text, model: 'm', inputTokens: 100, outputTokens: 20, costUsd: 0.0002, cachedTokens: 0, toolCalls: [], finishReason: null }));
   const chat: ChatProvider = { id: 'openrouter', complete };
   return { chat, complete };
 }

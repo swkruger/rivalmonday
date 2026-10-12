@@ -1016,3 +1016,14 @@ Found during Task 19's live `deliver-once dispatch` run: every `@cs/email` `.tsx
 ### Follow-up 2026-10-04 (later): first live Postmark send, Anthropic batch re-check
 - **Postmark, live:** one real send through the production path (`createEmailSender` + `createPostmarkTransport`, the rendered quiet brief email from the `cs_dev` outbox run) to the owner's own address, from `swkruger@nofingers.ai` (Postmark test account, 100/month, DKIM verified). Accepted: `MessageID 0fe3c4d0-00a3-478b-92a2-86b88ec60f2a`; one `vendor_call` row `postmark/email`, 1 unit, $0.0015, ok. Delivery/rendering in the mail client is for the owner to confirm.
 - **Anthropic batch live test:** the key is now workspace-scoped (the earlier "not scoped to a workspace" error is gone) but the submit fails with `400 invalid_request_error` "Your credit balance is too low to access the Anthropic API" — needs account credit, not a code change.
+
+## Verified 2026-10-12 — Phase 6b
+OpenRouter probe, `provider: {data_collection: deny, zdr: true, require_parameters: true}`:
+
+| Check | sonnet-5 | sonnet-4.6 |
+|---|---|---|
+| tools -> `tool_calls`, then answer after a `tool` message | OK (Amazon Bedrock) | OK (Amazon Bedrock) |
+| strict `json_schema` | **OK now** (served by Google; was 404 on 2026-10-03) | OK |
+| `cache_control` on system block, 2nd call | 5,122 cached tokens, cost -90 % | 2,745 cached, -83 % |
+
+Moving `brief_writer`/`playbook_writer`/`theme_discovery` back to sonnet-5 is a backlog item, not 6b.

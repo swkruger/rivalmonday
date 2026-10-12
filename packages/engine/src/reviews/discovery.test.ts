@@ -96,7 +96,10 @@ describe('discoverTheme', () => {
     const raceAi: Ai = {
       async chat() {
         await dbs.service.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'other_theme', name: 'Other', description: 'd', status: 'proposed', otherCount: 1 });
-        return { text: JSON.stringify(WARRANTY), model: 'fake', inputTokens: 0, outputTokens: 0, costUsd: 0 };
+        return { text: JSON.stringify(WARRANTY), model: 'fake', inputTokens: 0, outputTokens: 0, costUsd: 0, cachedTokens: 0, toolCalls: [], finishReason: null };
+      },
+      async chatWithTools() {
+        throw new Error('not used by this test');
       },
       async decide() {
         throw new Error('not used by this test');

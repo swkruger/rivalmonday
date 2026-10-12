@@ -32,7 +32,9 @@ const CUSTOM_ID = /^[a-zA-Z0-9_-]{1,64}$/;
 /** Our chat messages → one Messages API request: system messages go to `system`, a JSON schema to output_config.format. */
 export function toBatchRequest(model: string, maxTokens: number, r: BatchRequest): BatchCreateParams.Request {
   const system = r.messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n');
-  const messages = r.messages.filter((m) => m.role !== 'system').map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+  const messages = r.messages
+    .filter((m): m is Extract<ChatMessage, { role: 'user' | 'assistant' }> => m.role === 'user' || m.role === 'assistant')
+    .map((m) => ({ role: m.role, content: m.content ?? '' }));
   return {
     custom_id: r.customId,
     params: {

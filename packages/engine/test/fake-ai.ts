@@ -86,7 +86,10 @@ export function createFakeAi(opts: {
       const content = input.messages.at(-1)?.content ?? '';
       calls.chat.push({ task, content });
       const text = opts.chat ? opts.chat(task, content) : JSON.stringify({ facts: [] });
-      return { text, model: 'fake', inputTokens: 0, outputTokens: 0, costUsd: 0 } satisfies ChatResult;
+      return { text, model: 'fake', inputTokens: 0, outputTokens: 0, costUsd: 0, cachedTokens: 0, toolCalls: [], finishReason: null } satisfies ChatResult;
+    },
+    async chatWithTools() {
+      throw new Error('fake ai: chatWithTools is not faked');
     },
     async decide<K extends string>(task: string, state: unknown, questions: Record<K, DecisionQuestion>): Promise<DecisionResult<K>> {
       calls.decide.push({ task, state, questions });

@@ -44,6 +44,13 @@ tasks:
     expect(cfg.tasks.embeddings).toMatchObject({ provider: 'openrouter', mode: 'embeddings', model: 'openai/text-embedding-3-small', dimensions: 512 });
   });
 
+  it('config loads ask_assistant, ask_starters, ask_guard_decisions', async () => {
+    const cfg = await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH);
+    expect(cfg.tasks.ask_assistant).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-sonnet-5', fallbacks: ['anthropic/claude-sonnet-4.6'], temperature: 0.2, max_tokens: 1500 });
+    expect(cfg.tasks.ask_starters).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-haiku-4.5', temperature: 0.5, max_tokens: 400 });
+    expect(cfg.tasks.ask_guard_decisions).toMatchObject({ provider: 'jev', escalate_to: 'llm_decisions', min_confidence: { default: 0.85 }, shadow_rate: 0.05 });
+  });
+
   it('gives every decision use its own Jev task escalating to llm_decisions, and no shared "decisions" task (Phase 3d)', async () => {
     const cfg = await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH);
     for (const name of ['tag_decisions', 'structured_decisions', 'merge_decisions', 'page_decisions', 'review_decisions', 'price_decisions']) {

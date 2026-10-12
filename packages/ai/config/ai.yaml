@@ -14,7 +14,9 @@ tasks:
   playbook_writer: { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.3, max_tokens: 1000 }
   # Phase 4b: instant alert headline + body (JSON schema), verified like brief text; same ZDR-safe routing as brief_writer.
   alert_writer:    { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.2, max_tokens: 600 }
-  ask_assistant:   { provider: openrouter, model: anthropic/claude-sonnet-5 }
+  # Phase 6b Ask/Friday (tool calling; probe 2026-10-12: sonnet-5 and sonnet-4.6 both support tools and cache_control under ZDR).
+  ask_assistant:   { provider: openrouter, model: anthropic/claude-sonnet-5, fallbacks: [anthropic/claude-sonnet-4.6], temperature: 0.2, max_tokens: 1500 }
+  ask_starters:    { provider: openrouter, model: anthropic/claude-haiku-4.5, temperature: 0.5, max_tokens: 400 }
   value_extract:   { provider: openrouter, model: anthropic/claude-haiku-4.5 }
   theme_discovery: { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5] }
   llm_decisions:   { provider: openrouter, model: anthropic/claude-haiku-4.5, mode: decisions }
@@ -28,6 +30,8 @@ tasks:
   price_decisions:      { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
   # Phase 4a: brief/recommendation support checks (spec §7.4) — its own task so accuracy, τ and routing are tunable alone.
   verifier_decisions:   { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
+  # Phase 6b: Ask answer-guard checks, its own task so routing and tau are tunable alone (same shape as verifier_decisions).
+  ask_guard_decisions:  { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
   # Verified 2026-10-01: ZDR-compatible ($0.02/M tokens). voyageai/voyage-4-lite fails the ZDR policy.
   embeddings:      { provider: openrouter, model: openai/text-embedding-3-small, mode: embeddings, dimensions: 512 }
   # Opt-in (Phase 3d decision 9): used only when ANTHROPIC_API_KEY is set; otherwise theme discovery stays on theme_discovery.

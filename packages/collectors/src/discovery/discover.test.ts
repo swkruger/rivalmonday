@@ -32,6 +32,7 @@ const home: RenderedPage = {
 function fakeAi(types: Record<string, string>): Ai {
   return {
     chat: async () => { throw new Error('not used'); },
+    chatWithTools: async () => { throw new Error('not used'); },
     embed: async () => { throw new Error('not used'); },
     decide: vi.fn(async (_task: string, state: unknown) => {
       const url = (state as { url: string }).url;
@@ -168,6 +169,7 @@ describe('discoverPages', () => {
     const fetchText = vi.fn(async () => ({ status: 404, body: '' }));
     const ai: Ai = {
       chat: async () => { throw new Error('not used'); },
+      chatWithTools: async () => { throw new Error('not used'); },
       embed: async () => { throw new Error('not used'); },
       decide: vi.fn(async (_task: string, state: unknown) => {
         const url = (state as { url: string }).url;

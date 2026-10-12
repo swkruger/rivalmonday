@@ -9,6 +9,8 @@ const config = parseAiConfig(`
 tasks:
   brief_writer: { provider: openrouter, model: a/writer, fallbacks: [b/backup], temperature: 0.3 }
   llm_decisions: { provider: openrouter, model: a/small, mode: decisions }
+  ask_assistant: { provider: openrouter, model: anthropic/claude-sonnet-5, temperature: 0.2, max_tokens: 1500 }
+  embeddings: { provider: openrouter, model: e/small, mode: embeddings, dimensions: 512 }
   decisions: { provider: jev, escalate_to: llm_decisions, min_confidence: { default: 0.85 } }
   theme_discovery_batch: { provider: anthropic, model: claude-sonnet-5, mode: batch, input_usd_per_mtok: 1, output_usd_per_mtok: 5 }
 `);
@@ -45,6 +47,25 @@ function harness(opts: { chatFails?: boolean; jevProbability?: number; jev?: boo
 }
 
 describe('Ai facade', () => {
+  it('chatWithTools writes one ledger row per call (error row on failure)', async () => {
+    const ok = harness();
+    const tools = [{ name: 't', description: 'd', parameters: { type: 'object' } }];
+    await ok.ai.chatWithTools('ask_assistant', { messages: [{ role: 'user', content: 'x' }], tools, toolChoice: 'auto' }, scope);
+    expect(ok.records).toHaveLength(1);
+    expect(ok.records[0]).toMatchObject({ task: 'ask_assistant', ok: true, provider: 'openrouter' });
+    expect(ok.complete).toHaveBeenCalledWith(expect.objectContaining({ tools, toolChoice: 'auto', model: 'anthropic/claude-sonnet-5', temperature: 0.2, maxTokens: 1500 }));
+    const bad = harness({ chatFails: true });
+    await expect(bad.ai.chatWithTools('ask_assistant', { messages: [], tools }, scope)).rejects.toThrow('down');
+    expect(bad.records).toHaveLength(1);
+    expect(bad.records[0]).toMatchObject({ ok: false });
+  });
+
+  it('chatWithTools rejects a non-chat task', async () => {
+    const { ai } = harness();
+    await expect(ai.chatWithTools('embeddings', { messages: [], tools: [] }, scope)).rejects.toThrow(/not a chat task/);
+    await expect(ai.chatWithTools('nope', { messages: [], tools: [] }, scope)).rejects.toThrow(/unknown ai task/i);
+  });
+
   it('routes chat tasks with configured model settings and records the call', async () => {
     const { ai, records, complete } = harness();
     const r = await ai.chat('brief_writer', { messages: [{ role: 'user', content: 'x' }] }, scope);
