@@ -38,6 +38,7 @@ Status: Phases 0–5 and the demo tool are complete and owner-verified (2026-10-
 - **5c-1 — Client workspace core** ([plan](superpowers/plans/2026-10-08-phase-5c1-client-workspace-core.md)). Overview, Changes feed + evidence viewer (`/files/evidence/<clientId>/<evidenceId>`), Moves, competitor profile & timeline, alert rules, read-only services & area, AI-connections placeholder; client-owner competitor self-service; `workspace/scope.ts`, `EvidenceChips`, SVG `LineChart`.
 - **5c-2 — Data views** ([plan](superpowers/plans/2026-10-08-phase-5c2-data-views.md)). Pricing, Ads, Reviews & reputation (`ThemeHeatmap`), Local rankings (`GeoGrid`, share of voice); `foldSeries` aggregate modes; `Sheet` in `@cs/ui`; responsive shell (drawer below 1024 px).
 - **Demo data, dev panel & snapshots** ([plan](superpowers/plans/2026-10-09-demo-data-and-snapshots.md)). Local-only. `cs_demo` seed (`@cs/demo`), dev panel (`apps/web/src/dev-panel/`, per-environment `perEnv` factories, production build check), `cs_dev` snapshot/restore.
+- **Phase 5 polish** (`65e0683`). PDF/file links open in a new tab; stored PDF keys carry `PDF_LAYOUT_VERSION` (`@cs/core` `pdf-layout.ts`, keys `<id>.v2.pdf`) and `servePdf` re-enqueues any older key; `/agency` client list as labelled blocks below xl. No DEV "view as client": invite a Gmail plus address as client owner.
 
 ## Conventions a new feature must follow
 

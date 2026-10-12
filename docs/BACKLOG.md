@@ -65,13 +65,9 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ## Polish (small UI/UX fixes, any time)
 
-### In progress on branch `phase5-polish` (owner requests, 2026-10-11)
-- [ ] PDF links and downloads (briefs, trend reports) open in a new browser tab — *from end-of-Phase-5 verification*
-- [ ] Stored brief PDFs are never re-rendered after a template change (e.g. the 2026-10-19 brief rendered 16:13 before the 16:58 trend-table fix) — *from end-of-Phase-5 verification*
-- [ ] Fix the client grid layout, and the theme and layout on a phone — *from end-of-Phase-5 verification*
-- [ ] Dev-panel "view as client" (today: invite a second address as Client owner) — *from end-of-Phase-5 verification*
-
 ### Workflow & behaviour
+- [ ] Let agencies add their own verticals and services (feature-sized) — *from phase5-polish*
+- [ ] Franchise brands: choose the local franchisee's ad accounts, not the brand's — *from phase5-polish*
 - [ ] A removed competitor's pending alerts and brief items are still approvable — *from 5b-1 final review Minor 5*
 - [ ] Trend table shows "— → —" for a business with no rating; show a single "—" (owner undecided) — *from 5b-1 owner verification*
 - [ ] Webhook/notification toggle actions (`agency/webhooks/actions.ts`, `settings/notifications/actions.ts`) ignore the `runTool` result — surface the error like `AutoSendSwitch` — *from 5b-2 Minor 4*

@@ -2,6 +2,7 @@
 react-email templates (briefs, alerts, digests, sign-in), rendering, branding constants and transports (Postmark / file outbox).
 
 ## Gotchas
+- **Raise `PDF_LAYOUT_VERSION` (`@cs/core`) after any change to how a brief or report PDF looks.** Stored PDFs are keyed `<id>.v<N>.pdf`; older keys re-render one by one as they're opened. The demo coverage test fails on an old key.
 - **Every `.tsx` file must start with the two-line JSX pragma:** `/** @jsxRuntime automatic */` then `/** @jsxImportSource react */`, exactly as the first two lines. `tsx` applies only the single tsconfig nearest its *process* cwd (matched against that tsconfig's own `include`), so a template reached from `apps/worker`'s cwd never gets `jsx: "react-jsx"` and crashes with `ReferenceError: React is not defined` when rendered in production (`tsx src/main.ts`). `src/jsx-pragma.test.ts` fails the suite if a `.tsx` under `src/` lacks it.
 - **Client-safe surface is the `./branding` subpath, never the package root:** the root barrel pulls in `node:fs`/`node:crypto` (Postmark/file transports). Client code (including anything via `@cs/ui`, which needs `RIVAL_MONDAY_TOKENS`) imports from `@cs/email/branding` (types + pure constants only).
 - **react-email `Row`/`Column` is not a table:** each `Row` renders its own `<table>`, so rows never share column widths. For tabular data use one real `<table>` with a `<colgroup>` (see `trend-table.tsx`).
