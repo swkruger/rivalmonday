@@ -32,7 +32,7 @@ export { IMPORT_ERRORS, type ImportError } from './kb/import-error';
 export { isPublicAddress, isPublicHttpUrl } from './kb/public-url';
 // Phase 8b: read-only platform support sessions.
 export {
-  endSession, type OpenSupportSession, resolveSession, type ResolveResult, startSession, SUPPORT_SESSION_MINUTES,
+  endOpenSessionFor, endSession, type OpenSupportSession, resolveSession, type ResolveResult, startSession, SUPPORT_SESSION_MINUTES,
 } from './platform/support';
 // Phase 8a P2: nightly agency_daily_stat computation, shared by the worker job and the demo seed.
 export {

@@ -42,7 +42,8 @@ export function TopBar({
         {viewer.kind === 'user' && viewer.memberships.length > 1 && (
           <MembershipSwitcher memberships={viewer.memberships} currentId={viewer.membership.id} />
         )}
-        {viewer.kind === 'user' ? (
+        {/* Phase 8b M2: a support viewer is a signed-in operator, so it gets the real sign-out (which also ends the session). */}
+        {viewer.kind !== 'guest' ? (
           <DropdownMenu>
             <DropdownMenuTrigger className="grid h-[38px] w-[38px] flex-shrink-0 place-items-center rounded-full bg-secondary font-bold text-white">
               {initials(viewer.name || viewer.email)}

@@ -1,4 +1,4 @@
-import { hasFeature } from '@cs/core';
+import { type AccessContext, hasFeature } from '@cs/core';
 import { productNameFor } from '@cs/mcp';
 import type { AskThreadSummary, AskThreadView } from '@cs/tools';
 import { FridayBadge } from '@cs/ui';
@@ -24,6 +24,7 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
   seedEvidenceId?: string;
 }) {
   const { viewer, ctx } = await requireContext();
+  if (viewer.kind === 'support') return supportAskView(clientId, ctx);
   if (viewer.kind !== 'user' || ctx.userId.startsWith('contact:') || !hasFeature(ctx, 'ask')) notFound();
   const [starters, threads, thread] = await Promise.all([
     callTool<{ questions: string[]; reviewAllowed: boolean }>(ctx, 'get_ask_starters', { clientId }),
@@ -66,6 +67,27 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
           {...(seedEvidenceId ? { seedEvidenceId } : {})}
         />
       </div>
+    </>
+  );
+}
+
+/** Copy (spec 8b § UI) for the Ask module inside a read-only support session. */
+export const ASK_PRIVATE_COPY = 'Ask conversations are private to their authors.';
+
+/**
+ * Phase 8b: a support viewer sees that the module exists but no conversation. No thread tools are called (they are
+ * hidden in a session anyway); the client is still gated by a read tool so a foreign or malformed id is a 404.
+ */
+async function supportAskView(clientId: string, ctx: AccessContext) {
+  if (!hasFeature(ctx, 'ask')) notFound();
+  await callTool(ctx, 'get_client_profile', { clientId });
+  const assistantName = await assistantNameFor(dbs().service, ctx.agencyId);
+  return (
+    <>
+      <h1 className="flex items-center gap-2 text-[26px] font-extrabold tracking-tight">
+        Ask <FridayBadge name={assistantName} />
+      </h1>
+      <p className="rounded-[14px] bg-surface p-6 text-muted-foreground shadow-card">{ASK_PRIVATE_COPY}</p>
     </>
   );
 }

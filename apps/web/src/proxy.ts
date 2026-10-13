@@ -12,7 +12,9 @@ const PUBLIC = [/^\/sign-in(\/|$)/, /^\/api\/auth\//, /^\/l\//, /^\/health$/, /^
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const headers = new Headers(req.headers);
-  // Forwards the current path so `requireViewer` can build a safe `next` for the sign-in redirect.
+  // Forwards the current path so `requireViewer` can build a safe `next` for the sign-in redirect (and pick the client
+  // hint). Any client-sent `x-rm-path` is dropped first: only this proxy ever sets it.
+  headers.delete('x-rm-path');
   headers.set('x-rm-path', `${pathname}${search}`);
   if (PUBLIC.some((p) => p.test(pathname))) return NextResponse.next({ request: { headers } });
   const hasSession = req.cookies.getAll().some((c) => c.name.endsWith('session_token'));

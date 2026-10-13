@@ -20,8 +20,9 @@ export function navFlagsFor(v: { kind: 'user' | 'guest' | 'support'; ctx: Access
     manageCompetitors: canManageCompetitors(v.ctx),
     alertRules: hasFeature(v.ctx, 'alert_rules'),
     mcp: v.kind === 'user' && hasFeature(v.ctx, 'mcp'),
-    // Q2: guests have no Ask (and a magic-link contact id is never a thread author).
-    ask: v.kind === 'user' && !v.ctx.userId.startsWith('contact:') && hasFeature(v.ctx, 'ask'),
+    // Q2: guests have no Ask (and a magic-link contact id is never a thread author). Phase 8b: a support viewer sees
+    // the module, which only says Ask conversations are private to their authors.
+    ask: (v.kind === 'user' || v.kind === 'support') && !v.ctx.userId.startsWith('contact:') && hasFeature(v.ctx, 'ask'),
     assistantName,
   };
 }

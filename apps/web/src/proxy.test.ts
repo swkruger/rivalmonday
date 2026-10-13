@@ -14,4 +14,11 @@ describe('proxy', () => {
   it('still redirects other cookie-less paths to sign-in', () => {
     for (const p of ['/api/askx', '/c/x/ask', '/api/other']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
   });
+
+  it('replaces a client-sent x-rm-path with the real path', () => {
+    for (const p of ['/agency', '/sign-in']) {
+      const res = run(p, { headers: { 'x-rm-path': '/platform/agencies/x', cookie: 'better-auth.session_token=t' } });
+      expect(res.headers.get('x-middleware-request-x-rm-path'), p).toBe(p);
+    }
+  });
 });

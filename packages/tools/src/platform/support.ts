@@ -68,6 +68,20 @@ export async function endSession(service: Db, id: string, reason: EndReason, now
     .where(and(eq(supportSession.id, id), isNull(supportSession.endedAt)));
 }
 
+/**
+ * Ends this user's own open session, if any (as 'exit'), and returns its agency id. Used by `end_support_session`
+ * and by sign-out (the web's `endSession`, which runs after the user is known but has no tool context to spare).
+ */
+export async function endOpenSessionFor(service: Db, platformUserId: string, now: Date = new Date()): Promise<string | null> {
+  const [open] = await service
+    .select({ id: supportSession.id, agencyId: supportSession.agencyId })
+    .from(supportSession)
+    .where(and(eq(supportSession.platformUserId, platformUserId), isNull(supportSession.endedAt)));
+  if (!open) return null;
+  await endSession(service, open.id, 'exit', now);
+  return open.agencyId;
+}
+
 export type ResolveResult =
   | { kind: 'ok'; session: OpenSupportSession }
   | { kind: 'expired'; agencyId: string }

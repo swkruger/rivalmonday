@@ -55,7 +55,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${WEB}(?:playwright\\.config\\.ts|package\\.json|next\\.config\\.[^/]+|tsconfig\\.json|postcss\\.config\\.[^/]+)$`), tags: 'all', why: 'web build/test config' },
   { pattern: re(`${WEB}src/proxy\\.ts$`), tags: 'all', why: 'request proxy runs on every page' },
   { pattern: re(`${APP}(?:layout\\.tsx|globals\\.css|health/)`), tags: 'all', why: 'root layout/styles/health check' },
-  { pattern: re(`${APP}\\(app\\)/(?:layout\\.tsx|actions\\.ts)$`), tags: 'all', why: 'signed-in app shell' },
+  { pattern: re(`${APP}\\((?:app|platform)\\)/(?:layout\\.tsx|actions\\.ts)$`), tags: 'all', why: 'signed-in app shell (agency/client and platform groups)' },
   { pattern: re(`${COMP}shell/`), tags: 'all', why: 'app shell (sidebar, top bar, nav)' },
   {
     pattern: re(`${SERVER}(?:auth|auth-options|env|db|run-tool|tools|viewer|current-viewer|theme|branding|nav|safe-next|runtime-env)\\.ts$`),
@@ -76,8 +76,8 @@ export const RULES: Rule[] = [
 
   // --- Ask assistant (6b) ---
   { pattern: /^packages\/ask\//, tags: ['@ask'], why: 'Ask package (turn, grounding, quota, starters)' },
-  { pattern: re(`${APP}\\(app\\)/platform/ask/`), tags: ['@ask', '@platform'], why: 'platform Ask review' },
-  { pattern: re(`${APP}\\(app\\)/platform/knowledge/`), tags: ['@kb', '@platform'], why: 'operator knowledge base UI' },
+  { pattern: re(`${APP}\\(platform\\)/platform/ask/`), tags: ['@ask', '@platform'], why: 'platform Ask review' },
+  { pattern: re(`${APP}\\(platform\\)/platform/knowledge/`), tags: ['@kb', '@platform'], why: 'operator knowledge base UI' },
   { pattern: re(`${APP}\\(app\\)/kb/|${COMP}kb/`), tags: ['@ask', '@kb'], why: 'knowledge article page and sheet (opened from Ask citations)' },
   { pattern: re(`${SERVER}ask\\.ts$`), tags: ['@ask', '@kb'], why: 'Ask server wiring incl. the E2E fake AI (knowledge lookup)' },
   { pattern: re(`${WEB}src/(?:.*/)?ask(?:/|\\.ts$)`), tags: ['@ask'], why: 'Ask route, pages, components and server wiring' },
@@ -93,6 +93,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}prospects/`), tags: ['@prospects', '@clients'], why: 'prospects' },
   { pattern: re(`${AGENCY}usage/`), tags: ['@usage'], why: 'usage and limits' },
   { pattern: re(`${AGENCY}(?:branding|team|webhooks)/`), tags: [], why: 'no E2E covers this agency page' },
+  { pattern: re(`${AGENCY}settings/platform-access/`), tags: ['@platform'], why: 'agency support-session history (8b; Task 9 retags to @support)' },
   { pattern: re(`${C}(?:page\\.tsx|overview-kpis\\.ts)$`), tags: ['@overview'], why: 'client overview' },
   { pattern: re(`${C}ads/`), tags: ['@ads'], why: 'ads view' },
   { pattern: re(`${C}alerts/`), tags: ['@alerts'], why: 'alert page' },
@@ -110,13 +111,15 @@ export const RULES: Rule[] = [
   { pattern: re(`${C}settings/alerts/`), tags: ['@alert-rules'], why: 'alert rules' },
   { pattern: re(`${C}settings/profile/`), tags: ['@profile', '@clients'], why: 'client profile and features' },
   { pattern: re(`${C}settings/delivery/`), tags: [], why: 'no E2E covers this settings page' },
-  { pattern: re(`${APP}\\(app\\)/platform/`), tags: ['@platform', '@reviews'], why: 'platform review/theme queues' },
+  { pattern: re(`${APP}\\(platform\\)/platform/`), tags: ['@platform', '@reviews'], why: 'platform console, review/theme queues' },
   { pattern: re(`${APP}support/`), tags: ['@platform'], why: 'support session end route (8b; Task 9 retags to @support)' },
   { pattern: re(`${APP}\\(app\\)/(?:inbox|settings/notifications)/`), tags: [], why: 'no E2E covers this page' },
 
   // --- Web components and server modules (by who renders/uses them) ---
   { pattern: re(`${WEB}src/dev-panel/`), tags: ['@dev-panel'], why: 'dev panel' },
   { pattern: re(`${COMP}(?:auth-card|sign-out-button)\\.tsx$`), tags: ['@auth'], why: 'sign-in pages' },
+  { pattern: re(`${COMP}read-only\\.tsx$`), tags: 'all', why: 'read-only provider and WriteGuard (wrap write controls everywhere)' },
+  { pattern: re(`${COMP}support-sessions-table\\.tsx$`), tags: ['@platform'], why: 'support-session history table (8b; Task 9 retags to @support)' },
   { pattern: re(`${COMP}(?:client-home-basic|client-lists|stat-card)\\.tsx$`), tags: ['@overview', '@reviews'], why: 'client overview/reviews' },
   { pattern: re(`${COMP}client-profile-form\\.tsx$`), tags: ['@clients', '@profile', '@prospects'], why: 'client/prospect forms' },
   { pattern: re(`${COMP}evidence-chips\\.tsx$`), tags: ['@briefs', '@recommendations', '@overview', '@alerts', '@guest'], why: 'evidence chips' },

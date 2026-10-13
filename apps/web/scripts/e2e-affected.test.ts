@@ -66,12 +66,12 @@ describe('resolveAffected', () => {
       expect(resolve(f), f).toMatchObject({ mode: 'some', tags: ['@ask', '@smoke'] });
     expect(resolve('apps/web/src/server/ask.ts')).toMatchObject({ mode: 'some', tags: ['@ask', '@kb', '@smoke'] });
     }
-    expect(resolve('apps/web/src/app/(app)/platform/ask/[threadId]/page.tsx')).toMatchObject({ mode: 'some', tags: ['@ask', '@platform', '@smoke'] });
+    expect(resolve('apps/web/src/app/(platform)/platform/ask/[threadId]/page.tsx')).toMatchObject({ mode: 'some', tags: ['@ask', '@platform', '@smoke'] });
     expect(resolve('packages/engine/src/tasks/run.ts').mode).toBe('all');
   });
 
   it('maps the platform console files to @platform', () => {
-    for (const f of ['packages/tools/src/tools/platform-console.ts', 'packages/tools/src/platform/stats.ts', 'packages/demo/src/platform-stats.ts', 'apps/web/src/app/(app)/platform/agencies/page.tsx']) {
+    for (const f of ['packages/tools/src/tools/platform-console.ts', 'packages/tools/src/platform/stats.ts', 'packages/demo/src/platform-stats.ts', 'apps/web/src/app/(platform)/platform/agencies/page.tsx']) {
       expect(resolve(f).tags, f).toContain('@platform');
       expect(resolve(f).mode, f).toBe('some');
     }

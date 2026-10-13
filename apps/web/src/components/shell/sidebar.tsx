@@ -12,10 +12,11 @@ import { type NavClient, SidebarNav } from './sidebar-nav';
  * client-side navigation, so anything here that must track the current URL (the active highlight, the
  * client-scoped items) has to read it live via `usePathname()` instead of a prop computed once on the server.
  */
-export function Sidebar({ branding, flags, clients }: { branding: Branding; flags: NavRoleFlags; clients: NavClient[] }) {
+/** `offsetTop`: a fixed 36px support banner sits above the shell (Phase 8b), so the sticky column starts below it. */
+export function Sidebar({ branding, flags, clients, offsetTop = false }: { branding: Branding; flags: NavRoleFlags; clients: NavClient[]; offsetTop?: boolean }) {
   const whiteLabel = branding.displayName !== 'Rival Monday';
   return (
-    <aside className="sticky top-0 hidden h-screen w-[232px] flex-shrink-0 flex-col gap-1 overflow-y-auto border-r border-line bg-surface px-3.5 py-[22px] lg:flex">
+    <aside className={`sticky ${offsetTop ? 'top-9 h-[calc(100vh-2.25rem)]' : 'top-0 h-screen'} hidden w-[232px] flex-shrink-0 flex-col gap-1 overflow-y-auto border-r border-line bg-surface px-3.5 py-[22px] lg:flex`}>
       <div className="px-2.5 pb-[18px]">
         {branding.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

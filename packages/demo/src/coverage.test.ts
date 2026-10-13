@@ -84,8 +84,11 @@ describe('demo seed coverage (spec §4.9, §8)', () => {
     });
   }
 
-  const appDir = fileURLToPath(new URL('../../../apps/web/src/app/(app)', import.meta.url));
+  // Phase 8b: `/platform/**` lives in its own route group so its layout is always the operator's own context.
+  const groupDirs = ['(app)', '(platform)'].map((g) => fileURLToPath(new URL(`../../../apps/web/src/app/${g}`, import.meta.url)));
   const webSrc = fileURLToPath(new URL('../../../apps/web/src', import.meta.url));
+  /** The shell both group layouts render; its reads run on every page. */
+  const shellFile = join(webSrc, 'components', 'shell', 'app-shell.tsx');
 
   /** route -> tool names read by its page.tsx and the local modules it imports (server actions are writes, so skipped). */
   function pageReads(): Map<string, string[]> {
@@ -94,10 +97,10 @@ describe('demo seed coverage (spec §4.9, §8)', () => {
       const base = spec.startsWith('@/') ? join(webSrc, spec.slice(2)) : resolve(from, spec);
       return ['.tsx', '.ts', '/index.tsx', '/index.ts'].map((ext) => base + ext).find((f) => existsSync(f)) ?? null;
     };
-    const walk = (dir: string) => {
+    const walk = (appDir: string, dir: string) => {
       for (const name of readdirSync(dir)) {
         const p = join(dir, name);
-        if (statSync(p).isDirectory()) walk(p);
+        if (statSync(p).isDirectory()) walk(appDir, p);
         else if (name === 'page.tsx') {
           const source = readFileSync(p, 'utf8');
           const imported = [...source.matchAll(/^import (?!type )[^;]*?from '((?:\.\.?\/|@\/)[^']+)'/gm)]
@@ -110,7 +113,7 @@ describe('demo seed coverage (spec §4.9, §8)', () => {
         }
       }
     };
-    walk(appDir);
+    for (const g of groupDirs) walk(g, g);
     return out;
   }
 
@@ -128,8 +131,9 @@ describe('demo seed coverage (spec §4.9, §8)', () => {
     expect(missing, 'page reads with no coverage call').toEqual([]);
   });
 
-  it('checks the reads of the shared (app) layout once, in the entry named in SHARED_READS', () => {
-    const reads = toolReadsOf(readFileSync(join(appDir, 'layout.tsx'), 'utf8'));
+  it('checks the reads of the shared app shell once, in the entry named in SHARED_READS', () => {
+    for (const g of groupDirs) expect(readFileSync(join(g, 'layout.tsx'), 'utf8'), `${g} layout renders AppShell`).toContain('<AppShell');
+    const reads = toolReadsOf(readFileSync(shellFile, 'utf8'));
     expect(reads.length).toBeGreaterThan(0);
     expect(reads.filter((t) => !(t in SHARED_READS)), 'layout reads missing from SHARED_READS').toEqual([]);
     for (const [tool, route] of Object.entries(SHARED_READS)) {

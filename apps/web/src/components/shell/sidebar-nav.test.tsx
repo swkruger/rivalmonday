@@ -209,7 +209,7 @@ describe('SidebarNav sections', () => {
     pathname = '/agency';
     render(<SidebarNav flags={agencyAdmin} clients={clients} />);
     expect(linkNames(screen.getByRole('group', { name: 'Agency' }))).toEqual(['Portfolio', 'Approvals', 'Alert review', 'Prospects', 'Usage & limits', 'Playbooks']);
-    expect(linkNames(screen.getByRole('group', { name: 'Account' }))).toEqual(['Inbox', 'Team', 'AI connections', 'Branding', 'Slack & Teams', 'Notifications']);
+    expect(linkNames(screen.getByRole('group', { name: 'Account' }))).toEqual(['Inbox', 'Team', 'AI connections', 'Branding', 'Slack & Teams', 'Platform access', 'Notifications']);
     expect(screen.getByText('Select a client from Portfolio')).toBeTruthy();
     expect(screen.queryByRole('group', { name: /^Client/ })).toBeNull();
   });

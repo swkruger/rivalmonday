@@ -22,5 +22,7 @@ describe('SignOutButton', () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith('/sign-in'));
     expect(signOut).toHaveBeenCalledTimes(1);
     expect(endSession).toHaveBeenCalledTimes(1);
+    // Phase 8b: endSession runs while the user is still signed in, so it can end their support session.
+    expect(endSession.mock.invocationCallOrder[0]!).toBeLessThan(signOut.mock.invocationCallOrder[0]!);
   });
 });

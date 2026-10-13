@@ -1,10 +1,15 @@
+import { platformRole } from '@cs/tools';
 import { StatCard } from '@/components/stat-card';
+import { type SupportSessionRow, SupportSessionsTable } from '@/components/support-sessions-table';
 import { requireOperatorContext } from '@/server/current-viewer';
+import { dbs } from '@/server/db';
 import { formatUsd } from '@/server/format';
+import { platformAdmins } from '@/server/runtime-env';
 import { callTool } from '@/server/tools';
 import { type Health, HealthPill } from '../../_components/health-pill';
 import { cardCls, deltaPill, PlatformCharts, type Point, type Tile } from '../../_components/overview-charts';
 import { parseRange, RangeToggle } from '../../_components/range-toggle';
+import { SupportDialog } from './support-dialog';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,21 +28,38 @@ const TEAM: { key: keyof Detail['team']; label: string }[] = [
   { key: 'clientViewer', label: 'Client viewers' },
 ];
 
-/** Unknown/malformed id or a non-operator → the tool's not_found / permission_denied → 404 (callTool). */
-export default async function PlatformAgencyPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ range?: string | string[] }> }) {
+/**
+ * Unknown/malformed id or a non-operator → the tool's not_found / permission_denied → 404 (callTool).
+ * Phase 8b: "View as agency" (owner/staff only), recent support sessions, and the `?ended=1` flash after Exit/expiry.
+ */
+export default async function PlatformAgencyPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ range?: string | string[]; ended?: string | string[] }> }) {
   const { id } = await params;
-  const range = parseRange((await searchParams).range);
+  const sp = await searchParams;
+  const range = parseRange(sp.range);
   const { ctx } = await requireOperatorContext();
   const { agency, tiles, series, team, clients } = await callTool<Detail>(ctx, 'get_platform_agency', { agencyId: id, range });
+  const [{ rows: sessions }, role] = await Promise.all([
+    callTool<{ rows: SupportSessionRow[] }>(ctx, 'list_agency_support_sessions', { agencyId: agency.id }),
+    platformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx),
+  ]);
+  const canStart = role === 'owner' || role === 'staff';
   return (
     <>
+      {sp.ended === '1' && (
+        <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">
+          Support session ended.
+        </p>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-[26px] font-extrabold tracking-tight">{agency.name}</h1>
           <HealthPill health={agency.health} />
           <span className="text-sm text-muted-foreground">Created {agency.createdAt.slice(0, 10)}</span>
         </div>
-        <RangeToggle current={range} basePath={`/platform/agencies/${agency.id}`} />
+        <div className="flex flex-wrap items-center gap-3">
+          {canStart && <SupportDialog agencyId={agency.id} />}
+          <RangeToggle current={range} basePath={`/platform/agencies/${agency.id}`} />
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
         <StatCard title="Active clients" value={String(tiles.clientsActive.value)} pill={deltaPill(tiles.clientsActive)} hint="Last 28 days" />
@@ -85,6 +107,10 @@ export default async function PlatformAgencyPage({ params, searchParams }: { par
             </table>
           </div>
         )}
+      </section>
+      <section className={cardCls}>
+        <h2 className="font-semibold">Support sessions</h2>
+        <SupportSessionsTable rows={sessions} empty="No support sessions yet." />
       </section>
       <p className="text-sm text-muted-foreground">Agency management is coming soon.</p>
     </>

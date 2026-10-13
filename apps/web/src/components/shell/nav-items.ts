@@ -17,7 +17,7 @@ export interface NavItem {
   icon:
     | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
     | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects' | 'ask' | 'knowledge'
-    | 'platform' | 'agencies' | 'health';
+    | 'platform' | 'agencies' | 'health' | 'platformAccess';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -37,6 +37,8 @@ export interface NavRoleFlags {
   ask?: boolean;
   /** 6b e10: the agency's assistant name ("Friday" when unset). */
   assistantName?: string;
+  /** Phase 8b: inside a support session, the operator's way back to the agency's console page (the session continues). */
+  backToPlatform?: string;
 }
 
 const CLIENT_PATH = /^\/c\/([0-9a-f-]{36})/;
@@ -71,8 +73,11 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
   if (flags.isAgencyAdmin) {
     account('/agency/branding', 'Branding', 'branding');
     account('/agency/webhooks', 'Slack & Teams', 'webhooks');
+    // Phase 8b: agency admins only, never inside a support session (the page 404s there).
+    if (flags.isUser) account('/agency/settings/platform-access', 'Platform access', 'platformAccess');
   }
   if (flags.isUser) account('/settings/notifications', 'Notifications', 'bell');
+  if (flags.backToPlatform) account(flags.backToPlatform, 'Back to platform', 'platform');
   if (flags.isPlatformOperator) {
     account('/platform', 'Overview', 'platform');
     account('/platform/agencies', 'Agencies', 'agencies');

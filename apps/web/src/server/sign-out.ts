@@ -1,5 +1,6 @@
 import 'server-only';
 import { GUEST_COOKIE } from './guest';
+import { SUPPORT_COOKIE } from './support-cookie';
 import { MEMBERSHIP_COOKIE } from './viewer';
 
 export type CookieWriter = { set: (name: string, value: string, options: Record<string, unknown>) => unknown };
@@ -15,4 +16,6 @@ export function clearSessionCookies(jar: CookieWriter): void {
   const opts = { httpOnly: true, sameSite: 'lax' as const, secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 0 };
   jar.set(GUEST_COOKIE, '', opts);
   jar.set(MEMBERSHIP_COOKIE, '', opts);
+  // Phase 8b R12: a support session never survives sign-out (the caller also ends the row).
+  jar.set(SUPPORT_COOKIE, '', opts);
 }

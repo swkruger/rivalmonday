@@ -15,8 +15,9 @@ export function SignOutButton() {
     <Button
       variant="outline"
       onClick={async () => {
-        await authClient.signOut();
+        // Phase 8b: first, while the Better Auth session still identifies the user, so an open support session ends too.
         await endSession();
+        await authClient.signOut();
         router.push('/sign-in');
       }}
     >

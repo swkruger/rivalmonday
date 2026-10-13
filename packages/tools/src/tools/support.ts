@@ -1,12 +1,12 @@
 import { type AccessContext, ToolError, toolkit } from '@cs/core';
 import { agency, supportSession } from '@cs/db';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { pageOf, pageResult } from '../paging';
 import { requirePlatformOperator } from '../platform';
 import { withPlatformAudit } from '../platform/audit';
-import { endSession, startSession } from '../platform/support';
+import { endOpenSessionFor, startSession } from '../platform/support';
 
 /**
  * Phase 8b support-session tools (spec § Tools). `start`/`end` run on the operator's own context (never a support context);
@@ -78,13 +78,7 @@ export const endSupportSession = defineTool({
   output: z.object({ agencyId: z.string().nullable() }),
   permission: 'agency',
   async handler(ctx: AccessContext, _input, deps) {
-    const [open] = await deps.service
-      .select({ id: supportSession.id, agencyId: supportSession.agencyId })
-      .from(supportSession)
-      .where(and(eq(supportSession.platformUserId, ctx.userId), isNull(supportSession.endedAt)));
-    if (!open) return { agencyId: null };
-    await endSession(deps.service, open.id, 'exit');
-    return { agencyId: open.agencyId };
+    return { agencyId: await endOpenSessionFor(deps.service, ctx.userId) };
   },
 });
 
@@ -92,9 +86,9 @@ export const listSupportSessions = defineTool({
   name: 'list_support_sessions',
   access: 'read',
   supportHidden: true,
-  description: 'Agency admins: platform support sessions opened on this agency, newest first.',
+  description: 'Agency admins: platform support sessions opened on this agency, newest first, and whether admins are emailed when one opens.',
   input: z.object({ cursor: z.string().max(200).optional(), limit: z.number().int().min(1).max(50).optional() }),
-  output: z.object({ rows: z.array(SessionRow), nextCursor: z.string().nullable() }),
+  output: z.object({ rows: z.array(SessionRow), nextCursor: z.string().nullable(), notifyEnabled: z.boolean() }),
   permission: 'agency',
   async handler(ctx: AccessContext, input, deps, meta) {
     requireAgencyAdmin(ctx);
@@ -106,7 +100,8 @@ export const listSupportSessions = defineTool({
       order by s.started_at desc, s.id
       limit ${limit + 1} offset ${offset}`))];
     const page = pageResult(rows, limit, offset);
-    return { rows: page.rows.map(shape), nextCursor: page.nextCursor };
+    const [ag] = await deps.service.select({ notify: agency.notifySupportAccess }).from(agency).where(eq(agency.id, ctx.agencyId));
+    return { rows: page.rows.map(shape), nextCursor: page.nextCursor, notifyEnabled: ag?.notify ?? false };
   },
 });
 

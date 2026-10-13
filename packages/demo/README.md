@@ -24,6 +24,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/approvals/[briefId]` | admin | `get_brief_review` | — |
 | `/agency/approvals/[briefId] (quiet)` | admin | — | `get_brief_review`: Brazos’s brief is held as quiet |
 | `/agency/branding` | admin | `fn:getAgencyBranding` | — |
+| `/agency/settings/platform-access` | admin | — | `list_support_sessions`: support sessions are seeded in 8b Task 9 |
 | `/agency/playbooks` | admin | `list_playbooks` | — |
 | `/agency/prospects` | admin | `list_prospects` | — |
 | `/agency/prospects/[clientId]` | admin | `get_client_profile`, `get_prospect_report`, `list_client_competitors` | — |
@@ -34,8 +35,8 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId] (client owner)` | ownerLoneStar | `get_workspace_overview`, `list_briefs`, `get_brief` | — |
 | `/c/[clientId]/ads` | admin | `get_ad_activity`, `list_ads` | `list_ads`: one competitor runs no ads |
 | `/c/[clientId]/alerts/[alertId]` | admin | `get_alert` | — |
-| `/c/[clientId]/ask` | admin | `get_ask_starters`, `list_my_ask_threads`, `get_my_ask_thread` | — |
-| `/c/[clientId]/ask/[threadId]` | admin | `get_ask_starters`, `list_my_ask_threads`, `get_my_ask_thread` | — |
+| `/c/[clientId]/ask` | admin | `get_ask_starters`, `list_my_ask_threads`, `get_my_ask_thread`, `get_client_profile` | — |
+| `/c/[clientId]/ask/[threadId]` | admin | `get_ask_starters`, `list_my_ask_threads`, `get_my_ask_thread`, `get_client_profile` | — |
 | `/c/[clientId]/ask/[threadId] (client owner)` | ownerLoneStar | `list_my_ask_threads`, `get_my_ask_thread` | `get_my_ask_thread`: threads are author-only |
 | `/c/[clientId]/briefs/[briefId]` | ownerLoneStar | `get_brief` | — |
 | `/c/[clientId]/changes` | admin | `search_events`, `get_event`, `compare_snapshots`, `list_client_competitors`, `get_client_profile` | — |
@@ -61,7 +62,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/kb/[id]` | admin | `get_kb_article` | — |
 | `/platform` | operator | `platform_overview`, `list_platform_activity` | — |
 | `/platform/agencies` | operator | `list_platform_agencies` | — |
-| `/platform/agencies/[id]` | operator | `get_platform_agency` | — |
+| `/platform/agencies/[id]` | operator | `get_platform_agency` | `list_agency_support_sessions`: support sessions are seeded in 8b Task 9 |
 | `/platform/health` | operator | — | — |
 | `/platform/ask` | operator | `fn:listReviewableAskThreads` | — |
 | `/platform/ask/[threadId]` | operator | `fn:getReviewableAskThread` | — |

@@ -139,8 +139,11 @@ describe('set_support_access_notify', () => {
 
   it('an agency admin toggles its own agency only', async () => {
     expect(await flag()).toBe(false);
+    expect(await registry.invoke(admin, 'list_support_sessions', {})).toMatchObject({ notifyEnabled: false });
     expect(await registry.invoke(admin, 'set_support_access_notify', { enabled: true })).toEqual({ enabled: true });
     expect(await flag()).toBe(true);
+    expect(await registry.invoke(admin, 'list_support_sessions', {})).toMatchObject({ notifyEnabled: true });
+    expect(await registry.invoke(adminB, 'list_support_sessions', {})).toMatchObject({ notifyEnabled: false });
     expect(await flag(IDS.agencyB)).toBe(false);
     await registry.invoke(admin, 'set_support_access_notify', { enabled: false });
     expect(await flag()).toBe(false);

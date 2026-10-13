@@ -16,7 +16,7 @@ export interface CoverageCall {
 }
 
 export interface ScreenCoverage {
-  /** The app route, as its folder path under `apps/web/src/app/(app)`. A suffix in parentheses marks a second entry for the same route. */
+  /** The app route, as its folder path under `apps/web/src/app/(app)` or `(platform)`. A suffix in parentheses marks a second entry for the same route. */
   route: string;
   as: DemoUserKey;
   calls: CoverageCall[];
@@ -33,11 +33,15 @@ const lsComp = (ids: DemoIds) => ids.competitors.loneStar[0]!.id;
 /** Most workspace pages read the client profile for their header or settings. */
 const lsProfile: CoverageCall = { tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' };
 
-/** Both Ask routes render the same screen (`ask-screen.tsx`): starters, the user's own threads and (on a thread) that thread. */
+/**
+ * Both Ask routes render the same screen (`ask-screen.tsx`): starters, the user's own threads and (on a thread) that
+ * thread; inside a support session (8b) only the client profile, as the client gate.
+ */
 const askCalls: CoverageCall[] = [
   { tool: 'get_ask_starters', input: (ids) => ({ clientId: ls(ids) }), path: 'questions' },
   { tool: 'list_my_ask_threads', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
   { tool: 'get_my_ask_thread', input: (ids) => ({ threadId: ids.ask.admin }), path: 'messages.*.citations' },
+  lsProfile,
 ];
 /** The Overview and Profile pages read the starters (Ask card; the admin's review toggle). */
 const lsStarters: CoverageCall = { tool: 'get_ask_starters', input: (ids) => ({ clientId: ls(ids) }), path: 'questions' };
@@ -46,7 +50,7 @@ const lsStarters: CoverageCall = { tool: 'get_ask_starters', input: (ids) => ({ 
 export const NO_DATA_ROUTES = ['/agency/clients/new', '/agency/prospects/new'] as const;
 
 /**
- * Tools read by `(app)/layout.tsx` on every page. They are checked once, in the screen entry named here, rather
+ * Tools read by the shared shell (`components/shell/app-shell.tsx`, rendered by the `(app)` and `(platform)` layouts) on every page. They are checked once, in the screen entry named here, rather
  * than in every entry; the coverage test requires each layout read to be listed and its entry to call it.
  */
 export const SHARED_READS: Readonly<Record<string, string>> = { list_clients: '/agency/team' };
@@ -65,6 +69,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/agency/approvals/[briefId]', as: 'admin', calls: [{ tool: 'get_brief_review', input: (ids) => ({ briefId: ids.briefs.readyLoneStar }), path: 'items' }] },
   { route: '/agency/approvals/[briefId] (quiet)', as: 'admin', calls: [{ tool: 'get_brief_review', input: (ids) => ({ briefId: ids.briefs.quietBrazos }), path: 'items', expect: 'empty', why: 'Brazos’s brief is held as quiet' }] },
   { route: '/agency/branding', as: 'admin', calls: [{ tool: 'fn:getAgencyBranding', input: none, path: 'stored' }] },
+  { route: '/agency/settings/platform-access', as: 'admin', calls: [{ tool: 'list_support_sessions', input: none, path: 'rows', expect: 'empty', why: 'support sessions are seeded in 8b Task 9' }] },
   { route: '/agency/playbooks', as: 'admin', calls: [{ tool: 'list_playbooks', input: none, path: 'verticals' }] },
   { route: '/agency/prospects', as: 'admin', calls: [{ tool: 'list_prospects', input: none, path: 'items' }] },
   {
@@ -210,7 +215,12 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/kb/[id]', as: 'admin', calls: [{ tool: 'get_kb_article', input: (ids) => ({ kbId: ids.kbArticleId }), path: 'bodyMd' }] },
   { route: '/platform', as: 'operator', calls: [{ tool: 'platform_overview', input: () => ({ range: '12w' }), path: 'series' }, { tool: 'list_platform_activity', input: () => ({ limit: 20 }), path: 'items' }] },
   { route: '/platform/agencies', as: 'operator', calls: [{ tool: 'list_platform_agencies', input: () => ({ sort: 'name', dir: 'asc', limit: 100 }), path: 'rows' }] },
-  { route: '/platform/agencies/[id]', as: 'operator', calls: [{ tool: 'get_platform_agency', input: (ids) => ({ agencyId: ids.agencyId, range: '12w' }), path: 'series' }] },
+  {
+    route: '/platform/agencies/[id]', as: 'operator', calls: [
+      { tool: 'get_platform_agency', input: (ids) => ({ agencyId: ids.agencyId, range: '12w' }), path: 'series' },
+      { tool: 'list_agency_support_sessions', input: (ids) => ({ agencyId: ids.agencyId }), path: 'rows', expect: 'empty', why: 'support sessions are seeded in 8b Task 9' },
+    ],
+  },
   { route: '/platform/health', as: 'operator', calls: [] },
   { route: '/platform/ask', as: 'operator', calls: [{ tool: 'fn:listReviewableAskThreads', input: none, path: 'items' }] },
   { route: '/platform/ask/[threadId]', as: 'operator', calls: [{ tool: 'fn:getReviewableAskThread', input: (ids) => ({ threadId: ids.ask.ownerLoneStar }), path: 'messages.*.trace' }] },

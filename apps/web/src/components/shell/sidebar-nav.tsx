@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, BadgeDollarSign, Bell, BookMarked, BookOpen, Building2, ClipboardCheck, Gauge, Globe, HeartPulse, Inbox, LayoutDashboard, ListChecks, MapPin, Megaphone, MessageCircle, Network, Palette, Plug, Scale, Send, Siren, SlidersHorizontal, Star, Swords, Tags, Telescope, TrendingUp, UserCog, Users, Webhook } from 'lucide-react';
+import { Activity, BadgeDollarSign, Bell, BookMarked, BookOpen, Building2, ClipboardCheck, Gauge, Globe, HeartPulse, Inbox, LayoutDashboard, ListChecks, MapPin, Megaphone, MessageCircle, Network, Palette, Plug, Scale, Send, ShieldCheck, Siren, SlidersHorizontal, Star, Swords, Tags, Telescope, TrendingUp, UserCog, Users, Webhook } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { activeHref, clientIdFromPath, type NavGroup, type NavItem, type NavRoleFlags, navItemsFor } from './nav-items';
@@ -8,7 +8,7 @@ import { activeHref, clientIdFromPath, type NavGroup, type NavItem, type NavRole
 const ICONS = {
   clients: Users, overview: LayoutDashboard, inbox: Inbox, team: UserCog, branding: Palette, webhooks: Webhook, bell: Bell, delivery: Send, profile: Building2, competitors: Swords,
   changes: Activity, moves: TrendingUp, pricing: BadgeDollarSign, ads: Megaphone, rankings: MapPin, reputation: Star, approvals: ClipboardCheck, alerts: Siren, recommendations: ListChecks, usage: Gauge, playbooks: BookOpen, reviews: Scale, themes: Tags, prospects: Telescope, alertRules: SlidersHorizontal, ai: Plug, ask: MessageCircle, knowledge: BookMarked,
-  platform: Globe, agencies: Network, health: HeartPulse,
+  platform: Globe, agencies: Network, health: HeartPulse, platformAccess: ShieldCheck,
 } as const satisfies Record<NavItem['icon'], unknown>;
 
 export interface NavClient {
