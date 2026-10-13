@@ -25,4 +25,15 @@ describe('AskCard', () => {
     expect(screen.getByText('Ask Robin')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'What changed this week?' }).getAttribute('href')).toBe(`/c/${C}/ask?q=${encodeURIComponent('What changed this week?')}`);
   });
+  it('has a question box that opens the Ask page with the question', async () => {
+    render(<>{await AskCard({ clientId: C, ctx: ctx(['ask']) })}</>);
+    const box = screen.getByRole('textbox', { name: 'Ask Robin a question' });
+    expect(box.getAttribute('name')).toBe('q');
+    expect(box.getAttribute('maxlength')).toBe('2000');
+    expect(box.hasAttribute('required')).toBe(true);
+    const form = box.closest('form')!;
+    expect(form.getAttribute('action')).toBe(`/c/${C}/ask`);
+    expect(form.getAttribute('method')).toBe('get');
+    expect(screen.getByRole('button', { name: 'Ask' }).getAttribute('type')).toBe('submit');
+  });
 });

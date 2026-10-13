@@ -28,7 +28,7 @@ From the main checkout (`git worktree list` first line), which must be on `main`
 ```bash
 git -C "$MAIN_WT" merge --ff-only <branch> || git -C "$MAIN_WT" merge --no-ff <branch> -m "Merge branch '<branch>': <summary>"
 ```
-Conflicts in `docs/STATE.md` / `BACKLOG.md` / `ARCHITECTURE.md`: keep both sides' content, then re-apply the caps. Then `pnpm db:migrate` on `cs_dev` **only if the owner agrees** and the branch added migrations; right after it, run `pnpm kb:seed` on `cs_dev` (same agreement) so `docs/help` articles reach the platform knowledge base. If the branch added routes, tell the owner to stop `pnpm dev:web` and delete `apps/web/.next/dev` before testing: a stale Turbopack cache serves Next's built-in 404 for routes it has never seen.
+Conflicts in `docs/STATE.md` / `BACKLOG.md` / `ARCHITECTURE.md`: keep both sides' content, then re-apply the caps. Then `pnpm db:migrate` on `cs_dev` **only if the owner agrees** and the branch added migrations; right after it, run `pnpm kb:seed` on `cs_dev` (same agreement) so `docs/help` articles reach the platform knowledge base. If a page that exists 404s in `next dev` (Next's built-in 404, often right after a merge or restart), the dev server's route list is incomplete on this machine: save or `touch` any file under `apps/web/src/app` and it rescans.
 
 ## 4. Publish and clean up
 1. `git push origin main` (after confirming with the owner if not already said).
