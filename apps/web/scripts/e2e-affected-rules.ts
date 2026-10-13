@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@playbooks',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -76,7 +76,9 @@ export const RULES: Rule[] = [
   // --- Ask assistant (6b) ---
   { pattern: /^packages\/ask\//, tags: ['@ask'], why: 'Ask package (turn, grounding, quota, starters)' },
   { pattern: re(`${APP}\\(app\\)/platform/ask/`), tags: ['@ask', '@platform'], why: 'platform Ask review' },
-  { pattern: re(`${APP}\\(app\\)/kb/|${COMP}kb/`), tags: ['@ask'], why: 'knowledge article page and sheet (opened from Ask citations)' },
+  { pattern: re(`${APP}\\(app\\)/platform/knowledge/`), tags: ['@kb', '@platform'], why: 'operator knowledge base UI' },
+  { pattern: re(`${APP}\\(app\\)/kb/|${COMP}kb/`), tags: ['@ask', '@kb'], why: 'knowledge article page and sheet (opened from Ask citations)' },
+  { pattern: re(`${SERVER}ask\\.ts$`), tags: ['@ask', '@kb'], why: 'Ask server wiring incl. the E2E fake AI (knowledge lookup)' },
   { pattern: re(`${WEB}src/(?:.*/)?ask(?:/|\\.ts$)`), tags: ['@ask'], why: 'Ask route, pages, components and server wiring' },
 
   { pattern: re(`${APP}(?:sign-in/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in and link-error pages' },

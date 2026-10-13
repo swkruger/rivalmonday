@@ -49,6 +49,18 @@ describe('E2E_SCRIPT', () => {
     }
   });
 
+  it('a "knowledge base: <token>" question searches knowledge, then cites the first returned kb id', async () => {
+    const ai = createScriptedAskAi(E2E_SCRIPT);
+    const KB = '33333333-3333-4333-8333-333333333333';
+    const msgs = [...opening.slice(0, -1), { role: 'user' as const, content: 'Check the knowledge base: quokkaharbor' }];
+    const first = await ai.chatWithTools('ask_assistant', { messages: msgs, tools: [], toolChoice: 'auto' }, scope);
+    expect(first.toolCalls[0]!.name).toBe('search_knowledge');
+    expect(JSON.parse(first.toolCalls[0]!.arguments)).toMatchObject({ query: 'quokkaharbor', clientId: CLIENT });
+    const result = { role: 'tool' as const, toolCallId: 'call_1', content: `<data tool="search_knowledge">${JSON.stringify({ results: [{ kbId: KB, title: 'Quokka policy.' }] })}</data>` };
+    const second = await ai.chatWithTools('ask_assistant', { messages: [...msgs, { role: 'assistant', content: null, toolCalls: first.toolCalls }, result], tools: [], toolChoice: 'auto' }, scope);
+    expect(second.text).toBe(`Quokka policy [kb:${KB}].`);
+  });
+
   it('answers with the no-evidence copy when the search finds nothing', async () => {
     const ai = createScriptedAskAi(E2E_SCRIPT);
     const second = await ai.chatWithTools('ask_assistant', {

@@ -38,6 +38,22 @@ function firstEvidence(content: string): { id: string; itemId: string | null; ti
 /** The E2E trigger for a proposed write (e8 confirm card): a question containing "as useful". */
 const PROPOSE_USEFUL = /\bas useful\b/i;
 
+/** The E2E trigger for a knowledge lookup (6c): "knowledge base: <token>"; the token is the full-text query. */
+const KB_LOOKUP = /\bknowledge base:\s*([\p{L}\p{N}_-]+)/iu;
+
+/** The first `search_knowledge` hit in the last tool result (`<data tool="…">{json}</data>`). */
+function firstKbHit(content: string): { kbId: string; title: string } | null {
+  const json = /^<data tool="[^"]*">([\s\S]*)<\/data>$/.exec(content)?.[1];
+  if (!json) return null;
+  try {
+    const results = (JSON.parse(json) as { results?: unknown } | null)?.results;
+    const hit = Array.isArray(results) ? (results as Record<string, unknown>[]).find((r) => typeof r?.kbId === 'string' && UUID.test(r.kbId)) : undefined;
+    return hit ? { kbId: hit.kbId as string, title: typeof hit.title === 'string' && hit.title.trim() ? hit.title.trim() : 'A knowledge article' } : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * E2E fake chat: first `search_events` for the turn's client, then an answer citing the first evidence id found. When
  * the question says "as useful" it instead proposes `submit_feedback` (useful) on the first found event.
@@ -46,6 +62,15 @@ function e2eReply(req: { messages: { role: string; content: string | null }[]; t
   const turnLine = req.messages.find((m) => m.role === 'system' && /\(clientId [0-9a-f-]{36}\)/i.test(m.content ?? ''))?.content ?? '';
   const clientId = /\(clientId ([0-9a-f-]{36})\)/i.exec(turnLine)?.[1];
   const last = req.messages.at(-1);
+  const kbQuery = KB_LOOKUP.exec(req.messages.findLast((m) => m.role === 'user')?.content ?? '')?.[1];
+  if (kbQuery) {
+    if (last?.role === 'tool') {
+      const hit = firstKbHit(last.content ?? '');
+      return { text: hit ? `${hit.title.replace(/[.!?]+$/, '')} [kb:${hit.kbId}].` : ASK_COPY.noEvidence };
+    }
+    if (req.toolChoice === 'none') return { text: ASK_COPY.noEvidence };
+    return { toolCalls: [{ name: 'search_knowledge', args: { query: kbQuery, clientId } }] };
+  }
   if (last?.role === 'tool') {
     const ev = firstEvidence(last.content ?? '');
     const question = req.messages.findLast((m) => m.role === 'user')?.content ?? '';
