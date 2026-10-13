@@ -27,7 +27,7 @@ cp "$MAIN_WT/.claude/settings.json" "$MAIN_WT/.claude/settings.local.json" "$WT/
   sed -i '/^TEST_[A-Z_]*DATABASE_URL=/d' "$WT/.env"
   bash "$MAIN_WT/scripts/local-test-db.sh" env | sed "s#/cs_test\$#/$DB#" >> "$WT/.env"
   ```
-  (The roles are cluster-wide; the first test run migrates the new database. E2E still uses port 3100 — don't run two E2E suites at once.)
+  (The roles are cluster-wide; the first test run migrates the new database. After `pnpm install` finishes, run `pnpm --filter @cs/worker exec vitest run src/boss.test.ts` once in `$WT` to create the `pgboss` schema — E2E fails without it. E2E still uses port 3100 — don't run two E2E suites at once.)
 - Tell the user: **open a new Claude Code session in `$WT`** for this workstream (or continue here if this session has no other branch work). All file edits for this workstream happen under `$WT`.
 
 ## 2. Phase brief (delegate — keep the main context lean)

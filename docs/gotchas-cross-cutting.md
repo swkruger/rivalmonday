@@ -47,3 +47,4 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 ## Conduct & operations
 - **Crawler conduct is non-negotiable:** honest UA `RivalMondayBot`, RFC 9309 robots (5xx/unreachable ⇒ disallow), ≥3 s per host, blocked ⇒ record, never evade. No real competitor site is crawled until `WEB_MONITORING_ENABLED='true'`.
 - **Worker = one replica.** Per-host rate limiting is in-process; don't run `collect-once --poll` (or a web crawl of the same domain) while the worker runs.
+- **A fresh per-worktree test DB has no `pgboss` schema** until a pg-boss test starts it; E2E pages that enqueue then fail with `relation "pgboss.job" does not exist`. Run `pnpm --filter @cs/worker exec vitest run src/boss.test.ts` once after creating the DB (`/rm-kickoff` does).

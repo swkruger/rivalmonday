@@ -4,31 +4,39 @@
 **Plan/spec:** 8a spec `docs/superpowers/specs/2026-10-12-phase-8a-platform-console-design.md` (d1–d9); 8a plan `docs/superpowers/plans/2026-10-12-phase-8a-platform-console.md` (P1–P5, Tasks 0–9). New phase, not yet in the roadmap.
 
 ## Status (overwrite)
-8a **execution started 2026-10-13** (subagent-driven; phase-6 merged at `5aedcb6`). Test DB `cs_phase_8_test` on the local cluster. 8b (read-only agency drill-down, client-data privacy) not brainstormed.
+**8a complete 2026-10-13** — Tasks 0–9 + final-review fix wave done (subagent-driven, every task reviewed; final whole-branch review → 2 fixes applied, re-review clean). `test:affected --base main`: only failure is the pre-existing engine date time-bomb (see backlog); `e2e:affected` 44/45, `smoke.spec:41` timeout flake passed on re-run; `@platform` 4/4. Ready for `/rm-merge` (owner go-ahead). Test DB `cs_phase_8_test`. 8b not brainstormed.
 
 ## Next (overwrite)
-1. Task 0 pre-flight (re-check phase-6 assumptions against the code; next free migration `0047`), then Tasks 1–9.
-2. 8b brainstorm after 8a (Brief §6 Q2, Q8).
+1. Owner: verification steps below, then `/rm-merge phase-8` (full unit + E2E suite there).
+2. Then 8b brainstorm (Brief §6 Q2, Q8) via `/rm-kickoff phase-8b` (work file exists on main).
 
 ## Interfaces this branch adds or changes
-None yet. Planned (8a): tables `platform_admin`, `agency_daily_stat`, `platform_audit_log` (service role only; next free migration `0047`); `PlatformRole`, `platformRole`, `requirePlatformOperator(deps, ctx, min?)`; `navFlagsFor(v, isPlatformOperator: boolean)`; tools `platform_overview`, `list_platform_agencies`, `get_platform_agency`, `list_platform_activity`; job `platform-daily-stats`; routes `/platform`, `/platform/agencies[/id]`, `/platform/health`; CLI `platform-admin`; E2E tag `@platform`.
-
-## Verified at pre-flight 2026-10-13 (replaces "Assumes")
-- phase-6 merged (main @ 5aedcb6); no rebase needed. Next free migration **0047** (dir `packages/db/migrations/`; 0048 for RLS). Roles `app_user`/`app_service`; default privileges grant both, so revoke app_user.
-- `requirePlatformOperator(Pick<ToolDeps,'service'|'platformAdmins'>, ctx): Promise<void>`, env-email only; 14 call sites. `navFlagsFor(v, platformAdmins[], assistantName)` today (plan Task 2 changes it to boolean); operator nav items live in the `account` group, no Platform section.
-- `audit_log.role` is plain text (no CHECK); `channel` CHECK web|mcp|ask. `AuditEvent.role` is typed `Role` so `recordPlatformAudit` inserts into `auditLog` directly; `hashInput` is private in `core/src/tools.ts`.
-- Paging: `tools/src/paging.ts` offset cursors (`pageOf`, `pageResult`); `ACTIVATION_TOOLS=['convert_prospect']`; brief/alert have no `retracted_at`; membership is multi-row per user; `auth.session` columns camelCase.
-- Worker jobs are listed in `apps/worker/src/main.ts`; worker and demo already depend on `@cs/tools`.
+- Migrations **0047** `platform_console` (tables `platform_admin`, `agency_daily_stat`, `platform_audit_log`) + **0048** RLS (FORCE RLS, no policies, `app_user` revoked, audit log append-only). Next free **0049**.
+- `@cs/tools`: `PlatformRole`, `platformRole`, `isPlatformOperator`, `requirePlatformOperator(deps, ctx, min?) → PlatformRole` (env list = owner; `platform_admin` rows; guests never). `recordPlatformAudit`, `withPlatformAudit`; `bucketSeries`; `healthFlag`; `computeAgencyDay`/`upsertDailyStats(db, rows, {reconstructOnly})`/`runDailyStats`, `SESSION_ACTIVITY_AT`, `addDays`, `utcDay` exported. `ACTIVATION_TOOLS` in `prospects.ts`.
+- `@cs/core`: `hashInput` now exported.
+- Tools (web-only, `audit: 'skip-web'`): `platform_overview`, `list_platform_agencies`, `get_platform_agency` (audits into target agency `audit_log`, role `platform_<role>`), `list_platform_activity`.
+- `navFlagsFor(v, isPlatformOperator: boolean, …)`; layout resolves the flag via `isPlatformOperator` (one DB query per request).
+- Job `platform-daily-stats` (cron `0 2 * * *`, backfills ≤ 400 days when table empty). CLI `pnpm --filter @cs/worker platform-admin add|revoke|list`.
+- Routes `/platform`, `/platform/agencies`, `/platform/agencies/[id]`, `/platform/health` (placeholder). E2E tag `@platform`.
 
 ## Decisions (owner-approved)
 - Split 8a (list + growth/activity) / 8b (drill-down). Console will later host agency management (add/delete/suspend), agency comms, income statement.
 - Spec d1–d9 binding: `platform_admin` table (owner|staff|viewer) + env list as permanent owners; nightly `agency_daily_stat`; service-role reads behind `requirePlatformOperator`; no writes in 8a; health tab placeholder; names/statuses only; all platform reads audited.
+- Controller rulings (execution, reversible): activity/WAU/sign-in = `greatest(session.createdAt, updatedAt)` (spec said "created"; daily-refreshed sessions hid daily users); agencies < 28 d never at_risk; health sign-in = agency roles only; backfill fills only NULL columns; platform tools audit once (skip-web), refusals unaudited; offset paging for activity; growing pill ink text on #47A8E7; delivered alerts count even if event later retracted.
 
 ## New backlog (target → item)
-None yet.
+- Polish (high) → engine `score-stage.test.ts` date time-bomb: fixture dates fixed 2026-10, `scoreEvent` ages vs real clock → pass `now` (fails on main and every branch).
+- Unscheduled → activity `client_activated` lacks `clientName` (record activation, e.g. `client.activated_at`); `list_platform_activity` loads all sources per call (bound/paginate in SQL); agencies list silently capped at 100 (paging or notice).
+- Polish → stats: `wau`/`last_activity_at` ignore `membership.created_at`; `runDailyStats` accepts today/future `day`; backfill is 400×agencies sequential queries.
+- Polish → console: name sort `<` vs `localeCompare`; spend delta "up" tone; duplicate "Overview" nav labels ("Platform overview"); unused `email?` in `nav.ts` viewer type.
+- Polish → tests: CLI add/revoke SQL; 27/28-day health boundary; `tilesOf` ms28 filter + NULL-last sort; agency-cascade/`relforcerowsecurity` asserts; page-level tests; E2E audit before/after count.
 
 ## Owner verification steps
-TBD.
+1. `pnpm demo:reset` → sign in as the demo operator → `/platform`: tiles, three charts (90 days), activity feed; `12w/12m` toggle.
+2. `/platform/agencies` → sort headers, health pill colours (check pill contrast in the browser), open an agency → detail, "Agency management is coming soon.".
+3. As a plain agency admin: `/platform`, `/platform/agencies`, `/platform/health` → 404; no Platform nav items.
+4. `pnpm --filter @cs/worker platform-admin add <email> --role staff` → that user sees the console; `revoke` → 404.
+5. Optional (cs_dev): run the worker once → `agency_daily_stat` backfilled; re-run → no duplicates.
 
 ## Brief
 
@@ -58,20 +66,6 @@ TBD.
 - `upsell_tag` never client-facing; `retracted_at IS NULL`; no jobs in DEMO/TEST.
 - phase-6 6b e5/Q8: Ask threads are author-only; platform review only where `client.ask_review_allowed`, every view audit-logged.
 
-### 4. Backlog to fold in
-None on platform admin/impersonation/agency management. Adjacent:
-- [ ] 5b-2 minors: `resolve.test.ts` lock poll; `reviewQuestions` drops unknown keys silently; malformed `PLATFORM_ADMIN_EMAILS` no warning; `enqueue` ignores null `send()`; prospect report "as of" dates; test gaps — *from 5b-2 Tasks 2–12*
-- [ ] Usage page has no empty state for a zero-client agency; `list_alert_queue`'s `.limit(200)` gives no UI hint — *from 5b-2 Task 4, 5b-1 Task 12*
-
-### 5. In-flight workstreams
-`phase-6` (code; 0038–0043) and `phase-7-planning` (docs, parked). See **Assumes from other branches**; expect conflicts in `nav-items.ts`, `server/nav.ts`, `tools/all.ts`, `deps.ts`, `platform.ts`. Next free migration at execution time, currently ≥ `0043`.
-
-### 6. Open questions for the owner
-1. **Split?** (a) 8a agency list + growth/activity metrics, 8b read-only agency drill-down; (b) one phase; (c) 8a also folds in 7a's health page. **Rec: (a)** — drill-down carries the privacy/tenancy decisions.
+### 6. Open questions left for 8b (Q1, Q3–Q7 decided in the 8a spec)
 2. **Read-only agency access = what?** (a) separate `/platform/agencies/<id>` pages built from the same tools (portfolio, usage, team, branding summary), no client workspaces; (b) "view as agency": render existing `/agency` + `/c/<id>` pages in a read-only operator mode (all writes refused); (c) (b) plus client workspaces. **Rec: (a)**, workspaces later if needed; every drill-down view audit-logged.
-3. **Identifying platform admins:** (a) keep `PLATFORM_ADMIN_EMAILS` (exists, used by 5b-2/6b/7a); (b) `platform_admin` table/flag on `auth.user`; (c) Better Auth admin plugin. **Rec: (a)** now; (b) only if Phase 10 needs in-app admin invites.
-4. **Tenancy bypass:** (a) service role inside `requirePlatformOperator` tools (existing pattern); (b) dedicated RLS policies keyed on an `app.platform_admin` GUC; (c) a read-only `platform_ro` DB role. **Rec: (a)**, with an explicit column allow-list per read.
-5. **Growth/activity metrics & source:** (a) live aggregate queries over `agency`/`client`/`membership`/`audit_log`/ledgers/`auth.session`; (b) nightly `agency_daily_stat` snapshot table (history of seats/clients, cheap charts, billing can feed it); (c) (a) now, (b) in Phase 9. **Rec: (b)** — history isn't reconstructible from current rows. Confirm metrics: agencies, clients, seats, WAU, briefs/alerts sent, Ask, MCP calls, spend.
-6. **Write actions:** (a) none (pure read-only); (b) minimal: agency status (pilot/active/suspended) + notes; (c) also create agency/invite admin. **Rec: (a)**, but add a nullable `agency.status`/`plan` seam only if Phase 9 confirms it; suspend/create belong to 9/10.
-7. **7a health page:** (a) keep in 7a; (b) build `platform_health` here as a console tab; (c) leave a placeholder tab. **Rec: (c)** — 7a's tool needs worker/queue work out of scope here.
 8. **Privacy of client data seen by admins:** (a) aggregates + names only (no evidence, briefs, Ask, reviewer data); (b) full read like an agency admin, audited; (c) per-agency consent toggle. **Rec: (a)** for 8a; decide (b)/(c) with Q2.
