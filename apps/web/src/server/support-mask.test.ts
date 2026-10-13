@@ -14,6 +14,7 @@ const team = {
     { membershipId: 'm1', email: 'john@acme.com', name: 'John Smith', role: 'agency_admin' as const },
     { membershipId: 'm2', email: 'ann@b.io', name: '', role: 'client_owner' as const },
     { membershipId: 'm3', email: 'zed@c.io', name: 'zed@c.io', role: 'client_viewer' as const },
+    { membershipId: 'm4', email: 'ann@x.io', name: 'Ann <ann@x.io>', role: 'client_viewer' as const },
   ],
   invitations: [{ id: 'i1', email: 'new@acme.com', role: 'client_viewer' as const }],
 };
@@ -25,9 +26,11 @@ describe('maskTeamForSupport', () => {
       ['j•••@acme.com', 'John Smith'],
       ['a•••@b.io', 'a•••@b.io'], // the `name || email` fallback shows the masked email
       ['z•••@c.io', 'z•••@c.io'],
+      ['a•••@x.io', 'Ann <a•••@x.io>'], // an email inside the name is masked too
     ]);
     expect(out.invitations[0]).toEqual({ id: 'i1', email: 'n•••@acme.com', role: 'client_viewer' });
     expect(JSON.stringify(out)).not.toMatch(/john@|ann@|zed@|new@/);
+    expect(out.members[0]!.name).toBe('John Smith');
   });
 
   it('returns the data untouched outside a session', () => {

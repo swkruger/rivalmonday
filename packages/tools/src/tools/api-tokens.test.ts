@@ -103,6 +103,20 @@ describe('create_api_token', () => {
 });
 
 describe('list_api_tokens', () => {
+  it('masks an e-mail owner name inside a support session; plain names and non-session reads stay as they are (8b)', async () => {
+    await dbs.owner.execute(sql`update auth."user" set name = 'Bo <bo@agency.io>' where id = 'am2'`);
+    await create(am);
+    await create(am2);
+    const support = createAccessContext({
+      agencyId: IDS.agencyA, userId: 'op-ctx', role: 'agency_admin', clientScope: 'all', features: ['mcp'],
+      support: { sessionId: '00000000-0000-4000-8000-0000000005e5', platformUserId: 'op' },
+    });
+    const inSession = (await call(support, 'list_api_tokens', {})) as { items: { ownerName: string | null }[] };
+    expect(inSession.items.map((i) => i.ownerName).sort()).toEqual(['Ann AM', 'Bo <b•••@agency.io>']);
+    const outside = (await call(admin, 'list_api_tokens', {})) as { items: { ownerName: string | null }[] };
+    expect(outside.items.map((i) => i.ownerName)).toContain('Bo <bo@agency.io>');
+  });
+
   it('never includes token or hash', async () => {
     const r = await create(am);
     const res = await call(am, 'list_api_tokens', {}) as { items: Record<string, unknown>[] };

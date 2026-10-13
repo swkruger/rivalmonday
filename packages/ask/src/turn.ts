@@ -204,6 +204,10 @@ export async function runTurn(
   input: { threadId: string; userMessageId: string; seedEvidenceId?: string },
   emit: (e: AskEvent) => void,
 ): Promise<void> {
+  // Phase 8b defence in depth: Ask is author-only and support sessions are read-only/web-only. The route already
+  // 404s non-users and the registry refuses `ask` under support; this keeps a session out even if those gates move
+  // (the scoped evidence ctx below is rebuilt without `support`).
+  if (ctx.support) throw new ToolError('permission_denied', 'Ask is not available in a support session');
   const now = deps.now ?? (() => new Date());
   const started = now().getTime();
   const stepLimit = deps.stepLimit ?? ASK_STEP_LIMIT;

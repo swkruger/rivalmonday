@@ -5,7 +5,7 @@ import { type AuditEvent, ToolError, ToolRegistry, toolkit } from './tools';
 
 const A = '00000000-0000-4000-8000-00000000000a';
 const SID = '00000000-0000-4000-8000-0000000005e5';
-const OP = 'platform-user-1';
+const OP = 'platform-user-1'; // distinct from the ctx userId so the audit row provably uses platformUserId
 
 const { defineTool } = toolkit<Record<string, never>>();
 
@@ -31,7 +31,7 @@ const quietTool = defineTool({
 });
 
 const support = createAccessContext({
-  agencyId: A, userId: OP, role: 'agency_admin', clientScope: 'all', features: [],
+  agencyId: A, userId: 'ctx-user-id', role: 'agency_admin', clientScope: 'all', features: [],
   support: { sessionId: SID, platformUserId: OP },
 });
 const admin = createAccessContext({ agencyId: A, userId: 'admin', role: 'agency_admin', clientScope: 'all', features: [] });

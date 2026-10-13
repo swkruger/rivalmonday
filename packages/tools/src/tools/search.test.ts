@@ -234,10 +234,12 @@ describe('search under a support session', () => {
   it('embeds normally but skips embedQuery when ctx.support is set', async () => {
     const embed = vi.fn(async () => unit(0));
     const reg = withDeps({ embedQuery: embed });
-    await search(admin, { query: 'radiant floor', clientId: IDS.clientA1 }, reg);
+    // Support sessions are web-only (registry), so both calls go over the web channel.
+    const web = { channel: 'web' } as const;
+    await reg.invoke(admin, 'search', { query: 'radiant floor', clientId: IDS.clientA1 }, web);
     expect(embed).toHaveBeenCalledTimes(1);
     embed.mockClear();
-    await search(supportCtx, { query: 'radiant floor', clientId: IDS.clientA1 }, reg);
+    await reg.invoke(supportCtx, 'search', { query: 'radiant floor', clientId: IDS.clientA1 }, web);
     expect(embed).not.toHaveBeenCalled();
   });
 });

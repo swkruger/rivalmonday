@@ -96,6 +96,7 @@ export const revokeApiToken = defineTool({
 
 export const listApiTokens = defineTool({
   name: 'list_api_tokens',
+  supportMask: ['items[].ownerName'], // a display name can be (or contain) an e-mail
   access: 'read',
   description: 'Active personal access tokens you can see (your own; agency admins see the whole agency).',
   input: z.object({ clientId: uuid.optional() }),
@@ -123,6 +124,7 @@ export const listApiTokens = defineTool({
 
 export const listOauthGrants = defineTool({
   name: 'list_oauth_grants',
+  supportMask: ['items[].ownerName'], // a display name can be (or contain) an e-mail
   access: 'read',
   description: 'AI apps connected through sign-in (OAuth) that you can see.',
   input: z.object({ clientId: uuid.optional() }),

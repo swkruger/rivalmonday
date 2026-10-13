@@ -18,15 +18,15 @@ const WRITE_TOOLS = [
 const ASK_THREAD_TOOLS = ['delete_my_ask_thread', 'get_ask_starters', 'get_my_ask_thread', 'list_my_ask_threads'];
 
 /** Every key matching /email/i in a zod schema, as a support-mask path (`[]` for arrays). `stack` holds ancestors only, so a reused sub-schema is walked at each use. */
-function emailPaths(schema: z.ZodType, prefix = '', stack: readonly unknown[] = []): string[] {
+function emailPaths(schema: z.ZodType, prefix = '', stack: readonly unknown[] = [], keyMatches: (k: string) => boolean = (k) => /email/i.test(k)): string[] {
   if (stack.includes(schema)) return []; // recursive schema: stop at the cycle
   const next = [...stack, schema];
   const def = (schema as unknown as { def: Record<string, unknown> & { type: string } }).def;
-  const walk = (s: unknown, p = prefix) => emailPaths(s as z.ZodType, p, next);
+  const walk = (s: unknown, p = prefix) => emailPaths(s as z.ZodType, p, next, keyMatches);
   switch (def.type) {
     case 'object': {
       const shape = (schema as z.ZodObject).shape as Record<string, z.ZodType>;
-      return Object.entries(shape).flatMap(([k, v]) => [...(/email/i.test(k) ? [`${prefix}${k}`] : []), ...walk(v, `${prefix}${k}.`)]);
+      return Object.entries(shape).flatMap(([k, v]) => [...(keyMatches(k) ? [`${prefix}${k}`] : []), ...walk(v, `${prefix}${k}.`)]);
     }
     case 'array': return walk(def.element, `${prefix.replace(/\.$/, '')}[].`);
     case 'tuple': return (def.items as z.ZodType[]).flatMap((i) => walk(i, `${prefix.replace(/\.$/, '')}[].`));
@@ -79,6 +79,16 @@ describe('tool access marks', () => {
 
   it('the Ask-thread tools (and only those) are supportHidden', () => {
     expect(allTools.filter((t) => t.supportHidden).map((t) => t.name).sort()).toEqual(ASK_THREAD_TOOLS);
+  });
+
+  it('every declared supportMask path exists in the output schema (extra paths such as ownerName are allowed)', () => {
+    for (const t of allTools) {
+      const all = emailPaths(t.output, '', [], () => true);
+      for (const p of t.supportMask ?? []) expect(all, `${t.name} supportMask ${p}`).toContain(p);
+    }
+    const masked = (n: string) => allTools.find((t) => t.name === n)?.supportMask;
+    expect(masked('list_api_tokens')).toContain('items[].ownerName');
+    expect(masked('list_oauth_grants')).toContain('items[].ownerName');
   });
 
   it('every output email field is declared in supportMask', () => {

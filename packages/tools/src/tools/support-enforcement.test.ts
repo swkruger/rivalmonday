@@ -6,7 +6,7 @@ import { allTools } from './all';
 
 const A = '00000000-0000-4000-8000-00000000000a';
 const SID = '00000000-0000-4000-8000-0000000005e5';
-const OP = 'platform-user-1';
+const OP = 'platform-user-1'; // distinct from the ctx userId so the audit row provably uses platformUserId
 
 /** Any property read on the deps (db handles, enqueue, stores…) fails the test: refusal must happen before the handler. */
 const untouchableDeps = new Proxy({} as ToolDeps, {
@@ -17,7 +17,7 @@ const untouchableDeps = new Proxy({} as ToolDeps, {
 });
 
 const support = createAccessContext({
-  agencyId: A, userId: OP, role: 'agency_admin', clientScope: 'all', features: [...FEATURES],
+  agencyId: A, userId: 'ctx-user-id', role: 'agency_admin', clientScope: 'all', features: [...FEATURES],
   support: { sessionId: SID, platformUserId: OP },
 });
 

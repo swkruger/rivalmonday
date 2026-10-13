@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { maskEmail, maskSupportFields } from './mask';
+import { maskEmail, maskEmailsIn, maskSupportFields } from './mask';
 
 describe('maskEmail', () => {
   it('keeps the first character of the local part and the domain', () => {
@@ -14,6 +14,18 @@ describe('maskEmail', () => {
   });
   it('splits on the last @', () => {
     expect(maskEmail('a@b@acme.com')).toBe('a•••@acme.com');
+  });
+});
+
+describe('maskEmailsIn', () => {
+  it('masks a bare address, an address inside text, and leaves text without one unchanged', () => {
+    expect(maskEmailsIn('john@acme.com')).toBe('j•••@acme.com');
+    expect(maskEmailsIn('Ann <ann@x.io>')).toBe('Ann <a•••@x.io>');
+    expect(maskEmailsIn('Ann')).toBe('Ann');
+    expect(maskEmailsIn('')).toBe('');
+  });
+  it('masks several addresses and keeps surrounding punctuation', () => {
+    expect(maskEmailsIn('a@b.co, (cee@d.org).')).toBe('a•••@b.co, (c•••@d.org).');
   });
 });
 
@@ -38,6 +50,11 @@ describe('maskSupportFields', () => {
     maskSupportFields(out, ['owner.email', 'rows[].email']);
     expect(out).toEqual(copy);
     expect(maskSupportFields(out, [])).toEqual(out);
+  });
+
+  it('masks emails inside a name field and leaves plain names alone', () => {
+    const rows = [{ name: 'Ann <ann@x.io>' }, { name: 'zed@c.io' }, { name: 'Ann' }, { name: null }];
+    expect(maskSupportFields(rows, ['[].name'])).toEqual([{ name: 'Ann <a•••@x.io>' }, { name: 'z•••@c.io' }, { name: 'Ann' }, { name: null }]);
   });
 
   it('masks a top-level array output', () => {

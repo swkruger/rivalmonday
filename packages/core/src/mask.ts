@@ -5,6 +5,14 @@ export function maskEmail(email: string): string {
   return `${email[0]}•••${email.slice(at)}`;
 }
 
+/** An e-mail address inside free text (local part up to whitespace/brackets/quotes; domain labels without a trailing dot). */
+const EMAIL_IN_TEXT = /[^\s@<>()[\]"',;:]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*/g;
+
+/** Masks every e-mail substring with `maskEmail`: `Ann <ann@x.io>` → `Ann <a•••@x.io>`; text without one is returned unchanged. */
+export function maskEmailsIn(text: string): string {
+  return text.replace(EMAIL_IN_TEXT, (m) => maskEmail(m));
+}
+
 function parsePath(path: string): { key: string | null; each: boolean }[] {
   return path.split('.').flatMap((seg) => {
     const parts: { key: string | null; each: boolean }[] = [];
@@ -18,7 +26,7 @@ function parsePath(path: string): { key: string | null; each: boolean }[] {
 }
 
 function applyPath(node: unknown, steps: { key: string | null; each: boolean }[], i: number): unknown {
-  if (i === steps.length) return typeof node === 'string' ? maskEmail(node) : node;
+  if (i === steps.length) return typeof node === 'string' ? maskEmailsIn(node) : node;
   const step = steps[i]!;
   if (step.each) {
     if (!Array.isArray(node)) return node;
@@ -30,7 +38,7 @@ function applyPath(node: unknown, steps: { key: string | null; each: boolean }[]
   return { ...rec, [step.key!]: applyPath(rec[step.key!], steps, i + 1) };
 }
 
-/** Masks the string at each dot path (`[]` = every array element) with `maskEmail`. Non-strings/absent paths are untouched; returns a structural copy of the branches it masks (the input is never mutated; unmasked branches are shared by reference). */
+/** Masks every e-mail inside the string at each dot path (`[]` = every array element) with `maskEmailsIn`, so a plain name stays as it is. Non-strings/absent paths are untouched; returns a structural copy of the branches it masks (the input is never mutated; unmasked branches are shared by reference). */
 export function maskSupportFields<T>(output: T, paths: readonly string[]): T {
   let out: unknown = output;
   for (const p of paths) out = applyPath(out, parsePath(p), 0);
