@@ -28,12 +28,14 @@ let onSearch: () => void = () => {};
 const KB1 = '44444444-4444-4444-8444-444444444444';
 const KB2 = '55555555-5555-4555-8555-555555555555';
 const kbSeen: unknown[] = [];
+const eventsSeen: unknown[] = [];
 
 const registry = new ToolRegistry<ToolDeps>({} as ToolDeps, { record: async (e) => void audited.push(e) }).register(
   defineTool({
-    name: 'search_events', description: 'Search changes', input: z.object({ clientId: z.string(), query: z.string().optional() }), output: z.any(),
+    name: 'search_events', description: 'Search changes', input: z.object({ clientId: z.string(), query: z.string().optional(), route: z.string().optional() }), output: z.any(),
     permission: 'read', channels: ['ask'],
-    handler: async () => {
+    handler: async (_c, i) => {
+      eventsSeen.push(i);
       onSearch();
       return searchResult() as never;
     },
@@ -73,6 +75,7 @@ beforeEach(async () => {
   await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values ('u-owner', 'u-owner', 'u-owner@example.com', true)`);
   audited.length = 0;
   kbSeen.length = 0;
+  eventsSeen.length = 0;
   addRecHandler.mockClear();
   searchResult = () => ({ items: [{ id: 'e1', title: 'Acme cut AC tune-up to $69', summary: 'price change', evidenceIds: [EV1] }] });
   onSearch = () => {};
@@ -131,6 +134,18 @@ describe('runTurn knowledge', () => {
     expect(p).toContain('[ev:<id>] (monitored evidence) or [kb:<id>] (knowledge article)');
     expect(p).toContain('9. For how-to questions about the product');
     expect(p).toContain("10. If the business's own knowledge disagrees with the agency's");
+  });
+});
+
+describe('runTurn search_events route', () => {
+  const ok = { kind: 'chat', reply: { text: `Acme cut AC tune-up to $69 [ev:${EV1}].` } } as const;
+  it('asks for all scored changes when the model names no route (archived changes are evidence too)', async () => {
+    await turn([{ kind: 'chat', reply: { toolCalls: [search] } }, ok]);
+    expect(eventsSeen).toEqual([{ clientId: IDS.clientA1, route: 'all' }]);
+  });
+  it('keeps a route the model asked for', async () => {
+    await turn([{ kind: 'chat', reply: { toolCalls: [{ name: 'search_events', args: { clientId: IDS.clientA1, route: 'flagged' } }] } }, ok]);
+    expect(eventsSeen).toEqual([{ clientId: IDS.clientA1, route: 'flagged' }]);
   });
 });
 
@@ -331,7 +346,7 @@ describe('runTurn', () => {
       { kind: 'chat', reply: { text: `Acme cut prices [ev:${EV1}]. Acme raised prices [ev:${EV2}].`, model: 'm/two', costUsd: 0.02 } },
     ]);
     expect(trace.steps).toEqual([
-      { tool: 'search_events', args: { clientId: IDS.clientA1 }, rows: 1 },
+      { tool: 'search_events', args: { route: 'all', clientId: IDS.clientA1 }, rows: 1 },
       { tool: 'get_evidence', args: { clientId: IDS.clientA1, evidenceId: EV2 }, rows: null },
     ]);
     expect(trace.model).toBe('m/two');

@@ -351,6 +351,11 @@ export async function runTurn(
             if (call.name === 'search_knowledge' && parsed.value && typeof parsed.value === 'object' && !Array.isArray(parsed.value)) {
               parsed.value = { ...(parsed.value as Record<string, unknown>), clientId: thread.clientId };
             }
+            // Archived (low-scoring) changes are real evidence for questions like "who is most active": without a
+            // route the tool's dashboard default ('flagged') would hide them. A route the model names is kept.
+            if (call.name === 'search_events' && parsed.value && typeof parsed.value === 'object' && !Array.isArray(parsed.value)) {
+              parsed.value = { route: 'all', ...(parsed.value as Record<string, unknown>) };
+            }
             result = await deps.registry.invoke(ctx, call.name, parsed.value, { channel: 'ask' });
             rows = countRows(result);
             collectEvidence(call.name, result, evidence, bodied);
