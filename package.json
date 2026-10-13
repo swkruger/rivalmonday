@@ -10,6 +10,7 @@
     "test:affected": "node scripts/test-affected.mjs",
     "db:up": "docker compose up -d db",
     "db:migrate": "pnpm --filter @cs/db migrate",
+    "kb:seed": "pnpm --filter @cs/worker kb-seed",
     "db:snapshot": "pnpm --filter @cs/demo snapshot",
     "db:restore": "pnpm --filter @cs/demo restore",
     "dev": "pnpm --filter @cs/web dev",

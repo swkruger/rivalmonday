@@ -26,6 +26,7 @@ export { type FetchOutput, fetchItem, ITEM_TYPES, type ItemType, parseItemId } f
 export type { AskActionView, AskMessageView, AskThreadSummary, AskThreadView } from './tools/ask-threads';
 // Phase 6c: the worker's kb-import / kb-sync jobs save and rechunk through the same service-connection writer as the tools.
 export { type ArticleInput, rechunk, saveArticle } from './kb/write';
+export { parseSeedFile, seedKnowledge } from './kb/seed';
 export { blocksToMarkdown, type MarkdownBlock } from './kb/blocks-to-markdown';
 export { IMPORT_ERRORS, type ImportError } from './kb/import-error';
 export { isPublicAddress, isPublicHttpUrl } from './kb/public-url';

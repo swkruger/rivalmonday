@@ -1,8 +1,9 @@
 import { mkdir, rm } from 'node:fs/promises';
-import { basename } from 'node:path';
+import { basename, join } from 'node:path';
 import { requireSalt } from '@cs/collectors';
 import { assertDatabase, createDb, DEMO_DATABASE, ensureDatabase, resetDatabase, resolveEnvironment } from '@cs/db';
 import { createFsStore } from '@cs/storage';
+import { seedKnowledge } from '@cs/tools';
 import { type DemoLink, demoSignInLinks } from './links';
 import { seedDemo } from './seed';
 
@@ -38,6 +39,8 @@ export async function runDemoReset(o: { repoRoot: string; env?: NodeJS.ProcessEn
 
   const { db, close } = createDb(demo.serviceUrl);
   try {
+    const kb = await seedKnowledge(db, join(o.repoRoot, 'docs', 'help'));
+    log(`[reset] help articles: ${kb.created} created, ${kb.updated} updated, ${kb.unchanged} unchanged`);
     return await demoSignInLinks(db, { secret, baseUrl: env.APP_URL?.trim() || 'http://localhost:3000' });
   } finally {
     await close();

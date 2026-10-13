@@ -28,7 +28,7 @@ From the main checkout (`git worktree list` first line), which must be on `main`
 ```bash
 git -C "$MAIN_WT" merge --ff-only <branch> || git -C "$MAIN_WT" merge --no-ff <branch> -m "Merge branch '<branch>': <summary>"
 ```
-Conflicts in `docs/STATE.md` / `BACKLOG.md` / `ARCHITECTURE.md`: keep both sides' content, then re-apply the caps. Then `pnpm db:migrate` on `cs_dev` **only if the owner agrees** and the branch added migrations.
+Conflicts in `docs/STATE.md` / `BACKLOG.md` / `ARCHITECTURE.md`: keep both sides' content, then re-apply the caps. Then `pnpm db:migrate` on `cs_dev` **only if the owner agrees** and the branch added migrations; right after it, run `pnpm kb:seed` on `cs_dev` (same agreement) so `docs/help` articles reach the platform knowledge base.
 
 ## 4. Publish and clean up
 1. `git push origin main` (after confirming with the owner if not already said).
