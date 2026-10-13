@@ -1,6 +1,7 @@
 'use client';
 import { Button, Input, Label } from '@cs/ui';
 import { useActionState } from 'react';
+import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 
 export interface AlertRulesProps {
@@ -10,12 +11,14 @@ export interface AlertRulesProps {
   defaults: { alert: number; brief: number };
 }
 
-export function AlertRulesForm({ clientId, rules, canEdit, action }: {
+export function AlertRulesForm({ clientId, rules, canEdit: canEditProp, action }: {
   clientId: string;
   rules: AlertRulesProps;
   canEdit: boolean;
   action: (prev: FormResult, fd: FormData) => Promise<FormResult>;
 }) {
+  const readOnly = useReadOnly();
+  const canEdit = canEditProp && !readOnly;
   const [state, formAction, pending] = useActionState(action, { ok: true } as FormResult);
   return (
     <form action={formAction} className="flex flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card">
@@ -43,7 +46,7 @@ export function AlertRulesForm({ clientId, rules, canEdit, action }: {
         </>
       ) : (
         <p>
-          Instant alert from score {rules.alert}; weekly brief from score {rules.brief}. Ask your account manager to change these.
+          Instant alert from score {rules.alert}; weekly brief from score {rules.brief}.{readOnly ? '' : ' Ask your account manager to change these.'}
         </p>
       )}
       {!state.ok && state.error && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{state.error}</p>}

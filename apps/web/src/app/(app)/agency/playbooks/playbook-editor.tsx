@@ -2,6 +2,7 @@
 import type { PlaybookView } from '@cs/tools';
 import { Badge, Button, Input, Label } from '@cs/ui';
 import { useActionState } from 'react';
+import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 
 const area = 'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
@@ -9,6 +10,7 @@ const area = 'w-full rounded-md border border-input bg-transparent px-3 py-2 tex
 export function PlaybookEditor({ verticalId, playbook: p, canEdit, action }: { verticalId: string; playbook: PlaybookView; canEdit: boolean; action: (prev: FormResult, fd: FormData) => Promise<FormResult> }) {
   const [state, formAction, pending] = useActionState(action, { ok: true } as FormResult);
   const id = `${verticalId}-${p.id}`;
+  const editable = canEdit && !useReadOnly();
   return (
     <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
       <div className="flex flex-wrap items-center gap-2">
@@ -16,7 +18,7 @@ export function PlaybookEditor({ verticalId, playbook: p, canEdit, action }: { v
         {p.overridden && <Badge>Edited</Badge>}
         {p.disabled && <Badge variant="secondary">Off</Badge>}
       </div>
-      {!canEdit ? (
+      {!editable ? (
         <>
           <h3 className="font-semibold">{p.title}</h3>
           <p className="whitespace-pre-wrap text-sm">{p.template}</p>

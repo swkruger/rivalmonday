@@ -4,6 +4,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Table, TableBody, Tab
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { WriteGuard } from '@/components/read-only';
 import { PressureBadge } from '@/components/pressure-badge';
 import { SpendBadge } from '@/components/spend-badge';
 import { requireContext } from '@/server/current-viewer';
@@ -46,9 +47,11 @@ export default async function AgencyPortfolioPage() {
           <p className="mt-1 text-muted-foreground">Every client at a glance — what needs you today.</p>
         </div>
         {canAddClient && (
-          <Button asChild>
-            <Link href="/agency/clients/new">Add client</Link>
-          </Button>
+          <WriteGuard>
+            <Button asChild>
+              <Link href="/agency/clients/new">Add client</Link>
+            </Button>
+          </WriteGuard>
         )}
       </div>
 
@@ -75,9 +78,11 @@ export default async function AgencyPortfolioPage() {
         <p className="text-muted-foreground">
           No clients yet.{' '}
           {canAddClient && (
-            <Link href="/agency/clients/new" className="font-semibold text-primary-soft-text">
-              Add client
-            </Link>
+            <WriteGuard>
+              <Link href="/agency/clients/new" className="font-semibold text-primary-soft-text">
+                Add client
+              </Link>
+            </WriteGuard>
           )}
         </p>
       ) : (

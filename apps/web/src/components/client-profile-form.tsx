@@ -1,6 +1,7 @@
 'use client';
 import { Button, Input, Label } from '@cs/ui';
 import { useActionState, useState } from 'react';
+import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import type { VerticalOption } from '@/server/verticals';
 
@@ -26,6 +27,7 @@ type Props =
 export function ClientProfileForm(props: Props) {
   const [state, formAction, pending] = useActionState(props.action, { ok: true } as FormResult);
   const [verticalId, setVerticalId] = useState(props.initial?.verticalId ?? props.verticals[0]?.id ?? '');
+  const readOnly = useReadOnly();
   const services = props.verticals.find((v) => v.id === verticalId)?.services ?? [];
   const area = props.initial?.serviceArea ?? null;
   return (
@@ -35,6 +37,7 @@ export function ClientProfileForm(props: Props) {
       {!state.ok && state.error && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{state.error}</p>}
       {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
 
+      <fieldset disabled={readOnly} className="contents">
       <div className="flex flex-col gap-2">
         <Label htmlFor="name">Business name</Label>
         <Input id="name" name="name" required maxLength={120} defaultValue={props.initial?.name} className="max-w-sm" />
@@ -101,7 +104,11 @@ export function ClientProfileForm(props: Props) {
         </div>
       )}
 
-      <Button type="submit" disabled={pending} className="self-start">{props.mode === 'create' ? (props.submitLabel ?? 'Create client') : 'Save profile'}</Button>
+      </fieldset>
+
+      <WriteGuard>
+        <Button type="submit" disabled={pending} className="self-start">{props.mode === 'create' ? (props.submitLabel ?? 'Create client') : 'Save profile'}</Button>
+      </WriteGuard>
     </form>
   );
 }

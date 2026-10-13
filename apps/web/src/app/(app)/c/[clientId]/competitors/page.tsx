@@ -3,6 +3,7 @@ import type { ClientProfile, SuggestionView, TrackedCompetitor } from '@cs/tools
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { WriteGuard } from '@/components/read-only';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import type { SearchState } from './actions';
@@ -41,22 +42,26 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
         <CardContent>
           <TrackedCompetitorsTable clientId={clientId} items={tracked.items} canRemove={canManage} />
           {canManage && (
-            <div className="mt-5 border-t border-line pt-5">
-              <AddCompetitorForm clientId={clientId} atLimit={atLimit} limit={tracked.limit} />
-            </div>
+            <WriteGuard>
+              <div className="mt-5 border-t border-line pt-5">
+                <AddCompetitorForm clientId={clientId} atLimit={atLimit} limit={tracked.limit} />
+              </div>
+            </WriteGuard>
           )}
         </CardContent>
       </Card>
       {canManage && (
-        <SuggestionsPanel
-          clientId={clientId}
-          ready={profile.keywords.length > 0 && profile.serviceArea !== null}
-          suggestions={suggestions.items}
-          initialSearch={search.state}
-          atLimit={atLimit}
-          limit={tracked.limit}
-          canSearch={agency}
-        />
+        <WriteGuard>
+          <SuggestionsPanel
+            clientId={clientId}
+            ready={profile.keywords.length > 0 && profile.serviceArea !== null}
+            suggestions={suggestions.items}
+            initialSearch={search.state}
+            atLimit={atLimit}
+            limit={tracked.limit}
+            canSearch={agency}
+          />
+        </WriteGuard>
       )}
     </>
   );

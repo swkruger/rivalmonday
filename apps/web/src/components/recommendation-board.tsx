@@ -3,6 +3,7 @@ import type { RecommendationView } from '@cs/tools';
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label } from '@cs/ui';
 import { useActionState } from 'react';
 import { EvidenceChips } from '@/components/evidence-chips';
+import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 
 type SetStatusAction = (prev: FormResult, fd: FormData) => Promise<FormResult>;
@@ -148,7 +149,9 @@ interface RecommendationBoardProps {
 }
 
 /** Agency and client roles (including guests) land here from the nav — `canEdit` is false for viewers and guests. */
-export function RecommendationBoard({ clientId, items, canEdit, agency, action }: RecommendationBoardProps) {
+export function RecommendationBoard({ clientId, items, canEdit: canEditProp, agency, action }: RecommendationBoardProps) {
+  // Phase 8b: status changes are writes, hidden in a support session.
+  const canEdit = canEditProp && !useReadOnly();
   if (items.length === 0) {
     return <p className="text-muted-foreground">No recommendations yet — they arrive with each approved weekly brief.</p>;
   }

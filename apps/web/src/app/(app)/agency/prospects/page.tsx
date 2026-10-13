@@ -3,6 +3,7 @@ import type { ProspectRow } from '@cs/tools';
 import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { WriteGuard } from '@/components/read-only';
 import { requireContext } from '@/server/current-viewer';
 import { relativeTime } from '@/server/format';
 import { callTool } from '@/server/tools';
@@ -28,9 +29,11 @@ export default async function ProspectsPage() {
           <p className="mt-1 text-muted-foreground">Businesses you’re pitching. A snapshot shows how they stack up locally — no monitoring until they sign.</p>
         </div>
         {canAdd && (
-          <Button asChild>
-            <Link href="/agency/prospects/new">New prospect</Link>
-          </Button>
+          <WriteGuard>
+            <Button asChild>
+              <Link href="/agency/prospects/new">New prospect</Link>
+            </Button>
+          </WriteGuard>
         )}
       </div>
 
@@ -38,9 +41,11 @@ export default async function ProspectsPage() {
         <p className="text-muted-foreground">
           No prospects yet.{' '}
           {canAdd && (
-            <Link href="/agency/prospects/new" className="font-semibold text-primary-soft-text">
-              New prospect
-            </Link>
+            <WriteGuard>
+              <Link href="/agency/prospects/new" className="font-semibold text-primary-soft-text">
+                New prospect
+              </Link>
+            </WriteGuard>
           )}
         </p>
       ) : (

@@ -1,6 +1,7 @@
 'use client';
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label, Switch } from '@cs/ui';
 import { useActionState, useState } from 'react';
+import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { addRecipientAction, deactivateRecipientAction, saveDeliveryAction } from './actions';
 
@@ -29,6 +30,7 @@ export function DeliveryForm({
 }) {
   const [state, formAction, pending] = useActionState(saveDeliveryAction, { ok: true } as FormResult);
   const [autoSend, setAutoSend] = useState(briefAutoSend);
+  const readOnly = useReadOnly();
 
   return (
     <form action={formAction} className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card">
@@ -40,6 +42,7 @@ export function DeliveryForm({
       )}
       {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
 
+      <fieldset disabled={readOnly} className="contents">
       <fieldset className="flex flex-col gap-3">
         <legend className="font-semibold">Alert mode</legend>
         {MODES.map((m) => (
@@ -70,15 +73,20 @@ export function DeliveryForm({
         </select>
       </div>
 
-      <Button type="submit" disabled={pending} className="self-start">
-        Save
-      </Button>
+      </fieldset>
+
+      <WriteGuard>
+        <Button type="submit" disabled={pending} className="self-start">
+          Save
+        </Button>
+      </WriteGuard>
     </form>
   );
 }
 
 export function AddRecipientForm({ clientId }: { clientId: string }) {
   const [state, formAction, pending] = useActionState(addRecipientAction, { ok: true } as FormResult);
+  if (useReadOnly()) return null;
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <input type="hidden" name="clientId" value={clientId} />
@@ -114,6 +122,7 @@ export function AddRecipientForm({ clientId }: { clientId: string }) {
 
 export function DeactivateRecipientButton({ clientId, contactId, email }: { clientId: string; contactId: string; email: string }) {
   const [state, formAction, pending] = useActionState(deactivateRecipientAction, { ok: true } as FormResult);
+  if (useReadOnly()) return null;
   return (
     <Dialog>
       <DialogTrigger asChild>

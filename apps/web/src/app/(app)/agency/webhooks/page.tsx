@@ -1,6 +1,7 @@
 import { listWebhooks } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { notFound } from 'next/navigation';
+import { WriteGuard } from '@/components/read-only';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { AddWebhookForm, WebhookToggle } from './webhook-controls';
@@ -49,9 +50,11 @@ export default async function WebhooksPage() {
               </TableBody>
             </Table>
           )}
-          <div className="border-t border-line pt-5">
-            <AddWebhookForm />
-          </div>
+          <WriteGuard>
+            <div className="border-t border-line pt-5">
+              <AddWebhookForm />
+            </div>
+          </WriteGuard>
         </CardContent>
       </Card>
     </>

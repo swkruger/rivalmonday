@@ -1,6 +1,7 @@
 'use client';
 import { Button, Input, Label } from '@cs/ui';
 import { useActionState } from 'react';
+import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 
 export function LimitsForm({
@@ -20,6 +21,7 @@ export function LimitsForm({
   askQuota?: number;
 }) {
   const [state, formAction, pending] = useActionState(action, { ok: true } as FormResult);
+  if (useReadOnly()) return null;
 
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-3">

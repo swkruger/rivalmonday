@@ -2,6 +2,7 @@ import { isAgencyRole } from '@cs/core';
 import type { ClientProfile, ProspectReportView, TrackedCompetitor } from '@cs/tools';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
+import { WriteGuard } from '@/components/read-only';
 import { ProspectLandscape } from '@/components/prospect-landscape';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
@@ -66,11 +67,13 @@ export default async function ProspectHubPage({ params }: { params: Promise<{ cl
         </div>
       )}
 
-      <div className="rounded-[14px] bg-surface p-6 shadow-card">
-        <h2 className="font-semibold">4. Convert</h2>
-        <p className="mt-1 text-muted-foreground">Converting starts weekly monitoring, alerts and briefs for this business.</p>
-        <ConvertButton clientId={clientId} action={convertAction} />
-      </div>
+      <WriteGuard>
+        <div className="rounded-[14px] bg-surface p-6 shadow-card">
+          <h2 className="font-semibold">4. Convert</h2>
+          <p className="mt-1 text-muted-foreground">Converting starts weekly monitoring, alerts and briefs for this business.</p>
+          <ConvertButton clientId={clientId} action={convertAction} />
+        </div>
+      </WriteGuard>
     </>
   );
 }

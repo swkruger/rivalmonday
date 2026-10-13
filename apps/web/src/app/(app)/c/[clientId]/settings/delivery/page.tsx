@@ -3,6 +3,7 @@ import type { ClientProfile } from '@cs/tools';
 import { listClientRecipients } from '@cs/tools';
 import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { notFound } from 'next/navigation';
+import { WriteGuard } from '@/components/read-only';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { maskRecipientsForSupport } from '@/server/support-mask';
@@ -48,7 +49,9 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
                   <TableHead>Role</TableHead>
                   <TableHead>Account</TableHead>
                   <TableHead>Active</TableHead>
-                  <TableHead />
+                  <WriteGuard>
+                    <TableHead />
+                  </WriteGuard>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -59,15 +62,19 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
                     <TableCell>{ROLE_LABEL[r.role] ?? r.role}</TableCell>
                     <TableCell>{r.hasAccount && <Badge variant="secondary">Has account</Badge>}</TableCell>
                     <TableCell>{r.active ? 'Active' : 'Inactive'}</TableCell>
-                    <TableCell>{r.active && <DeactivateRecipientButton clientId={clientId} contactId={r.contactId} email={r.email} />}</TableCell>
+                    <WriteGuard>
+                      <TableCell>{r.active && <DeactivateRecipientButton clientId={clientId} contactId={r.contactId} email={r.email} />}</TableCell>
+                    </WriteGuard>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           )}
-          <div className="border-t border-line pt-5">
-            <AddRecipientForm clientId={clientId} />
-          </div>
+          <WriteGuard>
+            <div className="border-t border-line pt-5">
+              <AddRecipientForm clientId={clientId} />
+            </div>
+          </WriteGuard>
         </CardContent>
       </Card>
     </>

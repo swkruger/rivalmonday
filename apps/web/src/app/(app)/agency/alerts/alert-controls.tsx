@@ -2,6 +2,7 @@
 import type { AlertQueueRow } from '@cs/tools';
 import { Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label } from '@cs/ui';
 import { useActionState } from 'react';
+import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { approveAlertAction, dismissAlertAction } from './actions';
 
@@ -98,10 +99,12 @@ function AlertCard({ alert, action, pending, result }: { alert: AlertQueueRow; a
         <span className="rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">{alert.evidenceCount} evidence items</span>
       </div>
       {alert.written === 'template' && <p className="mt-2 text-muted-foreground">Friday couldn’t verify its own wording, so this uses the evidence summary.</p>}
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {pendingReview && <ApproveButton alertId={alert.id} action={action} pending={pending} />}
-        <DismissDialog alertId={alert.id} action={action} pending={pending} result={result} />
-      </div>
+      <WriteGuard>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {pendingReview && <ApproveButton alertId={alert.id} action={action} pending={pending} />}
+          <DismissDialog alertId={alert.id} action={action} pending={pending} result={result} />
+        </div>
+      </WriteGuard>
     </article>
   );
 }

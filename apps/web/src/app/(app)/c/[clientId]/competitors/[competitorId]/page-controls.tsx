@@ -2,6 +2,7 @@
 import type { TrackedPageView } from '@cs/tools';
 import { Button, Input, Label, Switch } from '@cs/ui';
 import { useActionState, useOptimistic, useState, useTransition } from 'react';
+import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { addPageAction, setPinAction } from '../actions';
 
@@ -24,9 +25,11 @@ function Message({ state }: { state: FormResult }) {
 
 /** Decision 17 (5b-1 Minor 3): same optimistic pattern as AutoSendSwitch — React reverts to `page.pinned` once the transition ends. */
 export function PinPageSwitch({ clientId, competitorId, page }: { clientId: string; competitorId: string; page: TrackedPageView }) {
+  const readOnly = useReadOnly();
   const [pinned, setPinned] = useOptimistic(page.pinned);
   const [result, setResult] = useState<FormResult>({ ok: true });
   const [isPending, startTransition] = useTransition();
+  if (readOnly) return <span>{page.pinned ? 'Pinned' : '—'}</span>;
   return (
     <div className="flex flex-col gap-1">
       <Switch
@@ -53,6 +56,7 @@ export function PinPageSwitch({ clientId, competitorId, page }: { clientId: stri
 
 export function AddPageForm({ clientId, competitorId, pageTypes }: { clientId: string; competitorId: string; pageTypes: string[] }) {
   const [state, formAction, pending] = useActionState(addPageAction, { ok: true } as FormResult);
+  if (useReadOnly()) return null;
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <input type="hidden" name="clientId" value={clientId} />

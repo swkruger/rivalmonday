@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState } from 'react';
+import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { acceptSuggestionAction, addCompetitorAction, dismissSuggestionAction, removeCompetitorAction, requestSuggestionsAction, type SearchState, searchStatusAction } from './actions';
 
@@ -244,6 +245,7 @@ export function SuggestionsPanel({
 
 export function AddCompetitorForm({ clientId, atLimit, limit }: { clientId: string; atLimit: boolean; limit: number }) {
   const [state, formAction, pending] = useActionState(addCompetitorAction, { ok: true } as FormResult);
+  if (useReadOnly()) return null;
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <input type="hidden" name="clientId" value={clientId} />
@@ -298,7 +300,8 @@ function RemoveCompetitorButton({ clientId, competitorId, name, action, pending,
 }
 
 /** The tracked-competitors table; a successful removal's message shows above it (a refusal shows in the open dialog). */
-export function TrackedCompetitorsTable({ clientId, items, canRemove }: { clientId: string; items: TrackedCompetitor[]; canRemove: boolean }) {
+export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveProp }: { clientId: string; items: TrackedCompetitor[]; canRemove: boolean }) {
+  const canRemove = canRemoveProp && !useReadOnly();
   const [result, action, pending] = useActionState(removeAction, { ok: true } as RowResult);
   return (
     <div className="flex flex-col gap-4">

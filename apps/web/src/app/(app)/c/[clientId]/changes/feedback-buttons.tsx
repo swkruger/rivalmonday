@@ -8,6 +8,7 @@
  */
 import { Button } from '@cs/ui';
 import { useActionState } from 'react';
+import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 
 type Verdict = 'useful' | 'not_relevant' | 'wrong';
@@ -29,7 +30,9 @@ export function FeedbackButtons({
   current: Verdict | null;
   action: (state: FormResult, fd: FormData) => Promise<FormResult>;
 }) {
+  const readOnly = useReadOnly();
   const [state, formAction, pending] = useActionState(action, { ok: true } as FormResult);
+  if (readOnly) return null;
   return (
     <form action={formAction} className="flex flex-col gap-2">
       <input type="hidden" name="clientId" value={clientId} />

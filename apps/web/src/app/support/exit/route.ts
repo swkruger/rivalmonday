@@ -24,7 +24,16 @@ export async function POST(req: NextRequest) {
   const { ctx } = await requireOperatorContext();
   const r = await runTool<{ agencyId: string | null }>(ctx, 'end_support_session', {});
   // A refusal must not leave the row open: end the caller's own session directly (same row the tool would end).
-  const agencyId = r.ok ? r.data.agencyId : await endOpenSessionFor(dbs().service, ctx.userId);
+  let agencyId: string | null = null;
+  if (r.ok) agencyId = r.data.agencyId;
+  else {
+    try {
+      agencyId = await endOpenSessionFor(dbs().service, ctx.userId);
+    } catch (e) {
+      // The cookie must still be cleared (the server-side expiry ends the row); log only the error class.
+      console.error('support exit fallback failed', e instanceof Error ? e.constructor.name : 'unknown');
+    }
+  }
   const to = agencyId ? `/platform/agencies/${agencyId}?ended=1` : '/platform';
   const res = NextResponse.redirect(new URL(to, webEnv().appUrl), 303);
   res.cookies.delete({ name: SUPPORT_COOKIE, path: '/' });

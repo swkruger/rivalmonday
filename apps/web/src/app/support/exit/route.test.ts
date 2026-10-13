@@ -52,6 +52,18 @@ describe('POST /support/exit', () => {
     expect(res.headers.get('set-cookie')).toMatch(/rm_support=;/);
   });
 
+  it('still clears rm_support and 303s when the fallback end throws, logging only the error class', async () => {
+    m.runTool.mockResolvedValue({ ok: false, error: 'Read-only support session — changes are disabled.' });
+    m.endOpen.mockRejectedValue(new TypeError('connection string postgres://secret'));
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const res = await post('https://app.example');
+    expect(res.status).toBe(303);
+    expect(res.headers.get('location')).toBe('https://app.example/platform');
+    expect(res.headers.get('set-cookie')).toMatch(/rm_support=;/);
+    expect(JSON.stringify(spy.mock.calls)).not.toContain('secret');
+    spy.mockRestore();
+  });
+
   it('rejects a cross-origin or Origin-less POST without ending anything', async () => {
     for (const o of ['https://evil.example', 'http://app.example', null]) {
       const res = await post(o);

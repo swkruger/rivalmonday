@@ -1,6 +1,7 @@
 'use client';
 import { Button } from '@cs/ui';
 import { useActionState } from 'react';
+import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 
 /** The features with a switch; a client keeps any feature without one (hidden input). */
@@ -21,6 +22,7 @@ export function ClientFeaturesForm({ clientId, features, action, role, reviewAll
   action: (prev: FormResult, fd: FormData) => Promise<FormResult>;
 }) {
   const [state, formAction, pending] = useActionState(action, { ok: true } as FormResult);
+  const readOnly = useReadOnly();
   const kept = features.filter((f) => !SWITCHES.some((s) => s.value === f));
   return (
     <form action={formAction} className="flex flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card">
@@ -28,6 +30,7 @@ export function ClientFeaturesForm({ clientId, features, action, role, reviewAll
       {kept.map((f) => (
         <input key={f} type="hidden" name="feature" value={f} />
       ))}
+      <fieldset disabled={readOnly} className="contents">
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-1 text-lg font-bold">Client features</legend>
         {SWITCHES.map((s) => (
@@ -52,17 +55,20 @@ export function ClientFeaturesForm({ clientId, features, action, role, reviewAll
           </label>
         </>
       )}
+      </fieldset>
       {!state.ok && state.error && (
         <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
           {state.error}
         </p>
       )}
       {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
-      <div>
-        <Button type="submit" disabled={pending}>
-          Save features
-        </Button>
-      </div>
+      <WriteGuard>
+        <div>
+          <Button type="submit" disabled={pending}>
+            Save features
+          </Button>
+        </div>
+      </WriteGuard>
     </form>
   );
 }

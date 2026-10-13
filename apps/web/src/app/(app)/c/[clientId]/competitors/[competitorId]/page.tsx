@@ -4,6 +4,7 @@ import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, Tabl
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PressureBadge } from '@/components/pressure-badge';
+import { WriteGuard } from '@/components/read-only';
 import { requireContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
 import { relativeTime } from '@/server/format';
@@ -195,13 +196,15 @@ function PagesCard({ clientId, competitorId, pages, agency }: { clientId: string
           </Table>
         )}
         {agency && (
-          <div className="mt-5 border-t border-line pt-5">
-            {webEnv().webMonitoring ? (
-              <AddPageForm clientId={clientId} competitorId={competitorId} pageTypes={[...PAGE_TYPES]} />
-            ) : (
-              <p className="text-muted-foreground">Website monitoring is switched off for now, so pages can’t be added.</p>
-            )}
-          </div>
+          <WriteGuard>
+            <div className="mt-5 border-t border-line pt-5">
+              {webEnv().webMonitoring ? (
+                <AddPageForm clientId={clientId} competitorId={competitorId} pageTypes={[...PAGE_TYPES]} />
+              ) : (
+                <p className="text-muted-foreground">Website monitoring is switched off for now, so pages can’t be added.</p>
+              )}
+            </div>
+          </WriteGuard>
         )}
       </CardContent>
     </Card>

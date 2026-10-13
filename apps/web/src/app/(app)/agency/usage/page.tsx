@@ -4,6 +4,7 @@ import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { SpendBadge } from '@/components/spend-badge';
+import { WriteGuard } from '@/components/read-only';
 import { requireContext } from '@/server/current-viewer';
 import { formatUsd } from '@/server/format';
 import { callTool } from '@/server/tools';
@@ -46,7 +47,11 @@ export default async function UsagePage() {
             <TableHead>Share</TableHead>
             <TableHead>Competitors</TableHead>
             <TableHead>Questions</TableHead>
-            {ctx.role === 'agency_admin' && <TableHead>Limits</TableHead>}
+            {ctx.role === 'agency_admin' && (
+              <WriteGuard>
+                <TableHead>Limits</TableHead>
+              </WriteGuard>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -76,9 +81,11 @@ export default async function UsagePage() {
                 <QuestionsCell questions={row.questions} />
               </TableCell>
               {ctx.role === 'agency_admin' && (
-                <TableCell>
-                  <LimitsForm key={row.clientId} action={saveLimitsAction} clientId={row.clientId} clientName={row.name} capUsd={row.spend.capUsd} competitorLimit={row.competitorLimit} askQuota={row.questions.quota} />
-                </TableCell>
+                <WriteGuard>
+                  <TableCell>
+                    <LimitsForm key={row.clientId} action={saveLimitsAction} clientId={row.clientId} clientName={row.name} capUsd={row.spend.capUsd} competitorLimit={row.competitorLimit} askQuota={row.questions.quota} />
+                  </TableCell>
+                </WriteGuard>
               )}
             </TableRow>
           ))}

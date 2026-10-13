@@ -1,6 +1,7 @@
 'use client';
 import { Button, Input, Label, Switch } from '@cs/ui';
 import { useActionState, useOptimistic, useTransition } from 'react';
+import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { addWebhookAction, toggleWebhookAction } from './actions';
 
@@ -17,6 +18,7 @@ const AGENCY_KIND_OPTIONS: { value: string; label: string }[] = [
 
 export function AddWebhookForm() {
   const [state, formAction, pending] = useActionState(addWebhookAction, { ok: true } as FormResult);
+  if (useReadOnly()) return null;
   return (
     <form action={formAction} className="flex flex-col gap-4">
       {!state.ok && state.error && (
@@ -57,8 +59,11 @@ export function AddWebhookForm() {
 }
 
 export function WebhookToggle({ id, active, label }: { id: string; active: boolean; label: string }) {
+  const readOnly = useReadOnly();
   const [checked, setChecked] = useOptimistic(active);
   const [, startTransition] = useTransition();
+  // The switch is a write control: in a support session the state shows as plain text (the action would throw).
+  if (readOnly) return <span>{active ? 'On' : 'Off'}</span>;
   return (
     <Switch
       checked={checked}

@@ -2,6 +2,7 @@
 import type { Role } from '@cs/core';
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label } from '@cs/ui';
 import { useActionState, useState } from 'react';
+import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { inviteAction, revokeInvitationAction, revokeMembershipAction } from './actions';
 
@@ -17,6 +18,8 @@ export function InviteForm({ clients, canInviteAgencyRoles }: { clients: { id: s
   const [role, setRole] = useState<Role>(roleOptions[0]!);
   const isClientRole = role === 'client_owner' || role === 'client_viewer';
   const isAccountManager = role === 'account_manager';
+  const readOnly = useReadOnly();
+  if (readOnly) return null;
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -91,6 +94,8 @@ function ConfirmButton({
   triggerLabel: string;
 }) {
   const [state, formAction, pending] = useActionState(action, { ok: true } as FormResult);
+  const readOnly = useReadOnly();
+  if (readOnly) return null;
   return (
     <Dialog>
       <DialogTrigger asChild>

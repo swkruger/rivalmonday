@@ -3,6 +3,7 @@ import type { ProspectReportView } from '@cs/tools';
 import { Button } from '@cs/ui';
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect } from 'react';
+import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 
 const POLL_MS = 10_000;
@@ -27,7 +28,9 @@ export function SnapshotControls({ clientId, report, canRun, blockers, action }:
     <form action={formAction} className="flex flex-col gap-3">
       <input type="hidden" name="clientId" value={clientId} />
       {blockers.length > 0 && <ul className="list-disc pl-5 text-sm">{blockers.map((b) => <li key={b}>{b}</li>)}</ul>}
-      <Button type="submit" disabled={!canRun || running || pending} className="self-start">{report ? 'Run snapshot again' : 'Run snapshot'}</Button>
+      <WriteGuard>
+        <Button type="submit" disabled={!canRun || running || pending} className="self-start">{report ? 'Run snapshot again' : 'Run snapshot'}</Button>
+      </WriteGuard>
       {running && <p className="rounded-lg bg-muted-surface p-3 text-ink">Snapshot running — this page updates by itself.</p>}
       {report?.status === 'failed' && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{report.error ?? 'The snapshot failed.'}</p>}
       {!state.ok && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{state.error}</p>}

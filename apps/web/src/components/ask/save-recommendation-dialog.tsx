@@ -2,6 +2,7 @@
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label } from '@cs/ui';
 import Link from 'next/link';
 import { useId, useState, useTransition } from 'react';
+import { useReadOnly } from '@/components/read-only';
 import type { ToolResult } from '@/server/run-tool';
 import { plainAnswer } from './answer';
 
@@ -49,7 +50,8 @@ export function SaveRecommendationDialog({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [pending, start] = useTransition();
-  if (evidenceIds.length === 0) return null;
+  const readOnly = useReadOnly();
+  if (readOnly || evidenceIds.length === 0) return null;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();

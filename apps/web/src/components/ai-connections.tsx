@@ -6,6 +6,7 @@ import {
   Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@cs/ui';
 import { type ReactNode, useActionState, useEffect, useRef, useState } from 'react';
+import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 
 /**
@@ -162,6 +163,7 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, createA
   note?: ReactNode;
   hidden?: Hidden;
 }) {
+  const readOnly = useReadOnly();
   const [created, create, creating] = useActionState(createAction, { ok: true } as CreateTokenResult);
   const [revoked, revoke, revoking] = useActionState(revokeAction, { ok: true } as RowResult);
   // Which created token was dismissed with Done; a later create (new id) shows its own token again.
@@ -180,6 +182,7 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, createA
       <CardContent className="flex flex-col gap-5">
         <p className="text-ink">For Claude Code, scripts and tools that can&apos;t sign in. A token acts as you, with the access level you choose.</p>
         {canCreate ? (
+          readOnly ? null : (
           <form ref={formRef} action={create} className="flex flex-col gap-4">
             <HiddenFields fields={hidden} />
             {!created.ok && <Message state={created} />}
@@ -203,6 +206,7 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, createA
               </Button>
             </div>
           </form>
+          )
         ) : (
           note
         )}
@@ -219,9 +223,11 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, createA
                 <TableHead>Created</TableHead>
                 <TableHead>Last used</TableHead>
                 {showOwner && <TableHead>Owner</TableHead>}
-                <TableHead>
-                  <span className="sr-only">Revoke</span>
-                </TableHead>
+                {!readOnly && (
+                  <TableHead>
+                    <span className="sr-only">Revoke</span>
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -235,9 +241,11 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, createA
                   <TableCell>{day(t.createdAt)}</TableCell>
                   <TableCell>{t.lastUsedAt ? day(t.lastUsedAt) : 'Never'}</TableCell>
                   {showOwner && <TableCell>{t.ownerName ?? '—'}</TableCell>}
-                  <TableCell className="text-right">
-                    <RevokeTokenButton item={t} action={revoke} pending={revoking} result={revoked} hidden={hidden} />
-                  </TableCell>
+                  {!readOnly && (
+                    <TableCell className="text-right">
+                      <RevokeTokenButton item={t} action={revoke} pending={revoking} result={revoked} hidden={hidden} />
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
@@ -282,6 +290,7 @@ function DisconnectButton({ item, action, pending, result, hidden }: { item: OAu
 }
 
 export function ConnectedAppsCard({ grants, showOwner, revokeAction, hidden }: { grants: OAuthGrantView[]; showOwner: boolean; revokeAction: FormAction<RowResult>; hidden?: Hidden }) {
+  const readOnly = useReadOnly();
   const [result, revoke, pending] = useActionState(revokeAction, { ok: true } as RowResult);
   return (
     <Card>
@@ -302,9 +311,11 @@ export function ConnectedAppsCard({ grants, showOwner, revokeAction, hidden }: {
                 <TableHead>Workspace</TableHead>
                 <TableHead>Connected</TableHead>
                 {showOwner && <TableHead>Owner</TableHead>}
-                <TableHead>
-                  <span className="sr-only">Disconnect</span>
-                </TableHead>
+                {!readOnly && (
+                  <TableHead>
+                    <span className="sr-only">Disconnect</span>
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -315,9 +326,11 @@ export function ConnectedAppsCard({ grants, showOwner, revokeAction, hidden }: {
                   <TableCell>{g.clientName ?? 'All clients'}</TableCell>
                   <TableCell>{day(g.connectedAt)}</TableCell>
                   {showOwner && <TableCell>{g.ownerName ?? '—'}</TableCell>}
-                  <TableCell className="text-right">
-                    <DisconnectButton item={g} action={revoke} pending={pending} result={result} hidden={hidden} />
-                  </TableCell>
+                  {!readOnly && (
+                    <TableCell className="text-right">
+                      <DisconnectButton item={g} action={revoke} pending={pending} result={result} hidden={hidden} />
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

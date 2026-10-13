@@ -3,6 +3,7 @@ import type { BriefItemView } from '@cs/tools';
 import { Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, Switch } from '@cs/ui';
 import { useActionState, useOptimistic, useState, useTransition } from 'react';
 import { EvidenceChips } from '@/components/evidence-chips';
+import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { approveAction, autoSendAction, dropItemAction, editItemAction, moveItemAction, rateItemAction, sendNowAction } from './actions';
 
@@ -177,16 +178,18 @@ export function ReviewItem({ briefId, clientId, item, editable, first, last }: {
         {dropped && <Badge variant="outline">Dropped</Badge>}
         <span className="ml-auto rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">Confidence {Math.round(item.confidence * 100)}%</span>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {editable && !dropped && (
-          <>
-            <EditItemDialog briefId={briefId} item={item} />
-            <RemoveItemDialog briefId={briefId} item={item} />
-            <MoveButtons briefId={briefId} item={item} first={first} last={last} />
-          </>
-        )}
-        {!dropped && <RateButtons item={item} />}
-      </div>
+      <WriteGuard>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {editable && !dropped && (
+            <>
+              <EditItemDialog briefId={briefId} item={item} />
+              <RemoveItemDialog briefId={briefId} item={item} />
+              <MoveButtons briefId={briefId} item={item} first={first} last={last} />
+            </>
+          )}
+          {!dropped && <RateButtons item={item} />}
+        </div>
+      </WriteGuard>
     </article>
   );
 }
@@ -283,15 +286,17 @@ export function ReviewFooter({ briefId, clientId, status, autoSend }: { briefId:
   const [sendState, sendFormAction, sendPending] = useActionState(sendNowAction, { ok: true } as FormResult);
   const canSend = status === 'ready' || status === 'approved';
   return (
-    <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
-      <div className="flex flex-wrap items-center gap-4">
-        <AutoSendSwitch briefId={briefId} clientId={clientId} autoSend={autoSend} />
-        <div className="ml-auto flex items-center gap-3">
-          {status === 'ready' && <ApproveButton briefId={briefId} formAction={approveFormAction} pending={approvePending} />}
-          {canSend && <SendNowDialog briefId={briefId} state={sendState} formAction={sendFormAction} pending={sendPending} />}
+    <WriteGuard>
+      <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
+        <div className="flex flex-wrap items-center gap-4">
+          <AutoSendSwitch briefId={briefId} clientId={clientId} autoSend={autoSend} />
+          <div className="ml-auto flex items-center gap-3">
+            {status === 'ready' && <ApproveButton briefId={briefId} formAction={approveFormAction} pending={approvePending} />}
+            {canSend && <SendNowDialog briefId={briefId} state={sendState} formAction={sendFormAction} pending={sendPending} />}
+          </div>
         </div>
+        {canSend ? <Message state={approveState} /> : <Message state={sendState} />}
       </div>
-      {canSend ? <Message state={approveState} /> : <Message state={sendState} />}
-    </div>
+    </WriteGuard>
   );
 }

@@ -3,6 +3,7 @@ import type { AgencyBranding } from '@cs/db';
 import { resolveBranding } from '@cs/email/branding';
 import { Button, Input, Label, themeVars } from '@cs/ui';
 import { useActionState, useState } from 'react';
+import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { saveBrandingAction } from './actions';
 
@@ -30,6 +31,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 export function BrandingForm({ initial, agencyName }: { initial: AgencyBranding; agencyName: string }) {
   const [state, formAction, pending] = useActionState(saveBrandingAction, { ok: true } as FormResult);
   const [draft, setDraft] = useState<AgencyBranding>(initial);
+  const readOnly = useReadOnly();
   // Review Focus 5: the preview never reads raw form state directly — `resolveBranding` + `themeVars` validate every
   // colour and URL (6-digit hex, https) and fall back to the product defaults for anything else.
   const resolved = resolveBranding(agencyName, draft);
@@ -45,6 +47,7 @@ export function BrandingForm({ initial, agencyName }: { initial: AgencyBranding;
           </p>
         )}
         {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
+        <fieldset disabled={readOnly} className="contents">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
             <Label htmlFor="displayName">Display name</Label>
@@ -70,12 +73,15 @@ export function BrandingForm({ initial, agencyName }: { initial: AgencyBranding;
             <p className="text-sm text-muted-foreground">What your clients call the Ask assistant. Leave blank for Friday.</p>
           </div>
         </div>
+        </fieldset>
         <input type="hidden" name="primary" value={draft.primary ?? ''} />
         <input type="hidden" name="secondary" value={draft.secondary ?? ''} />
         <p className="text-sm text-muted-foreground">The amber accent is part of the product and can&apos;t be changed.</p>
-        <Button type="submit" disabled={pending} className="self-start">
-          Save changes
-        </Button>
+        <WriteGuard>
+          <Button type="submit" disabled={pending} className="self-start">
+            Save changes
+          </Button>
+        </WriteGuard>
       </form>
 
       <div style={vars} className="sticky top-4 flex flex-col gap-3 rounded-[14px] bg-surface p-4 shadow-card">

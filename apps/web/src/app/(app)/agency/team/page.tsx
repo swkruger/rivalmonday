@@ -3,6 +3,7 @@ import type { ClientSummary } from '@cs/tools';
 import { listTeam } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { notFound } from 'next/navigation';
+import { WriteGuard } from '@/components/read-only';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { maskTeamForSupport } from '@/server/support-mask';
@@ -49,7 +50,9 @@ export default async function TeamPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Client</TableHead>
-                  <TableHead />
+                  <WriteGuard>
+                    <TableHead />
+                  </WriteGuard>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -59,17 +62,21 @@ export default async function TeamPage() {
                     <TableCell>{m.email}</TableCell>
                     <TableCell>{ROLE_LABELS[m.role]}</TableCell>
                     <TableCell>{scopeLabel(m)}</TableCell>
-                    <TableCell>
-                      <RemoveMemberButton membershipId={m.membershipId} name={m.name || m.email} />
-                    </TableCell>
+                    <WriteGuard>
+                      <TableCell>
+                        <RemoveMemberButton membershipId={m.membershipId} name={m.name || m.email} />
+                      </TableCell>
+                    </WriteGuard>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           )}
-          <div className="border-t border-line pt-5">
-            <InviteForm clients={clients} canInviteAgencyRoles={ctx.role === 'agency_admin'} />
-          </div>
+          <WriteGuard>
+            <div className="border-t border-line pt-5">
+              <InviteForm clients={clients} canInviteAgencyRoles={ctx.role === 'agency_admin'} />
+            </div>
+          </WriteGuard>
         </CardContent>
       </Card>
       <Card>
@@ -87,7 +94,9 @@ export default async function TeamPage() {
                   <TableHead>Role</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Expires</TableHead>
-                  <TableHead />
+                  <WriteGuard>
+                    <TableHead />
+                  </WriteGuard>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -97,9 +106,11 @@ export default async function TeamPage() {
                     <TableCell>{ROLE_LABELS[i.role]}</TableCell>
                     <TableCell>{i.clientId ? i.clientName ?? 'Unknown client' : 'All clients'}</TableCell>
                     <TableCell>{formatDate(i.expiresAt)}</TableCell>
-                    <TableCell>
-                      <RevokeInvitationButton invitationId={i.id} email={i.email} />
-                    </TableCell>
+                    <WriteGuard>
+                      <TableCell>
+                        <RevokeInvitationButton invitationId={i.id} email={i.email} />
+                      </TableCell>
+                    </WriteGuard>
                   </TableRow>
                 ))}
               </TableBody>
