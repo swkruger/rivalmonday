@@ -4,10 +4,10 @@
 **Plan/spec:** 8b spec `docs/superpowers/specs/2026-10-12-phase-8b-support-sessions-design.md` (g1–g11); plan `docs/superpowers/plans/2026-10-12-phase-8b-support-sessions.md` (S1–S4, Tasks 0–9). Parent: 8a spec/plan on `phase-8` (`docs/superpowers/specs/2026-10-12-phase-8a-platform-console-design.md`).
 
 ## Status (overwrite)
-Execution started 2026-10-13, **stacked on `phase-8`** (owner go-ahead: build 8b now, verify + merge phase-8 then 8b). phase-6 is on main. Plan owner-approved 2026-10-12.
+Execution started 2026-10-13, **stacked on `phase-8`** (owner go-ahead: build 8b now, verify + merge phase-8 then 8b). phase-6 is on main. Plan owner-approved 2026-10-12. **Task 0 done** 2026-10-13: findings below; `pnpm test:affected` (base = main, so all of 8a too; 14 packages) 2,057/2,058 passed — only the known `@cs/engine` `score-stage.test.ts` date time-bomb (fails on main too).
 
 ## Next (overwrite)
-1. Task 0 pre-flight (re-check deps vs phase-8 code, inventory direct service calls), then SDD Tasks 1–9.
+1. Settle the "Design gaps" below (controller/owner) and patch Tasks 1–9 paths/names, then SDD Tasks 1–9 (Tasks 1+2 in one reviewer pass).
 2. Merge order: phase-8 first, then rebase 8b on main and `/rm-merge phase-8b`.
 
 ## Interfaces this branch adds or changes
@@ -28,6 +28,43 @@ None yet.
 ## Owner verification steps
 TBD.
 
+## Pre-flight findings (Task 0)
+Full report: `.superpowers/sdd/2026-10-12-phase-8b-support-sessions/task-0-report.md` (local). Not rebased (stacked on `phase-8` @ 213abd2); no phase-9 branch exists.
+
+**Plan name/path corrections:** `buildAccessContext` → `createAccessContext` (`@cs/core`); `ALL_FEATURES` → `FEATURES`; tool type `Tool` → `ToolDefinition` (`toolkit<ToolDeps>().defineTool`); cookie secret `serverEnv().BETTER_AUTH_SECRET` → `webEnv().authSecret` (`@/server/env`); `platformRole(deps, ctx)` takes a ctx, not a userId; `ToolDeps.platformAdmins` ✔; `AuditEvent.role` is `Role` → widen for `'platform_support'`. Ask tools are **not** `ask_*`: `list_my_ask_threads`, `get_my_ask_thread`, `delete_my_ask_thread`, `get_ask_starters` → use an explicit exported set. Migrations: **0049** (+0050 RLS); pattern = `REVOKE ALL … FROM app_user` + ENABLE/FORCE RLS (0034/0048). Activity feed is computed: extend `ACTIVITY_KINDS` (`tools/platform-console.ts`) + `ActivityKind` in `platform/_components/activity-feed.tsx`. 106 tools / 35 files (≈47 write, 59 read); no tool output has an email field (masking = direct paths only). E2E: add `@support` to `KNOWN_TAGS` + rules.
+
+**S4 (confirmed):** `(app)/layout.tsx` and every `/platform/*` page call `requireContext()` → member-less operators get `/no-access`; platform tools are `permission: 'agency'`, so operators need an agency-role membership today.
+
+**Design gaps to settle before Tasks 5–7:**
+1. `/platform/*`, the Exit route and `start/end_support_session` must run on the operator's own ctx, not the support ctx (else operator writes incl. Exit and "replace" are refused `read_only_session`; `getReviewableAskThread` audits into the target agency).
+2. Cookies can't be set/cleared during Server Component render → expired/revoked/invalid handling must redirect to a route handler that ends the row + clears the cookie.
+3. Email can't use `notify()`/outbox (`notification.client_id NOT NULL`, `AGENCY_KINDS`, contact recipients) → send directly via the web email transport (magic-link precedent) or add a migration.
+4. Support viewer needs `ctx` and `name` (used by `theme.ts`, files/go routes, inbox, top-bar); resolve it inside `viewerWith` so `getViewerForClient` sees it too.
+5. Task 1 breaks typecheck until Task 2 (106 defs + 5 test files with inline tools) → one reviewer pass.
+6. `toFormResult` maps `read_only_session` to "Not found"; `callTool` would 500 → map to g10 copy.
+
+**Direct-call inventory (no registry):**
+| Where | Call | R/W | Emails | Action |
+|---|---|---|---|---|
+| `(app)/layout.tsx:36` | `unreadCount` (own inbox) | R | – | ok |
+| `(app)/layout.tsx:37` | `isPlatformOperator` only for `kind==='user'` | R | – | "Back to platform" |
+| `server/theme.ts:16` | `getAgencyBranding(viewer.ctx)` | R | – | ok (g8) |
+| `agency/branding/page.tsx:12` | `getAgencyBranding` | R | – | ok |
+| `agency/team/page.tsx:22` | `listTeam` | R | **members, `name‖email`, invites, dialogs** | mask |
+| `agency/webhooks/page.tsx:15` | `listWebhooks` | R | – (hook URLs) | ok |
+| `c/[id]/settings/delivery/page.tsx:21` | `listClientRecipients` | R | **table + dialog** | mask |
+| `c/[id]/ask/ask-screen.tsx:34`, `evidence/[id]/page.tsx:51` | `assistantNameFor`/`productNameFor` | R | – | Ask 404s today → private copy |
+| `inbox/page.tsx:16` · `inbox/actions.ts:15-26` | `listInbox` · `markRead`/`markAllRead` | R · **W direct** | – | operator's own rows; 404 in session |
+| `c/[id]/ask/actions.ts:31,59,74` | raw UPDATE/INSERT `ask_message` | **W direct** | – | gated `kind!=='user'` ✔ |
+| `files/{brief,report}/[id]/route.ts` → `servePdf` | read tools + **enqueue PDF job** | R + **W on GET** | – | decide allow/refuse |
+| `files/evidence/…/route.ts` → `serveEvidence` | `get_evidence` + store | R | – | ok |
+| `go/[target]/[id]/route.ts:30` | `goDestination` (withTenant select) | R | – | ok |
+| `api/ask/turn` → `handleAskTurn` | begin/run turn | **W** | – | 404 non-`user` ✔ |
+| `(app)/actions.ts:22` | `endSession` sign-out | cookie | – | also clear `rm_support` |
+| `platform/ask/*` | `list/getReviewableAskThread` (audit → `ctx.agencyId`) | R | – | operator ctx only |
+
+No render path writes seen/last-viewed state. Every server action under `agency/**` and `c/**` uses `runTool` except the gated Ask confirm SQL; `toggleWebhookAction`/`setPrefAction` ignore refusals.
+
 ## Brief
 
 ### 1. Scope
@@ -37,13 +74,7 @@ Owner: "Read only access to agency level." 8b decides how deep and how privately
 - **§4.5 privacy:** reviewer names salted-hashed, never shown; PII stripped only at the model boundary (stored text stays raw); retention; deletion process. **§8.1:** every call audited. **§2.2:** "agency legal/DPA plumbing, support routing" = Phase 2 (wholesale). No support-access/impersonation/consent text in core spec.
 - Later console: agency management, comms, income statement; 8b stays read-only.
 
-### 2. Already built — reuse
-- **Viewer → ctx:** `apps/web/src/server/current-viewer.ts` `getViewer` (React `cache`, per request) → `resolveViewer` (`server/viewer.ts`: `user | member-less | guest`); `requireContext()` → `{ viewer, ctx }`, member-less → `/no-access`. `AccessContext` (`packages/core/src/access.ts`): `agencyId, userId, role, clientScope, features`; `hasPermission`/`canAccessClient`. Note: 8a operators need *some* membership to get a ctx.
-- **Registry:** `packages/core/src/tools.ts` `ToolRegistry.invoke(ctx, name, input)`: `permission: 'read'|'feedback'|'manage'|'agency'` + optional `feature`; **no read/write flag** — `'agency'` mixes reads and writes. Per-call audit via `createAuditSink` (`@cs/db`). Reads `callTool` (`server/tools.ts`, hidden → 404); writes `runTool`. Tenancy: `withTenant(db, {agencyId, clientScope}, fn)` (`db/src/tenant.ts`).
-- **Agency page reads:** `/agency` `get_portfolio`; `/agency/usage` `get_usage`; `/agency/team` `listTeam(service, ctx)` + `list_clients`; `/agency/branding` `getAgencyBranding(service, ctx)` (direct service calls, not tools); approvals `list_brief_queue`/`get_brief_review`; alerts `list_alert_queue`; prospects `list_prospects`/`get_prospect_report`; playbooks `list_playbooks`.
-- **Client reads (`/c/<id>/…`):** `get_workspace_overview`, `list_alerts/briefs/moves/recommendations/trend_reports`, `get_competitor_profile/timeline`, `list_tracked_pages`; changes `search_events`, `get_event`, `compare_snapshots`; evidence `get_evidence` + file route `app/files/evidence/[clientId]/[evidenceId]/route.ts`; `get_price_matrix`, `get_ad_activity`, `list_ads`, `get_rating_trend`, `get_theme_benchmark`, `get_geogrid`, `get_share_of_voice`, `get_move`, `get_brief`, `get_alert`, `get_trend_report`, `get_client_profile`, `get_alert_rules`.
-- **Read-only injection options:** (i) platform tools reusing the queries via `deps.service` (8a); (ii) synthetic `AccessContext` for the target agency (`role 'agency_admin'`, `clientScope 'all'`) + an `operator`/`readOnly` marker that the registry checks — needs a per-tool read/write mark or read allow-list, write controls hidden; (iii) a `platform` field on phase-6 `CallOptions`.
-- **Audit:** `audit_log` (actor, role, tool, input hash, outcome, rows; + phase-6 `channel`).
+### 2. Already built — superseded by the plan and "Pre-flight findings (Task 0)".
 
 ### 3. Binding decisions
 - Root `CLAUDE.md` § Decisions; web reads = registered tools, writes via `runTool`; refusals → 404; `upsell_tag` never client-facing; `retracted_at IS NULL`.
@@ -53,19 +84,6 @@ Owner: "Read only access to agency level." 8b decides how deep and how privately
 ### 4. Backlog to fold in
 None on impersonation/support/operator/read-only access. Adjacent: "Soft-delete/archival before any delete feature" (`phase-7-planning`, *from Phase 1 review*) — later agency delete only.
 
-### 5. In-flight workstreams
-- `phase-8`: same routes/tools/files (`platform-console.ts`, `platform/audit.ts`, `agencies/[id]/page.tsx`, nav). 8b must stack on 8a.
-- `phase-9`: same detail page (billing panel), `platform.ts`, nav; its `read_only`/`suspended` states — avoid term clash with an operator "read-only" mode; drill-down must still work for suspended agencies.
-- `phase-6`: registry `CallOptions`, `audit_log.channel`, `/platform/ask`.
-- Migrations: next free at execution time; phase-6 0038–0043, phase-8 two after, phase-9 more after.
+### 5. In-flight workstreams — see "Assumes from other branches".
 
-### 6. Open questions for the owner
-1. **What does read-only agency access mean?** (a) dedicated `/platform/agencies/<id>/…` pages (portfolio, usage, team, branding summary) built from new platform tools, no client workspaces; (b) "view as agency": existing `/agency` + `/c/<id>` pages in a read-only operator mode, all writes refused; (c) (b) incl. client workspaces. **Rec: (a)** — (b) needs a read/write mark on ~80 tools + hidden write controls.
-2. **Privacy of client data:** (a) aggregates + names only (8a d7); (b) full read like an agency admin, audited; (c) per-agency consent toggle (like `ask_review_allowed`). **Rec: (a)** plus portfolio/usage figures; (c) if deeper data is ever needed.
-3. **Data in scope** (if Q2 ≠ a): evidence screenshots, briefs, Ask threads (stay on 6b `/platform/ask` rules), reviewer data (never), contact emails (masked?). **Rec:** briefs + evidence metadata only; contact emails masked; reviewer data and Ask excluded.
-4. **Agency visibility:** (a) audit rows only (8a d8); (b) also a "Platform access" list on the agency's audit/team page; (c) (b) + email notice to agency admins. **Rec: (b)**.
-5. **Support session:** (a) open access; (b) stated reason + time-boxed session (1 h) + banner "Viewing as platform — read only"; (c) (b) only for client-level data. **Rec: (a)** for (1a); (b) if (1b/c) chosen.
-6. **Which roles may drill down:** (a) all (owner|staff|viewer); (b) staff+; (c) owner only for client-level data. **Rec: (a)** for aggregates, (b) for anything deeper.
-7. **Client-workspace preview "as the client sees it"** for support: (a) out of 8b; (b) in 8b, read-only, audited. **Rec: (a)**, revisit with Phase 10 support routing.
-8. **MCP/API:** (a) web only (`channels: ['web']`); (b) also MCP. **Rec: (a)**.
-9. **Split?** (a) single 8b; (b) 8b-1 pages / 8b-2 deeper data. **Rec: (a)** unless Q1 = (b)/(c).
+### 6. Open questions — answered by the spec (g1–g11, owner-approved 2026-10-12).
