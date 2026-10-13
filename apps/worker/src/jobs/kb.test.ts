@@ -112,14 +112,15 @@ describe('kb-embed', () => {
 type Fake = Partial<Pick<RenderedPage, 'status' | 'httpStatus' | 'title' | 'html' | 'error' | 'finalUrl'>>;
 const HTML = '<html><head><title>Alerts guide</title></head><body><main><h1>Alerts</h1><p>They fire when a competitor changes a price.</p><ul><li>Email</li><li>Slack</li></ul></main></body></html>';
 
-function importDeps(fake: Fake | Error, enabled = true) {
+function importDeps(fake: Fake | Error, enabled = true, addrs: string[] = ['93.184.216.34']) {
   const close = vi.fn(async () => {});
   const render = vi.fn(async (url: string) => {
     if (fake instanceof Error) throw fake;
     return { requestedUrl: url, finalUrl: url, httpStatus: 200, status: 'ok', title: 'Alerts guide', html: HTML, text: '', links: [], error: null, screenshot: async () => new Uint8Array(), close, ...fake } as RenderedPage;
   });
-  const deps = { kbImportEnabled: () => enabled, politeRenderer: () => ({ render, close: async () => {} }), serviceDb: () => dbs.service } as unknown as WorkerDeps;
-  return { deps, render, close };
+  const resolveHost = vi.fn(async (_h: string) => addrs);
+  const deps = { kbImportEnabled: () => enabled, resolveHost, politeRenderer: () => ({ render, close: async () => {} }), serviceDb: () => dbs.service } as unknown as WorkerDeps;
+  return { deps, render, close, resolveHost };
 }
 const importInput = { key: 'k1', url: 'https://example.com/alerts', level: 'platform' as const, kind: 'help' as const, autoSync: 'true' as const, userId: 'op' };
 const enqueueEmbed = vi.fn(async (_id: string) => {});
@@ -167,6 +168,15 @@ describe('kb-import', () => {
     await expect(run(deps)).resolves.toEqual({ error });
     expect(await urlRows()).toHaveLength(0);
     if (!(fake instanceof Error)) expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses non-public targets in the schema and when DNS resolves to a private address', async () => {
+    const job = createKbJobs(importDeps({}).deps).importUrl;
+    for (const url of ['http://127.0.0.1/x', 'file:///etc/passwd', 'http://169.254.169.254/', 'https://u:p@example.com/']) expect(job.schema.safeParse({ ...importInput, url }).success).toBe(false);
+    const { deps, render } = importDeps({}, true, ['93.184.216.34', '10.0.0.5']);
+    await expect(run(deps)).resolves.toEqual({ error: 'blocked' });
+    expect(render).not.toHaveBeenCalled();
+    expect(await urlRows()).toHaveLength(0);
   });
 
   it('returns disabled without fetching when the flag is off', async () => {
@@ -242,6 +252,14 @@ describe('kb-sync', () => {
     expect(await get(a.id)).toMatchObject({ syncFailures: 2, syncError: 'http_error', autoSync: true, bodyMd: OLD });
     await sync(fail);
     expect(await get(a.id)).toMatchObject({ syncFailures: 3, autoSync: false });
+  });
+
+  it('blocks a source_url that resolves to a private address, without rendering, and counts a failure', async () => {
+    const a = await urlArticle();
+    const { deps, render } = importDeps({}, true, ['10.0.0.5']);
+    await sync(deps);
+    expect(render).not.toHaveBeenCalled();
+    expect(await get(a.id)).toMatchObject({ syncError: 'blocked', syncFailures: 1, bodyMd: OLD });
   });
 
   it('a success resets the failure count', async () => {

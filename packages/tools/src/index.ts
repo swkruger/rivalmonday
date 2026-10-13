@@ -28,3 +28,4 @@ export type { AskActionView, AskMessageView, AskThreadSummary, AskThreadView } f
 export { type ArticleInput, rechunk, saveArticle } from './kb/write';
 export { blocksToMarkdown, type MarkdownBlock } from './kb/blocks-to-markdown';
 export { IMPORT_ERRORS, type ImportError } from './kb/import-error';
+export { isPublicAddress, isPublicHttpUrl } from './kb/public-url';

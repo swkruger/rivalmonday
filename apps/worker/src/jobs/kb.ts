@@ -2,7 +2,7 @@ import type { RenderedPage } from '@cs/collectors';
 import { KB_KINDS, KB_LEVELS, KB_MAX_BODY_BYTES } from '@cs/core';
 import { kbArticle, kbChunk } from '@cs/db';
 import { extractBlocks } from '@cs/engine';
-import { blocksToMarkdown, type ImportError, rechunk, saveArticle } from '@cs/tools';
+import { blocksToMarkdown, type ImportError, isPublicAddress, isPublicHttpUrl, rechunk, saveArticle } from '@cs/tools';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
@@ -48,6 +48,11 @@ export function createKbJobs(deps: WorkerDeps, opts: { enqueueEmbed?: (articleId
   async function fetchMarkdown(url: string): Promise<Fetched> {
     let page: RenderedPage | null = null;
     try {
+      // SSRF guard: every address the host resolves to must be public, or nothing is rendered (a DNS-rebinding race remains between this check and the render).
+      if (!isPublicHttpUrl(url)) return { ok: false, error: 'blocked' };
+      const host = new URL(url).hostname.replace(/^\[|\]$/g, '');
+      const addrs = await deps.resolveHost(host);
+      if (addrs.length === 0 || !addrs.every(isPublicAddress)) return { ok: false, error: 'blocked' };
       page = await deps.politeRenderer().render(url);
       const error = importErrorOf(page);
       if (error) return { ok: false, error };
@@ -93,7 +98,7 @@ export function createKbJobs(deps: WorkerDeps, opts: { enqueueEmbed?: (articleId
     name: 'kb-import',
     schema: z.object({
       key: z.string().min(1),
-      url: z.string().url(),
+      url: z.string().refine(isPublicHttpUrl, 'Must be a public http(s) URL'),
       level: z.enum(KB_LEVELS),
       agencyId: z.uuid().optional(),
       clientId: z.uuid().optional(),

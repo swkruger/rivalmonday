@@ -18,6 +18,7 @@ import { generateStarters } from '@cs/ask';
 import { createEmailTransportFromEnv } from '@cs/email';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
+import { lookup } from 'node:dns/promises';
 import { createPdfRenderer } from './pdf';
 
 export interface WorkerDeps {
@@ -86,6 +87,8 @@ export interface WorkerDeps {
   serviceDb(): Db;
   /** Phase 6c: KB_IMPORT_ENABLED === 'true'; gates kb-import and kb-sync. */
   kbImportEnabled(): boolean;
+  /** Phase 6c: every address the host resolves to (SSRF guard for kb-import / kb-sync). */
+  resolveHost(host: string): Promise<string[]>;
   /** Phase 6c: the shared polite renderer (robots, ≥ 3 s/host limiter, honest UA) — the only way kb-import/kb-sync may fetch. */
   politeRenderer(): Renderer;
   /** Phase 6c: embeds texts with the `embeddings` task (512 d). */
@@ -325,6 +328,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     listReportsMissingPdf: (now) => listReportsMissingPdf(getDb(), now),
     serviceDb: () => getDb(),
     kbImportEnabled: () => env.KB_IMPORT_ENABLED?.trim() === 'true',
+    resolveHost: async (host) => (await lookup(host, { all: true })).map((a) => a.address),
     politeRenderer: () => getRenderer(),
     async embedTexts(texts) {
       return (await (await getAi()).embed('embeddings', texts, { agencyId: null, clientId: null })).vectors;

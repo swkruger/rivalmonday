@@ -5,6 +5,7 @@ import { and, desc, eq, ilike, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, jobStatusOf, type ToolDeps } from '../deps';
 import { IMPORT_ERRORS } from '../kb/import-error';
+import { isPublicHttpUrl } from '../kb/public-url';
 import { saveArticle } from '../kb/write';
 import { MCP_MAX_LIMIT, pageResult } from '../paging';
 import { requirePlatformOperator } from '../platform';
@@ -179,16 +180,7 @@ function requireImportEnabled(deps: ToolDeps) {
   if (!deps.kbImportEnabled) throw new ToolError('not_found', 'Not found');
 }
 
-const httpUrl = z
-  .string()
-  .max(2000)
-  .refine((v) => {
-    try {
-      return ['http:', 'https:'].includes(new URL(v).protocol);
-    } catch {
-      return false;
-    }
-  }, 'Must be an http(s) URL');
+const httpUrl = z.string().max(2000).refine(isPublicHttpUrl, 'Must be a public http(s) URL');
 
 export const importKbUrl = defineTool({
   name: 'import_kb_url',

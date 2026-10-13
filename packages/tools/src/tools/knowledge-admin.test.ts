@@ -121,7 +121,8 @@ describe('knowledge admin tools', () => {
 
     it('rejects non-http urls and enqueues serialised data under a fresh key', async () => {
       await expect(on.invoke(op, 'import_kb_url', { ...imp, url: 'ftp://example.com/x' })).rejects.toBeTruthy();
-      await expect(on.invoke(op, 'import_kb_url', { ...imp, url: 'javascript:alert(1)' })).rejects.toBeTruthy();
+      for (const url of ['javascript:alert(1)', 'http://127.0.0.1', 'http://169.254.169.254', 'file:///etc/passwd', 'data:text/html,x', 'http://localhost:3000/x'])
+        await expect(on.invoke(op, 'import_kb_url', { ...imp, url })).rejects.toMatchObject({ code: 'invalid_input' });
       const { key } = (await on.invoke(op, 'import_kb_url', imp)) as { key: string };
       expect(key.length).toBeGreaterThan(10);
       expect(enqueue).toHaveBeenCalledWith('kb-import', { key, url: imp.url, level: 'platform', kind: 'blog', autoSync: 'true', userId: 'op' }, key);
