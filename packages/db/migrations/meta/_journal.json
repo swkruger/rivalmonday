@@ -330,6 +330,20 @@
       "when": 1791858621718,
       "tag": "0046_kb_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1791877027808,
+      "tag": "0047_platform_console",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1791877030198,
+      "tag": "0048_platform_console_rls",
+      "breakpoints": true
     }
   ]
 }
