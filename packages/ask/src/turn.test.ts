@@ -32,7 +32,7 @@ const eventsSeen: unknown[] = [];
 
 const registry = new ToolRegistry<ToolDeps>({} as ToolDeps, { record: async (e) => void audited.push(e) }).register(
   defineTool({
-    name: 'search_events', description: 'Search changes', input: z.object({ clientId: z.string(), query: z.string().optional(), route: z.string().optional() }), output: z.any(),
+    name: 'search_events', access: 'read', description: 'Search changes', input: z.object({ clientId: z.string(), query: z.string().optional(), route: z.string().optional() }), output: z.any(),
     permission: 'read', channels: ['ask'],
     handler: async (_c, i) => {
       eventsSeen.push(i);
@@ -41,7 +41,7 @@ const registry = new ToolRegistry<ToolDeps>({} as ToolDeps, { record: async (e) 
     },
   }),
   defineTool({
-    name: 'search_knowledge', description: 'Search knowledge', input: z.object({ query: z.string(), clientId: z.string().optional() }), output: z.any(),
+    name: 'search_knowledge', access: 'read', description: 'Search knowledge', input: z.object({ query: z.string(), clientId: z.string().optional() }), output: z.any(),
     permission: 'read', channels: ['ask'],
     handler: async (_c, i) => {
       kbSeen.push(i);
@@ -49,23 +49,23 @@ const registry = new ToolRegistry<ToolDeps>({} as ToolDeps, { record: async (e) 
     },
   }),
   defineTool({
-    name: 'get_evidence', description: 'One evidence', input: z.object({ clientId: z.string(), evidenceId: z.string() }), output: z.any(),
+    name: 'get_evidence', access: 'read', description: 'One evidence', input: z.object({ clientId: z.string(), evidenceId: z.string() }), output: z.any(),
     permission: 'read', channels: ['ask'],
     handler: async (_c, i) => ({ evidenceId: i.evidenceId, competitorName: 'Acme', channelLabel: 'Website', capturedAt: '2026-10-01T00:00:00.000Z', citedBy: [{ summary: 'Acme raised prices' }] }),
   }),
   defineTool({
-    name: 'list_alerts', description: 'Alerts', input: z.object({ clientId: z.string() }), output: z.any(), permission: 'read', channels: ['ask'],
+    name: 'list_alerts', access: 'read', description: 'Alerts', input: z.object({ clientId: z.string() }), output: z.any(), permission: 'read', channels: ['ask'],
     handler: async () => {
       throw new ToolError('permission_denied', 'nope');
     },
   }),
   defineTool({
-    name: 'add_recommendation', description: 'Save a recommendation',
+    name: 'add_recommendation', access: 'write', description: 'Save a recommendation',
     input: z.object({ clientId: z.string().uuid(), title: z.string().trim().min(3).max(120), rationale: z.string().min(10), evidenceIds: z.array(z.string()).min(1), effort: z.enum(['L', 'M', 'H']), impact: z.enum(['L', 'M', 'H']) }),
     output: z.any(), permission: 'feedback', channels: ['ask'],
     handler: addRecHandler as never,
   }),
-  defineTool({ name: 'web_only_tool', description: 'web', input: z.object({}), output: z.any(), permission: 'read', handler: async () => ({}) }),
+  defineTool({ name: 'web_only_tool', access: 'read', description: 'web', input: z.object({}), output: z.any(), permission: 'read', handler: async () => ({}) }),
 );
 
 beforeEach(async () => {

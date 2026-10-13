@@ -15,6 +15,7 @@ const DAY = 86_400_000;
 
 export const getAdActivity = defineTool({
   name: 'get_ad_activity',
+  access: 'read',
   description: 'Weekly count of active ads per tracked competitor; a week is empty (null) before ads were first checked.',
   input: z.object({ clientId: uuid, weeks: z.number().int().min(4).max(26).default(12), competitorId: uuid.optional() }),
   output: AdActivityView,
@@ -47,6 +48,7 @@ const sumPoints = (points: (number | null)[]): number | null =>
 
 export const getWorkspaceOverview = defineTool({
   name: 'get_workspace_overview',
+  access: 'read',
   description: 'A client workspace at a glance: changes, alerts and price moves this week, active ads, ratings and competitor pressure.',
   input: z.object({ clientId: uuid }),
   output: WorkspaceOverview,

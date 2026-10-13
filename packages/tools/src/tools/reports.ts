@@ -10,6 +10,7 @@ const summary = (r: typeof trendReport.$inferSelect): ReportSummary => ({ id: r.
 
 export const listTrendReports = defineTool({
   name: 'list_trend_reports',
+  access: 'read',
   description: 'List quarterly trend reports for a client. Client roles see sent reports only.',
   input: z.object({ clientId: z.string().uuid() }),
   output: z.object({ items: z.array(ReportSummary) }),
@@ -24,6 +25,7 @@ export const listTrendReports = defineTool({
 
 export const getTrendReport = defineTool({
   name: 'get_trend_report',
+  access: 'read',
   description: 'Get one quarterly trend report (deterministic numbers, never model-written).',
   input: z.object({ reportId: z.string().uuid() }),
   output: ReportDetail,

@@ -36,6 +36,7 @@ const trackedMove = and(eq(clientCompetitor.clientId, move.clientId), eq(clientC
 
 export const listMoves = defineTool({
   name: 'list_moves',
+  access: 'read',
   description: 'Competitor moves detected for a client (territory expansion, price war, …) with status, confidence and how many live changes support each.',
   input: z.object({ clientId: uuid, status: z.enum(['open', 'closed', 'all']).default('open'), competitorId: uuid.optional(), limit: z.number().int().min(1).max(200).optional(), ...pageFields }),
   output: z.object({ items: pagedItems(MoveRow), nextCursor: z.string().nullable().optional() }),
@@ -80,6 +81,7 @@ export const listMoves = defineTool({
 
 export const getMove = defineTool({
   name: 'get_move',
+  access: 'read',
   description: 'One competitor move with its detected facts and the chain of live changes that support it.',
   input: z.object({ clientId: uuid, moveId: uuid }),
   output: MoveDetail,

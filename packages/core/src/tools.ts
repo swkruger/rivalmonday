@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { type TokenScope, scopeCovers } from './tokens';
 import { type AccessContext, type Feature, type Permission, type Role, hasPermission, isAgencyRole } from './access';
 
-export type ToolErrorCode = 'not_found' | 'permission_denied' | 'invalid_input' | 'rate_limited' | 'quota_exceeded' | 'internal';
+export type ToolErrorCode = 'not_found' | 'permission_denied' | 'invalid_input' | 'rate_limited' | 'quota_exceeded' | 'read_only_session' | 'internal';
 
 export class ToolError extends Error {
   readonly code: ToolErrorCode;
@@ -24,6 +24,12 @@ export interface ToolDefinition<I extends z.ZodType, O extends z.ZodType, D> {
   input: I;
   output: O;
   permission: Permission;
+  /** 'write' = inserts/updates/deletes tenant or external state (incl. hidden side effects); refused in read-only support sessions. */
+  access: 'read' | 'write';
+  /** Dot-paths of email fields in the output, masked under a support context (see mask.ts). */
+  supportMask?: readonly string[];
+  /** Not offered in support sessions (the registry hides it). */
+  supportHidden?: true;
   feature?: Feature;
   /** Channels this tool is exposed on; default web only. */
   channels?: readonly ToolChannel[];

@@ -20,6 +20,7 @@ const overridesFor = (deps: ToolDeps, ctx: AccessContext): Promise<Override[]> =
 
 export const listPlaybooks = defineTool({
   name: 'list_playbooks',
+  access: 'read',
   description: 'The response playbooks for each business type, with this agency’s edits.',
   input: z.object({}),
   output: z.object({ verticals: z.array(PlaybookVertical), vars: z.array(z.string()) }),
@@ -39,6 +40,7 @@ export const listPlaybooks = defineTool({
 
 export const updatePlaybook = defineTool({
   name: 'update_playbook',
+  access: 'write',
   description: 'Edit, disable or reset one playbook for this agency (agency admins). Blank title/template = use the standard text.',
   input: z.object({
     verticalId: z.string().max(40), playbookId: z.string().max(80), title: z.string().max(1000).nullable(), template: z.string().max(10000).nullable(), disabled: z.boolean(),

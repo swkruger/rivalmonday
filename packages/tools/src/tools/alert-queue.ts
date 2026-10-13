@@ -11,6 +11,7 @@ const uuid = z.string().uuid();
 
 export const listAlertQueue = defineTool({
   name: 'list_alert_queue',
+  access: 'read',
   description: 'Alerts waiting for an account manager’s check, and approved alerts held for the 17:00 digest, oldest first.',
   input: z.object({}),
   output: z.object({ items: z.array(AlertQueueRow) }),
@@ -36,6 +37,7 @@ export const listAlertQueue = defineTool({
 
 export const approveAlertTool = defineTool({
   name: 'approve_alert',
+  access: 'write',
   description: 'Approve an alert waiting for review: it goes to the client now, or into the 17:00 digest if today’s limit is reached.',
   input: z.object({ alertId: uuid }),
   output: z.object({ outcome: z.enum(['immediate', 'digest', 'withdrawn']) }),
@@ -48,6 +50,7 @@ export const approveAlertTool = defineTool({
 
 export const dismissAlertTool = defineTool({
   name: 'dismiss_alert',
+  access: 'write',
   description: 'Dismiss an alert waiting for review or for the digest. A reason is required.',
   input: z.object({ alertId: uuid, reason: z.string().max(500) }),
   output: z.object({ ok: z.literal(true) }),

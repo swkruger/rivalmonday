@@ -16,6 +16,7 @@ const summary = (b: typeof brief.$inferSelect): BriefSummary => ({
 
 export const listBriefs = defineTool({
   name: 'list_briefs',
+  access: 'read',
   description: 'List weekly briefs for a client, newest delivery date first.',
   input: pagedListInput(52),
   output: z.object({ items: pagedItems(BriefSummary), nextCursor: z.string().nullable().optional() }),
@@ -67,6 +68,7 @@ export async function briefDetail(deps: ToolDeps, ctx: AccessContext, briefId: s
 
 export const getBriefTool = defineTool({
   name: 'get_brief',
+  access: 'read',
   description: 'Get one weekly brief with its items. Client roles see approved or sent briefs only, without agency-only tags.',
   input: z.object({ briefId: z.string().uuid() }),
   output: BriefDetail,

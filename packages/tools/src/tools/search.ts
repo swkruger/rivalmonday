@@ -170,6 +170,7 @@ async function knowledgeHits(deps: ToolDeps, ctx: AccessContext, c: WorkspaceCli
 
 export const search = defineTool({
   name: 'search',
+  access: 'read',
   description: 'Search one client\'s competitor changes, brief items, recommendations, alerts, reviews and competitor pages, plus knowledge-base articles (type knowledge, MCP only), by keywords. Returns ids to pass to fetch.',
   input: z.object({
     query: z.string().trim().min(1).max(200),

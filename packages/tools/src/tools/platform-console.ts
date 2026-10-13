@@ -169,6 +169,7 @@ export function tilesOf(live: LiveAgency[], rows: SeriesRow[], now: Date): z.inp
 
 export const platformOverview = defineTool({
   name: 'platform_overview',
+  access: 'read',
   description: 'Platform operators: platform-wide tiles (agencies, active clients, seats, WAU, month-to-date spend) with 28-day deltas, and weekly/monthly series.',
   input: z.object({ range: PlatformRangeInput }),
   output: z.object({ tiles: PlatformTiles, series: z.array(PlatformSeriesPoint) }),
@@ -217,6 +218,7 @@ function compareRows(sort: Sort, dir: 'asc' | 'desc') {
 
 export const listPlatformAgencies = defineTool({
   name: 'list_platform_agencies',
+  access: 'read',
   description: 'Platform operators: every agency with live figures (clients, seats, WAU, last activity, month-to-date spend) and a health flag.',
   input: z.object({
     sort: z.enum(SORTS).optional(),
@@ -270,6 +272,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export const getPlatformAgency = defineTool({
   name: 'get_platform_agency',
+  access: 'read',
   description: 'Platform operators: one agency — health, live tiles with 28-day deltas, series, team counts per role and its clients (id, name, status, created).',
   input: z.object({ agencyId: AgencyId, range: PlatformRangeInput }),
   output: z.object({
@@ -358,6 +361,7 @@ export function atRiskTransitions(
 
 export const listPlatformActivity = defineTool({
   name: 'list_platform_activity',
+  access: 'read',
   description: 'Platform operators: newest-first feed of agency/client creation, client activation, first brief sent and agencies turning at-risk (no client content).',
   input: z.object({ cursor: z.string().max(200).optional(), limit: z.number().int().min(1).max(50).optional() }),
   output: z.object({

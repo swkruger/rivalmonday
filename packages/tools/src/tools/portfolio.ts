@@ -16,6 +16,7 @@ const latest = (...ds: (Date | string | null | undefined)[]) =>
 
 export const getPortfolio = defineTool({
   name: 'get_portfolio',
+  access: 'read',
   description: 'Every client this agency user can see, with alerts waiting, a brief to approve, competitive pressure and last activity.',
   input: z.object({}),
   output: z.object({ items: z.array(PortfolioRow) }),

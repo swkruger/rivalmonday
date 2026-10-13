@@ -62,6 +62,7 @@ const ListItem = z.object({
 
 export const listKbArticles = defineTool({
   name: 'list_kb_articles',
+  access: 'read',
   description: 'Platform operators: knowledge-base articles at every level, newest edit first.',
   input: z.object({
     level: z.enum(KB_LEVELS).optional(),
@@ -116,6 +117,7 @@ export const listKbArticles = defineTool({
 
 export const listKbTargets = defineTool({
   name: 'list_kb_targets',
+  access: 'read',
   description: 'Platform operators: every agency with its clients, for choosing where a knowledge-base article applies.',
   input: z.object({}),
   output: z.object({ agencies: z.array(z.object({ id: uuid, name: z.string(), clients: z.array(z.object({ id: uuid, name: z.string() })) })) }),
@@ -130,6 +132,7 @@ export const listKbTargets = defineTool({
 
 export const getKbArticleAdmin = defineTool({
   name: 'get_kb_article_admin',
+  access: 'read',
   description: 'Platform operators: one knowledge-base article with its full body and the previous body.',
   input: z.object({ id: uuid }),
   output: z.object({}).passthrough(),
@@ -142,6 +145,7 @@ export const getKbArticleAdmin = defineTool({
 
 export const upsertKbArticle = defineTool({
   name: 'upsert_kb_article',
+  access: 'write',
   description: 'Platform operators: create or edit a knowledge-base article at platform, agency or client level.',
   input: ArticleInputSchema,
   output: z.object({ id: uuid, lintWarnings: z.array(z.string()) }),
@@ -163,6 +167,7 @@ export const upsertKbArticle = defineTool({
 
 export const deleteKbArticle = defineTool({
   name: 'delete_kb_article',
+  access: 'write',
   description: 'Platform operators: delete a knowledge-base article and its chunks.',
   input: z.object({ id: uuid }),
   output: z.object({ ok: z.literal(true) }),
@@ -177,6 +182,7 @@ export const deleteKbArticle = defineTool({
 
 export const setKbAutoSync = defineTool({
   name: 'set_kb_auto_sync',
+  access: 'write',
   description: 'Platform operators: turn weekly re-import on or off for a URL-sourced article.',
   input: z.object({ id: uuid, autoSync: z.boolean() }),
   output: z.object({ ok: z.literal(true) }),
@@ -201,6 +207,7 @@ const httpUrl = z.string().max(2000).refine(isPublicHttpUrl, 'Must be a public h
 
 export const importKbUrl = defineTool({
   name: 'import_kb_url',
+  access: 'write',
   description: 'Platform operators: import a public web page as a draft knowledge-base article (background job; poll get_kb_import_status).',
   input: z.object({
     url: httpUrl,
@@ -234,6 +241,7 @@ const ImportStatus = z.object({
 
 export const getKbImportStatus = defineTool({
   name: 'get_kb_import_status',
+  access: 'read',
   description: 'Platform operators: progress of a URL import started with import_kb_url.',
   input: z.object({ key: z.string().min(1).max(100) }),
   output: ImportStatus,

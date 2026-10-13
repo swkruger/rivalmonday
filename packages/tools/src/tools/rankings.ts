@@ -31,6 +31,7 @@ export async function doneScan(tx: Tx, clientId: string, id: string): Promise<Sc
 
 export const getGeogrid = defineTool({
   name: 'get_geogrid',
+  access: 'read',
   description: 'Local-pack rank of one business (you or a tracked competitor) at every point of a rank-scan grid for one keyword, plus per-keyword summaries.',
   input: z.object({ clientId: uuid, keyword: z.string().trim().min(1).max(100).optional(), business: BusinessKey.optional(), scanId: uuid.optional() }),
   output: GeoGridView,
@@ -92,6 +93,7 @@ const r3 = (x: number) => Math.round(x * 1000) / 1000;
 
 export const getShareOfVoice = defineTool({
   name: 'get_share_of_voice',
+  access: 'read',
   description: 'Share of the top-3 local-pack slots held by you, each tracked competitor and other businesses, per monthly rank scan.',
   input: z.object({ clientId: uuid, keyword: z.string().trim().min(1).max(100).optional(), scans: z.number().int().min(1).max(12).default(6) }),
   output: ShareOfVoiceView,

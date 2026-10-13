@@ -34,6 +34,7 @@ async function lowestUsdAt(db: Db, competitorIds: string[], verticalId: string, 
 
 export const getPriceMatrix = defineTool({
   name: 'get_price_matrix',
+  access: 'read',
   description: 'Current prices per service for each tracked competitor, with the change against 90 days ago.',
   input: z.object({ clientId: uuid, competitorId: uuid.optional() }),
   output: PriceMatrixView,
@@ -78,6 +79,7 @@ const weeklyIndexes = (n: number): number[] => {
 
 export const getPriceHistory = defineTool({
   name: 'get_price_history',
+  access: 'read',
   description: 'Weekly lowest price of one service for each tracked competitor; empty (null) before a price was seen.',
   input: z.object({
     clientId: uuid,

@@ -62,6 +62,8 @@ export type AskThreadView = z.infer<typeof threadView>;
 
 export const listMyAskThreads = defineTool({
   name: 'list_my_ask_threads',
+  access: 'read',
+  supportHidden: true,
   description: "The signed-in user's own Ask threads for a client, most recently active first.",
   input: z.object({ clientId: uuid }),
   output: z.object({ items: z.array(threadSummary) }),
@@ -85,6 +87,8 @@ export const listMyAskThreads = defineTool({
 
 export const getMyAskThread = defineTool({
   name: 'get_my_ask_thread',
+  access: 'read',
+  supportHidden: true,
   description: "One of the signed-in user's own Ask threads with its messages (never the trace).",
   input: z.object({ threadId: uuid }),
   output: threadView,
@@ -117,6 +121,8 @@ export const getMyAskThread = defineTool({
 
 export const deleteMyAskThread = defineTool({
   name: 'delete_my_ask_thread',
+  access: 'write',
+  supportHidden: true,
   description: "Delete one of the signed-in user's own Ask threads and its messages.",
   input: z.object({ threadId: uuid }),
   output: z.object({ id: uuid }),
@@ -135,6 +141,8 @@ export const deleteMyAskThread = defineTool({
 
 export const getAskStarters = defineTool({
   name: 'get_ask_starters',
+  access: 'read',
+  supportHidden: true,
   description: "A client's four starter questions (generic ones until the weekly set exists) and whether its conversations may be reviewed.",
   input: z.object({ clientId: uuid }),
   // e4: no usage or quota numbers here, ever.

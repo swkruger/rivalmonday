@@ -13,6 +13,7 @@ const STATUSES = ['todo', 'in_progress', 'done', 'dismissed'] as const;
 
 export const listRecommendations = defineTool({
   name: 'list_recommendations',
+  access: 'read',
   description: 'Recommended next steps for a client, newest first, with their status.',
   input: z.object({ clientId: uuid, limit: z.number().int().min(1).max(300).optional(), ...pageFields }),
   output: z.object({ items: pagedItems(RecommendationView), nextCursor: z.string().nullable().optional() }),
@@ -45,6 +46,7 @@ export const listRecommendations = defineTool({
 
 export const updateRecommendationStatusTool = defineTool({
   name: 'update_recommendation_status',
+  access: 'write',
   description: 'Move a recommendation to to-do, in progress, done or dismissed (dismissing needs a reason).',
   input: z.object({ recommendationId: uuid, status: z.enum(STATUSES), reason: z.string().max(500).optional() }),
   output: z.object({ ok: z.literal(true) }),

@@ -15,6 +15,7 @@ const reviewDeps = (deps: ToolDeps) => ({ service: deps.service, app: deps.app, 
 
 export const listBriefQueue = defineTool({
   name: 'list_brief_queue',
+  access: 'read',
   description: 'This week’s brief per client (plus any older brief still waiting), ready-for-review first.',
   input: z.object({}),
   output: z.object({ items: z.array(BriefQueueRow) }),
@@ -51,6 +52,7 @@ export const listBriefQueue = defineTool({
 
 export const getBriefReview = defineTool({
   name: 'get_brief_review',
+  access: 'read',
   description: 'A brief as the agency reviews it: every item including dropped ones, fact-check counts and auto-send.',
   input: z.object({ briefId: uuid }),
   output: BriefReview,
@@ -66,6 +68,7 @@ export const getBriefReview = defineTool({
 
 export const editBriefItemTool = defineTool({
   name: 'edit_brief_item',
+  access: 'write',
   description: 'Edit an item of a brief that is ready for review. Returns non-blocking fact-check warnings.',
   input: z.object({ itemId: uuid, headline: text.optional(), whatChanged: text.optional(), whyItMatters: text.optional(), recommendedAction: text.optional() }),
   output: z.object({ warnings: z.array(z.string()) }),
@@ -77,6 +80,7 @@ export const editBriefItemTool = defineTool({
 
 export const dropBriefItemTool = defineTool({
   name: 'drop_brief_item',
+  access: 'write',
   description: 'Remove an item from a brief that is ready for review.',
   input: z.object({ itemId: uuid, reason: z.string().max(500).optional() }),
   output: ok,
@@ -89,6 +93,7 @@ export const dropBriefItemTool = defineTool({
 
 export const reorderBriefItemsTool = defineTool({
   name: 'reorder_brief_items',
+  access: 'write',
   description: 'Set the order of a ready brief’s active items (all of them, first to last).',
   input: z.object({ briefId: uuid, itemIds: z.array(uuid).min(1).max(20) }),
   output: ok,
@@ -101,6 +106,7 @@ export const reorderBriefItemsTool = defineTool({
 
 export const rateBriefItemTool = defineTool({
   name: 'rate_brief_item',
+  access: 'write',
   description: 'Rate whether a brief item is useful (feeds the pilot’s usefulness metric).',
   input: z.object({ itemId: uuid, useful: z.boolean(), reason: z.string().max(500).optional() }),
   output: ok,
@@ -113,6 +119,7 @@ export const rateBriefItemTool = defineTool({
 
 export const approveBriefTool = defineTool({
   name: 'approve_brief',
+  access: 'write',
   description: 'Approve a ready brief for Monday delivery; its items become recommendations.',
   input: z.object({ briefId: uuid }),
   output: z.object({ recommendations: z.number().int() }),
@@ -124,6 +131,7 @@ export const approveBriefTool = defineTool({
 
 export const sendBriefNowTool = defineTool({
   name: 'send_brief_now',
+  access: 'write',
   description: 'Approve (if needed) and send a brief to the client now, then render its PDF.',
   input: z.object({ briefId: uuid }),
   output: z.object({ notifications: z.number().int(), pdf: z.enum(['queued', 'later']) }),
@@ -144,6 +152,7 @@ export const sendBriefNowTool = defineTool({
 
 export const setBriefAutoSend = defineTool({
   name: 'set_brief_auto_send',
+  access: 'write',
   description: 'Send this client’s untouched briefs automatically on Monday 07:00 local time.',
   input: z.object({ clientId: uuid, enabled: z.boolean() }),
   output: ok,

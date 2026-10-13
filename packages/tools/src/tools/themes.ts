@@ -14,6 +14,7 @@ const DECIDED_WINDOW_DAYS = 30;
 
 export const listThemeProposals = defineTool({
   name: 'list_theme_proposals',
+  access: 'read',
   description: 'Platform operators: new review topics the model proposes per business type, and recent decisions.',
   input: z.object({}),
   output: z.object({ pending: z.array(ThemeProposalView), decided: z.array(ThemeProposalView) }),
@@ -48,6 +49,7 @@ export const listThemeProposals = defineTool({
 
 export const decideThemeProposalTool = defineTool({
   name: 'decide_theme_proposal',
+  access: 'write',
   description: 'Platform operators: approve or reject a proposed review topic.',
   input: z.object({ proposalId: z.string().uuid(), decision: z.enum(['approved', 'rejected']) }),
   output: z.object({ ok: z.literal(true) }),

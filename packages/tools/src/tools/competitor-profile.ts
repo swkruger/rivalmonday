@@ -17,6 +17,7 @@ const DAY = 86_400_000;
 
 export const getCompetitorProfile = defineTool({
   name: 'get_competitor_profile',
+  access: 'read',
   description: 'A tracked competitor at a glance: GBP rating, active ads, pressure, open moves and collection status.',
   input: z.object({ clientId: uuid, competitorId: uuid }),
   output: CompetitorProfile,
@@ -64,6 +65,7 @@ export const getCompetitorProfile = defineTool({
 
 export const getCompetitorTimeline = defineTool({
   name: 'get_competitor_timeline',
+  access: 'read',
   description: 'A tracked competitor’s recent activity: scored events and move starts, newest first.',
   input: z.object({ clientId: uuid, competitorId: uuid, days: z.union([z.literal(30), z.literal(90), z.literal(365)]).default(90) }),
   output: z.object({ items: z.array(TimelineItem) }),

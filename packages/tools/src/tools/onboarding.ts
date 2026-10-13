@@ -32,6 +32,7 @@ function validated(input: ClientInput, pack: VerticalPack): ClientInput {
 
 export const createClient = defineTool({
   name: 'create_client',
+  access: 'write',
   description: 'Create a client business — or a prospect being pitched — for this agency (agency users who cover all clients).',
   input: z.object({
     name: z.string().max(200), verticalId: z.string().max(40), services: z.array(z.string().max(80)).max(255), keywords: z.array(z.string().max(120)).max(20),
@@ -56,6 +57,7 @@ export const createClient = defineTool({
 
 export const updateClientProfile = defineTool({
   name: 'update_client_profile',
+  access: 'write',
   description: 'Update a client’s name, services, keywords, service area, Google place id or client features.',
   input: z.object({
     clientId: uuid, name: z.string().max(200).optional(), services: z.array(z.string().max(80)).max(255).optional(), keywords: z.array(z.string().max(120)).max(20).optional(),

@@ -11,6 +11,7 @@ const { defineTool } = toolkit<Deps>();
 
 const echo = defineTool({
   name: 'echo',
+  access: 'read',
   description: 'Echo a message',
   input: z.object({ message: z.string().min(1) }),
   output: z.object({ items: z.array(z.string()) }),
@@ -20,6 +21,7 @@ const echo = defineTool({
 
 const manage = defineTool({
   name: 'add_thing',
+  access: 'write',
   description: 'Needs manage + feature',
   input: z.object({}),
   output: z.object({ ok: z.boolean() }),
@@ -30,6 +32,7 @@ const manage = defineTool({
 
 const broken = defineTool({
   name: 'broken',
+  access: 'read',
   description: 'Throws',
   input: z.object({}),
   output: z.object({ ok: z.boolean() }),
@@ -39,6 +42,7 @@ const broken = defineTool({
 
 const denied = defineTool({
   name: 'rate_limited_tool',
+  access: 'read',
   description: 'Throws a ToolError',
   input: z.object({}),
   output: z.object({ ok: z.boolean() }),
@@ -48,6 +52,7 @@ const denied = defineTool({
 
 const badOutput = defineTool({
   name: 'bad_output',
+  access: 'read',
   description: 'Returns wrong shape',
   input: z.object({}),
   output: z.object({ ok: z.boolean() }),
@@ -151,27 +156,27 @@ describe('ToolRegistry', () => {
 });
 
 const mcpRead = defineTool({
-  name: 'mcp_read', description: 'mcp read', input: z.object({}), output: z.object({ ok: z.boolean() }),
+  name: 'mcp_read', access: 'read', description: 'mcp read', input: z.object({}), output: z.object({ ok: z.boolean() }),
   permission: 'read', channels: ['mcp'], handler: async () => ({ ok: true }),
 });
 const mcpFeedback = defineTool({
-  name: 'mcp_feedback', description: 'mcp feedback', input: z.object({}), output: z.object({ ok: z.boolean() }),
+  name: 'mcp_feedback', access: 'read', description: 'mcp feedback', input: z.object({}), output: z.object({ ok: z.boolean() }),
   permission: 'read', channels: ['mcp'], mcpScope: 'feedback', handler: async () => ({ ok: true }),
 });
 const mcpManage = defineTool({
-  name: 'mcp_manage', description: 'mcp manage', input: z.object({}), output: z.object({ ok: z.boolean() }),
+  name: 'mcp_manage', access: 'read', description: 'mcp manage', input: z.object({}), output: z.object({ ok: z.boolean() }),
   permission: 'read', channels: ['mcp'], mcpScope: 'manage', handler: async () => ({ ok: true }),
 });
 const agencyOnlyManage = defineTool({
-  name: 'agency_manage', description: 'agency manage', input: z.object({}), output: z.object({ ok: z.boolean() }),
+  name: 'agency_manage', access: 'read', description: 'agency manage', input: z.object({}), output: z.object({ ok: z.boolean() }),
   permission: 'agency', channels: ['web', 'mcp'], mcpScope: 'manage', handler: async () => ({ ok: true }),
 });
 const quiet = defineTool({
-  name: 'quiet', description: 'skip-web audit', input: z.object({}), output: z.object({ ok: z.boolean() }),
+  name: 'quiet', access: 'read', description: 'skip-web audit', input: z.object({}), output: z.object({ ok: z.boolean() }),
   permission: 'read', channels: ['web', 'mcp'], audit: 'skip-web', handler: async () => ({ ok: true }),
 });
 const metaProbe = defineTool({
-  name: 'meta_probe', description: 'returns meta', input: z.object({}),
+  name: 'meta_probe', access: 'read', description: 'returns meta', input: z.object({}),
   output: z.object({ channel: z.string(), tokenId: z.string().nullable() }),
   permission: 'read', channels: ['web', 'mcp'], handler: async (_c, _i, _d, meta) => meta,
 });

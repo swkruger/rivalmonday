@@ -24,6 +24,7 @@ async function thresholdsOf(deps: ToolDeps, ctx: AccessContext, clientId: string
 
 export const getAlertRules = defineTool({
   name: 'get_alert_rules',
+  access: 'read',
   description: 'The score from which a competitor change becomes an instant alert, and from which it goes into the weekly brief.',
   input: z.object({ clientId: uuid }),
   output: AlertRulesView,
@@ -39,6 +40,7 @@ const whole = (v: number | undefined, min: number, max: number) => v !== undefin
 
 export const setAlertRules = defineTool({
   name: 'set_alert_rules',
+  access: 'write',
   description: 'Change the alert and weekly-brief score thresholds for a client, or go back to the defaults. Applies to changes detected from now on.',
   input: z.object({ clientId: uuid, alert: z.number().optional(), brief: z.number().optional(), reset: z.boolean().default(false) }),
   output: AlertRulesView,

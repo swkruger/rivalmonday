@@ -13,6 +13,7 @@ const UNSEEN = 'Every evidence id must be one you can see';
 
 export const addRecommendation = defineTool({
   name: 'add_recommendation',
+  access: 'write',
   description: 'Save a recommended next step for a client, backed by evidence you can see (no evidence, no recommendation).',
   input: z.object({
     clientId: uuid,

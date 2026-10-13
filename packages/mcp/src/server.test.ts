@@ -31,19 +31,19 @@ const { defineTool } = toolkit<ToolDeps>();
 const SECRET = 'db password is hunter2';
 const fakes = new ToolRegistry<ToolDeps>(deps, { record: async () => {} }).register(
   defineTool({
-    name: 'echo', description: 'Rival Monday echoes. Ask Rival Monday anything.', input: z.object({ text: z.string() }), output: z.object({ text: z.string() }),
+    name: 'echo', access: 'read', description: 'Rival Monday echoes. Ask Rival Monday anything.', input: z.object({ text: z.string() }), output: z.object({ text: z.string() }),
     permission: 'read', channels: ['mcp'], handler: async (_c, i) => ({ text: i.text }),
   }),
   defineTool({
-    name: 'missing', description: 'Throws not_found.', input: z.object({}), output: z.object({}), permission: 'read', channels: ['mcp'],
+    name: 'missing', access: 'read', description: 'Throws not_found.', input: z.object({}), output: z.object({}), permission: 'read', channels: ['mcp'],
     handler: async () => { throw new ToolError('not_found', 'Brief not found'); },
   }),
   defineTool({
-    name: 'denied', description: 'Throws permission_denied.', input: z.object({}), output: z.object({}), permission: 'read', channels: ['mcp'],
+    name: 'denied', access: 'read', description: 'Throws permission_denied.', input: z.object({}), output: z.object({}), permission: 'read', channels: ['mcp'],
     handler: async () => { throw new ToolError('permission_denied', 'You may not see client A2'); },
   }),
   defineTool({
-    name: 'boom', description: 'Throws a plain error.', input: z.object({}), output: z.object({}), permission: 'read', channels: ['mcp'],
+    name: 'boom', access: 'read', description: 'Throws a plain error.', input: z.object({}), output: z.object({}), permission: 'read', channels: ['mcp'],
     // Drizzle-style: the wrapper's message and the driver error's detail carry the query params (user input).
     handler: async () => {
       throw new Error(`Failed query: select 1 where x = $1 params: input-secret ${SECRET}`, {

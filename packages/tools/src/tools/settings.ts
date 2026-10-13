@@ -21,6 +21,7 @@ function requireSignedIn(ctx: AccessContext) {
 
 export const inviteMemberTool = defineTool({
   name: 'invite_member',
+  access: 'write',
   description: 'Invite someone to this agency or one of its clients.',
   input: z.object({ email: z.string().max(320), role: z.enum(ROLES), clientId: uuid.nullable().optional(), clientScope: z.array(uuid).max(500).nullable().optional() }),
   output: z.object({ invitationId: uuid, expiresAt: z.string() }),
@@ -33,6 +34,7 @@ export const inviteMemberTool = defineTool({
 
 export const revokeMembershipTool = defineTool({
   name: 'revoke_membership',
+  access: 'write',
   description: 'Remove someone’s access.',
   input: z.object({ membershipId: uuid }),
   output: OK,
@@ -45,6 +47,7 @@ export const revokeMembershipTool = defineTool({
 
 export const revokeInvitationTool = defineTool({
   name: 'revoke_invitation',
+  access: 'write',
   description: 'Cancel a pending invitation.',
   input: z.object({ invitationId: uuid }),
   output: OK,
@@ -57,6 +60,7 @@ export const revokeInvitationTool = defineTool({
 
 export const updateAgencyBrandingTool = defineTool({
   name: 'update_agency_branding',
+  access: 'write',
   description: 'Save the agency’s white-label branding (agency admins).',
   input: z.object({ displayName: text(200), logoUrl: text(1000), primary: text(20), secondary: text(20), fromName: text(200), signOff: text(600), assistantName: text(200) }),
   output: OK,
@@ -69,6 +73,7 @@ export const updateAgencyBrandingTool = defineTool({
 
 export const addWebhookTool = defineTool({
   name: 'add_webhook',
+  access: 'write',
   description: 'Send agency notices to a Slack or Teams channel (agency admins).',
   input: z.object({ kind: z.enum(['slack', 'teams']), url: z.string().max(2000), kinds: z.array(z.string().max(40)).max(30).nullable().optional() }),
   output: z.object({ webhookId: uuid }),
@@ -80,6 +85,7 @@ export const addWebhookTool = defineTool({
 
 export const setWebhookActiveTool = defineTool({
   name: 'set_webhook_active',
+  access: 'write',
   description: 'Pause or resume a Slack/Teams webhook (agency admins).',
   input: z.object({ webhookId: uuid, active: z.boolean() }),
   output: OK,
@@ -92,6 +98,7 @@ export const setWebhookActiveTool = defineTool({
 
 export const addClientRecipientTool = defineTool({
   name: 'add_client_recipient',
+  access: 'write',
   description: 'Add an email-only recipient of a client’s briefs and alerts.',
   input: z.object({ clientId: uuid, email: z.string().max(320), name: z.string().max(200).nullable().optional(), role: z.enum(['client_owner', 'client_viewer']) }),
   output: z.object({ contactId: uuid }),
@@ -103,6 +110,7 @@ export const addClientRecipientTool = defineTool({
 
 export const deactivateRecipientTool = defineTool({
   name: 'deactivate_recipient',
+  access: 'write',
   description: 'Stop sending to a recipient and expire every link already sent to them.',
   input: z.object({ contactId: uuid }),
   output: OK,
@@ -115,6 +123,7 @@ export const deactivateRecipientTool = defineTool({
 
 export const updateClientDeliveryTool = defineTool({
   name: 'update_client_delivery',
+  access: 'write',
   description: 'Set a client’s alert mode, brief auto-send and time zone.',
   input: z.object({ clientId: uuid, alertMode: z.enum(ALERT_MODES).optional(), briefAutoSend: z.boolean().optional(), timezone: z.string().max(64).optional() }),
   output: OK,
@@ -127,6 +136,7 @@ export const updateClientDeliveryTool = defineTool({
 
 export const setMyNotificationPrefTool = defineTool({
   name: 'set_my_notification_pref',
+  access: 'write',
   description: 'Turn one of your own notifications on or off.',
   input: z.object({ contactId: uuid, kind: z.enum(NOTIFICATION_KINDS), channel: z.enum(PERSONAL_CHANNELS), enabled: z.boolean() }),
   output: OK,
@@ -140,6 +150,7 @@ export const setMyNotificationPrefTool = defineTool({
 
 export const updateMyContactTool = defineTool({
   name: 'update_my_contact',
+  access: 'write',
   description: 'Set your own time zone and quiet hours.',
   input: z.object({ contactId: uuid, timezone: z.string().max(64).nullable().optional(), quietHours: z.object({ start: z.string().max(5), end: z.string().max(5) }).nullable().optional() }),
   output: OK,

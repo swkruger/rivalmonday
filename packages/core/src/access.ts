@@ -13,7 +13,11 @@ export interface AccessContext {
   readonly role: Role;
   readonly clientScope: ClientScope;
   readonly features: ReadonlySet<Feature>;
+  /** Set only for a platform operator's read-only support session. */
+  readonly support?: SupportInfo;
 }
+
+export interface SupportInfo { readonly sessionId: string; readonly platformUserId: string }
 
 export interface AccessContextInput {
   agencyId: string;
@@ -21,6 +25,7 @@ export interface AccessContextInput {
   role: Role;
   clientScope: ClientScope;
   features: readonly Feature[];
+  support?: SupportInfo;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -59,6 +64,7 @@ export function createAccessContext(input: AccessContextInput): AccessContext {
     role: input.role,
     clientScope: input.clientScope === 'all' ? 'all' : Object.freeze([...input.clientScope]),
     features: new Set(input.features),
+    ...(input.support ? { support: Object.freeze({ sessionId: input.support.sessionId, platformUserId: input.support.platformUserId }) } : {}),
   });
 }
 

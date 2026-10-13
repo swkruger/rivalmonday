@@ -43,6 +43,7 @@ describe('audit sink', () => {
     const registry = new ToolRegistry(null, createAuditSink(dbs.service)).register(
       defineTool({
         name: 'ping',
+        access: 'read',
         description: 'ping',
         input: z.object({}),
         output: z.object({ items: z.array(z.string()) }),

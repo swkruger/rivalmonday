@@ -84,6 +84,7 @@ function textFor(meta: CallMeta, names: { productName: string; assistantName: st
 
 export const searchKnowledge = defineTool({
   name: 'search_knowledge',
+  access: 'read',
   description: 'Search the help, playbook, Q&A, blog and client-fact knowledge base. Returns matching articles with their best passages.',
   input: z.object({
     query: z.string().trim().min(1).max(300),
@@ -110,6 +111,7 @@ export const searchKnowledge = defineTool({
 
 export const getKbArticle = defineTool({
   name: 'get_kb_article',
+  access: 'read',
   description: 'Read one visible knowledge-base article in full.',
   input: z.object({ kbId: z.string().uuid() }),
   output: z.object({

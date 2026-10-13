@@ -25,6 +25,7 @@ export function libraryUrl(a: { platform: string; externalId: string; advertiser
 
 export const listAds = defineTool({
   name: 'list_ads',
+  access: 'read',
   description: 'Ad creatives of tracked competitors (Meta and Google) with first and last seen dates; active ads first.',
   input: z.object({
     clientId: uuid,

@@ -18,6 +18,7 @@ function options(q: DecisionQuestion): { value: string; label: string }[] {
 
 export const listDecisionReviews = defineTool({
   name: 'list_decision_reviews',
+  access: 'read',
   description: 'Platform operators: model decisions below the confidence threshold, waiting for a human answer (oldest first).',
   input: z.object({}),
   output: z.object({ items: z.array(DecisionReviewView) }),
@@ -50,6 +51,7 @@ export const listDecisionReviews = defineTool({
 
 export const resolveDecisionReviewTool = defineTool({
   name: 'resolve_decision_review',
+  access: 'write',
   description: 'Platform operators: answer a waiting model decision; the change, its event and the gold labels are updated.',
   input: z.object({
     reviewId: z.string().uuid(),

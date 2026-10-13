@@ -17,6 +17,7 @@ const DAY = 86_400_000;
 
 export const getThemeBenchmark = defineTool({
   name: 'get_theme_benchmark',
+  access: 'read',
   description: 'Review themes, your business vs each tracked competitor: how often each theme comes up and how positively, last 90 days vs the 90 before.',
   input: z.object({ clientId: uuid }),
   output: ThemeBenchmarkView,
@@ -51,6 +52,7 @@ const r2 = (x: number) => Math.round(x * 100) / 100;
 
 export const getRatingTrend = defineTool({
   name: 'get_rating_trend',
+  access: 'read',
   description: 'Per business: Google rating, reviews in 90 days, reviews per month, reply rate, star mix and monthly average stars.',
   input: z.object({ clientId: uuid, months: z.union([z.literal(6), z.literal(12)]).default(12) }),
   output: RatingTrendView,
@@ -116,6 +118,7 @@ export const getRatingTrend = defineTool({
 
 export const searchReviews = defineTool({
   name: 'search_reviews',
+  access: 'read',
   description: 'Search Google reviews of your business and tracked competitors by business, theme, stars or text. Reviewer identities are never returned.',
   input: z.object({
     clientId: uuid,

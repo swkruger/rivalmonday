@@ -10,6 +10,7 @@ const { defineTool } = toolkit<ToolDeps>();
 
 export const listClients = defineTool({
   name: 'list_clients',
+  access: 'read',
   description: 'List the client businesses this agency user can see.',
   input: z.object({ limit: z.number().int().min(1).max(1000).optional(), ...pageFields }),
   output: z.object({ items: pagedItems(ClientSummary), nextCursor: z.string().nullable().optional() }),
@@ -29,6 +30,7 @@ export const listClients = defineTool({
 
 export const getClientProfile = defineTool({
   name: 'get_client_profile',
+  access: 'read',
   description: 'Get one client business: services, keywords, features and (agency roles) delivery settings.',
   input: z.object({ clientId: z.string().uuid() }),
   output: ClientProfile,

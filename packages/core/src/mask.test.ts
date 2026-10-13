@@ -1,0 +1,46 @@
+import { describe, expect, it } from 'vitest';
+import { maskEmail, maskSupportFields } from './mask';
+
+describe('maskEmail', () => {
+  it('keeps the first character of the local part and the domain', () => {
+    expect(maskEmail('john@acme.com')).toBe('j•••@acme.com');
+  });
+  it('handles a single-character local part', () => {
+    expect(maskEmail('j@acme.com')).toBe('j•••@acme.com');
+  });
+  it('masks everything when there is no @', () => {
+    expect(maskEmail('not-an-email')).toBe('•••');
+    expect(maskEmail('')).toBe('•••');
+  });
+  it('splits on the last @', () => {
+    expect(maskEmail('a@b@acme.com')).toBe('a•••@acme.com');
+  });
+});
+
+describe('maskSupportFields', () => {
+  const out = {
+    owner: { email: 'jane@acme.com', name: 'Jane' },
+    rows: [{ id: 1, email: 'a@x.io' }, { id: 2, email: null }, { id: 3 }],
+    nested: [{ members: [{ email: 'm@y.io' }, { email: 'n@y.io' }] }],
+    count: 3,
+  };
+
+  it('masks dot paths, arrays via [] and leaves non-strings and absent keys alone', () => {
+    const masked = maskSupportFields(out, ['owner.email', 'rows[].email', 'nested[].members[].email', 'missing.path', 'count']);
+    expect(masked.owner).toEqual({ email: 'j•••@acme.com', name: 'Jane' });
+    expect(masked.rows).toEqual([{ id: 1, email: 'a•••@x.io' }, { id: 2, email: null }, { id: 3 }]);
+    expect(masked.nested[0]!.members.map((m) => m.email)).toEqual(['m•••@y.io', 'n•••@y.io']);
+    expect(masked.count).toBe(3);
+  });
+
+  it('does not mutate the original and returns it unchanged for no paths', () => {
+    const copy = structuredClone(out);
+    maskSupportFields(out, ['owner.email', 'rows[].email']);
+    expect(out).toEqual(copy);
+    expect(maskSupportFields(out, [])).toEqual(out);
+  });
+
+  it('masks a top-level array output', () => {
+    expect(maskSupportFields([{ email: 'a@b.co' }], ['[].email'])).toEqual([{ email: 'a•••@b.co' }]);
+  });
+});

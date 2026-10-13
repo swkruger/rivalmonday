@@ -16,6 +16,7 @@ const uuid = z.string().uuid();
 
 export const getEvidence = defineTool({
   name: 'get_evidence',
+  access: 'read',
   description: 'One stored piece of evidence (snapshot, text, page HTML or vendor data): when and how it was captured, its SHA-256 hash, and the changes that cite it.',
   input: z.object({ clientId: uuid, evidenceId: uuid }),
   output: EvidenceView,
@@ -50,6 +51,7 @@ export const getEvidence = defineTool({
 
 export const compareSnapshots = defineTool({
   name: 'compare_snapshots',
+  access: 'read',
   description: 'Before/after of one detected change: both page snapshots (or the latest earlier one), their hashes, and a word-level text diff.',
   input: z.object({ clientId: uuid, changeId: uuid }),
   output: CompareView,

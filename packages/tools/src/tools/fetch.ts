@@ -7,6 +7,7 @@ const { defineTool } = toolkit<ToolDeps>();
 
 export const fetchTool = defineTool({
   name: 'fetch',
+  access: 'read',
   description: 'Fetch one item by the id search returned (<type>:<id>; types event, evidence, brief, brief_item, recommendation, alert, review, page, knowledge): its full text, link and evidence ids.',
   // Any string up to 80 characters: a malformed id is `not_found` exactly like a hidden one (never `invalid_input`).
   input: z.object({ id: z.string().min(1).max(80) }),

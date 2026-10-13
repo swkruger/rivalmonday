@@ -27,6 +27,7 @@ async function visibleClient(deps: ToolDeps, ctx: AccessContext, clientId: strin
 
 export const listProspects = defineTool({
   name: 'list_prospects',
+  access: 'read',
   description: 'Businesses this agency is pitching (prospects), with their competitors and latest snapshot.',
   input: z.object({}),
   output: z.object({ items: z.array(ProspectRow) }),
@@ -57,6 +58,7 @@ export const listProspects = defineTool({
 
 export const runProspectSnapshotTool = defineTool({
   name: 'run_prospect_snapshot',
+  access: 'write',
   description: 'Pull each business’s Google profile and ads once and scan local rankings on a 3×3 grid, then build a landscape report (paid; runs in the background).',
   input: z.object({ clientId: uuid }),
   output: z.object({ reportId: uuid }),
@@ -92,6 +94,7 @@ export const runProspectSnapshotTool = defineTool({
 
 export const getProspectReport = defineTool({
   name: 'get_prospect_report',
+  access: 'read',
   description: 'The latest prospect snapshot report for a business (running, ready or failed).',
   input: z.object({ clientId: uuid }),
   output: z.object({ report: ProspectReportView.nullable() }),
@@ -111,6 +114,7 @@ export const ACTIVATION_TOOLS = ['convert_prospect'] as const;
 
 export const convertProspect = defineTool({
   name: 'convert_prospect',
+  access: 'write',
   description: 'Turn a prospect into a client: monitoring, alerts and weekly briefs start.',
   input: z.object({ clientId: uuid }),
   output: z.object({ clientId: uuid }),

@@ -16,6 +16,7 @@ export const spendView = (spent: number, cap: number) => ({ monthToDateUsd: roun
 
 export const getUsage = defineTool({
   name: 'get_usage',
+  access: 'read',
   description: 'This month’s AI and data spend per client against its monthly cap, plus competitor limits.',
   input: z.object({}),
   output: z.object({ month: z.string(), items: z.array(UsageRow), agencyLevelUsd: z.number().nullable() }),
@@ -52,6 +53,7 @@ export const getUsage = defineTool({
 
 export const setClientLimits = defineTool({
   name: 'set_client_limits',
+  access: 'write',
   description: 'Set a client’s monthly spend cap (USD), how many competitors it may track and its monthly Ask question quota (agency admins).',
   input: z.object({ clientId: uuid, monthlyCapUsd: z.number().optional(), competitorLimit: z.number().optional(), askMonthlyQuota: z.number().optional() }),
   output: z.object({ clientId: uuid, monthlyCapUsd: z.number(), competitorLimit: z.number().int() }),

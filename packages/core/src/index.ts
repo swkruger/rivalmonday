@@ -3,6 +3,7 @@ export * from './domain';
 export * from './kb';
 export * from './ledger';
 export * from './links';
+export * from './mask';
 export * from './platform';
 export * from './tools';
 export * from './pdf-layout';

@@ -45,6 +45,7 @@ async function userNames(deps: ToolDeps, ids: string[]): Promise<Map<string, str
 
 export const createApiToken = defineTool({
   name: 'create_api_token',
+  access: 'write',
   description: 'Create a personal access token for connecting an AI assistant. The token is shown once.',
   input: z.object({ name: z.string().trim().min(1).max(80), scope: Scope }),
   output: z.object({ id: uuid, token: z.string(), prefix: z.string(), scope: Scope }),
@@ -77,6 +78,7 @@ export const createApiToken = defineTool({
 
 export const revokeApiToken = defineTool({
   name: 'revoke_api_token',
+  access: 'write',
   description: 'Revoke a personal access token; it stops working immediately.',
   input: z.object({ tokenId: uuid }),
   output: OK,
@@ -94,6 +96,7 @@ export const revokeApiToken = defineTool({
 
 export const listApiTokens = defineTool({
   name: 'list_api_tokens',
+  access: 'read',
   description: 'Active personal access tokens you can see (your own; agency admins see the whole agency).',
   input: z.object({ clientId: uuid.optional() }),
   output: z.object({ items: z.array(ApiTokenView) }),
@@ -120,6 +123,7 @@ export const listApiTokens = defineTool({
 
 export const listOauthGrants = defineTool({
   name: 'list_oauth_grants',
+  access: 'read',
   description: 'AI apps connected through sign-in (OAuth) that you can see.',
   input: z.object({ clientId: uuid.optional() }),
   output: z.object({ items: z.array(OAuthGrantView) }),
@@ -152,6 +156,7 @@ export const listOauthGrants = defineTool({
 
 export const revokeOauthGrant = defineTool({
   name: 'revoke_oauth_grant',
+  access: 'write',
   description: 'Disconnect an AI app; its access stops immediately and it must ask for consent again.',
   input: z.object({ grantId: uuid }),
   output: OK,

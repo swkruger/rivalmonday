@@ -11,6 +11,7 @@ const { defineTool } = toolkit<ToolDeps>();
 
 export const listAlerts = defineTool({
   name: 'list_alerts',
+  access: 'read',
   description: 'List instant alerts for a client, newest first. Client roles see delivered alerts only.',
   input: pagedListInput(100),
   output: z.object({ items: pagedItems(AlertSummary), nextCursor: z.string().nullable().optional() }),
@@ -42,6 +43,7 @@ export const listAlerts = defineTool({
 
 export const getAlertTool = defineTool({
   name: 'get_alert',
+  access: 'read',
   description: 'Get one alert with its text and evidence ids.',
   input: z.object({ alertId: z.string().uuid() }),
   output: AlertDetail,

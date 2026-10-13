@@ -35,6 +35,7 @@ export async function assertRoomForCompetitor(tx: Tx, clientId: string, competit
 
 export const listCompetitorSuggestions = defineTool({
   name: 'list_competitor_suggestions',
+  access: 'read',
   description: 'List open competitor suggestions for a client, strongest overlap first.',
   input: z.object({ clientId: uuid }),
   output: z.object({ items: z.array(SuggestionView) }),
@@ -50,6 +51,7 @@ export const listCompetitorSuggestions = defineTool({
 
 export const requestCompetitorSuggestions = defineTool({
   name: 'request_competitor_suggestions',
+  access: 'write',
   description: 'Search Google Maps around the client’s service area for likely competitors (paid; runs in the background).',
   input: z.object({ clientId: uuid }),
   output: z.object({ queued: z.literal(true) }),
@@ -78,6 +80,7 @@ const SEARCH_STATE: Record<JobState, 'queued' | 'running' | 'done' | 'failed'> =
 
 export const getCompetitorSearchStatus = defineTool({
   name: 'get_competitor_search_status',
+  access: 'read',
   description: 'Whether the client’s latest competitor search is queued, running, done or failed — the web page polls it after "Find competitors".',
   input: z.object({ clientId: uuid }),
   output: z.object({ state: z.enum(['idle', 'queued', 'running', 'done', 'failed']), finishedAt: z.string().nullable() }),
@@ -94,6 +97,7 @@ export const getCompetitorSearchStatus = defineTool({
 
 export const acceptCompetitorSuggestion = defineTool({
   name: 'accept_competitor_suggestion',
+  access: 'write',
   description: 'Start tracking a suggested competitor for its client.',
   input: z.object({ suggestionId: uuid }),
   output: z.object({ competitorId: uuid, discovery: z.enum(['queued', 'disabled', 'not_needed']) }),
@@ -113,6 +117,7 @@ export const acceptCompetitorSuggestion = defineTool({
 
 export const dismissCompetitorSuggestion = defineTool({
   name: 'dismiss_competitor_suggestion',
+  access: 'write',
   description: 'Hide a competitor suggestion.',
   input: z.object({ suggestionId: uuid }),
   output: z.object({ dismissed: z.literal(true) }),
@@ -144,6 +149,7 @@ export function normalizeDomain(raw: string): string | null {
 
 export const listClientCompetitors = defineTool({
   name: 'list_client_competitors',
+  access: 'read',
   description: 'List the competitors a client tracks, with their number of active tracked pages.',
   input: z.object({ clientId: uuid, limit: z.number().int().min(1).max(200).optional(), ...pageFields }),
   output: z.object({ items: pagedItems(TrackedCompetitor), limit: z.number().int(), nextCursor: z.string().nullable().optional() }),
@@ -180,6 +186,7 @@ export const listClientCompetitors = defineTool({
 
 export const addCompetitor = defineTool({
   name: 'add_competitor',
+  access: 'write',
   description: 'Track a competitor by website and/or Google place id.',
   input: z.object({ clientId: uuid, name: z.string().min(1).max(120), domain: z.string().max(300).optional(), placeId: z.string().max(300).optional() }),
   output: z.object({ competitorId: uuid, discovery: z.enum(['queued', 'disabled', 'not_needed']) }),
@@ -217,6 +224,7 @@ export const addCompetitor = defineTool({
 
 export const removeCompetitor = defineTool({
   name: 'remove_competitor',
+  access: 'write',
   description: 'Stop tracking a competitor for a client. History is kept; collection stops once no client tracks it.',
   input: z.object({ clientId: uuid, competitorId: uuid }),
   output: z.object({ removed: z.literal(true) }),

@@ -17,6 +17,7 @@ const DAY = 86_400_000;
 
 export const searchEvents = defineTool({
   name: 'search_events',
+  access: 'read',
   description: 'Competitor changes scored for a client, newest first, filterable by competitor, type, service, route, period, score and text.',
   input: z.object({
     clientId: uuid,
@@ -71,6 +72,7 @@ export const searchEvents = defineTool({
 
 export const getEvent = defineTool({
   name: 'get_event',
+  access: 'read',
   description: 'One scored competitor change: why it scored as it did, the evidence behind it and the moves it belongs to.',
   input: z.object({ clientId: uuid, eventId: uuid }),
   output: EventDetail,
@@ -119,6 +121,7 @@ export const getEvent = defineTool({
 
 export const submitFeedback = defineTool({
   name: 'submit_feedback',
+  access: 'write',
   description: 'Rate a detected competitor change as useful, not relevant or wrong (optionally with a reason).',
   input: z.object({ clientId: uuid, eventId: uuid, verdict: z.enum(FEEDBACK_VERDICTS), reason: z.string().trim().max(500).optional() }),
   output: z.object({ ok: z.literal(true) }),

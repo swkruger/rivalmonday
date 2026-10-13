@@ -30,6 +30,7 @@ const view = (p: typeof trackedPage.$inferSelect): TrackedPageView => ({
 
 export const listTrackedPages = defineTool({
   name: 'list_tracked_pages',
+  access: 'read',
   description: 'List the website pages monitored for one of the client’s competitors.',
   input: z.object({ clientId: uuid, competitorId: uuid }),
   output: z.object({ items: z.array(TrackedPageView) }),
@@ -43,6 +44,7 @@ export const listTrackedPages = defineTool({
 
 export const setPagePin = defineTool({
   name: 'set_page_pin',
+  access: 'write',
   description: 'Pin a page (always monitored, daily) or unpin it (back to its normal cadence).',
   input: z.object({ clientId: uuid, pageId: uuid, pinned: z.boolean() }),
   output: z.object({ pageId: uuid }),
@@ -60,6 +62,7 @@ export const setPagePin = defineTool({
 
 export const addTrackedPage = defineTool({
   name: 'add_tracked_page',
+  access: 'write',
   description: 'Monitor an extra page of a competitor’s own website (pinned, daily).',
   input: z.object({ clientId: uuid, competitorId: uuid, url: z.string().max(2000), pageType: z.enum(PAGE_TYPES) }),
   output: z.object({ pageId: uuid }),
