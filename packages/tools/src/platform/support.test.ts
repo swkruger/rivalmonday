@@ -151,6 +151,14 @@ describe('resolveSession', () => {
     expect(await resolveSession(deps(), { sessionId: s.id, userId: 'op', now: min(2) })).toEqual({ kind: 'revoked' });
     expect((await rowOf(s.id)).endReason).toBe('revoked');
   });
+  it('endStale: false reports expired/revoked without ending the row', async () => {
+    const s = await open();
+    expect(await resolveSession(deps(), { sessionId: s.id, userId: 'op', now: min(60), endStale: false })).toEqual({ kind: 'expired', agencyId: IDS.agencyA });
+    expect((await rowOf(s.id)).endedAt).toBeNull();
+    await dbs.owner.execute(sql`update platform_admin set revoked_at = now() where user_id = 'op'`);
+    expect(await resolveSession(deps(), { sessionId: s.id, userId: 'op', now: min(2), endStale: false })).toEqual({ kind: 'revoked' });
+    expect((await rowOf(s.id)).endedAt).toBeNull();
+  });
   it('env-listed owner is ok', async () => {
     const s = await open();
     await dbs.owner.execute(sql`delete from platform_admin where user_id = 'op'`);

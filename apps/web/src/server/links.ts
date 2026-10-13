@@ -71,15 +71,16 @@ export async function openLink(input: { service: Db; token: string; secrets: rea
   return { kind: 'redirect', to, guest: { contactId: c.id, agencyId: claims.agency, clientId: claims.client } };
 }
 
-export type GoGate = { kind: 'ok'; viewer: Extract<Viewer, { kind: 'user' }> } | { kind: 'no-access' } | { kind: 'sign-in' };
+export type GoGate = { kind: 'ok'; viewer: Extract<Viewer, { kind: 'user' | 'support' }> } | { kind: 'no-access' } | { kind: 'sign-in' };
 
 /**
  * Fix round 1 (review): `/go/` must send only an unauthenticated or guest viewer to `/sign-in` — `sign-in/page.tsx`
  * redirects any other already-present viewer straight back to `next`, so a `member-less` signed-in user (no
  * membership) sent there would loop forever. That viewer goes to `/no-access` instead, same as `requireContext`.
+ * 8b: a `support` viewer passes too (same loop otherwise); the destination is resolved under its synthetic ctx via RLS.
  */
 export function goGate(viewer: Viewer | null): GoGate {
-  if (viewer?.kind === 'user') return { kind: 'ok', viewer };
+  if (viewer?.kind === 'user' || viewer?.kind === 'support') return { kind: 'ok', viewer };
   if (viewer?.kind === 'member-less') return { kind: 'no-access' };
   return { kind: 'sign-in' };
 }

@@ -79,7 +79,7 @@ describe('resolveSupportViewer', () => {
     const s = await open();
     const v = await resolve({ cookie: signSupportCookie(s.id, SECRET) });
     expect(v).toMatchObject({ kind: 'support', userId: 'u1', email: 'p@e.co', name: 'Pat', session: { id: s.id, agencyId: IDS.agencyB, reason: 'Checking setup' } });
-    if (!v || v === 'end') throw new Error('expected a viewer');
+    if (!v || v.kind !== 'support') throw new Error('expected a viewer');
     expect(v.ctx).toMatchObject({ agencyId: IDS.agencyB, userId: 'u1', role: 'agency_admin', clientScope: 'all', support: { sessionId: s.id, platformUserId: 'u1' } });
     expect([...v.ctx.features].sort()).toEqual([...FEATURES].sort());
     expect(await dbs.service.select().from(membership)).toHaveLength(0);
@@ -89,33 +89,33 @@ describe('resolveSupportViewer', () => {
     await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'client_viewer', clientId: IDS.clientA1, createdBy: 't' });
     const s = await open();
     const v = await resolve({ cookie: signSupportCookie(s.id, SECRET) });
-    expect(v !== 'end' && v?.ctx).toMatchObject({ agencyId: IDS.agencyB, role: 'agency_admin', clientScope: 'all' });
+    expect(v?.kind === 'support' && v.ctx).toMatchObject({ agencyId: IDS.agencyB, role: 'agency_admin', clientScope: 'all' });
     expect(v).not.toHaveProperty('membership');
   });
 
   it('a tampered cookie ends', async () => {
     const s = await open();
-    expect(await resolve({ cookie: signSupportCookie(s.id, 'x'.repeat(40)) })).toBe('end');
+    expect(await resolve({ cookie: signSupportCookie(s.id, 'x'.repeat(40)) })).toEqual({ kind: 'end', sessionId: null });
   });
 
-  it('an expired session ends and the row is marked expired', async () => {
+  it('an expired session ends, leaving the row open for /support/end to end (render never writes)', async () => {
     const s = await open();
-    expect(await resolve({ cookie: signSupportCookie(s.id, SECRET), now: MIN(61) })).toBe('end');
+    expect(await resolve({ cookie: signSupportCookie(s.id, SECRET), now: MIN(61) })).toEqual({ kind: 'end', sessionId: s.id });
     const [row] = await dbs.service.select().from(supportSession).where(eq(supportSession.id, s.id));
-    expect(row?.endReason).toBe('expired');
+    expect(row?.endedAt).toBeNull();
   });
 
-  it('a revoked operator ends and the row is marked revoked', async () => {
+  it('a revoked operator ends, leaving the row open for /support/end to end', async () => {
     const s = await open();
-    expect(await resolve({ cookie: signSupportCookie(s.id, SECRET), admins: [] })).toBe('end');
+    expect(await resolve({ cookie: signSupportCookie(s.id, SECRET), admins: [] })).toEqual({ kind: 'end', sessionId: s.id });
     const [row] = await dbs.service.select().from(supportSession).where(eq(supportSession.id, s.id));
-    expect(row?.endReason).toBe('revoked');
+    expect(row?.endedAt).toBeNull();
   });
 
   it('a valid cookie for another user’s session ends without touching the row', async () => {
     await seedAuthUsers(dbs.owner, { id: 'u2', email: 'q@e.co', name: 'Quinn' });
     const s = await open();
-    expect(await resolve({ cookie: signSupportCookie(s.id, SECRET), who: { userId: 'u2', email: 'q@e.co', name: 'Quinn' }, admins: ['p@e.co', 'q@e.co'] })).toBe('end');
+    expect(await resolve({ cookie: signSupportCookie(s.id, SECRET), who: { userId: 'u2', email: 'q@e.co', name: 'Quinn' }, admins: ['p@e.co', 'q@e.co'] })).toEqual({ kind: 'end', sessionId: s.id });
     const [row] = await dbs.service.select().from(supportSession).where(eq(supportSession.id, s.id));
     expect(row?.endedAt).toBeNull();
   });

@@ -68,6 +68,18 @@ describe('goGate (fix round 1: /go must not loop a member-less viewer through /s
     expect(goGate(memberLessViewer)).toEqual({ kind: 'no-access' });
   });
 
+  it('lets a support viewer through (8b: /sign-in would bounce it straight back, looping forever)', () => {
+    const supportViewer: Viewer = {
+      kind: 'support',
+      userId: 'op',
+      email: 'op@e.co',
+      name: 'Olive',
+      ctx: createAccessContext({ agencyId: IDS.agencyB, userId: 'op', role: 'agency_admin', clientScope: 'all', features: [], support: { sessionId: 's1', platformUserId: 'op' } }),
+      session: { id: 's1', platformUserId: 'op', agencyId: IDS.agencyB, agencyName: 'Agency B', reason: 'Checking', expiresAt: NOW },
+    };
+    expect(goGate(supportViewer)).toEqual({ kind: 'ok', viewer: supportViewer });
+  });
+
   it('sends an unauthenticated visitor to /sign-in', () => {
     expect(goGate(null)).toEqual({ kind: 'sign-in' });
   });

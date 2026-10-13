@@ -69,11 +69,15 @@ export type ResolveResult =
   | { kind: 'revoked' }
   | { kind: 'invalid' };
 
-/** Spec "Session resolution". Expired and revoked sessions are ended here. */
+/**
+ * Spec "Session resolution". Expired and revoked sessions are ended here unless `endStale: false` — the web render
+ * path passes false so the row stays open until `/support/end` ends it and picks the right redirect.
+ */
 export async function resolveSession(
   deps: Pick<ToolDeps, 'service' | 'platformAdmins'>,
-  a: { sessionId: string; userId: string; now?: Date },
+  a: { sessionId: string; userId: string; now?: Date; endStale?: boolean },
 ): Promise<ResolveResult> {
+  const endStale = a.endStale ?? true;
   if (!isUuid(a.sessionId)) return { kind: 'invalid' };
   const now = a.now ?? new Date();
   const [row] = await deps.service
@@ -86,12 +90,12 @@ export async function resolveSession(
     .where(eq(supportSession.id, a.sessionId));
   if (!row || row.endedAt !== null || row.platformUserId !== a.userId) return { kind: 'invalid' };
   if (row.expiresAt.getTime() <= now.getTime()) {
-    await endSession(deps.service, row.id, 'expired', now);
+    if (endStale) await endSession(deps.service, row.id, 'expired', now);
     return { kind: 'expired', agencyId: row.agencyId };
   }
   const role = await platformRoleForUser(deps, a.userId);
   if (role !== 'owner' && role !== 'staff') {
-    await endSession(deps.service, row.id, 'revoked', now);
+    if (endStale) await endSession(deps.service, row.id, 'revoked', now);
     return { kind: 'revoked' };
   }
   return { kind: 'ok', session: { id: row.id, platformUserId: row.platformUserId, agencyId: row.agencyId, agencyName: row.agencyName, reason: row.reason, expiresAt: row.expiresAt } };

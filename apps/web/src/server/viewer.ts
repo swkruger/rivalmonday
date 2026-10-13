@@ -17,6 +17,8 @@ export type Viewer =
 
 /** Phase 8b: a platform operator inside a read-only support session. `ctx` is synthetic (no membership row). */
 export type SupportViewer = { kind: 'support'; userId: string; email: string; name: string; ctx: AccessContext; session: OpenSupportSession };
+/** An unusable `rm_support` cookie: `sessionId` is the verified id that failed, or null when the MAC didn't verify. */
+export type SupportEnd = { kind: 'end'; sessionId: string | null };
 
 /**
  * Review Focus 4: rebuilds the AccessContext from the database on every call (no caching here — `current-viewer.ts`
@@ -58,8 +60,9 @@ export async function resolveViewer(input: {
  * Spec "Session resolution" (binding). Only for a signed-in user; the caller ignores `rm_support` otherwise.
  * - no cookie → null (normal resolution follows);
  * - cookie verifies, the row is open, unexpired, owned by this user and the user is still owner/staff → support viewer;
- * - anything else → 'end': the caller redirects to `/support/end`, which clears the cookie (render can't). Expired and
- *   revoked rows were already ended by `resolveSession`; a forged cookie or another user's id touches no row.
+ * - anything else → `{ kind: 'end', sessionId }` (the id that failed, or null for a cookie that doesn't verify): the
+ *   caller redirects to `/support/end?sid=…`, which ends expired/revoked rows and clears the cookie only when the
+ *   cookie it receives still carries that id (render can't write cookies, and never ends rows: `endStale: false`).
  * The synthetic context is built from the session alone, so the operator's own memberships never reach it.
  */
 export async function resolveSupportViewer(input: {
@@ -69,13 +72,16 @@ export async function resolveSupportViewer(input: {
   supportCookie?: string;
   secret?: string;
   now?: Date;
-}): Promise<SupportViewer | 'end' | null> {
+}): Promise<SupportViewer | SupportEnd | null> {
   if (!input.supportCookie) return null;
   const sessionId = verifySupportCookie(input.supportCookie, input.secret);
-  if (!sessionId) return 'end';
+  if (!sessionId) return { kind: 'end', sessionId: null };
   const { userId } = input.session;
-  const r = await resolveSession({ service: input.service, platformAdmins: input.platformAdmins }, { sessionId, userId, ...(input.now ? { now: input.now } : {}) });
-  if (r.kind !== 'ok') return 'end';
+  const r = await resolveSession(
+    { service: input.service, platformAdmins: input.platformAdmins },
+    { sessionId, userId, endStale: false, ...(input.now ? { now: input.now } : {}) },
+  );
+  if (r.kind !== 'ok') return { kind: 'end', sessionId };
   const ctx = createAccessContext({
     agencyId: r.session.agencyId, userId, role: 'agency_admin', clientScope: 'all', features: FEATURES,
     support: { sessionId: r.session.id, platformUserId: userId },
