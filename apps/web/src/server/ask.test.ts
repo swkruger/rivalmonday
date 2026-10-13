@@ -58,6 +58,19 @@ describe('E2E_SCRIPT', () => {
     expect(second.text).toBe(ASK_COPY.noEvidence);
   });
 
+  it('proposes submit_feedback (useful) on the first found event when the question says "as useful"', async () => {
+    const ai = createScriptedAskAi(E2E_SCRIPT);
+    const ask = [...opening.slice(0, 2), { role: 'user' as const, content: 'Rate the latest change as useful' }];
+    const items = { items: [{ id: EV2, title: 'Acme cut its tune-up to $69', evidenceIds: [EV1] }], hasMore: false };
+    const r = await ai.chatWithTools('ask_assistant', {
+      messages: [...ask, { role: 'assistant', content: null, toolCalls: [{ id: 'call_1', name: 'search_events', arguments: '{}' }] }, toolResult(items)],
+      tools: [], toolChoice: 'auto',
+    }, scope);
+    expect(r.toolCalls).toHaveLength(1);
+    expect(r.toolCalls[0]!.name).toBe('submit_feedback');
+    expect(JSON.parse(r.toolCalls[0]!.arguments)).toEqual({ clientId: CLIENT, eventId: EV2, verdict: 'useful' });
+  });
+
   it('answers without tools on the forced last step', async () => {
     const ai = createScriptedAskAi(E2E_SCRIPT);
     const r = await ai.chatWithTools('ask_assistant', { messages: opening, tools: [], toolChoice: 'none' }, scope);

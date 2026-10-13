@@ -1,23 +1,13 @@
-import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { signIn } from './helpers';
+import { ADMIN_STATE, ensureAdminState } from './admin-session';
 
 /**
- * One magic-link sign-in for the whole file, reused as storage state by every test. Better Auth's magic-link plugin
- * allows 5 requests per IP per rolling 60 s on `/sign-in/magic-link` and `/magic-link/verify` (correct production
- * behaviour), and every Playwright request comes from one IP; signing in per test put the suite at exactly 5.
+ * One magic-link sign-in for the whole run, reused as storage state by every test (`ensureAdminState`). Better Auth's
+ * magic-link plugin allows 5 requests per IP per rolling 60 s on `/sign-in/magic-link` and `/magic-link/verify`
+ * (correct production behaviour), and every Playwright request comes from one IP; on the local test cluster the whole
+ * suite runs in under a minute, so each extra sign-in counts (6b added the Ask client user's).
  */
-const ADMIN_STATE = fileURLToPath(new URL('../test-results/admin-state.json', import.meta.url));
-
-test.beforeAll(async ({ browser }, testInfo) => {
-  // `test.use({ storageState })` below also applies to contexts made here, so start this one explicitly empty.
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
-  const page = await context.newPage();
-  await signIn(page, 'admin@e2e.test');
-  await expect(page).toHaveURL(/\/agency$/);
-  await context.storageState({ path: ADMIN_STATE });
-  await context.close();
-});
+test.beforeAll(async ({ browser }, testInfo) => ensureAdminState(browser, testInfo));
 
 test.use({ storageState: ADMIN_STATE });
 

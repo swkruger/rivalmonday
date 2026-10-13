@@ -14,8 +14,8 @@ import type { Viewer } from './viewer';
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
-/** The first evidence id in the last tool result (`<data tool="…">{json}</data>`), with its row title. */
-function firstEvidence(content: string): { id: string; title: string } | null {
+/** The first evidence id in the last tool result (`<data tool="…">{json}</data>`), with its row id and title. */
+function firstEvidence(content: string): { id: string; itemId: string | null; title: string } | null {
   const json = /^<data tool="[^"]*">([\s\S]*)<\/data>$/.exec(content)?.[1];
   if (!json) return null;
   let value: unknown;
@@ -29,27 +29,39 @@ function firstEvidence(content: string): { id: string; title: string } | null {
   for (const item of items as Record<string, unknown>[]) {
     const ids = Array.isArray(item?.evidenceIds) ? item.evidenceIds : [];
     const id = ids.find((x): x is string => typeof x === 'string' && UUID.test(x));
-    if (id) return { id, title: typeof item.title === 'string' && item.title.trim() ? item.title.trim() : 'A competitor changed something' };
+    const itemId = typeof item.id === 'string' && UUID.test(item.id) ? item.id : null;
+    if (id) return { id, itemId, title: typeof item.title === 'string' && item.title.trim() ? item.title.trim() : 'A competitor changed something' };
   }
   return null;
 }
 
-/** E2E fake chat: first `search_events` for the turn's client, then an answer citing the first evidence id found. */
+/** The E2E trigger for a proposed write (e8 confirm card): a question containing "as useful". */
+const PROPOSE_USEFUL = /\bas useful\b/i;
+
+/**
+ * E2E fake chat: first `search_events` for the turn's client, then an answer citing the first evidence id found. When
+ * the question says "as useful" it instead proposes `submit_feedback` (useful) on the first found event.
+ */
 function e2eReply(req: { messages: { role: string; content: string | null }[]; toolChoice?: 'auto' | 'none' }): ScriptedReply {
+  const turnLine = req.messages.find((m) => m.role === 'system' && /\(clientId [0-9a-f-]{36}\)/i.test(m.content ?? ''))?.content ?? '';
+  const clientId = /\(clientId ([0-9a-f-]{36})\)/i.exec(turnLine)?.[1];
   const last = req.messages.at(-1);
   if (last?.role === 'tool') {
     const ev = firstEvidence(last.content ?? '');
+    const question = req.messages.findLast((m) => m.role === 'user')?.content ?? '';
+    if (ev?.itemId && clientId && PROPOSE_USEFUL.test(question)) {
+      return { toolCalls: [{ name: 'submit_feedback', args: { clientId, eventId: ev.itemId, verdict: 'useful' } }] };
+    }
     return { text: ev ? `${ev.title.replace(/[.!?]+$/, '')} [ev:${ev.id}].` : ASK_COPY.noEvidence };
   }
   if (req.toolChoice === 'none') return { text: ASK_COPY.noEvidence };
-  const turnLine = req.messages.find((m) => m.role === 'system' && /\(clientId [0-9a-f-]{36}\)/i.test(m.content ?? ''))?.content ?? '';
-  const clientId = /\(clientId ([0-9a-f-]{36})\)/i.exec(turnLine)?.[1];
   return { toolCalls: [{ name: 'search_events', args: { clientId, route: 'all', days: 365 } }] };
 }
 
 /**
  * Q1: the deterministic Ask script behind `ASK_FAKE_AI=1` (E2E only). Every step repeats, so one script serves every
- * turn: guard in scope → `search_events` → an answer citing the first returned evidence id, every claim supported.
+ * turn: guard in scope → `search_events` → an answer citing the first returned evidence id, every claim supported
+ * (or, for an "as useful" question, a proposed `submit_feedback` the user confirms).
  */
 export const E2E_SCRIPT: ScriptedStep[] = [
   { kind: 'guard', verdict: 'in_scope', repeat: true },

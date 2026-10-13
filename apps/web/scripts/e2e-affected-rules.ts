@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@playbooks',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -73,8 +73,10 @@ export const RULES: Rule[] = [
   { pattern: re(`${SERVER}(?:mcp|oauth-consent|ai-connections)\\.ts$`), tags: ['@ai-connections'], why: 'AI connections server module' },
   { pattern: re(`${COMP}ai-connections\\.tsx$`), tags: ['@ai-connections'], why: 'AI connections cards' },
 
-  // --- Ask assistant (6b); its E2E (@ask) arrives with the Ask pages ---
-  { pattern: re(`(?:${APP}api/ask/|${C}ask/|${COMP}ask/|${SERVER}ask\\.ts$)`), tags: [], why: 'Ask route, pages, components and server wiring' },
+  // --- Ask assistant (6b) ---
+  { pattern: /^packages\/ask\//, tags: ['@ask'], why: 'Ask package (turn, grounding, quota, starters)' },
+  { pattern: re(`${APP}\\(app\\)/platform/ask/`), tags: ['@ask', '@platform'], why: 'platform Ask review' },
+  { pattern: re(`${WEB}src/(?:.*/)?ask(?:/|\\.ts$)`), tags: ['@ask'], why: 'Ask route, pages, components and server wiring' },
 
   { pattern: re(`${APP}(?:sign-in/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in and link-error pages' },
   { pattern: re(`${APP}(?:l/|go/|files/)`), tags: GUEST_FILES, why: 'signed links and stored files' },
@@ -130,6 +132,7 @@ export const RULES: Rule[] = [
 
   // --- Domain packages: keyword rules (more specific first) ---
   kw('alert-rules', ['@alert-rules'], 'alert rules'),
+  kw('\\bask\\b', ['@ask'], 'Ask (threads, starters, write allowlist, demo threads)'),
   kw('api-tokens|oauth', ['@ai-connections'], 'AI connections (tokens, OAuth)'),
   kw('word-diff|events|evidence|diff|changes', ['@changes', '@evidence'], 'events/evidence/diff'),
   kw('pric', ['@pricing'], 'pricing'),

@@ -55,6 +55,8 @@ export interface DemoIds {
   briefs: { sentLoneStar: string[]; sentBrazos: string[]; readyLoneStar: string; quietBrazos: string };
   alerts: { delivered: string; pending: string; dismissed: string };
   reportId: string;
+  /** Phase 6b: one Ask thread per author (author-only RLS). */
+  ask: { admin: string; ownerLoneStar: string };
 }
 
 export function emptyIds(): DemoIds {
@@ -72,5 +74,6 @@ export function emptyIds(): DemoIds {
     briefs: { sentLoneStar: [], sentBrazos: [], readyLoneStar: '', quietBrazos: '' },
     alerts: { delivered: '', pending: '', dismissed: '' },
     reportId: '',
+    ask: { admin: '', ownerLoneStar: '' },
   };
 }

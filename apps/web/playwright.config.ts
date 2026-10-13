@@ -11,6 +11,8 @@ export const OUTBOX = fileURLToPath(new URL('./test-results/outbox', import.meta
 export const OWNER_LINK_FILE = fileURLToPath(new URL('./test-results/owner-link.txt', import.meta.url));
 /** Phase 6a: the two clients the seeded `mcp-owner@e2e.test` owns (`{ first, second }`, each `{ id, name }`). */
 export const MCP_CLIENTS_FILE = fileURLToPath(new URL('./test-results/mcp-clients.json', import.meta.url));
+/** Phase 6b: the Ask clients and seeded thread ids (`AskFixture` in `e2e/seed.ts`). */
+export const ASK_FIXTURE_FILE = fileURLToPath(new URL('./test-results/ask-fixture.json', import.meta.url));
 export const E2E_LINK_SECRET = 'e2e-link-secret-'.repeat(3);
 
 /**

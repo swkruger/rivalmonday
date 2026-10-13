@@ -30,13 +30,13 @@ const registry = createToolRegistry(
 let ids: DemoIds;
 const contexts = new Map<DemoUserKey, AccessContext>();
 
-type Fn = (ctx: AccessContext, userId: string) => Promise<unknown>;
+type Fn = (ctx: AccessContext, userId: string, input: Record<string, unknown>) => Promise<unknown>;
 const FUNCTIONS: Record<string, Fn> = {
   'fn:getAgencyBranding': (ctx) => getAgencyBranding(dbs.service, ctx),
   'fn:listTeam': (ctx) => listTeam(dbs.service, ctx),
   'fn:listWebhooks': (ctx) => listWebhooks(dbs.service, ctx),
   'fn:listReviewableAskThreads': (ctx) => listReviewableAskThreads({ service: dbs.service, platformAdmins: [DEMO_OPERATOR_EMAIL] }, ctx, {}),
-  'fn:getReviewableAskThread': (ctx) => getReviewableAskThread({ service: dbs.service, platformAdmins: [DEMO_OPERATOR_EMAIL] }, ctx, '00000000-0000-4000-8000-000000000000'),
+  'fn:getReviewableAskThread': (ctx, _userId, input) => getReviewableAskThread({ service: dbs.service, platformAdmins: [DEMO_OPERATOR_EMAIL] }, ctx, String(input.threadId)),
   'fn:listInbox': (_ctx, userId) => listInbox(dbs.service, { userId }),
   'fn:myNotificationSettings': (_ctx, userId) => myNotificationSettings(dbs.service, userId),
 };
@@ -59,7 +59,7 @@ describe('demo seed coverage (spec §4.9, §8)', () => {
       const ctx = contexts.get(screen.as)!;
       const userId = ids.users[screen.as].userId;
       for (const call of screen.calls) {
-        const run = () => (call.tool.startsWith('fn:') ? FUNCTIONS[call.tool]!(ctx, userId) : registry.invoke(ctx, call.tool, call.input(ids)));
+        const run = () => (call.tool.startsWith('fn:') ? FUNCTIONS[call.tool]!(ctx, userId, call.input(ids)) : registry.invoke(ctx, call.tool, call.input(ids)));
         const expectWhat = call.expect ?? 'data';
         // Failure messages name the screen, the tool and the output path, so a gap points at the seed area that owns it.
         const label = `${screen.route} as ${screen.as}: ${call.tool} → ${call.path ?? '(whole output)'}`;

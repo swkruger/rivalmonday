@@ -30,12 +30,13 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/team` | admin | `fn:listTeam`, `list_clients` | — |
 | `/agency/usage` | admin | `get_usage` | — |
 | `/agency/webhooks` | admin | `fn:listWebhooks` | — |
-| `/c/[clientId]` | admin | `get_client_profile`, `get_workspace_overview`, `get_ad_activity`, `get_brief`, `list_alerts`, `list_briefs`, `list_moves`, `list_recommendations`, `list_trend_reports` | — |
+| `/c/[clientId]` | admin | `get_client_profile`, `get_workspace_overview`, `get_ad_activity`, `get_brief`, `list_alerts`, `list_briefs`, `list_moves`, `list_recommendations`, `list_trend_reports`, `get_ask_starters` | — |
 | `/c/[clientId] (client owner)` | ownerLoneStar | `get_workspace_overview`, `list_briefs`, `get_brief` | — |
 | `/c/[clientId]/ads` | admin | `get_ad_activity`, `list_ads` | `list_ads`: one competitor runs no ads |
 | `/c/[clientId]/alerts/[alertId]` | admin | `get_alert` | — |
-| `/c/[clientId]/ask` | admin | `get_ask_starters` | `list_my_ask_threads`: no Ask threads seeded yet; `get_my_ask_thread`: no Ask threads seeded yet |
-| `/c/[clientId]/ask/[threadId]` | admin | `get_ask_starters` | `list_my_ask_threads`: no Ask threads seeded yet; `get_my_ask_thread`: no Ask threads seeded yet |
+| `/c/[clientId]/ask` | admin | `get_ask_starters`, `list_my_ask_threads`, `get_my_ask_thread` | — |
+| `/c/[clientId]/ask/[threadId]` | admin | `get_ask_starters`, `list_my_ask_threads`, `get_my_ask_thread` | — |
+| `/c/[clientId]/ask/[threadId] (client owner)` | ownerLoneStar | `list_my_ask_threads`, `get_my_ask_thread` | `get_my_ask_thread`: threads are author-only |
 | `/c/[clientId]/briefs/[briefId]` | ownerLoneStar | `get_brief` | — |
 | `/c/[clientId]/changes` | admin | `search_events`, `get_event`, `compare_snapshots`, `list_client_competitors`, `get_client_profile` | — |
 | `/c/[clientId]/competitors` | admin | `get_client_profile`, `list_client_competitors`, `list_competitor_suggestions`, `get_competitor_search_status` | — |
@@ -54,11 +55,11 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/settings/ai (client owner)` | ownerLoneStar | `get_client_profile`, `list_api_tokens` | — |
 | `/c/[clientId]/settings/alerts` | admin | `get_client_profile`, `get_alert_rules` | — |
 | `/c/[clientId]/settings/delivery` | admin | `get_client_profile` | — |
-| `/c/[clientId]/settings/profile` | admin | `get_client_profile` | — |
+| `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters` | — |
 | `/inbox` | admin | `fn:listInbox` | — |
 | `/inbox (client owner)` | ownerLoneStar | `fn:listInbox` | — |
-| `/platform/ask` | operator | — | `fn:listReviewableAskThreads`: no Ask threads seeded yet |
-| `/platform/ask/[threadId]` | operator | — | `fn:getReviewableAskThread`: no Ask threads seeded yet |
+| `/platform/ask` | operator | `fn:listReviewableAskThreads` | — |
+| `/platform/ask/[threadId]` | operator | `fn:getReviewableAskThread` | — |
 | `/platform/reviews` | operator | `list_decision_reviews` | — |
 | `/platform/themes` | operator | `list_theme_proposals` | — |
 | `/settings/notifications` | admin | `fn:myNotificationSettings` | — |

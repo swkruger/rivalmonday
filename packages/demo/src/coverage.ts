@@ -33,12 +33,14 @@ const lsComp = (ids: DemoIds) => ids.competitors.loneStar[0]!.id;
 /** Most workspace pages read the client profile for their header or settings. */
 const lsProfile: CoverageCall = { tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' };
 
-/** Both Ask routes render the same screen (`ask-screen.tsx`): starters, the user's threads and (on a thread) that thread. */
+/** Both Ask routes render the same screen (`ask-screen.tsx`): starters, the user's own threads and (on a thread) that thread. */
 const askCalls: CoverageCall[] = [
   { tool: 'get_ask_starters', input: (ids) => ({ clientId: ls(ids) }), path: 'questions' },
-  { tool: 'list_my_ask_threads', input: (ids) => ({ clientId: ls(ids) }), path: 'items', expect: 'empty', why: 'no Ask threads seeded yet' },
-  { tool: 'get_my_ask_thread', input: () => ({ threadId: '00000000-0000-4000-8000-000000000000' }), expect: 'not_found', why: 'no Ask threads seeded yet' },
+  { tool: 'list_my_ask_threads', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
+  { tool: 'get_my_ask_thread', input: (ids) => ({ threadId: ids.ask.admin }), path: 'messages.*.citations' },
 ];
+/** The Overview and Profile pages read the starters (Ask card; the admin's review toggle). */
+const lsStarters: CoverageCall = { tool: 'get_ask_starters', input: (ids) => ({ clientId: ls(ids) }), path: 'questions' };
 
 /** Pages that show forms only (no seeded data to check). */
 export const NO_DATA_ROUTES = ['/agency/clients/new', '/agency/prospects/new'] as const;
@@ -87,6 +89,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'list_moves', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       { tool: 'list_recommendations', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       { tool: 'list_trend_reports', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
+      lsStarters,
     ],
   },
   {
@@ -107,9 +110,16 @@ export const SCREENS: readonly ScreenCoverage[] = [
     ],
   },
   { route: '/c/[clientId]/alerts/[alertId]', as: 'admin', calls: [{ tool: 'get_alert', input: (ids) => ({ alertId: ids.alerts.delivered }), path: 'body' }] },
-  // 6b Task 9: Ask pages; the seeded threads (and data expectations for them) arrive with Task 12.
   { route: '/c/[clientId]/ask', as: 'admin', calls: askCalls },
   { route: '/c/[clientId]/ask/[threadId]', as: 'admin', calls: askCalls },
+  {
+    route: '/c/[clientId]/ask/[threadId] (client owner)', as: 'ownerLoneStar', calls: [
+      { tool: 'list_my_ask_threads', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
+      { tool: 'get_my_ask_thread', input: (ids) => ({ threadId: ids.ask.ownerLoneStar }), path: 'messages.*.citations' },
+      // Author-only (e5): the owner cannot open the admin's thread.
+      { tool: 'get_my_ask_thread', input: (ids) => ({ threadId: ids.ask.admin }), expect: 'not_found', why: 'threads are author-only' },
+    ],
+  },
   { route: '/c/[clientId]/briefs/[briefId]', as: 'ownerLoneStar', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.sentLoneStar[0] }), path: 'items' }] },
   {
     route: '/c/[clientId]/changes', as: 'admin', calls: [
@@ -194,11 +204,11 @@ export const SCREENS: readonly ScreenCoverage[] = [
   },
   { route: '/c/[clientId]/settings/alerts', as: 'admin', calls: [lsProfile, { tool: 'get_alert_rules', input: (ids) => ({ clientId: ls(ids) }), path: 'custom' }] },
   { route: '/c/[clientId]/settings/delivery', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'serviceArea' }] },
-  { route: '/c/[clientId]/settings/profile', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' }] },
+  { route: '/c/[clientId]/settings/profile', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' }, lsStarters] },
   { route: '/inbox', as: 'admin', calls: [{ tool: 'fn:listInbox', input: none }] },
   { route: '/inbox (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'fn:listInbox', input: none }] },
-  { route: '/platform/ask', as: 'operator', calls: [{ tool: 'fn:listReviewableAskThreads', input: none, path: 'items', expect: 'empty', why: 'no Ask threads seeded yet' }] },
-  { route: '/platform/ask/[threadId]', as: 'operator', calls: [{ tool: 'fn:getReviewableAskThread', input: none, expect: 'not_found', why: 'no Ask threads seeded yet' }] },
+  { route: '/platform/ask', as: 'operator', calls: [{ tool: 'fn:listReviewableAskThreads', input: none, path: 'items' }] },
+  { route: '/platform/ask/[threadId]', as: 'operator', calls: [{ tool: 'fn:getReviewableAskThread', input: (ids) => ({ threadId: ids.ask.ownerLoneStar }), path: 'messages.*.trace' }] },
   { route: '/platform/reviews', as: 'operator', calls: [{ tool: 'list_decision_reviews', input: none, path: 'items' }] },
   { route: '/platform/themes', as: 'operator', calls: [{ tool: 'list_theme_proposals', input: none, path: 'pending' }, { tool: 'list_theme_proposals', input: none, path: 'decided' }] },
   { route: '/settings/notifications', as: 'admin', calls: [{ tool: 'fn:myNotificationSettings', input: none }] },

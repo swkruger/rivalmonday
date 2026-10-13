@@ -58,6 +58,17 @@ describe('resolveAffected', () => {
     expect(matchRule('apps/web/src/app/(app)/c/[clientId]/settings/delivery/page.tsx').why).toMatch(/settings page/);
   });
 
+  it('maps Ask paths to @ask (platform Ask review also to @platform)', () => {
+    for (const f of [
+      'packages/ask/src/turn.ts', 'packages/ask/package.json', 'apps/web/src/app/api/ask/turn/route.ts', 'apps/web/src/app/(app)/c/[clientId]/ask/ask-screen.tsx',
+      'apps/web/src/components/ask/answer.tsx', 'apps/web/src/server/ask.ts', 'packages/tools/src/tools/ask-threads.ts', 'packages/tools/src/ask-tools.ts', 'packages/demo/src/ask.ts',
+    ]) {
+      expect(resolve(f), f).toMatchObject({ mode: 'some', tags: ['@ask', '@smoke'] });
+    }
+    expect(resolve('apps/web/src/app/(app)/platform/ask/[threadId]/page.tsx')).toMatchObject({ mode: 'some', tags: ['@ask', '@platform', '@smoke'] });
+    expect(resolve('packages/engine/src/tasks/run.ts').mode).toBe('all');
+  });
+
   it('runs everything for an unknown package file, a migration, or a shared foundation', () => {
     expect(resolve('packages/tools/src/registry.ts').mode).toBe('all');
     expect(resolve('packages/email/src/render.ts').mode).toBe('all');

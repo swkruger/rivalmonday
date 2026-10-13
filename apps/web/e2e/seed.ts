@@ -1,17 +1,17 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { signLink } from '@cs/core';
-import { ad, agency, alert, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, contact, createDb, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
+import { ad, agency, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, contact, createDb, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
 import { createStoreFromEnv } from '@cs/storage';
-import { eq } from 'drizzle-orm';
-import { createInvitation } from '@cs/tools';
+import { eq, sql } from 'drizzle-orm';
+import { acceptInvitations, createInvitation } from '@cs/tools';
 import { resolveEvidenceDir } from '../src/server/files';
-import { E2E_LINK_SECRET, MCP_CLIENTS_FILE, OUTBOX, OWNER_LINK_FILE } from '../playwright.config';
+import { ASK_FIXTURE_FILE, E2E_LINK_SECRET, MCP_CLIENTS_FILE, OUTBOX, OWNER_LINK_FILE } from '../playwright.config';
 
 /**
  * Seeds `cs_test` for the E2E smoke run: one agency, one client, one competitor, a sent brief, an invitation and a
  * client contact; plus (5b-2) near-cap spend, a prospect with a ready snapshot, and a pending theme proposal; plus
- * (6a) two more active clients with AI connections on, and an invited owner of both.
+ * (6a) two more active clients with AI connections on, and an invited owner of both; plus (6b) the Ask clients (`seedAsk`).
  */
 export async function seed(): Promise<void> {
   const { db, close } = createDb(process.env.TEST_DATABASE_URL!);
@@ -89,7 +89,7 @@ export async function seed(): Promise<void> {
       .values({ competitorId: comp!.id, changeType: 'promo', summary: 'Smith HVAC launched a $49 drain-cleaning promo.', confidence: 0.9, occurredAt: new Date() })
       .returning();
 
-    await seedWorkspace(db, { agencyId, clientId, competitorId: comp!.id, sentItemId: sentItem!.id });
+    const workspace = await seedWorkspace(db, { agencyId, clientId, competitorId: comp!.id, sentItemId: sentItem!.id });
 
     await db.insert(alert).values({
       agencyId,
@@ -134,6 +134,8 @@ export async function seed(): Promise<void> {
     await mkdir(dirname(MCP_CLIENTS_FILE), { recursive: true });
     await writeFile(MCP_CLIENTS_FILE, JSON.stringify({ first: mcpClients[0], second: mcpClients[1] }));
 
+    await seedAsk(db, { agencyId, competitorId: comp!.id, eventId: workspace.eventId, evidenceId: workspace.evidenceId });
+
     const token = signLink(E2E_LINK_SECRET, { sub: ownerContact!.id, agency: agencyId, client: clientId, t: 'brief', id: briefId });
     await mkdir(dirname(OWNER_LINK_FILE), { recursive: true });
     await writeFile(OWNER_LINK_FILE, `http://localhost:3100/l/${token}`);
@@ -153,7 +155,7 @@ const SHA = 'a'.repeat(64);
 async function seedWorkspace(
   db: ReturnType<typeof createDb>['db'],
   o: { agencyId: string; clientId: string; competitorId: string; sentItemId: string },
-): Promise<void> {
+): Promise<{ eventId: string; evidenceId: string }> {
   const { agencyId, clientId, competitorId } = o;
   const store = createStoreFromEnv({ ...process.env, EVIDENCE_FS_DIR: resolveEvidenceDir(resolve(import.meta.dirname, '../test-results/evidence'), resolve(import.meta.dirname, '..'))! });
   const [page] = await db.insert(trackedPage).values({ competitorId, url: 'https://smithhvac.example/pricing', pageType: 'pricing', source: 'manual', cadence: 'daily' }).returning();
@@ -238,4 +240,84 @@ async function seedWorkspace(
   await db.insert(rankSnapshot).values(snaps);
 
   await db.update(briefItem).set({ evidenceIds: [after.shot] }).where(eq(briefItem.id, o.sentItemId));
+  return { eventId: ev!.id, evidenceId: after.shot };
+}
+
+/** 6b: what `ask.spec.ts` reads from `ASK_FIXTURE_FILE`. */
+export type AskFixture = {
+  /** `ask` + evidence-backed event + starters; review allowed. */
+  askCo: { id: string; name: string };
+  /** `ask_review_allowed = false`. */
+  privateCo: { id: string; name: string };
+  /** The client user has already used this month's quota (counted per client). */
+  quotaCo: { id: string; name: string };
+  /** Agency-admin review-toggle test only. */
+  toggleCo: { id: string; name: string };
+  /** The client user's seeded threads (author-only). */
+  askThreadId: string;
+  privateThreadId: string;
+  starters: string[];
+};
+
+export const ASK_USER_EMAIL = 'asker@e2e.test';
+const ASK_USER_ID = 'e2e-asker-user';
+const ASK_QUOTA = 2;
+const ASK_STARTERS = [
+  'What changed with competitor prices this month?',
+  'Which competitor is the biggest threat right now?',
+  'Are any rivals running new promotions?',
+  'What are customers complaining about at rivals?',
+];
+
+/**
+ * 6b Ask: a client user (`asker@e2e.test`, client_owner of three clients; its auth user exists so threads can be
+ * seeded) plus a fourth client for the admin's review toggle. Smith HVAC's price event is also scored for the Ask
+ * client, so `search_events` returns it with its evidence. Client names never contain "E2E HVAC" (other specs match it).
+ */
+async function seedAsk(
+  db: ReturnType<typeof createDb>['db'],
+  o: { agencyId: string; competitorId: string; eventId: string; evidenceId: string },
+): Promise<void> {
+  const { agencyId } = o;
+  const area = { center: { lat: 32.4, lng: -97.79 }, radiusKm: 25, zips: ['76048'] };
+  const base = { agencyId, verticalId: 'hvac_plumbing', keywords: ['ac repair'], serviceArea: area };
+  const [askCo, privateCo, quotaCo, toggleCo] = await db.insert(client).values([
+    { ...base, name: 'Ask Demo Heating', features: ['dashboard', 'ask'] },
+    { ...base, name: 'Private Plumbing Co', features: ['dashboard', 'ask'], askReviewAllowed: false },
+    { ...base, name: 'Summit Cooling Co', features: ['dashboard', 'ask'], askMonthlyQuota: ASK_QUOTA },
+    { ...base, name: 'Toggle Air Co', features: ['ask'] },
+  ]).returning({ id: client.id, name: client.name });
+
+  await db.insert(clientCompetitor).values({ agencyId, clientId: askCo!.id, competitorId: o.competitorId });
+  await db.insert(eventScore).values({
+    agencyId, clientId: askCo!.id, eventId: o.eventId, score: 86, route: 'alert', packVersion: 1, scoredAt: new Date(),
+    factors: { typeWeight: 1, size: 0.95, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 0.9, maxSimilarity: 0.1, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 1 },
+  });
+  await db.insert(askStarter).values({ clientId: askCo!.id, agencyId, questions: ASK_STARTERS });
+
+  // The auth user exists before sign-in (Better Auth finds it by email); memberships come from accepted invitations.
+  await db.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values (${ASK_USER_ID}, 'Asha Asker', ${ASK_USER_EMAIL}, true)`);
+  for (const c of [askCo!, privateCo!, quotaCo!]) await createInvitation(db, { agencyId, email: ASK_USER_EMAIL, role: 'client_owner', clientId: c.id, invitedBy: 'e2e-seed' });
+  await acceptInvitations(db, { id: ASK_USER_ID, email: ASK_USER_EMAIL, name: 'Asha Asker' });
+
+  const thread = async (clientId: string, title: string, answer: { content: string; citations: string[] } | null, counted = 1) => {
+    const [t] = await db.insert(askThread).values({ agencyId, clientId, userId: ASK_USER_ID, title }).returning({ id: askThread.id });
+    const m = { threadId: t!.id, agencyId, clientId, userId: ASK_USER_ID };
+    for (let i = 0; i < counted; i++) await db.insert(askMessage).values({ ...m, role: 'user', content: title, countsTowardQuota: true });
+    if (answer) {
+      await db.insert(askMessage).values({
+        ...m, role: 'assistant', content: answer.content, citations: answer.citations,
+        trace: { model: 'e2e/scripted', guard: 'in_scope', removedSentences: 0, deadlineHit: false, costUsd: 0, steps: [{ tool: 'search_events', args: { clientId, route: 'all', days: 365 }, rows: 1 }] },
+      });
+    }
+    return t!.id;
+  };
+  const askThreadId = await thread(askCo!.id, 'Seeded question about Smith pricing', { content: `Smith HVAC cut its AC tune-up to $79 [ev:${o.evidenceId}].`, citations: [`ev:${o.evidenceId}`] });
+  const privateThreadId = await thread(privateCo!.id, 'Seeded private question', { content: "I don't have evidence for that in the monitored data.", citations: [] });
+  // At quota: this month's counted user messages for Quota Cooling Co equal its quota.
+  await thread(quotaCo!.id, 'Seeded earlier question', null, ASK_QUOTA);
+
+  const fixture: AskFixture = { askCo: askCo!, privateCo: privateCo!, quotaCo: quotaCo!, toggleCo: toggleCo!, askThreadId, privateThreadId, starters: ASK_STARTERS };
+  await mkdir(dirname(ASK_FIXTURE_FILE), { recursive: true });
+  await writeFile(ASK_FIXTURE_FILE, JSON.stringify(fixture));
 }
