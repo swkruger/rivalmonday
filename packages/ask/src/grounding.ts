@@ -14,6 +14,7 @@ export async function groundAnswer(
   scope: CallScope,
   draft: string,
   evidence: ReadonlyMap<string, string>,
+  now: Date = new Date(),
 ): Promise<{ content: string; citations: string[]; removed: number }> {
   const allowed = new Set(evidence.keys());
   const units = splitUnits(draft, CITATION_PREFIXES, allowed);
@@ -37,7 +38,9 @@ export async function groundAnswer(
   });
 
   const supported = new Set<string>();
-  const results = await Promise.all([...groups.values()].filter((g) => g.claims.length).map((g) => supportCheck(ai, scope, g.evidence, g.claims)));
+  // Relative periods ("this month", "last 30 days") can only be checked against the row dates with today's date.
+  const today = `Today is ${now.toISOString().slice(0, 10)} (UTC).\n\n`;
+  const results = await Promise.all([...groups.values()].filter((g) => g.claims.length).map((g) => supportCheck(ai, scope, today + g.evidence, g.claims)));
   for (const s of results) for (const k of s) supported.add(k);
 
   const pieces: { text: string; sep: string; removed: boolean }[] = [];

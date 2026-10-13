@@ -16,6 +16,17 @@ function markerRe(prefixes: readonly string[]): RegExp {
   return new RegExp(String.raw`\[(${prefixes.join('|')}):(${ID})\]`, 'g');
 }
 
+/** Abbreviations whose period never ends a sentence (lower-case, without the final period). */
+const ABBREVIATIONS = new Set(['vs', 'e.g', 'i.e', 'approx', 'incl', 'cf']);
+
+/** A period that closes an abbreviation ("vs.") or a numbered-list marker at the start of a unit ("1."). */
+function notSentenceEnd(part: string, unitStart: number, dot: number): boolean {
+  const before = part.slice(unitStart, dot);
+  if (/^\s*\d+$/.test(before)) return true;
+  const word = /(?:^|[\s(])([A-Za-z][A-Za-z.]*)$/.exec(before)?.[1];
+  return word !== undefined && ABBREVIATIONS.has(word.toLowerCase());
+}
+
 /** Splits on . ! ? followed by whitespace/end, and on newlines; keeps trailing markers with their sentence. */
 export function splitUnits(input: string, prefixes: readonly string[], allowed: ReadonlySet<string>): Unit[] {
   const leadingMarkers = new RegExp(String.raw`^(?:[ \t]*\[(?:${prefixes.join('|')}):${ID}\])+`);
@@ -45,7 +56,7 @@ export function splitUnits(input: string, prefixes: readonly string[], allowed: 
     let i = 0;
     while (i < part.length) {
       const ch = part[i]!;
-      if ('.!?'.includes(ch) && (i + 1 === part.length || /\s/.test(part[i + 1]!))) {
+      if ('.!?'.includes(ch) && (i + 1 === part.length || /\s/.test(part[i + 1]!)) && !(ch === '.' && notSentenceEnd(part, pos, i))) {
         let j = i + 1;
         const m = leadingMarkers.exec(part.slice(j));
         if (m) j += m[0].length;

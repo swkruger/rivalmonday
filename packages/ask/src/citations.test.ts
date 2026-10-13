@@ -11,6 +11,17 @@ describe('parseCitations', () => {
     expect(r.sentences.map((s) => s.text)).toEqual(['They charge $4.99 per visit.', 'Rated 4.5 stars!', 'Really?']);
     expect(r.sentences[0]!.refs).toEqual([`ev:${A}`]);
   });
+  it('does not end a sentence at vs., e.g. or i.e.', () => {
+    const r = parseCitations(`Score 20 vs. 0 for the others [ev:${A}]. Ads, e.g. Google, i.e. search ads [ev:${B}]. Next.`, CITATION_PREFIXES, allowed);
+    expect(r.sentences.map((s) => s.text)).toEqual(['Score 20 vs. 0 for the others.', 'Ads, e.g. Google, i.e. search ads.', 'Next.']);
+    expect(r.sentences.map((s) => s.refs)).toEqual([[`ev:${A}`], [`ev:${B}`], []]);
+  });
+  it('a numbered-list marker stays with its item', () => {
+    const r = parseCitations(`Steps:
+1. Open AI connections [ev:${A}].
+ 12. Create a token [ev:${B}].`, CITATION_PREFIXES, allowed);
+    expect(r.sentences.map((s) => s.text)).toEqual(['Steps:', '1. Open AI connections.', '12. Create a token.']);
+  });
   it('unknown ids dropped', () => {
     const bad = '33333333-3333-3333-3333-333333333333';
     const r = parseCitations(`Fact [ev:${A}][ev:${bad}].`, CITATION_PREFIXES, allowed);

@@ -92,7 +92,16 @@ function dataBlock(tool: string, value: unknown): string {
 
 const strings = (...v: unknown[]): string[] => v.filter((x): x is string => typeof x === 'string' && x.trim() !== '');
 
-/** Text that stands for a result node's evidence: `text`, else its title/headline/summary. */
+/** The calendar day of a row's first ISO date field (`date`, `occurredAt`, …), so dated claims can be checked. */
+function dayOf(node: Record<string, unknown>): string | null {
+  for (const k of ['date', 'occurredAt', 'occurred_at', 'firstSeenAt', 'postedAt', 'createdAt']) {
+    const v = node[k];
+    if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) return `on ${v.slice(0, 10)}`;
+  }
+  return null;
+}
+
+/** Text that stands for a result node's evidence: `text`, else its title/headline/summary and the day it happened. */
 function nodeText(tool: string, node: Record<string, unknown>): string {
   if (typeof node.text === 'string' && node.text.trim() !== '') return node.text;
   if (tool === 'get_evidence' && ('evidenceId' in node || 'id' in node)) {
@@ -100,7 +109,9 @@ function nodeText(tool: string, node: Record<string, unknown>): string {
     const cited = Array.isArray(node.citedBy) ? node.citedBy.flatMap((c) => (c && typeof c === 'object' ? strings((c as Record<string, unknown>).summary) : [])) : [];
     return [head, ...cited].filter(Boolean).join('\n');
   }
-  return strings(node.title, node.headline, node.summary).join('\n');
+  const body = strings(node.title, node.headline, node.summary);
+  const day = dayOf(node);
+  return body.length && day ? [...body, day].join('\n') : body.join('\n');
 }
 
 /**

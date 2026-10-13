@@ -26,11 +26,17 @@ function fakeAi(calls: Call[] = []): Ai {
 const ev = new Map([[`ev:${A}`, 'alpha text'], [`ev:${B}`, 'beta text']]);
 
 describe('groundAnswer', () => {
+  it("tells the checker today's date so periods like 'this month' can be checked", async () => {
+    const calls: Call[] = [];
+    await groundAnswer(fakeAi(calls), scope, `Alpha thing [ev:${A}]. Rivals may respond.`, ev, new Date('2026-10-13T12:00:00Z'));
+    expect(calls).toHaveLength(2);
+    for (const c of calls) expect(c.evidence.startsWith('Today is 2026-10-13 (UTC).\n\n')).toBe(true);
+  });
   it('cited sentence checked as fact against its evidence only', async () => {
     const calls: Call[] = [];
     const r = await groundAnswer(fakeAi(calls), scope, `Alpha thing [ev:${A}].`, ev);
     expect(calls).toHaveLength(1);
-    expect(calls[0]!.evidence).toBe('alpha text');
+    expect(calls[0]!.evidence).toMatch(/^Today is \d{4}-\d{2}-\d{2} \(UTC\)\.\n\nalpha text$/);
     expect(calls[0]!.sentences[0]).toContain('directly supported');
     expect(r.content).toBe(`Alpha thing [ev:${A}].`);
   });

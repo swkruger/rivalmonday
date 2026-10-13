@@ -148,6 +148,12 @@ describe('runTurn search_events route', () => {
     await turn([{ kind: 'chat', reply: { toolCalls: [search] } }, ok]);
     expect(eventsSeen).toEqual([{ clientId: IDS.clientA1, route: 'all' }]);
   });
+  it("a cited row's date reaches the support check", async () => {
+    searchResult = () => ({ items: [{ id: 'e1', title: 'Acme: 4 new job postings', date: '2026-10-11T21:10:28.534Z', evidenceIds: [EV1] }] });
+    const { ai } = await turn([{ kind: 'chat', reply: { toolCalls: [search] } }, ok]);
+    const support = ai.calls.decide.filter((d) => d.task !== 'ask_guard_decisions');
+    expect(support.some((d) => (d.state as { evidence: string }).evidence.includes('Acme: 4 new job postings\non 2026-10-11'))).toBe(true);
+  });
   it('keeps a route the model asked for', async () => {
     await turn([{ kind: 'chat', reply: { toolCalls: [{ name: 'search_events', args: { clientId: IDS.clientA1, route: 'flagged' } }] } }, ok]);
     expect(eventsSeen).toEqual([{ clientId: IDS.clientA1, route: 'flagged' }]);
