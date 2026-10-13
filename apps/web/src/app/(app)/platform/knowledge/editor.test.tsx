@@ -95,6 +95,18 @@ describe('ImportPanel', () => {
     expect(push).toHaveBeenCalledWith('/platform/knowledge/art1');
   });
 
+  it('stops polling and shows fetch_failed copy when status throws', async () => {
+    vi.useFakeTimers();
+    const start = vi.fn(async () => ({ ok: true as const, key: 'k1' }));
+    const status = vi.fn().mockRejectedValue(new Error('boom'));
+    render(<ImportPanel targets={targets} start={start} status={status} />);
+    fireEvent.change(screen.getByLabelText('URL'), { target: { value: 'https://x.example/a' } });
+    await act(async () => { fireEvent.submit(screen.getByRole('button', { name: 'Import' }).closest('form')!); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+    expect(status).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('alert').textContent).toBe("We couldn't load the page. Try again later.");
+  });
+
   it('shows the decided copy for a failed import', async () => {
     vi.useFakeTimers();
     const start = vi.fn(async () => ({ ok: true as const, key: 'k1' }));

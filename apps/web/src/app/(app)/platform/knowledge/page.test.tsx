@@ -57,6 +57,7 @@ describe('/platform/knowledge', () => {
       row({ id: 'u2', title: 'Same', source: 'url', autoSync: true, lastSyncedAt: new Date('2026-10-05T10:00:00Z') }),
       row({ id: 'u3', title: 'Broken', source: 'url', autoSync: true, syncError: 'Fetch failed' }),
       row({ id: 'u4', title: 'Off', source: 'url', autoSync: false }),
+      row({ id: 'u5', title: 'Gave up', source: 'url', autoSync: false, syncError: 'Gave up after 3 tries' }),
     ]));
     render(await KnowledgePage({ searchParams: Promise.resolve({}) }));
     expect(screen.getByText('Manual')).toBeTruthy();
@@ -64,7 +65,8 @@ describe('/platform/knowledge', () => {
     expect(screen.getByText('Synced Oct 5, 2026 · changed')).toBeTruthy();
     expect(screen.getByText('Synced Oct 5, 2026')).toBeTruthy();
     expect(screen.getByText('Fetch failed').className).toContain('text-red');
-    expect(screen.getByText('Auto-sync off')).toBeTruthy();
+    expect(screen.getAllByText('Auto-sync off')).toHaveLength(2);
+    expect(screen.getByText('Gave up after 3 tries').className).toContain('text-red');
     expect(screen.getByRole('link', { name: 'Changed' }).getAttribute('href')).toBe('/platform/knowledge/u1');
   });
 

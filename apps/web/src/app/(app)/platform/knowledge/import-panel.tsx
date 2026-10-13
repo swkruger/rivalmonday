@@ -21,24 +21,37 @@ export function ImportPanel({
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
   const alive = useRef(true);
-  useEffect(() => () => { alive.current = false; }, []);
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
   const key = phase.kind === 'working' ? phase.key : null;
 
   useEffect(() => {
     if (!key) return;
+    let busy = false;
     const timer = setInterval(async () => {
-      const r = await status(key);
-      if (!alive.current) return;
-      if (!r.ok) {
+      if (busy) return;
+      busy = true;
+      try {
+        const r = await status(key);
+        if (!alive.current) return;
+        if (!r.ok) {
+          clearInterval(timer);
+          return setPhase({ kind: 'error', message: r.error });
+        }
+        if (r.status.state === 'done' && r.status.articleId) {
+          clearInterval(timer);
+          router.push(`/platform/knowledge/${r.status.articleId}`);
+        } else if (r.status.state === 'failed' || r.status.state === 'done') {
+          clearInterval(timer);
+          setPhase({ kind: 'error', message: importErrorCopy(r.status.error) });
+        }
+      } catch {
         clearInterval(timer);
-        return setPhase({ kind: 'error', message: r.error });
-      }
-      if (r.status.state === 'done' && r.status.articleId) {
-        clearInterval(timer);
-        router.push(`/platform/knowledge/${r.status.articleId}`);
-      } else if (r.status.state === 'failed' || r.status.state === 'done') {
-        clearInterval(timer);
-        setPhase({ kind: 'error', message: importErrorCopy(r.status.error) });
+        if (alive.current) setPhase({ kind: 'error', message: importErrorCopy(undefined) });
+      } finally {
+        busy = false;
       }
     }, POLL_MS);
     return () => clearInterval(timer);
