@@ -5,27 +5,6 @@ Rules: new items go under their target; done items are deleted (git history keep
 
 Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text: [archive/2026-10-11-roadmap-full.md](archive/2026-10-11-roadmap-full.md)) and HANDOVER §5, §7, §8.
 
-## Phase 6 — MCP server & Ask
-
-### Tools & registry
-- [ ] Registry reveals `not_found` vs `permission_denied`, so tool names can be enumerated — *from Phase 1 review*
-- [ ] `countRows` only recognises `{items}` outputs — *from Phase 1 review*
-- [ ] Log the original handler error when the audit write also fails — *from Phase 1 review*
-- [ ] Audit-exempt read class for polled/navigation reads: `get_competitor_search_status` writes ≈ 15–40 `audit_log` rows per search; `(app)/layout.tsx`'s `list_clients` writes one per agency navigation — *from 5a, 5b-1 owner verification*
-- [ ] List tools' `detail=summary|full`, and dashboard deep links in results — *from 5c-2 (decision 16)*
-- [ ] Brief tools in the catalogue (`list_briefs`, `get_brief`, …; §8.2) — check what 5a already registered — *from 4a "Not in 4a"*
-- [ ] Every new read path over `brief_item`/`recommendation` strips `upsell_tag` for client roles (spec §8.5; RLS can't hide a column) — *from 4a cross-phase*
-- [ ] Client-facing readers filter by status: `brief` approved/sent, items `active`, hide `feedback`/`playbook_override`; `alert` delivered only; `trend_report` — or tighten RLS — *from 4a/4b cross-phase*
-- [ ] Renderers sort brief items by `ord`; never assume ords are 0-based or contiguous — *from 4a cross-phase*
-
-### Ask
-- [ ] `ask_assistant` still routes to `anthropic/claude-sonnet-5`: re-probe ZDR + strict `json_schema` on OpenRouter first (vendor-APIs doc, "Verified 2026-10-03 — Phase 4a"); `brief_writer`/`playbook_writer`/`theme_discovery` moved to sonnet-4.6 for the same reason — *from 4a*
-- [ ] Ask "save as recommendation" (`recommendation.source = 'ask'` already allowed) — *from 4a "Not in 4a"*
-- [ ] "Add recommendation" and "Ask Friday" buttons in the evidence viewer — *from 5c-1 (decision 19)*
-- [ ] Ask question quota (5b-2 left a placeholder); decide with the owner whether pausing Ask at 100 % of cap is needed before Phase 7 — *from 5b-2 (decision 18)*
-- [ ] `ask` client-feature switch on Profile → Client features (kept on save today) ships with the Ask UI — *from HANDOVER §5, 2026-10-11*
-- [ ] `/c/<id>/settings/ai` "AI connections" placeholder becomes real — *from HANDOVER §5*
-
 ## Phase 7 — Hardening & pilot
 
 ### Security & data
@@ -56,6 +35,18 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Add `drizzle-kit check` to CI — *from Phase 1 review*
 - [ ] Set `"agentGuidance": false` in `turbo.json` if AGENTS.md churns — *from Phase 1 review*
 
+### Phase 6 follow-ups (MCP, Ask, knowledge base)
+- [ ] Renderer-level SSRF guard: Playwright `page.route` resolved-IP check or pinned resolver; covers KB import/sync (DNS-rebinding race accepted in 6c), competitor URLs, robots fetch, `www.`/port redirects; treat SIIT `::ffff:0:0/96` as non-public — *from 6c final review*
+- [ ] Tier gating of `mcp`/`ask`; MCP `manage` scope for client roles; ANN vector index (events, pages, `kb_chunk`) — *from 6a/6c*
+- [ ] MCP hardening: vector-only pages; unredacted model-written titles; uncapped `fetch` brief text; connector name `rival-monday` not white-labelled; screenshot mime hard-coded; `resources.ts` upsell offset-0; `add_recommendation` not one tx; `revoke_oauth_grant` partial failure; consent second-tab race; `clientScope[0]` assumption — *from 6a*
+- [ ] MCP tests: cross-agency, P18 scoped member, review cross-client leak, page-level `/sign-in` OAuth, exact client-role `tools/list` — *from 6a*
+- [ ] Ask hardening: widen composite FK to `(id,user_id,client_id,agency_id)`; allowlist `action.tool` vs `ASK_WRITE_TOOLS` + action `clientId` = thread's; unknown clientId → raw FK 23503; starters skipped if `notifyBriefOutcome` throws; `dataBlock tool=` unescaped; per-call model budget; trace args may quote tool text; `askReviewAllowed` write non-atomic — *from 6b*
+- [ ] Ask scope: generic `search`/`fetch` on the `ask` channel can still reach another in-scope client's events/evidence (knowledge part fixed in 6c) — pin `clientId` to the thread — *from 6b/6c*
+- [ ] Ask parked: lookalike markers as plain text; body parsed before feature/scope checks (400 vs 404); delete has no isUuid precheck; SSE `final.action` echoes proposed input; unseen thread after pre-persist error; `?q=` auto-send counts toward quota (auto-send known starters only); no content-type/Origin check on `/api/ask/turn`; `0044` relies on owner BYPASSRLS; request body-size cap — *from 6b*
+- [ ] Ask grounding: sentence split on "1."/"e.g."; nested-bullet indent lost; empty-evidence verifier call; metadata-only fallback for html/screenshot evidence; pure how-to answers: uncited filler sentences now checked against empty `ev:` text (watch traces) — *from 6b/6c*
+- [ ] KB robustness: `kb-embed` should throw when the provider returns fewer vectors; validate scope before `kb-import` enqueue; `kb-sync` 7200 s expiry vs many articles; archived import jobs read as failed; seed-row guard into `saveArticle`; `previous_body_md` also set by manual edits; `get_kb_article` skips active-client check; `sourceUrl` not http(s)-restricted; `kbNamesFor` = 3rd copy of brand-name logic (invert into `@cs/tools`); KB hits pass no business names to redaction — *from 6c*
+- [ ] Multi-membership is resolved for Ask only; other routes still pick one membership — *from 6b*
+
 ### Model ops
 - [ ] Run `jev.live.test.ts` once with a real `TYPESAFE_API_KEY` (make `@cs/ai` tests load `.env`) to confirm 0- vs 1-based scores — *from Phase 1 review*
 
@@ -67,6 +58,10 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Review an annual billing option for agency → client subscriptions (9b ships monthly only) — *from 9b brainstorm 2026-10-12*
 
 ## Polish (small UI/UX fixes, any time)
+
+### Phase 6 UI polish
+- [ ] Ask UI: thread delete is one-click with error only in a tooltip; save dialog allows duplicate saves; pre-persist error has empty `messageId`; quota 0 shows "N of 0"; `assistantName` read twice — *from 6b*
+- [ ] `/platform/knowledge`: `start()` throw uncaught in import panel; preview shows stale kind; inline delete confirm lacks focus handling; "Saved." banner after publish — *from 6c*
 
 ### Workflow & behaviour
 - [ ] Let agencies add their own verticals and services (feature-sized) — *from phase5-polish*
@@ -115,6 +110,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Quarterly report verified only by tests — no client predates a quarter yet; check the first real one — *from 4b live verification*
 
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
+- [ ] Decide MCP revoke success copy ("Token revoked." / "App disconnected.") and review the `docs/help/*.md` help-article copy (confirm: past-conversation list/delete, admins see all tokens, the Claude Code command) — *from 6a/6c*
 - [ ] Register **rivalmonday.com** / **.ai**; trademark knockout search — *from HANDOVER §7*
 - [ ] Publish the bot page `https://rivalmonday.com/bot` — required before crawling any real competitor (never run `collect-once` without `--vendors` until then) — *from Phase 1/2 carry-over, HANDOVER §5 item 6*
 - [ ] Phase 0 validation before the Phase 7 pilot: GoHighLevel/Vendasta marketplace check, 5 agency letters of intent, US counsel review (crawling, review privacy, AI claims about named competitors) — *from roadmap Phase 0, HANDOVER §7*
@@ -128,6 +124,9 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ## Unscheduled / ideas
 
 ### Features
+- [ ] REST API (spec §8.1) — *from 6a*
+- [ ] Knowledge base: file upload (PDF/DOCX), browsable Help page (`/agency/help`, `/c/<id>/help`), agency/client self-authoring (`manage_knowledge`), KB in weekly briefs, citation analytics — *from 6c "Not in 6c"*
+- [ ] Brief writers (`brief_writer`/`playbook_writer`/`theme_discovery`) back to sonnet-5 (probe 2026-10-12 OK for ZDR + strict json_schema) — *from 6b*
 - [ ] Agencies add their own business types (verticals) and services, not just built-in packs — *from end-of-Phase-5 owner request*
 - [ ] Franchise local relevance: choose the franchisee's advertisers/pages, not the brand's (e.g. Iowa City `AR16031097081657556993` on Aire Serv) — *from end-of-Phase-5 verification*
 - [ ] Volatile-mask unmask UI (AM): pass the capture id explicitly; manual unmask re-pinned only within the 6-capture window — *from 3d, 5c-1/5c-2*
@@ -185,6 +184,9 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Quarterly report counts recommendations by *current* status, not at quarter end; `renderReportPdf` untested, no status guard — *from 4b Task 17*
 
 ### Code quality & test gaps (fold in when touching the file)
+- [ ] Phase 1 registry leftovers: `countRows` only recognises `{items}` outputs; log the original handler error when the audit write also fails — *from Phase 1 review*
+- [ ] Conventions to keep checking on new read paths: strip `upsell_tag` for client roles; client-facing readers filter status (brief approved/sent, items `active`, alert delivered); sort brief items by `ord` (never assume 0-based) — *from 4a/4b cross-phase*
+- [ ] Phase 6 test gaps: ask-rls WITH CHECK + user-delete cascade; ThreadList/SaveDialog/StarterChips components; chip → auto-send E2E; `expectNoUsageNumbers` scans only main; settings toggle not retry-safe; KB: GIN guard title + kb index, title/body CHECK and unset-role RLS tests, MCP title redaction, embed id↔vector mapping, chunker edge cases (`C#` heading, long heading paths, fences, CRLF), brittle `@kb` selectors (`selectOption({index:1})`) — *from 6b/6c*
 - [ ] Phase 1 cleanups: `@types/node` ^22 vs Node 24; slug regex duplicated in verticals; `register()` not atomic; mkdtemp dir not cleaned in packs test; pg-boss batch loop assumes batchSize 1 — *from Phase 1 review*
 - [ ] 3b minors: hiring-move summary not truncated; `buildStructuredSummary` branches untested; `FakeAi` doesn't record scope; `engine-once --moves` untested at CLI; consolidate the "no-retry queues" worker test — *from 3b Tasks 10, 15*
 - [ ] 3c minors: `TITLE_WORDS` includes `'the'`; GBP `domain` not in redaction names; `review_analysis` confidence spans all verticals; `ReviewInsightsResult.errors` conflated; `priceMatrix` test gaps — *from 3c Tasks 1–10*

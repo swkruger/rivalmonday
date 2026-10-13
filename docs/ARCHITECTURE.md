@@ -7,7 +7,7 @@ Status: Phases 0–5 and the demo tool are complete and owner-verified (2026-10-
 | Path | Responsibility · key entry points |
 |---|---|
 | `apps/web` | Next.js App Router app (agency + client UI, `/l/<token>`, `/go/<target>/<id>`, `/files/...`). `src/server/` (auth, `current-viewer.ts`, `run-tool.ts`, `files.ts`, `nav.ts`, `search-params.ts`), `src/dev-panel/`, `scripts/dev.ts` (dev launcher), `scripts/admin.ts` (admin bootstrap/link CLI), `scripts/check-no-dev-panel.ts`, `e2e/` |
-| `apps/worker` | pg-boss worker: `src/main.ts`, `src/jobs/*` (web, vendor, engine, moves, reviews, briefs, delivery, model-ops, prospects), CLIs in `src/cli/` (`collect-once`, `engine-once`, `brief-once`, `deliver-once`, `decisions`) |
+| `apps/worker` | pg-boss worker: `src/main.ts`, `src/jobs/*` (web, vendor, engine, moves, reviews, briefs, delivery, model-ops, prospects), CLIs in `src/cli/` (`collect-once`, `engine-once`, `brief-once`, `deliver-once`, `decisions`, `kb-seed`); jobs also `ask` (starters) and `kb` (`kb-embed`/`kb-import`/`kb-sync`) |
 | `packages/core` | `@cs/core`: access context, tool registry types, signed deep links (`links.ts`), platform-operator helpers (`platform.ts`) |
 | `packages/db` | `@cs/db`: Drizzle schema + migrations, RLS tenancy (`tenant.ts` / `withTenant`), ledgers, audit, per-environment DBs (`environments.ts`) |
 | `packages/ai` | `@cs/ai`: OpenRouter chat/embeddings, Jev `DecisionProvider` + cascade, shadow sampling, Anthropic Message Batches; routing in `config/ai.yaml` |
@@ -18,6 +18,8 @@ Status: Phases 0–5 and the demo tool are complete and owner-verified (2026-10-
 | `packages/email` | `@cs/email`: React Email templates (`react-email@6.11.0`), branding, Postmark + file-outbox transports |
 | `packages/tools` | `@cs/tools`: role-checked service functions + registered tools (`src/tools/*`, `registry.ts`, `deps.ts`, `workspace/`), shared with Phase 6 MCP/Ask |
 | `packages/ui` | `@cs/ui`: Tailwind 4 + shadcn/ui components, per-agency CSS-variable theming (`theme.ts`) |
+| `packages/mcp` | `@cs/mcp`: remote MCP server (`POST /mcp` in web): bearer resolution (PAT + OAuth), stateless per-request server, resources `evidence://`/`brief://`, prompts, rate limit, `productNameFor` |
+| `packages/ask` | `@cs/ask`: Ask assistant turns (`beginTurn`/`runTurn`, verify-then-send grounding with `ev:`/`kb:` citations, quota, confirm-before-write actions, starters); `@cs/ask/testing` scripted AI |
 | `packages/demo` | `@cs/demo`: deterministic `cs_demo` seed, screen coverage list (`coverage.ts`), snapshot/restore CLIs (`src/cli/`) |
 | `tools/decision-labeler.html` | Local page for gold-labelling exported decision CSVs |
 
@@ -39,6 +41,7 @@ Status: Phases 0–5 and the demo tool are complete and owner-verified (2026-10-
 - **5c-2 — Data views** ([plan](superpowers/plans/2026-10-08-phase-5c2-data-views.md)). Pricing, Ads, Reviews & reputation (`ThemeHeatmap`), Local rankings (`GeoGrid`, share of voice); `foldSeries` aggregate modes; `Sheet` in `@cs/ui`; responsive shell (drawer below 1024 px).
 - **Demo data, dev panel & snapshots** ([plan](superpowers/plans/2026-10-09-demo-data-and-snapshots.md)). Local-only. `cs_demo` seed (`@cs/demo`), dev panel (`apps/web/src/dev-panel/`, per-environment `perEnv` factories, production build check), `cs_dev` snapshot/restore.
 - **Phase 5 polish** (`65e0683`). PDF/file links open in a new tab; stored PDF keys carry `PDF_LAYOUT_VERSION` (`@cs/core` `pdf-layout.ts`, keys `<id>.v2.pdf`) and `servePdf` re-enqueues any older key; `/agency` client list as labelled blocks below xl. No DEV "view as client": invite a Gmail plus address as client owner.
+- **6 — MCP, Ask & knowledge base** ([6a](superpowers/plans/2026-10-11-phase-6a-mcp.md) · [6b](superpowers/plans/2026-10-12-phase-6b-ask.md) · [6c](superpowers/plans/2026-10-12-phase-6c-knowledge.md)). 6a: registry `channels`/`mcpScope`/`audit`, PATs + OAuth 2.1 provider (Better Auth `oauthProvider`, consent page, DCR), `@cs/mcp`, `search`/`fetch`, `/agency/ai`. 6b: Ask "Friday" (`@cs/ask`, SSE `/api/ask/turn`, `/c/<id>/ask`, `/platform/ask` review, quota, starters job). 6c: knowledge base (`kb_article`/`kb_chunk`, operator authoring `/platform/knowledge`, hybrid `search_knowledge`, `kb:` citations + sheet + `/kb/<id>`, URL import/sync behind `KB_IMPORT_ENABLED` with SSRF guard, repo seed `docs/help` via `pnpm kb:seed`, MCP `knowledge` type).
 
 ## Conventions a new feature must follow
 
