@@ -22,7 +22,7 @@ const MCP_FEEDBACK_TOOLS = ['submit_feedback', 'update_recommendation_status', '
 const MCP_MANAGE_TOOLS = ['set_alert_rules', 'update_client_profile', 'set_page_pin', 'run_prospect_snapshot'];
 /** Ruling R1: tools that exist only on the mcp channel. */
 const MCP_ONLY_TOOLS = ['add_recommendation'];
-const SKIP_WEB_TOOLS = ['list_clients', 'get_competitor_search_status', 'get_prospect_report', 'platform_overview', 'list_platform_agencies'];
+const SKIP_WEB_TOOLS = ['list_clients', 'get_competitor_search_status', 'get_prospect_report', 'platform_overview', 'list_platform_agencies', 'get_platform_agency', 'list_platform_activity'];
 
 const mcpTools = allTools.filter((t) => (t.channels ?? ['web']).includes('mcp'));
 const namesOfScope = (scope: TokenScope) => mcpTools.filter((t) => mcpScopeOf(t) === scope).map((t) => t.name).sort();

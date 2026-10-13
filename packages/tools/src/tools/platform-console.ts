@@ -1,10 +1,11 @@
-import { type AccessContext, toolkit } from '@cs/core';
-import { agencyDailyStat } from '@cs/db';
-import { and, eq, gte, lte, type SQL, sql } from 'drizzle-orm';
+import { type AccessContext, ToolError, toolkit } from '@cs/core';
+import { agency, agencyDailyStat, auditLog, brief, client, membership } from '@cs/db';
+import { and, eq, gte, inArray, lte, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { pageOf, pageResult } from '../paging';
 import { requirePlatformOperator } from '../platform';
+import { ACTIVATION_TOOLS } from './prospects';
 import { withPlatformAudit } from '../platform/audit';
 import { type AgencyHealth, healthFlag } from '../platform/health';
 import { bucketSeries, type SeriesRange, type SeriesRow, seriesWindowStart } from '../platform/series';
@@ -263,4 +264,156 @@ export const listPlatformAgencies = defineTool({
   },
 });
 
-export const platformConsoleTools = [platformOverview, listPlatformAgencies];
+
+const AgencyId = z.string().max(64);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const getPlatformAgency = defineTool({
+  name: 'get_platform_agency',
+  description: 'Platform operators: one agency — health, live tiles with 28-day deltas, series, team counts per role and its clients (id, name, status, created).',
+  input: z.object({ agencyId: AgencyId, range: PlatformRangeInput }),
+  output: z.object({
+    agency: z.object({ id: z.string(), name: z.string(), createdAt: z.string(), health: HealthEnum }),
+    tiles: PlatformTiles,
+    series: z.array(PlatformSeriesPoint),
+    team: z.object({ agencyAdmin: z.number().int(), accountManager: z.number().int(), clientOwner: z.number().int(), clientViewer: z.number().int() }),
+    clients: z.array(z.object({ id: z.string(), name: z.string(), status: z.string(), createdAt: z.string() })),
+  }),
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps) {
+    const role = await requirePlatformOperator(deps, ctx);
+    const exists = UUID_RE.test(input.agencyId) && (await deps.service.select({ id: agency.id }).from(agency).where(eq(agency.id, input.agencyId)).limit(1)).length > 0;
+    // Unknown agency: no target audit_log to write into (FK), so the not_found call lands on the platform log.
+    return withPlatformAudit(deps, ctx, { tool: 'get_platform_agency', input, role, agencyId: exists ? input.agencyId : undefined }, async () => {
+      if (!exists) throw new ToolError('not_found', 'Agency not found');
+      const now = new Date();
+      const [live, rows, teamRows, clientRows] = await Promise.all([
+        liveAgencies(deps, now, input.agencyId),
+        statRows(deps, input.range, now, input.agencyId),
+        deps.service
+          .select({ role: membership.role, n: sql<number>`count(distinct ${membership.userId})::int` })
+          .from(membership)
+          .where(and(eq(membership.agencyId, input.agencyId), inArray(membership.role, ['agency_admin', 'account_manager', 'client_owner', 'client_viewer'])))
+          .groupBy(membership.role),
+        deps.service
+          .select({ id: client.id, name: client.name, status: client.status, createdAt: client.createdAt })
+          .from(client)
+          .where(eq(client.agencyId, input.agencyId))
+          .orderBy(client.name, client.id),
+      ]);
+      const a = live[0];
+      if (!a) throw new ToolError('not_found', 'Agency not found');
+      const n = (r: string) => teamRows.find((t) => t.role === r)?.n ?? 0;
+      return {
+        agency: { id: a.id, name: a.name, createdAt: a.createdAt.toISOString(), health: healthOf(a, now) },
+        tiles: tilesOf(live, rows, now),
+        series: bucketSeries(rows, input.range, now),
+        team: { agencyAdmin: n('agency_admin'), accountManager: n('account_manager'), clientOwner: n('client_owner'), clientViewer: n('client_viewer') },
+        clients: clientRows.map((c) => ({ id: c.id, name: c.name, status: c.status, createdAt: c.createdAt.toISOString() })),
+      };
+    });
+  },
+});
+
+const ACTIVITY_WEB_DEFAULT = 20;
+const ACTIVITY_KINDS = ['agency_created', 'client_created', 'client_activated', 'first_brief_sent', 'health_at_risk'] as const;
+type ActivityKind = (typeof ACTIVITY_KINDS)[number];
+type ActivityEvent = { at: Date; kind: ActivityKind; id: string; agencyId: string; agencyName: string; clientName?: string };
+const AT_RISK_WINDOW_DAYS = 90;
+const DAY_MS = 86_400_000;
+
+/**
+ * at_risk transitions recomputed from consecutive stat rows (spec: the job writes nothing extra). Same rule as `healthFlag`'s
+ * at_risk arm: agency >= 28 days old and (no activity for 14 days, or fewer active clients than 28 days earlier). Stat rows only
+ * carry `last_activity_at` (any member), so "sign-in" here is that column. Rows with `wau` NULL were not measured: skipped.
+ */
+export function atRiskTransitions(
+  rows: { agencyId: string; day: string; clientsActive: number | null; wau: number | null; lastActivityAt: Date | null }[],
+  created: Map<string, Date>,
+  sinceDay: string,
+): { agencyId: string; day: string }[] {
+  const out: { agencyId: string; day: string }[] = [];
+  const byAgency = new Map<string, typeof rows>();
+  for (const r of rows) byAgency.set(r.agencyId, [...(byAgency.get(r.agencyId) ?? []), r]);
+  for (const [agencyId, list] of byAgency) {
+    list.sort((x, y) => (x.day < y.day ? -1 : 1));
+    const active = new Map(list.map((r) => [r.day, r.clientsActive]));
+    const createdAt = created.get(agencyId);
+    if (!createdAt) continue;
+    let prev: boolean | null = null;
+    for (const r of list) {
+      if (r.wau === null) continue;
+      const end = new Date(`${r.day}T23:59:59.999Z`);
+      const mature = (end.getTime() - createdAt.getTime()) / DAY_MS >= 28;
+      const quiet = r.lastActivityAt === null || (end.getTime() - r.lastActivityAt.getTime()) / DAY_MS >= 14;
+      const then = active.get(addDays(r.day, -28)) ?? null;
+      const atRisk = mature && (quiet || (then !== null && r.clientsActive !== null && r.clientsActive < then));
+      if (atRisk && prev === false && r.day >= sinceDay) out.push({ agencyId, day: r.day });
+      prev = atRisk;
+    }
+  }
+  return out;
+}
+
+export const listPlatformActivity = defineTool({
+  name: 'list_platform_activity',
+  description: 'Platform operators: newest-first feed of agency/client creation, client activation, first brief sent and agencies turning at-risk (no client content).',
+  input: z.object({ cursor: z.string().max(200).optional(), limit: z.number().int().min(1).max(50).optional() }),
+  output: z.object({
+    items: z.array(z.object({ at: z.string(), kind: z.enum(ACTIVITY_KINDS), agencyId: z.string(), agencyName: z.string(), clientName: z.string().optional() })),
+    nextCursor: z.string().nullable(),
+  }),
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps, meta) {
+    const role = await requirePlatformOperator(deps, ctx);
+    return withPlatformAudit(deps, ctx, { tool: 'list_platform_activity', input, role }, async () => {
+      const { offset, limit } = pageOf(input, meta, ACTIVITY_WEB_DEFAULT);
+      const today = utcDay(new Date());
+      const sinceDay = addDays(today, -AT_RISK_WINDOW_DAYS);
+      const [agencies, clients, activations, firstBriefs, stats] = await Promise.all([
+        deps.service.select({ id: agency.id, name: agency.name, createdAt: agency.createdAt }).from(agency),
+        deps.service.select({ id: client.id, agencyId: client.agencyId, name: client.name, createdAt: client.createdAt }).from(client),
+        deps.service
+          .select({ id: auditLog.id, agencyId: auditLog.agencyId, at: auditLog.createdAt })
+          .from(auditLog)
+          .where(and(inArray(auditLog.tool, [...ACTIVATION_TOOLS]), eq(auditLog.outcome, 'ok'))),
+        deps.service
+          .select({ clientId: brief.clientId, at: sql<string | Date>`min(${brief.sentAt})` })
+          .from(brief)
+          .where(and(eq(brief.status, 'sent'), sql`${brief.sentAt} is not null`))
+          .groupBy(brief.clientId),
+        deps.service
+          .select({ agencyId: agencyDailyStat.agencyId, day: agencyDailyStat.day, clientsActive: agencyDailyStat.clientsActive, wau: agencyDailyStat.wau, lastActivityAt: agencyDailyStat.lastActivityAt })
+          .from(agencyDailyStat)
+          .where(and(gte(agencyDailyStat.day, addDays(sinceDay, -29)), lte(agencyDailyStat.day, today))),
+      ]);
+      const agencyName = new Map(agencies.map((a) => [a.id, a.name]));
+      const clientById = new Map(clients.map((c) => [c.id, c]));
+      const events: ActivityEvent[] = [];
+      const push = (e: Omit<ActivityEvent, 'agencyName'>) => {
+        const name = agencyName.get(e.agencyId);
+        if (name !== undefined) events.push({ ...e, agencyName: name });
+      };
+      for (const a of agencies) push({ at: a.createdAt, kind: 'agency_created', id: a.id, agencyId: a.id });
+      for (const c of clients) push({ at: c.createdAt, kind: 'client_created', id: c.id, agencyId: c.agencyId, clientName: c.name });
+      for (const r of activations) push({ at: r.at, kind: 'client_activated', id: r.id, agencyId: r.agencyId });
+      for (const b of firstBriefs) {
+        const c = clientById.get(b.clientId);
+        if (c) push({ at: new Date(b.at), kind: 'first_brief_sent', id: b.clientId, agencyId: c.agencyId, clientName: c.name });
+      }
+      const created = new Map(agencies.map((a) => [a.id, a.createdAt]));
+      for (const t of atRiskTransitions(stats, created, sinceDay)) push({ at: new Date(`${t.day}T00:00:00.000Z`), kind: 'health_at_risk', id: `${t.agencyId}:${t.day}`, agencyId: t.agencyId });
+      // Deterministic: newest first, then kind, then id, so offset pages never reshuffle equal timestamps.
+      events.sort((x, y) => y.at.getTime() - x.at.getTime() || (x.kind < y.kind ? -1 : x.kind > y.kind ? 1 : 0) || (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+      const page = pageResult(events.slice(offset, offset + limit + 1), limit, offset);
+      return {
+        items: page.rows.map((e) => ({ at: e.at.toISOString(), kind: e.kind, agencyId: e.agencyId, agencyName: e.agencyName, ...(e.clientName !== undefined ? { clientName: e.clientName } : {}) })),
+        nextCursor: page.nextCursor,
+      };
+    });
+  },
+});
+
+export const platformConsoleTools = [platformOverview, listPlatformAgencies, getPlatformAgency, listPlatformActivity];

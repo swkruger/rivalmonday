@@ -1,5 +1,5 @@
 import { type AuditEvent, createAccessContext, hashInput } from '@cs/core';
-import { agency, agencyDailyStat, brief, client, llmCall, membership, platformAdmin, platformAuditLog, vendorCall } from '@cs/db';
+import { agency, agencyDailyStat, auditLog, brief, client, llmCall, membership, platformAdmin, platformAuditLog, vendorCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -174,5 +174,111 @@ describe('platform console audit', () => {
     ]);
     expect(rows.find((r) => r.tool === 'platform_overview')!.inputHash).toBe(hashInput({ range: '12w' }));
     expect(webAudit).toEqual([]);
+  });
+});
+
+type Detail = { agency: Record<string, unknown>; tiles: Record<string, Tile>; series: Record<string, unknown>[]; team: Record<string, number>; clients: Record<string, unknown>[] };
+type Activity = { items: { at: string; kind: string; agencyId: string; agencyName: string; clientName?: string }[]; nextCursor: string | null };
+const RANDOM = '00000000-0000-4000-8000-0000000000ff';
+
+describe('get_platform_agency', () => {
+  it('unknown or malformed agencyId → not_found (audited on the platform log, no FK error)', async () => {
+    await expect(registry.invoke(op, 'get_platform_agency', { agencyId: RANDOM, range: '12w' })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(op, 'get_platform_agency', { agencyId: 'nope', range: '12w' })).rejects.toMatchObject({ code: 'not_found' });
+    const rows = await dbs.owner.select().from(platformAuditLog);
+    expect(rows.map((r) => [r.tool, r.outcome])).toEqual([['get_platform_agency', 'not_found'], ['get_platform_agency', 'not_found']]);
+  });
+
+  it('refuses non-operators with permission_denied and writes nothing', async () => {
+    await seedPlatform();
+    await expect(registry.invoke(admin, 'get_platform_agency', { agencyId: IDS.agencyA, range: '12w' })).rejects.toMatchObject({ code: 'permission_denied' });
+    expect(await dbs.owner.select().from(auditLog)).toEqual([]);
+  });
+
+  it('returns agency, one-agency tiles/series, team counts and clients with exactly {id,name,status,createdAt}', async () => {
+    await seedPlatform();
+    const r = (await registry.invoke(op, 'get_platform_agency', { agencyId: IDS.agencyA, range: '12w' })) as Detail;
+    expect(Object.keys(r.agency).sort()).toEqual(['createdAt', 'health', 'id', 'name']);
+    expect(r.agency).toMatchObject({ id: IDS.agencyA, name: 'Agency A' });
+    expect(r.team).toEqual({ agencyAdmin: 1, accountManager: 0, clientOwner: 1, clientViewer: 0 });
+    expect(r.tiles.agencies.value).toBe(1);
+    expect(r.tiles.clientsActive.value).toBe(1);
+    expect(r.tiles.seats.value).toBe(2);
+    expect(r.series).toHaveLength(12);
+    expect(r.clients.length).toBe(2);
+    for (const c of r.clients) expect(Object.keys(c).sort()).toEqual(['createdAt', 'id', 'name', 'status']);
+    expect(r.clients.map((c) => c.id)).not.toContain(IDS.clientB1);
+  });
+
+  it("audits into the target agency's audit_log as platform_owner, not the platform log", async () => {
+    await seedPlatform();
+    await registry.invoke(op, 'get_platform_agency', { agencyId: IDS.agencyB, range: '12m' });
+    const rows = await dbs.owner.select().from(auditLog);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ agencyId: IDS.agencyB, userId: 'op', role: 'platform_owner', tool: 'get_platform_agency', outcome: 'ok' });
+    expect(await dbs.owner.select().from(platformAuditLog)).toEqual([]);
+    expect(webAudit).toEqual([]);
+  });
+});
+
+describe('list_platform_activity', () => {
+  it('refuses non-operators', async () => {
+    await expect(registry.invoke(admin, 'list_platform_activity', {})).rejects.toMatchObject({ code: 'permission_denied' });
+  });
+
+  it('merges agency/client creation, activation, first brief and at-risk transitions, newest first, with only the listed fields', async () => {
+    await seedPlatform();
+    await dbs.owner.update(client).set({ createdAt: ago(20) }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ createdAt: ago(19) }).where(eq(client.id, IDS.clientA2));
+    await dbs.owner.insert(auditLog).values([
+      { agencyId: IDS.agencyA, userId: 'ua', role: 'agency_admin', tool: 'convert_prospect', inputHash: 'h', outcome: 'ok', durationMs: 1, createdAt: ago(4) },
+      { agencyId: IDS.agencyA, userId: 'ua', role: 'agency_admin', tool: 'list_clients', inputHash: 'h', outcome: 'ok', durationMs: 1, createdAt: ago(1) },
+    ]);
+    // Agency A (60 days old) was active up to 31 days ago, then went quiet: at_risk first on day -10.
+    await dbs.owner.insert(agencyDailyStat).values([
+      { agencyId: IDS.agencyA, day: addDays(today(), -32), clientsActive: 1, wau: 1, lastActivityAt: ago(32) },
+      { agencyId: IDS.agencyA, day: addDays(today(), -31), clientsActive: 1, wau: 1, lastActivityAt: ago(31) },
+      { agencyId: IDS.agencyA, day: addDays(today(), -10), clientsActive: 1, wau: 0, lastActivityAt: ago(31) },
+      { agencyId: IDS.agencyA, day: addDays(today(), -9), clientsActive: 1, wau: 0, lastActivityAt: ago(31) },
+    ]);
+    const r = (await registry.invoke(op, 'list_platform_activity', { limit: 50 })) as Activity;
+    const kinds = r.items.map((i) => i.kind);
+    expect(kinds.filter((k) => k === 'health_at_risk')).toHaveLength(1);
+    expect(kinds.filter((k) => k === 'client_activated')).toHaveLength(1);
+    expect(kinds.filter((k) => k === 'first_brief_sent')).toHaveLength(1);
+    expect(kinds.filter((k) => k === 'agency_created')).toHaveLength(2);
+    expect(kinds.filter((k) => k === 'client_created')).toHaveLength(3);
+    const times = r.items.map((i) => Date.parse(i.at));
+    expect(times).toEqual([...times].sort((a, b) => b - a));
+    for (const i of r.items) {
+      expect(Object.keys(i).every((k) => ['at', 'kind', 'agencyId', 'agencyName', 'clientName'].includes(k))).toBe(true);
+      expect(typeof i.at).toBe('string');
+    }
+    expect(r.items.find((i) => i.kind === 'client_created' && i.clientName === 'A1 HVAC')).toBeDefined();
+  });
+
+  it('pages stably across equal timestamps (offset cursor; at desc, kind, id)', async () => {
+    const same = ago(3);
+    const ids = [0, 1, 2, 3, 4].map((i) => `00000000-0000-4000-8000-0000000000${i}${i}`);
+    await dbs.owner.insert(agency).values(ids.map((id, i) => ({ id, name: `Ag ${i}`, createdAt: same })));
+    const all = (await registry.invoke(op, 'list_platform_activity', { limit: 50 })) as Activity;
+    expect(all.items).toHaveLength(5);
+    expect(all.nextCursor).toBeNull();
+    expect(all.items.map((i) => i.agencyId)).toEqual([...ids].sort());
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let n = 0; n < 5; n++) {
+      const p = (await registry.invoke(op, 'list_platform_activity', { limit: 2, ...(cursor ? { cursor } : {}) })) as Activity;
+      seen.push(...p.items.map((i) => i.agencyId));
+      if (!p.nextCursor) break;
+      cursor = p.nextCursor;
+    }
+    expect(seen).toEqual(all.items.map((i) => i.agencyId));
+    await expect(registry.invoke(op, 'list_platform_activity', { limit: 51 })).rejects.toMatchObject({ code: 'invalid_input' });
+  });
+
+  it('writes one platform_audit_log row per call', async () => {
+    await registry.invoke(op, 'list_platform_activity', {});
+    expect((await dbs.owner.select().from(platformAuditLog)).map((r) => r.tool)).toEqual(['list_platform_activity']);
   });
 });

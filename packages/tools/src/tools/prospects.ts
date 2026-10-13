@@ -106,6 +106,9 @@ export const getProspectReport = defineTool({
   },
 });
 
+/** Audit tool names whose success sets client.status = 'active' (platform activity feed: client_activated). */
+export const ACTIVATION_TOOLS = ['convert_prospect'] as const;
+
 export const convertProspect = defineTool({
   name: 'convert_prospect',
   description: 'Turn a prospect into a client: monitoring, alerts and weekly briefs start.',
