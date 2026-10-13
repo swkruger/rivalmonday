@@ -30,3 +30,8 @@ export { parseSeedFile, seedKnowledge } from './kb/seed';
 export { blocksToMarkdown, type MarkdownBlock } from './kb/blocks-to-markdown';
 export { IMPORT_ERRORS, type ImportError } from './kb/import-error';
 export { isPublicAddress, isPublicHttpUrl } from './kb/public-url';
+// Phase 8a P2: nightly agency_daily_stat computation, shared by the worker job and the demo seed.
+export {
+  type AgencyDailyStatInsert, BACKFILL_MAX_DAYS, computeAgencyDay, detectStatSources, runDailyStats, type RunDailyStatsOpts,
+  type StatSources, upsertDailyStats, utcDay,
+} from './platform/stats';
