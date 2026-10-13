@@ -2,7 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('@/app/(app)/kb/actions', () => ({ loadKbArticle: vi.fn() }));
-import { AskAnswer, evidenceIdsOf, parseAnswer } from './answer';
+import { answerMarkdown, AskAnswer, evidenceIdsOf, plainAnswer } from './answer';
 
 const C = '11111111-1111-4111-8111-111111111111';
 const E1 = '00000000-0000-4000-8000-0000000000e1';
@@ -41,11 +41,15 @@ describe('AskAnswer', () => {
   });
 });
 
-describe('parseAnswer / evidenceIdsOf', () => {
-  it('splits text, chips and reason labels', () => {
-    expect(parseAnswer(`A [ev:${E1}]. Possible reason: b.`, [`ev:${E1}`])).toEqual([
-      [{ kind: 'text', text: 'A ' }, { kind: 'chip', id: E1, n: 1 }, { kind: 'text', text: '. ' }, { kind: 'reason' }, { kind: 'text', text: ' b.' }],
-    ]);
+describe('answerMarkdown / evidenceIdsOf', () => {
+  it('turns markers and reason labels into cite links', () => {
+    expect(answerMarkdown(`A [ev:${E1}]. Possible reason: b.`, [`ev:${E1}`])).toEqual({
+      markdown: 'A [1](#cite-0). [reason](#cite-1) b.',
+      cites: [{ kind: 'ev', id: E1, n: 1 }, { kind: 'reason' }],
+    });
+  });
+  it('plainAnswer drops markers and bold', () => {
+    expect(plainAnswer(`**Acme** cut prices [ev:${E1}] [app:${E2}].`)).toBe('Acme cut prices.');
   });
   it('keeps only ev: citations, unique, at most 10', () => {
     const ids = Array.from({ length: 12 }, (_, i) => `ev:00000000-0000-4000-8000-0000000000${String(i).padStart(2, '0')}`);
@@ -69,5 +73,33 @@ describe('kb citations', () => {
   });
   it('evidenceIdsOf ignores kb refs', () => {
     expect(evidenceIdsOf([`kb:${K}`, `ev:${E1}`])).toEqual([E1]);
+  });
+});
+
+describe('markdown and app citations', () => {
+  const P = '44444444-4444-4444-8444-444444444444';
+  it('renders bold and bullet lists', () => {
+    const { container } = render(<AskAnswer clientId={C} content={`**Aire Serv** is busiest.
+
+- New ad [ev:${E1}]
+- 4 jobs`} citations={[`ev:${E1}`]} />);
+    expect(container.querySelector('strong')!.textContent).toBe('Aire Serv');
+    expect(container.querySelectorAll('ul > li')).toHaveLength(2);
+    expect(screen.getByRole('link', { name: 'Evidence 1' })).toBeTruthy();
+  });
+  it('an app citation becomes a Data chip linking to its page; without a stored page it stays text', () => {
+    const { container } = render(<AskAnswer clientId={C} content={`85 Google ads [app:${P}]. Other [app:${E2}].`} citations={[`app:${P}@/c/${C}/competitors/${P}`, `app:${E2}@//evil.example`]} />);
+    const chip = screen.getByRole('link', { name: 'Open in the app' });
+    expect(chip.getAttribute('href')).toBe(`/c/${C}/competitors/${P}`);
+    expect(chip.textContent).toBe('Data');
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(container.textContent).toContain(`[app:${E2}]`);
+  });
+  it('links and images the model wrote are not rendered as links or images', () => {
+    const { container } = render(<AskAnswer clientId={C} content={'See [this](https://evil.example) ![x](https://evil.example/t.png) and <b>raw</b>.'} citations={[]} />);
+    expect(container.querySelector('a')).toBeNull();
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('b')).toBeNull();
+    expect(container.textContent).toContain('this');
   });
 });

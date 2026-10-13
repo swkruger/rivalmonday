@@ -1,4 +1,4 @@
-export const CITATION_PREFIXES = ['ev', 'kb'] as const;
+export const CITATION_PREFIXES = ['ev', 'kb', 'app'] as const;
 
 export interface Unit {
   /** Sentence text with disallowed markers removed, allowed markers kept. */

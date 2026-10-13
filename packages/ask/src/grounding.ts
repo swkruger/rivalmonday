@@ -6,7 +6,8 @@ import { ASK_COPY } from './quota';
 
 /**
  * Verifies a draft answer ("no evidence, no claim"): cited sentences are checked as facts against their
- * cited evidence, uncited ones as interpretations against all evidence; unsupported sentences are removed.
+ * cited evidence (`ev:`), article (`kb:`) or app row (`app:`), uncited ones as interpretations against all monitored
+ * data; unsupported sentences are removed, and an answer with nothing left becomes the no-evidence line.
  * Calls are grouped by evidence string (supportCheck takes one) and run concurrently.
  */
 export async function groundAnswer(
@@ -19,9 +20,10 @@ export async function groundAnswer(
   const allowed = new Set(evidence.keys());
   const units = splitUnits(draft, CITATION_PREFIXES, allowed);
 
-  // Spec k9: knowledge never substitutes for competitor evidence, so uncited sentences are checked against ev: text only.
+  // Spec k9: knowledge never substitutes for competitor evidence, so uncited sentences are checked against monitored
+  // data only: ev: evidence and app: rows (the app's own figures), never kb: articles.
   const allText = [...evidence]
-    .filter(([id]) => id.startsWith('ev:'))
+    .filter(([id]) => !id.startsWith('kb:'))
     .map(([id, t]) => `${id}\n${t}`)
     .join('\n\n');
   const groups = new Map<string, { evidence: string; mode: ClaimMode; claims: { key: string; sentence: string; mode: ClaimMode }[] }>();
@@ -43,7 +45,8 @@ export async function groundAnswer(
   const results = await Promise.all([...groups.values()].filter((g) => g.claims.length).map((g) => supportCheck(ai, scope, today + g.evidence, g.claims)));
   for (const s of results) for (const k of s) supported.add(k);
 
-  const pieces: { text: string; sep: string; removed: boolean }[] = [];
+  const newlines = (sep: string) => (sep.match(/\n/g) ?? []).length;
+  const pieces: { text: string; sep: string }[] = [];
   const citations: string[] = [];
   let removed = 0;
   let kept = 0;
@@ -51,13 +54,14 @@ export async function groundAnswer(
     if (supported.has(`s${i}`)) {
       kept++;
       for (const r of u.refs) if (!citations.includes(r)) citations.push(r);
-      pieces.push({ text: u.raw, sep: u.sep, removed: false });
+      pieces.push({ text: u.raw, sep: u.sep });
       return;
     }
+    // Owner decision (2026-10-13): unsupported sentences are dropped silently while others survive; the no-evidence
+    // line is only the whole answer (below). The larger separator is kept so paragraphs and list items stay apart.
     removed++;
     const last = pieces[pieces.length - 1];
-    if (last?.removed) last.sep = u.sep;
-    else pieces.push({ text: ASK_COPY.noEvidence, sep: u.sep, removed: true });
+    if (last && newlines(u.sep) > newlines(last.sep)) last.sep = u.sep;
   });
   if (kept === 0) return { content: ASK_COPY.noEvidence, citations: [], removed };
   const content = pieces.map((p, i) => p.text + (i < pieces.length - 1 ? p.sep || ' ' : '')).join('');

@@ -136,9 +136,24 @@ describe('runTurn knowledge', () => {
   });
   it('prompt carries rules 1, 9 and 10', () => {
     const p = buildSystemPrompt({ assistantName: 'Friday', productName: 'Rival Monday' });
-    expect(p).toContain('[ev:<id>] (monitored evidence) or [kb:<id>] (knowledge article)');
+    expect(p).toContain('[ev:<id>] (monitored evidence), [app:<id>] (a figure');
+    expect(p).toContain('or [kb:<id>] (knowledge article)');
+    expect(p).toContain('Use simple Markdown');
     expect(p).toContain('9. For how-to questions about the product');
     expect(p).toContain("10. If the business's own knowledge disagrees with the agency's");
+  });
+});
+
+describe('runTurn app citations', () => {
+  const ROW = '66666666-6666-4666-8666-666666666666';
+  it('an [app:<id>] cite of a tool row is grounded on that row and stored with its page', async () => {
+    searchResult = () => ({ items: [{ id: ROW, title: 'Acme: 2 changes this month', url: `https://app.example.com/c/${IDS.clientA1}/changes?event=${ROW}`, evidenceIds: [] }] });
+    const { last } = await turn([
+      { kind: 'chat', reply: { toolCalls: [search] } },
+      { kind: 'chat', reply: { text: `Acme had 2 changes this month [app:${ROW}].` } },
+    ]);
+    expect(last).toMatchObject({ status: 'ok', content: `Acme had 2 changes this month [app:${ROW}].` });
+    expect(last.citations).toEqual([`app:${ROW}@/c/${IDS.clientA1}/changes?event=${ROW}`]);
   });
 });
 
@@ -169,7 +184,7 @@ describe('runTurn', () => {
       { kind: 'support', repeat: true, verdict: (s) => !s.includes('invented') },
     ]);
     expect(last).toMatchObject({ role: 'assistant', status: 'ok', citations: [`ev:${EV1}`] });
-    expect(last.content).toBe(`Acme cut its AC tune-up to $69 [ev:${EV1}]. ${ASK_COPY.noEvidence}`);
+    expect(last.content).toBe(`Acme cut its AC tune-up to $69 [ev:${EV1}].`);
     expect(events).toEqual([
       { type: 'progress', label: 'Searching competitor changes…' },
       { type: 'final', messageId: last.id, content: last.content, citations: [`ev:${EV1}`], action: null, status: 'ok' },
@@ -403,7 +418,7 @@ describe('runTurn', () => {
       { extra: { toolDeps } },
     );
     expect(last.citations).toEqual([`ev:${inScope}`]);
-    expect(last.content).toBe(`Smith HVAC charges $79 for a tune-up [ev:${inScope}]. ${ASK_COPY.noEvidence}`);
+    expect(last.content).toBe(`Smith HVAC charges $79 for a tune-up [ev:${inScope}].`);
     const evidenceSeen = ai.calls.decide.filter((d) => d.task === 'verifier_decisions').map((d) => (d.state as { evidence: string }).evidence).join(' | ');
     expect(evidenceSeen).toContain('AC tune-up now $79');
     expect(evidenceSeen).not.toContain('Teeth cleaning');

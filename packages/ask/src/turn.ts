@@ -6,6 +6,7 @@ import { agency, askMessage, askThread, client, clientCompetitor, competitor, cr
 import { ASK_WRITE_TOOLS, fetchItem, type ToolDeps } from '@cs/tools';
 import { and, asc, eq } from 'drizzle-orm';
 import { type AskAction, type AskWriteTool, actionSummary } from './actions';
+import { type AppDatum, collectAppData, withAppPaths } from './app-data';
 import { groundAnswer } from './grounding';
 import { progressLabel } from './labels';
 import { ASK_STEP_LIMIT, buildSystemPrompt } from './prompt';
@@ -306,6 +307,7 @@ export async function runTurn(
 
   const evidence = new Map<string, string>();
   const bodied = new Set<string>();
+  const appData = new Map<string, AppDatum>();
   const addCost = (c: number | null) => {
     trace.costUsd = trace.costUsd === null || c === null ? null : trace.costUsd + c;
   };
@@ -371,6 +373,7 @@ export async function runTurn(
             result = await deps.registry.invoke(ctx, call.name, parsed.value, { channel: 'ask' });
             rows = countRows(result);
             collectEvidence(call.name, result, evidence, bodied);
+            collectAppData(result, thread.clientId, appData);
           } catch (err) {
             error = err instanceof ToolError ? err.code : 'internal';
           }
@@ -380,8 +383,9 @@ export async function runTurn(
       }
     }
     await addEvidenceAccessText(deps, ctx, thread.clientId, draft, evidence, bodied, redact);
+    for (const [key, d] of appData) evidence.set(key, d.text);
     const grounded = await groundAnswer(deps.ai, scope, draft, evidence);
     trace.removedSentences = grounded.removed;
-    return { role: 'assistant', content: grounded.content, status: 'ok', citations: grounded.citations };
+    return { role: 'assistant', content: grounded.content, status: 'ok', citations: withAppPaths(grounded.citations, appData) };
   }
 }

@@ -48,10 +48,28 @@ describe('groundAnswer', () => {
     expect(calls[0]!.evidence).toContain(`ev:${A}`);
     expect(calls[0]!.evidence).toContain('beta text');
   });
-  it('consecutive removed sentences collapse to one no-evidence line', async () => {
+  it('removed sentences are dropped silently while others survive (owner decision 2026-10-13)', async () => {
     const r = await groundAnswer(fakeAi(), scope, `Good [ev:${A}]. BAD one. BAD two. Fine [ev:${B}].`, ev);
-    expect(r.content).toBe(`Good [ev:${A}]. ${NO} Fine [ev:${B}].`);
+    expect(r.content).toBe(`Good [ev:${A}]. Fine [ev:${B}].`);
     expect(r.removed).toBe(2);
+  });
+  it('a dropped list item keeps the paragraph break before the next block', async () => {
+    const r = await groundAnswer(fakeAi(), scope, `Intro [ev:${A}].
+- BAD item
+
+After [ev:${B}].`, ev);
+    expect(r.content).toBe(`Intro [ev:${A}].
+
+After [ev:${B}].`);
+  });
+  it('an uncited sentence may be backed by app data, a cited app row is checked against that row', async () => {
+    const P = '44444444-4444-4444-4444-444444444444';
+    const appEv = new Map([...ev, [`app:${P}`, '{"name":"Aire Serv","activeAds":{"google":85}}']]);
+    const calls: Call[] = [];
+    const r = await groundAnswer(fakeAi(calls), scope, `Aire Serv runs 85 Google ads [app:${P}]. It is the busiest.`, appEv);
+    expect(r.citations).toEqual([`app:${P}`]);
+    expect(calls.find((c) => c.sentences[0]!.includes('85 Google'))!.evidence).toContain('"google":85');
+    expect(calls.find((c) => c.sentences[0]!.includes('busiest'))!.evidence).toContain(`app:${P}`);
   });
   it('all removed → only the no-evidence line', async () => {
     const r = await groundAnswer(fakeAi(), scope, `BAD one [ev:${A}]. BAD two.`, ev);
@@ -73,7 +91,8 @@ describe('groundAnswer', () => {
       }),
     } as unknown as Ai;
     const r = await groundAnswer(ai, scope, `Rivals cut prices. Playbook idea [kb:${K}].`, kbEv);
-    expect(r.content).toBe(`${NO} Playbook idea [kb:${K}].`);
+    expect(r.content).toBe(`Playbook idea [kb:${K}].`);
+    expect(r.removed).toBe(1);
     expect(r.citations).toEqual([`kb:${K}`]);
   });
 });
