@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
 import { MOVE_LABELS } from '../pressure';
 import { detailOf, pageOf, pageResult } from '../paging';
-import { eventEvidenceIds, eventRowSelect, toEventRow } from '../workspace/events-read';
+import { citableEvidenceKinds, eventEvidenceIds, eventRowSelect, toEventRow } from '../workspace/events-read';
 import { channelLabel, detailLines, factView } from '../workspace/labels';
 import { forChannel, summaryForChannel } from '../workspace/model-text';
 import { clientEvents, escapeLike, eventJoin, requireVisibleEvent, workspaceClient } from '../workspace/scope';
@@ -56,7 +56,7 @@ export const searchEvents = defineTool({
         .where(and(...conds)).orderBy(desc(changeEvent.occurredAt), desc(changeEvent.id)).limit(limit + 1).offset(offset));
     const page = pageResult(rows, limit, offset);
     if (detailOf(input, meta) === 'summary') {
-      const evidence = await eventEvidenceIds(deps, page.rows.map((r) => r.eventId)); // visibility proved by the query above
+      const evidence = await eventEvidenceIds(deps, page.rows.map((r) => r.eventId), citableEvidenceKinds(meta)); // visibility proved by the query above
       return {
         items: page.rows.map((r) => ({
           id: r.eventId, title: `${r.competitorName}: ${forChannel(meta, r.summary, [r.competitorName])}`.slice(0, 160), date: r.occurredAt.toISOString(),

@@ -68,4 +68,11 @@ describe('list_ads summary (mcp)', () => {
     const row = out.items.find((i) => i.title === 'Captured ad')!;
     expect([...row.evidenceIds].sort()).toEqual([cap.ids.text!, cap.ids.screenshot!].sort());
   });
+
+  it('on the ask channel evidenceIds also carry vendor data, never html', async () => {
+    const cap = await seedCapture({ source: 'meta_ads', kinds: ['html', 'vendor_json'] });
+    await seedAds({ ads: [{ platform: 'meta', externalId: 'm10', title: 'Vendor-only ad', isActive: true, firstSeenAt: ago(0), lastSeenAt: ago(0), firstCaptureId: cap.captureId }] });
+    const out = (await registry.invoke(am, 'list_ads', { clientId: IDS.clientA1 }, { channel: 'ask' })) as { items: { title: string; evidenceIds: string[] }[] };
+    expect(out.items.find((i) => i.title === 'Vendor-only ad')!.evidenceIds).toEqual([cap.ids.vendor_json]);
+  });
 });

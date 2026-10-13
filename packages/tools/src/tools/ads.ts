@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { detailOf, pageOf, pageResult } from '../paging';
 import { workspaceBusinesses } from '../workspace/business';
+import { citableEvidenceKinds } from '../workspace/events-read';
 import { forChannel } from '../workspace/model-text';
 import { workspaceClient } from '../workspace/scope';
 import { requireTracked } from './pages';
@@ -55,12 +56,12 @@ export const listAds = defineTool({
       .orderBy(desc(ad.isActive), desc(ad.lastSeenAt), desc(ad.id)).offset(offset).limit(limit + 1);
     const page = pageResult(rows, limit, offset);
     if (detailOf(input, meta) === 'summary') {
-      // The ad's text/screenshot capture evidence (first sighting, else latest), as eventEvidenceIds; global rows, visibility proved above.
+      // The ad's citable capture evidence (first sighting, else latest), as eventEvidenceIds; global rows, visibility proved above.
       const captureOf = new Map(page.rows.map((a) => [a.id, a.firstCaptureId ?? a.lastCaptureId]));
       const captureIds = [...new Set([...captureOf.values()].filter((v): v is string => !!v))];
       const ev = captureIds.length
         ? await deps.service.select({ captureId: evidence.captureId, id: evidence.id }).from(evidence)
-          .where(and(inArray(evidence.captureId, captureIds), inArray(evidence.kind, ['text', 'screenshot']))).orderBy(asc(evidence.kind), asc(evidence.id))
+          .where(and(inArray(evidence.captureId, captureIds), inArray(evidence.kind, citableEvidenceKinds(meta)))).orderBy(asc(evidence.kind), asc(evidence.id))
         : [];
       return {
         items: page.rows.map((a) => {

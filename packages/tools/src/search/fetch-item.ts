@@ -8,7 +8,7 @@ import type { ToolDeps } from '../deps';
 import { kbNamesFor } from '../kb/names';
 import { briefDetail } from '../tools/briefs';
 import { competitorLinked } from '../workspace/evidence-access';
-import { eventEvidenceIds } from '../workspace/events-read';
+import { eventEvidenceIds, MCP_EVIDENCE_KINDS } from '../workspace/events-read';
 import { channelLabel, detailLines, factView, humanise } from '../workspace/labels';
 import { eventJoin } from '../workspace/scope';
 import { type ActiveClient, activeClients, DASHBOARD_ITEM_TYPES, requireActiveClient } from './scope';
@@ -109,7 +109,7 @@ async function fetchEvent(deps: ToolDeps, ctx: AccessContext, id: string): Promi
   const r = rows.find((x) => x.clientId === c.id)!;
   const facts = (r.facts ?? []).map(factView).map((f) => `${humanise(f.kind)}: ${f.before ?? '—'} → ${f.after ?? '—'}${f.pct !== null ? ` (${f.pct > 0 ? '+' : ''}${f.pct}%)` : ''}`);
   const details = detailLines(r.details).map((d) => `${d.label}: ${d.value}`);
-  const evidenceIds = (await eventEvidenceIds(deps, [id])).get(id) ?? []; // visibility proved above
+  const evidenceIds = (await eventEvidenceIds(deps, [id], MCP_EVIDENCE_KINDS)).get(id) ?? []; // visibility proved above
   return {
     id: `event:${id}`, title: `${r.name}: ${changeTypeLabel(r.changeType)}`,
     text: redact([r.summary, ...facts, ...details].join('\n'), [r.name, c.name]),

@@ -147,6 +147,16 @@ describe('search_events paging and detail', () => {
     expect([...out.items[0]!.evidenceIds].sort()).toEqual([before.ids.text!, after.ids.text!, after.ids.screenshot!].sort());
   });
 
+  it('ask summary rows also cite vendor data (after text/screenshot); mcp rows never do', async () => {
+    const before = await seedCapture({ kinds: ['vendor_json'] });
+    const after = await seedCapture({ kinds: ['vendor_json', 'text'] });
+    await seedEvent({ score: 18, route: 'archive', ageDays: 1, captures: { before: before.captureId, after: after.captureId } });
+    const ask = (await registry.invoke(am, 'search_events', { clientId: IDS.clientA1, route: 'all' }, { channel: 'ask' })) as { items: { evidenceIds: string[] }[] };
+    expect([...ask.items[0]!.evidenceIds].sort()).toEqual([before.ids.vendor_json!, after.ids.vendor_json!, after.ids.text!].sort());
+    expect(ask.items[0]!.evidenceIds[0]).toBe(after.ids.text);
+    expect((await page({ route: 'all' })).items[0]!.evidenceIds).toEqual([after.ids.text]);
+  });
+
   it('web call without detail returns full rows unchanged', async () => {
     await seedEvent({ score: 86, route: 'alert', ageDays: 1 });
     const r = await search(am);

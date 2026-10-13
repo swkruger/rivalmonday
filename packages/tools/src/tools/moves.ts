@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
 import { MOVE_LABELS } from '../pressure';
 import { detailOf, pageOf, pageResult } from '../paging';
-import { eventEvidenceIds, eventRowSelect, toEventRow } from '../workspace/events-read';
+import { citableEvidenceKinds, eventEvidenceIds, eventRowSelect, toEventRow } from '../workspace/events-read';
 import { humanise } from '../workspace/labels';
 import { summaryForChannel } from '../workspace/model-text';
 import { clientEvents, eventJoin, liveEventCount, workspaceClient } from '../workspace/scope';
@@ -62,7 +62,7 @@ export const listMoves = defineTool({
           .innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked)
           .where(and(inArray(moveEvent.moveId, rows.map((m) => m.id)), clientEvents(c.id))).orderBy(desc(changeEvent.occurredAt), desc(changeEvent.id)))
       : [];
-    const evidence = await eventEvidenceIds(deps, [...new Set(links.map((l) => l.eventId))]);
+    const evidence = await eventEvidenceIds(deps, [...new Set(links.map((l) => l.eventId))], citableEvidenceKinds(meta));
     const evidenceOf = (moveId: string): string[] => {
       const ids: string[] = [];
       for (const l of links) if (l.moveId === moveId) for (const id of evidence.get(l.eventId) ?? []) if (!ids.includes(id)) ids.push(id);
