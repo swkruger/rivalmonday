@@ -6,6 +6,7 @@ export * from './delivery';
 export * from './engine';
 export * from './evidence';
 export * from './insights';
+export * from './knowledge';
 export * from './ledger';
 export * from './mcp';
 export * from './model-ops';

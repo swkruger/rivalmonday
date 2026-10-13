@@ -175,7 +175,7 @@ describe('search_tsv', () => {
     const cols = (await dbs.owner.execute(sql`
       SELECT table_name AS t, data_type AS d, is_generated AS g FROM information_schema.columns
       WHERE table_schema = 'public' AND column_name = 'search_tsv' ORDER BY table_name`)) as unknown as { t: string; d: string; g: string }[];
-    expect(cols.map((c) => c.t)).toEqual(['alert', 'brief_item', 'event', 'recommendation', 'review']);
+    expect(cols.map((c) => c.t)).toEqual(['alert', 'brief_item', 'event', 'kb_chunk', 'recommendation', 'review']);
     for (const c of cols) expect(c).toMatchObject({ d: 'tsvector', g: 'ALWAYS' });
     const idx = (await dbs.owner.execute(sql`
       SELECT tablename AS t FROM pg_indexes WHERE schemaname = 'public' AND indexname LIKE '%search_tsv_idx' AND indexdef LIKE '%USING gin%' ORDER BY tablename`)) as unknown as { t: string }[];
