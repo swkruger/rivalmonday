@@ -25,6 +25,9 @@ import type { Viewer } from '@/server/viewer';
  * writes one `audit_log` row just to build the client switcher. The guest top-bar label reads the client name
  * directly through `withTenant` (RLS-scoped, not a registered tool) to avoid adding a second audited call here.
  */
+/** The support banner's height: two lines (h-14) below `sm`, one line (h-9) from `sm` up. */
+const BANNER_OFFSET = 'pt-14 sm:pt-9';
+
 export async function AppShell({ viewer, ctx, children }: { viewer: Exclude<Viewer, { kind: 'member-less' }>; ctx: AccessContext; children: React.ReactNode }) {
   const { branding, assistantName } = await themeForViewer(viewer);
   const clients = isAgencyRole(ctx.role) ? (await callTool<{ items: ClientSummary[] }>(ctx, 'list_clients', {})).items : [];
@@ -48,7 +51,7 @@ export async function AppShell({ viewer, ctx, children }: { viewer: Exclude<View
   return (
     <ReadOnlyProvider readOnly={support !== null}>
       {support && <SupportBanner sessionId={support.id} agencyName={support.agencyName} reason={support.reason} expiresAt={support.expiresAt.toISOString()} />}
-      <div className={`flex min-h-screen bg-canvas${support ? ' pt-9' : ''}`}>
+      <div className={`flex min-h-screen bg-canvas${support ? ` ${BANNER_OFFSET}` : ''}`}>
         <Sidebar branding={branding} flags={flags} clients={navClients} offsetTop={support !== null} />
         <div className="flex min-w-0 flex-1 flex-col">
           {viewer.kind === 'guest' && <GuestBanner />}

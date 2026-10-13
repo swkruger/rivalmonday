@@ -16,9 +16,17 @@ export function SignOutButton() {
       variant="outline"
       onClick={async () => {
         // Phase 8b: first, while the Better Auth session still identifies the user, so an open support session ends too.
-        await endSession();
-        await authClient.signOut();
-        router.push('/sign-in');
+        // Sign-out never depends on endSession (the DB): its failure must not keep the user signed in.
+        try {
+          await endSession();
+        } catch {
+          // already logged server-side; continue signing out
+        }
+        try {
+          await authClient.signOut();
+        } finally {
+          router.push('/sign-in');
+        }
       }}
     >
       Sign out

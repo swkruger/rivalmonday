@@ -11,7 +11,7 @@ Execution started 2026-10-13, **stacked on `phase-8`** (owner go-ahead: build 8b
 2. Merge order: phase-8 first, then rebase 8b on main and `/rm-merge phase-8b`.
 
 ## Interfaces this branch adds or changes
-None yet.
+- /platform pages moved to `app/(platform)/platform/**` (own layout, requireOperatorContext); 9a plan paths must follow.
 
 ## Assumes from other branches
 - **phase-8 (8a):** `platform_admin` (owner|staff|viewer), `platformRole`, `requirePlatformOperator(deps, ctx, min?)`, `recordPlatformAudit` (`tools/src/platform/audit.ts`, per-agency → target `audit_log` with `role = 'platform_<role>'`), `get_platform_agency`, `/platform/agencies/[id]` stub, `platform_audit_log`, `navFlagsFor(v, isPlatformOperator)`. 8b deepens that page.

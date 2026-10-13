@@ -21,6 +21,17 @@ describe('endSession (sign-out)', () => {
     expect(m.set.mock.calls.find((c) => c[0] === 'rm_support')![2]).toMatchObject({ maxAge: 0, path: '/' });
   });
 
+  it('still clears every cookie when ending the support row fails (sign-out never depends on the DB)', async () => {
+    m.session = { user: { id: 'op' } };
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    m.endOpen.mockRejectedValue(new TypeError('connect ECONNREFUSED secret-host'));
+    await expect(endSession()).resolves.toBeUndefined();
+    expect(m.set.mock.calls.map((c) => c[0])).toEqual(expect.arrayContaining(['rm_support', 'rm_guest', 'rm_membership']));
+    expect(err).toHaveBeenCalledWith(expect.any(String), 'TypeError');
+    expect(JSON.stringify(err.mock.calls)).not.toContain('secret-host');
+    err.mockRestore();
+  });
+
   it('a guest (no Better Auth session) ends nothing but still clears the cookies', async () => {
     m.session = null;
     await endSession();

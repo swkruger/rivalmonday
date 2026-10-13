@@ -1,5 +1,7 @@
+import { endOpenSessionFor } from '@cs/tools';
 import { type NextRequest, NextResponse } from 'next/server';
 import { requireOperatorContext } from '@/server/current-viewer';
+import { dbs } from '@/server/db';
 import { webEnv } from '@/server/env';
 import { runTool } from '@/server/run-tool';
 import { SUPPORT_COOKIE } from '@/server/support-cookie';
@@ -21,7 +23,8 @@ export async function POST(req: NextRequest) {
   if (!sameOrigin(req)) return new NextResponse('Forbidden', { status: 403 });
   const { ctx } = await requireOperatorContext();
   const r = await runTool<{ agencyId: string | null }>(ctx, 'end_support_session', {});
-  const agencyId = r.ok ? r.data.agencyId : null;
+  // A refusal must not leave the row open: end the caller's own session directly (same row the tool would end).
+  const agencyId = r.ok ? r.data.agencyId : await endOpenSessionFor(dbs().service, ctx.userId);
   const to = agencyId ? `/platform/agencies/${agencyId}?ended=1` : '/platform';
   const res = NextResponse.redirect(new URL(to, webEnv().appUrl), 303);
   res.cookies.delete({ name: SUPPORT_COOKIE, path: '/' });

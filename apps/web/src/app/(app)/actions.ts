@@ -26,7 +26,13 @@ export async function switchMembership(formData: FormData) {
  * redirect a member-less operator), so `SignOutButton` calls this before `authClient.signOut()`.
  */
 export async function endSession(): Promise<void> {
-  const s = await auth().api.getSession({ headers: await headers() });
-  if (s) await endOpenSessionFor(dbs().service, s.user.id);
+  // Sign-out never depends on the database: a failure to end the support row is logged (class only) and the cookies
+  // are cleared regardless (the row then ends at expiry or on the next start).
+  try {
+    const s = await auth().api.getSession({ headers: await headers() });
+    if (s) await endOpenSessionFor(dbs().service, s.user.id);
+  } catch (e) {
+    console.error('sign-out: could not end the support session', e instanceof Error ? e.name : typeof e);
+  }
   clearSessionCookies(await cookies());
 }

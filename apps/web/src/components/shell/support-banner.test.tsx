@@ -12,7 +12,7 @@ describe('SupportBanner', () => {
     const { container } = render(<SupportBanner sessionId={SID} agencyName="Acme Agency" reason="Checking brief setup" expiresAt={expiresAt} />);
     expect(screen.getByText('Acme Agency').tagName).toBe('STRONG');
     expect(screen.getByText('Checking brief setup')).toBeTruthy();
-    expect(screen.getByText('· 30 min left')).toBeTruthy();
+    expect(screen.getByTestId('support-minutes').textContent).toBe('· 30 min left');
     expect(container.textContent).toContain('as platform · read only ·');
     const form = container.querySelector('form')!;
     expect(form.getAttribute('method')).toBe('post');
@@ -24,7 +24,7 @@ describe('SupportBanner', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-13T10:00:00Z'));
     render(<SupportBanner sessionId={SID} agencyName="Acme" reason="reason here" expiresAt="2026-10-13T10:01:00Z" />);
-    expect(screen.getByText('· 1 min left')).toBeTruthy();
+    expect(screen.getByTestId('support-minutes').textContent).toBe('· 1 min left');
     act(() => { vi.advanceTimersByTime(60_000); });
     const link = screen.getByRole('link', { name: 'Session ended — reload' });
     expect(link.getAttribute('href')).toBe(`/support/end?sid=${SID}&next=%2Fagency`);

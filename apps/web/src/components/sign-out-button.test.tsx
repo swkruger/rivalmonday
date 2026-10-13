@@ -25,4 +25,12 @@ describe('SignOutButton', () => {
     // Phase 8b: endSession runs while the user is still signed in, so it can end their support session.
     expect(endSession.mock.invocationCallOrder[0]!).toBeLessThan(signOut.mock.invocationCallOrder[0]!);
   });
+
+  it('still signs out and navigates when endSession rejects', async () => {
+    endSession.mockRejectedValueOnce(new Error('db down'));
+    render(<SignOutButton />);
+    fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/sign-in'));
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
 });
