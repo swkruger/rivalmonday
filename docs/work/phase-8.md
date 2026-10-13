@@ -11,11 +11,14 @@
 2. 8b brainstorm after 8a (Brief §6 Q2, Q8).
 
 ## Interfaces this branch adds or changes
-None yet. Planned (8a): tables `platform_admin`, `agency_daily_stat`, `platform_audit_log` (service role only; next free migration ≥ `0044`); `PlatformRole`, `platformRole`, `requirePlatformOperator(deps, ctx, min?)`; `navFlagsFor(v, isPlatformOperator: boolean)`; tools `platform_overview`, `list_platform_agencies`, `get_platform_agency`, `list_platform_activity`; job `platform-daily-stats`; routes `/platform`, `/platform/agencies[/id]`, `/platform/health`; CLI `platform-admin`; E2E tag `@platform`.
+None yet. Planned (8a): tables `platform_admin`, `agency_daily_stat`, `platform_audit_log` (service role only; next free migration `0047`); `PlatformRole`, `platformRole`, `requirePlatformOperator(deps, ctx, min?)`; `navFlagsFor(v, isPlatformOperator: boolean)`; tools `platform_overview`, `list_platform_agencies`, `get_platform_agency`, `list_platform_activity`; job `platform-daily-stats`; routes `/platform`, `/platform/agencies[/id]`, `/platform/health`; CLI `platform-admin`; E2E tag `@platform`.
 
-## Assumes from other branches
-- **phase-6:** migrations `0038`–`0041` (done), `0042_ask`/`0043_ask_rls` (planned); `withTenant` sets `app.user_id`/`app.role`; registry `channels`/`audit`/`mcpScope`, `CallOptions`, hidden = `not_found`; `audit_log` + `channel`, `token_id`. 6b Task 11 adds `/platform/ask` (service-role helpers in `tools/src/platform.ts`, `requirePlatformOperator`, audit `platform_view_ask_thread`) + a nav entry. Activity sources: `api_token.last_used_at`, `ask_thread`/`ask_message`, audit rows by `channel`.
-- **phase-7-planning (parked):** 7a decision 4 plans `/platform/health` + `platform_health` tool (`tools/src/platform-health.ts`, `ToolDeps.queueStats`), no migrations. Its gate `PLATFORM_ADMIN_EMAILS` **already exists on main**; only page/tool are new. Shared files: `nav-items.ts`, `deps.ts`, `tools/all.ts`, `server/tools.ts`.
+## Verified at pre-flight 2026-10-13 (replaces "Assumes")
+- phase-6 merged (main @ 5aedcb6); no rebase needed. Next free migration **0047** (dir `packages/db/migrations/`; 0048 for RLS). Roles `app_user`/`app_service`; default privileges grant both, so revoke app_user.
+- `requirePlatformOperator(Pick<ToolDeps,'service'|'platformAdmins'>, ctx): Promise<void>`, env-email only; 14 call sites. `navFlagsFor(v, platformAdmins[], assistantName)` today (plan Task 2 changes it to boolean); operator nav items live in the `account` group, no Platform section.
+- `audit_log.role` is plain text (no CHECK); `channel` CHECK web|mcp|ask. `AuditEvent.role` is typed `Role` so `recordPlatformAudit` inserts into `auditLog` directly; `hashInput` is private in `core/src/tools.ts`.
+- Paging: `tools/src/paging.ts` offset cursors (`pageOf`, `pageResult`); `ACTIVATION_TOOLS=['convert_prospect']`; brief/alert have no `retracted_at`; membership is multi-row per user; `auth.session` columns camelCase.
+- Worker jobs are listed in `apps/worker/src/main.ts`; worker and demo already depend on `@cs/tools`.
 
 ## Decisions (owner-approved)
 - Split 8a (list + growth/activity) / 8b (drill-down). Console will later host agency management (add/delete/suspend), agency comms, income statement.
