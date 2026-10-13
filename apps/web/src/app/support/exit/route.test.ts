@@ -53,7 +53,7 @@ describe('POST /support/exit', () => {
   });
 
   it('still clears rm_support and 303s when the fallback end throws, logging only the error class', async () => {
-    m.runTool.mockResolvedValue({ ok: false, error: 'Read-only support session — changes are disabled.' });
+    m.runTool.mockResolvedValue({ ok: false, error: 'Read-only support session â€” changes are disabled.' });
     m.endOpen.mockRejectedValue(new TypeError('connection string postgres://secret'));
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const res = await post('https://app.example');
@@ -61,6 +61,18 @@ describe('POST /support/exit', () => {
     expect(res.headers.get('location')).toBe('https://app.example/platform');
     expect(res.headers.get('set-cookie')).toMatch(/rm_support=;/);
     expect(JSON.stringify(spy.mock.calls)).not.toContain('secret');
+    spy.mockRestore();
+  });
+
+  it('still ends the row, clears rm_support and 303s when runTool itself throws', async () => {
+    m.runTool.mockRejectedValue(new Error('db down'));
+    m.endOpen.mockResolvedValue(AG);
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const res = await post('https://app.example');
+    expect(m.endOpen).toHaveBeenCalledWith('service-db', 'op');
+    expect(res.status).toBe(303);
+    expect(res.headers.get('location')).toBe(`https://app.example/platform/agencies/${AG}?ended=1`);
+    expect(res.headers.get('set-cookie')).toMatch(/rm_support=;/);
     spy.mockRestore();
   });
 

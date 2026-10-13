@@ -29,7 +29,7 @@ vi.mock('@/app/(app)/c/[clientId]/competitors/actions', () => ({
 const { WebhookToggle, AddWebhookForm } = await import('@/app/(app)/agency/webhooks/webhook-controls');
 const { InviteForm, RemoveMemberButton } = await import('@/app/(app)/agency/team/invite-form');
 const { AddRecipientForm, DeactivateRecipientButton, DeliveryForm } = await import('@/app/(app)/c/[clientId]/settings/delivery/delivery-controls');
-const { AddCompetitorForm, TrackedCompetitorsTable } = await import('@/app/(app)/c/[clientId]/competitors/competitor-controls');
+const { AddCompetitorForm, SuggestionsPanel, TrackedCompetitorsTable } = await import('@/app/(app)/c/[clientId]/competitors/competitor-controls');
 const { ReviewItem, ReviewFooter } = await import('@/app/(app)/agency/approvals/[briefId]/review-controls');
 const { AlertList } = await import('@/app/(app)/agency/alerts/alert-controls');
 const { RecommendationBoard } = await import('./recommendation-board');
@@ -137,5 +137,16 @@ describe('write controls hide in a support session', () => {
     inReadOnly(<AlertList items={[alert]} />);
     expect(screen.getByText('Price drop')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /dismiss|approve/i })).toBeNull();
+  });
+  it('suggestions panel stays and lists suggestions, but search, Accept and Dismiss are absent', () => {
+    const s = [{ id: 's1', name: 'Peachtree Air', domain: 'peachtreeair.com', placeId: 'p', rating: 4.6, votes: 120, appearances: 7, bestRank: 2, overlapScore: 0.82 }] as never;
+    inWritable(<SuggestionsPanel clientId="c1" ready suggestions={s} atLimit={false} canSearch />);
+    expect(screen.getByRole('button', { name: /accept peachtree air/i })).toBeTruthy();
+    document.body.innerHTML = '';
+    const { container } = inReadOnly(<SuggestionsPanel clientId="c1" ready suggestions={s} atLimit={false} canSearch />);
+    expect(screen.getByText('Peachtree Air')).toBeTruthy();
+    expect(screen.getByText(/overlap 82%/i)).toBeTruthy();
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(container.querySelector('form')).toBeNull();
   });
 });

@@ -180,7 +180,8 @@ export function SuggestionsPanel({
   canSearch: boolean;
 }) {
   const [state, formAction, pending] = useActionState(requestSuggestionsAction, { ok: true } as FormResult);
-  const progress = useSearchProgress(clientId, initialSearch, state, canSearch);
+  const readOnly = useReadOnly();
+  const progress = useSearchProgress(clientId, initialSearch, state, canSearch && !readOnly);
   const searching = progress === 'searching';
   const [rowState, rowAction, rowPending] = useActionState(suggestionAction, { ok: true } as RowResult);
   return (
@@ -189,7 +190,7 @@ export function SuggestionsPanel({
         <CardTitle>Suggested competitors</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        {canSearch && !ready && (
+        {canSearch && !readOnly && !ready && (
           <p className="text-muted-foreground">
             Add at least one keyword and a service area to the client profile before searching.{' '}
             <Link href={`/c/${clientId}/settings/profile`} className="font-semibold text-primary-soft-text">
@@ -197,7 +198,7 @@ export function SuggestionsPanel({
             </Link>
           </p>
         )}
-        {canSearch ? (
+        {readOnly ? null : canSearch ? (
           <form action={formAction} className="flex flex-col gap-2">
             <input type="hidden" name="clientId" value={clientId} />
             <Button type="submit" disabled={!ready || pending || searching} className="self-start">
@@ -230,10 +231,12 @@ export function SuggestionsPanel({
                   </p>
                   <p className="text-sm text-muted-foreground">Overlap {Math.round(s.overlapScore * 100)}%</p>
                 </div>
-                <div className="flex gap-2">
-                  <AcceptSuggestionForm clientId={clientId} suggestion={s} atLimit={atLimit} limit={limit} action={rowAction} pending={rowPending} />
-                  <DismissSuggestionForm clientId={clientId} suggestion={s} action={rowAction} pending={rowPending} />
-                </div>
+                {!readOnly && (
+                  <div className="flex gap-2">
+                    <AcceptSuggestionForm clientId={clientId} suggestion={s} atLimit={atLimit} limit={limit} action={rowAction} pending={rowPending} />
+                    <DismissSuggestionForm clientId={clientId} suggestion={s} action={rowAction} pending={rowPending} />
+                  </div>
+                )}
               </div>
             ))}
           </div>

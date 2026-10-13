@@ -22,7 +22,13 @@ function sameOrigin(req: NextRequest): boolean {
 export async function POST(req: NextRequest) {
   if (!sameOrigin(req)) return new NextResponse('Forbidden', { status: 403 });
   const { ctx } = await requireOperatorContext();
-  const r = await runTool<{ agencyId: string | null }>(ctx, 'end_support_session', {});
+  // A throwing tool (e.g. a database outage) must not skip the cookie clear: treat it as a refusal and fall through.
+  let r: Awaited<ReturnType<typeof runTool<{ agencyId: string | null }>>> | { ok: false } = { ok: false };
+  try {
+    r = await runTool<{ agencyId: string | null }>(ctx, 'end_support_session', {});
+  } catch (e) {
+    console.error('support exit tool failed', e instanceof Error ? e.constructor.name : 'unknown');
+  }
   // A refusal must not leave the row open: end the caller's own session directly (same row the tool would end).
   let agencyId: string | null = null;
   if (r.ok) agencyId = r.data.agencyId;

@@ -51,17 +51,15 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
         </CardContent>
       </Card>
       {canManage && (
-        <WriteGuard>
-          <SuggestionsPanel
-            clientId={clientId}
-            ready={profile.keywords.length > 0 && profile.serviceArea !== null}
-            suggestions={suggestions.items}
-            initialSearch={search.state}
-            atLimit={atLimit}
-            limit={tracked.limit}
-            canSearch={agency}
-          />
-        </WriteGuard>
+        <SuggestionsPanel
+          clientId={clientId}
+          ready={profile.keywords.length > 0 && profile.serviceArea !== null}
+          suggestions={suggestions.items}
+          initialSearch={search.state}
+          atLimit={atLimit}
+          limit={tracked.limit}
+          canSearch={agency}
+        />
       )}
     </>
   );

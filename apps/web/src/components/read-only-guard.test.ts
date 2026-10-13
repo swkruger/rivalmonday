@@ -41,12 +41,44 @@ function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) walk(p, out);
-    else if (/\.tsx$/.test(name) && !/\.test\./.test(name)) out.push(p);
+    else if (/\.tsx?$/.test(name) && !/\.test\./.test(name)) out.push(p);
   }
   return out;
 }
 
+/**
+ * Client components that run an action themselves (`useActionState(`, or an `action`-typed prop, or an actions import)
+ * must guard themselves, because their callers differ. Removing `useReadOnly` from a self-guarding component fails here.
+ */
+const CLIENT_EXEMPT: Record<string, string> = {
+  'app/(app)/settings/notifications/contact-form.tsx': 'page is a 404 in a support session',
+  'app/(app)/settings/notifications/pref-switch.tsx': 'page is a 404 in a support session',
+  'app/(app)/agency/settings/platform-access/notify-switch.tsx': 'page is a 404 in a support session (viewer.kind !== user)',
+  'components/ask/thread-list.tsx': 'Ask UI is never rendered in a support session (supportAskView)',
+  'components/ask/ask-chat.tsx': 'Ask UI is never rendered in a support session (supportAskView)',
+  'components/ask/confirm-card.tsx': 'Ask UI is never rendered in a support session (supportAskView)',
+  'components/sign-out-button.tsx': 'sign-out only; no write tool',
+  'components/shell/guest-sign-out-button.tsx': 'guest sign-out only; no write tool',
+  'components/kb/article-sheet.tsx': 'loadKbArticle is a read',
+};
+const CLIENT_ACTION = /useActionState\(|\b\w*[aA]ction\??:\s*(?:\(|FormAction|RowAction|SetStatusAction|SaveRecommendationAction|[A-Z]\w*Action\b)/;
+
 describe('write controls are guarded', () => {
+  it('every client component that runs an action references useReadOnly or WriteGuard, or is on the reasoned allow-list', () => {
+    const files = [...walk(join(SRC, 'app', '(app)')), ...walk(join(SRC, 'components'))].map((p) => ({
+      rel: relative(SRC, p).split(sep).join('/'),
+      text: readFileSync(p, 'utf8'),
+    }));
+    const clients = files.filter((f) => /^\s*(['"])use client\1/.test(f.text) && (CLIENT_ACTION.test(f.text) || ACTION_IMPORT.test(f.text)));
+    const offenders = clients.filter((f) => !GUARD.test(f.text) && !(f.rel in CLIENT_EXEMPT)).map((f) => f.rel);
+    expect(offenders).toEqual([]);
+    const stale = Object.keys(CLIENT_EXEMPT).filter((rel) => {
+      const f = files.find((x) => x.rel === rel);
+      return !f || GUARD.test(f.text) || !/^\s*(['"])use client\1/.test(f.text);
+    });
+    expect(stale).toEqual([]);
+  });
+
   const files = [...walk(join(SRC, 'app', '(app)')), ...walk(join(SRC, 'components'))].map((p) => ({
     rel: relative(SRC, p).split(sep).join('/'),
     text: readFileSync(p, 'utf8'),
