@@ -21,8 +21,12 @@ describe('parseCitations', () => {
     const r = parseCitations(`Intro.\n- one [ev:${A}]\n- two`, CITATION_PREFIXES, allowed);
     expect(r.sentences.map((s) => s.text)).toEqual(['Intro.', '- one', '- two']);
   });
+  it('accepts kb: citations', () => {
+    const r = parseCitations(`Claim [kb:${A}].`, CITATION_PREFIXES, new Set([`kb:${A}`]));
+    expect(r.sentences[0]!.refs).toEqual([`kb:${A}`]);
+  });
   it('prefix list honoured (kb ignored when only ev allowed)', () => {
-    const r = parseCitations(`Claim [kb:${A}] [ev:${B}].`, CITATION_PREFIXES, allowed);
+    const r = parseCitations(`Claim [kb:${A}] [ev:${B}].`, ['ev'], allowed);
     expect(r.sentences[0]!.refs).toEqual([`ev:${B}`]);
     expect(r.sentences[0]!.text).toContain(`[kb:${A}]`);
   });

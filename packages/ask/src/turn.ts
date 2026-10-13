@@ -113,6 +113,15 @@ function collectEvidence(tool: string, result: unknown, evidence: Map<string, st
     return;
   }
   const node = result as Record<string, unknown>;
+  if (typeof node.kbId === 'string' && UUID.test(node.kbId) && Array.isArray(node.chunks)) {
+    const key = `kb:${node.kbId.toLowerCase()}`;
+    const body = node.chunks.filter((c): c is string => typeof c === 'string').join('\n');
+    if (body.trim()) {
+      bodied.add(key);
+      const prev = evidence.get(key) ?? '';
+      if (!prev.includes(body)) evidence.set(key, (prev ? `${prev}\n${body}` : body).slice(0, EVIDENCE_TEXT_CHARS));
+    }
+  }
   const ids: unknown[] = [];
   for (const key of ['evidenceIds', 'evidence_ids'] as const) if (Array.isArray(node[key])) ids.push(...(node[key] as unknown[]));
   const meta = node.metadata as Record<string, unknown> | undefined;
@@ -338,6 +347,10 @@ export async function runTurn(
           }
         } else {
           try {
+            // S9: client-level knowledge is returned only for the thread's client, whatever the model sent (or omitted).
+            if (call.name === 'search_knowledge' && parsed.value && typeof parsed.value === 'object' && !Array.isArray(parsed.value)) {
+              parsed.value = { ...(parsed.value as Record<string, unknown>), clientId: thread.clientId };
+            }
             result = await deps.registry.invoke(ctx, call.name, parsed.value, { channel: 'ask' });
             rows = countRows(result);
             collectEvidence(call.name, result, evidence, bodied);

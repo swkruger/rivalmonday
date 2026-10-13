@@ -5,6 +5,7 @@ import type { ToolDeps } from '@cs/tools';
 import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
+import { buildSystemPrompt } from './prompt';
 import { ASK_COPY, beginTurn } from './quota';
 import { createScriptedAskAi, type ScriptedStep } from './testing';
 import { type AskDeps, type AskEvent, type AskTrace, runTurn } from './turn';
@@ -24,6 +25,9 @@ const audited: AuditEvent[] = [];
 const addRecHandler = vi.fn(async () => ({ id: 'x' }));
 let searchResult: () => unknown = () => ({ items: [{ id: 'e1', title: 'Acme cut AC tune-up to $69', summary: 'price change', evidenceIds: [EV1] }] });
 let onSearch: () => void = () => {};
+const KB1 = '44444444-4444-4444-8444-444444444444';
+const KB2 = '55555555-5555-4555-8555-555555555555';
+const kbSeen: unknown[] = [];
 
 const registry = new ToolRegistry<ToolDeps>({} as ToolDeps, { record: async (e) => void audited.push(e) }).register(
   defineTool({
@@ -32,6 +36,14 @@ const registry = new ToolRegistry<ToolDeps>({} as ToolDeps, { record: async (e) 
     handler: async () => {
       onSearch();
       return searchResult() as never;
+    },
+  }),
+  defineTool({
+    name: 'search_knowledge', description: 'Search knowledge', input: z.object({ query: z.string(), clientId: z.string().optional() }), output: z.any(),
+    permission: 'read', channels: ['ask'],
+    handler: async (_c, i) => {
+      kbSeen.push(i);
+      return { results: [{ kbId: KB1, title: 'Add a competitor', kind: 'article', level: 'platform', updatedAt: '2026-10-01', chunks: ['Open Competitors and press Add.'] }] } as never;
     },
   }),
   defineTool({
@@ -60,6 +72,7 @@ beforeEach(async () => {
   await seedTenancy(dbs.owner);
   await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values ('u-owner', 'u-owner', 'u-owner@example.com', true)`);
   audited.length = 0;
+  kbSeen.length = 0;
   addRecHandler.mockClear();
   searchResult = () => ({ items: [{ id: 'e1', title: 'Acme cut AC tune-up to $69', summary: 'price change', evidenceIds: [EV1] }] });
   onSearch = () => {};
@@ -87,6 +100,40 @@ const search = { name: 'search_events', args: { clientId: IDS.clientA1 } };
 const toolMessages = (ai: ReturnType<typeof createScriptedAskAi>, call = -1) =>
   ai.calls.chat.at(call)!.messages.filter((m) => m.role === 'tool').map((m) => m.content);
 
+describe('runTurn knowledge', () => {
+  const kbSearch = (args: unknown) => ({ name: 'search_knowledge', args });
+  it('grounds a kb citation and stores it in refs; pins clientId', async () => {
+    const { last } = await turn([
+      { kind: 'chat', reply: { toolCalls: [kbSearch({ query: 'add competitor' })] } },
+      { kind: 'chat', reply: { text: `Open Competitors and press Add [kb:${KB1}].` } },
+    ]);
+    expect(last).toMatchObject({ status: 'ok', citations: [`kb:${KB1}`], content: `Open Competitors and press Add [kb:${KB1}].` });
+    expect(kbSeen).toEqual([{ query: 'add competitor', clientId: IDS.clientA1 }]);
+  });
+  it('overrides a model-supplied clientId of another client', async () => {
+    await turn([
+      { kind: 'chat', reply: { toolCalls: [kbSearch({ query: 'x', clientId: IDS.clientB1 })] } },
+      { kind: 'chat', reply: { text: `Open Competitors and press Add [kb:${KB1}].` } },
+    ]);
+    expect(kbSeen).toEqual([{ query: 'x', clientId: IDS.clientA1 }]);
+  });
+  it('removes a kb cite that was not returned this turn', async () => {
+    const { last } = await turn([
+      { kind: 'chat', reply: { toolCalls: [kbSearch({ query: 'x' })] } },
+      { kind: 'chat', reply: { text: `Open Competitors and press Add [kb:${KB1}]. Invented fact [kb:${KB2}].` } },
+      { kind: 'support', repeat: true, verdict: (s) => !s.includes('Invented') },
+    ]);
+    expect(last.citations).toEqual([`kb:${KB1}`]);
+    expect(last.content).not.toContain(KB2);
+  });
+  it('prompt carries rules 1, 9 and 10', () => {
+    const p = buildSystemPrompt({ assistantName: 'Friday', productName: 'Rival Monday' });
+    expect(p).toContain('[ev:<id>] (monitored evidence) or [kb:<id>] (knowledge article)');
+    expect(p).toContain('9. For how-to questions about the product');
+    expect(p).toContain("10. If the business's own knowledge disagrees with the agency's");
+  });
+});
+
 describe('runTurn', () => {
   it('answers after one tool call with verified citations', async () => {
     const before = (await dbs.owner.select().from(askThread))[0];
@@ -104,7 +151,7 @@ describe('runTurn', () => {
     expect(trace.removedSentences).toBe(1);
     expect(ai.calls.chat[0]!.task).toBe('ask_assistant');
     expect(ai.calls.chat[0]!.messages[0]).toMatchObject({ role: 'system', cacheControl: true });
-    expect(ai.calls.chat[0]!.tools.map((x) => x.name)).toEqual(['add_recommendation', 'get_evidence', 'list_alerts', 'search_events']);
+    expect(ai.calls.chat[0]!.tools.map((x) => x.name)).toEqual(['add_recommendation', 'get_evidence', 'list_alerts', 'search_events', 'search_knowledge']);
     expect(ai.calls.chat[0]!.tools[0]!.parameters).toMatchObject({ type: 'object' });
     // registry audited the tool call; the question is audited once on channel ask
     expect(audited.map((a) => [a.tool, a.channel])).toEqual([['search_events', 'ask']]);
