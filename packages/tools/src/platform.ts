@@ -10,15 +10,20 @@ export { normalizeAdminEmails } from '@cs/core';
 export type PlatformRole = 'owner' | 'staff' | 'viewer';
 const RANK: Record<PlatformRole, number> = { viewer: 1, staff: 2, owner: 3 };
 
-type PlatformDeps = Pick<ToolDeps, 'service' | 'platformAdmins'>;
+export type PlatformDeps = Pick<ToolDeps, 'service' | 'platformAdmins'>;
 
 /** 8a d2. Guests ('contact:…') never qualify. Env list (PLATFORM_ADMIN_EMAILS) wins (always owner); else the active platform_admin row. */
 export async function platformRole(deps: PlatformDeps, ctx: AccessContext): Promise<PlatformRole | null> {
-  if (ctx.userId.startsWith('contact:')) return null;
+  return platformRoleForUser(deps, ctx.userId);
+}
+
+/** The role logic of `platformRole`, for callers that have only a user id (8b support-session resolution). */
+export async function platformRoleForUser(deps: PlatformDeps, userId: string): Promise<PlatformRole | null> {
+  if (userId.startsWith('contact:')) return null;
   const rows = [...(await deps.service.execute<{ email: string; role: PlatformRole | null }>(sql`
     select u.email, pa.role from auth."user" u
     left join platform_admin pa on pa.user_id = u.id and pa.revoked_at is null
-    where u.id = ${ctx.userId}`))];
+    where u.id = ${userId}`))];
   const row = rows[0];
   if (!row) return null;
   if ((deps.platformAdmins ?? []).includes(row.email.toLowerCase())) return 'owner';
