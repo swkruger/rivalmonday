@@ -37,10 +37,8 @@ describe('support sessions refuse every registered write tool', () => {
     // Web-visible writes get the g10 refusal; hidden or non-web ones are already unknown (not_found).
     expect((err as ToolError).code).toBe(webVisible ? 'read_only_session' : 'not_found');
     if (webVisible) expect((err as ToolError).message).toBe('Read-only support session — changes are disabled.');
-    if (tool.audit !== 'skip-web') {
-      expect(events).toHaveLength(1);
-      expect(events[0]).toMatchObject({ role: 'platform_support', supportSessionId: SID, userId: OP });
-    }
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ role: 'platform_support', supportSessionId: SID, userId: OP });
   });
 
   it.each(writes.filter((t) => (t.channels ?? []).some((c) => c !== 'web')).map((t) => [t.name, t] as const))(

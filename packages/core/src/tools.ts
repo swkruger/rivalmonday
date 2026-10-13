@@ -202,7 +202,8 @@ export class ToolRegistry<D> {
       else if (outcome !== 'permission_denied') outcome = 'internal';
       throw err;
     } finally {
-      if (!(tool?.audit === 'skip-web' && opts.channel === 'web')) try {
+      // Phase 8b: every call inside a support session is audited, skip-web included.
+      if (!(tool?.audit === 'skip-web' && opts.channel === 'web' && !ctx.support)) try {
         await this.audit.record({
           agencyId: ctx.agencyId,
           userId: ctx.support ? ctx.support.platformUserId : ctx.userId,

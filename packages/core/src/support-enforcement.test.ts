@@ -25,6 +25,11 @@ const hiddenTool = defineTool({
   permission: 'read', supportHidden: true, handler: async () => ({ ok: true }),
 });
 
+const quietTool = defineTool({
+  name: 'quiet_read', access: 'read', description: 'q', input: z.object({}), output: z.object({ ok: z.boolean() }),
+  permission: 'read', audit: 'skip-web', handler: async () => ({ ok: true }),
+});
+
 const support = createAccessContext({
   agencyId: A, userId: OP, role: 'agency_admin', clientScope: 'all', features: [],
   support: { sessionId: SID, platformUserId: OP },
@@ -38,7 +43,7 @@ beforeEach(() => {
   events = [];
   writeHandler.mockClear();
   registry = new ToolRegistry<Record<string, never>>({}, { record: async (e) => { events.push(e); } });
-  registry.register(writeTool, readTool, hiddenTool);
+  registry.register(writeTool, readTool, hiddenTool, quietTool);
 });
 
 describe('support-session enforcement', () => {
@@ -99,5 +104,13 @@ describe('support-session enforcement', () => {
   it('audits non-support calls with the ctx role and a null session id', async () => {
     await registry.invoke(admin, 'read_people', {});
     expect(events.at(-1)).toMatchObject({ role: 'agency_admin', userId: 'admin', supportSessionId: null });
+  });
+
+  it('audits skip-web tools inside a support session, but still skips them outside one', async () => {
+    await registry.invoke(admin, 'quiet_read', {});
+    expect(events).toHaveLength(0);
+    await registry.invoke(support, 'quiet_read', {});
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ tool: 'quiet_read', role: 'platform_support', supportSessionId: SID, userId: OP, outcome: 'ok' });
   });
 });
