@@ -110,3 +110,8 @@ list_theme_proposals (themes.ts) | read | read-only
 decide_theme_proposal (themes.ts) | write | decides proposal
 get_usage (usage.ts) | read | read-only
 set_client_limits (usage.ts) | write | updates client
+start_support_session (support.ts) | write | opens a session row + audit; operator ctx only
+end_support_session (support.ts) | write | ends the caller's open session
+list_support_sessions (support.ts) | read | read-only; agency_admin; supportHidden
+set_support_access_notify (support.ts) | write | updates agency flag
+list_agency_support_sessions (support.ts) | read | read; audit row only (platform console)

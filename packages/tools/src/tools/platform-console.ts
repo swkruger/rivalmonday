@@ -1,5 +1,5 @@
 import { type AccessContext, ToolError, toolkit } from '@cs/core';
-import { agency, agencyDailyStat, auditLog, brief, client, membership } from '@cs/db';
+import { agency, agencyDailyStat, auditLog, brief, client, membership, supportSession } from '@cs/db';
 import { and, eq, gte, inArray, lte, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
@@ -320,7 +320,7 @@ export const getPlatformAgency = defineTool({
 });
 
 const ACTIVITY_WEB_DEFAULT = 20;
-const ACTIVITY_KINDS = ['agency_created', 'client_created', 'client_activated', 'first_brief_sent', 'health_at_risk'] as const;
+const ACTIVITY_KINDS = ['agency_created', 'client_created', 'client_activated', 'first_brief_sent', 'health_at_risk', 'support_session_started'] as const;
 type ActivityKind = (typeof ACTIVITY_KINDS)[number];
 type ActivityEvent = { at: Date; kind: ActivityKind; id: string; agencyId: string; agencyName: string; clientName?: string };
 const AT_RISK_WINDOW_DAYS = 90;
@@ -362,7 +362,7 @@ export function atRiskTransitions(
 export const listPlatformActivity = defineTool({
   name: 'list_platform_activity',
   access: 'read',
-  description: 'Platform operators: newest-first feed of agency/client creation, client activation, first brief sent and agencies turning at-risk (no client content).',
+  description: 'Platform operators: newest-first feed of agency/client creation, client activation, first brief sent, agencies turning at-risk and support sessions opened (no client content, no session reasons).',
   input: z.object({ cursor: z.string().max(200).optional(), limit: z.number().int().min(1).max(50).optional() }),
   output: z.object({
     items: z.array(z.object({ at: z.string(), kind: z.enum(ACTIVITY_KINDS), agencyId: z.string(), agencyName: z.string(), clientName: z.string().optional() })),
@@ -376,7 +376,7 @@ export const listPlatformActivity = defineTool({
       const { offset, limit } = pageOf(input, meta, ACTIVITY_WEB_DEFAULT);
       const today = utcDay(new Date());
       const sinceDay = addDays(today, -AT_RISK_WINDOW_DAYS);
-      const [agencies, clients, activations, firstBriefs, stats] = await Promise.all([
+      const [agencies, clients, activations, firstBriefs, stats, supportStarts] = await Promise.all([
         deps.service.select({ id: agency.id, name: agency.name, createdAt: agency.createdAt }).from(agency),
         deps.service.select({ id: client.id, agencyId: client.agencyId, name: client.name, createdAt: client.createdAt }).from(client),
         deps.service
@@ -392,6 +392,8 @@ export const listPlatformActivity = defineTool({
           .select({ agencyId: agencyDailyStat.agencyId, day: agencyDailyStat.day, clientsActive: agencyDailyStat.clientsActive, wau: agencyDailyStat.wau, lastActivityAt: agencyDailyStat.lastActivityAt })
           .from(agencyDailyStat)
           .where(and(gte(agencyDailyStat.day, addDays(sinceDay, -57)), lte(agencyDailyStat.day, today))),
+        // Never the reason: it is shown to the agency, not in the platform-wide feed.
+        deps.service.select({ id: supportSession.id, agencyId: supportSession.agencyId, at: supportSession.startedAt }).from(supportSession),
       ]);
       const agencyName = new Map(agencies.map((a) => [a.id, a.name]));
       const clientById = new Map(clients.map((c) => [c.id, c]));
@@ -407,6 +409,7 @@ export const listPlatformActivity = defineTool({
         const c = clientById.get(b.clientId);
         if (c) push({ at: new Date(b.at), kind: 'first_brief_sent', id: b.clientId, agencyId: c.agencyId, clientName: c.name });
       }
+      for (const r of supportStarts) push({ at: r.at, kind: 'support_session_started', id: r.id, agencyId: r.agencyId });
       const created = new Map(agencies.map((a) => [a.id, a.createdAt]));
       for (const t of atRiskTransitions(stats, created, sinceDay)) push({ at: new Date(`${t.day}T00:00:00.000Z`), kind: 'health_at_risk', id: `${t.agencyId}:${t.day}`, agencyId: t.agencyId });
       // Deterministic: newest first, then kind, then id, so offset pages never reshuffle equal timestamps.

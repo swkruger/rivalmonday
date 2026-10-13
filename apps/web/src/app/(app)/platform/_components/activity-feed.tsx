@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 
-export type ActivityKind = 'agency_created' | 'client_created' | 'client_activated' | 'first_brief_sent' | 'health_at_risk';
+export type ActivityKind = 'agency_created' | 'client_created' | 'client_activated' | 'first_brief_sent' | 'health_at_risk' | 'support_session_started';
 export interface ActivityItem {
   at: string;
   kind: ActivityKind;
@@ -27,6 +27,8 @@ function describe(i: ActivityItem): string {
       return 'sent its first brief';
     case 'health_at_risk':
       return 'is now at risk';
+    case 'support_session_started':
+      return 'had a support session opened';
   }
 }
 

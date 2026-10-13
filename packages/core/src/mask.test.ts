@@ -60,4 +60,19 @@ describe('maskSupportFields', () => {
   it('masks a top-level array output', () => {
     expect(maskSupportFields([{ email: 'a@b.co' }], ['[].email'])).toEqual([{ email: 'a•••@b.co' }]);
   });
+
+  it('masks a dedicated email field fail-closed: free text or a non-address becomes •••', () => {
+    expect(maskSupportFields({ email: 'not an address' }, ['email'])).toEqual({ email: '•••' });
+    expect(maskSupportFields({ ownerEmail: 'ann@x.io' }, ['ownerEmail'])).toEqual({ ownerEmail: 'a•••@x.io' });
+    expect(maskSupportFields({ ownerName: 'Ann <ann@x.io>' }, ['ownerName'])).toEqual({ ownerName: 'Ann <a•••@x.io>' });
+  });
+});
+
+describe('maskEmailsIn performance', () => {
+  it('finishes fast on a 100k-character string without @ and on one long run before an @', () => {
+    const t = Date.now();
+    expect(maskEmailsIn('a'.repeat(100_000))).toBe('a'.repeat(100_000));
+    maskEmailsIn(`${'a'.repeat(100_000)}@x.io`);
+    expect(Date.now() - t).toBeLessThan(500);
+  });
 });

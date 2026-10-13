@@ -5,6 +5,7 @@ import { AlertEmail, alertSubject } from './templates/alert';
 import { BriefEmail, briefSubject } from './templates/brief';
 import { DigestEmail, digestSubject } from './templates/digest';
 import { SignInEmail, signInSubject } from './templates/sign-in';
+import { SupportSessionStartedEmail, supportSessionStartedSubject } from './templates/support-session-started';
 import { TrendReportEmail, trendReportSubject } from './templates/trend-report';
 import type { EmailPayload, RenderedEmail } from './types';
 
@@ -20,6 +21,8 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
       return { el: createElement(BriefEmail, p.props), subject: briefSubject(p.props) };
     case 'sign_in':
       return { el: createElement(SignInEmail, p.props), subject: signInSubject(p.props) };
+    case 'support_session_started':
+      return { el: createElement(SupportSessionStartedEmail, p.props), subject: supportSessionStartedSubject() };
     case 'trend_report':
       return { el: createElement(TrendReportEmail, p.props), subject: trendReportSubject(p.props) };
     default:

@@ -7,15 +7,16 @@ const WRITE_TOOLS = [
   'accept_competitor_suggestion', 'add_client_recipient', 'add_competitor', 'add_recommendation', 'add_tracked_page', 'add_webhook',
   'approve_alert', 'approve_brief', 'convert_prospect', 'create_api_token', 'create_client', 'deactivate_recipient',
   'decide_theme_proposal', 'delete_kb_article', 'delete_my_ask_thread', 'dismiss_alert', 'dismiss_competitor_suggestion',
-  'drop_brief_item', 'edit_brief_item', 'import_kb_url', 'invite_member', 'rate_brief_item', 'remove_competitor',
+  'drop_brief_item', 'edit_brief_item', 'end_support_session', 'import_kb_url', 'invite_member', 'rate_brief_item', 'remove_competitor',
   'reorder_brief_items', 'request_competitor_suggestions', 'resolve_decision_review', 'revoke_api_token', 'revoke_invitation',
   'revoke_membership', 'revoke_oauth_grant', 'run_prospect_snapshot', 'send_brief_now', 'set_alert_rules', 'set_brief_auto_send',
-  'set_client_limits', 'set_kb_auto_sync', 'set_my_notification_pref', 'set_page_pin', 'set_webhook_active', 'submit_feedback',
+  'set_client_limits', 'set_kb_auto_sync', 'set_my_notification_pref', 'set_page_pin', 'set_support_access_notify', 'set_webhook_active', 'start_support_session', 'submit_feedback',
   'update_agency_branding', 'update_client_delivery', 'update_client_profile', 'update_my_contact', 'update_playbook',
   'update_recommendation_status', 'upsert_kb_article',
 ].sort();
 
 const ASK_THREAD_TOOLS = ['delete_my_ask_thread', 'get_ask_starters', 'get_my_ask_thread', 'list_my_ask_threads'];
+const SUPPORT_HIDDEN_TOOLS = [...ASK_THREAD_TOOLS, 'list_support_sessions'].sort();
 
 /** Every key matching /email/i in a zod schema, as a support-mask path (`[]` for arrays). `stack` holds ancestors only, so a reused sub-schema is walked at each use. */
 function emailPaths(schema: z.ZodType, prefix = '', stack: readonly unknown[] = [], keyMatches: (k: string) => boolean = (k) => /email/i.test(k)): string[] {
@@ -77,8 +78,8 @@ describe('tool access marks', () => {
     expect(allTools.filter((t) => t.access === 'write').map((t) => t.name).sort()).toEqual(WRITE_TOOLS);
   });
 
-  it('the Ask-thread tools (and only those) are supportHidden', () => {
-    expect(allTools.filter((t) => t.supportHidden).map((t) => t.name).sort()).toEqual(ASK_THREAD_TOOLS);
+  it('the Ask-thread tools and list_support_sessions (and only those) are supportHidden', () => {
+    expect(allTools.filter((t) => t.supportHidden).map((t) => t.name).sort()).toEqual(SUPPORT_HIDDEN_TOOLS);
   });
 
   it('every declared supportMask path exists in the output schema (extra paths such as ownerName are allowed)', () => {

@@ -46,6 +46,12 @@ describe('startSession / endSession', () => {
     expect((await rowOf(b.id)).endedAt).toBeNull();
   });
 
+  it('ends an already-expired open session as expired, not replaced', async () => {
+    const a = await startSession(dbs.service, { platformUserId: 'op', agencyId: IDS.agencyA, reason: 'first reason', now: NOW });
+    await startSession(dbs.service, { platformUserId: 'op', agencyId: IDS.agencyB, reason: 'second reason', now: min(61) });
+    expect((await rowOf(a.id)).endReason).toBe('expired');
+  });
+
   it('throws not_found for an unknown agency', async () => {
     await expect(
       startSession(dbs.service, { platformUserId: 'op', agencyId: '00000000-0000-4000-8000-00000000ffff', reason: 'some reason' }),

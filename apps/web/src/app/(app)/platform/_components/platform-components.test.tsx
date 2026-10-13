@@ -40,6 +40,7 @@ describe('ActivityFeed', () => {
             item({ kind: 'client_activated' }),
             item({ kind: 'first_brief_sent' }),
             item({ kind: 'health_at_risk' }),
+            item({ kind: 'support_session_started' }),
           ],
           nextCursor: null,
         }}
@@ -51,6 +52,7 @@ describe('ActivityFeed', () => {
     expect(screen.getByText(/activated a client/i)).toBeTruthy();
     expect(screen.getByText(/first brief/i)).toBeTruthy();
     expect(screen.getByText(/at risk/i)).toBeTruthy();
+    expect(screen.getByText(/support session opened/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Show more' })).toBeNull();
   });
 

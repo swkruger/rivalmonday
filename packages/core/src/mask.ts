@@ -6,10 +6,11 @@ export function maskEmail(email: string): string {
 }
 
 /** An e-mail address inside free text (local part up to whitespace/brackets/quotes; domain labels without a trailing dot). */
-const EMAIL_IN_TEXT = /[^\s@<>()[\]"',;:]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*/g;
+const EMAIL_IN_TEXT = /[^\s@<>()[\]"',;:]{1,64}@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*/g;
 
 /** Masks every e-mail substring with `maskEmail`: `Ann <ann@x.io>` → `Ann <a•••@x.io>`; text without one is returned unchanged. */
 export function maskEmailsIn(text: string): string {
+  if (!text.includes('@')) return text;
   return text.replace(EMAIL_IN_TEXT, (m) => maskEmail(m));
 }
 
@@ -25,8 +26,17 @@ function parsePath(path: string): { key: string | null; each: boolean }[] {
   });
 }
 
-function applyPath(node: unknown, steps: { key: string | null; each: boolean }[], i: number): unknown {
-  if (i === steps.length) return typeof node === 'string' ? maskEmailsIn(node) : node;
+type Step = { key: string | null; each: boolean };
+
+/** A dedicated e-mail field (last key matches /email/i) is masked fail-closed; any other key may hold an address inside free text. */
+function maskLeaf(node: unknown, steps: Step[]): unknown {
+  if (typeof node !== 'string') return node;
+  const last = [...steps].reverse().find((s) => s.key !== null)?.key ?? '';
+  return /email/i.test(last) ? maskEmail(node) : maskEmailsIn(node);
+}
+
+function applyPath(node: unknown, steps: Step[], i: number): unknown {
+  if (i === steps.length) return maskLeaf(node, steps);
   const step = steps[i]!;
   if (step.each) {
     if (!Array.isArray(node)) return node;

@@ -1,6 +1,6 @@
 import { isUuid, ToolError } from '@cs/core';
 import { agency, type Db, supportSession } from '@cs/db';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, lte } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
 import { platformRoleForUser } from '../platform';
 import { isUniqueViolation } from '../settings';
@@ -43,6 +43,11 @@ function openTx(
   return service.transaction(async (tx) => {
     const [ag] = await tx.select({ name: agency.name }).from(agency).where(eq(agency.id, a.agencyId));
     if (!ag) throw new ToolError('not_found', 'Agency not found');
+    // An open row that already ran out is 'expired', not 'replaced' (the history must say what happened).
+    await tx
+      .update(supportSession)
+      .set({ endedAt: now, endReason: 'expired' })
+      .where(and(eq(supportSession.platformUserId, a.platformUserId), isNull(supportSession.endedAt), lte(supportSession.expiresAt, now)));
     await tx
       .update(supportSession)
       .set({ endedAt: now, endReason: 'replaced' })

@@ -59,13 +59,22 @@ export interface SignInEmailProps {
   url: string;
   expiresMinutes: number;
 }
+export interface SupportSessionStartedProps {
+  branding: Branding;
+  recipientName: string | null;
+  platformAdminName: string;
+  /** Human-readable date, e.g. "October 13, 2026". */
+  date: string;
+  reason: string;
+}
 export type EmailPayload =
   | { template: 'alert'; props: AlertEmailProps }
   | { template: 'alert_digest'; props: DigestEmailProps }
   | { template: 'agency_notice'; props: AgencyNoticeProps }
   | { template: 'brief'; props: BriefEmailProps }
   | { template: 'trend_report'; props: TrendReportEmailProps }
-  | { template: 'sign_in'; props: SignInEmailProps };
+  | { template: 'sign_in'; props: SignInEmailProps }
+  | { template: 'support_session_started'; props: SupportSessionStartedProps };
 export interface RenderedEmail {
   subject: string;
   html: string;
