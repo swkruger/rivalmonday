@@ -28,7 +28,9 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
       </>
     );
   }
-  const reviewAllowed = ctx.role === 'agency_admin' ? (await callTool<{ reviewAllowed: boolean }>(ctx, 'get_ask_starters', { clientId })).reviewAllowed : true;
+  // Phase 8b: `get_ask_starters` is hidden in a support session and the session is read-only, so the Ask-review toggle (an agency-admin write control) is omitted there rather than shown with a guessed value.
+  const showReviewToggle = ctx.role === 'agency_admin' && !ctx.support;
+  const reviewAllowed = showReviewToggle ? (await callTool<{ reviewAllowed: boolean }>(ctx, 'get_ask_starters', { clientId })).reviewAllowed : true;
   return (
     <>
       {p.status === 'prospect' && (
@@ -44,7 +46,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
         mode="edit" action={updateProfileAction} verticals={await verticalOptions()} clientId={clientId}
         initial={{ name: p.name, verticalId: p.verticalId, services: p.services, keywords: p.keywords, placeId: p.placeId, serviceArea: p.serviceArea }}
       />
-      <ClientFeaturesForm clientId={clientId} features={p.features} action={saveFeaturesAction} role={ctx.role} reviewAllowed={reviewAllowed} />
+      <ClientFeaturesForm clientId={clientId} features={p.features} action={saveFeaturesAction} role={showReviewToggle ? ctx.role : undefined} reviewAllowed={reviewAllowed} />
     </>
   );
 }

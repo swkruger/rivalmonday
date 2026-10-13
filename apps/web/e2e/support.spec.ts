@@ -122,6 +122,10 @@ test.describe('support sessions', () => {
       await expect(banner(page)).toContainText('Checking the client overview renders');
       await expect(page.getByRole('heading', { name: 'Target Plumbing' }).first()).toBeVisible();
       await expect(page.getByRole('link', { name: 'Add client' })).toHaveCount(0);
+      const profile = await page.goto(`/c/${clientId}/settings/profile`);
+      expect(profile?.status()).toBe(200);
+      await expect(page.getByRole('heading', { name: 'Profile — Target Plumbing' })).toBeVisible();
+      await expect(banner(page)).toBeVisible();
       await page.goto(`/c/${clientId}/competitors`);
       await expect(banner(page)).toBeVisible();
       await expect(page.getByRole('button', { name: /add competitor/i })).toHaveCount(0);
