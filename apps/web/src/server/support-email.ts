@@ -1,6 +1,7 @@
 import 'server-only';
 import type { Db } from '@cs/db';
 import { type EmailTransport, renderEmail, resolveBranding } from '@cs/email';
+import { supportDisplayName } from '@cs/tools';
 import { sql } from 'drizzle-orm';
 
 /**
@@ -41,7 +42,7 @@ export async function sendSupportSessionStartedEmailWith(deps: SupportEmailDeps,
       try {
         const r = await renderEmail({
           template: 'support_session_started',
-          props: { branding, recipientName: firstNameSource(admin), platformAdminName: row.admin_name, date, reason: row.reason },
+          props: { branding, recipientName: firstNameSource(admin), platformAdminName: supportDisplayName(row.admin_name), date, reason: row.reason },
         });
         await deps.transport.send(
           { from: deps.from, to: admin.email, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'support_session_started', metadata: {} },

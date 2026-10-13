@@ -34,6 +34,7 @@ export { isPublicAddress, isPublicHttpUrl } from './kb/public-url';
 export {
   endOpenSessionFor, endSession, type OpenSupportSession, resolveSession, type ResolveResult, startSession, SUPPORT_SESSION_MINUTES,
 } from './platform/support';
+export { supportDisplayName } from './tools/support';
 // Phase 8a P2: nightly agency_daily_stat computation, shared by the worker job and the demo seed.
 export {
   addDays, type AgencyDailyStatInsert, BACKFILL_MAX_DAYS, computeAgencyDay, detectStatSources, runDailyStats, type RunDailyStatsOpts,

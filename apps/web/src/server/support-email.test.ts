@@ -57,6 +57,15 @@ describe('sendSupportSessionStartedEmail', () => {
     expect(t.sent[1]!.text).toContain('Hi,');
   });
 
+  it('never shows an operator name that is an email address', async () => {
+    await dbs.owner.update(agency).set({ notifySupportAccess: true }).where(eq(agency.id, IDS.agencyA));
+    await dbs.owner.execute(sql`update auth."user" set name = 'pat@rivalmonday.test' where id = 'op'`);
+    const t = createMemoryTransport();
+    await run(t);
+    expect(t.sent[0]!.text).toContain('Rival Monday support opened a read-only session');
+    expect(JSON.stringify(t.sent)).not.toContain('pat@rivalmonday.test');
+  });
+
   it('never throws when the transport fails, and logs no address or reason', async () => {
     await dbs.owner.update(agency).set({ notifySupportAccess: true }).where(eq(agency.id, IDS.agencyA));
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
