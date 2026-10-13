@@ -59,6 +59,8 @@ export interface AuditEvent {
   inputHash: string;
   channel: ToolChannel;
   tokenId: string | null;
+  /** Phase 8b: set by the registry (Task 6) for support-session calls. */
+  supportSessionId?: string | null;
   outcome: 'ok' | ToolErrorCode;
   rowCount: number | null;
   durationMs: number;

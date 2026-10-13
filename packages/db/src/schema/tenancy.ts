@@ -27,6 +27,8 @@ export const agency = pgTable('agency', {
   name: text('name').notNull(),
   /** Per-agency white-label settings (spec §5.1), edited by Phase 5. */
   branding: jsonb('branding').$type<AgencyBranding | null>(),
+  /** Phase 8b: email agency admins when platform support opens a session. Service role only (app_user has no UPDATE on agency). */
+  notifySupportAccess: boolean('notify_support_access').notNull().default(false),
   createdAt: createdAt(),
 });
 

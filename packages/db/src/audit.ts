@@ -6,7 +6,7 @@ import { auditLog } from './schema';
 export function createAuditSink(db: Db): AuditSink {
   return {
     async record(event) {
-      await db.insert(auditLog).values({ ...event, tokenId: event.tokenId ?? null });
+      await db.insert(auditLog).values({ ...event, tokenId: event.tokenId ?? null, supportSessionId: event.supportSessionId ?? null });
     },
   };
 }

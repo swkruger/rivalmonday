@@ -21,6 +21,8 @@ export const auditLog = pgTable(
     channel: text('channel').$type<ToolChannel>().notNull().default('web'),
     /** Phase 6a: api_token.id or oauth_grant_binding.id for mcp calls. */
     tokenId: uuid('token_id'),
+    /** Phase 8b: support_session.id when a platform operator made the call (no FK; audit survives). */
+    supportSessionId: uuid('support_session_id'),
     createdAt: createdAt(),
   },
   (t) => [
