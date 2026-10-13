@@ -281,4 +281,27 @@ describe('kb-sync', () => {
     expect(live.render).not.toHaveBeenCalled();
     expect((await get(a.id)).bodyMd).toBe(OLD);
   });
+
+  it('a DB error on one article does not stop the rest and logs only the id', async () => {
+    const first = await urlArticle();
+    const second = await urlArticle();
+    const { deps } = importDeps({});
+    let calls = 0;
+    const flaky = new Proxy(dbs.service, {
+      get(target, prop, recv) {
+        if (prop === 'transaction') {
+          return (...args: unknown[]) => (calls++ === 0 ? Promise.reject(new Error('boom: secret body text')) : (target.transaction as (...a: unknown[]) => unknown)(...args));
+        }
+        return Reflect.get(target, prop, recv);
+      },
+    });
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await createKbJobs({ ...deps, serviceDb: () => flaky } as unknown as WorkerDeps, { enqueueEmbed }).sync.handler({});
+    const changedRows = [await get(first.id), await get(second.id)].filter((r) => r.bodyMd !== OLD);
+    expect(changedRows).toHaveLength(1);
+    const logged = err.mock.calls.flat().map(String).join(' ');
+    expect(logged).toMatch(/article [0-9a-f-]{36} failed/);
+    expect(logged).not.toContain('secret body text');
+    err.mockRestore();
+  });
 });

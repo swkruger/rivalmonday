@@ -3,6 +3,7 @@ import type { ObjectStore } from '@cs/storage';
 import { sql } from 'drizzle-orm';
 import { seedAds } from './ads';
 import { seedAsk } from './ask';
+import { seedKb } from './kb';
 import { seedAi } from './ai';
 import { seedAgency } from './agency';
 import { seedBriefs } from './briefs';
@@ -39,6 +40,7 @@ const STEPS: readonly [string, (ctx: SeedContext) => Promise<void>][] = [
   ['platform queues', seedPlatform],
   ['AI connections', seedAi],
   ['Ask threads and starters', seedAsk],
+  ['knowledge base', seedKb],
 ];
 
 /** Spec §4: fills an empty, migrated database with the fictional demo set. Both guards run before anything is written. */

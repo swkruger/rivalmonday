@@ -207,8 +207,17 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/c/[clientId]/settings/profile', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' }, lsStarters] },
   { route: '/inbox', as: 'admin', calls: [{ tool: 'fn:listInbox', input: none }] },
   { route: '/inbox (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'fn:listInbox', input: none }] },
+  { route: '/kb/[id]', as: 'admin', calls: [{ tool: 'get_kb_article', input: (ids) => ({ kbId: ids.kbArticleId }), path: 'bodyMd' }] },
   { route: '/platform/ask', as: 'operator', calls: [{ tool: 'fn:listReviewableAskThreads', input: none, path: 'items' }] },
   { route: '/platform/ask/[threadId]', as: 'operator', calls: [{ tool: 'fn:getReviewableAskThread', input: (ids) => ({ threadId: ids.ask.ownerLoneStar }), path: 'messages.*.trace' }] },
+  { route: '/platform/knowledge', as: 'operator', calls: [{ tool: 'list_kb_articles', input: none, path: 'items' }, { tool: 'list_kb_targets', input: none, path: 'agencies' }] },
+  { route: '/platform/knowledge/new', as: 'operator', calls: [{ tool: 'list_kb_targets', input: none, path: 'agencies' }] },
+  {
+    route: '/platform/knowledge/[id]', as: 'operator', calls: [
+      { tool: 'get_kb_article_admin', input: (ids) => ({ id: ids.kbArticleId }), path: 'bodyMd' },
+      { tool: 'list_kb_targets', input: none, path: 'agencies' },
+    ],
+  },
   { route: '/platform/reviews', as: 'operator', calls: [{ tool: 'list_decision_reviews', input: none, path: 'items' }] },
   { route: '/platform/themes', as: 'operator', calls: [{ tool: 'list_theme_proposals', input: none, path: 'pending' }, { tool: 'list_theme_proposals', input: none, path: 'decided' }] },
   { route: '/settings/notifications', as: 'admin', calls: [{ tool: 'fn:myNotificationSettings', input: none }] },

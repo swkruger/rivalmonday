@@ -139,32 +139,37 @@ export function createKbJobs(deps: WorkerDeps, opts: { enqueueEmbed?: (articleId
         .where(and(eq(kbArticle.status, 'published'), eq(kbArticle.autoSync, true), eq(kbArticle.source, 'url')));
       let changed = 0;
       for (const row of rows) {
-        if (!row.sourceUrl) continue;
-        const r = await fetchMarkdown(row.sourceUrl);
-        if (!r.ok) {
-          const failures = row.syncFailures + 1;
-          await db
-            .update(kbArticle)
-            .set({ syncError: r.error, syncFailures: failures, ...(failures >= MAX_SYNC_FAILURES && { autoSync: false }) })
-            .where(eq(kbArticle.id, row.id));
-          continue;
-        }
-        if (norm(r.markdown) === norm(row.bodyMd)) {
-          await db.update(kbArticle).set({ lastSyncedAt: sql`now()`, syncFailures: 0, syncError: null }).where(eq(kbArticle.id, row.id));
-          continue;
-        }
-        await db.transaction(async (tx) => {
-          await tx
-            .update(kbArticle)
-            .set({ previousBodyMd: row.bodyMd, bodyMd: r.markdown, lastSyncedAt: sql`now()`, syncFailures: 0, syncError: null, updatedAt: sql`now()` })
-            .where(eq(kbArticle.id, row.id));
-          await rechunk(tx, row.id);
-        });
-        changed++;
         try {
-          await opts.enqueueEmbed?.(row.id);
+          if (!row.sourceUrl) continue;
+          const r = await fetchMarkdown(row.sourceUrl);
+          if (!r.ok) {
+            const failures = row.syncFailures + 1;
+            await db
+              .update(kbArticle)
+              .set({ syncError: r.error, syncFailures: failures, ...(failures >= MAX_SYNC_FAILURES && { autoSync: false }) })
+              .where(eq(kbArticle.id, row.id));
+            continue;
+          }
+          if (norm(r.markdown) === norm(row.bodyMd)) {
+            await db.update(kbArticle).set({ lastSyncedAt: sql`now()`, syncFailures: 0, syncError: null }).where(eq(kbArticle.id, row.id));
+            continue;
+          }
+          await db.transaction(async (tx) => {
+            await tx
+              .update(kbArticle)
+              .set({ previousBodyMd: row.bodyMd, bodyMd: r.markdown, lastSyncedAt: sql`now()`, syncFailures: 0, syncError: null, updatedAt: sql`now()` })
+              .where(eq(kbArticle.id, row.id));
+            await rechunk(tx, row.id);
+          });
+          changed++;
+          try {
+            await opts.enqueueEmbed?.(row.id);
+          } catch (e) {
+            console.error('[kb-sync] enqueue kb-embed failed', e instanceof Error ? e.message : e); // the hourly sweep embeds it anyway
+          }
         } catch (e) {
-          console.error('[kb-sync] enqueue kb-embed failed', e instanceof Error ? e.message : e); // the hourly sweep embeds it anyway
+          // One bad row (DB error) must not abort the rest; log the id only, never body text.
+          console.error(`[kb-sync] article ${row.id} failed`, e instanceof Error ? e.name : 'error');
         }
       }
       console.log(`[kb-sync] ${rows.length} articles, ${changed} changed`);

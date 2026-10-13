@@ -258,6 +258,12 @@ describe('fetch', () => {
     expect((await doFetch(viewer, `knowledge:${fact}`)).metadata.client_id).toBe(IDS.clientA1);
   });
 
+  it('refuses knowledge ids on the ask channel (RF2) but serves them on mcp', async () => {
+    const id = await seedKb({ level: 'client', clientId: IDS.clientA1, body: 'Fact body' });
+    await expect(registry.invoke(admin, 'fetch', { id: `knowledge:${id}` }, { channel: 'ask' })).rejects.toMatchObject(notFound);
+    expect((await doFetch(admin, `knowledge:${id}`)).metadata.type).toBe('knowledge');
+  });
+
   it('answers not_found for a cross-agency, draft or unknown knowledge id', async () => {
     const foreign = await seedKb({ level: 'agency', agencyId: IDS.agencyB, body: 'secret' });
     const draft = await seedKb({ body: 'draft' });

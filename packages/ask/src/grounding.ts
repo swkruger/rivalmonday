@@ -18,7 +18,11 @@ export async function groundAnswer(
   const allowed = new Set(evidence.keys());
   const units = splitUnits(draft, CITATION_PREFIXES, allowed);
 
-  const allText = [...evidence].map(([id, t]) => `${id}\n${t}`).join('\n\n');
+  // Spec k9: knowledge never substitutes for competitor evidence, so uncited sentences are checked against ev: text only.
+  const allText = [...evidence]
+    .filter(([id]) => id.startsWith('ev:'))
+    .map(([id, t]) => `${id}\n${t}`)
+    .join('\n\n');
   const groups = new Map<string, { evidence: string; mode: ClaimMode; claims: { key: string; sentence: string; mode: ClaimMode }[] }>();
   units.forEach((u, i) => {
     const mode: ClaimMode = u.refs.length ? 'fact' : 'interpretation';

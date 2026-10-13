@@ -16,9 +16,11 @@ export const fetchTool = defineTool({
   }),
   permission: 'read',
   channels: ['web', 'mcp', 'ask'],
-  async handler(ctx, { id }, deps) {
+  async handler(ctx, { id }, deps, meta) {
     const parsed = parseItemId(id);
     if (!parsed) throw new ToolError('not_found', 'Not found');
+    // RF2: Ask reads knowledge only through the pinned `search_knowledge`; a client-level fact must not cross client threads.
+    if (meta.channel === 'ask' && parsed.type === 'knowledge') throw new ToolError('not_found', 'Not found');
     const { screenshotKey: _key, ...out } = await fetchItem(deps, ctx, parsed.type, parsed.uuid);
     return out;
   },

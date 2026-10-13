@@ -7,10 +7,12 @@ import type { KbTargets } from '../scope-fields';
 export const dynamic = 'force-dynamic';
 
 /** Any refusal (non-operator, unknown or malformed id) is a 404. `?lint=` carries the first save's lint warnings. */
-export default async function EditKnowledgePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ lint?: string }> }) {
+export default async function EditKnowledgePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ lint?: string | string[] }> }) {
   const { ctx } = await requireContext();
   const { id } = await params;
-  const { lint } = await searchParams;
+  const { lint: rawLint } = await searchParams;
+  // `?lint=` may repeat (an array) or be absent; take the first value and cap it so it can never throw or flood the page.
+  const lint = (Array.isArray(rawLint) ? rawLint[0] : rawLint)?.slice(0, 500);
   const article = await callTool<EditorArticle>(ctx, 'get_kb_article_admin', { id });
   const targets = await callTool<KbTargets>(ctx, 'list_kb_targets', {});
   return (

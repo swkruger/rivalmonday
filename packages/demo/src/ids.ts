@@ -57,6 +57,8 @@ export interface DemoIds {
   reportId: string;
   /** Phase 6b: one Ask thread per author (author-only RLS). */
   ask: { admin: string; ownerLoneStar: string };
+  /** Phase 6c: one published platform-level knowledge article (the repo help articles are added by `demo:reset`). */
+  kbArticleId: string;
 }
 
 export function emptyIds(): DemoIds {
@@ -75,5 +77,6 @@ export function emptyIds(): DemoIds {
     alerts: { delivered: '', pending: '', dismissed: '' },
     reportId: '',
     ask: { admin: '', ownerLoneStar: '' },
+    kbArticleId: '',
   };
 }

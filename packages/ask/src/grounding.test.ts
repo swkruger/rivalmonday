@@ -56,4 +56,18 @@ describe('groundAnswer', () => {
     const r = await groundAnswer(fakeAi(), scope, `One [ev:${B}]. Two [ev:${A}]. Three [ev:${B}].`, ev);
     expect(r.citations).toEqual([`ev:${B}`, `ev:${A}`]);
   });
+  it('an uncited sentence is not supported by kb text (spec k9); a cited kb sentence is kept', async () => {
+    const K = '33333333-3333-3333-3333-333333333333';
+    const kbEv = new Map([...ev, [`kb:${K}`, 'playbook says rivals cut prices']]);
+    // Supported only when the evidence it is checked against contains the word "playbook".
+    const ai = {
+      decide: async (_t: string, input: { evidence: string }, questions: Record<string, unknown>) => ({
+        answers: Object.fromEntries(Object.keys(questions).map((k) => [k, { type: 'noul', value: input.evidence.includes('playbook') }])),
+        needsReview: [],
+      }),
+    } as unknown as Ai;
+    const r = await groundAnswer(ai, scope, `Rivals cut prices. Playbook idea [kb:${K}].`, kbEv);
+    expect(r.content).toBe(`${NO} Playbook idea [kb:${K}].`);
+    expect(r.citations).toEqual([`kb:${K}`]);
+  });
 });

@@ -58,8 +58,12 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters` | — |
 | `/inbox` | admin | `fn:listInbox` | — |
 | `/inbox (client owner)` | ownerLoneStar | `fn:listInbox` | — |
+| `/kb/[id]` | admin | `get_kb_article` | — |
 | `/platform/ask` | operator | `fn:listReviewableAskThreads` | — |
 | `/platform/ask/[threadId]` | operator | `fn:getReviewableAskThread` | — |
+| `/platform/knowledge` | operator | `list_kb_articles`, `list_kb_targets` | — |
+| `/platform/knowledge/new` | operator | `list_kb_targets` | — |
+| `/platform/knowledge/[id]` | operator | `get_kb_article_admin`, `list_kb_targets` | — |
 | `/platform/reviews` | operator | `list_decision_reviews` | — |
 | `/platform/themes` | operator | `list_theme_proposals` | — |
 | `/settings/notifications` | admin | `fn:myNotificationSettings` | — |

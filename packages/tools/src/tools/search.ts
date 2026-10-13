@@ -170,7 +170,7 @@ async function knowledgeHits(deps: ToolDeps, ctx: AccessContext, c: WorkspaceCli
 
 export const search = defineTool({
   name: 'search',
-  description: 'Search one client\'s competitor changes, brief items, recommendations, alerts, reviews and competitor pages by keywords. Returns ids to pass to fetch.',
+  description: 'Search one client\'s competitor changes, brief items, recommendations, alerts, reviews and competitor pages, plus knowledge-base articles (type knowledge, MCP only), by keywords. Returns ids to pass to fetch.',
   input: z.object({
     query: z.string().trim().min(1).max(200),
     clientId: z.string().uuid().optional(),
@@ -180,10 +180,11 @@ export const search = defineTool({
   output: z.object({ results: z.array(SearchResult) }),
   permission: 'read',
   channels: ['web', 'mcp', 'ask'],
-  async handler(ctx, input, deps) {
+  async handler(ctx, input, deps, meta) {
     const c = await searchClient(deps, ctx, input.clientId);
     const dashboard = hasFeature(ctx, 'dashboard');
-    const types = new Set((input.types ?? SEARCH_TYPES).filter((t) => dashboard || !DASHBOARD_ITEM_TYPES.has(t)));
+    // RF2: Ask reads knowledge only through the pinned `search_knowledge`, so the generic search leaves it out there.
+    const types = new Set((input.types ?? SEARCH_TYPES).filter((t) => (dashboard || !DASHBOARD_ITEM_TYPES.has(t)) && !(meta.channel === 'ask' && t === 'knowledge')));
     if (types.size === 0) return { results: [] };
     const fts = await ftsHits(deps, ctx, c, types, input.query);
     // One paid embed per search, shared by the event/page vector block and the knowledge query; null = full text only.

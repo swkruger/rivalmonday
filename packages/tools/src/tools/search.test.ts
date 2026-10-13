@@ -217,4 +217,12 @@ describe('search', () => {
     expect(hit.snippet).not.toContain('555-123-4567');
     expect(hit.snippet).not.toContain('{{');
   });
+
+  it('leaves knowledge out of the ask channel (RF2) and serves it on mcp', async () => {
+    const fact = await seedKb({ title: 'Quokka fact', level: 'client', clientId: IDS.clientA1, body: 'Our quokka service area is Austin.' });
+    const asAsk = await registry.invoke(admin, 'search', { query: 'quokka', clientId: IDS.clientA1 }, { channel: 'ask' }) as Out;
+    expect(ids(asAsk)).not.toContain(`knowledge:${fact}`);
+    expect(await registry.invoke(admin, 'search', { query: 'quokka', clientId: IDS.clientA1, types: ['knowledge'] }, { channel: 'ask' })).toEqual({ results: [] });
+    expect(ids(await search(admin, { query: 'quokka', clientId: IDS.clientA1 }))).toContain(`knowledge:${fact}`);
+  });
 });
