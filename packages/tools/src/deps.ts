@@ -25,6 +25,8 @@ export interface ToolDeps {
   jobStatus?: JobStatusLookup;
   /** Decision 7: website crawling (page discovery, manual pages) only when true. */
   webMonitoring?: boolean;
+  /** Phase 6c: KB_IMPORT_ENABLED. Off or absent: the URL-import tools refuse with `not_found`. */
+  kbImportEnabled?: boolean;
   /** 5b-2 decision 2: lower-cased emails allowed to use the platform model-ops queues (PLATFORM_ADMIN_EMAILS). */
   platformAdmins?: readonly string[];
   /** P11: public app origin; makes MCP row `url`s absolute (absent: root-relative paths). */

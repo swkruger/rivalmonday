@@ -26,11 +26,13 @@ const singleShotJob = defineJob({
   queue: { retryLimit: 0, expireInSeconds: 7200 },
 });
 
+const outputJob = defineJob({ name: 'test-output', schema: z.object({}), handler: async () => ({ articleId: 'a1' }), queue: { retryLimit: 0, policy: 'short' } });
+
 const shortJob = defineJob({ name: 'test-short', schema: z.object({ id: z.string() }), handler: async () => {}, queue: { retryLimit: 0, policy: 'short' } });
 
 beforeAll(async () => {
   await boss.start();
-  await registerJobs(boss, [echoJob, singleShotJob, shortJob], { pollingIntervalSeconds: 0.5 });
+  await registerJobs(boss, [echoJob, singleShotJob, shortJob, outputJob], { pollingIntervalSeconds: 0.5 });
 });
 afterAll(async () => {
   await boss.stop({ graceful: false });
@@ -55,6 +57,22 @@ describe('worker jobs', () => {
     expect(job).toMatchObject({ retryLimit: 0 });
     expect(Number(job?.expireIn ? (job.expireIn as { hours?: number }).hours : 0)).toBe(2);
     await boss.deleteJob(singleShotJob.name, id as string);
+  });
+});
+
+describe('job output (Phase 6c)', () => {
+  it('stores the returned object as the pg-boss job output', async () => {
+    const id = (await boss.send(outputJob.name, {})) as string;
+    const deadline = Date.now() + 15_000;
+    for (;;) {
+      const job = await boss.getJobById(outputJob.name, id);
+      if (job?.state === 'completed') {
+        expect(job.output).toEqual({ articleId: 'a1' });
+        return;
+      }
+      if (Date.now() > deadline) throw new Error('timeout');
+      await new Promise((r) => setTimeout(r, 300));
+    }
   });
 });
 

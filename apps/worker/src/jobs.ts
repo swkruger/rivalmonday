@@ -14,7 +14,8 @@ export type JobQueueOptions = Pick<PgBoss.Queue, 'retryLimit' | 'retryDelay' | '
 export interface JobDefinition<T> {
   name: string;
   schema: z.ZodType<T>;
-  handler: (data: T) => Promise<void>;
+  /** A returned object becomes the pg-boss job `output` (pg-boss stores a batch's result only when the batch has one job). */
+  handler: (data: T) => Promise<void | Record<string, unknown>>;
   /** Optional cron schedule (UTC), registered with pg-boss schedule(). */
   cron?: string;
   /** Optional queue options; when omitted the pg-boss defaults apply (retryLimit 2, 15-minute expiry). */

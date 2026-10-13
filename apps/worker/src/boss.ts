@@ -19,9 +19,11 @@ export async function registerJobs(
     await boss.createQueue(job.name, job.queue ? { name: job.name, ...job.queue } : undefined);
     if (job.queue) await boss.updateQueue(job.name, { name: job.name, ...job.queue });
     await boss.work(job.name, { pollingIntervalSeconds: opts.pollingIntervalSeconds ?? 2 }, async (batch) => {
+      let result: void | Record<string, unknown> = undefined;
       for (const item of batch) {
-        await job.handler(job.schema.parse(item.data));
+        result = await job.handler(job.schema.parse(item.data));
       }
+      return result ?? undefined;
     });
     if (job.cron) await boss.schedule(job.name, job.cron, {});
   }

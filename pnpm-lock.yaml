@@ -159,6 +159,9 @@ importers:
       '@cs/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      '@cs/tools':
+        specifier: workspace:*
+        version: link:../../packages/tools
       '@cs/verticals':
         specifier: workspace:*
         version: link:../../packages/verticals

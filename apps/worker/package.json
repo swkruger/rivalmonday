@@ -23,6 +23,7 @@
     "@cs/email": "workspace:*",
     "@cs/engine": "workspace:*",
     "@cs/storage": "workspace:*",
+    "@cs/tools": "workspace:*",
     "@cs/verticals": "workspace:*",
     "drizzle-orm": "^0.44.5",
     "pdf-lib": "^1.17.1",

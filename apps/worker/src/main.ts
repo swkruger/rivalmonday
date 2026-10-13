@@ -73,7 +73,11 @@ const moves = createMovesJobs(deps, {
   },
 });
 const ask = createAskJobs(deps);
-const kb = createKbJobs(deps);
+const kb = createKbJobs(deps, {
+  enqueueEmbed: async (articleId) => {
+    await enqueue(boss, kb.embed, { articleId }, { singletonKey: `kb-embed:${articleId}` });
+  },
+});
 const briefs = createBriefJobs(deps, {
   enqueueBriefClient: async (clientId) => {
     await enqueue(boss, briefs.client, { clientId }, { singletonKey: clientId });
@@ -99,7 +103,7 @@ const delivery = createDeliveryJobs(deps, {
 await registerJobs(boss, [
   heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, vendor.suggest, prospects.snapshot,
   engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.price, reviews.nightly, moves.nightly, moves.client,
-  modelOps.batchPoll, briefs.schedule, briefs.client, ask.starters, kb.embed,
+  modelOps.batchPoll, briefs.schedule, briefs.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
   delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,
 ]);
 console.log('[worker] started');

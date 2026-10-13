@@ -14,6 +14,8 @@ export interface WebEnv {
   defaultAgencyId: string | null;
   /** Decision 7 (5b-1): crawl competitor websites only when explicitly enabled (no bot page yet). */
   webMonitoring: boolean;
+  /** Phase 6c: KB_IMPORT_ENABLED === 'true' enables URL import and weekly sync. */
+  kbImport: boolean;
   /** 5b-2 decision 2: emails of platform operators (lower-cased). */
   platformAdmins: string[];
   /** 6b Q1: Ask runs on a deterministic scripted AI (E2E only; refused when VERCEL_ENV=production). */
@@ -49,6 +51,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     google: env.GOOGLE_CLIENT_ID?.trim() && env.GOOGLE_CLIENT_SECRET?.trim() ? { clientId: env.GOOGLE_CLIENT_ID.trim(), clientSecret: env.GOOGLE_CLIENT_SECRET.trim() } : null,
     defaultAgencyId,
     webMonitoring: env.WEB_MONITORING_ENABLED?.trim() === 'true',
+    kbImport: env.KB_IMPORT_ENABLED?.trim() === 'true',
     platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
     askFakeAi: askFake === '1',
   };

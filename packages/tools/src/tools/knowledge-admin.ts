@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import { KB_KINDS, KB_LEVELS, KB_MAX_BODY_BYTES, toolkit, ToolError } from '@cs/core';
 import { agency, client, kbArticle } from '@cs/db';
 import { and, desc, eq, ilike, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
-import type { ToolDeps } from '../deps';
+import { enqueueOf, jobStatusOf, type ToolDeps } from '../deps';
+import { IMPORT_ERRORS } from '../kb/import-error';
 import { saveArticle } from '../kb/write';
 import { MCP_MAX_LIMIT, pageResult } from '../paging';
 import { requirePlatformOperator } from '../platform';
@@ -173,4 +175,83 @@ export const setKbAutoSync = defineTool({
   },
 });
 
-export const knowledgeAdminTools = [listKbArticles, getKbArticleAdmin, upsertKbArticle, deleteKbArticle, setKbAutoSync];
+function requireImportEnabled(deps: ToolDeps) {
+  if (!deps.kbImportEnabled) throw new ToolError('not_found', 'Not found');
+}
+
+const httpUrl = z
+  .string()
+  .max(2000)
+  .refine((v) => {
+    try {
+      return ['http:', 'https:'].includes(new URL(v).protocol);
+    } catch {
+      return false;
+    }
+  }, 'Must be an http(s) URL');
+
+export const importKbUrl = defineTool({
+  name: 'import_kb_url',
+  description: 'Platform operators: import a public web page as a draft knowledge-base article (background job; poll get_kb_import_status).',
+  input: z.object({
+    url: httpUrl,
+    level: z.enum(KB_LEVELS),
+    agencyId: uuid.nullish(),
+    clientId: uuid.nullish(),
+    kind: z.enum(KB_KINDS),
+    autoSync: z.boolean(),
+  }),
+  output: z.object({ key: z.string() }),
+  permission: 'agency',
+  async handler(ctx, input, deps) {
+    await requirePlatformOperator(deps, ctx);
+    requireImportEnabled(deps);
+    if (input.level !== 'platform' && !input.agencyId) throw new ToolError('invalid_input', 'An agency is required');
+    if (input.level === 'client' && !input.clientId) throw new ToolError('invalid_input', 'A client is required');
+    const key = randomUUID();
+    const data: Record<string, string> = { key, url: input.url, level: input.level, kind: input.kind, autoSync: input.autoSync ? 'true' : 'false', userId: ctx.userId };
+    if (input.agencyId) data.agencyId = input.agencyId;
+    if (input.clientId) data.clientId = input.clientId;
+    await enqueueOf(deps)('kb-import', data, key);
+    return { key };
+  },
+});
+
+const ImportStatus = z.object({
+  state: z.enum(['queued', 'running', 'done', 'failed']),
+  articleId: uuid.optional(),
+  error: z.enum(IMPORT_ERRORS).optional(),
+});
+
+export const getKbImportStatus = defineTool({
+  name: 'get_kb_import_status',
+  description: 'Platform operators: progress of a URL import started with import_kb_url.',
+  input: z.object({ key: z.string().min(1).max(100) }),
+  output: ImportStatus,
+  permission: 'agency',
+  async handler(ctx, { key }, deps) {
+    await requirePlatformOperator(deps, ctx);
+    requireImportEnabled(deps);
+    const job = await jobStatusOf(deps)('kb-import', key);
+    // No row for a key we just handed out means it was archived or never queued: a terminal failure beats polling forever.
+    if (!job) return { state: 'failed' as const, error: 'fetch_failed' as const };
+    switch (job.state) {
+      case 'created':
+      case 'retry':
+        return { state: 'queued' as const };
+      case 'active':
+        return { state: 'running' as const };
+      case 'completed': {
+        const out = (job.output ?? {}) as { articleId?: unknown; error?: unknown };
+        const parsedError = IMPORT_ERRORS.find((e) => e === out.error);
+        if (parsedError) return { state: 'failed' as const, error: parsedError };
+        if (typeof out.articleId === 'string') return { state: 'done' as const, articleId: out.articleId };
+        return { state: 'failed' as const, error: 'fetch_failed' as const };
+      }
+      default:
+        return { state: 'failed' as const, error: 'fetch_failed' as const };
+    }
+  },
+});
+
+export const knowledgeAdminTools = [listKbArticles, getKbArticleAdmin, upsertKbArticle, deleteKbArticle, setKbAutoSync, importKbUrl, getKbImportStatus];

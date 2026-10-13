@@ -34,6 +34,7 @@ export const E2E_SERVER_ENV: Record<string, string> = {
   GOOGLE_CLIENT_ID: '',
   DEFAULT_AGENCY_ID: '',
   WEB_MONITORING_ENABLED: '',
+  KB_IMPORT_ENABLED: '',
   PLATFORM_ADMIN_EMAILS: 'admin@e2e.test',
   EVIDENCE_FS_DIR: fileURLToPath(new URL('./test-results/evidence', import.meta.url)),
   // 6b Q1: Ask answers from a deterministic script (never OpenRouter); refused when VERCEL_ENV=production.

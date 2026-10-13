@@ -84,6 +84,10 @@ export interface WorkerDeps {
   listReportsMissingPdf(now: Date): Promise<string[]>;
   /** Phase 6c: the service-role connection, for jobs that read/write tables directly (kb-embed). */
   serviceDb(): Db;
+  /** Phase 6c: KB_IMPORT_ENABLED === 'true'; gates kb-import and kb-sync. */
+  kbImportEnabled(): boolean;
+  /** Phase 6c: the shared polite renderer (robots, ≥ 3 s/host limiter, honest UA) — the only way kb-import/kb-sync may fetch. */
+  politeRenderer(): Renderer;
   /** Phase 6c: embeds texts with the `embeddings` task (512 d). */
   embedTexts(texts: string[]): Promise<number[][]>;
   close(): Promise<void>;
@@ -320,6 +324,8 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     listBriefsMissingPdf: (now) => listBriefsMissingPdf(getDb(), now),
     listReportsMissingPdf: (now) => listReportsMissingPdf(getDb(), now),
     serviceDb: () => getDb(),
+    kbImportEnabled: () => env.KB_IMPORT_ENABLED?.trim() === 'true',
+    politeRenderer: () => getRenderer(),
     async embedTexts(texts) {
       return (await (await getAi()).embed('embeddings', texts, { agencyId: null, clientId: null })).vectors;
     },

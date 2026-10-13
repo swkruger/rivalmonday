@@ -4,7 +4,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
-import type { EnqueueJob } from '../deps';
+import type { EnqueueJob, JobStatusLookup } from '../deps';
 import { createToolRegistry } from '../registry';
 
 const dbs = openTestDbs();
@@ -102,5 +102,44 @@ describe('knowledge admin tools', () => {
     await expect(registry.invoke(op, 'set_kb_auto_sync', { id: u!.id, autoSync: true })).resolves.toEqual({ ok: true });
     const [row] = await dbs.service.select().from(kbArticle).where(eq(kbArticle.id, u!.id));
     expect(row).toMatchObject({ autoSync: true, syncFailures: 0, syncError: null });
+  });
+
+  describe('URL import', () => {
+    const jobStatus = vi.fn<JobStatusLookup>();
+    const on = createToolRegistry({ app: dbs.app, service: dbs.service, platformAdmins: ['op@example.com'], enqueue, jobStatus, kbImportEnabled: true });
+    const off = createToolRegistry({ app: dbs.app, service: dbs.service, platformAdmins: ['op@example.com'], enqueue, jobStatus });
+    const imp = { url: 'https://example.com/page', level: 'platform', kind: 'blog', autoSync: true } as const;
+    const job = (state: 'created' | 'retry' | 'active' | 'completed' | 'failed', output: unknown = null) => ({ state, createdOn: new Date(), completedOn: null, output });
+
+    it('refuses with not_found when the flag is off, and permission_denied for non-operators', async () => {
+      await expect(off.invoke(op, 'import_kb_url', imp)).rejects.toMatchObject({ code: 'not_found' });
+      await expect(off.invoke(op, 'get_kb_import_status', { key: 'k' })).rejects.toMatchObject({ code: 'not_found' });
+      await expect(on.invoke(admin, 'import_kb_url', imp)).rejects.toMatchObject({ code: 'permission_denied' });
+      await expect(on.invoke(admin, 'get_kb_import_status', { key: 'k' })).rejects.toMatchObject({ code: 'permission_denied' });
+      expect(enqueue).not.toHaveBeenCalled();
+    });
+
+    it('rejects non-http urls and enqueues serialised data under a fresh key', async () => {
+      await expect(on.invoke(op, 'import_kb_url', { ...imp, url: 'ftp://example.com/x' })).rejects.toBeTruthy();
+      await expect(on.invoke(op, 'import_kb_url', { ...imp, url: 'javascript:alert(1)' })).rejects.toBeTruthy();
+      const { key } = (await on.invoke(op, 'import_kb_url', imp)) as { key: string };
+      expect(key.length).toBeGreaterThan(10);
+      expect(enqueue).toHaveBeenCalledWith('kb-import', { key, url: imp.url, level: 'platform', kind: 'blog', autoSync: 'true', userId: 'op' }, key);
+    });
+
+    it('maps job states to import status', async () => {
+      const id = '00000000-0000-4000-8000-0000000000c1';
+      const status = async () => on.invoke(op, 'get_kb_import_status', { key: 'k' });
+      jobStatus.mockResolvedValueOnce(job('created'));
+      await expect(status()).resolves.toEqual({ state: 'queued' });
+      jobStatus.mockResolvedValueOnce(job('active'));
+      await expect(status()).resolves.toEqual({ state: 'running' });
+      jobStatus.mockResolvedValueOnce(job('completed', { articleId: id }));
+      await expect(status()).resolves.toEqual({ state: 'done', articleId: id });
+      jobStatus.mockResolvedValueOnce(job('completed', { error: 'robots_disallowed' }));
+      await expect(status()).resolves.toEqual({ state: 'failed', error: 'robots_disallowed' });
+      jobStatus.mockResolvedValueOnce(job('failed'));
+      await expect(status()).resolves.toEqual({ state: 'failed', error: 'fetch_failed' });
+    });
   });
 });

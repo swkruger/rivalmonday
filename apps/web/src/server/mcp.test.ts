@@ -24,7 +24,7 @@ const links: string[] = [];
 const background: Promise<unknown>[] = [];
 const flush = () => Promise.all(background.splice(0));
 const testAuth = betterAuth(buildAuthOptions({
-  env: { appUrl: 'https://app.example', appDatabaseUrl: testUrls.app, serviceDatabaseUrl: testUrls.service, queueDatabaseUrl: testUrls.owner, authSecret: 's'.repeat(40), linkSecrets: ['l'.repeat(40)], emailFrom: 'f@e.co', google: null, defaultAgencyId: null, webMonitoring: false, platformAdmins: [], askFakeAi: false },
+  env: { appUrl: 'https://app.example', appDatabaseUrl: testUrls.app, serviceDatabaseUrl: testUrls.service, queueDatabaseUrl: testUrls.owner, authSecret: 's'.repeat(40), linkSecrets: ['l'.repeat(40)], emailFrom: 'f@e.co', google: null, defaultAgencyId: null, webMonitoring: false, kbImport: false, platformAdmins: [], askFakeAi: false },
   service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null),
   runInBackground: (task) => void background.push(task), sendEmail: async () => {}, onMagicLink: (_e, url) => void links.push(url),
 }));
@@ -32,7 +32,7 @@ const holder = vi.hoisted(() => ({ auth: null as unknown }));
 holder.auth = testAuth;
 vi.mock('./auth', () => ({ auth: () => holder.auth }));
 vi.mock('./db', () => ({ dbs: () => ({ app: dbs.app, service: dbs.service }) }));
-vi.mock('./env', () => ({ webEnv: () => ({ appUrl: 'https://app.example', webMonitoring: false, platformAdmins: [] }) }));
+vi.mock('./env', () => ({ webEnv: () => ({ appUrl: 'https://app.example', webMonitoring: false, kbImport: false, platformAdmins: [] }) }));
 vi.mock('./queue', () => ({ enqueueFor: () => async () => {}, jobStatusFor: () => async () => null }));
 vi.mock('./runtime-env', () => ({ platformAdmins: () => [] }));
 const store = createMemoryStore();

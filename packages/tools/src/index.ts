@@ -24,3 +24,7 @@ export { type Discovery, assertRoomForCompetitor, startDiscovery } from './tools
 // Shared by the `fetch` tool and the MCP `evidence://` / `brief://` resources (@cs/mcp); every refusal is `not_found`.
 export { type FetchOutput, fetchItem, ITEM_TYPES, type ItemType, parseItemId } from './search/fetch-item';
 export type { AskActionView, AskMessageView, AskThreadSummary, AskThreadView } from './tools/ask-threads';
+// Phase 6c: the worker's kb-import / kb-sync jobs save and rechunk through the same service-connection writer as the tools.
+export { type ArticleInput, rechunk, saveArticle } from './kb/write';
+export { blocksToMarkdown, type MarkdownBlock } from './kb/blocks-to-markdown';
+export { IMPORT_ERRORS, type ImportError } from './kb/import-error';

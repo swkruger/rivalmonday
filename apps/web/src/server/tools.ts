@@ -45,6 +45,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     enqueue: enqueueFor(name),
     jobStatus: jobStatusFor(name),
     webMonitoring: webEnv().webMonitoring,
+    kbImportEnabled: webEnv().kbImport,
     platformAdmins: platformAdmins(name),
     appUrl: webEnv().appUrl,
     evidenceStore: { get: (key) => store.get(key) },

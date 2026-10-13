@@ -29,6 +29,12 @@ describe('parseWebEnv', () => {
     expect(parseWebEnv({ ...ok, WEB_MONITORING_ENABLED: 'true' } as unknown as NodeJS.ProcessEnv).webMonitoring).toBe(true);
   });
 
+  it('reads KB_IMPORT_ENABLED as an explicit opt-in', () => {
+    expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).kbImport).toBe(false);
+    expect(parseWebEnv({ ...ok, KB_IMPORT_ENABLED: '1' } as unknown as NodeJS.ProcessEnv).kbImport).toBe(false);
+    expect(parseWebEnv({ ...ok, KB_IMPORT_ENABLED: 'true' } as unknown as NodeJS.ProcessEnv).kbImport).toBe(true);
+  });
+
   it('reads PLATFORM_ADMIN_EMAILS as a normalised list', () => {
     expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).platformAdmins).toEqual([]);
     expect(parseWebEnv({ ...ok, PLATFORM_ADMIN_EMAILS: 'A@b.co, c@d.co' } as unknown as NodeJS.ProcessEnv).platformAdmins).toEqual(['a@b.co', 'c@d.co']);
