@@ -61,6 +61,7 @@ describe('start_support_session', () => {
   it('trims the reason and rejects one outside 5..300 characters', async () => {
     await expect(start(staff, IDS.agencyA, '  abc  ')).rejects.toMatchObject({ code: 'invalid_input' });
     await expect(start(staff, IDS.agencyA, 'x'.repeat(301))).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(start(staff, IDS.agencyA, '😀😀😀')).rejects.toMatchObject({ code: 'invalid_input' });
     const r = await start(staff, IDS.agencyA, '   padded reason   ');
     const [row] = await dbs.owner.select().from(supportSession).where(eq(supportSession.id, r.sessionId));
     expect(row!.reason).toBe('padded reason');

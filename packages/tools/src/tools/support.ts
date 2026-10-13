@@ -54,7 +54,7 @@ export const startSupportSession = defineTool({
   name: 'start_support_session',
   access: 'write',
   description: 'Platform owners/staff: open a 60-minute read-only support session on one agency, with a reason the agency can see.',
-  input: z.object({ agencyId: z.string().max(64), reason: z.string().trim().min(5).max(300) }),
+  input: z.object({ agencyId: z.string().max(64), reason: z.string().trim().max(1200).refine((s) => [...s].length >= 5 && [...s].length <= 300, 'Reason must be 5 to 300 characters') }),
   output: z.object({ sessionId: z.string(), expiresAt: z.string() }),
   permission: 'agency',
   audit: 'skip-web',
