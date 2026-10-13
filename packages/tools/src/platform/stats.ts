@@ -21,15 +21,16 @@ export const BACKFILL_MAX_DAYS = 400;
 const UPSERT_CHUNK = 500;
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-const AGENCY_ROLES = sql`('agency_admin', 'account_manager')`;
-const CLIENT_ROLES = sql`('client_owner', 'client_viewer')`;
+export const AGENCY_ROLES = sql`('agency_admin', 'account_manager')`;
+export const CLIENT_ROLES = sql`('client_owner', 'client_viewer')`;
 
 /** UTC calendar day (YYYY-MM-DD) of an instant. */
 export function utcDay(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-function addDays(day: string, n: number): string {
+/** `day` (YYYY-MM-DD) shifted by `n` UTC days. */
+export function addDays(day: string, n: number): string {
   return utcDay(new Date(Date.parse(`${day}T00:00:00.000Z`) + n * DAY_MS));
 }
 
