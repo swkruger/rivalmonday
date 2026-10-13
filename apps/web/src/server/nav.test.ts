@@ -62,7 +62,7 @@ describe('navFor Ask', () => {
   });
 
   it('uses the agency assistant name', () => {
-    const flags = navFlagsFor({ kind: 'user', ctx: withAsk() }, [], 'Max');
+    const flags = navFlagsFor({ kind: 'user', ctx: withAsk() }, false, 'Max');
     expect(flags).toMatchObject({ ask: true, assistantName: 'Max' });
     expect(navItemsFor(flags, C).find((n) => n.icon === 'ask')).toMatchObject({ label: 'Ask Max', pill: 'Max' });
   });
@@ -82,12 +82,24 @@ describe('homePath', () => {
 });
 
 describe('navFlagsFor', () => {
-  it('flags platform operators by their signed-in email, never guests', () => {
+  it('passes the resolved platform-operator flag through for users, never guests', () => {
     const user = { kind: 'user' as const, ctx: ctx('agency_admin'), email: 'someone@e.co' };
-    expect(navFlagsFor(user, ['owner@e.co']).isPlatformOperator).toBe(false);
-    expect(navFlagsFor({ ...user, email: 'Owner@E.co' }, ['owner@e.co']).isPlatformOperator).toBe(true);
+    expect(navFlagsFor(user).isPlatformOperator).toBe(false);
+    expect(navFlagsFor(user, false).isPlatformOperator).toBe(false);
+    expect(navFlagsFor(user, true).isPlatformOperator).toBe(true);
     const guest = { kind: 'guest' as const, ctx: ctx('client_viewer') };
-    expect(navFlagsFor(guest, ['owner@e.co']).isPlatformOperator).toBe(false);
+    expect(navFlagsFor(guest, true).isPlatformOperator).toBe(false);
+  });
+
+  it('shows the Platform items (Overview, Agencies, queues, Health) only when the flag is true', () => {
+    const user = { kind: 'user' as const, ctx: ctx('agency_admin'), email: 'someone@e.co' };
+    expect(navFor(user, null).some((n) => n.href.startsWith('/platform'))).toBe(false);
+    const platform = navFor(user, null, true).filter((n) => n.href.startsWith('/platform'));
+    expect(platform.map((n) => [n.href, n.label])).toEqual([
+      ['/platform', 'Overview'], ['/platform/agencies', 'Agencies'], ['/platform/reviews', 'Model reviews'], ['/platform/themes', 'Theme proposals'],
+      ['/platform/ask', 'Ask review'], ['/platform/knowledge', 'Knowledge'], ['/platform/health', 'Health'],
+    ]);
+    expect(platform.every((n) => n.group === 'account')).toBe(true);
   });
 
   it('passes the client feature flags to the nav (agency roles get every flag)', () => {

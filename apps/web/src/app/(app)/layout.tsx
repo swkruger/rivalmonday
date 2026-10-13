@@ -1,6 +1,6 @@
 import { isAgencyRole } from '@cs/core';
 import { client, withTenant } from '@cs/db';
-import { type ClientSummary, unreadCount } from '@cs/tools';
+import { type ClientSummary, isPlatformOperator, unreadCount } from '@cs/tools';
 import { eq } from 'drizzle-orm';
 import { GuestBanner } from '@/components/shell/guest-banner';
 import { MobileNav } from '@/components/shell/mobile-nav';
@@ -34,7 +34,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         : ((await withTenant(dbs().app, ctx, (tx) => tx.select({ name: client.name }).from(client).where(eq(client.id, singleClientId))))[0]?.name ?? null)
       : null;
   const unread = await unreadCount(dbs().service, viewer.kind === 'guest' ? { contactId: viewer.contactId } : { userId: viewer.userId });
-  const flags = navFlagsFor(viewer, platformAdmins(), assistantName);
+  const operator = viewer.kind === 'user' && (await isPlatformOperator({ service: dbs().service, platformAdmins: platformAdmins() }, ctx));
+  const flags = navFlagsFor(viewer, operator, assistantName);
   const navClients = clients.map(({ id, name }) => ({ id, name }));
   const menu = (
     <MobileNav displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} flags={flags} clients={navClients} />

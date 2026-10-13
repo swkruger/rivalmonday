@@ -16,7 +16,8 @@ export interface NavItem {
   pill?: string;
   icon:
     | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
-    | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects' | 'ask' | 'knowledge';
+    | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects' | 'ask' | 'knowledge'
+    | 'platform' | 'agencies' | 'health';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -25,7 +26,7 @@ export interface NavRoleFlags {
   isAgencyAdmin: boolean;
   isUser: boolean;
   homePath: string;
-  /** 5b-2 decision 2. */
+  /** 5b-2 decision 2 / 8a d2: env-listed or an active `platform_admin` row (resolved server-side). */
   isPlatformOperator?: boolean;
   /** 5c-1 decision 2 — always true for agency roles. */
   dashboard: boolean;
@@ -73,10 +74,13 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
   }
   if (flags.isUser) account('/settings/notifications', 'Notifications', 'bell');
   if (flags.isPlatformOperator) {
+    account('/platform', 'Overview', 'platform');
+    account('/platform/agencies', 'Agencies', 'agencies');
     account('/platform/reviews', 'Model reviews', 'reviews');
     account('/platform/themes', 'Theme proposals', 'themes');
     account('/platform/ask', 'Ask review', 'ask');
     account('/platform/knowledge', 'Knowledge', 'knowledge');
+    account('/platform/health', 'Health', 'health');
   }
   return items;
 }

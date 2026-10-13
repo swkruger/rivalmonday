@@ -1,10 +1,10 @@
 import { createAccessContext } from '@cs/core';
-import { askMessage, askThread, auditLog, client } from '@cs/db';
+import { askMessage, askThread, auditLog, client, platformAdmin } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../test/fixtures';
-import { getReviewableAskThread, isPlatformOperator, listReviewableAskThreads, normalizeAdminEmails, requirePlatformOperator } from './platform';
+import { getReviewableAskThread, isPlatformOperator, listReviewableAskThreads, normalizeAdminEmails, platformRole, requirePlatformOperator } from './platform';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -36,8 +36,53 @@ describe('platform operators (decision 2, Review Focus 2)', () => {
 
   it('requirePlatformOperator refuses non-operators with permission_denied', async () => {
     const deps = { service: dbs.service, platformAdmins: ['op@example.com'] };
-    await expect(requirePlatformOperator(deps, as('op'))).resolves.toBeUndefined();
+    await expect(requirePlatformOperator(deps, as('op'))).resolves.toBe('owner');
     await expect(requirePlatformOperator(deps, as('admin'))).rejects.toMatchObject({ code: 'permission_denied' });
+  });
+});
+
+describe('platformRole (8a d2: env bootstrap + platform_admin rows)', () => {
+  const deps = { service: dbs.service, platformAdmins: ['op@example.com'] };
+  const grant = (userId: string, role: 'owner' | 'staff' | 'viewer', revokedAt: Date | null = null) =>
+    dbs.owner.insert(platformAdmin).values({ userId, role, createdBy: 'test', revokedAt });
+
+  it('env-listed user is owner', async () => {
+    expect(await platformRole(deps, as('op'))).toBe('owner');
+  });
+
+  it('an active table row gives its role', async () => {
+    await grant('admin', 'staff');
+    expect(await platformRole(deps, as('admin'))).toBe('staff');
+    expect(await isPlatformOperator(deps, as('admin'))).toBe(true);
+    expect(await isPlatformOperator({ service: dbs.service }, as('admin'))).toBe(true);
+  });
+
+  it('a revoked row resolves to null', async () => {
+    await grant('admin', 'owner', new Date());
+    expect(await platformRole(deps, as('admin'))).toBeNull();
+    expect(await isPlatformOperator(deps, as('admin'))).toBe(false);
+  });
+
+  it('a guest (contact:…) never resolves', async () => {
+    const guest = as('contact:00000000-0000-4000-8000-000000000001', 'client_viewer');
+    expect(await platformRole(deps, guest)).toBeNull();
+  });
+
+  it('an unknown user resolves to null', async () => {
+    expect(await platformRole(deps, as('nobody'))).toBeNull();
+  });
+
+  it('the env list wins over a viewer row (always owner)', async () => {
+    await grant('op', 'viewer');
+    expect(await platformRole(deps, as('op'))).toBe('owner');
+  });
+
+  it('requirePlatformOperator(min) ranks viewer < staff < owner', async () => {
+    await grant('admin', 'staff');
+    await expect(requirePlatformOperator(deps, as('admin'))).resolves.toBe('staff');
+    await expect(requirePlatformOperator(deps, as('admin'), 'staff')).resolves.toBe('staff');
+    await expect(requirePlatformOperator(deps, as('admin'), 'owner')).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(requirePlatformOperator(deps, as('op'), 'owner')).resolves.toBe('owner');
   });
 });
 

@@ -7,18 +7,33 @@ import { MCP_MAX_LIMIT, pageResult } from './paging';
 
 export { normalizeAdminEmails } from '@cs/core';
 
-/** Decision 2: a signed-in user (never an email-link guest) whose account email is listed in PLATFORM_ADMIN_EMAILS. */
-export async function isPlatformOperator(deps: Pick<ToolDeps, 'service' | 'platformAdmins'>, ctx: AccessContext): Promise<boolean> {
-  const admins = deps.platformAdmins ?? [];
-  if (admins.length === 0 || ctx.userId.startsWith('contact:')) return false;
-  const rows = [...(await deps.service.execute<{ email: string }>(sql`select email from auth."user" where id = ${ctx.userId}`))];
-  const email = rows[0]?.email?.toLowerCase();
-  return email !== undefined && admins.includes(email);
+export type PlatformRole = 'owner' | 'staff' | 'viewer';
+const RANK: Record<PlatformRole, number> = { viewer: 1, staff: 2, owner: 3 };
+
+type PlatformDeps = Pick<ToolDeps, 'service' | 'platformAdmins'>;
+
+/** 8a d2. Guests ('contact:…') never qualify. Env list (PLATFORM_ADMIN_EMAILS) wins (always owner); else the active platform_admin row. */
+export async function platformRole(deps: PlatformDeps, ctx: AccessContext): Promise<PlatformRole | null> {
+  if (ctx.userId.startsWith('contact:')) return null;
+  const rows = [...(await deps.service.execute<{ email: string; role: PlatformRole | null }>(sql`
+    select u.email, pa.role from auth."user" u
+    left join platform_admin pa on pa.user_id = u.id and pa.revoked_at is null
+    where u.id = ${ctx.userId}`))];
+  const row = rows[0];
+  if (!row) return null;
+  if ((deps.platformAdmins ?? []).includes(row.email.toLowerCase())) return 'owner';
+  return row.role ?? null;
 }
 
-/** Every platform-operator tool calls this first: anyone else gets `permission_denied` (→ 404). */
-export async function requirePlatformOperator(deps: Pick<ToolDeps, 'service' | 'platformAdmins'>, ctx: AccessContext): Promise<void> {
-  if (!(await isPlatformOperator(deps, ctx))) throw new ToolError('permission_denied', 'Platform operators only');
+export async function isPlatformOperator(deps: PlatformDeps, ctx: AccessContext): Promise<boolean> {
+  return (await platformRole(deps, ctx)) !== null;
+}
+
+/** Every platform-operator tool calls this first: anyone else (or below `min`) gets `permission_denied` (→ 404). */
+export async function requirePlatformOperator(deps: PlatformDeps, ctx: AccessContext, min: PlatformRole = 'viewer'): Promise<PlatformRole> {
+  const role = await platformRole(deps, ctx);
+  if (role === null || RANK[role] < RANK[min]) throw new ToolError('permission_denied', 'Platform operators only');
+  return role;
 }
 
 // ---- Ask review (6b e6): plain service-role functions (they cross agencies), operator-guarded, clients with ask_review_allowed only ----
@@ -31,7 +46,7 @@ export interface ReviewableAskThreadItem {
   flags: { removed: number; error: boolean; refused: boolean; quota: boolean };
 }
 
-type ReviewDeps = Pick<ToolDeps, 'service' | 'platformAdmins'>;
+type ReviewDeps = PlatformDeps;
 
 export async function listReviewableAskThreads(
   deps: ReviewDeps,
