@@ -1,13 +1,14 @@
 # phase-8b — Read-only agency drill-down for platform admins
 
-**Kind:** feature   **Worktree:** ../CompetitorSpy-wt/phase-8b   **Base:** main @ 6c14877
+**Kind:** feature   **Worktree:** ../CompetitorSpy-wt/phase-8b   **Base:** phase-8 @ 213abd2 (stacked; main @ 5aedcb6)
 **Plan/spec:** 8b spec `docs/superpowers/specs/2026-10-12-phase-8b-support-sessions-design.md` (g1–g11); plan `docs/superpowers/plans/2026-10-12-phase-8b-support-sessions.md` (S1–S4, Tasks 0–9). Parent: 8a spec/plan on `phase-8` (`docs/superpowers/specs/2026-10-12-phase-8a-platform-console-design.md`).
 
 ## Status (overwrite)
-8b spec owner-approved 2026-10-12 (support sessions = "view as agency" incl. client workspaces, read-only, reasoned, 60 min); plan **owner-approved 2026-10-12** (subagent-driven). Owner: do not start dev yet. Execution after phase-6 + phase-8 merge.
+Execution started 2026-10-13, **stacked on `phase-8`** (owner go-ahead: build 8b now, verify + merge phase-8 then 8b). phase-6 is on main. Plan owner-approved 2026-10-12.
 
 ## Next (overwrite)
-1. Wait for owner's go-ahead. After phase-6 and phase-8 merge: Task 0 pre-flight (rebase, inventory direct service calls).
+1. Task 0 pre-flight (re-check deps vs phase-8 code, inventory direct service calls), then SDD Tasks 1–9.
+2. Merge order: phase-8 first, then rebase 8b on main and `/rm-merge phase-8b`.
 
 ## Interfaces this branch adds or changes
 None yet.
