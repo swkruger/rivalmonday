@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+vi.mock('@/app/(app)/kb/actions', () => ({ loadKbArticle: vi.fn() }));
 import { AskAnswer, evidenceIdsOf, parseAnswer } from './answer';
 
 const C = '11111111-1111-4111-8111-111111111111';
@@ -50,5 +51,23 @@ describe('parseAnswer / evidenceIdsOf', () => {
     const ids = Array.from({ length: 12 }, (_, i) => `ev:00000000-0000-4000-8000-0000000000${String(i).padStart(2, '0')}`);
     expect(evidenceIdsOf([`kb:${E1}`, `ev:${E1}`, `ev:${E1}`])).toEqual([E1]);
     expect(evidenceIdsOf(ids)).toHaveLength(10);
+  });
+});
+
+describe('kb citations', () => {
+  const K = '33333333-3333-4333-8333-333333333333';
+  it('kb marker in citations becomes an Article chip; ev behaviour unchanged', () => {
+    render(<AskAnswer clientId={C} content={`See the guide [kb:${K}] and proof [ev:${E1}].`} citations={[`kb:${K}`, `ev:${E1}`]} />);
+    expect(screen.getByRole('button', { name: /article/i })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Evidence 1' })).toBeTruthy();
+    expect(screen.queryByText(/\[kb:/)).toBeNull();
+  });
+  it('unknown prefix or uncited kb stays text', () => {
+    render(<AskAnswer clientId={C} content={`A [kb:${K}] B [xx:${K}].`} citations={[]} />);
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.getByText(/\[xx:/)).toBeTruthy();
+  });
+  it('evidenceIdsOf ignores kb refs', () => {
+    expect(evidenceIdsOf([`kb:${K}`, `ev:${E1}`])).toEqual([E1]);
   });
 });

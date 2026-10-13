@@ -27,7 +27,17 @@ export default async function PlatformAskThreadPage({ params }: { params: Promis
           <li key={m.id} className="rounded-lg border bg-card p-4">
             <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">{m.role} · {m.status}</div>
             <p className="whitespace-pre-wrap">{m.content}</p>
-            {m.citations.length > 0 && <p className="mt-2 text-xs text-muted-foreground">Citations: {m.citations.join(', ')}</p>}
+            {m.citations.length > 0 && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Citations:{' '}
+                {m.citations.map((c, i) => (
+                  <span key={c}>
+                    {i > 0 && ', '}
+                    {c.startsWith('kb:') ? <Link href={`/platform/knowledge/${c.slice(3)}`} className="text-secondary hover:underline">{c}</Link> : c}
+                  </span>
+                ))}
+              </p>
+            )}
             {m.action != null && <pre className="mt-2 overflow-x-auto rounded bg-muted p-2 text-xs">{JSON.stringify(m.action, null, 2)}</pre>}
             {m.trace != null && (
               <details className="mt-2">

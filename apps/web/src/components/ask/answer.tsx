@@ -1,13 +1,14 @@
 import Link from 'next/link';
 import { Fragment } from 'react';
 import { evidenceHref } from '@/components/evidence-chips';
+import { ArticleSheet } from '@/components/kb/article-sheet';
 
-/** Spec "Ask": only exact lowercase `[ev:<uuid-ish>]` markers become chips; anything else stays plain text. */
-const MARKER = /\[(ev):([0-9a-f-]{36})\]/g;
+/** Spec "Ask": only exact lowercase `[ev:<uuid-ish>]` / `[kb:<uuid>]` markers become chips; anything else stays plain text. */
+const MARKER = /\[(ev|kb):([0-9a-f-]{36})\]/g;
 const REASON = 'Possible reason:';
 const MAX_SAVE_EVIDENCE = 10;
 
-export type AnswerSegment = { kind: 'text'; text: string } | { kind: 'chip'; id: string; n: number } | { kind: 'reason' };
+export type AnswerSegment = { kind: 'text'; text: string } | { kind: 'chip'; id: string; n: number } | { kind: 'kb'; id: string } | { kind: 'reason' };
 
 function pushText(out: AnswerSegment[], text: string): void {
   if (!text) return;
@@ -37,6 +38,11 @@ export function parseAnswer(content: string, citations: readonly string[]): Answ
         if (!allowed.has(ref)) continue;
         pushText(out, paragraph.slice(last, m.index));
         const id = m[2]!;
+        if (m[1] === 'kb') {
+          out.push({ kind: 'kb', id });
+          last = m.index! + m[0].length;
+          continue;
+        }
         if (!numbers.has(id)) numbers.set(id, numbers.size + 1);
         out.push({ kind: 'chip', id, n: numbers.get(id)! });
         last = m.index! + m[0].length;
@@ -46,7 +52,7 @@ export function parseAnswer(content: string, citations: readonly string[]): Answ
     });
 }
 
-/** The evidence ids an answer cites (`ev:` refs only, unique, in order), capped at `add_recommendation`'s 10. */
+/** The evidence ids an answer cites (`ev:` refs only, `kb:` excluded, unique, in order), capped at `add_recommendation`'s 10. */
 export function evidenceIdsOf(citations: readonly string[]): string[] {
   const ids: string[] = [];
   for (const c of citations) {
@@ -72,6 +78,7 @@ export function AskAnswer({ clientId, content, citations }: { clientId: string; 
             <Fragment key={j}>
               {s.kind === 'text' && s.text}
               {s.kind === 'reason' && <span className="font-semibold text-muted-foreground">{REASON}</span>}
+              {s.kind === 'kb' && <ArticleSheet kbId={s.id} />}
               {s.kind === 'chip' && (
                 <Link
                   href={evidenceHref(clientId, s.id)}

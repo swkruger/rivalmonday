@@ -76,6 +76,7 @@ export const RULES: Rule[] = [
   // --- Ask assistant (6b) ---
   { pattern: /^packages\/ask\//, tags: ['@ask'], why: 'Ask package (turn, grounding, quota, starters)' },
   { pattern: re(`${APP}\\(app\\)/platform/ask/`), tags: ['@ask', '@platform'], why: 'platform Ask review' },
+  { pattern: re(`${APP}\(\(app\)\)/kb/|${COMP}kb/`), tags: ['@ask'], why: 'knowledge article page and sheet (opened from Ask citations)' },
   { pattern: re(`${WEB}src/(?:.*/)?ask(?:/|\\.ts$)`), tags: ['@ask'], why: 'Ask route, pages, components and server wiring' },
 
   { pattern: re(`${APP}(?:sign-in/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in and link-error pages' },
