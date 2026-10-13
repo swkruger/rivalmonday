@@ -20,7 +20,8 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 
 ## Git & commits
 - Trailer on every commit: `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>` (subagent commits may name their own model). Never stage `.env`, `.claude/`, `App/`, `.superpowers/`.
-- **LF only** (`.gitattributes` `* text=auto eol=lf`). `git ls-files --eol | grep crlf` must print nothing.
+- **LF only** (`.gitattributes` `* text=auto eol=lf`). `git ls-files --eol | grep crlf` must print nothing. Python edits on Windows leave `w/crlf` working copies even when the index is LF — re-checkout those files.
+- **E2E sign-ins:** magic links are rate-limited to 5 per IP per minute; a new spec that signs in a new user can push the run over it — reuse a shared session (`ensureAdminState`) where possible.
 - A gitignore entry meant for one root folder needs a leading slash: a bare `App/` matched `apps/web/src/app` case-insensitively on Windows (now `/App/`).
 
 ## Testing

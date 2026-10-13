@@ -4,12 +4,11 @@
 **Spec/plan:** 6a `docs/superpowers/{specs,plans}/2026-10-11-phase-6a-mcp*.md` (d1-d13, P1-P18); 6b `docs/superpowers/specs/2026-10-12-phase-6b-ask-design.md` (e1-e11) + `docs/superpowers/plans/2026-10-12-phase-6b-ask.md` (Tasks 0-13, Q1-Q13)
 
 ## Status (overwrite)
-**6a done** (reviewed). **6b implemented (Tasks 1-13)**; final whole-branch review pending. Migrations 0038-0044 not applied to `cs_dev`. **6c = knowledge base** (own spec after 6b; e11).
+**6a + 6b done** (2026-10-12): 6b Tasks 0-13 + final review + fix wave, head `f0f3db4`; affected unit green, `e2e:affected --base main` 37/37 (incl. 7 `@ask`). Migrations 0038-0044 not applied to `cs_dev`. Nothing uncommitted. **6c = knowledge base**, not started.
 
 ## Next (overwrite)
-1. Final whole-branch review (most capable model; `test:affected` + `e2e:affected --base main`) + one fix wave.
-2. Brainstorm 6c (knowledge base: platform/agency/client sources; help docs, community Q&A, blogs; `[kb:]` citations).
-3. After 6c: one `/rm-merge phase-6` with the owner's go-ahead (full unit + full E2E, migrate `cs_dev`), then owner verification below. Undecided copy: "Token revoked." / "App disconnected.".
+1. Fresh session: `/rm-start`, then brainstorm 6c (spec e11: knowledge per tenant level platform/agency/client, visible to every Ask user at that level; help docs, community Q&A, blogs; `[kb:]` citations — `parseCitations` is already prefix-generic). Own spec → lean plan → owner approval → SDD.
+2. After 6c: one `/rm-merge phase-6` with the owner's go-ahead (full unit + full E2E, migrate `cs_dev`), then owner verification below. Undecided copy: "Token revoked." / "App disconnected.".
 
 ## Interfaces this branch adds or changes
 **Migrations (next free: `0045`):**
