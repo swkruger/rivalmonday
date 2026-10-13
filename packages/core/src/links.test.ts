@@ -63,6 +63,7 @@ describe('app paths', () => {
     expect(appPath({ t: 'competitor', clientId: c, id: 'x1' })).toBe('/c/c1/competitors/x1');
     expect(appPath({ t: 'page', clientId: c, competitorId: 'x2' })).toBe('/c/c1/competitors/x2');
     expect(appPath({ t: 'client', clientId: c })).toBe('/c/c1');
+    expect(appPath({ t: 'kb', id: 'k1' })).toBe('/kb/k1');
   });
   it('appLinkFor prefixes the base when given', () => {
     expect(appLinkFor('https://rm.test', { t: 'brief', id: 'b1' })).toBe('https://rm.test/go/brief/b1');

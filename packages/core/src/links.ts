@@ -56,7 +56,8 @@ export type AppTarget =
   | { t: 'brief' | 'brief_item' | 'alert'; id: string }
   | { t: 'event' | 'evidence' | 'recommendation' | 'review' | 'move' | 'competitor'; clientId: string; id: string }
   | { t: 'page'; clientId: string; competitorId: string }
-  | { t: 'client'; clientId: string };
+  | { t: 'client'; clientId: string }
+  | { t: 'kb'; id: string };
 
 export function appPath(t: AppTarget): string {
   switch (t.t) {
@@ -80,6 +81,8 @@ export function appPath(t: AppTarget): string {
       return `/c/${t.clientId}/competitors/${t.competitorId}`;
     case 'client':
       return `/c/${t.clientId}`;
+    case 'kb':
+      return `/kb/${t.id}`;
   }
 }
 
