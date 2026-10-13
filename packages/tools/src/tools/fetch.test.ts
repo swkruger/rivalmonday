@@ -266,4 +266,14 @@ describe('fetch', () => {
     await expect(doFetch(admin, `knowledge:${draft}`)).rejects.toMatchObject(notFound);
     await expect(doFetch(admin, `knowledge:${U}`)).rejects.toMatchObject(notFound);
   });
+
+  it('answers not_found for an agency article hidden from clients and for a sibling client-level article', async () => {
+    const hidden = await seedKb({ body: 'internal only' });
+    await dbs.owner.update(kbArticle).set({ clientVisible: false }).where(eq(kbArticle.id, hidden));
+    await dbs.owner.update(kbChunk).set({ clientVisible: false }).where(eq(kbChunk.articleId, hidden));
+    const sibling = await seedKb({ level: 'client', clientId: IDS.clientA2, body: 'other client fact' });
+    await expect(doFetch(viewer, `knowledge:${hidden}`)).rejects.toMatchObject(notFound);
+    await expect(doFetch(viewer, `knowledge:${sibling}`)).rejects.toMatchObject(notFound);
+    expect((await doFetch(admin, `knowledge:${hidden}`)).metadata.type).toBe('knowledge');
+  });
 });

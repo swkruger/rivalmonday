@@ -155,7 +155,7 @@ describe('search', () => {
       block(latest.captureId, 1, 'Footer', unit(2)),
     ]);
     const embed = vi.fn(async (_text: string, _scope: unknown) => unit(0));
-    const out = await search(admin, { query: 'radiant floor', clientId: IDS.clientA1, types: ['event', 'page'] }, withDeps({ embedQuery: embed }));
+    const out = await search(admin, { query: 'radiant floor', clientId: IDS.clientA1 }, withDeps({ embedQuery: embed }));
     expect(embed).toHaveBeenCalledTimes(1);
     expect(embed.mock.calls[0]![1]).toEqual({ agencyId: IDS.agencyA, clientId: IDS.clientA1 });
     expect(ids(out)[0]).toBe(`event:${ev.eventId}`); // in both lists

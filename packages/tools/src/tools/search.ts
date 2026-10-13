@@ -111,9 +111,7 @@ async function ftsHits(deps: ToolDeps, ctx: AccessContext, c: WorkspaceClient, t
 }
 
 /** Vector candidates (events and tracked pages), nearest first; throws on any failure (the caller falls back to FTS). */
-async function vectorHits(deps: ToolDeps, ctx: AccessContext, c: WorkspaceClient, types: ReadonlySet<SearchType>, query: string): Promise<Hit[]> {
-  const embed = deps.embedQuery!;
-  const vec = await embed(redactForModel(query), { agencyId: ctx.agencyId, clientId: c.id });
+async function vectorHits(deps: ToolDeps, ctx: AccessContext, c: WorkspaceClient, types: ReadonlySet<SearchType>, vec: number[]): Promise<Hit[]> {
   const ranked: { hit: Hit; distance: number }[] = [];
 
   if (types.has('event')) {
@@ -162,8 +160,8 @@ async function vectorHits(deps: ToolDeps, ctx: AccessContext, c: WorkspaceClient
 }
 
 /** Knowledge hits (platform, agency and, for this client, client-level articles): rendered with the agency's names, then redacted (mcp/ask channel). */
-async function knowledgeHits(deps: ToolDeps, ctx: AccessContext, c: WorkspaceClient, query: string, limit: number): Promise<Hit[]> {
-  const hits = await searchKnowledgeHits(deps, ctx, c.id, query, undefined, limit);
+async function knowledgeHits(deps: ToolDeps, ctx: AccessContext, c: WorkspaceClient, query: string, limit: number, queryVector: number[] | null): Promise<Hit[]> {
+  const hits = await searchKnowledgeHits(deps, ctx, c.id, query, undefined, limit, { queryVector });
   if (hits.length === 0) return [];
   const names = await kbNamesFor(deps.service, ctx.agencyId);
   const text = (t: string): string => redactForModel(renderKbText(t, names));
@@ -188,15 +186,24 @@ export const search = defineTool({
     const types = new Set((input.types ?? SEARCH_TYPES).filter((t) => dashboard || !DASHBOARD_ITEM_TYPES.has(t)));
     if (types.size === 0) return { results: [] };
     const fts = await ftsHits(deps, ctx, c, types, input.query);
-    let vector: Hit[] = [];
-    if (deps.embedQuery && (types.has('event') || types.has('page'))) {
+    // One paid embed per search, shared by the event/page vector block and the knowledge query; null = full text only.
+    let vec: number[] | null = null;
+    if (deps.embedQuery && (types.has('event') || types.has('page') || types.has('knowledge'))) {
       try {
-        vector = await vectorHits(deps, ctx, c, types, input.query);
+        vec = await deps.embedQuery(redactForModel(input.query), { agencyId: ctx.agencyId, clientId: c.id });
       } catch {
         console.warn('[search] embeddings unavailable'); // never the query or the error text (it may echo the query)
       }
     }
-    const knowledge = types.has('knowledge') ? await knowledgeHits(deps, ctx, c, input.query, input.limit) : [];
+    let vector: Hit[] = [];
+    if (vec && (types.has('event') || types.has('page'))) {
+      try {
+        vector = await vectorHits(deps, ctx, c, types, vec);
+      } catch {
+        console.warn('[search] embeddings unavailable');
+      }
+    }
+    const knowledge = types.has('knowledge') ? await knowledgeHits(deps, ctx, c, input.query, input.limit, vec) : [];
     return {
       results: rrfMerge([fts, vector, knowledge], 60, input.limit).map((h) => ({
         id: h.key, title: h.title, url: appLinkFor(deps.appUrl, h.target),
