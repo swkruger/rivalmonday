@@ -146,6 +146,25 @@ describe('runTurn', () => {
     expect(last.status).toBe('ok');
   });
 
+  it('deadline re-checked after a slow tool batch', async () => {
+    let t = 1_000_000;
+    onSearch = () => {
+      t += 65_000; // 65 s < 90 s deadline, but under the 30 s final-call reserve
+    };
+    const { ai, trace, last } = await turn(
+      [
+        { kind: 'chat', reply: { toolCalls: [search] } },
+        { kind: 'chat', reply: { text: `Reserve answer [ev:${EV1}].` } },
+      ],
+      { extra: { now: () => new Date(t) } },
+    );
+    expect(ai.calls.chat).toHaveLength(2);
+    expect(ai.calls.chat.filter((c) => c.toolChoice === 'none')).toHaveLength(1);
+    expect(ai.calls.chat[1]!.toolChoice).toBe('none');
+    expect(trace.deadlineHit).toBe(true);
+    expect(last.status).toBe('ok');
+  });
+
   it('write tool becomes proposed action and is never invoked', async () => {
     const input = { clientId: IDS.clientA1, title: 'Bundle tune-ups', rationale: 'Acme cut its price to $69.', evidenceIds: [EV1], effort: 'L', impact: 'M' };
     const { ai, events, last, rows } = await turn([

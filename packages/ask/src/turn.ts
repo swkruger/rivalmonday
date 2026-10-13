@@ -11,6 +11,9 @@ import { progressLabel } from './labels';
 import { ASK_STEP_LIMIT, buildSystemPrompt } from './prompt';
 import { ASK_COPY } from './quota';
 
+/** The forced final (`toolChoice: 'none'`) call starts once less than this remains before the turn deadline. */
+const FINAL_CALL_RESERVE_MS = 30_000;
+
 export type { AskAction } from './actions';
 
 /** The registry surface Ask uses (a full `ToolRegistry<ToolDeps>` in production). */
@@ -300,7 +303,9 @@ export async function runTurn(
   async function loop(): Promise<Outcome> {
     let draft = '';
     for (let step = 0; ; step++) {
-      const overDeadline = now().getTime() - started >= deadlineMs;
+      // Re-checked after every tool batch (loop top). A model call can take up to its 60 s HTTP timeout, so the forced final
+      // call must start while FINAL_CALL_RESERVE_MS of the budget is still left.
+      const overDeadline = now().getTime() - started >= deadlineMs - Math.min(FINAL_CALL_RESERVE_MS, deadlineMs / 2);
       if (overDeadline) trace.deadlineHit = true;
       const last = step >= stepLimit || overDeadline;
       const res = await deps.ai.chatWithTools('ask_assistant', { messages: [...chat], tools, toolChoice: last ? 'none' : 'auto' }, scope);

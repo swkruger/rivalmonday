@@ -17,6 +17,8 @@ beforeEach(async () => {
 });
 
 const now = new Date('2026-09-30T00:00:00Z');
+// Relative to the real clock: the collector uses `new Date()` and a 14-day active window.
+const RECENT_SHOWN = `${new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)} 00:00:00 +00:00`;
 const item = (creative: string, lastShown: string) => ({
   type: 'ads_search',
   advertiser_id: 'AR1',
@@ -46,7 +48,7 @@ describe('google ads', () => {
   });
 
   it('collects by domain and upserts ads', async () => {
-    const dfs = fakeDfs(() => [dfsTask([{ items: [item('c1', '2026-09-29 00:00:00 +00:00')] }])]);
+    const dfs = fakeDfs(() => [dfsTask([{ items: [item('c1', RECENT_SHOWN)] }])]);
     const r = await collectGoogleAds({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, domain: 'smithhvac.example', name: 'Smith HVAC' });
     expect(r).toEqual({ status: 'ok', ads: 1, dropped: 0, ended: 0 });
     expect(dfs.calls[0]?.body).toEqual([{ target: 'smithhvac.example', location_code: 2840, depth: 40 }]);
@@ -103,8 +105,8 @@ describe('google ads', () => {
 
 describe('google ads attribution and activity (Phase 3b)', () => {
   it('queries pinned advertiser ids instead of the domain and keeps only their creatives', async () => {
-    const other = { ...item('c9', '2026-09-29 00:00:00 +00:00'), advertiser_id: 'AR9' };
-    const dfs = fakeDfs(() => [dfsTask([{ items: [item('c1', '2026-09-29 00:00:00 +00:00'), other] }])]);
+    const other = { ...item('c9', RECENT_SHOWN), advertiser_id: 'AR9' };
+    const dfs = fakeDfs(() => [dfsTask([{ items: [item('c1', RECENT_SHOWN), other] }])]);
     const r = await collectGoogleAds({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, domain: 'smithhvac.example', name: 'Smith HVAC', googleAdvertiserIds: ['AR1'] });
     expect(r).toMatchObject({ status: 'ok', ads: 1, dropped: 1 });
     expect(dfs.calls[0]?.body?.[0]).toEqual({ advertiser_ids: ['AR1'], location_code: 2840, depth: 120 });
@@ -118,7 +120,7 @@ describe('google ads attribution and activity (Phase 3b)', () => {
   it('ends a creative we have not seen for GOOGLE_UNSEEN_DAYS and records the capture that ended it', async () => {
     const stale = new Date(Date.now() - (GOOGLE_UNSEEN_DAYS + 1) * 86_400_000);
     await dbs.service.insert(ad).values({ competitorId: IDS.competitorX, platform: 'google', externalId: 'gone', isActive: true, lastSeenAt: stale });
-    const dfs = fakeDfs(() => [dfsTask([{ items: [item('c1', '2026-09-29 00:00:00 +00:00')] }])]);
+    const dfs = fakeDfs(() => [dfsTask([{ items: [item('c1', RECENT_SHOWN)] }])]);
     const r = await collectGoogleAds({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, domain: 'smithhvac.example', name: 'Smith HVAC' });
     expect(r).toMatchObject({ status: 'ok', ended: 1 });
     const [gone] = await dbs.service.select().from(ad).where(eq(ad.externalId, 'gone'));
@@ -150,7 +152,7 @@ describe('google ads attribution and activity (Phase 3b)', () => {
       { competitorId: IDS.competitorX, platform: 'google', externalId: 'pinnedGone', advertiserId: 'AR1', isActive: true, lastSeenAt: stale },
       { competitorId: IDS.competitorX, platform: 'google', externalId: 'pinnedRecent', advertiserId: 'AR1', isActive: true, lastSeenAt: fresh },
     ]);
-    const dfs = fakeDfs(() => [dfsTask([{ items: [item('c1', '2026-09-29 00:00:00 +00:00')] }])]);
+    const dfs = fakeDfs(() => [dfsTask([{ items: [item('c1', RECENT_SHOWN)] }])]);
     const r = await collectGoogleAds({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, domain: 'smithhvac.example', name: 'Smith HVAC', googleAdvertiserIds: ['AR1'] });
     expect(r).toMatchObject({ status: 'ok', ended: 1, retired: 2 });
     const [cap] = await dbs.service.select().from(capture).where(eq(capture.source, 'google_ads'));

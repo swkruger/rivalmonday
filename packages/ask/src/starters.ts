@@ -33,7 +33,7 @@ const SYSTEM = [
  * inactive or has no `ask` feature, there are no events, the model fails, or any question is invalid.
  */
 export async function generateStarters(deps: { service: Db; ai: Ai }, clientId: string, now: Date = new Date()): Promise<string[] | null> {
-  const [c] = await deps.service.select({ id: client.id, agencyId: client.agencyId, status: client.status, features: client.features }).from(client).where(eq(client.id, clientId)).limit(1);
+  const [c] = await deps.service.select({ id: client.id, name: client.name, agencyId: client.agencyId, status: client.status, features: client.features }).from(client).where(eq(client.id, clientId)).limit(1);
   if (!c || c.status !== 'active' || !c.features.includes('ask')) return null;
 
   const since = new Date(now.getTime() - 7 * DAY_MS);
@@ -49,10 +49,11 @@ export async function generateStarters(deps: { service: Db; ai: Ai }, clientId: 
     .orderBy(desc(changeEvent.occurredAt)).limit(MAX_EVENTS);
   if (events.length === 0) return null;
 
+  const businessNames = [c.name, ...names.values()];
   const user = [
     `Competitors: ${[...names.values()].join(', ')}`,
     '<events>',
-    ...events.map((e) => `- ${names.get(e.competitorId) ?? 'competitor'}: ${redactForModel(e.summary)}`),
+    ...events.map((e) => `- ${names.get(e.competitorId) ?? 'competitor'}: ${redactForModel(e.summary, { businessNames })}`),
     '</events>',
   ].join('\n');
 

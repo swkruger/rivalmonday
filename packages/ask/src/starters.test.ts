@@ -48,6 +48,16 @@ describe('generateStarters', () => {
     expect(GENERIC_STARTERS).toHaveLength(4);
   });
 
+  it('keeps competitor names in event summaries but redacts contact info', async () => {
+    await addEvent('Smith HVAC now offers a $69 tune-up; call 512-555-0147 or email owner@smithhvac.example', 1);
+    const { ai, calls } = fakeAi(JSON.stringify({ questions: GOOD }));
+    await generateStarters({ service: dbs.owner, ai }, IDS.clientA1, NOW);
+    const sent = calls[0]!.user;
+    expect(sent).toContain('Smith HVAC now offers');
+    expect(sent).not.toContain('512-555-0147');
+    expect(sent).not.toContain('owner@smithhvac.example');
+  });
+
   it('invalid length → null and row kept', async () => {
     await addEvent('price changed', 1);
     await dbs.owner.insert(askStarter).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, questions: ['Old question one here?'] });
