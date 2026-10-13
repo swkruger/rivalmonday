@@ -87,13 +87,13 @@ export const pdfEnqueueFor = (name: EnvName): Enqueue => enqueueFor(name);
 /** Every job the web app starts (PDF renders, competitor suggestions, page discovery), for the live environment. */
 export const enqueueJob: EnqueueJob = (job, payload, singletonKey) => enqueueFor(activeEnvName())(job, payload, singletonKey);
 
-type JobRow = { state: JobState; created_on: Date; completed_on: Date | null };
+type JobRow = { state: JobState; created_on: Date; completed_on: Date | null; output: unknown };
 
 /** Maps the newest pg-boss row for a queue + singleton key; `query` is injectable so a test needn't build pg-boss tables. */
 export function createJobStatusLookup(query: (job: QueueJob, singletonKey: string) => Promise<JobRow[]>): JobStatusLookup {
   return async (job, singletonKey) => {
     const [row] = await query(job, singletonKey);
-    return row ? { state: row.state, createdOn: new Date(row.created_on), completedOn: row.completed_on ? new Date(row.completed_on) : null } : null;
+    return row ? { state: row.state, createdOn: new Date(row.created_on), completedOn: row.completed_on ? new Date(row.completed_on) : null, output: row.output ?? null } : null;
   };
 }
 
@@ -106,7 +106,7 @@ let queueDb: Db | null = null;
 const devJobStatus: JobStatusLookup = createJobStatusLookup(async (job, singletonKey) => {
   queueDb ??= createDb(envUrls('dev').owner).db;
   return (await queueDb.execute(sql`
-    SELECT state, created_on, completed_on FROM pgboss.job
+    SELECT state, created_on, completed_on, output FROM pgboss.job
      WHERE name = ${job} AND singleton_key = ${singletonKey}
      ORDER BY created_on DESC LIMIT 1`)) as unknown as JobRow[];
 });

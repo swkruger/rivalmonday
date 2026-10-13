@@ -12,6 +12,7 @@ import { competitorTools } from './competitors';
 import { eventTools } from './events';
 import { evidenceTools } from './evidence';
 import { modelOpsTools } from './model-ops';
+import { knowledgeAdminTools } from './knowledge-admin';
 import { moveTools } from './moves';
 import { onboardingTools } from './onboarding';
 import { overviewTools } from './overview';
@@ -32,4 +33,4 @@ import { themeTools } from './themes';
 import { usageTools } from './usage';
 
 /** Every registered tool. Each 5b-1/5b-2 task appends its array here. */
-export const allTools = [...clientTools, ...briefTools, ...alertTools, ...alertQueueTools, ...reportTools, ...onboardingTools, ...competitorTools, ...pageTools, ...portfolioTools, ...reviewTools, ...recommendationTools, ...usageTools, ...playbookTools, ...modelOpsTools, ...themeTools, ...prospectTools, ...settingsTools, ...eventTools, ...evidenceTools, ...moveTools, ...competitorProfileTools, ...overviewTools, ...alertRuleTools, ...pricingTools, ...adTools, ...reputationTools, ...rankingTools, ...addRecommendationTools, ...searchTools, ...fetchTools, ...apiTokenTools, ...askThreadTools];
+export const allTools = [...clientTools, ...briefTools, ...alertTools, ...alertQueueTools, ...reportTools, ...onboardingTools, ...competitorTools, ...pageTools, ...portfolioTools, ...reviewTools, ...recommendationTools, ...usageTools, ...playbookTools, ...modelOpsTools, ...themeTools, ...prospectTools, ...settingsTools, ...eventTools, ...evidenceTools, ...moveTools, ...competitorProfileTools, ...overviewTools, ...alertRuleTools, ...pricingTools, ...adTools, ...reputationTools, ...rankingTools, ...addRecommendationTools, ...searchTools, ...fetchTools, ...apiTokenTools, ...askThreadTools, ...knowledgeAdminTools];

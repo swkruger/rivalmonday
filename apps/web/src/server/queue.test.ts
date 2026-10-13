@@ -69,9 +69,9 @@ describe('createJobStatusLookup', () => {
   it('returns the newest job for the queue and singleton key, or null when there is none', async () => {
     const created = new Date('2026-10-06T20:21:06Z');
     const completed = new Date('2026-10-06T20:22:05Z');
-    const query = vi.fn().mockResolvedValueOnce([{ state: 'failed', created_on: created, completed_on: completed }]).mockResolvedValueOnce([]);
+    const query = vi.fn().mockResolvedValueOnce([{ state: 'failed', created_on: created, completed_on: completed, output: { ok: 1 } }]).mockResolvedValueOnce([]);
     const lookup = createJobStatusLookup(query);
-    await expect(lookup('suggest-competitors', 'suggest:c1')).resolves.toEqual({ state: 'failed', createdOn: created, completedOn: completed });
+    await expect(lookup('suggest-competitors', 'suggest:c1')).resolves.toEqual({ state: 'failed', createdOn: created, completedOn: completed, output: { ok: 1 } });
     expect(query).toHaveBeenCalledWith('suggest-competitors', 'suggest:c1');
     await expect(lookup('suggest-competitors', 'suggest:c2')).resolves.toBeNull();
   });

@@ -3,12 +3,12 @@ import type { Db } from '@cs/db';
 import { createPackLoader, type DeliveryConfig, type PackLoader } from '@cs/engine';
 
 /** Jobs the web app may enqueue. The worker owns the queues (5a decision 8); `singletonKey` dedupes on `short`-policy queues. */
-export type QueueJob = 'brief-pdf' | 'report-pdf' | 'suggest-competitors' | 'discover-pages' | 'prospect-snapshot';
+export type QueueJob = 'brief-pdf' | 'report-pdf' | 'suggest-competitors' | 'discover-pages' | 'prospect-snapshot' | 'kb-embed' | 'kb-import';
 export type EnqueueJob = (job: QueueJob, data: Record<string, string>, singletonKey: string) => Promise<void>;
 /** pg-boss job states (v10). */
 export type JobState = 'created' | 'retry' | 'active' | 'completed' | 'cancelled' | 'failed';
 /** The newest job queued under `singletonKey`, or null when there is none (never queued, or archived). */
-export type JobStatusLookup = (job: QueueJob, singletonKey: string) => Promise<{ state: JobState; createdOn: Date; completedOn: Date | null } | null>;
+export type JobStatusLookup = (job: QueueJob, singletonKey: string) => Promise<{ state: JobState; createdOn: Date; completedOn: Date | null; output: unknown } | null>;
 
 export interface ToolDeps {
   /** app_user connection: tenant reads go through withTenant + RLS. */

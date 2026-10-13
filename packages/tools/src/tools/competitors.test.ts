@@ -80,11 +80,11 @@ describe('request_competitor_suggestions throttle (decision 17)', () => {
   it('refuses while a search is queued or running, and for 10 minutes after one finished', async () => {
     const now = Date.now();
     for (const state of ['created', 'active', 'retry'] as const) {
-      await expect(withJob({ state, createdOn: new Date(now), completedOn: null }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringMatching(/already running/) });
+      await expect(withJob({ state, createdOn: new Date(now), completedOn: null, output: null }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringMatching(/already running/) });
     }
-    await expect(withJob({ state: 'completed', createdOn: new Date(now - 300_000), completedOn: new Date(now - 120_000) }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input' });
-    await expect(withJob({ state: 'completed', createdOn: new Date(now - 3_600_000), completedOn: new Date(now - 11 * 60_000) }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toEqual({ queued: true });
-    await expect(withJob({ state: 'failed', createdOn: new Date(now - 60_000), completedOn: new Date(now - 30_000) }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toEqual({ queued: true });
+    await expect(withJob({ state: 'completed', createdOn: new Date(now - 300_000), completedOn: new Date(now - 120_000), output: null }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(withJob({ state: 'completed', createdOn: new Date(now - 3_600_000), completedOn: new Date(now - 11 * 60_000), output: null }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toEqual({ queued: true });
+    await expect(withJob({ state: 'failed', createdOn: new Date(now - 60_000), completedOn: new Date(now - 30_000), output: null }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toEqual({ queued: true });
     await expect(withJob(null).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toEqual({ queued: true });
   });
 });
@@ -105,7 +105,7 @@ describe('get_competitor_search_status', () => {
       ['completed', 'done', finished.toISOString()], ['failed', 'failed', finished.toISOString()], ['cancelled', 'failed', finished.toISOString()],
     ] as const;
     for (const [job, state, finishedAt] of cases) {
-      jobStatus.mockResolvedValueOnce({ state: job, createdOn: created, completedOn: finishedAt ? finished : null });
+      jobStatus.mockResolvedValueOnce({ state: job, createdOn: created, completedOn: finishedAt ? finished : null, output: null });
       await expect(status()).resolves.toEqual({ state, finishedAt });
     }
   });
