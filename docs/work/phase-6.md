@@ -1,68 +1,49 @@
-# phase-6 - Remote MCP server (6a) and Ask assistant "Friday" (6b)
+# phase-6 - Remote MCP server (6a), Ask assistant "Friday" (6b), knowledge base (6c)
 
-**Kind:** feature   **Worktree:** ../CompetitorSpy-wt/phase-6   **Base:** main @ 1c4a7fd
-**Spec/plan:** 6a `docs/superpowers/{specs,plans}/2026-10-11-phase-6a-mcp*.md` (d1-d13, P1-P18); 6b `docs/superpowers/specs/2026-10-12-phase-6b-ask-design.md` (e1-e11) + `docs/superpowers/plans/2026-10-12-phase-6b-ask.md` (Tasks 0-13, Q1-Q13)
+**Kind:** feature   **Worktree:** ../CompetitorSpy-wt/phase-6   **Base:** main @ 1c4a7fd (main merged in @ ebeb2ee)
+**Spec/plan:** 6a `docs/superpowers/{specs,plans}/2026-10-11-phase-6a-mcp*.md` (d1-d13, P1-P18); 6b `…/2026-10-12-phase-6b-ask*.md` (e1-e11, Q1-Q13); 6c `…/2026-10-12-phase-6c-knowledge*.md` (k1-k11, S1-S11)
 
 ## Status (overwrite)
-**6a + 6b done** (2026-10-12): 6b Tasks 0-13 + final review + fix wave, head `f0f3db4`; affected unit green, `e2e:affected --base main` 37/37 (incl. 7 `@ask`). Migrations 0038-0044 not applied to `cs_dev`. Nothing uncommitted. **6c = knowledge base**, not started.
+**6a + 6b + 6c done** (2026-10-12). 6c = Tasks 0-12 + final review (opus) + one fix wave, head `ec593f3`. Last runs: affected unit `--base main` 14/15 packages green, the one failure (`@cs/demo` coverage) fixed in `ec593f3` (coverage 60/60), affected unit not re-run in full after the fix wave; `e2e:affected --base main` 41/41 incl. 4 `@kb`. Migrations 0038-0046 not applied to `cs_dev`. Nothing uncommitted.
 
 ## Next (overwrite)
-1. Fresh session: `/rm-start`, then brainstorm 6c (spec e11: knowledge per tenant level platform/agency/client, visible to every Ask user at that level; help docs, community Q&A, blogs; `[kb:]` citations — `parseCitations` is already prefix-generic). Own spec → lean plan → owner approval → SDD.
-2. After 6c: one `/rm-merge phase-6` with the owner's go-ahead (full unit + full E2E, migrate `cs_dev`), then owner verification below. Undecided copy: "Token revoked." / "App disconnected.".
+1. Owner go-ahead → one `/rm-merge phase-6` (full unit + full E2E, `pnpm db:migrate` + `pnpm kb:seed` on `cs_dev`), then owner verification below.
+2. Undecided copy: MCP "Token revoked." / "App disconnected.".
 
 ## Interfaces this branch adds or changes
-**Migrations (next free: `0045`):**
-- `0038_mcp`: `api_token`, `oauth_grant_binding`, `mcp_rate_window`; `audit_log.channel`/`token_id`; `recommendation.source` gains `'mcp'`. `0039_mcp_rls`: RLS + grants, SQL-only `search_tsv` columns + GIN. `0040_feedback_kind_created`. `0041_auth_oauth`: 7 `auth."oauth*"` tables (`docs/work/phase-6-oauth-schema.sql`).
-- `0042_ask`: `ask_thread`, `ask_message`, `ask_starter`; `client.ask_monthly_quota`, `client.ask_review_allowed`. `0043_ask_rls`: author-only RLS (no agency view), `app_client_visible`, column UPDATE grants. `0044_ask_quota_used`: SECURITY DEFINER count fn (relies on owner BYPASSRLS; `ask_message` is FORCE RLS).
-- `withTenant` also sets `app.user_id`/`app.role`; `TenantScope` gained `userId`/`role`.
-
-**Env:** `ASK_FAKE_AI` (E2E only; `parseWebEnv` throws with `VERCEL_ENV=production`; in turbo `globalPassThroughEnv` and playwright `E2E_SERVER_ENV`).
-
-**`@cs/core`:** `tokens.ts` (PAT helpers, `scopeCovers`, `effectiveScope`); registry `Tool` gains `channels?`, `audit?`, `mcpScope?`; handler 4th arg `CallMeta`; `invoke/list/describe(ctx, ..., opts?)`; hidden = unknown = `not_found`; `isClientRole`.
-**`@cs/mcp`:** `resolveBearer`, `createMcpServer`, `handleMcpRequest`, `checkRateLimit`, `productNameFor`; resources `evidence://`/`brief://`, 4 prompts. SDK pinned 1.30.1.
+**Migrations (next free: `0047`):** `0038_mcp`/`0039_mcp_rls` (`api_token`, `oauth_grant_binding`, `mcp_rate_window`, `audit_log.channel`/`token_id`, `recommendation.source` `'mcp'`, SQL-only `search_tsv`+GIN); `0040_feedback_kind_created`; `0041_auth_oauth` (7 `auth."oauth*"` tables); `0042_ask`/`0043_ask_rls`/`0044_ask_quota_used` (`ask_thread`, `ask_message`, `ask_starter`, `client.ask_monthly_quota`/`ask_review_allowed`, author-only RLS, SECURITY DEFINER count fn); **`0045_kb`/`0046_kb_rls`** (`kb_article`, `kb_chunk` with copied scope + `client_visible`, `embedding vector(512)`, SQL-only `search_tsv`; app_user SELECT-only RLS; chunks exist only for published articles). `withTenant` sets `app.user_id`/`app.role`.
+**Env:** `ASK_FAKE_AI` (E2E only; throws in production); **`KB_IMPORT_ENABLED`** (`'true'` enables URL import/sync; turbo passthrough + `E2E_SERVER_ENV` `''`). Owner adds it to `.env` when wanted.
+**`@cs/core`:** `tokens.ts`, registry `channels`/`audit`/`mcpScope`, `CallMeta`, hidden = `not_found`; **`kb.ts`** (`KB_LEVELS`, `KB_KINDS`, `renderKbText`, `lintKbText`, `chunkMarkdown`); `AppTarget` `{t:'kb'}` → `/kb/<id>`.
+**`@cs/mcp`:** `resolveBearer`, `createMcpServer`, `handleMcpRequest`, `checkRateLimit`, `productNameFor`; resources, 4 prompts; SDK 1.30.1.
 **`@cs/ai`:** `chatWithTools`; tasks `ask_assistant`, `ask_starters`, `ask_guard_decisions`.
-**`@cs/ask` (new):** `beginTurn`, `runTurn`, citations/`groundAnswer`, starters, labels, prompt, actions; `@cs/ask/testing` `createScriptedAskAi`. Depends on `@cs/collectors` (`redactForModel`).
-**`@cs/tools`:** MCP: `search`, `fetch`, `add_recommendation` (`['mcp','ask']`), token/grant tools; list tools take `cursor`/`limit`/`detail`. Ask: channel tags (Q4 set), `ASK_WRITE_TOOLS`, `GENERIC_STARTERS` (re-exported by `@cs/ask`); web tools `list_my_ask_threads`, `get_my_ask_thread`, `delete_my_ask_thread`, `get_ask_starters` (`{questions, reviewAllowed}`); platform `listReviewableAskThreads`, `getReviewableAskThread` (audit `platform_view_ask_thread`); `get_usage.questions`; `set_client_limits.askMonthlyQuota`; `update_client_profile.askReviewAllowed`; `update_agency_branding.assistantName`.
-**Worker:** job `ask-starters` after a ready brief.
-**Routes (`apps/web`):** `POST /mcp`; `/.well-known/oauth-*`; `/oauth/consent`; `/sign-in` resumes the OAuth authorize; `oauthProvider` plugin (`@better-auth/oauth-provider@1.7.7`, `@better-auth/utils@0.4.2`, exact pins); `/agency/ai`, `/c/<id>/settings/ai`. 6b: `POST /api/ask/turn` (SSE, header `x-ask-thread-id`, proxy-public, self-authenticating), actions `confirmAskAction`/`saveAskRecommendation`, `/c/[clientId]/ask[/threadId]`, `/platform/ask[/threadId]`, Overview Ask card, evidence-viewer ask buttons, settings fields. E2E tags `@ai-connections`, `@ask`.
+**`@cs/ask`:** `beginTurn`, `runTurn`, grounding, starters, quota; `CITATION_PREFIXES = ['ev','kb']`; `search_knowledge` `clientId` pinned to the thread; uncited sentences ground against `ev:` text only (k9).
+**`@cs/tools`:** MCP `search` (types incl. `knowledge`, MCP only; excluded on `ask`), `fetch` (`knowledge:<id>`, refused on `ask`), `add_recommendation`, token/grant tools; Ask web tools + `get_usage.questions` etc. **6c:** `search_knowledge` (web/mcp/ask), `get_kb_article` (web), `searchKnowledgeHits(…, opts.queryVector)`; operator tools `list_kb_articles` (`lastSyncChanged`), `get_kb_article_admin`, `upsert_kb_article`, `delete_kb_article`, `set_kb_auto_sync`, `import_kb_url`, `get_kb_import_status`, `list_kb_targets`; `saveArticle`/`rechunk`, `seedKnowledge`, `blocksToMarkdown`, `isPublicHttpUrl`/`isPublicAddress`, `kbNamesFor`. `QueueJob` + `'kb-embed'|'kb-import'`; `JobStatusLookup` returns `output`.
+**Worker:** `ask-starters`; **`kb-embed`** (`{articleId?}`, hourly sweep `15 * * * *`), **`kb-import`**, **`kb-sync`** (`0 5 * * 0`); `JobDefinition.handler` may return an object → pg-boss `output`; `@cs/worker` depends on `@cs/tools`; CLI `kb-seed` (root `pnpm kb:seed`).
+**Web:** `POST /mcp`, `/.well-known/oauth-*`, `/oauth/consent`, `/agency/ai`, `/c/<id>/settings/ai`; 6b `POST /api/ask/turn`, `/c/[clientId]/ask[/threadId]`, `/platform/ask[/threadId]`; **6c** `/kb/[id]`, `/platform/knowledge[/new|/[id]]` (nav "Knowledge", operators), `kb:` chips + article sheet, `react-markdown@10.1.0`. E2E tags `@ai-connections`, `@ask`, `@kb`. Demo seed `seedKb` (`DemoIds.kbArticleId`); `demo:reset` runs `seedKnowledge`; `/rm-merge` skill runs `pnpm kb:seed` after migrating `cs_dev`.
+**Docs:** `docs/help/*.md` = platform help articles (seed source; `{{product}}`/`{{assistant}}` placeholders only).
 
 ## Assumes from other branches
-None. `phase-7-planning` (docs only) assumes our `api_token`/OAuth tables and a unified registry `not_found`.
+None. `phase-7-planning` (parked) and the 8a/8b/9 plans on `main` assume our `api_token`/OAuth/Ask tables and `requirePlatformOperator(deps, ctx)` (8a extends it with `min?`); they take the next free migration (now `0047`).
 
 ## Decisions (owner-approved)
-Spec d1-d13 and e1-e11, plans P1-P18 and Q1-Q13 binding. Owner: one merge for all of Phase 6 after 6c; consent page lead line "After you allow, you'll be sent to **{host}**.", Access defaults to Read only; 6b Ask model sonnet-5 (probe OK for ZDR, tools, strict json_schema, caching); Q1 `ASK_FAKE_AI`.
-
-6a rulings (condensed): P8 OAuth scope = binding scope capped by live role; P11 `url` = `/go/<t>/<id>` for brief/brief_item/alert; R5/R10 loopback DCR `native` only for public clients with loopback redirects; R6 consent via `auth().handler(new Request(...))`; R9 authorize deletes consents without an active binding, `verifyOAuth` fails closed; R12 `feedback.kind` gains `'created'`.
-
-6b implementation rulings:
-- T5 `groundAnswer` groups claims by evidence string (one `supportCheck` per distinct evidence; uncited sentences in one call).
-- T6 evidence-text fallback via `toolDeps` under `get_evidence` access checks, `redactForModel`, cap 4000; a user message paired with a skipped assistant row is dropped from history.
-- T3 `0044_ask_quota_used` added (author-only RLS makes plain counts per-user); `add_recommendation` already writes `source: meta.channel`.
-- T1 null-content throw relaxed only when `tool_calls` present. T3 `monthStart` exported from `@cs/tools`; `update_client_profile` lives in `onboarding.ts`.
-- T8 `x-ask-thread-id` header carries the new thread id; `saveAskRecommendation` input matches `add_recommendation` limits. T8 viewer = `getViewer()/requireContext()`; guest = `viewer.kind 'guest'`.
-- T10 "Add recommendation" gated by the tool's real permission (feedback + dashboard).
-- T12 `getViewerForClient` picks the membership by body `clientId` among the user's own (multi-membership resolved for Ask only).
-
-## Spike findings (condensed)
-Issuer `<appUrl>/api/auth`; PRM hand-built; opaque tokens hashed, `aud` = `<app>/mcp`, TTL 1 h / 30 d rotating; consent binding key = `auth."oauthConsent".id`; revoke = set `revoked` on access + refresh rows.
+Spec d1-d13, e1-e11, k1-k11 and plans P1-P18, Q1-Q13, S1-S11 are binding. Owner: one merge for all of Phase 6; consent lead line "After you allow, you'll be sent to **{host}**."; Ask model sonnet-5; `ASK_FAKE_AI`. 6c: knowledge = one store, 3 levels, operator-only authoring; agency `client_visible` default on; URL import with per-article auto-sync (changes applied, not queued); own flag `KB_IMPORT_ENABLED`; `{{product}}`/`{{assistant}}` placeholders; retrieval via tool; surfaces = Friday + MCP.
+6c implementation rulings (SDD): merge main instead of rebase; RLS tests in `packages/db/src/kb-rls.test.ts`; 0045 generated from Drizzle + hand-appended tsv; job output via pg-boss `output`; kb-embed cost at platform scope; chip label "Article"; nav "Knowledge"; inline delete confirm; `?lint=` param for first-save warnings; DNS-rebinding race accepted (operator-only, flag off).
 
 ## New backlog (target -> item)
-- Later: REST API (spec §8.1). Phase 7: tier gating of `mcp`/`ask`. MCP `manage` for client roles. ANN vector index. Brief writers -> sonnet-5 re-move. Ask request body-size cap (route reads body twice). Multi-membership fix is Ask-only; other routes still pick one.
-- 6c: brief input e11 (knowledge base feeds the Ask prompt/citations).
-- MCP search: vector-only pages (empty without `embedQuery`); model-written titles unredacted; `fetch` brief text uncapped; connector card server name `rival-monday` not white-labelled; screenshot mime hard-coded `image/webp`.
-- MCP hardening: `resources.ts` upsell offset-0 misattribution; `add_recommendation` not one tx; `revoke_oauth_grant` partial failure; consent second-tab race; `clientScope[0]` single-client assumption.
-- MCP tests: cross-agency, P18 scoped member, review cross-client leak, page-level `/sign-in` OAuth, exact client-role `tools/list`.
-- Ask hardening: widen composite FK to `(id,user_id,client_id,agency_id)`; confirm: allowlist `action.tool` vs `ASK_WRITE_TOOLS` and check action `clientId` = thread's (defence in depth); agency user with unknown clientId gets raw FK 23503; `enqueueAskStarters` skipped if `notifyBriefOutcome` throws; `dataBlock tool=` unescaped; per-call model budget for the turn deadline; trace args may quote tool text; `askReviewAllowed` write non-atomic + combined >30 error string.
-- Ask parked (6b review): lookalike markers render as plain text; turn body parsed before feature/scope checks (400 vs 404); delete action has no isUuid precheck; SSE `final.action` carries the proposed input to the browser (own write); platform view audit agencyId = operator's (kept, e5); unseen thread after a new-thread pre-persist error; `?q=` auto-send counts toward quota from any link (auto-send only known starters, else prefill); `/api/ask/turn` has no content-type/Origin check (SameSite=Lax today); agency users can steer the evidence pool to another in-scope client (pin clientId to the thread's); 0044 relies on the owner's BYPASSRLS (optional: function owner `app_service`).
-- Ask grounding: sentence split on "1."/"e.g."; nested-bullet indent lost; empty-evidence verifier call; fallback stores metadata-only line for html/screenshot evidence; `splitUnits` exported.
-- Ask UI: thread delete one-click, error only in tooltip; save dialog allows duplicate saves; pre-persist error has empty `messageId`; quota 0 shows "N of 0"; `assistantName` read twice.
-- Ask tests: ask-rls WITH CHECK rejection + user-delete cascade; ThreadList/SaveDialog/StarterChips components; E2E chip -> auto-send; `expectNoUsageNumbers` scans only main; settings toggle test not retry-safe.
+- Later: REST API (§8.1). Phase 7: tier gating of `mcp`/`ask`; MCP `manage` for client roles; ANN vector index (incl. `kb_chunk`); brief writers -> sonnet-5.
+- Phase 7 (security): **renderer-level SSRF guard** (Playwright `page.route` resolved-IP check or pinned resolver; covers kb import/sync, competitor URLs, robots fetch, `www.`/port redirects); SIIT `::ffff:0:0/96` as non-public.
+- MCP hardening/tests (6a): vector-only pages, unredacted model titles, uncapped `fetch` brief text, connector name not white-labelled, screenshot mime; upsell offset-0, `add_recommendation` not one tx, `revoke_oauth_grant` partial failure, consent race, `clientScope[0]`; tests for cross-agency, P18, review cross-client, `/sign-in` OAuth, exact client `tools/list`.
+- Ask (6b): composite FK widen; confirm allowlist; unknown clientId FK 23503; starters skipped on notify throw; `dataBlock tool=` unescaped; per-call model budget; trace quoting; review toggle atomicity; lookalike markers; 400 vs 404 order; delete precheck; SSE action echo; pre-persist error edge cases; `?q=` auto-send; no Origin check; agency users steer evidence pool to another client via generic `search`/`fetch` (pre-6c; knowledge part fixed); 0044 BYPASSRLS reliance; grounding splitter edge cases; UI polish (one-click delete, duplicate saves, "N of 0"); missing tests (RLS WITH CHECK, components, chip auto-send).
+- Polish (6c): uncited filler sentences in pure how-to answers checked against empty `ev:` text (watch traces); `kbNamesFor` 3rd copy of names logic (invert into `@cs/tools`); kb hits pass `names: []` to redaction; `if (v)` skip in kb-embed should throw; scope not validated before `kb-import` enqueue; kb-sync 7200 s expiry vs many articles; archived import jobs read as failed; seed guard only in tools (move into `saveArticle`); `previous_body_md` set on manual edits; `get_kb_article` skips active-client check; `sourceUrl` not http(s)-restricted; operator UI (`start()` throw, stale preview kind, alertdialog focus, "Saved." after publish); chunker edge cases (`C#`, long heading paths, fences, CRLF); test gaps (GIN guard title, CHECK tests, unset role, mcp title redaction, embed mapping, brittle `@kb` selectors).
+- Later: file upload to KB; browsable Help page; agency/client self-authoring (`manage_knowledge`); KB in weekly briefs; citation analytics.
 
 ## Owner verification steps
-1. MCP local: with your go-ahead, `pnpm db:migrate` on `cs_dev` (incl. 0042-0044); `pnpm dev:web`; token at `/agency/ai`; `claude mcp add --transport http rival-monday http://localhost:3000/mcp --header "Authorization: Bearer rm_pat_..."`; ask "What changed at aireserv.com this month?", check evidence ids; revoke, confirm the next call fails.
-2. If live: Claude.ai -> custom connector `https://<host>/mcp` -> sign in -> consent page names the redirect host -> pick workspace/access -> ask -> disconnect, confirm failure.
-3. Ask: on a client, ask a question; see a cited answer and evidence chip; save as recommendation; confirm a proposed write. As a client user at quota, see the exact quota copy (no counts). As platform admin open `/platform/ask`.
-4. Decide the revoke success copy.
+1. After merge: `pnpm db:migrate` + `pnpm kb:seed` on `cs_dev`. Review `docs/help/*.md` copy; confirm the unverified claims (past-conversation list/delete, admins see all tokens, Claude Code command).
+2. MCP: token at `/agency/ai`; `claude mcp add --transport http rival-monday http://localhost:3000/mcp --header "Authorization: Bearer rm_pat_..."`; ask about a competitor, check evidence ids; ask "How do I connect an AI app?" (agency product name); revoke, confirm failure. If live: Claude.ai connector, consent page shows redirect host.
+3. Ask: cited answer + evidence chip; save recommendation; confirm a write; client user at quota sees exact copy; `/platform/ask`.
+4. Knowledge: `/platform/knowledge` → agency playbook with "Visible to client users" off + a client fact; ask as agency user (both cited) and client user (fact only); `kb` chip opens the sheet.
+5. With `KB_IMPORT_ENABLED=true`: import a public Q&A page, review draft, publish, enable auto-sync.
+6. Decide MCP revoke success copy.
 
 ## ARCHITECTURE notes for `/rm-merge`
-Add `@cs/mcp` (bearer resolution, stateless per-request server, resources `evidence://`/`brief://`, 4 prompts, rate limit), registry channels/scopes/audit, new tools, consent flow, tables. Add `@cs/ask` (verify-then-send turns, quota, actions, starters) and the Ask web surface (SSE route, `/c/<id>/ask`, `/platform/ask`, Overview card). STATE: next migration `0045`; move Phase 6 BACKLOG items done here out and file the items above.
+Add `@cs/mcp` (bearer, stateless server, resources, prompts, rate limit), registry channels/scopes/audit, consent flow; `@cs/ask` (verify-then-send turns, quota, actions, starters, `kb:` citations) and the Ask web surface; knowledge base (`kb_article`/`kb_chunk`, operator authoring at `/platform/knowledge`, hybrid FTS+vector `search_knowledge`, worker `kb-embed`/`kb-import`/`kb-sync` behind `KB_IMPORT_ENABLED` + SSRF guard, repo seed `docs/help`, sheet + `/kb/<id>`, MCP `knowledge` type). STATE: next migration `0047`; move Phase 6 BACKLOG items done here out, file the items above.
