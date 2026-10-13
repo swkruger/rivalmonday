@@ -44,4 +44,15 @@ describe('withPlatformAudit', () => {
     const rows = await dbs.owner.select({ tool: platformAuditLog.tool, outcome: platformAuditLog.outcome }).from(platformAuditLog);
     expect(rows.sort((a, b) => a.tool.localeCompare(b.tool))).toEqual([{ tool: 't_boom', outcome: 'internal' }, { tool: 't_nf', outcome: 'not_found' }]);
   });
+
+  it('writes the support session id the body notes onto the agency audit_log row (8b M4); none by default', async () => {
+    const sid = '55555555-5555-4555-8555-555555555555';
+    await withPlatformAudit(deps, op, { tool: 't_sid', input: {}, role: 'staff', agencyId: IDS.agencyB }, async (note) => {
+      note.supportSessionId = sid;
+      return 1;
+    });
+    await withPlatformAudit(deps, op, { tool: 't_plain', input: {}, role: 'staff', agencyId: IDS.agencyB }, async () => 1);
+    const rows = await dbs.owner.select({ tool: auditLog.tool, sid: auditLog.supportSessionId }).from(auditLog);
+    expect(rows.sort((a, b) => a.tool.localeCompare(b.tool))).toEqual([{ tool: 't_plain', sid: null }, { tool: 't_sid', sid }]);
+  });
 });

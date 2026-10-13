@@ -13,7 +13,7 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 - **Git Bash:** don't `source .env` (values contain `&`); read one value with `grep '^KEY=' .env | cut -d= -f2-`. `timeout` + pnpm exiting 143 on SIGTERM is cosmetic.
 - **Windows native crash `3221226505` / `0xC0000409`** (or "JavaScript heap out of memory" at ~190 MB) from `tsc -p .` in `apps/web` or `next build` means the machine is short of **commit** memory, not a code bug. Check `Get-CimInstance Win32_OperatingSystem` (`FreeVirtualMemory`); ~12 GB free is enough. `NODE_OPTIONS=--max-old-space-size=8192` helps `tsc` but not a commit shortage.
 - `cs_dev` fixture: `CS Dev Verification Agency` (`aaf5e009-974b-4ce8-b7ec-b722c5c66b1c`) / `CS Dev Verification Client` (`25f99947-4559-4150-ab5d-dd432540aca0`, vertical `hvac_plumbing`, no `place_id`) tracks `aireserv.com` (`e9f9cbd3-8834-43a4-a1af-a31224ca43d3`). Not yet live-verified: the self-business benchmark (needs a `place_id`) and `price_point`/pricing tracker (needs a real `web` capture — banned until the bot page exists).
-- **Support Exit checks `Origin` against `APP_URL`** (`app/support/exit/route.ts`, Phase 8b): browsing via `127.0.0.1` or a preview alias (any host other than `APP_URL`) gets 403 on Exit.
+- **Support Exit checks `Origin` against `APP_URL`** (`app/support/exit/route.ts`, Phase 8b): browsing via `127.0.0.1` or a preview alias (any host other than `APP_URL`) gets 403 on Exit, which ends nothing and leaves `rm_support` set — the session lasts until its 60-min expiry or sign-out.
 - Brainstorm mockups: ephemeral server at `http://localhost:59017` from `.superpowers/brainstorm/`; keepers go in `docs/brand/mockups/`.
 
 ## Commands

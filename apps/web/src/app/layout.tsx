@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { getViewer } from '@/server/current-viewer';
+import { getOperatorViewer, getViewer } from '@/server/current-viewer';
 import { themeForViewer } from '@/server/theme';
 import './globals.css';
 
@@ -8,9 +8,14 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter', weight: ['40
 
 export const metadata: Metadata = { title: 'Rival Monday', robots: { index: false, follow: false } };
 
-/** Review Focus 5: `style` only ever carries the validated hex colours `themeVars` returns — never raw agency input. */
+/**
+ * Review Focus 5: `style` only ever carries the validated hex colours `themeVars` returns — never raw agency input.
+ * 8b M1: during a support session `<html>` takes the operator's own theme, never the target agency's; `(app)`'s
+ * `AppShell` applies the agency's vars itself (g8), so `/platform` never shows a mixed brand.
+ */
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const { style } = await themeForViewer(await getViewer());
+  const viewer = await getViewer();
+  const { style } = await themeForViewer(viewer?.kind === 'support' ? await getOperatorViewer() : viewer);
   // Spec 5.3: constant-folded away in production builds, so no panel code is bundled there.
   const banner = process.env.NODE_ENV !== 'production' ? await (await import('@/dev-panel/mount')).devBanner() : null;
   return (

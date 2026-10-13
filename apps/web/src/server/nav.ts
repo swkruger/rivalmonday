@@ -24,6 +24,8 @@ export function navFlagsFor(v: { kind: 'user' | 'guest' | 'support'; ctx: Access
     // the module, which only says Ask conversations are private to their authors.
     ask: (v.kind === 'user' || v.kind === 'support') && !v.ctx.userId.startsWith('contact:') && hasFeature(v.ctx, 'ask'),
     assistantName,
+    // Phase 8b M2: the operator's own inbox is not part of the agency view (`/inbox` 404s in a session).
+    inbox: v.kind !== 'support',
   };
 }
 

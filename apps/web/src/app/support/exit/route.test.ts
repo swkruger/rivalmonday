@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ runTool: vi.fn(), endOpen: vi.fn(), ctx: { userId: 'op', agencyId: 'own-agency' } }));
-vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => ({ viewer: { kind: 'user' }, ctx: m.ctx }) }));
+const m = vi.hoisted(() => ({ runTool: vi.fn(), endOpen: vi.fn(), viewer: vi.fn(), ctx: { userId: 'op', agencyId: 'own-agency' } }));
+vi.mock('@/server/current-viewer', () => ({ getOperatorViewer: () => m.viewer() }));
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.runTool(...a) }));
 vi.mock('@cs/tools', () => ({ endOpenSessionFor: (...a: unknown[]) => m.endOpen(...a) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: 'service-db' }) }));
@@ -14,6 +14,7 @@ const post = (origin: string | null) =>
   POST(new NextRequest('https://app.example/support/exit', { method: 'POST', headers: { ...(origin ? { origin } : {}), cookie: 'rm_support=abc.def' } }));
 
 beforeEach(() => {
+  m.viewer.mockReset().mockResolvedValue({ kind: 'user', userId: 'op', ctx: m.ctx });
   m.runTool.mockReset();
   m.endOpen.mockReset().mockResolvedValue(null);
 });
@@ -76,6 +77,39 @@ describe('POST /support/exit', () => {
     spy.mockRestore();
   });
 
+  it('M6: an operator who lost their own membership still ends their own open row and loses the cookie', async () => {
+    m.viewer.mockResolvedValue({ kind: 'member-less', userId: 'op', email: 'op@example.com', name: 'Op' });
+    m.endOpen.mockResolvedValue(AG);
+    const res = await post('https://app.example');
+    expect(m.runTool).not.toHaveBeenCalled();
+    expect(m.endOpen).toHaveBeenCalledWith('service-db', 'op');
+    expect(res.status).toBe(303);
+    expect(res.headers.get('location')).toBe('https://app.example/no-access');
+    expect(res.headers.get('set-cookie')).toMatch(/rm_support=;/);
+  });
+
+  it('M6: a member-less operator whose direct end throws still loses the cookie', async () => {
+    m.viewer.mockResolvedValue({ kind: 'member-less', userId: 'op', email: 'op@example.com', name: 'Op' });
+    m.endOpen.mockRejectedValue(new Error('db down'));
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const res = await post('https://app.example');
+    expect(res.status).toBe(303);
+    expect(res.headers.get('set-cookie')).toMatch(/rm_support=;/);
+    spy.mockRestore();
+  });
+
+  it('M6: signed out (or a guest) ends nothing but still clears the cookie', async () => {
+    for (const v of [null, { kind: 'guest', contactId: 'c', ctx: {} }]) {
+      m.viewer.mockResolvedValue(v);
+      const res = await post('https://app.example');
+      expect(res.status).toBe(303);
+      expect(res.headers.get('location')).toBe('https://app.example/platform');
+      expect(res.headers.get('set-cookie')).toMatch(/rm_support=;/);
+    }
+    expect(m.runTool).not.toHaveBeenCalled();
+    expect(m.endOpen).not.toHaveBeenCalled();
+  });
+
   it('rejects a cross-origin or Origin-less POST without ending anything', async () => {
     for (const o of ['https://evil.example', 'http://app.example', null]) {
       const res = await post(o);
@@ -83,5 +117,7 @@ describe('POST /support/exit', () => {
       expect(res.headers.get('set-cookie')).toBeNull();
     }
     expect(m.runTool).not.toHaveBeenCalled();
+    expect(m.endOpen).not.toHaveBeenCalled();
+    expect(m.viewer).not.toHaveBeenCalled();
   });
 });

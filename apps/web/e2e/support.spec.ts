@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { type Browser, expect, type Page, test, type TestInfo } from '@playwright/test';
 import { createDb } from '@cs/db';
 import { sql } from 'drizzle-orm';
-import { signIn } from './helpers';
+import { newMagicLink, outboxSnapshot } from './helpers';
 
 /**
  * Phase 8b read-only support sessions. `staff@e2e.test` and `viewer-op@e2e.test` are platform operators (a
@@ -29,25 +29,44 @@ async function withDb<T>(fn: (db: ReturnType<typeof createDb>['db']) => Promise<
   }
 }
 
+/** How long `signInPolling` keeps retrying a rate-limited magic-link request (the limit window is 60 s). */
+const RATE_LIMIT_BUDGET_MS = 90_000;
+const RATE_LIMIT_POLL_MS = 5_000;
+
+/**
+ * Magic links are rate-limited per IP across the whole run. Only that signal (HTTP 429 from the magic-link endpoint)
+ * is retried, polling every few seconds until the window clears; any other failure fails at once.
+ */
+async function signInPolling(page: Page, email: string): Promise<void> {
+  const deadline = Date.now() + RATE_LIMIT_BUDGET_MS;
+  await page.goto('/sign-in?next=%2Fagency');
+  for (;;) {
+    const before = await outboxSnapshot();
+    await page.getByLabel(/email/i).fill(email);
+    const response = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().includes('/sign-in/magic-link'));
+    await page.getByRole('button', { name: /email me a sign-in link/i }).click();
+    if ((await response).status() !== 429) {
+      await expect(page).toHaveURL(/check-email/);
+      await page.goto(await newMagicLink(before, email));
+      return;
+    }
+    if (Date.now() > deadline) throw new Error(`magic-link rate limit for ${email} did not clear within ${RATE_LIMIT_BUDGET_MS / 1000} s`);
+    await page.waitForTimeout(RATE_LIMIT_POLL_MS);
+  }
+}
+
 async function ensureState(browser: Browser, testInfo: TestInfo, who: Who): Promise<void> {
   const path = STATE(who);
   if (existsSync(path)) return;
   const u = USERS[who];
-  // Magic links are limited to 5 per IP per minute across the whole run: wait out the window once if we hit it.
-  for (let attempt = 0; ; attempt++) {
-    const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+  try {
     const page = await context.newPage();
-    try {
-      await signIn(page, u.email);
-      await expect(page).toHaveURL(/\/agency$/, { timeout: 15_000 });
-      await context.storageState({ path });
-      await context.close();
-      break;
-    } catch (e) {
-      await context.close();
-      if (attempt >= 1) throw e;
-      await new Promise((r) => setTimeout(r, 30_000));
-    }
+    await signInPolling(page, u.email);
+    await expect(page).toHaveURL(/\/agency$/, { timeout: 15_000 });
+    await context.storageState({ path });
+  } finally {
+    await context.close();
   }
   if (u.role) {
     await withDb(async (db) => {
@@ -141,9 +160,13 @@ test.describe('support sessions', () => {
       const reqPromise = page.waitForRequest((r) => r.method() === 'POST' && r.headers()['next-action'] !== undefined);
       await switchEl.click();
       const req = await reqPromise;
+      await req.response(); // the toggle has landed before the restore below
       const h = req.headers();
       return { actionId: h['next-action']!, contentType: h['content-type'] ?? 'text/plain;charset=UTF-8', body: req.postData() ?? '[true]', path: new URL(req.url()).pathname };
     });
+    // M7(a): the capture really turned the notify switch on; restore the default (off) so later sessions in this run
+    // send no access emails. The replay below is refused, so it cannot turn it back on.
+    await withDb((db) => db.execute(sql`update agency set notify_support_access = false where name = 'Support Target Agency'`));
     // ...and replay it from the staff member's support session: the registry must refuse it.
     await as(browser, testInfo, 'staff', async (page) => {
       await startSession(page, agencyId, 'Replaying a write to prove the server refuses it');

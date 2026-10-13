@@ -37,6 +37,8 @@ export interface NavRoleFlags {
   ask?: boolean;
   /** 6b e10: the agency's assistant name ("Friday" when unset). */
   assistantName?: string;
+  /** Phase 8b M2: false inside a support session (`/inbox` 404s there); omitted means shown. */
+  inbox?: boolean;
   /** Phase 8b: inside a support session, the operator's way back to the agency's console page (the session continues). */
   backToPlatform?: string;
 }
@@ -65,7 +67,7 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
   } else {
     clientModules(flags, flags.homePath, forClient);
   }
-  account('/inbox', 'Inbox', 'inbox');
+  if (flags.inbox !== false) account('/inbox', 'Inbox', 'inbox');
   if (flags.isAgency) {
     account('/agency/team', 'Team', 'team');
     account('/agency/ai', 'AI connections', 'ai');

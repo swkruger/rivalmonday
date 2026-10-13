@@ -1,7 +1,7 @@
 import { type AuditEvent, createAccessContext, FEATURES, type Role } from '@cs/core';
 import { agency, auditLog, platformAdmin, platformAuditLog, supportSession } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { createToolRegistry } from '../registry';
@@ -54,7 +54,7 @@ describe('start_support_session', () => {
     expect(new Date(r.expiresAt).getTime()).toBe(row!.expiresAt.getTime());
     const audit = await dbs.owner.select().from(auditLog).where(eq(auditLog.tool, 'start_support_session'));
     expect(audit).toHaveLength(1);
-    expect(audit[0]).toMatchObject({ agencyId: IDS.agencyB, userId: 'staff', role: 'platform_staff', outcome: 'ok' });
+    expect(audit[0]).toMatchObject({ agencyId: IDS.agencyB, userId: 'staff', role: 'platform_staff', outcome: 'ok', supportSessionId: r.sessionId });
     expect(webAudit.filter((e) => e.tool === 'start_support_session')).toHaveLength(0);
   });
 
@@ -101,6 +101,17 @@ describe('end_support_session', () => {
 });
 
 describe('list_support_sessions', () => {
+  it('shows the operator real name, or "Rival Monday support" when the name is blank or an email (M7d)', async () => {
+    await start(staff, IDS.agencyA);
+    const name = async () => ((await registry.invoke(admin, 'list_support_sessions', {})) as { rows: Row[] }).rows[0]!.platformUserName;
+    await dbs.owner.execute(sql`update auth."user" set name = 'Sam Staff' where id = 'staff'`);
+    expect(await name()).toBe('Sam Staff');
+    await dbs.owner.execute(sql`update auth."user" set name = '  ' where id = 'staff'`);
+    expect(await name()).toBe('Rival Monday support');
+    await dbs.owner.execute(sql`update auth."user" set name = 'Sam <sam@rivalmonday.com>' where id = 'staff'`);
+    expect(await name()).toBe('Rival Monday support');
+  });
+
   it('lists this agency sessions newest first with the documented row shape, never another agency', async () => {
     const a = await start(staff, IDS.agencyA, 'first visit reason');
     await registry.invoke(staff, 'end_support_session', {});
@@ -110,7 +121,8 @@ describe('list_support_sessions', () => {
     const r = (await registry.invoke(admin, 'list_support_sessions', {})) as { rows: Row[]; nextCursor: string | null };
     expect(r.rows.map((x) => x.reason)).toEqual(['second visit reason', 'first visit reason']);
     expect(Object.keys(r.rows[0]!).sort()).toEqual(['durationMinutes', 'endReason', 'endedAt', 'platformUserName', 'reason', 'startedAt']);
-    expect(r.rows[0]).toMatchObject({ platformUserName: 'staff@example.com', endedAt: null, durationMinutes: null, endReason: null });
+    // M7(d): the seeded name is the email, so the agency sees the generic label, never the address.
+    expect(r.rows[0]).toMatchObject({ platformUserName: 'Rival Monday support', endedAt: null, durationMinutes: null, endReason: null });
     expect(r.rows[1]).toMatchObject({ durationMinutes: 12, endReason: 'exit' });
     expect(JSON.stringify(r)).not.toContain('other agency reason');
     const b = (await registry.invoke(adminB, 'list_support_sessions', {})) as { rows: Row[] };

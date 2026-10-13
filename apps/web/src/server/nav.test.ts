@@ -122,6 +122,13 @@ describe('nav inside a support session (Phase 8b)', () => {
     expect(hrefs).not.toContain('/platform');
   });
 
+  it('hides the Inbox item (M2: the operator inbox 404s in a session) but keeps it for users and guests', () => {
+    expect(navFlagsFor(support).inbox).toBe(false);
+    expect(navFor(support, C).map((n) => n.href)).not.toContain('/inbox');
+    expect(navFor({ kind: 'user', ctx: ctx('agency_admin') }, C).map((n) => n.href)).toContain('/inbox');
+    expect(navFor({ kind: 'guest', ctx: ctx('client_viewer') }, C).map((n) => n.href)).toContain('/inbox');
+  });
+
   it('keeps the Ask module (it shows the private-conversations copy)', () => {
     expect(navFor(support, C).map((n) => n.href)).toContain(`/c/${C}/ask`);
   });

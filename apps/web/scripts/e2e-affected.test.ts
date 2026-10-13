@@ -85,6 +85,8 @@ describe('resolveAffected', () => {
       'apps/web/src/components/support-sessions-table.tsx',
       'apps/web/src/server/support-cookie.ts',
       'packages/demo/src/platform-support.ts',
+      'packages/tools/src/tools/support.ts',
+      'packages/tools/src/platform/support.ts',
     ]) {
       expect(resolve(f).tags, f).toContain('@support');
       expect(resolve(f).mode, f).toBe('some');

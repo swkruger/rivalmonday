@@ -13,6 +13,13 @@ export interface PlatformAuditEntry {
   /** Set: the row goes to that agency's `audit_log` (so the agency sees the platform view); else `platform_audit_log`. */
   agencyId?: string;
   role: PlatformRole;
+  /** 8b M4: the support session the call opened (agency `audit_log` rows only), e.g. `start_support_session`. */
+  supportSessionId?: string;
+}
+
+/** What a tool body may add to its own audit row once it knows it (set before returning or throwing). */
+export interface PlatformAuditNote {
+  supportSessionId?: string;
 }
 
 /**
@@ -25,7 +32,7 @@ export async function recordPlatformAudit(deps: AuditDeps, ctx: AccessContext, a
   if (a.agencyId) {
     await deps.service.insert(auditLog).values({
       agencyId: a.agencyId, userId: ctx.userId, role: `platform_${a.role}`, tool: a.tool, inputHash,
-      outcome: a.outcome, rowCount: null, durationMs, channel: 'web', tokenId: null,
+      outcome: a.outcome, rowCount: null, durationMs, channel: 'web', tokenId: null, supportSessionId: a.supportSessionId ?? null,
     });
     return;
   }
@@ -41,13 +48,14 @@ export async function withPlatformAudit<T>(
   deps: AuditDeps,
   ctx: AccessContext,
   a: Omit<PlatformAuditEntry, 'outcome' | 'durationMs'>,
-  fn: () => Promise<T>,
+  fn: (note: PlatformAuditNote) => Promise<T>,
 ): Promise<T> {
   const started = Date.now();
+  const note: PlatformAuditNote = {};
   let outcome = 'internal';
   let failure: unknown;
   try {
-    const result = await fn();
+    const result = await fn(note);
     outcome = 'ok';
     return result;
   } catch (err) {
@@ -56,7 +64,7 @@ export async function withPlatformAudit<T>(
     throw err;
   } finally {
     try {
-      await recordPlatformAudit(deps, ctx, { ...a, outcome, durationMs: Date.now() - started });
+      await recordPlatformAudit(deps, ctx, { ...a, ...note, outcome, durationMs: Date.now() - started });
     } catch (err) {
       // eslint-disable-next-line no-console -- the original tool error must not be lost behind the audit failure
       if (failure !== undefined) console.error('[platform] tool error before audit failure', failure);

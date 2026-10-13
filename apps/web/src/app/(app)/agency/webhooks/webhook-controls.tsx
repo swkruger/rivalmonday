@@ -1,6 +1,6 @@
 'use client';
 import { Button, Input, Label, Switch } from '@cs/ui';
-import { useActionState, useOptimistic, useTransition } from 'react';
+import { useActionState, useOptimistic, useState, useTransition } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { addWebhookAction, toggleWebhookAction } from './actions';
@@ -61,19 +61,28 @@ export function AddWebhookForm() {
 export function WebhookToggle({ id, active, label }: { id: string; active: boolean; label: string }) {
   const readOnly = useReadOnly();
   const [checked, setChecked] = useOptimistic(active);
+  const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
-  // The switch is a write control: in a support session the state shows as plain text (the action would throw).
+  // The switch is a write control: in a support session the state shows as plain text (the action would refuse).
   if (readOnly) return <span>{active ? 'On' : 'Off'}</span>;
   return (
-    <Switch
-      checked={checked}
-      aria-label={label}
-      onCheckedChange={(next: boolean) => {
-        startTransition(async () => {
-          setChecked(next);
-          await toggleWebhookAction({ id, active: next });
-        });
-      }}
-    />
+    <span className="inline-flex items-center gap-2">
+      <Switch
+        checked={checked}
+        aria-label={label}
+        onCheckedChange={(next: boolean) => {
+          startTransition(async () => {
+            setChecked(next);
+            const r = await toggleWebhookAction({ id, active: next });
+            setError(r.ok ? null : r.error);
+          });
+        }}
+      />
+      {error && (
+        <span role="alert" className="text-sm text-ink">
+          {error}
+        </span>
+      )}
+    </span>
   );
 }

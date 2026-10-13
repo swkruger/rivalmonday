@@ -1,13 +1,21 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WriteGuard } from '@/components/read-only';
 
-vi.mock('@/server/theme', () => ({ themeForViewer: async () => ({ branding: { displayName: 'Acme Agency', logoUrl: null }, assistantName: 'Friday' }) }));
+const m = vi.hoisted(() => ({ themed: [] as string[], unread: vi.fn(async () => 3) }));
+// The support viewer's ctx is the target agency's; a user viewer here is the operator's own agency.
+vi.mock('@/server/theme', () => ({
+  themeForViewer: async (v: { kind: string }) => {
+    m.themed.push(v.kind);
+    const primary = v.kind === 'support' ? '#aa0000' : '#0000aa';
+    return { branding: { displayName: 'Acme Agency', logoUrl: null }, style: { '--primary': primary }, assistantName: 'Friday' };
+  },
+}));
 vi.mock('@/server/tools', () => ({ callTool: async () => ({ items: [] }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {}, app: {} }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
-vi.mock('@cs/tools', () => ({ unreadCount: async () => 0, isPlatformOperator: async () => true }));
+vi.mock('@cs/tools', () => ({ unreadCount: m.unread, isPlatformOperator: async () => true }));
 vi.mock('./sidebar', () => ({
   Sidebar: ({ flags }: { flags: { backToPlatform?: string; isPlatformOperator?: boolean } }) => (
     <nav data-testid="sidebar" data-back={flags.backToPlatform ?? ''} data-operator={String(Boolean(flags.isPlatformOperator))} />
@@ -15,7 +23,7 @@ vi.mock('./sidebar', () => ({
 }));
 vi.mock('./mobile-nav', () => ({ MobileNav: () => null }));
 vi.mock('./client-switcher', () => ({ ClientSwitcher: () => null }));
-vi.mock('./inbox-bell', () => ({ InboxBell: () => null }));
+vi.mock('./inbox-bell', () => ({ InboxBell: ({ unread }: { unread: number }) => <span data-testid="bell">{unread}</span> }));
 vi.mock('./guest-sign-out-button', () => ({ GuestSignOutButton: () => <button type="button">Guest sign out</button> }));
 vi.mock('@/components/sign-out-button', () => ({ SignOutButton: () => <button type="button">Sign out</button> }));
 const { AppShell } = await import('./app-shell');
@@ -27,6 +35,14 @@ const supportViewer = {
   session: { id: '11111111-1111-4111-8111-111111111111', platformUserId: 'op', agencyId: AG, agencyName: 'Acme Agency', reason: 'Checking brief setup', expiresAt: new Date(Date.now() + 30 * 60_000) },
 };
 
+beforeEach(() => {
+  m.themed.length = 0;
+  m.unread.mockClear();
+  document.documentElement.removeAttribute('style');
+});
+
+const themeOf = (c: HTMLElement) => (c.querySelector('[data-shell-theme]') as HTMLElement).style.getPropertyValue('--primary');
+
 describe('AppShell', () => {
   it('in a support session: banner, read-only children, "Back to platform", no platform items, no guest sign-out', async () => {
     render(await AppShell({ viewer: supportViewer as never, ctx: ctx as never, children: <WriteGuard><button type="button">Save</button></WriteGuard> }));
@@ -36,6 +52,27 @@ describe('AppShell', () => {
     expect(screen.getByTestId('sidebar').dataset.operator).toBe('false');
     expect(screen.queryByRole('button', { name: 'Guest sign out' })).toBeNull();
     expect(screen.getByText('OE')).toBeTruthy(); // the signed-in account menu (holds the real Sign out)
+  });
+
+  it('(app) in a session: themed with the support agency (g8) on the shell and <html> (M1); no inbox bell (M2)', async () => {
+    const { container } = render(await AppShell({ viewer: supportViewer as never, ctx: ctx as never, children: <p>page</p> }));
+    expect(m.themed).toEqual(['support']);
+    expect(themeOf(container)).toBe('#aa0000');
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('#aa0000');
+    expect(screen.queryByTestId('bell')).toBeNull();
+    expect(m.unread).not.toHaveBeenCalled();
+  });
+
+  it('(platform) / outside a session: themed with the viewer own agency; the inbox bell shows the unread count', async () => {
+    const { support: _s, ...own } = ctx;
+    const viewer = { kind: 'user', userId: 'op', email: 'op@example.com', name: 'Op Erator', ctx: own, membership: { id: 'm' }, memberships: [{ id: 'm' }] };
+    const { container, unmount } = render(await AppShell({ viewer: viewer as never, ctx: own as never, children: <p>page</p> }));
+    expect(m.themed).toEqual(['user']);
+    expect(themeOf(container)).toBe('#0000aa');
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('#0000aa');
+    expect(screen.getByTestId('bell').textContent).toBe('3');
+    unmount();
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('');
   });
 
   it('outside a session: no banner, writes visible', async () => {

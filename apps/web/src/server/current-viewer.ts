@@ -58,8 +58,11 @@ const pathHint = async () => clientIdFromPath((await headers()).get('x-rm-path')
 
 export const getViewer = cache(async (): Promise<Viewer | null> => viewerWith(await pathHint(), 'page'));
 
-/** R3: the signed-in user's own (non-support) resolution; `rm_support` is never read. */
-const getOperatorViewer = cache(async (): Promise<Viewer | null> => viewerWith(null, 'operator'));
+/**
+ * R3: the signed-in user's own (non-support) resolution; `rm_support` is never read. Never redirects (unlike
+ * `requireOperatorContext`). The root layout themes `<html>` with it during a session (8b M1).
+ */
+export const getOperatorViewer = cache(async (): Promise<Viewer | null> => viewerWith(null, 'operator'));
 
 /**
  * For API routes whose path names no client (`/api/ask/turn`): the client comes from the request body, so a user with

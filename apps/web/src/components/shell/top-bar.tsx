@@ -38,7 +38,8 @@ export function TopBar({
           clientName && <span className="font-semibold">{clientName}</span>
         )}
         <div className="flex-1" />
-        <InboxBell unread={unread} />
+        {/* Phase 8b M2: no bell in a support session (the operator's own inbox 404s there). */}
+        {viewer.kind !== 'support' && <InboxBell unread={unread} />}
         {viewer.kind === 'user' && viewer.memberships.length > 1 && (
           <MembershipSwitcher memberships={viewer.memberships} currentId={viewer.membership.id} />
         )}

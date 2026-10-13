@@ -1,5 +1,5 @@
 'use server';
-import { READ_ONLY_SESSION_MESSAGE, ToolError } from '@cs/core';
+import { READ_ONLY_SESSION_MESSAGE } from '@cs/core';
 import { revalidatePath } from 'next/cache';
 import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
@@ -22,12 +22,16 @@ export async function addWebhookAction(_prev: FormResult, formData: FormData): P
   return { ok: true, message: 'Webhook added.' };
 }
 
-/** The toggle switch re-renders from the server value after revalidatePath; tool errors are swallowed on purpose (no error path for this control), except a support session's refusal (8b). */
-export async function toggleWebhookAction(input: { id: string; active: boolean }): Promise<void> {
+/**
+ * The toggle switch re-renders from the server value after revalidatePath; ordinary tool errors are swallowed on purpose
+ * (no error path for this control). A support session's refusal (8b, M3) is returned as the g10 copy rather than thrown:
+ * Next redacts messages thrown from server actions in production.
+ */
+export async function toggleWebhookAction(input: { id: string; active: boolean }): Promise<FormResult> {
   const { ctx } = await requireContext();
   if (ctx.role !== 'agency_admin') notFound();
   const r = await runTool(ctx, 'set_webhook_active', { webhookId: input.id, active: input.active });
-  // Phase 8b: a support session's refusal must surface, not look like a no-op save.
-  if (!r.ok && ctx.support) throw new ToolError('read_only_session', READ_ONLY_SESSION_MESSAGE);
+  if (!r.ok && ctx.support) return { ok: false, error: READ_ONLY_SESSION_MESSAGE };
   revalidatePath('/agency/webhooks');
+  return { ok: true };
 }
