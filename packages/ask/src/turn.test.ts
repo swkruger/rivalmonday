@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { buildSystemPrompt } from './prompt';
 import { ASK_COPY, beginTurn } from './quota';
 import { createScriptedAskAi, type ScriptedStep } from './testing';
-import { type AskDeps, type AskEvent, type AskTrace, runTurn } from './turn';
+import { type AskDeps, type AskEvent, type AskTrace, runTurn, ASK_GUARD_QUESTIONS } from './turn';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -128,6 +128,11 @@ describe('runTurn knowledge', () => {
     ]);
     expect(last.citations).toEqual([`kb:${KB1}`]);
     expect(last.content).not.toContain(KB2);
+  });
+  it('guard counts product how-to questions as in scope (else the knowledge base is unreachable)', () => {
+    // Live check 2026-10-13: without this, "How do I connect an AI app?" was refused as out_of_scope.
+    expect(ASK_GUARD_QUESTIONS.verdict.options.in_scope).toContain('how to use this product');
+    expect(ASK_GUARD_QUESTIONS.verdict.options.out_of_scope).toContain('this product');
   });
   it('prompt carries rules 1, 9 and 10', () => {
     const p = buildSystemPrompt({ assistantName: 'Friday', productName: 'Rival Monday' });
