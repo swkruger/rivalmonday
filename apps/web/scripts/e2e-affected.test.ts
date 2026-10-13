@@ -70,6 +70,13 @@ describe('resolveAffected', () => {
     expect(resolve('packages/engine/src/tasks/run.ts').mode).toBe('all');
   });
 
+  it('maps the platform console files to @platform', () => {
+    for (const f of ['packages/tools/src/tools/platform-console.ts', 'packages/tools/src/platform/stats.ts', 'packages/demo/src/platform-stats.ts', 'apps/web/src/app/(app)/platform/agencies/page.tsx']) {
+      expect(resolve(f).tags, f).toContain('@platform');
+      expect(resolve(f).mode, f).toBe('some');
+    }
+  });
+
   it('runs everything for an unknown package file, a migration, or a shared foundation', () => {
     expect(resolve('packages/tools/src/registry.ts').mode).toBe('all');
     expect(resolve('packages/email/src/render.ts').mode).toBe('all');

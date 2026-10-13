@@ -59,6 +59,10 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/inbox` | admin | `fn:listInbox` | — |
 | `/inbox (client owner)` | ownerLoneStar | `fn:listInbox` | — |
 | `/kb/[id]` | admin | `get_kb_article` | — |
+| `/platform` | operator | `platform_overview`, `list_platform_activity` | — |
+| `/platform/agencies` | operator | `list_platform_agencies` | — |
+| `/platform/agencies/[id]` | operator | `get_platform_agency` | — |
+| `/platform/health` | operator | `list_platform_activity` | — |
 | `/platform/ask` | operator | `fn:listReviewableAskThreads` | — |
 | `/platform/ask/[threadId]` | operator | `fn:getReviewableAskThread` | — |
 | `/platform/knowledge` | operator | `list_kb_articles`, `list_kb_targets` | — |

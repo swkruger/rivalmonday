@@ -62,6 +62,7 @@ export const RULES: Rule[] = [
     tags: 'all',
     why: 'shared server foundation',
   },
+  { pattern: /^packages\/tools\/src\/(?:platform\/|tools\/platform-console\.ts$)/, tags: ['@platform'], why: 'platform console tools and nightly stats' },
   { pattern: /^packages\/(?:ui|core|db)\//, tags: 'all', why: 'shared package (ui/core/db, incl. migrations and schema)' },
   { pattern: /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|tsconfig\.base\.json)$/, tags: 'all', why: 'workspace config' },
 
