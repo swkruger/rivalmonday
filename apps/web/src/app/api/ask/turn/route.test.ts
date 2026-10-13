@@ -33,7 +33,7 @@ vi.mock('next/server', async (orig) => ({ ...(await orig<object>()), after: (tas
 const { defineTool } = toolkit<ToolDeps>();
 const registry = new ToolRegistry<ToolDeps>({} as ToolDeps, { record: async () => {} }).register(
   defineTool({
-    name: 'search_events', description: 'Search changes', input: z.object({ clientId: z.string() }), output: z.any(), permission: 'read', channels: ['ask'],
+    name: 'search_events', access: 'read', description: 'Search changes', input: z.object({ clientId: z.string() }), output: z.any(), permission: 'read', channels: ['ask'],
     handler: async () => ({ items: [{ id: 'e1', title: 'Acme cut AC tune-up to $69', evidenceIds: [EV1] }] }) as never,
   }),
 );
