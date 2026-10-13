@@ -9,7 +9,7 @@ import { ACTIVATION_TOOLS } from './prospects';
 import { withPlatformAudit } from '../platform/audit';
 import { type AgencyHealth, healthFlag } from '../platform/health';
 import { bucketSeries, type SeriesRange, type SeriesRow, seriesWindowStart } from '../platform/series';
-import { AGENCY_ROLES, addDays, CLIENT_ROLES, utcDay } from '../platform/stats';
+import { AGENCY_ROLES, addDays, CLIENT_ROLES, SESSION_ACTIVITY_AT, utcDay } from '../platform/stats';
 
 /**
  * Phase 8a platform console (spec § Tools). Every tool: first statement `requirePlatformOperator`, read-only service reads
@@ -92,9 +92,9 @@ export async function liveAgencies(deps: Pick<ToolDeps, 'service'>, now: Date, a
         (select count(*)::int from client c where c.agency_id = a.id and c.status = 'prospect') as clients_prospect,
         (select count(distinct m.user_id)::int from membership m where m.agency_id = a.id and m.role in ${AGENCY_ROLES}) as agency_seats,
         (select count(distinct m.user_id)::int from membership m where m.agency_id = a.id and m.role in ${CLIENT_ROLES}) as client_seats,
-        (select count(distinct s."userId")::int from auth.session s where s."userId" in ${members} and s."createdAt" >= ${weekStart}) as wau,
-        (select max(s."createdAt") from auth.session s where s."userId" in ${members}) as last_activity_at,
-        (select max(s."createdAt") from auth.session s where s."userId" in ${staff}) as last_sign_in_at,
+        (select count(distinct s."userId")::int from auth.session s where s."userId" in ${members} and ${SESSION_ACTIVITY_AT} >= ${weekStart}) as wau,
+        (select max(${SESSION_ACTIVITY_AT}) from auth.session s where s."userId" in ${members}) as last_activity_at,
+        (select max(${SESSION_ACTIVITY_AT}) from auth.session s where s."userId" in ${staff}) as last_sign_in_at,
         (select max(b.sent_at) from brief b where b.agency_id = a.id and b.status = 'sent') as last_brief_sent_at,
         round((
           (select coalesce(sum(cost_usd), 0) from llm_call where agency_id = a.id and created_at >= ${monthStart})
@@ -387,7 +387,7 @@ export const listPlatformActivity = defineTool({
         deps.service
           .select({ agencyId: agencyDailyStat.agencyId, day: agencyDailyStat.day, clientsActive: agencyDailyStat.clientsActive, wau: agencyDailyStat.wau, lastActivityAt: agencyDailyStat.lastActivityAt })
           .from(agencyDailyStat)
-          .where(and(gte(agencyDailyStat.day, addDays(sinceDay, -29)), lte(agencyDailyStat.day, today))),
+          .where(and(gte(agencyDailyStat.day, addDays(sinceDay, -57)), lte(agencyDailyStat.day, today))),
       ]);
       const agencyName = new Map(agencies.map((a) => [a.id, a.name]));
       const clientById = new Map(clients.map((c) => [c.id, c]));

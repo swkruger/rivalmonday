@@ -102,6 +102,18 @@ describe('list_platform_agencies', () => {
     expect(r.rows.find((x) => x.id === IDS.agencyB)).toMatchObject({ clientsActive: 1, clientsProspect: 0, agencySeats: 0, clientSeats: 0, wau: 0, lastActivityAt: null, spendMonthUsd: 0, health: 'steady' });
   });
 
+  it('a session created long ago but refreshed yesterday counts toward wau and last activity, and is not at_risk', async () => {
+    await seedPlatform();
+    await dbs.owner.execute(sql`delete from auth.session`);
+    await dbs.owner.execute(sql`insert into auth.session (id, "expiresAt", token, "createdAt", "updatedAt", "userId")
+      values ('s-old', '2099-01-01T00:00:00Z'::timestamptz, 'tok-old', ${ago(30).toISOString()}::timestamptz, ${ago(1).toISOString()}::timestamptz, 'ua')`);
+    const r = (await registry.invoke(op, 'list_platform_agencies', {})) as AgencyList;
+    const a = r.rows.find((x) => x.id === IDS.agencyA)!;
+    expect(a.wau).toBe(1);
+    expect(new Date(a.lastActivityAt as string).getTime()).toBeCloseTo(ago(1).getTime(), -4);
+    expect(a.health).not.toBe('at_risk');
+  });
+
   it('sorts (health order at_risk, idle, growing, steady; name) and pages with a cursor; limit ≤ 100', async () => {
     await seedPlatform();
     await dbs.owner.insert(agencyDailyStat).values({ agencyId: IDS.agencyA, day: addDays(today(), -28), clientsActive: 0 });

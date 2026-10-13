@@ -211,7 +211,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/platform', as: 'operator', calls: [{ tool: 'platform_overview', input: () => ({ range: '12w' }), path: 'series' }, { tool: 'list_platform_activity', input: () => ({ limit: 20 }), path: 'items' }] },
   { route: '/platform/agencies', as: 'operator', calls: [{ tool: 'list_platform_agencies', input: () => ({ sort: 'name', dir: 'asc', limit: 100 }), path: 'rows' }] },
   { route: '/platform/agencies/[id]', as: 'operator', calls: [{ tool: 'get_platform_agency', input: (ids) => ({ agencyId: ids.agencyId, range: '12w' }), path: 'series' }] },
-  { route: '/platform/health', as: 'operator', calls: [{ tool: 'list_platform_activity', input: () => ({ limit: 1 }), path: 'items' }] },
+  { route: '/platform/health', as: 'operator', calls: [] },
   { route: '/platform/ask', as: 'operator', calls: [{ tool: 'fn:listReviewableAskThreads', input: none, path: 'items' }] },
   { route: '/platform/ask/[threadId]', as: 'operator', calls: [{ tool: 'fn:getReviewableAskThread', input: (ids) => ({ threadId: ids.ask.ownerLoneStar }), path: 'messages.*.trace' }] },
   { route: '/platform/knowledge', as: 'operator', calls: [{ tool: 'list_kb_articles', input: none, path: 'items' }, { tool: 'list_kb_targets', input: none, path: 'agencies' }] },

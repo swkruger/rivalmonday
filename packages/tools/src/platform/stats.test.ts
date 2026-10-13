@@ -113,6 +113,14 @@ describe('detectStatSources (P4)', () => {
 });
 
 describe('computeAgencyDay', () => {
+  it('a session created 10 days ago but refreshed on the day counts toward wau and last_activity_at', async () => {
+    await dbs.owner.execute(sql`insert into auth.session (id, "expiresAt", token, "createdAt", "updatedAt", "userId")
+      values ('s-old', '2027-01-01T00:00:00Z'::timestamptz, 'tok-old', '2026-10-02T09:00:00Z'::timestamptz, '2026-10-12T09:00:00Z'::timestamptz, 'u1')`);
+    const r = await computeAgencyDay(dbs.service, IDS.agencyA, Y, live);
+    expect(r.wau).toBe(1);
+    expect(r.lastActivityAt).toEqual(t('2026-10-12T09:00:00Z'));
+  });
+
   it('computes every measured figure for one UTC day', async () => {
     await seedActivity();
     const r = await computeAgencyDay(dbs.service, IDS.agencyA, Y, live);

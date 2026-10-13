@@ -68,6 +68,12 @@ type DayRow = {
 };
 
 /**
+ * Activity timestamp of an `auth.session` row aliased `s`. Sessions are refreshed daily (updatedAt moves, createdAt
+ * stays at the original sign-in), so activity is the later of the two.
+ */
+export const SESSION_ACTIVITY_AT = sql.raw('greatest(s."createdAt", s."updatedAt")');
+
+/**
  * One agency's figures for one UTC day [day 00:00Z, day+1 00:00Z), in a single statement.
  * Levels (clients, seats) count current rows created before the day ends; flows count rows dated inside the day.
  */
@@ -83,10 +89,10 @@ export async function computeAgencyDay(db: ServiceDb, agencyId: string, day: str
 
   const wau = measured
     ? sql`(select count(distinct s."userId")::int from auth.session s
-           where s."userId" in ${members} and s."createdAt" >= ${weekStart}::timestamptz and s."createdAt" < ${e})`
+           where s."userId" in ${members} and ${SESSION_ACTIVITY_AT} >= ${weekStart}::timestamptz and ${SESSION_ACTIVITY_AT} < ${e})`
     : sql`null::int`;
   const lastActivity = measured
-    ? sql`(select max(s."createdAt") from auth.session s where s."userId" in ${members} and s."createdAt" < ${e})`
+    ? sql`(select max(${SESSION_ACTIVITY_AT}) from auth.session s where s."userId" in ${members} and ${SESSION_ACTIVITY_AT} < ${e})`
     : sql`null::timestamptz`;
   const ask = measured && opts.hasAsk
     ? sql`(select count(*)::int from ask_message where agency_id = ${agencyId} and role = 'user' and created_at >= ${s} and created_at < ${e})`

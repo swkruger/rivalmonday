@@ -35,7 +35,7 @@ export const agencyDailyStat = pgTable(
     clientsProspect: integer('clients_prospect'),
     agencySeats: integer('agency_seats'),
     clientSeats: integer('client_seats'),
-    /** Distinct users with a session created in (day-6 .. day). */
+    /** Distinct users with a session created or refreshed (greatest(createdAt, updatedAt)) in (day-6 .. day). */
     wau: integer('wau'),
     briefsSent: integer('briefs_sent'),
     alertsSent: integer('alerts_sent'),
