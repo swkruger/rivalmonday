@@ -82,6 +82,10 @@ export interface WorkerDeps {
   renderReportPdf(reportId: string): Promise<{ key: string }>;
   /** Sent trend reports (last 7 days) whose PDF never rendered — re-enqueued by the hourly reports tick. */
   listReportsMissingPdf(now: Date): Promise<string[]>;
+  /** Phase 6c: the service-role connection, for jobs that read/write tables directly (kb-embed). */
+  serviceDb(): Db;
+  /** Phase 6c: embeds texts with the `embeddings` task (512 d). */
+  embedTexts(texts: string[]): Promise<number[][]>;
   close(): Promise<void>;
 }
 
@@ -315,6 +319,10 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     renderReportPdf: (reportId) => renderReportPdf({ db: getDb(), store: getStore(), pdf: getPdf() }, reportId),
     listBriefsMissingPdf: (now) => listBriefsMissingPdf(getDb(), now),
     listReportsMissingPdf: (now) => listReportsMissingPdf(getDb(), now),
+    serviceDb: () => getDb(),
+    async embedTexts(texts) {
+      return (await (await getAi()).embed('embeddings', texts, { agencyId: null, clientId: null })).vectors;
+    },
     async close() {
       await renderer?.close();
       await pdf?.close();
