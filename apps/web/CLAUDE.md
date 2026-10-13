@@ -25,6 +25,7 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **Guest cookies (`rm_guest`): 24 hours, client contacts only, re-checked every request:** issued only for a client contact opening `/l/<token>` with no signed-in user; every request re-validates `active` and `links_revoked_before` against the cookie's `iat` (no cache beyond per-request React `cache()`), so deactivation ends the session on the next request.
 - **A relative `EVIDENCE_FS_DIR` resolves against `apps/worker/`,** not `apps/web`, so both processes share the evidence directory in dev.
 - **`/mcp` and `/.well-known/*` are public in `proxy.ts`** (Bearer token / public metadata; `/oauth/consent` stays behind the session). A new route under them needs its own auth; a new `/mcp`-adjacent path must be added to the proxy `PUBLIC` list and the e2e rules.
+- **`POST /api/ask/turn` (SSE) is public in `proxy.ts` and authenticates itself:** exactly one `final` event per response, `emit` never throws, membership chosen by the body's `clientId` among the user's own (`getViewerForClient`); new-thread id comes in the `x-ask-thread-id` header.
 - **Consent binding order (`/oauth/consent`):** live memberships (`pickConsent`) → plugin accept → `bindConsent` → redirect; a failed bind keeps the code server-side. Authorize deletes a plugin consent with no active binding, so the page reappears.
 
 ### UI patterns
@@ -43,7 +44,7 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 ### E2E
 - **`pnpm --filter @cs/web e2e`** (Playwright smoke suite) is not part of `pnpm test`: it builds and starts a production server against `cs_test` (`playwright.config.ts` sets its own env), runs as its own CI job after `pnpm test`, and must never run concurrently with another `cs_test` run.
 - **Reuse one signed-in session per spec file:** Better Auth's magic-link plugin allows 5 requests per IP per rolling 60 s on `/sign-in/magic-link` and `/magic-link/verify`; `workflow.spec.ts` signs in once in `beforeAll` and uses `test.use({ storageState })`. `latestMagicLink()`/`newMagicLink()` snapshot the outbox before requesting and filter by recipient, because Playwright restarts the worker process after a failed test and "newest file" can return a consumed link.
-- **A one-off webServer "destination stream closed early" error is an infra flake** — re-run once before suspecting the test or app.
+- **A one-off webServer "destination stream closed early" error is an infra flake** — re-run once.
 
 ### Affected-only E2E
 - **During development run `pnpm --filter @cs/web e2e:affected`** (`--dry-run` shows the decision; `--base <ref>`, `--full`): it diffs against `merge-base HEAD main` (+ uncommitted/untracked), runs only tests whose tags the changed files map to (plus `@smoke`), and rebuilds only when `apps/web`/`packages` changed since its last build (`.next/e2e-build-stamp`). **At phase end run the full `pnpm --filter @cs/web e2e`** (always builds).
