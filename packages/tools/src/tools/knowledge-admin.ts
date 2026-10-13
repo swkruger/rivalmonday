@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { KB_KINDS, KB_LEVELS, KB_MAX_BODY_BYTES, toolkit, ToolError } from '@cs/core';
 import { agency, client, kbArticle } from '@cs/db';
-import { and, desc, eq, ilike, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, jobStatusOf, type ToolDeps } from '../deps';
 import { IMPORT_ERRORS } from '../kb/import-error';
@@ -55,6 +55,8 @@ const ListItem = z.object({
   autoSync: z.boolean(),
   lastSyncedAt: z.date().nullable(),
   syncError: z.string().nullable(),
+  /** True when the most recent write was a sync that changed the body (the worker sets `updated_at = last_synced_at` only then). */
+  lastSyncChanged: z.boolean(),
   updatedAt: z.date(),
 });
 
@@ -97,6 +99,7 @@ export const listKbArticles = defineTool({
         autoSync: kbArticle.autoSync,
         lastSyncedAt: kbArticle.lastSyncedAt,
         syncError: kbArticle.syncError,
+        lastSyncChanged: sql<boolean>`(${kbArticle.previousBodyMd} IS NOT NULL AND ${kbArticle.lastSyncedAt} IS NOT NULL AND ${kbArticle.updatedAt} = ${kbArticle.lastSyncedAt})`,
         updatedAt: kbArticle.updatedAt,
       })
       .from(kbArticle)
@@ -108,6 +111,20 @@ export const listKbArticles = defineTool({
       .offset(offset);
     const page = pageResult(rows, limit, offset);
     return { items: page.rows, nextCursor: page.nextCursor };
+  },
+});
+
+export const listKbTargets = defineTool({
+  name: 'list_kb_targets',
+  description: 'Platform operators: every agency with its clients, for choosing where a knowledge-base article applies.',
+  input: z.object({}),
+  output: z.object({ agencies: z.array(z.object({ id: uuid, name: z.string(), clients: z.array(z.object({ id: uuid, name: z.string() })) })) }),
+  permission: 'agency',
+  async handler(ctx, _input, deps) {
+    await requirePlatformOperator(deps, ctx);
+    const agencies = await deps.service.select({ id: agency.id, name: agency.name }).from(agency).orderBy(asc(agency.name), agency.id);
+    const clients = await deps.service.select({ id: client.id, name: client.name, agencyId: client.agencyId }).from(client).orderBy(asc(client.name), client.id);
+    return { agencies: agencies.map((a) => ({ ...a, clients: clients.filter((c) => c.agencyId === a.id).map(({ id, name }) => ({ id, name })) })) };
   },
 });
 
@@ -246,4 +263,4 @@ export const getKbImportStatus = defineTool({
   },
 });
 
-export const knowledgeAdminTools = [listKbArticles, getKbArticleAdmin, upsertKbArticle, deleteKbArticle, setKbAutoSync, importKbUrl, getKbImportStatus];
+export const knowledgeAdminTools = [listKbArticles, listKbTargets, getKbArticleAdmin, upsertKbArticle, deleteKbArticle, setKbAutoSync, importKbUrl, getKbImportStatus];

@@ -254,5 +254,6 @@ describe('SidebarNav sections', () => {
     expect(screen.getByRole('link', { name: 'Model reviews' }).getAttribute('href')).toBe('/platform/reviews');
     expect(screen.getByRole('link', { name: 'Theme proposals' }).getAttribute('href')).toBe('/platform/themes');
     expect(screen.getByRole('link', { name: 'Ask review' }).getAttribute('href')).toBe('/platform/ask');
+    expect(screen.getByRole('link', { name: 'Knowledge' }).getAttribute('href')).toBe('/platform/knowledge');
   });
 });

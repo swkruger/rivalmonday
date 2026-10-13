@@ -37,6 +37,7 @@ describe('knowledge admin tools', () => {
       ['upsert_kb_article', art],
       ['delete_kb_article', { id }],
       ['set_kb_auto_sync', { id, autoSync: false }],
+      ['list_kb_targets', {}],
     ];
     for (const [name, input] of calls) await expect(registry.invoke(admin, name, input)).rejects.toMatchObject({ code: 'permission_denied' });
   });
@@ -102,6 +103,27 @@ describe('knowledge admin tools', () => {
     await expect(registry.invoke(op, 'set_kb_auto_sync', { id: u!.id, autoSync: true })).resolves.toEqual({ ok: true });
     const [row] = await dbs.service.select().from(kbArticle).where(eq(kbArticle.id, u!.id));
     expect(row).toMatchObject({ autoSync: true, syncFailures: 0, syncError: null });
+  });
+
+  it('list_kb_targets lists agencies with their clients (operators only)', async () => {
+    const r = (await registry.invoke(op, 'list_kb_targets', {})) as { agencies: { id: string; name: string; clients: { id: string; name: string }[] }[] };
+    const a = r.agencies.find((x) => x.id === IDS.agencyA);
+    expect(a?.clients.map((c) => c.id)).toContain(IDS.clientA1);
+    expect(r.agencies.find((x) => x.id === IDS.agencyB)?.clients.map((c) => c.id)).toContain(IDS.clientB1);
+  });
+
+  it('list_kb_articles flags lastSyncChanged only when the last write was a changing sync', async () => {
+    const now = new Date();
+    const earlier = new Date(now.getTime() - 60_000);
+    const base = { level: 'platform', kind: 'blog', bodyMd: 'x', source: 'url', sourceUrl: 'https://x.example', createdBy: 'op', updatedBy: 'op' } as const;
+    await dbs.service.insert(kbArticle).values([
+      { ...base, title: 'Changed', previousBodyMd: 'old', lastSyncedAt: now, updatedAt: now },
+      { ...base, title: 'Unchanged', previousBodyMd: null, lastSyncedAt: now, updatedAt: now },
+      { ...base, title: 'EditedAfter', previousBodyMd: 'old', lastSyncedAt: earlier, updatedAt: now },
+    ]);
+    const all = (await registry.invoke(op, 'list_kb_articles', {})) as { items: { title: string; lastSyncChanged: boolean }[] };
+    const m = Object.fromEntries(all.items.map((i) => [i.title, i.lastSyncChanged]));
+    expect(m).toEqual({ Changed: true, Unchanged: false, EditedAfter: false });
   });
 
   describe('URL import', () => {

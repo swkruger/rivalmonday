@@ -1,0 +1,22 @@
+import { requireContext } from '@/server/current-viewer';
+import { callTool } from '@/server/tools';
+import { deleteKbArticleAction, saveKbArticleAction, setKbAutoSyncAction } from '../actions';
+import { type EditorArticle, KbEditor } from '../editor';
+import type { KbTargets } from '../scope-fields';
+
+export const dynamic = 'force-dynamic';
+
+/** Any refusal (non-operator, unknown or malformed id) is a 404. `?lint=` carries the first save's lint warnings. */
+export default async function EditKnowledgePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ lint?: string }> }) {
+  const { ctx } = await requireContext();
+  const { id } = await params;
+  const { lint } = await searchParams;
+  const article = await callTool<EditorArticle>(ctx, 'get_kb_article_admin', { id });
+  const targets = await callTool<KbTargets>(ctx, 'list_kb_targets', {});
+  return (
+    <>
+      <h1 className="text-[26px] font-extrabold tracking-tight">{article.title}</h1>
+      <KbEditor article={article} targets={targets} actions={{ save: saveKbArticleAction, remove: deleteKbArticleAction, autoSync: setKbAutoSyncAction }} {...(lint ? { initialNotice: lint.split('|').join(' ') } : {})} />
+    </>
+  );
+}

@@ -16,7 +16,7 @@ export interface NavItem {
   pill?: string;
   icon:
     | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
-    | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects' | 'ask';
+    | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects' | 'ask' | 'knowledge';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -76,6 +76,7 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
     account('/platform/reviews', 'Model reviews', 'reviews');
     account('/platform/themes', 'Theme proposals', 'themes');
     account('/platform/ask', 'Ask review', 'ask');
+    account('/platform/knowledge', 'Knowledge', 'knowledge');
   }
   return items;
 }
