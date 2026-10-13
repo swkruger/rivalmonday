@@ -12,6 +12,7 @@ const ask = { channel: 'ask' as const };
 const admin = ctx('agency_admin', 'all');
 const viewer = ctx('client_viewer', [IDS.clientA1], ['dashboard', 'ask']);
 const unit = (i: number) => Array.from({ length: EMBEDDING_DIMENSIONS }, (_, j) => (j === i ? 1 : 0));
+const mix = (d0: number, d1: number) => unit(0).map((_, j) => (j === 0 ? d0 : j === 1 ? d1 : 0));
 const withDeps = (extra: Partial<ToolDeps>) => createToolRegistry({ app: dbs.app, service: dbs.service, ...extra }, { audit: { record: async () => {} } });
 
 interface Seed {
@@ -24,7 +25,7 @@ interface Seed {
   clientVisible?: boolean;
   body?: string;
   chunks: string[];
-  vectors?: number[];
+  vectors?: number[][];
 }
 async function seed(s: Seed): Promise<string> {
   const level = s.level ?? 'platform';
@@ -35,7 +36,7 @@ async function seed(s: Seed): Promise<string> {
     clientVisible: s.clientVisible ?? true, source: 'manual', createdBy: 't', updatedBy: 't',
   }).returning();
   await dbs.owner.insert(kbChunk).values(s.chunks.map((text, ord) => ({
-    articleId: a!.id, level, agencyId, clientId, clientVisible: s.clientVisible ?? true, ord, text, embedding: s.vectors ? unit(s.vectors[ord] ?? 100) : null,
+    articleId: a!.id, level, agencyId, clientId, clientVisible: s.clientVisible ?? true, ord, text, embedding: s.vectors?.[ord] ?? null,
   })));
   return a!.id;
 }
@@ -53,12 +54,12 @@ describe('search_knowledge', () => {
   });
 
   it('fuses vector and full-text order with a stub embedQuery', async () => {
-    const a = await seed({ title: 'A', chunks: ['pricing pricing pricing page'], vectors: [5] });
-    const b = await seed({ title: 'B', chunks: ['pricing mention'], vectors: [0] });
-    const c = await seed({ title: 'C', chunks: ['unrelated words'], vectors: [1] }); // vector-only hit
+    const a = await seed({ title: 'A', chunks: ['pricing pricing pricing page'], vectors: [mix(0.1, 0.995)] });
+    const b = await seed({ title: 'B', chunks: ['pricing mention'], vectors: [unit(0)] });
+    const c = await seed({ title: 'C', chunks: ['unrelated words'], vectors: [mix(0.8, 0.6)] }); // vector-only hit
     const reg = withDeps({ embedQuery: async () => unit(0) });
     const out = await search(admin, { query: 'pricing' }, reg);
-    // B: fts rank 2 + vector rank 1; A: fts rank 1 + vector rank 3; C: vector rank 2.
+    // Query vector is unit(0); cosine distances are B 0, C 0.2, A ~0.9 (no ties). B: fts 2 + vector 1 = .0325; A: fts 1 + vector 3 = .0323; C: vector 2 = .0161.
     expect(ids(out)).toEqual([b, a, c]);
   });
 
