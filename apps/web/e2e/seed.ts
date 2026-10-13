@@ -105,6 +105,15 @@ export async function seed(): Promise<void> {
 
     await createInvitation(db, { agencyId, email: 'admin@e2e.test', role: 'agency_admin', invitedBy: 'e2e-seed' });
 
+    // Phase 8b: two platform operators (staff, viewer) who need an agency membership to reach /platform (R7; their
+    // platform_admin rows are written by support.spec.ts after their first sign-in creates the auth user), and a
+    // target agency with one client and its own admin for the support-session scenarios.
+    await createInvitation(db, { agencyId, email: 'staff@e2e.test', role: 'account_manager', invitedBy: 'e2e-seed' });
+    await createInvitation(db, { agencyId, email: 'viewer-op@e2e.test', role: 'account_manager', invitedBy: 'e2e-seed' });
+    const [target] = await db.insert(agency).values({ name: 'Support Target Agency' }).returning();
+    await db.insert(client).values({ agencyId: target!.id, name: 'Target Plumbing', verticalId: 'hvac_plumbing', features: ['dashboard'], keywords: ['plumber'], serviceArea: { center: { lat: 32.7, lng: -97.1 }, radiusKm: 20, zips: ['76010'] }, placeId: 'e2e-target-place' });
+    await createInvitation(db, { agencyId: target!.id, email: 'target-admin@e2e.test', role: 'agency_admin', invitedBy: 'e2e-seed' });
+
     // 5b-2: spend near the cap (decision 6), a prospect with a ready snapshot (decisions 8–11), a pending theme proposal (decision 4).
     await db.insert(llmCall).values({ agencyId, clientId, task: 'brief_writer', provider: 'openrouter', model: 'm', inputTokens: 1, outputTokens: 1, costUsd: 13, latencyMs: 1, ok: true });
     const [prospect] = await db

@@ -69,7 +69,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/agency/approvals/[briefId]', as: 'admin', calls: [{ tool: 'get_brief_review', input: (ids) => ({ briefId: ids.briefs.readyLoneStar }), path: 'items' }] },
   { route: '/agency/approvals/[briefId] (quiet)', as: 'admin', calls: [{ tool: 'get_brief_review', input: (ids) => ({ briefId: ids.briefs.quietBrazos }), path: 'items', expect: 'empty', why: 'Brazos’s brief is held as quiet' }] },
   { route: '/agency/branding', as: 'admin', calls: [{ tool: 'fn:getAgencyBranding', input: none, path: 'stored' }] },
-  { route: '/agency/settings/platform-access', as: 'admin', calls: [{ tool: 'list_support_sessions', input: none, path: 'rows', expect: 'empty', why: 'support sessions are seeded in 8b Task 9' }] },
+  { route: '/agency/settings/platform-access', as: 'admin', calls: [{ tool: 'list_support_sessions', input: none, path: 'rows' }] },
   { route: '/agency/playbooks', as: 'admin', calls: [{ tool: 'list_playbooks', input: none, path: 'verticals' }] },
   { route: '/agency/prospects', as: 'admin', calls: [{ tool: 'list_prospects', input: none, path: 'items' }] },
   {
@@ -218,7 +218,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
   {
     route: '/platform/agencies/[id]', as: 'operator', calls: [
       { tool: 'get_platform_agency', input: (ids) => ({ agencyId: ids.agencyId, range: '12w' }), path: 'series' },
-      { tool: 'list_agency_support_sessions', input: (ids) => ({ agencyId: ids.agencyId }), path: 'rows', expect: 'empty', why: 'support sessions are seeded in 8b Task 9' },
+      { tool: 'list_agency_support_sessions', input: (ids) => ({ agencyId: ids.agencyId }), path: 'rows' },
     ],
   },
   { route: '/platform/health', as: 'operator', calls: [] },

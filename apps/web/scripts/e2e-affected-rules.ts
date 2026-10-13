@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@playbooks',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -93,7 +93,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}prospects/`), tags: ['@prospects', '@clients'], why: 'prospects' },
   { pattern: re(`${AGENCY}usage/`), tags: ['@usage'], why: 'usage and limits' },
   { pattern: re(`${AGENCY}(?:branding|team|webhooks)/`), tags: [], why: 'no E2E covers this agency page' },
-  { pattern: re(`${AGENCY}settings/platform-access/`), tags: ['@platform'], why: 'agency support-session history (8b; Task 9 retags to @support)' },
+  { pattern: re(`${AGENCY}settings/platform-access/`), tags: ['@support'], why: 'agency support-session history and notify switch' },
   { pattern: re(`${C}(?:page\\.tsx|overview-kpis\\.ts)$`), tags: ['@overview'], why: 'client overview' },
   { pattern: re(`${C}ads/`), tags: ['@ads'], why: 'ads view' },
   { pattern: re(`${C}alerts/`), tags: ['@alerts'], why: 'alert page' },
@@ -111,15 +111,16 @@ export const RULES: Rule[] = [
   { pattern: re(`${C}settings/alerts/`), tags: ['@alert-rules'], why: 'alert rules' },
   { pattern: re(`${C}settings/profile/`), tags: ['@profile', '@clients'], why: 'client profile and features' },
   { pattern: re(`${C}settings/delivery/`), tags: [], why: 'no E2E covers this settings page' },
+  { pattern: re(`${APP}\\(platform\\)/platform/agencies/\\[id\\]/`), tags: ['@platform', '@support'], why: 'platform agency page: View as agency dialog and start action' },
   { pattern: re(`${APP}\\(platform\\)/platform/`), tags: ['@platform', '@reviews'], why: 'platform console, review/theme queues' },
-  { pattern: re(`${APP}support/`), tags: ['@platform'], why: 'support session end route (8b; Task 9 retags to @support)' },
+  { pattern: re(`${APP}support/`), tags: ['@support'], why: 'support session Exit and end routes' },
   { pattern: re(`${APP}\\(app\\)/(?:inbox|settings/notifications)/`), tags: [], why: 'no E2E covers this page' },
 
   // --- Web components and server modules (by who renders/uses them) ---
   { pattern: re(`${WEB}src/dev-panel/`), tags: ['@dev-panel'], why: 'dev panel' },
   { pattern: re(`${COMP}(?:auth-card|sign-out-button)\\.tsx$`), tags: ['@auth'], why: 'sign-in pages' },
   { pattern: re(`${COMP}read-only\\.tsx$`), tags: 'all', why: 'read-only provider and WriteGuard (wrap write controls everywhere)' },
-  { pattern: re(`${COMP}support-sessions-table\\.tsx$`), tags: ['@platform'], why: 'support-session history table (8b; Task 9 retags to @support)' },
+  { pattern: re(`${COMP}support-sessions-table\\.tsx$`), tags: ['@support', '@platform'], why: 'support-session history table (platform agency page and Platform access)' },
   { pattern: re(`${COMP}(?:client-home-basic|client-lists|stat-card)\\.tsx$`), tags: ['@overview', '@reviews'], why: 'client overview/reviews' },
   { pattern: re(`${COMP}client-profile-form\\.tsx$`), tags: ['@clients', '@profile', '@prospects'], why: 'client/prospect forms' },
   { pattern: re(`${COMP}evidence-chips\\.tsx$`), tags: ['@briefs', '@recommendations', '@overview', '@alerts', '@guest'], why: 'evidence chips' },
@@ -136,6 +137,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}views/alert-view\\.tsx$`), tags: ['@alerts'], why: 'alert view' },
   { pattern: re(`${COMP}views/report-view\\.tsx$`), tags: [], why: 'no E2E covers the report view' },
   { pattern: re(`${SERVER}(?:guest|links|files|store)\\.ts$`), tags: GUEST_FILES, why: 'guest links and stored files' },
+  { pattern: re(`${SERVER}support-[^/]+\\.ts$`), tags: ['@support'], why: 'support session cookie, mask and email modules' },
   { pattern: re(`${SERVER}(?:email-transport|sign-out)\\.ts$`), tags: ['@auth'], why: 'sign-in email / sign-out' },
 
   // --- Domain packages: keyword rules (more specific first) ---
@@ -157,6 +159,7 @@ export const RULES: Rule[] = [
   kw('prospect|onboarding', ['@prospects', '@clients'], 'prospects/onboarding'),
   kw('competitor', ['@competitors'], 'competitors'),
   kw('settings|preferences|client-input|clients', ['@profile', '@clients'], 'settings/client input'),
+  kw('support-session|platform-support', ['@support', '@platform'], 'support sessions'),
   kw('platform|model-ops', ['@platform'], 'platform/model ops'),
   kw('email|magic|sign-in', ['@auth'], 'sign-in email'),
   { pattern: new RegExp(`^(?:${PKG})`), tags: 'all', why: 'package file no keyword matches', fallback: true },

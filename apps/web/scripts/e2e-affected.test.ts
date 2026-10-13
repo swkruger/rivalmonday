@@ -77,6 +77,20 @@ describe('resolveAffected', () => {
     }
   });
 
+  it('maps the support-session files to @support', () => {
+    for (const f of [
+      'apps/web/src/app/support/exit/route.ts',
+      'apps/web/src/app/(app)/agency/settings/platform-access/page.tsx',
+      'apps/web/src/app/(platform)/platform/agencies/[id]/support-dialog.tsx',
+      'apps/web/src/components/support-sessions-table.tsx',
+      'apps/web/src/server/support-cookie.ts',
+      'packages/demo/src/platform-support.ts',
+    ]) {
+      expect(resolve(f).tags, f).toContain('@support');
+      expect(resolve(f).mode, f).toBe('some');
+    }
+  });
+
   it('runs everything for an unknown package file, a migration, or a shared foundation', () => {
     expect(resolve('packages/tools/src/registry.ts').mode).toBe('all');
     expect(resolve('packages/email/src/render.ts').mode).toBe('all');

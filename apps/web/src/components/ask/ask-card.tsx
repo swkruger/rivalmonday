@@ -12,11 +12,12 @@ const QUESTION_MAX = 2000;
 
 /**
  * The Overview / basic-home "Ask {name}" card (Task 10): a question box and the client's starter questions, both
- * opening `/c/<id>/ask?q=<question>`. Null without the `ask` feature and for guests (Q2). Shows no usage or quota (e4).
+ * opening `/c/<id>/ask?q=<question>`. Null without the `ask` feature, for guests (Q2) and inside support sessions. Shows no usage or quota (e4).
  */
 
 export async function AskCard({ clientId, ctx }: { clientId: string; ctx: AccessContext }) {
-  if (ctx.userId.startsWith('contact:') || !hasFeature(ctx, 'ask')) return null;
+  // Phase 8b: Ask tools are not offered in a support session (conversations are private), so the card is not rendered there.
+  if (ctx.support || ctx.userId.startsWith('contact:') || !hasFeature(ctx, 'ask')) return null;
   const [starters, assistantName] = await Promise.all([
     callTool<{ questions: string[] }>(ctx, 'get_ask_starters', { clientId }),
     assistantNameFor(dbs().service, ctx.agencyId),

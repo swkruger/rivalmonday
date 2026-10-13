@@ -12,6 +12,7 @@ import { createSeedContext, type SeedContext } from './context';
 import type { DemoIds } from './ids';
 import { seedPlatform } from './platform';
 import { seedPlatformStats } from './platform-stats';
+import { seedSupportSessions } from './platform-support';
 import { seedPricing } from './pricing';
 import { seedRankings } from './rankings';
 import { seedReviews } from './reviews';
@@ -40,6 +41,7 @@ const STEPS: readonly [string, (ctx: SeedContext) => Promise<void>][] = [
   ['agency', seedAgency],
   ['platform queues', seedPlatform],
   ['platform stats', seedPlatformStats],
+  ['support sessions', seedSupportSessions],
   ['AI connections', seedAi],
   ['Ask threads and starters', seedAsk],
   ['knowledge base', seedKb],

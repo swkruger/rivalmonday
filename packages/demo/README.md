@@ -24,7 +24,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/approvals/[briefId]` | admin | `get_brief_review` | — |
 | `/agency/approvals/[briefId] (quiet)` | admin | — | `get_brief_review`: Brazos’s brief is held as quiet |
 | `/agency/branding` | admin | `fn:getAgencyBranding` | — |
-| `/agency/settings/platform-access` | admin | — | `list_support_sessions`: support sessions are seeded in 8b Task 9 |
+| `/agency/settings/platform-access` | admin | `list_support_sessions` | — |
 | `/agency/playbooks` | admin | `list_playbooks` | — |
 | `/agency/prospects` | admin | `list_prospects` | — |
 | `/agency/prospects/[clientId]` | admin | `get_client_profile`, `get_prospect_report`, `list_client_competitors` | — |
@@ -62,7 +62,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/kb/[id]` | admin | `get_kb_article` | — |
 | `/platform` | operator | `platform_overview`, `list_platform_activity` | — |
 | `/platform/agencies` | operator | `list_platform_agencies` | — |
-| `/platform/agencies/[id]` | operator | `get_platform_agency` | `list_agency_support_sessions`: support sessions are seeded in 8b Task 9 |
+| `/platform/agencies/[id]` | operator | `get_platform_agency`, `list_agency_support_sessions` | — |
 | `/platform/health` | operator | — | — |
 | `/platform/ask` | operator | `fn:listReviewableAskThreads` | — |
 | `/platform/ask/[threadId]` | operator | `fn:getReviewableAskThread` | — |

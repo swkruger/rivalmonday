@@ -20,6 +20,11 @@ describe('AskCard', () => {
     expect(await AskCard({ clientId: C, ctx: ctx(['ask'], 'contact:abc') })).toBeNull();
     expect(callTool).not.toHaveBeenCalled();
   });
+  it('is not rendered inside a support session (Ask tools are hidden there)', async () => {
+    const support = createAccessContext({ agencyId: A, userId: 'op', role: 'agency_admin', clientScope: 'all', features: ['ask'] as never, support: { sessionId: C, platformUserId: 'op' } });
+    expect(await AskCard({ clientId: C, ctx: support })).toBeNull();
+    expect(callTool).not.toHaveBeenCalled();
+  });
   it('shows the name and starter chips linking to the Ask page', async () => {
     render(<>{await AskCard({ clientId: C, ctx: ctx(['ask']) })}</>);
     expect(screen.getByText('Ask Robin')).toBeTruthy();
