@@ -79,7 +79,7 @@ export interface AskChatProps {
 
 function MessageItem({ m, clientId, assistantName, confirmAction, saveAction }: { m: ChatMessage; clientId: string; assistantName: string; confirmAction: ConfirmAskAction; saveAction: SaveRecommendationAction }) {
   if (m.role === 'user') {
-    return <div className="ml-auto max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-md bg-secondary px-4 py-2.5 text-secondary-foreground">{m.content}</div>;
+    return <div className="ml-auto max-w-[85%] whitespace-pre-line rounded-2xl [overflow-wrap:anywhere] rounded-br-md bg-secondary px-4 py-2.5 text-secondary-foreground">{m.content}</div>;
   }
   // A proposed write (e8) is stored as an `action` message whose content is the summary: the confirm card shows it
   // while proposed (and the error once failed); afterwards it is a muted history line like "Saved." / "Cancelled.".

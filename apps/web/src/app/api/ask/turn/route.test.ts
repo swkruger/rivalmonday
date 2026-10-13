@@ -18,9 +18,16 @@ const m = vi.hoisted(() => ({
   audit: undefined as unknown,
   kept: [] as Promise<unknown>[],
   depsFail: false,
+  hints: [] as (string | null)[],
 }));
 
-vi.mock('@/server/current-viewer', () => ({ getViewer: async () => m.viewer }));
+vi.mock('@/server/current-viewer', () => ({
+  getViewer: async () => m.viewer,
+  getViewerForClient: async (hint: string | null) => {
+    m.hints.push(hint);
+    return m.viewer;
+  },
+}));
 vi.mock('next/server', async (orig) => ({ ...(await orig<object>()), after: (task: () => Promise<unknown>) => void m.kept.push(task()) }));
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -71,10 +78,16 @@ beforeEach(async () => {
   await dbs.owner.execute(sql`truncate auth."user" cascade`);
   await seedTenancy(dbs.owner);
   await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values ('u1', 'U1', 'u1@e.co', true)`);
-  Object.assign(m, { viewer: userViewer(ctxFor()), script: ANSWER, audit: undefined, kept: [], depsFail: false });
+  Object.assign(m, { viewer: userViewer(ctxFor()), script: ANSWER, audit: undefined, kept: [], depsFail: false, hints: [] });
 });
 
 describe('POST /api/ask/turn', () => {
+  it("resolves the viewer under the body's clientId (a multi-client user asks in the workspace it is on)", async () => {
+    await (await post({ clientId: IDS.clientA1, question: 'What changed?' })).text();
+    await (await POST(new Request('http://localhost/api/ask/turn', { method: 'POST', body: 'not json' }))).text();
+    expect(m.hints).toEqual([IDS.clientA1, null]);
+  });
+
   it('404 for guest / no ask feature / foreign client', async () => {
     const q = { clientId: IDS.clientA1, question: 'What changed?' };
     const cases: [unknown, unknown][] = [

@@ -19,7 +19,7 @@ import { MEMBERSHIP_COOKIE, resolveViewer, type Viewer } from './viewer';
  * later client-side navigation away from `/c/<id>` without a full page load keeps this cached viewer's membership
  * until the next full load (HANDOVER §6 L1).
  */
-export const getViewer = cache(async (): Promise<Viewer | null> => {
+async function viewerWith(clientHint: string | null): Promise<Viewer | null> {
   const [h, jar] = [await headers(), await cookies()];
   const s = await auth().api.getSession({ headers: h });
   return resolveViewer({
@@ -28,9 +28,20 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     membershipCookie: jar.get(MEMBERSHIP_COOKIE)?.value,
     guestCookie: jar.get(GUEST_COOKIE)?.value,
     linkSecrets: webEnv().linkSecrets,
-    clientHint: clientIdFromPath(h.get('x-rm-path') ?? ''),
+    clientHint,
   });
-});
+}
+
+export const getViewer = cache(async (): Promise<Viewer | null> => viewerWith(clientIdFromPath((await headers()).get('x-rm-path') ?? '')));
+
+/**
+ * For API routes whose path names no client (`/api/ask/turn`): the client comes from the request body, so a user with
+ * several single-client memberships acts under the one covering that client (Decision 16), as a `/c/<id>` page would.
+ * The hint only picks among the user's own memberships; access is still checked by the caller.
+ */
+export async function getViewerForClient(clientId: string | null): Promise<Viewer | null> {
+  return viewerWith(clientId);
+}
 
 export async function requireViewer(): Promise<Viewer> {
   const v = await getViewer();

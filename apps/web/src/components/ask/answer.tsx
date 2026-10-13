@@ -67,7 +67,7 @@ export function AskAnswer({ clientId, content, citations }: { clientId: string; 
   return (
     <div className="flex flex-col gap-2 leading-relaxed">
       {parseAnswer(content, citations).map((segments, i) => (
-        <p key={i} className="whitespace-pre-line">
+        <p key={i} className="whitespace-pre-line [overflow-wrap:anywhere]">
           {segments.map((s, j) => (
             <Fragment key={j}>
               {s.kind === 'text' && s.text}
