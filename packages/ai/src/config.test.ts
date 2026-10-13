@@ -46,7 +46,9 @@ tasks:
 
   it('config loads ask_assistant, ask_starters, ask_guard_decisions', async () => {
     const cfg = await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH);
-    expect(cfg.tasks.ask_assistant).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-sonnet-5', fallbacks: ['anthropic/claude-sonnet-4.6'], temperature: 0.2, max_tokens: 1500 });
+    expect(cfg.tasks.ask_assistant).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-sonnet-5', fallbacks: ['anthropic/claude-sonnet-4.6'], max_tokens: 1500 });
+    // sonnet-5 rejects temperature on every endpoint; with require_parameters that silently routed every turn to the fallback.
+    expect(cfg.tasks.ask_assistant).not.toHaveProperty('temperature');
     expect(cfg.tasks.ask_starters).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-haiku-4.5', temperature: 0.5, max_tokens: 400 });
     expect(cfg.tasks.ask_guard_decisions).toMatchObject({ provider: 'jev', escalate_to: 'llm_decisions', min_confidence: { default: 0.85 }, shadow_rate: 0.05 });
   });
