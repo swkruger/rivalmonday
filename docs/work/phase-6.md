@@ -20,12 +20,12 @@
 **Env:** `ASK_FAKE_AI` (E2E only; `parseWebEnv` throws with `VERCEL_ENV=production`; in turbo `globalPassThroughEnv` and playwright `E2E_SERVER_ENV`).
 
 **`@cs/core`:** `tokens.ts` (PAT helpers, `scopeCovers`, `effectiveScope`); registry `Tool` gains `channels?`, `audit?`, `mcpScope?`; handler 4th arg `CallMeta`; `invoke/list/describe(ctx, ..., opts?)`; hidden = unknown = `not_found`; `isClientRole`.
-**`@cs/mcp`:** `resolveBearer`, `createMcpServer`, `handleMcpRequest`, `checkRateLimit`, `productNameFor`. SDK pinned 1.30.1.
+**`@cs/mcp`:** `resolveBearer`, `createMcpServer`, `handleMcpRequest`, `checkRateLimit`, `productNameFor`; resources `evidence://`/`brief://`, 4 prompts. SDK pinned 1.30.1.
 **`@cs/ai`:** `chatWithTools`; tasks `ask_assistant`, `ask_starters`, `ask_guard_decisions`.
 **`@cs/ask` (new):** `beginTurn`, `runTurn`, citations/`groundAnswer`, starters, labels, prompt, actions; `@cs/ask/testing` `createScriptedAskAi`. Depends on `@cs/collectors` (`redactForModel`).
 **`@cs/tools`:** MCP: `search`, `fetch`, `add_recommendation` (`['mcp','ask']`), token/grant tools; list tools take `cursor`/`limit`/`detail`. Ask: channel tags (Q4 set), `ASK_WRITE_TOOLS`, `GENERIC_STARTERS` (re-exported by `@cs/ask`); web tools `list_my_ask_threads`, `get_my_ask_thread`, `delete_my_ask_thread`, `get_ask_starters` (`{questions, reviewAllowed}`); platform `listReviewableAskThreads`, `getReviewableAskThread` (audit `platform_view_ask_thread`); `get_usage.questions`; `set_client_limits.askMonthlyQuota`; `update_client_profile.askReviewAllowed`; `update_agency_branding.assistantName`.
 **Worker:** job `ask-starters` after a ready brief.
-**Routes (`apps/web`):** `POST /mcp`; `/.well-known/oauth-*`; `/oauth/consent`; `/agency/ai`, `/c/<id>/settings/ai`. 6b: `POST /api/ask/turn` (SSE, header `x-ask-thread-id`, proxy-public, self-authenticating), actions `confirmAskAction`/`saveAskRecommendation`, `/c/[clientId]/ask[/threadId]`, `/platform/ask[/threadId]`, Overview Ask card, evidence-viewer ask buttons, settings fields. E2E tags `@ai-connections`, `@ask`.
+**Routes (`apps/web`):** `POST /mcp`; `/.well-known/oauth-*`; `/oauth/consent`; `/sign-in` resumes the OAuth authorize; `oauthProvider` plugin (`@better-auth/oauth-provider@1.7.7`, `@better-auth/utils@0.4.2`, exact pins); `/agency/ai`, `/c/<id>/settings/ai`. 6b: `POST /api/ask/turn` (SSE, header `x-ask-thread-id`, proxy-public, self-authenticating), actions `confirmAskAction`/`saveAskRecommendation`, `/c/[clientId]/ask[/threadId]`, `/platform/ask[/threadId]`, Overview Ask card, evidence-viewer ask buttons, settings fields. E2E tags `@ai-connections`, `@ask`.
 
 ## Assumes from other branches
 None. `phase-7-planning` (docs only) assumes our `api_token`/OAuth tables and a unified registry `not_found`.
@@ -65,4 +65,4 @@ Issuer `<appUrl>/api/auth`; PRM hand-built; opaque tokens hashed, `aud` = `<app>
 4. Decide the revoke success copy.
 
 ## ARCHITECTURE notes for `/rm-merge`
-Add `@cs/mcp` (bearer resolution, stateless server, resources, rate limit), registry channels/scopes/audit, new tools, consent flow, tables. Add `@cs/ask` (verify-then-send turns, quota, actions, starters) and the Ask web surface (SSE route, `/c/<id>/ask`, `/platform/ask`, Overview card). STATE: next migration `0045`; move Phase 6 BACKLOG items done here out and file the items above.
+Add `@cs/mcp` (bearer resolution, stateless per-request server, resources `evidence://`/`brief://`, 4 prompts, rate limit), registry channels/scopes/audit, new tools, consent flow, tables. Add `@cs/ask` (verify-then-send turns, quota, actions, starters) and the Ask web surface (SSE route, `/c/<id>/ask`, `/platform/ask`, Overview card). STATE: next migration `0045`; move Phase 6 BACKLOG items done here out and file the items above.
