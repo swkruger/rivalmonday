@@ -1,10 +1,11 @@
 import { redactForModel } from '@cs/collectors';
-import { type AccessContext, appLinkFor, hasFeature, ToolError } from '@cs/core';
-import { alert, briefItem, capture, captureBlock, changeEvent, client, clientCompetitor, competitor, eventScore, evidence, recommendation, review, trackedPage, withTenant } from '@cs/db';
+import { type AccessContext, appLinkFor, hasFeature, renderKbText, ToolError } from '@cs/core';
+import { alert, briefItem, kbArticle, capture, captureBlock, changeEvent, client, clientCompetitor, competitor, eventScore, evidence, recommendation, review, trackedPage, withTenant } from '@cs/db';
 import { changeTypeLabel } from '@cs/email';
 import { getAlert } from '@cs/engine';
 import { and, asc, desc, eq, exists, inArray, isNull } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
+import { kbNamesFor } from '../kb/names';
 import { briefDetail } from '../tools/briefs';
 import { competitorLinked } from '../workspace/evidence-access';
 import { eventEvidenceIds } from '../workspace/events-read';
@@ -12,7 +13,7 @@ import { channelLabel, detailLines, factView, humanise } from '../workspace/labe
 import { eventJoin } from '../workspace/scope';
 import { type ActiveClient, activeClients, DASHBOARD_ITEM_TYPES, requireActiveClient } from './scope';
 
-export const ITEM_TYPES = ['event', 'evidence', 'brief', 'brief_item', 'recommendation', 'alert', 'review', 'page'] as const;
+export const ITEM_TYPES = ['event', 'evidence', 'brief', 'brief_item', 'recommendation', 'alert', 'review', 'page', 'knowledge'] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
 
 export interface FetchOutput {
@@ -87,6 +88,7 @@ export async function fetchItem(deps: ToolDeps, ctx: AccessContext, type: ItemTy
       case 'alert': return await fetchAlert(deps, ctx, uuid);
       case 'review': return await fetchReview(deps, ctx, uuid);
       case 'page': return await fetchPage(deps, ctx, uuid);
+      case 'knowledge': return await fetchKnowledge(deps, ctx, uuid);
     }
   } catch (e) {
     if (e instanceof ToolError && e.code === 'not_found') throw notFound();
@@ -277,5 +279,18 @@ async function fetchPage(deps: ToolDeps, ctx: AccessContext, id: string): Promis
     text: cap ? redact(blocks.map((b) => b.text).join('\n\n'), [p.name, c.name]) : `No text has been captured from ${p.url} yet.`,
     url: appLinkFor(deps.appUrl, { t: 'page', clientId: c.id, competitorId: p.competitorId }),
     metadata: { type: 'page', client_id: c.id, evidence_ids: ev.map((e) => e.id), ...(cap ? { occurred_at: cap.capturedAt.toISOString() } : {}) },
+  };
+}
+
+/** A published, RLS-visible article (as `get_kb_article`), rendered with the agency's names and then redacted. Client-level articles also need an active, accessible client. */
+async function fetchKnowledge(deps: ToolDeps, ctx: AccessContext, id: string): Promise<FetchOutput> {
+  const [a] = await withTenant(deps.app, ctx, (tx) => tx.select().from(kbArticle).where(and(eq(kbArticle.id, id), eq(kbArticle.status, 'published'))));
+  if (!a) throw notFound();
+  if (a.clientId) await requireActiveClient(deps, ctx, a.clientId);
+  const names = await kbNamesFor(deps.service, ctx.agencyId);
+  const text = (t: string): string => redactForModel(renderKbText(t, names));
+  return {
+    id: `knowledge:${id}`, title: text(a.title), text: text(a.bodyMd), url: appLinkFor(deps.appUrl, { t: 'kb', id }),
+    metadata: { type: 'knowledge', client_id: a.clientId ?? '', evidence_ids: [] },
   };
 }

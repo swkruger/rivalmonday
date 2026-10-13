@@ -1,4 +1,4 @@
-import { alert, brief, briefItem, captureBlock, changeEvent, client, EMBEDDING_DIMENSIONS, recommendation } from '@cs/db';
+import { agency, alert, brief, briefItem, captureBlock, changeEvent, client, EMBEDDING_DIMENSIONS, kbArticle, kbChunk, recommendation } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { createPackLoader } from '@cs/engine';
 import { eq } from 'drizzle-orm';
@@ -39,6 +39,17 @@ async function seedRecommendation(title: string): Promise<string> {
     agencyId: IDS.agencyA, clientId: IDS.clientA1, title, rationale: 'Because the competitor moved.', effort: 'L', impact: 'H', owner: 'client', source: 'brief', upsellTag: 'ppc',
   }).returning();
   return r!.id;
+}
+
+async function seedKb(o: { title?: string; body: string; level?: 'platform' | 'agency' | 'client'; agencyId?: string | null; clientId?: string | null }): Promise<string> {
+  const level = o.level ?? 'agency';
+  const agencyId = o.agencyId !== undefined ? o.agencyId : level === 'platform' ? null : IDS.agencyA;
+  const clientId = o.clientId ?? null;
+  const [a] = await dbs.owner.insert(kbArticle).values({
+    level, agencyId, clientId, kind: 'help', title: o.title ?? 'Guide', bodyMd: o.body, status: 'published', clientVisible: true, source: 'manual', createdBy: 't', updatedBy: 't',
+  }).returning();
+  await dbs.owner.insert(kbChunk).values({ articleId: a!.id, level, agencyId, clientId, clientVisible: true, ord: 0, text: o.body });
+  return a!.id;
 }
 
 beforeEach(resetWorkspace);
@@ -144,7 +155,7 @@ describe('search', () => {
       block(latest.captureId, 1, 'Footer', unit(2)),
     ]);
     const embed = vi.fn(async (_text: string, _scope: unknown) => unit(0));
-    const out = await search(admin, { query: 'radiant floor', clientId: IDS.clientA1 }, withDeps({ embedQuery: embed }));
+    const out = await search(admin, { query: 'radiant floor', clientId: IDS.clientA1, types: ['event', 'page'] }, withDeps({ embedQuery: embed }));
     expect(embed).toHaveBeenCalledTimes(1);
     expect(embed.mock.calls[0]![1]).toEqual({ agencyId: IDS.agencyA, clientId: IDS.clientA1 });
     expect(ids(out)[0]).toBe(`event:${ev.eventId}`); // in both lists
@@ -191,5 +202,19 @@ describe('search', () => {
     await expect(search(admin, { query: '   ', clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input' });
     await expect(search(admin, { query: 'x', clientId: IDS.clientA1, types: ['event', 'event'] })).rejects.toMatchObject({ code: 'invalid_input' });
     await expect(search(admin, { query: 'x', clientId: IDS.clientA1, limit: 21 })).rejects.toMatchObject({ code: 'invalid_input' });
+  });
+
+  it('returns knowledge hits rendered, redacted and linked to /kb, including the client own facts but never another tenant', async () => {
+    await dbs.owner.update(agency).set({ branding: { displayName: 'Acme Intel' } as never }).where(eq(agency.id, IDS.agencyA));
+    const art = await seedKb({ title: 'Welcome to {{product}}', body: 'Gutter quokka setup in {{product}}. Call 555-123-4567.' });
+    const fact = await seedKb({ title: 'Quokka fact', level: 'client', clientId: IDS.clientA1, body: 'Our quokka service area is Austin.' });
+    await seedKb({ title: 'Foreign', level: 'agency', agencyId: IDS.agencyB, body: 'Foreign quokka secret.' });
+    const out = await search(viewer, { query: 'quokka', clientId: IDS.clientA1, types: ['knowledge'] });
+    expect(ids(out).sort()).toEqual([`knowledge:${art}`, `knowledge:${fact}`].sort());
+    const hit = out.results.find((r) => r.id === `knowledge:${art}`)!;
+    expect(hit).toMatchObject({ title: 'Welcome to Acme Intel', url: `/kb/${art}` });
+    expect(hit.snippet).toContain('Acme Intel');
+    expect(hit.snippet).not.toContain('555-123-4567');
+    expect(hit.snippet).not.toContain('{{');
   });
 });

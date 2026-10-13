@@ -1,4 +1,4 @@
-import { alert, brief, briefItem, captureBlock, client, recommendation } from '@cs/db';
+import { agency, alert, brief, briefItem, captureBlock, client, kbArticle, kbChunk, recommendation } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { createPackLoader } from '@cs/engine';
 import { eq } from 'drizzle-orm';
@@ -35,6 +35,17 @@ async function seedItem(briefId: string, ord: number, headline: string, status =
     whyItMatters: 'It matters', recommendedAction: 'Respond', confidence: 0.9, effort: 'L', impact: 'H', evidenceIds, status, upsellTag: 'seo_audit',
   }).returning();
   return i!.id;
+}
+
+async function seedKb(o: { title?: string; body: string; level?: 'platform' | 'agency' | 'client'; agencyId?: string | null; clientId?: string | null }): Promise<string> {
+  const level = o.level ?? 'agency';
+  const agencyId = o.agencyId !== undefined ? o.agencyId : level === 'platform' ? null : IDS.agencyA;
+  const clientId = o.clientId ?? null;
+  const [a] = await dbs.owner.insert(kbArticle).values({
+    level, agencyId, clientId, kind: 'help', title: o.title ?? 'Guide', bodyMd: o.body, status: 'published', clientVisible: true, source: 'manual', createdBy: 't', updatedBy: 't',
+  }).returning();
+  await dbs.owner.insert(kbChunk).values({ articleId: a!.id, level, agencyId, clientId, clientVisible: true, ord: 0, text: o.body });
+  return a!.id;
 }
 
 beforeEach(async () => {
@@ -234,5 +245,25 @@ describe('fetch', () => {
     expect(out.text).not.toContain('Old block');
     expect(out.text).not.toContain('555-123-4567');
     expect([...out.metadata.evidence_ids].sort()).toEqual([latest.ids.text, latest.ids.screenshot].sort());
+  });
+
+  it('fetches a knowledge article rendered with the agency product name (RF3) and redacted', async () => {
+    await dbs.owner.update(agency).set({ branding: { displayName: 'Acme Intel' } as never }).where(eq(agency.id, IDS.agencyA));
+    const id = await seedKb({ title: '{{product}} guide', body: 'Welcome to {{product}}. Call 555-123-4567.' });
+    const out = await doFetch(viewer, `knowledge:${id}`);
+    expect(out).toMatchObject({ id: `knowledge:${id}`, title: 'Acme Intel guide', url: `/kb/${id}`, metadata: { type: 'knowledge', client_id: '', evidence_ids: [] } });
+    expect(out.text).toContain('Welcome to Acme Intel.');
+    expect(out.text).not.toContain('555-123-4567');
+    const fact = await seedKb({ level: 'client', clientId: IDS.clientA1, body: 'Fact body' });
+    expect((await doFetch(viewer, `knowledge:${fact}`)).metadata.client_id).toBe(IDS.clientA1);
+  });
+
+  it('answers not_found for a cross-agency, draft or unknown knowledge id', async () => {
+    const foreign = await seedKb({ level: 'agency', agencyId: IDS.agencyB, body: 'secret' });
+    const draft = await seedKb({ body: 'draft' });
+    await dbs.owner.update(kbArticle).set({ status: 'draft' }).where(eq(kbArticle.id, draft));
+    await expect(doFetch(admin, `knowledge:${foreign}`)).rejects.toMatchObject(notFound);
+    await expect(doFetch(admin, `knowledge:${draft}`)).rejects.toMatchObject(notFound);
+    await expect(doFetch(admin, `knowledge:${U}`)).rejects.toMatchObject(notFound);
   });
 });

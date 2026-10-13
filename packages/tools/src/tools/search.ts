@@ -1,18 +1,20 @@
 import { redactForModel } from '@cs/collectors';
-import { type AccessContext, appLinkFor, type AppTarget, hasFeature, isAgencyRole, toolkit } from '@cs/core';
+import { type AccessContext, appLinkFor, type AppTarget, hasFeature, isAgencyRole, renderKbText, toolkit } from '@cs/core';
 import { alert, brief, briefItem, changeEvent, clientCompetitor, competitor, eventScore, recommendation, review, withTenant } from '@cs/db';
 import { changeTypeLabel } from '@cs/email';
 import { and, type AnyColumn, asc, cosineDistance, desc, eq, inArray, isNotNull, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
+import { kbNamesFor } from '../kb/names';
 import { rrfMerge } from '../search/rrf';
 import { AGENCY_BRIEF_STATUSES, CLIENT_BRIEF_STATUSES, DASHBOARD_ITEM_TYPES, searchClient } from '../search/scope';
+import { searchKnowledgeHits } from './knowledge';
 import { workspaceBusinesses } from '../workspace/business';
 import { clientEvents, eventJoin, type WorkspaceClient } from '../workspace/scope';
 
 const { defineTool } = toolkit<ToolDeps>();
 
-export const SEARCH_TYPES = ['event', 'brief_item', 'recommendation', 'alert', 'review', 'page'] as const;
+export const SEARCH_TYPES = ['event', 'brief_item', 'recommendation', 'alert', 'review', 'page', 'knowledge'] as const;
 type SearchType = (typeof SEARCH_TYPES)[number];
 const FTS_PER_TYPE = 30;
 const VECTOR_PER_KIND = 20;
@@ -27,6 +29,8 @@ interface Hit {
   /** Business names never mistaken for people by the redactor. */
   names: string[];
   target: AppTarget;
+  /** Title and snippet are already rendered and redacted (knowledge); the result shaper must not redact again. */
+  final?: boolean;
 }
 
 const SearchResult = z.object({ id: z.string(), title: z.string(), snippet: z.string(), url: z.string() });
@@ -157,13 +161,22 @@ async function vectorHits(deps: ToolDeps, ctx: AccessContext, c: WorkspaceClient
   return ranked.sort((a, b) => a.distance - b.distance || a.hit.key.localeCompare(b.hit.key)).map((x) => x.hit);
 }
 
+/** Knowledge hits (platform, agency and, for this client, client-level articles): rendered with the agency's names, then redacted (mcp/ask channel). */
+async function knowledgeHits(deps: ToolDeps, ctx: AccessContext, c: WorkspaceClient, query: string, limit: number): Promise<Hit[]> {
+  const hits = await searchKnowledgeHits(deps, ctx, c.id, query, undefined, limit);
+  if (hits.length === 0) return [];
+  const names = await kbNamesFor(deps.service, ctx.agencyId);
+  const text = (t: string): string => redactForModel(renderKbText(t, names));
+  return hits.map((h) => ({ key: `knowledge:${h.kbId}`, title: text(h.title), snippet: text(h.chunks[0] ?? '').slice(0, SNIPPET_CHARS), names: [], target: { t: 'kb', id: h.kbId }, final: true }));
+}
+
 export const search = defineTool({
   name: 'search',
   description: 'Search one client\'s competitor changes, brief items, recommendations, alerts, reviews and competitor pages by keywords. Returns ids to pass to fetch.',
   input: z.object({
     query: z.string().trim().min(1).max(200),
     clientId: z.string().uuid().optional(),
-    types: z.array(z.enum(SEARCH_TYPES)).min(1).max(6).refine((t) => new Set(t).size === t.length, 'Types must be unique').optional(),
+    types: z.array(z.enum(SEARCH_TYPES)).min(1).max(SEARCH_TYPES.length).refine((t) => new Set(t).size === t.length, 'Types must be unique').optional(),
     limit: z.number().int().min(1).max(20).default(10),
   }),
   output: z.object({ results: z.array(SearchResult) }),
@@ -183,11 +196,12 @@ export const search = defineTool({
         console.warn('[search] embeddings unavailable'); // never the query or the error text (it may echo the query)
       }
     }
+    const knowledge = types.has('knowledge') ? await knowledgeHits(deps, ctx, c, input.query, input.limit) : [];
     return {
-      results: rrfMerge([fts, vector], 60, input.limit).map((h) => ({
+      results: rrfMerge([fts, vector, knowledge], 60, input.limit).map((h) => ({
         id: h.key, title: h.title, url: appLinkFor(deps.appUrl, h.target),
         // d12 on every channel: snippets are captured or model-written text.
-        snippet: redactForModel(h.snippet, { businessNames: [...h.names, c.name] }),
+        snippet: h.final ? h.snippet : redactForModel(h.snippet, { businessNames: [...h.names, c.name] }),
       })),
     };
   },
