@@ -1,15 +1,22 @@
-import { isUuid, type AccessContext } from '@cs/core';
+import { type AccessContext, createAccessContext, FEATURES, isUuid } from '@cs/core';
 import { client, type Db } from '@cs/db';
-import { accessContextFor, coversClient, guestAccessFor, listMemberships, type MembershipSummary, pickMembership } from '@cs/tools';
+import {
+  accessContextFor, coversClient, guestAccessFor, listMemberships, type MembershipSummary, type OpenSupportSession, pickMembership, resolveSession,
+} from '@cs/tools';
 import { eq } from 'drizzle-orm';
 import { verifyGuest } from './guest';
+import { verifySupportCookie } from './support-cookie';
 
 export const MEMBERSHIP_COOKIE = 'rm_membership';
 
 export type Viewer =
   | { kind: 'user'; userId: string; email: string; name: string; ctx: AccessContext; membership: MembershipSummary; memberships: MembershipSummary[] }
   | { kind: 'member-less'; userId: string; email: string; name: string }
-  | { kind: 'guest'; contactId: string; ctx: AccessContext };
+  | { kind: 'guest'; contactId: string; ctx: AccessContext }
+  | SupportViewer;
+
+/** Phase 8b: a platform operator inside a read-only support session. `ctx` is synthetic (no membership row). */
+export type SupportViewer = { kind: 'support'; userId: string; email: string; name: string; ctx: AccessContext; session: OpenSupportSession };
 
 /**
  * Review Focus 4: rebuilds the AccessContext from the database on every call (no caching here — `current-viewer.ts`
@@ -45,4 +52,33 @@ export async function resolveViewer(input: {
     if (claims && ctx) return { kind: 'guest', contactId: claims.contactId, ctx };
   }
   return null;
+}
+
+/**
+ * Spec "Session resolution" (binding). Only for a signed-in user; the caller ignores `rm_support` otherwise.
+ * - no cookie → null (normal resolution follows);
+ * - cookie verifies, the row is open, unexpired, owned by this user and the user is still owner/staff → support viewer;
+ * - anything else → 'end': the caller redirects to `/support/end`, which clears the cookie (render can't). Expired and
+ *   revoked rows were already ended by `resolveSession`; a forged cookie or another user's id touches no row.
+ * The synthetic context is built from the session alone, so the operator's own memberships never reach it.
+ */
+export async function resolveSupportViewer(input: {
+  service: Db;
+  platformAdmins: readonly string[];
+  session: { userId: string; email: string; name: string };
+  supportCookie?: string;
+  secret?: string;
+  now?: Date;
+}): Promise<SupportViewer | 'end' | null> {
+  if (!input.supportCookie) return null;
+  const sessionId = verifySupportCookie(input.supportCookie, input.secret);
+  if (!sessionId) return 'end';
+  const { userId } = input.session;
+  const r = await resolveSession({ service: input.service, platformAdmins: input.platformAdmins }, { sessionId, userId, ...(input.now ? { now: input.now } : {}) });
+  if (r.kind !== 'ok') return 'end';
+  const ctx = createAccessContext({
+    agencyId: r.session.agencyId, userId, role: 'agency_admin', clientScope: 'all', features: FEATURES,
+    support: { sessionId: r.session.id, platformUserId: userId },
+  });
+  return { kind: 'support', ...input.session, ctx, session: r.session };
 }

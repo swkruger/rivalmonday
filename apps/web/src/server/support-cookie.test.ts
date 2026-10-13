@@ -20,5 +20,9 @@ describe('support cookie', () => {
     expect(verifySupportCookie(undefined, S)).toBeNull();
     expect(verifySupportCookie('', S)).toBeNull();
   });
-  it('rejects a different secret', () => expect(verifySupportCookie(signSupportCookie(ID, S), 'b'.repeat(40))).toBeNull());
+  it('throws on an empty secret', () => {
+    expect(() => signSupportCookie(ID, '')).toThrow();
+    expect(() => verifySupportCookie(signSupportCookie(ID, S), '')).toThrow();
+  });
+  it('rejects a different secret', () =>expect(verifySupportCookie(signSupportCookie(ID, S), 'b'.repeat(40))).toBeNull());
 });

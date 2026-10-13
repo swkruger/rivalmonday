@@ -1,14 +1,14 @@
 import { getReviewableAskThread } from '@cs/tools';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { requireContext } from '@/server/current-viewer';
+import { requireOperatorContext } from '@/server/current-viewer';
 import { isHiddenToolError, toolDeps } from '@/server/tools';
 
 export const dynamic = 'force-dynamic';
 
 /** Read-only thread view (6b e6): text only, never HTML. Each view is audit-logged by the service function. */
 export default async function PlatformAskThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
-  const { ctx } = await requireContext();
+  const { ctx } = await requireOperatorContext();
   const { threadId } = await params;
   let thread: Awaited<ReturnType<typeof getReviewableAskThread>>;
   try {

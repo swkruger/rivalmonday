@@ -1,6 +1,6 @@
-import { supportSession } from '@cs/db';
+import { type Db, supportSession } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { endSession, resolveSession, startSession } from './support';
@@ -52,6 +52,53 @@ describe('startSession / endSession', () => {
     ).rejects.toMatchObject({ code: 'not_found' });
   });
 
+  it('concurrent starts for one user all succeed, leaving exactly one open row', async () => {
+    const all = await Promise.all(
+      Array.from({ length: 2 }, (_, i) => startSession(dbs.service, { platformUserId: 'op', agencyId: IDS.agencyA, reason: `race ${i}`, now: NOW })),
+    );
+    expect(all).toHaveLength(2);
+    const open = await dbs.owner.select().from(supportSession).where(and(eq(supportSession.platformUserId, 'op'), isNull(supportSession.endedAt)));
+    expect(open).toHaveLength(1);
+  });
+
+  it('retries once after a unique violation and succeeds', async () => {
+    let calls = 0;
+    const flaky = {
+      transaction: (fn: never) => {
+        calls += 1;
+        if (calls === 1) return Promise.reject(Object.assign(new Error('dup'), { cause: { code: '23505' } }));
+        return dbs.service.transaction(fn);
+      },
+    } as unknown as Db;
+    const s = await startSession(flaky, { platformUserId: 'op', agencyId: IDS.agencyA, reason: 'some reason', now: NOW });
+    expect(calls).toBe(2);
+    expect((await rowOf(s.id)).endedAt).toBeNull();
+  });
+
+  it('throws conflict when the retry also hits a unique violation', async () => {
+    let calls = 0;
+    const always = {
+      transaction: () => {
+        calls += 1;
+        return Promise.reject(Object.assign(new Error('dup'), { code: '23505' }));
+      },
+    } as unknown as Db;
+    await expect(startSession(always, { platformUserId: 'op', agencyId: IDS.agencyA, reason: 'some reason' })).rejects.toMatchObject({ code: 'conflict' });
+    expect(calls).toBe(2);
+  });
+
+  it('does not retry other errors', async () => {
+    let calls = 0;
+    const broken = {
+      transaction: () => {
+        calls += 1;
+        return Promise.reject(new Error('boom'));
+      },
+    } as unknown as Db;
+    await expect(startSession(broken, { platformUserId: 'op', agencyId: IDS.agencyA, reason: 'some reason' })).rejects.toThrow('boom');
+    expect(calls).toBe(1);
+  });
+
   it('end is idempotent and keeps the first end_reason', async () => {
     const s = await startSession(dbs.service, { platformUserId: 'op', agencyId: IDS.agencyA, reason: 'some reason', now: NOW });
     await endSession(dbs.service, s.id, 'exit', min(1));
@@ -67,6 +114,14 @@ describe('resolveSession', () => {
 
   it('missing row is invalid', async () => {
     expect(await resolveSession(deps(), { sessionId: '00000000-0000-4000-8000-00000000ffff', userId: 'op', now: NOW })).toEqual({ kind: 'invalid' });
+  });
+  it('non-uuid id is invalid without touching the database', async () => {
+    const noDb = {
+      select: () => {
+        throw new Error('should not query');
+      },
+    } as unknown as Db;
+    expect(await resolveSession({ service: noDb, platformAdmins: [] }, { sessionId: 'not-a-uuid', userId: 'op', now: NOW })).toEqual({ kind: 'invalid' });
   });
   it('ended session is invalid', async () => {
     const s = await open();

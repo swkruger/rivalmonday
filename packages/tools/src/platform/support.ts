@@ -1,8 +1,9 @@
-import { ToolError } from '@cs/core';
+import { isUuid, ToolError } from '@cs/core';
 import { agency, type Db, supportSession } from '@cs/db';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
 import { platformRoleForUser } from '../platform';
+import { isUniqueViolation } from '../settings';
 
 export const SUPPORT_SESSION_MINUTES = 60;
 
@@ -17,6 +18,28 @@ export async function startSession(
   const now = a.now ?? new Date();
   const expiresAt = new Date(now.getTime() + SUPPORT_SESSION_MINUTES * 60_000);
   const reason = a.reason.trim();
+  // Two concurrent starts both see no open row, and the loser's insert hits `support_session_open_uq`. One retry ends
+  // the session that just won (as 'replaced') and opens this one; a second collision is a conflict.
+  try {
+    return await openTx(service, a, reason, now, expiresAt);
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err;
+  }
+  try {
+    return await openTx(service, a, reason, now, expiresAt);
+  } catch (err) {
+    if (isUniqueViolation(err)) throw new ToolError('conflict', 'Another support session was started at the same time. Try again.', { cause: err });
+    throw err;
+  }
+}
+
+function openTx(
+  service: Db,
+  a: { platformUserId: string; agencyId: string },
+  reason: string,
+  now: Date,
+  expiresAt: Date,
+): Promise<OpenSupportSession> {
   return service.transaction(async (tx) => {
     const [ag] = await tx.select({ name: agency.name }).from(agency).where(eq(agency.id, a.agencyId));
     if (!ag) throw new ToolError('not_found', 'Agency not found');
@@ -51,6 +74,7 @@ export async function resolveSession(
   deps: Pick<ToolDeps, 'service' | 'platformAdmins'>,
   a: { sessionId: string; userId: string; now?: Date },
 ): Promise<ResolveResult> {
+  if (!isUuid(a.sessionId)) return { kind: 'invalid' };
   const now = a.now ?? new Date();
   const [row] = await deps.service
     .select({

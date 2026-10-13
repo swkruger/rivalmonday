@@ -8,8 +8,13 @@ import { auth } from './auth';
 import { dbs } from './db';
 import { webEnv } from './env';
 import { GUEST_COOKIE } from './guest';
+import { platformAdmins } from './runtime-env';
 import { safeNext } from './safe-next';
-import { MEMBERSHIP_COOKIE, resolveViewer, type Viewer } from './viewer';
+import { SUPPORT_COOKIE } from './support-cookie';
+import { MEMBERSHIP_COOKIE, resolveSupportViewer, resolveViewer, type Viewer } from './viewer';
+
+/** Where an unusable `rm_support` cookie is sent: Server Components can't clear cookies, the route handler can. */
+export const SUPPORT_END_PATH = '/support/end';
 
 /**
  * Review Focus 4: `cache()` scopes this to a single request only (React resets it between requests), so the
@@ -18,13 +23,24 @@ import { MEMBERSHIP_COOKIE, resolveViewer, type Viewer } from './viewer';
  * Decision 16 limitation: the clientHint comes from the `x-rm-path` header, set once per request by `proxy.ts`. A
  * later client-side navigation away from `/c/<id>` without a full page load keeps this cached viewer's membership
  * until the next full load (HANDOVER §6 L1).
+ *
+ * Phase 8b: `support: true` honours `rm_support` (spec "Session resolution"): signed-in user first (no user → the
+ * cookie is ignored), then the cookie, then `resolveSession`. An unusable cookie redirects to `/support/end` (R4: no
+ * cookie writes during render). `support: false` is the operator's own resolution (R3, `/platform/**`).
  */
-async function viewerWith(clientHint: string | null): Promise<Viewer | null> {
+async function viewerWith(clientHint: string | null, support: boolean): Promise<Viewer | null> {
   const [h, jar] = [await headers(), await cookies()];
   const s = await auth().api.getSession({ headers: h });
+  const session = s ? { userId: s.user.id, email: s.user.email, name: s.user.name } : null;
+  const service = dbs().service;
+  if (session && support) {
+    const sv = await resolveSupportViewer({ service, platformAdmins: platformAdmins(), session, supportCookie: jar.get(SUPPORT_COOKIE)?.value });
+    if (sv === 'end') redirect(`${SUPPORT_END_PATH}?next=${encodeURIComponent(safeNext(h.get('x-rm-path')))}`);
+    if (sv) return sv;
+  }
   return resolveViewer({
-    service: dbs().service,
-    session: s ? { userId: s.user.id, email: s.user.email, name: s.user.name } : null,
+    service,
+    session,
     membershipCookie: jar.get(MEMBERSHIP_COOKIE)?.value,
     guestCookie: jar.get(GUEST_COOKIE)?.value,
     linkSecrets: webEnv().linkSecrets,
@@ -32,7 +48,12 @@ async function viewerWith(clientHint: string | null): Promise<Viewer | null> {
   });
 }
 
-export const getViewer = cache(async (): Promise<Viewer | null> => viewerWith(clientIdFromPath((await headers()).get('x-rm-path') ?? '')));
+const pathHint = async () => clientIdFromPath((await headers()).get('x-rm-path') ?? '');
+
+export const getViewer = cache(async (): Promise<Viewer | null> => viewerWith(await pathHint(), true));
+
+/** R3: the signed-in user's own (non-support) resolution; `rm_support` is never read. */
+const getOperatorViewer = cache(async (): Promise<Viewer | null> => viewerWith(null, false));
 
 /**
  * For API routes whose path names no client (`/api/ask/turn`): the client comes from the request body, so a user with
@@ -40,20 +61,34 @@ export const getViewer = cache(async (): Promise<Viewer | null> => viewerWith(cl
  * The hint only picks among the user's own memberships; access is still checked by the caller.
  */
 export async function getViewerForClient(clientId: string | null): Promise<Viewer | null> {
-  return viewerWith(clientId);
+  return viewerWith(clientId, true);
+}
+
+async function signInRedirect(): Promise<never> {
+  const path = safeNext((await headers()).get('x-rm-path'));
+  redirect(`/sign-in?next=${encodeURIComponent(path)}`);
 }
 
 export async function requireViewer(): Promise<Viewer> {
   const v = await getViewer();
-  if (!v) {
-    const path = safeNext((await headers()).get('x-rm-path'));
-    redirect(`/sign-in?next=${encodeURIComponent(path)}`);
-  }
+  if (!v) return signInRedirect();
   return v;
 }
 
+/** `/agency/*`, `/c/*` and shared pages: during a support session this is the synthetic support context. */
 export async function requireContext(): Promise<{ viewer: Exclude<Viewer, { kind: 'member-less' }>; ctx: AccessContext }> {
   const v = await requireViewer();
   if (v.kind === 'member-less') redirect('/no-access');
+  return { viewer: v, ctx: v.ctx };
+}
+
+/**
+ * R3: every `/platform/**` page and action. The operator stays operator during a support session: their own
+ * membership context, `rm_support` ignored. R7: like 8a, a member-less operator goes to `/no-access`.
+ */
+export async function requireOperatorContext(): Promise<{ viewer: Exclude<Viewer, { kind: 'member-less' | 'support' }>; ctx: AccessContext }> {
+  const v = await getOperatorViewer();
+  if (!v) return signInRedirect();
+  if (v.kind === 'member-less' || v.kind === 'support') redirect('/no-access');
   return { viewer: v, ctx: v.ctx };
 }

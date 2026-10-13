@@ -1,6 +1,6 @@
 'use server';
 import { revalidatePath } from 'next/cache';
-import { requireContext } from '@/server/current-viewer';
+import { requireOperatorContext } from '@/server/current-viewer';
 import type { FormResult } from '@/server/forms';
 import { runTool } from '@/server/run-tool';
 
@@ -10,7 +10,7 @@ const DONE: Record<string, string> = {
 };
 
 export async function resolveReviewAction(_p: FormResult, fd: FormData): Promise<FormResult> {
-  const { ctx } = await requireContext();
+  const { ctx } = await requireOperatorContext();
   const answers: Record<string, string> = {};
   for (const [k, v] of fd.entries()) if (k.startsWith('q:') && String(v)) answers[k.slice(2)] = String(v);
   const r = await runTool<{ action: string }>(ctx, 'resolve_decision_review', { reviewId: String(fd.get('reviewId') ?? ''), answers });

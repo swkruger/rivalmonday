@@ -1,4 +1,4 @@
-import { requireContext } from '@/server/current-viewer';
+import { requireOperatorContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { type AgencyRow, type AgencySort, AgencyTable, defaultDir, SORTS, type SortDir } from './agency-table';
 
@@ -14,7 +14,7 @@ export default async function PlatformAgenciesPage({ searchParams }: { searchPar
   const sort: AgencySort = (SORTS as readonly string[]).includes(s ?? '') ? (s as AgencySort) : 'name';
   const d = one(sp.dir);
   const dir: SortDir = d === 'asc' || d === 'desc' ? d : defaultDir(sort);
-  const { ctx } = await requireContext();
+  const { ctx } = await requireOperatorContext();
   const { rows } = await callTool<{ rows: AgencyRow[]; nextCursor: string | null }>(ctx, 'list_platform_agencies', { sort, dir, limit: 100 });
   return (
     <>

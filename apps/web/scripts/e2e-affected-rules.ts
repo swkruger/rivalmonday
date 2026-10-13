@@ -111,6 +111,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${C}settings/profile/`), tags: ['@profile', '@clients'], why: 'client profile and features' },
   { pattern: re(`${C}settings/delivery/`), tags: [], why: 'no E2E covers this settings page' },
   { pattern: re(`${APP}\\(app\\)/platform/`), tags: ['@platform', '@reviews'], why: 'platform review/theme queues' },
+  { pattern: re(`${APP}support/`), tags: ['@platform'], why: 'support session end route (8b; Task 9 retags to @support)' },
   { pattern: re(`${APP}\\(app\\)/(?:inbox|settings/notifications)/`), tags: [], why: 'no E2E covers this page' },
 
   // --- Web components and server modules (by who renders/uses them) ---

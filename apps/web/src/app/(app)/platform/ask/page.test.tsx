@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const list = vi.fn();
 const get = vi.fn();
-vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: { userId: 'u' } }) }));
+vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => ({ ctx: { userId: 'u' } }) }));
 vi.mock('@/server/tools', () => ({ toolDeps: () => ({}), isHiddenToolError: (e: unknown) => e instanceof ToolError && ['not_found', 'permission_denied', 'invalid_input'].includes(e.code) }));
 vi.mock('@cs/tools', () => ({ listReviewableAskThreads: (...a: unknown[]) => list(...a), getReviewableAskThread: (...a: unknown[]) => get(...a) }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));

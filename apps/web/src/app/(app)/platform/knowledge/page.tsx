@@ -1,6 +1,6 @@
 import { KB_KINDS, KB_LEVELS, type KbKind, type KbLevel } from '@cs/core';
 import Link from 'next/link';
-import { requireContext } from '@/server/current-viewer';
+import { requireOperatorContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
 import { callTool } from '@/server/tools';
 import { kbImportStatusAction, startKbImportAction } from './actions';
@@ -19,7 +19,7 @@ const pick = <T extends string>(v: string | undefined, all: readonly T[]): T | u
 
 /** Non-operators get the tool's permission_denied → 404. */
 export default async function KnowledgePage({ searchParams }: { searchParams: Promise<Params> }) {
-  const { ctx } = await requireContext();
+  const { ctx } = await requireOperatorContext();
   const sp = await searchParams;
   const level: KbLevel | undefined = pick(sp.level, KB_LEVELS);
   const kind: KbKind | undefined = pick(sp.kind, KB_KINDS);

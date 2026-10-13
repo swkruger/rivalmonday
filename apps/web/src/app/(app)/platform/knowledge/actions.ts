@@ -1,7 +1,7 @@
 'use server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { requireContext } from '@/server/current-viewer';
+import { requireOperatorContext } from '@/server/current-viewer';
 import type { FormResult } from '@/server/forms';
 import { runTool } from '@/server/run-tool';
 import type { ImportStatus, ImportStatusResult, StartImportResult } from './import-errors';
@@ -22,7 +22,7 @@ function scopeOf(fd: FormData) {
 
 /** `intent` (the pressed button) decides the status: "draft" and "unpublish" save a draft, "publish" publishes. */
 export async function saveKbArticleAction(_p: FormResult, fd: FormData): Promise<FormResult> {
-  const { ctx } = await requireContext();
+  const { ctx } = await requireOperatorContext();
   const id = opt(fd, 'id');
   const scope = scopeOf(fd);
   const r = await runTool<{ id: string; lintWarnings: string[] }>(ctx, 'upsert_kb_article', {
@@ -44,7 +44,7 @@ export async function saveKbArticleAction(_p: FormResult, fd: FormData): Promise
 }
 
 export async function deleteKbArticleAction(_p: FormResult, fd: FormData): Promise<FormResult> {
-  const { ctx } = await requireContext();
+  const { ctx } = await requireOperatorContext();
   const r = await runTool(ctx, 'delete_kb_article', { id: str(fd, 'id') });
   if (!r.ok) return r;
   revalidatePath(LIST);
@@ -52,7 +52,7 @@ export async function deleteKbArticleAction(_p: FormResult, fd: FormData): Promi
 }
 
 export async function setKbAutoSyncAction(_p: FormResult, fd: FormData): Promise<FormResult> {
-  const { ctx } = await requireContext();
+  const { ctx } = await requireOperatorContext();
   const id = str(fd, 'id');
   const autoSync = fd.get('autoSync') === 'true';
   const r = await runTool(ctx, 'set_kb_auto_sync', { id, autoSync });
@@ -63,7 +63,7 @@ export async function setKbAutoSyncAction(_p: FormResult, fd: FormData): Promise
 }
 
 export async function startKbImportAction(fd: FormData): Promise<StartImportResult> {
-  const { ctx } = await requireContext();
+  const { ctx } = await requireOperatorContext();
   const r = await runTool<{ key: string }>(ctx, 'import_kb_url', {
     url: str(fd, 'url'),
     ...scopeOf(fd),
@@ -74,7 +74,7 @@ export async function startKbImportAction(fd: FormData): Promise<StartImportResu
 }
 
 export async function kbImportStatusAction(key: string): Promise<ImportStatusResult> {
-  const { ctx } = await requireContext();
+  const { ctx } = await requireOperatorContext();
   const r = await runTool<ImportStatus>(ctx, 'get_kb_import_status', { key });
   return r.ok ? { ok: true, status: r.data } : r;
 }

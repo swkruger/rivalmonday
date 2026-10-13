@@ -1,5 +1,5 @@
 import { StatCard } from '@/components/stat-card';
-import { requireContext } from '@/server/current-viewer';
+import { requireOperatorContext } from '@/server/current-viewer';
 import { formatUsd } from '@/server/format';
 import { callTool } from '@/server/tools';
 import { type Health, HealthPill } from '../../_components/health-pill';
@@ -27,7 +27,7 @@ const TEAM: { key: keyof Detail['team']; label: string }[] = [
 export default async function PlatformAgencyPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ range?: string | string[] }> }) {
   const { id } = await params;
   const range = parseRange((await searchParams).range);
-  const { ctx } = await requireContext();
+  const { ctx } = await requireOperatorContext();
   const { agency, tiles, series, team, clients } = await callTool<Detail>(ctx, 'get_platform_agency', { agencyId: id, range });
   return (
     <>

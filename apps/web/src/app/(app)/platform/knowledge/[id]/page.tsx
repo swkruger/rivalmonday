@@ -1,4 +1,4 @@
-import { requireContext } from '@/server/current-viewer';
+import { requireOperatorContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { deleteKbArticleAction, saveKbArticleAction, setKbAutoSyncAction } from '../actions';
 import { type EditorArticle, KbEditor } from '../editor';
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 /** Any refusal (non-operator, unknown or malformed id) is a 404. `?lint=` carries the first save's lint warnings. */
 export default async function EditKnowledgePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ lint?: string | string[] }> }) {
-  const { ctx } = await requireContext();
+  const { ctx } = await requireOperatorContext();
   const { id } = await params;
   const { lint: rawLint } = await searchParams;
   // `?lint=` may repeat (an array) or be absent; take the first value and cap it so it can never throw or flood the page.

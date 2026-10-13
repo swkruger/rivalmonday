@@ -1,14 +1,14 @@
 import { listReviewableAskThreads } from '@cs/tools';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { requireContext } from '@/server/current-viewer';
+import { requireOperatorContext } from '@/server/current-viewer';
 import { isHiddenToolError, toolDeps } from '@/server/tools';
 
 export const dynamic = 'force-dynamic';
 
 /** Read-only (6b e6). Non-operators get permission_denied → 404; only clients that allow review are listed. */
 export default async function PlatformAskPage({ searchParams }: { searchParams: Promise<{ cursor?: string }> }) {
-  const { ctx } = await requireContext();
+  const { ctx } = await requireOperatorContext();
   const { cursor } = await searchParams;
   let page: Awaited<ReturnType<typeof listReviewableAskThreads>>;
   try {

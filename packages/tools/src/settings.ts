@@ -14,7 +14,7 @@ const requireAgencyFor = (ctx: AccessContext, clientId: string) => {
 };
 
 /** True for a Postgres unique-violation (SQLSTATE 23505), including Drizzle 0.44's driver-error wrapper (HANDOVER §6). */
-function isUniqueViolation(err: unknown): boolean {
+export function isUniqueViolation(err: unknown): boolean {
   const e = err as { code?: string; cause?: { code?: string } } | null | undefined;
   return e?.code === '23505' || e?.cause?.code === '23505';
 }

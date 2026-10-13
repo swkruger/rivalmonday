@@ -1,5 +1,5 @@
 import { StatCard } from '@/components/stat-card';
-import { requireContext } from '@/server/current-viewer';
+import { requireOperatorContext } from '@/server/current-viewer';
 import { formatUsd } from '@/server/format';
 import { callTool } from '@/server/tools';
 import { loadMoreActivity } from './actions';
@@ -17,7 +17,7 @@ interface Overview {
 /** Non-operators get the tools' permission_denied → 404 (callTool). NULL series values stay NULL (chart gaps). */
 export default async function PlatformOverviewPage({ searchParams }: { searchParams: Promise<{ range?: string | string[] }> }) {
   const range = parseRange((await searchParams).range);
-  const { ctx } = await requireContext();
+  const { ctx } = await requireOperatorContext();
   const [overview, activity] = await Promise.all([
     callTool<Overview>(ctx, 'platform_overview', { range }),
     callTool<ActivityPage>(ctx, 'list_platform_activity', { limit: 20 }),

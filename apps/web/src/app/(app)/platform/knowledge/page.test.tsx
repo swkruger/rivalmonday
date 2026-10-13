@@ -9,7 +9,7 @@ const h = vi.hoisted(() => ({
   notFound: vi.fn(() => { throw new Error('NEXT_NOT_FOUND'); }),
 }));
 vi.mock('next/navigation', () => ({ notFound: h.notFound, useRouter: () => ({ push: () => {} }) }));
-vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: {} }) }));
+vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => ({ ctx: {} }) }));
 vi.mock('@cs/tools', () => ({ createToolRegistry: () => ({ invoke: h.invoke }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ app: {}, service: {} }) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ webMonitoring: false, get kbImport() { return h.kbImport; }, appUrl: 'http://localhost' }) }));

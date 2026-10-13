@@ -1,9 +1,13 @@
-import { contact, membership } from '@cs/db';
+import { FEATURES } from '@cs/core';
+import { contact, membership, supportSession } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { startSession } from '@cs/tools';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedAuthUsers, truncateAuth } from '../../test/auth-fixtures';
 import { signGuest } from './guest';
-import { resolveViewer } from './viewer';
+import { signSupportCookie } from './support-cookie';
+import { resolveSupportViewer, resolveViewer } from './viewer';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -56,5 +60,63 @@ describe('resolveViewer', () => {
     expect(uncovered).toMatchObject({ kind: 'user', membership: { id: own!.id } });
     const bogus = await resolveViewer({ service: dbs.service, session, membershipCookie: own!.id, clientHint: 'not-a-uuid', linkSecrets: S, now: NOW });
     expect(bogus).toMatchObject({ kind: 'user', membership: { id: own!.id } });
+  });
+});
+
+describe('resolveSupportViewer', () => {
+  const SECRET = 's'.repeat(40);
+  const OPS = ['p@e.co'];
+  const MIN = (n: number) => new Date(NOW.getTime() + n * 60_000);
+  const open = () => startSession(dbs.service, { platformUserId: 'u1', agencyId: IDS.agencyB, reason: 'Checking setup', now: NOW });
+  const resolve = (o: { cookie?: string; admins?: string[]; now?: Date; who?: typeof session } = {}) =>
+    resolveSupportViewer({ service: dbs.service, platformAdmins: o.admins ?? OPS, session: o.who ?? session, supportCookie: o.cookie, secret: SECRET, now: o.now ?? MIN(5) });
+
+  it('returns null without a cookie', async () => {
+    expect(await resolve()).toBeNull();
+  });
+
+  it('builds a support viewer with a synthetic agency_admin context, even for a member-less operator', async () => {
+    const s = await open();
+    const v = await resolve({ cookie: signSupportCookie(s.id, SECRET) });
+    expect(v).toMatchObject({ kind: 'support', userId: 'u1', email: 'p@e.co', name: 'Pat', session: { id: s.id, agencyId: IDS.agencyB, reason: 'Checking setup' } });
+    if (!v || v === 'end') throw new Error('expected a viewer');
+    expect(v.ctx).toMatchObject({ agencyId: IDS.agencyB, userId: 'u1', role: 'agency_admin', clientScope: 'all', support: { sessionId: s.id, platformUserId: 'u1' } });
+    expect([...v.ctx.features].sort()).toEqual([...FEATURES].sort());
+    expect(await dbs.service.select().from(membership)).toHaveLength(0);
+  });
+
+  it('does not leak the operator’s own membership into the support context', async () => {
+    await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'client_viewer', clientId: IDS.clientA1, createdBy: 't' });
+    const s = await open();
+    const v = await resolve({ cookie: signSupportCookie(s.id, SECRET) });
+    expect(v !== 'end' && v?.ctx).toMatchObject({ agencyId: IDS.agencyB, role: 'agency_admin', clientScope: 'all' });
+    expect(v).not.toHaveProperty('membership');
+  });
+
+  it('a tampered cookie ends', async () => {
+    const s = await open();
+    expect(await resolve({ cookie: signSupportCookie(s.id, 'x'.repeat(40)) })).toBe('end');
+  });
+
+  it('an expired session ends and the row is marked expired', async () => {
+    const s = await open();
+    expect(await resolve({ cookie: signSupportCookie(s.id, SECRET), now: MIN(61) })).toBe('end');
+    const [row] = await dbs.service.select().from(supportSession).where(eq(supportSession.id, s.id));
+    expect(row?.endReason).toBe('expired');
+  });
+
+  it('a revoked operator ends and the row is marked revoked', async () => {
+    const s = await open();
+    expect(await resolve({ cookie: signSupportCookie(s.id, SECRET), admins: [] })).toBe('end');
+    const [row] = await dbs.service.select().from(supportSession).where(eq(supportSession.id, s.id));
+    expect(row?.endReason).toBe('revoked');
+  });
+
+  it('a valid cookie for another user’s session ends without touching the row', async () => {
+    await seedAuthUsers(dbs.owner, { id: 'u2', email: 'q@e.co', name: 'Quinn' });
+    const s = await open();
+    expect(await resolve({ cookie: signSupportCookie(s.id, SECRET), who: { userId: 'u2', email: 'q@e.co', name: 'Quinn' }, admins: ['p@e.co', 'q@e.co'] })).toBe('end');
+    const [row] = await dbs.service.select().from(supportSession).where(eq(supportSession.id, s.id));
+    expect(row?.endedAt).toBeNull();
   });
 });

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { type TokenScope, scopeCovers } from './tokens';
 import { type AccessContext, type Feature, type Permission, type Role, hasPermission, isAgencyRole } from './access';
 
-export type ToolErrorCode = 'not_found' | 'permission_denied' | 'invalid_input' | 'rate_limited' | 'quota_exceeded' | 'read_only_session' | 'internal';
+export type ToolErrorCode = 'not_found' | 'permission_denied' | 'invalid_input' | 'rate_limited' | 'quota_exceeded' | 'read_only_session' | 'conflict' | 'internal';
 
 export class ToolError extends Error {
   readonly code: ToolErrorCode;
