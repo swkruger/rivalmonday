@@ -1,3 +1,4 @@
+import { createAccessContext } from '@cs/core';
 import { agency, EMBEDDING_DIMENSIONS, kbArticle, kbChunk } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
@@ -14,6 +15,8 @@ const viewer = ctx('client_viewer', [IDS.clientA1], ['dashboard', 'ask']);
 const unit = (i: number) => Array.from({ length: EMBEDDING_DIMENSIONS }, (_, j) => (j === i ? 1 : 0));
 const mix = (d0: number, d1: number) => unit(0).map((_, j) => (j === 0 ? d0 : j === 1 ? d1 : 0));
 const withDeps = (extra: Partial<ToolDeps>) => createToolRegistry({ app: dbs.app, service: dbs.service, ...extra }, { audit: { record: async () => {} } });
+
+const supportCtx = createAccessContext({ agencyId: IDS.agencyA, userId: 'op-1', role: 'agency_admin', clientScope: 'all', features: [], support: { sessionId: '00000000-0000-4000-8000-000000000001', platformUserId: 'op-1' } });
 
 interface Seed {
   title?: string;
@@ -135,5 +138,18 @@ describe('get_kb_article', () => {
     for (const id of [draft, foreign, '00000000-0000-4000-8000-0000000000c9']) await expect(get(admin, id)).rejects.toMatchObject({ code: 'not_found' });
     await expect(get(viewer, hidden)).rejects.toMatchObject({ code: 'not_found' });
     expect((await get(admin, hidden)).kbId).toBe(hidden);
+  });
+});
+
+describe('search_knowledge under a support session', () => {
+  it('embeds normally but skips embedQuery when ctx.support is set', async () => {
+    await seed({ title: 'A', chunks: ['pricing pricing page'], vectors: [unit(0)] });
+    let calls = 0;
+    const reg = withDeps({ embedQuery: async () => { calls++; return unit(0); } });
+    await search(admin, { query: 'pricing' }, reg);
+    expect(calls).toBe(1);
+    const out = await search(supportCtx, { query: 'pricing' }, reg);
+    expect(calls).toBe(1);
+    expect(out.results).toHaveLength(1); // still found by full text
   });
 });

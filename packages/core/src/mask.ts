@@ -30,7 +30,7 @@ function applyPath(node: unknown, steps: { key: string | null; each: boolean }[]
   return { ...rec, [step.key!]: applyPath(rec[step.key!], steps, i + 1) };
 }
 
-/** Masks the string at each dot path (`[]` = every array element) with `maskEmail`. Non-strings/absent paths are untouched; returns a copy. */
+/** Masks the string at each dot path (`[]` = every array element) with `maskEmail`. Non-strings/absent paths are untouched; returns a structural copy of the branches it masks (the input is never mutated; unmasked branches are shared by reference). */
 export function maskSupportFields<T>(output: T, paths: readonly string[]): T {
   let out: unknown = output;
   for (const p of paths) out = applyPath(out, parsePath(p), 0);

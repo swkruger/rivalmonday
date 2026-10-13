@@ -1,3 +1,4 @@
+import { createAccessContext } from '@cs/core';
 import { agency, alert, brief, briefItem, captureBlock, changeEvent, client, EMBEDDING_DIMENSIONS, kbArticle, kbChunk, recommendation } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { createPackLoader } from '@cs/engine';
@@ -51,6 +52,8 @@ async function seedKb(o: { title?: string; body: string; level?: 'platform' | 'a
   await dbs.owner.insert(kbChunk).values({ articleId: a!.id, level, agencyId, clientId, clientVisible: true, ord: 0, text: o.body });
   return a!.id;
 }
+
+const supportCtx = createAccessContext({ agencyId: IDS.agencyA, userId: 'op-1', role: 'agency_admin', clientScope: 'all', features: [], support: { sessionId: '00000000-0000-4000-8000-000000000001', platformUserId: 'op-1' } });
 
 beforeEach(resetWorkspace);
 afterEach(() => vi.restoreAllMocks());
@@ -224,5 +227,17 @@ describe('search', () => {
     expect(ids(asAsk)).not.toContain(`knowledge:${fact}`);
     expect(await registry.invoke(admin, 'search', { query: 'quokka', clientId: IDS.clientA1, types: ['knowledge'] }, { channel: 'ask' })).toEqual({ results: [] });
     expect(ids(await search(admin, { query: 'quokka', clientId: IDS.clientA1 }))).toContain(`knowledge:${fact}`);
+  });
+});
+
+describe('search under a support session', () => {
+  it('embeds normally but skips embedQuery when ctx.support is set', async () => {
+    const embed = vi.fn(async () => unit(0));
+    const reg = withDeps({ embedQuery: embed });
+    await search(admin, { query: 'radiant floor', clientId: IDS.clientA1 }, reg);
+    expect(embed).toHaveBeenCalledTimes(1);
+    embed.mockClear();
+    await search(supportCtx, { query: 'radiant floor', clientId: IDS.clientA1 }, reg);
+    expect(embed).not.toHaveBeenCalled();
   });
 });

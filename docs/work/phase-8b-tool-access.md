@@ -50,7 +50,7 @@ delete_kb_article (knowledge-admin.ts) | write | deletes article
 set_kb_auto_sync (knowledge-admin.ts) | write | updates article
 import_kb_url (knowledge-admin.ts) | write | enqueues kb-import
 get_kb_import_status (knowledge-admin.ts) | read | reads job state only
-search_knowledge (knowledge.ts) | read | read-only
+search_knowledge (knowledge.ts) | read | read; embedding skipped under support ctx
 get_kb_article (knowledge.ts) | read | read-only
 list_decision_reviews (model-ops.ts) | read | read; no side effects
 resolve_decision_review (model-ops.ts) | write | answers a decision review
@@ -94,7 +94,7 @@ rate_brief_item (review.ts) | write | stores rating
 approve_brief (review.ts) | write | approves brief
 send_brief_now (review.ts) | write | sends brief, enqueues PDF
 set_brief_auto_send (review.ts) | write | updates client setting
-search (search.ts) | read | read-only
+search (search.ts) | read | read; embedding skipped under support ctx
 invite_member (settings.ts) | write | creates invitation (email)
 revoke_membership (settings.ts) | write | revokes
 revoke_invitation (settings.ts) | write | revokes

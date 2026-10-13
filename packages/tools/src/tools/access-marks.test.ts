@@ -17,21 +17,31 @@ const WRITE_TOOLS = [
 
 const ASK_THREAD_TOOLS = ['delete_my_ask_thread', 'get_ask_starters', 'get_my_ask_thread', 'list_my_ask_threads'];
 
-/** Every key matching /email/i in a zod schema, as a support-mask path (`[]` for arrays). */
-function emailPaths(schema: z.ZodType, prefix = '', seen = new Set<unknown>()): string[] {
-  if (seen.has(schema)) return [];
-  seen.add(schema);
-  const def = (schema as unknown as { def: { type: string; [k: string]: unknown } }).def;
+/** Every key matching /email/i in a zod schema, as a support-mask path (`[]` for arrays). `stack` holds ancestors only, so a reused sub-schema is walked at each use. */
+function emailPaths(schema: z.ZodType, prefix = '', stack: readonly unknown[] = []): string[] {
+  if (stack.includes(schema)) return []; // recursive schema: stop at the cycle
+  const next = [...stack, schema];
+  const def = (schema as unknown as { def: Record<string, unknown> & { type: string } }).def;
+  const walk = (s: unknown, p = prefix) => emailPaths(s as z.ZodType, p, next);
   switch (def.type) {
     case 'object': {
       const shape = (schema as z.ZodObject).shape as Record<string, z.ZodType>;
-      return Object.entries(shape).flatMap(([k, v]) => [...(/email/i.test(k) ? [`${prefix}${k}`] : []), ...emailPaths(v, `${prefix}${k}.`, seen)]);
+      return Object.entries(shape).flatMap(([k, v]) => [...(/email/i.test(k) ? [`${prefix}${k}`] : []), ...walk(v, `${prefix}${k}.`)]);
     }
-    case 'array': return emailPaths(def.element as z.ZodType, `${prefix.replace(/\.$/, '')}[].`, seen);
-    case 'optional': case 'nullable': case 'default': case 'readonly': return emailPaths(def.innerType as z.ZodType, prefix, seen);
-    case 'union': return (def.options as z.ZodType[]).flatMap((o) => emailPaths(o, prefix, new Set(seen)));
-    case 'pipe': return emailPaths(def.in as z.ZodType, prefix, seen);
-    default: return [];
+    case 'array': return walk(def.element, `${prefix.replace(/\.$/, '')}[].`);
+    case 'tuple': return (def.items as z.ZodType[]).flatMap((i) => walk(i, `${prefix.replace(/\.$/, '')}[].`));
+    case 'record': return walk(def.valueType, `${prefix}*.`);
+    case 'optional': case 'nullable': case 'default': case 'prefault': case 'readonly': case 'nonoptional': case 'catch':
+      return walk(def.innerType);
+    case 'union': return (def.options as z.ZodType[]).flatMap((o) => walk(o));
+    case 'intersection': return [...walk(def.left), ...walk(def.right)];
+    case 'lazy': return walk((def.getter as () => z.ZodType)());
+    case 'pipe': return walk(def.in);
+    case 'string': case 'number': case 'boolean': case 'enum': case 'literal': case 'null': case 'undefined': case 'date': case 'bigint':
+    case 'any': case 'unknown': case 'never': case 'void': case 'nan': case 'symbol': case 'template_literal': case 'int':
+      return [];
+    default:
+      throw new Error(`emailPaths: unhandled zod type '${def.type}' - teach the walker before it hides an email field`);
   }
 }
 
@@ -39,6 +49,22 @@ describe('emailPaths walker', () => {
   it('finds nested, array and optional email keys', () => {
     const s = z.object({ a: z.string(), owner: z.object({ email: z.string() }), rows: z.array(z.object({ contactEmail: z.string().nullable() })), o: z.object({ recipientEmail: z.string() }).optional() });
     expect(emailPaths(s).sort()).toEqual(['o.recipientEmail', 'owner.email', 'rows[].contactEmail']);
+  });
+
+  it('reports every use of a reused sub-schema', () => {
+    const Person = z.object({ email: z.string() });
+    expect(emailPaths(z.object({ owner: Person, approver: Person })).sort()).toEqual(['approver.email', 'owner.email']);
+  });
+
+  it('walks records, tuples, intersections, lazy, catch and wrappers', () => {
+    const P = z.object({ email: z.string() });
+    expect(emailPaths(z.record(z.string(), P))).toEqual(['*.email']);
+    expect(emailPaths(z.object({ t: z.tuple([P]), i: z.intersection(P, z.object({ x: z.string() })), l: z.lazy(() => P), c: P.catch({ email: '' }), n: P.nonoptional() })).sort())
+      .toEqual(['c.email', 'i.email', 'l.email', 'n.email', 't[].email']);
+  });
+
+  it('fails loudly on an unknown container type', () => {
+    expect(() => emailPaths(z.promise(z.string()))).toThrow(/unhandled zod type/);
   });
 });
 

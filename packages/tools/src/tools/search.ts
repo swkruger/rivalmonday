@@ -188,9 +188,9 @@ export const search = defineTool({
     const types = new Set((input.types ?? SEARCH_TYPES).filter((t) => (dashboard || !DASHBOARD_ITEM_TYPES.has(t)) && !(meta.channel === 'ask' && t === 'knowledge')));
     if (types.size === 0) return { results: [] };
     const fts = await ftsHits(deps, ctx, c, types, input.query);
-    // One paid embed per search, shared by the event/page vector block and the knowledge query; null = full text only.
+    // A support session never makes the paid embed (it would insert an llm_call row): full text only. One paid embed per search, shared by the event/page vector block and the knowledge query; null = full text only.
     let vec: number[] | null = null;
-    if (deps.embedQuery && (types.has('event') || types.has('page') || types.has('knowledge'))) {
+    if (deps.embedQuery && !ctx.support && (types.has('event') || types.has('page') || types.has('knowledge'))) {
       try {
         vec = await deps.embedQuery(redactForModel(input.query), { agencyId: ctx.agencyId, clientId: c.id });
       } catch {

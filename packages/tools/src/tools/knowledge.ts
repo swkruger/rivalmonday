@@ -52,7 +52,7 @@ export async function searchKnowledgeHits(deps: ToolDeps, ctx: AccessContext, cl
   let vector: ChunkRow[] = [];
   // A caller that already embedded the query passes its vector (`null` = embeddings unavailable, full text only).
   const precomputed = opts?.queryVector;
-  if (precomputed !== undefined ? precomputed !== null : deps.embedQuery) {
+  if (precomputed !== undefined ? precomputed !== null : deps.embedQuery && !ctx.support) { // support sessions never embed (paid + llm_call insert)
     try {
       const vec = precomputed ?? await deps.embedQuery!(redactForModel(query), { agencyId: ctx.agencyId, clientId: clientId });
       const v = sql`${JSON.stringify(vec)}::vector`;
