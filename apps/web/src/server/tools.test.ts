@@ -7,6 +7,7 @@ describe('isHiddenToolError', () => {
     expect(isHiddenToolError(new ToolError('not_found', 'x'))).toBe(true);
     expect(isHiddenToolError(new ToolError('permission_denied', 'x'))).toBe(true);
     expect(isHiddenToolError(new ToolError('invalid_input', 'x'))).toBe(true);
+    expect(isHiddenToolError(new ToolError('read_only_session', 'x'))).toBe(true); // a page read never 500s in a support session
     expect(isHiddenToolError(new ToolError('internal', 'x'))).toBe(false);
     expect(isHiddenToolError(new Error('x'))).toBe(false);
   });

@@ -78,4 +78,8 @@ describe('toFormResult', () => {
     expect(toFormResult(new ToolError('not_found', 'x'))).toEqual({ ok: false, error: 'Not found' });
     expect(() => toFormResult(new Error('boom'))).toThrow('boom');
   });
+  it('renders the support-session and conflict copy (8b g10)', () => {
+    expect(toFormResult(new ToolError('read_only_session', 'x'))).toEqual({ ok: false, error: 'Read-only support session — changes are disabled.' });
+    expect(toFormResult(new ToolError('conflict', 'x'))).toEqual({ ok: false, error: 'That changed while you were working — please try again.' });
+  });
 });

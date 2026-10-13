@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { type TokenScope, scopeCovers } from './tokens';
+import { maskSupportFields } from './mask';
 import { type AccessContext, type Feature, type Permission, type Role, hasPermission, isAgencyRole } from './access';
 
 export type ToolErrorCode = 'not_found' | 'permission_denied' | 'invalid_input' | 'rate_limited' | 'quota_exceeded' | 'read_only_session' | 'conflict' | 'internal';
@@ -54,12 +55,13 @@ export function toolkit<D>() {
 export interface AuditEvent {
   agencyId: string;
   userId: string;
-  role: Role;
+  /** `'platform_support'` for calls inside a read-only support session (Phase 8b). */
+  role: Role | 'platform_support';
   tool: string;
   inputHash: string;
   channel: ToolChannel;
   tokenId: string | null;
-  /** Phase 8b: set by the registry (Task 6) for support-session calls. */
+  /** Phase 8b: the support session id for calls inside one, else null. */
   supportSessionId?: string | null;
   outcome: 'ok' | ToolErrorCode;
   rowCount: number | null;
@@ -84,8 +86,13 @@ export function mcpScopeOf(tool: { permission: Permission; mcpScope?: TokenScope
   return 'read'; // read and agency → read
 }
 
+/** Spec 8b g10 copy for a write attempted inside a read-only support session. */
+export const READ_ONLY_SESSION_MESSAGE = 'Read-only support session — changes are disabled.';
+
 const CHANNEL_FEATURE: Partial<Record<ToolChannel, Feature>> = { mcp: 'mcp', ask: 'ask' };
 function isVisible<D>(ctx: AccessContext, tool: AnyTool<D>, opts: CallOptions): boolean {
+  // Phase 8b: a support session is web-only and never sees `supportHidden` tools (Ask threads).
+  if (ctx.support && (opts.channel !== 'web' || tool.supportHidden)) return false;
   if (!(tool.channels ?? ['web']).includes(opts.channel)) return false;
   if (!hasPermission(ctx, tool.permission)) return false;
   const agency = isAgencyRole(ctx.role);
@@ -160,11 +167,16 @@ export class ToolRegistry<D> {
       }
 
       if (!tool) throw new ToolError('not_found', `Unknown tool: ${name}`);
+      if (ctx.support && opts.channel !== 'web') {
+        throw new ToolError('permission_denied', 'Support sessions are web-only');
+      }
       if (!isVisible(ctx, tool, opts)) {
         // P3: identical error to unknown (404-not-403); the audit row keeps permission_denied.
         outcome = 'permission_denied';
         throw new ToolError('not_found', `Unknown tool: ${name}`);
       }
+      // Phase 8b: refuse writes before parsing so nothing (not even input validation) runs.
+      if (ctx.support && tool.access === 'write') throw new ToolError('read_only_session', READ_ONLY_SESSION_MESSAGE);
 
       const parsed = tool.input.safeParse(rawInput);
       if (!parsed.success) throw new ToolError('invalid_input', z.prettifyError(parsed.error));
@@ -183,7 +195,7 @@ export class ToolRegistry<D> {
 
       rowCount = countRows(out.data);
       outcome = 'ok';
-      return out.data;
+      return ctx.support ? maskSupportFields(out.data, tool.supportMask ?? []) : out.data;
     } catch (err) {
       failure = err;
       if (outcome !== 'permission_denied' && err instanceof ToolError) outcome = err.code;
@@ -193,12 +205,13 @@ export class ToolRegistry<D> {
       if (!(tool?.audit === 'skip-web' && opts.channel === 'web')) try {
         await this.audit.record({
           agencyId: ctx.agencyId,
-          userId: ctx.userId,
-          role: ctx.role,
+          userId: ctx.support ? ctx.support.platformUserId : ctx.userId,
+          role: ctx.support ? 'platform_support' : ctx.role,
           tool: name,
           inputHash,
           channel: opts.channel,
           tokenId: opts.tokenId ?? null,
+          supportSessionId: ctx.support?.sessionId ?? null,
           outcome,
           rowCount,
           durationMs: this.now() - started,

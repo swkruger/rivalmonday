@@ -1,5 +1,5 @@
 import { isAbsolute, resolve } from 'node:path';
-import { type AccessContext, isCurrentPdfKey, isUuid, ToolError, type ToolRegistry } from '@cs/core';
+import { type AccessContext, isCurrentPdfKey, isUuid, READ_ONLY_SESSION_MESSAGE, ToolError, type ToolRegistry } from '@cs/core';
 import { brief, type Db, evidence, trendReport } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { type BriefDetail, evidenceContentType, type EvidenceView, type ReportDetail, type ToolDeps } from '@cs/tools';
@@ -24,6 +24,12 @@ const renderingOff = () =>
   new Response(
     '<!doctype html><meta charset="utf-8"><title>PDF rendering is off</title><body style="font-family:system-ui;padding:40px">PDF rendering is off while browsing DEMO or TEST data.</body>',
     { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } },
+  );
+/** Phase 8b R8: a support session may download stored PDFs but never queues a render (a write on GET). */
+const readOnlySession = () =>
+  new Response(
+    `<!doctype html><meta charset="utf-8"><title>Read-only support session</title><body style="font-family:system-ui;padding:40px">This PDF has not been generated yet. ${READ_ONLY_SESSION_MESSAGE}</body>`,
+    { status: 409, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } },
   );
 
 interface Located {
@@ -75,6 +81,7 @@ export async function servePdf(input: {
   // A PDF stored with an older layout (PDF_LAYOUT_VERSION) is not served: it is rendered again, under the current key.
   const bytes = found.key && isCurrentPdfKey(found.key) ? await input.store.get(found.key) : null;
   if (!bytes) {
+    if (input.ctx.support) return readOnlySession();
     try {
       if (input.kind === 'brief') await input.enqueue('brief-pdf', { briefId: input.id }, input.id);
       else await input.enqueue('report-pdf', { reportId: input.id }, input.id);

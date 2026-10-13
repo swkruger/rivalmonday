@@ -62,10 +62,12 @@ export const registry = (name?: EnvName) => registries(name);
  * distinguishes "exists but not yours" from "does not exist" (spec §11, no cross-tenant existence leaks).
  * `invalid_input` is hidden too — a malformed id (e.g. from a tampered URL segment) must not surface differently
  * from a real id that does not resolve for this viewer. Every other code (rate_limited, quota_exceeded, internal)
- * propagates to the route's error boundary.
+ * propagates to the route's error boundary. Phase 8b: `read_only_session` (a write tool reached from a page render
+ * inside a support session) is a refusal too, so it 404s like the others instead of a 500.
  */
 export function isHiddenToolError(e: unknown): boolean {
-  return e instanceof ToolError && (e.code === 'not_found' || e.code === 'permission_denied' || e.code === 'invalid_input');
+  return e instanceof ToolError
+    && (e.code === 'not_found' || e.code === 'permission_denied' || e.code === 'invalid_input' || e.code === 'read_only_session');
 }
 
 export async function callTool<T>(ctx: AccessContext, name: string, input: unknown): Promise<T> {

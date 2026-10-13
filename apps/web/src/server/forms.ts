@@ -1,4 +1,4 @@
-import { isUuid, type Role, ROLES, ToolError } from '@cs/core';
+import { isUuid, READ_ONLY_SESSION_MESSAGE, type Role, ROLES, ToolError } from '@cs/core';
 import type { AgencyBranding, AlertMode } from '@cs/db';
 import type { ServiceAreaInput } from '@cs/tools';
 
@@ -65,7 +65,13 @@ export function parseClientProfileForm(fd: FormData): ClientProfileFields | { er
   };
 }
 
+export const CONFLICT_MESSAGE = 'That changed while you were working — please try again.';
+
+const FORM_COPY: Partial<Record<ToolError['code'], string>> = { read_only_session: READ_ONLY_SESSION_MESSAGE, conflict: CONFLICT_MESSAGE };
+
 export function toFormResult(e: unknown): FormResult {
-  if (e instanceof ToolError && e.code !== 'internal') return { ok: false, error: e.code === 'invalid_input' ? e.message : 'Not found' };
+  if (e instanceof ToolError && e.code !== 'internal') {
+    return { ok: false, error: e.code === 'invalid_input' ? e.message : FORM_COPY[e.code] ?? 'Not found' };
+  }
   throw e;
 }

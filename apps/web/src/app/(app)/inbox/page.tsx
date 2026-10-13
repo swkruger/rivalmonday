@@ -1,5 +1,6 @@
 import { listInbox } from '@cs/tools';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { inboxOwnerFor, NOTIFICATION_KIND_LABELS } from '@/server/inbox';
@@ -12,7 +13,9 @@ function formatWhen(d: Date): string {
 }
 
 export default async function InboxPage() {
-  const { viewer } = await requireContext();
+  const { viewer, ctx } = await requireContext();
+  // Phase 8b R9: the inbox is the operator's own (personal) notifications, not the agency's — hidden in a session.
+  if (ctx.support) notFound();
   const items = await listInbox(dbs().service, inboxOwnerFor(viewer), { limit: 100 });
   return (
     <Card>

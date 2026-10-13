@@ -91,6 +91,32 @@ describe('servePdf', () => {
     }
   });
 
+  describe('in a read-only support session (8b R8)', () => {
+    const support = createAccessContext({
+      agencyId: IDS.agencyA, userId: 'op', role: 'agency_admin', clientScope: 'all', features: [],
+      support: { sessionId: '00000000-0000-4000-8000-0000000005e5', platformUserId: 'op' },
+    });
+
+    it('serves an already-stored PDF', async () => {
+      const store = createMemoryStore();
+      const key = briefPdfKey(IDS.agencyA, sentId);
+      await store.put(key, new Uint8Array([37, 80, 68, 70]), 'application/pdf');
+      await dbs.owner.update(brief).set({ pdfKey: key }).where(eq(brief.id, sentId));
+      const { res, enqueue } = serve('brief', sentId, support, store);
+      expect((await res).status).toBe(200);
+      expect(enqueue).not.toHaveBeenCalled();
+    });
+
+    it('never enqueues a render: a missing or stale PDF answers 409 with the read-only copy', async () => {
+      const { res, enqueue } = serve('brief', sentId, support);
+      const r = await res;
+      expect(r.status).toBe(409);
+      expect(r.headers.get('content-type')).toMatch(/text\/html/);
+      expect(await r.text()).toContain('Read-only support session — changes are disabled.');
+      expect(enqueue).not.toHaveBeenCalled();
+    });
+  });
+
   it('serves reports only once sent', async () => {
     const [rep] = await dbs.owner.insert(trendReport).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, quarter: '2026-Q3', periodStart: NOW, periodEnd: NOW, status: 'ready' }).returning();
     const admin = createAccessContext({ agencyId: IDS.agencyA, userId: 'a', role: 'agency_admin', clientScope: 'all', features: [] });

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, 
 import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
+import { maskTeamForSupport } from '@/server/support-mask';
 import { callTool } from '@/server/tools';
 import { InviteForm, RemoveMemberButton, RevokeInvitationButton } from './invite-form';
 
@@ -19,7 +20,9 @@ function formatDate(d: Date): string {
 export default async function TeamPage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const [{ members, invitations }, { items: clients }] = await Promise.all([listTeam(dbs().service, ctx), callTool<{ items: ClientSummary[] }>(ctx, 'list_clients', {})]);
+  const [team, { items: clients }] = await Promise.all([listTeam(dbs().service, ctx), callTool<{ items: ClientSummary[] }>(ctx, 'list_clients', {})]);
+  // Phase 8b: emails are masked in a support session before anything reaches a client component.
+  const { members, invitations } = maskTeamForSupport(ctx, team);
   const clientName = new Map(clients.map((c) => [c.id, c.name]));
 
   const scopeLabel = (m: { clientId: string | null; clientScope: string[] | null }): string => {

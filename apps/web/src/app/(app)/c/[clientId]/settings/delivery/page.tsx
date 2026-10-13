@@ -5,6 +5,7 @@ import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, Tabl
 import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
+import { maskRecipientsForSupport } from '@/server/support-mask';
 import { callTool } from '@/server/tools';
 import { timezoneOptions } from '@/server/timezones';
 import { AddRecipientForm, DeactivateRecipientButton, DeliveryForm } from './delivery-controls';
@@ -18,7 +19,8 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
   const profile = await callTool<ClientProfile>(ctx, 'get_client_profile', { clientId });
-  const recipients = await listClientRecipients(dbs().service, ctx, clientId);
+  // Phase 8b: emails are masked in a support session before anything reaches a client component.
+  const recipients = maskRecipientsForSupport(ctx, await listClientRecipients(dbs().service, ctx, clientId));
 
   return (
     <>
