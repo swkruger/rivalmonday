@@ -3,7 +3,7 @@ import type { ObjectStore } from '@cs/storage';
 import { and, eq, isNull, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { recordVendorCapture } from '../evidence/vendor-capture';
-import { type DataForSeoClient, DFS_US, isDfsOk } from '../vendors/dataforseo';
+import { type DataForSeoClient, DFS_US, isDfsOk, isNoResults } from '../vendors/dataforseo';
 import { VendorError } from '../vendors/errors';
 
 export const DFS_COLLECTOR_VERSION = 'dfs/1';
@@ -55,7 +55,7 @@ export function isUniqueViolation(err: unknown): boolean {
 export async function collectGbpProfile(
   deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient },
   c: { id: string; placeId: string | null; cid: string | null },
-): Promise<{ status: 'ok' | 'vendor_error' | 'skipped'; captureId?: string }> {
+): Promise<{ status: 'ok' | 'not_found' | 'vendor_error' | 'skipped'; captureId?: string }> {
   const keyword = c.placeId ? `place_id:${c.placeId}` : c.cid ? `cid:${c.cid}` : null;
   if (!keyword) return { status: 'skipped' };
   const base = { competitorId: c.id, source: 'google_business_profile', collectorVersion: DFS_COLLECTOR_VERSION };
@@ -67,6 +67,12 @@ export async function collectGbpProfile(
     if (!task) {
       const r = await recordVendorCapture(deps, { ...base, status: 'vendor_error', error: 'empty task' });
       return { status: 'vendor_error', captureId: r.captureId };
+    }
+    // 40102 "No Search Results.": the listing is not on Google (any more). An empty, successful answer: the
+    // evidence is kept as an ok capture, no observation is written, and the source reads 'not_found'.
+    if (isNoResults(task)) {
+      const r = await recordVendorCapture(deps, { ...base, status: 'ok', payload: [] });
+      return { status: 'not_found', captureId: r.captureId };
     }
     if (!isDfsOk(task.statusCode)) {
       const r = await recordVendorCapture(deps, { ...base, status: 'vendor_error', error: `${task.statusCode} ${task.statusMessage}` });

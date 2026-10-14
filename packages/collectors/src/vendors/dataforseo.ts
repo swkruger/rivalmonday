@@ -74,6 +74,8 @@ export interface DataForSeoOptions {
   timeoutMs?: number;
 }
 
+/** Task-level 40102 "No Search Results." — a successful, empty answer (no ads, no jobs, nobody ranks), not a failure. */
+export const isNoResults = (t: DfsTask): boolean => t.statusCode === 40102;
 export const isDfsOk = (code: number) => code >= 20000 && code < 30000;
 /** Retryable DataForSEO API status codes: the 40202 rate limit, plus any 50xxx server error. */
 export const isRetryableDfsCode = (code: number) => code === 40202 || (code >= 50000 && code < 60000);

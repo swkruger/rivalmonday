@@ -1,6 +1,6 @@
 import type { CallScope } from '@cs/core';
 import { z } from 'zod';
-import { type DataForSeoClient, DFS_US, VendorError, isDfsOk, isRetryableDfsCode } from '../vendors/dataforseo';
+import { type DataForSeoClient, DFS_US, VendorError, isDfsOk, isNoResults, isRetryableDfsCode } from '../vendors/dataforseo';
 
 export interface MapsPlace {
   placeId: string | null;
@@ -61,6 +61,7 @@ export async function mapsSearch(
   // No task back is an error, not "nobody ranks here": a rank snapshot must never record an
   // empty result for a call that failed.
   if (!task) throw new VendorError('dataforseo', null, 'empty task', false);
+  if (isNoResults(task)) return { places: [], raw: [] };
   if (!isDfsOk(task.statusCode)) {
     throw new VendorError('dataforseo', task.statusCode, task.statusMessage, isRetryableDfsCode(task.statusCode));
   }

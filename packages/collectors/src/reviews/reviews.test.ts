@@ -87,6 +87,16 @@ describe('review tasks', () => {
     expect(vt?.status).toBe('done');
   });
 
+  it('40102 -> empty success: task done, zero reviews, ok capture written', async () => {
+    await dbs.service.insert(vendorTask).values({ vendor: 'dataforseo', kind: 'google_reviews', externalTaskId: TASK, competitorId: IDS.competitorX });
+    const dfs = fakeDfs((_m, path) => (path.endsWith('/tasks_ready') ? [dfsTask([{ id: TASK }])] : [dfsTask(null, { id: TASK, statusCode: 40102, statusMessage: 'No Search Results.' })]));
+    const r = await collectReadyReviews({ db: dbs.service, store: createMemoryStore(), dfs, salt: 's'.repeat(32) });
+    expect(r).toEqual({ collected: 1, failed: 0, reviews: 0 });
+    const [vt] = await dbs.service.select().from(vendorTask).where(eq(vendorTask.externalTaskId, TASK));
+    expect(vt?.status).toBe('done');
+    expect(await dbs.service.select().from(review)).toHaveLength(0);
+  });
+
   it('never stores reviewer identity or review photos in the raw evidence payload (privacy at ingest, spec §4.5)', async () => {
     await dbs.service.insert(vendorTask).values({ vendor: 'dataforseo', kind: 'google_reviews', externalTaskId: TASK, competitorId: IDS.competitorX });
     const store = createMemoryStore();

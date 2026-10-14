@@ -38,6 +38,11 @@ describe('mapsSearch', () => {
     });
   });
 
+  it('40102 -> empty success (nobody ranks here), not a throw', async () => {
+    const dfs = fakeDfs(() => [dfsTask(null, { statusCode: 40102, statusMessage: 'No Search Results.' })]);
+    expect(await mapsSearch(dfs, { keyword: 'ac repair', lat: 33.9, lng: -84.3 }, { agencyId: null, clientId: null })).toEqual({ places: [], raw: [] });
+  });
+
   it('throws a non-retryable VendorError when no task comes back (never an empty "nobody ranks" result)', async () => {
     const dfs = fakeDfs(() => []);
     await expect(mapsSearch(dfs, { keyword: 'ac repair', lat: 33.9, lng: -84.3 }, { agencyId: null, clientId: null })).rejects.toMatchObject({

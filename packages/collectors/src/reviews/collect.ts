@@ -5,7 +5,7 @@ import { recordVendorCapture } from '../evidence/vendor-capture';
 import { scrubReviewerIdentity } from '../evidence/privacy';
 import { DFS_COLLECTOR_VERSION } from '../gbp/collect-gbp';
 import type { DataForSeoClient, DfsTask } from '../vendors/dataforseo';
-import { isDfsOk, isRetryableDfsCode, VendorError } from '../vendors/dataforseo';
+import { isDfsOk, isNoResults, isRetryableDfsCode, VendorError } from '../vendors/dataforseo';
 import { upsertReviews } from './upsert';
 
 export type VendorTaskRow = typeof vendorTask.$inferSelect;
@@ -30,8 +30,9 @@ export async function collectReadyTasks(
       try {
         const [task] = await deps.dfs.get(getPath(vt.externalTaskId), scope);
         if (!task) throw new VendorError('dataforseo', null, 'empty task', false);
-        if (!isDfsOk(task.statusCode)) throw new VendorError('dataforseo', task.statusCode, task.statusMessage, isRetryableDfsCode(task.statusCode));
-        await handle(task, vt);
+        if (!isNoResults(task) && !isDfsOk(task.statusCode)) throw new VendorError('dataforseo', task.statusCode, task.statusMessage, isRetryableDfsCode(task.statusCode));
+        // 40102 "No Search Results." is an empty success: handle it as a task with zero items.
+        await handle({ ...task, result: task.result ?? [] }, vt);
         await deps.db.update(vendorTask).set({ status: 'done', completedAt: sql`now()` }).where(eq(vendorTask.id, vt.id));
         collected++;
       } catch (err) {

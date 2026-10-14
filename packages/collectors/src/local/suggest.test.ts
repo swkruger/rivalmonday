@@ -32,7 +32,7 @@ describe('suggestCompetitors', () => {
   it('skips a grid point whose search fails and keeps the other points\' results', async () => {
     let n = 0;
     const dfs = fakeDfs(() => (++n === 1
-      ? [dfsTask([], { statusCode: 40102, statusMessage: 'No Search Results.' })]
+      ? [dfsTask([], { statusCode: 40400, statusMessage: 'Not Found.' })]
       : [dfsTask([{ items: [{ type: 'maps_search', rank_absolute: 3, title: 'Smith HVAC', place_id: 'p1' }] }])]));
     const r = await suggestCompetitors({ db: dbs.service, dfs }, IDS.clientA1, { gridSize: 1, maxKeywords: 2 });
     expect(r).toEqual({ suggested: 1, searches: 1, failed: 1 });
@@ -42,9 +42,15 @@ describe('suggestCompetitors', () => {
     expect(rows[0]).toMatchObject({ placeId: 'p1', appearances: 1, overlapScore: 1 });
   });
 
+  it('counts a 40102 "No Search Results" point as a successful empty search, not a failure', async () => {
+    const dfs = fakeDfs(() => [dfsTask(null, { statusCode: 40102, statusMessage: 'No Search Results.' })]);
+    expect(await suggestCompetitors({ db: dbs.service, dfs }, IDS.clientA1, { gridSize: 1, maxKeywords: 2 })).toEqual({ suggested: 0, searches: 2, failed: 0 });
+    expect(await dbs.service.select().from(competitorSuggestion)).toHaveLength(0);
+  });
+
   it('fails when every search fails, so the job reports it instead of an empty success', async () => {
-    const dfs = fakeDfs(() => [dfsTask([], { statusCode: 40102, statusMessage: 'No Search Results.' })]);
-    await expect(suggestCompetitors({ db: dbs.service, dfs }, IDS.clientA1, { gridSize: 1, maxKeywords: 2 })).rejects.toThrow(/No Search Results/);
+    const dfs = fakeDfs(() => [dfsTask([], { statusCode: 40400, statusMessage: 'Not Found.' })]);
+    await expect(suggestCompetitors({ db: dbs.service, dfs }, IDS.clientA1, { gridSize: 1, maxKeywords: 2 })).rejects.toThrow(/Not Found/);
     expect(await dbs.service.select().from(competitorSuggestion)).toHaveLength(0);
   });
 

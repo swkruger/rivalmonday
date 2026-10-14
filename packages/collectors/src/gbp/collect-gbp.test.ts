@@ -53,6 +53,15 @@ describe('collectGbpProfile', () => {
     expect(cap).toMatchObject({ status: 'vendor_error', error: '40400 Not Found.' });
   });
 
+  it('40102 -> not_found: ok capture, no observation', async () => {
+    const dfs = fakeDfs(() => [dfsTask(null, { statusCode: 40102, statusMessage: 'No Search Results.' })]);
+    const r = await collectGbpProfile({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, placeId: 'p1', cid: null });
+    expect(r.status).toBe('not_found');
+    const [cap] = await dbs.service.select().from(capture).where(eq(capture.id, r.captureId as string));
+    expect(cap).toMatchObject({ status: 'ok' });
+    expect(await dbs.service.select().from(observation).where(eq(observation.competitorId, IDS.competitorX))).toHaveLength(0);
+  });
+
   it('records a vendor_error capture when the envelope is OK but no task comes back', async () => {
     const dfs = fakeDfs(() => []);
     const r = await collectGbpProfile({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, placeId: 'p1', cid: null });

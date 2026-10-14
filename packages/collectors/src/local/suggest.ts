@@ -29,8 +29,7 @@ export async function suggestCompetitors(
       try {
         ({ places } = await mapsSearch(deps.dfs, { keyword, lat: pt.lat, lng: pt.lng }, scope));
       } catch (err) {
-        // One empty or failed point (DataForSEO sometimes answers 40102 "No Search Results" for a
-        // busy area) must not throw away the searches already paid for.
+        // One failed point (a vendor error; 40102 "No Search Results" is now an empty success, not a failure) must not throw away the searches already paid for.
         if (!(err instanceof VendorError)) throw err;
         failed++;
         lastError = err;

@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { recordVendorCapture } from '../evidence/vendor-capture';
 import { employerMatches } from '../jobs/collect';
 import { DFS_COLLECTOR_VERSION } from '../gbp/collect-gbp';
-import { type DataForSeoClient, DFS_US, isDfsOk } from '../vendors/dataforseo';
+import { type DataForSeoClient, DFS_US, isDfsOk, isNoResults } from '../vendors/dataforseo';
 import { parseDfsTimestamp } from '../vendors/dfs-time';
 import { VendorError } from '../vendors/errors';
 import { type NormalizedAd, upsertAds } from './upsert';
@@ -74,7 +74,7 @@ export async function collectGoogleAds(
       await recordVendorCapture(deps, { ...base, status: 'vendor_error', error: 'empty task' });
       return { status: 'vendor_error' };
     }
-    if (!isDfsOk(task.statusCode)) {
+    if (!isNoResults(task) && !isDfsOk(task.statusCode)) {
       await recordVendorCapture(deps, { ...base, status: 'vendor_error', error: `${task.statusCode} ${task.statusMessage}` });
       return { status: 'vendor_error' };
     }

@@ -76,6 +76,14 @@ describe('google ads', () => {
     expect(await dbs.service.select().from(ad)).toHaveLength(0);
   });
 
+  it('40102 -> empty success: ok capture with zero items, existing ads untouched until the unseen rule', async () => {
+    const dfs = fakeDfs(() => [dfsTask(null, { statusCode: 40102, statusMessage: 'No Search Results.' })]);
+    const r = await collectGoogleAds({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, domain: 'smithhvac.example', name: 'Smith HVAC' });
+    expect(r).toMatchObject({ status: 'ok', ads: 0, dropped: 0, ended: 0 });
+    const [cap] = await dbs.service.select().from(capture).where(eq(capture.competitorId, IDS.competitorX));
+    expect(cap).toMatchObject({ status: 'ok' });
+  });
+
   it('records a vendor_error capture when the envelope is OK but no task comes back', async () => {
     const dfs = fakeDfs(() => []);
     const r = await collectGoogleAds({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, domain: 'smithhvac.example', name: 'Smith HVAC' });

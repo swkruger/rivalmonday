@@ -1,7 +1,7 @@
 import type { DataForSeoClient, DfsTask } from '../src/vendors/dataforseo';
 
-export function dfsTask(result: unknown[], overrides: Partial<DfsTask> = {}): DfsTask {
-  return { id: '11111111-1111-4111-8111-111111111111', statusCode: 20000, statusMessage: 'Ok.', result, ...overrides };
+export function dfsTask(result: unknown[] | null, overrides: Partial<DfsTask> = {}): DfsTask {
+  return { id: '11111111-1111-4111-8111-111111111111', statusCode: 20000, statusMessage: 'Ok.', result: result as unknown[], ...overrides };
 }
 
 export function fakeDfs(handler: (method: 'POST' | 'GET', path: string, body?: Record<string, unknown>[]) => DfsTask[] | Promise<DfsTask[]>) {

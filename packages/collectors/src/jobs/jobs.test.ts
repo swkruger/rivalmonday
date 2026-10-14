@@ -1,6 +1,7 @@
-import { observation, vendorTask } from '@cs/db';
+import { capture, observation, vendorTask } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { VendorError } from '../vendors/errors';
@@ -104,5 +105,16 @@ describe('jobs', () => {
     expect(obs.map((o) => [o.kind, o.key])).toEqual([['job_posting', 'j1']]);
     expect(obs[0]?.data).toMatchObject({ title: 'HVAC Technician', location: 'Dunwoody, GA', sourceUrl: 'https://jobs/1' });
     expect((await dbs.service.select().from(vendorTask))[0]?.status).toBe('done');
+  });
+
+  it('40102 -> empty success: task done, ok capture (baseline) with zero postings, no observations', async () => {
+    await dbs.service.insert(vendorTask).values({ vendor: 'dataforseo', kind: 'google_jobs', externalTaskId: TASK, competitorId: IDS.competitorX });
+    const dfs = fakeDfs((_m, path) => (path.endsWith('/tasks_ready') ? [dfsTask([{ id: TASK }])] : [dfsTask(null, { id: TASK, statusCode: 40102, statusMessage: 'No Search Results.' })]));
+    expect(await collectReadyJobs({ db: dbs.service, store: createMemoryStore(), dfs })).toEqual({ collected: 1, failed: 0, postings: 0 });
+    expect((await dbs.service.select().from(vendorTask))[0]?.status).toBe('done');
+    expect(await dbs.service.select().from(observation)).toHaveLength(0);
+    const caps = await dbs.service.select().from(capture).where(eq(capture.competitorId, IDS.competitorX));
+    expect(caps).toHaveLength(1);
+    expect(caps[0]).toMatchObject({ status: 'ok' });
   });
 });
