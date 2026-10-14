@@ -25,8 +25,7 @@
 **Then:**
 1. **9a** `phase-9` in a fresh session + worktree (`/rm-kickoff phase-9`; Task 0 pre-flight; owner supplies Stripe test account + `STRIPE_*` keys first; 9a plan paths must use `app/(platform)/platform/**`) → **9b** after pilot-agency feedback.
 2. **Still to plan:** Phase 10 (agency onboarding wizard), Phase 11 (client onboarding wizard).
-3. **Owner checks (phase5-polish):** `/agency` at phone width (two KPI tiles per row); an old brief's "Download PDF" shows "Preparing your PDF…" once.
-4. **Waiting on real data:** the weekly pull from 2026-10-13 should produce the first real alerts. See BACKLOG § Waiting.
+3. **Waiting on real data:** the weekly pull from 2026-10-13 should produce the first real alerts. See BACKLOG § Waiting.
 
 ## Process (short)
 `/rm-start` → `/rm-kickoff <phase>` → brainstorm → spec (new decisions only) → lean plan → owner approval → subagent-driven development → `/rm-wrap-up` each session → `/rm-merge` with the owner's go-ahead. Details in the root `CLAUDE.md`.
