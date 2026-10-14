@@ -20,6 +20,7 @@ export const plan = pgTable(
     seatPriceCents: integer('seat_price_cents').notNull(),
     trialDays: integer('trial_days').notNull(),
     stripeProductId: text('stripe_product_id'),
+    stripeSeatProductId: text('stripe_seat_product_id'),
     stripeBasePriceId: text('stripe_base_price_id'),
     stripeSeatPriceId: text('stripe_seat_price_id'),
     isCurrent: boolean('is_current').notNull().default(false),

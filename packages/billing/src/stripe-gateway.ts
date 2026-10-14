@@ -101,15 +101,18 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
       }));
     },
     async createPrices(plan) {
-      const productId = plan.stripeProductId ?? (await stripe.products.create({ name: plan.name, metadata: { plan_code: plan.code } })).id;
-      const price = (cents: number, role: 'base' | 'seat', nickname: string) =>
+      const product = async (existing: string | null | undefined, name: string, role: 'base' | 'seat') =>
+        existing ?? (await stripe.products.create({ name, metadata: { plan_code: plan.code, [PRICE_ROLE_KEY]: role } })).id;
+      const baseProductId = await product(plan.stripeProductId, `${plan.name} base`, 'base');
+      const seatProductId = await product(plan.stripeSeatProductId, `${plan.name} seat`, 'seat');
+      const price = (productId: string, cents: number, role: 'base' | 'seat', nickname: string) =>
         stripe.prices.create({
-          product: productId, currency: 'usd', unit_amount: cents, recurring: { interval: 'month' },
+          product: productId, currency: 'usd', unit_amount: cents, recurring: { interval: 'month' }, tax_behavior: 'exclusive',
           nickname, metadata: { [PRICE_ROLE_KEY]: role, plan_code: plan.code, plan_version: String(plan.version) },
         });
-      const base = await price(plan.basePriceCents, 'base', `${plan.name} v${plan.version} base`);
-      const seat = await price(plan.seatPriceCents, 'seat', `${plan.name} v${plan.version} seat`);
-      return { productId, basePriceId: base.id, seatPriceId: seat.id };
+      const base = await price(baseProductId, plan.basePriceCents, 'base', `${plan.name} v${plan.version} base`);
+      const seat = await price(seatProductId, plan.seatPriceCents, 'seat', `${plan.name} v${plan.version} seat`);
+      return { baseProductId, seatProductId, basePriceId: base.id, seatPriceId: seat.id };
     },
     async createCoupon(i) {
       if ((i.percentOff == null) === (i.amountOffCents == null)) throw new Error('Coupon needs exactly one of percentOff / amountOffCents');

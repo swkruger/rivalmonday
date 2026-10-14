@@ -121,7 +121,7 @@ export function fakeGateway(): FakeGateway {
     },
     async createPrices(plan) {
       enter('createPrices', plan);
-      return { productId: plan.stripeProductId ?? nid('prod'), basePriceId: nid('price_base'), seatPriceId: nid('price_seat') };
+      return { baseProductId: plan.stripeProductId ?? nid('prod_base'), seatProductId: plan.stripeSeatProductId ?? nid('prod_seat'), basePriceId: nid('price_base'), seatPriceId: nid('price_seat') };
     },
     async createCoupon(i) {
       enter('createCoupon', i);

@@ -49,10 +49,12 @@ describe('fakeGateway', () => {
     await expect(gw.createCoupon({ percentOff: 5, duration: 'repeating' })).rejects.toThrow();
   });
 
-  it('createPrices reuses a passed product id', async () => {
+  it('createPrices reuses passed base and seat product ids', async () => {
     const gw = fakeGateway();
-    const p = await gw.createPrices({ code: 'standard', version: 2, name: 'Standard', basePriceCents: 1, seatPriceCents: 1, stripeProductId: 'prod_x' });
-    expect(p.productId).toBe('prod_x');
+    const p = await gw.createPrices({ code: 'standard', version: 2, name: 'Standard', basePriceCents: 1, seatPriceCents: 1, stripeProductId: 'prod_b', stripeSeatProductId: 'prod_s' });
+    expect(p).toMatchObject({ baseProductId: 'prod_b', seatProductId: 'prod_s' });
+    const fresh = await gw.createPrices({ code: 's', version: 1, name: 'S', basePriceCents: 1, seatPriceCents: 1 });
+    expect(fresh.baseProductId).not.toBe(fresh.seatProductId);
   });
 
   it('verifyWebhook accepts only the fake signature', () => {

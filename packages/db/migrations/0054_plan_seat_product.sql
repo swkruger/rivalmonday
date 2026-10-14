@@ -1,0 +1,1 @@
+ALTER TABLE "plan" ADD COLUMN "stripe_seat_product_id" text;

@@ -23,7 +23,7 @@ function mockClient() {
       update: vi.fn(async () => ({})),
     },
     invoices: { createPreview: vi.fn(), list: vi.fn() },
-    products: { create: vi.fn(async () => ({ id: 'prod_new' })) },
+    products: { create: vi.fn().mockResolvedValueOnce({ id: 'prod_base' }).mockResolvedValueOnce({ id: 'prod_seat' }) },
     prices: { create: vi.fn(async (p: { unit_amount: number }) => ({ id: `price_${p.unit_amount}` })) },
     coupons: { create: vi.fn(async () => ({ id: 'co_1' })) },
     promotionCodes: { create: vi.fn(async () => ({ id: 'promo_1' })), update: vi.fn(async () => ({})) },
@@ -83,14 +83,25 @@ describe('stripeGateway', () => {
     expect(await gw(c).upcomingInvoice('sub_1')).toBeNull();
   });
 
-  it('createPrices makes a product (or reuses one) and role-tagged monthly USD prices', async () => {
+  it('createPrices creates a base and a seat product once, then reuses both ids', async () => {
     const c = mockClient();
     const r = await gw(c).createPrices({ code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, seatPriceCents: 9900 });
-    expect(r).toEqual({ productId: 'prod_new', basePriceId: 'price_22900', seatPriceId: 'price_9900' });
-    expect(firstArg(c.prices.create, 1)).toMatchObject({ product: 'prod_new', currency: 'usd', unit_amount: 9900, recurring: { interval: 'month' }, metadata: { [PRICE_ROLE_KEY]: 'seat' } });
+    expect(r).toEqual({ baseProductId: 'prod_base', seatProductId: 'prod_seat', basePriceId: 'price_22900', seatPriceId: 'price_9900' });
+    expect(c.products.create).toHaveBeenCalledTimes(2);
+    expect(firstArg(c.prices.create, 0)).toMatchObject({ product: 'prod_base', tax_behavior: 'exclusive', metadata: { [PRICE_ROLE_KEY]: 'base' } });
+    expect(firstArg(c.prices.create, 1)).toMatchObject({ product: 'prod_seat', currency: 'usd', unit_amount: 9900, recurring: { interval: 'month' }, tax_behavior: 'exclusive', metadata: { [PRICE_ROLE_KEY]: 'seat' } });
     c.products.create.mockClear();
-    await gw(c).createPrices({ code: 'standard', version: 2, name: 'Standard', basePriceCents: 1, seatPriceCents: 1, stripeProductId: 'prod_old' });
+    const r2 = await gw(c).createPrices({ code: 'standard', version: 2, name: 'Standard', basePriceCents: 1, seatPriceCents: 1, stripeProductId: 'prod_base', stripeSeatProductId: 'prod_seat' });
     expect(c.products.create).not.toHaveBeenCalled();
+    expect(r2).toMatchObject({ baseProductId: 'prod_base', seatProductId: 'prod_seat' });
+  });
+
+  it('coupon appliesTo resolves to base, seat or both product lists', async () => {
+    const c = mockClient();
+    for (const ids of [['prod_base'], ['prod_seat'], ['prod_base', 'prod_seat']]) {
+      await gw(c).createCoupon({ percentOff: 10, duration: 'once', appliesToProductIds: ids });
+    }
+    expect([0, 1, 2].map((n) => (firstArg(c.coupons.create, n).applies_to as { products: string[] }).products)).toEqual([['prod_base'], ['prod_seat'], ['prod_base', 'prod_seat']]);
   });
 
   it('createCoupon maps percent/amount, repeating months and applies_to', async () => {

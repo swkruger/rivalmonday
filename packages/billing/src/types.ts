@@ -70,12 +70,15 @@ export interface PlanPriceInput {
   name: string;
   basePriceCents: number;
   seatPriceCents: number;
-  /** Reuse this product (new version of an existing plan) instead of creating one. */
+  /** Existing base product (reused across plan versions); created only when missing. */
   stripeProductId?: string | null;
+  /** Existing seat product (reused across plan versions); created only when missing. */
+  stripeSeatProductId?: string | null;
 }
 
 export interface CreatedPrices {
-  productId: string;
+  baseProductId: string;
+  seatProductId: string;
   basePriceId: string;
   seatPriceId: string;
 }
@@ -86,7 +89,7 @@ export interface CreateCouponInput {
   duration: 'once' | 'repeating' | 'forever';
   /** Required when duration is `repeating`. */
   durationInMonths?: number;
-  /** Product ids the coupon is restricted to (`appliesTo`); empty/omitted = all. */
+  /** Product ids the coupon is restricted to: base -> [baseProductId], seats -> [seatProductId], both -> both. Empty/omitted = all. */
   appliesToProductIds?: string[];
   name?: string;
 }
