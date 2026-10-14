@@ -1,13 +1,13 @@
 # phase-12 — Competitor discovery & rating (12a) + starting-point brief (12b)
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-12   **Base:** main @ c84ca97
-**Plan/spec:** spec `docs/superpowers/specs/2026-10-14-phase-12-discovery-and-starting-point-design.md` (owner-approved 2026-10-14) · plans `docs/superpowers/plans/2026-10-14-phase-12a-competitor-discovery.md`, `…-12b-starting-point-brief.md` (awaiting owner approval)
+**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-12   **Base:** main @ c84ca97
+**Plan/spec:** spec `docs/superpowers/specs/2026-10-14-phase-12-discovery-and-starting-point-design.md` (owner-approved 2026-10-14) · plans `docs/superpowers/plans/2026-10-14-phase-12a-competitor-discovery.md`, `…-12b-starting-point-brief.md` (owner-approved 2026-10-14, subagent-driven)
 
 ## Status (overwrite)
-Spec owner-approved 2026-10-14. Lean plans 12a (Tasks 0–11) and 12b (Tasks 0–9) written, awaiting owner approval. No code yet.
+Plans 12a + 12b owner-approved 2026-10-14 (subagent-driven); owner chose to build Phase 12 **before** 9, 10, 11 (9a runs in parallel in its own worktree). Test DB `cs_phase_12_test`. Execution starting at 12a Task 0.
 
 ## Next (overwrite)
-Owner reviews both plans and picks an execution method; then implementation setup (pnpm install, own test DB) and 12a Task 0.
+12a Task 0 pre-flight (rebase, dependency re-check, live vendor fixtures with owner OK), then Tasks 1–11; then 12b.
 
 ## Interfaces this branch adds or changes
 (planned, not built)
@@ -26,6 +26,7 @@ Brainstorm decisions in Brief §1; promoted to the spec with ids.
 
 ## New backlog (target → item)
 - Unscheduled → `tier_change` event when a tracked competitor's tier changes (deferred by plan 12a P4: `detected_change_subject_check` needs a capture or rank scan)
+- Phase 12 merge → STATE "Next up" order 12 → 9 → 10 → 11 (owner 2026-10-14)
 - Phase 12 merge → add roadmap row 12; amend core spec §9.1 item 5 (quiet week carries a "Where you stand" scorecard) and §4.1 item 2.
 
 ## Owner verification steps
