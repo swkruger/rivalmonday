@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
-import { boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { boolean, check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { competitorSuggestion } from './client-intel';
 import { capture } from './evidence';
 import { competitor } from './tenancy';
 
@@ -21,17 +22,23 @@ export const competitorSource = pgTable(
 );
 
 /** Pending asynchronous vendor tasks (DataForSEO task_post). Service role only. */
-export const vendorTask = pgTable('vendor_task', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  vendor: text('vendor').notNull(),
-  kind: text('kind').notNull(), // 'google_reviews' | 'google_jobs'
-  externalTaskId: text('external_task_id').notNull().unique(),
-  competitorId: competitorRef(),
-  status: text('status').notNull().default('pending'), // pending | done | failed
-  postedAt: ts('posted_at').notNull().defaultNow(),
-  completedAt: ts('completed_at'),
-  error: text('error'),
-});
+export const vendorTask = pgTable(
+  'vendor_task',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    vendor: text('vendor').notNull(),
+    kind: text('kind').notNull(), // 'google_reviews' | 'google_jobs'
+    externalTaskId: text('external_task_id').notNull().unique(),
+    /** Exactly one of competitorId / suggestionId is set (vendor_task_subject_check). */
+    competitorId: uuid('competitor_id').references(() => competitor.id, { onDelete: 'cascade' }),
+    suggestionId: uuid('suggestion_id').references(() => competitorSuggestion.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('pending'), // pending | done | failed
+    postedAt: ts('posted_at').notNull().defaultNow(),
+    completedAt: ts('completed_at'),
+    error: text('error'),
+  },
+  () => [check('vendor_task_subject_check', sql`(competitor_id IS NULL) <> (suggestion_id IS NULL)`)],
+);
 
 /** A typed fact extracted from a capture (GBP profile, job posting, …). Immutable. */
 export const observation = pgTable(

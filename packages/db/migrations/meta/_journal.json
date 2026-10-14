@@ -365,6 +365,20 @@
       "when": 1791951640182,
       "tag": "0051_platform_costs",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1792020633464,
+      "tag": "0052_discovery_rating",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1792020639214,
+      "tag": "0053_discovery_rating_rls",
+      "breakpoints": true
     }
   ]
 }

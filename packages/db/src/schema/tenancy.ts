@@ -112,6 +112,8 @@ export const clientCompetitor = pgTable(
     agencyId: uuid('agency_id').notNull().references(() => agency.id, { onDelete: 'cascade' }),
     clientId: uuid('client_id').notNull(),
     competitorId: uuid('competitor_id').notNull().references(() => competitor.id, { onDelete: 'cascade' }),
+    /** Weak ad-account matches awaiting confirmation (AdMatch[]); service-role written (Phase 12a). */
+    pendingAdMatches: jsonb('pending_ad_matches').$type<Array<{ platform: 'google' | 'meta'; accountId: string; name: string; strength: 'strong' | 'weak' }>>().notNull().default(sql`'[]'::jsonb`),
     createdAt: createdAt(),
   },
   (t) => [

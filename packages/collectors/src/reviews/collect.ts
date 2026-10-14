@@ -67,6 +67,7 @@ export async function collectReadyReviews(deps: { db: Db; store: ObjectStore; df
     '/business_data/google/reviews/tasks_ready',
     (id) => `/business_data/google/reviews/task_get/${id}`,
     async (task, vt) => {
+      if (!vt.competitorId) return; // suggestion-subject tasks (Phase 12a) are handled by discovery, not here
       // Privacy at ingest (spec §4.5): the stored raw-vendor evidence must never carry reviewer
       // identity (name, profile URL, photo) or unredacted contact info — scrub before it is
       // gzipped and persisted. Parsed review rows still come from the raw `task.result` items

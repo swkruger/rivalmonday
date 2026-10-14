@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
-import { check, doublePrecision, foreignKey, index, integer, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { type AnyPgColumn, check, doublePrecision, foreignKey, index, integer, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 import { capture } from './evidence';
+import { type Tier, discoveryRun } from './rivals';
 import { agency, client } from './tenancy';
 
 const ts = (name: string) => timestamp(name, { withTimezone: true });
@@ -31,11 +32,22 @@ export const competitorSuggestion = pgTable(
     overlapScore: doublePrecision('overlap_score').notNull(),
     status: text('status').notNull().default('suggested'), // suggested | accepted | dismissed
     createdAt: ts('created_at').notNull().defaultNow(),
+    // Phase 12a discovery & rating (service-role written; app_user still updates only `status`).
+    runId: uuid('run_id').references((): AnyPgColumn => discoveryRun.id, { onDelete: 'set null' }),
+    category: text('category'),
+    distanceKm: doublePrecision('distance_km'),
+    overlap: doublePrecision('overlap'),
+    activity: doublePrecision('activity'),
+    tier: text('tier').$type<Tier>(), // CHECK (top|watch|minor) in the migration
+    signals: jsonb('signals').$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    adMatches: jsonb('ad_matches').$type<Array<{ platform: 'google' | 'meta'; accountId: string; name: string; strength: 'strong' | 'weak' }>>().notNull().default(sql`'[]'::jsonb`),
+    lastSeenAt: ts('last_seen_at').notNull().defaultNow(),
   },
   (t) => [
     foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade'),
     unique('competitor_suggestion_client_place_unique').on(t.clientId, t.placeId),
     index('competitor_suggestion_agency_idx').on(t.agencyId),
+    check('competitor_suggestion_tier_check', sql`${t.tier} IN ('top','watch','minor')`),
     // The status CHECK constraint and the column-scoped UPDATE grant live only in
     // migrations/0011_suggestion_status_only.sql: adding `check(...)` here makes
     // `drizzle-kit generate` propose a duplicate ADD CONSTRAINT migration (verified),

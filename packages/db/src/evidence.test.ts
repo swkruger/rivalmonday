@@ -79,7 +79,7 @@ describe('privilege guard', () => {
     //
     // Allow-list, derived from the migrations:
     //   client             INSERT/UPDATE/DELETE — FOR ALL tenant-isolation policy (0001); never revoked.
-    //   client_competitor  INSERT/UPDATE/DELETE — FOR ALL tenant-isolation policy (0001); never revoked.
+    //   client_competitor  INSERT/DELETE — FOR ALL tenant-isolation policy (0001); UPDATE revoked in 0053 (pending_ad_matches is service-written).
     //   competitor_suggestion UPDATE only        — 0010 revokes INSERT/DELETE; 0011 revokes the table-wide
     //                                              UPDATE and re-grants UPDATE on just the `status` column,
     //                                              so a client-scoped user can dismiss/accept a suggestion
@@ -113,7 +113,6 @@ describe('privilege guard', () => {
       { table: 'client', priv: 'UPDATE' },
       { table: 'client_competitor', priv: 'DELETE' },
       { table: 'client_competitor', priv: 'INSERT' },
-      { table: 'client_competitor', priv: 'UPDATE' },
       { table: 'competitor_suggestion', priv: 'UPDATE' },
       { table: 'oauth_grant_binding', priv: 'UPDATE' },
     ];
