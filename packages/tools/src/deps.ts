@@ -1,5 +1,6 @@
 import { type CallScope, ToolError } from '@cs/core';
 import type { Db } from '@cs/db';
+import type { ServiceKey } from './platform/costs/types';
 import { createPackLoader, type DeliveryConfig, type PackLoader } from '@cs/engine';
 
 /** Jobs the web app may enqueue. The worker owns the queues (5a decision 8); `singletonKey` dedupes on `short`-policy queues. */
@@ -33,6 +34,8 @@ export interface ToolDeps {
   appUrl?: string;
   /** P16: query embedding for `search` (dev environment with an OpenRouter key only); absent: full-text search only. */
   embedQuery?: (text: string, scope: CallScope) => Promise<number[]>;
+  /** Phase 8c: which platform-cost vendor keys are set (presence only, never values); web builds it from `process.env`. Absent: a service counts as configured once it has a snapshot. */
+  costEnvPresent?: Partial<Record<ServiceKey, boolean>>;
   /** Evidence bytes by object key, for `fetch` and the MCP evidence resources. */
   evidenceStore?: { get(key: string): Promise<Uint8Array | null> };
 }
