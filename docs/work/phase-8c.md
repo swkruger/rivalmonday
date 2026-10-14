@@ -1,13 +1,14 @@
 # phase-8c — Platform hosting costs
 
 **Kind:** feature   **Worktree:** ../CompetitorSpy-wt/phase-8c   **Base:** phase-8b @ f666e79 (stacked on phase-8 → main)   **Test DB:** cs_phase_8c_test
-**Spec:** `docs/superpowers/specs/2026-10-13-phase-8c-platform-costs-design.md` (c1–c12). Vendor contracts: `docs/research/2026-10-13-phase-8c-cost-apis.md`. Plan: not written yet.
+**Spec:** `docs/superpowers/specs/2026-10-13-phase-8c-platform-costs-design.md` (c1–c12). Vendor contracts: `docs/research/2026-10-13-phase-8c-cost-apis.md`.
+Plan: `docs/superpowers/plans/2026-10-13-phase-8c-platform-costs.md` (Tasks 0–8).
 
 ## Status (overwrite)
-Brainstorm done, spec written 2026-10-13. Awaiting owner review of the spec, then writing-plans (lean format).
+Spec approved 2026-10-13; plan written (Tasks 0–8), awaiting owner review + execution-method choice.
 
 ## Next (overwrite)
-1. Owner reviews spec → `superpowers:writing-plans`.
+1. Owner reviews plan → SDD execution (Task 0 pre-flight first).
 2. Owner adds `ANTHROPIC_ADMIN_KEY`, `NEON_API_KEY`, `NEON_ORG_ID` to `.env` (main + this worktree) before Task 0, so Neon fields can be live-verified.
 3. Merge order: phase-8 → phase-8b → phase-8c (rebase each on main after the previous merges).
 
