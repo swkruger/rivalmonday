@@ -4,13 +4,20 @@
 **Plan/spec:** spec `docs/superpowers/specs/2026-10-14-phase-10-agency-onboarding-design.md`; plan `docs/superpowers/plans/2026-10-14-phase-10-agency-onboarding.md` (Tasks 0–15)
 
 ## Status (overwrite)
-Spec approved 2026-10-14; plan written, awaiting owner approval. Dev blocked until 9a (+8/8b/8c) merge.
+Planning done 2026-10-14: brief → brainstorm → spec (owner-approved) → lean plan (Tasks 0–15), all committed. Plan **awaiting owner approval**. Nothing uncommitted; no code; no install/test DB (planning-only worktree).
 
 ## Next (overwrite)
-Owner approves plan → merge phase-10 docs to main (planned-ahead) → after 9a merges: `/rm-kickoff phase-10` → Task 0 pre-flight → SDD.
+1. Owner approves the plan (or requests changes).
+2. Merge the phase-10 docs to main as planned-ahead (like 8/8b/9).
+3. After 8, 8b, 8c, 9a merge: `/rm-kickoff phase-10` → Task 0 pre-flight (rebase, re-check deps, owner adds env vars, install `sharp`) → SDD.
 
 ## Interfaces this branch adds or changes
-None yet.
+(planned, not built)
+- Tables: `pending_signup`, `agency_profile`, `agency_onboarding` (+ `platform_setting` only if no settings table exists); migrations next free ≥ 0054.
+- Tools: `start_agency_signup` (public), `get_onboarding_status`, `mark_onboarding_step`, `dismiss_onboarding_checklist`, `mark_onboarding_redirected`, `get_agency_profile`, `update_agency_profile`, `upload_agency_logo`, `set_signups_paused`, `get_signups_paused`, `get_signup_funnel`.
+- Changes others' code: `hasSignInRight` (pending sign-up = right); session `after` hook calls `completePendingSignups`; `create_client` sets `first_client_at`; 9a `billingAccess` + `reducedTrial`/`maxActiveClients`; `BillingGateway.updateCustomer`; 9a `create_invite_link` + `emailIt`; `OutgoingEmail.stream`/`headers`; 4 email templates + sign-in `signup` prop.
+- Routes: `/sign-up`, `/sign-up/problem`, `/join/[token]`, `/onboarding`, `/u/[token]`, `/files/logo/[agencyId]/[file]`, `POST /agency/branding/logo`.
+- Env (owner adds): `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `SUPPORT_REPLY_TO`, `POSTMARK_BROADCAST_STREAM`. Worker job `onboarding-nudges` (daily 15:00 UTC).
 
 ## Assumes from other branches
 - **phase-9 (9a, approved, not built — hard dependency):** tables `agency_invite_link` (`token_hash`, `token_prefix`, `offer pilot|trial`, `pilot_ends_at`, `discount_code_id`, `email_lock`, `max_uses`, `uses`, `expires_at`, `revoked_at`), `agency_billing`, `plan`, `discount_code`; `generateInviteToken`/`hashInviteToken`, `startAgencyTrial(db, gw, agencyId, { offer, pilotEndsAt?, couponId? })`, `create_checkout_session`, `fakeGateway`; `create_invite_link` returns `${APP_URL}/join/<token>` (**route `/join/[token]` is ours**); `billing-notice` template + outbox kinds; console `/platform/billing` invite-links UI. 9a e10: *redemption and invite emails are Phase 10*.
@@ -22,13 +29,16 @@ None yet.
 - **Hot spots:** `email/src/{render,types,labels}.ts`, `coverage.ts`, `tools/all.ts`, `server/auth-options.ts`, nav.
 
 ## Decisions (owner-approved)
-f1–f14 in the spec: one phase; after 9a; **open self-serve agency sign-up** (amends invitation-only); light abuse guards, no card; agency created after verification; wizard profile→team→plan→branding, only name required; own `agency_profile`; second agency allowed, lock mismatch refused; core emails + 1/3/7 d tips; `agency_onboarding` table; logo upload (PNG via sharp); reduced open-trial allowance (1 client, weekly); sign-up in app; extend auth hooks.
+Spec f1–f14 (`docs/superpowers/specs/2026-10-14-phase-10-agency-onboarding-design.md`). Headline: **open self-serve agency sign-up** (amends root `CLAUDE.md` "invitation-only" — update § Decisions at merge); no card at trial start; open-trial allowance 1 client, weekly; agency created only after email verification. Plan-local P1–P6 in the plan.
 
 ## New backlog (target → item)
-None yet.
+- Owner → create Cloudflare Turnstile site (prod domain + localhost) and a Postmark Broadcast stream before Phase 10 execution.
+- Phase 10 merge → root `CLAUDE.md` § Decisions: auth no longer invitation-only for new agencies (f3).
+- Polish → delete superseded logo objects under `logos/<agency>/` (Phase 10 keeps them).
+- Unscheduled → public "request access" form / marketing landing (declined for now, Q3/Q12).
 
 ## Owner verification steps
-TBD.
+See the plan § Owner verification (5 checks: env/Turnstile, open sign-up end-to-end, email-locked invite + mismatch, pause switch, day-1 tip + one-click unsubscribe).
 
 ## Brief
 
@@ -59,14 +69,5 @@ Roadmap row 10: "Step-by-step agency sign-up via invite link, billing step, emai
 ### 5. In-flight workstreams
 See **Assumes from other branches**. Phase 11 (unplanned) owns client onboarding.
 
-### 6. Open questions for the owner (most design-changing first)
-1. **Split?** (a) one phase, ~3 plan phases (redemption + account/agency creation; wizard steps; emails); (b) 10a sign-up + wizard, 10b emails/nudges + console follow-up. *Rec: (a) — 9a already builds links/billing, scope is ~1–1.5 wks.*
-2. **Order vs 9a:** (a) execute after 9a merges, consume its links + `startAgencyTrial`; (b) build now with a minimal own token table, 9a adapts; (c) move invite-link creation from 9a into 10. *Rec: (a); plan can be written now.*
-3. **Entry model:** (a) invite link only; (b) link + public "request access" form feeding the console; (c) open self-serve trial sign-up. *Rec: (a), (b) later.*
-4. **When the agency is created:** (a) on form submit before email verification; (b) only after verified sign-in (pending signup row + auth hook, link `uses` consumed then). *Rec: (b) — no orphan agencies, fits invitation-only auth.*
-5. **Wizard steps & required:** account → agency profile (name, website, timezone, verticals) → branding (logo, colours, display/assistant name, sign-off) → invite team → billing/offer confirm → "add first client" (Phase 11). (a) only account + name required, rest skippable, resumable checklist on `/agency`; (b) all steps mandatory. *Rec: (a).*
-6. **Billing step:** (a) show offer (pilot end / trial end, plan, 3-client cap, discount) + optional "Add payment method" via Checkout; (b) require Checkout for trial links. *Rec: (a) per 9a e4.*
-7. **Existing users / email lock:** user already in another agency redeems → (a) allow, second membership via switcher; (b) refuse. Locked link + different Google email → refuse with copy. *Rec: (a) + refuse mismatch.*
-8. **Emails:** (a) invite (email-locked links, sent from console), welcome, one nudge at 3 d if wizard unfinished, owner notice on new sign-up; (b) add multi-step drip (1/3/7 d); (c) invite + welcome only. All via outbox, Rival Monday branding, reply-to TBD. *Rec: (a).*
-9. **Wizard state:** (a) derived from data + `agency.onboarding_completed_at` (existing agencies backfilled as complete); (b) `agency_onboarding` table with per-step timestamps (funnel stats for console). *Rec: (b) thin — gives the console a funnel.*
-10. **Logo:** (a) URL field as today; (b) upload to evidence storage (fs/R2) served by a public route. *Rec: (a) now, (b) when R2 exists.*
+### 6. Open questions
+All answered 2026-10-14 → spec f1–f14.
