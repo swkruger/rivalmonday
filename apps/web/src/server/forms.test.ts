@@ -82,4 +82,9 @@ describe('toFormResult', () => {
     expect(toFormResult(new ToolError('read_only_session', 'x'))).toEqual({ ok: false, error: 'Read-only support session — changes are disabled.' });
     expect(toFormResult(new ToolError('conflict', 'x'))).toEqual({ ok: false, error: 'That changed while you were working — please try again.' });
   });
+  it('renders the billing copy (9a R2)', () => {
+    expect(toFormResult(new ToolError('billing_seat_limit', "You've used your 3 included clients. Upgrade to add more."))).toEqual({ ok: false, error: "You've used your 3 included clients. Upgrade to add more." });
+    expect(toFormResult(new ToolError('service_paused', 'x'))).toEqual({ ok: false, error: 'Service is paused. Update your payment method to resume.' });
+    expect(toFormResult(new ToolError('invalid_code', 'x'))).toEqual({ ok: false, error: "That code isn't valid for your account." });
+  });
 });

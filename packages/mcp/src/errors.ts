@@ -25,6 +25,9 @@ function mapError(e: unknown, what: string): Mapped {
       case 'not_found':
       case 'invalid_input':
       case 'quota_exceeded':
+      case 'billing_seat_limit':
+      case 'service_paused':
+      case 'invalid_code':
         return { code: e.code, message: e.message };
       case 'permission_denied':
         return { code: 'not_found', message: 'Not found' };

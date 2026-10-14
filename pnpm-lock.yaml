@@ -270,6 +270,9 @@ importers:
       '@cs/db':
         specifier: workspace:*
         version: link:../db
+      drizzle-orm:
+        specifier: ^0.44.5
+        version: 0.44.7(@types/pg@8.23.1)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9)
       stripe:
         specifier: 22.6.2
         version: 22.6.2(@types/node@22.20.4)
