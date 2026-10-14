@@ -13,7 +13,7 @@ const PAUSED_AGENCY_STAFF_MESSAGE = "Your agency's account needs attention.";
 const PAUSED_CLIENT_MESSAGE = 'This workspace is temporarily unavailable.';
 
 /** R17: only the agency admin can act on the payment problem; everyone else gets copy that doesn't expose billing. */
-function pausedMessage(role: string): string {
+export function pausedMessage(role: string): string {
   if (role === 'agency_admin') return SERVICE_PAUSED_MESSAGE;
   return role === 'account_manager' ? PAUSED_AGENCY_STAFF_MESSAGE : PAUSED_CLIENT_MESSAGE;
 }
@@ -36,11 +36,16 @@ export const PAUSED_WRITE_ALLOW_LIST: readonly string[] = [
   ...PLATFORM_TOOLS,
 ];
 
+/** Up-front refusal for non-registry entry points (Ask turn, MCP `tools/call`): `service_paused` for a `read_only`/`suspended` agency, role-aware copy. */
+export async function assertAgencyServiceable(service: ToolDeps['service'], ctx: { agencyId: string; role: string }): Promise<void> {
+  const access = await billingAccess(service, ctx.agencyId);
+  if (access.readOnly || access.suspended) throw new ToolError('service_paused', pausedMessage(ctx.role));
+}
+
 /** R4: refuses write tools for an agency whose billing state is `read_only` or `suspended` (`service_paused`). */
 export function billingWriteGuard(deps: ToolDeps): WriteGuard {
   return async (ctx, tool) => {
     if (PAUSED_WRITE_ALLOW_LIST.includes(tool.name)) return;
-    const access = await billingAccess(deps.service, ctx.agencyId);
-    if (access.readOnly || access.suspended) throw new ToolError('service_paused', pausedMessage(ctx.role));
+    await assertAgencyServiceable(deps.service, ctx);
   };
 }

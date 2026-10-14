@@ -1,5 +1,5 @@
 import { capture, client, competitor, competitorSource, observation } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import type { Db } from '@cs/db';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -47,6 +47,15 @@ describe('ensureSelfCompetitor', () => {
     expect(await ensureSelfCompetitors(dbs.service)).toBe(1);
     expect(await selfOf(IDS.clientA1)).not.toBeNull();
     expect(await selfOf(IDS.clientA2)).toBeNull();
+  });
+
+  it('does not link a read_only agency’s client; an agency with no billing row is still linked (9a)', async () => {
+    await dbs.owner.update(client).set({ placeId: 'ChIJpausedA1' }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ placeId: 'ChIJserviceB1' }).where(eq(client.id, IDS.clientB1));
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    expect(await ensureSelfCompetitors(dbs.service)).toBe(1);
+    expect(await selfOf(IDS.clientA1)).toBeNull();
+    expect(await selfOf(IDS.clientB1)).not.toBeNull();
   });
 
   describe('self backfill sweep', () => {

@@ -1,5 +1,5 @@
 import { ad, capture, changeEvent, client, eventScore, move, moveEvent, withTenant } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedVendorCapture } from '../../test/seed';
@@ -125,5 +125,12 @@ describe('adActivity and listMoveClients', () => {
     await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2));
     const ids = await listMoveClients(dbs.service);
     expect(ids.sort()).toEqual([IDS.clientA1, IDS.clientB1].sort());
+  });
+});
+
+describe('listMoveClients and billing state (9a)', () => {
+  it('excludes a read_only agency’s clients; an agency with no billing row is still listed', async () => {
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    expect(await listMoveClients(dbs.service)).toEqual([IDS.clientB1]);
   });
 });

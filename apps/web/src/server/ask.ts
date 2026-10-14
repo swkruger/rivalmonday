@@ -4,6 +4,7 @@ import { ASK_COPY, type AskDeps, type AskEvent, beginTurn, DEFAULT_ASSISTANT_NAM
 import { createScriptedAskAi, type ScriptedReply, type ScriptedStep } from '@cs/ask/testing';
 import { type AccessContext, canAccessClient, hasFeature, ToolError } from '@cs/core';
 import { agency, client, createDecisionSampleSink, createLedgerSink, type Db, type EnvName, withTenant } from '@cs/db';
+import { assertAgencyServiceable } from '@cs/tools';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { dbs } from './db';
@@ -182,6 +183,8 @@ export async function handleAskTurn(req: Request, o: AskTurnOptions): Promise<Re
   try {
     deps = await o.deps();
     if (!(await clientVisible(deps.app, ctx, input.clientId))) return notFound();
+    // 9a: a read_only/suspended agency is refused before any quota count or model call (role-aware copy).
+    await assertAgencyServiceable(deps.service, ctx);
     begun = await beginTurn(deps.app, ctx, input);
   } catch (e) {
     if (e instanceof ToolError && (e.code === 'not_found' || e.code === 'permission_denied')) return notFound();
@@ -233,10 +236,11 @@ export async function handleAskTurn(req: Request, o: AskTurnOptions): Promise<Re
       }
       await runTurn(deps!, ctx, { threadId: begun!.threadId, userMessageId: begun!.userMessageId, ...(input.seedEvidenceId ? { seedEvidenceId: input.seedEvidenceId } : {}) }, write);
     } catch (err) {
-      console.error('[ask] turn failed', err instanceof Error ? err.message : err);
+      if (!(err instanceof ToolError && err.code === 'service_paused')) console.error('[ask] turn failed', err instanceof Error ? err.message : err);
       if (!finalSent) {
         const name = deps ? await assistantNameFor(deps.service, ctx.agencyId).catch(() => DEFAULT_ASSISTANT_NAME) : DEFAULT_ASSISTANT_NAME;
-        write({ type: 'final', messageId: '', content: ASK_COPY.error(name), citations: [], action: null, status: 'error' });
+        const content = err instanceof ToolError && err.code === 'service_paused' ? err.message : ASK_COPY.error(name);
+        write({ type: 'final', messageId: '', content, citations: [], action: null, status: 'error' });
       }
     } finally {
       close();

@@ -1,5 +1,5 @@
-import { client, competitor, competitorSource } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { agencyBilling, client, competitor, competitorSource } from '@cs/db';
+import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { claimDueSources, markSourceResult, releaseSources } from './due';
@@ -72,5 +72,32 @@ describe('releaseSources', () => {
 
   it('is a no-op for an empty list', async () => {
     await expect(releaseSources(dbs.service, [], 'post_failed')).resolves.toBeUndefined();
+  });
+});
+
+describe('claimDueSources and billing state (9a)', () => {
+  it('tracked-competitor branch: nothing is claimed while every tracking agency is read_only; a serviceable one keeps it claimable', async () => {
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    expect(await claimDueSources(dbs.service, 10)).toEqual([{ competitorId: IDS.competitorX, source: 'gbp' }]); // agency B still tracks X
+    await dbs.service.update(competitorSource).set({ nextDueAt: sql`now() - interval '1 minute'` }).where(eq(competitorSource.competitorId, IDS.competitorX));
+    await pauseAgency(dbs.owner, IDS.agencyB);
+    expect(await claimDueSources(dbs.service, 10)).toEqual([]);
+  });
+
+  it('self-business branch: a read_only agency’s own business is not claimed; a serviceable agency’s is', async () => {
+    const [sa] = await dbs.owner.insert(competitor).values({ name: 'A Self' }).returning();
+    const [sb] = await dbs.owner.insert(competitor).values({ name: 'B Self' }).returning();
+    await dbs.owner.update(client).set({ selfCompetitorId: sa!.id }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ selfCompetitorId: sb!.id }).where(eq(client.id, IDS.clientB1));
+    await dbs.service.insert(competitorSource).values([
+      { competitorId: sa!.id, source: 'gbp', nextDueAt: sql`now() - interval '1 minute'` },
+      { competitorId: sb!.id, source: 'gbp', nextDueAt: sql`now() - interval '1 minute'` },
+    ]);
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    await pauseAgency(dbs.owner, IDS.agencyB, 'suspended');
+    await dbs.service.update(competitorSource).set({ active: false }).where(eq(competitorSource.competitorId, IDS.competitorX));
+    expect(await claimDueSources(dbs.service, 10)).toEqual([]);
+    await dbs.owner.delete(agencyBilling).where(eq(agencyBilling.agencyId, IDS.agencyB));
+    expect(await claimDueSources(dbs.service, 10)).toEqual([{ competitorId: sb!.id, source: 'gbp' }]);
   });
 });

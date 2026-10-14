@@ -1,6 +1,6 @@
 import type { AccessContext, CallOptions, TokenScope, ToolRegistry } from '@cs/core';
 import type { Db } from '@cs/db';
-import type { ToolDeps } from '@cs/tools';
+import { assertAgencyServiceable, type ToolDeps } from '@cs/tools';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { type CallToolResult, CallToolRequestSchema, ListToolsRequestSchema, type ListToolsResult } from '@modelcontextprotocol/sdk/types.js';
 import type { ResolvedToken } from './auth';
@@ -39,6 +39,7 @@ export function createMcpServer(args: {
     const { name, arguments: input } = req.params;
     try {
       await enforceRateLimit(session);
+      await assertAgencyServiceable(service, ctx); // 9a: read_only/suspended agency -> service_paused (tools/list and resources stay readable)
       const out = await registry.invoke(ctx, name, input ?? {}, opts);
       return { content: [{ type: 'text', text: JSON.stringify(out) }] };
     } catch (e) {

@@ -1,6 +1,6 @@
 import { verifyLink } from '@cs/core';
-import { agencyWebhook, alert, changeEvent, client, contact, notification } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { agencyBilling, agencyWebhook, alert, changeEvent, client, contact, notification } from '@cs/db';
+import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport, type EmailPayload, PermanentEmailError, resolveBranding } from '@cs/email';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -183,5 +183,22 @@ describe('email sender', () => {
     const s = createEmailSender({ transport: { kind: 'memory', send: async () => { throw new PermanentEmailError('406'); } }, fromAddress: 'b@a.example' });
     const row = { id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...payload('x'), replyTo: null } } as never;
     await expect(s.send(row, NOW)).rejects.toBeInstanceOf(PermanentSendError);
+  });
+});
+
+describe('dispatchDue and billing state (9a)', () => {
+  it('does not claim a read_only agency’s due rows (they stay pending, not failed, attempts untouched); another agency is still sent; they go out once serviceable again', async () => {
+    const c = await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@a1.example' });
+    const [n] = await dbs.service.insert(notification).values({
+      agencyId: IDS.agencyA, clientId: IDS.clientA1, contactId: c, channel: 'email', kind: 'brief', subjectType: 'brief', subjectId: IDS.clientA1,
+      dedupeKey: 'paused-1', title: 'H', body: 'B', address: 'o@a1.example', payload: { ...payload('https://app.example/l/x'), replyTo: null }, status: 'pending', notBefore: NOW,
+    }).returning();
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    const send = vi.fn(async () => ({ providerId: 'p1' }));
+    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 0, failed: 0, retried: 0 });
+    expect(send).not.toHaveBeenCalled();
+    expect((await dbs.owner.select().from(notification).where(eq(notification.id, n!.id)))[0]).toMatchObject({ status: 'pending', attempts: 0 });
+    await dbs.owner.delete(agencyBilling).where(eq(agencyBilling.agencyId, IDS.agencyA));
+    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 1, failed: 0, retried: 0 });
   });
 });

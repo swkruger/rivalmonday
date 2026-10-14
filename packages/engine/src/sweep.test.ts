@@ -1,5 +1,5 @@
 import { capture, changeEvent, client, clientCompetitor, detectedChange, eventScore, rankScan, review, stageRun, trackedPage } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { scoreEvent } from './score/score-stage';
@@ -144,5 +144,24 @@ describe('findEngineWork', () => {
     expect((await findEngineWork(dbs.service, { limit: 10 })).rankDiff).toEqual([active!.id]);
     await dbs.owner.update(client).set({ status: 'active' }).where(eq(client.id, IDS.clientA2));
     expect((await findEngineWork(dbs.service, { limit: 10 })).rankDiff.sort()).toEqual([active!.id, prospect!.id].sort());
+  });
+});
+
+describe('findEngineWork and billing state (9a)', () => {
+  it('offers no score or rank-diff work for a read_only agency’s clients; other agencies are still served', async () => {
+    const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+    await dbs.service.insert(changeEvent).values({ id: id(31), competitorId: IDS.competitorX, changeType: 'promo', summary: 's', confidence: 1, occurredAt: new Date() });
+    const done = { status: 'done', startedAt: minutesAgo(10), finishedAt: minutesAgo(5) } as const;
+    const [scanA] = await dbs.service.insert(rankScan).values({ ...done, agencyId: IDS.agencyA, clientId: IDS.clientA1 }).returning({ id: rankScan.id });
+    const [scanB] = await dbs.service.insert(rankScan).values({ ...done, agencyId: IDS.agencyB, clientId: IDS.clientB1 }).returning({ id: rankScan.id });
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    const w = await findEngineWork(dbs.service, { limit: 10 });
+    expect(w.rankDiff).toEqual([scanB!.id]); // B has no billing row
+    expect(w.score).toContain(id(31)); // still offered through agency B's client
+    await pauseAgency(dbs.owner, IDS.agencyB, 'suspended');
+    const paused = await findEngineWork(dbs.service, { limit: 10 });
+    expect(paused.score).not.toContain(id(31));
+    expect(paused.rankDiff).not.toContain(scanA!.id);
+    expect(paused.rankDiff).toEqual([]);
   });
 });

@@ -3,6 +3,7 @@ export * from './ask-tools';
 export * from './access/memberships';
 export * from './access/oauth';
 export * from './access/team';
+export { assertAgencyServiceable, pausedMessage } from './billing-guard';
 export * from './client-input';
 export * from './deps';
 export * from './inbox';

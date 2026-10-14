@@ -1,5 +1,5 @@
-import { alert, alertEvent, changeEvent, client, eventScore } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { agencyBilling, alert, alertEvent, changeEvent, client, eventScore } from '@cs/db';
+import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import type { Db } from '@cs/db';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -120,5 +120,24 @@ describe('sweepAlerts', () => {
     await dbs.owner.update(alert).set({ status: 'pending_review', createdAt: day(-8) });
     expect((await sweepAlerts(dbs.service, NOW)).expired).toBe(1);
     expect((await alerts())[0]!.status).toBe('expired');
+  });
+});
+
+describe('sweepAlerts and billing state (9a)', () => {
+  it('creates no alert for a read_only agency (events stay unswept within the 48 h lookback); an agency with no billing row is still swept', async () => {
+    await seed();
+    await seed({ clientId: IDS.clientB1, agencyId: IDS.agencyB });
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    expect((await sweepAlerts(dbs.service, NOW)).created).toBe(1);
+    expect((await alerts()).map((a) => a.clientId)).toEqual([IDS.clientB1]);
+    await dbs.owner.delete(agencyBilling).where(eq(agencyBilling.agencyId, IDS.agencyA));
+    expect((await sweepAlerts(dbs.service, NOW)).created).toBe(1);
+  });
+
+  it('does not offer a read_only agency’s drafting alerts for model writing', async () => {
+    await seed();
+    expect((await sweepAlerts(dbs.service, NOW)).drafting).toHaveLength(1);
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    expect((await sweepAlerts(dbs.service, NOW)).drafting).toEqual([]);
   });
 });

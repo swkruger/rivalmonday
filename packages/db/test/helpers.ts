@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { type Db, createDb } from '../src/client';
-import { agency, client, clientCompetitor, competitor } from '../src/schema';
+import { agency, agencyBilling, client, clientCompetitor, competitor } from '../src/schema';
 
 export const testUrls = {
   owner: process.env.TEST_DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/cs_test',
@@ -107,4 +107,9 @@ export async function seedPlatformCostServices(db: Db): Promise<void> {
       ('anthropic','https://platform.claude.com/settings/billing'),
       ('neon','https://console.neon.tech/app/billing')
     on conflict do nothing`);
+}
+
+/** Phase 9a: puts an agency in a non-serviceable billing state (`read_only` by default) for scheduler/entry-point refusal tests. */
+export async function pauseAgency(owner: Db, agencyId: string, state: 'read_only' | 'suspended' = 'read_only'): Promise<void> {
+  await owner.insert(agencyBilling).values({ agencyId, state }).onConflictDoUpdate({ target: agencyBilling.agencyId, set: { state } });
 }

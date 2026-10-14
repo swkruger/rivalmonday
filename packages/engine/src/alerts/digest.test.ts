@@ -1,5 +1,5 @@
-import { alert, changeEvent, client, notification } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { agencyBilling, alert, changeEvent, client, notification } from '@cs/db';
+import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
@@ -60,5 +60,17 @@ describe('runAlertDigests', () => {
     expect(await run(EVENING)).toEqual({ clients: 0, alerts: 0, withdrawn: 1 });
     expect(await digests()).toEqual([]);
     expect((await dbs.owner.select().from(alert))[0]!.status).toBe('withdrawn');
+  });
+});
+
+describe('runAlertDigests and billing state (9a)', () => {
+  it('sends no digest for a read_only agency and leaves its alerts approved (not withdrawn); they go out once serviceable again', async () => {
+    await digestAlert('First');
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    expect(await run(EVENING)).toEqual({ clients: 0, alerts: 0, withdrawn: 0 });
+    expect((await dbs.owner.select().from(alert)).map((a) => a.status)).toEqual(['approved']);
+    expect(await digests()).toEqual([]);
+    await dbs.owner.delete(agencyBilling).where(eq(agencyBilling.agencyId, IDS.agencyA));
+    expect(await run(EVENING)).toEqual({ clients: 1, alerts: 1, withdrawn: 0 });
   });
 });

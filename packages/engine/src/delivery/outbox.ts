@@ -1,5 +1,5 @@
 import { type LinkTarget, MIN_LINK_SECRET_LENGTH, signLink } from '@cs/core';
-import { agency, agencyWebhook, alert, changeEvent, type Channel, contact, type Db, notification, type NotificationKind } from '@cs/db';
+import { agencyServiceable, agency, agencyWebhook, alert, changeEvent, type Channel, contact, type Db, notification, type NotificationKind } from '@cs/db';
 import { type Branding, type EmailPayload, type EmailTransport, PermanentEmailError, renderEmail, resolveBranding } from '@cs/email';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { type Audience, type Conn, type Recipient, recipientsFor, replyToFor } from './contacts';
@@ -125,10 +125,10 @@ export async function dispatchDue(deps: { db: Db; senders: Partial<Record<Channe
     .update(notification)
     .set({ status: 'sending', claimedAt: now, attempts: sql`${notification.attempts} + 1` })
     .where(sql`${notification.id} IN (
-      SELECT id FROM notification
-      WHERE channel <> 'in_app'
-        AND ((status = 'pending' AND not_before <= ${now.toISOString()}::timestamptz) OR (status = 'sending' AND claimed_at < ${stale.toISOString()}::timestamptz))
-      ORDER BY not_before, id LIMIT ${limit} FOR UPDATE SKIP LOCKED)`)
+      SELECT nn.id FROM notification nn
+      WHERE nn.channel <> 'in_app' AND ${agencyServiceable(sql.raw('nn.agency_id'))}
+        AND ((nn.status = 'pending' AND nn.not_before <= ${now.toISOString()}::timestamptz) OR (nn.status = 'sending' AND nn.claimed_at < ${stale.toISOString()}::timestamptz))
+      ORDER BY nn.not_before, nn.id LIMIT ${limit} FOR UPDATE SKIP LOCKED)`)
     .returning();
   const out = { sent: 0, failed: 0, retried: 0 };
   for (const n of claimed) {

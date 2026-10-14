@@ -1,4 +1,4 @@
-import { client, competitor, type Db, observation } from '@cs/db';
+import { agencyServiceable, client, competitor, type Db, observation } from '@cs/db';
 import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { ensureCompetitorSources } from '../sources/ensure';
 import type { SourceKind } from '../sources/kinds';
@@ -37,7 +37,7 @@ export async function ensureSelfCompetitor(db: Db, clientId: string): Promise<{ 
  * Prospects are skipped (5b-2 decision 9) — the prospect snapshot links its own business via `ensureSelfCompetitor`.
  */
 export async function ensureSelfCompetitors(db: Db): Promise<number> {
-  const rows = await db.select({ id: client.id }).from(client).where(and(isNotNull(client.placeId), isNull(client.selfCompetitorId), eq(client.status, 'active')));
+  const rows = await db.select({ id: client.id }).from(client).where(and(isNotNull(client.placeId), isNull(client.selfCompetitorId), eq(client.status, 'active'), agencyServiceable(client.agencyId)));
   let linked = 0;
   for (const { id } of rows) if ('competitorId' in (await ensureSelfCompetitor(db, id))) linked++;
   await db.execute(sql`

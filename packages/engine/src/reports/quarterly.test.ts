@@ -1,5 +1,5 @@
 import { alert, brief, changeEvent, client, move, moveEvent, notification, recommendation, trendReport } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedScoredEvent } from '../../test/seed';
@@ -96,5 +96,13 @@ describe('listReportsMissingPdf', () => {
       { ...base, clientId: IDS.clientA1, quarter: '2026-Q2', sentAt: at('2026-07-05T13:30:00Z') },
     ]).returning({ id: trendReport.id });
     expect(await listReportsMissingPdf(dbs.service, at('2026-10-06T00:00:00Z'))).toEqual([rows[0]!.id]);
+  });
+});
+
+describe('runQuarterlyReports and billing state (9a)', () => {
+  it('creates no report for a read_only agency’s clients; an agency with no billing row still gets one', async () => {
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    await runQuarterlyReports({ db: dbs.service, packs, delivery }, at('2026-10-05T13:30:00Z'));
+    expect((await dbs.owner.select({ c: trendReport.clientId }).from(trendReport)).map((r) => r.c)).toEqual([IDS.clientB1]);
   });
 });

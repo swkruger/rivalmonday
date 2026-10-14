@@ -1,6 +1,6 @@
 import { createAccessContext } from '@cs/core';
-import { brief, briefItem, changeEvent, client, feedback, notification } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { agencyBilling, brief, briefItem, changeEvent, client, feedback, notification } from '@cs/db';
+import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
@@ -153,5 +153,24 @@ describe('briefEmailProps scorecard', () => {
     expect(briefEmailProps(view(null), opts).scorecard).toBeNull();
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
+  });
+});
+
+describe('deliverDueBriefs and billing state (9a)', () => {
+  it('sends nothing for a read_only agency and leaves the brief unsent (no overdue notice, not failed); it goes out once the agency is serviceable again', async () => {
+    const approved = await seedBrief('approved', [{ ord: 0, headline: 'H0' }]);
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    expect(await deliverDueBriefs(deps(), MON_0705)).toEqual({ sent: [], autoApproved: 0, overdue: 0 });
+    expect(await read(approved)).toMatchObject({ status: 'approved', sentAt: null });
+    expect(await dbs.owner.select().from(notification)).toEqual([]);
+    await dbs.owner.delete(agencyBilling).where(eq(agencyBilling.agencyId, IDS.agencyA));
+    expect((await deliverDueBriefs(deps(), MON_0705)).sent).toEqual([approved]); // still inside the existing grace window
+  });
+
+  it('does not auto-approve or send an overdue notice for a suspended agency’s ready brief', async () => {
+    const ready = await seedBrief('ready', [{ ord: 0, headline: 'H0' }]);
+    await pauseAgency(dbs.owner, IDS.agencyA, 'suspended');
+    expect(await deliverDueBriefs(deps(), MON_0705)).toEqual({ sent: [], autoApproved: 0, overdue: 0 });
+    expect(await read(ready)).toMatchObject({ status: 'ready' });
   });
 });

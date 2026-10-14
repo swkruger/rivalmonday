@@ -2,7 +2,7 @@ import { ASK_COPY, type AskDeps, type AskEvent } from '@cs/ask';
 import { createScriptedAskAi, type ScriptedStep } from '@cs/ask/testing';
 import { type AccessContext, type AuditSink, createAccessContext, ToolRegistry, toolkit } from '@cs/core';
 import { agency, askMessage, client } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import type { ToolDeps } from '@cs/tools';
 import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -180,5 +180,19 @@ describe('POST /api/ask/turn', () => {
     await m.kept[0];
     const rows = await dbs.owner.select().from(askMessage).orderBy(asc(askMessage.createdAt));
     expect(rows.map((r) => [r.role, r.status])).toEqual([['user', 'ok'], ['assistant', 'ok']]);
+  });
+});
+
+describe('POST /api/ask/turn and billing state (9a)', () => {
+  it('a read_only agency gets one error final with role-aware copy, no thread or message, and no quota or model use; a serviceable agency is unaffected', async () => {
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    const res = await post({ clientId: IDS.clientA1, question: 'What changed?' });
+    expect(res.status).toBe(200);
+    expect(await events(res)).toEqual([{ type: 'final', messageId: '', content: 'This workspace is temporarily unavailable.', citations: [], action: null, status: 'error' }]);
+    expect(await dbs.owner.select().from(askMessage)).toHaveLength(0);
+    m.viewer = userViewer(ctxFor({ role: 'agency_admin', clientScope: 'all', features: ['ask'] }));
+    const admin = await events(await post({ clientId: IDS.clientA1, question: 'What changed?' }));
+    expect(admin).toEqual([{ type: 'final', messageId: '', content: 'Service is paused. Update your payment method to resume.', citations: [], action: null, status: 'error' }]);
+    expect(await dbs.owner.select().from(askMessage)).toHaveLength(0);
   });
 });

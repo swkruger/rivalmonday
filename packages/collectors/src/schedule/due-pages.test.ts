@@ -1,5 +1,5 @@
 import { client, clientCompetitor, competitor, trackedPage } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { claimDuePages } from './due-pages';
@@ -77,5 +77,15 @@ describe('claimDuePages', () => {
     expect(claimed).not.toContain(yPage!.id);
     await dbs.owner.update(client).set({ status: 'active' }).where(eq(client.id, IDS.clientA2));
     expect(await claimDuePages(dbs.service, 10)).toEqual([yPage!.id]);
+  });
+});
+
+describe('claimDuePages and billing state (9a)', () => {
+  it('claims nothing when every agency tracking the competitor is read_only; one serviceable agency (or no billing row) keeps it claimable', async () => {
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    expect(await claimDuePages(dbs.service, 10)).toHaveLength(2); // agency B (no billing row) still tracks X via clientB1
+    await dbs.service.update(trackedPage).set({ nextDueAt: sql`now() - interval '1 minute'` });
+    await pauseAgency(dbs.owner, IDS.agencyB, 'suspended');
+    expect(await claimDuePages(dbs.service, 10)).toEqual([]);
   });
 });

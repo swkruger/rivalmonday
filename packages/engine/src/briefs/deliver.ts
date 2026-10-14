@@ -1,5 +1,5 @@
 import { type AccessContext, canAccessClient, isAgencyRole, ToolError } from '@cs/core';
-import { brief, briefItem, type BriefKind, client, competitor, type Db, feedback, withTenant } from '@cs/db';
+import { agencyServiceable, brief, briefItem, type BriefKind, client, competitor, type Db, feedback, withTenant } from '@cs/db';
 import type { Branding, BriefEmailProps } from '@cs/email';
 import { and, asc, eq, gte, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import type { Conn } from '../delivery/contacts';
@@ -112,7 +112,7 @@ export async function deliverDueBriefs(deps: { db: Db; delivery: DeliveryConfig 
     .select({ id: brief.id, agencyId: brief.agencyId, clientId: brief.clientId, status: brief.status, deliveryDate: brief.deliveryDate, timezone: client.timezone, autoSend: client.briefAutoSend, clientName: client.name })
     .from(brief)
     .innerJoin(client, eq(client.id, brief.clientId))
-    .where(and(inArray(brief.status, ['approved', 'ready']), isNull(brief.sentAt), gte(brief.deliveryDate, floor), ne(brief.kind, 'starting_point')));
+    .where(and(inArray(brief.status, ['approved', 'ready']), isNull(brief.sentAt), gte(brief.deliveryDate, floor), ne(brief.kind, 'starting_point'), agencyServiceable(client.agencyId)));
   for (const r of rows) {
     const clock = localClock(now, safeTimezone(r.timezone));
     const due = clock.date > r.deliveryDate || (clock.date === r.deliveryDate && clock.hour >= DELIVERY_LOCAL_HOUR);

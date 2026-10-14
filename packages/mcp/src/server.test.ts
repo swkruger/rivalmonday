@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { type AccessContext, type TokenScope, ToolError, ToolRegistry, toolkit } from '@cs/core';
 import { brief, briefItem } from '@cs/db';
-import { IDS } from '@cs/db/test-helpers';
+import { IDS, pauseAgency } from '@cs/db/test-helpers';
 import { createToolRegistry, type ToolDeps } from '@cs/tools';
 import { ctx, dbs, resetWorkspace, seedCapture } from '@cs/tools/test-fixtures';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -283,5 +283,20 @@ describe('prompts', () => {
     // zod validation of arguments.
     await expect(client.getPrompt({ name: 'competitor_deep_dive', arguments: { competitor_id: 'not-a-uuid' } })).rejects.toThrow();
     await expect(client.getPrompt({ name: 'respond_to_price_change', arguments: {} })).rejects.toThrow();
+  });
+});
+
+describe('billing state (9a)', () => {
+  it('tools/call is refused with service_paused (role-aware copy) for a read_only agency; tools/list still works and a serviceable agency is unaffected', async () => {
+    const { client: ok } = await connect(admin, 'read', { registry: fakes });
+    expect(await call(ok, 'echo', { text: 'hi' })).toEqual({ content: [{ type: 'text', text: '{"text":"hi"}' }] });
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    const { client: paused } = await connect(admin, 'read', { registry: fakes });
+    expect(await names(paused)).toContain('echo');
+    expect(errorOf(await call(paused, 'echo', { text: 'hi' }))).toEqual({ code: 'service_paused', message: 'Service is paused. Update your payment method to resume.' });
+    const { client: staff } = await connect(ctx('account_manager', 'all'), 'read', { registry: fakes });
+    expect(errorOf(await call(staff, 'echo', { text: 'hi' }))).toEqual({ code: 'service_paused', message: "Your agency's account needs attention." });
+    const { client: cl } = await connect(viewer, 'read', { registry: fakes });
+    expect(errorOf(await call(cl, 'echo', { text: 'hi' }))).toEqual({ code: 'service_paused', message: 'This workspace is temporarily unavailable.' });
   });
 });

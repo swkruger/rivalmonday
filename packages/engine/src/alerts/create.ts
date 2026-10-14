@@ -1,4 +1,4 @@
-import { alert, alertEvent, changeEvent, client, type Db, eventScore, type Tx } from '@cs/db';
+import { agencyServiceable, alert, alertEvent, changeEvent, client, type Db, eventScore, type Tx } from '@cs/db';
 import { and, asc, desc, eq, gt, inArray, isNull, lt, lte, ne, notInArray, sql } from 'drizzle-orm';
 
 export const ALERT_LOOKBACK_HOURS = 48;
@@ -41,6 +41,7 @@ export async function sweepAlerts(db: Db, now: Date, limit = 100): Promise<Sweep
     .where(and(
       eq(eventScore.route, 'alert'), isNull(changeEvent.retractedAt), ne(changeEvent.changeType, 'cosmetic'),
       gt(eventScore.scoredAt, new Date(now.getTime() - ALERT_LOOKBACK_HOURS * HOUR)), lte(eventScore.scoredAt, now),
+      agencyServiceable(client.agencyId), // 9a: a read_only/suspended agency's events stay unswept (the 48 h lookback is the existing staleness rule)
       sql`NOT EXISTS (SELECT 1 FROM alert_event ae WHERE ae.client_id = ${eventScore.clientId} AND ae.event_id = ${eventScore.eventId})`,
     ))
     .orderBy(asc(eventScore.scoredAt), asc(changeEvent.id))
@@ -94,6 +95,6 @@ export async function sweepAlerts(db: Db, now: Date, limit = 100): Promise<Sweep
     .where(and(eq(alert.status, 'pending_review'), lt(alert.createdAt, new Date(now.getTime() - ALERT_REVIEW_EXPIRY_DAYS * 24 * HOUR))))
     .returning({ id: alert.id });
   out.expired = expired.length;
-  out.drafting = (await db.select({ id: alert.id }).from(alert).where(eq(alert.status, 'drafting')).orderBy(asc(alert.createdAt)).limit(limit)).map((a) => a.id);
+  out.drafting = (await db.select({ id: alert.id }).from(alert).where(and(eq(alert.status, 'drafting'), agencyServiceable(alert.agencyId))).orderBy(asc(alert.createdAt)).limit(limit)).map((a) => a.id);
   return out;
 }

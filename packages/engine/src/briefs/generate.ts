@@ -1,5 +1,5 @@
 import type { Ai } from '@cs/ai';
-import { brief, type BriefDropStats, briefItem, type BriefKind, changeEvent, client, type Db, recommendation } from '@cs/db';
+import { agencyServiceable, brief, type BriefDropStats, briefItem, type BriefKind, changeEvent, client, type Db, recommendation } from '@cs/db';
 import { and, asc, desc, eq, inArray, isNotNull, ne, notInArray, sql } from 'drizzle-orm';
 import type { PackLoader } from '../tag/tag-stage';
 import { candidateEventIds, candidateEvidenceIds, gatherBriefCandidates, loadBriefClient } from './gather';
@@ -163,7 +163,7 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
  * Scans every client with one brief lookup each: fine at pilot scale (≤ 15 clients); Phase 7 scale needs a set-based query.
  */
 export async function listBriefDueClients(db: Db, now: Date): Promise<string[]> {
-  const clients = await db.select({ id: client.id, timezone: client.timezone }).from(client).where(eq(client.status, 'active'));
+  const clients = await db.select({ id: client.id, timezone: client.timezone }).from(client).where(and(eq(client.status, 'active'), agencyServiceable(client.agencyId)));
   const due: string[] = [];
   for (const c of clients) {
     const tz = safeTimezone(c.timezone);

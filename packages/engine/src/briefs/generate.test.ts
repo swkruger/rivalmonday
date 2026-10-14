@@ -1,5 +1,5 @@
 import { brief, briefItem, changeEvent, client, competitor, move, moveEvent, recommendation, review } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeAi, noul } from '../../test/fake-ai';
@@ -264,5 +264,12 @@ describe('committableItems', () => {
     const live = item(ev);
     const gone = item({ ...ev, eventId: 'e2' });
     expect(committableItems([empty, live, gone], ['e2'])).toEqual([live]);
+  });
+});
+
+describe('listBriefDueClients and billing state (9a)', () => {
+  it('excludes a read_only agency’s clients; an agency with no billing row is still listed', async () => {
+    await pauseAgency(dbs.owner, IDS.agencyA, 'suspended');
+    expect(await listBriefDueClients(dbs.service, NOW)).toEqual([IDS.clientB1]);
   });
 });
