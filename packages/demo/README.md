@@ -63,6 +63,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/platform` | operator | `platform_overview`, `list_platform_activity` | — |
 | `/platform/agencies` | operator | `list_platform_agencies` | — |
 | `/platform/agencies/[id]` | operator | `get_platform_agency`, `list_agency_support_sessions` | — |
+| `/platform/costs` | operator | `list_platform_costs` | — |
 | `/platform/health` | operator | — | — |
 | `/platform/ask` | operator | `fn:listReviewableAskThreads` | — |
 | `/platform/ask/[threadId]` | operator | `fn:getReviewableAskThread` | — |

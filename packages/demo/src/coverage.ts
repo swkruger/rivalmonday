@@ -221,6 +221,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'list_agency_support_sessions', input: (ids) => ({ agencyId: ids.agencyId }), path: 'rows' },
     ],
   },
+  { route: '/platform/costs', as: 'operator', calls: [{ tool: 'list_platform_costs', input: none, path: 'services' }] },
   { route: '/platform/health', as: 'operator', calls: [] },
   { route: '/platform/ask', as: 'operator', calls: [{ tool: 'fn:listReviewableAskThreads', input: none, path: 'items' }] },
   { route: '/platform/ask/[threadId]', as: 'operator', calls: [{ tool: 'fn:getReviewableAskThread', input: (ids) => ({ threadId: ids.ask.ownerLoneStar }), path: 'messages.*.trace' }] },

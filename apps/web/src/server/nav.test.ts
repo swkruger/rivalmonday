@@ -102,6 +102,16 @@ describe('navFlagsFor', () => {
     expect(platform.every((n) => n.group === 'account')).toBe(true);
   });
 
+  it('nav shows Costs only with isPlatformOwner', () => {
+    const user = { kind: 'user' as const, ctx: ctx('agency_admin'), email: 'someone@e.co' };
+    const hrefs = (op: boolean, owner: boolean) => navFor(user, null, op, owner).map((n) => n.href);
+    expect(hrefs(true, false)).not.toContain('/platform/costs');
+    expect(hrefs(false, true)).not.toContain('/platform/costs');
+    const owner = hrefs(true, true);
+    expect(owner.indexOf('/platform/costs')).toBe(owner.indexOf('/platform/health') + 1);
+    expect(navFor(user, null, true, true).find((n) => n.href === '/platform/costs')).toMatchObject({ label: 'Costs', icon: 'costs', group: 'account' });
+  });
+
   it('passes the client feature flags to the nav (agency roles get every flag)', () => {
     const owner = createAccessContext({ agencyId: A, userId: 'u', role: 'client_owner', clientScope: [C], features: ['dashboard', 'alert_rules'] });
     expect(navFlagsFor({ kind: 'user', ctx: owner, email: 'o@x.test' })).toMatchObject({ dashboard: true, alertRules: true, manageCompetitors: false, mcp: false });

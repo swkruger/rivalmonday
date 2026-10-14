@@ -8,7 +8,7 @@ export function homePath(ctx: AccessContext): string {
 }
 
 /** Reduces a viewer's `AccessContext` to the plain flags `navItemsFor` needs, so client components never import `@cs/core`. */
-export function navFlagsFor(v: { kind: 'user' | 'guest' | 'support'; ctx: AccessContext; email?: string }, isPlatformOperator = false, assistantName = 'Friday'): NavRoleFlags {
+export function navFlagsFor(v: { kind: 'user' | 'guest' | 'support'; ctx: AccessContext; email?: string }, isPlatformOperator = false, assistantName = 'Friday', isPlatformOwner = false): NavRoleFlags {
   return {
     isAgency: isAgencyRole(v.ctx.role),
     isAgencyAdmin: v.ctx.role === 'agency_admin',
@@ -16,6 +16,7 @@ export function navFlagsFor(v: { kind: 'user' | 'guest' | 'support'; ctx: Access
     homePath: homePath(v.ctx),
     // Resolved by the caller via `@cs/tools` `isPlatformOperator` (env list or active platform_admin row); guests never.
     isPlatformOperator: v.kind === 'user' && isPlatformOperator,
+    isPlatformOwner: v.kind === 'user' && isPlatformOperator && isPlatformOwner,
     dashboard: hasFeature(v.ctx, 'dashboard'),
     manageCompetitors: canManageCompetitors(v.ctx),
     alertRules: hasFeature(v.ctx, 'alert_rules'),
@@ -30,6 +31,6 @@ export function navFlagsFor(v: { kind: 'user' | 'guest' | 'support'; ctx: Access
 }
 
 /** Server-side convenience wrapper over `navItemsFor` — still used by tests and anywhere a one-shot list (not live-pathname-aware) is enough. */
-export function navFor(v: { kind: 'user' | 'guest' | 'support'; ctx: AccessContext; email?: string }, clientId: string | null, isPlatformOperator = false): NavItem[] {
-  return navItemsFor(navFlagsFor(v, isPlatformOperator), clientId);
+export function navFor(v: { kind: 'user' | 'guest' | 'support'; ctx: AccessContext; email?: string }, clientId: string | null, isPlatformOperator = false, isPlatformOwner = false): NavItem[] {
+  return navItemsFor(navFlagsFor(v, isPlatformOperator, 'Friday', isPlatformOwner), clientId);
 }

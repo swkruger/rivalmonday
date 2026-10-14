@@ -17,7 +17,7 @@ export interface NavItem {
   icon:
     | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
     | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects' | 'ask' | 'knowledge'
-    | 'platform' | 'agencies' | 'health' | 'platformAccess';
+    | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -28,6 +28,8 @@ export interface NavRoleFlags {
   homePath: string;
   /** 5b-2 decision 2 / 8a d2: env-listed or an active `platform_admin` row (resolved server-side). */
   isPlatformOperator?: boolean;
+  /** 8c: the platform role is `owner` (env-listed or an owner row); only owners see Costs. */
+  isPlatformOwner?: boolean;
   /** 5c-1 decision 2 — always true for agency roles. */
   dashboard: boolean;
   manageCompetitors: boolean;
@@ -88,6 +90,7 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
     account('/platform/ask', 'Ask review', 'ask');
     account('/platform/knowledge', 'Knowledge', 'knowledge');
     account('/platform/health', 'Health', 'health');
+    if (flags.isPlatformOwner) account('/platform/costs', 'Costs', 'costs');
   }
   return items;
 }
