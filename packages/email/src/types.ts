@@ -67,6 +67,15 @@ export interface SupportSessionStartedProps {
   date: string;
   reason: string;
 }
+export interface PlatformCostLowProps {
+  branding: Branding;
+  label: string;
+  /** Already formatted, e.g. "$12.34" or "7,099 credits". */
+  amountText: string;
+  daysLeft: number | null;
+  billingUrl: string | null;
+  costsUrl: string;
+}
 export type EmailPayload =
   | { template: 'alert'; props: AlertEmailProps }
   | { template: 'alert_digest'; props: DigestEmailProps }
@@ -74,7 +83,8 @@ export type EmailPayload =
   | { template: 'brief'; props: BriefEmailProps }
   | { template: 'trend_report'; props: TrendReportEmailProps }
   | { template: 'sign_in'; props: SignInEmailProps }
-  | { template: 'support_session_started'; props: SupportSessionStartedProps };
+  | { template: 'support_session_started'; props: SupportSessionStartedProps }
+  | { template: 'platform_cost_low'; props: PlatformCostLowProps };
 export interface RenderedEmail {
   subject: string;
   html: string;

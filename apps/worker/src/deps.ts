@@ -15,7 +15,8 @@ import {
   runReviewInsights, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
 import { generateStarters } from '@cs/ask';
-import { createEmailTransportFromEnv } from '@cs/email';
+import { createEmailTransportFromEnv, renderEmail, resolveBranding } from '@cs/email';
+import { normalizeAdminEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps } from '@cs/tools';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { lookup } from 'node:dns/promises';
@@ -85,6 +86,8 @@ export interface WorkerDeps {
   listReportsMissingPdf(now: Date): Promise<string[]>;
   /** Phase 6c: the service-role connection, for jobs that read/write tables directly (kb-embed). */
   serviceDb(): Db;
+  /** Phase 8c: everything snapshotAll needs (vendor keys, owners, low-balance email sender). */
+  platformCosts(): PlatformCostSnapshotDeps;
   /** Phase 6c: KB_IMPORT_ENABLED === 'true'; gates kb-import and kb-sync. */
   kbImportEnabled(): boolean;
   /** Phase 6c: every address the host resolves to (SSRF guard for kb-import / kb-sync). */
@@ -109,6 +112,10 @@ export function reviewsSkipReason(env: NodeJS.ProcessEnv): string | null {
     return err instanceof Error ? err.message : String(err);
   }
 }
+
+const COST_ENV_KEYS = [
+  'OPENROUTER_API_KEY', 'DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD', 'SCRAPECREATORS_API_KEY', 'APIFY_TOKEN', 'ANTHROPIC_ADMIN_KEY', 'NEON_API_KEY', 'NEON_ORG_ID',
+] as const;
 
 /** Everything is created lazily so importing this module has no side effects. */
 export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
@@ -147,11 +154,13 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     if (!delivery) throw new Error('APP_URL and LINK_SIGNING_SECRET (at least 32 characters) are required for delivery');
     return delivery;
   };
+  let emailTransport: ReturnType<typeof createEmailTransportFromEnv> | null = null;
+  const getEmailTransport = () => (emailTransport ??= createEmailTransportFromEnv(env, createLedgerSink(getDb())));
   let senders: Parameters<typeof dispatchDue>[0]['senders'] | null = null;
   const getSenders = () => {
     if (!senders) {
       const web = createWebhookSender({ db: getDb() });
-      senders = { email: createEmailSender({ transport: createEmailTransportFromEnv(env, createLedgerSink(getDb())), fromAddress: getDelivery().fromAddress }), slack: web, teams: web };
+      senders = { email: createEmailSender({ transport: getEmailTransport(), fromAddress: getDelivery().fromAddress }), slack: web, teams: web };
     }
     return senders;
   };
@@ -327,6 +336,18 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     listBriefsMissingPdf: (now) => listBriefsMissingPdf(getDb(), now),
     listReportsMissingPdf: (now) => listReportsMissingPdf(getDb(), now),
     serviceDb: () => getDb(),
+    platformCosts: () => ({
+      service: getDb(),
+      env: Object.fromEntries(COST_ENV_KEYS.flatMap((k) => (env[k] ? [[k, env[k]]] : []))),
+      platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
+      appUrl: env.APP_URL ?? '',
+      sendLowEmail: async (to: string, p: PlatformCostLowPayload) => {
+        const from = delivery?.fromAddress ?? env.EMAIL_FROM;
+        if (!from) throw new Error('EMAIL_FROM is required');
+        const r = await renderEmail({ template: 'platform_cost_low', props: { ...p, branding: resolveBranding('Rival Monday', null) } });
+        await getEmailTransport().send({ from: `"Rival Monday" <${from}>`, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'platform_cost_low', metadata: {} }, { agencyId: null, clientId: null });
+      },
+    }),
     kbImportEnabled: () => env.KB_IMPORT_ENABLED?.trim() === 'true',
     resolveHost: async (host) => (await lookup(host, { all: true })).map((a) => a.address),
     politeRenderer: () => getRenderer(),

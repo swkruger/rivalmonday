@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CostAdapter, CostEnv } from '../types';
-import { jsonRes, spyConsole } from '../test-utils';
+import { jsonRes, spyConsole } from '../../../../test/cost-utils';
 import { dataforseoAdapter } from './dataforseo';
 import { openrouterAdapter } from './openrouter';
 import { scrapecreatorsAdapter } from './scrapecreators';

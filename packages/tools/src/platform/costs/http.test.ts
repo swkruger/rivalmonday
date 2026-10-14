@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fetchJson } from './http';
-import { hangingFetch, jsonRes } from './test-utils';
+import { hangingFetch, jsonRes } from '../../../test/cost-utils';
 
 describe('fetchJson', () => {
   it('returns the parsed body on 2xx', async () => {

@@ -4,6 +4,7 @@ import { AgencyNoticeEmail } from './templates/agency-notice';
 import { AlertEmail, alertSubject } from './templates/alert';
 import { BriefEmail, briefSubject } from './templates/brief';
 import { DigestEmail, digestSubject } from './templates/digest';
+import { PlatformCostLowEmail, platformCostLowSubject } from './templates/platform-cost-low';
 import { SignInEmail, signInSubject } from './templates/sign-in';
 import { SupportSessionStartedEmail, supportSessionStartedSubject } from './templates/support-session-started';
 import { TrendReportEmail, trendReportSubject } from './templates/trend-report';
@@ -23,6 +24,8 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
       return { el: createElement(SignInEmail, p.props), subject: signInSubject(p.props) };
     case 'support_session_started':
       return { el: createElement(SupportSessionStartedEmail, p.props), subject: supportSessionStartedSubject() };
+    case 'platform_cost_low':
+      return { el: createElement(PlatformCostLowEmail, p.props), subject: platformCostLowSubject(p.props) };
     case 'trend_report':
       return { el: createElement(TrendReportEmail, p.props), subject: trendReportSubject(p.props) };
     default:

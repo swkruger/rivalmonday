@@ -16,6 +16,7 @@ import { createEngineJobs } from './jobs/engine';
 import { heartbeatJob } from './jobs/heartbeat';
 import { createModelOpsJobs } from './jobs/model-ops';
 import { createMovesJobs } from './jobs/moves';
+import { createPlatformCostsJobs } from './jobs/platform-costs';
 import { createPlatformStatsJobs } from './jobs/platform-stats';
 import { createProspectJobs } from './jobs/prospects';
 import { createReviewJobs } from './jobs/reviews';
@@ -90,6 +91,7 @@ const briefs = createBriefJobs(deps, {
 const reviews = createReviewJobs(deps);
 const modelOps = createModelOpsJobs(deps);
 const platformStats = createPlatformStatsJobs(deps);
+const platformCosts = createPlatformCostsJobs(deps);
 const prospects = createProspectJobs(deps);
 const delivery = createDeliveryJobs(deps, {
   enqueueAlert: async (alertId) => {
@@ -105,7 +107,7 @@ const delivery = createDeliveryJobs(deps, {
 await registerJobs(boss, [
   heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, vendor.suggest, prospects.snapshot,
   engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.price, reviews.nightly, moves.nightly, moves.client,
-  modelOps.batchPoll, platformStats.daily, briefs.schedule, briefs.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
+  modelOps.batchPoll, platformStats.daily, platformCosts.snapshot, briefs.schedule, briefs.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
   delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,
 ]);
 console.log('[worker] started');
