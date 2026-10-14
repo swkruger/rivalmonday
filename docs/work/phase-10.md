@@ -1,13 +1,13 @@
 # phase-10 — Agency onboarding wizard (invite-link sign-up, billing step, emails)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-10   **Base:** main @ 4c3ebc1
-**Plan/spec:** none yet
+**Plan/spec:** spec `docs/superpowers/specs/2026-10-14-phase-10-agency-onboarding-design.md`; plan not yet
 
 ## Status (overwrite)
-Brief written 2026-10-14; brainstorm not started.
+Brainstorm done 2026-10-14; spec written, awaiting owner review.
 
 ## Next (overwrite)
-Owner answers Brief §6 → `superpowers:brainstorming` → spec (new decisions only) → lean plan.
+Owner reviews spec → `superpowers:writing-plans` (lean format) → owner approval. Execution only after 9a merges (f2).
 
 ## Interfaces this branch adds or changes
 None yet.
@@ -22,7 +22,7 @@ None yet.
 - **Hot spots:** `email/src/{render,types,labels}.ts`, `coverage.ts`, `tools/all.ts`, `server/auth-options.ts`, nav.
 
 ## Decisions (owner-approved)
-None yet.
+f1–f14 in the spec: one phase; after 9a; **open self-serve agency sign-up** (amends invitation-only); light abuse guards, no card; agency created after verification; wizard profile→team→plan→branding, only name required; own `agency_profile`; second agency allowed, lock mismatch refused; core emails + 1/3/7 d tips; `agency_onboarding` table; logo upload (PNG via sharp); reduced open-trial allowance (1 client, weekly); sign-up in app; extend auth hooks.
 
 ## New backlog (target → item)
 None yet.
