@@ -65,7 +65,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ### Workflow & behaviour
 - [ ] Let agencies add their own verticals and services (feature-sized) — *from phase5-polish*
-- [ ] Franchise brands: choose the local franchisee's ad accounts, not the brand's — *from phase5-polish*
+- [ ] Franchise brands: choose the local franchisee's ad accounts, not the brand's; jobs too (Aire Serv's 2026-10-14 postings are brand-wide "United States") — *from phase5-polish*
 - [ ] A removed competitor's pending alerts and brief items are still approvable — *from 5b-1 final review Minor 5*
 - [ ] Trend table shows "— → —" for a business with no rating; show a single "—" (owner undecided) — *from 5b-1 owner verification*
 - [ ] Webhook/notification toggle actions (`agency/webhooks/actions.ts`, `settings/notifications/actions.ts`) ignore the `runTool` result — surface the error like `AutoSendSwitch` — *from 5b-2 Minor 4*
@@ -112,8 +112,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ## Waiting on real data / external events
 - [ ] Re-pull Aire Serv reviews + ads (command in [OPS.md](OPS.md); pass only advertisers `AR11447192921745391617`, `AR09867956064303972353`), diff `review_id`s against the 546 from 2026-10-01 — if unstable, dedupe on the content-hash key — *from 2b live verification*
-- [ ] Then `engine-once --client 25f99947-… --moves` and `brief-once --client 25f99947-… --force` for the first live **stored** standard brief — *from HANDOVER §5 item 4*
-- [ ] Owner-verify alerts per outcome (sent now / 17:00 digest / withdrawn) and Recommendations rating — waived until real alerts (weekly pull from 2026-10-13) — *from 5b-1 verification*
+- [ ] Owner-verify alerts per outcome (sent now / 17:00 digest / withdrawn) and Recommendations rating — waived until real alerts: the 2026-10-13 pull and a full re-pull on 2026-10-14 (all 8 tracked competitors) gave 1 new event (Aire Serv hiring, score 12 → archive) and 0 alerts; next chance is the 2026-10-20 weekly pull — *from 5b-1 verification*
 - [ ] Before switching on `WEB_MONITORING_ENABLED`: `accept_competitor_suggestion`/`add_competitor` (`packages/tools/src/tools/competitors.ts`) return `'disabled'` for a prospect; start discovery in `convert_prospect` — *from 5b-2 final review Minor 1*
 - [ ] `price_extract` live-verified only by tests — no web captures until the bot page exists — *from 3c live verification*
 - [ ] Verifier strictness: at τ 0.85 true facts often score low (0.36, 0.16; alert headline 0.84) — watch brief `dropped` counts on pilot data before changing τ/routing (labelling: see Owner) — *from 4a/4b*
@@ -158,6 +157,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Decide the `briefs_only` feature flag — *from Phase 1 review*
 
 ### Collectors
+- [ ] DataForSEO "No Search Results." is treated as a failure: `jobs` tasks end `failed`, `ads_google` ends `vendor_error` (2026-10-14: ads for Victory, Affordable Dentures, Jay Thomas, Purczinsky; jobs for Victory, Affordable Dentures). Should record an empty, successful observation so "no ads / no jobs" is a real state and the next diff has a baseline — *from 2026-10-14 re-pull*
 - [ ] Tracked pages: re-discovery never deactivates unselected pages; `active: true` re-activates human-deactivated pages; http/https and www/bare tracked separately — *from 2a review*
 - [ ] Claimed pages are lost for a cadence if enqueue fails mid-batch or a capture job exhausts pg-boss retries — *from 2a review*
 - [ ] Spec §4.4 capture status enum lacks `error` — update the spec — *from 2a review*
