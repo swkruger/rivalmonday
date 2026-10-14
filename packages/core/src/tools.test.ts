@@ -281,3 +281,28 @@ describe('error logging', () => {
     spy.mockRestore();
   });
 });
+
+describe('ToolRegistry writeGuard', () => {
+  function guarded(guard: (name: string) => Promise<void>) {
+    const calls: string[] = [];
+    const reg = new ToolRegistry<Deps>({ greeting: 'hi' }, { record: async () => {} }, Date.now, {
+      writeGuard: async (_ctx, tool) => { calls.push(tool.name); await guard(tool.name); },
+    });
+    reg.register(echo, manage);
+    return { reg, calls };
+  }
+
+  it('runs for write tools only, and lets a ToolError propagate', async () => {
+    const { reg, calls } = guarded(async () => { throw new ToolError('service_paused', 'paused'); });
+    await expect(reg.invoke(admin, 'add_thing', {})).rejects.toMatchObject({ code: 'service_paused' });
+    await expect(reg.invoke(admin, 'echo', { message: 'x' })).resolves.toEqual({ items: ['hi x'] });
+    expect(calls).toEqual(['add_thing']);
+  });
+
+  it('does not run for a tool the caller cannot see, and passes when the guard allows', async () => {
+    const { reg, calls } = guarded(async () => {});
+    await expect(reg.invoke(viewer, 'add_thing', {})).rejects.toMatchObject({ code: 'not_found' });
+    expect(calls).toEqual([]);
+    await expect(reg.invoke(admin, 'add_thing', {})).resolves.toEqual({ ok: true });
+  });
+});

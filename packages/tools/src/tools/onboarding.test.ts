@@ -1,11 +1,12 @@
 import { type AccessContext, type AuditEvent, createAccessContext } from '@cs/core';
 import { claimDueSources, ensureSelfCompetitor } from '@cs/collectors';
-import { client, competitorSource } from '@cs/db';
+import { client, competitorSource, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createToolRegistry } from '../registry';
 
+const STD_PLAN = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 10, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' };
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const audit: AuditEvent[] = [];
@@ -25,6 +26,7 @@ beforeEach(async () => {
   audit.length = 0;
   await truncateAll(dbs.owner);
   await seedTenancy(dbs.owner);
+  await dbs.owner.insert(plan).values(STD_PLAN); // the seat cap needs a current plan (truncateAll wipes it)
 });
 
 describe('create_client', () => {

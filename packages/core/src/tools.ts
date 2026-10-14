@@ -122,6 +122,10 @@ export function countRows(data: unknown): number | null {
   return null;
 }
 
+/** Registry-level hook run for write tools only (after visibility checks, before input parsing and the handler). Throw a `ToolError` to refuse. */
+export type WriteGuard = (ctx: AccessContext, tool: { name: string; access: 'read' | 'write' }) => Promise<void>;
+export interface ToolRegistryOptions { writeGuard?: WriteGuard }
+
 export class ToolRegistry<D> {
   private readonly tools = new Map<string, AnyTool<D>>();
 
@@ -129,6 +133,7 @@ export class ToolRegistry<D> {
     private readonly deps: D,
     private readonly audit: AuditSink,
     private readonly now: () => number = Date.now,
+    private readonly options: ToolRegistryOptions = {},
   ) {}
 
   register(...defs: AnyTool<D>[]): this {
@@ -177,6 +182,7 @@ export class ToolRegistry<D> {
       }
       // Phase 8b: refuse writes before parsing so nothing (not even input validation) runs.
       if (ctx.support && tool.access === 'write') throw new ToolError('read_only_session', READ_ONLY_SESSION_MESSAGE);
+      if (tool.access === 'write' && this.options.writeGuard) await this.options.writeGuard(ctx, tool);
 
       const parsed = tool.input.safeParse(rawInput);
       if (!parsed.success) throw new ToolError('invalid_input', z.prettifyError(parsed.error));

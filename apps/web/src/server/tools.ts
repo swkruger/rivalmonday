@@ -1,4 +1,5 @@
 import 'server-only';
+import { gatewayFor } from '@cs/billing';
 import { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile, type Ai } from '@cs/ai';
 import { type AccessContext, ToolError, type ToolRegistry } from '@cs/core';
 import { createLedgerSink, type Db, type EnvName } from '@cs/db';
@@ -50,6 +51,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     appUrl: webEnv().appUrl,
     evidenceStore: { get: (key) => store.get(key) },
     embedQuery: embedQueryFor(name, service),
+    billing: gatewayFor(webEnv().stripe ?? {}, name),
   };
 });
 

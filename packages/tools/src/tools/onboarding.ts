@@ -1,3 +1,4 @@
+import { assertCanActivateClient, syncSeats } from '@cs/billing';
 import { canAccessClient, FEATURES, toolkit, ToolError } from '@cs/core';
 import { client, CLIENT_STATUSES, withTenant } from '@cs/db';
 import { listVerticalPacks, type VerticalPack } from '@cs/verticals';
@@ -53,10 +54,13 @@ export const createClient = defineTool({
     const pack = await packFor(deps, input.verticalId);
     const c = validated(input, pack);
     if (input.timezone !== undefined && !validTimezone(input.timezone)) throw new ToolError('invalid_input', 'Unknown time zone');
-    const [row] = await deps.service
-      .insert(client)
-      .values({ agencyId: ctx.agencyId, status: input.status, name: c.name, verticalId: pack.id, services: c.services, keywords: c.keywords, serviceArea: c.serviceArea, placeId: c.placeId, features: c.features, ...(input.status === 'active' ? { activatedAt: new Date() } : {}), ...(input.timezone ? { timezone: input.timezone } : {}) })
-      .returning({ id: client.id });
+    const values = { agencyId: ctx.agencyId, status: input.status, name: c.name, verticalId: pack.id, services: c.services, keywords: c.keywords, serviceArea: c.serviceArea, placeId: c.placeId, features: c.features, ...(input.status === 'active' ? { activatedAt: new Date() } : {}), ...(input.timezone ? { timezone: input.timezone } : {}) };
+    // P5/R5: an active client takes a seat, so the cap check and the insert share one transaction (the check locks the agency's billing row).
+    const [row] = await deps.service.transaction(async (tx) => {
+      if (input.status === 'active') await assertCanActivateClient(tx, ctx.agencyId);
+      return tx.insert(client).values(values).returning({ id: client.id });
+    });
+    if (input.status === 'active' && deps.billing) await syncSeats(deps.service, deps.billing, ctx.agencyId);
     // 12a D4: a client (active or prospect) with keywords, a service area and a place id gets its first search.
     if (c.keywords.length > 0 && c.serviceArea && c.placeId) await startFirstAutoSearch(deps, row!.id);
     return { clientId: row!.id };

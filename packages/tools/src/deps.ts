@@ -1,3 +1,4 @@
+import type { BillingGateway } from '@cs/billing';
 import { type CallScope, ToolError } from '@cs/core';
 import type { Db } from '@cs/db';
 import { createPackLoader, type DeliveryConfig, type PackLoader } from '@cs/engine';
@@ -33,6 +34,8 @@ export interface ToolDeps {
   appUrl?: string;
   /** P16: query embedding for `search` (dev environment with an OpenRouter key only); absent: full-text search only. */
   embedQuery?: (text: string, scope: CallScope) => Promise<number[]>;
+  /** Phase 9a: Stripe gateway (`gatewayFor`; the fake outside production). Absent: seat quantity is not pushed (the daily job reconciles). */
+  billing?: BillingGateway;
   /** Evidence bytes by object key, for `fetch` and the MCP evidence resources. */
   evidenceStore?: { get(key: string): Promise<Uint8Array | null> };
 }

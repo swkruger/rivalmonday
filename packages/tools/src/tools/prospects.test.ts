@@ -1,12 +1,13 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
 import { claimDueSources, ensureCompetitorSources } from '@cs/collectors';
-import { client, clientCompetitor, prospectReport } from '@cs/db';
+import { client, clientCompetitor, prospectReport, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { EnqueueJob } from '../deps';
 import { createToolRegistry } from '../registry';
 
+const STD_PLAN = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 10, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' };
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const queued: { job: string; data: Record<string, string>; key: string }[] = [];
@@ -22,6 +23,7 @@ beforeEach(async () => {
   queued.length = 0;
   await truncateAll(dbs.owner);
   await seedTenancy(dbs.owner);
+  await dbs.owner.insert(plan).values(STD_PLAN); // the seat cap needs a current plan (truncateAll wipes it)
   await dbs.owner.update(client).set({ status: 'prospect', keywords: ['dentist'], serviceArea: AREA }).where(eq(client.id, IDS.clientA2));
 });
 

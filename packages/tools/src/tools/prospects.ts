@@ -1,3 +1,4 @@
+import { assertCanActivateClient, syncSeats } from '@cs/billing';
 import { type AccessContext, canAccessClient, toolkit, ToolError } from '@cs/core';
 import { failProspectReport, PROSPECT_STALE_HOURS } from '@cs/collectors';
 import { client, clientCompetitor, prospectReport, withTenant } from '@cs/db';
@@ -124,6 +125,7 @@ export const convertProspect = defineTool({
   async handler(ctx, { clientId }, deps) {
     await visibleClient(deps, ctx, clientId);
     await deps.service.transaction(async (tx) => {
+      await assertCanActivateClient(tx, ctx.agencyId); // P5: seat cap, locked against concurrent activations
       const rows = await tx
         .update(client)
         .set({ status: 'active', activatedAt: new Date() })
@@ -133,6 +135,7 @@ export const convertProspect = defineTool({
       // Decision 12: a fresh link date lets the score sweep's late-link lookback offer the last 90 days of events.
       await tx.update(clientCompetitor).set({ createdAt: new Date() }).where(eq(clientCompetitor.clientId, clientId));
     });
+    if (deps.billing) await syncSeats(deps.service, deps.billing, ctx.agencyId);
     // 12a D4 (P7): reuse the prospect's last finished search when it is recent enough; otherwise start a new one.
     const last = await latestDoneRun(deps.service, clientId);
     const fresh = last?.finishedAt && Date.now() - last.finishedAt.getTime() <= RIVAL_SEARCH_REUSE_DAYS * 86_400_000;
