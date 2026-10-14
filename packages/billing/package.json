@@ -1,0 +1,23 @@
+{
+  "name": "@cs/billing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cs/core": "workspace:*",
+    "@cs/db": "workspace:*",
+    "stripe": "22.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
