@@ -59,6 +59,9 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ## Polish (small UI/UX fixes, any time)
 
+### Polish (high)
+- [ ] Engine `score-stage.test.ts` date time-bomb: fixture dates fixed 2026-10, `scoreEvent` ages vs the real clock — pass `now` (fails on main and every branch) — *from 8a*
+
 ### Phase 6 UI polish
 - [ ] Ask UI: thread delete is one-click with error only in a tooltip; save dialog allows duplicate saves; pre-persist error has empty `messageId`; quota 0 shows "N of 0"; `assistantName` read twice — *from 6b*
 - [ ] `/platform/knowledge`: `start()` throw uncaught in import panel; preview shows stale kind; inline delete confirm lacks focus handling; "Saved." banner after publish — *from 6c*
@@ -99,6 +102,17 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Usage page has no empty state for a zero-client agency; `list_alert_queue`'s `.limit(200)` gives no UI hint — *from 5b-2 Task 4, 5b-1 Task 12*
 - [ ] Feed brief pill hardcodes `text-[#B45309]` (use `text-accent-text`); AI page `Badge` secondary variant isn't the brand info pill; alert-rules "3 a day" text hard-coded; `NavRoleFlags.manageCompetitors` unused — *from 5c-1*
 
+### Phase 8 follow-ups (console, support sessions, costs)
+- [ ] Console stats: `wau`/`last_activity_at` ignore `membership.created_at`; `runDailyStats` accepts today/future `day`; backfill is 400×agencies sequential queries — *from 8a*
+- [ ] Console UI: name sort `<` vs `localeCompare`; spend delta "up" tone; duplicate "Overview" nav labels; unused `email?` in `nav.ts` viewer type — *from 8a*
+- [ ] Console tests: CLI add/revoke SQL; 27/28-day health boundary; `tilesOf` ms28 filter + NULL-last sort; agency-cascade/`relforcerowsecurity` asserts; page-level tests; E2E audit before/after count — *from 8a*
+- [ ] Support sessions: member-less env-only platform owners can't reach `/platform` or open sessions; operator console list shows the raw platform user name (agency list falls back to "Rival Monday support"); a >64-char non-RFC email local part is only partly masked — *from 8b*
+- [ ] Support audit: direct service reads in sessions (`listTeam`, `listClientRecipients`, `getAgencyBranding`, `listWebhooks`, `/go`, evidence/PDF bytes) aren't session-audited themselves; `end_support_session` audit lands in the operator's home agency — *from 8b*
+- [ ] Support tests: `support_session` cascade-delete; ok-at-59-min resolve case — *from 8b*
+- [ ] Costs: Neon settings dialog wrongly shows "Warnings need a dollars-per-CU-hour rate." (gate the rate hint on `kind==='balance'`, fix `costs-components.test.tsx:328`); key present but no reading shows "Not configured" ("No reading yet" is clearer); Apify with no cap gets no hint — *from 8c*
+- [ ] Costs job: `evaluateAlerts` throw → job retry re-inserts the day's snapshots (wrap in try/catch); concurrent refresh + cron can double-email (conditional update before send) — *from 8c*
+- [ ] Costs UI/edges: strip read audits every owner `/platform` view; strip sits outside the 1560px wrapper; services-table Actions header in read-only; empty warnDays → 0; run dataviz skill on chart colours; Neon `from==to` before 01:00 UTC on the 1st; Anthropic partial sum after 3 pages; empty `APP_URL` → relative link in email; tools' toFixed silently rounds threshold/rate; read.ts 12 sequential queries; seed rows duplicated in migration 0051 and `@cs/db` test helpers (add cross-reference comments) — *from 8c*
+
 ## Waiting on real data / external events
 - [ ] Re-pull Aire Serv reviews + ads (command in [OPS.md](OPS.md); pass only advertisers `AR11447192921745391617`, `AR09867956064303972353`), diff `review_id`s against the 546 from 2026-10-01 — if unstable, dedupe on the content-hash key — *from 2b live verification*
 - [ ] Then `engine-once --client 25f99947-… --moves` and `brief-once --client 25f99947-… --force` for the first live **stored** standard brief — *from HANDOVER §5 item 4*
@@ -110,6 +124,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Quarterly report verified only by tests — no client predates a quarter yet; check the first real one — *from 4b live verification*
 
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
+- [ ] Support-session email says "Reply to this email" but `replyTo` is null (replies go to `EMAIL_FROM`) — needs a reply-to address/env var — *from 8b*
 - [ ] Register **rivalmonday.com** / **.ai**; trademark knockout search — *from HANDOVER §7*
 - [ ] Publish the bot page `https://rivalmonday.com/bot` — required before crawling any real competitor (never run `collect-once` without `--vendors` until then) — *from Phase 1/2 carry-over, HANDOVER §5 item 6*
 - [ ] Phase 0 validation before the Phase 7 pilot: GoHighLevel/Vendasta marketplace check, 5 agency letters of intent, US counsel review (crawling, review privacy, AI claims about named competitors) — *from roadmap Phase 0, HANDOVER §7*
@@ -123,6 +138,8 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ## Unscheduled / ideas
 
 ### Features
+- [ ] Console: activity `client_activated` lacks `clientName` (record activation, e.g. `client.activated_at`); `list_platform_activity` loads all sources per call (bound/paginate in SQL); agencies list silently capped at 100 (paging or notice) — *from 8a*
+- [ ] Cost APIs for Vercel / Cloudflare R2; Neon storage cost; costs CSV export; renewal reminders — *from 8c*
 - [ ] REST API (spec §8.1) — *from 6a*
 - [ ] Knowledge base: file upload (PDF/DOCX), browsable Help page (`/agency/help`, `/c/<id>/help`), agency/client self-authoring (`manage_knowledge`), KB in weekly briefs, citation analytics — *from 6c "Not in 6c"*
 - [ ] Brief writers (`brief_writer`/`playbook_writer`/`theme_discovery`) back to sonnet-5 (probe 2026-10-12 OK for ZDR + strict json_schema) — *from 6b*

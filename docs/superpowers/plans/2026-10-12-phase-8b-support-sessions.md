@@ -21,7 +21,7 @@
 - Commits end with the Co-Authored-By line from root `CLAUDE.md`; LF only.
 
 ## Decisions (plan-local)
-- **S1** Tool marking is done package by package in Task 2 with a classification table committed at `docs/work/phase-8b-tool-access.md` (tool → access → one-line reason) that the reviewer signs off; ambiguous = `write`.
+- **S1** Tool marking is done package by package in Task 2 with a classification table committed at `docs/superpowers/specs/2026-10-12-phase-8b-tool-access.md` (tool → access → one-line reason) that the reviewer signs off; ambiguous = `write`.
 - **S2** Cookie helpers live in `apps/web/src/server/support-cookie.ts` (`signSupportCookie(sessionId)`, `verifySupportCookie(value): string | null`); session service in `packages/tools/src/platform/support.ts` (DB logic, testable without Next).
 - **S3** `readOnly` UI flag: `ReadOnlyProvider` / `useReadOnly()` in `apps/web/src/components/read-only.tsx`; a `WriteGuard` wrapper component hides children when read-only. Task 8 wraps every write control found by grepping server-action imports in page components.
 - **S4** Platform users without memberships: `getViewer()` returns `support` when a valid session exists, else the existing `member-less` (still `/no-access` for agency routes; `/platform/*` must not require a membership — verify in Task 0 against 8a's code).
@@ -63,7 +63,7 @@
 
 ### Task 2: Mark every tool
 **Goal:** every tool has `access`; email fields declared in `supportMask`; classification table (S1).
-**Files:** every `packages/tools/src/tools/*.ts` (and phase-6/8a/9 tools present), `docs/work/phase-8b-tool-access.md`, `packages/tools/src/tools/access-marks.test.ts`.
+**Files:** every `packages/tools/src/tools/*.ts` (and phase-6/8a/9 tools present), `docs/superpowers/specs/2026-10-12-phase-8b-tool-access.md`, `packages/tools/src/tools/access-marks.test.ts`.
 **Behaviour:** spec § Tool access marking rule. Known `write` examples: anything named `create_*`, `update_*`, `set_*`, `add_*`, `revoke_*`, `invite_*`, `approve_*`, `dismiss_*`, `run_*`, `convert_*`, `deactivate_*`, `mark_*`, rating/feedback tools, `start_support_session`. Reads with hidden writes (check bodies) → `write`. `supportMask` on tools returning contact/recipient/member/invitation emails.
 **Tests:** every registered tool has `access`; snapshot of sorted `write` tool names; every tool whose output schema has a key matching `/email/i` declares it in `supportMask` (schema walk).
 **Done when:** `pnpm --filter @cs/tools exec vitest run access-marks` passes and `pnpm typecheck` is clean.

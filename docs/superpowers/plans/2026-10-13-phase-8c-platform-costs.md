@@ -291,7 +291,7 @@ export interface PlatformCostLowPayload { label: string; amountText: string; day
 
 ### Task 6: Tools
 **Goal:** Five owner-only, support-hidden tools.
-**Files:** create `packages/tools/src/tools/platform-costs.ts`, `.test.ts`; modify `packages/tools/src/tools/all.ts`; document the access marks in `docs/work/phase-8b-tool-access.md` if the 8b read-only guard test enumerates tools (follow whatever `read-only-guard`/registry tests require of new tools).
+**Files:** create `packages/tools/src/tools/platform-costs.ts`, `.test.ts`; modify `packages/tools/src/tools/all.ts`; document the access marks in `docs/superpowers/specs/2026-10-12-phase-8b-tool-access.md` if the 8b read-only guard test enumerates tools (follow whatever `read-only-guard`/registry tests require of new tools).
 **Follow pattern:** `packages/tools/src/tools/support.ts` (`listAgencySupportSessions`: `requirePlatformOperator` + `withPlatformAudit`, `audit: 'skip-web'`, `permission: 'agency'`).
 **Interfaces (binding):**
 ```ts

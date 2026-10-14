@@ -1,6 +1,6 @@
 # Rival Monday — Architecture (what is built and where)
 
-Status: Phases 0–5 and the demo tool are complete and owner-verified (2026-10-11). Plans: `docs/superpowers/plans/`. Runbook for the live dev environment: [OPS.md](OPS.md). Migrations run through `0037`.
+Status: Phases 0–6 and 8 and the demo tool are complete and owner-verified (2026-10-11). Plans: `docs/superpowers/plans/`. Runbook for the live dev environment: [OPS.md](OPS.md). Migrations run through `0051`.
 
 ## Package / app map
 
@@ -42,6 +42,11 @@ Status: Phases 0–5 and the demo tool are complete and owner-verified (2026-10-
 - **Demo data, dev panel & snapshots** ([plan](superpowers/plans/2026-10-09-demo-data-and-snapshots.md)). Local-only. `cs_demo` seed (`@cs/demo`), dev panel (`apps/web/src/dev-panel/`, per-environment `perEnv` factories, production build check), `cs_dev` snapshot/restore.
 - **Phase 5 polish** (`65e0683`). PDF/file links open in a new tab; stored PDF keys carry `PDF_LAYOUT_VERSION` (`@cs/core` `pdf-layout.ts`, keys `<id>.v2.pdf`) and `servePdf` re-enqueues any older key; `/agency` client list as labelled blocks below xl. No DEV "view as client": invite a Gmail plus address as client owner.
 - **6 — MCP, Ask & knowledge base** ([6a](superpowers/plans/2026-10-11-phase-6a-mcp.md) · [6b](superpowers/plans/2026-10-12-phase-6b-ask.md) · [6c](superpowers/plans/2026-10-12-phase-6c-knowledge.md)). 6a: registry `channels`/`mcpScope`/`audit`, PATs + OAuth 2.1 provider (Better Auth `oauthProvider`, consent page, DCR), `@cs/mcp`, `search`/`fetch`, `/agency/ai`. 6b: Ask "Friday" (`@cs/ask`, SSE `/api/ask/turn`, `/c/<id>/ask`, `/platform/ask` review, quota, starters job). 6c: knowledge base (`kb_article`/`kb_chunk`, operator authoring `/platform/knowledge`, hybrid `search_knowledge`, `kb:` citations + sheet + `/kb/<id>`, URL import/sync behind `KB_IMPORT_ENABLED` with SSRF guard, repo seed `docs/help` via `pnpm kb:seed`, MCP `knowledge` type).
+
+- **8 — Platform console, support sessions & costs** ([8a](superpowers/plans/2026-10-12-phase-8a-platform-console.md) · [8b](superpowers/plans/2026-10-12-phase-8b-support-sessions.md) · [8c](superpowers/plans/2026-10-13-phase-8c-platform-costs.md)).
+  - **8a console:** tables `platform_admin` (owner|staff|viewer), `agency_daily_stat`, `platform_audit_log` (0047/0048, FORCE RLS); `requirePlatformOperator(deps, ctx, min?)`, `withPlatformAudit`; web-only tools `platform_overview`, `list_platform_agencies`, `get_platform_agency`, `list_platform_activity`; job `platform-daily-stats` (02:00 UTC); CLI `platform-admin add|revoke|list`; routes `/platform`, `/platform/agencies[/id]`, `/platform/health` (now under `app/(platform)/platform/**`).
+  - **8b support sessions:** every tool declares `access: 'read'|'write'` (+ `supportMask`, `supportHidden`); under `ctx.support` writes are refused (`read_only_session`), emails masked, audited as `platform_support`. Table `support_session` (0049/0050), `agency.notify_support_access`; cookie `rm_support`, `/support/end`, `/support/exit`, `ReadOnlyProvider`/`WriteGuard`, banner; `/agency/settings/platform-access`. Tool classification: [specs/2026-10-12-phase-8b-tool-access.md](superpowers/specs/2026-10-12-phase-8b-tool-access.md).
+  - **8c platform costs:** tables `platform_cost_service` (6 seeded), `platform_cost_snapshot`, `platform_cost_item` (0051, service role); worker job `platform-costs-snapshot` (06:00 UTC, "Refresh now" enqueues); owner-only `supportHidden` tools `list_platform_costs`, `refresh_platform_costs`, `update_platform_cost_service`, `save_platform_cost_item`, `archive_platform_cost_item`; route `/platform/costs` + low-balance strip; email `platform-cost-low`; worker env `NEON_API_KEY`, `NEON_ORG_ID`.
 
 ## Conventions a new feature must follow
 
