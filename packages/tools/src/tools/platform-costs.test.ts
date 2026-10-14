@@ -44,7 +44,6 @@ beforeEach(async () => {
   enqueue.mockClear();
   jobStatus.mockReset();
   jobStatus.mockResolvedValue(null);
-  delete deps.costEnvPresent;
   await truncateAll(dbs.owner);
   await truncateAuth(dbs.owner);
   await seedPlatformCostServices(dbs.owner);
@@ -86,7 +85,6 @@ describe('platform cost tools: access', () => {
 
 describe('list_platform_costs', () => {
   it('returns 6 services incl. not_configured with null amounts', async () => {
-    deps.costEnvPresent = { openrouter: true };
     const r = await list();
     expect(r.services.map((s) => s.service)).toEqual(['openrouter', 'dataforseo', 'scrapecreators', 'apify', 'anthropic', 'neon']);
     const by = Object.fromEntries(r.services.map((s) => [s.service, s]));
