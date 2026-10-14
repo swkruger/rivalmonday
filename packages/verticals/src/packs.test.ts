@@ -29,6 +29,31 @@ describe('pilot vertical packs', () => {
   });
 });
 
+describe('pack discovery config (Phase 12a)', () => {
+  it('dental carries the discovery categories, keywords and tiers', async () => {
+    const d = (await loadVerticalPack('dental')).discovery;
+    expect(d.seed_keywords).toEqual(['dentist', 'dental implants', 'emergency dentist']);
+    expect(d.categories).toContain('Dental clinic');
+    expect(d.related_categories).toEqual(['Orthodontist', 'Oral and maxillofacial surgeon', 'Oral surgeon', 'Periodontist', 'Endodontist']);
+    expect(d).toMatchObject({ grid: { size: 7, fallback_size: 5 }, shortlist: 20, cost_cap_usd: 3 });
+    expect(d.tiers).toEqual({ top: { overlap: 0.55, activity: 0.25 }, watch: { overlap: 0.35, activity: 0.6 } });
+  });
+
+  it('hvac_plumbing carries the discovery categories, keywords and tiers', async () => {
+    const d = (await loadVerticalPack('hvac_plumbing')).discovery;
+    expect(d.seed_keywords).toEqual(['hvac contractor', 'ac repair', 'plumber']);
+    expect(d.categories).toContain('Air conditioning repair service');
+    expect(d.related_categories).toEqual(['Electrician', 'Mechanical contractor', 'Appliance repair service', 'Insulation contractor']);
+    expect(d).toMatchObject({ grid: { size: 7, fallback_size: 5 }, shortlist: 20, cost_cap_usd: 3 });
+    expect(d.tiers).toEqual({ top: { overlap: 0.55, activity: 0.25 }, watch: { overlap: 0.35, activity: 0.6 } });
+  });
+
+  it('bumps both pilot packs to version 2', async () => {
+    expect((await loadVerticalPack('dental')).version).toBe(2);
+    expect((await loadVerticalPack('hvac_plumbing')).version).toBe(2);
+  });
+});
+
 describe('Phase 3b pack knobs', () => {
   it.each(['hvac_plumbing', 'dental'])('%s weights rank_change and carries the structured size curves, age cap and move thresholds', async (id) => {
     const p = await loadVerticalPack(id);

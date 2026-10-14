@@ -1,6 +1,6 @@
 id: hvac_plumbing
 name: HVAC & Plumbing
-version: 1
+version: 2
 
 services:
   - { id: ac_tune_up, name: AC tune-up, aliases: [ac maintenance, ac check-up, cooling tune-up] }
@@ -63,6 +63,15 @@ scoring:
   novelty_similarity_floor: 0.5
   novelty_window_days: 365
   alert_max_age_days: 7
+
+discovery:
+  seed_keywords: [hvac contractor, ac repair, plumber]
+  categories: [HVAC contractor, Air conditioning contractor, Heating contractor, Furnace repair service, Air conditioning repair service, Plumber, Water heater installation service, Air duct cleaning service]
+  related_categories: [Electrician, Mechanical contractor, Appliance repair service, Insulation contractor]
+  grid: { size: 7, fallback_size: 5 }
+  shortlist: 20
+  cost_cap_usd: 3
+  tiers: { top: { overlap: 0.55, activity: 0.25 }, watch: { overlap: 0.35, activity: 0.6 } }
 
 playbooks:
   - id: price_cut_bundle

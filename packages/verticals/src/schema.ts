@@ -16,6 +16,20 @@ const uniqueIds = (label: string) => (items: { id: string }[], ctx: z.Refinement
   });
 };
 
+const tierThresholds = z.strictObject({ overlap: z.number(), activity: z.number() });
+
+export const discoverySchema = z.strictObject({
+  seed_keywords: z.array(z.string().min(2)).max(5),
+  categories: z.array(z.string()).min(1),
+  related_categories: z.array(z.string()).default([]),
+  grid: z.strictObject({ size: z.number().int().min(3).max(7), fallback_size: z.number().int().min(3).max(7) }),
+  shortlist: z.number().int().min(5).max(30),
+  cost_cap_usd: z.number().positive().max(10),
+  tiers: z.strictObject({ top: tierThresholds, watch: tierThresholds }),
+});
+
+export type DiscoveryConfig = z.infer<typeof discoverySchema>;
+
 export const verticalPackSchema = z.object({
   id: slug,
   name: z.string().min(1),
@@ -83,6 +97,8 @@ export const verticalPackSchema = z.object({
       alert_max_age_days: z.number().int().positive().default(7),
     })
     .prefault({}),
+  /** Competitor discovery (Phase 12a): Maps search keywords, category filter, grid, shortlist and tier thresholds. */
+  discovery: discoverySchema,
 });
 
 export type VerticalPack = z.infer<typeof verticalPackSchema>;

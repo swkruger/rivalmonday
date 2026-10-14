@@ -1,6 +1,6 @@
 id: dental
 name: Dental practices
-version: 1
+version: 2
 
 services:
   - { id: cleaning_exam, name: Cleaning & exam, aliases: [checkup, hygiene visit, teeth cleaning] }
@@ -61,6 +61,15 @@ scoring:
   novelty_similarity_floor: 0.5
   novelty_window_days: 365
   alert_max_age_days: 7
+
+discovery:
+  seed_keywords: [dentist, dental implants, emergency dentist]
+  categories: [Dentist, Cosmetic dentist, Dental clinic, Emergency dental service, Pediatric dentist, Denture care center, Dental implants provider, Prosthodontist]
+  related_categories: [Orthodontist, Oral and maxillofacial surgeon, Oral surgeon, Periodontist, Endodontist]
+  grid: { size: 7, fallback_size: 5 }
+  shortlist: 20
+  cost_cap_usd: 3
+  tiers: { top: { overlap: 0.55, activity: 0.25 }, watch: { overlap: 0.35, activity: 0.6 } }
 
 playbooks:
   - id: new_patient_offer_response

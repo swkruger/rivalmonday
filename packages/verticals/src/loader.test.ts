@@ -17,6 +17,17 @@ const weights = `
     content: 0.2
     cosmetic: 0`;
 
+const discovery = `
+discovery:
+  seed_keywords: [test keyword]
+  categories: [Test category]
+  related_categories: [Test related]
+  grid: { size: 7, fallback_size: 5 }
+  shortlist: 20
+  cost_cap_usd: 3
+  tiers: { top: { overlap: 0.55, activity: 0.25 }, watch: { overlap: 0.35, activity: 0.6 } }
+`;
+
 const valid = `
 id: test_pack
 name: Test
@@ -37,7 +48,7 @@ playbooks:
     trigger: price_change
     title: Answer a price cut with a bundle
     template: Offer {{service}} bundled with a value add instead of matching {{competitor}}.
-`;
+${discovery}`;
 
 describe('parseVerticalPack', () => {
   it('parses a valid pack and applies defaults', () => {
@@ -49,6 +60,18 @@ describe('parseVerticalPack', () => {
   it('applies scoring defaults when a pack omits the scoring section', () => {
     const pack = parseVerticalPack(valid, 'test.yaml');
     expect(pack.scoring).toMatchObject({ version: 1, routing: { alert: 70, brief: 40 }, novelty_similarity_floor: 0.5, novelty_window_days: 365 });
+  });
+
+  it('requires a discovery section', () => {
+    expect(() => parseVerticalPack(valid.replace(discovery, ''), 'nodisc.yaml')).toThrow(/discovery/);
+  });
+
+  it('rejects a grid size outside 3-7', () => {
+    expect(() => parseVerticalPack(valid.replace('size: 7', 'size: 9'), 'grid.yaml')).toThrow(/size/);
+  });
+
+  it('rejects unknown keys inside discovery', () => {
+    expect(() => parseVerticalPack(valid.replace('shortlist: 20', 'shortlist: 20\n  bogus: 1'), 'x.yaml')).toThrow(/bogus/);
   });
 
   it('rejects routing where brief is not below alert', () => {
