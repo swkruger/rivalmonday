@@ -110,7 +110,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Quarterly report verified only by tests — no client predates a quarter yet; check the first real one — *from 4b live verification*
 
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
-- [ ] Decide MCP revoke success copy ("Token revoked." / "App disconnected.") and review the `docs/help/*.md` help-article copy (confirm: past-conversation list/delete, admins see all tokens, the Claude Code command) — *from 6a/6c*
 - [ ] Register **rivalmonday.com** / **.ai**; trademark knockout search — *from HANDOVER §7*
 - [ ] Publish the bot page `https://rivalmonday.com/bot` — required before crawling any real competitor (never run `collect-once` without `--vendors` until then) — *from Phase 1/2 carry-over, HANDOVER §5 item 6*
 - [ ] Phase 0 validation before the Phase 7 pilot: GoHighLevel/Vendasta marketplace check, 5 agency letters of intent, US counsel review (crawling, review privacy, AI claims about named competitors) — *from roadmap Phase 0, HANDOVER §7*
