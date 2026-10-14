@@ -13,14 +13,20 @@ const QUESTION: Record<ClaimMode, (s: string) => string> = {
 };
 
 /** Returns the keys whose support answer is true and confident; anything below threshold counts as unsupported. */
-export async function supportCheck(ai: Ai, scope: CallScope, evidence: string, claims: { key: string; sentence: string; mode: ClaimMode }[]): Promise<Set<string>> {
+export async function supportCheck(
+  ai: Ai,
+  scope: CallScope,
+  evidence: string,
+  claims: { key: string; sentence: string; mode: ClaimMode }[],
+  task: string = VERIFIER_TASK,
+): Promise<Set<string>> {
   const ok = new Set<string>();
   for (let i = 0; i < claims.length; i += SUPPORT_CHUNK) {
     const chunk = claims.slice(i, i + SUPPORT_CHUNK);
     const questions: Record<string, DecisionQuestion> = Object.fromEntries(
       chunk.map((c) => [c.key, { type: 'noul', instructions: QUESTION[c.mode](c.sentence.replace(/"/g, "'")) } satisfies DecisionQuestion]),
     );
-    const res = await ai.decide(VERIFIER_TASK, { evidence }, questions, scope);
+    const res = await ai.decide(task, { evidence }, questions, scope);
     for (const c of chunk) {
       const a = res.answers[c.key];
       if (a?.type === 'noul' && a.value === true && !res.needsReview.includes(c.key)) ok.add(c.key);

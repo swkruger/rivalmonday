@@ -148,6 +148,8 @@ describe('runTurn knowledge', () => {
     expect(p).toContain('Give complete answers');
     expect(p).toContain('11. Before comparing competitors');
     expect(p).toContain('get_competitor_profile for each one');
+    expect(p).toContain('cite every row it compares');
+    expect(p).toContain('12. Never mention tool names');
   });
 });
 

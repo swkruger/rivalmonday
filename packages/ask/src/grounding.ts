@@ -1,14 +1,22 @@
 import type { Ai } from '@cs/ai';
 import type { CallScope } from '@cs/core';
-import { type ClaimMode, supportCheck } from '@cs/engine';
+import { type ClaimMode, supportCheck, VERIFIER_TASK } from '@cs/engine';
 import { CITATION_PREFIXES, splitUnits } from './citations';
 import { ASK_COPY } from './quota';
+
+/**
+ * Owner decision 2026-10-13: interpretation lines (uncited, or a cited line that opens with "Possible reason:", rule 2)
+ * are checked by their own task, which accepts a clear yes (min_confidence 0.2, p >= 0.6). Cited facts stay on the
+ * strict `verifier_decisions` (0.85), shared with briefs. Most dropped Ask sentences were "true" just under 0.85.
+ */
+export const ASK_INTERPRETATION_TASK = 'ask_interpretation_decisions';
+const POSSIBLE_REASON = /^\s*(?:[-*+]\s+|\d+[.)]\s+)?(?:\*\*|__)?\s*possible reason\b/i;
 
 /**
  * Verifies a draft answer ("no evidence, no claim"): cited sentences are checked as facts against their
  * cited evidence (`ev:`), article (`kb:`) or app row (`app:`), uncited ones as interpretations against all monitored
  * data; unsupported sentences are removed, and an answer with nothing left becomes the no-evidence line.
- * Calls are grouped by evidence string (supportCheck takes one) and run concurrently.
+ * Calls are grouped by evidence string and mode (supportCheck takes one evidence and one task) and run concurrently.
  */
 export async function groundAnswer(
   ai: Ai,
@@ -28,8 +36,8 @@ export async function groundAnswer(
     .join('\n\n');
   const groups = new Map<string, { evidence: string; mode: ClaimMode; claims: { key: string; sentence: string; mode: ClaimMode }[] }>();
   units.forEach((u, i) => {
-    const mode: ClaimMode = u.refs.length ? 'fact' : 'interpretation';
-    const gk = u.refs.length ? [...new Set(u.refs)].sort().join('|') : '';
+    const mode: ClaimMode = u.refs.length && !POSSIBLE_REASON.test(u.text) ? 'fact' : 'interpretation';
+    const gk = `${mode}:${[...new Set(u.refs)].sort().join('|')}`;
     const g = groups.get(gk) ?? {
       evidence: u.refs.length ? [...new Set(u.refs)].map((r) => evidence.get(r) ?? '').join('\n\n') : allText,
       mode,
@@ -42,7 +50,7 @@ export async function groundAnswer(
   const supported = new Set<string>();
   // Relative periods ("this month", "last 30 days") can only be checked against the row dates with today's date.
   const today = `Today is ${now.toISOString().slice(0, 10)} (UTC).\n\n`;
-  const results = await Promise.all([...groups.values()].filter((g) => g.claims.length).map((g) => supportCheck(ai, scope, today + g.evidence, g.claims)));
+  const results = await Promise.all([...groups.values()].filter((g) => g.claims.length).map((g) => supportCheck(ai, scope, today + g.evidence, g.claims, g.mode === 'fact' ? VERIFIER_TASK : ASK_INTERPRETATION_TASK)));
   for (const s of results) for (const k of s) supported.add(k);
 
   const newlines = (sep: string) => (sep.match(/\n/g) ?? []).length;

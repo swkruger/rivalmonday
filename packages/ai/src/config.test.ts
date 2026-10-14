@@ -51,6 +51,8 @@ tasks:
     expect(cfg.tasks.ask_assistant).not.toHaveProperty('temperature');
     expect(cfg.tasks.ask_starters).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-haiku-4.5', temperature: 0.5, max_tokens: 400 });
     expect(cfg.tasks.ask_guard_decisions).toMatchObject({ provider: 'jev', escalate_to: 'llm_decisions', min_confidence: { default: 0.85 }, shadow_rate: 0.05 });
+    // Owner decision 2026-10-13: hedged interpretation lines need only a clear yes (p >= 0.6); cited facts stay on verifier_decisions (0.85).
+    expect(cfg.tasks.ask_interpretation_decisions).toMatchObject({ provider: 'jev', escalate_to: 'llm_decisions', min_confidence: { default: 0.2 } });
   });
 
   it('gives every decision use its own Jev task escalating to llm_decisions, and no shared "decisions" task (Phase 3d)', async () => {
