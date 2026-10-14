@@ -104,6 +104,28 @@ describe('billing-notices', () => {
     expect((await rowOf(dead!.id)).sentAt).toBeNull();
   });
 
+  it('one rejecting admin address does not re-mail the others: row marked sent, other admin mailed once', async () => {
+    const [n] = await notice('billing_active');
+    send = async (to, agencyId, props) => {
+      if (to === 'ann@agency-a.test') throw new Error('inactive recipient');
+      sent.push({ to, agencyId, props });
+    };
+    await run();
+    await run();
+    expect(sent.map((s) => s.to)).toEqual(['ben@agency-a.test']);
+    expect(await rowOf(n!.id)).toMatchObject({ attempts: 0 });
+    expect((await rowOf(n!.id)).sentAt).not.toBeNull();
+  });
+
+  it('when every send rejects the row stays unsent with attempts + 1', async () => {
+    const [n] = await notice('billing_active');
+    send = async () => {
+      throw new Error('down');
+    };
+    await run();
+    expect(await rowOf(n!.id)).toMatchObject({ sentAt: null, attempts: 1, lastError: 'Error: down' });
+  });
+
   it('does not double-send when two runs overlap', async () => {
     await notice('billing_suspended');
     send = async (to, agencyId, props) => {
