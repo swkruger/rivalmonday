@@ -86,6 +86,25 @@ export interface PlatformCostLowProps {
   billingUrl: string | null;
   costsUrl: string;
 }
+export type BillingNoticeKind =
+  | 'trial_started'
+  | 'trial_ending_7'
+  | 'trial_ending_1'
+  | 'trial_ended'
+  | 'payment_failed'
+  | 'service_paused'
+  | 'account_suspended'
+  | 'account_reactivated'
+  | 'pilot_ending_7';
+export interface BillingNoticeProps {
+  /** Always Rival Monday branding (platform billing, not the agency's white label). */
+  branding: Branding;
+  kind: BillingNoticeKind;
+  agencyName: string;
+  /** ISO timestamp/date or an already human-readable date; rendered as e.g. "November 13, 2026" (UTC). */
+  date?: string;
+  billingUrl: string;
+}
 export type EmailPayload =
   | { template: 'alert'; props: AlertEmailProps }
   | { template: 'alert_digest'; props: DigestEmailProps }
@@ -94,7 +113,8 @@ export type EmailPayload =
   | { template: 'trend_report'; props: TrendReportEmailProps }
   | { template: 'sign_in'; props: SignInEmailProps }
   | { template: 'support_session_started'; props: SupportSessionStartedProps }
-  | { template: 'platform_cost_low'; props: PlatformCostLowProps };
+  | { template: 'platform_cost_low'; props: PlatformCostLowProps }
+  | { template: 'billing_notice'; props: BillingNoticeProps };
 export interface RenderedEmail {
   subject: string;
   html: string;

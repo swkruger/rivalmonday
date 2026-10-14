@@ -15,12 +15,17 @@ import {
   runReviewInsights, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
 import { generateStarters } from '@cs/ask';
-import { createEmailTransportFromEnv, renderEmail, resolveBranding } from '@cs/email';
+import { type BillingNoticeProps, createEmailTransportFromEnv, renderEmail, resolveBranding } from '@cs/email';
 import { listMonthlyRivalClients, normalizeAdminEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps } from '@cs/tools';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { lookup } from 'node:dns/promises';
 import { createPdfRenderer } from './pdf';
+
+export interface BillingEmailSender {
+  appUrl: string;
+  send(to: string, agencyId: string, props: Omit<BillingNoticeProps, 'branding'>): Promise<void>;
+}
 
 export interface WorkerDeps {
   claimDuePages(limit: number): Promise<string[]>;
@@ -103,6 +108,8 @@ export interface WorkerDeps {
   serviceDb(): Db;
   /** Phase 8c: everything snapshotAll needs (vendor keys, owners, low-balance email sender). */
   platformCosts(): PlatformCostSnapshotDeps;
+  /** Phase 9a: platform-branded billing lifecycle email sender (direct transport send, outside the client outbox). */
+  billingEmail(): BillingEmailSender;
   /** Phase 6c: KB_IMPORT_ENABLED === 'true'; gates kb-import and kb-sync. */
   kbImportEnabled(): boolean;
   /** Phase 6c: every address the host resolves to (SSRF guard for kb-import / kb-sync). */
@@ -376,6 +383,16 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
         if (!from) throw new Error('EMAIL_FROM is required');
         const r = await renderEmail({ template: 'platform_cost_low', props: { ...p, branding: resolveBranding('Rival Monday', null) } });
         await getEmailTransport().send({ from: `"Rival Monday" <${from}>`, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'platform_cost_low', metadata: {} }, { agencyId: null, clientId: null });
+      },
+    }),
+    billingEmail: () => ({
+      appUrl: env.APP_URL ?? '',
+      send: async (to, agencyId, props) => {
+        const from = delivery?.fromAddress ?? env.EMAIL_FROM;
+        if (!from) throw new Error('EMAIL_FROM is required');
+        if (!env.APP_URL) throw new Error('APP_URL is required');
+        const r = await renderEmail({ template: 'billing_notice', props: { ...props, branding: resolveBranding('Rival Monday', null) } });
+        await getEmailTransport().send({ from: `"Rival Monday" <${from}>`, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'billing_notice', metadata: {} }, { agencyId, clientId: null });
       },
     }),
     kbImportEnabled: () => env.KB_IMPORT_ENABLED?.trim() === 'true',

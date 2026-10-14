@@ -13,6 +13,7 @@ import { createWorkerDeps } from './deps';
 import { createAskJobs } from './jobs/ask';
 import { createKbJobs } from './jobs/kb';
 import { createBillingJobs } from './jobs/billing-daily';
+import { createBillingNoticeJobs } from './jobs/billing-notices';
 import { createBriefJobs, createStartingPointJobs } from './jobs/briefs';
 import { createDeliveryJobs, warnIfDeliveryUnconfigured } from './jobs/delivery';
 import { createEngineJobs } from './jobs/engine';
@@ -37,7 +38,9 @@ const boss = createBoss(url);
 await boss.start();
 
 const deps = createWorkerDeps(process.env);
-const billing = createBillingJobs(deps, { envName: resolveActiveEnvName(process.env, fileURLToPath(new URL('../../../', import.meta.url))), env: process.env });
+const liveEnvName = resolveActiveEnvName(process.env, fileURLToPath(new URL('../../../', import.meta.url)));
+const billing = createBillingJobs(deps, { envName: liveEnvName, env: process.env });
+const billingNotices = createBillingNoticeJobs(deps, { envName: liveEnvName });
 const engine = createEngineJobs(deps, {
   enqueueDiff: async (captureId) => {
     await enqueue(boss, engine.diff, { captureId }, { singletonKey: captureId });
@@ -142,7 +145,7 @@ await registerJobs(boss, [
   heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, prospects.snapshot,
   rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly, rivals.monthly, rivals.monthlyClient,
   engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.price, reviews.nightly, moves.nightly, moves.client,
-  modelOps.batchPoll, platformStats.daily, billing.daily, platformCosts.snapshot, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
+  modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, platformCosts.snapshot, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
   delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,
 ]);
 console.log('[worker] started');

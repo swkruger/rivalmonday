@@ -2,6 +2,7 @@ import { render } from '@react-email/render';
 import { createElement, type ReactElement } from 'react';
 import { AgencyNoticeEmail } from './templates/agency-notice';
 import { AlertEmail, alertSubject } from './templates/alert';
+import { BillingNoticeEmail, billingNoticeSubject } from './templates/billing-notice';
 import { BriefEmail, briefSubject } from './templates/brief';
 import { DigestEmail, digestSubject } from './templates/digest';
 import { PlatformCostLowEmail, platformCostLowSubject } from './templates/platform-cost-low';
@@ -26,6 +27,8 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
       return { el: createElement(SupportSessionStartedEmail, p.props), subject: supportSessionStartedSubject() };
     case 'platform_cost_low':
       return { el: createElement(PlatformCostLowEmail, p.props), subject: platformCostLowSubject(p.props) };
+    case 'billing_notice':
+      return { el: createElement(BillingNoticeEmail, p.props), subject: billingNoticeSubject(p.props.kind) };
     case 'trend_report':
       return { el: createElement(TrendReportEmail, p.props), subject: trendReportSubject(p.props) };
     default:

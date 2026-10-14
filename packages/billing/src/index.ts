@@ -11,3 +11,4 @@ export * from './seats';
 export * from './webhook';
 export * from './daily';
 export * from './plan-sync';
+export * from './notices';
