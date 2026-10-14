@@ -17,7 +17,7 @@ tasks:
   # Phase 6b Ask/Friday (tool calling; probe 2026-10-12: sonnet-5 and sonnet-4.6 both support tools and cache_control under ZDR).
   # No temperature: no sonnet-5 endpoint accepts it, so with require_parameters (sent with tools) OpenRouter skipped
   # sonnet-5 entirely and every turn ran on the fallback (probe 2026-10-13).
-  ask_assistant:   { provider: openrouter, model: anthropic/claude-sonnet-5, fallbacks: [anthropic/claude-sonnet-4.6], max_tokens: 1500 }
+  ask_assistant:   { provider: openrouter, model: anthropic/claude-sonnet-5, fallbacks: [anthropic/claude-sonnet-4.6], max_tokens: 6000 }
   ask_starters:    { provider: openrouter, model: anthropic/claude-haiku-4.5, temperature: 0.5, max_tokens: 400 }
   value_extract:   { provider: openrouter, model: anthropic/claude-haiku-4.5 }
   theme_discovery: { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5] }

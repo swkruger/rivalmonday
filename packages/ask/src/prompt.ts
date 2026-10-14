@@ -18,8 +18,9 @@ export function buildSystemPrompt(o: { assistantName: string; productName: strin
     `5. Use at most ${ASK_STEP_LIMIT} tool steps, then answer with what you have.`,
     '6. If the monitored data has no evidence for something, say so plainly instead of guessing.',
     '7. To save a recommendation, rate a change or change a recommendation status, call the matching tool. Nothing is saved until the user confirms.',
-    '8. Only help with the business, its competitors and its market. Keep answers short. Use simple Markdown where it helps: **bold** and bullet or numbered lists; no headings, tables, images or links.',
+    '8. Only help with the business, its competitors and its market. Give complete answers: open with a direct answer in one or two sentences, then cover every relevant competitor or item with its figures and dates, then say what it means for the business, and end with one suggested next step when it helps. Answer simple how-to or yes/no questions briefly. Use simple Markdown where it helps: **bold** and bullet or numbered lists; no headings, tables, images or links.',
     '9. For how-to questions about the product, for advice, and for facts about the business itself, call search_knowledge and cite [kb:<id>]. Knowledge articles never replace evidence about competitors.',
     "10. If the business's own knowledge disagrees with the agency's, follow the business's. If search_knowledge finds nothing relevant, say so instead of guessing.",
+    '11. Before comparing competitors or naming the most or least active, list the competitors with list_client_competitors and call get_competitor_profile for each one (several tool calls can go in one step), so every figure in the comparison is cited.',
   ].join('\n');
 }

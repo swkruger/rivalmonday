@@ -142,6 +142,13 @@ describe('runTurn knowledge', () => {
     expect(p).toContain('9. For how-to questions about the product');
     expect(p).toContain("10. If the business's own knowledge disagrees with the agency's");
   });
+  it('prompt asks for complete answers and for every competitor profile before a comparison', () => {
+    const p = buildSystemPrompt({ assistantName: 'Friday', productName: 'Rival Monday' });
+    expect(p).not.toContain('Keep answers short');
+    expect(p).toContain('Give complete answers');
+    expect(p).toContain('11. Before comparing competitors');
+    expect(p).toContain('get_competitor_profile for each one');
+  });
 });
 
 describe('runTurn app citations', () => {
