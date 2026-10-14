@@ -1,6 +1,8 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { assertDatabase, databaseNameOf, isEnvName, resolveEnvironment, withDatabase } from './environments';
+import { assertDatabase, databaseNameOf, isEnvName, resolveActiveEnvName, resolveEnvironment, withDatabase } from './environments';
 
 const ROOT = resolve('/repo');
 const ENV = {
@@ -85,5 +87,25 @@ describe('resolveEnvironment', () => {
 
   it('isEnvName accepts only the three names', () => {
     expect(['dev', 'demo', 'test', 'prod', 1, null].map(isEnvName)).toEqual([true, true, true, false, false, false]);
+  });
+});
+
+describe('resolveActiveEnvName', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'rm-env-'));
+  const file = join(dir, 'env.json');
+  const on = { DEV_PANEL: '1', RM_DEV_ENV_FILE: file } as unknown as NodeJS.ProcessEnv;
+
+  it('is dev unless the process guard is on', () => {
+    writeFileSync(file, '{"env":"demo"}');
+    expect(resolveActiveEnvName({ RM_DEV_ENV_FILE: file } as unknown as NodeJS.ProcessEnv, dir)).toBe('dev');
+    expect(resolveActiveEnvName({ ...on, NODE_ENV: 'production' } as unknown as NodeJS.ProcessEnv, dir)).toBe('dev');
+  });
+
+  it('reads the env file when the guard is on; bad or missing files mean dev', () => {
+    writeFileSync(file, '{"env":"demo"}');
+    expect(resolveActiveEnvName(on, dir)).toBe('demo');
+    writeFileSync(file, '{"env":"nope"}');
+    expect(resolveActiveEnvName(on, dir)).toBe('dev');
+    expect(resolveActiveEnvName({ DEV_PANEL: '1' } as unknown as NodeJS.ProcessEnv, join(dir, 'missing'))).toBe('dev');
   });
 });

@@ -14,11 +14,13 @@
     "decisions": "tsx src/cli/decisions.ts",
     "deliver-once": "tsx src/cli/deliver-once.ts",
     "kb-seed": "tsx src/cli/kb-seed.ts",
-    "platform-admin": "tsx src/cli/platform-admin.ts"
+    "platform-admin": "tsx src/cli/platform-admin.ts",
+    "billing:sync-plan": "tsx src/cli/billing-sync-plan.ts"
   },
   "dependencies": {
     "@cs/ai": "workspace:*",
     "@cs/ask": "workspace:*",
+    "@cs/billing": "workspace:*",
     "@cs/collectors": "workspace:*",
     "@cs/core": "workspace:*",
     "@cs/db": "workspace:*",

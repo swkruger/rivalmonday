@@ -147,6 +147,9 @@ importers:
       '@cs/ask':
         specifier: workspace:*
         version: link:../../packages/ask
+      '@cs/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
       '@cs/collectors':
         specifier: workspace:*
         version: link:../../packages/collectors

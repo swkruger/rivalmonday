@@ -57,18 +57,37 @@ async function recordCheckoutFacts(tx: Tx, gw: BillingGateway, row: AgencyBillin
   return true;
 }
 
-async function onSubscriptionUpdated(gw: BillingGateway, obj: Obj, now: Date): Promise<BillingSignal | null> {
-  const status = str(obj.status);
-  if (status === 'past_due' || status === 'unpaid') return { kind: 'payment_failed', now };
-  if (obj.cancel_at_period_end === true) {
-    let at = fromSeconds(obj.cancel_at) ?? periodEnd(obj);
-    const id = str(obj.id);
-    if (!at && id) at = (await gw.getSubscription(id)).currentPeriodEnd;
-    if (at) return { kind: 'subscription_cancelled_at_period_end', at, now };
-  }
-  if (status === 'active') return { kind: 'subscription_active', now };
-  if (status === 'trialing' && (idOf(obj.default_payment_method) || idOf(obj.default_source))) return { kind: 'subscription_active', now };
+/** The subscription facts that decide a billing signal (webhook payload and gateway read both reduce to this). */
+export interface SubscriptionFacts {
+  status: string | null;
+  cancelAtPeriodEnd: boolean;
+  /** When the cancellation takes effect; null when unknown. */
+  cancelAt: Date | null;
+  hasPaymentMethod: boolean;
+}
+
+/** Single Stripe subscription -> billing signal mapping, shared by the webhook and the daily reconciliation. */
+export function signalForSubscription(f: SubscriptionFacts, now: Date): BillingSignal | null {
+  if (f.status === 'past_due' || f.status === 'unpaid') return { kind: 'payment_failed', now };
+  if (f.status === 'canceled') return { kind: 'subscription_ended', now };
+  if (f.cancelAtPeriodEnd && f.cancelAt) return { kind: 'subscription_cancelled_at_period_end', at: f.cancelAt, now };
+  if (f.status === 'active') return { kind: 'subscription_active', now };
+  if (f.status === 'trialing' && f.hasPaymentMethod) return { kind: 'subscription_active', now };
   return null;
+}
+
+async function onSubscriptionUpdated(gw: BillingGateway, obj: Obj, now: Date): Promise<BillingSignal | null> {
+  const cancelAtPeriodEnd = obj.cancel_at_period_end === true;
+  let cancelAt: Date | null = null;
+  if (cancelAtPeriodEnd) {
+    cancelAt = fromSeconds(obj.cancel_at) ?? periodEnd(obj);
+    const id = str(obj.id);
+    if (!cancelAt && id) cancelAt = (await gw.getSubscription(id)).currentPeriodEnd;
+  }
+  return signalForSubscription(
+    { status: str(obj.status), cancelAtPeriodEnd, cancelAt, hasPaymentMethod: !!(idOf(obj.default_payment_method) || idOf(obj.default_source)) },
+    now,
+  );
 }
 
 async function dispatch(tx: Tx, gw: BillingGateway, event: StripeEventLike): Promise<'processed' | 'ignored'> {

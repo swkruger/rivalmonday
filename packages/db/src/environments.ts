@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 
 /** Demo/dev-panel spec §3: the three local databases. */
@@ -82,4 +83,21 @@ export function resolveEnvironment(name: EnvName, opts: { repoRoot: string; env?
     name, ownerUrl: need(env, 'TEST_DATABASE_URL'), appUrl: need(env, 'TEST_APP_DATABASE_URL'), serviceUrl: need(env, 'TEST_SERVICE_DATABASE_URL'),
     evidenceDir: join(opts.repoRoot, 'apps', 'web', 'test-results', 'evidence'),
   };
+}
+
+/**
+ * The live environment for a process outside `apps/web` (the worker). Same inputs as the web's `activeEnvName`:
+ * DEV unless the process guard is on (`NODE_ENV !== 'production' && DEV_PANEL === '1'`) and `.dev-env.json` at the repo
+ * root (or `RM_DEV_ENV_FILE`) names another. Keep in sync with `apps/web/src/server/dev-guard.ts`.
+ */
+export function resolveActiveEnvName(env: NodeJS.ProcessEnv, repoRoot: string): EnvName {
+  if (env.NODE_ENV === 'production' || env.DEV_PANEL !== '1') return 'dev';
+  const override = env.RM_DEV_ENV_FILE?.trim();
+  const file = override ? resolve(override) : resolve(repoRoot, '.dev-env.json');
+  try {
+    const parsed = JSON.parse(readFileSync(file, 'utf8')) as { env?: unknown };
+    return isEnvName(parsed.env) ? parsed.env : 'dev';
+  } catch {
+    return 'dev';
+  }
 }
