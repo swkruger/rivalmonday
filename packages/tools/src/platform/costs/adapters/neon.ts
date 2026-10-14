@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { CostAdapter } from '../types';
 import { getValidated } from './util';
 
-// Field paths from docs only (not live-verified, 2026-10-13). The v2 docs disagree on how a metric
+// Live-verified 2026-10-14: entries are consumption[].metrics[] of { metric_name, value }. The v2 docs disagree on how a metric
 // value is shaped, so accept: a number on the entry (compute_unit_seconds: 7200), the metric as a
 // list of { metric_name, value }, or an entry-level `metrics` list of the same.
 const METRIC = 'compute_unit_seconds';

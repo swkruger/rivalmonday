@@ -9,7 +9,7 @@ Plan: `docs/superpowers/plans/2026-10-13-phase-8c-platform-costs.md` (Tasks 0–
 
 ## Next (overwrite)
 1. Merge order: phase-8 → phase-8b → phase-8c; in this worktree `git rebase main` after 8b merges, re-run `@costs` `@support` `@platform`.
-2. Owner, before relying on live data: set `ANTHROPIC_ADMIN_KEY`, `NEON_API_KEY`, `NEON_ORG_ID` in the **worker** env (web doesn't need them); then live-check Neon field paths (docs-only).
+2. Deploy: set `NEON_API_KEY`, `NEON_ORG_ID` in the **worker** env (web doesn't need them). Neon live-verified 2026-10-14 (131 CU-h MTD). Anthropic: Admin API unavailable on the owner's individual account → leave `ANTHROPIC_ADMIN_KEY` unset, turn the service Off, add Anthropic as a manual monthly cost.
 3. Owner verification below, then `/rm-merge phase-8c`.
 
 ## Interfaces this branch adds or changes
@@ -28,7 +28,7 @@ Plan: `docs/superpowers/plans/2026-10-13-phase-8c-platform-costs.md` (Tasks 0–
 4. Owners only (view + edit). No renewal reminders.
 5. API reads: OpenRouter, DataForSEO, Apify, ScrapeCreators + Anthropic admin + Neon (new keys). Rest manual.
 6. Manual entries: recurring (monthly/yearly) + one-off, USD only.
-7. Controller rulings (SDD): Neon/Anthropic adapters docs-only (owner: go without keys); Refresh feedback inline (no toast lib); each owner `/platform` view writes one platform audit row (strip read); archive ends a recurring cost after its archive month (maths, not ends_on); "configured" from snapshots, not web env; settings hints "Warnings need a dollars-per-credit rate." / "Usage services without a plan cap never warn." (copy not in spec).
+7. Controller rulings (SDD): Neon/Anthropic adapters built docs-only (owner: go without keys; Neon since live-verified, Anthropic unusable on individual accounts); Refresh feedback inline (no toast lib); each owner `/platform` view writes one platform audit row (strip read); archive ends a recurring cost after its archive month (maths, not ends_on); "configured" from snapshots, not web env; settings hints "Warnings need a dollars-per-credit rate." / "Usage services without a plan cap never warn." (copy not in spec).
 
 ## New backlog (target → item)
 - Unscheduled → Vercel / Cloudflare R2 cost APIs; Neon storage cost; CSV export; renewal reminders.
