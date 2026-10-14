@@ -8,3 +8,4 @@ export * from './access';
 export * from './apply';
 export * from './trial';
 export * from './seats';
+export * from './webhook';

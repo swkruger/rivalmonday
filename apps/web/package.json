@@ -21,6 +21,7 @@
     "@better-auth/utils": "0.4.2",
     "@cs/ai": "workspace:*",
     "@cs/ask": "workspace:*",
+    "@cs/billing": "workspace:*",
     "@cs/core": "workspace:*",
     "@cs/db": "workspace:*",
     "@cs/demo": "workspace:*",

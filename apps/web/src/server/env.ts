@@ -20,6 +20,8 @@ export interface WebEnv {
   platformAdmins: string[];
   /** 6b Q1: Ask runs on a deterministic scripted AI (E2E only; refused when VERCEL_ENV=production). */
   askFakeAi: boolean;
+  /** Phase 9a: Stripe settings, all optional (no secret key => the fake billing gateway). Shaped for `gatewayFor`. */
+  stripe?: { STRIPE_SECRET_KEY?: string; STRIPE_WEBHOOK_SECRET?: string; STRIPE_TAX_ENABLED?: string; NODE_ENV?: string; VITEST?: string };
 }
 
 export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
@@ -54,6 +56,13 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     kbImport: env.KB_IMPORT_ENABLED?.trim() === 'true',
     platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
     askFakeAi: askFake === '1',
+    stripe: {
+      STRIPE_SECRET_KEY: env.STRIPE_SECRET_KEY?.trim() || undefined,
+      STRIPE_WEBHOOK_SECRET: env.STRIPE_WEBHOOK_SECRET?.trim() || undefined,
+      STRIPE_TAX_ENABLED: env.STRIPE_TAX_ENABLED?.trim() || undefined,
+      NODE_ENV: env.NODE_ENV,
+      VITEST: env.VITEST,
+    },
   };
   if (problems.length) throw new Error(`Web app configuration problems:\n- ${problems.join('\n- ')}`);
   return parsed;

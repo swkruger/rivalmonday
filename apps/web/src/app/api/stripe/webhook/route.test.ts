@@ -1,0 +1,53 @@
+import { agencyBilling, plan, stripeEvent } from '@cs/db';
+import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { eq } from 'drizzle-orm';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const dbs = openTestDbs();
+afterAll(() => dbs.closeAll());
+
+vi.mock('@/server/db', () => ({ dbs: () => ({ app: dbs.app, service: dbs.service }) }));
+
+const { POST } = await import('./route');
+
+const AGENCY = IDS.agencyA;
+const T0 = 1_790_000_000;
+const body = (id: string, type: string, object: Record<string, unknown>) => JSON.stringify({ id, type, created: T0, data: { object: { customer: 'cus_1', ...object } } });
+const post = (raw: string, sig?: string) =>
+  POST(new Request('http://localhost/api/stripe/webhook', { method: 'POST', headers: sig ? { 'stripe-signature': sig } : {}, body: raw }));
+
+beforeEach(async () => {
+  await truncateAll(dbs.owner);
+  await seedTenancy(dbs.owner);
+  const [p] = await dbs.owner
+    .insert(plan)
+    .values({ code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' })
+    .returning({ id: plan.id });
+  await dbs.owner.insert(agencyBilling).values({ agencyId: AGENCY, state: 'active', planId: p!.id, stripeCustomerId: 'cus_1' });
+});
+
+describe('POST /api/stripe/webhook', () => {
+  it('400 for a missing or bad signature, nothing persisted', async () => {
+    expect((await post(body('e1', 'invoice.paid', {}))).status).toBe(400);
+    expect((await post(body('e1', 'invoice.paid', {}), 'nope')).status).toBe(400);
+    expect(await dbs.owner.select().from(stripeEvent)).toHaveLength(0);
+  });
+
+  it('200 with the handler result for a valid (fake) signature, then duplicate', async () => {
+    const raw = body('e1', 'invoice.payment_failed', {});
+    const res = await post(raw, 'fake-sig');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ received: true, result: 'processed' });
+    const [r] = await dbs.owner.select().from(agencyBilling).where(eq(agencyBilling.agencyId, AGENCY));
+    expect(r!.state).toBe('past_due');
+    expect(await (await post(raw, 'fake-sig')).json()).toEqual({ received: true, result: 'duplicate' });
+  });
+
+  it('500 when the handler throws, with the error recorded on the event row', async () => {
+    const res = await post(body('e2', 'checkout.session.completed', { subscription: 'sub_missing' }), 'fake-sig');
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(await res.json())).not.toContain('sub_missing');
+    const [rec] = await dbs.owner.select().from(stripeEvent).where(eq(stripeEvent.id, 'e2'));
+    expect(rec).toMatchObject({ processedAt: null, error: expect.any(String) });
+  });
+});

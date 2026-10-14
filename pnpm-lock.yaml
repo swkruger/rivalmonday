@@ -29,6 +29,9 @@ importers:
       '@cs/ask':
         specifier: workspace:*
         version: link:../../packages/ask
+      '@cs/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
       '@cs/core':
         specifier: workspace:*
         version: link:../../packages/core
