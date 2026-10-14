@@ -101,7 +101,8 @@ export const listPlatformCosts = defineTool({
         const enabled = cfg?.enabled ?? true;
         const warnDays = cfg?.warnDays ?? 7;
         const lowThresholdUsd = num(cfg?.lowThresholdUsd ?? null);
-        const configured = deps.costEnvPresent ? deps.costEnvPresent[st.service] === true : st.latest != null;
+        // Only the worker holds vendor credentials: a service is configured once the worker has written a snapshot.
+        const configured = st.latest != null;
         const latest = st.latest ? toSnapPoint(st.latest) : null;
         const rate = meta.kind === 'balance' ? burnRate(st.points, now) : null;
         const status: ServiceStatus = serviceStatus({ enabled, configured, kind: meta.kind, latest, lowThresholdUsd, warnDays, rate });

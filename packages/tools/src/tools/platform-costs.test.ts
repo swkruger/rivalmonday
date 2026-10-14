@@ -92,7 +92,7 @@ describe('list_platform_costs', () => {
     const by = Object.fromEntries(r.services.map((s) => [s.service, s]));
     expect(by.dataforseo).toMatchObject({ status: 'not_configured', amountUsd: null, daysLeft: null });
     expect(by.neon).toMatchObject({ status: 'not_configured', amountUsd: null });
-    expect(by.openrouter!.status).toBe('not_configured'); // configured but no snapshot yet
+    expect(by.openrouter!.status).toBe('not_configured'); // no snapshot yet
     expect(by.scrapecreators).toMatchObject({ unit: 'credits', kind: 'balance', label: 'ScrapeCreators' });
     expect(r.summary).toEqual({ mtdUsd: 0, projectedMonthUsd: 0, lowCount: 0 });
     expect(r.months).toHaveLength(6);

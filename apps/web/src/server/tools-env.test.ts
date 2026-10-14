@@ -78,13 +78,3 @@ describe('registry is bound to the environment it was built for', () => {
     expect(createDbMock).toHaveBeenCalledTimes(1);
   });
 });
-
-describe('costEnvPresent (8c)', () => {
-  it('reports presence only, requiring every key of a multi-key vendor', async () => {
-    const { costEnvPresent } = await import('./tools');
-    expect(costEnvPresent({ OPENROUTER_API_KEY: 'k', DATAFORSEO_LOGIN: 'l', NEON_API_KEY: 'n' } as never)).toEqual({
-      openrouter: true, dataforseo: false, scrapecreators: false, apify: false, anthropic: false, neon: false,
-    });
-    expect(costEnvPresent({ NEON_API_KEY: 'n', NEON_ORG_ID: 'o', DATAFORSEO_LOGIN: 'l', DATAFORSEO_PASSWORD: 'p' } as never)).toMatchObject({ neon: true, dataforseo: true });
-  });
-});

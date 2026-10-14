@@ -17,7 +17,8 @@ export async function platformOwnerEmails(deps: Pick<SnapshotDeps, 'service' | '
 
 const usd = (n: number) => `$${n.toFixed(2)}`;
 
-export async function evaluateAlerts(deps: SnapshotDeps): Promise<{ emailed: ServiceKey[]; cleared: ServiceKey[] }> {
+/** `skip`: services that were not_configured in this run (no worker credentials): neither set nor clear their alert. */
+export async function evaluateAlerts(deps: SnapshotDeps, skip: ReadonlySet<ServiceKey> = new Set()): Promise<{ emailed: ServiceKey[]; cleared: ServiceKey[] }> {
   const now = (deps.now ?? (() => new Date()))();
   const db: Db = deps.service;
   const emailed: ServiceKey[] = [];
@@ -27,6 +28,7 @@ export async function evaluateAlerts(deps: SnapshotDeps): Promise<{ emailed: Ser
   for (const cfg of services) {
     if (!cfg.enabled) continue;
     const key = cfg.service as ServiceKey;
+    if (skip.has(key)) continue;
     const meta = SERVICES[key];
     const [latestRow] = await db.select().from(platformCostSnapshot).where(eq(platformCostSnapshot.service, key)).orderBy(desc(platformCostSnapshot.takenAt)).limit(1);
     if (!latestRow) continue;

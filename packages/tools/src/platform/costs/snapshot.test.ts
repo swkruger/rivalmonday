@@ -177,6 +177,25 @@ describe('evaluateAlerts', () => {
     expect((await svc('openrouter')).alertedAt).not.toBeNull();
   });
 
+  it('a service that is not_configured in this run neither emails nor clears alerted_at', async () => {
+    orBalance = 3;
+    await snapshotAll(mk());
+    expect(sent).toHaveLength(1);
+    // A later ok reading exists, but this run has no OpenRouter key: the alert state must be left alone.
+    await dbs.owner.insert(platformCostSnapshot).values({ service: 'openrouter', takenAt: new Date(clock.getTime() + 3_600_000), status: 'ok', kind: 'balance', amountUsd: '50' });
+    nextDay();
+    const { OPENROUTER_API_KEY: _omit, ...env } = ENV;
+    const r = await snapshotAll(mk({ env }));
+    expect(r.statuses.openrouter).toBe('not_configured');
+    expect((await svc('openrouter')).alertedAt).not.toBeNull();
+    expect(sent).toHaveLength(1);
+    // With the key back the recovery clears it as before.
+    nextDay();
+    orBalance = 50;
+    await snapshotAll(mk());
+    expect((await svc('openrouter')).alertedAt).toBeNull();
+  });
+
   it('evaluateAlerts alone reports emailed services', async () => {
     orBalance = 3;
     await snapshotAll(mk());

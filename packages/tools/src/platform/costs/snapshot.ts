@@ -81,6 +81,6 @@ export async function snapshotAll(deps: SnapshotDeps): Promise<{ written: number
     });
     written++;
   }
-  await evaluateAlerts(deps);
+  await evaluateAlerts(deps, new Set(KEYS.filter((k) => statuses[k] === 'not_configured')));
   return { written, statuses };
 }

@@ -8,8 +8,8 @@ import { signIn } from './helpers';
 
 /**
  * Phase 8c platform costs. `admin@e2e.test` is a platform owner (PLATFORM_ADMIN_EMAILS); `staff@e2e.test` is invited to
- * the house agency by the seed and gets a `platform_admin` staff row here. The seed makes DataForSEO "configured"
- * (dummy credentials in the server env) with a balance of $8.20 under its $10 threshold, so the Low strip shows.
+ * the house agency by the seed and gets a `platform_admin` staff row here. The seed gives DataForSEO snapshots
+ * (a service counts as configured once the worker has written one) with a balance of $8.20 under its $10 threshold, so the Low strip shows.
  * The worker job is never processed in E2E and no vendor key is needed.
  */
 const STAFF_STATE = fileURLToPath(new URL('../test-results/support-staff-state.json', import.meta.url)); // shared with support.spec.ts

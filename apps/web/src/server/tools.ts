@@ -12,19 +12,6 @@ import { enqueueFor, jobStatusFor } from './queue';
 import { platformAdmins } from './runtime-env';
 import { webStore } from './store';
 
-/** 8c: which vendor credentials this deployment has (presence only, never values), so an unset key reads "Not configured" instead of "Error". */
-export function costEnvPresent(env: NodeJS.ProcessEnv = process.env): NonNullable<ToolDeps['costEnvPresent']> {
-  const has = (...keys: string[]) => keys.every((k) => Boolean(env[k]));
-  return {
-    openrouter: has('OPENROUTER_API_KEY'),
-    dataforseo: has('DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD'),
-    scrapecreators: has('SCRAPECREATORS_API_KEY'),
-    apify: has('APIFY_TOKEN'),
-    anthropic: has('ANTHROPIC_ADMIN_KEY'),
-    neon: has('NEON_API_KEY', 'NEON_ORG_ID'),
-  };
-}
-
 /**
  * P16: query embeddings for `search` exist only in the `dev` environment with an OpenRouter key (DEMO/TEST/E2E never
  * call OpenRouter). The AI client is built lazily on the first query; a failure there makes `search` fall back to FTS.
@@ -61,7 +48,6 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     kbImportEnabled: webEnv().kbImport,
     platformAdmins: platformAdmins(name),
     appUrl: webEnv().appUrl,
-    costEnvPresent: costEnvPresent(),
     evidenceStore: { get: (key) => store.get(key) },
     embedQuery: embedQueryFor(name, service),
   };
