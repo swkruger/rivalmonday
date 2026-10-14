@@ -33,6 +33,19 @@ describe('POST /api/stripe/webhook', () => {
     expect(await dbs.owner.select().from(stripeEvent)).toHaveLength(0);
   });
 
+  it('404 on a keyless production deployment (the fake gateway must never accept forged events)', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    try {
+      const res = await post(body('e1', 'invoice.payment_failed', {}), 'fake-sig');
+      expect(res.status).toBe(404);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    expect(await dbs.owner.select().from(stripeEvent)).toHaveLength(0);
+    const [r] = await dbs.owner.select().from(agencyBilling).where(eq(agencyBilling.agencyId, AGENCY));
+    expect(r!.state).toBe('active');
+  });
+
   it('200 with the handler result for a valid (fake) signature, then duplicate', async () => {
     const raw = body('e1', 'invoice.payment_failed', {});
     const res = await post(raw, 'fake-sig');

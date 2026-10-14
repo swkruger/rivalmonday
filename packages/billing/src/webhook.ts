@@ -1,4 +1,4 @@
-import { type Db, type Tx, agencyBilling, plan, stripeEvent } from '@cs/db';
+import { type AgencyBillingRow, type Db, type Tx, agencyBilling, plan, stripeEvent } from '@cs/db';
 import { eq, inArray } from 'drizzle-orm';
 import { applyBillingSignal, lockBillingRow } from './apply';
 import type { BillingSignal } from './state';
@@ -37,17 +37,22 @@ const STATE_EVENTS = new Set([
   'invoice.payment_failed',
 ]);
 
-async function onCheckoutCompleted(tx: Tx, gw: BillingGateway, agencyId: string, obj: Obj, now: Date): Promise<BillingSignal | null> {
+/**
+ * R12: facts (subscription id, plan, seats) are recorded even when the R3 guard skips the state signal, so a late
+ * checkout event never leaves `stripe_subscription_id` null. Returns false when the event carries no subscription.
+ */
+async function recordCheckoutFacts(tx: Tx, gw: BillingGateway, row: AgencyBillingRow, obj: Obj): Promise<boolean> {
   const subscriptionId = idOf(obj.subscription);
-  if (!subscriptionId) return null;
+  if (!subscriptionId) return false;
+  if (row.stripeSubscriptionId && row.stripeSubscriptionId !== subscriptionId) return true;
   const sub = await gw.getSubscription(subscriptionId);
   const priceIds = sub.items.map((i) => i.priceId);
   const [matched] = priceIds.length ? await tx.select({ id: plan.id }).from(plan).where(inArray(plan.stripeBasePriceId, priceIds)).limit(1) : [];
   await tx
     .update(agencyBilling)
     .set({ stripeSubscriptionId: subscriptionId, billableSeatsSynced: sub.seatQuantity, ...(matched && { planId: matched.id }) })
-    .where(eq(agencyBilling.agencyId, agencyId));
-  return { kind: 'subscription_active', now };
+    .where(eq(agencyBilling.agencyId, row.agencyId));
+  return true;
 }
 
 async function onSubscriptionUpdated(gw: BillingGateway, obj: Obj, now: Date): Promise<BillingSignal | null> {
@@ -77,6 +82,12 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: StripeEventLike): Pro
   }
   const { agencyId } = found;
   const row = await lockBillingRow(tx, agencyId);
+  // R12: record facts first, independent of ordering.
+  let hasSubscription = true;
+  if (event.type === 'checkout.session.completed') hasSubscription = await recordCheckoutFacts(tx, gw, row, obj);
+  else if (!row.stripeSubscriptionId && event.type.startsWith('customer.subscription.') && str(obj.id)) {
+    await tx.update(agencyBilling).set({ stripeSubscriptionId: str(obj.id) }).where(eq(agencyBilling.agencyId, agencyId));
+  }
   // R3 ordering guard: a delivery older than the newest applied event must not overwrite newer state.
   if (row.lastStripeEventAt && event.created * 1000 < row.lastStripeEventAt.getTime()) return 'ignored';
 
@@ -84,7 +95,7 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: StripeEventLike): Pro
   let signal: BillingSignal | null;
   switch (event.type) {
     case 'checkout.session.completed':
-      signal = await onCheckoutCompleted(tx, gw, agencyId, obj, now);
+      signal = hasSubscription ? { kind: 'subscription_active', now } : null;
       break;
     case 'customer.subscription.updated':
       signal = await onSubscriptionUpdated(gw, obj, now);

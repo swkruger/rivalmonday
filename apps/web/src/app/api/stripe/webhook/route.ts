@@ -1,4 +1,4 @@
-import { InvalidSignature, gatewayFor, handleStripeEvent } from '@cs/billing';
+import { InvalidSignature, gatewayFor, handleStripeEvent, usesFakeGateway } from '@cs/billing';
 import { dbs } from '@/server/db';
 import { activeEnvName } from '@/server/dev-guard';
 import { webEnv } from '@/server/env';
@@ -10,11 +10,14 @@ const json = (body: unknown, status: number) => Response.json(body, { status });
 
 /** `POST /api/stripe/webhook`: public in `proxy.ts`; authenticates by Stripe signature only. Bodies/payloads are never logged. */
 export async function POST(req: Request) {
+  const env = activeEnvName();
+  const stripeEnv = webEnv().stripe ?? {};
+  // R13: the fake gateway accepts a constant signature, so a keyless production deployment must not serve this route.
+  if (usesFakeGateway(stripeEnv, env) && process.env.NODE_ENV === 'production' && env !== 'test') return new Response('Not found', { status: 404 });
   const signature = req.headers.get('stripe-signature');
   if (!signature) return json({ error: 'Missing signature' }, 400);
   const rawBody = await req.text();
-  const env = activeEnvName();
-  const gw = gatewayFor(webEnv().stripe ?? {}, env);
+  const gw = gatewayFor(stripeEnv, env);
   let event;
   try {
     event = gw.verifyWebhook(rawBody, signature);

@@ -41,6 +41,20 @@ describe('handleStripeEvent', () => {
     expect((await record('evt_1'))?.processedAt).not.toBeNull();
   });
 
+  it('a stale checkout.session.completed still records subscription, plan and seats (R12)', async () => {
+    await seed('trialing');
+    gw.seedSubscription({ id: 'sub_1', customerId: CUS, seatQuantity: 4, items: [{ id: 'i1', priceId: 'price_base', quantity: 1 }] });
+    expect(await handle(ev('new', 'invoice.paid', {}, T0 + 5))).toBe('processed');
+    expect(await handle(ev('old', 'checkout.session.completed', { subscription: 'sub_1' }, T0))).toBe('ignored');
+    expect(await row()).toMatchObject({ state: 'active', stripeSubscriptionId: 'sub_1', planId, billableSeatsSynced: 4, lastStripeEventAt: new Date((T0 + 5) * 1000) });
+  });
+
+  it('customer.subscription.* fills a missing stripe_subscription_id from the object id', async () => {
+    await seed('active');
+    await handle(ev('e1', 'customer.subscription.updated', { id: 'sub_9', status: 'incomplete' }));
+    expect((await row()).stripeSubscriptionId).toBe('sub_9');
+  });
+
   it('subscription.updated: active, trialing with/without payment method', async () => {
     await seed('past_due', { pastDueSince: new Date(T0 * 1000 - 864e5) });
     expect(await handle(ev('e1', 'customer.subscription.updated', { id: 'sub_1', status: 'active' }))).toBe('processed');
