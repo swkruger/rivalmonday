@@ -1,20 +1,22 @@
 'use client';
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label } from '@cs/ui';
-import { useActionState, useState } from 'react';
+import { useActionState, useCallback, useState } from 'react';
 import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { saveCostItemAction } from '../actions';
-import { FormMessage, selectClass } from './form-bits';
+import { FormMessage, selectClass, useCloseOnSave } from './form-bits';
 import type { CostItem } from './types';
 
 /** Add (no `item`) or edit one manual cost. A one-off has no period or end date, so those fields are hidden for it. */
 export function CostItemDialog({ item }: { item?: CostItem }) {
   const [state, formAction, pending] = useActionState(saveCostItemAction, { ok: true } as FormResult);
   const [kind, setKind] = useState<CostItem['kind']>(item?.kind ?? 'recurring');
+  const resetKind = useCallback(() => setKind(item?.kind ?? 'recurring'), [item?.kind]);
+  const { open, setOpen, formKey, shown } = useCloseOnSave(state, resetKind);
   const today = new Date().toISOString().slice(0, 10);
   return (
     <WriteGuard>
-      <Dialog>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           {item ? <Button variant="outline" size="sm" aria-label={`Edit ${item.name}`}>Edit</Button> : <Button>Add cost</Button>}
         </DialogTrigger>
@@ -23,8 +25,8 @@ export function CostItemDialog({ item }: { item?: CostItem }) {
             <DialogTitle>{item ? 'Edit cost' : 'Add cost'}</DialogTitle>
             <DialogDescription>A cost that has no API, like hosting or a domain.</DialogDescription>
           </DialogHeader>
-          <form action={formAction} className="flex flex-col gap-3">
-            <FormMessage state={state} />
+          <form key={formKey} action={formAction} className="flex flex-col gap-3">
+            <FormMessage state={shown} />
             {item && <input type="hidden" name="id" value={item.id} />}
             <div className="flex flex-col gap-2">
               <Label htmlFor="ci-name">Name</Label>

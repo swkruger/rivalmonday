@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WriteGuard } from '@/components/read-only';
 
-const m = vi.hoisted(() => ({ themed: [] as string[], unread: vi.fn(async () => 3) }));
+const m = vi.hoisted(() => ({ themed: [] as string[], unread: vi.fn(async () => 3), role: vi.fn(async () => 'owner' as string | null) }));
 // The support viewer's ctx is the target agency's; a user viewer here is the operator's own agency.
 vi.mock('@/server/theme', () => ({
   themeForViewer: async (v: { kind: string }) => {
@@ -15,10 +15,10 @@ vi.mock('@/server/theme', () => ({
 vi.mock('@/server/tools', () => ({ callTool: async () => ({ items: [] }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {}, app: {} }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
-vi.mock('@cs/tools', () => ({ unreadCount: m.unread, isPlatformOperator: async () => true }));
+vi.mock('@cs/tools', () => ({ unreadCount: m.unread, platformRole: m.role }));
 vi.mock('./sidebar', () => ({
-  Sidebar: ({ flags }: { flags: { backToPlatform?: string; isPlatformOperator?: boolean } }) => (
-    <nav data-testid="sidebar" data-back={flags.backToPlatform ?? ''} data-operator={String(Boolean(flags.isPlatformOperator))} />
+  Sidebar: ({ flags }: { flags: { backToPlatform?: string; isPlatformOperator?: boolean; isPlatformOwner?: boolean } }) => (
+    <nav data-testid="sidebar" data-back={flags.backToPlatform ?? ''} data-operator={String(Boolean(flags.isPlatformOperator))} data-owner={String(Boolean(flags.isPlatformOwner))} />
   ),
 }));
 vi.mock('./mobile-nav', () => ({ MobileNav: () => null }));
@@ -38,6 +38,8 @@ const supportViewer = {
 beforeEach(() => {
   m.themed.length = 0;
   m.unread.mockClear();
+  m.role.mockClear();
+  m.role.mockResolvedValue('owner');
   document.documentElement.removeAttribute('style');
 });
 
@@ -82,5 +84,31 @@ describe('AppShell', () => {
     expect(screen.queryByRole('region', { name: 'Support session' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
     expect(screen.getByTestId('sidebar').dataset.back).toBe('');
+  });
+
+  const own = (() => { const { support: _s, ...o } = ctx; return o; })();
+  const userViewer = { kind: 'user', userId: 'op', email: 'op@example.com', name: 'Op Erator', ctx: own, membership: { id: 'm' }, memberships: [{ id: 'm' }] };
+
+  it('(app) layout (platformRole prop omitted): resolves the role once, so an owner still gets owner nav', async () => {
+    render(await AppShell({ viewer: userViewer as never, ctx: own as never, children: <p>page</p> }));
+    expect(m.role).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('sidebar').dataset.operator).toBe('true');
+    expect(screen.getByTestId('sidebar').dataset.owner).toBe('true');
+  });
+
+  it('(app) layout: a staff operator is an operator but not an owner; a non-operator is neither', async () => {
+    m.role.mockResolvedValue('staff');
+    const { unmount } = render(await AppShell({ viewer: userViewer as never, ctx: own as never, children: <p>page</p> }));
+    expect(screen.getByTestId('sidebar').dataset).toMatchObject({ operator: 'true', owner: 'false' });
+    unmount();
+    m.role.mockResolvedValue(null);
+    render(await AppShell({ viewer: userViewer as never, ctx: own as never, children: <p>page</p> }));
+    expect(screen.getByTestId('sidebar').dataset).toMatchObject({ operator: 'false', owner: 'false' });
+  });
+
+  it('(platform) layout passes the role: no second lookup', async () => {
+    render(await AppShell({ viewer: userViewer as never, ctx: own as never, platformRole: 'owner', children: <p>page</p> }));
+    expect(m.role).not.toHaveBeenCalled();
+    expect(screen.getByTestId('sidebar').dataset.owner).toBe('true');
   });
 });

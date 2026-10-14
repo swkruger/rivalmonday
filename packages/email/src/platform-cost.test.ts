@@ -22,6 +22,13 @@ describe('platform_cost_low email', () => {
     expect(out.html).toContain('#2A6BAC');
   });
 
+  it('days clause: less than a day, about 1 day, about N days', async () => {
+    const text = async (daysLeft: number) => (await renderEmail({ template: 'platform_cost_low', props: props({ daysLeft }) })).text;
+    expect(await text(0)).toContain('$12.34 left, less than a day at the current rate.');
+    expect(await text(1)).toContain('$12.34 left, about 1 day at the current rate.');
+    expect(await text(5)).toContain('$12.34 left, about 5 days at the current rate.');
+  });
+
   it('omits Top up when billingUrl null, and the days clause when daysLeft null', async () => {
     const out = await renderEmail({ template: 'platform_cost_low', props: props({ billingUrl: null, daysLeft: null }) });
     expect(out.text).toContain('OpenRouter is running low: $12.34 left. See all costs: https://app.example/platform/costs');

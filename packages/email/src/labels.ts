@@ -10,3 +10,10 @@ export const changeTypeLabel = (type: string): string => {
   const s = CHANGE_LABELS[type] ?? type.replace(/_/g, ' ');
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
+
+/** "less than a day" (≤ 0), "about 1 day", "about N days": the rounded days-left phrase shared by the platform cost strip and email. */
+export const approxDaysText = (days: number): string => {
+  const n = Math.round(days);
+  if (n <= 0) return 'less than a day';
+  return n === 1 ? 'about 1 day' : `about ${n} days`;
+};

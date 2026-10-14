@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../actions', () => ({
@@ -10,10 +10,12 @@ vi.mock('../actions', () => ({
 }));
 vi.mock('next/link', () => ({ default: ({ href, children, ...r }: { href: string; children: React.ReactNode }) => <a href={href} {...r}>{children}</a> }));
 import { ReadOnlyProvider } from '@/components/read-only';
+import { saveCostItemAction, updateCostServiceAction } from '../actions';
 import { CostItemDialog } from './cost-item-dialog';
 import { CostItemsTable } from './cost-items-table';
 import { CostWarningStrip } from './cost-warning-strip';
 import { MonthlyChart } from './monthly-chart';
+import { ServiceSettingsDialog } from './service-settings-dialog';
 import { ServicesTable } from './services-table';
 import type { CostService } from './types';
 
@@ -33,6 +35,12 @@ describe('CostWarningStrip', () => {
     expect(screen.getByRole('link', { name: 'View costs →' }).getAttribute('href')).toBe('/platform/costs');
     rerender(<CostWarningStrip low={[{ ...one, daysLeft: null }]} />);
     expect(text()).toBe('OpenRouter balance low: $12.34. View costs →');
+    rerender(<CostWarningStrip low={[{ ...one, daysLeft: 0.2 }]} />);
+    expect(text()).toBe('OpenRouter balance low: $12.34 · less than a day left. View costs →');
+    rerender(<CostWarningStrip low={[{ ...one, daysLeft: 1 }]} />);
+    expect(text()).toBe('OpenRouter balance low: $12.34 · about 1 day left. View costs →');
+    rerender(<CostWarningStrip low={[svc({ service: 'apify', label: 'Apify', kind: 'usage', status: 'low', amountUsd: 4.9, capUsd: 5 })]} />);
+    expect(text()).toBe('Apify balance low: $0.10 left of $5.00 cap. View costs →');
     rerender(<CostWarningStrip low={[one, svc({ service: 'apify', label: 'Apify', status: 'low' })]} />);
     expect(text()).toBe('2 services are low on balance. View costs →');
     rerender(<CostWarningStrip low={[]} />);
@@ -61,7 +69,7 @@ describe('ServicesTable', () => {
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
     expect(row('ScrapeCreators').getByText('7,099 credits ≈ $3.55')).toBeTruthy();
     expect(row('ScrapeCreators').getByText('Low')).toBeTruthy();
-    expect(row('Apify').getByText('$0.95 of $5.00')).toBeTruthy();
+    expect(row('Apify').getByText('$0.95 used of $5.00')).toBeTruthy();
     expect(row('Apify').getByText('Unavailable on this plan')).toBeTruthy();
     expect(row('Neon').getByText('12.3 CU-hours ≈ $1.23')).toBeTruthy();
     expect(row('Anthropic').getByText('Error')).toBeTruthy();
@@ -131,5 +139,54 @@ describe('CostItemsTable', () => {
   it('has no controls in a read-only session', () => {
     render(<ReadOnlyProvider readOnly><CostItemsTable items={items} /></ReadOnlyProvider>);
     expect(screen.queryByRole('button')).toBeNull();
+  });
+});
+
+describe('dialogs close and reset after a save', () => {
+  it('CostItemDialog closes on "Saved." and the next open has an empty form', async () => {
+    vi.mocked(saveCostItemAction).mockResolvedValue({ ok: true, message: 'Saved.' });
+    render(<CostItemDialog />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add cost' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Hosting' } });
+    fireEvent.change(screen.getByLabelText('Amount (USD)'), { target: { value: '20' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: 'Add cost' }));
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('');
+    expect(screen.queryByText('Saved.')).toBeNull();
+  });
+
+  it('ServiceSettingsDialog closes on a successful save', async () => {
+    vi.mocked(updateCostServiceAction).mockResolvedValue({ ok: true, message: 'Saved.' });
+    render(<ServiceSettingsDialog service={svc({})} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit OpenRouter' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+});
+
+describe('ServiceSettingsDialog hints', () => {
+  const open = (o: Partial<CostService>) => {
+    const s = svc(o);
+    render(<ServiceSettingsDialog service={s} />);
+    fireEvent.click(screen.getByRole('button', { name: `Edit ${s.label}` }));
+  };
+  it('ScrapeCreators without a rate: dollars-per-credit hint', () => {
+    open({ service: 'scrapecreators', label: 'ScrapeCreators', unit: 'credits' });
+    expect(screen.getByText('Warnings need a dollars-per-credit rate.')).toBeTruthy();
+    expect(screen.queryByText('Usage services without a plan cap never warn.')).toBeNull();
+  });
+  it('Neon: CU-hour rate hint and the no-cap hint', () => {
+    open({ service: 'neon', label: 'Neon', kind: 'usage', unit: 'CU-hours' });
+    expect(screen.getByText('Warnings need a dollars-per-CU-hour rate.')).toBeTruthy();
+    expect(screen.getByText('Usage services without a plan cap never warn.')).toBeTruthy();
+  });
+  it('Anthropic: no-cap hint only; OpenRouter: no hint', () => {
+    open({ service: 'anthropic', label: 'Anthropic', kind: 'usage' });
+    expect(screen.getByText('Usage services without a plan cap never warn.')).toBeTruthy();
+    expect(screen.queryByText(/Warnings need/)).toBeNull();
+    cleanup();
+    open({});
+    expect(screen.queryByText(/never warn|Warnings need/)).toBeNull();
   });
 });

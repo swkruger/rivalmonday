@@ -54,8 +54,7 @@ export async function evaluateAlerts(deps: SnapshotDeps, skip: ReadonlySet<Servi
     const remaining = meta.kind === 'balance' ? latest.amountUsd : latest.capUsd != null && latest.amountUsd != null ? latest.capUsd - latest.amountUsd : null;
     let amountText: string;
     if (meta.kind === 'usage') amountText = `${usd(remaining ?? 0)} of ${usd(latest.capUsd ?? 0)} plan cap`;
-    else if (latest.amountUsd != null) amountText = usd(latest.amountUsd);
-    else amountText = `${Math.round(num(latestRow.units) ?? 0).toLocaleString('en-US')} ${meta.unit ?? 'units'}`;
+    else amountText = usd(latest.amountUsd ?? 0); // a balance service can only be Low with a dollar amount (credit services need a unit rate first)
     const payload: PlatformCostLowPayload = {
       label: meta.label,
       amountText,

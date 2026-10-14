@@ -86,9 +86,8 @@ test.describe.serial('platform costs', () => {
       await dialog.getByLabel('Name').fill(NAME);
       await dialog.getByLabel('Amount (USD)').fill('300');
       await dialog.getByRole('button', { name: 'Save' }).click();
-      // The dialog stays open after a save and shows the result; close it to read the page behind it.
-      await expect(dialog.getByRole('status')).toHaveText('Saved.');
-      await dialog.getByRole('button', { name: 'Close' }).click();
+      // A successful save closes the dialog (so a second click cannot add a duplicate).
+      await expect(dialog).toBeHidden();
       const row = page.getByRole('row', { name: new RegExp(NAME) });
       await expect(row).toBeVisible();
       await expect(row).toContainText('Monthly');

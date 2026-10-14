@@ -1,6 +1,6 @@
 import { type AccessContext, isAgencyRole } from '@cs/core';
 import { client, withTenant } from '@cs/db';
-import { type ClientSummary, isPlatformOperator, type PlatformRole, unreadCount } from '@cs/tools';
+import { type ClientSummary, type PlatformRole, platformRole as resolvePlatformRole, unreadCount } from '@cs/tools';
 import { eq } from 'drizzle-orm';
 import { ReadOnlyProvider } from '@/components/read-only';
 import { GuestBanner } from '@/components/shell/guest-banner';
@@ -29,7 +29,7 @@ import type { Viewer } from '@/server/viewer';
 /** The support banner's height: two lines (h-14) below `sm`, one line (h-9) from `sm` up. */
 const BANNER_OFFSET = 'pt-14 sm:pt-9';
 
-/** `platformRole` (8c): a caller that already resolved the viewer's platform role (the `(platform)` layout) passes it so it is looked up once; omitted, the shell resolves operator-ness itself. */
+/** `platformRole` (8c): a caller that already resolved the viewer's platform role (the `(platform)` layout) passes it so it is looked up once; omitted (the `(app)` layout), the shell resolves the role itself, once. */
 export async function AppShell({ viewer, ctx, children, platformRole }: { viewer: Exclude<Viewer, { kind: 'member-less' }>; ctx: AccessContext; children: React.ReactNode; platformRole?: PlatformRole | null }) {
   // 8b M1: the shell's own viewer themes it — the support agency in `(app)` during a session (g8), the operator's own
   // agency in `(platform)`. The root layout's `<html>` vars are never the session's (it uses the operator viewer).
@@ -46,9 +46,10 @@ export async function AppShell({ viewer, ctx, children, platformRole }: { viewer
       : null;
   // Phase 8b M2: no inbox in a support session, so the operator's own unread count is never read there.
   const unread = viewer.kind === 'support' ? 0 : await unreadCount(dbs().service, viewer.kind === 'guest' ? { contactId: viewer.contactId } : { userId: viewer.userId });
-  const operator = viewer.kind === 'user' && (platformRole !== undefined ? platformRole !== null : await isPlatformOperator({ service: dbs().service, platformAdmins: platformAdmins() }, ctx));
+  const role = viewer.kind !== 'user' ? null : platformRole !== undefined ? platformRole : await resolvePlatformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx);
+  const operator = role !== null;
   const support = viewer.kind === 'support' ? viewer.session : null;
-  const flags = { ...navFlagsFor(viewer, operator, assistantName, platformRole === 'owner'), ...(support ? { backToPlatform: `/platform/agencies/${support.agencyId}` } : {}) };
+  const flags = { ...navFlagsFor(viewer, operator, assistantName, role === 'owner'), ...(support ? { backToPlatform: `/platform/agencies/${support.agencyId}` } : {}) };
   const navClients = clients.map(({ id, name }) => ({ id, name }));
   const menu = (
     <MobileNav displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} flags={flags} clients={navClients} />
