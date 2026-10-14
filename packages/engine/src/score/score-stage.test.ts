@@ -13,6 +13,8 @@ import { detailsSignature, factsSignature, scoreEvent } from './score-stage';
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const packs = createPackLoader();
+// Recency is scored against `now`; a pinned clock keeps routes stable as real time passes the fixed `day()` dates.
+const NOW = day(6);
 const unit = (i: number) => Array.from({ length: EMBEDDING_DIMENSIONS }, (_, k) => (k === i ? 1 : 0));
 
 beforeEach(async () => {
@@ -36,7 +38,7 @@ async function event(over: Partial<typeof changeEvent.$inferInsert> = {}) {
 describe('scoreEvent', () => {
   it('scores each tracking client separately, and keeps each agency to its own score', async () => {
     const id = await event();
-    expect(await scoreEvent({ db: dbs.service, packs }, id)).toEqual({ scored: 2, failed: 0, routes: { alert: 1, brief: 0, archive: 1 } });
+    expect(await scoreEvent({ db: dbs.service, packs }, id, { now: NOW })).toEqual({ scored: 2, failed: 0, routes: { alert: 1, brief: 0, archive: 1 } });
     const rows = await dbs.owner.select().from(eventScore).orderBy(asc(eventScore.score));
     expect(rows.map((r) => [r.clientId, r.route, r.factors.serviceOverlap])).toEqual([[IDS.clientB1, 'archive', 0.2], [IDS.clientA1, 'alert', 1]]);
     expect(rows[0]?.packVersion).toBe((await loadVerticalPack('hvac_plumbing')).version);
@@ -48,7 +50,7 @@ describe('scoreEvent', () => {
     await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorX });
     await dbs.owner.update(client).set({ services: ['whitening'] }).where(eq(client.id, IDS.clientA2));
     const id = await event();
-    await scoreEvent({ db: dbs.service, packs }, id);
+    await scoreEvent({ db: dbs.service, packs }, id, { now: NOW });
     const [a2] = await dbs.owner.select().from(eventScore).where(eq(eventScore.clientId, IDS.clientA2));
     expect(a2?.factors.serviceOverlap).toBe(0.6); // dental mapping is null → unmapped
   });
@@ -56,7 +58,7 @@ describe('scoreEvent', () => {
   it('discounts an event that repeats an earlier one from the same competitor', async () => {
     await event({ occurredAt: day(1) });
     const id = await event({ occurredAt: day(5) });
-    await scoreEvent({ db: dbs.service, packs }, id);
+    await scoreEvent({ db: dbs.service, packs }, id, { now: NOW });
     const [a1] = await dbs.owner.select().from(eventScore).where(eq(eventScore.clientId, IDS.clientA1));
     expect(a1?.factors).toMatchObject({ maxSimilarity: 1, novelty: 0 });
     expect(a1?.route).toBe('archive');
@@ -65,7 +67,7 @@ describe('scoreEvent', () => {
   it('does not archive a second, different price cut on the same block', async () => {
     await event({ occurredAt: day(1), facts: diffFacts(extractNumericFacts('$100'), extractNumericFacts('$80')) });
     const id = await event({ occurredAt: day(30), facts: diffFacts(extractNumericFacts('$80'), extractNumericFacts('$60')) });
-    await scoreEvent({ db: dbs.service, packs }, id);
+    await scoreEvent({ db: dbs.service, packs }, id, { now: NOW });
     const [a1] = await dbs.owner.select().from(eventScore).where(eq(eventScore.clientId, IDS.clientA1));
     expect(a1?.factors).toMatchObject({ maxSimilarity: null, novelty: 1 });
     expect(a1?.route).not.toBe('archive');
@@ -76,20 +78,20 @@ describe('scoreEvent', () => {
       event({ occurredAt: day(at), changeType: 'rating_change', channels: ['google_business_profile'], services: {}, facts: [], summary: 'Google rating changed', details: { changeType: 'rating_change', ratingBefore: before, ratingAfter: after } });
     await rating(1, 4.6, 4.5);
     const second = await rating(8, 4.5, 4.4);
-    await scoreEvent({ db: dbs.service, packs }, second);
+    await scoreEvent({ db: dbs.service, packs }, second, { now: NOW });
     const factorsOf = async (id: string) => (await dbs.owner.select().from(eventScore).where(eq(eventScore.eventId, id))).find((r) => r.clientId === IDS.clientA1)?.factors;
     expect(await factorsOf(second)).toMatchObject({ maxSimilarity: null, novelty: 1 });
     const repeat = await rating(9, 4.5, 4.4);
-    await scoreEvent({ db: dbs.service, packs }, repeat);
+    await scoreEvent({ db: dbs.service, packs }, repeat, { now: NOW });
     expect(await factorsOf(repeat)).toMatchObject({ maxSimilarity: 1, novelty: 0 });
   });
 
   it('is idempotent, and scores a client that starts tracking the competitor later', async () => {
     const id = await event();
-    await scoreEvent({ db: dbs.service, packs }, id);
-    expect((await scoreEvent({ db: dbs.service, packs }, id)).scored).toBe(0);
+    await scoreEvent({ db: dbs.service, packs }, id, { now: NOW });
+    expect((await scoreEvent({ db: dbs.service, packs }, id, { now: NOW })).scored).toBe(0);
     await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorX });
-    expect((await scoreEvent({ db: dbs.service, packs }, id)).scored).toBe(1);
+    expect((await scoreEvent({ db: dbs.service, packs }, id, { now: NOW })).scored).toBe(1);
   });
 
   it('isolates a failing client: the others are still scored', async () => {
@@ -99,7 +101,7 @@ describe('scoreEvent', () => {
       throw new Error('no pack');
     });
     await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorX });
-    expect(await scoreEvent({ db: dbs.service, packs: broken }, id)).toMatchObject({ scored: 2, failed: 1 });
+    expect(await scoreEvent({ db: dbs.service, packs: broken }, id, { now: NOW })).toMatchObject({ scored: 2, failed: 1 });
   });
 
   it('never scores a complaint-theme spike for a client whose vertical differs from details.verticalId', async () => {
@@ -111,7 +113,7 @@ describe('scoreEvent', () => {
       facts: [],
       details: { changeType: 'review_spike', verticalId: 'hvac_plumbing', theme: 'price_transparency', themeName: 'Price transparency', count: 4, windowDays: 30, baselineMean: 0.5 },
     });
-    expect(await scoreEvent({ db: dbs.service, packs }, id)).toMatchObject({ scored: 2 }); // A1 and B1 (both hvac_plumbing), not A2 (dental)
+    expect(await scoreEvent({ db: dbs.service, packs }, id, { now: NOW })).toMatchObject({ scored: 2 }); // A1 and B1 (both hvac_plumbing), not A2 (dental)
     const clientIds = (await dbs.owner.select().from(eventScore).where(eq(eventScore.eventId, id))).map((r) => r.clientId).sort();
     expect(clientIds).toEqual([IDS.clientA1, IDS.clientB1].sort());
   });
@@ -123,16 +125,16 @@ describe('scoreEvent', () => {
       return loadVerticalPack(v);
     };
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
-    expect(await scoreEvent({ db: dbs.service, packs: createPackLoader(broken) }, id)).toMatchObject({ scored: 0, failed: 2 });
+    expect(await scoreEvent({ db: dbs.service, packs: createPackLoader(broken) }, id, { now: NOW })).toMatchObject({ scored: 0, failed: 2 });
     const failures = await dbs.owner.select().from(scoreFailure);
     expect(failures.map((f) => f.attempts)).toEqual([1, 1]);
     // Inside the backoff window neither the sweep nor scoreEvent retries the pair.
     expect((await findEngineWork(dbs.service, { limit: 10 })).score).not.toContain(id);
-    expect(await scoreEvent({ db: dbs.service, packs }, id)).toMatchObject({ scored: 0, failed: 0 });
+    expect(await scoreEvent({ db: dbs.service, packs }, id, { now: NOW })).toMatchObject({ scored: 0, failed: 0 });
     // Once the window has passed it is retried, scored, and the failure row is gone.
     await dbs.owner.execute(sql`UPDATE score_failure SET failed_at = now() - interval '2 hours'`);
     expect((await findEngineWork(dbs.service, { limit: 10 })).score).toContain(id);
-    expect(await scoreEvent({ db: dbs.service, packs }, id)).toMatchObject({ scored: 2, failed: 0 });
+    expect(await scoreEvent({ db: dbs.service, packs }, id, { now: NOW })).toMatchObject({ scored: 2, failed: 0 });
     expect(await dbs.owner.select().from(scoreFailure)).toEqual([]);
     err.mockRestore();
   });
@@ -155,7 +157,7 @@ describe('prospects (5b-2 decision 9)', () => {
       .values({ competitorId: IDS.competitorY, changeType: 'promo', channels: ['web'], summary: 'Bright Smiles started a promo', confidence: 0.9, occurredAt: new Date() })
       .returning();
     expect((await findEngineWork(dbs.service, { limit: 50 })).score).not.toContain(ev!.id);
-    expect((await scoreEvent({ db: dbs.service, packs }, ev!.id)).scored).toBe(0);
+    expect((await scoreEvent({ db: dbs.service, packs }, ev!.id, { now: NOW })).scored).toBe(0);
     expect(await dbs.owner.select().from(eventScore)).toEqual([]);
   });
 
@@ -163,7 +165,7 @@ describe('prospects (5b-2 decision 9)', () => {
     await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientB1)); // B1 and A1 both track X
     const id = await event({ occurredAt: new Date() });
     expect((await findEngineWork(dbs.service, { limit: 50 })).score).toContain(id);
-    expect((await scoreEvent({ db: dbs.service, packs }, id)).scored).toBe(1);
+    expect((await scoreEvent({ db: dbs.service, packs }, id, { now: NOW })).scored).toBe(1);
     expect((await dbs.owner.select({ c: eventScore.clientId }).from(eventScore)).map((r) => r.c)).toEqual([IDS.clientA1]);
     expect((await findEngineWork(dbs.service, { limit: 50 })).score).not.toContain(id); // B1 lacks a score but is never offered
   });
@@ -172,14 +174,14 @@ describe('prospects (5b-2 decision 9)', () => {
 describe('tenant-private events and event age (Phase 3b)', () => {
   it('scores a tenant event only for its own client, never for another agency tracking the competitor', async () => {
     const id = await event({ changeType: 'rank_change', agencyId: IDS.agencyA, clientId: IDS.clientA1, facts: [], details: { avgRankBefore: 9, avgRankAfter: 3 } });
-    expect(await scoreEvent({ db: dbs.service, packs }, id)).toMatchObject({ scored: 1 });
+    expect(await scoreEvent({ db: dbs.service, packs }, id, { now: NOW })).toMatchObject({ scored: 1 });
     expect((await dbs.owner.select().from(eventScore)).map((s) => s.clientId)).toEqual([IDS.clientA1]);
   });
 
   it('keeps novelty within the tenant scope: a global event ignores a tenant event with the same embedding', async () => {
     await event({ changeType: 'promo', agencyId: IDS.agencyA, clientId: IDS.clientA1, facts: [], occurredAt: day(1) });
     const id = await event({ changeType: 'promo', facts: [], occurredAt: day(5) });
-    await scoreEvent({ db: dbs.service, packs }, id);
+    await scoreEvent({ db: dbs.service, packs }, id, { now: NOW });
     const [b1] = await dbs.owner.select().from(eventScore).where(eq(eventScore.clientId, IDS.clientB1));
     expect(b1?.factors.maxSimilarity).toBeNull();
   });
