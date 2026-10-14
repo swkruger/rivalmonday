@@ -49,6 +49,17 @@ describe('handleStripeEvent', () => {
     expect(await row()).toMatchObject({ state: 'active', stripeSubscriptionId: 'sub_1', planId, billableSeatsSynced: 4, lastStripeEventAt: new Date((T0 + 5) * 1000) });
   });
 
+  it('re-subscribe: a newer checkout replaces the ended subscription facts; an older replay does not (R12)', async () => {
+    await seed('active', { stripeSubscriptionId: 'sub_old', lastStripeEventAt: new Date(T0 * 1000) });
+    await handle(ev('end', 'customer.subscription.deleted', { id: 'sub_old' }, T0 + 1));
+    expect((await row()).state).toBe('past_due');
+    gw.seedSubscription({ id: 'sub_new', customerId: CUS, seatQuantity: 6, items: [{ id: 'i1', priceId: 'price_base', quantity: 1 }] });
+    expect(await handle(ev('co_new', 'checkout.session.completed', { subscription: 'sub_new' }, T0 + 10))).toBe('processed');
+    expect(await row()).toMatchObject({ state: 'active', stripeSubscriptionId: 'sub_new', billableSeatsSynced: 6, planId });
+    expect(await handle(ev('co_old', 'checkout.session.completed', { subscription: 'sub_old' }, T0 + 2))).toBe('ignored');
+    expect((await row()).stripeSubscriptionId).toBe('sub_new');
+  });
+
   it('customer.subscription.* fills a missing stripe_subscription_id from the object id', async () => {
     await seed('active');
     await handle(ev('e1', 'customer.subscription.updated', { id: 'sub_9', status: 'incomplete' }));

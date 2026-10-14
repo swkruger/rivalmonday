@@ -41,10 +41,12 @@ const STATE_EVENTS = new Set([
  * R12: facts (subscription id, plan, seats) are recorded even when the R3 guard skips the state signal, so a late
  * checkout event never leaves `stripe_subscription_id` null. Returns false when the event carries no subscription.
  */
-async function recordCheckoutFacts(tx: Tx, gw: BillingGateway, row: AgencyBillingRow, obj: Obj): Promise<boolean> {
+async function recordCheckoutFacts(tx: Tx, gw: BillingGateway, row: AgencyBillingRow, obj: Obj, created: number): Promise<boolean> {
   const subscriptionId = idOf(obj.subscription);
   if (!subscriptionId) return false;
-  if (row.stripeSubscriptionId && row.stripeSubscriptionId !== subscriptionId) return true;
+  // A different subscription id replaces the stored one (re-subscribe) unless the event is older than the newest applied one.
+  const stale = !!row.lastStripeEventAt && created * 1000 < row.lastStripeEventAt.getTime();
+  if (row.stripeSubscriptionId && row.stripeSubscriptionId !== subscriptionId && stale) return true;
   const sub = await gw.getSubscription(subscriptionId);
   const priceIds = sub.items.map((i) => i.priceId);
   const [matched] = priceIds.length ? await tx.select({ id: plan.id }).from(plan).where(inArray(plan.stripeBasePriceId, priceIds)).limit(1) : [];
@@ -84,7 +86,7 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: StripeEventLike): Pro
   const row = await lockBillingRow(tx, agencyId);
   // R12: record facts first, independent of ordering.
   let hasSubscription = true;
-  if (event.type === 'checkout.session.completed') hasSubscription = await recordCheckoutFacts(tx, gw, row, obj);
+  if (event.type === 'checkout.session.completed') hasSubscription = await recordCheckoutFacts(tx, gw, row, obj, event.created);
   else if (!row.stripeSubscriptionId && event.type.startsWith('customer.subscription.') && str(obj.id)) {
     await tx.update(agencyBilling).set({ stripeSubscriptionId: str(obj.id) }).where(eq(agencyBilling.agencyId, agencyId));
   }
