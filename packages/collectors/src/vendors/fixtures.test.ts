@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { normalizeGoogleAd } from '../ads/google';
@@ -201,5 +201,57 @@ describe('DataForSEO fixtures (production unless noted, 2026-10-01)', () => {
     expect(scrubbed).not.toMatch(/Pat/);
     expect(scrubbed).toContain('Thank you, [name]! We appreciate you choosing Aire Serv of Central Texas.');
     expect(parsed.at(-1)?.ownerAnswer).toBe('Thank you, [name]! We appreciate you choosing Aire Serv of Central Texas.');
+  });
+});
+
+describe('Phase 12a discovery fixtures (live 2026-10-14, Granbury TX 32.4421,-97.7942)', () => {
+  const mapsItems = (name: string) => ((fixture(name) as Envelope).tasks[0]?.result?.[0]?.items ?? []) as Record<string, unknown>[];
+
+  it.each([['dfs-maps-live-dental.json', 'Dentist'], ['dfs-maps-live-hvac.json', 'HVAC contractor']])('%s: richer Maps fields are present (category, additional_categories, address, lat/lng, is_claimed, work_hours.current_status)', (name, topCategory) => {
+    const items = mapsItems(name);
+    expect(items.length).toBeGreaterThan(5);
+    expect(items.some((i) => i.category === topCategory)).toBe(true);
+    for (const i of items) {
+      expect(typeof i.category).toBe('string');
+      expect(i.additional_categories === null || Array.isArray(i.additional_categories)).toBe(true); // null when no extra categories
+      expect(i.address === null || typeof i.address === 'string').toBe(true);
+      expect(typeof i.latitude).toBe('number');
+      expect(typeof i.longitude).toBe('number');
+      expect(typeof i.is_claimed).toBe('boolean');
+      expect(i).toHaveProperty('phone');
+    }
+    expect(items.some((i) => ['open', 'close'].includes((i.work_hours as { current_status?: string } | undefined)?.current_status ?? ''))).toBe(true);
+    expect(parseMapsItems(((fixture(name) as Envelope).tasks[0]?.result ?? []) as unknown[]).length).toBe(items.length);
+  });
+
+  it('ads_advertisers live: items carry advertiser_id, title, verified and approx_ads_count', () => {
+    const items = mapsItems('dfs-ads-advertisers-live.json').filter((i) => i.type === 'ads_advertiser'); // the list also holds {type:'ads_domain'} rows
+    expect(items.length).toBeGreaterThan(0);
+    for (const i of items) {
+      expect(i.advertiser_id).toMatch(/^AR\d+$/);
+      expect(typeof i.title).toBe('string');
+      expect(typeof i.verified).toBe('boolean');
+      expect(typeof i.approx_ads_count).toBe('number');
+    }
+  });
+
+  it('ScrapeCreators adLibrary/search/ads: searchResults carry page_id and page_name (no second page-search call needed)', () => {
+    const env = fixture('scrapecreators-adlibrary-search.json') as { success: boolean; searchResults: Record<string, unknown>[]; searchResultsCount: number; cursor: string };
+    expect(env.success).toBe(true);
+    expect(env.searchResults.length).toBeGreaterThan(0);
+    for (const r of env.searchResults) {
+      expect(r.page_id).toMatch(/^\d+$/);
+      expect(typeof r.page_name).toBe('string');
+      expect(typeof r.is_active).toBe('boolean');
+      expect(r.ad_archive_id).toMatch(/^\d+$/);
+    }
+    expect(JSON.stringify(env)).not.toMatch(/oh=|_nc_ohc/); // signed CDN query strings are redacted
+  });
+});
+
+describe('fixture hygiene', () => {
+  it('no vendor fixture carries an unredacted Google rwg_token', () => {
+    const dir = fileURLToPath(new URL('../../test/fixtures/vendors/', import.meta.url));
+    for (const f of readdirSync(dir)) expect(readFileSync(`${dir}${f}`, 'utf8'), f).not.toMatch(/rwg_token=(?!REDACTED)/);
   });
 });

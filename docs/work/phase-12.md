@@ -4,16 +4,26 @@
 **Plan/spec:** spec `docs/superpowers/specs/2026-10-14-phase-12-discovery-and-starting-point-design.md` (owner-approved 2026-10-14) · plans `docs/superpowers/plans/2026-10-14-phase-12a-competitor-discovery.md`, `…-12b-starting-point-brief.md` (owner-approved 2026-10-14, subagent-driven)
 
 ## Status (overwrite)
-Plans 12a + 12b owner-approved 2026-10-14 (subagent-driven); owner chose to build Phase 12 **before** 9, 10, 11 (9a runs in parallel in its own worktree). Test DB `cs_phase_12_test`. Execution starting at 12a Task 0.
+Plans 12a + 12b owner-approved 2026-10-14 (subagent-driven); owner chose to build Phase 12 **before** 9, 10, 11 (9a runs in parallel in its own worktree). Test DB `cs_phase_12_test`. 12a Task 0 (pre-flight + live fixtures) done 2026-10-14; Task 1 next.
 
 ## Next (overwrite)
-12a Task 0 pre-flight (rebase, dependency re-check, live vendor fixtures with owner OK), then Tasks 1–11; then 12b.
+12a Tasks 1–11 (Task 2 pack category lists per Pre-flight below), then 12b.
 
 ## Interfaces this branch adds or changes
 (planned, not built)
 - Tables: `discovery_run`, `competitor_signal`. `competitor_suggestion` + `category`, `distance_km`, `overlap`, `activity`, `tier`, `signals` jsonb, `ad_matches` jsonb, `run_id`, `last_seen_at`. `brief.kind` + `'starting_point'` (extend CHECK `brief_kind_check`; one per client), `brief.scorecard` jsonb; `brief_item.competitor_id` nullable + `subject` `'self'|'competitor'`.
 - Vertical packs: `discovery.categories` allowlist, discovery seed keywords (≤ 5), self-rules for the starting point.
 - Migrations: **next free at execution time** (main ends at 0051; see Brief §5).
+
+### Pre-flight 2026-10-14 (12a Task 0)
+- **Migrations:** main ends 0051; unmerged phase-9 holds 0052-0054; phase-10 plans >= 0054. 12a takes the next free number on main at Task 3 execution. Renumber risk: if phase-9 merges first use >= 0055.
+- **P6:** `agencyServiceable` is NOT on main -> skip; file BACKLOG "Phase 9 merge -> apply agencyServiceable to rival-search and signals-weekly".
+- **Maps "dentist" @ Granbury (20):** primary category Dentist 18, Dental clinic 1, Oral and maxillofacial surgeon 1. Additional: Cosmetic dentist, Dental implants provider/periodontist, Emergency dental service, Orthodontist, Pediatric dentist, Teeth whitening service, Dental hygienist, Endodontist, Periodontist, Oral surgeon.
+- **Maps "hvac contractor" @ Granbury (20):** primary HVAC contractor 15, Air conditioning contractor 4, Plumber 1. Additional: A/C repair service, Heating contractor, Furnace repair service, Air duct cleaning service, Electrician, Plumber, Insulation contractor; noise: Service establishment, Training center, Plumbing supply store, Pump supplier.
+- **Maps item shape:** `category` always string; `additional_categories` and `address` can be null; lat/lng/is_claimed/phone present; `work_hours.current_status` ('open'|'close') absent on ~15% (tri-state).
+- **ads_advertisers** (keyword + `location_coordinate` "lat,lng", $0.002): `result[0].items[]` mixes `ads_advertiser` {title, advertiser_id 'AR...', verified, approx_ads_count} with `ads_domain` {domain} rows -> filter on type. "Aire Serv" returns brand + franchisees -> chain guard essential.
+- **Meta search:** ScrapeCreators `GET /v1/facebook/adLibrary/search/ads?query=&status=ACTIVE&country=US` -> `searchResults[]` (not `results`) with `page_id`, `page_name`, `is_active`, `ad_archive_id`; 1 credit. "Granbury Dental Center" -> 6 ads, 2 pages (263199177146 x5, 696068746913122 "granburydc" x1). No page-search fallback needed; group by `page_id` (count = lower bound).
+- Fixtures in `packages/collectors/test/fixtures/vendors/`: dfs-maps-live-{dental,hvac}, dfs-ads-advertisers-live, scrapecreators-adlibrary-search (CDN query strings redacted).
 
 ## Assumes from other branches
 - **phase-9 (9a executing):** migrations **0052–0053**; new `db/src/filters.ts`; `agencyServiceable` filter on every scheduler (incl. `ensureSelfCompetitors`, `listBriefDueClients`) — our new jobs apply it too. 9a e7: ≤ 3 active clients in pilot/trial.

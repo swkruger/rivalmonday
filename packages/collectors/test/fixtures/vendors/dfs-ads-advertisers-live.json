@@ -1,0 +1,219 @@
+{
+  "version": "0.1.20260917",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "1.8793 sec.",
+  "cost": 0.002,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "10142223-2679-0139-0000-623439b00e90",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "1.6859 sec.",
+      "cost": 0.002,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "serp",
+        "google",
+        "ads_advertisers",
+        "live",
+        "advanced"
+      ],
+      "data": {
+        "api": "serp",
+        "function": "live",
+        "se": "google",
+        "se_type": "ads_advertisers",
+        "keyword": "Aire Serv",
+        "location_coordinate": "32.4421,-97.7942",
+        "language_code": "en",
+        "device": "desktop",
+        "os": "windows"
+      },
+      "result": [
+        {
+          "keyword": "Aire Serv",
+          "type": "ads_advertisers",
+          "se_domain": "adstransparency.google.com",
+          "location_code": 2840,
+          "language_code": "en",
+          "check_url": "https://adstransparency.google.com/?region=US",
+          "datetime": "2026-10-14 22:23:25 +00:00",
+          "spell": null,
+          "refinement_chips": null,
+          "item_types": [
+            "ads_advertiser",
+            "ads_domain"
+          ],
+          "se_results_count": 0,
+          "items_count": 20,
+          "items": [
+            {
+              "type": "ads_advertiser",
+              "rank_group": 1,
+              "rank_absolute": 1,
+              "title": "Aire Care Services",
+              "advertiser_id": "AR12961730039652548609",
+              "location": "US",
+              "verified": true,
+              "approx_ads_count": 37
+            },
+            {
+              "type": "ads_advertiser",
+              "rank_group": 2,
+              "rank_absolute": 2,
+              "title": "Aire Serv SVP LLC",
+              "advertiser_id": "AR09867956064303972353",
+              "location": "US",
+              "verified": true,
+              "approx_ads_count": 28
+            },
+            {
+              "type": "ads_advertiser",
+              "rank_group": 3,
+              "rank_absolute": 3,
+              "title": "Aire Serv Kalispell",
+              "advertiser_id": "AR09444294829459636225",
+              "location": "US",
+              "verified": true,
+              "approx_ads_count": 10
+            },
+            {
+              "type": "ads_advertiser",
+              "rank_group": 4,
+              "rank_absolute": 4,
+              "title": "Aire Serv Omaha",
+              "advertiser_id": "AR14296024044619694081",
+              "location": "US",
+              "verified": true,
+              "approx_ads_count": 7
+            },
+            {
+              "type": "ads_advertiser",
+              "rank_group": 5,
+              "rank_absolute": 5,
+              "title": "Aire Serv Knoxville",
+              "advertiser_id": "AR01459371114848321537",
+              "location": "US",
+              "verified": true,
+              "approx_ads_count": 7
+            },
+            {
+              "type": "ads_advertiser",
+              "rank_group": 6,
+              "rank_absolute": 6,
+              "title": "Aire Serv Boca Raton",
+              "advertiser_id": "AR04588860620891226113",
+              "location": "US",
+              "verified": true,
+              "approx_ads_count": 7
+            },
+            {
+              "type": "ads_advertiser",
+              "rank_group": 7,
+              "rank_absolute": 7,
+              "title": "Aire Serv Granbury",
+              "advertiser_id": "AR02642861404939354113",
+              "location": "US",
+              "verified": true,
+              "approx_ads_count": 4
+            },
+            {
+              "type": "ads_advertiser",
+              "rank_group": 8,
+              "rank_absolute": 8,
+              "title": "Harris Aire Serv",
+              "advertiser_id": "AR03899321273834012673",
+              "location": "US",
+              "verified": true,
+              "approx_ads_count": 2
+            },
+            {
+              "type": "ads_advertiser",
+              "rank_group": 9,
+              "rank_absolute": 9,
+              "title": "Aire Serv Elkton",
+              "advertiser_id": "AR07906157046649585665",
+              "location": "US",
+              "verified": true,
+              "approx_ads_count": 1
+            },
+            {
+              "type": "ads_advertiser",
+              "rank_group": 10,
+              "rank_absolute": 10,
+              "title": "Aire Serve of Boise",
+              "advertiser_id": "AR08326830444544786433",
+              "location": "US",
+              "verified": true,
+              "approx_ads_count": 1
+            },
+            {
+              "type": "ads_domain",
+              "rank_group": 1,
+              "rank_absolute": 11,
+              "domain": "aireserv.com"
+            },
+            {
+              "type": "ads_domain",
+              "rank_group": 2,
+              "rank_absolute": 12,
+              "domain": "aireservus.com"
+            },
+            {
+              "type": "ads_domain",
+              "rank_group": 3,
+              "rank_absolute": 13,
+              "domain": "goaireserv.com"
+            },
+            {
+              "type": "ads_domain",
+              "rank_group": 4,
+              "rank_absolute": 14,
+              "domain": "aireservnw.com"
+            },
+            {
+              "type": "ads_domain",
+              "rank_group": 5,
+              "rank_absolute": 15,
+              "domain": "aireserv-usa.com"
+            },
+            {
+              "type": "ads_domain",
+              "rank_group": 6,
+              "rank_absolute": 16,
+              "domain": "aireserv.services"
+            },
+            {
+              "type": "ads_domain",
+              "rank_group": 7,
+              "rank_absolute": 17,
+              "domain": "aireservomaha.com"
+            },
+            {
+              "type": "ads_domain",
+              "rank_group": 8,
+              "rank_absolute": 18,
+              "domain": "aireserve-hvac.com"
+            },
+            {
+              "type": "ads_domain",
+              "rank_group": 9,
+              "rank_absolute": 19,
+              "domain": "aireservhvacin.com"
+            },
+            {
+              "type": "ads_domain",
+              "rank_group": 10,
+              "rank_absolute": 20,
+              "domain": "aireservnashuanh.com"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

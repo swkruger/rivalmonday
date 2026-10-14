@@ -1,0 +1,2805 @@
+{
+  "version": "0.1.20260917",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "1.5002 sec.",
+  "cost": 0.002,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "10142223-2679-0139-0000-adba29f659b6",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "1.4149 sec.",
+      "cost": 0.002,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "serp",
+        "google",
+        "maps",
+        "live",
+        "advanced"
+      ],
+      "data": {
+        "api": "serp",
+        "function": "live",
+        "se": "google",
+        "se_type": "maps",
+        "keyword": "hvac contractor",
+        "location_coordinate": "32.4421,-97.7942,14z",
+        "language_code": "en",
+        "depth": 20,
+        "device": "desktop",
+        "os": "windows"
+      },
+      "result": [
+        {
+          "keyword": "hvac contractor",
+          "type": "maps",
+          "se_domain": "google.com",
+          "location_code": 2840,
+          "language_code": "en",
+          "check_url": "https://google.com/maps/search/hvac+contractor/@32.4421,-97.7942,14z?hl=en&gl=US&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "datetime": "2026-10-14 22:23:23 +00:00",
+          "spell": null,
+          "refinement_chips": null,
+          "item_types": [
+            "maps_search"
+          ],
+          "se_results_count": 0,
+          "items_count": 20,
+          "items": [
+            {
+              "type": "maps_search",
+              "rank_group": 1,
+              "rank_absolute": 1,
+              "domain": "actexasmade.com",
+              "title": "Texas Made Air Conditioning and Heating",
+              "original_title": null,
+              "url": "https://actexasmade.com/?utm_campaign=gmb",
+              "contact_url": null,
+              "contributor_url": "https://maps.google.com/maps/contrib/100751571705485912144",
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4.9,
+                "votes_count": 389,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 3,
+                "2": 1,
+                "3": 3,
+                "4": 7,
+                "5": 375
+              },
+              "snippet": "1314 Weatherford Hwy, Granbury, TX 76048",
+              "address": "1314 Weatherford Hwy, Granbury, TX 76048",
+              "address_info": {
+                "borough": null,
+                "address": "1314 Weatherford Hwy",
+                "city": "Granbury",
+                "zip": "76048",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJl0VvKQggToYR_E-G-WLiOag",
+              "phone": "+1817-579-9377",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLcvLcokE7lQyT3fbbIqnRtxAL53iWtJAF5yp_OBy67oIGpayVd6R7vaeUm-V780psJbVd7dzfIswOeUZIBQoMznkiMy_hF5Wn646sOdxP5xMwSmeML8x5pItKQaVA4tpwdPBqlB8w=w408-h306-k-no",
+              "total_photos": 9,
+              "category": "HVAC contractor",
+              "additional_categories": [
+                "Air conditioning repair service",
+                "Air duct cleaning service",
+                "Electrician",
+                "Furnace repair service",
+                "Heating contractor",
+                "Air conditioning contractor"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x864e2008296f4597:0xa839e262f9864ffc",
+              "cid": "12121968786765402108",
+              "latitude": 32.4581243,
+              "longitude": -97.7858748,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 2,
+              "rank_absolute": 2,
+              "domain": "www.batesheatingandair.com",
+              "title": "Bates Heating and Air",
+              "original_title": null,
+              "url": "https://www.batesheatingandair.com/?utm_campaign=gmb",
+              "contact_url": null,
+              "contributor_url": "https://maps.google.com/maps/contrib/114793514611030275540",
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 5,
+                "votes_count": 384,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 3,
+                "2": 0,
+                "3": 0,
+                "4": 2,
+                "5": 379
+              },
+              "snippet": "1423 N Plaza Dr, Granbury, TX 76048",
+              "address": "1423 N Plaza Dr, Granbury, TX 76048",
+              "address_info": {
+                "borough": null,
+                "address": "1423 N Plaza Dr",
+                "city": "Granbury",
+                "zip": "76048",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJB0OLe0YhToYRo6n-7Q3bIjM",
+              "phone": "+1817-894-5884",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLdOF7Bqeg8TXyhfKX8-98fmJ1ODtzcJcBkhT-rTF2An0iRb2JgNQ-Pa_0oPQNBf7egWtNJnPKx6Qt-u3gjewIaYL6iTUwB4aTMTLibHorCJvoU9dgYEtDvbXO4XUPO5Z8VhYa5y=w408-h272-k-no",
+              "total_photos": 62,
+              "category": "HVAC contractor",
+              "additional_categories": [
+                "Air conditioning repair service",
+                "Air conditioning system supplier",
+                "Furnace repair service",
+                "Heating contractor",
+                "Air conditioning contractor"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x864e21467b8b4307:0x3322db0dedfea9a3",
+              "cid": "3684748298016434595",
+              "latitude": 32.4372551,
+              "longitude": -97.76554569999999,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 3,
+              "rank_absolute": 3,
+              "domain": "comfortexpertsinc.com",
+              "title": "Comfort Experts",
+              "original_title": null,
+              "url": "https://comfortexpertsinc.com/granbury-tx/?utm_source=GPB&utm_medium=Organic&utm_campaign=Granbury",
+              "contact_url": null,
+              "contributor_url": "https://maps.google.com/maps/contrib/104034366514760387618",
+              "book_online_url": "https://book.servicetitan.com/pbdok96nou6ivbbq8aqg9sj9?rwg_token=REDACTED",
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4.8,
+                "votes_count": 793,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 21,
+                "2": 5,
+                "3": 4,
+                "4": 35,
+                "5": 728
+              },
+              "snippet": "1951 Acton Hwy, Granbury, TX 76049",
+              "address": "1951 Acton Hwy, Granbury, TX 76049",
+              "address_info": {
+                "borough": null,
+                "address": "1951 Acton Hwy",
+                "city": "Granbury",
+                "zip": "76049",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJM0RDJlcgToYRFRiDJ3ODtiY",
+              "phone": "+1817-632-4453",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLcYJyNWbl1W5_o7ob85AiLnqmcm2J3vncM0MXfUAaCbbTjqY7qDI8DL1ON2_fPa5umcDybXvNStms0t5MYLor4SVLFxo-6gRUJ83PfC6Pq6RzSSxlefyUwi0IRz-co2XIg6TT1_=w408-h272-k-no",
+              "total_photos": 178,
+              "category": "HVAC contractor",
+              "additional_categories": [
+                "Air conditioning contractor",
+                "Air conditioning system supplier",
+                "Electrical installation service",
+                "Electrician",
+                "Furnace repair service",
+                "Heating contractor",
+                "Hot water system supplier",
+                "Air conditioning repair service",
+                "Plumber"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x864e205726434433:0x26b6837327831815",
+              "cid": "2789561549809981461",
+              "latitude": 32.4398335,
+              "longitude": -97.75078069999999,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 4,
+              "rank_absolute": 4,
+              "domain": "www.knightlycoolingandheating.com",
+              "title": "Knightly Cooling & Heating",
+              "original_title": null,
+              "url": "https://www.knightlycoolingandheating.com/?utm_source=google&utm_medium=organic&utm_campaign=gbp",
+              "contact_url": null,
+              "contributor_url": "https://maps.google.com/maps/contrib/100575965218865437498",
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4.9,
+                "votes_count": 27,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 1,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 26
+              },
+              "snippet": "1009 Paluxy Rd, Granbury, TX 76048",
+              "address": "1009 Paluxy Rd, Granbury, TX 76048",
+              "address_info": {
+                "borough": null,
+                "address": "1009 Paluxy Rd",
+                "city": "Granbury",
+                "zip": "76048",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJHaXbEo7d-QwRFUP7nDR-_g4",
+              "phone": "+1817-559-0999",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLdz7w3sUByjTkwdQbs3r80x0becwRfINNk-sLTiQI4v3F966R8YO6irYIztLxzoMwV3Kw3tHvwu-Q25dEZKidgHQ53fUEgXHRX0UkzyAa4o0QogJC1otvT3NpGD1DM3R82cG9IZzFNMOxoS=w408-h306-k-no",
+              "total_photos": 11,
+              "category": "HVAC contractor",
+              "additional_categories": [
+                "Air conditioning contractor",
+                "Furnace repair service",
+                "Heating contractor",
+                "Air conditioning repair service",
+                "Insulation contractor"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0xcf9dd8e12dba51d:0xefe7e349cfb4315",
+              "cid": "1080439725052609301",
+              "latitude": 32.4344123,
+              "longitude": -97.79852819999999,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 5,
+              "rank_absolute": 5,
+              "domain": "glennairecompany.com",
+              "title": "Glenn Aire Company",
+              "original_title": null,
+              "url": "https://glennairecompany.com/",
+              "contact_url": "https://glennairecompany.com/?ws-widget=open&utm_source=google-business-listing&utm_medium=organic&utm_campaign=appointment-button",
+              "contributor_url": "https://maps.google.com/maps/contrib/109992492959838540727",
+              "book_online_url": "https://book.servicetitan.com/q17p8ixd3s21u7ki7ymbq9mk?rwg_token=REDACTED",
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4.9,
+                "votes_count": 662,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 9,
+                "2": 2,
+                "3": 5,
+                "4": 17,
+                "5": 629
+              },
+              "snippet": "310 Liberty Rd, Granbury, TX 76049",
+              "address": "310 Liberty Rd, Granbury, TX 76049",
+              "address_info": {
+                "borough": null,
+                "address": "310 Liberty Rd",
+                "city": "Granbury",
+                "zip": "76049",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJhavrIlEgToYRUGjI52_oUnc",
+              "phone": "+1817-326-5311",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLd04EWpInZdvT43d2lVGB9FOIsKFbeQp_GcElw3q1EEeSU3EQSEaUGi-niBGEMIPHUd_eIvjrm_SGPSV5SzI4IpAMYce6UXlkkJOc5kEfcqPO8qzkfuBWIbtaG_2-h1BNQTBpHNAQ=w408-h408-k-no",
+              "total_photos": 27,
+              "category": "HVAC contractor",
+              "additional_categories": [
+                "Air conditioning contractor",
+                "Air conditioning store",
+                "Furnace repair service",
+                "Furnace store",
+                "Heating contractor",
+                "Air conditioning repair service"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x864e205122ebab85:0x7752e86fe7c86850",
+              "cid": "8598190205931382864",
+              "latitude": 32.441487599999995,
+              "longitude": -97.7492292,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 6,
+              "rank_absolute": 6,
+              "domain": "www.aireserv.com",
+              "title": "Aire Serv of Granbury",
+              "original_title": null,
+              "url": "https://www.aireserv.com/granbury/?cid=LSTL_ASV-US000187&utm_source=gmb&utm_campaign=local&utm_medium=organic",
+              "contact_url": "https://www.aireserv.com/granbury/request-appointment/?cid=LSTL_ASV-CA000188&utm_source=gmbappt&utm_medium=organic&utm_campaign=local",
+              "contributor_url": "https://maps.google.com/maps/contrib/104801857564061166826",
+              "book_online_url": "https://book.servicetitan.com/iu9tfqeufvwf34w872x4k6hr?rwg_token=REDACTED",
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4.9,
+                "votes_count": 760,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 6,
+                "2": 0,
+                "3": 3,
+                "4": 16,
+                "5": 735
+              },
+              "snippet": "3511 Plaza E Ct, Granbury, TX 76049",
+              "address": "3511 Plaza E Ct, Granbury, TX 76049",
+              "address_info": {
+                "borough": null,
+                "address": "3511 Plaza E Ct",
+                "city": "Granbury",
+                "zip": "76049",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJjVJLzrAhToYRhtbvn_kpVrA",
+              "phone": "+1817-756-9355",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLebSgqdwL09Rlo6KHuiVv-FB1S4aCLBqf1TRU3RSIPScs5xLr__tYJoSl2NCetC_hi9FtRIyT4x_6v41JvwI_1q7K8-Mzm1HZ4B4Cl_If9Rf0wii9D3-UR2b_dozkkPkOsvsME6Nw=w408-h306-k-no",
+              "total_photos": 622,
+              "category": "HVAC contractor",
+              "additional_categories": [
+                "Air conditioning contractor",
+                "Air conditioning repair service",
+                "Air duct cleaning service",
+                "Furnace repair service",
+                "Heating contractor"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x864e21b0ce4b528d:0xb05629f99fefd686",
+              "cid": "12706389550779324038",
+              "latitude": 32.4518427,
+              "longitude": -97.7327146,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 7,
+              "rank_absolute": 7,
+              "domain": "www.victorymech.com",
+              "title": "Victory Mechanical LLC",
+              "original_title": null,
+              "url": "https://www.victorymech.com/",
+              "contact_url": null,
+              "contributor_url": "https://maps.google.com/maps/contrib/113807726803179168723",
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4.4,
+                "votes_count": 47,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 6,
+                "2": 0,
+                "3": 1,
+                "4": 0,
+                "5": 40
+              },
+              "snippet": "2001 S Morgan St #101, Granbury, TX 76048",
+              "address": "2001 S Morgan St #101, Granbury, TX 76048",
+              "address_info": {
+                "borough": null,
+                "address": "2001 S Morgan St #101",
+                "city": "Granbury",
+                "zip": "76048",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJDWVf9GHfUYYR6mpjjogH4Js",
+              "phone": "+1817-438-8311",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLe-AD62jHJby5HCwtPI3ALblJVYw4qCc5Mt6TwJ4uoxdQVWQbHPfPIHwGW_YHd7NFYo9wyNJyRH2dkL2Lq0dybrpaOo5uOaDWFSvKuBnvrUlsZrxbPSDnqrOlHkuvrfK1Qg49Ni=w427-h240-k-no",
+              "total_photos": 4,
+              "category": "HVAC contractor",
+              "additional_categories": [
+                "Electrician",
+                "Air conditioning contractor",
+                "Plumber"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x8651df61f45f650d:0x9be007888e636aea",
+              "cid": "11231985753747843818",
+              "latitude": 32.4217876,
+              "longitude": -97.7899388,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 8,
+              "rank_absolute": 8,
+              "domain": "daffanmechanical.com",
+              "title": "Daffan Cooling & Heating",
+              "original_title": null,
+              "url": "https://daffanmechanical.com/air-conditioning/?utm_source=GBP-Granbury&utm_medium=GBP&utm_campaign=granbury",
+              "contact_url": "https://daffanmechanical.com/schedule-service/?utm_source=GBP-Granbury-Bookings&utm_medium=GBP-Booking&utm_campaign=Schedule+Service",
+              "contributor_url": "https://maps.google.com/maps/contrib/116844497067403674883",
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4.9,
+                "votes_count": 2187,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 25,
+                "2": 5,
+                "3": 5,
+                "4": 37,
+                "5": 2115
+              },
+              "snippet": "4000 Acton Hwy Ste 101, Granbury, TX 76049",
+              "address": "4000 Acton Hwy Ste 101, Granbury, TX 76049",
+              "address_info": {
+                "borough": null,
+                "address": "4000 Acton Hwy Ste 101",
+                "city": "Granbury",
+                "zip": "76049",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJq5mTfvXfUYYR8sKINdDbkLA",
+              "phone": "+1817-634-7554",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLf0YOXLBL6w9ea79Wf5XHzMGQJG_YrhqerR180kRBQVxpE49znUY64ZeIDug_F2NOieIXNCdd3Rhyu0VTTMd8FPRwQXPcA9gdFjJddVS5Ey8xKnFKe2HRGr8Sp1uKSD18ntOze1=w408-h347-k-no",
+              "total_photos": 79,
+              "category": "HVAC contractor",
+              "additional_categories": [
+                "Air conditioning repair service",
+                "Air duct cleaning service",
+                "Furnace repair service",
+                "Heating contractor",
+                "Air conditioning contractor",
+                "Insulation contractor"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x8651dff57e9399ab:0xb090dbd03588c2f2",
+              "cid": "12722910634619486962",
+              "latitude": 32.443425999999995,
+              "longitude": -97.7242304,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 9,
+              "rank_absolute": 9,
+              "domain": "lightfootmechanical.com",
+              "title": "Lightfoot Plumbing, Heating, Air & Electrical",
+              "original_title": null,
+              "url": "https://lightfootmechanical.com/?utm_source=google&utm_medium=organic&utm_campaign=GMBListing-Granbury-TX",
+              "contact_url": "https://go.servicetitan.com/webscheduler?tenantid=411961392&campaignid=380097597",
+              "contributor_url": "https://maps.google.com/maps/contrib/116806432932023291304",
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4.4,
+                "votes_count": 78,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 7,
+                "2": 5,
+                "3": 1,
+                "4": 0,
+                "5": 65
+              },
+              "snippet": "1310 Weatherford Hwy Ste 100, Granbury, TX 76048",
+              "address": "1310 Weatherford Hwy Ste 100, Granbury, TX 76048",
+              "address_info": {
+                "borough": null,
+                "address": "1310 Weatherford Hwy Ste 100",
+                "city": "Granbury",
+                "zip": "76048",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJRwJ5qQrfUYYR6VqBMV68wO4",
+              "phone": "+1817-661-0894",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLfldlBlzaKQgh0LVZCpQtrs3rp-GFKnzBJ1-p811kSHt3tjh4PRf2sCC0EX6QN1Lhd4rsoHn3IR3DU_IPC3xjAtp0hB52-pjAvb9Tg5Tgi6JxEdnOvqb1RGy33jd1TFbnGcInuQ=w408-h253-k-no",
+              "total_photos": 67,
+              "category": "HVAC contractor",
+              "additional_categories": [
+                "Air conditioning contractor",
+                "Drainage service",
+                "Electrical installation service",
+                "Electrician",
+                "Furnace repair service",
+                "Heating contractor",
+                "Air conditioning repair service",
+                "Lighting contractor",
+                "Plumber"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x8651df0aa9790247:0xeec0bc5e31815ae9",
+              "cid": "17203957689298803433",
+              "latitude": 32.457243,
+              "longitude": -97.786203,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 10,
+              "rank_absolute": 10,
+              "domain": "www.texashvacrpros.com",
+              "title": "TEXAS HVACR PROS",
+              "original_title": null,
+              "url": "https://www.texashvacrpros.com/",
+              "contact_url": null,
+              "contributor_url": "https://maps.google.com/maps/contrib/104385625604350121395",
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 5,
+                "votes_count": 108,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 1,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 107
+              },
+              "snippet": null,
+              "address": null,
+              "address_info": {
+                "borough": null,
+                "address": null,
+                "city": null,
+                "zip": null,
+                "region": null,
+                "country_code": null
+              },
+              "place_id": "ChIJkyw0XyshToYRqZ07XPFzmjY",
+              "phone": "+1682-500-0105",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLf_NdDtZikJp3_nz-4r3dv5X2VlAJt38IGe49X5yezxpMSEFwwGMlgb01r-RyCYQEXFjJ7h0JnAhjj8G-_JDOFfVAiOq3_rSLsT0yin0u2Ms2lGuCAy_0-E6GghUrjfkSrnpRlAXxKoso1q=w408-h544-k-no",
+              "total_photos": 419,
+              "category": "HVAC contractor",
+              "additional_categories": [
+                "Air conditioning repair service",
+                "Service establishment",
+                "Heating contractor",
+                "Air conditioning contractor"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x864e212b5f342c93:0x369a73f15c3b9da9",
+              "cid": "3934584704933273001",
+              "latitude": 32.54533,
+              "longitude": -97.67601909999999,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 11,
+              "rank_absolute": 11,
+              "domain": null,
+              "title": "Jimmy's Air Care",
+              "original_title": null,
+              "url": null,
+              "contact_url": null,
+              "contributor_url": null,
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 5,
+                "votes_count": 1,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 0,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 1
+              },
+              "snippet": "Granbury, TX 76048",
+              "address": "Granbury, TX 76048",
+              "address_info": {
+                "borough": null,
+                "address": null,
+                "city": "Granbury",
+                "zip": "76048",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJ24ruboXfUYYRpC6pbAIR9Pc",
+              "phone": "+1817-579-6045",
+              "main_image": "https://streetviewpixels-pa.googleapis.com/v1/thumbnail?panoid=TERDo1E2xCPxgXkfYn033w&cb_client=search.gws-prod.grass&w=408&h=240&yaw=113.93365&pitch=0&thumbfov=100",
+              "total_photos": 1,
+              "category": "Air conditioning contractor",
+              "additional_categories": null,
+              "category_ids": null,
+              "work_hours": null,
+              "feature_id": "0x8651df856eee8adb:0xf7f411026ca92ea4",
+              "cid": "17866924323796233892",
+              "latitude": 32.4420826,
+              "longitude": -97.7941967,
+              "is_claimed": false,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 12,
+              "rank_absolute": 12,
+              "domain": null,
+              "title": "Lewis Heating & AC",
+              "original_title": null,
+              "url": null,
+              "contact_url": null,
+              "contributor_url": null,
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4,
+                "votes_count": 12,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 3,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 9
+              },
+              "snippet": "2019 Swaim Dr, Granbury, TX 76048",
+              "address": "2019 Swaim Dr, Granbury, TX 76048",
+              "address_info": {
+                "borough": null,
+                "address": "2019 Swaim Dr",
+                "city": "Granbury",
+                "zip": "76048",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJ1em8LQ_fUYYRRXEFYaMSCF0",
+              "phone": "+1817-573-7880",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLcLo2XHmLottfj66G9Jmqw23KavUERawz3kD0XsQcE0csfi3tjN_l_516cl8P31-KFH0IXwMd8eO54o7h1_h9dRxfJw0o7Tk8JAT5kwO2GnCpxQLnnhxFSd3HNuZMHvxpvCLeQ=w426-h240-k-no",
+              "total_photos": 1,
+              "category": "HVAC contractor",
+              "additional_categories": null,
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x8651df0f2dbce9d5:0x5d0812a361057145",
+              "cid": "6703628538257699141",
+              "latitude": 32.4246816,
+              "longitude": -97.8157112,
+              "is_claimed": false,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 13,
+              "rank_absolute": 13,
+              "domain": null,
+              "title": "Aairco Air Conditioning & Elec",
+              "original_title": null,
+              "url": null,
+              "contact_url": null,
+              "contributor_url": null,
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 3.4,
+                "votes_count": 17,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 7,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 10
+              },
+              "snippet": "2020 Southwest Pkwy, Granbury, TX 76048",
+              "address": "2020 Southwest Pkwy, Granbury, TX 76048",
+              "address_info": {
+                "borough": null,
+                "address": "2020 Southwest Pkwy",
+                "city": "Granbury",
+                "zip": "76048",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJFYqcYaHfUYYRNtWgPG_YRLc",
+              "phone": "+1817-736-3470",
+              "main_image": "https://streetviewpixels-pa.googleapis.com/v1/thumbnail?panoid=ZKHB0tHUIj5Dp96v4blplQ&cb_client=search.gws-prod.grass&w=408&h=240&yaw=328.20944&pitch=0.66739386&thumbfov=100",
+              "total_photos": 1,
+              "category": "HVAC contractor",
+              "additional_categories": null,
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x8651dfa1619c8a15:0xb744d86f3ca0d536",
+              "cid": "13205917979627279670",
+              "latitude": 32.4363387,
+              "longitude": -97.8106957,
+              "is_claimed": false,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 14,
+              "rank_absolute": 14,
+              "domain": "hensleyair.com",
+              "title": "Hensley Air",
+              "original_title": null,
+              "url": "http://hensleyair.com/",
+              "contact_url": null,
+              "contributor_url": "https://maps.google.com/maps/contrib/116757984139737218317",
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 5,
+                "votes_count": 70,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 0,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 70
+              },
+              "snippet": null,
+              "address": null,
+              "address_info": {
+                "borough": null,
+                "address": null,
+                "city": null,
+                "zip": null,
+                "region": null,
+                "country_code": null
+              },
+              "place_id": "ChIJTX2OhS7fUYYR20KvKulcmHc",
+              "phone": "+1817-756-1300",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLeOY1TELZjBAMSgcvyPn72shCbvjldMKp-sFU1nspyRwEdx1yrI0hOhWTfOe9O4cxsrUaa_M6p6OsN2Mv3IRyRWTSPAuxKG9GRiVpLMWstvojMDxKCtVgRp7QOs7UjiLycLj5FWZw=w408-h544-k-no",
+              "total_photos": 11,
+              "category": "HVAC contractor",
+              "additional_categories": [
+                "Air conditioning contractor",
+                "Service establishment",
+                "Furnace repair service",
+                "Heating contractor",
+                "Air conditioning repair service",
+                "Insulation contractor"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x8651df2e858e7d4d:0x77985ce92aaf42db",
+              "cid": "8617740043486708443",
+              "latitude": 32.4063175,
+              "longitude": -97.8002065,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 15,
+              "rank_absolute": 15,
+              "domain": "truetempheatingandair.com",
+              "title": "True Temp Heating & Air",
+              "original_title": null,
+              "url": "https://truetempheatingandair.com/",
+              "contact_url": null,
+              "contributor_url": "https://maps.google.com/maps/contrib/104439225624839855127",
+              "book_online_url": "https://clienthub.getjobber.com/hubs/b45cbb73-a2a1-463f-896f-d177640af578/public/requests/1140399/new?rwg_token=REDACTED",
+              "rating": {
+                "rating_type": "Max5",
+                "value": 5,
+                "votes_count": 7,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 0,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 7
+              },
+              "snippet": "3606 Rhea Rd, Granbury, TX 76049",
+              "address": "3606 Rhea Rd, Granbury, TX 76049",
+              "address_info": {
+                "borough": null,
+                "address": "3606 Rhea Rd",
+                "city": "Granbury",
+                "zip": "76049",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJRQKjcv7luAERdOplCm2D33U",
+              "phone": "+1682-229-0362",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLf_jGaPh6euN7-_CjbtlhRKT5DMSsNcJ8Lh93MKZ3CvZL-fLit8-teO9FYCu4TycXY5Yht4DWiQUckGmVkIAnf-7kufodt0BR8bG_Ui2_vQVc-puAOKgsLosawVXfHdYk2li-PtxA=w408-h305-k-no",
+              "total_photos": 6,
+              "category": "HVAC contractor",
+              "additional_categories": [
+                "Air conditioning system supplier",
+                "Furnace repair service",
+                "Heating contractor",
+                "Air conditioning contractor"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x1b8e5fe72a30245:0x75df836d0a65ea74",
+              "cid": "8493651926593170036",
+              "latitude": 32.4172496,
+              "longitude": -97.726967,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 16,
+              "rank_absolute": 16,
+              "domain": "www.szmechanicaltx.com",
+              "title": "Sub Zero Mechanical, LLC",
+              "original_title": null,
+              "url": "https://www.szmechanicaltx.com/about-us/",
+              "contact_url": null,
+              "contributor_url": "https://maps.google.com/maps/contrib/103304909282769594541",
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 5,
+                "votes_count": 17,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 0,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 17
+              },
+              "snippet": "1019 Meadowlark Ln, Granbury, TX 76048",
+              "address": "1019 Meadowlark Ln, Granbury, TX 76048",
+              "address_info": {
+                "borough": null,
+                "address": "1019 Meadowlark Ln",
+                "city": "Granbury",
+                "zip": "76048",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJkU90f4kgToYRkKgB66W9qo4",
+              "phone": "+1817-771-0903",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLd4PKAWGh20qv06DcmmmkjKbizoSSr-aWuyTR5PgHNnRWQd4FKAR6PRymvmAYRJyBCAqtQXi3nk7igiwnd2sd6at3Cd-R9Y4qWfZTwHFCZ2gZru6YeQ87G892qDbfvGBgfacz1sRM78WNHx=w408-h544-k-no",
+              "total_photos": 26,
+              "category": "HVAC contractor",
+              "additional_categories": null,
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": null,
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 12,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "close"
+              },
+              "feature_id": "0x864e20897f744f91:0x8eaabda5eb01a890",
+              "cid": "10280237619736586384",
+              "latitude": 32.430437999999995,
+              "longitude": -97.76901869999999,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 17,
+              "rank_absolute": 17,
+              "domain": "www.greenelectricandair.com",
+              "title": "Green Electric & Air Conditioning",
+              "original_title": null,
+              "url": "https://www.greenelectricandair.com/",
+              "contact_url": null,
+              "contributor_url": "https://maps.google.com/maps/contrib/116297080686709870742",
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 5,
+                "votes_count": 3,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 0,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 3
+              },
+              "snippet": null,
+              "address": null,
+              "address_info": {
+                "borough": null,
+                "address": null,
+                "city": null,
+                "zip": null,
+                "region": null,
+                "country_code": null
+              },
+              "place_id": "ChIJU-goMZzfUYYRjietUi9YgV4",
+              "phone": "+1817-579-8832",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLe_CUZMgP9bf10IPyok1pOCP6ygi1NzUxE-dKgrwfi4krV9xF7T6MMBEqiFaCEjOyM1Vo3H5zV4E142G8OZ0ob9ayzOgdHbvyq_Wz6-u8w1dUWkken4CqmEcsZUYoxYiKFTApTeVA=w408-h248-k-no",
+              "total_photos": 7,
+              "category": "Air conditioning contractor",
+              "additional_categories": [
+                "Electrician",
+                "Air conditioning repair service",
+                "Service establishment",
+                "Heating contractor"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": null,
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 30
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 30
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 30
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 30
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 30
+                      }
+                    }
+                  ],
+                  "saturday": null
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x8651df9c3128e853:0x5e81582f52ad278e",
+              "cid": "6809821071834687374",
+              "latitude": 32.618986,
+              "longitude": -97.649425,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 18,
+              "rank_absolute": 18,
+              "domain": "szmechanicaltx.com",
+              "title": "Sub Zero Mechanical, LLC",
+              "original_title": null,
+              "url": "https://szmechanicaltx.com/?utm_source=GBP&utm_medium=organic",
+              "contact_url": null,
+              "contributor_url": "https://maps.google.com/maps/contrib/107267522193512084036",
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4.5,
+                "votes_count": 30,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 3,
+                "2": 0,
+                "3": 1,
+                "4": 0,
+                "5": 26
+              },
+              "snippet": null,
+              "address": null,
+              "address_info": {
+                "borough": null,
+                "address": null,
+                "city": null,
+                "zip": null,
+                "region": null,
+                "country_code": null
+              },
+              "place_id": "ChIJ_2iD068GToYROKR_DrJw3j0",
+              "phone": "+1817-771-0903",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLcG5LthdKl0HHlrRXrT9vokH1zfe-u90_oXsXarM6LUyUMuvqKSXQAy3XIJ4_R922KZqIeWByl6_Shymcgne-Ccl0H6KZeCIleS2UjJXbdV7P9vgvYK7XuZlhrfvVaEZjSpOeF1qQ=w408-h408-k-no",
+              "total_photos": 101,
+              "category": "Air conditioning contractor",
+              "additional_categories": [
+                "Air conditioning repair service",
+                "Air conditioning system supplier",
+                "Service establishment",
+                "Furnace repair service",
+                "Heating contractor",
+                "Heating equipment supplier"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": null,
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 12,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "close"
+              },
+              "feature_id": "0x864e06afd38368ff:0x3dde70b20e7fa438",
+              "cid": "4458124591193105464",
+              "latitude": 32.641315999999996,
+              "longitude": -97.5511926,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 19,
+              "rank_absolute": 19,
+              "domain": null,
+              "title": "Paladin HVAC",
+              "original_title": null,
+              "url": null,
+              "contact_url": null,
+              "contributor_url": "https://maps.google.com/maps/contrib/110922935262594194131",
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 5,
+                "votes_count": 1,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 0,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 1
+              },
+              "snippet": "1815 S Morgan St, Granbury, TX 76048",
+              "address": "1815 S Morgan St, Granbury, TX 76048",
+              "address_info": {
+                "borough": null,
+                "address": "1815 S Morgan St",
+                "city": "Granbury",
+                "zip": "76048",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJ5dtvyVnfUYYRU3sdKc_DuP8",
+              "phone": "+1817-228-2187",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLeIwEwn58E0pzWrAUMbiRcGQW3dGPVuZX58qzkEoTWzOKOc9UdRe6f_knr8zGbWfyeEwcr23m6KI3xbbr8wxLgKuAu7fmy95iF7K-q2wWhiyl6tKgrbleMuWLTnJovlsin4EnaD=w408-h611-k-no",
+              "total_photos": 8,
+              "category": "Air conditioning contractor",
+              "additional_categories": [
+                "Air conditioning store",
+                "Training center"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": null,
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 8,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 17,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": null
+                },
+                "current_status": "close"
+              },
+              "feature_id": "0x8651df59c96fdbe5:0xffb8c3cf291d7b53",
+              "cid": "18426693169901828947",
+              "latitude": 32.4247624,
+              "longitude": -97.791956,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            },
+            {
+              "type": "maps_search",
+              "rank_group": 20,
+              "rank_absolute": 20,
+              "domain": "www.atomicplumbing-hvac.com",
+              "title": "Atomic Plumbing",
+              "original_title": null,
+              "url": "http://www.atomicplumbing-hvac.com/",
+              "contact_url": null,
+              "contributor_url": "https://maps.google.com/maps/contrib/105649760080177979812",
+              "book_online_url": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4.8,
+                "votes_count": 194,
+                "rating_max": null
+              },
+              "hotel_rating": null,
+              "price_level": null,
+              "rating_distribution": {
+                "1": 10,
+                "2": 0,
+                "3": 1,
+                "4": 4,
+                "5": 179
+              },
+              "snippet": "2550 W US Hwy 377, Granbury, TX 76048",
+              "address": "2550 W US Hwy 377, Granbury, TX 76048",
+              "address_info": {
+                "borough": null,
+                "address": "2550 W US Hwy 377",
+                "city": "Granbury",
+                "zip": "76048",
+                "region": "Texas",
+                "country_code": "US"
+              },
+              "place_id": "ChIJWYALesHfUYYR-AY2yKFZKDQ",
+              "phone": "+1817-219-4790",
+              "main_image": "https://lh3.googleusercontent.com/grass-cs/AABkmLcgmGiX-ScIGpfSJpfKMk3U6BmtnW80QcVYxV26gVrbSg4ovyLM70vk9-R0d_MQiYYu-8vKXR1PayKr2AGmswSdlxaI9XsNpKeLhew0jPeTIhvOiYbgmq0OyFpf6I4lrAFi1s9x5g=w408-h544-k-no",
+              "total_photos": 10,
+              "category": "Plumber",
+              "additional_categories": [
+                "Construction company",
+                "Plumbing supply store",
+                "Pump supplier",
+                "Repair service"
+              ],
+              "category_ids": null,
+              "work_hours": {
+                "timetable": {
+                  "sunday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "monday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "tuesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "wednesday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "thursday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "friday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ],
+                  "saturday": [
+                    {
+                      "open": {
+                        "hour": 0,
+                        "minute": 0
+                      },
+                      "close": {
+                        "hour": 24,
+                        "minute": 0
+                      }
+                    }
+                  ]
+                },
+                "current_status": "open"
+              },
+              "feature_id": "0x8651dfc17a0b8059:0x342859a1c83606f8",
+              "cid": "3758352440424269560",
+              "latitude": 32.4345928,
+              "longitude": -97.8221131,
+              "is_claimed": true,
+              "local_justifications": null,
+              "is_directory_item": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,585 @@
+{
+  "success": true,
+  "credits_remaining": 1000,
+  "credits_charged": 1,
+  "searchResults": [
+    {
+      "ad_archive_id": "1480928536470497",
+      "collation_count": 1,
+      "collation_id": "2653076281704843",
+      "is_active": true,
+      "page_id": "263199177146",
+      "page_is_deleted": false,
+      "snapshot": {
+        "branded_content": null,
+        "page_id": "263199177146",
+        "page_is_deleted": false,
+        "page_profile_uri": "https://www.facebook.com/GranburyDentalCenter/",
+        "root_reshared_post": null,
+        "byline": null,
+        "disclaimer_label": null,
+        "page_name": "Granbury Dental Center",
+        "page_profile_picture_url": "https://scontent-phl2-1.xx.fbcdn.net/v/t39.35426-6/571217209_2289108241533976_3350818758842749339_n.jpg?REDACTED",
+        "event": null,
+        "caption": "granburydentalcenter.esteemfullarchdentalimplants....",
+        "cta_text": "Learn more",
+        "cards": [],
+        "body": {
+          "text": "Dr. Buske can transform your Smile and Life with Dental Implants! You won't find our expertise anywhere else."
+        },
+        "cta_type": "LEARN_MORE",
+        "display_format": "IMAGE",
+        "link_description": "Dental Implants that Last a Lifetime",
+        "link_url": "https://granburydentalcenter.esteemfullarchdentalimplants.com/pricing-and-options/?utm_source=meta&utm_medium=paid+social&utm_campaign=PDM+106816+diGUAR07+LangEN",
+        "images": [
+          {
+            "image_crops": [],
+            "original_image_url": "https://scontent-phl2-1.xx.fbcdn.net/v/t39.35426-6/571117381_3873941109497421_5322409943954272002_n.jpg?REDACTED",
+            "resized_image_url": "https://scontent-phl2-1.xx.fbcdn.net/v/t39.35426-6/571740013_692878326702893_1290191181710932390_n.jpg?REDACTED",
+            "watermarked_resized_image_url": ""
+          }
+        ],
+        "page_categories": [
+          "Dentist"
+        ],
+        "page_like_count": 1725,
+        "title": "Discover the Difference",
+        "videos": [],
+        "is_reshared": false,
+        "extra_links": [],
+        "extra_texts": [],
+        "extra_images": [],
+        "extra_videos": [],
+        "country_iso_code": null,
+        "brazil_tax_id": null,
+        "additional_info": null,
+        "ec_certificates": []
+      },
+      "has_user_reported": false,
+      "report_count": null,
+      "menu_items": [],
+      "state_media_run_label": null,
+      "page_name": "Granbury Dental Center",
+      "impressions_with_index": {
+        "impressions_text": null,
+        "impressions_index": -1
+      },
+      "gated_type": "ELIGIBLE",
+      "categories": [
+        "UNKNOWN"
+      ],
+      "is_aaa_eligible": false,
+      "contains_digital_created_media": false,
+      "reach_estimate": null,
+      "currency": "",
+      "spend": null,
+      "end_date": 1791961200,
+      "publisher_platform": [
+        "FACEBOOK",
+        "INSTAGRAM",
+        "MESSENGER"
+      ],
+      "start_date": 1761289200,
+      "contains_sensitive_content": false,
+      "total_active_time": null,
+      "regional_regulation_data": {
+        "finserv": {
+          "is_deemed_finserv": false,
+          "is_limited_delivery": false
+        },
+        "tw_anti_scam": {
+          "is_limited_delivery": false
+        }
+      },
+      "hide_data_status": "NONE",
+      "fev_info": null,
+      "ad_id": null,
+      "targeted_or_reached_countries": [],
+      "url": "https://www.facebook.com/ads/library?id=1480928536470497",
+      "start_date_string": "2025-10-24T07:00:00.000Z",
+      "end_date_string": "2026-10-14T07:00:00.000Z"
+    },
+    {
+      "ad_archive_id": "843898741739430",
+      "collation_count": 1,
+      "collation_id": "1354419662561719",
+      "is_active": true,
+      "page_id": "263199177146",
+      "page_is_deleted": false,
+      "snapshot": {
+        "branded_content": null,
+        "page_id": "263199177146",
+        "page_is_deleted": false,
+        "page_profile_uri": "https://www.facebook.com/GranburyDentalCenter/",
+        "root_reshared_post": null,
+        "byline": null,
+        "disclaimer_label": null,
+        "page_name": "Granbury Dental Center",
+        "page_profile_picture_url": "https://scontent-phl2-1.xx.fbcdn.net/v/t39.35426-6/600439627_2437498006708630_1498693220178451949_n.jpg?REDACTED",
+        "event": null,
+        "caption": "granburydentalcenter.com",
+        "cta_text": "Learn more",
+        "cards": [],
+        "body": {
+          "text": "Life-changing dental implants that make you say WOW!"
+        },
+        "cta_type": "LEARN_MORE",
+        "display_format": "VIDEO",
+        "link_description": null,
+        "link_url": "https://granburydentalcenter.esteemfullarchdentalimplants.com/pricing-and-options/?utm_source=meta&utm_medium=paid+social&utm_campaign=PDM+106816+diPRIC00+LangEN",
+        "images": [],
+        "page_categories": [
+          "Dentist"
+        ],
+        "page_like_count": 1725,
+        "title": "Permanent Teeth. Real Results.",
+        "videos": [
+          {
+            "video_hd_url": "https://video-phl2-1.xx.fbcdn.net/o1/v/t2/f2/m366/AQNbgJvJ-p9OGJ1nZTSux-jPvCesSMa_Ddwk0z5_S5CVHfsp4mkFUiFF_x0isF6c0MBWD04nWJoNO4bFkZbkKeWFFZp3HC4FDekPyA6qnYvBAw.mp4?REDACTED",
+            "video_preview_image_url": "https://scontent-phl2-1.xx.fbcdn.net/v/t39.35426-6/600049110_3807976722842931_173762651053496251_n.jpg?REDACTED",
+            "video_sd_url": "https://video-phl2-1.xx.fbcdn.net/o1/v/t2/f2/m412/AQO-tWAnU7gE3L2HMw6aikjRbFlK7fKd8NSU_AIKCzjRWTaJntu49QHpxlV6QpWpASlC9GQiIiUCsd6lW_quHebfVP231znykbgJWOD1SQ.mp4?REDACTED",
+            "watermarked_video_hd_url": null,
+            "watermarked_video_sd_url": null
+          }
+        ],
+        "is_reshared": false,
+        "extra_links": [],
+        "extra_texts": [],
+        "extra_images": [],
+        "extra_videos": [],
+        "country_iso_code": null,
+        "brazil_tax_id": null,
+        "additional_info": null,
+        "ec_certificates": []
+      },
+      "has_user_reported": false,
+      "report_count": null,
+      "menu_items": [],
+      "state_media_run_label": null,
+      "page_name": "Granbury Dental Center",
+      "impressions_with_index": {
+        "impressions_text": null,
+        "impressions_index": -1
+      },
+      "gated_type": "ELIGIBLE",
+      "categories": [
+        "UNKNOWN"
+      ],
+      "is_aaa_eligible": false,
+      "contains_digital_created_media": false,
+      "reach_estimate": null,
+      "currency": "",
+      "spend": null,
+      "end_date": 1791961200,
+      "publisher_platform": [
+        "FACEBOOK",
+        "INSTAGRAM",
+        "MESSENGER"
+      ],
+      "start_date": 1765958400,
+      "contains_sensitive_content": false,
+      "total_active_time": null,
+      "regional_regulation_data": {
+        "finserv": {
+          "is_deemed_finserv": false,
+          "is_limited_delivery": false
+        },
+        "tw_anti_scam": {
+          "is_limited_delivery": false
+        }
+      },
+      "hide_data_status": "NONE",
+      "fev_info": null,
+      "ad_id": null,
+      "targeted_or_reached_countries": [],
+      "url": "https://www.facebook.com/ads/library?id=843898741739430",
+      "start_date_string": "2025-12-17T08:00:00.000Z",
+      "end_date_string": "2026-10-14T07:00:00.000Z"
+    },
+    {
+      "ad_archive_id": "28217629301242508",
+      "collation_count": 1,
+      "collation_id": "1072523678731098",
+      "is_active": true,
+      "page_id": "263199177146",
+      "page_is_deleted": false,
+      "snapshot": {
+        "branded_content": null,
+        "page_id": "263199177146",
+        "page_is_deleted": false,
+        "page_profile_uri": "https://www.facebook.com/GranburyDentalCenter/",
+        "root_reshared_post": null,
+        "byline": null,
+        "disclaimer_label": null,
+        "page_name": "Granbury Dental Center",
+        "page_profile_picture_url": "https://scontent-phl2-1.xx.fbcdn.net/v/t39.35426-6/829196474_1872585577377769_9186415432269582298_n.jpg?REDACTED",
+        "event": null,
+        "caption": "granburydentalcenter.com",
+        "cta_text": "See details",
+        "cards": [],
+        "body": {
+          "text": "Dr. Buske can transform your Smile and Life with Dental Implants! You won't find our expertise anywhere else."
+        },
+        "cta_type": "SEE_DETAILS",
+        "display_format": "VIDEO",
+        "link_description": "Dental Implants that Last a Lifetime",
+        "link_url": "https://granburydentalcenter.esteemfullarchdentalimplants.com/pricing-and-options/?utm_source=meta&utm_medium=paid+social&utm_campaign=PDM+106816+diGUAR00+LangEN&Testimonial+2",
+        "images": [],
+        "page_categories": [
+          "Dentist"
+        ],
+        "page_like_count": 1725,
+        "title": "Discover the Difference",
+        "videos": [
+          {
+            "video_hd_url": "https://video-phl2-1.xx.fbcdn.net/o1/v/t2/f2/m366/AQMzAobMSg7MTsFNjjT2css9G86vO6cgb_MptKWY8equ3Aw-aAfMqVmIomd-mNpf0Hk_tyuyd_tVjbapFpX7QL2RA7-fNv99vhr3MR_BaP0RCg.mp4?REDACTED",
+            "video_preview_image_url": "https://scontent-phl2-1.xx.fbcdn.net/v/t39.35426-6/829196377_1062506823245182_8152320676299873303_n.jpg?REDACTED",
+            "video_sd_url": "https://video-phl2-1.xx.fbcdn.net/o1/v/t2/f2/m412/AQPM8uQp1fZwiOSl63SlU2IOagQhqBns8w-1ZnPw8AFYL_x7lgmDBNu59NI4iIjYjXyDyDB3SfHbtbAQ2OL5QGCt7JJLpgC1oTVjx1IF1g.mp4?REDACTED",
+            "watermarked_video_hd_url": null,
+            "watermarked_video_sd_url": null
+          }
+        ],
+        "is_reshared": false,
+        "extra_links": [],
+        "extra_texts": [],
+        "extra_images": [],
+        "extra_videos": [],
+        "country_iso_code": null,
+        "brazil_tax_id": null,
+        "additional_info": null,
+        "ec_certificates": []
+      },
+      "has_user_reported": false,
+      "report_count": null,
+      "menu_items": [],
+      "state_media_run_label": null,
+      "page_name": "Granbury Dental Center",
+      "impressions_with_index": {
+        "impressions_text": null,
+        "impressions_index": -1
+      },
+      "gated_type": "ELIGIBLE",
+      "categories": [
+        "UNKNOWN"
+      ],
+      "is_aaa_eligible": false,
+      "contains_digital_created_media": false,
+      "reach_estimate": null,
+      "currency": "",
+      "spend": null,
+      "end_date": 1791961200,
+      "publisher_platform": [
+        "FACEBOOK",
+        "INSTAGRAM"
+      ],
+      "start_date": 1790665200,
+      "contains_sensitive_content": false,
+      "total_active_time": null,
+      "regional_regulation_data": {
+        "finserv": {
+          "is_deemed_finserv": false,
+          "is_limited_delivery": false
+        },
+        "tw_anti_scam": {
+          "is_limited_delivery": false
+        }
+      },
+      "hide_data_status": "NONE",
+      "fev_info": null,
+      "ad_id": null,
+      "targeted_or_reached_countries": [],
+      "url": "https://www.facebook.com/ads/library?id=28217629301242508",
+      "start_date_string": "2026-09-29T07:00:00.000Z",
+      "end_date_string": "2026-10-14T07:00:00.000Z"
+    },
+    {
+      "ad_archive_id": "28795182273505496",
+      "collation_count": 1,
+      "collation_id": "1676292790586956",
+      "is_active": true,
+      "page_id": "263199177146",
+      "page_is_deleted": false,
+      "snapshot": {
+        "branded_content": null,
+        "page_id": "263199177146",
+        "page_is_deleted": false,
+        "page_profile_uri": "https://www.facebook.com/GranburyDentalCenter/",
+        "root_reshared_post": null,
+        "byline": null,
+        "disclaimer_label": null,
+        "page_name": "Granbury Dental Center",
+        "page_profile_picture_url": "https://scontent-phl2-1.xx.fbcdn.net/v/t39.35426-6/825279522_28151032237902180_7290718637737731830_n.jpg?REDACTED",
+        "event": null,
+        "caption": "granburydentalcenter.com",
+        "cta_text": "See details",
+        "cards": [],
+        "body": {
+          "text": "Dr. Buske can transform your Smile and Life with Dental Implants! You won't find our expertise anywhere else."
+        },
+        "cta_type": "SEE_DETAILS",
+        "display_format": "VIDEO",
+        "link_description": "Dental Implants that Last a Lifetime",
+        "link_url": "https://granburydentalcenter.esteemfullarchdentalimplants.com/pricing-and-options/?utm_source=meta&utm_medium=paid+social&utm_campaign=PDM+106816+diGUAR00+LangEN&utm_content=Testimonial",
+        "images": [],
+        "page_categories": [
+          "Dentist"
+        ],
+        "page_like_count": 1725,
+        "title": "Discover the Difference",
+        "videos": [
+          {
+            "video_hd_url": "https://video-phl2-1.xx.fbcdn.net/o1/v/t2/f2/m366/AQO-6nO_MfX3X34M8Y0lLQ4lqIDzemqZvFTFJGqoJAHTv_hFRqVpETkNUYuzZhxCCI0mTIDwkPmVLNkwZ-D1zEsxVO6A2PjAAPY4bO8patLOyA.mp4?REDACTED",
+            "video_preview_image_url": "https://scontent-phl2-1.xx.fbcdn.net/v/t39.35426-6/825278501_2265446444232982_5148560581429860812_n.jpg?REDACTED",
+            "video_sd_url": "https://video-phl2-1.xx.fbcdn.net/o1/v/t2/f2/m412/AQM8s2EJnb97wh7svyGh56isAfBAGEOJA7Qp5YrE2wvbq00IuTMs7mXNRBjyll-9ZPlxGfwi_-crLrm_5o1_vBEvHRBL-OtFE7X17HbmZA.mp4?REDACTED",
+            "watermarked_video_hd_url": null,
+            "watermarked_video_sd_url": null
+          }
+        ],
+        "is_reshared": false,
+        "extra_links": [],
+        "extra_texts": [],
+        "extra_images": [],
+        "extra_videos": [],
+        "country_iso_code": null,
+        "brazil_tax_id": null,
+        "additional_info": null,
+        "ec_certificates": []
+      },
+      "has_user_reported": false,
+      "report_count": null,
+      "menu_items": [],
+      "state_media_run_label": null,
+      "page_name": "Granbury Dental Center",
+      "impressions_with_index": {
+        "impressions_text": null,
+        "impressions_index": -1
+      },
+      "gated_type": "ELIGIBLE",
+      "categories": [
+        "UNKNOWN"
+      ],
+      "is_aaa_eligible": false,
+      "contains_digital_created_media": false,
+      "reach_estimate": null,
+      "currency": "",
+      "spend": null,
+      "end_date": 1791961200,
+      "publisher_platform": [
+        "FACEBOOK",
+        "INSTAGRAM"
+      ],
+      "start_date": 1790665200,
+      "contains_sensitive_content": false,
+      "total_active_time": null,
+      "regional_regulation_data": {
+        "finserv": {
+          "is_deemed_finserv": false,
+          "is_limited_delivery": false
+        },
+        "tw_anti_scam": {
+          "is_limited_delivery": false
+        }
+      },
+      "hide_data_status": "NONE",
+      "fev_info": null,
+      "ad_id": null,
+      "targeted_or_reached_countries": [],
+      "url": "https://www.facebook.com/ads/library?id=28795182273505496",
+      "start_date_string": "2026-09-29T07:00:00.000Z",
+      "end_date_string": "2026-10-14T07:00:00.000Z"
+    },
+    {
+      "ad_archive_id": "970058812050723",
+      "collation_count": 1,
+      "collation_id": "1907044557342257",
+      "is_active": true,
+      "page_id": "263199177146",
+      "page_is_deleted": false,
+      "snapshot": {
+        "branded_content": null,
+        "page_id": "263199177146",
+        "page_is_deleted": false,
+        "page_profile_uri": "https://www.facebook.com/GranburyDentalCenter/",
+        "root_reshared_post": null,
+        "byline": null,
+        "disclaimer_label": null,
+        "page_name": "Granbury Dental Center",
+        "page_profile_picture_url": "https://scontent-phl2-1.xx.fbcdn.net/v/t39.35426-6/825352880_3581373278708386_6328064316940200599_n.jpg?REDACTED",
+        "event": null,
+        "caption": "granburydentalcenter.com",
+        "cta_text": "See details",
+        "cards": [],
+        "body": {
+          "text": "Dr. Buske can transform your Smile and Life with Dental Implants! You won't find our expertise anywhere else."
+        },
+        "cta_type": "SEE_DETAILS",
+        "display_format": "VIDEO",
+        "link_description": "Dental Implants that Last a Lifetime",
+        "link_url": "https://granburydentalcenter.esteemfullarchdentalimplants.com/pricing-and-options/?utm_source=meta&utm_medium=paid+social&utm_campaign=PDM+106816+diGUAR00+LangEN&Investment+In+You",
+        "images": [],
+        "page_categories": [
+          "Dentist"
+        ],
+        "page_like_count": 1725,
+        "title": "Discover the Difference",
+        "videos": [
+          {
+            "video_hd_url": "https://video-phl2-1.xx.fbcdn.net/o1/v/t2/f2/m366/AQNUc4kRnfl7KsnYkabyRGnGaIPOqdN98Wa6hhnoV5umpgnBnW46negQlD_mbIsFMLEQ2JqwrvqRAJpRChyyfIpvtAqNsATWt_wQZQ0yrWkqYg.mp4?REDACTED",
+            "video_preview_image_url": "https://scontent-phl2-1.xx.fbcdn.net/v/t39.35426-6/825273295_1421209466610263_5499351831532684900_n.jpg?REDACTED",
+            "video_sd_url": "https://video-phl2-1.xx.fbcdn.net/o1/v/t2/f2/m412/AQNOqsdLYb35sjL_fj8rylmUCFQUxN6AKyb53hX7y4W-ppN0Pz_Q9_rLHLDSQDR68Vuz29AhzaIi0JaWfzFe-5a8no5OxMIjlstxIA_g9Q.mp4?REDACTED",
+            "watermarked_video_hd_url": null,
+            "watermarked_video_sd_url": null
+          }
+        ],
+        "is_reshared": false,
+        "extra_links": [],
+        "extra_texts": [],
+        "extra_images": [],
+        "extra_videos": [],
+        "country_iso_code": null,
+        "brazil_tax_id": null,
+        "additional_info": null,
+        "ec_certificates": []
+      },
+      "has_user_reported": false,
+      "report_count": null,
+      "menu_items": [],
+      "state_media_run_label": null,
+      "page_name": "Granbury Dental Center",
+      "impressions_with_index": {
+        "impressions_text": null,
+        "impressions_index": -1
+      },
+      "gated_type": "ELIGIBLE",
+      "categories": [
+        "UNKNOWN"
+      ],
+      "is_aaa_eligible": false,
+      "contains_digital_created_media": false,
+      "reach_estimate": null,
+      "currency": "",
+      "spend": null,
+      "end_date": 1791961200,
+      "publisher_platform": [
+        "FACEBOOK",
+        "INSTAGRAM"
+      ],
+      "start_date": 1790665200,
+      "contains_sensitive_content": false,
+      "total_active_time": null,
+      "regional_regulation_data": {
+        "finserv": {
+          "is_deemed_finserv": false,
+          "is_limited_delivery": false
+        },
+        "tw_anti_scam": {
+          "is_limited_delivery": false
+        }
+      },
+      "hide_data_status": "NONE",
+      "fev_info": null,
+      "ad_id": null,
+      "targeted_or_reached_countries": [],
+      "url": "https://www.facebook.com/ads/library?id=970058812050723",
+      "start_date_string": "2026-09-29T07:00:00.000Z",
+      "end_date_string": "2026-10-14T07:00:00.000Z"
+    },
+    {
+      "ad_archive_id": "1640641344082391",
+      "collation_count": 1,
+      "collation_id": "1574947153960566",
+      "is_active": true,
+      "page_id": "696068746913122",
+      "page_is_deleted": false,
+      "snapshot": {
+        "branded_content": null,
+        "page_id": "696068746913122",
+        "page_is_deleted": false,
+        "page_profile_uri": "https://www.instagram.com/_u/granburydc",
+        "root_reshared_post": null,
+        "byline": null,
+        "disclaimer_label": null,
+        "page_name": "granburydc",
+        "page_profile_picture_url": "https://scontent-phl2-1.cdninstagram.com/v/t51.82787-19/590411771_17917474281211049_7311950782158061825_n.jpg?REDACTED",
+        "event": null,
+        "caption": null,
+        "cta_text": null,
+        "cards": [],
+        "body": {
+          "text": "If you’re afraid of the dentist, you might feel a little silly about it. Like it’s an overreaction, or something you should have outgrown by now.\n\nDr. Buske wants you to know it’s none of those things.\n\nIn his experience, dental fear is almost never about the dentist at all. It usually traces back to one specific memory, something that happened years ago, maybe in childhood. A painful visit. A moment you felt out of control. Something that stuck.\n\nAnd that memory doesn’t simply stay in the past. It gets triggered the second you lean back in the chair. Your body remembers before your mind can catch up, and the fear comes rushing in, even when you logically know you’re safe.\n\nHere’s why that understanding matters. When we care for an anxious patient, we’re not only treating teeth. We’re working around that memory too, going slower, explaining more, and giving you back the sense of control that old moment took away.\n\nYour fear isn’t irrational. It makes complete sense. And you deserve a team that treats the whole of it, not only the tooth.\n\nIf fear has kept you from the care you need, let us meet you where you are. Come see us at Granbury Dental Center in Granbury, TX.\n\n📞 Call: (817) 573-3761\n🌐 Visit granburydentalcenter.com or tap the link in our bio to learn more\n\n#GranburyTX #GranburyDentist #DentalAnxiety #GentleDentistry #GranburyDentalCenter"
+        },
+        "cta_type": null,
+        "display_format": "VIDEO",
+        "link_description": null,
+        "link_url": null,
+        "images": [],
+        "page_categories": [
+          "Profile"
+        ],
+        "page_like_count": 0,
+        "title": null,
+        "videos": [
+          {
+            "video_hd_url": "https://video-phl2-1.xx.fbcdn.net/o1/v/t2/f2/m367/AQOO_l783hxT4VVG4MQ4_F6victq8Ro3DtqNRJQveDkf_dwAp4iotd5SGHHCYji8oGcS_K4gMGW8k2C3oDMjmRcn-9KDkuCjZ5ObT9Rrtg.mp4?REDACTED",
+            "video_preview_image_url": "https://scontent-phl2-1.xx.fbcdn.net/v/t39.35426-6/849147752_4747370038921438_2805410323740380613_n.jpg?REDACTED",
+            "video_sd_url": "https://video-phl2-1.xx.fbcdn.net/o1/v/t2/f2/m367/AQMPAPEJ5Aj69sFzKwah-HC8IQnubdUS4pzHmdnaEGZph4_hrWxKlp7C4CjYO5epgmHh4u825LZjwHCaJxS30TNirliwwzy0geDBcvrYUA.mp4?REDACTED",
+            "watermarked_video_hd_url": null,
+            "watermarked_video_sd_url": null
+          }
+        ],
+        "is_reshared": false,
+        "extra_links": [],
+        "extra_texts": [],
+        "extra_images": [],
+        "extra_videos": [],
+        "country_iso_code": null,
+        "brazil_tax_id": null,
+        "additional_info": null,
+        "ec_certificates": []
+      },
+      "has_user_reported": false,
+      "report_count": null,
+      "menu_items": [],
+      "state_media_run_label": null,
+      "page_name": "granburydc",
+      "impressions_with_index": {
+        "impressions_text": null,
+        "impressions_index": -1
+      },
+      "gated_type": "ELIGIBLE",
+      "categories": [
+        "UNKNOWN"
+      ],
+      "is_aaa_eligible": false,
+      "contains_digital_created_media": false,
+      "reach_estimate": null,
+      "currency": "",
+      "spend": null,
+      "end_date": 1791961200,
+      "publisher_platform": [
+        "INSTAGRAM"
+      ],
+      "start_date": 1791961200,
+      "contains_sensitive_content": false,
+      "total_active_time": 25031,
+      "regional_regulation_data": {
+        "finserv": {
+          "is_deemed_finserv": false,
+          "is_limited_delivery": false
+        },
+        "tw_anti_scam": {
+          "is_limited_delivery": false
+        }
+      },
+      "hide_data_status": "NONE",
+      "fev_info": null,
+      "ad_id": null,
+      "targeted_or_reached_countries": [],
+      "url": "https://www.facebook.com/ads/library?id=1640641344082391",
+      "start_date_string": "2026-10-14T07:00:00.000Z",
+      "end_date_string": "2026-10-14T07:00:00.000Z"
+    }
+  ],
+  "searchResultsCount": 6,
+  "cursor": ""
+}
