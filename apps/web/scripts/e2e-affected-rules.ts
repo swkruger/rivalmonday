@@ -53,6 +53,7 @@ export const RULES: Rule[] = [
   // --- Foundations: everything ---
   { pattern: re(`${WEB}e2e/`), tags: 'all', why: 'E2E seed/helpers/setup' },
   { pattern: re(`${WEB}(?:playwright\\.config\\.ts|package\\.json|next\\.config\\.[^/]+|tsconfig\\.json|postcss\\.config\\.[^/]+)$`), tags: 'all', why: 'web build/test config' },
+  { pattern: re(`${APP}api/stripe/`), tags: [], why: 'Stripe webhook route (covered by its route test, no browser flow)' },
   { pattern: re(`${WEB}src/proxy\\.ts$`), tags: 'all', why: 'request proxy runs on every page' },
   { pattern: re(`${APP}(?:layout\\.tsx|globals\\.css|health/)`), tags: 'all', why: 'root layout/styles/health check' },
   { pattern: re(`${APP}\\((?:app|platform)\\)/(?:layout\\.tsx|actions\\.ts)$`), tags: 'all', why: 'signed-in app shell (agency/client and platform groups)' },
