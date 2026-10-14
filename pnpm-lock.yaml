@@ -394,6 +394,9 @@ importers:
 
   packages/demo:
     dependencies:
+      '@cs/billing':
+        specifier: workspace:*
+        version: link:../billing
       '@cs/collectors':
         specifier: workspace:*
         version: link:../collectors

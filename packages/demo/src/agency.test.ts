@@ -1,9 +1,9 @@
-import { agencyWebhook, invitation, notification, notificationPref, prospectReport, themeProposal } from '@cs/db';
+import { agency, agencyBilling, agencyWebhook, invitation, notification, notificationPref, prospectReport, themeProposal } from '@cs/db';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { createPackLoader, listOpenReviews, reviewQuestions } from '@cs/engine';
 import { createMemoryStore } from '@cs/storage';
 import { listInbox, monthStart, spendByClient } from '@cs/tools';
-import { isNull } from 'drizzle-orm';
+import { eq, isNull } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { seedAds } from './ads';
 import { seedAgency, USAGE_TARGET_USD } from './agency';
@@ -32,6 +32,12 @@ beforeAll(async () => {
 });
 
 describe('seedAgency', () => {
+  it('seeds every agency as an exempt pilot so the seat cap never blocks the demo', async () => {
+    const rows = await dbs.owner.select({ state: agencyBilling.state, exempt: agencyBilling.seatCapExempt, planId: agencyBilling.planId }).from(agency).leftJoin(agencyBilling, eq(agencyBilling.agencyId, agency.id));
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) expect(r).toMatchObject({ state: 'pilot', exempt: true, planId: expect.any(String) });
+  });
+
   it('puts Lone Star near its monthly cap this month', async () => {
     const spend = await spendByClient(dbs.owner, [ctx.ids.clients.loneStar, ctx.ids.clients.brazos], monthStart(new Date()));
     const ls = spend.get(ctx.ids.clients.loneStar)!;

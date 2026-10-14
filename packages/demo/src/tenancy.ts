@@ -1,3 +1,4 @@
+import { ensureExemptPilot } from '@cs/billing';
 import { agency, client, clientCompetitor, competitor, competitorSource, membership, type ServiceArea, trackedPage } from '@cs/db';
 import { acceptInvitations, createInvitation } from '@cs/tools';
 import { eq, sql } from 'drizzle-orm';
@@ -76,6 +77,7 @@ export async function seedTenancy(ctx: SeedContext): Promise<void> {
     createdAt: clock.daysAgo(400),
   }).returning({ id: agency.id });
   ids.agencyId = a!.id;
+  await ensureExemptPilot(db, ids.agencyId);
 
   for (const key of ['loneStar', 'brazos', 'lakeside'] as const) {
     const s = CLIENT_SPECS[key];

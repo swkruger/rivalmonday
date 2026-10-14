@@ -21,7 +21,7 @@ const date = (s: number | null | undefined) => (s ? new Date(s * 1000) : null);
 const idOf = (x: string | { id: string } | null | undefined): string => (typeof x === 'string' ? x : x?.id ?? '');
 
 export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}): BillingGateway {
-  const stripe = opts.client ?? new Stripe(secretKey);
+  const stripe = opts.client ?? new Stripe(secretKey, { timeout: 10_000, maxNetworkRetries: 1 });
 
   const seatItem = (s: Stripe.Subscription) => s.items.data.find((i) => i.price.metadata?.[PRICE_ROLE_KEY] === 'seat');
 

@@ -4,6 +4,7 @@ import { agencyBilling, client, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { billingWriteGuard } from '../billing-guard';
 import { createToolRegistry } from '../registry';
 
 // Task 8A: seat cap on activation and `service_paused` write refusal. Agency A starts with 2 active clients + 1 prospect (clientA2 is flipped below).
@@ -86,8 +87,35 @@ describe('convert_prospect seat cap', () => {
   });
 });
 
+describe('post-commit seat sync never fails the tool (R19)', () => {
+  it('a gateway failure leaves the client created and marks seat_sync_pending', async () => {
+    gw.seedSubscription({ id: 'sub_1', customerId: 'cus_1' });
+    await setState('active', { stripeCustomerId: 'cus_1', stripeSubscriptionId: 'sub_1', billableSeatsSynced: 0 });
+    await addActive(1);
+    gw.failNext(new Error('stripe down'));
+    const { clientId } = (await registry.invoke(admin, 'create_client', newClient('Resilient'))) as { clientId: string };
+    expect(clientId).toBeTruthy();
+    const [row] = await dbs.owner.select().from(agencyBilling);
+    expect(row?.seatSyncPending).toBe(true);
+  });
+});
+
 describe('write guard (service_paused)', () => {
   const PAUSED = 'Service is paused. Update your payment method to resume.';
+  const ATTENTION = "Your agency's account needs attention.";
+  const UNAVAILABLE = 'This workspace is temporarily unavailable.';
+
+  it.each([
+    ['agency_admin', PAUSED],
+    ['account_manager', ATTENTION],
+    ['client_owner', UNAVAILABLE],
+    ['client_viewer', UNAVAILABLE],
+  ] as const)('%s gets role-appropriate copy', async (role, message) => {
+    await setState('read_only');
+    const c = createAccessContext({ agencyId: IDS.agencyA, userId: `u-${role}`, role, clientScope: [IDS.clientA1], features: ['dashboard', 'manage_competitors'] });
+    const guard = billingWriteGuard({ app: dbs.app, service: dbs.service });
+    await expect(guard(c, { name: 'update_client_profile', access: 'write' })).rejects.toMatchObject({ code: 'service_paused', message });
+  });
 
   it.each(['read_only', 'suspended'])('%s: refuses a normal write, allows team writes and reads', async (state) => {
     await setState(state);

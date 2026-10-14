@@ -1,10 +1,11 @@
-import { assertCanActivateClient, syncSeats } from '@cs/billing';
+import { assertCanActivateClient } from '@cs/billing';
 import { canAccessClient, FEATURES, toolkit, ToolError } from '@cs/core';
 import { client, CLIENT_STATUSES, withTenant } from '@cs/db';
 import { listVerticalPacks, type VerticalPack } from '@cs/verticals';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { type ClientInput, cleanClientInput, clientInputProblems } from '../client-input';
+import { postCommitSeatSync } from '../billing-guard';
 import { packsOf, type ToolDeps } from '../deps';
 import { startFirstAutoSearch } from '../rival-search';
 import { validTimezone } from '../timezone';
@@ -60,7 +61,7 @@ export const createClient = defineTool({
       if (input.status === 'active') await assertCanActivateClient(tx, ctx.agencyId);
       return tx.insert(client).values(values).returning({ id: client.id });
     });
-    if (input.status === 'active' && deps.billing) await syncSeats(deps.service, deps.billing, ctx.agencyId);
+    if (input.status === 'active' && deps.billing) await postCommitSeatSync(deps, ctx.agencyId);
     // 12a D4: a client (active or prospect) with keywords, a service area and a place id gets its first search.
     if (c.keywords.length > 0 && c.serviceArea && c.placeId) await startFirstAutoSearch(deps, row!.id);
     return { clientId: row!.id };

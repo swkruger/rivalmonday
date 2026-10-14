@@ -70,13 +70,12 @@ export const CONFLICT_MESSAGE = 'That changed while you were working — please 
 const FORM_COPY: Partial<Record<ToolError['code'], string>> = {
   read_only_session: READ_ONLY_SESSION_MESSAGE,
   conflict: CONFLICT_MESSAGE,
-  service_paused: 'Service is paused. Update your payment method to resume.',
   invalid_code: "That code isn't valid for your account.",
 };
 
 export function toFormResult(e: unknown): FormResult {
   if (e instanceof ToolError && e.code !== 'internal') {
-    return { ok: false, error: e.code === 'invalid_input' || e.code === 'billing_seat_limit' ? e.message : FORM_COPY[e.code] ?? 'Not found' };
+    return { ok: false, error: e.code === 'invalid_input' || e.code === 'billing_seat_limit' || e.code === 'service_paused' ? e.message : FORM_COPY[e.code] ?? 'Not found' };
   }
   throw e;
 }

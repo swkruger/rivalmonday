@@ -18,6 +18,7 @@
     "restore": "tsx src/cli/restore.ts"
   },
   "dependencies": {
+    "@cs/billing": "workspace:*",
     "@cs/collectors": "workspace:*",
     "@cs/core": "workspace:*",
     "@cs/db": "workspace:*",

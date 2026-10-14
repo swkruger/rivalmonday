@@ -1,5 +1,6 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { ensureExemptPilot } from '@cs/billing';
 import { signLink } from '@cs/core';
 import { ad, agency, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
 import { createStoreFromEnv } from '@cs/storage';
@@ -18,6 +19,7 @@ export async function seed(): Promise<void> {
   try {
     const [a] = await db.insert(agency).values({ name: 'E2E Agency', branding: { primary: '#7A3EE8' } }).returning();
     const agencyId = a!.id;
+    await ensureExemptPilot(db, agencyId);
 
     const [c] = await db.insert(client).values({ agencyId, name: 'E2E HVAC', verticalId: 'hvac_plumbing', features: ['dashboard', 'alert_rules', 'manage_competitors'], keywords: ['ac repair'], serviceArea: { center: { lat: 32.4, lng: -97.79 }, radiusKm: 25, zips: ['76048'] }, placeId: 'e2e-self-place' }).returning();
     const clientId = c!.id;
@@ -111,6 +113,7 @@ export async function seed(): Promise<void> {
     await createInvitation(db, { agencyId, email: 'staff@e2e.test', role: 'account_manager', invitedBy: 'e2e-seed' });
     await createInvitation(db, { agencyId, email: 'viewer-op@e2e.test', role: 'account_manager', invitedBy: 'e2e-seed' });
     const [target] = await db.insert(agency).values({ name: 'Support Target Agency' }).returning();
+    await ensureExemptPilot(db, target!.id);
     await db.insert(client).values({ agencyId: target!.id, name: 'Target Plumbing', verticalId: 'hvac_plumbing', features: ['dashboard'], keywords: ['plumber'], serviceArea: { center: { lat: 32.7, lng: -97.1 }, radiusKm: 20, zips: ['76010'] }, placeId: 'e2e-target-place' });
     await createInvitation(db, { agencyId: target!.id, email: 'target-admin@e2e.test', role: 'agency_admin', invitedBy: 'e2e-seed' });
 
