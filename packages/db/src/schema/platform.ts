@@ -45,6 +45,10 @@ export const agencyDailyStat = pgTable(
     /** numeric(12,4); returned as a string (drizzle numeric default) - parse where read. */
     spendUsd: numeric('spend_usd', { precision: 12, scale: 4 }),
     lastActivityAt: ts('last_activity_at'),
+    /** Phase 9a: NULL before billing existed. */
+    mrrCents: integer('mrr_cents'),
+    paidSeats: integer('paid_seats'),
+    billingState: text('billing_state'),
     computedAt: ts('computed_at').notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.agencyId, t.day] })],

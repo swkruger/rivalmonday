@@ -1,6 +1,7 @@
 export * from './audit';
 export * from './client';
 export * from './environments';
+export * from './filters';
 export * from './ledger';
 export * from './migrate';
 export * from './reset';

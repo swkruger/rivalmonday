@@ -1,5 +1,6 @@
 export * from './access';
 export * from './ask';
+export * from './billing';
 export * from './briefs';
 export * from './client-intel';
 export * from './delivery';
