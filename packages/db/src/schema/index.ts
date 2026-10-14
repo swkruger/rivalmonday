@@ -12,5 +12,6 @@ export * from './mcp';
 export * from './model-ops';
 export * from './platform';
 export * from './support';
+export * from './platform-costs';
 export * from './sources';
 export * from './tenancy';

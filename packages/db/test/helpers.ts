@@ -95,3 +95,16 @@ export async function seedTenancy(owner: Db): Promise<void> {
     { agencyId: IDS.agencyB, clientId: IDS.clientB1, competitorId: IDS.competitorX },
   ]);
 }
+
+/** Re-insert the 6 default `platform_cost_service` rows (migration 0051 seeds them; `truncateAll` wipes them). Idempotent. */
+export async function seedPlatformCostServices(db: Db): Promise<void> {
+  await db.execute(sql`
+    insert into platform_cost_service (service, billing_url) values
+      ('openrouter','https://openrouter.ai/settings/credits'),
+      ('dataforseo','https://app.dataforseo.com/billing'),
+      ('scrapecreators','https://app.scrapecreators.com'),
+      ('apify','https://console.apify.com/billing'),
+      ('anthropic','https://platform.claude.com/settings/billing'),
+      ('neon','https://console.neon.tech/app/billing')
+    on conflict do nothing`);
+}
