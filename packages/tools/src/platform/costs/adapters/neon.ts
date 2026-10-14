@@ -18,11 +18,12 @@ const schema = z.object({
   pagination: z.object({ cursor: z.string().nullish() }).nullish(),
 });
 
-function seconds(e: z.infer<typeof entry>): number {
+/** null = the entry carries no recognisable metric (so an unknown body shape is an error, not "0 CU-hours"). */
+function seconds(e: z.infer<typeof entry>): number | null {
   const v = e.compute_unit_seconds;
   if (typeof v === 'number') return v;
-  const list = [...(v ?? []), ...(e.metrics ?? [])];
-  return list.filter((m) => m.metric_name === METRIC).reduce((s, m) => s + m.value, 0);
+  const hits = [...(v ?? []), ...(e.metrics ?? [])].filter((m) => m.metric_name === METRIC);
+  return hits.length ? hits.reduce((s, m) => s + m.value, 0) : null;
 }
 
 const isoNoMs = (d: Date) => d.toISOString().replace('.000Z', 'Z');
@@ -34,6 +35,8 @@ export const neonAdapter: CostAdapter = async (env, fetchImpl, now) => {
   const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours()));
   let total = 0;
+  let seen = 0;
+  let matched = 0;
   let cursor: string | null = null;
   for (let i = 0; i < MAX_PAGES; i++) {
     const qs = new URLSearchParams({
@@ -53,9 +56,17 @@ export const neonAdapter: CostAdapter = async (env, fetchImpl, now) => {
       schema,
     );
     if (!r.ok) return r.status === 403 ? { status: 'unavailable', kind: 'usage' } : r.reading;
-    for (const p of r.data.projects) for (const per of p.periods) for (const e of per.consumption) total += seconds(e);
+    for (const p of r.data.projects) for (const per of p.periods) for (const e of per.consumption) {
+      seen++;
+      const sec = seconds(e);
+      if (sec != null) {
+        matched++;
+        total += sec;
+      }
+    }
     cursor = r.data.pagination?.cursor ?? null;
     if (!cursor) break;
   }
+  if (seen > 0 && matched === 0) return { status: 'error', kind: 'usage', error: 'bad response' };
   return { status: 'ok', kind: 'usage', units: Math.round((total / 3600) * 1e4) / 1e4 };
 };

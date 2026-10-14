@@ -133,6 +133,13 @@ describe('neon', () => {
     const r = await neonAdapter(env, (async () => jsonRes(body)) as typeof fetch, now);
     expect(r.units).toBe(0.0003);
   });
+  it('entries with no recognisable metric give bad response, not 0 CU-hours', async () => {
+    const body = { projects: [{ periods: [{ consumption: [{ foo: 7200 }] }] }], pagination: {} };
+    expect(await neonAdapter(env, (async () => jsonRes(body)) as typeof fetch, now)).toEqual({ status: 'error', kind: 'usage', error: 'bad response' });
+  });
+  it('an empty projects list stays ok with 0 units', async () => {
+    expect(await neonAdapter(env, (async () => jsonRes({ projects: [], pagination: {} })) as typeof fetch, now)).toMatchObject({ status: 'ok', units: 0 });
+  });
   it('missing org id gives not_configured', async () => {
     const f = vi.fn();
     expect(await neonAdapter({ NEON_API_KEY: 'k' }, f as unknown as typeof fetch, now)).toEqual({ status: 'not_configured', kind: 'usage' });
