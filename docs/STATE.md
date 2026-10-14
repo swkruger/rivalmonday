@@ -24,7 +24,7 @@
 
 **Then:**
 1. **9a** `phase-9` in a fresh session + worktree (`/rm-kickoff phase-9`; Task 0 pre-flight; owner supplies Stripe test account + `STRIPE_*` keys first; 9a plan paths must use `app/(platform)/platform/**`) → **9b** after pilot-agency feedback.
-2. **Still to plan:** Phase 10 (agency onboarding wizard), Phase 11 (client onboarding wizard).
+2. **Phase 10** (agency self-serve sign-up + onboarding) planned 2026-10-14 (`docs/work/phase-10.md`); executes after 9a merges. **Still to plan:** Phase 11 (client onboarding wizard).
 3. **Waiting on real data:** a full re-pull on 2026-10-14 (snapshot `backups/20261014-201507-cs_dev/`) gave 1 archived event and 0 alerts; the first real alerts should come from the 2026-10-20 weekly pull. See BACKLOG § Waiting.
 
 ## Process (short)

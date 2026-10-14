@@ -42,9 +42,15 @@
 
 ## Dependencies on in-flight work
 - **9a merged (hard, f2):** `agency_invite_link`, `generateInviteToken`/`hashInviteToken`, `startAgencyTrial(db, gw, agencyId, { offer, pilotEndsAt?, couponId? })`, `billingAccess`, `assertCanActivateClient`, `create_checkout_session`, `get_billing_summary`, `create_invite_link`, `gatewayFor`/`fakeGateway`, `/platform/billing` page, `agencyServiceable`.
-- **8a/8b merged (hard):** `requirePlatformOperator(deps, ctx, min)`, `platform_audit_log`, console under `app/(platform)/platform/**`, `ToolDefinition.access` required (check whether a "public/no session" access kind exists; if not, add `access: { kind: 'public' }` in Task 3 and note it).
-- **8c:** edits `packages/email/src/{labels,render,types}.ts` — rebase conflicts expected there.
-- Platform settings table: reuse if 8a/8b/8c added one; else Task 1 creates `platform_setting`.
+- **8a/8b/8c merged ✅ 2026-10-14 (main c84ca97):** `requirePlatformOperator(deps, ctx, min)`, `platform_audit_log`, console under `app/(platform)/platform/**`, `ToolDefinition.access` required (check whether a "public/no session" access kind exists; if not, add `access: { kind: 'public' }` in Task 3 and note it).
+- Platform settings table: none on main after 8a/8b/8c (checked 2026-10-14) → Task 1 creates `platform_setting` unless 9a added one.
+- **9a pre-flight drift (2026-10-14, `docs/work/phase-9.md`) that binds this plan:**
+  - The `notification` outbox is **client-scoped** (`client_id NOT NULL`). Agency-level emails (welcome, sign-up notice, tips, invite) **use whatever 9a P4 settled** — default: direct send after commit, like `apps/web/src/server/support-email.ts` / the worker transport, with a dedupe guard (welcome/notice: `pending_signup.completed_at` row; tips: the `nudges_sent` update). Tasks 4, 12, 13, 14: replace "enqueue in the same transaction" with "send after commit"; a failed send is logged, never fails sign-up. Task 14's plaintext-URL concern disappears (nothing persisted).
+  - Write choke point is `ToolRegistry.invoke` (`packages/core/src/tools.ts`); `ToolErrorCode` is a closed union — new codes (e.g. `trial_client_limit` if not reusing 9a's `billing_seat_limit`) go there + `mcp/src/errors.ts` `mapError` + `forms.ts` `FORM_COPY`.
+  - No Next middleware, only `proxy.ts` cookie check: add `PUBLIC` entries for `/sign-up`, `/sign-up/problem`, `/join/`, `/u/`, `/files/logo/`.
+  - Worker has no DEMO/TEST gate; jobs are registered in `apps/worker/src/main.ts` `registerJobs` (Task 13 follows 9a's choice).
+  - `create_client` has no transaction (Task 6 sets `first_client_at` with a guarded `UPDATE … WHERE first_client_at IS NULL`). Platform audit = `withPlatformAudit` (`tools/src/platform/audit.ts`). Console nav: `components/shell/nav-items.ts`.
+- **phase-12 (planning):** also edits `create_client`; migrations 0052–0053 are 9a's, phase-10 ≥ 0054, phase-12 after.
 
 ## Review focus
 1. A refused sign-up (paused, rate-limited, duplicate trial, bad lock) must be indistinguishable from an accepted one in status, body, redirect and (≥ floor) timing — and no email is sent for it.

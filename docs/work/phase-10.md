@@ -1,6 +1,6 @@
 # phase-10 — Agency onboarding wizard (invite-link sign-up, billing step, emails)
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-10   **Base:** main @ 4c3ebc1
+**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-10   **Base:** main @ c84ca97
 **Plan/spec:** spec `docs/superpowers/specs/2026-10-14-phase-10-agency-onboarding-design.md`; plan `docs/superpowers/plans/2026-10-14-phase-10-agency-onboarding.md` (Tasks 0–15)
 
 ## Status (overwrite)
@@ -18,13 +18,11 @@ After 8, 8b, 8c, 9a merge: `/rm-kickoff phase-10` → Task 0 pre-flight (rebase,
 - Env (owner adds): `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `SUPPORT_REPLY_TO`, `POSTMARK_BROADCAST_STREAM`. Worker job `onboarding-nudges` (daily 15:00 UTC).
 
 ## Assumes from other branches
-- **phase-9 (9a, approved, not built — hard dependency):** tables `agency_invite_link` (`token_hash`, `token_prefix`, `offer pilot|trial`, `pilot_ends_at`, `discount_code_id`, `email_lock`, `max_uses`, `uses`, `expires_at`, `revoked_at`), `agency_billing`, `plan`, `discount_code`; `generateInviteToken`/`hashInviteToken`, `startAgencyTrial(db, gw, agencyId, { offer, pilotEndsAt?, couponId? })`, `create_checkout_session`, `fakeGateway`; `create_invite_link` returns `${APP_URL}/join/<token>` (**route `/join/[token]` is ours**); `billing-notice` template + outbox kinds; console `/platform/billing` invite-links UI. 9a e10: *redemption and invite emails are Phase 10*.
-- **phase-8 (8a, done, awaiting merge):** `requirePlatformOperator(deps, ctx, min?)`, `platform_audit_log`, `/platform/agencies[/id]`; migrations 0047–0048.
-- **phase-8b (done, stacked on 8):** moves console to `app/(platform)/platform/**` — use those paths; `AccessContext.support`, `ToolDefinition.access` **required** on every new tool; email template `support-session-started`, edits `packages/email/src/{render,types}.ts`; migrations 0049–0050.
-- **phase-8c (no work file; on 8b, platform costs):** migration 0051; edits `turbo.json`, `email/src/{labels,render,types}.ts`, `coverage.ts`.
-- **phase-7-planning (parked):** domain `rivalmonday.app`, mail from `mail.rivalmonday.app`, reply-to `support@` (7a d3/d5).
-- **Migrations:** main at 0046; in-flight use 0047–0051; 9a adds two → Phase 10 earliest **0054** (take next free at execution).
-- **Hot spots:** `email/src/{render,types,labels}.ts`, `coverage.ts`, `tools/all.ts`, `server/auth-options.ts`, nav.
+- **phase-9 (9a executing since 2026-10-14):** tables `agency_invite_link`, `agency_billing`, `plan`, `discount_code`; `generateInviteToken`/`hashInviteToken`, `startAgencyTrial`, `billingAccess`, `create_checkout_session`, `get_billing_summary`, `create_invite_link`, `fakeGateway`; migrations 0052–0053. Its pre-flight drift (outbox client-scoped, `proxy.ts` PUBLIC, closed `ToolErrorCode`, worker registration) is folded into the plan's "Dependencies on in-flight work".
+- **phase-8 (8a/8b/8c) merged ✅** (main c84ca97, migrations to 0051): `requirePlatformOperator`, `withPlatformAudit`, console under `app/(platform)/platform/**`, `ToolDefinition.access` required.
+- **phase-12 (planning):** also edits `create_client`; takes migrations after ours.
+- **phase-7-planning (parked):** domain `rivalmonday.app`, reply-to `support@`.
+- **Migrations:** Phase 10 ≥ **0054** (take next free at execution).
 
 ## Decisions (owner-approved)
 Spec f1–f14 (`docs/superpowers/specs/2026-10-14-phase-10-agency-onboarding-design.md`). Headline: **open self-serve agency sign-up** (amends root `CLAUDE.md` "invitation-only" — update § Decisions at merge); no card at trial start; open-trial allowance 1 client, weekly; agency created only after email verification. Plan-local P1–P6 in the plan. Plan approved 2026-10-14.
