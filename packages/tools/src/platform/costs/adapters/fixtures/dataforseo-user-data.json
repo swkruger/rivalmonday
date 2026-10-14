@@ -1,0 +1,1 @@
+{"version":"0.1","status_code":20000,"status_message":"Ok.","tasks":[{"id":"fixture-task","status_code":20000,"status_message":"Ok.","result":[{"login":"fixture@example.test","money":{"total":51,"balance":49.67,"limits":{}}}]}]}

@@ -1,0 +1,1 @@
+{"projects":[{"project_id":"proj-c","periods":[{"period_id":"p3","consumption":[{"timeframe_start":"2026-10-01T00:00:00Z","metrics":[{"metric_name":"compute_unit_seconds","value":900}]}]}]}],"pagination":{}}
