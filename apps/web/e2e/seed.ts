@@ -114,6 +114,25 @@ export async function seed(): Promise<void> {
     await db.insert(client).values({ agencyId: target!.id, name: 'Target Plumbing', verticalId: 'hvac_plumbing', features: ['dashboard'], keywords: ['plumber'], serviceArea: { center: { lat: 32.7, lng: -97.1 }, radiusKm: 20, zips: ['76010'] }, placeId: 'e2e-target-place' });
     await createInvitation(db, { agencyId: target!.id, email: 'target-admin@e2e.test', role: 'agency_admin', invitedBy: 'e2e-seed' });
 
+    // Phase 8c: platform costs. DataForSEO is "configured" (dummy credentials in E2E_SERVER_ENV, presence only) with a
+    // balance below its low threshold, so the Low strip shows; one manual monthly item gives the Spent card a figure.
+    await db.execute(sql`
+      insert into platform_cost_service (service, billing_url) values
+        ('openrouter','https://openrouter.ai/settings/credits'), ('dataforseo','https://app.dataforseo.com/billing'),
+        ('scrapecreators','https://app.scrapecreators.com'), ('apify','https://console.apify.com/billing'),
+        ('anthropic','https://platform.claude.com/settings/billing'), ('neon','https://console.neon.tech/app/billing')
+      on conflict do nothing`);
+    await db.execute(sql`update platform_cost_service set low_threshold_usd = 10 where service = 'dataforseo'`);
+    for (let d = 13; d >= 0; d--) {
+      const balance = (8.2 + d * 0.25).toFixed(2);
+      await db.execute(sql`
+        insert into platform_cost_snapshot (service, taken_at, status, kind, amount_usd)
+        values ('dataforseo', now() - make_interval(days => ${d}), 'ok', 'balance', ${balance})`);
+    }
+    await db.execute(sql`
+      insert into platform_cost_item (name, kind, amount_usd, period, starts_on, created_by)
+      values ('E2E Vercel Pro', 'recurring', 20, 'monthly', date_trunc('month', now() - interval '2 months')::date, 'e2e-seed')`);
+
     // 5b-2: spend near the cap (decision 6), a prospect with a ready snapshot (decisions 8–11), a pending theme proposal (decision 4).
     await db.insert(llmCall).values({ agencyId, clientId, task: 'brief_writer', provider: 'openrouter', model: 'm', inputTokens: 1, outputTokens: 1, costUsd: 13, latencyMs: 1, ok: true });
     const [prospect] = await db

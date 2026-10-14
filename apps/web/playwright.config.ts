@@ -39,6 +39,9 @@ export const E2E_SERVER_ENV: Record<string, string> = {
   EVIDENCE_FS_DIR: fileURLToPath(new URL('./test-results/evidence', import.meta.url)),
   // 6b Q1: Ask answers from a deterministic script (never OpenRouter); refused when VERCEL_ENV=production.
   ASK_FAKE_AI: '1',
+  // 8c: presence only (the costs page reads "configured" from env); the web app never calls DataForSEO.
+  DATAFORSEO_LOGIN: 'e2e',
+  DATAFORSEO_PASSWORD: 'e2e',
 };
 
 /** `E2E_SKIP_BUILD=1` (set by `e2e:affected` after its own, stamp-checked build) only starts the server. */

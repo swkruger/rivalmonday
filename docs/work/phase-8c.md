@@ -5,7 +5,7 @@
 Plan: `docs/superpowers/plans/2026-10-13-phase-8c-platform-costs.md` (Tasks 0–8).
 
 ## Status (overwrite)
-Spec approved 2026-10-13; plan written (Tasks 0–8), awaiting owner review + execution-method choice.
+Tasks 0–8 implemented and committed (migration 0051, adapters, maths, daily job + low email, 5 tools, `/platform/costs` page with nav and warning strip, `@costs` E2E, demo seed). Final whole-branch review pending; then owner go-ahead for `/rm-merge`.
 
 ## Next (overwrite)
 1. Owner reviews plan → SDD execution (Task 0 pre-flight first).
@@ -13,7 +13,12 @@ Spec approved 2026-10-13; plan written (Tasks 0–8), awaiting owner review + ex
 3. Merge order: phase-8 → phase-8b → phase-8c (rebase each on main after the previous merges).
 
 ## Interfaces this branch adds or changes
-- Planned (see spec): tables `platform_cost_service`, `platform_cost_snapshot`, `platform_cost_item` (migration next free, expect 0051); worker job `platform-costs-snapshot`; tools `list_platform_costs`, `refresh_platform_costs`, `update_platform_cost_service`, `save_platform_cost_item`, `archive_platform_cost_item`; route `/platform/costs`; email template `platform-cost-low`; env vars `ANTHROPIC_ADMIN_KEY`, `NEON_API_KEY`, `NEON_ORG_ID`.
+- Tables `platform_cost_service` (6 rows seeded by migration 0051), `platform_cost_snapshot`, `platform_cost_item` (service role only; numerics are strings).
+- Worker job `platform-costs-snapshot` (daily 06:00 UTC; "Refresh now" enqueues it); email template `platform-cost-low`.
+- Tools (owner only, `supportHidden`): `list_platform_costs`, `refresh_platform_costs`, `update_platform_cost_service`, `save_platform_cost_item`, `archive_platform_cost_item`.
+- Route `/platform/costs` (404 for non-owners); owners also get the Costs nav item and a low-balance strip on every `/platform/**` page.
+- Env vars `ANTHROPIC_ADMIN_KEY`, `NEON_API_KEY`, `NEON_ORG_ID` (in `turbo.json` globalPassThroughEnv; not yet set in `.env`).
+- Tests: `apps/web/e2e/platform-costs.spec.ts` (`@costs`); E2E server env gets dummy `DATAFORSEO_LOGIN/PASSWORD` (presence only) so the seeded service reads "configured". Demo seed `packages/demo/src/platform-costs.ts`.
 
 ## Decisions (owner, 2026-10-13 brainstorm)
 1. Own sub-phase stacked on 8b; every service/cost shows its billing URL.
