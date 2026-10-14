@@ -204,6 +204,16 @@ describe('save / archive_platform_cost_item', () => {
     const [row] = await dbs.owner.select().from(platformCostItem).where(eq(platformCostItem.id, id));
     expect(row!.archivedAt).not.toBeNull();
   });
+
+  it('an archived recurring item counts in its archive month but not the next month', async () => {
+    const { id } = (await registry.invoke(op, 'save_platform_cost_item', { name: 'Tool', kind: 'recurring', period: 'monthly', amountUsd: 40, startsOn: '2026-01-01' })) as { id: string };
+    await registry.invoke(op, 'archive_platform_cost_item', { id });
+    expect((await list()).months[5]).toMatchObject({ month: '2026-10', manualUsd: 40 });
+    vi.setSystemTime(at('2026-11-10T12:00:00Z'));
+    const r = await list();
+    expect(r.months[5]).toMatchObject({ month: '2026-11', manualUsd: 0 });
+    expect(r.months[4]).toMatchObject({ month: '2026-10', manualUsd: 40 });
+  });
 });
 
 describe('audit', () => {

@@ -95,7 +95,11 @@ function ymd(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
 }
 
-/** Archiving only hides an item; archived items still count towards history. */
+/**
+ * Archiving hides an item and, for recurring items, ends it: the effective end is min(endsOn, UTC date of archivedAt),
+ * so the archive month still counts but later months do not. An effective end before startsOn counts nowhere.
+ * One-off items always count in their own month.
+ */
 export function manualMonthly(items: ManualItem[], month: string): number {
   const { start, end } = monthBounds(month);
   const monthStart = ymd(start);
@@ -103,7 +107,10 @@ export function manualMonthly(items: ManualItem[], month: string): number {
   let total = 0;
   for (const it of items) {
     if (it.kind === 'recurring') {
-      if (it.startsOn <= monthEnd && (it.endsOn == null || it.endsOn >= monthStart)) {
+      const archivedOn = it.archivedAt ? it.archivedAt.toISOString().slice(0, 10) : null;
+      const effEnd = it.endsOn != null && archivedOn != null ? (it.endsOn < archivedOn ? it.endsOn : archivedOn) : (it.endsOn ?? archivedOn);
+      if (effEnd != null && effEnd < it.startsOn) continue;
+      if (it.startsOn <= monthEnd && (effEnd == null || effEnd >= monthStart)) {
         total += it.period === 'yearly' ? it.amountUsd / 12 : it.amountUsd;
       }
     } else if (it.startsOn >= monthStart && it.startsOn <= monthEnd) {

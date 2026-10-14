@@ -120,6 +120,28 @@ describe('manualMonthly', () => {
   it('archived still counted for history', () => {
     expect(manualMonthly([item({ archivedAt: new Date('2026-10-05T00:00:00Z') })], '2026-10')).toBe(120);
   });
+  it('archived open-ended recurring counts up to and including its archive month, then stops', () => {
+    const a = item({ archivedAt: new Date('2026-10-05T00:00:00Z') });
+    expect(manualMonthly([a], '2026-09')).toBe(120);
+    expect(manualMonthly([a], '2026-10')).toBe(120);
+    expect(manualMonthly([a], '2026-11')).toBe(0);
+    expect(manualMonthly([a], '2027-03')).toBe(0);
+  });
+  it('recurring archived before its start counts in no month', () => {
+    const a = item({ startsOn: '2026-12-01', archivedAt: new Date('2026-10-05T00:00:00Z') });
+    for (const m of ['2026-10', '2026-11', '2026-12', '2027-01']) expect(manualMonthly([a], m), m).toBe(0);
+  });
+  it('archived recurring whose endsOn is earlier than the archive date stops at endsOn', () => {
+    const a = item({ endsOn: '2026-08-15', archivedAt: new Date('2026-10-05T00:00:00Z') });
+    expect(manualMonthly([a], '2026-08')).toBe(120);
+    expect(manualMonthly([a], '2026-09')).toBe(0);
+    expect(manualMonthly([a], '2026-10')).toBe(0);
+  });
+  it('archived one-off still counts in its own month', () => {
+    const a = item({ kind: 'one_off', period: null, amountUsd: 50, startsOn: '2026-09-10', archivedAt: new Date('2026-09-12T00:00:00Z') });
+    expect(manualMonthly([a], '2026-09')).toBe(50);
+    expect(manualMonthly([a], '2026-10')).toBe(0);
+  });
 });
 
 describe('monthKeys', () => {
