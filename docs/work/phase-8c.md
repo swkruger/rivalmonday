@@ -8,9 +8,8 @@ Plan: `docs/superpowers/plans/2026-10-13-phase-8c-platform-costs.md` (Tasks 0–
 Tasks 0–8 implemented and committed (migration 0051, adapters, maths, daily job + low email, 5 tools, `/platform/costs` page with nav and warning strip, `@costs` E2E, demo seed). Final whole-branch review pending; then owner go-ahead for `/rm-merge`.
 
 ## Next (overwrite)
-1. Owner reviews plan → SDD execution (Task 0 pre-flight first).
-2. Owner adds `ANTHROPIC_ADMIN_KEY`, `NEON_API_KEY`, `NEON_ORG_ID` to `.env` (main + this worktree) before Task 0, so Neon fields can be live-verified.
-3. Merge order: phase-8 → phase-8b → phase-8c (rebase each on main after the previous merges).
+1. Final whole-branch review + fix wave -> owner verification -> /rm-merge after phase-8 and phase-8b.
+2. Pre-merge owner step: set ANTHROPIC_ADMIN_KEY, NEON_API_KEY, NEON_ORG_ID before relying on live Anthropic/Neon readings (Neon field paths unverified).
 
 ## Interfaces this branch adds or changes
 - Tables `platform_cost_service` (6 rows seeded by migration 0051), `platform_cost_snapshot`, `platform_cost_item` (service role only; numerics are strings).

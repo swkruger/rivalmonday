@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@playbooks',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -63,6 +63,7 @@ export const RULES: Rule[] = [
     why: 'shared server foundation',
   },
   { pattern: /^packages\/tools\/src\/(?:tools|platform)\/support\.ts$/, tags: ['@support', '@platform'], why: 'support-session tools and service (start/end, history, console list)' },
+  { pattern: /^packages\/tools\/src\/(?:platform\/costs\/|tools\/platform-costs\.ts$)/, tags: ['@costs'], why: 'platform costs tools, maths and snapshot service' },
   { pattern: /^packages\/tools\/src\/(?:platform\/|tools\/platform-console\.ts$)/, tags: ['@platform'], why: 'platform console tools and nightly stats' },
   { pattern: /^packages\/(?:ui|core|db)\//, tags: 'all', why: 'shared package (ui/core/db, incl. migrations and schema)' },
   { pattern: /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|tsconfig\.base\.json)$/, tags: 'all', why: 'workspace config' },
@@ -112,6 +113,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${C}settings/alerts/`), tags: ['@alert-rules'], why: 'alert rules' },
   { pattern: re(`${C}settings/profile/`), tags: ['@profile', '@clients'], why: 'client profile and features' },
   { pattern: re(`${C}settings/delivery/`), tags: [], why: 'no E2E covers this settings page' },
+  { pattern: re(`${APP}\\(platform\\)/platform/costs/`), tags: ['@costs'], why: 'platform costs page, dialogs and warning strip' },
   { pattern: re(`${APP}\\(platform\\)/platform/agencies/\\[id\\]/`), tags: ['@platform', '@support'], why: 'platform agency page: View as agency dialog and start action' },
   { pattern: re(`${APP}\\(platform\\)/platform/`), tags: ['@platform', '@reviews'], why: 'platform console, review/theme queues' },
   { pattern: re(`${APP}support/`), tags: ['@support'], why: 'support session Exit and end routes' },
@@ -161,6 +163,7 @@ export const RULES: Rule[] = [
   kw('competitor', ['@competitors'], 'competitors'),
   kw('settings|preferences|client-input|clients', ['@profile', '@clients'], 'settings/client input'),
   kw('support-session|platform-support', ['@support', '@platform'], 'support sessions'),
+  kw('platform-costs', ['@costs'], 'platform costs'),
   kw('platform|model-ops', ['@platform'], 'platform/model ops'),
   kw('email|magic|sign-in', ['@auth'], 'sign-in email'),
   { pattern: new RegExp(`^(?:${PKG})`), tags: 'all', why: 'package file no keyword matches', fallback: true },

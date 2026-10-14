@@ -93,6 +93,19 @@ describe('resolveAffected', () => {
     }
   });
 
+  it('maps the platform-costs files to @costs', () => {
+    for (const f of [
+      'apps/web/src/app/(platform)/platform/costs/page.tsx',
+      'apps/web/src/app/(platform)/platform/costs/_components/cost-warning-strip.tsx',
+      'packages/tools/src/tools/platform-costs.ts',
+      'packages/tools/src/platform/costs/math.ts',
+      'packages/demo/src/platform-costs.ts',
+    ]) {
+      expect(resolve(f).tags, f).toContain('@costs');
+      expect(resolve(f).mode, f).toBe('some');
+    }
+  });
+
   it('runs everything for an unknown package file, a migration, or a shared foundation', () => {
     expect(resolve('packages/tools/src/registry.ts').mode).toBe('all');
     expect(resolve('packages/email/src/render.ts').mode).toBe('all');
