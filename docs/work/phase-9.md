@@ -1,13 +1,13 @@
 # phase-9 — Billing (platform → agency subscriptions; agency → client billing TBD)
 
-**Kind:** feature   **Worktree:** ../CompetitorSpy-wt/phase-9   **Base:** main @ 6c14877
+**Kind:** feature   **Worktree:** ../CompetitorSpy-wt/phase-9   **Base:** main @ c84ca97
 **Plan/spec:** 9a spec `docs/superpowers/specs/2026-10-12-phase-9a-platform-billing-design.md` (e1–e16); 9a plan `docs/superpowers/plans/2026-10-12-phase-9a-platform-billing.md` (P1–P5, Tasks 0–12). 9b spec `docs/superpowers/specs/2026-10-12-phase-9b-client-billing-connect-design.md` (f1–f13); 9b plan `docs/superpowers/plans/2026-10-12-phase-9b-client-billing-connect.md` (Q1–Q4, Tasks 0–12). 9b execution after pilot feedback.
 
 ## Status (overwrite)
-9a spec owner-approved 2026-10-12; 9a plan **owner-approved 2026-10-12** (subagent-driven). 9b spec + plan **owner-approved 2026-10-12** (subagent-driven). 9b executes only after 9a merge + pilot feedback. Execution needs phase-6 **and** phase-8 merged (order 6 → 8 → 9) and an owner Stripe test account.
+**9a execution started 2026-10-14** (phase-6 and phase-8 on `main`; subagent-driven). Specs + plans for 9a and 9b owner-approved 2026-10-12. 9b executes only after 9a merge + pilot feedback. Test DB: `cs_phase_9_test` on the local cluster.
 
 ## Next (overwrite)
-1. After phase-6 and phase-8 merge: Task 0 pre-flight (rebase, Stripe test keys from owner, scheduler inventory).
+1. 9a Task 0 pre-flight (re-check dependencies vs code, Stripe test keys from owner — fake gateway until then, scheduler inventory), then Tasks 1–12 via subagent-driven development.
 
 ## Interfaces this branch adds or changes
 None yet.
