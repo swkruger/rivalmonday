@@ -4,12 +4,10 @@
 **Plan/spec:** spec `docs/superpowers/specs/2026-10-14-phase-10-agency-onboarding-design.md`; plan `docs/superpowers/plans/2026-10-14-phase-10-agency-onboarding.md` (Tasks 0–15)
 
 ## Status (overwrite)
-Planning done 2026-10-14: brief → brainstorm → spec (owner-approved) → lean plan (Tasks 0–15), all committed. Plan **awaiting owner approval**. Nothing uncommitted; no code; no install/test DB (planning-only worktree).
+Planned ahead 2026-10-14: spec + lean plan (Tasks 0–15) **owner-approved**. No code. Dev blocked until 8, 8b, 8c, 9a merge.
 
 ## Next (overwrite)
-1. Owner approves the plan (or requests changes).
-2. Merge the phase-10 docs to main as planned-ahead (like 8/8b/9).
-3. After 8, 8b, 8c, 9a merge: `/rm-kickoff phase-10` → Task 0 pre-flight (rebase, re-check deps, owner adds env vars, install `sharp`) → SDD.
+After 8, 8b, 8c, 9a merge: `/rm-kickoff phase-10` → Task 0 pre-flight (rebase, re-check deps, owner adds 4 env vars, install `sharp`) → SDD.
 
 ## Interfaces this branch adds or changes
 (planned, not built)
@@ -29,7 +27,7 @@ Planning done 2026-10-14: brief → brainstorm → spec (owner-approved) → lea
 - **Hot spots:** `email/src/{render,types,labels}.ts`, `coverage.ts`, `tools/all.ts`, `server/auth-options.ts`, nav.
 
 ## Decisions (owner-approved)
-Spec f1–f14 (`docs/superpowers/specs/2026-10-14-phase-10-agency-onboarding-design.md`). Headline: **open self-serve agency sign-up** (amends root `CLAUDE.md` "invitation-only" — update § Decisions at merge); no card at trial start; open-trial allowance 1 client, weekly; agency created only after email verification. Plan-local P1–P6 in the plan.
+Spec f1–f14 (`docs/superpowers/specs/2026-10-14-phase-10-agency-onboarding-design.md`). Headline: **open self-serve agency sign-up** (amends root `CLAUDE.md` "invitation-only" — update § Decisions at merge); no card at trial start; open-trial allowance 1 client, weekly; agency created only after email verification. Plan-local P1–P6 in the plan. Plan approved 2026-10-14.
 
 ## New backlog (target → item)
 - Owner → create Cloudflare Turnstile site (prod domain + localhost) and a Postmark Broadcast stream before Phase 10 execution.
