@@ -1,13 +1,13 @@
 # phase-12 — Competitor discovery & rating (12a) + starting-point brief (12b)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-12   **Base:** main @ c84ca97
-**Plan/spec:** spec pending: docs/superpowers/specs/2026-10-14-phase-12-discovery-and-starting-point-design.md
+**Plan/spec:** spec `docs/superpowers/specs/2026-10-14-phase-12-discovery-and-starting-point-design.md` (owner-approved 2026-10-14) · plans `docs/superpowers/plans/2026-10-14-phase-12a-competitor-discovery.md`, `…-12b-starting-point-brief.md` (awaiting owner approval)
 
 ## Status (overwrite)
-Kickoff 2026-10-14. Design owner-approved in brainstorming (Brief §1). No spec/plan/code yet. Roadmap row 12 added at merge.
+Spec owner-approved 2026-10-14. Lean plans 12a (Tasks 0–11) and 12b (Tasks 0–9) written, awaiting owner approval. No code yet.
 
 ## Next (overwrite)
-Agent writes the spec, then the lean plan (12a, 12b); owner approves.
+Owner reviews both plans and picks an execution method; then implementation setup (pnpm install, own test DB) and 12a Task 0.
 
 ## Interfaces this branch adds or changes
 (planned, not built)
@@ -25,6 +25,7 @@ Agent writes the spec, then the lean plan (12a, 12b); owner approves.
 Brainstorm decisions in Brief §1; promoted to the spec with ids.
 
 ## New backlog (target → item)
+- Unscheduled → `tier_change` event when a tracked competitor's tier changes (deferred by plan 12a P4: `detected_change_subject_check` needs a capture or rank scan)
 - Phase 12 merge → add roadmap row 12; amend core spec §9.1 item 5 (quiet week carries a "Where you stand" scorecard) and §4.1 item 2.
 
 ## Owner verification steps
