@@ -59,9 +59,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ## Polish (small UI/UX fixes, any time)
 
-### Polish (high)
-- [ ] Engine `score-stage.test.ts` date time-bomb: fixture dates fixed 2026-10, `scoreEvent` ages vs the real clock — pass `now` (fails on main and every branch) — *from 8a*
-
 ### Phase 6 UI polish
 - [ ] Ask UI: thread delete is one-click with error only in a tooltip; save dialog allows duplicate saves; pre-persist error has empty `messageId`; quota 0 shows "N of 0"; `assistantName` read twice — *from 6b*
 - [ ] `/platform/knowledge`: `start()` throw uncaught in import panel; preview shows stale kind; inline delete confirm lacks focus handling; "Saved." banner after publish — *from 6c*
