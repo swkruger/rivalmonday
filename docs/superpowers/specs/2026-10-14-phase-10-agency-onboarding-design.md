@@ -81,8 +81,8 @@ CREATE TABLE agency_onboarding (
 );
 INSERT INTO agency_onboarding (agency_id, source, completed_at) SELECT id, 'legacy', now() FROM agency;
 ```
-- RLS: `agency_profile` — select for members of the agency with role `agency_admin` or `agency_staff`; insert/update for
-  `agency_admin`. `agency_onboarding` — select for agency members (admin/staff); writes service-role only (via tools).
+- RLS: `agency_profile` — select for members of the agency with role `agency_admin` or `account_manager`; insert/update for
+  `agency_admin`. `agency_onboarding` — select for agency members (admin/account manager); writes service-role only (via tools).
   Mirror the policy style of the latest tenancy migration. `tax_id` and billing columns never appear in client-facing reads.
 - **Pause switch:** reuse a platform settings table if 8a/8b has one (pre-flight check); else
   `platform_setting (key text PRIMARY KEY, value jsonb NOT NULL, updated_at, updated_by text)`, service-role only.
@@ -116,11 +116,11 @@ INSERT INTO agency_onboarding (agency_id, source, completed_at) SELECT id, 'lega
 - Routes (`app/(app)/onboarding/page.tsx`, `?step=profile|team|plan|branding`), `/agency` checklist card,
   `/sign-up`, `/join/[token]`, `/sign-up/problem`. All new screens in `packages/demo/src/coverage.ts`.
 - Tools (agency_admin unless noted; others → 404):
-  - `get_onboarding_status` (admin + staff) → `{ steps: Record<'profile'|'team'|'plan'|'branding'|'first_client', 'done'|'skipped'|'open'>, dismissed, completed, source }`.
+  - `get_onboarding_status` (admin + account manager) → `{ steps: Record<'profile'|'team'|'plan'|'branding'|'first_client', 'done'|'skipped'|'open'>, dismissed, completed, source }`.
   - `mark_onboarding_step({ step: 'profile'|'team'|'plan'|'branding', action: 'done'|'skip' })`; sets `completed_at` when all
     four are done/skipped **and** `first_client_at` is set or the checklist is dismissed.
   - `dismiss_onboarding_checklist()`.
-  - `get_agency_profile` (admin + staff; staff without billing/tax fields), `update_agency_profile(input)` (zod: name, contact name/email/phone required;
+  - `get_agency_profile` (admin + account manager; account manager without billing/tax fields), `update_agency_profile(input)` (zod: name, contact name/email/phone required;
     name 1–120; website URL; US phone `^\+?1?[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$`; ZIP `^\d{5}(-\d{4})?$`
     when country = US; timezone ∈ `Intl.supportedValuesOf('timeZone')`; verticals ⊂ `['hvac_plumbing','dental']`).
     Agency display name stays in `agency.name`.

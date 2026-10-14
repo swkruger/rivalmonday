@@ -1,13 +1,13 @@
 # phase-10 — Agency onboarding wizard (invite-link sign-up, billing step, emails)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-10   **Base:** main @ 4c3ebc1
-**Plan/spec:** spec `docs/superpowers/specs/2026-10-14-phase-10-agency-onboarding-design.md`; plan not yet
+**Plan/spec:** spec `docs/superpowers/specs/2026-10-14-phase-10-agency-onboarding-design.md`; plan `docs/superpowers/plans/2026-10-14-phase-10-agency-onboarding.md` (Tasks 0–15)
 
 ## Status (overwrite)
-Brainstorm done 2026-10-14; spec written, awaiting owner review.
+Spec approved 2026-10-14; plan written, awaiting owner approval. Dev blocked until 9a (+8/8b/8c) merge.
 
 ## Next (overwrite)
-Owner reviews spec → `superpowers:writing-plans` (lean format) → owner approval. Execution only after 9a merges (f2).
+Owner approves plan → merge phase-10 docs to main (planned-ahead) → after 9a merges: `/rm-kickoff phase-10` → Task 0 pre-flight → SDD.
 
 ## Interfaces this branch adds or changes
 None yet.
