@@ -26,22 +26,22 @@
 - **P1** Transitions are applied by one function `applyBillingSignal(tx, gw, agencyId, signal, actor)` in `@cs/billing/apply.ts`: locks the row (`FOR UPDATE`), calls `nextBillingState`, writes the row + `agency_billing_event` + outbox notification in the same transaction. Webhook, daily job and admin tools all use it.
 - **P2** Shared filter `serviceableAgencyIds` lives in `@cs/db` as a SQL fragment `agencyServiceable(agencyIdColumn)` = `NOT EXISTS (select 1 from agency_billing b where b.agency_id = <col> and b.state in ('read_only','suspended'))`. Agencies without a billing row are serviceable (safety for tests/seeds).
 - **P3** Plan-to-Stripe sync on `create_plan_version` and CLI `pnpm --filter @cs/worker billing:sync-plan` (creates product once, two prices per version, `tax_behavior: 'exclusive'`).
-- **P4** Notification kinds for lifecycle emails are added to the existing `notification` outbox (`packages/db/src/schema/delivery.ts`) with recipients = active `agency_admin` memberships; delivery reuses the existing delivery job.
+- **P4** Lifecycle emails go to active `agency_admin` memberships. **Pre-flight drift:** the `notification` outbox (`packages/db/src/schema/delivery.ts`) is client-scoped (`client_id` NOT NULL + composite client FK, `subject_type/subject_id` NOT NULL, recipient = `contact`/webhook; `kind` is plain text but `recipientsFor` validates against `AGENCY_KINDS`), so agency-level billing mail does not fit it. Controller decision needed: (a) send directly through the transport like `apps/web/src/server/support-email.ts` / worker `platform_cost_low` (idempotency via `agency_billing_event` / a reminder row, not `notification.dedupe_key`), or (b) a migration making `notification.client_id` nullable. Default: (a).
 - **P5** Seat-cap check lives in a `@cs/billing` function `assertCanActivateClient(db, agencyId)` throwing `ToolError('billing_seat_limit', …)`; tools call it inside their transaction before setting `status='active'`; `syncSeats` runs after commit (fire-and-forget with `seat_sync_pending` on failure).
 
 ## File structure
 - `packages/billing/` (new package: `package.json`, `CLAUDE.md`, `src/{index,gateway,stripe-gateway,fake-gateway,state,apply,access,seats,trial,webhook,daily,tokens,plan-sync}.ts` + tests).
-- `packages/db/src/schema/billing.ts` (new) + schema index; migrations `<n>_billing.sql` (generated), `<n+1>_billing_rls.sql` (custom); `packages/db/src/filters.ts` (or existing filter module) `agencyServiceable`.
-- `packages/tools/src/tools/billing.ts` (agency tools), `platform-billing.ts` (platform tools) + `all.ts`; modified `onboarding.ts` (`create_client`), `prospects.ts` (`convert_prospect`), registry/`run-tool` write refusal for paused agencies.
-- `packages/collectors/src/schedule/due-pages.ts`, `sources/due.ts`, `local/self.ts`, `packages/engine/src/{sweep.ts,briefs/generate.ts,briefs/deliver.ts,score/score-stage.ts,reports/quarterly.ts}` (filter), phase-6 Ask/MCP entry points.
+- `packages/db/src/schema/billing.ts` (new) + `schema/index.ts` export; migrations `0052_billing.sql` (generated), `0053_billing_rls.sql` (custom; 0052 is the next free number at pre-flight 2026-10-14); `packages/db/src/filters.ts` (new file, re-export from `packages/db/src/index.ts`) `agencyServiceable`; edit `schema/platform.ts` (`agencyDailyStat`) for the 3 new columns.
+- `packages/tools/src/tools/billing.ts` (agency tools), `platform-billing.ts` (platform tools) + `all.ts`; modified `onboarding.ts` (`create_client`), `prospects.ts` (`convert_prospect`), write refusal for paused agencies in `ToolRegistry.invoke` (`packages/core/src/tools.ts`; `apps/web/src/server/run-tool.ts` only wraps it); new error codes in `ToolErrorCode` (`packages/core/src/tools.ts`) + `packages/mcp/src/errors.ts` `mapError` + `apps/web/src/server/forms.ts` `FORM_COPY`; new tool names added to the lists in `packages/tools/src/tools/channels.test.ts`.
+- Scheduler filter sites (full inventory in `docs/work/phase-9.md`): `packages/collectors/src/{schedule/due-pages.ts,sources/due.ts,local/self.ts,rankings/scan.ts}`, `packages/engine/src/{sweep.ts,moves/moves-stage.ts,briefs/generate.ts,score/score-stage.ts,reports/quarterly.ts}`, delivery side `packages/engine/src/{briefs/deliver.ts,alerts/create.ts,alerts/digest.ts,delivery/outbox.ts}`; Ask/MCP entry points `packages/mcp/src/{server.ts,auth.ts}`, `packages/ask/src/{turn.ts,quota.ts,starters.ts}`.
 - `packages/email/src/templates/billing-notice.tsx` (+ test).
-- `apps/web/src/app/api/stripe/webhook/route.ts`; `app/(app)/agency/settings/billing/{page.tsx,seats.csv/route.ts,billing-actions.ts}`; `components/shell/billing-banner.tsx`; `app/(app)/paused/page.tsx`; `app/(app)/platform/billing/page.tsx` (+ components); billing panel in `platform/agencies/[id]`.
+- `apps/web/src/app/api/stripe/webhook/route.ts` (add `/^\/api\/stripe\//` to `PUBLIC` in `apps/web/src/proxy.ts`); `app/(app)/agency/settings/billing/{page.tsx,seats.csv/route.ts,actions.ts}`; `components/shell/billing-banner.tsx`; `app/(app)/paused/page.tsx`; `app/(platform)/platform/billing/page.tsx` (+ components); billing panel in `app/(platform)/platform/agencies/[id]/page.tsx`.
 - `apps/worker/src/jobs/billing-daily.ts`; `apps/worker/src/cli/billing-sync-plan.ts`.
 - `packages/demo/src/billing.ts`; `apps/web/e2e/billing.spec.ts`.
 
 ## Dependencies on in-flight work
 - **phase-8 merged** (hard): `platform_admin`, `requirePlatformOperator(deps, ctx, min)`, `/platform/*` pages, `agency_daily_stat`, `list_platform_agencies`.
-- **phase-6 merged** (hard): Ask/MCP entry points to refuse with `service_paused`; registry `CallOptions`; migrations 0038–0043.
+- **phase-6 merged** (hard): Ask/MCP entry points to refuse with `service_paused`; registry `CallOptions` (`packages/core/src/tools.ts`); migrations 0038–0046 (phase-8 holds 0047–0051; next free 0052).
 - Owner: Stripe account in test mode; `STRIPE_*` vars in `.env` (Task 0 asks).
 
 ## Review focus
@@ -61,7 +61,7 @@
 
 ### Task 1: Schema, migrations, backfill
 **Goal:** spec § Data model tables + `agency_daily_stat` columns + backfill + `standard` v1 seed.
-**Files:** `packages/db/src/schema/billing.ts`, schema index, generated + custom migrations, `packages/db/src/filters.ts` (`agencyServiceable`).
+**Files:** `packages/db/src/schema/billing.ts`, `schema/index.ts`, `schema/platform.ts` (3 stat columns), generated + custom migrations (0052/0053), new `packages/db/src/filters.ts` (`agencyServiceable`, exported from `src/index.ts`).
 **Interfaces:** Drizzle `plan`, `agencyBilling`, `agencyBillingEvent`, `stripeEvent`, `discountCode`, `agencyInviteLink`; types `PlanRow`, `AgencyBillingRow`, `BillingState`. `agencyServiceable(col: AnyColumn): SQL` (P2).
 **Custom migration (full):**
 ```sql
@@ -72,7 +72,7 @@ ALTER TABLE stripe_event ENABLE ROW LEVEL SECURITY; ALTER TABLE stripe_event FOR
 ALTER TABLE discount_code ENABLE ROW LEVEL SECURITY; ALTER TABLE discount_code FORCE ROW LEVEL SECURITY;
 ALTER TABLE agency_invite_link ENABLE ROW LEVEL SECURITY; ALTER TABLE agency_invite_link FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON plan, agency_billing, agency_billing_event, stripe_event, discount_code, agency_invite_link FROM app_user;
--- grants to the service role: mirror the existing membership RLS migration's grant style
+-- service role is `app_service`: 0001_rls.sql default privileges already grant it SELECT/INSERT/UPDATE/DELETE on new public tables, so no GRANT line is needed (same as 0034/0048); add the tables to the privilege-guard / service-only lists in packages/db tests
 ALTER TABLE agency_daily_stat ADD COLUMN mrr_cents integer, ADD COLUMN paid_seats integer, ADD COLUMN billing_state text;
 INSERT INTO plan (code, version, name, base_price_cents, included_seats, seat_price_cents, trial_days, is_current, created_by)
 VALUES ('standard', 1, 'Standard', 22900, 3, 9900, 30, true, 'migration');
@@ -87,7 +87,7 @@ ON CONFLICT (agency_id) DO NOTHING;
 ### Task 2: `@cs/billing` package, gateways, tokens
 **Goal:** package scaffold, `BillingGateway`, `stripeGateway`, `fakeGateway`, invite-token helpers.
 **Files:** `packages/billing/*` (mirror `packages/email` package layout), `pnpm-workspace`/turbo picks it up; `packages/billing/CLAUDE.md` (gotchas: fake in DEMO/TEST, cents, no secrets in logs).
-**Interfaces:** `BillingGateway` methods exactly as spec § `@cs/billing` with typed inputs/outputs, e.g. `createCheckoutSession(i: { customerId: string; basePriceId: string; seatPriceId: string; seatQty: number; trialEnd?: Date; couponId?: string; allowPromotionCodes: boolean; successUrl: string; cancelUrl: string }): Promise<{ url: string }>`; `verifyWebhook(rawBody: string, signature: string): StripeEventLike` (throws `InvalidSignature`). `gatewayFor(env): BillingGateway` (P: fake unless key set and env not DEMO/TEST). `generateInviteToken(): { token: string; hash: string; prefix: string }` (`rm_inv_` + 32 random bytes base64url; SHA-256 hex; prefix = first 12 chars), `hashInviteToken(token)`. Mirror phase-6 `@cs/core/tokens.ts`.
+**Interfaces:** `BillingGateway` methods exactly as spec § `@cs/billing` with typed inputs/outputs, e.g. `createCheckoutSession(i: { customerId: string; basePriceId: string; seatPriceId: string; seatQty: number; trialEnd?: Date; couponId?: string; allowPromotionCodes: boolean; successUrl: string; cancelUrl: string }): Promise<{ url: string }>`; `verifyWebhook(rawBody: string, signature: string): StripeEventLike` (throws `InvalidSignature`). `gatewayFor(env): BillingGateway` (P: fake unless key set and env not DEMO/TEST). `generateInviteToken(): { token: string; hash: string; prefix: string }` (`rm_inv_` + 32 random bytes base64url; SHA-256 hex; prefix = first 12 chars), `hashInviteToken(token)`. Mirror `packages/core/src/tokens.ts` (`generatePat`/`hashPat`).
 **Behaviour:** Stripe SDK pinned exact; `stripe-gateway.ts` sets `automatic_tax: { enabled: STRIPE_TAX_ENABLED === 'true' }` on Checkout; promotion codes restricted via `customer` when one agency, else store `restricted_agency_ids` and validate in `redeem_discount_code` before applying. Fake gateway records calls and can be told to fail the next call.
 **Tests:** `gatewayFor` selection matrix; token format, hash stability, prefix; fake records calls and failure injection; stripe-gateway unit-tested against a mocked `Stripe` client (payload shapes: seat line quantity, trial_end, automatic_tax).
 **Done when:** `pnpm --filter @cs/billing exec vitest run` passes.
@@ -117,7 +117,7 @@ ON CONFLICT (agency_id) DO NOTHING;
 
 ### Task 6: Daily job + plan sync CLI
 **Goal:** `runBillingDaily` + job `billing-daily` (cron `30 2 * * *`, after `platform-daily-stats`) + `billing:sync-plan` CLI.
-**Files:** `packages/billing/src/{daily,plan-sync}.ts` (+ tests); `apps/worker/src/jobs/billing-daily.ts` (+ test, follow `jobs/heartbeat.ts`); `apps/worker/src/cli/billing-sync-plan.ts`; worker `package.json` script.
+**Files:** `packages/billing/src/{daily,plan-sync}.ts` (+ tests); `apps/worker/src/jobs/billing-daily.ts` (+ test; follow `jobs/platform-stats.ts`: `createBillingJobs(deps)` returning `defineJob({ cron })`, added to the `registerJobs([...])` list in `apps/worker/src/main.ts`); `apps/worker/src/cli/billing-sync-plan.ts`; worker `package.json` script `billing:sync-plan`; `@cs/billing` dependency in worker/tools/web `package.json`; worker env comes from `createWorkerDeps(process.env)` in `apps/worker/src/deps.ts`. `platform-daily-stats` is cron `0 2 * * *` (confirmed); its upsert only sets its own columns so the billing columns survive, but upsert the `agency_daily_stat` row if yesterday's is missing.
 **Interfaces:** `runBillingDaily(db, gw, now): Promise<{ transitions: number; reminders: number; seatRetries: number; drift: number }>`; `syncPlanToStripe(db, gw, planId): Promise<PlanRow>`.
 **Behaviour:** per agency: `timer` signal; reminder notifications at exactly 7 and 1 days before `trial_ends_at` and 7 days before `pilot_ends_at` (idempotent via a `billing_reminder_<n>` notification dedupe key); retry `syncSeats` where pending; reconciliation: fetch subscription, if Stripe status/quantity differs → apply matching signal / fix `billable_seats_synced`, count drift, log agency id only; write `mrr_cents` (base + seats × price − discount, from Stripe upcoming invoice when available), `paid_seats`, `billing_state` into yesterday's `agency_daily_stat` row. Not scheduled in DEMO/TEST.
 **Tests:** timers via fake clock; reminders once only; drift corrected; pending sync retried; stat columns written; `syncPlanToStripe` creates product once and two prices per version.
@@ -125,7 +125,7 @@ ON CONFLICT (agency_id) DO NOTHING;
 
 ### Task 7: Lifecycle email template
 **Goal:** one `billing-notice` template rendering all spec § Emails variants in Rival Monday branding.
-**Files:** `packages/email/src/templates/billing-notice.tsx` (+ test); register kinds with the delivery job (follow `agency-notice.tsx` + its delivery wiring).
+**Files:** `packages/email/src/templates/billing-notice.tsx` (+ test); add a `billing_notice` variant to `EmailPayload` in `packages/email/src/types.ts` and the `switch` in `packages/email/src/render.ts` (follow `support-session-started.tsx`); sending per P4 (no outbox).
 **Interfaces:** `BillingNoticeKind = 'trial_started'|'trial_ending_7'|'trial_ending_1'|'trial_ended'|'payment_failed'|'service_paused'|'account_suspended'|'account_reactivated'|'pilot_ending_7'`; props `{ kind; agencyName; date?: string; billingUrl: string }`.
 **Copy (decided):** subject / one-line body —
 - trial_started: "Your Rival Monday trial has started" / "Your 30-day trial runs until {date}. Up to 3 clients are included."
@@ -142,14 +142,14 @@ Every email: button "Open billing" → `billingUrl`.
 
 ### Task 8: Enforcement
 **Goal:** cap in client activation; `service_paused` for paused agencies; scheduler filter; Ask/MCP refusal.
-**Files:** `packages/tools/src/tools/onboarding.ts`, `prospects.ts`, write-path refusal in the tool runner (`packages/tools/src/registry.ts` or `apps/web/src/server/run-tool.ts` — wherever writes are centralised), the scheduler files from Task 0's inventory, phase-6 Ask/MCP entry.
+**Files:** `packages/tools/src/tools/onboarding.ts`, `prospects.ts`, write-path refusal in `ToolRegistry.invoke` (`packages/core/src/tools.ts`; the registry is generic over deps, so add an optional `guard(ctx, tool, opts)` hook that `createToolRegistry` in `packages/tools/src/registry.ts` supplies), the scheduler files from Task 0's inventory (`docs/work/phase-9.md`), Ask/MCP entry (`packages/mcp/src/server.ts` CallTool handler / `auth.ts`; `packages/ask/src/quota.ts` `beginTurn`). `create_client` currently inserts without a transaction: wrap it in `deps.service.transaction`. There is no client reactivation/status-change tool besides `convert_prospect`.
 **Behaviour:** `create_client` (when `status='active'`) and `convert_prospect` call `assertCanActivateClient` in-tx, then `syncSeats` after commit. Write tools for an agency in `read_only|suspended` → `ToolError('service_paused')`, allow-list: billing tools, team tools (`invite_member`, `revoke_membership`, `revoke_invitation`), sign-out. Every scheduler query that selects clients adds `agencyServiceable(client.agencyId)`. Ask + MCP `tools/call` → `service_paused` for those agencies.
 **Tests:** each changed tool: blocked at cap with exact message, allowed when exempt/active; paused agency write refused, team write allowed; each scheduler query excludes a read_only agency's clients (one test per file); Ask/MCP refusal.
 **Done when:** `pnpm test:affected` green.
 
 ### Task 9: Agency billing tools, page, banners, paused page
 **Goal:** spec § Tools (agency) + `/agency/settings/billing` + CSV + banners + suspended routing.
-**Files:** `packages/tools/src/tools/billing.ts` (+ test), `all.ts`; `apps/web/src/app/(app)/agency/settings/billing/{page.tsx,actions.ts,seats.csv/route.ts}`; `components/shell/billing-banner.tsx` (+ test); `app/(app)/paused/page.tsx`; layout/middleware redirect for suspended; nav entry (admin only).
+**Files:** `packages/tools/src/tools/billing.ts` (+ test), `all.ts`; `apps/web/src/app/(app)/agency/settings/billing/{page.tsx,actions.ts,seats.csv/route.ts}`; `components/shell/billing-banner.tsx` (+ test); `app/(app)/paused/page.tsx`; suspended redirect in `app/(app)/layout.tsx` (there is no middleware; `proxy.ts` only checks cookies); nav entry (admin only) in `components/shell/nav-items.ts` (`account(...)`; add a `billing` icon to the union) and `apps/web/src/server/nav.ts`.
 **Interfaces:** tools `get_billing_summary`, `create_checkout_session`, `create_portal_session`, `redeem_discount_code({ code: string })`, `get_seat_report` (outputs as spec). Checkout/portal `successUrl`/`returnUrl` = `${APP_URL}/agency/settings/billing?done=1`.
 **Behaviour:** role `agency_admin` only (others `permission_denied` → 404). Redeem: unknown/expired/revoked/not-restricted-to-this-agency → `invalid_code` "That code isn't valid for your account."; applies via gateway. CSV columns `client,activated_on` (ISO date). Suspended: agency users → redirect to billing page; client users/guests → `/paused` with copy "This workspace is temporarily unavailable. Please contact {agencyName}." Banners exactly as spec copy.
 **Tests:** tool role checks; redeem rules; CSV content; banner variants per state/role; account manager sees neutral banner only; client user never sees banner.
@@ -159,20 +159,20 @@ Every email: button "Open billing" → `billingUrl`.
 **Goal:** spec § Tools (platform) incl. `set_seat_cap_exempt`.
 **Files:** `packages/tools/src/tools/platform-billing.ts` (+ test), `all.ts`.
 **Interfaces:** names and role minimums exactly as spec (`set_seat_cap_exempt` owner). `create_discount_code` input `{ code, percentOff?, amountOffCents?, appliesTo, duration, durationMonths?, restrictedAgencyIds?, expiresAt?, maxRedemptions? }`; `create_invite_link` input `{ offer, pilotEndsAt?, discountCodeId?, emailLock?, maxUses?, expiresInDays? (default 14, 1–90), note? }` → `{ url: \`${APP_URL}/join/${token}\`, token }` (route built in Phase 10). `create_plan_version` input `{ name, basePriceCents, includedSeats, seatPriceCents, trialDays }` → new version `is_current`, previous unset, `syncPlanToStripe`; Stripe failure → nothing written.
-**Behaviour:** admin actions call `applyBillingSignal` with actor = user id; all audited (per-agency into target agency's `audit_log` via phase-8 `recordPlatformAudit`). `get_billing_overview` → `{ mrrCents, paidSeats, agenciesByState }`.
+**Behaviour:** admin actions call `applyBillingSignal` with actor = user id; all audited (per-agency into target agency's `audit_log` via `withPlatformAudit(deps, ctx, { tool, input, role, agencyId }, fn)` from `packages/tools/src/platform/audit.ts`, after `requirePlatformOperator(deps, ctx, min)` from `packages/tools/src/platform.ts`). `get_billing_overview` → `{ mrrCents, paidSeats, agenciesByState }`.
 **Tests:** every tool's role minimum (viewer/staff/owner, incl. staff refused on owner tools — Review focus 5); invite link stores hash only, URL token not retrievable later; discount restricted ids validated to exist; plan version switch atomic.
 **Done when:** `pnpm --filter @cs/tools exec vitest run platform-billing` passes.
 
 ### Task 11: Console pages
 **Goal:** `/platform/billing` and the billing panel on `/platform/agencies/[id]`; billing-state column in the agency list.
-**Files:** `apps/web/src/app/(app)/platform/billing/{page.tsx,plan-editor.tsx,codes.tsx,invite-links.tsx,actions.ts}` (+ component tests); modify `platform/agencies/[id]/page.tsx`, `platform/agencies/agency-table.tsx`, Platform nav ("Billing").
+**Files:** `apps/web/src/app/(platform)/platform/billing/{page.tsx,plan-editor.tsx,codes.tsx,invite-links.tsx,actions.ts}` (+ component tests); modify `app/(platform)/platform/agencies/[id]/page.tsx`, `app/(platform)/platform/agencies/agency-table.tsx`, platform nav in `components/shell/nav-items.ts` (`flags.isPlatformOperator` block; "Billing"); `StatCard` is `apps/web/src/components/stat-card.tsx`; register `/platform/billing` in `packages/demo/src/coverage.ts`.
 **Behaviour:** MRR tile (`StatCard`); plan editor form (owner only; others see read-only table); codes list + create form + revoke; invite links list + create form (URL shown once in a copy box with "Copy link — it won't be shown again.") + revoke; agency panel: state pill, plan v, seats, invoices (links), actions per role. Hide owner-only controls for staff/viewer (tools still enforce).
 **Tests:** forms render per role; invite-link one-time display; state pill labels.
 **Done when:** `pnpm --filter @cs/web exec vitest run platform` passes; typecheck clean.
 
 ### Task 12: Demo, coverage, E2E
 **Goal:** demo agencies in varied states; E2E `@billing`.
-**Files:** `packages/demo/src/billing.ts` (+ test), `reset.ts`, `coverage.ts`; `apps/web/e2e/billing.spec.ts`, `e2e/seed.ts`.
+**Files:** `packages/demo/src/billing.ts` (+ test), `reset.ts`, `coverage.ts`; `apps/web/e2e/billing.spec.ts` (tag convention `{ tag: ['@billing', ...] }`; add `@billing` rules in `apps/web/scripts/e2e-affected-rules.ts`), `e2e/seed.ts`.
 **Behaviour:** demo: one agency `active` with 4 clients and a discount, one `trialing` with 9 days left, one `past_due`; fake gateway invoices. Register new pages in coverage. E2E (fake gateway): trial agency blocked at 4th active client with Upgrade prompt; billing page for admin, 404 for account manager; suspended agency → admin redirected to billing, client user sees `/paused` copy; console: owner creates a code and an invite link (URL shown once).
 **Tests:** demo seed deterministic; coverage test.
 **Done when:** `pnpm --filter @cs/demo exec vitest run billing coverage` and `pnpm --filter @cs/web e2e:affected` pass.

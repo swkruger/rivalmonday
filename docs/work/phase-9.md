@@ -18,6 +18,23 @@ None yet.
 - **phase-7-planning (parked):** caps + pause-at-100 % stay Phase 7b (not here). Prod domain `rivalmonday.app` (webhook URL); Postmark from `mail.rivalmonday.app`.
 - **Migrations:** next free at execution time; phase-6 holds 0038–0043, phase-8 plans two after that.
 
+## Pre-flight drift (9a Task 0, 2026-10-14)
+Drift (plan -> actual); plan file already corrected for paths:
+- Console pages live in `app/(platform)/platform/**`, not `(app)/platform`; nav in `components/shell/nav-items.ts`; `StatCard` = `apps/web/src/components/stat-card.tsx`.
+- Write choke point is `ToolRegistry.invoke` in `packages/core/src/tools.ts` (generic, no deps hook yet), not `tools/registry.ts`/`run-tool.ts`. `generatePat`/`hashPat` = `packages/core/src/tokens.ts`.
+- `ToolErrorCode` is a closed union: `billing_seat_limit`, `service_paused`, `invalid_code` need adding there, in `mcp/src/errors.ts` `mapError` (else -> internal) and `forms.ts` `FORM_COPY`.
+- `packages/db/src/filters.ts` does not exist (create). Next free migration **0052**. Service role `app_service` gets rights via 0001 default privileges (no GRANT line).
+- `notification` outbox is client-scoped (`client_id` NOT NULL, kind = text, dedupe = `dedupe_key` unique) -> **plan conflict for P4/Task 7**: agency-level billing mail cannot use it; default to direct send like `server/support-email.ts` (see plan P4).
+- `create_client` has no transaction; no client reactivation tool exists (only `convert_prospect`). Recording platform audit = `withPlatformAudit` (`tools/src/platform/audit.ts`).
+- No middleware (only `proxy.ts` cookie check): webhook route needs a `PUBLIC` entry; suspended redirect goes in `(app)/layout.tsx`. Worker has no DEMO/TEST gate; jobs registered in `main.ts` `registerJobs`.
+
+Scheduler inventory (needs `agencyServiceable`):
+- collectors `local/self.ts:37` ensureSelfCompetitors; `rankings/scan.ts:68` listRankClients (monthly rank scans); `schedule/due-pages.ts:17` claimDuePages; `sources/due.ts:19-20` claimDueSources (2 branches)
+- engine `sweep.ts:70` score branch; `sweep.ts:85` rankDiff branch; `moves/moves-stage.ts:61` listMoveClients; `briefs/generate.ts:136` listBriefDueClients; `score/score-stage.ts:116` scoreEvent; `reports/quarterly.ts:67` runQuarterlyReports
+- no client query (select briefs/alerts/notifications; need a join): `briefs/deliver.ts:94` deliverDueBriefs, `alerts/create.ts:34` sweepAlerts, `alerts/digest.ts:11` runAlertDigests, `delivery/outbox.ts:122` dispatchDue
+- ask/MCP/tools: `ask/starters.ts:37` starters; `ask/quota.ts:58` beginTurn + `ask/turn.ts:201` runTurn (Ask entry); `mcp/auth.ts:38` token auth (returns null unless client active) + `mcp/server.ts:42` tools/call; `tools/access/oauth.ts:35`; `tools/tools/portfolio.ts:29` get_portfolio (read)
+- not filtered by design: sweep review/price branches; `run_prospect_snapshot` (prospect, agency-initiated)
+
 ## Decisions (owner-approved)
 None yet.
 
