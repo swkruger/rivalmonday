@@ -380,6 +380,11 @@ describe('per-client billing tools (Task 5)', () => {
       expect(n[0]).toMatchObject({ audience: 'client', clientId: A1, kind: 'client-payment-link', agencyId: IDS.agencyA });
       expect(n[0]!.params).toMatchObject({ checkoutUrl: expect.stringContaining('fake_connect_checkout') });
     });
+    it('Checkout returns to the client billing page (success and cancel)', async () => {
+      await ready();
+      await call(admin, 'enable_client_billing', { clientId: A1 });
+      expect(checkoutArg()).toMatchObject({ successUrl: `${APP}/c/${A1}/settings/billing?checkout=done`, cancelUrl: `${APP}/c/${A1}/settings/billing?checkout=cancelled` });
+    });
     it('a price override creates a per-client connected price and stores it', async () => {
       await ready();
       await call(admin, 'enable_client_billing', { clientId: A1, priceCents: 15000, setupFeeCents: 0 });

@@ -287,7 +287,7 @@ async function checkoutFor(
       stripeAccount: i.acct, priceId: i.priceId, customerEmail: i.email, clientReferenceId: i.clientId,
       ...(i.setupFeeCents > 0 && { setupFeeCents: i.setupFeeCents }),
       ...(fee > 0 && { applicationFeePercent: fee }),
-      successUrl: `${base}/?billing=thanks`, cancelUrl: `${base}/?billing=cancelled`,
+      successUrl: `${base}/c/${i.clientId}/settings/billing?checkout=done`, cancelUrl: `${base}/c/${i.clientId}/settings/billing?checkout=cancelled`,
     });
   } catch (e) {
     stripeFailed(ctx.agencyId, 'createConnectedCheckout', e);
