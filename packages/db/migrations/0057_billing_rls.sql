@@ -1,6 +1,6 @@
 -- Phase 9a: billing tables are service-role only (forced RLS, no policy, nothing for app_user).
 -- The service role is app_service; 0001_rls.sql default privileges already grant it SELECT/INSERT/UPDATE/DELETE
--- on new public tables, so no GRANT is needed. agency_daily_stat's three columns come from 0052.
+-- on new public tables, so no GRANT is needed. agency_daily_stat's three columns come from 0056.
 ALTER TABLE plan ENABLE ROW LEVEL SECURITY;
 --> statement-breakpoint
 ALTER TABLE plan FORCE ROW LEVEL SECURITY;

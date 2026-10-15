@@ -61,8 +61,8 @@ describe('billing tables', () => {
     expect([row?.mrrCents, row?.paidSeats, row?.billingState]).toEqual([null, null, null]);
   });
 
-  it('migration 0053 backfill gives every existing agency a pilot row on the standard v1 plan', async () => {
-    const stmts = readFileSync(join(__dirname, '../migrations/0053_billing_rls.sql'), 'utf8').split('--> statement-breakpoint').slice(-2);
+  it('migration 0057 backfill gives every existing agency a pilot row on the standard v1 plan', async () => {
+    const stmts = readFileSync(join(__dirname, '../migrations/0057_billing_rls.sql'), 'utf8').split('--> statement-breakpoint').slice(-2);
     for (const s of stmts) await dbs.owner.execute(sql.raw(s));
     const agencies = await dbs.owner.select().from(agency);
     const rows = await dbs.service.select().from(agencyBilling);
