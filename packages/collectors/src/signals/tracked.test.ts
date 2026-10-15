@@ -73,6 +73,12 @@ describe('computeTrackedSignals', () => {
     expect(r).toMatchObject({ overlap: null, activity: null, tier: 'minor' });
   });
 
+  it('last ads run vendor_error and no ad rows → googleAdsActive null', async () => {
+    await dbs.service.insert(competitorSource).values({ competitorId: IDS.competitorY, source: 'ads_google', lastStatus: 'vendor_error' });
+    const [r] = await computeTrackedSignals(deps(), IDS.clientA2, NOW);
+    expect(r!.signals).toMatchObject({ googleAdsActive: null, googleAdsNew30d: null, googleAccount: null });
+  });
+
   it('an ok ads run with no ads is zero, not null; collected reviews with none recent are zero', async () => {
     await dbs.service.insert(competitorSource).values({ competitorId: IDS.competitorY, source: 'ads_google', lastStatus: 'ok' });
     await dbs.service.insert(review).values(rev('old', daysAgo(300)));
@@ -84,11 +90,13 @@ describe('computeTrackedSignals', () => {
     const res = (rank: number, placeId: string | null) => ({ rank, placeId, cid: null, domain: null, title: 'x' });
     const [old] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, status: 'done', startedAt: daysAgo(40) }).returning();
     const [latest] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, status: 'done', startedAt: daysAgo(3) }).returning();
+    const [running] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, status: 'running', startedAt: daysAgo(1) }).returning();
     const snap = (scanId: string, at: Date, results: ReturnType<typeof res>[]) => ({ agencyId: IDS.agencyA, clientId: IDS.clientA2, keyword: 'dentist', lat: 0, lng: 0, scanId, results, capturedAt: at });
     await dbs.service.insert(rankSnapshot).values([
       snap(old!.id, daysAgo(40), [res(1, 'p-y')]), snap(old!.id, daysAgo(40), [res(1, 'p-y')]),
       snap(latest!.id, daysAgo(3), [res(1, 'p-y'), res(2, 'p-z')]), snap(latest!.id, daysAgo(3), [res(1, 'p-z'), res(4, 'p-y')]),
       snap(latest!.id, daysAgo(3), [res(1, 'p-z')]), snap(latest!.id, daysAgo(3), []),
+      snap(running!.id, daysAgo(1), [res(1, 'p-y')]), // unfinished scan: ignored
     ]);
     const [r] = await computeTrackedSignals(deps(), IDS.clientA2, NOW);
     // (w(1) + w(4)) / 4 = (1 + 0.5) / 4

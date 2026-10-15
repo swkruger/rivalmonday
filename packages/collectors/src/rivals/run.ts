@@ -1,5 +1,5 @@
 import type { CallScope } from '@cs/core';
-import { client, competitor, competitorSuggestion, type Db, discoveryRun, type DiscoveryRunProgress, type DiscoveryRunRow, observation } from '@cs/db';
+import { client, competitor, competitorSuggestion, type Db, discoveryRun, type DiscoveryRunProgress, type DiscoveryRunStatus, type DiscoveryRunRow, observation } from '@cs/db';
 import type { DiscoveryConfig, VerticalPack } from '@cs/verticals';
 import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import { normalizeGoogleAd } from '../ads/google';
@@ -114,8 +114,12 @@ async function execute(deps: RivalSearchDeps, run: DiscoveryRunRow): Promise<{ s
   const points = gridPoints(area.center, area.radiusKm, gridSize);
   const scope: CallScope = { agencyId: run.agencyId, clientId: run.clientId };
   const progress: Progress = { searchesDone: 0, searchesTotal: keywords.length * points.length, checksDone: 0, checksTotal: 0 };
-  const setRun = (patch: Partial<DiscoveryRunRow>) => db.update(discoveryRun).set(patch).where(eq(discoveryRun.id, run.id));
-  await setRun({ status: 'searching', keywords, gridSize, progress });
+  // Every write is conditional on the run still being in the stage we expect: the sweep (or anything else)
+  // may have failed it meanwhile, and a stopped run must never be resurrected or spend more. 0 rows → stop.
+  const advance = async (from: DiscoveryRunStatus[], patch: Partial<DiscoveryRunRow>) =>
+    (await db.update(discoveryRun).set(patch).where(and(eq(discoveryRun.id, run.id), inArray(discoveryRun.status, from))).returning({ id: discoveryRun.id })).length > 0;
+  const STOPPED = { status: 'failed' } as const;
+  if (!(await advance(['queued', 'searching', 'checking'], { status: 'searching', keywords, gridSize, progress }))) return STOPPED;
   const self = await selfContext(db, c);
 
   // Stage 1: wide Maps search, keyword × grid point.
@@ -143,7 +147,7 @@ async function execute(deps: RivalSearchDeps, run: DiscoveryRunRow): Promise<{ s
         console.warn(`[discovery] run ${run.id} "${keyword}" @ ${pt.lat},${pt.lng}: ${err.message} (code ${err.code ?? 'n/a'})`);
       }
       progress.searchesDone++;
-      if (progress.searchesDone % PROGRESS_EVERY === 0) await setRun({ progress });
+      if (progress.searchesDone % PROGRESS_EVERY === 0 && !(await advance(['searching'], { progress }))) return STOPPED;
     }
   }
   if (progress.searchesTotal === 0 || succeeded * 2 < progress.searchesTotal) {
@@ -167,9 +171,11 @@ async function execute(deps: RivalSearchDeps, run: DiscoveryRunRow): Promise<{ s
   const shortlist = eligible.slice(0, n);
   progress.checksTotal = n;
 
+  // Still live? (checked before any suggestion is written or stage 2 spends anything)
+  if (!(await advance(['searching'], { status: 'checking', kept: kept.length, hidden: hiddenCounts, progress, costUsd: spent }))) return STOPPED;
   const ids = await upsertSuggestions(db, run, ranked, { overlap, chains, shortlisted: new Set(shortlist.map((s) => s.placeId)), searches: succeeded });
   progress.shortlistIds = shortlist.map((s) => ids.get(s.placeId)!);
-  await setRun({ status: 'checking', kept: kept.length, hidden: hiddenCounts, progress, costUsd: spent });
+  if (!(await advance(['checking'], { progress }))) return STOPPED;
 
   // Stage 2: signal checks on the shortlist.
   for (const cand of shortlist) {
@@ -182,11 +188,11 @@ async function execute(deps: RivalSearchDeps, run: DiscoveryRunRow): Promise<{ s
     await patchSuggestionSignals(db, [id], { ...google.signals, ...meta.signals });
     await db.update(competitorSuggestion).set({ adMatches: [...google.matches, ...meta.matches] }).where(eq(competitorSuggestion.id, id));
     progress.checksDone++;
-    await setRun({ progress, costUsd: spent });
+    if (!(await advance(['checking'], { progress, costUsd: spent }))) return STOPPED;
   }
   await postReviewSamples(deps, run.id, shortlist.map((s) => ({ id: ids.get(s.placeId)!, placeId: s.placeId })));
   spent += shortlist.length * COST.reviews;
-  await setRun({ status: 'finalising', progress, costUsd: spent });
+  if (!(await advance(['checking'], { status: 'finalising', progress, costUsd: spent }))) return STOPPED;
   const fin = await finaliseRivalSearch(deps, run.id, { force: false });
   return { status: fin === 'done' ? 'done' : 'finalising' };
 }

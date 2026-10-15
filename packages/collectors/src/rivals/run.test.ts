@@ -45,9 +45,10 @@ const MAPS: Item[] = [
   place({ placeId: 'p-minor', title: 'Minor Dental', rank: 15, claimed: false }),
 ];
 
-function vendors(opts: { mapsFails?: (n: number) => boolean; metaDown?: boolean } = {}) {
+function vendors(opts: { mapsFails?: (n: number) => boolean; metaDown?: boolean; before?: (path: string) => Promise<void> } = {}) {
   let mapsCalls = 0;
-  const dfs = fakeDfs((_m, path, body) => {
+  const dfs = fakeDfs(async (_m, path, body) => {
+    await opts.before?.(path);
     const t = body?.[0] ?? {};
     if (path === '/serp/google/maps/live/advanced') {
       mapsCalls++;
@@ -343,5 +344,42 @@ describe('sweepRivalRuns', () => {
     await dbs.service.update(discoveryRun).set({ startedAt: ago(50) }).where(eq(discoveryRun.id, fin));
     expect(await sweepRivalRuns(deps(v), NOW)).toEqual({ stale: 0, finalised: 0 });
     expect((await runRow(fin)).status).toBe('finalising');
+  });
+
+  it('a run swept stale mid-search stops without resurrecting or spending more', async () => {
+    let runId = '';
+    let maps = 0;
+    let callsAtSweep = 0;
+    const v = vendors({
+      before: async (path) => {
+        if (path !== '/serp/google/maps/live/advanced' || ++maps !== 3) return;
+        await dbs.service.update(discoveryRun).set({ status: 'failed', error: 'stale' }).where(eq(discoveryRun.id, runId));
+        callsAtSweep = v.dfs.calls.length;
+      },
+    });
+    runId = await newRun();
+    expect(await runRivalSearch(deps(v), runId)).toEqual({ status: 'failed' });
+    expect(await runRow(runId)).toMatchObject({ status: 'failed', error: 'stale' });
+    // At most the searches up to the next progress check (every 10); nothing from stage 2.
+    expect(v.dfs.calls.length).toBeLessThanOrEqual(10);
+    expect(v.dfs.calls.length).toBeGreaterThanOrEqual(callsAtSweep);
+    expect(v.dfs.calls.every((c) => c.path === '/serp/google/maps/live/advanced')).toBe(true);
+    expect(v.records).toHaveLength(0);
+    expect(await suggestions()).toEqual(new Map());
+  });
+
+  it('a run swept stale during stage 2 stops after the current check, posts no review samples', async () => {
+    let runId = '';
+    const v = vendors({
+      before: async (path) => {
+        if (path === '/serp/google/ads_advertisers/live/advanced') await dbs.service.update(discoveryRun).set({ status: 'failed', error: 'stale' }).where(eq(discoveryRun.id, runId));
+      },
+    });
+    runId = await newRun();
+    expect(await runRivalSearch(deps(v), runId)).toEqual({ status: 'failed' });
+    expect(await runRow(runId)).toMatchObject({ status: 'failed', error: 'stale' });
+    expect(v.dfs.calls.filter((c) => c.path === '/serp/google/ads_advertisers/live/advanced')).toHaveLength(1);
+    expect(v.records).toHaveLength(1);
+    expect(v.dfs.calls.some((c) => c.path === '/business_data/google/reviews/task_post')).toBe(false);
   });
 });

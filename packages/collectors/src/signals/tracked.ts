@@ -1,6 +1,6 @@
 import {
   ad, client, clientCompetitor, competitor, competitorSignal, type CompetitorSignalRow, competitorSource, competitorSuggestion, type Db,
-  observation, type RankResult, rankSnapshot, review, vendorTask,
+  observation, type RankResult, rankScan, rankSnapshot, review, vendorTask,
 } from '@cs/db';
 import { and, desc, eq, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { PackLoader } from '../rivals/run';
@@ -16,10 +16,11 @@ export async function listSignalClients(db: Db): Promise<string[]> {
   return (await db.select({ id: client.id }).from(client).where(eq(client.status, 'active'))).map((r) => r.id);
 }
 
-/** The snapshots of the client's most recent rank scan (empty when it has none). */
+/** The snapshots of the client's most recent finished (`done`) rank scan; empty when it has none. */
 async function latestSnapshotSet(db: Db, clientId: string): Promise<Snapshot[]> {
   const [last] = await db.select({ scanId: rankSnapshot.scanId }).from(rankSnapshot)
-    .where(and(eq(rankSnapshot.clientId, clientId), isNotNull(rankSnapshot.scanId))).orderBy(desc(rankSnapshot.capturedAt)).limit(1);
+    .innerJoin(rankScan, eq(rankScan.id, rankSnapshot.scanId))
+    .where(and(eq(rankSnapshot.clientId, clientId), eq(rankScan.status, 'done'))).orderBy(desc(rankSnapshot.capturedAt)).limit(1);
   if (!last?.scanId) return [];
   return db.select({ results: rankSnapshot.results }).from(rankSnapshot).where(and(eq(rankSnapshot.clientId, clientId), eq(rankSnapshot.scanId, last.scanId)));
 }
