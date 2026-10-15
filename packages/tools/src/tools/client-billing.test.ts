@@ -3,7 +3,7 @@ import { type AccessContext, createAccessContext } from '@cs/core';
 import { agencyBilling, agencyConnect, billingNotice, client, clientBilling, membership, plan, platformSetting } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PAUSED_WRITE_ALLOW_LIST } from '../billing-guard';
 import { createToolRegistry } from '../registry';
 import { BILLING_NOT_CONFIGURED_MESSAGE } from './billing';
@@ -315,7 +315,7 @@ describe('per-client billing tools (Task 5)', () => {
     });
     it('revenue and status read stored data only', async () => {
       await ready();
-      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'active', enabled: true, priceCents: 9900, stripeSubscriptionId: 'sub_x' });
+      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'active', enabled: true, priceCents: 9900, billedPriceCents: 9900, stripeSubscriptionId: 'sub_x' });
       const r = noGateway();
       expect(await r.invoke(admin, 'get_client_revenue', {})).toMatchObject({ mrrCents: 9900, payingCount: 1 });
       expect(await r.invoke(admin, 'list_client_billing_status', {})).toMatchObject({ clients: expect.any(Array) });
@@ -488,7 +488,7 @@ describe('per-client billing tools (Task 5)', () => {
     const subscribed = async () => {
       await ready();
       gw.seedConnectedSubscription({ id: 'sub_9', stripeAccount: 'acct_1', customerId: 'cus_9', priceId: 'price_def' });
-      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'active', enabled: true, priceCents: 9900, stripePriceId: 'price_def', stripeSubscriptionId: 'sub_9' });
+      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'active', enabled: true, priceCents: 9900, billedPriceCents: 9900, stripePriceId: 'price_def', stripeSubscriptionId: 'sub_9' });
     };
     it('next_bill: new price on the existing subscription, no proration, no new Checkout', async () => {
       await subscribed();
@@ -496,15 +496,50 @@ describe('per-client billing tools (Task 5)', () => {
       const u = gw.callsTo('updateConnectedSubscriptionPrice')[0]!.args[0] as Record<string, unknown>;
       expect(u).toMatchObject({ stripeAccount: 'acct_1', subscriptionId: 'sub_9', prorate: false });
       const r = (await row(A1))!;
-      expect(r).toMatchObject({ priceCents: 12000, state: 'active' });
+      expect(r).toMatchObject({ priceCents: 12000, billedPriceCents: 12000, state: 'active' });
       expect(u.priceId).toBe(r.stripePriceId);
       expect(gw.callsTo('createConnectedCheckout')).toEqual([]);
     });
-    it('new_only: stores the price, leaves the running subscription alone', async () => {
+    it('new_only: sets only the next-Checkout price; the billed price (and revenue) stay what Stripe bills', async () => {
       await subscribed();
       expect(await call(admin, 'set_client_price', { clientId: A1, priceCents: 12000, applyTo: 'new_only' })).toMatchObject({ ok: true, priceCents: 12000, appliedToSubscription: false });
       expect(gw.callsTo('updateConnectedSubscriptionPrice')).toEqual([]);
-      expect(await row(A1)).toMatchObject({ priceCents: 12000 });
+      expect(await row(A1)).toMatchObject({ priceCents: 12000, billedPriceCents: 9900 });
+      expect(await call(admin, 'get_client_revenue')).toMatchObject({ mrrCents: 9900 });
+      expect(gw.callsTo('archiveConnectedPrice')).toEqual([]);
+    });
+    it('an unchanged amount creates no new Stripe price', async () => {
+      await subscribed();
+      await call(admin, 'set_client_price', { clientId: A1, priceCents: 9900, applyTo: 'next_bill' });
+      expect(gw.callsTo('createConnectedPrice')).toEqual([]);
+      expect(gw.callsTo('updateConnectedSubscriptionPrice')).toEqual([]);
+      await call(admin, 'set_client_price', { clientId: A1, priceCents: 12000, applyTo: 'new_only' });
+      expect(gw.callsTo('createConnectedPrice')).toHaveLength(1);
+      await call(admin, 'set_client_price', { clientId: A1, priceCents: 12000, applyTo: 'new_only' });
+      expect(gw.callsTo('createConnectedPrice')).toHaveLength(1);
+    });
+    it.each(['next_bill', 'new_only'] as const)('while invited (%s): expires the old session and mails a fresh link at the new price', async (applyTo) => {
+      await ready();
+      await call(admin, 'enable_client_billing', { clientId: A1 });
+      const oldSession = (await row(A1))!.checkoutSessionId!;
+      const r = await call(admin, 'set_client_price', { clientId: A1, priceCents: 7000, applyTo });
+      expect(r).toMatchObject({ ok: true, appliedToSubscription: false, linkResent: true });
+      expect(gw.connectedCheckouts.get(oldSession)?.status).toBe('expired');
+      const after = (await row(A1))!;
+      expect(after).toMatchObject({ state: 'invited', priceCents: 7000, billedPriceCents: null });
+      expect(after.checkoutSessionId).not.toBe(oldSession);
+      expect(checkoutArg(1).priceId).toBe(after.stripePriceId);
+      const n = await notices();
+      expect(n).toHaveLength(1);
+      expect(n[0]).toMatchObject({ kind: 'client-payment-link' });
+    });
+    it('while invited with no client owner left it refuses before touching Stripe', async () => {
+      await ready();
+      await call(admin, 'enable_client_billing', { clientId: A1 });
+      await dbs.owner.delete(membership);
+      const before = gw.calls.length;
+      expect((await fails(call(admin, 'set_client_price', { clientId: A1, priceCents: 7000, applyTo: 'new_only' }))).code).toBe('no_client_owner');
+      expect(gw.calls.length).toBe(before + 0);
     });
     it('a client without a subscription just stores the price for the next link, either mode', async () => {
       await ready();
@@ -531,9 +566,9 @@ describe('per-client billing tools (Task 5)', () => {
       const [x] = await dbs.owner.insert(client).values({ agencyId: IDS.agencyA, name: 'A3', verticalId: 'dental', status: 'active' }).returning({ id: client.id });
       const [y] = await dbs.owner.insert(client).values({ agencyId: IDS.agencyA, name: 'A4', verticalId: 'dental', status: 'active' }).returning({ id: client.id });
       await dbs.owner.insert(clientBilling).values([
-        { clientId: A1, agencyId: IDS.agencyA, state: 'active', enabled: true, priceCents: 9900, setupFeeCents: 100, stripeSubscriptionId: 's1' },
-        { clientId: A2, agencyId: IDS.agencyA, state: 'payment_needed', enabled: true, priceCents: 5000, stripeSubscriptionId: 's2' },
-        { clientId: x!.id, agencyId: IDS.agencyA, state: 'active', enabled: true, priceCents: 20000, stripeSubscriptionId: 's3' },
+        { clientId: A1, agencyId: IDS.agencyA, state: 'active', enabled: true, priceCents: 9900, billedPriceCents: 9900, setupFeeCents: 100, stripeSubscriptionId: 's1' },
+        { clientId: A2, agencyId: IDS.agencyA, state: 'payment_needed', enabled: true, priceCents: 5000, billedPriceCents: 5000, stripeSubscriptionId: 's2' },
+        { clientId: x!.id, agencyId: IDS.agencyA, state: 'active', enabled: true, priceCents: 20000, billedPriceCents: 20000, stripeSubscriptionId: 's3' },
         { clientId: y!.id, agencyId: IDS.agencyA, state: 'invited', enabled: true, priceCents: 7000 },
       ]);
       return { x: x!.id, y: y!.id };
@@ -542,7 +577,7 @@ describe('per-client billing tools (Task 5)', () => {
       await seedRows();
       const r = (await call(admin, 'list_client_billing_status')) as { clients: Record<string, unknown>[] };
       expect(r.clients).toHaveLength(4);
-      expect(r.clients.find((c) => c.clientId === A1)).toMatchObject({ state: 'active', pill: { key: 'paying', label: 'Paying' }, priceCents: 9900, setupFeeCents: 100 });
+      expect(r.clients.find((c) => c.clientId === A1)).toMatchObject({ state: 'active', pill: { key: 'paying', label: 'Paying' }, priceCents: 9900, nextPriceCents: 9900, setupFeeCents: 100 });
       expect(r.clients.find((c) => c.clientId === A2)).toMatchObject({ pill: { key: 'payment_needed' } });
     });
     it('the pill shows Paused over the billing state', async () => {
@@ -565,8 +600,97 @@ describe('per-client billing tools (Task 5)', () => {
     });
     it('revenue is zero with no client billing and ignores disabled billing', async () => {
       expect(await call(admin, 'get_client_revenue')).toMatchObject({ mrrCents: 0, payingCount: 0, paymentNeededCount: 0, ourCostCents: 22900 });
-      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'active', enabled: false, priceCents: 9900, stripeSubscriptionId: 's1' });
+      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'active', enabled: false, priceCents: 9900, billedPriceCents: 9900, stripeSubscriptionId: 's1' });
       expect(await call(admin, 'get_client_revenue')).toMatchObject({ mrrCents: 0, payingCount: 0 });
+    });
+  });
+
+  describe('R10: Checkout sessions are expired when replaced', () => {
+    it('resend expires the previous session first; a failing expire does not block the resend', async () => {
+      await ready();
+      await call(admin, 'enable_client_billing', { clientId: A1 });
+      const first = (await row(A1))!.checkoutSessionId!;
+      await call(admin, 'resend_client_payment_link', { clientId: A1 });
+      expect(gw.connectedCheckouts.get(first)?.status).toBe('expired');
+      const second = (await row(A1))!.checkoutSessionId!;
+      expect(second).not.toBe(first);
+      expect(gw.connectedCheckouts.get(second)?.status).toBe('open');
+      // an already completed session rejects in Stripe: logged, ignored
+      gw.connectedCheckouts.get(second)!.status = 'complete';
+      const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+      expect(await call(admin, 'resend_client_payment_link', { clientId: A1 })).toMatchObject({ ok: true });
+      expect(log).toHaveBeenCalledWith('[billing] expireConnectedCheckout failed', expect.anything(), expect.anything());
+      expect(JSON.stringify(log.mock.calls)).not.toContain('fake_connect_checkout');
+      log.mockRestore();
+    });
+    it('disable expires a pending invite session', async () => {
+      await ready();
+      await call(admin, 'enable_client_billing', { clientId: A1 });
+      const sid = (await row(A1))!.checkoutSessionId!;
+      await call(admin, 'disable_client_billing', { clientId: A1, confirm: true });
+      expect(gw.connectedCheckouts.get(sid)?.status).toBe('expired');
+      expect((await row(A1))!.checkoutSessionId).toBeNull();
+    });
+  });
+
+  describe('R11: an existing Stripe subscription blocks a second one', () => {
+    const stale = (status: 'active' | 'canceled', seed = true) => async () => {
+      await ready();
+      if (seed) gw.seedConnectedSubscription({ id: 'sub_old', stripeAccount: 'acct_1', customerId: 'cus_old', status });
+      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'disconnected', enabled: false, stripeSubscriptionId: 'sub_old' });
+    };
+    it('a live stored subscription refuses enable', async () => {
+      await stale('active')();
+      expect(await fails(call(admin, 'enable_client_billing', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: 'This client already has a subscription in your Stripe account. Cancel it there first.' });
+      expect(gw.callsTo('createConnectedCheckout')).toEqual([]);
+      expect((await row(A1))!.stripeSubscriptionId).toBe('sub_old');
+    });
+    it.each([['ended', 'canceled', true], ['gone', 'canceled', false]] as const)('a %s stored subscription is forgotten and enable proceeds', async (_n, status, seed) => {
+      await stale(status, seed)();
+      expect(await call(admin, 'enable_client_billing', { clientId: A1 })).toMatchObject({ ok: true, state: 'invited' });
+      expect((await row(A1))!.stripeSubscriptionId).toBeNull();
+    });
+    it('a lookup failure other than not-found fails closed', async () => {
+      await stale('active')();
+      gw.failNext();
+      expect((await fails(call(admin, 'enable_client_billing', { clientId: A1 }))).code).toBe('internal');
+    });
+  });
+
+  describe('R12 enable pre-checks and setup fee', () => {
+    it('active with a pending cancellation (enabled=false) is refused with the period-end copy, before any Stripe call', async () => {
+      await ready();
+      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'active', enabled: false, billedPriceCents: 9900, stripeSubscriptionId: 'sub_9' });
+      expect(await fails(call(admin, 'enable_client_billing', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: "This client's subscription ends at the end of the billing period. Turn billing on again after that." });
+      expect(gw.callsTo('getConnectedSubscription')).toEqual([]);
+      expect(gw.callsTo('createConnectedCheckout')).toEqual([]);
+    });
+    it('active or payment_needed with billing on -> already on, before any Stripe call', async () => {
+      await ready();
+      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'payment_needed', enabled: true, stripeSubscriptionId: 'sub_9' });
+      expect(await fails(call(admin, 'enable_client_billing', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: 'Billing is already on for this client.' });
+      expect(gw.calls).toEqual([]);
+    });
+    it('a disconnect landing during the Checkout call is caught inside the write transaction', async () => {
+      await ready();
+      const orig = gw.createConnectedCheckout.bind(gw);
+      gw.createConnectedCheckout = async (i) => {
+        await dbs.owner.update(agencyConnect).set({ status: 'disconnected', chargesEnabled: false });
+        return orig(i);
+      };
+      expect(await fails(call(admin, 'enable_client_billing', { clientId: A1 }))).toMatchObject({ code: 'connect_not_ready', message: 'Finish your Stripe setup first.' });
+      expect(await row(A1)).toBeUndefined();
+      expect(await notices()).toEqual([]);
+    });
+    it('the setup fee is charged only to a client who has never paid', async () => {
+      await ready({ defaultSetupFeeCents: 2500 });
+      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'cancelled', enabled: false, lastPaidAt: new Date(), stripePriceId: 'price_def', priceCents: 9900 });
+      expect(await call(admin, 'enable_client_billing', { clientId: A1 })).toMatchObject({ setupFeeCents: 0 });
+      expect(checkoutArg().setupFeeCents).toBeUndefined();
+    });
+    it('our cost is 0 for a pilot agency', async () => {
+      await dbs.owner.update(agencyBilling).set({ state: 'pilot' });
+      expect(await call(admin, 'get_client_revenue')).toMatchObject({ ourCostCents: 0, marginCents: 0 });
     });
   });
 

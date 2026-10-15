@@ -115,8 +115,8 @@ start_stripe_connect (client-billing.ts) | write | creates Stripe account link; 
 disconnect_stripe (client-billing.ts) | write | disconnects agency_connect and client_billing locally
 set_client_billing_defaults (client-billing.ts) | write | creates connected product/price; updates agency_connect
 enable_client_billing (client-billing.ts) | write | creates connected price + Checkout session; invites client; queues client notice
-disable_client_billing (client-billing.ts) | write | cancels connected subscription at period end; updates client_billing
-resend_client_payment_link (client-billing.ts) | write | creates Checkout session; replaces unsent client notice
+disable_client_billing (client-billing.ts) | write | cancels connected subscription at period end, expires pending Checkout session; updates client_billing
+resend_client_payment_link (client-billing.ts) | write | expires old and creates new Checkout session; replaces unsent client notice
 set_client_price (client-billing.ts) | write | creates connected price; updates connected subscription price (no proration)
 get_client_revenue (client-billing.ts) | read | stored client_billing + 9a plan read only; agency admin
 list_client_billing_status (client-billing.ts) | read | stored client_billing read only; AM payload has no amounts
