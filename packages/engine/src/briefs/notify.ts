@@ -24,7 +24,7 @@ export async function notifyBriefOutcome(deps: { db: Db; delivery: DeliveryConfi
   const drops = b.dropped.items + b.dropped.sentences > 0 ? [`The verifier dropped ${b.dropped.items} item(s) and ${b.dropped.sentences} sentence(s).`] : [];
   const startFailed = !ready && start;
   const lines = startFailed
-    ? [startingPointFailedNotice(row.clientName, b.clientId)]
+    ? [startingPointFailedNotice(row.clientName, b.clientId), `Last error: ${(b.error ?? 'unknown').slice(0, 300)}`]
     : ready && start
     ? [title, 'It goes to the client as soon as you approve it.', ...drops]
     : ready

@@ -55,7 +55,7 @@ export async function briefDetail(deps: ToolDeps, ctx: AccessContext, briefId: s
     ? await withTenant(deps.app, ctx, (tx) => tx.select({ id: competitor.id, name: competitor.name }).from(competitor).where(inArray(competitor.id, competitorIds)))
     : [];
   const nameOf = new Map(names.map((n) => [n.id, n.name]));
-  // Self items (Phase 12b) have no competitor: fall back to the client's name until the UI renders them (Task 7).
+  // Self items (Phase 12b) have no competitor: their name is the client's (the web hides it; the scorecard model uses it for "(you)").
   const clientName = view.items.some((i) => !i.competitorId)
     ? (await withTenant(deps.app, ctx, (tx) => tx.select({ name: client.name }).from(client).where(eq(client.id, view.brief.clientId))))[0]?.name
     : undefined;

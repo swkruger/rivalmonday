@@ -7,11 +7,11 @@ import { day, seedScoredEvent } from '../../test/seed';
 import { createPackLoader } from '../tag/tag-stage';
 import type { EventCandidate, MoveCandidate } from './gather';
 import * as scorecardMod from './scorecard';
-const { buildScorecard } = scorecardMod;
-const scorecardFail = vi.hoisted(() => ({ on: false }));
 import { committableItems, generateBrief, listBriefDueClients, QUIET_SUMMARY } from './generate';
 import type { VerifiedItem } from './verify';
 
+const { buildScorecard } = scorecardMod;
+const scorecardFail = vi.hoisted(() => ({ on: false }));
 vi.mock('./scorecard', async (orig) => {
   const m = await orig<typeof import('./scorecard')>();
   return { ...m, buildScorecard: (...a: Parameters<typeof m.buildScorecard>) => { if (scorecardFail.on) throw new Error('scorecard boom'); return m.buildScorecard(...a); } };
@@ -174,9 +174,9 @@ describe('quiet-week scorecard (12b T6)', () => {
     await dbs.owner.insert(review).values({ competitorId: s!.id, dedupeKey: 'r1', rating, text: 't', postedAt: new Date('2026-10-01T00:00:00Z') });
     return s!.id;
   }
-  async function seedStartingPoint(statuses: string[]) {
+  async function seedStartingPoint(statuses: string[], spStatus = 'sent') {
     const scorecard = await buildScorecard({ db: dbs.service, packs }, IDS.clientA1, { now: new Date('2026-09-28T12:00:00Z') });
-    const [b] = await dbs.owner.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, deliveryDate: SP_DATE, periodStart: day(-7), periodEnd: day(-3), status: 'sent', kind: 'starting_point', summary: 's', scorecard }).returning();
+    const [b] = await dbs.owner.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, deliveryDate: SP_DATE, periodStart: day(-7), periodEnd: day(-3), status: spStatus, kind: 'starting_point', summary: 's', scorecard }).returning();
     const recs: string[] = [];
     for (const [ord, status] of statuses.entries()) {
       const [it] = await dbs.owner.insert(briefItem).values({ briefId: b!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1, ord, competitorId: null, subject: 'self', headline: `h${ord}`, whatChanged: 'w', whyItMatters: 'y', recommendedAction: 'a', confidence: 1, effort: 'L', impact: 'M', eventIds: [], evidenceIds: [] }).returning();
@@ -205,6 +205,14 @@ describe('quiet-week scorecard (12b T6)', () => {
     expect(sc.baselineBriefId).toBeNull();
     expect(sc.tiles.every((t) => t.deltaSinceStart === null)).toBe(true);
     expect(sc.openFirstMoves).toEqual([]);
+  });
+
+  it('an unapproved (ready) starting point is not a baseline yet (Ruling 14)', async () => {
+    await seedSelf(4);
+    await seedStartingPoint([], 'ready');
+    const sc = (await weekly()).scorecard as { baselineBriefId: string | null; tiles: { deltaSinceStart: number | null }[] };
+    expect(sc.baselineBriefId).toBeNull();
+    expect(sc.tiles.every((t) => t.deltaSinceStart === null)).toBe(true);
   });
 
   it('done recommendations excluded (and at most 3 open)', async () => {

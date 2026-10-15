@@ -41,8 +41,13 @@ export async function loadBriefView(conn: Conn, briefId: string): Promise<BriefD
 }
 
 const scorecardOf = (v: BriefDeliveryView) => {
+  if (v.b.scorecard === null || v.b.scorecard === undefined) return null; // standard briefs carry none
   const parsed = Scorecard.safeParse(v.b.scorecard);
-  return parsed.success ? scorecardModel(parsed.data, { clientName: v.clientName }) : null;
+  if (!parsed.success) {
+    console.warn(`[briefs] brief ${v.b.id}: stored scorecard does not parse, sending without it: ${parsed.error.message}`);
+    return null;
+  }
+  return scorecardModel(parsed.data, { clientName: v.clientName });
 };
 
 /** Client-facing props (decision 15): only active items, never the upsell tag. */

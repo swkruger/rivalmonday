@@ -45,10 +45,10 @@ async function claimBrief(db: Db, c: { id: string; agencyId: string }, deliveryD
 
 const OPEN_FIRST_MOVES_MAX = 3;
 
-/** The client's starting-point brief (its scorecard is the baseline) and the first moves still open from it. */
+/** The client's approved or sent starting point (its scorecard is the baseline; Ruling 14) and the first moves still open from it. */
 async function startingPointBaseline(db: Db, clientId: string): Promise<{ briefId: string; scorecard: Scorecard | null; openFirstMoves: { recommendationId: string; title: string }[] } | null> {
   const [sp] = await db.select({ id: brief.id, scorecard: brief.scorecard }).from(brief)
-    .where(and(eq(brief.clientId, clientId), eq(brief.kind, 'starting_point'), ne(brief.status, 'failed'), ne(brief.status, 'generating')))
+    .where(and(eq(brief.clientId, clientId), eq(brief.kind, 'starting_point'), inArray(brief.status, ['approved', 'sent'])))
     .orderBy(desc(brief.deliveryDate)).limit(1);
   if (!sp) return null;
   const parsed = Scorecard.safeParse(sp.scorecard);

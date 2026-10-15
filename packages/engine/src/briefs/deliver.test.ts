@@ -2,11 +2,11 @@ import { createAccessContext } from '@cs/core';
 import { brief, briefItem, changeEvent, client, feedback, notification } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
 import { addContact } from '../delivery/contacts';
 import type { DeliveryConfig } from '../delivery/outbox';
-import { deliverBrief, deliverDueBriefs, sendBriefNow } from './deliver';
+import { type BriefDeliveryView, briefEmailProps, deliverBrief, deliverDueBriefs, sendBriefNow } from './deliver';
 import { QUIET_SUMMARY } from './generate';
 import { approveBriefTx } from './review';
 
@@ -139,5 +139,19 @@ describe('sendBriefNow', () => {
     expect(await read(id)).toMatchObject({ status: 'sent', approvedBy: 'am-1' });
     await expect(sendBriefNow(d, am, id, day(30))).rejects.toMatchObject({ code: 'invalid_input' });
     expect(await dbs.owner.select().from(notification).where(and(eq(notification.kind, 'brief'), eq(notification.channel, 'email')))).toHaveLength(1);
+  });
+});
+
+describe('briefEmailProps scorecard', () => {
+  const view = (scorecard: unknown) => ({ b: { id: 'b1', deliveryDate: '2026-10-12', kind: 'quiet', summary: 's', trend: null, scorecard }, clientName: 'A1', items: [], branding: {}, signOff: '—' }) as unknown as BriefDeliveryView;
+  const opts = { recipientName: null, link: null, pdfLink: null, itemLink: () => null };
+  it('warns and sends without a scorecard that does not parse; a missing one is silent', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(briefEmailProps(view({ tiles: 'nope' }), opts).scorecard).toBeNull();
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/brief b1: stored scorecard does not parse/));
+    warn.mockClear();
+    expect(briefEmailProps(view(null), opts).scorecard).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
