@@ -26,3 +26,6 @@ export function digitsOnly(p: string | null | undefined): string | null {
   const d = p.replace(/\D/g, '');
   return d.length >= 7 ? d.slice(-10) : null;
 }
+
+/** Lowercase and punctuation-squashed only (keeps "of <city>" and state), for containment checks. */
+export const plainName = (name: string): string => squash(name.toLowerCase().replace(/&/g, ' and '));

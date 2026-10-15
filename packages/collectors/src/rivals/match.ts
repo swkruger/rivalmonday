@@ -1,4 +1,4 @@
-import { normaliseDomain, normaliseName } from './names';
+import { normaliseDomain, normaliseName, plainName } from './names';
 
 const tokens = (s: string) => new Set(s.split(' ').filter(Boolean));
 
@@ -10,8 +10,8 @@ export function matchAdAccount(
   if (cd != null && cd === normaliseDomain(a.domain)) return 'strong';
   const cn = normaliseName(c.name, c.city);
   const an = normaliseName(a.name, c.city);
-  const city = c.city ? normaliseName(c.city) : '';
-  const plain = normaliseName(a.name);
+  const city = c.city ? plainName(c.city) : '';
+  const plain = plainName(a.name);
   const nameHasCity = !!city && ` ${plain} `.includes(` ${city} `);
   // Strong: account name contains the candidate's name plus its city (chains included).
   if (cn && nameHasCity && ` ${plain} `.includes(` ${cn} `)) return 'strong';
