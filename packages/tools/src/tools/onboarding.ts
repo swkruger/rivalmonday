@@ -5,6 +5,7 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { type ClientInput, cleanClientInput, clientInputProblems } from '../client-input';
 import { packsOf, type ToolDeps } from '../deps';
+import { startCompetitorSearchQuietly } from '../rival-search';
 import { validTimezone } from '../timezone';
 import { ServiceAreaInput } from './schemas';
 
@@ -21,6 +22,11 @@ const Features = z.array(z.enum(FEATURES)).max(FEATURES.length);
 async function packFor(deps: ToolDeps, verticalId: string): Promise<VerticalPack> {
   if (!(await listVerticalPacks()).includes(verticalId)) throw new ToolError('invalid_input', `Unknown vertical: ${verticalId}`);
   return packsOf(deps)(verticalId);
+}
+
+/** Key-order-independent JSON (jsonb returns object keys in its own order). */
+function canonical(v: unknown): string {
+  return JSON.stringify(v, (_k, x: unknown) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : 1))) : x));
 }
 
 function validated(input: ClientInput, pack: VerticalPack): ClientInput {
@@ -51,6 +57,8 @@ export const createClient = defineTool({
       .insert(client)
       .values({ agencyId: ctx.agencyId, status: input.status, name: c.name, verticalId: pack.id, services: c.services, keywords: c.keywords, serviceArea: c.serviceArea, placeId: c.placeId, features: c.features, ...(input.timezone ? { timezone: input.timezone } : {}) })
       .returning({ id: client.id });
+    // 12a D4: a client (active or prospect) with keywords, a service area and a place id gets its first search.
+    if (c.keywords.length > 0 && c.serviceArea && c.placeId) await startCompetitorSearchQuietly(deps, row!.id, 'auto');
     return { clientId: row!.id };
   },
 });
@@ -73,7 +81,7 @@ export const updateClientProfile = defineTool({
     if (askReviewAllowed !== undefined && ctx.role !== 'agency_admin') throw new ToolError('permission_denied', 'Only agency admins change this setting');
     // Fix round 1 (#1): read-modify-write in ONE transaction with `for('update')`, so two
     // concurrent partial updates can't interleave and clobber each other (lost-update race).
-    const placeChanged = await withTenant(deps.app, ctx, async (tx) => {
+    const { placeChanged, searchInputsReady } = await withTenant(deps.app, ctx, async (tx) => {
       const [current] = await tx.select().from(client).where(eq(client.id, clientId)).for('update');
       if (!current) throw new ToolError('not_found', 'Client not found');
       const pack = await packFor(deps, current.verticalId);
@@ -88,7 +96,9 @@ export const updateClientProfile = defineTool({
         pack,
       );
       await tx.update(client).set({ name: merged.name, services: merged.services, keywords: merged.keywords, serviceArea: merged.serviceArea, placeId: merged.placeId, features: merged.features }).where(eq(client.id, clientId));
-      return merged.placeId !== current.placeId;
+      const searchInputsChanged = canonical(merged.keywords) !== canonical(current.keywords)
+        || canonical(merged.serviceArea) !== canonical(current.serviceArea) || merged.placeId !== current.placeId;
+      return { placeChanged: merged.placeId !== current.placeId, searchInputsReady: searchInputsChanged && merged.keywords.length > 0 && !!merged.serviceArea && !!merged.placeId };
     });
     // Final review: the self business was found by the old place id. Unlink it so benchmarks stop using the wrong
     // business and its paid gbp/reviews sources stop being claimed (unless something else still needs them); the next
@@ -97,6 +107,8 @@ export const updateClientProfile = defineTool({
     if (placeChanged) await deps.service.update(client).set({ selfCompetitorId: null }).where(eq(client.id, clientId));
     // app_user cannot write ask_review_allowed (column grants), so the service Db does, after the RLS-checked read above proved access.
     if (askReviewAllowed !== undefined) await deps.service.update(client).set({ askReviewAllowed }).where(and(eq(client.id, clientId), eq(client.agencyId, ctx.agencyId)));
+    // 12a D4: after commit, a changed and complete search profile re-runs discovery (refusals stay silent).
+    if (searchInputsReady) await startCompetitorSearchQuietly(deps, clientId, 'auto');
     return { clientId };
   },
 });

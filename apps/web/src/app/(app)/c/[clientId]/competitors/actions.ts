@@ -41,11 +41,14 @@ export async function requestSuggestionsAction(_p: FormResult, fd: FormData): Pr
 }
 
 export type SearchState = 'idle' | 'queued' | 'running' | 'done' | 'failed';
+/** 12a: discovery_run stages → the panel's states (until the 12a suggestions UI replaces it). */
+const RUN_STATE: Record<string, SearchState> = { none: 'idle', queued: 'queued', searching: 'running', checking: 'running', finalising: 'running', done: 'done', failed: 'failed' };
 
 /** Polled by `SuggestionsPanel` after "Find competitors" until the background search finishes. */
 export async function searchStatusAction(clientId: string): Promise<ToolResult<{ state: SearchState; finishedAt: string | null }>> {
   const ctx = await agencyCtx();
-  return runTool(ctx, 'get_competitor_search_status', { clientId });
+  const r = await runTool<{ status: string; finishedAt?: string | null }>(ctx, 'get_competitor_search_status', { clientId });
+  return r.ok ? { ok: true, data: { state: RUN_STATE[r.data.status] ?? 'idle', finishedAt: r.data.finishedAt ?? null } } : r;
 }
 
 export async function acceptSuggestionAction(_p: FormResult, fd: FormData): Promise<FormResult> {

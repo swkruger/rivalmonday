@@ -3,7 +3,7 @@ import {
   capturePage, claimDuePages, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
   createDataForSeo, type DataForSeoClient, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
   ensureSelfCompetitors, failProspectReport, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
-  runProspectSnapshot, scanRankings, type SourceKind, suggestCompetitors,
+  runProspectSnapshot, scanRankings, type SourceKind,
 } from '@cs/collectors';
 import type { CaptureStatus } from '@cs/core';
 import { competitor, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
@@ -69,7 +69,6 @@ export interface WorkerDeps {
   listRankClients(): Promise<string[]>;
   /** 5b-2 decision 10: the one-off prospect snapshot (vendor pulls + 3×3 rank scan + deterministic report). Never throws. */
   runProspectSnapshot(clientId: string, reportId: string): Promise<{ status: 'ready' | 'failed' }>;
-  suggestCompetitors(clientId: string): Promise<{ suggested: number; searches: number }>;
   /** Phase 12a: one competitor-discovery run (paid vendor calls; the job checks vendorsConfigured first). */
   runRivalSearch(runId: string): Promise<{ status: 'done' | 'failed' | 'finalising' }>;
   /** Fails a still-live discovery run with `error` (e.g. vendors not configured). */
@@ -340,7 +339,6 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
         clientId, reportId,
       );
     },
-    suggestCompetitors: (clientId) => suggestCompetitors({ db: getDb(), dfs: getDfs() }, clientId),
     runRivalSearch: (runId) => runRivalSearch(rivalDeps(), runId),
     failRivalRun: (runId, error) => failRivalRun(getDb(), runId, error),
     finaliseRivalSearch: (runId, opts) => finaliseRivalSearch(rivalDeps(), runId, opts),

@@ -20,7 +20,8 @@ export { EVIDENCE_CONTENT_TYPES, evidenceContentType, type ServableEvidenceKind 
 export * from './workspace/labels';
 export * from './workspace/word-diff';
 export * from './tools/schemas';
-export { type Discovery, assertRoomForCompetitor, startDiscovery } from './tools/competitors';
+export { type Discovery, lockRoomForCompetitors, startDiscovery } from './tools/competitors';
+export { latestDoneRun, type SearchRefusal, type SearchStart, type SearchTrigger, startCompetitorSearch } from './rival-search';
 // Shared by the `fetch` tool and the MCP `evidence://` / `brief://` resources (@cs/mcp); every refusal is `not_found`.
 export { type FetchOutput, fetchItem, ITEM_TYPES, type ItemType, parseItemId } from './search/fetch-item';
 export type { AskActionView, AskMessageView, AskThreadSummary, AskThreadView } from './tools/ask-threads';

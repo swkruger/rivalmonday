@@ -4,10 +4,10 @@ import { allTools } from './all';
 
 /** Reviewed list of tools that mutate tenant/external state (support sessions refuse these). Additions must be reviewed. */
 const WRITE_TOOLS = [
-  'accept_competitor_suggestion', 'add_client_recipient', 'add_competitor', 'add_recommendation', 'add_tracked_page', 'add_webhook',
-  'approve_alert', 'approve_brief', 'archive_platform_cost_item', 'convert_prospect', 'create_api_token', 'create_client', 'deactivate_recipient',
+  'accept_competitor_suggestion', 'accept_competitor_suggestions', 'add_client_recipient', 'add_competitor', 'add_recommendation', 'add_tracked_page', 'add_webhook',
+  'approve_alert', 'approve_brief', 'archive_platform_cost_item', 'confirm_ad_match', 'convert_prospect', 'create_api_token', 'create_client', 'deactivate_recipient',
   'decide_theme_proposal', 'delete_kb_article', 'delete_my_ask_thread', 'dismiss_alert', 'dismiss_competitor_suggestion',
-  'drop_brief_item', 'edit_brief_item', 'end_support_session', 'import_kb_url', 'invite_member', 'rate_brief_item', 'remove_competitor',
+  'drop_brief_item', 'edit_brief_item', 'end_support_session', 'import_kb_url', 'invite_member', 'rate_brief_item', 'remove_ad_match', 'remove_competitor',
   'refresh_platform_costs', 'reorder_brief_items', 'request_competitor_suggestions', 'resolve_decision_review', 'revoke_api_token', 'revoke_invitation',
   'revoke_membership', 'revoke_oauth_grant', 'run_prospect_snapshot', 'save_platform_cost_item', 'send_brief_now', 'set_alert_rules', 'set_brief_auto_send',
   'set_client_limits', 'set_kb_auto_sync', 'set_my_notification_pref', 'set_page_pin', 'set_support_access_notify', 'set_webhook_active', 'start_support_session', 'submit_feedback',

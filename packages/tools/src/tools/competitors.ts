@@ -1,12 +1,12 @@
-import { appLinkFor, canAccessClient, toolkit, ToolError } from '@cs/core';
-import { acceptSuggestion, ensureCompetitorSources, findExistingCompetitor, patchReusedCompetitor } from '@cs/collectors';
-import { client, clientCompetitor, competitor, competitorSuggestion, trackedPage, type Tx, withTenant } from '@cs/db';
-import { and, asc, count, desc, eq, ne, sql } from 'drizzle-orm';
+import { type AccessContext, appLinkFor, canAccessClient, toolkit, ToolError } from '@cs/core';
+import { ensureCompetitorSources, findExistingCompetitor, patchReusedCompetitor } from '@cs/collectors';
+import { ad, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, discoveryRun, trackedPage, type Tx, withTenant } from '@cs/db';
+import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { enqueueOf, type JobState, jobStatusOf, type ToolDeps } from '../deps';
-import { SUGGEST_COOLDOWN_MINUTES } from '../limits';
+import { enqueueOf, type ToolDeps } from '../deps';
+import { latestDoneRun, type SearchRefusal, startCompetitorSearch } from '../rival-search';
 import { detailOf, pageOf, pageResult } from '../paging';
-import { pageFields, pagedItems, SuggestionView, TrackedCompetitor } from './schemas';
+import { AdMatch, CompetitorSignalView, HiddenReason, pageFields, pagedItems, Signals, SuggestionView, Tier, TrackedCompetitor } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -24,76 +24,242 @@ export async function startDiscovery(deps: ToolDeps, competitorId: string): Prom
   return 'queued';
 }
 
-/** Decision 6 (5b-2): the client's own `competitor_limit`. Call inside the caller's tenant transaction; a competitor already linked doesn't count twice. */
-export async function assertRoomForCompetitor(tx: Tx, clientId: string, competitorId: string | null): Promise<void> {
-  const [c] = await tx.select({ limit: client.competitorLimit }).from(client).where(eq(client.id, clientId));
+/**
+ * Decision 6 (5b-2) + 12a atomic limit: the client's own `competitor_limit`. Call inside the service transaction that
+ * then inserts the links. The client row stays locked until commit, so a concurrent accept waits here and then counts
+ * this transaction's links (READ COMMITTED gives the count statement a fresh snapshot).
+ */
+export async function lockRoomForCompetitors(tx: Tx, clientId: string, newLinks: number): Promise<void> {
+  const [c] = (await tx.execute(sql`SELECT competitor_limit FROM client WHERE id = ${clientId} FOR UPDATE;`)) as unknown as { competitor_limit: number }[];
   if (!c) throw new ToolError('not_found', 'Client not found');
-  const where = competitorId ? and(eq(clientCompetitor.clientId, clientId), ne(clientCompetitor.competitorId, competitorId)) : eq(clientCompetitor.clientId, clientId);
-  const [row] = await tx.select({ n: count() }).from(clientCompetitor).where(where);
-  if ((row?.n ?? 0) >= c.limit) throw new ToolError('invalid_input', `This client can track at most ${c.limit} competitor${c.limit === 1 ? '' : 's'} — remove one first or raise its limit`);
+  const [row] = (await tx.execute(sql`SELECT count(*) FROM client_competitor WHERE client_id = ${clientId};`)) as unknown as { count: string | number }[];
+  const limit = c.competitor_limit;
+  if (Number(row?.count ?? 0) + newLinks > limit) throw new ToolError('invalid_input', `This client can track at most ${limit} competitor${limit === 1 ? '' : 's'} — remove one first or raise its limit`);
 }
+
+const SIGNAL_KEYS = Object.keys(Signals.shape) as (keyof Signals)[];
+const NULL_SIGNALS = Object.fromEntries(SIGNAL_KEYS.map((k) => [k, null])) as Signals;
+
+/** Stored signals jsonb → `Signals`; missing or malformed keys stay `null` (not checked), never 0 (D8). */
+export function toSignals(raw: unknown): Signals {
+  const obj = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const out: Record<string, unknown> = {};
+  for (const k of SIGNAL_KEYS) {
+    const v = Signals.shape[k].safeParse(obj[k] ?? null);
+    out[k] = v.success ? v.data : null;
+  }
+  return out as Signals;
+}
+
+const HIDDEN_REASONS = HiddenReason.options;
+const hiddenCounts = (raw: Record<string, number> | null | undefined): Record<HiddenReason, number> =>
+  Object.fromEntries(HIDDEN_REASONS.map((r) => [r, typeof raw?.[r] === 'number' ? raw[r] : 0])) as Record<HiddenReason, number>;
+
+const TIER_ORDER = sql`CASE ${competitorSuggestion.tier} WHEN 'top' THEN 0 WHEN 'watch' THEN 1 WHEN 'minor' THEN 2 ELSE 3 END`;
 
 export const listCompetitorSuggestions = defineTool({
   name: 'list_competitor_suggestions',
   access: 'read',
-  description: 'List open competitor suggestions for a client, strongest overlap first.',
+  description: 'List the latest competitor search’s open suggestions for a client: Top rival → Worth watching → Minor, strongest overlap first, plus what the search hid and why.',
   input: z.object({ clientId: uuid }),
-  output: z.object({ items: z.array(SuggestionView) }),
-  permission: 'manage',
-  feature: 'manage_competitors',
+  output: z.object({
+    suggestions: z.array(SuggestionView),
+    hidden: z.record(HiddenReason, z.number().int()),
+    hiddenList: z.array(z.object({ name: z.string(), reason: HiddenReason })),
+  }),
+  permission: 'agency',
   async handler(ctx, { clientId }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
-    const rows = await withTenant(deps.app, ctx, (tx) =>
-      tx.select().from(competitorSuggestion).where(and(eq(competitorSuggestion.clientId, clientId), eq(competitorSuggestion.status, 'suggested'))).orderBy(desc(competitorSuggestion.overlapScore), desc(competitorSuggestion.appearances)).limit(50));
-    return { items: rows.map((s) => ({ id: s.id, name: s.name, domain: s.domain, placeId: s.placeId, rating: s.rating, votes: s.votes, appearances: s.appearances, bestRank: s.bestRank, overlapScore: s.overlapScore })) };
+    const r = await withTenant(deps.app, ctx, async (tx) => {
+      const [c] = await tx.select({ limit: client.competitorLimit }).from(client).where(eq(client.id, clientId));
+      if (!c) return null;
+      const [tracked] = await tx.select({ n: count() }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId));
+      // Only the latest done run's suggestions: older runs' leftovers (and pre-12a rows, run_id NULL) stay hidden.
+      const run = await latestDoneRun(tx, clientId);
+      const rows = run
+        ? await tx.select().from(competitorSuggestion)
+          .where(and(eq(competitorSuggestion.clientId, clientId), eq(competitorSuggestion.runId, run.id), eq(competitorSuggestion.status, 'suggested')))
+          .orderBy(TIER_ORDER, sql`${competitorSuggestion.overlap} DESC NULLS LAST`, desc(competitorSuggestion.overlapScore), desc(competitorSuggestion.appearances), asc(competitorSuggestion.id))
+          .limit(100)
+        : [];
+      return { limit: c.limit, tracked: tracked?.n ?? 0, run, rows };
+    });
+    if (!r) throw new ToolError('not_found', 'Client not found');
+    // D5: Top rivals are pre-ticked, strongest overlap first, up to the room left under the limit.
+    let room = Math.max(0, r.limit - r.tracked);
+    const suggestions = r.rows.map((s) => {
+      const preselected = s.tier === 'top' && room > 0;
+      if (preselected) room--;
+      return {
+        id: s.id, name: s.name, domain: s.domain, placeId: s.placeId, rating: s.rating, votes: s.votes, appearances: s.appearances, bestRank: s.bestRank, overlapScore: s.overlapScore,
+        tier: s.tier, category: s.category, distanceKm: s.distanceKm, signals: toSignals(s.signals),
+        adMatches: s.adMatches.filter((m) => AdMatch.safeParse(m).success), preselected,
+      };
+    });
+    const hiddenList = (r.run?.progress.hiddenList ?? [])
+      .filter((h): h is { name: string; reason: HiddenReason } => (HIDDEN_REASONS as readonly string[]).includes(h.reason))
+      .slice(0, 50)
+      .map((h) => ({ name: h.name, reason: h.reason }));
+    return { suggestions, hidden: hiddenCounts(r.run?.hidden), hiddenList };
   },
 });
+
+/** Refusal copy for the manual search (daily cap copy decided in the 12a plan). */
+const REFUSAL: Record<SearchRefusal, string> = {
+  missing_profile: 'Add keywords, a service area and the Google place id to the client profile first',
+  running: 'A competitor search is already running for this client',
+  cooldown: 'A search just finished — its suggestions are below. You can search again in a few minutes.',
+  daily_cap: 'Daily search limit reached. Try again tomorrow.',
+};
 
 export const requestCompetitorSuggestions = defineTool({
   name: 'request_competitor_suggestions',
   access: 'write',
-  description: 'Search Google Maps around the client’s service area for likely competitors (paid; runs in the background).',
+  description: 'Search Google Maps around the client’s service area for likely competitors and rate them (paid; runs in the background).',
   input: z.object({ clientId: uuid }),
-  output: z.object({ queued: z.literal(true) }),
+  output: z.object({ queued: z.literal(true), runId: uuid }),
   permission: 'agency',
   async handler(ctx, { clientId }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
-    const [c] = await withTenant(deps.app, ctx, (tx) => tx.select({ keywords: client.keywords, serviceArea: client.serviceArea }).from(client).where(eq(client.id, clientId)));
+    const [c] = await withTenant(deps.app, ctx, (tx) => tx.select({ id: client.id }).from(client).where(eq(client.id, clientId)));
     if (!c) throw new ToolError('not_found', 'Client not found');
-    if (c.keywords.length === 0 || !c.serviceArea) throw new ToolError('invalid_input', 'Add at least one keyword and a service area to the client profile first');
-    // 5b-2 decision 17 (5b-1 Minor 1): the UI blocks a second click, but the tool must not start a second paid search either.
-    if (deps.jobStatus) {
-      const job = await deps.jobStatus('suggest-competitors', `suggest:${clientId}`);
-      if (job && (job.state === 'created' || job.state === 'retry' || job.state === 'active')) throw new ToolError('invalid_input', 'A competitor search is already running for this client');
-      if (job?.state === 'completed' && job.completedOn && Date.now() - job.completedOn.getTime() < SUGGEST_COOLDOWN_MINUTES * 60_000) {
-        throw new ToolError('invalid_input', 'A search just finished — its suggestions are below. You can search again in a few minutes.');
-      }
-    }
-    await enqueueOf(deps)('suggest-competitors', { clientId }, `suggest:${clientId}`);
-    return { queued: true as const };
+    const r = await startCompetitorSearch(deps, clientId, 'manual');
+    if ('refused' in r) throw new ToolError('invalid_input', REFUSAL[r.refused]);
+    return { queued: true as const, runId: r.runId };
   },
 });
 
-const SEARCH_STATE: Record<JobState, 'queued' | 'running' | 'done' | 'failed'> = {
-  created: 'queued', retry: 'running', active: 'running', completed: 'done', failed: 'failed', cancelled: 'failed',
-};
+const RUN_STATUSES = ['queued', 'searching', 'checking', 'finalising', 'done', 'failed'] as const;
+const count0 = (n: number | undefined) => (typeof n === 'number' ? n : 0);
 
 export const getCompetitorSearchStatus = defineTool({
   name: 'get_competitor_search_status',
   access: 'read',
-  description: 'Whether the client’s latest competitor search is queued, running, done or failed — the web page polls it after "Find competitors".',
+  description: 'The client’s latest competitor search: its stage, progress, what it kept and hid — the web page polls it after "Find competitors".',
   input: z.object({ clientId: uuid }),
-  output: z.object({ state: z.enum(['idle', 'queued', 'running', 'done', 'failed']), finishedAt: z.string().nullable() }),
+  output: z.union([
+    z.object({ status: z.literal('none') }),
+    z.object({
+      status: z.enum(RUN_STATUSES),
+      progress: z.object({ searchesDone: z.number().int(), searchesTotal: z.number().int(), checksDone: z.number().int(), checksTotal: z.number().int() }),
+      kept: z.number().int().nullable(),
+      hidden: z.record(HiddenReason, z.number().int()),
+      finishedAt: z.string().nullable(),
+    }),
+  ]),
   permission: 'agency',
   audit: 'skip-web',
   async handler(ctx, { clientId }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
-    const job = await jobStatusOf(deps)('suggest-competitors', `suggest:${clientId}`);
-    if (!job) return { state: 'idle' as const, finishedAt: null };
-    const state = SEARCH_STATE[job.state];
-    return { state, finishedAt: state === 'done' || state === 'failed' ? (job.completedOn?.toISOString() ?? null) : null };
+    const [run] = await withTenant(deps.app, ctx, (tx) => tx.select().from(discoveryRun).where(eq(discoveryRun.clientId, clientId)).orderBy(desc(discoveryRun.startedAt)).limit(1));
+    if (!run) return { status: 'none' as const };
+    const p = run.progress;
+    return {
+      status: run.status,
+      progress: { searchesDone: count0(p.searchesDone), searchesTotal: count0(p.searchesTotal), checksDone: count0(p.checksDone), checksTotal: count0(p.checksTotal) },
+      kept: run.kept, hidden: hiddenCounts(run.hidden), finishedAt: run.finishedAt?.toISOString() ?? null,
+    };
   },
 });
+
+export const getCompetitorSignals = defineTool({
+  name: 'get_competitor_signals',
+  access: 'read',
+  description: 'Rating of each competitor a client tracks: tier (top rival / worth watching / minor) and the public signals behind it (reviews, ads, local presence). Null signals were not checked.',
+  input: z.object({ clientId: uuid }),
+  output: z.object({ competitors: z.array(CompetitorSignalView) }),
+  permission: 'read',
+  channels: ['web', 'mcp', 'ask'],
+  async handler(ctx, { clientId }, deps) {
+    if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+    const r = await withTenant(deps.app, ctx, async (tx) => {
+      const [c] = await tx.select({ id: client.id }).from(client).where(eq(client.id, clientId));
+      if (!c) return null;
+      // Currently tracked competitors only; never suggestion or ad-match data (client roles read this).
+      return tx
+        .select({ competitorId: competitorSignal.competitorId, tier: competitorSignal.tier, signals: competitorSignal.signals, computedAt: competitorSignal.computedAt })
+        .from(competitorSignal)
+        .innerJoin(clientCompetitor, and(eq(clientCompetitor.clientId, competitorSignal.clientId), eq(clientCompetitor.competitorId, competitorSignal.competitorId)))
+        .where(eq(competitorSignal.clientId, clientId))
+        .orderBy(asc(competitorSignal.competitorId));
+    });
+    if (!r) throw new ToolError('not_found', 'Client not found');
+    return { competitors: r.map((x) => ({ competitorId: x.competitorId, tier: Tier.parse(x.tier), signals: toSignals(x.signals), computedAt: x.computedAt.toISOString() })) };
+  },
+});
+
+type AdMatchRow = z.infer<typeof AdMatch>;
+
+/** Locks the shared competitor row and returns its ad-account arrays. */
+async function lockedAccounts(tx: Tx, competitorId: string): Promise<{ google: string[]; meta: string[] }> {
+  const [row] = await tx.select({ google: competitor.googleAdvertiserIds, meta: competitor.metaPageIds }).from(competitor).where(eq(competitor.id, competitorId)).for('update');
+  if (!row) throw new ToolError('not_found', 'Competitor not found');
+  return { google: [...row.google], meta: [...row.meta] };
+}
+
+async function writeAccounts(tx: Tx, competitorId: string, before: { google: string[]; meta: string[] }, after: { google: string[]; meta: string[] }): Promise<void> {
+  const patch: { googleAdvertiserIds?: string[]; metaPageIds?: string[] } = {};
+  if (after.google.join('\n') !== before.google.join('\n')) patch.googleAdvertiserIds = after.google;
+  if (after.meta.join('\n') !== before.meta.join('\n')) patch.metaPageIds = after.meta;
+  if (Object.keys(patch).length > 0) await tx.update(competitor).set(patch).where(eq(competitor.id, competitorId));
+}
+
+type Accepted = { suggestionId: string; competitorId: string; discovery: Discovery };
+
+/**
+ * Accepts suggestions of one client in ONE service transaction with the atomic limit check (12a; single and bulk
+ * accept share it). Visibility is proved through RLS as the caller first. `strong` ad matches attach to the shared
+ * competitor (append, no duplicates); `weak` ones wait in `client_competitor.pending_ad_matches` (D6).
+ */
+async function acceptSuggestions(ctx: AccessContext, deps: ToolDeps, clientId: string, ids: string[]): Promise<Accepted[]> {
+  if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Suggestion not found');
+  const unique = [...new Set(ids)];
+  const rows = await withTenant(deps.app, ctx, (tx) => tx.select().from(competitorSuggestion).where(inArray(competitorSuggestion.id, unique)));
+  if (rows.length !== unique.length || rows.some((s) => s.clientId !== clientId)) throw new ToolError('not_found', 'Suggestion not found');
+
+  const linked = await deps.service.transaction(async (tx) => {
+    const existing = await Promise.all(rows.map((s) => findExistingCompetitor(tx, s)));
+    const current = new Set((await tx.select({ id: clientCompetitor.competitorId }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId))).map((r) => r.id));
+    const fresh = new Set<string>();
+    existing.forEach((e, i) => { if (!e) fresh.add(`new:${rows[i]!.id}`); else if (!current.has(e.id)) fresh.add(e.id); });
+    await lockRoomForCompetitors(tx, clientId, fresh.size);
+
+    const out: { suggestionId: string; competitorId: string }[] = [];
+    for (const [i, s] of rows.entries()) {
+      let competitorId: string;
+      const found = existing[i] ?? (await findExistingCompetitor(tx, s));
+      if (found) {
+        competitorId = found.id;
+        await patchReusedCompetitor(tx, found, s);
+      } else {
+        // Never insert a second row with a domain another competitor already holds (same guard as acceptSuggestion).
+        let domain = s.domain;
+        if (domain && (await tx.select({ id: competitor.id }).from(competitor).where(eq(competitor.domain, domain)).limit(1))[0]) domain = null;
+        const inserted = await tx.insert(competitor).values({ name: s.name, domain, placeId: s.placeId, cid: s.cid }).onConflictDoNothing().returning({ id: competitor.id });
+        const id = inserted[0]?.id ?? (await findExistingCompetitor(tx, { placeId: s.placeId, cid: s.cid, domain: null }))?.id;
+        if (!id) throw new ToolError('internal', 'That competitor could not be added — try again');
+        competitorId = id;
+      }
+      const matches = s.adMatches.filter((m): m is AdMatchRow => AdMatch.safeParse(m).success);
+      const before = await lockedAccounts(tx, competitorId);
+      const after = { google: [...before.google], meta: [...before.meta] };
+      for (const m of matches) if (m.strength === 'strong' && !after[m.platform].includes(m.accountId)) after[m.platform].push(m.accountId);
+      await writeAccounts(tx, competitorId, before, after);
+      const pending = matches.filter((m) => m.strength === 'weak' && !after[m.platform].includes(m.accountId));
+      await tx.insert(clientCompetitor).values({ agencyId: s.agencyId, clientId, competitorId, pendingAdMatches: pending }).onConflictDoNothing();
+      await tx.update(competitorSuggestion).set({ status: 'accepted' }).where(eq(competitorSuggestion.id, s.id));
+      out.push({ suggestionId: s.id, competitorId });
+    }
+    return out;
+  });
+
+  const accepted: Accepted[] = [];
+  for (const l of linked) {
+    await ensureCompetitorSources(deps.service, l.competitorId);
+    accepted.push({ ...l, discovery: await startDiscovery(deps, l.competitorId) });
+  }
+  return accepted;
+}
 
 export const acceptCompetitorSuggestion = defineTool({
   name: 'accept_competitor_suggestion',
@@ -104,14 +270,97 @@ export const acceptCompetitorSuggestion = defineTool({
   permission: 'manage',
   feature: 'manage_competitors',
   async handler(ctx, { suggestionId }, deps) {
-    await withTenant(deps.app, ctx, async (tx) => {
-      const [s] = await tx.select().from(competitorSuggestion).where(eq(competitorSuggestion.id, suggestionId));
-      if (!s || !canAccessClient(ctx, s.clientId)) throw new ToolError('not_found', 'Suggestion not found');
-      const existing = s.placeId ? (await tx.select({ id: competitor.id }).from(competitor).where(eq(competitor.placeId, s.placeId)))[0] : undefined;
-      await assertRoomForCompetitor(tx, s.clientId, existing?.id ?? null);
+    const [s] = await withTenant(deps.app, ctx, (tx) => tx.select({ clientId: competitorSuggestion.clientId }).from(competitorSuggestion).where(eq(competitorSuggestion.id, suggestionId)));
+    if (!s) throw new ToolError('not_found', 'Suggestion not found');
+    const [a] = await acceptSuggestions(ctx, deps, s.clientId, [suggestionId]);
+    return { competitorId: a!.competitorId, discovery: a!.discovery };
+  },
+});
+
+export const acceptCompetitorSuggestions = defineTool({
+  name: 'accept_competitor_suggestions',
+  access: 'write',
+  description: 'Start tracking several suggested competitors of one client at once ("Track selected"); all or none, within the client’s competitor limit.',
+  input: z.object({ clientId: uuid, ids: z.array(uuid).min(1).max(10) }),
+  output: z.object({ items: z.array(z.object({ suggestionId: uuid, competitorId: uuid, discovery: z.enum(['queued', 'disabled', 'not_needed']) })) }),
+  permission: 'manage',
+  feature: 'manage_competitors',
+  async handler(ctx, { clientId, ids }, deps) {
+    return { items: await acceptSuggestions(ctx, deps, clientId, ids) };
+  },
+});
+
+const AdMatchInput = z.object({ clientId: uuid, competitorId: uuid, platform: z.enum(['google', 'meta']), accountId: z.string().min(1).max(200) });
+
+/** The competitor must be tracked by this (RLS-visible) client before a shared competitor row is touched. */
+async function assertTracked(ctx: AccessContext, deps: ToolDeps, clientId: string, competitorId: string): Promise<void> {
+  if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Competitor not found');
+  const [link] = await withTenant(deps.app, ctx, (tx) =>
+    tx.select({ id: clientCompetitor.competitorId }).from(clientCompetitor).where(and(eq(clientCompetitor.clientId, clientId), eq(clientCompetitor.competitorId, competitorId))));
+  if (!link) throw new ToolError('not_found', 'Competitor not found');
+}
+
+async function lockedPending(tx: Tx, clientId: string, competitorId: string): Promise<AdMatchRow[]> {
+  const [row] = await tx.select({ pending: clientCompetitor.pendingAdMatches }).from(clientCompetitor)
+    .where(and(eq(clientCompetitor.clientId, clientId), eq(clientCompetitor.competitorId, competitorId))).for('update');
+  if (!row) throw new ToolError('not_found', 'Competitor not found');
+  return row.pending;
+}
+
+const setPending = (tx: Tx, clientId: string, competitorId: string, pending: AdMatchRow[]) =>
+  tx.update(clientCompetitor).set({ pendingAdMatches: pending }).where(and(eq(clientCompetitor.clientId, clientId), eq(clientCompetitor.competitorId, competitorId)));
+
+export const confirmAdMatch = defineTool({
+  name: 'confirm_ad_match',
+  access: 'write',
+  description: 'Confirm a possible Google Ads or Meta account match for a tracked competitor, so its ads are collected.',
+  input: AdMatchInput,
+  output: z.object({ confirmed: z.literal(true) }),
+  permission: 'manage',
+  feature: 'manage_competitors',
+  async handler(ctx, { clientId, competitorId, platform, accountId }, deps) {
+    await assertTracked(ctx, deps, clientId, competitorId);
+    // app_user has no UPDATE on client_competitor / competitor: the service role writes, after the RLS check above.
+    await deps.service.transaction(async (tx) => {
+      const pending = await lockedPending(tx, clientId, competitorId);
+      const rest = pending.filter((m) => !(m.platform === platform && m.accountId === accountId));
+      if (rest.length === pending.length) throw new ToolError('not_found', 'That ad account match was not found');
+      await setPending(tx, clientId, competitorId, rest);
+      const before = await lockedAccounts(tx, competitorId);
+      const after = { ...before, [platform]: before[platform].includes(accountId) ? before[platform] : [...before[platform], accountId] };
+      await writeAccounts(tx, competitorId, before, after);
     });
-    const { competitorId } = await acceptSuggestion({ service: deps.service, app: deps.app }, ctx, suggestionId);
-    return { competitorId, discovery: await startDiscovery(deps, competitorId) };
+    return { confirmed: true as const };
+  },
+});
+
+export const removeAdMatch = defineTool({
+  name: 'remove_ad_match',
+  access: 'write',
+  description: 'Remove a matched or possible Google Ads or Meta account from a tracked competitor. A removed Google account’s ads are retired silently.',
+  input: AdMatchInput,
+  output: z.object({ removed: z.literal(true) }),
+  permission: 'manage',
+  feature: 'manage_competitors',
+  async handler(ctx, { clientId, competitorId, platform, accountId }, deps) {
+    await assertTracked(ctx, deps, clientId, competitorId);
+    await deps.service.transaction(async (tx) => {
+      const pending = await lockedPending(tx, clientId, competitorId);
+      const rest = pending.filter((m) => !(m.platform === platform && m.accountId === accountId));
+      const before = await lockedAccounts(tx, competitorId);
+      const attached = before[platform].includes(accountId);
+      if (!attached && rest.length === pending.length) throw new ToolError('not_found', 'That ad account match was not found');
+      if (rest.length !== pending.length) await setPending(tx, clientId, competitorId, rest);
+      if (!attached) return;
+      await writeAccounts(tx, competitorId, before, { ...before, [platform]: before[platform].filter((id) => id !== accountId) });
+      // D6/P3: that advertiser's ads stop being tracked — retire them silently (no ended capture, so no "stopped"
+      // change), as the Google collector does for unpinned advertisers (ads/google.ts).
+      if (platform === 'google') {
+        await tx.update(ad).set({ isActive: false, endedAt: sql`${ad.lastSeenAt}` })
+          .where(and(eq(ad.competitorId, competitorId), eq(ad.platform, 'google'), eq(ad.isActive, true), eq(ad.advertiserId, accountId)));
+      }
+    });
+    return { removed: true as const };
   },
 });
 
@@ -205,18 +454,23 @@ export const addCompetitor = defineTool({
     // Reuse a global row by place/cid first; for a typed website, the exact domain owner is that business.
     let row = await findExistingCompetitor(deps.service, { placeId, cid: null, domain });
     if (!row && domain) row = (await deps.service.select().from(competitor).where(eq(competitor.domain, domain)).limit(1))[0];
-    await withTenant(deps.app, ctx, (tx) => assertRoomForCompetitor(tx, input.clientId, row?.id ?? null));
-    let competitorId = row?.id;
-    // Final review: if the reused row is any client's self business (named from that client's private client.name),
-    // rename it to the name typed here. No identifier backfill: typed place ids/domains are unverified and must not
-    // be written onto a shared row another agency already collects for.
-    if (row) await patchReusedCompetitor(deps.service, row, { placeId, cid: null, domain, name: input.name.trim() }, { backfill: false });
-    if (!competitorId) {
-      const inserted = await deps.service.insert(competitor).values({ name: input.name.trim(), domain, placeId }).onConflictDoNothing().returning({ id: competitor.id });
-      competitorId = inserted[0]?.id ?? (await findExistingCompetitor(deps.service, { placeId, cid: null, domain }))?.id;
-      if (!competitorId) throw new ToolError('internal', 'That competitor could not be added — try again');
-    }
-    await withTenant(deps.app, ctx, (tx) => tx.insert(clientCompetitor).values({ agencyId: ctx.agencyId, clientId: input.clientId, competitorId: competitorId! }).onConflictDoNothing());
+    // 12a atomic limit: lock, count, create and link in one service transaction (the RLS read above proved access).
+    const competitorId = await deps.service.transaction(async (tx) => {
+      const linked = row ? (await tx.select({ id: clientCompetitor.competitorId }).from(clientCompetitor).where(and(eq(clientCompetitor.clientId, input.clientId), eq(clientCompetitor.competitorId, row.id)))).length > 0 : false;
+      await lockRoomForCompetitors(tx, input.clientId, linked ? 0 : 1);
+      let id = row?.id;
+      // Final review: if the reused row is any client's self business (named from that client's private client.name),
+      // rename it to the name typed here. No identifier backfill: typed place ids/domains are unverified and must not
+      // be written onto a shared row another agency already collects for.
+      if (row) await patchReusedCompetitor(tx, row, { placeId, cid: null, domain, name: input.name.trim() }, { backfill: false });
+      if (!id) {
+        const inserted = await tx.insert(competitor).values({ name: input.name.trim(), domain, placeId }).onConflictDoNothing().returning({ id: competitor.id });
+        id = inserted[0]?.id ?? (await findExistingCompetitor(tx, { placeId, cid: null, domain }))?.id;
+        if (!id) throw new ToolError('internal', 'That competitor could not be added — try again');
+      }
+      await tx.insert(clientCompetitor).values({ agencyId: ctx.agencyId, clientId: input.clientId, competitorId: id }).onConflictDoNothing();
+      return id;
+    });
     await ensureCompetitorSources(deps.service, competitorId);
     return { competitorId, discovery: await startDiscovery(deps, competitorId) };
   },
@@ -239,4 +493,7 @@ export const removeCompetitor = defineTool({
   },
 });
 
-export const competitorTools = [listCompetitorSuggestions, requestCompetitorSuggestions, getCompetitorSearchStatus, acceptCompetitorSuggestion, dismissCompetitorSuggestion, listClientCompetitors, addCompetitor, removeCompetitor];
+export const competitorTools = [
+  listCompetitorSuggestions, requestCompetitorSuggestions, getCompetitorSearchStatus, getCompetitorSignals, acceptCompetitorSuggestion, acceptCompetitorSuggestions,
+  confirmAdMatch, removeAdMatch, dismissCompetitorSuggestion, listClientCompetitors, addCompetitor, removeCompetitor,
+];

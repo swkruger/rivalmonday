@@ -11,6 +11,9 @@ import { AddCompetitorForm, SuggestionsPanel, TrackedCompetitorsTable } from './
 
 export const dynamic = 'force-dynamic';
 
+/** 12a: discovery_run stages → the panel's states (until the 12a suggestions UI replaces it). */
+const RUN_STATE: Record<string, SearchState> = { none: 'idle', queued: 'queued', searching: 'running', checking: 'running', finalising: 'running', done: 'done', failed: 'failed' };
+
 export default async function CompetitorsPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
   const { ctx } = await requireContext();
@@ -20,8 +23,9 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
   const [profile, tracked, suggestions, search] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<{ items: TrackedCompetitor[]; limit: number }>(ctx, 'list_client_competitors', { clientId }),
-    canManage ? callTool<{ items: SuggestionView[] }>(ctx, 'list_competitor_suggestions', { clientId }) : Promise.resolve({ items: [] as SuggestionView[] }),
-    agency ? callTool<{ state: SearchState }>(ctx, 'get_competitor_search_status', { clientId }) : Promise.resolve({ state: 'idle' as SearchState }),
+    // 12a: suggestions (with ad-account matches) are agency-only.
+    agency ? callTool<{ suggestions: SuggestionView[] }>(ctx, 'list_competitor_suggestions', { clientId }) : Promise.resolve({ suggestions: [] as SuggestionView[] }),
+    agency ? callTool<{ status: string }>(ctx, 'get_competitor_search_status', { clientId }) : Promise.resolve({ status: 'none' }),
   ]);
   const atLimit = tracked.items.length >= tracked.limit;
   return (
@@ -50,12 +54,12 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
           )}
         </CardContent>
       </Card>
-      {canManage && (
+      {agency && (
         <SuggestionsPanel
           clientId={clientId}
           ready={profile.keywords.length > 0 && profile.serviceArea !== null}
-          suggestions={suggestions.items}
-          initialSearch={search.state}
+          suggestions={suggestions.suggestions}
+          initialSearch={RUN_STATE[search.status] ?? 'idle'}
           atLimit={atLimit}
           limit={tracked.limit}
           canSearch={agency}

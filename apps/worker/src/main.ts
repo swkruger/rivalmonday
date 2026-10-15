@@ -115,7 +115,7 @@ const delivery = createDeliveryJobs(deps, {
   },
 });
 await registerJobs(boss, [
-  heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, vendor.suggest, prospects.snapshot,
+  heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, prospects.snapshot,
   rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly,
   engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.price, reviews.nightly, moves.nightly, moves.client,
   modelOps.batchPoll, platformStats.daily, platformCosts.snapshot, briefs.schedule, briefs.client, ask.starters, kb.embed, kb.importUrl, kb.sync,

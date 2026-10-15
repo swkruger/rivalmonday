@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { TrackedCompetitor } from '@cs/tools';
+import type { SuggestionView, TrackedCompetitor } from '@cs/tools';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -11,6 +11,15 @@ vi.mock('./actions', () => ({
 const { acceptSuggestionAction, dismissSuggestionAction, removeCompetitorAction, requestSuggestionsAction, searchStatusAction } = await import('./actions');
 const { SuggestionsPanel, TrackedCompetitorsTable } = await import('./competitor-controls');
 
+const NO_SIGNALS = {
+  rating: null, votes: null, reviews30d: null, reviews90d: null, replyRate: null, googleAdsActive: null, googleAdsNew30d: null, googleAccount: null,
+  metaPage: null, metaAdsActive: null, claimed: null, chain: null, categoryMatch: null, distanceKm: null, presence: null,
+};
+const suggestion: SuggestionView = {
+  id: 's1', name: 'Peachtree Air', domain: 'peachtreeair.com', placeId: 'p', rating: 4.6, votes: 120, appearances: 7, bestRank: 2, overlapScore: 0.82,
+  tier: 'top', category: null, distanceKm: null, signals: NO_SIGNALS, adMatches: [], preselected: false,
+};
+
 describe('SuggestionsPanel', () => {
   it('explains what is missing before suggestions can be requested', () => {
     render(<SuggestionsPanel clientId="c1" ready={false} suggestions={[]} atLimit={false} canSearch />);
@@ -19,7 +28,7 @@ describe('SuggestionsPanel', () => {
   });
 
   it('lists suggestions with accept disabled at the competitor limit', () => {
-    render(<SuggestionsPanel clientId="c1" ready suggestions={[{ id: 's1', name: 'Peachtree Air', domain: 'peachtreeair.com', placeId: 'p', rating: 4.6, votes: 120, appearances: 7, bestRank: 2, overlapScore: 0.82 }]} atLimit canSearch />);
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[suggestion]} atLimit canSearch />);
     expect(screen.getByText('Peachtree Air')).toBeTruthy();
     expect((screen.getByRole('button', { name: /accept peachtree air/i }) as HTMLButtonElement).disabled).toBe(true);
   });
@@ -132,7 +141,6 @@ describe('SuggestionsPanel search progress', () => {
 
 // Final-review fix: the row that triggered the action unmounts when the page revalidates; the message must survive.
 describe('row messages survive revalidation', () => {
-  const suggestion = { id: 's1', name: 'Peachtree Air', domain: 'peachtreeair.com', placeId: 'p', rating: 4.6, votes: 120, appearances: 7, bestRank: 2, overlapScore: 0.82 };
   const tracked: TrackedCompetitor = { id: 'k1', name: 'Smith HVAC', domain: 'smithhvac.com', placeId: null, activePages: 0, addedAt: '2026-10-01T00:00:00.000Z' };
   beforeEach(() => vi.clearAllMocks());
 

@@ -1,4 +1,7 @@
+import { AdMatch, Signals } from '@cs/collectors';
 import { z } from 'zod';
+
+export { AdMatch, Signals };
 
 const iso = z.string();
 const uuid = z.string().uuid();
@@ -70,11 +73,21 @@ export type ReportSummary = z.infer<typeof ReportSummary>;
 export const ReportDetail = ReportSummary.extend({ periodStart: iso, periodEnd: iso, data: z.record(z.string(), z.unknown()).nullable() });
 export type ReportDetail = z.infer<typeof ReportDetail>;
 
+export const Tier = z.enum(['top', 'watch', 'minor']);
+export type Tier = z.infer<typeof Tier>;
+export const HiddenReason = z.enum(['wrong_category', 'outside_area', 'self', 'closed', 'thin']);
+export type HiddenReason = z.infer<typeof HiddenReason>;
+
+/** Phase 12a: manager-facing only (carries ad-account matches); never on client-role payloads. */
 export const SuggestionView = z.object({
   id: uuid, name: z.string(), domain: z.string().nullable(), placeId: z.string().nullable(), rating: z.number().nullable(), votes: z.number().nullable(),
   appearances: z.number(), bestRank: z.number().nullable(), overlapScore: z.number(),
+  tier: Tier.nullable(), category: z.string().nullable(), distanceKm: z.number().nullable(), signals: Signals, adMatches: z.array(AdMatch), preselected: z.boolean(),
 });
 export type SuggestionView = z.infer<typeof SuggestionView>;
+
+export const CompetitorSignalView = z.object({ competitorId: uuid, tier: Tier, signals: Signals, computedAt: iso });
+export type CompetitorSignalView = z.infer<typeof CompetitorSignalView>;
 
 export const TrackedCompetitor = z.object({ id: uuid, name: z.string(), domain: z.string().nullable(), placeId: z.string().nullable(), addedAt: iso, activePages: z.number().int() });
 export type TrackedCompetitor = z.infer<typeof TrackedCompetitor>;

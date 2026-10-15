@@ -97,11 +97,5 @@ export function createVendorJobs(
       console.log(`[rank-scan] ${clientId} → ${JSON.stringify(await deps.scanRankings(clientId))}`);
     },
   });
-  const suggest = defineJob({
-    name: 'suggest-competitors', schema: z.object({ clientId: z.uuid() }), queue: { ...SINGLE_SHOT_QUEUE, policy: 'short' },
-    handler: async ({ clientId }) => {
-      console.log(`[suggest-competitors] ${clientId} → ${JSON.stringify(await deps.suggestCompetitors(clientId))}`);
-    },
-  });
-  return { schedule, collect, poll, rankSchedule, rankScan, suggest };
+  return { schedule, collect, poll, rankSchedule, rankScan };
 }

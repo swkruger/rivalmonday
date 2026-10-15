@@ -29,9 +29,13 @@ get_client_profile (clients.ts) | read | read-only
 get_competitor_profile (competitor-profile.ts) | read | read-only
 get_competitor_timeline (competitor-profile.ts) | read | read-only
 list_competitor_suggestions (competitors.ts) | read | read-only
-request_competitor_suggestions (competitors.ts) | write | enqueues suggest-competitors job
-get_competitor_search_status (competitors.ts) | read | reads job state only
-accept_competitor_suggestion (competitors.ts) | write | inserts competitor, enqueues discovery
+request_competitor_suggestions (competitors.ts) | write | inserts discovery_run, enqueues rival-search job
+get_competitor_search_status (competitors.ts) | read | reads latest discovery_run only
+get_competitor_signals (competitors.ts) | read | read-only
+accept_competitor_suggestion (competitors.ts) | write | inserts competitor, attaches ad accounts, enqueues discovery
+accept_competitor_suggestions (competitors.ts) | write | inserts competitors + links, attaches ad accounts, enqueues discovery
+confirm_ad_match (competitors.ts) | write | updates competitor ad accounts + pending matches
+remove_ad_match (competitors.ts) | write | updates competitor ad accounts, retires ads
 dismiss_competitor_suggestion (competitors.ts) | write | updates suggestion
 list_client_competitors (competitors.ts) | read | read-only
 add_competitor (competitors.ts) | write | inserts competitor + link, enqueues discovery
@@ -56,8 +60,8 @@ list_decision_reviews (model-ops.ts) | read | read; no side effects
 resolve_decision_review (model-ops.ts) | write | answers a decision review
 list_moves (moves.ts) | read | read-only
 get_move (moves.ts) | read | read-only
-create_client (onboarding.ts) | write | inserts client
-update_client_profile (onboarding.ts) | write | updates client
+create_client (onboarding.ts) | write | inserts client; may start a competitor search (discovery_run + rival-search job)
+update_client_profile (onboarding.ts) | write | updates client; may start a competitor search
 get_ad_activity (overview.ts) | read | read-only
 get_workspace_overview (overview.ts) | read | read-only
 list_tracked_pages (pages.ts) | read | read-only
@@ -75,7 +79,7 @@ get_price_history (pricing.ts) | read | read-only
 list_prospects (prospects.ts) | read | select only
 run_prospect_snapshot (prospects.ts) | write | inserts report, enqueues job
 get_prospect_report (prospects.ts) | read | select only
-convert_prospect (prospects.ts) | write | updates client status
+convert_prospect (prospects.ts) | write | updates client status; may start a competitor search
 get_geogrid (rankings.ts) | read | read-only
 get_share_of_voice (rankings.ts) | read | read-only
 list_recommendations (recommendations.ts) | read | read-only

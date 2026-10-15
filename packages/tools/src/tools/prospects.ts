@@ -4,6 +4,8 @@ import { client, clientCompetitor, prospectReport, withTenant } from '@cs/db';
 import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type ToolDeps } from '../deps';
+import { RIVAL_SEARCH_REUSE_DAYS } from '../limits';
+import { latestDoneRun, startCompetitorSearchQuietly } from '../rival-search';
 import { ProspectReportView, ProspectRow } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -131,6 +133,10 @@ export const convertProspect = defineTool({
       // Decision 12: a fresh link date lets the score sweep's late-link lookback offer the last 90 days of events.
       await tx.update(clientCompetitor).set({ createdAt: new Date() }).where(eq(clientCompetitor.clientId, clientId));
     });
+    // 12a D4 (P7): reuse the prospect's last finished search when it is recent enough; otherwise start a new one.
+    const last = await latestDoneRun(deps.service, clientId);
+    const fresh = last?.finishedAt && Date.now() - last.finishedAt.getTime() <= RIVAL_SEARCH_REUSE_DAYS * 86_400_000;
+    if (!fresh) await startCompetitorSearchQuietly(deps, clientId, 'convert');
     return { clientId };
   },
 });

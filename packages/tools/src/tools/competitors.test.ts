@@ -1,6 +1,6 @@
 import { type AccessContext, createAccessContext, type Feature } from '@cs/core';
-import { alert, changeEvent, client, clientCompetitor, competitor, competitorSuggestion, trackedPage } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { ad, alert, changeEvent, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, createDb, discoveryRun, trackedPage } from '@cs/db';
+import { IDS, openTestDbs, seedTenancy, testUrls, truncateAll } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EnqueueJob, JobStatusLookup } from '../deps';
@@ -22,6 +22,32 @@ const owner = ctx('client_owner', [IDS.clientA1]);
 
 async function suggest(clientId: string, agencyId: string, name: string, placeId: string, domain: string | null = null): Promise<string> {
   const [s] = await dbs.owner.insert(competitorSuggestion).values({ agencyId, clientId, name, placeId, domain, appearances: 3, overlapScore: 0.8 }).returning();
+  return s!.id;
+}
+
+const AREA = { center: { lat: 32.44, lng: -97.79 }, radiusKm: 10, zips: [] };
+const PROFILE = { keywords: ['ac repair'], serviceArea: AREA, placeId: 'ChIJa1hvacplace1' };
+type AdMatchT = { platform: 'google' | 'meta'; accountId: string; name: string; strength: 'strong' | 'weak' };
+type ListOut = { suggestions: { id: string; name: string; tier: string | null; preselected: boolean; signals: Record<string, unknown>; adMatches: AdMatchT[] }[]; hidden: Record<string, number>; hiddenList: unknown[] };
+const FULL_SIGNALS = {
+  rating: 4.8, votes: 120, reviews30d: null, reviews90d: null, replyRate: null, googleAdsActive: null, googleAdsNew30d: null, googleAccount: null,
+  metaPage: null, metaAdsActive: null, claimed: true, chain: false, categoryMatch: 'main', distanceKm: 4.2, presence: { searches: 9, appeared: 6, bestRank: 2 },
+};
+
+async function doneRun(clientId: string, o: { finishedAt?: Date; startedAt?: Date; hidden?: Record<string, number>; hiddenList?: { name: string; reason: string }[] } = {}): Promise<string> {
+  const finishedAt = o.finishedAt ?? new Date(Date.now() - 3_600_000);
+  const [r] = await dbs.owner.insert(discoveryRun).values({
+    agencyId: IDS.agencyA, clientId, trigger: 'manual', status: 'done', startedAt: o.startedAt ?? new Date(finishedAt.getTime() - 600_000), finishedAt, kept: 5,
+    hidden: o.hidden ?? {}, progress: { searchesDone: 9, searchesTotal: 9, checksDone: 5, checksTotal: 5, hiddenList: o.hiddenList ?? [] },
+  }).returning({ id: discoveryRun.id });
+  return r!.id;
+}
+
+async function runSuggestion(runId: string, name: string, placeId: string, o: { tier: 'top' | 'watch' | 'minor'; overlap: number; status?: string; adMatches?: AdMatchT[]; clientId?: string }): Promise<string> {
+  const [s] = await dbs.owner.insert(competitorSuggestion).values({
+    agencyId: IDS.agencyA, clientId: o.clientId ?? IDS.clientA1, name, placeId, appearances: 6, overlapScore: o.overlap, status: o.status ?? 'suggested',
+    runId, category: 'HVAC contractor', distanceKm: 4.2, overlap: o.overlap, activity: 0.5, tier: o.tier, signals: FULL_SIGNALS, adMatches: o.adMatches ?? [],
+  }).returning({ id: competitorSuggestion.id });
   return s!.id;
 }
 
@@ -49,6 +75,9 @@ describe('mutating manage tools', () => {
     ['dismiss_competitor_suggestion', { suggestionId: U }],
     ['add_competitor', { clientId: IDS.clientA1, name: 'X', domain: 'x.com' }],
     ['remove_competitor', { clientId: IDS.clientA1, competitorId: U }],
+    ['accept_competitor_suggestions', { clientId: IDS.clientA1, ids: [U] }],
+    ['confirm_ad_match', { clientId: IDS.clientA1, competitorId: U, platform: 'google', accountId: 'AR1' }],
+    ['remove_ad_match', { clientId: IDS.clientA1, competitorId: U, platform: 'google', accountId: 'AR1' }],
   ];
   it.each(calls)('%s denies an owner without manage_competitors and a viewer with it', async (tool, input) => {
     await expect(registry.invoke(ctx('client_owner', [IDS.clientA1], ['dashboard']), tool, input)).rejects.toMatchObject({ code: 'not_found' });
@@ -57,11 +86,12 @@ describe('mutating manage tools', () => {
 });
 
 describe('request_competitor_suggestions', () => {
-  it('needs keywords and a service area, then enqueues one deduped job', async () => {
-    await expect(registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input' });
-    await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: { center: { lat: 33.9, lng: -84.3 }, radiusKm: 10, zips: [] } }).where(eq(client.id, IDS.clientA1));
-    await registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 });
-    expect(enqueue).toHaveBeenCalledWith('suggest-competitors', { clientId: IDS.clientA1 }, `suggest:${IDS.clientA1}`);
+  it('needs keywords, a service area and a place id, then starts one manual run', async () => {
+    await expect(registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringMatching(/place id/) });
+    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+    const r = (await registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })) as { queued: true; runId: string };
+    expect(enqueue).toHaveBeenCalledWith('rival-search', { runId: r.runId }, `rival:${IDS.clientA1}`);
+    await expect(registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringMatching(/already running/) });
   });
 
   it('is agency-only and scoped', async () => {
@@ -70,44 +100,23 @@ describe('request_competitor_suggestions', () => {
   });
 });
 
-describe('request_competitor_suggestions throttle (decision 17)', () => {
-  const area = { center: { lat: 32.44, lng: -97.79 }, radiusKm: 10, zips: [] };
-  const withJob = (job: Awaited<ReturnType<JobStatusLookup>>) =>
-    createToolRegistry({ app: dbs.app, service: dbs.service, enqueue: async () => {}, jobStatus: async () => job }, { audit: { record: async () => {} } });
-  beforeEach(async () => {
-    await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: area }).where(eq(client.id, IDS.clientA1));
-  });
-  it('refuses while a search is queued or running, and for 10 minutes after one finished', async () => {
-    const now = Date.now();
-    for (const state of ['created', 'active', 'retry'] as const) {
-      await expect(withJob({ state, createdOn: new Date(now), completedOn: null, output: null }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringMatching(/already running/) });
-    }
-    await expect(withJob({ state: 'completed', createdOn: new Date(now - 300_000), completedOn: new Date(now - 120_000), output: null }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input' });
-    await expect(withJob({ state: 'completed', createdOn: new Date(now - 3_600_000), completedOn: new Date(now - 11 * 60_000), output: null }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toEqual({ queued: true });
-    await expect(withJob({ state: 'failed', createdOn: new Date(now - 60_000), completedOn: new Date(now - 30_000), output: null }).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toEqual({ queued: true });
-    await expect(withJob(null).invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toEqual({ queued: true });
-  });
-});
-
 describe('get_competitor_search_status', () => {
   const status = (c: AccessContext = admin) => registry.invoke(c, 'get_competitor_search_status', { clientId: IDS.clientA1 });
 
-  it('is idle when this client has never searched', async () => {
-    await expect(status()).resolves.toEqual({ state: 'idle', finishedAt: null });
-    expect(jobStatus).toHaveBeenCalledWith('suggest-competitors', `suggest:${IDS.clientA1}`);
+  it('is none when this client has never searched', async () => {
+    await expect(status()).resolves.toEqual({ status: 'none' });
   });
 
-  it('maps the latest search job to queued, running, done or failed', async () => {
-    const created = new Date('2026-10-06T20:21:06Z');
-    const finished = new Date('2026-10-06T20:22:05Z');
-    const cases = [
-      ['created', 'queued', null], ['retry', 'running', null], ['active', 'running', null],
-      ['completed', 'done', finished.toISOString()], ['failed', 'failed', finished.toISOString()], ['cancelled', 'failed', finished.toISOString()],
-    ] as const;
-    for (const [job, state, finishedAt] of cases) {
-      jobStatus.mockResolvedValueOnce({ state: job, createdOn: created, completedOn: finishedAt ? finished : null, output: null });
-      await expect(status()).resolves.toEqual({ state, finishedAt });
-    }
+  it('reports the latest run: stage, progress counters, kept and hidden counts', async () => {
+    await doneRun(IDS.clientA1, { finishedAt: new Date('2026-10-01T10:00:00Z'), startedAt: new Date('2026-10-01T09:00:00Z') });
+    await dbs.owner.insert(discoveryRun).values({
+      agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'manual', status: 'searching',
+      progress: { searchesDone: 140, searchesTotal: 245, checksDone: 0, checksTotal: 0, hiddenList: [{ name: 'Dollar General', reason: 'wrong_category' }], shortlistIds: [] },
+    });
+    await expect(status()).resolves.toEqual({
+      status: 'searching', progress: { searchesDone: 140, searchesTotal: 245, checksDone: 0, checksTotal: 0 }, kept: null,
+      hidden: { wrong_category: 0, outside_area: 0, self: 0, closed: 0, thin: 0 }, finishedAt: null,
+    });
   });
 
   it('is agency-only and scoped', async () => {
@@ -117,13 +126,35 @@ describe('get_competitor_search_status', () => {
 });
 
 describe('suggestions', () => {
-  it('lists open suggestions best first, for agency roles and owners with the flag only', async () => {
-    await suggest(IDS.clientA1, IDS.agencyA, 'Low', 'ChIJlowlowlow1', null);
-    await dbs.owner.insert(competitorSuggestion).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, name: 'High', placeId: 'ChIJhighhigh1', appearances: 9, overlapScore: 0.95 });
-    const { items } = (await registry.invoke(amA1, 'list_competitor_suggestions', { clientId: IDS.clientA1 })) as { items: { name: string }[] };
-    expect(items.map((i) => i.name)).toEqual(['High', 'Low']);
+  it('lists only the latest done run: tier groups, overlap order, Top rivals pre-ticked up to the room left, hidden counts and list', async () => {
+    const old = await doneRun(IDS.clientA1, { finishedAt: new Date(Date.now() - 2 * 86_400_000) });
+    await runSuggestion(old, 'Stale Rival', 'ChIJstalestale1', { tier: 'top', overlap: 0.99 });
+    await suggest(IDS.clientA1, IDS.agencyA, 'Pre-12a Row', 'ChIJlegacylegac'); // run_id NULL
+    await dbs.owner.update(client).set({ competitorLimit: 3 }).where(eq(client.id, IDS.clientA1)); // tracks X already: room 2
+    const run = await doneRun(IDS.clientA1, { hidden: { wrong_category: 2, self: 1 }, hiddenList: [{ name: 'Dollar General', reason: 'wrong_category' }, { name: 'A1 HVAC', reason: 'self' }] });
+    await runSuggestion(run, 'Minor Co', 'ChIJminorminor1', { tier: 'minor', overlap: 0.9 });
+    await runSuggestion(run, 'Top Low', 'ChIJtoplowtopl1', { tier: 'top', overlap: 0.6 });
+    await runSuggestion(run, 'Watch Co', 'ChIJwatchwatch1', { tier: 'watch', overlap: 0.95 });
+    await runSuggestion(run, 'Top High', 'ChIJtophightop1', { tier: 'top', overlap: 0.8 });
+    await runSuggestion(run, 'Top Mid', 'ChIJtopmidtopm1', { tier: 'top', overlap: 0.7 });
+    await runSuggestion(run, 'Dismissed', 'ChIJdismissed01', { tier: 'top', overlap: 0.99, status: 'dismissed' });
+    const r = (await registry.invoke(amA1, 'list_competitor_suggestions', { clientId: IDS.clientA1 })) as ListOut;
+    expect(r.suggestions.map((s) => [s.name, s.tier, s.preselected])).toEqual([
+      ['Top High', 'top', true], ['Top Mid', 'top', true], ['Top Low', 'top', false], ['Watch Co', 'watch', false], ['Minor Co', 'minor', false],
+    ]);
+    expect(r.suggestions[0]).toMatchObject({ category: 'HVAC contractor', distanceKm: 4.2, adMatches: [], signals: expect.objectContaining({ rating: 4.8, reviews30d: null, googleAdsActive: null }) });
+    expect(r.hidden).toEqual({ wrong_category: 2, outside_area: 0, self: 1, closed: 0, thin: 0 });
+    expect(r.hiddenList).toEqual([{ name: 'Dollar General', reason: 'wrong_category' }, { name: 'A1 HVAC', reason: 'self' }]);
+  });
+
+  it('is empty before any run finished, and agency-only (client roles never see suggestions)', async () => {
+    await suggest(IDS.clientA1, IDS.agencyA, 'Pre-12a Row', 'ChIJlegacylegac');
+    await expect(registry.invoke(amA1, 'list_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toEqual({
+      suggestions: [], hidden: { wrong_category: 0, outside_area: 0, self: 0, closed: 0, thin: 0 }, hiddenList: [],
+    });
     await expect(registry.invoke(owner, 'list_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
-    await expect(registry.invoke(ctx('client_owner', [IDS.clientA1], ['manage_competitors']), 'list_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toBeTruthy();
+    await expect(registry.invoke(ctx('client_owner', [IDS.clientA1], ['dashboard', 'manage_competitors']), 'list_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(amA1, 'list_competitor_suggestions', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
   });
 
   it('accepts: links the competitor, starts vendor sources, and enqueues discovery only when monitoring is on', async () => {
@@ -232,5 +263,143 @@ describe('manual competitors', () => {
     expect(r.competitorId).toBe(IDS.competitorX);
     const [x] = await dbs.owner.select().from(competitor).where(eq(competitor.id, IDS.competitorX));
     expect(x).toMatchObject({ placeId: null, domain: 'smithhvac.com', cid: null });
+  });
+});
+
+describe('bulk accept and the atomic limit (12a)', () => {
+  it('two concurrent bulk accepts at limit → one refused', async () => {
+    // A1 tracks X (1 of 3): each bulk accept of two would fit alone, both together would not.
+    await dbs.owner.update(client).set({ competitorLimit: 3 }).where(eq(client.id, IDS.clientA1));
+    const run = await doneRun(IDS.clientA1);
+    const ids = await Promise.all(['ChIJbulkone0001', 'ChIJbulktwo0002', 'ChIJbulkthree03', 'ChIJbulkfour004'].map((p, i) => runSuggestion(run, `Bulk ${i}`, p, { tier: 'top', overlap: 0.9 - i / 10 })));
+    // Two real connections (separate service pools), so the two transactions genuinely overlap.
+    const second = createDb(testUrls.service);
+    try {
+      const other = createToolRegistry({ app: dbs.app, service: second.db, enqueue, jobStatus, webMonitoring: false }, { audit: { record: async () => {} } });
+      const results = await Promise.allSettled([
+        registry.invoke(amA1, 'accept_competitor_suggestions', { clientId: IDS.clientA1, ids: ids.slice(0, 2) }),
+        other.invoke(amA1, 'accept_competitor_suggestions', { clientId: IDS.clientA1, ids: ids.slice(2) }),
+      ]);
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      const refused = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+      expect(refused.reason).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('at most 3 competitors') });
+    } finally {
+      await second.close();
+    }
+    expect(await dbs.owner.select().from(clientCompetitor).where(eq(clientCompetitor.clientId, IDS.clientA1))).toHaveLength(3);
+    // All or none: the refused batch left its suggestions open.
+    const open = await dbs.owner.select().from(competitorSuggestion).where(and(eq(competitorSuggestion.clientId, IDS.clientA1), eq(competitorSuggestion.status, 'suggested')));
+    expect(open).toHaveLength(2);
+  });
+
+  it('a competitor already tracked does not count twice; other clients’ suggestions are not found', async () => {
+    await dbs.owner.update(competitor).set({ placeId: 'ChIJsmithsmith1' }).where(eq(competitor.id, IDS.competitorX));
+    await dbs.owner.update(client).set({ competitorLimit: 1 }).where(eq(client.id, IDS.clientA1));
+    const run = await doneRun(IDS.clientA1);
+    const same = await runSuggestion(run, 'Smith HVAC', 'ChIJsmithsmith1', { tier: 'top', overlap: 0.9 });
+    await expect(registry.invoke(amA1, 'accept_competitor_suggestions', { clientId: IDS.clientA1, ids: [same] })).resolves.toEqual({ items: [{ suggestionId: same, competitorId: IDS.competitorX, discovery: 'disabled' }] });
+    const a2 = await runSuggestion(await doneRun(IDS.clientA2), 'A2 Rival', 'ChIJa2rivala2ri', { tier: 'top', overlap: 0.9, clientId: IDS.clientA2 });
+    await expect(registry.invoke(admin, 'accept_competitor_suggestions', { clientId: IDS.clientA1, ids: [a2] })).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('ad-account matches (D6)', () => {
+  const STRONG_G: AdMatchT = { platform: 'google', accountId: 'AR111', name: 'Peach Air LLC', strength: 'strong' };
+  const WEAK_M: AdMatchT = { platform: 'meta', accountId: '9001', name: 'Peach Air Atlanta', strength: 'weak' };
+  const WEAK_G: AdMatchT = { platform: 'google', accountId: 'AR222', name: 'Peach Heating', strength: 'weak' };
+
+  async function acceptWithMatches(): Promise<string> {
+    const run = await doneRun(IDS.clientA1);
+    const id = await runSuggestion(run, 'Peach Air', 'ChIJpeachairpe1', { tier: 'top', overlap: 0.9, adMatches: [STRONG_G, WEAK_M, WEAK_G] });
+    const { competitorId } = (await registry.invoke(amA1, 'accept_competitor_suggestion', { suggestionId: id })) as { competitorId: string };
+    return competitorId;
+  }
+  const accounts = async (id: string) => (await dbs.owner.select({ g: competitor.googleAdvertiserIds, m: competitor.metaPageIds }).from(competitor).where(eq(competitor.id, id)))[0]!;
+  const pending = async (id: string) => (await dbs.owner.select({ p: clientCompetitor.pendingAdMatches }).from(clientCompetitor).where(and(eq(clientCompetitor.clientId, IDS.clientA1), eq(clientCompetitor.competitorId, id))))[0]!.p;
+
+  it('strong match attached, weak pending', async () => {
+    const id = await acceptWithMatches();
+    expect(await accounts(id)).toEqual({ g: ['AR111'], m: [] });
+    expect(await pending(id)).toEqual([WEAK_M, WEAK_G]);
+  });
+
+  it('confirm moves one pending match onto the competitor, without duplicates', async () => {
+    const id = await acceptWithMatches();
+    await registry.invoke(amA1, 'confirm_ad_match', { clientId: IDS.clientA1, competitorId: id, platform: 'meta', accountId: '9001' });
+    expect(await accounts(id)).toEqual({ g: ['AR111'], m: ['9001'] });
+    expect(await pending(id)).toEqual([WEAK_G]);
+    await expect(registry.invoke(amA1, 'confirm_ad_match', { clientId: IDS.clientA1, competitorId: id, platform: 'meta', accountId: '9001' })).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('remove Google id retires its ads silently', async () => {
+    const id = await acceptWithMatches();
+    const seen = new Date('2026-10-10T12:00:00Z');
+    await dbs.owner.insert(ad).values([
+      { competitorId: id, platform: 'google', externalId: 'CR-1', advertiserId: 'AR111', isActive: true, lastSeenAt: seen },
+      { competitorId: id, platform: 'google', externalId: 'CR-2', advertiserId: 'AR999', isActive: true, lastSeenAt: seen },
+    ]);
+    await registry.invoke(amA1, 'remove_ad_match', { clientId: IDS.clientA1, competitorId: id, platform: 'google', accountId: 'AR111' });
+    expect(await accounts(id)).toEqual({ g: [], m: [] });
+    const ads = await dbs.owner.select().from(ad).where(eq(ad.competitorId, id));
+    expect(ads.find((a) => a.externalId === 'CR-1')).toMatchObject({ isActive: false, endedAt: seen, endedCaptureId: null });
+    expect(ads.find((a) => a.externalId === 'CR-2')).toMatchObject({ isActive: true, endedAt: null });
+    // A pending match can be removed too; an unknown one is not found.
+    await registry.invoke(amA1, 'remove_ad_match', { clientId: IDS.clientA1, competitorId: id, platform: 'google', accountId: 'AR222' });
+    expect(await pending(id)).toEqual([WEAK_M]);
+    await expect(registry.invoke(amA1, 'remove_ad_match', { clientId: IDS.clientA1, competitorId: id, platform: 'google', accountId: 'AR222' })).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('refuses a competitor the client does not track, and other agencies', async () => {
+    const id = await acceptWithMatches();
+    await expect(registry.invoke(admin, 'confirm_ad_match', { clientId: IDS.clientA2, competitorId: id, platform: 'meta', accountId: '9001' })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(ctx('agency_admin', 'all', [], IDS.agencyB), 'remove_ad_match', { clientId: IDS.clientA1, competitorId: id, platform: 'google', accountId: 'AR111' })).rejects.toMatchObject({ code: 'not_found' });
+    expect(await accounts(id)).toEqual({ g: ['AR111'], m: [] });
+  });
+});
+
+describe('get_competitor_signals', () => {
+  beforeEach(async () => {
+    await dbs.owner.insert(competitorSignal).values([
+      { agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, tier: 'watch', overlap: 0.6, activity: 0.4, signals: { rating: 4.1, votes: 33, googleAdsActive: 0 }, computedAt: new Date('2026-10-13T09:00:00Z') },
+      // Y is not tracked by A1: never returned.
+      { agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorY, tier: 'top', signals: {} },
+    ]);
+  });
+
+  it('client role sees get_competitor_signals but not suggestions', async () => {
+    const viewer = ctx('client_viewer', [IDS.clientA1], ['dashboard']);
+    const r = (await registry.invoke(viewer, 'get_competitor_signals', { clientId: IDS.clientA1 })) as { competitors: { competitorId: string; tier: string; signals: Record<string, unknown>; computedAt: string }[] };
+    expect(r.competitors).toEqual([{ competitorId: IDS.competitorX, tier: 'watch', signals: expect.objectContaining({ rating: 4.1, votes: 33, googleAdsActive: 0, reviews30d: null, presence: null }), computedAt: '2026-10-13T09:00:00.000Z' }]);
+    await expect(registry.invoke(viewer, 'list_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(viewer, 'get_competitor_signals', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(ctx('agency_admin', 'all', [], IDS.agencyB), 'get_competitor_signals', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('payload keys (no upsell_tag, no ad matches for clients)', () => {
+  const keysOf = (v: unknown, prefix = ''): string[] => {
+    if (Array.isArray(v)) return v.length ? keysOf(v[0], `${prefix.replace(/\.$/, '')}[].`) : [];
+    if (v && typeof v === 'object') return Object.entries(v).flatMap(([k, x]) => [`${prefix}${k}`, ...keysOf(x, `${prefix}${k}.`)]);
+    return [];
+  };
+
+  it('no upsell_tag in any payload', async () => {
+    const run = await doneRun(IDS.clientA1, { hiddenList: [{ name: 'Dollar General', reason: 'wrong_category' }] });
+    const id = await runSuggestion(run, 'Peach Air', 'ChIJpeachairpe1', { tier: 'top', overlap: 0.9, adMatches: [{ platform: 'meta', accountId: '1', name: 'P', strength: 'weak' }] });
+    await dbs.owner.insert(competitorSignal).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, tier: 'top', signals: FULL_SIGNALS });
+    const list = await registry.invoke(amA1, 'list_competitor_suggestions', { clientId: IDS.clientA1 });
+    const status = await registry.invoke(amA1, 'get_competitor_search_status', { clientId: IDS.clientA1 });
+    const signals = await registry.invoke(ctx('client_viewer', [IDS.clientA1], ['dashboard']), 'get_competitor_signals', { clientId: IDS.clientA1 });
+    const accepted = await registry.invoke(amA1, 'accept_competitor_suggestions', { clientId: IDS.clientA1, ids: [id] });
+    expect([list, status, signals, accepted].flatMap((p) => keysOf(p)).filter((k) => /upsell/i.test(k))).toEqual([]);
+    const signalKeys = [...Object.keys(FULL_SIGNALS), 'presence.searches', 'presence.appeared', 'presence.bestRank'];
+    expect(keysOf(signals).sort()).toEqual(['competitors', ...['competitorId', 'tier', 'signals', 'computedAt', ...signalKeys.map((k) => `signals.${k}`)].map((k) => `competitors[].${k}`)].sort());
+    expect(keysOf(list).filter((k) => !k.startsWith('suggestions[].signals.')).sort()).toEqual([
+      'hidden', 'hidden.closed', 'hidden.outside_area', 'hidden.self', 'hidden.thin', 'hidden.wrong_category', 'hiddenList', 'hiddenList[].name', 'hiddenList[].reason', 'suggestions',
+      ...['adMatches', 'adMatches[].accountId', 'adMatches[].name', 'adMatches[].platform', 'adMatches[].strength', 'appearances', 'bestRank', 'category', 'distanceKm', 'domain', 'id', 'name',
+        'overlapScore', 'placeId', 'preselected', 'rating', 'signals', 'tier', 'votes'].map((k) => `suggestions[].${k}`),
+    ].sort());
+    expect(keysOf(status).sort()).toEqual(['finishedAt', 'hidden', 'hidden.closed', 'hidden.outside_area', 'hidden.self', 'hidden.thin', 'hidden.wrong_category', 'kept', 'progress',
+      'progress.checksDone', 'progress.checksTotal', 'progress.searchesDone', 'progress.searchesTotal', 'status']);
   });
 });

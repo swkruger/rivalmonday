@@ -18,7 +18,6 @@ export * from './local/accept';
 export * from './local/grid';
 export * from './local/maps';
 export * from './local/self';
-export * from './local/suggest';
 export * from './prospect/report';
 export * from './prospect/snapshot';
 export * from './rankings/scan';

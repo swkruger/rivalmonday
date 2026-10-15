@@ -55,8 +55,8 @@ describe('registry is bound to the environment it was built for', () => {
     expect(deps.platformAdmins).toContain(DEMO_OPERATOR_EMAIL);
 
     await writeDevEnv(file, 'dev');
-    await expect(deps.enqueue!('suggest-competitors', { clientId: 'x' }, 'x')).rejects.toThrow(BACKGROUND_OFF);
-    await expect(deps.jobStatus!('suggest-competitors', 'x')).resolves.toBeNull();
+    await expect(deps.enqueue!('rival-search', { runId: 'x' }, 'x')).rejects.toThrow(BACKGROUND_OFF);
+    await expect(deps.jobStatus!('rival-search', 'x')).resolves.toBeNull();
     expect(boss.send).not.toHaveBeenCalled();
     expect(createDbMock).not.toHaveBeenCalled();
   });
@@ -72,9 +72,9 @@ describe('registry is bound to the environment it was built for', () => {
     expect(deps.platformAdmins).not.toContain(DEMO_OPERATOR_EMAIL);
 
     await writeDevEnv(file, 'demo');
-    await deps.enqueue!('suggest-competitors', { clientId: 'x' }, 'suggest:x');
-    expect(boss.send).toHaveBeenCalledWith('suggest-competitors', { clientId: 'x' }, { singletonKey: 'suggest:x' });
-    await expect(deps.jobStatus!('suggest-competitors', 'x')).resolves.toBeNull();
+    await deps.enqueue!('rival-search', { runId: 'x' }, 'rival:x');
+    expect(boss.send).toHaveBeenCalledWith('rival-search', { runId: 'x' }, { singletonKey: 'rival:x' });
+    await expect(deps.jobStatus!('rival-search', 'x')).resolves.toBeNull();
     expect(createDbMock).toHaveBeenCalledTimes(1);
   });
 });

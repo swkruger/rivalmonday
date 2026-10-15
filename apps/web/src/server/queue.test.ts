@@ -53,8 +53,8 @@ describe('createBossQueue', () => {
   it('enqueues the 5b-1 onboarding jobs with their singleton keys', async () => {
     const working = fakeBoss();
     const { enqueue } = createBossQueue(() => working);
-    await enqueue('suggest-competitors', { clientId: 'c1' }, 'suggest:c1');
-    expect(working.send).toHaveBeenCalledWith('suggest-competitors', { clientId: 'c1' }, { singletonKey: 'suggest:c1' });
+    await enqueue('rival-search', { runId: 'c1' }, 'rival:c1');
+    expect(working.send).toHaveBeenCalledWith('rival-search', { runId: 'c1' }, { singletonKey: 'rival:c1' });
   });
 
   it('enqueues the 5b-2 prospect snapshot with its per-client singleton key', async () => {
@@ -71,15 +71,15 @@ describe('createJobStatusLookup', () => {
     const completed = new Date('2026-10-06T20:22:05Z');
     const query = vi.fn().mockResolvedValueOnce([{ state: 'failed', created_on: created, completed_on: completed, output: { ok: 1 } }]).mockResolvedValueOnce([]);
     const lookup = createJobStatusLookup(query);
-    await expect(lookup('suggest-competitors', 'suggest:c1')).resolves.toEqual({ state: 'failed', createdOn: created, completedOn: completed, output: { ok: 1 } });
-    expect(query).toHaveBeenCalledWith('suggest-competitors', 'suggest:c1');
-    await expect(lookup('suggest-competitors', 'suggest:c2')).resolves.toBeNull();
+    await expect(lookup('rival-search', 'rival:c1')).resolves.toEqual({ state: 'failed', createdOn: created, completedOn: completed, output: { ok: 1 } });
+    expect(query).toHaveBeenCalledWith('rival-search', 'rival:c1');
+    await expect(lookup('rival-search', 'rival:c2')).resolves.toBeNull();
   });
 });
 
 describe('refuseJobs (deviation 9, Review Focus 4)', () => {
   it('refuses every job with a message the user can read', async () => {
-    await expect(refuseJobs('suggest-competitors', { clientId: 'x' }, 'x')).rejects.toSatisfy((e: unknown) => e instanceof ToolError && e.code === 'invalid_input' && e.message === BACKGROUND_OFF);
+    await expect(refuseJobs('rival-search', { runId: 'x' }, 'x')).rejects.toSatisfy((e: unknown) => e instanceof ToolError && e.code === 'invalid_input' && e.message === BACKGROUND_OFF);
   });
 });
 
@@ -115,8 +115,8 @@ describe('queue in DEMO or TEST', () => {
     const { writeDevEnv } = await import('./dev-guard');
     await writeDevEnv(file, 'demo');
     const { enqueueJob, jobStatus } = await import('./queue');
-    await expect(enqueueJob('suggest-competitors', { clientId: 'x' }, 'x')).rejects.toThrow(BACKGROUND_OFF);
-    await expect(jobStatus('suggest-competitors', 'x')).resolves.toBeNull();
+    await expect(enqueueJob('rival-search', { runId: 'x' }, 'x')).rejects.toThrow(BACKGROUND_OFF);
+    await expect(jobStatus('rival-search', 'x')).resolves.toBeNull();
     expect(createDbMock).not.toHaveBeenCalled();
   });
 });

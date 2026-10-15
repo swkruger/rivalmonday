@@ -84,7 +84,7 @@ export const enqueueFor = (name: EnvName): EnqueueJob => (name === 'dev' ? devEn
  */
 export const pdfEnqueueFor = (name: EnvName): Enqueue => enqueueFor(name);
 
-/** Every job the web app starts (PDF renders, competitor suggestions, page discovery), for the live environment. */
+/** Every job the web app starts (PDF renders, competitor searches, page discovery), for the live environment. */
 export const enqueueJob: EnqueueJob = (job, payload, singletonKey) => enqueueFor(activeEnvName())(job, payload, singletonKey);
 
 type JobRow = { state: JobState; created_on: Date; completed_on: Date | null; output: unknown };

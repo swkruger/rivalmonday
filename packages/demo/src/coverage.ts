@@ -139,9 +139,9 @@ export const SCREENS: readonly ScreenCoverage[] = [
     route: '/c/[clientId]/competitors', as: 'admin', calls: [
       lsProfile,
       { tool: 'list_client_competitors', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
-      { tool: 'list_competitor_suggestions', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
-      // Job progress lives in the worker's queue, not in seeded tables: the demo shows the idle state ("Find competitors").
-      { tool: 'get_competitor_search_status', input: (ids) => ({ clientId: ls(ids) }), path: 'state' },
+      { tool: 'list_competitor_suggestions', input: (ids) => ({ clientId: ls(ids) }), path: 'suggestions' },
+      // The seeded run is done: the demo shows its finished state.
+      { tool: 'get_competitor_search_status', input: (ids) => ({ clientId: ls(ids) }), path: 'status' },
     ],
   },
   {

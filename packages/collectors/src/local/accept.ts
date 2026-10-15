@@ -1,5 +1,5 @@
 import { canManageCompetitors, type AccessContext, ToolError } from '@cs/core';
-import { client, clientCompetitor, competitor, competitorSuggestion, type Db, withTenant } from '@cs/db';
+import { client, clientCompetitor, competitor, competitorSuggestion, type Db, type Tx, withTenant } from '@cs/db';
 import { and, eq, isNull } from 'drizzle-orm';
 import { ensureCompetitorSources } from '../sources/ensure';
 
@@ -11,7 +11,7 @@ type CompetitorRow = typeof competitor.$inferSelect;
  * existing row has no place_id of its own that a different domain match could clobber.
  */
 export async function findExistingCompetitor(
-  service: Db,
+  service: Db | Tx,
   s: { placeId: string | null; cid: string | null; domain: string | null },
 ): Promise<CompetitorRow | undefined> {
   if (s.placeId) {
@@ -37,7 +37,7 @@ export async function findExistingCompetitor(
  * written onto a shared row another agency already collects for (re-review of the final fix).
  */
 export async function patchReusedCompetitor(
-  service: Db,
+  service: Db | Tx,
   existing: CompetitorRow,
   source: { placeId: string | null; cid: string | null; domain: string | null; name: string | null },
   { backfill = true }: { backfill?: boolean } = {},

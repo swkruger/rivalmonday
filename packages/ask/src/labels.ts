@@ -5,6 +5,7 @@ const LABELS: Readonly<Record<string, string>> = {
   list_client_competitors: 'Listing competitors…',
   get_competitor_profile: 'Reading a competitor profile…',
   get_competitor_timeline: 'Reading a competitor timeline…',
+  get_competitor_signals: 'Checking competitor ratings…',
   search_events: 'Searching competitor changes…',
   get_event: 'Reading a change…',
   get_evidence: 'Checking evidence…',
