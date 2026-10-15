@@ -181,11 +181,6 @@ export const createDiscountCodeTool = defineTool({
       const appliesToProductIds = input.appliesTo === 'base' ? [base] : input.appliesTo === 'seats' ? [seats] : [base, seats];
 
       const expiresAt = input.expiresAt ? new Date(input.expiresAt) : undefined;
-      let customerId: string | undefined;
-      if (restricted?.length === 1) {
-        const [b] = await deps.service.select({ c: agencyBilling.stripeCustomerId }).from(agencyBilling).where(eq(agencyBilling.agencyId, restricted[0]!));
-        customerId = b?.c ?? undefined;
-      }
       // Nothing is stored unless both Stripe objects exist; an orphaned coupon after a later failure is harmless.
       const coupon = await gw.createCoupon({
         ...(input.percentOff !== undefined ? { percentOff: input.percentOff } : { amountOffCents: input.amountOffCents }),
@@ -196,15 +191,18 @@ export const createDiscountCodeTool = defineTool({
         ...(input.maxRedemptions ? { maxRedemptions: input.maxRedemptions } : {}),
         ...(expiresAt ? { redeemBy: expiresAt } : {}),
       });
-      const promo = await gw.createPromotionCode({
-        couponId: coupon.id, code: input.code,
-        ...(customerId ? { customerId } : {}),
-        ...(expiresAt ? { expiresAt } : {}),
-        ...(input.maxRedemptions ? { maxRedemptions: input.maxRedemptions } : {}),
-      });
+      // R24: a restricted code gets no promotion code (Checkout would let anyone type it); it is applied only by coupon id
+      // via redeem_discount_code / attach_agency_discount, which enforce the restriction.
+      const promo = restricted
+        ? null
+        : await gw.createPromotionCode({
+            couponId: coupon.id, code: input.code,
+            ...(expiresAt ? { expiresAt } : {}),
+            ...(input.maxRedemptions ? { maxRedemptions: input.maxRedemptions } : {}),
+          });
       try {
         const [row] = await deps.service.insert(discountCode).values({
-          code: input.code, stripeCouponId: coupon.id, stripePromotionCodeId: promo.id,
+          code: input.code, stripeCouponId: coupon.id, stripePromotionCodeId: promo?.id ?? null,
           percentOff: input.percentOff !== undefined ? String(input.percentOff) : null, amountOffCents: input.amountOffCents ?? null,
           appliesTo: input.appliesTo, duration: input.duration, durationMonths: input.durationMonths ?? null,
           restrictedAgencyIds: restricted, expiresAt: expiresAt ?? null, maxRedemptions: input.maxRedemptions ?? null, createdBy: ctx.userId,
@@ -469,6 +467,7 @@ export const attachAgencyDiscountTool = defineTool({
       const [dc] = await deps.service.select().from(discountCode).where(eq(discountCode.id, input.discountCodeId));
       if (!dc) throw new ToolError('not_found', 'Discount code not found');
       if (dc.revokedAt || (dc.expiresAt && dc.expiresAt.getTime() <= Date.now())) throw new ToolError('invalid_input', 'That discount code is revoked or expired');
+      if (dc.restrictedAgencyIds && !dc.restrictedAgencyIds.includes(input.agencyId)) throw new ToolError('invalid_input', 'That discount code is restricted to other agencies');
       gatewayOf(deps);
       const customerId = await ensureCustomer(deps, input.agencyId);
       const [row] = await deps.service.select({ sub: agencyBilling.stripeSubscriptionId }).from(agencyBilling).where(eq(agencyBilling.agencyId, input.agencyId));

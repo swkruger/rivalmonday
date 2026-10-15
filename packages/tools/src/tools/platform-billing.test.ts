@@ -17,7 +17,8 @@ const ctxOf = (userId: string) => createAccessContext({ agencyId: IDS.agencyA, u
 const owner = ctxOf('op'); // env-listed platform owner
 const staff = ctxOf('staff');
 const viewer = ctxOf('viewer');
-const admin = ctxOf('admin'); // plain agency admin, not an operator
+const admin = ctxOf('admin');
+const admin2 = (agencyId: string) => createAccessContext({ agencyId, userId: 'admin', role: 'agency_admin', clientScope: 'all', features: [] }); // plain agency admin, not an operator
 
 let gw: FakeGateway;
 let planId: string;
@@ -141,14 +142,24 @@ describe('create_discount_code', () => {
     expect(await dbs.owner.select().from(discountCode)).toEqual([]);
   });
 
-  it('restricts the promotion code to the customer only for one restricted agency that has a customer', async () => {
-    await call(owner, 'create_discount_code', { ...CODE, code: 'NOCUS', restrictedAgencyIds: [A] });
-    expect(gw.callsTo('createPromotionCode')[0]!.args[0]).not.toHaveProperty('customerId', expect.anything());
+  it('restricted codes get a coupon only (no promotion code); unrestricted keep one', async () => {
     await setBilling({ stripeCustomerId: 'cus_a' });
-    await call(owner, 'create_discount_code', { ...CODE, code: 'ONE', restrictedAgencyIds: [A] });
-    expect(gw.callsTo('createPromotionCode')[1]!.args[0]).toMatchObject({ customerId: 'cus_a' });
-    await call(owner, 'create_discount_code', { ...CODE, code: 'TWO', restrictedAgencyIds: [A, IDS.agencyB] });
-    expect((gw.callsTo('createPromotionCode')[2]!.args[0] as { customerId?: string }).customerId).toBeUndefined();
+    for (const [code, ids] of [['ONE', [A]], ['TWO', [A, IDS.agencyB]]] as const) {
+      const r = (await call(owner, 'create_discount_code', { ...CODE, code, restrictedAgencyIds: ids })) as { id: string };
+      const [row] = await dbs.owner.select().from(discountCode).where(eq(discountCode.id, r.id));
+      expect(row!.stripePromotionCodeId).toBeNull();
+      expect(row!.stripeCouponId).toBeTruthy();
+    }
+    expect(gw.callsTo('createPromotionCode')).toEqual([]);
+    await call(owner, 'create_discount_code', { ...CODE, code: 'OPEN' });
+    expect(gw.callsTo('createPromotionCode')).toHaveLength(1);
+  });
+
+  it('a restricted code is redeemable by its agency only', async () => {
+    await call(owner, 'create_discount_code', { ...CODE, code: 'ONLYA', restrictedAgencyIds: [A] });
+    await expect(call(admin2(IDS.agencyB), 'redeem_discount_code', { code: 'ONLYA' })).rejects.toMatchObject({ code: 'invalid_code' });
+    expect(await call(admin2(A), 'redeem_discount_code', { code: 'ONLYA' })).toMatchObject({ applied: true });
+    expect((await billingRow())!.attachedCouponId).toBeTruthy();
   });
 
   it('code uniqueness is case-insensitive', async () => {
@@ -331,6 +342,13 @@ describe('admin billing actions', () => {
     await call(owner, 'revoke_discount_code', { id: d.id });
     for (const id of [d.id, e.id]) expect((await fails(call(staff, 'attach_agency_discount', { agencyId: A, discountCodeId: id }))).code).toBe('invalid_input');
     expect(await billingRow()).toBeUndefined();
+  });
+
+  it('attach_agency_discount refuses a restricted code for an agency outside the list', async () => {
+    const d = (await call(owner, 'create_discount_code', { ...CODE, restrictedAgencyIds: [IDS.agencyB] })) as { id: string };
+    expect((await fails(call(staff, 'attach_agency_discount', { agencyId: A, discountCodeId: d.id }))).code).toBe('invalid_input');
+    expect(await billingRow()).toBeUndefined();
+    await call(staff, 'attach_agency_discount', { agencyId: IDS.agencyB, discountCodeId: d.id });
   });
 
   it('set_seat_cap_exempt reports meaningful only in pilot', async () => {
