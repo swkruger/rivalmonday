@@ -188,7 +188,7 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
           ],
           ...(fee > 0 ? { subscription_data: { application_fee_percent: fee } } : {}),
           customer_email: i.customerEmail,
-          expires_at: Math.floor(Date.now() / 1000) + 24 * 3600,
+          expires_at: Math.floor(Date.now() / 1000) + 24 * 3600 - 300, // Stripe's max is 24 h: leave clock-skew headroom (R6)
           success_url: i.successUrl,
           cancel_url: i.cancelUrl,
         },

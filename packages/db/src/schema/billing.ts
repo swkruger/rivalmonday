@@ -211,6 +211,7 @@ export const clientBilling = pgTable(
     updatedAt: ts('updated_at').notNull().defaultNow(),
   },
   (t) => [
+    index('client_billing_agency_idx').on(t.agencyId),
     check('client_billing_price_cents_check', sql`${t.priceCents} >= 0`),
     check('client_billing_setup_fee_cents_check', sql`${t.setupFeeCents} >= 0`),
     check('client_billing_state_check', sql`${t.state} IN ('off','invited','active','payment_needed','cancelled','disconnected')`),

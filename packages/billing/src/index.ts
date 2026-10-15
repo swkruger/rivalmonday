@@ -16,3 +16,4 @@ export * from './notices';
 export * from './seed';
 export * from './client-pause';
 export * from './pill';
+export * from './connect-apply';

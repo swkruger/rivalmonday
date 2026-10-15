@@ -81,8 +81,8 @@ describe('stripeGateway Connect', () => {
     expect(p).toMatchObject({ mode: 'subscription', customer_email: 'o@x.test', success_url: 's', cancel_url: 'c' });
     expect(p.line_items).toEqual([{ price: 'price_c', quantity: 1 }]);
     expect(p.subscription_data).toBeUndefined();
-    expect(p.expires_at as number).toBeGreaterThanOrEqual(before + 86_400);
-    expect(p.expires_at as number).toBeLessThanOrEqual(before + 86_400 + 5);
+    expect(p.expires_at as number).toBeGreaterThanOrEqual(before + 86_400 - 300);
+    expect(p.expires_at as number).toBeLessThanOrEqual(before + 86_400 - 300 + 5);
     expect(at(c.checkout.sessions.create, 0, 1)).toEqual({ stripeAccount: ACCT });
     expect(c.prices.retrieve).not.toHaveBeenCalled();
   });
