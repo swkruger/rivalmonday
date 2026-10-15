@@ -1,3 +1,4 @@
+import { agencySuspended } from '@/server/billing-state';
 import { getViewer } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { activeEnvName } from '@/server/dev-guard';
@@ -13,6 +14,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ clientI
   // Final-review I1: one environment per request for the database and store used here.
   const env = activeEnvName();
   const viewer = await getViewer();
-  if (!viewer || viewer.kind === 'member-less') return new Response('Not found', { status: 404 });
+  if (!viewer || viewer.kind === 'member-less' || (await agencySuspended(viewer))) return new Response('Not found', { status: 404 });
   return serveEvidence({ clientId, evidenceId, ctx: viewer.ctx, registry: registry(env), service: dbs(env).service, store: webStore(env) });
 }

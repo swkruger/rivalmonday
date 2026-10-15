@@ -5,6 +5,8 @@ import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { clientIdFromPath } from '@/components/shell/nav-items';
 import { auth } from './auth';
+import { billingRedirectFor } from './billing-redirect';
+import { billingStateOf } from './billing-state';
 import { dbs } from './db';
 import { webEnv } from './env';
 import { GUEST_COOKIE } from './guest';
@@ -88,6 +90,13 @@ export async function requireViewer(): Promise<Viewer> {
 export async function requireContext(): Promise<{ viewer: Exclude<Viewer, { kind: 'member-less' }>; ctx: AccessContext }> {
   const v = await requireViewer();
   if (v.kind === 'member-less') redirect('/no-access');
+  // Phase 9a R20: enforced here, not only in the layout — layouts do not re-render on client navigation but every page
+  // calling this does, and `x-rm-path` is the target path on each request. Support sessions are never redirected.
+  if (v.kind !== 'support') {
+    const pathname = ((await headers()).get('x-rm-path') ?? '').split('?')[0]!;
+    const to = billingRedirectFor({ state: await billingStateOf(v.ctx.agencyId), role: v.ctx.role, pathname });
+    if (to) redirect(to);
+  }
   return { viewer: v, ctx: v.ctx };
 }
 

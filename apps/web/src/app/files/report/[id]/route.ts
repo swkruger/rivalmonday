@@ -1,3 +1,4 @@
+import { agencySuspended } from '@/server/billing-state';
 import { getViewer } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { activeEnvName } from '@/server/dev-guard';
@@ -15,6 +16,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   // owner switches environment while this request is in flight.
   const env = activeEnvName();
   const viewer = await getViewer();
-  if (!viewer || viewer.kind === 'member-less') return new Response('Not found', { status: 404 });
+  if (!viewer || viewer.kind === 'member-less' || (await agencySuspended(viewer))) return new Response('Not found', { status: 404 });
   return servePdf({ kind: 'report', id, ctx: viewer.ctx, registry: registry(env), service: dbs(env).service, store: webStore(env), enqueue: pdfEnqueueFor(env) });
 }

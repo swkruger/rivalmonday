@@ -1,4 +1,4 @@
-import { membership, supportSession } from '@cs/db';
+import { agencyBilling, membership, supportSession } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { endSession, startSession } from '@cs/tools';
 import { eq } from 'drizzle-orm';
@@ -296,5 +296,38 @@ describe('getViewerForClient (POST API path)', () => {
     const s = await open();
     m.cookies = { rm_support: signSupportCookie(s.id) };
     expect(await getViewerForClient(null)).toMatchObject({ kind: 'support' });
+  });
+});
+
+describe('requireContext on a suspended agency (billing, ruling R20)', () => {
+  const suspend = (agencyId: string) => dbs.service.insert(agencyBilling).values({ agencyId, state: 'suspended' });
+
+  it('redirects an agency admin from an arbitrary path to billing, but not on the billing paths', async () => {
+    await suspend(IDS.agencyA);
+    m.path = '/c/abc/changes?x=1';
+    expect(await redirectOf(requireContext())).toBe('/agency/settings/billing');
+    m.path = '/agency/settings/billing?done=1';
+    expect((await requireContext()).ctx.role).toBe('agency_admin');
+    m.path = '/agency/settings/billing/seats.csv';
+    expect((await requireContext()).ctx.role).toBe('agency_admin');
+  });
+
+  it('redirects an account manager to /paused and leaves /paused alone', async () => {
+    await suspend(IDS.agencyA);
+    await dbs.service.update(membership).set({ role: 'account_manager' }).where(eq(membership.userId, 'op'));
+    m.path = '/agency';
+    expect(await redirectOf(requireContext())).toBe('/paused');
+    m.path = '/paused';
+    expect((await requireContext()).ctx.role).toBe('account_manager');
+  });
+
+  it('does not redirect when the agency is not suspended, nor a support viewer on a suspended agency', async () => {
+    m.path = '/agency';
+    expect((await requireContext()).ctx.role).toBe('agency_admin');
+    await suspend(IDS.agencyB);
+    const s = await open();
+    m.cookies = { rm_support: signSupportCookie(s.id) };
+    m.path = '/agency';
+    expect((await requireContext()).viewer.kind).toBe('support');
   });
 });
