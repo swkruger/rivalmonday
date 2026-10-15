@@ -1,4 +1,4 @@
-import { client, competitor, competitorSource } from '@cs/db';
+import { capture, client, competitor, competitorSource, observation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -46,5 +46,44 @@ describe('ensureSelfCompetitor', () => {
     expect(await ensureSelfCompetitors(dbs.service)).toBe(1);
     expect(await selfOf(IDS.clientA1)).not.toBeNull();
     expect(await selfOf(IDS.clientA2)).toBeNull();
+  });
+
+  describe('self backfill sweep', () => {
+    const sources = async (id: string) => (await dbs.owner.select({ s: competitorSource.source }).from(competitorSource).where(eq(competitorSource.competitorId, id))).map((x) => x.s).sort();
+    async function linkedSelf(): Promise<string> {
+      const [s] = await dbs.owner.insert(competitor).values({ name: 'A1 HVAC', placeId: 'place-a1' }).returning();
+      await dbs.owner.update(client).set({ selfCompetitorId: s!.id, placeId: 'place-a1' }).where(eq(client.id, IDS.clientA1));
+      await dbs.owner.insert(competitorSource).values([{ competitorId: s!.id, source: 'gbp' }, { competitorId: s!.id, source: 'reviews' }]);
+      return s!.id;
+    }
+    async function gbp(id: string, data: Record<string, unknown>) {
+      const [c] = await dbs.owner.insert(capture).values({ competitorId: id, source: 'google_business_profile', status: 'ok', collectorVersion: 't' }).returning();
+      await dbs.owner.insert(observation).values({ competitorId: id, captureId: c!.id, kind: 'gbp_profile', key: 'profile', data });
+    }
+    const domainOf = async (id: string) => (await dbs.owner.select({ d: competitor.domain }).from(competitor).where(eq(competitor.id, id)))[0]!.d;
+
+    it('adds ads_google to an already-linked self competitor, once', async () => {
+      const id = await linkedSelf();
+      await ensureSelfCompetitors(dbs.service);
+      expect(await sources(id)).toEqual(['ads_google', 'gbp', 'reviews']);
+      await ensureSelfCompetitors(dbs.service);
+      expect(await sources(id)).toEqual(['ads_google', 'gbp', 'reviews']);
+    });
+
+    it('fills a null domain from the latest GBP observation (url normalised), idempotently', async () => {
+      const id = await linkedSelf();
+      await gbp(id, { domain: null, url: 'https://www.A1hvac.example/contact' });
+      await ensureSelfCompetitors(dbs.service);
+      expect(await domainOf(id)).toBe('a1hvac.example');
+      await ensureSelfCompetitors(dbs.service);
+      expect(await domainOf(id)).toBe('a1hvac.example');
+    });
+
+    it('leaves the domain null when another competitor owns it', async () => {
+      const id = await linkedSelf();
+      await gbp(id, { domain: 'smithhvac.example' }); // competitor X owns it
+      await ensureSelfCompetitors(dbs.service);
+      expect(await domainOf(id)).toBeNull();
+    });
   });
 });

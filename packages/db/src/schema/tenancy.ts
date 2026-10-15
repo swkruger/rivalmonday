@@ -45,7 +45,7 @@ export const client = pgTable(
     serviceArea: jsonb('service_area').$type<ServiceArea | null>(),
     placeId: text('place_id'),
     scoreThresholds: jsonb('score_thresholds').$type<ScoreThresholds | null>(),
-    /** The client's own business as a global competitor row (reviews + GBP only), for the spec §6.5 benchmark. Never in client_competitor. */
+    /** The client's own business as a global competitor row (GBP, reviews and Google ads), for the spec §6.5 benchmark. Never in client_competitor. */
     selfCompetitorId: uuid('self_competitor_id').references((): AnyPgColumn => competitor.id, { onDelete: 'set null' }),
     /** IANA time zone of the business (Phase 4a): briefs are generated Thursday night and delivered Monday morning local time. */
     timezone: text('timezone').notNull().default('America/Chicago'),
