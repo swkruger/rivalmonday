@@ -17,6 +17,8 @@ export interface MapsPlace {
   lng: number | null;
   // Optional rich fields (competitor discovery); absent when the vendor omits them.
   additionalCategories?: string[];
+  /** address_info.city */
+  city?: string | null;
   phone?: string | null;
   isClaimed?: boolean | null;
   /** True only when current_status is 'closed_forever'. 'close'/'closed'/'temporarily_closed' are not permanent. */
@@ -34,6 +36,7 @@ const itemSchema = z.looseObject({
   rating: z.looseObject({ value: z.number().nullish(), votes_count: z.number().nullish() }).nullish(),
   category: z.string().nullish(),
   address: z.string().nullish(),
+  address_info: z.looseObject({ city: z.string().nullish() }).nullish(),
   latitude: z.number().nullish(),
   longitude: z.number().nullish(),
   additional_categories: z.array(z.string()).nullish(),
@@ -55,7 +58,7 @@ export function parseMapsItems(result: unknown[]): MapsPlace[] {
       rating: i.rating?.value ?? null, votes: i.rating?.votes_count ?? null, category: i.category ?? null, address: i.address ?? null,
       lat: i.latitude ?? null, lng: i.longitude ?? null,
       additionalCategories: i.additional_categories === undefined ? undefined : (i.additional_categories ?? []),
-      phone: i.phone, isClaimed: i.is_claimed,
+      city: i.address_info?.city, phone: i.phone, isClaimed: i.is_claimed,
       closed: (i.work_hours?.current_status ?? i.current_status) === 'closed_forever' ? true : undefined,
     });
   }

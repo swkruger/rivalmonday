@@ -6,6 +6,11 @@ const ts = (name: string) => timestamp(name, { withTimezone: true });
 
 export type DiscoveryRunStatus = 'queued' | 'searching' | 'checking' | 'finalising' | 'done' | 'failed';
 export type Tier = 'top' | 'watch' | 'minor';
+/** `discovery_run.progress`; hiddenList holds the first 50 hidden candidates (reason = HiddenReason code). */
+export type DiscoveryRunProgress = {
+  searchesDone?: number; searchesTotal?: number; checksDone?: number; checksTotal?: number;
+  hiddenList?: { name: string; reason: string }[];
+};
 
 /** One competitor-discovery run for a client (Phase 12a). Tenant-readable, service-role written. */
 export const discoveryRun = pgTable(
@@ -18,8 +23,7 @@ export const discoveryRun = pgTable(
     trigger: text('trigger').$type<'auto' | 'manual' | 'convert'>().notNull(),
     keywords: jsonb('keywords').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     gridSize: integer('grid_size'),
-    /** {searchesDone, searchesTotal, checksDone, checksTotal} */
-    progress: jsonb('progress').$type<Record<string, number>>().notNull().default(sql`'{}'::jsonb`),
+    progress: jsonb('progress').$type<DiscoveryRunProgress>().notNull().default(sql`'{}'::jsonb`),
     kept: integer('kept'),
     /** {wrong_category, outside_area, self, closed, thin} counts. */
     hidden: jsonb('hidden').$type<Record<string, number>>().notNull().default(sql`'{}'::jsonb`),

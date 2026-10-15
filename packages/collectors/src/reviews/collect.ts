@@ -6,6 +6,7 @@ import { scrubReviewerIdentity } from '../evidence/privacy';
 import { DFS_COLLECTOR_VERSION } from '../gbp/collect-gbp';
 import type { DataForSeoClient, DfsTask } from '../vendors/dataforseo';
 import { isDfsOk, isNoResults, isRetryableDfsCode, VendorError } from '../vendors/dataforseo';
+import { applyReviewSample } from '../rivals/review-sample';
 import { upsertReviews } from './upsert';
 
 export type VendorTaskRow = typeof vendorTask.$inferSelect;
@@ -59,7 +60,11 @@ export async function collectReadyTasks(
   return { collected, failed };
 }
 
-export async function collectReadyReviews(deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient; salt: string }): Promise<{ collected: number; failed: number; reviews: number }> {
+export async function collectReadyReviews(deps: {
+  db: Db; store: ObjectStore; dfs: DataForSeoClient; salt: string; now?: () => Date;
+  /** Called after a discovery review sample patched a suggestion's signals (the worker enqueues finalise). */
+  onSuggestionReviews?: (runId: string) => Promise<void>;
+}): Promise<{ collected: number; failed: number; reviews: number }> {
   let reviews = 0;
   const r = await collectReadyTasks(
     deps,
@@ -67,7 +72,14 @@ export async function collectReadyReviews(deps: { db: Db; store: ObjectStore; df
     '/business_data/google/reviews/tasks_ready',
     (id) => `/business_data/google/reviews/task_get/${id}`,
     async (task, vt) => {
-      if (!vt.competitorId) return; // suggestion-subject tasks (Phase 12a) are handled by discovery, not here
+      if (!vt.competitorId) {
+        // Discovery review sample (Phase 12a): signals only — no capture, no review rows for a suggestion.
+        if (!vt.suggestionId) return;
+        const runId = await applyReviewSample(deps.db, vt.suggestionId, task, deps.now?.() ?? new Date());
+        // The vendor task is done once the signals are patched; finalise also has a 30-min timer as backstop.
+        if (runId) await deps.onSuggestionReviews?.(runId).catch((err: unknown) => console.warn(`[vendor-poll] discovery finalise for run ${runId} failed: ${String(err)}`));
+        return;
+      }
       // Privacy at ingest (spec §4.5): the stored raw-vendor evidence must never carry reviewer
       // identity (name, profile URL, photo) or unredacted contact info — scrub before it is
       // gzipped and persisted. Parsed review rows still come from the raw `task.result` items

@@ -1,3 +1,4 @@
+import type { CallScope } from '@cs/core';
 import type { DataForSeoClient, DfsTask } from '../src/vendors/dataforseo';
 
 export function dfsTask(result: unknown[] | null, overrides: Partial<DfsTask> = {}): DfsTask {
@@ -5,15 +6,15 @@ export function dfsTask(result: unknown[] | null, overrides: Partial<DfsTask> = 
 }
 
 export function fakeDfs(handler: (method: 'POST' | 'GET', path: string, body?: Record<string, unknown>[]) => DfsTask[] | Promise<DfsTask[]>) {
-  const calls: { method: string; path: string; body?: Record<string, unknown>[] }[] = [];
+  const calls: { method: string; path: string; body?: Record<string, unknown>[]; scope?: CallScope }[] = [];
   const client: DataForSeoClient & { calls: typeof calls } = {
     calls,
-    async post(path, tasks) {
-      calls.push({ method: 'POST', path, body: tasks });
+    async post(path, tasks, scope) {
+      calls.push({ method: 'POST', path, body: tasks, scope });
       return handler('POST', path, tasks);
     },
-    async get(path) {
-      calls.push({ method: 'GET', path });
+    async get(path, scope) {
+      calls.push({ method: 'GET', path, scope });
       return handler('GET', path);
     },
   };

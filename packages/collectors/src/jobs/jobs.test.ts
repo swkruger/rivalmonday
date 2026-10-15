@@ -1,4 +1,4 @@
-import { capture, observation, vendorTask } from '@cs/db';
+import { capture, competitorSuggestion, observation, vendorTask } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
@@ -116,5 +116,13 @@ describe('jobs', () => {
     const caps = await dbs.service.select().from(capture).where(eq(capture.competitorId, IDS.competitorX));
     expect(caps).toHaveLength(1);
     expect(caps[0]).toMatchObject({ status: 'ok' });
+  });
+
+  it('a suggestion-subject jobs task is marked failed, never silently done', async () => {
+    const [sg] = await dbs.owner.insert(competitorSuggestion).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, name: 'S', placeId: 'p-s', appearances: 1, overlapScore: 0.1 }).returning();
+    await dbs.service.insert(vendorTask).values({ vendor: 'dataforseo', kind: 'google_jobs', externalTaskId: TASK, suggestionId: sg!.id });
+    const dfs = fakeDfs((_m, path) => (path.endsWith('/tasks_ready') ? [dfsTask([{ id: TASK }])] : [dfsTask([{ items: [] }], { id: TASK })]));
+    expect(await collectReadyJobs({ db: dbs.service, store: createMemoryStore(), dfs })).toMatchObject({ collected: 0, failed: 1 });
+    expect((await dbs.service.select().from(vendorTask))[0]).toMatchObject({ status: 'failed', error: expect.stringContaining('suggestion') });
   });
 });

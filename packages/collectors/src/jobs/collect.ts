@@ -83,7 +83,8 @@ export function parseJobPosting(raw: unknown): JobPosting | null {
 export async function collectReadyJobs(deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient }): Promise<{ collected: number; failed: number; postings: number }> {
   let postings = 0;
   const r = await collectReadyTasks(deps, 'google_jobs', '/serp/google/jobs/tasks_ready', (id) => `/serp/google/jobs/task_get/advanced/${id}`, async (task, vt) => {
-    if (!vt.competitorId) return; // suggestion-subject tasks (Phase 12a) are handled by discovery, not here
+    // Discovery never posts jobs tasks for suggestions; fail such a task visibly instead of marking it done.
+    if (!vt.competitorId) throw new Error(`google_jobs task ${vt.externalTaskId} has a suggestion subject, which jobs collection does not support`);
     const [c] = await deps.db.select().from(competitor).where(eq(competitor.id, vt.competitorId)).limit(1);
     if (!c) return;
     // Job postings are business data, not reviewer PII — no scrubbing before capture (unlike reviews).

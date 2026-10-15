@@ -27,7 +27,7 @@ describe('mapsSearch', () => {
     expect(r.places).toHaveLength(2);
     expect(dfs.calls[0]).toEqual({
       method: 'POST', path: '/serp/google/maps/live/advanced',
-      body: [{ keyword: 'ac repair', location_coordinate: '33.9,-84.3,14z', language_code: 'en', depth: 20 }],
+      body: [{ keyword: 'ac repair', location_coordinate: '33.9,-84.3,14z', language_code: 'en', depth: 20 }], scope: { agencyId: null, clientId: null },
     });
   });
 
