@@ -50,3 +50,21 @@ describe('mapsSearch', () => {
     });
   });
 });
+
+describe('parseMapsItems richer fields', () => {
+  it('parses additional categories, phone, claimed flag and coordinates; null categories become []', () => {
+    const rich = [{ items: [
+      { type: 'maps_search', rank_absolute: 1, title: 'A', category: 'Dentist', additional_categories: ['Cosmetic dentist'], phone: '+15125550100', is_claimed: true, latitude: 30.1, longitude: -97.7, work_hours: { current_status: 'close' } },
+      { type: 'maps_search', rank_absolute: 2, title: 'B', additional_categories: null, is_claimed: false },
+    ] }];
+    const [a, b] = parseMapsItems(rich);
+    expect(a).toMatchObject({ category: 'Dentist', additionalCategories: ['Cosmetic dentist'], phone: '+15125550100', isClaimed: true, lat: 30.1, lng: -97.7 });
+    expect(a?.closed).toBeFalsy(); // current_status 'close' = closed for the day, not permanently closed
+    expect(b).toMatchObject({ additionalCategories: [], isClaimed: false });
+  });
+
+  it('marks closed only on an explicit permanent-closure flag', () => {
+    const [p] = parseMapsItems([{ items: [{ type: 'maps_search', rank_absolute: 1, title: 'Gone', is_permanently_closed: true }] }]);
+    expect(p?.closed).toBe(true);
+  });
+});

@@ -15,6 +15,12 @@ export interface MapsPlace {
   address: string | null;
   lat: number | null;
   lng: number | null;
+  // Optional rich fields (competitor discovery); absent when the vendor omits them.
+  additionalCategories?: string[];
+  phone?: string | null;
+  isClaimed?: boolean | null;
+  /** True only on an explicit permanent-closure flag. work_hours.current_status 'close' means closed right now, not permanently. */
+  closed?: boolean;
 }
 
 const itemSchema = z.looseObject({
@@ -30,6 +36,11 @@ const itemSchema = z.looseObject({
   address: z.string().nullish(),
   latitude: z.number().nullish(),
   longitude: z.number().nullish(),
+  additional_categories: z.array(z.string()).nullish(),
+  phone: z.string().nullish(),
+  is_claimed: z.boolean().nullish(),
+  is_permanently_closed: z.boolean().nullish(),
+  permanently_closed: z.boolean().nullish(),
 });
 
 export function parseMapsItems(result: unknown[]): MapsPlace[] {
@@ -43,6 +54,9 @@ export function parseMapsItems(result: unknown[]): MapsPlace[] {
       placeId: i.place_id ?? null, cid: i.cid ?? null, title: i.title, domain: i.domain ?? null, url: i.url ?? null, rank: i.rank_absolute,
       rating: i.rating?.value ?? null, votes: i.rating?.votes_count ?? null, category: i.category ?? null, address: i.address ?? null,
       lat: i.latitude ?? null, lng: i.longitude ?? null,
+      additionalCategories: i.additional_categories === undefined ? undefined : (i.additional_categories ?? []),
+      phone: i.phone, isClaimed: i.is_claimed,
+      closed: i.is_permanently_closed === true || i.permanently_closed === true ? true : undefined,
     });
   }
   return out;
