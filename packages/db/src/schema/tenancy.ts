@@ -55,6 +55,10 @@ export const client = pgTable(
     briefAutoSend: boolean('brief_auto_send').notNull().default(false),
     /** 5b-2 decision 8 (service role only). */
     status: text('status').$type<ClientStatus>().notNull().default('active'),
+    /** Phase 9b: paused clients are skipped by every scheduler and seat count (service role only). */
+    pausedAt: timestamp('paused_at', { withTimezone: true }),
+    /** Phase 9b: 'auto' (unpaid) or the pausing user id. Service role only. */
+    pausedBy: text('paused_by'),
     /** 5b-2 decision 6: monthly AI + vendor spend cap in USD (warning at 80 %; enforcement is Phase 7). Service role only. */
     monthlyCapUsd: doublePrecision('monthly_cap_usd').notNull().default(15),
     /** 5b-2 decision 6: how many competitors this client may track (spec §4.1 "tier limit configurable"). Service role only. */

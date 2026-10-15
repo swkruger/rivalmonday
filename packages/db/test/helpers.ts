@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { type Db, createDb } from '../src/client';
 import { agency, agencyBilling, client, clientCompetitor, competitor } from '../src/schema';
 
@@ -112,4 +112,9 @@ export async function seedPlatformCostServices(db: Db): Promise<void> {
 /** Phase 9a: puts an agency in a non-serviceable billing state (`read_only` by default) for scheduler/entry-point refusal tests. */
 export async function pauseAgency(owner: Db, agencyId: string, state: 'read_only' | 'suspended' = 'read_only'): Promise<void> {
   await owner.insert(agencyBilling).values({ agencyId, state }).onConflictDoUpdate({ target: agencyBilling.agencyId, set: { state } });
+}
+
+/** Phase 9b: pauses a client (`paused_at` set) for scheduler-exclusion tests. */
+export async function pauseClient(owner: Db, clientId: string, by = 'auto'): Promise<void> {
+  await owner.update(client).set({ pausedAt: new Date(), pausedBy: by }).where(eq(client.id, clientId));
 }

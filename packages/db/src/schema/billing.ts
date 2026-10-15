@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { boolean, check, index, integer, jsonb, numeric, pgTable, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
-import { agency } from './tenancy';
+import { agency, client } from './tenancy';
 
 const ts = (name: string) => timestamp(name, { withTimezone: true });
 
@@ -151,8 +151,92 @@ export const billingNotice = pgTable('billing_notice', {
   sentAt: ts('sent_at'),
   attempts: integer('attempts').notNull().default(0),
   lastError: text('last_error'),
+  /** Phase 9b (R2): set for client-scoped notices. */
+  clientId: uuid('client_id').references(() => client.id, { onDelete: 'cascade' }),
+  audience: text('audience').$type<'agency' | 'client'>().notNull().default('agency'),
+}, (t) => [check('billing_notice_audience_check', sql`${t.audience} IN ('agency','client')`)]);
+
+export const CLIENT_BILLING_STATES = ['off', 'invited', 'active', 'payment_needed', 'cancelled', 'disconnected'] as const;
+export type ClientBillingState = (typeof CLIENT_BILLING_STATES)[number];
+
+/** Phase 9b: agency's Stripe Connect account. Service role only. */
+export const agencyConnect = pgTable(
+  'agency_connect',
+  {
+    agencyId: uuid('agency_id').primaryKey().references(() => agency.id, { onDelete: 'cascade' }),
+    stripeAccountId: text('stripe_account_id').unique(),
+    status: text('status').$type<'pending' | 'connected' | 'restricted' | 'disconnected'>().notNull(),
+    chargesEnabled: boolean('charges_enabled').notNull().default(false),
+    detailsSubmitted: boolean('details_submitted').notNull().default(false),
+    defaultPriceCents: integer('default_price_cents'),
+    defaultSetupFeeCents: integer('default_setup_fee_cents'),
+    currency: text('currency').notNull().default('usd'),
+    stripeProductId: text('stripe_product_id'),
+    stripeDefaultPriceId: text('stripe_default_price_id'),
+    /** null = use the global default. */
+    applicationFeePercent: numeric('application_fee_percent', { precision: 5, scale: 2 }),
+    autoPauseAfterDays: integer('auto_pause_after_days'),
+    connectedAt: ts('connected_at'),
+    disconnectedAt: ts('disconnected_at'),
+    updatedAt: ts('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    check('agency_connect_status_check', sql`${t.status} IN ('pending','connected','restricted','disconnected')`),
+    check('agency_connect_default_price_cents_check', sql`${t.defaultPriceCents} >= 0`),
+    check('agency_connect_default_setup_fee_cents_check', sql`${t.defaultSetupFeeCents} >= 0`),
+    check('agency_connect_auto_pause_after_days_check', sql`${t.autoPauseAfterDays} BETWEEN 1 AND 90`),
+  ],
+);
+
+/** Phase 9b: per-client billing through the agency's connected account. Service role only. */
+export const clientBilling = pgTable(
+  'client_billing',
+  {
+    clientId: uuid('client_id').primaryKey().references(() => client.id, { onDelete: 'cascade' }),
+    agencyId: uuid('agency_id').notNull().references(() => agency.id, { onDelete: 'cascade' }),
+    enabled: boolean('enabled').notNull().default(false),
+    priceCents: integer('price_cents'),
+    setupFeeCents: integer('setup_fee_cents'),
+    stripePriceId: text('stripe_price_id'),
+    stripeCustomerId: text('stripe_customer_id'),
+    stripeSubscriptionId: text('stripe_subscription_id').unique(),
+    state: text('state').$type<ClientBillingState>().notNull(),
+    checkoutSentAt: ts('checkout_sent_at'),
+    paymentFailedSince: ts('payment_failed_since'),
+    lastPaidAt: ts('last_paid_at'),
+    refundedAt: ts('refunded_at'),
+    disputedAt: ts('disputed_at'),
+    /** Newest Stripe event timestamp applied (out-of-order webhook guard). */
+    lastStripeEventAt: ts('last_stripe_event_at'),
+    updatedAt: ts('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    check('client_billing_price_cents_check', sql`${t.priceCents} >= 0`),
+    check('client_billing_setup_fee_cents_check', sql`${t.setupFeeCents} >= 0`),
+    check('client_billing_state_check', sql`${t.state} IN ('off','invited','active','payment_needed','cancelled','disconnected')`),
+  ],
+);
+
+/** Phase 9b: processed Connect webhook events (dedupe by event id). */
+export const stripeConnectEvent = pgTable('stripe_connect_event', {
+  id: text('id').primaryKey(),
+  accountId: text('account_id').notNull(),
+  type: text('type').notNull(),
+  receivedAt: ts('received_at').notNull().defaultNow(),
+  processedAt: ts('processed_at'),
+  error: text('error'),
 });
 
+/** Phase 9b: platform-wide key/value settings. Service role only. */
+export const platformSetting = pgTable('platform_setting', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').notNull(),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+  updatedBy: text('updated_by').notNull(),
+});
+
+export type AgencyConnectRow = typeof agencyConnect.$inferSelect;
+export type ClientBillingRow = typeof clientBilling.$inferSelect;
 export type PlanRow = typeof plan.$inferSelect;
 export type AgencyBillingRow = typeof agencyBilling.$inferSelect;
 export type AgencyBillingEventRow = typeof agencyBillingEvent.$inferSelect;
