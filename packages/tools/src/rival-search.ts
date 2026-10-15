@@ -75,3 +75,13 @@ export async function startCompetitorSearchQuietly(deps: ToolDeps, clientId: str
     return null;
   }
 }
+
+/**
+ * Owner decision 2026-10-15: discovery auto-runs only the first time a client's search profile is complete. A client
+ * with any discovery run (any status, any trigger) gets no further auto runs; the manual "Find competitors" stays.
+ */
+export async function startFirstAutoSearch(deps: ToolDeps, clientId: string): Promise<SearchStart | null> {
+  const [any] = await deps.service.select({ id: discoveryRun.id }).from(discoveryRun).where(eq(discoveryRun.clientId, clientId)).limit(1);
+  if (any) return null;
+  return startCompetitorSearchQuietly(deps, clientId, 'auto');
+}

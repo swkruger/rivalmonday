@@ -125,7 +125,7 @@ describe('auto-run hooks (D4)', () => {
     expect(await runs(r.clientId)).toEqual([]);
   });
 
-  it('update_client_profile runs after a change that completes the profile, not on a no-op save', async () => {
+  it('update_client_profile auto-runs only the first time the profile becomes complete (owner decision 2026-10-15)', async () => {
     await registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, keywords: ['ac repair'], serviceArea: AREA });
     expect(await runs(IDS.clientA1)).toEqual([]);
     await registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, placeId: 'ChIJa1hvacplace1' });
@@ -133,8 +133,18 @@ describe('auto-run hooks (D4)', () => {
     await dbs.owner.update(discoveryRun).set({ status: 'done', finishedAt: new Date(Date.now() - 20 * MIN) }).where(eq(discoveryRun.clientId, IDS.clientA1));
     await registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, name: 'A1 HVAC Renamed' });
     expect(await runs(IDS.clientA1)).toHaveLength(1);
+    // Later keyword / service-area / place-id edits never auto-start (the manual "Find competitors" does).
     await registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, keywords: ['ac repair', 'furnace repair'] });
-    expect(await runs(IDS.clientA1)).toHaveLength(2);
+    await registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, serviceArea: { ...AREA, radiusKm: 20 } });
+    await registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, placeId: 'ChIJa1hvacplace2' });
+    expect(await runs(IDS.clientA1)).toHaveLength(1);
+  });
+
+  it('any earlier run (even a failed manual one) means the profile edit does not auto-start', async () => {
+    await pastRun(IDS.clientA1, { status: 'failed', startedAgoMs: 3 * DAY, finishedAgoMs: 3 * DAY });
+    await registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, ...PROFILE });
+    expect(await runs(IDS.clientA1)).toHaveLength(1);
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it('convert reuses a 10-day-old run', async () => {

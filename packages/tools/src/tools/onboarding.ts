@@ -5,7 +5,7 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { type ClientInput, cleanClientInput, clientInputProblems } from '../client-input';
 import { packsOf, type ToolDeps } from '../deps';
-import { startCompetitorSearchQuietly } from '../rival-search';
+import { startFirstAutoSearch } from '../rival-search';
 import { validTimezone } from '../timezone';
 import { ServiceAreaInput } from './schemas';
 
@@ -58,7 +58,7 @@ export const createClient = defineTool({
       .values({ agencyId: ctx.agencyId, status: input.status, name: c.name, verticalId: pack.id, services: c.services, keywords: c.keywords, serviceArea: c.serviceArea, placeId: c.placeId, features: c.features, ...(input.timezone ? { timezone: input.timezone } : {}) })
       .returning({ id: client.id });
     // 12a D4: a client (active or prospect) with keywords, a service area and a place id gets its first search.
-    if (c.keywords.length > 0 && c.serviceArea && c.placeId) await startCompetitorSearchQuietly(deps, row!.id, 'auto');
+    if (c.keywords.length > 0 && c.serviceArea && c.placeId) await startFirstAutoSearch(deps, row!.id);
     return { clientId: row!.id };
   },
 });
@@ -107,8 +107,9 @@ export const updateClientProfile = defineTool({
     if (placeChanged) await deps.service.update(client).set({ selfCompetitorId: null }).where(eq(client.id, clientId));
     // app_user cannot write ask_review_allowed (column grants), so the service Db does, after the RLS-checked read above proved access.
     if (askReviewAllowed !== undefined) await deps.service.update(client).set({ askReviewAllowed }).where(and(eq(client.id, clientId), eq(client.agencyId, ctx.agencyId)));
-    // 12a D4: after commit, a changed and complete search profile re-runs discovery (refusals stay silent).
-    if (searchInputsReady) await startCompetitorSearchQuietly(deps, clientId, 'auto');
+    // 12a D4 + owner decision 2026-10-15: after commit, the profile's first completion starts discovery once; a client
+    // with any earlier run is never auto re-run by later edits (refusals stay silent).
+    if (searchInputsReady) await startFirstAutoSearch(deps, clientId);
     return { clientId };
   },
 });
