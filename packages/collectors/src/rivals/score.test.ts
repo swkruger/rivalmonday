@@ -40,6 +40,9 @@ describe('activityScore', () => {
     expect(tierFor(1, null, pack.tiers)).toBe('watch');
     expect(tierFor(0.1, null, pack.tiers)).toBe('minor');
   });
+  it('one null ads count is treated as 0 inside the ads term', () => {
+    expect(activityScore(sig({ googleAdsActive: 3, googleAdsNew30d: null }), 2)).toBeCloseTo(0.6);
+  });
   it('0 is not null: checked-and-none counts', () => {
     expect(activityScore(sig({ googleAdsActive: 0, googleAdsNew30d: 0 }), 2)).toBe(0);
   });

@@ -12,4 +12,8 @@ describe('detectChains', () => {
     const raw = [{ name: 'X Dental', placeId: '1' }, { name: 'X Dental', placeId: '1' }, { name: 'X Dental', placeId: '2' }];
     expect(detectChains(raw).size).toBe(0);
   });
+  it('detects "<Brand> of <City>" franchises', () => {
+    const raw = ['Granbury', 'Cleburne', 'Weatherford'].map((c, i) => ({ name: `Aire Serv of ${c}`, placeId: `a${i}` }));
+    expect(detectChains(raw).has('aire serv')).toBe(true);
+  });
 });

@@ -22,6 +22,7 @@ export function overlapScores(kept: KeptCandidate[], searches: number, radiusKm:
 /** Null terms (not checked / unavailable) are dropped and the weights renormalised; all null -> null. */
 export function activityScore(s: Signals, runMedianReviews30d: number): number | null {
   const terms: { weight: number; value: number }[] = [];
+  // One of the two counts null (other known): the null side contributes 0 to the sum; both null drops the term.
   if (s.googleAdsActive != null || s.googleAdsNew30d != null) {
     terms.push({ weight: 0.35, value: Math.min(1, ((s.googleAdsActive ?? 0) + (s.googleAdsNew30d ?? 0)) / 5) });
   }

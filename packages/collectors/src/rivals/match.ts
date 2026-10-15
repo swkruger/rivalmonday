@@ -10,10 +10,14 @@ export function matchAdAccount(
   if (cd != null && cd === normaliseDomain(a.domain)) return 'strong';
   const cn = normaliseName(c.name, c.city);
   const an = normaliseName(a.name, c.city);
+  const city = c.city ? normaliseName(c.city) : '';
+  const plain = normaliseName(a.name);
+  const nameHasCity = !!city && ` ${plain} `.includes(` ${city} `);
+  // Strong: account name contains the candidate's name plus its city (chains included).
+  if (cn && nameHasCity && ` ${plain} `.includes(` ${cn} `)) return 'strong';
   if (cn && cn === an) {
-    const city = c.city?.trim().toLowerCase();
-    const accountHasCity = !!city && a.name.toLowerCase().includes(city);
-    if (!c.chain || accountHasCity) return 'strong';
+    const domainHasCity = !!city && (normaliseDomain(a.domain) ?? '').replace(/[^a-z0-9]/g, '').includes(city.replace(/ /g, ''));
+    if (!c.chain || nameHasCity || domainHasCity) return 'strong';
   }
   const ct = tokens(cn);
   const at = tokens(an);

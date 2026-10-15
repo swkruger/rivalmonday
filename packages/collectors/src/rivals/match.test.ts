@@ -29,4 +29,15 @@ describe('matchAdAccount', () => {
     expect(matchAdAccount(c, { name: 'Granbury Dental Center, PC', domain: null })).toBe('strong');
     expect(matchAdAccount(c, { name: 'Harris Aire Serv', domain: null })).toBe('none');
   });
+  it('account with trailing state and city is strong; plain brand stays weak', () => {
+    expect(matchAdAccount(franchisee, { name: 'Aire Serv of Granbury, TX', domain: null })).toBe('strong');
+    expect(matchAdAccount(franchisee, { name: 'Aire Serv', domain: null })).toBe('weak');
+  });
+  it('account name containing candidate name plus city is strong', () => {
+    const c = { name: 'Lakeview Dental', city: 'Granbury', domain: null, chain: false };
+    expect(matchAdAccount(c, { name: 'Lakeview Dental Granbury TX', domain: null })).toBe('strong');
+  });
+  it('city inside the account domain counts for a chain candidate', () => {
+    expect(matchAdAccount(franchisee, { name: 'Aire Serv', domain: 'aireservgranbury.com' })).toBe('strong');
+  });
 });
