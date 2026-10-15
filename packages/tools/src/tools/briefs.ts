@@ -1,11 +1,11 @@
 import { type AccessContext, appLinkFor, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
 import { brief, briefItem, client, competitor, withTenant } from '@cs/db';
-import { getBrief, Scorecard } from '@cs/engine';
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { getBrief, Scorecard, startingPointReadiness } from '@cs/engine';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { detailOf, pageOf, pageResult } from '../paging';
 import type { ToolDeps } from '../registry';
-import { BriefDetail, BriefSummary, pagedItems, pagedListInput, toIso } from './schemas';
+import { BriefDetail, BriefSummary, StartingPointStatus, pagedItems, pagedListInput, toIso } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const CLIENT_VISIBLE = ['approved', 'sent'];
@@ -84,4 +84,26 @@ export const getBriefTool = defineTool({
   },
 });
 
-export const briefTools = [listBriefs, getBriefTool];
+export const getStartingPointStatus = defineTool({
+  name: 'get_starting_point_status',
+  access: 'read',
+  description: "Where a client's starting-point brief stands: preparing (with readiness checks), ready for review, or sent. Active clients only.",
+  input: z.object({ clientId: z.string().uuid() }),
+  output: StartingPointStatus,
+  permission: 'read',
+  channels: ['web'],
+  async handler(ctx, { clientId }, deps) {
+    if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+    // The tenant-scoped client lookup proves access; the brief and readiness reads then use the service connection.
+    const [c] = await withTenant(deps.app, ctx, (tx) => tx.select({ status: client.status }).from(client).where(eq(client.id, clientId)).limit(1));
+    if (!c || c.status !== 'active') throw new ToolError('not_found', 'Client not found');
+    // Service connection: a client user cannot read a `ready` brief, but must still see the card ("preparing" with every check done).
+    const [b] = await deps.service.select({ id: brief.id, status: brief.status }).from(brief).where(and(eq(brief.clientId, clientId), sql`${brief.kind} = 'starting_point'`)).limit(1);
+    if (b?.status === 'sent') return { state: 'sent' as const, briefId: b.id };
+    if (b?.status === 'ready' || b?.status === 'approved') return { state: 'ready_for_review' as const };
+    const r = await startingPointReadiness(deps.service, clientId, new Date());
+    return { state: 'preparing' as const, checks: r.checks };
+  },
+});
+
+export const briefTools = [listBriefs, getBriefTool, getStartingPointStatus];

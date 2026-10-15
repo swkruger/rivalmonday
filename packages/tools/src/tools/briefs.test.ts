@@ -1,5 +1,6 @@
-import { brief, briefItem } from '@cs/db';
+import { brief, briefItem, client } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
+import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ctx, dbs, registry, resetWorkspace } from './workspace-fixtures';
 
@@ -39,5 +40,44 @@ describe('list_briefs paging and detail', () => {
     expect(out.items[0]).toMatchObject({ deliveryDate: '2026-10-05', status: 'sent', summary: 'Sent', hasPdf: false });
     const asFull = (await registry.invoke(admin, 'list_briefs', { clientId: IDS.clientA1, detail: 'full' }, mcp)) as { items: Record<string, unknown>[] };
     expect(asFull.items[0]).toHaveProperty('hasPdf');
+  });
+});
+
+describe('get_starting_point_status', () => {
+  const status = (c = admin, clientId: string = IDS.clientA1) => registry.invoke(c, 'get_starting_point_status', { clientId });
+  const startingPoint = (st: string) => dbs.owner.insert(brief).values({ ...base, ...period, deliveryDate: '2026-10-05', status: st, kind: 'starting_point', summary: 's' }).returning();
+  const owner = ctx('client_owner', [IDS.clientA1]);
+
+  it('no starting point yet → preparing with the readiness checks', async () => {
+    const out = (await status()) as { state: string; checks: Record<string, boolean | null> };
+    expect(out.state).toBe('preparing');
+    expect(out.checks).toMatchObject({ profile: false, reviews: false });
+  });
+
+  it('generating and failed starting points stay preparing', async () => {
+    const [b] = await startingPoint('generating');
+    expect(await status()).toMatchObject({ state: 'preparing' });
+    await dbs.owner.update(brief).set({ status: 'failed' }).where(eq(brief.id, b!.id));
+    expect(await status()).toMatchObject({ state: 'preparing' });
+  });
+
+  it('ready and approved map to ready_for_review, also for a client user who cannot read the brief', async () => {
+    const [b] = await startingPoint('ready');
+    expect(await status()).toEqual({ state: 'ready_for_review' });
+    expect(await status(owner)).toEqual({ state: 'ready_for_review' });
+    await dbs.owner.update(brief).set({ status: 'approved' }).where(eq(brief.id, b!.id));
+    expect(await status(owner)).toEqual({ state: 'ready_for_review' });
+  });
+
+  it('sent → sent with the brief id', async () => {
+    const [b] = await startingPoint('sent');
+    expect(await status(owner)).toEqual({ state: 'sent', briefId: b!.id });
+  });
+
+  it('a prospect and an out-of-scope client are not found; the tool is web only', async () => {
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA1));
+    await expect(status()).rejects.toMatchObject({ code: 'not_found' });
+    await expect(status(owner, IDS.clientA2)).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(admin, 'get_starting_point_status', { clientId: IDS.clientA1 }, mcp)).rejects.toThrow();
   });
 });

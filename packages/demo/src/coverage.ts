@@ -94,11 +94,13 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'list_moves', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       { tool: 'list_recommendations', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       { tool: 'list_trend_reports', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
+      { tool: 'get_starting_point_status', input: (ids) => ({ clientId: ls(ids) }), path: 'state' },
       lsStarters,
     ],
   },
   {
     route: '/c/[clientId] (client owner)', as: 'ownerLoneStar', calls: [
+      { tool: 'get_starting_point_status', input: (ids) => ({ clientId: ls(ids) }), path: 'state' },
       { tool: 'get_workspace_overview', input: (ids) => ({ clientId: ls(ids) }), path: 'pressure.*.pressure.score' },
       { tool: 'list_briefs', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       // A client owner sees sent briefs only; the newest is the first of `sentLoneStar` (this week's Monday).

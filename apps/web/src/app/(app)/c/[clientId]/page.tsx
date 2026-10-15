@@ -8,6 +8,7 @@ import type {
   MoveRow,
   RecommendationView,
   ReportSummary,
+  StartingPointStatus,
   WorkspaceOverview,
 } from '@cs/tools';
 import Link from 'next/link';
@@ -16,9 +17,10 @@ import { foldSeries, LineChart } from '@/components/charts/line-chart';
 import { ClientHomeBasic } from '@/components/client-home-basic';
 import { AlertLinkList, BriefLinkList } from '@/components/client-lists';
 import { EvidenceChips } from '@/components/evidence-chips';
+import { StartingPointCard } from '@/components/starting-point-card';
 import { StatCard } from '@/components/stat-card';
 import { requireContext } from '@/server/current-viewer';
-import { callTool } from '@/server/tools';
+import { callTool, tryCallTool } from '@/server/tools';
 import { MoveCard, movesHref } from './moves/move-card';
 import { activeBriefItems, kpiCards } from './overview-kpis';
 
@@ -32,7 +34,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
   const { clientId } = await params;
   const { ctx } = await requireContext();
   if (!hasFeature(ctx, 'dashboard')) return <ClientHomeBasic clientId={clientId} ctx={ctx} />;
-  const [profile, overview, ads, moves, briefs, alerts, recs, reports] = await Promise.all([
+  const [profile, overview, ads, moves, briefs, alerts, recs, reports, starting] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<WorkspaceOverview>(ctx, 'get_workspace_overview', { clientId }),
     callTool<AdActivityView>(ctx, 'get_ad_activity', { clientId, weeks: 12 }),
@@ -41,7 +43,10 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
     callTool<{ items: AlertSummary[] }>(ctx, 'list_alerts', { clientId, limit: 10 }),
     callTool<{ items: RecommendationView[] }>(ctx, 'list_recommendations', { clientId }),
     callTool<{ items: ReportSummary[] }>(ctx, 'list_trend_reports', { clientId }),
+    tryCallTool<StartingPointStatus>(ctx, 'get_starting_point_status', { clientId }),
   ]);
+  // The card stands in until the starting point is sent; clients that already get weekly briefs keep them.
+  const preparing = starting && starting.state !== 'sent' && !briefs.items.some((b) => b.kind !== 'starting_point') ? starting : null;
   const first = briefs.items[0];
   const latest = first ? await callTool<BriefDetail>(ctx, 'get_brief', { briefId: first.id }) : null;
   const items = latest ? activeBriefItems(latest.items) : [];
@@ -77,7 +82,8 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
         <section className={cardCls}>
           <h2 className="font-semibold">This week&apos;s brief</h2>
           <div className="mt-3 flex flex-col gap-3">
-            {!latest && <p className="text-muted-foreground">No briefs yet. The first one arrives on a Monday morning.</p>}
+            {preparing && <StartingPointCard status={preparing} agency={isAgencyRole(ctx.role)} />}
+            {!latest && !preparing && <p className="text-muted-foreground">No briefs yet. The first one arrives on a Monday morning.</p>}
             {latest && items.length === 0 && <p className="text-muted-foreground">{latest.summary}</p>}
             {items.map((it, i) => (
               <div key={it.id} className={`rounded-lg border-l-[3px] bg-muted-surface p-3 ${i === 0 && it.confidence >= 0.85 ? 'border-amber' : 'border-primary'}`}>

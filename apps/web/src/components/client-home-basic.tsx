@@ -1,19 +1,22 @@
 import type { AccessContext } from '@cs/core';
-import type { AlertSummary, BriefSummary, ClientProfile, ReportSummary } from '@cs/tools';
+import type { AlertSummary, BriefSummary, ClientProfile, ReportSummary, StartingPointStatus } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
-import { callTool } from '@/server/tools';
+import { callTool, tryCallTool } from '@/server/tools';
 import { AskCard } from './ask/ask-card';
 import { AlertLinkList, BriefLinkList } from './client-lists';
+import { StartingPointCard } from './starting-point-card';
 
 /** The 5a client home, kept for client users without the `dashboard` feature (briefs-only plans). */
 export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx: AccessContext }) {
   const profile = await callTool<ClientProfile>(ctx, 'get_client_profile', { clientId });
-  const [briefs, alerts, reports] = await Promise.all([
+  const [briefs, alerts, reports, starting] = await Promise.all([
     callTool<{ items: BriefSummary[] }>(ctx, 'list_briefs', { clientId, limit: 10 }),
     callTool<{ items: AlertSummary[] }>(ctx, 'list_alerts', { clientId, limit: 10 }),
     callTool<{ items: ReportSummary[] }>(ctx, 'list_trend_reports', { clientId }),
+    tryCallTool<StartingPointStatus>(ctx, 'get_starting_point_status', { clientId }),
   ]);
+  const preparing = starting && starting.state !== 'sent' && !briefs.items.some((b) => b.kind !== 'starting_point') ? starting : null;
   return (
     <>
       <div>
@@ -26,7 +29,11 @@ export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx
             <CardTitle>Weekly briefs</CardTitle>
           </CardHeader>
           <CardContent>
-            <BriefLinkList clientId={clientId} items={briefs.items} empty="No briefs yet. The first one arrives on a Monday morning." />
+            {preparing ? (
+              <StartingPointCard status={preparing} agency={false} />
+            ) : (
+              <BriefLinkList clientId={clientId} items={briefs.items} empty="No briefs yet. The first one arrives on a Monday morning." />
+            )}
           </CardContent>
         </Card>
         <div className="flex flex-col gap-5">

@@ -395,3 +395,14 @@ export const OAuthGrantView = z.object({
   ownerName: z.string().nullable(), connectedAt: iso, mine: z.boolean(),
 });
 export type OAuthGrantView = z.infer<typeof OAuthGrantView>;
+
+/** Client-home progress of the starting-point brief (Phase 12b): preparing, ready_for_review, sent. */
+export const StartingPointStatus = z.discriminatedUnion('state', [
+  z.object({
+    state: z.literal('preparing'),
+    checks: z.object({ profile: z.boolean(), reviews: z.boolean(), rankings: z.boolean().nullable(), competitors: z.boolean().nullable() }),
+  }),
+  z.object({ state: z.literal('ready_for_review') }),
+  z.object({ state: z.literal('sent'), briefId: uuid }),
+]);
+export type StartingPointStatus = z.infer<typeof StartingPointStatus>;
