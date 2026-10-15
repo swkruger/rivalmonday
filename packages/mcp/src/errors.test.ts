@@ -33,4 +33,12 @@ describe('internal error logging', () => {
       expect(JSON.parse((r.content[0] as { text: string }).text)).toEqual({ code, message: 'Upgrade needed' });
     }
   });
+
+  it('user-facing refusals keep their message; plain conflicts and internals stay generic (9b R19)', () => {
+    const parse = (r: ReturnType<typeof toToolResult>) => JSON.parse((r.content[0] as { text: string }).text);
+    expect(parse(toToolResult(new ToolError('conflict', 'Connect Stripe first.', { userFacing: true }), 'x'))).toEqual({ code: 'conflict', message: 'Connect Stripe first.' });
+    expect(parse(toToolResult(new ToolError('internal', "Stripe couldn't complete that. Please try again.", { userFacing: true }), 'x'))).toEqual({ code: 'internal', message: "Stripe couldn't complete that. Please try again." });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(parse(toToolResult(new ToolError('internal', 'secret detail'), 'x'))).toEqual({ code: 'internal', message: 'Something went wrong. Try again later.' });
+  });
 });

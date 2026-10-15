@@ -21,6 +21,8 @@ interface Mapped { code: ToolErrorCode; message: string; retry_after_s?: number 
  */
 function mapError(e: unknown, what: string): Mapped {
   if (e instanceof ToolError) {
+    // 9b R19: decided, user-facing copy passes through whatever the code.
+    if (e.userFacing && e.code !== 'permission_denied') return { code: e.code, message: e.message };
     switch (e.code) {
       case 'not_found':
       case 'invalid_input':

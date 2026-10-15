@@ -8,10 +8,17 @@ export type ToolErrorCode = 'not_found' | 'permission_denied' | 'invalid_input' 
 
 export class ToolError extends Error {
   readonly code: ToolErrorCode;
-  constructor(code: ToolErrorCode, message: string, options?: { cause?: unknown }) {
-    super(message, options);
+  /**
+   * 9b R19: the message is decided, user-facing copy. The web form mapping (`toFormResult`) and MCP (`mapError`) show it
+   * as is, whatever the code (a `conflict` keeps it instead of the generic concurrency copy; an `internal` renders inline).
+   * Never set it on a message that can carry internal detail.
+   */
+  readonly userFacing: boolean;
+  constructor(code: ToolErrorCode, message: string, options?: { cause?: unknown; userFacing?: boolean }) {
+    super(message, options?.cause !== undefined ? { cause: options.cause } : undefined);
     this.name = 'ToolError';
     this.code = code;
+    this.userFacing = options?.userFacing === true;
   }
 }
 

@@ -88,4 +88,11 @@ describe('toFormResult', () => {
     expect(toFormResult(new ToolError('invalid_code', 'x'))).toEqual({ ok: false, error: "That code isn't valid for your account." });
     for (const code of ['billing_not_eligible', 'connect_not_ready', 'no_client_owner'] as const) expect(toFormResult(new ToolError(code, 'Exact copy.'))).toEqual({ ok: false, error: 'Exact copy.' });
   });
+  it('passes decided user-facing refusal copy through, conflict and internal included (9b R19)', () => {
+    expect(toFormResult(new ToolError('conflict', 'Connect Stripe first.', { userFacing: true }))).toEqual({ ok: false, error: 'Connect Stripe first.' });
+    expect(toFormResult(new ToolError('internal', "Stripe couldn't complete that. Please try again.", { userFacing: true }))).toEqual({ ok: false, error: "Stripe couldn't complete that. Please try again." });
+    // Without the opt-in a conflict keeps the generic copy and an internal error still reaches the error boundary.
+    expect(toFormResult(new ToolError('conflict', 'row version mismatch'))).toEqual({ ok: false, error: 'That changed while you were working — please try again.' });
+    expect(() => toFormResult(new ToolError('internal', 'db down'))).toThrow('db down');
+  });
 });
