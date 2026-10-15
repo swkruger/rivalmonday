@@ -1,4 +1,4 @@
-import { brief, capture, client, competitor, discoveryRun, evidence, observation, rankScan, vendorTask } from '@cs/db';
+import { brief, capture, client, clientCompetitor, competitor, discoveryRun, evidence, observation, rankScan, vendorTask } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -18,6 +18,10 @@ async function seedProfile() {
 }
 const seedReviewsDone = () => dbs.owner.insert(vendorTask).values({ vendor: 'dataforseo', kind: 'google_reviews', externalTaskId: randomUUID(), competitorId: selfId, status: 'done' });
 const activate = (at: Date, o: Partial<typeof client.$inferInsert> = {}) => dbs.owner.update(client).set({ activatedAt: at, ...o }).where(eq(client.id, IDS.clientA1));
+async function trackRival() {
+  const [r] = await dbs.owner.insert(competitor).values({ name: 'Rival HVAC', placeId: 'PRIVAL' }).returning({ id: competitor.id });
+  await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: r!.id });
+}
 const AREA = { center: { lat: 1, lng: 1 }, radiusKm: 10, zips: ['76048'] };
 
 beforeEach(async () => {
@@ -54,6 +58,20 @@ describe('startingPointReadiness', () => {
     expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ ready: false, checks: { rankings: true, competitors: false } });
     await dbs.owner.update(discoveryRun).set({ status: 'done', finishedAt: hoursAgo(0.2) });
     expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ ready: true, checks: { rankings: true, competitors: true } });
+  });
+
+  it('a done discovery run with no tracked rival is not ready (waits for Track selected, else the 48 h timeout)', async () => {
+    await dbs.owner.delete(clientCompetitor).where(eq(clientCompetitor.clientId, IDS.clientA1)); // seedTenancy tracks X for A1
+    await activate(hoursAgo(1), { keywords: ['ac repair'], serviceArea: AREA, placeId: 'PSELF' });
+    await seedProfile();
+    await seedReviewsDone();
+    await dbs.owner.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'done', finishedAt: hoursAgo(0.5) });
+    await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'auto', status: 'done', finishedAt: hoursAgo(0.2) });
+    expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ ready: false, timedOut: false, checks: { competitors: false } });
+    await activate(hoursAgo(49));
+    expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ ready: false, timedOut: true, checks: { competitors: false } });
+    await trackRival();
+    expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ ready: true, checks: { competitors: true } });
   });
 });
 

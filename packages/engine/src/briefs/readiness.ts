@@ -1,5 +1,5 @@
-import { brief, client, type Db, discoveryRun, observation, rankScan, vendorTask } from '@cs/db';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { brief, client, clientCompetitor, type Db, discoveryRun, observation, rankScan, vendorTask } from '@cs/db';
+import { and, desc, eq, ne, sql } from 'drizzle-orm';
 import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES } from './generate';
 
 /** Spec § Generation: a starting point waits for onboarding data at most this long after activation, then ships with what is there. */
@@ -15,7 +15,8 @@ export interface StartingPointReadiness {
 
 /**
  * Spec § Generation readiness: the client's own GBP observation exists, the self review backfill finished, the first rank scan
- * finished (when the client has keywords and a service area) and the latest discovery run is done (when one ran or could run).
+ * finished (when the client has keywords and a service area) and the latest discovery run is done with at least one rival tracked
+ * (when one ran or could run).
  */
 export async function startingPointReadiness(db: Db, clientId: string, now: Date): Promise<StartingPointReadiness> {
   const [c] = await db.select().from(client).where(eq(client.id, clientId)).limit(1);
@@ -37,8 +38,14 @@ export async function startingPointReadiness(db: Db, clientId: string, now: Date
   // Discovery is possible once the search profile is complete (startCompetitorSearch's own precondition); a run that already exists counts either way.
   const [run] = await db.select({ status: discoveryRun.status }).from(discoveryRun).where(eq(discoveryRun.clientId, clientId)).orderBy(desc(discoveryRun.startedAt)).limit(1);
   const discoveryPossible = c.keywords.length > 0 && c.serviceArea !== null && c.placeId !== null;
-  // A failed discovery run is not applicable (nothing will complete it), so it must not hold the starting point back.
-  const competitors = run ? (run.status === 'failed' ? null : run.status === 'done') : discoveryPossible ? false : null;
+  // A failed discovery run is not applicable (nothing will complete it), so it must not hold the starting point back. A done run
+  // only pre-ticks suggestions: competitors are ready once the agency tracked at least one rival (else the 48 h timeout applies).
+  let competitors: boolean | null = run ? (run.status === 'failed' ? null : run.status === 'done') : discoveryPossible ? false : null;
+  if (competitors === true) {
+    const tracked = await db.select({ id: clientCompetitor.competitorId }).from(clientCompetitor)
+      .where(and(eq(clientCompetitor.clientId, clientId), ...(selfId ? [ne(clientCompetitor.competitorId, selfId)] : []))).limit(1);
+    competitors = tracked.length > 0;
+  }
 
   const ready = profile && reviews && rankings !== false && competitors !== false;
   const since = c.activatedAt ?? c.createdAt;
