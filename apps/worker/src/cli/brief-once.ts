@@ -30,6 +30,8 @@ try {
   const packs = createPackLoader();
 
   if (args.startingPoint) {
+    const [c] = await db.select({ id: client.id }).from(client).where(eq(client.id, args.client));
+    if (!c) throw new Error(`client ${args.client} not found`);
     // Retry a starting point that gave up: reset its failed attempts so the claim can take it again.
     await db.update(brief).set({ attempts: 0 }).where(and(eq(brief.clientId, args.client), eq(brief.kind, 'starting_point'), eq(brief.status, 'failed')));
   } else if (args.force) {

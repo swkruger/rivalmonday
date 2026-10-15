@@ -113,6 +113,15 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
       verified = await verifyDraft(deps.ai, scope, c, selected, draft, { year: localParts(now, tz).year, period });
     }
 
+    // Built before the commit transaction: a scorecard failure must never fail the brief (it is stored only if the week turns out quiet).
+    let quietScorecard: Scorecard | null = null;
+    try {
+      const sp = await startingPointBaseline(deps.db, clientId);
+      quietScorecard = { ...(await buildScorecard(deps, clientId, { now, baseline: sp?.scorecard ?? null, openFirstMoves: sp?.openFirstMoves ?? [] })), baselineBriefId: sp?.briefId ?? null };
+    } catch (err) {
+      console.warn(`[briefs] scorecard skipped: ${clientId}: ${briefErrorMessage(err)}`);
+    }
+
     return await deps.db.transaction(async (tx): Promise<BriefRunResult> => {
       // Commit-time re-check (Review Focus 4): an event retracted while the model was writing must not reach the brief.
       const ids = verified.items.flatMap((i) => candidateEventIds(i.candidate));
@@ -121,12 +130,7 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
       const dropped = { items: verified.dropped.items + (verified.items.length - items.length), sentences: verified.dropped.sentences };
       const kind: BriefKind = items.length > 0 ? 'standard' : 'quiet';
       const summary = kind === 'quiet' ? QUIET_SUMMARY : items.length === verified.items.length ? verified.summary : countSummary(items.length);
-      // A quiet week still shows where the client stands against the starting point (Phase 12b T6).
-      let scorecard: Scorecard | null = null;
-      if (kind === 'quiet') {
-        const sp = await startingPointBaseline(deps.db, clientId);
-        scorecard = { ...(await buildScorecard(deps, clientId, { now, baseline: sp?.scorecard ?? null, openFirstMoves: sp?.openFirstMoves ?? [] })), baselineBriefId: sp?.briefId ?? null };
-      }
+      const scorecard = kind === 'quiet' ? quietScorecard : null;
       // Fence first: if a newer attempt reclaimed this brief, store nothing.
       const won = await tx.update(brief).set({ status: 'ready', kind, summary, scorecard, trend, dropped, generatedAt: new Date(), updatedAt: new Date() }).where(owned).returning({ id: brief.id });
       if (won.length === 0) return { status: 'skipped', reason: 'superseded by a newer attempt' };

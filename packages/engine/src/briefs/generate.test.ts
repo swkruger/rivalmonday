@@ -1,14 +1,21 @@
 import { brief, briefItem, changeEvent, client, competitor, move, moveEvent, recommendation, review } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeAi, noul } from '../../test/fake-ai';
 import { day, seedScoredEvent } from '../../test/seed';
 import { createPackLoader } from '../tag/tag-stage';
 import type { EventCandidate, MoveCandidate } from './gather';
-import { buildScorecard } from './scorecard';
+import * as scorecardMod from './scorecard';
+const { buildScorecard } = scorecardMod;
+const scorecardFail = vi.hoisted(() => ({ on: false }));
 import { committableItems, generateBrief, listBriefDueClients, QUIET_SUMMARY } from './generate';
 import type { VerifiedItem } from './verify';
+
+vi.mock('./scorecard', async (orig) => {
+  const m = await orig<typeof import('./scorecard')>();
+  return { ...m, buildScorecard: (...a: Parameters<typeof m.buildScorecard>) => { if (scorecardFail.on) throw new Error('scorecard boom'); return m.buildScorecard(...a); } };
+});
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -205,6 +212,17 @@ describe('quiet-week scorecard (12b T6)', () => {
     const sp = await seedStartingPoint(['done', 'dismissed', 'todo', 'in_progress', 'todo', 'todo']);
     const sc = (await weekly()).scorecard as { openFirstMoves: { recommendationId: string }[] };
     expect(sc.openFirstMoves.map((m) => m.recommendationId)).toEqual([sp.recs[2], sp.recs[3], sp.recs[4]]);
+  });
+
+  it('a scorecard failure never fails the brief: ready/quiet with scorecard null', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    scorecardFail.on = true;
+    try {
+      const r = await run();
+      expect(r).toMatchObject({ status: 'ready', kind: 'quiet' });
+      expect((await dbs.owner.select().from(brief))[0]!.scorecard).toBeNull();
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/scorecard skipped/));
+    } finally { scorecardFail.on = false; warn.mockRestore(); }
   });
 
   it('standard briefs have no scorecard', async () => {
