@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { BILLING_NOT_CONFIGURED_MESSAGE } from './billing';
+import { ensurePortalConfiguration } from './client-billing';
 
 /**
  * Phase 9b Task 10: the client owner's own billing (agency-branded). Client owner of that client only: viewers, agency
@@ -20,6 +21,9 @@ export const PORTAL_UNAVAILABLE_MESSAGE = 'Payment management is not available r
 export const PORTAL_FAILED_MESSAGE = 'Could not open the payment page. Try again shortly.';
 
 const StateEnum = z.enum(['off', 'invited', 'active', 'payment_needed', 'cancelled', 'disconnected']);
+
+/** R19: decided, platform-free copy the client owner sees inline (forms/MCP pass it through). */
+const refuse = (code: 'conflict' | 'internal', message: string) => new ToolError(code, message, { userFacing: true });
 
 /** Same refusal for every other role and any other client, so nothing about billing is confirmed to them. */
 function requireOwnerOf(ctx: AccessContext, clientId: string) {
@@ -96,17 +100,19 @@ export const openBillingPortalTool = defineTool({
   permission: 'manage',
   async handler(ctx, { clientId }, deps) {
     requireOwnerOf(ctx, clientId);
-    if (!deps.billing) throw new ToolError('conflict', BILLING_NOT_CONFIGURED_MESSAGE);
+    if (!deps.billing) throw refuse('conflict', BILLING_NOT_CONFIGURED_MESSAGE);
     if (!deps.appUrl) throw new ToolError('internal', 'Billing is not configured (APP_URL)');
     const { b, acct } = await load(deps, ctx, clientId);
-    if (!b?.stripeCustomerId) throw new ToolError('conflict', NOTHING_TO_MANAGE_MESSAGE);
-    if (!acct) throw new ToolError('conflict', PORTAL_UNAVAILABLE_MESSAGE);
+    if (!b?.stripeCustomerId) throw refuse('conflict', NOTHING_TO_MANAGE_MESSAGE);
+    if (!acct) throw refuse('conflict', PORTAL_UNAVAILABLE_MESSAGE);
     try {
-      const s = await deps.billing.createConnectedPortal({ stripeAccount: acct, customerId: b.stripeCustomerId, returnUrl: `${deps.appUrl.replace(/\/+$/, '')}/c/${clientId}/settings/billing` });
+      // R25: the portal configuration on the agency's connected account (created on first use when the defaults save missed it).
+      const configuration = await ensurePortalConfiguration(deps, ctx.agencyId, acct);
+      const s = await deps.billing.createConnectedPortal({ stripeAccount: acct, customerId: b.stripeCustomerId, returnUrl: `${deps.appUrl.replace(/\/+$/, '')}/c/${clientId}/settings/billing`, configuration });
       return { url: s.url };
     } catch (e) {
       console.error('[billing] createConnectedPortal failed', { agencyId: ctx.agencyId }, (e as { name?: string } | null)?.name);
-      throw new ToolError('internal', PORTAL_FAILED_MESSAGE);
+      throw refuse('internal', PORTAL_FAILED_MESSAGE);
     }
   },
 });

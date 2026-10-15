@@ -7,7 +7,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PAUSED_WRITE_ALLOW_LIST } from '../billing-guard';
 import { createToolRegistry } from '../registry';
 import { BILLING_NOT_CONFIGURED_MESSAGE } from './billing';
-import { CONNECT_FIRST_MESSAGE } from './client-billing';
+import { CONNECT_FIRST_MESSAGE, PAYMENT_PROCESSING_MESSAGE, STRIPE_FAILED_MESSAGE } from './client-billing';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -27,7 +27,7 @@ const audit = { audit: { record: async () => {} } };
 const call = (ctx: AccessContext, name: string, input: unknown = {}) => registry.invoke(ctx, name, input);
 const noGateway = () => createToolRegistry({ app: dbs.app, service: dbs.service, appUrl: APP }, audit);
 const fails = async (p: Promise<unknown>) => {
-  try { await p; } catch (e) { return e as { code?: string; message: string }; }
+  try { await p; } catch (e) { return e as { code?: string; message: string; userFacing?: boolean }; }
   throw new Error('expected a failure');
 };
 const connectRow = async () => (await dbs.owner.select().from(agencyConnect).where(eq(agencyConnect.agencyId, IDS.agencyA)))[0];
@@ -71,10 +71,23 @@ describe('get_connect_status', () => {
     expect(await call(admin, 'get_connect_status')).toMatchObject({ status: 'not_connected', chargesEnabled: false, billingConfigured: true });
   });
 
-  it('merges live account flags into the stored status without writing', async () => {
+  it('R26: persists live account flags when they differ from the stored state (connected_at set once)', async () => {
     await seedConnect({ status: 'pending', chargesEnabled: false, detailsSubmitted: false, connectedAt: null });
     expect(await call(admin, 'get_connect_status')).toMatchObject({ status: 'connected', chargesEnabled: true, detailsSubmitted: true });
-    expect((await connectRow())?.status).toBe('pending');
+    const row = (await connectRow())!;
+    expect(row).toMatchObject({ status: 'connected', chargesEnabled: true, detailsSubmitted: true });
+    expect(row.connectedAt).toBeInstanceOf(Date);
+  });
+
+  it('R26: no write when nothing differs, and none in a read-only support session', async () => {
+    await seedConnect();
+    const before = (await connectRow())!.updatedAt;
+    await call(admin, 'get_connect_status');
+    expect((await connectRow())!.updatedAt).toEqual(before);
+    await dbs.owner.update(agencyConnect).set({ status: 'pending', chargesEnabled: false });
+    const support = createAccessContext({ agencyId: IDS.agencyA, userId: 'u-op', role: 'agency_admin', clientScope: 'all', features: [], support: { sessionId: '00000000-0000-4000-8000-000000000001', platformUserId: 'u-op' } });
+    expect(await call(support, 'get_connect_status')).toMatchObject({ status: 'connected' });
+    expect((await connectRow())!.status).toBe('pending');
   });
 
   it('a connected account that lost charges shows restricted', async () => {
@@ -109,12 +122,23 @@ describe('start_stripe_connect', () => {
     expect(await connectRow()).toMatchObject({ status: 'connected', stripeAccountId: 'acct_1' });
   });
 
-  it('after a disconnect it starts a fresh account and clears the old product/price', async () => {
-    await seedConnect({ status: 'disconnected', disconnectedAt: new Date(), chargesEnabled: false, stripeProductId: 'prod_old', stripeDefaultPriceId: 'price_old', defaultPriceCents: 9900 });
+  it('R24: after an admin disconnect it reuses the same account and keeps its product, price and portal configuration', async () => {
+    await seedConnect({ status: 'disconnected', disconnectedAt: new Date(), chargesEnabled: false, stripeProductId: 'prod_old', stripeDefaultPriceId: 'price_old', portalConfigurationId: 'bpc_old', defaultPriceCents: 9900 });
+    await call(admin, 'start_stripe_connect');
+    expect(linkArg().accountId).toBe('acct_1');
+    expect(await connectRow()).toMatchObject({ stripeAccountId: 'acct_1', status: 'pending', disconnectedAt: null, stripeProductId: 'prod_old', stripeDefaultPriceId: 'price_old', portalConfigurationId: 'bpc_old', defaultPriceCents: 9900 });
+    // The live state then shows the account is still connected (and persists it, R26).
+    expect(await call(admin, 'get_connect_status')).toMatchObject({ status: 'connected' });
+    expect((await connectRow())!.status).toBe('connected');
+  });
+
+  it('R24: after deauthorization (account forgotten) it onboards a fresh account', async () => {
+    await seedConnect({ status: 'disconnected', disconnectedAt: new Date(), chargesEnabled: false, stripeAccountId: null, defaultPriceCents: 9900 });
     await call(admin, 'start_stripe_connect');
     expect(linkArg().accountId).toBeUndefined();
     const row = (await connectRow())!;
     expect(row).toMatchObject({ status: 'pending', disconnectedAt: null, stripeProductId: null, stripeDefaultPriceId: null, defaultPriceCents: 9900 });
+    expect(row.stripeAccountId).toMatch(/^acct_/);
     expect(row.stripeAccountId).not.toBe('acct_1');
   });
 
@@ -165,7 +189,7 @@ describe('set_client_billing_defaults', () => {
     await seedConnect();
     const r = await call(admin, 'set_client_billing_defaults', { priceCents: 9900, setupFeeCents: 5000, autoPauseAfterDays: 14 });
     expect(r).toMatchObject({ ok: true, defaultPriceCents: 9900, defaultSetupFeeCents: 5000, autoPauseAfterDays: 14, priceChanged: true });
-    expect(gw.calls.map((c) => c.method)).toEqual(['createConnectedProduct', 'createConnectedPrice']);
+    expect(gw.calls.map((c) => c.method)).toEqual(['createConnectedProduct', 'createConnectedPrice', 'createConnectedPortalConfiguration']); // R25
     expect(gw.calls[0]!.args[0]).toMatchObject({ stripeAccount: 'acct_1' });
     const row = (await connectRow())!;
     expect(gw.calls[1]!.args[0]).toMatchObject({ stripeAccount: 'acct_1', unitAmountCents: 9900, productId: row.stripeProductId, currency: 'usd' });
@@ -189,6 +213,24 @@ describe('set_client_billing_defaults', () => {
     expect(row.defaultPriceCents).toBe(12900);
   });
 
+  it('R25: the first save creates the Customer Portal configuration on the connected account, once; a failure there does not fail the save', async () => {
+    await seedConnect();
+    await call(admin, 'set_client_billing_defaults', { priceCents: 9900 });
+    const id = (await connectRow())!.portalConfigurationId;
+    expect(id).toMatch(/^bpc_/);
+    expect(gw.connectedPortalConfigurations.get(id!)).toMatchObject({ stripeAccount: 'acct_1' });
+    await call(admin, 'set_client_billing_defaults', { priceCents: 12900 });
+    expect(gw.callsTo('createConnectedPortalConfiguration')).toHaveLength(1);
+    await dbs.owner.update(agencyConnect).set({ portalConfigurationId: null });
+    const orig = gw.createConnectedPortalConfiguration;
+    gw.createConnectedPortalConfiguration = async () => { throw new Error('boom'); };
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(await call(admin, 'set_client_billing_defaults', { priceCents: 12900, autoPauseAfterDays: 5 })).toMatchObject({ ok: true, autoPauseAfterDays: 5 });
+    log.mockRestore();
+    gw.createConnectedPortalConfiguration = orig;
+    expect((await connectRow())!.portalConfigurationId).toBeNull();
+  });
+
   it('an unchanged price makes no Stripe calls but still saves the other settings; omitted fields stay', async () => {
     await seedConnect();
     await call(admin, 'set_client_billing_defaults', { priceCents: 9900, setupFeeCents: 5000, autoPauseAfterDays: 14 });
@@ -202,7 +244,8 @@ describe('set_client_billing_defaults', () => {
   it('a Stripe failure maps to internal, saves nothing, and a retry succeeds', async () => {
     await seedConnect();
     gw.failNext();
-    expect((await fails(call(admin, 'set_client_billing_defaults', { priceCents: 9900 }))).code).toBe('internal');
+    // R19: the decided copy reaches the form inline instead of the error page.
+    expect(await fails(call(admin, 'set_client_billing_defaults', { priceCents: 9900 }))).toMatchObject({ code: 'internal', message: STRIPE_FAILED_MESSAGE, userFacing: true });
     expect(await connectRow()).toMatchObject({ stripeProductId: null, defaultPriceCents: null });
     await call(admin, 'set_client_billing_defaults', { priceCents: 9900 });
     expect((await connectRow())?.defaultPriceCents).toBe(9900);
@@ -279,8 +322,11 @@ describe('per-client billing tools (Task 5)', () => {
     await dbs.owner.insert(membership).values({ userId: id, agencyId: IDS.agencyA, role: 'client_owner', clientId, createdBy: 'seed', createdAt: at });
   };
   const checkoutArg = (n = 0) => gw.callsTo('createConnectedCheckout')[n]!.args[0] as Record<string, unknown>;
-  const ready = async (v: Partial<typeof agencyConnect.$inferInsert> = {}) =>
-    seedConnect({ stripeProductId: 'prod_1', stripeDefaultPriceId: 'price_def', defaultPriceCents: 9900, defaultSetupFeeCents: 0, ...v });
+  const ready = async (v: Partial<typeof agencyConnect.$inferInsert> = {}) => {
+    gw.seedConnectedAccount({ id: 'acct_1' });
+    gw.seedConnectedPrice({ id: 'price_def', stripeAccount: 'acct_1', productId: 'prod_1', unitAmountCents: v.defaultPriceCents ?? 9900 });
+    await seedConnect({ stripeProductId: 'prod_1', stripeDefaultPriceId: 'price_def', defaultPriceCents: 9900, defaultSetupFeeCents: 0, ...v });
+  };
 
   beforeEach(async () => {
     planId = (await dbs.owner.insert(plan).values(STD).returning({ id: plan.id }))[0]!.id;
@@ -362,6 +408,102 @@ describe('per-client billing tools (Task 5)', () => {
       await ready();
       await call(admin, 'enable_client_billing', { clientId: A1 });
       expect((await fails(call(admin, 'enable_client_billing', { clientId: A1 }))).code).toBe('conflict');
+    });
+  });
+
+  describe('R19: decided refusal copy is user-facing (passes through forms/MCP)', () => {
+    it('conflict refusals carry userFacing; the Stripe failure is an inline internal message', async () => {
+      expect(await fails(call(admin, 'enable_client_billing', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: CONNECT_FIRST_MESSAGE, userFacing: true });
+      await ready({ stripeDefaultPriceId: null, defaultPriceCents: null });
+      expect(await fails(call(admin, 'enable_client_billing', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: 'Set a default price first, or give this client a price.', userFacing: true });
+      expect(await fails(call(admin, 'resend_client_payment_link', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: 'No payment link is pending for this client.', userFacing: true });
+      await dbs.owner.update(agencyConnect).set({ stripeDefaultPriceId: 'price_def', defaultPriceCents: 9900 });
+      await call(admin, 'enable_client_billing', { clientId: A1 });
+      expect(await fails(call(admin, 'enable_client_billing', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: 'Billing is already on for this client.', userFacing: true });
+      gw.failNext();
+      expect(await fails(call(admin, 'resend_client_payment_link', { clientId: A1 }))).toMatchObject({ code: 'internal', message: STRIPE_FAILED_MESSAGE, userFacing: true });
+      expect(await fails(noGateway().invoke(admin, 'enable_client_billing', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: BILLING_NOT_CONFIGURED_MESSAGE, userFacing: true });
+    });
+  });
+
+  describe('R20: Checkout price resolution at creation time', () => {
+    it('after the default price changes, a resend for a client invited at the old default uses the current default', async () => {
+      await ready();
+      await call(admin, 'enable_client_billing', { clientId: A1 });
+      expect(checkoutArg(0).priceId).toBe('price_def');
+      await call(admin, 'set_client_billing_defaults', { priceCents: 12900 });
+      expect(gw.connectedPrices.get('price_def')!.active).toBe(false);
+      const current = (await connectRow())!.stripeDefaultPriceId!;
+      expect(await call(admin, 'resend_client_payment_link', { clientId: A1 })).toMatchObject({ ok: true, state: 'invited' });
+      expect(checkoutArg(1).priceId).toBe(current);
+      expect(await row(A1)).toMatchObject({ priceCents: 12900, stripePriceId: current });
+    });
+    it('re-enabling a cancelled client whose stored price was an archived default uses the current default', async () => {
+      await ready();
+      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'cancelled', enabled: false, priceCents: 9900, stripePriceId: 'price_def', lastPaidAt: new Date() });
+      await call(admin, 'set_client_billing_defaults', { priceCents: 12900 });
+      const current = (await connectRow())!.stripeDefaultPriceId!;
+      expect(await call(admin, 'enable_client_billing', { clientId: A1 })).toMatchObject({ ok: true, priceCents: 12900 });
+      expect(checkoutArg().priceId).toBe(current);
+    });
+    it('a live per-client override is kept on resend', async () => {
+      await ready();
+      await call(admin, 'enable_client_billing', { clientId: A1, priceCents: 15000 });
+      const override = (await row(A1))!.stripePriceId!;
+      await call(admin, 'set_client_billing_defaults', { priceCents: 12900 });
+      await call(admin, 'resend_client_payment_link', { clientId: A1 });
+      expect(checkoutArg(1).priceId).toBe(override);
+      expect(await row(A1)).toMatchObject({ priceCents: 15000, stripePriceId: override });
+    });
+    it('set_client_price never moves a subscription onto an archived stored price', async () => {
+      await ready();
+      gw.seedConnectedPrice({ id: 'price_old', stripeAccount: 'acct_1', unitAmountCents: 7000, active: false });
+      gw.seedConnectedSubscription({ id: 'sub_9', stripeAccount: 'acct_1', customerId: 'cus_9', priceId: 'price_def' });
+      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'active', enabled: true, priceCents: 7000, billedPriceCents: 9900, stripePriceId: 'price_old', stripeSubscriptionId: 'sub_9' });
+      expect(await call(admin, 'set_client_price', { clientId: A1, priceCents: 7000, applyTo: 'next_bill' })).toMatchObject({ ok: true, appliedToSubscription: true });
+      const moved = gw.connectedSubscriptions.get('sub_9')!.priceId;
+      expect(moved).not.toBe('price_old');
+      expect(gw.connectedPrices.get(moved)).toMatchObject({ active: true, unitAmountCents: 7000 });
+    });
+  });
+
+  describe('R21: an invited client with a tracked subscription (first payment still processing)', () => {
+    const processing = async () => {
+      await ready();
+      gw.seedConnectedSubscription({ id: 'sub_ach', stripeAccount: 'acct_1', customerId: 'cus_ach', priceId: 'price_def' });
+      gw.connectedCheckouts.set('cs_paid', { id: 'cs_paid', stripeAccount: 'acct_1', status: 'complete' });
+      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'invited', enabled: true, priceCents: 9900, stripePriceId: 'price_def', checkoutSessionId: 'cs_paid', stripeCustomerId: 'cus_ach', stripeSubscriptionId: 'sub_ach' });
+    };
+    it('disable cancels the subscription at period end and keeps tracking it', async () => {
+      await processing();
+      expect(await call(admin, 'disable_client_billing', { clientId: A1, confirm: true })).toMatchObject({ ok: true, state: 'invited', cancelAtPeriodEnd: true });
+      expect(gw.connectedSubscriptions.get('sub_ach')!.cancelAtPeriodEnd).toBe(true);
+      expect(await row(A1)).toMatchObject({ enabled: false, state: 'invited', stripeSubscriptionId: 'sub_ach' });
+      expect(gw.callsTo('expireConnectedCheckout')).toEqual([]);
+      // Turning billing back on waits for that subscription to end.
+      expect(await fails(call(admin, 'enable_client_billing', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: "This client's subscription ends at the end of the billing period. Turn billing on again after that." });
+    });
+    it('resend and a price change refuse with the processing copy and mail nothing', async () => {
+      await processing();
+      expect(await fails(call(admin, 'resend_client_payment_link', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: PAYMENT_PROCESSING_MESSAGE, userFacing: true });
+      for (const applyTo of ['next_bill', 'new_only'] as const) {
+        expect(await fails(call(admin, 'set_client_price', { clientId: A1, priceCents: 7000, applyTo }))).toMatchObject({ code: 'conflict', message: PAYMENT_PROCESSING_MESSAGE });
+      }
+      expect(gw.callsTo('createConnectedCheckout')).toEqual([]);
+      expect(await notices()).toEqual([]);
+      expect(await row(A1)).toMatchObject({ priceCents: 9900, checkoutSessionId: 'cs_paid' });
+    });
+    it('a resend racing the async Checkout completion is refused inside the transaction and its new session expired', async () => {
+      await ready();
+      await call(admin, 'enable_client_billing', { clientId: A1 });
+      const create = gw.createConnectedCheckout.bind(gw);
+      gw.createConnectedCheckout = async (i) => {
+        const r = await create(i);
+        await dbs.owner.update(clientBilling).set({ stripeSubscriptionId: 'sub_ach', stripeCustomerId: 'cus_ach' }).where(eq(clientBilling.clientId, A1));
+        return r;
+      };
+      expect(await fails(call(admin, 'resend_client_payment_link', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: PAYMENT_PROCESSING_MESSAGE });
+      expect([...gw.connectedCheckouts.values()].map((c) => c.status)).toEqual(['open', 'expired']);
     });
   });
 

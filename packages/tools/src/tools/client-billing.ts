@@ -1,5 +1,8 @@
-import { type ClientBillingSignal, effectiveConnectFeePercent, LIVE_SUBSCRIPTION_STATUSES, applyClientBillingSignal, connectStatusFor, clientBillingPill, countActiveClients, disconnectAgencyConnect, planFor } from '@cs/billing';
-import { type AccessContext, canAccessClient, toolkit, ToolError } from '@cs/core';
+import {
+  type ClientBillingSignal, effectiveConnectFeePercent, LIVE_SUBSCRIPTION_STATUSES, applyClientBillingSignal, connectStatusFor, clientBillingPill, countActiveClients,
+  disconnectAgencyConnect, isPaymentProcessing, isSubscribed, planFor,
+} from '@cs/billing';
+import { type AccessContext, canAccessClient, toolkit, ToolError, type ToolErrorCode } from '@cs/core';
 import { type ClientBillingRow, type ClientBillingState, type Tx, agency, agencyBilling, agencyConnect, client, clientBilling } from '@cs/db';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -14,6 +17,10 @@ const { defineTool } = toolkit<ToolDeps>();
 
 const BILLING_PATH = '/agency/settings/billing';
 export const CONNECT_FIRST_MESSAGE = 'Connect Stripe first.';
+export const STRIPE_FAILED_MESSAGE = "Stripe couldn't complete that. Please try again.";
+
+/** R19: a refusal whose message is decided copy: shown as is by the web forms and MCP (`conflict` included). */
+const refuse = (code: ToolErrorCode, message: string) => new ToolError(code, message, { userFacing: true });
 /** $100,000 / month: a sanity bound well under Stripe's own limit. */
 export const MAX_PRICE_CENTS = 10_000_000;
 
@@ -33,10 +40,33 @@ function billingUrl(deps: ToolDeps, query: string): string {
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 
-/** Stripe failures never leak their message to the caller (it can carry account detail). */
+/**
+ * R25: the agency's Customer Portal configuration on its connected account (payment method update, invoice history, no
+ * cancel), created once and stored in `agency_connect.portal_configuration_id`. A concurrent creator's stored id wins.
+ * Throws the gateway error (logged by name only).
+ */
+export async function ensurePortalConfiguration(deps: ToolDeps, agencyId: string, stripeAccount: string): Promise<string> {
+  const [cur] = await deps.service.select({ id: agencyConnect.portalConfigurationId }).from(agencyConnect).where(and(eq(agencyConnect.agencyId, agencyId), eq(agencyConnect.stripeAccountId, stripeAccount)));
+  if (cur?.id) return cur.id;
+  let id: string;
+  try {
+    id = (await deps.billing!.createConnectedPortalConfiguration({ stripeAccount })).id;
+  } catch (e) {
+    console.error('[billing] createConnectedPortalConfiguration failed', { agencyId }, (e as { name?: string } | null)?.name);
+    throw e;
+  }
+  await deps.service
+    .update(agencyConnect)
+    .set({ portalConfigurationId: id, updatedAt: new Date() })
+    .where(and(eq(agencyConnect.agencyId, agencyId), eq(agencyConnect.stripeAccountId, stripeAccount), sql`${agencyConnect.portalConfigurationId} IS NULL`));
+  const [after] = await deps.service.select({ id: agencyConnect.portalConfigurationId }).from(agencyConnect).where(eq(agencyConnect.agencyId, agencyId));
+  return after?.id ?? id;
+}
+
+/** Stripe failures never leak their message to the caller (it can carry account detail); R19: the form shows the fixed copy inline. */
 function stripeFailed(agencyId: string, what: string, e: unknown): never {
   console.error('[billing] connect gateway call failed', { agencyId, what }, (e as { name?: string } | null)?.name);
-  throw new ToolError('internal', 'Could not reach Stripe. Try again shortly.');
+  throw refuse('internal', STRIPE_FAILED_MESSAGE);
 }
 
 export const getConnectStatusTool = defineTool({
@@ -63,13 +93,24 @@ export const getConnectStatusTool = defineTool({
     let status: z.infer<typeof Status> = row?.status ?? 'not_connected';
     let chargesEnabled = row?.chargesEnabled ?? false;
     let detailsSubmitted = row?.detailsSubmitted ?? false;
-    // Live refresh (display only; the webhook persists): lets the page show the result right after onboarding returns.
+    // Live refresh: lets the page show the result right after onboarding returns. R26: a live state that differs from the
+    // stored one is persisted (same rule as the account.updated webhook, so a missed webhook cannot leave enable refusing);
+    // never in a read-only support session, and never over a disconnect that landed meanwhile.
+    let connectedAt = row?.connectedAt ?? null;
     if (deps.billing && row?.stripeAccountId && row.status !== 'disconnected') {
       try {
         const live = await deps.billing.getAccount({ stripeAccount: row.stripeAccountId });
         chargesEnabled = live.chargesEnabled;
         detailsSubmitted = live.detailsSubmitted;
         status = connectStatusFor(live);
+        if (!ctx.support && (status !== row.status || chargesEnabled !== row.chargesEnabled || detailsSubmitted !== row.detailsSubmitted)) {
+          const now = new Date();
+          if (chargesEnabled && !connectedAt) connectedAt = now;
+          await deps.service
+            .update(agencyConnect)
+            .set({ status, chargesEnabled, detailsSubmitted, connectedAt, updatedAt: now })
+            .where(and(eq(agencyConnect.agencyId, ctx.agencyId), eq(agencyConnect.stripeAccountId, row.stripeAccountId), sql`${agencyConnect.status} <> 'disconnected'`));
+        }
       } catch (e) {
         console.error('[billing] getAccount failed; showing stored state', { agencyId: ctx.agencyId }, (e as { name?: string } | null)?.name);
       }
@@ -82,7 +123,7 @@ export const getConnectStatusTool = defineTool({
       defaultSetupFeeCents: row?.defaultSetupFeeCents ?? null,
       currency: row?.currency ?? 'usd',
       autoPauseAfterDays: row?.autoPauseAfterDays ?? null,
-      connectedAt: iso(row?.connectedAt),
+      connectedAt: iso(connectedAt),
       disconnectedAt: iso(row?.disconnectedAt),
       billingConfigured: !!deps.billing,
     };
@@ -102,8 +143,9 @@ export const startStripeConnectTool = defineTool({
     const returnUrl = billingUrl(deps, '?connect=done');
     const refreshUrl = billingUrl(deps, '?connect=retry');
     const row = await connectRowOf(deps, ctx.agencyId);
-    // A disconnected account was deauthorized: onboard a fresh one (the old product/price live on the old account).
-    const reuse = row?.stripeAccountId && row.status !== 'disconnected' ? row.stripeAccountId : undefined;
+    // R24: an admin disconnect keeps the account id, so reconnecting reuses the same account (its product, prices, portal
+    // configuration and client subscriptions live there). Only a deauthorization (Stripe revoked access) clears it.
+    const reuse = row?.stripeAccountId ?? undefined;
     let link: { url: string; accountId: string };
     try {
       link = await gw.createAccountLink({ accountId: reuse, returnUrl, refreshUrl });
@@ -112,11 +154,11 @@ export const startStripeConnectTool = defineTool({
     }
     const now = new Date();
     if (!row || row.status === 'disconnected') {
-      const fresh = {
-        stripeAccountId: link.accountId, status: 'pending' as const, chargesEnabled: false, detailsSubmitted: false,
-        stripeProductId: null, stripeDefaultPriceId: null, connectedAt: null, disconnectedAt: null, updatedAt: now,
-      };
-      await deps.service.insert(agencyConnect).values({ agencyId: ctx.agencyId, ...fresh }).onConflictDoUpdate({ target: agencyConnect.agencyId, set: fresh });
+      // Pending until the live state (account.updated, or get_connect_status R26) says otherwise.
+      const pending = { stripeAccountId: link.accountId, status: 'pending' as const, chargesEnabled: false, detailsSubmitted: false, disconnectedAt: null, updatedAt: now };
+      // A fresh account: nothing of the old one carries over.
+      const fresh = reuse ? {} : { stripeProductId: null, stripeDefaultPriceId: null, portalConfigurationId: null, connectedAt: null };
+      await deps.service.insert(agencyConnect).values({ agencyId: ctx.agencyId, ...pending, ...fresh }).onConflictDoUpdate({ target: agencyConnect.agencyId, set: { ...pending, ...fresh } });
     } else {
       await deps.service.update(agencyConnect).set({ stripeAccountId: link.accountId, updatedAt: now }).where(eq(agencyConnect.agencyId, ctx.agencyId));
     }
@@ -163,7 +205,7 @@ export const setClientBillingDefaultsTool = defineTool({
     requireAdmin(ctx);
     const gw = gatewayOf(deps);
     const row = await connectRowOf(deps, ctx.agencyId);
-    if (!row?.stripeAccountId || row.status === 'disconnected') throw new ToolError('conflict', CONNECT_FIRST_MESSAGE);
+    if (!row?.stripeAccountId || row.status === 'disconnected') throw refuse('conflict', CONNECT_FIRST_MESSAGE);
     const acct = row.stripeAccountId;
     const save = (v: Partial<typeof agencyConnect.$inferInsert>) =>
       deps.service.update(agencyConnect).set({ ...v, updatedAt: new Date() }).where(eq(agencyConnect.agencyId, ctx.agencyId));
@@ -195,7 +237,10 @@ export const setClientBillingDefaultsTool = defineTool({
       })
       .where(and(eq(agencyConnect.agencyId, ctx.agencyId), sql`${agencyConnect.status} <> 'disconnected'`))
       .returning({ agencyId: agencyConnect.agencyId });
-    if (saved.length === 0) throw new ToolError('conflict', CONNECT_FIRST_MESSAGE);
+    if (saved.length === 0) throw refuse('conflict', CONNECT_FIRST_MESSAGE);
+    // R25: the clients' "Manage payment" page needs a portal configuration on the connected account. Best effort here
+    // (open_billing_portal creates it lazily when missing).
+    if (!row.portalConfigurationId) await ensurePortalConfiguration(deps, ctx.agencyId, acct).catch(() => null);
     if (priceChanged && oldPriceId) {
       // Best-effort: an unarchived old price is harmless (nothing references it as the default any more).
       await gw.archiveConnectedPrice({ stripeAccount: acct, priceId: oldPriceId }).catch((e: unknown) =>
@@ -216,6 +261,7 @@ export const CONNECT_NOT_READY_MESSAGE = 'Finish your Stripe setup first.';
 export const NO_CLIENT_OWNER_MESSAGE = 'Invite a client owner first.';
 export const NO_DEFAULT_PRICE_MESSAGE = 'Set a default price first, or give this client a price.';
 const NO_PENDING_LINK_MESSAGE = 'No payment link is pending for this client.';
+export const PAYMENT_PROCESSING_MESSAGE = "This client's first payment is still processing.";
 const ALREADY_BILLING_MESSAGE = 'Billing is already on for this client.';
 export const SUBSCRIPTION_ENDING_MESSAGE = "This client's subscription ends at the end of the billing period. Turn billing on again after that.";
 export const STRIPE_SUBSCRIPTION_EXISTS_MESSAGE = 'This client already has a subscription in your Stripe account. Cancel it there first.';
@@ -240,10 +286,10 @@ const billingRowOf = async (deps: ToolDeps, clientId: string): Promise<ClientBil
 async function eligibleConnect(deps: ToolDeps, agencyId: string) {
   const [b] = await deps.service.select({ state: agencyBilling.state }).from(agencyBilling).where(eq(agencyBilling.agencyId, agencyId));
   const state = b?.state ?? 'pilot';
-  if (state !== 'active' && state !== 'pilot') throw new ToolError('billing_not_eligible', BILLING_NOT_ELIGIBLE_MESSAGE);
+  if (state !== 'active' && state !== 'pilot') throw refuse('billing_not_eligible', BILLING_NOT_ELIGIBLE_MESSAGE);
   const connect = await connectRowOf(deps, agencyId);
-  if (!connect?.stripeAccountId || connect.status === 'disconnected') throw new ToolError('conflict', CONNECT_FIRST_MESSAGE);
-  if (connect.status !== 'connected' || !connect.chargesEnabled) throw new ToolError('connect_not_ready', CONNECT_NOT_READY_MESSAGE);
+  if (!connect?.stripeAccountId || connect.status === 'disconnected') throw refuse('conflict', CONNECT_FIRST_MESSAGE);
+  if (connect.status !== 'connected' || !connect.chargesEnabled) throw refuse('connect_not_ready', CONNECT_NOT_READY_MESSAGE);
   return { connect, acct: connect.stripeAccountId };
 }
 
@@ -286,8 +332,35 @@ async function checkoutFor(
   }
 }
 
+type ConnectRow = typeof agencyConnect.$inferSelect;
+
+/**
+ * R20: Checkout price resolution at creation time. A stored price is reused only when it is the agency's current default
+ * or a still-active per-client price (an override in use is never archived, so an archived stored id can only be an old
+ * default). Otherwise: null, and the caller falls back to the CURRENT default.
+ */
+async function storedPriceUsable(deps: ToolDeps, ctx: AccessContext, connect: ConnectRow, acct: string, priceId: string | null, priceCents: number | null): Promise<{ priceId: string; priceCents: number } | null> {
+  if (!priceId || priceCents === null) return null;
+  if (priceId === connect.stripeDefaultPriceId) return { priceId, priceCents };
+  if (connect.stripeDefaultPriceId && priceCents === connect.defaultPriceCents) return { priceId: connect.stripeDefaultPriceId, priceCents };
+  let active: boolean;
+  try {
+    active = (await deps.billing!.getConnectedPrice({ stripeAccount: acct, priceId })).active;
+  } catch (e) {
+    if ((e as { code?: string } | null)?.code !== 'resource_missing') stripeFailed(ctx.agencyId, 'getConnectedPrice', e);
+    active = false;
+  }
+  return active ? { priceId, priceCents } : null;
+}
+
+/** The agency's current default price, or the set-defaults refusal. */
+function currentDefault(connect: ConnectRow): { priceId: string; priceCents: number } {
+  if (connect.defaultPriceCents === null || !connect.stripeDefaultPriceId) throw refuse('conflict', NO_DEFAULT_PRICE_MESSAGE);
+  return { priceId: connect.stripeDefaultPriceId, priceCents: connect.defaultPriceCents };
+}
+
 async function connectedPrice(deps: ToolDeps, ctx: AccessContext, connect: { stripeProductId: string | null; currency: string }, acct: string, cents: number): Promise<string> {
-  if (!connect.stripeProductId) throw new ToolError('conflict', NO_DEFAULT_PRICE_MESSAGE);
+  if (!connect.stripeProductId) throw refuse('conflict', NO_DEFAULT_PRICE_MESSAGE);
   try {
     return (await deps.billing!.createConnectedPrice({ stripeAccount: acct, productId: connect.stripeProductId, unitAmountCents: cents, currency: connect.currency })).id;
   } catch (e) {
@@ -315,7 +388,7 @@ async function assertNotPaid(deps: ToolDeps, ctx: AccessContext, acct: string, s
     if ((e as { code?: string } | null)?.code === 'resource_missing') return;
     stripeFailed(ctx.agencyId, 'getConnectedCheckout', e);
   }
-  if (status === 'complete') throw new ToolError('conflict', JUST_PAID_MESSAGE);
+  if (status === 'complete') throw refuse('conflict', JUST_PAID_MESSAGE);
 }
 
 /**
@@ -341,7 +414,7 @@ async function commitInvite(
       guard(cur!);
       return applyClientBillingSignal(tx, clientId, signal, ctx.userId);
     });
-    if (!r.changed) throw new ToolError('conflict', unchanged);
+    if (!r.changed) throw refuse('conflict', unchanged);
     await expireQuietly(deps, ctx.agencyId, acct, replaced);
     return { state: r.state! };
   } catch (e) {
@@ -352,15 +425,17 @@ async function commitInvite(
 
 /** R13d: the invite being replaced must still be the pending one the tool read (not paid, not replaced meanwhile). */
 function guardPendingInvite(cur: ClientBillingRow, expectedSessionId: string | null): void {
-  if (cur.state === 'active' || cur.state === 'payment_needed') throw new ToolError('conflict', JUST_PAID_MESSAGE);
-  if (cur.state !== 'invited' || !cur.enabled) throw new ToolError('conflict', NO_PENDING_LINK_MESSAGE);
-  if (cur.checkoutSessionId !== expectedSessionId) throw new ToolError('conflict', INVITE_CHANGED_MESSAGE);
+  if (cur.state === 'active' || cur.state === 'payment_needed') throw refuse('conflict', JUST_PAID_MESSAGE);
+  if (cur.state !== 'invited' || !cur.enabled) throw refuse('conflict', NO_PENDING_LINK_MESSAGE);
+  // R21: an async Checkout completed meanwhile (R16): its first payment is processing, a second link must not go out.
+  if (isPaymentProcessing(cur)) throw refuse('conflict', PAYMENT_PROCESSING_MESSAGE);
+  if (cur.checkoutSessionId !== expectedSessionId) throw refuse('conflict', INVITE_CHANGED_MESSAGE);
 }
 
 /** R12b: a disconnect can land between the eligibility check and the write; re-check inside the writing transaction. */
 async function assertConnectLive(tx: Tx, agencyId: string): Promise<void> {
   const [c] = await tx.select({ status: agencyConnect.status }).from(agencyConnect).where(eq(agencyConnect.agencyId, agencyId)).for('share');
-  if (!c || c.status === 'disconnected') throw new ToolError('connect_not_ready', CONNECT_NOT_READY_MESSAGE);
+  if (!c || c.status === 'disconnected') throw refuse('connect_not_ready', CONNECT_NOT_READY_MESSAGE);
 }
 
 /** R11: a stored subscription id means Stripe may still bill this client. Live -> refuse; ended or gone -> forget it. */
@@ -374,7 +449,7 @@ async function clearEndedSubscription(deps: ToolDeps, agencyId: string, acct: st
     if ((e as { code?: string } | null)?.code !== 'resource_missing') stripeFailed(agencyId, 'getConnectedSubscription', e);
     live = false;
   }
-  if (live) throw new ToolError('conflict', STRIPE_SUBSCRIPTION_EXISTS_MESSAGE);
+  if (live) throw refuse('conflict', STRIPE_SUBSCRIPTION_EXISTS_MESSAGE);
   await deps.service.update(clientBilling).set({ stripeSubscriptionId: null, updatedAt: new Date() }).where(eq(clientBilling.clientId, row.clientId));
 }
 
@@ -398,29 +473,28 @@ export const enableClientBillingTool = defineTool({
     const { connect, acct } = await eligibleConnect(deps, ctx.agencyId);
     if (c.status !== 'active') throw new ToolError('invalid_input', 'Only an active client can be billed.');
     const existing = await billingRowOf(deps, c.id);
-    if (existing?.enabled && ['invited', 'active', 'payment_needed'].includes(existing.state)) throw new ToolError('conflict', ALREADY_BILLING_MESSAGE);
-    if (existing && !existing.enabled && SUBSCRIBED.includes(existing.state)) throw new ToolError('conflict', SUBSCRIPTION_ENDING_MESSAGE);
+    if (existing?.enabled && ['invited', 'active', 'payment_needed'].includes(existing.state)) throw refuse('conflict', ALREADY_BILLING_MESSAGE);
+    // R21: a tracked subscription (also an invited one whose first payment is processing) must end first.
+    if (existing && !existing.enabled && isSubscribed(existing)) throw refuse('conflict', SUBSCRIPTION_ENDING_MESSAGE);
     const emails = await clientOwnerEmails(deps, c.id);
-    if (emails.length === 0) throw new ToolError('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
+    if (emails.length === 0) throw refuse('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
     if (existing) await clearEndedSubscription(deps, ctx.agencyId, acct, existing);
 
-    // Price: explicit override > a price stored earlier for this client (set_client_price new_only) > the agency default.
+    // Price: explicit override > a usable price stored earlier for this client (set_client_price new_only) > the CURRENT default (R20).
     let priceCents: number;
     let priceId: string;
-    const stored = existing && (existing.state === 'off' || existing.state === 'cancelled') && existing.stripePriceId && existing.priceCents !== null ? existing : null;
-    if (input.priceCents === undefined && stored) {
-      priceCents = stored.priceCents!;
-      priceId = stored.stripePriceId!;
+    const storedRow = existing && (existing.state === 'off' || existing.state === 'cancelled' || existing.state === 'disconnected') ? existing : null;
+    const stored = input.priceCents === undefined && storedRow ? await storedPriceUsable(deps, ctx, connect, acct, storedRow.stripePriceId, storedRow.priceCents) : null;
+    if (stored) {
+      ({ priceId, priceCents } = stored);
     } else if (input.priceCents !== undefined && input.priceCents !== connect.defaultPriceCents) {
       priceCents = input.priceCents;
       priceId = await connectedPrice(deps, ctx, connect, acct, priceCents);
     } else {
-      if (connect.defaultPriceCents === null || !connect.stripeDefaultPriceId) throw new ToolError('conflict', NO_DEFAULT_PRICE_MESSAGE);
-      priceCents = connect.defaultPriceCents;
-      priceId = connect.stripeDefaultPriceId;
+      ({ priceId, priceCents } = currentDefault(connect));
     }
     // The one-time setup fee is only for a client who has never paid.
-    const setupFeeCents = existing?.lastPaidAt ? 0 : input.setupFeeCents ?? (stored ? stored.setupFeeCents : null) ?? connect.defaultSetupFeeCents ?? 0;
+    const setupFeeCents = existing?.lastPaidAt ? 0 : input.setupFeeCents ?? (stored ? storedRow!.setupFeeCents : null) ?? connect.defaultSetupFeeCents ?? 0;
     const checkout = await checkoutFor(deps, ctx, { acct, clientId: c.id, priceId, setupFeeCents, email: emails[0]! });
     const r = await commitInvite(
       deps, ctx, c.id, acct,
@@ -428,8 +502,8 @@ export const enableClientBillingTool = defineTool({
       null,
       (cur) => {
         // R13d: another enable (or a payment) won the race since the check above.
-        if (cur.enabled && ['invited', 'active', 'payment_needed'].includes(cur.state)) throw new ToolError('conflict', ALREADY_BILLING_MESSAGE);
-        if (!cur.enabled && SUBSCRIBED.includes(cur.state)) throw new ToolError('conflict', SUBSCRIPTION_ENDING_MESSAGE);
+        if (cur.enabled && ['invited', 'active', 'payment_needed'].includes(cur.state)) throw refuse('conflict', ALREADY_BILLING_MESSAGE);
+        if (!cur.enabled && isSubscribed(cur)) throw refuse('conflict', SUBSCRIPTION_ENDING_MESSAGE);
       },
       ALREADY_BILLING_MESSAGE,
     );
@@ -450,15 +524,18 @@ export const resendClientPaymentLinkTool = defineTool({
     const c = await ownClient(deps, ctx, clientId);
     const { connect, acct } = await eligibleConnect(deps, ctx.agencyId);
     const row = await billingRowOf(deps, c.id);
-    if (!row || !row.enabled || row.state !== 'invited' || !row.stripePriceId || row.priceCents === null) throw new ToolError('conflict', NO_PENDING_LINK_MESSAGE);
+    if (!row || !row.enabled || row.state !== 'invited' || row.priceCents === null) throw refuse('conflict', NO_PENDING_LINK_MESSAGE);
+    if (isPaymentProcessing(row)) throw refuse('conflict', PAYMENT_PROCESSING_MESSAGE);
     const emails = await clientOwnerEmails(deps, c.id);
-    if (emails.length === 0) throw new ToolError('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
+    if (emails.length === 0) throw refuse('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
     const setupFeeCents = row.setupFeeCents ?? 0;
     await assertNotPaid(deps, ctx, acct, row.checkoutSessionId);
-    const checkout = await checkoutFor(deps, ctx, { acct, clientId: c.id, priceId: row.stripePriceId, setupFeeCents, email: emails[0]! });
+    // R20: the client's own price while still usable, else the CURRENT default (never an archived old default).
+    const price = (await storedPriceUsable(deps, ctx, connect, acct, row.stripePriceId, row.priceCents)) ?? currentDefault(connect);
+    const checkout = await checkoutFor(deps, ctx, { acct, clientId: c.id, priceId: price.priceId, setupFeeCents, email: emails[0]! });
     const r = await commitInvite(
       deps, ctx, c.id, acct,
-      { type: 'invited', priceCents: row.priceCents, setupFeeCents, stripePriceId: row.stripePriceId, checkoutUrl: checkout.url, checkoutSessionId: checkout.id },
+      { type: 'invited', priceCents: price.priceCents, setupFeeCents, stripePriceId: price.priceId, checkoutUrl: checkout.url, checkoutSessionId: checkout.id },
       row.checkoutSessionId,
       (cur) => guardPendingInvite(cur, row.checkoutSessionId),
       NO_PENDING_LINK_MESSAGE,
@@ -481,19 +558,20 @@ export const disableClientBillingTool = defineTool({
     const row = await billingRowOf(deps, c.id);
     if (!row) return { ok: true as const, state: 'off' as const, cancelAtPeriodEnd: false };
     let cancelAtPeriodEnd = false;
-    if (row.enabled && row.stripeSubscriptionId && SUBSCRIBED.includes(row.state)) {
+    // R21: an invited row with a tracked subscription (first payment processing) is subscribed too.
+    if (row.enabled && isSubscribed(row)) {
       // After a disconnect Rival Monday no longer touches the agency's Stripe account: the change is local only.
       const connect = await connectRowOf(deps, ctx.agencyId);
       if (connect?.stripeAccountId && connect.status !== 'disconnected') {
         try {
-          await gw.cancelConnectedSubscriptionAtPeriodEnd({ stripeAccount: connect.stripeAccountId, subscriptionId: row.stripeSubscriptionId });
+          await gw.cancelConnectedSubscriptionAtPeriodEnd({ stripeAccount: connect.stripeAccountId, subscriptionId: row.stripeSubscriptionId! });
         } catch (e) {
           stripeFailed(ctx.agencyId, 'cancelConnectedSubscriptionAtPeriodEnd', e);
         }
         cancelAtPeriodEnd = true;
       }
     }
-    if (row.state === 'invited') {
+    if (row.state === 'invited' && !row.stripeSubscriptionId) {
       const connect = await connectRowOf(deps, ctx.agencyId);
       if (connect?.stripeAccountId && connect.status !== 'disconnected') await expireQuietly(deps, ctx.agencyId, connect.stripeAccountId, row.checkoutSessionId);
     }
@@ -515,22 +593,26 @@ export const setClientPriceTool = defineTool({
     const c = await ownClient(deps, ctx, input.clientId);
     const { connect, acct } = await eligibleConnect(deps, ctx.agencyId);
     const row = await billingRowOf(deps, c.id);
-    const invited = !!row && row.enabled && row.state === 'invited' && !!row.stripePriceId;
+    // R21: while an async first payment is processing, no new link (or price) is issued.
+    if (row && isPaymentProcessing(row)) throw refuse('conflict', PAYMENT_PROCESSING_MESSAGE);
+    const invited = !!row && row.enabled && row.state === 'invited';
     const live = !!row && row.enabled && !!row.stripeSubscriptionId && SUBSCRIBED.includes(row.state);
     const apply = input.applyTo === 'next_bill' && live;
     let emails: string[] = [];
     if (invited) {
       emails = await clientOwnerEmails(deps, c.id);
-      if (emails.length === 0) throw new ToolError('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
+      if (emails.length === 0) throw refuse('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
     }
     if (invited) await assertNotPaid(deps, ctx, acct, row!.checkoutSessionId);
-    // An unchanged amount never creates a new Stripe price: reuse the default or the client's stored price.
-    const priceId =
+    // An unchanged amount never creates a new Stripe price: reuse the default or the client's stored price while it is
+    // still usable (R20: never an archived one).
+    const reusable =
       input.priceCents === connect.defaultPriceCents && connect.stripeDefaultPriceId
         ? connect.stripeDefaultPriceId
         : row?.stripePriceId && row.priceCents === input.priceCents
-          ? row.stripePriceId
-          : await connectedPrice(deps, ctx, connect, acct, input.priceCents);
+          ? (await storedPriceUsable(deps, ctx, connect, acct, row.stripePriceId, row.priceCents))?.priceId ?? null
+          : null;
+    const priceId = reusable ?? (await connectedPrice(deps, ctx, connect, acct, input.priceCents));
     if (apply && row!.billedPriceCents !== input.priceCents) {
       try {
         await gw.updateConnectedSubscriptionPrice({ stripeAccount: acct, subscriptionId: row!.stripeSubscriptionId!, priceId, prorate: false });

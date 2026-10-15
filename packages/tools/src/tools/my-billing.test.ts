@@ -7,7 +7,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { PAUSED_WRITE_ALLOW_LIST } from '../billing-guard';
 import { createToolRegistry } from '../registry';
 import { BILLING_NOT_CONFIGURED_MESSAGE } from './billing';
-import { NOTHING_TO_MANAGE_MESSAGE, PORTAL_UNAVAILABLE_MESSAGE } from './my-billing';
+import { NOTHING_TO_MANAGE_MESSAGE, PORTAL_FAILED_MESSAGE, PORTAL_UNAVAILABLE_MESSAGE } from './my-billing';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -28,7 +28,7 @@ let registry: ReturnType<typeof createToolRegistry>;
 const audit = { audit: { record: async () => {} } };
 const call = (ctx: AccessContext, name: string, input: unknown = { clientId: A1 }) => registry.invoke(ctx, name, input);
 const fails = async (p: Promise<unknown>) => {
-  try { await p; } catch (e) { return e as { code?: string; message: string }; }
+  try { await p; } catch (e) { return e as { code?: string; message: string; userFacing?: boolean }; }
   throw new Error('expected a failure');
 };
 const seedConnect = async () => {
@@ -117,23 +117,48 @@ describe('open_billing_portal', () => {
     await seedConnect();
     await seedBilling();
     const r = (await call(owner, 'open_billing_portal')) as { url: string };
-    const arg = gw.callsTo('createConnectedPortal')[0]!.args[0] as { stripeAccount: string; customerId: string; returnUrl: string };
-    expect(arg).toEqual({ stripeAccount: 'acct_1', customerId: 'cus_1', returnUrl: `${APP}/c/${A1}/settings/billing` });
+    const arg = gw.callsTo('createConnectedPortal')[0]!.args[0] as { stripeAccount: string; customerId: string; returnUrl: string; configuration?: string };
+    const [conn] = await dbs.owner.select().from(agencyConnect).where(eq(agencyConnect.agencyId, IDS.agencyA));
+    expect(arg).toEqual({ stripeAccount: 'acct_1', customerId: 'cus_1', returnUrl: `${APP}/c/${A1}/settings/billing`, configuration: conn!.portalConfigurationId });
     expect(r.url).toContain(`/c/${A1}/settings/billing`);
+  });
+
+  it('R25: creates the portal configuration on the connected account when missing, stores it and reuses it', async () => {
+    await seedConnect();
+    await seedBilling();
+    await call(owner, 'open_billing_portal');
+    await call(owner, 'open_billing_portal');
+    expect(gw.callsTo('createConnectedPortalConfiguration')).toHaveLength(1);
+    expect(gw.callsTo('createConnectedPortalConfiguration')[0]!.args[0]).toEqual({ stripeAccount: 'acct_1' });
+    const [conn] = await dbs.owner.select().from(agencyConnect).where(eq(agencyConnect.agencyId, IDS.agencyA));
+    expect(conn!.portalConfigurationId).toMatch(/^bpc_/);
+    expect(gw.callsTo('createConnectedPortal').map((c) => (c.args[0] as { configuration: string }).configuration)).toEqual([conn!.portalConfigurationId, conn!.portalConfigurationId]);
+  });
+
+  it('R25: a stored configuration is used as is; a failure creating one refuses with the plain copy', async () => {
+    await seedConnect();
+    await seedBilling();
+    const { id } = await gw.createConnectedPortalConfiguration({ stripeAccount: 'acct_1' });
+    await dbs.owner.update(agencyConnect).set({ portalConfigurationId: id });
+    await call(owner, 'open_billing_portal');
+    expect((gw.callsTo('createConnectedPortal')[0]!.args[0] as { configuration: string }).configuration).toBe(id);
+    await dbs.owner.update(agencyConnect).set({ portalConfigurationId: null });
+    gw.failNext();
+    expect(await fails(call(owner, 'open_billing_portal'))).toMatchObject({ code: 'internal', message: PORTAL_FAILED_MESSAGE, userFacing: true });
   });
 
   it('refuses with plain copy: no gateway, no customer yet, agency disconnected, Stripe failure', async () => {
     await seedConnect();
     const none = createToolRegistry({ app: dbs.app, service: dbs.service, appUrl: APP }, audit);
     expect(await fails(none.invoke(owner, 'open_billing_portal', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: BILLING_NOT_CONFIGURED_MESSAGE });
-    expect(await fails(call(owner, 'open_billing_portal'))).toMatchObject({ code: 'conflict', message: NOTHING_TO_MANAGE_MESSAGE });
+    expect(await fails(call(owner, 'open_billing_portal'))).toMatchObject({ code: 'conflict', message: NOTHING_TO_MANAGE_MESSAGE, userFacing: true });
     await seedBilling();
     gw.failNext();
     const failed = await fails(call(owner, 'open_billing_portal'));
-    expect(failed.code).toBe('internal');
+    expect(failed).toMatchObject({ code: 'internal', message: PORTAL_FAILED_MESSAGE, userFacing: true }); // R19: inline, not the error page
     expect(failed.message).not.toMatch(/stripe|fake/i);
     await dbs.owner.update(agencyConnect).set({ status: 'disconnected' }).where(eq(agencyConnect.agencyId, IDS.agencyA));
-    expect(await fails(call(owner, 'open_billing_portal'))).toMatchObject({ code: 'conflict', message: PORTAL_UNAVAILABLE_MESSAGE });
+    expect(await fails(call(owner, 'open_billing_portal'))).toMatchObject({ code: 'conflict', message: PORTAL_UNAVAILABLE_MESSAGE, userFacing: true });
     for (const m of [NOTHING_TO_MANAGE_MESSAGE, PORTAL_UNAVAILABLE_MESSAGE, BILLING_NOT_CONFIGURED_MESSAGE]) expect(m).not.toMatch(/rival\s*monday/i);
   });
 

@@ -26,7 +26,7 @@ export const BILLING_NOT_CONFIGURED_MESSAGE = 'Billing is not configured.';
 
 /** R27: no gateway (keyless DEV/production) => tools that need Stripe refuse; reads degrade instead of calling this. */
 export function gatewayOf(deps: ToolDeps): BillingGateway {
-  if (!deps.billing) throw new ToolError('conflict', BILLING_NOT_CONFIGURED_MESSAGE);
+  if (!deps.billing) throw new ToolError('conflict', BILLING_NOT_CONFIGURED_MESSAGE, { userFacing: true });
   return deps.billing;
 }
 
