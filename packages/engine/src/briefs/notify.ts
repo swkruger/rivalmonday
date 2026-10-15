@@ -6,6 +6,10 @@ import { BRIEF_MAX_ATTEMPTS, type BriefRunResult } from './generate';
 /** Decided copy (12b): the AM notice for a ready starting point. */
 export const startingPointNotice = (clientName: string) => `Your starting point brief for ${clientName} is ready to review.`;
 
+/** Decided copy (12b): the AM notice when a starting point fails on its last attempt. */
+export const startingPointFailedNotice = (clientName: string, clientId: string) =>
+  `Your starting point brief for ${clientName} could not be generated. Run \`pnpm --filter @cs/worker brief-once --client ${clientId} --starting-point\` to try again.`;
+
 /** Decision 12 / spec §11: tell agency staff a brief is ready, or that it failed on its last attempt (never sent unverified). */
 export async function notifyBriefOutcome(deps: { db: Db; delivery: DeliveryConfig }, result: BriefRunResult, now: Date): Promise<number> {
   if (result.status === 'skipped') return 0;
@@ -18,7 +22,10 @@ export async function notifyBriefOutcome(deps: { db: Db; delivery: DeliveryConfi
   const start = b.kind === 'starting_point';
   const title = ready ? (start ? startingPointNotice(row.clientName) : `Brief ready for review: ${row.clientName}`) : `Brief failed: ${row.clientName}`;
   const drops = b.dropped.items + b.dropped.sentences > 0 ? [`The verifier dropped ${b.dropped.items} item(s) and ${b.dropped.sentences} sentence(s).`] : [];
-  const lines = ready && start
+  const startFailed = !ready && start;
+  const lines = startFailed
+    ? [startingPointFailedNotice(row.clientName, b.clientId)]
+    : ready && start
     ? [title, 'It goes to the client as soon as you approve it.', ...drops]
     : ready
     ? [

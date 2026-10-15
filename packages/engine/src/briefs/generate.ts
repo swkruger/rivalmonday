@@ -1,11 +1,12 @@
 import type { Ai } from '@cs/ai';
-import { brief, type BriefDropStats, briefItem, type BriefKind, changeEvent, client, type Db } from '@cs/db';
-import { and, desc, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm';
+import { brief, type BriefDropStats, briefItem, type BriefKind, changeEvent, client, type Db, recommendation } from '@cs/db';
+import { and, asc, desc, eq, inArray, isNotNull, ne, notInArray, sql } from 'drizzle-orm';
 import type { PackLoader } from '../tag/tag-stage';
 import { candidateEventIds, candidateEvidenceIds, gatherBriefCandidates, loadBriefClient } from './gather';
 import { candidateTrigger, playbookFor, resolvePlaybooks } from './playbooks';
 import { briefDue, briefPeriod, deliveryDateFor, localParts, safeTimezone } from './schedule';
 import { selectBriefItems } from './select';
+import { buildScorecard, Scorecard } from './scorecard';
 import { countSummary } from './summary';
 import { trendSnapshot } from './trend';
 import { verifyDraft, type VerifiedItem } from './verify';
@@ -40,6 +41,22 @@ async function claimBrief(db: Db, c: { id: string; agencyId: string }, deliveryD
   const [existing] = await db.select({ status: brief.status, attempts: brief.attempts }).from(brief).where(and(eq(brief.clientId, c.id), eq(brief.deliveryDate, deliveryDate)));
   if (existing?.status === 'failed') return { skipped: `failed after ${existing.attempts} attempts` };
   return { skipped: `a brief for ${deliveryDate} is already ${existing?.status ?? 'claimed'}` };
+}
+
+const OPEN_FIRST_MOVES_MAX = 3;
+
+/** The client's starting-point brief (its scorecard is the baseline) and the first moves still open from it. */
+async function startingPointBaseline(db: Db, clientId: string): Promise<{ briefId: string; scorecard: Scorecard | null; openFirstMoves: { recommendationId: string; title: string }[] } | null> {
+  const [sp] = await db.select({ id: brief.id, scorecard: brief.scorecard }).from(brief)
+    .where(and(eq(brief.clientId, clientId), eq(brief.kind, 'starting_point'), ne(brief.status, 'failed'), ne(brief.status, 'generating')))
+    .orderBy(desc(brief.deliveryDate)).limit(1);
+  if (!sp) return null;
+  const parsed = Scorecard.safeParse(sp.scorecard);
+  const moves = await db.select({ recommendationId: recommendation.id, title: recommendation.title }).from(recommendation)
+    .innerJoin(briefItem, eq(briefItem.id, recommendation.briefItemId))
+    .where(and(eq(briefItem.briefId, sp.id), eq(recommendation.clientId, clientId), notInArray(recommendation.status, ['done', 'dismissed'])))
+    .orderBy(asc(briefItem.ord)).limit(OPEN_FIRST_MOVES_MAX);
+  return { briefId: sp.id, scorecard: parsed.success ? parsed.data : null, openFirstMoves: moves };
 }
 
 /**
@@ -104,8 +121,14 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
       const dropped = { items: verified.dropped.items + (verified.items.length - items.length), sentences: verified.dropped.sentences };
       const kind: BriefKind = items.length > 0 ? 'standard' : 'quiet';
       const summary = kind === 'quiet' ? QUIET_SUMMARY : items.length === verified.items.length ? verified.summary : countSummary(items.length);
+      // A quiet week still shows where the client stands against the starting point (Phase 12b T6).
+      let scorecard: Scorecard | null = null;
+      if (kind === 'quiet') {
+        const sp = await startingPointBaseline(deps.db, clientId);
+        scorecard = { ...(await buildScorecard(deps, clientId, { now, baseline: sp?.scorecard ?? null, openFirstMoves: sp?.openFirstMoves ?? [] })), baselineBriefId: sp?.briefId ?? null };
+      }
       // Fence first: if a newer attempt reclaimed this brief, store nothing.
-      const won = await tx.update(brief).set({ status: 'ready', kind, summary, trend, dropped, generatedAt: new Date(), updatedAt: new Date() }).where(owned).returning({ id: brief.id });
+      const won = await tx.update(brief).set({ status: 'ready', kind, summary, scorecard, trend, dropped, generatedAt: new Date(), updatedAt: new Date() }).where(owned).returning({ id: brief.id });
       if (won.length === 0) return { status: 'skipped', reason: 'superseded by a newer attempt' };
       if (items.length > 0) {
         await tx.insert(briefItem).values(items.map((i, ord) => ({

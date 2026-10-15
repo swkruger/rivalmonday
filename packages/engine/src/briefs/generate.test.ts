@@ -1,4 +1,4 @@
-import { brief, briefItem, changeEvent, client, move, moveEvent } from '@cs/db';
+import { brief, briefItem, changeEvent, client, competitor, move, moveEvent, recommendation, review } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -6,6 +6,7 @@ import { createFakeAi, noul } from '../../test/fake-ai';
 import { day, seedScoredEvent } from '../../test/seed';
 import { createPackLoader } from '../tag/tag-stage';
 import type { EventCandidate, MoveCandidate } from './gather';
+import { buildScorecard } from './scorecard';
 import { committableItems, generateBrief, listBriefDueClients, QUIET_SUMMARY } from './generate';
 import type { VerifiedItem } from './verify';
 
@@ -155,6 +156,61 @@ describe('generateBrief', () => {
     ai.chat = async (t, i, s) => { scopes.push(s); return chat(t, i, s); };
     await run(ai);
     expect(scopes).toEqual([{ agencyId: IDS.agencyA, clientId: IDS.clientA1 }]);
+  });
+});
+
+describe('quiet-week scorecard (12b T6)', () => {
+  const SP_DATE = '2026-09-28';
+  async function seedSelf(rating: number) {
+    const [s] = await dbs.owner.insert(competitor).values({ name: 'A1 HVAC', placeId: 'PSELF' }).returning({ id: competitor.id });
+    await dbs.owner.update(client).set({ selfCompetitorId: s!.id }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.insert(review).values({ competitorId: s!.id, dedupeKey: 'r1', rating, text: 't', postedAt: new Date('2026-10-01T00:00:00Z') });
+    return s!.id;
+  }
+  async function seedStartingPoint(statuses: string[]) {
+    const scorecard = await buildScorecard({ db: dbs.service, packs }, IDS.clientA1, { now: new Date('2026-09-28T12:00:00Z') });
+    const [b] = await dbs.owner.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, deliveryDate: SP_DATE, periodStart: day(-7), periodEnd: day(-3), status: 'sent', kind: 'starting_point', summary: 's', scorecard }).returning();
+    const recs: string[] = [];
+    for (const [ord, status] of statuses.entries()) {
+      const [it] = await dbs.owner.insert(briefItem).values({ briefId: b!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1, ord, competitorId: null, subject: 'self', headline: `h${ord}`, whatChanged: 'w', whyItMatters: 'y', recommendedAction: 'a', confidence: 1, effort: 'L', impact: 'M', eventIds: [], evidenceIds: [] }).returning();
+      const [r] = await dbs.owner.insert(recommendation).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, title: `Move ${ord}`, rationale: 'r', effort: 'L', impact: 'M', owner: 'agency', status, source: 'brief', briefItemId: it!.id }).returning({ id: recommendation.id });
+      recs.push(r!.id);
+    }
+    return { briefId: b!.id, recs };
+  }
+  const weekly = async () => { await run(); return (await dbs.owner.select().from(brief).where(eq(brief.deliveryDate, '2026-10-05')))[0]!; };
+
+  it('quiet brief gets scorecard with deltas', async () => {
+    const selfId = await seedSelf(4);
+    const sp = await seedStartingPoint(['todo']);
+    await dbs.owner.insert(review).values({ competitorId: selfId, dedupeKey: 'r2', rating: 5, text: 't', postedAt: new Date('2026-10-01T00:00:00Z') });
+    const b = await weekly();
+    const sc = b.scorecard as { baselineBriefId: string; tiles: { metric: string; deltaSinceStart: number | null }[]; openFirstMoves: { recommendationId: string; title: string }[] };
+    expect(b.kind).toBe('quiet');
+    expect(sc.baselineBriefId).toBe(sp.briefId);
+    expect(sc.tiles.find((t) => t.metric === 'reviews90d')!.deltaSinceStart).toBe(1);
+    expect(sc.openFirstMoves).toEqual([{ recommendationId: sp.recs[0], title: 'Move 0' }]);
+  });
+
+  it('no starting point → baseline null, deltas null', async () => {
+    await seedSelf(4);
+    const sc = (await weekly()).scorecard as { baselineBriefId: string | null; tiles: { deltaSinceStart: number | null }[]; openFirstMoves: unknown[] };
+    expect(sc.baselineBriefId).toBeNull();
+    expect(sc.tiles.every((t) => t.deltaSinceStart === null)).toBe(true);
+    expect(sc.openFirstMoves).toEqual([]);
+  });
+
+  it('done recommendations excluded (and at most 3 open)', async () => {
+    await seedSelf(4);
+    const sp = await seedStartingPoint(['done', 'dismissed', 'todo', 'in_progress', 'todo', 'todo']);
+    const sc = (await weekly()).scorecard as { openFirstMoves: { recommendationId: string }[] };
+    expect(sc.openFirstMoves.map((m) => m.recommendationId)).toEqual([sp.recs[2], sp.recs[3], sp.recs[4]]);
+  });
+
+  it('standard briefs have no scorecard', async () => {
+    await seedEvent();
+    await run();
+    expect((await dbs.owner.select().from(brief))[0]!.scorecard).toBeNull();
   });
 });
 

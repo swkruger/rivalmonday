@@ -57,6 +57,17 @@ describe('startingPointReadiness', () => {
   });
 });
 
+describe('startingPointReadiness: failed discovery', () => {
+  it('treats a failed latest discovery run as not applicable, not as unready', async () => {
+    await activate(hoursAgo(1), { keywords: ['ac repair'], serviceArea: AREA, placeId: 'PSELF' });
+    await seedProfile();
+    await seedReviewsDone();
+    await dbs.owner.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'done', finishedAt: hoursAgo(0.5) });
+    await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'auto', status: 'failed' });
+    expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ ready: true, checks: { competitors: null } });
+  });
+});
+
 describe('listStartingPointDue', () => {
   it('not ready and < 48 h → not due', async () => {
     await activate(hoursAgo(47));

@@ -8,7 +8,11 @@ describe('parseBriefArgs', () => {
     expect(parseBriefArgs(['--client', 'x'])).toEqual({ error: expect.stringMatching(/uuid/) });
   });
   it('parses --now and --force', () => {
-    expect(parseBriefArgs(['--client', A1, '--now', '2026-10-02T03:30:00Z', '--force'])).toEqual({ client: A1, now: new Date('2026-10-02T03:30:00Z'), force: true });
+    expect(parseBriefArgs(['--client', A1, '--now', '2026-10-02T03:30:00Z', '--force'])).toEqual({ client: A1, now: new Date('2026-10-02T03:30:00Z'), force: true, startingPoint: false });
     expect(parseBriefArgs(['--client', A1, '--now', 'soon'])).toEqual({ error: expect.stringMatching(/--now/) });
+  });
+  it('parses --starting-point and refuses it with --force', () => {
+    expect(parseBriefArgs(['--client', A1, '--starting-point'])).toEqual({ client: A1, force: false, startingPoint: true });
+    expect(parseBriefArgs(['--client', A1, '--starting-point', '--force'])).toEqual({ error: expect.stringMatching(/cannot be combined/) });
   });
 });

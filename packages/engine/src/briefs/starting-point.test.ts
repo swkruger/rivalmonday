@@ -103,6 +103,15 @@ describe('generateStartingPoint', () => {
     expect((await items()).map((i) => i.whyItMatters)).toEqual([SELF_WHY_IT_MATTERS.review_velocity_gap, SELF_WHY_IT_MATTERS.profile_gap]);
   });
 
+  it('counts dropped sentences only when the whole writer pass completes', async () => {
+    await seedFindings();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const w = () => JSON.stringify({ items: [{ ref: 'F1', why_it_matters: 'Rivals got 99 reviews.' }, { ref: 'F2', why_it_matters: 'A complete profile gets you found.' }] });
+    const ai = createFakeAi({ chat: w, decide: () => { throw new Error('verifier down'); } });
+    expect(await run(ai)).toMatchObject({ status: 'ready', items: 2, dropped: { items: 0, sentences: 0 } });
+    warn.mockRestore();
+  });
+
   it('fallback item when no rule fires', async () => {
     const ai = createFakeAi({ chat: writer, decide: supportAll });
     expect(await run(ai)).toMatchObject({ status: 'ready', kind: 'starting_point', items: 1 });

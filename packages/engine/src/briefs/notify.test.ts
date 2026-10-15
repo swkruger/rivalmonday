@@ -46,6 +46,15 @@ describe('notifyBriefOutcome', () => {
     expect(row!.body).toContain('jev and llm down');
   });
 
+  it('a failed starting point gets the starting-point retry copy, not weekly-brief advice', async () => {
+    const b = await seedBrief('failed', 3);
+    await dbs.service.update(brief).set({ kind: 'starting_point' });
+    await notifyBriefOutcome({ db: dbs.service, delivery }, { status: 'failed', briefId: b.id, error: 'x' }, day(0));
+    const inApp = (await dbs.owner.select().from(notification)).find((r) => r.channel === 'in_app')!;
+    expect(inApp.body).toBe(`Your starting point brief for A1 HVAC could not be generated. Run \`pnpm --filter @cs/worker brief-once --client ${IDS.clientA1} --starting-point\` to try again.`);
+    expect(inApp.body).not.toMatch(/--force|skip this week/);
+  });
+
   it('uses the decided notice for a ready starting point', async () => {
     const b = await seedBrief('ready');
     await dbs.service.update(brief).set({ kind: 'starting_point', dropped: { items: 0, sentences: 0 } });

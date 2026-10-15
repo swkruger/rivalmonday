@@ -37,7 +37,8 @@ export async function startingPointReadiness(db: Db, clientId: string, now: Date
   // Discovery is possible once the search profile is complete (startCompetitorSearch's own precondition); a run that already exists counts either way.
   const [run] = await db.select({ status: discoveryRun.status }).from(discoveryRun).where(eq(discoveryRun.clientId, clientId)).orderBy(desc(discoveryRun.startedAt)).limit(1);
   const discoveryPossible = c.keywords.length > 0 && c.serviceArea !== null && c.placeId !== null;
-  const competitors = run ? run.status === 'done' : discoveryPossible ? false : null;
+  // A failed discovery run is not applicable (nothing will complete it), so it must not hold the starting point back.
+  const competitors = run ? (run.status === 'failed' ? null : run.status === 'done') : discoveryPossible ? false : null;
 
   const ready = profile && reviews && rankings !== false && competitors !== false;
   const since = c.activatedAt ?? c.createdAt;

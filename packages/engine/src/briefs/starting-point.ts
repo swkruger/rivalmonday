@@ -204,6 +204,7 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
 
     const why = new Map<string, string>();
     if (kept.length > 0) {
+      let droppedSentences = 0; // counted only when the whole pass completes: a failed pass discards its model text and its drops
       try {
         const drafts = await writeWhy(deps.ai, scope, c, kept.map((k) => ({ fact: k.f.fact, title: k.title })), [c.name, ...rivalNames]);
         const evidenceForModel = `${evText}\n${kept.map((k) => k.f.fact).join('\n')}`;
@@ -216,8 +217,9 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
           const ok = passing.filter((p) => supported.has(p.key));
           // Any dropped sentence → the deterministic text stands in for the whole field (never a half-verified paragraph).
           if (ok.length === sentences.length && ok.length > 0) why.set(findingRef(i), ok.map((p) => p.sentence).join(' '));
-          else dropped.sentences += sentences.length - ok.length;
+          else droppedSentences += sentences.length - ok.length;
         }
+        dropped.sentences += droppedSentences;
       } catch (err) {
         // The writer is optional (D11): its failure or a verifier outage leaves the deterministic text, never unverified model text.
         console.warn(`[briefs] starting point ${briefId}: writer pass skipped: ${briefErrorMessage(err)}`);

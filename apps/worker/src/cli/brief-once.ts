@@ -8,7 +8,7 @@ try {
 
 const { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } = await import('@cs/ai');
 const { brief, briefItem, client, createDb, createDecisionSampleSink, createLedgerSink } = await import('@cs/db');
-const { createPackLoader, deliveryDateFor, generateBrief, safeTimezone } = await import('@cs/engine');
+const { createPackLoader, deliveryDateFor, generateBrief, generateStartingPoint, safeTimezone } = await import('@cs/engine');
 const { and, eq, inArray } = await import('drizzle-orm');
 const { parseBriefArgs } = await import('./brief-args');
 
@@ -29,7 +29,10 @@ try {
   const ai = createAiFromEnv(process.env, await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH), createLedgerSink(db), createDecisionSampleSink(db));
   const packs = createPackLoader();
 
-  if (args.force) {
+  if (args.startingPoint) {
+    // Retry a starting point that gave up: reset its failed attempts so the claim can take it again.
+    await db.update(brief).set({ attempts: 0 }).where(and(eq(brief.clientId, args.client), eq(brief.kind, 'starting_point'), eq(brief.status, 'failed')));
+  } else if (args.force) {
     // Regenerate: delete this client's not-yet-approved brief for the delivery date the run would use.
     const [c] = await db.select({ tz: client.timezone }).from(client).where(eq(client.id, args.client));
     if (!c) throw new Error(`client ${args.client} not found`);
@@ -37,7 +40,9 @@ try {
     await db.delete(brief).where(and(eq(brief.clientId, args.client), eq(brief.deliveryDate, date), inArray(brief.status, ['ready', 'failed', 'generating'])));
   }
 
-  const r = await generateBrief({ db, ai, packs }, args.client, { now: args.now });
+  const r = args.startingPoint
+    ? await generateStartingPoint({ db, ai, packs, ...(args.now ? { now: () => args.now! } : {}) }, args.client)
+    : await generateBrief({ db, ai, packs }, args.client, { now: args.now });
   console.log(`[brief] ${JSON.stringify(r)}`);
   if (r.status === 'ready') {
     const [b] = await db.select().from(brief).where(eq(brief.id, r.briefId));
