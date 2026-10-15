@@ -383,6 +383,32 @@ export const removeAdMatch = defineTool({
   },
 });
 
+export const getCompetitorAdMatches = defineTool({
+  name: 'get_competitor_ad_matches',
+  access: 'read',
+  description: 'Ad accounts (Google Ads advertisers, Meta pages) matched to a tracked competitor, and possible matches awaiting confirmation.',
+  input: z.object({ clientId: uuid, competitorId: uuid }),
+  output: z.object({
+    matched: z.array(z.object({ platform: z.enum(['google', 'meta']), accountId: z.string(), name: z.string().nullable() })),
+    pending: z.array(AdMatch),
+  }),
+  // Ruling 7: ad-account data is agency-only (the competitor row is shared across clients).
+  permission: 'agency',
+  feature: 'manage_competitors',
+  async handler(ctx, { clientId, competitorId }, deps) {
+    await assertTracked(ctx, deps, clientId, competitorId);
+    const [link] = await withTenant(deps.app, ctx, (tx) =>
+      tx.select({ pending: clientCompetitor.pendingAdMatches }).from(clientCompetitor).where(and(eq(clientCompetitor.clientId, clientId), eq(clientCompetitor.competitorId, competitorId))));
+    const [c] = await deps.service.select({ google: competitor.googleAdvertiserIds, meta: competitor.metaPageIds }).from(competitor).where(eq(competitor.id, competitorId));
+    if (!link || !c) throw new ToolError('not_found', 'Competitor not found');
+    // Names are only known for suggestions; a matched id keeps `name: null` rather than a guess.
+    return {
+      matched: [...c.google.map((accountId) => ({ platform: 'google' as const, accountId, name: null })), ...c.meta.map((accountId) => ({ platform: 'meta' as const, accountId, name: null }))],
+      pending: link.pending.filter((m) => AdMatch.safeParse(m).success),
+    };
+  },
+});
+
 export const dismissCompetitorSuggestion = defineTool({
   name: 'dismiss_competitor_suggestion',
   access: 'write',
@@ -515,5 +541,5 @@ export const removeCompetitor = defineTool({
 
 export const competitorTools = [
   listCompetitorSuggestions, requestCompetitorSuggestions, getCompetitorSearchStatus, getCompetitorSignals, acceptCompetitorSuggestion, acceptCompetitorSuggestions,
-  confirmAdMatch, removeAdMatch, dismissCompetitorSuggestion, listClientCompetitors, addCompetitor, removeCompetitor,
+  getCompetitorAdMatches, confirmAdMatch, removeAdMatch, dismissCompetitorSuggestion, listClientCompetitors, addCompetitor, removeCompetitor,
 ];

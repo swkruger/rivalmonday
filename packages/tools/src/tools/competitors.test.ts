@@ -384,6 +384,23 @@ describe('ad-account matches (D6)', () => {
   });
 });
 
+describe('get_competitor_ad_matches', () => {
+  const WEAK_M: AdMatchT = { platform: 'meta', accountId: '9001', name: 'Peach Air Atlanta', strength: 'weak' };
+  type Out = { matched: { platform: string; accountId: string; name: string | null }[]; pending: AdMatchT[] };
+
+  it('lists matched accounts (name unknown) and pending weak matches for managers only', async () => {
+    const run = await doneRun(IDS.clientA1);
+    const id = await runSuggestion(run, 'Peach Air', 'ChIJpeachairpe1', { tier: 'top', overlap: 0.9, adMatches: [{ platform: 'google', accountId: 'AR111', name: 'Peach Air LLC', strength: 'strong' }, WEAK_M] });
+    const { competitorId } = (await registry.invoke(amA1, 'accept_competitor_suggestion', { suggestionId: id })) as { competitorId: string };
+    const r = (await registry.invoke(amA1, 'get_competitor_ad_matches', { clientId: IDS.clientA1, competitorId })) as Out;
+    expect(r).toEqual({ matched: [{ platform: 'google', accountId: 'AR111', name: null }], pending: [WEAK_M] });
+    await expect(registry.invoke(ctx('client_owner', [IDS.clientA1], ['dashboard', 'manage_competitors']), 'get_competitor_ad_matches', { clientId: IDS.clientA1, competitorId })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(ctx('client_viewer', [IDS.clientA1], ['dashboard']), 'get_competitor_ad_matches', { clientId: IDS.clientA1, competitorId })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(admin, 'get_competitor_ad_matches', { clientId: IDS.clientA2, competitorId })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(ctx('agency_admin', 'all', [], IDS.agencyB), 'get_competitor_ad_matches', { clientId: IDS.clientA1, competitorId })).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
 describe('get_competitor_signals', () => {
   beforeEach(async () => {
     await dbs.owner.insert(competitorSignal).values([

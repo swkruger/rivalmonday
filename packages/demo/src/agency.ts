@@ -1,8 +1,7 @@
-import { agencyWebhook, competitorSuggestion, contact, discoveryRun, llmCall, notification, notificationPref, playbookOverride, prospectReport, type ProspectReportData, vendorCall } from '@cs/db';
+import { agencyWebhook, contact, llmCall, notification, notificationPref, playbookOverride, prospectReport, type ProspectReportData, vendorCall } from '@cs/db';
 import { createInvitation } from '@cs/tools';
 import { eq } from 'drizzle-orm';
 import type { SeedContext } from './context';
-import { FILLER_BUSINESSES } from './rankings';
 import { CLIENT_SPECS } from './tenancy';
 import { DEMO_DOMAIN } from './users';
 
@@ -91,13 +90,5 @@ export async function seedAgency(ctx: SeedContext): Promise<void> {
     active: true, createdBy: ids.users.admin.userId, createdAt: clock.daysAgo(200),
   });
   await createInvitation(db, { agencyId: ids.agencyId, email: `newhire@${DEMO_DOMAIN}`, role: 'account_manager', invitedBy: ids.users.admin.userId }, clock.daysAgo(2));
-  // 12a: suggestions list only the latest done discovery run's rows (Task 10 seeds the full tiered run).
-  const [run] = await db.insert(discoveryRun).values({
-    agencyId: ids.agencyId, clientId: ids.clients.loneStar, trigger: 'manual', status: 'done', kept: 2, startedAt: clock.daysAgo(6), finishedAt: clock.daysAgo(6),
-  }).returning({ id: discoveryRun.id });
-  await db.insert(competitorSuggestion).values(FILLER_BUSINESSES.slice(0, 2).map((name, i) => ({
-    agencyId: ids.agencyId, clientId: ids.clients.loneStar, name, domain: null, placeId: `demo-filler-${i}`, cid: null, rating: [4.5, 4.1][i]!, votes: [88, 41][i]!,
-    appearances: [5, 3][i]!, bestRank: [4, 7][i]!, overlapScore: [0.62, 0.41][i]!, status: 'suggested', createdAt: clock.daysAgo(6), runId: run!.id,
-  })));
   await seedProspects(ctx);
 }

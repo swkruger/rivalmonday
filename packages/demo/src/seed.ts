@@ -17,6 +17,7 @@ import { seedSupportSessions } from './platform-support';
 import { seedPricing } from './pricing';
 import { seedRankings } from './rankings';
 import { seedReviews } from './reviews';
+import { seedRivals } from './rivals';
 import { seedTenancy } from './tenancy';
 
 export interface SeedDemoOptions {
@@ -40,6 +41,7 @@ const STEPS: readonly [string, (ctx: SeedContext) => Promise<void>][] = [
   ['rankings', seedRankings],
   ['briefs, alerts and reports', seedBriefs],
   ['agency', seedAgency],
+  ['competitor discovery and ratings', seedRivals],
   ['platform queues', seedPlatform],
   ['platform stats', seedPlatformStats],
   ['support sessions', seedSupportSessions],

@@ -252,3 +252,26 @@ describe('SuggestionsPanel tiers and selection', () => {
     expect(screen.getByText('No competitors found yet. Add keywords and a service area, then search.')).toBeTruthy();
   });
 });
+
+describe('TrackedCompetitorsTable ratings', () => {
+  const tracked: TrackedCompetitor = { id: 'x1', name: 'Smith HVAC', domain: 'smith.example', placeId: null, addedAt: '2026-09-01T00:00:00.000Z', activePages: 2 };
+  const other: TrackedCompetitor = { ...tracked, id: 'x2', name: 'Jones Air' };
+  const rating = { competitorId: 'x1', tier: 'top' as const, signals: { ...NO_SIGNALS, rating: 4.7, votes: 90 }, computedAt: '2026-10-13T09:00:00.000Z' };
+
+  it('client user sees tier column, no match chips', () => {
+    render(<TrackedCompetitorsTable clientId="c1" items={[tracked, other]} canRemove={false} signals={[rating]} />);
+    expect(screen.getByRole('columnheader', { name: 'Tier' })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Signals' })).toBeTruthy();
+    expect(screen.getByText('Top rival')).toBeTruthy();
+    expect(screen.getByText('Rated Tue 13 Oct')).toBeTruthy();
+    expect(screen.getAllByRole('list', { name: 'Signals' })).toHaveLength(1);
+    expect(screen.queryByText(/Matched automatically|Possible .* account/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
+  });
+
+  it('says "Not rated yet" for a competitor with no signal row, never a tier', () => {
+    render(<TrackedCompetitorsTable clientId="c1" items={[other]} canRemove={false} signals={[rating]} />);
+    expect(screen.getByText('Not rated yet')).toBeTruthy();
+    expect(screen.queryByText('Minor')).toBeNull();
+  });
+});

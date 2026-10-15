@@ -142,6 +142,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'list_competitor_suggestions', input: (ids) => ({ clientId: ls(ids) }), path: 'suggestions' },
       // The seeded run is done: the demo shows its finished state.
       { tool: 'get_competitor_search_status', input: (ids) => ({ clientId: ls(ids) }), path: 'status' },
+      { tool: 'get_competitor_signals', input: (ids) => ({ clientId: ls(ids) }), path: 'competitors' },
     ],
   },
   {
@@ -153,6 +154,8 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'list_ads', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids), limit: 3 }), path: 'items' },
       { tool: 'get_theme_benchmark', input: (ids) => ({ clientId: ls(ids) }), path: 'businesses.*.reviews' },
       { tool: 'get_geogrid', input: (ids) => ({ clientId: ls(ids), business: lsComp(ids) }), path: 'top3' },
+      { tool: 'get_competitor_signals', input: (ids) => ({ clientId: ls(ids) }), path: 'competitors' },
+      { tool: 'get_competitor_ad_matches', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids) }), path: 'pending' },
     ],
   },
   { route: '/c/[clientId]/evidence/[evidenceId]', as: 'admin', calls: [{ tool: 'get_evidence', input: (ids) => ({ clientId: ls(ids), evidenceId: lsEvent(ids).evidenceIds[0] }), path: 'citedBy' }] },

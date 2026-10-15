@@ -1,5 +1,5 @@
 'use client';
-import type { HiddenReason, SuggestionView, Tier, TrackedCompetitor } from '@cs/tools';
+import type { CompetitorSignalView, HiddenReason, SuggestionView, Tier, TrackedCompetitor } from '@cs/tools';
 import { Button, Card, CardContent, CardHeader, CardTitle, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState, useTransition } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import { SignalPills } from '@/components/rival/signal-pills';
+import { ratedLabel } from '@/components/rival/rated-label';
 import { TIER_LABEL, TierChip } from '@/components/rival/tier-chip';
 import type { FormResult } from '@/server/forms';
 import { acceptSuggestionsAction, addCompetitorAction, dismissSuggestionAction, removeCompetitorAction, requestSuggestionsAction, type SearchState, type SearchStatus, searchStatusAction } from './actions';
@@ -402,7 +403,8 @@ function RemoveCompetitorButton({ clientId, competitorId, name, action, pending,
 }
 
 /** The tracked-competitors table; a successful removal's message shows above it (a refusal shows in the open dialog). */
-export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveProp }: { clientId: string; items: TrackedCompetitor[]; canRemove: boolean }) {
+export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveProp, signals = [] }: { clientId: string; items: TrackedCompetitor[]; canRemove: boolean; signals?: CompetitorSignalView[] }) {
+  const byCompetitor = new Map(signals.map((x) => [x.competitorId, x]));
   const canRemove = canRemoveProp && !useReadOnly();
   const [result, action, pending] = useActionState(removeAction, { ok: true } as RowResult);
   return (
@@ -415,6 +417,8 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Tier</TableHead>
+              <TableHead>Signals</TableHead>
               <TableHead>Website</TableHead>
               <TableHead>Pages monitored</TableHead>
               <TableHead>Since</TableHead>
@@ -422,13 +426,26 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((c) => (
+            {items.map((c) => {
+              const rated = byCompetitor.get(c.id);
+              return (
               <TableRow key={c.id}>
                 <TableCell>
                   <Link href={`/c/${clientId}/competitors/${c.id}`} className="font-semibold text-primary-soft-text">
                     {c.name}
                   </Link>
                 </TableCell>
+                <TableCell>
+                  {rated ? (
+                    <div className="flex flex-col gap-1">
+                      <TierChip tier={rated.tier} />
+                      <span className="text-xs text-muted-foreground">{ratedLabel(rated.computedAt)}</span>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">Not rated yet</span>
+                  )}
+                </TableCell>
+                <TableCell>{rated ? <SignalPills signals={rated.signals} mode="tracked" /> : '—'}</TableCell>
                 <TableCell>{c.domain ?? '—'}</TableCell>
                 <TableCell>{c.activePages}</TableCell>
                 <TableCell>{c.addedAt.slice(0, 10)}</TableCell>
@@ -438,7 +455,8 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
                   </TableCell>
                 )}
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       )}

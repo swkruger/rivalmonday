@@ -1,9 +1,13 @@
-import { hasFeature, isAgencyRole, PAGE_TYPES } from '@cs/core';
-import type { AdList, CompetitorProfile, GeoGridView, PriceMatrixView, ThemeBenchmarkView, TimelineItem, TrackedPageView } from '@cs/tools';
+import { canManageCompetitors, hasFeature, isAgencyRole, PAGE_TYPES } from '@cs/core';
+import type { AdList, AdMatch, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, ThemeBenchmarkView, TimelineItem, TrackedPageView } from '@cs/tools';
 import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PressureBadge } from '@/components/pressure-badge';
+import { AdMatchChips } from '@/components/rival/ad-match-chips';
+import { ratedLabel } from '@/components/rival/rated-label';
+import { SignalPills } from '@/components/rival/signal-pills';
+import { TierChip } from '@/components/rival/tier-chip';
 import { WriteGuard } from '@/components/read-only';
 import { requireContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
@@ -11,6 +15,7 @@ import { relativeTime } from '@/server/format';
 import { callTool } from '@/server/tools';
 import { AddPageForm, PinPageSwitch } from './page-controls';
 import { AdsSection, PricesSection, RankingsSection, ReviewsSection } from './sections';
+import { sourceStatusLabel } from './source-status';
 import { Timeline } from './timeline';
 
 export const dynamic = 'force-dynamic';
@@ -45,7 +50,9 @@ export default async function CompetitorProfilePage({
   const raw = Number(Array.isArray(sp.days) ? sp.days[0] : sp.days);
   const days = (PERIODS as readonly number[]).includes(raw) ? raw : 90;
   // One batch: a bad id makes get_competitor_profile throw not_found (-> 404); Promise.all handles the sibling calls' rejections.
-  const [profile, timeline, pages, matrix, ads, benchmark, geo] = await Promise.all([
+  // Ad-account matches are agency-only: other viewers never trigger the call or see the chips.
+  const manageAds = isAgencyRole(ctx.role) && canManageCompetitors(ctx);
+  const [profile, timeline, pages, matrix, ads, benchmark, geo, signals, adMatches] = await Promise.all([
     callTool<CompetitorProfile>(ctx, 'get_competitor_profile', { clientId, competitorId }),
     callTool<{ items: TimelineItem[] }>(ctx, 'get_competitor_timeline', { clientId, competitorId, days }),
     callTool<{ items: TrackedPageView[] }>(ctx, 'list_tracked_pages', { clientId, competitorId }),
@@ -53,7 +60,12 @@ export default async function CompetitorProfilePage({
     callTool<AdList>(ctx, 'list_ads', { clientId, competitorId, limit: 3 }),
     callTool<ThemeBenchmarkView>(ctx, 'get_theme_benchmark', { clientId }),
     callTool<GeoGridView>(ctx, 'get_geogrid', { clientId, business: competitorId }),
+    callTool<{ competitors: CompetitorSignalView[] }>(ctx, 'get_competitor_signals', { clientId }),
+    manageAds
+      ? callTool<{ matched: { platform: 'google' | 'meta'; accountId: string; name: string | null }[]; pending: AdMatch[] }>(ctx, 'get_competitor_ad_matches', { clientId, competitorId })
+      : Promise.resolve(null),
   ]);
+  const rated = signals.competitors.find((x) => x.competitorId === competitorId) ?? null;
   const now = new Date();
   const agency = isAgencyRole(ctx.role);
 
@@ -68,6 +80,19 @@ export default async function CompetitorProfilePage({
         )}
         <PressureBadge score={profile.pressure.score} level={profile.pressure.level} />
         <span className="text-sm text-muted-foreground">Tracked since {fmtDate(profile.addedAt, true)}</span>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {rated ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <TierChip tier={rated.tier} />
+            <SignalPills signals={rated.signals} mode="tracked" />
+            <span className="text-xs text-muted-foreground">{ratedLabel(rated.computedAt)}</span>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Not rated yet</p>
+        )}
+        {adMatches && <AdMatchChips clientId={clientId} competitorId={competitorId} matched={adMatches.matched} pending={adMatches.pending} />}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -144,7 +169,7 @@ export default async function CompetitorProfilePage({
                   <li key={s.source} className="flex items-baseline justify-between gap-2">
                     <span className="font-semibold text-ink">{s.label}</span>
                     <span className="text-muted-foreground">
-                      {s.lastRunAt ? `${relativeTime(s.lastRunAt, now)}${s.lastStatus ? ` · ${s.lastStatus}` : ''}` : 'Not run yet'}
+                      {s.lastRunAt ? `${relativeTime(s.lastRunAt, now)}${sourceStatusLabel(s.lastStatus) ? ` · ${sourceStatusLabel(s.lastStatus)}` : ''}` : 'Not run yet'}
                       {s.active ? '' : ' · paused'}
                     </span>
                   </li>

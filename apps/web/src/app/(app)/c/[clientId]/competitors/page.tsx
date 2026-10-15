@@ -1,5 +1,5 @@
 import { canManageCompetitors, hasFeature, isAgencyRole } from '@cs/core';
-import type { ClientProfile, HiddenReason, SuggestionView, TrackedCompetitor } from '@cs/tools';
+import type { ClientProfile, CompetitorSignalView, HiddenReason, SuggestionView, TrackedCompetitor } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -17,7 +17,7 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
   if (!hasFeature(ctx, 'dashboard')) notFound();
   const agency = isAgencyRole(ctx.role);
   const canManage = canManageCompetitors(ctx);
-  const [profile, tracked, suggestions, search] = await Promise.all([
+  const [profile, tracked, suggestions, search, rated] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<{ items: TrackedCompetitor[]; limit: number }>(ctx, 'list_client_competitors', { clientId }),
     // 12a: suggestions (with ad-account matches) are agency-only.
@@ -25,6 +25,8 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
       ? callTool<{ suggestions: SuggestionView[]; hiddenList: { name: string; reason: HiddenReason }[] }>(ctx, 'list_competitor_suggestions', { clientId })
       : Promise.resolve({ suggestions: [] as SuggestionView[], hiddenList: [] as { name: string; reason: HiddenReason }[] }),
     agency ? callTool<{ status: string }>(ctx, 'get_competitor_search_status', { clientId }) : Promise.resolve({ status: 'none' }),
+    // Tier and signals are for every role (no ad-match data in this payload).
+    callTool<{ competitors: CompetitorSignalView[] }>(ctx, 'get_competitor_signals', { clientId }),
   ]);
   const atLimit = tracked.items.length >= tracked.limit;
   return (
@@ -43,7 +45,7 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
           <CardTitle>Tracked competitors</CardTitle>
         </CardHeader>
         <CardContent>
-          <TrackedCompetitorsTable clientId={clientId} items={tracked.items} canRemove={canManage} />
+          <TrackedCompetitorsTable clientId={clientId} items={tracked.items} canRemove={canManage} signals={rated.competitors} />
           {canManage && (
             <WriteGuard>
               <div className="mt-5 border-t border-line pt-5">

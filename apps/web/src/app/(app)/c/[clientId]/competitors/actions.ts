@@ -98,3 +98,22 @@ export async function addPageAction(_p: FormResult, fd: FormData): Promise<FormR
   if (r.ok) revalidatePath(`/c/${clientId}/competitors/${competitorId}`);
   return r.ok ? { ok: true, message: 'Page added — it is captured on the next daily run.' } : r;
 }
+
+/** Ad-account matches are agency-only (Ruling 7: the competitor row is shared across clients). */
+async function adMatchAction(tool: 'confirm_ad_match' | 'remove_ad_match', fd: FormData, message: string): Promise<FormResult> {
+  const ctx = await agencyCtx();
+  const clientId = s(fd, 'clientId');
+  const competitorId = s(fd, 'competitorId');
+  const r = await runTool(ctx, tool, { clientId, competitorId, platform: s(fd, 'platform'), accountId: s(fd, 'accountId') });
+  if (!r.ok) return r;
+  revalidatePath(`/c/${clientId}/competitors/${competitorId}`);
+  return { ok: true, message };
+}
+
+export async function confirmAdMatchAction(_p: FormResult, fd: FormData): Promise<FormResult> {
+  return adMatchAction('confirm_ad_match', fd, 'Ad account confirmed. Its ads are collected from the next run.');
+}
+
+export async function removeAdMatchAction(_p: FormResult, fd: FormData): Promise<FormResult> {
+  return adMatchAction('remove_ad_match', fd, 'Ad account removed.');
+}
