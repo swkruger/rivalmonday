@@ -47,6 +47,7 @@ async function reconcile(db: Db, gw: BillingGateway, row: AgencyBillingRow, now:
     now,
   );
   if (signal && (await apply(db, row.agencyId, signal)).changed) drift++;
+  if (signal?.kind === 'subscription_ended') return drift; // R26: the id is now forgotten; nothing to sync seats against
   if (sub.seatQuantity !== (row.billableSeatsSynced ?? 0)) {
     // Stripe wins for the recorded quantity; syncSeats then pushes our active-client count if it differs.
     await db.update(agencyBilling).set({ billableSeatsSynced: sub.seatQuantity, updatedAt: new Date() }).where(eq(agencyBilling.agencyId, row.agencyId));
@@ -56,10 +57,10 @@ async function reconcile(db: Db, gw: BillingGateway, row: AgencyBillingRow, now:
   return drift;
 }
 
-async function mrrFor(gw: BillingGateway, row: AgencyBillingRow, p: PlanRow | null, paidSeats: number): Promise<number> {
+async function mrrFor(gw: BillingGateway | null, row: AgencyBillingRow, p: PlanRow | null, paidSeats: number): Promise<number> {
   if (!p) return 0;
   let discount = 0;
-  if (row.stripeSubscriptionId) {
+  if (gw && row.stripeSubscriptionId) {
     try {
       discount = (await gw.upcomingInvoice(row.stripeSubscriptionId))?.discountCents ?? 0;
     } catch {
@@ -69,11 +70,16 @@ async function mrrFor(gw: BillingGateway, row: AgencyBillingRow, p: PlanRow | nu
   return Math.max(0, p.basePriceCents + paidSeats * p.seatPriceCents - discount);
 }
 
+const logFailure = (step: string, agencyId: string, e: unknown) =>
+  console.error(`[billing-daily] ${step} failed`, { agencyId, error: e instanceof Error ? e.name : 'Error' });
+
 /**
  * Daily billing maintenance (R14): per agency, in its own try/catch - seat-sync retry, Stripe reconciliation, timers,
- * reminders, then the billing columns of yesterday's `agency_daily_stat` row (update only; never inserts).
+ * reminders, then the billing columns of yesterday's `agency_daily_stat` row (update only; never inserts). A failing
+ * Stripe step (retry/reconcile) is logged and skipped so the timers still run (R28). `gw === null` (billing not
+ * configured, R27): the Stripe steps and the upcoming-invoice discount are skipped.
  */
-export async function runBillingDaily(db: Db, gw: BillingGateway, now: Date): Promise<BillingDailyResult> {
+export async function runBillingDaily(db: Db, gw: BillingGateway | null, now: Date): Promise<BillingDailyResult> {
   const result: BillingDailyResult = { transitions: 0, reminders: 0, seatRetries: 0, drift: 0 };
   const yesterday = utcDay(new Date(now.getTime() - DAY_MS));
   let missingStats = 0;
@@ -82,13 +88,17 @@ export async function runBillingDaily(db: Db, gw: BillingGateway, now: Date): Pr
   for (const { id: agencyId } of agencies) {
     try {
       let row = await load(db, agencyId);
-      if (row?.seatSyncPending) {
+      if (gw && row?.seatSyncPending) {
         result.seatRetries++;
         await syncSeats(db, gw, agencyId);
         row = await load(db, agencyId);
       }
-      if (row?.stripeSubscriptionId) {
-        result.drift += await reconcile(db, gw, row, now);
+      if (gw && row?.stripeSubscriptionId) {
+        try {
+          result.drift += await reconcile(db, gw, row, now);
+        } catch (e) {
+          logFailure('reconcile', agencyId, e);
+        }
         row = await load(db, agencyId);
       }
       if (row) {
@@ -121,7 +131,7 @@ export async function runBillingDaily(db: Db, gw: BillingGateway, now: Date): Pr
         .returning({ day: agencyDailyStat.day });
       if (!updated.length) missingStats++;
     } catch (e) {
-      console.error('[billing-daily] agency failed', { agencyId, error: e instanceof Error ? e.name : 'Error' });
+      logFailure('agency', agencyId, e);
     }
   }
   if (missingStats) console.warn(`[billing-daily] ${missingStats} agencies had no agency_daily_stat row for ${yesterday}`);

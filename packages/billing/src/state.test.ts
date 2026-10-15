@@ -77,6 +77,23 @@ describe('payment_failed / subscription_ended / cancel', () => {
     expect(t?.patch.pastDueSince).toEqual(NOW);
     expect(t?.reason).toBe(REASONS.subscriptionEnded);
   });
+  it('subscription_ended forgets the subscription (R26): id, synced seats, pending sync', () => {
+    const t = nextBillingState(row('active', { stripeSubscriptionId: 'sub_1', billableSeatsSynced: 2, seatSyncPending: true }), signals.subscription_ended!);
+    expect(t?.state).toBe('past_due');
+    expect(t?.patch).toMatchObject({ stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false });
+  });
+  it.each(['past_due', 'read_only', 'suspended'] as const)('subscription_ended in %s keeps the state but still forgets the subscription', (state) => {
+    const t = nextBillingState(row(state, { stripeSubscriptionId: 'sub_1', billableSeatsSynced: 1 }), signals.subscription_ended!);
+    expect(t?.state).toBe(state);
+    expect(t?.patch).toEqual({ stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false });
+    expect(t?.reason).toBe(REASONS.subscriptionEnded);
+  });
+  it('grant_pilot and extend_trial drop a (non-live, checked by the tool) subscription id', () => {
+    const g = nextBillingState(row('past_due', { stripeSubscriptionId: 'sub_old', billableSeatsSynced: 1 }), signals.grant_pilot!);
+    expect(g?.patch).toMatchObject({ stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false });
+    const x = nextBillingState(row('past_due', { stripeSubscriptionId: 'sub_old' }), signals.extend_trial!);
+    expect(x?.patch).toMatchObject({ stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false });
+  });
   it('cancel at period end stores cancel_at', () => {
     const at = ahead(10 * DAY);
     const t = nextBillingState(row('active'), { kind: 'subscription_cancelled_at_period_end', at, now: NOW });

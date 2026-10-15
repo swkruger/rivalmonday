@@ -60,6 +60,41 @@ describe('handleStripeEvent', () => {
     expect((await row()).stripeSubscriptionId).toBe('sub_new');
   });
 
+  it('customer.subscription.deleted forgets the subscription (R26)', async () => {
+    await seed('active', { stripeSubscriptionId: 'sub_1', billableSeatsSynced: 2, seatSyncPending: true });
+    expect(await handle(ev('e1', 'customer.subscription.deleted', { id: 'sub_1', status: 'canceled' }))).toBe('processed');
+    expect(await row()).toMatchObject({ state: 'past_due', stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false });
+  });
+
+  it('customer.subscription.updated with status canceled ends the subscription (R26)', async () => {
+    await seed('active', { stripeSubscriptionId: 'sub_1', billableSeatsSynced: 1 });
+    expect(await handle(ev('e1', 'customer.subscription.updated', { id: 'sub_1', status: 'canceled' }))).toBe('processed');
+    expect(await row()).toMatchObject({ state: 'past_due', stripeSubscriptionId: null, billableSeatsSynced: null });
+  });
+
+  it('customer.subscription.* for another subscription than the stored one is ignored (R26)', async () => {
+    await seed('active', { stripeSubscriptionId: 'sub_new', billableSeatsSynced: 2 });
+    expect(await handle(ev('e1', 'customer.subscription.deleted', { id: 'sub_old', status: 'canceled' }, T0 + 5))).toBe('ignored');
+    expect(await handle(ev('e2', 'customer.subscription.updated', { id: 'sub_old', status: 'past_due' }, T0 + 6))).toBe('ignored');
+    expect(await row()).toMatchObject({ state: 'active', stripeSubscriptionId: 'sub_new', billableSeatsSynced: 2, lastStripeEventAt: null });
+    expect(await dbs.owner.select().from(agencyBillingEvent)).toEqual([]);
+    expect((await record('e1'))?.processedAt).not.toBeNull();
+  });
+
+  it('fill-when-null only for a live subscription status (R26)', async () => {
+    await seed('past_due', { pastDueSince: new Date(T0 * 1000) });
+    await handle(ev('e1', 'customer.subscription.updated', { id: 'sub_dead', status: 'canceled' }));
+    await handle(ev('e2', 'customer.subscription.deleted', { id: 'sub_dead' }, T0 + 1));
+    expect((await row()).stripeSubscriptionId).toBeNull();
+  });
+
+  it('a replayed checkout for an ended subscription does not bring its id back', async () => {
+    await seed('past_due', { pastDueSince: new Date(T0 * 1000), lastStripeEventAt: new Date((T0 + 10) * 1000) });
+    gw.seedSubscription({ id: 'sub_old', customerId: CUS, status: 'canceled' });
+    expect(await handle(ev('co_old', 'checkout.session.completed', { subscription: 'sub_old' }, T0))).toBe('ignored');
+    expect(await row()).toMatchObject({ state: 'past_due', stripeSubscriptionId: null });
+  });
+
   it('customer.subscription.* fills a missing stripe_subscription_id from the object id', async () => {
     await seed('active');
     await handle(ev('e1', 'customer.subscription.updated', { id: 'sub_9', status: 'incomplete' }));

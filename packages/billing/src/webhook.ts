@@ -28,6 +28,10 @@ function periodEnd(sub: Obj): Date | null {
   return fromSeconds(first?.current_period_end);
 }
 
+/** Stripe statuses of a subscription that still bills (or will): one per agency (R22), the only ones worth recording (R26). */
+export const LIVE_SUBSCRIPTION_STATUSES: readonly string[] = ['active', 'trialing', 'past_due', 'unpaid', 'incomplete'];
+const isLive = (status: string | null) => status !== null && LIVE_SUBSCRIPTION_STATUSES.includes(status);
+
 /** Events that change billing state; everything else is acknowledged and ignored. */
 const STATE_EVENTS = new Set([
   'checkout.session.completed',
@@ -39,7 +43,8 @@ const STATE_EVENTS = new Set([
 
 /**
  * R12: facts (subscription id, plan, seats) are recorded even when the R3 guard skips the state signal, so a late
- * checkout event never leaves `stripe_subscription_id` null. Returns false when the event carries no subscription.
+ * checkout event never leaves `stripe_subscription_id` null. Returns false when the event carries no subscription, or
+ * one that is no longer live (R26: a replayed checkout must not bring an ended subscription back).
  */
 async function recordCheckoutFacts(tx: Tx, gw: BillingGateway, row: AgencyBillingRow, obj: Obj, created: number): Promise<boolean> {
   const subscriptionId = idOf(obj.subscription);
@@ -48,6 +53,7 @@ async function recordCheckoutFacts(tx: Tx, gw: BillingGateway, row: AgencyBillin
   const stale = !!row.lastStripeEventAt && created * 1000 < row.lastStripeEventAt.getTime();
   if (row.stripeSubscriptionId && row.stripeSubscriptionId !== subscriptionId && stale) return true;
   const sub = await gw.getSubscription(subscriptionId);
+  if (!isLive(sub.status)) return false;
   const priceIds = sub.items.map((i) => i.priceId);
   const [matched] = priceIds.length ? await tx.select({ id: plan.id }).from(plan).where(inArray(plan.stripeBasePriceId, priceIds)).limit(1) : [];
   await tx
@@ -103,10 +109,13 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: StripeEventLike): Pro
   }
   const { agencyId } = found;
   const row = await lockBillingRow(tx, agencyId);
+  // R26: an event about a subscription other than the one we hold (e.g. the ended one after a re-subscribe) is stale news.
+  const isSubscriptionEvent = event.type.startsWith('customer.subscription.');
+  if (isSubscriptionEvent && row.stripeSubscriptionId && str(obj.id) !== row.stripeSubscriptionId) return 'ignored';
   // R12: record facts first, independent of ordering.
   let hasSubscription = true;
   if (event.type === 'checkout.session.completed') hasSubscription = await recordCheckoutFacts(tx, gw, row, obj, event.created);
-  else if (!row.stripeSubscriptionId && event.type.startsWith('customer.subscription.') && str(obj.id)) {
+  else if (isSubscriptionEvent && !row.stripeSubscriptionId && str(obj.id) && isLive(str(obj.status))) {
     await tx.update(agencyBilling).set({ stripeSubscriptionId: str(obj.id) }).where(eq(agencyBilling.agencyId, agencyId));
   }
   // R3 ordering guard: a delivery older than the newest applied event must not overwrite newer state.

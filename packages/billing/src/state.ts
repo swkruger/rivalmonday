@@ -45,6 +45,14 @@ export type BillingTransition = { state: BillingState; patch: Partial<AgencyBill
 
 const addDays = (d: Date, days: number) => new Date(d.getTime() + days * DAY_MS);
 
+/**
+ * R26: an ended subscription is forgotten in the same transaction that records the end, so reconcile, seat sync, the
+ * trial timer and the checkout live-subscription check (R22) never act on it again. Also applied by the staff
+ * grant-pilot / extend-trial signals, whose tools first verify the stored subscription is not live.
+ */
+export const FORGET_SUBSCRIPTION = { stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false } as const satisfies Partial<AgencyBillingRow>;
+const holdsSubscription = (row: AgencyBillingRow) => row.stripeSubscriptionId !== null || row.billableSeatsSynced !== null || row.seatSyncPending;
+
 /** Build a transition; `stateChangedAt` is set only when the state changes and a clock is available. */
 function step(row: AgencyBillingRow, state: BillingState, reason: BillingReason, patch: Partial<AgencyBillingRow>, now?: Date): BillingTransition {
   return { state, reason, patch: state !== row.state && now ? { ...patch, stateChangedAt: now } : patch };
@@ -110,18 +118,21 @@ export function nextBillingState(row: AgencyBillingRow, s: BillingSignal): Billi
       return step(row, 'cancelled', REASONS.cancelAtPeriodEnd, { cancelAt: s.at }, s.now);
     }
     case 'subscription_ended':
-      if (row.state === 'past_due' || row.state === 'read_only' || row.state === 'suspended') return null;
-      return step(row, 'past_due', REASONS.subscriptionEnded, { pastDueSince: s.now }, s.now);
+      if (row.state === 'past_due' || row.state === 'read_only' || row.state === 'suspended') {
+        // Already unpaid: the dunning clock keeps running, but the subscription is still forgotten.
+        return holdsSubscription(row) ? step(row, row.state, REASONS.subscriptionEnded, { ...FORGET_SUBSCRIPTION }, s.now) : null;
+      }
+      return step(row, 'past_due', REASONS.subscriptionEnded, { pastDueSince: s.now, ...FORGET_SUBSCRIPTION }, s.now);
     case 'timer':
       return onTimer(row, s);
     case 'admin_grant_pilot':
       if (row.state === 'active') return null;
-      return step(row, 'pilot', REASONS.grantPilot, { pilotEndsAt: s.endsAt, pastDueSince: null, cancelAt: null, reviewFlaggedAt: null }, s.now);
+      return step(row, 'pilot', REASONS.grantPilot, { pilotEndsAt: s.endsAt, pastDueSince: null, cancelAt: null, reviewFlaggedAt: null, ...FORGET_SUBSCRIPTION }, s.now);
     case 'admin_end_pilot':
       return row.state === 'pilot' ? step(row, 'trialing', REASONS.endPilot, { trialEndsAt: addDays(s.now, s.trialDays) }, s.now) : null;
     case 'admin_extend_trial':
-      if (row.state === 'trialing') return step(row, 'trialing', REASONS.extendTrial, { trialEndsAt: s.until }, s.now);
-      if (row.state === 'past_due') return step(row, 'trialing', REASONS.extendTrial, { trialEndsAt: s.until, pastDueSince: null }, s.now);
+      if (row.state === 'trialing') return step(row, 'trialing', REASONS.extendTrial, { trialEndsAt: s.until, ...FORGET_SUBSCRIPTION }, s.now);
+      if (row.state === 'past_due') return step(row, 'trialing', REASONS.extendTrial, { trialEndsAt: s.until, pastDueSince: null, ...FORGET_SUBSCRIPTION }, s.now);
       return null;
   }
 }

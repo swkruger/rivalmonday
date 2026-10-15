@@ -121,6 +121,40 @@ describe('runBillingDaily seats and drift', () => {
     expect((await row()).billableSeatsSynced).toBe(2);
   });
 
+  it('a subscription canceled at Stripe ends it and forgets the id (R26); no seat sync against it', async () => {
+    const gw = fakeGateway();
+    await addClients(dbs.owner, 3);
+    await withSub(gw, { billableSeatsSynced: 2, seatSyncPending: false }, { status: 'canceled', seatQuantity: 2 });
+    const r = await runBillingDaily(dbs.service, gw, NOW);
+    expect(r.drift).toBe(1);
+    expect(await row()).toMatchObject({ state: 'past_due', stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false });
+    expect(gw.callsTo('updateSeatQuantity')).toEqual([]);
+    expect(gw.callsTo('getSubscription')).toHaveLength(1);
+    await runBillingDaily(dbs.service, gw, new Date(NOW.getTime() + 864e5));
+    expect(gw.callsTo('getSubscription')).toHaveLength(1); // nothing left to reconcile
+  });
+
+  it('a reconcile failure still runs the timer, reminders and stats for that agency', async () => {
+    const gw = fakeGateway();
+    await withSub(gw, { state: 'past_due', pastDueSince: new Date(NOW.getTime() - 8 * 864e5) });
+    await seedStat();
+    gw.failNext(); // getSubscription
+    const r = await runBillingDaily(dbs.service, gw, NOW);
+    expect(r.transitions).toBe(1);
+    expect((await row()).state).toBe('read_only');
+    expect((await stat())?.billingState).toBe('read_only');
+  });
+
+  it('without a gateway (billing not configured) timers, reminders and stats still run; Stripe steps are skipped', async () => {
+    await setBilling(dbs.owner, planId, { state: 'trialing', trialEndsAt: day('2026-10-13'), seatSyncPending: true });
+    await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyB, state: 'pilot', planId, pilotEndsAt: day('2026-10-21') });
+    await seedStat();
+    const r = await runBillingDaily(dbs.service, null, NOW);
+    expect(r).toMatchObject({ transitions: 1, reminders: 1, seatRetries: 0, drift: 0 });
+    expect(await row()).toMatchObject({ state: 'past_due', seatSyncPending: true });
+    expect((await stat())?.billingState).toBe('past_due');
+  });
+
   it('a failing agency does not stop the loop and logs only the agency id and error name', async () => {
     const gw = fakeGateway();
     await withSub(gw);
