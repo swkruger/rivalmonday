@@ -40,8 +40,9 @@ async function signInPolling(page: Page, email: string): Promise<void> {
   }
 }
 
-async function ensureState(browser: Browser, testInfo: TestInfo, who: Who): Promise<void> {
-  if (existsSync(STATE(who))) return;
+/** True when this call signed a user in (and so used up part of the magic-link rate-limit window). */
+async function ensureState(browser: Browser, testInfo: TestInfo, who: Who): Promise<boolean> {
+  if (existsSync(STATE(who))) return false;
   const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
   try {
     await signInPolling(await context.newPage(), USERS[who]);
@@ -49,6 +50,7 @@ async function ensureState(browser: Browser, testInfo: TestInfo, who: Who): Prom
   } finally {
     await context.close();
   }
+  return true;
 }
 
 async function as<T>(browser: Browser, testInfo: TestInfo, who: Who, fn: (page: Page) => Promise<T>): Promise<T> {
@@ -64,7 +66,10 @@ test.describe.serial('billing', () => {
   test.beforeAll(async ({ browser }, testInfo) => {
     test.setTimeout(8 * 60_000);
     await ensureAdminState(browser, testInfo);
-    for (const who of Object.keys(USERS) as Who[]) await ensureState(browser, testInfo, who);
+    let signedIn = false;
+    for (const who of Object.keys(USERS) as Who[]) signedIn = (await ensureState(browser, testInfo, who)) || signedIn;
+    // Four sign-ins fill most of the 5-per-minute magic-link window; leave it clear for the specs that run after this one.
+    if (signedIn) await new Promise((r) => setTimeout(r, 61_000));
   });
 
   test('a trial agency at its 3-client cap cannot add a 4th active client and is offered an Upgrade link', { tag: ['@billing', '@clients'] }, async ({ browser }, testInfo) => {
