@@ -14,7 +14,7 @@ interface FakeCoupon extends CreateCouponInput { id: string }
 interface FakePromotionCode extends CreatePromotionCodeInput { id: string; active: boolean }
 
 interface FakeConnectedPrice { id: string; stripeAccount: string; productId: string; unitAmountCents: number; currency: string; active: boolean }
-export interface FakeConnectedCheckout { id: string; stripeAccount: string; status: 'open' | 'expired' | 'complete' }
+export interface FakeConnectedCheckout { id: string; stripeAccount: string; status: 'open' | 'expired' | 'complete'; clientReferenceId?: string }
 export interface FakeConnectedSubscription extends ConnectedSubscription { stripeAccount: string }
 
 export interface FakeGateway extends BillingGateway {
@@ -34,8 +34,11 @@ export interface FakeGateway extends BillingGateway {
   readonly connectedSubscriptions: Map<string, FakeConnectedSubscription>;
   /** Connect: Checkout sessions by id (`expireConnectedCheckout` flips `open` to `expired`). */
   readonly connectedCheckouts: Map<string, FakeConnectedCheckout>;
+  /** Connect: charges by id, for dispute lookups. */
+  readonly connectedCharges: Map<string, { id: string; stripeAccount: string; customerId: string | null }>;
   /** Adds or updates a connected account (defaults: charges disabled, details not submitted). */
   seedConnectedAccount(a: Partial<ConnectedAccount> & { id: string }): ConnectedAccount;
+  seedConnectedCharge(c: { id: string; stripeAccount: string; customerId: string | null }): void;
   seedConnectedSubscription(s: Partial<ConnectedSubscription> & { id: string; stripeAccount: string; customerId: string }): FakeConnectedSubscription;
   /** The next gateway method call (any method) rejects with `error`; later calls succeed. */
   failNext(error?: Error): void;
@@ -59,6 +62,7 @@ export function fakeGateway(): FakeGateway {
   const connectedPrices = new Map<string, FakeConnectedPrice>();
   const connectedSubscriptions = new Map<string, FakeConnectedSubscription>();
   const connectedCheckouts = new Map<string, FakeConnectedCheckout>();
+  const connectedCharges = new Map<string, { id: string; stripeAccount: string; customerId: string | null }>();
   let failure: Error | null = null;
   /** Random suffix (R27): a fake id must never look like, or collide with, one minted by another process. */
   const nid = (p: string) => `${p}_fake_${randomBytes(4).toString('hex')}`;
@@ -98,7 +102,8 @@ export function fakeGateway(): FakeGateway {
 
   const gw: FakeGateway = {
     calls, customers, subscriptions, invoices, coupons, promotionCodes, subscriptionCoupons,
-    connectedAccounts, connectedProducts, connectedPrices, connectedSubscriptions, connectedCheckouts,
+    connectedAccounts, connectedProducts, connectedPrices, connectedSubscriptions, connectedCheckouts, connectedCharges,
+    seedConnectedCharge(c) { connectedCharges.set(c.id, c); },
     seedConnectedAccount(a) {
       const acct: ConnectedAccount = { chargesEnabled: false, detailsSubmitted: false, ...connectedAccounts.get(a.id), ...a };
       connectedAccounts.set(acct.id, acct);
@@ -106,7 +111,7 @@ export function fakeGateway(): FakeGateway {
     },
     seedConnectedSubscription(p) {
       const s: FakeConnectedSubscription = {
-        status: 'active', priceId: 'price_connected_fake', currentPeriodEnd: new Date(Date.now() + 30 * 864e5), cancelAtPeriodEnd: false, ...p,
+        status: 'active', priceId: 'price_connected_fake', unitAmountCents: null, currentPeriodEnd: new Date(Date.now() + 30 * 864e5), cancelAtPeriodEnd: false, ...p,
       };
       connectedSubscriptions.set(s.id, s);
       return s;
@@ -240,7 +245,7 @@ export function fakeGateway(): FakeGateway {
       const subId = nid('sub_conn');
       gw.seedConnectedSubscription({ id: subId, stripeAccount: i.stripeAccount, customerId: nid('cus_conn'), priceId: i.priceId });
       const id = nid('cs');
-      connectedCheckouts.set(id, { id, stripeAccount: i.stripeAccount, status: 'open' });
+      connectedCheckouts.set(id, { id, stripeAccount: i.stripeAccount, status: 'open', ...(i.clientReferenceId && { clientReferenceId: i.clientReferenceId }) });
       return { id, url: `${i.successUrl}${i.successUrl.includes('?') ? '&' : '?'}fake_connect_checkout=${subId}` };
     },
     async expireConnectedCheckout(i) {
@@ -251,6 +256,20 @@ export function fakeGateway(): FakeGateway {
       if (c.status === 'complete') throw Object.assign(new Error('fake gateway: session already complete'), { code: 'resource_invalid_request_error' });
       c.status = 'expired';
     },
+    async getConnectedCheckout(i) {
+      enter('getConnectedCheckout', i);
+      account(i.stripeAccount);
+      const c = connectedCheckouts.get(i.sessionId);
+      if (!c || c.stripeAccount !== i.stripeAccount) throw missing('checkout session', i.sessionId);
+      return { id: c.id, status: c.status };
+    },
+    async getConnectedCharge(i) {
+      enter('getConnectedCharge', i);
+      account(i.stripeAccount);
+      const c = connectedCharges.get(i.chargeId);
+      if (!c || c.stripeAccount !== i.stripeAccount) throw missing('charge', i.chargeId);
+      return { id: c.id, customerId: c.customerId };
+    },
     async createConnectedPortal(i) {
       enter('createConnectedPortal', i);
       account(i.stripeAccount);
@@ -259,7 +278,7 @@ export function fakeGateway(): FakeGateway {
     async getConnectedSubscription(i) {
       enter('getConnectedSubscription', i);
       const { stripeAccount: _acct, ...s } = connectedSub(i.stripeAccount, i.subscriptionId);
-      return s;
+      return { ...s, unitAmountCents: s.unitAmountCents ?? connectedPrices.get(s.priceId)?.unitAmountCents ?? null };
     },
     async updateConnectedSubscriptionPrice(i) {
       enter('updateConnectedSubscriptionPrice', i);

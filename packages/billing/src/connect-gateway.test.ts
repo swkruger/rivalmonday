@@ -18,12 +18,19 @@ function mockClient() {
       retrieve: vi.fn(async () => ({ id: 'price_c', currency: 'cad' })),
       update: vi.fn(async () => ({})),
     },
-    checkout: { sessions: { create: vi.fn(async () => ({ id: 'cs_c', url: 'https://checkout/c' })), expire: vi.fn(async () => ({})) } },
+    checkout: {
+      sessions: {
+        create: vi.fn(async () => ({ id: 'cs_c', url: 'https://checkout/c' })),
+        expire: vi.fn(async () => ({})),
+        retrieve: vi.fn(async () => ({ id: 'cs_c', status: 'complete' })),
+      },
+    },
+    charges: { retrieve: vi.fn(async () => ({ id: 'ch_c', customer: 'cus_c' })) },
     billingPortal: { sessions: { create: vi.fn(async () => ({ url: 'https://portal/c' })) } },
     subscriptions: {
       retrieve: vi.fn(async () => ({
         id: 'sub_c', status: 'active', customer: 'cus_c', cancel_at_period_end: false,
-        items: { data: [{ id: 'si_c', current_period_end: 1_800_100_000, price: { id: 'price_old' } }] },
+        items: { data: [{ id: 'si_c', current_period_end: 1_800_100_000, price: { id: 'price_old', unit_amount: 9900 } }] },
       })),
       update: vi.fn(async () => ({})),
     },
@@ -87,6 +94,25 @@ describe('stripeGateway Connect', () => {
     expect(c.prices.retrieve).not.toHaveBeenCalled();
   });
 
+  it('Checkout carries the client reference id when given', async () => {
+    const c = mockClient();
+    await gw(c).createConnectedCheckout({ ...checkout, clientReferenceId: 'client-1' });
+    expect(arg(c.checkout.sessions.create)).toMatchObject({ client_reference_id: 'client-1' });
+    await gw(c).createConnectedCheckout(checkout);
+    expect(arg(c.checkout.sessions.create, 0, 1)).not.toHaveProperty('client_reference_id');
+  });
+
+  it('getConnectedCheckout maps the session status; getConnectedCharge reads the customer, both on the account', async () => {
+    const c = mockClient();
+    const g = gw(c);
+    expect(await g.getConnectedCheckout({ stripeAccount: ACCT, sessionId: 'cs_c' })).toEqual({ id: 'cs_c', status: 'complete' });
+    expect(c.checkout.sessions.retrieve).toHaveBeenCalledWith('cs_c', {}, { stripeAccount: ACCT });
+    c.checkout.sessions.retrieve.mockResolvedValueOnce({ id: 'cs_c', status: 'open' });
+    expect((await g.getConnectedCheckout({ stripeAccount: ACCT, sessionId: 'cs_c' })).status).toBe('open');
+    expect(await g.getConnectedCharge({ stripeAccount: ACCT, chargeId: 'ch_c' })).toEqual({ id: 'ch_c', customerId: 'cus_c' });
+    expect(c.charges.retrieve).toHaveBeenCalledWith('ch_c', {}, { stripeAccount: ACCT });
+  });
+
   it('expireConnectedCheckout expires the session on the connected account', async () => {
     const c = mockClient();
     await gw(c).expireConnectedCheckout({ stripeAccount: ACCT, sessionId: 'cs_c' });
@@ -111,7 +137,7 @@ describe('stripeGateway Connect', () => {
     expect(await g.createConnectedPortal({ stripeAccount: ACCT, customerId: 'cus_c', returnUrl: 'r' })).toEqual({ url: 'https://portal/c' });
     expect(c.billingPortal.sessions.create).toHaveBeenCalledWith({ customer: 'cus_c', return_url: 'r' }, { stripeAccount: ACCT });
     expect(await g.getConnectedSubscription({ stripeAccount: ACCT, subscriptionId: 'sub_c' })).toEqual({
-      id: 'sub_c', status: 'active', customerId: 'cus_c', priceId: 'price_old', currentPeriodEnd: new Date(1_800_100_000_000), cancelAtPeriodEnd: false,
+      id: 'sub_c', status: 'active', customerId: 'cus_c', priceId: 'price_old', unitAmountCents: 9900, currentPeriodEnd: new Date(1_800_100_000_000), cancelAtPeriodEnd: false,
     });
     expect(at(c.subscriptions.retrieve, 0, 2)).toEqual({ stripeAccount: ACCT });
     await g.updateConnectedSubscriptionPrice({ stripeAccount: ACCT, subscriptionId: 'sub_c', priceId: 'price_new', prorate: false });

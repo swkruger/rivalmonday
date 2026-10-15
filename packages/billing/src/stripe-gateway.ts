@@ -188,6 +188,7 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
           ],
           ...(fee > 0 ? { subscription_data: { application_fee_percent: fee } } : {}),
           customer_email: i.customerEmail,
+          ...(i.clientReferenceId && { client_reference_id: i.clientReferenceId }),
           expires_at: Math.floor(Date.now() / 1000) + 24 * 3600 - 300, // Stripe's max is 24 h: leave clock-skew headroom (R6)
           success_url: i.successUrl,
           cancel_url: i.cancelUrl,
@@ -200,6 +201,14 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
     async expireConnectedCheckout(i) {
       await stripe.checkout.sessions.expire(i.sessionId, {}, { stripeAccount: i.stripeAccount });
     },
+    async getConnectedCheckout(i) {
+      const s = await stripe.checkout.sessions.retrieve(i.sessionId, {}, { stripeAccount: i.stripeAccount });
+      return { id: s.id, status: s.status === 'complete' ? 'complete' : s.status === 'expired' ? 'expired' : 'open' };
+    },
+    async getConnectedCharge(i) {
+      const c = await stripe.charges.retrieve(i.chargeId, {}, { stripeAccount: i.stripeAccount });
+      return { id: c.id, customerId: c.customer ? idOf(c.customer as string | { id: string }) : null };
+    },
     async createConnectedPortal(i) {
       const s = await stripe.billingPortal.sessions.create({ customer: i.customerId, return_url: i.returnUrl }, { stripeAccount: i.stripeAccount });
       return { url: s.url };
@@ -211,6 +220,7 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
         status: s.status as SubscriptionStatus,
         customerId: idOf(s.customer as string | { id: string }),
         priceId: s.items.data[0]?.price.id ?? '',
+        unitAmountCents: s.items.data[0]?.price.unit_amount ?? null,
         currentPeriodEnd: date(s.items.data[0]?.current_period_end),
         cancelAtPeriodEnd: s.cancel_at_period_end,
       };

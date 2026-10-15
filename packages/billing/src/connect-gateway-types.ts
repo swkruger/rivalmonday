@@ -18,6 +18,8 @@ export interface ConnectedSubscription {
   customerId: string;
   /** Price of the first subscription item (the monthly client price). */
   priceId: string;
+  /** What that price charges per month in cents (null when Stripe does not say). */
+  unitAmountCents: number | null;
   currentPeriodEnd: Date | null;
   cancelAtPeriodEnd: boolean;
 }
@@ -37,12 +39,18 @@ export interface ConnectGateway {
     priceId: string;
     setupFeeCents?: number;
     customerEmail: string;
+    /** Stored as the session's `client_reference_id`: lets the webhook find the client of a session that was since replaced. */
+    clientReferenceId?: string;
     applicationFeePercent?: number;
     successUrl: string;
     cancelUrl: string;
   }): Promise<{ url: string; id: string }>;
   /** Expires an open Checkout session (its link stops working). Rejects when the session is already complete. */
   expireConnectedCheckout(i: { stripeAccount: string; sessionId: string }): Promise<void>;
+  /** Status of a Checkout session (`complete` = the client paid). Throws `resource_missing` for an unknown session. */
+  getConnectedCheckout(i: { stripeAccount: string; sessionId: string }): Promise<{ id: string; status: 'open' | 'expired' | 'complete' }>;
+  /** The Stripe customer a charge belongs to (dispute events carry only the charge id). */
+  getConnectedCharge(i: { stripeAccount: string; chargeId: string }): Promise<{ id: string; customerId: string | null }>;
   createConnectedPortal(i: { stripeAccount: string; customerId: string; returnUrl: string }): Promise<{ url: string }>;
   getConnectedSubscription(i: { stripeAccount: string; subscriptionId: string }): Promise<ConnectedSubscription>;
   /** Swaps the first item's price. `prorate: false` only (a price change applies from the next bill). */
