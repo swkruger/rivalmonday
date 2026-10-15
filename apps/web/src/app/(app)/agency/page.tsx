@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { WriteGuard } from '@/components/read-only';
+import { ClientBillingControls, type ClientBillingStatusRow } from '@/components/billing/client-billing-controls';
 import { PressureBadge } from '@/components/pressure-badge';
 import { SpendBadge } from '@/components/spend-badge';
 import { requireContext } from '@/server/current-viewer';
@@ -32,6 +33,9 @@ export default async function AgencyPortfolioPage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
   const { items } = await callTool<{ items: PortfolioRow[] }>(ctx, 'get_portfolio', {});
+  const billingRows = await callTool<{ clients: ClientBillingStatusRow[] }>(ctx, 'list_client_billing_status', {});
+  const billingBy = new Map((billingRows?.clients ?? []).map((b) => [b.clientId, b]));
+  const billingRole = ctx.role === 'agency_admin' ? 'agency_admin' : 'account_manager';
   const now = new Date();
   const canAddClient = ctx.clientScope === 'all';
   const rows = sortRows(items);
@@ -103,6 +107,7 @@ export default async function AgencyPortfolioPage() {
                     <Field label="Brief"><Brief row={row} /></Field>
                     <Field label="Open actions"><OpenActions row={row} /></Field>
                     <Field label="Last activity">{relativeTime(row.lastActivityAt, now)}</Field>
+                    <Field label="Billing"><Billing row={row} billing={billingBy.get(row.clientId)} role={billingRole} /></Field>
                   </dl>
                 </li>
               ))}
@@ -118,6 +123,7 @@ export default async function AgencyPortfolioPage() {
                     <TableHead>Brief</TableHead>
                     <TableHead>Open actions</TableHead>
                     <TableHead>Last activity</TableHead>
+                    <TableHead>Billing</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -130,6 +136,7 @@ export default async function AgencyPortfolioPage() {
                       <TableCell className="whitespace-normal"><Brief row={row} /></TableCell>
                       <TableCell><OpenActions row={row} /></TableCell>
                       <TableCell>{relativeTime(row.lastActivityAt, now)}</TableCell>
+                      <TableCell className="whitespace-normal"><Billing row={row} billing={billingBy.get(row.clientId)} role={billingRole} /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -162,6 +169,16 @@ function Pressure({ row }: { row: PortfolioRow }) {
       </div>
       {row.pressure.reasons.length > 0 && <div className="text-muted-ink">{row.pressure.reasons.join(' · ')}</div>}
     </div>
+  );
+}
+
+function Billing({ row, billing, role }: { row: PortfolioRow; billing: ClientBillingStatusRow | undefined; role: 'agency_admin' | 'account_manager' }) {
+  if (!billing) return '—';
+  return (
+    <ClientBillingControls
+      clientId={row.clientId} clientName={row.name} role={role} pill={billing.pill} billing={{ state: billing.state, enabled: billing.enabled }}
+      nextPriceCents={billing.nextPriceCents}
+    />
   );
 }
 

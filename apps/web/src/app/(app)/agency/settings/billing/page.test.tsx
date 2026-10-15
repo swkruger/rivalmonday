@@ -2,7 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ viewer: { kind: 'user' } as { kind: string }, ctx: { role: 'agency_admin' } as Record<string, unknown>, callTool: vi.fn(), runTool: vi.fn() }));
+const m = vi.hoisted(() => ({ viewer: { kind: 'user' } as { kind: string }, ctx: { role: 'agency_admin' } as Record<string, unknown>, callTool: vi.fn(), runTool: vi.fn(), summary: {} as unknown, connect: {} as Record<string, unknown> }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ viewer: m.viewer, ctx: m.ctx }) }));
 vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => m.callTool(...a) }));
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.runTool(...a) }));
@@ -33,7 +33,9 @@ const page = (sp: Record<string, string> = {}) => Page({ searchParams: Promise.r
 beforeEach(() => {
   m.viewer = { kind: 'user' };
   m.ctx = { role: 'agency_admin' };
-  m.callTool.mockReset().mockResolvedValue(summary());
+  m.summary = summary();
+  m.connect = { status: 'not_connected', defaultPriceCents: null, defaultSetupFeeCents: null, autoPauseAfterDays: null, billingConfigured: true };
+  m.callTool.mockReset().mockImplementation(async (_c: unknown, name: string) => (name === 'get_connect_status' ? m.connect : name === 'get_client_revenue' ? { mrrCents: 59800, payingCount: 2, paymentNeededCount: 0, ourCostCents: 34900 } : m.summary));
   m.runTool.mockReset();
 });
 afterEach(cleanup);
@@ -42,6 +44,7 @@ describe('/agency/settings/billing', () => {
   it('shows plan, state, key date, seats, next invoice, discount, invoices and the CSV link', async () => {
     render(await page());
     expect(m.callTool).toHaveBeenCalledWith(m.ctx, 'get_billing_summary', {});
+    expect(m.callTool).toHaveBeenCalledWith(m.ctx, 'get_connect_status', {});
     expect(screen.getByText('Standard')).toBeTruthy();
     expect(screen.getAllByText(/\$299\.00/).length).toBeGreaterThan(0);
     expect(screen.getByText('Trial')).toBeTruthy();
@@ -61,14 +64,14 @@ describe('/agency/settings/billing', () => {
     expect(screen.getByRole('button', { name: 'Add payment method' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Manage billing' })).toBeNull();
     cleanup();
-    m.callTool.mockResolvedValue(summary({ state: 'active', dates: { trialEndsAt: null, pilotEndsAt: null, pastDueSince: null, pausesOn: null, cancelAt: null } }));
+    m.summary = (summary({ state: 'active', dates: { trialEndsAt: null, pilotEndsAt: null, pastDueSince: null, pausesOn: null, cancelAt: null } }));
     render(await page());
     expect(screen.getByRole('button', { name: 'Manage billing' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Add payment method' })).toBeNull();
   });
 
   it('shows the pause date when past due and the done notice for ?done=1', async () => {
-    m.callTool.mockResolvedValue(summary({ state: 'past_due', dates: { trialEndsAt: null, pilotEndsAt: null, pastDueSince: '2026-10-24T00:00:00Z', pausesOn: '2026-10-31T00:00:00Z', cancelAt: null } }));
+    m.summary = (summary({ state: 'past_due', dates: { trialEndsAt: null, pilotEndsAt: null, pastDueSince: '2026-10-24T00:00:00Z', pausesOn: '2026-10-31T00:00:00Z', cancelAt: null } }));
     render(await page({ done: '1' }));
     expect(screen.getByText(/Service pauses October 31, 2026/)).toBeTruthy();
     expect(within(screen.getByRole('status')).getByText(/Thanks/)).toBeTruthy();
@@ -83,6 +86,26 @@ describe('/agency/settings/billing', () => {
     m.ctx = { role: 'agency_admin', support: { sessionId: 's', platformUserId: 'op' } };
     await expect(page()).rejects.toThrow('NEXT_NOT_FOUND');
     expect(m.callTool).not.toHaveBeenCalled();
+  });
+});
+
+describe('/agency/settings/billing: client billing section', () => {
+  it('shows Connect Stripe when not connected and does not read revenue', async () => {
+    render(await page());
+    expect(screen.getByRole('button', { name: 'Connect Stripe' })).toBeTruthy();
+    expect(m.callTool).not.toHaveBeenCalledWith(m.ctx, 'get_client_revenue', {});
+  });
+  it('connected: revenue card with amounts and the connected notice for ?connect=done', async () => {
+    m.connect = { status: 'connected', defaultPriceCents: 29900, defaultSetupFeeCents: null, autoPauseAfterDays: null, billingConfigured: true };
+    render(await page({ connect: 'done' }));
+    expect(screen.getByText('You bill $598/mo · Rival Monday costs you $349/mo')).toBeTruthy();
+    expect(screen.getByText('Stripe connected.')).toBeTruthy();
+  });
+  it('?connect=retry while pending shows the not-finished message and Finish Stripe setup', async () => {
+    m.connect = { ...m.connect, status: 'pending' };
+    render(await page({ connect: 'retry' }));
+    expect(screen.getByText("Stripe setup isn't finished yet.")).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Finish Stripe setup' })).toBeTruthy();
   });
 });
 

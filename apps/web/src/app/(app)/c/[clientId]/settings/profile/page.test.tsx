@@ -13,6 +13,7 @@ const callTool = vi.fn(async (ctx: { support?: unknown }, name: string) => {
     if (ctx.support) throw new ToolError('not_found', 'Unknown tool');
     return { questions: [], reviewAllowed: false };
   }
+  if (name === 'list_client_billing_status') return { clients: [{ clientId: C, state: 'active', enabled: true, pill: { key: 'paying', label: 'Paying' }, nextPriceCents: 29900 }] };
   return profile;
 });
 vi.mock('@/server/tools', () => ({ callTool }));
@@ -21,10 +22,16 @@ vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [{ id: 'hvac
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
 vi.mock('@/components/client-profile-form', () => ({ ClientProfileForm: () => <div>profile form</div> }));
 vi.mock('./client-features-form', () => ({ ClientFeaturesForm: (p: { role?: string }) => <div>features form role={String(p.role)}</div> }));
+vi.mock('@/components/billing/client-billing-controls', () => ({ ClientBillingControls: (p: { role: string; pill: { label: string } }) => <div>billing {p.pill.label} role={p.role}</div> }));
 vi.mock('./actions', () => ({ saveFeaturesAction: vi.fn(), updateProfileAction: vi.fn() }));
 const { default: Page } = await import('./page');
 
 describe('client profile page', () => {
+  it('shows the billing pill and controls to an account manager with the AM role', async () => {
+    state.ctx = createAccessContext({ agencyId: A, userId: 'u', role: 'account_manager', clientScope: 'all', features: ['dashboard'] as never });
+    render(await Page({ params: Promise.resolve({ clientId: C }) }));
+    expect(screen.getByText('billing Paying role=account_manager')).toBeTruthy();
+  });
   it('renders in a support session without calling the support-hidden get_ask_starters, and omits the review toggle', async () => {
     callTool.mockClear();
     render(await Page({ params: Promise.resolve({ clientId: C }) }));

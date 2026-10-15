@@ -6,6 +6,8 @@ import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { checkoutAction, portalAction } from './actions';
 import { PaymentButton } from './payment-button';
+import { ClientBillingSection, type ConnectStatus } from './client-billing/section';
+import type { Revenue } from './client-billing/revenue-card';
 import { RedeemForm } from './redeem-form';
 
 export const dynamic = 'force-dynamic';
@@ -45,11 +47,15 @@ const HAS_SUBSCRIPTION: BillingState[] = ['active', 'past_due', 'read_only', 'su
  * Phase 9a spec, Web: the agency's plan, state, seats, invoices and payment actions. Agency admins only; every other
  * role (and a support viewer) gets a 404. The buttons run server actions, which redirect to Stripe.
  */
-export default async function BillingPage({ searchParams }: { searchParams: Promise<{ done?: string | string[] }> }) {
+export default async function BillingPage({ searchParams }: { searchParams: Promise<{ done?: string | string[]; connect?: string | string[] }> }) {
   const { viewer, ctx } = await requireContext();
   if (viewer.kind !== 'user' || ctx.role !== 'agency_admin') notFound();
-  const done = one((await searchParams).done) === '1';
+  const sp = await searchParams;
+  const done = one(sp.done) === '1';
+  const connect = one(sp.connect);
   const s = await callTool<Summary>(ctx, 'get_billing_summary', {});
+  const connectStatus = await callTool<ConnectStatus>(ctx, 'get_connect_status', {});
+  const revenue = connectStatus.status === 'connected' ? await callTool<Revenue>(ctx, 'get_client_revenue', {}) : null;
   const date = keyDate(s);
   const subscribed = HAS_SUBSCRIPTION.includes(s.state);
   return (
@@ -92,6 +98,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           </div>
         </CardContent>
       </Card>
+      <ClientBillingSection status={connectStatus} revenue={revenue} connect={connect} />
       <Card>
         <CardHeader>
           <CardTitle>Discount code</CardTitle>
