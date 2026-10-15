@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { client, discoveryRun } from '@cs/db';
+import { client, discoveryRun, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,6 +7,7 @@ import type { EnqueueJob, ToolDeps } from './deps';
 import { createToolRegistry } from './registry';
 import { listMonthlyRivalClients, manualSearchWeek, nextManualSearchAt, searchDayLabel, startCompetitorSearch } from './rival-search';
 
+const STD_PLAN = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 10, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' };
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const enqueue = vi.fn<EnqueueJob>(async () => {});
@@ -37,6 +38,7 @@ beforeEach(async () => {
   enqueue.mockResolvedValue(undefined);
   await truncateAll(dbs.owner);
   await seedTenancy(dbs.owner);
+  await dbs.owner.insert(plan).values(STD_PLAN); // 9a: create_client/convert_prospect check the seat cap, which needs a current plan
 });
 
 describe('startCompetitorSearch', () => {
