@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import type { ConnectedAccount, ConnectedSubscription, ConnectEventLike } from './connect-gateway-types';
 import {
   type BillingGateway, type CheckoutSessionInput, type CreateCouponInput, type CreatePromotionCodeInput,
   type GatewayInvoice, type GatewaySubscription, type StripeEventLike, type UpcomingInvoice, InvalidSignature,
@@ -12,6 +13,9 @@ interface FakeCustomer { id: string; agencyId: string; name: string; email?: str
 interface FakeCoupon extends CreateCouponInput { id: string }
 interface FakePromotionCode extends CreatePromotionCodeInput { id: string; active: boolean }
 
+interface FakeConnectedPrice { id: string; stripeAccount: string; productId: string; unitAmountCents: number; currency: string; active: boolean }
+export interface FakeConnectedSubscription extends ConnectedSubscription { stripeAccount: string }
+
 export interface FakeGateway extends BillingGateway {
   readonly calls: FakeCall[];
   readonly customers: Map<string, FakeCustomer>;
@@ -21,6 +25,15 @@ export interface FakeGateway extends BillingGateway {
   readonly promotionCodes: Map<string, FakePromotionCode>;
   /** Coupons attached per subscription by `attachSubscriptionDiscount` (latest call replaces, like Stripe). */
   readonly subscriptionCoupons: Map<string, string[]>;
+  /** Connect: connected accounts by id (`createAccountLink` adds one with charges disabled). */
+  readonly connectedAccounts: Map<string, ConnectedAccount>;
+  readonly connectedProducts: Map<string, { id: string; stripeAccount: string; name: string }>;
+  readonly connectedPrices: Map<string, FakeConnectedPrice>;
+  /** Connect: subscriptions by id (ids are unique across accounts; reads check the account matches). */
+  readonly connectedSubscriptions: Map<string, FakeConnectedSubscription>;
+  /** Adds or updates a connected account (defaults: charges disabled, details not submitted). */
+  seedConnectedAccount(a: Partial<ConnectedAccount> & { id: string }): ConnectedAccount;
+  seedConnectedSubscription(s: Partial<ConnectedSubscription> & { id: string; stripeAccount: string; customerId: string }): FakeConnectedSubscription;
   /** The next gateway method call (any method) rejects with `error`; later calls succeed. */
   failNext(error?: Error): void;
   seedSubscription(sub: Partial<GatewaySubscription> & { id: string; customerId: string }): GatewaySubscription;
@@ -38,6 +51,10 @@ export function fakeGateway(): FakeGateway {
   const promotionCodes = new Map<string, FakePromotionCode>();
   const subscriptionCoupons = new Map<string, string[]>();
   const upcoming = new Map<string, UpcomingInvoice | null>();
+  const connectedAccounts = new Map<string, ConnectedAccount>();
+  const connectedProducts = new Map<string, { id: string; stripeAccount: string; name: string }>();
+  const connectedPrices = new Map<string, FakeConnectedPrice>();
+  const connectedSubscriptions = new Map<string, FakeConnectedSubscription>();
   let failure: Error | null = null;
   /** Random suffix (R27): a fake id must never look like, or collide with, one minted by another process. */
   const nid = (p: string) => `${p}_fake_${randomBytes(4).toString('hex')}`;
@@ -56,10 +73,40 @@ export function fakeGateway(): FakeGateway {
     if (!s) throw Object.assign(new Error(`fake gateway: no subscription ${id}`), { code: 'resource_missing' });
     return s;
   };
+  const missing = (what: string, id: string) => Object.assign(new Error(`fake gateway: no ${what} ${id}`), { code: 'resource_missing' });
+  const account = (id: string): ConnectedAccount => {
+    const a = connectedAccounts.get(id);
+    if (!a) throw missing('account', id);
+    return a;
+  };
+  const connectedSub = (acct: string, id: string): FakeConnectedSubscription => {
+    account(acct);
+    const s = connectedSubscriptions.get(id);
+    if (!s || s.stripeAccount !== acct) throw missing('subscription', id);
+    return s;
+  };
+  const connectedPrice = (acct: string, id: string): FakeConnectedPrice => {
+    const p = connectedPrices.get(id);
+    if (!p || p.stripeAccount !== acct) throw missing('price', id);
+    return p;
+  };
   const seat = (s: GatewaySubscription) => s.items.find((i) => i.id.startsWith('si_seat'));
 
   const gw: FakeGateway = {
     calls, customers, subscriptions, invoices, coupons, promotionCodes, subscriptionCoupons,
+    connectedAccounts, connectedProducts, connectedPrices, connectedSubscriptions,
+    seedConnectedAccount(a) {
+      const acct: ConnectedAccount = { chargesEnabled: false, detailsSubmitted: false, ...connectedAccounts.get(a.id), ...a };
+      connectedAccounts.set(acct.id, acct);
+      return acct;
+    },
+    seedConnectedSubscription(p) {
+      const s: FakeConnectedSubscription = {
+        status: 'active', priceId: 'price_connected_fake', currentPeriodEnd: new Date(Date.now() + 30 * 864e5), cancelAtPeriodEnd: false, ...p,
+      };
+      connectedSubscriptions.set(s.id, s);
+      return s;
+    },
     failNext(error = new Error('fake gateway failure')) { failure = error; },
     callsTo: (m) => calls.filter((c) => c.method === m),
     seedSubscription(p) {
@@ -153,6 +200,65 @@ export function fakeGateway(): FakeGateway {
       enter('attachSubscriptionDiscount', i);
       sub(i.subscriptionId);
       subscriptionCoupons.set(i.subscriptionId, [i.couponId]);
+    },
+    async createAccountLink(i) {
+      enter('createAccountLink', i);
+      const accountId = i.accountId ?? gw.seedConnectedAccount({ id: nid('acct') }).id;
+      account(accountId);
+      return { url: `${i.returnUrl}${i.returnUrl.includes('?') ? '&' : '?'}fake_connect_onboarding=${accountId}`, accountId };
+    },
+    async getAccount(i) {
+      enter('getAccount', i);
+      return { ...account(i.stripeAccount) };
+    },
+    async createConnectedProduct(i) {
+      enter('createConnectedProduct', i);
+      account(i.stripeAccount);
+      const id = nid('prod_conn');
+      connectedProducts.set(id, { id, stripeAccount: i.stripeAccount, name: i.name });
+      return { id };
+    },
+    async createConnectedPrice(i) {
+      enter('createConnectedPrice', i);
+      account(i.stripeAccount);
+      const id = nid('price_conn');
+      connectedPrices.set(id, { id, stripeAccount: i.stripeAccount, productId: i.productId, unitAmountCents: i.unitAmountCents, currency: i.currency ?? 'usd', active: true });
+      return { id };
+    },
+    async archiveConnectedPrice(i) {
+      enter('archiveConnectedPrice', i);
+      account(i.stripeAccount);
+      connectedPrice(i.stripeAccount, i.priceId).active = false;
+    },
+    async createConnectedCheckout(i) {
+      enter('createConnectedCheckout', i);
+      account(i.stripeAccount);
+      const subId = nid('sub_conn');
+      gw.seedConnectedSubscription({ id: subId, stripeAccount: i.stripeAccount, customerId: nid('cus_conn'), priceId: i.priceId });
+      return { url: `${i.successUrl}${i.successUrl.includes('?') ? '&' : '?'}fake_connect_checkout=${subId}` };
+    },
+    async createConnectedPortal(i) {
+      enter('createConnectedPortal', i);
+      account(i.stripeAccount);
+      return { url: `${i.returnUrl}${i.returnUrl.includes('?') ? '&' : '?'}fake_portal=1` };
+    },
+    async getConnectedSubscription(i) {
+      enter('getConnectedSubscription', i);
+      const { stripeAccount: _acct, ...s } = connectedSub(i.stripeAccount, i.subscriptionId);
+      return s;
+    },
+    async updateConnectedSubscriptionPrice(i) {
+      enter('updateConnectedSubscriptionPrice', i);
+      connectedSub(i.stripeAccount, i.subscriptionId).priceId = i.priceId;
+    },
+    async cancelConnectedSubscriptionAtPeriodEnd(i) {
+      enter('cancelConnectedSubscriptionAtPeriodEnd', i);
+      connectedSub(i.stripeAccount, i.subscriptionId).cancelAtPeriodEnd = true;
+    },
+    verifyConnectWebhook(rawBody, signature): ConnectEventLike {
+      calls.push({ method: 'verifyConnectWebhook', args: [rawBody, signature] });
+      if (signature !== FAKE_WEBHOOK_SIGNATURE) throw new InvalidSignature();
+      return JSON.parse(rawBody) as ConnectEventLike;
     },
     verifyWebhook(rawBody, signature): StripeEventLike {
       calls.push({ method: 'verifyWebhook', args: [rawBody, signature] });

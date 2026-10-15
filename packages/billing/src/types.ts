@@ -1,3 +1,5 @@
+import type { ConnectGateway } from './connect-gateway-types';
+
 /** Gateway contract for platform → agency billing. All money is integer cents (USD). */
 
 export class InvalidSignature extends Error {
@@ -111,7 +113,7 @@ export interface CreatePromotionCodeInput {
   maxRedemptions?: number;
 }
 
-export interface BillingGateway {
+export interface BillingGateway extends ConnectGateway {
   createCustomer(i: { agencyId: string; name: string; email?: string }): Promise<{ id: string }>;
   createCheckoutSession(i: CheckoutSessionInput): Promise<{ url: string }>;
   createPortalSession(i: { customerId: string; returnUrl: string }): Promise<{ url: string }>;

@@ -7,6 +7,7 @@ export type DbEnvName = 'dev' | 'demo' | 'test';
 export interface GatewayEnv {
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  STRIPE_CONNECT_WEBHOOK_SECRET?: string;
   STRIPE_TAX_ENABLED?: string;
   NODE_ENV?: string;
   VITEST?: string;
@@ -38,6 +39,7 @@ export function gatewayFor(env: GatewayEnv, envName: DbEnvName): BillingGateway 
     case 'real':
       return stripeGateway(env.STRIPE_SECRET_KEY!.trim(), {
         webhookSecret: env.STRIPE_WEBHOOK_SECRET?.trim() || undefined,
+        connectWebhookSecret: env.STRIPE_CONNECT_WEBHOOK_SECRET?.trim() || undefined,
         taxEnabled: env.STRIPE_TAX_ENABLED === 'true',
       });
     default:

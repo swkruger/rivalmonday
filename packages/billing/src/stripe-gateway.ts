@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import type { ConnectedSubscription, ConnectEventLike } from './connect-gateway-types';
 import {
   type BillingGateway, type GatewayInvoice, type GatewaySubscription, type StripeEventLike, type SubscriptionStatus,
   InvalidSignature, trialEndUsable,
@@ -10,6 +11,8 @@ export const PRICE_ROLE_KEY = 'rm_role';
 export interface StripeGatewayOptions {
   /** `whsec_...`; only needed for `verifyWebhook`. */
   webhookSecret?: string;
+  /** `whsec_...` of the Connect webhook endpoint (`STRIPE_CONNECT_WEBHOOK_SECRET`); only needed for `verifyConnectWebhook`. */
+  connectWebhookSecret?: string;
   /** Enables Stripe Tax on Checkout (`STRIPE_TAX_ENABLED === 'true'`). */
   taxEnabled?: boolean;
   /** Test seam: a pre-built (mocked) client. */
@@ -145,6 +148,88 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
     async attachSubscriptionDiscount(i) {
       // API 2026-08-26.dahlia removed `coupon` on customers/subscriptions; `discounts` replaces the subscription's discounts.
       await stripe.subscriptions.update(i.subscriptionId, { discounts: [{ coupon: i.couponId }] });
+    },
+    // Connect (Phase 9b): every client object lives on the connected account, so each call carries `{ stripeAccount }`.
+    async createAccountLink(i) {
+      const accountId = i.accountId ?? (await stripe.accounts.create({ type: 'standard' })).id;
+      const l = await stripe.accountLinks.create({ account: accountId, refresh_url: i.refreshUrl, return_url: i.returnUrl, type: 'account_onboarding' });
+      return { url: l.url, accountId };
+    },
+    async getAccount(i) {
+      const a = await stripe.accounts.retrieve(i.stripeAccount);
+      return { id: a.id, chargesEnabled: !!a.charges_enabled, detailsSubmitted: !!a.details_submitted };
+    },
+    async createConnectedProduct(i) {
+      const p = await stripe.products.create({ name: i.name }, { stripeAccount: i.stripeAccount });
+      return { id: p.id };
+    },
+    async createConnectedPrice(i) {
+      const p = await stripe.prices.create(
+        { product: i.productId, currency: i.currency ?? 'usd', unit_amount: i.unitAmountCents, recurring: { interval: 'month' } },
+        { stripeAccount: i.stripeAccount },
+      );
+      return { id: p.id };
+    },
+    async archiveConnectedPrice(i) {
+      await stripe.prices.update(i.priceId, { active: false }, { stripeAccount: i.stripeAccount });
+    },
+    async createConnectedCheckout(i) {
+      const opt = { stripeAccount: i.stripeAccount };
+      const setup = (i.setupFeeCents ?? 0) > 0 ? i.setupFeeCents! : 0;
+      // The one-time fee is charged in the price's currency (the connected account's), so read it from the price.
+      const currency = setup > 0 ? (await stripe.prices.retrieve(i.priceId, {}, opt)).currency : undefined;
+      const fee = (i.applicationFeePercent ?? 0) > 0 ? i.applicationFeePercent! : 0;
+      const s = await stripe.checkout.sessions.create(
+        {
+          mode: 'subscription',
+          line_items: [
+            { price: i.priceId, quantity: 1 },
+            ...(setup > 0 ? [{ quantity: 1, price_data: { currency: currency!, unit_amount: setup, product_data: { name: 'Setup fee' } } }] : []),
+          ],
+          ...(fee > 0 ? { subscription_data: { application_fee_percent: fee } } : {}),
+          customer_email: i.customerEmail,
+          expires_at: Math.floor(Date.now() / 1000) + 24 * 3600,
+          success_url: i.successUrl,
+          cancel_url: i.cancelUrl,
+        },
+        opt,
+      );
+      if (!s.url) throw new Error('Stripe returned a Checkout session without a url');
+      return { url: s.url };
+    },
+    async createConnectedPortal(i) {
+      const s = await stripe.billingPortal.sessions.create({ customer: i.customerId, return_url: i.returnUrl }, { stripeAccount: i.stripeAccount });
+      return { url: s.url };
+    },
+    async getConnectedSubscription(i): Promise<ConnectedSubscription> {
+      const s = await stripe.subscriptions.retrieve(i.subscriptionId, { expand: ['items.data.price'] }, { stripeAccount: i.stripeAccount });
+      return {
+        id: s.id,
+        status: s.status as SubscriptionStatus,
+        customerId: idOf(s.customer as string | { id: string }),
+        priceId: s.items.data[0]?.price.id ?? '',
+        currentPeriodEnd: date(s.items.data[0]?.current_period_end),
+        cancelAtPeriodEnd: s.cancel_at_period_end,
+      };
+    },
+    async updateConnectedSubscriptionPrice(i) {
+      const opt = { stripeAccount: i.stripeAccount };
+      const s = await stripe.subscriptions.retrieve(i.subscriptionId, {}, opt);
+      const line = s.items.data[0];
+      if (!line) throw new Error(`Connected subscription ${i.subscriptionId} has no items`);
+      await stripe.subscriptions.update(i.subscriptionId, { items: [{ id: line.id, price: i.priceId }], proration_behavior: 'none' }, opt);
+    },
+    async cancelConnectedSubscriptionAtPeriodEnd(i) {
+      await stripe.subscriptions.update(i.subscriptionId, { cancel_at_period_end: true }, { stripeAccount: i.stripeAccount });
+    },
+    verifyConnectWebhook(rawBody, signature): ConnectEventLike {
+      if (!opts.connectWebhookSecret) throw new Error('STRIPE_CONNECT_WEBHOOK_SECRET is not configured');
+      try {
+        const e = stripe.webhooks.constructEvent(rawBody, signature, opts.connectWebhookSecret);
+        return { id: e.id, type: e.type, created: e.created, account: e.account, data: { object: e.data.object as unknown as Record<string, unknown> } };
+      } catch (err) {
+        throw new InvalidSignature(err instanceof Error ? err.message : undefined);
+      }
     },
     verifyWebhook(rawBody, signature): StripeEventLike {
       if (!opts.webhookSecret) throw new Error('STRIPE_WEBHOOK_SECRET is not configured');
