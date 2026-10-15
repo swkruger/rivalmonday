@@ -13,3 +13,5 @@ export * from './daily';
 export * from './plan-sync';
 export * from './notices';
 export * from './seed';
+export * from './client-pause';
+export * from './pill';
