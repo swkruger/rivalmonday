@@ -210,7 +210,8 @@ export async function seed(): Promise<void> {
   await mkdir(OUTBOX, { recursive: true });
 }
 
-export const CB_AGENCY = 'Billing Agency E2E';
+// Sorts after 'E2E Agency': kb.spec.ts picks the agency select's index 1.
+export const CB_AGENCY = 'Metro Billing Agency E2E';
 export const CB_CLIENT = 'Furnace Billing Co';
 export const CB_USERS = { admin: 'cb-admin@e2e.test', owner: 'cb-owner@e2e.test', viewer: 'cb-viewer@e2e.test' } as const;
 

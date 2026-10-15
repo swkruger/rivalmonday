@@ -1,17 +1,18 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { type APIRequestContext, type Browser, expect, type Page, test, type TestInfo } from '@playwright/test';
+import { type Browser, expect, type Page, test, type TestInfo } from '@playwright/test';
 import { agency, agencyConnect, client, clientBilling, createDb } from '@cs/db';
 import { eq } from 'drizzle-orm';
 import { signIn } from './helpers';
 import { CB_AGENCY, CB_CLIENT, CB_USERS } from './seed';
 
 /**
- * Phase 9b client billing, against the fake gateway (an in-memory Stripe inside the web server). `seed.ts` adds "Billing
+ * Phase 9b client billing, against the fake gateway (an in-memory Stripe inside the web server). `seed.ts` adds "Metro Billing
  * Agency E2E" (an exempt pilot, so eligible) with one client, its admin, a client owner and a client viewer. The agency
- * connects through the real UI; the fake treats a second onboarding link as "finished", and the `account.updated` and
- * `invoice.payment_failed` events are posted fake-signed (`fake-sig`) like Stripe would. Paid state, which needs a
- * Checkout the test cannot complete, is written straight to the test DB.
+ * connects through the real UI; the fake treats a second onboarding link as "finished". What Stripe's webhooks would
+ * persist (connected account, failed payment) is written straight to the test DB, because the connect webhook route is
+ * deliberately closed to a production build running the fake gateway (R13); its handling is covered by the route and
+ * billing package tests.
  */
 const STATE = (who: Who) => fileURLToPath(new URL(`../test-results/client-billing-${who}-state.json`, import.meta.url));
 type Who = keyof typeof CB_USERS;
@@ -51,22 +52,14 @@ const ids = () => withDb(async (db) => {
   return row!;
 });
 
-async function connectEvent(request: APIRequestContext, id: string, type: string, account: string, object: Record<string, unknown>): Promise<void> {
-  const res = await request.post('/api/stripe/connect-webhook', {
-    headers: { 'stripe-signature': 'fake-sig', 'content-type': 'application/json' },
-    data: JSON.stringify({ id, type, created: Math.floor(Date.now() / 1000), account, data: { object } }),
-  });
-  expect(res.status()).toBe(200);
-}
-
 const row = (page: Page) => page.getByRole('row', { name: new RegExp(CB_CLIENT) });
 const LEAK = /rival\s*monday/i;
 
 test.describe.serial('client billing', () => {
-  test('the agency admin connects Stripe, sets defaults and turns on billing for a client with an owner', { tag: ['@client-billing'] }, async ({ browser, request }, testInfo) => {
+  test('the agency admin connects Stripe, sets defaults and turns on billing for a client with an owner', { tag: ['@client-billing'] }, async ({ browser }, testInfo) => {
     await as(browser, testInfo, 'admin', async (page) => {
       await page.goto('/agency/settings/billing');
-      await expect(page.getByRole('heading', { name: 'Client billing' })).toBeVisible();
+      await expect(page.getByText('Client billing', { exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Connect Stripe' }).click();
       // The fake onboarding link returns straight to the page; the account exists but cannot take charges yet.
       await expect(page.getByText("Stripe setup isn't finished yet.")).toBeVisible();
@@ -74,11 +67,10 @@ test.describe.serial('client billing', () => {
       await expect(page.getByText('Stripe is connected. Your clients pay you directly.')).toBeVisible();
     });
 
-    // The account.updated webhook is what persists the connected state.
+    // In production Stripe's account.updated webhook persists the connected state; the E2E server (a production build
+    // with the fake gateway) refuses the connect webhook route by design (R13), so write what that handler would.
     const { agencyId } = await ids();
-    const account = await withDb(async (db) => (await db.select().from(agencyConnect).where(eq(agencyConnect.agencyId, agencyId)))[0]!.stripeAccountId!);
-    await connectEvent(request, 'evt_e2e_cb_account', 'account.updated', account, { id: account });
-    expect(await withDb(async (db) => (await db.select().from(agencyConnect).where(eq(agencyConnect.agencyId, agencyId)))[0]!.status)).toBe('connected');
+    await withDb((db) => db.update(agencyConnect).set({ status: 'connected', chargesEnabled: true, detailsSubmitted: true, connectedAt: new Date() }).where(eq(agencyConnect.agencyId, agencyId)));
 
     await as(browser, testInfo, 'admin', async (page) => {
       await page.goto('/agency/settings/billing');
@@ -115,12 +107,13 @@ test.describe.serial('client billing', () => {
     });
   });
 
-  test('a failed payment shows Payment needed to the agency and the banner to the client owner only', { tag: ['@client-billing'] }, async ({ browser, request }, testInfo) => {
-    const { agencyId, clientId } = await ids();
-    // Stand in for a completed Checkout: a live subscription on the client's billing row.
-    await withDb((db) => db.update(clientBilling).set({ state: 'active', stripeSubscriptionId: 'sub_e2e_cb', stripeCustomerId: 'cus_e2e_cb', billedPriceCents: 19900, lastPaidAt: new Date() }).where(eq(clientBilling.clientId, clientId)));
-    const account = await withDb(async (db) => (await db.select().from(agencyConnect).where(eq(agencyConnect.agencyId, agencyId)))[0]!.stripeAccountId!);
-    await connectEvent(request, 'evt_e2e_cb_failed', 'invoice.payment_failed', account, { subscription: 'sub_e2e_cb' });
+  test('a failed payment shows Payment needed to the agency and the banner to the client owner only', { tag: ['@client-billing'] }, async ({ browser }, testInfo) => {
+    const { clientId } = await ids();
+    // What a completed Checkout followed by Stripe's invoice.payment_failed webhook leaves behind (the webhook route is
+    // closed to the E2E server; the transition itself is covered by the billing package's tests).
+    await withDb((db) => db.update(clientBilling).set({
+      state: 'payment_needed', stripeSubscriptionId: 'sub_e2e_cb', stripeCustomerId: 'cus_e2e_cb', billedPriceCents: 19900, lastPaidAt: new Date(Date.now() - 35 * 86_400_000), paymentFailedSince: new Date(),
+    }).where(eq(clientBilling.clientId, clientId)));
 
     await as(browser, testInfo, 'owner', async (page) => {
       await page.goto(`/c/${clientId}`);
