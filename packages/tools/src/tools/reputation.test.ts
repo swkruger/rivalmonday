@@ -73,6 +73,33 @@ describe('get_rating_trend', () => {
     expect(r.businesses[1]).toMatchObject({ gbpRating: null, reviews90d: 0, replyRate: null, mix: [0, 0, 0, 0, 0] });
   });
 
+  it('get_rating_trend output unchanged (golden)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-15T12:00:00Z'));
+    const selfId = await seedSelf();
+    await seedGbpRating(selfId, 4.7);
+    await seedGbpRating(IDS.competitorX, 4.1, ago(10));
+    await seedGbpRating(IDS.competitorX, 4.3, ago(2));
+    await seedReview({ competitorId: selfId, rating: 5, postedAt: ago(1), ownerAnswer: 'Thanks!' });
+    await seedReview({ competitorId: selfId, rating: 2, postedAt: ago(20) });
+    await seedReview({ competitorId: selfId, rating: 4, postedAt: ago(120) });
+    await seedReview({ rating: 4, postedAt: ago(5), ownerAnswer: 'Ta' });
+    await seedReview({ rating: 4, postedAt: ago(30), ownerAnswer: 'Ta' });
+    await seedReview({ rating: 3, postedAt: ago(60) });
+    await seedReview({ rating: 5, postedAt: ago(200) });
+    const r = await registry.invoke(owner, 'get_rating_trend', { clientId: IDS.clientA1, months: 6 });
+    expect(r).toEqual({
+      months: ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'],
+      selfPending: false,
+      businesses: [
+        { competitorId: selfId, name: 'A1 HVAC', self: true, gbpRating: 4.7, reviews90d: 2, perMonth: 0.5, replyRate: 0.5, mix: [0, 1, 0, 1, 1],
+          monthly: [{ reviews: 0, avgRating: null }, { reviews: 1, avgRating: 4 }, { reviews: 0, avgRating: null }, { reviews: 0, avgRating: null }, { reviews: 1, avgRating: 2 }, { reviews: 1, avgRating: 5 }] },
+        { competitorId: IDS.competitorX, name: 'Smith HVAC', self: false, gbpRating: 4.3, reviews90d: 3, perMonth: 0.5, replyRate: 0.67, mix: [0, 0, 1, 2, 1],
+          monthly: [{ reviews: 0, avgRating: null }, { reviews: 0, avgRating: null }, { reviews: 0, avgRating: null }, { reviews: 1, avgRating: 3 }, { reviews: 1, avgRating: 4 }, { reviews: 1, avgRating: 4 }] },
+      ],
+    });
+  });
+
   it('flags selfPending only when the client has a place id but no self business yet', async () => {
     const none = (await registry.invoke(owner, 'get_rating_trend', { clientId: IDS.clientA1 })) as RatingTrendView;
     expect([none.selfPending, none.businesses.map((b) => b.self)]).toEqual([false, [false]]);

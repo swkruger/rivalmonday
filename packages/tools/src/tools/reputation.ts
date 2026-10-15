@@ -1,7 +1,6 @@
-import { gbpSummary } from '@cs/collectors';
 import { appLinkFor, ToolError, toolkit } from '@cs/core';
-import { observation, review, reviewAnalysis } from '@cs/db';
-import { reviewBenchmark, sentimentScore, themesForVertical } from '@cs/engine';
+import { review, reviewAnalysis } from '@cs/db';
+import { monthKeys, ratingStats, reviewBenchmark, sentimentScore, themesForVertical } from '@cs/engine';
 import { and, desc, eq, gte, ilike, inArray, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
@@ -42,13 +41,7 @@ export const getThemeBenchmark = defineTool({
   },
 });
 
-/** UTC calendar months `YYYY-MM`, the last one containing `now`. */
-export function monthKeys(now: Date, n: number): string[] {
-  return Array.from({ length: n }, (_, k) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (n - 1 - k), 1)).toISOString().slice(0, 7));
-}
-
-const r1 = (x: number) => Math.round(x * 10) / 10;
-const r2 = (x: number) => Math.round(x * 100) / 100;
+export { monthKeys };
 
 export const getRatingTrend = defineTool({
   name: 'get_rating_trend',
@@ -66,51 +59,13 @@ export const getRatingTrend = defineTool({
     const now = new Date();
     const months = monthKeys(now, input.months);
     if (businesses.length === 0) return { months, selfPending, businesses: [] };
-    const ids = businesses.map((b) => b.competitorId!);
-    const since90 = new Date(now.getTime() - 90 * DAY).toISOString();
-    const since180 = new Date(now.getTime() - 180 * DAY).toISOString();
-    const monthExpr = sql<string>`to_char(date_trunc('month', ${review.postedAt} AT TIME ZONE 'UTC'), 'YYYY-MM')`;
-    // Global review/observation rows — visibility proved by workspaceBusinesses (RLS; the self row via client.self_competitor_id).
-    const monthly = await deps.service
-      .select({ competitorId: review.competitorId, month: monthExpr, n: sql<number>`count(*)::int`, avg: sql<number | null>`round(avg(${review.rating})::numeric, 2)::float8` })
-      .from(review)
-      .where(and(inArray(review.competitorId, ids), gte(review.postedAt, new Date(`${months[0]}-01T00:00:00Z`))))
-      .groupBy(review.competitorId, monthExpr);
-    const stats = await deps.service
-      .select({
-        competitorId: review.competitorId,
-        n90: sql<number>`count(*) FILTER (WHERE ${review.postedAt} > ${since90}::timestamptz)::int`,
-        answered90: sql<number>`count(*) FILTER (WHERE ${review.postedAt} > ${since90}::timestamptz AND ${review.ownerAnswer} IS NOT NULL)::int`,
-        n180: sql<number>`count(*) FILTER (WHERE ${review.postedAt} > ${since180}::timestamptz)::int`,
-        s1: sql<number>`count(*) FILTER (WHERE ${review.rating} = 1)::int`,
-        s2: sql<number>`count(*) FILTER (WHERE ${review.rating} = 2)::int`,
-        s3: sql<number>`count(*) FILTER (WHERE ${review.rating} = 3)::int`,
-        s4: sql<number>`count(*) FILTER (WHERE ${review.rating} = 4)::int`,
-        s5: sql<number>`count(*) FILTER (WHERE ${review.rating} = 5)::int`,
-      })
-      .from(review).where(inArray(review.competitorId, ids)).groupBy(review.competitorId);
-    const gbp = await deps.service.selectDistinctOn([observation.competitorId], { competitorId: observation.competitorId, data: observation.data })
-      .from(observation).where(and(inArray(observation.competitorId, ids), eq(observation.kind, 'gbp_profile'), eq(observation.key, 'profile')))
-      .orderBy(observation.competitorId, desc(observation.observedAt));
-
+    const stats = await ratingStats(deps.service, businesses.map((b) => b.competitorId!), now, months);
     return {
       months,
       selfPending,
       businesses: businesses.map((b) => {
-        const s = stats.find((x) => x.competitorId === b.competitorId);
-        const n90 = Number(s?.n90 ?? 0);
-        return {
-          competitorId: b.competitorId!, name: b.name, self: b.self,
-          gbpRating: gbpSummary(gbp.find((g) => g.competitorId === b.competitorId)?.data ?? null)?.rating ?? null,
-          reviews90d: n90,
-          perMonth: r1(Number(s?.n180 ?? 0) / 6),
-          replyRate: n90 > 0 ? r2(Number(s!.answered90) / n90) : null,
-          mix: [s?.s1, s?.s2, s?.s3, s?.s4, s?.s5].map((v) => Number(v ?? 0)),
-          monthly: months.map((m) => {
-            const row = monthly.find((x) => x.competitorId === b.competitorId && x.month === m);
-            return { reviews: Number(row?.n ?? 0), avgRating: row?.avg === null || row?.avg === undefined ? null : Number(row.avg) };
-          }),
-        };
+        const s = stats.get(b.competitorId!)!;
+        return { competitorId: b.competitorId!, name: b.name, self: b.self, gbpRating: s.gbpRating, reviews90d: s.reviews90d, perMonth: s.perMonth, replyRate: s.replyRate, mix: s.mix, monthly: s.monthly };
       }),
     };
   },

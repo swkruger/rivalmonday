@@ -15,3 +15,4 @@ export * from './review';
 export * from './deliver';
 export * from './recommendations';
 export * from './pdf';
+export * from './scorecard';

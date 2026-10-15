@@ -23,6 +23,7 @@ export * from './tag/tag-stage';
 export * from './tag/structured';
 export * from './reviews/themes';
 export * from './reviews/benchmark';
+export * from './reviews/rating-trend';
 export * from './reviews/complaints';
 export * from './reviews/discovery';
 export * from './merge/merge';
