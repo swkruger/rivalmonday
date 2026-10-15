@@ -173,6 +173,10 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
     async archiveConnectedPrice(i) {
       await stripe.prices.update(i.priceId, { active: false }, { stripeAccount: i.stripeAccount });
     },
+    async getConnectedPrice(i) {
+      const p = await stripe.prices.retrieve(i.priceId, {}, { stripeAccount: i.stripeAccount });
+      return { id: p.id, active: p.active, unitAmountCents: p.unit_amount ?? null };
+    },
     async createConnectedCheckout(i) {
       const opt = { stripeAccount: i.stripeAccount };
       const setup = (i.setupFeeCents ?? 0) > 0 ? i.setupFeeCents! : 0;

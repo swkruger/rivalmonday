@@ -149,6 +149,13 @@ describe('stripeGateway Connect', () => {
     expect(c.subscriptions.update).toHaveBeenLastCalledWith('sub_c', { cancel_at_period_end: true }, { stripeAccount: ACCT });
   });
 
+  it('R20: getConnectedPrice reads active and amount on the connected account', async () => {
+    const c = mockClient();
+    c.prices.retrieve.mockResolvedValueOnce({ id: 'price_c', currency: 'usd', active: false, unit_amount: 4200 } as never);
+    expect(await gw(c).getConnectedPrice({ stripeAccount: ACCT, priceId: 'price_c' })).toEqual({ id: 'price_c', active: false, unitAmountCents: 4200 });
+    expect(c.prices.retrieve).toHaveBeenCalledWith('price_c', {}, { stripeAccount: ACCT });
+  });
+
   it('R25: the portal configuration is created on the connected account (payment method + invoices, no cancel) and passed to sessions', async () => {
     const c = mockClient();
     const g = gw(c);

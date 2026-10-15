@@ -33,6 +33,8 @@ export interface ConnectGateway {
   /** Monthly recurring price. `currency` defaults to `usd`. */
   createConnectedPrice(i: { stripeAccount: string; productId: string; unitAmountCents: number; currency?: string }): Promise<{ id: string }>;
   archiveConnectedPrice(i: { stripeAccount: string; priceId: string }): Promise<void>;
+  /** R20: whether a stored price can still be used for a new Checkout (archived = `active: false`). Throws `resource_missing` for an unknown price. */
+  getConnectedPrice(i: { stripeAccount: string; priceId: string }): Promise<{ id: string; active: boolean; unitAmountCents: number | null }>;
   /** Subscription Checkout; the one-time setup fee line only when `setupFeeCents > 0`, the application fee only when `applicationFeePercent > 0`. Link expires after 24 h. */
   createConnectedCheckout(i: {
     stripeAccount: string;

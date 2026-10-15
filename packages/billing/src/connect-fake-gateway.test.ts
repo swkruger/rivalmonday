@@ -63,6 +63,16 @@ describe('fakeGateway Connect', () => {
     expect(await code(gw.updateConnectedSubscriptionPrice({ stripeAccount: 'acct_1', subscriptionId: 'sub_1', priceId: 'price_nope', prorate: false }))).toBe('resource_missing');
   });
 
+  it('getConnectedPrice reports active and amount per account (R20)', async () => {
+    const gw = fakeGateway();
+    gw.seedConnectedAccount({ id: 'acct_1' });
+    gw.seedConnectedPrice({ id: 'price_1', stripeAccount: 'acct_1', unitAmountCents: 4200 });
+    expect(await gw.getConnectedPrice({ stripeAccount: 'acct_1', priceId: 'price_1' })).toEqual({ id: 'price_1', active: true, unitAmountCents: 4200 });
+    await gw.archiveConnectedPrice({ stripeAccount: 'acct_1', priceId: 'price_1' });
+    expect((await gw.getConnectedPrice({ stripeAccount: 'acct_1', priceId: 'price_1' })).active).toBe(false);
+    expect(await code(gw.getConnectedPrice({ stripeAccount: 'acct_1', priceId: 'price_nope' }))).toBe('resource_missing');
+  });
+
   it('portal configuration lives on the connected account and portal sessions record it (R25)', async () => {
     const gw = fakeGateway();
     expect(await code(gw.createConnectedPortalConfiguration({ stripeAccount: 'acct_nope' }))).toBe('account_invalid');

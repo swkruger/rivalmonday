@@ -273,6 +273,12 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
       account(i.stripeAccount);
       connectedPrice(i.stripeAccount, i.priceId).active = false;
     },
+    async getConnectedPrice(i) {
+      enter('getConnectedPrice', i);
+      account(i.stripeAccount);
+      const p = connectedPrice(i.stripeAccount, i.priceId);
+      return { id: p.id, active: p.active, unitAmountCents: p.unitAmountCents };
+    },
     async createConnectedCheckout(i) {
       enter('createConnectedCheckout', i);
       account(i.stripeAccount);
