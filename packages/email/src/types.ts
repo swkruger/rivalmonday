@@ -105,6 +105,25 @@ export interface BillingNoticeProps {
   date?: string;
   billingUrl: string;
 }
+export type ClientBillingNoticeKind = 'client-payment-link' | 'client-payment-needed';
+/** Phase 9b Task 8: client-facing, agency-branded. Never mentions the platform. */
+export interface ClientBillingNoticeProps {
+  branding: Branding;
+  kind: ClientBillingNoticeKind;
+  agencyName: string;
+  /** The button target: the Stripe Checkout link (client-payment-link) or the client's billing page (client-payment-needed). */
+  actionUrl: string;
+}
+export type AgencyClientBillingNoticeKind = 'client-payment-failed' | 'client-paid' | 'client-auto-paused';
+/** Phase 9b Task 8: agency admins, Rival Monday branding. */
+export interface AgencyClientBillingNoticeProps {
+  branding: Branding;
+  kind: AgencyClientBillingNoticeKind;
+  clientName: string;
+  /** Days without payment (client-auto-paused). */
+  n?: number;
+  billingUrl: string;
+}
 export type EmailPayload =
   | { template: 'alert'; props: AlertEmailProps }
   | { template: 'alert_digest'; props: DigestEmailProps }
@@ -114,7 +133,9 @@ export type EmailPayload =
   | { template: 'sign_in'; props: SignInEmailProps }
   | { template: 'support_session_started'; props: SupportSessionStartedProps }
   | { template: 'platform_cost_low'; props: PlatformCostLowProps }
-  | { template: 'billing_notice'; props: BillingNoticeProps };
+  | { template: 'billing_notice'; props: BillingNoticeProps }
+  | { template: 'client_billing_notice'; props: ClientBillingNoticeProps }
+  | { template: 'agency_client_billing_notice'; props: AgencyClientBillingNoticeProps };
 export interface RenderedEmail {
   subject: string;
   html: string;

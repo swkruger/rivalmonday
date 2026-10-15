@@ -3,6 +3,8 @@ import { createElement, type ReactElement } from 'react';
 import { AgencyNoticeEmail } from './templates/agency-notice';
 import { AlertEmail, alertSubject } from './templates/alert';
 import { BillingNoticeEmail, billingNoticeSubject } from './templates/billing-notice';
+import { AgencyClientBillingNoticeEmail, agencyClientBillingNoticeSubject } from './templates/agency-client-billing-notice';
+import { ClientBillingNoticeEmail, clientBillingNoticeSubject } from './templates/client-billing-notice';
 import { BriefEmail, briefSubject } from './templates/brief';
 import { DigestEmail, digestSubject } from './templates/digest';
 import { PlatformCostLowEmail, platformCostLowSubject } from './templates/platform-cost-low';
@@ -29,6 +31,10 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
       return { el: createElement(PlatformCostLowEmail, p.props), subject: platformCostLowSubject(p.props) };
     case 'billing_notice':
       return { el: createElement(BillingNoticeEmail, p.props), subject: billingNoticeSubject(p.props.kind) };
+    case 'client_billing_notice':
+      return { el: createElement(ClientBillingNoticeEmail, p.props), subject: clientBillingNoticeSubject(p.props) };
+    case 'agency_client_billing_notice':
+      return { el: createElement(AgencyClientBillingNoticeEmail, p.props), subject: agencyClientBillingNoticeSubject(p.props) };
     case 'trend_report':
       return { el: createElement(TrendReportEmail, p.props), subject: trendReportSubject(p.props) };
     default:
