@@ -1,15 +1,15 @@
 # phase-9 — Billing (platform → agency subscriptions; agency → client billing TBD)
 
 **Kind:** feature   **Worktree:** ../CompetitorSpy-wt/phase-9   **Base:** main @ c84ca97
-**Plan/spec:** 9a spec `docs/superpowers/specs/2026-10-12-phase-9a-platform-billing-design.md` (e1–e16); 9a plan `docs/superpowers/plans/2026-10-12-phase-9a-platform-billing.md` (P1–P5, Tasks 0–12). 9b spec `docs/superpowers/specs/2026-10-12-phase-9b-client-billing-connect-design.md` (f1–f13); 9b plan `docs/superpowers/plans/2026-10-12-phase-9b-client-billing-connect.md` (Q1–Q4, Tasks 0–12). 9b execution after pilot feedback.
+**Plan/spec:** 9a spec `docs/superpowers/specs/2026-10-12-phase-9a-platform-billing-design.md` (e1–e16); 9a plan `docs/superpowers/plans/2026-10-12-phase-9a-platform-billing.md` (P1–P5, Tasks 0–12). 9b spec `docs/superpowers/specs/2026-10-12-phase-9b-client-billing-connect-design.md` (f1–f13); 9b plan `docs/superpowers/plans/2026-10-12-phase-9b-client-billing-connect.md` (Q1–Q4, Tasks 0–12). **9b runs next on this same branch** (owner, 2026-10-14).
 
 ## Status (overwrite)
-**9a built, 2026-10-14** — Tasks 0–12 done via subagent-driven development (each task reviewed; final whole-branch review on Opus + one fix wave). HEAD `d362dc6`, 38 commits on `c84ca97`. `pnpm test:affected` 16/16 and `pnpm --filter @cs/web e2e:affected` 61/61 green after the fix wave. **One load-bearing residual open (R29, below)** — fix before owner Stripe test-mode verification. Not merged. Test DB `cs_phase_9_test`. SDD ledger (all rulings R1–R29, deferred minors): `.superpowers/sdd/2026-10-12-phase-9a-platform-billing/progress.md` (gitignored, local).
+**9a built 2026-10-14, not merged** — Tasks 0–12 done (subagent-driven; per-task reviews, final Opus review + one fix wave). 39 commits on `main@c84ca97`, nothing uncommitted. `test:affected` 16/16 and `e2e:affected` 61/61 green at `d362dc6`. **One residual open: R29** (see Next 1). **9b not started.** Test DB `cs_phase_9_test`. 9a SDD ledger (rulings R1–R29, ~60 deferred minors triaged must-fix/backlog): `.superpowers/sdd/2026-10-12-phase-9a-platform-billing/progress.md` (gitignored, local only — keep until merge).
 
 ## Next (overwrite)
-1. **R29 residual (small, webhook dispatch only):** events for an untracked/forgotten subscription still change state — a delayed `customer.subscription.deleted`/`updated(canceled)` after `grant_pilot` demotes the pilot; `invoice.paid` for a forgotten (canceled) subscription makes the agency `active` with nothing billing it. Fix: subscription events with no stored id and non-live status → `ignored`; `invoice.*` whose subscription (`obj.parent.subscription_details.subscription`, fallback `obj.subscription`) ≠ stored id → `ignored`; tests for both. Then re-run `test:affected`.
-2. Owner: Stripe test-mode account + `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_TAX_ENABLED` in `.env`; `pnpm --filter @cs/worker billing:sync-plan`; owner verification below.
-3. Triage the deferred minors (ledger) into `BACKLOG` at merge; `/rm-merge` with owner go-ahead.
+1. **Fix R29 first** (small, `packages/billing/src/webhook.ts` dispatch): events for an untracked/forgotten subscription still change state — a delayed `customer.subscription.deleted`/`updated(canceled)` after `grant_pilot` demotes the pilot; `invoice.paid` for a forgotten (canceled) sub makes the agency `active` with nothing billing it. Fix: subscription events with no stored id and non-live status → `ignored`; `invoice.*` whose subscription (`obj.parent.subscription_details.subscription`, fallback `obj.subscription`) ≠ stored id → `ignored`; tests for both; `pnpm test:affected`.
+2. **Start 9b** on this branch: `superpowers:subagent-driven-development` with plan `docs/superpowers/plans/2026-10-12-phase-9b-client-billing-connect.md` (own SDD workspace). Task 0 deviations (owner decision D1): no pilot-feedback gate, no `git rebase main` — 9a is on this branch, not `main`; re-check the plan's 9a dependencies against the real 9a code (R8 two products, R26 forgotten subscriptions, R27 null gateway, `assertCanActivateClient(tx, agencyId, { role, now })`, `BILLING_FAKE_GATEWAY`) and record drift here. Next free migration **0055**. Owner: Connect + `STRIPE_CONNECT_WEBHOOK_SECRET` (fake gateway meanwhile).
+3. After 9b: final whole-branch review over all of phase 9, owner Stripe verification, then `/rm-merge phase-9` (fold both ledgers' backlog minors into `BACKLOG`).
 
 ## Interfaces this branch adds or changes
 - New package `@cs/billing` (gateway `BillingGateway`/`gatewayFor(env, envName)` → real | fake | null; state machine; `applyBillingSignal`; `billingAccess`/`assertCanActivateClient`; `syncSeats`; `startAgencyTrial` (for Phase 10); `handleStripeEvent`; `runBillingDaily`; `syncPlanToStripe`; `noticeEmailFor`; invite tokens).
@@ -20,70 +20,15 @@
 - New env (owner adds): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_TAX_ENABLED`.
 
 ## Assumes from other branches
-- **phase-6:** 6b adds `client.ask_monthly_quota` (default 100, hard stop), `get_usage.questions`, `set_client_limits.askMonthlyQuota`; per-plan quota defaults build on it. Shared: `tools/usage.ts`, `tenancy.ts`, `tools/all.ts`, `deps.ts`.
-- **phase-8 (8a approved, not built):** `platform_admin` (owner|staff|viewer) + `requirePlatformOperator(deps, ctx, min?)` gate billing writes (pilot grants, suspend); MRR / paid seats extend `agency_daily_stat`; actions live on `/platform/agencies/[id]`. Conflicts: `tools/platform.ts`, nav.
-- **phase-7-planning (parked):** caps + pause-at-100 % stay Phase 7b (not here). Prod domain `rivalmonday.app` (webhook URL); Postmark from `mail.rivalmonday.app`.
-- **Migrations:** next free at execution time; phase-6 holds 0038–0043, phase-8 plans two after that.
+- phase-6 and phase-8 are on `main` (base `c84ca97`). No other in-flight branch touches billing; `phase-10` (in flight) will consume `startAgencyTrial` + invite links — tell it the 9a interfaces above.
 
-## Pre-flight drift (9a Task 0, 2026-10-14)
-Resolved during execution; details in the plan's "Controller rulings" R1–R9 and the SDD ledger.
 
 ## Decisions (owner-approved)
-None yet.
+- **D1 (2026-10-14)** 9b starts now, on the same `phase-9` branch/worktree, without waiting for pilot feedback; **no merge to `main` until all of phase 9 (9a + 9b) is done**.
+- **D2 (taken on owner's behalf, R26 — confirm)** `grant_pilot`/`extend_trial` refuse while the agency has a live Stripe subscription (staff cancel it in Stripe first).
 
 ## New backlog (target → item)
 - [ ] **Later (9b follow-up)** → Review annual billing option for agency → client subscriptions (9b ships monthly only) — *from 9b brainstorm 2026-10-12*
 
 ## Owner verification steps
-After R29 fix, Stripe test mode + `stripe listen --forward-to localhost:3000/api/stripe/webhook`: checkout with card 4242… → `active`; add 4th client → prorated seat line; card 4000 0000 0000 0341 → `past_due` + email; Portal cancel → `cancelled`; redeem an agency-restricted code from another agency → refused. After merge to prod: `set_seat_cap_exempt` for the owner's own agency if it has > 3 active clients (backfill makes every existing agency a capped pilot).
-
-## Brief
-
-### 1. Scope (owner's words + spec)
-Owner: platform + agency billing; manageable prices. Platform: free pilot (selected agencies), 30-day trial, then $229/agency incl. 3 client seats, +$99 per extra seat; discount codes. Agency: build agency→client billing or not? Agency may charge any price per seat.
-- **§10.6:** MVP = metering + limits only; "Stripe Billing arrives with Phase 2". **§2.2:** Phase 2 (wholesale) = "Stripe Billing for wholesale seats", agency onboarding flow; Phase 3 = "Stripe Connect rebilling". This phase pulls both forward (Connect = open Q).
-- **§5.1** "seats" (5b-2 deferred seat limits to billing). **§8.3/§8.4** MCP gating + Ask quota "per tier". **§11** caps = Phase 7b. **§1.3** own clients first, then wholesale.
-- Build: manageable plans/prices; agency lifecycle pilot → trial → paid → past-due → suspended/cancelled; seat count + sync; discount codes; provider + webhooks; agency billing UI; billing emails; platform controls (grant pilot, status); entitlement checks.
-- **Seams:** Phase 10 wizard calls start-trial/checkout tools; Phase 11 client activation changes seat count; Phase 8 income statement reads our payment records, suspend reuses our agency status.
-
-### 2. Already built — reuse, don't rebuild
-- **No Stripe/billing code** (docs only; mockup `docs/brand/mockups/05-white-label-settings.html` has a "Billing" tab). `.env`: 0 `STRIPE*` keys.
-- **Tenancy:** `agency` (`id, name, branding, created_at` — no status/plan) and `client` (`status` `active|prospect`, `monthly_cap_usd` default 15, `competitor_limit` 1–10) in `packages/db/src/schema/tenancy.ts`; `membership`/`invitation` (service-role only) in `schema/access.ts`.
-- **Usage:** `packages/tools/src/usage.ts` (`monthStart`, `spendByClient`, `agencyLevelSpend`), `limits.ts`; ledgers `llm_call`/`vendor_call` (`schema/ledger.ts`, `cost_usd` doublePrecision); tools `get_usage`, `set_client_limits` (`tools/src/tools/usage.ts`); page `/agency/usage`.
-- **Client lifecycle:** `create_client` (`tools/src/tools/onboarding.ts`), `convert_prospect`, `list_prospects`, `run_prospect_snapshot` (`tools/src/tools/prospects.ts`); page `/agency/clients/new`, `/agency/prospects`.
-- **Seats/team:** `invite_member`, `revoke_membership`, `revoke_invitation`, `update_agency_branding` (`tools/src/tools/settings.ts`); `/agency/team`, `/agency/branding`.
-- **Email:** `@cs/email` (Postmark + file-outbox transports, `templates/agency-notice.tsx` etc.); notification outbox written in the state-change transaction (`schema/delivery.ts`).
-- **Worker:** `apps/worker/src/jobs/*`, cron via `JobDef.cron` (`jobs.ts`, `boss.ts`).
-- **Web:** `apps/web/src/server/{run-tool,tools,env}.ts`; only API route `app/api/auth/[...all]/route.ts`. New env vars → `turbo.json` `globalPassThroughEnv` + `server/env.ts`. Operator gate `tools/src/platform.ts`. New screens → `packages/demo/src/coverage.ts`.
-
-### 3. Binding decisions (do not re-open)
-- Web reads = registered `@cs/tools` tools; writes via `runTool`, audit-logged; tools decide permissions. Page refusals → 404.
-- RLS via `withTenant`; service role only where needed. Self-hosted Better Auth; access in own `membership` table.
-- Postmark; per-agency white-label branding; `upsell_tag` never client-facing; `client.status = 'active'` filters; no jobs in DEMO/TEST; owner approves new `.env` vars.
-- phase-6 e3/e4: clients never see usage or limits.
-- phase-8 d2/d4: platform roles owner|staff|viewer; cross-agency reads via `deps.service` after `requirePlatformOperator`.
-
-### 4. Backlog to fold in (verbatim)
-- [ ] Delete/archive a prospect (needs soft-delete first); per-agency default caps/limits — *from 5b-2*
-- [ ] Soft-delete/archival before any delete feature — audit/ledger rows cascade-delete with agency/client today — *from Phase 1 review* (cancel/retention)
-- [ ] Switch `cost_usd` (`packages/db/src/schema/ledger.ts`, `doublePrecision`) to `numeric` before real spend data — *from Phase 1 review*
-No item is about Stripe, invoices, trials or seat billing.
-
-### 5. In-flight workstreams
-See **Assumes from other branches** (hot spots: `tenancy.ts`, `usage.ts`, `platform.ts`, nav, migration numbers).
-
-### 6. Open questions for the owner (most design-changing first)
-1. **Split?** (a) 9a platform→agency billing (Stripe Billing, trial, seats, codes, UI), 9b agency→client billing; (b) one phase. *Rec: (a); 9b may shrink to "seat report" per Q3.*
-2. **Provider:** (a) Stripe Billing + Stripe Tax; (b) Paddle / Lemon Squeezy merchant-of-record (handles US sales tax). *Rec: (a) — Connect path for 9b, best seat/coupon APIs.*
-3. **Agency→client billing:** (a) none — agencies bill clients themselves, we report seats; (b) optional Stripe Connect (Express) so agencies charge their own per-seat price through us, optional application fee; (c) invoice/CSV export only. *Rec: (a)+(c) now, (b) later phase.*
-4. **Billable seat:** (a) `client.status='active'` only, prospects free; (b) active + prospects. Mid-month adds/removals: prorate vs bill next cycle. *Rec: (a), Stripe proration on add, credit on remove at period end.*
-5. **Trial:** card up front or not; at trial end / failed payment: grace (e.g. 7 d) → read-only → suspend; data retention after cancel. *Rec: no card for trial; 7-day grace, then read-only (jobs stop), suspend after 30 d; retain 90 d.*
-6. **Pilot/free:** (a) `pilot` plan flag on agency with optional end date; (b) 100 % Stripe coupon. Granted by platform admin (Phase 8 role ≥ staff). *Rec: (a) — no Stripe customer needed.*
-7. **Price management:** (a) Stripe as source of truth, read-through; (b) own `plan`/`plan_price` tables synced to Stripe Prices, versioned, existing subs grandfathered. *Rec: (b) thin, Stripe IDs stored.*
-8. **Discount codes:** (a) Stripe promotion codes in Checkout; (b) own codes table. *Rec: (a).*
-9. **Overages:** flat seats only vs usage-based overage on AI/vendor spend over caps. *Rec: flat seats; caps stay cost guards (Phase 7b).*
-10. **Tax/currency:** USD only + Stripe Tax? *Rec: yes.*
-11. **Billing UI:** Stripe Checkout + Customer Portal linked from `/agency/settings/billing`, vs fully custom. *Rec: Checkout + Portal, own summary page (plan, seats, next invoice, status).*
-12. **Dunning emails:** Stripe's vs our Postmark. *Rec: Stripe receipts/dunning; Postmark for trial-ending/suspension notices.*
-13. **Enforcement:** block activating seat 4+ without a payment method? block during past-due? *Rec: trial — allow; paid — require payment method; past-due — block new seats only.*
-14. **Webhooks:** Vercel route `/api/stripe/webhook`, signature check, idempotent via stored event ids. *Rec: yes.*
+Owner setup: Stripe test-mode account; add `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_TAX_ENABLED` to `.env`; `pnpm --filter @cs/worker billing:sync-plan`. After R29, with `stripe listen --forward-to localhost:3000/api/stripe/webhook`: checkout with 4242… → `active`; 4th client → prorated seat line; card 4000 0000 0000 0341 → `past_due` + email; Portal cancel → `cancelled`; agency-restricted code redeemed by another agency → refused. After merge to prod: `set_seat_cap_exempt` for the owner's agency if it has > 3 active clients (backfill makes every agency a capped pilot).
