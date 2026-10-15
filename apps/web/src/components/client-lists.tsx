@@ -9,7 +9,7 @@ export function BriefLinkList({ clientId, items, empty }: { clientId: string; it
       {items.length === 0 && <p className="text-muted-foreground">{empty}</p>}
       {items.map((b) => (
         <Link key={b.id} href={`/c/${clientId}/briefs/${b.id}`} className="flex items-center gap-3 rounded-lg bg-muted-surface px-3 py-2 hover:bg-muted-surface-2">
-          <span className="font-semibold">Week of {b.deliveryDate}</span>
+          <span className="font-semibold">{b.kind === 'starting_point' ? 'Starting point' : 'Week of'} {b.deliveryDate}</span>
           <span className="truncate text-muted-foreground">{b.summary}</span>
           <Badge variant="secondary" className="ml-auto">
             {b.status}

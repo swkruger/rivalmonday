@@ -32,6 +32,8 @@ export type ClientProfile = z.infer<typeof ClientProfile>;
 
 export const BriefSummary = z.object({
   id: uuid, clientId: uuid, deliveryDate: z.string(), status: z.string(), kind: z.string(), summary: z.string(), sentAt: iso.nullable(), hasPdf: z.boolean(),
+  /** When the brief was generated (ISO); null if never. The Overview's "latest" ranks by this, not by the (future-dated) delivery date. */
+  generatedAt: iso.nullable(),
 });
 export type BriefSummary = z.infer<typeof BriefSummary>;
 

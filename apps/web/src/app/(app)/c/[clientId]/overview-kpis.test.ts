@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeBriefItems, kpiCards } from './overview-kpis';
+import { activeBriefItems, briefHeading, briefLabel, kpiCards, latestBrief } from './overview-kpis';
 
 const base = { clientId: 'c', trackedCompetitors: 5, zips: 12, changes7d: 14, alerts7d: 3, priceMoves7d: 2, priceCuts7d: 1, activeAds: 23, activeAds7dAgo: 14, rating: { self: 4.8, competitorAverage: 4.5 }, pressure: [], pitchSnapshot: false };
 
@@ -37,5 +37,38 @@ describe('activeBriefItems', () => {
       { id: 'a', ord: 1, status: 'active' },
     ];
     expect(activeBriefItems(items).map((i) => i.id)).toEqual(['a', 'b']);
+  });
+});
+
+const b = (id: string, deliveryDate: string, generatedAt: string | null, kind = 'weekly') => ({ id, deliveryDate, generatedAt, kind });
+
+describe('latestBrief', () => {
+  it('prefers a starting point generated after a future-dated weekly brief', () => {
+    const items = [b('weekly', '2026-10-19', '2026-10-14T06:00:00Z'), b('sp', '2026-10-15', '2026-10-15T09:00:00Z', 'starting_point')];
+    const { latest, rest } = latestBrief(items);
+    expect(latest?.id).toBe('sp');
+    expect(rest.map((x) => x.id)).toEqual(['weekly']);
+  });
+  it('falls back to deliveryDate when generatedAt is null', () => {
+    const items = [b('old', '2026-10-05', null), b('new', '2026-10-12', null)];
+    expect(latestBrief(items).latest?.id).toBe('new');
+  });
+  it('keeps list order on ties and for the rest', () => {
+    const items = [b('a', '2026-10-12', '2026-10-12T00:00:00Z'), b('b', '2026-10-12', '2026-10-12T00:00:00Z'), b('c', '2026-10-05', '2026-10-05T00:00:00Z')];
+    const { latest, rest } = latestBrief(items);
+    expect(latest?.id).toBe('a');
+    expect(rest.map((x) => x.id)).toEqual(['b', 'c']);
+  });
+  it('handles an empty list', () => {
+    expect(latestBrief([])).toEqual({ latest: null, rest: [] });
+  });
+});
+
+describe('brief labels', () => {
+  it('heading and label switch on kind', () => {
+    expect(briefHeading('starting_point')).toBe('Your starting point');
+    expect(briefHeading('weekly')).toBe("This week's brief");
+    expect(briefLabel({ kind: 'starting_point', deliveryDate: '2026-10-15' })).toBe('Starting point · 2026-10-15');
+    expect(briefLabel({ kind: 'weekly', deliveryDate: '2026-10-19' })).toBe('Brief for the week of 2026-10-19');
   });
 });

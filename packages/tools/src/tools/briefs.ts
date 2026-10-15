@@ -11,7 +11,7 @@ const { defineTool } = toolkit<ToolDeps>();
 const CLIENT_VISIBLE = ['approved', 'sent'];
 
 const summary = (b: typeof brief.$inferSelect): BriefSummary => ({
-  id: b.id, clientId: b.clientId, deliveryDate: b.deliveryDate, status: b.status, kind: b.kind, summary: b.summary, sentAt: toIso(b.sentAt), hasPdf: b.pdfKey !== null,
+  id: b.id, clientId: b.clientId, deliveryDate: b.deliveryDate, status: b.status, kind: b.kind, summary: b.summary, sentAt: toIso(b.sentAt), hasPdf: b.pdfKey !== null, generatedAt: toIso(b.generatedAt),
 });
 
 export const listBriefs = defineTool({
@@ -42,7 +42,7 @@ export const listBriefs = defineTool({
       evidenceOf.set(i.briefId, list);
     }
     return {
-      items: rows.map((b) => ({ id: b.id, title: `Weekly brief ${b.deliveryDate}`, date: b.deliveryDate, evidenceIds: evidenceOf.get(b.id) ?? [], url: appLinkFor(deps.appUrl, { t: 'brief', id: b.id }) })),
+      items: rows.map((b) => ({ id: b.id, title: `${b.kind === 'starting_point' ? 'Starting point' : 'Weekly brief'} ${b.deliveryDate}`, date: b.deliveryDate, evidenceIds: evidenceOf.get(b.id) ?? [], url: appLinkFor(deps.appUrl, { t: 'brief', id: b.id }) })),
       nextCursor,
     };
   },

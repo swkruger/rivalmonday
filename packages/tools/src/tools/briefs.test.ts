@@ -43,6 +43,19 @@ describe('list_briefs paging and detail', () => {
   });
 });
 
+describe('list_briefs starting point and generatedAt', () => {
+  it('summary carries generatedAt (ISO or null) and the mcp title says Starting point', async () => {
+    const [sp] = await dbs.owner.insert(brief).values({ ...base, ...period, deliveryDate: '2026-10-05', status: 'sent', kind: 'starting_point', summary: 's', generatedAt: new Date('2026-10-05T08:00:00Z') }).returning();
+    const [wk] = await dbs.owner.insert(brief).values({ ...base, ...period, deliveryDate: '2026-10-12', status: 'sent', summary: 'w' }).returning();
+    const full = (await registry.invoke(admin, 'list_briefs', { clientId: IDS.clientA1 })) as { items: { id: string; generatedAt: string | null }[] };
+    expect(full.items.find((i) => i.id === sp!.id)!.generatedAt).toBe('2026-10-05T08:00:00.000Z');
+    expect(full.items.find((i) => i.id === wk!.id)!.generatedAt).toBeNull();
+    expect(full.items.map((i) => i.id)).toEqual([wk!.id, sp!.id]); // order unchanged: delivery date desc
+    const slim = (await registry.invoke(admin, 'list_briefs', { clientId: IDS.clientA1 }, mcp)) as { items: { id: string; title: string }[] };
+    expect(slim.items.map((i) => i.title)).toEqual(['Weekly brief 2026-10-12', 'Starting point 2026-10-05']);
+  });
+});
+
 describe('get_starting_point_status', () => {
   const status = (c = admin, clientId: string = IDS.clientA1) => registry.invoke(c, 'get_starting_point_status', { clientId });
   const startingPoint = (st: string) => dbs.owner.insert(brief).values({ ...base, ...period, deliveryDate: '2026-10-05', status: st, kind: 'starting_point', summary: 's' }).returning();

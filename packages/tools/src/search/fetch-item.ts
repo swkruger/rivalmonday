@@ -179,7 +179,7 @@ async function fetchBrief(deps: ToolDeps, ctx: AccessContext, id: string): Promi
   const names = [...items.map((i) => i.competitorName), ...(await clientNames(deps, ctx, d.clientId))];
   const text = [d.summary ?? '', ...items.map((i) => `## ${itemText(i)}`)].filter((s) => s !== '').join('\n\n');
   return {
-    id: `brief:${id}`, title: `Weekly brief ${d.deliveryDate}`, text: redact(text, names, null),
+    id: `brief:${id}`, title: `${d.kind === 'starting_point' ? 'Starting point' : 'Weekly brief'} ${d.deliveryDate}`, text: redact(text, names, null),
     url: appLinkFor(deps.appUrl, { t: 'brief', id }),
     metadata: { type: 'brief', client_id: d.clientId, evidence_ids: unionIds(items.map((i) => i.evidenceIds)), occurred_at: d.deliveryDate },
   };

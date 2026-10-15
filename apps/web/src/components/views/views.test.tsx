@@ -12,7 +12,7 @@ const item = (n: number, extra: Partial<BriefDetail['items'][number]> = {}): Bri
   recommendedAction: 'Do R', confidence: 0.9, effort: 'L', impact: 'H', evidenceIds: ['e1', 'e2'], status: 'active', upsellTag: null, ...extra,
 });
 const brief: BriefDetail = {
-  id: '00000000-0000-4000-8000-0000000000b1', clientId: C, deliveryDate: '2026-10-12', status: 'sent', kind: 'standard', summary: 'Two moves this week.', sentAt: '2026-10-12T12:00:00Z',
+  id: '00000000-0000-4000-8000-0000000000b1', clientId: C, deliveryDate: '2026-10-12', status: 'sent', kind: 'standard', summary: 'Two moves this week.', sentAt: '2026-10-12T12:00:00Z', generatedAt: '2026-10-11T12:00:00Z',
   hasPdf: true, periodStart: '2026-10-02T00:00:00Z', periodEnd: '2026-10-09T00:00:00Z', approvedAt: '2026-10-10T00:00:00Z',
   items: [item(2), item(1, { upsellTag: 'ppc_audit' }), item(3, { status: 'dropped' })], scorecard: null, trend: null,
 };

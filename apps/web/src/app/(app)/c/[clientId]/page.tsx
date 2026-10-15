@@ -22,7 +22,7 @@ import { StatCard } from '@/components/stat-card';
 import { requireContext } from '@/server/current-viewer';
 import { callTool, tryCallTool } from '@/server/tools';
 import { MoveCard, movesHref } from './moves/move-card';
-import { activeBriefItems, kpiCards } from './overview-kpis';
+import { activeBriefItems, briefHeading, briefLabel, kpiCards, latestBrief } from './overview-kpis';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +46,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
     tryCallTool<StartingPointStatus>(ctx, 'get_starting_point_status', { clientId }),
   ]);
   const preparing = pendingStartingPoint(starting, briefs.items);
-  const first = briefs.items[0];
+  const { latest: first, rest: pastBriefs } = latestBrief(briefs.items);
   const latest = first ? await callTool<BriefDetail>(ctx, 'get_brief', { briefId: first.id }) : null;
   const items = latest ? activeBriefItems(latest.items) : [];
   const delivered = latest && (latest.status === 'approved' || latest.status === 'sent') ? latest : null;
@@ -61,7 +61,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
           <p className="mt-1 text-muted-foreground">
             Tracking {n} competitor{n === 1 ? '' : 's'}
             {overview.zips > 0 ? ` across ${overview.zips} ZIP codes` : ''}
-            {delivered ? ` · Brief for the week of ${delivered.deliveryDate}` : ''}
+            {delivered ? ` · ${briefLabel(delivered)}` : ''}
           </p>
         </div>
         {isAgencyRole(ctx.role) && overview.pitchSnapshot && (
@@ -79,7 +79,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
 
       <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
         <section className={cardCls}>
-          <h2 className="font-semibold">This week&apos;s brief</h2>
+          <h2 className="font-semibold">{briefHeading(latest?.kind ?? 'weekly')}</h2>
           <div className="mt-3 flex flex-col gap-3">
             {preparing && <StartingPointCard status={preparing} agency={isAgencyRole(ctx.role)} />}
             {!latest && !preparing && <p className="text-muted-foreground">No briefs yet. The first one arrives on a Monday morning.</p>}
@@ -195,7 +195,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
         <section className={cardCls}>
           <h2 className="font-semibold">Past briefs</h2>
           <div className="mt-3">
-            <BriefLinkList clientId={clientId} items={briefs.items.slice(1)} empty="No earlier briefs." />
+            <BriefLinkList clientId={clientId} items={pastBriefs} empty="No earlier briefs." />
           </div>
         </section>
         <section className={cardCls}>
