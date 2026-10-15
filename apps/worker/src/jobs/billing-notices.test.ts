@@ -1,4 +1,4 @@
-import { billingNotice, membership } from '@cs/db';
+import { agency, billingNotice, clientBilling, membership } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,7 +12,23 @@ afterEach(() => vi.restoreAllMocks());
 type Sent = { to: string; agencyId: string; props: Parameters<BillingEmailSender['send']>[2] };
 let sent: Sent[] = [];
 let send: BillingEmailSender['send'];
-const deps = { serviceDb: () => dbs.service, billingEmail: () => ({ appUrl: 'https://app.rm.test', send: (...a: Parameters<BillingEmailSender['send']>) => send(...a) }) } as unknown as WorkerDeps;
+type SentClient = { to: string; agencyId: string; clientId: string; from: { agencyName: string; branding: unknown }; props: Parameters<BillingEmailSender['sendClient']>[4] };
+type SentAgencyClient = { to: string; agencyId: string; props: Parameters<BillingEmailSender['sendAgencyClient']>[2] };
+let sentClient: SentClient[] = [];
+let sentAgencyClient: SentAgencyClient[] = [];
+let clientSend: ((to: string) => Promise<void>) | null = null;
+const deps = {
+  serviceDb: () => dbs.service,
+  billingEmail: () => ({
+    appUrl: 'https://app.rm.test',
+    send: (...a: Parameters<BillingEmailSender['send']>) => send(...a),
+    sendClient: async (to: string, agencyId: string, clientId: string, from: SentClient['from'], props: SentClient['props']) => {
+      if (clientSend) await clientSend(to);
+      sentClient.push({ to, agencyId, clientId, from, props });
+    },
+    sendAgencyClient: async (to: string, agencyId: string, props: SentAgencyClient['props']) => void sentAgencyClient.push({ to, agencyId, props }),
+  }),
+} as unknown as WorkerDeps;
 const run = (envName: 'dev' | 'demo' | 'test' = 'dev') => createBillingNoticeJobs(deps, { envName }).notices.handler({});
 
 const user = (id: string, email: string) => dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values (${id}, ${id}, ${email}, true)`);
@@ -33,16 +49,119 @@ beforeEach(async () => {
     { userId: 'm1', agencyId: IDS.agencyA, role: 'account_manager', createdBy: 'test' },
   ]);
   sent = [];
+  sentClient = [];
+  sentAgencyClient = [];
+  clientSend = null;
   send = async (to, agencyId, props) => void sent.push({ to, agencyId, props });
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
-it('leaves client-audience notices (9b) untouched: they are delivered by their own job, never skipped here', async () => {
-  const [n] = await dbs.owner.insert(billingNotice).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, audience: 'client', kind: 'client-payment-link', params: { checkoutUrl: 'https://x' }, dedupeKey: 'client-link:1' }).returning({ id: billingNotice.id });
-  await run();
-  expect(await rowOf(n!.id)).toMatchObject({ sentAt: null, attempts: 0 });
-  expect(sent).toEqual([]);
+describe('9b client billing notices', () => {
+  const clientNotice = (kind: string, params: Record<string, unknown> = {}) =>
+    dbs.owner.insert(billingNotice).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, audience: 'client', kind, params, dedupeKey: `${kind}:${Math.random()}` }).returning({ id: billingNotice.id });
+  const agencyNotice = (kind: string, params: Record<string, unknown> = {}) =>
+    dbs.owner.insert(billingNotice).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, audience: 'agency', kind, params, dedupeKey: `${kind}:${Math.random()}` }).returning({ id: billingNotice.id });
+  const setBilling = (state: string) => dbs.owner.insert(clientBilling).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, state: state as 'invited' });
+  const owner = async (id: string, email: string, role = 'client_owner') => {
+    await user(id, email);
+    await dbs.owner.insert(membership).values({ userId: id, agencyId: IDS.agencyA, role, clientId: IDS.clientA1, createdBy: 'test' });
+  };
+
+  it('client-payment-link goes to every current client owner (not viewers) with agency branding, then drops checkoutUrl', async () => {
+    await setBilling('invited');
+    await dbs.owner.update(agency).set({ branding: { displayName: 'Acme Comfort' } }).where(eq(agency.id, IDS.agencyA));
+    await owner('o1', 'olive@client.test');
+    await owner('o2', 'omar@client.test');
+    await owner('v1', 'vic@client.test', 'client_viewer');
+    const [n] = await clientNotice('client-payment-link', { checkoutUrl: 'https://checkout.stripe.test/c/secret', issuedAt: '2026-10-01T00:00:00.000Z' });
+    await run();
+    expect(sentClient.map((s) => s.to).sort()).toEqual(['olive@client.test', 'omar@client.test']);
+    expect(sentClient[0]).toMatchObject({ agencyId: IDS.agencyA, clientId: IDS.clientA1, props: { kind: 'client-payment-link', actionUrl: 'https://checkout.stripe.test/c/secret' }, from: { branding: { displayName: 'Acme Comfort' } } });
+    expect(sent).toHaveLength(0);
+    const r = await rowOf(n!.id);
+    expect(r.sentAt).not.toBeNull();
+    expect(r.params).not.toHaveProperty('checkoutUrl');
+    expect(JSON.stringify(r.params)).not.toContain('secret');
+  });
+
+  it('client-payment-needed links to the client billing page', async () => {
+    await setBilling('payment_needed');
+    await owner('o1', 'olive@client.test');
+    await clientNotice('client-payment-needed');
+    await run();
+    expect(sentClient[0]!.props).toMatchObject({ kind: 'client-payment-needed', actionUrl: `https://app.rm.test/c/${IDS.clientA1}/settings/billing` });
+  });
+
+  it('no client owners: row is marked done with a reason, no retry loop, checkoutUrl still dropped', async () => {
+    await setBilling('invited');
+    const [n] = await clientNotice('client-payment-link', { checkoutUrl: 'https://checkout.stripe.test/c/secret' });
+    await run();
+    const r = await rowOf(n!.id);
+    expect(sentClient).toHaveLength(0);
+    expect(r).toMatchObject({ attempts: 0, lastError: 'skipped: no client owners' });
+    expect(r.sentAt).not.toBeNull();
+    expect(r.params).not.toHaveProperty('checkoutUrl');
+  });
+
+  it('disconnected billing: no email, row skipped with a reason', async () => {
+    await setBilling('disconnected');
+    await owner('o1', 'olive@client.test');
+    const [n] = await clientNotice('client-payment-needed');
+    await run();
+    expect(sentClient).toHaveLength(0);
+    const r = await rowOf(n!.id);
+    expect(r).toMatchObject({ lastError: 'skipped: billing disconnected' });
+    expect(r.sentAt).not.toBeNull();
+  });
+
+  it('paused clients still get client-payment-needed', async () => {
+    await setBilling('payment_needed');
+    await owner('o1', 'olive@client.test');
+    await dbs.owner.execute(sql`update client set paused_at = now() where id = ${IDS.clientA1}`);
+    await clientNotice('client-payment-needed');
+    await run();
+    expect(sentClient).toHaveLength(1);
+  });
+
+  it('every owner rejecting keeps the row unsent (checkoutUrl kept for retry); one rejecting owner still marks it sent', async () => {
+    await setBilling('invited');
+    await owner('o1', 'olive@client.test');
+    await owner('o2', 'omar@client.test');
+    const [n] = await clientNotice('client-payment-link', { checkoutUrl: 'https://checkout.stripe.test/c/x' });
+    clientSend = async () => {
+      throw new Error('down');
+    };
+    await run();
+    let r = await rowOf(n!.id);
+    expect(r).toMatchObject({ sentAt: null, attempts: 1, lastError: 'Error: down' });
+    expect(r.params).toHaveProperty('checkoutUrl');
+    clientSend = async (to) => {
+      if (to === 'olive@client.test') throw new Error('bad address');
+    };
+    await run();
+    r = await rowOf(n!.id);
+    expect(sentClient.map((s) => s.to)).toEqual(['omar@client.test']);
+    expect(r.sentAt).not.toBeNull();
+  });
+
+  it('agency 9b kinds go to agency admins only, with client name (looked up when absent) and n', async () => {
+    await agencyNotice('client-payment-failed');
+    await agencyNotice('client-auto-paused', { clientName: 'Smith HVAC', n: 14 });
+    await agencyNotice('client-paid');
+    await run();
+    expect(sent).toHaveLength(0);
+    expect(sentClient).toHaveLength(0);
+    const byKind = new Map<string, SentAgencyClient[]>();
+    for (const s of sentAgencyClient) byKind.set(s.props.kind, [...(byKind.get(s.props.kind) ?? []), s]);
+    expect([...byKind.keys()].sort()).toEqual(['client-auto-paused', 'client-paid', 'client-payment-failed']);
+    expect(byKind.get('client-auto-paused')!.map((s) => s.to).sort()).toEqual(['ann@agency-a.test', 'ben@agency-a.test']);
+    expect(byKind.get('client-auto-paused')![0]!.props).toMatchObject({ clientName: 'Smith HVAC', n: 14, billingUrl: 'https://app.rm.test/agency/settings/billing' });
+    const [c] = await dbs.owner.execute<{ name: string }>(sql`select name from client where id = ${IDS.clientA1}`);
+    expect(byKind.get('client-paid')![0]!.props.clientName).toBe(c!.name);
+    const left = await dbs.owner.select().from(billingNotice).where(sql`sent_at is null`);
+    expect(left).toHaveLength(0);
+  });
 });
 
 describe('billing-notices', () => {

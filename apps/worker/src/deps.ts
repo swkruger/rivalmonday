@@ -6,16 +6,16 @@ import {
   runProspectSnapshot, scanRankings, type SourceKind,
 } from '@cs/collectors';
 import type { CaptureStatus } from '@cs/core';
-import { competitor, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
+import { type AgencyBranding, competitor, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import {
   analyzeReview as runAnalyzeReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createPackLoader, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
   type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
-  notifyBriefOutcome, processAlert, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
+  notifyBriefOutcome, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
 import { generateStarters } from '@cs/ask';
-import { type BillingNoticeProps, createEmailTransportFromEnv, renderEmail, resolveBranding } from '@cs/email';
+import { type AgencyClientBillingNoticeProps, type BillingNoticeProps, type ClientBillingNoticeProps, createEmailTransportFromEnv, renderEmail, resolveBranding } from '@cs/email';
 import { listMonthlyRivalClients, normalizeAdminEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps } from '@cs/tools';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
@@ -25,6 +25,10 @@ import { createPdfRenderer } from './pdf';
 export interface BillingEmailSender {
   appUrl: string;
   send(to: string, agencyId: string, props: Omit<BillingNoticeProps, 'branding'>): Promise<void>;
+  /** Phase 9b: agency-branded client email (no platform name anywhere); From display name and reply-to are the agency's. */
+  sendClient(to: string, agencyId: string, clientId: string, from: { agencyName: string; branding: AgencyBranding | null }, props: Pick<ClientBillingNoticeProps, 'kind' | 'actionUrl'>): Promise<void>;
+  /** Phase 9b: Rival Monday-branded email to an agency admin about one of its clients' payments. */
+  sendAgencyClient(to: string, agencyId: string, props: Omit<AgencyClientBillingNoticeProps, 'branding'>): Promise<void>;
 }
 
 export interface WorkerDeps {
@@ -393,6 +397,22 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
         if (!env.APP_URL) throw new Error('APP_URL is required');
         const r = await renderEmail({ template: 'billing_notice', props: { ...props, branding: resolveBranding('Rival Monday', null) } });
         await getEmailTransport().send({ from: `"Rival Monday" <${from}>`, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'billing_notice', metadata: {} }, { agencyId, clientId: null });
+      },
+      sendClient: async (to, agencyId, clientId, ag, props) => {
+        const from = delivery?.fromAddress ?? env.EMAIL_FROM;
+        if (!from) throw new Error('EMAIL_FROM is required');
+        const branding = resolveBranding(ag.agencyName, ag.branding);
+        const r = await renderEmail({ template: 'client_billing_notice', props: { ...props, agencyName: branding.displayName, branding } });
+        const replyTo = (await replyToFor(getDb(), agencyId, clientId))?.email ?? null;
+        // Display name is the agency's; the sending address is the configured platform one until per-agency domains (decision 13).
+        const fromName = branding.fromName.replace(/["\\\r\n]/g, '');
+        await getEmailTransport().send({ from: `"${fromName}" <${from}>`, to, replyTo, subject: r.subject, html: r.html, text: r.text, tag: 'client_billing_notice', metadata: {} }, { agencyId, clientId });
+      },
+      sendAgencyClient: async (to, agencyId, props) => {
+        const from = delivery?.fromAddress ?? env.EMAIL_FROM;
+        if (!from) throw new Error('EMAIL_FROM is required');
+        const r = await renderEmail({ template: 'agency_client_billing_notice', props: { ...props, branding: resolveBranding('Rival Monday', null) } });
+        await getEmailTransport().send({ from: `"Rival Monday" <${from}>`, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'agency_client_billing_notice', metadata: {} }, { agencyId, clientId: null });
       },
     }),
     kbImportEnabled: () => env.KB_IMPORT_ENABLED?.trim() === 'true',
