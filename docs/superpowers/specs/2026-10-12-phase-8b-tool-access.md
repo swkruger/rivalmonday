@@ -103,6 +103,11 @@ invite_member (settings.ts) | write | creates invitation (email)
 revoke_membership (settings.ts) | write | revokes
 revoke_invitation (settings.ts) | write | revokes
 update_agency_branding (settings.ts) | write | updates agency
+get_billing_summary (billing.ts) | read | gateway reads only
+get_seat_report (billing.ts) | read | read
+create_checkout_session (billing.ts) | write | creates Stripe customer/session
+create_portal_session (billing.ts) | write | creates Stripe portal session
+redeem_discount_code (billing.ts) | write | stores/attaches coupon
 add_webhook (settings.ts) | write | inserts webhook
 set_webhook_active (settings.ts) | write | updates webhook
 add_client_recipient (settings.ts) | write | inserts recipient
