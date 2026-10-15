@@ -9,9 +9,10 @@ import { CB_AGENCY, CB_CLIENT, CB_USERS } from './seed';
 /**
  * Phase 9b client billing, against the fake gateway (an in-memory Stripe inside the web server). `seed.ts` adds "Metro Billing
  * Agency E2E" (an exempt pilot, so eligible) with one client, its admin, a client owner and a client viewer. The agency
- * connects through the real UI; the fake treats a second onboarding link as "finished". What Stripe's webhooks would
- * persist (connected account, failed payment) is written straight to the test DB, because the connect webhook route is
- * deliberately closed to a production build running the fake gateway (R13); its handling is covered by the route and
+ * connects through the real UI: under `BILLING_FAKE_GATEWAY=1` the fake opts into treating a second onboarding link as
+ * "finished" (`completeOnboardingOnRelink`), and the billing page persists the live account state (R26). What Stripe's
+ * payment webhooks would persist (a failed payment) is written straight to the test DB, because the connect webhook route
+ * is deliberately closed to a production build running the fake gateway (R13); its handling is covered by the route and
  * billing package tests.
  */
 const STATE = (who: Who) => fileURLToPath(new URL(`../test-results/client-billing-${who}-state.json`, import.meta.url));
@@ -67,10 +68,10 @@ test.describe.serial('client billing', () => {
       await expect(page.getByText('Stripe is connected. Your clients pay you directly.')).toBeVisible();
     });
 
-    // In production Stripe's account.updated webhook persists the connected state; the E2E server (a production build
-    // with the fake gateway) refuses the connect webhook route by design (R13), so write what that handler would.
+    // R26: showing the live connected state persisted it (no webhook needed), so enabling billing is allowed.
     const { agencyId } = await ids();
-    await withDb((db) => db.update(agencyConnect).set({ status: 'connected', chargesEnabled: true, detailsSubmitted: true, connectedAt: new Date() }).where(eq(agencyConnect.agencyId, agencyId)));
+    const [stored] = await withDb((db) => db.select().from(agencyConnect).where(eq(agencyConnect.agencyId, agencyId)));
+    expect(stored).toMatchObject({ status: 'connected', chargesEnabled: true });
 
     await as(browser, testInfo, 'admin', async (page) => {
       await page.goto('/agency/settings/billing');

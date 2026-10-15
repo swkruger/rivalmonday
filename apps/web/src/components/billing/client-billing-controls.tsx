@@ -56,7 +56,8 @@ export function ClientBillingControls({ clientId, clientName, role, pill, billin
   }, [state]);
   const admin = role === 'agency_admin';
   const paused = pill.key === 'paused';
-  const owed = billing.enabled && (billing.state === 'invited' || billing.state === 'payment_needed');
+  // R19: only a pending invite has a payment link to resend (a failed payment is fixed by the client in the portal).
+  const invited = billing.enabled && billing.state === 'invited';
   const submit = (intent: string, label: string, variant: 'default' | 'outline' | 'destructive' = 'outline') => (
     <Button type="submit" name="intent" value={intent} variant={variant} disabled={pending} className="justify-start">
       {label}
@@ -81,7 +82,7 @@ export function ClientBillingControls({ clientId, clientName, role, pill, billin
                 {mode === 'menu' && (
                   <>
                     {admin && !billing.enabled && submit('enable', 'Turn on billing')}
-                    {admin && owed && submit('resend', 'Resend payment link')}
+                    {admin && invited && submit('resend', 'Resend payment link')}
                     {admin && billing.enabled && (
                       <Button type="button" variant="outline" className="justify-start" onClick={() => setMode('price')}>Change price</Button>
                     )}

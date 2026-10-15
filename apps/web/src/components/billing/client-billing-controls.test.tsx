@@ -38,11 +38,17 @@ describe('ClientBillingControls', () => {
     for (const n of ['Resend payment link', 'Change price', 'Turn off billing', 'Resume']) expect(screen.queryByRole('button', { name: n })).toBeNull();
   });
 
-  it('admin, payment needed: Resend link, Change price, Turn off billing, Pause', () => {
+  it('admin, payment needed: Change price, Turn off billing, Pause; no Resend (R19: only an invite has a link to resend)', () => {
     render(<ClientBillingControls {...base} role="agency_admin" pill={{ key: 'payment_needed', label: 'Payment needed' }} billing={billing('payment_needed')} />);
     open();
+    expect(names()).toEqual(expect.arrayContaining(['Change price', 'Turn off billing', 'Pause']));
+    for (const n of ['Turn on billing', 'Resend payment link']) expect(screen.queryByRole('button', { name: n })).toBeNull();
+  });
+
+  it('admin, invited: Resend payment link is offered', () => {
+    render(<ClientBillingControls {...base} role="agency_admin" pill={{ key: 'invited', label: 'Invited' }} billing={billing('invited')} />);
+    open();
     expect(names()).toEqual(expect.arrayContaining(['Resend payment link', 'Change price', 'Turn off billing', 'Pause']));
-    expect(screen.queryByRole('button', { name: 'Turn on billing' })).toBeNull();
   });
 
   it('paused shows Resume instead of Pause', () => {

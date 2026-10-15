@@ -28,4 +28,10 @@ describe('runTool', () => {
   it('lets internal failures reach the error boundary', async () => {
     await expect(createRunTool(reg(async () => { throw new ToolError('internal', 'boom'); }))(ctx, 't', {})).rejects.toThrow('boom');
   });
+  it('9b R19: a user-facing Stripe failure renders inline and a decided conflict keeps its copy', async () => {
+    await expect(createRunTool(reg(async () => { throw new ToolError('internal', "Stripe couldn't complete that. Please try again.", { userFacing: true }); }))(ctx, 't', {}))
+      .resolves.toEqual({ ok: false, error: "Stripe couldn't complete that. Please try again." });
+    await expect(createRunTool(reg(async () => { throw new ToolError('conflict', 'Cancel it there first.', { userFacing: true }); }))(ctx, 't', {}))
+      .resolves.toEqual({ ok: false, error: 'Cancel it there first.' });
+  });
 });

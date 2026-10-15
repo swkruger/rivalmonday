@@ -108,12 +108,12 @@ describe('disabled while pending and in-dialog errors', () => {
   });
 
   it('a disconnect failure shows its alert inside the dialog', async () => {
-    m.runTool.mockResolvedValue({ ok: false, error: 'Could not reach Stripe. Try again shortly.' });
+    m.runTool.mockResolvedValue({ ok: false, error: "Stripe couldn't complete that. Please try again." });
     render(<ClientBillingSection status={status() as never} revenue={revenue} connect={undefined} />);
     fireEvent.click(screen.getByRole('button', { name: 'Disconnect Stripe' }));
     await act(async () => { fireEvent.submit(screen.getByRole('button', { name: 'Yes, disconnect' }).closest('form')!); });
     const alert = screen.getByRole('alert');
-    expect(alert.textContent).toContain('Could not reach Stripe');
+    expect(alert.textContent).toContain("Stripe couldn't complete that");
     expect(alert.closest('[role="dialog"]')).not.toBeNull();
   });
 });
