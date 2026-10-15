@@ -60,13 +60,15 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/settings/alerts` | admin | `get_client_profile`, `get_alert_rules` | — |
 | `/c/[clientId]/settings/delivery` | admin | `get_client_profile` | — |
 | `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters` | — |
+| `/agency/settings/billing` | admin | `get_billing_summary` | — |
+| `/paused` | admin | — | — |
 | `/inbox` | admin | `fn:listInbox` | — |
 | `/inbox (client owner)` | ownerLoneStar | `fn:listInbox` | — |
 | `/kb/[id]` | admin | `get_kb_article` | — |
 | `/platform` | operator | `platform_overview`, `list_platform_activity` | — |
 | `/platform/agencies` | operator | `list_platform_agencies` | — |
-| `/platform/agencies/[id]` | operator | `get_platform_agency`, `list_agency_support_sessions`, `get_agency_billing` | `list_discount_codes`: the demo seeds no discount codes |
-| `/platform/billing` | operator | `get_billing_overview`, `list_plans` | `list_discount_codes`: the demo seeds no discount codes; `list_invite_links`: the demo seeds no invite links |
+| `/platform/agencies/[id]` | operator | `get_platform_agency`, `list_agency_support_sessions`, `get_agency_billing`, `list_discount_codes` | — |
+| `/platform/billing` | operator | `get_billing_overview`, `list_plans`, `list_discount_codes` | `list_invite_links`: the demo seeds no invite links |
 | `/platform/costs` | operator | `list_platform_costs` | — |
 | `/platform/health` | operator | — | — |
 | `/platform/ask` | operator | `fn:listReviewableAskThreads` | — |

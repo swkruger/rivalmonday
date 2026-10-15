@@ -6,6 +6,7 @@ import { seedAsk } from './ask';
 import { seedKb } from './kb';
 import { seedAi } from './ai';
 import { seedAgency } from './agency';
+import { seedBilling } from './billing';
 import { seedBriefs } from './briefs';
 import { seedChanges } from './changes';
 import { createSeedContext, type SeedContext } from './context';
@@ -46,6 +47,7 @@ const STEPS: readonly [string, (ctx: SeedContext) => Promise<void>][] = [
   ['platform stats', seedPlatformStats],
   ['support sessions', seedSupportSessions],
   ['platform costs', seedPlatformCosts],
+  ['billing states', seedBilling],
   ['AI connections', seedAi],
   ['Ask threads and starters', seedAsk],
   ['knowledge base', seedKb],

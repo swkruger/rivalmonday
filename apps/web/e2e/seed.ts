@@ -1,8 +1,8 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { ensureExemptPilot } from '@cs/billing';
+import { currentStandardPlan, ensureExemptPilot } from '@cs/billing';
 import { signLink } from '@cs/core';
-import { ad, agency, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
+import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
 import { createStoreFromEnv } from '@cs/storage';
 import { eq, sql } from 'drizzle-orm';
 import { acceptInvitations, createInvitation } from '@cs/tools';
@@ -116,6 +116,21 @@ export async function seed(): Promise<void> {
     await ensureExemptPilot(db, target!.id);
     await db.insert(client).values({ agencyId: target!.id, name: 'Target Plumbing', verticalId: 'hvac_plumbing', features: ['dashboard'], keywords: ['plumber'], serviceArea: { center: { lat: 32.7, lng: -97.1 }, radiusKm: 20, zips: ['76010'] }, placeId: 'e2e-target-place' });
     await createInvitation(db, { agencyId: target!.id, email: 'target-admin@e2e.test', role: 'agency_admin', invitedBy: 'e2e-seed' });
+
+    // Phase 9a (`billing.spec.ts`): two dedicated agencies that are not exempt pilots. A trial at its 3-client cap
+    // (with an admin and an account manager) and a suspended agency (with an admin and a client owner).
+    const stdPlan = (await currentStandardPlan(db))!;
+    const hvac = { verticalId: 'hvac_plumbing', features: ['dashboard'], keywords: ['hvac'], serviceArea: { center: { lat: 32.7, lng: -97.1 }, radiusKm: 20, zips: ['76010'] } };
+    const [trialAgency] = await db.insert(agency).values({ name: 'Trial Agency E2E' }).returning();
+    await db.insert(agencyBilling).values({ agencyId: trialAgency!.id, state: 'trialing', planId: stdPlan.id, trialEndsAt: new Date(Date.now() + 20 * 86_400_000) });
+    await db.insert(client).values(['Trial Heating One', 'Trial Heating Two', 'Trial Heating Three'].map((name) => ({ agencyId: trialAgency!.id, name, ...hvac })));
+    await createInvitation(db, { agencyId: trialAgency!.id, email: 'trial-admin@e2e.test', role: 'agency_admin', invitedBy: 'e2e-seed' });
+    await createInvitation(db, { agencyId: trialAgency!.id, email: 'trial-am@e2e.test', role: 'account_manager', invitedBy: 'e2e-seed' });
+    const [pausedAgency] = await db.insert(agency).values({ name: 'Paused Agency E2E' }).returning();
+    await db.insert(agencyBilling).values({ agencyId: pausedAgency!.id, state: 'suspended', planId: stdPlan.id, stateChangedAt: new Date() });
+    const [pausedClient] = await db.insert(client).values({ agencyId: pausedAgency!.id, name: 'Paused Plumbing', ...hvac }).returning();
+    await createInvitation(db, { agencyId: pausedAgency!.id, email: 'paused-admin@e2e.test', role: 'agency_admin', invitedBy: 'e2e-seed' });
+    await createInvitation(db, { agencyId: pausedAgency!.id, email: 'paused-owner@e2e.test', role: 'client_owner', clientId: pausedClient!.id, invitedBy: 'e2e-seed' });
 
     // Phase 8c: platform costs. DataForSEO is "configured" (dummy credentials in E2E_SERVER_ENV, presence only) with a
     // balance below its low threshold, so the Low strip shows; one manual monthly item gives the Spent card a figure.

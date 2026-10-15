@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@playbooks',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -97,11 +97,11 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}usage/`), tags: ['@usage'], why: 'usage and limits' },
   { pattern: re(`${AGENCY}(?:branding|team|webhooks)/`), tags: [], why: 'no E2E covers this agency page' },
   { pattern: re(`${AGENCY}settings/platform-access/`), tags: ['@support'], why: 'agency support-session history and notify switch' },
-  { pattern: re(`${AGENCY}settings/billing/`), tags: [], why: 'billing page, actions and seat CSV (unit-tested; the @billing E2E arrives with Phase 9a Task 12)' },
-  { pattern: re(`${APP}\(app\)/paused/`), tags: [], why: 'suspended-workspace page (unit-tested; E2E arrives with Phase 9a Task 12)' },
-  { pattern: re(`${COMP}billing/`), tags: [], why: 'billing display formatting (unit-tested)' },
-  { pattern: re(`${COMP}form-error\.tsx$`), tags: ['@clients', '@prospects'], why: 'form error line with the seat-cap Upgrade link (add client, convert prospect)' },
-  { pattern: re(`${C}(?:page\.tsx|overview-kpis\.ts)$`), tags: ['@overview', '@starting-point'], why: 'client overview (starting-point progress card)' },
+  { pattern: re(`${AGENCY}settings/billing/`), tags: ['@billing'], why: 'billing page, actions and seat CSV' },
+  { pattern: re(`${APP}\\(app\\)/paused/`), tags: ['@billing'], why: 'suspended-workspace page' },
+  { pattern: re(`${COMP}billing/`), tags: ['@billing'], why: 'billing display formatting shown on the billing page' },
+  { pattern: re(`${COMP}form-error\\.tsx$`), tags: ['@clients', '@prospects'], why: 'form error line with the seat-cap Upgrade link (add client, convert prospect)' },
+  { pattern: re(`${C}(?:page\\.tsx|overview-kpis\\.ts)$`), tags: ['@overview', '@starting-point'], why: 'client overview (starting-point progress card)' },
   { pattern: re(`${C}ads/`), tags: ['@ads'], why: 'ads view' },
   { pattern: re(`${C}alerts/`), tags: ['@alerts'], why: 'alert page' },
   { pattern: re(`${C}briefs/`), tags: ['@briefs', '@guest', '@starting-point'], why: 'brief page' },
@@ -118,7 +118,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${C}settings/alerts/`), tags: ['@alert-rules'], why: 'alert rules' },
   { pattern: re(`${C}settings/profile/`), tags: ['@profile', '@clients'], why: 'client profile and features' },
   { pattern: re(`${C}settings/delivery/`), tags: [], why: 'no E2E covers this settings page' },
-  { pattern: re(`${APP}\\(platform\\)/platform/billing/`), tags: [], why: 'platform billing console (unit-tested; the @billing E2E arrives with Phase 9a Task 12)' },
+  { pattern: re(`${APP}\\(platform\\)/platform/billing/`), tags: ['@billing'], why: 'platform billing console (codes, invite links)' },
   { pattern: re(`${APP}\\(platform\\)/platform/costs/`), tags: ['@costs'], why: 'platform costs page, dialogs and warning strip' },
   { pattern: re(`${APP}\\(platform\\)/platform/agencies/\\[id\\]/`), tags: ['@platform', '@support'], why: 'platform agency page: View as agency dialog and start action' },
   { pattern: re(`${APP}\\(platform\\)/platform/`), tags: ['@platform', '@reviews'], why: 'platform console, review/theme queues' },
