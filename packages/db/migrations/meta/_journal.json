@@ -428,6 +428,13 @@
       "when": 1792049260115,
       "tag": "0058_client_billing_billed_price",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1792071812673,
+      "tag": "0059_connect_portal_auto_pause",
+      "breakpoints": true
     }
   ]
 }

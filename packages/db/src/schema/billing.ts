@@ -173,6 +173,8 @@ export const agencyConnect = pgTable(
     currency: text('currency').notNull().default('usd'),
     stripeProductId: text('stripe_product_id'),
     stripeDefaultPriceId: text('stripe_default_price_id'),
+    /** R25: the Customer Portal configuration created on the connected account (client "Manage payment"). */
+    portalConfigurationId: text('portal_configuration_id'),
     /** null = use the global default. */
     applicationFeePercent: numeric('application_fee_percent', { precision: 5, scale: 2 }),
     autoPauseAfterDays: integer('auto_pause_after_days'),
@@ -208,6 +210,8 @@ export const clientBilling = pgTable(
     state: text('state').$type<ClientBillingState>().notNull(),
     checkoutSentAt: ts('checkout_sent_at'),
     paymentFailedSince: ts('payment_failed_since'),
+    /** R22: the `payment_failed_since` of the failure episode that was auto-paused (auto-pause fires once per episode). */
+    autoPausedFailureAt: ts('auto_paused_failure_at'),
     lastPaidAt: ts('last_paid_at'),
     refundedAt: ts('refunded_at'),
     disputedAt: ts('disputed_at'),
