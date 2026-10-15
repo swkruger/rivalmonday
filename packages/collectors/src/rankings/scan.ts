@@ -1,14 +1,19 @@
 import { client, type Db, type RankResult, rankScan, rankSnapshot } from '@cs/db';
+import type { ObjectStore } from '@cs/storage';
 import { eq, sql } from 'drizzle-orm';
+import { recordVendorCapture } from '../evidence/vendor-capture';
 import { gridPoints } from '../local/grid';
 import { mapsSearch } from '../local/maps';
+import { DFS_COLLECTOR_VERSION } from '../gbp/collect-gbp';
 import { type DataForSeoClient, VendorError } from '../vendors/dataforseo';
 
 /**
  * Scans a client's keywords across a grid of map points and stores one tenant-scoped rank_snapshot per
- * keyword x point, grouped under one rank_scan (Phase 3b: rank deltas compare scan to scan). Snapshots
- * store parsed results only (captureId stays null; the capture table requires a competitor) — no
- * evidence is recorded for this vendor call.
+ * keyword x point, grouped under one rank_scan (Phase 3b: rank deltas compare scan to scan). Each point's
+ * raw Maps response is recorded as vendor evidence (`source: google_maps_rank`) and linked via
+ * `capture_id`. The capture table requires a competitor, so it is filed under the client's self-business
+ * (`client.self_competitor_id`); with none, or if recording fails (logged), captureId stays null and the
+ * scan continues.
  *
  * Bounds paid live DataForSEO calls: gridSize=7 x maxKeywords=5 is already 245 live searches (~$0.49)
  * per client per run.
@@ -19,7 +24,7 @@ import { type DataForSeoClient, VendorError } from '../vendors/dataforseo';
  * no snapshot at all is marked failed too.
  */
 export async function scanRankings(
-  deps: { db: Db; dfs: DataForSeoClient },
+  deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient },
   clientId: string,
   opts: { gridSize?: number; maxKeywords?: number; depth?: number } = {},
 ): Promise<{ snapshots: number; failed: number; scanId: string | null }> {
@@ -38,8 +43,9 @@ export async function scanRankings(
     for (const keyword of c.keywords.slice(0, maxKeywords)) {
       for (const pt of points) {
         let places: Awaited<ReturnType<typeof mapsSearch>>['places'];
+        let raw: unknown[];
         try {
-          ({ places } = await mapsSearch(deps.dfs, { keyword, lat: pt.lat, lng: pt.lng, depth }, scope));
+          ({ places, raw } = await mapsSearch(deps.dfs, { keyword, lat: pt.lat, lng: pt.lng, depth }, scope));
         } catch (err) {
           if (!(err instanceof VendorError)) throw err;
           failed++;
@@ -47,7 +53,17 @@ export async function scanRankings(
           continue;
         }
         const results: RankResult[] = places.map((p) => ({ rank: p.rank, placeId: p.placeId, cid: p.cid, domain: p.domain, title: p.title }));
-        await deps.db.insert(rankSnapshot).values({ agencyId: c.agencyId, clientId: c.id, scanId, keyword, lat: pt.lat, lng: pt.lng, results });
+        let captureId: string | null = null;
+        if (c.selfCompetitorId) {
+          try {
+            ({ captureId } = await recordVendorCapture(deps, {
+              competitorId: c.selfCompetitorId, source: 'google_maps_rank', collectorVersion: DFS_COLLECTOR_VERSION, status: 'ok', payload: raw,
+            }));
+          } catch (err) {
+            console.warn(`[rank-scan] ${clientId} "${keyword}" @ ${pt.lat},${pt.lng}: evidence capture failed (${err instanceof Error ? err.message : String(err)}) — snapshot stored without capture`);
+          }
+        }
+        await deps.db.insert(rankSnapshot).values({ agencyId: c.agencyId, clientId: c.id, scanId, keyword, lat: pt.lat, lng: pt.lng, captureId, results });
         snapshots++;
       }
     }
