@@ -28,6 +28,10 @@ function periodEnd(sub: Obj): Date | null {
   return fromSeconds(first?.current_period_end);
 }
 
+/** An invoice's subscription: under `parent.subscription_details` on newer API versions, top-level on older ones. */
+const invoiceSubscriptionId = (inv: Obj): string | null =>
+  idOf(asObj(asObj(inv.parent)?.subscription_details)?.subscription) ?? idOf(inv.subscription);
+
 /** Stripe statuses of a subscription that still bills (or will): one per agency (R22), the only ones worth recording (R26). */
 export const LIVE_SUBSCRIPTION_STATUSES: readonly string[] = ['active', 'trialing', 'past_due', 'unpaid', 'incomplete'];
 const isLive = (status: string | null) => status !== null && LIVE_SUBSCRIPTION_STATUSES.includes(status);
@@ -112,6 +116,10 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: StripeEventLike): Pro
   // R26: an event about a subscription other than the one we hold (e.g. the ended one after a re-subscribe) is stale news.
   const isSubscriptionEvent = event.type.startsWith('customer.subscription.');
   if (isSubscriptionEvent && row.stripeSubscriptionId && str(obj.id) !== row.stripeSubscriptionId) return 'ignored';
+  // R29: with no subscription held, only a live one may be adopted (a late end of a forgotten one must not demote a pilot).
+  if (isSubscriptionEvent && !row.stripeSubscriptionId && !isLive(str(obj.status))) return 'ignored';
+  // R29: invoices count only for the subscription we hold (a forgotten one's invoice must not reactivate the agency).
+  if (event.type.startsWith('invoice.') && (!row.stripeSubscriptionId || invoiceSubscriptionId(obj) !== row.stripeSubscriptionId)) return 'ignored';
   // R12: record facts first, independent of ordering.
   let hasSubscription = true;
   if (event.type === 'checkout.session.completed') hasSubscription = await recordCheckoutFacts(tx, gw, row, obj, event.created);

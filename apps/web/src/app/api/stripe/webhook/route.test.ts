@@ -25,7 +25,7 @@ beforeEach(async () => {
     .insert(plan)
     .values({ code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' })
     .returning({ id: plan.id });
-  await dbs.owner.insert(agencyBilling).values({ agencyId: AGENCY, state: 'active', planId: p!.id, stripeCustomerId: 'cus_1' });
+  await dbs.owner.insert(agencyBilling).values({ agencyId: AGENCY, state: 'active', planId: p!.id, stripeCustomerId: 'cus_1', stripeSubscriptionId: 'sub_1' });
   stripeEnv.current = { VITEST: 'true' };
   vi.restoreAllMocks();
 });
@@ -51,7 +51,7 @@ describe('POST /api/stripe/webhook', () => {
   });
 
   it('200 with the handler result for a valid (fake) signature, then duplicate', async () => {
-    const raw = body('e1', 'invoice.payment_failed', {});
+    const raw = body('e1', 'invoice.payment_failed', { subscription: 'sub_1' });
     const res = await post(raw, 'fake-sig');
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ received: true, result: 'processed' });

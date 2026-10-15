@@ -44,7 +44,7 @@ describe('handleStripeEvent', () => {
   it('a stale checkout.session.completed still records subscription, plan and seats (R12)', async () => {
     await seed('trialing');
     gw.seedSubscription({ id: 'sub_1', customerId: CUS, seatQuantity: 4, items: [{ id: 'i1', priceId: 'price_base', quantity: 1 }] });
-    expect(await handle(ev('new', 'invoice.paid', {}, T0 + 5))).toBe('processed');
+    expect(await handle(ev('new', 'customer.subscription.updated', { id: 'sub_1', status: 'active' }, T0 + 5))).toBe('processed');
     expect(await handle(ev('old', 'checkout.session.completed', { subscription: 'sub_1' }, T0))).toBe('ignored');
     expect(await row()).toMatchObject({ state: 'active', stripeSubscriptionId: 'sub_1', planId, billableSeatsSynced: 4, lastStripeEventAt: new Date((T0 + 5) * 1000) });
   });
@@ -95,6 +95,27 @@ describe('handleStripeEvent', () => {
     expect(await row()).toMatchObject({ state: 'past_due', stripeSubscriptionId: null });
   });
 
+  it('a delayed end of a forgotten subscription does not demote a pilot (R29)', async () => {
+    await setBilling(dbs.owner, planId, { state: 'pilot', stripeCustomerId: CUS, pilotEndsAt: new Date((T0 + 864e3) * 1000) });
+    expect(await handle(ev('e1', 'customer.subscription.deleted', { id: 'sub_old', status: 'canceled' }))).toBe('ignored');
+    expect(await handle(ev('e2', 'customer.subscription.updated', { id: 'sub_old', status: 'canceled' }, T0 + 1))).toBe('ignored');
+    expect(await row()).toMatchObject({ state: 'pilot', stripeSubscriptionId: null, lastStripeEventAt: null });
+    expect(await dbs.owner.select().from(agencyBillingEvent)).toEqual([]);
+  });
+
+  it('invoice.* for a subscription other than the stored one is ignored (R29)', async () => {
+    await seed('past_due', { pastDueSince: new Date(T0 * 1000) });
+    expect(await handle(ev('e1', 'invoice.paid', { parent: { subscription_details: { subscription: 'sub_old' } } }))).toBe('ignored');
+    expect(await handle(ev('e2', 'invoice.paid', { subscription: 'sub_old' }, T0 + 1))).toBe('ignored');
+    expect(await handle(ev('e3', 'invoice.paid', {}, T0 + 2))).toBe('ignored');
+    expect(await row()).toMatchObject({ state: 'past_due', stripeSubscriptionId: null, lastStripeEventAt: null });
+
+    await dbs.owner.update(agencyBilling).set({ stripeSubscriptionId: 'sub_new' });
+    expect(await handle(ev('e4', 'invoice.payment_failed', { subscription: 'sub_old' }, T0 + 3))).toBe('ignored');
+    expect(await handle(ev('e5', 'invoice.paid', { parent: { subscription_details: { subscription: 'sub_new' } }, subscription: 'sub_old' }, T0 + 4))).toBe('processed');
+    expect((await row()).state).toBe('active');
+  });
+
   it('customer.subscription.* fills a missing stripe_subscription_id from the object id', async () => {
     await seed('active');
     await handle(ev('e1', 'customer.subscription.updated', { id: 'sub_9', status: 'incomplete' }));
@@ -137,31 +158,31 @@ describe('handleStripeEvent', () => {
     expect((await record('e1'))?.processedAt).not.toBeNull();
   });
 
-  it('subscription.deleted, invoice.paid, invoice.payment_failed', async () => {
-    await seed('active');
-    await handle(ev('e1', 'customer.subscription.deleted', { id: 'sub_1' }));
+  it('invoice.payment_failed, invoice.paid, subscription.deleted', async () => {
+    await seed('active', { stripeSubscriptionId: 'sub_1' });
+    await handle(ev('e1', 'invoice.payment_failed', { subscription: 'sub_1' }));
     expect(await row()).toMatchObject({ state: 'past_due', pastDueSince: new Date(T0 * 1000) });
-    await handle(ev('e2', 'invoice.paid', {}, T0 + 10));
+    await handle(ev('e2', 'invoice.paid', { subscription: 'sub_1' }, T0 + 10));
     expect((await row()).state).toBe('active');
-    await handle(ev('e3', 'invoice.payment_failed', {}, T0 + 20));
-    expect((await row()).state).toBe('past_due');
+    await handle(ev('e3', 'customer.subscription.deleted', { id: 'sub_1', status: 'canceled' }, T0 + 20));
+    expect(await row()).toMatchObject({ state: 'past_due', pastDueSince: new Date((T0 + 20) * 1000) });
     const evs = await dbs.owner.select().from(agencyBillingEvent);
     expect(evs.map((e) => e.stripeEventId).sort()).toEqual(['e1', 'e2', 'e3']);
   });
 
   it('duplicate delivery is a no-op', async () => {
-    await seed('active');
-    const e = ev('e1', 'invoice.payment_failed', {});
+    await seed('active', { stripeSubscriptionId: 'sub_1' });
+    const e = ev('e1', 'invoice.payment_failed', { subscription: 'sub_1' });
     expect(await handle(e)).toBe('processed');
     expect(await handle(e)).toBe('duplicate');
     expect(await dbs.owner.select().from(agencyBillingEvent)).toHaveLength(1);
   });
 
   it('a stale payment_failed after a newer invoice.paid is ignored', async () => {
-    await seed('past_due', { pastDueSince: new Date(T0 * 1000 - 1000) });
-    await handle(ev('new', 'invoice.paid', {}, T0 + 100));
+    await seed('past_due', { stripeSubscriptionId: 'sub_1', pastDueSince: new Date(T0 * 1000 - 1000) });
+    await handle(ev('new', 'invoice.paid', { subscription: 'sub_1' }, T0 + 100));
     expect((await row()).state).toBe('active');
-    expect(await handle(ev('old', 'invoice.payment_failed', {}, T0 + 50))).toBe('ignored');
+    expect(await handle(ev('old', 'invoice.payment_failed', { subscription: 'sub_1' }, T0 + 50))).toBe('ignored');
     expect(await row()).toMatchObject({ state: 'active', lastStripeEventAt: new Date((T0 + 100) * 1000) });
   });
 
