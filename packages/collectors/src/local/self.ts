@@ -48,7 +48,13 @@ export async function ensureSelfCompetitors(db: Db): Promise<number> {
   return linked;
 }
 
-async function fillSelfDomains(db: Db): Promise<void> {
+/** Postgres unique_violation, bare or wrapped by drizzle's query error (`cause`). */
+const isUniqueViolation = (e: unknown): boolean => {
+  const code = (x: unknown) => (typeof x === 'object' && x !== null ? (x as { code?: unknown }).code : undefined);
+  return code(e) === '23505' || code((e as { cause?: unknown } | null)?.cause) === '23505';
+};
+
+export async function fillSelfDomains(db: Db): Promise<void> {
   const rows = await db
     .selectDistinctOn([competitor.id], { id: competitor.id, data: observation.data })
     .from(client)
@@ -61,6 +67,12 @@ async function fillSelfDomains(db: Db): Promise<void> {
     const domain = normaliseDomain(typeof raw.domain === 'string' ? raw.domain : typeof raw.url === 'string' ? raw.url : null);
     if (!domain) continue;
     // competitor.domain is globally unique: leave it null when another row owns it.
-    await db.execute(sql`UPDATE competitor SET domain = ${domain} WHERE id = ${r.id} AND domain IS NULL AND NOT EXISTS (SELECT 1 FROM competitor o WHERE o.domain = ${domain})`);
+    // A concurrent writer can still claim the domain between the guard and the write: skip this row, never abort the tick.
+    try {
+      await db.execute(sql`UPDATE competitor SET domain = ${domain} WHERE id = ${r.id} AND domain IS NULL AND NOT EXISTS (SELECT 1 FROM competitor o WHERE o.domain = ${domain})`);
+    } catch (e) {
+      if (!isUniqueViolation(e)) throw e;
+      console.warn(`[collectors] self domain ${domain} for competitor ${r.id} was claimed concurrently; left unset`);
+    }
   }
 }

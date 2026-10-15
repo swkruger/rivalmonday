@@ -1,4 +1,4 @@
-import { MOVE_TYPES } from '@cs/core';
+import { MOVE_TYPES, SELF_RULE_IDS } from '@cs/core';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -48,9 +48,22 @@ describe('pack discovery config (Phase 12a)', () => {
     expect(d.tiers).toEqual({ top: { overlap: 0.55, activity: 0.25 }, watch: { overlap: 0.35, activity: 0.6 } });
   });
 
-  it('bumps both pilot packs to version 2', async () => {
-    expect((await loadVerticalPack('dental')).version).toBe(2);
-    expect((await loadVerticalPack('hvac_plumbing')).version).toBe(2);
+  it('bumps both pilot packs to version 3 (Phase 12b self rules)', async () => {
+    expect((await loadVerticalPack('dental')).version).toBe(3);
+    expect((await loadVerticalPack('hvac_plumbing')).version).toBe(3);
+  });
+});
+
+describe('pack self rules (Phase 12b)', () => {
+  it.each([['dental', 'patients'], ['hvac_plumbing', 'customers']])('%s declares every self rule with an existing playbook, plus the audience noun', async (id, noun) => {
+    const pack = await loadVerticalPack(id);
+    expect(pack.audience_noun).toBe(noun);
+    expect(pack.self_rules.map((r) => r.id).sort()).toEqual([...SELF_RULE_IDS].sort());
+    for (const rule of pack.self_rules) {
+      const pb = pack.playbooks.find((p) => p.id === rule.playbook);
+      expect(pb?.trigger).toBe(rule.id);
+    }
+    expect(pack.self_rules.filter((r) => r.strength).map((r) => r.id)).toEqual(['theme_strength']);
   });
 });
 

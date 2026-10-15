@@ -1,8 +1,9 @@
 import { capture, client, competitor, competitorSource, observation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { ensureSelfCompetitor, ensureSelfCompetitors } from './self';
+import type { Db } from '@cs/db';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ensureSelfCompetitor, ensureSelfCompetitors, fillSelfDomains } from './self';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -85,5 +86,30 @@ describe('ensureSelfCompetitor', () => {
       await ensureSelfCompetitors(dbs.service);
       expect(await domainOf(id)).toBeNull();
     });
+  });
+});
+
+describe('fillSelfDomains', () => {
+  // A stubbed db: the select chain yields two rows; the UPDATE for the first throws a (drizzle-wrapped) unique violation.
+  const stub = (executeImpl: (n: number) => Promise<unknown>) => {
+    const rows = [{ id: 'c1', data: { domain: 'one.example.com' } }, { id: 'c2', data: { domain: 'two.example.com' } }];
+    const chain: Record<string, unknown> = {};
+    for (const m of ['from', 'innerJoin', 'where']) chain[m] = () => chain;
+    chain.orderBy = () => Promise.resolve(rows);
+    let n = 0;
+    return { selectDistinctOn: () => chain, execute: () => executeImpl(++n) } as unknown as Db;
+  };
+
+  it('logs and continues when a domain update loses a race (23505), so the tick is not aborted', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const calls: number[] = [];
+    await fillSelfDomains(stub(async (n) => { calls.push(n); if (n === 1) throw Object.assign(new Error('failed query'), { cause: { code: '23505' } }); }));
+    expect(calls).toEqual([1, 2]);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+
+  it('rethrows any other database error', async () => {
+    await expect(fillSelfDomains(stub(async () => { throw new Error('connection lost'); }))).rejects.toThrow('connection lost');
   });
 });

@@ -1,4 +1,4 @@
-import { CHANGE_TYPES, MOVE_TYPES } from '@cs/core';
+import { CHANGE_TYPES, MOVE_TYPES, SELF_RULE_IDS } from '@cs/core';
 import { z } from 'zod';
 
 const slug = z.string().regex(/^[a-z][a-z0-9_]*$/, 'must be snake_case');
@@ -30,10 +30,21 @@ export const discoverySchema = z.strictObject({
 
 export type DiscoveryConfig = z.infer<typeof discoverySchema>;
 
+export const selfRuleSchema = z.strictObject({
+  id: z.enum(SELF_RULE_IDS),
+  weight,
+  playbook: z.string(),
+  strength: z.boolean().default(false),
+  params: z.record(z.string(), z.number()).default({}),
+});
+export type PackSelfRule = z.infer<typeof selfRuleSchema>;
+
 export const verticalPackSchema = z.object({
   id: slug,
   name: z.string().min(1),
   version: z.number().int().positive(),
+  /** How the pack's vertical calls the client's customers in client-facing copy ("patients", "customers"). */
+  audience_noun: z.string().min(1).default('customers'),
   services: z
     .array(z.object({ id: slug, name: z.string().min(1), aliases: z.array(z.string()).default([]) }))
     .min(1)
@@ -60,7 +71,7 @@ export const verticalPackSchema = z.object({
     .array(
       z.object({
         id: slug,
-        trigger: z.enum([...MOVE_TYPES, ...CHANGE_TYPES]),
+        trigger: z.enum([...MOVE_TYPES, ...CHANGE_TYPES, ...SELF_RULE_IDS]),
         title: z.string().min(1),
         template: z.string().min(1),
       }),
@@ -97,6 +108,8 @@ export const verticalPackSchema = z.object({
       alert_max_age_days: z.number().int().positive().default(7),
     })
     .prefault({}),
+  /** Phase 12b starting point: deterministic findings about the client's own business (closed predicate set in the engine; thresholds in `params`). */
+  self_rules: z.array(selfRuleSchema).superRefine(uniqueIds('self rule')).default([]),
   /** Competitor discovery (Phase 12a): Maps search keywords, category filter, grid, shortlist and tier thresholds. */
   discovery: discoverySchema,
 });

@@ -16,3 +16,4 @@ export * from './deliver';
 export * from './recommendations';
 export * from './pdf';
 export * from './scorecard';
+export * from './self-rules';

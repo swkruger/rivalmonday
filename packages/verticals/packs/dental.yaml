@@ -1,6 +1,7 @@
 id: dental
 name: Dental practices
-version: 2
+version: 3
+audience_noun: patients
 
 services:
   - { id: cleaning_exam, name: Cleaning & exam, aliases: [checkup, hygiene visit, teeth cleaning] }
@@ -120,3 +121,53 @@ playbooks:
     template: >-
       {{competitor}} has sharply increased advertising. Protect branded search terms and check that your new-patient
       offer is visible in the same areas.
+  - id: ask_for_reviews
+    trigger: review_velocity_gap
+    title: Ask more patients for a review
+    template: >-
+      Ask every patient for a Google review at checkout with a text link, and aim for a few new reviews each week.
+  - id: reply_to_reviews
+    trigger: reply_rate_gap
+    title: Reply to your reviews
+    template: >-
+      Reply to every new review within two days, starting with the last 20.
+  - id: fix_top_complaint
+    trigger: rating_gap
+    title: Fix the most common complaint
+    template: >-
+      Read your lowest reviews from the last 90 days, pick the complaint patients repeat most, and fix it this month.
+  - id: consider_search_ads
+    trigger: rival_only_advertiser
+    title: Try a small Google search ads budget
+    template: >-
+      Run a small Google search campaign for "dentist near me" in your town so new patients can find you next to those rivals.
+  - id: fix_theme
+    trigger: theme_weakness
+    title: Address a weak spot patients notice
+    template: >-
+      Name one change to fix this weak spot, tell your team, and ask happy patients who notice it to say so in their review.
+  - id: promote_strength
+    trigger: theme_strength
+    title: Promote what patients praise
+    template: >-
+      Feature this strength on your website and Google profile, with a short quote from a patient review.
+  - id: improve_map_rank
+    trigger: map_visibility_gap
+    title: Climb the Google map results
+    template: >-
+      Add fresh photos, answer questions and post an update on your Google profile each week, and make sure your name, address and phone match everywhere online.
+  - id: complete_profile
+    trigger: profile_gap
+    title: Complete your Google profile
+    template: >-
+      Claim your Google profile and fill in your hours, services and extra categories so patients see a complete listing.
+
+self_rules:
+  - { id: review_velocity_gap, weight: 1.0, playbook: ask_for_reviews, params: { ratio: 0.5 } }
+  - { id: reply_rate_gap, weight: 0.8, playbook: reply_to_reviews, params: { gap: 0.25 } }
+  - { id: rating_gap, weight: 0.9, playbook: fix_top_complaint, params: { gap: 0.2 } }
+  - { id: rival_only_advertiser, weight: 0.6, playbook: consider_search_ads }
+  - { id: theme_weakness, weight: 0.7, playbook: fix_theme, params: { gap: 0.1 } }
+  - { id: theme_strength, weight: 0.5, playbook: promote_strength, strength: true, params: { gap: 0.1 } }
+  - { id: map_visibility_gap, weight: 0.8, playbook: improve_map_rank, params: { gap: 0.1 } }
+  - { id: profile_gap, weight: 0.7, playbook: complete_profile, params: { min_categories: 2 } }
