@@ -137,6 +137,12 @@ describe('computeAgencyDay', () => {
     expect(r.lastActivityAt).toEqual(t('2026-10-12T10:00:00Z'));
   });
 
+  it('does not count a paused client as active (9b)', async () => {
+    await dbs.owner.update(client).set({ pausedAt: t('2026-10-01T00:00:00Z'), pausedBy: 'auto' }).where(eq(client.id, IDS.clientB1));
+    const r = await computeAgencyDay(dbs.service, IDS.agencyB, Y, live);
+    expect(r.clientsActive).toBe(0);
+  });
+
   it('measured zero is 0, not NULL; spend with no ledger rows is 0', async () => {
     const r = await computeAgencyDay(dbs.service, IDS.agencyB, Y, live);
     expect(r).toMatchObject({ clientsActive: 1, clientsProspect: 0, agencySeats: 1, clientSeats: 0, wau: 0, briefsSent: 0, alertsSent: 0, prospectReports: 0, askQuestions: 0, mcpCalls: 0, spendUsd: '0.0000', lastActivityAt: null });

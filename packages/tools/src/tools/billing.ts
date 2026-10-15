@@ -1,6 +1,6 @@
 import { type BillingGateway, countActiveClients, currentStandardPlan, LIVE_SUBSCRIPTION_STATUSES, planFor, syncPlanToStripe, trialEndUsable } from '@cs/billing';
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
-import { agency, agencyBilling, client, discountCode } from '@cs/db';
+import { agency, agencyBilling, client, clientServiceable, discountCode } from '@cs/db';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
@@ -239,7 +239,7 @@ export const getSeatReportTool = defineTool({
     const rows = await deps.service
       .select({ id: client.id, name: client.name, createdAt: client.createdAt })
       .from(client)
-      .where(and(eq(client.agencyId, ctx.agencyId), eq(client.status, 'active')))
+      .where(and(eq(client.agencyId, ctx.agencyId), clientServiceable(client)))
       .orderBy(asc(client.name), asc(client.id));
     return { clients: rows.map((r) => ({ id: r.id, name: r.name, activatedAt: r.createdAt.toISOString() })) };
   },

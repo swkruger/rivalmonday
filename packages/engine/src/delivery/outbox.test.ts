@@ -1,6 +1,6 @@
 import { verifyLink } from '@cs/core';
 import { agencyBilling, agencyWebhook, alert, changeEvent, client, contact, notification } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport, type EmailPayload, PermanentEmailError, resolveBranding } from '@cs/email';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -200,5 +200,26 @@ describe('dispatchDue and billing state (9a)', () => {
     expect((await dbs.owner.select().from(notification).where(eq(notification.id, n!.id)))[0]).toMatchObject({ status: 'pending', attempts: 0 });
     await dbs.owner.delete(agencyBilling).where(eq(agencyBilling.agencyId, IDS.agencyA));
     expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 1, failed: 0, retried: 0 });
+  });
+});
+
+describe('dispatchDue and a paused client (9b)', () => {
+  const row = (over: { clientId: string; contactId: string; dedupeKey: string }): typeof notification.$inferInsert => ({
+    agencyId: IDS.agencyA, channel: 'email', kind: 'brief', subjectType: 'brief', subjectId: IDS.clientA1, title: 'H', body: 'B',
+    address: 'o@a1.example', payload: { ...payload('https://app.example/l/x'), replyTo: null }, status: 'pending', notBefore: NOW, ...over,
+  });
+
+  it('does not claim a paused client due rows (they stay pending); another client row in the same agency still delivers', async () => {
+    const c1 = await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@a1.example' });
+    const c2 = await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA2, role: 'client_owner', email: 'o@a2.example' });
+    const [paused] = await dbs.service.insert(notification).values(row({ clientId: IDS.clientA1, contactId: c1, dedupeKey: 'p9b-1' })).returning();
+    const [other] = await dbs.service.insert(notification).values(row({ clientId: IDS.clientA2, contactId: c2, dedupeKey: 'p9b-2' })).returning();
+    await pauseClient(dbs.owner, IDS.clientA1);
+    const send = vi.fn(async () => ({ providerId: 'p1' }));
+    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 1, failed: 0, retried: 0 });
+    expect(send).toHaveBeenCalledTimes(1);
+    const status = async (id: string) => (await dbs.owner.select().from(notification).where(eq(notification.id, id)))[0];
+    expect(await status(paused!.id)).toMatchObject({ status: 'pending', attempts: 0 });
+    expect(await status(other!.id)).toMatchObject({ status: 'sent' });
   });
 });

@@ -104,7 +104,7 @@ export async function computeAgencyDay(db: ServiceDb, agencyId: string, day: str
   const [r] = [
     ...(await db.execute<DayRow>(sql`
       select
-        (select count(*)::int from client where agency_id = ${agencyId} and status = 'active' and created_at < ${e}) as clients_active,
+        (select count(*)::int from client where agency_id = ${agencyId} and status = 'active' and paused_at is null and created_at < ${e}) as clients_active,
         (select count(*)::int from client where agency_id = ${agencyId} and status = 'prospect' and created_at < ${e}) as clients_prospect,
         (select count(distinct user_id)::int from membership where agency_id = ${agencyId} and role in ${AGENCY_ROLES} and created_at < ${e}) as agency_seats,
         (select count(distinct user_id)::int from membership where agency_id = ${agencyId} and role in ${CLIENT_ROLES} and created_at < ${e}) as client_seats,

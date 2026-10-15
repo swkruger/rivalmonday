@@ -1,4 +1,4 @@
-import { agencyServiceable, client, type Db, type RankResult, rankScan, rankSnapshot } from '@cs/db';
+import { agencyServiceable, clientServiceable, client, type Db, type RankResult, rankScan, rankSnapshot } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { eq, sql } from 'drizzle-orm';
 import { recordVendorCapture } from '../evidence/vendor-capture';
@@ -81,6 +81,6 @@ export async function listRankClients(db: Db): Promise<string[]> {
   const rows = await db
     .select({ id: client.id })
     .from(client)
-    .where(sql`${client.serviceArea} IS NOT NULL AND jsonb_array_length(${client.keywords}) > 0 AND ${client.status} = 'active' AND ${agencyServiceable(client.agencyId)}`);
+    .where(sql`${client.serviceArea} IS NOT NULL AND jsonb_array_length(${client.keywords}) > 0 AND ${clientServiceable(client)} AND ${agencyServiceable(client.agencyId)}`);
   return rows.map((r) => r.id);
 }

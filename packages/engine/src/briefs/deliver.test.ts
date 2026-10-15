@@ -1,6 +1,6 @@
 import { createAccessContext } from '@cs/core';
 import { agencyBilling, brief, briefItem, changeEvent, client, feedback, notification } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
@@ -172,5 +172,15 @@ describe('deliverDueBriefs and billing state (9a)', () => {
     await pauseAgency(dbs.owner, IDS.agencyA, 'suspended');
     expect(await deliverDueBriefs(deps(), MON_0705)).toEqual({ sent: [], autoApproved: 0, overdue: 0 });
     expect(await read(ready)).toMatchObject({ status: 'ready' });
+  });
+});
+
+describe('deliverDueBriefs and a paused client (9b)', () => {
+  it('sends nothing for a paused client and leaves the brief unsent', async () => {
+    const approved = await seedBrief('approved', [{ ord: 0, headline: 'H0' }]);
+    await pauseClient(dbs.owner, IDS.clientA1);
+    expect(await deliverDueBriefs(deps(), MON_0705)).toEqual({ sent: [], autoApproved: 0, overdue: 0 });
+    expect(await read(approved)).toMatchObject({ status: 'approved', sentAt: null });
+    expect(await dbs.owner.select().from(notification)).toEqual([]);
   });
 });

@@ -102,6 +102,13 @@ describe('list_platform_agencies', () => {
     expect(r.rows.find((x) => x.id === IDS.agencyB)).toMatchObject({ clientsActive: 1, clientsProspect: 0, agencySeats: 0, clientSeats: 0, wau: 0, lastActivityAt: null, spendMonthUsd: 0, health: 'steady' });
   });
 
+  it('does not count a paused client as active (9b)', async () => {
+    await seedPlatform();
+    await dbs.owner.update(client).set({ pausedAt: new Date(), pausedBy: 'auto' }).where(eq(client.id, IDS.clientB1));
+    const r = (await registry.invoke(op, 'list_platform_agencies', {})) as AgencyList;
+    expect(r.rows.find((x) => x.id === IDS.agencyB)).toMatchObject({ clientsActive: 0 });
+  });
+
   it('billingState is the agency_billing state, pilot when there is no row', async () => {
     await seedPlatform();
     await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'past_due' });

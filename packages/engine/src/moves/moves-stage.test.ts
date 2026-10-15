@@ -1,5 +1,5 @@
 import { ad, capture, changeEvent, client, eventScore, move, moveEvent, withTenant } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedVendorCapture } from '../../test/seed';
@@ -132,5 +132,14 @@ describe('listMoveClients and billing state (9a)', () => {
   it('excludes a read_only agency’s clients; an agency with no billing row is still listed', async () => {
     await pauseAgency(dbs.owner, IDS.agencyA);
     expect(await listMoveClients(dbs.service)).toEqual([IDS.clientB1]);
+  });
+});
+
+describe('listMoveClients and a paused client (9b)', () => {
+  it('excludes a paused client', async () => {
+    await pauseClient(dbs.owner, IDS.clientA1);
+    const ids = await listMoveClients(dbs.service);
+    expect(ids).not.toContain(IDS.clientA1);
+    expect(ids).toContain(IDS.clientB1);
   });
 });

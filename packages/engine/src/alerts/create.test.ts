@@ -1,5 +1,5 @@
 import { agencyBilling, alert, alertEvent, changeEvent, client, eventScore } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import type { Db } from '@cs/db';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -138,6 +138,23 @@ describe('sweepAlerts and billing state (9a)', () => {
     await seed();
     expect((await sweepAlerts(dbs.service, NOW)).drafting).toHaveLength(1);
     await pauseAgency(dbs.owner, IDS.agencyA);
+    expect((await sweepAlerts(dbs.service, NOW)).drafting).toEqual([]);
+  });
+});
+
+describe('sweepAlerts and a paused client (9b)', () => {
+  it('creates no alert for a paused client; another client is still swept', async () => {
+    await seed();
+    await seed({ clientId: IDS.clientB1, agencyId: IDS.agencyB });
+    await pauseClient(dbs.owner, IDS.clientA1);
+    expect((await sweepAlerts(dbs.service, NOW)).created).toBe(1);
+    expect((await alerts()).map((a) => a.clientId)).toEqual([IDS.clientB1]);
+  });
+
+  it('does not offer a paused client drafting alerts for model writing', async () => {
+    await seed();
+    expect((await sweepAlerts(dbs.service, NOW)).drafting).toHaveLength(1);
+    await pauseClient(dbs.owner, IDS.clientA1);
     expect((await sweepAlerts(dbs.service, NOW)).drafting).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 import { PDF_KEY_SUFFIX } from '@cs/core';
-import { agencyServiceable, alert, brief, changeEvent, client, competitor, type Db, eventScore, move, moveEvent, recommendation, type TrendReportData, trendReport } from '@cs/db';
+import { agencyServiceable, clientServiceable, alert, brief, changeEvent, client, competitor, type Db, eventScore, move, moveEvent, recommendation, type TrendReportData, trendReport } from '@cs/db';
 import { renderTrendReportDocument, type TrendReportEmailProps } from '@cs/email';
 import { and, eq, gt, gte, isNull, lt, ne, sql } from 'drizzle-orm';
 import { PDF_CATCHUP_DAYS, type PdfDeps } from '../briefs/pdf';
@@ -64,7 +64,7 @@ export async function runQuarterlyReports(deps: { db: Db; packs: PackLoader; del
   const clients = await deps.db
     .select({ id: client.id, agencyId: client.agencyId, name: client.name, timezone: client.timezone, createdAt: client.createdAt })
     .from(client)
-    .where(and(eq(client.status, 'active'), agencyServiceable(client.agencyId))); // 5b-2 decision 9: prospects get no quarterly reports
+    .where(and(clientServiceable(client), agencyServiceable(client.agencyId))); // 5b-2 decision 9: prospects get no quarterly reports
   for (const c of clients) {
     const tz = safeTimezone(c.timezone);
     const clock = localClock(now, tz);

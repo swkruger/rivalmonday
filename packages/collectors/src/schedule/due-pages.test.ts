@@ -1,5 +1,5 @@
 import { client, clientCompetitor, competitor, trackedPage } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { claimDuePages } from './due-pages';
@@ -86,6 +86,15 @@ describe('claimDuePages and billing state (9a)', () => {
     expect(await claimDuePages(dbs.service, 10)).toHaveLength(2); // agency B (no billing row) still tracks X via clientB1
     await dbs.service.update(trackedPage).set({ nextDueAt: sql`now() - interval '1 minute'` });
     await pauseAgency(dbs.owner, IDS.agencyB, 'suspended');
+    expect(await claimDuePages(dbs.service, 10)).toEqual([]);
+  });
+});
+
+describe('claimDuePages and a paused client (9b)', () => {
+  it('claims nothing once every client tracking the competitor is paused', async () => {
+    expect((await claimDuePages(dbs.service, 10)).length).toBeGreaterThan(0);
+    await dbs.service.update(trackedPage).set({ nextDueAt: sql`now() - interval '1 minute'` });
+    for (const id of [IDS.clientA1, IDS.clientA2, IDS.clientB1]) await pauseClient(dbs.owner, id);
     expect(await claimDuePages(dbs.service, 10)).toEqual([]);
   });
 });

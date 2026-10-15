@@ -1,5 +1,5 @@
 import { alert, brief, changeEvent, client, move, moveEvent, notification, recommendation, trendReport } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedScoredEvent } from '../../test/seed';
@@ -104,5 +104,15 @@ describe('runQuarterlyReports and billing state (9a)', () => {
     await pauseAgency(dbs.owner, IDS.agencyA);
     await runQuarterlyReports({ db: dbs.service, packs, delivery }, at('2026-10-05T13:30:00Z'));
     expect((await dbs.owner.select({ c: trendReport.clientId }).from(trendReport)).map((r) => r.c)).toEqual([IDS.clientB1]);
+  });
+});
+
+describe('runQuarterlyReports and a paused client (9b)', () => {
+  it('creates no report for a paused client', async () => {
+    await pauseClient(dbs.owner, IDS.clientA1);
+    await runQuarterlyReports({ db: dbs.service, packs, delivery }, at('2026-10-05T13:30:00Z'));
+    const made = (await dbs.owner.select({ c: trendReport.clientId }).from(trendReport)).map((r) => r.c);
+    expect(made).not.toContain(IDS.clientA1);
+    expect(made).toContain(IDS.clientB1);
   });
 });

@@ -1,5 +1,5 @@
 import { capture, client, evidence, rankScan, rankSnapshot } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -150,6 +150,16 @@ describe('listRankClients', () => {
     await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: area }).where(eq(client.id, IDS.clientA1));
     await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: area }).where(eq(client.id, IDS.clientB1));
     await pauseAgency(dbs.owner, IDS.agencyA);
+    expect(await listRankClients(dbs.service)).toEqual([IDS.clientB1]);
+  });
+});
+
+describe('listRankClients and a paused client (9b)', () => {
+  it('excludes a paused client', async () => {
+    const area = { center: { lat: 32.44, lng: -97.79 }, radiusKm: 10, zips: [] };
+    await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: area }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: area }).where(eq(client.id, IDS.clientB1));
+    await pauseClient(dbs.owner, IDS.clientA1);
     expect(await listRankClients(dbs.service)).toEqual([IDS.clientB1]);
   });
 });

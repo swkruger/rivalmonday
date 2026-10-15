@@ -1,5 +1,5 @@
 import { capture, changeEvent, client, clientCompetitor, detectedChange, eventScore, rankScan, review, stageRun, trackedPage } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { scoreEvent } from './score/score-stage';
@@ -161,6 +161,26 @@ describe('findEngineWork and billing state (9a)', () => {
     await pauseAgency(dbs.owner, IDS.agencyB, 'suspended');
     const paused = await findEngineWork(dbs.service, { limit: 10 });
     expect(paused.score).not.toContain(id(31));
+    expect(paused.rankDiff).not.toContain(scanA!.id);
+    expect(paused.rankDiff).toEqual([]);
+  });
+});
+
+describe('findEngineWork and a paused client (9b)', () => {
+  it('offers no score or rank-diff work for paused clients', async () => {
+    const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+    await dbs.service.insert(changeEvent).values({ id: id(32), competitorId: IDS.competitorX, changeType: 'promo', summary: 's', confidence: 1, occurredAt: new Date() });
+    const done = { status: 'done', startedAt: minutesAgo(10), finishedAt: minutesAgo(5) } as const;
+    const [scanA] = await dbs.service.insert(rankScan).values({ ...done, agencyId: IDS.agencyA, clientId: IDS.clientA1 }).returning({ id: rankScan.id });
+    const [scanB] = await dbs.service.insert(rankScan).values({ ...done, agencyId: IDS.agencyB, clientId: IDS.clientB1 }).returning({ id: rankScan.id });
+    await pauseClient(dbs.owner, IDS.clientA1);
+    const w = await findEngineWork(dbs.service, { limit: 10 });
+    expect(w.rankDiff).toEqual([scanB!.id]);
+    expect(w.score).toContain(id(32));
+    await pauseClient(dbs.owner, IDS.clientB1);
+    await pauseClient(dbs.owner, IDS.clientA2);
+    const paused = await findEngineWork(dbs.service, { limit: 10 });
+    expect(paused.score).not.toContain(id(32));
     expect(paused.rankDiff).not.toContain(scanA!.id);
     expect(paused.rankDiff).toEqual([]);
   });

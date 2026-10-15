@@ -88,7 +88,7 @@ export async function liveAgencies(deps: Pick<ToolDeps, 'service'>, now: Date, a
   const rows = [
     ...(await deps.service.execute<LiveRow>(sql`
       select a.id, a.name, a.created_at,
-        (select count(*)::int from client c where c.agency_id = a.id and c.status = 'active') as clients_active,
+        (select count(*)::int from client c where c.agency_id = a.id and c.status = 'active' and c.paused_at is null) as clients_active,
         (select count(*)::int from client c where c.agency_id = a.id and c.status = 'prospect') as clients_prospect,
         (select count(distinct m.user_id)::int from membership m where m.agency_id = a.id and m.role in ${AGENCY_ROLES}) as agency_seats,
         (select count(distinct m.user_id)::int from membership m where m.agency_id = a.id and m.role in ${CLIENT_ROLES}) as client_seats,

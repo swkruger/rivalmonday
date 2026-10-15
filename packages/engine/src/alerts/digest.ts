@@ -1,4 +1,4 @@
-import { agencyServiceable, alert, changeEvent, client, competitor, type Db } from '@cs/db';
+import { agencyServiceable, clientServiceable, alert, changeEvent, client, competitor, type Db } from '@cs/db';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { safeTimezone } from '../briefs/schedule';
 import { type DeliveryConfig, loadBranding, notify, personalLink } from '../delivery/outbox';
@@ -14,7 +14,7 @@ export async function runAlertDigests(deps: { db: Db; delivery: DeliveryConfig }
     .selectDistinct({ clientId: alert.clientId, agencyId: alert.agencyId, name: client.name, timezone: client.timezone })
     .from(alert)
     .innerJoin(client, eq(client.id, alert.clientId))
-    .where(and(eq(alert.status, 'approved'), eq(alert.delivery, 'digest'), agencyServiceable(client.agencyId)));
+    .where(and(eq(alert.status, 'approved'), eq(alert.delivery, 'digest'), agencyServiceable(client.agencyId), clientServiceable(client)));
   for (const c of waiting) {
     const clock = localClock(now, safeTimezone(c.timezone));
     if (clock.hour < DIGEST_LOCAL_HOUR) continue;

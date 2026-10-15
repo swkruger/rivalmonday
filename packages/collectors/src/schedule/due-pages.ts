@@ -1,4 +1,4 @@
-import { agencyServiceable, type Db } from '@cs/db';
+import { agencyServiceable, clientServiceable, type Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
 
 /**
@@ -14,7 +14,7 @@ export async function claimDuePages(db: Db, limit: number): Promise<string[]> {
        SELECT id FROM tracked_page tp
         WHERE active AND next_due_at <= now()
           AND EXISTS (SELECT 1 FROM client_competitor cc JOIN client cl ON cl.id = cc.client_id
-                       WHERE cc.competitor_id = tp.competitor_id AND cl.status = 'active' AND ${agencyServiceable(sql.raw('cl.agency_id'))})
+                       WHERE cc.competitor_id = tp.competitor_id AND ${clientServiceable('cl')} AND ${agencyServiceable(sql.raw('cl.agency_id'))})
         ORDER BY next_due_at
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED)

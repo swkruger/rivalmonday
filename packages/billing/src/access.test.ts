@@ -117,3 +117,13 @@ describe('assertCanActivateClient', () => {
     expect(active.filter((c) => c.status === 'active')).toHaveLength(3);
   });
 });
+
+describe('seat counts and paused clients (9b)', () => {
+  it('billingAccess.activeClients excludes a paused client, which frees a seat for the cap', async () => {
+    await addClients(dbs.owner, 1); // 3 active = cap
+    expect((await billingAccess(dbs.service, AGENCY)).canAddActiveClient).toBe(false);
+    const [c] = await dbs.owner.select({ id: client.id }).from(client).where(eq(client.agencyId, AGENCY)).limit(1);
+    await dbs.owner.update(client).set({ pausedAt: new Date(), pausedBy: 'auto' }).where(eq(client.id, c!.id));
+    expect(await billingAccess(dbs.service, AGENCY)).toMatchObject({ activeClients: 2, canAddActiveClient: true });
+  });
+});

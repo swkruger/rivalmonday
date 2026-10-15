@@ -127,6 +127,7 @@ export async function dispatchDue(deps: { db: Db; senders: Partial<Record<Channe
     .where(sql`${notification.id} IN (
       SELECT nn.id FROM notification nn
       WHERE nn.channel <> 'in_app' AND ${agencyServiceable(sql.raw('nn.agency_id'))}
+        AND NOT EXISTS (SELECT 1 FROM client pc WHERE pc.id = nn.client_id AND pc.paused_at IS NOT NULL)
         AND ((nn.status = 'pending' AND nn.not_before <= ${now.toISOString()}::timestamptz) OR (nn.status = 'sending' AND nn.claimed_at < ${stale.toISOString()}::timestamptz))
       ORDER BY nn.not_before, nn.id LIMIT ${limit} FOR UPDATE SKIP LOCKED)`)
     .returning();

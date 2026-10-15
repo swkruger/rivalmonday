@@ -285,3 +285,12 @@ describe('get_seat_report', () => {
     expect(r.clients.find((c) => c.name === 'Aaa Dental')!.activatedAt).toBe(created.toISOString());
   });
 });
+
+describe('get_seat_report and paused clients (9b)', () => {
+  it('omits a paused client', async () => {
+    await dbs.owner.update(client).set({ pausedAt: new Date(), pausedBy: 'auto' }).where(eq(client.id, IDS.clientA2));
+    const r = (await call(admin, 'get_seat_report')) as { clients: { id: string }[] };
+    expect(r.clients.map((c) => c.id)).not.toContain(IDS.clientA2);
+    expect(r.clients.map((c) => c.id)).toContain(IDS.clientA1);
+  });
+});

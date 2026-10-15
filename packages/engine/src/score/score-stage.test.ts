@@ -1,5 +1,5 @@
 import { changeEvent, client, clientCompetitor, EMBEDDING_DIMENSIONS, eventScore, scoreFailure, withTenant } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { loadVerticalPack } from '@cs/verticals';
 import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -225,6 +225,16 @@ describe('billing state (9a)', () => {
     const id = await event({ occurredAt: new Date() });
     await pauseAgency(dbs.owner, IDS.agencyA);
     expect((await findEngineWork(dbs.service, { limit: 50 })).score).toContain(id); // B1 still lacks a score
+    expect((await scoreEvent({ db: dbs.service, packs }, id, { now: NOW })).scored).toBe(1);
+    expect((await dbs.owner.select({ c: eventScore.clientId }).from(eventScore)).map((r) => r.c)).toEqual([IDS.clientB1]);
+  });
+});
+
+describe('scoring and a paused client (9b)', () => {
+  it('scores nothing for a paused client but still scores another client tracking the competitor', async () => {
+    const id = await event({ occurredAt: new Date() });
+    await pauseClient(dbs.owner, IDS.clientA1);
+    expect((await findEngineWork(dbs.service, { limit: 50 })).score).toContain(id);
     expect((await scoreEvent({ db: dbs.service, packs }, id, { now: NOW })).scored).toBe(1);
     expect((await dbs.owner.select({ c: eventScore.clientId }).from(eventScore)).map((r) => r.c)).toEqual([IDS.clientB1]);
   });

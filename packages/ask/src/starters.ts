@@ -1,7 +1,7 @@
 import type { Ai, JsonSchemaFormat } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
 import type { CallScope } from '@cs/core';
-import { agencyServiceable, askStarter, changeEvent, client, clientCompetitor, competitor, type Db } from '@cs/db';
+import { agencyServiceable, clientServiceable, askStarter, changeEvent, client, clientCompetitor, competitor, type Db } from '@cs/db';
 import { and, desc, eq, gte, inArray, isNull, or } from 'drizzle-orm';
 import { z } from 'zod';
 
@@ -33,7 +33,7 @@ const SYSTEM = [
  * inactive or has no `ask` feature, there are no events, the model fails, or any question is invalid.
  */
 export async function generateStarters(deps: { service: Db; ai: Ai }, clientId: string, now: Date = new Date()): Promise<string[] | null> {
-  const [c] = await deps.service.select({ id: client.id, name: client.name, agencyId: client.agencyId, status: client.status, features: client.features }).from(client).where(and(eq(client.id, clientId), agencyServiceable(client.agencyId))).limit(1);
+  const [c] = await deps.service.select({ id: client.id, name: client.name, agencyId: client.agencyId, status: client.status, features: client.features }).from(client).where(and(eq(client.id, clientId), agencyServiceable(client.agencyId), clientServiceable(client))).limit(1);
   // 9a: a read_only/suspended agency matches no row, so it gets no new starters and no model call (the last row is kept).
   if (!c || c.status !== 'active' || !c.features.includes('ask')) return null;
 

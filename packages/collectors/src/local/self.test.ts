@@ -1,5 +1,5 @@
 import { capture, client, competitor, competitorSource, observation } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import type { Db } from '@cs/db';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -120,5 +120,16 @@ describe('fillSelfDomains', () => {
 
   it('rethrows any other database error', async () => {
     await expect(fillSelfDomains(stub(async () => { throw new Error('connection lost'); }))).rejects.toThrow('connection lost');
+  });
+});
+
+describe('ensureSelfCompetitors and a paused client (9b)', () => {
+  it('does not link a paused client own business; an unpaused client is still linked', async () => {
+    await dbs.owner.update(client).set({ placeId: 'ChIJpausedA1' }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ placeId: 'ChIJserviceB1' }).where(eq(client.id, IDS.clientB1));
+    await pauseClient(dbs.owner, IDS.clientA1);
+    expect(await ensureSelfCompetitors(dbs.service)).toBe(1);
+    expect(await selfOf(IDS.clientA1)).toBeNull();
+    expect(await selfOf(IDS.clientB1)).not.toBeNull();
   });
 });

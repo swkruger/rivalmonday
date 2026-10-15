@@ -1,5 +1,5 @@
 import { ToolError } from '@cs/core';
-import { type AgencyBillingRow, type BillingState, type Db, type PlanRow, type Tx, agency, agencyBilling, client, plan } from '@cs/db';
+import { type AgencyBillingRow, type BillingState, type Db, type PlanRow, type Tx, agency, agencyBilling, client, clientServiceable, plan } from '@cs/db';
 import { and, count, eq } from 'drizzle-orm';
 
 /** Anything that can run queries: the root db or an open transaction. */
@@ -32,7 +32,7 @@ export async function planFor(db: BillingDb, row: AgencyBillingRow | null): Prom
 }
 
 export async function countActiveClients(db: BillingDb, agencyId: string): Promise<number> {
-  const [r] = await db.select({ n: count() }).from(client).where(and(eq(client.agencyId, agencyId), eq(client.status, 'active')));
+  const [r] = await db.select({ n: count() }).from(client).where(and(eq(client.agencyId, agencyId), clientServiceable(client)));
   return r?.n ?? 0;
 }
 

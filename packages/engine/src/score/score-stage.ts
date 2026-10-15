@@ -1,5 +1,5 @@
 import type { ChangeType } from '@cs/core';
-import { agencyServiceable, type ChangeDetails, changeEvent, client, clientCompetitor, type Db, eventScore, type NumericChange, scoreFailure } from '@cs/db';
+import { agencyServiceable, clientServiceable, type ChangeDetails, changeEvent, client, clientCompetitor, type Db, eventScore, type NumericChange, scoreFailure } from '@cs/db';
 import { type AnyColumn, and, cosineDistance, desc, eq, gte, isNotNull, isNull, lt, ne, or, type SQL, sql } from 'drizzle-orm';
 import { MAX_STAGE_ATTEMPTS, RETRY_BACKOFF_MINUTES } from '../stage';
 import type { PackLoader } from '../tag/tag-stage';
@@ -113,7 +113,7 @@ export async function scoreEvent(deps: { db: Db; packs: PackLoader }, eventId: s
     .where(
       and(
         eq(clientCompetitor.competitorId, ev.competitorId),
-        eq(client.status, 'active'), // 5b-2 decision 9: never score for a prospect
+        clientServiceable(client), // 5b-2 decision 9: never score for a prospect; 9b: nor for a paused client
         agencyServiceable(client.agencyId), // 9a: a read_only/suspended agency's clients are not scored
         ev.clientId ? eq(client.id, ev.clientId) : undefined, // tenant-private events belong to one client
         // A complaint-theme spike (`review_spike` with `details.verticalId` set) was raised for one specific
