@@ -1,5 +1,7 @@
 import { formatUsd, relativeTime } from '@/server/format';
 import Link from 'next/link';
+import type { BillingState } from '@cs/db';
+import { BillingStatePill } from '../_components/billing-state-pill';
 import { type Health, HealthPill } from '../_components/health-pill';
 
 export const SORTS = ['name', 'created', 'clients', 'wau', 'lastActivity', 'spend', 'health'] as const;
@@ -18,6 +20,7 @@ export interface AgencyRow {
   lastActivityAt: string | null;
   spendMonthUsd: number;
   health: Health;
+  billingState: BillingState;
 }
 
 /** Same default as `list_platform_agencies`: name and health ascending, figures and dates descending. */
@@ -33,6 +36,7 @@ const COLUMNS: { label: string; sort?: AgencySort; right?: boolean }[] = [
   { label: 'Last activity', sort: 'lastActivity' },
   { label: 'Spend this month', sort: 'spend', right: true },
   { label: 'Health', sort: 'health' },
+  { label: 'Billing' },
 ];
 
 const day = (iso: string) => iso.slice(0, 10);
@@ -41,7 +45,7 @@ export function AgencyTable({ rows, sort, dir, now }: { rows: AgencyRow[]; sort:
   return (
     <div className="min-w-0 rounded-[14px] bg-surface p-2 shadow-card sm:p-4">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px] text-left text-sm">
+        <table className="w-full min-w-[940px] text-left text-sm">
           <thead>
             <tr className="text-muted-foreground">
               {COLUMNS.map((c) => {
@@ -81,6 +85,7 @@ export function AgencyTable({ rows, sort, dir, now }: { rows: AgencyRow[]; sort:
                 <td className="whitespace-nowrap px-3 py-2">{r.lastActivityAt ? relativeTime(r.lastActivityAt, now) : '—'}</td>
                 <td className="px-3 py-2 text-right">{formatUsd(r.spendMonthUsd)}</td>
                 <td className="px-3 py-2"><HealthPill health={r.health} /></td>
+                <td className="px-3 py-2"><BillingStatePill state={r.billingState} /></td>
               </tr>
             ))}
           </tbody>

@@ -6,7 +6,7 @@ import { AgencyTable, type AgencyRow } from './agency-table';
 const NOW = new Date('2026-10-13T12:00:00.000Z');
 const row = (over: Partial<AgencyRow> = {}): AgencyRow => ({
   id: 'a1', name: 'Acme', createdAt: '2026-09-01T00:00:00.000Z', clientsActive: 3, clientsProspect: 2, agencySeats: 2, clientSeats: 4,
-  wau: 5, lastActivityAt: '2026-10-12T12:00:00.000Z', spendMonthUsd: 12.5, health: 'steady', ...over,
+  wau: 5, lastActivityAt: '2026-10-12T12:00:00.000Z', spendMonthUsd: 12.5, health: 'steady', billingState: 'trialing', ...over,
 });
 
 describe('AgencyTable', () => {
@@ -21,6 +21,13 @@ describe('AgencyTable', () => {
     expect(screen.getByText('Steady')).toBeTruthy();
     expect(screen.getByText('$12.50')).toBeTruthy();
     expect(screen.getByText('Yesterday')).toBeTruthy();
+  });
+
+  it('has a Billing column with the state pill label', () => {
+    render(<AgencyTable rows={[row({ billingState: 'past_due' }), row({ id: 'a2', name: 'Beta', billingState: 'read_only' })]} sort="name" dir="asc" now={NOW} />);
+    expect(screen.getByRole('columnheader', { name: 'Billing' })).toBeTruthy();
+    expect(screen.getByText('Past due')).toBeTruthy();
+    expect(screen.getByText('Paused')).toBeTruthy();
   });
 
   it('renders — for null wau and lastActivityAt', () => {

@@ -10,6 +10,7 @@ vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@cs/tools', () => ({ platformRole: async () => m.role }));
 vi.mock('../../_components/overview-charts', () => ({ cardCls: 'card', deltaPill: () => null, PlatformCharts: () => null }));
 vi.mock('../../_components/range-toggle', () => ({ parseRange: () => '28d', RangeToggle: () => null }));
+vi.mock('./billing-panel', () => ({ BillingPanel: ({ role, billing }: { role: string; billing: { state: string } }) => <div>billing-panel {role} {billing.state}</div> }));
 vi.mock('./support-dialog', () => ({ SupportDialog: ({ agencyId }: { agencyId: string }) => <button type="button">View as agency {agencyId}</button> }));
 const { default: Page } = await import('./page');
 
@@ -27,7 +28,12 @@ const session = { id: 's1', startedAt: '2026-10-12T10:00:00Z', endedAt: '2026-10
 beforeEach(() => {
   m.role = 'staff';
   m.callTool.mockReset();
-  m.callTool.mockImplementation(async (_ctx: unknown, name: string) => (name === 'get_platform_agency' ? detail : { rows: [session] }));
+  m.callTool.mockImplementation(async (_ctx: unknown, name: string) => {
+    if (name === 'get_platform_agency') return detail;
+    if (name === 'get_agency_billing') return { state: 'trialing' };
+    if (name === 'list_discount_codes') return { codes: [{ id: 'd1', code: 'FRIEND', revokedAt: null }, { id: 'd2', code: 'OLD', revokedAt: '2026-10-01T00:00:00Z' }] };
+    return { rows: [session] };
+  });
 });
 const page = (sp: Record<string, string> = {}) => Page({ params: Promise.resolve({ id: AG }), searchParams: Promise.resolve(sp) });
 
@@ -51,5 +57,19 @@ describe('platform agency page: support sessions', () => {
   it('shows "Support session ended." on ?ended=1', async () => {
     render(await page({ ended: '1' }));
     expect(screen.getByRole('status').textContent).toBe('Support session ended.');
+  });
+});
+
+describe('platform agency page: billing panel', () => {
+  it('loads get_agency_billing and hands the role to the panel', async () => {
+    render(await page());
+    expect(m.callTool).toHaveBeenCalledWith({ userId: 'op' }, 'get_agency_billing', { agencyId: AG });
+    expect(screen.getByText('billing-panel staff trialing')).toBeTruthy();
+  });
+
+  it('a viewer gets the panel read-only and the codes list is not fetched', async () => {
+    m.role = 'viewer';
+    render(await page());
+    expect(screen.getByText('billing-panel viewer trialing')).toBeTruthy();
   });
 });

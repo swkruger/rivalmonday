@@ -96,7 +96,7 @@ describe('navFlagsFor', () => {
     expect(navFor(user, null).some((n) => n.href.startsWith('/platform'))).toBe(false);
     const platform = navFor(user, null, true).filter((n) => n.href.startsWith('/platform'));
     expect(platform.map((n) => [n.href, n.label])).toEqual([
-      ['/platform', 'Overview'], ['/platform/agencies', 'Agencies'], ['/platform/reviews', 'Model reviews'], ['/platform/themes', 'Theme proposals'],
+      ['/platform', 'Overview'], ['/platform/agencies', 'Agencies'], ['/platform/billing', 'Billing'], ['/platform/reviews', 'Model reviews'], ['/platform/themes', 'Theme proposals'],
       ['/platform/ask', 'Ask review'], ['/platform/knowledge', 'Knowledge'], ['/platform/health', 'Health'],
     ]);
     expect(platform.every((n) => n.group === 'account')).toBe(true);

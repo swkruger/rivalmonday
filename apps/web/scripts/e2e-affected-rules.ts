@@ -118,6 +118,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${C}settings/alerts/`), tags: ['@alert-rules'], why: 'alert rules' },
   { pattern: re(`${C}settings/profile/`), tags: ['@profile', '@clients'], why: 'client profile and features' },
   { pattern: re(`${C}settings/delivery/`), tags: [], why: 'no E2E covers this settings page' },
+  { pattern: re(`${APP}\\(platform\\)/platform/billing/`), tags: [], why: 'platform billing console (unit-tested; the @billing E2E arrives with Phase 9a Task 12)' },
   { pattern: re(`${APP}\\(platform\\)/platform/costs/`), tags: ['@costs'], why: 'platform costs page, dialogs and warning strip' },
   { pattern: re(`${APP}\\(platform\\)/platform/agencies/\\[id\\]/`), tags: ['@platform', '@support'], why: 'platform agency page: View as agency dialog and start action' },
   { pattern: re(`${APP}\\(platform\\)/platform/`), tags: ['@platform', '@reviews'], why: 'platform console, review/theme queues' },

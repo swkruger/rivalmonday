@@ -232,6 +232,16 @@ export const SCREENS: readonly ScreenCoverage[] = [
     route: '/platform/agencies/[id]', as: 'operator', calls: [
       { tool: 'get_platform_agency', input: (ids) => ({ agencyId: ids.agencyId, range: '12w' }), path: 'series' },
       { tool: 'list_agency_support_sessions', input: (ids) => ({ agencyId: ids.agencyId }), path: 'rows' },
+      { tool: 'get_agency_billing', input: (ids) => ({ agencyId: ids.agencyId }), path: 'state' },
+      { tool: 'list_discount_codes', input: none, path: 'codes', expect: 'empty', why: 'the demo seeds no discount codes' },
+    ],
+  },
+  {
+    route: '/platform/billing', as: 'operator', calls: [
+      { tool: 'get_billing_overview', input: none, path: 'agenciesByState' },
+      { tool: 'list_plans', input: none, path: 'plans' },
+      { tool: 'list_discount_codes', input: none, path: 'codes', expect: 'empty', why: 'the demo seeds no discount codes' },
+      { tool: 'list_invite_links', input: none, path: 'links', expect: 'empty', why: 'the demo seeds no invite links' },
     ],
   },
   { route: '/platform/costs', as: 'operator', calls: [{ tool: 'list_platform_costs', input: none, path: 'services' }] },

@@ -1,5 +1,5 @@
 import { type AuditEvent, createAccessContext, hashInput } from '@cs/core';
-import { agency, agencyDailyStat, auditLog, brief, client, llmCall, membership, platformAdmin, platformAuditLog, vendorCall } from '@cs/db';
+import { agency, agencyBilling, agencyDailyStat, auditLog, brief, client, llmCall, membership, platformAdmin, platformAuditLog, vendorCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -24,7 +24,7 @@ const DAY = 86_400_000;
 const now = () => new Date();
 const today = () => utcDay(now());
 const ago = (days: number) => new Date(Date.now() - days * DAY);
-const ROW_KEYS = ['agencySeats', 'clientSeats', 'clientsActive', 'clientsProspect', 'createdAt', 'health', 'id', 'lastActivityAt', 'name', 'spendMonthUsd', 'wau'];
+const ROW_KEYS = ['agencySeats', 'billingState', 'clientSeats', 'clientsActive', 'clientsProspect', 'createdAt', 'health', 'id', 'lastActivityAt', 'name', 'spendMonthUsd', 'wau'];
 
 type Tile = { value: number; delta28d: number | null };
 type Overview = { tiles: Record<'agencies' | 'clientsActive' | 'seats' | 'wau' | 'spendMonthUsd', Tile>; series: Record<string, unknown>[] };
@@ -100,6 +100,14 @@ describe('list_platform_agencies', () => {
     expect(new Date(a.lastActivityAt as string).getTime()).toBeCloseTo(ago(2).getTime(), -4);
     expect(typeof a.createdAt).toBe('string');
     expect(r.rows.find((x) => x.id === IDS.agencyB)).toMatchObject({ clientsActive: 1, clientsProspect: 0, agencySeats: 0, clientSeats: 0, wau: 0, lastActivityAt: null, spendMonthUsd: 0, health: 'steady' });
+  });
+
+  it('billingState is the agency_billing state, pilot when there is no row', async () => {
+    await seedPlatform();
+    await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'past_due' });
+    const r = (await registry.invoke(op, 'list_platform_agencies', {})) as AgencyList;
+    expect(r.rows.find((x) => x.id === IDS.agencyA)).toMatchObject({ billingState: 'past_due' });
+    expect(r.rows.find((x) => x.id === IDS.agencyB)).toMatchObject({ billingState: 'pilot' });
   });
 
   it('a session created long ago but refreshed yesterday counts toward wau and last activity, and is not at_risk', async () => {

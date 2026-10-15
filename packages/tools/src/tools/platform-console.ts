@@ -1,5 +1,5 @@
 import { type AccessContext, ToolError, toolkit } from '@cs/core';
-import { agency, agencyDailyStat, auditLog, brief, client, membership, supportSession } from '@cs/db';
+import { agency, agencyBilling, agencyDailyStat, BILLING_STATES, auditLog, brief, client, membership, supportSession } from '@cs/db';
 import { and, eq, gte, inArray, lte, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
@@ -187,7 +187,7 @@ export const platformOverview = defineTool({
 
 const SORTS = ['name', 'created', 'clients', 'wau', 'lastActivity', 'spend', 'health'] as const;
 type Sort = (typeof SORTS)[number];
-type ListRow = { id: string; name: string; createdAt: Date; clientsActive: number; clientsProspect: number; agencySeats: number; clientSeats: number; wau: number | null; lastActivityAt: Date | null; spendMonthUsd: number; health: AgencyHealth };
+type ListRow = { id: string; name: string; createdAt: Date; clientsActive: number; clientsProspect: number; agencySeats: number; clientSeats: number; wau: number | null; lastActivityAt: Date | null; spendMonthUsd: number; health: AgencyHealth; billingState: (typeof BILLING_STATES)[number] };
 
 const SORT_KEY: Record<Sort, (r: ListRow) => number | string | null> = {
   name: (r) => r.name.toLowerCase(),
@@ -239,6 +239,7 @@ export const listPlatformAgencies = defineTool({
       lastActivityAt: z.string().nullable(),
       spendMonthUsd: z.number(),
       health: HealthEnum,
+      billingState: z.enum(BILLING_STATES),
     })),
     nextCursor: z.string().nullable(),
   }),
@@ -251,10 +252,15 @@ export const listPlatformAgencies = defineTool({
       const sort = input.sort ?? 'name';
       const dir = input.dir ?? (sort === 'name' || sort === 'health' ? 'asc' : 'desc');
       const now = new Date();
-      const all: ListRow[] = (await liveAgencies(deps, now)).map((a) => ({
+      const [lives, states] = await Promise.all([
+        liveAgencies(deps, now),
+        deps.service.select({ id: agencyBilling.agencyId, state: agencyBilling.state }).from(agencyBilling),
+      ]);
+      const stateOf = new Map(states.map((r) => [r.id, r.state]));
+      const all: ListRow[] = lives.map((a) => ({
         id: a.id, name: a.name, createdAt: a.createdAt, clientsActive: a.clientsActive, clientsProspect: a.clientsProspect,
         agencySeats: a.agencySeats, clientSeats: a.clientSeats, wau: a.wau, lastActivityAt: a.lastActivityAt,
-        spendMonthUsd: a.spendMonthUsd, health: healthOf(a, now),
+        spendMonthUsd: a.spendMonthUsd, health: healthOf(a, now), billingState: stateOf.get(a.id) ?? 'pilot',
       }));
       all.sort(compareRows(sort, dir));
       const page = pageResult(all.slice(offset, offset + limit + 1), limit, offset);

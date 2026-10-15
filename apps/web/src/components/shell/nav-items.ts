@@ -87,6 +87,7 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
   if (flags.isPlatformOperator) {
     account('/platform', 'Overview', 'platform');
     account('/platform/agencies', 'Agencies', 'agencies');
+    account('/platform/billing', 'Billing', 'billing');
     account('/platform/reviews', 'Model reviews', 'reviews');
     account('/platform/themes', 'Theme proposals', 'themes');
     account('/platform/ask', 'Ask review', 'ask');

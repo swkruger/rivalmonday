@@ -9,6 +9,7 @@ import { callTool } from '@/server/tools';
 import { type Health, HealthPill } from '../../_components/health-pill';
 import { cardCls, deltaPill, PlatformCharts, type Point, type Tile } from '../../_components/overview-charts';
 import { parseRange, RangeToggle } from '../../_components/range-toggle';
+import { type AgencyBilling, BillingPanel } from './billing-panel';
 import { SupportDialog } from './support-dialog';
 
 export const dynamic = 'force-dynamic';
@@ -43,6 +44,12 @@ export default async function PlatformAgencyPage({ params, searchParams }: { par
     platformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx),
   ]);
   const canStart = role === 'owner' || role === 'staff';
+  const [billing, codes] = await Promise.all([
+    callTool<AgencyBilling>(ctx, 'get_agency_billing', { agencyId: agency.id }),
+    canStart
+      ? callTool<{ codes: { id: string; code: string; revokedAt: string | null }[] }>(ctx, 'list_discount_codes', {}).then((r) => r.codes.filter((c) => !c.revokedAt))
+      : Promise.resolve([]),
+  ]);
   return (
     <>
       {sp.ended === '1' && (
@@ -107,6 +114,10 @@ export default async function PlatformAgencyPage({ params, searchParams }: { par
             </table>
           </div>
         )}
+      </section>
+      <section className={cardCls}>
+        <h2 className="mb-3 font-semibold">Billing</h2>
+        <BillingPanel billing={billing} role={role ?? 'viewer'} codes={codes.map((c) => ({ id: c.id, code: c.code }))} />
       </section>
       <section className={cardCls}>
         <h2 className="font-semibold">Support sessions</h2>
