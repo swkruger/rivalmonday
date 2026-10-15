@@ -212,10 +212,30 @@ describe('SuggestionsPanel tiers and selection', () => {
 
   it('renders groups in order with headings only for non-empty tiers', () => {
     render(<SuggestionsPanel clientId="c1" ready suggestions={[list[3]!, list[2]!, list[0]!]} atLimit={false} canSearch />);
-    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Top rival', 'Worth watching', 'Minor']);
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Top rival · 1', 'Worth watching · 1', 'Minor · 1']);
     cleanup();
     render(<SuggestionsPanel clientId="c1" ready suggestions={[list[3]!]} atLimit={false} canSearch />);
-    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Minor']);
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Minor · 1']);
+  });
+
+  it('group headings carry the count and a coloured bar; only Top rival has the hint; cards have no tier chip', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={list} atLimit={false} canSearch />);
+    const top = screen.getByRole('heading', { name: 'Top rival · 2' });
+    expect(top.parentElement?.querySelector('[aria-hidden="true"]')?.className).toContain('bg-ink');
+    expect(screen.getByRole('heading', { name: 'Worth watching · 1' }).parentElement?.querySelector('[aria-hidden="true"]')?.className).toContain('bg-primary');
+    expect(screen.getByRole('heading', { name: 'Minor · 1' }).parentElement?.querySelector('[aria-hidden="true"]')?.className).toContain('bg-muted-ink');
+    expect(screen.getAllByText('close by, same services, active')).toHaveLength(1);
+    const card = screen.getByRole('checkbox', { name: /track alpha/i }).closest('li')!;
+    expect(within(card as HTMLElement).queryByText('Top rival')).toBeNull();
+  });
+
+  it('the Track selected bar is dark with a white button', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={list} atLimit={false} limit={5} trackedCount={3} canSearch />);
+    const button = screen.getByRole('button', { name: 'Track selected (2)' });
+    expect(button.className).toContain('bg-white');
+    expect(button.className).toContain('text-ink');
+    expect(button.parentElement?.className).toContain('bg-ink');
+    expect(screen.getByText('You can track 2 more.').className).toContain('text-[#E2E8F0]');
   });
 
   it('pre-ticks preselected and counts them in Track selected', () => {
@@ -265,12 +285,13 @@ describe('TrackedCompetitorsTable ratings', () => {
   const other: TrackedCompetitor = { ...tracked, id: 'x2', name: 'Jones Air' };
   const rating = { competitorId: 'x1', tier: 'top' as const, signals: { ...NO_SIGNALS, rating: 4.7, votes: 90 }, computedAt: '2026-10-13T09:00:00.000Z' };
 
-  it('client user sees tier column, no match chips', () => {
+  it('client user sees a tier pill after the name, no Tier column, no match chips', () => {
     render(<TrackedCompetitorsTable clientId="c1" items={[tracked, other]} canRemove={false} signals={[rating]} />);
-    expect(screen.getByRole('columnheader', { name: 'Tier' })).toBeTruthy();
+    expect(screen.queryByRole('columnheader', { name: 'Tier' })).toBeNull();
     expect(screen.getByRole('columnheader', { name: 'Signals' })).toBeTruthy();
-    expect(screen.getByText('Top rival')).toBeTruthy();
-    expect(screen.getByText('Rated Tue 13 Oct')).toBeTruthy();
+    const nameCell = screen.getByRole('link', { name: 'Smith HVAC' }).closest('td')!;
+    expect(within(nameCell as HTMLElement).getByText('Top rival')).toBeTruthy();
+    expect(within(nameCell as HTMLElement).getByText('Rated Tue 13 Oct')).toBeTruthy();
     expect(screen.getAllByRole('list', { name: 'Signals' })).toHaveLength(1);
     expect(screen.queryByText(/Matched automatically|Possible .* account/)).toBeNull();
     expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
@@ -280,5 +301,15 @@ describe('TrackedCompetitorsTable ratings', () => {
     render(<TrackedCompetitorsTable clientId="c1" items={[other]} canRemove={false} signals={[rating]} />);
     expect(screen.getByText('Not rated yet')).toBeTruthy();
     expect(screen.queryByText('Minor')).toBeNull();
+  });
+
+  it('is a flat list ordered Top rival, Worth watching, Minor, not rated, then by name', () => {
+    const mk = (id: string, name: string): TrackedCompetitor => ({ ...tracked, id, name });
+    const items = [mk('n1', 'Zulu Unrated'), mk('m1', 'Minor Co'), mk('w2', 'Watch Beta'), mk('t1', 'Top Zed'), mk('w1', 'Watch Alpha'), mk('n0', 'Alpha Unrated'), mk('t0', 'Top Able')];
+    const sig = (competitorId: string, tier: 'top' | 'watch' | 'minor') => ({ ...rating, competitorId, tier });
+    render(<TrackedCompetitorsTable clientId="c1" items={items} canRemove={false} signals={[sig('m1', 'minor'), sig('w2', 'watch'), sig('t1', 'top'), sig('w1', 'watch'), sig('t0', 'top')]} />);
+    expect(screen.getAllByRole('link').map((a) => a.textContent)).toEqual(['Top Able', 'Top Zed', 'Watch Alpha', 'Watch Beta', 'Minor Co', 'Alpha Unrated', 'Zulu Unrated']);
+    // No group rows: one row per competitor plus the header.
+    expect(screen.getAllByRole('row')).toHaveLength(items.length + 1);
   });
 });

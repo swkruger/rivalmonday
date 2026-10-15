@@ -35,7 +35,8 @@ test.describe('agency', () => {
 
   test('agency sees tier groups, pre-ticked top rivals, tracks two, hidden list opens', { tag: ['@rivals', '@competitors'] }, async ({ page }) => {
     await page.goto(`/c/${fx().clientId}/competitors`);
-    for (const name of ['Top rival', 'Worth watching', 'Minor']) await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+    for (const name of ['Top rival · 2', 'Worth watching · 1', 'Minor · 1']) await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+    await expect(page.getByText('close by, same services, active')).toBeVisible();
 
     // Top rivals start ticked; the others do not.
     await expect(page.getByRole('checkbox', { name: 'Track Granbury Cooling Pros' })).toBeChecked();
@@ -44,9 +45,11 @@ test.describe('agency', () => {
     await expect(page.getByRole('checkbox', { name: 'Track Comanche Peak Plumbing' })).not.toBeChecked();
     await expect(page.getByRole('button', { name: 'Track selected (2)' })).toBeVisible();
 
-    // Unchecked signals show as "Not checked" pills, never as zero.
+    // Unchecked signals show as "· not checked" pills, never as zero; checked-none ones say so in words.
     const watch = page.getByRole('listitem').filter({ hasText: 'Hood County Comfort' });
-    await expect(watch.getByRole('img', { name: /^Reviews 30 d\. Not checked/ })).toBeVisible();
+    await expect(watch.getByRole('img', { name: /^Reviews · not checked\. Not checked/ })).toBeVisible();
+    const top = page.getByRole('listitem').filter({ hasText: 'Granbury Cooling Pros' });
+    await expect(top.getByRole('img', { name: /^No Meta ads\./ })).toBeVisible();
     await expect(watch.getByText('Some signals unavailable')).toBeVisible();
 
     // The hidden list is closed until opened, then shows decided reason labels.
@@ -90,7 +93,7 @@ test.describe('client user', () => {
     const row = page.getByRole('row').filter({ hasText: 'Brazos Valley Air' });
     await expect(row.getByText('Top rival', { exact: true })).toBeVisible();
     await expect(row.getByText(/^Rated /)).toBeVisible();
-    await expect(row.getByRole('img', { name: /^Google Ads 4\./ })).toBeVisible();
+    await expect(row.getByRole('img', { name: /^Google ads · 4\./ })).toBeVisible();
     await expect(page.getByRole('row').filter({ hasText: 'Paluxy Heating' }).getByText('Not rated yet')).toBeVisible();
 
     // No suggestions, hidden list, search or ad-account data for a client user.

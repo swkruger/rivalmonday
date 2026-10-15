@@ -160,6 +160,10 @@ const HIDDEN_LABEL: Record<HiddenReason, string> = {
   thin: 'Too little information',
 };
 const TIER_ORDER: Tier[] = ['top', 'watch', 'minor'];
+/** Suggestion group headings: a small coloured bar per tier; only Top rival carries a hint. */
+const TIER_BAR: Record<Tier, string> = { top: 'bg-ink', watch: 'bg-primary', minor: 'bg-muted-ink' };
+const TIER_HINT: Partial<Record<Tier, string>> = { top: 'close by, same services, active' };
+const TIER_RANK: Record<Tier, number> = { top: 0, watch: 1, minor: 2 };
 const KM_PER_MILE = 1.609344;
 
 const initialSelection = (list: SuggestionView[]) => new Set(list.filter((s) => s.preselected).map((s) => s.id));
@@ -180,10 +184,7 @@ function SuggestionCard({ suggestion: s, selectable, checked, checkDisabled, onT
     <li className="flex items-start gap-3 rounded-lg border border-line p-3">
       {selectable && <input type="checkbox" className="mt-1.5 h-4 w-4 accent-primary" aria-label={`Track ${s.name}`} checked={checked} disabled={checkDisabled} onChange={onToggle} />}
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="font-semibold">{s.name}</p>
-          {s.tier && <TierChip tier={s.tier} />}
-        </div>
+        <p className="font-semibold">{s.name}</p>
         {meta && <p className="text-sm text-muted-foreground">{meta}</p>}
         <SignalPills signals={s.signals} mode="suggestion" />
         {hasUnchecked(s.signals) && <p className="text-xs text-muted-foreground">Some signals unavailable</p>}
@@ -298,9 +299,13 @@ export function SuggestionsPanel({
         {suggestions.length === 0 && !searching && <p className="text-muted-foreground">No competitors found yet. Add keywords and a service area, then search.</p>}
         {groups.map((g) => (
           <section key={g.tier} className="flex flex-col gap-3" aria-labelledby={`tier-${g.tier}`}>
-            <h3 id={`tier-${g.tier}`} className="text-sm font-bold text-ink">
-              {TIER_LABEL[g.tier]}
-            </h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <span aria-hidden="true" className={`h-4 w-1 rounded-sm ${TIER_BAR[g.tier]}`} />
+              <h3 id={`tier-${g.tier}`} className="text-sm font-bold text-ink">
+                {TIER_LABEL[g.tier]} <span className="text-xs font-medium text-muted-ink">· {g.items.length}</span>
+              </h3>
+              {TIER_HINT[g.tier] && <span className="text-xs text-muted-ink">{TIER_HINT[g.tier]}</span>}
+            </div>
             <ul className="m-0 flex list-none flex-col gap-3 p-0">
               {g.items.map((s) => {
                 const checked = selected.has(s.id);
@@ -320,12 +325,19 @@ export function SuggestionsPanel({
           </section>
         ))}
         {suggestions.length > 0 && !readOnly && (
-          <div className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface p-3 shadow-md">
-            <Button type="button" onClick={track} disabled={selected.size === 0 || selected.size > room || tracking} title={room === 0 ? `This client already tracks ${limit} competitors` : undefined}>
+          <div className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-xl bg-ink p-3 text-[#E2E8F0] shadow-md">
+            {/* Disabled keeps full opacity on a pale slate fill so the label stays readable (ink on #CBD5E1 ≈ 10:1). */}
+            <Button
+              type="button"
+              onClick={track}
+              disabled={selected.size === 0 || selected.size > room || tracking}
+              title={room === 0 ? `This client already tracks ${limit} competitors` : undefined}
+              className="bg-white font-bold text-ink hover:bg-white/90 disabled:bg-[#CBD5E1] disabled:opacity-100"
+            >
               Track selected ({selected.size})
             </Button>
-            {room === 0 && <span className="text-sm text-muted-foreground">This client already tracks {limit} competitors</span>}
-            {room > 0 && selected.size >= room && <span className="text-sm text-muted-foreground">You can track {room} more.</span>}
+            {room === 0 && <span className="text-sm text-[#E2E8F0]">This client already tracks {limit} competitors</span>}
+            {room > 0 && selected.size >= room && <span className="text-sm text-[#E2E8F0]">You can track {room} more.</span>}
           </div>
         )}
         {hiddenList.length > 0 && (
@@ -405,6 +417,12 @@ function RemoveCompetitorButton({ clientId, competitorId, name, action, pending,
 /** The tracked-competitors table; a successful removal's message shows above it (a refusal shows in the open dialog). */
 export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveProp, signals = [] }: { clientId: string; items: TrackedCompetitor[]; canRemove: boolean; signals?: CompetitorSignalView[] }) {
   const byCompetitor = new Map(signals.map((x) => [x.competitorId, x]));
+  // Flat list: Top rival → Worth watching → Minor → not rated, then by name.
+  const rank = (id: string) => {
+    const t = byCompetitor.get(id)?.tier;
+    return t ? TIER_RANK[t] : 3;
+  };
+  const ordered = [...items].sort((a, b) => rank(a.id) - rank(b.id) || a.name.localeCompare(b.name, 'en-US'));
   const canRemove = canRemoveProp && !useReadOnly();
   const [result, action, pending] = useActionState(removeAction, { ok: true } as RowResult);
   return (
@@ -417,7 +435,6 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Tier</TableHead>
               <TableHead>Signals</TableHead>
               <TableHead>Website</TableHead>
               <TableHead>Pages monitored</TableHead>
@@ -426,24 +443,18 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((c) => {
+            {ordered.map((c) => {
               const rated = byCompetitor.get(c.id);
               return (
               <TableRow key={c.id}>
                 <TableCell>
-                  <Link href={`/c/${clientId}/competitors/${c.id}`} className="font-semibold text-primary-soft-text">
-                    {c.name}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  {rated ? (
-                    <div className="flex flex-col gap-1">
-                      <TierChip tier={rated.tier} />
-                      <span className="text-xs text-muted-foreground">{ratedLabel(rated.computedAt)}</span>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">Not rated yet</span>
-                  )}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Link href={`/c/${clientId}/competitors/${c.id}`} className="font-semibold text-primary-soft-text">
+                      {c.name}
+                    </Link>
+                    {rated && <TierChip tier={rated.tier} />}
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-muted-ink">{rated ? ratedLabel(rated.computedAt) : 'Not rated yet'}</p>
                 </TableCell>
                 <TableCell>{rated ? <SignalPills signals={rated.signals} mode="tracked" /> : '—'}</TableCell>
                 <TableCell>{c.domain ?? '—'}</TableCell>
