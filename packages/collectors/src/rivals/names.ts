@@ -6,7 +6,9 @@ const squash = (s: string) => s.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' '
 export function normaliseName(name: string, city?: string | null): string {
   let s = squash((name.toLowerCase().replace(/&/g, ' and ').split(/\s[-–—]\s/)[0]) ?? '');
   const c = city ? squash(city.toLowerCase()) : '';
-  if (c) s = s.replace(new RegExp(`\\s+of\\s+${c}$`), '').replace(new RegExp(`\\s+${c}$`), '');
+  // Brand mode (no city): drop a trailing "of <place>" so franchises share one brand. City mode also drops a trailing state.
+  if (c) s = s.replace(new RegExp(`(\\s+of)?\\s+${c}(\\s+[a-z]{2})?$`), '');
+  else s = s.replace(/\s+of\s+.+$/, '');
   const words = s.split(' ').filter(Boolean);
   while (words.length > 1 && SUFFIXES.has(words[words.length - 1]!)) words.pop();
   return words.join(' ');
