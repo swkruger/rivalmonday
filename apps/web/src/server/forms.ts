@@ -2,7 +2,7 @@ import { isUuid, READ_ONLY_SESSION_MESSAGE, type Role, ROLES, ToolError } from '
 import type { AgencyBranding, AlertMode } from '@cs/db';
 import type { ServiceAreaInput } from '@cs/tools';
 
-export type FormResult = { ok: true; message?: string } | { ok: false; error: string };
+export type FormResult = { ok: true; message?: string } | { ok: false; error: string; code?: 'billing_seat_limit' };
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
 
 export function parseInviteForm(fd: FormData): { email: string; role: Role; clientId: string | null; clientScope: string[] | null } | { error: string } {
@@ -75,7 +75,8 @@ const FORM_COPY: Partial<Record<ToolError['code'], string>> = {
 
 export function toFormResult(e: unknown): FormResult {
   if (e instanceof ToolError && e.code !== 'internal') {
-    return { ok: false, error: e.code === 'invalid_input' || e.code === 'billing_seat_limit' || e.code === 'service_paused' ? e.message : FORM_COPY[e.code] ?? 'Not found' };
+    const error = e.code === 'invalid_input' || e.code === 'billing_seat_limit' || e.code === 'service_paused' ? e.message : FORM_COPY[e.code] ?? 'Not found';
+    return e.code === 'billing_seat_limit' ? { ok: false, error, code: 'billing_seat_limit' } : { ok: false, error };
   }
   throw e;
 }

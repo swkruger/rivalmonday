@@ -17,7 +17,7 @@ export interface NavItem {
   icon:
     | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
     | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects' | 'ask' | 'knowledge'
-    | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess';
+    | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -78,6 +78,8 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
     account('/agency/branding', 'Branding', 'branding');
     account('/agency/webhooks', 'Slack & Teams', 'webhooks');
     // Phase 8b: agency admins only, never inside a support session (the page 404s there).
+    // Phase 9a: agency admins only; the page 404s in a support session too.
+    if (flags.isUser) account('/agency/settings/billing', 'Billing', 'billing');
     if (flags.isUser) account('/agency/settings/platform-access', 'Platform access', 'platformAccess');
   }
   if (flags.isUser) account('/settings/notifications', 'Notifications', 'bell');

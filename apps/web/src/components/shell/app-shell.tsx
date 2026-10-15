@@ -3,12 +3,14 @@ import { client, withTenant } from '@cs/db';
 import { type ClientSummary, type PlatformRole, platformRole as resolvePlatformRole, unreadCount } from '@cs/tools';
 import { eq } from 'drizzle-orm';
 import { ReadOnlyProvider } from '@/components/read-only';
+import { BillingBanner } from '@/components/shell/billing-banner';
 import { GuestBanner } from '@/components/shell/guest-banner';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { Sidebar } from '@/components/shell/sidebar';
 import { ShellTheme } from '@/components/shell/shell-theme';
 import { SupportBanner } from '@/components/shell/support-banner';
 import { TopBar } from '@/components/shell/top-bar';
+import type { BillingSnapshot } from '@/server/billing-state';
 import { dbs } from '@/server/db';
 import { navFlagsFor } from '@/server/nav';
 import { platformAdmins } from '@/server/runtime-env';
@@ -30,7 +32,7 @@ import type { Viewer } from '@/server/viewer';
 const BANNER_OFFSET = 'pt-14 sm:pt-9';
 
 /** `platformRole` (8c): a caller that already resolved the viewer's platform role (the `(platform)` layout) passes it so it is looked up once; omitted (the `(app)` layout), the shell resolves the role itself, once. */
-export async function AppShell({ viewer, ctx, children, platformRole }: { viewer: Exclude<Viewer, { kind: 'member-less' }>; ctx: AccessContext; children: React.ReactNode; platformRole?: PlatformRole | null }) {
+export async function AppShell({ viewer, ctx, children, platformRole, billing = null }: { viewer: Exclude<Viewer, { kind: 'member-less' }>; ctx: AccessContext; children: React.ReactNode; platformRole?: PlatformRole | null; billing?: BillingSnapshot | null }) {
   // 8b M1: the shell's own viewer themes it — the support agency in `(app)` during a session (g8), the operator's own
   // agency in `(platform)`. The root layout's `<html>` vars are never the session's (it uses the operator viewer).
   const { branding, style, assistantName } = await themeForViewer(viewer);
@@ -64,6 +66,7 @@ export async function AppShell({ viewer, ctx, children, platformRole }: { viewer
           <div className="flex min-w-0 flex-1 flex-col">
             {viewer.kind === 'guest' && <GuestBanner />}
             <TopBar viewer={viewer} clients={clients} clientName={clientName} unread={unread} menu={menu} />
+            {viewer.kind === 'user' && billing && <BillingBanner role={ctx.role} state={billing.state} trialEndsAt={billing.trialEndsAt} pausesOn={billing.pausesOn} />}
             <main className="mx-auto flex w-full max-w-[1560px] flex-col gap-5 px-4 pb-10 pt-6 lg:px-7">{children}</main>
           </div>
         </div>

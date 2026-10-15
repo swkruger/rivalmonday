@@ -11,7 +11,7 @@ const ctx = (role: 'agency_admin' | 'account_manager' | 'client_owner' | 'client
 describe('navFor', () => {
   it('gives admins agency settings', () => {
     expect(navFor({ kind: 'user', ctx: ctx('agency_admin') }, null).map((n) => n.href)).toEqual([
-      '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/usage', '/agency/playbooks', '/inbox', '/agency/team', '/agency/ai', '/agency/branding', '/agency/webhooks', '/agency/settings/platform-access', '/settings/notifications',
+      '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/usage', '/agency/playbooks', '/inbox', '/agency/team', '/agency/ai', '/agency/branding', '/agency/webhooks', '/agency/settings/billing', '/agency/settings/platform-access', '/settings/notifications',
     ]);
   });
   it('gives account managers team but not branding/webhooks, plus client pages inside a client', () => {
@@ -34,7 +34,7 @@ describe('navFor', () => {
     expect(groups('agency_admin')).toEqual({
       '/agency': 'agency', '/agency/approvals': 'agency', '/agency/alerts': 'agency', '/agency/prospects': 'agency', '/agency/usage': 'agency', '/agency/playbooks': 'agency',
       [`/c/${C}`]: 'client', [`/c/${C}/recommendations`]: 'client', [`/c/${C}/ask`]: 'client', [`/c/${C}/competitors`]: 'client', [`/c/${C}/changes`]: 'client', [`/c/${C}/pricing`]: 'client', [`/c/${C}/ads`]: 'client', [`/c/${C}/reviews`]: 'client', [`/c/${C}/rankings`]: 'client', [`/c/${C}/moves`]: 'client', [`/c/${C}/settings/profile`]: 'client', [`/c/${C}/settings/delivery`]: 'client', [`/c/${C}/settings/alerts`]: 'client', [`/c/${C}/settings/ai`]: 'client',
-      '/inbox': 'account', '/agency/team': 'account', '/agency/ai': 'account', '/agency/branding': 'account', '/agency/webhooks': 'account', '/agency/settings/platform-access': 'account', '/settings/notifications': 'account',
+      '/inbox': 'account', '/agency/team': 'account', '/agency/ai': 'account', '/agency/branding': 'account', '/agency/webhooks': 'account', '/agency/settings/billing': 'account', '/agency/settings/platform-access': 'account', '/settings/notifications': 'account',
     });
     expect(groups('client_viewer')).toEqual({ [`/c/${C}`]: 'client', [`/c/${C}/recommendations`]: 'client', '/inbox': 'account', '/settings/notifications': 'account' });
   });
@@ -128,6 +128,7 @@ describe('nav inside a support session (Phase 8b)', () => {
     const hrefs = items.map((n) => n.href);
     expect(items.find((n) => n.label === 'Back to platform')).toMatchObject({ href: `/platform/agencies/${A}`, group: 'account' });
     expect(hrefs).not.toContain('/agency/settings/platform-access');
+    expect(hrefs).not.toContain('/agency/settings/billing');
     expect(hrefs).not.toContain('/settings/notifications');
     expect(hrefs).not.toContain('/platform');
   });

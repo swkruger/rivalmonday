@@ -71,7 +71,7 @@ export default async function ProspectHubPage({ params }: { params: Promise<{ cl
         <div className="rounded-[14px] bg-surface p-6 shadow-card">
           <h2 className="font-semibold">4. Convert</h2>
           <p className="mt-1 text-muted-foreground">Converting starts weekly monitoring, alerts and briefs for this business.</p>
-          <ConvertButton clientId={clientId} action={convertAction} />
+          <ConvertButton clientId={clientId} action={convertAction} canUpgrade={ctx.role === 'agency_admin'} />
         </div>
       </WriteGuard>
     </>

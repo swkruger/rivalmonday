@@ -30,6 +30,7 @@ const EXEMPT: Record<string, string> = {
   'app/(app)/settings/notifications/contact-form.tsx': 'page is a 404 in a support session',
   'app/(app)/settings/notifications/pref-switch.tsx': 'page is a 404 in a support session',
   'app/(app)/agency/settings/platform-access/notify-switch.tsx': 'page is a 404 in a support session (viewer.kind !== user)',
+  'app/(app)/agency/settings/billing/page.tsx': 'page is a 404 in a support session (viewer.kind !== user); its buttons guard themselves with useReadOnly',
   'components/shell/membership-switcher.tsx': 'switchMembership sets a cookie, no write tool; not rendered for support viewers',
   'components/kb/article-sheet.tsx': 'loadKbArticle is a read',
 };

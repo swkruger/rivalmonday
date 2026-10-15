@@ -1,6 +1,7 @@
 'use client';
 import { Button, Input, Label } from '@cs/ui';
 import { useActionState, useState } from 'react';
+import { FormError } from '@/components/form-error';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import type { VerticalOption } from '@/server/verticals';
@@ -21,8 +22,10 @@ type Props =
   | {
       mode: 'create'; action: (prev: FormResult, fd: FormData) => Promise<FormResult>; verticals: VerticalOption[]; timezoneOptions: string[];
       submitLabel?: string; initial?: undefined; clientId?: undefined;
+      /** Agency admins get an Upgrade link on a seat-cap refusal. */
+      canUpgrade?: boolean;
     }
-  | { mode: 'edit'; action: (prev: FormResult, fd: FormData) => Promise<FormResult>; verticals: VerticalOption[]; initial: Initial; clientId: string; timezoneOptions?: undefined; submitLabel?: undefined };
+  | { mode: 'edit'; action: (prev: FormResult, fd: FormData) => Promise<FormResult>; verticals: VerticalOption[]; initial: Initial; clientId: string; timezoneOptions?: undefined; submitLabel?: undefined; canUpgrade?: undefined };
 
 export function ClientProfileForm(props: Props) {
   const [state, formAction, pending] = useActionState(props.action, { ok: true } as FormResult);
@@ -34,7 +37,7 @@ export function ClientProfileForm(props: Props) {
     <form action={formAction} className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card">
       {props.mode === 'edit' && <input type="hidden" name="clientId" value={props.clientId} />}
       {props.mode === 'edit' && <input type="hidden" name="verticalId" value={verticalId} />}
-      {!state.ok && state.error && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{state.error}</p>}
+      <FormError state={state} canUpgrade={props.canUpgrade === true} />
       {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
 
       <fieldset disabled={readOnly} className="contents">

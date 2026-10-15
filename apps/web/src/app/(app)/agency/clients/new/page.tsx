@@ -15,7 +15,7 @@ export default async function NewClientPage() {
     <>
       <h1 className="text-[26px] font-extrabold tracking-tight">Add a client</h1>
       <p className="text-muted-foreground">Next you’ll pick 3–5 competitors to monitor.</p>
-      <ClientProfileForm mode="create" action={createClientAction} verticals={await verticalOptions()} timezoneOptions={timezoneOptions('America/Chicago')} />
+      <ClientProfileForm mode="create" action={createClientAction} verticals={await verticalOptions()} timezoneOptions={timezoneOptions('America/Chicago')} canUpgrade={ctx.role === 'agency_admin'} />
     </>
   );
 }
