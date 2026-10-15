@@ -2,6 +2,7 @@ import { agencyConnect, agencyDailyStat, billingNotice, client, clientBilling } 
 import { IDS, openTestDbs } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { runConnectDaily } from './connect-daily';
 import { runBillingDaily } from './daily';
 import { fakeGateway } from './fake-gateway';
 import { resetBilling } from './test-util';
@@ -69,6 +70,54 @@ describe('auto-pause', () => {
     await dbs.owner.update(agencyConnect).set({ status: 'disconnected' });
     await runBillingDaily(dbs.service, null, NOW);
     expect((await clientRow(A2)).pausedAt).toBeNull();
+  });
+
+  it('R22: fires once per failure episode; a manual resume sticks until a new failure', async () => {
+    const since = ago(9);
+    await setBilling(A1, { paymentFailedSince: since });
+    await runBillingDaily(dbs.service, null, NOW);
+    expect((await clientRow(A1)).pausedBy).toBe('auto');
+    expect((await billing(A1)).autoPausedFailureAt?.getTime()).toBe(since.getTime());
+    await dbs.owner.update(client).set({ pausedAt: null, pausedBy: null }).where(eq(client.id, A1)); // the agency resumes
+    await runBillingDaily(dbs.service, null, NOW);
+    expect((await clientRow(A1)).pausedAt).toBeNull();
+    expect(await notices('client-auto-paused')).toHaveLength(1);
+    // A new failure episode (the client paid, then failed again) is paused again.
+    await dbs.owner.update(clientBilling).set({ paymentFailedSince: ago(8) }).where(eq(clientBilling.clientId, A1));
+    await runBillingDaily(dbs.service, null, NOW);
+    expect((await clientRow(A1)).pausedBy).toBe('auto');
+    expect(await notices('client-auto-paused')).toHaveLength(2);
+  });
+
+  it('never pauses a client whose billing is turned off (cancel pending)', async () => {
+    await setBilling(A1, { paymentFailedSince: ago(30), enabled: false });
+    await runBillingDaily(dbs.service, null, NOW);
+    expect((await clientRow(A1)).pausedAt).toBeNull();
+  });
+
+  it('re-checks under lock: a client who paid after the candidate select is not paused (Task 7 must-fix)', async () => {
+    await setBilling(A1, { paymentFailedSince: ago(9) });
+    let paid = false;
+    // invoice.paid lands between the candidate select and the pause transaction.
+    const db = new Proxy(dbs.service, {
+      get(t, p) {
+        if (p === 'transaction') {
+          return async (fn: Parameters<typeof t.transaction>[0]) => {
+            if (!paid) {
+              paid = true;
+              await dbs.owner.update(clientBilling).set({ state: 'active', paymentFailedSince: null, lastPaidAt: NOW }).where(eq(clientBilling.clientId, A1));
+            }
+            return t.transaction(fn);
+          };
+        }
+        const v = Reflect.get(t, p) as unknown;
+        return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(t) : v;
+      },
+    });
+    expect(await runConnectDaily(db, null, IDS.agencyA, NOW)).toMatchObject({ paused: 0 });
+    expect(paid).toBe(true);
+    expect((await clientRow(A1)).pausedAt).toBeNull();
+    expect(await notices('client-auto-paused')).toHaveLength(0);
   });
 
   it('still pauses with a gateway present (seat sync is best effort)', async () => {
@@ -139,6 +188,18 @@ describe('reconciliation (Stripe wins)', () => {
     await dbs.owner.update(agencyConnect).set({ status: 'disconnected' });
     await runBillingDaily(dbs.service, gw, NOW);
     expect(gw.callsTo('getConnectedSubscription')).toHaveLength(0);
+  });
+
+  it('an unreachable ACCOUNT stops the agency\'s reconciliation for the run and cancels nothing (Task 7 must-fix)', async () => {
+    const gw = fakeGateway(); // acct_1 unknown: the fake answers account_invalid, like Stripe for a revoked account
+    await setBilling(A1, { state: 'active', stripeSubscriptionId: 'sub_1', billedPriceCents: 9900 });
+    await setBilling(A2, { state: 'payment_needed', stripeSubscriptionId: 'sub_2', billedPriceCents: 9900, paymentFailedSince: ago(1) });
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await runBillingDaily(dbs.service, gw, NOW);
+    expect(await billing(A1)).toMatchObject({ state: 'active', enabled: true, stripeSubscriptionId: 'sub_1' });
+    expect(await billing(A2)).toMatchObject({ state: 'payment_needed', enabled: true });
+    expect(gw.callsTo('getConnectedSubscription')).toHaveLength(1);
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('reconciliation stopped'), expect.objectContaining({ agencyId: IDS.agencyA, stripeAccount: 'acct_1' }));
   });
 
   it('one failing row does not stop the others', async () => {

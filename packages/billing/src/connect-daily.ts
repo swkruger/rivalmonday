@@ -1,5 +1,5 @@
 import { type Db, agencyConnect, billingNotice, client, clientBilling } from '@cs/db';
-import { and, eq, inArray, isNotNull, isNull, lte } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lte, ne, or } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { type ClientBillingSignal, noticeAudience } from './client-billing-state';
 import { pauseClient } from './client-pause';
@@ -49,7 +49,19 @@ export function reconcileTarget(status: ConnectedSubscription['status']): 'activ
 const logRow = (step: string, clientId: string, subscriptionId: string | null, e: unknown) =>
   console.error(`[billing-daily] connect ${step} failed`, { clientId, subscriptionId, error: e instanceof Error ? e.name : 'Error' });
 
-/** Stripe wins: read each tracked subscription and drive the row through the silent `reconciled` signal. Per-row try/catch. */
+/**
+ * The platform cannot reach the connected ACCOUNT (access revoked, account gone): Stripe answers `account_invalid` or a
+ * permission error, never `resource_missing`. Nothing can be said about any subscription on it, so nothing is cancelled.
+ */
+export const isAccountUnreachable = (e: unknown): boolean => {
+  const err = e as { code?: string; type?: string } | null;
+  return err?.code === 'account_invalid' || err?.type === 'StripePermissionError';
+};
+
+/**
+ * Stripe wins: read each tracked subscription and drive the row through the silent `reconciled` signal. Per-row try/catch;
+ * a missing SUBSCRIPTION (`resource_missing`) cancels the row, an unreachable ACCOUNT stops this agency for the run.
+ */
 async function reconcileClients(db: Db, gw: BillingGateway, agencyId: string, stripeAccount: string, now: Date): Promise<number> {
   const rows = await db
     .select({ clientId: clientBilling.clientId, subscriptionId: clientBilling.stripeSubscriptionId })
@@ -65,6 +77,10 @@ async function reconcileClients(db: Db, gw: BillingGateway, agencyId: string, st
         if (target === undefined) continue;
         signal = { type: 'reconciled', subscriptionId: subscriptionId!, target, billedPriceCents: sub.unitAmountCents };
       } catch (e) {
+        if (isAccountUnreachable(e)) {
+          console.error('[billing-daily] connect account unreachable; reconciliation stopped for this run', { agencyId, stripeAccount, clientId, subscriptionId });
+          return changed;
+        }
         if ((e as { code?: string }).code !== 'resource_missing') throw e;
         signal = { type: 'reconciled', subscriptionId: subscriptionId!, target: 'cancelled', billedPriceCents: null };
       }
@@ -76,19 +92,32 @@ async function reconcileClients(db: Db, gw: BillingGateway, agencyId: string, st
   return changed;
 }
 
-/** Pause clients whose payment has been failing for >= N days (exactly N pauses); one agency notice per pause. */
+/**
+ * Pause clients whose payment has been failing for >= N days (exactly N pauses); one agency notice per pause. R22: at most
+ * once per failure episode (`auto_paused_failure_at` = the episode's `payment_failed_since`), so a manual resume sticks
+ * until a new failure. The candidate is re-checked under `FOR UPDATE` inside the transaction: a payment (or a disable)
+ * landing after the select must not pause the client.
+ */
 async function autoPause(db: Db, agencyId: string, days: number, now: Date): Promise<number> {
   const cutoff = new Date(now.getTime() - days * DAY_MS);
   const due = await db
     .select({ clientId: clientBilling.clientId, name: client.name })
     .from(clientBilling)
     .innerJoin(client, eq(client.id, clientBilling.clientId))
-    .where(and(eq(clientBilling.agencyId, agencyId), eq(clientBilling.state, 'payment_needed'), lte(clientBilling.paymentFailedSince, cutoff), eq(client.status, 'active'), isNull(client.pausedAt)));
+    .where(and(
+      eq(clientBilling.agencyId, agencyId), eq(clientBilling.state, 'payment_needed'), eq(clientBilling.enabled, true), lte(clientBilling.paymentFailedSince, cutoff),
+      or(isNull(clientBilling.autoPausedFailureAt), ne(clientBilling.autoPausedFailureAt, clientBilling.paymentFailedSince)),
+      eq(client.status, 'active'), isNull(client.pausedAt),
+    ));
   let paused = 0;
   for (const { clientId, name } of due) {
     try {
       const did = await db.transaction(async (tx) => {
+        const [b] = await tx.select().from(clientBilling).where(eq(clientBilling.clientId, clientId)).for('update');
+        const since = b?.paymentFailedSince ?? null;
+        if (!b || b.state !== 'payment_needed' || !b.enabled || !since || since > cutoff || b.autoPausedFailureAt?.getTime() === since.getTime()) return false;
         if (!(await pauseClient(tx, clientId, ACTOR, 'auto'))) return false;
+        await tx.update(clientBilling).set({ autoPausedFailureAt: since, updatedAt: now }).where(eq(clientBilling.clientId, clientId));
         await tx.insert(billingNotice).values({
           agencyId, clientId, audience: noticeAudience('client-auto-paused'), kind: 'client-auto-paused', params: { clientName: name, n: days },
           dedupeKey: `client-auto-paused:${clientId}:${randomUUID()}`,
