@@ -1,4 +1,4 @@
-import { countActiveClients, currentStandardPlan, planFor, syncPlanToStripe } from '@cs/billing';
+import { type BillingGateway, countActiveClients, currentStandardPlan, planFor, syncPlanToStripe } from '@cs/billing';
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { agency, agencyBilling, client, discountCode } from '@cs/db';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
@@ -51,6 +51,21 @@ async function ensureCustomer(deps: ToolDeps, agencyId: string): Promise<string>
     .values({ agencyId, state: 'pilot', stripeCustomerId: created.id })
     .onConflictDoUpdate({ target: agencyBilling.agencyId, set: { stripeCustomerId: sql`coalesce(${agencyBilling.stripeCustomerId}, ${created.id})`, updatedAt: new Date() } });
   return (await billingRowOf(deps, agencyId))!.stripeCustomerId!;
+}
+
+const LIVE_SUBSCRIPTION_STATUSES = ['active', 'trialing', 'past_due', 'unpaid', 'incomplete'];
+
+/** R22: `stripe_subscription_id` survives a subscription ending, so ask Stripe. Live => conflict; canceled/missing => allow; lookup failure => fail closed. */
+async function assertNoLiveSubscription(gw: BillingGateway, agencyId: string, subscriptionId: string): Promise<void> {
+  let status: string | null;
+  try {
+    status = (await gw.getSubscription(subscriptionId)).status;
+  } catch (e) {
+    if ((e as { code?: string } | null)?.code === 'resource_missing') return;
+    logDegraded(agencyId, 'getSubscription', e);
+    throw new ToolError('internal', 'Could not check your subscription. Try again shortly.');
+  }
+  if (LIVE_SUBSCRIPTION_STATUSES.includes(status)) throw new ToolError('conflict', 'This agency already has a subscription. Manage it from the billing portal.');
 }
 
 const Plan = z.object({ name: z.string(), version: z.number().int(), basePriceCents: z.number().int(), includedSeats: z.number().int(), seatPriceCents: z.number().int() });
@@ -134,7 +149,7 @@ export const createCheckoutSessionTool = defineTool({
     const success = billingUrl(deps, '?done=1');
     const cancel = billingUrl(deps);
     const before = await billingRowOf(deps, ctx.agencyId);
-    if (before?.state === 'active' && before.stripeSubscriptionId) throw new ToolError('conflict', 'This agency already has a subscription. Use the billing portal to change it.');
+    if (before?.stripeSubscriptionId) await assertNoLiveSubscription(gw, ctx.agencyId, before.stripeSubscriptionId);
 
     let p = await planFor(deps.service, before);
     if (!p) p = await currentStandardPlan(deps.service);

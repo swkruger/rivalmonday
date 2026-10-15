@@ -156,8 +156,32 @@ describe('create_checkout_session', () => {
     expect(input.basePriceId).not.toBe('price_base');
   });
 
+  it.each([['past_due', 'active'], ['trialing', 'trialing'], ['past_due', 'unpaid']] as const)('refuses with conflict when %s agency has a live (%s) subscription', async (state, status) => {
+    await setBilling({ state, stripeCustomerId: 'cus_1', stripeSubscriptionId: 'sub_1' });
+    gw.seedSubscription({ id: 'sub_1', customerId: 'cus_1', status });
+    expect((await fails(call(admin, 'create_checkout_session'))).code).toBe('conflict');
+    expect(gw.callsTo('createCheckoutSession')).toEqual([]);
+  });
+
+  it('allows a new checkout when the old subscription is canceled', async () => {
+    await setBilling({ state: 'past_due', stripeCustomerId: 'cus_1', stripeSubscriptionId: 'sub_1' });
+    gw.seedSubscription({ id: 'sub_1', customerId: 'cus_1', status: 'canceled' });
+    await call(admin, 'create_checkout_session');
+    expect(gw.callsTo('createCheckoutSession')).toHaveLength(1);
+  });
+
+  it('fails closed when the subscription lookup fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await setBilling({ state: 'past_due', stripeCustomerId: 'cus_1', stripeSubscriptionId: 'sub_1' });
+    gw.seedSubscription({ id: 'sub_1', customerId: 'cus_1', status: 'canceled' });
+    gw.failNext();
+    expect((await fails(call(admin, 'create_checkout_session'))).code).toBe('internal');
+    expect(gw.callsTo('createCheckoutSession')).toEqual([]);
+  });
+
   it('refuses with conflict when already active with a subscription', async () => {
     await setBilling({ state: 'active', stripeCustomerId: 'cus_1', stripeSubscriptionId: 'sub_1' });
+    gw.seedSubscription({ id: 'sub_1', customerId: 'cus_1' });
     expect((await fails(call(admin, 'create_checkout_session'))).code).toBe('conflict');
     expect(gw.callsTo('createCheckoutSession')).toEqual([]);
   });
