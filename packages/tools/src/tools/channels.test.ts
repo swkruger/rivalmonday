@@ -23,7 +23,8 @@ const MCP_MANAGE_TOOLS = ['set_alert_rules', 'update_client_profile', 'set_page_
 /** Ruling R1: tools that exist only on the mcp channel. */
 const MCP_ONLY_TOOLS = ['add_recommendation'];
 const SKIP_WEB_TOOLS = ['list_clients', 'get_competitor_search_status', 'get_prospect_report', 'platform_overview', 'list_platform_agencies', 'get_platform_agency', 'list_platform_activity', 'list_agency_support_sessions', 'start_support_session',
-  'list_platform_costs', 'refresh_platform_costs', 'update_platform_cost_service', 'save_platform_cost_item', 'archive_platform_cost_item'];
+  'list_platform_costs', 'refresh_platform_costs', 'update_platform_cost_service', 'save_platform_cost_item', 'archive_platform_cost_item',
+  'attach_agency_discount', 'create_discount_code', 'create_invite_link', 'create_plan_version', 'end_pilot', 'extend_trial', 'get_agency_billing', 'get_billing_overview', 'grant_pilot', 'list_discount_codes', 'list_invite_links', 'list_plans', 'revoke_discount_code', 'revoke_invite_link', 'set_seat_cap_exempt'];
 
 const mcpTools = allTools.filter((t) => (t.channels ?? ['web']).includes('mcp'));
 const namesOfScope = (scope: TokenScope) => mcpTools.filter((t) => mcpScopeOf(t) === scope).map((t) => t.name).sort();

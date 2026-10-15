@@ -108,6 +108,21 @@ get_seat_report (billing.ts) | read | read
 create_checkout_session (billing.ts) | write | creates Stripe customer/session
 create_portal_session (billing.ts) | write | creates Stripe portal session
 redeem_discount_code (billing.ts) | write | stores/attaches coupon
+list_plans (platform-billing.ts) | read | read-only; platform operator
+list_discount_codes (platform-billing.ts) | read | read-only; platform operator
+list_invite_links (platform-billing.ts) | read | read-only; platform staff; supportMask emailLock
+get_agency_billing (platform-billing.ts) | read | gateway invoice read only; platform operator
+get_billing_overview (platform-billing.ts) | read | read-only; platform operator
+create_plan_version (platform-billing.ts) | write | creates Stripe prices; platform owner
+create_discount_code (platform-billing.ts) | write | creates Stripe coupon/promotion code; platform owner
+revoke_discount_code (platform-billing.ts) | write | deactivates promotion code; platform owner
+create_invite_link (platform-billing.ts) | write | stores hashed invite token; platform staff
+revoke_invite_link (platform-billing.ts) | write | revokes link; platform staff
+grant_pilot (platform-billing.ts) | write | billing state transition; platform staff
+end_pilot (platform-billing.ts) | write | billing state transition; platform staff
+extend_trial (platform-billing.ts) | write | billing state transition; platform staff
+attach_agency_discount (platform-billing.ts) | write | creates Stripe customer, attaches coupon; platform staff
+set_seat_cap_exempt (platform-billing.ts) | write | updates agency_billing; platform owner
 add_webhook (settings.ts) | write | inserts webhook
 set_webhook_active (settings.ts) | write | updates webhook
 add_client_recipient (settings.ts) | write | inserts recipient

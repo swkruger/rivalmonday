@@ -1,4 +1,4 @@
-import { type Db, type PlanRow, plan } from '@cs/db';
+import { type Db, type PlanRow, type Tx, plan } from '@cs/db';
 import { and, eq, isNotNull } from 'drizzle-orm';
 import type { BillingGateway } from './types';
 
@@ -6,7 +6,7 @@ import type { BillingGateway } from './types';
  * Create the Stripe prices for one plan version (P3/R8). Idempotent: a plan that already has both price ids is returned
  * unchanged. The base and seat products are created once per plan `code` and reused by every later version.
  */
-export async function syncPlanToStripe(db: Db, gw: BillingGateway, planId: string): Promise<PlanRow> {
+export async function syncPlanToStripe(db: Db | Tx, gw: BillingGateway, planId: string): Promise<PlanRow> {
   const [p] = await db.select().from(plan).where(eq(plan.id, planId));
   if (!p) throw new Error(`plan not found: ${planId}`);
   if (p.stripeBasePriceId && p.stripeSeatPriceId) return p;

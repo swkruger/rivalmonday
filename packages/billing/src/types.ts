@@ -92,6 +92,9 @@ export interface CreateCouponInput {
   /** Product ids the coupon is restricted to: base -> [baseProductId], seats -> [seatProductId], both -> both. Empty/omitted = all. */
   appliesToProductIds?: string[];
   name?: string;
+  /** Caps direct attaches too (the promotion code carries its own copy). */
+  maxRedemptions?: number;
+  redeemBy?: Date;
 }
 
 export interface CreatePromotionCodeInput {

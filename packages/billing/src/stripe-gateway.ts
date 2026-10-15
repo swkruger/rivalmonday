@@ -122,6 +122,8 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
         duration: i.duration,
         ...(i.duration === 'repeating' ? { duration_in_months: i.durationInMonths } : {}),
         ...(i.appliesToProductIds?.length ? { applies_to: { products: i.appliesToProductIds } } : {}),
+        ...(i.maxRedemptions ? { max_redemptions: i.maxRedemptions } : {}),
+        ...(i.redeemBy ? { redeem_by: secs(i.redeemBy) } : {}),
       });
       return { id: c.id };
     },

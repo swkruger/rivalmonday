@@ -41,7 +41,7 @@ async function billingRowOf(deps: ToolDeps, agencyId: string) {
 }
 
 /** Returns the agency's Stripe customer id, creating (and storing) it when missing. A lost race leaves one orphan customer, never two stored ids. */
-async function ensureCustomer(deps: ToolDeps, agencyId: string): Promise<string> {
+export async function ensureCustomer(deps: ToolDeps, agencyId: string): Promise<string> {
   const existing = (await billingRowOf(deps, agencyId))?.stripeCustomerId;
   if (existing) return existing;
   const [a] = await deps.service.select({ name: agency.name }).from(agency).where(eq(agency.id, agencyId));
