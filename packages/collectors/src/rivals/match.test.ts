@@ -40,4 +40,23 @@ describe('matchAdAccount', () => {
   it('city inside the account domain counts for a chain candidate', () => {
     expect(matchAdAccount(franchisee, { name: 'Aire Serv', domain: 'aireservgranbury.com' })).toBe('strong');
   });
+  describe('single-location franchises and partial names (chain not detected)', () => {
+    const lone = (name: string) => ({ name, city: 'Granbury', domain: null, chain: false });
+    it('"<brand> of <city>" is treated as a franchise: the bare brand account is weak', () => {
+      expect(matchAdAccount(lone('Aire Serv of Granbury'), { name: 'Aire Serv', domain: null })).toBe('weak');
+      expect(matchAdAccount(lone('Mr. Rooter Plumbing of Granbury'), { name: 'Mr. Rooter Plumbing', domain: null })).toBe('weak');
+    });
+    it('containment is strong only when the account minus the city equals the candidate name', () => {
+      expect(matchAdAccount(lone('Dental Care of Granbury'), { name: 'Granbury Family Dental Care', domain: null })).not.toBe('strong');
+      expect(matchAdAccount(lone('Family Dentistry'), { name: 'Smith Family Dentistry Granbury', domain: null })).not.toBe('strong');
+    });
+    it('a one-word candidate name never wins by containment', () => {
+      expect(matchAdAccount(lone('Smiles'), { name: 'Bright Smiles Granbury', domain: null })).not.toBe('strong');
+    });
+    it('the account naming the franchisee and its city stays strong; domain equality stays strong', () => {
+      expect(matchAdAccount(lone('Aire Serv of Granbury'), { name: 'Aire Serv of Granbury, TX', domain: null })).toBe('strong');
+      expect(matchAdAccount(lone('Aire Serv of Granbury'), { name: 'Aire Serv Granbury', domain: null })).toBe('strong');
+      expect(matchAdAccount({ ...lone('Aire Serv of Granbury'), domain: 'aireserv.com' }, { name: 'Aire Serv', domain: 'https://aireserv.com/' })).toBe('strong');
+    });
+  });
 });

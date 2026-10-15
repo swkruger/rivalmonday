@@ -29,3 +29,19 @@ export function digitsOnly(p: string | null | undefined): string | null {
 
 /** Lowercase and punctuation-squashed only (keeps "of <city>" and state), for containment checks. */
 export const plainName = (name: string): string => squash(name.toLowerCase().replace(/&/g, ' and '));
+
+/** True when the name ends in "of <city>" (optionally a state): a franchisee naming its location, e.g. "Aire Serv of Granbury". */
+export function hasOfCity(name: string, city: string | null | undefined): boolean {
+  const c = city ? squash(city.toLowerCase()) : '';
+  if (!c) return false;
+  const head = plainName(name.split(/\s[-–—]\s/)[0] ?? '');
+  return new RegExp(`\\sof\\s${c}(\\s[a-z]{2})?$`).test(head);
+}
+
+/** The name with every "<city>" / "of <city>" (and a state right after it) removed anywhere, then normalised. */
+export function normaliseWithoutCity(name: string, city: string | null | undefined): string {
+  const c = city ? squash(city.toLowerCase()) : '';
+  if (!c) return normaliseName(name);
+  const stripped = ` ${plainName(name)} `.replace(new RegExp(`(\\sof)?\\s${c}(\\s[a-z]{2}(?=\\s$))?(?=\\s)`, 'g'), ' ');
+  return normaliseName(stripped, c);
+}

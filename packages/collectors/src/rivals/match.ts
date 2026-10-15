@@ -1,4 +1,4 @@
-import { normaliseDomain, normaliseName, plainName } from './names';
+import { hasOfCity, normaliseDomain, normaliseName, normaliseWithoutCity, plainName } from './names';
 
 const tokens = (s: string) => new Set(s.split(' ').filter(Boolean));
 
@@ -13,11 +13,13 @@ export function matchAdAccount(
   const city = c.city ? plainName(c.city) : '';
   const plain = plainName(a.name);
   const nameHasCity = !!city && ` ${plain} `.includes(` ${city} `);
-  // Strong: account name contains the candidate's name plus its city (chains included).
-  if (cn && nameHasCity && ` ${plain} `.includes(` ${cn} `)) return 'strong';
+  // A "<brand> of <city>" name is a franchisee even when the run saw only one location of the brand.
+  const franchise = c.chain || hasOfCity(c.name, c.city);
+  // Strong: the account is exactly the candidate's (multi-word) name plus its city, e.g. "Aire Serv Granbury".
+  if (cn && nameHasCity && cn.includes(' ') && normaliseWithoutCity(a.name, c.city) === cn) return 'strong';
   if (cn && cn === an) {
     const domainHasCity = !!city && (normaliseDomain(a.domain) ?? '').replace(/[^a-z0-9]/g, '').includes(city.replace(/ /g, ''));
-    if (!c.chain || nameHasCity || domainHasCity) return 'strong';
+    if (!franchise || nameHasCity || domainHasCity) return 'strong';
   }
   const ct = tokens(cn);
   const at = tokens(an);

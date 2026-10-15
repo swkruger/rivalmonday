@@ -45,7 +45,12 @@ const MAPS: Item[] = [
   place({ placeId: 'p-minor', title: 'Minor Dental', rank: 15, claimed: false }),
 ];
 
-function vendors(opts: { mapsFails?: (n: number) => boolean; metaDown?: boolean; before?: (path: string) => Promise<void> } = {}) {
+type VendorOpts = {
+  mapsFails?: (n: number) => boolean; metaDown?: boolean; before?: (path: string) => Promise<void>;
+  /** Extra Maps places, advertisers per keyword and Meta ad rows per query (on top of the defaults). */
+  extraPlaces?: Item[]; advertisers?: Record<string, Item[]>; metaRows?: Record<string, Item[]>;
+};
+function vendors(opts: VendorOpts = {}) {
   let mapsCalls = 0;
   const dfs = fakeDfs(async (_m, path, body) => {
     await opts.before?.(path);
@@ -53,9 +58,11 @@ function vendors(opts: { mapsFails?: (n: number) => boolean; metaDown?: boolean;
     if (path === '/serp/google/maps/live/advanced') {
       mapsCalls++;
       if (opts.mapsFails?.(mapsCalls)) throw new VendorError('dataforseo', 50000, 'boom', true);
-      return [dfsTask([{ items: MAPS }])];
+      return [dfsTask([{ items: [...MAPS, ...(opts.extraPlaces ?? [])] }])];
     }
     if (path === '/serp/google/ads_advertisers/live/advanced') {
+      const extra = opts.advertisers?.[String(t.keyword)];
+      if (extra) return [dfsTask([{ items: extra }])];
       if (t.keyword !== 'Granbury Park Dental') return [dfsTask(null, { statusCode: 40102, statusMessage: 'No Search Results.' })];
       return [dfsTask([{ items: [
         { type: 'ads_advertiser', advertiser_id: 'AR1', title: 'Granbury Park Dental', domain: 'granburypark.com', verified: true },
@@ -77,7 +84,7 @@ function vendors(opts: { mapsFails?: (n: number) => boolean; metaDown?: boolean;
   const fetch = (async (u: string | URL | Request) => {
     if (opts.metaDown) return new Response('{}', { status: 500 });
     const q = new URL(String(u)).searchParams.get('query');
-    const rows = q === 'Granbury Park Dental' ? Array.from({ length: 4 }, () => ({ page_id: 'pg1', page_name: 'Granbury Park Dental', is_active: true })) : [];
+    const rows = q === 'Granbury Park Dental' ? Array.from({ length: 4 }, () => ({ page_id: 'pg1', page_name: 'Granbury Park Dental', is_active: true })) : (opts.metaRows?.[q ?? ''] ?? []);
     return new Response(JSON.stringify({ success: true, searchResults: rows }), { status: 200 });
   }) as typeof globalThis.fetch;
   return { dfs, records, meta: { apiKey: 'k', ledger, fetch }, mapsCalls: () => mapsCalls };
@@ -159,6 +166,23 @@ describe('runRivalSearch', () => {
     expect(s.get('p-arch')!.signals).toMatchObject({ googleAccount: 'none', googleAdsActive: 0, metaPage: 'none', metaAdsActive: 0 });
     expect(s.get('p-ortho')!.signals).toMatchObject({ categoryMatch: 'related' });
     expect(s.get('p-minor')).toMatchObject({ tier: 'minor' });
+  });
+
+  it('a single-location franchise ("<brand> of <city>") gets the brand ad accounts as weak, never auto-attached', async () => {
+    const v = vendors({
+      extraPlaces: [place({ placeId: 'p-aspen', title: 'Aspen Dental of Granbury', rank: 9, domain: null })],
+      advertisers: { 'Aspen Dental of Granbury': [{ type: 'ads_advertiser', advertiser_id: 'AR9', title: 'Aspen Dental', domain: null, verified: true }] },
+      metaRows: { 'Aspen Dental of Granbury': [{ page_id: 'pg9', page_name: 'Aspen Dental', is_active: true }] },
+    });
+    const runId = await newRun();
+    await runRivalSearch(deps(v), runId);
+    const aspen = (await suggestions()).get('p-aspen')!;
+    // One location in the raw results: the run's chain detection says no chain.
+    expect(aspen.signals).toMatchObject({ chain: false, googleAccount: 'possible', googleAdsActive: null, metaPage: 'possible', metaAdsActive: null });
+    expect(aspen.adMatches).toEqual([
+      { platform: 'google', accountId: 'AR9', name: 'Aspen Dental', strength: 'weak' },
+      { platform: 'meta', accountId: 'pg9', name: 'Aspen Dental', strength: 'weak' },
+    ]);
   });
 
   it('cost cap shrinks grid to 5×5', async () => {
