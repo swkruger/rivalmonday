@@ -47,6 +47,8 @@ const MAPS: Item[] = [
 
 type VendorOpts = {
   mapsFails?: (n: number) => boolean; metaDown?: boolean; before?: (path: string) => Promise<void>;
+  /** ScrapeCreators answers 500 and the Apify fallback answers with no ads. */
+  scrapeCreatorsDown?: boolean;
   /** Extra Maps places, advertisers per keyword and Meta ad rows per query (on top of the defaults). */
   extraPlaces?: Item[]; advertisers?: Record<string, Item[]>; metaRows?: Record<string, Item[]>;
 };
@@ -83,11 +85,12 @@ function vendors(opts: VendorOpts = {}) {
   const ledger = { recordLlmCall: async () => {}, recordVendorCall: async (r: VendorCallRecord) => { records.push(r); } };
   const fetch = (async (u: string | URL | Request) => {
     if (opts.metaDown) return new Response('{}', { status: 500 });
+    if (opts.scrapeCreatorsDown) return String(u).includes('apify') ? new Response('[]', { status: 201 }) : new Response('{}', { status: 500 });
     const q = new URL(String(u)).searchParams.get('query');
     const rows = q === 'Granbury Park Dental' ? Array.from({ length: 4 }, () => ({ page_id: 'pg1', page_name: 'Granbury Park Dental', is_active: true })) : (opts.metaRows?.[q ?? ''] ?? []);
     return new Response(JSON.stringify({ success: true, searchResults: rows }), { status: 200 });
   }) as typeof globalThis.fetch;
-  return { dfs, records, meta: { apiKey: 'k', ledger, fetch }, mapsCalls: () => mapsCalls };
+  return { dfs, records, meta: { apiKey: 'k', apifyToken: opts.scrapeCreatorsDown ? 't' : undefined, ledger, fetch }, mapsCalls: () => mapsCalls };
 }
 
 function deps(v: ReturnType<typeof vendors>, discovery: DiscoveryConfig = basePack): RivalSearchDeps {
@@ -183,6 +186,23 @@ describe('runRivalSearch', () => {
       { platform: 'google', accountId: 'AR9', name: 'Aspen Dental', strength: 'weak' },
       { platform: 'meta', accountId: 'pg9', name: 'Aspen Dental', strength: 'weak' },
     ]);
+  });
+
+  it('the Apify Meta fallback never pushes a run over the cap: Meta is skipped (null) once it could', async () => {
+    const v = vendors({ scrapeCreatorsDown: true });
+    const runId = await newRun();
+    // 25 searches ($0.05) + 4 shortlisted at the nominal $0.0141 = $0.1064 fits; four Apify fallbacks ($0.0325 each) would not.
+    const cap = 0.13;
+    await runRivalSearch(deps(v, { ...basePack, shortlist: 4, cost_cap_usd: cap }), runId);
+    const run = await runRow(runId);
+    expect(run.progress).toMatchObject({ checksDone: 4, checksTotal: 4 });
+    expect(run.costUsd).toBeLessThanOrEqual(cap);
+    const meta = [...(await suggestions()).values()].map((s) => s.signals.metaPage);
+    expect(meta.filter((m) => m === 'none').length).toBeGreaterThan(0); // Apify answered for the first ones
+    expect(meta.filter((m) => m === null).length).toBeGreaterThan(0); // then Meta was skipped, not zeroed
+    // The run's cost is the sum of the ledgered vendor estimates (Meta rows carry theirs).
+    const metaRecords = v.records.filter((r) => r.vendor === 'scrapecreators' || r.vendor === 'apify');
+    expect(metaRecords.every((r) => typeof r.costUsd === 'number' && r.costUsd > 0)).toBe(true);
   });
 
   it('cost cap shrinks grid to 5×5', async () => {

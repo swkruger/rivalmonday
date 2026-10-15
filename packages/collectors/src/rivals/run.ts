@@ -8,7 +8,7 @@ import { gridPoints } from '../local/grid';
 import { mapsSearch } from '../local/maps';
 import { type DataForSeoClient, DFS_US, isDfsOk, isNoResults, isRetryableDfsCode, VendorError } from '../vendors/dataforseo';
 import { searchGoogleAdvertisers } from '../vendors/dataforseo-advertisers';
-import { type MetaSearchDeps, searchMetaPages } from '../vendors/meta-search';
+import { type MetaPageHit, type MetaSearchDeps, metaSearchWorstCaseUsd, searchMetaPages } from '../vendors/meta-search';
 import { detectChains } from './chain';
 import { DISCOVERY_CALL_COST_USD as COST, estimateCostUsd } from './cost';
 import { type Candidate, filterCandidates, type HiddenReason, type KeptCandidate } from './filters';
@@ -178,12 +178,16 @@ async function execute(deps: RivalSearchDeps, run: DiscoveryRunRow): Promise<{ s
   if (!(await advance(['checking'], { progress }))) return STOPPED;
 
   // Stage 2: signal checks on the shortlist.
-  for (const cand of shortlist) {
+  for (const [i, cand] of shortlist.entries()) {
     const ctx = { name: cand.name, city: cities.get(cand.placeId) ?? null, domain: cand.domain, chain: chains.has(normaliseName(cand.name)) };
     const at = { lat: cand.lat ?? area.center.lat, lng: cand.lng ?? area.center.lng };
     const google = await googleCheck(deps.dfs, ctx, at, scope, now);
-    const meta = await metaCheck(deps.meta, ctx, scope);
-    spent += google.cost + meta.cost;
+    spent += google.cost;
+    // Meta only when its worst case (ScrapeCreators fails, Apify answers) still leaves room for the later candidates'
+    // Google checks and every shortlisted review sample; otherwise it stays unchecked (null), never zero.
+    const reserved = (shortlist.length - i - 1) * (COST.advertisers + COST.ads) + shortlist.length * COST.reviews;
+    const meta = spent + metaSearchWorstCaseUsd() + reserved <= cfg.cost_cap_usd ? await metaCheck(deps.meta, ctx, scope) : UNCHECKED_META;
+    spent += meta.cost;
     const id = ids.get(cand.placeId)!;
     await patchSuggestionSignals(db, [id], { ...google.signals, ...meta.signals });
     await db.update(competitorSuggestion).set({ adMatches: [...google.matches, ...meta.matches] }).where(eq(competitorSuggestion.id, id));
@@ -291,16 +295,22 @@ async function googleCheck(dfs: DataForSeoClient, c: MatchCtx, at: { lat: number
   return { cost, matches, signals: { googleAccount: account, googleAdsActive: counts?.active ?? null, googleAdsNew30d: counts?.new30d ?? null } };
 }
 
-/** Meta Ad Library search by name → pages matched like ad accounts. Strong pages' active ads count; weak-only stays null. */
+const UNCHECKED_META = { cost: 0, matches: [] as AdMatch[], signals: { metaPage: null, metaAdsActive: null } };
+
+/**
+ * Meta Ad Library search by name → pages matched like ad accounts. Strong pages' active ads count; weak-only stays null.
+ * Cost is the estimate of the vendor calls actually made (ScrapeCreators per call, Apify per ad).
+ */
 async function metaCheck(meta: MetaSearchDeps, c: MatchCtx, scope: CallScope) {
   const matches: AdMatch[] = [];
-  let pages: Awaited<ReturnType<typeof searchMetaPages>> = null;
+  let pages: MetaPageHit[] | null = null;
+  let cost = 0;
   try {
-    pages = await searchMetaPages(meta, { name: c.name, country: 'US' }, scope);
+    ({ pages, costUsd: cost } = await searchMetaPages(meta, { name: c.name, country: 'US' }, scope));
   } catch (err) {
     console.warn(`[discovery] meta "${c.name}": ${err instanceof Error ? err.message : String(err)}`);
   }
-  if (pages === null) return { cost: COST.meta, matches, signals: { metaPage: null, metaAdsActive: null } };
+  if (pages === null) return { cost, matches, signals: { metaPage: null, metaAdsActive: null } };
   let strongAds = 0;
   for (const p of pages) {
     const s = matchAdAccount(c, { name: p.pageName, domain: null });
@@ -309,7 +319,7 @@ async function metaCheck(meta: MetaSearchDeps, c: MatchCtx, scope: CallScope) {
     if (s === 'strong') strongAds += p.activeAds;
   }
   const page = matches.some((m) => m.strength === 'strong') ? 'matched' : matches.length > 0 ? 'possible' : 'none';
-  return { cost: COST.meta, matches, signals: { metaPage: page, metaAdsActive: page === 'matched' ? strongAds : page === 'none' ? 0 : null } };
+  return { cost, matches, signals: { metaPage: page, metaAdsActive: page === 'matched' ? strongAds : page === 'none' ? 0 : null } };
 }
 
 /**
