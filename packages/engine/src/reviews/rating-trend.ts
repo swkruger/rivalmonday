@@ -1,6 +1,6 @@
 import { gbpSummary } from '@cs/collectors';
-import { client, clientCompetitor, competitor, type Db, evidence, observation, review } from '@cs/db';
-import { and, asc, desc, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
+import { client, clientCompetitor, competitor, type Db, evidence, observation, review, vendorTask } from '@cs/db';
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 
 const DAY = 86_400_000;
 /** Newest review captures cited per business — enough to back "reviews in 90 days" without padding the evidence list. */
@@ -35,7 +35,7 @@ export async function ratingStats(db: Db, ids: string[], now: Date, months: stri
   const since90 = new Date(now.getTime() - 90 * DAY).toISOString();
   const since180 = new Date(now.getTime() - 180 * DAY).toISOString();
   const monthExpr = sql<string>`to_char(date_trunc('month', ${review.postedAt} AT TIME ZONE 'UTC'), 'YYYY-MM')`;
-  const monthly = await db
+  const monthly = months.length === 0 ? [] : await db
     .select({ competitorId: review.competitorId, month: monthExpr, n: sql<number>`count(*)::int`, avg: sql<number | null>`round(avg(${review.rating})::numeric, 2)::float8` })
     .from(review)
     .where(and(inArray(review.competitorId, ids), gte(review.postedAt, new Date(`${months[0]}-01T00:00:00Z`))))
@@ -83,9 +83,13 @@ export interface RatingTrendBusiness {
   name: string;
   self: boolean;
   rating: number | null;
-  reviews90d: number;
+  /** null = reviews were never collected for this business (no review rows, no completed google_reviews task) — not 0. */
+  reviews90d: number | null;
   replyRate: number | null;
+  /** GBP evidence first, then review evidence. */
   evidenceIds: string[];
+  gbpEvidenceIds: string[];
+  reviewEvidenceIds: string[];
 }
 
 /** The client's businesses (self first, then tracked competitors by name): Google rating, 90-day reviews, reply rate and the evidence they came from. */
@@ -105,33 +109,38 @@ export async function ratingTrend(deps: { db: Db }, clientId: string, opts: { no
   ];
   if (businesses.length === 0) return { businesses: [] };
   const ids = businesses.map((b) => b.id);
-  const stats = await ratingStats(deps.db, ids, now, monthKeys(now, 1));
+  const stats = await ratingStats(deps.db, ids, now, []);
 
   const since90 = new Date(now.getTime() - 90 * DAY);
   const recent = await deps.db
     .select({ competitorId: review.competitorId, captureId: review.firstCaptureId })
     .from(review)
-    .where(and(inArray(review.competitorId, ids), gte(review.postedAt, since90), isNotNull(review.firstCaptureId)))
+    .where(and(inArray(review.competitorId, ids), gt(review.postedAt, since90), isNotNull(review.firstCaptureId)))
     .orderBy(desc(review.postedAt));
-  const captures = new Map<string, string[]>();
+  const collected = new Set([
+    ...(await deps.db.selectDistinct({ id: review.competitorId }).from(review).where(inArray(review.competitorId, ids))).map((r) => r.id),
+    ...(await deps.db.select({ id: vendorTask.competitorId }).from(vendorTask).where(and(inArray(vendorTask.competitorId, ids), eq(vendorTask.kind, 'google_reviews'), eq(vendorTask.status, 'done')))).map((r) => r.id as string),
+  ]);
+  const reviewCaptures = new Map<string, string[]>();
   for (const r of recent) {
-    const list = captures.get(r.competitorId) ?? [];
+    const list = reviewCaptures.get(r.competitorId) ?? [];
     if (!list.includes(r.captureId!) && list.length < EVIDENCE_PER_BUSINESS) list.push(r.captureId!);
-    captures.set(r.competitorId, list);
+    reviewCaptures.set(r.competitorId, list);
   }
-  for (const s of stats.values()) if (s.gbpCaptureId) captures.set(s.competitorId, [...(captures.get(s.competitorId) ?? []), s.gbpCaptureId]);
-  const allCaptures = [...new Set([...captures.values()].flat())];
+  const allCaptures = [...new Set([...[...reviewCaptures.values()].flat(), ...[...stats.values()].flatMap((s) => (s.gbpCaptureId ? [s.gbpCaptureId] : []))])];
   const ev = allCaptures.length > 0
     ? await deps.db.select({ id: evidence.id, captureId: evidence.captureId }).from(evidence).where(inArray(evidence.captureId, allCaptures)).orderBy(asc(evidence.id))
     : [];
+  const evFor = (captureIds: string[]) => ev.filter((e) => captureIds.includes(e.captureId)).map((e) => e.id);
 
   return {
     businesses: businesses.map((b) => {
       const s = stats.get(b.id)!;
-      const mine = new Set(captures.get(b.id) ?? []);
+      const gbpEvidenceIds = evFor(s.gbpCaptureId ? [s.gbpCaptureId] : []);
+      const reviewEvidenceIds = evFor(reviewCaptures.get(b.id) ?? []);
       return {
-        competitorId: b.id, name: b.name, self: b.self, rating: s.gbpRating, reviews90d: s.reviews90d, replyRate: s.replyRate,
-        evidenceIds: ev.filter((e) => mine.has(e.captureId)).map((e) => e.id),
+        competitorId: b.id, name: b.name, self: b.self, rating: s.gbpRating, reviews90d: collected.has(b.id) ? s.reviews90d : null, replyRate: s.replyRate,
+        evidenceIds: [...gbpEvidenceIds, ...reviewEvidenceIds], gbpEvidenceIds, reviewEvidenceIds,
       };
     }),
   };

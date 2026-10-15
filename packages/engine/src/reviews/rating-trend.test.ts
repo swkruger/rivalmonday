@@ -1,4 +1,4 @@
-import { capture, client, clientCompetitor, competitor, evidence, observation, review } from '@cs/db';
+import { capture, client, clientCompetitor, competitor, evidence, observation, review, vendorTask } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -41,9 +41,16 @@ describe('ratingTrend', () => {
     ]);
     const t = await ratingTrend({ db: dbs.service }, IDS.clientA1, { now: NOW });
     expect(t.businesses).toEqual([
-      { competitorId: s!.id, name: 'A1 HVAC', self: true, rating: 4.6, reviews90d: 0, replyRate: null, evidenceIds: [gbp.evidenceId] },
-      { competitorId: IDS.competitorX, name: 'Smith HVAC', self: false, rating: null, reviews90d: 2, replyRate: 0.5, evidenceIds: [rc.evidenceId] },
+      { competitorId: s!.id, name: 'A1 HVAC', self: true, rating: 4.6, reviews90d: null, replyRate: null, evidenceIds: [gbp.evidenceId], gbpEvidenceIds: [gbp.evidenceId], reviewEvidenceIds: [] },
+      { competitorId: IDS.competitorX, name: 'Smith HVAC', self: false, rating: null, reviews90d: 2, replyRate: 0.5, evidenceIds: [rc.evidenceId], gbpEvidenceIds: [], reviewEvidenceIds: [rc.evidenceId] },
     ]);
+  });
+
+  it('reviews90d is null until reviews were collected (a review row or a done google_reviews task), 0 after', async () => {
+    const reviews = async () => (await ratingTrend({ db: dbs.service }, IDS.clientA1, { now: NOW })).businesses[0]!.reviews90d;
+    expect(await reviews()).toBeNull();
+    await dbs.owner.insert(vendorTask).values({ vendor: 'dataforseo', kind: 'google_reviews', externalTaskId: 't1', competitorId: IDS.competitorX, status: 'done' });
+    expect(await reviews()).toBe(0);
   });
 
   it('is empty for a client with no businesses', async () => {

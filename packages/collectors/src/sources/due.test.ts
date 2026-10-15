@@ -27,7 +27,7 @@ describe('claimDueSources', () => {
     expect(rows[0]?.last_status).toBe('ok');
   });
 
-  it('never claims vendor sources of a competitor nobody tracks; a self business keeps gbp/reviews', async () => {
+  it('never claims vendor sources of a competitor nobody tracks; a self business keeps gbp/reviews/ads_google', async () => {
     // Competitor U: no client_competitor link and not a self business. Competitor S: some client's self_competitor_id.
     const [u] = await dbs.owner.insert(competitor).values({ name: 'Untracked Co' }).returning();
     const [s] = await dbs.owner.insert(competitor).values({ name: 'Self Co' }).returning();
@@ -40,7 +40,7 @@ describe('claimDueSources', () => {
     );
     const claimed = await claimDueSources(dbs.service, 100);
     expect(claimed.filter((c) => c.competitorId === u!.id)).toEqual([]);
-    expect(claimed.filter((c) => c.competitorId === s!.id).map((c) => c.source).sort()).toEqual(['gbp', 'reviews']);
+    expect(claimed.filter((c) => c.competitorId === s!.id).map((c) => c.source).sort()).toEqual(['ads_google', 'gbp', 'reviews']);
   });
 
   it('never claims a competitor only prospects track, nor a prospect’s own business; resumes on convert (5b-2 decision 9)', async () => {

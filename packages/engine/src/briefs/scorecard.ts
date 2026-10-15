@@ -1,4 +1,4 @@
-import { ad, capture, client, clientCompetitor, competitor, competitorSignal, type Db, evidence, rankScan, rankSnapshot } from '@cs/db';
+import { ad, capture, client, competitor, competitorSignal, type Db, evidence, rankScan, rankSnapshot } from '@cs/db';
 import { and, asc, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { ratingTrend } from '../reviews/rating-trend';
@@ -22,6 +22,7 @@ export type Scorecard = z.infer<typeof Scorecard>;
 const TILE_METRICS = ['rating', 'reviews90d', 'replyRate', 'mapTop3Share'] as const satisfies readonly ScorecardMetric[];
 const TIER_ORDER: Record<string, number> = { top: 0, watch: 1, minor: 2 };
 export const SCORECARD_EVIDENCE_CAP = 50;
+const SCORECARD_RANK_EVIDENCE_MAX = 15;
 const r2 = (x: number) => Math.round(x * 100) / 100;
 
 /** Median of the non-null values; null when there are none. */
@@ -55,8 +56,6 @@ export async function buildScorecard(
   const signals = await deps.db
     .select({ competitorId: competitorSignal.competitorId, tier: competitorSignal.tier, signals: competitorSignal.signals })
     .from(competitorSignal).where(eq(competitorSignal.clientId, clientId));
-  const tracked = await deps.db.select({ id: clientCompetitor.competitorId }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId));
-  const trackedIds = new Set(tracked.map((t) => t.id));
 
   // Map pack: the latest finished scan.
   const [scan] = await deps.db
@@ -82,7 +81,6 @@ export async function buildScorecard(
   const [selfGoogle, selfMeta] = c.selfCompetitorId ? await Promise.all([selfAds('google'), selfAds('meta')]) : [null, null];
 
   const rows = trend.businesses
-    .filter((b) => b.self || trackedIds.has(b.competitorId))
     .map((b) => {
       const sig = signals.find((s) => s.competitorId === b.competitorId);
       return {
@@ -108,12 +106,18 @@ export async function buildScorecard(
     return { metric, you, rivalMedian: rivalMedian === null ? null : r2(rivalMedian), deltaSinceStart: opts.baseline && you !== null && base !== null ? r2(you - base) : null };
   });
 
-  // Evidence: review/GBP captures, then the map-pack captures of the scan.
-  const evidenceIds: string[] = [...new Set(trend.businesses.flatMap((b) => b.evidenceIds))];
+  // Evidence by source quota so the cap never drops a whole source: every GBP capture, then map-pack captures (<= 15),
+  // then review captures round-robin across businesses (self first).
+  const evidenceIds: string[] = [];
+  const add = (id: string) => { if (evidenceIds.length < SCORECARD_EVIDENCE_CAP && !evidenceIds.includes(id)) evidenceIds.push(id); };
+  for (const b of trend.businesses) b.gbpEvidenceIds.forEach(add);
   const rankCaptures = [...new Set(snaps.flatMap((s) => (s.captureId ? [s.captureId] : [])))];
   if (rankCaptures.length > 0) {
-    const ev = await deps.db.select({ id: evidence.id }).from(evidence).where(inArray(evidence.captureId, rankCaptures)).orderBy(asc(evidence.id));
-    for (const e of ev) if (!evidenceIds.includes(e.id)) evidenceIds.push(e.id);
+    const ev = await deps.db.select({ id: evidence.id }).from(evidence).where(inArray(evidence.captureId, rankCaptures)).orderBy(asc(evidence.id)).limit(SCORECARD_RANK_EVIDENCE_MAX);
+    ev.forEach((e) => add(e.id));
+  }
+  for (let i = 0; trend.businesses.some((b) => i < b.reviewEvidenceIds.length); i++) {
+    for (const b of trend.businesses) if (i < b.reviewEvidenceIds.length) add(b.reviewEvidenceIds[i]!);
   }
 
   return {
@@ -121,7 +125,7 @@ export async function buildScorecard(
     baselineBriefId: null,
     tiles,
     rows: rows.map((r) => ({ competitorId: r.b.competitorId, name: r.b.name, self: r.b.self, tier: r.tier, values: r.values })),
-    evidenceIds: evidenceIds.slice(0, SCORECARD_EVIDENCE_CAP),
+    evidenceIds,
     openFirstMoves: opts.openFirstMoves ?? [],
   };
 }

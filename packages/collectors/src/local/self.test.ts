@@ -15,14 +15,14 @@ beforeEach(async () => {
 const selfOf = async (clientId: string) => (await dbs.owner.select({ s: client.selfCompetitorId }).from(client).where(eq(client.id, clientId)))[0]?.s ?? null;
 
 describe('ensureSelfCompetitor', () => {
-  it('creates a competitor row for the client place, links it, and schedules only GBP and reviews', async () => {
+  it('creates a competitor row for the client place, links it, and schedules GBP, reviews and Google ads', async () => {
     await dbs.owner.update(client).set({ placeId: 'place-a1' }).where(eq(client.id, IDS.clientA1));
     const r = await ensureSelfCompetitor(dbs.service, IDS.clientA1);
     expect(r).toMatchObject({ competitorId: expect.any(String) });
     const id = (r as { competitorId: string }).competitorId;
     expect(await selfOf(IDS.clientA1)).toBe(id);
     expect((await dbs.owner.select().from(competitor).where(eq(competitor.id, id)))[0]).toMatchObject({ name: 'A1 HVAC', placeId: 'place-a1', domain: null });
-    expect((await dbs.owner.select({ s: competitorSource.source }).from(competitorSource).where(eq(competitorSource.competitorId, id))).map((x) => x.s).sort()).toEqual(['gbp', 'reviews']);
+    expect((await dbs.owner.select({ s: competitorSource.source }).from(competitorSource).where(eq(competitorSource.competitorId, id))).map((x) => x.s).sort()).toEqual(['ads_google', 'gbp', 'reviews']);
     expect(await ensureSelfCompetitor(dbs.service, IDS.clientA1)).toEqual({ competitorId: id }); // idempotent
   });
 
