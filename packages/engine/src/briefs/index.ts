@@ -17,3 +17,5 @@ export * from './recommendations';
 export * from './pdf';
 export * from './scorecard';
 export * from './self-rules';
+export * from './readiness';
+export * from './starting-point';

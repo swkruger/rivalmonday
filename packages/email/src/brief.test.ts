@@ -36,6 +36,12 @@ describe('brief email', () => {
     expect(r.text).toContain('Smith HVAC');
   });
 
+  it('a starting point is subjected with the agency product name (12b decided copy)', async () => {
+    const r = await renderEmail({ template: 'brief', props: { ...brief, kind: 'starting_point', summary: 'Where A1 HVAC stands against the 2 rivals we now watch.' } });
+    expect(r.subject).toBe('Your starting point with Acme Marketing');
+    expect(r.html).toContain('Your starting point');
+  });
+
   it('renders a print document without email-only links', async () => {
     const html = await renderBriefDocument({ ...brief, link: null, pdfLink: null });
     expect(html).toContain('@page');

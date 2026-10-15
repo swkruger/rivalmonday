@@ -13,7 +13,7 @@ export function BriefEmail(p: BriefEmailProps & { variant?: 'email' | 'document'
   return (
     <Layout branding={p.branding} variant={p.variant} title={briefSubject(p)} preview={p.summary} footer={`Weekly competitor brief for ${p.clientName} · ${p.deliveryDate}`}>
       {doc ? null : <Text>{greeting(p.recipientName)}</Text>}
-      <Heading as="h2" style={{ fontSize: 20, margin: '0 0 8px' }}>{p.kind === 'quiet' ? 'A quiet week' : 'This week'}</Heading>
+      <Heading as="h2" style={{ fontSize: 20, margin: '0 0 8px' }}>{p.kind === 'quiet' ? 'A quiet week' : p.kind === 'starting_point' ? 'Your starting point' : 'This week'}</Heading>
       <Text>{p.summary}</Text>
       {p.items.map((it, i) => (
         <Section key={i} style={panel(p.branding)} className="card">
@@ -32,4 +32,6 @@ export function BriefEmail(p: BriefEmailProps & { variant?: 'email' | 'document'
     </Layout>
   );
 }
-export const briefSubject = (p: BriefEmailProps) => `Weekly competitor brief for ${p.clientName} — ${p.kind === 'quiet' ? 'quiet week' : p.deliveryDate}`;
+/** A starting point (12b decided copy) names the agency's product (its brand display name). */
+export const briefSubject = (p: BriefEmailProps) =>
+  p.kind === 'starting_point' ? `Your starting point with ${p.branding.displayName}` : `Weekly competitor brief for ${p.clientName} — ${p.kind === 'quiet' ? 'quiet week' : p.deliveryDate}`;

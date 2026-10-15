@@ -45,4 +45,14 @@ describe('notifyBriefOutcome', () => {
     expect(row).toMatchObject({ kind: 'brief_failed' });
     expect(row!.body).toContain('jev and llm down');
   });
+
+  it('uses the decided notice for a ready starting point', async () => {
+    const b = await seedBrief('ready');
+    await dbs.service.update(brief).set({ kind: 'starting_point', dropped: { items: 0, sentences: 0 } });
+    await notifyBriefOutcome({ db: dbs.service, delivery }, { status: 'ready', briefId: b.id, kind: 'starting_point', items: 3, dropped: { items: 0, sentences: 0 } }, day(0));
+    const rows = await dbs.owner.select().from(notification);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => r.title === 'Your starting point brief for A1 HVAC is ready to review.')).toBe(true);
+    expect(rows.find((r) => r.channel === 'in_app')!.body).toContain('as soon as you approve it');
+  });
 });

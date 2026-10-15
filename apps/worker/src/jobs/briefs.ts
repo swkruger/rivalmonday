@@ -26,3 +26,26 @@ export function createBriefJobs(deps: WorkerDeps, queue: { enqueueBriefClient(cl
   });
   return { schedule, client };
 }
+
+/** Phase 12b (spec § Generation): hourly at :15; each due client's one-off starting point runs in its own job. */
+export function createStartingPointJobs(deps: WorkerDeps, queue: { enqueueStartingPointClient(clientId: string): Promise<void> }) {
+  const schedule = defineJob({
+    name: 'starting-point-schedule', schema: z.looseObject({}), cron: '15 * * * *',
+    handler: async () => {
+      if (!deps.engineConfigured()) return;
+      const ids = await deps.listStartingPointDue(new Date());
+      for (const id of ids) await queue.enqueueStartingPointClient(id);
+      if (ids.length > 0) console.log(`[starting-point-schedule] enqueued ${ids.length} client(s)`);
+    },
+  });
+  // Failures are recorded on the brief row and retried by the next tick (≤ 3 attempts); retryLimit 2 covers a throw before the claim.
+  const client = defineJob({
+    name: 'starting-point-client', schema: z.object({ clientId: z.uuid() }), queue: { policy: 'short', retryLimit: 2 },
+    handler: async ({ clientId }) => {
+      const r = await deps.generateStartingPoint(clientId);
+      console.log(`[starting-point-client] ${clientId} → ${JSON.stringify(r)}`);
+      if (deps.deliveryConfigured()) await deps.notifyBriefOutcome(r, new Date());
+    },
+  });
+  return { schedule, client };
+}

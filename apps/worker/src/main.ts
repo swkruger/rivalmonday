@@ -10,7 +10,7 @@ import { createBoss, enqueue, registerJobs } from './boss';
 import { createWorkerDeps } from './deps';
 import { createAskJobs } from './jobs/ask';
 import { createKbJobs } from './jobs/kb';
-import { createBriefJobs } from './jobs/briefs';
+import { createBriefJobs, createStartingPointJobs } from './jobs/briefs';
 import { createDeliveryJobs, warnIfDeliveryUnconfigured } from './jobs/delivery';
 import { createEngineJobs } from './jobs/engine';
 import { heartbeatJob } from './jobs/heartbeat';
@@ -98,6 +98,11 @@ const briefs = createBriefJobs(deps, {
     await enqueue(boss, ask.starters, { clientId }, { singletonKey: clientId });
   },
 });
+const startingPoints = createStartingPointJobs(deps, {
+  enqueueStartingPointClient: async (clientId) => {
+    await enqueue(boss, startingPoints.client, { clientId }, { singletonKey: `sp:${clientId}` });
+  },
+});
 const reviews = createReviewJobs(deps);
 const modelOps = createModelOpsJobs(deps);
 const platformStats = createPlatformStatsJobs(deps);
@@ -118,7 +123,7 @@ await registerJobs(boss, [
   heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, prospects.snapshot,
   rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly,
   engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.price, reviews.nightly, moves.nightly, moves.client,
-  modelOps.batchPoll, platformStats.daily, platformCosts.snapshot, briefs.schedule, briefs.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
+  modelOps.batchPoll, platformStats.daily, platformCosts.snapshot, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
   delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,
 ]);
 console.log('[worker] started');

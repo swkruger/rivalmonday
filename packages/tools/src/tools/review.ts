@@ -120,12 +120,13 @@ export const rateBriefItemTool = defineTool({
 export const approveBriefTool = defineTool({
   name: 'approve_brief',
   access: 'write',
-  description: 'Approve a ready brief for Monday delivery; its items become recommendations.',
+  description: 'Approve a ready brief for Monday delivery (a starting point is sent straight away); its items become recommendations.',
   input: z.object({ briefId: uuid }),
   output: z.object({ recommendations: z.number().int() }),
   permission: 'agency',
   async handler(ctx, { briefId }, deps) {
-    return approveBrief(reviewDeps(deps), ctx, briefId);
+    // 12b Q2: a starting point is sent on approval when delivery is configured (its PDF follows via the hourly catch-up).
+    return approveBrief({ ...reviewDeps(deps), delivery: deps.delivery ?? null }, ctx, briefId);
   },
 });
 

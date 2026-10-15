@@ -16,4 +16,9 @@ describe('finalBriefSummary (Phase 4a binding obligation)', () => {
     expect(finalBriefSummary(b, [{ status: 'dropped' }])).toEqual({ kind: 'quiet', summary: QUIET_SUMMARY });
     expect(finalBriefSummary({ kind: 'quiet', summary: QUIET_SUMMARY }, [])).toEqual({ kind: 'quiet', summary: QUIET_SUMMARY });
   });
+  it('never turns a starting point quiet or rewrites its summary (12b Q3)', () => {
+    const sp = { kind: 'starting_point' as const, summary: 'Where A1 HVAC stands against the 2 rivals we now watch.' };
+    expect(finalBriefSummary(sp, [{ status: 'dropped' }])).toEqual(sp);
+    expect(finalBriefSummary(sp, [{ status: 'active' }, { status: 'dropped' }])).toEqual(sp);
+  });
 });

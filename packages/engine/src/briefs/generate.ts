@@ -23,6 +23,7 @@ export type BriefRunResult =
 /**
  * Claims the (client, delivery date) brief: new, or failed with attempts left, or a stale 'generating' row.
  * The returned `attempts` is the fencing token: a reclaim bumps it, so a superseded run's writes match zero rows.
+ * A starting point on the same date is never reclaimed (Phase 12b Q3): the weekly brief for that date is skipped.
  */
 async function claimBrief(db: Db, c: { id: string; agencyId: string }, deliveryDate: string, period: { start: Date; end: Date }): Promise<{ id: string; attempts: number } | { skipped: string }> {
   const rows = (await db.execute(sql`
@@ -31,8 +32,9 @@ async function claimBrief(db: Db, c: { id: string; agencyId: string }, deliveryD
     ON CONFLICT (client_id, delivery_date) DO UPDATE
       SET status = 'generating', attempts = brief.attempts + 1, error = NULL, updated_at = now(),
           period_start = EXCLUDED.period_start, period_end = EXCLUDED.period_end
-      WHERE (brief.status = 'failed' AND brief.attempts < ${BRIEF_MAX_ATTEMPTS}::int)
-         OR (brief.status = 'generating' AND brief.updated_at < now() - make_interval(mins => ${BRIEF_STALE_MINUTES}::int))
+      WHERE brief.kind <> 'starting_point'
+        AND ((brief.status = 'failed' AND brief.attempts < ${BRIEF_MAX_ATTEMPTS}::int)
+         OR (brief.status = 'generating' AND brief.updated_at < now() - make_interval(mins => ${BRIEF_STALE_MINUTES}::int)))
     RETURNING brief.id, brief.attempts`)) as unknown as { id: string; attempts: number }[];
   if (rows[0]) return { id: rows[0].id, attempts: Number(rows[0].attempts) };
   const [existing] = await db.select({ status: brief.status, attempts: brief.attempts }).from(brief).where(and(eq(brief.clientId, c.id), eq(brief.deliveryDate, deliveryDate)));
@@ -52,7 +54,7 @@ export function committableItems(items: VerifiedItem[], retractedIds: string[]):
 }
 
 /** Drizzle wraps driver errors; the Postgres message is on `cause`. */
-function errorMessage(err: unknown): string {
+export function briefErrorMessage(err: unknown): string {
   if (err instanceof Error) {
     const cause = (err as { cause?: unknown }).cause;
     if (cause instanceof Error && cause.message) return cause.message;
@@ -70,7 +72,7 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
   const [prev] = await deps.db
     .select({ end: brief.periodEnd })
     .from(brief)
-    .where(and(eq(brief.clientId, clientId), ne(brief.status, 'failed'), ne(brief.status, 'generating'), sql`${brief.deliveryDate} < ${deliveryDate}::date`))
+    .where(and(eq(brief.clientId, clientId), ne(brief.status, 'failed'), ne(brief.status, 'generating'), ne(brief.kind, 'starting_point'), sql`${brief.deliveryDate} < ${deliveryDate}::date`))
     .orderBy(desc(brief.deliveryDate))
     .limit(1);
   const period = briefPeriod(now, prev?.end ?? null);
@@ -117,7 +119,7 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
       return { status: 'ready' as const, briefId, kind, items: items.length, dropped };
     });
   } catch (err) {
-    const error = errorMessage(err).slice(0, 2000);
+    const error = briefErrorMessage(err).slice(0, 2000);
     const marked = await deps.db.update(brief).set({ status: 'failed', error, updatedAt: new Date() }).where(owned).returning({ id: brief.id });
     if (marked.length === 0) {
       console.warn(`[briefs] superseded brief ${briefId} attempt ${claim.attempts} for client ${clientId} failed: ${error}`);
@@ -130,6 +132,7 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
 
 /**
  * Active clients (prospects get no briefs, 5b-2 decision 9) whose Thursday-night window is open and whose brief for that Monday is missing, retryable or stale.
+ * Starting points are ignored (Phase 12b Q3); one holding that Monday makes the weekly run skip.
  * Scans every client with one brief lookup each: fine at pilot scale (≤ 15 clients); Phase 7 scale needs a set-based query.
  */
 export async function listBriefDueClients(db: Db, now: Date): Promise<string[]> {
@@ -138,7 +141,7 @@ export async function listBriefDueClients(db: Db, now: Date): Promise<string[]> 
   for (const c of clients) {
     const tz = safeTimezone(c.timezone);
     if (!briefDue(now, tz)) continue;
-    const [b] = await db.select({ status: brief.status, attempts: brief.attempts, updatedAt: brief.updatedAt }).from(brief).where(and(eq(brief.clientId, c.id), eq(brief.deliveryDate, deliveryDateFor(now, tz))));
+    const [b] = await db.select({ status: brief.status, attempts: brief.attempts, updatedAt: brief.updatedAt }).from(brief).where(and(eq(brief.clientId, c.id), eq(brief.deliveryDate, deliveryDateFor(now, tz)), ne(brief.kind, 'starting_point')));
     const stale = b?.status === 'generating' && now.getTime() - b.updatedAt.getTime() > BRIEF_STALE_MINUTES * 60_000;
     if (!b || (b.status === 'failed' && b.attempts < BRIEF_MAX_ATTEMPTS) || stale) due.push(c.id);
   }

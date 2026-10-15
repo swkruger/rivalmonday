@@ -10,7 +10,7 @@ import { competitor, createDb, createDecisionSampleSink, createLedgerSink, type 
 import {
   analyzeReview as runAnalyzeReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createPackLoader, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
-  type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, listBriefDueClients, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
+  type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   notifyBriefOutcome, processAlert, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
@@ -41,6 +41,9 @@ export interface WorkerDeps {
   /** Clients whose weekly brief window is open and whose brief is missing, retryable, or stale (spec §9.1). */
   listBriefDueClients(now: Date): Promise<string[]>;
   generateBrief(clientId: string): Promise<BriefRunResult>;
+  /** Phase 12b: active clients due their one-off starting point (ready, or 48 h after activation). */
+  listStartingPointDue(now: Date): Promise<string[]>;
+  generateStartingPoint(clientId: string): Promise<BriefRunResult>;
   /** Phase 6b: model-written starter questions for one client (null = nothing written). */
   generateAskStarters(clientId: string): Promise<string[] | null>;
   recommendForMoves(clientId: string): Promise<{ created: number; skipped: number; failed: number }>;
@@ -255,6 +258,8 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     listMoveClients: () => listMoveClients(getDb()),
     listBriefDueClients: (now) => listBriefDueClients(getDb(), now),
     generateBrief: async (clientId) => generateBrief({ db: getDb(), ai: await getAi(), packs }, clientId),
+    listStartingPointDue: (now) => listStartingPointDue(getDb(), now),
+    generateStartingPoint: async (clientId) => generateStartingPoint({ db: getDb(), ai: await getAi(), packs }, clientId),
     generateAskStarters: async (clientId) => generateStarters({ service: getDb(), ai: await getAi() }, clientId),
     recommendForMoves: async (clientId) => recommendForMoves({ db: getDb(), ai: await getAi(), packs }, clientId),
     async discoverPages(competitorId) {

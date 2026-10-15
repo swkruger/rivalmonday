@@ -1,5 +1,5 @@
 import { type AccessContext, canAccessClient, isAgencyRole, ToolError } from '@cs/core';
-import { brief, briefItem, client, competitor, type Db, feedback, withTenant } from '@cs/db';
+import { brief, briefItem, type BriefKind, client, competitor, type Db, feedback, withTenant } from '@cs/db';
 import type { Branding, BriefEmailProps } from '@cs/email';
 import { and, asc, eq, gte, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import type { Conn } from '../delivery/contacts';
@@ -12,6 +12,8 @@ import { finalBriefSummary } from './summary';
 
 export const DELIVERY_LOCAL_HOUR = 7;
 export const DELIVERY_GRACE_DAYS = 6;
+/** Decided copy (12b): the client-facing title of a starting point; `agencyProduct` is the agency's brand display name. */
+export const startingPointSubject = (agencyProduct: string) => `Your starting point with ${agencyProduct}`;
 
 export interface BriefDeliveryView {
   b: typeof brief.$inferSelect;
@@ -56,14 +58,14 @@ export async function deliverBrief(deps: { db: Db; delivery: DeliveryConfig }, b
     // Evidence retracted after approval: drop those items before the summary is recomputed (decision 10).
     await dropRetractedItems(tx, briefId);
     const all = await tx.select({ status: briefItem.status }).from(briefItem).where(eq(briefItem.briefId, briefId));
-    const final = finalBriefSummary(locked as { kind: 'standard' | 'quiet'; summary: string }, all);
+    const final = finalBriefSummary(locked as { kind: BriefKind; summary: string }, all);
     await tx.update(brief).set({ ...final, status: 'sent', sentAt: now, updatedAt: now }).where(eq(brief.id, briefId));
     const v = await loadBriefView(tx, briefId);
     const scope = { agencyId: v.b.agencyId, clientId: v.b.clientId };
     const notifications = await notify(tx, deps.delivery, {
       ...scope, kind: 'brief', audience: 'client', subjectType: 'brief', subjectId: briefId, dedupe: `brief:${briefId}`, link: { t: 'brief', id: briefId }, now,
       build: (r, link) => ({
-        title: `Weekly competitor brief — ${v.b.deliveryDate}`,
+        title: v.b.kind === 'starting_point' ? startingPointSubject(v.branding.displayName) : `Weekly competitor brief — ${v.b.deliveryDate}`,
         body: [v.b.summary, ...v.items.map((i) => `• ${i.headline}`)].join('\n'),
         email: { template: 'brief', props: briefEmailProps(v, {
           recipientName: r?.name ?? null, link,
@@ -90,7 +92,7 @@ export async function isUntouched(conn: Conn, briefId: string): Promise<boolean>
   return !hit;
 }
 
-/** Decision 11: hourly; Monday 07:00 client-local onward (6 days of catch-up). */
+/** Decision 11: hourly; Monday 07:00 client-local onward (6 days of catch-up). Starting points are sent on approval instead (12b Q2). */
 export async function deliverDueBriefs(deps: { db: Db; delivery: DeliveryConfig }, now: Date): Promise<{ sent: string[]; autoApproved: number; overdue: number }> {
   const out = { sent: [] as string[], autoApproved: 0, overdue: 0 };
   const floor = new Date(now.getTime() - (DELIVERY_GRACE_DAYS + 2) * 86_400_000).toISOString().slice(0, 10);
@@ -98,7 +100,7 @@ export async function deliverDueBriefs(deps: { db: Db; delivery: DeliveryConfig 
     .select({ id: brief.id, agencyId: brief.agencyId, clientId: brief.clientId, status: brief.status, deliveryDate: brief.deliveryDate, timezone: client.timezone, autoSend: client.briefAutoSend, clientName: client.name })
     .from(brief)
     .innerJoin(client, eq(client.id, brief.clientId))
-    .where(and(inArray(brief.status, ['approved', 'ready']), isNull(brief.sentAt), gte(brief.deliveryDate, floor)));
+    .where(and(inArray(brief.status, ['approved', 'ready']), isNull(brief.sentAt), gte(brief.deliveryDate, floor), ne(brief.kind, 'starting_point')));
   for (const r of rows) {
     const clock = localClock(now, safeTimezone(r.timezone));
     const due = clock.date > r.deliveryDate || (clock.date === r.deliveryDate && clock.hour >= DELIVERY_LOCAL_HOUR);

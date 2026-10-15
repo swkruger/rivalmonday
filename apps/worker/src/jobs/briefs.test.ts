@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
-import { createBriefJobs } from './briefs';
+import { createBriefJobs, createStartingPointJobs } from './briefs';
 
 describe('brief jobs', () => {
   it('schedule enqueues one brief-client job per due client', async () => {
@@ -47,5 +47,40 @@ describe('brief jobs', () => {
     expect(await run({ status: 'failed', briefId: 'b', error: 'x' })).toEqual([]);
     expect(await run({ status: 'skipped', reason: 'r' })).toEqual([]);
     expect(await run(new Error('boom'))).toEqual([]);
+  });
+});
+
+describe('starting point jobs', () => {
+  const A = '00000000-0000-4000-8000-0000000000a1';
+  it('schedule runs at :15 hourly and enqueues one starting-point-client job per due client', async () => {
+    const deps = { engineConfigured: () => true, listStartingPointDue: vi.fn(async () => ['c1', 'c2']) } as unknown as WorkerDeps;
+    const enqueueStartingPointClient = vi.fn(async () => {});
+    const jobs = createStartingPointJobs(deps, { enqueueStartingPointClient });
+    await jobs.schedule.handler({});
+    expect(enqueueStartingPointClient.mock.calls).toEqual([['c1'], ['c2']]);
+    expect(jobs.schedule.name).toBe('starting-point-schedule');
+    expect(jobs.schedule.cron).toBe('15 * * * *');
+    expect(jobs.client.name).toBe('starting-point-client');
+    expect(jobs.client.queue).toMatchObject({ policy: 'short', retryLimit: 2 });
+  });
+
+  it('schedule does nothing until the engine is configured', async () => {
+    const deps = { engineConfigured: () => false, listStartingPointDue: vi.fn() } as unknown as WorkerDeps;
+    await createStartingPointJobs(deps, { enqueueStartingPointClient: vi.fn() }).schedule.handler({});
+    expect(deps.listStartingPointDue).not.toHaveBeenCalled();
+  });
+
+  it('client job generates the starting point and tells the AM once delivery is configured', async () => {
+    const result = { status: 'ready', briefId: 'b', kind: 'starting_point', items: 3, dropped: { items: 0, sentences: 0 } };
+    const deps = { generateStartingPoint: vi.fn(async () => result), deliveryConfigured: () => true, notifyBriefOutcome: vi.fn(async () => 2) } as unknown as WorkerDeps;
+    await createStartingPointJobs(deps, { enqueueStartingPointClient: vi.fn() }).client.handler({ clientId: A });
+    expect(deps.generateStartingPoint).toHaveBeenCalledWith(A);
+    expect(deps.notifyBriefOutcome).toHaveBeenCalledWith(result, expect.any(Date));
+  });
+
+  it('client job skips the notice without delivery', async () => {
+    const deps = { generateStartingPoint: vi.fn(async () => ({ status: 'skipped', reason: 'r' })), deliveryConfigured: () => false, notifyBriefOutcome: vi.fn() } as unknown as WorkerDeps;
+    await createStartingPointJobs(deps, { enqueueStartingPointClient: vi.fn() }).client.handler({ clientId: A });
+    expect(deps.notifyBriefOutcome).not.toHaveBeenCalled();
   });
 });

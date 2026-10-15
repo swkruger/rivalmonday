@@ -4,8 +4,11 @@ import { and, asc, eq, inArray, isNotNull, ne } from 'drizzle-orm';
 import type { PackLoader } from '../tag/tag-stage';
 import { loadEventEvidence } from './evidence';
 import { loadBriefClient } from './gather';
+import type { DeliveryConfig } from '../delivery/outbox';
+import { sendBriefNow } from './deliver';
 import { recommendationFromItem } from './recommendations';
 import { checkSentence, splitSentences } from './rules';
+import { isBaselineItem } from './starting-point';
 import { finalBriefSummary } from './summary';
 
 export type ReviewDeps = { service: Db; app: Db; packs: PackLoader };
@@ -172,15 +175,29 @@ export async function approveBriefTx(tx: Tx, briefId: string, actor: string, now
   // One live recommendation per move: skip an item whose move already has one that is not dismissed (any source).
   const moveIds = [...new Set(active.map((i) => i.moveId).filter((id): id is string => id !== null))];
   const covered = new Set(moveIds.length === 0 ? [] : (await tx.select({ moveId: recommendation.moveId }).from(recommendation).where(and(inArray(recommendation.moveId, moveIds), ne(recommendation.status, 'dismissed')))).map((r) => r.moveId));
-  const recommend = active.filter((i) => !stale.has(i.id) && !(i.moveId && covered.has(i.moveId)));
+  // The starting point's baseline item (no playbook) states no finding, so it becomes no recommendation.
+  const recommend = active.filter((i) => !stale.has(i.id) && !(i.moveId && covered.has(i.moveId)) && !isBaselineItem(i));
   if (recommend.length === 0) return { recommendations: 0 };
   const inserted = await tx.insert(recommendation).values(recommend.map(recommendationFromItem)).onConflictDoNothing().returning({ id: recommendation.id });
   return { recommendations: inserted.length };
 }
 
-export async function approveBrief(deps: ReviewDeps, ctx: AccessContext, briefId: string): Promise<{ recommendations: number }> {
+/**
+ * AM approval. A starting point is sent straight away (12b Q2) when delivery is configured; without it, it stays approved and the
+ * AM sends it with "send now". A send that fails after the approval committed is reported, never hidden.
+ */
+export async function approveBrief(deps: ReviewDeps & { delivery?: DeliveryConfig | null }, ctx: AccessContext, briefId: string): Promise<{ recommendations: number }> {
   requireAgency(ctx);
   const b = await visibleBrief(deps.app, ctx, briefId);
   requireReady(b);
-  return deps.service.transaction((tx) => approveBriefTx(tx, briefId, ctx.userId, new Date()));
+  const out = await deps.service.transaction((tx) => approveBriefTx(tx, briefId, ctx.userId, new Date()));
+  if (b.kind === 'starting_point' && deps.delivery) {
+    try {
+      await sendBriefNow({ service: deps.service, app: deps.app, delivery: deps.delivery }, ctx, briefId);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ToolError('invalid_input', `The starting point was approved but not sent (${msg}); use "send now"`);
+    }
+  }
+  return out;
 }
