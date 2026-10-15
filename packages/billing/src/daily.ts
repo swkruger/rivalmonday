@@ -2,6 +2,7 @@ import { type AgencyBillingRow, type Db, type PlanRow, agency, agencyBilling, ag
 import { and, eq } from 'drizzle-orm';
 import { planFor } from './access';
 import { applyBillingSignal } from './apply';
+import { clientMrrCents, runConnectDaily } from './connect-daily';
 import { syncSeats } from './seats';
 import type { BillingSignal } from './state';
 import type { BillingGateway } from './types';
@@ -121,12 +122,20 @@ export async function runBillingDaily(db: Db, gw: BillingGateway | null, now: Da
         result.reminders += inserted.length;
       }
 
+      // Phase 9b: Connect reconciliation + auto-pause. Own try/catch: a failure must not block the 9a stat.
+      try {
+        await runConnectDaily(db, gw, agencyId, now);
+      } catch (e) {
+        logFailure('connect', agencyId, e);
+      }
+      const clientMrr = await clientMrrCents(db, agencyId);
+
       const paying = !!row && isPaying(row, now);
       const paidSeats = paying ? (row!.billableSeatsSynced ?? 0) : 0;
       const mrrCents = paying ? await mrrFor(gw, row!, await planFor(db, row), paidSeats) : 0;
       const updated = await db
         .update(agencyDailyStat)
-        .set({ billingState: row?.state ?? 'pilot', paidSeats, mrrCents })
+        .set({ billingState: row?.state ?? 'pilot', paidSeats, mrrCents, clientMrrCents: clientMrr })
         .where(and(eq(agencyDailyStat.agencyId, agencyId), eq(agencyDailyStat.day, yesterday)))
         .returning({ day: agencyDailyStat.day });
       if (!updated.length) missingStats++;

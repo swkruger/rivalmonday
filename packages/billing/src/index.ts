@@ -19,3 +19,4 @@ export * from './pill';
 export * from './connect-apply';
 export * from './client-billing-state';
 export * from './connect-webhook';
+export * from './connect-daily';

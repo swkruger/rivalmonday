@@ -18,6 +18,8 @@ export type ClientBillingSignal = (
   /** `billed`: the live subscription was moved to this price too (next_bill); otherwise only the price of the next Checkout changes. */
   | { type: 'price_changed'; priceCents: number; stripePriceId: string; billed?: boolean }
   | { type: 'disconnected' }
+  /** Daily reconciliation (Stripe wins): drives state and billed price from the live subscription, silently (no notices, no `last_paid_at`). `target` null = leave the state, only the price. */
+  | { type: 'reconciled'; subscriptionId: string; target: 'active' | 'payment_needed' | 'cancelled' | null; billedPriceCents: number | null }
 ) & { eventAt?: Date };
 
 export type ClientBillingNoticeKind = 'client-payment-link' | 'client-payment-needed' | 'client-payment-failed' | 'client-paid' | 'client-auto-paused';
@@ -47,7 +49,7 @@ export function nextClientBillingState(row: ClientBillingRow, s: ClientBillingSi
   });
   const st = row.state;
   // R11: a tracked live subscription only answers to its own id; non-checkout subscription events need a tracked id.
-  if ((s.type === 'payment_succeeded' || s.type === 'payment_failed' || s.type === 'subscription_cancelled') && row.stripeSubscriptionId !== s.subscriptionId) return { ignored: 'untracked_subscription' };
+  if ((s.type === 'payment_succeeded' || s.type === 'payment_failed' || s.type === 'subscription_cancelled' || s.type === 'reconciled') && row.stripeSubscriptionId !== s.subscriptionId) return { ignored: 'untracked_subscription' };
   if (s.type === 'checkout_completed' && SUBSCRIBED.includes(st) && row.stripeSubscriptionId && row.stripeSubscriptionId !== s.subscriptionId) return { ignored: 'untracked_subscription' };
   switch (s.type) {
     case 'invited':
@@ -88,6 +90,17 @@ export function nextClientBillingState(row: ClientBillingRow, s: ClientBillingSi
       return row.disputedAt ? null : out(st, { disputedAt: now });
     case 'price_changed':
       return out(st, { priceCents: s.priceCents, stripePriceId: s.stripePriceId, ...(s.billed && { billedPriceCents: s.priceCents }) });
+    case 'reconciled': {
+      if (st !== 'invited' && st !== 'active' && st !== 'payment_needed') return null;
+      // Never record a 0/null price; only a differing one is a change.
+      const price = s.billedPriceCents && s.billedPriceCents > 0 && s.billedPriceCents !== row.billedPriceCents ? { billedPriceCents: s.billedPriceCents } : {};
+      let state: ClientBillingState = st;
+      let patch: Partial<ClientBillingRow> = { ...price };
+      if (s.target === 'cancelled') { state = 'cancelled'; patch = { ...price, enabled: false, paymentFailedSince: null }; }
+      else if (s.target === 'active' && st !== 'active') { state = 'active'; patch = { ...price, paymentFailedSince: null }; }
+      else if (s.target === 'payment_needed' && st !== 'payment_needed') { state = 'payment_needed'; patch = { ...price, paymentFailedSince: now }; }
+      return state === st && !Object.keys(patch).length ? null : out(state, patch);
+    }
     case 'disconnected':
       if (st === 'off' || st === 'disconnected') return null;
       return out('disconnected');
