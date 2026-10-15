@@ -57,7 +57,7 @@ export const SHARED_READS: Readonly<Record<string, string>> = { list_clients: '/
 
 /** Spec §4.9: every screen route, the tool calls it makes, and the empty states left on purpose. */
 export const SCREENS: readonly ScreenCoverage[] = [
-  { route: '/agency', as: 'admin', calls: [{ tool: 'get_portfolio', input: none, path: 'items' }] },
+  { route: '/agency', as: 'admin', calls: [{ tool: 'get_portfolio', input: none, path: 'items' }, { tool: 'list_client_billing_status', input: none, path: 'clients' }] },
   {
     route: '/agency/ai', as: 'admin', calls: [
       { tool: 'list_api_tokens', input: none, path: 'items' },
@@ -222,8 +222,14 @@ export const SCREENS: readonly ScreenCoverage[] = [
   },
   { route: '/c/[clientId]/settings/alerts', as: 'admin', calls: [lsProfile, { tool: 'get_alert_rules', input: (ids) => ({ clientId: ls(ids) }), path: 'custom' }] },
   { route: '/c/[clientId]/settings/delivery', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'serviceArea' }] },
-  { route: '/c/[clientId]/settings/profile', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' }, lsStarters] },
-  { route: '/agency/settings/billing', as: 'admin', calls: [{ tool: 'get_billing_summary', input: none, path: 'state' }] },
+  { route: '/c/[clientId]/settings/profile', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' }, lsStarters, { tool: 'list_client_billing_status', input: none, path: 'clients' }] },
+  {
+    route: '/agency/settings/billing', as: 'admin', calls: [
+      { tool: 'get_billing_summary', input: none, path: 'state' },
+      { tool: 'get_connect_status', input: none, path: 'status' },
+      { tool: 'get_client_revenue', input: none, path: 'currency' },
+    ],
+  },
   { route: '/paused', as: 'admin', calls: [] },
   { route: '/inbox', as: 'admin', calls: [{ tool: 'fn:listInbox', input: none }] },
   { route: '/inbox (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'fn:listInbox', input: none }] },

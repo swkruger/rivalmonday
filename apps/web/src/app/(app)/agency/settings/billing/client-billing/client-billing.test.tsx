@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ ctx: { role: 'agency_admin' } as Record<string, unknown>, runTool: vi.fn() }));
@@ -95,6 +95,29 @@ describe('client billing section', () => {
   });
 });
 
+describe('disabled while pending and in-dialog errors', () => {
+  it('the Connect button disables itself on submit (R8)', async () => {
+    let release: (v: unknown) => void = () => {};
+    m.runTool.mockImplementation(() => new Promise((r) => { release = r; }));
+    render(<ClientBillingSection status={status({ status: 'not_connected' }) as never} revenue={null} connect={undefined} />);
+    const btn = screen.getByRole('button', { name: 'Connect Stripe' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    await act(async () => { fireEvent.submit(btn.closest('form')!); });
+    expect((screen.getByRole('button', { name: 'Connect Stripe' }) as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => { release({ ok: false, error: 'x' }); });
+  });
+
+  it('a disconnect failure shows its alert inside the dialog', async () => {
+    m.runTool.mockResolvedValue({ ok: false, error: 'Could not reach Stripe. Try again shortly.' });
+    render(<ClientBillingSection status={status() as never} revenue={revenue} connect={undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Disconnect Stripe' }));
+    await act(async () => { fireEvent.submit(screen.getByRole('button', { name: 'Yes, disconnect' }).closest('form')!); });
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain('Could not reach Stripe');
+    expect(alert.closest('[role="dialog"]')).not.toBeNull();
+  });
+});
+
 describe('client billing actions', () => {
   it('connect redirects to the Stripe URL, a refusal returns the copy', async () => {
     m.runTool.mockResolvedValue({ ok: true, data: { url: 'https://connect.stripe.com/x' } });
@@ -123,6 +146,17 @@ describe('client billing actions', () => {
     fd.set('autoPauseAfterDays', '');
     await saveDefaultsAction({ ok: true }, fd);
     expect(m.runTool).toHaveBeenCalledWith(m.ctx, 'set_client_billing_defaults', { priceCents: 29900, setupFeeCents: 4950, autoPauseAfterDays: null });
+    m.runTool.mockClear();
+    const keep = new FormData();
+    keep.set('price', '299');
+    keep.set('setupFee', '');
+    await saveDefaultsAction({ ok: true }, keep);
+    expect(m.runTool).toHaveBeenCalledWith(m.ctx, 'set_client_billing_defaults', { priceCents: 29900, autoPauseAfterDays: null });
+    const zero = new FormData();
+    zero.set('price', '299');
+    zero.set('setupFee', '0');
+    await saveDefaultsAction({ ok: true }, zero);
+    expect(m.runTool).toHaveBeenLastCalledWith(m.ctx, 'set_client_billing_defaults', { priceCents: 29900, setupFeeCents: 0, autoPauseAfterDays: null });
     m.runTool.mockClear();
     const bad = new FormData();
     bad.set('price', 'abc');

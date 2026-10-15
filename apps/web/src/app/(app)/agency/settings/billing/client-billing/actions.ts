@@ -32,13 +32,14 @@ export async function saveDefaultsAction(_prev: FormResult, fd: FormData): Promi
   const priceCents = parseDollars(String(fd.get('price') ?? ''));
   if (priceCents === null) return fail('Enter the monthly price in dollars, e.g. 299.');
   const feeText = String(fd.get('setupFee') ?? '').trim();
-  const setupFeeCents = feeText === '' ? 0 : parseDollars(feeText);
+  // R17: blank keeps the current setup fee; an explicit 0 clears it.
+  const setupFeeCents = feeText === '' ? undefined : parseDollars(feeText);
   if (setupFeeCents === null) return fail('Enter the setup fee in dollars, or leave it blank for none.');
   const daysText = String(fd.get('autoPauseAfterDays') ?? '').trim();
   const days = daysText === '' ? null : Number(daysText);
   if (days !== null && (!Number.isInteger(days) || days < 1 || days > 90)) return fail('Auto-pause must be between 1 and 90 days, or blank to never pause.');
   const { ctx } = await requireContext();
-  const r = await runTool(ctx, 'set_client_billing_defaults', { priceCents, setupFeeCents, autoPauseAfterDays: days });
+  const r = await runTool(ctx, 'set_client_billing_defaults', { priceCents, ...(setupFeeCents !== undefined && { setupFeeCents }), autoPauseAfterDays: days });
   if (!r.ok) return r;
   revalidatePath(BILLING_PATH);
   return { ok: true, message: 'Defaults saved.' };

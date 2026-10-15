@@ -101,7 +101,7 @@ export default async function AgencyPortfolioPage() {
                 <li key={row.clientId} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0">
                   <ClientName row={row} />
                   <Pressure row={row} />
-                  <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3 lg:grid-cols-5">
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
                     <Field label="Budget"><SpendBadge spend={row.spend} /></Field>
                     <Field label="Alerts"><Alerts row={row} /></Field>
                     <Field label="Brief"><Brief row={row} /></Field>

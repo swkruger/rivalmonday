@@ -25,7 +25,7 @@ export function DefaultsForm({ priceCents, setupFeeCents, autoPauseAfterDays }: 
           <Input id="cb-pause" name="autoPauseAfterDays" type="number" min={1} max={90} defaultValue={autoPauseAfterDays ?? ''} />
         </div>
       </div>
-      <p className="text-sm text-muted-ink">Leave the last box blank to never pause automatically. A new price applies to new sign-ups; existing subscriptions are unchanged.</p>
+      <p className="text-sm text-muted-ink">Leave the setup fee blank to keep the current one (enter 0 for none). Leave the last box blank to never pause automatically. A new price applies to new sign-ups; existing subscriptions are unchanged.</p>
       <Button type="submit" disabled={pending} className="self-start">Save defaults</Button>
       {!state.ok && <p role="alert" className="text-sm text-ink">{state.error}</p>}
       {state.ok && state.message && <p role="status" className="text-sm text-ink">{state.message}</p>}

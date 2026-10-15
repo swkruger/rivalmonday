@@ -17,7 +17,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 <!-- coverage:start -->
 | Screen | Signed in as | Tools that must return data | Empty on purpose |
 |---|---|---|---|
-| `/agency` | admin | `get_portfolio` | — |
+| `/agency` | admin | `get_portfolio`, `list_client_billing_status` | — |
 | `/agency/ai` | admin | `list_api_tokens` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
 | `/agency/alerts` | admin | `list_alert_queue` | — |
 | `/agency/approvals` | admin | `list_brief_queue` | — |
@@ -59,8 +59,8 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/settings/ai (client owner)` | ownerLoneStar | `get_client_profile`, `list_api_tokens` | — |
 | `/c/[clientId]/settings/alerts` | admin | `get_client_profile`, `get_alert_rules` | — |
 | `/c/[clientId]/settings/delivery` | admin | `get_client_profile` | — |
-| `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters` | — |
-| `/agency/settings/billing` | admin | `get_billing_summary` | — |
+| `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters`, `list_client_billing_status` | — |
+| `/agency/settings/billing` | admin | `get_billing_summary`, `get_connect_status`, `get_client_revenue` | — |
 | `/paused` | admin | — | — |
 | `/inbox` | admin | `fn:listInbox` | — |
 | `/inbox (client owner)` | ownerLoneStar | `fn:listInbox` | — |
