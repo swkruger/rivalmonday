@@ -110,6 +110,10 @@ create_portal_session (billing.ts) | write | creates Stripe portal session
 redeem_discount_code (billing.ts) | write | stores/attaches coupon
 pause_client (client-pause.ts) | write | sets client.paused_at
 resume_client (client-pause.ts) | write | clears client.paused_at
+get_connect_status (client-billing.ts) | read | live account read only; display-only merge, no writes
+start_stripe_connect (client-billing.ts) | write | creates Stripe account link; upserts agency_connect
+disconnect_stripe (client-billing.ts) | write | disconnects agency_connect and client_billing locally
+set_client_billing_defaults (client-billing.ts) | write | creates connected product/price; updates agency_connect
 list_plans (platform-billing.ts) | read | read-only; platform operator
 list_discount_codes (platform-billing.ts) | read | read-only; platform operator
 list_invite_links (platform-billing.ts) | read | read-only; platform staff; supportMask emailLock

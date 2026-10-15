@@ -35,7 +35,7 @@ const PLATFORM_TOOLS: readonly string[] = [...platformConsoleTools, ...platformB
  * self-protection (R28: revoking tokens/grants, opting out of notifications, removing a recipient).
  */
 export const PAUSED_WRITE_ALLOW_LIST: readonly string[] = [
-  'create_checkout_session', 'create_portal_session', 'redeem_discount_code', 'pause_client',
+  'create_checkout_session', 'create_portal_session', 'redeem_discount_code', 'pause_client', 'disconnect_stripe',
   'invite_member', 'revoke_membership', 'revoke_invitation',
   'revoke_api_token', 'revoke_oauth_grant', 'set_my_notification_pref', 'deactivate_recipient',
   ...PLATFORM_TOOLS,
