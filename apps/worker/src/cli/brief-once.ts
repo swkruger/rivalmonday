@@ -8,7 +8,7 @@ try {
 
 const { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } = await import('@cs/ai');
 const { brief, briefItem, client, createDb, createDecisionSampleSink, createLedgerSink } = await import('@cs/db');
-const { createPackLoader, deliveryDateFor, generateBrief, generateStartingPoint, safeTimezone } = await import('@cs/engine');
+const { createPackLoader, deliveryDateFor, generateBrief, generateStartingPoint, resetStartingPoint, safeTimezone } = await import('@cs/engine');
 const { and, eq, inArray } = await import('drizzle-orm');
 const { parseBriefArgs } = await import('./brief-args');
 
@@ -32,6 +32,15 @@ try {
   if (args.startingPoint) {
     const [c] = await db.select({ id: client.id }).from(client).where(eq(client.id, args.client));
     if (!c) throw new Error(`client ${args.client} not found`);
+    if (args.force) {
+      // Regenerate: delete the not-yet-approved starting point (items and recommendations too); approved/sent ones are refused.
+      const reset = await resetStartingPoint(db, args.client);
+      if ('refused' in reset) {
+        console.error(reset.refused);
+        await close();
+        process.exit(1);
+      }
+    }
     // Retry a starting point that gave up: reset its failed attempts so the claim can take it again.
     await db.update(brief).set({ attempts: 0 }).where(and(eq(brief.clientId, args.client), eq(brief.kind, 'starting_point'), eq(brief.status, 'failed')));
   } else if (args.force) {

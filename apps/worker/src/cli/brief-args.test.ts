@@ -11,8 +11,11 @@ describe('parseBriefArgs', () => {
     expect(parseBriefArgs(['--client', A1, '--now', '2026-10-02T03:30:00Z', '--force'])).toEqual({ client: A1, now: new Date('2026-10-02T03:30:00Z'), force: true, startingPoint: false });
     expect(parseBriefArgs(['--client', A1, '--now', 'soon'])).toEqual({ error: expect.stringMatching(/--now/) });
   });
-  it('parses --starting-point and refuses it with --force', () => {
+  it('parses --starting-point, alone or with --force (regenerate an unapproved starting point)', () => {
     expect(parseBriefArgs(['--client', A1, '--starting-point'])).toEqual({ client: A1, force: false, startingPoint: true });
-    expect(parseBriefArgs(['--client', A1, '--starting-point', '--force'])).toEqual({ error: expect.stringMatching(/cannot be combined/) });
+    expect(parseBriefArgs(['--client', A1, '--starting-point', '--force'])).toEqual({ client: A1, force: true, startingPoint: true });
+  });
+  it('puts the usage on its own line', () => {
+    expect(parseBriefArgs([])).toEqual({ error: '--client is required\nUsage: pnpm --filter @cs/worker brief-once --client <uuid> [--now <ISO time>] [--force] [--starting-point]' });
   });
 });

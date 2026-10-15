@@ -1,9 +1,9 @@
-import { brief, capture, client, clientCompetitor, competitor, discoveryRun, evidence, observation, rankScan, vendorTask } from '@cs/db';
+import { brief, briefItem, capture, client, clientCompetitor, competitor, discoveryRun, evidence, observation, rankScan, recommendation, vendorTask } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { listStartingPointDue, startingPointReadiness } from './readiness';
+import { listStartingPointDue, resetStartingPoint, startingPointReadiness } from './readiness';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -122,5 +122,34 @@ describe('listStartingPointDue', () => {
     expect(await listStartingPointDue(dbs.service, NOW)).toEqual([IDS.clientA1]);
     await dbs.owner.update(brief).set({ attempts: 3 }).where(eq(brief.id, b!.id));
     expect(await listStartingPointDue(dbs.service, NOW)).toEqual([]);
+  });
+});
+
+describe('resetStartingPoint', () => {
+  const seedSp = async (status: string) => {
+    const [b] = await dbs.owner.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, deliveryDate: '2026-10-14', periodStart: hoursAgo(72), periodEnd: hoursAgo(20), status, kind: 'starting_point', summary: 's' }).returning();
+    const [i] = await dbs.owner.insert(briefItem).values({ briefId: b!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1, ord: 0, subject: 'self', headline: 'h', whatChanged: 'w', whyItMatters: 'y', recommendedAction: 'r', confidence: 1, effort: 'L', impact: 'M' }).returning();
+    await dbs.owner.insert(recommendation).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, title: 't', rationale: 'r', briefItemId: i!.id, effort: 'L', impact: 'M', owner: 'client', source: 'brief' });
+    return b!.id;
+  };
+  const a1Sp = () => dbs.owner.select().from(brief).where(eq(brief.clientId, IDS.clientA1));
+
+  it.each(['ready', 'failed', 'generating'])('deletes a %s starting point with its items and recommendations', async (status) => {
+    const id = await seedSp(status);
+    expect(await resetStartingPoint(dbs.service, IDS.clientA1)).toEqual({ deleted: true });
+    expect(await a1Sp()).toEqual([]);
+    expect(await dbs.owner.select().from(briefItem).where(eq(briefItem.briefId, id))).toEqual([]);
+    expect(await dbs.owner.select().from(recommendation).where(eq(recommendation.clientId, IDS.clientA1))).toEqual([]);
+  });
+
+  it.each(['approved', 'sent'])('refuses an %s starting point and leaves it alone', async (status) => {
+    await seedSp(status);
+    expect(await resetStartingPoint(dbs.service, IDS.clientA1)).toEqual({ refused: expect.stringMatching(new RegExp(`already ${status}`)) });
+    expect(await a1Sp()).toHaveLength(1);
+  });
+
+  it('nothing to delete → deleted: false; another client is untouched', async () => {
+    expect(await resetStartingPoint(dbs.service, IDS.clientA1)).toEqual({ deleted: false });
+    expect(await dbs.owner.select().from(brief).where(eq(brief.clientId, IDS.clientA2))).toHaveLength(1);
   });
 });

@@ -1,5 +1,5 @@
-import { brief, client, clientCompetitor, type Db, discoveryRun, observation, rankScan, vendorTask } from '@cs/db';
-import { and, desc, eq, ne, sql } from 'drizzle-orm';
+import { brief, briefItem, client, clientCompetitor, type Db, discoveryRun, observation, rankScan, recommendation, vendorTask } from '@cs/db';
+import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES } from './generate';
 
 /** Spec § Generation: a starting point waits for onboarding data at most this long after activation, then ships with what is there. */
@@ -70,4 +70,24 @@ export async function listStartingPointDue(db: Db, now: Date): Promise<string[]>
     if (r.ready || r.timedOut) due.push(c.id);
   }
   return due;
+}
+
+/**
+ * `brief-once --starting-point --force`: delete the client's not-yet-approved starting point (ready / failed / generating) with its
+ * items and any recommendations made from them, so it can be regenerated. An approved or sent one is refused (it reached, or is
+ * about to reach, the client). Nothing to delete is fine.
+ */
+export async function resetStartingPoint(db: Db, clientId: string): Promise<{ deleted: boolean } | { refused: string }> {
+  return db.transaction(async (tx) => {
+    const [b] = await tx.select({ id: brief.id, status: brief.status }).from(brief)
+      .where(and(eq(brief.clientId, clientId), sql`${brief.kind} = 'starting_point'`)).for('update');
+    if (!b) return { deleted: false };
+    if (b.status === 'approved' || b.status === 'sent') {
+      return { refused: `The starting point for client ${clientId} is already ${b.status}; it cannot be regenerated.` };
+    }
+    const items = tx.select({ id: briefItem.id }).from(briefItem).where(eq(briefItem.briefId, b.id));
+    await tx.delete(recommendation).where(inArray(recommendation.briefItemId, items));
+    await tx.delete(brief).where(eq(brief.id, b.id)); // brief_item cascades
+    return { deleted: true };
+  });
 }
