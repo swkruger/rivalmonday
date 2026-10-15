@@ -1,6 +1,6 @@
 import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
 import {
-  capturePage, claimDuePages, claimDueSources, collectGbpProfile, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
+  capturePage, claimDuePages, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
   createDataForSeo, type DataForSeoClient, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
   ensureSelfCompetitors, failProspectReport, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   runProspectSnapshot, scanRankings, type SourceKind, suggestCompetitors,
@@ -60,7 +60,8 @@ export interface WorkerDeps {
    * reviewsSkipReason) — they are marked 'skipped_no_salt'. Returns how many sources were released for retry, for logging.
    */
   postBatchTasks(items: { competitorId: string; source: 'reviews' | 'jobs' }[]): Promise<{ failed: number }>;
-  pollVendorTasks(): Promise<{
+  /** `onSuggestionReviews`: called with the run id after a discovery review sample landed (Phase 12a). */
+  pollVendorTasks(opts?: { onSuggestionReviews?: (runId: string) => Promise<void> }): Promise<{
     reviews: { collected: number; failed: number; reviews: number } | { skipped: string };
     jobs: { collected: number; failed: number; postings: number };
   }>;
@@ -69,6 +70,16 @@ export interface WorkerDeps {
   /** 5b-2 decision 10: the one-off prospect snapshot (vendor pulls + 3×3 rank scan + deterministic report). Never throws. */
   runProspectSnapshot(clientId: string, reportId: string): Promise<{ status: 'ready' | 'failed' }>;
   suggestCompetitors(clientId: string): Promise<{ suggested: number; searches: number }>;
+  /** Phase 12a: one competitor-discovery run (paid vendor calls; the job checks vendorsConfigured first). */
+  runRivalSearch(runId: string): Promise<{ status: 'done' | 'failed' | 'finalising' }>;
+  /** Fails a still-live discovery run with `error` (e.g. vendors not configured). */
+  failRivalRun(runId: string, error: string): Promise<void>;
+  finaliseRivalSearch(runId: string, opts: { force: boolean }): Promise<'done' | 'waiting'>;
+  sweepRivalRuns(now: Date): Promise<{ stale: number; finalised: number }>;
+  /** Active clients only (prospects get no recurring work). */
+  listSignalClients(): Promise<string[]>;
+  /** Rates the client's tracked competitors into competitor_signal; returns how many were rated. */
+  computeTrackedSignals(clientId: string, now: Date): Promise<number>;
   /** True once APP_URL and LINK_SIGNING_SECRET (at least 32 characters) are set — gates every delivery job. */
   deliveryConfigured(): boolean;
   sweepAlerts(now: Date): Promise<SweepResult>;
@@ -178,6 +189,13 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       }));
 
   const vendorsConfigured = () => Boolean(env.DATAFORSEO_LOGIN && env.DATAFORSEO_PASSWORD);
+  // Lazy vendor clients: finalise/sweep never call a vendor, so they work without DataForSEO credentials.
+  const rivalDeps = (): RivalSearchDeps => ({
+    db: getDb(),
+    get dfs() { return getDfs(); },
+    meta: { apiKey: env.SCRAPECREATORS_API_KEY || undefined, apifyToken: env.APIFY_TOKEN || undefined, ledger: createLedgerSink(getDb()) },
+    packs,
+  });
   const runSource: WorkerDeps['runSource'] = async (competitorId, source) => {
     const [c] = await loadCompetitors([competitorId]);
     if (!c) {
@@ -294,7 +312,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       }
       return { failed };
     },
-    async pollVendorTasks() {
+    async pollVendorTasks(opts = {}) {
       const base = { db: getDb(), store: getStore(), dfs: getDfs() };
       const skipReason = reviewsSkipReason(env);
       let reviews: { collected: number; failed: number; reviews: number } | { skipped: string };
@@ -305,7 +323,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
         }
         reviews = { skipped: skipReason };
       } else {
-        reviews = await collectReadyReviews({ ...base, salt: requireSalt(env) });
+        reviews = await collectReadyReviews({ ...base, salt: requireSalt(env), onSuggestionReviews: opts.onSuggestionReviews });
       }
       const jobs = await collectReadyJobs(base);
       return { reviews, jobs };
@@ -323,6 +341,12 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       );
     },
     suggestCompetitors: (clientId) => suggestCompetitors({ db: getDb(), dfs: getDfs() }, clientId),
+    runRivalSearch: (runId) => runRivalSearch(rivalDeps(), runId),
+    failRivalRun: (runId, error) => failRivalRun(getDb(), runId, error),
+    finaliseRivalSearch: (runId, opts) => finaliseRivalSearch(rivalDeps(), runId, opts),
+    sweepRivalRuns: (now) => sweepRivalRuns(rivalDeps(), now),
+    listSignalClients: () => listSignalClients(getDb()),
+    computeTrackedSignals: async (clientId, now) => (await computeTrackedSignals({ db: getDb(), packs }, clientId, now)).length,
     deliveryConfigured: () => delivery !== null,
     sweepAlerts: (now) => sweepAlerts(getDb(), now),
     processAlert: async (alertId, now) => processAlert({ db: getDb(), ai: await getAi(), packs, delivery: getDelivery() }, alertId, now),

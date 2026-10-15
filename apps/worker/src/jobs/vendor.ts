@@ -13,7 +13,12 @@ export const SINGLE_SHOT_QUEUE = { retryLimit: 0, expireInSeconds: 3 * 60 * 60 }
 
 export function createVendorJobs(
   deps: WorkerDeps,
-  queue: { enqueueCollect(p: { competitorId: string; source: 'gbp' | 'ads_google' | 'ads_meta' }): Promise<void>; enqueueRankScan(clientId: string): Promise<void> },
+  queue: {
+    enqueueCollect(p: { competitorId: string; source: 'gbp' | 'ads_google' | 'ads_meta' }): Promise<void>;
+    enqueueRankScan(clientId: string): Promise<void>;
+    /** Phase 12a: a discovery review sample landed for this run → non-forced `rival-finalise`. */
+    enqueueRivalFinalise?(runId: string): Promise<void>;
+  },
 ) {
   let warnedScheduleUnconfigured = false;
   let warnedPollUnconfigured = false;
@@ -68,7 +73,7 @@ export function createVendorJobs(
         }
         return;
       }
-      const r = await deps.pollVendorTasks();
+      const r = await deps.pollVendorTasks({ onSuggestionReviews: queue.enqueueRivalFinalise });
       const reviewsCollected = 'collected' in r.reviews ? r.reviews.collected : 0;
       if (reviewsCollected + r.jobs.collected > 0) console.log(`[vendor-poll] ${JSON.stringify(r)}`);
     },

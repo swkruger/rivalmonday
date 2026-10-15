@@ -6,10 +6,14 @@ const ts = (name: string) => timestamp(name, { withTimezone: true });
 
 export type DiscoveryRunStatus = 'queued' | 'searching' | 'checking' | 'finalising' | 'done' | 'failed';
 export type Tier = 'top' | 'watch' | 'minor';
-/** `discovery_run.progress`; hiddenList holds the first 50 hidden candidates (reason = HiddenReason code). */
+/**
+ * `discovery_run.progress`; hiddenList holds the first 50 hidden candidates (reason = HiddenReason code);
+ * shortlistIds are the suggestion ids stage 2 checked (finalise recomputes exactly these).
+ */
 export type DiscoveryRunProgress = {
   searchesDone?: number; searchesTotal?: number; checksDone?: number; checksTotal?: number;
   hiddenList?: { name: string; reason: string }[];
+  shortlistIds?: string[];
 };
 
 /** One competitor-discovery run for a client (Phase 12a). Tenant-readable, service-role written. */

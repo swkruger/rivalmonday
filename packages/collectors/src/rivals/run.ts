@@ -1,7 +1,7 @@
 import type { CallScope } from '@cs/core';
-import { client, competitor, competitorSuggestion, type Db, discoveryRun, type DiscoveryRunRow, observation } from '@cs/db';
+import { client, competitor, competitorSuggestion, type Db, discoveryRun, type DiscoveryRunProgress, type DiscoveryRunRow, observation } from '@cs/db';
 import type { DiscoveryConfig, VerticalPack } from '@cs/verticals';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import { normalizeGoogleAd } from '../ads/google';
 import { employerMatches } from '../jobs/collect';
 import { gridPoints } from '../local/grid';
@@ -15,7 +15,7 @@ import { type Candidate, filterCandidates, type HiddenReason, type KeptCandidate
 import { matchAdAccount } from './match';
 import { normaliseName } from './names';
 import { patchSuggestionSignals, postReviewSamples } from './review-sample';
-import { activityScore, overlapScores, tierFor } from './score';
+import { activityScore, median, overlapScores, tierFor } from './score';
 import { type AdMatch, Signals } from './signals';
 
 /** Loads a vertical pack by id (`loadVerticalPack` in production). */
@@ -23,7 +23,7 @@ export type PackLoader = (verticalId: string) => Promise<VerticalPack>;
 export type RivalSearchDeps = { db: Db; dfs: DataForSeoClient; meta: MetaSearchDeps; packs: PackLoader; now?: () => Date };
 export { postReviewSamples };
 
-type Progress = { searchesDone: number; searchesTotal: number; checksDone: number; checksTotal: number; hiddenList?: { name: string; reason: HiddenReason }[] };
+type Progress = DiscoveryRunProgress & { searchesDone: number; searchesTotal: number; checksDone: number; checksTotal: number; hiddenList?: { name: string; reason: HiddenReason }[] };
 
 const MAX_KEYWORDS = 5;
 const MAPS_DEPTH = 20;
@@ -34,8 +34,11 @@ const DAY_MS = 86_400_000;
 const NEW_AD_DAYS = 30;
 const HIDDEN_REASONS: HiddenReason[] = ['wrong_category', 'outside_area', 'self', 'closed', 'thin'];
 const LIVE = ['queued', 'searching', 'checking', 'finalising'] as const;
+/** Sweep thresholds: a run still queued/searching/checking after 2 h is dead; one finalising for 1 h is force-finalised. */
+const STALE_LIVE_MS = 2 * 60 * 60_000;
+const STALE_FINALISING_MS = 60 * 60_000;
 const NULL_REVIEWS = { reviews30d: null, reviews90d: null, replyRate: null };
-/** Tie-break for the shortlist order; matches SQL `COLLATE "C"` so finalise re-derives the same shortlist. */
+/** Deterministic tie-break for the shortlist order (byte order, like SQL `COLLATE "C"`). */
 const byteOrder = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /** Client keywords first, then pack seeds; case-insensitive dedupe; at most 5. */
@@ -61,7 +64,8 @@ export function planSearch(keywords: string[], cfg: DiscoveryConfig): { keywords
   return { keywords: kws, gridSize };
 }
 
-async function finishFailed(db: Db, runId: string, error: string, extra: Partial<DiscoveryRunRow> = {}): Promise<void> {
+/** Fails a run that is still live (a finished run is left alone). */
+export async function finishFailed(db: Db, runId: string, error: string, extra: Partial<DiscoveryRunRow> = {}): Promise<void> {
   await db.update(discoveryRun).set({ ...extra, status: 'failed', error, finishedAt: sql`now()` })
     .where(and(eq(discoveryRun.id, runId), inArray(discoveryRun.status, [...LIVE])));
 }
@@ -102,6 +106,11 @@ async function execute(deps: RivalSearchDeps, run: DiscoveryRunRow): Promise<{ s
   }
   const cfg = (await deps.packs(c.verticalId)).discovery;
   const { keywords, gridSize } = planSearch(planKeywords(c.keywords, cfg.seed_keywords), cfg);
+  if (estimateCostUsd({ searches: keywords.length * gridSize * gridSize, shortlist: cfg.shortlist }) > cfg.cost_cap_usd) {
+    // Even one keyword on the fallback grid would overspend: fail before any vendor call.
+    await finishFailed(db, run.id, 'cost_cap', { keywords, gridSize });
+    return { status: 'failed' };
+  }
   const points = gridPoints(area.center, area.radiusKm, gridSize);
   const scope: CallScope = { agencyId: run.agencyId, clientId: run.clientId };
   const progress: Progress = { searchesDone: 0, searchesTotal: keywords.length * points.length, checksDone: 0, checksTotal: 0 };
@@ -149,12 +158,17 @@ async function execute(deps: RivalSearchDeps, run: DiscoveryRunRow): Promise<{ s
   const overlap = overlapScores(kept, succeeded, area.radiusKm);
   const chains = detectChains(cands.map((x) => ({ name: x.name, placeId: x.placeId })));
   const ranked = [...kept].sort((a, b) => (overlap.get(b.placeId) ?? 0) - (overlap.get(a.placeId) ?? 0) || byteOrder(a.placeId, b.placeId));
-  let n = Math.min(cfg.shortlist, ranked.length);
+  // Dismissed suggestions are still refreshed below but never cost stage-2 checks.
+  const dismissed = new Set((await db.select({ placeId: competitorSuggestion.placeId }).from(competitorSuggestion)
+    .where(and(eq(competitorSuggestion.clientId, run.clientId), eq(competitorSuggestion.status, 'dismissed')))).map((r) => r.placeId));
+  const eligible = ranked.filter((k) => !dismissed.has(k.placeId));
+  let n = Math.min(cfg.shortlist, eligible.length);
   while (n > 0 && spent + estimateCostUsd({ searches: 0, shortlist: n }) > cfg.cost_cap_usd) n--;
-  const shortlist = ranked.slice(0, n);
+  const shortlist = eligible.slice(0, n);
   progress.checksTotal = n;
 
   const ids = await upsertSuggestions(db, run, ranked, { overlap, chains, shortlisted: new Set(shortlist.map((s) => s.placeId)), searches: succeeded });
+  progress.shortlistIds = shortlist.map((s) => ids.get(s.placeId)!);
   await setRun({ status: 'checking', kept: kept.length, hidden: hiddenCounts, progress, costUsd: spent });
 
   // Stage 2: signal checks on the shortlist.
@@ -292,28 +306,36 @@ async function metaCheck(meta: MetaSearchDeps, c: MatchCtx, scope: CallScope) {
   return { cost: COST.meta, matches, signals: { metaPage: page, metaAdsActive: page === 'matched' ? strongAds : page === 'none' ? 0 : null } };
 }
 
-const median = (xs: number[]): number => {
-  if (xs.length === 0) return 0;
-  const s = [...xs].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
-};
-
 /**
- * Recomputes Activity and Tier for the run's shortlist (the first `checksTotal` suggestions by overlap, the
- * order stage 2 used) and finishes the run. Waits while a review sample is still out, unless `force`
- * (30 min passed), which sets the missing review signals null. A run that is already over returns 'done'.
+ * Recomputes Activity and Tier for the run's shortlist (`progress.shortlistIds`, the suggestions stage 2
+ * checked) and finishes the run. Waits while a review sample is still out, unless `force` (30 min passed),
+ * which sets the missing review signals null. A failed run returns 'done' untouched; a `done` run is
+ * recomputed, so a late same-run review sample still updates its suggestion's Activity/Tier. A forced
+ * finalise that throws fails the run (`internal_error`) so it can't stay live.
  */
 export async function finaliseRivalSearch(deps: RivalSearchDeps, runId: string, opts: { force: boolean }): Promise<'done' | 'waiting'> {
-  const { db } = deps;
-  const [run] = await db.select().from(discoveryRun).where(eq(discoveryRun.id, runId)).limit(1);
+  const [run] = await deps.db.select().from(discoveryRun).where(eq(discoveryRun.id, runId)).limit(1);
   if (!run) throw new Error(`discovery run ${runId} not found`);
-  if (run.status === 'done' || run.status === 'failed') return 'done';
+  if (run.status === 'failed') return 'done';
+  if (run.status === 'done') {
+    await recomputeShortlist(deps, run, { force: true });
+    return 'done';
+  }
   if (run.status !== 'finalising') return 'waiting';
-  const rows = await db.select({ id: competitorSuggestion.id, overlap: competitorSuggestion.overlap, signals: competitorSuggestion.signals })
-    .from(competitorSuggestion).where(eq(competitorSuggestion.runId, run.id))
-    .orderBy(desc(competitorSuggestion.overlap), sql`${competitorSuggestion.placeId} COLLATE "C"`);
-  const short = rows.slice(0, Number(run.progress.checksTotal ?? 0));
+  try {
+    return await recomputeShortlist(deps, run, opts);
+  } catch (err) {
+    if (opts.force) await finishFailed(deps.db, run.id, 'internal_error');
+    throw err;
+  }
+}
+
+async function recomputeShortlist(deps: RivalSearchDeps, run: DiscoveryRunRow, opts: { force: boolean }): Promise<'done' | 'waiting'> {
+  const { db } = deps;
+  const ids = run.progress.shortlistIds ?? [];
+  // A suggestion a newer run has since claimed (run_id moved on) belongs to that run, not this one.
+  const short = ids.length === 0 ? [] : await db.select({ id: competitorSuggestion.id, overlap: competitorSuggestion.overlap, signals: competitorSuggestion.signals })
+    .from(competitorSuggestion).where(and(inArray(competitorSuggestion.id, ids), eq(competitorSuggestion.runId, run.id)));
   if (!opts.force && short.some((r) => r.signals.reviews30d === undefined)) return 'waiting';
   const [c] = await db.select({ verticalId: client.verticalId }).from(client).where(eq(client.id, run.clientId)).limit(1);
   if (!c) throw new Error(`client ${run.clientId} not found`);
@@ -328,4 +350,25 @@ export async function finaliseRivalSearch(deps: RivalSearchDeps, runId: string, 
     await tx.update(discoveryRun).set({ status: 'done', finishedAt: sql`now()` }).where(and(eq(discoveryRun.id, run.id), eq(discoveryRun.status, 'finalising')));
   });
   return 'done';
+}
+
+/**
+ * Cron backstop (`rival-sweep`): a run still queued/searching/checking 2 h after it started is failed
+ * `stale` (its job died); one still finalising after 1 h is force-finalised. One failure never stops the rest.
+ */
+export async function sweepRivalRuns(deps: RivalSearchDeps, now: Date): Promise<{ stale: number; finalised: number }> {
+  const stale = await deps.db.update(discoveryRun).set({ status: 'failed', error: 'stale', finishedAt: sql`now()` })
+    .where(and(inArray(discoveryRun.status, ['queued', 'searching', 'checking']), lt(discoveryRun.startedAt, new Date(now.getTime() - STALE_LIVE_MS))))
+    .returning({ id: discoveryRun.id });
+  const due = await deps.db.select({ id: discoveryRun.id }).from(discoveryRun)
+    .where(and(eq(discoveryRun.status, 'finalising'), lt(discoveryRun.startedAt, new Date(now.getTime() - STALE_FINALISING_MS))));
+  let finalised = 0;
+  for (const r of due) {
+    try {
+      if ((await finaliseRivalSearch(deps, r.id, { force: true })) === 'done') finalised++;
+    } catch (err) {
+      console.warn(`[discovery] sweep: force finalise of run ${r.id} failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  return { stale: stale.length, finalised };
 }

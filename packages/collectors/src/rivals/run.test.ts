@@ -9,7 +9,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { collectReadyReviews } from '../reviews/collect';
 import { VendorError } from '../vendors/errors';
-import { finaliseRivalSearch, type RivalSearchDeps, runRivalSearch } from './run';
+import { finaliseRivalSearch, type RivalSearchDeps, runRivalSearch, sweepRivalRuns } from './run';
 import { area, pack as basePack } from './test/helpers';
 
 const dbs = openTestDbs();
@@ -232,5 +232,116 @@ describe('runRivalSearch', () => {
       expect(s.signals).toMatchObject({ reviews30d: null, reviews90d: null, replyRate: null });
       expect(s.tier).not.toBeNull();
     }
+  });
+
+  it('dismissed suggestion is not shortlisted', async () => {
+    await dbs.owner.insert(competitorSuggestion).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, name: 'Granbury Park Dental', placeId: 'p-park', appearances: 1, overlapScore: 0.1, status: 'dismissed' });
+    const v = vendors();
+    const runId = await newRun();
+    await runRivalSearch(deps(v), runId);
+    const run = await runRow(runId);
+    expect(run.progress).toMatchObject({ checksTotal: 3 });
+    const park = (await suggestions()).get('p-park')!;
+    expect(run.progress.shortlistIds).not.toContain(park.id);
+    expect(park.signals).toMatchObject({ reviews30d: null, googleAdsActive: null });
+    expect(v.dfs.calls.some((c) => c.path === '/serp/google/ads_advertisers/live/advanced' && c.body?.[0]?.keyword === 'Granbury Park Dental')).toBe(false);
+  });
+
+  it('stores the shortlist ids in progress and finalise uses them', async () => {
+    const v = vendors();
+    const runId = await newRun();
+    await runRivalSearch(deps(v), runId);
+    const s = await suggestions();
+    const run = await runRow(runId);
+    expect(run.progress.shortlistIds).toEqual(['p-park', 'p-arch', 'p-ortho', 'p-minor'].map((p) => s.get(p)!.id));
+    // Finalise recomputes only the stored shortlist, never a re-derived one.
+    await dbs.service.update(discoveryRun).set({ progress: { ...run.progress, shortlistIds: [s.get('p-park')!.id] } }).where(eq(discoveryRun.id, runId));
+    expect(await finaliseRivalSearch(deps(v), runId, { force: true })).toBe('done');
+    const after = await suggestions();
+    expect(after.get('p-park')!.activity).not.toBeNull();
+    expect(after.get('p-arch')).toMatchObject({ activity: null, tier: 'minor' });
+  });
+
+  it('still over the cost cap after shrinking → failed cost_cap, no vendor calls', async () => {
+    const v = vendors();
+    const runId = await newRun();
+    expect(await runRivalSearch(deps(v, { ...basePack, cost_cap_usd: 0.01 }), runId)).toEqual({ status: 'failed' });
+    expect(await runRow(runId)).toMatchObject({ status: 'failed', error: 'cost_cap' });
+    expect(v.dfs.calls).toHaveLength(0);
+    expect(v.records).toHaveLength(0);
+  });
+
+  it('force finalise that throws marks the run failed internal_error', async () => {
+    const v = vendors();
+    const runId = await newRun();
+    await runRivalSearch(deps(v), runId);
+    const broken = { ...deps(v), packs: async () => { throw new Error('pack gone'); } };
+    await expect(finaliseRivalSearch(broken, runId, { force: true })).rejects.toThrow('pack gone');
+    expect(await runRow(runId)).toMatchObject({ status: 'failed', error: 'internal_error' });
+  });
+
+  async function pollSample(v: ReturnType<typeof vendors>, suggestionId: string, tag: string, onRun: (id: string) => Promise<void>) {
+    const [t] = await dbs.service.select().from(vendorTask).where(eq(vendorTask.suggestionId, suggestionId));
+    const items = [{ review_id: 'r1', timestamp: daysAgo(3) }, { review_id: 'r2', timestamp: daysAgo(10), owner_answer: 'Thanks' }];
+    const poll = fakeDfs((_m, path) => (path.endsWith('/tasks_ready')
+      ? [dfsTask([{ id: t!.externalTaskId }])]
+      : [dfsTask([{ items }], { id: t!.externalTaskId, tag })]));
+    await collectReadyReviews({ db: dbs.service, store: createMemoryStore(), dfs: poll, salt: 's', now: () => NOW, onSuggestionReviews: onRun });
+    return (await dbs.service.select().from(vendorTask).where(eq(vendorTask.id, t!.id)))[0]!;
+  }
+
+  it('late same-run sample after done re-computes Activity and Tier', async () => {
+    const v = vendors();
+    const runId = await newRun();
+    await runRivalSearch(deps(v), runId);
+    await finaliseRivalSearch(deps(v), runId, { force: true });
+    const before = (await suggestions()).get('p-park')!;
+    expect(before.activity).toBe(1);
+    const task = await pollSample(v, before.id, `discovery:${runId}:p-park`, async (id) => { await finaliseRivalSearch(deps(v), id, { force: false }); });
+    expect(task.status).toBe('done');
+    const after = (await suggestions()).get('p-park')!;
+    expect(after.signals).toMatchObject({ reviews30d: 2, reviews90d: 2, replyRate: 0.5 });
+    expect(after.activity).toBeCloseTo(0.85, 5);
+    expect((await runRow(runId)).status).toBe('done');
+  });
+
+  it('a sample whose tag names an older run leaves signals unchanged and the task done', async () => {
+    const v = vendors();
+    const runId = await newRun();
+    await runRivalSearch(deps(v), runId);
+    await finaliseRivalSearch(deps(v), runId, { force: true });
+    const before = (await suggestions()).get('p-park')!;
+    const onRun = vi.fn(async () => {});
+    const task = await pollSample(v, before.id, `discovery:${randomUUID()}:p-park`, onRun);
+    expect(task.status).toBe('done');
+    expect(onRun).not.toHaveBeenCalled();
+    const after = (await suggestions()).get('p-park')!;
+    expect(after.signals).toEqual(before.signals);
+    expect(after.activity).toBe(before.activity);
+  });
+});
+
+describe('sweepRivalRuns', () => {
+  const ago = (min: number) => new Date(NOW.getTime() - min * 60_000);
+  it('fails stale live runs and force-finalises old finalising runs', async () => {
+    const v = vendors();
+    const fin = await newRun();
+    await runRivalSearch(deps(v), fin);
+    await dbs.service.update(discoveryRun).set({ startedAt: ago(70) }).where(eq(discoveryRun.id, fin));
+    const [stale] = await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'auto', status: 'searching', startedAt: ago(130) }).returning();
+    const [fresh] = await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyB, clientId: IDS.clientB1, trigger: 'auto', status: 'checking', startedAt: ago(30) }).returning();
+    expect(await sweepRivalRuns(deps(v), NOW)).toEqual({ stale: 1, finalised: 1 });
+    expect(await runRow(stale!.id)).toMatchObject({ status: 'failed', error: 'stale' });
+    expect(await runRow(fresh!.id)).toMatchObject({ status: 'checking', error: null });
+    expect(await runRow(fin)).toMatchObject({ status: 'done' });
+  });
+
+  it('leaves a finalising run younger than an hour alone', async () => {
+    const v = vendors();
+    const fin = await newRun();
+    await runRivalSearch(deps(v), fin);
+    await dbs.service.update(discoveryRun).set({ startedAt: ago(50) }).where(eq(discoveryRun.id, fin));
+    expect(await sweepRivalRuns(deps(v), NOW)).toEqual({ stale: 0, finalised: 0 });
+    expect((await runRow(fin)).status).toBe('finalising');
   });
 });

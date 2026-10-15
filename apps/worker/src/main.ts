@@ -20,6 +20,7 @@ import { createPlatformCostsJobs } from './jobs/platform-costs';
 import { createPlatformStatsJobs } from './jobs/platform-stats';
 import { createProspectJobs } from './jobs/prospects';
 import { createReviewJobs } from './jobs/reviews';
+import { createRivalJobs } from './jobs/rivals';
 import { createVendorJobs } from './jobs/vendor';
 import { createWebJobs } from './jobs/web';
 
@@ -68,6 +69,15 @@ const vendor = createVendorJobs(deps, {
   enqueueRankScan: async (clientId) => {
     await enqueue(boss, vendor.rankScan, { clientId });
   },
+  enqueueRivalFinalise: async (runId) => {
+    await enqueue(boss, rivals.finalise, { runId, force: false }, { singletonKey: `rival-finalise:${runId}` });
+  },
+});
+const rivals = createRivalJobs(deps, {
+  // The forced finalise has its own key: a short queue keeps one *queued* job per key, and this one waits 30 min.
+  enqueueFinalise: async (runId, { force, startAfter }) => {
+    await enqueue(boss, rivals.finalise, { runId, force }, { singletonKey: `rival-finalise${force ? '-force' : ''}:${runId}`, startAfter });
+  },
 });
 const moves = createMovesJobs(deps, {
   enqueueMovesClient: async (clientId) => {
@@ -106,6 +116,7 @@ const delivery = createDeliveryJobs(deps, {
 });
 await registerJobs(boss, [
   heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, vendor.suggest, prospects.snapshot,
+  rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly,
   engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.price, reviews.nightly, moves.nightly, moves.client,
   modelOps.batchPoll, platformStats.daily, platformCosts.snapshot, briefs.schedule, briefs.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
   delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,

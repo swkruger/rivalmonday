@@ -25,6 +25,8 @@ export * from './rankings/scan';
 export * from './reviews/collect';
 export * from './reviews/post';
 export * from './reviews/upsert';
+export * from './rivals';
+export * from './signals/tracked';
 export * from './schedule/due-pages';
 export * from './sources/due';
 export * from './sources/ensure';

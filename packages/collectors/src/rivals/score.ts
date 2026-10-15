@@ -3,7 +3,9 @@ import type { DiscoveryConfig } from '@cs/verticals';
 import type { KeptCandidate } from './filters';
 import type { Signals } from './signals';
 
-const w = (r: number) => 1 / (1 + (r - 1) / 3);
+/** Rank weight: rank 1 → 1, rank 4 → 0.5. */
+export const rankWeight = (r: number) => 1 / (1 + (r - 1) / 3);
+const w = rankWeight;
 
 /** Overlap per placeId: presence normalised by the run's max presence, x category x distance factor. */
 export function overlapScores(kept: KeptCandidate[], searches: number, radiusKm: number): Map<string, number> {
@@ -39,4 +41,12 @@ export function tierFor(overlap: number, activity: number | null, t: DiscoveryCo
   if (activity != null && overlap >= t.top.overlap && activity >= t.top.activity) return 'top';
   if (overlap >= t.watch.overlap || (activity != null && activity >= t.watch.activity)) return 'watch';
   return 'minor';
+}
+
+/** Median of the known values; 0 when there are none (the Activity review term then uses its floor of 3). */
+export function median(xs: number[]): number {
+  if (xs.length === 0) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
 }

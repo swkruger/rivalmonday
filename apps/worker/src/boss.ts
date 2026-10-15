@@ -29,7 +29,8 @@ export async function registerJobs(
   }
 }
 
-export async function enqueue<T>(boss: PgBoss, job: JobDefinition<T>, data: T, opts: { singletonKey?: string } = {}): Promise<string | null> {
+/** `startAfter`: seconds from now (or an ISO string / Date) before the job becomes available. */
+export async function enqueue<T>(boss: PgBoss, job: JobDefinition<T>, data: T, opts: { singletonKey?: string; startAfter?: number | string | Date } = {}): Promise<string | null> {
   const payload = job.schema.parse(data);
   return boss.send(job.name, payload as object, opts);
 }

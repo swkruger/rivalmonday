@@ -92,4 +92,11 @@ describe('queue dedupe (Phase 3b)', () => {
     expect(send).toHaveBeenCalledWith('test-echo', { message: 'k' }, { singletonKey: 'abc' });
     send.mockRestore();
   });
+
+  it('forwards startAfter when enqueueing (delayed jobs)', async () => {
+    const id = (await enqueue(boss, shortJob, { id: 'later' }, { singletonKey: 'delayed', startAfter: 1800 })) as string;
+    const job = await boss.getJobById(shortJob.name, id);
+    expect(job!.startAfter.getTime() - Date.now()).toBeGreaterThan(1700_000);
+    await boss.deleteJob(shortJob.name, id);
+  });
 });
