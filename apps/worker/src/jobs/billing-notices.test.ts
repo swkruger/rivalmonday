@@ -38,6 +38,13 @@ beforeEach(async () => {
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
+it('leaves client-audience notices (9b) untouched: they are delivered by their own job, never skipped here', async () => {
+  const [n] = await dbs.owner.insert(billingNotice).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, audience: 'client', kind: 'client-payment-link', params: { checkoutUrl: 'https://x' }, dedupeKey: 'client-link:1' }).returning({ id: billingNotice.id });
+  await run();
+  expect(await rowOf(n!.id)).toMatchObject({ sentAt: null, attempts: 0 });
+  expect(sent).toEqual([]);
+});
+
 describe('billing-notices', () => {
   it('declares name and 5-minute cron', () => {
     expect(createBillingNoticeJobs(deps, { envName: 'dev' }).notices).toMatchObject({ name: 'billing-notices', cron: '*/5 * * * *' });

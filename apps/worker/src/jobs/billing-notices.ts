@@ -40,7 +40,7 @@ export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJob
       const pending = await db
         .select({ id: billingNotice.id })
         .from(billingNotice)
-        .where(and(isNull(billingNotice.sentAt), lt(billingNotice.attempts, BILLING_NOTICE_MAX_ATTEMPTS)))
+        .where(and(eq(billingNotice.audience, 'agency'), isNull(billingNotice.sentAt), lt(billingNotice.attempts, BILLING_NOTICE_MAX_ATTEMPTS)))
         .orderBy(asc(billingNotice.createdAt))
         .limit(BATCH);
       const out = { sent: 0, skipped: 0, failed: 0, locked: 0 };
@@ -51,7 +51,7 @@ export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJob
             const [row] = await tx
               .select()
               .from(billingNotice)
-              .where(and(eq(billingNotice.id, id), isNull(billingNotice.sentAt), lt(billingNotice.attempts, BILLING_NOTICE_MAX_ATTEMPTS)))
+              .where(and(eq(billingNotice.id, id), eq(billingNotice.audience, 'agency'), isNull(billingNotice.sentAt), lt(billingNotice.attempts, BILLING_NOTICE_MAX_ATTEMPTS)))
               .for('update', { skipLocked: true });
             if (!row) {
               out.locked++;
