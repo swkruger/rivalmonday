@@ -306,7 +306,7 @@ All results include `evidence_ids` and dashboard deep links; list tools paginate
    - Deterministic: quoted numbers/prices present in cited evidence text; dates consistent with capture times; geographic/targeting claims require geographic evidence; competitor names match monitored entities.
    - Jev Noul support check per sentence.
    - Unsupported sentences dropped; item dropped if its headline fails.
-5. **Quiet week:** if nothing ≥ 40, send "No significant competitor moves this week" plus a trend snapshot. Never pad.
+5. **Quiet week:** if nothing ≥ 40, send "No significant competitor moves this week" plus a trend snapshot and the where-you-stand scorecard (deltas since the starting point). Never pad.
 6. **Approval:** AM queue Friday; edits stored as feedback; optional per-client auto-send Monday 07:00 local if untouched.
 
 ### 9.2 Delivery

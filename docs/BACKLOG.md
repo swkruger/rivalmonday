@@ -54,6 +54,9 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Exercise `/link-other-account` live (never run live) — *from 5a*
 - [ ] Review/rename/remove the `CS Dev Verification Agency`/`Client` (`aaf5e009-…`/`25f99947-…`) before real onboarding — *from HANDOVER §5 item 5*
 
+## Phase 9 follow-ups
+- [ ] Phase 9 merge → apply `agencyServiceable` to rival-search, signals-weekly, the self-competitor sweep (`ensureSelfCompetitors`) and `listStartingPointDue` — *from phase-12*
+
 ## Phase 9b follow-ups
 - [ ] Review an annual billing option for agency → client subscriptions (9b ships monthly only) — *from 9b brainstorm 2026-10-12*
 
@@ -65,7 +68,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ### Workflow & behaviour
 - [ ] Let agencies add their own verticals and services (feature-sized) — *from phase5-polish*
-- [ ] Franchise brands: choose the local franchisee's ad accounts, not the brand's; jobs too (Aire Serv's 2026-10-14 postings are brand-wide "United States") — *from phase5-polish*
+- [ ] Franchise brands: jobs postings are brand-wide (Aire Serv's 2026-10-14 postings are "United States"), not the local franchisee's — *from phase5-polish*
 - [ ] A removed competitor's pending alerts and brief items are still approvable — *from 5b-1 final review Minor 5*
 - [ ] Trend table shows "— → —" for a business with no rating; show a single "—" (owner undecided) — *from 5b-1 owner verification*
 - [ ] Webhook/notification toggle actions (`agency/webhooks/actions.ts`, `settings/notifications/actions.ts`) ignore the `runTool` result — surface the error like `AutoSendSwitch` — *from 5b-2 Minor 4*
@@ -73,6 +76,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Playbook titles aren't checked for placeholders (`packages/tools/src/tools/playbooks.ts`); refuse `{{` in titles — *from 5b-2 Minor 6*
 - [ ] `SignOutButton` clears guest cookies only after `authClient.signOut()` succeeds — a failed sign-out can leave a stale guest session — *from 5a fix-wave re-review*
 - [ ] `/go` skips client-facing status filters (a draft brief's webhook link 302s then 404s) — *from 5a T15*
+- [ ] Starting-point copy: approval message "Approved — sent to the client." is wrong when delivery is unconfigured (show by status); "In progress" label while waiting for the agency to track a rival; deleted-brief notice link 404s after `--force` — *from phase-12*
 
 ### Evidence, timeline & profile
 - [ ] Evidence: chip ordering can make an `html`/`vendor_json` piece "Evidence 1"; `EvidenceImage` `onError` can miss a pre-hydration 404 (add a mount-time `complete`/`naturalWidth` check) — *from 5c-1 final review*
@@ -130,6 +134,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] On deploy at `rm.nofingers.ai`, set `APP_URL=https://rm.nofingers.ai` (deep links; still `http://localhost:3000`) — *from HANDOVER §7*
 - [ ] Review a few rendered template alerts before real clients (fallback reads the raw event summary, unedited for tone) — *from HANDOVER §7, 4b*
 - [ ] Label `verifier_decisions` samples (5 unlabelled in `cs_dev` as of 2026-10-04; `decisions export --task verifier_decisions`) before changing τ or routing — *from HANDOVER §5 item 3/§7*
+- [ ] Review the undecided Phase 12 copy: AM notice line "It goes to the client as soon as you approve it."; starting-point summary "Where {client} stands against the {n} rival(s) we now watch. Weekly briefs from here show what changes."; email heading "Your starting point"; approve text "Approved — sent to the client." / button "Approve and send" / heading "{client} · Starting point"; reply-rate fact "You replied to {you}% of reviews; the rival median is {median}%."; tile deltas "▲/▼ {n} pts since your starting point", "No change since your starting point"; "First moves still open" (up to 3 playbook titles); failed-run AM notice "Last error: …"; the 8 default why-it-matters sentences (`review_velocity_gap`, `reply_rate_gap`, `rating_gap`, `rival_only_advertiser`, `theme_weakness`, `theme_strength`, `map_visibility_gap`, `profile_gap`) in `SELF_WHY_IT_MATTERS` (`packages/engine/src/briefs/starting-point.ts`) — *from phase-12*
 
 ## Unscheduled / ideas
 
@@ -140,7 +145,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Knowledge base: file upload (PDF/DOCX), browsable Help page (`/agency/help`, `/c/<id>/help`), agency/client self-authoring (`manage_knowledge`), KB in weekly briefs, citation analytics — *from 6c "Not in 6c"*
 - [ ] Brief writers (`brief_writer`/`playbook_writer`/`theme_discovery`) back to sonnet-5 (probe 2026-10-12 OK for ZDR + strict json_schema) — *from 6b*
 - [ ] Agencies add their own business types (verticals) and services, not just built-in packs — *from end-of-Phase-5 owner request*
-- [ ] Franchise local relevance: choose the franchisee's advertisers/pages, not the brand's (e.g. Iowa City `AR16031097081657556993` on Aire Serv) — *from end-of-Phase-5 verification*
 - [ ] Volatile-mask unmask UI (AM): pass the capture id explicitly; manual unmask re-pinned only within the 6-capture window — *from 3d, 5c-1/5c-2*
 - [ ] SMS (Twilio) — `sms` channel slot reserved — *from 4a/4b (Phase 7+)*
 - [ ] Agency custom domains; custom sending domains + DKIM per agency — *from 4b, 5a*
@@ -155,14 +159,15 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Change-region boxes on screenshots (owner: not wanted for now) — *from 5c-1*
 - [ ] Instagram Business Discovery (needs a Facebook app, a connected Page and app review; Graph API v26.0) — *from Phase 2 planning*
 - [ ] Decide the `briefs_only` feature flag — *from Phase 1 review*
+- [ ] `tier_change` event when a tracked competitor's tier changes (deferred: `detected_change_subject_check` needs a capture or rank scan) — *from phase-12 plan 12a P4*
 
 ### Collectors
-- [ ] DataForSEO "No Search Results." is treated as a failure: `jobs` tasks end `failed`, `ads_google` ends `vendor_error` (2026-10-14: ads for Victory, Affordable Dentures, Jay Thomas, Purczinsky; jobs for Victory, Affordable Dentures). Should record an empty, successful observation so "no ads / no jobs" is a real state and the next diff has a baseline — *from 2026-10-14 re-pull*
 - [ ] Tracked pages: re-discovery never deactivates unselected pages; `active: true` re-activates human-deactivated pages; http/https and www/bare tracked separately — *from 2a review*
 - [ ] Claimed pages are lost for a cadence if enqueue fails mid-batch or a capture job exhausts pg-boss retries — *from 2a review*
 - [ ] Spec §4.4 capture status enum lacks `error` — update the spec — *from 2a review*
 - [ ] Smaller 2a items in the Phase 2a SDD review record (git history) — *from 2a review*
 - [ ] Unexplained one-off `@cs/collectors` full-suite failure (249/249 on re-run) — *from 5c-2*
+- [ ] Discovery (parked): re-tracked competitor keeps a stale `competitor_signal` until Monday; a failed first-ever run's suggestions stay hidden; sweep clock from `started_at`; bulk-accept lock order; deduped enqueue not detected — *from 12a*
 
 ### Engine — known limitations
 - [ ] Tag-stage version bump doesn't re-tag already-tagged changes — *from 3a/3d (decision 7)*
@@ -170,7 +175,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] `price_block_map` never re-mapped on catalogue change, partial failure or rotating copy; no page-level lock for concurrent price jobs (equal `captured_at` not ordered) — *from 3c*
 - [ ] Review-spike thresholds (`REVIEW_SPIKE_Z`, `REVIEW_SPIKE_MIN`, `REVIEW_BASELINE_WEEKS`) not pack-tunable; `review_spike` reuses one z-score for velocity and complaint Poisson — *from 3b/3c*
 - [ ] GBP category/service additions/removals are one change per entry, not grouped per capture — *from 3b*
-- [ ] Unpinning Google advertisers (pinned → domain) can ~21 days later report mass "ads stopped" — retire silently on a mode switch before any unpin UI — *from 3b*
 - [ ] `alignBlocks` same-key pairing can give a volatile block's identity to an inserted sibling (shared with diffing — fix carefully) — *from 3d Task 12*
 - [ ] Late-added vertical doesn't re-analyse already-analysed reviews; theme approved mid-window not asked of older reviews — *from 3c (decisions 4, 8)*
 - [ ] Churn: log reports pre-cap suppressed count; `CHURN_SUPPRESSED_MAX` untested; masked non-money blocks on churned pages go to `suppressed` (check spec intent) — *from 3d Task 13*
@@ -180,7 +184,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Moves: territory-signal tagging not exclusive; price-war `else if` drops ad-burst evidence; `MovesRunResult.updated` counts unchanged; nightly race fails on `move_open_unique` (accepted) — *from 3b Tasks 13–14*
 - [ ] AM "updated" path doesn't recompute `details.offer`/summary or clear `needs_review` on detach — *from 3d final review*
 - [ ] Anthropic batch: submit precedes `model_batch` insert (orphans not auto-reconciled); apply not idempotent; `collectModelBatches` no per-item try/catch; no `ok:false` ledger row on submit/status/results throw — *from 3d Tasks 8–9, 4a*
-- [ ] `ensureSelfCompetitor` read-then-write race on a place-id change; competitor-limit check not atomic with `acceptSuggestion`/`add_competitor` (can exceed by one) — *from 5b-1, 5b-2 Task 3*
+- [ ] `ensureSelfCompetitor` read-then-write race on a place-id change — *from 5b-1*
 - [ ] Structured: `ad` started/stopped queries lack `ORDER BY`; `rank_scan.status` no CHECK; jobs lookback ignores `capture.source`; `upsertReviews` hard-codes `source: 'google'` — *from 3b Tasks 2, 5–7*
 - [ ] Prices: unhyphenated "off peak" read as discount; dead `-1` in `pricesInBlock`; over-cap pages (> `PRICE_MAX_BLOCKS`) end no spans — *from 3c Tasks 8–9*
 
@@ -195,6 +199,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] `alert_digest` rows not re-checked for retraction at send time; possible duplicate `alert-process` spend on a race; auto-send vs concurrent-edit race — *from 4b final review*
 - [ ] Alerts: approval feedback says "approved" when release withdraws; withdrawn alert sends no `am_alert`; > 7-day alert approvable before sweep expiry; client with no contacts still marked delivered — *from 4b Tasks 12–13*
 - [ ] Quarterly report counts recommendations by *current* status, not at quarter end; `renderReportPdf` untested, no status guard — *from 4b Task 17*
+- [ ] Starting point (parked): home card when exhausted after 3 attempts; `editBriefItem` false warnings on self items; standard→quiet-at-delivery brief has no scorecard; self `ads_google` diff/tag spend; soften facts (BASELINE_BODY "map rankings" when none, 0-review velocity, `complete_profile` claim wording) — *from 12b final review*
 
 ### Code quality & test gaps (fold in when touching the file)
 - [ ] Phase 1 registry leftovers: `countRows` only recognises `{items}` outputs; log the original handler error when the audit write also fails — *from Phase 1 review*

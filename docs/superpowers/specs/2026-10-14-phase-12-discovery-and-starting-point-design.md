@@ -115,7 +115,7 @@ export const AdMatch = z.object({ platform: z.enum(['google','meta']), accountId
 - `get_competitor_signals({ clientId })` → per tracked competitor `{ competitorId, tier, signals, computedAt }`; agency and client roles; exposed on MCP.
 - `accept_competitor_suggestion` → as today plus: attach `strong` matches to `competitor.google_advertiser_ids` / `meta_page_ids` (append, no duplicates), store `weak` ones in `client_competitor.pending_ad_matches`.
 - `accept_competitor_suggestions({ ids })` (bulk "Track selected"): one transaction; the limit check is atomic (`SELECT … FOR UPDATE` on the client row) — folds in the limit-race BACKLOG item for both bulk and single accept.
-- `confirm_ad_match({ competitorId, platform, accountId })`, `remove_ad_match(…)`; removing a Google id sets those ads `ended_at = now()` with `retired_silently = true` (no `ad_stopped` change) — folds in the unpin BACKLOG item.
+- `confirm_ad_match({ competitorId, platform, accountId })`, `remove_ad_match(…)`; removing a Google id silently retires those ads (`is_active=false, ended_at=last_seen_at`, no ended capture; no `ad_stopped` change) — folds in the unpin BACKLOG item.
 - `upsell_tag` is never in these payloads.
 
 ### UI (`apps/web/src/app/(app)/c/[clientId]/competitors/*`)
@@ -153,7 +153,7 @@ export const Scorecard = z.object({
   openFirstMoves: z.array(z.object({ recommendationId: z.uuid(), title: z.string() })).default([]),
 });
 ```
-Tiles are fixed: rating, reviews90d, replyRate, mapTop3Share. Sources: `get_rating_trend` logic (rating, replyRate), `reviewBenchmark` (reviews90d, themes), `rankMetrics` (mapTop3Share over the latest scan), `competitor_signal` (ads, tier). Evidence ids are the evidence rows those values came from (review/observation/rank-scan evidence).
+Tiles are fixed: rating, reviews90d, replyRate, mapTop3Share. Sources: `get_rating_trend` logic (rating, replyRate), `ratingTrend` (reviews90d), `reviewBenchmark` (themes), `rankMetrics` (mapTop3Share over the latest scan), `competitor_signal` (ads, tier). Evidence ids are the evidence rows those values came from (review/observation/rank-scan evidence).
 
 ### Self-rules (pack `self_rules:`; engine `packages/engine/src/briefs/self-rules.ts`)
 ```yaml
