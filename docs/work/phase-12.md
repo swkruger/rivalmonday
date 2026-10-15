@@ -4,34 +4,34 @@
 **Plan/spec:** spec `docs/superpowers/specs/2026-10-14-phase-12-discovery-and-starting-point-design.md` (owner-approved 2026-10-14) · plans `docs/superpowers/plans/2026-10-14-phase-12a-competitor-discovery.md`, `…-12b-starting-point-brief.md` (owner-approved 2026-10-14, subagent-driven)
 
 ## Status (overwrite)
-Plans 12a + 12b owner-approved 2026-10-14 (subagent-driven); owner chose to build Phase 12 **before** 9, 10, 11 (9a runs in parallel in its own worktree). Test DB `cs_phase_12_test`. 12a Tasks 0–11 built (migrations 0052 `discovery_rating`, 0053 `discovery_rating_rls`); 12b Tasks 1–9 built (migration 0054 `starting_point_brief`); 12b final review fix wave done (I1–I4, M1–M13); owner verification next.
+**12a + 12b complete 2026-10-15** (subagent-driven; every task reviewed; both final whole-branch reviews + one fix wave each, re-reviewed clean). HEAD 22bd256, 53 commits ahead of main. `test:affected --base main` 15/15; `e2e:affected` all green except the known smoke.spec :6/:41 magic-link rate-limit flake. Test DB `cs_phase_12_test`. Nothing uncommitted.
 
 ## Next (overwrite)
-Owner verification of 12a + 12b, then `/rm-merge`.
+1. Owner: go-ahead for `/rm-merge phase-12` (full unit + E2E suites run there). Phase-9 is unmerged and also uses 0052–0056 → whoever merges second renumbers.
+2. After merge: owner verification steps below on `cs_dev` (`pnpm db:migrate` first; cs_dev is at 0046).
 
 ## Interfaces this branch adds or changes
 (12a + 12b built)
 - Tables: `discovery_run`, `competitor_signal`. `competitor_suggestion` + `category`, `distance_km`, `overlap`, `activity`, `tier`, `signals` jsonb, `ad_matches` jsonb, `run_id`, `last_seen_at`. `brief.kind` + `'starting_point'` (extend CHECK `brief_kind_check`; one per client), `brief.scorecard` jsonb; `brief_item.competitor_id` nullable + `subject` `'self'|'competitor'`.
 - Vertical packs: `discovery.categories` allowlist, discovery seed keywords (≤ 5), self-rules for the starting point.
-- Migrations: 12a = 0052 + 0053 (renumber to >= 0055 if phase-9 merges first, see Pre-flight).
-
-### Pre-flight 2026-10-14 (12a Task 0)
-- **Migrations:** main ends 0051; unmerged phase-9 holds 0052-0054 (renumber 12a to >= 0055 if it merges first); phase-10 >= 0054. **P6:** `agencyServiceable` not on main; BACKLOG at merge: "apply agencyServiceable to rival-search and signals-weekly".
-- Vendor shapes (maps categories, `ads_advertisers`, ScrapeCreators ad-library search) are in the 12a plan Task 0 and the fixtures `packages/collectors/test/fixtures/vendors/` dfs-maps-live-{dental,hvac}, dfs-ads-advertisers-live, scrapecreators-adlibrary-search.
+- Migrations: 0052 `discovery_rating`, 0053 `discovery_rating_rls`, 0054 `starting_point_brief`, 0055 `client_activated_backfill` (renumber if phase-9 merges first). `client.activated_at`; `vendor_task.suggestion_id` (competitor_id nullable); `client_competitor.pending_ad_matches`; `rank_snapshot.capture_id` now filled.
+- Tools: `get_competitor_signals`, `get_competitor_ad_matches`, `accept_competitor_suggestions`, `confirm_ad_match`/`remove_ad_match` (agency-only), `get_starting_point_status`; `startCompetitorSearch` exported from `@cs/tools` (Phase 11 entry point). Old `suggest-competitors` job removed.
+- Worker jobs: `rival-search`, `rival-finalise`, `rival-sweep` (*/15), `signals-weekly` (Mon 09:00 UTC), `starting-point-schedule` (:15), `starting-point-client`. CLI `brief-once --starting-point [--force]`.
+- Packs v3: `discovery`, `self_rules`, `audience_noun`, playbook `effort`/`impact`.
 
 ## Assumes from other branches
-- **phase-9 (9a executing):** migrations **0052–0053**; new `db/src/filters.ts`; `agencyServiceable` filter on every scheduler (incl. `ensureSelfCompetitors`, `listBriefDueClients`) — our new jobs apply it too. 9a e7: ≤ 3 active clients in pilot/trial.
-- **phase-10 (planned):** migrations **≥ 0054**; edits `create_client` (`first_client_at`).
-- **phase-7-planning (parked):** no overlap.
-- **Phase 11 (client onboarding wizard, unplanned; roadmap row 11):** owns GBP/DataForSEO prefill + competitor-review emails; **overlaps** our auto-run trigger and starting-point readiness/48 h fallback. We build both as reusable entry points; Phase 11 calls them.
+- **phase-9** (9a executing): migrations 0052–0056 (renumber collision); its `agencyServiceable` filter must also cover rival-search, signals-weekly, the self-competitor sweep and `listStartingPointDue` at its merge.
+- **phase-10** (planned): edits `create_client`. **Phase 11** (unplanned): reuses `startCompetitorSearch` and starting-point readiness.
 
 ## Decisions (owner-approved)
-Brainstorm decisions in Brief §1; promoted to the spec with ids. Rulings 1–10 from 12a execution live in the SDD ledger; notable: R3 no agencyServiceable (phase-9 merge adds it), R7 ad-account removal only by sole tracker (agency-only tools).
+Spec D1–D13. Owner 2026-10-15: discovery auto-runs only the first time a profile is complete; later runs via the button. Execution rulings (full list in the session hand-off): ad-account removal only by the sole tracker (agency-only); suggestions list = latest done run + any later run; self competitor gets an `ads_google` source + domain backfill; theme_weakness = mentioned ≥10 pts more for a negative theme; starting point waits for ≥1 tracked rival (else 48 h); quiet-week baseline needs an approved/sent starting point.
 
 ## New backlog (target → item)
 - Unscheduled → `tier_change` event when a tracked competitor's tier changes (deferred by plan 12a P4: `detected_change_subject_check` needs a capture or rank scan)
 - Phase 12 merge → STATE "Next up" order 12 → 9 → 10 → 11 (owner 2026-10-14)
 - Phase 12 merge → add roadmap row 12; amend core spec §9.1 item 5 (quiet week carries a "Where you stand" scorecard) and §4.1 item 2.
+- Polish → starting-point approval copy "Approved — sent to the client." is wrong when delivery is unconfigured (show by status); "In progress" label while waiting for the agency to track a rival; deleted-brief notice link 404s after `--force`
+- Unscheduled (12a, parked) → re-tracked competitor keeps a stale `competitor_signal` until Monday; a failed first-ever run's suggestions stay hidden; sweep clock from `started_at`; bulk-accept lock order; deduped enqueue not detected
 - Unscheduled (12b final review, parked) → home card when the starting point is exhausted after 3 attempts; `editBriefItem` false warnings on self items; standard→quiet-at-delivery brief has no scorecard; self `ads_google` diff/tag spend; soften facts (BASELINE_BODY "map rankings" when none, 0-review velocity, `complete_profile` claim wording).
 
 ## Owner verification steps
@@ -70,9 +70,5 @@ On `cs_dev` (migration `0054` starting_point_brief; renumber if phase-9/10 merge
   - profile_gap: A complete profile helps Google show you for more searches and helps people decide to call.
 - Self-rule playbook effort/impact (same in both packs): ask_for_reviews L/H, reply_to_reviews L/M, fix_top_complaint M/H, consider_search_ads M/M, fix_theme M/M, promote_strength L/M, improve_map_rank M/H, complete_profile L/M.
 
-## Brief (condensed)
-**12a** (core spec §4.1 item 2, §4.2, §6.3): Maps search over client + pack seed keywords (≤ 5, 7x7 grid); hard filters (category allowlist, area, self, closed); overlap = rank-weighted presence x category/service match x distance; stage 2 on the top ~20 (Google `ads_advertisers`, Meta name search, 20-review sample, claimed/chain) gives activity; tiers Top rival / Worth watching / Minor (scores internal); auto-run with keywords + area + place id; top rivals pre-ticked up to `competitor_limit`; strong ad matches auto-attach, weak need confirm; weekly re-rating; null = not checked, 0 = checked-none; $3/run, 5 runs/agency/day.
-**12b** (§8.5, §9.1; amend §9.1 item 5): `brief.kind='starting_point'`, one per client, generated when onboarding data is ready or after 48 h; deterministic pack self-rules (`review_velocity_gap`, `reply_rate_gap`, `rating_gap`, `rival_only_advertiser`, `theme_strength`/`theme_weakness`, `map_visibility_gap`, `profile_gap`) give 3-5 items; 4 tiles + scorecard + finding cards; quiet weeks carry "Where you stand"; client-home progress card.
-**Binding:** crawler conduct; `WEB_MONITORING_ENABLED` unset; reads = `@cs/tools`, writes via `runTool`, refusals 404; `upsell_tag` never client-facing; `retracted_at IS NULL`; `redactForModel`; inline SVG charts; Jev review decisions, tau 0.85; never edit applied migrations.
-**Backlog folded in:** DataForSEO "No Search Results." must record an empty successful observation (jobs `failed`, `ads_google` `vendor_error` today); franchise brands: pick the franchisee's ad accounts and jobs, not the brand's; unpinning Google advertisers can report mass "ads stopped" ~21 d later (retire silently before any unpin UI); `ensureSelfCompetitor` race and non-atomic competitor-limit check; before `WEB_MONITORING_ENABLED`: prospect `'disabled'` in accept/add tools and discovery in `convert_prospect`.
-**Resolved:** daily cap per agency; auto-run now (Phase 11 reuses the entry point); discovery runs for prospects too.
+## Brief
+Superseded by the spec (D1–D13) and plans; resolved kickoff questions: daily cap per agency, auto-run built now (Phase 11 reuses it), discovery runs for prospects too.

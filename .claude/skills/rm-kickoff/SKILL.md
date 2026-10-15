@@ -25,6 +25,7 @@ cp "$MAIN_WT/.claude/settings.json" "$MAIN_WT/.claude/settings.local.json" "$WT/
   PGPASSWORD=postgres /d/rm-pg/pg18/bin/psql.exe -h 127.0.0.1 -p 5444 -U postgres -qc "CREATE DATABASE $DB"
   # replace the three TEST_* URLs (main's may point at Neon) with the local cluster's, renamed to $DB
   sed -i '/^TEST_[A-Z_]*DATABASE_URL=/d' "$WT/.env"
+  echo >> "$WT/.env"   # main .env has no trailing newline — without this the first var glues onto the last line
   bash "$MAIN_WT/scripts/local-test-db.sh" env | sed "s#/cs_test\$#/$DB#" >> "$WT/.env"
   ```
   (The roles are cluster-wide; the first test run migrates the new database. After `pnpm install` finishes, run `pnpm --filter @cs/worker exec vitest run src/boss.test.ts` once in `$WT` to create the `pgboss` schema — E2E fails without it. E2E still uses port 3100 — don't run two E2E suites at once.)

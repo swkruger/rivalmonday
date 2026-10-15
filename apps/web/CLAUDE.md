@@ -49,7 +49,7 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 
 ### E2E
 - **`pnpm --filter @cs/web e2e`** (Playwright smoke suite) is not part of `pnpm test`: it builds and starts a production server against `cs_test` (`playwright.config.ts` sets its own env), runs as its own CI job after `pnpm test`, and must never run concurrently with another `cs_test` run.
-- **Reuse one signed-in session per spec file:** Better Auth's magic-link plugin allows 5 requests per IP per rolling 60 s on `/sign-in/magic-link` and `/magic-link/verify`; `workflow.spec.ts` signs in once in `beforeAll` and uses `test.use({ storageState })`. `latestMagicLink()`/`newMagicLink()` snapshot the outbox before requesting and filter by recipient, because Playwright restarts the worker process after a failed test and "newest file" can return a consumed link.
+- **Reuse signed-in sessions; never add a magic-link sign-in:** Better Auth allows 5 magic-link requests/IP/60 s; full runs already hit it (`smoke.spec` :6/:41 fail in full suites, pass alone). Specs reuse storage states (`workflow.spec` `beforeAll`, shared admin/`asker-state.json`). `latestMagicLink()`/`newMagicLink()` filter by recipient after an outbox snapshot (Playwright restarts workers after a failure).
 - **A one-off webServer "destination stream closed early" error is an infra flake** — re-run once.
 
 ### Affected-only E2E
