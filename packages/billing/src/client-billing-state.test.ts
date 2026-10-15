@@ -6,7 +6,7 @@ const NOW = new Date('2026-10-15T12:00:00Z');
 const row = (state: ClientBillingState, v: Partial<ClientBillingRow> = {}): ClientBillingRow => ({
   clientId: 'c', agencyId: 'a', enabled: ['invited', 'active', 'payment_needed'].includes(state), priceCents: 9900, setupFeeCents: 0, stripePriceId: 'price_1', stripeCustomerId: null,
   stripeSubscriptionId: null, billedPriceCents: null, checkoutSessionId: null, state, checkoutSentAt: null, paymentFailedSince: null, lastPaidAt: null, refundedAt: null, disputedAt: null,
-  lastStripeEventAt: null, updatedAt: NOW, ...v,
+  lastStripeEventAt: null, autoPausedFailureAt: null, updatedAt: NOW, ...v,
 });
 const INVITED: ClientBillingSignal = { type: 'invited', priceCents: 9900, setupFeeCents: 0, stripePriceId: 'price_1', checkoutUrl: 'https://x', checkoutSessionId: 'cs_1' };
 const PAID: ClientBillingSignal = { type: 'checkout_completed', customerId: 'cus_1', subscriptionId: 'sub_1', priceCents: 9900 };
@@ -70,6 +70,22 @@ describe('nextClientBillingState transition table', () => {
     expect(r.state).toBe('active');
     expect(r.patch.enabled).toBe(false);
     expect(next(row('active', { stripeSubscriptionId: 'sub_1', enabled: false }), { type: 'disabled' })).toBeNull();
+  });
+
+  it('R21: disabled on an invited row with a tracked (async, still processing) subscription keeps it invited and tracked', () => {
+    const r = next(row('invited', { stripeSubscriptionId: SUB, checkoutSessionId: 'cs_1' }), { type: 'disabled' })!;
+    expect(r.state).toBe('invited');
+    expect(r.patch.enabled).toBe(false);
+    expect(r.patch.checkoutSessionId).toBeUndefined();
+    // When the debit clears, the payment is still recorded (the subscription then ends at period end).
+    expect(next(row('invited', { stripeSubscriptionId: SUB, enabled: false }), { type: 'payment_succeeded', subscriptionId: SUB })!.state).toBe('active');
+  });
+
+  it('R21: an unpaid Checkout (R16) keeps the completed session id', () => {
+    const r = next(row('invited', { checkoutSessionId: 'cs_1' }), { ...PAID, unpaid: true, sessionId: 'cs_1' })!;
+    expect(r.state).toBe('invited');
+    expect(r.patch).toMatchObject({ stripeSubscriptionId: SUB });
+    expect('checkoutSessionId' in r.patch).toBe(false);
   });
 
   it('subscription_cancelled turns billing off for good', () => {

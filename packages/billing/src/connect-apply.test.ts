@@ -31,6 +31,14 @@ describe('disconnectAgencyConnect', () => {
     expect(await states()).toEqual({ [IDS.clientA1]: 'disconnected', [IDS.clientA2]: 'off' });
   });
 
+  it('R26: turns billing off on every client row, so after a reconnect the admin turns billing back on per client; keeps the account id (R24)', async () => {
+    await dbs.owner.update(clientBilling).set({ enabled: true }).where(eq(clientBilling.clientId, IDS.clientA1));
+    await disconnect();
+    const rows = await dbs.owner.select().from(clientBilling);
+    expect(rows.map((r) => r.enabled)).toEqual([false, false]);
+    expect((await connectRow()).stripeAccountId).toBe('acct_1');
+  });
+
   it('is idempotent: a second call changes nothing', async () => {
     await disconnect();
     const first = await connectRow();

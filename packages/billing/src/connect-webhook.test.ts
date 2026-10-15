@@ -1,4 +1,4 @@
-import { agencyConnect, billingNotice, client, clientBilling, stripeConnectEvent } from '@cs/db';
+import { agencyBilling, agencyConnect, billingNotice, client, clientBilling, stripeConnectEvent } from '@cs/db';
 import { IDS, openTestDbs } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -127,6 +127,14 @@ describe('handleConnectEvent: account events', () => {
     expect((await billing()).state).toBe('disconnected');
     expect((await billing(IDS.clientB1)).state).toBe('active');
     expect(await connect(IDS.agencyB)).toMatchObject({ status: 'connected' });
+  });
+
+  it('R24: deauthorization forgets the account and the objects on it, even after an admin disconnect', async () => {
+    await dbs.owner.update(agencyConnect).set({ stripeProductId: 'prod_a', stripeDefaultPriceId: 'price_a', portalConfigurationId: 'bpc_a', defaultPriceCents: 9900 }).where(eq(agencyConnect.agencyId, IDS.agencyA));
+    await dbs.owner.update(agencyConnect).set({ status: 'disconnected', chargesEnabled: false, disconnectedAt: new Date() }).where(eq(agencyConnect.agencyId, IDS.agencyA)); // admin disconnect keeps the id
+    expect(await handle(ev('d1', 'account.application.deauthorized', { id: ACCT_A }))).toBe('processed');
+    expect(await connect()).toMatchObject({ status: 'disconnected', stripeAccountId: null, stripeProductId: null, stripeDefaultPriceId: null, portalConfigurationId: null, defaultPriceCents: 9900 });
+    expect(await connect(IDS.agencyB)).toMatchObject({ stripeAccountId: ACCT_B });
   });
 
   it('events after a disconnect change nothing', async () => {
@@ -311,6 +319,28 @@ describe('handleConnectEvent: auto-pause lift (R14)', () => {
     expect((await record('i1'))?.processedAt).not.toBeNull();
   });
 
+  it('R23: lifting an auto-pause re-syncs the agency\'s 9a seats after the commit', async () => {
+    await active({ state: 'payment_needed', paymentFailedSince: new Date((T0 - 50) * 1000) });
+    await addClients(dbs.owner, 2); // 4 active once A1 is back, 3 included -> 1 extra seat
+    await setBilling(dbs.owner, planId, { state: 'active', stripeCustomerId: 'cus_p', stripeSubscriptionId: 'sub_platform', billableSeatsSynced: 0 });
+    gw.seedSubscription({ id: 'sub_platform', customerId: 'cus_p' });
+    await pauseA1('auto');
+    expect(await handle(ev('i1', 'invoice.paid', { subscription: 'sub_1' }))).toBe('processed');
+    expect(await clientRow()).toMatchObject({ pausedAt: null });
+    expect(gw.callsTo('updateSeatQuantity').map((c) => c.args.slice(0, 2))).toEqual([['sub_platform', 1]]);
+    const [ab] = await dbs.owner.select().from(agencyBilling).where(eq(agencyBilling.agencyId, IDS.agencyA));
+    expect(ab).toMatchObject({ billableSeatsSynced: 1, seatSyncPending: false });
+  });
+
+  it('R23: no seat sync when nothing was lifted (manual pause, or no pause)', async () => {
+    await active();
+    await setBilling(dbs.owner, planId, { state: 'active', stripeCustomerId: 'cus_p', stripeSubscriptionId: 'sub_platform', billableSeatsSynced: 0 });
+    gw.seedSubscription({ id: 'sub_platform', customerId: 'cus_p' });
+    await pauseA1('user-1');
+    await handle(ev('i1', 'invoice.paid', { subscription: 'sub_1' }));
+    expect(gw.callsTo('updateSeatQuantity')).toEqual([]);
+  });
+
   it('I1: an unexpected resume failure is not swallowed: the event stays unprocessed with the error recorded and a retry succeeds', async () => {
     await active({ state: 'payment_needed', paymentFailedSince: new Date((T0 - 50) * 1000) });
     await setBilling(dbs.owner, planId, { state: 'active' });
@@ -343,7 +373,8 @@ describe('handleConnectEvent: unpaid Checkout (async payment method, R16)', () =
     await invited();
     sub();
     expect(await unpaid()).toBe('processed');
-    expect(await billing()).toMatchObject({ state: 'invited', stripeCustomerId: 'cus_1', stripeSubscriptionId: 'sub_1', billedPriceCents: 7700, lastPaidAt: null, checkoutSessionId: null });
+    // R21: the completed session id is kept (a resend can see it was paid).
+    expect(await billing()).toMatchObject({ state: 'invited', stripeCustomerId: 'cus_1', stripeSubscriptionId: 'sub_1', billedPriceCents: 7700, lastPaidAt: null, checkoutSessionId: 'cs_1' });
     expect(await notices()).toHaveLength(0);
   });
 

@@ -3,8 +3,9 @@ import { type Db, type Tx, agencyConnect, client, clientBilling, stripeConnectEv
 import { and, eq } from 'drizzle-orm';
 import type { ClientBillingSignal } from './client-billing-state';
 import { resumeClient } from './client-pause';
-import { applyClientBillingSignal, connectStatusFor, disconnectAgencyConnect } from './connect-apply';
+import { applyClientBillingSignal, connectStatusFor, disconnectAgencyConnect, forgetConnectedAccount } from './connect-apply';
 import type { ConnectEventLike } from './connect-gateway-types';
+import { syncSeats } from './seats';
 import type { BillingGateway } from './types';
 import { LIVE_SUBSCRIPTION_STATUSES } from './webhook';
 
@@ -35,6 +36,8 @@ const HANDLED = new Set([
 /** Work to do after the transaction commits (Stripe calls never run inside it). Best effort. */
 interface PostCommit {
   expireSession?: { account: string; sessionId: string };
+  /** R23: a payment lifted an auto-pause, so the agency's 9a seat count changed. */
+  syncSeatsFor?: string;
 }
 
 type Outcome = 'processed' | 'ignored';
@@ -88,6 +91,7 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: ConnectEventLike, pos
 
   if (event.type === 'account.application.deauthorized') {
     await disconnectAgencyConnect(tx, agencyId, ACTOR);
+    await forgetConnectedAccount(tx, agencyId); // R24: also after an admin disconnect, which kept the id
     return 'processed';
   }
   if (event.type === 'account.updated') return onAccountUpdated(tx, gw, agencyId, account, event);
@@ -149,7 +153,7 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: ConnectEventLike, pos
     const [c] = await tx.select({ pausedAt: client.pausedAt, pausedBy: client.pausedBy }).from(client).where(eq(client.id, clientId));
     if (c?.pausedAt && c.pausedBy === 'auto') {
       try {
-        await tx.transaction((sp) => resumeClient(sp, clientId, ACTOR));
+        if (await tx.transaction((sp) => resumeClient(sp, clientId, ACTOR))) post.syncSeatsFor = agencyId;
       } catch (e) {
         // Only the seat-cap refusal is expected; anything else fails the event so Stripe retries.
         if (!(e instanceof ToolError && e.code === 'billing_seat_limit')) throw e;
@@ -186,6 +190,11 @@ export async function handleConnectEvent(db: Db, gw: BillingGateway, event: Conn
       // recording the failure is best effort; the original error is what matters
     }
     throw e;
+  }
+  if (post.syncSeatsFor) {
+    // R23: the lifted client takes a seat again. Never throws; a failure sets seat_sync_pending for the daily job.
+    await syncSeats(db, gw, post.syncSeatsFor).catch((e: unknown) =>
+      console.error('[billing] seat sync after auto-pause lift failed', { agencyId: post.syncSeatsFor }, (e as { name?: string } | null)?.name));
   }
   if (post.expireSession) {
     // R13c: the link the client did not use is superseded by the one they paid with. Best effort, after commit.

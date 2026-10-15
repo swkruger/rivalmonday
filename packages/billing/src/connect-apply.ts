@@ -5,8 +5,8 @@ import { type ClientBillingNoticeKind, type ClientBillingSignal, nextClientBilli
 
 /**
  * Phase 9b f10 / R7: the agency's Stripe connection ends (admin disconnect, or `account.application.deauthorized`).
- * Locks the `agency_connect` row, marks it `disconnected` (charges off) and moves every client's billing that is not
- * already `off`/`disconnected` to `disconnected`. Local only: subscriptions keep running in the agency's Stripe account.
+ * Locks the `agency_connect` row, marks it `disconnected` (charges off; the account id is kept, R24) and moves every
+ * client's billing that is not already `off`/`disconnected` to `disconnected`, with billing turned off (R26). Local only: subscriptions keep running in the agency's Stripe account.
  * Idempotent: returns `changed: false` (no writes) when there is no connection or it is already disconnected.
  */
 /** One status rule for stored and live Connect state (webhook and `get_connect_status`): connected = charges enabled; restricted = details submitted without charges; else pending. */
@@ -21,9 +21,23 @@ export async function disconnectAgencyConnect(tx: Tx, agencyId: string, _actor: 
   await tx.update(agencyConnect).set({ status: 'disconnected', chargesEnabled: false, disconnectedAt: now, updatedAt: now }).where(eq(agencyConnect.agencyId, agencyId));
   await tx
     .update(clientBilling)
-    .set({ state: 'disconnected', updatedAt: now })
+    .set({ state: 'disconnected', enabled: false, updatedAt: now })
     .where(and(eq(clientBilling.agencyId, agencyId), notInArray(clientBilling.state, ['disconnected', 'off'])));
+  // R26: billing is off for every client; after a reconnect the admin turns it back on per client.
+  await tx.update(clientBilling).set({ enabled: false, updatedAt: now }).where(and(eq(clientBilling.agencyId, agencyId), eq(clientBilling.enabled, true)));
   return { changed: true };
+}
+
+/**
+ * R24: Stripe revoked the platform's access (`account.application.deauthorized`): the account id and the objects that
+ * live on that account (product, default price, portal configuration) are forgotten, so a reconnect onboards a fresh
+ * account. An admin disconnect keeps them (reconnecting reuses the same account).
+ */
+export async function forgetConnectedAccount(tx: Tx, agencyId: string): Promise<void> {
+  await tx
+    .update(agencyConnect)
+    .set({ stripeAccountId: null, stripeProductId: null, stripeDefaultPriceId: null, portalConfigurationId: null, updatedAt: new Date() })
+    .where(eq(agencyConnect.agencyId, agencyId));
 }
 
 /** Lock the client's `client_billing` row `FOR UPDATE`, first inserting the default `off` row. `null` when the client does not exist. */

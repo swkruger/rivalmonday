@@ -37,6 +37,17 @@ export const noticeAudience = (kind: ClientBillingNoticeKind): 'agency' | 'clien
 
 const SUBSCRIBED: readonly ClientBillingState[] = ['active', 'payment_needed'];
 
+/**
+ * R21: Stripe may bill this client: a tracked subscription on an `active`/`payment_needed` row, or on an `invited` row
+ * whose Checkout completed with the first payment still processing (R16). Disable cancels it; re-invites are refused.
+ */
+export const isSubscribed = (row: Pick<ClientBillingRow, 'state' | 'stripeSubscriptionId'>): boolean =>
+  !!row.stripeSubscriptionId && (row.state === 'active' || row.state === 'payment_needed' || row.state === 'invited');
+
+/** R21: the first payment of an async (ACH) Checkout is still processing: no new link may be mailed. */
+export const isPaymentProcessing = (row: Pick<ClientBillingRow, 'state' | 'stripeSubscriptionId'>): boolean =>
+  row.state === 'invited' && !!row.stripeSubscriptionId;
+
 /** R11: a subscription event for a subscription this client is not tracked with (the caller logs it). */
 export interface ClientBillingIgnored { ignored: 'untracked_subscription' }
 
@@ -62,8 +73,9 @@ export function nextClientBillingState(row: ClientBillingRow, s: ClientBillingSi
       if (st === 'disconnected') return null;
       if (s.unpaid) {
         // R16: never downgrade a subscribed client; otherwise record ids only, the first invoice.paid activates.
+        // R21: the completed session id is kept, so a resend can still see that this link was paid.
         if (SUBSCRIBED.includes(st)) return null;
-        return out('invited', { enabled: true, stripeCustomerId: s.customerId, stripeSubscriptionId: s.subscriptionId, ...(s.priceCents !== null && { billedPriceCents: s.priceCents }), checkoutSessionId: null });
+        return out('invited', { enabled: true, stripeCustomerId: s.customerId, stripeSubscriptionId: s.subscriptionId, ...(s.priceCents !== null && { billedPriceCents: s.priceCents }) });
       }
       return out('active', { enabled: true, stripeCustomerId: s.customerId, stripeSubscriptionId: s.subscriptionId, ...(s.priceCents !== null && { billedPriceCents: s.priceCents }), checkoutSessionId: null, lastPaidAt: now, paymentFailedSince: null },
         st === 'active' ? undefined : { kind: 'client-paid', params: {} });
@@ -80,7 +92,8 @@ export function nextClientBillingState(row: ClientBillingRow, s: ClientBillingSi
       return out('cancelled', { enabled: false, paymentFailedSince: null });
     case 'disabled': {
       // A live subscription keeps its state until Stripe confirms the cancellation at period end; otherwise billing is simply off.
-      const next: ClientBillingState = SUBSCRIBED.includes(st) && row.stripeSubscriptionId ? st : st === 'cancelled' || st === 'disconnected' ? st : 'off';
+      // R21: an `invited` row with a tracked subscription (R16, first payment still processing) is subscribed too.
+      const next: ClientBillingState = isSubscribed(row) ? st : st === 'cancelled' || st === 'disconnected' ? st : 'off';
       if (next === st && !row.enabled) return null;
       return out(next, { enabled: false, ...(next === 'off' && { checkoutSessionId: null }) });
     }
