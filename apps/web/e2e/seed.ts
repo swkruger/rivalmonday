@@ -132,6 +132,20 @@ export async function seed(): Promise<void> {
     await createInvitation(db, { agencyId: pausedAgency!.id, email: 'paused-admin@e2e.test', role: 'agency_admin', invitedBy: 'e2e-seed' });
     await createInvitation(db, { agencyId: pausedAgency!.id, email: 'paused-owner@e2e.test', role: 'client_owner', clientId: pausedClient!.id, invitedBy: 'e2e-seed' });
 
+    // Phase 9b (`client-billing.spec.ts`): an exempt-pilot agency (eligible for client billing) that has not connected
+    // Stripe, one client, its admin, and a client owner + client viewer whose auth users exist so memberships are real
+    // (enabling billing emails the client owner, which needs the membership).
+    const [cbAgency] = await db.insert(agency).values({ name: CB_AGENCY }).returning();
+    await ensureExemptPilot(db, cbAgency!.id);
+    const [cbClient] = await db.insert(client).values({ agencyId: cbAgency!.id, name: CB_CLIENT, ...hvac }).returning();
+    await createInvitation(db, { agencyId: cbAgency!.id, email: CB_USERS.admin, role: 'agency_admin', invitedBy: 'e2e-seed' });
+    for (const [key, role, name] of [['owner', 'client_owner', 'Olive Owner'], ['viewer', 'client_viewer', 'Vic Viewer']] as const) {
+      const email = CB_USERS[key];
+      await db.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values (${`e2e-cb-${key}`}, ${name}, ${email}, true)`);
+      await createInvitation(db, { agencyId: cbAgency!.id, email, role, clientId: cbClient!.id, invitedBy: 'e2e-seed' });
+      await acceptInvitations(db, { id: `e2e-cb-${key}`, email, name });
+    }
+
     // Phase 8c: platform costs. DataForSEO is "configured" (dummy credentials in E2E_SERVER_ENV, presence only) with a
     // balance below its low threshold, so the Low strip shows; one manual monthly item gives the Spent card a figure.
     await db.execute(sql`
@@ -195,6 +209,10 @@ export async function seed(): Promise<void> {
   await rm(OUTBOX, { recursive: true, force: true });
   await mkdir(OUTBOX, { recursive: true });
 }
+
+export const CB_AGENCY = 'Billing Agency E2E';
+export const CB_CLIENT = 'Furnace Billing Co';
+export const CB_USERS = { admin: 'cb-admin@e2e.test', owner: 'cb-owner@e2e.test', viewer: 'cb-viewer@e2e.test' } as const;
 
 const DAY = 86_400_000;
 const WEBP = Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA', 'base64');

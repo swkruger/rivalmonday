@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@playbooks',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -88,7 +88,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}(?:sign-in/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in and link-error pages' },
   { pattern: re(`${APP}(?:l/|go/|files/)`), tags: GUEST_FILES, why: 'signed links and stored files' },
   { pattern: re(`${APP}dev-panel/`), tags: ['@dev-panel'], why: 'dev-panel route shell' },
-  { pattern: re(`${AGENCY}page\\.tsx$`), tags: ['@clients'], why: 'agency client list' },
+  { pattern: re(`${AGENCY}page\\.tsx$`), tags: ['@clients', '@client-billing'], why: 'agency client list (billing pill and actions)' },
   { pattern: re(`${AGENCY}alerts/`), tags: ['@alerts'], why: 'alert queue' },
   { pattern: re(`${AGENCY}approvals/`), tags: ['@briefs', '@recommendations', '@starting-point'], why: 'brief approvals (a starting point is approved and sent here)' },
   { pattern: re(`${AGENCY}clients/`), tags: ['@clients'], why: 'new client' },
@@ -97,10 +97,10 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}usage/`), tags: ['@usage'], why: 'usage and limits' },
   { pattern: re(`${AGENCY}(?:branding|team|webhooks)/`), tags: [], why: 'no E2E covers this agency page' },
   { pattern: re(`${AGENCY}settings/platform-access/`), tags: ['@support'], why: 'agency support-session history and notify switch' },
-  { pattern: re(`${C}settings/billing/`), tags: ['@billing'], why: 'client owner billing page and portal action' },
-  { pattern: re(`${AGENCY}settings/billing/`), tags: ['@billing'], why: 'billing page, actions and seat CSV' },
+  { pattern: re(`${C}settings/billing/`), tags: ['@billing', '@client-billing'], why: 'client owner billing page and portal action' },
+  { pattern: re(`${AGENCY}settings/billing/`), tags: ['@billing', '@client-billing'], why: 'billing page, Client billing section, actions and seat CSV' },
   { pattern: re(`${APP}\\(app\\)/paused/`), tags: ['@billing'], why: 'suspended-workspace page' },
-  { pattern: re(`${COMP}billing/`), tags: ['@billing'], why: 'billing display formatting shown on the billing page' },
+  { pattern: re(`${COMP}billing/`), tags: ['@billing', '@client-billing'], why: 'billing display formatting and client billing pill/actions shown on the billing pages' },
   { pattern: re(`${COMP}form-error\\.tsx$`), tags: ['@clients', '@prospects'], why: 'form error line with the seat-cap Upgrade link (add client, convert prospect)' },
   { pattern: re(`${C}(?:page\\.tsx|overview-kpis\\.ts)$`), tags: ['@overview', '@starting-point'], why: 'client overview (starting-point progress card)' },
   { pattern: re(`${C}ads/`), tags: ['@ads'], why: 'ads view' },
@@ -117,7 +117,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${C}reports/`), tags: [], why: 'no E2E covers the trend report page' },
   { pattern: re(`${C}reviews/`), tags: ['@reviews'], why: 'reviews view' },
   { pattern: re(`${C}settings/alerts/`), tags: ['@alert-rules'], why: 'alert rules' },
-  { pattern: re(`${C}settings/profile/`), tags: ['@profile', '@clients'], why: 'client profile and features' },
+  { pattern: re(`${C}settings/profile/`), tags: ['@profile', '@clients', '@client-billing'], why: 'client profile and features (billing pill and actions)' },
   { pattern: re(`${C}settings/delivery/`), tags: [], why: 'no E2E covers this settings page' },
   { pattern: re(`${APP}\\(platform\\)/platform/billing/`), tags: ['@billing'], why: 'platform billing console (codes, invite links)' },
   { pattern: re(`${APP}\\(platform\\)/platform/costs/`), tags: ['@costs'], why: 'platform costs page, dialogs and warning strip' },
