@@ -193,7 +193,7 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
       scorecard, themes, profile: await selfProfile(deps.db, row.selfCompetitorId), rules: pack.self_rules, playbooks: pack.playbooks,
       rankHasEvidence: rankEvidenceIds.length > 0, audienceNoun: pack.audience_noun, rankEvidenceIds,
       evidenceByCompetitor: Object.fromEntries(trend.businesses.map((b) => [b.competitorId, b.evidenceIds])),
-      adEvidenceByCompetitor: await adEvidence(deps.db, scorecard.rows.map((r) => r.competitorId)),
+      adEvidenceByCompetitor: await adEvidence(deps.db, scorecard.rows.flatMap((r) => (r.competitorId ? [r.competitorId] : []))),
     });
     const playbooks = await resolvePlaybooks(deps.db, c.agencyId, pack);
     const dropped: BriefDropStats = { items: 0, sentences: 0 };
