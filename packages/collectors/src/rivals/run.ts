@@ -1,5 +1,5 @@
 import type { CallScope } from '@cs/core';
-import { client, competitor, competitorSuggestion, type Db, discoveryRun, type DiscoveryRunProgress, type DiscoveryRunStatus, type DiscoveryRunRow, observation } from '@cs/db';
+import { agencyServiceable, client, competitor, competitorSuggestion, type Db, discoveryRun, type DiscoveryRunProgress, type DiscoveryRunStatus, type DiscoveryRunRow, observation } from '@cs/db';
 import type { DiscoveryConfig, VerticalPack } from '@cs/verticals';
 import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import { normalizeGoogleAd } from '../ads/google';
@@ -64,6 +64,11 @@ export function planSearch(keywords: string[], cfg: DiscoveryConfig): { keywords
   return { keywords: kws, gridSize };
 }
 
+async function agencyIsServiceable(db: Db, agencyId: string): Promise<boolean> {
+  const [r] = (await db.execute(sql`SELECT ${agencyServiceable(sql`${agencyId}::uuid`)} AS ok`)) as unknown as { ok: boolean }[];
+  return r?.ok === true;
+}
+
 /** Fails a run that is still live (a finished run is left alone). */
 export async function finishFailed(db: Db, runId: string, error: string, extra: Partial<DiscoveryRunRow> = {}): Promise<void> {
   await db.update(discoveryRun).set({ ...extra, status: 'failed', error, finishedAt: sql`now()` })
@@ -102,6 +107,12 @@ async function execute(deps: RivalSearchDeps, run: DiscoveryRunRow): Promise<{ s
   const area = c?.serviceArea;
   if (!c || !area) {
     await finishFailed(db, run.id, 'missing_profile');
+    return { status: 'failed' };
+  }
+  // 9a/9b: a run queued before its agency went read_only/suspended or its client was paused spends nothing.
+  // Prospects may search (12a D4), so this checks the pause, not `status = 'active'`.
+  if (c.pausedAt !== null || !(await agencyIsServiceable(db, run.agencyId))) {
+    await finishFailed(db, run.id, 'service_paused');
     return { status: 'failed' };
   }
   const cfg = (await deps.packs(c.verticalId)).discovery;

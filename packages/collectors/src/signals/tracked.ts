@@ -1,5 +1,5 @@
 import {
-  ad, client, clientCompetitor, competitor, competitorSignal, type CompetitorSignalRow, competitorSource, competitorSuggestion, type Db,
+  ad, agencyServiceable, client, clientServiceable, clientCompetitor, competitor, competitorSignal, type CompetitorSignalRow, competitorSource, competitorSuggestion, type Db,
   observation, type RankResult, rankScan, rankSnapshot, review, vendorTask,
 } from '@cs/db';
 import { and, desc, eq, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
@@ -11,9 +11,9 @@ const DAY_MS = 86_400_000;
 type Tracked = { id: string; placeId: string | null; cid: string | null; domain: string | null; metaPageIds: string[]; googleAdvertiserIds: string[] };
 type Snapshot = { results: RankResult[] };
 
-/** Clients the weekly signals job rates: active only (prospects get no recurring work). */
+/** Clients the weekly signals job rates: active only (prospects get no recurring work), never paused (9b) nor of a read_only/suspended agency (9a). */
 export async function listSignalClients(db: Db): Promise<string[]> {
-  return (await db.select({ id: client.id }).from(client).where(eq(client.status, 'active'))).map((r) => r.id);
+  return (await db.select({ id: client.id }).from(client).where(and(clientServiceable(client), agencyServiceable(client.agencyId)))).map((r) => r.id);
 }
 
 /** The snapshots of the client's most recent finished (`done`) rank scan; empty when it has none. */

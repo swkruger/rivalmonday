@@ -1,4 +1,4 @@
-import { brief, briefItem, client, clientCompetitor, type Db, discoveryRun, observation, rankScan, recommendation, vendorTask } from '@cs/db';
+import { agencyServiceable, brief, briefItem, client, clientServiceable, clientCompetitor, type Db, discoveryRun, observation, rankScan, recommendation, vendorTask } from '@cs/db';
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES } from './generate';
 
@@ -54,11 +54,12 @@ export async function startingPointReadiness(db: Db, clientId: string, now: Date
 }
 
 /**
- * Active clients (prospects get none, D10) with no starting point yet — or one that failed with attempts left or went stale while
+ * Serviceable active clients (prospects get none, D10; nor do paused clients or read_only/suspended agencies, 9a/9b) with no starting point yet — or one that failed with attempts left or went stale while
  * generating — whose readiness is met or whose 48 h wait is over. One lookup per client: fine at pilot scale.
  */
 export async function listStartingPointDue(db: Db, now: Date): Promise<string[]> {
-  const clients = await db.select({ id: client.id }).from(client).where(eq(client.status, 'active')).orderBy(client.createdAt);
+  // 9a/9b: a read_only/suspended agency or a paused client gets no starting point (generation costs model calls).
+  const clients = await db.select({ id: client.id }).from(client).where(and(clientServiceable(client), agencyServiceable(client.agencyId))).orderBy(client.createdAt);
   const due: string[] = [];
   for (const c of clients) {
     const [b] = await db

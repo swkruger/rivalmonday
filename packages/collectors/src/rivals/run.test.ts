@@ -1,6 +1,6 @@
 import type { VendorCallRecord } from '@cs/core';
 import { client, competitorSuggestion, discoveryRun, review, vendorTask } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import type { DiscoveryConfig, VerticalPack } from '@cs/verticals';
 import { eq } from 'drizzle-orm';
@@ -309,6 +309,29 @@ describe('runRivalSearch', () => {
     const after = await suggestions();
     expect(after.get('p-park')!.activity).not.toBeNull();
     expect(after.get('p-arch')).toMatchObject({ activity: null, tier: 'minor' });
+  });
+
+  it('a read_only or suspended agency → failed service_paused, no vendor calls (9a)', async () => {
+    for (const state of ['read_only', 'suspended'] as const) {
+      await pauseAgency(dbs.owner, IDS.agencyA, state);
+      const v = vendors();
+      const runId = await newRun();
+      expect(await runRivalSearch(deps(v), runId)).toEqual({ status: 'failed' });
+      expect(await runRow(runId)).toMatchObject({ status: 'failed', error: 'service_paused' });
+      expect(v.dfs.calls).toHaveLength(0);
+      expect(v.records).toHaveLength(0);
+    }
+  });
+
+  it('a paused client → failed service_paused, no vendor calls; an unpaused prospect still searches (9b)', async () => {
+    await pauseClient(dbs.owner, IDS.clientA2);
+    const v = vendors();
+    const runId = await newRun();
+    expect(await runRivalSearch(deps(v), runId)).toEqual({ status: 'failed' });
+    expect(await runRow(runId)).toMatchObject({ status: 'failed', error: 'service_paused' });
+    expect(v.dfs.calls).toHaveLength(0);
+    await dbs.owner.update(client).set({ pausedAt: null, pausedBy: null, status: 'prospect' }).where(eq(client.id, IDS.clientA2));
+    expect(await runRivalSearch(deps(vendors()), await newRun())).toEqual({ status: 'finalising' });
   });
 
   it('still over the cost cap after shrinking → failed cost_cap, no vendor calls', async () => {

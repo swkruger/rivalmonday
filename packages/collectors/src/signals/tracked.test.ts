@@ -1,5 +1,5 @@
 import { ad, capture, client, competitor, competitorSignal, competitorSource, competitorSuggestion, observation, rankScan, rankSnapshot, review } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import type { VerticalPack } from '@cs/verticals';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -116,6 +116,18 @@ describe('computeTrackedSignals', () => {
 describe('listSignalClients', () => {
   it('prospect clients skipped by signals-weekly', async () => {
     await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA1));
+    expect((await listSignalClients(dbs.service)).sort()).toEqual([IDS.clientA2, IDS.clientB1].sort());
+  });
+
+  it('skips a read_only or suspended agency; another agency still runs (9a)', async () => {
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    expect(await listSignalClients(dbs.service)).toEqual([IDS.clientB1]);
+    await pauseAgency(dbs.owner, IDS.agencyA, 'suspended');
+    expect(await listSignalClients(dbs.service)).toEqual([IDS.clientB1]);
+  });
+
+  it('skips a paused client; its unpaused sibling still runs (9b)', async () => {
+    await pauseClient(dbs.owner, IDS.clientA1);
     expect((await listSignalClients(dbs.service)).sort()).toEqual([IDS.clientA2, IDS.clientB1].sort());
   });
 });

@@ -42,7 +42,8 @@ export async function ensureSelfCompetitors(db: Db): Promise<number> {
   for (const { id } of rows) if ('competitorId' in (await ensureSelfCompetitor(db, id))) linked++;
   await db.execute(sql`
     INSERT INTO competitor_source (competitor_id, source)
-    SELECT DISTINCT c.self_competitor_id, 'ads_google' FROM client c WHERE c.status = 'active' AND c.self_competitor_id IS NOT NULL
+    SELECT DISTINCT c.self_competitor_id, 'ads_google' FROM client c
+     WHERE ${clientServiceable('c')} AND ${agencyServiceable(sql.raw('c.agency_id'))} AND c.self_competitor_id IS NOT NULL
     ON CONFLICT DO NOTHING`);
   await fillSelfDomains(db);
   return linked;

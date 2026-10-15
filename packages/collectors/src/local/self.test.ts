@@ -1,4 +1,4 @@
-import { capture, client, competitor, competitorSource, observation } from '@cs/db';
+import { agencyBilling, capture, client, competitor, competitorSource, observation } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import type { Db } from '@cs/db';
@@ -78,6 +78,23 @@ describe('ensureSelfCompetitor', () => {
       expect(await sources(id)).toEqual(['ads_google', 'gbp', 'reviews']);
       await ensureSelfCompetitors(dbs.service);
       expect(await sources(id)).toEqual(['ads_google', 'gbp', 'reviews']);
+    });
+
+    it('does not add ads_google for a read_only/suspended agency or a paused client; another client still gets it (9a/9b)', async () => {
+      const a1 = await linkedSelf();
+      const [b] = await dbs.owner.insert(competitor).values({ name: 'B1 HVAC', placeId: 'place-b1' }).returning();
+      await dbs.owner.update(client).set({ selfCompetitorId: b!.id, placeId: 'place-b1' }).where(eq(client.id, IDS.clientB1));
+      await pauseAgency(dbs.owner, IDS.agencyA);
+      await ensureSelfCompetitors(dbs.service);
+      expect(await sources(a1)).toEqual(['gbp', 'reviews']);
+      expect(await sources(b!.id)).toEqual(['ads_google']);
+      await pauseAgency(dbs.owner, IDS.agencyA, 'suspended');
+      await ensureSelfCompetitors(dbs.service);
+      expect(await sources(a1)).toEqual(['gbp', 'reviews']);
+      await dbs.owner.delete(agencyBilling);
+      await pauseClient(dbs.owner, IDS.clientA1);
+      await ensureSelfCompetitors(dbs.service);
+      expect(await sources(a1)).toEqual(['gbp', 'reviews']);
     });
 
     it('fills a null domain from the latest GBP observation (url normalised), idempotently', async () => {

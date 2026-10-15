@@ -1,5 +1,5 @@
 import { brief, briefItem, capture, client, clientCompetitor, competitor, discoveryRun, evidence, observation, rankScan, recommendation, vendorTask } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -122,6 +122,29 @@ describe('listStartingPointDue', () => {
     expect(await listStartingPointDue(dbs.service, NOW)).toEqual([IDS.clientA1]);
     await dbs.owner.update(brief).set({ attempts: 3 }).where(eq(brief.id, b!.id));
     expect(await listStartingPointDue(dbs.service, NOW)).toEqual([]);
+  });
+
+  describe('billing state (9a/9b)', () => {
+    // Every seeded client is active, past the 48 h wait and without a starting point (beforeEach gave A2/B1 one).
+    const due72h = async () => {
+      await dbs.owner.delete(brief);
+      await dbs.owner.update(client).set({ activatedAt: hoursAgo(72), status: 'active' });
+    };
+    const sorted = async () => (await listStartingPointDue(dbs.service, NOW)).sort();
+
+    it('skips every client of a read_only or suspended agency; another agency still runs', async () => {
+      await due72h();
+      await pauseAgency(dbs.owner, IDS.agencyA);
+      expect(await sorted()).toEqual([IDS.clientB1]);
+      await pauseAgency(dbs.owner, IDS.agencyA, 'suspended');
+      expect(await sorted()).toEqual([IDS.clientB1]);
+    });
+
+    it('skips a paused client; its unpaused sibling still runs', async () => {
+      await due72h();
+      await pauseClient(dbs.owner, IDS.clientA1);
+      expect(await sorted()).toEqual([IDS.clientA2, IDS.clientB1].sort());
+    });
   });
 });
 
