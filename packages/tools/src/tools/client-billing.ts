@@ -1,6 +1,6 @@
-import { type ClientBillingSignal, LIVE_SUBSCRIPTION_STATUSES, applyClientBillingSignal, connectStatusFor, clientBillingPill, countActiveClients, disconnectAgencyConnect, planFor } from '@cs/billing';
+import { type ClientBillingSignal, effectiveConnectFeePercent, LIVE_SUBSCRIPTION_STATUSES, applyClientBillingSignal, connectStatusFor, clientBillingPill, countActiveClients, disconnectAgencyConnect, planFor } from '@cs/billing';
 import { type AccessContext, canAccessClient, toolkit, ToolError } from '@cs/core';
-import { type ClientBillingRow, type ClientBillingState, type Tx, agency, agencyBilling, agencyConnect, client, clientBilling, platformSetting } from '@cs/db';
+import { type ClientBillingRow, type ClientBillingState, type Tx, agency, agencyBilling, agencyConnect, client, clientBilling } from '@cs/db';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
@@ -247,13 +247,6 @@ async function eligibleConnect(deps: ToolDeps, agencyId: string) {
   return { connect, acct: connect.stripeAccountId };
 }
 
-/** Q3: the agency's own percent when set (even 0), else the platform default. Read at Checkout creation only. */
-async function effectiveFeePercent(deps: ToolDeps, connect: { applicationFeePercent: string | null }): Promise<number> {
-  if (connect.applicationFeePercent !== null) return Number(connect.applicationFeePercent) || 0;
-  const [s] = await deps.service.select({ value: platformSetting.value }).from(platformSetting).where(eq(platformSetting.key, 'connect_application_fee_percent'));
-  return Number(s?.value) || 0;
-}
-
 /** Client owner emails in a deterministic order (membership age, then id), de-duplicated case-insensitively. */
 async function clientOwnerEmails(deps: ToolDeps, clientId: string): Promise<string[]> {
   const rows = await deps.service.execute<{ email: string }>(sql`
@@ -277,10 +270,9 @@ function appBase(deps: ToolDeps): string {
 async function checkoutFor(
   deps: ToolDeps,
   ctx: AccessContext,
-  connect: { applicationFeePercent: string | null },
   i: { acct: string; clientId: string; priceId: string; setupFeeCents: number; email: string },
 ): Promise<{ url: string; id: string }> {
-  const fee = await effectiveFeePercent(deps, connect);
+  const fee = await effectiveConnectFeePercent(deps.service, ctx.agencyId);
   const base = appBase(deps);
   try {
     return await deps.billing!.createConnectedCheckout({
@@ -429,7 +421,7 @@ export const enableClientBillingTool = defineTool({
     }
     // The one-time setup fee is only for a client who has never paid.
     const setupFeeCents = existing?.lastPaidAt ? 0 : input.setupFeeCents ?? (stored ? stored.setupFeeCents : null) ?? connect.defaultSetupFeeCents ?? 0;
-    const checkout = await checkoutFor(deps, ctx, connect, { acct, clientId: c.id, priceId, setupFeeCents, email: emails[0]! });
+    const checkout = await checkoutFor(deps, ctx, { acct, clientId: c.id, priceId, setupFeeCents, email: emails[0]! });
     const r = await commitInvite(
       deps, ctx, c.id, acct,
       { type: 'invited', priceCents, setupFeeCents, stripePriceId: priceId, checkoutUrl: checkout.url, checkoutSessionId: checkout.id },
@@ -463,7 +455,7 @@ export const resendClientPaymentLinkTool = defineTool({
     if (emails.length === 0) throw new ToolError('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
     const setupFeeCents = row.setupFeeCents ?? 0;
     await assertNotPaid(deps, ctx, acct, row.checkoutSessionId);
-    const checkout = await checkoutFor(deps, ctx, connect, { acct, clientId: c.id, priceId: row.stripePriceId, setupFeeCents, email: emails[0]! });
+    const checkout = await checkoutFor(deps, ctx, { acct, clientId: c.id, priceId: row.stripePriceId, setupFeeCents, email: emails[0]! });
     const r = await commitInvite(
       deps, ctx, c.id, acct,
       { type: 'invited', priceCents: row.priceCents, setupFeeCents, stripePriceId: row.stripePriceId, checkoutUrl: checkout.url, checkoutSessionId: checkout.id },
@@ -549,7 +541,7 @@ export const setClientPriceTool = defineTool({
     if (invited) {
       // The mailed link still charges the old price: replace it (R9/R10). New link first, old one expired after the commit (R13).
       const setupFeeCents = row!.setupFeeCents ?? 0;
-      const checkout = await checkoutFor(deps, ctx, connect, { acct, clientId: c.id, priceId, setupFeeCents, email: emails[0]! });
+      const checkout = await checkoutFor(deps, ctx, { acct, clientId: c.id, priceId, setupFeeCents, email: emails[0]! });
       await commitInvite(
         deps, ctx, c.id, acct,
         { type: 'invited', priceCents: input.priceCents, setupFeeCents, stripePriceId: priceId, checkoutUrl: checkout.url, checkoutSessionId: checkout.id },

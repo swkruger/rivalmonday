@@ -127,6 +127,7 @@ list_discount_codes (platform-billing.ts) | read | read-only; platform operator
 list_invite_links (platform-billing.ts) | read | read-only; platform staff; supportMask emailLock
 get_agency_billing (platform-billing.ts) | read | gateway invoice read only; platform operator
 get_billing_overview (platform-billing.ts) | read | read-only; platform operator
+get_connect_overview (platform-billing.ts) | read | read-only; platform operator
 create_plan_version (platform-billing.ts) | write | creates Stripe prices; platform owner
 create_discount_code (platform-billing.ts) | write | creates Stripe coupon/promotion code; platform owner
 revoke_discount_code (platform-billing.ts) | write | deactivates promotion code; platform owner
@@ -137,6 +138,7 @@ end_pilot (platform-billing.ts) | write | billing state transition; platform sta
 extend_trial (platform-billing.ts) | write | billing state transition; platform staff
 attach_agency_discount (platform-billing.ts) | write | creates Stripe customer, attaches coupon; platform staff
 set_seat_cap_exempt (platform-billing.ts) | write | updates agency_billing; platform owner
+set_connect_fee_percent (platform-billing.ts) | write | updates platform_setting or agency_connect fee; platform owner
 add_webhook (settings.ts) | write | inserts webhook
 set_webhook_active (settings.ts) | write | updates webhook
 add_client_recipient (settings.ts) | write | inserts recipient

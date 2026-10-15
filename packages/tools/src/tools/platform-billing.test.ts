@@ -1,6 +1,6 @@
 import { fakeGateway, handleStripeEvent, hashInviteToken, runBillingDaily, type FakeGateway } from '@cs/billing';
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { agency, agencyBilling, agencyBillingEvent, agencyDailyStat, agencyInviteLink, auditLog, discountCode, plan, platformAdmin, platformAuditLog } from '@cs/db';
+import { agency, agencyBilling, agencyBillingEvent, agencyDailyStat, agencyConnect, agencyInviteLink, auditLog, client, clientBilling, discountCode, plan, platformAdmin, platformAuditLog, platformSetting } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -69,6 +69,8 @@ const MATRIX: [string, unknown, 'viewer' | 'staff' | 'owner'][] = [
   ['create_discount_code', CODE, 'owner'],
   ['revoke_discount_code', { id: IDS.agencyA }, 'owner'],
   ['set_seat_cap_exempt', { agencyId: A, exempt: true }, 'owner'],
+  ['set_connect_fee_percent', { percent: 1 }, 'owner'],
+  ['get_connect_overview', {}, 'viewer'],
 ];
 
 describe('role minimums', () => {
@@ -86,7 +88,7 @@ describe('role minimums', () => {
 
   it('every tool is allowed at its minimum role', async () => {
     const code = (await call(owner, 'create_discount_code', { ...CODE, code: 'XYZ1' })) as { id: string };
-    for (const [name, input] of [['list_plans', {}], ['list_discount_codes', {}], ['get_billing_overview', {}], ['get_agency_billing', { agencyId: A }]] as const) {
+    for (const [name, input] of [['list_plans', {}], ['list_discount_codes', {}], ['get_billing_overview', {}], ['get_connect_overview', {}], ['get_agency_billing', { agencyId: A }]] as const) {
       await call(viewer, name, input);
     }
     await call(staff, 'list_invite_links', {});
@@ -422,6 +424,86 @@ describe('admin billing actions', () => {
   it('set_seat_cap_exempt works for an agency with no billing row (pilot)', async () => {
     expect(await call(owner, 'set_seat_cap_exempt', { agencyId: A, exempt: true })).toEqual({ exempt: true, meaningful: true });
     expect((await billingRow())!.seatCapExempt).toBe(true);
+  });
+});
+
+describe('set_connect_fee_percent', () => {
+  const globalFee = async () => (await dbs.owner.select().from(platformSetting).where(eq(platformSetting.key, 'connect_application_fee_percent')))[0];
+  const override = async (id = A) => (await dbs.owner.select().from(agencyConnect).where(eq(agencyConnect.agencyId, id)))[0]?.applicationFeePercent;
+  const connectRow = (agencyId = A, v: Partial<typeof agencyConnect.$inferInsert> = {}) =>
+    dbs.owner.insert(agencyConnect).values({ agencyId, stripeAccountId: `acct_${agencyId.slice(-1)}`, status: 'connected', chargesEnabled: true, ...v });
+
+  it('sets the global fee (null or omitted agencyId) with updated_by and an audit row', async () => {
+    expect(await call(owner, 'set_connect_fee_percent', { percent: 2.5 })).toEqual({ agencyId: null, previousPercent: 0, percent: 2.5 });
+    expect((await globalFee())).toMatchObject({ value: 2.5, updatedBy: 'op' });
+    expect(await call(owner, 'set_connect_fee_percent', { agencyId: null, percent: 3 })).toMatchObject({ previousPercent: 2.5, percent: 3 });
+    expect(await dbs.owner.select().from(platformAuditLog).where(eq(platformAuditLog.tool, 'set_connect_fee_percent'))).toHaveLength(2);
+  });
+  it('sets and clears a per-agency override (null clears; explicit 0 is kept)', async () => {
+    await connectRow();
+    expect(await call(owner, 'set_connect_fee_percent', { agencyId: A, percent: 1.25 })).toEqual({ agencyId: A, previousPercent: null, percent: 1.25 });
+    expect(await override()).toBe('1.25');
+    await call(owner, 'set_connect_fee_percent', { agencyId: A, percent: 0 });
+    expect(await override()).toBe('0.00');
+    expect(await call(owner, 'set_connect_fee_percent', { agencyId: A, percent: null })).toMatchObject({ previousPercent: 0, percent: null });
+    expect(await override()).toBeNull();
+    expect(await audits('set_connect_fee_percent')).toHaveLength(3); // per-agency writes land in that agency's audit_log
+  });
+  it('validates range and precision; the global fee needs a number', async () => {
+    for (const percent of [-1, 20.01, 21, 1.234, Number.NaN]) {
+      expect((await fails(call(owner, 'set_connect_fee_percent', { percent }))).code, String(percent)).toBe('invalid_input');
+    }
+    expect((await fails(call(owner, 'set_connect_fee_percent', { percent: null }))).code).toBe('invalid_input');
+    await call(owner, 'set_connect_fee_percent', { percent: 20 });
+    await call(owner, 'set_connect_fee_percent', { percent: 0.05 });
+    expect((await globalFee())!.value).toBe(0.05);
+  });
+  it('an unknown agency is not_found; an agency without a connect row is not_found too', async () => {
+    expect((await fails(call(owner, 'set_connect_fee_percent', { agencyId: '00000000-0000-4000-8000-0000000000ff', percent: 1 }))).code).toBe('not_found');
+    expect((await fails(call(owner, 'set_connect_fee_percent', { agencyId: A, percent: 1 }))).code).toBe('not_found');
+  });
+  it('makes no Stripe calls', async () => {
+    await call(owner, 'set_connect_fee_percent', { percent: 4 });
+    expect(gw.calls).toEqual([]);
+  });
+});
+
+describe('get_connect_overview', () => {
+  const B = IDS.agencyB;
+  const cb = (clientId: string, agencyId: string, v: Partial<typeof clientBilling.$inferInsert>) =>
+    dbs.owner.insert(clientBilling).values({ clientId, agencyId, enabled: true, state: 'active', billedPriceCents: 9900, ...v });
+
+  it('is empty with no connected agencies', async () => {
+    expect(await call(viewer, 'get_connect_overview', {})).toEqual({ globalFeePercent: 0, agencies: [], totals: { connectedAgencies: 0, payingClients: 0, clientMrrCents: 0 } });
+  });
+  it('lists non-disconnected agencies by name with current client counts and MRR, and totals', async () => {
+    await dbs.owner.insert(platformSetting).values({ key: 'connect_application_fee_percent', value: 2, updatedBy: 't' }).onConflictDoUpdate({ target: platformSetting.key, set: { value: 2 } });
+    await dbs.owner.insert(agencyConnect).values([
+      { agencyId: B, stripeAccountId: 'acct_b', status: 'connected', chargesEnabled: true, applicationFeePercent: '0.00' },
+      { agencyId: A, stripeAccountId: 'acct_a', status: 'restricted', chargesEnabled: false },
+    ]);
+    await cb(IDS.clientB1, B, { billedPriceCents: 5000 });
+    await cb(IDS.clientA1, A, {});
+    await cb(IDS.clientA2, A, { state: 'payment_needed', billedPriceCents: 7000 });
+    const r = (await call(viewer, 'get_connect_overview', {})) as { agencies: Record<string, unknown>[]; totals: unknown; globalFeePercent: number };
+    expect(r.globalFeePercent).toBe(2);
+    expect(r.agencies).toEqual([
+      { agencyId: A, name: 'Agency A', status: 'restricted', chargesEnabled: false, feeOverridePercent: null, payingClients: 1, paymentNeededClients: 1, clientMrrCents: 9900 },
+      { agencyId: B, name: 'Agency B', status: 'connected', chargesEnabled: true, feeOverridePercent: 0, payingClients: 1, paymentNeededClients: 0, clientMrrCents: 5000 },
+    ]);
+    expect(r.totals).toEqual({ connectedAgencies: 1, payingClients: 2, clientMrrCents: 14900 });
+    expect(JSON.stringify(r)).not.toMatch(/A1 HVAC|@/);
+  });
+  it('excludes disconnected agencies and inactive clients', async () => {
+    await dbs.owner.insert(agencyConnect).values([
+      { agencyId: A, stripeAccountId: 'acct_a', status: 'connected', chargesEnabled: true },
+      { agencyId: B, status: 'disconnected', chargesEnabled: false },
+    ]);
+    await cb(IDS.clientA1, A, {});
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA1));
+    const r = (await call(viewer, 'get_connect_overview', {})) as { agencies: { agencyId: string; payingClients: number; clientMrrCents: number }[] };
+    expect(r.agencies.map((a) => a.agencyId)).toEqual([A]);
+    expect(r.agencies[0]).toMatchObject({ payingClients: 0, clientMrrCents: 0 });
   });
 });
 

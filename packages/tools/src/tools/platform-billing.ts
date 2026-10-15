@@ -1,8 +1,8 @@
 import {
-  type BillingGateway, type BillingSignal, applyBillingSignal, currentStandardPlan, generateInviteToken, planFor, syncPlanToStripe,
+  type BillingGateway, type BillingSignal, CONNECT_FEE_KEY, applyBillingSignal, clientMrrCents, currentStandardPlan, generateInviteToken, globalConnectFeePercent, planFor, syncPlanToStripe,
 } from '@cs/billing';
 import { type AccessContext, ToolError, toolkit } from '@cs/core';
-import { agency, agencyBilling, agencyBillingEvent, agencyDailyStat, agencyInviteLink, BILLING_STATES, discountCode, plan } from '@cs/db';
+import { agency, agencyBilling, agencyBillingEvent, agencyConnect, agencyDailyStat, agencyInviteLink, BILLING_STATES, client, clientBilling, discountCode, plan, platformSetting } from '@cs/db';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
@@ -515,8 +515,102 @@ export const setSeatCapExemptTool = defineTool({
   },
 });
 
+// ---- Connect (Phase 9b task 11) ----
+
+const FEE_MAX = 20;
+const hasAtMostTwoDecimals = (n: number) => Math.abs(n * 100 - Math.round(n * 100)) < 1e-9;
+const FeePercent = z.number().min(0).max(FEE_MAX).refine(hasAtMostTwoDecimals, 'At most 2 decimal places');
+
+export const setConnectFeePercentTool = defineTool({
+  name: 'set_connect_fee_percent',
+  access: 'write',
+  description: "Platform owners: set the Connect application fee percent (0-20, at most 2 decimals) — the platform default, or one agency's own value (null clears it). Applies to Checkouts created afterwards; existing subscriptions keep their fee.",
+  input: z.object({ agencyId: Id.nullish(), percent: FeePercent.nullable() }),
+  output: z.object({ agencyId: z.string().nullable(), previousPercent: z.number().nullable(), percent: z.number().nullable() }),
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps) {
+    const agencyId = input.agencyId ?? undefined;
+    return operate(deps, ctx, 'owner', 'set_connect_fee_percent', input, agencyId, async () => {
+      if (!agencyId) {
+        if (input.percent === null) throw new ToolError('invalid_input', 'The platform default needs a percent');
+        const previousPercent = await globalConnectFeePercent(deps.service);
+        await deps.service
+          .insert(platformSetting)
+          .values({ key: CONNECT_FEE_KEY, value: input.percent, updatedBy: ctx.userId })
+          .onConflictDoUpdate({ target: platformSetting.key, set: { value: input.percent, updatedAt: new Date(), updatedBy: ctx.userId } });
+        return { agencyId: null, previousPercent, percent: input.percent };
+      }
+      return deps.service.transaction(async (tx) => {
+        const [row] = await tx.select({ pct: agencyConnect.applicationFeePercent }).from(agencyConnect).where(eq(agencyConnect.agencyId, agencyId)).for('update');
+        if (!row) throw new ToolError('not_found', 'That agency has not set up Stripe Connect');
+        await tx.update(agencyConnect)
+          .set({ applicationFeePercent: input.percent === null ? null : input.percent.toFixed(2), updatedAt: new Date() })
+          .where(eq(agencyConnect.agencyId, agencyId));
+        return { agencyId, previousPercent: row.pct === null ? null : Number(row.pct), percent: input.percent };
+      });
+    });
+  },
+});
+
+const ConnectAgencyOut = z.object({
+  agencyId: z.string(), name: z.string(), status: z.enum(['pending', 'connected', 'restricted', 'disconnected']), chargesEnabled: z.boolean(),
+  feeOverridePercent: z.number().nullable(), payingClients: z.number().int(), paymentNeededClients: z.number().int(), clientMrrCents: z.number().int(),
+});
+
+export const getConnectOverviewTool = defineTool({
+  name: 'get_connect_overview',
+  access: 'read',
+  description: 'Platform operators: agencies with a Stripe Connect account (not disconnected), their fee override, paying clients and client MRR through Connect, plus totals. No client names.',
+  input: z.object({}),
+  output: z.object({
+    globalFeePercent: z.number(),
+    agencies: z.array(ConnectAgencyOut),
+    totals: z.object({ connectedAgencies: z.number().int(), payingClients: z.number().int(), clientMrrCents: z.number().int() }),
+  }),
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps) {
+    return operate(deps, ctx, 'viewer', 'get_connect_overview', input, undefined, async () => {
+      const globalFeePercent = await globalConnectFeePercent(deps.service);
+      const rows = await deps.service
+        .select({ agencyId: agencyConnect.agencyId, name: agency.name, status: agencyConnect.status, chargesEnabled: agencyConnect.chargesEnabled, fee: agencyConnect.applicationFeePercent })
+        .from(agencyConnect)
+        .innerJoin(agency, eq(agency.id, agencyConnect.agencyId))
+        .where(sql`${agencyConnect.status} <> 'disconnected'`)
+        .orderBy(agency.name, agency.id);
+      const counts = await deps.service
+        .select({ agencyId: clientBilling.agencyId, state: clientBilling.state, n: sql<number>`count(*)::int` })
+        .from(clientBilling)
+        .innerJoin(client, eq(client.id, clientBilling.clientId))
+        .where(and(eq(clientBilling.enabled, true), eq(client.status, 'active'), inArray(clientBilling.state, ['active', 'payment_needed'])))
+        .groupBy(clientBilling.agencyId, clientBilling.state);
+      const n = (agencyId: string, state: string) => counts.find((c) => c.agencyId === agencyId && c.state === state)?.n ?? 0;
+      const agencies = [];
+      for (const r of rows) {
+        agencies.push({
+          agencyId: r.agencyId, name: r.name, status: r.status, chargesEnabled: r.chargesEnabled,
+          feeOverridePercent: r.fee === null ? null : Number(r.fee),
+          payingClients: n(r.agencyId, 'active'), paymentNeededClients: n(r.agencyId, 'payment_needed'),
+          clientMrrCents: await clientMrrCents(deps.service, r.agencyId),
+        });
+      }
+      return {
+        globalFeePercent,
+        agencies,
+        totals: {
+          connectedAgencies: agencies.filter((a) => a.status === 'connected').length,
+          payingClients: agencies.reduce((s, a) => s + a.payingClients, 0),
+          clientMrrCents: agencies.reduce((s, a) => s + a.clientMrrCents, 0),
+        },
+      };
+    });
+  },
+});
+
 export const platformBillingTools = [
   listPlansTool, createPlanVersionTool, listDiscountCodesTool, createDiscountCodeTool, revokeDiscountCodeTool,
   listInviteLinksTool, createInviteLinkTool, revokeInviteLinkTool, getAgencyBillingTool, getBillingOverviewTool,
   grantPilotTool, endPilotTool, extendTrialTool, attachAgencyDiscountTool, setSeatCapExemptTool,
+  setConnectFeePercentTool, getConnectOverviewTool,
 ];
