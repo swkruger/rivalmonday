@@ -1,10 +1,10 @@
 import type { BriefDetail } from '@cs/tools';
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
-import { scorecardModel } from '@cs/engine';
+import { formatMetric, scorecardModel } from '@cs/engine';
 import { EvidenceChips } from '@/components/evidence-chips';
 import { OpenFirstMoves, Scorecard } from './scorecard';
 
-const fmt = (n: number | null) => (n === null ? '—' : n.toFixed(1));
+const fmt = (n: number | null) => formatMetric('rating', n);
 
 /** Quiet weeks' numbers from stored data (the same snapshot the email shows). */
 function TrendTable({ trend }: { trend: NonNullable<BriefDetail['trend']> }) {
@@ -77,10 +77,12 @@ export function BriefView({ brief, agency }: { brief: BriefDetail; agency: boole
               {i.subject === 'self' ? null : <b>{i.competitorName}: </b>}
               {i.whatChanged}
             </p>
-            <p className="my-1">{i.whyItMatters}</p>
-            <p className="my-1">
-              <b className="text-secondary">Recommended:</b> {i.recommendedAction}
-            </p>
+            {i.whyItMatters && <p className="my-1">{i.whyItMatters}</p>}
+            {i.recommendedAction && (
+              <p className="my-1">
+                <b className="text-secondary">Recommended:</b> {i.recommendedAction}
+              </p>
+            )}
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <EvidenceChips clientId={brief.clientId} ids={i.evidenceIds} />
               {agency && i.upsellTag && <span className="rounded-md bg-[#FFF3DC] px-2 py-0.5 text-xs font-semibold text-accent-text">Upsell: {i.upsellTag}</span>}

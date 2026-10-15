@@ -67,6 +67,19 @@ describe('BriefView starting point and quiet week', () => {
     expect(screen.getByText('Reply to your reviews')).toBeTruthy();
     expect(screen.getByText('4.5 → 4.6')).toBeTruthy();
   });
+  it('quiet trend ratings use the shared rating format (a second decimal when needed)', () => {
+    render(<BriefView brief={{ ...sp, kind: 'quiet', summary: 'Quiet.', items: [], trend: { windowDays: 30, events: 0, businesses: [{ competitorId: C, name: 'A1 HVAC', self: true, reviews: 3, avgRating: 4.65, prevAvgRating: null, activeAds: null }] } }} agency={false} />);
+    expect(screen.getByText('— → 4.65')).toBeTruthy();
+  });
+  it('the baseline item renders without an empty why-it-matters or "Recommended:" line', () => {
+    const baseline = item(1, { competitorId: null, subject: 'self', competitorName: 'A1 HVAC', headline: 'Your baseline is set', whatChanged: 'We now track your profile.', whyItMatters: '', recommendedAction: '' });
+    render(<BriefView brief={{ ...sp, items: [baseline] }} agency={false} />);
+    const article = screen.getByRole('heading', { name: 'Your baseline is set' }).closest('article')!;
+    expect(article.textContent).not.toContain('Recommended:');
+    expect(article.querySelectorAll('p')).toHaveLength(1);
+    render(<BriefView brief={sp} agency={false} />);
+    expect(screen.getByRole('heading', { name: 'Reply to reviews' }).closest('article')!.textContent).toContain('Recommended: Do R');
+  });
 });
 
 describe('BriefView', () => {
