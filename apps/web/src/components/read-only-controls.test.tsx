@@ -126,7 +126,7 @@ describe('write controls hide in a support session', () => {
     expect(screen.getByRole('link', { name: 'Peachtree Air' }).getAttribute('href')).toBe('/c/c1/competitors/k1');
     expect(screen.queryByRole('button', { name: /remove|add competitor/i })).toBeNull();
     expect(container.querySelector('form')).toBeNull();
-    expect(container.querySelectorAll('th').length).toBe(4);
+    expect(container.querySelectorAll('th').length).toBe(6);
   });
 
   it('a dialog-triggered write (alert Dismiss) and its Approve button are absent', () => {

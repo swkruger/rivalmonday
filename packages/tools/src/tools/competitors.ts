@@ -401,7 +401,7 @@ export const getCompetitorAdMatches = defineTool({
       tx.select({ pending: clientCompetitor.pendingAdMatches }).from(clientCompetitor).where(and(eq(clientCompetitor.clientId, clientId), eq(clientCompetitor.competitorId, competitorId))));
     const [c] = await deps.service.select({ google: competitor.googleAdvertiserIds, meta: competitor.metaPageIds }).from(competitor).where(eq(competitor.id, competitorId));
     if (!link || !c) throw new ToolError('not_found', 'Competitor not found');
-    // Names are only known for suggestions; a matched id keeps `name: null` rather than a guess.
+    // `matched` comes from the shared competitor row (agency-only per Ruling 7). Names are only known for suggestions; a matched id keeps `name: null` rather than a guess.
     return {
       matched: [...c.google.map((accountId) => ({ platform: 'google' as const, accountId, name: null })), ...c.meta.map((accountId) => ({ platform: 'meta' as const, accountId, name: null }))],
       pending: link.pending.filter((m) => AdMatch.safeParse(m).success),

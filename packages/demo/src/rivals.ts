@@ -41,7 +41,7 @@ export async function seedRivals(ctx: SeedContext): Promise<void> {
     hidden: { wrong_category: 2, outside_area: 1, self: 1 },
     progress: {
       searchesDone: 9, searchesTotal: 9, checksDone: CANDIDATES.length, checksTotal: CANDIDATES.length,
-      hiddenList: [{ name: 'Home Depot', reason: 'wrong_category' }, { name: 'Fort Worth Mechanical', reason: 'outside_area' }, { name: 'Lone Star Cooling', reason: 'self' }],
+      hiddenList: [{ name: 'Bluestem Hardware Supply', reason: 'wrong_category' }, { name: 'Tarrant Valley Mechanical', reason: 'outside_area' }, { name: 'Lone Star Cooling', reason: 'self' }],
     },
   }).returning({ id: discoveryRun.id });
   await db.insert(competitorSuggestion).values(CANDIDATES.map((c, i) => ({

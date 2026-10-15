@@ -58,11 +58,11 @@ export function AdMatchChips({ clientId, competitorId, matched, pending }: { cli
               <>
                 <form action={confirm}>
                   {fields(m.platform, m.accountId)}
-                  <button type="submit" className={link} disabled={busy} aria-label={`Confirm ${m.name}`}>Confirm</button>
+                  <button type="submit" className={link} disabled={busy} aria-label={`Confirm ${PLATFORM[m.platform]} account ${m.name}`}>Confirm</button>
                 </form>
                 <form action={remove}>
                   {fields(m.platform, m.accountId)}
-                  <button type="submit" className={link} disabled={busy} aria-label={`Remove ${m.name}`}>Remove</button>
+                  <button type="submit" className={link} disabled={busy} aria-label={`Remove ${PLATFORM[m.platform]} account ${m.name}`}>Remove</button>
                 </form>
               </>
             )}

@@ -25,14 +25,14 @@ describe('AdMatchChips', () => {
     expect(screen.getAllByText('Matched automatically')).toHaveLength(2);
     expect(screen.getByText('Possible Meta account: Peach Air Atlanta')).toBeTruthy();
     expect(screen.getByText('Google AR111')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Confirm Peach Air Atlanta' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Confirm Meta account Peach Air Atlanta' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Remove Google AR111' })).toBeTruthy();
   });
 
   it('confirm submits the account and keeps the result message mounted', async () => {
     confirmAdMatchAction.mockResolvedValue({ ok: true, message: 'Ad account confirmed.' });
     render(<AdMatchChips {...props} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm Peach Air Atlanta' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Meta account Peach Air Atlanta' }));
     await waitFor(() => expect(screen.getByText('Ad account confirmed.')).toBeTruthy());
     const fd = confirmAdMatchAction.mock.calls[0]![1] as FormData;
     expect([fd.get('clientId'), fd.get('competitorId'), fd.get('platform'), fd.get('accountId')]).toEqual(['c1', 'x1', 'meta', '9001']);
