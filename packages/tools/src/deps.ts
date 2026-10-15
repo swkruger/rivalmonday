@@ -34,7 +34,7 @@ export interface ToolDeps {
   appUrl?: string;
   /** P16: query embedding for `search` (dev environment with an OpenRouter key only); absent: full-text search only. */
   embedQuery?: (text: string, scope: CallScope) => Promise<number[]>;
-  /** Phase 9a: Stripe gateway (`gatewayFor`; the fake outside production). Absent: seat quantity is not pushed (the daily job reconciles). */
+  /** Phase 9a: billing gateway (`gatewayFor`): fake in DEMO/TEST, Stripe with a key, absent when billing is not configured (R27: Stripe-backed tools refuse, reads degrade, seat sync is skipped and the daily job reconciles). */
   billing?: BillingGateway;
   /** Evidence bytes by object key, for `fetch` and the MCP evidence resources. */
   evidenceStore?: { get(key: string): Promise<Uint8Array | null> };

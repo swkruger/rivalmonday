@@ -8,7 +8,7 @@ import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { type PlatformRole, requirePlatformOperator } from '../platform';
 import { withPlatformAudit } from '../platform/audit';
-import { ensureCustomer } from './billing';
+import { ensureCustomer, gatewayOf, hasLiveSubscription } from './billing';
 
 /**
  * Phase 9a platform billing tools (spec § Tools, platform line; rulings R7, R8, R23). Each tool starts with
@@ -25,11 +25,6 @@ const Id = z.string().uuid();
 const IsoDate = z.string().datetime();
 
 const logDegraded = (what: string, e: unknown) => console.error('[billing] gateway call failed', { what }, (e as { name?: string } | null)?.name);
-
-function gatewayOf(deps: ToolDeps): BillingGateway {
-  if (!deps.billing) throw new ToolError('internal', 'Billing is not configured');
-  return deps.billing;
-}
 
 async function requireAgency(deps: ToolDeps, agencyId: string): Promise<void> {
   const [a] = await deps.service.select({ id: agency.id }).from(agency).where(eq(agency.id, agencyId));
@@ -148,7 +143,7 @@ export const createDiscountCodeTool = defineTool({
   description: 'Platform owners: create a Stripe coupon and promotion code (percent or amount off; base, seats or both; optionally restricted to agencies).',
   input: z.object({
     code: z.string().trim().min(3).max(64).regex(/^[A-Za-z0-9_-]+$/, 'Letters, digits, - and _ only'),
-    percentOff: z.number().gt(0).max(100).optional(),
+    percentOff: z.number().gt(0).max(100).refine((v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-9, 'At most 2 decimals').optional(),
     amountOffCents: z.number().int().min(1).max(10_000_000).optional(),
     appliesTo: z.enum(['base', 'seats', 'both']),
     duration: z.enum(['once', 'repeating', 'forever']),
@@ -226,6 +221,9 @@ export const revokeDiscountCodeTool = defineTool({
   audit: 'skip-web',
   async handler(ctx: AccessContext, input, deps) {
     return operate(deps, ctx, 'owner', 'revoke_discount_code', input, undefined, async () => {
+      const [existing] = await deps.service.select({ promo: discountCode.stripePromotionCodeId }).from(discountCode).where(eq(discountCode.id, input.id));
+      // R27: a promotion code we cannot deactivate would stay redeemable at Checkout, so a local-only revoke would mislead.
+      if (existing?.promo) gatewayOf(deps);
       const [row] = await deps.service
         .update(discountCode).set({ revokedAt: sql`coalesce(${discountCode.revokedAt}, now())` }).where(eq(discountCode.id, input.id))
         .returning({ promo: discountCode.stripePromotionCodeId });
@@ -411,18 +409,33 @@ async function adminSignal(deps: ToolDeps, ctx: AccessContext, agencyId: string,
 }
 
 const StateOut = z.object({ state: State });
+const FutureIsoDate = IsoDate.refine((s) => new Date(s).getTime() > Date.now(), 'Must be in the future');
+
+/**
+ * R26: staff may not put an agency on a free pilot/trial while Stripe still bills it. A stored id whose subscription is
+ * canceled or gone is stale (a missed deletion event); the state signal then forgets it (`FORGET_SUBSCRIPTION`).
+ */
+async function assertNoLiveStripeSubscription(deps: ToolDeps, agencyId: string): Promise<void> {
+  const [row] = await deps.service.select({ sub: agencyBilling.stripeSubscriptionId }).from(agencyBilling).where(eq(agencyBilling.agencyId, agencyId));
+  if (!row?.sub) return;
+  if (await hasLiveSubscription(gatewayOf(deps), agencyId, row.sub)) {
+    throw new ToolError('conflict', 'This agency has a live Stripe subscription. Cancel it in Stripe first.');
+  }
+}
 
 export const grantPilotTool = defineTool({
   name: 'grant_pilot',
   access: 'write',
   description: 'Platform staff: put an agency on a free pilot, with an optional end date.',
-  input: z.object({ agencyId: Id, endsAt: IsoDate.optional() }),
+  input: z.object({ agencyId: Id, endsAt: FutureIsoDate.optional() }),
   output: StateOut,
   permission: 'agency',
   audit: 'skip-web',
   async handler(ctx: AccessContext, input, deps) {
-    return operate(deps, ctx, 'staff', 'grant_pilot', input, input.agencyId, () =>
-      adminSignal(deps, ctx, input.agencyId, 'grant a pilot', (_t, now) => ({ kind: 'admin_grant_pilot', endsAt: input.endsAt ? new Date(input.endsAt) : null, now })));
+    return operate(deps, ctx, 'staff', 'grant_pilot', input, input.agencyId, async () => {
+      await assertNoLiveStripeSubscription(deps, input.agencyId);
+      return adminSignal(deps, ctx, input.agencyId, 'grant a pilot', (_t, now) => ({ kind: 'admin_grant_pilot', endsAt: input.endsAt ? new Date(input.endsAt) : null, now }));
+    });
   },
 });
 
@@ -444,13 +457,15 @@ export const extendTrialTool = defineTool({
   name: 'extend_trial',
   access: 'write',
   description: 'Platform staff: move an agency’s trial end date.',
-  input: z.object({ agencyId: Id, until: IsoDate }),
+  input: z.object({ agencyId: Id, until: FutureIsoDate }),
   output: StateOut,
   permission: 'agency',
   audit: 'skip-web',
   async handler(ctx: AccessContext, input, deps) {
-    return operate(deps, ctx, 'staff', 'extend_trial', input, input.agencyId, () =>
-      adminSignal(deps, ctx, input.agencyId, 'extend the trial', (_t, now) => ({ kind: 'admin_extend_trial', until: new Date(input.until), now })));
+    return operate(deps, ctx, 'staff', 'extend_trial', input, input.agencyId, async () => {
+      await assertNoLiveStripeSubscription(deps, input.agencyId);
+      return adminSignal(deps, ctx, input.agencyId, 'extend the trial', (_t, now) => ({ kind: 'admin_extend_trial', until: new Date(input.until), now }));
+    });
   },
 });
 
@@ -468,11 +483,11 @@ export const attachAgencyDiscountTool = defineTool({
       if (!dc) throw new ToolError('not_found', 'Discount code not found');
       if (dc.revokedAt || (dc.expiresAt && dc.expiresAt.getTime() <= Date.now())) throw new ToolError('invalid_input', 'That discount code is revoked or expired');
       if (dc.restrictedAgencyIds && !dc.restrictedAgencyIds.includes(input.agencyId)) throw new ToolError('invalid_input', 'That discount code is restricted to other agencies');
-      gatewayOf(deps);
-      const customerId = await ensureCustomer(deps, input.agencyId);
+      const gw = gatewayOf(deps);
+      await ensureCustomer(deps, input.agencyId);
       const [row] = await deps.service.select({ sub: agencyBilling.stripeSubscriptionId }).from(agencyBilling).where(eq(agencyBilling.agencyId, input.agencyId));
       const hasSubscription = !!row?.sub;
-      if (hasSubscription) await deps.billing!.attachCustomerDiscount({ customerId, couponId: dc.stripeCouponId });
+      if (row?.sub) await gw.attachSubscriptionDiscount({ subscriptionId: row.sub, couponId: dc.stripeCouponId });
       await deps.service.update(agencyBilling).set({ attachedCouponId: dc.stripeCouponId, updatedAt: new Date() }).where(eq(agencyBilling.agencyId, input.agencyId));
       return { attached: true as const, appliesAtCheckout: !hasSubscription };
     });

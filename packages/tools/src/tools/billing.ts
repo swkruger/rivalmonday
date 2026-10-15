@@ -1,4 +1,4 @@
-import { type BillingGateway, countActiveClients, currentStandardPlan, planFor, syncPlanToStripe } from '@cs/billing';
+import { type BillingGateway, countActiveClients, currentStandardPlan, LIVE_SUBSCRIPTION_STATUSES, planFor, syncPlanToStripe, trialEndUsable } from '@cs/billing';
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { agency, agencyBilling, client, discountCode } from '@cs/db';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
@@ -22,8 +22,11 @@ function requireAdmin(ctx: AccessContext) {
   if (ctx.role !== 'agency_admin' || ctx.userId.startsWith('contact:')) throw new ToolError('permission_denied', 'Only the agency admin can manage billing');
 }
 
-function gatewayOf(deps: ToolDeps) {
-  if (!deps.billing) throw new ToolError('internal', 'Billing is not configured');
+export const BILLING_NOT_CONFIGURED_MESSAGE = 'Billing is not configured.';
+
+/** R27: no gateway (keyless DEV/production) => tools that need Stripe refuse; reads degrade instead of calling this. */
+export function gatewayOf(deps: ToolDeps): BillingGateway {
+  if (!deps.billing) throw new ToolError('conflict', BILLING_NOT_CONFIGURED_MESSAGE);
   return deps.billing;
 }
 
@@ -53,19 +56,23 @@ export async function ensureCustomer(deps: ToolDeps, agencyId: string): Promise<
   return (await billingRowOf(deps, agencyId))!.stripeCustomerId!;
 }
 
-const LIVE_SUBSCRIPTION_STATUSES = ['active', 'trialing', 'past_due', 'unpaid', 'incomplete'];
-
-/** R22: `stripe_subscription_id` survives a subscription ending, so ask Stripe. Live => conflict; canceled/missing => allow; lookup failure => fail closed. */
-async function assertNoLiveSubscription(gw: BillingGateway, agencyId: string, subscriptionId: string): Promise<void> {
-  let status: string | null;
+/**
+ * R22/R26: whether the stored subscription is still live in Stripe (a missed `subscription.deleted` can leave a stale id).
+ * canceled / incomplete_expired / not found => false; a lookup failure fails closed (`internal`).
+ */
+export async function hasLiveSubscription(gw: BillingGateway, agencyId: string, subscriptionId: string): Promise<boolean> {
   try {
-    status = (await gw.getSubscription(subscriptionId)).status;
+    return LIVE_SUBSCRIPTION_STATUSES.includes((await gw.getSubscription(subscriptionId)).status);
   } catch (e) {
-    if ((e as { code?: string } | null)?.code === 'resource_missing') return;
+    if ((e as { code?: string } | null)?.code === 'resource_missing') return false;
     logDegraded(agencyId, 'getSubscription', e);
-    throw new ToolError('internal', 'Could not check your subscription. Try again shortly.');
+    throw new ToolError('internal', 'Could not check the subscription. Try again shortly.');
   }
-  if (LIVE_SUBSCRIPTION_STATUSES.includes(status)) throw new ToolError('conflict', 'This agency already has a subscription. Manage it from the billing portal.');
+}
+
+/** R22: one subscription per agency. Live => conflict (use the portal); canceled/missing => allow; lookup failure => fail closed. */
+async function assertNoLiveSubscription(gw: BillingGateway, agencyId: string, subscriptionId: string): Promise<void> {
+  if (await hasLiveSubscription(gw, agencyId, subscriptionId)) throw new ToolError('conflict', 'This agency already has a subscription. Manage it from the billing portal.');
 }
 
 const Plan = z.object({ name: z.string(), version: z.number().int(), basePriceCents: z.number().int(), includedSeats: z.number().int(), seatPriceCents: z.number().int() });
@@ -159,7 +166,8 @@ export const createCheckoutSessionTool = defineTool({
     const customerId = await ensureCustomer(deps, ctx.agencyId);
     const row = (await billingRowOf(deps, ctx.agencyId))!;
     const active = await countActiveClients(deps.service, ctx.agencyId);
-    const trialEnd = row.state === 'trialing' && row.trialEndsAt && row.trialEndsAt.getTime() > Date.now() ? row.trialEndsAt : undefined;
+    // I2: Stripe rejects a Checkout trial_end under 48 h away; closer than that the subscription simply starts now.
+    const trialEnd = row.state === 'trialing' && row.trialEndsAt && trialEndUsable(row.trialEndsAt) ? row.trialEndsAt : undefined;
     return gw.createCheckoutSession({
       customerId,
       basePriceId: p.stripeBasePriceId!,
@@ -209,10 +217,10 @@ export const redeemDiscountCodeTool = defineTool({
       && (!dc.restrictedAgencyIds || dc.restrictedAgencyIds.includes(ctx.agencyId));
     if (!dc || !valid) throw new ToolError('invalid_code', INVALID_CODE_MESSAGE);
 
-    const customerId = await ensureCustomer(deps, ctx.agencyId);
-    const row = await billingRowOf(deps, ctx.agencyId);
-    const hasSubscription = !!row?.stripeSubscriptionId;
-    if (hasSubscription) await gw.attachCustomerDiscount({ customerId, couponId: dc.stripeCouponId });
+    await ensureCustomer(deps, ctx.agencyId);
+    const subscriptionId = (await billingRowOf(deps, ctx.agencyId))?.stripeSubscriptionId;
+    const hasSubscription = !!subscriptionId;
+    if (subscriptionId) await gw.attachSubscriptionDiscount({ subscriptionId, couponId: dc.stripeCouponId });
     await deps.service.update(agencyBilling).set({ attachedCouponId: dc.stripeCouponId, updatedAt: new Date() }).where(eq(agencyBilling.agencyId, ctx.agencyId));
     return { applied: true as const, appliesAtCheckout: !hasSubscription };
   },

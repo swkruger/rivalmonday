@@ -125,6 +125,12 @@ describe('create_checkout_session', () => {
     expect(input.couponId).toBeUndefined();
   });
 
+  it('omits a trial end less than 49 h away (Stripe needs 48 h) (I2)', async () => {
+    await setBilling({ state: 'trialing', trialEndsAt: new Date(Date.now() + 30 * 3600_000) });
+    await call(admin, 'create_checkout_session');
+    expect((gw.callsTo('createCheckoutSession')[0]!.args[0] as Record<string, any>).trialEnd).toBeUndefined();
+  });
+
   it('seatQty = active - included; no trial end when it has passed', async () => {
     await dbs.owner.insert(client).values([0, 1, 2].map((i) => ({ agencyId: IDS.agencyA, name: `Extra ${i}`, verticalId: 'hvac_plumbing', status: 'active' as const })));
     await setBilling({ state: 'trialing', trialEndsAt: new Date(Date.now() - day) });
@@ -207,7 +213,7 @@ describe('redeem_discount_code', () => {
     const e = await fails(call(admin, 'redeem_discount_code', { code }));
     expect(e.code).toBe('invalid_code');
     expect(e.message).toBe(MSG);
-    expect(gw.callsTo('attachCustomerDiscount')).toEqual([]);
+    expect(gw.callsTo('attachSubscriptionDiscount')).toEqual([]);
     expect((await billingRow())?.attachedCouponId ?? null).toBeNull();
   };
 
@@ -225,16 +231,39 @@ describe('redeem_discount_code', () => {
     const row = (await billingRow())!;
     expect(row.attachedCouponId).toBe('coupon_1');
     expect(row.stripeCustomerId).toMatch(/^cus_/);
-    expect(gw.callsTo('attachCustomerDiscount')).toEqual([]);
+    expect(gw.callsTo('attachSubscriptionDiscount')).toEqual([]);
   });
 
-  it('with a subscription attaches the coupon to the customer now', async () => {
+  it('with a subscription attaches the coupon to the subscription now (I1)', async () => {
     await addCode();
     const { id } = await gw.createCustomer({ agencyId: IDS.agencyA, name: 'A' });
+    gw.seedSubscription({ id: 'sub_1', customerId: id });
     await setBilling({ state: 'active', stripeCustomerId: id, stripeSubscriptionId: 'sub_1' });
     expect(await call(admin, 'redeem_discount_code', { code: 'SAVE10' })).toEqual({ applied: true, appliesAtCheckout: false });
-    expect(gw.callsTo('attachCustomerDiscount')[0]!.args[0]).toEqual({ customerId: id, couponId: 'coupon_1' });
+    expect(gw.callsTo('attachSubscriptionDiscount')[0]!.args[0]).toEqual({ subscriptionId: 'sub_1', couponId: 'coupon_1' });
+    expect(gw.subscriptionCoupons.get('sub_1')).toEqual(['coupon_1']);
     expect((await billingRow())!.attachedCouponId).toBe('coupon_1');
+  });
+});
+
+describe('billing not configured (R27: no gateway)', () => {
+  const NOT_CONFIGURED = 'Billing is not configured.';
+  beforeEach(() => {
+    registry = createToolRegistry({ app: dbs.app, service: dbs.service, appUrl: APP }, { audit: { record: async () => {} } });
+  });
+
+  it.each([['create_checkout_session', {}], ['create_portal_session', {}], ['redeem_discount_code', { code: 'SAVE10' }]] as const)('%s refuses with conflict', async (name, input) => {
+    await addCode();
+    await setBilling({ state: 'trialing', stripeCustomerId: 'cus_1' });
+    const e = await fails(call(admin, name, input));
+    expect(e).toMatchObject({ code: 'conflict', message: NOT_CONFIGURED });
+    expect((await billingRow())!.attachedCouponId).toBeNull();
+  });
+
+  it('get_billing_summary still renders from the database (no invoices, no estimate)', async () => {
+    await setBilling({ state: 'active', stripeCustomerId: 'cus_1', stripeSubscriptionId: 'sub_1' });
+    const r = (await call(admin, 'get_billing_summary')) as Record<string, any>;
+    expect(r).toMatchObject({ state: 'active', nextInvoice: null, recentInvoices: [] });
   });
 });
 

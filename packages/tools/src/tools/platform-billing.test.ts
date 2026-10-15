@@ -1,9 +1,9 @@
-import { fakeGateway, hashInviteToken, type FakeGateway } from '@cs/billing';
+import { fakeGateway, handleStripeEvent, hashInviteToken, runBillingDaily, type FakeGateway } from '@cs/billing';
 import { type AccessContext, createAccessContext } from '@cs/core';
 import { agency, agencyBilling, agencyBillingEvent, agencyDailyStat, agencyInviteLink, auditLog, discountCode, plan, platformAdmin, platformAuditLog } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { createToolRegistry } from '../registry';
 
@@ -121,6 +121,12 @@ describe('create_discount_code', () => {
     expect(coupon.maxRedemptions).toBe(3);
     expect(coupon.redeemBy.getTime()).toBe(exp.getTime());
     expect(gw.callsTo('createPromotionCode')[0]!.args[0]).toMatchObject({ code: 'WELCOME20', maxRedemptions: 3 });
+  });
+
+  it('percentOff allows at most 2 decimals', async () => {
+    expect((await fails(call(owner, 'create_discount_code', { ...CODE, percentOff: 12.345 }))).code).toBe('invalid_input');
+    await call(owner, 'create_discount_code', { ...CODE, code: 'TWELVE', percentOff: 12.35 });
+    expect((gw.callsTo('createCoupon')[0]!.args[0] as { percentOff: number }).percentOff).toBe(12.35);
   });
 
   it('percent XOR amount; durationMonths iff repeating', async () => {
@@ -313,6 +319,57 @@ describe('admin billing actions', () => {
     expect(await events()).toEqual([]);
   });
 
+  it.each([['grant_pilot', {}], ['extend_trial', { until: new Date(Date.now() + 9 * DAY).toISOString() }]] as const)('%s refuses while the agency has a live Stripe subscription (R26)', async (name, extra) => {
+    await setBilling({ state: 'past_due', pastDueSince: new Date(), stripeCustomerId: 'cus_a', stripeSubscriptionId: 'sub_a' });
+    gw.seedSubscription({ id: 'sub_a', customerId: 'cus_a', status: 'past_due' });
+    const e = await fails(call(staff, name, { agencyId: A, ...extra }));
+    expect(e).toMatchObject({ code: 'conflict', message: 'This agency has a live Stripe subscription. Cancel it in Stripe first.' });
+    expect(await events()).toEqual([]);
+    expect((await billingRow())!.stripeSubscriptionId).toBe('sub_a');
+  });
+
+  it.each([['canceled', true], ['missing in Stripe', false]] as const)('grant_pilot proceeds when the stored subscription is %s and forgets it', async (_n, seed) => {
+    await setBilling({ state: 'past_due', pastDueSince: new Date(), stripeCustomerId: 'cus_a', stripeSubscriptionId: 'sub_a', billableSeatsSynced: 1 });
+    if (seed) gw.seedSubscription({ id: 'sub_a', customerId: 'cus_a', status: 'canceled' });
+    await call(staff, 'grant_pilot', { agencyId: A });
+    expect(await billingRow()).toMatchObject({ state: 'pilot', stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false });
+  });
+
+  it('grant_pilot fails closed when the subscription lookup fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await setBilling({ state: 'past_due', pastDueSince: new Date(), stripeSubscriptionId: 'sub_a' });
+    gw.seedSubscription({ id: 'sub_a', customerId: 'cus_a', status: 'canceled' });
+    gw.failNext();
+    expect((await fails(call(staff, 'grant_pilot', { agencyId: A }))).code).toBe('internal');
+    expect(await events()).toEqual([]);
+  });
+
+  it.each([
+    ['webhook delivered', true],
+    ['webhook missed', false],
+  ] as const)('C1 scenario (%s): ended subscription, then grant_pilot; the nightly job keeps the pilot', async (_n, delivered) => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // Missed: payment failed, Stripe gave up and canceled, and the deletion event never arrived (the id is still stored).
+    await setBilling({ state: delivered ? 'active' : 'past_due', pastDueSince: delivered ? null : new Date(), stripeCustomerId: 'cus_a', stripeSubscriptionId: 'sub_a', billableSeatsSynced: 0 });
+    gw.seedSubscription({ id: 'sub_a', customerId: 'cus_a', status: 'canceled' });
+    if (delivered) {
+      await handleStripeEvent(dbs.service, gw, { id: 'evt_end', type: 'customer.subscription.deleted', created: Math.floor(Date.now() / 1000), data: { object: { id: 'sub_a', customer: 'cus_a', status: 'canceled' } } });
+      expect(await billingRow()).toMatchObject({ state: 'past_due', stripeSubscriptionId: null });
+    }
+    await call(staff, 'grant_pilot', { agencyId: A, endsAt: new Date(Date.now() + 90 * DAY).toISOString() });
+    for (const d of [1, 8, 40]) await runBillingDaily(dbs.service, gw, new Date(Date.now() + d * DAY));
+    expect(await billingRow()).toMatchObject({ state: 'pilot', stripeSubscriptionId: null });
+  });
+
+  it('grant_pilot endsAt and extend_trial until must be in the future', async () => {
+    await setBilling({ state: 'trialing', trialEndsAt: new Date(Date.now() + DAY) });
+    const past = new Date(Date.now() - 60_000).toISOString();
+    expect((await fails(call(staff, 'grant_pilot', { agencyId: A, endsAt: past }))).code).toBe('invalid_input');
+    expect((await fails(call(staff, 'extend_trial', { agencyId: A, until: past }))).code).toBe('invalid_input');
+    expect(await events()).toEqual([]);
+  });
+
   it('unknown agency -> not_found', async () => {
     expect((await fails(call(staff, 'grant_pilot', { agencyId: '99999999-9999-4999-8999-999999999999' }))).code).toBe('not_found');
   });
@@ -324,15 +381,16 @@ describe('admin billing actions', () => {
     const row = (await billingRow())!;
     expect(row.attachedCouponId).toBe(dc!.stripeCouponId);
     expect(row.stripeCustomerId).toBeTruthy();
-    expect(gw.callsTo('attachCustomerDiscount')).toEqual([]);
+    expect(gw.callsTo('attachSubscriptionDiscount')).toEqual([]);
   });
 
-  it('attach_agency_discount: with a subscription attaches to the customer', async () => {
+  it('attach_agency_discount: with a subscription attaches to the subscription (I1)', async () => {
     const d = (await call(owner, 'create_discount_code', CODE)) as { id: string };
     await setBilling({ state: 'active', stripeCustomerId: 'cus_a', stripeSubscriptionId: 'sub_a' });
-    gw.customers.set('cus_a', { id: 'cus_a', agencyId: A, name: 'A', couponIds: [] });
-    await call(staff, 'attach_agency_discount', { agencyId: A, discountCodeId: d.id });
-    expect(gw.callsTo('attachCustomerDiscount')[0]!.args[0]).toMatchObject({ customerId: 'cus_a' });
+    gw.seedSubscription({ id: 'sub_a', customerId: 'cus_a' });
+    expect(await call(staff, 'attach_agency_discount', { agencyId: A, discountCodeId: d.id })).toEqual({ attached: true, appliesAtCheckout: false });
+    const [dc] = await dbs.owner.select().from(discountCode).where(eq(discountCode.id, d.id));
+    expect(gw.callsTo('attachSubscriptionDiscount')[0]!.args[0]).toEqual({ subscriptionId: 'sub_a', couponId: dc!.stripeCouponId });
   });
 
   it('attach_agency_discount refuses revoked or expired codes', async () => {
@@ -364,6 +422,33 @@ describe('admin billing actions', () => {
   it('set_seat_cap_exempt works for an agency with no billing row (pilot)', async () => {
     expect(await call(owner, 'set_seat_cap_exempt', { agencyId: A, exempt: true })).toEqual({ exempt: true, meaningful: true });
     expect((await billingRow())!.seatCapExempt).toBe(true);
+  });
+});
+
+describe('billing not configured (R27: no gateway)', () => {
+  const NOT_CONFIGURED = { code: 'conflict', message: 'Billing is not configured.' };
+  beforeEach(() => {
+    registry = createToolRegistry({ app: dbs.app, service: dbs.service, appUrl: APP, platformAdmins: ['op@example.com'] }, { audit: { record: async () => {} } });
+  });
+
+  it('Stripe-backed writes refuse', async () => {
+    const [dc] = await dbs.owner.insert(discountCode).values({ code: 'X1', stripeCouponId: 'co_x', stripePromotionCodeId: 'promo_x', percentOff: '10', appliesTo: 'both', duration: 'once', createdBy: 't' }).returning();
+    expect(await fails(call(owner, 'create_plan_version', PLAN_IN))).toMatchObject(NOT_CONFIGURED);
+    expect(await fails(call(owner, 'create_discount_code', CODE))).toMatchObject(NOT_CONFIGURED);
+    expect(await fails(call(staff, 'attach_agency_discount', { agencyId: A, discountCodeId: dc!.id }))).toMatchObject(NOT_CONFIGURED);
+    expect(await fails(call(owner, 'revoke_discount_code', { id: dc!.id }))).toMatchObject(NOT_CONFIGURED);
+    expect((await dbs.owner.select().from(discountCode))[0]!.revokedAt).toBeNull();
+    await setBilling({ state: 'past_due', pastDueSince: new Date(), stripeSubscriptionId: 'sub_a' });
+    expect(await fails(call(staff, 'grant_pilot', { agencyId: A }))).toMatchObject(NOT_CONFIGURED);
+    expect(await dbs.owner.select().from(plan)).toHaveLength(1);
+  });
+
+  it('state actions without a stored subscription, and reads, still work', async () => {
+    await setBilling({ state: 'trialing', trialEndsAt: new Date(Date.now() + DAY), stripeCustomerId: 'cus_a' });
+    expect(await call(staff, 'grant_pilot', { agencyId: A })).toEqual({ state: 'pilot' });
+    expect(await call(viewer, 'get_agency_billing', { agencyId: A })).toMatchObject({ state: 'pilot', invoices: [] });
+    const [dc] = await dbs.owner.insert(discountCode).values({ code: 'X2', stripeCouponId: 'co_y', percentOff: '10', appliesTo: 'both', duration: 'once', createdBy: 't' }).returning();
+    expect(await call(owner, 'revoke_discount_code', { id: dc!.id })).toEqual({ revoked: true }); // no promotion code to deactivate
   });
 });
 
