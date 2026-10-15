@@ -300,6 +300,10 @@ describe('bulk accept and the atomic limit (12a)', () => {
     await expect(registry.invoke(amA1, 'accept_competitor_suggestions', { clientId: IDS.clientA1, ids: [same] })).resolves.toEqual({ items: [{ suggestionId: same, competitorId: IDS.competitorX, discovery: 'disabled' }] });
     const a2 = await runSuggestion(await doneRun(IDS.clientA2), 'A2 Rival', 'ChIJa2rivala2ri', { tier: 'top', overlap: 0.9, clientId: IDS.clientA2 });
     await expect(registry.invoke(admin, 'accept_competitor_suggestions', { clientId: IDS.clientA1, ids: [a2] })).rejects.toMatchObject({ code: 'not_found' });
+    // Only open suggestions: accepted (above) or dismissed ones are not found.
+    await expect(registry.invoke(amA1, 'accept_competitor_suggestions', { clientId: IDS.clientA1, ids: [same] })).rejects.toMatchObject({ code: 'not_found' });
+    const dismissed = await runSuggestion(run, 'Gone', 'ChIJdismissedx1', { tier: 'minor', overlap: 0.1, status: 'dismissed' });
+    await expect(registry.invoke(amA1, 'accept_competitor_suggestion', { suggestionId: dismissed })).rejects.toMatchObject({ code: 'not_found' });
   });
 });
 
@@ -347,6 +351,29 @@ describe('ad-account matches (D6)', () => {
     await registry.invoke(amA1, 'remove_ad_match', { clientId: IDS.clientA1, competitorId: id, platform: 'google', accountId: 'AR222' });
     expect(await pending(id)).toEqual([WEAK_M]);
     await expect(registry.invoke(amA1, 'remove_ad_match', { clientId: IDS.clientA1, competitorId: id, platform: 'google', accountId: 'AR222' })).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('remove is refused when another client also tracks the competitor (shared row and ads unchanged)', async () => {
+    const id = await acceptWithMatches();
+    await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: id });
+    await dbs.owner.insert(ad).values({ competitorId: id, platform: 'google', externalId: 'CR-1', advertiserId: 'AR111', isActive: true });
+    await expect(registry.invoke(amA1, 'remove_ad_match', { clientId: IDS.clientA1, competitorId: id, platform: 'google', accountId: 'AR111' }))
+      .rejects.toMatchObject({ code: 'invalid_input', message: "Other clients also track this competitor, so this account can't be removed here. Contact support." });
+    expect(await accounts(id)).toEqual({ g: ['AR111'], m: [] });
+    expect((await dbs.owner.select().from(ad).where(eq(ad.competitorId, id)))[0]).toMatchObject({ isActive: true, endedAt: null });
+    // This client's own pending entry can still go.
+    await registry.invoke(amA1, 'remove_ad_match', { clientId: IDS.clientA1, competitorId: id, platform: 'meta', accountId: '9001' });
+    expect(await pending(id)).toEqual([WEAK_G]);
+  });
+
+  it('confirm and remove are agency-only: a client owner with manage_competitors is refused', async () => {
+    const id = await acceptWithMatches();
+    const flagged = ctx('client_owner', [IDS.clientA1], ['dashboard', 'manage_competitors']);
+    // The registry hides tools a role may not call (404-not-403): the refusal reads as not_found.
+    await expect(registry.invoke(flagged, 'confirm_ad_match', { clientId: IDS.clientA1, competitorId: id, platform: 'meta', accountId: '9001' })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(flagged, 'remove_ad_match', { clientId: IDS.clientA1, competitorId: id, platform: 'google', accountId: 'AR111' })).rejects.toMatchObject({ code: 'not_found' });
+    expect(await accounts(id)).toEqual({ g: ['AR111'], m: [] });
+    expect(await pending(id)).toEqual([WEAK_M, WEAK_G]);
   });
 
   it('refuses a competitor the client does not track, and other agencies', async () => {

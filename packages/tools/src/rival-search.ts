@@ -1,12 +1,12 @@
 import { ToolError } from '@cs/core';
-import { failRivalRun } from '@cs/collectors';
 import { agency, client, discoveryRun, type DiscoveryRunRow, type Tx } from '@cs/db';
 import { and, count, desc, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { enqueueOf, type ToolDeps } from './deps';
 import { RIVAL_SEARCH_COOLDOWN_MINUTES, RIVAL_SEARCHES_PER_AGENCY_DAY } from './limits';
 
 export type SearchTrigger = 'auto' | 'manual' | 'convert';
-export type SearchRefusal = 'missing_profile' | 'cooldown' | 'running' | 'daily_cap';
+/** `enqueue_failed`: the queue refused the job; the run row was deleted, so it never counts toward cooldown or the cap. */
+export type SearchRefusal = 'missing_profile' | 'cooldown' | 'running' | 'daily_cap' | 'enqueue_failed';
 export type SearchStart = { runId: string } | { refused: SearchRefusal };
 
 const LIVE = ['queued', 'searching', 'checking', 'finalising'] as const;
@@ -56,10 +56,10 @@ export async function startCompetitorSearch(deps: ToolDeps, clientId: string, tr
   if ('refused' in started) return started;
   try {
     await enqueue('rival-search', { runId: started.runId }, `rival:${clientId}`);
-  } catch (err) {
-    // Never leave a live run nobody will execute: it would block this client's searches (one live run per client).
-    await failRivalRun(deps.service, started.runId, 'enqueue_failed');
-    throw err;
+  } catch {
+    // No work started: drop the run (a live row would block this client; a failed one would count toward the cap).
+    await deps.service.delete(discoveryRun).where(eq(discoveryRun.id, started.runId));
+    return { refused: 'enqueue_failed' };
   }
   return started;
 }

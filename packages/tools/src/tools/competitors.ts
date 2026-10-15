@@ -1,7 +1,7 @@
 import { type AccessContext, appLinkFor, canAccessClient, toolkit, ToolError } from '@cs/core';
 import { ensureCompetitorSources, findExistingCompetitor, patchReusedCompetitor } from '@cs/collectors';
 import { ad, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, discoveryRun, trackedPage, type Tx, withTenant } from '@cs/db';
-import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type ToolDeps } from '../deps';
 import { latestDoneRun, type SearchRefusal, startCompetitorSearch } from '../rival-search';
@@ -25,15 +25,20 @@ export async function startDiscovery(deps: ToolDeps, competitorId: string): Prom
 }
 
 /**
- * Decision 6 (5b-2) + 12a atomic limit: the client's own `competitor_limit`. Call inside the service transaction that
- * then inserts the links. The client row stays locked until commit, so a concurrent accept waits here and then counts
- * this transaction's links (READ COMMITTED gives the count statement a fresh snapshot).
+ * Decision 6 (5b-2) + 12a atomic limit, step 1: lock the client row and read its `competitor_limit`. Call first inside
+ * the service transaction that then reads the tracked set and inserts the links. The row stays locked until commit, so
+ * a concurrent accept waits here and then sees this transaction's links (READ COMMITTED: each later statement gets a
+ * fresh snapshot).
  */
-export async function lockRoomForCompetitors(tx: Tx, clientId: string, newLinks: number): Promise<void> {
+export async function lockClientLimit(tx: Tx, clientId: string): Promise<number> {
   const [c] = (await tx.execute(sql`SELECT competitor_limit FROM client WHERE id = ${clientId} FOR UPDATE;`)) as unknown as { competitor_limit: number }[];
   if (!c) throw new ToolError('not_found', 'Client not found');
+  return c.competitor_limit;
+}
+
+/** Step 2, after `lockClientLimit` in the same transaction: refuse when the current links plus `newLinks` exceed the limit. */
+export async function assertRoomForCompetitors(tx: Tx, clientId: string, limit: number, newLinks: number): Promise<void> {
   const [row] = (await tx.execute(sql`SELECT count(*) FROM client_competitor WHERE client_id = ${clientId};`)) as unknown as { count: string | number }[];
-  const limit = c.competitor_limit;
   if (Number(row?.count ?? 0) + newLinks > limit) throw new ToolError('invalid_input', `This client can track at most ${limit} competitor${limit === 1 ? '' : 's'} — remove one first or raise its limit`);
 }
 
@@ -110,6 +115,7 @@ const REFUSAL: Record<SearchRefusal, string> = {
   running: 'A competitor search is already running for this client',
   cooldown: 'A search just finished — its suggestions are below. You can search again in a few minutes.',
   daily_cap: 'Daily search limit reached. Try again tomorrow.',
+  enqueue_failed: 'The search could not be started. Try again in a few minutes.',
 };
 
 export const requestCompetitorSuggestions = defineTool({
@@ -218,11 +224,16 @@ async function acceptSuggestions(ctx: AccessContext, deps: ToolDeps, clientId: s
   if (rows.length !== unique.length || rows.some((s) => s.clientId !== clientId)) throw new ToolError('not_found', 'Suggestion not found');
 
   const linked = await deps.service.transaction(async (tx) => {
+    // Lock first, then read the tracked set and count, so nothing read below can be stale.
+    const limit = await lockClientLimit(tx, clientId);
+    // Only open suggestions (re-read under the lock: a concurrent accept or dismiss may have changed them).
+    const open = await tx.select({ id: competitorSuggestion.id }).from(competitorSuggestion).where(and(inArray(competitorSuggestion.id, unique), eq(competitorSuggestion.status, 'suggested')));
+    if (open.length !== unique.length) throw new ToolError('not_found', 'Suggestion not found');
     const existing = await Promise.all(rows.map((s) => findExistingCompetitor(tx, s)));
     const current = new Set((await tx.select({ id: clientCompetitor.competitorId }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId))).map((r) => r.id));
     const fresh = new Set<string>();
     existing.forEach((e, i) => { if (!e) fresh.add(`new:${rows[i]!.id}`); else if (!current.has(e.id)) fresh.add(e.id); });
-    await lockRoomForCompetitors(tx, clientId, fresh.size);
+    await assertRoomForCompetitors(tx, clientId, limit, fresh.size);
 
     const out: { suggestionId: string; competitorId: string }[] = [];
     for (const [i, s] of rows.entries()) {
@@ -316,7 +327,8 @@ export const confirmAdMatch = defineTool({
   description: 'Confirm a possible Google Ads or Meta account match for a tracked competitor, so its ads are collected.',
   input: AdMatchInput,
   output: z.object({ confirmed: z.literal(true) }),
-  permission: 'manage',
+  // Ruling 7: competitor rows are global, so ad-account writes are agency-only.
+  permission: 'agency',
   feature: 'manage_competitors',
   async handler(ctx, { clientId, competitorId, platform, accountId }, deps) {
     await assertTracked(ctx, deps, clientId, competitorId);
@@ -340,18 +352,22 @@ export const removeAdMatch = defineTool({
   description: 'Remove a matched or possible Google Ads or Meta account from a tracked competitor. A removed Google account’s ads are retired silently.',
   input: AdMatchInput,
   output: z.object({ removed: z.literal(true) }),
-  permission: 'manage',
+  // Ruling 7: competitor rows are global, so ad-account writes are agency-only.
+  permission: 'agency',
   feature: 'manage_competitors',
   async handler(ctx, { clientId, competitorId, platform, accountId }, deps) {
     await assertTracked(ctx, deps, clientId, competitorId);
-    await deps.service.transaction(async (tx) => {
+    const shared = await deps.service.transaction(async (tx) => {
       const pending = await lockedPending(tx, clientId, competitorId);
       const rest = pending.filter((m) => !(m.platform === platform && m.accountId === accountId));
       const before = await lockedAccounts(tx, competitorId);
       const attached = before[platform].includes(accountId);
       if (!attached && rest.length === pending.length) throw new ToolError('not_found', 'That ad account match was not found');
       if (rest.length !== pending.length) await setPending(tx, clientId, competitorId, rest);
-      if (!attached) return;
+      if (!attached) return false;
+      // Ruling 7: detach from the shared row (and retire its ads) only when this client is the sole tracker.
+      const [others] = await tx.select({ n: count() }).from(clientCompetitor).where(and(eq(clientCompetitor.competitorId, competitorId), ne(clientCompetitor.clientId, clientId)));
+      if ((others?.n ?? 0) > 0) return true;
       await writeAccounts(tx, competitorId, before, { ...before, [platform]: before[platform].filter((id) => id !== accountId) });
       // D6/P3: that advertiser's ads stop being tracked — retire them silently (no ended capture, so no "stopped"
       // change), as the Google collector does for unpinned advertisers (ads/google.ts).
@@ -359,7 +375,10 @@ export const removeAdMatch = defineTool({
         await tx.update(ad).set({ isActive: false, endedAt: sql`${ad.lastSeenAt}` })
           .where(and(eq(ad.competitorId, competitorId), eq(ad.platform, 'google'), eq(ad.isActive, true), eq(ad.advertiserId, accountId)));
       }
+      return false;
     });
+    // This client's pending entry (if any) is removed and committed; the shared detach is refused.
+    if (shared) throw new ToolError('invalid_input', "Other clients also track this competitor, so this account can't be removed here. Contact support.");
     return { removed: true as const };
   },
 });
@@ -456,8 +475,9 @@ export const addCompetitor = defineTool({
     if (!row && domain) row = (await deps.service.select().from(competitor).where(eq(competitor.domain, domain)).limit(1))[0];
     // 12a atomic limit: lock, count, create and link in one service transaction (the RLS read above proved access).
     const competitorId = await deps.service.transaction(async (tx) => {
+      const limit = await lockClientLimit(tx, input.clientId);
       const linked = row ? (await tx.select({ id: clientCompetitor.competitorId }).from(clientCompetitor).where(and(eq(clientCompetitor.clientId, input.clientId), eq(clientCompetitor.competitorId, row.id)))).length > 0 : false;
-      await lockRoomForCompetitors(tx, input.clientId, linked ? 0 : 1);
+      await assertRoomForCompetitors(tx, input.clientId, limit, linked ? 0 : 1);
       let id = row?.id;
       // Final review: if the reused row is any client's self business (named from that client's private client.name),
       // rename it to the name typed here. No identifier backfill: typed place ids/domains are unverified and must not

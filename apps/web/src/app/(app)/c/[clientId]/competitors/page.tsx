@@ -6,13 +6,10 @@ import { notFound } from 'next/navigation';
 import { WriteGuard } from '@/components/read-only';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
-import type { SearchState } from './actions';
+import { RUN_STATE } from './search-state';
 import { AddCompetitorForm, SuggestionsPanel, TrackedCompetitorsTable } from './competitor-controls';
 
 export const dynamic = 'force-dynamic';
-
-/** 12a: discovery_run stages → the panel's states (until the 12a suggestions UI replaces it). */
-const RUN_STATE: Record<string, SearchState> = { none: 'idle', queued: 'queued', searching: 'running', checking: 'running', finalising: 'running', done: 'done', failed: 'failed' };
 
 export default async function CompetitorsPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;

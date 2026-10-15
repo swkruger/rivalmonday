@@ -84,11 +84,13 @@ describe('startCompetitorSearch', () => {
     expect(enqueue).toHaveBeenCalledTimes(1);
   });
 
-  it('a failed enqueue fails the run (never left live) and surfaces the error', async () => {
+  it('a failed enqueue deletes the run (no cooldown, no cap) and is refused as enqueue_failed', async () => {
     await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
     enqueue.mockRejectedValueOnce(new Error('queue down'));
-    await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual')).rejects.toThrow('queue down');
-    expect(await runs(IDS.clientA1)).toEqual([expect.objectContaining({ status: 'failed', error: 'enqueue_failed' })]);
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual')).resolves.toEqual({ refused: 'enqueue_failed' });
+    expect(await runs(IDS.clientA1)).toEqual([]);
+    // Nothing blocks the retry.
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual')).resolves.toEqual({ runId: expect.any(String) });
   });
 
   it('without a queue it refuses with internal before writing anything', async () => {
@@ -111,13 +113,10 @@ describe('auto-run hooks (D4)', () => {
     expect(await runs(prospect)).toEqual([expect.objectContaining({ trigger: 'auto' })]);
   });
 
-  it('create_client stays silent when the run cannot start (queue down, or no queue configured)', async () => {
+  it('create_client stays silent when the run cannot start (queue down as in DEMO/TEST, or no queue configured)', async () => {
     enqueue.mockRejectedValueOnce(new Error('queue down'));
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { clientId } = await create('ChIJqueuedown001');
-    expect(warn).toHaveBeenCalledTimes(1);
-    warn.mockRestore();
-    expect(await runs(clientId)).toEqual([expect.objectContaining({ status: 'failed' })]);
+    expect(await runs(clientId)).toEqual([]);
     const bare = createToolRegistry({ app: dbs.app, service: dbs.service }, { audit: { record: async () => {} } });
     const r = (await bare.invoke(admin, 'create_client', { name: 'No Queue', verticalId: 'hvac_plumbing', services: [], keywords: ['ac repair'], serviceArea: AREA, placeId: 'ChIJnoqueue00001' })) as { clientId: string };
     expect(await runs(r.clientId)).toEqual([]);

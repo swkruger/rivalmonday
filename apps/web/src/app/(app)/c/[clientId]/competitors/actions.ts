@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import type { FormResult } from '@/server/forms';
 import { runTool, type ToolResult } from '@/server/run-tool';
+import { RUN_STATE, type SearchState } from './search-state';
 
 /** Re-derives the viewer's context on every call (never trusts the form for identity); `clientId` is just the
  * resource being acted on and is re-checked by the tool itself (`canAccessClient`). */
@@ -40,9 +41,7 @@ export async function requestSuggestionsAction(_p: FormResult, fd: FormData): Pr
   return done(clientId, await runTool(ctx, 'request_competitor_suggestions', { clientId }), 'Searching Google Maps — suggestions appear here in a few minutes.');
 }
 
-export type SearchState = 'idle' | 'queued' | 'running' | 'done' | 'failed';
-/** 12a: discovery_run stages → the panel's states (until the 12a suggestions UI replaces it). */
-const RUN_STATE: Record<string, SearchState> = { none: 'idle', queued: 'queued', searching: 'running', checking: 'running', finalising: 'running', done: 'done', failed: 'failed' };
+export type { SearchState };
 
 /** Polled by `SuggestionsPanel` after "Find competitors" until the background search finishes. */
 export async function searchStatusAction(clientId: string): Promise<ToolResult<{ state: SearchState; finishedAt: string | null }>> {
