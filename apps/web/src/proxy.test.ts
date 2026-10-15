@@ -11,6 +11,15 @@ describe('proxy', () => {
     expect(res.headers.get('location')).toBeNull();
   });
 
+  it('lets both Stripe webhooks through without cookies (they authenticate by signature)', () => {
+    for (const p of ['/api/stripe/webhook', '/api/stripe/connect-webhook']) {
+      const res = run(p, { method: 'POST' });
+      expect(res.status, p).toBe(200);
+      expect(res.headers.get('location'), p).toBeNull();
+    }
+    expect(run('/api/stripe/connect-webhook/x').headers.get('location')).toContain('/sign-in');
+  });
+
   it('still redirects other cookie-less paths to sign-in', () => {
     for (const p of ['/api/askx', '/c/x/ask', '/api/other']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
   });

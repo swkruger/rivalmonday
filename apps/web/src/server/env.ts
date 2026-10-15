@@ -24,7 +24,7 @@ export interface WebEnv {
    * Phase 9a: Stripe settings, all optional, shaped for `gatewayFor` (R27: no key in DEV/production => no gateway, billing
    * not configured). `BILLING_FAKE_GATEWAY=1` selects the fake gateway (E2E only; refused on Vercel production).
    */
-  stripe?: { STRIPE_SECRET_KEY?: string; STRIPE_WEBHOOK_SECRET?: string; STRIPE_TAX_ENABLED?: string; NODE_ENV?: string; VITEST?: string; BILLING_FAKE_GATEWAY?: string };
+  stripe?: { STRIPE_SECRET_KEY?: string; STRIPE_WEBHOOK_SECRET?: string; STRIPE_CONNECT_WEBHOOK_SECRET?: string; STRIPE_TAX_ENABLED?: string; NODE_ENV?: string; VITEST?: string; BILLING_FAKE_GATEWAY?: string };
 }
 
 export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
@@ -64,6 +64,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     stripe: {
       STRIPE_SECRET_KEY: env.STRIPE_SECRET_KEY?.trim() || undefined,
       STRIPE_WEBHOOK_SECRET: env.STRIPE_WEBHOOK_SECRET?.trim() || undefined,
+      STRIPE_CONNECT_WEBHOOK_SECRET: env.STRIPE_CONNECT_WEBHOOK_SECRET?.trim() || undefined,
       STRIPE_TAX_ENABLED: env.STRIPE_TAX_ENABLED?.trim() || undefined,
       NODE_ENV: env.NODE_ENV,
       VITEST: env.VITEST,

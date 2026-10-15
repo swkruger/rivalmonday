@@ -40,6 +40,11 @@ describe('parseWebEnv', () => {
     expect(parseWebEnv({ ...ok, PLATFORM_ADMIN_EMAILS: 'A@b.co, c@d.co' } as unknown as NodeJS.ProcessEnv).platformAdmins).toEqual(['a@b.co', 'c@d.co']);
   });
 
+  it('passes the trimmed Connect webhook secret through', () => {
+    expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).stripe?.STRIPE_CONNECT_WEBHOOK_SECRET).toBeUndefined();
+    expect(parseWebEnv({ ...ok, STRIPE_CONNECT_WEBHOOK_SECRET: ' whsec_c ' } as unknown as NodeJS.ProcessEnv).stripe?.STRIPE_CONNECT_WEBHOOK_SECRET).toBe('whsec_c');
+  });
+
   it('passes BILLING_FAKE_GATEWAY through for gatewayFor and refuses it in production (R27)', () => {
     expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).stripe?.BILLING_FAKE_GATEWAY).toBeUndefined();
     expect(parseWebEnv({ ...ok, BILLING_FAKE_GATEWAY: '1' } as unknown as NodeJS.ProcessEnv).stripe?.BILLING_FAKE_GATEWAY).toBe('1');
