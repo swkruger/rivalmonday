@@ -37,3 +37,8 @@ export const SpecialtyIcon = () => (
     <path d="M3 5.5h9.5M10 3l2.5 2.5L10 8M13 10.5H3.5M6 8l-2.5 2.5L6 13" />
   </svg>
 );
+export const HotIcon = () => (
+  <svg {...base}>
+    <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" />
+  </svg>
+);

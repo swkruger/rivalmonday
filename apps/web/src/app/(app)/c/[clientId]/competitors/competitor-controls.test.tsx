@@ -225,6 +225,21 @@ describe('SuggestionsPanel tiers and selection', () => {
     expect((screen.getByRole('checkbox', { name: /track alpha/i }) as HTMLInputElement).disabled).toBe(false);
   });
 
+  it('says how many more can be tracked once the room is used', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={list} atLimit={false} limit={5} trackedCount={3} canSearch />);
+    expect(screen.getByText('You can track 2 more.')).toBeTruthy();
+  });
+
+  it('keeps the user ticks for surviving ids when the list changes', () => {
+    const { rerender } = render(<SuggestionsPanel clientId="c1" ready suggestions={list} atLimit={false} canSearch />);
+    fireEvent.click(screen.getByRole('checkbox', { name: /track alpha/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /track charlie/i }));
+    rerender(<SuggestionsPanel clientId="c1" ready suggestions={[list[0]!, list[1]!, list[2]!]} atLimit={false} canSearch />);
+    expect((screen.getByRole('checkbox', { name: /track alpha/i }) as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByRole('checkbox', { name: /track bravo/i }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('checkbox', { name: /track charlie/i }) as HTMLInputElement).checked).toBe(true);
+  });
+
   it('hidden list shows reason labels', () => {
     render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} canSearch hiddenList={[{ name: 'Dollar General', reason: 'wrong_category' }, { name: 'Lone Star Air', reason: 'self' }]} />);
     expect(screen.getByText('Show 2 hidden')).toBeTruthy();

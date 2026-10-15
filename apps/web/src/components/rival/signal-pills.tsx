@@ -1,7 +1,7 @@
 import type { SuggestionView } from '@cs/tools';
-import { Tooltip } from '@cs/ui';
+import { Tooltip, TooltipProvider } from '@cs/ui';
 import type { ReactNode } from 'react';
-import { AdsIcon, ChainIcon, MetaIcon, ReviewsIcon, SearchesIcon, SpecialtyIcon, StarIcon } from './signal-icons';
+import { AdsIcon, ChainIcon, HotIcon, MetaIcon, ReviewsIcon, SearchesIcon, SpecialtyIcon, StarIcon } from './signal-icons';
 
 type Signals = SuggestionView['signals'];
 /** active: checked, something there; hot: worth attention; none: checked, nothing; unchecked: null, never read as 0. */
@@ -71,21 +71,25 @@ export function buildPills(s: Signals, mode: 'suggestion' | 'tracked'): Pill[] {
   }
   if (s.chain === true) pills.push({ key: 'chain', state: 'active', icon: <ChainIcon />, text: 'Chain', tip: 'Part of a chain or franchise' });
   if (s.categoryMatch === 'related') pills.push({ key: 'related', state: 'active', icon: <SpecialtyIcon />, text: 'Different specialty', tip: 'Different specialty' });
-  return pills;
+  // Hot is not colour-only: the tooltip and accessible name say so, and the pill gets an arrow glyph.
+  return pills.map((p) => (p.state === 'hot' ? { ...p, tip: `${p.tip} · new activity` } : p));
 }
 
 export function SignalPills({ signals, mode }: { signals: Signals; mode: 'suggestion' | 'tracked' }) {
   return (
+    <TooltipProvider delayDuration={150}>
     <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0" aria-label="Signals">
       {buildPills(signals, mode).map((p) => (
         <li key={p.key}>
           <Tooltip content={p.tip}>
             <span
               tabIndex={0}
-              aria-label={`${p.text}: ${p.tip}`}
+              role="img"
+              aria-label={`${p.text}. ${p.tip}`}
               data-state={p.state}
               className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary ${STATE_CLASS[p.state]}`}
             >
+              {p.state === 'hot' && <HotIcon />}
               {p.icon}
               {p.text}
             </span>
@@ -93,5 +97,6 @@ export function SignalPills({ signals, mode }: { signals: Signals; mode: 'sugges
         </li>
       ))}
     </ul>
+    </TooltipProvider>
   );
 }

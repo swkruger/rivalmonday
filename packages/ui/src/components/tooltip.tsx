@@ -4,11 +4,13 @@ import * as React from "react"
 import { cn } from "../lib/cn"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
 
+/** One provider per group of tooltips (e.g. a pill row). */
+const TooltipProvider = TooltipPrimitive.Provider
+
 /** Wraps a trigger with a small ink tooltip; opens on hover and keyboard focus. */
 function Tooltip({ content, children, side = "top" }: { content: React.ReactNode; children: React.ReactElement; side?: "top" | "bottom" | "left" | "right" }) {
   return (
-    <TooltipPrimitive.Provider delayDuration={150}>
-      <TooltipPrimitive.Root>
+    <TooltipPrimitive.Root>
         <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
         <TooltipPrimitive.Portal>
           <TooltipPrimitive.Content
@@ -21,9 +23,8 @@ function Tooltip({ content, children, side = "top" }: { content: React.ReactNode
             <TooltipPrimitive.Arrow className="fill-ink" />
           </TooltipPrimitive.Content>
         </TooltipPrimitive.Portal>
-      </TooltipPrimitive.Root>
-    </TooltipPrimitive.Provider>
+    </TooltipPrimitive.Root>
   )
 }
 
-export { Tooltip }
+export { Tooltip, TooltipProvider }

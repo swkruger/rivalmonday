@@ -236,8 +236,12 @@ export function SuggestionsPanel({
   const idsKey = suggestions.map((s) => s.id).join(',');
   const [seenKey, setSeenKey] = useState(idsKey);
   if (seenKey !== idsKey) {
+    // Keep the user's ticks for ids that survive a refresh or dismiss; only ids new to the list get their pre-tick.
+    const before = new Set(seenKey ? seenKey.split(',') : []);
+    const next = new Set<string>();
+    for (const s of suggestions) if (before.has(s.id) ? selected.has(s.id) : s.preselected) next.add(s.id);
     setSeenKey(idsKey);
-    setSelected(initialSelection(suggestions));
+    setSelected(next);
   }
   const [bulkState, setBulkState] = useState<FormResult>({ ok: true });
   const [tracking, startTracking] = useTransition();
@@ -320,6 +324,7 @@ export function SuggestionsPanel({
               Track selected ({selected.size})
             </Button>
             {room === 0 && <span className="text-sm text-muted-foreground">This client already tracks {limit} competitors</span>}
+            {room > 0 && selected.size >= room && <span className="text-sm text-muted-foreground">You can track {room} more.</span>}
           </div>
         )}
         {hiddenList.length > 0 && (
