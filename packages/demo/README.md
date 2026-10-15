@@ -60,6 +60,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/settings/alerts` | admin | `get_client_profile`, `get_alert_rules` | — |
 | `/c/[clientId]/settings/delivery` | admin | `get_client_profile` | — |
 | `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters`, `list_client_billing_status` | — |
+| `/c/[clientId]/settings/billing (client owner)` | ownerLoneStar | `get_my_billing` | — |
 | `/agency/settings/billing` | admin | `get_billing_summary`, `get_connect_status`, `get_client_revenue` | — |
 | `/paused` | admin | — | — |
 | `/inbox` | admin | `fn:listInbox` | — |

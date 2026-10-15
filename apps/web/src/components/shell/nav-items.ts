@@ -41,6 +41,8 @@ export interface NavRoleFlags {
   assistantName?: string;
   /** Phase 8b M2: false inside a support session (`/inbox` 404s there); omitted means shown. */
   inbox?: boolean;
+  /** 9b: a client owner with billing switched on for their client sees the Billing entry. */
+  clientBilling?: boolean;
   /** Phase 8b: inside a support session, the operator's way back to the agency's console page (the session continues). */
   backToPlatform?: string;
 }
@@ -121,6 +123,7 @@ function clientModules(flags: NavRoleFlags, base: string, add: (href: string, la
   }
   if (flags.alertRules) add(`${base}/settings/alerts`, 'Alert rules', 'alertRules');
   if (flags.mcp) add(`${base}/settings/ai`, 'AI connections', 'ai');
+  if (!flags.isAgency && flags.clientBilling) add(`${base}/settings/billing`, 'Billing', 'billing');
 }
 
 function isActive(href: string, active: string): boolean {

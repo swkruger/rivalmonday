@@ -4,6 +4,7 @@ import { type ClientSummary, type PlatformRole, platformRole as resolvePlatformR
 import { eq } from 'drizzle-orm';
 import { ReadOnlyProvider } from '@/components/read-only';
 import { BillingBanner } from '@/components/shell/billing-banner';
+import { ClientBillingBanner } from '@/components/shell/client-billing-banner';
 import { GuestBanner } from '@/components/shell/guest-banner';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { Sidebar } from '@/components/shell/sidebar';
@@ -11,6 +12,7 @@ import { ShellTheme } from '@/components/shell/shell-theme';
 import { SupportBanner } from '@/components/shell/support-banner';
 import { TopBar } from '@/components/shell/top-bar';
 import type { BillingSnapshot } from '@/server/billing-state';
+import { clientBillingNoticeOf } from '@/server/client-billing-state';
 import { dbs } from '@/server/db';
 import { navFlagsFor } from '@/server/nav';
 import { platformAdmins } from '@/server/runtime-env';
@@ -51,7 +53,13 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
   const role = viewer.kind !== 'user' ? null : platformRole !== undefined ? platformRole : await resolvePlatformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx);
   const operator = role !== null;
   const support = viewer.kind === 'support' ? viewer.session : null;
-  const flags = { ...navFlagsFor(viewer, operator, assistantName, role === 'owner'), ...(support ? { backToPlatform: `/platform/agencies/${support.agencyId}` } : {}) };
+  // Phase 9b: client roles' billing banners and the owner's Billing entry (only while billing is on for the client).
+  const clientBilling = viewer.kind === 'support' ? null : await clientBillingNoticeOf(ctx);
+  const flags = {
+    ...navFlagsFor(viewer, operator, assistantName, role === 'owner'),
+    ...(support ? { backToPlatform: `/platform/agencies/${support.agencyId}` } : {}),
+    ...(viewer.kind === 'user' && ctx.role === 'client_owner' && clientBilling?.enabled ? { clientBilling: true } : {}),
+  };
   const navClients = clients.map(({ id, name }) => ({ id, name }));
   const menu = (
     <MobileNav displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} flags={flags} clients={navClients} />
@@ -66,6 +74,9 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
           <div className="flex min-w-0 flex-1 flex-col">
             {viewer.kind === 'guest' && <GuestBanner />}
             <TopBar viewer={viewer} clients={clients} clientName={clientName} unread={unread} menu={menu} />
+            {clientBilling && singleClientId && (clientBilling.paused || clientBilling.paymentNeeded) && (
+              <ClientBillingBanner role={ctx.role} clientId={singleClientId} agencyName={branding.displayName} paused={clientBilling.paused} paymentNeeded={viewer.kind === 'user' && clientBilling.paymentNeeded} />
+            )}
             {viewer.kind === 'user' && billing && <BillingBanner role={ctx.role} state={billing.state} trialEndsAt={billing.trialEndsAt} pausesOn={billing.pausesOn} />}
             <main className="mx-auto flex w-full max-w-[1560px] flex-col gap-5 px-4 pb-10 pt-6 lg:px-7">{children}</main>
           </div>

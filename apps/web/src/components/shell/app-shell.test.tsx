@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WriteGuard } from '@/components/read-only';
 
-const m = vi.hoisted(() => ({ themed: [] as string[], unread: vi.fn(async () => 3), role: vi.fn(async () => 'owner' as string | null) }));
+const m = vi.hoisted(() => ({ notice: null as null | { paused: boolean; paymentNeeded: boolean; enabled: boolean }, themed: [] as string[], unread: vi.fn(async () => 3), role: vi.fn(async () => 'owner' as string | null) }));
 // The support viewer's ctx is the target agency's; a user viewer here is the operator's own agency.
 vi.mock('@/server/theme', () => ({
   themeForViewer: async (v: { kind: string }) => {
@@ -13,12 +13,13 @@ vi.mock('@/server/theme', () => ({
   },
 }));
 vi.mock('@/server/tools', () => ({ callTool: async () => ({ items: [] }) }));
+vi.mock('@/server/client-billing-state', () => ({ clientBillingNoticeOf: async () => m.notice }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {}, app: {} }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@cs/tools', () => ({ unreadCount: m.unread, platformRole: m.role }));
 vi.mock('./sidebar', () => ({
-  Sidebar: ({ flags }: { flags: { backToPlatform?: string; isPlatformOperator?: boolean; isPlatformOwner?: boolean } }) => (
-    <nav data-testid="sidebar" data-back={flags.backToPlatform ?? ''} data-operator={String(Boolean(flags.isPlatformOperator))} data-owner={String(Boolean(flags.isPlatformOwner))} />
+  Sidebar: ({ flags }: { flags: { backToPlatform?: string; isPlatformOperator?: boolean; isPlatformOwner?: boolean; clientBilling?: boolean } }) => (
+    <nav data-testid="sidebar" data-billing={String(Boolean(flags.clientBilling))} data-back={flags.backToPlatform ?? ''} data-operator={String(Boolean(flags.isPlatformOperator))} data-owner={String(Boolean(flags.isPlatformOwner))} />
   ),
 }));
 vi.mock('./mobile-nav', () => ({ MobileNav: () => null }));
@@ -37,6 +38,7 @@ const supportViewer = {
 
 beforeEach(() => {
   m.themed.length = 0;
+  m.notice = null;
   m.unread.mockClear();
   m.role.mockClear();
   m.role.mockResolvedValue('owner');
@@ -110,5 +112,38 @@ describe('AppShell', () => {
     render(await AppShell({ viewer: userViewer as never, ctx: own as never, platformRole: 'owner', children: <p>page</p> }));
     expect(m.role).not.toHaveBeenCalled();
     expect(screen.getByTestId('sidebar').dataset.owner).toBe('true');
+  });
+});
+
+describe('AppShell client billing (9b)', () => {
+  const CL = '00000000-0000-4000-8000-0000000000a1';
+  const asClient = (role: string, kind = 'user') => {
+    const c = { agencyId: AG, userId: 'u', role, clientScope: [CL], features: new Set() };
+    return { viewer: { kind, userId: 'u', email: 'u@c.test', name: 'U', ctx: c, membership: { id: 'm', clientName: 'A1 HVAC' }, memberships: [{ id: 'm' }] }, ctx: c };
+  };
+  const shell = async (role: string, kind?: string) => { const { viewer, ctx: c } = asClient(role, kind); return render(await AppShell({ viewer: viewer as never, ctx: c as never, children: <p>page</p> })); };
+
+  it('owner with payment needed: agency-branded banner and the Billing nav flag', async () => {
+    m.notice = { paused: false, paymentNeeded: true, enabled: true };
+    await shell('client_owner');
+    expect(screen.getByRole('region', { name: 'Billing' }).textContent).toContain('Payment needed — please update your payment method.');
+    expect(screen.getByTestId('sidebar').dataset.billing).toBe('true');
+  });
+
+  it('viewer with payment needed: no banner, no Billing flag; paused shows for the viewer with the agency name', async () => {
+    m.notice = { paused: false, paymentNeeded: true, enabled: true };
+    const { unmount } = await shell('client_viewer');
+    expect(screen.queryByRole('region', { name: 'Billing' })).toBeNull();
+    expect(screen.getByTestId('sidebar').dataset.billing).toBe('false');
+    unmount();
+    m.notice = { paused: true, paymentNeeded: false, enabled: true };
+    await shell('client_viewer');
+    expect(screen.getByRole('region', { name: 'Billing' }).textContent).toBe('Monitoring is paused. Please contact Acme Agency.');
+  });
+
+  it('billing off: the owner has no Billing flag', async () => {
+    m.notice = { paused: false, paymentNeeded: false, enabled: false };
+    await shell('client_owner');
+    expect(screen.getByTestId('sidebar').dataset.billing).toBe('false');
   });
 });

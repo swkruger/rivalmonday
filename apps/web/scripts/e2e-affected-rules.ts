@@ -97,6 +97,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}usage/`), tags: ['@usage'], why: 'usage and limits' },
   { pattern: re(`${AGENCY}(?:branding|team|webhooks)/`), tags: [], why: 'no E2E covers this agency page' },
   { pattern: re(`${AGENCY}settings/platform-access/`), tags: ['@support'], why: 'agency support-session history and notify switch' },
+  { pattern: re(`${C}settings/billing/`), tags: ['@billing'], why: 'client owner billing page and portal action' },
   { pattern: re(`${AGENCY}settings/billing/`), tags: ['@billing'], why: 'billing page, actions and seat CSV' },
   { pattern: re(`${APP}\\(app\\)/paused/`), tags: ['@billing'], why: 'suspended-workspace page' },
   { pattern: re(`${COMP}billing/`), tags: ['@billing'], why: 'billing display formatting shown on the billing page' },

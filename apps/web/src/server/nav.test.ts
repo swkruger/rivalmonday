@@ -144,3 +144,15 @@ describe('nav inside a support session (Phase 8b)', () => {
     expect(navFor(support, C).map((n) => n.href)).toContain(`/c/${C}/ask`);
   });
 });
+
+describe('client Billing entry (9b)', () => {
+  it('shows after the settings items only when flagged (client owner with billing on); never for agency roles', () => {
+    const flags = { ...navFlagsFor({ kind: 'user', ctx: ctx('client_owner') }), clientBilling: true };
+    const hrefs = navItemsFor(flags, C).map((n) => n.href);
+    expect(hrefs).toContain(`/c/${C}/settings/billing`);
+    expect(navItemsFor(flags, C).find((n) => n.href.endsWith('/settings/billing'))).toMatchObject({ label: 'Billing', group: 'client' });
+    expect(navFor({ kind: 'user', ctx: ctx('client_owner') }, C).map((n) => n.href)).not.toContain(`/c/${C}/settings/billing`);
+    const agency = navItemsFor({ ...navFlagsFor({ kind: 'user', ctx: ctx('agency_admin') }), clientBilling: true }, C).map((n) => n.href);
+    expect(agency).not.toContain(`/c/${C}/settings/billing`);
+  });
+});

@@ -223,6 +223,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/c/[clientId]/settings/alerts', as: 'admin', calls: [lsProfile, { tool: 'get_alert_rules', input: (ids) => ({ clientId: ls(ids) }), path: 'custom' }] },
   { route: '/c/[clientId]/settings/delivery', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'serviceArea' }] },
   { route: '/c/[clientId]/settings/profile', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' }, lsStarters, { tool: 'list_client_billing_status', input: none, path: 'clients' }] },
+  { route: '/c/[clientId]/settings/billing (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'get_my_billing', input: (ids) => ({ clientId: ls(ids) }), path: 'agencyName' }] },
   {
     route: '/agency/settings/billing', as: 'admin', calls: [
       { tool: 'get_billing_summary', input: none, path: 'state' },
