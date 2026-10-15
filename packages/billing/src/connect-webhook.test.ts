@@ -7,6 +7,12 @@ import { handleConnectEvent } from './connect-webhook';
 import { type FakeGateway, fakeGateway } from './fake-gateway';
 import { addClients, resetBilling, setBilling } from './test-util';
 
+vi.mock('./client-pause', async (orig) => {
+  const m = await orig<typeof import('./client-pause')>();
+  return { ...m, resumeClient: vi.fn(m.resumeClient) };
+});
+const { resumeClient } = await import('./client-pause');
+
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 
@@ -93,9 +99,11 @@ describe('handleConnectEvent: account events', () => {
   });
 
   it('account.updated: restricted when details are submitted but charges are off; pending otherwise', async () => {
-    await handle(ev('a1', 'account.updated', { id: ACCT_A, charges_enabled: false, details_submitted: true }));
+    gw.seedConnectedAccount({ id: ACCT_A, chargesEnabled: false, detailsSubmitted: true });
+    await handle(ev('a1', 'account.updated', { id: ACCT_A }));
     expect(await connect()).toMatchObject({ status: 'restricted', chargesEnabled: false, detailsSubmitted: true });
-    await handle(ev('a2', 'account.updated', { id: ACCT_A, charges_enabled: false, details_submitted: false }));
+    gw.seedConnectedAccount({ id: ACCT_A, chargesEnabled: false, detailsSubmitted: false });
+    await handle(ev('a2', 'account.updated', { id: ACCT_A }));
     expect(await connect()).toMatchObject({ status: 'pending', detailsSubmitted: false });
   });
 
@@ -106,7 +114,8 @@ describe('handleConnectEvent: account events', () => {
   });
 
   it('account.updated for agency A leaves agency B untouched', async () => {
-    await handle(ev('a1', 'account.updated', { id: ACCT_A, charges_enabled: false, details_submitted: false }));
+    gw.seedConnectedAccount({ id: ACCT_A, chargesEnabled: false, detailsSubmitted: false });
+    await handle(ev('a1', 'account.updated', { id: ACCT_A }));
     expect(await connect(IDS.agencyB)).toMatchObject({ status: 'connected', chargesEnabled: true });
   });
 
@@ -300,5 +309,79 @@ describe('handleConnectEvent: auto-pause lift (R14)', () => {
     expect((await notices()).map((n) => n.kind)).toEqual(['client-paid']);
     expect(vi.mocked(console.warn)).toHaveBeenCalled();
     expect((await record('i1'))?.processedAt).not.toBeNull();
+  });
+
+  it('I1: an unexpected resume failure is not swallowed: the event stays unprocessed with the error recorded and a retry succeeds', async () => {
+    await active({ state: 'payment_needed', paymentFailedSince: new Date((T0 - 50) * 1000) });
+    await setBilling(dbs.owner, planId, { state: 'active' });
+    await pauseA1('auto');
+    vi.mocked(resumeClient).mockRejectedValueOnce(new Error('db exploded'));
+    const e = ev('i1', 'invoice.paid', { subscription: 'sub_1' });
+    await expect(handle(e)).rejects.toThrow('db exploded');
+    expect(await record('i1')).toMatchObject({ processedAt: null, error: 'db exploded' });
+    expect((await billing()).state).toBe('payment_needed');
+    expect(await handle(e)).toBe('processed');
+    expect(await clientRow()).toMatchObject({ pausedAt: null });
+  });
+});
+
+describe('handleConnectEvent: account.updated reads live state (R15)', () => {
+  it('an older restricted payload delivered after the account went live leaves the row connected', async () => {
+    gw.seedConnectedAccount({ id: ACCT_A, chargesEnabled: true, detailsSubmitted: true });
+    await dbs.owner.update(agencyConnect).set({ status: 'pending', chargesEnabled: false, detailsSubmitted: false, connectedAt: null }).where(eq(agencyConnect.agencyId, IDS.agencyA));
+    expect(await handle(ev('a1', 'account.updated', { id: ACCT_A, charges_enabled: false, details_submitted: true }, { created: T0 - 100 }))).toBe('processed');
+    expect(await connect()).toMatchObject({ status: 'connected', chargesEnabled: true, detailsSubmitted: true });
+    expect((await connect()).connectedAt).toBeInstanceOf(Date);
+  });
+});
+
+describe('handleConnectEvent: unpaid Checkout (async payment method, R16)', () => {
+  const sub = () => gw.seedConnectedSubscription({ id: 'sub_1', stripeAccount: ACCT_A, customerId: 'cus_1', unitAmountCents: 7700 });
+  const unpaid = () => handle(ev('c1', 'checkout.session.completed', { id: 'cs_1', customer: 'cus_1', subscription: 'sub_1', payment_status: 'unpaid' }));
+
+  it('tracks customer and subscription but stays invited: no last_paid_at, no notice', async () => {
+    await invited();
+    sub();
+    expect(await unpaid()).toBe('processed');
+    expect(await billing()).toMatchObject({ state: 'invited', stripeCustomerId: 'cus_1', stripeSubscriptionId: 'sub_1', billedPriceCents: 7700, lastPaidAt: null, checkoutSessionId: null });
+    expect(await notices()).toHaveLength(0);
+  });
+
+  it('the first invoice.paid then activates and queues client-paid once', async () => {
+    await invited();
+    sub();
+    await unpaid();
+    expect(await handle(ev('i1', 'invoice.paid', { subscription: 'sub_1' }, { created: T0 + 5 }))).toBe('processed');
+    expect(await billing()).toMatchObject({ state: 'active', lastPaidAt: new Date((T0 + 5) * 1000) });
+    await handle(ev('i2', 'invoice.paid', { subscription: 'sub_1' }, { created: T0 + 9 }));
+    expect((await notices()).map((n) => n.kind)).toEqual(['client-paid']);
+  });
+
+  it('invoice.payment_failed on the tracked invited row moves it to payment_needed', async () => {
+    await invited();
+    sub();
+    await unpaid();
+    expect(await handle(ev('f1', 'invoice.payment_failed', { subscription: 'sub_1' }, { created: T0 + 5 }))).toBe('processed');
+    expect(await billing()).toMatchObject({ state: 'payment_needed', paymentFailedSince: new Date((T0 + 5) * 1000) });
+  });
+
+  it('payment_status paid / no_payment_required activate as before; an unpaid replay never downgrades an active client', async () => {
+    await invited();
+    sub();
+    await handle(ev('c1', 'checkout.session.completed', { id: 'cs_1', customer: 'cus_1', subscription: 'sub_1', payment_status: 'no_payment_required' }));
+    expect((await billing()).state).toBe('active');
+    await handle(ev('c2', 'checkout.session.completed', { id: 'cs_1', customer: 'cus_1', subscription: 'sub_1', payment_status: 'unpaid' }, { created: T0 + 1 }));
+    expect((await billing()).state).toBe('active');
+  });
+
+  it('never records a 0 billed price: unit amount unknown falls back to the intended price, else leaves it unchanged', async () => {
+    await invited({ priceCents: 9900 });
+    gw.seedConnectedSubscription({ id: 'sub_1', stripeAccount: ACCT_A, customerId: 'cus_1' });
+    await handle(ev('c1', 'checkout.session.completed', { id: 'cs_1', customer: 'cus_1', subscription: 'sub_1' }));
+    expect((await billing()).billedPriceCents).toBe(9900);
+    await dbs.owner.delete(clientBilling);
+    await invited({ priceCents: null, billedPriceCents: 4200 });
+    await handle(ev('c2', 'checkout.session.completed', { id: 'cs_1', customer: 'cus_1', subscription: 'sub_1' }, { created: T0 + 1 }));
+    expect(await billing()).toMatchObject({ state: 'active', billedPriceCents: 4200 });
   });
 });

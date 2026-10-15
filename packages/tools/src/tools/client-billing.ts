@@ -1,4 +1,4 @@
-import { type ClientBillingSignal, LIVE_SUBSCRIPTION_STATUSES, applyClientBillingSignal, clientBillingPill, countActiveClients, disconnectAgencyConnect, planFor } from '@cs/billing';
+import { type ClientBillingSignal, LIVE_SUBSCRIPTION_STATUSES, applyClientBillingSignal, connectStatusFor, clientBillingPill, countActiveClients, disconnectAgencyConnect, planFor } from '@cs/billing';
 import { type AccessContext, canAccessClient, toolkit, ToolError } from '@cs/core';
 import { type ClientBillingRow, type ClientBillingState, type Tx, agency, agencyBilling, agencyConnect, client, clientBilling, platformSetting } from '@cs/db';
 import { and, asc, eq, sql } from 'drizzle-orm';
@@ -69,8 +69,7 @@ export const getConnectStatusTool = defineTool({
         const live = await deps.billing.getAccount({ stripeAccount: row.stripeAccountId });
         chargesEnabled = live.chargesEnabled;
         detailsSubmitted = live.detailsSubmitted;
-        if (live.chargesEnabled && live.detailsSubmitted) status = 'connected';
-        else if (row.status === 'connected') status = 'restricted';
+        status = connectStatusFor(live);
       } catch (e) {
         console.error('[billing] getAccount failed; showing stored state', { agencyId: ctx.agencyId }, (e as { name?: string } | null)?.name);
       }

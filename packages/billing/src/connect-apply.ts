@@ -9,6 +9,11 @@ import { type ClientBillingNoticeKind, type ClientBillingSignal, nextClientBilli
  * already `off`/`disconnected` to `disconnected`. Local only: subscriptions keep running in the agency's Stripe account.
  * Idempotent: returns `changed: false` (no writes) when there is no connection or it is already disconnected.
  */
+/** One status rule for stored and live Connect state (webhook and `get_connect_status`): connected = charges enabled; restricted = details submitted without charges; else pending. */
+export function connectStatusFor(a: { chargesEnabled: boolean; detailsSubmitted: boolean }): 'connected' | 'restricted' | 'pending' {
+  return a.chargesEnabled ? 'connected' : a.detailsSubmitted ? 'restricted' : 'pending';
+}
+
 export async function disconnectAgencyConnect(tx: Tx, agencyId: string, _actor: string): Promise<{ changed: boolean }> {
   const [row] = await tx.select({ status: agencyConnect.status }).from(agencyConnect).where(eq(agencyConnect.agencyId, agencyId)).for('update');
   if (!row || row.status === 'disconnected') return { changed: false };
@@ -36,7 +41,7 @@ async function lockClientBilling(tx: Tx, clientId: string): Promise<ClientBillin
 
 /**
  * The one place client-billing transitions are persisted (Q2): lock row, `nextClientBillingState`, update and queue the
- * transition's outbox row (`billing_notice`, audience `client`) in the caller's transaction. `null` transition writes nothing.
+ * transition's outbox row (`billing_notice`, audience by kind) in the caller's transaction. `null` transition writes nothing.
  * A resent link supersedes earlier unsent ones for the client (their URLs are never mailed).
  */
 export async function applyClientBillingSignal(

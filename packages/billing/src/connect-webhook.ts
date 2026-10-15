@@ -1,8 +1,9 @@
+import { ToolError } from '@cs/core';
 import { type Db, type Tx, agencyConnect, client, clientBilling, stripeConnectEvent } from '@cs/db';
 import { and, eq } from 'drizzle-orm';
 import type { ClientBillingSignal } from './client-billing-state';
 import { resumeClient } from './client-pause';
-import { applyClientBillingSignal, disconnectAgencyConnect } from './connect-apply';
+import { applyClientBillingSignal, connectStatusFor, disconnectAgencyConnect } from './connect-apply';
 import type { ConnectEventLike } from './connect-gateway-types';
 import type { BillingGateway } from './types';
 import { LIVE_SUBSCRIPTION_STATUSES } from './webhook';
@@ -52,16 +53,16 @@ async function clientIn(tx: Tx, agencyId: string, by: 'session' | 'subscription'
   return r?.clientId ?? null;
 }
 
-async function onAccountUpdated(tx: Tx, agencyId: string, obj: Obj, event: ConnectEventLike): Promise<Outcome> {
+/** R15: the payload only identifies the account; the state persisted is Stripe's current one, so a late older event cannot regress it. */
+async function onAccountUpdated(tx: Tx, gw: BillingGateway, agencyId: string, account: string, event: ConnectEventLike): Promise<Outcome> {
   const [row] = await tx.select().from(agencyConnect).where(eq(agencyConnect.agencyId, agencyId)).for('update');
   if (!row || row.status === 'disconnected') return ignored(event, 'disconnected');
-  const chargesEnabled = obj.charges_enabled === true;
-  const detailsSubmitted = obj.details_submitted === true;
-  const status = chargesEnabled ? 'connected' : detailsSubmitted ? 'restricted' : 'pending';
+  const live = await gw.getAccount({ stripeAccount: account });
+  const status = connectStatusFor(live);
   const now = new Date();
   await tx
     .update(agencyConnect)
-    .set({ chargesEnabled, detailsSubmitted, status, ...(chargesEnabled && !row.connectedAt && { connectedAt: now }), updatedAt: now })
+    .set({ chargesEnabled: live.chargesEnabled, detailsSubmitted: live.detailsSubmitted, status, ...(live.chargesEnabled && !row.connectedAt && { connectedAt: now }), updatedAt: now })
     .where(eq(agencyConnect.agencyId, agencyId));
   return 'processed';
 }
@@ -89,7 +90,7 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: ConnectEventLike, pos
     await disconnectAgencyConnect(tx, agencyId, ACTOR);
     return 'processed';
   }
-  if (event.type === 'account.updated') return onAccountUpdated(tx, agencyId, obj, event);
+  if (event.type === 'account.updated') return onAccountUpdated(tx, gw, agencyId, account, event);
   // A disconnected agency is no longer tracked: late events change nothing.
   if (conn.status === 'disconnected') return ignored(event, 'disconnected');
 
@@ -107,7 +108,11 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: ConnectEventLike, pos
       const sub = await gw.getConnectedSubscription({ stripeAccount: account, subscriptionId });
       if (!LIVE_SUBSCRIPTION_STATUSES.includes(sub.status)) return ignored(event, 'subscription_not_live');
       const [row] = await tx.select({ priceCents: clientBilling.priceCents }).from(clientBilling).where(eq(clientBilling.clientId, clientId));
-      signal = { type: 'checkout_completed', customerId, subscriptionId, priceCents: sub.unitAmountCents ?? row?.priceCents ?? 0, sessionId: str(obj.id) ?? undefined, eventAt };
+      // Never record 0: with neither Stripe's amount nor the intended price the billed price is left as it was.
+      const priceCents = sub.unitAmountCents ?? row?.priceCents ?? null;
+      if (priceCents === null) console.warn(`connect webhook: billed price unknown on event ${event.id}`);
+      // R16: an unpaid session (async payment method) tracks the subscription but waits for invoice.paid.
+      signal = { type: 'checkout_completed', customerId, subscriptionId, priceCents, ...(obj.payment_status === 'unpaid' && { unpaid: true }), sessionId: str(obj.id) ?? undefined, eventAt };
       break;
     }
     case 'invoice.paid':
@@ -146,7 +151,9 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: ConnectEventLike, pos
       try {
         await tx.transaction((sp) => resumeClient(sp, clientId, ACTOR));
       } catch (e) {
-        console.warn(`connect webhook: auto-pause not lifted on event ${event.id} (${(e as { code?: string } | null)?.code ?? 'error'})`);
+        // Only the seat-cap refusal is expected; anything else fails the event so Stripe retries.
+        if (!(e instanceof ToolError && e.code === 'billing_seat_limit')) throw e;
+        console.warn(`connect webhook: auto-pause not lifted on event ${event.id} (seat limit)`);
       }
     }
   }

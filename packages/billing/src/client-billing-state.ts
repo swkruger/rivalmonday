@@ -8,7 +8,7 @@ import type { ClientBillingRow, ClientBillingState } from '@cs/db';
 export type ClientBillingSignal = (
   | { type: 'invited'; priceCents: number; setupFeeCents: number; stripePriceId: string; checkoutUrl: string; checkoutSessionId: string }
   /** `priceCents` = what the new subscription actually charges per month (Task 6 reads it from Stripe). */
-  | { type: 'checkout_completed'; customerId: string; subscriptionId: string; priceCents: number; /** The completed Checkout session (R13c: a different tracked one is superseded). */ sessionId?: string }
+  | { type: 'checkout_completed'; customerId: string; subscriptionId: string; priceCents: number | null; /** R16: Checkout finished but the first payment is still pending (async method): track the subscription, stay `invited`. */ unpaid?: boolean; /** The completed Checkout session (R13c: a different tracked one is superseded). */ sessionId?: string }
   | { type: 'payment_succeeded'; subscriptionId: string }
   | { type: 'payment_failed'; subscriptionId: string }
   | { type: 'subscription_cancelled'; subscriptionId: string }
@@ -58,14 +58,20 @@ export function nextClientBillingState(row: ClientBillingRow, s: ClientBillingSi
     case 'checkout_completed':
       // Whoever pays is tracked, even after a disable: they now hold a subscription. A disconnected agency gets no webhooks.
       if (st === 'disconnected') return null;
-      return out('active', { enabled: true, stripeCustomerId: s.customerId, stripeSubscriptionId: s.subscriptionId, billedPriceCents: s.priceCents, checkoutSessionId: null, lastPaidAt: now, paymentFailedSince: null },
+      if (s.unpaid) {
+        // R16: never downgrade a subscribed client; otherwise record ids only, the first invoice.paid activates.
+        if (SUBSCRIBED.includes(st)) return null;
+        return out('invited', { enabled: true, stripeCustomerId: s.customerId, stripeSubscriptionId: s.subscriptionId, ...(s.priceCents !== null && { billedPriceCents: s.priceCents }), checkoutSessionId: null });
+      }
+      return out('active', { enabled: true, stripeCustomerId: s.customerId, stripeSubscriptionId: s.subscriptionId, ...(s.priceCents !== null && { billedPriceCents: s.priceCents }), checkoutSessionId: null, lastPaidAt: now, paymentFailedSince: null },
         st === 'active' ? undefined : { kind: 'client-paid', params: {} });
     case 'payment_succeeded':
-      if (!SUBSCRIBED.includes(st)) return null;
+      // `invited` + a tracked subscription = an unpaid Checkout (R16): its first payment activates.
+      if (!SUBSCRIBED.includes(st) && st !== 'invited') return null;
       // A payment seen before any recorded one is the client's first (agency is told once).
       return out('active', { lastPaidAt: now, paymentFailedSince: null }, row.lastPaidAt ? undefined : { kind: 'client-paid', params: {} });
     case 'payment_failed':
-      if (st !== 'active') return null;
+      if (st !== 'active' && st !== 'invited') return null;
       return out('payment_needed', { paymentFailedSince: now }, { kind: 'client-payment-failed', params: {} });
     case 'subscription_cancelled':
       if (st !== 'active' && st !== 'payment_needed') return null;
