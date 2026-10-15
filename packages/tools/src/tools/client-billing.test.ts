@@ -606,21 +606,24 @@ describe('per-client billing tools (Task 5)', () => {
   });
 
   describe('R10: Checkout sessions are expired when replaced', () => {
-    it('resend expires the previous session first; a failing expire does not block the resend', async () => {
+    it('resend creates the new session, commits, then expires the previous one; a failing expire does not block the resend', async () => {
       await ready();
       await call(admin, 'enable_client_billing', { clientId: A1 });
       const first = (await row(A1))!.checkoutSessionId!;
+      gw.calls.length = 0;
       await call(admin, 'resend_client_payment_link', { clientId: A1 });
       expect(gw.connectedCheckouts.get(first)?.status).toBe('expired');
+      const order = gw.calls.map((c) => c.method);
+      expect(order.indexOf('createConnectedCheckout')).toBeLessThan(order.indexOf('expireConnectedCheckout'));
       const second = (await row(A1))!.checkoutSessionId!;
       expect(second).not.toBe(first);
       expect(gw.connectedCheckouts.get(second)?.status).toBe('open');
-      // an already completed session rejects in Stripe: logged, ignored
-      gw.connectedCheckouts.get(second)!.status = 'complete';
+      // an expiry that fails after the commit is logged (error name only) and does not undo the resend
+      gw.expireConnectedCheckout = async () => { throw new Error('boom https://secret.checkout.link'); };
       const log = vi.spyOn(console, 'error').mockImplementation(() => {});
       expect(await call(admin, 'resend_client_payment_link', { clientId: A1 })).toMatchObject({ ok: true });
       expect(log).toHaveBeenCalledWith('[billing] expireConnectedCheckout failed', expect.anything(), expect.anything());
-      expect(JSON.stringify(log.mock.calls)).not.toContain('fake_connect_checkout');
+      expect(JSON.stringify(log.mock.calls)).not.toContain('secret.checkout.link');
       log.mockRestore();
     });
     it('disable expires a pending invite session', async () => {
@@ -630,6 +633,102 @@ describe('per-client billing tools (Task 5)', () => {
       await call(admin, 'disable_client_billing', { clientId: A1, confirm: true });
       expect(gw.connectedCheckouts.get(sid)?.status).toBe('expired');
       expect((await row(A1))!.checkoutSessionId).toBeNull();
+    });
+  });
+
+  describe('R13: replacing an invite', () => {
+    const JUST_PAID = 'This client has just paid. Refresh to see the latest status.';
+    const invite = async () => {
+      await ready();
+      await call(admin, 'enable_client_billing', { clientId: A1 });
+      return (await row(A1))!.checkoutSessionId!;
+    };
+
+    it('resend refuses (conflict) when the open session has already been paid, before creating a new one', async () => {
+      const sid = await invite();
+      gw.connectedCheckouts.get(sid)!.status = 'complete';
+      const before = (await notices()).length;
+      expect(await fails(call(admin, 'resend_client_payment_link', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: JUST_PAID });
+      expect(gw.callsTo('createConnectedCheckout')).toHaveLength(1);
+      expect(await notices()).toHaveLength(before);
+      expect((await row(A1))!.checkoutSessionId).toBe(sid);
+    });
+
+    it('set_client_price on an invited client refuses the same way and changes nothing', async () => {
+      const sid = await invite();
+      gw.connectedCheckouts.get(sid)!.status = 'complete';
+      expect(await fails(call(admin, 'set_client_price', { clientId: A1, priceCents: 15000, applyTo: 'next_bill' }))).toMatchObject({ code: 'conflict', message: JUST_PAID });
+      expect(gw.callsTo('createConnectedPrice')).toEqual([]);
+      expect(gw.callsTo('createConnectedCheckout')).toHaveLength(1);
+      expect((await row(A1))!.priceCents).toBe(9900);
+    });
+
+    it('set_client_price creates the new link before expiring the old one', async () => {
+      const sid = await invite();
+      gw.calls.length = 0;
+      await call(admin, 'set_client_price', { clientId: A1, priceCents: 15000, applyTo: 'new_only' });
+      const order = gw.calls.map((c) => c.method);
+      expect(order.indexOf('createConnectedCheckout')).toBeLessThan(order.indexOf('expireConnectedCheckout'));
+      expect(gw.connectedCheckouts.get(sid)?.status).toBe('expired');
+    });
+
+    it('a failed commit leaves the old link usable and expires the unmailed new session', async () => {
+      const sid = await invite();
+      const create = gw.createConnectedCheckout.bind(gw);
+      gw.createConnectedCheckout = async (i) => {
+        const r = await create(i);
+        await dbs.owner.update(agencyConnect).set({ status: 'disconnected' }); // lands between the Stripe call and the write
+        return r;
+      };
+      expect((await fails(call(admin, 'resend_client_payment_link', { clientId: A1 }))).code).toBe('connect_not_ready');
+      expect(gw.connectedCheckouts.get(sid)?.status).toBe('open');
+      expect([...gw.connectedCheckouts.values()].filter((c) => c.id !== sid).map((c) => c.status)).toEqual(['expired']);
+      expect((await row(A1))!.checkoutSessionId).toBe(sid);
+    });
+
+    it('d) a concurrent resend that replaced the session first wins: ours is refused and expired, theirs is untouched', async () => {
+      const sid = await invite();
+      const create = gw.createConnectedCheckout.bind(gw);
+      gw.createConnectedCheckout = async (i) => {
+        const r = await create(i);
+        gw.connectedCheckouts.set('cs_other', { id: 'cs_other', stripeAccount: 'acct_1', status: 'open' });
+        await dbs.owner.update(clientBilling).set({ checkoutSessionId: 'cs_other' }).where(eq(clientBilling.clientId, A1));
+        return r;
+      };
+      expect((await fails(call(admin, 'resend_client_payment_link', { clientId: A1 }))).code).toBe('conflict');
+      expect((await row(A1))!.checkoutSessionId).toBe('cs_other');
+      expect(gw.connectedCheckouts.get('cs_other')?.status).toBe('open');
+      expect(gw.connectedCheckouts.get(sid)?.status).toBe('open');
+      expect([...gw.connectedCheckouts.values()].filter((c) => !['cs_other', sid].includes(c.id)).map((c) => c.status)).toEqual(['expired']);
+    });
+
+    it('d) a concurrent enable that won the race: the second enable is refused and its session expired', async () => {
+      await ready();
+      const create = gw.createConnectedCheckout.bind(gw);
+      gw.createConnectedCheckout = async (i) => {
+        const r = await create(i);
+        gw.connectedCheckouts.set('cs_first', { id: 'cs_first', stripeAccount: 'acct_1', status: 'open' });
+        await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'invited', enabled: true, priceCents: 9900, stripePriceId: 'price_def', checkoutSessionId: 'cs_first' });
+        return r;
+      };
+      expect(await fails(call(admin, 'enable_client_billing', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: 'Billing is already on for this client.' });
+      expect((await row(A1))!.checkoutSessionId).toBe('cs_first');
+      expect(gw.connectedCheckouts.get('cs_first')?.status).toBe('open');
+      expect([...gw.connectedCheckouts.values()].filter((c) => c.id !== 'cs_first').map((c) => c.status)).toEqual(['expired']);
+      expect(await notices()).toEqual([]);
+    });
+
+    it('e) a paused Stripe subscription counts as live and refuses enable', async () => {
+      await ready();
+      gw.seedConnectedSubscription({ id: 'sub_old', stripeAccount: 'acct_1', customerId: 'cus_old', status: 'paused' });
+      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'disconnected', enabled: false, stripeSubscriptionId: 'sub_old' });
+      expect((await fails(call(admin, 'enable_client_billing', { clientId: A1 }))).code).toBe('conflict');
+      expect((await row(A1))!.stripeSubscriptionId).toBe('sub_old');
+    });
+
+    it('Checkout sessions carry the client id as the client reference', async () => {
+      await invite();
+      expect(checkoutArg()).toMatchObject({ clientReferenceId: A1 });
     });
   });
 

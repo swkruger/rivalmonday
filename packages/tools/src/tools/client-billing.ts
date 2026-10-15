@@ -1,6 +1,6 @@
-import { LIVE_SUBSCRIPTION_STATUSES, applyClientBillingSignal, clientBillingPill, countActiveClients, disconnectAgencyConnect, planFor } from '@cs/billing';
+import { type ClientBillingSignal, LIVE_SUBSCRIPTION_STATUSES, applyClientBillingSignal, clientBillingPill, countActiveClients, disconnectAgencyConnect, planFor } from '@cs/billing';
 import { type AccessContext, canAccessClient, toolkit, ToolError } from '@cs/core';
-import { type ClientBillingRow, type Tx, agency, agencyBilling, agencyConnect, client, clientBilling, platformSetting } from '@cs/db';
+import { type ClientBillingRow, type ClientBillingState, type Tx, agency, agencyBilling, agencyConnect, client, clientBilling, platformSetting } from '@cs/db';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
@@ -279,13 +279,13 @@ async function checkoutFor(
   deps: ToolDeps,
   ctx: AccessContext,
   connect: { applicationFeePercent: string | null },
-  i: { acct: string; priceId: string; setupFeeCents: number; email: string },
+  i: { acct: string; clientId: string; priceId: string; setupFeeCents: number; email: string },
 ): Promise<{ url: string; id: string }> {
   const fee = await effectiveFeePercent(deps, connect);
   const base = appBase(deps);
   try {
     return await deps.billing!.createConnectedCheckout({
-      stripeAccount: i.acct, priceId: i.priceId, customerEmail: i.email,
+      stripeAccount: i.acct, priceId: i.priceId, customerEmail: i.email, clientReferenceId: i.clientId,
       ...(i.setupFeeCents > 0 && { setupFeeCents: i.setupFeeCents }),
       ...(fee > 0 && { applicationFeePercent: fee }),
       successUrl: `${base}/?billing=thanks`, cancelUrl: `${base}/?billing=cancelled`,
@@ -311,6 +311,61 @@ async function expireQuietly(deps: ToolDeps, agencyId: string, acct: string, ses
     console.error('[billing] expireConnectedCheckout failed', { agencyId }, (e as { name?: string } | null)?.name));
 }
 
+const JUST_PAID_MESSAGE = 'This client has just paid. Refresh to see the latest status.';
+const INVITE_CHANGED_MESSAGE = 'This payment link was just changed. Refresh to see the latest status.';
+
+/** R13b: a link that was already paid must not be replaced by (and mailed as) a new one. Read the session before creating anything. */
+async function assertNotPaid(deps: ToolDeps, ctx: AccessContext, acct: string, sessionId: string | null): Promise<void> {
+  if (!sessionId) return;
+  let status: string;
+  try {
+    status = (await deps.billing!.getConnectedCheckout({ stripeAccount: acct, sessionId })).status;
+  } catch (e) {
+    if ((e as { code?: string } | null)?.code === 'resource_missing') return;
+    stripeFailed(ctx.agencyId, 'getConnectedCheckout', e);
+  }
+  if (status === 'complete') throw new ToolError('conflict', JUST_PAID_MESSAGE);
+}
+
+/**
+ * R13a/d: commits an `invited` signal for a Checkout session created beforehand. The row is re-read `FOR UPDATE` inside the
+ * transaction and `guard` refuses when it changed since the tool looked (a concurrent enable/resend/payment). On any failure
+ * the unmailed new session is expired best-effort; on success the session it replaced is, after the commit.
+ */
+async function commitInvite(
+  deps: ToolDeps,
+  ctx: AccessContext,
+  clientId: string,
+  acct: string,
+  signal: Extract<ClientBillingSignal, { type: 'invited' }>,
+  replaced: string | null,
+  guard: (cur: ClientBillingRow) => void,
+  unchanged: string,
+): Promise<{ state: ClientBillingState }> {
+  try {
+    const r = await deps.service.transaction(async (tx) => {
+      await assertConnectLive(tx, ctx.agencyId);
+      await tx.insert(clientBilling).values({ clientId, agencyId: ctx.agencyId, state: 'off' }).onConflictDoNothing();
+      const [cur] = await tx.select().from(clientBilling).where(eq(clientBilling.clientId, clientId)).for('update');
+      guard(cur!);
+      return applyClientBillingSignal(tx, clientId, signal, ctx.userId);
+    });
+    if (!r.changed) throw new ToolError('conflict', unchanged);
+    await expireQuietly(deps, ctx.agencyId, acct, replaced);
+    return { state: r.state! };
+  } catch (e) {
+    await expireQuietly(deps, ctx.agencyId, acct, signal.checkoutSessionId);
+    throw e;
+  }
+}
+
+/** R13d: the invite being replaced must still be the pending one the tool read (not paid, not replaced meanwhile). */
+function guardPendingInvite(cur: ClientBillingRow, expectedSessionId: string | null): void {
+  if (cur.state === 'active' || cur.state === 'payment_needed') throw new ToolError('conflict', JUST_PAID_MESSAGE);
+  if (cur.state !== 'invited' || !cur.enabled) throw new ToolError('conflict', NO_PENDING_LINK_MESSAGE);
+  if (cur.checkoutSessionId !== expectedSessionId) throw new ToolError('conflict', INVITE_CHANGED_MESSAGE);
+}
+
 /** R12b: a disconnect can land between the eligibility check and the write; re-check inside the writing transaction. */
 async function assertConnectLive(tx: Tx, agencyId: string): Promise<void> {
   const [c] = await tx.select({ status: agencyConnect.status }).from(agencyConnect).where(eq(agencyConnect.agencyId, agencyId)).for('share');
@@ -322,7 +377,8 @@ async function clearEndedSubscription(deps: ToolDeps, agencyId: string, acct: st
   if (!row.stripeSubscriptionId) return;
   let live: boolean;
   try {
-    live = LIVE_SUBSCRIPTION_STATUSES.includes((await deps.billing!.getConnectedSubscription({ stripeAccount: acct, subscriptionId: row.stripeSubscriptionId })).status);
+    // A paused subscription (Stripe pause_collection) can resume and bill again: live.
+    live = [...LIVE_SUBSCRIPTION_STATUSES, 'paused'].includes((await deps.billing!.getConnectedSubscription({ stripeAccount: acct, subscriptionId: row.stripeSubscriptionId })).status);
   } catch (e) {
     if ((e as { code?: string } | null)?.code !== 'resource_missing') stripeFailed(agencyId, 'getConnectedSubscription', e);
     live = false;
@@ -374,12 +430,18 @@ export const enableClientBillingTool = defineTool({
     }
     // The one-time setup fee is only for a client who has never paid.
     const setupFeeCents = existing?.lastPaidAt ? 0 : input.setupFeeCents ?? (stored ? stored.setupFeeCents : null) ?? connect.defaultSetupFeeCents ?? 0;
-    const checkout = await checkoutFor(deps, ctx, connect, { acct, priceId, setupFeeCents, email: emails[0]! });
-    const r = await deps.service.transaction(async (tx) => {
-      await assertConnectLive(tx, ctx.agencyId);
-      return applyClientBillingSignal(tx, c.id, { type: 'invited', priceCents, setupFeeCents, stripePriceId: priceId, checkoutUrl: checkout.url, checkoutSessionId: checkout.id }, ctx.userId);
-    });
-    if (!r.changed) throw new ToolError('conflict', ALREADY_BILLING_MESSAGE);
+    const checkout = await checkoutFor(deps, ctx, connect, { acct, clientId: c.id, priceId, setupFeeCents, email: emails[0]! });
+    const r = await commitInvite(
+      deps, ctx, c.id, acct,
+      { type: 'invited', priceCents, setupFeeCents, stripePriceId: priceId, checkoutUrl: checkout.url, checkoutSessionId: checkout.id },
+      null,
+      (cur) => {
+        // R13d: another enable (or a payment) won the race since the check above.
+        if (cur.enabled && ['invited', 'active', 'payment_needed'].includes(cur.state)) throw new ToolError('conflict', ALREADY_BILLING_MESSAGE);
+        if (!cur.enabled && SUBSCRIBED.includes(cur.state)) throw new ToolError('conflict', SUBSCRIPTION_ENDING_MESSAGE);
+      },
+      ALREADY_BILLING_MESSAGE,
+    );
     return { ok: true as const, state: r.state!, priceCents, setupFeeCents, recipients: emails.length };
   },
 });
@@ -401,13 +463,15 @@ export const resendClientPaymentLinkTool = defineTool({
     const emails = await clientOwnerEmails(deps, c.id);
     if (emails.length === 0) throw new ToolError('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
     const setupFeeCents = row.setupFeeCents ?? 0;
-    await expireQuietly(deps, ctx.agencyId, acct, row.checkoutSessionId);
-    const checkout = await checkoutFor(deps, ctx, connect, { acct, priceId: row.stripePriceId, setupFeeCents, email: emails[0]! });
-    const r = await deps.service.transaction(async (tx) => {
-      await assertConnectLive(tx, ctx.agencyId);
-      return applyClientBillingSignal(tx, c.id, { type: 'invited', priceCents: row.priceCents!, setupFeeCents, stripePriceId: row.stripePriceId!, checkoutUrl: checkout.url, checkoutSessionId: checkout.id }, ctx.userId);
-    });
-    if (!r.changed) throw new ToolError('conflict', NO_PENDING_LINK_MESSAGE);
+    await assertNotPaid(deps, ctx, acct, row.checkoutSessionId);
+    const checkout = await checkoutFor(deps, ctx, connect, { acct, clientId: c.id, priceId: row.stripePriceId, setupFeeCents, email: emails[0]! });
+    const r = await commitInvite(
+      deps, ctx, c.id, acct,
+      { type: 'invited', priceCents: row.priceCents, setupFeeCents, stripePriceId: row.stripePriceId, checkoutUrl: checkout.url, checkoutSessionId: checkout.id },
+      row.checkoutSessionId,
+      (cur) => guardPendingInvite(cur, row.checkoutSessionId),
+      NO_PENDING_LINK_MESSAGE,
+    );
     return { ok: true as const, state: r.state!, recipients: emails.length };
   },
 });
@@ -468,6 +532,7 @@ export const setClientPriceTool = defineTool({
       emails = await clientOwnerEmails(deps, c.id);
       if (emails.length === 0) throw new ToolError('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
     }
+    if (invited) await assertNotPaid(deps, ctx, acct, row!.checkoutSessionId);
     // An unchanged amount never creates a new Stripe price: reuse the default or the client's stored price.
     const priceId =
       input.priceCents === connect.defaultPriceCents && connect.stripeDefaultPriceId
@@ -483,14 +548,16 @@ export const setClientPriceTool = defineTool({
       }
     }
     if (invited) {
-      // The mailed link still charges the old price: replace it (R9/R10).
-      await expireQuietly(deps, ctx.agencyId, acct, row!.checkoutSessionId);
+      // The mailed link still charges the old price: replace it (R9/R10). New link first, old one expired after the commit (R13).
       const setupFeeCents = row!.setupFeeCents ?? 0;
-      const checkout = await checkoutFor(deps, ctx, connect, { acct, priceId, setupFeeCents, email: emails[0]! });
-      await deps.service.transaction(async (tx) => {
-        await assertConnectLive(tx, ctx.agencyId);
-        return applyClientBillingSignal(tx, c.id, { type: 'invited', priceCents: input.priceCents, setupFeeCents, stripePriceId: priceId, checkoutUrl: checkout.url, checkoutSessionId: checkout.id }, ctx.userId);
-      });
+      const checkout = await checkoutFor(deps, ctx, connect, { acct, clientId: c.id, priceId, setupFeeCents, email: emails[0]! });
+      await commitInvite(
+        deps, ctx, c.id, acct,
+        { type: 'invited', priceCents: input.priceCents, setupFeeCents, stripePriceId: priceId, checkoutUrl: checkout.url, checkoutSessionId: checkout.id },
+        row!.checkoutSessionId,
+        (cur) => guardPendingInvite(cur, row!.checkoutSessionId),
+        NO_PENDING_LINK_MESSAGE,
+      );
     } else {
       await deps.service.transaction(async (tx) => {
         await assertConnectLive(tx, ctx.agencyId);
