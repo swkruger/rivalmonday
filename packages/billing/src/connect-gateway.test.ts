@@ -26,7 +26,10 @@ function mockClient() {
       },
     },
     charges: { retrieve: vi.fn(async () => ({ id: 'ch_c', customer: 'cus_c' })) },
-    billingPortal: { sessions: { create: vi.fn(async () => ({ url: 'https://portal/c' })) } },
+    billingPortal: {
+      sessions: { create: vi.fn(async () => ({ url: 'https://portal/c' })) },
+      configurations: { create: vi.fn(async () => ({ id: 'bpc_c' })) },
+    },
     subscriptions: {
       retrieve: vi.fn(async () => ({
         id: 'sub_c', status: 'active', customer: 'cus_c', cancel_at_period_end: false,
@@ -144,6 +147,18 @@ describe('stripeGateway Connect', () => {
     expect(c.subscriptions.update).toHaveBeenCalledWith('sub_c', { items: [{ id: 'si_c', price: 'price_new' }], proration_behavior: 'none' }, { stripeAccount: ACCT });
     await g.cancelConnectedSubscriptionAtPeriodEnd({ stripeAccount: ACCT, subscriptionId: 'sub_c' });
     expect(c.subscriptions.update).toHaveBeenLastCalledWith('sub_c', { cancel_at_period_end: true }, { stripeAccount: ACCT });
+  });
+
+  it('R25: the portal configuration is created on the connected account (payment method + invoices, no cancel) and passed to sessions', async () => {
+    const c = mockClient();
+    const g = gw(c);
+    expect(await g.createConnectedPortalConfiguration({ stripeAccount: ACCT })).toEqual({ id: 'bpc_c' });
+    expect(c.billingPortal.configurations.create).toHaveBeenCalledWith(
+      { features: { payment_method_update: { enabled: true }, invoice_history: { enabled: true }, subscription_cancel: { enabled: false } } },
+      { stripeAccount: ACCT },
+    );
+    await g.createConnectedPortal({ stripeAccount: ACCT, customerId: 'cus_c', returnUrl: 'r', configuration: 'bpc_c' });
+    expect(c.billingPortal.sessions.create).toHaveBeenLastCalledWith({ customer: 'cus_c', return_url: 'r', configuration: 'bpc_c' }, { stripeAccount: ACCT });
   });
 
   it('verifyConnectWebhook uses the Connect secret and carries account', () => {

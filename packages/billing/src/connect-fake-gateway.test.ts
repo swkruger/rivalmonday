@@ -16,22 +16,63 @@ describe('fakeGateway Connect', () => {
     expect(gw.callsTo('createAccountLink')[0]!.args[0]).toMatchObject({ refreshUrl: 'r' });
   });
 
-  it('a second createAccountLink for the same account completes onboarding (fake stand-in for the hosted flow)', async () => {
+  it('a second createAccountLink does not finish onboarding by default (Stripe-like); completeOnboarding does (final wave)', async () => {
     const gw = fakeGateway();
     const { accountId } = await gw.createAccountLink({ refreshUrl: 'r', returnUrl: 'x' });
+    await gw.createAccountLink({ accountId, refreshUrl: 'r', returnUrl: 'x' });
+    expect(await gw.getAccount({ stripeAccount: accountId })).toEqual({ id: accountId, chargesEnabled: false, detailsSubmitted: false });
+    gw.completeOnboarding(accountId);
+    expect(await gw.getAccount({ stripeAccount: accountId })).toEqual({ id: accountId, chargesEnabled: true, detailsSubmitted: true });
+  });
+
+  it('opt-in completeOnboardingOnRelink: following a link for an existing account finishes onboarding (E2E wiring only)', async () => {
+    const gw = fakeGateway({ completeOnboardingOnRelink: true });
+    const { accountId } = await gw.createAccountLink({ refreshUrl: 'r', returnUrl: 'x' });
+    expect((await gw.getAccount({ stripeAccount: accountId })).chargesEnabled).toBe(false);
     await gw.createAccountLink({ accountId, refreshUrl: 'r', returnUrl: 'x' });
     expect(await gw.getAccount({ stripeAccount: accountId })).toEqual({ id: accountId, chargesEnabled: true, detailsSubmitted: true });
   });
 
-  it('unknown account/subscription/price throw resource_missing', async () => {
+  it('an unknown account throws the account-level code (account_invalid); unknown subscription/price throw resource_missing', async () => {
     const gw = fakeGateway();
-    expect(await code(gw.getAccount({ stripeAccount: 'acct_nope' }))).toBe('resource_missing');
-    expect(await code(gw.createAccountLink({ accountId: 'acct_nope', refreshUrl: 'r', returnUrl: 'x' }))).toBe('resource_missing');
-    expect(await code(gw.createConnectedProduct({ stripeAccount: 'acct_nope', name: 'n' }))).toBe('resource_missing');
+    expect(await code(gw.getAccount({ stripeAccount: 'acct_nope' }))).toBe('account_invalid');
+    expect(await code(gw.createAccountLink({ accountId: 'acct_nope', refreshUrl: 'r', returnUrl: 'x' }))).toBe('account_invalid');
+    expect(await code(gw.createConnectedProduct({ stripeAccount: 'acct_nope', name: 'n' }))).toBe('account_invalid');
+    expect(await code(gw.getConnectedSubscription({ stripeAccount: 'acct_nope', subscriptionId: 'sub_nope' }))).toBe('account_invalid');
     gw.seedConnectedAccount({ id: 'acct_1' });
     expect(await code(gw.getConnectedSubscription({ stripeAccount: 'acct_1', subscriptionId: 'sub_nope' }))).toBe('resource_missing');
     expect(await code(gw.archiveConnectedPrice({ stripeAccount: 'acct_1', priceId: 'price_nope' }))).toBe('resource_missing');
     expect(await code(gw.cancelConnectedSubscriptionAtPeriodEnd({ stripeAccount: 'acct_1', subscriptionId: 'sub_nope' }))).toBe('resource_missing');
+  });
+
+  it('Checkout and subscription price updates refuse unknown, other-account and archived prices (final wave, hid I2)', async () => {
+    const gw = fakeGateway();
+    gw.seedConnectedAccount({ id: 'acct_1' });
+    gw.seedConnectedAccount({ id: 'acct_2' });
+    const args = { stripeAccount: 'acct_1', customerEmail: 'o@x.test', successUrl: 's', cancelUrl: 'c' };
+    expect(await code(gw.createConnectedCheckout({ ...args, priceId: 'price_nope' }))).toBe('resource_missing');
+    gw.seedConnectedPrice({ id: 'price_other', stripeAccount: 'acct_2', unitAmountCents: 100 });
+    expect(await code(gw.createConnectedCheckout({ ...args, priceId: 'price_other' }))).toBe('resource_missing');
+    const p = gw.seedConnectedPrice({ id: 'price_1', stripeAccount: 'acct_1', unitAmountCents: 100 });
+    expect(p).toMatchObject({ productId: 'prod_fake', currency: 'usd', active: true });
+    await expect(gw.createConnectedCheckout({ ...args, priceId: 'price_1' })).resolves.toMatchObject({ id: expect.any(String) });
+    await gw.archiveConnectedPrice({ stripeAccount: 'acct_1', priceId: 'price_1' });
+    expect(await code(gw.createConnectedCheckout({ ...args, priceId: 'price_1' }))).toBe('price_inactive');
+    gw.seedConnectedSubscription({ stripeAccount: 'acct_1', id: 'sub_1', customerId: 'cus_1' });
+    expect(await code(gw.updateConnectedSubscriptionPrice({ stripeAccount: 'acct_1', subscriptionId: 'sub_1', priceId: 'price_1', prorate: false }))).toBe('price_inactive');
+    expect(await code(gw.updateConnectedSubscriptionPrice({ stripeAccount: 'acct_1', subscriptionId: 'sub_1', priceId: 'price_nope', prorate: false }))).toBe('resource_missing');
+  });
+
+  it('portal configuration lives on the connected account and portal sessions record it (R25)', async () => {
+    const gw = fakeGateway();
+    expect(await code(gw.createConnectedPortalConfiguration({ stripeAccount: 'acct_nope' }))).toBe('account_invalid');
+    gw.seedConnectedAccount({ id: 'acct_1' });
+    const { id } = await gw.createConnectedPortalConfiguration({ stripeAccount: 'acct_1' });
+    expect(id).toMatch(/^bpc_/);
+    expect(gw.connectedPortalConfigurations.get(id)).toEqual({ id, stripeAccount: 'acct_1' });
+    await gw.createConnectedPortal({ stripeAccount: 'acct_1', customerId: 'cus_1', returnUrl: 'https://r', configuration: id });
+    expect(gw.callsTo('createConnectedPortal')[0]!.args[0]).toMatchObject({ configuration: id });
+    expect(await code(gw.createConnectedPortal({ stripeAccount: 'acct_1', customerId: 'cus_1', returnUrl: 'https://r', configuration: 'bpc_nope' }))).toBe('resource_missing');
   });
 
   it('subscriptions are scoped per account', async () => {
@@ -74,6 +115,7 @@ describe('fakeGateway Connect', () => {
   it('checkout returns a session id; expire marks it expired, repeats are no-ops, completed or unknown sessions reject', async () => {
     const gw = fakeGateway();
     gw.seedConnectedAccount({ id: 'acct_1', chargesEnabled: true });
+    gw.seedConnectedPrice({ id: 'p', stripeAccount: 'acct_1', unitAmountCents: 100 });
     const a = await gw.createConnectedCheckout({ stripeAccount: 'acct_1', priceId: 'p', customerEmail: 'o@x.test', successUrl: 's', cancelUrl: 'c' });
     const b = await gw.createConnectedCheckout({ stripeAccount: 'acct_1', priceId: 'p', customerEmail: 'o@x.test', successUrl: 's', cancelUrl: 'c' });
     expect(a.id).toMatch(/^cs_/);
@@ -100,6 +142,7 @@ describe('fakeGateway Connect', () => {
     const gw = fakeGateway();
     gw.seedConnectedAccount({ id: 'acct_1' });
     gw.seedConnectedAccount({ id: 'acct_2' });
+    gw.seedConnectedPrice({ id: 'p', stripeAccount: 'acct_1', unitAmountCents: 100 });
     const { id } = await gw.createConnectedCheckout({ stripeAccount: 'acct_1', priceId: 'p', customerEmail: 'a@b.c', clientReferenceId: 'cl_1', successUrl: 's', cancelUrl: 'c' });
     expect(await gw.getConnectedCheckout({ stripeAccount: 'acct_1', sessionId: id })).toEqual({ id, status: 'open' });
     expect(gw.connectedCheckouts.get(id)?.clientReferenceId).toBe('cl_1');

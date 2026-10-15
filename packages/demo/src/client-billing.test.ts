@@ -1,4 +1,7 @@
+import { type FakeGateway, gatewayFor } from '@cs/billing';
+import { createAccessContext } from '@cs/core';
 import { agency, agencyConnect, client, clientBilling } from '@cs/db';
+import { createToolRegistry } from '@cs/tools';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
@@ -57,5 +60,29 @@ describe('seedClientBilling', () => {
     const after = (await dbs.owner.select({ s: clientBilling.state }).from(clientBilling)).map((r) => r.s).sort();
     expect(after).toEqual(before);
     expect(after).toHaveLength(5);
+  });
+
+  it('every seeded Stripe id is known to the DEMO gateway, so demo billing actions work (final wave)', async () => {
+    const gw = gatewayFor({}, 'demo') as FakeGateway;
+    for (const c of await dbs.owner.select().from(agencyConnect)) {
+      expect(await gw.getAccount({ stripeAccount: c.stripeAccountId! })).toMatchObject({ chargesEnabled: true });
+      expect(gw.connectedPrices.get(c.stripeDefaultPriceId!)).toMatchObject({ stripeAccount: c.stripeAccountId, active: true, unitAmountCents: c.defaultPriceCents });
+      expect(gw.connectedProducts.get(c.stripeProductId!)).toMatchObject({ stripeAccount: c.stripeAccountId });
+    }
+    const rows = await dbs.owner.select({ b: clientBilling, acct: agencyConnect.stripeAccountId }).from(clientBilling).innerJoin(agencyConnect, eq(agencyConnect.agencyId, clientBilling.agencyId));
+    for (const { b, acct } of rows) {
+      const sub = await gw.getConnectedSubscription({ stripeAccount: acct!, subscriptionId: b.stripeSubscriptionId! });
+      expect(sub).toMatchObject({ customerId: b.stripeCustomerId, unitAmountCents: b.billedPriceCents, status: b.state === 'active' ? 'active' : 'past_due' });
+      expect(gw.connectedPrices.get(b.stripePriceId!)).toMatchObject({ stripeAccount: acct, active: true });
+    }
+  });
+
+  it('demo actions on seeded clients succeed: change price (next bill) and turn billing off (final wave)', async () => {
+    const gw = gatewayFor({}, 'demo') as FakeGateway;
+    const registry = createToolRegistry({ app: dbs.app, service: dbs.service, billing: gw, appUrl: 'https://demo.test' }, { audit: { record: async () => {} } });
+    const admin = createAccessContext({ agencyId: ctx.ids.agencyId, userId: 'u-demo-admin', role: 'agency_admin', clientScope: 'all', features: [] });
+    expect(await registry.invoke(admin, 'set_client_price', { clientId: ctx.ids.clients.loneStar, priceCents: 22_900, applyTo: 'next_bill' })).toMatchObject({ ok: true, appliedToSubscription: true });
+    expect(await registry.invoke(admin, 'disable_client_billing', { clientId: ctx.ids.clients.loneStar, confirm: true })).toMatchObject({ ok: true, cancelAtPeriodEnd: true });
+    await seedAll();
   });
 });

@@ -51,7 +51,10 @@ export interface ConnectGateway {
   getConnectedCheckout(i: { stripeAccount: string; sessionId: string }): Promise<{ id: string; status: 'open' | 'expired' | 'complete' }>;
   /** The Stripe customer a charge belongs to (dispute events carry only the charge id). */
   getConnectedCharge(i: { stripeAccount: string; chargeId: string }): Promise<{ id: string; customerId: string | null }>;
-  createConnectedPortal(i: { stripeAccount: string; customerId: string; returnUrl: string }): Promise<{ url: string }>;
+  /** R25: a Customer Portal configuration on the connected account (payment method update + invoice history, no cancel). */
+  createConnectedPortalConfiguration(i: { stripeAccount: string }): Promise<{ id: string }>;
+  /** `configuration` (R25): the account's portal configuration; without it Stripe needs a saved default on that account. */
+  createConnectedPortal(i: { stripeAccount: string; customerId: string; returnUrl: string; configuration?: string }): Promise<{ url: string }>;
   getConnectedSubscription(i: { stripeAccount: string; subscriptionId: string }): Promise<ConnectedSubscription>;
   /** Swaps the first item's price. `prorate: false` only (a price change applies from the next bill). */
   updateConnectedSubscriptionPrice(i: { stripeAccount: string; subscriptionId: string; priceId: string; prorate: false }): Promise<void>;

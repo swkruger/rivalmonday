@@ -36,8 +36,14 @@ export interface FakeGateway extends BillingGateway {
   readonly connectedCheckouts: Map<string, FakeConnectedCheckout>;
   /** Connect: charges by id, for dispute lookups. */
   readonly connectedCharges: Map<string, { id: string; stripeAccount: string; customerId: string | null }>;
+  /** Connect: Customer Portal configurations by id (R25). */
+  readonly connectedPortalConfigurations: Map<string, { id: string; stripeAccount: string }>;
   /** Adds or updates a connected account (defaults: charges disabled, details not submitted). */
   seedConnectedAccount(a: Partial<ConnectedAccount> & { id: string }): ConnectedAccount;
+  /** Registers a price on a connected account (defaults: product `prod_fake`, `usd`, active). Checkout refuses unknown prices. */
+  seedConnectedPrice(p: { id: string; stripeAccount: string; unitAmountCents: number; productId?: string; currency?: string; active?: boolean }): FakeConnectedPrice;
+  /** Stand-in for the user finishing Stripe's hosted onboarding: charges enabled, details submitted. */
+  completeOnboarding(accountId: string): ConnectedAccount;
   seedConnectedCharge(c: { id: string; stripeAccount: string; customerId: string | null }): void;
   seedConnectedSubscription(s: Partial<ConnectedSubscription> & { id: string; stripeAccount: string; customerId: string }): FakeConnectedSubscription;
   /** The next gateway method call (any method) rejects with `error`; later calls succeed. */
@@ -48,7 +54,15 @@ export interface FakeGateway extends BillingGateway {
   callsTo(method: string): FakeCall[];
 }
 
-export function fakeGateway(): FakeGateway {
+export interface FakeGatewayOptions {
+  /**
+   * E2E wiring only (`BILLING_FAKE_GATEWAY=1`): a link for an existing account finishes its onboarding, so the browser
+   * flow "Connect Stripe" -> "Finish Stripe setup" reaches "connected" with no Stripe. Off by default (Stripe-like).
+   */
+  completeOnboardingOnRelink?: boolean;
+}
+
+export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
   const calls: FakeCall[] = [];
   const customers = new Map<string, FakeCustomer>();
   const subscriptions = new Map<string, GatewaySubscription>();
@@ -63,6 +77,7 @@ export function fakeGateway(): FakeGateway {
   const connectedSubscriptions = new Map<string, FakeConnectedSubscription>();
   const connectedCheckouts = new Map<string, FakeConnectedCheckout>();
   const connectedCharges = new Map<string, { id: string; stripeAccount: string; customerId: string | null }>();
+  const connectedPortalConfigurations = new Map<string, { id: string; stripeAccount: string }>();
   let failure: Error | null = null;
   /** Random suffix (R27): a fake id must never look like, or collide with, one minted by another process. */
   const nid = (p: string) => `${p}_fake_${randomBytes(4).toString('hex')}`;
@@ -82,9 +97,10 @@ export function fakeGateway(): FakeGateway {
     return s;
   };
   const missing = (what: string, id: string) => Object.assign(new Error(`fake gateway: no ${what} ${id}`), { code: 'resource_missing' });
+  /** Stripe reports an account the platform cannot reach (unknown, or access revoked) as `account_invalid`, not `resource_missing`. */
   const account = (id: string): ConnectedAccount => {
     const a = connectedAccounts.get(id);
-    if (!a) throw missing('account', id);
+    if (!a) throw Object.assign(new Error(`fake gateway: no access to account ${id}`), { code: 'account_invalid' });
     return a;
   };
   const connectedSub = (acct: string, id: string): FakeConnectedSubscription => {
@@ -98,12 +114,27 @@ export function fakeGateway(): FakeGateway {
     if (!p || p.stripeAccount !== acct) throw missing('price', id);
     return p;
   };
+  /** Like Stripe: a new Checkout line or subscription item needs an existing, active price on that account. */
+  const usablePrice = (acct: string, id: string): FakeConnectedPrice => {
+    const p = connectedPrice(acct, id);
+    if (!p.active) throw Object.assign(new Error(`fake gateway: price ${id} is inactive`), { code: 'price_inactive' });
+    return p;
+  };
   const seat = (s: GatewaySubscription) => s.items.find((i) => i.id.startsWith('si_seat'));
 
   const gw: FakeGateway = {
     calls, customers, subscriptions, invoices, coupons, promotionCodes, subscriptionCoupons,
-    connectedAccounts, connectedProducts, connectedPrices, connectedSubscriptions, connectedCheckouts, connectedCharges,
+    connectedAccounts, connectedProducts, connectedPrices, connectedSubscriptions, connectedCheckouts, connectedCharges, connectedPortalConfigurations,
     seedConnectedCharge(c) { connectedCharges.set(c.id, c); },
+    seedConnectedPrice(p) {
+      const price: FakeConnectedPrice = { productId: 'prod_fake', currency: 'usd', active: true, ...p };
+      connectedPrices.set(price.id, price);
+      return price;
+    },
+    completeOnboarding(accountId) {
+      account(accountId);
+      return gw.seedConnectedAccount({ id: accountId, chargesEnabled: true, detailsSubmitted: true });
+    },
     seedConnectedAccount(a) {
       const acct: ConnectedAccount = { chargesEnabled: false, detailsSubmitted: false, ...connectedAccounts.get(a.id), ...a };
       connectedAccounts.set(acct.id, acct);
@@ -212,11 +243,11 @@ export function fakeGateway(): FakeGateway {
     },
     async createAccountLink(i) {
       enter('createAccountLink', i);
-      // A first link creates the account (charges disabled). Following a link for an existing account stands in for the
-      // user finishing Stripe's hosted onboarding, so a fake-gateway run (E2E, demo) can reach "connected" with no Stripe.
+      // A first link creates the account (charges disabled). Onboarding finishes only via `completeOnboarding`, or on a
+      // re-link when the E2E opt-in `completeOnboardingOnRelink` is set.
       const accountId = i.accountId ?? gw.seedConnectedAccount({ id: nid('acct') }).id;
       account(accountId);
-      if (i.accountId) gw.seedConnectedAccount({ id: accountId, chargesEnabled: true, detailsSubmitted: true });
+      if (i.accountId && opts.completeOnboardingOnRelink) gw.completeOnboarding(accountId);
       return { url: `${i.returnUrl}${i.returnUrl.includes('?') ? '&' : '?'}fake_connect_onboarding=${accountId}`, accountId };
     },
     async getAccount(i) {
@@ -245,6 +276,7 @@ export function fakeGateway(): FakeGateway {
     async createConnectedCheckout(i) {
       enter('createConnectedCheckout', i);
       account(i.stripeAccount);
+      usablePrice(i.stripeAccount, i.priceId);
       const subId = nid('sub_conn');
       gw.seedConnectedSubscription({ id: subId, stripeAccount: i.stripeAccount, customerId: nid('cus_conn'), priceId: i.priceId });
       const id = nid('cs');
@@ -273,9 +305,17 @@ export function fakeGateway(): FakeGateway {
       if (!c || c.stripeAccount !== i.stripeAccount) throw missing('charge', i.chargeId);
       return { id: c.id, customerId: c.customerId };
     },
+    async createConnectedPortalConfiguration(i) {
+      enter('createConnectedPortalConfiguration', i);
+      account(i.stripeAccount);
+      const id = nid('bpc');
+      connectedPortalConfigurations.set(id, { id, stripeAccount: i.stripeAccount });
+      return { id };
+    },
     async createConnectedPortal(i) {
       enter('createConnectedPortal', i);
       account(i.stripeAccount);
+      if (i.configuration && connectedPortalConfigurations.get(i.configuration)?.stripeAccount !== i.stripeAccount) throw missing('portal configuration', i.configuration);
       return { url: `${i.returnUrl}${i.returnUrl.includes('?') ? '&' : '?'}fake_portal=1` };
     },
     async getConnectedSubscription(i) {
@@ -285,7 +325,9 @@ export function fakeGateway(): FakeGateway {
     },
     async updateConnectedSubscriptionPrice(i) {
       enter('updateConnectedSubscriptionPrice', i);
-      connectedSub(i.stripeAccount, i.subscriptionId).priceId = i.priceId;
+      const s = connectedSub(i.stripeAccount, i.subscriptionId);
+      usablePrice(i.stripeAccount, i.priceId);
+      s.priceId = i.priceId;
     },
     async cancelConnectedSubscriptionAtPeriodEnd(i) {
       enter('cancelConnectedSubscriptionAtPeriodEnd', i);

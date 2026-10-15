@@ -209,8 +209,18 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
       const c = await stripe.charges.retrieve(i.chargeId, {}, { stripeAccount: i.stripeAccount });
       return { id: c.id, customerId: c.customer ? idOf(c.customer as string | { id: string }) : null };
     },
+    async createConnectedPortalConfiguration(i) {
+      const c = await stripe.billingPortal.configurations.create(
+        { features: { payment_method_update: { enabled: true }, invoice_history: { enabled: true }, subscription_cancel: { enabled: false } } },
+        { stripeAccount: i.stripeAccount },
+      );
+      return { id: c.id };
+    },
     async createConnectedPortal(i) {
-      const s = await stripe.billingPortal.sessions.create({ customer: i.customerId, return_url: i.returnUrl }, { stripeAccount: i.stripeAccount });
+      const s = await stripe.billingPortal.sessions.create(
+        { customer: i.customerId, return_url: i.returnUrl, ...(i.configuration && { configuration: i.configuration }) },
+        { stripeAccount: i.stripeAccount },
+      );
       return { url: s.url };
     },
     async getConnectedSubscription(i): Promise<ConnectedSubscription> {

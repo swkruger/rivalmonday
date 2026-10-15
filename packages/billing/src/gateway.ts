@@ -1,3 +1,4 @@
+import { seedDemoConnect } from './demo-connect';
 import { fakeGateway } from './fake-gateway';
 import { stripeGateway } from './stripe-gateway';
 import type { BillingGateway } from './types';
@@ -34,8 +35,13 @@ export const usesFakeGateway = (env: GatewayEnv, envName: DbEnvName): boolean =>
 /** The gateway for this process, or `null` when billing is not configured (callers degrade or refuse). */
 export function gatewayFor(env: GatewayEnv, envName: DbEnvName): BillingGateway | null {
   switch (gatewayMode(env, envName)) {
-    case 'fake':
-      return fakeGateway();
+    case 'fake': {
+      // The E2E flag opts into finishing onboarding on a re-link (the browser flow cannot visit Stripe). DEMO pre-registers
+      // the Stripe objects behind the demo seed's Connect rows (per process, in memory; see `@cs/demo` CLAUDE.md).
+      const gw = fakeGateway({ completeOnboardingOnRelink: env.BILLING_FAKE_GATEWAY === '1' });
+      if (envName === 'demo') seedDemoConnect(gw);
+      return gw;
+    }
     case 'real':
       return stripeGateway(env.STRIPE_SECRET_KEY!.trim(), {
         webhookSecret: env.STRIPE_WEBHOOK_SECRET?.trim() || undefined,
