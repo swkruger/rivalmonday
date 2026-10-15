@@ -45,10 +45,11 @@ export async function applyClientBillingSignal(
   signal: ClientBillingSignal,
   _actor: string,
   now: Date = new Date(),
-): Promise<{ changed: boolean; state: ClientBillingState | null }> {
+): Promise<{ changed: boolean; state: ClientBillingState | null; ignored?: 'untracked_subscription' }> {
   const row = await lockClientBilling(tx, clientId);
   if (!row) return { changed: false, state: null };
   const t = nextClientBillingState(row, signal, now);
+  if (t && 'ignored' in t) return { changed: false, state: row.state, ignored: t.ignored };
   if (!t) return { changed: false, state: row.state };
   await tx.update(clientBilling).set({ ...t.patch, state: t.state, updatedAt: now }).where(eq(clientBilling.clientId, clientId));
   if (signal.type === 'invited' || signal.type === 'disabled') {

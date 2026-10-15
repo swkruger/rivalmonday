@@ -40,7 +40,9 @@ export interface ConnectGateway {
     applicationFeePercent?: number;
     successUrl: string;
     cancelUrl: string;
-  }): Promise<{ url: string }>;
+  }): Promise<{ url: string; id: string }>;
+  /** Expires an open Checkout session (its link stops working). Rejects when the session is already complete. */
+  expireConnectedCheckout(i: { stripeAccount: string; sessionId: string }): Promise<void>;
   createConnectedPortal(i: { stripeAccount: string; customerId: string; returnUrl: string }): Promise<{ url: string }>;
   getConnectedSubscription(i: { stripeAccount: string; subscriptionId: string }): Promise<ConnectedSubscription>;
   /** Swaps the first item's price. `prorate: false` only (a price change applies from the next bill). */

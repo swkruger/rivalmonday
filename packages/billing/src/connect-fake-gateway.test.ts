@@ -64,6 +64,23 @@ describe('fakeGateway Connect', () => {
     expect((await gw.createConnectedPortal({ stripeAccount: 'acct_1', customerId: 'cus_1', returnUrl: 'https://r' })).url).toContain('fake_portal=1');
   });
 
+  it('checkout returns a session id; expire marks it expired, repeats are no-ops, completed or unknown sessions reject', async () => {
+    const gw = fakeGateway();
+    gw.seedConnectedAccount({ id: 'acct_1', chargesEnabled: true });
+    const a = await gw.createConnectedCheckout({ stripeAccount: 'acct_1', priceId: 'p', customerEmail: 'o@x.test', successUrl: 's', cancelUrl: 'c' });
+    const b = await gw.createConnectedCheckout({ stripeAccount: 'acct_1', priceId: 'p', customerEmail: 'o@x.test', successUrl: 's', cancelUrl: 'c' });
+    expect(a.id).toMatch(/^cs_/);
+    expect(a.id).not.toBe(b.id);
+    expect(gw.connectedCheckouts.get(a.id)?.status).toBe('open');
+    await gw.expireConnectedCheckout({ stripeAccount: 'acct_1', sessionId: a.id });
+    await gw.expireConnectedCheckout({ stripeAccount: 'acct_1', sessionId: a.id });
+    expect(gw.connectedCheckouts.get(a.id)?.status).toBe('expired');
+    expect(gw.connectedCheckouts.get(b.id)?.status).toBe('open');
+    gw.connectedCheckouts.get(b.id)!.status = 'complete';
+    await expect(gw.expireConnectedCheckout({ stripeAccount: 'acct_1', sessionId: b.id })).rejects.toThrow();
+    await expect(gw.expireConnectedCheckout({ stripeAccount: 'acct_1', sessionId: 'cs_nope' })).rejects.toMatchObject({ code: 'resource_missing' });
+  });
+
   it('failNext hits the next Connect call once', async () => {
     const gw = fakeGateway();
     gw.seedConnectedAccount({ id: 'acct_1' });

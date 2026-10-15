@@ -195,7 +195,10 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
         opt,
       );
       if (!s.url) throw new Error('Stripe returned a Checkout session without a url');
-      return { url: s.url };
+      return { url: s.url, id: s.id };
+    },
+    async expireConnectedCheckout(i) {
+      await stripe.checkout.sessions.expire(i.sessionId, {}, { stripeAccount: i.stripeAccount });
     },
     async createConnectedPortal(i) {
       const s = await stripe.billingPortal.sessions.create({ customer: i.customerId, return_url: i.returnUrl }, { stripeAccount: i.stripeAccount });

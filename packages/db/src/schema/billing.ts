@@ -195,9 +195,14 @@ export const clientBilling = pgTable(
     clientId: uuid('client_id').primaryKey().references(() => client.id, { onDelete: 'cascade' }),
     agencyId: uuid('agency_id').notNull().references(() => agency.id, { onDelete: 'cascade' }),
     enabled: boolean('enabled').notNull().default(false),
+    /** The price for the next Checkout (set by enable / set_client_price). */
     priceCents: integer('price_cents'),
     setupFeeCents: integer('setup_fee_cents'),
     stripePriceId: text('stripe_price_id'),
+    /** What the live subscription actually charges per month (null until a subscription exists). Revenue reads this. */
+    billedPriceCents: integer('billed_price_cents'),
+    /** The open Checkout session of the pending invite (expired when the link is replaced or billing is disabled). */
+    checkoutSessionId: text('checkout_session_id'),
     stripeCustomerId: text('stripe_customer_id'),
     stripeSubscriptionId: text('stripe_subscription_id').unique(),
     state: text('state').$type<ClientBillingState>().notNull(),
@@ -214,6 +219,7 @@ export const clientBilling = pgTable(
     index('client_billing_agency_idx').on(t.agencyId),
     check('client_billing_price_cents_check', sql`${t.priceCents} >= 0`),
     check('client_billing_setup_fee_cents_check', sql`${t.setupFeeCents} >= 0`),
+    check('client_billing_billed_price_cents_check', sql`${t.billedPriceCents} >= 0`),
     check('client_billing_state_check', sql`${t.state} IN ('off','invited','active','payment_needed','cancelled','disconnected')`),
   ],
 );

@@ -17,7 +17,7 @@ beforeEach(async () => {
   await resetBilling(dbs.owner);
   await dbs.owner.insert(agencyConnect).values({ agencyId: IDS.agencyA, stripeAccountId: 'acct_1', status: 'connected', chargesEnabled: true, connectedAt: new Date() });
   await dbs.owner.insert(clientBilling).values([
-    { clientId: IDS.clientA1, agencyId: IDS.agencyA, state: 'active' },
+    { clientId: IDS.clientA1, agencyId: IDS.agencyA, state: 'active', stripeSubscriptionId: 'sub_1' },
     { clientId: IDS.clientA2, agencyId: IDS.agencyA, state: 'off' },
   ]);
 });
@@ -47,7 +47,7 @@ describe('disconnectAgencyConnect', () => {
 
 describe('applyClientBillingSignal', () => {
   const apply = (clientId: string, s: ClientBillingSignal, now?: Date) => dbs.service.transaction((tx) => applyClientBillingSignal(tx, clientId, s, 'user-1', now));
-  const invite = (url = 'https://pay/1'): ClientBillingSignal => ({ type: 'invited', priceCents: 9900, setupFeeCents: 0, stripePriceId: 'price_1', checkoutUrl: url });
+  const invite = (url = 'https://pay/1'): ClientBillingSignal => ({ type: 'invited', priceCents: 9900, setupFeeCents: 0, stripePriceId: 'price_1', checkoutUrl: url, checkoutSessionId: 'cs_1' });
   const notices = () => dbs.owner.select().from(billingNotice);
   const rowOf = async (id: string) => (await dbs.owner.select().from(clientBilling).where(eq(clientBilling.clientId, id)))[0]!;
 
@@ -77,10 +77,10 @@ describe('applyClientBillingSignal', () => {
 
   it('active -> payment_failed -> payment_succeeded round trip stamps and clears payment_failed_since', async () => {
     const t = new Date('2026-10-15T12:00:00Z');
-    await apply(IDS.clientA1, { type: 'payment_failed' }, t);
+    await apply(IDS.clientA1, { type: 'payment_failed', subscriptionId: 'sub_1' }, t);
     expect(await rowOf(IDS.clientA1)).toMatchObject({ state: 'payment_needed', paymentFailedSince: t });
     expect((await notices()).map((n) => n.kind)).toEqual(['client-payment-failed']);
-    await apply(IDS.clientA1, { type: 'payment_succeeded' }, t);
+    await apply(IDS.clientA1, { type: 'payment_succeeded', subscriptionId: 'sub_1' }, t);
     expect(await rowOf(IDS.clientA1)).toMatchObject({ state: 'active', paymentFailedSince: null });
   });
 
@@ -91,9 +91,23 @@ describe('applyClientBillingSignal', () => {
     expect(await notices()).toHaveLength(0);
   });
 
+  it('flags an event for an untracked subscription as ignored and writes nothing', async () => {
+    expect(await apply(IDS.clientA1, { type: 'payment_failed', subscriptionId: 'sub_other' })).toEqual({ changed: false, state: 'active', ignored: 'untracked_subscription' });
+    expect(await apply(IDS.clientA1, { type: 'checkout_completed', customerId: 'cus', subscriptionId: 'sub_other', priceCents: 1 })).toMatchObject({ changed: false, ignored: 'untracked_subscription' });
+    expect(await rowOf(IDS.clientA1)).toMatchObject({ state: 'active', stripeSubscriptionId: 'sub_1' });
+    expect(await notices()).toHaveLength(0);
+  });
+
+  it('stores the session id on invite and the billed price on checkout completion', async () => {
+    await apply(IDS.clientA2, invite());
+    expect(await rowOf(IDS.clientA2)).toMatchObject({ checkoutSessionId: 'cs_1', billedPriceCents: null });
+    await apply(IDS.clientA2, { type: 'checkout_completed', customerId: 'cus_2', subscriptionId: 'sub_2', priceCents: 8800 });
+    expect(await rowOf(IDS.clientA2)).toMatchObject({ state: 'active', billedPriceCents: 8800, checkoutSessionId: null, stripeSubscriptionId: 'sub_2' });
+  });
+
   it('records the Stripe event time and ignores an older event afterwards', async () => {
-    await apply(IDS.clientA1, { type: 'payment_succeeded', eventAt: new Date('2026-10-15T12:00:00Z') });
-    expect(await apply(IDS.clientA1, { type: 'payment_failed', eventAt: new Date('2026-10-15T11:00:00Z') })).toMatchObject({ changed: false });
+    await apply(IDS.clientA1, { type: 'payment_succeeded', subscriptionId: 'sub_1', eventAt: new Date('2026-10-15T12:00:00Z') });
+    expect(await apply(IDS.clientA1, { type: 'payment_failed', subscriptionId: 'sub_1', eventAt: new Date('2026-10-15T11:00:00Z') })).toMatchObject({ changed: false });
     expect((await rowOf(IDS.clientA1)).lastStripeEventAt).toEqual(new Date('2026-10-15T12:00:00Z'));
   });
 });

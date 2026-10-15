@@ -18,7 +18,7 @@ function mockClient() {
       retrieve: vi.fn(async () => ({ id: 'price_c', currency: 'cad' })),
       update: vi.fn(async () => ({})),
     },
-    checkout: { sessions: { create: vi.fn(async () => ({ url: 'https://checkout/c' })) } },
+    checkout: { sessions: { create: vi.fn(async () => ({ id: 'cs_c', url: 'https://checkout/c' })), expire: vi.fn(async () => ({})) } },
     billingPortal: { sessions: { create: vi.fn(async () => ({ url: 'https://portal/c' })) } },
     subscriptions: {
       retrieve: vi.fn(async () => ({
@@ -76,7 +76,7 @@ describe('stripeGateway Connect', () => {
   it('Checkout: subscription mode, fee omitted at 0, no setup line, 24 h expiry, account option', async () => {
     const c = mockClient();
     const before = Math.floor(Date.now() / 1000);
-    expect(await gw(c).createConnectedCheckout({ ...checkout, applicationFeePercent: 0, setupFeeCents: 0 })).toEqual({ url: 'https://checkout/c' });
+    expect(await gw(c).createConnectedCheckout({ ...checkout, applicationFeePercent: 0, setupFeeCents: 0 })).toEqual({ url: 'https://checkout/c', id: 'cs_c' });
     const p = arg(c.checkout.sessions.create);
     expect(p).toMatchObject({ mode: 'subscription', customer_email: 'o@x.test', success_url: 's', cancel_url: 'c' });
     expect(p.line_items).toEqual([{ price: 'price_c', quantity: 1 }]);
@@ -85,6 +85,12 @@ describe('stripeGateway Connect', () => {
     expect(p.expires_at as number).toBeLessThanOrEqual(before + 86_400 - 300 + 5);
     expect(at(c.checkout.sessions.create, 0, 1)).toEqual({ stripeAccount: ACCT });
     expect(c.prices.retrieve).not.toHaveBeenCalled();
+  });
+
+  it('expireConnectedCheckout expires the session on the connected account', async () => {
+    const c = mockClient();
+    await gw(c).expireConnectedCheckout({ stripeAccount: ACCT, sessionId: 'cs_c' });
+    expect(c.checkout.sessions.expire).toHaveBeenCalledWith('cs_c', {}, { stripeAccount: ACCT });
   });
 
   it('Checkout: fee attached > 0, setup fee as one-time price_data in the price currency', async () => {
