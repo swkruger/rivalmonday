@@ -1,12 +1,12 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { signLink } from '@cs/core';
-import { ad, agency, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
+import { ad, agency, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
 import { createStoreFromEnv } from '@cs/storage';
 import { eq, sql } from 'drizzle-orm';
 import { acceptInvitations, createInvitation } from '@cs/tools';
 import { resolveEvidenceDir } from '../src/server/files';
-import { ASK_FIXTURE_FILE, E2E_LINK_SECRET, MCP_CLIENTS_FILE, OUTBOX, OWNER_LINK_FILE, RIVALS_FIXTURE_FILE } from '../playwright.config';
+import { ASK_FIXTURE_FILE, E2E_LINK_SECRET, MCP_CLIENTS_FILE, OUTBOX, OWNER_LINK_FILE, RIVALS_FIXTURE_FILE, STARTING_FIXTURE_FILE } from '../playwright.config';
 
 /**
  * Seeds `cs_test` for the E2E smoke run: one agency, one client, one competitor, a sent brief, an invitation and a
@@ -163,6 +163,7 @@ export async function seed(): Promise<void> {
     await writeFile(MCP_CLIENTS_FILE, JSON.stringify({ first: mcpClients[0], second: mcpClients[1] }));
 
     await seedRivals(db, { agencyId });
+    await seedStartingPoint(db, { agencyId });
 
     await seedAsk(db, { agencyId, competitorId: comp!.id, eventId: workspace.eventId, evidenceId: workspace.evidenceId });
 
@@ -409,4 +410,95 @@ async function seedRivals(db: ReturnType<typeof createDb>['db'], o: { agencyId: 
 
   await mkdir(dirname(RIVALS_FIXTURE_FILE), { recursive: true });
   await writeFile(RIVALS_FIXTURE_FILE, JSON.stringify({ clientId, trackedMetaId } satisfies RivalsFixture));
+}
+
+/** 12b E2E: what `starting-point.spec.ts` reads from `STARTING_FIXTURE_FILE`. */
+export type StartingPointFixture = {
+  fresh: { id: string; name: string };
+  ready: { id: string; name: string; briefId: string };
+  quiet: { id: string; name: string; sentBriefId: string; quietBriefId: string };
+};
+export const SP_FRESH_NAME = 'Fresh Start Plumbing';
+export const SP_READY_NAME = 'Starting Point Heating';
+export const SP_QUIET_NAME = 'Quiet Week Cooling';
+
+type SpValues = Record<'rating' | 'reviews90d' | 'replyRate' | 'mapTop3Share' | 'adsActive' | 'metaAdsActive', number | null>;
+const SP_METRICS = ['rating', 'reviews90d', 'replyRate', 'mapTop3Share'] as const;
+const SP_RIVALS: { name: string; tier: 'top' | 'watch'; values: SpValues }[] = [
+  { name: 'Granbury Cooling Pros', tier: 'top', values: { rating: 4.7, reviews90d: 30, replyRate: 0.7, mapTop3Share: 0.4, adsActive: 2, metaAdsActive: null } },
+  { name: 'Lakeview Air and Heat', tier: 'watch', values: { rating: 4.5, reviews90d: 14, replyRate: 0.5, mapTop3Share: 0.2, adsActive: 0, metaAdsActive: null } },
+];
+const SP_SELF: SpValues = { rating: 4.4, reviews90d: 6, replyRate: 0.2, mapTop3Share: 0.1, adsActive: 0, metaAdsActive: null };
+const spMedian = (xs: (number | null)[]) => {
+  const v = xs.filter((x): x is number => x !== null).sort((a, b) => a - b);
+  return v.length === 0 ? null : v.length % 2 ? v[(v.length - 1) / 2]! : (v[v.length / 2 - 1]! + v[v.length / 2]!) / 2;
+};
+function spScorecard(name: string, self: SpValues, base: { briefId: string; self: SpValues } | null, openFirstMoves: { recommendationId: string; title: string }[]) {
+  return {
+    asOf: new Date().toISOString(), baselineBriefId: base?.briefId ?? null,
+    tiles: SP_METRICS.map((metric) => ({
+      metric, you: self[metric], rivalMedian: spMedian(SP_RIVALS.map((r) => r.values[metric])),
+      deltaSinceStart: base && self[metric] !== null && base.self[metric] !== null ? Math.round((self[metric]! - base.self[metric]!) * 100) / 100 : null,
+    })),
+    rows: [{ competitorId: null, name, self: true, tier: null, values: self }, ...SP_RIVALS.map((r) => ({ competitorId: null, name: r.name, self: false, tier: r.tier, values: r.values }))],
+    evidenceIds: [], openFirstMoves,
+  };
+}
+
+/**
+ * 12b: no worker runs in E2E. A fresh client (progress card), a ready starting point for the agency to approve (sent at
+ * once, 12b Q2), and a client whose starting point was sent earlier with a quiet week since (deltas up and down, open
+ * first moves). The Ask client user owns all three (accepted in `seedAsk`), so no extra magic-link sign-in is needed.
+ */
+async function seedStartingPoint(db: ReturnType<typeof createDb>['db'], o: { agencyId: string }): Promise<void> {
+  const { agencyId } = o;
+  const base = { agencyId, verticalId: 'hvac_plumbing', features: ['dashboard'], keywords: ['ac repair'], serviceArea: { center: { lat: 32.4, lng: -97.79 }, radiusKm: 25, zips: ['76048'] } };
+  const [fresh, ready, quiet] = await db.insert(client).values([
+    { ...base, name: SP_FRESH_NAME, placeId: 'e2e-sp-fresh-place' },
+    { ...base, name: SP_READY_NAME },
+    { ...base, name: SP_QUIET_NAME },
+  ]).returning({ id: client.id, name: client.name });
+  for (const c of [fresh!, ready!, quiet!]) await createInvitation(db, { agencyId, email: ASK_USER_EMAIL, role: 'client_owner', clientId: c.id, invitedBy: 'e2e-seed' });
+
+  const findings = [
+    { headline: 'Ask more customers for a review', fact: 'You got 6 new reviews in 90 days; Granbury Cooling Pros got 30.', why: 'Review count and freshness help decide who shows first on Google Maps.', action: 'Text every customer a Google review link right after the job is done.', playbookId: 'ask_for_reviews', effort: 'L', impact: 'H', upsellTag: null },
+    { headline: 'Try a small Google search ads budget', fact: 'Granbury Cooling Pros run ads; you run none.', why: 'Ads put rivals above the map results for searches you could be winning.', action: 'Run a small Google search campaign for your main repair service.', playbookId: 'consider_search_ads', effort: 'M', impact: 'M', upsellTag: 'ppc_audit' },
+    { headline: 'Promote what customers praise', fact: 'Customers mention punctuality in 24% of your reviews vs 9% for rivals.', why: 'Something reviewers keep praising is a reason to choose you.', action: 'Feature punctuality as a strength on your website and Google profile.', playbookId: 'promote_strength', effort: 'L', impact: 'M', upsellTag: null },
+  ];
+  const itemRows = (briefId: string, clientId: string) => findings.map((f, k) => ({
+    briefId, agencyId, clientId, ord: k + 1, competitorId: null, subject: 'self' as const, headline: f.headline, whatChanged: f.fact, whyItMatters: f.why, recommendedAction: f.action,
+    confidence: 1, effort: f.effort, impact: f.impact, playbookId: f.playbookId, upsellTag: f.upsellTag,
+  }));
+  const intro = (name: string) => `Where ${name} stands against the 2 rivals we now watch. Weekly briefs from here show what changes.`;
+  const day = (iso: string) => new Date(`${iso}T00:00:00Z`);
+
+  const [readyBrief] = await db.insert(brief).values({
+    agencyId, clientId: ready!.id, deliveryDate: '2026-10-13', periodStart: day('2026-10-11'), periodEnd: day('2026-10-13'), kind: 'starting_point', status: 'ready',
+    summary: intro(SP_READY_NAME), scorecard: spScorecard(SP_READY_NAME, SP_SELF, null, []), dropped: { items: 0, sentences: 0 },
+  }).returning({ id: brief.id });
+  await db.insert(briefItem).values(itemRows(readyBrief!.id, ready!.id));
+
+  const [sent] = await db.insert(brief).values({
+    agencyId, clientId: quiet!.id, deliveryDate: '2026-09-22', periodStart: day('2026-09-20'), periodEnd: day('2026-09-22'), kind: 'starting_point', status: 'sent',
+    summary: intro(SP_QUIET_NAME), scorecard: spScorecard(SP_QUIET_NAME, SP_SELF, null, []), dropped: { items: 0, sentences: 0 }, approvedAt: day('2026-09-22'), sentAt: day('2026-09-22'),
+  }).returning({ id: brief.id });
+  const sentItems = await db.insert(briefItem).values(itemRows(sent!.id, quiet!.id)).returning({ id: briefItem.id });
+  const [rec] = await db.insert(recommendation).values({
+    agencyId, clientId: quiet!.id, title: findings[0]!.action, rationale: findings[0]!.why, briefItemId: sentItems[0]!.id, playbookId: findings[0]!.playbookId, effort: 'L', impact: 'H',
+    owner: 'client', status: 'todo', source: 'brief',
+  }).returning({ id: recommendation.id });
+  const now: SpValues = { ...SP_SELF, rating: 4.5, reviews90d: 10, replyRate: 0.15 };
+  const [quietBrief] = await db.insert(brief).values({
+    agencyId, clientId: quiet!.id, deliveryDate: '2026-10-12', periodStart: day('2026-10-05'), periodEnd: day('2026-10-12'), kind: 'quiet', status: 'sent',
+    summary: 'No significant competitor changes this week.', scorecard: spScorecard(SP_QUIET_NAME, now, { briefId: sent!.id, self: SP_SELF }, [{ recommendationId: rec!.id, title: findings[0]!.action }]),
+    dropped: { items: 0, sentences: 0 }, approvedAt: day('2026-10-12'), sentAt: day('2026-10-12'),
+  }).returning({ id: brief.id });
+
+  const fixture: StartingPointFixture = {
+    fresh: { id: fresh!.id, name: fresh!.name },
+    ready: { id: ready!.id, name: ready!.name, briefId: readyBrief!.id },
+    quiet: { id: quiet!.id, name: quiet!.name, sentBriefId: sent!.id, quietBriefId: quietBrief!.id },
+  };
+  await mkdir(dirname(STARTING_FIXTURE_FILE), { recursive: true });
+  await writeFile(STARTING_FIXTURE_FILE, JSON.stringify(fixture));
 }

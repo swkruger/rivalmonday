@@ -4,7 +4,7 @@
 **Plan/spec:** spec `docs/superpowers/specs/2026-10-14-phase-12-discovery-and-starting-point-design.md` (owner-approved 2026-10-14) · plans `docs/superpowers/plans/2026-10-14-phase-12a-competitor-discovery.md`, `…-12b-starting-point-brief.md` (owner-approved 2026-10-14, subagent-driven)
 
 ## Status (overwrite)
-Plans 12a + 12b owner-approved 2026-10-14 (subagent-driven); owner chose to build Phase 12 **before** 9, 10, 11 (9a runs in parallel in its own worktree). Test DB `cs_phase_12_test`. 12a Tasks 0–11 built (migrations 0052 `discovery_rating`, 0053 `discovery_rating_rls`); final whole-branch review + owner verification next.
+Plans 12a + 12b owner-approved 2026-10-14 (subagent-driven); owner chose to build Phase 12 **before** 9, 10, 11 (9a runs in parallel in its own worktree). Test DB `cs_phase_12_test`. 12a Tasks 0–11 built (migrations 0052 `discovery_rating`, 0053 `discovery_rating_rls`); 12b Tasks 1–9 built (migration 0054 `starting_point_brief`); final whole-branch review + owner verification next.
 
 ## Next (overwrite)
 12a final whole-branch review, then 12b.
@@ -44,6 +44,30 @@ On `cs_dev` with the worker running:
 3. Run cost <= $3 on `/platform/costs`.
 4. Accept one suggestion: Meta/Google ad-account chips appear on its profile.
 5. Next Monday `signals-weekly` fills the tracked competitors' tiers.
+
+### 12b
+On `cs_dev` (migration `0054` starting_point_brief; renumber if phase-9/10 merged first), with the worker running:
+1. `pnpm db:migrate`.
+2. Wait for the worker's hourly `starting-point-schedule` (:15), or run `pnpm --filter @cs/worker brief-once --client <id> --starting-point` for both clients. Until each client has its profile and reviews (or 48 h pass) the client home shows the "Preparing your starting point" checklist.
+3. Open `/agency/approvals`: each starting point is "Needs review" (3-5 findings, one strength at most, scorecard on top, AM notice "Your starting point brief for {client} is ready to review."). Approve one: it is sent at once (Postmark test account).
+4. The email arrives: subject "Your starting point with {agency}", heading, four tiles, scorecard table, finding cards, no upsell tag. Open the client view: the same tiles, scorecard rows (client first, rivals with tier chip, "—" where not measured) and cards.
+5. After the next quiet Monday the client's brief shows "Where you stand" (▲/▼ with words, "since your starting point") and "First moves still open".
+
+**Copy for owner review (not in the decided list):**
+- AM notice second line: "It goes to the client as soon as you approve it."
+- Starting-point `summary` (the web/email intro): "Where {client} stands against the {n} rival(s) we now watch. Weekly briefs from here show what changes." (singular "rival" when n = 1).
+- Email heading: "Your starting point" (same as the web title).
+- Approve confirmation still reads "Approved — it goes out Monday 07:00." on the review page, which is wrong for a starting point (the page flips to Sent); wording not changed.
+- The 8 default "why it matters" sentences (used when the writer is off or fails verification):
+  - review_velocity_gap: Review count and freshness help decide who shows first on Google Maps.
+  - reply_rate_gap: People comparing businesses read the replies, and replying shows you are active and care.
+  - rating_gap: Most people compare star ratings before they call, so a lower rating can cost you calls.
+  - rival_only_advertiser: Ads put rivals above the map results for searches you could be winning.
+  - theme_weakness: A complaint that keeps coming up is what new customers notice first when they read your reviews.
+  - theme_strength: Something reviewers keep praising is a reason to choose you, and it is worth saying out loud.
+  - map_visibility_gap: Businesses in the map top three are the ones people see first when they search nearby.
+  - profile_gap: A complete profile helps Google show you for more searches and helps people decide to call.
+- Self-rule playbook effort/impact (same in both packs): ask_for_reviews L/H, reply_to_reviews L/M, fix_top_complaint M/H, consider_search_ads M/M, fix_theme M/M, promote_strength L/M, improve_map_rank M/H, complete_profile L/M.
 
 ## Brief (condensed)
 **12a** (core spec §4.1 item 2, §4.2, §6.3): Maps search over client + pack seed keywords (≤ 5, 7x7 grid); hard filters (category allowlist, area, self, closed); overlap = rank-weighted presence x category/service match x distance; stage 2 on the top ~20 (Google `ads_advertisers`, Meta name search, 20-review sample, claimed/chain) gives activity; tiers Top rival / Worth watching / Minor (scores internal); auto-run with keywords + area + place id; top rivals pre-ticked up to `competitor_limit`; strong ad matches auto-attach, weak need confirm; weekly re-rating; null = not checked, 0 = checked-none; $3/run, 5 runs/agency/day.

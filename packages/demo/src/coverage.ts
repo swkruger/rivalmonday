@@ -95,6 +95,10 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'list_recommendations', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       { tool: 'list_trend_reports', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       { tool: 'get_starting_point_status', input: (ids) => ({ clientId: ls(ids) }), path: 'state' },
+      // 12b: a fresh client shows the "Preparing your starting point" checklist (state preparing, with its four checks).
+      { tool: 'get_starting_point_status', input: (ids) => ({ clientId: ids.startingPointFresh }), path: 'state' },
+      // 12b: Brazos already has its starting point.
+      { tool: 'get_starting_point_status', input: (ids) => ({ clientId: bz(ids) }), path: 'briefId' },
       lsStarters,
     ],
   },
@@ -128,6 +132,10 @@ export const SCREENS: readonly ScreenCoverage[] = [
     ],
   },
   { route: '/c/[clientId]/briefs/[briefId]', as: 'ownerLoneStar', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.sentLoneStar[0] }), path: 'items' }] },
+  // 12b: the starting point (tiles, scorecard rows, self findings) and a quiet week whose scorecard carries deltas and open first moves.
+  { route: '/c/[clientId]/briefs/[briefId] (starting point)', as: 'ownerBrazos', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.startingPointBrazos }), path: 'scorecard.rows' }] },
+  { route: '/c/[clientId]/briefs/[briefId] (starting point findings)', as: 'ownerBrazos', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.startingPointBrazos }), path: 'items' }] },
+  { route: '/c/[clientId]/briefs/[briefId] (quiet week)', as: 'admin', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.quietBrazos }), path: 'scorecard.openFirstMoves' }] },
   {
     route: '/c/[clientId]/changes', as: 'admin', calls: [
       { tool: 'search_events', input: (ids) => ({ clientId: ls(ids), route: 'all', days: 90 }), path: 'items' },

@@ -15,6 +15,8 @@ export const MCP_CLIENTS_FILE = fileURLToPath(new URL('./test-results/mcp-client
 export const ASK_FIXTURE_FILE = fileURLToPath(new URL('./test-results/ask-fixture.json', import.meta.url));
 /** Phase 12a: the seeded Rivals client's id (`RivalsFixture` in `e2e/seed.ts`). */
 export const RIVALS_FIXTURE_FILE = fileURLToPath(new URL('./test-results/rivals-fixture.json', import.meta.url));
+/** Phase 12b: the seeded starting-point clients and briefs (StartingPointFixture in e2e/seed.ts). */
+export const STARTING_FIXTURE_FILE = fileURLToPath(new URL('./test-results/starting-point-fixture.json', import.meta.url));
 export const E2E_LINK_SECRET = 'e2e-link-secret-'.repeat(3);
 
 /**

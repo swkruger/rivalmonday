@@ -42,7 +42,7 @@ describe('resolveAffected', () => {
     expect(resolve('packages/tools/src/tools/alert-queue.ts').tags).toEqual(['@alerts', '@smoke']);
     expect(resolve('packages/tools/src/workspace/word-diff.ts').tags).toEqual(['@changes', '@evidence', '@smoke']);
     expect(resolve('packages/collectors/src/ads/meta.ts').tags).toEqual(['@ads', '@smoke']);
-    expect(resolve('packages/engine/src/briefs/review.ts').tags).toEqual(['@briefs', '@recommendations', '@smoke']);
+    expect(resolve('packages/engine/src/briefs/review.ts').tags).toEqual(['@briefs', '@recommendations', '@smoke', '@starting-point']);
     expect(resolve('packages/email/src/templates/sign-in.tsx').tags).toEqual(['@auth', '@smoke']);
   });
 

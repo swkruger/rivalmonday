@@ -1,4 +1,5 @@
-import { alert, alertEvent, brief, briefItem, feedback, recommendation, trendReport } from '@cs/db';
+import { alert, alertEvent, brief, briefItem, client, feedback, recommendation, trendReport } from '@cs/db';
+import { Scorecard } from '@cs/engine';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
@@ -8,6 +9,7 @@ import { seedBriefs } from './briefs';
 import { seedChanges } from './changes';
 import { createSeedContext, type SeedContext } from './context';
 import { seedReviews } from './reviews';
+import { FRESH_CLIENT_NAME } from './starting-point';
 import { seedTenancy } from './tenancy';
 import { resetDemoTables, TEST_SALT } from './test-support';
 
@@ -39,7 +41,7 @@ describe('seedBriefs', () => {
 
   it('holds a quiet brief for Brazos and sends two earlier ones', async () => {
     const rows = await dbs.owner.select().from(brief).where(eq(brief.clientId, ctx.ids.clients.brazos));
-    expect(rows.filter((b) => b.status === 'sent')).toHaveLength(2);
+    expect(rows.filter((b) => b.status === 'sent' && b.kind === 'standard')).toHaveLength(2);
     const quiet = rows.find((b) => b.id === ctx.ids.briefs.quietBrazos)!;
     expect([quiet.kind, quiet.status]).toEqual(['quiet', 'ready']);
     expect(await dbs.owner.select().from(briefItem).where(eq(briefItem.briefId, quiet.id))).toHaveLength(0);
@@ -70,7 +72,7 @@ describe('seedBriefs', () => {
   });
 
   it('stores a placeholder PDF for every sent brief, the ready brief and the report, but not the quiet brief', async () => {
-    const briefIds = [...ctx.ids.briefs.sentLoneStar, ...ctx.ids.briefs.sentBrazos, ctx.ids.briefs.readyLoneStar];
+    const briefIds = [...ctx.ids.briefs.sentLoneStar, ...ctx.ids.briefs.sentBrazos, ctx.ids.briefs.startingPointBrazos, ctx.ids.briefs.readyLoneStar];
     const keys: (string | null)[] = [];
     for (const id of briefIds) keys.push((await dbs.owner.select().from(brief).where(eq(brief.id, id)))[0]!.pdfKey);
     keys.push((await dbs.owner.select().from(trendReport).where(eq(trendReport.id, ctx.ids.reportId)))[0]!.pdfKey);
@@ -81,5 +83,36 @@ describe('seedBriefs', () => {
     }
     const [quiet] = await dbs.owner.select().from(brief).where(eq(brief.id, ctx.ids.briefs.quietBrazos));
     expect(quiet!.pdfKey).toBeNull();
+  });
+
+  it('sends Brazos a starting point with three self findings (one strength), a scorecard and recommendations', async () => {
+    const [sp] = await dbs.owner.select().from(brief).where(eq(brief.id, ctx.ids.briefs.startingPointBrazos));
+    expect([sp!.kind, sp!.status]).toEqual(['starting_point', 'sent']);
+    const card = Scorecard.parse(sp!.scorecard);
+    expect(card.baselineBriefId).toBeNull();
+    expect(card.rows.filter((r) => r.self)).toHaveLength(1);
+    const items = await dbs.owner.select().from(briefItem).where(eq(briefItem.briefId, sp!.id));
+    expect(items).toHaveLength(3);
+    for (const i of items) expect([i.subject, i.competitorId, i.upsellTag]).toEqual(['self', null, null]);
+    for (const i of items) expect(i.evidenceIds.length).toBeGreaterThan(0);
+    expect(items.some((i) => i.playbookId === 'promote_strength')).toBe(true);
+    const recs = await dbs.owner.select().from(recommendation).where(eq(recommendation.clientId, ctx.ids.clients.brazos));
+    expect(recs.filter((r) => items.some((i) => i.id === r.briefItemId))).toHaveLength(3);
+  });
+
+  it('gives the quiet Brazos brief a scorecard with deltas since the starting point and two open first moves', async () => {
+    const [quiet] = await dbs.owner.select().from(brief).where(eq(brief.id, ctx.ids.briefs.quietBrazos));
+    const card = Scorecard.parse(quiet!.scorecard);
+    expect(card.baselineBriefId).toBe(ctx.ids.briefs.startingPointBrazos);
+    const deltas = card.tiles.map((t) => t.deltaSinceStart!);
+    expect(deltas.some((d) => d > 0)).toBe(true);
+    expect(deltas.some((d) => d < 0)).toBe(true);
+    expect(card.openFirstMoves).toHaveLength(2);
+  });
+
+  it('adds a fresh active client with no briefs, whose starting point is still being prepared', async () => {
+    const [c] = await dbs.owner.select().from(client).where(eq(client.id, ctx.ids.startingPointFresh));
+    expect([c!.name, c!.status]).toEqual([FRESH_CLIENT_NAME, 'active']);
+    expect(await dbs.owner.select().from(brief).where(eq(brief.clientId, c!.id))).toHaveLength(0);
   });
 });

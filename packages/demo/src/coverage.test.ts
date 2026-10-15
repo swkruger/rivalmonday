@@ -155,7 +155,7 @@ describe('file routes outside (app): /files/brief, /files/report, /files/evidenc
     const pdfs = await rows<{ what: string; id: string; key: string | null }>(sql`
       select 'brief' as what, id::text, pdf_key as key from brief where status = 'sent'
       union all select 'report', id::text, pdf_key from trend_report where id = ${ids.reportId}`);
-    expect(pdfs.filter((r) => r.what === 'brief').length).toBe(ids.briefs.sentLoneStar.length + ids.briefs.sentBrazos.length);
+    expect(pdfs.filter((r) => r.what === 'brief').length).toBe(ids.briefs.sentLoneStar.length + ids.briefs.sentBrazos.length + 1); // + Brazos’s starting point
     expect(pdfs.filter((r) => r.what === 'report')).toHaveLength(1);
     const bad: string[] = [];
     for (const r of pdfs) {

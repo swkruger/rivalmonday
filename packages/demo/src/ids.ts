@@ -52,7 +52,9 @@ export interface DemoIds {
   events: DemoEvent[];
   moves: DemoMove[];
   sampleReviewIds: string[];
-  briefs: { sentLoneStar: string[]; sentBrazos: string[]; readyLoneStar: string; quietBrazos: string };
+  briefs: { sentLoneStar: string[]; sentBrazos: string[]; readyLoneStar: string; quietBrazos: string; startingPointBrazos: string };
+  /** Phase 12b: an active client with no data yet (its starting point is still being prepared). */
+  startingPointFresh: string;
   alerts: { delivered: string; pending: string; dismissed: string };
   reportId: string;
   /** Phase 6b: one Ask thread per author (author-only RLS). */
@@ -73,7 +75,8 @@ export function emptyIds(): DemoIds {
     events: [],
     moves: [],
     sampleReviewIds: [],
-    briefs: { sentLoneStar: [], sentBrazos: [], readyLoneStar: '', quietBrazos: '' },
+    briefs: { sentLoneStar: [], sentBrazos: [], readyLoneStar: '', quietBrazos: '', startingPointBrazos: '' },
+    startingPointFresh: '',
     alerts: { delivered: '', pending: '', dismissed: '' },
     reportId: '',
     ask: { admin: '', ownerLoneStar: '' },

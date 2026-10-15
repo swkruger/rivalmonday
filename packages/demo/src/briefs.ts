@@ -5,6 +5,7 @@ import { atUtc, DAY, notAfter } from './clock';
 import type { SeedContext } from './context';
 import type { ActiveClientKey, DemoEvent } from './ids';
 import { demoPdf } from './pdf';
+import { seedStartingPoint } from './starting-point';
 
 const WHY: Record<string, string> = {
   price_change: 'Price-sensitive customers in your area compare these prices before they book.',
@@ -220,7 +221,7 @@ async function seedPdfs(ctx: SeedContext): Promise<void> {
     await store.put(key, demoPdf(title, ['Brazos Digital - demo data', 'This placeholder stands in for the rendered PDF.']), 'application/pdf');
     return key;
   };
-  for (const id of [...ids.briefs.sentLoneStar, ...ids.briefs.sentBrazos, ids.briefs.readyLoneStar]) {
+  for (const id of [...ids.briefs.sentLoneStar, ...ids.briefs.sentBrazos, ids.briefs.startingPointBrazos, ids.briefs.readyLoneStar]) {
     const pdfKey = await put(id, 'Weekly competitor brief (demo)');
     await db.update(brief).set({ pdfKey }).where(eq(brief.id, id));
   }
@@ -233,6 +234,7 @@ export async function seedBriefs(ctx: SeedContext): Promise<void> {
   ctx.ids.briefs.sentLoneStar = await seedSentBriefs(ctx, 'loneStar', 4);
   ctx.ids.briefs.sentBrazos = await seedSentBriefs(ctx, 'brazos', 2);
   await seedReadyBriefs(ctx);
+  await seedStartingPoint(ctx);
   await seedMoveRecommendations(ctx);
   await seedAlerts(ctx);
   await seedTrendReport(ctx);

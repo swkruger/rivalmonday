@@ -39,6 +39,9 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/ask/[threadId]` | admin | `get_ask_starters`, `list_my_ask_threads`, `get_my_ask_thread`, `get_client_profile` | — |
 | `/c/[clientId]/ask/[threadId] (client owner)` | ownerLoneStar | `list_my_ask_threads`, `get_my_ask_thread` | `get_my_ask_thread`: threads are author-only |
 | `/c/[clientId]/briefs/[briefId]` | ownerLoneStar | `get_brief` | — |
+| `/c/[clientId]/briefs/[briefId] (starting point)` | ownerBrazos | `get_brief` | — |
+| `/c/[clientId]/briefs/[briefId] (starting point findings)` | ownerBrazos | `get_brief` | — |
+| `/c/[clientId]/briefs/[briefId] (quiet week)` | admin | `get_brief` | — |
 | `/c/[clientId]/changes` | admin | `search_events`, `get_event`, `compare_snapshots`, `list_client_competitors`, `get_client_profile` | — |
 | `/c/[clientId]/competitors` | admin | `get_client_profile`, `list_client_competitors`, `list_competitor_suggestions`, `get_competitor_search_status`, `get_competitor_signals` | — |
 | `/c/[clientId]/competitors/[competitorId]` | admin | `get_competitor_profile`, `get_competitor_timeline`, `list_tracked_pages`, `get_price_matrix`, `list_ads`, `get_theme_benchmark`, `get_geogrid`, `get_competitor_signals`, `get_competitor_ad_matches` | — |
