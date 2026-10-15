@@ -21,7 +21,7 @@ const autoSendMock = vi.mocked(autoSendAction);
 const approveMock = vi.mocked(approveAction);
 const sendNowMock = vi.mocked(sendNowAction);
 
-const item = { id: 'i1', ord: 1, competitorId: 'c', competitorName: 'Smith HVAC', headline: 'Smith HVAC cut its AC tune-up to $79', whatChanged: 'w', whyItMatters: 'y', recommendedAction: 'r', confidence: 0.9, effort: 'L', impact: 'H', evidenceIds: ['e1', 'e2'], status: 'active', upsellTag: 'ppc_audit' };
+const item = { id: 'i1', ord: 1, competitorId: 'c', subject: 'competitor' as const, competitorName: 'Smith HVAC', headline: 'Smith HVAC cut its AC tune-up to $79', whatChanged: 'w', whyItMatters: 'y', recommendedAction: 'r', confidence: 0.9, effort: 'L', impact: 'H', evidenceIds: ['e1', 'e2'], status: 'active', upsellTag: 'ppc_audit' };
 
 describe('approval review controls', () => {
   it('offers editing on a ready brief, with first/last move buttons disabled', () => {

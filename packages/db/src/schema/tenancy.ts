@@ -63,6 +63,8 @@ export const client = pgTable(
     askMonthlyQuota: integer('ask_monthly_quota').notNull().default(100),
     /** Phase 6b: platform may review this client's Ask threads (agency admin decision; service role only). */
     askReviewAllowed: boolean('ask_review_allowed').notNull().default(true),
+    /** Phase 12b: when the client became active (convert_prospect / create_client). Service role only. */
+    activatedAt: timestamp('activated_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [

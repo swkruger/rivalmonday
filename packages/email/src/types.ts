@@ -39,7 +39,7 @@ export interface BriefEmailItem {
 }
 export interface BriefEmailProps extends Base {
   deliveryDate: string;
-  kind: 'standard' | 'quiet';
+  kind: 'standard' | 'quiet' | 'starting_point';
   summary: string;
   items: BriefEmailItem[];
   trend: TrendSnapshot | null;

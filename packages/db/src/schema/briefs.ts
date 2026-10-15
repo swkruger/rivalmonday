@@ -12,7 +12,8 @@ const clientFk = (t: { clientId: any; agencyId: any }) =>
   foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade');
 
 export type BriefStatus = 'generating' | 'failed' | 'ready' | 'approved' | 'sent';
-export type BriefKind = 'standard' | 'quiet';
+export type BriefKind = 'standard' | 'quiet' | 'starting_point';
+export type BriefItemSubject = 'self' | 'competitor';
 export type Level = 'L' | 'M' | 'H';
 export type RecommendationStatus = 'todo' | 'in_progress' | 'done' | 'dismissed';
 export type RecommendationSource = 'brief' | 'move' | 'ask';
@@ -56,6 +57,8 @@ export const brief = pgTable(
     status: text('status').notNull(),
     summary: text('summary').notNull().default(''),
     trend: jsonb('trend').$type<TrendSnapshot | null>(),
+    /** Phase 12b: starting-point scorecard (computed figures, never model-written). Null for weekly briefs. */
+    scorecard: jsonb('scorecard').$type<Record<string, unknown> | null>(),
     dropped: jsonb('dropped').$type<BriefDropStats>().notNull().default(sql`'{"items":0,"sentences":0}'::jsonb`),
     attempts: integer('attempts').notNull().default(1),
     error: text('error'),
@@ -72,7 +75,8 @@ export const brief = pgTable(
     index('brief_agency_status_idx').on(t.agencyId, t.status),
     clientFk(t),
     check('brief_status_check', sql`status IN ('generating', 'failed', 'ready', 'approved', 'sent')`),
-    check('brief_kind_check', sql`kind IN ('standard', 'quiet')`),
+    check('brief_kind_check', sql`kind IN ('standard', 'quiet', 'starting_point')`),
+    uniqueIndex('brief_one_starting_point').on(t.clientId).where(sql`kind = 'starting_point'`),
   ],
 );
 
@@ -84,7 +88,9 @@ export const briefItem = pgTable(
     briefId: uuid('brief_id').notNull().references(() => brief.id, { onDelete: 'cascade' }),
     ...tenant(),
     ord: integer('ord').notNull(),
-    competitorId: uuid('competitor_id').notNull().references(() => competitor.id, { onDelete: 'cascade' }),
+    /** Null only for `subject = 'self'` items (Phase 12b). */
+    competitorId: uuid('competitor_id').references(() => competitor.id, { onDelete: 'cascade' }),
+    subject: text('subject').$type<BriefItemSubject>().notNull().default('competitor'),
     headline: text('headline').notNull(),
     whatChanged: text('what_changed').notNull(),
     whyItMatters: text('why_it_matters').notNull(),
@@ -105,6 +111,8 @@ export const briefItem = pgTable(
   (t) => [
     index('brief_item_brief_idx').on(t.briefId, t.ord),
     clientFk(t),
+    check('brief_item_subject_check', sql`subject = 'self' OR competitor_id IS NOT NULL`),
+    check('brief_item_subject_values_check', sql`subject IN ('self', 'competitor')`),
     check('brief_item_status_check', sql`status IN ('active', 'dropped')`),
     check('brief_item_effort_check', sql`effort IN ('L', 'M', 'H')`),
     check('brief_item_impact_check', sql`impact IN ('L', 'M', 'H')`),

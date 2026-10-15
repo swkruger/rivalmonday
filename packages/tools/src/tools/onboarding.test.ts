@@ -33,6 +33,10 @@ describe('create_client', () => {
     const [row] = await dbs.owner.select().from(client).where(eq(client.id, clientId));
     expect(row).toMatchObject({ agencyId: IDS.agencyA, name: 'Comfort Air', services: ['ac_tune_up'], timezone: 'America/New_York', alertMode: 'after_am_check' });
     expect(audit.at(-1)).toMatchObject({ tool: 'create_client', outcome: 'ok' });
+    expect(row!.activatedAt).toBeInstanceOf(Date);
+    const { clientId: pid } = (await registry.invoke(admin, 'create_client', { ...input, name: 'Pitch', status: 'prospect' })) as { clientId: string };
+    const [p] = await dbs.owner.select().from(client).where(eq(client.id, pid));
+    expect(p!.activatedAt).toBeNull();
     await expect(registry.invoke(amAll, 'create_client', { ...input, name: 'Second' })).resolves.toBeTruthy();
   });
 

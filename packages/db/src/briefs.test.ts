@@ -31,6 +31,20 @@ beforeEach(async () => {
 });
 
 describe('brief tables', () => {
+  it('second starting_point for a client fails', async () => {
+    const base = { agencyId: IDS.agencyA, clientId: IDS.clientA1, periodStart: new Date(), periodEnd: new Date(), status: 'ready', kind: 'starting_point' };
+    await dbs.service.insert(brief).values({ ...base, deliveryDate: '2026-10-05' });
+    expect(await errorText(dbs.service.insert(brief).values({ ...base, deliveryDate: '2026-10-12' }))).toMatch(/brief_one_starting_point/);
+  });
+
+  it('self item without competitor ok, competitor item without competitor fails', async () => {
+    const { briefId } = await seedBrief();
+    const item = { briefId, agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: null, headline: 'h', whatChanged: 'x', whyItMatters: 'y', recommendedAction: 'z', confidence: 0.9, effort: 'M', impact: 'H' } as const;
+    await dbs.service.insert(briefItem).values({ ...item, ord: 5, subject: 'self' });
+    expect(await errorText(dbs.service.insert(briefItem).values({ ...item, ord: 6 }))).toMatch(/brief_item_subject_check/);
+    expect(await errorText(dbs.service.insert(briefItem).values({ ...item, ord: 7, competitorId: IDS.competitorX, subject: 'both' as 'self' }))).toMatch(/brief_item_subject_values_check/);
+  });
+
   it('allows one brief per client and delivery date', async () => {
     await seedBrief();
     expect(await errorText(seedBrief())).toMatch(/brief_client_delivery_unique/);

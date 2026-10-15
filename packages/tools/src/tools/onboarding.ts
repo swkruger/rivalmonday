@@ -55,7 +55,7 @@ export const createClient = defineTool({
     if (input.timezone !== undefined && !validTimezone(input.timezone)) throw new ToolError('invalid_input', 'Unknown time zone');
     const [row] = await deps.service
       .insert(client)
-      .values({ agencyId: ctx.agencyId, status: input.status, name: c.name, verticalId: pack.id, services: c.services, keywords: c.keywords, serviceArea: c.serviceArea, placeId: c.placeId, features: c.features, ...(input.timezone ? { timezone: input.timezone } : {}) })
+      .values({ agencyId: ctx.agencyId, status: input.status, name: c.name, verticalId: pack.id, services: c.services, keywords: c.keywords, serviceArea: c.serviceArea, placeId: c.placeId, features: c.features, ...(input.status === 'active' ? { activatedAt: new Date() } : {}), ...(input.timezone ? { timezone: input.timezone } : {}) })
       .returning({ id: client.id });
     // 12a D4: a client (active or prospect) with keywords, a service area and a place id gets its first search.
     if (c.keywords.length > 0 && c.serviceArea && c.placeId) await startFirstAutoSearch(deps, row!.id);

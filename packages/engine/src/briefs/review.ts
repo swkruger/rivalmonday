@@ -64,7 +64,7 @@ export async function editBriefItem(deps: ReviewDeps, ctx: AccessContext, itemId
   if (Object.values(changes).some((v) => v.length === 0 || v.length > 1200)) throw new ToolError('invalid_input', 'Edited text must be 1–1200 characters');
 
   const c = await loadBriefClient({ db: deps.service, packs: deps.packs }, item.clientId);
-  const [own] = await deps.service.select({ name: competitor.name }).from(competitor).where(eq(competitor.id, item.competitorId));
+  const [own] = item.competitorId ? await deps.service.select({ name: competitor.name }).from(competitor).where(eq(competitor.id, item.competitorId)) : [];
   const evidence = await loadEventEvidence(deps.service, item.eventIds, [own?.name ?? '', c.name]);
   const changesList = [...evidence.values()].flat();
   const ev = {

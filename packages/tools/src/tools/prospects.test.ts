@@ -96,6 +96,7 @@ describe('prospects (decisions 8–12, Review Focus 1)', () => {
     await expect(registry.invoke(admin, 'convert_prospect', { clientId: IDS.clientA2 })).resolves.toEqual({ clientId: IDS.clientA2 });
     const [c] = await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA2));
     expect(c!.status).toBe('active');
+    expect(c!.activatedAt!.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
     const [link] = await dbs.owner.select().from(clientCompetitor).where(eq(clientCompetitor.clientId, IDS.clientA2));
     expect(link!.createdAt.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
     expect((await claimDueSources(dbs.service, 100)).map((x) => x.competitorId)).toContain(IDS.competitorY);

@@ -35,7 +35,7 @@ export const BriefSummary = z.object({
 export type BriefSummary = z.infer<typeof BriefSummary>;
 
 export const BriefItemView = z.object({
-  id: uuid, ord: z.number().int(), competitorId: uuid, competitorName: z.string(), headline: z.string(), whatChanged: z.string(), whyItMatters: z.string(),
+  id: uuid, ord: z.number().int(), competitorId: uuid.nullable(), subject: z.enum(['self', 'competitor']), competitorName: z.string(), headline: z.string(), whatChanged: z.string(), whyItMatters: z.string(),
   recommendedAction: z.string(), confidence: z.number(), effort: z.string(), impact: z.string(), evidenceIds: z.array(z.string()), status: z.string(),
   /** Agency-only (spec §8.5): always null for client roles. */
   upsellTag: z.string().nullable(),

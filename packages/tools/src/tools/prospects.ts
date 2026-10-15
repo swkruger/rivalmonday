@@ -126,7 +126,7 @@ export const convertProspect = defineTool({
     await deps.service.transaction(async (tx) => {
       const rows = await tx
         .update(client)
-        .set({ status: 'active' })
+        .set({ status: 'active', activatedAt: new Date() })
         .where(and(eq(client.id, clientId), eq(client.agencyId, ctx.agencyId), eq(client.status, 'prospect')))
         .returning({ id: client.id });
       if (rows.length === 0) throw new ToolError('invalid_input', 'This business is already a client');

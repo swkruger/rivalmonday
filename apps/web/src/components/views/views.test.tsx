@@ -8,7 +8,7 @@ import { ReportView } from './report-view';
 
 const C = '00000000-0000-4000-8000-0000000000a1';
 const item = (n: number, extra: Partial<BriefDetail['items'][number]> = {}): BriefDetail['items'][number] => ({
-  id: `00000000-0000-4000-8000-00000000000${n}`, ord: n, competitorId: C, competitorName: 'Smith HVAC', headline: `Headline ${n}`, whatChanged: 'W', whyItMatters: 'Y',
+  id: `00000000-0000-4000-8000-00000000000${n}`, ord: n, competitorId: C, subject: 'competitor', competitorName: 'Smith HVAC', headline: `Headline ${n}`, whatChanged: 'W', whyItMatters: 'Y',
   recommendedAction: 'Do R', confidence: 0.9, effort: 'L', impact: 'H', evidenceIds: ['e1', 'e2'], status: 'active', upsellTag: null, ...extra,
 });
 const brief: BriefDetail = {

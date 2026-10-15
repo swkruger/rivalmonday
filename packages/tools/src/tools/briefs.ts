@@ -1,5 +1,5 @@
 import { type AccessContext, appLinkFor, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
-import { brief, briefItem, competitor, withTenant } from '@cs/db';
+import { brief, briefItem, client, competitor, withTenant } from '@cs/db';
 import { getBrief } from '@cs/engine';
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
@@ -50,16 +50,20 @@ export const listBriefs = defineTool({
 
 export async function briefDetail(deps: ToolDeps, ctx: AccessContext, briefId: string): Promise<BriefDetail> {
   const view = await getBrief({ app: deps.app }, ctx, briefId); // 4a: visibility, status gate and upsell stripping
-  const competitorIds = [...new Set(view.items.map((i) => i.competitorId))];
+  const competitorIds = [...new Set(view.items.flatMap((i) => (i.competitorId ? [i.competitorId] : [])))];
   const names = competitorIds.length
     ? await withTenant(deps.app, ctx, (tx) => tx.select({ id: competitor.id, name: competitor.name }).from(competitor).where(inArray(competitor.id, competitorIds)))
     : [];
   const nameOf = new Map(names.map((n) => [n.id, n.name]));
+  // Self items (Phase 12b) have no competitor: fall back to the client's name until the UI renders them (Task 7).
+  const clientName = view.items.some((i) => !i.competitorId)
+    ? (await withTenant(deps.app, ctx, (tx) => tx.select({ name: client.name }).from(client).where(eq(client.id, view.brief.clientId))))[0]?.name
+    : undefined;
   const agency = isAgencyRole(ctx.role);
   return {
     ...summary(view.brief), periodStart: view.brief.periodStart.toISOString(), periodEnd: view.brief.periodEnd.toISOString(), approvedAt: toIso(view.brief.approvedAt),
     items: view.items.map((i) => ({
-      id: i.id, ord: i.ord, competitorId: i.competitorId, competitorName: nameOf.get(i.competitorId) ?? 'Competitor', headline: i.headline, whatChanged: i.whatChanged,
+      id: i.id, ord: i.ord, competitorId: i.competitorId, subject: i.subject, competitorName: (i.competitorId ? nameOf.get(i.competitorId) : clientName) ?? 'Competitor', headline: i.headline, whatChanged: i.whatChanged,
       whyItMatters: i.whyItMatters, recommendedAction: i.recommendedAction, confidence: i.confidence, effort: i.effort, impact: i.impact, evidenceIds: i.evidenceIds,
       status: i.status, upsellTag: agency ? i.upsellTag : null,
     })),

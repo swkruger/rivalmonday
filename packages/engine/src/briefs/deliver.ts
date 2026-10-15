@@ -16,7 +16,7 @@ export const DELIVERY_GRACE_DAYS = 6;
 export interface BriefDeliveryView {
   b: typeof brief.$inferSelect;
   clientName: string;
-  /** Active items only, sorted by ord (ords need not be 0-based or contiguous). */
+  /** Active items only, sorted by ord (ords need not be 0-based or contiguous). Self items (no competitor) carry the client's name. */
   items: (typeof briefItem.$inferSelect & { competitorName: string })[];
   branding: Branding;
   signOff: string | null;
@@ -28,18 +28,18 @@ export async function loadBriefView(conn: Conn, briefId: string): Promise<BriefD
   const items = await conn
     .select({ i: briefItem, competitorName: competitor.name })
     .from(briefItem)
-    .innerJoin(competitor, eq(competitor.id, briefItem.competitorId))
+    .leftJoin(competitor, eq(competitor.id, briefItem.competitorId))
     .where(and(eq(briefItem.briefId, briefId), eq(briefItem.status, 'active')))
     .orderBy(asc(briefItem.ord));
   const branding = await loadBranding(conn, row.b.agencyId);
   const am = await replyToFor(conn, row.b.agencyId, row.b.clientId);
-  return { b: row.b, clientName: row.clientName, items: items.map((x) => ({ ...x.i, competitorName: x.competitorName })), branding, signOff: branding.signOff ?? `— ${am?.name ?? branding.displayName}` };
+  return { b: row.b, clientName: row.clientName, items: items.map((x) => ({ ...x.i, competitorName: x.competitorName ?? row.clientName })), branding, signOff: branding.signOff ?? `— ${am?.name ?? branding.displayName}` };
 }
 
 /** Client-facing props (decision 15): only active items, never the upsell tag. */
 export function briefEmailProps(v: BriefDeliveryView, opts: { recipientName: string | null; link: string | null; pdfLink: string | null; itemLink: (itemId: string) => string | null }): BriefEmailProps {
   return {
-    branding: v.branding, recipientName: opts.recipientName, clientName: v.clientName, deliveryDate: v.b.deliveryDate, kind: v.b.kind as 'standard' | 'quiet', summary: v.b.summary,
+    branding: v.branding, recipientName: opts.recipientName, clientName: v.clientName, deliveryDate: v.b.deliveryDate, kind: v.b.kind as BriefEmailProps['kind'], summary: v.b.summary,
     items: v.items.map((i) => ({
       competitorName: i.competitorName, headline: i.headline, whatChanged: i.whatChanged, whyItMatters: i.whyItMatters, recommendedAction: i.recommendedAction,
       effort: i.effort as 'L' | 'M' | 'H', impact: i.impact as 'L' | 'M' | 'H', link: opts.itemLink(i.id),
