@@ -276,6 +276,9 @@ importers:
       '@cs/storage':
         specifier: workspace:*
         version: link:../storage
+      '@cs/verticals':
+        specifier: workspace:*
+        version: link:../verticals
       compromise:
         specifier: ^14.17.0
         version: 14.17.0
