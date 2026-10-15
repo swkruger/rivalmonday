@@ -42,13 +42,29 @@ export async function newMagicLink(before: Set<string>, email: string): Promise<
   throw new Error(`no new magic link to ${email} in the outbox ${OUTBOX} within 10 s`);
 }
 
-/** Request a magic link from the sign-in form already open in `page` and return it. */
+/** How long a rate-limited magic-link request is retried (the limit window is 60 s). */
+const RATE_LIMIT_BUDGET_MS = 90_000;
+const RATE_LIMIT_POLL_MS = 5_000;
+
+/**
+ * Request a magic link from the sign-in form already open in `page` and return it. Magic links are rate-limited per IP
+ * across the whole run; only that signal (HTTP 429 from the magic-link endpoint) is retried, polling until the window
+ * clears; any other failure fails at once.
+ */
 export async function requestMagicLink(page: Page, email: string): Promise<string> {
-  const before = await outboxSnapshot();
-  await page.getByLabel(/email/i).fill(email);
-  await page.getByRole('button', { name: /email me a sign-in link/i }).click();
-  await expect(page).toHaveURL(/check-email/);
-  return newMagicLink(before, email);
+  const deadline = Date.now() + RATE_LIMIT_BUDGET_MS;
+  for (;;) {
+    const before = await outboxSnapshot();
+    await page.getByLabel(/email/i).fill(email);
+    const response = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().includes('/sign-in/magic-link'));
+    await page.getByRole('button', { name: /email me a sign-in link/i }).click();
+    if ((await response).status() !== 429) {
+      await expect(page).toHaveURL(/check-email/);
+      return newMagicLink(before, email);
+    }
+    if (Date.now() > deadline) throw new Error(`magic-link rate limit for ${email} did not clear within ${RATE_LIMIT_BUDGET_MS / 1000} s`);
+    await page.waitForTimeout(RATE_LIMIT_POLL_MS);
+  }
 }
 
 export async function signIn(page: Page, email: string, next = '/agency'): Promise<void> {

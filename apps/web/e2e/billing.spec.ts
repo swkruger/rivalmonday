@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { type Browser, expect, type Page, test, type TestInfo } from '@playwright/test';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { newMagicLink, outboxSnapshot } from './helpers';
+import { signIn } from './helpers';
 
 /**
  * Phase 9a billing, against the fake gateway. `seed.ts` adds two agencies that are not exempt pilots: "Trial Agency E2E"
@@ -18,42 +18,21 @@ const USERS = {
 } as const;
 type Who = keyof typeof USERS;
 
-const RATE_LIMIT_BUDGET_MS = 90_000;
 const COPY_TEXT = "Copy link — it won't be shown again.";
 
-/** Magic links are rate-limited per IP across the run; only an HTTP 429 is retried (the window is 60 s). */
-async function signInPolling(page: Page, email: string): Promise<void> {
-  const deadline = Date.now() + RATE_LIMIT_BUDGET_MS;
-  await page.goto('/sign-in?next=%2F');
-  for (;;) {
-    const before = await outboxSnapshot();
-    await page.getByLabel(/email/i).fill(email);
-    const response = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().includes('/sign-in/magic-link'));
-    await page.getByRole('button', { name: /email me a sign-in link/i }).click();
-    if ((await response).status() !== 429) {
-      await expect(page).toHaveURL(/check-email/);
-      await page.goto(await newMagicLink(before, email));
-      return;
-    }
-    if (Date.now() > deadline) throw new Error(`magic-link rate limit for ${email} did not clear within ${RATE_LIMIT_BUDGET_MS / 1000} s`);
-    await page.waitForTimeout(5_000);
-  }
-}
-
-/** True when this call signed a user in (and so used up part of the magic-link rate-limit window). */
-async function ensureState(browser: Browser, testInfo: TestInfo, who: Who): Promise<boolean> {
-  if (existsSync(STATE(who))) return false;
+async function ensureState(browser: Browser, testInfo: TestInfo, who: Who): Promise<void> {
+  if (existsSync(STATE(who))) return;
   const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
   try {
-    await signInPolling(await context.newPage(), USERS[who]);
+    await signIn(await context.newPage(), USERS[who], '/');
     await context.storageState({ path: STATE(who) });
   } finally {
     await context.close();
   }
-  return true;
 }
 
 async function as<T>(browser: Browser, testInfo: TestInfo, who: Who, fn: (page: Page) => Promise<T>): Promise<T> {
+  await ensureState(browser, testInfo, who);
   const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: STATE(who) });
   try {
     return await fn(await context.newPage());
@@ -64,12 +43,7 @@ async function as<T>(browser: Browser, testInfo: TestInfo, who: Who, fn: (page: 
 
 test.describe.serial('billing', () => {
   test.beforeAll(async ({ browser }, testInfo) => {
-    test.setTimeout(8 * 60_000);
     await ensureAdminState(browser, testInfo);
-    let signedIn = false;
-    for (const who of Object.keys(USERS) as Who[]) signedIn = (await ensureState(browser, testInfo, who)) || signedIn;
-    // Four sign-ins fill most of the 5-per-minute magic-link window; leave it clear for the specs that run after this one.
-    if (signedIn) await new Promise((r) => setTimeout(r, 61_000));
   });
 
   test('a trial agency at its 3-client cap cannot add a 4th active client and is offered an Upgrade link', { tag: ['@billing', '@clients'] }, async ({ browser }, testInfo) => {
