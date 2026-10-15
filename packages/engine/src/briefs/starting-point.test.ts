@@ -1,5 +1,5 @@
 import { createAccessContext } from '@cs/core';
-import { brief, briefItem, capture, client, competitor, evidence, notification, observation, playbookOverride, recommendation, review } from '@cs/db';
+import { brief, briefItem, capture, client, competitor, competitorSignal, evidence, notification, observation, playbookOverride, recommendation, review } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { asc, eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -28,8 +28,8 @@ const writer = () => JSON.stringify({ items: [{ ref: 'F1', why_it_matters: 'Fres
 const run = (ai = createFakeAi({ chat: writer, decide: supportAll }), now = NOW) => generateStartingPoint({ db: dbs.service, ai, packs, now: () => now }, IDS.clientA1);
 let selfId: string;
 
-async function evidenceFor(competitorId: string, source: string): Promise<{ captureId: string; evidenceId: string }> {
-  const [c] = await dbs.owner.insert(capture).values({ competitorId, source, status: 'ok', collectorVersion: 't' }).returning();
+async function evidenceFor(competitorId: string, source: string, capturedAt?: Date): Promise<{ captureId: string; evidenceId: string }> {
+  const [c] = await dbs.owner.insert(capture).values({ competitorId, source, status: 'ok', collectorVersion: 't', ...(capturedAt ? { capturedAt } : {}) }).returning();
   const [e] = await dbs.owner.insert(evidence).values({ captureId: c!.id, kind: 'vendor_json', objectKey: randomUUID(), sha256: 'x', bytes: 1, contentType: 'application/json' }).returning();
   return { captureId: c!.id, evidenceId: e!.id };
 }
@@ -110,6 +110,19 @@ describe('generateStartingPoint', () => {
     const ai = createFakeAi({ chat: w, decide: () => { throw new Error('verifier down'); } });
     expect(await run(ai)).toMatchObject({ status: 'ready', items: 2, dropped: { items: 0, sentences: 0 } });
     warn.mockRestore();
+  });
+
+  it('rival_only_advertiser cites the latest ad captures of you and the advertiser, not GBP or review evidence', async () => {
+    const gbp = await seedFindings();
+    await evidenceFor(selfId, 'google_ads', ago(2)); // an older self check: only the latest one is cited
+    const selfAds = await evidenceFor(selfId, 'google_ads');
+    const rivalAds = await evidenceFor(IDS.competitorX, 'google_ads');
+    await dbs.owner.insert(competitorSignal).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, tier: 'top', signals: { googleAdsActive: 2 } });
+    expect(await run(createFakeAi({ chat: () => 'not json', decide: supportAll }))).toMatchObject({ status: 'ready' });
+    const ads = (await items()).find((i) => i.playbookId === 'consider_search_ads')!;
+    expect(ads.whatChanged).toBe('Smith HVAC run ads; you run none.');
+    expect(ads.evidenceIds.sort()).toEqual([selfAds.evidenceId, rivalAds.evidenceId].sort());
+    expect(ads.evidenceIds).not.toContain(gbp.evidenceId);
   });
 
   it('fallback item when no rule fires', async () => {

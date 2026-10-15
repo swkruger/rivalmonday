@@ -1,7 +1,7 @@
 import type { Ai, ChatMessage, JsonSchemaFormat } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
 import type { CallScope, SelfRuleId } from '@cs/core';
-import { brief, briefItem, client, type BriefDropStats, type Db, evidence, observation, rankScan, rankSnapshot } from '@cs/db';
+import { brief, briefItem, capture, client, type BriefDropStats, type Db, evidence, observation, rankScan, rankSnapshot } from '@cs/db';
 import { and, asc, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { reviewBenchmark } from '../reviews/benchmark';
@@ -121,6 +121,18 @@ async function rankEvidence(db: Db, clientId: string): Promise<string[]> {
   return (await db.select({ id: evidence.id }).from(evidence).where(inArray(evidence.captureId, caps)).orderBy(asc(evidence.id)).limit(12)).map((e) => e.id);
 }
 
+/** Per business, the evidence of its latest ok `google_ads` capture: what `rival_only_advertiser` cites (never GBP/review evidence). */
+async function adEvidence(db: Db, competitorIds: string[]): Promise<Record<string, string[]>> {
+  if (competitorIds.length === 0) return {};
+  const latest = await db.selectDistinctOn([capture.competitorId], { id: capture.id, competitorId: capture.competitorId }).from(capture)
+    .where(and(inArray(capture.competitorId, competitorIds), eq(capture.source, 'google_ads'), eq(capture.status, 'ok')))
+    .orderBy(capture.competitorId, desc(capture.capturedAt), desc(capture.id));
+  if (latest.length === 0) return {};
+  const ev = await db.select({ id: evidence.id, captureId: evidence.captureId }).from(evidence)
+    .where(inArray(evidence.captureId, latest.map((l) => l.id))).orderBy(asc(evidence.id));
+  return Object.fromEntries(latest.map((l) => [l.competitorId, ev.filter((e) => e.captureId === l.id).map((e) => e.id)]));
+}
+
 /**
  * Claims the client's one starting point: reclaims its own failed (attempts left) or stale row by id, else inserts a new row for
  * `deliveryDate`. Any unique conflict (the one-per-client index, or a weekly brief on that date) inserts nothing → skipped.
@@ -181,6 +193,7 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
       scorecard, themes, profile: await selfProfile(deps.db, row.selfCompetitorId), rules: pack.self_rules, playbooks: pack.playbooks,
       rankHasEvidence: rankEvidenceIds.length > 0, audienceNoun: pack.audience_noun, rankEvidenceIds,
       evidenceByCompetitor: Object.fromEntries(trend.businesses.map((b) => [b.competitorId, b.evidenceIds])),
+      adEvidenceByCompetitor: await adEvidence(deps.db, scorecard.rows.map((r) => r.competitorId)),
     });
     const playbooks = await resolvePlaybooks(deps.db, c.agencyId, pack);
     const dropped: BriefDropStats = { items: 0, sentences: 0 };

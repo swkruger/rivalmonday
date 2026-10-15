@@ -77,7 +77,7 @@ export async function seedStartingPoint(ctx: SeedContext): Promise<void> {
     },
     {
       headline: 'Reply to your reviews', playbookId: 'reply_to_reviews', effort: 'L', impact: 'M', status: 'todo' as const,
-      fact: 'You replied to 22% of reviews; rivals average 64%.',
+      fact: 'You replied to 22% of reviews; the rival median is 64%.',
       why: 'People comparing businesses read the replies, and replying shows you are active and care.',
       action: 'Reply to every new review within two days, starting with the last 20.',
     },

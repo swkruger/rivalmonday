@@ -31,6 +31,8 @@ export interface SelfRuleInput {
    * evidence of the businesses they compare, never the whole scorecard; a finding with no evidence is dropped (no evidence, no claim).
    */
   evidenceByCompetitor: Record<string, string[]>;
+  /** Evidence of each business's latest ok `google_ads` capture (keyed by `competitorId`, self included): what `rival_only_advertiser` cites. */
+  adEvidenceByCompetitor: Record<string, string[]>;
   rankEvidenceIds: string[];
 }
 
@@ -58,11 +60,12 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
   const { scorecard, rules } = input;
   const self = scorecard.rows.find((r) => r.self);
   const rivals = scorecard.rows.filter((r) => !r.self);
-  const evidenceOf = (ids: (string | null)[]): string[] => {
+  const evidenceOf = (ids: (string | null)[], by: Record<string, string[]> = input.evidenceByCompetitor): string[] => {
     const out: string[] = [];
-    for (const id of ids) for (const e of (id ? input.evidenceByCompetitor[id] : undefined) ?? []) if (!out.includes(e) && out.length < EVIDENCE_PER_FINDING) out.push(e);
+    for (const id of ids) for (const e of (id ? by[id] : undefined) ?? []) if (!out.includes(e) && out.length < EVIDENCE_PER_FINDING) out.push(e);
     return out;
   };
+  const hasAdEvidence = (id: string | null) => id !== null && (input.adEvidenceByCompetitor[id]?.length ?? 0) > 0;
   const you = (m: ScorecardMetric) => self?.values[m] ?? null;
   const rivalMedian = (m: ScorecardMetric) => median(rivals.map((r) => r.values[m]));
   const selfId = self?.competitorId ?? null;
@@ -93,7 +96,7 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
         const med = rivalMedian('replyRate');
         const gap = param(rule, 'gap', 0.25);
         if (y === null || med === null || !(y < med - gap)) break;
-        push(rule, score(rule, med - y, 0.5), `You replied to ${pct(y)}% of reviews; rivals average ${pct(med)}%.`, { you: y, median: med },
+        push(rule, score(rule, med - y, 0.5), `You replied to ${pct(y)}% of reviews; the rival median is ${pct(med)}%.`, { you: y, median: med },
           evidenceOf([selfId, ...rivals.filter((r) => r.values.replyRate !== null).map((r) => r.competitorId)]));
         break;
       }
@@ -108,11 +111,13 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
         break;
       }
       case 'rival_only_advertiser': {
-        const advertisers = rivals.filter((r) => (r.values.adsActive ?? 0) > 0);
-        if (you('adsActive') !== 0 || advertisers.length === 0) break;
-        const names = advertisers.slice(0, 3).map((r) => r.name);
+        // Cites ad captures only: a named advertiser without ad evidence is left out, and "you run none" needs your own ad check.
+        const advertisers = rivals.filter((r) => (r.values.adsActive ?? 0) > 0 && hasAdEvidence(r.competitorId));
+        if (you('adsActive') !== 0 || !hasAdEvidence(selfId) || advertisers.length === 0) break;
+        const named = advertisers.slice(0, 3);
+        const names = named.map((r) => r.name);
         push(rule, r2(rule.weight), `${joinNames(names)} run ads; you run none.`, { advertisers: advertisers.length, rivalNames: joinNames(names) },
-          evidenceOf([selfId, ...advertisers.slice(0, 3).map((r) => r.competitorId)]));
+          evidenceOf([selfId, ...named.map((r) => r.competitorId)], input.adEvidenceByCompetitor));
         break;
       }
       case 'theme_weakness':

@@ -17,13 +17,14 @@ const biz = (n: number, self: boolean, themes: BenchmarkTheme[]): BenchmarkBusin
 
 const ALL_OK = { claimed: true, hasHours: true, categoryCount: 3 };
 const evidence = Object.fromEntries([1, 2, 3, 4].map((n) => [ID(n), [ID(100 + n)]]));
+const adEvidence = Object.fromEntries([1, 2, 3, 4, 5].map((n) => [ID(n), [ID(200 + n)]]));
 
 async function base(over: Partial<SelfRuleInput> = {}): Promise<SelfRuleInput> {
   const pack = await loadVerticalPack('dental');
   return {
     scorecard: card([row(1, 'Me', {}, true), row(2, 'Alpha', {}), row(3, 'Beta', {}), row(4, 'Gamma', {})]),
     themes: [], profile: ALL_OK, rules: pack.self_rules, playbooks: pack.playbooks, rankHasEvidence: true, audienceNoun: pack.audience_noun,
-    evidenceByCompetitor: evidence, rankEvidenceIds: [ID(900)], ...over,
+    evidenceByCompetitor: evidence, adEvidenceByCompetitor: adEvidence, rankEvidenceIds: [ID(900)], ...over,
   };
 }
 const find = (r: ReturnType<typeof evaluateSelfRules>, id: string) => r.find((f) => f.ruleId === id);
@@ -45,7 +46,7 @@ describe('evaluateSelfRules', () => {
   it('reply_rate_gap fires when the reply rate trails the median by more than 25 points (positive)', async () => {
     const sc = card([row(1, 'Me', { replyRate: 0.1 }, true), row(2, 'A', { replyRate: 0.8 }), row(3, 'B', { replyRate: 0.6 })]);
     const f = find(evaluateSelfRules(await base({ scorecard: sc })), 'reply_rate_gap')!;
-    expect(f.fact).toBe('You replied to 10% of reviews; rivals average 70%.');
+    expect(f.fact).toBe('You replied to 10% of reviews; the rival median is 70%.');
     expect(f.score).toBeCloseTo(0.8, 2);
   });
   it('reply_rate_gap stays quiet within 25 points, or when you are not measured (negative)', async () => {
@@ -73,7 +74,16 @@ describe('evaluateSelfRules', () => {
     const f = find(evaluateSelfRules(await base({ scorecard: sc })), 'rival_only_advertiser')!;
     expect(f.fact).toBe('Alpha, Beta and Gamma run ads; you run none.');
     expect(f.score).toBe(0.6);
-    expect(f.evidenceIds).toEqual([ID(101), ID(102), ID(103), ID(104)]);
+    expect(f.evidenceIds).toEqual([ID(201), ID(202), ID(203), ID(204)]); // ad captures of you and the named advertisers, not GBP/review evidence
+  });
+  it('rival_only_advertiser names only advertisers with ad evidence, and needs your own ad evidence', async () => {
+    const sc = card([row(1, 'Me', { adsActive: 0 }, true), row(2, 'Alpha', { adsActive: 3 }), row(3, 'Beta', { adsActive: 1 })]);
+    const f = find(evaluateSelfRules(await base({ scorecard: sc, adEvidenceByCompetitor: { [SELF]: [ID(201)], [ID(3)]: [ID(203)] } })), 'rival_only_advertiser')!;
+    expect(f.fact).toBe('Beta run ads; you run none.');
+    expect(f.values.advertisers).toBe(1);
+    expect(f.evidenceIds).toEqual([ID(201), ID(203)]);
+    expect(find(evaluateSelfRules(await base({ scorecard: sc, adEvidenceByCompetitor: { [SELF]: [ID(201)] } })), 'rival_only_advertiser')).toBeUndefined();
+    expect(find(evaluateSelfRules(await base({ scorecard: sc, adEvidenceByCompetitor: { [ID(2)]: [ID(202)] } })), 'rival_only_advertiser')).toBeUndefined();
   });
   it('rival_only_advertiser stays quiet when you advertise, are unchecked, or no rival does (negative)', async () => {
     const mine = card([row(1, 'Me', { adsActive: 2 }, true), row(2, 'A', { adsActive: 3 })]);
