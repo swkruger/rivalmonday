@@ -63,8 +63,15 @@ describe('parseMapsItems richer fields', () => {
     expect(b).toMatchObject({ additionalCategories: [], isClaimed: false });
   });
 
-  it('marks closed only on an explicit permanent-closure flag', () => {
-    const [p] = parseMapsItems([{ items: [{ type: 'maps_search', rank_absolute: 1, title: 'Gone', is_permanently_closed: true }] }]);
+  it.each([
+    ['closed_forever', true], ['close', false], ['closed', false], ['temporarily_closed', false],
+  ])('current_status %s -> closed %s', (status, closed) => {
+    const [p] = parseMapsItems([{ items: [{ type: 'maps_search', rank_absolute: 1, title: 'X', work_hours: { current_status: status } }] }]);
+    expect(Boolean(p?.closed)).toBe(closed);
+  });
+
+  it('accepts an item-level current_status', () => {
+    const [p] = parseMapsItems([{ items: [{ type: 'maps_search', rank_absolute: 1, title: 'X', current_status: 'closed_forever' }] }]);
     expect(p?.closed).toBe(true);
   });
 });

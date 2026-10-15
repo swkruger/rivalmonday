@@ -19,7 +19,7 @@ export interface MapsPlace {
   additionalCategories?: string[];
   phone?: string | null;
   isClaimed?: boolean | null;
-  /** True only on an explicit permanent-closure flag. work_hours.current_status 'close' means closed right now, not permanently. */
+  /** True only when current_status is 'closed_forever'. 'close'/'closed'/'temporarily_closed' are not permanent. */
   closed?: boolean;
 }
 
@@ -39,8 +39,8 @@ const itemSchema = z.looseObject({
   additional_categories: z.array(z.string()).nullish(),
   phone: z.string().nullish(),
   is_claimed: z.boolean().nullish(),
-  is_permanently_closed: z.boolean().nullish(),
-  permanently_closed: z.boolean().nullish(),
+  work_hours: z.looseObject({ current_status: z.string().nullish() }).nullish(),
+  current_status: z.string().nullish(),
 });
 
 export function parseMapsItems(result: unknown[]): MapsPlace[] {
@@ -56,7 +56,7 @@ export function parseMapsItems(result: unknown[]): MapsPlace[] {
       lat: i.latitude ?? null, lng: i.longitude ?? null,
       additionalCategories: i.additional_categories === undefined ? undefined : (i.additional_categories ?? []),
       phone: i.phone, isClaimed: i.is_claimed,
-      closed: i.is_permanently_closed === true || i.permanently_closed === true ? true : undefined,
+      closed: (i.work_hours?.current_status ?? i.current_status) === 'closed_forever' ? true : undefined,
     });
   }
   return out;

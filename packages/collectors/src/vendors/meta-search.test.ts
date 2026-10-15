@@ -41,8 +41,10 @@ describe('searchMetaPages', () => {
   });
 
   it('Meta both vendors fail -> null', async () => {
-    const { ledger, fetch } = setup(() => new Response('{}', { status: 500 }));
+    const { ledger, fetch, records } = setup(() => new Response('{}', { status: 500 }));
     expect(await searchMetaPages({ apiKey: 'k', apifyToken: 't', ledger, fetch }, q, scope)).toBeNull();
+    expect(records).toHaveLength(2);
+    expect(records.every((r) => !r.ok && r.agencyId === 'ag' && r.clientId === 'cl')).toBe(true);
   });
 
   it('no credentials at all -> null without calling anything', async () => {
