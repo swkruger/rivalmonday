@@ -1,5 +1,7 @@
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { cache } from 'react';
 import { PaymentButton } from '@/app/(app)/agency/settings/billing/payment-button';
 import { formatLongDate, formatUsd } from '@/components/billing/format';
 import { requireContext } from '@/server/current-viewer';
@@ -22,6 +24,23 @@ export interface MyBilling {
 export const CHECKOUT_DONE_COPY = 'Thanks — your payment details are saved.';
 export const CHECKOUT_CANCELLED_COPY = 'Payment setup was cancelled.';
 
+/** One tool call per request, shared by `generateMetadata` and the page. */
+const loadBilling = cache(async (clientId: string) => {
+  const { ctx } = await requireContext();
+  if (ctx.role !== 'client_owner') notFound();
+  return callTool<MyBilling>(ctx, 'get_my_billing', { clientId });
+});
+
+/** R18: the browser tab names the agency, never the platform. A refused viewer gets a neutral title (the page itself is a 404). */
+export async function generateMetadata({ params }: { params: Promise<{ clientId: string }> }): Promise<Metadata> {
+  const { clientId } = await params;
+  try {
+    return { title: `Billing · ${(await loadBilling(clientId)).agencyName}` };
+  } catch {
+    return { title: 'Billing' };
+  }
+}
+
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 function statusOf(b: MyBilling): { label: string; tone: 'default' | 'secondary' | 'destructive'; detail: string | null } {
@@ -43,9 +62,7 @@ function statusOf(b: MyBilling): { label: string; tone: 'default' | 'secondary' 
 export default async function ClientBillingPage({ params, searchParams }: { params: Promise<{ clientId: string }>; searchParams: Promise<{ checkout?: string | string[] }> }) {
   const { clientId } = await params;
   const { checkout } = await searchParams;
-  const { ctx } = await requireContext();
-  if (ctx.role !== 'client_owner') notFound();
-  const b = await callTool<MyBilling>(ctx, 'get_my_billing', { clientId });
+  const b = await loadBilling(clientId);
   const status = statusOf(b);
   const flash = one(checkout) === 'done' ? CHECKOUT_DONE_COPY : one(checkout) === 'cancelled' ? CHECKOUT_CANCELLED_COPY : null;
 

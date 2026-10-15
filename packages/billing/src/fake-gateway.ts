@@ -212,8 +212,11 @@ export function fakeGateway(): FakeGateway {
     },
     async createAccountLink(i) {
       enter('createAccountLink', i);
+      // A first link creates the account (charges disabled). Following a link for an existing account stands in for the
+      // user finishing Stripe's hosted onboarding, so a fake-gateway run (E2E, demo) can reach "connected" with no Stripe.
       const accountId = i.accountId ?? gw.seedConnectedAccount({ id: nid('acct') }).id;
       account(accountId);
+      if (i.accountId) gw.seedConnectedAccount({ id: accountId, chargesEnabled: true, detailsSubmitted: true });
       return { url: `${i.returnUrl}${i.returnUrl.includes('?') ? '&' : '?'}fake_connect_onboarding=${accountId}`, accountId };
     },
     async getAccount(i) {

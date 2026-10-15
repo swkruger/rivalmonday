@@ -16,6 +16,13 @@ describe('fakeGateway Connect', () => {
     expect(gw.callsTo('createAccountLink')[0]!.args[0]).toMatchObject({ refreshUrl: 'r' });
   });
 
+  it('a second createAccountLink for the same account completes onboarding (fake stand-in for the hosted flow)', async () => {
+    const gw = fakeGateway();
+    const { accountId } = await gw.createAccountLink({ refreshUrl: 'r', returnUrl: 'x' });
+    await gw.createAccountLink({ accountId, refreshUrl: 'r', returnUrl: 'x' });
+    expect(await gw.getAccount({ stripeAccount: accountId })).toEqual({ id: accountId, chargesEnabled: true, detailsSubmitted: true });
+  });
+
   it('unknown account/subscription/price throw resource_missing', async () => {
     const gw = fakeGateway();
     expect(await code(gw.getAccount({ stripeAccount: 'acct_nope' }))).toBe('resource_missing');

@@ -7,6 +7,7 @@ import { seedKb } from './kb';
 import { seedAi } from './ai';
 import { seedAgency } from './agency';
 import { seedBilling } from './billing';
+import { seedClientBilling } from './client-billing';
 import { seedBriefs } from './briefs';
 import { seedChanges } from './changes';
 import { createSeedContext, type SeedContext } from './context';
@@ -48,6 +49,7 @@ const STEPS: readonly [string, (ctx: SeedContext) => Promise<void>][] = [
   ['support sessions', seedSupportSessions],
   ['platform costs', seedPlatformCosts],
   ['billing states', seedBilling],
+  ['client billing (Connect)', seedClientBilling],
   ['AI connections', seedAi],
   ['Ask threads and starters', seedAsk],
   ['knowledge base', seedKb],
