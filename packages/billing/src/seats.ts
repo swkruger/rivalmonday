@@ -14,7 +14,7 @@ export async function syncSeats(db: Db, gw: BillingGateway, agencyId: string): P
   const qty = Math.max(0, active - (p?.includedSeats ?? 0));
   const synced = row.billableSeatsSynced ?? 0;
   try {
-    if (qty !== synced) await gw.updateSeatQuantity(row.stripeSubscriptionId, qty, { prorate: qty > synced });
+    if (qty !== synced) await gw.updateSeatQuantity(row.stripeSubscriptionId, qty, { prorate: qty > synced, seatPriceId: p?.stripeSeatPriceId ?? null });
   } catch {
     console.error('[billing] seat sync failed', { agencyId });
     await db.update(agencyBilling).set({ seatSyncPending: true, updatedAt: new Date() }).where(eq(agencyBilling.agencyId, agencyId));

@@ -1,4 +1,4 @@
-import { agencyBilling } from '@cs/db';
+import { agencyBilling, plan } from '@cs/db';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -45,7 +45,7 @@ describe('syncSeats', () => {
     await withSub(gw);
     await addClients(dbs.owner, 3); // 5 active -> 2 extra
     expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('synced');
-    expect(gw.callsTo('updateSeatQuantity')[0]!.args).toEqual(['sub_1', 2, { prorate: true }]);
+    expect(gw.callsTo('updateSeatQuantity')[0]!.args).toEqual(['sub_1', 2, { prorate: true, seatPriceId: null }]);
     expect(await row()).toMatchObject({ billableSeatsSynced: 2, seatSyncPending: false });
   });
 
@@ -54,8 +54,19 @@ describe('syncSeats', () => {
     await withSub(gw, { billableSeatsSynced: 4 });
     await addClients(dbs.owner, 3); // qty 2
     expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('synced');
-    expect(gw.callsTo('updateSeatQuantity')[0]!.args).toEqual(['sub_1', 2, { prorate: false }]);
+    expect(gw.callsTo('updateSeatQuantity')[0]!.args).toEqual(['sub_1', 2, { prorate: false, seatPriceId: null }]);
     expect((await row()).billableSeatsSynced).toBe(2);
+  });
+
+  it('adds the seat line (plan seat price) when the subscription was bought with no billable seats', async () => {
+    const gw = fakeGateway();
+    await dbs.owner.update(plan).set({ stripeSeatPriceId: 'price_seat' }).where(eq(plan.id, planId));
+    gw.seedSubscription({ id: 'sub_1', customerId: 'cus_1', items: [{ id: 'si_base_1', priceId: 'price_base', quantity: 1 }] });
+    await setBilling(dbs.owner, planId, { state: 'active', stripeCustomerId: 'cus_1', stripeSubscriptionId: 'sub_1', billableSeatsSynced: 0 });
+    await addClients(dbs.owner, 2); // 4 active -> 1 extra
+    expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('synced');
+    expect(gw.subscriptions.get('sub_1')!.items.find((i) => i.priceId === 'price_seat')?.quantity).toBe(1);
+    expect(await row()).toMatchObject({ billableSeatsSynced: 1, seatSyncPending: false });
   });
 
   it('gateway failure sets seat_sync_pending, never throws, and a retry clears it', async () => {

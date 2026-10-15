@@ -20,6 +20,28 @@ describe('fakeGateway', () => {
     expect(gw.calls.map((c) => c.method)).toEqual(['createCustomer', 'createCheckoutSession', 'getSubscription', 'updateSeatQuantity', 'getSubscription']);
   });
 
+  it('mints prefixed ids with a random suffix (never a guessable counter)', async () => {
+    const a = (await fakeGateway().createCustomer({ agencyId: 'a', name: 'n' })).id;
+    const b = (await fakeGateway().createCustomer({ agencyId: 'a', name: 'n' })).id;
+    expect(a).toMatch(/^cus_fake_[0-9a-f]{8}$/);
+    expect(a).not.toBe(b);
+  });
+
+  it('checkout with no billable seats has no seat line; a later seat update adds it', async () => {
+    const gw = fakeGateway();
+    const { url } = await gw.createCheckoutSession({ customerId: 'c', basePriceId: 'pb', seatPriceId: 'ps', seatQty: 0, allowPromotionCodes: true, successUrl: 'https://x/ok', cancelUrl: 'https://x/no' });
+    const subId = url.split('fake_checkout=')[1]!;
+    expect((await gw.getSubscription(subId)).items.map((i) => i.priceId)).toEqual(['pb']);
+    await gw.updateSeatQuantity(subId, 2, { prorate: true, seatPriceId: 'ps' });
+    const s = await gw.getSubscription(subId);
+    expect(s.seatQuantity).toBe(2);
+    expect(s.items.find((i) => i.priceId === 'ps')?.quantity).toBe(2);
+  });
+
+  it('an unknown subscription is resource_missing, like Stripe', async () => {
+    await expect(fakeGateway().getSubscription('sub_nope')).rejects.toMatchObject({ code: 'resource_missing' });
+  });
+
   it('fails exactly the next call', async () => {
     const gw = fakeGateway();
     gw.failNext(new Error('boom'));
@@ -37,15 +59,17 @@ describe('fakeGateway', () => {
     expect((await gw.upcomingInvoice('sub_1'))?.amountDueCents).toBe(1);
   });
 
-  it('keeps coupons, promotion codes and customer discounts', async () => {
+  it('keeps coupons, promotion codes and subscription discounts', async () => {
     const gw = fakeGateway();
     const { id: cus } = await gw.createCustomer({ agencyId: 'a', name: 'n' });
     const { id: coupon } = await gw.createCoupon({ percentOff: 20, duration: 'repeating', durationInMonths: 3, appliesToProductIds: ['prod_1'] });
     const { id: promo } = await gw.createPromotionCode({ couponId: coupon, code: 'SAVE', customerId: cus });
-    await gw.attachCustomerDiscount({ customerId: cus, couponId: coupon });
+    gw.seedSubscription({ id: 'sub_1', customerId: cus });
+    await gw.attachSubscriptionDiscount({ subscriptionId: 'sub_1', couponId: coupon });
     await gw.deactivatePromotionCode(promo);
     expect(gw.promotionCodes.get(promo)?.active).toBe(false);
-    expect(gw.customers.get(cus)?.couponIds).toEqual([coupon]);
+    expect(gw.subscriptionCoupons.get('sub_1')).toEqual([coupon]);
+    await expect(gw.attachSubscriptionDiscount({ subscriptionId: 'sub_nope', couponId: coupon })).rejects.toThrow();
     await expect(gw.createCoupon({ percentOff: 5, duration: 'repeating' })).rejects.toThrow();
   });
 

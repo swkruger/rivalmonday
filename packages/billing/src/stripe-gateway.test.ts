@@ -60,6 +60,57 @@ describe('stripeGateway', () => {
     expect(p.subscription_data).toBeUndefined();
   });
 
+  it('Checkout with Stripe Tax lets Checkout save the address and name on the existing customer', async () => {
+    const c = mockClient();
+    await gw(c, { taxEnabled: true }).createCheckoutSession(checkout);
+    const p = firstArg(c.checkout.sessions.create);
+    expect(p.customer_update).toEqual({ address: 'auto', name: 'auto' });
+    expect(p.billing_address_collection).toBe('required');
+    await gw(c).createCheckoutSession(checkout);
+    const off = firstArg(c.checkout.sessions.create, 1);
+    expect(off.customer_update).toBeUndefined();
+    expect(off.billing_address_collection).toBeUndefined();
+  });
+
+  it('Checkout omits a trial_end less than 49 h ahead (Stripe needs 48 h)', async () => {
+    const c = mockClient();
+    await gw(c).createCheckoutSession({ ...checkout, trialEnd: new Date(Date.now() + 24 * 3600_000) });
+    expect(firstArg(c.checkout.sessions.create).subscription_data).toBeUndefined();
+    const later = new Date(Date.now() + 50 * 3600_000);
+    await gw(c).createCheckoutSession({ ...checkout, trialEnd: later });
+    expect(firstArg(c.checkout.sessions.create, 1).subscription_data).toEqual({ trial_end: Math.floor(later.getTime() / 1000) });
+  });
+
+  it('Checkout omits the seat line when no seat is billable', async () => {
+    const c = mockClient();
+    await gw(c).createCheckoutSession({ ...checkout, seatQty: 0 });
+    expect(firstArg(c.checkout.sessions.create).line_items).toEqual([{ price: 'price_b', quantity: 1 }]);
+  });
+
+  it('updateSeatQuantity adds the seat line when the subscription has none', async () => {
+    const c = mockClient();
+    const noSeat = { id: 'sub_1', items: { data: [{ id: 'si_b', quantity: 1, price: { id: 'price_b', metadata: { [PRICE_ROLE_KEY]: 'base' } } }] } };
+    c.subscriptions.retrieve.mockResolvedValueOnce(noSeat as never);
+    await gw(c).updateSeatQuantity('sub_1', 2, { prorate: true, seatPriceId: 'price_s' });
+    expect(c.subscriptions.update).toHaveBeenCalledWith('sub_1', { items: [{ price: 'price_s', quantity: 2 }], proration_behavior: 'create_prorations' });
+  });
+
+  it('updateSeatQuantity without a seat line: qty 0 is a no-op, no seat price is an error', async () => {
+    const c = mockClient();
+    const noSeat = { id: 'sub_1', items: { data: [{ id: 'si_b', quantity: 1, price: { id: 'price_b', metadata: { [PRICE_ROLE_KEY]: 'base' } } }] } };
+    c.subscriptions.retrieve.mockResolvedValueOnce(noSeat as never).mockResolvedValueOnce(noSeat as never);
+    await gw(c).updateSeatQuantity('sub_1', 0, { prorate: false, seatPriceId: 'price_s' });
+    expect(c.subscriptions.update).not.toHaveBeenCalled();
+    await expect(gw(c).updateSeatQuantity('sub_1', 1, { prorate: true })).rejects.toThrow(/seat/);
+  });
+
+  it('attachSubscriptionDiscount sets the coupon as a subscription discount', async () => {
+    const c = mockClient();
+    await gw(c).attachSubscriptionDiscount({ subscriptionId: 'sub_1', couponId: 'co_1' });
+    expect(c.subscriptions.update).toHaveBeenCalledWith('sub_1', { discounts: [{ coupon: 'co_1' }] });
+    expect(c.customers.update).not.toHaveBeenCalled();
+  });
+
   it('updateSeatQuantity targets the seat line with the proration mode', async () => {
     const c = mockClient();
     await gw(c).updateSeatQuantity('sub_1', 7, { prorate: false });

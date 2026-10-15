@@ -52,11 +52,17 @@ export interface GatewayInvoice {
   created: Date;
 }
 
+/** Stripe rejects a Checkout `subscription_data.trial_end` less than 48 h ahead; one hour of slack covers the redirect. */
+export const MIN_TRIAL_END_LEAD_MS = 49 * 3_600_000;
+export const trialEndUsable = (trialEnd: Date, now: Date = new Date()): boolean => trialEnd.getTime() > now.getTime() + MIN_TRIAL_END_LEAD_MS;
+
 export interface CheckoutSessionInput {
   customerId: string;
   basePriceId: string;
   seatPriceId: string;
+  /** 0 = no seat line on the subscription (Stripe would bill a zero line; `updateSeatQuantity` adds it later). */
   seatQty: number;
+  /** Dropped unless at least `MIN_TRIAL_END_LEAD_MS` ahead (Stripe requires 48 h). */
   trialEnd?: Date;
   couponId?: string;
   allowPromotionCodes: boolean;
@@ -109,7 +115,8 @@ export interface BillingGateway {
   createCustomer(i: { agencyId: string; name: string; email?: string }): Promise<{ id: string }>;
   createCheckoutSession(i: CheckoutSessionInput): Promise<{ url: string }>;
   createPortalSession(i: { customerId: string; returnUrl: string }): Promise<{ url: string }>;
-  updateSeatQuantity(subscriptionId: string, qty: number, opts: { prorate: boolean }): Promise<void>;
+  /** Sets the seat line's quantity; adds the line (price `seatPriceId`) when the subscription has none and `qty > 0`. */
+  updateSeatQuantity(subscriptionId: string, qty: number, opts: { prorate: boolean; seatPriceId?: string | null }): Promise<void>;
   getSubscription(subscriptionId: string): Promise<GatewaySubscription>;
   upcomingInvoice(subscriptionId: string): Promise<UpcomingInvoice | null>;
   listInvoices(customerId: string, limit?: number): Promise<GatewayInvoice[]>;
@@ -117,6 +124,7 @@ export interface BillingGateway {
   createCoupon(i: CreateCouponInput): Promise<{ id: string }>;
   createPromotionCode(i: CreatePromotionCodeInput): Promise<{ id: string }>;
   deactivatePromotionCode(id: string): Promise<void>;
-  attachCustomerDiscount(i: { customerId: string; couponId: string }): Promise<void>;
+  /** Replaces the subscription's discounts with this coupon (subscription-level discount). */
+  attachSubscriptionDiscount(i: { subscriptionId: string; couponId: string }): Promise<void>;
   verifyWebhook(rawBody: string, signature: string): StripeEventLike;
 }

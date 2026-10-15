@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import {
   type BillingGateway, type GatewayInvoice, type GatewaySubscription, type StripeEventLike, type SubscriptionStatus,
-  InvalidSignature,
+  InvalidSignature, trialEndUsable,
 } from './types';
 
 /** Metadata on each Stripe price so a subscription's seat line can be found without storing price ids per agency. */
@@ -31,17 +31,18 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
       return { id: c.id };
     },
     async createCheckoutSession(i) {
+      const tax = opts.taxEnabled === true;
       const s = await stripe.checkout.sessions.create({
         mode: 'subscription',
         customer: i.customerId,
-        line_items: [
-          { price: i.basePriceId, quantity: 1 },
-          { price: i.seatPriceId, quantity: i.seatQty },
-        ],
-        subscription_data: i.trialEnd ? { trial_end: secs(i.trialEnd) } : undefined,
+        // A zero-quantity seat line would show as a $0 line; it is added by `updateSeatQuantity` once seats are billable.
+        line_items: [{ price: i.basePriceId, quantity: 1 }, ...(i.seatQty > 0 ? [{ price: i.seatPriceId, quantity: i.seatQty }] : [])],
+        subscription_data: i.trialEnd && trialEndUsable(i.trialEnd) ? { trial_end: secs(i.trialEnd) } : undefined,
         // Stripe rejects `discounts` together with `allow_promotion_codes`.
         ...(i.couponId ? { discounts: [{ coupon: i.couponId }] } : { allow_promotion_codes: i.allowPromotionCodes }),
-        automatic_tax: { enabled: opts.taxEnabled === true },
+        automatic_tax: { enabled: tax },
+        // Stripe Tax needs the customer's address; with an existing customer Checkout may only save it when allowed to.
+        ...(tax ? { customer_update: { address: 'auto', name: 'auto' }, billing_address_collection: 'required' } : {}),
         success_url: i.successUrl,
         cancel_url: i.cancelUrl,
       });
@@ -55,9 +56,10 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
     async updateSeatQuantity(subscriptionId, qty, o) {
       const s = await stripe.subscriptions.retrieve(subscriptionId, { expand: ['items.data.price'] });
       const line = seatItem(s);
-      if (!line) throw new Error(`Subscription ${subscriptionId} has no seat line`);
+      if (!line && qty === 0) return;
+      if (!line && !o.seatPriceId) throw new Error(`Subscription ${subscriptionId} has no seat line and no seat price was given`);
       await stripe.subscriptions.update(subscriptionId, {
-        items: [{ id: line.id, quantity: qty }],
+        items: [line ? { id: line.id, quantity: qty } : { price: o.seatPriceId!, quantity: qty }],
         proration_behavior: o.prorate ? 'create_prorations' : 'none',
       });
     },
@@ -140,8 +142,9 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
     async deactivatePromotionCode(id) {
       await stripe.promotionCodes.update(id, { active: false });
     },
-    async attachCustomerDiscount(i) {
-      await stripe.customers.update(i.customerId, { coupon: i.couponId } as Stripe.CustomerUpdateParams);
+    async attachSubscriptionDiscount(i) {
+      // API 2026-08-26.dahlia removed `coupon` on customers/subscriptions; `discounts` replaces the subscription's discounts.
+      await stripe.subscriptions.update(i.subscriptionId, { discounts: [{ coupon: i.couponId }] });
     },
     verifyWebhook(rawBody, signature): StripeEventLike {
       if (!opts.webhookSecret) throw new Error('STRIPE_WEBHOOK_SECRET is not configured');

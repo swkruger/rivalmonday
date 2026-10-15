@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import {
   type BillingGateway, type CheckoutSessionInput, type CreateCouponInput, type CreatePromotionCodeInput,
   type GatewayInvoice, type GatewaySubscription, type StripeEventLike, type UpcomingInvoice, InvalidSignature,
@@ -7,7 +8,7 @@ import {
 export const FAKE_WEBHOOK_SIGNATURE = 'fake-sig';
 
 export interface FakeCall { method: string; args: unknown[] }
-interface FakeCustomer { id: string; agencyId: string; name: string; email?: string; couponIds: string[] }
+interface FakeCustomer { id: string; agencyId: string; name: string; email?: string }
 interface FakeCoupon extends CreateCouponInput { id: string }
 interface FakePromotionCode extends CreatePromotionCodeInput { id: string; active: boolean }
 
@@ -18,6 +19,8 @@ export interface FakeGateway extends BillingGateway {
   readonly invoices: Map<string, GatewayInvoice[]>;
   readonly coupons: Map<string, FakeCoupon>;
   readonly promotionCodes: Map<string, FakePromotionCode>;
+  /** Coupons attached per subscription by `attachSubscriptionDiscount` (latest call replaces, like Stripe). */
+  readonly subscriptionCoupons: Map<string, string[]>;
   /** The next gateway method call (any method) rejects with `error`; later calls succeed. */
   failNext(error?: Error): void;
   seedSubscription(sub: Partial<GatewaySubscription> & { id: string; customerId: string }): GatewaySubscription;
@@ -33,10 +36,11 @@ export function fakeGateway(): FakeGateway {
   const invoices = new Map<string, GatewayInvoice[]>();
   const coupons = new Map<string, FakeCoupon>();
   const promotionCodes = new Map<string, FakePromotionCode>();
+  const subscriptionCoupons = new Map<string, string[]>();
   const upcoming = new Map<string, UpcomingInvoice | null>();
   let failure: Error | null = null;
-  let seq = 0;
-  const nid = (p: string) => `${p}_fake_${++seq}`;
+  /** Random suffix (R27): a fake id must never look like, or collide with, one minted by another process. */
+  const nid = (p: string) => `${p}_fake_${randomBytes(4).toString('hex')}`;
 
   /** Records the call and fires a queued failure. Runs first in every method. */
   function enter(method: string, ...args: unknown[]): void {
@@ -49,13 +53,13 @@ export function fakeGateway(): FakeGateway {
   }
   const sub = (id: string): GatewaySubscription => {
     const s = subscriptions.get(id);
-    if (!s) throw new Error(`fake gateway: no subscription ${id}`);
+    if (!s) throw Object.assign(new Error(`fake gateway: no subscription ${id}`), { code: 'resource_missing' });
     return s;
   };
   const seat = (s: GatewaySubscription) => s.items.find((i) => i.id.startsWith('si_seat'));
 
   const gw: FakeGateway = {
-    calls, customers, subscriptions, invoices, coupons, promotionCodes,
+    calls, customers, subscriptions, invoices, coupons, promotionCodes, subscriptionCoupons,
     failNext(error = new Error('fake gateway failure')) { failure = error; },
     callsTo: (m) => calls.filter((c) => c.method === m),
     seedSubscription(p) {
@@ -77,7 +81,7 @@ export function fakeGateway(): FakeGateway {
     async createCustomer(i) {
       enter('createCustomer', i);
       const id = nid('cus');
-      customers.set(id, { id, agencyId: i.agencyId, name: i.name, email: i.email, couponIds: [] });
+      customers.set(id, { id, agencyId: i.agencyId, name: i.name, email: i.email });
       return { id };
     },
     async createCheckoutSession(i: CheckoutSessionInput) {
@@ -89,7 +93,7 @@ export function fakeGateway(): FakeGateway {
         seatQuantity: i.seatQty, hasDefaultPaymentMethod: hasCard,
         items: [
           { id: nid('si_base'), priceId: i.basePriceId, quantity: 1 },
-          { id: nid('si_seat'), priceId: i.seatPriceId, quantity: i.seatQty },
+          ...(i.seatQty > 0 ? [{ id: nid('si_seat'), priceId: i.seatPriceId, quantity: i.seatQty }] : []),
         ],
       });
       return { url: `${i.successUrl}${i.successUrl.includes('?') ? '&' : '?'}fake_checkout=${subId}` };
@@ -101,9 +105,12 @@ export function fakeGateway(): FakeGateway {
     async updateSeatQuantity(id, qty, opts) {
       enter('updateSeatQuantity', id, qty, opts);
       const s = sub(id);
-      s.seatQuantity = qty;
       const line = seat(s);
+      if (!line && qty === 0) return;
+      if (!line && !opts.seatPriceId) throw new Error(`fake gateway: subscription ${id} has no seat line and no seat price was given`);
+      s.seatQuantity = qty;
       if (line) line.quantity = qty;
+      else s.items.push({ id: nid('si_seat'), priceId: opts.seatPriceId!, quantity: qty });
     },
     async getSubscription(id) {
       enter('getSubscription', id);
@@ -142,11 +149,10 @@ export function fakeGateway(): FakeGateway {
       const p = promotionCodes.get(id);
       if (p) p.active = false;
     },
-    async attachCustomerDiscount(i) {
-      enter('attachCustomerDiscount', i);
-      const c = customers.get(i.customerId);
-      if (!c) throw new Error(`fake gateway: no customer ${i.customerId}`);
-      c.couponIds.push(i.couponId);
+    async attachSubscriptionDiscount(i) {
+      enter('attachSubscriptionDiscount', i);
+      sub(i.subscriptionId);
+      subscriptionCoupons.set(i.subscriptionId, [i.couponId]);
     },
     verifyWebhook(rawBody, signature): StripeEventLike {
       calls.push({ method: 'verifyWebhook', args: [rawBody, signature] });
