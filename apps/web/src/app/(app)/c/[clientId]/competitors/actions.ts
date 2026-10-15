@@ -43,17 +43,25 @@ export async function requestSuggestionsAction(_p: FormResult, fd: FormData): Pr
 
 export type { SearchState };
 
+export type SearchStatus = { state: SearchState; stage: string; searchesDone: number; searchesTotal: number; checksTotal: number; finishedAt: string | null };
+
 /** Polled by `SuggestionsPanel` after "Find competitors" until the background search finishes. */
-export async function searchStatusAction(clientId: string): Promise<ToolResult<{ state: SearchState; finishedAt: string | null }>> {
+export async function searchStatusAction(clientId: string): Promise<ToolResult<SearchStatus>> {
   const ctx = await agencyCtx();
-  const r = await runTool<{ status: string; finishedAt?: string | null }>(ctx, 'get_competitor_search_status', { clientId });
-  return r.ok ? { ok: true, data: { state: RUN_STATE[r.data.status] ?? 'idle', finishedAt: r.data.finishedAt ?? null } } : r;
+  const r = await runTool<{ status: string; progress?: { searchesDone: number; searchesTotal: number; checksTotal: number }; finishedAt?: string | null }>(ctx, 'get_competitor_search_status', { clientId });
+  if (!r.ok) return r;
+  const p = r.data.progress;
+  return { ok: true, data: { state: RUN_STATE[r.data.status] ?? 'idle', stage: r.data.status, searchesDone: p?.searchesDone ?? 0, searchesTotal: p?.searchesTotal ?? 0, checksTotal: p?.checksTotal ?? 0, finishedAt: r.data.finishedAt ?? null } };
 }
 
-export async function acceptSuggestionAction(_p: FormResult, fd: FormData): Promise<FormResult> {
+/** "Track selected (n)": all or none, within the client's competitor limit (the tool enforces it). */
+export async function acceptSuggestionsAction(clientId: string, ids: string[]): Promise<FormResult> {
   const ctx = await memberCtx();
-  const r = await runTool<{ discovery: string }>(ctx, 'accept_competitor_suggestion', { suggestionId: s(fd, 'suggestionId') });
-  return done(s(fd, 'clientId'), r, `Competitor added. ${r.ok ? DISCOVERY[r.data.discovery] : ''}`.trim());
+  const r = await runTool<{ items: { discovery: string }[] }>(ctx, 'accept_competitor_suggestions', { clientId, ids });
+  if (!r.ok) return r;
+  const n = r.data.items.length;
+  const note = r.data.items.some((i) => i.discovery === 'disabled') ? DISCOVERY.disabled : r.data.items.some((i) => i.discovery === 'queued') ? DISCOVERY.queued : '';
+  return done(clientId, r, `${n} competitor${n === 1 ? '' : 's'} added. ${note}`.trim());
 }
 
 export async function dismissSuggestionAction(_p: FormResult, fd: FormData): Promise<FormResult> {

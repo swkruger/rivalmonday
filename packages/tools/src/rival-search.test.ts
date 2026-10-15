@@ -87,7 +87,10 @@ describe('startCompetitorSearch', () => {
   it('a failed enqueue deletes the run (no cooldown, no cap) and is refused as enqueue_failed', async () => {
     await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
     enqueue.mockRejectedValueOnce(new Error('queue down'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual')).resolves.toEqual({ refused: 'enqueue_failed' });
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/rival-search enqueue failed for run .*queue down/));
+    warn.mockRestore();
     expect(await runs(IDS.clientA1)).toEqual([]);
     // Nothing blocks the retry.
     await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual')).resolves.toEqual({ runId: expect.any(String) });

@@ -1,5 +1,5 @@
 import { canManageCompetitors, hasFeature, isAgencyRole } from '@cs/core';
-import type { ClientProfile, SuggestionView, TrackedCompetitor } from '@cs/tools';
+import type { ClientProfile, HiddenReason, SuggestionView, TrackedCompetitor } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -21,7 +21,9 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<{ items: TrackedCompetitor[]; limit: number }>(ctx, 'list_client_competitors', { clientId }),
     // 12a: suggestions (with ad-account matches) are agency-only.
-    agency ? callTool<{ suggestions: SuggestionView[] }>(ctx, 'list_competitor_suggestions', { clientId }) : Promise.resolve({ suggestions: [] as SuggestionView[] }),
+    agency
+      ? callTool<{ suggestions: SuggestionView[]; hiddenList: { name: string; reason: HiddenReason }[] }>(ctx, 'list_competitor_suggestions', { clientId })
+      : Promise.resolve({ suggestions: [] as SuggestionView[], hiddenList: [] as { name: string; reason: HiddenReason }[] }),
     agency ? callTool<{ status: string }>(ctx, 'get_competitor_search_status', { clientId }) : Promise.resolve({ status: 'none' }),
   ]);
   const atLimit = tracked.items.length >= tracked.limit;
@@ -54,11 +56,13 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
       {agency && (
         <SuggestionsPanel
           clientId={clientId}
-          ready={profile.keywords.length > 0 && profile.serviceArea !== null}
+          ready={profile.keywords.length > 0 && profile.serviceArea !== null && !!profile.placeId}
           suggestions={suggestions.suggestions}
           initialSearch={RUN_STATE[search.status] ?? 'idle'}
           atLimit={atLimit}
           limit={tracked.limit}
+          trackedCount={tracked.items.length}
+          hiddenList={suggestions.hiddenList}
           canSearch={agency}
         />
       )}

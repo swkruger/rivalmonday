@@ -23,7 +23,7 @@ vi.mock('@/app/(app)/agency/approvals/[briefId]/actions', () => ({
 vi.mock('@/app/(app)/agency/alerts/actions', () => ({ approveAlertAction: vi.fn(), dismissAlertAction: vi.fn() }));
 vi.mock('@/app/(app)/c/[clientId]/settings/delivery/actions', () => ({ addRecipientAction: vi.fn(), deactivateRecipientAction: vi.fn(), saveDeliveryAction: vi.fn() }));
 vi.mock('@/app/(app)/c/[clientId]/competitors/actions', () => ({
-  requestSuggestionsAction: vi.fn(), acceptSuggestionAction: vi.fn(), dismissSuggestionAction: vi.fn(), addCompetitorAction: vi.fn(), removeCompetitorAction: vi.fn(), searchStatusAction: vi.fn(),
+  requestSuggestionsAction: vi.fn(), acceptSuggestionsAction: vi.fn(), dismissSuggestionAction: vi.fn(), addCompetitorAction: vi.fn(), removeCompetitorAction: vi.fn(), searchStatusAction: vi.fn(),
 }));
 
 const { WebhookToggle, AddWebhookForm } = await import('@/app/(app)/agency/webhooks/webhook-controls');
@@ -138,14 +138,14 @@ describe('write controls hide in a support session', () => {
     expect(screen.getByText('Price drop')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /dismiss|approve/i })).toBeNull();
   });
-  it('suggestions panel stays and lists suggestions, but search, Accept and Dismiss are absent', () => {
-    const s = [{ id: 's1', name: 'Peachtree Air', domain: 'peachtreeair.com', placeId: 'p', rating: 4.6, votes: 120, appearances: 7, bestRank: 2, overlapScore: 0.82 }] as never;
+  it('suggestions panel stays and lists suggestions, but search, Track selected and Dismiss are absent', () => {
+    const s = [{ id: 's1', name: 'Peachtree Air', domain: 'peachtreeair.com', placeId: 'p', rating: 4.6, votes: 120, appearances: 7, bestRank: 2, overlapScore: 0.82, tier: 'top', category: null, distanceKm: null, signals: { rating: null, votes: null, reviews30d: null, reviews90d: null, replyRate: null, googleAdsActive: null, googleAdsNew30d: null, googleAccount: null, metaPage: null, metaAdsActive: null, claimed: null, chain: null, categoryMatch: null, distanceKm: null, presence: null }, adMatches: [], preselected: true }] as never;
     inWritable(<SuggestionsPanel clientId="c1" ready suggestions={s} atLimit={false} canSearch />);
-    expect(screen.getByRole('button', { name: /accept peachtree air/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /track selected/i })).toBeTruthy();
     document.body.innerHTML = '';
     const { container } = inReadOnly(<SuggestionsPanel clientId="c1" ready suggestions={s} atLimit={false} canSearch />);
     expect(screen.getByText('Peachtree Air')).toBeTruthy();
-    expect(screen.getByText(/overlap 82%/i)).toBeTruthy();
+    expect(screen.queryByRole('checkbox')).toBeNull();
     expect(screen.queryByRole('button')).toBeNull();
     expect(container.querySelector('form')).toBeNull();
   });

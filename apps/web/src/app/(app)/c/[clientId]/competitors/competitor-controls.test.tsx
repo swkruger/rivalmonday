@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import type { SuggestionView, TrackedCompetitor } from '@cs/tools';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const refresh = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 vi.mock('./actions', () => ({
-  requestSuggestionsAction: vi.fn(), acceptSuggestionAction: vi.fn(), dismissSuggestionAction: vi.fn(), addCompetitorAction: vi.fn(), removeCompetitorAction: vi.fn(), searchStatusAction: vi.fn(),
+  requestSuggestionsAction: vi.fn(), acceptSuggestionsAction: vi.fn(), dismissSuggestionAction: vi.fn(), addCompetitorAction: vi.fn(), removeCompetitorAction: vi.fn(), searchStatusAction: vi.fn(),
 }));
-const { acceptSuggestionAction, dismissSuggestionAction, removeCompetitorAction, requestSuggestionsAction, searchStatusAction } = await import('./actions');
+const { acceptSuggestionsAction, dismissSuggestionAction, removeCompetitorAction, requestSuggestionsAction, searchStatusAction } = await import('./actions');
 const { SuggestionsPanel, TrackedCompetitorsTable } = await import('./competitor-controls');
 
 const NO_SIGNALS = {
@@ -23,14 +23,15 @@ const suggestion: SuggestionView = {
 describe('SuggestionsPanel', () => {
   it('explains what is missing before suggestions can be requested', () => {
     render(<SuggestionsPanel clientId="c1" ready={false} suggestions={[]} atLimit={false} canSearch />);
-    expect(screen.getByText(/add at least one keyword and a service area/i)).toBeTruthy();
+    expect(screen.getByText(/add keywords, a service area and a google place id to search/i)).toBeTruthy();
     expect((screen.getByRole('button', { name: /find competitors/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('lists suggestions with accept disabled at the competitor limit', () => {
+  it('lists suggestions with tracking disabled at the competitor limit', () => {
     render(<SuggestionsPanel clientId="c1" ready suggestions={[suggestion]} atLimit canSearch />);
     expect(screen.getByText('Peachtree Air')).toBeTruthy();
-    expect((screen.getByRole('button', { name: /accept peachtree air/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('checkbox', { name: /track peachtree air/i }) as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getAllByText('This client already tracks 5 competitors').length).toBeGreaterThan(0);
   });
 });
 
@@ -62,7 +63,10 @@ describe('client owner views', () => {
 
 describe('SuggestionsPanel search progress', () => {
   type Search = 'idle' | 'queued' | 'running' | 'done' | 'failed';
-  const status = (state: Search) => ({ ok: true as const, data: { state, finishedAt: null } });
+  const status = (state: Search, extra: Partial<{ stage: string; searchesDone: number; searchesTotal: number; checksTotal: number }> = {}) => ({
+    ok: true as const,
+    data: { state, stage: 'searching', searchesDone: 0, searchesTotal: 0, checksTotal: 0, finishedAt: null, ...extra },
+  });
   const findButton = () => screen.getByRole('button', { name: /find competitors|searching/i }) as HTMLButtonElement;
   const tick = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
 
@@ -83,7 +87,7 @@ describe('SuggestionsPanel search progress', () => {
 
   it('shows progress and disables the button while the search runs, then reloads the suggestions when it finishes', async () => {
     await startSearch();
-    expect(screen.getByText(/searching google maps/i)).toBeTruthy();
+    expect(screen.getByText(/searching your area/i)).toBeTruthy();
     expect(findButton().disabled).toBe(true);
     await tick(5000);
     expect(searchStatusAction).toHaveBeenCalledWith('c1');
@@ -105,11 +109,21 @@ describe('SuggestionsPanel search progress', () => {
     expect(searchStatusAction).toHaveBeenCalledTimes(14);
   });
 
+  it('shows search counts, then the checking copy', async () => {
+    vi.mocked(searchStatusAction).mockResolvedValue(status('running', { searchesDone: 140, searchesTotal: 245 }));
+    await startSearch();
+    await tick(5000);
+    expect(screen.getByText('Searching your area… 140 of 245 searches')).toBeTruthy();
+    vi.mocked(searchStatusAction).mockResolvedValue(status('running', { stage: 'checking', checksTotal: 20 }));
+    await tick(5000);
+    expect(screen.getByText('Checking ads and reviews for 20 businesses…')).toBeTruthy();
+  });
+
   it('says so and re-enables the button when the search fails', async () => {
     vi.mocked(searchStatusAction).mockResolvedValue(status('failed'));
     await startSearch();
     await tick(5000);
-    expect(screen.getByRole('alert').textContent).toMatch(/search failed/i);
+    expect(screen.getByRole('alert').textContent).toMatch(/search didn't finish/i);
     expect(findButton().disabled).toBe(false);
     expect(refresh).not.toHaveBeenCalled();
   });
@@ -126,7 +140,7 @@ describe('SuggestionsPanel search progress', () => {
 
   it('picks up a search that was already running when the page loaded', async () => {
     render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} initialSearch="running" canSearch />);
-    expect(screen.getByText(/searching google maps/i)).toBeTruthy();
+    expect(screen.getByText(/searching your area/i)).toBeTruthy();
     vi.mocked(searchStatusAction).mockResolvedValue(status('done'));
     await tick(5000);
     expect(refresh).toHaveBeenCalledTimes(1);
@@ -144,13 +158,13 @@ describe('row messages survive revalidation', () => {
   const tracked: TrackedCompetitor = { id: 'k1', name: 'Smith HVAC', domain: 'smithhvac.com', placeId: null, activePages: 0, addedAt: '2026-10-01T00:00:00.000Z' };
   beforeEach(() => vi.clearAllMocks());
 
-  it('keeps the accept message after the suggestion row is gone', async () => {
-    const msg = 'Competitor added. Website monitoring is off — only ads, reviews and Google profile data are collected.';
-    vi.mocked(acceptSuggestionAction).mockResolvedValueOnce({ ok: true, message: msg });
+  it('keeps the track-selected message after the suggestion row is gone', async () => {
+    const msg = '1 competitor added. Website monitoring is off — only ads, reviews and Google profile data are collected.';
+    vi.mocked(acceptSuggestionsAction).mockResolvedValueOnce({ ok: true, message: msg });
     const { rerender } = render(<SuggestionsPanel clientId="c1" ready suggestions={[suggestion]} atLimit={false} canSearch />);
-    fireEvent.click(screen.getByRole('button', { name: /accept peachtree air/i }));
-    await waitFor(() => expect(acceptSuggestionAction).toHaveBeenCalledTimes(1));
-    expect((vi.mocked(acceptSuggestionAction).mock.calls[0]![1] as FormData).get('suggestionId')).toBe('s1');
+    fireEvent.click(screen.getByRole('checkbox', { name: /track peachtree air/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Track selected (1)' }));
+    await waitFor(() => expect(acceptSuggestionsAction).toHaveBeenCalledWith('c1', ['s1']));
     rerender(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} canSearch />);
     await waitFor(() => expect(screen.getByText(msg)).toBeTruthy());
   });
@@ -160,7 +174,7 @@ describe('row messages survive revalidation', () => {
     const { rerender } = render(<SuggestionsPanel clientId="c1" ready suggestions={[suggestion]} atLimit={false} canSearch />);
     fireEvent.click(screen.getByRole('button', { name: /dismiss peachtree air/i }));
     await waitFor(() => expect(dismissSuggestionAction).toHaveBeenCalledTimes(1));
-    expect(acceptSuggestionAction).not.toHaveBeenCalled();
+    expect(acceptSuggestionsAction).not.toHaveBeenCalled();
     rerender(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} canSearch />);
     await waitFor(() => expect(screen.getByText('Suggestion hidden.')).toBeTruthy());
   });
@@ -182,5 +196,44 @@ describe('row messages survive revalidation', () => {
     fireEvent.click(screen.getByRole('button', { name: /^remove$/i }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /stop tracking/i }));
     await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toBe('Not found'));
+  });
+});
+
+describe('SuggestionsPanel tiers and selection', () => {
+  const mk = (id: string, name: string, tier: SuggestionView['tier'], preselected = false): SuggestionView => ({ ...suggestion, id, name, tier, preselected });
+  const list = [mk('a', 'Alpha', 'top', true), mk('b', 'Bravo', 'top', true), mk('c', 'Charlie', 'watch'), mk('d', 'Delta', 'minor')];
+
+  it('renders groups in order with headings only for non-empty tiers', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[list[3]!, list[2]!, list[0]!]} atLimit={false} canSearch />);
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Top rival', 'Worth watching', 'Minor']);
+    cleanup();
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[list[3]!]} atLimit={false} canSearch />);
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Minor']);
+  });
+
+  it('pre-ticks preselected and counts them in Track selected', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={list} atLimit={false} canSearch />);
+    expect((screen.getByRole('checkbox', { name: /track alpha/i }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('checkbox', { name: /track bravo/i }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('checkbox', { name: /track charlie/i }) as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByRole('button', { name: 'Track selected (2)' })).toBeTruthy();
+  });
+
+  it('stops offering unticked boxes once the room under the limit is used', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={list} atLimit={false} limit={5} trackedCount={3} canSearch />);
+    expect((screen.getByRole('checkbox', { name: /track charlie/i }) as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByRole('checkbox', { name: /track alpha/i }) as HTMLInputElement).disabled).toBe(false);
+  });
+
+  it('hidden list shows reason labels', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} canSearch hiddenList={[{ name: 'Dollar General', reason: 'wrong_category' }, { name: 'Lone Star Air', reason: 'self' }]} />);
+    expect(screen.getByText('Show 2 hidden')).toBeTruthy();
+    expect(screen.getByText('Different kind of business')).toBeTruthy();
+    expect(screen.getByText('This is your business')).toBeTruthy();
+  });
+
+  it('shows the decided empty copy', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} canSearch />);
+    expect(screen.getByText('No competitors found yet. Add keywords and a service area, then search.')).toBeTruthy();
   });
 });

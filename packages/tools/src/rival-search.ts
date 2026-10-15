@@ -56,7 +56,8 @@ export async function startCompetitorSearch(deps: ToolDeps, clientId: string, tr
   if ('refused' in started) return started;
   try {
     await enqueue('rival-search', { runId: started.runId }, `rival:${clientId}`);
-  } catch {
+  } catch (err) {
+    console.warn(`rival-search enqueue failed for run ${started.runId}: ${err instanceof Error ? err.message : String(err)}`);
     // No work started: drop the run (a live row would block this client; a failed one would count toward the cap).
     await deps.service.delete(discoveryRun).where(eq(discoveryRun.id, started.runId));
     return { refused: 'enqueue_failed' };

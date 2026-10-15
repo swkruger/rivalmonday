@@ -129,6 +129,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}evidence-chips\\.tsx$`), tags: ['@briefs', '@recommendations', '@overview', '@alerts', '@guest'], why: 'evidence chips' },
   { pattern: re(`${COMP}evidence-image\\.tsx$`), tags: ['@changes', '@evidence'], why: 'evidence snapshots' },
   { pattern: re(`${COMP}pressure-badge\\.tsx$`), tags: ['@clients', '@competitors'], why: 'pressure badge' },
+  { pattern: re(`${COMP}rival/`), tags: ['@competitors'], why: 'rival tier chips and signal pills' },
   { pattern: re(`${COMP}prospect-landscape\\.tsx$`), tags: ['@prospects'], why: 'prospect landscape' },
   { pattern: re(`${COMP}recommendation-board\\.tsx$`), tags: ['@recommendations', '@briefs'], why: 'recommendation board' },
   { pattern: re(`${COMP}services-area-summary\\.tsx$`), tags: ['@profile'], why: 'client profile' },
