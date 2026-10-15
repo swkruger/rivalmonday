@@ -49,7 +49,7 @@ export function buildPills(s: Signals, mode: 'suggestion' | 'tracked'): Pill[] {
   }
 
   if (s.metaPage === null) pills.push({ key: 'meta', state: 'unchecked', icon: <MetaIcon />, text: 'Meta', tip: NOT_CHECKED });
-  else if (s.metaPage === 'none') pills.push({ key: 'meta', state: 'none', icon: <MetaIcon />, text: 'Meta', tip: 'No Meta page found' });
+  else if (s.metaPage === 'none') pills.push({ key: 'meta', state: 'none', icon: <MetaIcon />, text: 'Meta', tip: 'No active Meta ads found' });
   else {
     const ads = s.metaAdsActive;
     const state: PillState = ads !== null && ads > 0 ? 'hot' : 'active';

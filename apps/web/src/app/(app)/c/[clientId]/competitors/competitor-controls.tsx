@@ -60,13 +60,13 @@ function DismissSuggestionForm({ clientId, suggestion, action, pending }: { clie
 const FAST_POLL_MS = 5_000;
 const SLOW_POLL_MS = 10_000;
 const FAST_FOR_MS = 60_000;
-const GIVE_UP_MS = 10 * 60_000;
+const GIVE_UP_MS = 60 * 60_000;
 
 type Progress = 'searching' | 'done' | 'failed' | 'gave_up' | null;
 
 /**
- * Follows the background competitor search: every 5 s for the first minute, then every 10 s, for up to 10 minutes
- * (a search is 18 paid map lookups, usually 1–4 minutes). When it finishes the page data is re-fetched so the new
+ * Follows the background competitor search: every 5 s for the first minute, then every 10 s, for up to 60 minutes
+ * (a full search runs hundreds of paid map lookups and usually takes 20–40 minutes). When it finishes the page data is re-fetched so the new
  * suggestions appear without a reload. A search already running when the page loads is picked up the same way.
  */
 function useSearchProgress(clientId: string, initialSearch: SearchState, request: FormResult, enabled = true): { progress: Progress; status: SearchStatus | null } {
@@ -286,7 +286,7 @@ export function SuggestionsPanel({
                 'Find competitors'
               )}
             </Button>
-            <p className="text-sm text-muted-foreground">Searches Google Maps across the service area (paid; runs in the background, usually 1–4 minutes)</p>
+            <p className="text-sm text-muted-foreground">A full search runs hundreds of map lookups and usually takes 20–40 minutes. You can leave this page.</p>
             {!state.ok && <Message state={state} />}
             <SearchProgress progress={progress} status={status} found={suggestions.length} />
           </form>

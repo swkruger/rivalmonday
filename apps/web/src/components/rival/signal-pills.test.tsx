@@ -58,7 +58,7 @@ describe('SignalPills', () => {
     render(<SignalPills signals={{ ...NONE, reviews30d: 0, googleAdsActive: 0, googleAdsNew30d: 0, metaPage: 'none' }} mode="suggestion" />);
     expect(pill(/^0 reviews 30 d./).className).toContain('line-through');
     expect(pill(/^Google Ads 0./).getAttribute('data-state')).toBe('none');
-    expect(pill(/^Meta./).getAttribute('aria-label')).toBe('Meta. No Meta page found');
+    expect(pill(/^Meta./).getAttribute('aria-label')).toBe('Meta. No active Meta ads found');
   });
 
   it('a possible Meta page is active, not hot, without active ads', () => {

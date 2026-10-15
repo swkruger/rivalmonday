@@ -9,7 +9,7 @@ export const SELF_SOURCES = ['gbp', 'reviews'] as const satisfies readonly Sourc
 
 /**
  * Links a client to a global competitor row for its own business (spec §6.5 "client vs each competitor"),
- * found by place id like `acceptSuggestion` or created from the client's name and place id. The row is
+ * found by place id like the suggestion accept tools (`findExistingCompetitor`) or created from the client's name and place id. The row is
  * never added to client_competitor, so its events are never scored or routed for the client itself.
  */
 export async function ensureSelfCompetitor(db: Db, clientId: string): Promise<{ competitorId: string } | { skipped: string }> {

@@ -128,14 +128,21 @@ describe('SuggestionsPanel search progress', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it('stops after 10 minutes and asks to check back later', async () => {
+  it('keeps polling past 30 minutes, stops after 60 and asks to check back later', async () => {
     await startSearch();
-    await tick(10 * 60_000 + 10_000);
+    await tick(30 * 60_000);
+    expect(screen.queryByText(/still searching/i)).toBeNull();
+    await tick(30 * 60_000 + 10_000);
     const calls = vi.mocked(searchStatusAction).mock.calls.length;
     expect(screen.getByText(/still searching/i)).toBeTruthy();
     expect(findButton().disabled).toBe(false);
     await tick(60_000);
     expect(searchStatusAction).toHaveBeenCalledTimes(calls);
+  });
+
+  it('sets expectations: a full search takes 20–40 minutes and the page can be left', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} initialSearch="done" canSearch />);
+    expect(screen.getByText('A full search runs hundreds of map lookups and usually takes 20–40 minutes. You can leave this page.')).toBeTruthy();
   });
 
   it('picks up a search that was already running when the page loaded', async () => {

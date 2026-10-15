@@ -148,6 +148,10 @@ describe('runRivalSearch', () => {
       onSuggestionReviews: async (id) => { finalised.push(id); await finaliseRivalSearch(deps(v), id, { force: false }); },
     });
     expect(await dbs.service.select().from(review)).toHaveLength(0);
+    // T6: each suggestion sample's task_get is ledgered with the run's scope (tasks_ready is shared: null scope).
+    const gets = poll.calls.filter((c) => c.path.includes('/task_get/'));
+    expect(gets).toHaveLength(4);
+    expect(gets.every((c) => c.scope?.agencyId === scope.agencyId && c.scope?.clientId === scope.clientId)).toBe(true);
     expect(finalised.every((id) => id === runId)).toBe(true);
     expect((await runRow(runId)).status).toBe('done');
     expect((await runRow(runId)).finishedAt).not.toBeNull();

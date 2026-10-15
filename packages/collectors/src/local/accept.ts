@@ -1,7 +1,5 @@
-import { canManageCompetitors, type AccessContext, ToolError } from '@cs/core';
-import { client, clientCompetitor, competitor, competitorSuggestion, type Db, type Tx, withTenant } from '@cs/db';
+import { client, competitor, type Db, type Tx } from '@cs/db';
 import { and, eq, isNull } from 'drizzle-orm';
-import { ensureCompetitorSources } from '../sources/ensure';
 
 type CompetitorRow = typeof competitor.$inferSelect;
 
@@ -47,7 +45,7 @@ export async function patchReusedCompetitor(
   if (backfill && !existing.placeId && source.placeId) patch.placeId = source.placeId;
   if (backfill && !existing.cid && source.cid) patch.cid = source.cid;
   if (backfill && !existing.domain && source.domain) {
-    // Same guard as acceptSuggestion's insert branch: don't steal a domain another competitor row already owns.
+    // Same guard as the accept tools' insert branch: don't steal a domain another competitor row already owns.
     const [domainClash] = await service.select().from(competitor).where(eq(competitor.domain, source.domain)).limit(1);
     if (!domainClash) patch.domain = source.domain;
   }
@@ -60,47 +58,4 @@ export async function patchReusedCompetitor(
   if (Object.keys(patch).length > 0) {
     await service.update(competitor).set(patch).where(eq(competitor.id, competitorId));
   }
-}
-
-/** Visibility is checked through RLS as the caller; the global competitor is written by the service role. */
-export async function acceptSuggestion(deps: { service: Db; app: Db }, ctx: AccessContext, suggestionId: string): Promise<{ competitorId: string }> {
-  if (!canManageCompetitors(ctx)) throw new ToolError('permission_denied', 'This role may not manage competitors');
-  const [s] = await withTenant(deps.app, ctx, (tx) => tx.select().from(competitorSuggestion).where(eq(competitorSuggestion.id, suggestionId)).limit(1));
-  if (!s) throw new ToolError('not_found', 'Suggestion not found');
-
-  let competitorId: string;
-  const existing = await findExistingCompetitor(deps.service, s);
-  if (existing) {
-    competitorId = existing.id;
-    await patchReusedCompetitor(deps.service, existing, s);
-  } else {
-    // A different competitor may already hold this domain (with a different place_id, so it
-    // didn't qualify as a merge above) — never insert a second row with the same unique domain.
-    let domain = s.domain;
-    if (domain) {
-      const [domainClash] = await deps.service.select().from(competitor).where(eq(competitor.domain, domain)).limit(1);
-      if (domainClash) domain = null;
-    }
-    const inserted = await deps.service
-      .insert(competitor)
-      .values({ name: s.name, domain, placeId: s.placeId, cid: s.cid })
-      .onConflictDoNothing()
-      .returning({ id: competitor.id });
-    if (inserted[0]) {
-      competitorId = inserted[0].id;
-    } else {
-      // Lost a race to a concurrent accept of the same place/cid — resolve to whichever row won
-      // instead of throwing a raw unique-violation.
-      const winner = await findExistingCompetitor(deps.service, { placeId: s.placeId, cid: s.cid, domain: null });
-      if (!winner) throw new Error('Could not create competitor');
-      competitorId = winner.id;
-    }
-  }
-
-  await withTenant(deps.app, ctx, async (tx) => {
-    await tx.insert(clientCompetitor).values({ agencyId: s.agencyId, clientId: s.clientId, competitorId }).onConflictDoNothing();
-    await tx.update(competitorSuggestion).set({ status: 'accepted' }).where(eq(competitorSuggestion.id, s.id));
-  });
-  await ensureCompetitorSources(deps.service, competitorId);
-  return { competitorId };
 }

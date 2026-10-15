@@ -84,7 +84,7 @@ describe('privilege guard', () => {
     //                                              UPDATE and re-grants UPDATE on just the `status` column,
     //                                              so a client-scoped user can dismiss/accept a suggestion
     //                                              but cannot rewrite place_id/cid/domain/name/appearances/
-    //                                              overlap_score/best_rank/client_id (which acceptSuggestion,
+    //                                              overlap_score/best_rank/client_id (which the accept tools,
     //                                              Task 4, later trusts to create/link a GLOBAL competitor via
     //                                              the service role). The competitor_suggestion_update RLS
     //                                              policy further confines which rows that UPDATE can touch.

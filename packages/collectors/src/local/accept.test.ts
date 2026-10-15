@@ -1,110 +1,68 @@
-import { createAccessContext } from '@cs/core';
-import { client, clientCompetitor, competitor, competitorSource, competitorSuggestion } from '@cs/db';
+import { client, competitor } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { acceptSuggestion } from './accept';
+import { findExistingCompetitor, patchReusedCompetitor } from './accept';
 import { ensureSelfCompetitor } from './self';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
-const SUG = '00000000-0000-4000-8000-0000000000d1';
+// A suggestion's vendor identifiers (accept_competitor_suggestion(s) reuse rows through these helpers).
+const SUG = { name: 'Cool Air', domain: 'coolair.example', placeId: 'p9', cid: '999' };
+const row = async (id: string) => (await dbs.service.select().from(competitor).where(eq(competitor.id, id)))[0]!;
 
 beforeEach(async () => {
   await truncateAll(dbs.owner);
   await seedTenancy(dbs.owner);
-  await dbs.service.insert(competitorSuggestion).values({ id: SUG, agencyId: IDS.agencyA, clientId: IDS.clientA1, name: 'Cool Air', domain: 'coolair.example', placeId: 'p9', cid: '999', appearances: 3, overlapScore: 0.6 });
 });
 
-describe('acceptSuggestion', () => {
-  it('creates the global competitor, links it to the client, schedules sources and marks accepted', async () => {
-    const ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'am', role: 'account_manager', clientScope: [IDS.clientA1], features: [] });
-    const { competitorId } = await acceptSuggestion({ service: dbs.service, app: dbs.app }, ctx, SUG);
-    const [c] = await dbs.service.select().from(competitor).where(eq(competitor.id, competitorId));
-    expect(c).toMatchObject({ name: 'Cool Air', domain: 'coolair.example', placeId: 'p9', cid: '999' });
-    expect(await dbs.service.select().from(clientCompetitor).where(eq(clientCompetitor.competitorId, competitorId))).toHaveLength(1);
-    expect((await dbs.service.select().from(competitorSource).where(eq(competitorSource.competitorId, competitorId))).map((s) => s.source).sort()).toEqual(['ads_google', 'ads_meta', 'gbp', 'jobs', 'reviews']);
-    const [s] = await dbs.service.select().from(competitorSuggestion).where(eq(competitorSuggestion.id, SUG));
-    expect(s?.status).toBe('accepted');
+describe('findExistingCompetitor + patchReusedCompetitor', () => {
+  it('nothing matches → undefined', async () => {
+    expect(await findExistingCompetitor(dbs.service, SUG)).toBeUndefined();
   });
 
-  it('reuses an existing competitor with the same place id', async () => {
-    await dbs.service.insert(competitor).values({ name: 'Cool Air LLC', placeId: 'p9' });
-    const ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'am', role: 'agency_admin', clientScope: 'all', features: [] });
-    const { competitorId } = await acceptSuggestion({ service: dbs.service, app: dbs.app }, ctx, SUG);
-    expect(await dbs.service.select().from(competitor).where(eq(competitor.placeId, 'p9'))).toEqual([expect.objectContaining({ id: competitorId })]);
+  it('matches by place id first', async () => {
+    const [existing] = await dbs.service.insert(competitor).values({ name: 'Cool Air LLC', placeId: 'p9' }).returning();
+    expect((await findExistingCompetitor(dbs.service, SUG))?.id).toBe(existing!.id);
   });
 
-  it('reuses an existing competitor matched by cid, backfilling its missing place id', async () => {
+  it('matches by cid and backfills the missing place id', async () => {
     const [existing] = await dbs.service.insert(competitor).values({ name: 'Cool Air LLC', cid: '999' }).returning();
-    const ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'am', role: 'agency_admin', clientScope: 'all', features: [] });
-    const { competitorId } = await acceptSuggestion({ service: dbs.service, app: dbs.app }, ctx, SUG);
-    expect(competitorId).toBe(existing?.id);
-    const [c] = await dbs.service.select().from(competitor).where(eq(competitor.id, competitorId));
-    expect(c).toMatchObject({ placeId: 'p9', cid: '999' });
+    const found = await findExistingCompetitor(dbs.service, SUG);
+    expect(found?.id).toBe(existing!.id);
+    await patchReusedCompetitor(dbs.service, found!, SUG);
+    expect(await row(existing!.id)).toMatchObject({ placeId: 'p9', cid: '999' });
   });
 
   it('never merges onto a different competitor that happens to share a domain', async () => {
     await dbs.service.insert(competitor).values({ name: 'Cool Air Other Branch', placeId: 'p8', domain: 'coolair.example' });
-    const ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'am', role: 'agency_admin', clientScope: 'all', features: [] });
-    const { competitorId } = await acceptSuggestion({ service: dbs.service, app: dbs.app }, ctx, SUG);
-    const [c] = await dbs.service.select().from(competitor).where(eq(competitor.id, competitorId));
-    expect(c).toMatchObject({ placeId: 'p9', domain: null });
-    const [p8] = await dbs.service.select().from(competitor).where(eq(competitor.placeId, 'p8'));
-    expect(p8?.id).not.toBe(competitorId);
-    expect(await dbs.service.select().from(clientCompetitor).where(eq(clientCompetitor.competitorId, p8!.id))).toHaveLength(0);
+    expect(await findExistingCompetitor(dbs.service, SUG)).toBeUndefined();
   });
 
-  it('reuses an existing competitor matched by domain when it has no place id, backfilling place id and cid', async () => {
+  it('matches by domain when the row has no place id, backfilling place id and cid', async () => {
     const [existing] = await dbs.service.insert(competitor).values({ name: 'Cool Air LLC', domain: 'coolair.example' }).returning();
-    const ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'am', role: 'agency_admin', clientScope: 'all', features: [] });
-    const { competitorId } = await acceptSuggestion({ service: dbs.service, app: dbs.app }, ctx, SUG);
-    expect(competitorId).toBe(existing?.id);
-    const [c] = await dbs.service.select().from(competitor).where(eq(competitor.id, competitorId));
-    expect(c).toMatchObject({ domain: 'coolair.example', placeId: 'p9', cid: '999' });
+    const found = await findExistingCompetitor(dbs.service, SUG);
+    expect(found?.id).toBe(existing!.id);
+    await patchReusedCompetitor(dbs.service, found!, SUG);
+    expect(await row(existing!.id)).toMatchObject({ domain: 'coolair.example', placeId: 'p9', cid: '999' });
   });
 
-  it('reusing another client\'s self-competitor row never leaks tenant-written client.name, and backfills domain/name from the accepting agency\'s suggestion', async () => {
+  it('backfill: false only renames a self row and never writes identifiers', async () => {
+    const [existing] = await dbs.service.insert(competitor).values({ name: 'Cool Air LLC', cid: '999' }).returning();
+    await patchReusedCompetitor(dbs.service, existing!, SUG, { backfill: false });
+    expect(await row(existing!.id)).toMatchObject({ name: 'Cool Air LLC', placeId: null, domain: null });
+  });
+
+  it("reusing another client's self-competitor row never leaks tenant-written client.name", async () => {
     // A1's self business: ensureSelfCompetitor names the row from client.name (tenant-private), no domain.
     await dbs.owner.update(client).set({ placeId: 'place-shared' }).where(eq(client.id, IDS.clientA1));
-    const selfResult = await ensureSelfCompetitor(dbs.service, IDS.clientA1);
-    const selfCompetitorId = (selfResult as { competitorId: string }).competitorId;
-    expect((await dbs.service.select().from(competitor).where(eq(competitor.id, selfCompetitorId)))[0]).toMatchObject({ name: 'A1 HVAC', domain: null });
-
-    // Agency B independently discovers the same place and accepts a suggestion with a real domain and GBP name.
-    const sugB = '00000000-0000-4000-8000-0000000000d2';
-    await dbs.service
-      .insert(competitorSuggestion)
-      .values({ id: sugB, agencyId: IDS.agencyB, clientId: IDS.clientB1, name: 'Real Biz GBP Name', domain: 'realbiz.example', placeId: 'place-shared', appearances: 2, overlapScore: 0.5 });
-    const ctxB = createAccessContext({ agencyId: IDS.agencyB, userId: 'am', role: 'account_manager', clientScope: [IDS.clientB1], features: [] });
-    const { competitorId } = await acceptSuggestion({ service: dbs.service, app: dbs.app }, ctxB, sugB);
-
-    expect(competitorId).toBe(selfCompetitorId); // reused A1's self row, not a second one
-    const [c] = await dbs.service.select().from(competitor).where(eq(competitor.id, competitorId));
-    expect(c).toMatchObject({ name: 'Real Biz GBP Name', domain: 'realbiz.example', placeId: 'place-shared' }); // name no longer A1's tenant-written client.name
-    expect(await dbs.service.select().from(clientCompetitor).where(eq(clientCompetitor.competitorId, competitorId))).toContainEqual(
-      expect.objectContaining({ agencyId: IDS.agencyB, clientId: IDS.clientB1 }),
-    ); // B1 tracks it
-  });
-
-  it('refuses suggestions outside the caller scope', async () => {
-    const ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'am', role: 'account_manager', clientScope: [IDS.clientA2], features: [] });
-    await expect(acceptSuggestion({ service: dbs.service, app: dbs.app }, ctx, SUG)).rejects.toThrow(/not found/i);
-    const ctxB = createAccessContext({ agencyId: IDS.agencyB, userId: 'x', role: 'agency_admin', clientScope: 'all', features: [] });
-    await expect(acceptSuggestion({ service: dbs.service, app: dbs.app }, ctxB, SUG)).rejects.toThrow(/not found/i);
-  });
-
-  it('refuses client viewers and client owners without manage_competitors (spec §3)', async () => {
-    for (const [role, features] of [['client_viewer', ['manage_competitors']], ['client_owner', []]] as const) {
-      const ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'u', role, clientScope: [IDS.clientA1], features: [...features] });
-      await expect(acceptSuggestion({ service: dbs.service, app: dbs.app }, ctx, SUG)).rejects.toMatchObject({ code: 'permission_denied' });
-    }
-    const owner = createAccessContext({ agencyId: IDS.agencyA, userId: 'u', role: 'client_owner', clientScope: [IDS.clientA1], features: ['manage_competitors'] });
-    await expect(acceptSuggestion({ service: dbs.service, app: dbs.app }, owner, SUG)).resolves.toHaveProperty('competitorId');
-  });
-
-  it('reports an unknown or invisible suggestion as a not_found ToolError', async () => {
-    const adminCtx = createAccessContext({ agencyId: IDS.agencyA, userId: 'am', role: 'agency_admin', clientScope: 'all', features: [] });
-    await expect(acceptSuggestion({ service: dbs.service, app: dbs.app }, adminCtx, '00000000-0000-4000-8000-00000000dead')).rejects.toMatchObject({ code: 'not_found' });
+    const selfId = ((await ensureSelfCompetitor(dbs.service, IDS.clientA1)) as { competitorId: string }).competitorId;
+    expect(await row(selfId)).toMatchObject({ name: 'A1 HVAC', domain: null });
+    // Agency B independently discovers the same place with a real domain and GBP name.
+    const sugB = { name: 'Real Biz GBP Name', domain: 'realbiz.example', placeId: 'place-shared', cid: null };
+    const found = await findExistingCompetitor(dbs.service, sugB);
+    expect(found?.id).toBe(selfId);
+    await patchReusedCompetitor(dbs.service, found!, sugB);
+    expect(await row(selfId)).toMatchObject({ name: 'Real Biz GBP Name', domain: 'realbiz.example', placeId: 'place-shared' });
   });
 });

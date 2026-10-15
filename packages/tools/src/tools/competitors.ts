@@ -247,7 +247,7 @@ async function acceptSuggestions(ctx: AccessContext, deps: ToolDeps, clientId: s
         competitorId = found.id;
         await patchReusedCompetitor(tx, found, s);
       } else {
-        // Never insert a second row with a domain another competitor already holds (same guard as acceptSuggestion).
+        // Never insert a second row with a domain another competitor already holds (same guard as patchReusedCompetitor).
         let domain = s.domain;
         if (domain && (await tx.select({ id: competitor.id }).from(competitor).where(eq(competitor.domain, domain)).limit(1))[0]) domain = null;
         const inserted = await tx.insert(competitor).values({ name: s.name, domain, placeId: s.placeId, cid: s.cid }).onConflictDoNothing().returning({ id: competitor.id });
@@ -261,7 +261,12 @@ async function acceptSuggestions(ctx: AccessContext, deps: ToolDeps, clientId: s
       for (const m of matches) if (m.strength === 'strong' && !after[m.platform].includes(m.accountId)) after[m.platform].push(m.accountId);
       await writeAccounts(tx, competitorId, before, after);
       const pending = matches.filter((m) => m.strength === 'weak' && !after[m.platform].includes(m.accountId));
-      await tx.insert(clientCompetitor).values({ agencyId: s.agencyId, clientId, competitorId, pendingAdMatches: pending }).onConflictDoNothing();
+      const link = await tx.insert(clientCompetitor).values({ agencyId: s.agencyId, clientId, competitorId, pendingAdMatches: pending }).onConflictDoNothing().returning({ id: clientCompetitor.competitorId });
+      // M2: a newly tracked competitor is rated at once from its suggestion (until the weekly signals job takes over),
+      // so it never shows "Not rated yet". An existing rating (already tracked) is never overwritten; no tier, no row.
+      if (link.length > 0 && s.tier) {
+        await tx.insert(competitorSignal).values({ agencyId: s.agencyId, clientId, competitorId, tier: s.tier, overlap: s.overlap, activity: s.activity, signals: s.signals }).onConflictDoNothing();
+      }
       await tx.update(competitorSuggestion).set({ status: 'accepted' }).where(eq(competitorSuggestion.id, s.id));
       out.push({ suggestionId: s.id, competitorId });
     }

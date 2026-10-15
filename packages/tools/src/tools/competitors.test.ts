@@ -289,6 +289,32 @@ describe('manual competitors', () => {
 });
 
 describe('bulk accept and the atomic limit (12a)', () => {
+  it('accepting rates each newly tracked competitor at once from its suggestion (M2), single and bulk', async () => {
+    const run = await doneRun(IDS.clientA1);
+    const one = await runSuggestion(run, 'Rated One', 'ChIJratedone001', { tier: 'top', overlap: 0.8 });
+    const two = await runSuggestion(run, 'Rated Two', 'ChIJratedtwo002', { tier: 'watch', overlap: 0.5 });
+    const unrated = await suggest(IDS.clientA1, IDS.agencyA, 'Pre-12a', 'ChIJunrated0003'); // no tier: stays "Not rated yet"
+    const a = (await registry.invoke(amA1, 'accept_competitor_suggestion', { suggestionId: one })) as { competitorId: string };
+    const { items } = (await registry.invoke(amA1, 'accept_competitor_suggestions', { clientId: IDS.clientA1, ids: [two, unrated] })) as { items: { suggestionId: string; competitorId: string }[] };
+    const sig = (await registry.invoke(amA1, 'get_competitor_signals', { clientId: IDS.clientA1 })) as { competitors: { competitorId: string; tier: string; signals: Record<string, unknown> }[] };
+    const byId = new Map(sig.competitors.map((c) => [c.competitorId, c]));
+    expect(byId.get(a.competitorId)).toMatchObject({ tier: 'top', signals: expect.objectContaining({ rating: 4.8, claimed: true, reviews30d: null, googleAdsActive: null }) });
+    expect(byId.get(items.find((i) => i.suggestionId === two)!.competitorId)).toMatchObject({ tier: 'watch' });
+    expect(byId.has(items.find((i) => i.suggestionId === unrated)!.competitorId)).toBe(false);
+    const [row] = await dbs.owner.select().from(competitorSignal).where(and(eq(competitorSignal.clientId, IDS.clientA1), eq(competitorSignal.competitorId, a.competitorId)));
+    expect(row).toMatchObject({ agencyId: IDS.agencyA, overlap: 0.8, activity: 0.5 });
+  });
+
+  it('accept never overwrites an existing weekly rating of an already-tracked competitor', async () => {
+    await dbs.owner.insert(competitorSignal).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, tier: 'minor', overlap: 0.1, activity: 0.1, signals: {} });
+    await dbs.owner.update(competitor).set({ placeId: 'ChIJalreadyx001' }).where(eq(competitor.id, IDS.competitorX));
+    const run = await doneRun(IDS.clientA1);
+    const id = await runSuggestion(run, 'X Again', 'ChIJalreadyx001', { tier: 'top', overlap: 0.9 });
+    await registry.invoke(amA1, 'accept_competitor_suggestion', { suggestionId: id });
+    const [row] = await dbs.owner.select().from(competitorSignal).where(and(eq(competitorSignal.clientId, IDS.clientA1), eq(competitorSignal.competitorId, IDS.competitorX)));
+    expect(row).toMatchObject({ tier: 'minor', overlap: 0.1 });
+  });
+
   it('two concurrent bulk accepts at limit → one refused', async () => {
     // A1 tracks X (1 of 3): each bulk accept of two would fit alone, both together would not.
     await dbs.owner.update(client).set({ competitorLimit: 3 }).where(eq(client.id, IDS.clientA1));

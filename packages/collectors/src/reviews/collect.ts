@@ -1,4 +1,5 @@
-import { competitor, type Db, vendorTask } from '@cs/db';
+import type { CallScope } from '@cs/core';
+import { competitor, competitorSuggestion, type Db, vendorTask } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { and, eq, inArray, lt, sql } from 'drizzle-orm';
 import { recordVendorCapture } from '../evidence/vendor-capture';
@@ -11,6 +12,13 @@ import { upsertReviews } from './upsert';
 
 export type VendorTaskRow = typeof vendorTask.$inferSelect;
 const scope = { agencyId: null, clientId: null };
+
+/** A discovery review sample belongs to one client's run: its task_get is ledgered with that scope (T6). */
+async function taskScope(db: Db, vt: VendorTaskRow): Promise<CallScope> {
+  if (!vt.suggestionId) return scope;
+  const [s] = await db.select({ agencyId: competitorSuggestion.agencyId, clientId: competitorSuggestion.clientId }).from(competitorSuggestion).where(eq(competitorSuggestion.id, vt.suggestionId)).limit(1);
+  return s ?? scope;
+}
 
 /** Shared poll loop for async DataForSEO endpoints: tasks_ready → task_get for our pending tasks. */
 export async function collectReadyTasks(
@@ -29,7 +37,7 @@ export async function collectReadyTasks(
     const pending = await deps.db.select().from(vendorTask).where(and(eq(vendorTask.kind, kind), eq(vendorTask.status, 'pending'), inArray(vendorTask.externalTaskId, readyIds)));
     for (const vt of pending) {
       try {
-        const [task] = await deps.dfs.get(getPath(vt.externalTaskId), scope);
+        const [task] = await deps.dfs.get(getPath(vt.externalTaskId), await taskScope(deps.db, vt));
         if (!task) throw new VendorError('dataforseo', null, 'empty task', false);
         if (!isNoResults(task) && !isDfsOk(task.statusCode)) throw new VendorError('dataforseo', task.statusCode, task.statusMessage, isRetryableDfsCode(task.statusCode));
         // 40102 "No Search Results." is an empty success: handle it as a task with zero items.
