@@ -108,6 +108,8 @@ get_seat_report (billing.ts) | read | read
 create_checkout_session (billing.ts) | write | creates Stripe customer/session
 create_portal_session (billing.ts) | write | creates Stripe portal session
 redeem_discount_code (billing.ts) | write | stores/attaches coupon
+pause_client (client-pause.ts) | write | sets client.paused_at
+resume_client (client-pause.ts) | write | clears client.paused_at
 list_plans (platform-billing.ts) | read | read-only; platform operator
 list_discount_codes (platform-billing.ts) | read | read-only; platform operator
 list_invite_links (platform-billing.ts) | read | read-only; platform staff; supportMask emailLock
