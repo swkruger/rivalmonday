@@ -1,6 +1,6 @@
 import type { ClientBillingRow, ClientBillingState } from '@cs/db';
 import { describe, expect, it } from 'vitest';
-import { type ClientBillingSignal, nextClientBillingState } from './client-billing-state';
+import { type ClientBillingSignal, nextClientBillingState, noticeAudience } from './client-billing-state';
 
 const NOW = new Date('2026-10-15T12:00:00Z');
 const row = (state: ClientBillingState, v: Partial<ClientBillingRow> = {}): ClientBillingRow => ({
@@ -55,6 +55,14 @@ describe('nextClientBillingState transition table', () => {
     expect(f.notice?.kind).toBe('client-payment-failed');
     const ok = next(row('payment_needed', { paymentFailedSince: NOW, stripeSubscriptionId: SUB }), { type: 'payment_succeeded', subscriptionId: SUB })!;
     expect(ok.patch).toMatchObject({ paymentFailedSince: null, lastPaidAt: NOW });
+  });
+
+  it('payment_succeeded queues client-paid only when no payment was recorded before; notices go to the right audience', () => {
+    const first = next(row('active', { stripeSubscriptionId: SUB, lastPaidAt: null }), { type: 'payment_succeeded', subscriptionId: SUB })!;
+    expect(first.notice?.kind).toBe('client-paid');
+    expect(next(row('active', { stripeSubscriptionId: SUB, lastPaidAt: NOW }), { type: 'payment_succeeded', subscriptionId: SUB })!.notice).toBeUndefined();
+    expect(['client-paid', 'client-payment-failed', 'client-auto-paused'].map((k) => noticeAudience(k as never))).toEqual(['agency', 'agency', 'agency']);
+    expect(['client-payment-link', 'client-payment-needed'].map((k) => noticeAudience(k as never))).toEqual(['client', 'client']);
   });
 
   it('disabled keeps state (and enabled=false) while a subscription is still running, so the webhook ends it', () => {

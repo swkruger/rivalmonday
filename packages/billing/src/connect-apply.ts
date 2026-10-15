@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { type ClientBillingRow, type ClientBillingState, type Tx, agencyConnect, billingNotice, client, clientBilling } from '@cs/db';
 import { and, eq, isNull, notInArray } from 'drizzle-orm';
-import { type ClientBillingSignal, nextClientBillingState } from './client-billing-state';
+import { type ClientBillingNoticeKind, type ClientBillingSignal, nextClientBillingState, noticeAudience } from './client-billing-state';
 
 /**
  * Phase 9b f10 / R7: the agency's Stripe connection ends (admin disconnect, or `account.application.deauthorized`).
@@ -45,7 +45,7 @@ export async function applyClientBillingSignal(
   signal: ClientBillingSignal,
   _actor: string,
   now: Date = new Date(),
-): Promise<{ changed: boolean; state: ClientBillingState | null; ignored?: 'untracked_subscription' }> {
+): Promise<{ changed: boolean; state: ClientBillingState | null; ignored?: 'untracked_subscription'; staleCheckoutSessionId?: string }> {
   const row = await lockClientBilling(tx, clientId);
   if (!row) return { changed: false, state: null };
   const t = nextClientBillingState(row, signal, now);
@@ -55,10 +55,15 @@ export async function applyClientBillingSignal(
   if (signal.type === 'invited' || signal.type === 'disabled') {
     await tx.delete(billingNotice).where(and(eq(billingNotice.clientId, clientId), eq(billingNotice.kind, 'client-payment-link'), isNull(billingNotice.sentAt)));
   }
-  if (t.notice) {
-    await tx.insert(billingNotice).values({
-      agencyId: row.agencyId, clientId, audience: 'client', kind: t.notice.kind, params: t.notice.params, dedupeKey: `${t.notice.kind}:${clientId}:${randomUUID()}`,
-    });
+  // R13c: the client paid; any unsent payment-link mail is moot. A different tracked session is the caller's to expire (after commit).
+  if (signal.type === 'checkout_completed') {
+    await tx.delete(billingNotice).where(and(eq(billingNotice.clientId, clientId), eq(billingNotice.kind, 'client-payment-link'), isNull(billingNotice.sentAt)));
   }
-  return { changed: true, state: t.state };
+  const queue = (kind: ClientBillingNoticeKind, params: Record<string, unknown>) =>
+    tx.insert(billingNotice).values({ agencyId: row.agencyId, clientId, audience: noticeAudience(kind), kind, params, dedupeKey: `${kind}:${clientId}:${randomUUID()}` });
+  if (t.notice) await queue(t.notice.kind, t.notice.params);
+  // A failed payment also tells the client owner (the transition's own notice goes to the agency).
+  if (signal.type === 'payment_failed') await queue('client-payment-needed', {});
+  const stale = signal.type === 'checkout_completed' && row.checkoutSessionId && row.checkoutSessionId !== signal.sessionId ? row.checkoutSessionId : undefined;
+  return { changed: true, state: t.state, ...(stale && { staleCheckoutSessionId: stale }) };
 }

@@ -79,7 +79,8 @@ describe('applyClientBillingSignal', () => {
     const t = new Date('2026-10-15T12:00:00Z');
     await apply(IDS.clientA1, { type: 'payment_failed', subscriptionId: 'sub_1' }, t);
     expect(await rowOf(IDS.clientA1)).toMatchObject({ state: 'payment_needed', paymentFailedSince: t });
-    expect((await notices()).map((n) => n.kind)).toEqual(['client-payment-failed']);
+    const n = await notices();
+    expect(n.map((x) => [x.kind, x.audience]).sort()).toEqual([['client-payment-failed', 'agency'], ['client-payment-needed', 'client']]);
     await apply(IDS.clientA1, { type: 'payment_succeeded', subscriptionId: 'sub_1' }, t);
     expect(await rowOf(IDS.clientA1)).toMatchObject({ state: 'active', paymentFailedSince: null });
   });

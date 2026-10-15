@@ -8,7 +8,7 @@ import type { ClientBillingRow, ClientBillingState } from '@cs/db';
 export type ClientBillingSignal = (
   | { type: 'invited'; priceCents: number; setupFeeCents: number; stripePriceId: string; checkoutUrl: string; checkoutSessionId: string }
   /** `priceCents` = what the new subscription actually charges per month (Task 6 reads it from Stripe). */
-  | { type: 'checkout_completed'; customerId: string; subscriptionId: string; priceCents: number }
+  | { type: 'checkout_completed'; customerId: string; subscriptionId: string; priceCents: number; /** The completed Checkout session (R13c: a different tracked one is superseded). */ sessionId?: string }
   | { type: 'payment_succeeded'; subscriptionId: string }
   | { type: 'payment_failed'; subscriptionId: string }
   | { type: 'subscription_cancelled'; subscriptionId: string }
@@ -25,9 +25,13 @@ export type ClientBillingNoticeKind = 'client-payment-link' | 'client-payment-ne
 export interface ClientBillingTransition {
   state: ClientBillingState;
   patch: Partial<ClientBillingRow>;
-  /** Outbox row (audience `client`) to queue in the same transaction. */
+  /** Outbox row to queue in the same transaction (audience follows the kind, see `noticeAudience`). */
   notice?: { kind: ClientBillingNoticeKind; params: Record<string, unknown> };
 }
+
+/** Who reads a notice: the client owner (agency-branded) or the agency admins (Rival Monday-branded). */
+export const noticeAudience = (kind: ClientBillingNoticeKind): 'agency' | 'client' =>
+  kind === 'client-paid' || kind === 'client-payment-failed' || kind === 'client-auto-paused' ? 'agency' : 'client';
 
 const SUBSCRIBED: readonly ClientBillingState[] = ['active', 'payment_needed'];
 
@@ -58,7 +62,8 @@ export function nextClientBillingState(row: ClientBillingRow, s: ClientBillingSi
         st === 'active' ? undefined : { kind: 'client-paid', params: {} });
     case 'payment_succeeded':
       if (!SUBSCRIBED.includes(st)) return null;
-      return out('active', { lastPaidAt: now, paymentFailedSince: null });
+      // A payment seen before any recorded one is the client's first (agency is told once).
+      return out('active', { lastPaidAt: now, paymentFailedSince: null }, row.lastPaidAt ? undefined : { kind: 'client-paid', params: {} });
     case 'payment_failed':
       if (st !== 'active') return null;
       return out('payment_needed', { paymentFailedSince: now }, { kind: 'client-payment-failed', params: {} });
