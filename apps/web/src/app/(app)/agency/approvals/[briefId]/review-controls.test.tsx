@@ -47,6 +47,26 @@ describe('approval review controls', () => {
     expect(screen.queryByRole('button', { name: /send now/i })).toBeNull();
   });
 
+  it('a starting point has no auto-send switch and approves with its kind (sent straight away)', async () => {
+    approveMock.mockReset();
+    approveMock.mockResolvedValueOnce({ ok: true, message: 'Approved — sent to the client. 0 recommendation(s) created.' });
+    render(<ReviewFooter briefId="b1" clientId="c1" status="ready" autoSend={false} startingPoint />);
+    expect(screen.queryByRole('switch')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve and send' }));
+    await waitFor(() => expect(approveMock).toHaveBeenCalledTimes(1));
+    expect((approveMock.mock.calls[0]![1] as FormData).get('kind')).toBe('starting_point');
+    await screen.findByText(/sent to the client/i);
+  });
+  it('a starting point keeps its approve message when the page revalidates straight to sent', async () => {
+    approveMock.mockReset();
+    approveMock.mockResolvedValueOnce({ ok: true, message: 'Approved — sent to the client. 0 recommendation(s) created.' });
+    const { rerender } = render(<ReviewFooter briefId="b1" clientId="c1" status="ready" autoSend={false} startingPoint />);
+    fireEvent.click(screen.getByRole('button', { name: 'Approve and send' }));
+    await screen.findByText(/sent to the client/i);
+    rerender(<ReviewFooter briefId="b1" clientId="c1" status="sent" autoSend={false} startingPoint />);
+    expect(screen.getByText(/sent to the client/i)).toBeTruthy();
+  });
+
   it('keeps the approve message after the page revalidates to approved', async () => {
     approveMock.mockReset();
     approveMock.mockResolvedValueOnce({ ok: true, message: 'Approved — it goes out Monday 07:00. 1 recommendation(s) created.' });

@@ -239,12 +239,13 @@ function AutoSendSwitch({ briefId, clientId, autoSend }: { briefId: string; clie
  * Both actions revalidate the page on success, which flips `status` (`ready` -> `approved`, or -> `sent`) and
  * unmounts the button or dialog in the same update; state held there would vanish before its message could paint.
  */
-function ApproveButton({ briefId, formAction, pending }: { briefId: string; formAction: (fd: FormData) => void; pending: boolean }) {
+function ApproveButton({ briefId, startingPoint, formAction, pending }: { briefId: string; startingPoint: boolean; formAction: (fd: FormData) => void; pending: boolean }) {
   return (
     <form action={formAction}>
       <input type="hidden" name="briefId" value={briefId} />
+      {startingPoint && <input type="hidden" name="kind" value="starting_point" />}
       <Button type="submit" disabled={pending}>
-        Approve · send Mon 07:00
+        {startingPoint ? 'Approve and send' : 'Approve · send Mon 07:00'}
       </Button>
     </form>
   );
@@ -281,7 +282,8 @@ function SendNowDialog({ briefId, state, formAction, pending }: { briefId: strin
  * in the footer once a successful send has removed the dialog. A send supersedes the approve message (fix round 2):
  * that one shows only while the brief can still be sent, so approve → send now leaves just the send message.
  */
-export function ReviewFooter({ briefId, clientId, status, autoSend }: { briefId: string; clientId: string; status: string; autoSend: boolean }) {
+/** A starting point (12b) is sent on approval, so it has no auto-send switch. */
+export function ReviewFooter({ briefId, clientId, status, autoSend, startingPoint = false }: { briefId: string; clientId: string; status: string; autoSend: boolean; startingPoint?: boolean }) {
   const [approveState, approveFormAction, approvePending] = useActionState(approveAction, { ok: true } as FormResult);
   const [sendState, sendFormAction, sendPending] = useActionState(sendNowAction, { ok: true } as FormResult);
   const canSend = status === 'ready' || status === 'approved';
@@ -289,13 +291,14 @@ export function ReviewFooter({ briefId, clientId, status, autoSend }: { briefId:
     <WriteGuard>
       <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
         <div className="flex flex-wrap items-center gap-4">
-          <AutoSendSwitch briefId={briefId} clientId={clientId} autoSend={autoSend} />
+          {!startingPoint && <AutoSendSwitch briefId={briefId} clientId={clientId} autoSend={autoSend} />}
           <div className="ml-auto flex items-center gap-3">
-            {status === 'ready' && <ApproveButton briefId={briefId} formAction={approveFormAction} pending={approvePending} />}
+            {status === 'ready' && <ApproveButton briefId={briefId} startingPoint={startingPoint} formAction={approveFormAction} pending={approvePending} />}
             {canSend && <SendNowDialog briefId={briefId} state={sendState} formAction={sendFormAction} pending={sendPending} />}
           </div>
         </div>
-        {canSend ? <Message state={approveState} /> : <Message state={sendState} />}
+        {/* A starting point flips straight to sent on approval: keep the approve message unless "send now" said something. */}
+        {canSend || (startingPoint && !(sendState.ok ? sendState.message : sendState.error)) ? <Message state={approveState} /> : <Message state={sendState} />}
       </div>
     </WriteGuard>
   );

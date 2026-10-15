@@ -58,9 +58,11 @@ export async function rateItemAction(_p: FormResult, fd: FormData): Promise<Form
 export async function approveAction(_p: FormResult, fd: FormData): Promise<FormResult> {
   const ctx = await agencyCtx();
   const r = await runTool<{ recommendations: number }>(ctx, 'approve_brief', { briefId: s(fd, 'briefId') });
-  if (!r.ok) return r;
+  // A starting point whose send failed is still approved (the error says so): refresh so the page shows that state.
   refresh(s(fd, 'briefId'));
-  return { ok: true, message: `Approved — it goes out Monday 07:00. ${r.data.recommendations} recommendation(s) created.` };
+  if (!r.ok) return r;
+  const when = s(fd, 'kind') === 'starting_point' ? 'Approved — sent to the client.' : 'Approved — it goes out Monday 07:00.';
+  return { ok: true, message: `${when} ${r.data.recommendations} recommendation(s) created.` };
 }
 
 export async function sendNowAction(_p: FormResult, fd: FormData): Promise<FormResult> {

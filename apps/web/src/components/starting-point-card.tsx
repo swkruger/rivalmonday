@@ -3,6 +3,12 @@ import Link from 'next/link';
 
 type Pending = Exclude<StartingPointStatus, { state: 'sent' }>;
 
+/** The card stands in until the starting point is sent; clients that already get weekly briefs keep them. */
+export function pendingStartingPoint(status: StartingPointStatus | null | undefined, briefs: { kind: string }[]): Pending | null {
+  if (!status || status.state === 'sent' || briefs.some((b) => b.kind !== 'starting_point')) return null;
+  return status;
+}
+
 const LABELS = [
   ['profile', 'Your Google profile'],
   ['reviews', 'Your reviews'],

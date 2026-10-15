@@ -1,10 +1,12 @@
 import { isAgencyRole } from '@cs/core';
+import { scorecardModel } from '@cs/engine';
 import type { BriefReview } from '@cs/tools';
 import { Badge } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
+import { Scorecard } from '@/components/views/scorecard';
 import { ReviewFooter, ReviewItem } from './review-controls';
 import { STATUS_LABEL } from '../status';
 
@@ -21,12 +23,13 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
   const sorted = [...active, ...dropped];
   const editable = brief.status === 'ready';
   const fixed = brief.factCheck.sentences > 0 || brief.factCheck.items > 0;
+  const startingPoint = brief.kind === 'starting_point';
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-[26px] font-extrabold tracking-tight">
-          {brief.clientName} · week of {brief.deliveryDate}
+          {brief.clientName} · {startingPoint ? 'Starting point' : `week of ${brief.deliveryDate}`}
         </h1>
         <Badge variant="secondary">{STATUS_LABEL[brief.status] ?? brief.status}</Badge>
         <Link href={`/c/${brief.clientId}/briefs/${brief.id}`} className="ml-auto font-semibold text-primary-soft-text">
@@ -47,6 +50,8 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
 
       {brief.kind === 'quiet' && <p className="text-muted-foreground">No significant competitor moves this week.</p>}
 
+      {startingPoint && brief.scorecard && <Scorecard model={scorecardModel(brief.scorecard, { clientName: brief.clientName })} />}
+
       <div className="flex flex-col gap-3">
         {sorted.map((item) => (
           <ReviewItem
@@ -61,7 +66,7 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
         ))}
       </div>
 
-      <ReviewFooter briefId={brief.id} clientId={brief.clientId} status={brief.status} autoSend={brief.autoSend} />
+      <ReviewFooter briefId={brief.id} clientId={brief.clientId} status={brief.status} autoSend={brief.autoSend} startingPoint={startingPoint} />
     </>
   );
 }

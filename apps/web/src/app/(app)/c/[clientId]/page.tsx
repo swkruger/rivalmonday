@@ -17,7 +17,7 @@ import { foldSeries, LineChart } from '@/components/charts/line-chart';
 import { ClientHomeBasic } from '@/components/client-home-basic';
 import { AlertLinkList, BriefLinkList } from '@/components/client-lists';
 import { EvidenceChips } from '@/components/evidence-chips';
-import { StartingPointCard } from '@/components/starting-point-card';
+import { pendingStartingPoint, StartingPointCard } from '@/components/starting-point-card';
 import { StatCard } from '@/components/stat-card';
 import { requireContext } from '@/server/current-viewer';
 import { callTool, tryCallTool } from '@/server/tools';
@@ -45,8 +45,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
     callTool<{ items: ReportSummary[] }>(ctx, 'list_trend_reports', { clientId }),
     tryCallTool<StartingPointStatus>(ctx, 'get_starting_point_status', { clientId }),
   ]);
-  // The card stands in until the starting point is sent; clients that already get weekly briefs keep them.
-  const preparing = starting && starting.state !== 'sent' && !briefs.items.some((b) => b.kind !== 'starting_point') ? starting : null;
+  const preparing = pendingStartingPoint(starting, briefs.items);
   const first = briefs.items[0];
   const latest = first ? await callTool<BriefDetail>(ctx, 'get_brief', { briefId: first.id }) : null;
   const items = latest ? activeBriefItems(latest.items) : [];

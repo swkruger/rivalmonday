@@ -85,6 +85,11 @@ test('agency approves starting point → client sees tiles, scorecard, cards', {
   await page.getByRole('button', { name: /approve/i }).click();
   // A starting point goes out on approval (12b Q2), so the review page flips straight to Sent.
   await expect(page.getByText('Sent', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Approved — sent to the client\./)).toBeVisible();
+  // The review page names it a starting point and shows its scorecard; it has no auto-send switch.
+  await expect(page.getByRole('heading', { name: `${ready.name} · Starting point` })).toBeVisible();
+  await expect(page.getByRole('table', { name: /scorecard/i })).toBeVisible();
+  await expect(page.getByRole('switch')).toHaveCount(0);
   // The agency's own view still carries the upsell tag.
   await page.goto(`/c/${ready.id}/briefs/${ready.briefId}`);
   await expect(page.getByText('Upsell: ppc_audit')).toBeVisible();

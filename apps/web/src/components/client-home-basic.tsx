@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { callTool, tryCallTool } from '@/server/tools';
 import { AskCard } from './ask/ask-card';
 import { AlertLinkList, BriefLinkList } from './client-lists';
-import { StartingPointCard } from './starting-point-card';
+import { pendingStartingPoint, StartingPointCard } from './starting-point-card';
 
 /** The 5a client home, kept for client users without the `dashboard` feature (briefs-only plans). */
 export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx: AccessContext }) {
@@ -16,7 +16,7 @@ export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx
     callTool<{ items: ReportSummary[] }>(ctx, 'list_trend_reports', { clientId }),
     tryCallTool<StartingPointStatus>(ctx, 'get_starting_point_status', { clientId }),
   ]);
-  const preparing = starting && starting.state !== 'sent' && !briefs.items.some((b) => b.kind !== 'starting_point') ? starting : null;
+  const preparing = pendingStartingPoint(starting, briefs.items);
   return (
     <>
       <div>
