@@ -3,18 +3,17 @@ import { revalidatePath } from 'next/cache';
 import { requireOperatorContext } from '@/server/current-viewer';
 import type { FormResult } from '@/server/forms';
 import { runTool } from '@/server/run-tool';
-import { endOfDayIso, toCents } from './parse';
+import { endOfDayIso, toCents, toInt, toPercent } from './parse';
 
 const PATH = '/platform/billing';
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
-const int = (v: string): number | null => (/^\d+$/.test(v) ? Number(v) : null);
 
 export async function createPlanVersionAction(_p: FormResult, fd: FormData): Promise<FormResult> {
   const { ctx } = await requireOperatorContext();
   const base = toCents(str(fd, 'basePrice'));
   const seat = toCents(str(fd, 'seatPrice'));
-  const seats = int(str(fd, 'includedSeats'));
-  const trial = int(str(fd, 'trialDays'));
+  const seats = toInt(str(fd, 'includedSeats'));
+  const trial = toInt(str(fd, 'trialDays'));
   if (base === null || seat === null) return { ok: false, error: 'Enter prices in dollars, e.g. 299 or 49.00' };
   if (seats === null || trial === null) return { ok: false, error: 'Included seats and trial days must be whole numbers' };
   const r = await runTool<{ version: number }>(ctx, 'create_plan_version', { name: str(fd, 'name'), basePriceCents: base, includedSeats: seats, seatPriceCents: seat, trialDays: trial });
@@ -34,22 +33,25 @@ export async function createDiscountCodeAction(_p: FormResult, fd: FormData): Pr
   const agencies = str(fd, 'restrictedAgencyIds').split(/[\s,;]+/).filter(Boolean);
   let off: { percentOff: number } | { amountOffCents: number };
   if (kind === 'percent') {
-    const n = Number(amount);
-    if (!amount || !Number.isFinite(n)) return { ok: false, error: 'Enter the percentage off' };
+    const n = toPercent(amount);
+    if (n === null) return { ok: false, error: 'Enter the percentage off' };
     off = { percentOff: n };
   } else {
     const c = toCents(amount);
     if (c === null) return { ok: false, error: 'Enter the amount off in dollars' };
     off = { amountOffCents: c };
   }
+  const monthsN = months ? toInt(months) : undefined;
+  const maxN = max ? toInt(max) : undefined;
+  if (monthsN === null || maxN === null) return { ok: false, error: 'Months and max uses must be whole numbers' };
   const exp = expires ? endOfDayIso(expires) : undefined;
   if (exp === null) return { ok: false, error: 'Enter a valid expiry date' };
   const r = await runTool(ctx, 'create_discount_code', {
     code: str(fd, 'code'), ...off, appliesTo: str(fd, 'appliesTo'), duration,
-    ...(duration === 'repeating' && months ? { durationMonths: Number(months) } : {}),
+    ...(duration === 'repeating' && monthsN !== undefined ? { durationMonths: monthsN } : {}),
     ...(agencies.length ? { restrictedAgencyIds: agencies } : {}),
     ...(exp ? { expiresAt: exp } : {}),
-    ...(max ? { maxRedemptions: Number(max) } : {}),
+    ...(maxN !== undefined ? { maxRedemptions: maxN } : {}),
   });
   if (!r.ok) return r;
   revalidatePath(PATH);
@@ -72,8 +74,8 @@ export async function createInviteLinkAction(_p: InviteLinkResult, fd: FormData)
   const offer = str(fd, 'offer');
   const pilotEndsAt = offer === 'pilot' ? endOfDayIso(str(fd, 'pilotEndsAt')) : undefined;
   if (offer === 'pilot' && !pilotEndsAt) return { ok: false, error: 'Choose when the pilot ends' };
-  const maxUses = int(str(fd, 'maxUses') || '1');
-  const days = int(str(fd, 'expiresInDays') || '14');
+  const maxUses = toInt(str(fd, 'maxUses') || '1');
+  const days = toInt(str(fd, 'expiresInDays') || '14');
   if (maxUses === null || days === null) return { ok: false, error: 'Max uses and expiry days must be whole numbers' };
   const email = str(fd, 'emailLock');
   const code = str(fd, 'discountCodeId');
