@@ -1,6 +1,6 @@
 import { type AccessContext, type CallOptions, isAgencyRole, ToolError, type ToolRegistry } from '@cs/core';
 import type { Db } from '@cs/db';
-import { fetchItem, type ToolDeps } from '@cs/tools';
+import { assertAgencyServiceable, fetchItem, type ToolDeps } from '@cs/tools';
 import { type McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
 import { RateLimitedError, toResourceError } from './errors';
@@ -20,6 +20,13 @@ export interface McpSession {
 export async function enforceRateLimit(s: McpSession): Promise<void> {
   const r = await checkRateLimit(s.service, s.tokenKey);
   if (!r.ok) throw new RateLimitedError(r.retryAfterS);
+}
+
+/** I7: a paused (`read_only`/`suspended`) agency's data is not served, here as on `tools/call` (role-aware copy). */
+async function guard(s: McpSession, tool: string): Promise<void> {
+  await enforceRateLimit(s);
+  await assertAgencyServiceable(s.service, s.ctx);
+  requireTool(s, tool);
 }
 
 /** A resource is readable only when its tool is visible to this ctx + token scope (same 404 as a missing item). */
@@ -54,8 +61,7 @@ export function registerResources(server: McpServer, s: McpSession): void {
     description: 'One piece of evidence (redacted page text, or a screenshot with its description).', mimeType: 'text/plain',
   }, async (uri, vars): Promise<ReadResourceResult> => {
     try {
-      await enforceRateLimit(s);
-      requireTool(s, 'get_evidence');
+      await guard(s, 'get_evidence');
       const item = await fetchItem(s.deps, s.ctx, 'evidence', idOf(vars.id));
       const contents: ReadResourceResult['contents'] = [{ uri: uri.href, mimeType: 'text/plain', text: item.text }];
       if (item.screenshotKey && s.deps.evidenceStore) {
@@ -72,8 +78,7 @@ export function registerResources(server: McpServer, s: McpSession): void {
     description: 'One weekly brief as markdown, items in order.', mimeType: 'text/markdown',
   }, async (uri, vars): Promise<ReadResourceResult> => {
     try {
-      await enforceRateLimit(s);
-      requireTool(s, 'get_brief');
+      await guard(s, 'get_brief');
       const id = idOf(vars.id);
       const item = await fetchItem(s.deps, s.ctx, 'brief', id); // visibility, client status, redaction, upsell stripped
       let body = item.text;

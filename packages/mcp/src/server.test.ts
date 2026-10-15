@@ -299,4 +299,19 @@ describe('billing state (9a)', () => {
     const { client: cl } = await connect(viewer, 'read', { registry: fakes });
     expect(errorOf(await call(cl, 'echo', { text: 'hi' }))).toEqual({ code: 'service_paused', message: 'This workspace is temporarily unavailable.' });
   });
+
+  it('evidence:// and brief:// are refused with service_paused (role-aware copy) for a paused agency (I7)', async () => {
+    const cap = await seedCapture({ kinds: ['text'] });
+    store.set(cap.objectKeys.text!, new TextEncoder().encode('Some page text.'));
+    const id = await seedBrief('sent');
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    const { client: a } = await connect(admin, 'read');
+    const PAUSED = { code: -32002, message: 'MCP error -32002: Service is paused. Update your payment method to resume.' };
+    expect(await readError(a.readResource({ uri: `evidence://${cap.ids.text}` }))).toMatchObject(PAUSED);
+    expect(await readError(a.readResource({ uri: `brief://${id}` }))).toMatchObject(PAUSED);
+    const { client: cl } = await connect(viewer, 'read');
+    const UNAVAILABLE = { code: -32002, message: 'MCP error -32002: This workspace is temporarily unavailable.' };
+    expect(await readError(cl.readResource({ uri: `evidence://${cap.ids.text}` }))).toMatchObject(UNAVAILABLE);
+    expect(await readError(cl.readResource({ uri: `brief://${id}` }))).toMatchObject(UNAVAILABLE);
+  });
 });
