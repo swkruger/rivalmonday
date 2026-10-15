@@ -12,8 +12,9 @@ export const OWNER_LINK_FILE = fileURLToPath(new URL('./test-results/owner-link.
 /** Phase 6a: the two clients the seeded `mcp-owner@e2e.test` owns (`{ first, second }`, each `{ id, name }`). */
 export const MCP_CLIENTS_FILE = fileURLToPath(new URL('./test-results/mcp-clients.json', import.meta.url));
 /** Phase 6b: the Ask clients and seeded thread ids (`AskFixture` in `e2e/seed.ts`). */
-export const RIVALS_FIXTURE_FILE = fileURLToPath(new URL('./test-results/rivals-fixture.json', import.meta.url));
 export const ASK_FIXTURE_FILE = fileURLToPath(new URL('./test-results/ask-fixture.json', import.meta.url));
+/** Phase 12a: the seeded Rivals client's id (`RivalsFixture` in `e2e/seed.ts`). */
+export const RIVALS_FIXTURE_FILE = fileURLToPath(new URL('./test-results/rivals-fixture.json', import.meta.url));
 export const E2E_LINK_SECRET = 'e2e-link-secret-'.repeat(3);
 
 /**

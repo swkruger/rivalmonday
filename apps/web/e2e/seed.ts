@@ -355,7 +355,6 @@ async function seedAsk(
 /** 12a E2E: what `competitors-rivals.spec.ts` reads from `RIVALS_FIXTURE_FILE`. */
 export type RivalsFixture = { clientId: string; trackedMetaId: string };
 export const RIVALS_CLIENT_NAME = 'Rivals Heating Co';
-export const RIVALS_OWNER_EMAIL = 'rivals-owner@e2e.test';
 
 type SeedSignals = Record<string, unknown>;
 const NO_SIGNALS: SeedSignals = {
@@ -375,7 +374,8 @@ async function seedRivals(db: ReturnType<typeof createDb>['db'], o: { agencyId: 
     serviceArea: { center: { lat: 32.4, lng: -97.79 }, radiusKm: 25, zips: ['76048'] }, placeId: 'e2e-rivals-self-place',
   }).returning({ id: client.id });
   const clientId = c!.id;
-  await createInvitation(db, { agencyId, email: RIVALS_OWNER_EMAIL, role: 'client_owner', clientId, invitedBy: 'e2e-seed' });
+  // The Ask client user also owns this client (accepted in seedAsk), so no extra magic-link sign-in is needed.
+  await createInvitation(db, { agencyId, email: ASK_USER_EMAIL, role: 'client_owner', clientId, invitedBy: 'e2e-seed' });
 
   const [run] = await db.insert(discoveryRun).values({
     agencyId, clientId, trigger: 'manual', status: 'done', kept: 4, startedAt: new Date(Date.now() - 3600_000), finishedAt: new Date(Date.now() - 3000_000),

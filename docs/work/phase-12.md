@@ -11,7 +11,7 @@ Plans 12a + 12b owner-approved 2026-10-14 (subagent-driven); owner chose to buil
 
 ## Interfaces this branch adds or changes
 (12a built; 12b planned)
-- Tables: `discovery_run`, `competitor_signal`. `competitor_suggestion` + `category`, `distance_km`, `overlap`, `activity`, `tier`, `signals` jsonb, `ad_matches` jsonb, `run_id`, `last_seen_at`. `brief.kind` + `'starting_point'` (extend CHECK `brief_kind_check`; one per client), `brief.scorecard` jsonb; `brief_item.competitor_id` nullable + `subject` `'self'|'competitor'`.
+- Tables (built): `discovery_run`, `competitor_signal`. `competitor_suggestion` + `category`, `distance_km`, `overlap`, `activity`, `tier`, `signals` jsonb, `ad_matches` jsonb, `run_id`, `last_seen_at`. `brief.kind` + `'starting_point'` (extend CHECK `brief_kind_check`; one per client), `brief.scorecard` jsonb; `brief_item.competitor_id` nullable + `subject` `'self'|'competitor'`.
 - Vertical packs: `discovery.categories` allowlist, discovery seed keywords (≤ 5), self-rules for the starting point.
 - Migrations: 12a = 0052 + 0053 (renumber to >= 0055 if phase-9 merges first, see Pre-flight).
 
@@ -30,7 +30,7 @@ Plans 12a + 12b owner-approved 2026-10-14 (subagent-driven); owner chose to buil
 - **Phase 11 (client onboarding wizard, unplanned; roadmap row 11):** owns GBP/DataForSEO prefill + competitor-review emails; **overlaps** our auto-run trigger and starting-point readiness/48 h fallback. We build both as reusable entry points; Phase 11 calls them.
 
 ## Decisions (owner-approved)
-Brainstorm decisions in Brief §1; promoted to the spec with ids.
+Brainstorm decisions in Brief §1; promoted to the spec with ids. Rulings 1–10 from 12a execution live in the SDD ledger; notable: R3 no agencyServiceable (phase-9 merge adds it), R7 ad-account removal only by sole tracker (agency-only tools).
 
 ## New backlog (target → item)
 - Unscheduled → `tier_change` event when a tracked competitor's tier changes (deferred by plan 12a P4: `detected_change_subject_check` needs a capture or rank scan)

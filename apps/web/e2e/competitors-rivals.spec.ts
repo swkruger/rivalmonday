@@ -1,32 +1,33 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { type Browser, expect, test, type TestInfo } from '@playwright/test';
-import { RIVALS_FIXTURE_FILE } from '../playwright.config';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
 import { signIn } from './helpers';
-import { RIVALS_OWNER_EMAIL, type RivalsFixture } from './seed';
+import { ASK_FIXTURE_FILE, RIVALS_FIXTURE_FILE } from '../playwright.config';
+import type { AskFixture, RivalsFixture } from './seed';
 
 /**
  * Phase 12a on seeded data (no worker runs in E2E): the agency reviews tiered suggestions and tracks the pre-ticked
  * top rivals, the client user sees tiers but no suggestions panel, and an auto-matched Meta page can be removed.
  */
-const OWNER_STATE = fileURLToPath(new URL('../test-results/rivals-owner-state.json', import.meta.url));
+const OWNER_STATE = fileURLToPath(new URL('../test-results/asker-state.json', import.meta.url));
 const fx = (): RivalsFixture => JSON.parse(readFileSync(RIVALS_FIXTURE_FILE, 'utf8')) as RivalsFixture;
 
-/** One magic-link sign-in for the client user per run (Better Auth's per-IP limit, see helpers.ts). */
-async function ensureOwnerState(browser: Browser, testInfo: TestInfo): Promise<void> {
+/** The Ask client user (also a client owner of the Rivals client); one shared sign-in per run (Better Auth's per-IP limit, see helpers.ts). */
+async function ensureAskerState(browser: Browser, testInfo: TestInfo): Promise<void> {
   if (existsSync(OWNER_STATE)) return;
   const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
-  await signIn(page, RIVALS_OWNER_EMAIL, `/c/${fx().clientId}/competitors`);
-  await expect(page).toHaveURL(new RegExp(`/c/${fx().clientId}/competitors$`));
+  const askCo = (JSON.parse(readFileSync(ASK_FIXTURE_FILE, 'utf8')) as AskFixture).askCo.id;
+  await signIn(page, 'asker@e2e.test', `/c/${askCo}`);
+  await expect(page).toHaveURL(new RegExp(`/c/${askCo}$`));
   await context.storageState({ path: OWNER_STATE });
   await context.close();
 }
 
 test.beforeAll(async ({ browser }, testInfo) => {
   await ensureAdminState(browser, testInfo);
-  await ensureOwnerState(browser, testInfo);
+  await ensureAskerState(browser, testInfo);
 });
 
 test.describe('agency', () => {
