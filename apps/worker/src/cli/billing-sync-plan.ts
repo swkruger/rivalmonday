@@ -7,6 +7,7 @@ try {
 }
 
 const { gatewayFor, syncPlanToStripe } = await import('@cs/billing');
+const { syncPlanRefusal } = await import('./billing-sync-plan-args');
 const { createDb, plan, resolveActiveEnvName } = await import('@cs/db');
 const { and, eq, isNull, or } = await import('drizzle-orm');
 
@@ -17,9 +18,13 @@ if (!url) {
 }
 const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 const envName = resolveActiveEnvName(process.env, repoRoot);
-if (!process.env.STRIPE_SECRET_KEY?.trim()) console.warn('STRIPE_SECRET_KEY is not set: using the fake gateway (ids below are not real Stripe ids).');
+const refusal = syncPlanRefusal(process.env, envName);
+if (refusal) {
+  console.error(refusal);
+  process.exit(1);
+}
 
-const gw = gatewayFor(process.env, envName);
+const gw = gatewayFor(process.env, envName)!;
 const { db, close } = createDb(url);
 let code = 0;
 try {

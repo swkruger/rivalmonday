@@ -13,7 +13,8 @@ export interface BillingJobOptions {
 
 /**
  * Phase 9a Task 6: daily billing maintenance at 02:30 UTC (after `platform-daily-stats` at 02:00, whose rows it
- * annotates). Registered always; the handler returns early (logged) in DEMO/TEST (R6).
+ * annotates). Registered always; the handler returns early (logged) in DEMO/TEST (R6). Without a Stripe key the
+ * gateway is null and only the Stripe steps are skipped (R27).
  */
 export function createBillingJobs(deps: WorkerDeps, opts: BillingJobOptions) {
   const daily = defineJob({
@@ -26,7 +27,10 @@ export function createBillingJobs(deps: WorkerDeps, opts: BillingJobOptions) {
         console.log(`[billing-daily] skipped in ${opts.envName}`);
         return { skipped: opts.envName };
       }
-      const r = await runBillingDaily(deps.serviceDb(), gatewayFor(opts.env, opts.envName), opts.now?.() ?? new Date());
+      const gw = gatewayFor(opts.env, opts.envName);
+      // R27: no Stripe key => billing is not configured; timers, reminders and stats still run.
+      if (!gw) console.log('[billing-daily] billing not configured: Stripe steps skipped');
+      const r = await runBillingDaily(deps.serviceDb(), gw, opts.now?.() ?? new Date());
       console.log(`[billing-daily] ${JSON.stringify(r)}`);
       return { ...r };
     },

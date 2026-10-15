@@ -32,9 +32,17 @@ describe('billing-daily', () => {
     expect((await dbs.owner.select().from(agencyBilling).where(eq(agencyBilling.agencyId, IDS.agencyA)))[0]!.state).toBe('trialing');
   });
 
+  it('billing not configured (no key in dev, R27): runs timers without a gateway and says so', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'trialing', trialEndsAt: new Date('2020-01-01T00:00:00Z'), stripeSubscriptionId: null, seatSyncPending: true });
+    const { daily } = createBillingJobs(deps, { envName: 'dev', env: {}, now: () => new Date('2026-10-14T02:30:00Z') });
+    expect(await daily.handler({})).toEqual({ transitions: 1, reminders: 0, seatRetries: 0, drift: 0 });
+    expect(log).toHaveBeenCalledWith('[billing-daily] billing not configured: Stripe steps skipped');
+  });
+
   it('runs the daily maintenance in dev (fake gateway under test) and returns the counts', async () => {
     await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'trialing', trialEndsAt: new Date('2020-01-01T00:00:00Z') });
-    const { daily } = createBillingJobs(deps, { envName: 'dev', env: {}, now: () => new Date('2026-10-14T02:30:00Z') });
+    const { daily } = createBillingJobs(deps, { envName: 'dev', env: { VITEST: 'true' }, now: () => new Date('2026-10-14T02:30:00Z') });
     expect(await daily.handler({})).toEqual({ transitions: 1, reminders: 0, seatRetries: 0, drift: 0 });
     expect((await dbs.owner.select().from(agencyBilling).where(eq(agencyBilling.agencyId, IDS.agencyA)))[0]!.state).toBe('past_due');
   });
