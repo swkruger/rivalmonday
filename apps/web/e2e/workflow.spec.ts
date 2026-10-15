@@ -21,8 +21,22 @@ test('an admin adds a client and lands on its competitors page', { tag: ['@clien
   await page.getByRole('button', { name: 'Create client' }).click();
   await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/competitors$/);
   await expect(page.getByRole('heading', { name: 'Competitors — E2E Dental' })).toBeVisible();
-  // Website monitoring is off in E2E: the Find competitors button exists, but nothing is crawled.
-  await expect(page.getByRole('button', { name: /find competitors/i })).toBeEnabled();
+  // Searching needs keywords, a service area and a Google place id: the created client has no place id yet.
+  const find = page.getByRole('button', { name: /find competitors/i });
+  await expect(find).toBeDisabled();
+  await expect(page.getByText('Add keywords, a service area and a Google place id to search.')).toBeVisible();
+  // Add the place id through the real profile form; website monitoring is off in E2E, so nothing is crawled.
+  await page.getByRole('link', { name: 'Go to Profile' }).click();
+  await expect(page).toHaveURL(/\/settings\/profile$/);
+  await page.getByLabel(/google place id/i).fill('ChIJe2eDentalPlace');
+  await page.getByRole('button', { name: 'Save profile' }).click();
+  await expect(page.getByText('Profile saved.')).toBeVisible();
+  await page.goBack();
+  await page.reload();
+  // Complete inputs: the missing-inputs copy is gone. Saving them also starts the automatic first search (12a D4),
+  // so the button is either "Find competitors" or, while that search is queued, "Searching…".
+  await expect(page.getByText('Add keywords, a service area and a Google place id to search.')).toBeHidden();
+  await expect(page.getByRole('button', { name: /find competitors|searching/i })).toBeVisible();
 });
 
 test('an admin approves the ready brief and its recommendation appears on the board', { tag: ['@briefs', '@recommendations', '@clients'] }, async ({ page }) => {
