@@ -10,6 +10,7 @@ vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@cs/tools', () => ({ platformRole: async () => m.role }));
 vi.mock('./plan-editor', () => ({ PlanEditor: ({ canEdit }: { canEdit: boolean }) => <div>plan-editor {String(canEdit)}</div> }));
 vi.mock('./codes', () => ({ Codes: ({ canManage }: { canManage: boolean }) => <div>codes {String(canManage)}</div> }));
+vi.mock('./connect-panel', () => ({ ConnectPanel: ({ canEdit }: { canEdit: boolean }) => <div>connect-panel {String(canEdit)}</div> }));
 vi.mock('./invite-links', () => ({ InviteLinks: () => <div>invite-links</div> }));
 const { default: Page } = await import('./page');
 
@@ -18,6 +19,7 @@ const answers: Record<string, unknown> = {
   list_plans: { plans: [] },
   list_discount_codes: { codes: [] },
   list_invite_links: { links: [] },
+  get_connect_overview: { globalFeePercent: 0, agencies: [], totals: { connectedAgencies: 0, payingClients: 0, clientMrrCents: 0 } },
 };
 beforeEach(() => {
   m.role = 'owner';
@@ -39,6 +41,7 @@ describe('/platform/billing', () => {
     expect(screen.getByText('plan-editor true')).toBeTruthy();
     expect(screen.getByText('codes true')).toBeTruthy();
     expect(screen.getByText('invite-links')).toBeTruthy();
+    expect(screen.getByText('connect-panel true')).toBeTruthy();
   });
 
   it('staff: read-only plans and codes, invite links shown', async () => {
@@ -53,6 +56,7 @@ describe('/platform/billing', () => {
     m.role = 'viewer';
     render(await Page());
     expect(screen.queryByText('invite-links')).toBeNull();
+    expect(screen.getByText('connect-panel false')).toBeTruthy();
     expect(m.callTool.mock.calls.map((c) => c[1])).not.toContain('list_invite_links');
   });
 });

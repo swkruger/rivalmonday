@@ -4,7 +4,7 @@ const m = vi.hoisted(() => ({ runTool: vi.fn() }));
 vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => ({ ctx: { userId: 'op' } }) }));
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.runTool(...a) }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
-const { createPlanVersionAction, createDiscountCodeAction, createInviteLinkAction } = await import('./actions');
+const { createPlanVersionAction, createDiscountCodeAction, createInviteLinkAction, setConnectFeeAction } = await import('./actions');
 
 const form = (o: Record<string, string>) => {
   const fd = new FormData();
@@ -58,5 +58,27 @@ describe('createInviteLinkAction', () => {
     expect(await createInviteLinkAction(ok, form({ offer: 'pilot', pilotEndsAt: '2026-02-31' }))).toMatchObject({ ok: false });
     expect(await createInviteLinkAction(ok, form({ offer: 'pilot', pilotEndsAt: '2026-12-01', maxUses: '3' }))).toEqual({ ok: true, url: 'https://x/join/t' });
     expect(m.runTool.mock.calls[0]?.[2]).toMatchObject({ offer: 'pilot', pilotEndsAt: '2026-12-01T23:59:59.000Z', maxUses: 3, expiresInDays: 14 });
+  });
+});
+
+describe('setConnectFeeAction', () => {
+  it('global: sends only the percent', async () => {
+    expect(await setConnectFeeAction(ok, form({ agencyId: '', percent: '2.5' }))).toMatchObject({ ok: true });
+    expect(m.runTool).toHaveBeenCalledWith({ userId: 'op' }, 'set_connect_fee_percent', { percent: 2.5 });
+  });
+  it('per agency: sends agencyId; blank percent clears the override', async () => {
+    await setConnectFeeAction(ok, form({ agencyId: 'ag-1', percent: '0' }));
+    expect(m.runTool.mock.calls[0]?.[2]).toEqual({ agencyId: 'ag-1', percent: 0 });
+    await setConnectFeeAction(ok, form({ agencyId: 'ag-1', percent: '' }));
+    expect(m.runTool.mock.calls[1]?.[2]).toEqual({ agencyId: 'ag-1', percent: null });
+  });
+  it('rejects non-numeric text and a blank global percent before calling the tool', async () => {
+    expect(await setConnectFeeAction(ok, form({ agencyId: '', percent: '1e1' }))).toMatchObject({ ok: false });
+    expect(await setConnectFeeAction(ok, form({ agencyId: '', percent: '' }))).toMatchObject({ ok: false });
+    expect(m.runTool).not.toHaveBeenCalled();
+  });
+  it('passes a tool refusal back', async () => {
+    m.runTool.mockResolvedValue({ ok: false, error: 'Nope' });
+    expect(await setConnectFeeAction(ok, form({ agencyId: '', percent: '3' }))).toEqual({ ok: false, error: 'Nope' });
   });
 });

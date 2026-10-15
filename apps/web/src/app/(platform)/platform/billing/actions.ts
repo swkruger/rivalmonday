@@ -96,3 +96,18 @@ export async function revokeInviteLinkAction(_p: FormResult, fd: FormData): Prom
   revalidatePath(PATH);
   return { ok: true, message: 'Revoked.' };
 }
+
+/** Empty agencyId = the platform default (percent required); with an agency, a blank percent clears its override. */
+export async function setConnectFeeAction(_p: FormResult, fd: FormData): Promise<FormResult> {
+  const { ctx } = await requireOperatorContext();
+  const agencyId = str(fd, 'agencyId');
+  const text = str(fd, 'percent');
+  const clearing = text === '' && agencyId !== '';
+  const percent = clearing ? null : toPercent(text);
+  if (!clearing && percent === null) return { ok: false, error: 'Enter the fee as a percentage, e.g. 2 or 1.5' };
+  const r = await runTool(ctx, 'set_connect_fee_percent', agencyId ? { agencyId, percent } : { percent });
+  if (!r.ok) return r;
+  revalidatePath(PATH);
+  const message = !agencyId ? 'Default fee saved. It applies to new Checkout links.' : clearing ? 'Override cleared; the default applies.' : 'Agency fee saved. It applies to new Checkout links.';
+  return { ok: true, message };
+}

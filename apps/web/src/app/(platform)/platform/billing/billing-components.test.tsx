@@ -9,6 +9,7 @@ vi.mock('./actions', () => ({
   revokeDiscountCodeAction: m.noop,
   createInviteLinkAction: (...a: unknown[]) => m.createInviteLinkAction(...a),
   revokeInviteLinkAction: m.noop,
+  setConnectFeeAction: m.noop,
 }));
 import type { CodeRow } from './codes';
 import type { LinkRow } from './invite-links';
@@ -16,6 +17,7 @@ import type { PlanRow } from './plan-editor';
 const { PlanEditor } = await import('./plan-editor');
 const { Codes } = await import('./codes');
 const { InviteLinks } = await import('./invite-links');
+const { ConnectPanel } = await import('./connect-panel');
 
 const plan = (over: Partial<PlanRow> = {}): PlanRow => ({
   id: 'p2', version: 2, name: 'Standard', basePriceCents: 29900, includedSeats: 3, seatPriceCents: 4900, trialDays: 30,
@@ -98,5 +100,36 @@ describe('InviteLinks', () => {
     render(<InviteLinks links={[]} codes={[]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Create link' }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('pilot'));
+  });
+});
+
+describe('ConnectPanel', () => {
+  const overview = {
+    globalFeePercent: 2.5,
+    agencies: [
+      { agencyId: 'a1', name: 'Acme Agency', status: 'connected' as const, chargesEnabled: true, feeOverridePercent: 1, payingClients: 3, paymentNeededClients: 1, clientMrrCents: 29700 },
+      { agencyId: 'a2', name: 'Beta Co', status: 'restricted' as const, chargesEnabled: false, feeOverridePercent: null, payingClients: 0, paymentNeededClients: 0, clientMrrCents: 0 },
+    ],
+    totals: { connectedAgencies: 1, payingClients: 3, clientMrrCents: 29700 },
+  };
+  it('viewer sees the overview, totals and fees, but no fee forms', () => {
+    render(<ConnectPanel overview={overview} canEdit={false} />);
+    expect(screen.getByText('Acme Agency')).toBeTruthy();
+    expect(screen.getByText('Beta Co')).toBeTruthy();
+    expect(screen.getAllByText('$297.00').length).toBeGreaterThan(0);
+    expect(screen.getByText('2.5%')).toBeTruthy(); // platform default
+    expect(screen.getByText('1%')).toBeTruthy(); // Acme override
+    expect(screen.getByText('Restricted')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /save/i })).toBeNull();
+  });
+  it('owner gets the default and per-agency fee forms', () => {
+    render(<ConnectPanel overview={overview} canEdit />);
+    expect(screen.getByRole('button', { name: 'Save default fee' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Save agency fee' })).toBeTruthy();
+    expect(screen.getByLabelText('Agency')).toBeTruthy();
+  });
+  it('says so when no agency has connected', () => {
+    render(<ConnectPanel overview={{ ...overview, agencies: [], totals: { connectedAgencies: 0, payingClients: 0, clientMrrCents: 0 } }} canEdit={false} />);
+    expect(screen.getByText(/No agency has connected Stripe yet/)).toBeTruthy();
   });
 });

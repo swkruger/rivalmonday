@@ -251,6 +251,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'list_plans', input: none, path: 'plans' },
       { tool: 'list_discount_codes', input: none, path: 'codes' },
       { tool: 'list_invite_links', input: none, path: 'links', expect: 'empty', why: 'the demo seeds no invite links' },
+      { tool: 'get_connect_overview', input: none, path: 'agencies', expect: 'empty', why: 'the demo seeds no Connect accounts' },
     ],
   },
   { route: '/platform/costs', as: 'operator', calls: [{ tool: 'list_platform_costs', input: none, path: 'services' }] },
