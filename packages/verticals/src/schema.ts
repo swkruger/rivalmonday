@@ -74,9 +74,19 @@ export const verticalPackSchema = z.object({
         trigger: z.enum([...MOVE_TYPES, ...CHANGE_TYPES, ...SELF_RULE_IDS]),
         title: z.string().min(1),
         template: z.string().min(1),
+        /** Level of effort / impact (L, M, H); required for self-rule playbooks, whose brief items have no model-written estimate. */
+        effort: z.enum(['L', 'M', 'H']).optional(),
+        impact: z.enum(['L', 'M', 'H']).optional(),
       }),
     )
-    .superRefine(uniqueIds('playbook')),
+    .superRefine(uniqueIds('playbook'))
+    .superRefine((items, ctx) => {
+      items.forEach((p, i) => {
+        if ((SELF_RULE_IDS as readonly string[]).includes(p.trigger) && (!p.effort || !p.impact)) {
+          ctx.addIssue({ code: 'custom', path: [i], message: `Self-rule playbook "${p.id}" needs effort and impact` });
+        }
+      });
+    }),
   /** Spec §6.3 scoring knobs; versioned with the pack so every score records what produced it. */
   scoring: z
     .object({

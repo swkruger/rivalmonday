@@ -11,6 +11,8 @@ export type SelfFinding = {
   values: Record<string, number | string>;
   evidenceIds: string[];
   playbookId: string;
+  effort: 'L' | 'M' | 'H';
+  impact: 'L' | 'M' | 'H';
 };
 
 export interface SelfRuleInput {
@@ -18,6 +20,8 @@ export interface SelfRuleInput {
   themes: BenchmarkBusiness[];
   profile: { claimed: boolean | null; hasHours: boolean | null; categoryCount: number | null };
   rules: PackSelfRule[];
+  /** The pack's `playbooks`; each rule's playbook supplies the finding's effort and impact. */
+  playbooks: { id: string; effort?: 'L' | 'M' | 'H'; impact?: 'L' | 'M' | 'H' }[];
   /** The latest rank scan recorded vendor captures (Phase 12b Q1); `map_visibility_gap` is skipped without it. */
   rankHasEvidence: boolean;
   /** Pack `audience_noun` ("patients", "customers"), used by the strength fact. */
@@ -68,7 +72,8 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
   const out: SelfFinding[] = [];
   const push = (rule: PackSelfRule, s: number, fact: string, values: Record<string, number | string>, evidenceIds: string[]) => {
     if (evidenceIds.length === 0) return;
-    out.push({ ruleId: rule.id, strength: rule.strength, score: s, fact, values, evidenceIds, playbookId: rule.playbook });
+    const pb = input.playbooks.find((p) => p.id === rule.playbook);
+    out.push({ ruleId: rule.id, strength: rule.strength, score: s, fact, values, evidenceIds, playbookId: rule.playbook, effort: pb?.effort ?? 'M', impact: pb?.impact ?? 'M' });
   };
 
   for (const rule of rules) {
@@ -107,7 +112,7 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
         if (you('adsActive') !== 0 || advertisers.length === 0) break;
         const names = advertisers.slice(0, 3).map((r) => r.name);
         push(rule, r2(rule.weight), `${joinNames(names)} run ads; you run none.`, { advertisers: advertisers.length, rivalNames: joinNames(names) },
-          evidenceOf([selfId, ...advertisers.map((r) => r.competitorId)]));
+          evidenceOf([selfId, ...advertisers.slice(0, 3).map((r) => r.competitorId)]));
         break;
       }
       case 'theme_weakness':
@@ -123,7 +128,8 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
           const med = median(rs.map((x) => x.share));
           if (med === null) continue;
           const gap = t.share - med;
-          const ok = rule.id === 'theme_weakness' ? gap <= -threshold && t.sentiment < 0 : gap >= threshold && t.sentiment > 0;
+          // The client is mentioned at least `threshold` more than rivals for the theme; the sentiment decides weakness (negative) or strength (positive).
+          const ok = gap >= threshold && (rule.id === 'theme_weakness' ? t.sentiment < 0 : t.sentiment > 0);
           if (ok && (best === null || Math.abs(gap) > Math.abs(best.gap))) best = { name: t.name, you: t.share, med, gap, sentiment: t.sentiment, rivalIds: rs.map((x) => x.id) };
         }
         if (!best) break;
@@ -150,7 +156,7 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
           ...(categoryCount !== null && categoryCount < param(rule, 'min_categories', 2) ? ['additional categories'] : []),
         ];
         if (missing.length === 0) break;
-        push(rule, score(rule, missing.length, 3), `Your Google profile is missing: ${missing.join(', ')}.`, { missing: missing.join(', '), count: missing.length }, evidenceOf([selfId]));
+        push(rule, score(rule, missing.length, 1), `Your Google profile is missing: ${missing.join(', ')}.`, { missing: missing.join(', '), count: missing.length }, evidenceOf([selfId]));
         break;
       }
     }

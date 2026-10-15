@@ -62,6 +62,8 @@ describe('pack self rules (Phase 12b)', () => {
     for (const rule of pack.self_rules) {
       const pb = pack.playbooks.find((p) => p.id === rule.playbook);
       expect(pb?.trigger).toBe(rule.id);
+      expect(pb?.effort).toMatch(/^[LMH]$/);
+      expect(pb?.impact).toMatch(/^[LMH]$/);
     }
     expect(pack.self_rules.filter((r) => r.strength).map((r) => r.id)).toEqual(['theme_strength']);
   });

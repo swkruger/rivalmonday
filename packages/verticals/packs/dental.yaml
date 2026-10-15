@@ -122,41 +122,57 @@ playbooks:
       {{competitor}} has sharply increased advertising. Protect branded search terms and check that your new-patient
       offer is visible in the same areas.
   - id: ask_for_reviews
+    effort: L
+    impact: H
     trigger: review_velocity_gap
     title: Ask more patients for a review
     template: >-
       Ask every patient for a Google review at checkout with a text link, and aim for a few new reviews each week.
   - id: reply_to_reviews
+    effort: L
+    impact: M
     trigger: reply_rate_gap
     title: Reply to your reviews
     template: >-
       Reply to every new review within two days, starting with the last 20.
   - id: fix_top_complaint
+    effort: M
+    impact: H
     trigger: rating_gap
     title: Fix the most common complaint
     template: >-
       Read your lowest reviews from the last 90 days, pick the complaint patients repeat most, and fix it this month.
   - id: consider_search_ads
+    effort: M
+    impact: M
     trigger: rival_only_advertiser
     title: Try a small Google search ads budget
     template: >-
       Run a small Google search campaign for "dentist near me" in your town so new patients can find you next to those rivals.
   - id: fix_theme
+    effort: M
+    impact: M
     trigger: theme_weakness
     title: Address a weak spot patients notice
     template: >-
-      Name one change to fix this weak spot, tell your team, and ask happy patients who notice it to say so in their review.
+      Name one change to fix {{theme}}, tell your team, and ask happy patients who notice it to say so in their review.
   - id: promote_strength
+    effort: L
+    impact: M
     trigger: theme_strength
     title: Promote what patients praise
     template: >-
-      Feature this strength on your website and Google profile, with a short quote from a patient review.
+      Feature {{theme}} as a strength on your website and Google profile, with a short quote from a patient review.
   - id: improve_map_rank
+    effort: M
+    impact: H
     trigger: map_visibility_gap
     title: Climb the Google map results
     template: >-
       Add fresh photos, answer questions and post an update on your Google profile each week, and make sure your name, address and phone match everywhere online.
   - id: complete_profile
+    effort: L
+    impact: M
     trigger: profile_gap
     title: Complete your Google profile
     template: >-
