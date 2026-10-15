@@ -147,6 +147,28 @@ describe('suggestions', () => {
     expect(r.hiddenList).toEqual([{ name: 'Dollar General', reason: 'wrong_category' }, { name: 'A1 HVAC', reason: 'self' }]);
   });
 
+  it('a newer run that is live or failed after writing suggestions still shows them next to the latest done run (Ruling 11)', async () => {
+    const r1 = await doneRun(IDS.clientA1, { hidden: { self: 1 }, hiddenList: [{ name: 'A1 HVAC', reason: 'self' }] });
+    await runSuggestion(r1, 'Kept Rival', 'ChIJkeptkeptke1', { tier: 'top', overlap: 0.8 });
+    const moved = await runSuggestion(r1, 'Moved Rival', 'ChIJmovedmoved1', { tier: 'watch', overlap: 0.7 });
+    const [r2] = await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'manual', status: 'checking', startedAt: new Date(), hidden: { wrong_category: 4 } }).returning({ id: discoveryRun.id });
+    // R2 re-upserted one of R1's businesses (run_id moved on) and found a new one.
+    await dbs.owner.update(competitorSuggestion).set({ runId: r2!.id }).where(eq(competitorSuggestion.id, moved));
+    await runSuggestion(r2!.id, 'New In Run 2', 'ChIJnewinrun201', { tier: 'minor', overlap: 0.4 });
+    const names = async () => ((await registry.invoke(amA1, 'list_competitor_suggestions', { clientId: IDS.clientA1 })) as ListOut).suggestions.map((s) => s.name);
+    expect(await names()).toEqual(['Kept Rival', 'Moved Rival', 'New In Run 2']); // while R2 is live
+    await dbs.owner.update(discoveryRun).set({ status: 'failed', error: 'internal_error', finishedAt: new Date() }).where(eq(discoveryRun.id, r2!.id));
+    const r = (await registry.invoke(amA1, 'list_competitor_suggestions', { clientId: IDS.clientA1 })) as ListOut;
+    expect(r.suggestions.map((s) => s.name)).toEqual(['Kept Rival', 'Moved Rival', 'New In Run 2']);
+    // Hidden counts and list stay the latest done run's.
+    expect(r.hidden).toMatchObject({ self: 1, wrong_category: 0 });
+    expect(r.hiddenList).toEqual([{ name: 'A1 HVAC', reason: 'self' }]);
+    // A run older than the latest done one never contributes.
+    const [older] = await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'manual', status: 'failed', startedAt: new Date(Date.now() - 5 * 86_400_000) }).returning({ id: discoveryRun.id });
+    await runSuggestion(older!.id, 'Ancient', 'ChIJancientanc1', { tier: 'top', overlap: 0.99 });
+    expect(await names()).not.toContain('Ancient');
+  });
+
   it('is empty before any run finished, and agency-only (client roles never see suggestions)', async () => {
     await suggest(IDS.clientA1, IDS.agencyA, 'Pre-12a Row', 'ChIJlegacylegac');
     await expect(registry.invoke(amA1, 'list_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toEqual({

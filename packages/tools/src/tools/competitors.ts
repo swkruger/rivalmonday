@@ -1,7 +1,7 @@
 import { type AccessContext, appLinkFor, canAccessClient, toolkit, ToolError } from '@cs/core';
 import { ensureCompetitorSources, findExistingCompetitor, patchReusedCompetitor } from '@cs/collectors';
 import { ad, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, discoveryRun, trackedPage, type Tx, withTenant } from '@cs/db';
-import { and, asc, count, desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, inArray, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type ToolDeps } from '../deps';
 import { latestDoneRun, type SearchRefusal, startCompetitorSearch } from '../rival-search';
@@ -79,11 +79,15 @@ export const listCompetitorSuggestions = defineTool({
       const [c] = await tx.select({ limit: client.competitorLimit }).from(client).where(eq(client.id, clientId));
       if (!c) return null;
       const [tracked] = await tx.select({ n: count() }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId));
-      // Only the latest done run's suggestions: older runs' leftovers (and pre-12a rows, run_id NULL) stay hidden.
+      // The latest done run's suggestions plus those of any run started after it (live, or failed after writing them:
+      // its upsert moved run_id on, Ruling 11). Older runs' leftovers (and pre-12a rows, run_id NULL) stay hidden.
       const run = await latestDoneRun(tx, clientId);
+      const newer = run
+        ? (await tx.select({ id: discoveryRun.id }).from(discoveryRun).where(and(eq(discoveryRun.clientId, clientId), gt(discoveryRun.startedAt, run.startedAt)))).map((x) => x.id)
+        : [];
       const rows = run
         ? await tx.select().from(competitorSuggestion)
-          .where(and(eq(competitorSuggestion.clientId, clientId), eq(competitorSuggestion.runId, run.id), eq(competitorSuggestion.status, 'suggested')))
+          .where(and(eq(competitorSuggestion.clientId, clientId), inArray(competitorSuggestion.runId, [run.id, ...newer]), eq(competitorSuggestion.status, 'suggested')))
           .orderBy(TIER_ORDER, sql`${competitorSuggestion.overlap} DESC NULLS LAST`, desc(competitorSuggestion.overlapScore), desc(competitorSuggestion.appearances), asc(competitorSuggestion.id))
           .limit(100)
         : [];
