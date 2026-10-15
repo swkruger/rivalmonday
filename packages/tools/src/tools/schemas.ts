@@ -1,4 +1,5 @@
 import { AdMatch, Signals } from '@cs/collectors';
+import { Scorecard } from '@cs/engine';
 import { z } from 'zod';
 
 export { AdMatch, Signals };
@@ -42,7 +43,17 @@ export const BriefItemView = z.object({
 });
 export type BriefItemView = z.infer<typeof BriefItemView>;
 
-export const BriefDetail = BriefSummary.extend({ periodStart: iso, periodEnd: iso, approvedAt: iso.nullable(), items: z.array(BriefItemView) });
+const TrendSnapshotView = z.object({
+  windowDays: z.number(), events: z.number(),
+  businesses: z.array(z.object({ competitorId: z.string(), name: z.string(), self: z.boolean(), reviews: z.number(), avgRating: z.number().nullable(), prevAvgRating: z.number().nullable(), activeAds: z.number().nullable() })),
+});
+export const BriefDetail = BriefSummary.extend({
+  periodStart: iso, periodEnd: iso, approvedAt: iso.nullable(), items: z.array(BriefItemView),
+  /** Starting-point and quiet-week briefs (12b); null otherwise. */
+  scorecard: Scorecard.nullable(),
+  /** Quiet weeks' trend snapshot; null otherwise. */
+  trend: TrendSnapshotView.nullable(),
+});
 export type BriefDetail = z.infer<typeof BriefDetail>;
 
 export const BriefQueueRow = z.object({

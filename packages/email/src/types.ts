@@ -28,6 +28,8 @@ export interface AgencyNoticeProps extends Base {
 }
 /** A client-facing brief item: there is deliberately no upsell field (spec §8.5 — agency-only). */
 export interface BriefEmailItem {
+  /** 'self' = about the client's own business: no competitor name is shown. */
+  subject?: 'self' | 'competitor';
   competitorName: string;
   headline: string;
   whatChanged: string;
@@ -37,12 +39,20 @@ export interface BriefEmailItem {
   impact: 'L' | 'M' | 'H';
   link: string | null;
 }
+/** The one formatted view of a scorecard (built by `scorecardModel` in @cs/engine) rendered by web, email and PDF. All strings are display-ready. */
+export interface ScorecardModel {
+  tiles: { label: string; value: string; sub: string; trend: 'up' | 'down' | null; trendText: string | null }[];
+  table: { headers: string[]; rows: { cells: string[]; self: boolean; tier: 'top' | 'watch' | 'minor' | null }[] };
+  openFirstMoves: string[];
+}
 export interface BriefEmailProps extends Base {
   deliveryDate: string;
   kind: 'standard' | 'quiet' | 'starting_point';
   summary: string;
   items: BriefEmailItem[];
   trend: TrendSnapshot | null;
+  /** Starting point and quiet weeks; null otherwise. */
+  scorecard?: ScorecardModel | null;
   /** Null in the PDF variant. */
   link: string | null;
   pdfLink: string | null;

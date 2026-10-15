@@ -1,6 +1,9 @@
 export interface StatPill {
   text: string;
   tone: 'up' | 'down' | 'warn' | 'info';
+  /** Decorative arrow (hidden from assistive tech); `srLabel` is its spoken equivalent. */
+  glyph?: string;
+  srLabel?: string;
 }
 
 const TONE: Record<StatPill['tone'], string> = {
@@ -17,7 +20,7 @@ export function StatCard({ title, value, pill, hint }: { title: string; value: s
       <h3 className="text-sm font-semibold text-muted-foreground">{title}</h3>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="text-[34px] font-extrabold text-secondary">{value}</span>
-        {pill && <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${TONE[pill.tone]}`}>{pill.text}</span>}
+        {pill && <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${TONE[pill.tone]}`}>{pill.glyph && <span aria-hidden="true">{pill.glyph} </span>}{pill.srLabel && <span className="sr-only">{pill.srLabel} </span>}{pill.text}</span>}
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
     </div>

@@ -138,6 +138,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}charts/theme-heatmap\\.tsx$`), tags: ['@reviews'], why: 'theme heatmap' },
   { pattern: re(`${COMP}charts/line-chart\\.tsx$`), tags: ['@overview', '@pricing', '@ads', '@reviews', '@rankings'], why: 'line chart' },
   { pattern: re(`${COMP}views/brief-view\\.tsx$`), tags: ['@briefs', '@guest', '@auth'], why: 'brief view (guest link lands here)' },
+  { pattern: re(`${COMP}views/scorecard\.tsx$`), tags: ['@briefs'], why: 'starting-point / quiet-week scorecard (rendered inside the brief view)' },
   { pattern: re(`${COMP}views/alert-view\\.tsx$`), tags: ['@alerts'], why: 'alert view' },
   { pattern: re(`${COMP}views/report-view\\.tsx$`), tags: [], why: 'no E2E covers the report view' },
   { pattern: re(`${SERVER}(?:guest|links|files|store)\\.ts$`), tags: GUEST_FILES, why: 'guest links and stored files' },

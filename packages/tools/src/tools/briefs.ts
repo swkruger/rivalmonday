@@ -1,6 +1,6 @@
 import { type AccessContext, appLinkFor, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
 import { brief, briefItem, client, competitor, withTenant } from '@cs/db';
-import { getBrief } from '@cs/engine';
+import { getBrief, Scorecard } from '@cs/engine';
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { detailOf, pageOf, pageResult } from '../paging';
@@ -62,6 +62,7 @@ export async function briefDetail(deps: ToolDeps, ctx: AccessContext, briefId: s
   const agency = isAgencyRole(ctx.role);
   return {
     ...summary(view.brief), periodStart: view.brief.periodStart.toISOString(), periodEnd: view.brief.periodEnd.toISOString(), approvedAt: toIso(view.brief.approvedAt),
+    scorecard: Scorecard.safeParse(view.brief.scorecard).data ?? null, trend: view.brief.trend ?? null,
     items: view.items.map((i) => ({
       id: i.id, ord: i.ord, competitorId: i.competitorId, subject: i.subject, competitorName: (i.competitorId ? nameOf.get(i.competitorId) : clientName) ?? 'Competitor', headline: i.headline, whatChanged: i.whatChanged,
       whyItMatters: i.whyItMatters, recommendedAction: i.recommendedAction, confidence: i.confidence, effort: i.effort, impact: i.impact, evidenceIds: i.evidenceIds,

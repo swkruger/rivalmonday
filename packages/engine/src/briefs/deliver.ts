@@ -6,6 +6,8 @@ import type { Conn } from '../delivery/contacts';
 import { replyToFor } from '../delivery/contacts';
 import { type DeliveryConfig, loadBranding, notify, personalLink } from '../delivery/outbox';
 import { addDays, localClock } from '../delivery/time';
+import { Scorecard } from './scorecard';
+import { scorecardModel } from './scorecard-model';
 import { approveBriefTx, dropRetractedItems } from './review';
 import { safeTimezone } from './schedule';
 import { finalBriefSummary } from './summary';
@@ -38,15 +40,20 @@ export async function loadBriefView(conn: Conn, briefId: string): Promise<BriefD
   return { b: row.b, clientName: row.clientName, items: items.map((x) => ({ ...x.i, competitorName: x.competitorName ?? row.clientName })), branding, signOff: branding.signOff ?? `— ${am?.name ?? branding.displayName}` };
 }
 
+const scorecardOf = (v: BriefDeliveryView) => {
+  const parsed = Scorecard.safeParse(v.b.scorecard);
+  return parsed.success ? scorecardModel(parsed.data, { clientName: v.clientName }) : null;
+};
+
 /** Client-facing props (decision 15): only active items, never the upsell tag. */
 export function briefEmailProps(v: BriefDeliveryView, opts: { recipientName: string | null; link: string | null; pdfLink: string | null; itemLink: (itemId: string) => string | null }): BriefEmailProps {
   return {
     branding: v.branding, recipientName: opts.recipientName, clientName: v.clientName, deliveryDate: v.b.deliveryDate, kind: v.b.kind as BriefEmailProps['kind'], summary: v.b.summary,
     items: v.items.map((i) => ({
       competitorName: i.competitorName, headline: i.headline, whatChanged: i.whatChanged, whyItMatters: i.whyItMatters, recommendedAction: i.recommendedAction,
-      effort: i.effort as 'L' | 'M' | 'H', impact: i.impact as 'L' | 'M' | 'H', link: opts.itemLink(i.id),
+      subject: i.subject, effort: i.effort as 'L' | 'M' | 'H', impact: i.impact as 'L' | 'M' | 'H', link: opts.itemLink(i.id),
     })),
-    trend: v.b.trend, link: opts.link, pdfLink: opts.pdfLink, signOff: v.signOff,
+    trend: v.b.trend, scorecard: scorecardOf(v), link: opts.link, pdfLink: opts.pdfLink, signOff: v.signOff,
   };
 }
 

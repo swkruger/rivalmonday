@@ -42,6 +42,31 @@ describe('brief email', () => {
     expect(r.html).toContain('Your starting point');
   });
 
+  it('starting point renders tiles, scorecard, and a starting-point footer; self item has no competitor line', async () => {
+    const scorecard = {
+      tiles: [
+        { label: 'Rating', value: '4.6', sub: 'rivals 4.4 median', trend: null, trendText: null },
+        { label: 'New reviews · 90 d', value: '12', sub: 'rivals 30 median', trend: 'up' as const, trendText: '▲ 4 since your starting point' },
+        { label: 'Reply rate', value: '—', sub: 'rivals 50% median', trend: null, trendText: null },
+        { label: 'Top-3 in map pack', value: '31%', sub: 'rivals 20% median', trend: 'down' as const, trendText: '▼ 6 pts since your starting point' },
+      ],
+      table: { headers: ['Business', 'Rating'], rows: [{ cells: ['A1 HVAC (you)', '4.6'], self: true, tier: null }, { cells: ['Smith HVAC', '4.4'], self: false, tier: 'top' as const }] },
+      openFirstMoves: [],
+    };
+    const props = { ...brief, kind: 'starting_point' as const, summary: 'Intro.', scorecard, items: [{ ...item(1), subject: 'self' as const, competitorName: 'A1 HVAC' }] };
+    const r = await renderEmail({ template: 'brief', props });
+    for (const t of ['Top-3 in map pack', '31%', 'rivals 4.4 median', '▲ 4 since your starting point', 'A1 HVAC (you)', 'Top rival', 'Your starting point for A1 HVAC']) expect(r.text).toContain(t);
+    expect(r.html).toContain('aria-label="Scorecard');
+    expect(r.html.indexOf('Top-3 in map pack')).toBeLessThan(r.html.indexOf('Headline 1'));
+    expect(r.text).not.toContain('A1 HVAC · effort');
+    expect(r.text).toContain('effort low');
+    expect(r.text).not.toContain('Weekly competitor brief for');
+    const q = await renderEmail({ template: 'brief', props: { ...props, kind: 'quiet', items: [], scorecard: { ...scorecard, openFirstMoves: ['Reply to reviews'] } } });
+    expect(q.text).toContain('Where you stand');
+    expect(q.text).toContain('First moves still open');
+    expect(q.text.indexOf('Where you stand')).toBeLessThan(q.text.indexOf('Last 30 days'));
+  });
+
   it('renders a print document without email-only links', async () => {
     const html = await renderBriefDocument({ ...brief, link: null, pdfLink: null });
     expect(html).toContain('@page');
