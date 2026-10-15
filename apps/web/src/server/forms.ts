@@ -75,7 +75,7 @@ const FORM_COPY: Partial<Record<ToolError['code'], string>> = {
 
 export function toFormResult(e: unknown): FormResult {
   if (e instanceof ToolError && e.code !== 'internal') {
-    const error = e.code === 'invalid_input' || e.code === 'billing_seat_limit' || e.code === 'service_paused' ? e.message : FORM_COPY[e.code] ?? 'Not found';
+    const error = e.code === 'invalid_input' || e.code === 'billing_seat_limit' || e.code === 'service_paused' || e.code === 'billing_not_eligible' || e.code === 'connect_not_ready' || e.code === 'no_client_owner' ? e.message : FORM_COPY[e.code] ?? 'Not found';
     return e.code === 'billing_seat_limit' ? { ok: false, error, code: 'billing_seat_limit' } : { ok: false, error };
   }
   throw e;

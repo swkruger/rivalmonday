@@ -86,5 +86,6 @@ describe('toFormResult', () => {
     expect(toFormResult(new ToolError('billing_seat_limit', "You've used your 3 included clients. Upgrade to add more."))).toEqual({ ok: false, error: "You've used your 3 included clients. Upgrade to add more.", code: 'billing_seat_limit' });
     expect(toFormResult(new ToolError('service_paused', 'This workspace is temporarily unavailable.'))).toEqual({ ok: false, error: 'This workspace is temporarily unavailable.' });
     expect(toFormResult(new ToolError('invalid_code', 'x'))).toEqual({ ok: false, error: "That code isn't valid for your account." });
+    for (const code of ['billing_not_eligible', 'connect_not_ready', 'no_client_owner'] as const) expect(toFormResult(new ToolError(code, 'Exact copy.'))).toEqual({ ok: false, error: 'Exact copy.' });
   });
 });

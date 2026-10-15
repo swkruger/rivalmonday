@@ -28,7 +28,7 @@ describe('internal error logging', () => {
   });
 
   it('billing refusals are visible to MCP clients with their own message', () => {
-    for (const code of ['billing_seat_limit', 'service_paused', 'invalid_code'] as const) {
+    for (const code of ['billing_seat_limit', 'service_paused', 'invalid_code', 'billing_not_eligible', 'connect_not_ready', 'no_client_owner'] as const) {
       const r = toToolResult(new ToolError(code, 'Upgrade needed'), 'create_client');
       expect(JSON.parse((r.content[0] as { text: string }).text)).toEqual({ code, message: 'Upgrade needed' });
     }
