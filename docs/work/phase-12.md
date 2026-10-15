@@ -4,26 +4,24 @@
 **Plan/spec:** spec `docs/superpowers/specs/2026-10-14-phase-12-discovery-and-starting-point-design.md` (owner-approved 2026-10-14) · plans `docs/superpowers/plans/2026-10-14-phase-12a-competitor-discovery.md`, `…-12b-starting-point-brief.md` (owner-approved 2026-10-14, subagent-driven)
 
 ## Status (overwrite)
-Plans 12a + 12b owner-approved 2026-10-14 (subagent-driven); owner chose to build Phase 12 **before** 9, 10, 11 (9a runs in parallel in its own worktree). Test DB `cs_phase_12_test`. 12a Task 0 (pre-flight + live fixtures) done 2026-10-14; Task 1 next.
+Plans 12a + 12b owner-approved 2026-10-14 (subagent-driven); owner chose to build Phase 12 **before** 9, 10, 11 (9a runs in parallel in its own worktree). Test DB `cs_phase_12_test`. 12a Tasks 0–11 built (migrations 0052 `discovery_rating`, 0053 `discovery_rating_rls`); final whole-branch review + owner verification next.
 
 ## Next (overwrite)
-12a Tasks 1–11 (Task 2 pack category lists per Pre-flight below), then 12b.
+12a final whole-branch review, then 12b.
 
 ## Interfaces this branch adds or changes
-(planned, not built)
+(12a built; 12b planned)
 - Tables: `discovery_run`, `competitor_signal`. `competitor_suggestion` + `category`, `distance_km`, `overlap`, `activity`, `tier`, `signals` jsonb, `ad_matches` jsonb, `run_id`, `last_seen_at`. `brief.kind` + `'starting_point'` (extend CHECK `brief_kind_check`; one per client), `brief.scorecard` jsonb; `brief_item.competitor_id` nullable + `subject` `'self'|'competitor'`.
 - Vertical packs: `discovery.categories` allowlist, discovery seed keywords (≤ 5), self-rules for the starting point.
-- Migrations: **next free at execution time** (main ends at 0051; see Brief §5).
+- Migrations: 12a = 0052 + 0053 (renumber to >= 0055 if phase-9 merges first, see Pre-flight).
 
 ### Pre-flight 2026-10-14 (12a Task 0)
-- **Migrations:** main ends 0051; unmerged phase-9 holds 0052-0054; phase-10 plans >= 0054. 12a takes the next free number on main at Task 3 execution. Renumber risk: if phase-9 merges first use >= 0055.
-- **P6:** `agencyServiceable` is NOT on main -> skip; file BACKLOG "Phase 9 merge -> apply agencyServiceable to rival-search and signals-weekly".
-- **Maps "dentist" @ Granbury (20):** primary category Dentist 18, Dental clinic 1, Oral and maxillofacial surgeon 1. Additional: Cosmetic dentist, Dental implants provider/periodontist, Emergency dental service, Orthodontist, Pediatric dentist, Teeth whitening service, Dental hygienist, Endodontist, Periodontist, Oral surgeon.
-- **Maps "hvac contractor" @ Granbury (20):** primary HVAC contractor 15, Air conditioning contractor 4, Plumber 1. Additional: A/C repair service, Heating contractor, Furnace repair service, Air duct cleaning service, Electrician, Plumber, Insulation contractor; noise: Service establishment, Training center, Plumbing supply store, Pump supplier.
-- **Maps item shape:** `category` always string; `additional_categories` and `address` can be null; lat/lng/is_claimed/phone present; `work_hours.current_status` ('open'|'close') absent on ~15% (tri-state).
-- **ads_advertisers** (keyword + `location_coordinate` "lat,lng", $0.002): `result[0].items[]` mixes `ads_advertiser` {title, advertiser_id 'AR...', verified, approx_ads_count} with `ads_domain` {domain} rows -> filter on type. "Aire Serv" returns brand + franchisees -> chain guard essential.
-- **Meta search:** ScrapeCreators `GET /v1/facebook/adLibrary/search/ads?query=&status=ACTIVE&country=US` -> `searchResults[]` (not `results`) with `page_id`, `page_name`, `is_active`, `ad_archive_id`; 1 credit. "Granbury Dental Center" -> 6 ads, 2 pages (263199177146 x5, 696068746913122 "granburydc" x1). No page-search fallback needed; group by `page_id` (count = lower bound).
-- Fixtures in `packages/collectors/test/fixtures/vendors/`: dfs-maps-live-{dental,hvac}, dfs-ads-advertisers-live, scrapecreators-adlibrary-search (CDN query strings redacted).
+- **Migrations:** main ends 0051; unmerged phase-9 holds 0052-0054 (renumber 12a to >= 0055 if it merges first); phase-10 >= 0054. **P6:** `agencyServiceable` not on main; BACKLOG at merge: "apply agencyServiceable to rival-search and signals-weekly".
+- **Pack category lists (Task 2):** dental primary Dentist, Dental clinic, Oral and maxillofacial surgeon; additional Cosmetic dentist, Orthodontist, Pediatric dentist, Periodontist, Endodontist, Emergency dental service, Dental implants provider, Teeth whitening service, Dental hygienist. HVAC primary HVAC contractor, Air conditioning contractor, Plumber; additional A/C repair service, Heating contractor, Furnace repair service, Air duct cleaning service, Electrician, Insulation contractor; noise: Service establishment, Training center, Plumbing supply store, Pump supplier.
+- **Maps item:** `category` always string; `additional_categories`/`address` can be null; `work_hours.current_status` absent on ~15% (tri-state).
+- **ads_advertisers** (keyword + `location_coordinate` "lat,lng", $0.002): `result[0].items[]` mixes `ads_advertiser` {title, advertiser_id 'AR...', verified, approx_ads_count} with `ads_domain` rows, so filter on type; "Aire Serv" returns brand + franchisees (chain guard essential).
+- **Meta search:** ScrapeCreators `GET /v1/facebook/adLibrary/search/ads?query=&status=ACTIVE&country=US` -> `searchResults[]` (not `results`) with `page_id`, `page_name`, `is_active`, `ad_archive_id`; 1 credit; group by `page_id` (count = lower bound). No page-search fallback needed.
+- Fixtures: `packages/collectors/test/fixtures/vendors/` dfs-maps-live-{dental,hvac}, dfs-ads-advertisers-live, scrapecreators-adlibrary-search.
 
 ## Assumes from other branches
 - **phase-9 (9a executing):** migrations **0052–0053**; new `db/src/filters.ts`; `agencyServiceable` filter on every scheduler (incl. `ensureSelfCompetitors`, `listBriefDueClients`) — our new jobs apply it too. 9a e7: ≤ 3 active clients in pilot/trial.
@@ -40,57 +38,17 @@ Brainstorm decisions in Brief §1; promoted to the spec with ids.
 - Phase 12 merge → add roadmap row 12; amend core spec §9.1 item 5 (quiet week carries a "Where you stand" scorecard) and §4.1 item 2.
 
 ## Owner verification steps
-TBD (plan).
+On `cs_dev` with the worker running:
+1. Run "Find competitors" for both clients: no wrong-category or self suggestions.
+2. Granbury Dental Center and Archstone are rated Top rival or Worth watching.
+3. Run cost <= $3 on `/platform/costs`.
+4. Accept one suggestion: Meta/Google ad-account chips appear on its profile.
+5. Next Monday `signals-weekly` fills the tracked competitors' tiers.
 
-## Brief
-
-### 1. Scope
-**12a Competitor discovery & rating** (core spec **§4.1 item 2** discovery; **§4.2** collectors; **§6.3** relevance = service × territory overlap)
-- Stage 1: DataForSEO Maps search over client keywords + pack seed keywords (≤ 5), 7×7 grid. Hard filters: pack `discovery.categories` allowlist, service area, self exclusion, closed. **Overlap** = rank-weighted presence × category/service match × distance.
-- Stage 2, top ~20: Google `ads_advertisers` name+location → `ads_search`; Meta Ad Library name search (ScrapeCreators/Apify) matched on name+city/website; 20-review sample; claimed/chain. **Activity** score.
-- Tiers Top rival / Worth watching / Minor (score internal), shown to agency + client users.
-- Auto-run when client has keywords + service area + place id; top rivals pre-ticked up to `competitor_limit`; AM confirms. Strong ad matches auto-attach on accept, weak = confirm.
-- Weekly re-rating from existing data. Signal `null` = not checked, `0` = checked-none (needs the "No Search Results" fix). Cap $3/run, 5 runs/day.
-
-**12b Starting-point brief** (**§8.5** recommendations; **§9.1** weekly brief; **§9.1 item 5 quiet week needs an amendment**)
-- `brief.kind = 'starting_point'`, one per client; generated when onboarding data is ready (self GBP, review backfill, first rank scan, discovery) or after 48 h.
-- Deterministic self-rules in the pack: `review_velocity_gap`, `reply_rate_gap`, `rating_gap`, `rival_only_advertiser`, `theme_strength`/`theme_weakness`, `map_visibility_gap`, `profile_gap` → 3–5 items + recommendations.
-- Layout: 4 tiles + scorecard + finding cards. Quiet weeks also carry "Where you stand" (deltas since starting point + open first moves). Client-home progress card.
-
-### 2. Already built — reuse
-- `packages/collectors/src/local/{suggest,maps,grid}.ts` — current suggestions, DataForSEO Maps SERP, service-area grid.
-- `packages/collectors/src/local/accept.ts` — `acceptSuggestion`, `findExistingCompetitor`, `patchReusedCompetitor`.
-- `packages/collectors/src/local/self.ts` — `ensureSelfCompetitor(s)` (self link from `client.place_id`).
-- `packages/collectors/src/ads/google.ts` — Google Ads Transparency (advertisers, pinned/domain modes).
-- `packages/collectors/src/ads/meta.ts` — Meta ads by page id, Apify → ScrapeCreators fallback (no name search yet).
-- `packages/collectors/src/prospect/{snapshot,report}.ts` — one-shot multi-vendor run (pattern).
-- `packages/tools/src/tools/competitors.ts` — suggestion/accept/add tools (limit check lives here).
-- `packages/tools/src/tools/{reputation,rankings,overview}.ts` — read tools behind scorecard tiles.
-- `packages/engine/src/briefs/*` — brief pipeline (`kind` `standard|quiet`).
-- `packages/engine/src/reviews/benchmark.ts` — review benchmark vs rivals.
-- `packages/engine/src/structured/rank.ts` — rank-scan diffs (map-visibility inputs).
-- `packages/verticals/packs/{dental,hvac_plumbing}.yaml` — gain `discovery.*` + self-rules.
-- `apps/web/src/app/(app)/c/[clientId]/competitors/*` — list, `actions.ts`, controls, detail.
-- `apps/web/src/components/views/brief-view.tsx`, `packages/email/src/templates/brief.tsx` — brief web/email render.
-
-### 3. Binding decisions (do not re-open)
-- Crawler conduct; `WEB_MONITORING_ENABLED` stays unset; public information only.
-- Web reads = registered `@cs/tools` tools; writes via `runTool`; page refusals → 404.
-- `upsell_tag` never client-facing; event readers filter `retracted_at IS NULL`; schedulers/lists filter `client.status = 'active'`.
-- Model input via `redactForModel`. Charts = hand-written inline SVG.
-- Review decisions on Jev; τ 0.85 unchanged. No evidence, no claim. Never edit applied migrations; one worker replica.
-
-### 4. Backlog to fold in (verbatim)
-- [ ] DataForSEO "No Search Results." is treated as a failure: `jobs` tasks end `failed`, `ads_google` ends `vendor_error` (2026-10-14: ads for Victory, Affordable Dentures, Jay Thomas, Purczinsky; jobs for Victory, Affordable Dentures). Should record an empty, successful observation so "no ads / no jobs" is a real state and the next diff has a baseline — *from 2026-10-14 re-pull*
-- [ ] Franchise brands: choose the local franchisee's ad accounts, not the brand's; jobs too (Aire Serv's 2026-10-14 postings are brand-wide "United States") — *from phase5-polish*
-- [ ] Franchise local relevance: choose the franchisee's advertisers/pages, not the brand's (e.g. Iowa City `AR16031097081657556993` on Aire Serv) — *from end-of-Phase-5 verification*
-- [ ] Unpinning Google advertisers (pinned → domain) can ~21 days later report mass "ads stopped" — retire silently on a mode switch before any unpin UI — *from 3b*
-- [ ] `ensureSelfCompetitor` read-then-write race on a place-id change; competitor-limit check not atomic with `acceptSuggestion`/`add_competitor` (can exceed by one) — *from 5b-1, 5b-2 Task 3*
-- [ ] Before switching on `WEB_MONITORING_ENABLED`: `accept_competitor_suggestion`/`add_competitor` (`packages/tools/src/tools/competitors.ts`) return `'disabled'` for a prospect; start discovery in `convert_prospect` — *from 5b-2 final review Minor 1*
-- (No item on quiet-week/brief empty states.)
-
-### 5. In-flight workstreams
-See **Assumes from other branches**. Hot spots: schedulers, client lifecycle (`create_client`/`convert_prospect`), `tools/all.ts`, email `render/types`, `coverage.ts`, migration numbers (this phase: next free at execution time).
-
-### 6. Open questions
-Resolved 2026-10-14: daily cap **per agency**; Phase 12 adds the **auto-run now** (Phase 11 reuses the entry point); discovery runs **for prospects too** (owner overrode the recommendation).
+## Brief (condensed)
+**12a** (core spec §4.1 item 2, §4.2, §6.3): Maps search over client + pack seed keywords (≤ 5, 7x7 grid); hard filters (category allowlist, area, self, closed); overlap = rank-weighted presence x category/service match x distance; stage 2 on the top ~20 (Google `ads_advertisers`, Meta name search, 20-review sample, claimed/chain) gives activity; tiers Top rival / Worth watching / Minor (scores internal); auto-run with keywords + area + place id; top rivals pre-ticked up to `competitor_limit`; strong ad matches auto-attach, weak need confirm; weekly re-rating; null = not checked, 0 = checked-none; $3/run, 5 runs/agency/day.
+**12b** (§8.5, §9.1; amend §9.1 item 5): `brief.kind='starting_point'`, one per client, generated when onboarding data is ready or after 48 h; deterministic pack self-rules (`review_velocity_gap`, `reply_rate_gap`, `rating_gap`, `rival_only_advertiser`, `theme_strength`/`theme_weakness`, `map_visibility_gap`, `profile_gap`) give 3-5 items; 4 tiles + scorecard + finding cards; quiet weeks carry "Where you stand"; client-home progress card.
+**Binding:** crawler conduct; `WEB_MONITORING_ENABLED` unset; reads = `@cs/tools`, writes via `runTool`, refusals 404; `upsell_tag` never client-facing; `retracted_at IS NULL`; `redactForModel`; inline SVG charts; Jev review decisions, tau 0.85; never edit applied migrations.
+**Backlog folded in:** DataForSEO "No Search Results." must record an empty successful observation (jobs `failed`, `ads_google` `vendor_error` today); franchise brands: pick the franchisee's ad accounts and jobs, not the brand's; unpinning Google advertisers can report mass "ads stopped" ~21 d later (retire silently before any unpin UI); `ensureSelfCompetitor` race and non-atomic competitor-limit check; before `WEB_MONITORING_ENABLED`: prospect `'disabled'` in accept/add tools and discovery in `convert_prospect`.
+**Resolved:** daily cap per agency; auto-run now (Phase 11 reuses the entry point); discovery runs for prospects too.
+**Hot spots:** schedulers, `create_client`/`convert_prospect`, `tools/all.ts`, email `render/types`, `coverage.ts`, migration numbers.

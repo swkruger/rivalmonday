@@ -1,12 +1,12 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { signLink } from '@cs/core';
-import { ad, agency, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, contact, createDb, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
+import { ad, agency, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
 import { createStoreFromEnv } from '@cs/storage';
 import { eq, sql } from 'drizzle-orm';
 import { acceptInvitations, createInvitation } from '@cs/tools';
 import { resolveEvidenceDir } from '../src/server/files';
-import { ASK_FIXTURE_FILE, E2E_LINK_SECRET, MCP_CLIENTS_FILE, OUTBOX, OWNER_LINK_FILE } from '../playwright.config';
+import { ASK_FIXTURE_FILE, E2E_LINK_SECRET, MCP_CLIENTS_FILE, OUTBOX, OWNER_LINK_FILE, RIVALS_FIXTURE_FILE } from '../playwright.config';
 
 /**
  * Seeds `cs_test` for the E2E smoke run: one agency, one client, one competitor, a sent brief, an invitation and a
@@ -161,6 +161,8 @@ export async function seed(): Promise<void> {
     for (const m of mcpClients) await createInvitation(db, { agencyId, email: 'mcp-owner@e2e.test', role: 'client_owner', clientId: m.id, invitedBy: 'e2e-seed' });
     await mkdir(dirname(MCP_CLIENTS_FILE), { recursive: true });
     await writeFile(MCP_CLIENTS_FILE, JSON.stringify({ first: mcpClients[0], second: mcpClients[1] }));
+
+    await seedRivals(db, { agencyId });
 
     await seedAsk(db, { agencyId, competitorId: comp!.id, eventId: workspace.eventId, evidenceId: workspace.evidenceId });
 
@@ -348,4 +350,63 @@ async function seedAsk(
   const fixture: AskFixture = { askCo: askCo!, privateCo: privateCo!, quotaCo: quotaCo!, toggleCo: toggleCo!, askThreadId, privateThreadId, starters: ASK_STARTERS };
   await mkdir(dirname(ASK_FIXTURE_FILE), { recursive: true });
   await writeFile(ASK_FIXTURE_FILE, JSON.stringify(fixture));
+}
+
+/** 12a E2E: what `competitors-rivals.spec.ts` reads from `RIVALS_FIXTURE_FILE`. */
+export type RivalsFixture = { clientId: string; trackedMetaId: string };
+export const RIVALS_CLIENT_NAME = 'Rivals Heating Co';
+export const RIVALS_OWNER_EMAIL = 'rivals-owner@e2e.test';
+
+type SeedSignals = Record<string, unknown>;
+const NO_SIGNALS: SeedSignals = {
+  rating: null, votes: null, reviews30d: null, reviews90d: null, replyRate: null, googleAdsActive: null, googleAdsNew30d: null, googleAccount: null,
+  metaPage: null, metaAdsActive: null, claimed: null, chain: null, categoryMatch: null, distanceKm: null, presence: null,
+};
+
+/**
+ * 12a: no worker runs in E2E, so the finished discovery run, its tiered suggestions (two top rivals, one watch with
+ * unchecked signals, one minor), the hidden list, tracked competitors with ratings and ad matches are all written
+ * directly. The tracked competitor with a matched Meta page is tracked by this client only (Ruling 7), so removing it works.
+ */
+async function seedRivals(db: ReturnType<typeof createDb>['db'], o: { agencyId: string }): Promise<void> {
+  const { agencyId } = o;
+  const [c] = await db.insert(client).values({
+    agencyId, name: RIVALS_CLIENT_NAME, verticalId: 'hvac_plumbing', features: ['dashboard', 'manage_competitors'], keywords: ['ac repair'],
+    serviceArea: { center: { lat: 32.4, lng: -97.79 }, radiusKm: 25, zips: ['76048'] }, placeId: 'e2e-rivals-self-place',
+  }).returning({ id: client.id });
+  const clientId = c!.id;
+  await createInvitation(db, { agencyId, email: RIVALS_OWNER_EMAIL, role: 'client_owner', clientId, invitedBy: 'e2e-seed' });
+
+  const [run] = await db.insert(discoveryRun).values({
+    agencyId, clientId, trigger: 'manual', status: 'done', kept: 4, startedAt: new Date(Date.now() - 3600_000), finishedAt: new Date(Date.now() - 3000_000),
+    hidden: { wrong_category: 1, outside_area: 1 },
+    progress: { searchesDone: 9, searchesTotal: 9, checksDone: 4, checksTotal: 4, hiddenList: [{ name: 'Bluestem Hardware Supply', reason: 'wrong_category' }, { name: 'Tarrant Valley Mechanical', reason: 'outside_area' }] },
+  }).returning({ id: discoveryRun.id });
+  const checked: SeedSignals = { ...NO_SIGNALS, rating: 4.7, votes: 212, reviews30d: 9, googleAdsActive: 4, googleAdsNew30d: 2, googleAccount: 'matched', metaPage: 'none', claimed: true, chain: false, categoryMatch: 'main', distanceKm: 3.1, presence: { searches: 9, appeared: 8, bestRank: 1 } };
+  const rows: { name: string; tier: 'top' | 'watch' | 'minor'; overlap: number; activity: number; signals: SeedSignals }[] = [
+    { name: 'Granbury Cooling Pros', tier: 'top', overlap: 0.92, activity: 0.8, signals: checked },
+    { name: 'Lakeview Air and Heat', tier: 'top', overlap: 0.85, activity: 0.55, signals: { ...checked, rating: 4.5, votes: 140, googleAdsActive: 2, googleAdsNew30d: 0 } },
+    { name: 'Hood County Comfort', tier: 'watch', overlap: 0.62, activity: 0.3, signals: { ...NO_SIGNALS, rating: 4.1, votes: 40, categoryMatch: 'related', distanceKm: 11, presence: { searches: 9, appeared: 4, bestRank: 4 } } },
+    { name: 'Comanche Peak Plumbing', tier: 'minor', overlap: 0.2, activity: 0.05, signals: { ...NO_SIGNALS, rating: 3.9, votes: 12, claimed: false, chain: false, presence: { searches: 9, appeared: 1, bestRank: 12 } } },
+  ];
+  await db.insert(competitorSuggestion).values(rows.map((r, i) => ({
+    agencyId, clientId, name: r.name, domain: null, placeId: `e2e-rivals-sugg-${i}`, cid: null, rating: r.signals.rating as number, votes: r.signals.votes as number,
+    appearances: 1, bestRank: 1, overlapScore: r.overlap, status: 'suggested', runId: run!.id, category: 'HVAC contractor',
+    distanceKm: r.signals.distanceKm as number | null, overlap: r.overlap, activity: r.activity, tier: r.tier, signals: r.signals, adMatches: [],
+  })));
+
+  // Tracked: one sole-tracked competitor with a matched Meta page and a weak Google match pending, one unrated.
+  const trackedMetaId = '4242000000001';
+  const [solo, unrated] = await db.insert(competitor).values([
+    { name: 'Brazos Valley Air', placeId: 'e2e-rivals-tracked-1', metaPageIds: [trackedMetaId] },
+    { name: 'Paluxy Heating', placeId: 'e2e-rivals-tracked-2' },
+  ]).returning({ id: competitor.id });
+  await db.insert(clientCompetitor).values([
+    { agencyId, clientId, competitorId: solo!.id, pendingAdMatches: [{ platform: 'google', accountId: 'AR4200000000000000001', name: 'Brazos Valley Air LLC', strength: 'weak' }] },
+    { agencyId, clientId, competitorId: unrated!.id },
+  ]);
+  await db.insert(competitorSignal).values({ agencyId, clientId, competitorId: solo!.id, tier: 'top', overlap: 0.9, activity: 0.7, signals: checked, computedAt: new Date(Date.now() - 2 * DAY) });
+
+  await mkdir(dirname(RIVALS_FIXTURE_FILE), { recursive: true });
+  await writeFile(RIVALS_FIXTURE_FILE, JSON.stringify({ clientId, trackedMetaId } satisfies RivalsFixture));
 }

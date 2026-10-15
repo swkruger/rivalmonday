@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@playbooks',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -101,7 +101,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${C}alerts/`), tags: ['@alerts'], why: 'alert page' },
   { pattern: re(`${C}briefs/`), tags: ['@briefs', '@guest'], why: 'brief page' },
   { pattern: re(`${C}changes/`), tags: ['@changes', '@evidence'], why: 'changes feed and evidence viewer' },
-  { pattern: re(`${C}competitors/`), tags: ['@competitors'], why: 'competitors and profiles' },
+  { pattern: re(`${C}competitors/`), tags: ['@competitors', '@rivals'], why: 'competitors and profiles' },
   { pattern: re(`${C}evidence/`), tags: ['@evidence', '@guest'], why: 'evidence page' },
   { pattern: re(`${C}moves/`), tags: ['@moves'], why: 'moves' },
   { pattern: re(`${C}pitch-snapshot/`), tags: ['@prospects', '@guest'], why: 'pitch snapshot' },
@@ -129,7 +129,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}evidence-chips\\.tsx$`), tags: ['@briefs', '@recommendations', '@overview', '@alerts', '@guest'], why: 'evidence chips' },
   { pattern: re(`${COMP}evidence-image\\.tsx$`), tags: ['@changes', '@evidence'], why: 'evidence snapshots' },
   { pattern: re(`${COMP}pressure-badge\\.tsx$`), tags: ['@clients', '@competitors'], why: 'pressure badge' },
-  { pattern: re(`${COMP}rival/`), tags: ['@competitors'], why: 'rival tier chips and signal pills' },
+  { pattern: re(`${COMP}rival/`), tags: ['@competitors', '@rivals'], why: 'rival tier chips and signal pills' },
   { pattern: re(`${COMP}prospect-landscape\\.tsx$`), tags: ['@prospects'], why: 'prospect landscape' },
   { pattern: re(`${COMP}recommendation-board\\.tsx$`), tags: ['@recommendations', '@briefs'], why: 'recommendation board' },
   { pattern: re(`${COMP}services-area-summary\\.tsx$`), tags: ['@profile'], why: 'client profile' },
