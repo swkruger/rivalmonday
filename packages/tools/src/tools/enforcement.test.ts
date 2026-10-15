@@ -63,6 +63,17 @@ describe('create_client seat cap', () => {
   });
 });
 
+describe('refused activation copy (R28)', () => {
+  it('create_client and convert_prospect: the admin gets the payment copy, an account manager the neutral copy', async () => {
+    await setState('past_due');
+    const am = ctx('account_manager');
+    await expect(registry.invoke(admin, 'create_client', newClient('P'))).rejects.toMatchObject({ code: 'billing_seat_limit', message: 'Payment needed — update your payment method to add clients.' });
+    await expect(registry.invoke(am, 'create_client', newClient('P'))).rejects.toMatchObject({ code: 'billing_seat_limit', message: "Your agency's account needs attention." });
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2));
+    await expect(registry.invoke(am, 'convert_prospect', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'billing_seat_limit', message: "Your agency's account needs attention." });
+  });
+});
+
 describe('convert_prospect seat cap', () => {
   beforeEach(async () => {
     await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2));
@@ -124,6 +135,15 @@ describe('write guard (service_paused)', () => {
     const team = await registry.invoke(admin, 'revoke_invitation', { invitationId: '00000000-0000-4000-8000-000000000999' }).catch((e: unknown) => e);
     expect((team as { code?: string } | null)?.code).not.toBe('service_paused');
     await expect(registry.invoke(admin, 'get_client_profile', { clientId: IDS.clientA1 })).resolves.toBeTruthy();
+  });
+
+  it('keeps self-protection writes open while paused (R28)', async () => {
+    const { PAUSED_WRITE_ALLOW_LIST } = await import('../billing-guard');
+    for (const name of ['revoke_api_token', 'revoke_oauth_grant', 'set_my_notification_pref', 'deactivate_recipient']) {
+      expect(PAUSED_WRITE_ALLOW_LIST, name).toContain(name);
+      const e = (await registry.invoke(admin, name, { bogus: true }).catch((x: unknown) => x)) as { message?: string };
+      expect(e?.message ?? '', name).not.toMatch(/Unknown tool/); // the name is a real tool
+    }
   });
 
   it('does not touch active, pilot or billing-less agencies', async () => {

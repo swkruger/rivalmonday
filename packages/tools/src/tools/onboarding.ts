@@ -58,7 +58,7 @@ export const createClient = defineTool({
     const values = { agencyId: ctx.agencyId, status: input.status, name: c.name, verticalId: pack.id, services: c.services, keywords: c.keywords, serviceArea: c.serviceArea, placeId: c.placeId, features: c.features, ...(input.status === 'active' ? { activatedAt: new Date() } : {}), ...(input.timezone ? { timezone: input.timezone } : {}) };
     // P5/R5: an active client takes a seat, so the cap check and the insert share one transaction (the check locks the agency's billing row).
     const [row] = await deps.service.transaction(async (tx) => {
-      if (input.status === 'active') await assertCanActivateClient(tx, ctx.agencyId);
+      if (input.status === 'active') await assertCanActivateClient(tx, ctx.agencyId, { role: ctx.role });
       return tx.insert(client).values(values).returning({ id: client.id });
     });
     if (input.status === 'active' && deps.billing) await postCommitSeatSync(deps, ctx.agencyId);

@@ -75,18 +75,23 @@ export async function billingAccess(db: BillingDb, agencyId: string, now: Date =
 }
 
 export const PAYMENT_NEEDED_MESSAGE = 'Payment needed — update your payment method to add clients.';
+/** R28: refused-state copy for agency staff who cannot fix billing (only the admin sees payment words). */
+export const ACCOUNT_NEEDS_ATTENTION_MESSAGE = "Your agency's account needs attention.";
+const refusedStateMessage = (role: string | undefined) => (role === undefined || role === 'agency_admin' ? PAYMENT_NEEDED_MESSAGE : ACCOUNT_NEEDS_ATTENTION_MESSAGE);
 export const seatLimitMessage = (includedSeats: number) => `You've used your ${includedSeats} included clients. Upgrade to add more.`;
 
 /**
  * Call inside the transaction that sets a client `active`. Serialises concurrent activations for one agency by locking
  * `agency_billing` (or, with no row yet, the `agency` row) `FOR UPDATE`, then counts active clients inside the same tx.
+ * `role` (the caller's) picks the refused-state copy; the seat-cap copy is the same for everyone.
  */
-export async function assertCanActivateClient(tx: Tx, agencyId: string, now: Date = new Date()): Promise<void> {
+export async function assertCanActivateClient(tx: Tx, agencyId: string, opts: { role?: string; now?: Date } = {}): Promise<void> {
+  const now = opts.now ?? new Date();
   const [row = null] = await tx.select().from(agencyBilling).where(eq(agencyBilling.agencyId, agencyId)).for('update');
   if (!row) await tx.select({ id: agency.id }).from(agency).where(eq(agency.id, agencyId)).for('update');
   const [p, activeClients] = await Promise.all([planFor(tx, row), countActiveClients(tx, agencyId)]);
   const includedSeats = p?.includedSeats ?? 0;
   const d = decide(row, activeClients, includedSeats, now);
   if (d.ok) return;
-  throw new ToolError('billing_seat_limit', d.reason === 'cap' ? seatLimitMessage(includedSeats) : PAYMENT_NEEDED_MESSAGE);
+  throw new ToolError('billing_seat_limit', d.reason === 'cap' ? seatLimitMessage(includedSeats) : refusedStateMessage(opts.role));
 }

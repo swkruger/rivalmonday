@@ -1,4 +1,4 @@
-import { billingAccess, syncSeats } from '@cs/billing';
+import { ACCOUNT_NEEDS_ATTENTION_MESSAGE, billingAccess, syncSeats } from '@cs/billing';
 import { type WriteGuard, ToolError } from '@cs/core';
 import type { ToolDeps } from './deps';
 import { knowledgeAdminTools } from './tools/knowledge-admin';
@@ -10,7 +10,7 @@ import { supportTools } from './tools/support';
 import { themeTools } from './tools/themes';
 
 export const SERVICE_PAUSED_MESSAGE = 'Service is paused. Update your payment method to resume.';
-const PAUSED_AGENCY_STAFF_MESSAGE = "Your agency's account needs attention.";
+const PAUSED_AGENCY_STAFF_MESSAGE = ACCOUNT_NEEDS_ATTENTION_MESSAGE;
 const PAUSED_CLIENT_MESSAGE = 'This workspace is temporarily unavailable.';
 
 /** R17: only the agency admin can act on the payment problem; everyone else gets copy that doesn't expose billing. */
@@ -30,10 +30,14 @@ export async function postCommitSeatSync(deps: ToolDeps, agencyId: string): Prom
 /** Platform-operator tools act on the platform, not on a paying agency, so a paused home agency never blocks them. Derived from the module arrays, not guessed names. */
 const PLATFORM_TOOLS: readonly string[] = [...platformConsoleTools, ...platformBillingTools, ...platformCostTools, ...modelOpsTools, ...knowledgeAdminTools, ...supportTools, ...themeTools].map((t) => t.name);
 
-/** Writes that stay open while the agency is `read_only`/`suspended`: paying to resume, and managing who has access. */
+/**
+ * Writes that stay open while the agency is `read_only`/`suspended`: paying to resume, managing who has access, and
+ * self-protection (R28: revoking tokens/grants, opting out of notifications, removing a recipient).
+ */
 export const PAUSED_WRITE_ALLOW_LIST: readonly string[] = [
   'create_checkout_session', 'create_portal_session', 'redeem_discount_code',
   'invite_member', 'revoke_membership', 'revoke_invitation',
+  'revoke_api_token', 'revoke_oauth_grant', 'set_my_notification_pref', 'deactivate_recipient',
   ...PLATFORM_TOOLS,
 ];
 

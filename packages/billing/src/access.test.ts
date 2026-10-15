@@ -90,6 +90,16 @@ describe('assertCanActivateClient', () => {
     await refusal(attempt());
   });
 
+  it('refused-state copy is role-aware (R28): account managers get neutral copy; the cap message is the same for all', async () => {
+    const asRole = (role: string) => dbs.service.transaction((tx) => assertCanActivateClient(tx, AGENCY, { role }));
+    await setBilling(dbs.owner, planId, { state: 'past_due' });
+    expect(await refusal(asRole('agency_admin'))).toBe('Payment needed — update your payment method to add clients.');
+    expect(await refusal(asRole('account_manager'))).toBe("Your agency's account needs attention.");
+    await dbs.owner.execute(sql`update agency_billing set state = 'trialing'`);
+    await addClients(dbs.owner, 1);
+    expect(await refusal(asRole('account_manager'))).toBe("You've used your 3 included clients. Upgrade to add more.");
+  });
+
   it('serialises two concurrent activations at seat 3: exactly one succeeds', async () => {
     await setBilling(dbs.owner, planId, { state: 'trialing' });
     const [p1, p2] = await addClients(dbs.owner, 2, 'prospect');

@@ -126,7 +126,7 @@ export const convertProspect = defineTool({
   async handler(ctx, { clientId }, deps) {
     await visibleClient(deps, ctx, clientId);
     await deps.service.transaction(async (tx) => {
-      await assertCanActivateClient(tx, ctx.agencyId); // P5: seat cap, locked against concurrent activations
+      await assertCanActivateClient(tx, ctx.agencyId, { role: ctx.role }); // P5: seat cap, locked against concurrent activations
       const rows = await tx
         .update(client)
         .set({ status: 'active', activatedAt: new Date() })
