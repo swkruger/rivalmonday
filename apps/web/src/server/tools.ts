@@ -51,7 +51,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     appUrl: webEnv().appUrl,
     evidenceStore: { get: (key) => store.get(key) },
     embedQuery: embedQueryFor(name, service),
-    billing: gatewayFor(webEnv().stripe ?? {}, name),
+    billing: gatewayFor(webEnv().stripe ?? {}, name) ?? undefined, // R27: absent = billing not configured
   };
 });
 

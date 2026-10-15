@@ -20,8 +20,11 @@ export interface WebEnv {
   platformAdmins: string[];
   /** 6b Q1: Ask runs on a deterministic scripted AI (E2E only; refused when VERCEL_ENV=production). */
   askFakeAi: boolean;
-  /** Phase 9a: Stripe settings, all optional (no secret key => the fake billing gateway). Shaped for `gatewayFor`. */
-  stripe?: { STRIPE_SECRET_KEY?: string; STRIPE_WEBHOOK_SECRET?: string; STRIPE_TAX_ENABLED?: string; NODE_ENV?: string; VITEST?: string };
+  /**
+   * Phase 9a: Stripe settings, all optional, shaped for `gatewayFor` (R27: no key in DEV/production => no gateway, billing
+   * not configured). `BILLING_FAKE_GATEWAY=1` selects the fake gateway (E2E only; refused on Vercel production).
+   */
+  stripe?: { STRIPE_SECRET_KEY?: string; STRIPE_WEBHOOK_SECRET?: string; STRIPE_TAX_ENABLED?: string; NODE_ENV?: string; VITEST?: string; BILLING_FAKE_GATEWAY?: string };
 }
 
 export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
@@ -45,6 +48,8 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
   if (defaultAgencyId && !isUuid(defaultAgencyId)) problems.push('DEFAULT_AGENCY_ID must be a uuid');
   const askFake = env.ASK_FAKE_AI?.trim() ?? '';
   if (askFake && env.VERCEL_ENV?.trim() === 'production') problems.push('ASK_FAKE_AI must not be set in production');
+  const billingFake = env.BILLING_FAKE_GATEWAY?.trim() || undefined;
+  if (billingFake && env.VERCEL_ENV?.trim() === 'production') problems.push('BILLING_FAKE_GATEWAY must not be set in production');
   const parsed: WebEnv = {
     appUrl, authSecret,
     appDatabaseUrl: need('APP_DATABASE_URL'), serviceDatabaseUrl: need('SERVICE_DATABASE_URL'), queueDatabaseUrl: need('DATABASE_URL'),
@@ -62,6 +67,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
       STRIPE_TAX_ENABLED: env.STRIPE_TAX_ENABLED?.trim() || undefined,
       NODE_ENV: env.NODE_ENV,
       VITEST: env.VITEST,
+      BILLING_FAKE_GATEWAY: billingFake,
     },
   };
   if (problems.length) throw new Error(`Web app configuration problems:\n- ${problems.join('\n- ')}`);
