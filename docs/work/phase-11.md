@@ -51,9 +51,7 @@ Roadmap row 11: "Multi-day GBP + DataForSEO prefill, competitor review emails, a
 - Web reads via registered tools, writes via `runTool`; refusals → 404; prospects/schedulers filter `client.status='active'` + `clientServiceable`; no jobs in DEMO/TEST; new env vars need owner approval + `turbo.json`. New screens → `packages/demo/src/coverage.ts`.
 
 ### 4. Backlog to fold in
-`docs/BACKLOG.md` has **no Phase 11 / client onboarding heading**. Related (fold in only if the owner agrees):
-- [ ] Per-client price/setup fee at enable time in the UI (today: enable at default, then change price → second link) — *9b M5*
-- [ ] Review/rename/remove the `CS Dev Verification Agency`/`Client` (`aaf5e009-…`/`25f99947-…`) before real onboarding — *from HANDOVER §5 item 5*
+9b M5 (per-client price at enable) → folded into 11b. CS Dev Verification Agency/Client clean-up → before real onboarding (owner).
 
 ### 5. In-flight workstreams
 See **Assumes from other branches**.
