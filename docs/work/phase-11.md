@@ -1,10 +1,10 @@
 # phase-11 — Client onboarding wizard (GBP/DataForSEO prefill, competitor review emails, billing)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-11   **Base:** main @ 4b1fb82
-**Plan/spec:** 11a spec `docs/superpowers/specs/2026-10-15-phase-11a-client-setup-wizard-design.md` ; 11a plan `docs/superpowers/plans/2026-10-16-phase-11a-client-setup-wizard.md` (Tasks 0–14, **approved 2026-10-16**); 11b spec `docs/superpowers/specs/2026-10-16-phase-11b-client-invite-billing-design.md` (approved 2026-10-16) + plan `docs/superpowers/plans/2026-10-16-phase-11b-client-invite-billing.md` (Tasks 15–24, **approved 2026-10-16**)
+**Plan/spec:** `docs/superpowers/{specs,plans}/` — 11a (`2026-10-15-…-11a-…-design`, `2026-10-16-…-11a-…`), 11b, 11c (all `2026-10-16-phase-11{b,c}-*`).
 
 ## Status (overwrite)
-2026-10-16: 11a spec + plan **owner-approved**. Not started; execution waits for phase-10 merge (or owner-approved stacking). 11b spec + plan approved (Tasks 15–24). 11c spec written (L1–L8; `docs/superpowers/specs/2026-10-16-phase-11c-client-intake-leads-design.md`), approved; plan `docs/superpowers/plans/2026-10-16-phase-11c-client-intake-leads.md` (Tasks 25–35) owner approval pending; L7 amended 11a/11b (prospects get the invite step).
+2026-10-16: specs approved for 11a (D1–D11), 11b (E1–E7), 11c (L1–L8; L7 amended 11a/11b: prospects get the invite step). Plans: 11a Tasks 0–14 ✅ approved, 11b 15–24 ✅ approved, 11c 25–35 owner approval pending. Nothing built; execution waits for phase-10 merge.
 
 ## Next (overwrite)
 After phase-10 merges: plan Task 0 pre-flight (rebase, pnpm install, own test DB `cs_phase_11_test`), then `superpowers:subagent-driven-development` Tasks 1–14, then 11b Tasks 15–24 (one final whole-branch review at the end). Meanwhile: brainstorm 11c if the owner wants.
