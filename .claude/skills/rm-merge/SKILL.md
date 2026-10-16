@@ -19,7 +19,7 @@ From `docs/work/<branch>.md`:
 - **Interfaces / what was built** → 2–4 lines in `docs/ARCHITECTURE.md` (package map + the phase's capability entry).
 - **Decisions** → binding product/stack/process decisions into root `CLAUDE.md` § Decisions (one line each); phase-local ones stay in the plan/spec.
 - **Owner verification steps** → `docs/STATE.md` "Next up" (or BACKLOG § Waiting if they need real data).
-- `docs/STATE.md` → rewrite: where `main` is (incl. migration level), next up. ≤ 5 KB.
+- `docs/STATE.md` → rewrite: where `main` is (incl. migration level), next up. ≤ 8 KB.
 - Roadmap row → mark the phase/sub-phase ✅ with date and plan link (one line).
 - `git rm docs/work/<branch>.md`. Commit: `docs(<branch>): fold work file into shared docs`.
 

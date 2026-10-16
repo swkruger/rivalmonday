@@ -37,7 +37,7 @@ Every session starts small and reads more only when it needs to. The root `CLAUD
 - Point the `TEST_*` URLs at the local test cluster (`bash scripts/local-test-db.sh setup`, then `env`). The full suite takes ~12 min there, against 38–48 min on Neon.
 
 **Where things live:**
-- [STATE.md](docs/STATE.md): the state of `main`, ≤ 5 KB, overwritten each time, never appended.
+- [STATE.md](docs/STATE.md): the state of `main`, ≤ 8 KB, overwritten each time, never appended.
 - `docs/work/`: one file per in-flight branch.
 - [BACKLOG.md](docs/BACKLOG.md): open items grouped by target phase.
 - `docs/gotchas-cross-cutting.md`, plus each package's `CLAUDE.md`.
