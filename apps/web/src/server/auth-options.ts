@@ -1,7 +1,7 @@
 import { oauthProvider } from '@better-auth/oauth-provider';
 import type { Db } from '@cs/db';
 import type { Branding, EmailPayload } from '@cs/email';
-import { acceptInvitations, dropUnboundConsents, hasSignInRight } from '@cs/tools';
+import { acceptInvitations, completePendingSignups, dropUnboundConsents, hasSignInRight } from '@cs/tools';
 import type { BetterAuthOptions } from 'better-auth';
 import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { magicLink } from 'better-auth/plugins/magic-link';
@@ -171,8 +171,18 @@ export function buildAuthOptions(deps: AuthDeps): BetterAuthOptions {
               sql`select id, email, name, "emailVerified" as verified from auth."user" where id = ${session.userId}`,
             );
             const u = rows[0];
+            if (!u?.verified) return;
             // Magic-link users are created with name ''; store NULL on the contact rather than ''.
-            if (u?.verified) await acceptInvitations(deps.service, { id: u.id, email: u.email, name: u.name || null }, now());
+            const user = { id: u.id, email: u.email, name: u.name || null };
+            // Phase 10: a verified email's open agency sign-up becomes agency + admin membership + trial, before invitations
+            // are accepted. A failure must never break sign-in or invitations; problems are re-derived by /sign-up/problem.
+            try {
+              await completePendingSignups(deps.service, user, now());
+            } catch (e) {
+              // Never log the email or any token; the message comes from the DB or the billing code.
+              console.error(`[auth] sign-up completion failed: ${e instanceof Error ? e.message : String(e)}`);
+            }
+            await acceptInvitations(deps.service, user, now());
           },
         },
       },

@@ -56,3 +56,27 @@ describe('startAgencyTrial', () => {
     expect(await dbs.owner.select().from(agencyBilling)).toHaveLength(1);
   });
 });
+
+describe('startAgencyTrial (Phase 10 R3: inside a sign-up transaction)', () => {
+  it('gw null: no gateway call, customer null; notice false: event but no billing notice', async () => {
+    const log = vi.spyOn(console, 'error');
+    const row = await startAgencyTrial(dbs.service, null, AGENCY, { offer: 'trial', now, notice: false });
+    expect(log).not.toHaveBeenCalled();
+    expect(row).toMatchObject({ state: 'trialing', stripeCustomerId: null });
+    expect(await dbs.owner.select().from(agencyBillingEvent)).toHaveLength(1);
+    expect(await dbs.owner.select().from(billingNotice)).toEqual([]);
+  });
+
+  it('runs inside the caller transaction (savepoint) and rolls back with it', async () => {
+    const boom = new Error('rollback');
+    await expect(dbs.service.transaction(async (tx) => {
+      const row = await startAgencyTrial(tx, null, AGENCY, { offer: 'pilot', now });
+      expect(row.state).toBe('pilot');
+      throw boom;
+    })).rejects.toBe(boom);
+    expect(await dbs.owner.select().from(agencyBilling)).toEqual([]);
+    await dbs.service.transaction((tx) => startAgencyTrial(tx, null, AGENCY, { offer: 'trial', now }));
+    expect(await dbs.owner.select().from(agencyBilling)).toHaveLength(1);
+    expect((await dbs.owner.select().from(billingNotice))[0]!.kind).toBe('billing_trialing');
+  });
+});

@@ -1,6 +1,6 @@
-import { type AgencyBillingRow, type Db, agency, agencyBilling, agencyBillingEvent, billingNotice } from '@cs/db';
+import { type AgencyBillingRow, agency, agencyBilling, agencyBillingEvent, billingNotice } from '@cs/db';
 import { eq } from 'drizzle-orm';
-import { currentStandardPlan } from './access';
+import { type BillingDb, currentStandardPlan } from './access';
 import { transitionParams } from './apply';
 import type { BillingGateway } from './types';
 
@@ -12,13 +12,17 @@ export interface StartTrialOpts {
   couponId?: string;
   actor?: string;
   now?: Date;
+  /** false skips the `billing_trialing`/`billing_pilot` notice (Phase 10 sign-up sends `agency_welcome` instead). Default true. */
+  notice?: boolean;
 }
 
 /**
  * Create the agency's billing row (Phase 10 signup / invite redemption). Idempotent: an existing row is returned
  * unchanged. A gateway failure still creates the row with no Stripe customer (checkout creates it later).
+ * Phase 10 (R3): `gw === null` skips the Stripe customer entirely (Checkout's `ensureCustomer` creates it lazily), so it
+ * can run inside the caller's transaction (`db` may be a Tx; the inner transaction is then a savepoint).
  */
-export async function startAgencyTrial(db: Db, gw: BillingGateway, agencyId: string, opts: StartTrialOpts): Promise<AgencyBillingRow> {
+export async function startAgencyTrial(db: BillingDb, gw: BillingGateway | null, agencyId: string, opts: StartTrialOpts): Promise<AgencyBillingRow> {
   const existing = async () => (await db.select().from(agencyBilling).where(eq(agencyBilling.agencyId, agencyId)))[0];
   const found = await existing();
   if (found) return found;
@@ -26,10 +30,12 @@ export async function startAgencyTrial(db: Db, gw: BillingGateway, agencyId: str
   const [ag] = await db.select({ name: agency.name }).from(agency).where(eq(agency.id, agencyId));
   if (!ag) throw new Error('Agency not found');
   let customerId: string | null = null;
-  try {
-    customerId = (await gw.createCustomer({ agencyId, name: ag.name })).id;
-  } catch {
-    console.error('[billing] createCustomer failed during trial start', { agencyId });
+  if (gw) {
+    try {
+      customerId = (await gw.createCustomer({ agencyId, name: ag.name })).id;
+    } catch {
+      console.error('[billing] createCustomer failed during trial start', { agencyId });
+    }
   }
 
   return db.transaction(async (tx) => {
@@ -58,12 +64,14 @@ export async function startAgencyTrial(db: Db, gw: BillingGateway, agencyId: str
       .insert(agencyBillingEvent)
       .values({ agencyId, fromState: null, toState: row.state, reason, actor: opts.actor ?? 'system' })
       .returning({ id: agencyBillingEvent.id });
-    await tx.insert(billingNotice).values({
-      agencyId,
-      kind: `billing_${row.state}`,
-      dedupeKey: `transition:${ev!.id}`,
-      params: transitionParams(null, row, reason),
-    });
+    if (opts.notice !== false) {
+      await tx.insert(billingNotice).values({
+        agencyId,
+        kind: `billing_${row.state}`,
+        dedupeKey: `transition:${ev!.id}`,
+        params: transitionParams(null, row, reason),
+      });
+    }
     return row;
   });
 }

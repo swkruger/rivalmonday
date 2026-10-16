@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
-import { contact, invitation, membership } from '@cs/db';
+import { agency, agencyBilling, contact, invitation, membership, pendingSignup, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, testUrls, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport, renderEmail, resolveBranding } from '@cs/email';
 import { betterAuth } from 'better-auth';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { truncateAuth } from '../../test/auth-fixtures';
@@ -135,6 +135,62 @@ describe('5b-2 hardening (decision 14)', () => {
     expect(await before(session as never, undefined as never)).toBe(false);
     await dbs.service.insert(membership).values({ userId: 'g1', agencyId: IDS.agencyA, role: 'agency_admin', createdBy: 't' });
     expect(await before(session as never, undefined as never)).not.toBe(false);
+  });
+});
+
+describe('Phase 10: pending agency sign-up completion (session.create.after)', () => {
+  const PLAN = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' };
+  const pend = (email: string) =>
+    dbs.service.insert(pendingSignup).values({ email, agencyName: 'Fresh Agency', source: 'open', ipHash: 'h'.repeat(64), expiresAt: new Date(Date.now() + 86_400_000) });
+  const fresh = async () => (await dbs.owner.select().from(agency)).filter((a) => a.id !== IDS.agencyA && a.id !== IDS.agencyB);
+  const hookOpts = () => buildAuthOptions({ env, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null), runInBackground: () => {}, sendEmail: async () => {} });
+  const sessionFor = (userId: string) => ({ userId, token: 't', expiresAt: new Date(Date.now() + 3_600_000), createdAt: new Date(), updatedAt: new Date() });
+
+  it('a magic-link sign-in of a pending email creates the agency (trialing, admin membership) exactly once', async () => {
+    await dbs.owner.insert(plan).values(PLAN);
+    await pend('founder@fresh.co');
+    await post('/sign-in/magic-link', { email: 'Founder@Fresh.co', callbackURL: '/onboarding/start' });
+    await flush();
+    expect(mail.sent).toHaveLength(1);
+    const link = linkFromMail();
+    const verify = await auth.handler(new Request(link));
+    expect(verify.headers.get('set-cookie')).toMatch(/session_token/);
+    const [a] = await fresh();
+    expect(a).toMatchObject({ name: 'Fresh Agency' });
+    const members = await dbs.service.select().from(membership).where(eq(membership.agencyId, a!.id));
+    expect(members).toMatchObject([{ role: 'agency_admin' }]);
+    expect((await dbs.owner.select().from(agencyBilling).where(eq(agencyBilling.agencyId, a!.id)))[0]!.state).toBe('trialing');
+    // A second sign-in (new session) completes nothing more.
+    const after = hookOpts().databaseHooks!.session!.create!.after!;
+    await after(sessionFor(members[0]!.userId) as never, undefined as never);
+    expect(await fresh()).toHaveLength(1);
+  });
+
+  it('an unverified user gets nothing', async () => {
+    await dbs.owner.insert(plan).values(PLAN);
+    await pend('unverified@fresh.co');
+    await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values ('nv1', '', 'unverified@fresh.co', false)`);
+    await hookOpts().databaseHooks!.session!.create!.after!(sessionFor('nv1') as never, undefined as never);
+    expect(await fresh()).toEqual([]);
+    expect((await dbs.owner.select().from(pendingSignup))[0]!.completedAt).toBeNull();
+  });
+
+  it('a completion failure is logged without the email and never blocks invitations or sign-in', async () => {
+    // No current plan => startAgencyTrial throws inside the completion transaction.
+    await pend('both@fresh.co');
+    await dbs.service.insert(invitation).values({ agencyId: IDS.agencyA, email: 'both@fresh.co', role: 'account_manager', invitedBy: 't', expiresAt: new Date(Date.now() + 86_400_000) });
+    await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values ('b1', '', 'both@fresh.co', true)`);
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await expect(hookOpts().databaseHooks!.session!.create!.after!(sessionFor('b1') as never, undefined as never)).resolves.toBeUndefined();
+      expect(logged).toHaveBeenCalledTimes(1);
+      expect(String(logged.mock.calls[0]![0])).toMatch(/^\[auth\] sign-up completion failed/);
+      expect(String(logged.mock.calls[0]![0])).not.toContain('both@fresh.co');
+    } finally {
+      logged.mockRestore();
+    }
+    expect(await fresh()).toEqual([]);
+    expect(await dbs.service.select().from(membership).where(eq(membership.userId, 'b1'))).toMatchObject([{ agencyId: IDS.agencyA, role: 'account_manager' }]);
   });
 });
 
