@@ -1,6 +1,6 @@
 {
-  "id": "8a9383be-317f-4364-b8e6-876c2c16aff4",
-  "prevId": "3374a449-59db-496e-8a23-6be0a721537f",
+  "id": "3374a449-59db-496e-8a23-6be0a721537f",
+  "prevId": "559b826c-bee7-4356-a1e4-27f784a925db",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1074,12 +1074,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "portal_configuration_id": {
-          "name": "portal_configuration_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "application_fee_percent": {
           "name": "application_fee_percent",
           "type": "numeric(5, 2)",
@@ -1494,12 +1488,6 @@
         },
         "payment_failed_since": {
           "name": "payment_failed_since",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "auto_paused_failure_at": {
-          "name": "auto_paused_failure_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
@@ -11138,7 +11126,7 @@
         },
         "discovery_run_trigger_check": {
           "name": "discovery_run_trigger_check",
-          "value": "\"discovery_run\".\"trigger\" IN ('auto','manual','convert')"
+          "value": "\"discovery_run\".\"trigger\" IN ('auto','manual','convert','scheduled')"
         }
       },
       "isRLSEnabled": false
