@@ -24,6 +24,10 @@ export interface WebEnv {
    * Phase 9a: Stripe settings, all optional, shaped for `gatewayFor` (R27: no key in DEV/production => no gateway, billing
    * not configured). `BILLING_FAKE_GATEWAY=1` selects the fake gateway (E2E only; refused on Vercel production).
    */
+  /** Phase 10: all optional. No Turnstile secret => the fake verifier; `supportReplyTo` is the Reply-To of lifecycle emails. */
+  turnstile?: { siteKey?: string; secretKey?: string };
+  supportReplyTo?: string;
+  postmarkBroadcastStream?: string;
   stripe?: { STRIPE_SECRET_KEY?: string; STRIPE_WEBHOOK_SECRET?: string; STRIPE_CONNECT_WEBHOOK_SECRET?: string; STRIPE_TAX_ENABLED?: string; NODE_ENV?: string; VITEST?: string; BILLING_FAKE_GATEWAY?: string };
 }
 
@@ -61,6 +65,9 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     kbImport: env.KB_IMPORT_ENABLED?.trim() === 'true',
     platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
     askFakeAi: askFake === '1',
+    turnstile?: { siteKey: env.TURNSTILE_SITE_KEY?.trim() || undefined, secretKey: env.TURNSTILE_SECRET_KEY?.trim() || undefined },
+    supportReplyTo: env.SUPPORT_REPLY_TO?.trim() || undefined,
+    postmarkBroadcastStream: env.POSTMARK_BROADCAST_STREAM?.trim() || undefined,
     stripe: {
       STRIPE_SECRET_KEY: env.STRIPE_SECRET_KEY?.trim() || undefined,
       STRIPE_WEBHOOK_SECRET: env.STRIPE_WEBHOOK_SECRET?.trim() || undefined,

@@ -1,4 +1,6 @@
 export * from './access/invitations';
+export * from './access/signup';
+export * from './access/free-mail';
 export * from './ask-tools';
 export * from './access/memberships';
 export * from './access/oauth';
