@@ -4,10 +4,10 @@
 **Plan/spec:** this file (owner approved the two fixes in session, 2026-10-16)
 
 ## Status (overwrite)
-Kickoff 2026-10-16. Both fixes being implemented (TDD) on this branch.
+F1 + F2 built (`ee8af41`, TDD: new tests red on old code). Typecheck clean; `test:affected` 6 packages green (web 75 files, tools 49); `e2e:affected` 72/72. Test DB `cs_phase_9_fixes_test`.
 
 ## Next (overwrite)
-Agent: implement F1 + F2, focused tests, `pnpm test:affected`, `e2e:affected`; then owner re-runs the 9a re-subscribe step.
+Owner: try it from this worktree (`pnpm dev` in `../CompetitorSpy-wt/phase-9-fixes`, DEV db) — Subscribe after the ended subscription; then `/rm-merge phase-9-fixes` on go-ahead (batch more Phase 9 findings here first if any).
 
 ## Fixes
 **F1 — re-subscribe after a subscription ended.** `subscription_ended` → `past_due` and forgets `stripe_subscription_id` (R26), but `/agency/settings/billing` picks Checkout vs Portal from the *state* (`HAS_SUBSCRIPTION` includes `past_due`/`read_only`/`suspended`/`cancelled`), so it offers "Manage billing" (portal), which cannot start a new subscription. `create_checkout_session` already allows it (no live subscription; on the paused allow-list).
