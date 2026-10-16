@@ -240,6 +240,24 @@ describe('Phase 10 onboarding kinds (R5)', () => {
     expect(r.sentAt).not.toBeNull();
   });
 
+  it.each([
+    ['completed', { completedAt: new Date() }],
+    ['dismissed', { dismissedAt: new Date() }],
+  ])('onboarding_tip is skipped when onboarding is %s at send time', async (_n, over) => {
+    await dbs.owner.insert(agencyOnboarding).values({ agencyId: IDS.agencyA, source: 'open', ...over });
+    const [a] = await tip({ day: 3, nextStep: 'team' });
+    await run();
+    expect(sentOnboarding).toHaveLength(0);
+    expect(await rowOf(a!.id)).toMatchObject({ lastError: 'skipped: onboarding closed', attempts: 0 });
+  });
+
+  it('onboarding_tip is skipped when the onboarding row is missing', async () => {
+    const [a] = await tip({ day: 3, nextStep: 'team' });
+    await run();
+    expect(sentOnboarding).toHaveLength(0);
+    expect(await rowOf(a!.id)).toMatchObject({ lastError: 'skipped: onboarding closed' });
+  });
+
   it('onboarding_tip with malformed params is skipped with a reason', async () => {
     await onboarding();
     const [b] = await notice('onboarding_tip', { day: 2, nextStep: 'profile' });

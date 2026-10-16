@@ -175,11 +175,12 @@ export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJob
                   );
                 }
               } else {
-                // onboarding_tip: re-checked at send time so an unsubscribe between enqueue and delivery is honoured.
-                const [ob] = await tx.select({ unsubscribedAt: agencyOnboarding.unsubscribedAt }).from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, row.agencyId));
+                // onboarding_tip: re-checked at send time so an unsubscribe, completion or dismissal between enqueue and delivery is honoured.
+                const [ob] = await tx.select({ unsubscribedAt: agencyOnboarding.unsubscribedAt, completedAt: agencyOnboarding.completedAt, dismissedAt: agencyOnboarding.dismissedAt }).from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, row.agencyId));
                 const day = params.day;
                 const nextStep = params.nextStep;
-                if (ob?.unsubscribedAt) skipReason = 'skipped: unsubscribed';
+                if (!ag || !ob || ob.completedAt || ob.dismissedAt) skipReason = 'skipped: onboarding closed';
+                else if (ob.unsubscribedAt) skipReason = 'skipped: unsubscribed';
                 else if (typeof day !== 'number' || !TIP_DAYS.has(day) || typeof nextStep !== 'string' || !TIP_STEPS.has(nextStep)) skipReason = 'skipped: bad params';
                 else {
                   const admins = await adminsOf();
