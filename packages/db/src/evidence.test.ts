@@ -96,12 +96,15 @@ describe('privilege guard', () => {
     //                           up because has_any_column_privilege reports true for any granted column.
     //   api_token / oauth_grant_binding UPDATE — column-level (Phase 6a): only revoked_at is granted; inserts are service role.
     //   ask_thread INSERT/DELETE + UPDATE(title, updated_at), ask_message INSERT + UPDATE(action) — author-only RLS (Phase 6b, 0043).
+    //   agency_profile INSERT + UPDATE — agency admin edits its own profile under RLS (Phase 10, 0066).
     // Every other public table (agency, competitor, tracked_page, capture, evidence, audit_log, llm_call,
     // vendor_call, competitor_source, vendor_task, observation, review, ad, rank_snapshot, brief, brief_item,
     // recommendation, playbook_override, feedback, contact, notification_pref, agency_webhook, notification,
     // alert, alert_event, trend_report, prospect_report) has had all write privileges revoked from app_user and is
     // writable only by app_service.
     const allowList = [
+      { table: 'agency_profile', priv: 'INSERT' },
+      { table: 'agency_profile', priv: 'UPDATE' },
       { table: 'api_token', priv: 'UPDATE' },
       { table: 'ask_message', priv: 'INSERT' },
       { table: 'ask_message', priv: 'UPDATE' },
