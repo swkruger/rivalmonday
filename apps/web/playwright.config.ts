@@ -50,6 +50,9 @@ export const E2E_SERVER_ENV: Record<string, string> = {
   STRIPE_WEBHOOK_SECRET: '',
   STRIPE_TAX_ENABLED: '',
   BILLING_FAKE_GATEWAY: '1',
+  // Phase 10: no Turnstile keys, so no widget renders and the fake verifier applies (blank wins over the repo .env).
+  TURNSTILE_SITE_KEY: '',
+  TURNSTILE_SECRET_KEY: '',
 };
 
 /** `E2E_SKIP_BUILD=1` (set by `e2e:affected` after its own, stamp-checked build) only starts the server. */

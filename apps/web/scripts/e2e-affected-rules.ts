@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@playbooks',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -85,19 +85,21 @@ export const RULES: Rule[] = [
   { pattern: re(`${SERVER}ask\\.ts$`), tags: ['@ask', '@kb'], why: 'Ask server wiring incl. the E2E fake AI (knowledge lookup)' },
   { pattern: re(`${WEB}src/(?:.*/)?ask(?:/|\\.ts$)`), tags: ['@ask'], why: 'Ask route, pages, components and server wiring' },
 
-  { pattern: re(`${APP}(?:sign-in/|sign-up/|join/|onboarding/start/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in, sign-up and link-error pages' },
+  { pattern: re(`${APP}(?:sign-up/|join/|onboarding/start/)`), tags: ['@auth', '@onboarding'], why: 'agency sign-up, invite-link redemption and the sign-up callback' },
+  { pattern: re(`${APP}(?:sign-in/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in and link-error pages' },
   { pattern: re(`(?:${APP}u/|${SERVER}unsubscribe\\.ts$)`), tags: [], why: 'setup-tip unsubscribe pages (public, no E2E yet)' },
   { pattern: re(`${APP}(?:l/|go/|files/)`), tags: GUEST_FILES, why: 'signed links and stored files' },
   { pattern: re(`${APP}dev-panel/`), tags: ['@dev-panel'], why: 'dev-panel route shell' },
-  { pattern: re(`${AGENCY}page\\.tsx$`), tags: ['@clients', '@client-billing'], why: 'agency client list (billing pill and actions)' },
+  { pattern: re(`${AGENCY}page\\.tsx$`), tags: ['@clients', '@client-billing', '@onboarding'], why: 'agency client list (billing pill and actions, getting-started checklist)' },
   { pattern: re(`${AGENCY}alerts/`), tags: ['@alerts'], why: 'alert queue' },
   { pattern: re(`${AGENCY}approvals/`), tags: ['@briefs', '@recommendations', '@starting-point'], why: 'brief approvals (a starting point is approved and sent here)' },
   { pattern: re(`${AGENCY}clients/`), tags: ['@clients'], why: 'new client' },
   { pattern: re(`${AGENCY}playbooks/`), tags: ['@playbooks'], why: 'playbooks' },
   { pattern: re(`${AGENCY}prospects/`), tags: ['@prospects', '@clients'], why: 'prospects' },
   { pattern: re(`${AGENCY}usage/`), tags: ['@usage'], why: 'usage and limits' },
+  { pattern: re(`${AGENCY}branding/logo/`), tags: ['@onboarding'], why: 'logo upload route (the wizard branding step uploads a logo)' },
   { pattern: re(`${AGENCY}(?:branding|team|webhooks)/`), tags: [], why: 'no E2E covers this agency page' },
-  { pattern: re(`${APP}\\(app\\)/onboarding/(?!start/)|${COMP}agency/`), tags: [], why: 'onboarding wizard and shared branding editor: no E2E yet' },
+  { pattern: re(`${APP}\\(app\\)/onboarding/(?!start/)|${COMP}agency/`), tags: ['@onboarding'], why: 'onboarding wizard, checklist and shared branding editor' },
   { pattern: re(`${AGENCY}settings/platform-access/`), tags: ['@support'], why: 'agency support-session history and notify switch' },
   { pattern: re(`${C}settings/billing/`), tags: ['@billing', '@client-billing'], why: 'client owner billing page and portal action' },
   { pattern: re(`${AGENCY}settings/billing/`), tags: ['@billing', '@client-billing'], why: 'billing page, Client billing section, actions and seat CSV' },
@@ -152,9 +154,9 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}views/alert-view\\.tsx$`), tags: ['@alerts'], why: 'alert view' },
   { pattern: re(`${COMP}views/report-view\\.tsx$`), tags: [], why: 'no E2E covers the report view' },
   { pattern: re(`${SERVER}(?:guest|links|files|store)\\.ts$`), tags: GUEST_FILES, why: 'guest links and stored files' },
-  { pattern: re(`${SERVER}logo\\.ts$`), tags: [], why: 'logo pipeline (sharp normalisation; unit-tested, no E2E uploads a logo)' },
+  { pattern: re(`${SERVER}logo\\.ts$`), tags: ['@onboarding'], why: 'logo pipeline (sharp normalisation; the wizard E2E uploads a logo)' },
   { pattern: re(`${SERVER}support-[^/]+\\.ts$`), tags: ['@support'], why: 'support session cookie, mask and email modules' },
-  { pattern: re(`${SERVER}(?:email-transport|sign-out|signup-cookie|pending-signup|onboarding-start|turnstile)\\.ts$`), tags: ['@auth'], why: 'sign-in email / sign-out / sign-up' },
+  { pattern: re(`${SERVER}(?:email-transport|sign-out|signup-cookie|pending-signup|onboarding-start|turnstile)\\.ts$`), tags: ['@auth', '@onboarding'], why: 'sign-in email / sign-out / sign-up' },
 
   // --- Domain packages: keyword rules (more specific first) ---
   kw('alert-rules', ['@alert-rules'], 'alert rules'),
@@ -173,6 +175,7 @@ export const RULES: Rule[] = [
   kw('pressure', ['@overview', '@clients', '@competitors'], 'competitive pressure'),
   kw('alert-queue|alert|digest', ['@alerts'], 'alerts'),
   kw('usage|limits', ['@usage'], 'usage/limits'),
+  kw('agency-onboarding|signup|free-mail', ['@onboarding', '@auth'], 'agency sign-up, wizard and checklist'),
   kw('prospect|onboarding', ['@prospects', '@clients'], 'prospects/onboarding'),
   kw('competitor', ['@competitors'], 'competitors'),
   kw('settings|preferences|client-input|clients', ['@profile', '@clients'], 'settings/client input'),
