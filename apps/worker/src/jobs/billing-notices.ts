@@ -1,8 +1,9 @@
 import { noticeEmailFor } from '@cs/billing';
-import { type EnvName, agency, billingNotice, client, clientBilling } from '@cs/db';
+import { type EnvName, agency, agencyOnboarding, billingNotice, client, clientBilling } from '@cs/db';
+import { platformOperatorEmails } from '@cs/tools';
 import { and, asc, eq, isNull, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import type { WorkerDeps } from '../deps';
+import type { OnboardingEmail, WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
 
 export const BILLING_NOTICE_MAX_ATTEMPTS = 5;
@@ -21,6 +22,27 @@ const CLIENT_KINDS = new Set(['client-payment-link', 'client-payment-needed']);
 const AGENCY_CLIENT_KINDS = new Set(['client-payment-failed', 'client-paid', 'client-auto-paused']);
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
+
+/** Phase 10 (R5): sign-up lifecycle kinds, written by `enqueueSignupEmails` (welcome, notice) and `onboarding-nudges` (tips). */
+const ONBOARDING_KINDS = new Set(['agency_welcome', 'platform_signup_notice', 'onboarding_tip']);
+const TIP_DAYS = new Set([1, 3, 7]);
+const TIP_STEPS = new Set(['profile', 'team', 'plan', 'branding', 'first_client']);
+type TipProps = Extract<OnboardingEmail, { template: 'onboarding_tip' }>['props'];
+type NoticeProps = Extract<OnboardingEmail, { template: 'platform_signup_notice' }>['props'];
+
+/** The sign-up notice props from the row's params (null = malformed). The console page for one agency is 8a's. */
+function signupNoticeProps(p: Record<string, unknown>, agencyId: string, appUrl: string): NoticeProps | null {
+  const agencyName = str(p.agencyName);
+  const email = str(p.email);
+  const source = p.source === 'open' || p.source === 'invite' ? p.source : null;
+  const offer = p.offer === 'trial' || p.offer === 'pilot' ? p.offer : null;
+  if (!agencyName || !email || !source || !offer) return null;
+  const pilotEndsAt = str(p.pilotEndsAt);
+  return {
+    agencyName, contactName: str(p.contactName) ?? null, email, source, offer, ...(pilotEndsAt && { pilotEndsAt }),
+    consoleUrl: `${appUrl}/platform/agencies/${agencyId}`,
+  };
+}
 
 /** All recipients rejected: roll the claim back and record the (last) error on the row. */
 class SendFailed extends Error {}
@@ -50,7 +72,10 @@ async function deliver(recipients: Recipient[], what: string, send: (to: string)
  * runs never mail the same row twice:
  *  - agency rows, 9a kinds: Rival Monday-branded, to active agency admins (never account managers or client users);
  *  - agency rows, 9b client kinds: Rival Monday-branded, to agency admins, naming the client;
- *  - client rows: agency-branded (no platform name), to the client's current `client_owner` memberships at send time.
+ *  - client rows: agency-branded (no platform name), to the client's current `client_owner` memberships at send time;
+ *  - Phase 10 kinds: `agency_welcome` and `onboarding_tip` to agency admins, `platform_signup_notice` to owner|staff
+ *    platform operators + PLATFORM_ADMIN_EMAILS (Rival Monday-branded; tips skipped once the agency unsubscribed).
+ * Unknown kinds are still marked sent without mail.
  * Logs ids and counts only: no addresses, names, params or checkout URLs.
  */
 export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJobOptions) {
@@ -127,6 +152,40 @@ export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJob
                       mail.sendClient(to, row.agencyId, clientId, { agencyName: ag?.name ?? '', branding: ag?.branding ?? null }, { kind, actionUrl }),
                     );
                   }
+                }
+              }
+            } else if (ONBOARDING_KINDS.has(row.kind)) {
+              const onboardingUrl = `${mail.appUrl}/onboarding/start`;
+              if (row.kind === 'agency_welcome') {
+                const admins = await adminsOf();
+                if (admins.length === 0) console.warn(`[billing-notices] no agency admins for agency ${row.agencyId}`);
+                const agencyName = str(params.agencyName) ?? ag?.name ?? '';
+                await deliver(admins, `admin (agency ${row.agencyId})`, (to) =>
+                  mail.sendOnboarding(to, row.agencyId, { template: 'agency_welcome', props: { agencyName, url: onboardingUrl } }),
+                );
+              } else if (row.kind === 'platform_signup_notice') {
+                const props = signupNoticeProps(params, row.agencyId, mail.appUrl);
+                // R13: owner|staff operators + PLATFORM_ADMIN_EMAILS; ids in logs are positional, never addresses.
+                const ops = props ? await platformOperatorEmails({ service: db, platformAdmins: mail.platformAdmins }, ['owner', 'staff']) : [];
+                if (!props) skipReason = 'skipped: bad params';
+                else if (ops.length === 0) skipReason = 'skipped: no platform operators';
+                else {
+                  await deliver(ops.map((email, i) => ({ id: `operator#${i + 1}`, email })), `platform operator (agency ${row.agencyId})`, (to) =>
+                    mail.sendOnboarding(to, row.agencyId, { template: 'platform_signup_notice', props }),
+                  );
+                }
+              } else {
+                // onboarding_tip: re-checked at send time so an unsubscribe between enqueue and delivery is honoured.
+                const [ob] = await tx.select({ unsubscribedAt: agencyOnboarding.unsubscribedAt }).from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, row.agencyId));
+                const day = params.day;
+                const nextStep = params.nextStep;
+                if (ob?.unsubscribedAt) skipReason = 'skipped: unsubscribed';
+                else if (typeof day !== 'number' || !TIP_DAYS.has(day) || typeof nextStep !== 'string' || !TIP_STEPS.has(nextStep)) skipReason = 'skipped: bad params';
+                else {
+                  const admins = await adminsOf();
+                  if (admins.length === 0) console.warn(`[billing-notices] no agency admins for agency ${row.agencyId}`);
+                  const props: TipProps = { agencyName: ag?.name ?? '', day: day as TipProps['day'], nextStep: nextStep as TipProps['nextStep'], url: onboardingUrl };
+                  await deliver(admins, `admin (agency ${row.agencyId})`, (to) => mail.sendOnboarding(to, row.agencyId, { template: 'onboarding_tip', props }));
                 }
               }
             } else if (AGENCY_CLIENT_KINDS.has(row.kind)) {

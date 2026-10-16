@@ -6,6 +6,7 @@ export * from './ask-tools';
 export * from './access/memberships';
 export * from './access/oauth';
 export * from './access/team';
+export * from './access/unsubscribe';
 export { assertAgencyServiceable, pausedMessage } from './billing-guard';
 export * from './client-input';
 export * from './deps';
@@ -46,4 +47,4 @@ export {
   type StatSources, upsertDailyStats, utcDay,
 } from './platform/stats';
 // Phase 8c: platform hosting costs (daily snapshot job, low-balance alerts).
-export { ADAPTERS as COST_ADAPTERS, evaluateAlerts as evaluateCostAlerts, platformOwnerEmails, type PlatformCostLowPayload, snapshotAll as snapshotPlatformCosts, type SnapshotDeps as PlatformCostSnapshotDeps, SERVICES as COST_SERVICES, type CostEnv, type ServiceKey as CostServiceKey } from './platform/costs';
+export { ADAPTERS as COST_ADAPTERS, evaluateAlerts as evaluateCostAlerts, platformOperatorEmails, platformOwnerEmails, type PlatformCostLowPayload, snapshotAll as snapshotPlatformCosts, type SnapshotDeps as PlatformCostSnapshotDeps, SERVICES as COST_SERVICES, type CostEnv, type ServiceKey as CostServiceKey } from './platform/costs';

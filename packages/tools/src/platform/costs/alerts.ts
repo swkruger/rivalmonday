@@ -1,5 +1,6 @@
 import { type Db, platformCostService, platformCostSnapshot } from '@cs/db';
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
+import type { PlatformRole } from '../../platform';
 import { burnRate, daysLeft, serviceStatus, type SnapPoint } from './math';
 import type { PlatformCostLowPayload, SnapshotDeps } from './snapshot';
 import { type ServiceKey, SERVICES } from './types';
@@ -7,13 +8,19 @@ import { type ServiceKey, SERVICES } from './types';
 const DAY_MS = 86_400_000;
 const num = (v: string | null): number | null => (v == null ? null : Number(v));
 
-/** env list + active platform_admin role='owner' users' emails, lower-cased and deduped. */
-export async function platformOwnerEmails(deps: Pick<SnapshotDeps, 'service' | 'platformAdmins'>): Promise<string[]> {
-  const rows = [...(await deps.service.execute<{ email: string }>(sql`
+/**
+ * env list (`PLATFORM_ADMIN_EMAILS`, treated as owners) + active `platform_admin` users with one of `roles`, lower-cased
+ * and deduped. Phase 10 (R13): the sign-up notice goes to `['owner', 'staff']`.
+ */
+export async function platformOperatorEmails(deps: Pick<SnapshotDeps, 'service' | 'platformAdmins'>, roles: readonly PlatformRole[]): Promise<string[]> {
+  const rows = roles.length === 0 ? [] : [...(await deps.service.execute<{ email: string }>(sql`
     select u.email from platform_admin pa join auth."user" u on u.id = pa.user_id
-    where pa.revoked_at is null and pa.role = 'owner'`))];
+    where pa.revoked_at is null and pa.role in (${sql.join(roles.map((r) => sql`${r}`), sql`, `)})`))];
   return [...new Set([...deps.platformAdmins, ...rows.map((r) => r.email)].map((e) => e.trim().toLowerCase()).filter(Boolean))];
 }
+
+/** env list + active platform_admin role='owner' users' emails, lower-cased and deduped. */
+export const platformOwnerEmails = (deps: Pick<SnapshotDeps, 'service' | 'platformAdmins'>): Promise<string[]> => platformOperatorEmails(deps, ['owner']);
 
 const usd = (n: number) => `$${n.toFixed(2)}`;
 

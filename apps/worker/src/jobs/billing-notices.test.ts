@@ -1,4 +1,5 @@
-import { agency, billingNotice, clientBilling, membership } from '@cs/db';
+import { agency, agencyOnboarding, type AgencyInviteLinkRow, billingNotice, clientBilling, membership, type PendingSignupRow, platformAdmin } from '@cs/db';
+import { enqueueSignupEmails } from '@cs/tools';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,6 +18,9 @@ type SentAgencyClient = { to: string; agencyId: string; props: Parameters<Billin
 let sentClient: SentClient[] = [];
 let sentAgencyClient: SentAgencyClient[] = [];
 let clientSend: ((to: string) => Promise<void>) | null = null;
+type SentOnboarding = { to: string; agencyId: string; email: Parameters<BillingEmailSender['sendOnboarding']>[2] };
+let sentOnboarding: SentOnboarding[] = [];
+let onboardingSend: ((to: string) => Promise<void>) | null = null;
 const deps = {
   serviceDb: () => dbs.service,
   billingEmail: () => ({
@@ -27,6 +31,11 @@ const deps = {
       sentClient.push({ to, agencyId, clientId, from, props });
     },
     sendAgencyClient: async (to: string, agencyId: string, props: SentAgencyClient['props']) => void sentAgencyClient.push({ to, agencyId, props }),
+    platformAdmins: ['env-owner@rm.test'],
+    sendOnboarding: async (to: string, agencyId: string, email: SentOnboarding['email']) => {
+      if (onboardingSend) await onboardingSend(to);
+      sentOnboarding.push({ to, agencyId, email });
+    },
   }),
 } as unknown as WorkerDeps;
 const run = (envName: 'dev' | 'demo' | 'test' = 'dev') => createBillingNoticeJobs(deps, { envName }).notices.handler({});
@@ -52,6 +61,8 @@ beforeEach(async () => {
   sentClient = [];
   sentAgencyClient = [];
   clientSend = null;
+  sentOnboarding = [];
+  onboardingSend = null;
   send = async (to, agencyId, props) => void sent.push({ to, agencyId, props });
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -161,6 +172,107 @@ describe('9b client billing notices', () => {
     expect(byKind.get('client-paid')![0]!.props.clientName).toBe(c!.name);
     const left = await dbs.owner.select().from(billingNotice).where(sql`sent_at is null`);
     expect(left).toHaveLength(0);
+  });
+});
+
+describe('Phase 10 onboarding kinds (R5)', () => {
+  const pending = (over: Partial<PendingSignupRow> = {}) =>
+    ({ agencyName: 'Acme Agency', contactName: 'Jo Smith', email: 'jo@acme.test', source: 'open', ...over }) as PendingSignupRow;
+  const enqueue = (p = pending(), link: AgencyInviteLinkRow | null = null) =>
+    dbs.owner.transaction((tx) => enqueueSignupEmails(tx as never, IDS.agencyA, p, new Date(), link));
+  const operators = async () => {
+    await user('po', 'Plat-Owner@rm.test');
+    await user('ps', 'plat-staff@rm.test');
+    await user('pv', 'plat-viewer@rm.test');
+    await dbs.owner.insert(platformAdmin).values([{ userId: 'po', role: 'owner' }, { userId: 'ps', role: 'staff' }, { userId: 'pv', role: 'viewer' }]);
+  };
+  const tip = (params: Record<string, unknown>) => notice('onboarding_tip', params, `onboarding_tip:${IDS.agencyA}:${String(params.day)}`);
+  const onboarding = (unsubscribedAt: Date | null = null) => dbs.owner.insert(agencyOnboarding).values({ agencyId: IDS.agencyA, source: 'open', unsubscribedAt });
+  const byTemplate = (t: string) => sentOnboarding.filter((s) => s.email.template === t);
+
+  it('sign-up completion enqueues exactly two rows; welcome goes to the agency admins, the notice to owner|staff operators + env', async () => {
+    await operators();
+    await enqueue();
+    await enqueue(); // idempotent per agency
+    const rows = await dbs.owner.select().from(billingNotice);
+    expect(rows.map((r) => r.kind).sort()).toEqual(['agency_welcome', 'platform_signup_notice']);
+    await run();
+    const welcome = byTemplate('agency_welcome');
+    expect(welcome.map((s) => s.to).sort()).toEqual(['ann@agency-a.test', 'ben@agency-a.test']);
+    expect(welcome[0]).toMatchObject({ agencyId: IDS.agencyA, email: { props: { agencyName: 'Acme Agency', url: 'https://app.rm.test/onboarding/start' } } });
+    const notices = byTemplate('platform_signup_notice');
+    expect(notices.map((s) => s.to).sort()).toEqual(['env-owner@rm.test', 'plat-owner@rm.test', 'plat-staff@rm.test']);
+    expect(notices[0]!.email.props).toEqual({
+      agencyName: 'Acme Agency', contactName: 'Jo Smith', email: 'jo@acme.test', source: 'open', offer: 'trial',
+      consoleUrl: `https://app.rm.test/platform/agencies/${IDS.agencyA}`,
+    });
+    expect(sent).toHaveLength(0);
+    expect(sentAgencyClient).toHaveLength(0);
+    const left = await dbs.owner.select().from(billingNotice).where(sql`sent_at is null or last_error is not null`);
+    expect(left).toHaveLength(0);
+  });
+
+  it('pilot invite: the notice carries pilotEndsAt; a null contact name passes through', async () => {
+    const link = { offer: 'pilot', pilotEndsAt: new Date('2026-12-01T00:00:00.000Z') } as AgencyInviteLinkRow;
+    await enqueue(pending({ source: 'invite', contactName: null }), link);
+    await run();
+    expect(byTemplate('platform_signup_notice')[0]!.email.props).toMatchObject({ source: 'invite', offer: 'pilot', contactName: null, pilotEndsAt: '2026-12-01T00:00:00.000Z' });
+  });
+
+  it('onboarding_tip goes to the agency admins with day, next step and the onboarding URL', async () => {
+    await onboarding();
+    const [n] = await tip({ day: 3, nextStep: 'team' });
+    await run();
+    const tips = byTemplate('onboarding_tip');
+    expect(tips.map((s) => s.to).sort()).toEqual(['ann@agency-a.test', 'ben@agency-a.test']);
+    const [ag] = await dbs.owner.select({ name: agency.name }).from(agency).where(eq(agency.id, IDS.agencyA));
+    expect(tips[0]!.email.props).toEqual({ agencyName: ag!.name, day: 3, nextStep: 'team', url: 'https://app.rm.test/onboarding/start' });
+    expect(await rowOf(n!.id)).toMatchObject({ lastError: null });
+  });
+
+  it('onboarding_tip is skipped (not mailed) once the agency unsubscribed', async () => {
+    await onboarding(new Date());
+    const [a] = await tip({ day: 1, nextStep: 'profile' });
+    await run();
+    expect(sentOnboarding).toHaveLength(0);
+    const r = await rowOf(a!.id);
+    expect(r).toMatchObject({ lastError: 'skipped: unsubscribed', attempts: 0 });
+    expect(r.sentAt).not.toBeNull();
+  });
+
+  it('onboarding_tip with malformed params is skipped with a reason', async () => {
+    await onboarding();
+    const [b] = await notice('onboarding_tip', { day: 2, nextStep: 'profile' });
+    const [c] = await notice('onboarding_tip', { day: 7, nextStep: 'nope' });
+    await run();
+    expect(sentOnboarding).toHaveLength(0);
+    for (const r of [b!, c!]) expect(await rowOf(r.id)).toMatchObject({ lastError: 'skipped: bad params', attempts: 0 });
+  });
+
+  it('a notice with no platform operators is marked done with a reason', async () => {
+    const mail = deps.billingEmail();
+    const noOps = { ...deps, billingEmail: () => ({ ...mail, platformAdmins: [] }) } as unknown as WorkerDeps;
+    const [n] = await notice('platform_signup_notice', { agencyName: 'A', contactName: 'B', email: 'b@a.test', source: 'open', offer: 'trial', pilotEndsAt: null });
+    await createBillingNoticeJobs(noOps, { envName: 'dev' }).notices.handler({});
+    expect(sentOnboarding).toHaveLength(0);
+    expect(await rowOf(n!.id)).toMatchObject({ lastError: 'skipped: no platform operators' });
+  });
+
+  it('every send rejecting keeps the rows unsent for retry', async () => {
+    await enqueue();
+    onboardingSend = async () => {
+      throw new Error('down');
+    };
+    await run();
+    const rows = await dbs.owner.select().from(billingNotice);
+    expect(rows.every((r) => r.sentAt === null && r.attempts === 1)).toBe(true);
+  });
+
+  it('unknown kinds are still marked sent without mail', async () => {
+    const [n] = await notice('some_future_kind');
+    await run();
+    expect(sentOnboarding).toHaveLength(0);
+    expect((await rowOf(n!.id)).sentAt).not.toBeNull();
   });
 });
 

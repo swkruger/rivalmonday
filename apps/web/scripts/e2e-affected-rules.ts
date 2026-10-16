@@ -86,6 +86,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${WEB}src/(?:.*/)?ask(?:/|\\.ts$)`), tags: ['@ask'], why: 'Ask route, pages, components and server wiring' },
 
   { pattern: re(`${APP}(?:sign-in/|sign-up/|join/|onboarding/start/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in, sign-up and link-error pages' },
+  { pattern: re(`(?:${APP}u/|${SERVER}unsubscribe\\.ts$)`), tags: [], why: 'setup-tip unsubscribe pages (public, no E2E yet)' },
   { pattern: re(`${APP}(?:l/|go/|files/)`), tags: GUEST_FILES, why: 'signed links and stored files' },
   { pattern: re(`${APP}dev-panel/`), tags: ['@dev-panel'], why: 'dev-panel route shell' },
   { pattern: re(`${AGENCY}page\\.tsx$`), tags: ['@clients', '@client-billing'], why: 'agency client list (billing pill and actions)' },

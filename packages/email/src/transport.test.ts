@@ -2,7 +2,7 @@ import type { LedgerSink, VendorCallRecord } from '@cs/core';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createConsoleTransport, createEmailTransportFromEnv, createFileTransport, createPostmarkTransport, isPostmarkTestServer, PermanentEmailError, POSTMARK_URL } from './transport';
 
 const msg = { from: 'Acme <briefs@acme.example>', to: 'pat@a1.example', replyTo: 'sam@acme.example', subject: 'S', html: '<p>h</p>', text: 'h', tag: 'alert', metadata: { notification: 'n1' } };
@@ -34,6 +34,41 @@ describe('postmark transport', () => {
     const body = JSON.parse(String(seen!.init.body));
     expect(body).toMatchObject({ From: msg.from, To: msg.to, ReplyTo: msg.replyTo, Subject: 'S', HtmlBody: '<p>h</p>', TextBody: 'h', MessageStream: 'outbound', TrackOpens: false, TrackLinks: 'None', Tag: 'alert', Metadata: { notification: 'n1' } });
     expect(l.calls).toEqual([expect.objectContaining({ vendor: 'postmark', operation: 'email', units: 1, costUsd: 0.0015, ok: true, agencyId: 'a', clientId: 'c' })]);
+  });
+
+  it('sends a broadcast message on the broadcast stream with its headers; ordinary messages stay on outbound with none', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const fetch = (async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)));
+      return reply(200, { ErrorCode: 0, MessageID: 'pm-1' })();
+    }) as unknown as typeof globalThis.fetch;
+    const headers = [{ Name: 'List-Unsubscribe', Value: '<https://x.test/u/t>' }, { Name: 'List-Unsubscribe-Post', Value: 'List-Unsubscribe=One-Click' }];
+    const t = createPostmarkTransport({ token: 't', ledger: ledger().sink, fetch, messageStream: 'tx-stream' });
+    await t.send({ ...msg, stream: 'broadcast', headers }, scope);
+    await t.send(msg, scope);
+    await t.send({ ...msg, stream: 'outbound' }, scope);
+    expect(bodies[0]).toMatchObject({ MessageStream: 'broadcast', Headers: headers });
+    expect(bodies[1]).toMatchObject({ MessageStream: 'tx-stream' });
+    expect(bodies[1]).not.toHaveProperty('Headers');
+    expect(bodies[2]).toMatchObject({ MessageStream: 'tx-stream' });
+    const named = createPostmarkTransport({ token: 't', ledger: ledger().sink, fetch, broadcastStream: 'tips' });
+    await named.send({ ...msg, stream: 'broadcast' }, scope);
+    expect(bodies[3]).toMatchObject({ MessageStream: 'tips' });
+  });
+
+  it('createEmailTransportFromEnv takes the broadcast stream name from POSTMARK_BROADCAST_STREAM', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)));
+      return reply(200, { ErrorCode: 0, MessageID: 'pm-1' })();
+    });
+    try {
+      await createEmailTransportFromEnv({ POSTMARK_SERVER_TOKEN: 'tok', POSTMARK_BROADCAST_STREAM: 'setup-tips' }, ledger().sink).send({ ...msg, stream: 'broadcast' }, scope);
+      await createEmailTransportFromEnv({ POSTMARK_SERVER_TOKEN: 'tok' }, ledger().sink).send({ ...msg, stream: 'broadcast' }, scope);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(bodies.map((b) => b.MessageStream)).toEqual(['setup-tips', 'broadcast']);
   });
 
   it('throws a permanent error for an inactive recipient and a transient one for a server error', async () => {

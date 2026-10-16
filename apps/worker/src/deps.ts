@@ -15,15 +15,36 @@ import {
   runReviewInsights, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
 import { generateStarters } from '@cs/ask';
-import { type AgencyClientBillingNoticeProps, type BillingNoticeProps, type ClientBillingNoticeProps, createEmailTransportFromEnv, renderEmail, resolveBranding } from '@cs/email';
-import { listMonthlyRivalClients, normalizeAdminEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps } from '@cs/tools';
+import {
+  type AgencyClientBillingNoticeProps, type AgencyWelcomeProps, type BillingNoticeProps, type ClientBillingNoticeProps, createEmailTransportFromEnv, type OnboardingTipProps,
+  type PlatformSignupNoticeProps, renderEmail, resolveBranding,
+} from '@cs/email';
+import { listMonthlyRivalClients, normalizeAdminEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps, unsubscribeToken } from '@cs/tools';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { lookup } from 'node:dns/promises';
 import { createPdfRenderer } from './pdf';
 
+/** Phase 10 (R5): the sign-up lifecycle emails on the `billing_notice` outbox (Rival Monday-branded). */
+export type OnboardingEmail =
+  | { template: 'agency_welcome'; props: Omit<AgencyWelcomeProps, 'branding'> }
+  | { template: 'platform_signup_notice'; props: Omit<PlatformSignupNoticeProps, 'branding'> }
+  /** The sender adds `unsubscribeUrl` (signed with BETTER_AUTH_SECRET) and the one-click List-Unsubscribe headers. */
+  | { template: 'onboarding_tip'; props: Omit<OnboardingTipProps, 'branding' | 'unsubscribeUrl'> };
+
+/** Phase 10 (R12): Reply-To of every sign-up lifecycle email. */
+export const DEFAULT_SUPPORT_REPLY_TO = 'support@rivalmonday.app';
+
 export interface BillingEmailSender {
+  /** APP_URL without a trailing slash. */
   appUrl: string;
+  /** Phase 10 (R13): `PLATFORM_ADMIN_EMAILS`, normalised; with active owner|staff operators, the sign-up notice recipients. */
+  platformAdmins: string[];
+  /**
+   * Phase 10: welcome / sign-up notice / setup tip. Reply-To `SUPPORT_REPLY_TO ?? support@rivalmonday.app`; tips go on the
+   * broadcast stream with `List-Unsubscribe` (`<APP_URL/u/<token>>`) + `List-Unsubscribe-Post: List-Unsubscribe=One-Click`.
+   */
+  sendOnboarding(to: string, agencyId: string, email: OnboardingEmail): Promise<void>;
   send(to: string, agencyId: string, props: Omit<BillingNoticeProps, 'branding'>): Promise<void>;
   /** Phase 9b: agency-branded client email (no platform name anywhere); From display name and reply-to are the agency's. */
   sendClient(to: string, agencyId: string, clientId: string, from: { agencyName: string; branding: AgencyBranding | null }, props: Pick<ClientBillingNoticeProps, 'kind' | 'actionUrl'>): Promise<void>;
@@ -390,7 +411,34 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       },
     }),
     billingEmail: () => ({
-      appUrl: env.APP_URL ?? '',
+      appUrl: (env.APP_URL ?? '').replace(/\/+$/, ''),
+      platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
+      sendOnboarding: async (to, agencyId, email) => {
+        const from = delivery?.fromAddress ?? env.EMAIL_FROM;
+        if (!from) throw new Error('EMAIL_FROM is required');
+        const appUrl = env.APP_URL?.trim().replace(/\/+$/, '');
+        if (!appUrl) throw new Error('APP_URL is required');
+        const branding = resolveBranding('Rival Monday', null);
+        const replyTo = env.SUPPORT_REPLY_TO?.trim() || DEFAULT_SUPPORT_REPLY_TO;
+        const base = { from: `"Rival Monday" <${from}>`, to, replyTo, tag: email.template, metadata: {} };
+        const scope = { agencyId, clientId: null };
+        if (email.template === 'onboarding_tip') {
+          // The token is never logged; a missing secret throws so the row is retried once the worker is configured.
+          const secret = env.BETTER_AUTH_SECRET?.trim();
+          if (!secret) throw new Error('BETTER_AUTH_SECRET is required for setup-tip unsubscribe links');
+          const unsubscribeUrl = `${appUrl}/u/${unsubscribeToken(agencyId, secret)}`;
+          const r = await renderEmail({ template: 'onboarding_tip', props: { ...email.props, unsubscribeUrl, branding } });
+          await getEmailTransport().send({
+            ...base, subject: r.subject, html: r.html, text: r.text, stream: 'broadcast',
+            headers: [{ Name: 'List-Unsubscribe', Value: `<${unsubscribeUrl}>` }, { Name: 'List-Unsubscribe-Post', Value: 'List-Unsubscribe=One-Click' }],
+          }, scope);
+          return;
+        }
+        const r = email.template === 'agency_welcome'
+          ? await renderEmail({ template: 'agency_welcome', props: { ...email.props, branding } })
+          : await renderEmail({ template: 'platform_signup_notice', props: { ...email.props, branding } });
+        await getEmailTransport().send({ ...base, subject: r.subject, html: r.html, text: r.text }, scope);
+      },
       send: async (to, agencyId, props) => {
         const from = delivery?.fromAddress ?? env.EMAIL_FROM;
         if (!from) throw new Error('EMAIL_FROM is required');

@@ -12,6 +12,10 @@ export interface OutgoingEmail {
   text: string;
   tag: string;
   metadata: Record<string, string>;
+  /** Phase 10: `broadcast` = the opt-out stream (setup tips); default `outbound` (transactional). */
+  stream?: 'outbound' | 'broadcast';
+  /** Phase 10: extra headers, e.g. `List-Unsubscribe` on broadcast mail. */
+  headers?: { Name: string; Value: string }[];
 }
 export interface EmailTransport {
   readonly kind: 'postmark' | 'file' | 'memory' | 'console';
@@ -33,7 +37,7 @@ export function isPostmarkTestServer(env: NodeJS.ProcessEnv): boolean {
   return env.POSTMARK_TEST_SERVER?.trim() === 'true' || env.POSTMARK_SERVER_TOKEN?.trim() === POSTMARK_SANDBOX_TOKEN;
 }
 
-export function createPostmarkTransport(opts: { token: string; ledger: LedgerSink; fetch?: typeof fetch; messageStream?: string; testServer?: boolean }): EmailTransport {
+export function createPostmarkTransport(opts: { token: string; ledger: LedgerSink; fetch?: typeof fetch; messageStream?: string; broadcastStream?: string; testServer?: boolean }): EmailTransport {
   const doFetch = opts.fetch ?? fetch;
   return {
     kind: 'postmark',
@@ -47,7 +51,9 @@ export function createPostmarkTransport(opts: { token: string; ledger: LedgerSin
           // Tracking off (decision 13): link tracking would rewrite the signed deep links; open tracking adds a pixel.
           body: JSON.stringify({
             From: msg.from, To: msg.to, ReplyTo: msg.replyTo ?? undefined, Subject: msg.subject, HtmlBody: msg.html, TextBody: msg.text,
-            MessageStream: opts.messageStream ?? 'outbound', TrackOpens: false, TrackLinks: 'None', Tag: msg.tag, Metadata: msg.metadata,
+            MessageStream: msg.stream === 'broadcast' ? (opts.broadcastStream ?? 'broadcast') : (opts.messageStream ?? 'outbound'),
+            TrackOpens: false, TrackLinks: 'None', Tag: msg.tag, Metadata: msg.metadata,
+            ...(msg.headers?.length && { Headers: msg.headers }),
           }),
           signal: AbortSignal.timeout(15_000),
         });
@@ -100,6 +106,6 @@ ${msg.text}`);
 }
 
 export function createEmailTransportFromEnv(env: NodeJS.ProcessEnv, ledger: LedgerSink): EmailTransport {
-  if (env.POSTMARK_SERVER_TOKEN) return createPostmarkTransport({ token: env.POSTMARK_SERVER_TOKEN, ledger, messageStream: env.POSTMARK_MESSAGE_STREAM || undefined, testServer: isPostmarkTestServer(env) });
+  if (env.POSTMARK_SERVER_TOKEN) return createPostmarkTransport({ token: env.POSTMARK_SERVER_TOKEN, ledger, messageStream: env.POSTMARK_MESSAGE_STREAM || undefined, broadcastStream: env.POSTMARK_BROADCAST_STREAM?.trim() || undefined, testServer: isPostmarkTestServer(env) });
   return createFileTransport(env.EMAIL_OUTBOX_DIR || './.outbox');
 }
