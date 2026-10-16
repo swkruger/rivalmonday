@@ -5,8 +5,11 @@ import { SINGLE_SHOT_QUEUE } from './vendor';
 
 /** Review samples get 30 min to land before finalise is forced (reviews then stay null). */
 export const FORCE_FINALISE_AFTER_SECONDS = 1800;
-/** The monthly refresh spaces its searches this far apart (pg-boss `startAfter`), so they don't all hit vendors at once. */
-export const RIVAL_MONTHLY_SPACING_SECONDS = 300;
+/**
+ * The monthly refresh spaces its per-client jobs this far apart (pg-boss `startAfter`): longer than a typical search
+ * (20–40 min), because `rival-search` runs one at a time and a run still queued after 2 h is swept as stale.
+ */
+export const RIVAL_MONTHLY_SPACING_SECONDS = 2700;
 
 /**
  * Phase 12a competitor discovery: `rival-search` runs one discovery run (paid, so single-shot);
@@ -18,8 +21,10 @@ export function createRivalJobs(
   deps: WorkerDeps,
   queue: {
     enqueueFinalise(runId: string, opts: { force: boolean; startAfter?: number }): Promise<void>;
-    /** Starts a `scheduled` discovery run whose job becomes available `startAfter` seconds from now. */
-    startScheduledSearch(clientId: string, startAfter: number): Promise<{ runId: string } | { refused: string }>;
+    /** Queues the light `rival-monthly-client` job, available `startAfter` seconds from now. */
+    enqueueMonthlyClient(clientId: string, opts: { startAfter: number; singletonKey: string }): Promise<void>;
+    /** Starts a `scheduled` discovery run now (`startCompetitorSearch`). */
+    startScheduledSearch(clientId: string): Promise<{ runId: string } | { refused: string }>;
     now?: () => Date;
   },
 ) {
@@ -71,23 +76,34 @@ export function createRivalJobs(
   });
   // Owner decision 2026-10-15: monthly automatic refresh. Standard cron ORs day-of-month with day-of-week, so
   // '0 10 1-7 * 1' would fire on days 1–7 *and* every Monday; run every Monday and skip unless it is the first one.
+  // The fan-out only queues one light job per client; each creates its discovery_run when it becomes due, so no
+  // run sits `queued` behind the serial `rival-search` queue long enough to be swept as stale.
   const monthly = defineJob({
     name: 'rival-monthly', schema: z.looseObject({}), cron: '0 10 * * 1',
     handler: async () => {
-      if (now().getUTCDate() > 7) return;
-      let started = 0;
-      let refused = 0;
+      const at = now();
+      // A first-Monday window missed (worker down all of 10:00 UTC that day) is not caught up — backlog item.
+      if (at.getUTCDate() > 7) return;
+      const month = at.toISOString().slice(0, 7);
+      let queued = 0;
       for (const clientId of await deps.listMonthlyRivalClients()) {
         try {
-          const r = await queue.startScheduledSearch(clientId, started * RIVAL_MONTHLY_SPACING_SECONDS);
-          if ('runId' in r) started++;
-          else refused++;
+          await queue.enqueueMonthlyClient(clientId, { startAfter: queued * RIVAL_MONTHLY_SPACING_SECONDS, singletonKey: `rival-monthly:${clientId}:${month}` });
+          queued++;
         } catch (err) {
           console.error(`[rival-monthly] client ${clientId} failed`, err);
         }
       }
-      console.log(`[rival-monthly] started ${started} scheduled search(es), ${refused} refused`);
+      console.log(`[rival-monthly] queued ${queued} client refresh(es)`);
     },
   });
-  return { search, finalise, sweep, signalsWeekly, monthly };
+  const monthlyClient = defineJob({
+    name: 'rival-monthly-client', schema: z.object({ clientId: z.uuid() }),
+    queue: { policy: 'short' },
+    handler: async ({ clientId }) => {
+      const r = await queue.startScheduledSearch(clientId);
+      console.log(`[rival-monthly-client] ${clientId} → ${'runId' in r ? `run ${r.runId}` : `refused (${r.refused})`}`);
+    },
+  });
+  return { search, finalise, sweep, signalsWeekly, monthly, monthlyClient };
 }

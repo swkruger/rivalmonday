@@ -45,7 +45,15 @@ export const searchDayLabelAt = (iso: string, tz: string) => searchDayLabel(loca
 /** The decided refusal copy for a second manual search in one week. */
 export const weeklyLimitMessage = (label: string) => `One competitor search per week. Next search available ${label}.`;
 
-const manualThisWeek = (clientId: string, start: Date) => and(eq(discoveryRun.clientId, clientId), eq(discoveryRun.trigger, 'manual'), gte(discoveryRun.startedAt, start));
+/**
+ * Manual runs started this client-local week. A failed run that made no paid search (`searchesDone` 0) does not
+ * use up the week (controller ruling I2).
+ */
+const manualThisWeek = (clientId: string, start: Date) =>
+  and(
+    eq(discoveryRun.clientId, clientId), eq(discoveryRun.trigger, 'manual'), gte(discoveryRun.startedAt, start),
+    sql`NOT (${discoveryRun.status} = 'failed' AND coalesce((${discoveryRun.progress}->>'searchesDone')::int, 0) = 0)`,
+  );
 
 /**
  * When the next manual "Find competitors" is allowed (ISO, next client-local Monday 00:00), or null when one is

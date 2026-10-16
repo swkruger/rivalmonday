@@ -112,7 +112,7 @@ describe('get_competitor_search_status', () => {
     await dbs.owner.update(client).set({ timezone: 'Asia/Tokyo' }).where(eq(client.id, IDS.clientA1));
     await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'scheduled', status: 'done', finishedAt: new Date() });
     await expect(status()).resolves.toMatchObject({ status: 'done', nextManualSearchAt: null });
-    await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'manual', status: 'failed', finishedAt: new Date() });
+    await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'manual', status: 'failed', finishedAt: new Date(), progress: { searchesDone: 3 } });
     await expect(status()).resolves.toMatchObject({ nextManualSearchAt: manualSearchWeek(new Date(), 'Asia/Tokyo').next.toISOString() });
   });
 

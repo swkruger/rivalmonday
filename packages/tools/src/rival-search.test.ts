@@ -21,12 +21,13 @@ const DAY = 86_400_000;
 
 const runs = (clientId: string) => dbs.owner.select().from(discoveryRun).where(eq(discoveryRun.clientId, clientId));
 type Trigger = 'auto' | 'manual' | 'convert' | 'scheduled';
-async function pastRun(clientId: string, opts: { status?: 'done' | 'failed'; startedAgoMs?: number; finishedAgoMs?: number | null; trigger?: Trigger; startedAt?: Date } = {}): Promise<string> {
+async function pastRun(clientId: string, opts: { status?: 'done' | 'failed'; startedAgoMs?: number; finishedAgoMs?: number | null; trigger?: Trigger; startedAt?: Date; searchesDone?: number } = {}): Promise<string> {
   const now = Date.now();
   const startedAt = opts.startedAt ?? new Date(now - (opts.startedAgoMs ?? 0));
   const [r] = await dbs.owner.insert(discoveryRun).values({
     agencyId: IDS.agencyA, clientId, trigger: opts.trigger ?? 'manual', status: opts.status ?? 'failed',
     startedAt, finishedAt: opts.finishedAgoMs === null ? null : opts.startedAt ? startedAt : new Date(now - (opts.finishedAgoMs ?? 0)),
+    progress: opts.searchesDone === undefined ? {} : { searchesDone: opts.searchesDone },
   }).returning({ id: discoveryRun.id });
   return r!.id;
 }
@@ -146,9 +147,20 @@ describe('weekly manual search limit (owner decision 2026-10-15)', () => {
     });
   });
 
-  it('failed manual runs count; a run from the previous client-local week does not', async () => {
+  it('a failed manual run that made no paid search does not use up the week; one that made a search does', async () => {
+    await pastRun(IDS.clientA1, { status: 'failed', startedAt: new Date('2026-10-13T12:00:00Z') });
+    await pastRun(IDS.clientA1, { status: 'failed', startedAt: new Date('2026-10-13T13:00:00Z'), searchesDone: 0 });
+    await expect(nextManualSearchAt(dbs.service, IDS.clientA1, CHICAGO, WED)).resolves.toBeNull();
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual', WED)).resolves.toEqual({ runId: expect.any(String) });
+    await dbs.owner.delete(discoveryRun).where(eq(discoveryRun.clientId, IDS.clientA1));
+    await pastRun(IDS.clientA1, { status: 'failed', startedAt: new Date('2026-10-13T12:00:00Z'), searchesDone: 1 });
+    await expect(nextManualSearchAt(dbs.service, IDS.clientA1, CHICAGO, WED)).resolves.toBe('2026-10-19T05:00:00.000Z');
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual', WED)).resolves.toMatchObject({ refused: 'weekly_limit' });
+  });
+
+  it('failed manual runs that searched count; a run from the previous client-local week does not', async () => {
     // Sunday 23:00 in Chicago = Monday 04:00 UTC: last week for this client.
-    await pastRun(IDS.clientA1, { status: 'failed', startedAt: new Date('2026-10-19T04:00:00Z') });
+    await pastRun(IDS.clientA1, { status: 'failed', startedAt: new Date('2026-10-19T04:00:00Z'), searchesDone: 12 });
     await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual', new Date('2026-10-19T04:30:00Z'))).resolves.toMatchObject({ refused: 'weekly_limit', nextLabel: 'Mon 19 Oct' });
     await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual', new Date('2026-10-19T05:30:00Z'))).resolves.toEqual({ runId: expect.any(String) });
   });

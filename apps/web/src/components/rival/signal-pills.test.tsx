@@ -106,6 +106,6 @@ describe('TierChip', () => {
     expect(screen.getByText('Top rival').className).toContain('bg-[#E2E8F0]');
     expect(screen.getByText('Top rival').className).toContain('text-ink');
     expect(screen.getByText('Worth watching').className).toContain('bg-primary-soft');
-    expect(screen.getByText('Minor').className).toContain('text-muted-ink');
+    expect(screen.getByText('Minor').className).toContain('text-[#4A5D73]');
   });
 });
