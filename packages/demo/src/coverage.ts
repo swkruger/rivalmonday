@@ -46,6 +46,21 @@ const askCalls: CoverageCall[] = [
 /** The Overview and Profile pages read the starters (Ask card; the admin's review toggle). */
 const lsStarters: CoverageCall = { tool: 'get_ask_starters', input: (ids) => ({ clientId: ls(ids) }), path: 'questions' };
 
+/** Phase 10: every wizard step reads the progress (the stepper and the finished/dismissed redirect); so does `/agency`. */
+const onboardingStatus: CoverageCall = { tool: 'get_onboarding_status', input: none, path: 'steps' };
+
+/**
+ * Phase 10: public screens outside the `(app)`/`(platform)` groups. They read no tools (a form, an invite-link check or
+ * a signed token), so there is nothing to seed; listed so the README names them. `coverage.test.ts` checks the list.
+ */
+export const PUBLIC_SCREENS: readonly { route: string; note: string }[] = [
+  { route: '/sign-up', note: 'sign-up form (paused copy while sign-ups are paused)' },
+  { route: '/sign-up/problem', note: 'needs a signed-in user whose invite-link sign-up failed' },
+  { route: '/join/[token]', note: 'needs a fresh invite link (create one in /platform/billing)' },
+  { route: '/u/[token]/confirm', note: 'needs a setup-tip unsubscribe token (from a tip email)' },
+  { route: '/u/[token]/done', note: 'shown after unsubscribing' },
+];
+
 /** Pages that show forms only (no seeded data to check). */
 export const NO_DATA_ROUTES = ['/agency/clients/new', '/agency/prospects/new'] as const;
 
@@ -57,7 +72,15 @@ export const SHARED_READS: Readonly<Record<string, string>> = { list_clients: '/
 
 /** Spec §4.9: every screen route, the tool calls it makes, and the empty states left on purpose. */
 export const SCREENS: readonly ScreenCoverage[] = [
-  { route: '/agency', as: 'admin', calls: [{ tool: 'get_portfolio', input: none, path: 'items' }, { tool: 'list_client_billing_status', input: none, path: 'clients' }] },
+  {
+    route: '/agency', as: 'admin', calls: [
+      { tool: 'get_portfolio', input: none, path: 'items' },
+      { tool: 'list_client_billing_status', input: none, path: 'clients' },
+      // Phase 10: the getting-started checklist (the demo agency is mid-wizard) and its plan sub-line.
+      onboardingStatus,
+      { tool: 'get_billing_summary', input: none, path: 'state' },
+    ],
+  },
   {
     route: '/agency/ai', as: 'admin', calls: [
       { tool: 'list_api_tokens', input: none, path: 'items' },
@@ -231,6 +254,11 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'get_client_revenue', input: none, path: 'currency' },
     ],
   },
+  // Phase 10: the sign-up wizard, one entry per step (`?step=profile|team|plan|branding`); the demo agency is mid-wizard.
+  { route: '/onboarding (step=profile)', as: 'admin', calls: [onboardingStatus, { tool: 'get_agency_profile', input: none, path: 'contactName' }] },
+  { route: '/onboarding (step=team)', as: 'admin', calls: [onboardingStatus] },
+  { route: '/onboarding (step=plan)', as: 'admin', calls: [onboardingStatus, { tool: 'get_billing_summary', input: none, path: 'maxActiveClients' }] },
+  { route: '/onboarding (step=branding)', as: 'admin', calls: [onboardingStatus, { tool: 'fn:getAgencyBranding', input: none, path: 'stored' }] },
   { route: '/paused', as: 'admin', calls: [] },
   { route: '/inbox', as: 'admin', calls: [{ tool: 'fn:listInbox', input: none }] },
   { route: '/inbox (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'fn:listInbox', input: none }] },
@@ -253,7 +281,8 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'list_invite_links', input: none, path: 'links', expect: 'empty', why: 'the demo seeds no invite links' },
       { tool: 'get_connect_overview', input: none, path: 'agencies' },
       { tool: 'get_signups_paused', input: none, path: 'paused', expect: 'empty', why: 'open sign-up is not paused in the demo' },
-      { tool: 'get_signup_funnel', input: () => ({ days: 30 }), path: 'open.signups', expect: 'empty', why: 'the demo agencies are legacy rows, not sign-ups' },
+      // The mid-wizard demo agency counts as one open sign-up.
+      { tool: 'get_signup_funnel', input: () => ({ days: 30 }), path: 'open.signups' },
     ],
   },
   { route: '/platform/costs', as: 'operator', calls: [{ tool: 'list_platform_costs', input: none, path: 'services' }] },
@@ -317,5 +346,6 @@ export function renderCoverageTable(): string {
     const empty = s.calls.filter((c) => c.expect && c.expect !== 'data').map((c) => `\`${c.tool}\`: ${c.why ?? c.expect}`).join('; ') || '—';
     return `| \`${s.route}\` | ${s.as} | ${tools || '—'} | ${empty} |`;
   });
-  return ['| Screen | Signed in as | Tools that must return data | Empty on purpose |', '|---|---|---|---|', ...rows].join('\n');
+  const publicRows = PUBLIC_SCREENS.map((s) => `| \`${s.route}\` | public | — | ${s.note} |`);
+  return ['| Screen | Signed in as | Tools that must return data | Empty on purpose |', '|---|---|---|---|', ...rows, ...publicRows].join('\n');
 }

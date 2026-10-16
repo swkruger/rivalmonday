@@ -9,7 +9,7 @@ import { createFsStore } from '@cs/storage';
 import { accessContextFor, createToolRegistry, getAgencyBranding, getReviewableAskThread, listInbox, listMemberships, listReviewableAskThreads, listTeam, listWebhooks, myNotificationSettings } from '@cs/tools';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { baseRoute, isNonEmpty, NO_DATA_ROUTES, pathExists, README_MARKERS, renderCoverageTable, SCREENS, SHARED_READS, toolReadsOf, valueAt } from './coverage';
+import { baseRoute, isNonEmpty, NO_DATA_ROUTES, pathExists, PUBLIC_SCREENS, README_MARKERS, renderCoverageTable, SCREENS, SHARED_READS, toolReadsOf, valueAt } from './coverage';
 import type { DemoIds } from './ids';
 import { seedDemo } from './seed';
 import { resetDemoTables, TEST_SALT } from './test-support';
@@ -139,6 +139,20 @@ describe('demo seed coverage (spec §4.9, §8)', () => {
     for (const [tool, route] of Object.entries(SHARED_READS)) {
       expect(SCREENS.some((s) => s.route === route && s.calls.some((c) => c.tool === tool)), `${tool} is not called in ${route}`).toBe(true);
     }
+  });
+
+  it('lists every public sign-up screen (/sign-up, /join, /u) in PUBLIC_SCREENS', () => {
+    const appDir = fileURLToPath(new URL('../../../apps/web/src/app', import.meta.url));
+    const found: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (name === 'page.tsx') found.push(`/${relative(appDir, dir).split(sep).join('/')}`);
+      }
+    };
+    for (const top of ['sign-up', 'join', 'u']) walk(join(appDir, top));
+    expect(found.sort()).toEqual(PUBLIC_SCREENS.map((s) => s.route).sort());
   });
 
   it('keeps the README coverage table in sync with coverage.ts', () => {

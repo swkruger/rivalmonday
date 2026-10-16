@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { seedAds } from './ads';
 import { seedAsk } from './ask';
 import { seedKb } from './kb';
+import { seedOnboarding } from './onboarding';
 import { seedAi } from './ai';
 import { seedAgency } from './agency';
 import { seedBilling } from './billing';
@@ -50,6 +51,7 @@ const STEPS: readonly [string, (ctx: SeedContext) => Promise<void>][] = [
   ['platform costs', seedPlatformCosts],
   ['billing states', seedBilling],
   ['client billing (Connect)', seedClientBilling],
+  ['agency onboarding (mid-wizard)', seedOnboarding],
   ['AI connections', seedAi],
   ['Ask threads and starters', seedAsk],
   ['knowledge base', seedKb],

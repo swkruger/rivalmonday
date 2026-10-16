@@ -17,7 +17,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 <!-- coverage:start -->
 | Screen | Signed in as | Tools that must return data | Empty on purpose |
 |---|---|---|---|
-| `/agency` | admin | `get_portfolio`, `list_client_billing_status` | — |
+| `/agency` | admin | `get_portfolio`, `list_client_billing_status`, `get_onboarding_status`, `get_billing_summary` | — |
 | `/agency/ai` | admin | `list_api_tokens` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
 | `/agency/alerts` | admin | `list_alert_queue` | — |
 | `/agency/approvals` | admin | `list_brief_queue` | — |
@@ -62,6 +62,10 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters`, `list_client_billing_status` | — |
 | `/c/[clientId]/settings/billing (client owner)` | ownerLoneStar | `get_my_billing` | — |
 | `/agency/settings/billing` | admin | `get_billing_summary`, `get_connect_status`, `get_client_revenue` | — |
+| `/onboarding (step=profile)` | admin | `get_onboarding_status`, `get_agency_profile` | — |
+| `/onboarding (step=team)` | admin | `get_onboarding_status` | — |
+| `/onboarding (step=plan)` | admin | `get_onboarding_status`, `get_billing_summary` | — |
+| `/onboarding (step=branding)` | admin | `get_onboarding_status`, `fn:getAgencyBranding` | — |
 | `/paused` | admin | — | — |
 | `/inbox` | admin | `fn:listInbox` | — |
 | `/inbox (client owner)` | ownerLoneStar | `fn:listInbox` | — |
@@ -69,7 +73,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/platform` | operator | `platform_overview`, `list_platform_activity` | — |
 | `/platform/agencies` | operator | `list_platform_agencies` | — |
 | `/platform/agencies/[id]` | operator | `get_platform_agency`, `list_agency_support_sessions`, `get_agency_billing`, `list_discount_codes` | — |
-| `/platform/billing` | operator | `get_billing_overview`, `list_plans`, `list_discount_codes`, `get_connect_overview` | `list_invite_links`: the demo seeds no invite links; `get_signups_paused`: open sign-up is not paused in the demo; `get_signup_funnel`: the demo agencies are legacy rows, not sign-ups |
+| `/platform/billing` | operator | `get_billing_overview`, `list_plans`, `list_discount_codes`, `get_connect_overview`, `get_signup_funnel` | `list_invite_links`: the demo seeds no invite links; `get_signups_paused`: open sign-up is not paused in the demo |
 | `/platform/costs` | operator | `list_platform_costs` | — |
 | `/platform/health` | operator | — | — |
 | `/platform/ask` | operator | `fn:listReviewableAskThreads` | — |
@@ -80,4 +84,9 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/platform/reviews` | operator | `list_decision_reviews` | — |
 | `/platform/themes` | operator | `list_theme_proposals` | — |
 | `/settings/notifications` | admin | `fn:myNotificationSettings` | — |
+| `/sign-up` | public | — | sign-up form (paused copy while sign-ups are paused) |
+| `/sign-up/problem` | public | — | needs a signed-in user whose invite-link sign-up failed |
+| `/join/[token]` | public | — | needs a fresh invite link (create one in /platform/billing) |
+| `/u/[token]/confirm` | public | — | needs a setup-tip unsubscribe token (from a tip email) |
+| `/u/[token]/done` | public | — | shown after unsubscribing |
 <!-- coverage:end -->
