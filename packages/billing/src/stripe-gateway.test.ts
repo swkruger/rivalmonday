@@ -10,6 +10,7 @@ function mockClient() {
       retrieve: vi.fn(async () => ({ id: 'cus_1', invoice_settings: { default_payment_method: 'pm_1' } })),
       update: vi.fn(async () => ({})),
       createTaxId: vi.fn(async () => ({ id: 'txi_1' })),
+      listTaxIds: vi.fn(async (): Promise<{ data: Array<{ type: string; value: string }> }> => ({ data: [] })),
     },
     checkout: { sessions: { create: vi.fn(async () => ({ url: 'https://checkout/s' })) } },
     billingPortal: { sessions: { create: vi.fn(async () => ({ url: 'https://portal/s' })) } },
@@ -203,10 +204,30 @@ describe('stripeGateway', () => {
     expect(c.customers.createTaxId).not.toHaveBeenCalled();
   });
 
-  it('updateCustomer ignores a duplicate tax id but rethrows other tax id errors', async () => {
+  it('updateCustomer normalises an EIN to NN-NNNNNNN before sending', async () => {
     const c = mockClient();
-    c.customers.createTaxId.mockRejectedValueOnce(Object.assign(new Error('Tax ID already exists'), { code: 'resource_already_exists' }));
+    await gw(c).updateCustomer('cus_1', { taxId: ' 123456789 ' });
+    expect(c.customers.listTaxIds).toHaveBeenCalledWith('cus_1', { limit: 100 });
+    expect(c.customers.createTaxId).toHaveBeenCalledWith('cus_1', { type: 'us_ein', value: '12-3456789' });
+  });
+
+  it('updateCustomer skips the EIN when the customer already has it (either spelling)', async () => {
+    const c = mockClient();
+    c.customers.listTaxIds.mockResolvedValue({ data: [{ type: 'us_ein', value: '12-3456789' }] });
     await gw(c).updateCustomer('cus_1', { taxId: '123456789' });
+    c.customers.listTaxIds.mockResolvedValue({ data: [{ type: 'us_ein', value: '123456789' }] });
+    await gw(c).updateCustomer('cus_1', { taxId: '12-3456789' });
+    expect(c.customers.createTaxId).not.toHaveBeenCalled();
+    // a different EIN, or the same digits under another type, is still added
+    c.customers.listTaxIds.mockResolvedValue({ data: [{ type: 'us_ein', value: '98-7654321' }, { type: 'eu_vat', value: '12-3456789' }] });
+    await gw(c).updateCustomer('cus_1', { taxId: '12-3456789' });
+    expect(c.customers.createTaxId).toHaveBeenCalledTimes(1);
+  });
+
+  it('updateCustomer propagates every createTaxId error (no message-based swallow)', async () => {
+    const c = mockClient();
+    c.customers.createTaxId.mockRejectedValueOnce(Object.assign(new Error('Tax ID already exists'), { code: 'api_error' }));
+    await expect(gw(c).updateCustomer('cus_1', { taxId: '123456789' })).rejects.toThrow('already exists');
     c.customers.createTaxId.mockRejectedValueOnce(Object.assign(new Error('boom'), { code: 'api_error' }));
     await expect(gw(c).updateCustomer('cus_1', { taxId: '123456789' })).rejects.toThrow('boom');
   });

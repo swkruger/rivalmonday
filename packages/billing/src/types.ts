@@ -124,9 +124,20 @@ export interface CustomerDetails {
 
 export const US_EIN_PATTERN = /^\d{2}-?\d{7}$/;
 
+/** A US EIN in Stripe's `NN-NNNNNNN` form, or null when `raw` is not one (`US_EIN_PATTERN` after trimming). */
+export function normalizeUsEin(raw: string | null | undefined): string | null {
+  const v = raw?.trim() ?? '';
+  if (!US_EIN_PATTERN.test(v)) return null;
+  const digits = v.replace('-', '');
+  return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+}
+
 export interface BillingGateway extends ConnectGateway {
   createCustomer(i: { agencyId: string; name: string; email?: string }): Promise<{ id: string }>;
-  /** Updates the customer's email/name/address; adds a `us_ein` tax id when `taxId` matches `US_EIN_PATTERN` (a duplicate is ignored). */
+  /**
+   * Updates the customer's email/name/address; adds a `us_ein` tax id (normalised to `NN-NNNNNNN`) when `taxId` matches
+   * `US_EIN_PATTERN` and the customer does not already have it.
+   */
   updateCustomer(customerId: string, d: CustomerDetails): Promise<void>;
   createCheckoutSession(i: CheckoutSessionInput): Promise<{ url: string }>;
   createPortalSession(i: { customerId: string; returnUrl: string }): Promise<{ url: string }>;

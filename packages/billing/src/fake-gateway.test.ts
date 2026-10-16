@@ -83,6 +83,17 @@ describe('fakeGateway', () => {
     await expect(gw.updateCustomer('cus_missing', {})).rejects.toMatchObject({ code: 'resource_missing' });
   });
 
+  it('updateCustomer records only valid EINs, normalised to NN-NNNNNNN', async () => {
+    const gw = fakeGateway();
+    const { id } = await gw.createCustomer({ agencyId: 'a1', name: 'Acme' });
+    await gw.updateCustomer(id, { taxId: 'GB123456789' });
+    expect(gw.customers.get(id)!.taxId).toBeUndefined();
+    await gw.updateCustomer(id, { taxId: '12-345678' });
+    expect(gw.customers.get(id)!.taxId).toBeUndefined();
+    await gw.updateCustomer(id, { taxId: ' 123456789 ' });
+    expect(gw.customers.get(id)!.taxId).toBe('12-3456789');
+  });
+
   it('createPrices reuses passed base and seat product ids', async () => {
     const gw = fakeGateway();
     const p = await gw.createPrices({ code: 'standard', version: 2, name: 'Standard', basePriceCents: 1, seatPriceCents: 1, stripeProductId: 'prod_b', stripeSeatProductId: 'prod_s' });

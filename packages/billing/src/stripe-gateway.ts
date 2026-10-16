@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import type { ConnectedSubscription, ConnectEventLike } from './connect-gateway-types';
 import {
   type BillingGateway, type GatewayInvoice, type GatewaySubscription, type StripeEventLike, type SubscriptionStatus,
-  InvalidSignature, trialEndUsable, US_EIN_PATTERN,
+  InvalidSignature, normalizeUsEin, trialEndUsable,
 } from './types';
 
 /** Metadata on each Stripe price so a subscription's seat line can be found without storing price ids per agency. */
@@ -40,14 +40,16 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
         ...(d.address ? { address: { ...d.address } } : {}),
       };
       if (Object.keys(params).length > 0) await stripe.customers.update(customerId, params);
-      const taxId = d.taxId?.trim();
-      if (!taxId || !US_EIN_PATTERN.test(taxId)) return;
+      const ein = normalizeUsEin(d.taxId);
+      if (!ein) return;
+      // Re-sending the same EIN on a later Checkout is expected: skip it when the customer already has it.
+      const existing = await stripe.customers.listTaxIds(customerId, { limit: 100 });
+      if (existing.data.some((t) => t.type === 'us_ein' && normalizeUsEin(t.value) === ein)) return;
       try {
-        await stripe.customers.createTaxId(customerId, { type: 'us_ein', value: taxId });
+        await stripe.customers.createTaxId(customerId, { type: 'us_ein', value: ein });
       } catch (e) {
-        // Re-sending the same EIN on a later Checkout is expected; Stripe answers `resource_already_exists`.
-        const err = e as { code?: string; message?: string } | null;
-        if (err?.code === 'resource_already_exists' || /already exists|duplicate/i.test(err?.message ?? '')) return;
+        // A concurrent Checkout added it between the list and the create.
+        if ((e as { code?: string } | null)?.code === 'resource_already_exists') return;
         throw e;
       }
     },

@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { ConnectedAccount, ConnectedSubscription, ConnectEventLike } from './connect-gateway-types';
 import {
   type BillingGateway, type CheckoutSessionInput, type CreateCouponInput, type CreatePromotionCodeInput, type CustomerDetails,
-  type GatewayInvoice, type GatewaySubscription, type StripeEventLike, type UpcomingInvoice, InvalidSignature,
+  type GatewayInvoice, type GatewaySubscription, type StripeEventLike, type UpcomingInvoice, InvalidSignature, normalizeUsEin,
 } from './types';
 
 /** The only signature `fakeGateway().verifyWebhook` accepts. */
@@ -175,12 +175,14 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
       enter('updateCustomer', customerId, d);
       const c = customers.get(customerId);
       if (!c) throw missing('customer', customerId);
+      // Mirrors the Stripe gateway: only a valid US EIN is recorded, in `NN-NNNNNNN` form.
+      const ein = normalizeUsEin(d.taxId);
       customers.set(customerId, {
         ...c,
         ...(d.email !== undefined ? { email: d.email } : {}),
         ...(d.name !== undefined ? { name: d.name } : {}),
         ...(d.address ? { address: d.address } : {}),
-        ...(d.taxId ? { taxId: d.taxId } : {}),
+        ...(ein ? { taxId: ein } : {}),
       });
     },
     async createCheckoutSession(i: CheckoutSessionInput) {
