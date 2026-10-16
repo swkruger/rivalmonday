@@ -112,6 +112,8 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] `ReportView`'s "Changes detected" isn't sorted by count like the email; trend table plain-text fallback lists one cell per line — *from 5a T14, 4b Task 6*
 
 ### Settings, auth & admin screens
+- [ ] Agency banner says "Update payment method" (past_due / read_only) even after the subscription ended; the link lands on Subscribe, but the copy is 9a-binding — owner call — *from phase-9-fixes*
+- [ ] DEMO: fake Checkout never completes (no webhook in DEMO), so the trial banner and seat cap stay after "Add payment method" — only if the owner wants to demo the paying flow — *from phase-9-fixes*
 - [ ] Google sign-in button has no busy/error handling; `magicLink` call not wrapped in try/catch (button stays disabled) — *from 5a T12*
 - [ ] Membership switcher form inside `DropdownMenuItem asChild` (possible Radix dismiss/submit race; add a test) — *from 5a T13*
 - [ ] Webhooks page shows raw kind slugs (list can drift from `AGENCY_KINDS`); `toggleWebhookAction` has no error path; `ColorField` labels not linked; logo preview refetches per keystroke; branding save drops a stored `fromEmail` (latent) — *from 5a T18*
