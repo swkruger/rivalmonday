@@ -4,10 +4,10 @@
 **Plan/spec:** none yet; not in the roadmap (add row at merge).
 
 ## Status (overwrite)
-Brief written 2026-10-16; nothing designed.
+Brief 2026-10-16; nothing designed.
 
 ## Next (overwrite)
-Owner answers open questions → brainstorming → spec(s) → lean plan(s).
+Owner answers → brainstorm → spec → lean plan.
 
 ## Interfaces this branch adds or changes
 Migrations: next free at execution time (main 0064; phase-10 0065–0066; phase-11 next).
@@ -19,9 +19,9 @@ Migrations: next free at execution time (main 0064; phase-10 0065–0066; phase-
 
 ## Decisions (owner-approved)
 1. Two sub-phases, both in scope: **13a White-label parity**, **13b Local rankings upgrade**.
-2. Geo-grid: **weekly scans for top-rival-tier competitors on the client's main keywords** + capped manual **"scan now"** with a cost guard like discovery's $3/run cap. Scans are per client (all businesses per point), so "top-rival tier" selects which clients/keywords get weekly scans.
-3. Map tiles from a commercial provider (MapTiler/Stadia-class); not Google tiles, not public OSM tile servers.
-4. Brief only for now; planning ahead while Phase 10 is executing.
+2. Geo-grid: **weekly scans for top-rival-tier competitors on the client's main keywords** + capped manual **"scan now"** with a cost guard (cf. $3 discovery cap). Scans are per client, so the tier picks which clients get them.
+3. Map tiles from a commercial provider (MapTiler/Stadia-class); not Google or public OSM tiles.
+4. Brief only; planned ahead of Phase 10.
 
 ## New backlog (target → item)
 None yet.
