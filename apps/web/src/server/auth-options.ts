@@ -1,14 +1,15 @@
 import { oauthProvider } from '@better-auth/oauth-provider';
-import { type Db, pendingSignup } from '@cs/db';
+import type { Db } from '@cs/db';
 import type { Branding, EmailPayload } from '@cs/email';
 import { acceptInvitations, completePendingSignups, dropUnboundConsents, hasSignInRight } from '@cs/tools';
 import type { BetterAuthOptions } from 'better-auth';
 import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { magicLink } from 'better-auth/plugins/magic-link';
-import { and, gt, isNull, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { PostgresDialect } from 'kysely';
 import type { Pool } from 'pg';
 import type { WebEnv } from './env';
+import { openPendingSignup } from './pending-signup';
 
 export const MAGIC_LINK_MINUTES = 15;
 
@@ -122,8 +123,7 @@ export function buildAuthOptions(deps: AuthDeps): BetterAuthOptions {
           deps.runInBackground((async () => {
             if (!(await hasSignInRight(deps.service, email, now()))) return;
             // Phase 10: an open agency sign-up for this address switches the email to "confirm your email to create {agency}".
-            const [pending] = await deps.service.select({ agencyName: pendingSignup.agencyName }).from(pendingSignup)
-              .where(and(sql`lower(${pendingSignup.email}) = ${email.trim().toLowerCase()}`, isNull(pendingSignup.completedAt), gt(pendingSignup.expiresAt, now())));
+            const pending = await openPendingSignup(deps.service, email, now());
             await deps.sendEmail(email, {
               template: 'sign_in',
               props: { branding: await deps.branding(), url, expiresMinutes: MAGIC_LINK_MINUTES, ...(pending ? { signup: { agencyName: pending.agencyName } } : {}) },

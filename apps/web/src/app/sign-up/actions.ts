@@ -1,4 +1,5 @@
 'use server';
+import { randomUUID } from 'node:crypto';
 import { hashIp, startAgencySignup, startAgencySignupInput } from '@cs/tools';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -48,8 +49,10 @@ export async function startSignup(_prev: SignupState, formData: FormData): Promi
   const hdrs = await headers();
   const ip = hdrs.get('x-forwarded-for')?.split(',')[0]?.trim() || null;
   // No widget is rendered in DEMO/TEST (or without a site key); the fake verifier accepts this dummy token.
-  const token = text(formData, 'cf-turnstile-response') || (env.turnstile?.siteKey && activeEnvName() === 'dev' ? '' : 'no-widget');
-  if (!(await verifyTurnstile(token, ip, { envName: activeEnvName(), turnstileSecretKey: env.turnstile?.secretKey }))) {
+  // The real check needs BOTH keys (no widget renders without a site key); otherwise the fake verifier applies.
+  const realCheck = activeEnvName() === 'dev' && !!env.turnstile?.siteKey && !!env.turnstile?.secretKey;
+  const token = text(formData, 'cf-turnstile-response') || (realCheck ? '' : 'no-widget');
+  if (!(await verifyTurnstile(token, ip, { envName: activeEnvName(), turnstileSecretKey: env.turnstile?.siteKey ? env.turnstile.secretKey : undefined }))) {
     return { error: 'Please complete the check and try again.', googleUrl: null };
   }
 
@@ -66,14 +69,11 @@ export async function startSignup(_prev: SignupState, formData: FormData): Promi
   let googleUrl: string | null = null;
   try {
     if (wantsGoogle) {
-      if (sendLink) {
-        const pending = await openPendingSignup(service, email, now);
-        if (pending) {
-          (await cookies()).set(SIGNUP_COOKIE, signSignupCookie(env.authSecret, pending.id, now), {
-            httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: SIGNUP_TTL_SECONDS,
-          });
-        }
-      }
+      // R18: the cookie is ALWAYS set, same name/options/shape; a refused sign-up signs a random id that matches no row.
+      const pending = sendLink ? await openPendingSignup(service, email, now) : null;
+      (await cookies()).set(SIGNUP_COOKIE, signSignupCookie(env.authSecret, pending?.id ?? randomUUID(), now), {
+        httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: SIGNUP_TTL_SECONDS,
+      });
       // Refused sign-ups get the same URL; the sign-in right check refuses them later (/no-access, as today).
       const r = await auth().api.signInSocial({ body: { provider: 'google', callbackURL: CALLBACK, errorCallbackURL: '/sign-up?reason=google', disableRedirect: true }, headers: hdrs });
       googleUrl = r.url ?? null;

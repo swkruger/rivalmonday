@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({
-  start: vi.fn(), magic: vi.fn(), social: vi.fn(), turnstile: vi.fn(), cookieSet: vi.fn(), pending: vi.fn(), headerIp: '203.0.113.9, 10.0.0.1',
+  start: vi.fn(), magic: vi.fn(), social: vi.fn(), turnstile: vi.fn(), cookieSet: vi.fn(), pending: vi.fn(), headerIp: '203.0.113.9, 10.0.0.1', turnstileCfg: {} as { siteKey?: string; secretKey?: string },
 }));
 vi.mock('@cs/tools', async (orig) => ({ ...(await orig<typeof import('@cs/tools')>()), startAgencySignup: (...a: unknown[]) => m.start(...a) }));
 vi.mock('@/server/auth', () => ({ auth: () => ({ api: { signInMagicLink: (a: unknown) => m.magic(a), signInSocial: (a: unknown) => m.social(a) } }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: 'svc' }) }));
 vi.mock('@/server/dev-guard', () => ({ activeEnvName: () => 'dev' }));
-vi.mock('@/server/env', () => ({ webEnv: () => ({ authSecret: 's'.repeat(40), google: { clientId: 'g', clientSecret: 'g' }, turnstile: {} }) }));
+vi.mock('@/server/env', () => ({ webEnv: () => ({ authSecret: 's'.repeat(40), google: { clientId: 'g', clientSecret: 'g' }, turnstile: m.turnstileCfg }) }));
 vi.mock('@/server/turnstile', () => ({ verifyTurnstile: (...a: unknown[]) => m.turnstile(...a) }));
 vi.mock('@/server/pending-signup', () => ({ openPendingSignup: (...a: unknown[]) => m.pending(...a) }));
 vi.mock('next/headers', () => ({
@@ -40,6 +40,7 @@ beforeEach(() => {
   m.turnstile.mockResolvedValue(true);
   m.magic.mockResolvedValue({ status: true });
   m.social.mockResolvedValue({ url: 'https://accounts.google.com/o/oauth2/auth?x=1', redirect: true });
+  m.turnstileCfg = {};
   m.pending.mockResolvedValue({ id: '11111111-1111-4111-8111-111111111111', agencyName: 'Acme HVAC', inviteLinkId: null });
 });
 
@@ -108,10 +109,43 @@ describe('startSignup', () => {
     expect(opts).toMatchObject({ httpOnly: true, sameSite: 'lax', maxAge: 1800, path: '/' });
   });
 
-  it('google intent when refused: same Google URL, no cookie', async () => {
+  it('google intent when refused: still sets an rm_signup cookie with identical name and options, for a random id, within the 400 ms floor (R18)', async () => {
+    const ok = await startSignup(empty, form({ intent: 'google' }));
+    const accepted = m.cookieSet.mock.calls[0]!;
+    m.cookieSet.mockReset();
     m.start.mockResolvedValue({ ok: true, sendLink: false });
+    const t0 = Date.now();
     const r = await startSignup(empty, form({ intent: 'google' }));
-    expect(r.googleUrl).toBe('https://accounts.google.com/o/oauth2/auth?x=1');
-    expect(m.cookieSet).not.toHaveBeenCalled();
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(395);
+    expect(r).toEqual(ok);
+    expect(m.cookieSet).toHaveBeenCalledTimes(1);
+    const refused = m.cookieSet.mock.calls[0]!;
+    expect(refused[0]).toBe(accepted[0]);
+    expect(refused[2]).toEqual(accepted[2]);
+    expect(refused[1]).toMatch(/^[\w-]+\.[\w-]+$/);
+    expect(refused[1]).not.toBe(accepted[1]);
+    expect(m.pending).toHaveBeenCalledTimes(1); // only the accepted run looked a row up
+  });
+
+  it('refused google cookie is Secure in production, like the accepted one', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    m.start.mockResolvedValue({ ok: true, sendLink: false });
+    await startSignup(empty, form({ intent: 'google' }));
+    expect(m.cookieSet.mock.calls[0]![2]).toMatchObject({ secure: true, httpOnly: true, sameSite: 'lax', maxAge: 1800 });
+    vi.unstubAllEnvs();
+  });
+
+  it('a secret key without a site key (no widget) uses the fake verifier and a dummy token', async () => {
+    m.turnstileCfg = { secretKey: 'secret' };
+    await redirectOf(startSignup(empty, form()));
+    expect(m.turnstile.mock.calls[0]![0]).toBe('no-widget');
+    expect(m.turnstile.mock.calls[0]![2]).toMatchObject({ turnstileSecretKey: undefined });
+  });
+
+  it('both keys set: the real check with the widget token and the secret', async () => {
+    m.turnstileCfg = { siteKey: 'site', secretKey: 'secret' };
+    await redirectOf(startSignup(empty, form({ 'cf-turnstile-response': 'tok' })));
+    expect(m.turnstile.mock.calls[0]![0]).toBe('tok');
+    expect(m.turnstile.mock.calls[0]![2]).toMatchObject({ turnstileSecretKey: 'secret' });
   });
 });

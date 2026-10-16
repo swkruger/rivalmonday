@@ -12,7 +12,7 @@ export function SignInEmail(props: SignInEmailProps) {
   return (
     <Layout branding={branding} title={signInSubject(props)} preview={signup ? `Confirm your email for ${signup.agencyName}` : `Sign in to ${branding.displayName}`}>
       {signup ? (
-        <Text>Click below to confirm your email and set up {signup.agencyName} on {branding.displayName}. The link works once and expires in {props.expiresMinutes} minutes.</Text>
+        <Text>Click below to confirm your email and set up {signup.agencyName} on Rival Monday.</Text>
       ) : (
         <Text>Use the button below to sign in to {branding.displayName}. The link works once and expires in {props.expiresMinutes} minutes.</Text>
       )}
