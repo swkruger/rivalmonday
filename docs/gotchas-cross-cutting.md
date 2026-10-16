@@ -46,7 +46,8 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 
 ## Conduct & operations
 - **Crawler conduct is non-negotiable:** honest UA `RivalMondayBot`, RFC 9309 robots (5xx/unreachable ⇒ disallow), ≥3 s per host, blocked ⇒ record, never evade. No real competitor site is crawled until `WEB_MONITORING_ENABLED='true'`.
-- **Worker = one replica.** Per-host rate limiting is in-process; don't run `collect-once --poll` (or a web crawl of the same domain) while the worker runs.
-- **A fresh per-worktree test DB has no `pgboss` schema** until a pg-boss test starts it; E2E pages that enqueue then fail with `relation "pgboss.job" does not exist`. Run `pnpm --filter @cs/worker exec vitest run src/boss.test.ts` once after creating the DB (`/rm-kickoff` does).
+- **Worker = one replica** (in-process per-host limits); no `collect-once --poll` while it runs.
+- **A fresh per-worktree test DB has no `pgboss` schema** (E2E: `relation "pgboss.job" does not exist`): run `pnpm --filter @cs/worker exec vitest run src/boss.test.ts` once (`/rm-kickoff` does).
 - **Stacked branches merge once, from the tip:** rebase the base on `main`, then each child with `git rebase --onto <base> <old-base-sha>`; fold every work file on the tip and `merge --ff-only` it. On Windows `git worktree remove --force` can leave the folder (locked files, over-long `node_modules` paths) — delete it with `cmd /c rd /s /q "\\?\<abs path>"`, then `git worktree prune`.
-- **After merging a branch that adds a workspace package, run `pnpm install` in the main checkout** before any CLI (`kb:seed`, worker CLIs) — otherwise `ERR_MODULE_NOT_FOUND @cs/<pkg>`.
+- **After merging a branch that adds a workspace package, run `pnpm install` in the main checkout** (else `ERR_MODULE_NOT_FOUND @cs/<pkg>`).
+- **Scripted edits must read/write UTF-8 explicitly** (Python on Windows defaults to cp1252 and corrupts `—`/`…`): check a branch with `iconv -f utf-8 -t utf-8` over `git diff --name-only main...HEAD`.
