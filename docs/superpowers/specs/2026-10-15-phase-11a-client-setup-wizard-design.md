@@ -20,7 +20,7 @@ Core spec §4.1 (onboarding flow) is the baseline; this spec makes it a guided, 
 - **D1 Split** 11a / 11b / 11c as above.
 - **D2 Who runs it:** agency staff and the client owner can both run the wizard. Staff always do the lookup + client creation; the client owner (invited via existing `invite_member` in 11a) continues from the profile step.
 - **D3 Routes:** `/agency/clients/new` becomes the lookup step; the remaining steps live at `/c/[clientId]/setup`, shared by staff and the client owner. Phase 10's `/onboarding` stays agency-only; its `first_client` checklist item links to `/agency/clients/new`.
-- **D4 Prospects** run the same wizard and stop after "Pick competitors"; 11b's invite/billing steps appear after `convert_prospect`.
+- **D4 Prospects** run the same wizard and stop after "Pick competitors"; 11b's invite/billing steps appear after `convert_prospect`. *(Amended by 11c L7, 2026-10-16: prospects also get the invite step; billing stays clients-only.)*
 - **D5 Lookup source:** DataForSEO Google Maps search (no new vendor). Lookup cost goes on the **agency** ledger (no client yet).
 - **D6 Prefill:** vertical pack defaults plus **AI suggestions** (services, keywords) from vendor GBP data now; the client's website becomes a second source once `WEB_MONITORING_ENABLED` is on (same code path, website source off until then). Every suggestion carries a quote found in the source text (*no evidence, no claim*).
 - **D7 Multi-day:** progress card + reminder emails to agency staff; no client-facing reminders in 11a.

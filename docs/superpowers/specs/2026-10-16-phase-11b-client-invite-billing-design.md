@@ -7,7 +7,7 @@
 - **E1 Two emails** to the business owner: `client_invite` (when staff invite) and `competitor_review` (when suggestions are ready). Both agency-branded; nothing names Rival Monday.
 - **E2 Real `Cc:`** on both: `OutgoingEmail.cc`, Postmark `Cc`. Cc = the staff member who sent the invite, else the client's account manager (`replyToFor`).
 - **E3 Review email trigger:** automatically once per client when the search has finished with ≥ 1 suggestion, an owner is invited (pending or accepted) and competitors are not done; staff can send it manually from the Pick step.
-- **E4 Invite step** is step 4, skippable, agency staff only, clients only (not prospects), and can be opened early from steps 1–3.
+- **E4 Invite step** is step 4, skippable, agency staff only, clients **and prospects** (11c L7), and can be opened early from steps 1–3.
 - **E5 Billing step** (step 5, agency admins, clients only) sets per-client price + setup fee and enables billing in one go (closes 9b M5). Allowed while the owner's invitation is **pending**.
 - **E6 Delivery path:** the `notification` outbox; the owner's `contact` row is created at invite time **inactive** and activated on acceptance.
 - **E7** Inviting any client role from `/agency/team` also sends `client_invite` (same shared function).
@@ -46,7 +46,7 @@ Shared function `inviteClientUser(ctx, deps, { clientId, email, name, role }, no
 5. `notify` kind `client_invite`, `contactIds: [contactId]`, `cc: [inviter email]`, dedupe `client-invite:<invitationId>`.
 All in one transaction (outbox row commits with the invitation).
 **Acceptance:** `acceptInvitations` / `contactFor` links the contact and sets `active = true`.
-**Prospects:** refused with a form error (not 404): "Convert this prospect to a client before inviting the owner." (code `client_not_active`; reuse an existing code if one fits).
+**Prospects:** allowed (11c L7). A prospect's client owner sees the setup wizard; prospects still get no recurring work.
 
 ## 5. Competitor-review email
 
@@ -72,15 +72,15 @@ Footer as other client mails (agency sign-off; no Rival Monday). The sign-in pag
 
 ## 8. Setup state changes (amends 11a §4)
 
-- Steps for clients: `profile, search, competitors, invite, billing`; for prospects: the first three. Badge "n of 5" / "n of 3".
+- Steps for clients: `profile, search, competitors, invite, billing`; for prospects: the first four (no billing). Badge "n of 5" / "n of 4".
 - `invite`: `done` when an invitation exists for `invited_contact_id` (pending or accepted; UI shows "Invited" / "Accepted"); `skipped` if in `skipped`; else `todo`.
 - `billing`: §7; `skipped` when ineligible.
-- `completeIfDone` uses the client's step list. `convert_prospect` reopens setup (`completed_at = NULL`) when the row exists and was completed after only three steps.
+- `completeIfDone` uses the client's step list. `convert_prospect` reopens setup (`completed_at = NULL`) when the row exists and was completed after only four steps.
 - Starting-point clock unchanged (11a §9).
 
 ## 9. Tests
 
-- Unit: `invite_client_owner` rights (out-of-scope account manager refused; client roles refused); creates inactive contact; activation on acceptance; `client_invite` dedupe and re-send (new invitation id); team-page client invite also queues `client_invite`; prospect refused.
+- Unit: `invite_client_owner` rights (out-of-scope account manager refused; client roles refused); creates inactive contact; activation on acceptance; `client_invite` dedupe and re-send (new invitation id); team-page client invite also queues `client_invite`; prospect invite allowed.
 - Review email: not sent when competitors done; once only; manual send dedupe per day; props carry names only (no `overlap_score`/`signals`/`ad_matches`).
 - Transport: Postmark request has `Cc`; file transport records `cc`; `cc` never contains `to`.
 - Billing: `clientOwnerEmails` includes pending, excludes expired/revoked; `enable_client_billing` with price + setup fee for a pending owner; step hidden + skipped when ineligible.
