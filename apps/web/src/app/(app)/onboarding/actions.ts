@@ -1,4 +1,5 @@
 'use server';
+import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import { type FormResult, parseBrandingForm } from '@/server/forms';
@@ -71,4 +72,12 @@ export async function saveBrandingStepAction(_prev: FormResult, formData: FormDa
   const done = await runTool(ctx, 'mark_onboarding_step', { step: 'branding', action: 'done' });
   if (!done.ok) return done;
   redirect(nextPath('branding'));
+}
+
+/** Hides the `/agency` getting-started checklist. */
+export async function dismissChecklistAction(): Promise<void> {
+  const ctx = await adminCtx();
+  const r = await runTool(ctx, 'dismiss_onboarding_checklist', {});
+  if (!r.ok) notFound();
+  revalidatePath('/agency');
 }

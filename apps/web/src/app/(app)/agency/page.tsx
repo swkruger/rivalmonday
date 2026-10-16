@@ -4,7 +4,9 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Table, TableBody, Tab
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { OnboardingChecklist, type ChecklistStatus } from '@/components/agency/onboarding-checklist';
 import { WriteGuard } from '@/components/read-only';
+import { dismissChecklistAction } from '../onboarding/actions';
 import { ClientBillingControls, type ClientBillingStatusRow } from '@/components/billing/client-billing-controls';
 import { PressureBadge } from '@/components/pressure-badge';
 import { SpendBadge } from '@/components/spend-badge';
@@ -35,6 +37,10 @@ export default async function AgencyPortfolioPage() {
   const { items } = await callTool<{ items: PortfolioRow[] }>(ctx, 'get_portfolio', {});
   const billingRows = await callTool<{ clients: ClientBillingStatusRow[] }>(ctx, 'list_client_billing_status', {});
   const billingBy = new Map((billingRows?.clients ?? []).map((b) => [b.clientId, b]));
+  // Admins only: account managers get no checklist and no extra reads.
+  const onboarding = ctx.role === 'agency_admin' ? await callTool<ChecklistStatus>(ctx, 'get_onboarding_status', {}) : null;
+  const showChecklist = !!onboarding && !onboarding.completed && !onboarding.dismissed;
+  const trialing = showChecklist ? (await callTool<{ state: string }>(ctx, 'get_billing_summary', {})).state === 'trialing' : false;
   const billingRole = ctx.role === 'agency_admin' ? 'agency_admin' : 'account_manager';
   const now = new Date();
   const canAddClient = ctx.clientScope === 'all';
@@ -58,6 +64,8 @@ export default async function AgencyPortfolioPage() {
           </WriteGuard>
         )}
       </div>
+
+      {showChecklist && <OnboardingChecklist status={onboarding} trialing={trialing} dismissAction={dismissChecklistAction} />}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
         <div className="rounded-[14px] bg-surface p-4 shadow-card sm:p-6">

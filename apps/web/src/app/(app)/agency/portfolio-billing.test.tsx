@@ -8,11 +8,13 @@ const C = '22222222-2222-4222-8222-222222222222';
 const row = { clientId: C, name: 'Target Plumbing', verticalId: 'dental', pressure: { score: 1, level: 'low', reasons: [] }, topCompetitor: null, spend: null, alertsPending: 0, alertsDelivered7d: 0, briefToApprove: null, openRecommendations: 0, lastActivityAt: null };
 const state = { role: 'agency_admin' as 'agency_admin' | 'account_manager' };
 
-const callTool = vi.fn(async (_ctx: unknown, name: string) => {
+const callTool = vi.fn(async (_ctx: unknown, name: string): Promise<unknown> => {
   if (name === 'get_portfolio') return { items: [row] };
+  if (name === 'get_onboarding_status') return { steps: {}, dismissed: false, completed: true };
   return { clients: [{ clientId: C, state: 'active', enabled: true, pill: { key: 'paying', label: 'Paying' } }] };
 });
 vi.mock('@/server/tools', () => ({ callTool }));
+vi.mock('../onboarding/actions', () => ({ dismissChecklistAction: async () => {} }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: createAccessContext({ agencyId: A, userId: 'u', role: state.role, clientScope: 'all', features: ['dashboard'] as never }) }) }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
 vi.mock('@/components/spend-badge', () => ({ SpendBadge: () => <span /> }));
@@ -33,5 +35,32 @@ describe('portfolio billing column', () => {
     callTool.mockClear();
     render(await Page());
     expect(callTool.mock.calls.map((c) => c[1])).not.toContain('get_client_revenue');
+  });
+});
+
+describe('onboarding checklist on the portfolio', () => {
+  const status = { steps: { profile: 'open', team: 'open', plan: 'open', branding: 'open', first_client: 'open' }, dismissed: false, completed: false };
+  const withStatus = () => callTool.mockImplementation(async (_c: unknown, name: string) => {
+    if (name === 'get_portfolio') return { items: [row] };
+    if (name === 'get_onboarding_status') return status;
+    if (name === 'get_billing_summary') return { state: 'trialing' };
+    return { clients: [] };
+  });
+  it('shows the checklist to agency admins', async () => {
+    state.role = 'agency_admin';
+    withStatus();
+    render(await Page());
+    expect(screen.getByText('Getting started')).toBeTruthy();
+    expect(screen.getByText('Add a payment method')).toBeTruthy();
+  });
+  it('shows nothing and reads nothing extra for account managers', async () => {
+    state.role = 'account_manager';
+    withStatus();
+    callTool.mockClear();
+    render(await Page());
+    expect(screen.queryByText('Getting started')).toBeNull();
+    const names = callTool.mock.calls.map((c) => c[1]);
+    expect(names).not.toContain('get_onboarding_status');
+    expect(names).not.toContain('get_billing_summary');
   });
 });

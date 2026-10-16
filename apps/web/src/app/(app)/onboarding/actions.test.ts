@@ -111,3 +111,15 @@ describe('onboarding actions', () => {
     expect(names()).toEqual(['update_agency_branding']);
   });
 });
+
+describe('dismissChecklistAction', () => {
+  it('runs dismiss_onboarding_checklist for admins', async () => {
+    await a.dismissChecklistAction();
+    expect(names()).toEqual(['dismiss_onboarding_checklist']);
+  });
+  it('is a 404 for non-admins', async () => {
+    m.ctx = { role: 'account_manager' };
+    await expect(a.dismissChecklistAction()).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(m.run).not.toHaveBeenCalled();
+  });
+});
