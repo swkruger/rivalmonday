@@ -30,14 +30,14 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 - **Measured (2026-10-15, 4,303 tests, every package): local cluster ~23 min** for the full unit suite; full E2E (72) ~4 min. A Defender exclusion for the repo, worktrees and `D:\rm-pg` helps.
 - **Run the full suite with `run_in_background`** (longer than the Bash tool's 10-min cap). **Never run two test runs against the same database** (incl. E2E): they collide (FK/duplicate-key errors, deadlocks). Parallel worktrees get their own `cs_<branch>_test` (see `/rm-kickoff`). The DB name **must end in `_test`** (the harness refuses others).
 - **Global setup resets once:** it wipes + migrates only when the migration files' fingerprint changed (stored in schema `cs_test_meta`); otherwise it empties the tables. Force a rebuild with `TEST_DB_FULL_RESET=1`.
-- **`truncateAll` is a DELETE** with `session_replication_role = replica` when the owner is a superuser (local, CI); on Neon it falls back to one `TRUNCATE` statement. Don't reintroduce per-table TRUNCATE loops — each one swaps data files (~1.2 s for 52 tables on Windows).
+- **`truncateAll` is a DELETE** with `session_replication_role = replica` when the owner is a superuser (local, CI); on Neon it falls back to one `TRUNCATE` statement. Don't reintroduce per-table TRUNCATE loops (slow on Windows).
 - **Focused runs:** `pnpm --filter <pkg> exec vitest run <pattern>`. `pnpm --filter <pkg> test -- <pattern>` does *not* narrow.
 - **Keep going past failures:** `npx turbo run test --concurrency=1 --continue` (`pnpm test -- --continue` passes it to vitest, which rejects it).
 - **Flakes:** only `ETIMEDOUT`/`ECONNRESET`/timeouts (Neon) → re-run that package once; web `page-controls` PinPageSwitch and collectors `renderer` "reports timeouts" flake under load → re-run focused.
 - **Subagents:** tell implementers to run focused tests in the foreground (`timeout: 600000`), poll any background whole-package run with short foreground checks, and **never hand back while a test run they started is still running**. If the API times out during long phases, resume subagents rather than restarting, and keep each write small.
 
 ## Database & migrations
-- **Never edit applied migrations** (`cs_dev` is at `0030`+); add new ones. Custom SQL: `pnpm --filter @cs/db generate --custom --name=<x>`, statements separated by `--> statement-breakpoint`. RLS/grant rules: `packages/db/CLAUDE.md`.
+- **Never edit applied migrations**; add new ones. Custom SQL: `pnpm --filter @cs/db generate --custom --name=<x>`, statements separated by `--> statement-breakpoint`. RLS/grant rules: `packages/db/CLAUDE.md`.
 
 ## Data & privacy invariants
 - **`redactForModel`** (`@cs/collectors`), never a bare `redactContactInfo`, on every text entering a decision state, chat message or embedding input, with the business's own name(s) as `businessNames` where known (adds `compromise` NER person-name and serious-health-condition redaction). A lone `redactContactInfo` at a new model-input site is a privacy regression.
