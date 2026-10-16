@@ -1,26 +1,27 @@
 # phase-11 — Client onboarding wizard (GBP/DataForSEO prefill, competitor review emails, billing)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-11   **Base:** main @ 4b1fb82
-**Plan/spec:** none yet
+**Plan/spec:** 11a spec `docs/superpowers/specs/2026-10-15-phase-11a-client-setup-wizard-design.md` (owner review pending)
 
 ## Status (overwrite)
-Kicked off 2026-10-15; brief written.
+2026-10-15: brainstorm done; 11a spec written, awaiting owner review. 11b/11c not brainstormed.
 
 ## Next (overwrite)
-Owner answers the open questions → `superpowers:brainstorming` → spec.
+Owner reviews 11a spec → `superpowers:writing-plans` (lean) → approval. Execution waits for phase-10 merge (or owner-approved stacking).
 
 ## Interfaces this branch adds or changes
-None yet.
+(planned, 11a) Table `client_setup`; tools `find_business`, `get_client_setup`, `save_setup_profile`, `pick_setup_competitors`, `advance_client_setup`; `create_client` + optional `lookup`; shared `applyClientProfileChange`, `getSetupState`, `startingPointClockStart` (readiness clock); collector `mapsSearchByText`, `collectGbpProfile` takes a real scope + parses description; AI task `setup_suggestions`; jobs `setup-suggestions`, `setup-reminders`; route `/c/[clientId]/setup`, `/agency/clients/new` rebuilt.
 
 ## Assumes from other branches
 - **phase-10** (executing, not merged; spec/plan already on `main`): migrations from **0065** (`pending_signup`, `agency_profile`, `agency_onboarding`) → Phase 11 takes the **next free number at execution time** (≥ 0066). Edits `create_client` (`first_client_at` in its tx; reduced-trial refusal → `/onboarding?step=plan`), 9a `billingAccess` (+`reducedTrial`, `maxActiveClients`), `OutgoingEmail` (+`stream`/`headers`), `(app)` layout redirect to `/onboarding`. Adds `/onboarding?step=…` (agency steps only), `/agency` checklist with a `first_client` item, tools `get_onboarding_status`/`mark_onboarding_step`/`dismiss_onboarding_checklist`, emails via `billing_notice` outbox, daily `onboarding-nudges` job. Collisions: `/onboarding` route, `first_client` link target, `create_client` tx.
 - **phase-7-planning** (parked, docs only): sender `mail.rivalmonday.app`, reply-to `support@`; no code overlap.
 
 ## Decisions (owner-approved)
-None yet.
+11a spec D1–D11 (2026-10-15). Headline: split 11a (lookup/AI prefill/resumable wizard) / 11b (invite, competitor-review email + agency CC, billing step) / 11c (agency intake links + platform lead pool, manual assignment; amends Phase 10 f3 for clients); staff + client owner both run the wizard; DataForSEO Maps lookup on agency ledger; starting-point clock from competitors done (14-day cap).
 
 ## New backlog (target → item)
-None yet.
+- Later phase → automatic lead routing to agencies (vertical/area/capacity/opt-in) on the 11c lead pool.
+- 11c → neutral brand for platform-site client sign-up (nothing client-facing names Rival Monday).
 
 ## Owner verification steps
 TBD.
