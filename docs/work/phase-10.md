@@ -7,7 +7,7 @@
 Planned ahead 2026-10-14: spec + lean plan (Tasks 0–15) **owner-approved**. No code. Dev blocked until 8, 8b, 8c, 9a merge.
 
 ## Next (overwrite)
-After 8, 8b, 8c, 9a merge: `/rm-kickoff phase-10` → Task 0 pre-flight (rebase, re-check deps, owner adds 4 env vars, install `sharp`) → SDD.
+Unblocked: Phases 8 and 9 (9a + 9b) are on `main` (2026-10-16). `/rm-kickoff phase-10` → Task 0 pre-flight: rebase/branch from `main`, **re-check every 9a dependency against the merged code** (see Assumes), take migrations from **0065**, owner adds 4 env vars, install `sharp` → SDD.
 
 ## Interfaces this branch adds or changes
 (planned, not built)
@@ -18,11 +18,11 @@ After 8, 8b, 8c, 9a merge: `/rm-kickoff phase-10` → Task 0 pre-flight (rebase,
 - Env (owner adds): `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `SUPPORT_REPLY_TO`, `POSTMARK_BROADCAST_STREAM`. Worker job `onboarding-nudges` (daily 15:00 UTC).
 
 ## Assumes from other branches
-- **phase-9 (9a executing since 2026-10-14):** tables `agency_invite_link`, `agency_billing`, `plan`, `discount_code`; `generateInviteToken`/`hashInviteToken`, `startAgencyTrial`, `billingAccess`, `create_checkout_session`, `get_billing_summary`, `create_invite_link`, `fakeGateway`; migrations 0052–0053. Its pre-flight drift (outbox client-scoped, `proxy.ts` PUBLIC, closed `ToolErrorCode`, worker registration) is folded into the plan's "Dependencies on in-flight work".
-- **phase-8 (8a/8b/8c) merged ✅** (main c84ca97, migrations to 0051): `requirePlatformOperator`, `withPlatformAudit`, console under `app/(platform)/platform/**`, `ToolDefinition.access` required.
-- **phase-12 (planning):** also edits `create_client`; takes migrations after ours.
+- **phase-9 merged ✅ 2026-10-16** (main `c9c529c`+): 9a tables `agency_invite_link`, `agency_billing`, `plan`, `discount_code`, `billing_notice` are migrations **0057–0059** (not 0052–0053); `generateInviteToken`/`hashInviteToken`, `startAgencyTrial`, `billingAccess`, `create_checkout_session`, `get_billing_summary`, `create_invite_link`, `fakeGateway` in `@cs/billing`/`@cs/tools`. Re-check at Task 0: `billing_notice` now has `audience`/`client_id` (9b) — agency notices must keep `audience='agency'`; `ToolError` has an opt-in `userFacing` flag (R19) for refusal copy; `clientServiceable` + `agencyServiceable` on every new scheduler; BACKLOG § Phase 9 "`applyBillingSignal` inserts a default pilot row on a null transition → `startAgencyTrial` returns early" is a **Phase 10 risk** — fix or guard in Task 0/1.
+- **phase-8 merged ✅**: `requirePlatformOperator`, `withPlatformAudit`, console under `app/(platform)/platform/**`, `ToolDefinition.access` required.
+- **phase-12 merged ✅ 2026-10-15**: also edits `create_client` (`first_client_at`/activation backfill 0055); auto competitor search on profile completion; 1 manual search/client/week.
 - **phase-7-planning (parked):** domain `rivalmonday.app`, reply-to `support@`.
-- **Migrations:** Phase 10 ≥ **0054** (take next free at execution).
+- **Migrations:** `main` ends at **0064** → Phase 10 starts at **0065**.
 
 ## Decisions (owner-approved)
 Spec f1–f14 (`docs/superpowers/specs/2026-10-14-phase-10-agency-onboarding-design.md`). Headline: **open self-serve agency sign-up** (amends root `CLAUDE.md` "invitation-only" — update § Decisions at merge); no card at trial start; open-trial allowance 1 client, weekly; agency created only after email verification. Plan-local P1–P6 in the plan. Plan approved 2026-10-14.
