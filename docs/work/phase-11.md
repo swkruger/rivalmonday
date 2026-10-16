@@ -1,33 +1,45 @@
 # phase-11 — Client onboarding wizard (GBP/DataForSEO prefill, competitor review emails, billing)
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-11   **Base:** main @ 4b1fb82
+**Kind:** planning → implementation (after phase-10)   **Worktree:** ../CompetitorSpy-wt/phase-11   **Base:** main @ 4b1fb82
 **Plan/spec:** `docs/superpowers/{specs,plans}/` — 11a (`2026-10-15-…-11a-…-design`, `2026-10-16-…-11a-…`), 11b, 11c (all `2026-10-16-phase-11{b,c}-*`).
 
 ## Status (overwrite)
 2026-10-16: specs approved for 11a (D1–D11), 11b (E1–E7), 11c (L1–L8; L7 amended 11a/11b: prospects get the invite step). Plans: 11a Tasks 0–14 ✅ approved, 11b 15–24 ✅ approved, 11c 25–35 ✅ approved. Nothing built; execution waits for phase-10 merge.
 
 ## Next (overwrite)
-After phase-10 merges: plan Task 0 pre-flight (rebase, pnpm install, own test DB `cs_phase_11_test`), then `superpowers:subagent-driven-development` Tasks 1–14, then 11b Tasks 15–24 (one final whole-branch review at the end). then 11c Tasks 25–35.
+After phase-10 merges (or owner-approved stacking): 11a Task 0 pre-flight (rebase, `pnpm install`, own test DB `cs_phase_11_test`, `boss.test.ts` once), then `superpowers:subagent-driven-development` Tasks 1–35 in order (11a 1–14 → 11b 15–24 → 11c 25–35; each sub-phase has its own pre-flight task). One final whole-branch review at the end. Nothing uncommitted; no background jobs.
+
 
 ## Interfaces this branch adds or changes
-(planned, 11a) Table `client_setup`; tools `find_business`, `get_client_setup`, `save_setup_profile`, `pick_setup_competitors`, `advance_client_setup`; `create_client` + optional `lookup`; shared `applyClientProfileChange`, `getSetupState`, `startingPointClockStart` (readiness clock); collector `mapsSearchByText`, `collectGbpProfile` takes a real scope + parses description; AI task `setup_suggestions`; jobs `setup-suggestions`, `setup-reminders`; route `/c/[clientId]/setup`, `/agency/clients/new` rebuilt.
+(planned, not built; migrations = next free at execution, after phase-10)
+- **11a:** table `client_setup`; tools `find_business`, `get_client_setup`, `save_setup_profile`, `pick_setup_competitors`, `advance_client_setup`; `create_client` + optional `lookup`; `applyClientProfileChange`, `getSetupState`, engine `startingPointClockStart`; collector `mapsSearchByText`, `collectGbpProfile` real scope + description; AI task `setup_suggestions`; jobs `setup-suggestions`, `setup-reminders`; routes `/c/[clientId]/setup`, rebuilt `/agency/clients/new`; E2E flag `SETUP_FAKE_LOOKUP`.
+- **11b:** `OutgoingEmail.cc`, `notify` `contactIds`/`cc`, dispatcher lets `client_invite`/`competitor_review` reach inactive contacts; `inviteClientUser` (also used by `invite_member` for client roles), tools `invite_client_owner`, `send_competitor_review`; `clientOwnerEmails` includes pending invites; `LINK_TARGETS += 'setup'`; sign-in `?email=` prefill.
+- **11c:** tables `intake_link`, `lead`, `intake_rate`; public fns `resolveIntake`/`intakeLookup`/`submitIntake`/`verifyIntake`/`getPublicPreview`; tools `list_leads`, `get_lead`, `accept_lead`, `decline_lead`, `get/update_intake_link`, `list_pool_leads`, `assign_lead`; `createClientCore`; AI task `lead_preview_summary`; jobs `lead-preview`, `leads-cleanup`; routes `/start`, `/start/[slug]`, `/start/v/[leadId]`, `/start/verify/[token]`, `/agency/leads`, `/platform/leads`.
+
 
 ## Assumes from other branches
 - **phase-10** (executing, not merged; spec/plan already on `main`): migrations from **0065** (`pending_signup`, `agency_profile`, `agency_onboarding`) → Phase 11 takes the **next free number at execution time** (≥ 0066). Edits `create_client` (`first_client_at` in its tx; reduced-trial refusal → `/onboarding?step=plan`), 9a `billingAccess` (+`reducedTrial`, `maxActiveClients`), `OutgoingEmail` (+`stream`/`headers`), `(app)` layout redirect to `/onboarding`. Adds `/onboarding?step=…` (agency steps only), `/agency` checklist with a `first_client` item, tools `get_onboarding_status`/`mark_onboarding_step`/`dismiss_onboarding_checklist`, emails via `billing_notice` outbox, daily `onboarding-nudges` job. Collisions: `/onboarding` route, `first_client` link target, `create_client` tx.
 - **phase-7-planning** (parked, docs only): sender `mail.rivalmonday.app`, reply-to `support@`; no code overlap.
 
 ## Decisions (owner-approved)
-11a spec D1–D11 (2026-10-15). Headline: split 11a (lookup/AI prefill/resumable wizard) / 11b (invite, competitor-review email + agency CC, billing step) / 11c (agency intake links + platform lead pool, manual assignment; amends Phase 10 f3 for clients); staff + client owner both run the wizard; DataForSEO Maps lookup on agency ledger; starting-point clock from competitors done (14-day cap).
+Full lists in the specs: 11a D1–D11, 11b E1–E7, 11c L1–L8 (+ plan-local P1–P6, Q1–Q5, R1–R4). Headlines:
+1. Split 11a (lookup, AI prefill, resumable wizard) / 11b (owner invite, review email with real Cc, billing step with per-client price — closes 9b M5) / 11c (intake links, free preview, platform lead pool).
+2. Staff and client owner both run the wizard; staff always do the lookup; client owner may edit profile/pick competitors while setup is open.
+3. Starting-point clock starts when competitors are done (14-day cap).
+4. Clients may self-start only via an agency intake link or the platform pool (amends Phase 10 f3 for clients); `/start` shows Rival Monday until an agency is assigned (explicit exception to the white-label rule).
+5. Prospects get the invite step (L7, amends 11a D4 / 11b E4); billing stays clients-only.
+6. Billing can be enabled while the owner's invite is pending.
 
-Plus 11b spec E1–E7 (2026-10-16): two agency-branded emails (invite, competitor review) with real `Cc:`; invite step 4 any time; billing step 5 with per-client price, allowed with a pending invite; notification outbox + inactive contact at invite.
 
 ## New backlog (target → item)
-- Later phase → automatic lead routing to agencies (vertical/area/capacity/opt-in) on the 11c lead pool.
-- Backlog → sign-in page uses host default branding (may show Rival Monday to white-label clients) — check in 11b Task 24.
-- 11c → neutral brand for platform-site client sign-up (nothing client-facing names Rival Monday).
+- Unscheduled → automatic lead routing to agencies (vertical/area/capacity/opt-in) on the 11c pool.
+- Polish → sign-in page uses host default branding (may show Rival Monday to white-label client owners) — verify in 11b Task 24.
+- Phase 10 merge → root `CLAUDE.md` § Decisions: note client self-start via intake links/pool (11c L1/L4) next to Phase 10's f3 change.
+
 
 ## Owner verification steps
-TBD.
+Listed in the final task of each plan: 11a Task 14, 11b Task 24, 11c Task 35 (real lookup + suggestions, setup to starting point, Postmark Cc, pending-owner billing in Stripe test mode, intake + preview on `cs_dev`, copy sign-offs).
+
 
 ## Brief
 
