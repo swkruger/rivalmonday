@@ -1,5 +1,5 @@
 import { ToolError } from '@cs/core';
-import { client } from '@cs/db';
+import { agencyBilling, agencyOnboarding, client } from '@cs/db';
 import { IDS, openTestDbs } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -26,6 +26,7 @@ describe('billingAccess', () => {
   it('treats a missing row as a non-exempt pilot using the current standard plan', async () => {
     expect(await billingAccess(dbs.service, AGENCY)).toEqual({
       state: 'pilot', canAddActiveClient: true, readOnly: false, suspended: false, activeClients: 2, includedSeats: 3, seatCapExempt: false,
+      reducedTrial: false, maxActiveClients: 3,
     });
     await addClients(dbs.owner, 1);
     expect((await billingAccess(dbs.service, AGENCY)).canAddActiveClient).toBe(false);
@@ -125,5 +126,73 @@ describe('seat counts and paused clients (9b)', () => {
     const [c] = await dbs.owner.select({ id: client.id }).from(client).where(eq(client.agencyId, AGENCY)).limit(1);
     await dbs.owner.update(client).set({ pausedAt: new Date(), pausedBy: 'auto' }).where(eq(client.id, c!.id));
     expect(await billingAccess(dbs.service, AGENCY)).toMatchObject({ activeClients: 2, canAddActiveClient: true });
+  });
+});
+
+describe('reduced trial allowance (phase 10 f12)', () => {
+  const REDUCED = 'Your trial includes 1 active client. Add a payment method to monitor up to 3.';
+  const source = (s: 'open' | 'invite' | 'legacy') => dbs.owner.insert(agencyOnboarding).values({ agencyId: AGENCY, source: s });
+  const toOneActive = async () => {
+    // agency A starts with 2 active clients; keep one so the cap decision is about the second.
+    const [c] = await dbs.owner.select({ id: client.id }).from(client).where(eq(client.agencyId, AGENCY)).limit(1);
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, c!.id));
+  };
+
+  it.each([
+    ['open', 'pilot', false, 3],
+    ['open', 'trialing', true, 1],
+    ['open', 'active', false, 3],
+    ['invite', 'pilot', false, 3],
+    ['invite', 'trialing', false, 3],
+    ['invite', 'active', false, 3],
+    ['legacy', 'pilot', false, 3],
+    ['legacy', 'trialing', false, 3],
+    ['legacy', 'active', false, 3],
+  ] as const)('source %s, state %s -> reducedTrial=%s, maxActiveClients=%i', async (src, state, reduced, max) => {
+    await source(src);
+    await setBilling(dbs.owner, planId, { state });
+    expect(await billingAccess(dbs.service, AGENCY)).toMatchObject({ reducedTrial: reduced, maxActiveClients: max });
+  });
+
+  it('a missing onboarding row is never reduced; a seat-cap-exempt trial is not reduced', async () => {
+    await setBilling(dbs.owner, planId, { state: 'trialing' });
+    expect(await billingAccess(dbs.service, AGENCY)).toMatchObject({ reducedTrial: false, maxActiveClients: 3 });
+    await source('open');
+    await dbs.owner.update(agencyBilling).set({ seatCapExempt: true });
+    expect(await billingAccess(dbs.service, AGENCY)).toMatchObject({ reducedTrial: false, maxActiveClients: 3 });
+  });
+
+  it('open trial: the first active client is allowed, the second is refused with the trial copy (user-facing)', async () => {
+    await source('open');
+    await setBilling(dbs.owner, planId, { state: 'trialing' });
+    await toOneActive();
+    await toOneActive(); // 0 active
+    await attempt();
+    expect(await billingAccess(dbs.service, AGENCY)).toMatchObject({ activeClients: 0, canAddActiveClient: true });
+    await addClients(dbs.owner, 1);
+    expect((await billingAccess(dbs.service, AGENCY)).canAddActiveClient).toBe(false);
+    const e = await attempt().then(() => null, (x: unknown) => x);
+    expect(e).toBeInstanceOf(ToolError);
+    expect((e as ToolError).code).toBe('billing_seat_limit');
+    expect((e as ToolError).message).toBe(REDUCED);
+    expect((e as ToolError).userFacing).toBe(true);
+  });
+
+  it('Checkout lifts it: once the state is active the second client is allowed', async () => {
+    await source('open');
+    await setBilling(dbs.owner, planId, { state: 'trialing' });
+    await toOneActive(); // 1 active
+    expect(await refusal(attempt())).toBe(REDUCED);
+    await dbs.owner.update(agencyBilling).set({ state: 'active' });
+    await attempt();
+    expect(await billingAccess(dbs.service, AGENCY)).toMatchObject({ reducedTrial: false, canAddActiveClient: true });
+  });
+
+  it('invite-link trial keeps the 3-seat cap and its copy', async () => {
+    await source('invite');
+    await setBilling(dbs.owner, planId, { state: 'trialing' });
+    await attempt(); // 2 of 3
+    await addClients(dbs.owner, 1);
+    expect(await refusal(attempt())).toBe("You've used your 3 included clients. Upgrade to add more.");
   });
 });

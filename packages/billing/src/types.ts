@@ -113,8 +113,21 @@ export interface CreatePromotionCodeInput {
   maxRedemptions?: number;
 }
 
+/** Phase 10 f7: an agency's billing details copied to its Stripe customer before Checkout. Absent fields are left as they are. */
+export interface CustomerDetails {
+  email?: string;
+  name?: string;
+  address?: { line1: string; line2?: string; city: string; state: string; postal_code: string; country: string };
+  /** Sent to Stripe only when it looks like a US EIN (`US_EIN_PATTERN`); anything else is ignored. */
+  taxId?: string;
+}
+
+export const US_EIN_PATTERN = /^\d{2}-?\d{7}$/;
+
 export interface BillingGateway extends ConnectGateway {
   createCustomer(i: { agencyId: string; name: string; email?: string }): Promise<{ id: string }>;
+  /** Updates the customer's email/name/address; adds a `us_ein` tax id when `taxId` matches `US_EIN_PATTERN` (a duplicate is ignored). */
+  updateCustomer(customerId: string, d: CustomerDetails): Promise<void>;
   createCheckoutSession(i: CheckoutSessionInput): Promise<{ url: string }>;
   createPortalSession(i: { customerId: string; returnUrl: string }): Promise<{ url: string }>;
   /** Sets the seat line's quantity; adds the line (price `seatPriceId`) when the subscription has none and `qty > 0`. */

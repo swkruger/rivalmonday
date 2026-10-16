@@ -1,6 +1,6 @@
-import { type BillingGateway, countActiveClients, currentStandardPlan, LIVE_SUBSCRIPTION_STATUSES, planFor, syncPlanToStripe, trialEndUsable } from '@cs/billing';
+import { type BillingGateway, billingAccess, countActiveClients, currentStandardPlan, type CustomerDetails, LIVE_SUBSCRIPTION_STATUSES, planFor, syncPlanToStripe, trialEndUsable } from '@cs/billing';
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
-import { agency, agencyBilling, client, clientServiceable, discountCode } from '@cs/db';
+import { agency, agencyBilling, agencyProfile, client, clientServiceable, discountCode } from '@cs/db';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
@@ -14,6 +14,7 @@ const { defineTool } = toolkit<ToolDeps>();
 const DAY = 86_400_000;
 const PAUSE_AFTER_DAYS = 7;
 const BILLING_PATH = '/agency/settings/billing';
+const ONBOARDING_PLAN_PATH = '/onboarding?step=plan';
 export const INVALID_CODE_MESSAGE = "That code isn't valid for your account.";
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
@@ -30,13 +31,47 @@ export function gatewayOf(deps: ToolDeps): BillingGateway {
   return deps.billing;
 }
 
-function billingUrl(deps: ToolDeps, query = ''): string {
+function appPath(deps: ToolDeps, path: string): string {
   if (!deps.appUrl) throw new ToolError('internal', 'Billing is not configured (APP_URL)');
-  return `${deps.appUrl.replace(/\/+$/, '')}${BILLING_PATH}${query}`;
+  return `${deps.appUrl.replace(/\/+$/, '')}${path}`;
 }
+const billingUrl = (deps: ToolDeps, query = ''): string => appPath(deps, `${BILLING_PATH}${query}`);
 
 const logDegraded = (agencyId: string, what: string, e: unknown) =>
   console.error('[billing] gateway call failed', { agencyId, what }, (e as { name?: string } | null)?.name);
+
+/**
+ * Phase 10 f7: the agency profile's billing details for its Stripe customer, or null without a profile row.
+ * Email: billing email, else contact email. Name: legal name, else agency name. Address: the billing address, or the postal
+ * address when `billing_same_as_postal`; sent only when it has a first line.
+ */
+async function customerDetailsOf(deps: ToolDeps, agencyId: string): Promise<CustomerDetails | null> {
+  const [row] = await deps.service
+    .select({ p: agencyProfile, agencyName: agency.name })
+    .from(agencyProfile)
+    .innerJoin(agency, eq(agency.id, agencyProfile.agencyId))
+    .where(eq(agencyProfile.agencyId, agencyId));
+  if (!row) return null;
+  const { p } = row;
+  const text = (v: string | null | undefined) => (v?.trim() ? v.trim() : undefined);
+  const postal = p.billingSameAsPostal;
+  const a = {
+    line1: text(postal ? p.line1 : p.billingLine1),
+    line2: text(postal ? p.line2 : p.billingLine2),
+    city: text(postal ? p.city : p.billingCity) ?? '',
+    state: text(postal ? p.region : p.billingRegion) ?? '',
+    postal_code: text(postal ? p.postalCode : p.billingPostalCode) ?? '',
+    country: text(postal ? p.country : p.billingCountry) ?? text(p.country) ?? 'US',
+  };
+  const email = text(p.billingEmail) ?? text(p.contactEmail);
+  const taxId = text(p.taxId);
+  return {
+    ...(email ? { email } : {}),
+    name: text(p.legalName) ?? row.agencyName,
+    ...(a.line1 ? { address: { line1: a.line1, ...(a.line2 ? { line2: a.line2 } : {}), city: a.city, state: a.state, postal_code: a.postal_code, country: a.country } } : {}),
+    ...(taxId ? { taxId } : {}),
+  };
+}
 
 async function billingRowOf(deps: ToolDeps, agencyId: string) {
   const [row = null] = await deps.service.select().from(agencyBilling).where(eq(agencyBilling.agencyId, agencyId));
@@ -88,6 +123,9 @@ export const getBillingSummaryTool = defineTool({
     plan: Plan.nullable(),
     dates: z.object({ trialEndsAt: IsoOrNull, pilotEndsAt: IsoOrNull, pastDueSince: IsoOrNull, pausesOn: IsoOrNull, cancelAt: IsoOrNull }),
     seats: z.object({ used: z.number().int(), included: z.number().int(), extra: z.number().int() }),
+    /** Phase 10 f12 (R10): open sign-up still trialing => `maxActiveClients` = 1. */
+    reducedTrial: z.boolean(),
+    maxActiveClients: z.number().int(),
     nextInvoice: z.object({ amountDueCents: z.number().int(), periodEnd: z.string(), discountCents: z.number().int() }).nullable(),
     discount: z.object({ code: z.string().optional(), couponId: z.string() }).nullable(),
     recentInvoices: z.array(z.object({
@@ -100,7 +138,8 @@ export const getBillingSummaryTool = defineTool({
   async handler(ctx, _input, deps) {
     requireAdmin(ctx);
     const row = await billingRowOf(deps, ctx.agencyId);
-    const [p, used] = await Promise.all([planFor(deps.service, row), countActiveClients(deps.service, ctx.agencyId)]);
+    const [p, access] = await Promise.all([planFor(deps.service, row), billingAccess(deps.service, ctx.agencyId)]);
+    const used = access.activeClients;
     const included = p?.includedSeats ?? 0;
     const state = row?.state ?? 'pilot';
 
@@ -138,6 +177,8 @@ export const getBillingSummaryTool = defineTool({
         cancelAt: iso(row?.cancelAt),
       },
       seats: { used, included, extra: Math.max(0, used - included) },
+      reducedTrial: access.reducedTrial,
+      maxActiveClients: access.maxActiveClients,
       nextInvoice,
       discount,
       recentInvoices,
@@ -150,14 +191,16 @@ export const createCheckoutSessionTool = defineTool({
   name: 'create_checkout_session',
   access: 'write',
   description: 'Start Stripe Checkout to subscribe the agency to its plan (agency admins).',
-  input: z.object({}),
+  // R10: `onboarding` returns to the wizard's plan step (success and cancel); default the billing settings page.
+  input: z.object({ returnTo: z.enum(['billing', 'onboarding']).default('billing') }),
   output: z.object({ url: z.string() }),
   permission: 'agency',
-  async handler(ctx, _input, deps) {
+  async handler(ctx, input, deps) {
     requireAdmin(ctx);
     const gw = gatewayOf(deps);
-    const success = billingUrl(deps, '?done=1');
-    const cancel = billingUrl(deps);
+    const onboarding = input.returnTo === 'onboarding';
+    const success = onboarding ? appPath(deps, ONBOARDING_PLAN_PATH) : billingUrl(deps, '?done=1');
+    const cancel = onboarding ? appPath(deps, ONBOARDING_PLAN_PATH) : billingUrl(deps);
     const before = await billingRowOf(deps, ctx.agencyId);
     if (before?.stripeSubscriptionId) await assertNoLiveSubscription(gw, ctx.agencyId, before.stripeSubscriptionId);
 
@@ -167,6 +210,11 @@ export const createCheckoutSessionTool = defineTool({
     if (!p.stripeBasePriceId || !p.stripeSeatPriceId) p = await syncPlanToStripe(deps.service, gw, p.id);
 
     const customerId = await ensureCustomer(deps, ctx.agencyId);
+    // f7: copy the profile's billing details to the customer first; best effort (never blocks Checkout, no PII logged).
+    try {
+      const details = await customerDetailsOf(deps, ctx.agencyId);
+      if (details) await gw.updateCustomer(customerId, details);
+    } catch (e) { logDegraded(ctx.agencyId, 'updateCustomer', e); }
     const row = (await billingRowOf(deps, ctx.agencyId))!;
     const active = await countActiveClients(deps.service, ctx.agencyId);
     // I2: Stripe rejects a Checkout trial_end under 48 h away; closer than that the subscription simply starts now.

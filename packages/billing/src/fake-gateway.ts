@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { ConnectedAccount, ConnectedSubscription, ConnectEventLike } from './connect-gateway-types';
 import {
-  type BillingGateway, type CheckoutSessionInput, type CreateCouponInput, type CreatePromotionCodeInput,
+  type BillingGateway, type CheckoutSessionInput, type CreateCouponInput, type CreatePromotionCodeInput, type CustomerDetails,
   type GatewayInvoice, type GatewaySubscription, type StripeEventLike, type UpcomingInvoice, InvalidSignature,
 } from './types';
 
@@ -9,7 +9,7 @@ import {
 export const FAKE_WEBHOOK_SIGNATURE = 'fake-sig';
 
 export interface FakeCall { method: string; args: unknown[] }
-interface FakeCustomer { id: string; agencyId: string; name: string; email?: string }
+interface FakeCustomer { id: string; agencyId: string; name: string; email?: string; address?: CustomerDetails['address']; taxId?: string }
 interface FakeCoupon extends CreateCouponInput { id: string }
 interface FakePromotionCode extends CreatePromotionCodeInput { id: string; active: boolean }
 
@@ -170,6 +170,18 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
       const id = nid('cus');
       customers.set(id, { id, agencyId: i.agencyId, name: i.name, email: i.email });
       return { id };
+    },
+    async updateCustomer(customerId, d) {
+      enter('updateCustomer', customerId, d);
+      const c = customers.get(customerId);
+      if (!c) throw missing('customer', customerId);
+      customers.set(customerId, {
+        ...c,
+        ...(d.email !== undefined ? { email: d.email } : {}),
+        ...(d.name !== undefined ? { name: d.name } : {}),
+        ...(d.address ? { address: d.address } : {}),
+        ...(d.taxId ? { taxId: d.taxId } : {}),
+      });
     },
     async createCheckoutSession(i: CheckoutSessionInput) {
       enter('createCheckoutSession', i);

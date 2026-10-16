@@ -1,6 +1,6 @@
 import { fakeGateway, type FakeGateway } from '@cs/billing';
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { agencyBilling, client, discountCode, plan } from '@cs/db';
+import { agencyBilling, agencyOnboarding, agencyProfile, client, discountCode, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -81,6 +81,13 @@ describe('get_billing_summary', () => {
     expect(((await call(admin, 'get_billing_summary')) as Record<string, any>).hasSubscription).toBe(true);
   });
 
+  it('reports reducedTrial and maxActiveClients (R10)', async () => {
+    expect(await call(admin, 'get_billing_summary')).toMatchObject({ reducedTrial: false, maxActiveClients: 3 });
+    await setBilling({ state: 'trialing' });
+    await dbs.owner.insert(agencyOnboarding).values({ agencyId: IDS.agencyA, source: 'open' });
+    expect(await call(admin, 'get_billing_summary')).toMatchObject({ reducedTrial: true, maxActiveClients: 1 });
+  });
+
   it('reports dates, pausesOn, discount, invoice and upcoming', async () => {
     const since = new Date(Date.now() - 2 * day);
     await addCode();
@@ -154,6 +161,56 @@ describe('create_checkout_session', () => {
     await call(admin, 'create_checkout_session');
     const input = gw.callsTo('createCheckoutSession')[0]!.args[0] as Record<string, any>;
     expect(input).toMatchObject({ couponId: 'coupon_9', allowPromotionCodes: false });
+  });
+
+  it("returnTo 'onboarding' sends Checkout back to the plan step; default stays on the billing page (R10)", async () => {
+    await setBilling({ state: 'trialing' });
+    await call(admin, 'create_checkout_session', { returnTo: 'onboarding' });
+    expect(gw.callsTo('createCheckoutSession')[0]!.args[0]).toMatchObject({ successUrl: `${APP}/onboarding?step=plan`, cancelUrl: `${APP}/onboarding?step=plan` });
+    await call(admin, 'create_checkout_session', { returnTo: 'billing' });
+    expect(gw.callsTo('createCheckoutSession')[1]!.args[0]).toMatchObject({ successUrl: `${APP}/agency/settings/billing?done=1`, cancelUrl: `${APP}/agency/settings/billing` });
+    expect((await fails(call(admin, 'create_checkout_session', { returnTo: 'elsewhere' }))).code).toBe('invalid_input');
+  });
+
+  it('copies the profile billing details to the Stripe customer before Checkout (f7)', async () => {
+    await setBilling({ state: 'trialing' });
+    await dbs.owner.insert(agencyProfile).values({
+      agencyId: IDS.agencyA, legalName: 'Acme Marketing LLC', contactEmail: 'pat@acme.test', billingEmail: 'billing@acme.test',
+      line1: '1 Main St', city: 'Austin', region: 'TX', postalCode: '78701', country: 'US',
+      billingSameAsPostal: false, billingLine1: '9 Pay Rd', billingLine2: 'Ste 4', billingCity: 'Dallas', billingRegion: 'TX', billingPostalCode: '75201', billingCountry: 'US',
+      taxId: '12-3456789',
+    });
+    await call(admin, 'create_checkout_session');
+    const customerId = (await billingRow())!.stripeCustomerId!;
+    const order = gw.calls.map((c) => c.method);
+    expect(order.indexOf('updateCustomer')).toBeLessThan(order.indexOf('createCheckoutSession'));
+    expect(gw.callsTo('updateCustomer')[0]!.args).toEqual([customerId, {
+      email: 'billing@acme.test', name: 'Acme Marketing LLC',
+      address: { line1: '9 Pay Rd', line2: 'Ste 4', city: 'Dallas', state: 'TX', postal_code: '75201', country: 'US' },
+      taxId: '12-3456789',
+    }]);
+  });
+
+  it('falls back to contact email, agency name and the postal address', async () => {
+    await setBilling({ state: 'trialing' });
+    await dbs.owner.insert(agencyProfile).values({ agencyId: IDS.agencyA, contactEmail: 'pat@acme.test', line1: '1 Main St', city: 'Austin', region: 'TX', postalCode: '78701' });
+    await call(admin, 'create_checkout_session');
+    const [, d] = gw.callsTo('updateCustomer')[0]!.args as [string, Record<string, unknown>];
+    expect(d).toEqual({ email: 'pat@acme.test', name: 'Agency A', address: { line1: '1 Main St', city: 'Austin', state: 'TX', postal_code: '78701', country: 'US' } });
+  });
+
+  it('a failing updateCustomer does not block Checkout; no profile => no update', async () => {
+    await setBilling({ state: 'trialing', stripeCustomerId: 'cus_unknown_to_fake' });
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await dbs.owner.insert(agencyProfile).values({ agencyId: IDS.agencyA, contactEmail: 'pat@acme.test' });
+    const r = (await call(admin, 'create_checkout_session')) as { url: string };
+    expect(r.url).toMatch(/^https?:/);
+    expect(gw.callsTo('updateCustomer')).toHaveLength(1);
+    expect(JSON.stringify(err.mock.calls)).not.toContain('pat@acme.test');
+    err.mockRestore();
+    await dbs.owner.delete(agencyProfile);
+    await call(admin, 'create_checkout_session');
+    expect(gw.callsTo('updateCustomer')).toHaveLength(1);
   });
 
   it('works with no billing row (pilot default) and stores the customer', async () => {

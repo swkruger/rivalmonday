@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import type { ConnectedSubscription, ConnectEventLike } from './connect-gateway-types';
 import {
   type BillingGateway, type GatewayInvoice, type GatewaySubscription, type StripeEventLike, type SubscriptionStatus,
-  InvalidSignature, trialEndUsable,
+  InvalidSignature, trialEndUsable, US_EIN_PATTERN,
 } from './types';
 
 /** Metadata on each Stripe price so a subscription's seat line can be found without storing price ids per agency. */
@@ -32,6 +32,24 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
     async createCustomer(i) {
       const c = await stripe.customers.create({ name: i.name, email: i.email, metadata: { agency_id: i.agencyId } });
       return { id: c.id };
+    },
+    async updateCustomer(customerId, d) {
+      const params: Stripe.CustomerUpdateParams = {
+        ...(d.email !== undefined ? { email: d.email } : {}),
+        ...(d.name !== undefined ? { name: d.name } : {}),
+        ...(d.address ? { address: { ...d.address } } : {}),
+      };
+      if (Object.keys(params).length > 0) await stripe.customers.update(customerId, params);
+      const taxId = d.taxId?.trim();
+      if (!taxId || !US_EIN_PATTERN.test(taxId)) return;
+      try {
+        await stripe.customers.createTaxId(customerId, { type: 'us_ein', value: taxId });
+      } catch (e) {
+        // Re-sending the same EIN on a later Checkout is expected; Stripe answers `resource_already_exists`.
+        const err = e as { code?: string; message?: string } | null;
+        if (err?.code === 'resource_already_exists' || /already exists|duplicate/i.test(err?.message ?? '')) return;
+        throw e;
+      }
     },
     async createCheckoutSession(i) {
       const tax = opts.taxEnabled === true;

@@ -1,4 +1,4 @@
-import { client, clientCompetitor, competitor, trackedPage } from '@cs/db';
+import { agencyBilling, agencyOnboarding, client, clientCompetitor, competitor, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -96,5 +96,50 @@ describe('claimDuePages and a paused client (9b)', () => {
     await dbs.service.update(trackedPage).set({ nextDueAt: sql`now() - interval '1 minute'` });
     for (const id of [IDS.clientA1, IDS.clientA2, IDS.clientB1]) await pauseClient(dbs.owner, id);
     expect(await claimDuePages(dbs.service, 10)).toEqual([]);
+  });
+});
+
+describe('claimDuePages and the reduced trial allowance (phase 10 f12)', () => {
+  const reduce = async (agencyId: string) => {
+    await dbs.owner.insert(agencyBilling).values({ agencyId, state: 'trialing' });
+    await dbs.owner.insert(agencyOnboarding).values({ agencyId, source: 'open' });
+  };
+  const hoursUntilDue = async (id: string) => {
+    const [r] = (await dbs.service.execute(sql`SELECT round(extract(epoch FROM (next_due_at - now())) / 3600) AS h FROM tracked_page WHERE id = ${id}`)) as unknown as { h: string }[];
+    return Number(r!.h);
+  };
+  const dailyPage = async (competitorId: string, url: string) =>
+    (await dbs.service.insert(trackedPage)
+      .values({ competitorId, url, pageType: 'home', source: 'nav', cadence: 'daily', nextDueAt: sql`now() - interval '1 minute'` })
+      .returning({ id: trackedPage.id }))[0]!.id;
+
+  it('a daily page tracked only by a reduced-trial agency advances 7 days; a page it shares with a normal agency stays daily', async () => {
+    await reduce(IDS.agencyA); // A tracks X (shared with B) and Y (A only)
+    const y = await dailyPage(IDS.competitorY, 'https://brightsmiles.example/');
+    const x = await dailyPage(IDS.competitorX, 'https://smithhvac.example/');
+    const claimed = await claimDuePages(dbs.service, 10);
+    expect(claimed).toEqual(expect.arrayContaining([x, y]));
+    expect(await hoursUntilDue(y)).toBe(168);
+    expect(await hoursUntilDue(x)).toBe(24);
+  });
+
+  it('a shared page goes weekly once every tracking agency is reduced; leaving trialing restores daily', async () => {
+    await reduce(IDS.agencyA);
+    await reduce(IDS.agencyB);
+    const x = await dailyPage(IDS.competitorX, 'https://smithhvac.example/');
+    await claimDuePages(dbs.service, 10);
+    expect(await hoursUntilDue(x)).toBe(168);
+    await dbs.owner.update(agencyBilling).set({ state: 'active' }).where(eq(agencyBilling.agencyId, IDS.agencyB));
+    await dbs.service.update(trackedPage).set({ nextDueAt: sql`now() - interval '1 minute'` }).where(eq(trackedPage.id, x));
+    await claimDuePages(dbs.service, 10);
+    expect(await hoursUntilDue(x)).toBe(24);
+  });
+
+  it('an invite-link trial keeps daily collection', async () => {
+    await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'trialing' });
+    await dbs.owner.insert(agencyOnboarding).values({ agencyId: IDS.agencyA, source: 'invite' });
+    const y = await dailyPage(IDS.competitorY, 'https://brightsmiles.example/');
+    await claimDuePages(dbs.service, 10);
+    expect(await hoursUntilDue(y)).toBe(24);
   });
 });

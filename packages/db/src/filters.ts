@@ -10,6 +10,16 @@ export function agencyServiceable(agencyIdCol: AnyColumn | SQL): SQL {
 }
 
 /**
+ * Phase 10 (f12): true when the agency is on the reduced trial allowance: billing state `trialing`, not seat-cap exempt,
+ * and signed up through the open sign-up (`agency_onboarding.source = 'open'`). No billing or onboarding row = not reduced.
+ * Mirrors `isReducedTrial` in `@cs/billing` (access.ts). Same argument forms as `agencyServiceable`.
+ */
+export function agencyReducedTrial(agencyIdCol: AnyColumn | SQL): SQL {
+  return sql`EXISTS (SELECT 1 FROM agency_billing ab JOIN agency_onboarding ao ON ao.agency_id = ab.agency_id
+                      WHERE ab.agency_id = ${agencyIdCol} AND ab.state = 'trialing' AND NOT ab.seat_cap_exempt AND ao.source = 'open')`;
+}
+
+/**
  * Phase 9b (Q1): true when schedulers/seat counts may service the client: `status = 'active'` and not paused.
  * Pass the Drizzle `client` table, or a SQL alias string (`'cl'`, `'c'`) for hand-written queries.
  */

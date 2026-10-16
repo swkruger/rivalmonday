@@ -1,6 +1,6 @@
 import { fakeGateway } from '@cs/billing';
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { agencyBilling, client, plan } from '@cs/db';
+import { agencyBilling, agencyOnboarding, client, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -150,5 +150,26 @@ describe('write guard (service_paused)', () => {
     await expect(registry.invoke(admin, 'create_client', newClient('A', 'prospect'))).resolves.toBeTruthy();
     await setState('past_due');
     await expect(registry.invoke(admin, 'create_client', newClient('B', 'prospect'))).resolves.toBeTruthy();
+  });
+});
+
+describe('reduced trial allowance (phase 10 f12)', () => {
+  const TRIAL_MSG = 'Your trial includes 1 active client. Add a payment method to monitor up to 3.';
+  beforeEach(async () => {
+    // Open sign-up on a trial with one active client (clientA1); clientA2 is a prospect.
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2));
+    await setState('trialing');
+    await dbs.owner.insert(agencyOnboarding).values({ agencyId: IDS.agencyA, source: 'open' });
+  });
+
+  it('create_client and convert_prospect refuse a second active client with the trial copy (user-facing)', async () => {
+    await expect(registry.invoke(admin, 'create_client', newClient('Second'))).rejects.toMatchObject({ code: 'billing_seat_limit', message: TRIAL_MSG, userFacing: true });
+    await expect(registry.invoke(admin, 'convert_prospect', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'billing_seat_limit', message: TRIAL_MSG });
+    await expect(registry.invoke(admin, 'create_client', newClient('Pitch', 'prospect'))).resolves.toBeTruthy();
+  });
+
+  it('Checkout (state active) lifts the limit', async () => {
+    await dbs.owner.update(agencyBilling).set({ state: 'active' });
+    await expect(registry.invoke(admin, 'create_client', newClient('Second'))).resolves.toBeTruthy();
   });
 });

@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { IDS, errorText, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
-import { agencyServiceable } from './filters';
-import { agency, agencyBilling, agencyBillingEvent, agencyDailyStat, agencyInviteLink, billingNotice, discountCode, plan, stripeEvent } from './schema';
+import { agencyReducedTrial, agencyServiceable } from './filters';
+import { agency, agencyBilling, agencyOnboarding, agencyBillingEvent, agencyDailyStat, agencyInviteLink, billingNotice, discountCode, plan, stripeEvent } from './schema';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -94,5 +94,29 @@ describe('agencyServiceable', () => {
     await dbs.service.insert(agencyBilling).values({ agencyId: IDS.agencyA, state });
     const ids = await serviceable();
     expect(ids.includes(IDS.agencyA)).toBe(ok);
+  });
+});
+
+describe('agencyReducedTrial (phase 10 f12)', () => {
+  const reduced = async () =>
+    (await dbs.service.select({ id: agency.id }).from(agency).where(agencyReducedTrial(agency.id))).map((r) => r.id);
+
+  it('is false with no billing row or no onboarding row', async () => {
+    expect(await reduced()).toEqual([]);
+    await dbs.service.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'trialing' });
+    expect(await reduced()).toEqual([]); // trialing but no onboarding row (legacy)
+  });
+
+  it.each([
+    ['open', 'trialing', false, true],
+    ['open', 'trialing', true, false],
+    ['open', 'pilot', false, false],
+    ['open', 'active', false, false],
+    ['invite', 'trialing', false, false],
+    ['legacy', 'trialing', false, false],
+  ] as const)('source %s, state %s, exempt %s -> reduced=%s', async (source, state, seatCapExempt, ok) => {
+    await dbs.service.insert(agencyBilling).values({ agencyId: IDS.agencyA, state, seatCapExempt });
+    await dbs.owner.insert(agencyOnboarding).values({ agencyId: IDS.agencyA, source });
+    expect(await reduced()).toEqual(ok ? [IDS.agencyA] : []);
   });
 });

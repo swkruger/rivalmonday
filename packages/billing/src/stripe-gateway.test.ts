@@ -9,6 +9,7 @@ function mockClient() {
       create: vi.fn(async () => ({ id: 'cus_1' })),
       retrieve: vi.fn(async () => ({ id: 'cus_1', invoice_settings: { default_payment_method: 'pm_1' } })),
       update: vi.fn(async () => ({})),
+      createTaxId: vi.fn(async () => ({ id: 'txi_1' })),
     },
     checkout: { sessions: { create: vi.fn(async () => ({ url: 'https://checkout/s' })) } },
     billingPortal: { sessions: { create: vi.fn(async () => ({ url: 'https://portal/s' })) } },
@@ -176,5 +177,37 @@ describe('stripeGateway', () => {
     expect(() => gw(c, { webhookSecret: 'whsec' }).verifyWebhook('{}', 'x')).toThrow(InvalidSignature);
     c.webhooks.constructEvent.mockReturnValueOnce({ id: 'evt_1', type: 't', created: 1, data: { object: { a: 1 } } });
     expect(gw(c, { webhookSecret: 'whsec' }).verifyWebhook('{}', 'x').id).toBe('evt_1');
+  });
+
+  it('updateCustomer maps email, name and address to Stripe fields', async () => {
+    const c = mockClient();
+    await gw(c).updateCustomer('cus_1', {
+      email: 'billing@acme.test', name: 'Acme LLC',
+      address: { line1: '1 Main St', line2: 'Suite 2', city: 'Austin', state: 'TX', postal_code: '78701', country: 'US' },
+    });
+    expect(c.customers.update).toHaveBeenCalledWith('cus_1', {
+      email: 'billing@acme.test', name: 'Acme LLC',
+      address: { line1: '1 Main St', line2: 'Suite 2', city: 'Austin', state: 'TX', postal_code: '78701', country: 'US' },
+    });
+    expect(c.customers.createTaxId).not.toHaveBeenCalled();
+  });
+
+  it('updateCustomer omits absent fields and adds a US EIN tax id only when it looks like one', async () => {
+    const c = mockClient();
+    await gw(c).updateCustomer('cus_1', { email: 'b@x.test', taxId: '12-3456789' });
+    expect(c.customers.update).toHaveBeenCalledWith('cus_1', { email: 'b@x.test' });
+    expect(c.customers.createTaxId).toHaveBeenCalledWith('cus_1', { type: 'us_ein', value: '12-3456789' });
+    c.customers.createTaxId.mockClear();
+    await gw(c).updateCustomer('cus_1', { taxId: 'GB123456789' });
+    await gw(c).updateCustomer('cus_1', { taxId: '12-345678' });
+    expect(c.customers.createTaxId).not.toHaveBeenCalled();
+  });
+
+  it('updateCustomer ignores a duplicate tax id but rethrows other tax id errors', async () => {
+    const c = mockClient();
+    c.customers.createTaxId.mockRejectedValueOnce(Object.assign(new Error('Tax ID already exists'), { code: 'resource_already_exists' }));
+    await gw(c).updateCustomer('cus_1', { taxId: '123456789' });
+    c.customers.createTaxId.mockRejectedValueOnce(Object.assign(new Error('boom'), { code: 'api_error' }));
+    await expect(gw(c).updateCustomer('cus_1', { taxId: '123456789' })).rejects.toThrow('boom');
   });
 });

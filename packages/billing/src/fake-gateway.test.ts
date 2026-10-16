@@ -73,6 +73,16 @@ describe('fakeGateway', () => {
     await expect(gw.createCoupon({ percentOff: 5, duration: 'repeating' })).rejects.toThrow();
   });
 
+  it('updateCustomer records the call and merges details into the customer', async () => {
+    const gw = fakeGateway();
+    const { id } = await gw.createCustomer({ agencyId: 'a1', name: 'Acme' });
+    const d = { email: 'b@acme.test', name: 'Acme LLC', address: { line1: '1 Main', city: 'Austin', state: 'TX', postal_code: '78701', country: 'US' }, taxId: '12-3456789' };
+    await gw.updateCustomer(id, d);
+    expect(gw.callsTo('updateCustomer')).toEqual([{ method: 'updateCustomer', args: [id, d] }]);
+    expect(gw.customers.get(id)).toMatchObject({ name: 'Acme LLC', email: 'b@acme.test', address: d.address, taxId: '12-3456789' });
+    await expect(gw.updateCustomer('cus_missing', {})).rejects.toMatchObject({ code: 'resource_missing' });
+  });
+
   it('createPrices reuses passed base and seat product ids', async () => {
     const gw = fakeGateway();
     const p = await gw.createPrices({ code: 'standard', version: 2, name: 'Standard', basePriceCents: 1, seatPriceCents: 1, stripeProductId: 'prod_b', stripeSeatProductId: 'prod_s' });
