@@ -4,7 +4,7 @@
 **Plan/spec:** 11a spec `docs/superpowers/specs/2026-10-15-phase-11a-client-setup-wizard-design.md` ; 11a plan `docs/superpowers/plans/2026-10-16-phase-11a-client-setup-wizard.md` (Tasks 0–14, **approved 2026-10-16**); 11b spec `docs/superpowers/specs/2026-10-16-phase-11b-client-invite-billing-design.md` (approved 2026-10-16) + plan `docs/superpowers/plans/2026-10-16-phase-11b-client-invite-billing.md` (Tasks 15–24, **approved 2026-10-16**)
 
 ## Status (overwrite)
-2026-10-16: 11a spec + plan **owner-approved**. Not started; execution waits for phase-10 merge (or owner-approved stacking). 11b spec + plan approved (Tasks 15–24). 11c not brainstormed.
+2026-10-16: 11a spec + plan **owner-approved**. Not started; execution waits for phase-10 merge (or owner-approved stacking). 11b spec + plan approved (Tasks 15–24). 11c spec written (L1–L8; `docs/superpowers/specs/2026-10-16-phase-11c-client-intake-leads-design.md`), owner review pending; L7 amended 11a/11b (prospects get the invite step).
 
 ## Next (overwrite)
 After phase-10 merges: plan Task 0 pre-flight (rebase, pnpm install, own test DB `cs_phase_11_test`), then `superpowers:subagent-driven-development` Tasks 1–14, then 11b Tasks 15–24 (one final whole-branch review at the end). Meanwhile: brainstorm 11c if the owner wants.
