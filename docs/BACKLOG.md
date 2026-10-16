@@ -20,6 +20,8 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Switch `cost_usd` (`packages/db/src/schema/ledger.ts`, `doublePrecision`) to `numeric` before real spend data — *from Phase 1 review*
 
 ### Scale & performance
+- [ ] Worker concurrency: let `rival-search` (vendor-bound) run 3–5 jobs at once inside the single worker (pg-boss local concurrency), then shorten `RIVAL_MONTHLY_SPACING_SECONDS` — cheap first step, keeps one replica — *from owner Q 2026-10-15*
+- [ ] Multiple worker replicas / autoscaling on queue depth: move per-host crawl politeness (`collectors/src/web/rate-limit.ts`) and vendor rate limits into Postgres (advisory locks or a rate table), check every cron job tolerates a second runner (sweeps, vendor-poll), optionally split crawler vs API-only workers; then lift the one-replica rule in root CLAUDE.md — *from owner Q 2026-10-15*
 - [ ] Page latency on the remote Neon DB: pages took 28–36 s in E2E (Playwright timeouts raised to 90 s/test, 15 s/expect in `playwright.config.ts`) — look before launch — *from 5c-2*
 - [ ] `listBriefDueClients` scans every client with one lookup each — set-based query — *from 4a cross-phase*
 - [ ] Cross-replica rate limiter before scaling the worker; one host's large Crawl-delay blocks the single sequential capture queue; robots.txt fetch isn't paced by the limiter — *from 2a review*
