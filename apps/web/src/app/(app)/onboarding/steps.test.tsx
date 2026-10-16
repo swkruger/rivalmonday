@@ -154,6 +154,12 @@ describe('PlanStep', () => {
     await waitFor(() => expect(m.skipStepAction).toHaveBeenCalled());
     expect(lastArg(m.skipStepAction.mock.calls[0]).get('step')).toBe('plan');
   });
+  it('hides "Add payment method" when the agency is already paying (active)', () => {
+    render(<PlanStep summary={summary({ state: 'active', dates: { trialEndsAt: null, pilotEndsAt: null } }) as never} />);
+    expect(screen.getByText('Active')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Add payment method' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Save and continue' })).toBeTruthy();
+  });
 });
 
 describe('BrandingStep', () => {

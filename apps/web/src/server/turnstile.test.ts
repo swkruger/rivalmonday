@@ -40,4 +40,39 @@ describe('verifyTurnstile real', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({ success: true }) }));
     expect(await verifyTurnstile('tok', null, real)).toBe(false);
   });
+  it('aborts siteverify after 5 s; a timeout is a failed check', async () => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    const f = vi.fn().mockImplementation(async (_u: string, init: RequestInit) => {
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+      throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+    });
+    vi.stubGlobal('fetch', f);
+    expect(await verifyTurnstile('tok', null, real)).toBe(false);
+    expect(timeout).toHaveBeenCalledWith(5000);
+    timeout.mockRestore();
+  });
+});
+
+describe('verifyTurnstile missing keys warning', () => {
+  it('warns once (dev, no secret) and never logs the token', async () => {
+    vi.resetModules();
+    const { verifyTurnstile: fresh } = await import('./turnstile');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await fresh('tok-secret', null, { envName: 'dev', turnstileSecretKey: undefined });
+    await fresh('tok-secret', null, { envName: 'dev', turnstileSecretKey: undefined });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith('[signup] Turnstile keys missing — bot check disabled');
+    warn.mockRestore();
+  });
+  it('does not warn in DEMO/TEST or with keys', async () => {
+    vi.resetModules();
+    const { verifyTurnstile: fresh } = await import('./turnstile');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true }) }));
+    await fresh('tok', null, { envName: 'test', turnstileSecretKey: undefined });
+    await fresh('tok', null, { envName: 'demo', turnstileSecretKey: undefined });
+    await fresh('tok', null, real);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
 });

@@ -58,4 +58,8 @@ describe('parseWebEnv', () => {
     expect(() => parseWebEnv({ ...ok, ASK_FAKE_AI: '1', VERCEL_ENV: 'production' } as unknown as NodeJS.ProcessEnv)).toThrow(/ASK_FAKE_AI/);
     expect(parseWebEnv({ ...ok, VERCEL_ENV: 'production' } as unknown as NodeJS.ProcessEnv).askFakeAi).toBe(false);
   });
+
+  it('does not carry POSTMARK_BROADCAST_STREAM (the worker reads it itself)', () => {
+    expect(parseWebEnv({ ...ok, POSTMARK_BROADCAST_STREAM: 'broadcast' } as unknown as NodeJS.ProcessEnv)).not.toHaveProperty('postmarkBroadcastStream');
+  });
 });

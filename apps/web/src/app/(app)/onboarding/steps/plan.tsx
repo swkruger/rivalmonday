@@ -43,13 +43,16 @@ export function PlanStep({ summary }: { summary: PlanSummary }) {
           <p className="rounded-lg bg-muted-surface p-3 text-ink">During your trial you can monitor 1 client, refreshed weekly. Add a payment method to monitor up to 3, refreshed daily.</p>
         )}
         <FormError state={state} />
-        <WriteGuard>
-          <form action={checkout}>
-            <Button type="submit" variant="outline" disabled={pending}>
-              Add payment method
-            </Button>
-          </form>
-        </WriteGuard>
+        {/* Already paying: nothing to add. */}
+        {summary.state !== 'active' && (
+          <WriteGuard>
+            <form action={checkout}>
+              <Button type="submit" variant="outline" disabled={pending}>
+                Add payment method
+              </Button>
+            </form>
+          </WriteGuard>
+        )}
         <WriteGuard>
           <form action={continuePlanAction}>
             <Button type="submit">Save and continue</Button>

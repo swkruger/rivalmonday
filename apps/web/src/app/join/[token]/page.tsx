@@ -25,7 +25,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   }
   const { link } = check;
   return (
-    <AuthCard branding={branding} title="Start your Rival Monday trial">
+    <AuthCard branding={branding} title={link.offer === 'pilot' ? 'Join the Rival Monday pilot' : 'Start your Rival Monday trial'}>
       <p className="mb-4 rounded-lg bg-muted-surface p-3 text-ink">{offerBanner(link, await discountText(service, link))}</p>
       <SignUpForm
         googleEnabled={env.google !== null}

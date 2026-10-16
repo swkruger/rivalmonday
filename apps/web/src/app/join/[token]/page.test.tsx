@@ -47,6 +47,7 @@ describe('/join/[token]', () => {
     m.check.mockResolvedValue({ ok: true, link: { offer: 'pilot', pilotEndsAt: new Date('2026-12-31T00:00:00Z'), emailLock: 'pat@acme.com', discountCodeId: null } });
     await show();
     expect(screen.getByText("You're invited to the Rival Monday pilot until December 31, 2026.")).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Join the Rival Monday pilot');
     const form = screen.getByTestId('form');
     expect(form.getAttribute('data-token')).toBe('rm_inv_abc');
     expect(form.getAttribute('data-locked')).toBe('pat@acme.com');
@@ -56,6 +57,7 @@ describe('/join/[token]', () => {
     m.check.mockResolvedValue({ ok: true, link: { offer: 'trial', pilotEndsAt: null, emailLock: null, discountCodeId: 'd1' } });
     await show();
     expect(screen.getByText("You're invited to a 30-day Rival Monday trial.")).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Start your Rival Monday trial');
     cleanup();
     m.discount.mockResolvedValue('20% off');
     await show();
