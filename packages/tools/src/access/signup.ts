@@ -1,7 +1,8 @@
 import { createHmac } from 'node:crypto';
 import { hashInviteToken } from '@cs/billing';
 import { agencyInviteLink, type AgencyInviteLinkRow, type Db, pendingSignup, platformSetting } from '@cs/db';
-import { and, count, eq, gt, isNotNull, sql } from 'drizzle-orm';
+import { and, count, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import { FREE_MAIL_DOMAINS } from './free-mail';
 import { normalizeEmail } from './invitations';
 
@@ -50,4 +51,47 @@ export async function checkInviteLink(
   if (link.uses >= link.maxUses) return { ok: false, problem: 'link_used_up' };
   if (email !== null && link.emailLock && normalizeEmail(link.emailLock) !== normalizeEmail(email)) return { ok: false, problem: 'email_lock_mismatch' };
   return { ok: true, link };
+}
+
+export const SIGNUP_LINK_TTL_MS = 7 * 86_400_000;
+
+export const startAgencySignupInput = z.object({
+  email: z.string().trim().email().max(254),
+  agencyName: z.string().trim().min(1).max(120),
+  contactName: z.string().trim().max(120).optional(),
+  inviteToken: z.string().startsWith('rm_inv_').max(80).optional(),
+  ipHash: z.string().length(64), // set by the server action, never by the browser
+});
+export type StartAgencySignupInput = z.input<typeof startAgencySignupInput>;
+
+const refuse = (reason: string) => {
+  console.info(`[signup] refused ${reason}`);
+  return { ok: true as const, sendLink: false };
+};
+
+/**
+ * Public sign-up entry (service connection; Turnstile is verified by the caller first). Every outcome is `{ ok: true }`;
+ * `sendLink` says whether a magic link should go out. Refusal reasons are logged without email, IP hash or token.
+ */
+export async function startAgencySignup(service: Db, input: StartAgencySignupInput, now: Date): Promise<{ ok: true; sendLink: boolean }> {
+  const i = startAgencySignupInput.parse(input);
+  const email = normalizeEmail(i.email);
+  let inviteLinkId: string | null = null;
+  if (i.inviteToken) {
+    const c = await checkInviteLink(service, i.inviteToken, email, now);
+    if (!c.ok) return refuse(c.problem);
+    inviteLinkId = c.link.id;
+  } else {
+    if (await signupsPaused(service)) return refuse('paused');
+    if (!(await trialAllowed(service, email, now))) return refuse('trial_used');
+  }
+  if (await signupRateLimited(service, i.ipHash, now)) return refuse('rate_limited');
+  const values = {
+    agencyName: i.agencyName, contactName: i.contactName ?? null, inviteLinkId, source: inviteLinkId ? ('invite' as const) : ('open' as const),
+    ipHash: i.ipHash, createdAt: now, expiresAt: new Date(now.getTime() + SIGNUP_LINK_TTL_MS),
+  };
+  await service.insert(pendingSignup).values({ email, ...values }).onConflictDoUpdate({
+    target: pendingSignup.email, targetWhere: isNull(pendingSignup.completedAt), set: values,
+  });
+  return { ok: true, sendLink: true };
 }

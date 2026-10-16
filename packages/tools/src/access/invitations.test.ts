@@ -1,4 +1,4 @@
-import { contact, invitation, membership } from '@cs/db';
+import { contact, invitation, membership, pendingSignup } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -65,6 +65,22 @@ describe('hasSignInRight', () => {
     expect(await hasSignInRight(dbs.service, 'member@e.co', NOW)).toBe(false);
     await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'agency_admin', createdBy: 'x' });
     expect(await hasSignInRight(dbs.service, 'Member@E.co', NOW)).toBe(true);
+  });
+});
+
+describe('hasSignInRight (pending sign-up)', () => {
+  const pending = (o: Partial<typeof pendingSignup.$inferInsert> = {}) =>
+    dbs.service.insert(pendingSignup).values({ email: 'new@agency.co', agencyName: 'A', source: 'open', ipHash: 'h', expiresAt: new Date(NOW.getTime() + 3_600_000), ...o });
+  it('is true for a live open pending sign-up (any case)', async () => {
+    expect(await hasSignInRight(dbs.service, 'new@agency.co', NOW)).toBe(false);
+    await pending();
+    expect(await hasSignInRight(dbs.service, ' New@Agency.co ', NOW)).toBe(true);
+  });
+  it('is false after expiry and after completion', async () => {
+    await pending();
+    expect(await hasSignInRight(dbs.service, 'new@agency.co', new Date(NOW.getTime() + 7_200_000))).toBe(false);
+    await dbs.service.update(pendingSignup).set({ completedAt: NOW });
+    expect(await hasSignInRight(dbs.service, 'new@agency.co', NOW)).toBe(false);
   });
 });
 

@@ -60,13 +60,15 @@ export async function createInvitation(service: Db, input: NewInvitation, now = 
   });
 }
 
-/** Decision 2: only invited people, or users who still hold a membership, may receive a sign-in link. */
+/** Decision 2: only invited people, users who still hold a membership, or an open pending agency sign-up may receive a sign-in link. */
 export async function hasSignInRight(service: Db, email: string, now = new Date()): Promise<boolean> {
   const e = normalizeEmail(email);
   const rows = await service.execute(sql`
     select 1 from invitation where lower(email) = ${e} and accepted_at is null and revoked_at is null and expires_at > ${now.toISOString()}::timestamptz
     union all
     select 1 from membership m join auth."user" u on u.id = m.user_id where lower(u.email) = ${e}
+    union all
+    select 1 from pending_signup where lower(email) = ${e} and completed_at is null and expires_at > ${now.toISOString()}::timestamptz
     limit 1`);
   return rows.length > 0;
 }
