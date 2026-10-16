@@ -95,8 +95,8 @@ test('agency approves starting point → client sees tiles, scorecard, cards', {
   await expect(page.getByText('Upsell: ppc_audit')).toBeVisible();
   // The Overview shows the whole latest brief (no "Open brief" hop): tiles, scorecard and finding cards, plus the agency badge.
   await page.goto(`/c/${ready.id}`);
-  await expect(page.getByRole('heading', { name: 'Your starting point' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Rating' })).toBeVisible();
+  await expect(page.getByText('Your starting point', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Rating', exact: true })).toBeVisible();
   await expect(page.getByRole('table', { name: /Scorecard/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Ask more customers for a review' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Open brief' })).toHaveCount(0);
