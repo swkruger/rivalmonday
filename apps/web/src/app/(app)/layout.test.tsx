@@ -4,13 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({
   ctx: { role: 'agency_admin', agencyId: 'a1' } as { role: string; agencyId: string },
   kind: 'user',
+  billingState: 'active',
   path: '/agency',
   status: { dismissed: false, completed: false, redirected: false } as Record<string, unknown>,
   calls: [] as string[],
   run: vi.fn(),
 }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ viewer: { kind: m.kind }, ctx: m.ctx }) }));
-vi.mock('@/server/billing-state', () => ({ billingSnapshotOf: async () => ({ state: 'active' }) }));
+vi.mock('@/server/billing-state', () => ({ billingSnapshotOf: async () => ({ state: m.billingState }) }));
 vi.mock('@/server/billing-redirect', () => ({ billingRedirectFor: () => null }));
 vi.mock('@/components/shell/app-shell', () => ({ AppShell: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers({ 'x-rm-path': m.path }) }));
@@ -20,7 +21,7 @@ vi.mock('next/navigation', () => ({ redirect: (to: string) => { throw new Error(
 const { default: AppLayout } = await import('./layout');
 
 beforeEach(() => {
-  m.ctx = { role: 'agency_admin', agencyId: 'a1' }; m.kind = 'user'; m.path = '/agency'; m.calls = [];
+  m.ctx = { role: 'agency_admin', agencyId: 'a1' }; m.kind = 'user'; m.billingState = 'active'; m.path = '/agency'; m.calls = [];
   m.status = { dismissed: false, completed: false, redirected: false }; m.run.mockReset().mockResolvedValue({ ok: true, data: { ok: true } });
 });
 
@@ -32,6 +33,18 @@ describe('(app) layout first-session redirect', () => {
     m.calls = [];
     await expect(AppLayout({ children: null })).resolves.toBeDefined();
     expect(m.calls).toEqual(['get_onboarding_status']);
+  });
+
+  it('does not redirect when marking the redirect failed (else every full load would bounce)', async () => {
+    m.run.mockResolvedValue({ ok: false, error: 'Not found' });
+    await expect(AppLayout({ children: null })).resolves.toBeDefined();
+    expect(m.calls).toEqual(['get_onboarding_status', 'mark_onboarding_redirected']);
+  });
+
+  it('does not check or redirect a suspended agency', async () => {
+    m.billingState = 'suspended';
+    await expect(AppLayout({ children: null })).resolves.toBeDefined();
+    expect(m.calls).toEqual([]);
   });
 
   it('never redirects completed or dismissed agencies, nor when already on /onboarding', async () => {

@@ -26,9 +26,14 @@ export async function inviteTeamAction(_prev: FormResult, formData: FormData): P
   const roles = formData.getAll('role').map(String);
   const rows = emails.map((email, i) => ({ email, role: roles[i] ?? 'agency_admin' })).filter((r) => r.email);
   if (!rows.length && formData.get('confirmEmpty') !== '1') return { ok: false, error: 'Continue without inviting anyone?' };
+  const invited: string[] = [];
   for (const row of rows) {
     const r = await runTool(ctx, 'invite_member', { email: row.email, role: row.role, clientId: null, clientScope: null });
-    if (!r.ok) return { ...r, error: `${row.email}: ${r.error}` };
+    if (!r.ok) {
+      const already = invited.length ? ` Already invited: ${invited.join(', ')} — remove those rows before trying again.` : '';
+      return { ...r, error: `${row.email}: ${r.error}.${already}` };
+    }
+    invited.push(row.email);
   }
   const done = await runTool(ctx, 'mark_onboarding_step', { step: 'team', action: 'done' });
   if (!done.ok) return done;

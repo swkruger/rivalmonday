@@ -34,16 +34,23 @@ function Field({ id, label, children, hint }: { id: string; label: string; child
 export function ProfileStep({ initial, timezones }: { initial: ProfileValues; timezones: string[] }) {
   const [state, formAction, pending] = useActionState(saveProfileAction, { ok: true } as FormResult);
   const [same, setSame] = useState(initial.billingSameAsPostal ?? true);
+  // Controlled: React 19 resets uncontrolled fields after a form action, so a validation error would wipe what was typed.
+  const [vals, setVals] = useState<Record<string, string>>(() => {
+    const o: Record<string, string> = {};
+    for (const [k, v] of Object.entries(initial)) if (typeof v === 'string') o[k] = v;
+    return o;
+  });
+  const [verticals, setVerticals] = useState<string[]>(initial.verticals);
   const readOnly = useReadOnly();
   const text = (id: keyof ProfileValues, label: string, extra: React.ComponentProps<typeof Input> = {}) => (
     <Field id={id} label={label}>
-      <Input id={id} name={id} defaultValue={(initial[id] as string | null | undefined) ?? ''} {...extra} />
+      <Input id={id} name={id} value={vals[id] ?? ''} onChange={(e) => setVals((m) => ({ ...m, [id]: e.target.value }))} {...extra} />
     </Field>
   );
 
   return (
     <div className="flex flex-col gap-4">
-      <form action={formAction} className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card">
+      <form action={formAction} onReset={(e) => e.preventDefault()} className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card">
         <p className="text-muted-foreground">We use this to set up your account and invoices. Only your agency name is required to continue — you can skip and finish later.</p>
         <FormError state={state} />
         <fieldset disabled={readOnly} className="contents">
@@ -56,7 +63,7 @@ export function ProfileStep({ initial, timezones }: { initial: ProfileValues; ti
             {text('contactEmail', 'Contact email', { type: 'email' })}
             {text('phone', 'Phone', { type: 'tel', placeholder: '(404) 555-0100' })}
             <Field id="timezone" label="Time zone">
-              <select id="timezone" name="timezone" defaultValue={initial.timezone} className={selectClass}>
+              <select id="timezone" name="timezone" value={vals.timezone ?? initial.timezone} onChange={(e) => setVals((m) => ({ ...m, timezone: e.target.value }))} className={selectClass}>
                 {timezones.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
               </select>
             </Field>
@@ -66,7 +73,7 @@ export function ProfileStep({ initial, timezones }: { initial: ProfileValues; ti
             <div className="flex flex-wrap gap-4">
               {VERTICALS.map((v) => (
                 <label key={v.id} className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" name="verticals" value={v.id} defaultChecked={initial.verticals.includes(v.id)} />
+                  <input type="checkbox" name="verticals" value={v.id} checked={verticals.includes(v.id)} onChange={(e) => setVerticals((x) => (e.target.checked ? [...x, v.id] : x.filter((i) => i !== v.id)))} />
                   {v.label}
                 </label>
               ))}
@@ -94,7 +101,7 @@ export function ProfileStep({ initial, timezones }: { initial: ProfileValues; ti
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <Field id="billingLine1" label="Billing street address">
-                    <Input id="billingLine1" name="billingLine1" defaultValue={initial.billingLine1 ?? ''} />
+                    <Input id="billingLine1" name="billingLine1" value={vals.billingLine1 ?? ''} onChange={(e) => setVals((m) => ({ ...m, billingLine1: e.target.value }))} />
                   </Field>
                 </div>
                 {text('billingLine2', 'Billing suite / unit')}

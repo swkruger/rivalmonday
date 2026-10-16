@@ -70,10 +70,11 @@ describe('onboarding actions', () => {
     expect(names()).toEqual(['mark_onboarding_step']);
   });
 
-  it('inviteTeamAction stops at the first failure, names the address and does not mark the step', async () => {
+  it('inviteTeamAction stops at the first failure, names the address and the rows already invited, and does not mark the step', async () => {
     m.run.mockResolvedValueOnce({ ok: true, data: {} }).mockResolvedValueOnce({ ok: false, error: 'Seat limit' });
     const r = await a.inviteTeamAction(initial, fd({ email: ['x@a.co', 'y@a.co'], role: ['agency_admin', 'agency_admin'] }));
-    expect(r).toMatchObject({ ok: false, error: expect.stringContaining('y@a.co') });
+    expect(r).toMatchObject({ ok: false, error: expect.stringContaining('y@a.co: Seat limit.') });
+    expect((r as { error: string }).error).toContain('Already invited: x@a.co');
     expect(names()).toEqual(['invite_member', 'invite_member']);
   });
 

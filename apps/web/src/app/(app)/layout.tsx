@@ -31,8 +31,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (firstSession && billing?.state !== 'suspended' && !pathname.startsWith('/onboarding')) {
     const status = await callTool<{ completed: boolean; dismissed: boolean; redirected: boolean }>(ctx, 'get_onboarding_status', {});
     if (!status.completed && !status.dismissed && !status.redirected) {
-      await runTool(ctx, 'mark_onboarding_redirected', {});
-      redirect('/onboarding');
+      // Only when the mark stuck: otherwise every full load would redirect again. A failed mark falls through to the shell.
+      const marked = await runTool(ctx, 'mark_onboarding_redirected', {});
+      if (marked.ok) redirect('/onboarding');
     }
   }
   return (

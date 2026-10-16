@@ -51,6 +51,19 @@ describe('ProfileStep', () => {
     expect(lastArg(m.saveProfileAction.mock.calls[0]).get('name')).toBe('Acme');
   });
 
+  it('keeps what was typed after a validation error', async () => {
+    m.saveProfileAction.mockResolvedValueOnce({ ok: false, error: 'Enter a US phone number' } as never);
+    render(<ProfileStep initial={profile} timezones={['America/Chicago', 'UTC']} />);
+    fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '12' } });
+    fireEvent.change(screen.getByLabelText('Time zone'), { target: { value: 'UTC' } });
+    fireEvent.click(screen.getByLabelText('Dental'));
+    await submit(screen.getByRole('button', { name: 'Save and continue' }));
+    await screen.findByText('Enter a US phone number');
+    expect((screen.getByLabelText('Phone') as HTMLInputElement).value).toBe('12');
+    expect((screen.getByLabelText('Time zone') as HTMLSelectElement).value).toBe('UTC');
+    expect((screen.getByLabelText('Dental') as HTMLInputElement).checked).toBe(true);
+  });
+
   it('"Billing address same as postal" is checked by default and reveals the billing address when unchecked', () => {
     render(<ProfileStep initial={profile} timezones={['UTC']} />);
     const box = screen.getByLabelText('Billing address same as postal') as HTMLInputElement;
@@ -90,6 +103,20 @@ describe('TeamStep', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Yes, continue' })); });
     await waitFor(() => expect(m.inviteTeamAction).toHaveBeenCalled());
     expect(lastArg(m.inviteTeamAction.mock.calls[0]).get('confirmEmpty')).toBe('1');
+  });
+
+  it('keeps each chosen role and email after an error result (no reset to admin)', async () => {
+    m.inviteTeamAction.mockResolvedValueOnce({ ok: false, error: 'x@a.co: Seat limit.' } as never);
+    render(<TeamStep />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add another' }));
+    const emails = screen.getAllByLabelText(/Email/);
+    fireEvent.change(emails[0]!, { target: { value: 'x@a.co' } });
+    fireEvent.change(emails[1]!, { target: { value: 'y@a.co' } });
+    fireEvent.change(screen.getAllByLabelText(/Role/)[1]!, { target: { value: 'account_manager' } });
+    await submit(screen.getByRole('button', { name: 'Done' }));
+    await screen.findByText(/Seat limit/);
+    expect((screen.getAllByLabelText(/Role/)[1] as HTMLSelectElement).value).toBe('account_manager');
+    expect((screen.getAllByLabelText(/Email/)[1] as HTMLInputElement).value).toBe('y@a.co');
   });
 
   it('"Skip for now" posts the team step to skipStepAction', async () => {
