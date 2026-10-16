@@ -56,11 +56,26 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Exercise `/link-other-account` live (never run live) — *from 5a*
 - [ ] Review/rename/remove the `CS Dev Verification Agency`/`Client` (`aaf5e009-…`/`25f99947-…`) before real onboarding — *from HANDOVER §5 item 5*
 
-## Phase 9 follow-ups
-- [ ] Phase 9 merge → apply `agencyServiceable` to rival-search, signals-weekly, the self-competitor sweep (`ensureSelfCompetitors`) and `listStartingPointDue` — *from phase-12*
+## Phase 9 follow-ups (billing)
+**Soon**
+- [ ] `disable_client_billing`: re-check the row inside the tx (race with an ACH Checkout completing → subscription never cancelled) — *9b R27*
+- [ ] Daily reconcile `payment_needed → active` doesn't lift a `paused_by='auto'` pause or set `last_paid_at` (paid client stays auto-paused; "is now paying" mail a month late) — *9b final M3*
+- [ ] Client billing page after "turn off" (cancel at period end): shows "Not set up" next to "Your plan ends on …", Billing nav disappears while still paying; same for disconnected rows; amounts ignore `agency_connect.currency` — *9b M4*
+- [ ] `checkout_completed` for a second live subscription is only logged (R11) → queue an agency notice for a live `untracked_subscription` (real double charge) — *9b M8*
+- [ ] `BILLING_FAKE_GATEWAY` accepted on Vercel preview and by the worker (refuse when `VERCEL_ENV` is set; worker ignores it) — *9a final re-review*
 
-## Phase 9b follow-ups
-- [ ] Review an annual billing option for agency → client subscriptions (9b ships monthly only) — *from 9b brainstorm 2026-10-12*
+**Later**
+- [ ] Per-client price/setup fee at enable time in the UI (today: enable at default, then change price → second link) — *9b M5*
+- [ ] `refunded_at`/`disputed_at` write-once and not shown; exempt refund/dispute signals from the R3 ordering guard — *9b M6*
+- [ ] `stripe_connect_event` stores unhandled event types (insert before the `HANDLED` check) — *9b M7*
+- [ ] Connect product name uses `agency.name`, not `branding.displayName` (shows on Checkout/receipts) — *9b M9*
+- [ ] Re-adopt subscriptions on `disconnected` client rows after a reconnect to the same account; `open_billing_portal` for a customer of a forgotten account — *9b re-review*
+- [ ] Missed `account.application.deauthorized` → reconnect reuses a dead account id; admin only sees the generic Stripe-failure copy — *9b R24*
+- [ ] Per-agency browser-tab titles on client pages (root title "Rival Monday" leaks; only `/c/[id]/settings/billing` fixed) — *9b R18*
+- [ ] Review an annual billing option for agency → client subscriptions (9b ships monthly only) — *9b brainstorm*
+- [ ] 9a: `redeem_discount_code` doesn't check `discount_code.max_redemptions` on direct coupon attach; `syncSeats` unlocked (out-of-order syncs leave Stripe < DB until nightly reconcile); `applyBillingSignal` inserts a default pilot row on a null transition → `startAgencyTrial` returns early (**Phase 10 risk**); `billing_notice.last_error` may hold a recipient address; rows at max attempts abandoned silently (a `client-payment-link` keeps `params.checkoutUrl`); stale digest/outbox items delivered after reactivation (no age cap — owner call) — *9a ledger*
+- [ ] 9a: grant/extend live-subscription check outside the `adminSignal` tx (TOCTOU); daily seat-retry step lacks its own try; percentOff > 2 decimals rounded vs raw to Stripe; promo code left active in Stripe if the DB insert fails — *9a ledger*
+- [ ] Test hygiene (fold in when touching): hand-set `pausedAt` in tests, unasserted seat sync after auto-pause, `sendClient`/`sendAgencyClient` untested, `get_connect_overview` N+1, `get_client_revenue` duplicates `clientMrrCents`, reconcile doesn't stamp `lastStripeEventAt`, invited `set_client_price` with unchanged amount re-mails, `next_bill` can create a duplicate-amount price, Stripe reads inside the webhook tx, `new Stripe()` without explicit `apiVersion` — *9a/9b ledgers*
 
 ## Polish (small UI/UX fixes, any time)
 
