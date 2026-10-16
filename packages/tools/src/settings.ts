@@ -35,7 +35,7 @@ function clean(input: AgencyBranding): AgencyBranding {
   return out;
 }
 
-/** An uploaded logo is served by this deployment (`/files/logo/…`), which in dev is plain http; external logos stay https-only. */
+/** An uploaded logo is served by this deployment (`/files/logo/â€¦`), which in dev is plain http; external logos stay https-only. */
 const isOwnLogoUrl = (url: string, appUrl: string | undefined): boolean => !!appUrl && url.startsWith(`${appUrl.replace(/\/+$/, '')}/files/logo/`);
 
 export function brandingProblems(input: AgencyBranding, appUrl?: string): string[] {

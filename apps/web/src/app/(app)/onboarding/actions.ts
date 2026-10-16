@@ -30,8 +30,8 @@ export async function inviteTeamAction(_prev: FormResult, formData: FormData): P
   for (const row of rows) {
     const r = await runTool(ctx, 'invite_member', { email: row.email, role: row.role, clientId: null, clientScope: null });
     if (!r.ok) {
-      const already = invited.length ? ` Already invited: ${invited.join(', ')} — remove those rows before trying again.` : '';
-      return { ...r, error: `${row.email}: ${r.error}.${already}` };
+      const already = invited.length ? ` Already invited: ${invited.join(', ')} â€” remove those rows before trying again.` : '';
+      return { ...r, error: `${row.email}: ${r.error}${/[.!?]$/.test(r.error) ? '' : '.'}${already}` };
     }
     invited.push(row.email);
   }

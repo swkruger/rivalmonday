@@ -73,9 +73,13 @@ describe('onboarding actions', () => {
   it('inviteTeamAction stops at the first failure, names the address and the rows already invited, and does not mark the step', async () => {
     m.run.mockResolvedValueOnce({ ok: true, data: {} }).mockResolvedValueOnce({ ok: false, error: 'Seat limit' });
     const r = await a.inviteTeamAction(initial, fd({ email: ['x@a.co', 'y@a.co'], role: ['agency_admin', 'agency_admin'] }));
-    expect(r).toMatchObject({ ok: false, error: expect.stringContaining('y@a.co: Seat limit.') });
-    expect((r as { error: string }).error).toContain('Already invited: x@a.co');
+    expect(r).toEqual({ ok: false, error: 'y@a.co: Seat limit. Already invited: x@a.co — remove those rows before trying again.' });
     expect(names()).toEqual(['invite_member', 'invite_member']);
+  });
+
+  it('does not double the full stop when the tool error already ends with punctuation', async () => {
+    m.run.mockResolvedValueOnce({ ok: false, error: 'Seat limit.' });
+    expect(await a.inviteTeamAction(initial, fd({ email: ['y@a.co'], role: ['agency_admin'] }))).toEqual({ ok: false, error: 'y@a.co: Seat limit.' });
   });
 
   it('skipStepAction marks the step skipped and goes to the next step; branding goes to /agency', async () => {

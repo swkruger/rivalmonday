@@ -101,7 +101,7 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
               }}
               className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted-surface file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink"
             />
-            <p className="text-sm text-muted-foreground">PNG, JPEG, WebP or SVG, up to 512 KB. It is resized to fit 512 × 512. {uploading ? 'Uploading…' : ''}</p>
+            <p className="text-sm text-muted-foreground">PNG, JPEG, WebP or SVG, up to 512 KB. It is resized to fit 512 Ã— 512. {uploading ? 'Uploadingâ€¦' : ''}</p>
             {uploadError && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{uploadError}</p>}
           </div>
           <ColorField label="Primary colour" value={draft.primary ?? ''} onChange={set('primary')} />
