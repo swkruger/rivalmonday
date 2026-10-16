@@ -119,6 +119,7 @@ const REFUSAL: Record<Exclude<SearchRefusal, 'weekly_limit'>, string> = {
   running: 'A competitor search is already running for this client',
   cooldown: 'A search just finished — its suggestions are below. You can search again in a few minutes.',
   daily_cap: 'Daily search limit reached. Try again tomorrow.',
+  service_paused: 'This client is paused. Resume it to search for competitors.',
   enqueue_failed: 'The search could not be started. Try again in a few minutes.',
 };
 

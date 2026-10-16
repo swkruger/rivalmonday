@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { client, discoveryRun, plan } from '@cs/db';
+import { agencyBilling, client, discoveryRun, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -40,6 +40,13 @@ beforeEach(async () => {
   await seedTenancy(dbs.owner);
   await dbs.owner.insert(plan).values(STD_PLAN); // 9a: create_client/convert_prospect check the seat cap, which needs a current plan
 });
+
+const agencyState = async (state: 'read_only' | 'suspended') => {
+  const [p] = await dbs.owner.select({ id: plan.id }).from(plan).limit(1);
+  await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state, planId: p!.id })
+    .onConflictDoUpdate({ target: agencyBilling.agencyId, set: { state } });
+};
+const pause = (clientId: string, pausedAt: Date | null = new Date()) => dbs.owner.update(client).set({ pausedAt }).where(eq(client.id, clientId));
 
 describe('startCompetitorSearch', () => {
   it('missing place id → missing_profile', async () => {
@@ -200,6 +207,59 @@ describe('monthly refresh (scheduled trigger)', () => {
     const r = await startCompetitorSearch(deps, IDS.clientA1, 'scheduled', at);
     expect(r).toEqual({ runId: expect.any(String) });
     expect(await runs(IDS.clientA1)).toEqual([expect.objectContaining({ trigger: 'scheduled', status: 'queued', startedAt: at })]);
+  });
+});
+
+describe('billing state (9a/9b)', () => {
+  const TRIGGERS: Trigger[] = ['manual', 'auto', 'convert', 'scheduled'];
+
+  it('listMonthlyRivalClients skips every client of a read_only or suspended agency; another agency still runs', async () => {
+    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ ...PROFILE, placeId: 'ChIJa2hvacplace2' }).where(eq(client.id, IDS.clientA2));
+    await dbs.owner.update(client).set({ ...PROFILE, placeId: 'ChIJb1hvacplace1' }).where(eq(client.id, IDS.clientB1));
+    await agencyState('read_only');
+    expect(await listMonthlyRivalClients(dbs.service)).toEqual([IDS.clientB1]);
+    await agencyState('suspended');
+    expect(await listMonthlyRivalClients(dbs.service)).toEqual([IDS.clientB1]);
+  });
+
+  it('listMonthlyRivalClients skips a paused client; its unpaused sibling still runs', async () => {
+    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ ...PROFILE, placeId: 'ChIJa2hvacplace2' }).where(eq(client.id, IDS.clientA2));
+    await pause(IDS.clientA1);
+    expect(await listMonthlyRivalClients(dbs.service)).toEqual([IDS.clientA2]);
+  });
+
+  it('a paused client is refused service_paused for every trigger: no run row, nothing queued; its sibling still starts', async () => {
+    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ ...PROFILE, placeId: 'ChIJa2hvacplace2' }).where(eq(client.id, IDS.clientA2));
+    await pause(IDS.clientA1);
+    for (const t of TRIGGERS) await expect(startCompetitorSearch(deps, IDS.clientA1, t)).resolves.toEqual({ refused: 'service_paused' });
+    expect(await runs(IDS.clientA1)).toEqual([]);
+    expect(enqueue).not.toHaveBeenCalled();
+    await expect(startCompetitorSearch(deps, IDS.clientA2, 'scheduled')).resolves.toEqual({ runId: expect.any(String) });
+    // The refusals used nothing: once resumed, this week's manual search is still available.
+    await pause(IDS.clientA1, null);
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual')).resolves.toEqual({ runId: expect.any(String) });
+  });
+
+  it('a read_only or suspended agency is refused service_paused for every trigger; another agency still starts', async () => {
+    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ ...PROFILE, placeId: 'ChIJb1hvacplace1' }).where(eq(client.id, IDS.clientB1));
+    for (const state of ['read_only', 'suspended'] as const) {
+      await agencyState(state);
+      for (const t of TRIGGERS) await expect(startCompetitorSearch(deps, IDS.clientA1, t)).resolves.toEqual({ refused: 'service_paused' });
+    }
+    expect(await runs(IDS.clientA1)).toEqual([]);
+    expect(enqueue).not.toHaveBeenCalled();
+    await expect(startCompetitorSearch(deps, IDS.clientB1, 'scheduled')).resolves.toEqual({ runId: expect.any(String) });
+  });
+
+  it('request_competitor_suggestions on a paused client refuses with the paused copy', async () => {
+    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+    await pause(IDS.clientA1);
+    await expect(registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input', message: 'This client is paused. Resume it to search for competitors.' });
+    expect(await runs(IDS.clientA1)).toEqual([]);
   });
 });
 

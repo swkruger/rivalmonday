@@ -89,7 +89,7 @@ export interface WorkerDeps {
   sweepRivalRuns(now: Date): Promise<{ stale: number; finalised: number }>;
   /** Active clients only (prospects get no recurring work). */
   listSignalClients(): Promise<string[]>;
-  /** `rival-monthly`: active clients with a complete search profile (keywords, service area, place id). */
+  /** `rival-monthly`: serviceable clients (active, not paused, agency not read_only/suspended) with a complete search profile (keywords, service area, place id). */
   listMonthlyRivalClients(): Promise<string[]>;
   /** Rates the client's tracked competitors into competitor_signal; returns how many were rated. */
   computeTrackedSignals(clientId: string, now: Date): Promise<number>;

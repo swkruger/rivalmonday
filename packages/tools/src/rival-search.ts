@@ -1,5 +1,5 @@
 import { ToolError } from '@cs/core';
-import { agency, client, discoveryRun, type DiscoveryRunRow, type DiscoveryRunTrigger, type Tx } from '@cs/db';
+import { agency, agencyServiceable, client, clientServiceable, discoveryRun, type DiscoveryRunRow, type DiscoveryRunTrigger, type Tx } from '@cs/db';
 import { addDays, localClock, safeTimezone, zonedTimeToUtc } from '@cs/engine';
 import { and, count, desc, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { enqueueOf, type ToolDeps } from './deps';
@@ -10,8 +10,10 @@ export type SearchTrigger = DiscoveryRunTrigger;
 /**
  * `enqueue_failed`: the queue refused the job; the run row was deleted, so it never counts toward any limit.
  * `weekly_limit`: a manual search already started this client-local week (owner decision 2026-10-15).
+ * `service_paused` (9a/9b): the client is paused or its agency is read_only/suspended; no run row is written, so it
+ * uses none of the limits (week, cooldown, daily cap, the one-time auto run).
  */
-export type SearchRefusal = 'missing_profile' | 'cooldown' | 'running' | 'daily_cap' | 'weekly_limit' | 'enqueue_failed';
+export type SearchRefusal = 'missing_profile' | 'cooldown' | 'running' | 'daily_cap' | 'weekly_limit' | 'service_paused' | 'enqueue_failed';
 export type SearchStart =
   | { runId: string }
   | { refused: Exclude<SearchRefusal, 'weekly_limit'> }
@@ -97,6 +99,10 @@ export async function startCompetitorSearch(deps: ToolDeps, clientId: string, tr
   try {
     started = await deps.service.transaction(async (tx): Promise<SearchStart> => {
       await tx.select({ id: agency.id }).from(agency).where(eq(agency.id, c.agencyId)).for('update');
+      // 9a/9b: nothing paid starts for a paused client or a read_only/suspended agency. Prospects may search (12a D4),
+      // so this checks the pause, not `status = 'active'`. The rival-search job re-checks (state can change while queued).
+      const [svc] = await tx.select({ pausedAt: client.pausedAt, agencyOk: sql<boolean>`${agencyServiceable(client.agencyId)}` }).from(client).where(eq(client.id, clientId));
+      if (!svc || svc.pausedAt !== null || !svc.agencyOk) return { refused: 'service_paused' };
       const [live] = await tx.select({ id: discoveryRun.id }).from(discoveryRun).where(and(eq(discoveryRun.clientId, clientId), inArray(discoveryRun.status, [...LIVE]))).limit(1);
       if (live) return { refused: 'running' };
       if (trigger === 'manual') {
@@ -153,12 +159,13 @@ export async function startFirstAutoSearch(deps: ToolDeps, clientId: string): Pr
 }
 
 /**
- * The monthly refresh's clients (worker `rival-monthly`): active clients (prospects get no recurring work) whose
- * search profile is complete — keywords, a service area and a Google place id — in id order. Service Db.
+ * The monthly refresh's clients (worker `rival-monthly`): serviceable clients — active (prospects get no recurring
+ * work), not paused, agency not read_only/suspended (9a/9b) — whose search profile is complete (keywords, a service
+ * area and a Google place id), in id order. Service Db.
  */
 export async function listMonthlyRivalClients(db: Pick<Tx, 'select'>): Promise<string[]> {
   const rows = await db.select({ id: client.id }).from(client)
-    .where(and(eq(client.status, 'active'), sql`jsonb_array_length(${client.keywords}) > 0`, isNotNull(client.serviceArea), sql`${client.serviceArea} <> 'null'::jsonb`, isNotNull(client.placeId), sql`${client.placeId} <> ''`))
+    .where(and(clientServiceable(client), agencyServiceable(client.agencyId), sql`jsonb_array_length(${client.keywords}) > 0`, isNotNull(client.serviceArea), sql`${client.serviceArea} <> 'null'::jsonb`, isNotNull(client.placeId), sql`${client.placeId} <> ''`))
     .orderBy(client.id);
   return rows.map((r) => r.id);
 }
