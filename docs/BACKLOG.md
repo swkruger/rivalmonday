@@ -62,6 +62,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Daily reconcile `payment_needed → active` doesn't lift a `paused_by='auto'` pause or set `last_paid_at` (paid client stays auto-paused; "is now paying" mail a month late) — *9b final M3*
 - [ ] Client billing page after "turn off" (cancel at period end): shows "Not set up" next to "Your plan ends on …", Billing nav disappears while still paying; same for disconnected rows; amounts ignore `agency_connect.currency` — *9b M4*
 - [ ] `checkout_completed` for a second live subscription is only logged (R11) → queue an agency notice for a live `untracked_subscription` (real double charge) — *9b M8*
+- [ ] Billing pages auto-refresh after **every** Stripe round trip, not only Checkout/Portal returns: Connect onboarding return (`?connect=done`/`retry`), client billing actions (enable/disable, price change, resend, pause/resume) whose webhooks land later — reuse `RefreshUntilChanged` — *owner, 2026-10-16*
 - [ ] `BILLING_FAKE_GATEWAY` accepted on Vercel preview and by the worker (refuse when `VERCEL_ENV` is set; worker ignores it) — *9a final re-review*
 
 **Later**
