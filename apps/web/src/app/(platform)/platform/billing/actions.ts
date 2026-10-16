@@ -1,5 +1,6 @@
 'use server';
 import { revalidatePath } from 'next/cache';
+import { sendAgencyInviteEmail } from '@/server/invite-email';
 import { requireOperatorContext } from '@/server/current-viewer';
 import type { FormResult } from '@/server/forms';
 import { runTool } from '@/server/run-tool';
@@ -66,7 +67,9 @@ export async function revokeDiscountCodeAction(_p: FormResult, fd: FormData): Pr
   return { ok: true, message: 'Revoked.' };
 }
 
-export type InviteLinkResult = FormResult | { ok: true; url: string };
+export type InviteLinkResult = FormResult | { ok: true; url: string; notice?: string };
+
+const DAY = 86_400_000;
 
 /** The returned URL travels back to the one form that asked for it; it is not stored or revalidated into the list. */
 export async function createInviteLinkAction(_p: InviteLinkResult, fd: FormData): Promise<InviteLinkResult> {
@@ -80,12 +83,26 @@ export async function createInviteLinkAction(_p: InviteLinkResult, fd: FormData)
   const email = str(fd, 'emailLock');
   const code = str(fd, 'discountCodeId');
   const note = str(fd, 'note');
+  const emailIt = fd.get('emailIt') === 'on';
   const r = await runTool<{ url: string }>(ctx, 'create_invite_link', {
     offer, ...(pilotEndsAt ? { pilotEndsAt } : {}), ...(code ? { discountCodeId: code } : {}), ...(email ? { emailLock: email } : {}),
-    maxUses, expiresInDays: days, ...(note ? { note } : {}),
+    maxUses, expiresInDays: days, ...(note ? { note } : {}), ...(emailIt ? { emailIt } : {}),
   });
   if (!r.ok) return r;
   revalidatePath(PATH);
+  if (emailIt && email) {
+    // R5: sent directly, nothing persisted. A failure never hides the link; never log the URL, token or address.
+    try {
+      await sendAgencyInviteEmail({
+        to: email.toLowerCase(), url: r.data.url, offer: offer === 'pilot' ? 'pilot' : 'trial', expiresAt: new Date(Date.now() + days * DAY).toISOString(),
+        ...(pilotEndsAt ? { pilotEndsAt } : {}), ...(code ? { discountCodeId: code } : {}),
+      });
+    } catch (e) {
+      // eslint-disable-next-line no-console -- failure class only
+      console.error('[invite-email] send failed', (e as { name?: string } | null)?.name);
+      return { ok: true, url: r.data.url, notice: 'Link created, but the email failed — copy the link below.' };
+    }
+  }
   return { ok: true, url: r.data.url };
 }
 
@@ -110,4 +127,14 @@ export async function setConnectFeeAction(_p: FormResult, fd: FormData): Promise
   revalidatePath(PATH);
   const message = !agencyId ? 'Default fee saved. It applies to new Checkout links.' : clearing ? 'Override cleared; the default applies.' : 'Agency fee saved. It applies to new Checkout links.';
   return { ok: true, message };
+}
+
+/** Owner only (the tool enforces it). `paused` is 'true' | 'false'. */
+export async function setSignupsPausedAction(_p: FormResult, fd: FormData): Promise<FormResult> {
+  const { ctx } = await requireOperatorContext();
+  const paused = str(fd, 'paused') === 'true';
+  const r = await runTool(ctx, 'set_signups_paused', { paused });
+  if (!r.ok) return r;
+  revalidatePath(PATH);
+  return { ok: true, message: paused ? 'Open sign-up paused. Invite links still work.' : 'Open sign-up resumed.' };
 }

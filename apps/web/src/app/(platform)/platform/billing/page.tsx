@@ -11,6 +11,7 @@ import { type CodeRow, Codes } from './codes';
 import { ConnectPanel, type ConnectOverview } from './connect-panel';
 import { InviteLinks, type LinkRow } from './invite-links';
 import { PlanEditor, type PlanRow } from './plan-editor';
+import { parseDays, type SignupFunnel, SignupsPanel } from './signups-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,17 +22,20 @@ const card = 'min-w-0 rounded-[14px] bg-surface p-6 shadow-card';
  * agency invite links (staff and owners; `list_invite_links` is staff-only so viewers never see the section).
  * A non-operator gets the tools' permission_denied → 404 (callTool).
  */
-export default async function PlatformBillingPage() {
+export default async function PlatformBillingPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> } = {}) {
+  const days = parseDays((await searchParams)?.days);
   const { ctx } = await requireOperatorContext();
   const role = await platformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx);
   const isOwner = role === 'owner';
   const canInvite = role === 'owner' || role === 'staff';
-  const [overview, { plans }, { codes }, links, connect] = await Promise.all([
+  const [overview, { plans }, { codes }, links, connect, signups, funnel] = await Promise.all([
     callTool<{ mrrCents: number; paidSeats: number; agenciesByState: Record<string, number> }>(ctx, 'get_billing_overview', {}),
     callTool<{ plans: PlanRow[] }>(ctx, 'list_plans', {}),
     callTool<{ codes: (CodeRow & { code: string })[] }>(ctx, 'list_discount_codes', {}),
     canInvite ? callTool<{ links: LinkRow[] }>(ctx, 'list_invite_links', {}).then((r) => r.links) : Promise.resolve(null),
     callTool<ConnectOverview>(ctx, 'get_connect_overview', {}),
+    callTool<{ paused: boolean }>(ctx, 'get_signups_paused', {}),
+    callTool<SignupFunnel>(ctx, 'get_signup_funnel', { days }),
   ]);
   return (
     <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-5">
@@ -51,6 +55,10 @@ export default async function PlatformBillingPage() {
           </dl>
         </div>
       </div>
+      <section className={card}>
+        <h2 className="mb-3 font-semibold">Agency sign-up</h2>
+        <SignupsPanel paused={signups.paused} canEdit={isOwner} days={days} funnel={funnel} />
+      </section>
       <section className={card}>
         <h2 className="mb-3 font-semibold">Plans</h2>
         <PlanEditor plans={plans} canEdit={isOwner} />

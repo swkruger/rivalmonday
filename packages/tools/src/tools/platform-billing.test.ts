@@ -252,6 +252,27 @@ describe('invite links', () => {
     expect((await fails(call(staff, 'create_invite_link', { ...INVITE, discountCodeId: d.id }))).code).toBe('invalid_input');
   });
 
+  it('refuses a discount code restricted to specific agencies or already expired', async () => {
+    const restricted = (await call(owner, 'create_discount_code', { ...CODE, code: 'ONLYA', restrictedAgencyIds: [IDS.agencyA] })) as { id: string };
+    const e1 = await fails(call(staff, 'create_invite_link', { ...INVITE, discountCodeId: restricted.id }));
+    expect(e1.code).toBe('invalid_input');
+    expect(e1.message).toMatch(/restricted/i);
+    const expired = (await call(owner, 'create_discount_code', { ...CODE, code: 'OLD1' })) as { id: string };
+    await dbs.owner.update(discountCode).set({ expiresAt: new Date(Date.now() - DAY) }).where(eq(discountCode.id, expired.id));
+    const e2 = await fails(call(staff, 'create_invite_link', { ...INVITE, discountCodeId: expired.id }));
+    expect(e2.code).toBe('invalid_input');
+    expect(e2.message).toMatch(/expired/i);
+    expect(await dbs.owner.select().from(agencyInviteLink)).toEqual([]);
+  });
+
+  it('emailIt requires an email lock', async () => {
+    const e = await fails(call(staff, 'create_invite_link', { ...INVITE, emailIt: true }));
+    expect(e.code).toBe('invalid_input');
+    expect(e.message).toContain('Set an email lock to email the link.');
+    const r = (await call(staff, 'create_invite_link', { ...INVITE, emailIt: true, emailLock: 'new@agency.test' })) as { url: string };
+    expect(r.url).toContain('/join/');
+  });
+
   it('revoke_invite_link sets revoked_at', async () => {
     await call(staff, 'create_invite_link', INVITE);
     const [row] = await dbs.owner.select().from(agencyInviteLink);

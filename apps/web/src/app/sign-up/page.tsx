@@ -1,3 +1,4 @@
+import { signupsPaused } from '@cs/tools';
 import { AuthCard } from '@/components/auth-card';
 import { defaultBranding } from '@/server/branding';
 import { dbs } from '@/server/db';
@@ -11,8 +12,18 @@ export const dynamic = 'force-dynamic';
 export default async function SignUpPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const env = webEnv();
+  const service = dbs().service;
+  const branding = await defaultBranding(service, env);
+  // The switch is also enforced server-side in startAgencySignup; invite links (/join) are unaffected.
+  if (await signupsPaused(service)) {
+    return (
+      <AuthCard branding={branding} title="Start your Rival Monday trial">
+        <p className="text-ink">New sign-ups are paused right now. Contact support@rivalmonday.app and we&apos;ll get you set up.</p>
+      </AuthCard>
+    );
+  }
   return (
-    <AuthCard branding={await defaultBranding(dbs().service, env)} title="Start your Rival Monday trial">
+    <AuthCard branding={branding} title="Start your Rival Monday trial">
       <p className="mb-4 text-ink">Monitor your clients&apos; competitors from public information. 30 days, no card needed.</p>
       <SignUpForm
         googleEnabled={env.google !== null}

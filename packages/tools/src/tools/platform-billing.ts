@@ -278,6 +278,10 @@ export const createInviteLinkTool = defineTool({
     maxUses: z.number().int().min(1).max(1000).default(1),
     expiresInDays: z.number().int().min(1).max(90).default(14),
     note: z.string().trim().max(500).optional(),
+    /** Console-only hint: the web action emails the link to `emailLock` right after creation (nothing is stored). */
+    emailIt: z.boolean().default(false),
+  }).superRefine((v, c) => {
+    if (v.emailIt && !v.emailLock) c.addIssue({ code: 'custom', path: ['emailLock'], message: 'Set an email lock to email the link.' });
   }),
   output: z.object({ url: z.string(), token: z.string() }),
   permission: 'agency',
@@ -288,8 +292,11 @@ export const createInviteLinkTool = defineTool({
       if (input.offer === 'pilot' && !input.pilotEndsAt) throw new ToolError('invalid_input', 'A pilot offer needs pilotEndsAt');
       if (input.offer === 'trial' && input.pilotEndsAt) throw new ToolError('invalid_input', 'pilotEndsAt only applies to a pilot offer');
       if (input.discountCodeId) {
-        const [d] = await deps.service.select({ id: discountCode.id }).from(discountCode).where(and(eq(discountCode.id, input.discountCodeId), isNull(discountCode.revokedAt)));
+        const [d] = await deps.service.select().from(discountCode).where(and(eq(discountCode.id, input.discountCodeId), isNull(discountCode.revokedAt)));
         if (!d) throw new ToolError('invalid_input', 'Discount code not found or revoked');
+        // The agency created from this link does not exist yet, so a code limited to named agencies can never apply to it.
+        if (d.expiresAt && d.expiresAt.getTime() <= Date.now()) throw new ToolError('invalid_input', 'That discount code is expired');
+        if (d.restrictedAgencyIds) throw new ToolError('invalid_input', 'That discount code is restricted to specific agencies and cannot go on an invite link');
       }
       const { token, hash, prefix } = generateInviteToken();
       await deps.service.insert(agencyInviteLink).values({

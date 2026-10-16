@@ -11,6 +11,7 @@ vi.mock('@cs/tools', () => ({ platformRole: async () => m.role }));
 vi.mock('./plan-editor', () => ({ PlanEditor: ({ canEdit }: { canEdit: boolean }) => <div>plan-editor {String(canEdit)}</div> }));
 vi.mock('./codes', () => ({ Codes: ({ canManage }: { canManage: boolean }) => <div>codes {String(canManage)}</div> }));
 vi.mock('./connect-panel', () => ({ ConnectPanel: ({ canEdit }: { canEdit: boolean }) => <div>connect-panel {String(canEdit)}</div> }));
+vi.mock('./signups-panel', () => ({ parseDays: (v: unknown) => (v === '90' ? 90 : 30), SignupsPanel: ({ paused, canEdit, days }: { paused: boolean; canEdit: boolean; days: number }) => <div>signups-panel {String(paused)} {String(canEdit)} {days}</div> }));
 vi.mock('./invite-links', () => ({ InviteLinks: () => <div>invite-links</div> }));
 const { default: Page } = await import('./page');
 
@@ -19,6 +20,8 @@ const answers: Record<string, unknown> = {
   list_plans: { plans: [] },
   list_discount_codes: { codes: [] },
   list_invite_links: { links: [] },
+  get_signups_paused: { paused: false },
+  get_signup_funnel: { open: { signups: 0, profileDone: 0, firstClient: 0, cardAdded: 0 }, invite: { signups: 0, profileDone: 0, firstClient: 0, cardAdded: 0 } },
   get_connect_overview: { globalFeePercent: 0, agencies: [], totals: { connectedAgencies: 0, payingClients: 0, clientMrrCents: 0 } },
 };
 beforeEach(() => {
@@ -42,6 +45,18 @@ describe('/platform/billing', () => {
     expect(screen.getByText('codes true')).toBeTruthy();
     expect(screen.getByText('invite-links')).toBeTruthy();
     expect(screen.getByText('connect-panel true')).toBeTruthy();
+  });
+
+  it('shows the sign-up panel: owner can edit; the 30/90 choice reaches the funnel tool', async () => {
+    render(await Page({ searchParams: Promise.resolve({ days: '90' }) }));
+    expect(screen.getByText('signups-panel false true 90')).toBeTruthy();
+    expect(m.callTool).toHaveBeenCalledWith(expect.anything(), 'get_signup_funnel', { days: 90 });
+  });
+
+  it('viewer: sign-up panel is read-only', async () => {
+    m.role = 'viewer';
+    render(await Page());
+    expect(screen.getByText('signups-panel false false 30')).toBeTruthy();
   });
 
   it('staff: read-only plans and codes, invite links shown', async () => {

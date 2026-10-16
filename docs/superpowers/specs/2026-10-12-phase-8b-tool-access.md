@@ -146,6 +146,9 @@ extend_trial (platform-billing.ts) | write | billing state transition; platform 
 attach_agency_discount (platform-billing.ts) | write | creates Stripe customer, attaches coupon; platform staff
 set_seat_cap_exempt (platform-billing.ts) | write | updates agency_billing; platform owner
 set_connect_fee_percent (platform-billing.ts) | write | updates platform_setting or agency_connect fee; platform owner
+get_signups_paused (platform-signups.ts) | read | read-only; platform operator
+get_signup_funnel (platform-signups.ts) | read | read-only aggregate counts; platform operator
+set_signups_paused (platform-signups.ts) | write | upserts platform_setting; platform owner
 add_webhook (settings.ts) | write | inserts webhook
 set_webhook_active (settings.ts) | write | updates webhook
 add_client_recipient (settings.ts) | write | inserts recipient

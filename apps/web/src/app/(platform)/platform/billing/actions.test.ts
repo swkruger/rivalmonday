@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ runTool: vi.fn() }));
+const m = vi.hoisted(() => ({ runTool: vi.fn(), email: vi.fn() }));
 vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => ({ ctx: { userId: 'op' } }) }));
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.runTool(...a) }));
+vi.mock('@/server/invite-email', () => ({ sendAgencyInviteEmail: (...a: unknown[]) => m.email(...a) }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
-const { createPlanVersionAction, createDiscountCodeAction, createInviteLinkAction, setConnectFeeAction } = await import('./actions');
+const { createPlanVersionAction, createDiscountCodeAction, createInviteLinkAction, setConnectFeeAction, setSignupsPausedAction } = await import('./actions');
 
 const form = (o: Record<string, string>) => {
   const fd = new FormData();
@@ -12,6 +13,9 @@ const form = (o: Record<string, string>) => {
   return fd;
 };
 const ok = { ok: true } as const;
+beforeEach(() => {
+  m.email.mockReset().mockResolvedValue(undefined); // braces: a returned function would run as teardown
+});
 beforeEach(() => m.runTool.mockReset().mockResolvedValue({ ok: true, data: { version: 3, url: 'https://x/join/t' } }));
 
 describe('createPlanVersionAction', () => {
@@ -58,6 +62,43 @@ describe('createInviteLinkAction', () => {
     expect(await createInviteLinkAction(ok, form({ offer: 'pilot', pilotEndsAt: '2026-02-31' }))).toMatchObject({ ok: false });
     expect(await createInviteLinkAction(ok, form({ offer: 'pilot', pilotEndsAt: '2026-12-01', maxUses: '3' }))).toEqual({ ok: true, url: 'https://x/join/t' });
     expect(m.runTool.mock.calls[0]?.[2]).toMatchObject({ offer: 'pilot', pilotEndsAt: '2026-12-01T23:59:59.000Z', maxUses: 3, expiresInDays: 14 });
+  });
+});
+
+describe('createInviteLinkAction emailIt', () => {
+  const fields = { offer: 'trial', emailLock: 'new@agency.test', emailIt: 'on' };
+  it('emails the created link once to the locked address and passes emailIt to the tool', async () => {
+    expect(await createInviteLinkAction(ok, form(fields))).toMatchObject({ ok: true, url: 'https://x/join/t' });
+    expect(m.runTool.mock.calls[0]?.[2]).toMatchObject({ emailLock: 'new@agency.test', emailIt: true });
+    expect(m.email).toHaveBeenCalledTimes(1);
+    expect(m.email.mock.calls[0]?.[0]).toMatchObject({ to: 'new@agency.test', url: 'https://x/join/t', offer: 'trial' });
+  });
+  it('does not email without the checkbox', async () => {
+    await createInviteLinkAction(ok, form({ offer: 'trial', emailLock: 'new@agency.test' }));
+    expect(m.email).not.toHaveBeenCalled();
+  });
+  it('does not email when the tool refuses (e.g. emailIt without a lock)', async () => {
+    m.runTool.mockResolvedValue({ ok: false, error: 'Set an email lock to email the link.' });
+    expect(await createInviteLinkAction(ok, form({ offer: 'trial', emailIt: 'on' }))).toEqual({ ok: false, error: 'Set an email lock to email the link.' });
+    expect(m.email).not.toHaveBeenCalled();
+  });
+  it('on a send failure still returns the link, with the decided message', async () => {
+    m.email.mockRejectedValue(new Error('smtp down'));
+    expect(await createInviteLinkAction(ok, form(fields))).toEqual({ ok: true, url: 'https://x/join/t', notice: 'Link created, but the email failed — copy the link below.' });
+  });
+});
+
+describe('setSignupsPausedAction', () => {
+  it('pauses and resumes through the owner tool', async () => {
+    m.runTool.mockResolvedValue({ ok: true, data: { paused: true } });
+    expect(await setSignupsPausedAction(ok, form({ paused: 'true' }))).toMatchObject({ ok: true });
+    expect(m.runTool).toHaveBeenCalledWith({ userId: 'op' }, 'set_signups_paused', { paused: true });
+    await setSignupsPausedAction(ok, form({ paused: 'false' }));
+    expect(m.runTool.mock.calls[1]?.[2]).toEqual({ paused: false });
+  });
+  it('passes a refusal back', async () => {
+    m.runTool.mockResolvedValue({ ok: false, error: 'Nope' });
+    expect(await setSignupsPausedAction(ok, form({ paused: 'true' }))).toEqual({ ok: false, error: 'Nope' });
   });
 });
 

@@ -92,12 +92,14 @@ export function InviteLinks({ links, codes }: { links: LinkRow[]; codes: { id: s
           </select>
         </Field>
         <Field label="Lock to email (optional)" htmlFor="il-email"><input id="il-email" name="emailLock" type="email" maxLength={254} className={`${fieldCls} w-56`} /></Field>
+        <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="emailIt" className="size-4" />Email it to the locked address</label>
         <Field label="Max uses" htmlFor="il-max"><input id="il-max" name="maxUses" inputMode="numeric" defaultValue="1" className={`${fieldCls} w-20`} /></Field>
         <Field label="Expires in (days)" htmlFor="il-days"><input id="il-days" name="expiresInDays" inputMode="numeric" defaultValue="14" className={`${fieldCls} w-24`} /></Field>
         <Field label="Note (optional)" htmlFor="il-note"><input id="il-note" name="note" maxLength={500} className={`${fieldCls} w-56`} /></Field>
         <Button type="submit" disabled={pending}>Create link</Button>
         {!state.ok && <p role="alert" className="basis-full text-sm text-ink">{state.error}</p>}
       </form>
+      {state.ok && 'notice' in state && state.notice && <p role="alert" className="text-sm text-ink">{state.notice}</p>}
       {state.ok && 'url' in state && <CopyBox url={state.url} />}
     </div>
   );

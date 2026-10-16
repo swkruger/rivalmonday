@@ -25,6 +25,7 @@ import { overviewTools } from './overview';
 import { pageTools } from './pages';
 import { platformConsoleTools } from './platform-console';
 import { platformBillingTools } from './platform-billing';
+import { platformSignupsTools } from './platform-signups';
 import { platformCostTools } from './platform-costs';
 import { playbookTools } from './playbooks';
 import { portfolioTools } from './portfolio';
@@ -43,4 +44,4 @@ import { themeTools } from './themes';
 import { usageTools } from './usage';
 
 /** Every registered tool. Each 5b-1/5b-2 task appends its array here. */
-export const allTools = [...clientTools, ...briefTools, ...alertTools, ...alertQueueTools, ...reportTools, ...onboardingTools, ...competitorTools, ...pageTools, ...portfolioTools, ...reviewTools, ...recommendationTools, ...usageTools, ...playbookTools, ...modelOpsTools, ...themeTools, ...prospectTools, ...settingsTools, ...eventTools, ...evidenceTools, ...moveTools, ...competitorProfileTools, ...overviewTools, ...alertRuleTools, ...pricingTools, ...adTools, ...reputationTools, ...rankingTools, ...addRecommendationTools, ...searchTools, ...fetchTools, ...apiTokenTools, ...askThreadTools, ...knowledgeAdminTools, ...knowledgeTools, ...platformConsoleTools, ...supportTools, ...platformCostTools, ...billingTools, ...clientPauseTools, ...clientBillingTools, ...myBillingTools, ...platformBillingTools, ...agencyOnboardingTools];
+export const allTools = [...clientTools, ...briefTools, ...alertTools, ...alertQueueTools, ...reportTools, ...onboardingTools, ...competitorTools, ...pageTools, ...portfolioTools, ...reviewTools, ...recommendationTools, ...usageTools, ...playbookTools, ...modelOpsTools, ...themeTools, ...prospectTools, ...settingsTools, ...eventTools, ...evidenceTools, ...moveTools, ...competitorProfileTools, ...overviewTools, ...alertRuleTools, ...pricingTools, ...adTools, ...reputationTools, ...rankingTools, ...addRecommendationTools, ...searchTools, ...fetchTools, ...apiTokenTools, ...askThreadTools, ...knowledgeAdminTools, ...knowledgeTools, ...platformConsoleTools, ...supportTools, ...platformCostTools, ...billingTools, ...clientPauseTools, ...clientBillingTools, ...myBillingTools, ...platformBillingTools, ...platformSignupsTools, ...agencyOnboardingTools];
