@@ -23,7 +23,7 @@ const MCP_FEEDBACK_TOOLS = ['submit_feedback', 'update_recommendation_status', '
 const MCP_MANAGE_TOOLS = ['set_alert_rules', 'update_client_profile', 'set_page_pin', 'run_prospect_snapshot'];
 
 const store = new Map<string, Uint8Array>();
-const deps: ToolDeps = { app: dbs.app, service: dbs.service, evidenceStore: { get: async (k) => store.get(k) ?? null } };
+const deps: ToolDeps = { app: dbs.app, service: dbs.service, evidenceStore: { get: async (k) => store.get(k) ?? null, put: async () => undefined } };
 const registry = createToolRegistry(deps, { audit: { record: async () => {} } });
 
 /** A tiny registry whose tools throw each error kind. */

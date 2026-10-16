@@ -15,7 +15,7 @@ const admin = ctx('agency_admin', 'all');
 const viewer = ctx('client_viewer', [IDS.clientA1], ['dashboard', 'mcp']);
 const mcp = { channel: 'mcp' as const, tokenId: 'pat-1', tokenScope: 'read' as const };
 const store = new Map<string, Uint8Array>();
-const baseDeps: ToolDeps = { app: dbs.app, service: dbs.service, packs: createPackLoader(), evidenceStore: { get: async (k) => store.get(k) ?? null } };
+const baseDeps: ToolDeps = { app: dbs.app, service: dbs.service, packs: createPackLoader(), evidenceStore: { get: async (k) => store.get(k) ?? null, put: async () => undefined } };
 const reg = (extra: Partial<ToolDeps> = {}) => createToolRegistry({ ...baseDeps, ...extra }, { audit: { record: async () => {} } });
 const registry = reg();
 

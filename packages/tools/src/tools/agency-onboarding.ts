@@ -1,6 +1,7 @@
+import { createHash } from 'node:crypto';
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { agency, agencyOnboarding, agencyProfile, type Tx } from '@cs/db';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 
@@ -243,4 +244,40 @@ export const updateAgencyProfile = defineTool({
   },
 });
 
-export const agencyOnboardingTools = [getOnboardingStatus, markOnboardingStep, dismissOnboardingChecklist, markOnboardingRedirected, getAgencyProfile, updateAgencyProfile];
+// ---- logo (spec § Logo pipeline; the web route normalises with sharp, this tool stores + points branding at it) ----
+
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+/** A normalised logo is ≤ 512×512 PNG; 2 MB of PNG is far above anything the route produces. */
+const MAX_LOGO_PNG_BYTES = 2 * 1024 * 1024;
+
+export const uploadAgencyLogo = defineTool({
+  name: 'upload_agency_logo',
+  access: 'write',
+  description: 'Store the agency’s normalised PNG logo and point its branding at it (agency admins).',
+  input: z.object({
+    png: z.string().min(1).max(Math.ceil(MAX_LOGO_PNG_BYTES / 3) * 4).regex(/^[A-Za-z0-9+/]+={0,2}$/, 'png must be base64'),
+    sha256: z.string().regex(/^[0-9a-f]{64}$/, 'sha256 must be 64 lowercase hex characters'),
+  }),
+  output: z.object({ logoUrl: z.string() }),
+  permission: 'agency',
+  async handler(ctx, { png, sha256 }, deps) {
+    requireAdmin(ctx);
+    const store = deps.evidenceStore;
+    if (!store) throw new ToolError('internal', 'Logo storage is not configured');
+    if (!deps.appUrl) throw new ToolError('internal', 'APP_URL is not configured');
+    const bytes = new Uint8Array(Buffer.from(png, 'base64'));
+    if (bytes.byteLength > MAX_LOGO_PNG_BYTES || !PNG_SIGNATURE.every((v, i) => bytes[i] === v)) throw new ToolError('invalid_input', 'Logo must be a PNG');
+    if (createHash('sha256').update(bytes).digest('hex') !== sha256) throw new ToolError('invalid_input', 'Logo checksum does not match');
+    const key = `logos/${ctx.agencyId}/${sha256}.png`;
+    // Store first: a failed branding update leaves an unreferenced object (harmless); the reverse would leave a broken URL.
+    await store.put(key, bytes, 'image/png');
+    const logoUrl = `${deps.appUrl.replace(/\/+$/, '')}/files/logo/${ctx.agencyId}/${sha256}.png`;
+    await deps.service
+      .update(agency)
+      .set({ branding: sql`coalesce(${agency.branding}, '{}'::jsonb) || jsonb_build_object('logoUrl', ${logoUrl}::text)` })
+      .where(eq(agency.id, ctx.agencyId));
+    return { logoUrl };
+  },
+});
+
+export const agencyOnboardingTools = [getOnboardingStatus, markOnboardingStep, dismissOnboardingChecklist, markOnboardingRedirected, getAgencyProfile, updateAgencyProfile, uploadAgencyLogo];

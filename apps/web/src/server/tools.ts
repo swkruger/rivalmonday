@@ -49,7 +49,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     kbImportEnabled: webEnv().kbImport,
     platformAdmins: platformAdmins(name),
     appUrl: webEnv().appUrl,
-    evidenceStore: { get: (key) => store.get(key) },
+    evidenceStore: { get: (key) => store.get(key), put: (key, body, contentType) => store.put(key, body, contentType) },
     embedQuery: embedQueryFor(name, service),
     billing: gatewayFor(webEnv().stripe ?? {}, name) ?? undefined, // R27: absent = billing not configured
   };

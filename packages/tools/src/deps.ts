@@ -36,8 +36,11 @@ export interface ToolDeps {
   embedQuery?: (text: string, scope: CallScope) => Promise<number[]>;
   /** Phase 9a: billing gateway (`gatewayFor`): fake in DEMO/TEST, Stripe with a key, absent when billing is not configured (R27: Stripe-backed tools refuse, reads degrade, seat sync is skipped and the daily job reconciles). */
   billing?: BillingGateway;
-  /** Evidence bytes by object key, for `fetch` and the MCP evidence resources. */
-  evidenceStore?: { get(key: string): Promise<Uint8Array | null> };
+  /** Object storage (evidence adapter, `ObjectStore` shape): `get` for `fetch` and the MCP evidence resources; `put` for agency logos (Phase 10 R9). */
+  evidenceStore?: {
+    get(key: string): Promise<Uint8Array | null>;
+    put(key: string, body: Uint8Array, contentType: string): Promise<void>;
+  };
 }
 
 let bundledPacks: PackLoader | null = null;

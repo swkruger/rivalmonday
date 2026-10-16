@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { type AccessContext, createAccessContext } from '@cs/core';
 import { agency, agencyOnboarding, agencyProfile } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
@@ -155,5 +156,61 @@ describe('update_agency_profile', () => {
     await expect(registry.invoke(admin, 'update_agency_profile', { ...PROFILE, country: 'CA', postalCode: 'M5V 2T6' })).resolves.toBeTruthy();
     // address and billing are optional
     await expect(registry.invoke(admin, 'update_agency_profile', { name: 'Min', contactName: 'A', contactEmail: 'a@b.co', phone: '404-555-0100', timezone: 'America/Chicago', verticals: [] })).resolves.toBeTruthy();
+  });
+});
+
+describe('upload_agency_logo', () => {
+  const objects = new Map<string, { body: Uint8Array; contentType: string }>();
+  const evidenceStore = {
+    get: async (k: string) => objects.get(k)?.body ?? null,
+    put: async (k: string, body: Uint8Array, contentType: string) => void objects.set(k, { body, contentType }),
+  };
+  const APP = 'https://app.example';
+  const logoRegistry = createToolRegistry({ app: dbs.app, service: dbs.service, evidenceStore, appUrl: APP }, { audit: { record: async () => undefined } });
+  // A PNG signature + arbitrary tail is enough here: decoding/normalising is the web route's job (normalizeLogo).
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5]);
+  const sha = (b: Uint8Array) => createHash('sha256').update(b).digest('hex');
+  const input = (b = PNG, h = sha(b)) => ({ png: Buffer.from(b).toString('base64'), sha256: h });
+  const branding = async () => (await dbs.owner.select({ b: agency.branding }).from(agency).where(eq(agency.id, IDS.agencyA)))[0]!.b;
+  beforeEach(() => objects.clear());
+
+  it('stores logos/<agency>/<sha>.png as image/png and sets branding.logoUrl, keeping other branding keys', async () => {
+    await dbs.owner.update(agency).set({ branding: { primary: '#112233', logoUrl: 'https://old.example/l.png' } }).where(eq(agency.id, IDS.agencyA));
+    const h = sha(PNG);
+    const r = await logoRegistry.invoke(admin, 'upload_agency_logo', input());
+    const logoUrl = `${APP}/files/logo/${IDS.agencyA}/${h}.png`;
+    expect(r).toEqual({ logoUrl });
+    expect(objects.get(`logos/${IDS.agencyA}/${h}.png`)).toEqual({ body: PNG, contentType: 'image/png' });
+    expect(await branding()).toEqual({ primary: '#112233', logoUrl });
+    expect((await onboarding()).brandingDoneAt).toBeNull(); // the wizard marks the step itself
+  });
+
+  it('works when the agency has no branding yet', async () => {
+    await dbs.owner.update(agency).set({ branding: null }).where(eq(agency.id, IDS.agencyA));
+    const { logoUrl } = (await logoRegistry.invoke(admin, 'upload_agency_logo', input())) as { logoUrl: string };
+    expect(await branding()).toEqual({ logoUrl });
+  });
+
+  it('refuses a sha256 that does not match the bytes, non-PNG bytes and malformed input (invalid_input); nothing is stored', async () => {
+    await expect(logoRegistry.invoke(admin, 'upload_agency_logo', input(PNG, 'a'.repeat(64)))).rejects.toMatchObject({ code: 'invalid_input' });
+    const gif = new TextEncoder().encode('GIF89a-not-a-png');
+    await expect(logoRegistry.invoke(admin, 'upload_agency_logo', input(gif))).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(logoRegistry.invoke(admin, 'upload_agency_logo', { png: Buffer.from(PNG).toString('base64'), sha256: '../../etc' })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(logoRegistry.invoke(admin, 'upload_agency_logo', { png: 'not base64!', sha256: sha(PNG) })).rejects.toMatchObject({ code: 'invalid_input' });
+    expect(objects.size).toBe(0);
+  });
+
+  it('is agency-admin only: account manager permission_denied, client roles not_found', async () => {
+    await expect(logoRegistry.invoke(am, 'upload_agency_logo', input())).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(logoRegistry.invoke(owner, 'upload_agency_logo', input())).rejects.toMatchObject({ code: 'not_found' });
+    await expect(logoRegistry.invoke(viewer, 'upload_agency_logo', input())).rejects.toMatchObject({ code: 'not_found' });
+    expect(objects.size).toBe(0);
+  });
+
+  it('fails closed (internal) without a store or APP_URL', async () => {
+    await expect(registry.invoke(admin, 'upload_agency_logo', input())).rejects.toMatchObject({ code: 'internal' });
+    const noUrl = createToolRegistry({ app: dbs.app, service: dbs.service, evidenceStore }, { audit: { record: async () => undefined } });
+    await expect(noUrl.invoke(admin, 'upload_agency_logo', input())).rejects.toMatchObject({ code: 'internal' });
+    expect(objects.size).toBe(0);
   });
 });

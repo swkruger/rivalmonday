@@ -150,6 +150,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}views/alert-view\\.tsx$`), tags: ['@alerts'], why: 'alert view' },
   { pattern: re(`${COMP}views/report-view\\.tsx$`), tags: [], why: 'no E2E covers the report view' },
   { pattern: re(`${SERVER}(?:guest|links|files|store)\\.ts$`), tags: GUEST_FILES, why: 'guest links and stored files' },
+  { pattern: re(`${SERVER}logo\\.ts$`), tags: [], why: 'logo pipeline (sharp normalisation; unit-tested, no E2E uploads a logo)' },
   { pattern: re(`${SERVER}support-[^/]+\\.ts$`), tags: ['@support'], why: 'support session cookie, mask and email modules' },
   { pattern: re(`${SERVER}(?:email-transport|sign-out|signup-cookie|pending-signup|onboarding-start|turnstile)\\.ts$`), tags: ['@auth'], why: 'sign-in email / sign-out / sign-up' },
 
