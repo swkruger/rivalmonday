@@ -29,7 +29,7 @@ Agency-owned, white-labelable SaaS that monitors the competitors of **local-serv
 - **Auth:** **self-hosted Better Auth** inside `apps/web` (schema `auth`), not Neon Auth — needed for invitation-only hooks and the OAuth 2.1 provider for MCP (Phase 6). Access lives in our own `membership` table, not Better Auth's `organization` plugin.
 - **Charts:** hand-written inline SVG (no chart library); validate colour scales with the dataviz skill.
 - **Review decisions stay on Jev** until pilot agencies supply gold labels at volume. Don't change verifier τ (0.85) before labelling `verifier_decisions` samples.
-- **Competitor discovery (Phase 12):** vendor-only two-stage search, $3/run cap, 5 runs/agency/day, auto-runs only the first time a profile is complete; tiers Top rival / Worth watching / Minor; ad-account removal on a shared `competitor` only by its sole tracker.
+- **Competitor discovery (Phase 12):** vendor-only two-stage search, $3/run cap; auto-run once when a profile completes, then 1 manual search/client/week + monthly refresh; tiers Top rival / Worth watching / Minor; shared-row ad-account removal only by the sole tracker.
 - **Starting-point brief:** one per client, deterministic self-rules + verified why-it-matters only; quiet weeks carry a "Where you stand" scorecard.
 - Phase-local decisions live in each plan's "Decisions" — never re-open those either.
 
