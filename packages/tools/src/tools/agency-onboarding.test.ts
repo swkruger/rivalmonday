@@ -42,10 +42,9 @@ describe('get_onboarding_status', () => {
     await expect(registry.invoke(owner, 'get_onboarding_status', {})).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(viewer, 'get_onboarding_status', {})).rejects.toMatchObject({ code: 'not_found' });
   });
-  it('an agency with no onboarding row reads as all open / legacy', async () => {
-    const r = (await registry.invoke(ctx('agency_admin', IDS.agencyB), 'get_onboarding_status', {})) as { source: string; steps: Record<string, string> };
-    expect(r.source).toBe('legacy');
-    expect(r.steps.profile).toBe('open');
+  it('an agency with no onboarding row (admin CLI, seeds) reads as completed legacy, all done, redirected (R25)', async () => {
+    const r = await registry.invoke(ctx('agency_admin', IDS.agencyB), 'get_onboarding_status', {});
+    expect(r).toEqual({ steps: { profile: 'done', team: 'done', plan: 'done', branding: 'done', first_client: 'done' }, dismissed: false, completed: true, redirected: true, source: 'legacy' });
   });
 });
 
@@ -105,6 +104,22 @@ describe('dismiss_onboarding_checklist / mark_onboarding_redirected', () => {
     expect((await onboarding()).redirectedAt).toEqual(first);
     expect(await status()).toMatchObject({ redirected: true });
   });
+  it('dismiss / mark / redirect on a missing row insert it as completed legacy (R25)', async () => {
+    const b = ctx('agency_admin', IDS.agencyB);
+    const rowB = async () => (await dbs.owner.select().from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, IDS.agencyB)))[0]!;
+    await registry.invoke(b, 'dismiss_onboarding_checklist', {});
+    const r = await rowB();
+    expect(r).toMatchObject({ source: 'legacy' });
+    expect(r.completedAt).toBeInstanceOf(Date);
+    expect(r.redirectedAt).toBeInstanceOf(Date);
+    expect(await registry.invoke(b, 'get_onboarding_status', {})).toMatchObject({ completed: true, redirected: true, source: 'legacy' });
+    await dbs.owner.delete(agencyOnboarding).where(eq(agencyOnboarding.agencyId, IDS.agencyB));
+    await registry.invoke(b, 'mark_onboarding_step', { step: 'team', action: 'skip' });
+    expect((await rowB()).completedAt).toBeInstanceOf(Date);
+    await dbs.owner.delete(agencyOnboarding).where(eq(agencyOnboarding.agencyId, IDS.agencyB));
+    await registry.invoke(b, 'mark_onboarding_redirected', {});
+    expect((await rowB()).completedAt).toBeInstanceOf(Date);
+  });
 });
 
 describe('get_agency_profile', () => {
@@ -152,11 +167,25 @@ describe('update_agency_profile', () => {
     await bad({ timezone: 'Mars/Base' });
     await bad({ verticals: ['bakery'] });
     await bad({ website: 'not a url' });
+    await bad({ website: 'javascript:alert(1)' });
+    await bad({ website: 'ftp://acme.co' });
+    await bad({ billingSameAsPostal: false, billingCountry: 'USA' });
+    await bad({ billingSameAsPostal: false, billingCountry: 'U' });
     await expect(registry.invoke(admin, 'update_agency_profile', { ...PROFILE, phone: '+1 404-555-0100', postalCode: '30338-1234' })).resolves.toBeTruthy();
     // the ZIP rule only applies to US addresses
     await expect(registry.invoke(admin, 'update_agency_profile', { ...PROFILE, country: 'CA', postalCode: 'M5V 2T6' })).resolves.toBeTruthy();
     // address and billing are optional
     await expect(registry.invoke(admin, 'update_agency_profile', { name: 'Min', contactName: 'A', contactEmail: 'a@b.co', phone: '404-555-0100', timezone: 'America/Chicago', verticals: [] })).resolves.toBeTruthy();
+  });
+  it('accepts UTC (offered by the time zone dropdown)', async () => {
+    await registry.invoke(admin, 'update_agency_profile', { ...PROFILE, timezone: 'UTC' });
+    const [p] = await dbs.owner.select().from(agencyProfile).where(eq(agencyProfile.agencyId, IDS.agencyA));
+    expect(p!.timezone).toBe('UTC');
+  });
+  it('upper-cases billingCountry, keeps http(s) websites and dedupes verticals', async () => {
+    await registry.invoke(admin, 'update_agency_profile', { ...PROFILE, website: 'http://acme.co', billingSameAsPostal: false, billingCountry: 'ca', billingPostalCode: 'M5V 2T6', verticals: ['dental', 'dental', 'hvac_plumbing'] });
+    const [p] = await dbs.owner.select().from(agencyProfile).where(eq(agencyProfile.agencyId, IDS.agencyA));
+    expect(p).toMatchObject({ website: 'http://acme.co', billingCountry: 'CA', verticals: ['dental', 'hvac_plumbing'] });
   });
 });
 

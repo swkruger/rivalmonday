@@ -4,6 +4,7 @@ import { agency, agencyOnboarding, agencyProfile, type Tx } from '@cs/db';
 import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
+import { validTimezone } from '../timezone';
 
 const { defineTool } = toolkit<ToolDeps>();
 
@@ -13,7 +14,6 @@ const StepState = z.enum(['done', 'skipped', 'open']);
 const VERTICALS = ['hvac_plumbing', 'dental'] as const;
 const PHONE = /^\+?1?[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/;
 const ZIP = /^\d{5}(-\d{4})?$/;
-const TIMEZONES = new Set(Intl.supportedValuesOf('timeZone'));
 
 type OnboardingRow = typeof agencyOnboarding.$inferSelect;
 
@@ -40,9 +40,14 @@ export async function reevaluateOnboardingCompletion(tx: Tx, agencyId: string, n
   if (stepsSettled && (r.firstClientAt || r.dismissedAt)) await tx.update(agencyOnboarding).set({ completedAt: now }).where(eq(agencyOnboarding.agencyId, agencyId));
 }
 
-/** Agencies created before Phase 10 are backfilled as `legacy`; a missing row (tests, odd data) is treated the same. */
+/**
+ * R25: agencies created before Phase 10 are backfilled as `legacy`; an agency created outside sign-up (admin CLI, seeds)
+ * has no row and is treated the same — inserted as a completed, already-redirected legacy row so it never sees the
+ * checklist or the first-session redirect.
+ */
 async function ensureRow(tx: Tx, agencyId: string): Promise<void> {
-  await tx.insert(agencyOnboarding).values({ agencyId, source: 'legacy' }).onConflictDoNothing();
+  const now = new Date();
+  await tx.insert(agencyOnboarding).values({ agencyId, source: 'legacy', completedAt: now, redirectedAt: now }).onConflictDoNothing();
 }
 
 async function markStep(tx: Tx, agencyId: string, step: Step, action: 'done' | 'skip', now: Date): Promise<void> {
@@ -64,7 +69,7 @@ export const OnboardingStatus = z.object({
   steps: z.object({ profile: StepState, team: StepState, plan: StepState, branding: StepState, first_client: StepState }),
   dismissed: z.boolean(),
   completed: z.boolean(),
-  /** The first-session redirect to the wizard has already happened (a missing row counts as redirected: never redirect). */
+  /** The first-session redirect to the wizard has already happened (a missing row reads as completed legacy: never redirect). */
   redirected: z.boolean(),
   source: z.enum(['open', 'invite', 'legacy']),
 });
@@ -80,7 +85,8 @@ export const getOnboardingStatus = defineTool({
   async handler(ctx, _input, deps): Promise<OnboardingStatus> {
     requireReader(ctx);
     const [r] = await deps.service.select().from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, ctx.agencyId));
-    if (!r) return { steps: { profile: 'open', team: 'open', plan: 'open', branding: 'open', first_client: 'open' }, dismissed: false, completed: false, redirected: true, source: 'legacy' as const };
+    // R25: a missing row (admin CLI, seeds) reads as a completed legacy agency — no checklist, no redirect.
+    if (!r) return { steps: { profile: 'done', team: 'done', plan: 'done', branding: 'done', first_client: 'done' }, dismissed: false, completed: true, redirected: true, source: 'legacy' as const };
     return {
       steps: {
         profile: stepState(r.profileDoneAt, r.profileSkippedAt), team: stepState(r.teamDoneAt, r.teamSkippedAt),
@@ -200,18 +206,19 @@ const req = (max: number, what: string) => z.string().trim().min(1, `${what} is 
 export const UpdateAgencyProfileInput = z.object({
   name: req(120, 'Agency name'),
   legalName: opt(200),
-  website: z.string().trim().max(300).url('Enter a full website address, like https://example.com').nullish().or(z.literal('')).transform((v) => (v ? v : null)),
+  website: z.string().trim().max(300).regex(/^https?:\/\//i, 'Enter a full website address, like https://example.com').url('Enter a full website address, like https://example.com').nullish().or(z.literal('')).transform((v) => (v ? v : null)),
   contactName: req(120, 'Contact name'),
   contactRole: opt(120),
   contactEmail: z.string().trim().max(254).email('Enter a valid email address'),
   phone: z.string().trim().regex(PHONE, 'Enter a US phone number, like (404) 555-0100'),
   line1: opt(200), line2: opt(200), city: opt(120), region: opt(120), postalCode: opt(20),
   country: z.string().trim().min(2).max(2).default('US').transform((v) => v.toUpperCase()),
-  timezone: z.string().refine((t) => TIMEZONES.has(t), 'Unknown time zone'),
-  verticals: z.array(z.enum(VERTICALS)).max(VERTICALS.length).default([]),
+  timezone: z.string().refine(validTimezone, 'Unknown time zone'),
+  verticals: z.array(z.enum(VERTICALS)).max(10).default([]).transform((v) => [...new Set(v)]),
   billingEmail: z.string().trim().max(254).email('Enter a valid billing email').nullish().or(z.literal('')).transform((v) => (v ? v : null)),
   billingSameAsPostal: z.boolean().default(true),
-  billingLine1: opt(200), billingLine2: opt(200), billingCity: opt(120), billingRegion: opt(120), billingPostalCode: opt(20), billingCountry: opt(2),
+  billingLine1: opt(200), billingLine2: opt(200), billingCity: opt(120), billingRegion: opt(120), billingPostalCode: opt(20),
+  billingCountry: z.string().trim().nullish().transform((v) => (v ? v.toUpperCase() : null)).refine((v) => v === null || v.length === 2, 'Use a 2-letter country code'),
   taxId: opt(60),
 }).superRefine((v, c) => {
   if (v.country === 'US' && v.postalCode && !ZIP.test(v.postalCode)) c.addIssue({ code: 'custom', path: ['postalCode'], message: 'Enter a 5-digit ZIP code' });

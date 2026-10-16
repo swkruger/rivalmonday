@@ -12,7 +12,7 @@ import { PressureBadge } from '@/components/pressure-badge';
 import { SpendBadge } from '@/components/spend-badge';
 import { requireContext } from '@/server/current-viewer';
 import { relativeTime } from '@/server/format';
-import { callTool } from '@/server/tools';
+import { callTool, tryCallTool } from '@/server/tools';
 
 const VERTICAL_LABELS: Record<string, string> = { hvac_plumbing: 'HVAC & plumbing', dental: 'Dental' };
 
@@ -40,7 +40,9 @@ export default async function AgencyPortfolioPage() {
   // Admins only: account managers get no checklist and no extra reads.
   const onboarding = ctx.role === 'agency_admin' ? await callTool<ChecklistStatus>(ctx, 'get_onboarding_status', {}) : null;
   const showChecklist = !!onboarding && !onboarding.completed && !onboarding.dismissed;
-  const trialing = showChecklist ? (await callTool<{ state: string }>(ctx, 'get_billing_summary', {})).state === 'trialing' : false;
+  // Fails soft: a refused or failing billing read only hides the "Add a payment method" sub-line.
+  const billingSummary = showChecklist ? await tryCallTool<{ state: string }>(ctx, 'get_billing_summary', {}).catch(() => null) : null;
+  const trialing = billingSummary?.state === 'trialing';
   const billingRole = ctx.role === 'agency_admin' ? 'agency_admin' : 'account_manager';
   const now = new Date();
   const canAddClient = ctx.clientScope === 'all';

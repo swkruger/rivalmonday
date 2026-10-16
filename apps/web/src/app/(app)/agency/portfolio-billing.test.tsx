@@ -13,7 +13,8 @@ const callTool = vi.fn(async (_ctx: unknown, name: string): Promise<unknown> => 
   if (name === 'get_onboarding_status') return { steps: {}, dismissed: false, completed: true };
   return { clients: [{ clientId: C, state: 'active', enabled: true, pill: { key: 'paying', label: 'Paying' } }] };
 });
-vi.mock('@/server/tools', () => ({ callTool }));
+const tryCallTool = vi.fn(async (c: unknown, name: string): Promise<unknown> => callTool(c, name));
+vi.mock('@/server/tools', () => ({ callTool, tryCallTool }));
 vi.mock('../onboarding/actions', () => ({ dismissChecklistAction: async () => {} }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: createAccessContext({ agencyId: A, userId: 'u', role: state.role, clientScope: 'all', features: ['dashboard'] as never }) }) }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
@@ -62,5 +63,37 @@ describe('onboarding checklist on the portfolio', () => {
     const names = callTool.mock.calls.map((c) => c[1]);
     expect(names).not.toContain('get_onboarding_status');
     expect(names).not.toContain('get_billing_summary');
+  });
+  it('a completed legacy agency (no onboarding row, R25) gets no checklist and no billing read', async () => {
+    state.role = 'agency_admin';
+    withStatus();
+    callTool.mockImplementation(async (_c: unknown, name: string) => {
+      if (name === 'get_portfolio') return { items: [row] };
+      if (name === 'get_onboarding_status') return { ...status, steps: { profile: 'done', team: 'done', plan: 'done', branding: 'done', first_client: 'done' }, completed: true, redirected: true, source: 'legacy' };
+      return { clients: [] };
+    });
+    callTool.mockClear();
+    tryCallTool.mockClear();
+    render(await Page());
+    expect(screen.queryByText('Getting started')).toBeNull();
+    const names = [...callTool.mock.calls, ...tryCallTool.mock.calls].map((c) => c[1]);
+    expect(names).not.toContain('get_billing_summary');
+  });
+  it.each([
+    ['throws', async () => { throw new Error('boom'); }],
+    ['is refused (null)', async () => null],
+  ])('the billing read fails soft when it %s: checklist renders without the payment sub-line', async (_n, impl) => {
+    state.role = 'agency_admin';
+    withStatus();
+    tryCallTool.mockImplementationOnce(impl as never);
+    callTool.mockImplementation(async (_c: unknown, name: string) => {
+      if (name === 'get_portfolio') return { items: [row] };
+      if (name === 'get_onboarding_status') return status;
+      if (name === 'get_billing_summary') throw new Error('NEXT_NOT_FOUND');
+      return { clients: [] };
+    });
+    render(await Page());
+    expect(screen.getByText('Getting started')).toBeTruthy();
+    expect(screen.queryByText('Add a payment method')).toBeNull();
   });
 });
