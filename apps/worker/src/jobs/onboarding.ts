@@ -44,7 +44,7 @@ export function nextOnboardingStep(row: StepFields): OnboardingStep | 'first_cli
  * Phase 10 Task 13: daily 15:00 UTC onboarding tips (days 1, 3, 7 after sign-up). One tip per run per agency at most: an
  * agency that missed days 1-6 gets only the day-7 tip. The tip is a `billing_notice` (kind `onboarding_tip`) delivered
  * by `billing-notices`; the guarded `nudges_sent` UPDATE and the enqueue share one transaction so a double run sends once.
- * Also drops `pending_signup` rows that expired over 30 days ago.
+ * Also drops OPEN `pending_signup` rows that expired over 30 days ago (completed rows are trial history).
  */
 export function createOnboardingJobs(deps: WorkerDeps, opts: OnboardingJobOptions) {
   const nudges = defineJob({
@@ -72,29 +72,45 @@ export function createOnboardingJobs(deps: WorkerDeps, opts: OnboardingJobOption
           ),
         );
       let sent = 0;
-      for (const row of rows) {
-        const slot = dueTipSlot(row.createdAt, now);
-        const nextStep = nextOnboardingStep(row);
-        if (slot <= row.nudgesSent || !nextStep) continue;
-        const day = TIP_DAYS[slot - 1]!;
-        const won = await db.transaction(async (tx) => {
-          const upd = await tx
-            .update(agencyOnboarding)
-            .set({ nudgesSent: slot })
-            .where(and(eq(agencyOnboarding.agencyId, row.agencyId), lt(agencyOnboarding.nudgesSent, slot)))
-            .returning({ agencyId: agencyOnboarding.agencyId });
-          if (upd.length === 0) return false; // another run won
-          await tx
-            .insert(billingNotice)
-            .values({ agencyId: row.agencyId, kind: 'onboarding_tip', audience: 'agency', dedupeKey: `onboarding_tip:${row.agencyId}:${day}`, params: { day, nextStep }, createdAt: now })
-            .onConflictDoNothing({ target: billingNotice.dedupeKey });
-          return true;
-        });
-        if (won) sent++;
+      let failed = 0;
+      let cleaned = 0;
+      try {
+        for (const row of rows) {
+          const slot = dueTipSlot(row.createdAt, now);
+          const nextStep = nextOnboardingStep(row);
+          if (slot <= row.nudgesSent || !nextStep) continue;
+          const day = TIP_DAYS[slot - 1]!;
+          try {
+            const won = await db.transaction(async (tx) => {
+              const upd = await tx
+                .update(agencyOnboarding)
+                .set({ nudgesSent: slot })
+                .where(and(eq(agencyOnboarding.agencyId, row.agencyId), lt(agencyOnboarding.nudgesSent, slot)))
+                .returning({ agencyId: agencyOnboarding.agencyId });
+              if (upd.length === 0) return false; // another run won
+              await tx
+                .insert(billingNotice)
+                .values({ agencyId: row.agencyId, kind: 'onboarding_tip', audience: 'agency', dedupeKey: `onboarding_tip:${row.agencyId}:${day}`, params: { day, nextStep }, createdAt: now })
+                .onConflictDoNothing({ target: billingNotice.dedupeKey });
+              return true;
+            });
+            if (won) sent++;
+          } catch (err) {
+            // One agency's failure must not stop the others; log the id and error name only.
+            failed++;
+            console.error(`[onboarding-nudges] tip failed for agency ${row.agencyId}: ${err instanceof Error ? err.name : 'unknown'}`);
+          }
+        }
+      } finally {
+        // Completed rows are kept forever: `trialAllowed` reads them ("one trial per email ever"). Only open rows expire.
+        const cutoff = new Date(now.getTime() - PENDING_RETENTION_DAYS * DAY_MS);
+        const gone = await db
+          .delete(pendingSignup)
+          .where(and(isNull(pendingSignup.completedAt), lt(pendingSignup.expiresAt, cutoff)))
+          .returning({ id: pendingSignup.id });
+        cleaned = gone.length;
       }
-      const cutoff = new Date(now.getTime() - PENDING_RETENTION_DAYS * DAY_MS);
-      const gone = await db.delete(pendingSignup).where(lt(pendingSignup.expiresAt, cutoff)).returning({ id: pendingSignup.id });
-      const out = { sent, cleaned: gone.length };
+      const out = { sent, failed, cleaned };
       console.log(`[onboarding-nudges] ${JSON.stringify(out)}`);
       return out;
     },

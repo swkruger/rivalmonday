@@ -134,4 +134,29 @@ describe('onboarding-nudges', () => {
     const left = (await dbs.owner.select().from(pendingSignup)).map((r) => r.email).sort();
     expect(left).toEqual(['future@x.test', 'recent@x.test']);
   });
+
+  it('cleanup keeps completed pending_signup rows forever (trial history)', async () => {
+    const row = (email: string, completedAt: Date | null) => ({ email, agencyName: 'X', source: 'open' as const, ipHash: 'h', expiresAt: ago(60 * D), completedAt });
+    await dbs.owner.insert(pendingSignup).values([row('done@x.test', ago(60 * D)), row('open@x.test', null)]);
+    const out = await run();
+    expect(out).toMatchObject({ cleaned: 1 });
+    expect((await dbs.owner.select().from(pendingSignup)).map((r) => r.email)).toEqual(['done@x.test']);
+  });
+
+  it('one agency failing does not stop the others, and cleanup still runs', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await seed();
+    await dbs.owner.insert(agencyOnboarding).values({ agencyId: IDS.agencyB, source: 'open', createdAt: ago(7 * D) });
+    await dbs.owner.insert(pendingSignup).values({ email: 'old@x.test', agencyName: 'X', source: 'open', ipHash: 'h', expiresAt: ago(31 * D) });
+    const real = dbs.service.transaction.bind(dbs.service);
+    vi.spyOn(dbs.service, 'transaction').mockImplementationOnce(async () => {
+      throw new TypeError('boom secret');
+    }).mockImplementation(real as never);
+    const out = await run();
+    expect(out).toMatchObject({ sent: 1, failed: 1, cleaned: 1 });
+    expect(await tips()).toHaveLength(1);
+    const logged = errSpy.mock.calls.map((c) => c.join(' ')).join(' | ');
+    expect(logged).toMatch(/TypeError/);
+    expect(logged).not.toMatch(/boom secret/);
+  });
 });
