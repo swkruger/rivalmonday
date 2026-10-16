@@ -6,6 +6,8 @@ const ts = (name: string) => timestamp(name, { withTimezone: true });
 
 export type DiscoveryRunStatus = 'queued' | 'searching' | 'checking' | 'finalising' | 'done' | 'failed';
 export type Tier = 'top' | 'watch' | 'minor';
+/** 'scheduled' (0056): the monthly automatic refresh. */
+export type DiscoveryRunTrigger = 'auto' | 'manual' | 'convert' | 'scheduled';
 /**
  * `discovery_run.progress`; hiddenList holds the first 50 hidden candidates (reason = HiddenReason code);
  * shortlistIds are the suggestion ids stage 2 checked (finalise recomputes exactly these).
@@ -24,7 +26,7 @@ export const discoveryRun = pgTable(
     agencyId: uuid('agency_id').notNull().references(() => agency.id, { onDelete: 'cascade' }),
     clientId: uuid('client_id').notNull(),
     status: text('status').$type<DiscoveryRunStatus>().notNull().default('queued'),
-    trigger: text('trigger').$type<'auto' | 'manual' | 'convert'>().notNull(),
+    trigger: text('trigger').$type<DiscoveryRunTrigger>().notNull(),
     keywords: jsonb('keywords').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     gridSize: integer('grid_size'),
     progress: jsonb('progress').$type<DiscoveryRunProgress>().notNull().default(sql`'{}'::jsonb`),
@@ -39,7 +41,7 @@ export const discoveryRun = pgTable(
   (t) => [
     foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade'),
     check('discovery_run_status_check', sql`${t.status} IN ('queued','searching','checking','finalising','done','failed')`),
-    check('discovery_run_trigger_check', sql`${t.trigger} IN ('auto','manual','convert')`),
+    check('discovery_run_trigger_check', sql`${t.trigger} IN ('auto','manual','convert','scheduled')`),
     index('discovery_run_agency_day_idx').on(t.agencyId, t.startedAt),
     uniqueIndex('discovery_run_one_live').on(t.clientId).where(sql`${t.status} IN ('queued','searching','checking','finalising')`),
   ],

@@ -211,6 +211,7 @@ export function SuggestionsPanel({
   initialSearch = 'idle',
   canSearch,
   hiddenList = [],
+  nextSearchLabel = null,
 }: {
   clientId: string;
   /** Keywords, a service area and a Google place id are all present. */
@@ -226,6 +227,8 @@ export function SuggestionsPanel({
   canSearch: boolean;
   /** What the latest search left out, with the decided reason label. */
   hiddenList?: { name: string; reason: HiddenReason }[];
+  /** One manual search per client-local week: the next allowed day ("Mon 20 Oct"), or null when one is allowed now. */
+  nextSearchLabel?: string | null;
 }) {
   const [state, formAction, pending] = useActionState(requestSuggestionsAction, { ok: true } as FormResult);
   const readOnly = useReadOnly();
@@ -277,12 +280,14 @@ export function SuggestionsPanel({
         {readOnly ? null : canSearch ? (
           <form action={formAction} className="flex flex-col gap-2">
             <input type="hidden" name="clientId" value={clientId} />
-            <Button type="submit" disabled={!ready || pending || searching} className="self-start">
+            <Button type="submit" disabled={!ready || pending || searching || nextSearchLabel !== null} className="self-start">
               {searching ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                   Searching…
                 </>
+              ) : nextSearchLabel !== null ? (
+                `Next search available ${nextSearchLabel}`
               ) : (
                 'Find competitors'
               )}

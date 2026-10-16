@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EnqueueJob, ToolDeps } from './deps';
 import { createToolRegistry } from './registry';
-import { startCompetitorSearch } from './rival-search';
+import { listMonthlyRivalClients, manualSearchWeek, nextManualSearchAt, searchDayLabel, startCompetitorSearch } from './rival-search';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -20,11 +20,13 @@ const MIN = 60_000;
 const DAY = 86_400_000;
 
 const runs = (clientId: string) => dbs.owner.select().from(discoveryRun).where(eq(discoveryRun.clientId, clientId));
-async function pastRun(clientId: string, opts: { status?: 'done' | 'failed'; startedAgoMs?: number; finishedAgoMs?: number | null } = {}): Promise<string> {
+type Trigger = 'auto' | 'manual' | 'convert' | 'scheduled';
+async function pastRun(clientId: string, opts: { status?: 'done' | 'failed'; startedAgoMs?: number; finishedAgoMs?: number | null; trigger?: Trigger; startedAt?: Date } = {}): Promise<string> {
   const now = Date.now();
+  const startedAt = opts.startedAt ?? new Date(now - (opts.startedAgoMs ?? 0));
   const [r] = await dbs.owner.insert(discoveryRun).values({
-    agencyId: IDS.agencyA, clientId, trigger: 'manual', status: opts.status ?? 'failed',
-    startedAt: new Date(now - (opts.startedAgoMs ?? 0)), finishedAt: opts.finishedAgoMs === null ? null : new Date(now - (opts.finishedAgoMs ?? 0)),
+    agencyId: IDS.agencyA, clientId, trigger: opts.trigger ?? 'manual', status: opts.status ?? 'failed',
+    startedAt, finishedAt: opts.finishedAgoMs === null ? null : opts.startedAt ? startedAt : new Date(now - (opts.finishedAgoMs ?? 0)),
   }).returning({ id: discoveryRun.id });
   return r!.id;
 }
@@ -61,27 +63,34 @@ describe('startCompetitorSearch', () => {
     expect(await runs(IDS.clientA1)).toHaveLength(1);
   });
 
-  it('cooldown: refused for 10 minutes after the last run finished', async () => {
+  it('cooldown: automatic runs are refused for 10 minutes after the last run finished; manual runs are not', async () => {
     await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
-    const id = await pastRun(IDS.clientA1, { status: 'done', startedAgoMs: 20 * MIN, finishedAgoMs: 5 * MIN });
-    await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual')).resolves.toEqual({ refused: 'cooldown' });
-    await dbs.owner.update(discoveryRun).set({ finishedAt: new Date(Date.now() - 11 * MIN) }).where(eq(discoveryRun.id, id));
+    const id = await pastRun(IDS.clientA1, { status: 'done', startedAgoMs: 20 * MIN, finishedAgoMs: 5 * MIN, trigger: 'auto' });
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'scheduled')).resolves.toEqual({ refused: 'cooldown' });
     await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual')).resolves.toEqual({ runId: expect.any(String) });
+    await dbs.owner.delete(discoveryRun).where(eq(discoveryRun.trigger, 'manual'));
+    await dbs.owner.update(discoveryRun).set({ finishedAt: new Date(Date.now() - 11 * MIN) }).where(eq(discoveryRun.id, id));
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'scheduled')).resolves.toEqual({ runId: expect.any(String) });
   });
 
-  it('daily cap refuses the 6th run with the decided copy', async () => {
+  it('daily cap: the 6th manual run of the agency today is refused with the decided copy; other triggers neither count nor are capped', async () => {
     await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
-    // Four of agency A's runs today (another client, so no cooldown) plus one two days ago: the next is the 5th today.
+    // Four manual runs today for another client, automatic ones that never count, and one manual run 9 days ago.
     for (let i = 0; i < 4; i++) await pastRun(IDS.clientA2, { finishedAgoMs: 0 });
-    await pastRun(IDS.clientA1, { startedAgoMs: 2 * DAY, finishedAgoMs: 2 * DAY });
+    for (const trigger of ['auto', 'convert', 'scheduled'] as const) await pastRun(IDS.clientA2, { finishedAgoMs: 0, trigger });
+    await pastRun(IDS.clientA1, { startedAgoMs: 9 * DAY, finishedAgoMs: 9 * DAY });
     // Another agency's runs never count.
     await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyB, clientId: IDS.clientB1, trigger: 'manual', status: 'failed', finishedAt: new Date() });
     await expect(registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).resolves.toEqual({ queued: true, runId: expect.any(String) });
-
-    await dbs.owner.update(discoveryRun).set({ status: 'failed', finishedAt: new Date(Date.now() - 11 * MIN) }).where(eq(discoveryRun.clientId, IDS.clientA1));
-    await expect(registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input', message: 'Daily search limit reached. Try again tomorrow.' });
-    await expect(startCompetitorSearch(deps, IDS.clientA1, 'auto')).resolves.toEqual({ refused: 'daily_cap' });
     expect(enqueue).toHaveBeenCalledTimes(1);
+
+    // Five manual runs today now. A1's own manual run moves to last week so only the cap can refuse.
+    await dbs.owner.update(discoveryRun).set({ status: 'failed', startedAt: new Date(Date.now() - 8 * DAY), finishedAt: new Date(Date.now() - 8 * DAY) }).where(eq(discoveryRun.clientId, IDS.clientA1));
+    await pastRun(IDS.clientA2, { finishedAgoMs: 0 });
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual')).resolves.toEqual({ refused: 'daily_cap' });
+    await expect(registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input', message: 'Daily search limit reached. Try again tomorrow.' });
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'scheduled')).resolves.toEqual({ runId: expect.any(String) });
+    expect(enqueue).toHaveBeenCalledTimes(2);
   });
 
   it('a failed enqueue deletes the run (no cooldown, no cap) and is refused as enqueue_failed', async () => {
@@ -100,6 +109,83 @@ describe('startCompetitorSearch', () => {
     await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
     await expect(startCompetitorSearch({ app: dbs.app, service: dbs.service }, IDS.clientA1, 'manual')).rejects.toMatchObject({ code: 'internal' });
     expect(await runs(IDS.clientA1)).toEqual([]);
+  });
+});
+
+describe('weekly manual search limit (owner decision 2026-10-15)', () => {
+  const CHICAGO = 'America/Chicago';
+  // Wed 14 Oct 2026, 10:00 in Chicago (CDT, UTC-5).
+  const WED = new Date('2026-10-14T15:00:00Z');
+  beforeEach(async () => {
+    await dbs.owner.update(client).set({ ...PROFILE, timezone: CHICAGO }).where(eq(client.id, IDS.clientA1));
+  });
+
+  it('manualSearchWeek: Monday 00:00 in the client timezone, and the next Monday', () => {
+    expect(manualSearchWeek(WED, CHICAGO)).toEqual({ start: new Date('2026-10-12T05:00:00Z'), next: new Date('2026-10-19T05:00:00Z'), nextLocalDate: '2026-10-19' });
+    // Sunday 23:30 in Chicago is still the old week although it is Monday in UTC.
+    expect(manualSearchWeek(new Date('2026-10-19T04:30:00Z'), CHICAGO).next).toEqual(new Date('2026-10-19T05:00:00Z'));
+    expect(manualSearchWeek(new Date('2026-10-19T05:00:00Z'), CHICAGO).start).toEqual(new Date('2026-10-19T05:00:00Z'));
+    // Across the US DST change (1 Nov 2026) the next Monday is at UTC-6.
+    expect(manualSearchWeek(new Date('2026-10-28T15:00:00Z'), CHICAGO).next).toEqual(new Date('2026-11-02T06:00:00Z'));
+    // Tokyo is ahead of UTC: Monday 00:00 JST is Sunday 15:00 UTC.
+    expect(manualSearchWeek(WED, 'Asia/Tokyo').start).toEqual(new Date('2026-10-11T15:00:00Z'));
+    expect(searchDayLabel('2026-10-19')).toBe('Mon 19 Oct');
+    expect(searchDayLabel('2026-11-02')).toBe('Mon 2 Nov');
+  });
+
+  it('a second manual search in the same client-local week is refused with the decided copy', async () => {
+    await pastRun(IDS.clientA1, { status: 'done', startedAt: new Date('2026-10-12T06:00:00Z') });
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual', WED)).resolves.toEqual({ refused: 'weekly_limit', nextManualSearchAt: '2026-10-19T05:00:00.000Z', nextLabel: 'Mon 19 Oct' });
+    expect(enqueue).not.toHaveBeenCalled();
+    // The tool uses the real clock: a manual run started a minute ago is always this week.
+    await dbs.owner.delete(discoveryRun).where(eq(discoveryRun.clientId, IDS.clientA1));
+    await pastRun(IDS.clientA1, { status: 'done', startedAgoMs: MIN, finishedAgoMs: MIN });
+    const { nextLocalDate } = manualSearchWeek(new Date(), CHICAGO);
+    await expect(registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({
+      code: 'invalid_input', message: `One competitor search per week. Next search available ${searchDayLabel(nextLocalDate)}.`,
+    });
+  });
+
+  it('failed manual runs count; a run from the previous client-local week does not', async () => {
+    // Sunday 23:00 in Chicago = Monday 04:00 UTC: last week for this client.
+    await pastRun(IDS.clientA1, { status: 'failed', startedAt: new Date('2026-10-19T04:00:00Z') });
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual', new Date('2026-10-19T04:30:00Z'))).resolves.toMatchObject({ refused: 'weekly_limit', nextLabel: 'Mon 19 Oct' });
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual', new Date('2026-10-19T05:30:00Z'))).resolves.toEqual({ runId: expect.any(String) });
+  });
+
+  it('auto, convert and scheduled runs do not count toward the weekly limit, and manual runs do not block scheduled ones', async () => {
+    for (const trigger of ['auto', 'convert', 'scheduled'] as const) await pastRun(IDS.clientA1, { status: 'done', startedAt: new Date('2026-10-13T12:00:00Z'), trigger });
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual', WED)).resolves.toEqual({ runId: expect.any(String) });
+    await dbs.owner.update(discoveryRun).set({ status: 'done', finishedAt: new Date('2026-10-13T12:00:00Z') }).where(eq(discoveryRun.clientId, IDS.clientA1));
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'scheduled', WED)).resolves.toEqual({ runId: expect.any(String) });
+  });
+
+  it('nextManualSearchAt: null without a manual run this week, else next Monday 00:00 in the client timezone', async () => {
+    await expect(nextManualSearchAt(dbs.service, IDS.clientA1, CHICAGO, WED)).resolves.toBeNull();
+    await pastRun(IDS.clientA1, { status: 'done', startedAt: new Date('2026-10-13T12:00:00Z'), trigger: 'scheduled' });
+    await expect(nextManualSearchAt(dbs.service, IDS.clientA1, CHICAGO, WED)).resolves.toBeNull();
+    await pastRun(IDS.clientA1, { status: 'done', startedAt: new Date('2026-10-13T12:00:00Z') });
+    await expect(nextManualSearchAt(dbs.service, IDS.clientA1, CHICAGO, WED)).resolves.toBe('2026-10-19T05:00:00.000Z');
+    await expect(nextManualSearchAt(dbs.service, IDS.clientA1, 'Asia/Tokyo', WED)).resolves.toBe('2026-10-18T15:00:00.000Z');
+  });
+});
+
+describe('monthly refresh (scheduled trigger)', () => {
+  it('listMonthlyRivalClients: active clients with keywords, a service area and a place id only', async () => {
+    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ ...PROFILE, placeId: 'ChIJa2hvacplace2', status: 'prospect' }).where(eq(client.id, IDS.clientA2));
+    await dbs.owner.update(client).set({ keywords: [], serviceArea: AREA, placeId: 'ChIJb1hvacplace1' }).where(eq(client.id, IDS.clientB1));
+    expect(await listMonthlyRivalClients(dbs.service)).toEqual([IDS.clientA1]);
+    await dbs.owner.update(client).set({ ...PROFILE, placeId: 'ChIJb1hvacplace1' }).where(eq(client.id, IDS.clientB1));
+    expect((await listMonthlyRivalClients(dbs.service)).sort()).toEqual([IDS.clientA1, IDS.clientB1].sort());
+  });
+
+  it('a scheduled run can start in the future: its start time is the delayed one', async () => {
+    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+    const at = new Date(Date.now() + 10 * MIN);
+    const r = await startCompetitorSearch(deps, IDS.clientA1, 'scheduled', at);
+    expect(r).toEqual({ runId: expect.any(String) });
+    expect(await runs(IDS.clientA1)).toEqual([expect.objectContaining({ trigger: 'scheduled', status: 'queued', startedAt: at })]);
   });
 });
 

@@ -6,6 +6,7 @@ try {
   // repo-root .env is optional (e.g. production, where env vars are injected directly)
 }
 
+import { startCompetitorSearch } from '@cs/tools';
 import { createBoss, enqueue, registerJobs } from './boss';
 import { createWorkerDeps } from './deps';
 import { createAskJobs } from './jobs/ask';
@@ -78,6 +79,20 @@ const rivals = createRivalJobs(deps, {
   enqueueFinalise: async (runId, { force, startAfter }) => {
     await enqueue(boss, rivals.finalise, { runId, force }, { singletonKey: `rival-finalise${force ? '-force' : ''}:${runId}`, startAfter });
   },
+  // The run's start time is when its job becomes available, so the 2 h stale sweep counts from then.
+  startScheduledSearch: (clientId, startAfter) =>
+    startCompetitorSearch(
+      {
+        app: deps.serviceDb(),
+        service: deps.serviceDb(),
+        enqueue: async (_job, data, singletonKey) => {
+          await enqueue(boss, rivals.search, { runId: data.runId! }, { singletonKey, startAfter });
+        },
+      },
+      clientId,
+      'scheduled',
+      new Date(Date.now() + startAfter * 1000),
+    ),
 });
 const moves = createMovesJobs(deps, {
   enqueueMovesClient: async (clientId) => {
@@ -121,7 +136,7 @@ const delivery = createDeliveryJobs(deps, {
 });
 await registerJobs(boss, [
   heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, prospects.snapshot,
-  rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly,
+  rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly, rivals.monthly,
   engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.price, reviews.nightly, moves.nightly, moves.client,
   modelOps.batchPoll, platformStats.daily, platformCosts.snapshot, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
   delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,

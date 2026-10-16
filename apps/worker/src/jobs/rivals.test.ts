@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
-import { createRivalJobs } from './rivals';
+import { createRivalJobs, RIVAL_MONTHLY_SPACING_SECONDS } from './rivals';
 import { createVendorJobs, SINGLE_SHOT_QUEUE } from './vendor';
 
 const RUN = '00000000-0000-4000-8000-0000000000a1';
 const NOW = new Date('2026-10-19T09:00:00Z');
 
-function setup(over: Partial<WorkerDeps> = {}) {
+type Started = { runId: string } | { refused: string };
+function setup(over: Partial<WorkerDeps> = {}, at: Date = NOW, startScheduledSearch = vi.fn(async (_clientId: string, _startAfter: number): Promise<Started> => ({ runId: RUN }))) {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   const deps = {
     vendorsConfigured: () => true,
@@ -16,10 +17,11 @@ function setup(over: Partial<WorkerDeps> = {}) {
     sweepRivalRuns: vi.fn(async () => ({ stale: 0, finalised: 0 })),
     listSignalClients: vi.fn(async () => ['c1', 'c2']),
     computeTrackedSignals: vi.fn(async () => 3),
+    listMonthlyRivalClients: vi.fn(async () => ['m1', 'm2', 'm3', 'm4']),
     ...over,
   } as unknown as WorkerDeps;
   const enqueueFinalise = vi.fn(async (_runId: string, _o: { force: boolean; startAfter?: number }) => {});
-  return { deps, enqueueFinalise, jobs: createRivalJobs(deps, { enqueueFinalise, now: () => NOW }) };
+  return { deps, enqueueFinalise, startScheduledSearch, jobs: createRivalJobs(deps, { enqueueFinalise, startScheduledSearch, now: () => at }) };
 }
 
 describe('rival jobs', () => {
@@ -79,6 +81,47 @@ describe('rival jobs', () => {
     await jobs.signalsWeekly.handler({});
     expect(deps.listSignalClients).toHaveBeenCalled();
     expect(computeTrackedSignals.mock.calls).toEqual([['c1', NOW], ['c2', NOW]]);
+  });
+});
+
+describe('rival-monthly (first Monday of the month)', () => {
+  // Monday 2 Nov 2026 is a first Monday; Monday 19 Oct 2026 (NOW) is not.
+  const FIRST_MONDAY = new Date('2026-11-02T10:00:00Z');
+
+  it('is scheduled every Monday 10:00 UTC (cron ORs day-of-month with day-of-week, so the job checks the date)', () => {
+    const { jobs } = setup();
+    expect(jobs.monthly.cron).toBe('0 10 * * 1');
+    expect(jobs.monthly.name).toBe('rival-monthly');
+  });
+
+  it('does nothing on a Monday after the 7th', async () => {
+    for (const at of [NOW, new Date('2026-11-09T10:00:00Z')]) {
+      const { deps, jobs, startScheduledSearch } = setup({}, at);
+      await jobs.monthly.handler({});
+      expect(deps.listMonthlyRivalClients).not.toHaveBeenCalled();
+      expect(startScheduledSearch).not.toHaveBeenCalled();
+    }
+  });
+
+  it('starts a scheduled search for every eligible client, a few minutes apart; refusals take no slot, failures do not stop the rest', async () => {
+    const start = vi.fn(async (clientId: string, _s: number): Promise<Started> => {
+      if (clientId === 'm2') return { refused: 'running' };
+      if (clientId === 'm3') throw new Error('boom');
+      return { runId: RUN };
+    });
+    const { deps, jobs } = setup({}, FIRST_MONDAY, start);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await jobs.monthly.handler({});
+    expect(deps.listMonthlyRivalClients).toHaveBeenCalledTimes(1);
+    expect(start.mock.calls).toEqual([['m1', 0], ['m2', RIVAL_MONTHLY_SPACING_SECONDS], ['m3', RIVAL_MONTHLY_SPACING_SECONDS], ['m4', RIVAL_MONTHLY_SPACING_SECONDS]]);
+    expect(RIVAL_MONTHLY_SPACING_SECONDS).toBeGreaterThanOrEqual(120);
+    expect(RIVAL_MONTHLY_SPACING_SECONDS).toBeLessThanOrEqual(600);
+  });
+
+  it('also runs on the 7th when that is the first Monday', async () => {
+    const { deps, jobs } = setup({}, new Date('2026-09-07T10:00:00Z'));
+    await jobs.monthly.handler({});
+    expect(deps.listMonthlyRivalClients).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -4,7 +4,7 @@ import { ad, client, clientCompetitor, competitor, competitorSignal, competitorS
 import { and, asc, count, desc, eq, gt, inArray, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type ToolDeps } from '../deps';
-import { latestDoneRun, type SearchRefusal, startCompetitorSearch } from '../rival-search';
+import { latestDoneRun, nextManualSearchAt, type SearchRefusal, startCompetitorSearch, weeklyLimitMessage } from '../rival-search';
 import { detailOf, pageOf, pageResult } from '../paging';
 import { AdMatch, CompetitorSignalView, HiddenReason, pageFields, pagedItems, Signals, SuggestionView, Tier, TrackedCompetitor } from './schemas';
 
@@ -113,8 +113,8 @@ export const listCompetitorSuggestions = defineTool({
   },
 });
 
-/** Refusal copy for the manual search (daily cap copy decided in the 12a plan). */
-const REFUSAL: Record<SearchRefusal, string> = {
+/** Refusal copy for the manual search (daily cap copy decided in the 12a plan; weekly copy is `weeklyLimitMessage`). */
+const REFUSAL: Record<Exclude<SearchRefusal, 'weekly_limit'>, string> = {
   missing_profile: 'Add keywords, a service area and the Google place id to the client profile first',
   running: 'A competitor search is already running for this client',
   cooldown: 'A search just finished — its suggestions are below. You can search again in a few minutes.',
@@ -134,7 +134,7 @@ export const requestCompetitorSuggestions = defineTool({
     const [c] = await withTenant(deps.app, ctx, (tx) => tx.select({ id: client.id }).from(client).where(eq(client.id, clientId)));
     if (!c) throw new ToolError('not_found', 'Client not found');
     const r = await startCompetitorSearch(deps, clientId, 'manual');
-    if ('refused' in r) throw new ToolError('invalid_input', REFUSAL[r.refused]);
+    if ('refused' in r) throw new ToolError('invalid_input', r.refused === 'weekly_limit' ? weeklyLimitMessage(r.nextLabel) : REFUSAL[r.refused]);
     return { queued: true as const, runId: r.runId };
   },
 });
@@ -148,9 +148,11 @@ export const getCompetitorSearchStatus = defineTool({
   description: 'The client’s latest competitor search: its stage, progress, what it kept and hid — the web page polls it after "Find competitors".',
   input: z.object({ clientId: uuid }),
   output: z.union([
-    z.object({ status: z.literal('none') }),
+    z.object({ status: z.literal('none'), nextManualSearchAt: z.string().nullable() }),
     z.object({
       status: z.enum(RUN_STATUSES),
+      /** When the next manual "Find competitors" is allowed (one per client-local week); null when allowed now. */
+      nextManualSearchAt: z.string().nullable(),
       progress: z.object({ searchesDone: z.number().int(), searchesTotal: z.number().int(), checksDone: z.number().int(), checksTotal: z.number().int() }),
       kept: z.number().int().nullable(),
       hidden: z.record(HiddenReason, z.number().int()),
@@ -161,11 +163,19 @@ export const getCompetitorSearchStatus = defineTool({
   audit: 'skip-web',
   async handler(ctx, { clientId }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
-    const [run] = await withTenant(deps.app, ctx, (tx) => tx.select().from(discoveryRun).where(eq(discoveryRun.clientId, clientId)).orderBy(desc(discoveryRun.startedAt)).limit(1));
-    if (!run) return { status: 'none' as const };
+    const r = await withTenant(deps.app, ctx, async (tx) => {
+      const [c] = await tx.select({ timezone: client.timezone }).from(client).where(eq(client.id, clientId));
+      if (!c) return null;
+      const [run] = await tx.select().from(discoveryRun).where(eq(discoveryRun.clientId, clientId)).orderBy(desc(discoveryRun.startedAt)).limit(1);
+      return { run, next: await nextManualSearchAt(tx, clientId, c.timezone) };
+    });
+    if (!r) throw new ToolError('not_found', 'Client not found');
+    const { run, next } = r;
+    if (!run) return { status: 'none' as const, nextManualSearchAt: next };
     const p = run.progress;
     return {
       status: run.status,
+      nextManualSearchAt: next,
       progress: { searchesDone: count0(p.searchesDone), searchesTotal: count0(p.searchesTotal), checksDone: count0(p.checksDone), checksTotal: count0(p.checksTotal) },
       kept: run.kept, hidden: hiddenCounts(run.hidden), finishedAt: run.finishedAt?.toISOString() ?? null,
     };

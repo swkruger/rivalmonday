@@ -35,6 +35,25 @@ describe('SuggestionsPanel', () => {
   });
 });
 
+describe('weekly search limit', () => {
+  it('shows the button disabled with the next allowed day when this week\'s manual search is used', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} canSearch nextSearchLabel="Mon 20 Oct" />);
+    const button = screen.getByRole('button', { name: 'Next search available Mon 20 Oct' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: /find competitors/i })).toBeNull();
+  });
+
+  it('a running search still shows Searching… rather than the next day', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} canSearch initialSearch="running" nextSearchLabel="Mon 20 Oct" />);
+    expect(screen.getByRole('button', { name: /searching/i })).toBeTruthy();
+  });
+
+  it('shows Find competitors when no limit applies', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} canSearch nextSearchLabel={null} />);
+    expect((screen.getByRole('button', { name: 'Find competitors' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
 describe('client owner views', () => {
   it('hides the paid search for client owners and shows a hint instead', () => {
     render(<SuggestionsPanel clientId="c1" ready suggestions={[]} initialSearch="idle" atLimit={false} limit={5} canSearch={false} />);

@@ -58,6 +58,11 @@ describe('discovery_run / competitor_signal RLS', () => {
     await dbs.service.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'manual', status: 'searching' });
     expect(await errorText(dbs.service.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'auto' }))).toMatch(/discovery_run_one_live/);
   });
+
+  it('accepts the scheduled trigger (0056) and still rejects unknown ones', async () => {
+    await dbs.service.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'scheduled' });
+    expect(await errorText(dbs.service.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, trigger: 'weekly' as 'manual' }))).toMatch(/discovery_run_trigger_check/);
+  });
 });
 
 describe('vendor_task_subject_check', () => {

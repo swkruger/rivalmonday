@@ -16,7 +16,7 @@ import {
 } from '@cs/engine';
 import { generateStarters } from '@cs/ask';
 import { createEmailTransportFromEnv, renderEmail, resolveBranding } from '@cs/email';
-import { normalizeAdminEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps } from '@cs/tools';
+import { listMonthlyRivalClients, normalizeAdminEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps } from '@cs/tools';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { lookup } from 'node:dns/promises';
@@ -80,6 +80,8 @@ export interface WorkerDeps {
   sweepRivalRuns(now: Date): Promise<{ stale: number; finalised: number }>;
   /** Active clients only (prospects get no recurring work). */
   listSignalClients(): Promise<string[]>;
+  /** `rival-monthly`: active clients with a complete search profile (keywords, service area, place id). */
+  listMonthlyRivalClients(): Promise<string[]>;
   /** Rates the client's tracked competitors into competitor_signal; returns how many were rated. */
   computeTrackedSignals(clientId: string, now: Date): Promise<number>;
   /** True once APP_URL and LINK_SIGNING_SECRET (at least 32 characters) are set — gates every delivery job. */
@@ -349,6 +351,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     finaliseRivalSearch: (runId, opts) => finaliseRivalSearch(rivalDeps(), runId, opts),
     sweepRivalRuns: (now) => sweepRivalRuns(rivalDeps(), now),
     listSignalClients: () => listSignalClients(getDb()),
+    listMonthlyRivalClients: () => listMonthlyRivalClients(getDb()),
     computeTrackedSignals: async (clientId, now) => (await computeTrackedSignals({ db: getDb(), packs }, clientId, now)).length,
     deliveryConfigured: () => delivery !== null,
     sweepAlerts: (now) => sweepAlerts(getDb(), now),

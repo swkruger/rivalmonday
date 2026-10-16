@@ -393,6 +393,13 @@
       "when": 1792044934735,
       "tag": "0055_client_activated_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1792108346523,
+      "tag": "0056_discovery_run_scheduled_trigger",
+      "breakpoints": true
     }
   ]
 }

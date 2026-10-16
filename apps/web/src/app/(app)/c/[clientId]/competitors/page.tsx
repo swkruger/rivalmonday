@@ -1,5 +1,6 @@
 import { canManageCompetitors, hasFeature, isAgencyRole } from '@cs/core';
 import type { ClientProfile, CompetitorSignalView, HiddenReason, SuggestionView, TrackedCompetitor } from '@cs/tools';
+import { searchDayLabelAt } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -24,11 +25,15 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
     agency
       ? callTool<{ suggestions: SuggestionView[]; hiddenList: { name: string; reason: HiddenReason }[] }>(ctx, 'list_competitor_suggestions', { clientId })
       : Promise.resolve({ suggestions: [] as SuggestionView[], hiddenList: [] as { name: string; reason: HiddenReason }[] }),
-    agency ? callTool<{ status: string }>(ctx, 'get_competitor_search_status', { clientId }) : Promise.resolve({ status: 'none' }),
+    agency
+      ? callTool<{ status: string; nextManualSearchAt: string | null }>(ctx, 'get_competitor_search_status', { clientId })
+      : Promise.resolve({ status: 'none', nextManualSearchAt: null }),
     // Tier and signals are for every role (no ad-match data in this payload).
     callTool<{ competitors: CompetitorSignalView[] }>(ctx, 'get_competitor_signals', { clientId }),
   ]);
   const atLimit = tracked.items.length >= tracked.limit;
+  // One manual search per client-local week: the button names the next allowed day in the client's timezone.
+  const nextSearchLabel = search.nextManualSearchAt ? searchDayLabelAt(search.nextManualSearchAt, profile.timezone) : null;
   return (
     <>
       {profile.status === 'prospect' && (
@@ -66,6 +71,7 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
           trackedCount={tracked.items.length}
           hiddenList={suggestions.hiddenList}
           canSearch={agency}
+          nextSearchLabel={nextSearchLabel}
         />
       )}
     </>

@@ -7,6 +7,7 @@ import type { EnqueueJob, JobStatusLookup } from '../deps';
 import { ensureSelfCompetitor } from '@cs/collectors';
 import { createToolRegistry } from '../registry';
 import { normalizeDomain } from './competitors';
+import { manualSearchWeek } from '../rival-search';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -104,7 +105,15 @@ describe('get_competitor_search_status', () => {
   const status = (c: AccessContext = admin) => registry.invoke(c, 'get_competitor_search_status', { clientId: IDS.clientA1 });
 
   it('is none when this client has never searched', async () => {
-    await expect(status()).resolves.toEqual({ status: 'none' });
+    await expect(status()).resolves.toEqual({ status: 'none', nextManualSearchAt: null });
+  });
+
+  it('nextManualSearchAt is next Monday 00:00 in the client timezone once a manual search ran this week; automatic runs never set it', async () => {
+    await dbs.owner.update(client).set({ timezone: 'Asia/Tokyo' }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'scheduled', status: 'done', finishedAt: new Date() });
+    await expect(status()).resolves.toMatchObject({ status: 'done', nextManualSearchAt: null });
+    await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'manual', status: 'failed', finishedAt: new Date() });
+    await expect(status()).resolves.toMatchObject({ nextManualSearchAt: manualSearchWeek(new Date(), 'Asia/Tokyo').next.toISOString() });
   });
 
   it('reports the latest run: stage, progress counters, kept and hidden counts', async () => {
@@ -114,7 +123,7 @@ describe('get_competitor_search_status', () => {
       progress: { searchesDone: 140, searchesTotal: 245, checksDone: 0, checksTotal: 0, hiddenList: [{ name: 'Dollar General', reason: 'wrong_category' }], shortlistIds: [] },
     });
     await expect(status()).resolves.toEqual({
-      status: 'searching', progress: { searchesDone: 140, searchesTotal: 245, checksDone: 0, checksTotal: 0 }, kept: null,
+      status: 'searching', nextManualSearchAt: expect.any(String), progress: { searchesDone: 140, searchesTotal: 245, checksDone: 0, checksTotal: 0 }, kept: null,
       hidden: { wrong_category: 0, outside_area: 0, self: 0, closed: 0, thin: 0 }, finishedAt: null,
     });
   });
@@ -491,7 +500,7 @@ describe('payload keys (no upsell_tag, no ad matches for clients)', () => {
       ...['adMatches', 'adMatches[].accountId', 'adMatches[].name', 'adMatches[].platform', 'adMatches[].strength', 'appearances', 'bestRank', 'category', 'distanceKm', 'domain', 'id', 'name',
         'overlapScore', 'placeId', 'preselected', 'rating', 'signals', 'tier', 'votes'].map((k) => `suggestions[].${k}`),
     ].sort());
-    expect(keysOf(status).sort()).toEqual(['finishedAt', 'hidden', 'hidden.closed', 'hidden.outside_area', 'hidden.self', 'hidden.thin', 'hidden.wrong_category', 'kept', 'progress',
+    expect(keysOf(status).sort()).toEqual(['finishedAt', 'hidden', 'hidden.closed', 'hidden.outside_area', 'hidden.self', 'hidden.thin', 'hidden.wrong_category', 'kept', 'nextManualSearchAt', 'progress',
       'progress.checksDone', 'progress.checksTotal', 'progress.searchesDone', 'progress.searchesTotal', 'status']);
   });
 });
