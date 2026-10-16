@@ -64,6 +64,8 @@ export const OnboardingStatus = z.object({
   steps: z.object({ profile: StepState, team: StepState, plan: StepState, branding: StepState, first_client: StepState }),
   dismissed: z.boolean(),
   completed: z.boolean(),
+  /** The first-session redirect to the wizard has already happened (a missing row counts as redirected: never redirect). */
+  redirected: z.boolean(),
   source: z.enum(['open', 'invite', 'legacy']),
 });
 export type OnboardingStatus = z.infer<typeof OnboardingStatus>;
@@ -78,7 +80,7 @@ export const getOnboardingStatus = defineTool({
   async handler(ctx, _input, deps): Promise<OnboardingStatus> {
     requireReader(ctx);
     const [r] = await deps.service.select().from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, ctx.agencyId));
-    if (!r) return { steps: { profile: 'open', team: 'open', plan: 'open', branding: 'open', first_client: 'open' }, dismissed: false, completed: false, source: 'legacy' as const };
+    if (!r) return { steps: { profile: 'open', team: 'open', plan: 'open', branding: 'open', first_client: 'open' }, dismissed: false, completed: false, redirected: true, source: 'legacy' as const };
     return {
       steps: {
         profile: stepState(r.profileDoneAt, r.profileSkippedAt), team: stepState(r.teamDoneAt, r.teamSkippedAt),
@@ -87,6 +89,7 @@ export const getOnboardingStatus = defineTool({
       },
       dismissed: !!r.dismissedAt,
       completed: !!r.completedAt,
+      redirected: !!r.redirectedAt,
       source: r.source,
     };
   },

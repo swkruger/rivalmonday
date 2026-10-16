@@ -4,6 +4,8 @@ import { AppShell } from '@/components/shell/app-shell';
 import { billingRedirectFor } from '@/server/billing-redirect';
 import { billingSnapshotOf } from '@/server/billing-state';
 import { requireContext } from '@/server/current-viewer';
+import { runTool } from '@/server/run-tool';
+import { callTool } from '@/server/tools';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,11 +19,21 @@ export const dynamic = 'force-dynamic';
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { viewer, ctx } = await requireContext();
   const billing = viewer.kind === 'support' ? null : await billingSnapshotOf(ctx.agencyId);
+  const firstSession = viewer.kind === 'user' && ctx.role === 'agency_admin';
+  const pathname = billing || firstSession ? ((await headers()).get('x-rm-path') ?? '').split('?')[0]! : '';
   if (billing) {
-    const pathname = ((await headers()).get('x-rm-path') ?? '').split('?')[0]!;
     const to = billingRedirectFor({ state: billing.state, role: ctx.role, pathname });
     if (to) redirect(to);
     if (billing.state === 'suspended' && ctx.role !== 'agency_admin') return <>{children}</>;
+  }
+  // Phase 10 first-session redirect: one status read, admins in a normal session only (never support, never `/onboarding`).
+  // Legacy agencies are backfilled `completed`, so they are never sent. `redirected_at` makes it happen once.
+  if (firstSession && billing?.state !== 'suspended' && !pathname.startsWith('/onboarding')) {
+    const status = await callTool<{ completed: boolean; dismissed: boolean; redirected: boolean }>(ctx, 'get_onboarding_status', {});
+    if (!status.completed && !status.dismissed && !status.redirected) {
+      await runTool(ctx, 'mark_onboarding_redirected', {});
+      redirect('/onboarding');
+    }
   }
   return (
     <AppShell viewer={viewer} ctx={ctx} billing={billing}>

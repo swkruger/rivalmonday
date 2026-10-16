@@ -7,6 +7,7 @@ vi.mock('@cs/tools', () => ({ platformRole: m.platformRole }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@/server/tools', () => ({ callTool: m.callTool }));
+vi.mock('@/server/run-tool', () => ({ runTool: vi.fn() }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: m.requireContext, requireOperatorContext: m.requireOperatorContext }));
 vi.mock('@/components/shell/app-shell', () => ({
   AppShell: ({ viewer, children, platformRole }: { viewer: { kind: string }; children: React.ReactNode; platformRole?: string | null }) => (

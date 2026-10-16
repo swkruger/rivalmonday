@@ -16,6 +16,8 @@ const EXEMPT: Record<string, string> = {
   'app/(app)/c/[clientId]/settings/ai/page.tsx': 'same: ai-connections cards guard themselves',
   'app/(app)/agency/playbooks/page.tsx': 'PlaybookEditor falls back to its read-only view via useReadOnly',
   'app/(app)/agency/clients/new/page.tsx': 'ClientProfileForm guards its submit',
+  'app/(app)/agency/branding/branding-form.tsx': 'passes the action to BrandingEditor, which guards its submit with WriteGuard',
+  'app/(app)/onboarding/steps/branding.tsx': 'passes the action to BrandingEditor, which guards its submit with WriteGuard',
   'app/(app)/agency/prospects/new/page.tsx': 'ClientProfileForm guards its submit',
   'app/(app)/c/[clientId]/recommendations/page.tsx': 'RecommendationBoard guards itself',
   'app/(app)/c/[clientId]/changes/viewer.tsx': 'FeedbackButtons guards itself',
@@ -54,6 +56,8 @@ function walk(dir: string, out: string[] = []): string[] {
  * must guard themselves, because their callers differ. Removing `useReadOnly` from a self-guarding component fails here.
  */
 const CLIENT_EXEMPT: Record<string, string> = {
+  'app/(app)/agency/branding/branding-form.tsx': 'passes the action to BrandingEditor, which guards its submit with WriteGuard',
+  'app/(app)/onboarding/steps/branding.tsx': 'passes the action to BrandingEditor, which guards its submit with WriteGuard',
   'app/(app)/settings/notifications/contact-form.tsx': 'page is a 404 in a support session',
   'app/(app)/settings/notifications/pref-switch.tsx': 'page is a 404 in a support session',
   'app/(app)/agency/settings/platform-access/notify-switch.tsx': 'page is a 404 in a support session (viewer.kind !== user)',

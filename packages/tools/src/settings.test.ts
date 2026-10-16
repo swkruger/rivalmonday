@@ -33,6 +33,16 @@ describe('branding', () => {
     expect(resolved.primary).toBe('#123ABC');
   });
 
+  it("accepts this deployment's own /files/logo/ URL (dev http) but keeps external logos https-only", () => {
+    const own = 'http://localhost:3000/files/logo/a/abc.png';
+    expect(brandingProblems({ logoUrl: own }, 'http://localhost:3000')).toEqual([]);
+    expect(brandingProblems({ logoUrl: own }, 'http://localhost:3000/')).toEqual([]);
+    expect(brandingProblems({ logoUrl: own })).toHaveLength(1);
+    expect(brandingProblems({ logoUrl: 'http://localhost:3000/other.png' }, 'http://localhost:3000')).toHaveLength(1);
+    expect(brandingProblems({ logoUrl: 'http://evil.co/files/logo/a/abc.png' }, 'http://localhost:3000')).toHaveLength(1);
+    expect(brandingProblems({ logoUrl: 'http://localhost:3000.evil.co/files/logo/a.png' }, 'http://localhost:3000')).toHaveLength(1);
+  });
+
   it('is admin-only to change', async () => {
     await expect(updateAgencyBranding(dbs.service, am, { displayName: 'X' })).rejects.toMatchObject({ code: 'permission_denied' });
   });

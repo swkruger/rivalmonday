@@ -66,7 +66,7 @@ export const updateAgencyBrandingTool = defineTool({
   output: OK,
   permission: 'agency',
   async handler(ctx, input, deps) {
-    await updateAgencyBranding(deps.service, ctx, input);
+    await updateAgencyBranding(deps.service, ctx, input, deps.appUrl);
     return ok;
   },
 });

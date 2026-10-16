@@ -35,7 +35,10 @@ function clean(input: AgencyBranding): AgencyBranding {
   return out;
 }
 
-export function brandingProblems(input: AgencyBranding): string[] {
+/** An uploaded logo is served by this deployment (`/files/logo/…`), which in dev is plain http; external logos stay https-only. */
+const isOwnLogoUrl = (url: string, appUrl: string | undefined): boolean => !!appUrl && url.startsWith(`${appUrl.replace(/\/+$/, '')}/files/logo/`);
+
+export function brandingProblems(input: AgencyBranding, appUrl?: string): string[] {
   const b = clean(input);
   const problems: string[] = [];
   for (const [key, max] of Object.entries(LIMITS) as [StorableKey, number][]) {
@@ -44,7 +47,7 @@ export function brandingProblems(input: AgencyBranding): string[] {
   for (const key of ['primary', 'secondary'] as const) if (b[key] && !HEX.test(b[key]!)) problems.push(`${key} must be a colour like #47A8E7`);
   if (b.logoUrl) {
     try {
-      if (new URL(b.logoUrl).protocol !== 'https:') problems.push('logoUrl must start with https://');
+      if (new URL(b.logoUrl).protocol !== 'https:' && !isOwnLogoUrl(b.logoUrl, appUrl)) problems.push('logoUrl must start with https://');
     } catch {
       problems.push('logoUrl is not a URL');
     }
@@ -59,9 +62,9 @@ export async function getAgencyBranding(service: Db, ctx: AccessContext): Promis
   return { stored: a.branding ?? {}, resolved: resolveBranding(a.name, a.branding ?? null) };
 }
 
-export async function updateAgencyBranding(service: Db, ctx: AccessContext, input: AgencyBranding): Promise<void> {
+export async function updateAgencyBranding(service: Db, ctx: AccessContext, input: AgencyBranding, appUrl?: string): Promise<void> {
   requireAdmin(ctx);
-  const problems = brandingProblems(input);
+  const problems = brandingProblems(input, appUrl);
   if (problems.length) throw new ToolError('invalid_input', problems.join('; '));
   await service.update(agency).set({ branding: clean(input) }).where(eq(agency.id, ctx.agencyId));
 }

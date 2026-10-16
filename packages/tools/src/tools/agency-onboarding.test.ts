@@ -22,7 +22,7 @@ const PROFILE = {
   billingEmail: 'bill@acme.co', taxId: '12-3456789',
 };
 const onboarding = async () => (await dbs.owner.select().from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, IDS.agencyA)))[0]!;
-const status = () => registry.invoke(admin, 'get_onboarding_status', {}) as Promise<{ steps: Record<string, string>; dismissed: boolean; completed: boolean; source: string }>;
+const status = () => registry.invoke(admin, 'get_onboarding_status', {}) as Promise<{ steps: Record<string, string>; dismissed: boolean; completed: boolean; redirected: boolean; source: string }>;
 const mark = (step: string, action: string, c = admin) => registry.invoke(c, 'mark_onboarding_step', { step, action });
 
 beforeEach(async () => {
@@ -34,7 +34,7 @@ beforeEach(async () => {
 
 describe('get_onboarding_status', () => {
   it('shows every step open at the start, for admin and account manager', async () => {
-    const expected = { steps: { profile: 'open', team: 'open', plan: 'open', branding: 'open', first_client: 'open' }, dismissed: false, completed: false, source: 'open' };
+    const expected = { steps: { profile: 'open', team: 'open', plan: 'open', branding: 'open', first_client: 'open' }, dismissed: false, completed: false, redirected: false, source: 'open' };
     expect(await status()).toEqual(expected);
     expect(await registry.invoke(am, 'get_onboarding_status', {})).toEqual(expected);
   });
@@ -103,6 +103,7 @@ describe('dismiss_onboarding_checklist / mark_onboarding_redirected', () => {
     expect(first).toBeInstanceOf(Date);
     await registry.invoke(admin, 'mark_onboarding_redirected', {});
     expect((await onboarding()).redirectedAt).toEqual(first);
+    expect(await status()).toMatchObject({ redirected: true });
   });
 });
 
