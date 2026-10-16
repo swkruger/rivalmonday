@@ -93,6 +93,13 @@ test('agency approves starting point → client sees tiles, scorecard, cards', {
   // The agency's own view still carries the upsell tag.
   await page.goto(`/c/${ready.id}/briefs/${ready.briefId}`);
   await expect(page.getByText('Upsell: ppc_audit')).toBeVisible();
+  // The Overview shows the whole latest brief (no "Open brief" hop): tiles, scorecard and finding cards, plus the agency badge.
+  await page.goto(`/c/${ready.id}`);
+  await expect(page.getByRole('heading', { name: 'Your starting point' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Rating' })).toBeVisible();
+  await expect(page.getByRole('table', { name: /Scorecard/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ask more customers for a review' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open brief' })).toHaveCount(0);
   await agency.close();
 
   const clientCtx = await browser.newContext({ storageState: OWNER_STATE });

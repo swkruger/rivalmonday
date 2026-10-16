@@ -67,11 +67,6 @@ export function kpiCards(o: WorkspaceOverview, { agency }: { agency: boolean }):
   ];
 }
 
-/** The latest brief's items as the Overview shows them: active ones only, in brief order (dropped items have no badge here). */
-export function activeBriefItems<T extends { ord: number; status: string }>(items: readonly T[]): T[] {
-  return items.filter((i) => i.status === 'active').sort((a, b) => a.ord - b.ord);
-}
-
 /**
  * The brief the Overview treats as latest: most recent `generatedAt` (fallback `deliveryDate`); ties keep list order.
  * Weekly briefs carry next Monday's date, so ordering by delivery date alone would hide a newer starting point.
@@ -85,9 +80,6 @@ export function latestBrief<T extends { generatedAt: string | null; deliveryDate
   if (best < 0) return { latest: null, rest: [] };
   return { latest: items[best]!, rest: items.filter((_, i) => i !== best) };
 }
-
-/** Card heading on the Overview. */
-export const briefHeading = (kind: string): string => (kind === 'starting_point' ? 'Your starting point' : "This week's brief");
 
 /** Header-line label for the brief shown on the Overview (without the leading separator). */
 export const briefLabel = (b: { kind: string; deliveryDate: string }): string =>

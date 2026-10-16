@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeBriefItems, briefHeading, briefLabel, kpiCards, latestBrief } from './overview-kpis';
+import { briefLabel, kpiCards, latestBrief } from './overview-kpis';
 
 const base = { clientId: 'c', trackedCompetitors: 5, zips: 12, changes7d: 14, alerts7d: 3, priceMoves7d: 2, priceCuts7d: 1, activeAds: 23, activeAds7dAgo: 14, rating: { self: 4.8, competitorAverage: 4.5 }, pressure: [], pitchSnapshot: false };
 
@@ -29,17 +29,6 @@ describe('kpiCards', () => {
   });
 });
 
-describe('activeBriefItems', () => {
-  it('keeps only active items, in brief order (dropped items carry no badge on the Overview)', () => {
-    const items = [
-      { id: 'b', ord: 2, status: 'active' },
-      { id: 'x', ord: 0, status: 'dropped' },
-      { id: 'a', ord: 1, status: 'active' },
-    ];
-    expect(activeBriefItems(items).map((i) => i.id)).toEqual(['a', 'b']);
-  });
-});
-
 const b = (id: string, deliveryDate: string, generatedAt: string | null, kind = 'weekly') => ({ id, deliveryDate, generatedAt, kind });
 
 describe('latestBrief', () => {
@@ -65,9 +54,7 @@ describe('latestBrief', () => {
 });
 
 describe('brief labels', () => {
-  it('heading and label switch on kind', () => {
-    expect(briefHeading('starting_point')).toBe('Your starting point');
-    expect(briefHeading('weekly')).toBe("This week's brief");
+  it('label switches on kind', () => {
     expect(briefLabel({ kind: 'starting_point', deliveryDate: '2026-10-15' })).toBe('Starting point · 2026-10-15');
     expect(briefLabel({ kind: 'weekly', deliveryDate: '2026-10-19' })).toBe('Brief for the week of 2026-10-19');
   });

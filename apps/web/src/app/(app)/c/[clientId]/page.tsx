@@ -16,13 +16,13 @@ import { AskCard } from '@/components/ask/ask-card';
 import { foldSeries, LineChart } from '@/components/charts/line-chart';
 import { ClientHomeBasic } from '@/components/client-home-basic';
 import { AlertLinkList, BriefLinkList } from '@/components/client-lists';
-import { EvidenceChips } from '@/components/evidence-chips';
 import { pendingStartingPoint, StartingPointCard } from '@/components/starting-point-card';
 import { StatCard } from '@/components/stat-card';
+import { BriefView } from '@/components/views/brief-view';
 import { requireContext } from '@/server/current-viewer';
 import { callTool, tryCallTool } from '@/server/tools';
 import { MoveCard, movesHref } from './moves/move-card';
-import { activeBriefItems, briefHeading, briefLabel, kpiCards, latestBrief } from './overview-kpis';
+import { briefLabel, kpiCards, latestBrief } from './overview-kpis';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +48,6 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
   const preparing = pendingStartingPoint(starting, briefs.items);
   const { latest: first, rest: pastBriefs } = latestBrief(briefs.items);
   const latest = first ? await callTool<BriefDetail>(ctx, 'get_brief', { briefId: first.id }) : null;
-  const items = latest ? activeBriefItems(latest.items) : [];
   const delivered = latest && (latest.status === 'approved' || latest.status === 'sent') ? latest : null;
   const openRecs = recs.items.filter((r) => r.status === 'todo' || r.status === 'in_progress');
   const n = overview.trackedCompetitors;
@@ -78,38 +77,15 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
-        <section className={cardCls}>
-          <h2 className="font-semibold">{briefHeading(latest?.kind ?? 'weekly')}</h2>
-          <div className="mt-3 flex flex-col gap-3">
-            {preparing && <StartingPointCard status={preparing} agency={isAgencyRole(ctx.role)} />}
-            {!latest && !preparing && <p className="text-muted-foreground">No briefs yet. The first one arrives on a Monday morning.</p>}
-            {latest && items.length === 0 && <p className="text-muted-foreground">{latest.summary}</p>}
-            {items.map((it, i) => (
-              <div key={it.id} className={`rounded-lg border-l-[3px] bg-muted-surface p-3 ${i === 0 && it.confidence >= 0.85 ? 'border-amber' : 'border-primary'}`}>
-                <h4 className="font-semibold text-ink">{it.headline}</h4>
-                <p className="mt-1 text-sm">{it.whatChanged}</p>
-                <p className="mt-1 text-sm">
-                  <strong>Suggested:</strong> {it.recommendedAction}
-                </p>
-                <div className="mt-2">
-                  <EvidenceChips clientId={clientId} ids={it.evidenceIds} />
-                </div>
-              </div>
-            ))}
-          </div>
-          {latest && (
-            <div className="mt-3 flex gap-4">
-              <Link href={`/c/${clientId}/briefs/${latest.id}`} className={linkCls}>
-                Open brief
-              </Link>
-              {latest.hasPdf && (
-                <a href={`/files/brief/${latest.id}`} className={linkCls}>
-                  Download PDF
-                </a>
-              )}
-            </div>
+        <div className="flex min-w-0 flex-col gap-5">
+          {preparing && <StartingPointCard status={preparing} agency={isAgencyRole(ctx.role)} />}
+          {!latest && !preparing && (
+            <section className={cardCls}>
+              <p className="text-muted-foreground">No briefs yet. The first one arrives on a Monday morning.</p>
+            </section>
           )}
-        </section>
+          {latest && <BriefView brief={latest} agency={isAgencyRole(ctx.role)} />}
+        </div>
 
         <div className="flex flex-col gap-5">
           <AskCard clientId={clientId} ctx={ctx} />
