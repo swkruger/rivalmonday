@@ -1,10 +1,10 @@
 # phase-11 — Client onboarding wizard (GBP/DataForSEO prefill, competitor review emails, billing)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-11   **Base:** main @ 4b1fb82
-**Plan/spec:** 11a spec `docs/superpowers/specs/2026-10-15-phase-11a-client-setup-wizard-design.md` ; 11a plan `docs/superpowers/plans/2026-10-16-phase-11a-client-setup-wizard.md` (Tasks 0–14, **approved 2026-10-16**)
+**Plan/spec:** 11a spec `docs/superpowers/specs/2026-10-15-phase-11a-client-setup-wizard-design.md` ; 11a plan `docs/superpowers/plans/2026-10-16-phase-11a-client-setup-wizard.md` (Tasks 0–14, **approved 2026-10-16**); 11b spec `docs/superpowers/specs/2026-10-16-phase-11b-client-invite-billing-design.md` (owner review pending)
 
 ## Status (overwrite)
-2026-10-16: 11a spec + plan **owner-approved**. Not started; execution waits for phase-10 merge (or owner-approved stacking). 11b/11c not brainstormed.
+2026-10-16: 11a spec + plan **owner-approved**. Not started; execution waits for phase-10 merge (or owner-approved stacking). 11b brainstormed, spec written (E1–E7). 11c not brainstormed.
 
 ## Next (overwrite)
 After phase-10 merges: plan Task 0 pre-flight (rebase, pnpm install, own test DB `cs_phase_11_test`), then `superpowers:subagent-driven-development` Tasks 1–14. Meanwhile: brainstorm 11b or 11c if the owner wants.
@@ -18,6 +18,8 @@ After phase-10 merges: plan Task 0 pre-flight (rebase, pnpm install, own test DB
 
 ## Decisions (owner-approved)
 11a spec D1–D11 (2026-10-15). Headline: split 11a (lookup/AI prefill/resumable wizard) / 11b (invite, competitor-review email + agency CC, billing step) / 11c (agency intake links + platform lead pool, manual assignment; amends Phase 10 f3 for clients); staff + client owner both run the wizard; DataForSEO Maps lookup on agency ledger; starting-point clock from competitors done (14-day cap).
+
+Plus 11b spec E1–E7 (2026-10-16): two agency-branded emails (invite, competitor review) with real `Cc:`; invite step 4 any time; billing step 5 with per-client price, allowed with a pending invite; notification outbox + inactive contact at invite.
 
 ## New backlog (target → item)
 - Later phase → automatic lead routing to agencies (vertical/area/capacity/opt-in) on the 11c lead pool.
