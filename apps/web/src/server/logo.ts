@@ -38,8 +38,12 @@ export function sniffType(bytes: Uint8Array): Sniffed | null {
 
 /** Binding check (Task 8 brief): DTD/entities, scripts, foreignObject, event handlers, external/file/data:text hrefs. */
 const UNSAFE_SVG = /<!ENTITY|<!DOCTYPE|<script|<foreignObject|\bon\w+\s*=|(xlink:)?href\s*=\s*["']\s*(https?:|file:|data:text)/i;
-/** Defence in depth beyond the brief: protocol-relative hrefs and CSS `url(...)` / `@import` reaching outside the document. */
-const UNSAFE_SVG_EXTRA = /href\s*=\s*["']\s*\/\/|url\(\s*["']?\s*(https?:|file:|\/\/)|@import/i;
+/**
+ * Defence in depth beyond the brief: protocol-relative hrefs, hrefs that start with a character reference (an
+ * entity-encoded scheme), XInclude, and CSS `url(...)` / `@import` reaching outside the document. The real barrier is
+ * librsvg itself: rendering from a buffer has no base URL, so it resolves no external reference (pinned by a test).
+ */
+const UNSAFE_SVG_EXTRA = /href\s*=\s*["']\s*(\/\/|&#)|xi:include|url\(\s*["']?\s*(https?:|file:|\/\/)|@import/i;
 
 async function svgDensity(bytes: Uint8Array): Promise<number | undefined> {
   // Rasterise small SVGs at a higher density so the PNG reaches 512 px on its longer side instead of staying icon-sized.

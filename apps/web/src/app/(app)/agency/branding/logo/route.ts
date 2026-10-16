@@ -11,7 +11,7 @@ const MAX_BODY_BYTES = LOGO_MAX_BYTES + 16 * 1024;
 const notFound = () => new Response('Not found', { status: 404 });
 const refuse = (error: LogoError) => Response.json({ error, message: LOGO_ERROR_COPY[error] }, { status: 400 });
 
-/** CSRF: the branding form posts with `fetch` from our own origin, so the browser always sends `Origin` (as `/support/exit`). */
+/** CSRF: the branding form posts with `fetch` from our own origin, so the browser always sends `Origin`. A mismatch is a 404 like every other refusal (`/support/exit` uses 403 because it must still say why nothing ended; nothing here needs that). */
 function sameOrigin(req: Request): boolean {
   const origin = req.headers.get('origin');
   return origin !== null && origin === new URL(webEnv().appUrl).origin;
@@ -52,9 +52,10 @@ async function readCapped(req: Request, max: number): Promise<Uint8Array<ArrayBu
  * Marking the wizard's branding step is the caller's job.
  */
 export async function POST(req: Request) {
-  if (!sameOrigin(req)) return new Response('Forbidden', { status: 403 });
   const viewer = await getViewer();
   if (!viewer || viewer.kind !== 'user' || viewer.ctx.role !== 'agency_admin') return notFound();
+  // Refusals are 404s (project rule), CSRF included; still before any body read.
+  if (!sameOrigin(req)) return notFound();
 
   const declared = Number(req.headers.get('content-length') ?? '');
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return refuse('too_large');

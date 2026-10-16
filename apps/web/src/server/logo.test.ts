@@ -1,4 +1,8 @@
 import { createHash } from 'node:crypto';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { crc32 } from 'node:zlib';
 import sharp from 'sharp';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -105,8 +109,30 @@ describe('normalizeLogo', () => {
     ['protocol-relative href', '<svg xmlns="http://www.w3.org/2000/svg"><image href="//evil.example/x.png"/></svg>'],
     ['css url()', '<svg xmlns="http://www.w3.org/2000/svg"><rect style="fill:url(https://evil.example/p.svg#g)" width="1" height="1"/></svg>'],
     ['css @import', '<svg xmlns="http://www.w3.org/2000/svg"><style>@import "https://evil.example/a.css";</style></svg>'],
+    ['entity-encoded href scheme', '<svg xmlns="http://www.w3.org/2000/svg"><image href="&#102;ile:///etc/passwd" width="1" height="1"/></svg>'],
+    ['entity-encoded xlink:href scheme', '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><image xlink:href=\' &#x68;ttps://evil.example/x.png\'/></svg>'],
+    ['xi:include', '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xi="http://www.w3.org/2001/XInclude"><xi:include href="secret.txt" parse="text"/></svg>'],
   ])('rejects an SVG with %s as unsafe_svg', async (_name, svg) => {
     expect(await normalizeLogo(enc(svg), 'image/svg+xml')).toEqual({ error: 'unsafe_svg' });
+  });
+
+  it('librsvg resolves no external reference from a buffer: an obfuscated file: href that slips past the regexes renders nothing', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rm-logo-'));
+    try {
+      const red = join(dir, 'red.png');
+      writeFileSync(red, await sharp({ create: { width: 64, height: 64, channels: 4, background: { r: 255, g: 0, b: 0, alpha: 1 } } }).png().toBuffer());
+      // `fi&#108;e:` decodes to `file:` in the XML parser but matches neither the brief's regex nor `href="&#`.
+      const url = pathToFileURL(red).href.replace(/^file:/, 'fi&#108;e:');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><image href="${url}" x="0" y="0" width="64" height="64"/></svg>`;
+      const r = await normalizeLogo(enc(svg), 'image/svg+xml');
+      if ('error' in r) throw new Error(`expected a render, got ${r.error}`);
+      const { data, info } = await sharp(r.png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      const at = (x: number, y: number) => data[(y * info.width + x) * info.channels + 3];
+      expect(at(Math.floor(info.width / 2), Math.floor(info.height / 2))).toBe(0); // transparent: the file was not loaded
+      expect(at(0, 0)).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('rejects anything over 512 KB before decoding (too_large)', async () => {

@@ -59,9 +59,20 @@ describe('POST /agency/branding/logo', () => {
     expect(await res.json()).toEqual({ error: 'rejected', message: 'Your workspace is paused.' });
   });
 
-  it('refuses a cross-origin or Origin-less post (CSRF) with 403', async () => {
-    expect((await POST(upload(await png(), { origin: 'https://evil.example' }))).status).toBe(403);
-    expect((await POST(upload(await png(), { origin: null }))).status).toBe(403);
+  it('refuses a cross-origin or Origin-less post (CSRF) with 404, before reading the body', async () => {
+    for (const origin of ['https://evil.example', null]) {
+      const req = upload(await png(), { origin });
+      expect((await POST(req)).status).toBe(404);
+      expect(req.bodyUsed).toBe(false);
+    }
+    expect(m.runTool).not.toHaveBeenCalled();
+  });
+
+  it('a non-admin with a bad or missing Origin still gets 404 (never 403)', async () => {
+    for (const v of [null, { kind: 'user', ctx: { role: 'account_manager' } }, { kind: 'support', ctx: { role: 'agency_admin' } }]) {
+      m.viewer = v;
+      for (const origin of ['https://evil.example', null]) expect((await POST(upload(await png(), { origin }))).status).toBe(404);
+    }
     expect(m.runTool).not.toHaveBeenCalled();
   });
 
