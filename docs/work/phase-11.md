@@ -4,10 +4,10 @@
 **Plan/spec:** `docs/superpowers/{specs,plans}/` — 11a (`2026-10-15-…-11a-…-design`, `2026-10-16-…-11a-…`), 11b, 11c (all `2026-10-16-phase-11{b,c}-*`).
 
 ## Status (overwrite)
-2026-10-16: specs approved for 11a (D1–D11), 11b (E1–E7), 11c (L1–L8; L7 amended 11a/11b: prospects get the invite step). Plans: 11a Tasks 0–14 ✅ approved, 11b 15–24 ✅ approved, 11c 25–35 owner approval pending. Nothing built; execution waits for phase-10 merge.
+2026-10-16: specs approved for 11a (D1–D11), 11b (E1–E7), 11c (L1–L8; L7 amended 11a/11b: prospects get the invite step). Plans: 11a Tasks 0–14 ✅ approved, 11b 15–24 ✅ approved, 11c 25–35 ✅ approved. Nothing built; execution waits for phase-10 merge.
 
 ## Next (overwrite)
-After phase-10 merges: plan Task 0 pre-flight (rebase, pnpm install, own test DB `cs_phase_11_test`), then `superpowers:subagent-driven-development` Tasks 1–14, then 11b Tasks 15–24 (one final whole-branch review at the end). Meanwhile: brainstorm 11c if the owner wants.
+After phase-10 merges: plan Task 0 pre-flight (rebase, pnpm install, own test DB `cs_phase_11_test`), then `superpowers:subagent-driven-development` Tasks 1–14, then 11b Tasks 15–24 (one final whole-branch review at the end). then 11c Tasks 25–35.
 
 ## Interfaces this branch adds or changes
 (planned, 11a) Table `client_setup`; tools `find_business`, `get_client_setup`, `save_setup_profile`, `pick_setup_competitors`, `advance_client_setup`; `create_client` + optional `lookup`; shared `applyClientProfileChange`, `getSetupState`, `startingPointClockStart` (readiness clock); collector `mapsSearchByText`, `collectGbpProfile` takes a real scope + parses description; AI task `setup_suggestions`; jobs `setup-suggestions`, `setup-reminders`; route `/c/[clientId]/setup`, `/agency/clients/new` rebuilt.
