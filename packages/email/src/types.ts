@@ -1,4 +1,4 @@
-import type { TrendReportData, TrendSnapshot } from '@cs/db';
+import type { OnboardingStep, TrendReportData, TrendSnapshot } from '@cs/db';
 import type { Branding } from './branding';
 
 interface Base {
@@ -126,6 +126,42 @@ export interface AgencyClientBillingNoticeProps {
   n?: number;
   billingUrl: string;
 }
+/** Phase 10 Task 11: all four are Rival Monday branded (platform, not white label). */
+export interface AgencyInviteProps {
+  branding: Branding;
+  /** The redeem link; contains the raw token, so never log it. */
+  url: string;
+  offer: 'trial' | 'pilot';
+  /** ISO date/timestamp; shown only for a pilot. */
+  pilotEndsAt?: string;
+  /** Trial line extension, e.g. "20% off the first 3 months". */
+  discountText?: string;
+  /** ISO timestamp/date; rendered as e.g. "October 30, 2026" (UTC). */
+  expiresAt: string;
+}
+export interface AgencyWelcomeProps {
+  branding: Branding;
+  agencyName: string;
+  url: string;
+}
+export interface OnboardingTipProps {
+  branding: Branding;
+  agencyName: string;
+  day: 1 | 3 | 7;
+  nextStep: OnboardingStep | 'first_client';
+  url: string;
+  unsubscribeUrl: string;
+}
+export interface PlatformSignupNoticeProps {
+  branding: Branding;
+  agencyName: string;
+  contactName: string;
+  email: string;
+  source: 'open' | 'invite';
+  offer: 'trial' | 'pilot';
+  pilotEndsAt?: string;
+  consoleUrl: string;
+}
 export type EmailPayload =
   | { template: 'alert'; props: AlertEmailProps }
   | { template: 'alert_digest'; props: DigestEmailProps }
@@ -137,7 +173,11 @@ export type EmailPayload =
   | { template: 'platform_cost_low'; props: PlatformCostLowProps }
   | { template: 'billing_notice'; props: BillingNoticeProps }
   | { template: 'client_billing_notice'; props: ClientBillingNoticeProps }
-  | { template: 'agency_client_billing_notice'; props: AgencyClientBillingNoticeProps };
+  | { template: 'agency_client_billing_notice'; props: AgencyClientBillingNoticeProps }
+  | { template: 'agency_invite'; props: AgencyInviteProps }
+  | { template: 'agency_welcome'; props: AgencyWelcomeProps }
+  | { template: 'onboarding_tip'; props: OnboardingTipProps }
+  | { template: 'platform_signup_notice'; props: PlatformSignupNoticeProps };
 export interface RenderedEmail {
   subject: string;
   html: string;

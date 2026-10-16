@@ -1,5 +1,9 @@
 import { render } from '@react-email/render';
 import { createElement, type ReactElement } from 'react';
+import { AgencyInviteEmail, agencyInviteSubject } from './templates/agency-invite';
+import { AgencyWelcomeEmail, agencyWelcomeSubject } from './templates/agency-welcome';
+import { OnboardingTipEmail, onboardingTipSubject } from './templates/onboarding-tip';
+import { PlatformSignupNoticeEmail, platformSignupNoticeSubject } from './templates/platform-signup-notice';
 import { AgencyNoticeEmail } from './templates/agency-notice';
 import { AlertEmail, alertSubject } from './templates/alert';
 import { BillingNoticeEmail, billingNoticeSubject } from './templates/billing-notice';
@@ -35,6 +39,14 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
       return { el: createElement(ClientBillingNoticeEmail, p.props), subject: clientBillingNoticeSubject(p.props) };
     case 'agency_client_billing_notice':
       return { el: createElement(AgencyClientBillingNoticeEmail, p.props), subject: agencyClientBillingNoticeSubject(p.props) };
+    case 'agency_invite':
+      return { el: createElement(AgencyInviteEmail, p.props), subject: agencyInviteSubject() };
+    case 'agency_welcome':
+      return { el: createElement(AgencyWelcomeEmail, p.props), subject: agencyWelcomeSubject() };
+    case 'onboarding_tip':
+      return { el: createElement(OnboardingTipEmail, p.props), subject: onboardingTipSubject(p.props) };
+    case 'platform_signup_notice':
+      return { el: createElement(PlatformSignupNoticeEmail, p.props), subject: platformSignupNoticeSubject(p.props) };
     case 'trend_report':
       return { el: createElement(TrendReportEmail, p.props), subject: trendReportSubject(p.props) };
     default:
