@@ -15,6 +15,7 @@ vi.mock('next/navigation', () => ({
     throw new Error(`REDIRECT:${to}`);
   },
 }));
+vi.mock('@/components/billing/refresh-until-changed', () => ({ RefreshUntilChanged: ({ watch }: { watch: string }) => <span data-testid="refresh">{watch}</span> }));
 const { default: Page } = await import('./page');
 const { checkoutAction, portalAction, redeemCodeAction } = await import('./actions');
 
@@ -26,6 +27,7 @@ const summary = (over: Record<string, unknown> = {}) => ({
   nextInvoice: { amountDueCents: 34800, periodEnd: '2026-11-13T12:00:00Z', discountCents: 1000 },
   discount: { code: 'FRIEND', couponId: 'c1' },
   recentInvoices: [{ id: 'in_1', number: 'A-0001', amountPaidCents: 29900, status: 'paid', hostedInvoiceUrl: 'https://invoice.stripe.com/i/1', created: '2026-10-13T12:00:00Z' }],
+  hasSubscription: false,
   ...over,
 });
 const page = (sp: Record<string, string> = {}) => Page({ searchParams: Promise.resolve(sp) });
@@ -64,10 +66,38 @@ describe('/agency/settings/billing', () => {
     expect(screen.getByRole('button', { name: 'Add payment method' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Manage billing' })).toBeNull();
     cleanup();
-    m.summary = (summary({ state: 'active', dates: { trialEndsAt: null, pilotEndsAt: null, pastDueSince: null, pausesOn: null, cancelAt: null } }));
+    m.summary = (summary({ state: 'active', hasSubscription: true, dates: { trialEndsAt: null, pilotEndsAt: null, pastDueSince: null, pausesOn: null, cancelAt: null } }));
     render(await page());
     expect(screen.getByRole('button', { name: 'Manage billing' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Add payment method' })).toBeNull();
+  });
+
+  it('offers Subscribe (Checkout) once the subscription ended, whatever the unpaid state', async () => {
+    for (const state of ['past_due', 'read_only', 'suspended', 'cancelled']) {
+      m.summary = summary({ state, hasSubscription: false });
+      render(await page());
+      expect(screen.getByRole('button', { name: 'Subscribe' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Manage billing' })).toBeNull();
+      cleanup();
+    }
+  });
+
+  it('keeps Manage billing while a subscription is held, e.g. cancelled at period end or past due', async () => {
+    for (const state of ['cancelled', 'past_due']) {
+      m.summary = summary({ state, hasSubscription: true });
+      render(await page());
+      expect(screen.getByRole('button', { name: 'Manage billing' })).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it('refreshes after a return from Stripe (?done=1) until state or subscription changes; not otherwise', async () => {
+    m.summary = summary({ state: 'past_due', hasSubscription: false });
+    render(await page({ done: '1' }));
+    expect(screen.getByTestId('refresh').textContent).toBe('past_due:false');
+    cleanup();
+    render(await page());
+    expect(screen.queryByTestId('refresh')).toBeNull();
   });
 
   it('shows the pause date when past due and the done notice for ?done=1', async () => {

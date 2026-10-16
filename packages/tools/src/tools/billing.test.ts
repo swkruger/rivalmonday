@@ -69,7 +69,16 @@ describe('get_billing_summary', () => {
     expect(r.nextInvoice).toBeNull();
     expect(r.discount).toBeNull();
     expect(r.recentInvoices).toEqual([]);
+    expect(r.hasSubscription).toBe(false);
     expect(gw.calls).toEqual([]);
+  });
+
+  it('hasSubscription follows the stored subscription id, not the state (an ended one is forgotten: re-subscribe)', async () => {
+    await setBilling({ state: 'past_due', pastDueSince: new Date(), stripeCustomerId: 'cus_1', stripeSubscriptionId: null });
+    expect(((await call(admin, 'get_billing_summary')) as Record<string, any>).hasSubscription).toBe(false);
+    await dbs.owner.update(agencyBilling).set({ stripeSubscriptionId: 'sub_1' }).where(eq(agencyBilling.agencyId, IDS.agencyA));
+    gw.seedSubscription({ id: 'sub_1', customerId: 'cus_1' });
+    expect(((await call(admin, 'get_billing_summary')) as Record<string, any>).hasSubscription).toBe(true);
   });
 
   it('reports dates, pausesOn, discount, invoice and upcoming', async () => {

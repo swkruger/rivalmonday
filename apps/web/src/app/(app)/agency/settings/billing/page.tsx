@@ -2,7 +2,9 @@ import type { BillingState } from '@cs/db';
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { formatLongDate, formatUsd } from '@/components/billing/format';
+import { RefreshUntilChanged } from '@/components/billing/refresh-until-changed';
 import { requireContext } from '@/server/current-viewer';
+import type { FormResult } from '@/server/forms';
 import { callTool } from '@/server/tools';
 import { checkoutAction, portalAction } from './actions';
 import { PaymentButton } from './payment-button';
@@ -22,6 +24,7 @@ interface Summary {
   nextInvoice: { amountDueCents: number; periodEnd: string; discountCents: number } | null;
   discount: { code?: string; couponId: string } | null;
   recentInvoices: { id: string; number: string | null; amountPaidCents: number; status: string | null; hostedInvoiceUrl: string | null; created: string }[];
+  hasSubscription: boolean;
 }
 
 const STATE_LABEL: Record<BillingState, string> = {
@@ -40,8 +43,14 @@ function keyDate(s: Summary): string | null {
   return null;
 }
 
-/** Once the agency has been through payment there is a subscription, so Checkout gives way to the customer portal. */
-const HAS_SUBSCRIPTION: BillingState[] = ['active', 'past_due', 'read_only', 'suspended', 'cancelled'];
+/**
+ * The portal manages a stored subscription; without one (never subscribed, or it ended and was forgotten, R26) only
+ * Checkout can start a new one. Before the first payment the button reads "Add payment method", afterwards "Subscribe".
+ */
+function paymentAction(s: Summary): { action: () => Promise<FormResult>; label: string } {
+  if (s.hasSubscription) return { action: portalAction, label: 'Manage billing' };
+  return { action: checkoutAction, label: s.state === 'pilot' || s.state === 'trialing' ? 'Add payment method' : 'Subscribe' };
+}
 
 /**
  * Phase 9a spec, Web: the agency's plan, state, seats, invoices and payment actions. Agency admins only; every other
@@ -57,10 +66,11 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const connectStatus = await callTool<ConnectStatus>(ctx, 'get_connect_status', {});
   const revenue = connectStatus.status === 'connected' ? await callTool<Revenue>(ctx, 'get_client_revenue', {}) : null;
   const date = keyDate(s);
-  const subscribed = HAS_SUBSCRIPTION.includes(s.state);
+  const pay = paymentAction(s);
   return (
     <>
       <h1 className="text-[26px] font-extrabold tracking-tight">Billing</h1>
+      {done && <RefreshUntilChanged watch={`${s.state}:${s.hasSubscription}`} />}
       {done && (
         <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">
           Thanks — your billing details are being updated. This page refreshes as soon as Stripe confirms.
@@ -94,7 +104,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           )}
           {s.discount && <p>Discount: {s.discount.code ?? 'applied'}</p>}
           <div className="mt-2">
-            <PaymentButton action={subscribed ? portalAction : checkoutAction} label={subscribed ? 'Manage billing' : 'Add payment method'} />
+            <PaymentButton action={pay.action} label={pay.label} />
           </div>
         </CardContent>
       </Card>

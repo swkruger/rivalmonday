@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import { PaymentButton } from '@/app/(app)/agency/settings/billing/payment-button';
 import { formatLongDate, formatUsd } from '@/components/billing/format';
+import { RefreshUntilChanged } from '@/components/billing/refresh-until-changed';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { managePaymentAction } from './actions';
@@ -69,6 +70,7 @@ export default async function ClientBillingPage({ params, searchParams }: { para
   return (
     <>
       <h1 className="text-[26px] font-extrabold tracking-tight">Billing</h1>
+      {one(checkout) === 'done' && <RefreshUntilChanged watch={b.state} />}
       {flash && <p role="status" className="rounded-md bg-muted-surface px-4 py-2 text-sm font-semibold text-ink">{flash}</p>}
       <Card>
         <CardHeader>

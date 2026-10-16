@@ -15,6 +15,7 @@ vi.mock('@/server/tools', () => ({
 }));
 vi.mock('./actions', () => ({ managePaymentAction: Object.assign(async () => ({ ok: true }), { bind: () => async () => ({ ok: true }) }) }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
+vi.mock('@/components/billing/refresh-until-changed', () => ({ RefreshUntilChanged: ({ watch }: { watch: string }) => <span data-testid="refresh" hidden>{watch}</span> }));
 
 import ClientBillingPage from './page';
 
@@ -82,6 +83,15 @@ describe('client billing page (9b)', () => {
     cleanup();
     render(await open({ checkout: 'whatever' }));
     expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('refreshes after Checkout returns until the billing state changes; not otherwise', async () => {
+    m.data = { ...base, state: 'invited' };
+    render(await open({ checkout: 'done' }));
+    expect(screen.getByTestId('refresh').textContent).toBe('invited');
+    cleanup();
+    render(await open({ checkout: 'cancelled' }));
+    expect(screen.queryByTestId('refresh')).toBeNull();
   });
 
   it('page and banners never say Rival Monday, in any state', async () => {

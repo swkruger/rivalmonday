@@ -93,6 +93,8 @@ export const getBillingSummaryTool = defineTool({
     recentInvoices: z.array(z.object({
       id: z.string(), number: z.string().nullable(), amountPaidCents: z.number().int(), status: z.string().nullable(), hostedInvoiceUrl: z.string().nullable(), created: z.string(),
     })).max(5),
+    /** A subscription is stored (Portal manages it); false after it ended (R26 forgets it), so the page offers Checkout. */
+    hasSubscription: z.boolean(),
   }),
   permission: 'agency',
   async handler(ctx, _input, deps) {
@@ -139,6 +141,7 @@ export const getBillingSummaryTool = defineTool({
       nextInvoice,
       discount,
       recentInvoices,
+      hasSubscription: !!row?.stripeSubscriptionId,
     };
   },
 });
