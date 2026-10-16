@@ -1,10 +1,10 @@
 # phase-11 — Client onboarding wizard (GBP/DataForSEO prefill, competitor review emails, billing)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-11   **Base:** main @ 4b1fb82
-**Plan/spec:** 11a spec `docs/superpowers/specs/2026-10-15-phase-11a-client-setup-wizard-design.md` ; 11a plan `docs/superpowers/plans/2026-10-16-phase-11a-client-setup-wizard.md` (Tasks 0–14, **approved 2026-10-16**); 11b spec `docs/superpowers/specs/2026-10-16-phase-11b-client-invite-billing-design.md` (owner review pending)
+**Plan/spec:** 11a spec `docs/superpowers/specs/2026-10-15-phase-11a-client-setup-wizard-design.md` ; 11a plan `docs/superpowers/plans/2026-10-16-phase-11a-client-setup-wizard.md` (Tasks 0–14, **approved 2026-10-16**); 11b spec `docs/superpowers/specs/2026-10-16-phase-11b-client-invite-billing-design.md` (approved 2026-10-16) + plan `docs/superpowers/plans/2026-10-16-phase-11b-client-invite-billing.md` (Tasks 15–24, owner approval pending)
 
 ## Status (overwrite)
-2026-10-16: 11a spec + plan **owner-approved**. Not started; execution waits for phase-10 merge (or owner-approved stacking). 11b brainstormed, spec written (E1–E7). 11c not brainstormed.
+2026-10-16: 11a spec + plan **owner-approved**. Not started; execution waits for phase-10 merge (or owner-approved stacking). 11b spec approved, plan written (Tasks 15–24). 11c not brainstormed.
 
 ## Next (overwrite)
 After phase-10 merges: plan Task 0 pre-flight (rebase, pnpm install, own test DB `cs_phase_11_test`), then `superpowers:subagent-driven-development` Tasks 1–14. Meanwhile: brainstorm 11b or 11c if the owner wants.
@@ -23,6 +23,7 @@ Plus 11b spec E1–E7 (2026-10-16): two agency-branded emails (invite, competito
 
 ## New backlog (target → item)
 - Later phase → automatic lead routing to agencies (vertical/area/capacity/opt-in) on the 11c lead pool.
+- Backlog → sign-in page uses host default branding (may show Rival Monday to white-label clients) — check in 11b Task 24.
 - 11c → neutral brand for platform-site client sign-up (nothing client-facing names Rival Monday).
 
 ## Owner verification steps
