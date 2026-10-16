@@ -3,7 +3,7 @@ import { agencyInviteLink, pendingSignup, platformSetting } from '@cs/db';
 import { openTestDbs, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { FREE_MAIL_DOMAINS } from './free-mail';
-import { checkInviteLink, hashIp, signupRateLimited, signupsPaused, trialAllowed } from './signup';
+import { checkInviteLink, hashIp, inviteProblemForLink, signupRateLimited, signupsPaused, trialAllowed } from './signup';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -109,5 +109,27 @@ describe('checkInviteLink', () => {
     expect((await checkInviteLink(dbs.service, t, ' pat@ACME.com ', NOW)).ok).toBe(true);
     expect(await checkInviteLink(dbs.service, t, 'x@acme.com', NOW)).toEqual({ ok: false, problem: 'email_lock_mismatch' });
     expect((await checkInviteLink(dbs.service, t, null, NOW)).ok).toBe(true);
+  });
+});
+
+describe('inviteProblemForLink', () => {
+  async function linkRow(o: Partial<typeof agencyInviteLink.$inferInsert> = {}) {
+    const [r] = await dbs.service.insert(agencyInviteLink).values({
+      tokenHash: hashInviteToken('rm_inv_tok'), tokenPrefix: 'rm_inv_tok', offer: 'trial', expiresAt: new Date(NOW.getTime() + HOUR), createdBy: 't', ...o,
+    }).returning();
+    return r!.id;
+  }
+  it('null for a usable link, unknown for a missing id', async () => {
+    expect(await inviteProblemForLink(dbs.service, await linkRow(), 'a@b.co', NOW)).toBeNull();
+    expect(await inviteProblemForLink(dbs.service, '00000000-0000-4000-8000-000000000000', 'a@b.co', NOW)).toBe('link_unknown');
+  });
+  it('same problem order as checkInviteLink: revoked, expired, used up, email lock', async () => {
+    expect(await inviteProblemForLink(dbs.service, await linkRow({ revokedAt: ago(1000), expiresAt: ago(1000) }), null, NOW)).toBe('link_revoked');
+    await truncateAll(dbs.owner);
+    expect(await inviteProblemForLink(dbs.service, await linkRow({ expiresAt: NOW, uses: 1 }), null, NOW)).toBe('link_expired');
+    await truncateAll(dbs.owner);
+    expect(await inviteProblemForLink(dbs.service, await linkRow({ uses: 1 }), null, NOW)).toBe('link_used_up');
+    await truncateAll(dbs.owner);
+    expect(await inviteProblemForLink(dbs.service, await linkRow({ emailLock: 'Pat@Acme.com' }), 'x@acme.com', NOW)).toBe('email_lock_mismatch');
   });
 });

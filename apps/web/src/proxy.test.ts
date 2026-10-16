@@ -20,6 +20,13 @@ describe('proxy', () => {
     expect(run('/api/stripe/connect-webhook/x').headers.get('location')).toContain('/sign-in');
   });
 
+  it('lets the Phase 10 public pages through without cookies, but not /onboarding', () => {
+    for (const p of ['/sign-up', '/sign-up/problem', '/join/rm_inv_abc', '/u/token', '/files/logo/abc']) {
+      expect(run(p).headers.get('location'), p).toBeNull();
+    }
+    for (const p of ['/onboarding', '/onboarding/start', '/signup', '/joinx']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
+  });
+
   it('still redirects other cookie-less paths to sign-in', () => {
     for (const p of ['/api/askx', '/c/x/ask', '/api/other']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
   });

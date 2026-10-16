@@ -85,7 +85,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${SERVER}ask\\.ts$`), tags: ['@ask', '@kb'], why: 'Ask server wiring incl. the E2E fake AI (knowledge lookup)' },
   { pattern: re(`${WEB}src/(?:.*/)?ask(?:/|\\.ts$)`), tags: ['@ask'], why: 'Ask route, pages, components and server wiring' },
 
-  { pattern: re(`${APP}(?:sign-in/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in and link-error pages' },
+  { pattern: re(`${APP}(?:sign-in/|sign-up/|join/|onboarding/start/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in, sign-up and link-error pages' },
   { pattern: re(`${APP}(?:l/|go/|files/)`), tags: GUEST_FILES, why: 'signed links and stored files' },
   { pattern: re(`${APP}dev-panel/`), tags: ['@dev-panel'], why: 'dev-panel route shell' },
   { pattern: re(`${AGENCY}page\\.tsx$`), tags: ['@clients', '@client-billing'], why: 'agency client list (billing pill and actions)' },
@@ -151,7 +151,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}views/report-view\\.tsx$`), tags: [], why: 'no E2E covers the report view' },
   { pattern: re(`${SERVER}(?:guest|links|files|store)\\.ts$`), tags: GUEST_FILES, why: 'guest links and stored files' },
   { pattern: re(`${SERVER}support-[^/]+\\.ts$`), tags: ['@support'], why: 'support session cookie, mask and email modules' },
-  { pattern: re(`${SERVER}(?:email-transport|sign-out)\\.ts$`), tags: ['@auth'], why: 'sign-in email / sign-out' },
+  { pattern: re(`${SERVER}(?:email-transport|sign-out|signup-cookie|pending-signup|onboarding-start|turnstile)\\.ts$`), tags: ['@auth'], why: 'sign-in email / sign-out / sign-up' },
 
   // --- Domain packages: keyword rules (more specific first) ---
   kw('alert-rules', ['@alert-rules'], 'alert rules'),

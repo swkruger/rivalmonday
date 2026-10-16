@@ -40,17 +40,29 @@ export async function signupsPaused(db: Db): Promise<boolean> {
   return (s?.value as { paused?: boolean } | undefined)?.paused === true;
 }
 
+/** The first problem with a link row, in the binding order (revoked, expired, used up, email lock); null = usable. `email` null skips the lock. */
+function linkProblem(link: AgencyInviteLinkRow, email: string | null, now: Date): SignupProblem | null {
+  if (link.revokedAt) return 'link_revoked';
+  if (link.expiresAt <= now) return 'link_expired';
+  if (link.uses >= link.maxUses) return 'link_used_up';
+  if (email !== null && link.emailLock && normalizeEmail(link.emailLock) !== normalizeEmail(email)) return 'email_lock_mismatch';
+  return null;
+}
+
 /** `email` null = page-load check (skips the email lock). */
 export async function checkInviteLink(
   db: Db, token: string, email: string | null, now: Date,
 ): Promise<{ ok: true; link: AgencyInviteLinkRow } | { ok: false; problem: SignupProblem | 'link_unknown' }> {
   const [link] = await db.select().from(agencyInviteLink).where(eq(agencyInviteLink.tokenHash, hashInviteToken(token)));
   if (!link) return { ok: false, problem: 'link_unknown' };
-  if (link.revokedAt) return { ok: false, problem: 'link_revoked' };
-  if (link.expiresAt <= now) return { ok: false, problem: 'link_expired' };
-  if (link.uses >= link.maxUses) return { ok: false, problem: 'link_used_up' };
-  if (email !== null && link.emailLock && normalizeEmail(link.emailLock) !== normalizeEmail(email)) return { ok: false, problem: 'email_lock_mismatch' };
-  return { ok: true, link };
+  const problem = linkProblem(link, email, now);
+  return problem ? { ok: false, problem } : { ok: true, link };
+}
+
+/** Same check for a stored link id (e.g. a pending sign-up's `invite_link_id`); null = no problem. */
+export async function inviteProblemForLink(db: Db, linkId: string, email: string | null, now: Date): Promise<SignupProblem | 'link_unknown' | null> {
+  const [link] = await db.select().from(agencyInviteLink).where(eq(agencyInviteLink.id, linkId));
+  return link ? linkProblem(link, email, now) : 'link_unknown';
 }
 
 export const SIGNUP_LINK_TTL_MS = 7 * 86_400_000;

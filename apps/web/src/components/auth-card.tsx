@@ -17,7 +17,7 @@ export function AuthCard({ branding, title, children }: { branding: Branding; ti
           ) : (
             <Wordmark name={whiteLabel ? branding.displayName : undefined} />
           )}
-          <CardTitle className="text-xl">{title}</CardTitle>
+          <CardTitle role="heading" aria-level={1} className="text-xl">{title}</CardTitle>
         </CardHeader>
         <CardContent>{children}</CardContent>
       </Card>

@@ -68,6 +68,8 @@ export interface SignInEmailProps {
   branding: Branding;
   url: string;
   expiresMinutes: number;
+  /** Phase 10: an open agency sign-up for this address; switches the wording to "confirm your email". */
+  signup?: { agencyName: string };
 }
 export interface SupportSessionStartedProps {
   branding: Branding;

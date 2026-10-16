@@ -166,6 +166,17 @@ describe('Phase 10: pending agency sign-up completion (session.create.after)', (
     expect(await fresh()).toHaveLength(1);
   });
 
+  it('the sign-in email for a pending sign-up carries the sign-up wording; an ordinary address keeps the sign-in wording', async () => {
+    await pend('founder@fresh.co');
+    await post('/sign-in/magic-link', { email: 'Founder@Fresh.co', callbackURL: '/onboarding/start' });
+    await flush();
+    expect(mail.sent.at(-1)!.subject).toBe('Confirm your email to create Fresh Agency');
+    await dbs.service.insert(invitation).values({ agencyId: IDS.agencyA, email: 'new@example.com', role: 'agency_admin', invitedBy: 't', expiresAt: new Date(Date.now() + 86_400_000) });
+    await post('/sign-in/magic-link', { email: 'new@example.com', callbackURL: '/' });
+    await flush();
+    expect(mail.sent.at(-1)!.subject).toMatch(/^Your sign-in link for/);
+  });
+
   it('an unverified user gets nothing', async () => {
     await dbs.owner.insert(plan).values(PLAN);
     await pend('unverified@fresh.co');

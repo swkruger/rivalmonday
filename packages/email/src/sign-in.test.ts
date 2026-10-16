@@ -14,4 +14,15 @@ describe('sign_in email', () => {
     expect(out.text).toMatch(/15 minutes/);
     expect(out.text).toMatch(/didn.t ask/i);
   });
+
+  it('renders the sign-up wording when a pending agency is given', async () => {
+    const branding = resolveBranding('Rival Monday', null);
+    const url = 'https://rm.nofingers.ai/api/auth/magic-link/verify?token=abc';
+    const out = await renderEmail({ template: 'sign_in', props: { branding, url, expiresMinutes: 15, signup: { agencyName: 'Acme HVAC' } } });
+    expect(out.subject).toBe('Confirm your email to create Acme HVAC');
+    expect(out.text).toContain('Click below to confirm your email and set up Acme HVAC on Rival Monday.');
+    expect(out.text).toContain('Confirm and continue');
+    expect(out.text).toContain(url);
+    expect(out.text).not.toContain('Use the button below to sign in');
+  });
 });
