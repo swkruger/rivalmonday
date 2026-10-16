@@ -1,13 +1,13 @@
 # phase-11 — Client onboarding wizard (GBP/DataForSEO prefill, competitor review emails, billing)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-11   **Base:** main @ 4b1fb82
-**Plan/spec:** 11a spec `docs/superpowers/specs/2026-10-15-phase-11a-client-setup-wizard-design.md` (owner review pending)
+**Plan/spec:** 11a spec `docs/superpowers/specs/2026-10-15-phase-11a-client-setup-wizard-design.md` ; 11a plan `docs/superpowers/plans/2026-10-16-phase-11a-client-setup-wizard.md` (Tasks 0–14, owner approval pending)
 
 ## Status (overwrite)
 2026-10-15: brainstorm done; 11a spec written, awaiting owner review. 11b/11c not brainstormed.
 
 ## Next (overwrite)
-Owner reviews 11a spec → `superpowers:writing-plans` (lean) → approval. Execution waits for phase-10 merge (or owner-approved stacking).
+Owner reviews 11a spec + plan → approval. Execution waits for phase-10 merge (or owner-approved stacking).
 
 ## Interfaces this branch adds or changes
 (planned, 11a) Table `client_setup`; tools `find_business`, `get_client_setup`, `save_setup_profile`, `pick_setup_competitors`, `advance_client_setup`; `create_client` + optional `lookup`; shared `applyClientProfileChange`, `getSetupState`, `startingPointClockStart` (readiness clock); collector `mapsSearchByText`, `collectGbpProfile` takes a real scope + parses description; AI task `setup_suggestions`; jobs `setup-suggestions`, `setup-reminders`; route `/c/[clientId]/setup`, `/agency/clients/new` rebuilt.

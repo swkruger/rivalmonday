@@ -118,7 +118,7 @@ All registered in `@cs/tools`; web writes via `runTool`.
 | Tool | access / permission | Input → output | Rules |
 |---|---|---|---|
 | `find_business` | read / agency | §5 | §5 |
-| `get_client_setup` | read / read | `{clientId}` → `{ state: SetupState, lookup, suggestions, search, competitorSuggestions: ClientSafeSuggestion[] }` | `ClientSafeSuggestion` = id, name, tier, rating, votes, distanceKm, preTicked — **no `upsell_tag`, no internal scores** |
+| `get_client_setup` | read / read | `{clientId}` → `{ state: SetupState, lookup, suggestions, search, competitorSuggestions: ClientSafeSuggestion[] }` | `ClientSafeSuggestion` = id, name, tier, rating, votes, distanceKm, preTicked — **no internal fields** (`overlap_score`, `signals`, `ad_matches`, `appearances`, `best_rank`) |
 | `save_setup_profile` | write / manage | `{clientId, services?, keywords?, serviceArea?, placeId?}` → `{ state }` | Same validation + auto-search trigger as `update_client_profile` (extract a shared `applyClientProfileChange`). Client owner only while `open`. Sets `last_changed_*`. |
 | `pick_setup_competitors` | write / manage | `{clientId, accept: uuid[], dismiss: uuid[]}` → `{ state }` | Reuses accept/dismiss service logic; client owner allowed while `open` regardless of `manage_competitors`. |
 | `advance_client_setup` | write / manage | `{clientId, action: 'confirm_competitors'\|'skip_search'\|'skip_competitors'\|'dismiss'}` → `{ state }` | `dismiss` agency roles only. Sets `competitors_done_at` on confirm/skip-competitors; `completed_at` when all done/skipped. |
@@ -134,7 +134,7 @@ New helper `startingPointClockStart(client, setup): Date | null` used by `engine
 
 ## 10. Reminders
 
-Worker job **`setup-reminders`**, daily 14:00 UTC (registered in `main.ts`; skipped on DEMO/TEST). Open setups of clients with status `active` or `prospect`, `agencyServiceable` true. Recipients: agency members with access to that client, else agency admins. Via the `notification` outbox with dedupe keys:
+Worker job **`setup-reminders`**, daily 14:00 UTC (registered in `main.ts`; skipped on DEMO/TEST). Open setups of clients with status `active` or `prospect`, `agencyServiceable` true. Recipients: `recipientsFor(db, { agencyId, clientId, kind, audience: 'agency' })` (agency contacts whose scope includes the client). Via the `notification` outbox with dedupe keys:
 
 | Kind | When | Dedupe key |
 |---|---|---|
