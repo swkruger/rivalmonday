@@ -7,7 +7,7 @@
 2026-10-16: 11a spec + plan **owner-approved**. Not started; execution waits for phase-10 merge (or owner-approved stacking). 11b spec + plan approved (Tasks 15–24). 11c not brainstormed.
 
 ## Next (overwrite)
-After phase-10 merges: plan Task 0 pre-flight (rebase, pnpm install, own test DB `cs_phase_11_test`), then `superpowers:subagent-driven-development` Tasks 1–14. Meanwhile: brainstorm 11b or 11c if the owner wants.
+After phase-10 merges: plan Task 0 pre-flight (rebase, pnpm install, own test DB `cs_phase_11_test`), then `superpowers:subagent-driven-development` Tasks 1–14, then 11b Tasks 15–24 (one final whole-branch review at the end). Meanwhile: brainstorm 11c if the owner wants.
 
 ## Interfaces this branch adds or changes
 (planned, 11a) Table `client_setup`; tools `find_business`, `get_client_setup`, `save_setup_profile`, `pick_setup_competitors`, `advance_client_setup`; `create_client` + optional `lookup`; shared `applyClientProfileChange`, `getSetupState`, `startingPointClockStart` (readiness clock); collector `mapsSearchByText`, `collectGbpProfile` takes a real scope + parses description; AI task `setup_suggestions`; jobs `setup-suggestions`, `setup-reminders`; route `/c/[clientId]/setup`, `/agency/clients/new` rebuilt.
