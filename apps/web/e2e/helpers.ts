@@ -67,7 +67,21 @@ export async function requestMagicLink(page: Page, email: string): Promise<strin
   }
 }
 
+/**
+ * Opens a magic link. `/magic-link/verify` has its own per-IP limit (5 per 60 s) shared across the whole run, so a 429
+ * there is retried until the window clears; a rate-limited request never reaches the handler, so the token stays unused.
+ */
+export async function openMagicLink(page: Page, link: string): Promise<void> {
+  const deadline = Date.now() + RATE_LIMIT_BUDGET_MS;
+  for (;;) {
+    const response = await page.goto(link);
+    if (response?.status() !== 429) return;
+    if (Date.now() > deadline) throw new Error(`magic-link verify rate limit did not clear within ${RATE_LIMIT_BUDGET_MS / 1000} s`);
+    await page.waitForTimeout(RATE_LIMIT_POLL_MS);
+  }
+}
+
 export async function signIn(page: Page, email: string, next = '/agency'): Promise<void> {
   await page.goto(`/sign-in?next=${encodeURIComponent(next)}`);
-  await page.goto(await requestMagicLink(page, email));
+  await openMagicLink(page, await requestMagicLink(page, email));
 }

@@ -1,12 +1,12 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { OWNER_LINK_FILE } from '../playwright.config';
-import { requestMagicLink } from './helpers';
+import { openMagicLink, requestMagicLink } from './helpers';
 
 test('an invited admin signs in by magic link and sees the themed client list', { tag: ['@smoke', '@auth', '@clients', '@briefs'] }, async ({ page }) => {
   await page.goto('/agency');
   await expect(page).toHaveURL(/\/sign-in\?next=%2Fagency/);
-  await page.goto(await requestMagicLink(page, 'admin@e2e.test'));
+  await openMagicLink(page, await requestMagicLink(page, 'admin@e2e.test'));
   await expect(page).toHaveURL(/\/agency$/);
   await expect(page.getByRole('link', { name: 'E2E HVAC' })).toBeVisible();
   const primary = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim());
@@ -40,7 +40,7 @@ test('a guest opens the evidence behind a brief item and gets no agency-only pag
 
 test('sign-in never redirects off-site (Review Focus 2)', { tag: ['@auth'] }, async ({ page }) => {
   await page.goto('/sign-in?next=//evil.example/x');
-  await page.goto(await requestMagicLink(page, 'admin@e2e.test'));
+  await openMagicLink(page, await requestMagicLink(page, 'admin@e2e.test'));
   expect(new URL(page.url()).host).toBe('localhost:3100');
 });
 

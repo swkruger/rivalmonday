@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { type APIRequestContext, expect, test } from '@playwright/test';
 import { MCP_CLIENTS_FILE } from '../playwright.config';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { requestMagicLink } from './helpers';
+import { openMagicLink, requestMagicLink } from './helpers';
 
 /**
  * Phase 6a "AI connections": a personal access token is shown once and revoking it cuts `/mcp` off; an AI app connects
@@ -100,7 +100,7 @@ test('a client owner picks a workspace on the consent page', { tag: ['@ai-connec
     await page.goto(authorize);
     await expect(page).toHaveURL(/\/sign-in\?/);
     // 3. Sign in with a magic link: it resumes the authorize request and lands on the consent page.
-    await page.goto(await requestMagicLink(page, 'mcp-owner@e2e.test'));
+    await openMagicLink(page, await requestMagicLink(page, 'mcp-owner@e2e.test'));
     await expect(page).toHaveURL(/\/oauth\/consent\?/);
     await expect(page.getByText('Connect E2E Assistant to Rival Monday')).toBeVisible();
     await expect(page.getByText("After you allow, you'll be sent to 127.0.0.1:47123.")).toBeVisible();
