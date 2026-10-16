@@ -252,6 +252,8 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'list_discount_codes', input: none, path: 'codes' },
       { tool: 'list_invite_links', input: none, path: 'links', expect: 'empty', why: 'the demo seeds no invite links' },
       { tool: 'get_connect_overview', input: none, path: 'agencies' },
+      { tool: 'get_signups_paused', input: none, path: 'paused', expect: 'empty', why: 'open sign-up is not paused in the demo' },
+      { tool: 'get_signup_funnel', input: () => ({ days: 30 }), path: 'open.signups', expect: 'empty', why: 'the demo agencies are legacy rows, not sign-ups' },
     ],
   },
   { route: '/platform/costs', as: 'operator', calls: [{ tool: 'list_platform_costs', input: none, path: 'services' }] },

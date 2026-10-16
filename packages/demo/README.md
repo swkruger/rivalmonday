@@ -69,7 +69,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/platform` | operator | `platform_overview`, `list_platform_activity` | — |
 | `/platform/agencies` | operator | `list_platform_agencies` | — |
 | `/platform/agencies/[id]` | operator | `get_platform_agency`, `list_agency_support_sessions`, `get_agency_billing`, `list_discount_codes` | — |
-| `/platform/billing` | operator | `get_billing_overview`, `list_plans`, `list_discount_codes`, `get_connect_overview` | `list_invite_links`: the demo seeds no invite links |
+| `/platform/billing` | operator | `get_billing_overview`, `list_plans`, `list_discount_codes`, `get_connect_overview` | `list_invite_links`: the demo seeds no invite links; `get_signups_paused`: open sign-up is not paused in the demo; `get_signup_funnel`: the demo agencies are legacy rows, not sign-ups |
 | `/platform/costs` | operator | `list_platform_costs` | — |
 | `/platform/health` | operator | — | — |
 | `/platform/ask` | operator | `fn:listReviewableAskThreads` | — |
