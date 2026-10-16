@@ -151,7 +151,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] On deploy at `rm.nofingers.ai`, set `APP_URL=https://rm.nofingers.ai` (deep links; still `http://localhost:3000`) — *from HANDOVER §7*
 - [ ] Review a few rendered template alerts before real clients (fallback reads the raw event summary, unedited for tone) — *from HANDOVER §7, 4b*
 - [ ] Label `verifier_decisions` samples (5 unlabelled in `cs_dev` as of 2026-10-04; `decisions export --task verifier_decisions`) before changing τ or routing — *from HANDOVER §5 item 3/§7*
-- [ ] Review the undecided Phase 12 copy: AM notice line "It goes to the client as soon as you approve it."; starting-point summary "Where {client} stands against the {n} rival(s) we now watch. Weekly briefs from here show what changes."; email heading "Your starting point"; approve text "Approved — sent to the client." / button "Approve and send" / heading "{client} · Starting point"; reply-rate fact "You replied to {you}% of reviews; the rival median is {median}%."; tile deltas "▲/▼ {n} pts since your starting point", "No change since your starting point"; "First moves still open" (up to 3 playbook titles); failed-run AM notice "Last error: …"; the 8 default why-it-matters sentences (`review_velocity_gap`, `reply_rate_gap`, `rating_gap`, `rival_only_advertiser`, `theme_weakness`, `theme_strength`, `map_visibility_gap`, `profile_gap`) in `SELF_WHY_IT_MATTERS` (`packages/engine/src/briefs/starting-point.ts`) — *from phase-12*
 
 ## Unscheduled / ideas
 

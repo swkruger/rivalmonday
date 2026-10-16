@@ -7,7 +7,7 @@
 **Updated:** 2026-10-16
 
 ## Where `main` is
-- Phases 0–2, 3a–3d, 4a, 4b, 5a–5c-2, demo data / dev panel / snapshots, Phase 5 polish, Phase 6 (MCP, Ask "Friday", knowledge base), **Phase 8** (owner-verified 2026-10-15), **Phase 12** (competitor discovery + starting-point brief; owner checks pending) + post-12 polish, and **Phase 9 (9a platform → agency billing, 9b agency → client billing via Stripe Connect; merged 2026-10-16, owner Stripe checks pending)** are on `main`.
+- Phases 0–2, 3a–3d, 4a, 4b, 5a–5c-2, demo data / dev panel / snapshots, Phase 5 polish, Phase 6 (MCP, Ask "Friday", knowledge base), **Phase 8** (owner-verified 2026-10-15), **Phase 12** (competitor discovery + starting-point brief; owner-verified 2026-10-16) + post-12 polish, and **Phase 9 (9a platform → agency billing, 9b agency → client billing via Stripe Connect; merged 2026-10-16, owner Stripe checks pending)** are on `main`.
 - Migrations run through **`0064`** (next free `0065`). `cs_dev` is at 0064 (migrated 2026-10-16; snapshot before it `backups/20261016-032408-cs_dev`). `cs_demo` is seeded by `pnpm demo:reset` (includes client-billing demo data).
 - Tests run on the local test cluster (`scripts/local-test-db.sh`, port 5444): `pnpm test:affected` while working; full suite and full E2E at `/rm-merge` and in CI. Phase 9 at merge: 4,303 unit (every package), 72/72 E2E.
 - Switches: `KB_IMPORT_ENABLED` (unset = off), `ASK_FAKE_AI` and `BILLING_FAKE_GATEWAY` (E2E only). Billing is off (gateway null) until `STRIPE_SECRET_KEY` is set. Worker env `NEON_API_KEY`, `NEON_ORG_ID` not set yet.
@@ -15,9 +15,7 @@
 - Built: [ARCHITECTURE.md](ARCHITECTURE.md). Runbook: [OPS.md](OPS.md).
 
 ## Next up
-**Owner housekeeping (Phase 8c):** on `/platform/costs` set the Neon $/CU-hour rate; set `NEON_API_KEY` + `NEON_ORG_ID` in the worker env at deploy.
-
-**Owner verification, Phase 12:** 12a (1) "Find competitors" for both clients, no wrong-category/self suggestions; (2) top rivals tiered; (3) run cost ≤ $3; (4) accepted suggestion shows ad-account chips; (5) Monday `signals-weekly` fills tiers. 12b: starting points need self ads + rank scan (`brief-once --starting-point --force`); approve one in `/agency/approvals`; check email/client view; quiet-Monday "Where you stand"; a second weekly search shows "Next search available …". Copy list: BACKLOG § Owner.
+**Owner housekeeping (Phase 8c):** Neon $/CU-hour rate set (2026-10-16); set `NEON_API_KEY` + `NEON_ORG_ID` in the worker env at deploy.
 
 **Checks waiting on the owner — Phase 9** (automated tests pass; these need real Stripe test mode):
 - [ ] **Setup:** Stripe test account → add `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_TAX_ENABLED`, `STRIPE_CONNECT_WEBHOOK_SECRET` to `.env`; enable Connect; `pnpm --filter @cs/worker billing:sync-plan`. Billing stays off until the key is set.
