@@ -43,6 +43,13 @@ const code = async (o: Partial<typeof discountCode.$inferInsert> = {}) => {
 const newAgencies = async () => (await dbs.owner.select().from(agency)).filter((a) => a.id !== IDS.agencyA && a.id !== IDS.agencyB);
 
 describe('completePendingSignups', () => {
+  it('uses the sign-up contact name for the admin contact when the user has no name (magic link)', async () => {
+    await pending();
+    const r = await completePendingSignups(dbs.service, { ...USER, name: '' }, NOW);
+    const [c] = await dbs.owner.select().from(contact).where(eq(contact.agencyId, r.agencyIds[0]!));
+    expect(c).toMatchObject({ role: 'agency_admin', name: 'Pat' });
+  });
+
   it('open sign-up: agency, profile, admin membership + contact, open onboarding, trialing billing, emails, row completed', async () => {
     const p = await pending();
     const r = await completePendingSignups(dbs.service, USER, NOW);

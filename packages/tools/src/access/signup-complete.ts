@@ -76,7 +76,7 @@ export async function completePendingSignups(
       const agencyId = a!.id;
       await tx.insert(agencyProfile).values({ agencyId, contactName: p.contactName, contactEmail: p.email });
       // Mirrors acceptInvitations: the admin's notification contact, then the membership pointing at it.
-      const contactId = await addContact(tx, { agencyId, clientId: null, role: 'agency_admin', email: p.email, name: user.name || null, clientScope: null, userId: user.id });
+      const contactId = await addContact(tx, { agencyId, clientId: null, role: 'agency_admin', email: p.email, name: user.name || p.contactName || null, clientScope: null, userId: user.id });
       await tx.insert(membership).values({ userId: user.id, agencyId, role: 'agency_admin', clientId: null, clientScope: null, contactId, createdBy: user.id, createdAt: now });
       await tx.insert(agencyOnboarding).values({ agencyId, source: p.source, inviteLinkId: p.inviteLinkId, createdAt: now });
       const couponId = link ? await couponFor(tx, link, now) : undefined;

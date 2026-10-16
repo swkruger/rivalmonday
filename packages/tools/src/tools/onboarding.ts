@@ -1,14 +1,15 @@
 import { assertCanActivateClient } from '@cs/billing';
 import { canAccessClient, FEATURES, toolkit, ToolError } from '@cs/core';
-import { client, CLIENT_STATUSES, withTenant } from '@cs/db';
+import { agencyOnboarding, client, CLIENT_STATUSES, withTenant } from '@cs/db';
 import { listVerticalPacks, type VerticalPack } from '@cs/verticals';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { type ClientInput, cleanClientInput, clientInputProblems } from '../client-input';
 import { postCommitSeatSync } from '../billing-guard';
 import { packsOf, type ToolDeps } from '../deps';
 import { startFirstAutoSearch } from '../rival-search';
 import { validTimezone } from '../timezone';
+import { reevaluateOnboardingCompletion } from './agency-onboarding';
 import { ServiceAreaInput } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -59,7 +60,13 @@ export const createClient = defineTool({
     // P5/R5: an active client takes a seat, so the cap check and the insert share one transaction (the check locks the agency's billing row).
     const [row] = await deps.service.transaction(async (tx) => {
       if (input.status === 'active') await assertCanActivateClient(tx, ctx.agencyId, { role: ctx.role });
-      return tx.insert(client).values(values).returning({ id: client.id });
+      const inserted = await tx.insert(client).values(values).returning({ id: client.id });
+      // Phase 10 R8: the agency's first client (prospects included) starts the guarded stamp; app_user cannot write
+      // agency_onboarding, so this runs on the service connection in the same transaction as the insert.
+      const stamped = await tx.update(agencyOnboarding).set({ firstClientAt: new Date() })
+        .where(and(eq(agencyOnboarding.agencyId, ctx.agencyId), isNull(agencyOnboarding.firstClientAt))).returning({ id: agencyOnboarding.agencyId });
+      if (stamped.length > 0) await reevaluateOnboardingCompletion(tx, ctx.agencyId);
+      return inserted;
     });
     if (input.status === 'active' && deps.billing) await postCommitSeatSync(deps, ctx.agencyId);
     // 12a D4: a client (active or prospect) with keywords, a service area and a place id gets its first search.

@@ -1,6 +1,6 @@
 import { type AccessContext, type AuditEvent, createAccessContext } from '@cs/core';
 import { claimDueSources, ensureSelfCompetitor } from '@cs/collectors';
-import { client, competitorSource, plan } from '@cs/db';
+import { agencyOnboarding, client, competitorSource, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -128,5 +128,22 @@ describe('update_client_profile askReviewAllowed', () => {
     // other profile edits by an AM stay allowed and leave the flag alone
     await registry.invoke(amAll, 'update_client_profile', { clientId: IDS.clientA1, name: 'Renamed' });
     expect((await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1)))[0]).toMatchObject({ name: 'Renamed', askReviewAllowed: false });
+  });
+});
+
+describe('create_client sets agency_onboarding.first_client_at (R8)', () => {
+  it('only once, prospects count, and a client after four steps completes onboarding', async () => {
+    await dbs.owner.insert(agencyOnboarding).values({ agencyId: IDS.agencyA, source: 'open', profileDoneAt: new Date(), teamDoneAt: new Date(), planSkippedAt: new Date(), brandingDoneAt: new Date() });
+    const row = async () => (await dbs.owner.select().from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, IDS.agencyA)))[0]!;
+    expect((await row()).firstClientAt).toBeNull();
+    await registry.invoke(admin, 'create_client', { ...input, name: 'Pitch', status: 'prospect' });
+    const first = (await row()).firstClientAt;
+    expect(first).toBeInstanceOf(Date);
+    expect((await row()).completedAt).toBeInstanceOf(Date);
+    await registry.invoke(admin, 'create_client', { ...input, name: 'Second' });
+    expect((await row()).firstClientAt).toEqual(first);
+  });
+  it('is a no-op when the agency has no onboarding row', async () => {
+    await expect(registry.invoke(admin, 'create_client', input)).resolves.toBeTruthy();
   });
 });
