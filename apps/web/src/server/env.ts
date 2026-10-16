@@ -65,7 +65,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     kbImport: env.KB_IMPORT_ENABLED?.trim() === 'true',
     platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
     askFakeAi: askFake === '1',
-    turnstile?: { siteKey: env.TURNSTILE_SITE_KEY?.trim() || undefined, secretKey: env.TURNSTILE_SECRET_KEY?.trim() || undefined },
+    turnstile: { siteKey: env.TURNSTILE_SITE_KEY?.trim() || undefined, secretKey: env.TURNSTILE_SECRET_KEY?.trim() || undefined },
     supportReplyTo: env.SUPPORT_REPLY_TO?.trim() || undefined,
     postmarkBroadcastStream: env.POSTMARK_BROADCAST_STREAM?.trim() || undefined,
     stripe: {
