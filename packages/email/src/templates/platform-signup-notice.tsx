@@ -14,7 +14,7 @@ export function PlatformSignupNoticeEmail(p: PlatformSignupNoticeProps) {
   return (
     <Layout branding={p.branding} title={subject} preview={subject}>
       <Text style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>{subject}</Text>
-      <Text style={{ margin: '0 0 8px' }}>{`Contact: ${p.contactName} <${p.email}>`}</Text>
+      <Text style={{ margin: '0 0 8px' }}>{p.contactName?.trim() ? `Contact: ${p.contactName.trim()} <${p.email}>` : `Contact: ${p.email}`}</Text>
       <Text style={{ margin: '0 0 8px' }}>{`Source: ${p.source === 'invite' ? 'Invite link' : 'Open sign-up'}`}</Text>
       <Text style={{ margin: '0 0 8px' }}>{`Offer: ${offer}`}</Text>
       <Button href={p.consoleUrl} style={button(p.branding)}>

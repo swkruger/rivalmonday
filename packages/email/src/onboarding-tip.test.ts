@@ -34,6 +34,7 @@ describe('onboarding_tip email', () => {
     const out = await run(1, 'team');
     expect(out.text).toContain("You're getting this because you started setting up Acme Agency. Unsubscribe from setup tips: https://x.test/unsub/abc");
     expect(out.html).toContain('#2A6BAC');
+    expect(out.html).toContain('href="https://x.test/unsub/abc"');
   });
 });
 

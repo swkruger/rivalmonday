@@ -9,6 +9,15 @@ afterEach(() => vi.restoreAllMocks());
 
 
 describe('platform_signup_notice email', () => {
+  it.each([[null], [''], ['   ']])('contact name %j renders the email alone', async (contactName) => {
+    const out = await renderEmail({ template: 'platform_signup_notice', props: { branding, agencyName: 'A', contactName, email: 'jo@acme.test', source: 'open', offer: 'trial', consoleUrl: 'https://x.test/c' } });
+    expect(out.text).toContain('Contact: jo@acme.test');
+    expect(out.text).not.toMatch(/null|<jo@acme\.test>/);
+  });
+  it('pilot without an end date renders "Offer: Pilot"', async () => {
+    const out = await renderEmail({ template: 'platform_signup_notice', props: { branding, agencyName: 'A', contactName: 'Jo', email: 'jo@acme.test', source: 'invite', offer: 'pilot', consoleUrl: 'https://x.test/c' } });
+    expect(out.text).toMatch(/Offer: Pilot(?! until)/);
+  });
   const props = { branding, agencyName: 'Acme Agency', contactName: 'Jo Smith', email: 'jo@acme.test', consoleUrl: 'https://app.rivalmonday.test/console/agencies/1' };
   it('open sign-up trial', async () => {
     const out = await renderEmail({ template: 'platform_signup_notice', props: { ...props, source: 'open', offer: 'trial' } });

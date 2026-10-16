@@ -12,7 +12,7 @@ export const FONT = "Inter, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
 /** Print rules for the PDF variant (Task 16): Letter pages, no shadows, keep a card on one page where possible. */
 const PRINT_CSS = '@page { size: Letter; margin: 16mm 14mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .card { break-inside: avoid; }';
 
-export function Layout(props: { branding: Branding; title: string; preview: string; variant?: 'email' | 'document'; footer?: string; children: ReactNode }) {
+export function Layout(props: { branding: Branding; title: string; preview: string; variant?: 'email' | 'document'; footer?: ReactNode; children: ReactNode }) {
   const b = props.branding;
   const doc = props.variant === 'document';
   return (

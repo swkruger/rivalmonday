@@ -155,7 +155,8 @@ export interface OnboardingTipProps {
 export interface PlatformSignupNoticeProps {
   branding: Branding;
   agencyName: string;
-  contactName: string;
+  /** Null or blank when sign-up gave no name; the notice then shows the email alone. */
+  contactName: string | null;
   email: string;
   source: 'open' | 'invite';
   offer: 'trial' | 'pilot';
