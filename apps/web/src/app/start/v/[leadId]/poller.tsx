@@ -1,6 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const EVERY_MS = 3_000;
 const MAX_MS = 120_000;
@@ -11,17 +11,22 @@ const MAX_MS = 120_000;
  */
 export function PreviewPoller() {
   const router = useRouter();
+  const routerRef = useRef(router);
+  useEffect(() => {
+    routerRef.current = router;
+  });
   const [gaveUp, setGaveUp] = useState(false);
   useEffect(() => {
-    const started = Date.now();
+    let ticks = 0;
     const timer = setInterval(() => {
-      if (Date.now() - started >= MAX_MS) {
+      ticks += 1;
+      if (ticks * EVERY_MS >= MAX_MS) {
         clearInterval(timer);
         setGaveUp(true);
-      } else router.refresh();
+      } else routerRef.current.refresh();
     }, EVERY_MS);
     return () => clearInterval(timer);
-  }, [router]);
+  }, []); // runs once per mount: giving up must not restart the interval
   return (
     <p role="status" aria-live="polite" className="text-ink">
       {gaveUp ? "Your snapshot is taking longer than usual — we'll email it to you." : 'Building your snapshot…'}

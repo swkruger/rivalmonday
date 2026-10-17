@@ -62,6 +62,8 @@ describe('lookupBusinessAction', () => {
   it('maps refusals and tool errors to calm messages', async () => {
     m.lookup.mockResolvedValueOnce({ refused: 'rate' });
     expect(await lookupBusinessAction({ slug: null, name: 'a', location: 'b' })).toEqual({ ok: false, error: 'Too many searches. Please try again in an hour.' });
+    m.lookup.mockResolvedValueOnce({ refused: 'daily' });
+    expect(await lookupBusinessAction({ slug: null, name: 'a', location: 'b' })).toEqual({ ok: false, error: 'This page has had a lot of requests today. Please try again tomorrow.' });
     m.lookup.mockRejectedValueOnce(new ToolError('invalid_input', 'Enter a business name and a city or ZIP code.', { userFacing: true }));
     expect(await lookupBusinessAction({ slug: null, name: '', location: '' })).toEqual({ ok: false, error: 'Enter a business name and a city or ZIP code.' });
     m.lookup.mockRejectedValueOnce(new ToolError('not_found', 'Not found'));
@@ -106,7 +108,9 @@ describe('submitIntakeAction', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     m.submit.mockRejectedValueOnce(new Error('db down sam@smith.co'));
+    const t0 = Date.now();
     expect(await submitIntakeAction(idle, form())).toEqual(DONE);
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(395);
     m.send.mockRejectedValueOnce(new Error('postmark down'));
     expect(await submitIntakeAction(idle, form())).toEqual(DONE);
     await flushAfter();

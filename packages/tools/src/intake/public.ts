@@ -26,19 +26,21 @@ export async function resolveIntake(service: Db, slug: string | null): Promise<{
 
 const linkKey = (agencyId: string | null) => (agencyId ? `link:${agencyId}` : 'platform');
 const ipKey = (ipHash: string) => `ip:${ipHash}`;
+/** Submits have their own hourly budget (ruling: searching must not use up the visitor's submit). */
+const ipSubmitKey = (ipHash: string) => `ipsubmit:${ipHash}`;
 
 const LookupInput = z.object({ name: z.string().trim().min(1).max(120), location: z.string().trim().min(2).max(120) });
 
 /**
- * The 11a business lookup for a public visitor. Rate-limited per hashed IP (hourly, shared with `submitIntake`) and per
- * link/platform page (UTC day). Ruling A: always ledgered as platform cost (`agencyId: null`), so a public visitor can
+ * The 11a business lookup for a public visitor. Rate-limited per hashed IP (hourly → `rate`; submits have a separate budget)
+ * and per link/platform page (UTC day → `daily`). Ruling A: always ledgered as platform cost (`agencyId: null`), so a public visitor can
  * never consume an agency's `find_business` daily cap.
  */
 export async function intakeLookup(
   deps: ToolDeps,
   input: { slug: string | null; name: string; location: string; ipHash: string },
   now: Date,
-): Promise<{ places: SetupLookup[] } | { refused: 'rate' }> {
+): Promise<{ places: SetupLookup[] } | { refused: 'rate' | 'daily' }> {
   const q = LookupInput.safeParse(input);
   if (!q.success) throw new ToolError('invalid_input', 'Enter a business name and a city or ZIP code.', { userFacing: true });
   const target = await resolveIntake(deps.service, input.slug);
@@ -47,7 +49,7 @@ export async function intakeLookup(
 
   if (!(await hitRate(deps.service, ipKey(input.ipHash), 'hour', INTAKE_LIMITS.ipPerHour, now))) return { refused: 'rate' };
   const dayLimit = target.agencyId ? INTAKE_LIMITS.linkPerDay : INTAKE_LIMITS.platformPerDay;
-  if (!(await hitRate(deps.service, linkKey(target.agencyId), 'day', dayLimit, now))) return { refused: 'rate' };
+  if (!(await hitRate(deps.service, linkKey(target.agencyId), 'day', dayLimit, now))) return { refused: 'daily' };
 
   let found: Awaited<ReturnType<NonNullable<ToolDeps['setupLookup']>>>;
   try {
@@ -94,7 +96,7 @@ export async function submitIntake(
   if (!target) return refused('link');
   const parsed = SubmitInput.safeParse(input);
   if (!parsed.success) return refused('invalid');
-  if (!(await hitRate(deps.service, ipKey(input.ipHash), 'hour', INTAKE_LIMITS.ipPerHour, now))) return refused('rate');
+  if (!(await hitRate(deps.service, ipSubmitKey(input.ipHash), 'hour', INTAKE_LIMITS.ipPerHour, now))) return refused('rate');
 
   const v = parsed.data;
   const token = newToken();
@@ -130,9 +132,10 @@ async function enqueueLeadPreview(deps: ToolDeps, leadId: string): Promise<void>
 }
 
 /**
- * Consumes a verify token (single use, compared by hash). An unverified lead becomes `verified` and its preview is
- * queued; ruling B: a resubmit of an already-verified open lead keeps `verified_at` and only re-queues a preview that is
- * `none`/`failed`. Either way a new view token is issued. Unknown, used or expired → `{ expired: true }`.
+ * Uses a verify token (compared by hash). Idempotent until `verify_expires_at` (ruling: mail scanners pre-open links), so
+ * the token is not cleared. The first use turns an unverified lead `verified` and queues its preview; a repeat use (or
+ * ruling B's resubmit) keeps `verified_at` and only re-queues a preview that is `none`/`failed`. Every use issues a new
+ * view token. Unknown, expired, or a lead no longer open → `{ expired: true }`.
  */
 export async function verifyIntake(deps: ToolDeps, raw: string, now: Date): Promise<{ leadId: string; viewRaw: string } | { expired: true }> {
   const view = newToken();
@@ -144,7 +147,7 @@ export async function verifyIntake(deps: ToolDeps, raw: string, now: Date): Prom
       FOR UPDATE
     )
     UPDATE lead SET status = 'verified', verified_at = coalesce(lead.verified_at, ${at}::timestamptz),
-      verify_token_hash = NULL, verify_expires_at = NULL, view_token_hash = ${view.hash}, updated_at = ${at}::timestamptz
+      view_token_hash = ${view.hash}, updated_at = ${at}::timestamptz
     FROM old WHERE lead.id = old.id
     RETURNING lead.id, old.status AS old_status, lead.preview->>'status' AS preview_status`);
   if (!row) return { expired: true };

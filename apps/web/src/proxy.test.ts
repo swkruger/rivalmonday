@@ -34,6 +34,11 @@ describe('proxy', () => {
     for (const p of ['/startx', '/starter']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
   });
 
+  it('sends no referrer from the token-bearing intake URLs (preview and verify link)', () => {
+    for (const p of ['/start/v/11111111-1111-4111-8111-111111111111', '/start/verify/tok']) expect(run(p).headers.get('referrer-policy'), p).toBe('no-referrer');
+    for (const p of ['/start', '/start/smith-co', '/sign-in']) expect(run(p).headers.get('referrer-policy'), p).toBeNull();
+  });
+
   it('still redirects other cookie-less paths to sign-in', () => {
     for (const p of ['/api/askx', '/c/x/ask', '/api/other']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
   });

@@ -92,14 +92,14 @@ describe('intakeLookup', () => {
 
   it('link daily cap 50', async () => {
     for (let i = 0; i < 50; i++) expect(await look('agency-a', `ip-${i}`)).toHaveProperty('places');
-    expect(await look('agency-a', 'ip-x')).toEqual({ refused: 'rate' });
+    expect(await look('agency-a', 'ip-x')).toEqual({ refused: 'daily' });
     expect(await look(null, 'ip-y')).toHaveProperty('places'); // platform page has its own counter
     expect(await look('agency-a', 'ip-z', new Date('2026-10-18T00:00:00Z'))).toHaveProperty('places');
   });
 
   it('platform cap 200', async () => {
     for (let i = 0; i < 200; i++) expect(await look(null, `ip-${i}`)).toHaveProperty('places');
-    expect(await look(null, 'ip-x')).toEqual({ refused: 'rate' });
+    expect(await look(null, 'ip-x')).toEqual({ refused: 'daily' });
     expect(await look('agency-a', 'ip-y')).toHaveProperty('places');
   });
 
@@ -166,25 +166,49 @@ describe('submitIntake', () => {
     expect(await submit({ message: 'x'.repeat(501) })).toEqual({ send: null });
     expect(await submit({ lookup: { placeId: 'x' } as unknown as SetupLookup })).toEqual({ send: null });
     expect(await leads()).toHaveLength(0);
-    // the IP budget is shared with lookups
+  });
+
+  it('submits have their own hourly IP budget: 5 lookups then a submit still succeeds; the 6th submit is refused', async () => {
     for (let i = 0; i < 5; i++) await look('agency-a', 'iphash-9');
-    expect(await submit({ ipHash: 'iphash-9' })).toEqual({ send: null });
-    expect(await leads()).toHaveLength(0);
+    expect(await look('agency-a', 'iphash-9')).toEqual({ refused: 'rate' });
+    expect((await submit({ ipHash: 'iphash-9' })).send).not.toBeNull();
+    for (let i = 0; i < 4; i++) expect((await submit({ ipHash: 'iphash-9', lookup: lookup(`p${i + 2}`) })).send).not.toBeNull();
+    expect(await submit({ ipHash: 'iphash-9', lookup: lookup('p9') })).toEqual({ send: null });
+    expect(await leads()).toHaveLength(5);
   });
 });
 
 describe('verifyIntake', () => {
-  it('verify sets verified, enqueues preview once, token single-use', async () => {
+  it('verify sets verified, enqueues preview once; the link stays usable until it expires (idempotent)', async () => {
     const { send } = await submit();
     const v = await verifyIntake(deps, send!.verifyRaw, NOW);
     expect(v).toMatchObject({ leadId: send!.leadId });
     const [row] = await leads();
-    expect(row).toMatchObject({ status: 'verified', verifyTokenHash: null, verifyExpiresAt: null });
+    expect(row).toMatchObject({ status: 'verified', verifyTokenHash: hashToken(send!.verifyRaw) });
+    expect(row!.verifyExpiresAt).not.toBeNull();
     expect(row!.verifiedAt).toEqual(NOW);
     expect(row!.viewTokenHash).toBe(hashToken((v as { viewRaw: string }).viewRaw));
     expect(enqueued).toEqual([{ job: 'lead-preview', data: { leadId: send!.leadId }, key: `lead-preview:${send!.leadId}` }]);
+    await dbs.service.update(lead).set({ preview: { status: 'pending' } }); // the job has picked it up
+    const again = await verifyIntake(deps, send!.verifyRaw, NOW) as { leadId: string; viewRaw: string };
+    expect(again.leadId).toBe(send!.leadId);
+    expect(again.viewRaw).not.toBe((v as { viewRaw: string }).viewRaw);
+    expect((await leads())[0]!.verifiedAt).toEqual(NOW);
+    expect(enqueued).toHaveLength(1); // preview pending (not none/failed): no re-queue
+    // past expiry, or once the lead is decided, the link is dead
+    expect(await verifyIntake(deps, send!.verifyRaw, new Date(NOW.getTime() + 48 * 3_600_000 + 1))).toEqual({ expired: true });
+    await dbs.service.update(lead).set({ status: 'accepted' });
     expect(await verifyIntake(deps, send!.verifyRaw, NOW)).toEqual({ expired: true });
-    expect(enqueued).toHaveLength(1);
+  });
+
+  it("a scanner pre-opening the link doesn't break the visitor's click", async () => {
+    const { send } = await submit({}, new Date());
+    await dbs.service.update(lead).set({ preview: { status: 'pending' } });
+    const scanner = await verifyIntake(deps, send!.verifyRaw, new Date()) as { leadId: string; viewRaw: string };
+    const visitor = await verifyIntake(deps, send!.verifyRaw, new Date()) as { leadId: string; viewRaw: string };
+    expect(visitor.leadId).toBe(send!.leadId);
+    expect(await getPublicPreview(dbs.service, visitor.leadId, visitor.viewRaw)).not.toBeNull();
+    expect(scanner.viewRaw).not.toBe(visitor.viewRaw);
   });
 
   it('expired token', async () => {
@@ -218,7 +242,7 @@ describe('verifyIntake', () => {
     expect(v2.leadId).toBe(first.send!.leadId);
     expect(v2.viewRaw).not.toBe(v1.viewRaw);
     const [row] = await leads();
-    expect(row).toMatchObject({ status: 'verified', verifyTokenHash: null, viewTokenHash: hashToken(v2.viewRaw) });
+    expect(row).toMatchObject({ status: 'verified', verifyTokenHash: hashToken(second.send!.verifyRaw), viewTokenHash: hashToken(v2.viewRaw) });
     expect(row!.verifiedAt).toEqual(NOW); // kept
     expect(enqueued).toHaveLength(1);
     // a failed preview is retried on the next resubmit

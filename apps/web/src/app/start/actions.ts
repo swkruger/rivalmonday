@@ -28,6 +28,7 @@ const MIN_MS = 400;
 const GONE = 'This page is no longer available.';
 const UNAVAILABLE = "Business search isn't available right now. Try again later.";
 const RATE = 'Too many searches. Please try again in an hour.';
+const DAILY = 'This page has had a lot of requests today. Please try again tomorrow.';
 
 const text = (f: FormData, k: string) => (typeof f.get(k) === 'string' ? (f.get(k) as string) : '');
 const email = z.string().trim().max(320).email();
@@ -48,7 +49,8 @@ export async function lookupBusinessAction(input: { slug: string | null; name: s
   const ipHash = hashIp((await clientIp()) ?? 'unknown', webEnv().authSecret);
   try {
     const r = await intakeLookup(toolDeps(), { slug: s.slug, name: String(input.name ?? ''), location: String(input.location ?? ''), ipHash }, new Date());
-    return 'refused' in r ? { ok: false, error: RATE } : { ok: true, places: r.places };
+    if ('refused' in r) return { ok: false, error: r.refused === 'daily' ? DAILY : RATE };
+    return { ok: true, places: r.places };
   } catch (e) {
     if (e instanceof ToolError) {
       if (e.code === 'invalid_input') return { ok: false, error: e.message };

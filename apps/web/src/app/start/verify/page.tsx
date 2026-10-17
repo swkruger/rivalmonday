@@ -23,7 +23,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   return { title: brand.displayName ? `Link expired · ${brand.displayName}` : 'Link expired', robots: NOINDEX };
 }
 
-/** Phase 11c §3: where an unknown, used or expired verify link lands (`/start/verify/<token>` redirects here). */
+/** Phase 11c §3: where an unknown, expired or decided verify link lands (`/start/verify/<token>` redirects here). */
 export default async function IntakeLinkExpiredPage({ searchParams }: Props) {
   const { brand, href } = await origin((await searchParams).from);
   return (
