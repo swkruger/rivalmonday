@@ -119,6 +119,13 @@ describe('request_rank_scan', () => {
     expect(r.queued === false && r.nextAvailableAt).toMatch(/T00:00:00\.000Z$/);
   });
 
+  it('skipped manual rows today do not count toward the agency daily limit', async () => {
+    for (let i = 0; i < RANK_MANUAL_PER_AGENCY_DAY; i++) {
+      await dbs.owner.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, status: 'skipped', trigger: 'manual', startedAt: new Date() });
+    }
+    expect(await request()).toMatchObject({ queued: true });
+  });
+
   it('cap → cap, no row', async () => {
     await dbs.owner.update(client).set({ monthlyCapUsd: 0.01 }).where(eq(client.id, IDS.clientA1));
     expect(await request()).toMatchObject({ queued: false, reason: 'cap' });

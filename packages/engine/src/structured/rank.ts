@@ -39,7 +39,7 @@ export function rankSettingsKey(s: { gridSize: number | null; radiusKm: number |
   return createHash('sha256').update(canonical).digest('hex').slice(0, 16);
 }
 
-const pointKey =(s: { keyword: string; lat: number; lng: number }) => `${s.keyword}|${s.lat.toFixed(5)},${s.lng.toFixed(5)}`;
+const pointKey = (s: { keyword: string; lat: number; lng: number }) => `${s.keyword}|${s.lat.toFixed(5)},${s.lng.toFixed(5)}`;
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
 /**

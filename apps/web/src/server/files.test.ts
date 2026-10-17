@@ -264,6 +264,28 @@ describe('serveRankMap', () => {
     const r = await serveRankMap({ clientId: IDS.clientA1, ctx: admin, registry, service: dbs.service, store: createMemoryStore() });
     expect(r.status).toBe(404);
   });
+
+  it('every refusal is the same bare 404: status, "Not found" body and no image headers', async () => {
+    const noRow = await serve(IDS.clientA1, admin); // before the image row exists
+    await seedMap();
+    const refusals = [
+      noRow,
+      await serve(IDS.clientA1, otherAgency),
+      await serve(IDS.clientA1, amOutside),
+      await serve(IDS.clientA1, owner),
+      await serve(IDS.clientA2, withDash),
+      await serve('nope', admin),
+      await serveRankMap({ clientId: IDS.clientA1, ctx: admin, registry, service: dbs.service, store: createMemoryStore() }),
+    ];
+    for (const r of refusals) {
+      expect(r.status).toBe(404);
+      expect(await r.text()).toBe('Not found');
+      expect(r.headers.get('content-type') ?? '').not.toMatch(/^image\//);
+      expect(r.headers.get('cache-control')).toBeNull();
+      expect(r.headers.get('content-disposition')).toBeNull();
+      expect(r.headers.get('x-content-type-options')).toBeNull();
+    }
+  });
 });
 
 describe('resolveEvidenceDir', () => {

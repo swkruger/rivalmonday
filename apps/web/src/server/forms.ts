@@ -44,7 +44,7 @@ export interface ClientProfileFields {
 const lines = (v: string) => v.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
 const CENTER = /^\s*(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$/;
 
-/** Range checks happen in the tool (`clientInputProblems`); this only reads the form. */
+/** Range checks happen in the tool (`clientInputProblems`); this reads the form and gives the radius range friendly copy. */
 export function parseClientProfileForm(fd: FormData): ClientProfileFields | { error: string } {
   const center = str(fd, 'center');
   const radius = str(fd, 'radiusKm');
@@ -55,6 +55,7 @@ export function parseClientProfileForm(fd: FormData): ClientProfileFields | { er
     if (!m) return { error: 'Enter the centre as "latitude, longitude" (e.g. 33.95, -84.33)' };
     const radiusKm = Number(radius);
     if (!radius || !Number.isFinite(radiusKm)) return { error: 'Enter the radius in kilometres' };
+    if (radiusKm < 2 || radiusKm > 40) return { error: 'Radius must be between 2 and 40 km.' };
     const towns = lines(str(fd, 'towns'));
     serviceArea = { center: { lat: Number(m[1]), lng: Number(m[2]) }, radiusKm, zips, ...(towns.length ? { towns } : {}) };
   }

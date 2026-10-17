@@ -82,7 +82,7 @@ export function ClientProfileForm(props: Props) {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="radiusKm">Radius (km)</Label>
-            <Input id="radiusKm" name="radiusKm" inputMode="decimal" defaultValue={area ? String(area.radiusKm) : ''} className="w-28" />
+            <Input id="radiusKm" name="radiusKm" type="number" min={2} max={40} step="any" inputMode="decimal" defaultValue={area ? String(area.radiusKm) : ''} className="w-28" />
           </div>
         </div>
         <p className="text-muted-foreground">In Google Maps, right-click the business location and click the coordinates to copy them.</p>

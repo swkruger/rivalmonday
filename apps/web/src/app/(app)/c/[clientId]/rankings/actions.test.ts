@@ -55,8 +55,12 @@ describe('requestRankScan', () => {
 
   it('reports a scan that could not be queued instead of throwing', async () => {
     const { ToolError } = await import('@cs/core');
-    m.runTool.mockRejectedValue(new ToolError('internal', 'Could not queue the rank scan'));
+    const err = new ToolError('internal', 'Could not queue the rank scan');
+    m.runTool.mockRejectedValue(err);
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     await expect(requestRankScan(C)).resolves.toEqual({ ok: false, error: 'The scan could not be started. Try again in a few minutes.' });
+    expect(log).toHaveBeenCalledWith(expect.stringContaining(C), err);
+    log.mockRestore();
     m.runTool.mockRejectedValue(new Error('db down'));
     await expect(requestRankScan(C)).rejects.toThrow('db down');
   });

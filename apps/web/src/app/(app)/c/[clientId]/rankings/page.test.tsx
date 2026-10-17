@@ -121,5 +121,29 @@ describe('RankingsPage', () => {
       expect([...grid.querySelectorAll('text[data-change]')].map((n) => n.textContent)).toEqual(['+4', '=', '=', '–']);
       expect(screen.queryByText('Settings changed between these scans.')).toBeNull();
     });
+
+    it('Compare refuses scans with the same settings key but a moved centre (different lats)', async () => {
+      mount();
+      const base = callTool.getMockImplementation()!;
+      callTool.mockImplementation(async (ctx: unknown, name: string, input: { scanId?: string }) => {
+        const out = await base(ctx, name, input);
+        return name === 'get_geogrid' && input.scanId === S2 ? { ...out, lats: [30.31, 30.21] } : out;
+      });
+      await render5({ tab: 'compare' });
+      expect(screen.getByText('Settings changed between these scans.')).toBeTruthy();
+      expect(screen.queryByRole('img', { name: /Change in local rank/ })).toBeNull();
+    });
+
+    it('Compare still draws when the coordinates differ by less than 1e-6', async () => {
+      mount();
+      const base = callTool.getMockImplementation()!;
+      callTool.mockImplementation(async (ctx: unknown, name: string, input: { scanId?: string }) => {
+        const out = await base(ctx, name, input);
+        return name === 'get_geogrid' && input.scanId === S2 ? { ...out, lats: [30.3 + 1e-7, 30.2] } : out;
+      });
+      await render5({ tab: 'compare' });
+      expect(screen.getByRole('img', { name: /Change in local rank/ })).toBeTruthy();
+      expect(screen.queryByText('Settings changed between these scans.')).toBeNull();
+    });
   });
 });

@@ -19,7 +19,6 @@ describe('vendor jobs', () => {
     expect(enqueueCollect.mock.calls.map((c) => c[0])).toEqual([{ competitorId: 'c1', source: 'gbp' }, { competitorId: 'c1', source: 'ads_meta' }]);
     expect(jobs.schedule.cron).toBe('*/30 * * * *');
     expect(jobs.poll.cron).toBe('*/10 * * * *');
-    
   });
 
   it('rejects unknown sources in collect payloads', () => {

@@ -32,7 +32,7 @@ test('switch to DEMO, reset it, sign in as the agency admin and open Lone Star C
 
   await page.goto(`/c/${clientId}/rankings`);
   await expect(page.getByRole('heading', { level: 1, name: 'Local rankings' })).toBeVisible();
-  await expect(page.getByText(/first monthly rank scan hasn’t run yet|Rank tracking starts once keywords/)).toHaveCount(0);
+  await expect(page.getByText(/first weekly rank scan hasn’t run yet|Rank tracking starts once keywords/)).toHaveCount(0);
 
   // Leave the dev server's environment file on DEV for the next run.
   await page.locator('[data-rm-dev-panel]').click();

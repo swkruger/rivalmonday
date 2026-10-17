@@ -49,7 +49,7 @@ export async function rankScanAvailability(db: Db | Tx, c: { id: string; agencyI
 
   const dayStart = utcMidnight(now);
   const [today] = await db.select({ n: count() }).from(rankScan)
-    .where(and(eq(rankScan.agencyId, c.agencyId), eq(rankScan.trigger, 'manual'), gte(rankScan.startedAt, dayStart)));
+    .where(and(eq(rankScan.agencyId, c.agencyId), eq(rankScan.trigger, 'manual'), ne(rankScan.status, 'skipped'), gte(rankScan.startedAt, dayStart)));
   if ((today?.n ?? 0) >= RANK_MANUAL_PER_AGENCY_DAY) return { state: 'agency_daily_limit', nextAvailableAt: new Date(dayStart.getTime() + DAY_MS).toISOString() };
 
   const budget = await checkRankScanBudget(db, c.id, estimateRankScanUsd(row).usd, now);

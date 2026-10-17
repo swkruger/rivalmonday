@@ -22,6 +22,8 @@ export const dynamic = 'force-dynamic';
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 const selectCls = 'rounded-md border border-line bg-surface px-2 py-1.5';
 type TrendScan = RankTrendView['scans'][number];
+/** Two scans' grid coordinates match: same length, every value within 1e-6. */
+const samePoints = (x: number[], y: number[]) => x.length === y.length && x.every((v, i) => Math.abs(v - y[i]!) <= 1e-6);
 
 /**
  * Module 7 (decisions 9–11) + Phase 13b D8: Trend tab (average-rank line, scan slider driving the geo-grid, share of
@@ -67,7 +69,10 @@ export default async function RankingsPage({ params, searchParams }: {
     b ??= trend.scans[0]!;
     if (a.finishedAt > b.finishedAt) [a, b] = [b, a];
     const grid = (id: string) => callTool<GeoGridView>(ctx, 'get_geogrid', { clientId, keyword: geo.keyword, ...(geo.business ? { business: geo.business } : {}), scanId: id });
-    const grids = a.settingsKey === b.settingsKey ? await Promise.all([grid(a.scanId), grid(b.scanId)]) : null;
+    // Same settings and the same points: the settings key ignores the service-area centre, so a moved centre (or two
+    // legacy scans on different grids) would otherwise draw index-aligned deltas between different locations.
+    const pair = a.settingsKey === b.settingsKey ? await Promise.all([grid(a.scanId), grid(b.scanId)]) : null;
+    const grids = pair && samePoints(pair[0].lats, pair[1].lats) && samePoints(pair[0].lngs, pair[1].lngs) ? pair : null;
     compare = { a, b, stale, grids };
   }
 

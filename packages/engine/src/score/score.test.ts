@@ -116,6 +116,16 @@ describe('tier_change scoring (P10)', () => {
     expect(scoreForClient(tier('watch', 'minor'), client, pack).route).toBe('archive');
   });
 
+  it('demotion, same tier and missing tiers archive even with a brief threshold of 0', () => {
+    const zero = { ...client, thresholds: { alert: 70, brief: 0 } };
+    expect(scoreForClient(tier('top', 'watch'), zero, pack)).toMatchObject({ score: 0, route: 'archive' });
+    expect(scoreForClient(tier('watch', 'watch'), zero, pack).route).toBe('archive');
+    const missing = input({ changeType: 'tier_change', facts: [], serviceId: null, details: { changeType: 'tier_change' } as ScoreInput['details'] });
+    expect(scoreForClient(missing, zero, pack).route).toBe('archive');
+    // A promotion still routes by the thresholds.
+    expect(scoreForClient(tier('minor', 'watch'), zero, pack).route).toBe('brief');
+  });
+
   it('needs-review cap still applies', () => {
     const r = scoreForClient(tier('watch', 'top', { needsReview: true }), client, pack);
     expect([r.route, r.factors.needsReviewCap]).toEqual(['brief', true]);

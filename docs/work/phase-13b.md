@@ -10,7 +10,7 @@
 Final whole-branch review + one fix wave, then `/rm-wrap-up`; `/rm-merge` only with the owner's go-ahead.
 
 ## Interfaces this branch adds or changes
-- **Migrations:** 0067 rank_upgrade, 0068 rank_upgrade_rls, 0069 rank_scan_requested_by_text. Phase-11 holds 0067-0071+: second to merge renumbers.
+- **Migrations:** 0067 rank_upgrade, 0068 rank_upgrade_rls, 0069 rank_scan_requested_by_text. Phase-11 now holds 0067–0073: if 13b merges second it renumbers to 0074–0076.
 - **Tables/columns:** `client.rank_keywords`, `client.rank_grid_size`; `rank_scan.trigger`, `requested_by` (text), `grid_size`, `radius_km`, `keywords`, `estimated_usd`, status `'skipped'`, unique index on one running scan per client; new `rank_map_image`. `ClientRow` now exported from `@cs/db`.
 - **Tools:** `get_rank_settings`, `update_client_rank_settings`, `request_rank_scan`, `get_rank_trend`; `get_geogrid` adds lats/lngs/map and a selected-scan param. `ServiceAreaWrite` (radius 2-40) on `create_client` / `update_client_profile` (MCP schema change).
 - **Jobs:** `rank-schedule` (Sun 06:00 UTC), `rank-scan` (`trigger`/`scanId`), `rank-map-refresh`. Route `/files/rank-map/[clientId]`. Env `STADIA_API_KEY` (in `.env.example`; owner adds to `.env`).
@@ -39,10 +39,10 @@ Execution rulings:
 - Trend/Compare delta ramp uses derived blue/amber families (brand #F5A524 failed light-end contrast 1.99:1).
 
 ## New backlog (target → item)
-- **Soon:** SINGLE_SHOT 3h expiry on a long Sunday fan-out (pre-existing); Compare limited to newest 12 scans; orphaned `rank-map/{id}/{oldHash}.png` on hash change; Stadia probe (confirm `STATIC_MAP_WORLD_PX=512`, @2x size, max size, add fixture); failed map fetches ledgered at full $0.06; `enqueueRankMap` calls `createQueue` without options per send; `request_rank_scan` stale sweep covers all tenants.
+- **Soon:** SINGLE_SHOT 3h expiry on a long Sunday fan-out (pre-existing); Compare limited to newest 12 scans; orphaned `rank-map/{id}/{oldHash}.png` on hash change; Stadia probe (confirm `STATIC_MAP_WORLD_PX=512`, @2x size, max size, add fixture); failed map fetches ledgered at full $0.06; `request_rank_scan` stale sweep covers all tenants; `request_rank_scan` has no DataForSEO-configured signal in `ToolDeps`, so an unconfigured worker leaves a manual row `running` until the 3 h stale sweep.
 - **Polish (data/logic):** two `legacy` scans compare as equal in Compare; `get_geogrid` map non-null for a zero-snapshot scan; trend cursor lacks id tiebreak; demotion score 0 may route to brief at threshold 0; tier_change factors report unused weights; `block_key` dates like 02-30 roll over; demo `rank_change` ignores `diffRankScan` thresholds; `get_rank_settings` returns raw legacy radius; competitor `sections.tsx:87` says "monthly rank scan" (now weekly); watch client components importing `@cs/engine` (node:crypto in barrel).
 - **Polish (UI):** Task 14 cap fallback copy lacks client name/amount; weekly fallback date uses UTC; `queued` sticks "Scan running..." until navigation; cap/daily notes not `aria-describedby`; internal errors in `requestRankScan` swallowed without log; slider debounce compares stale value; brief thumb snap-back mid-drag; slider vs grid mismatch when `?scan=` is older than 12; ChangeGrid duplicates GeoGrid hatch defs; map rank font fixed 13 units.
-- **Polish (tests):** backfill 0068 untested; fitStaticMap centre/y-placement and zoom clamp tests; agency 10/day FOR UPDATE concurrency test; refusal tests assert status only; "never logs the key" and failure-ledger tests; trend legend order asserted only via `toContain('You')`; tier_change `failed` status case; unused `inArray` import in `tools/usage.ts`.
+- **Polish (tests):** backfill 0068 untested; fitStaticMap centre/y-placement and zoom clamp tests; agency 10/day FOR UPDATE concurrency test; "never logs the key" and failure-ledger tests; trend legend order asserted only via `toContain('You')`; tier_change `failed` status case.
 - **Unscheduled:** network-error map fetches ledgered at 0; key redaction on all error paths.
 
 ## Owner verification steps

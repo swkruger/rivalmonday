@@ -1,5 +1,5 @@
 import { type Db, llmCall, monthStart, spendByClient, vendorCall } from '@cs/db';
-import { and, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, gte, isNull, sql } from 'drizzle-orm';
 import { SPEND_WARNING_RATIO } from './limits';
 
 export { monthStart, spendByClient };

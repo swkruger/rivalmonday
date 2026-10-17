@@ -49,6 +49,6 @@ describe('competitor profile sections (decision 13)', () => {
     expect(link.getAttribute('href')).toBe(`/c/${C}/rankings?keyword=ac+repair&business=${X}`);
     unmount();
     render(<RankingsSection clientId={C} competitorId={X} geo={{ ...base, setup: 'no_scan', keywordSummaries: [] }} />);
-    expect(screen.getByText('The first monthly rank scan hasn’t run yet.')).toBeTruthy();
+    expect(screen.getByText('The first weekly rank scan hasn’t run yet.')).toBeTruthy();
   });
 });

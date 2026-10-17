@@ -56,7 +56,10 @@ export async function requestRankScan(clientId: string): Promise<FormResult> {
     r = await runTool<ScanRequest>(ctx, 'request_rank_scan', { clientId });
   } catch (e) {
     // A failed enqueue (incl. the DEMO/TEST queue refusal) leaves no scan row behind; say so instead of crashing the page.
-    if (e instanceof ToolError && e.code === 'internal') return { ok: false, error: SCAN_NOT_QUEUED };
+    if (e instanceof ToolError && e.code === 'internal') {
+      console.error(`[rank-scan] request for client ${clientId} failed`, e);
+      return { ok: false, error: SCAN_NOT_QUEUED };
+    }
     throw e;
   }
   if (!r.ok) return r;

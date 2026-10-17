@@ -82,8 +82,10 @@ export function validThresholds(t: ScoreThresholds | null | undefined): t is Sco
 
 const TIER_RANK = { minor: 0, watch: 1, top: 2 } as const;
 
+const isTierPromotion = (d: ChangeDetails): boolean => !!d.from && !!d.to && TIER_RANK[d.to] > TIER_RANK[d.from];
+
 function tierChangeScore(d: ChangeDetails, t: ScoreThresholds): number {
-  if (!d.from || !d.to || TIER_RANK[d.to] <= TIER_RANK[d.from]) return 0;
+  if (!isTierPromotion(d)) return 0;
   return d.to === 'top' ? t.alert : t.brief;
 }
 
@@ -100,7 +102,9 @@ export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: 
   const score = input.changeType === 'tier_change'
     ? tierChangeScore(input.details, thresholds)
     : Math.round(100 * typeWeight * size * relevance * novelty * 10) / 10;
-  let route: Route = score >= thresholds.alert ? 'alert' : score >= thresholds.brief ? 'brief' : 'archive';
+  // A tier non-promotion (demotion, same tier, missing tiers) always archives, even when the brief threshold is 0.
+  const tierArchive = input.changeType === 'tier_change' && !isTierPromotion(input.details);
+  let route: Route = tierArchive ? 'archive' : score >= thresholds.alert ? 'alert' : score >= thresholds.brief ? 'brief' : 'archive';
   const needsReviewCap = input.needsReview && route === 'alert';
   if (needsReviewCap) route = 'brief';
   const staleCap = route === 'alert' && input.ageDays > pack.scoring.alert_max_age_days;

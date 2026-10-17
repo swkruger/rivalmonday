@@ -57,6 +57,15 @@ export function gridLayout(rows: number, cols: number, map: GridMap | null = nul
   };
 }
 
+/**
+ * Cell label font size in viewBox units. A map frame (512–1024 px wide) is drawn at ≤ 520 px, so a fixed 13 would
+ * shrink to ~6.5 px; on a map the label scales with the cell (≈ 0.3 × size → ~12–13 px rendered). Plain grid: 13.
+ */
+export function gridLabelFont(size: number, onMap: boolean): { fontSize: number; dy: number } {
+  const fontSize = onMap ? Math.max(13, size * 0.3) : 13;
+  return { fontSize, dy: fontSize * 0.38 };
+}
+
 /** The four compass letters around a plain (map-less) grid. */
 export function Compass({ W, H }: { W: number; H: number }) {
   return (
@@ -81,6 +90,7 @@ export function GeoGrid({ title, summary, cells, businessName, keyword, map = nu
   const cols = Math.max(0, ...cells.map((r) => r.length));
   if (rows === 0 || cols === 0) return <p className="text-sm text-muted-foreground">No rank data in this scan.</p>;
   const { map: bg, W, H, centre, size } = gridLayout(rows, cols, map, lats, lngs);
+  const { fontSize, dy } = gridLabelFont(size, bg !== null);
   return (
     <figure className="flex flex-col gap-2">
       <div className="mx-auto w-full max-w-[520px]">
@@ -105,7 +115,7 @@ export function GeoGrid({ title, summary, cells, businessName, keyword, map = nu
                 <g key={`${r}-${c}`}>
                   <title>{`${businessName}: ${sayRank(rank)} for "${keyword}" (row ${r + 1} of ${rows}, column ${c + 1} of ${cols})`}</title>
                   <rect x={x - size / 2} y={y - size / 2} width={size} height={size} rx={4} fill={f.fill} stroke={f.stroke ?? 'none'} strokeWidth={f.stroke ? 1 : 0} />
-                  <text data-rank x={x} y={y + 5} textAnchor="middle" fontSize={13} fontWeight={700} fill={f.text} pointerEvents="none">
+                  <text data-rank x={x} y={y + dy} textAnchor="middle" fontSize={fontSize}fontWeight={700} fill={f.text} pointerEvents="none">
                     {f.label}
                   </text>
                 </g>

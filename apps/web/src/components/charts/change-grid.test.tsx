@@ -41,4 +41,15 @@ describe('ChangeGrid', () => {
     expect(screen.getByRole('img').querySelector('image')!.getAttribute('href')).toBe(map.url);
     expect(screen.getByText('© OpenStreetMap contributors')).toBeTruthy();
   });
+
+  it('on a 1024-wide map frame the change labels scale with the cell size', () => {
+    const map = { url: '/files/rank-map/c1?v=1', bounds: { west: -97.85, south: 30.15, east: -97.65, north: 30.35 }, width: 1024, height: 1024, attribution: '© OpenStreetMap contributors' };
+    render(<ChangeGrid before={[[1, 2], [3, 4]]} after={[[1, 2], [3, 4]]} lats={[30.3, 30.2]} lngs={[-97.8, -97.7]} map={map} />);
+    const svg = screen.getByRole('img');
+    const size = Number(svg.querySelector('g rect')!.getAttribute('width'));
+    const font = Number(svg.querySelector('text[data-change]')!.getAttribute('font-size'));
+    expect(font).toBeGreaterThan(13);
+    expect(font).toBeCloseTo(size * 0.3, 1);
+    expect(font * (520 / 1024)).toBeGreaterThanOrEqual(12);
+  });
 });

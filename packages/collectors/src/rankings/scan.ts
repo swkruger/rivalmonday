@@ -9,6 +9,17 @@ import { type DataForSeoClient, VendorError } from '../vendors/dataforseo';
 import { checkRankScanBudget, estimateRankScanUsd } from './budget';
 import { RANK_MAX_KEYWORDS, rankKeywordsFor, rankRadiusKm } from './settings';
 
+export interface RankScanSkipped { scanId: string; agencyId: string; clientId: string; clientName: string; spentUsd: number; capUsd: number; estimatedUsd: number }
+
+/** Postgres unique violation on the one-running-scan-per-client index (drizzle may wrap the driver error in `cause`). */
+function isRunningUniqueViolation(err: unknown): boolean {
+  for (let e: unknown = err, i = 0; e && typeof e === 'object' && i < 4; e = (e as { cause?: unknown }).cause, i++) {
+    const x = e as { code?: string; constraint_name?: string; constraint?: string };
+    if (x.code === '23505' && (x.constraint_name ?? x.constraint) === 'rank_scan_running_unique') return true;
+  }
+  return false;
+}
+
 /**
  * Scans a client's keywords across a grid of map points and stores one tenant-scoped rank_snapshot per
  * keyword x point, grouped under one rank_scan (Phase 3b: rank deltas compare scan to scan). Each point's
@@ -25,17 +36,6 @@ import { RANK_MAX_KEYWORDS, rankKeywordsFor, rankRadiusKm } from './settings';
  * already-paid scan. Any other error (DB, bug) marks the scan failed and still throws. A scan that stored
  * no snapshot at all is marked failed too.
  */
-export interface RankScanSkipped { scanId: string; agencyId: string; clientId: string; clientName: string; spentUsd: number; capUsd: number; estimatedUsd: number }
-
-/** Postgres unique violation on the one-running-scan-per-client index (drizzle may wrap the driver error in `cause`). */
-function isRunningUniqueViolation(err: unknown): boolean {
-  for (let e: unknown = err, i = 0; e && typeof e === 'object' && i < 4; e = (e as { cause?: unknown }).cause, i++) {
-    const x = e as { code?: string; constraint_name?: string; constraint?: string };
-    if (x.code === '23505' && (x.constraint_name ?? x.constraint) === 'rank_scan_running_unique') return true;
-  }
-  return false;
-}
-
 export async function scanRankings(
   deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient; onSkipped?: (s: RankScanSkipped) => Promise<void> },
   clientId: string,

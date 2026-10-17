@@ -56,11 +56,26 @@ describe('GeoGrid fixes and map (Task 12)', () => {
     expect(w).toBeGreaterThanOrEqual(18);
   });
 
+  it('with a 1024-wide map frame the rank labels scale with the cell size, not a fixed 13', () => {
+    const big = { ...map, width: 1024, height: 1024 };
+    render(<GeoGrid title="T" summary="S" cells={cells} businessName="You" keyword="k" map={big} lats={lats} lngs={lngs} />);
+    const svg = screen.getByRole('img');
+    const size = Number(svg.querySelector('g rect')!.getAttribute('width'));
+    const label = svg.querySelector('text[data-rank]')!;
+    const font = Number(label.getAttribute('font-size'));
+    expect(size).toBeGreaterThan(100);
+    expect(font).toBeGreaterThan(13);
+    expect(font).toBeCloseTo(size * 0.3, 1);
+    // Rendered at the chart's 520 px max width the label stays at least ~12 px.
+    expect(font * (520 / 1024)).toBeGreaterThanOrEqual(12);
+  });
+
   it('without a map the plain grid renders', () => {
     const { container } = render(<GeoGrid title="T" summary="S" cells={cells} businessName="You" keyword="k" map={null} lats={lats} lngs={lngs} />);
     expect(container.querySelector('image')).toBeNull();
     expect(container.querySelector('figcaption')).toBeNull();
     expect(container.querySelectorAll('text[data-compass]').length).toBe(4);
+    expect(container.querySelector('text[data-rank]')!.getAttribute('font-size')).toBe('13');
   });
 });
 

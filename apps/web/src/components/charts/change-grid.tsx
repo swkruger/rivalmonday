@@ -1,6 +1,6 @@
 import type { GeoGridView } from '@cs/tools';
 import { useId } from 'react';
-import { Compass, gridLayout } from './geo-grid';
+import { Compass, gridLabelFont, gridLayout } from './geo-grid';
 
 const INK = '#0B2540';
 const WHITE = '#FFFFFF';
@@ -64,6 +64,7 @@ export function ChangeGrid({ before, after, lats, lngs, map = null, title = 'Cha
   const cols = Math.max(0, ...before.map((r) => r.length), ...after.map((r) => r.length));
   if (rows === 0 || cols === 0) return <p className="text-sm text-muted-foreground">No rank data in these scans.</p>;
   const { map: bg, W, H, centre, size } = gridLayout(rows, cols, map, lats, lngs);
+  const { fontSize, dy } = gridLabelFont(size, bg !== null);
   const deltas = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => rankChange(before[r]?.[c], after[r]?.[c])));
   const flat = deltas.flat();
   const up = flat.filter((d) => d !== null && d > 0).length;
@@ -89,7 +90,7 @@ export function ChangeGrid({ before, after, lats, lngs, map = null, title = 'Cha
               <g key={`${r}-${c}`}>
                 <title>{`${sayChange(before[r]?.[c] ?? null, after[r]?.[c] ?? null, d)} (row ${r + 1} of ${rows}, column ${c + 1} of ${cols})`}</title>
                 <rect x={x - size / 2} y={y - size / 2} width={size} height={size} rx={4} fill={f.fill} stroke={outlined ? LINE : 'none'} strokeWidth={outlined ? 1 : 0} />
-                <text data-change x={x} y={y + 5} textAnchor="middle" fontSize={13} fontWeight={700} fill={f.text} pointerEvents="none">{f.label}</text>
+                <text data-change x={x} y={y + dy} textAnchor="middle" fontSize={fontSize}fontWeight={700} fill={f.text} pointerEvents="none">{f.label}</text>
               </g>
             );
           }))}

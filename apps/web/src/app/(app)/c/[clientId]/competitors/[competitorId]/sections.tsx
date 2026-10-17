@@ -84,7 +84,7 @@ export function RankingsSection({ clientId, competitorId, geo }: { clientId: str
   return (
     <Section id="profile-rankings" title="Local rankings">
       {geo.setup === 'no_keywords' ? <p className="text-sm text-muted-foreground">Rank tracking starts once keywords and a service area are set.</p>
-        : geo.setup === 'no_scan' ? <p className="text-sm text-muted-foreground">The first monthly rank scan hasn’t run yet.</p>
+        : geo.setup === 'no_scan' ? <p className="text-sm text-muted-foreground">The first weekly rank scan hasn’t run yet.</p>
         : (
           <ul className="flex flex-col gap-1 text-sm">
             {geo.keywordSummaries.map((k) => (
