@@ -1,5 +1,6 @@
 import { ToolError } from '@cs/core';
-import { agency, type Db, intakeLink, type LeadPreview, leadPreviewSchema, type SetupLookup, setupLookupSchema } from '@cs/db';
+import { agency, type AgencyBranding, agencyServiceable, type Db, intakeLink, type LeadPreview, leadPreviewSchema, type SetupLookup, setupLookupSchema } from '@cs/db';
+import { resolveBranding } from '@cs/email';
 import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type ToolDeps } from '../deps';
@@ -15,11 +16,11 @@ const VIEW_TTL = '30 days';
 
 export type IntakeBranding = 'agency' | 'platform';
 
-/** Slug → enabled `intake_link`; `null` slug = the platform page. Unknown or disabled → null (page 404s). */
+/** Slug → enabled `intake_link` of a serviceable agency; `null` slug = the platform page. Unknown, disabled or read-only/suspended agency → null (page 404s). */
 export async function resolveIntake(service: Db, slug: string | null): Promise<{ agencyId: string | null; branding: IntakeBranding } | null> {
   if (slug === null) return { agencyId: null, branding: 'platform' };
   const [row] = await service.select({ agencyId: intakeLink.agencyId }).from(intakeLink)
-    .where(and(eq(intakeLink.slug, slug), eq(intakeLink.enabled, true))).limit(1);
+    .where(and(eq(intakeLink.slug, slug), eq(intakeLink.enabled, true), agencyServiceable(intakeLink.agencyId))).limit(1);
   return row ? { agencyId: row.agencyId, branding: 'agency' } : null;
 }
 
@@ -100,16 +101,21 @@ export async function submitIntake(
   const expires = new Date(now.getTime() + VERIFY_TTL_MS).toISOString();
   const at = now.toISOString();
   const source = target.agencyId ? 'agency_link' : 'platform';
-  // The conflict target repeats lead_dedupe_idx's expression and predicate exactly.
+  // The conflict target repeats lead_dedupe_idx's expression and predicate exactly. A resubmit never overwrites a verified
+  // lead's contact details (an unverified party could otherwise spoof them); it only gets a fresh verify token.
   const [row] = await deps.service.execute<{ id: string }>(sql`
     INSERT INTO lead (agency_id, source, ref, contact_name, email, phone, message, lookup, verify_token_hash, verify_expires_at, ip_hash, created_at, updated_at)
     VALUES (${target.agencyId}, ${source}, ${v.ref}, ${v.contactName}, ${v.email}, ${v.phone}, ${v.message}, ${JSON.stringify(v.lookup)}::jsonb,
             ${token.hash}, ${expires}::timestamptz, ${input.ipHash}, ${at}::timestamptz, ${at}::timestamptz)
     ON CONFLICT (coalesce(agency_id, '00000000-0000-0000-0000-000000000000'::uuid), lower(email), (lookup->>'placeId'))
       WHERE status IN ('unverified','verified')
-    DO UPDATE SET contact_name = EXCLUDED.contact_name, phone = EXCLUDED.phone, message = EXCLUDED.message, ref = EXCLUDED.ref,
-      verify_token_hash = EXCLUDED.verify_token_hash, verify_expires_at = EXCLUDED.verify_expires_at, ip_hash = EXCLUDED.ip_hash,
-      updated_at = EXCLUDED.updated_at
+    DO UPDATE SET
+      contact_name = CASE WHEN lead.status = 'unverified' THEN EXCLUDED.contact_name ELSE lead.contact_name END,
+      phone        = CASE WHEN lead.status = 'unverified' THEN EXCLUDED.phone        ELSE lead.phone END,
+      message      = CASE WHEN lead.status = 'unverified' THEN EXCLUDED.message      ELSE lead.message END,
+      ip_hash      = CASE WHEN lead.status = 'unverified' THEN EXCLUDED.ip_hash      ELSE lead.ip_hash END,
+      ref = coalesce(EXCLUDED.ref, lead.ref),
+      verify_token_hash = EXCLUDED.verify_token_hash, verify_expires_at = EXCLUDED.verify_expires_at, updated_at = EXCLUDED.updated_at
     RETURNING id`);
   return { send: { leadId: row!.id, verifyRaw: token.raw } };
 }
@@ -148,24 +154,32 @@ export async function verifyIntake(deps: ToolDeps, raw: string, now: Date): Prom
   return { leadId: row.id, viewRaw: view.raw };
 }
 
+/** What a branded public page needs; never the raw agency name or sender settings. */
+export type PublicAgencyBranding = { displayName: string; logoUrl: string | null; primary: string; secondary: string; accent: string; ink: string; canvas: string; panel: string };
+
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** The public preview page's read (R4): a bad id, a bad token or a view token older than 30 days all return null. */
 export async function getPublicPreview(service: Db, leadId: string, viewRaw: string)
-  : Promise<{ businessName: string; preview: LeadPreview; branding: IntakeBranding; agencyName: string | null } | null> {
+  : Promise<{ businessName: string; preview: LeadPreview; branding: IntakeBranding; agencyBranding: PublicAgencyBranding | null } | null> {
   if (!uuidRe.test(leadId)) return null;
-  const [row] = await service.execute<{ lookup: unknown; preview: unknown; agency_id: string | null; agency_name: string | null }>(sql`
-    SELECT l.lookup, l.preview, l.agency_id, a.name AS agency_name
+  const [row] = await service.execute<{ lookup: unknown; preview: unknown; agency_id: string | null; agency_name: string | null; agency_branding: AgencyBranding | null }>(sql`
+    SELECT l.lookup, l.preview, l.agency_id, a.name AS agency_name, a.branding AS agency_branding
     FROM lead l LEFT JOIN ${agency} a ON a.id = l.agency_id
     WHERE l.id = ${leadId} AND l.view_token_hash = ${hashToken(viewRaw)}
       AND l.verified_at IS NOT NULL AND l.verified_at > now() - ${VIEW_TTL}::interval`);
   if (!row) return null;
   const lookup = setupLookupSchema.safeParse(row.lookup);
   const preview = leadPreviewSchema.safeParse(row.preview);
+  let agencyBranding: PublicAgencyBranding | null = null;
+  if (row.agency_id && row.agency_name !== null) {
+    const b = resolveBranding(row.agency_name, row.agency_branding ?? null);
+    agencyBranding = { displayName: b.displayName, logoUrl: b.logoUrl, primary: b.primary, secondary: b.secondary, accent: b.accent, ink: b.ink, canvas: b.canvas, panel: b.panel };
+  }
   return {
     businessName: lookup.success ? lookup.data.title : '',
     preview: preview.success ? preview.data : { status: 'none' },
     branding: row.agency_id ? 'agency' : 'platform',
-    agencyName: row.agency_id ? row.agency_name : null,
+    agencyBranding,
   };
 }

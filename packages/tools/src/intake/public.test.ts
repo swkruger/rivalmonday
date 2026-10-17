@@ -1,6 +1,6 @@
 import type { MapsPlace } from '@cs/collectors';
 import { type CallScope, createAccessContext } from '@cs/core';
-import { intakeLink, lead, type SetupLookup, vendorCall } from '@cs/db';
+import { agency, agencyBilling, intakeLink, lead, plan, type SetupLookup, vendorCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -61,6 +61,17 @@ describe('resolveIntake', () => {
     expect(await resolveIntake(dbs.service, 'agency-b')).toBeNull();
     expect(await resolveIntake(dbs.service, 'agency-a')).toEqual({ agencyId: IDS.agencyA, branding: 'agency' });
     expect(await resolveIntake(dbs.service, null)).toEqual({ agencyId: null, branding: 'platform' });
+  });
+
+  it('suspended agency link resolves null', async () => {
+    const [p] = await dbs.owner.insert(plan).values({ code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' }).returning({ id: plan.id });
+    await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'suspended', planId: p!.id });
+    expect(await resolveIntake(dbs.service, 'agency-a')).toBeNull();
+    await dbs.owner.update(agencyBilling).set({ state: 'read_only' }).where(eq(agencyBilling.agencyId, IDS.agencyA));
+    expect(await resolveIntake(dbs.service, 'agency-a')).toBeNull();
+    expect(await submit()).toEqual({ send: null });
+    await dbs.owner.update(agencyBilling).set({ state: 'active' }).where(eq(agencyBilling.agencyId, IDS.agencyA));
+    expect(await resolveIntake(dbs.service, 'agency-a')).toEqual({ agencyId: IDS.agencyA, branding: 'agency' });
   });
 });
 
@@ -125,6 +136,25 @@ describe('submitIntake', () => {
     const c = await submit({ slug: null, ipHash: 'iphash-3' });
     expect(c.send!.leadId).not.toBe(a.send!.leadId);
     expect((await leads()).find((r) => r.id === c.send!.leadId)).toMatchObject({ agencyId: null, source: 'platform' });
+  });
+
+  it('resubmit to a verified lead keeps its contact fields', async () => {
+    const first = await submit({ phone: '111', message: 'orig', ref: 'r1' });
+    await verifyIntake(deps, first.send!.verifyRaw, NOW);
+    const second = await submit({ contactName: 'Mallory', phone: '999', message: 'spoof', ipHash: 'iphash-2' });
+    expect(second.send!.leadId).toBe(first.send!.leadId);
+    const [row] = await leads();
+    expect(row).toMatchObject({ status: 'verified', contactName: 'Pat', phone: '111', message: 'orig', ipHash: 'iphash-1', ref: 'r1', verifyTokenHash: hashToken(second.send!.verifyRaw) });
+    expect(row!.verifyExpiresAt!.getTime()).toBe(NOW.getTime() + 48 * 3_600_000);
+  });
+
+  it('resubmit without ref keeps the original ref', async () => {
+    await submit({ ref: 'fb.ad-1' });
+    await submit({ phone: '222' });
+    const [row] = await leads();
+    expect(row).toMatchObject({ ref: 'fb.ad-1', phone: '222' });
+    await submit({ ref: 'google' });
+    expect((await leads())[0]!.ref).toBe('google');
   });
 
   it('refused submit returns send null', async () => {
@@ -203,8 +233,13 @@ describe('getPublicPreview', () => {
   it('getPublicPreview null for wrong token and wrong id', async () => {
     const { send } = await submit({}, new Date());
     const v = await verifyIntake(deps, send!.verifyRaw, new Date()) as { leadId: string; viewRaw: string };
+    await dbs.owner.update(agency).set({ name: 'Internal Legal Name LLC', branding: { displayName: 'Bright Marketing', logoUrl: 'https://cdn.example.com/l.png', primary: '#112233', fromEmail: 'x@y.co' } }).where(eq(agency.id, IDS.agencyA));
     const ok = await getPublicPreview(dbs.service, v.leadId, v.viewRaw);
-    expect(ok).toEqual({ businessName: 'Acme Dental', preview: { status: 'none' }, branding: 'agency', agencyName: expect.any(String) });
+    expect(ok).toEqual({
+      businessName: 'Acme Dental', preview: { status: 'none' }, branding: 'agency',
+      agencyBranding: { displayName: 'Bright Marketing', logoUrl: 'https://cdn.example.com/l.png', primary: '#112233', secondary: '#2A6BAC', accent: '#F5A524', ink: '#0B2540', canvas: '#F6F9FC', panel: '#EEF2F6' },
+    });
+    expect(JSON.stringify(ok)).not.toContain('Internal Legal Name');
     expect(await getPublicPreview(dbs.service, v.leadId, 'wrong')).toBeNull();
     expect(await getPublicPreview(dbs.service, '00000000-0000-0000-0000-000000000001', v.viewRaw)).toBeNull();
     expect(await getPublicPreview(dbs.service, 'not-a-uuid', v.viewRaw)).toBeNull();
@@ -216,6 +251,6 @@ describe('getPublicPreview', () => {
   it('platform leads carry platform branding and no agency name', async () => {
     const { send } = await submit({ slug: null }, new Date());
     const v = await verifyIntake(deps, send!.verifyRaw, new Date()) as { leadId: string; viewRaw: string };
-    expect(await getPublicPreview(dbs.service, v.leadId, v.viewRaw)).toMatchObject({ branding: 'platform', agencyName: null });
+    expect(await getPublicPreview(dbs.service, v.leadId, v.viewRaw)).toMatchObject({ branding: 'platform', agencyBranding: null });
   });
 });
