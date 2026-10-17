@@ -1,5 +1,5 @@
 import { createAccessContext } from '@cs/core';
-import { brief, briefItem, capture, client, competitor, competitorSignal, evidence, notification, observation, playbookOverride, recommendation, review } from '@cs/db';
+import { brief, briefItem, capture, client, clientSetup, competitor, competitorSignal, evidence, notification, observation, playbookOverride, recommendation, review } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { asc, eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -177,6 +177,17 @@ describe('generateStartingPoint', () => {
     expect(await generateBrief({ db: dbs.service, ai: createFakeAi({ decide: supportAll }), packs }, IDS.clientA1, { now: thu })).toMatchObject({ status: 'ready', kind: 'quiet' });
     const [weekly] = await dbs.owner.select().from(brief).where(eq(brief.kind, 'quiet'));
     expect(weekly!.periodStart.toISOString()).toBe(new Date(thu.getTime() - 7 * 86_400_000).toISOString());
+  });
+});
+
+describe('starting point period for a setup client', () => {
+  it('starting point period still starts at activated_at for a setup client', async () => {
+    await seedFindings();
+    await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, competitorsDoneAt: new Date(NOW.getTime() - 3_600_000) });
+    const r = await run(createFakeAi({ chat: writer, decide: supportAll }));
+    expect(r).toMatchObject({ status: 'ready', kind: 'starting_point' });
+    const [b] = await dbs.owner.select().from(brief);
+    expect(b!.periodStart.toISOString()).toBe(ACTIVATED.toISOString());
   });
 });
 

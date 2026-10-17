@@ -1,6 +1,7 @@
-import { agencyServiceable, brief, briefItem, client, clientServiceable, clientCompetitor, type Db, discoveryRun, observation, rankScan, recommendation, vendorTask } from '@cs/db';
+import { agencyServiceable, brief, briefItem, client, clientServiceable, clientSetup, clientCompetitor, type Db, discoveryRun, observation, rankScan, recommendation, vendorTask } from '@cs/db';
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES } from './generate';
+import { startingPointClockStart } from './setup-clock';
 
 /** Spec § Generation: a starting point waits for onboarding data at most this long after activation, then ships with what is there. */
 export const STARTING_POINT_WAIT_HOURS = 48;
@@ -9,8 +10,10 @@ export interface StartingPointReadiness {
   ready: boolean;
   /** `null` = not applicable (no keywords / service area for rankings; no discovery run possible for competitors). */
   checks: { profile: boolean; reviews: boolean; rankings: boolean | null; competitors: boolean | null };
-  /** Not ready, but `activated_at` (else `created_at`) + 48 h has passed. */
+  /** Not ready, but the starting-point clock start (`activated_at`/`created_at`, or the setup clock) + 48 h has passed. */
   timedOut: boolean;
+  /** An open client setup (11a) has not yet reached its competitors step (and is < 14 days old): never ready, never timed out. */
+  setupHold: boolean;
 }
 
 /**
@@ -21,6 +24,9 @@ export interface StartingPointReadiness {
 export async function startingPointReadiness(db: Db, clientId: string, now: Date): Promise<StartingPointReadiness> {
   const [c] = await db.select().from(client).where(eq(client.id, clientId)).limit(1);
   if (!c) throw new Error(`client ${clientId} not found`);
+  const [setup] = await db.select().from(clientSetup).where(eq(clientSetup.clientId, clientId)).limit(1);
+  const clockStart = startingPointClockStart(c, setup ?? null, now);
+  if (!clockStart) return { ready: false, timedOut: false, setupHold: true, checks: { profile: false, reviews: false, rankings: null, competitors: null } };
   const selfId = c.selfCompetitorId;
 
   const profile = selfId
@@ -48,9 +54,8 @@ export async function startingPointReadiness(db: Db, clientId: string, now: Date
   }
 
   const ready = profile && reviews && rankings !== false && competitors !== false;
-  const since = c.activatedAt ?? c.createdAt;
-  const timedOut = !ready && now.getTime() - since.getTime() >= STARTING_POINT_WAIT_HOURS * 3_600_000;
-  return { ready, checks: { profile, reviews, rankings, competitors }, timedOut };
+  const timedOut = !ready && now.getTime() - clockStart.getTime() >= STARTING_POINT_WAIT_HOURS * 3_600_000;
+  return { ready, checks: { profile, reviews, rankings, competitors }, timedOut, setupHold: false };
 }
 
 /**
