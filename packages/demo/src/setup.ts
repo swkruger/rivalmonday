@@ -1,7 +1,10 @@
-import { client, clientSetup, competitorSuggestion, discoveryRun, type SetupLookup, type SetupSuggestions } from '@cs/db';
+import { client, clientSetup, contact, competitorSuggestion, discoveryRun, type SetupLookup, type SetupSuggestions } from '@cs/db';
+import { createInvitation } from '@cs/tools';
+import { eq } from 'drizzle-orm';
 import type { SeedContext } from './context';
 import { CANDIDATES } from './rivals';
 import { SETUP_PENDING_PLACE_ID } from './tenancy';
+import { DEMO_DOMAIN } from './users';
 
 /** Six fictional plumbers around Granbury for the mid-setup client: two of each tier (picked from the shared candidate shapes). */
 const SETUP_RIVALS: { name: string; candidate: number }[] = [
@@ -48,6 +51,12 @@ export async function seedSetup(ctx: SeedContext): Promise<void> {
     clientId: pending, agencyId: ids.agencyId, source: 'staff', lookup: LOOKUP, suggestions, lastChangedBy: ids.users.admin.userId, lastChangedRole: 'agency_admin',
     lastChangedAt: clock.daysAgo(1), createdAt: clock.daysAgo(1),
   });
+
+  // 11b: the owner was already invited from the wizard — a pending invitation plus the inactive contact the invite step reads ("Invited … waiting for them to accept").
+  const ownerEmail = `cedar-creek-owner@${DEMO_DOMAIN}`;
+  await createInvitation(db, { agencyId: ids.agencyId, email: ownerEmail, role: 'client_owner', clientId: pending, invitedBy: ids.users.admin.userId }, clock.daysAgo(1));
+  const [invited] = await db.insert(contact).values({ agencyId: ids.agencyId, clientId: pending, role: 'client_owner', email: ownerEmail, name: 'Casey Cedar', active: false }).returning({ id: contact.id });
+  await db.update(clientSetup).set({ invitedContactId: invited!.id, invitedBy: ids.users.admin.userId }).where(eq(clientSetup.clientId, pending));
 
   const [run] = await db.insert(discoveryRun).values({
     agencyId: ids.agencyId, clientId: pending, trigger: 'auto', status: 'done', kept: SETUP_RIVALS.length, startedAt: clock.daysAgo(1), finishedAt: clock.daysAgo(1),

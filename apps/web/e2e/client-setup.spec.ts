@@ -64,7 +64,7 @@ test.describe('agency staff', () => {
   test('staff finishes setup', { tag: ['@setup', '@clients', '@overview'] }, async ({ page }) => {
     const { id } = fx().finish;
     await page.goto(`/c/${id}`);
-    await expect(page.getByRole('link', { name: /Finish setup · \d of 3/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Finish setup · \d of 5/ })).toBeVisible();
 
     await page.goto(`/c/${id}/setup`);
     for (const tier of ['Top rival', 'Worth watching', 'Minor']) await expect(page.getByRole('group', { name: tier })).toBeVisible();
@@ -74,6 +74,11 @@ test.describe('agency staff', () => {
     await expect(page.getByRole('checkbox', { name: 'Setup Minor Plumbing' })).not.toBeChecked();
 
     await page.getByRole('button', { name: 'Done picking' }).click();
+    // 11b: picking moves on to the staff-only invite step. This agency has no Stripe account, so billing is skipped by
+    // itself; the setup closes once the invite is skipped.
+    await expect(page.getByRole('heading', { name: 'Invite the owner' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Setup finished' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Skip for now' }).click();
     await expect(page.getByRole('heading', { name: 'Setup finished' })).toBeVisible();
 
     await page.goto(`/c/${id}`);
@@ -91,7 +96,7 @@ test.describe('agency staff', () => {
     const { id, name } = fx().badge;
     await page.goto('/agency');
     const badge = page.locator(`a[href="/c/${id}/setup"]`).first(); // the portfolio renders each row in two layouts
-    await expect(badge).toHaveText(/Finish setup · \d of 3/);
+    await expect(badge).toHaveText(/Finish setup · \d of 5/);
     await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
     // A finished setup (the seeded closed one) shows none.
     await expect(page.locator(`a[href="/c/${fx().closed.id}/setup"]`)).toHaveCount(0);

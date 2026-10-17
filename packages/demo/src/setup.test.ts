@@ -1,7 +1,7 @@
-import { agency, client, clientSetup, competitorSuggestion, discoveryRun, setupSuggestionsSchema } from '@cs/db';
+import { agency, client, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, setupSuggestionsSchema } from '@cs/db';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createSeedContext, type SeedContext } from './context';
 import { seedSetup } from './setup';
@@ -59,5 +59,15 @@ describe('seedSetup (Phase 11a)', () => {
     const done = rows.filter((r) => r.completedAt && r.competitorsDoneAt);
     expect(done).toHaveLength(clients.length - 1);
     expect(rows.filter((r) => !r.completedAt).map((r) => r.clientId)).toEqual([ctx.ids.clients.setupPending]);
+  });
+
+  it('gives the mid-setup client a pending invited owner: inactive contact, open invitation, linked on the setup row', async () => {
+    const id = ctx.ids.clients.setupPending;
+    const [row] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, id));
+    const [ct] = await dbs.owner.select().from(contact).where(eq(contact.id, row!.invitedContactId!));
+    expect([ct!.active, ct!.role, ct!.clientId]).toEqual([false, 'client_owner', id]);
+    const open = await dbs.owner.select().from(invitation).where(and(eq(invitation.clientId, id), isNull(invitation.acceptedAt), isNull(invitation.revokedAt)));
+    expect(open.map((i) => [i.email, i.role])).toEqual([[ct!.email, 'client_owner']]);
+    expect(row!.invitedBy).toBe(ctx.ids.users.admin.userId);
   });
 });

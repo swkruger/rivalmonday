@@ -66,6 +66,13 @@ const setupCalls = (clientId: (ids: DemoIds) => string, expectSetup: CoverageCal
   { tool: 'get_client_setup', input: (ids) => ({ clientId: clientId(ids) }), path: 'competitorSuggestions', expect: expectSetup, ...(expectSetup === 'not_found' ? { why: 'a client owner gets a 404 once setup is closed' } : {}) },
   { tool: 'get_client_profile', input: (ids) => ({ clientId: clientId(ids) }), path: 'keywords' },
 ];
+/** 11b: the Invite step reads the invited owner (Cedar Creek's is pending) and the Billing step reads Connect + the per-client billing row (agency admins only). */
+const setupStaffCalls = (clientId: (ids: DemoIds) => string): CoverageCall[] => [
+  ...setupCalls(clientId),
+  { tool: 'get_client_setup', input: (ids) => ({ clientId: clientId(ids) }), path: 'invite.email' },
+  { tool: 'get_connect_status', input: none, path: 'status' },
+  { tool: 'list_client_billing_status', input: none, path: 'clients' },
+];
 const setupPending = (ids: DemoIds) => ids.clients.setupPending;
 
 /** Pages that show forms only (no seeded data to check). */
@@ -102,7 +109,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/agency/settings/platform-access', as: 'admin', calls: [{ tool: 'list_support_sessions', input: none, path: 'rows' }] },
   { route: '/agency/playbooks', as: 'admin', calls: [{ tool: 'list_playbooks', input: none, path: 'verticals' }] },
   // Phase 11a: Cedar Creek Plumbing is mid-setup (suggestions ready, search done); `/agency/clients/new` is only a lookup form (reads happen on user action).
-  { route: '/c/[clientId]/setup', as: 'admin', calls: setupCalls(setupPending) },
+  { route: '/c/[clientId]/setup', as: 'admin', calls: setupStaffCalls(setupPending) },
   { route: '/c/[clientId]/setup (client owner)', as: 'ownerSetup', calls: setupCalls(setupPending) },
   { route: '/c/[clientId]/setup (closed, client owner)', as: 'ownerLoneStar', calls: setupCalls(ls, 'not_found') },
   { route: '/agency/prospects', as: 'admin', calls: [{ tool: 'list_prospects', input: none, path: 'items' }] },

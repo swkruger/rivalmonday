@@ -26,7 +26,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/branding` | admin | `fn:getAgencyBranding` | — |
 | `/agency/settings/platform-access` | admin | `list_support_sessions` | — |
 | `/agency/playbooks` | admin | `list_playbooks` | — |
-| `/c/[clientId]/setup` | admin | `get_client_setup`, `get_client_profile` | — |
+| `/c/[clientId]/setup` | admin | `get_client_setup`, `get_client_profile`, `get_connect_status`, `list_client_billing_status` | — |
 | `/c/[clientId]/setup (client owner)` | ownerSetup | `get_client_setup`, `get_client_profile` | — |
 | `/c/[clientId]/setup (closed, client owner)` | ownerLoneStar | `get_client_profile` | `get_client_setup`: a client owner gets a 404 once setup is closed |
 | `/agency/prospects` | admin | `list_prospects` | — |

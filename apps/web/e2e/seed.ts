@@ -197,6 +197,7 @@ export async function seed(): Promise<void> {
     await seedRivals(db, { agencyId });
     await seedStartingPoint(db, { agencyId });
     await seedSetup(db, { agencyId });
+    await seedInviteSetup(db);
 
     await seedAsk(db, { agencyId, competitorId: comp!.id, eventId: workspace.eventId, evidenceId: workspace.evidenceId });
 
@@ -616,4 +617,36 @@ async function seedSetup(db: ReturnType<typeof createDb>['db'], o: { agencyId: s
   await writeFile(SETUP_FIXTURE_FILE, JSON.stringify({
     finish: finish!, owner: owner!, badge: badge!, closed: closed!,
   } satisfies SetupFixture));
+}
+
+/** 11b E2E (`client-setup-invite.spec.ts`): an exempt-pilot agency with three open setups, looked up by name. */
+export const SI_AGENCY = 'Invite Setup Agency E2E';
+export const SI_ADMIN = 'si-admin@e2e.test';
+export const SI_STEP4 = 'Invite Step Four Plumbing'; // picks done: the Invite step is current
+export const SI_STEP3 = 'Invite Step Three Heating'; // picks open: staff invite from the side panel, the owner still has work
+export const SI_BILLING = 'Invite Billing Step Air'; // invite skipped, a pending owner invitation: the Billing step is current
+export const SI_PENDING_OWNER = 'si-pending-owner@e2e.test';
+
+async function seedInviteSetup(db: ReturnType<typeof createDb>['db']): Promise<void> {
+  const [a] = await db.insert(agency).values({ name: SI_AGENCY }).returning();
+  const agencyId = a!.id;
+  await ensureExemptPilot(db, agencyId);
+  await createInvitation(db, { agencyId, email: SI_ADMIN, role: 'agency_admin', invitedBy: 'e2e-seed' });
+  const area = { center: { lat: 32.4, lng: -97.79 }, radiusKm: 25, zips: ['76048'] };
+  const base = { agencyId, verticalId: 'hvac_plumbing', features: ['dashboard'], keywords: ['plumber near me'], serviceArea: area };
+  const [step4, step3, billing] = await db.insert(client).values([
+    { ...base, name: SI_STEP4, placeId: 'e2e-si-step4-place' },
+    { ...base, name: SI_STEP3, placeId: 'e2e-si-step3-place' },
+    { ...base, name: SI_BILLING, placeId: 'e2e-si-billing-place' },
+  ]).returning({ id: client.id });
+  await db.insert(clientSetup).values([
+    { clientId: step4!.id, agencyId, competitorsDoneAt: new Date() },
+    { clientId: step3!.id, agencyId },
+    { clientId: billing!.id, agencyId, competitorsDoneAt: new Date(), skipped: ['invite'] },
+  ]);
+  // A done search each, so saving or reading the setup never starts a paid auto search.
+  await db.insert(discoveryRun).values([step4!, step3!, billing!].map((c) => ({
+    agencyId, clientId: c.id, trigger: 'auto' as const, status: 'done' as const, kept: 0, startedAt: new Date(Date.now() - 3600_000), finishedAt: new Date(Date.now() - 3000_000), hidden: {},
+  })));
+  await createInvitation(db, { agencyId, email: SI_PENDING_OWNER, role: 'client_owner', clientId: billing!.id, invitedBy: 'e2e-seed' });
 }
