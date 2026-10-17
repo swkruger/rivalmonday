@@ -13,6 +13,10 @@ import { ClientInviteEmail, clientInviteSubject } from './templates/client-invit
 import { CompetitorReviewEmail, competitorReviewSubject } from './templates/competitor-review';
 import { BriefEmail, briefSubject } from './templates/brief';
 import { DigestEmail, digestSubject } from './templates/digest';
+import { LeadConfirmationEmail, leadConfirmationSubject } from './templates/lead-confirmation';
+import { LeadDeclinedEmail, leadDeclinedSubject } from './templates/lead-declined';
+import { LeadNewEmail, leadNewSubject } from './templates/lead-new';
+import { LeadVerifyEmail, leadVerifySubject } from './templates/lead-verify';
 import { PlatformCostLowEmail, platformCostLowSubject } from './templates/platform-cost-low';
 import { SignInEmail, signInSubject } from './templates/sign-in';
 import { SupportSessionStartedEmail, supportSessionStartedSubject } from './templates/support-session-started';
@@ -55,6 +59,14 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
       return { el: createElement(PlatformSignupNoticeEmail, p.props), subject: platformSignupNoticeSubject(p.props) };
     case 'trend_report':
       return { el: createElement(TrendReportEmail, p.props), subject: trendReportSubject(p.props) };
+    case 'lead_verify':
+      return { el: createElement(LeadVerifyEmail, p.props), subject: leadVerifySubject() };
+    case 'lead_confirmation':
+      return { el: createElement(LeadConfirmationEmail, p.props), subject: leadConfirmationSubject(p.props) };
+    case 'lead_declined':
+      return { el: createElement(LeadDeclinedEmail, p.props), subject: leadDeclinedSubject(p.props) };
+    case 'lead_new':
+      return { el: createElement(LeadNewEmail, p.props), subject: leadNewSubject(p.props) };
     default:
       throw new Error(`No email template for ${(p as { template: string }).template}`);
   }
