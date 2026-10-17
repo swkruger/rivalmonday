@@ -4,10 +4,10 @@
 **Plan/spec:** [spec](../superpowers/specs/2026-10-17-phase-13b-local-rankings-design.md) · [plan](../superpowers/plans/2026-10-17-phase-13b-local-rankings.md) · phase brief + 13a: [phase-13.md](phase-13.md)
 
 ## Status (overwrite)
-2026-10-17: Tasks 0–15 built and task-reviewed; final whole-branch review next (run `test:affected` and `e2e:affected --base main`). Expect the demo's newest alert/top brief item to be the rank climb (verify in the final e2e run).
+2026-10-17: **Built.** Tasks 0–16 done and task-reviewed; final whole-branch review (Opus) + one fix wave (eefcdbb) clean. `test:affected --base main` 16/16 packages green; `e2e:affected --base main` 82/82. Nothing uncommitted. Stadia probe pending (no `STADIA_API_KEY` yet).
 
 ## Next (overwrite)
-Final whole-branch review + one fix wave, then `/rm-wrap-up`; `/rm-merge` only with the owner's go-ahead.
+Owner: add `STADIA_API_KEY` → one-image probe (confirm `STATIC_MAP_WORLD_PX`, @2x size, alignment) before enabling the key in prod; sign off undecided copy (step 5). Then `/rm-merge phase-13b` with the owner's go-ahead (if phase-11 merged first: renumber to 0074–0076, move the map-refresh enqueue into `applyClientProfileChange`).
 
 ## Interfaces this branch adds or changes
 - **Migrations:** 0067 rank_upgrade, 0068 rank_upgrade_rls, 0069 rank_scan_requested_by_text. Phase-11 now holds 0067–0073: if 13b merges second it renumbers to 0074–0076.
@@ -37,11 +37,12 @@ Execution rulings:
 - Task 9 ran before Task 8 (serveRankMap needs get_geogrid.map).
 - scanRankings keeps its `depth` option inside the prospect override.
 - Trend/Compare delta ramp uses derived blue/amber families (brand #F5A524 failed light-end contrast 1.99:1).
+- Compare also refuses when the two scans' grid points differ (centre moved; settings key has no centre).
 
 ## New backlog (target → item)
 - **Soon:** SINGLE_SHOT 3h expiry on a long Sunday fan-out (pre-existing); Compare limited to newest 12 scans; orphaned `rank-map/{id}/{oldHash}.png` on hash change; Stadia probe (confirm `STATIC_MAP_WORLD_PX=512`, @2x size, max size, add fixture); failed map fetches ledgered at full $0.06; `request_rank_scan` stale sweep covers all tenants; `request_rank_scan` has no DataForSEO-configured signal in `ToolDeps`, so an unconfigured worker leaves a manual row `running` until the 3 h stale sweep.
-- **Polish (data/logic):** two `legacy` scans compare as equal in Compare; `get_geogrid` map non-null for a zero-snapshot scan; trend cursor lacks id tiebreak; demotion score 0 may route to brief at threshold 0; tier_change factors report unused weights; `block_key` dates like 02-30 roll over; demo `rank_change` ignores `diffRankScan` thresholds; `get_rank_settings` returns raw legacy radius; competitor `sections.tsx:87` says "monthly rank scan" (now weekly); watch client components importing `@cs/engine` (node:crypto in barrel).
-- **Polish (UI):** Task 14 cap fallback copy lacks client name/amount; weekly fallback date uses UTC; `queued` sticks "Scan running..." until navigation; cap/daily notes not `aria-describedby`; internal errors in `requestRankScan` swallowed without log; slider debounce compares stale value; brief thumb snap-back mid-drag; slider vs grid mismatch when `?scan=` is older than 12; ChangeGrid duplicates GeoGrid hatch defs; map rank font fixed 13 units.
+- **Polish (data/logic):** `get_geogrid` map non-null for a zero-snapshot scan; trend cursor lacks id tiebreak; tier_change factors report unused weights; `block_key` dates like 02-30 roll over; demo `rank_change` ignores `diffRankScan` thresholds; `get_rank_settings` returns raw legacy radius; watch client components importing `@cs/engine` (node:crypto in barrel).
+- **Polish (UI):** Task 14 cap fallback copy lacks client name/amount; weekly fallback date uses UTC; `queued` sticks "Scan running..." until navigation; cap/daily notes not `aria-describedby`; slider debounce compares stale value; brief thumb snap-back mid-drag; slider vs grid mismatch when `?scan=` is older than 12; ChangeGrid duplicates GeoGrid hatch defs.
 - **Polish (tests):** backfill 0068 untested; fitStaticMap centre/y-placement and zoom clamp tests; agency 10/day FOR UPDATE concurrency test; "never logs the key" and failure-ledger tests; trend legend order asserted only via `toContain('You')`; tier_change `failed` status case.
 - **Unscheduled:** network-error map fetches ledgered at 0; key redaction on all error paths.
 
@@ -50,7 +51,7 @@ Execution rulings:
 2. Run the worker; save rank settings on the cs_dev client; map image appears under the grid with attribution.
 3. Scan now on a client near its cap: cap copy shows.
 4. Run `signals-weekly` once: a tier change event appears.
-5. Sign off undecided copy. Task 13: "Compare needs at least two scans."; "Average map rank · “{kw}”" + subtitle; "Change from the scan of {A} to the scan of {B}."; ChangeGrid aria summary; empty states "No rank history yet." / "No rank data in these scans."; tooltips. Task 14: sheet labels ("Keywords to scan (up to 5)", "Grid", 5×5/7×7, "Radius (km)"); "The scan could not be started. Try again in a few minutes."; cap fallback "This scan would exceed this client's monthly cost cap. …"; "next week" fallback.
+5. Sign off undecided copy. Task 13: "Compare needs at least two scans."; "Average map rank · “{kw}”" + subtitle; "Change from the scan of {A} to the scan of {B}."; ChangeGrid aria summary; empty states "No rank history yet." / "No rank data in these scans."; tooltips. Task 14: sheet labels ("Keywords to scan (up to 5)", "Grid", 5×5/7×7, "Radius (km)"); "The scan could not be started. Try again in a few minutes."; cap fallback "This scan would exceed this client's monthly cost cap. …"; "next week" fallback. Fix wave: profile form "Radius must be between 2 and 40 km."
 6. Note the reviews trend legend is now name-sorted ("You" no longer first).
 
 ## Mark for closure at merge (BACKLOG)
