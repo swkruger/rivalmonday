@@ -258,7 +258,7 @@ export const setClientBillingDefaultsTool = defineTool({
 
 export const BILLING_NOT_ELIGIBLE_MESSAGE = 'Client billing is available once your Rival Monday subscription is active.';
 export const CONNECT_NOT_READY_MESSAGE = 'Finish your Stripe setup first.';
-export const NO_CLIENT_OWNER_MESSAGE = 'Invite a client owner first.';
+export const NO_CLIENT_OWNER_MESSAGE = 'Invite the business owner first.';
 export const NO_DEFAULT_PRICE_MESSAGE = 'Set a default price first, or give this client a price.';
 const NO_PENDING_LINK_MESSAGE = 'No payment link is pending for this client.';
 export const PAYMENT_PROCESSING_MESSAGE = "This client's first payment is still processing.";
@@ -293,18 +293,20 @@ async function eligibleConnect(deps: ToolDeps, agencyId: string) {
   return { connect, acct: connect.stripeAccountId };
 }
 
-/** Client owner emails in a deterministic order (membership age, then id), de-duplicated case-insensitively. */
-async function clientOwnerEmails(deps: ToolDeps, clientId: string): Promise<string[]> {
-  const rows = await deps.service.execute<{ email: string }>(sql`
-    select u.email from membership m join auth."user" u on u.id = m.user_id
-    where m.client_id = ${clientId} and m.role = 'client_owner' order by m.created_at, m.id`);
-  const seen = new Set<string>();
-  return [...rows].map((r) => r.email).filter((e) => {
-    const k = e.toLowerCase();
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
+/**
+ * Phase 11b §7: accepted `client_owner` memberships UNION pending (not accepted, not revoked, unexpired) `client_owner`
+ * invitations for the client. Lower-cased, de-duplicated, sorted. Takes any connection (the worker passes its tx).
+ */
+export async function clientOwnerEmails(db: Pick<Tx, 'execute'>, clientId: string, now: Date): Promise<string[]> {
+  const rows = await db.execute<{ email: string }>(sql`
+    select lower(u.email) as email from membership m join auth."user" u on u.id = m.user_id
+    where m.client_id = ${clientId} and m.role = 'client_owner'
+    union
+    select lower(i.email) as email from invitation i
+    where i.client_id = ${clientId} and i.role = 'client_owner'
+      and i.accepted_at is null and i.revoked_at is null and i.expires_at > ${now.toISOString()}::timestamptz
+    order by email`);
+  return [...new Set([...rows].map((r) => r.email))].sort();
 }
 
 function appBase(deps: ToolDeps): string {
@@ -476,7 +478,7 @@ export const enableClientBillingTool = defineTool({
     if (existing?.enabled && ['invited', 'active', 'payment_needed'].includes(existing.state)) throw refuse('conflict', ALREADY_BILLING_MESSAGE);
     // R21: a tracked subscription (also an invited one whose first payment is processing) must end first.
     if (existing && !existing.enabled && isSubscribed(existing)) throw refuse('conflict', SUBSCRIPTION_ENDING_MESSAGE);
-    const emails = await clientOwnerEmails(deps, c.id);
+    const emails = await clientOwnerEmails(deps.service, c.id, new Date());
     if (emails.length === 0) throw refuse('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
     if (existing) await clearEndedSubscription(deps, ctx.agencyId, acct, existing);
 
@@ -526,7 +528,7 @@ export const resendClientPaymentLinkTool = defineTool({
     const row = await billingRowOf(deps, c.id);
     if (!row || !row.enabled || row.state !== 'invited' || row.priceCents === null) throw refuse('conflict', NO_PENDING_LINK_MESSAGE);
     if (isPaymentProcessing(row)) throw refuse('conflict', PAYMENT_PROCESSING_MESSAGE);
-    const emails = await clientOwnerEmails(deps, c.id);
+    const emails = await clientOwnerEmails(deps.service, c.id, new Date());
     if (emails.length === 0) throw refuse('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
     const setupFeeCents = row.setupFeeCents ?? 0;
     await assertNotPaid(deps, ctx, acct, row.checkoutSessionId);
@@ -600,7 +602,7 @@ export const setClientPriceTool = defineTool({
     const apply = input.applyTo === 'next_bill' && live;
     let emails: string[] = [];
     if (invited) {
-      emails = await clientOwnerEmails(deps, c.id);
+      emails = await clientOwnerEmails(deps.service, c.id, new Date());
       if (emails.length === 0) throw refuse('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
     }
     if (invited) await assertNotPaid(deps, ctx, acct, row!.checkoutSessionId);

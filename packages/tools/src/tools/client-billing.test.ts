@@ -1,13 +1,13 @@
 import { fakeGateway, type FakeGateway } from '@cs/billing';
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { agencyBilling, agencyConnect, billingNotice, client, clientBilling, membership, plan, platformSetting } from '@cs/db';
+import { agencyBilling, agencyConnect, billingNotice, client, clientBilling, invitation, membership, plan, platformSetting } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PAUSED_WRITE_ALLOW_LIST } from '../billing-guard';
 import { createToolRegistry } from '../registry';
 import { BILLING_NOT_CONFIGURED_MESSAGE } from './billing';
-import { CONNECT_FIRST_MESSAGE, PAYMENT_PROCESSING_MESSAGE, STRIPE_FAILED_MESSAGE } from './client-billing';
+import { clientOwnerEmails, CONNECT_FIRST_MESSAGE, PAYMENT_PROCESSING_MESSAGE, STRIPE_FAILED_MESSAGE } from './client-billing';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -395,9 +395,9 @@ describe('per-client billing tools (Task 5)', () => {
     it('no Connect at all -> "Connect Stripe first."', async () => {
       expect(await fails(call(admin, 'enable_client_billing', { clientId: A1 }))).toMatchObject({ code: 'conflict', message: CONNECT_FIRST_MESSAGE });
     });
-    it('no client owner -> no_client_owner "Invite a client owner first."', async () => {
+    it('no client owner -> no_client_owner "Invite the business owner first."', async () => {
       await ready();
-      expect(await fails(call(admin, 'enable_client_billing', { clientId: A2 }))).toMatchObject({ code: 'no_client_owner', message: 'Invite a client owner first.' });
+      expect(await fails(call(admin, 'enable_client_billing', { clientId: A2 }))).toMatchObject({ code: 'no_client_owner', message: 'Invite the business owner first.' });
       expect(gw.callsTo('createConnectedCheckout')).toEqual([]);
     });
     it('no default price and no override -> conflict with the set-defaults copy', async () => {
@@ -508,6 +508,31 @@ describe('per-client billing tools (Task 5)', () => {
   });
 
   describe('enable_client_billing: Checkout and outbox', () => {
+    const invite = (email: string, v: Partial<typeof invitation.$inferInsert> = {}) =>
+      dbs.owner.insert(invitation).values({ agencyId: IDS.agencyA, email, role: 'client_owner', clientId: A2, invitedBy: 'a1', expiresAt: new Date(Date.now() + 14 * 864e5), ...v });
+    it('includes a pending invitation', async () => {
+      await invite('Pending@Owner.test');
+      await invite('first@owner.test', { clientId: A1 });
+      expect(await clientOwnerEmails(dbs.owner, A2, new Date())).toEqual(['pending@owner.test']);
+      expect(await clientOwnerEmails(dbs.owner, A1, new Date())).toEqual(['first@owner.test', 'second@owner.test']);
+    });
+    it('excludes expired and revoked invitations', async () => {
+      await invite('expired@owner.test', { expiresAt: new Date(Date.now() - 1000) });
+      await invite('revoked@owner.test', { revokedAt: new Date() });
+      await invite('accepted@owner.test', { acceptedAt: new Date() });
+      await invite('viewer@owner.test', { role: 'client_viewer' });
+      expect(await clientOwnerEmails(dbs.owner, A2, new Date())).toEqual([]);
+    });
+    it('enable_client_billing with priceCents and setupFeeCents for a pending owner sends one payment link at that price', async () => {
+      await ready();
+      await invite('pending@owner.test');
+      const r = await call(admin, 'enable_client_billing', { clientId: A2, priceCents: 15000, setupFeeCents: 1000 });
+      expect(r).toMatchObject({ ok: true, state: 'invited', priceCents: 15000, setupFeeCents: 1000, recipients: 1 });
+      expect(checkoutArg()).toMatchObject({ customerEmail: 'pending@owner.test', setupFeeCents: 1000 });
+      const n = await notices();
+      expect(n).toHaveLength(1);
+      expect(n[0]).toMatchObject({ audience: 'client', clientId: A2, kind: 'client-payment-link' });
+    });
     it('uses the default price, invites the first owner by email, sets invited and queues one client notice with the link', async () => {
       await ready({ defaultSetupFeeCents: 2500 });
       const r = await call(admin, 'enable_client_billing', { clientId: A1 });

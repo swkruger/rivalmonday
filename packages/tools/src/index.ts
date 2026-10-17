@@ -27,6 +27,7 @@ export { EVIDENCE_CONTENT_TYPES, evidenceContentType, type ServableEvidenceKind 
 export * from './workspace/labels';
 export * from './workspace/word-diff';
 export * from './tools/schemas';
+export { clientOwnerEmails } from './tools/client-billing';
 export { assertRoomForCompetitors, type Discovery, lockClientLimit, startDiscovery } from './tools/competitors';
 export { latestDoneRun, listMonthlyRivalClients, manualSearchWeek, nextManualSearchAt, type SearchRefusal, type SearchStart, type SearchTrigger, searchDayLabel, searchDayLabelAt, startCompetitorSearch } from './rival-search';
 // Shared by the `fetch` tool and the MCP `evidence://` / `brief://` resources (@cs/mcp); every refusal is `not_found`.
