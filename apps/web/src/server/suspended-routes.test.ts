@@ -5,7 +5,7 @@ vi.mock('@/server/current-viewer', () => ({ getViewer: async () => m.viewer }));
 vi.mock('@/server/billing-state', () => ({ agencySuspended: async () => m.suspended }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {}, app: {} }) }));
 vi.mock('@/server/dev-guard', () => ({ activeEnvName: () => 'test' }));
-vi.mock('@/server/files', () => ({ servePdf: async () => new Response('pdf'), serveEvidence: async () => new Response('evidence') }));
+vi.mock('@/server/files', () => ({ servePdf: async () => new Response('pdf'), serveEvidence: async () => new Response('evidence'), serveRankMap: async () => new Response('map') }));
 vi.mock('@/server/store', () => ({ webStore: () => ({}) }));
 vi.mock('@/server/queue', () => ({ pdfEnqueueFor: () => ({}) }));
 vi.mock('@/server/tools', () => ({ registry: () => ({}) }));
@@ -17,6 +17,7 @@ const calls = {
   brief: async () => (await import('@/app/files/brief/[id]/route')).GET(new Request('http://x'), { params: Promise.resolve({ id: ID }) }),
   report: async () => (await import('@/app/files/report/[id]/route')).GET(new Request('http://x'), { params: Promise.resolve({ id: ID }) }),
   evidence: async () => (await import('@/app/files/evidence/[clientId]/[evidenceId]/route')).GET(new Request('http://x'), { params: Promise.resolve({ clientId: ID, evidenceId: ID }) }),
+  rankMap: async () => (await import('@/app/files/rank-map/[clientId]/route')).GET(new Request('http://x'), { params: Promise.resolve({ clientId: ID }) }),
   go: async () => (await import('@/app/go/[target]/[id]/route')).GET(new Request('http://x'), { params: Promise.resolve({ target: 'brief', id: ID }) }),
 };
 

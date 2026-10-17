@@ -1,9 +1,9 @@
 import { isAbsolute, resolve } from 'node:path';
 import { type AccessContext, isCurrentPdfKey, isUuid, READ_ONLY_SESSION_MESSAGE, ToolError, type ToolRegistry } from '@cs/core';
-import { brief, type Db, evidence, trendReport } from '@cs/db';
+import { brief, type Db, evidence, rankMapImage, trendReport } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
-import { type BriefDetail, evidenceContentType, type EvidenceView, type ReportDetail, type ToolDeps } from '@cs/tools';
-import { eq } from 'drizzle-orm';
+import { type BriefDetail, evidenceContentType, type EvidenceView, type GeoGridView, type ReportDetail, type ToolDeps } from '@cs/tools';
+import { and, eq } from 'drizzle-orm';
 import { BACKGROUND_OFF } from './background-off';
 
 export type Enqueue = (job: 'brief-pdf' | 'report-pdf', payload: { briefId: string } | { reportId: string }, singletonKey: string) => Promise<void>;
@@ -142,6 +142,46 @@ export async function serveEvidence(input: {
       'content-type': type,
       'x-content-type-options': 'nosniff',
       'cache-control': 'private, no-store',
+      'content-disposition': 'inline',
+    },
+  });
+}
+
+/**
+ * Phase 13b: the static map behind the geogrid. Access is the same scope + `dashboard` check as the Local rankings
+ * page (`get_geogrid`); every refusal is the same 404 as a missing image.
+ */
+export async function serveRankMap(input: {
+  clientId: string;
+  ctx: AccessContext;
+  registry: ToolRegistry<ToolDeps>;
+  service: Db;
+  store: ObjectStore;
+}): Promise<Response> {
+  if (!isUuid(input.clientId)) return notFound();
+
+  let view: GeoGridView;
+  try {
+    view = (await input.registry.invoke(input.ctx, 'get_geogrid', { clientId: input.clientId })) as GeoGridView;
+  } catch (e) {
+    if (e instanceof ToolError && (e.code === 'not_found' || e.code === 'permission_denied' || e.code === 'invalid_input')) return notFound();
+    throw e;
+  }
+  if (!view.map) return notFound();
+
+  const [row] = await input.service
+    .select({ key: rankMapImage.objectKey })
+    .from(rankMapImage)
+    .where(and(eq(rankMapImage.clientId, input.clientId), eq(rankMapImage.agencyId, input.ctx.agencyId)));
+  const bytes = row ? await input.store.get(row.key) : null;
+  if (!bytes) return notFound();
+
+  return new Response(new Uint8Array(bytes), {
+    status: 200,
+    headers: {
+      'content-type': 'image/png',
+      'x-content-type-options': 'nosniff',
+      'cache-control': 'private, max-age=86400',
       'content-disposition': 'inline',
     },
   });

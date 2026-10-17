@@ -1,13 +1,14 @@
 import { createAccessContext, ToolError } from '@cs/core';
-import { brief, capture, evidence, trackedPage, trendReport } from '@cs/db';
+import { brief, capture, client, evidence, rankMapImage, trackedPage, trendReport } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { briefPdfKey } from '@cs/engine';
 import { createMemoryStore, type ObjectStore } from '@cs/storage';
 import { createToolRegistry } from '@cs/tools';
+import { ago, gridSnapshots, rr, seedRankScan, seedSelf } from '@cs/tools/test-fixtures';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BACKGROUND_OFF } from './background-off';
-import { resolveEvidenceDir, serveEvidence, servePdf } from './files';
+import { resolveEvidenceDir, serveEvidence, servePdf, serveRankMap } from './files';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -191,6 +192,77 @@ describe('serveEvidence', () => {
       expect(r.status).toBe(404);
       expect(await r.text()).toBe('Not found');
     }
+  });
+});
+
+describe('serveRankMap', () => {
+  const admin = createAccessContext({ agencyId: IDS.agencyA, userId: 'ad', role: 'agency_admin', clientScope: 'all', features: [] });
+  const amOutside = createAccessContext({ agencyId: IDS.agencyA, userId: 'am2', role: 'account_manager', clientScope: [IDS.clientA2], features: [] });
+  const withDash = createAccessContext({ agencyId: IDS.agencyA, userId: 'od', role: 'client_owner', clientScope: [IDS.clientA1], features: ['dashboard'] });
+  const KEY = 'rank-map/a1/hash.png';
+  const PNG = new Uint8Array([137, 80, 78, 71]);
+  let store: ObjectStore;
+
+  beforeEach(async () => {
+    store = createMemoryStore();
+    await dbs.owner
+      .update(client)
+      .set({ keywords: ['ac repair'], serviceArea: { center: { lat: 32, lng: -97 }, radiusKm: 25, zips: ['76048'] } })
+      .where(eq(client.id, IDS.clientA1));
+    await seedSelf({ placeId: 'self-place' });
+    await seedRankScan({ finishedAt: ago(1), snapshots: gridSnapshots('ac repair', 3, () => [rr(1, 'self-place')]) });
+    await store.put(KEY, PNG, 'image/png');
+  });
+
+  const seedMap = () =>
+    dbs.owner.insert(rankMapImage).values({
+      clientId: IDS.clientA1, agencyId: IDS.agencyA, settingsHash: 'abcdef0123456789ffff', objectKey: KEY,
+      bounds: { west: -97.01, south: 31.97, east: -96.97, north: 32.01 }, width: 800, height: 800,
+    });
+  const serve = (clientId: string, ctx: typeof admin) => serveRankMap({ clientId, ctx, registry, service: dbs.service, store });
+
+  it('serves the png to an agency admin', async () => {
+    await seedMap();
+    const r = await serve(IDS.clientA1, admin);
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-type')).toBe('image/png');
+    expect(r.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(new Uint8Array(await r.arrayBuffer())).toEqual(PNG);
+    expect((await serve(IDS.clientA1, withDash)).status).toBe(200);
+  });
+
+  it('cache-control is private, max-age=86400', async () => {
+    await seedMap();
+    expect((await serve(IDS.clientA1, admin)).headers.get('cache-control')).toBe('private, max-age=86400');
+  });
+
+  it("404 for another agency's client", async () => {
+    await seedMap();
+    expect((await serve(IDS.clientA1, otherAgency)).status).toBe(404);
+  });
+
+  it('404 for an AM outside clientScope', async () => {
+    await seedMap();
+    expect((await serve(IDS.clientA1, amOutside)).status).toBe(404);
+  });
+
+  it('404 for a client role without dashboard', async () => {
+    await seedMap();
+    expect((await serve(IDS.clientA1, owner)).status).toBe(404);
+  });
+
+  it('404 for a malformed id', async () => {
+    await seedMap();
+    const r = await serve('nope', admin);
+    expect(r.status).toBe(404);
+    expect(await r.text()).toBe('Not found');
+  });
+
+  it('404 when no image row or the object is missing', async () => {
+    expect((await serve(IDS.clientA1, admin)).status).toBe(404);
+    await seedMap();
+    const r = await serveRankMap({ clientId: IDS.clientA1, ctx: admin, registry, service: dbs.service, store: createMemoryStore() });
+    expect(r.status).toBe(404);
   });
 });
 
