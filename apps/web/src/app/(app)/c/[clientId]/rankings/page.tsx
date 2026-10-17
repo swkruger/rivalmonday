@@ -10,6 +10,9 @@ import { RankTrend } from '@/components/charts/rank-trend';
 import { requireContext } from '@/server/current-viewer';
 import { one, uuidParam } from '@/server/search-params';
 import { callTool, tryCallTool } from '@/server/tools';
+import { RankSettingsSheet } from './rank-settings-sheet';
+import type { RankSettingsView } from './scan-copy';
+import { ScanNowButton } from './scan-now-button';
 import { ScanSlider } from './scan-slider';
 import { sovSeries } from './sov';
 import { type RankQuery, type RankTab, RankTabs } from './tabs';
@@ -48,6 +51,10 @@ export default async function RankingsPage({ params, searchParams }: {
   const trend = ready ? await callTool<RankTrendView>(ctx, 'get_rank_trend', { clientId, keyword: geo.keyword }) : null;
   const history = trend ? [...trend.scans].reverse() : []; // oldest → newest
   const sov = ready && tab === 'trend' ? await callTool<ShareOfVoiceView>(ctx, 'get_share_of_voice', { clientId, ...(sovKeyword ? { keyword: sovKeyword } : {}) }) : null;
+  // Phase 13b: agency-only controls. `not_ready` covers a paused or inactive client (or agency) and a client without
+  // keywords or a service area, so neither control shows for one; client roles never read the settings.
+  const rankSettings = isAgencyRole(ctx.role) && geo.setup !== 'no_keywords' ? await callTool<RankSettingsView>(ctx, 'get_rank_settings', { clientId }) : null;
+  const controls = rankSettings && rankSettings.scan.state !== 'not_ready' ? rankSettings : null;
 
   // Compare: A (from, older) and B (to, newer), defaulting to the newest two; reversed picks are swapped.
   let compare: { a: TrendScan; b: TrendScan; stale: boolean; grids: [GeoGridView, GeoGridView] | null } | null = null;
@@ -70,9 +77,17 @@ export default async function RankingsPage({ params, searchParams }: {
 
   return (
     <>
-      <div>
-        <h1 className="text-[26px] font-extrabold tracking-tight">Local rankings</h1>
-        <p className="mt-1 text-muted-foreground">Where each business shows up in Google’s local results across your service area, from the weekly rank scan.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-[26px] font-extrabold tracking-tight">Local rankings</h1>
+          <p className="mt-1 text-muted-foreground">Where each business shows up in Google’s local results across your service area, from the weekly rank scan.</p>
+        </div>
+        {controls && (
+          <div className="flex flex-wrap items-start gap-3">
+            <RankSettingsSheet clientId={clientId} settings={controls} />
+            <ScanNowButton clientId={clientId} scan={controls.scan} />
+          </div>
+        )}
       </div>
 
       {geo.setup === 'no_keywords' ? (

@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { currentStandardPlan, ensureExemptPilot } from '@cs/billing';
 import { signLink } from '@cs/core';
-import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
+import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankMapImage, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
 import { createStoreFromEnv } from '@cs/storage';
 import { eq, sql } from 'drizzle-orm';
 import { acceptInvitations, createInvitation } from '@cs/tools';
@@ -225,6 +225,7 @@ export const CB_USERS = { admin: 'cb-admin@e2e.test', owner: 'cb-owner@e2e.test'
 const DAY = 86_400_000;
 const WEBP = Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA', 'base64');
 const SHA = 'a'.repeat(64);
+const PNG_1PX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 /** 5c-1: a tracked page with two web captures + evidence, a price-change event with a move, and a Google Ads history. */
 async function seedWorkspace(
@@ -299,20 +300,38 @@ async function seedWorkspace(
     { reviewId: r2!.id, verticalId: 'hvac_plumbing', competitorId: self!.id, textSha: 'e2e', asked: ['response_time'], themes: ['response_time'], sentiment: 4, confidence: 0.9, analysisVersion: 1 },
   ]);
 
-  const [scan] = await db.insert(rankScan).values({ agencyId, clientId, status: 'done', snapshots: 8, startedAt: ago(2), finishedAt: ago(2) }).returning();
+  // Phase 13b: three weekly scans (the oldest with a 5×5 grid, so Compare refuses it against the others) and, newest, a
+  // manual scan two days ago, which puts "Scan now" on its weekly limit. The newest scan keeps the 5c-2 numbers.
   const res = (rank: number, placeId: string, title: string) => ({ rank, placeId, cid: null, domain: null, title });
   const round = (n: number) => Math.round(n * 1e6) / 1e6;
-  const snaps = [];
-  for (let r = 0; r < 3; r++) {
-    for (let c = 0; c < 3; c++) {
-      if (r === 2 && c === 2) continue; // a failed point → "no data"
-      const results = r === 0
-        ? [res(1, 'e2e-self-place', 'E2E HVAC'), res(2, 'e2e-smith-place', 'Smith HVAC'), res(3, 'e2e-other', 'Other Air')]
-        : [res(1, 'e2e-smith-place', 'Smith HVAC'), res(2, 'e2e-other', 'Other Air'), res(3, 'e2e-other-2', 'Third Air'), res(5, 'e2e-self-place', 'E2E HVAC')];
-      snaps.push({ agencyId, clientId, scanId: scan!.id, keyword: 'ac repair', lat: round(32.45 - 0.05 * r), lng: round(-97.84 + 0.05 * c), results, capturedAt: ago(2) });
+  const settings = { radiusKm: 25, keywords: ['ac repair'] };
+  const scans = [
+    { days: 23, trigger: 'scheduled' as const, gridSize: 5, selfTop: 4 },
+    { days: 16, trigger: 'scheduled' as const, gridSize: 7, selfTop: 3 },
+    { days: 9, trigger: 'scheduled' as const, gridSize: 7, selfTop: 2 },
+    { days: 2, trigger: 'manual' as const, gridSize: 7, selfTop: 1 },
+  ];
+  for (const s of scans) {
+    const [scan] = await db.insert(rankScan).values({
+      agencyId, clientId, status: 'done', snapshots: 8, startedAt: ago(s.days), finishedAt: ago(s.days),
+      trigger: s.trigger, requestedBy: s.trigger === 'manual' ? 'e2e-admin' : null, gridSize: s.gridSize, ...settings, estimatedUsd: 0.2,
+    }).returning();
+    const snaps = [];
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        if (r === 2 && c === 2) continue; // a failed point → "no data"
+        const results = r === 0
+          ? [res(s.selfTop, 'e2e-self-place', 'E2E HVAC'), res(s.selfTop === 2 ? 1 : 2, 'e2e-smith-place', 'Smith HVAC'), res(s.selfTop === 3 ? 1 : 3, 'e2e-other', 'Other Air')]
+          : [res(1, 'e2e-smith-place', 'Smith HVAC'), res(2, 'e2e-other', 'Other Air'), res(3, 'e2e-other-2', 'Third Air'), res(5, 'e2e-self-place', 'E2E HVAC')];
+        snaps.push({ agencyId, clientId, scanId: scan!.id, keyword: 'ac repair', lat: round(32.45 - 0.05 * r), lng: round(-97.84 + 0.05 * c), results, capturedAt: ago(s.days) });
+      }
     }
+    await db.insert(rankSnapshot).values(snaps);
   }
-  await db.insert(rankSnapshot).values(snaps);
+  // A stored map background whose bounds hold every grid point (no Stadia call in E2E: a 1×1 PNG stands in).
+  const mapKey = `rank-map/${clientId}/e2e.png`;
+  await store.put(mapKey, PNG_1PX, 'image/png');
+  await db.insert(rankMapImage).values({ clientId, agencyId, settingsHash: 'e2e0000000000000', objectKey: mapKey, bounds: { west: -97.95, south: 32.25, east: -97.63, north: 32.55 }, width: 640, height: 640 });
 
   await db.update(briefItem).set({ evidenceIds: [after.shot] }).where(eq(briefItem.id, o.sentItemId));
   return { eventId: ev!.id, evidenceId: after.shot };

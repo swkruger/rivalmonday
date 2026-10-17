@@ -4,9 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const callTool = vi.fn();
 const replace = vi.fn();
-vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: { role: 'client_owner', features: new Set(['dashboard']) } }) }));
+const viewer = vi.hoisted(() => ({ role: 'client_owner' }));
+vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: { role: viewer.role, features: new Set(['dashboard']) } }) }));
 vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a), tryCallTool: (...a: unknown[]) => callTool(...a) }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); }, useRouter: () => ({ replace }) }));
+vi.mock('./actions', () => ({ saveRankSettings: vi.fn(), requestRankScan: vi.fn() }));
 
 import RankingsPage from './page';
 
@@ -19,7 +21,37 @@ const geo = {
 const render5 = async (sp: Record<string, string> = {}) => render(await RankingsPage({ params: Promise.resolve({ clientId: 'c1' }), searchParams: Promise.resolve(sp) }));
 
 describe('RankingsPage', () => {
-  beforeEach(() => { callTool.mockReset(); replace.mockReset(); });
+  beforeEach(() => { callTool.mockReset(); replace.mockReset(); viewer.role = 'client_owner'; });
+
+  describe('Rank settings and Scan now', () => {
+    const rankSettings = (state: string, label: string | null = null) => ({ keywords: ['ac repair'], allKeywords: ['ac repair'], gridSize: 7, radiusKm: 25, scan: { state, nextAvailableAt: null, label } });
+    const mount = (state: string, label: string | null = null) => callTool.mockImplementation(async (_ctx: unknown, name: string) => (name === 'get_rank_settings' ? rankSettings(state, label) : geo));
+
+    it('agency roles get both controls', async () => {
+      viewer.role = 'agency_admin';
+      mount('weekly_limit', 'Next scan available Wed 21 Oct');
+      await render5();
+      expect(screen.getByRole('button', { name: 'Rank settings' })).toBeTruthy();
+      expect((screen.getByRole('button', { name: 'Next scan available Wed 21 Oct' }) as HTMLButtonElement).disabled).toBe(true);
+      expect(callTool.mock.calls.find((c) => c[1] === 'get_rank_settings')![2]).toEqual({ clientId: 'c1' });
+    });
+
+    it('a client that cannot be scanned (paused, inactive or not set up) shows neither control', async () => {
+      viewer.role = 'account_manager';
+      mount('not_ready');
+      await render5();
+      expect(screen.queryByRole('button', { name: 'Rank settings' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /scan/i })).toBeNull();
+    });
+
+    it('client roles never read the settings', async () => {
+      mount('available');
+      await render5();
+      expect(callTool.mock.calls.map((c) => c[1])).not.toContain('get_rank_settings');
+      expect(screen.queryByRole('button', { name: 'Rank settings' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Scan now' })).toBeNull();
+    });
+  });
 
   it('asks for a place id or a competitor instead of drawing a grid when there is no business', async () => {
     callTool.mockResolvedValue(geo);
