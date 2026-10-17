@@ -7,6 +7,7 @@ import { type ClientBillingRow, type ClientBillingState, type Tx, agency, agency
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
+import { completeIfDone } from '../setup/state';
 import { gatewayOf } from './billing';
 
 /**
@@ -282,15 +283,29 @@ async function ownClient(deps: ToolDeps, ctx: AccessContext, clientId: string) {
 const billingRowOf = async (deps: ToolDeps, clientId: string): Promise<ClientBillingRow | null> =>
   (await deps.service.select().from(clientBilling).where(eq(clientBilling.clientId, clientId)))[0] ?? null;
 
-/** f8: 9a state `active|pilot` (a missing row counts as the default pilot), then a connected account with charges enabled. */
-async function eligibleConnect(deps: ToolDeps, agencyId: string) {
-  const [b] = await deps.service.select({ state: agencyBilling.state }).from(agencyBilling).where(eq(agencyBilling.agencyId, agencyId));
+export type ClientBillingEligibility =
+  | { ok: true; connect: typeof agencyConnect.$inferSelect; acct: string }
+  | { ok: false; code: 'billing_not_eligible' | 'conflict' | 'connect_not_ready'; message: string };
+
+/**
+ * f8: 9a state `active|pilot` (a missing row counts as the default pilot), then a connected account with charges enabled.
+ * Shared by `enable_client_billing` & co. (which throw the refusal) and the setup wizard's billing step (Phase 11b §7:
+ * ineligible = skipped). Takes the service connection (the Connect tables are service-role only).
+ */
+export async function clientBillingEligibility(db: Pick<Tx, 'select'>, agencyId: string): Promise<ClientBillingEligibility> {
+  const [b] = await db.select({ state: agencyBilling.state }).from(agencyBilling).where(eq(agencyBilling.agencyId, agencyId));
   const state = b?.state ?? 'pilot';
-  if (state !== 'active' && state !== 'pilot') throw refuse('billing_not_eligible', BILLING_NOT_ELIGIBLE_MESSAGE);
-  const connect = await connectRowOf(deps, agencyId);
-  if (!connect?.stripeAccountId || connect.status === 'disconnected') throw refuse('conflict', CONNECT_FIRST_MESSAGE);
-  if (connect.status !== 'connected' || !connect.chargesEnabled) throw refuse('connect_not_ready', CONNECT_NOT_READY_MESSAGE);
-  return { connect, acct: connect.stripeAccountId };
+  if (state !== 'active' && state !== 'pilot') return { ok: false, code: 'billing_not_eligible', message: BILLING_NOT_ELIGIBLE_MESSAGE };
+  const [connect] = await db.select().from(agencyConnect).where(eq(agencyConnect.agencyId, agencyId));
+  if (!connect?.stripeAccountId || connect.status === 'disconnected') return { ok: false, code: 'conflict', message: CONNECT_FIRST_MESSAGE };
+  if (connect.status !== 'connected' || !connect.chargesEnabled) return { ok: false, code: 'connect_not_ready', message: CONNECT_NOT_READY_MESSAGE };
+  return { ok: true, connect, acct: connect.stripeAccountId };
+}
+
+async function eligibleConnect(deps: ToolDeps, agencyId: string) {
+  const e = await clientBillingEligibility(deps.service, agencyId);
+  if (!e.ok) throw refuse(e.code, e.message);
+  return { connect: e.connect, acct: e.acct };
 }
 
 /**
@@ -461,6 +476,21 @@ const archiveQuietly = (deps: ToolDeps, agencyId: string, acct: string, priceId:
         console.error('[billing] archiveConnectedPrice failed', { agencyId }, (e as { name?: string } | null)?.name))
     : Promise.resolve();
 
+/**
+ * Phase 11b §8: billing on is the setup wizard's last step; close the setup if every step is now done or skipped (guarded,
+ * under the shared client-row lock). Best effort: billing is already on, so a failure here is logged, not thrown.
+ */
+async function completeSetupQuietly(deps: ToolDeps, clientId: string): Promise<void> {
+  try {
+    await deps.service.transaction(async (tx) => {
+      await tx.select({ id: client.id }).from(client).where(eq(client.id, clientId)).for('update');
+      await completeIfDone(tx, clientId, new Date());
+    });
+  } catch (e) {
+    console.error('[billing] setup completion check failed', { clientId }, (e as { name?: string } | null)?.name);
+  }
+}
+
 export const enableClientBillingTool = defineTool({
   name: 'enable_client_billing',
   access: 'write',
@@ -509,6 +539,7 @@ export const enableClientBillingTool = defineTool({
       },
       ALREADY_BILLING_MESSAGE,
     );
+    await completeSetupQuietly(deps, c.id);
     return { ok: true as const, state: r.state!, priceCents, setupFeeCents, recipients: emails.length };
   },
 });

@@ -1,4 +1,4 @@
-import type { AccessContext } from '@cs/core';
+import { type AccessContext, isAgencyRole } from '@cs/core';
 import type { AlertSummary, BriefSummary, ClientProfile, ReportSummary, SetupState, StartingPointStatus } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
@@ -18,7 +18,7 @@ export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx
     tryCallTool<StartingPointStatus>(ctx, 'get_starting_point_status', { clientId }),
     tryCallTool<{ state: SetupState }>(ctx, 'get_client_setup', { clientId }),
   ]);
-  const setupSteps = openSetupSteps(setup);
+  const setupSteps = openSetupSteps(setup, isAgencyRole(ctx.role));
   const preparing = pendingStartingPoint(starting, briefs.items);
   return (
     <>
@@ -27,7 +27,7 @@ export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx
         <p className="mt-1 text-muted-foreground">Weekly briefs, alerts and quarterly reports.</p>
         {setupSteps !== null && (
           <div className="mt-2">
-            <SetupBadge clientId={clientId} open doneSteps={setupSteps} />
+            <SetupBadge clientId={clientId} open {...setupSteps} />
           </div>
         )}
       </div>

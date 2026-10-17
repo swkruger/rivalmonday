@@ -3,16 +3,16 @@ import { client, clientSetup, contact, type Tx } from '@cs/db';
 import { loadBranding, notify } from '@cs/engine';
 import { and, eq, sql } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
-import { getSetupState } from '../setup/state';
+import { completeIfDone, getSetupState } from '../setup/state';
 import { normalizeEmail } from './invitations';
 import { inviteMember } from './team';
 
 export type ClientInviteRole = 'client_owner' | 'client_viewer';
 
-/** The page an invited client user lands on after signing in: the wizard for an owner while the setup is open, else the dashboard (a closed/absent setup and every viewer would 404 on `/setup`). */
-async function landingPath(tx: Tx, clientId: string, role: ClientInviteRole): Promise<string> {
+/** The page an invited client user lands on after signing in: the wizard for an owner while the setup is open for them (`clientOpen`), else the dashboard (a closed/absent setup and every viewer would 404 on `/setup`). */
+async function landingPath(tx: Tx, clientId: string, role: ClientInviteRole, now: Date): Promise<string> {
   if (role !== 'client_owner') return `/c/${clientId}`;
-  return (await getSetupState(tx, clientId)).open ? `/c/${clientId}/setup` : `/c/${clientId}`;
+  return (await getSetupState(tx, clientId, now)).clientOpen ? `/c/${clientId}/setup` : `/c/${clientId}`;
 }
 
 /** Reuses the (agency, client, lower(email)) contact — the `contact_email_unique` key — or inserts an inactive one. An active contact stays active. */
@@ -59,6 +59,8 @@ export async function inviteClientUser(
     const contactId = await upsertContact(tx, ctx.agencyId, c.id, email, input.name, input.role);
     if (input.role === 'client_owner') {
       await tx.update(clientSetup).set({ invitedContactId: contactId, invitedBy: ctx.userId }).where(eq(clientSetup.clientId, c.id));
+      // 11b §8: the invite step is now done; if it was the last open step the setup closes (guarded; no-op otherwise).
+      await completeIfDone(tx, c.id, now);
     }
 
     if (!deps.delivery) {
@@ -70,7 +72,7 @@ export async function inviteClientUser(
     const rows = await tx.execute<{ email: string }>(sql`select email from auth."user" where id = ${ctx.userId}`);
     const inviterEmail = [...rows][0]?.email;
     // Built from validated ids only (never request input); the sign-in page re-checks `next` with `safeNext`.
-    const startUrl = `${cfg.appUrl}/sign-in?email=${encodeURIComponent(email)}&next=${encodeURIComponent(await landingPath(tx, c.id, input.role))}`;
+    const startUrl = `${cfg.appUrl}/sign-in?email=${encodeURIComponent(email)}&next=${encodeURIComponent(await landingPath(tx, c.id, input.role, now))}`;
     const props = { branding, businessName: c.name, agencyName: branding.displayName, startUrl };
     await notify(tx, cfg, {
       agencyId: ctx.agencyId, clientId: c.id, kind: 'client_invite', audience: 'client', subjectType: 'setup', subjectId: c.id,

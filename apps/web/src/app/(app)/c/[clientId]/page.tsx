@@ -49,7 +49,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
     // Agency staff and the client's owner while setup is open; anyone else (and a closed setup for owners) reads null.
     tryCallTool<{ state: SetupState }>(ctx, 'get_client_setup', { clientId }),
   ]);
-  const setupSteps = openSetupSteps(setup);
+  const setupSteps = openSetupSteps(setup, isAgencyRole(ctx.role));
   const preparing = pendingStartingPoint(starting, briefs.items);
   const { latest: first, rest: pastBriefs } = latestBrief(briefs.items);
   const latest = first ? await callTool<BriefDetail>(ctx, 'get_brief', { briefId: first.id }) : null;
@@ -69,7 +69,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
           </p>
           {setupSteps !== null && (
             <div className="mt-2">
-              <SetupBadge clientId={clientId} open doneSteps={setupSteps} />
+              <SetupBadge clientId={clientId} open {...setupSteps} />
             </div>
           )}
         </div>

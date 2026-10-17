@@ -105,7 +105,11 @@ describe('queueCompetitorReview', () => {
     expect(await go(`competitor-review:${ID}:2026-10-20`, true)).toBe(true);
     expect(await go(`competitor-review:${ID}:2026-10-20`, true)).toBe(false);
     expect(await go(`competitor-review:${ID}:2026-10-21`, true, new Date(NOW.getTime() + D))).toBe(true);
-    expect(await mails()).toHaveLength(2);
+    const rows = await mails();
+    expect(rows).toHaveLength(2);
+    // The owner's own steps are done: the setup is open for staff only, so the owner's link goes to the dashboard.
+    const props = payloadOf(rows[0]!).props as { reviewUrl: string };
+    expect(props.reviewUrl).toBe(`https://app.test/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${ID}`)}`);
   });
 
   it('props carry names only', async () => {

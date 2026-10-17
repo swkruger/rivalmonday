@@ -10,7 +10,7 @@ import { startCompetitorSearch } from '../rival-search';
 import { FIND_BUSINESS_DAILY_CAP, preselectVertical, toSetupLookup } from '../setup/lookup';
 import { applyClientProfileChange } from '../setup/profile-change';
 import { queueCompetitorReview } from '../setup/review-email';
-import { completeIfDone, getSetupState, type SetupState } from '../setup/state';
+import { clientSetupOpen, completeIfDone, getSetupState, loadSetupInvite, type SetupState } from '../setup/state';
 import { acceptSuggestions, dismissSuggestions, preTickTop, RUN_STATUSES, runSuggestionRows, SearchProgress, searchProgress, searchRefusalMessage } from './competitors';
 import { ServiceAreaInput, Tier } from './schemas';
 
@@ -66,7 +66,9 @@ export const findBusiness = defineTool({
 
 /**
  * Shared guard (security-sensitive). Clients without a setup row read as closed, so client owners are refused there.
- * Callers prove tenant visibility first (`assertClientVisible`): this reads on the service connection.
+ * A client owner acts only while `clientOpen` (one of their own three steps is still open; invite and billing are staff
+ * steps — controller ruling 2026-10-17). Callers prove tenant visibility first (`assertClientVisible`): this reads on
+ * the service connection.
  */
 async function assertSetupActor(ctx: AccessContext, deps: ToolDeps, clientId: string, opts: { agencyOnly?: boolean } = {}): Promise<SetupState> {
   if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
@@ -75,7 +77,7 @@ async function assertSetupActor(ctx: AccessContext, deps: ToolDeps, clientId: st
   const state = await getSetupState(deps.service, clientId); // service read; client already scoped above
   if (!isAgency) {
     if (ctx.role !== 'client_owner') throw new ToolError('permission_denied', 'Not allowed');
-    if (!state.open) throw new ToolError('permission_denied', 'Setup is finished');
+    if (!state.clientOpen) throw new ToolError('permission_denied', 'Setup is finished');
   }
   return state;
 }
@@ -89,13 +91,13 @@ async function assertClientVisible(ctx: AccessContext, deps: ToolDeps, clientId:
 
 /**
  * The in-transaction re-guard: run it right after the `client` row lock (tenant or service tx). Agency staff pass; a
- * client owner is refused once `completed_at`/`dismissed_at` is set (or the row is gone).
+ * client owner is refused once the setup is closed for them (`clientOpen` false: completed, dismissed, the row gone, or
+ * their three steps done/skipped).
  */
 export function closedSetupRecheck(ctx: AccessContext, clientId: string): (tx: Tx) => Promise<void> {
   return async (tx) => {
     if (isAgencyRole(ctx.role)) return;
-    const [row] = await tx.select({ completedAt: clientSetup.completedAt, dismissedAt: clientSetup.dismissedAt }).from(clientSetup).where(eq(clientSetup.clientId, clientId));
-    if (!row || row.completedAt || row.dismissedAt) throw new ToolError('permission_denied', 'Setup is finished');
+    if (!(await clientSetupOpen(tx, clientId))) throw new ToolError('permission_denied', 'Setup is finished');
   };
 }
 
@@ -118,8 +120,10 @@ export function reportedSuggestions(s: SetupSuggestions, createdAt: Date, now: D
 const StepStatusOut = z.enum(['todo', 'running', 'done', 'skipped', 'blocked']);
 const SetupStateOut = z.object({
   open: z.boolean(),
+  clientOpen: z.boolean(),
   exists: z.boolean(),
-  steps: z.object({ profile: StepStatusOut, search: StepStatusOut, competitors: StepStatusOut }),
+  steps: z.object({ profile: StepStatusOut, search: StepStatusOut, competitors: StepStatusOut, invite: StepStatusOut.optional(), billing: StepStatusOut.optional() }),
+  totalSteps: z.union([z.literal(4), z.literal(5)]),
   searchRefusal: z.string().nullable(),
   waitingOn: z.enum(['agency', 'client', 'system']).nullable(),
   completedAt: z.date().nullable(),
@@ -152,11 +156,14 @@ export const getClientSetup = defineTool({
     competitorSuggestions: z.array(ClientSafeSuggestion),
     search: SetupSearch.nullable(),
     vertical: z.object({ services: z.array(z.object({ id: z.string(), name: z.string() })), seedKeywords: z.array(z.string()) }),
+    /** Phase 11b: the invited owner (invite step, "Ask {name} to review"). Name and email are for agency staff only. */
+    invite: z.object({ status: z.enum(['none', 'pending', 'accepted']), name: z.string().nullable(), email: z.string().nullable() }),
   }),
   permission: 'read',
   channels: ['web'],
   // Polled by the wizard while suggestions or the search are pending.
   audit: 'skip-web',
+  supportMask: ['invite.email', 'invite.name'],
   async handler(ctx, { clientId }, deps) {
     if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
     // Spec §7: agency staff and the client's owner only.
@@ -165,15 +172,18 @@ export const getClientSetup = defineTool({
       const [c] = await tx.select({ verticalId: client.verticalId, limit: client.competitorLimit }).from(client).where(eq(client.id, clientId));
       if (!c) return null;
       const [row] = await tx.select({ lookup: clientSetup.lookup, suggestions: clientSetup.suggestions, createdAt: clientSetup.createdAt }).from(clientSetup).where(eq(clientSetup.clientId, clientId));
-      const state = await getSetupState(tx, clientId);
       const [tracked] = await tx.select({ n: count() }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId));
       const { rows } = await runSuggestionRows(tx, clientId, ['suggested', 'accepted']);
       const [run] = await tx.select({ status: discoveryRun.status, progress: discoveryRun.progress, kept: discoveryRun.kept, finishedAt: discoveryRun.finishedAt })
         .from(discoveryRun).where(eq(discoveryRun.clientId, clientId)).orderBy(desc(discoveryRun.startedAt)).limit(1);
-      return { c, row: row ?? null, state, tracked: tracked?.n ?? 0, rows, run: run ?? null };
+      return { c, row: row ?? null, tracked: tracked?.n ?? 0, rows, run: run ?? null };
     });
     if (!r) throw new ToolError('not_found', 'Client not found');
-    if (!isAgencyRole(ctx.role) && !r.state.open) throw new ToolError('not_found', 'Client not found');
+    // Tenant visibility proven above; the state's invite/billing reads need the service connection.
+    const state = await getSetupState(deps.service, clientId);
+    const staff = isAgencyRole(ctx.role);
+    if (!staff && !state.clientOpen) throw new ToolError('not_found', 'Client not found');
+    const invite = await loadSetupInvite(deps.service, clientId);
 
     const pack = await packsOf(deps)(r.c.verticalId);
     const ticked = preTickTop(r.rows.filter((s) => s.status === 'suggested'), r.c.limit, r.tracked);
@@ -181,7 +191,8 @@ export const getClientSetup = defineTool({
     const suggestions: SetupSuggestions = r.row && parsed.success ? reportedSuggestions(parsed.data, r.row.createdAt) : { status: 'none' };
     const lookup = r.row?.lookup ? setupLookupSchema.safeParse(r.row.lookup) : null;
     return {
-      state: r.state,
+      state,
+      invite: staff ? invite : { status: invite.status, name: null, email: null },
       lookup: lookup?.success ? lookup.data : null,
       suggestions,
       search: r.run ? { status: r.run.status, progress: searchProgress(r.run.progress), kept: r.run.kept, finishedAt: r.run.finishedAt?.toISOString() ?? null } : null,
@@ -256,20 +267,23 @@ export const pickSetupCompetitors = defineTool({
   },
 });
 
-const ACTIONS = ['start_search', 'confirm_competitors', 'skip_search', 'skip_competitors', 'dismiss'] as const;
+const ACTIONS = ['start_search', 'confirm_competitors', 'skip_search', 'skip_competitors', 'skip_invite', 'skip_billing', 'dismiss'] as const;
+/** Staff-only actions (11b: invite and billing are staff steps). */
+const AGENCY_ONLY = new Set<(typeof ACTIONS)[number]>(['dismiss', 'skip_invite', 'skip_billing']);
 
 export const advanceClientSetup = defineTool({
   name: 'advance_client_setup',
   access: 'write',
-  description: 'Move the client setup wizard on: start the competitor search, finish or skip picking competitors, skip the search, or (agency staff) dismiss the setup.',
+  description: 'Move the client setup wizard on: start the competitor search, finish or skip picking competitors, skip the search, or (agency staff) skip the invite or billing step or dismiss the setup.',
   input: z.object({ clientId: uuid, action: z.enum(ACTIONS) }),
   output: z.object({ state: SetupStateOut, searchRefusal: z.string().nullable() }),
   permission: 'manage',
   channels: ['web'],
   async handler(ctx, { clientId, action }, deps) {
     await assertClientVisible(ctx, deps, clientId);
-    const state = await assertSetupActor(ctx, deps, clientId, { agencyOnly: action === 'dismiss' });
+    const state = await assertSetupActor(ctx, deps, clientId, { agencyOnly: AGENCY_ONLY.has(action) });
     if (!state.exists) throw new ToolError('not_found', 'Setup not found');
+    if (action === 'skip_billing' && !state.steps.billing) throw new ToolError('invalid_input', 'A prospect has no billing step');
     const recheck = closedSetupRecheck(ctx, clientId);
     const now = new Date();
 
@@ -300,7 +314,9 @@ export const advanceClientSetup = defineTool({
         action === 'confirm_competitors' ? { competitorsDoneAt }
           : action === 'skip_competitors' ? { competitorsDoneAt, skipped: skip('competitors') }
             : action === 'skip_search' ? { skipped: skip('search') }
-              : { dismissedAt: row.dismissedAt ?? now };
+              : action === 'skip_invite' ? { skipped: skip('invite') }
+                : action === 'skip_billing' ? { skipped: skip('billing') }
+                  : { dismissedAt: row.dismissedAt ?? now };
       await tx.update(clientSetup).set({ ...patch, ...changedBy(ctx, now) }).where(eq(clientSetup.clientId, clientId));
       await completeIfDone(tx, clientId, now);
     });

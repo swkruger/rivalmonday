@@ -255,6 +255,15 @@ describe('runSetupReminders (Task 9)', () => {
     expect(await tiers()).toEqual(['3']);
   });
 
+  it('Done picking no longer ends the reminders: idle fires while the invite step is todo, stops once it is skipped', async () => {
+    await seedOpen({ createdAt: ago(4 * D), competitorsDoneAt: ago(4 * D) });
+    await withDoneRun(0);
+    expect((await run()).queued).toBe(3);
+    expect(await tiers()).toEqual(['3']);
+    await dbs.owner.update(clientSetup).set({ skipped: ['invite'] }); // billing reads skipped without Connect: nothing left
+    expect(await run(later(4 * D))).toEqual({ queued: 0 });
+  });
+
   it('client_changed once per day', async () => {
     await seedOpen({ lastChangedRole: 'client_owner', lastChangedAt: ago(2 * 3_600_000) });
     expect((await run()).queued).toBe(3);

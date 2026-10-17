@@ -75,11 +75,10 @@ describe('get_portfolio', () => {
       { ...base, clientId: IDS.clientA1, skipped: ['search'] },
       { ...base, clientId: IDS.clientA2, completedAt: new Date() },
     ]);
-    const { items } = (await registry.invoke(admin, 'get_portfolio', {})) as { items: { clientId: string; setup: { open: boolean; doneSteps: number } | null }[] };
-    // A1: profile todo (the seed client has no place id), search skipped, competitors todo.
+    const { items } = (await registry.invoke(admin, 'get_portfolio', {})) as { items: { clientId: string; setup: { open: boolean; doneSteps: number; totalSteps: number } | null }[] };
+    // A1: profile todo (the seed client has no place id), search skipped, competitors todo, invite todo, billing skipped (no Connect).
     const a1 = items.find((i) => i.clientId === IDS.clientA1)!.setup;
-    expect(a1).toMatchObject({ open: true });
-    expect(a1!.doneSteps).toBe(1);
+    expect(a1).toEqual({ open: true, doneSteps: 2, totalSteps: 5 });
     expect(items.find((i) => i.clientId === IDS.clientA2)!.setup).toBeNull(); // completed
   });
 

@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { client, clientSetup, contact, invitation, membership, notification } from '@cs/db';
+import { agencyConnect, client, clientSetup, contact, invitation, membership, notification } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import type { DeliveryConfig } from '@cs/engine';
 import { renderEmail, type EmailPayload } from '@cs/email';
@@ -138,6 +138,26 @@ describe('inviteClientUser', () => {
     await inviteClientUser(admin, deps(), { clientId: IDS.clientA2, email: 'o2@x.co', name: null, role: 'client_owner' }, NOW);
     const n2 = (await rows()).find((x) => x.clientId === IDS.clientA2)!;
     expect(startUrl(n2)).toBe(`https://app.test/sign-in?email=o2%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA2}`)}`);
+  });
+
+  it('startUrl points at /c/<id> once the owner steps are done, though the setup stays open for staff (billing todo)', async () => {
+    await dbs.owner.update(client).set({ keywords: ['ac'], serviceArea: { center: { lat: 1, lng: 2 }, radiusKm: 5, zips: [] }, placeId: 'ChIJx' }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.insert(agencyConnect).values({ agencyId: IDS.agencyA, stripeAccountId: 'acct_1', status: 'connected', chargesEnabled: true, detailsSubmitted: true });
+    await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, skipped: ['search'], competitorsDoneAt: NOW });
+    await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'o@x.co', name: null, role: 'client_owner' }, NOW);
+    const [n] = await rows();
+    expect(startUrl(n!)).toBe(`https://app.test/sign-in?email=o%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA1}`)}`);
+    const [row] = await dbs.service.select().from(clientSetup);
+    expect(row!.completedAt).toBeNull(); // billing still todo
+  });
+
+  it('inviting the owner as the last open step completes the setup; a viewer invite does not', async () => {
+    await dbs.owner.update(client).set({ keywords: ['ac'], serviceArea: { center: { lat: 1, lng: 2 }, radiusKm: 5, zips: [] }, placeId: 'ChIJx' }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, skipped: ['search'], competitorsDoneAt: NOW });
+    await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'v@x.co', name: null, role: 'client_viewer' }, NOW);
+    expect((await dbs.service.select().from(clientSetup))[0]!.completedAt).toBeNull();
+    await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'o@x.co', name: null, role: 'client_owner' }, NOW);
+    expect((await dbs.service.select().from(clientSetup))[0]!.completedAt).toEqual(NOW); // billing reads skipped without Connect
   });
 
   it('without delivery still creates the invitation and contact, queues nothing and warns', async () => {

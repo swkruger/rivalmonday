@@ -1,13 +1,14 @@
 import { assertCanActivateClient } from '@cs/billing';
 import { type AccessContext, canAccessClient, toolkit, ToolError } from '@cs/core';
 import { failProspectReport, PROSPECT_STALE_HOURS } from '@cs/collectors';
-import { client, clientCompetitor, prospectReport, withTenant } from '@cs/db';
-import { and, count, desc, eq, inArray } from 'drizzle-orm';
+import { client, clientCompetitor, clientSetup, prospectReport, withTenant } from '@cs/db';
+import { and, count, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { postCommitSeatSync } from '../billing-guard';
 import { enqueueOf, type ToolDeps } from '../deps';
 import { RIVAL_SEARCH_REUSE_DAYS } from '../limits';
 import { latestDoneRun, startCompetitorSearchQuietly } from '../rival-search';
+import { completeIfDone } from '../setup/state';
 import { ProspectReportView, ProspectRow } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -135,6 +136,14 @@ export const convertProspect = defineTool({
       if (rows.length === 0) throw new ToolError('invalid_input', 'This business is already a client');
       // Decision 12: a fresh link date lets the score sweep's late-link lookback offer the last 90 days of events.
       await tx.update(clientCompetitor).set({ createdAt: new Date() }).where(eq(clientCompetitor.clientId, clientId));
+      // 11b §8: a setup completed after the prospect's four steps reopens at the client's fifth (billing); the client row
+      // is locked by the UPDATE above. Only rows the wizard completed (competitors_done_at set, which also keeps the
+      // starting-point clock where it was): backfilled rows for pre-existing clients stay closed. If nothing is left to
+      // do (billing ineligible or already on) it closes again at once.
+      const reopened = await tx.update(clientSetup).set({ completedAt: null })
+        .where(and(eq(clientSetup.clientId, clientId), isNotNull(clientSetup.completedAt), isNotNull(clientSetup.competitorsDoneAt), isNull(clientSetup.dismissedAt)))
+        .returning({ id: clientSetup.clientId });
+      if (reopened.length > 0) await completeIfDone(tx, clientId, new Date());
     });
     await postCommitSeatSync(deps, ctx.agencyId);
     // 12a D4 (P7): reuse the prospect's last finished search when it is recent enough; otherwise start a new one.

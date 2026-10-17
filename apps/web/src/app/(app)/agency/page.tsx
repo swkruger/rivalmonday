@@ -169,7 +169,7 @@ function ClientName({ row }: { row: PortfolioRow }) {
       <div className="text-muted-ink">{VERTICAL_LABELS[row.verticalId] ?? row.verticalId}</div>
       {row.setup?.open && (
         <div className="mt-1">
-          <SetupBadge clientId={row.clientId} open doneSteps={row.setup.doneSteps} />
+          <SetupBadge clientId={row.clientId} open doneSteps={row.setup.doneSteps} totalSteps={row.setup.totalSteps} />
         </div>
       )}
     </div>

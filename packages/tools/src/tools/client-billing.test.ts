@@ -1,6 +1,6 @@
 import { fakeGateway, type FakeGateway } from '@cs/billing';
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { agencyBilling, agencyConnect, billingNotice, client, clientBilling, invitation, membership, plan, platformSetting } from '@cs/db';
+import { agencyBilling, agencyConnect, billingNotice, client, clientBilling, clientSetup, invitation, membership, plan, platformSetting } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -532,6 +532,14 @@ describe('per-client billing tools (Task 5)', () => {
       const n = await notices();
       expect(n).toHaveLength(1);
       expect(n[0]).toMatchObject({ audience: 'client', clientId: A2, kind: 'client-payment-link' });
+    });
+    it('turning billing on as the last open setup step completes the setup (Phase 11b §8)', async () => {
+      await ready();
+      await invite('pending@owner.test');
+      await dbs.owner.update(client).set({ keywords: ['ac'], serviceArea: { center: { lat: 1, lng: 2 }, radiusKm: 5, zips: [] }, placeId: 'ChIJx' }).where(eq(client.id, A2));
+      await dbs.owner.insert(clientSetup).values({ clientId: A2, agencyId: IDS.agencyA, skipped: ['search', 'invite'], competitorsDoneAt: new Date() });
+      await call(admin, 'enable_client_billing', { clientId: A2 });
+      expect((await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, A2)))[0]!.completedAt).toBeInstanceOf(Date);
     });
     it('uses the default price, invites the first owner by email, sets invited and queues one client notice with the link', async () => {
       await ready({ defaultSetupFeeCents: 2500 });

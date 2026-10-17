@@ -1,6 +1,6 @@
 import type { MapsPlace } from '@cs/collectors';
 import { type AccessContext, type CallScope, createAccessContext } from '@cs/core';
-import { client, clientCompetitor, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, vendorCall, withTenant } from '@cs/db';
+import { agencyConnect, client, clientCompetitor, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, vendorCall, withTenant } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -115,6 +115,7 @@ const AREA = { center: { lat: 32.44, lng: -97.79 }, radiusKm: 10, zips: [] };
 const PROFILE = { keywords: ['ac repair'], serviceArea: AREA, placeId: 'ChIJa1hvacplace1' };
 type Out = { state: SetupState; searchRefusal?: string | null };
 type GetOut = Out & {
+  invite: { status: string; name: string | null; email: string | null };
   lookup: unknown; suggestions: { status: string };
   search: { status: string; progress: Record<string, number>; kept: number | null; finishedAt: string | null } | null;
   competitorSuggestions: { id: string; tier: string; status: string; preTicked: boolean }[];
@@ -192,6 +193,30 @@ describe('wizard tools', () => {
       await expect(ownerCheck(ownerA1)).rejects.toMatchObject({ code: 'permission_denied' });
       await expect(ownerCheck(admin)).resolves.toBeUndefined();
       await expect(dbs.service.transaction((tx) => closedSetupRecheck(ownerA1, IDS.clientA1)(tx))).rejects.toMatchObject({ code: 'permission_denied' });
+    });
+
+    it('the in-transaction re-check refuses a client owner once their three steps are done (invite still todo)', async () => {
+      await fillProfile();
+      await setupRow({ skipped: ['search'] });
+      const ownerCheck = () => withTenant(dbs.app, ownerA1, (tx) => closedSetupRecheck(ownerA1, IDS.clientA1)(tx));
+      await expect(ownerCheck()).resolves.toBeUndefined();
+      await dbs.owner.update(clientSetup).set({ competitorsDoneAt: new Date() }).where(eq(clientSetup.clientId, IDS.clientA1));
+      await expect(ownerCheck()).rejects.toMatchObject({ code: 'permission_denied' });
+      await expect(withTenant(dbs.app, admin, (tx) => closedSetupRecheck(admin, IDS.clientA1)(tx))).resolves.toBeUndefined();
+    });
+
+    it('client owner sees setup closed once their three steps are done while invite/billing are still todo', async () => {
+      await fillProfile();
+      await dbs.owner.insert(agencyConnect).values({ agencyId: IDS.agencyA, stripeAccountId: 'acct_1', status: 'connected', chargesEnabled: true, detailsSubmitted: true });
+      await setupRow({ skipped: ['search'] });
+      await expect(get(ownerA1)).resolves.toMatchObject({ state: { open: true, clientOpen: true } });
+      const out = await advance(ownerA1, 'confirm_competitors');
+      expect(out.state).toMatchObject({ open: true, clientOpen: false, totalSteps: 5, steps: { competitors: 'done', invite: 'todo', billing: 'todo' }, waitingOn: 'agency' });
+      expect((await setupOf()).completedAt).toBeNull();
+      expect((await fails(get(ownerA1))).code).toBe('not_found');
+      expect((await fails(save(ownerA1, { keywords: ['x'] }))).code).toBe('permission_denied');
+      expect((await fails(advance(ownerA1, 'confirm_competitors'))).code).toBe('permission_denied');
+      await expect(get(admin)).resolves.toMatchObject({ state: { open: true, clientOpen: false, steps: { invite: 'todo', billing: 'todo' } } });
     });
 
     it('client_viewer refused', async () => {
@@ -278,6 +303,18 @@ describe('wizard tools', () => {
       await setupRow({ completedAt: new Date() });
       expect((await fails(get(ownerA1))).code).toBe('not_found');
       await expect(get(admin)).resolves.toMatchObject({ state: { open: false } });
+    });
+
+    it('get_client_setup reports the invited owner: name and email for staff only', async () => {
+      await setupRow();
+      expect((await get(admin)).invite).toEqual({ status: 'none', name: null, email: null });
+      const [c] = await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'olive@x.co', name: 'Olive', active: false }).returning();
+      await dbs.owner.update(clientSetup).set({ invitedContactId: c!.id }).where(eq(clientSetup.clientId, IDS.clientA1));
+      await dbs.owner.insert(invitation).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, email: 'olive@x.co', role: 'client_owner', invitedBy: 'x', expiresAt: new Date(Date.now() + 86_400_000) });
+      const staff = await get(admin);
+      expect(staff.invite).toEqual({ status: 'pending', name: 'Olive', email: 'olive@x.co' });
+      expect(staff.state.steps.invite).toBe('done');
+      expect((await get(ownerA1)).invite).toEqual({ status: 'pending', name: null, email: null });
     });
 
     it('get_client_setup not_found for client_viewer', async () => {
@@ -371,7 +408,7 @@ describe('wizard tools', () => {
     });
 
     it('a profile save that completes the last open step sets completed_at', async () => {
-      await setupRow({ skipped: ['search', 'competitors'] });
+      await setupRow({ skipped: ['search', 'competitors', 'invite'] });
       const out = await save(admin, PROFILE);
       expect(out.state.open).toBe(false);
       expect((await setupOf()).completedAt).toBeInstanceOf(Date);
@@ -430,6 +467,24 @@ describe('wizard tools', () => {
       expect((await setupOf()).dismissedAt).toBeInstanceOf(Date);
     });
 
+    it('skip_invite/skip_billing refused for client roles', async () => {
+      await setupRow();
+      for (const action of ['skip_invite', 'skip_billing']) expect((await fails(advance(ownerA1, action))).code).toBe('permission_denied');
+      expect((await setupOf()).skipped).toEqual([]);
+      await advance(admin, 'skip_invite');
+      await advance(mk('account_manager', [IDS.clientA1]), 'skip_billing');
+      expect([...(await setupOf()).skipped].sort()).toEqual(['billing', 'invite']);
+    });
+
+    it('skip_billing is refused for a prospect (no billing step); skip_invite is allowed', async () => {
+      await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA1));
+      await setupRow();
+      expect((await fails(advance(admin, 'skip_billing'))).code).toBe('invalid_input');
+      const out = await advance(admin, 'skip_invite');
+      expect(out.state).toMatchObject({ totalSteps: 4, steps: { invite: 'skipped' } });
+      expect(out.state.steps.billing).toBeUndefined();
+    });
+
     it('confirm twice keeps the first competitors_done_at', async () => {
       await setupRow();
       await advance(admin, 'confirm_competitors');
@@ -444,7 +499,7 @@ describe('wizard tools', () => {
 
     it('staff and owner confirming at once set competitors_done_at and completed_at once', async () => {
       await fillProfile();
-      await setupRow({ skipped: ['search'] });
+      await setupRow({ skipped: ['search', 'invite'] });
       const results = await Promise.allSettled([advance(admin, 'confirm_competitors'), advance(ownerA1, 'confirm_competitors')]);
       expect(results[0]!.status).toBe('fulfilled');
       const row = await setupOf();
@@ -457,10 +512,14 @@ describe('wizard tools', () => {
       await setupRow();
       await advance(ownerA1, 'skip_search');
       expect((await setupOf()).completedAt).toBeNull();
-      const out = await advance(ownerA1, 'skip_competitors');
-      expect(out.state).toMatchObject({ open: false, steps: { profile: 'done', search: 'skipped', competitors: 'skipped' } });
+      // Done picking no longer closes the setup: the invite step is next (billing reads skipped without Connect).
+      const picked = await advance(ownerA1, 'skip_competitors');
+      expect(picked.state).toMatchObject({ open: true, clientOpen: false, steps: { profile: 'done', search: 'skipped', competitors: 'skipped', invite: 'todo', billing: 'skipped' } });
+      expect((await setupOf()).completedAt).toBeNull();
+      const out = await advance(admin, 'skip_invite');
+      expect(out.state).toMatchObject({ open: false, steps: { invite: 'skipped' } });
       const row = await setupOf();
-      expect([...row.skipped].sort()).toEqual(['competitors', 'search']);
+      expect([...row.skipped].sort()).toEqual(['competitors', 'invite', 'search']);
       const at = row.completedAt;
       expect(at).toBeInstanceOf(Date);
       await advance(admin, 'confirm_competitors');

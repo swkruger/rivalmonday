@@ -44,7 +44,7 @@ export async function queueCompetitorReview(
   const accepted = !!inv.acceptedAt && owner.active;
   if (!pending && !accepted) return false;
 
-  const state = await getSetupState(conn, clientId);
+  const state = await getSetupState(conn, clientId, now);
   // Automatic: only while the step is still `todo` (a staff skip means "don't ask the owner"); manual ignores it.
   if (!input.manual && state.steps.competitors !== 'todo') return false;
 
@@ -67,7 +67,8 @@ export async function queueCompetitorReview(
   ccEmail ??= (await replyToFor(conn, agencyId, clientId))?.email;
 
   const branding = await loadBranding(conn, agencyId);
-  const next = state.open ? `/c/${clientId}/setup` : `/c/${clientId}`;
+  // The owner can open /setup only while it is open for them (`clientOpen`); otherwise it would 404.
+  const next = state.clientOpen ? `/c/${clientId}/setup` : `/c/${clientId}`;
   // Built from the validated client id only; the sign-in page re-checks `next` with `safeNext`.
   const reviewUrl = `${cfg.appUrl}/sign-in?email=${encodeURIComponent(owner.email.toLowerCase())}&next=${encodeURIComponent(next)}`;
   const props = { branding, businessName: c.name, competitorNames, reviewUrl };
