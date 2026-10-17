@@ -6,6 +6,7 @@ import {
 import { capture, trackedPage } from './evidence';
 import { rankScan } from './client-intel';
 import { decisionSample } from './model-ops';
+import type { Tier } from './rivals';
 import { agency, client, competitor, type ScoreThresholds } from './tenancy';
 
 const ts = (name: string) => timestamp(name, { withTimezone: true });
@@ -72,6 +73,13 @@ export interface ChangeDetails {
   top3Before?: number;
   top3After?: number;
   points?: number;
+  /** Rank delta (Phase 13b): grid points in the top 3 before/after, and the scan the change was detected in. */
+  top3PointsBefore?: number;
+  top3PointsAfter?: number;
+  scanId?: string;
+  /** `tier_change` event: the competitor's tier last week and now. */
+  from?: Tier;
+  to?: Tier;
   /** The change advertises a specific offer (ad copy with a deal, or a web promo / money change). */
   offer?: boolean;
 }

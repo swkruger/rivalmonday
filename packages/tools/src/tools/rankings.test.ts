@@ -1,8 +1,10 @@
-import { client, clientCompetitor } from '@cs/db';
+import { STADIA_ATTRIBUTION } from '@cs/collectors';
+import { client, clientCompetitor, competitorSignal, rankMapImage } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
+import { rankSettingsKey } from '@cs/engine';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { GeoGridView, ShareOfVoiceView } from './schemas';
+import type { GeoGridView, RankTrendView, ShareOfVoiceView } from './schemas';
 import { ago, ctx, dbs, gridSnapshots, registry, resetWorkspace, rr, seedRankScan, seedSelf, setPlace } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
@@ -92,6 +94,126 @@ describe('get_geogrid', () => {
     await expect(registry.invoke(am, 'get_geogrid', { clientId: IDS.clientA1, business: IDS.competitorY })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(am, 'get_geogrid', { clientId: IDS.clientA1, business: 'self' })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(ownerNoDash, 'get_geogrid', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('get_geogrid additions (Phase 13b)', () => {
+  const BOUNDS = { west: -97.01, south: 31.97, east: -96.97, north: 32.01 };
+  const seedMap = (bounds = BOUNDS) => dbs.owner.insert(rankMapImage).values({
+    clientId: IDS.clientA1, agencyId: IDS.agencyA, settingsHash: 'abcdef0123456789ffff', objectKey: 'rank-map/a1.png', bounds, width: 800, height: 800,
+  });
+
+  it('selected scan older than 12 appears in scans', async () => {
+    await setupClient();
+    const ids: string[] = [];
+    for (let i = 0; i < 14; i++) ids.push(await seedRankScan({ finishedAt: ago(i + 1), snapshots: acRepair() }));
+    const oldest = ids[13]!;
+    const r = (await registry.invoke(am, 'get_geogrid', { clientId: IDS.clientA1, scanId: oldest })) as GeoGridView;
+    expect(r.scan?.id).toBe(oldest);
+    expect(r.scans).toHaveLength(13);
+    expect(r.scans.map((s) => s.id)).toEqual([...ids.slice(0, 12), oldest]);
+    const stamps = r.scans.map((s) => s.finishedAt);
+    expect(stamps).toEqual([...stamps].sort().reverse());
+  });
+
+  it('lats north→south and lngs west→east', async () => {
+    await setupClient();
+    await seedRankScan({ finishedAt: ago(1), snapshots: acRepair() });
+    const r = (await registry.invoke(am, 'get_geogrid', { clientId: IDS.clientA1 })) as GeoGridView;
+    expect(r.lats).toEqual([32, 31.99, 31.98]);
+    expect(r.lngs).toEqual([-97, -96.99, -96.98]);
+  });
+
+  it('map null without an image or when a point is outside bounds', async () => {
+    await setupClient();
+    await seedRankScan({ finishedAt: ago(1), snapshots: acRepair() });
+    const none = (await registry.invoke(am, 'get_geogrid', { clientId: IDS.clientA1 })) as GeoGridView;
+    expect(none.map).toBeNull();
+    await seedMap({ ...BOUNDS, east: -96.985 });
+    const outside = (await registry.invoke(am, 'get_geogrid', { clientId: IDS.clientA1 })) as GeoGridView;
+    expect(outside.map).toBeNull();
+    await dbs.owner.delete(rankMapImage);
+    await seedMap();
+    const ok = (await registry.invoke(owner, 'get_geogrid', { clientId: IDS.clientA1 })) as GeoGridView;
+    expect(ok.map).toEqual({ url: `/files/rank-map/${IDS.clientA1}?v=abcdef012345`, bounds: BOUNDS, width: 800, height: 800, attribution: STADIA_ATTRIBUTION });
+  });
+});
+
+describe('get_rank_trend', () => {
+  const trend = (c: ReturnType<typeof ctx>, input: Record<string, unknown>) => registry.invoke(c, 'get_rank_trend', { clientId: IDS.clientA1, keyword: 'ac repair', ...input }) as Promise<RankTrendView>;
+  const S7 = { gridSize: 7, radiusKm: 25, keywords: ['ac repair'] };
+
+  it('trend returns 12 newest done scans with self and competitor metrics', async () => {
+    await setupClient();
+    const ids: string[] = [];
+    for (let i = 0; i < 14; i++) ids.push(await seedRankScan({ finishedAt: ago(i + 1), snapshots: acRepair(), ...S7 }));
+    const r = await trend(owner, {});
+    expect(r.scans.map((s) => s.scanId)).toEqual(ids.slice(0, 12));
+    expect(r.nextCursor).toBe(ids[11]);
+    expect(r.scans[0]!.self).toEqual({ avgRank: 3.5, top3Share: 0.38, points: 8 });
+    expect(r.scans[0]!.competitors).toEqual([{ competitorId: IDS.competitorX, name: 'Smith HVAC', tier: null, avgRank: 1.38, top3Share: 1 }]);
+    expect(r.scans.every((s) => s.settingsChanged === false)).toBe(true);
+    expect(r.scans[0]!.settingsKey).toBe(rankSettingsKey(S7));
+  });
+
+  it('skipped and failed scans ignored', async () => {
+    await setupClient();
+    const a = await seedRankScan({ finishedAt: ago(3), snapshots: acRepair() });
+    await seedRankScan({ finishedAt: ago(2), snapshots: acRepair(), status: 'failed' });
+    await seedRankScan({ finishedAt: ago(1), snapshots: [], status: 'skipped' });
+    const r = await trend(am, {});
+    expect(r.scans.map((s) => s.scanId)).toEqual([a]);
+  });
+
+  it('cursor pages back and ends with null', async () => {
+    await setupClient();
+    const [s1, s2, s3] = [await seedRankScan({ finishedAt: ago(3), snapshots: acRepair() }), await seedRankScan({ finishedAt: ago(2), snapshots: acRepair() }), await seedRankScan({ finishedAt: ago(1), snapshots: acRepair() })];
+    const p1 = await trend(am, { limit: 2 });
+    expect([p1.scans.map((s) => s.scanId), p1.nextCursor]).toEqual([[s3, s2], s2]);
+    const p2 = await trend(am, { limit: 2, before: p1.nextCursor });
+    expect([p2.scans.map((s) => s.scanId), p2.nextCursor]).toEqual([[s1], null]);
+  });
+
+  it('settingsChanged marks the scan after a settings change', async () => {
+    await setupClient();
+    await seedRankScan({ finishedAt: ago(3), snapshots: acRepair(), ...S7 });
+    const mid = await seedRankScan({ finishedAt: ago(2), snapshots: acRepair(), ...S7, radiusKm: 30 });
+    const last = await seedRankScan({ finishedAt: ago(1), snapshots: acRepair(), ...S7, radiusKm: 30 });
+    const r = await trend(am, { limit: 2 });
+    expect(r.scans.map((s) => [s.scanId, s.settingsChanged])).toEqual([[last, false], [mid, true]]);
+    expect(r.nextCursor).toBe(mid);
+  });
+
+  it('limit 27 rejected', async () => {
+    await setupClient();
+    await expect(trend(am, { limit: 27 })).rejects.toThrow();
+    await expect(trend(am, { limit: 26 })).resolves.toMatchObject({ scans: [] });
+  });
+
+  it('never reads another client’s scans', async () => {
+    await setupClient();
+    const mine = await seedRankScan({ finishedAt: ago(5), snapshots: acRepair() });
+    const a2 = await seedRankScan({ finishedAt: ago(1), snapshots: acRepair(), clientId: IDS.clientA2 });
+    const b1 = await seedRankScan({ finishedAt: ago(1), snapshots: acRepair(), agencyId: IDS.agencyB, clientId: IDS.clientB1 });
+    expect((await trend(am, {})).scans.map((s) => s.scanId)).toEqual([mine]);
+    await expect(trend(am, { before: a2 })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(trend(am, { before: b1 })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(trend(ownerNoDash, {})).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('tier null when unrated', async () => {
+    await setupClient();
+    await seedRankScan({ finishedAt: ago(1), snapshots: acRepair() });
+    expect((await trend(am, {})).scans[0]!.competitors[0]!.tier).toBeNull();
+    await dbs.owner.insert(competitorSignal).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, tier: 'top', overlap: 0.5, activity: 0.5, signals: {} });
+    expect((await trend(am, {})).scans[0]!.competitors[0]!.tier).toBe('top');
+  });
+
+  it('self is null without a self business', async () => {
+    await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: AREA }).where(eq(client.id, IDS.clientA1));
+    await setPlace(IDS.competitorX, 'px');
+    await seedRankScan({ finishedAt: ago(1), snapshots: acRepair() });
+    expect((await trend(am, {})).scans[0]!.self).toBeNull();
   });
 });
 

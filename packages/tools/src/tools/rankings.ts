@@ -1,32 +1,33 @@
-import { rankKeywordsFor } from '@cs/collectors';
-import { canAccessClient, toolkit, ToolError } from '@cs/core';
-import { client, type RankResult, rankScan, rankSnapshot, type Tx, withTenant } from '@cs/db';
-import { competitorMatcher, NOT_FOUND_RANK } from '@cs/engine';
-import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
+import { rankKeywordsFor, STADIA_ATTRIBUTION } from '@cs/collectors';
+import { canAccessClient, insideBounds, toolkit, ToolError } from '@cs/core';
+import { client, competitorSignal, type RankResult, rankMapImage, rankScan, rankSnapshot, type Tier, type Tx, withTenant } from '@cs/db';
+import { competitorMatcher, NOT_FOUND_RANK, rankMetrics, rankSettingsKey } from '@cs/engine';
+import { and, desc, eq, inArray, isNotNull, lt } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { enqueueMapRefresh, rankScanAvailability, rankScanLabel, requestRankScan } from '../rank-scan';
 import { pickBusiness, workspaceBusinesses } from '../workspace/business';
 import { workspaceClient } from '../workspace/scope';
-import { BusinessKey, GeoGridView, ShareOfVoiceView } from './schemas';
+import { BusinessKey, GeoGridView, RankTrendView, ShareOfVoiceView } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
 const r1 = (x: number) => Math.round(x * 10) / 10;
 const byWord = (a: string, b: string) => a.localeCompare(b, 'en');
 
-type ScanRow = { id: string; finishedAt: Date | null };
+type ScanRow = { id: string; finishedAt: Date | null; gridSize: number | null; radiusKm: number | null; keywords: string[] | null };
 const isDone = (clientId: string) => and(eq(rankScan.clientId, clientId), eq(rankScan.status, 'done'), isNotNull(rankScan.finishedAt));
+const scanCols = { id: rankScan.id, finishedAt: rankScan.finishedAt, gridSize: rankScan.gridSize, radiusKm: rankScan.radiusKm, keywords: rankScan.keywords };
 
 /** The client's finished scans, newest first. Takes a tenant transaction: `rank_scan` is only ever read through `withTenant`. */
-export async function doneScans(tx: Tx, clientId: string, limit: number): Promise<ScanRow[]> {
-  return tx.select({ id: rankScan.id, finishedAt: rankScan.finishedAt }).from(rankScan)
-    .where(isDone(clientId)).orderBy(desc(rankScan.finishedAt)).limit(limit);
+export async function doneScans(tx: Tx, clientId: string, limit: number, before?: Date): Promise<ScanRow[]> {
+  return tx.select(scanCols).from(rankScan)
+    .where(before ? and(isDone(clientId), lt(rankScan.finishedAt, before)) : isDone(clientId)).orderBy(desc(rankScan.finishedAt)).limit(limit);
 }
 
 /** One finished scan of the client by id, or `undefined`. Same tenant-transaction rule as `doneScans`. */
 export async function doneScan(tx: Tx, clientId: string, id: string): Promise<ScanRow | undefined> {
-  const [row] = await tx.select({ id: rankScan.id, finishedAt: rankScan.finishedAt }).from(rankScan)
+  const [row] = await tx.select(scanCols).from(rankScan)
     .where(and(eq(rankScan.id, id), isDone(clientId)));
   return row;
 }
@@ -45,13 +46,13 @@ export const getGeogrid = defineTool({
     const list = await workspaceBusinesses(deps, ctx, c);
     const business = input.business ? pickBusiness(list, input.business) : (list[0] ?? null);
     const base = {
-      scan: null, scans: [], keywords: [], keyword: null, size: 0, cells: [], top3: 0, points: 0, avgRank: null, keywordSummaries: [], radiusKm: c.radiusKm,
+      scan: null, scans: [], keywords: [], keyword: null, size: 0, cells: [], top3: 0, points: 0, avgRank: null, keywordSummaries: [], radiusKm: c.radiusKm, lats: [] as number[], lngs: [] as number[], map: null as GeoGridView['map'],
       businesses: list.map((b) => ({ key: b.key, name: b.name, self: b.self })), business: business?.key ?? null,
     };
     if (c.keywords.length === 0 || c.radiusKm === null) return { ...base, setup: 'no_keywords' as const };
 
     // Tenant tables: only ever through withTenant (Review Focus 1).
-    const { scans, scan, snaps } = await withTenant(deps.app, ctx, async (tx) => {
+    const { scans, scan, snaps, image } = await withTenant(deps.app, ctx, async (tx) => {
       const recent = await doneScans(tx, c.id, 12);
       let chosen: ScanRow | undefined = recent[0];
       if (input.scanId) {
@@ -61,7 +62,15 @@ export const getGeogrid = defineTool({
       const rows = chosen
         ? await tx.select({ keyword: rankSnapshot.keyword, lat: rankSnapshot.lat, lng: rankSnapshot.lng, results: rankSnapshot.results }).from(rankSnapshot).where(eq(rankSnapshot.scanId, chosen.id))
         : [];
-      return { scans: recent, scan: chosen ?? null, snaps: rows };
+      // An older scan opened by id is merged into the list so the picker can show it.
+      const scans = chosen && !recent.some((s) => s.id === chosen!.id)
+        ? [...recent, chosen].sort((a, b) => b.finishedAt!.getTime() - a.finishedAt!.getTime())
+        : recent;
+      const [image] = chosen
+        ? await tx.select({ settingsHash: rankMapImage.settingsHash, bounds: rankMapImage.bounds, width: rankMapImage.width, height: rankMapImage.height })
+          .from(rankMapImage).where(eq(rankMapImage.clientId, c.id))
+        : [];
+      return { scans, scan: chosen ?? null, snaps: rows, image };
     });
     const scanList = scans.map((s) => ({ id: s.id, finishedAt: s.finishedAt!.toISOString() }));
     if (!scan) return { ...base, scans: scanList, setup: 'no_scan' as const };
@@ -82,12 +91,72 @@ export const getGeogrid = defineTool({
       return { keyword: kw, top3: ranks.filter((r) => r <= 3).length, points: ranks.length, avgRank: ranks.length ? r1(ranks.reduce((a, b) => a + b, 0) / ranks.length) : null };
     };
     const current = keyword ? summary(keyword) : { top3: 0, points: 0, avgRank: null };
+    // The map shows only when it covers every point of this scan (the grid may have grown since the image was made).
+    const map = image && snaps.every((s) => insideBounds({ lat: s.lat, lng: s.lng }, image.bounds))
+      ? { url: `/files/rank-map/${c.id}?v=${image.settingsHash.slice(0, 12)}`, bounds: image.bounds, width: image.width, height: image.height, attribution: STADIA_ATTRIBUTION }
+      : null;
     return {
-      ...base, setup: 'ready' as const, scan: { id: scan.id, finishedAt: scan.finishedAt!.toISOString() }, scans: scanList, keywords, keyword,
+      ...base, lats, lngs, map, setup: 'ready' as const, scan: { id: scan.id, finishedAt: scan.finishedAt!.toISOString() }, scans: scanList, keywords, keyword,
       size: Math.max(lats.length, lngs.length), cells, top3: current.top3, points: current.points, avgRank: current.avgRank, keywordSummaries: keywords.map(summary),
     };
   },
 });
+
+export const getRankTrend = defineTool({
+  name: 'get_rank_trend',
+  access: 'read',
+  description: 'Weekly local-rank history for one keyword, newest first: for each completed weekly scan, your and every tracked competitor\'s average map position across the grid '
+    + '(avgRank, 1 best; 21 = not in the top 20) and top3Share (share of grid points where the business is in the top 3), plus the competitor tier. '
+    + 'settingsChanged marks a scan whose grid size, radius or keywords differ from the previous scan, so compare across it with care. Page back with nextCursor (pass it as before).',
+  input: z.object({ clientId: uuid, keyword: z.string().trim().min(1).max(100), limit: z.number().int().min(1).max(26).default(12), before: uuid.optional() }),
+  output: RankTrendView,
+  permission: 'read',
+  channels: ['web', 'mcp', 'ask'],
+  feature: 'dashboard',
+  async handler(ctx, input, deps) {
+    const c = await workspaceClient(deps, ctx, input.clientId);
+    const businesses = await workspaceBusinesses(deps, ctx, c);
+    const { page, older, snaps, tiers } = await withTenant(deps.app, ctx, async (tx) => {
+      let beforeAt: Date | undefined;
+      if (input.before) {
+        const cursor = await doneScan(tx, c.id, input.before);
+        if (!cursor) throw new ToolError('not_found', 'Scan not found');
+        beforeAt = cursor.finishedAt!;
+      }
+      // One extra row: it tells whether another page exists and supplies the settings to compare the last scan with.
+      const rows = await doneScans(tx, c.id, input.limit + 1, beforeAt);
+      const shown = rows.slice(0, input.limit);
+      const [snapRows, tierRows] = await Promise.all([
+        shown.length
+          ? tx.select({ scanId: rankSnapshot.scanId, results: rankSnapshot.results }).from(rankSnapshot)
+            .where(and(inArray(rankSnapshot.scanId, shown.map((s) => s.id)), eq(rankSnapshot.keyword, input.keyword)))
+          : [],
+        tx.select({ competitorId: competitorSignal.competitorId, tier: competitorSignal.tier }).from(competitorSignal).where(eq(competitorSignal.clientId, c.id)),
+      ]);
+      return { page: shown, older: rows[input.limit], snaps: snapRows, tiers: new Map<string, Tier>(tierRows.map((t) => [t.competitorId, t.tier])) };
+    });
+    const self = businesses.find((b) => b.self);
+    const rivals = businesses.filter((b) => !b.self).sort((a, b) => byWord(a.name, b.name));
+    const scans = page.map((scan, i) => {
+      const key = rankSettingsKey(scan);
+      const prev = page[i + 1] ?? older;
+      const results = snaps.filter((s) => s.scanId === scan.id).map((s) => s.results);
+      const metrics = (b: { placeId: string | null; cid: string | null; domain: string | null }) => rankMetrics(results, competitorMatcher(b));
+      // A scan with no snapshots for this keyword has no data, which is not the same as "not in the top 20".
+      const hasData = results.length > 0;
+      return {
+        scanId: scan.id, finishedAt: scan.finishedAt!.toISOString(), settingsKey: key,
+        settingsChanged: prev ? rankSettingsKey(prev) !== key : false,
+        self: self && hasData ? metrics(self) : null,
+        competitors: hasData
+          ? rivals.map((b) => ({ competitorId: b.competitorId!, name: b.name, tier: tiers.get(b.competitorId!) ?? null, ...pick(metrics(b)) }))
+          : [],
+      };
+    });
+    return { scans, nextCursor: older ? page[page.length - 1]!.id : null };
+  },
+});
+const pick = (m: { avgRank: number; top3Share: number }) => ({ avgRank: m.avgRank, top3Share: m.top3Share });
 
 /** Not `other` — that key is `foldSeries`'s folded remainder. */
 export const OTHER_BUSINESSES = 'other_businesses';
@@ -96,7 +165,7 @@ const r3 = (x: number) => Math.round(x * 1000) / 1000;
 export const getShareOfVoice = defineTool({
   name: 'get_share_of_voice',
   access: 'read',
-  description: 'Share of the top-3 local-pack slots held by you, each tracked competitor and other businesses, per monthly rank scan.',
+  description: 'Share of the top-3 local-pack slots held by you, each tracked competitor and other businesses, per weekly rank scan.',
   input: z.object({ clientId: uuid, keyword: z.string().trim().min(1).max(100).optional(), scans: z.number().int().min(1).max(12).default(6) }),
   output: ShareOfVoiceView,
   permission: 'read',
@@ -213,4 +282,4 @@ export const requestRankScanTool = defineTool({
   },
 });
 
-export const rankingTools = [getGeogrid, getShareOfVoice, getRankSettings, updateClientRankSettings, requestRankScanTool];
+export const rankingTools = [getGeogrid, getRankTrend, getShareOfVoice, getRankSettings, updateClientRankSettings, requestRankScanTool];

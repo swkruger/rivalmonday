@@ -375,8 +375,29 @@ export const GeoGridView = z.object({
   avgRank: z.number().nullable(),
   keywordSummaries: z.array(z.object({ keyword: z.string(), top3: z.number().int(), points: z.number().int(), avgRank: z.number().nullable() })),
   radiusKm: z.number().nullable(),
+  /** Grid point latitudes (north → south) and longitudes (west → east): the axes of `cells`. */
+  lats: z.array(z.number()),
+  lngs: z.array(z.number()),
+  /** Static map behind the grid; null unless an image exists and covers every point of the scan. */
+  map: z.object({
+    url: z.string(),
+    bounds: z.object({ west: z.number(), south: z.number(), east: z.number(), north: z.number() }),
+    width: z.number().int(), height: z.number().int(), attribution: z.string(),
+  }).nullable(),
 });
 export type GeoGridView = z.infer<typeof GeoGridView>;
+
+const RankTier = z.enum(['top', 'watch', 'minor']);
+const RankMetricsView = z.object({ avgRank: z.number(), top3Share: z.number() });
+export const RankTrendView = z.object({
+  scans: z.array(z.object({
+    scanId: uuid, finishedAt: iso, settingsKey: z.string(), settingsChanged: z.boolean(),
+    self: RankMetricsView.extend({ points: z.number().int() }).nullable(),
+    competitors: z.array(RankMetricsView.extend({ competitorId: uuid, name: z.string(), tier: RankTier.nullable() })),
+  })),
+  nextCursor: z.string().nullable(),
+});
+export type RankTrendView = z.infer<typeof RankTrendView>;
 
 export const ShareOfVoiceView = z.object({
   keyword: z.string().nullable(),

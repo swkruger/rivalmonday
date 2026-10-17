@@ -15,7 +15,7 @@ import { ago, ctx, dbs, registry, resetWorkspace, seedAds, seedCapture, seedEven
 const MCP_READ_TOOLS = [
   'list_clients', 'get_client_profile', 'list_client_competitors', 'get_competitor_profile', 'get_competitor_timeline', 'search_events', 'get_event',
   'get_evidence', 'compare_snapshots', 'get_price_matrix', 'get_price_history', 'list_ads', 'get_ad_activity', 'get_theme_benchmark', 'search_reviews',
-  'get_rating_trend', 'get_geogrid', 'get_share_of_voice', 'list_moves', 'get_move', 'list_briefs', 'get_brief', 'list_recommendations', 'list_alerts', 'get_usage',
+  'get_rating_trend', 'get_geogrid', 'get_rank_trend', 'get_share_of_voice', 'list_moves', 'get_move', 'list_briefs', 'get_brief', 'list_recommendations', 'list_alerts', 'get_usage',
   'search', 'fetch', 'search_knowledge', 'get_competitor_signals',
 ];
 const MCP_FEEDBACK_TOOLS = ['submit_feedback', 'update_recommendation_status', 'add_recommendation'];

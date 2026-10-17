@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day } from '../../test/seed';
 import { findEngineWork } from '../sweep';
-import { competitorMatcher, diffRankScan, RANK_MIN_SHARED_POINTS, rankMetrics } from './rank';
+import { competitorMatcher, diffRankScan, RANK_MIN_SHARED_POINTS, rankMetrics, rankSettingsKey } from './rank';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -77,5 +77,59 @@ describe('diffRankScan', () => {
     expect((await findEngineWork(dbs.service, { limit: 10 })).rankDiff).toContain(s1);
     await diffRankScan({ db: dbs.service }, s1);
     expect((await findEngineWork(dbs.service, { limit: 10 })).rankDiff).not.toContain(s1);
+  });
+});
+
+describe('rank settings series identity and top-3 point gain (Phase 13b)', () => {
+  const grid = (n: number) => Array.from({ length: n * n }, (_, i) => [33 + Math.floor(i / n) * 0.01, -96 + (i % n) * 0.01] as const);
+  const SETTINGS = { gridSize: 7, radiusKm: 25, keywords: ['ac repair'] };
+
+  /** One keyword on an n×n grid; the first `top3` points rank 3, the rest rank 4. */
+  async function gridScan(at: number, top3: number, settings: { gridSize: number | null; radiusKm: number | null; keywords: string[] | null }, n = 7) {
+    const [s] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'done', startedAt: day(at), finishedAt: day(at), ...settings }).returning({ id: rankScan.id });
+    await dbs.service.insert(rankSnapshot).values(grid(n).map(([lat, lng], i) => ({
+      agencyId: IDS.agencyA, clientId: IDS.clientA1, scanId: s!.id, keyword: 'ac repair', lat, lng, results: hit(i < top3 ? 3 : 4), capturedAt: day(at),
+    })));
+    return s!.id;
+  }
+
+  it('rankSettingsKey is stable, order-insensitive on keywords and distinguishes settings', () => {
+    expect(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: ['b', 'a'] })).toBe(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: ['a', 'b'] }));
+    expect(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: ['a'] })).not.toBe(rankSettingsKey({ gridSize: 5, radiusKm: 25, keywords: ['a'] }));
+    expect(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: ['a'] })).not.toBe(rankSettingsKey({ gridSize: 7, radiusKm: 30, keywords: ['a'] }));
+    expect(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: ['a'] })).not.toBe(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: ['a', 'b'] }));
+  });
+
+  it('settings change → baseline', async () => {
+    await gridScan(0, 0, SETTINGS);
+    const s1 = await gridScan(30, 20, { ...SETTINGS, radiusKm: 30 });
+    expect(await diffRankScan({ db: dbs.service }, s1)).toEqual({ ran: true, result: { baseline: true, changeIds: [] } });
+    expect(await dbs.service.select().from(detectedChange)).toEqual([]);
+  });
+
+  it('legacy key equals legacy key', async () => {
+    const legacy = { gridSize: null, radiusKm: null, keywords: null };
+    expect(rankSettingsKey(legacy)).toBe(rankSettingsKey(legacy));
+    await gridScan(0, 0, legacy);
+    const s1 = await gridScan(30, 20, legacy);
+    const out = await diffRankScan({ db: dbs.service }, s1);
+    expect(out).toMatchObject({ ran: true, result: { baseline: false } });
+    expect(await dbs.service.select().from(detectedChange)).toHaveLength(1);
+  });
+
+  it('top-3 point gain of 5 alone records a change with point details', async () => {
+    await gridScan(0, 0, SETTINGS);
+    const s1 = await gridScan(30, 5, SETTINGS);
+    await diffRankScan({ db: dbs.service }, s1);
+    const rows = await dbs.service.select().from(detectedChange);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.details).toMatchObject({ changeType: 'rank_change', keyword: 'ac repair', top3PointsBefore: 0, top3PointsAfter: 5, scanId: s1, points: 49 });
+  });
+
+  it('gain of 4 with small share delta records nothing', async () => {
+    await gridScan(0, 0, SETTINGS);
+    const s1 = await gridScan(30, 4, SETTINGS);
+    await diffRankScan({ db: dbs.service }, s1);
+    expect(await dbs.service.select().from(detectedChange)).toEqual([]);
   });
 });

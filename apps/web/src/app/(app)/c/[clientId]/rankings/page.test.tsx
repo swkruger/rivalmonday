@@ -12,7 +12,7 @@ import RankingsPage from './page';
 const geo = {
   setup: 'ready', scan: { id: 's', finishedAt: '2026-10-01T00:00:00.000Z' }, scans: [{ id: 's', finishedAt: '2026-10-01T00:00:00.000Z' }],
   keywords: ['ac repair'], keyword: 'ac repair', businesses: [], business: null, size: 3,
-  cells: [[null, null, null], [null, null, null], [null, null, null]], top3: 0, points: 0, avgRank: null, keywordSummaries: [], radiusKm: 25,
+  cells: [[null, null, null], [null, null, null], [null, null, null]], top3: 0, points: 0, avgRank: null, keywordSummaries: [], radiusKm: 25, lats: [], lngs: [], map: null,
 };
 
 const render5 = async () => render(await RankingsPage({ params: Promise.resolve({ clientId: 'c1' }), searchParams: Promise.resolve({}) }));

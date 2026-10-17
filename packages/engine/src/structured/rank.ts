@@ -11,6 +11,8 @@ export const NOT_FOUND_RANK = 21;
 export const RANK_DELTA_MIN = 3;
 /** … or the share of grid points where the competitor is in the top 3 moved by at least this much. */
 export const TOP3_SHARE_DELTA_MIN = 0.25;
+/** … or the number of grid points where the competitor is in the top 3 rose by at least this many. */
+export const TOP3_POINTS_GAIN_MIN = 5;
 /** A keyword is compared only on at least this many grid points both scans cover — fewer is noise. */
 export const RANK_MIN_SHARED_POINTS = 4;
 const round = (x: number, d = 2) => Math.round(x * 10 ** d) / 10 ** d;
@@ -26,7 +28,16 @@ export function rankMetrics(results: RankResult[][], match: (r: RankResult) => b
   return { avgRank: round(ranks.reduce((a, b) => a + b, 0) / points), top3Share: round(ranks.filter((r) => r <= 3).length / points), points };
 }
 
-const pointKey = (s: { keyword: string; lat: number; lng: number }) => `${s.keyword}|${s.lat.toFixed(5)},${s.lng.toFixed(5)}`;
+/**
+ * Series identity of a scan (grid size, radius, keywords): scans with different keys are never compared.
+ * Pre-13b rows that could not be backfilled have all three null and share the key `legacy`.
+ */
+export function rankSettingsKey(s: { gridSize: number | null; radiusKm: number | null; keywords: string[] | null }): string {
+  if (s.gridSize === null && s.radiusKm === null && s.keywords === null) return 'legacy';
+  return `g${s.gridSize ?? '?'}|r${s.radiusKm ?? '?'}|${s.keywords ? [...new Set(s.keywords)].sort().join(',') : '?'}`;
+}
+
+const pointKey =(s: { keyword: string; lat: number; lng: number }) => `${s.keyword}|${s.lat.toFixed(5)},${s.lng.toFixed(5)}`;
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
 /**
@@ -42,12 +53,13 @@ export async function diffRankScan(deps: { db: Db }, scanId: string): Promise<St
     { stage: RANK_DIFF_STAGE, version: RANK_DIFF_VERSION, subjectId: scanId },
     async () => {
       const [prev] = await deps.db
-        .select({ id: rankScan.id })
+        .select({ id: rankScan.id, gridSize: rankScan.gridSize, radiusKm: rankScan.radiusKm, keywords: rankScan.keywords })
         .from(rankScan)
         .where(and(eq(rankScan.clientId, scan.clientId), eq(rankScan.status, 'done'), lt(rankScan.finishedAt, finishedAt)))
         .orderBy(desc(rankScan.finishedAt))
         .limit(1);
-      if (!prev) return { baseline: true, rows: [] as (typeof detectedChange.$inferInsert)[] };
+      // A settings change starts a new series: the newer scan is a baseline.
+      if (!prev || rankSettingsKey(prev) !== rankSettingsKey(scan)) return { baseline: true, rows: [] as (typeof detectedChange.$inferInsert)[] };
       const [before, after, tracked] = await Promise.all([
         deps.db.select().from(rankSnapshot).where(eq(rankSnapshot.scanId, prev.id)),
         deps.db.select().from(rankSnapshot).where(eq(rankSnapshot.scanId, scanId)),
@@ -75,12 +87,17 @@ export async function diffRankScan(deps: { db: Db }, scanId: string): Promise<St
           const m0 = rankMetrics(p.before, match);
           const m1 = rankMetrics(p.after, match);
           if (m0.avgRank === NOT_FOUND_RANK && m1.avgRank === NOT_FOUND_RANK) continue;
-          if (Math.abs(m1.avgRank - m0.avgRank) < RANK_DELTA_MIN && Math.abs(m1.top3Share - m0.top3Share) < TOP3_SHARE_DELTA_MIN) continue;
+          const top3PointsBefore = Math.round(m0.top3Share * m0.points);
+          const top3PointsAfter = Math.round(m1.top3Share * m1.points);
+          if (
+            Math.abs(m1.avgRank - m0.avgRank) < RANK_DELTA_MIN && Math.abs(m1.top3Share - m0.top3Share) < TOP3_SHARE_DELTA_MIN &&
+            top3PointsAfter - top3PointsBefore < TOP3_POINTS_GAIN_MIN
+          ) continue;
           rows.push({
             competitorId: c.id, source: 'rank', kind: 'modified', rankScanId: scanId, agencyId: scan.agencyId, clientId: scan.clientId, blockKey: `rank:${keyword}`,
             beforeText: `"${keyword}": average map position ${m0.avgRank}, top 3 in ${pct(m0.top3Share)} of ${m0.points} points`,
             afterText: `"${keyword}": average map position ${m1.avgRank}, top 3 in ${pct(m1.top3Share)} of ${m1.points} points`,
-            details: { changeType: 'rank_change', keyword, avgRankBefore: m0.avgRank, avgRankAfter: m1.avgRank, top3Before: m0.top3Share, top3After: m1.top3Share, points: m1.points },
+            details: { changeType: 'rank_change', keyword, avgRankBefore: m0.avgRank, avgRankAfter: m1.avgRank, top3Before: m0.top3Share, top3After: m1.top3Share, points: m1.points, top3PointsBefore, top3PointsAfter, scanId },
             stageVersion: RANK_DIFF_VERSION,
           });
         }

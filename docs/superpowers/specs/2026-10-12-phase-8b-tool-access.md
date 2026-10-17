@@ -81,6 +81,7 @@ run_prospect_snapshot (prospects.ts) | write | inserts report, enqueues job
 get_prospect_report (prospects.ts) | read | select only
 convert_prospect (prospects.ts) | write | updates client status; may start a competitor search
 get_geogrid (rankings.ts) | read | read-only
+get_rank_trend (rankings.ts) | read | read-only
 get_share_of_voice (rankings.ts) | read | read-only
 list_recommendations (recommendations.ts) | read | read-only
 update_recommendation_status (recommendations.ts) | write | updates status

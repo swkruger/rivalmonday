@@ -331,10 +331,14 @@ export interface SeedRankScanOptions {
   finishedAt: Date;
   snapshots: GridSnapshot[];
   /** Default 'done'. */
-  status?: 'done' | 'failed' | 'running';
+  status?: 'done' | 'failed' | 'running' | 'skipped';
   /** Default agency A / client A1. */
   agencyId?: string;
   clientId?: string;
+  /** Settings snapshot (Phase 13b); omitted = the pre-13b "legacy" nulls. */
+  gridSize?: number;
+  radiusKm?: number;
+  keywords?: string[];
 }
 
 /** A rank scan with its snapshots (tenant rows). Returns the scan id. */
@@ -344,6 +348,7 @@ export async function seedRankScan(o: SeedRankScanOptions): Promise<string> {
   const status = o.status ?? 'done';
   const [s] = await dbs.owner.insert(rankScan).values({
     agencyId, clientId, status, snapshots: o.snapshots.length, startedAt: o.finishedAt, finishedAt: status === 'running' ? null : o.finishedAt,
+    gridSize: o.gridSize ?? null, radiusKm: o.radiusKm ?? null, keywords: o.keywords ?? null,
   }).returning();
   if (o.snapshots.length) {
     await dbs.owner.insert(rankSnapshot).values(o.snapshots.map((x) => ({ agencyId, clientId, scanId: s!.id, keyword: x.keyword, lat: x.lat, lng: x.lng, results: x.results, capturedAt: o.finishedAt })));
