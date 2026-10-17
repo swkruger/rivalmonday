@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EnqueueJob, ToolDeps } from './deps';
 import { RANK_MANUAL_PER_AGENCY_DAY } from './limits';
-import { rankScanAvailability } from './rank-scan';
+import { rankScanAvailability, rankScanLabel, rankScanRefusalMessage } from './rank-scan';
 import { createToolRegistry } from './registry';
 
 const dbs = openTestDbs();
@@ -160,6 +160,18 @@ describe('request_rank_scan', () => {
   it('client roles and out-of-scope AMs get not_found', async () => {
     await expect(request(ctx('client_owner', [IDS.clientA1], ['dashboard']))).rejects.toMatchObject({ code: 'not_found' });
     await expect(request(ctx('account_manager', [IDS.clientA2]))).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('rank scan copy', () => {
+  const c = { name: 'A1 HVAC', timezone: 'America/Chicago' };
+  it('formats the cap like the decided notice copy ($15, $12.50)', () => {
+    expect(rankScanRefusalMessage({ state: 'cap', capUsd: 12.5 }, c)).toBe("This scan would exceed A1 HVAC's monthly cost cap ($12.50). Raise the cap in Usage or wait until next month.");
+    expect(rankScanRefusalMessage({ state: 'cap', capUsd: 15 }, c)).toContain('cap ($15).');
+  });
+  it('running label has the ellipsis; not_ready has no label', () => {
+    expect(rankScanLabel({ state: 'running' }, c)).toBe('Scan running…');
+    expect(rankScanLabel({ state: 'not_ready' }, c)).toBeNull();
   });
 });
 

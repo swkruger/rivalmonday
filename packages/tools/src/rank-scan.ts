@@ -2,6 +2,7 @@ import { checkRankScanBudget, estimateRankScanUsd, failStaleRankScans, RANK_SCAN
 import { ToolError } from '@cs/core';
 import { agency, agencyServiceable, client, clientServiceable, type Db, rankScan, type Tx } from '@cs/db';
 import { and, count, desc, eq, gt, gte, ne, sql } from 'drizzle-orm';
+import { formatCap } from '@cs/engine';
 import { enqueueOf, type ToolDeps } from './deps';
 import { RANK_MANUAL_PER_AGENCY_DAY, RANK_MANUAL_PER_CLIENT_DAYS } from './limits';
 import { searchDayLabelAt } from './rival-search';
@@ -61,7 +62,7 @@ export function rankScanRefusalMessage(a: RankScanAvailability, c: { name: strin
   switch (a.state) {
     case 'weekly_limit': return `Next manual scan available ${searchDayLabelAt(a.nextAvailableAt!, c.timezone)}.`;
     case 'agency_daily_limit': return `Your agency has used today's ${RANK_MANUAL_PER_AGENCY_DAY} manual scans.`;
-    case 'cap': return `This scan would exceed ${c.name}'s monthly cost cap ($${a.capUsd}). Raise the cap in Usage or wait until next month.`;
+    case 'cap': return `This scan would exceed ${c.name}'s monthly cost cap (${formatCap(a.capUsd!)}). Raise the cap in Usage or wait until next month.`;
     case 'running': return 'A rank scan is already running for this client.';
     case 'not_ready': return 'Add keywords and a service area (and an active client) before scanning.';
     default: return null;
@@ -73,8 +74,7 @@ export function rankScanLabel(a: RankScanAvailability, c: { name: string; timezo
   if (a.state === 'weekly_limit') return `Next scan available ${searchDayLabelAt(a.nextAvailableAt!, c.timezone)}`;
   if (a.state === 'agency_daily_limit') return rankScanRefusalMessage(a, c);
   if (a.state === 'cap') return rankScanRefusalMessage(a, c);
-  if (a.state === 'running') return 'Scan running';
-  if (a.state === 'not_ready') return 'Add keywords and a service area to scan';
+  if (a.state === 'running') return 'Scan running…';
   return null;
 }
 
