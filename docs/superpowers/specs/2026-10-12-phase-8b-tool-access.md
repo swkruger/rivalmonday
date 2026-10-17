@@ -122,6 +122,8 @@ accept_lead (leads.ts) | write | creates prospect client + client_setup, updates
 decline_lead (leads.ts) | write | updates lead (back to pool or declined); sends the pool notice or the declined email directly
 get_intake_link (leads.ts) | read | read
 update_intake_link (leads.ts) | write | creates/updates intake_link
+list_pool_leads (platform-leads.ts) | read | read (supportMask leads[].email, leads[].phone, leads[].message)
+assign_lead (platform-leads.ts) | write | updates lead (agency, assigned_*, clears decided_*); sends the agency new-lead email directly
 get_billing_summary (billing.ts) | read | gateway reads only
 get_seat_report (billing.ts) | read | read
 create_checkout_session (billing.ts) | write | creates Stripe customer/session

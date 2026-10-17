@@ -138,6 +138,20 @@ describe('assign_lead', () => {
     expect((await leadRow(id)).agencyId).toBeNull();
   });
 
+  it("a lead declined back by agency A and assigned to agency B carries none of A's decision data", async () => {
+    const id = await mkLead();
+    await call(owner, 'assign_lead', { leadId: id, agencyId: IDS.agencyA });
+    await call(agencyAdmin, 'decline_lead', { leadId: id, notify: false });
+    expect(await leadRow(id)).toMatchObject({ agencyId: null, decidedBy: 'admin' });
+    await call(owner, 'assign_lead', { leadId: id, agencyId: IDS.agencyB });
+    const row = await leadRow(id);
+    expect(row).toMatchObject({ agencyId: IDS.agencyB, decidedBy: null, decidedAt: null });
+    const adminB = createAccessContext({ agencyId: IDS.agencyB, userId: 'admin', role: 'agency_admin', clientScope: 'all', features: [] });
+    const list = await call<{ leads: { id: string; decidedAt: Date | null }[] }>(adminB, 'list_leads');
+    expect(list.leads.find((l) => l.id === id)!.decidedAt).toBeNull();
+    expect((await call<{ decidedAt: Date | null }>(adminB, 'get_lead', { leadId: id })).decidedAt).toBeNull();
+  });
+
   it('unknown agency is not_found', async () => {
     const id = await mkLead();
     expect((await fails(call(owner, 'assign_lead', { leadId: id, agencyId: '11111111-1111-4111-8111-111111111111' }))).code).toBe('not_found');

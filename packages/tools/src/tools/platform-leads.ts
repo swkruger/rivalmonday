@@ -46,6 +46,7 @@ export const listPoolLeadsTool = defineTool({
   description: 'Platform operators: verified leads from the platform intake that no agency holds yet, plus the agencies that can take one (with their verticals and active-client counts) and the last 20 assignments.',
   input: z.object({}),
   output: z.object({ leads: z.array(PoolLead), agencies: z.array(PoolAgency), recentAssignments: z.array(RecentAssignment) }),
+  supportMask: ['leads[].email', 'leads[].phone', 'leads[].message'],
   permission: 'agency',
   audit: 'skip-web',
   async handler(ctx: AccessContext, input, deps) {
@@ -112,7 +113,8 @@ export const assignLeadTool = defineTool({
           ));
         if (twin) throw new ToolError('conflict', 'This agency already has this lead.', { userFacing: true });
         const now = new Date();
-        await tx.update(lead).set({ agencyId: input.agencyId, assignedBy: ctx.userId, assignedAt: now, agencyNotifiedAt: null, updatedAt: now }).where(eq(lead.id, row.id));
+        // decided_* belongs to the agency that declined it back (pool marker only); the new agency must not see it.
+        await tx.update(lead).set({ agencyId: input.agencyId, assignedBy: ctx.userId, assignedAt: now, agencyNotifiedAt: null, decidedBy: null, decidedAt: null, updatedAt: now }).where(eq(lead.id, row.id));
       });
       await sendAfterCommit(deps, input.leadId, 'agency_new');
       return { ok: true as const };

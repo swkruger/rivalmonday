@@ -5,7 +5,7 @@ import { allTools } from './all';
 /** Reviewed list of tools that mutate tenant/external state (support sessions refuse these). Additions must be reviewed. */
 const WRITE_TOOLS = [
   'accept_competitor_suggestion', 'accept_competitor_suggestions', 'accept_lead', 'add_client_recipient', 'add_competitor', 'add_recommendation', 'add_tracked_page', 'add_webhook',
-  'advance_client_setup', 'approve_alert', 'approve_brief', 'archive_platform_cost_item', 'attach_agency_discount', 'confirm_ad_match', 'convert_prospect', 'create_api_token', 'create_checkout_session',
+  'advance_client_setup', 'approve_alert', 'approve_brief', 'archive_platform_cost_item', 'assign_lead', 'attach_agency_discount', 'confirm_ad_match', 'convert_prospect', 'create_api_token', 'create_checkout_session',
   'create_client', 'create_discount_code', 'decline_lead', 'create_invite_link', 'create_plan_version', 'create_portal_session', 'deactivate_recipient', 'decide_theme_proposal',
   'delete_kb_article', 'delete_my_ask_thread', 'dismiss_onboarding_checklist', 'mark_onboarding_redirected', 'mark_onboarding_step', 'disable_client_billing', 'disconnect_stripe', 'dismiss_alert', 'dismiss_competitor_suggestion', 'drop_brief_item',
   'edit_brief_item', 'enable_client_billing', 'end_pilot', 'end_support_session', 'extend_trial', 'grant_pilot', 'import_kb_url', 'invite_client_owner', 'invite_member', 'open_billing_portal',
