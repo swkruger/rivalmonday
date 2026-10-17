@@ -69,7 +69,8 @@ export async function scanRankings(
         or(eq(rankScan.status, 'running'), and(eq(rankScan.status, 'failed'), sql`NOT EXISTS (SELECT 1 FROM rank_snapshot rs WHERE rs.scan_id = ${rankScan.id})`)),
       )
     : undefined;
-  const values = { ...settings, status: skip ? ('skipped' as const) : ('running' as const), finishedAt: skip ? new Date() : null };
+  const { trigger, requestedBy, ...snapshot } = settings;
+  const values = { ...snapshot, status: skip ? ('skipped' as const) : ('running' as const), finishedAt: skip ? new Date() : null };
   let scanId: string;
   try {
     if (adoptable) {
@@ -80,7 +81,7 @@ export async function scanRankings(
       }
       scanId = row.id;
     } else {
-      const [row] = await deps.db.insert(rankScan).values({ agencyId: c.agencyId, clientId: c.id, ...values }).returning({ id: rankScan.id });
+      const [row] = await deps.db.insert(rankScan).values({ agencyId: c.agencyId, clientId: c.id, trigger, requestedBy, ...values }).returning({ id: rankScan.id });
       scanId = row!.id;
     }
   } catch (err) {

@@ -165,7 +165,7 @@ describe('scanRankings settings, trigger and skip (13b)', () => {
     expect(r).toMatchObject({ scanId: row!.id, snapshots: 25 });
     const all = await dbs.service.select().from(rankScan);
     expect(all).toHaveLength(1);
-    expect(all[0]).toMatchObject({ status: 'done', gridSize: 5 });
+    expect(all[0]).toMatchObject({ status: 'done', gridSize: 5, trigger: 'manual', requestedBy: USER });
   });
 
   it('re-claims a manual row a stale sweep failed before it started, but not one with snapshots or another client\'s', async () => {
@@ -209,10 +209,10 @@ describe('scanRankings settings, trigger and skip (13b)', () => {
 
   it('cap on an adopted manual row updates that row to skipped', async () => {
     await set({ monthlyCapUsd: 0.01 });
-    const [row] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'manual' }).returning();
+    const [row] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'manual', requestedBy: USER }).returning();
     const r = await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs: ok() }, IDS.clientA1, { trigger: 'manual', scanId: row!.id });
     expect(r).toMatchObject({ scanId: row!.id, skipped: 'cap' });
-    expect(await dbs.service.select().from(rankScan)).toMatchObject([{ id: row!.id, status: 'skipped' }]);
+    expect(await dbs.service.select().from(rankScan)).toMatchObject([{ id: row!.id, status: 'skipped', trigger: 'manual', requestedBy: USER }]);
   });
 
   it('prospect override skips the budget check', async () => {
