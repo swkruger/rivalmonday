@@ -470,6 +470,20 @@
       "when": 1792124191237,
       "tag": "0066_onboarding_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792199601896,
+      "tag": "0067_client_setup",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1792199614135,
+      "tag": "0068_client_setup_rls",
+      "breakpoints": true
     }
   ]
 }

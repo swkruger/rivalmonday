@@ -16,5 +16,6 @@ export * from './platform';
 export * from './support';
 export * from './platform-costs';
 export * from './rivals';
+export * from './setup';
 export * from './sources';
 export * from './tenancy';
