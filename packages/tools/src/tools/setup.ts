@@ -9,6 +9,7 @@ import { packsOf, type ToolDeps } from '../deps';
 import { startCompetitorSearch } from '../rival-search';
 import { FIND_BUSINESS_DAILY_CAP, preselectVertical, toSetupLookup } from '../setup/lookup';
 import { applyClientProfileChange } from '../setup/profile-change';
+import { queueCompetitorReview } from '../setup/review-email';
 import { completeIfDone, getSetupState, type SetupState } from '../setup/state';
 import { acceptSuggestions, dismissSuggestions, preTickTop, RUN_STATUSES, runSuggestionRows, SearchProgress, searchProgress, searchRefusalMessage } from './competitors';
 import { ServiceAreaInput, Tier } from './schemas';
@@ -322,4 +323,24 @@ export const inviteClientOwner = defineTool({
   },
 });
 
-export const setupTools = [findBusiness, getClientSetup, saveSetupProfile, pickSetupCompetitors, advanceClientSetup, inviteClientOwner];
+/** Phase 11b Task 20: staff re-send of the competitor-review email (Pick step). Off the paused-agency allow-list. Once per UTC day; ignores the competitors step. */
+export const sendCompetitorReview = defineTool({
+  name: 'send_competitor_review',
+  access: 'write',
+  description: 'Email the invited business owner the competitors to review (client setup wizard), copying whoever invited them. Sends at most once a day.',
+  input: z.object({ clientId: uuid }),
+  output: z.object({ queued: z.boolean() }),
+  permission: 'agency',
+  channels: ['web'],
+  async handler(ctx, { clientId }, deps) {
+    if (!deps.delivery) throw new ToolError('invalid_input', 'Sending is not configured on this server (APP_URL and LINK_SIGNING_SECRET)');
+    await assertClientVisible(ctx, deps, clientId);
+    const now = new Date();
+    const queued = await queueCompetitorReview(deps.service, deps.delivery, {
+      agencyId: ctx.agencyId, clientId, dedupe: `competitor-review:${clientId}:${now.toISOString().slice(0, 10)}`, now, manual: true,
+    });
+    return { queued };
+  },
+});
+
+export const setupTools = [findBusiness, getClientSetup, saveSetupProfile, pickSetupCompetitors, advanceClientSetup, inviteClientOwner, sendCompetitorReview];

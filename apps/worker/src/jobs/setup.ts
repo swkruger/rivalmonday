@@ -2,7 +2,7 @@ import type { Ai } from '@cs/ai';
 import { type DataForSeoClient, fetchGbpProfile, redactForModel } from '@cs/collectors';
 import { isClientRole, type Role } from '@cs/core';
 import { agencyServiceable, client, clientSetup, type Db, type EnvName, notification, review, type SetupSuggestions } from '@cs/db';
-import { buildSuggestionSource, getSetupState, setupSuggestionsJsonSchema, validateSuggestions } from '@cs/tools';
+import { buildSuggestionSource, getSetupState, queueCompetitorReview, setupSuggestionsJsonSchema, validateSuggestions } from '@cs/tools';
 import { type DeliveryConfig, loadBranding, notify, type PackLoader } from '@cs/engine';
 import { and, desc, eq, inArray, isNotNull, isNull, like, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -151,6 +151,8 @@ export async function runSetupReminders(d: { db: Db; delivery: DeliveryConfig },
           due.push({ kind: 'setup_idle', dedupe: `setup-idle:${c.id}:${days}`, idleDays: days });
         }
       }
+      // Competitor-review email to the invited owner (client-facing, Cc the inviter): independent of the staff notices above.
+      if (await queueCompetitorReview(d.db, d.delivery, { agencyId: c.agencyId, clientId: c.id, dedupe: `competitor-review:${c.id}`, now })) queued += 1;
       if (due.length === 0) continue;
       const branding = await loadBranding(d.db, c.agencyId);
       for (const { kind, dedupe, idleDays } of due) {

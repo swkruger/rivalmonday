@@ -1,6 +1,6 @@
 import type { Ai } from '@cs/ai';
 import type { DataForSeoClient } from '@cs/collectors';
-import { agencyBilling, agencyWebhook, client, clientSetup, competitorSuggestion, discoveryRun, notification, type SetupSuggestions } from '@cs/db';
+import { agencyBilling, agencyWebhook, client, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, notification, type SetupSuggestions } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { addContact, createPackLoader, type DeliveryConfig } from '@cs/engine';
 import { eq, like } from 'drizzle-orm';
@@ -285,6 +285,46 @@ describe('runSetupReminders (Task 9)', () => {
     await seedOpen({ createdAt: ago(10 * D) });
     await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: ID, status: 'searching', trigger: 'auto' });
     expect(await run()).toEqual({ queued: 0 });
+  });
+
+  describe('competitor review email (Task 20)', () => {
+    const reviews = () => rows('competitor_review');
+    async function invite() {
+      const [c] = await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: ID, role: 'client_owner', email: 'owner@smith.co', active: false }).returning();
+      await dbs.owner.update(clientSetup).set({ invitedContactId: c!.id }).where(eq(clientSetup.clientId, ID));
+      await dbs.owner.insert(invitation).values({ agencyId: IDS.agencyA, clientId: ID, email: 'owner@smith.co', role: 'client_owner', invitedBy: 'x', expiresAt: later(5 * D) });
+    }
+
+    it('sends once across two runs, to the invited owner only, before staff notices', async () => {
+      await seedOpen();
+      await withDoneRun(2);
+      await invite();
+      await run();
+      await run();
+      const mail = await reviews();
+      expect(mail).toHaveLength(1);
+      expect(mail[0]).toMatchObject({ address: 'owner@smith.co', subjectType: 'setup', subjectId: ID });
+      expect(mail[0]!.payload).toMatchObject({ template: 'competitor_review', props: { competitorNames: ['Rival 0', 'Rival 1'], businessName: 'A1 HVAC' } });
+    });
+
+    it('sends in the same run as the staff notices', async () => {
+      await seedOpen({ lastChangedAt: ago(1000), lastChangedRole: 'account_manager' });
+      await withDoneRun(1);
+      await invite();
+      expect((await run()).queued).toBe(4); // suggestions_ready (3) + the owner's review
+      expect(await reviews()).toHaveLength(1);
+    });
+
+    it('does not send without an invite or once competitors are done', async () => {
+      await seedOpen();
+      await withDoneRun(2);
+      await run();
+      expect(await reviews()).toHaveLength(0);
+      await invite();
+      await dbs.owner.update(clientSetup).set({ competitorsDoneAt: ago(1000) });
+      await run();
+      expect(await reviews()).toHaveLength(0);
+    });
   });
 
   it('skips completed, dismissed, paused clients and unserviceable agencies', async () => {

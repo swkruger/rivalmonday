@@ -1,6 +1,6 @@
 import type { MapsPlace } from '@cs/collectors';
 import { type AccessContext, type CallScope, createAccessContext } from '@cs/core';
-import { client, clientCompetitor, clientSetup, competitorSuggestion, discoveryRun, vendorCall, withTenant } from '@cs/db';
+import { client, clientCompetitor, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, vendorCall, withTenant } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -524,5 +524,40 @@ describe('wizard tools', () => {
     it('refuses a client without a setup row (not_found)', async () => {
       expect((await fails(advance(admin, 'skip_search'))).code).toBe('not_found');
     });
+  });
+});
+
+describe('send_competitor_review', () => {
+  const D = 86_400_000;
+  const withDelivery = () =>
+    createToolRegistry(
+      { app: dbs.app, service: dbs.service, delivery: { appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)], fromAddress: 'b@app.test' } },
+      { audit: { record: async () => {} } },
+    );
+  async function seedInvited() {
+    await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA });
+    const [c] = await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@x.co', active: false }).returning();
+    await dbs.owner.update(clientSetup).set({ invitedContactId: c!.id, competitorsDoneAt: new Date() }).where(eq(clientSetup.clientId, IDS.clientA1));
+    await dbs.owner.insert(invitation).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, email: 'o@x.co', role: 'client_owner', invitedBy: 'x', expiresAt: new Date(Date.now() + 5 * D) });
+    const [r] = await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'done', trigger: 'auto' }).returning();
+    await dbs.owner.insert(competitorSuggestion).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, name: 'Rival', placeId: 'rp', appearances: 1, overlapScore: 1, runId: r!.id, tier: 'top' });
+  }
+
+  it('refuses when delivery is not configured', async () => {
+    expect((await fails(registry.invoke(admin, 'send_competitor_review', { clientId: IDS.clientA1 }))).code).toBe('invalid_input');
+  });
+
+  it('queues once per day, ignoring the competitors step', async () => {
+    await seedInvited();
+    const r = withDelivery();
+    expect(await r.invoke(admin, 'send_competitor_review', { clientId: IDS.clientA1 })).toEqual({ queued: true });
+    expect(await r.invoke(admin, 'send_competitor_review', { clientId: IDS.clientA1 })).toEqual({ queued: false });
+  });
+
+  it('refuses client roles (404) and clients outside the account manager scope', async () => {
+    await seedInvited();
+    const r = withDelivery();
+    expect((await fails(r.invoke(mk('client_owner', [IDS.clientA1]), 'send_competitor_review', { clientId: IDS.clientA1 }))).code).toBe('not_found');
+    expect((await fails(r.invoke(mk('account_manager', [IDS.clientA2]), 'send_competitor_review', { clientId: IDS.clientA1 }))).code).toBe('not_found');
   });
 });
