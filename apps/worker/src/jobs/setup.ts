@@ -52,6 +52,7 @@ export async function runSetupSuggestions(
   const { c, setup } = row;
   if (setup.suggestions.status !== 'pending') return { skipped: `suggestions ${setup.suggestions.status}` };
   if (c.status !== 'active' && c.status !== 'prospect') return { skipped: `client ${c.status}` };
+  if (c.pausedAt) return { skipped: 'client paused' }; // paused clients get no recurring or paid work
 
   try {
     if (!c.placeId) throw new Error('client has no place id');
@@ -68,7 +69,7 @@ export async function runSetupSuggestions(
           .limit(10)).map((r) => r.text ?? '')
       : [];
     const source = buildSuggestionSource(gbp, reviews);
-    const sourceText = redactForModel(source.text, { businessNames: [c.name] });
+    const sourceText = redactForModel(source.text, { businessNames: [c.name, gbp.title] }); // staff may have renamed the client
     const packServices = pack.services.map((s) => ({ id: s.id, name: s.name }));
     const system =
       'You suggest services and search keywords for a local business. Use only the text provided. For every item, copy a short exact quote from the text that supports it. ' +
@@ -136,7 +137,7 @@ export async function runSetupReminders(d: { db: Db; delivery: DeliveryConfig },
       const state = await getSetupState(d.db, c.id);
       if (!state.open) continue;
       const due: { kind: ReminderKind; dedupe: string; idleDays?: number }[] = [];
-      if (state.steps.profile === 'done' && state.steps.search === 'done' && state.steps.competitors === 'todo' && state.waitingOn === 'agency') {
+      if (state.steps.profile === 'done' && state.steps.search === 'done' && state.steps.competitors === 'todo' && state.pendingSuggestions) {
         due.push({ kind: 'setup_suggestions_ready', dedupe: `setup-ready:${c.id}` });
       }
       if (setup.lastChangedRole && isClientRole(setup.lastChangedRole as Role) && setup.lastChangedAt && now.getTime() - setup.lastChangedAt.getTime() <= DAY_MS) {

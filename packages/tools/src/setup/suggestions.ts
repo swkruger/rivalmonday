@@ -75,7 +75,7 @@ export function validateSuggestions(
   const parsed = rawSchema.safeParse(raw);
   if (!parsed.success) return null;
   const haystack = norm(ctx.sourceText);
-  const quoted = (quote: string) => quote.length >= 3 && haystack.includes(norm(quote));
+  const quoted = (quote: string) => norm(quote).length >= 3 && haystack.includes(norm(quote));
   const names = new Map(ctx.packServices.map((s) => [s.id, s.name]));
 
   const services: SetupSuggestion[] = [];

@@ -22,8 +22,14 @@ async function enqueueSetupSuggestions(deps: ToolDeps, clientId: string): Promis
     await enqueueOf(deps)('setup-suggestions', { clientId }, `setup-suggestions:${clientId}`);
   } catch (err) {
     console.warn(`[create_client] setup-suggestions enqueue for ${clientId} failed: ${err instanceof Error ? err.message : String(err)}`);
-    await deps.service.update(clientSetup).set({ suggestions: { status: 'failed' } })
-      .where(and(eq(clientSetup.clientId, clientId), sql`${clientSetup.suggestions}->>'status' = 'pending'`));
+    // The client (and its seat) already committed: throwing here would make a retry create a duplicate billed client.
+    // A row left `pending` is reported as failed after 15 minutes by get_client_setup anyway.
+    try {
+      await deps.service.update(clientSetup).set({ suggestions: { status: 'failed' } })
+        .where(and(eq(clientSetup.clientId, clientId), sql`${clientSetup.suggestions}->>'status' = 'pending'`));
+    } catch (fallbackErr) {
+      console.warn(`[create_client] marking setup suggestions failed for ${clientId} failed: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
+    }
   }
 }
 

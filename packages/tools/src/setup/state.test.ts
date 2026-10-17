@@ -22,12 +22,12 @@ const rows: { name: string; input: In; steps: Steps; open: boolean; exists?: boo
   { name: 'search queued -> running, system', input: base({ latestRun: { status: 'queued' } }), steps: ['done', 'running', 'todo'], open: true, waitingOn: 'system' },
   ...['searching', 'checking', 'finalising'].map((s) => ({ name: `search ${s} -> running`, input: base({ latestRun: { status: s } }), steps: ['done', 'running', 'todo'] as Steps, open: true, waitingOn: 'system' as const })),
   { name: 'search failed -> blocked with refusal', input: base({ latestRun: { status: 'failed', error: 'budget' } }), steps: ['done', 'blocked', 'todo'], open: true, waitingOn: 'agency', refusal: 'budget' },
-  { name: 'search done, pending suggestions -> agency', input: base({ latestRun: done, hasPendingSuggestions: true }), steps: ['done', 'done', 'todo'], open: true, waitingOn: 'agency' },
-  { name: 'search done, none pending, not confirmed -> todo, no one', input: base({ latestRun: done }), steps: ['done', 'done', 'todo'], open: true, waitingOn: null },
   { name: 'competitors confirmed, closed', input: base({ latestRun: done, setup: { ...SETUP, competitorsDoneAt: NOW, completedAt: NOW } }), steps: ['done', 'done', 'done'], open: false, waitingOn: null },
   { name: 'search skipped, competitors confirmed', input: base({ setup: { ...SETUP, skipped: ['search'], competitorsDoneAt: NOW } }), steps: ['done', 'skipped', 'done'], open: true, waitingOn: null },
   { name: 'all skipped (profile done), closed', input: base({ setup: { ...SETUP, skipped: ['search', 'competitors'], completedAt: NOW } }), steps: ['done', 'skipped', 'skipped'], open: false, waitingOn: null },
-  { name: 'skipped search beats a failed run', input: base({ latestRun: { status: 'failed', error: 'x' }, setup: { ...SETUP, skipped: ['search'] } }), steps: ['done', 'skipped', 'todo'], open: true, waitingOn: null, refusal: null },
+  { name: 'search done, pending suggestions -> agency', input: base({ latestRun: done, hasPendingSuggestions: true }), steps: ['done', 'done', 'todo'], open: true, waitingOn: 'agency' },
+  { name: 'skipped search beats a failed run; competitors todo -> agency', input: base({ latestRun: { status: 'failed', error: 'x' }, setup: { ...SETUP, skipped: ['search'] } }), steps: ['done', 'skipped', 'todo'], open: true, waitingOn: 'agency', refusal: null },
+  { name: 'search done, zero rivals found (nothing to pick) -> agency, so reminders nudge', input: base({ latestRun: done }), steps: ['done', 'done', 'todo'], open: true, waitingOn: 'agency' },
   { name: 'closed by dismissal', input: base({ setup: { ...SETUP, dismissedAt: NOW } }), steps: ['done', 'todo', 'todo'], open: false, waitingOn: null },
 ];
 
@@ -61,16 +61,17 @@ describe('getSetupState / completeIfDone', () => {
     expect(await getSetupState(dbs.service, IDS.clientA1)).toMatchObject({ exists: false, open: false });
   });
 
-  it('pending suggestions are open suggestions of the latest done run', async () => {
+  it('a done search waits on the agency to pick; pending suggestions are open suggestions of the latest done run', async () => {
     await profile();
     await insertSetup();
     const [run] = await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'auto', status: 'done', finishedAt: new Date() }).returning({ id: discoveryRun.id });
-    expect((await getSetupState(dbs.service, IDS.clientA1)).waitingOn).toBe(null);
+    expect(await getSetupState(dbs.service, IDS.clientA1)).toMatchObject({ waitingOn: 'agency', pendingSuggestions: false });
     const sug = { agencyId: IDS.agencyA, clientId: IDS.clientA1, runId: run!.id, name: 'Rival', appearances: 1, overlapScore: 0.5 };
     await dbs.owner.insert(competitorSuggestion).values({ ...sug, status: 'dismissed' });
-    expect((await getSetupState(dbs.service, IDS.clientA1)).waitingOn).toBe(null);
+    expect((await getSetupState(dbs.service, IDS.clientA1)).pendingSuggestions).toBe(false);
     await dbs.owner.insert(competitorSuggestion).values(sug);
     const s = await getSetupState(dbs.service, IDS.clientA1);
+    expect(s.pendingSuggestions).toBe(true);
     expect(s.steps).toEqual({ profile: 'done', search: 'done', competitors: 'todo' });
     expect(s.waitingOn).toBe('agency');
   });

@@ -15,6 +15,8 @@ export type SetupState = {
   /** The failed discovery run's reason, if the search is blocked. */
   searchRefusal: string | null;
   waitingOn: 'agency' | 'client' | 'system' | null;
+  /** `suggested` rows of the latest done run (or newer runs) are waiting to be picked. */
+  pendingSuggestions: boolean;
   completedAt: Date | null;
   dismissedAt: Date | null;
 };
@@ -31,7 +33,7 @@ const RUNNING = new Set(['queued', 'searching', 'checking', 'finalising']);
 /** Pure (spec §4). A client with no setup row reads as complete: closed, every step done. */
 export function deriveSetupState({ client: c, setup, latestRun, hasPendingSuggestions }: SetupStateInput): SetupState {
   if (!setup) {
-    return { open: false, exists: false, steps: { profile: 'done', search: 'done', competitors: 'done' }, searchRefusal: null, waitingOn: null, completedAt: null, dismissedAt: null };
+    return { open: false, exists: false, steps: { profile: 'done', search: 'done', competitors: 'done' }, searchRefusal: null, waitingOn: null, pendingSuggestions: false, completedAt: null, dismissedAt: null };
   }
   // The `startFirstAutoSearch` rule.
   const profile: StepStatus = c.keywords.length > 0 && c.serviceArea != null && !!c.placeId ? 'done' : 'todo';
@@ -55,9 +57,10 @@ export function deriveSetupState({ client: c, setup, latestRun, hasPendingSugges
     if (profile === 'todo') waitingOn = 'agency';
     else if (search === 'running') waitingOn = 'system';
     else if (search === 'todo' || search === 'blocked') waitingOn = 'agency';
-    else if (competitors === 'todo' && hasPendingSuggestions) waitingOn = 'agency';
+    // Picking (or "Done picking" on zero rivals) is the agency's move, open suggestions or not, so idle reminders fire.
+    else if (competitors === 'todo') waitingOn = 'agency';
   }
-  return { open, exists: true, steps: { profile, search, competitors }, searchRefusal, waitingOn, completedAt: setup.completedAt, dismissedAt: setup.dismissedAt };
+  return { open, exists: true, steps: { profile, search, competitors }, searchRefusal, waitingOn, pendingSuggestions: hasPendingSuggestions, completedAt: setup.completedAt, dismissedAt: setup.dismissedAt };
 }
 
 /** Loads the client, its setup row, latest discovery run and open suggestions, then derives. */

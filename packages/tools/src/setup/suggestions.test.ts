@@ -24,6 +24,14 @@ describe('validateSuggestions', () => {
     expect(r).toEqual({ services: [], keywords: [] });
   });
 
+  it('drops whitespace-only and padded too-short quotes (no evidence, no claim)', () => {
+    const r = validateSuggestions({
+      services: [{ id: 'ac_repair', quote: '   ' }, { id: 'ac_repair', quote: '\t\n  ' }, { id: 'ac_repair', quote: '  ac  ' }],
+      keywords: [{ text: 'ac repair', quote: '     ' }],
+    }, { ...ctx, city: null });
+    expect(r).toEqual({ services: [], keywords: [] });
+  });
+
   it('dedupes services by id and keywords by normalised text, trims, enforces 2..60 chars', () => {
     const r = validateSuggestions({
       services: [{ id: 'ac_repair', quote: 'ac repair' }, { id: 'ac_repair', quote: '24/7 ac repair' }],

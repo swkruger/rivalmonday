@@ -190,4 +190,26 @@ describe('create_client with lookup (11a)', () => {
     const [setup] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, clientId));
     expect(setup!.suggestions).toEqual({ status: 'failed' });
   });
+
+  it('create_client still returns the client when the enqueue and the failed fallback both fail', async () => {
+    // The client (and its seat) committed already: throwing now would make a retry create a duplicate billed client.
+    const brokenService = new Proxy(dbs.service, {
+      get(target, prop) {
+        if (prop === 'update') return () => { throw new Error('db down'); };
+        const v = Reflect.get(target, prop) as unknown;
+        return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(target) : v;
+      },
+    });
+    const failing = vi.fn<EnqueueJob>(async () => { throw new Error('queue down'); });
+    const reg = createToolRegistry({ app: dbs.app, service: brokenService, enqueue: failing }, { audit: { record: async () => {} } });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const { clientId } = (await reg.invoke(admin, 'create_client', { ...bare, lookup: LOOKUP })) as { clientId: string };
+      expect((await dbs.owner.select().from(client).where(eq(client.id, clientId)))).toHaveLength(1);
+      expect(failing).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls.map((c) => String(c[0])).join(' ')).not.toContain(LOOKUP.title);
+    } finally {
+      warn.mockRestore();
+    }
+  });
 });

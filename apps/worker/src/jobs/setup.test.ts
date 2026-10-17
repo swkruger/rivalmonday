@@ -105,6 +105,28 @@ describe('runSetupSuggestions', () => {
     expect(sent).toContain('AC repair');
   });
 
+  it('model input keeps the GBP title as a business name, even when it differs from the client name', async () => {
+    await seed();
+    const item = { ...gbpItem, title: 'Mike Johnson Plumbing', description: 'Mike Johnson Plumbing does AC repair. Ask for Jane Smith.' };
+    const { ai, chat } = answering(good);
+    await runSetupSuggestions({ db: dbs.service, dfs: fakeDfs(item), ai, packs }, ID);
+    const input = (chat.mock.calls[0] as unknown[])[1] as { messages: { content: string }[] };
+    const sent = input.messages.map((m) => m.content).join(' ');
+    expect(sent).toContain('Mike Johnson Plumbing does AC repair');
+    expect(sent).not.toContain('Jane Smith');
+  });
+
+  it('skips a paused client without a paid call', async () => {
+    await seed();
+    await dbs.owner.update(client).set({ pausedAt: new Date() }).where(eq(client.id, ID));
+    const dfs = fakeDfs();
+    const { ai, chat } = answering(good);
+    expect(await runSetupSuggestions({ db: dbs.service, dfs, ai, packs }, ID)).toEqual({ skipped: 'client paused' });
+    expect(dfs.calls).toHaveLength(0);
+    expect(chat).not.toHaveBeenCalled();
+    expect((await stored()).status).toBe('pending');
+  });
+
   it('writes failed when AI throws', async () => {
     await seed();
     const { ai } = fakeAi(async () => {
@@ -208,6 +230,14 @@ describe('runSetupReminders (Task 9)', () => {
     await withDoneRun(0);
     await run();
     expect(await rows('setup_suggestions_ready')).toHaveLength(0);
+  });
+
+  it('a done search with zero rivals found sends the idle reminder, not suggestions_ready', async () => {
+    await seedOpen({ createdAt: ago(4 * D) });
+    await withDoneRun(0);
+    expect((await run()).queued).toBe(3);
+    expect(await rows('setup_suggestions_ready')).toHaveLength(0);
+    expect(await tiers()).toEqual(['3']);
   });
 
   it('client_changed once per day', async () => {
