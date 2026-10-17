@@ -1,5 +1,5 @@
 import { type Branding, cleanCc, type EmailPayload, type EmailTransport, PermanentEmailError, renderEmail, resolveBranding } from '@cs/email';
-import { contact, type Db, lead, type LeadRow } from '@cs/db';
+import { contact, type Db, intakeLink, lead, type LeadRow } from '@cs/db';
 import { loadBranding, replyToFor } from '@cs/engine';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { platformOperatorEmails } from '../platform/costs/alerts';
@@ -91,8 +91,15 @@ async function build(deps: LeadEmailDeps, row: LeadRow, kind: LeadEmailKind, ext
   const replyTo = row.agencyId ? ((await replyToFor(deps.service, row.agencyId, row.id))?.email ?? null) : null;
 
   switch (kind) {
-    case 'verify':
-      return [{ to: row.email, replyTo, branding, payload: { template: 'lead_verify', props: { branding, businessName, verifyUrl: `${appUrl}/start/verify/${extra!.verifyRaw}` } } }];
+    case 'verify': {
+      // `from` lets an expired link point back to the right intake page (agency-branded); `-` = agency lead without a slug.
+      let from = '';
+      if (row.agencyId) {
+        const [l] = await deps.service.select({ slug: intakeLink.slug }).from(intakeLink).where(eq(intakeLink.agencyId, row.agencyId));
+        from = `?from=${l?.slug ?? '-'}`;
+      }
+      return [{ to: row.email, replyTo, branding, payload: { template: 'lead_verify', props: { branding, businessName, verifyUrl: `${appUrl}/start/verify/${extra!.verifyRaw}${from}` } } }];
+    }
     case 'confirmation':
       return [{ to: row.email, replyTo, branding, payload: { template: 'lead_confirmation', props: { branding, businessName, agencyName, preview: row.preview } } }];
     case 'declined':

@@ -27,6 +27,13 @@ describe('proxy', () => {
     for (const p of ['/onboarding', '/onboarding/start', '/signup', '/joinx']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
   });
 
+  it('lets the Phase 11c public intake pages through without cookies', () => {
+    for (const p of ['/start', '/start/smith-co', '/start/verify/tok', '/start/verify', '/start/v/11111111-1111-4111-8111-111111111111']) {
+      expect(run(p).headers.get('location'), p).toBeNull();
+    }
+    for (const p of ['/startx', '/starter']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
+  });
+
   it('still redirects other cookie-less paths to sign-in', () => {
     for (const p of ['/api/askx', '/c/x/ask', '/api/other']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
   });

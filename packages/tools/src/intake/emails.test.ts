@@ -1,4 +1,4 @@
-import { contact, lead, type SetupLookup } from '@cs/db';
+import { contact, intakeLink, lead, type SetupLookup } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport, type EmailTransport } from '@cs/email';
 import { eq } from 'drizzle-orm';
@@ -41,6 +41,19 @@ describe('sendLeadEmail', () => {
     expect(transport.sent[0]).toMatchObject({ to: 'sam@smith.co', replyTo: 'amall@a.co', tag: 'lead_verify', subject: 'Confirm your email to see your competitor snapshot' });
     expect(transport.sent[0]!.html).toContain('https://app.test/start/verify/RAW1');
     expect(transport.sent[0]!.from).toMatch(/^"[^"]+" <briefs@app\.test>$/);
+  });
+
+  it('verify: the link names the intake page it came from (agency slug; "-" without one; nothing for the platform page)', async () => {
+    const noLink = await mkLead({ status: 'unverified', email: 'nolink@x.co' });
+    await sendLeadEmail(deps(), noLink, 'verify', { verifyRaw: 'RAW0' });
+    expect(transport.sent[0]!.text).toContain('https://app.test/start/verify/RAW0?from=-');
+    await dbs.service.insert(intakeLink).values({ agencyId: IDS.agencyA, slug: 'smith-co' });
+    const a = await mkLead({ status: 'unverified' });
+    await sendLeadEmail(deps(), a, 'verify', { verifyRaw: 'RAW1' });
+    expect(transport.sent[1]!.text).toContain('https://app.test/start/verify/RAW1?from=smith-co');
+    const p = await mkLead({ status: 'unverified', agencyId: null, source: 'platform', email: 'pool@x.co' });
+    await sendLeadEmail(deps(), p, 'verify', { verifyRaw: 'RAW2' });
+    expect(transport.sent[2]!.text).toMatch(/https:\/\/app\.test\/start\/verify\/RAW2(?!\?)/);
   });
 
   it('agency-branded mail never names Rival Monday; the unassigned pool confirmation carries the platform line', async () => {

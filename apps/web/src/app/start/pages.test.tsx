@@ -1,0 +1,141 @@
+// @vitest-environment jsdom
+import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const m = vi.hoisted(() => ({ intake: vi.fn(), preview: vi.fn(), refresh: vi.fn() }));
+vi.mock('@cs/tools', () => ({ resolveIntake: (...a: unknown[]) => m.intake(...a), getPublicPreview: (...a: unknown[]) => m.preview(...a) }));
+vi.mock('@cs/engine', () => ({
+  loadBranding: async () => ({ displayName: 'Smith Marketing', logoUrl: null, primary: '#123456', secondary: '#654321', accent: '#F5A524', ink: '#0B2540', canvas: '#F6F9FC', panel: '#EEF2F6', fromName: 'Smith Marketing' }),
+}));
+vi.mock('@/server/db', () => ({ dbs: () => ({ service: 'svc' }) }));
+vi.mock('@/server/dev-guard', () => ({ activeEnvName: () => 'test' }));
+vi.mock('@/server/env', () => ({ webEnv: () => ({ turnstile: { siteKey: 'site' } }) }));
+vi.mock('./actions', () => ({ lookupBusinessAction: vi.fn(), submitIntakeAction: vi.fn() }));
+vi.mock('next/navigation', () => ({
+  notFound: () => {
+    throw new Error('NEXT_NOT_FOUND');
+  },
+  useRouter: () => ({ refresh: m.refresh }),
+}));
+
+const { default: PlatformPage, metadata: platformMeta } = await import('./page');
+const { default: AgencyPage, generateMetadata: agencyMeta } = await import('./[slug]/page');
+const { default: ExpiredPage } = await import('./verify/page');
+const { default: PreviewPage, generateMetadata: previewMeta } = await import('./v/[leadId]/page');
+
+const sp = (o: Record<string, string> = {}) => Promise.resolve(o);
+const LEAD = '11111111-1111-4111-8111-111111111111';
+const agencyB = { displayName: 'Smith Marketing', logoUrl: null, primary: '#123456', secondary: '#654321', accent: '#F5A524', ink: '#0B2540', canvas: '#F6F9FC', panel: '#EEF2F6' };
+const ready = {
+  status: 'ready', self: { name: 'Smith Dental', rating: 4.5, votes: 10 },
+  nearby: [{ name: 'Jones Dental', rating: 4.8, votes: 1200, distanceKm: 1.234 }],
+  facts: ['1 of 1 nearby dentists has more reviews than you.'], summary: 'Jones Dental has more reviews.', category: 'Dentist', generatedAt: '2026-10-17T00:00:00Z',
+};
+
+beforeEach(() => {
+  m.intake.mockReset();
+  m.preview.mockReset();
+  m.intake.mockResolvedValue({ agencyId: 'A1', branding: 'agency' });
+});
+
+describe('/start (platform)', () => {
+  it('shows Rival Monday, the L4 line and the form; noindex', async () => {
+    const { container } = render(await PlatformPage({ searchParams: sp({ ref: 'spring' }) }));
+    expect(screen.getByRole('heading', { name: 'Get your free competitor snapshot' })).toBeTruthy();
+    expect(screen.getByText("We'll match you with a local marketing partner.")).toBeTruthy();
+    expect(container.querySelector('[data-part="rival"]')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Find my business' })).toBeTruthy();
+    expect(platformMeta.robots).toEqual({ index: false, follow: false });
+  });
+});
+
+describe('/start/<slug>', () => {
+  it('unknown, disabled or malformed slug → 404', async () => {
+    m.intake.mockResolvedValue(null);
+    await expect(AgencyPage({ params: Promise.resolve({ slug: 'nope-co' }), searchParams: sp() })).rejects.toThrow('NEXT_NOT_FOUND');
+    m.intake.mockClear();
+    await expect(AgencyPage({ params: Promise.resolve({ slug: 'Bad Slug' }), searchParams: sp() })).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(m.intake).not.toHaveBeenCalled();
+  });
+
+  it('agency branding only: never names Rival Monday, no L4 line; title names the agency', async () => {
+    const { container } = render(await AgencyPage({ params: Promise.resolve({ slug: 'smith-co' }), searchParams: sp() }));
+    expect(screen.getByText('Smith Marketing')).toBeTruthy();
+    expect(container.textContent).not.toMatch(/rival\s*monday|rivalmonday/i);
+    expect(container.querySelector('[data-part="rival"]')).toBeNull();
+    expect(screen.queryByText("We'll match you with a local marketing partner.")).toBeNull();
+    const meta = await agencyMeta({ params: Promise.resolve({ slug: 'smith-co' }), searchParams: sp() });
+    expect(meta.title).toBe('Get your free competitor snapshot · Smith Marketing');
+    expect(meta.robots).toEqual({ index: false, follow: false });
+  });
+});
+
+describe('/start/verify (expired)', () => {
+  it('links back to the platform page, the agency page, or nowhere', async () => {
+    let r = render(await ExpiredPage({ searchParams: sp() }));
+    expect(screen.getByText('This link has expired.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Start again.' }).getAttribute('href')).toBe('/start');
+    r.unmount();
+    r = render(await ExpiredPage({ searchParams: sp({ from: 'smith-co' }) }));
+    expect(screen.getByRole('link', { name: 'Start again.' }).getAttribute('href')).toBe('/start/smith-co');
+    expect(r.container.textContent).not.toMatch(/rival\s*monday/i);
+    r.unmount();
+    r = render(await ExpiredPage({ searchParams: sp({ from: '-' }) }));
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(r.container.textContent).not.toMatch(/rival\s*monday/i);
+    expect(r.container.querySelector('[data-part="rival"]')).toBeNull();
+  });
+});
+
+describe('/start/v/<leadId>', () => {
+  const open = (t: string | null = 'VIEW') => PreviewPage({ params: Promise.resolve({ leadId: LEAD }), searchParams: sp(t === null ? {} : { t }) });
+
+  it('a bad id/token → 404; a missing token never reaches the read', async () => {
+    m.preview.mockResolvedValue(null);
+    await expect(open()).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(m.preview).toHaveBeenCalledWith('svc', LEAD, 'VIEW');
+    m.preview.mockClear();
+    await expect(open(null)).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(m.preview).not.toHaveBeenCalled();
+  });
+
+  it('pending and none both show "Building your snapshot…"', async () => {
+    for (const status of ['pending', 'none']) {
+      m.preview.mockResolvedValue({ businessName: 'Smith Dental', preview: { status }, branding: 'platform', agencyBranding: null });
+      const r = render(await open(`V-${status}`));
+      expect(screen.getByRole('status').textContent).toBe('Building your snapshot…');
+      r.unmount();
+    }
+  });
+
+  it('ready (agency): self card, nearby table, facts, summary, agency line; no Rival Monday; no referrer', async () => {
+    m.preview.mockResolvedValue({ businessName: 'Smith Dental', preview: ready, branding: 'agency', agencyBranding: agencyB });
+    const { container } = render(await open('V-ready'));
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Your competitor snapshot for Smith Dental');
+    expect(screen.getByText('4.5 ★ · 10 reviews')).toBeTruthy();
+    const row = screen.getByRole('row', { name: /Jones Dental/ });
+    expect(row.textContent).toContain('4.8 ★');
+    expect(row.textContent).toContain('1,200');
+    expect(row.textContent).toContain('1.2 km');
+    expect(screen.getByText('1 of 1 nearby dentists has more reviews than you.')).toBeTruthy();
+    expect(screen.getByText('Jones Dental has more reviews.')).toBeTruthy();
+    expect(screen.getByText('Smith Marketing will be in touch within one business day.')).toBeTruthy();
+    expect(container.textContent).not.toMatch(/rival\s*monday/i);
+    const meta = await previewMeta({ params: Promise.resolve({ leadId: LEAD }), searchParams: sp({ t: 'V-ready' }) });
+    expect(meta).toMatchObject({ title: 'Your competitor snapshot · Smith Marketing', referrer: 'no-referrer', robots: { index: false, follow: false } });
+  });
+
+  it('ready (platform) carries the platform line; failed shows the fallback copy', async () => {
+    m.preview.mockResolvedValue({ businessName: 'Smith Dental', preview: { ...ready, summary: null }, branding: 'platform', agencyBranding: null });
+    let r = render(await open('V-p'));
+    expect(screen.getByText("We'll match you with a local marketing partner and they'll be in touch.")).toBeTruthy();
+    r.unmount();
+    m.preview.mockResolvedValue({ businessName: 'Smith Dental', preview: { status: 'failed' }, branding: 'agency', agencyBranding: agencyB });
+    r = render(await open('V-f1'));
+    expect(screen.getByText("We couldn't build your snapshot, but Smith Marketing has your details.")).toBeTruthy();
+    r.unmount();
+    m.preview.mockResolvedValue({ businessName: 'Smith Dental', preview: { status: 'failed' }, branding: 'platform', agencyBranding: null });
+    render(await open('V-f2'));
+    expect(screen.getByText("We couldn't build your snapshot, but we have your details.")).toBeTruthy();
+  });
+});

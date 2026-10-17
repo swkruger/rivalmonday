@@ -88,6 +88,7 @@ export const RULES: Rule[] = [
 
   { pattern: re(`${APP}(?:sign-up/|join/|onboarding/start/)`), tags: ['@auth', '@onboarding'], why: 'agency sign-up, invite-link redemption and the sign-up callback' },
   { pattern: re(`${APP}(?:sign-in/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in and link-error pages' },
+  { pattern: re(`${APP}start/`), tags: [], why: 'public client intake pages (Phase 11c; intake E2E arrives in Task 35)' },
   { pattern: re(`(?:${APP}u/|${SERVER}unsubscribe\\.ts$)`), tags: [], why: 'setup-tip unsubscribe pages (public, no E2E yet)' },
   { pattern: re(`${APP}(?:l/|go/|files/)`), tags: GUEST_FILES, why: 'signed links and stored files' },
   { pattern: re(`${APP}dev-panel/`), tags: ['@dev-panel'], why: 'dev-panel route shell' },
