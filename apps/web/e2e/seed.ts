@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { currentStandardPlan, ensureExemptPilot } from '@cs/billing';
 import { signLink } from '@cs/core';
-import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
+import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, intakeLink, lead, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
 import { createStoreFromEnv } from '@cs/storage';
 import { eq, sql } from 'drizzle-orm';
 import { acceptInvitations, createInvitation } from '@cs/tools';
@@ -649,4 +649,28 @@ async function seedInviteSetup(db: ReturnType<typeof createDb>['db']): Promise<v
     agencyId, clientId: c.id, trigger: 'auto' as const, status: 'done' as const, kept: 0, startedAt: new Date(Date.now() - 3600_000), finishedAt: new Date(Date.now() - 3000_000), hidden: {},
   })));
   await createInvitation(db, { agencyId, email: SI_PENDING_OWNER, role: 'client_owner', clientId: billing!.id, invitedBy: 'e2e-seed' });
+  await seedIntake(db, agencyId);
+}
+
+/** 11c E2E (`intake.spec.ts`): the Invite Setup agency's intake link, a verified lead with a ready preview, and a verified pool lead. */
+export const IN_SLUG = 'e2e-invite';
+export const IN_LEAD = { business: 'Seeded Lead Dental', contact: 'Harper Seed', email: 'lead-seed@e2e.test' } as const;
+export const IN_POOL = { business: 'Pool Seed Plumbing', contact: 'Pat Pool', email: 'pool-seed@e2e.test' } as const;
+
+async function seedIntake(db: ReturnType<typeof createDb>['db'], agencyId: string): Promise<void> {
+  await db.insert(intakeLink).values({ agencyId, slug: IN_SLUG });
+  const place = (n: number, title: string, category: string) => ({
+    placeId: `e2e-intake-place-${n}`, cid: null, title, address: `${n} Main St, Granbury, TX 76048`, city: 'Granbury', category, phone: null, domain: null, rating: 4.4, votes: 80, lat: 32.44, lng: -97.79,
+  });
+  const verified = { status: 'verified' as const, verifiedAt: new Date(), confirmationSentAt: new Date(), agencyNotifiedAt: new Date(), poolNotifiedAt: new Date() };
+  // The worker does not run in E2E, so the preview is written directly.
+  const preview = {
+    status: 'ready' as const, self: { name: IN_LEAD.business, rating: 4.4, votes: 80 },
+    nearby: [{ name: 'Seed Rival Dental', rating: 4.8, votes: 300, distanceKm: 1.5 }],
+    facts: ['One nearby dentist has a higher rating than you.'], summary: null, category: 'Dentist', generatedAt: new Date().toISOString(),
+  };
+  await db.insert(lead).values([
+    { agencyId, source: 'agency_link', contactName: IN_LEAD.contact, email: IN_LEAD.email, lookup: place(1, IN_LEAD.business, 'Dentist'), preview, ...verified },
+    { agencyId: null, source: 'platform', contactName: IN_POOL.contact, email: IN_POOL.email, lookup: place(2, IN_POOL.business, 'Plumber'), preview: { status: 'none' }, ...verified },
+  ]);
 }

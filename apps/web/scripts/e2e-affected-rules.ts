@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@playbooks',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -88,7 +88,9 @@ export const RULES: Rule[] = [
 
   { pattern: re(`${APP}(?:sign-up/|join/|onboarding/start/)`), tags: ['@auth', '@onboarding'], why: 'agency sign-up, invite-link redemption and the sign-up callback' },
   { pattern: re(`${APP}(?:sign-in/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in and link-error pages' },
-  { pattern: re(`${APP}start/`), tags: [], why: 'public client intake pages (Phase 11c; intake E2E arrives in Task 35)' },
+  { pattern: re(`${APP}\\(platform\\)/platform/leads/`), tags: ['@leads', '@platform'], why: 'platform lead pool and assign form' },
+  { pattern: /^packages\/tools\/src\/(?:intake\/|tools\/(?:platform-)?leads\.ts$)/, tags: ['@leads'], why: 'public intake functions, lead tools, preview and lead email' },
+  { pattern: re(`${APP}start/`), tags: ['@leads'], why: 'public client intake pages (intake form, verify link, preview)' },
   { pattern: re(`(?:${APP}u/|${SERVER}unsubscribe\\.ts$)`), tags: [], why: 'setup-tip unsubscribe pages (public, no E2E yet)' },
   { pattern: re(`${APP}(?:l/|go/|files/)`), tags: GUEST_FILES, why: 'signed links and stored files' },
   { pattern: re(`${APP}dev-panel/`), tags: ['@dev-panel'], why: 'dev-panel route shell' },
@@ -104,8 +106,8 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}\\(app\\)/onboarding/(?!start/)|${COMP}agency/`), tags: ['@onboarding'], why: 'onboarding wizard, checklist and shared branding editor' },
   { pattern: re(`${AGENCY}settings/platform-access/`), tags: ['@support'], why: 'agency support-session history and notify switch' },
   { pattern: re(`${C}settings/billing/`), tags: ['@billing', '@client-billing'], why: 'client owner billing page and portal action' },
-  { pattern: re(`${AGENCY}leads/`), tags: ['@prospects', '@setup'], why: 'agency leads page, accept/decline actions' },
-  { pattern: re(`${AGENCY}settings/intake/`), tags: ['@prospects'], why: 'agency intake link settings page' },
+  { pattern: re(`${AGENCY}leads/`), tags: ['@leads', '@prospects'], why: 'agency leads page, accept/decline actions' },
+  { pattern: re(`${AGENCY}settings/intake/`), tags: ['@leads'], why: 'agency intake link settings page' },
   { pattern: re(`${AGENCY}settings/billing/`), tags: ['@billing', '@client-billing'], why: 'billing page, Client billing section, actions and seat CSV' },
   { pattern: re(`${APP}\\(app\\)/paused/`), tags: ['@billing'], why: 'suspended-workspace page' },
   { pattern: re(`${COMP}billing/`), tags: ['@billing', '@client-billing'], why: 'billing display formatting and client billing pill/actions shown on the billing pages' },

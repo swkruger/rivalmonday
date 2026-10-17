@@ -29,6 +29,8 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/setup` | admin | `get_client_setup`, `get_client_profile`, `get_connect_status`, `list_client_billing_status` | — |
 | `/c/[clientId]/setup (client owner)` | ownerSetup | `get_client_setup`, `get_client_profile` | — |
 | `/c/[clientId]/setup (closed, client owner)` | ownerLoneStar | `get_client_profile` | `get_client_setup`: a client owner gets a 404 once setup is closed |
+| `/agency/leads` | admin | `list_leads` | — |
+| `/agency/settings/intake` | admin | `get_intake_link` | — |
 | `/agency/prospects` | admin | `list_prospects` | — |
 | `/agency/prospects/[clientId]` | admin | `get_client_profile`, `get_prospect_report`, `list_client_competitors` | — |
 | `/agency/team` | admin | `fn:listTeam`, `list_clients` | — |
@@ -78,6 +80,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/platform/agencies/[id]` | operator | `get_platform_agency`, `list_agency_support_sessions`, `get_agency_billing`, `list_discount_codes` | — |
 | `/platform/billing` | operator | `get_billing_overview`, `list_plans`, `list_discount_codes`, `get_connect_overview`, `get_signup_funnel` | `list_invite_links`: the demo seeds no invite links; `get_signups_paused`: open sign-up is not paused in the demo |
 | `/platform/costs` | operator | `list_platform_costs` | — |
+| `/platform/leads` | operator | `list_pool_leads` | — |
 | `/platform/health` | operator | — | — |
 | `/platform/ask` | operator | `fn:listReviewableAskThreads` | — |
 | `/platform/ask/[threadId]` | operator | `fn:getReviewableAskThread` | — |
@@ -92,4 +95,8 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/join/[token]` | public | — | needs a fresh invite link (create one in /platform/billing) |
 | `/u/[token]/confirm` | public | — | needs a setup-tip unsubscribe token (from a tip email) |
 | `/u/[token]/done` | public | — | shown after unsubscribing |
+| `/start` | public | — | platform intake form (the business search needs a vendor call) |
+| `/start/[slug]` | public | — | agency intake form; the demo link is /start/demo-agency |
+| `/start/v/[leadId]` | public | — | free preview; needs a view token (issued when a visitor opens the verify email link) |
+| `/start/verify` | public | — | expired-link page; /start/verify/[token] is a redirect handler |
 <!-- coverage:end -->

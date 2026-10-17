@@ -59,6 +59,11 @@ export const PUBLIC_SCREENS: readonly { route: string; note: string }[] = [
   { route: '/join/[token]', note: 'needs a fresh invite link (create one in /platform/billing)' },
   { route: '/u/[token]/confirm', note: 'needs a setup-tip unsubscribe token (from a tip email)' },
   { route: '/u/[token]/done', note: 'shown after unsubscribing' },
+  // Phase 11c: the public intake pages. They read through direct @cs/tools functions keyed by a slug or a one-time token, so nothing is seeded for them (the intake link and leads the agency screens read are in leads.ts).
+  { route: '/start', note: 'platform intake form (the business search needs a vendor call)' },
+  { route: '/start/[slug]', note: `agency intake form; the demo link is /start/demo-agency` },
+  { route: '/start/v/[leadId]', note: 'free preview; needs a view token (issued when a visitor opens the verify email link)' },
+  { route: '/start/verify', note: 'expired-link page; /start/verify/[token] is a redirect handler' },
 ];
 
 /** Phase 11a: the setup wizard reads the setup state and the client profile (header name, prefilled fields). */
@@ -112,6 +117,9 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/c/[clientId]/setup', as: 'admin', calls: setupStaffCalls(setupPending) },
   { route: '/c/[clientId]/setup (client owner)', as: 'ownerSetup', calls: setupCalls(setupPending) },
   { route: '/c/[clientId]/setup (closed, client owner)', as: 'ownerLoneStar', calls: setupCalls(ls, 'not_found') },
+  // Phase 11c: the demo agency has a new lead with a ready preview, an accepted one, a declined one; the intake card reads the link and counts.
+  { route: '/agency/leads', as: 'admin', calls: [{ tool: 'list_leads', input: none, path: 'leads' }, { tool: 'list_leads', input: () => ({ status: 'verified' }), path: 'leads.*.preview.facts' }] },
+  { route: '/agency/settings/intake', as: 'admin', calls: [{ tool: 'get_intake_link', input: none, path: 'url' }] },
   { route: '/agency/prospects', as: 'admin', calls: [{ tool: 'list_prospects', input: none, path: 'items' }] },
   {
     route: '/agency/prospects/[clientId]', as: 'admin', calls: [
@@ -306,6 +314,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
     ],
   },
   { route: '/platform/costs', as: 'operator', calls: [{ tool: 'list_platform_costs', input: none, path: 'services' }] },
+  { route: '/platform/leads', as: 'operator', calls: [{ tool: 'list_pool_leads', input: none, path: 'leads' }, { tool: 'list_pool_leads', input: none, path: 'agencies' }] },
   { route: '/platform/health', as: 'operator', calls: [] },
   { route: '/platform/ask', as: 'operator', calls: [{ tool: 'fn:listReviewableAskThreads', input: none, path: 'items' }] },
   { route: '/platform/ask/[threadId]', as: 'operator', calls: [{ tool: 'fn:getReviewableAskThread', input: (ids) => ({ threadId: ids.ask.ownerLoneStar }), path: 'messages.*.trace' }] },
