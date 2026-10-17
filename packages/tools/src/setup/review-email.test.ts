@@ -67,6 +67,13 @@ describe('queueCompetitorReview', () => {
     expect(await mails()).toHaveLength(0);
   });
 
+  it('no auto send when competitors skipped', async () => {
+    await seed();
+    await dbs.owner.update(clientSetup).set({ skipped: ['competitors'], competitorsDoneAt: NOW });
+    expect(await go()).toBe(false);
+    expect(await go(`competitor-review:${ID}:2026-10-20`, true)).toBe(true);
+  });
+
   it('no send without invited contact', async () => {
     await seed();
     await dbs.owner.update(clientSetup).set({ invitedContactId: null });

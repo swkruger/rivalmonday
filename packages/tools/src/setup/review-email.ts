@@ -45,7 +45,8 @@ export async function queueCompetitorReview(
   if (!pending && !accepted) return false;
 
   const state = await getSetupState(conn, clientId);
-  if (!input.manual && state.steps.competitors === 'done') return false;
+  // Automatic: only while the step is still `todo` (a staff skip means "don't ask the owner"); manual ignores it.
+  if (!input.manual && state.steps.competitors !== 'todo') return false;
 
   const run = await latestDoneRun(conn, clientId);
   if (!run) return false;

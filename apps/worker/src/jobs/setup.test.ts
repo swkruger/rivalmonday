@@ -8,9 +8,24 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import type { WorkerDeps } from '../deps';
 import { createSetupJobs, runSetupReminders, runSetupSuggestions } from './setup';
 
+const review = vi.hoisted(() => ({ failFor: null as string | null }));
+vi.mock('@cs/tools', async (orig) => {
+  const mod = await orig<typeof import('@cs/tools')>();
+  return {
+    ...mod,
+    queueCompetitorReview: (...a: Parameters<typeof mod.queueCompetitorReview>) => {
+      if (review.failFor === a[2].clientId) throw new Error('boom');
+      return mod.queueCompetitorReview(...a);
+    },
+  };
+});
+
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  review.failFor = null;
+});
 
 const packs = createPackLoader();
 const ID = IDS.clientA1;
@@ -313,6 +328,17 @@ describe('runSetupReminders (Task 9)', () => {
       await invite();
       expect((await run()).queued).toBe(4); // suggestions_ready (3) + the owner's review
       expect(await reviews()).toHaveLength(1);
+    });
+
+    it('a throwing review does not block the staff notices or the next client', async () => {
+      await seedOpen({ lastChangedRole: 'client_owner', lastChangedAt: ago(3_600_000) });
+      await withDoneRun(1);
+      await invite();
+      review.failFor = ID;
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      expect((await run()).queued).toBe(6); // suggestions_ready + client_changed, 3 rows each; no review
+      expect(await reviews()).toHaveLength(0);
+      expect(await rows('setup_client_changed')).toHaveLength(1);
     });
 
     it('does not send without an invite or once competitors are done', async () => {

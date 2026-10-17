@@ -152,7 +152,11 @@ export async function runSetupReminders(d: { db: Db; delivery: DeliveryConfig },
         }
       }
       // Competitor-review email to the invited owner (client-facing, Cc the inviter): independent of the staff notices above.
-      if (await queueCompetitorReview(d.db, d.delivery, { agencyId: c.agencyId, clientId: c.id, dedupe: `competitor-review:${c.id}`, now })) queued += 1;
+      try {
+        if (await queueCompetitorReview(d.db, d.delivery, { agencyId: c.agencyId, clientId: c.id, dedupe: `competitor-review:${c.id}`, now })) queued += 1;
+      } catch (err) {
+        console.error(`[setup-reminders] ${c.id} competitor review failed: ${err instanceof Error ? err.name : 'unknown'}`); // staff notices below still go out
+      }
       if (due.length === 0) continue;
       const branding = await loadBranding(d.db, c.agencyId);
       for (const { kind, dedupe, idleDays } of due) {
