@@ -1,4 +1,5 @@
 import type { BillingGateway } from '@cs/billing';
+import type { MapsPlace } from '@cs/collectors';
 import { type CallScope, ToolError } from '@cs/core';
 import type { Db } from '@cs/db';
 import { createPackLoader, type DeliveryConfig, type PackLoader } from '@cs/engine';
@@ -36,6 +37,8 @@ export interface ToolDeps {
   embedQuery?: (text: string, scope: CallScope) => Promise<number[]>;
   /** Phase 9a: billing gateway (`gatewayFor`): fake in DEMO/TEST, Stripe with a key, absent when billing is not configured (R27: Stripe-backed tools refuse, reads degrade, seat sync is skipped and the daily job reconciles). */
   billing?: BillingGateway;
+  /** Phase 11a: free-text Maps search for `find_business` (web builds it from DataForSEO, or a fixture under SETUP_FAKE_LOOKUP). Absent: the tool refuses with a user-facing `internal`. */
+  setupLookup?: (q: { keyword: string; locationName: string }, scope: CallScope) => Promise<MapsPlace[]>;
   /** Object storage (evidence adapter, `ObjectStore` shape): `get` for `fetch` and the MCP evidence resources; `put` for agency logos (Phase 10 R9). */
   evidenceStore?: {
     get(key: string): Promise<Uint8Array | null>;
