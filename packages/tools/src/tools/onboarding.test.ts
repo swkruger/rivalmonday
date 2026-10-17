@@ -1,16 +1,18 @@
 import { type AccessContext, type AuditEvent, createAccessContext } from '@cs/core';
 import { claimDueSources, ensureSelfCompetitor } from '@cs/collectors';
-import { agencyOnboarding, client, competitorSource, plan } from '@cs/db';
+import { agencyOnboarding, client, clientSetup, competitorSource, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { EnqueueJob } from '../deps';
 import { createToolRegistry } from '../registry';
 
 const STD_PLAN = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 10, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' };
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const audit: AuditEvent[] = [];
-const registry = createToolRegistry({ app: dbs.app, service: dbs.service }, { audit: { record: async (e) => void audit.push(e) } });
+const enqueue = vi.fn<EnqueueJob>(async () => {});
+const registry = createToolRegistry({ app: dbs.app, service: dbs.service, enqueue }, { audit: { record: async (e) => void audit.push(e) } });
 const ctx = (role: AccessContext['role'], scope: AccessContext['clientScope'], agencyId: string = IDS.agencyA) =>
   createAccessContext({ agencyId, userId: `u-${role}`, role, clientScope: scope, features: [] });
 const admin = ctx('agency_admin', 'all');
@@ -145,5 +147,47 @@ describe('create_client sets agency_onboarding.first_client_at (R8)', () => {
   });
   it('is a no-op when the agency has no onboarding row', async () => {
     await expect(registry.invoke(admin, 'create_client', input)).resolves.toBeTruthy();
+  });
+});
+
+const LOOKUP = { placeId: 'ChIJlookup1', cid: '123', title: 'Lookup Heating & Air', address: '1 Main St, Atlanta, GA', city: 'Atlanta', category: 'HVAC contractor', phone: null, domain: null, rating: 4.6, votes: 80, lat: 33.7, lng: -84.4 };
+const bare = { name: '', verticalId: 'hvac_plumbing', services: [], keywords: ['stale kw'], serviceArea: null, placeId: null };
+
+describe('create_client with lookup (11a)', () => {
+  beforeEach(() => enqueue.mockClear());
+
+  it('create_client with lookup stores place, area, empty keywords and a pending setup row', async () => {
+    const { clientId } = (await registry.invoke(admin, 'create_client', { ...bare, lookup: LOOKUP })) as { clientId: string };
+    const [row] = await dbs.owner.select().from(client).where(eq(client.id, clientId));
+    expect(row).toMatchObject({ name: 'Lookup Heating & Air', placeId: 'ChIJlookup1', keywords: [], serviceArea: { center: { lat: 33.7, lng: -84.4 }, radiusKm: 15, zips: [] } });
+    const [setup] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, clientId));
+    expect(setup).toMatchObject({ agencyId: IDS.agencyA, source: 'staff', lookup: LOOKUP, suggestions: { status: 'pending' } });
+  });
+
+  it('create_client with lookup enqueues setup-suggestions and does not start a search', async () => {
+    const { clientId } = (await registry.invoke(admin, 'create_client', { ...bare, lookup: LOOKUP })) as { clientId: string };
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    expect(enqueue).toHaveBeenCalledWith('setup-suggestions', { clientId }, `setup-suggestions:${clientId}`);
+  });
+
+  it('keeps an explicit name and truncates a long lookup title to 120 chars', async () => {
+    const a = (await registry.invoke(admin, 'create_client', { ...bare, name: 'My Name', lookup: LOOKUP })) as { clientId: string };
+    expect((await dbs.owner.select().from(client).where(eq(client.id, a.clientId)))[0]!.name).toBe('My Name');
+    const b = (await registry.invoke(admin, 'create_client', { ...bare, lookup: { ...LOOKUP, title: 'x'.repeat(150) } })) as { clientId: string };
+    expect((await dbs.owner.select().from(client).where(eq(client.id, b.clientId)))[0]!.name).toHaveLength(120);
+  });
+
+  it('create_client without lookup creates a setup row with status none', async () => {
+    const { clientId } = (await registry.invoke(admin, 'create_client', { ...bare, name: 'Plain' })) as { clientId: string };
+    const [setup] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, clientId));
+    expect(setup).toMatchObject({ lookup: null, suggestions: { status: 'none' }, source: 'staff' });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('create_client with lookup marks suggestions failed when the enqueue fails', async () => {
+    enqueue.mockRejectedValueOnce(new Error('queue down'));
+    const { clientId } = (await registry.invoke(admin, 'create_client', { ...bare, lookup: LOOKUP })) as { clientId: string };
+    const [setup] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, clientId));
+    expect(setup!.suggestions).toEqual({ status: 'failed' });
   });
 });

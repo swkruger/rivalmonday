@@ -5,7 +5,7 @@ import type { Db } from '@cs/db';
 import { createPackLoader, type DeliveryConfig, type PackLoader } from '@cs/engine';
 
 /** Jobs the web app may enqueue. The worker owns the queues (5a decision 8); `singletonKey` dedupes on `short`-policy queues. */
-export type QueueJob = 'brief-pdf' | 'report-pdf' | 'rival-search' | 'discover-pages' | 'prospect-snapshot' | 'kb-embed' | 'kb-import' | 'platform-costs-snapshot';
+export type QueueJob = 'brief-pdf' | 'report-pdf' | 'rival-search' | 'discover-pages' | 'prospect-snapshot' | 'kb-embed' | 'kb-import' | 'platform-costs-snapshot' | 'setup-suggestions';
 export type EnqueueJob = (job: QueueJob, data: Record<string, string>, singletonKey: string) => Promise<void>;
 /** pg-boss job states (v10). */
 export type JobState = 'created' | 'retry' | 'active' | 'completed' | 'cancelled' | 'failed';
