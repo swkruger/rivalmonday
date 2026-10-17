@@ -23,6 +23,7 @@ import { listMonthlyRivalClients, normalizeAdminEmails, type PlatformCostLowPayl
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { lookup } from 'node:dns/promises';
+import { failPendingPreview, runLeadPreview } from './jobs/leads';
 import { failPendingSuggestions, runSetupReminders, runSetupSuggestions } from './jobs/setup';
 import { createPdfRenderer } from './pdf';
 
@@ -79,6 +80,8 @@ export interface WorkerDeps {
   generateAskStarters(clientId: string): Promise<string[] | null>;
   /** Phase 11a: AI profile suggestions for a client's setup wizard (never throws; a failure is recorded as `failed`). */
   generateSetupSuggestions(clientId: string): Promise<{ status: 'ready' | 'failed' } | { skipped: string }>;
+  /** Phase 11c: the free competitive preview for a verified lead plus its confirmation / agency-new / pool-new emails (never throws; failures are recorded as `failed`). */
+  generateLeadPreview(leadId: string): Promise<{ status: 'ready' | 'failed' } | { skipped: string }>;
   /** Phase 11a Task 9: daily reminders to agency staff about open setups (needs delivery config). */
   setupReminders(now: Date): Promise<{ queued: number }>;
   recommendForMoves(clientId: string): Promise<{ created: number; skipped: number; failed: number }>;
@@ -310,6 +313,19 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
         return { status: 'failed' };
       }
       return runSetupSuggestions({ db: getDb(), ...clients, packs }, clientId);
+    },
+    async generateLeadPreview(leadId) {
+      let clients: { dfs: DataForSeoClient; ai: Ai };
+      try {
+        clients = { dfs: getDfs(), ai: await getAi() };
+      } catch (err) {
+        await failPendingPreview(getDb(), leadId, err instanceof Error ? err.message : 'not configured');
+        return { status: 'failed' };
+      }
+      const from = delivery?.fromAddress ?? env.EMAIL_FROM;
+      const appUrl = env.APP_URL?.trim();
+      const email = from && appUrl ? { service: getDb(), transport: getEmailTransport(), appUrl, fromAddress: from, platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS) } : null;
+      return runLeadPreview({ db: getDb(), ...clients, email }, leadId);
     },
     recommendForMoves: async (clientId) => recommendForMoves({ db: getDb(), ai: await getAi(), packs }, clientId),
     async discoverPages(competitorId) {

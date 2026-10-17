@@ -45,6 +45,11 @@ tasks:
     expect(cfg.tasks.setup_suggestions).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-sonnet-4.6', fallbacks: ['anthropic/claude-haiku-4.5'], temperature: 0.2, max_tokens: 800 });
   });
 
+  it('config loads lead_preview_summary', async () => {
+    const cfg = await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH);
+    expect(cfg.tasks.lead_preview_summary).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-haiku-4.5', temperature: 0.3, max_tokens: 300 });
+  });
+
   it('config loads ask_assistant, ask_starters, ask_guard_decisions', async () => {
     const cfg = await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH);
     expect(cfg.tasks.ask_assistant).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-sonnet-5', fallbacks: ['anthropic/claude-sonnet-4.6'], max_tokens: 6000 });

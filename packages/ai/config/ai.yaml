@@ -15,6 +15,8 @@ tasks:
   # Phase 4b: instant alert headline + body (JSON schema), verified like brief text; same ZDR-safe routing as brief_writer.
   alert_writer:    { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.2, max_tokens: 600 }
   setup_suggestions: { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.2, max_tokens: 800 }
+  # Phase 11c: free competitive preview summary for a verified lead (validated in code; dropped on any unknown number or name).
+  lead_preview_summary: { provider: openrouter, model: anthropic/claude-haiku-4.5, temperature: 0.3, max_tokens: 300 }
   # Phase 6b Ask/Friday (tool calling; probe 2026-10-12: sonnet-5 and sonnet-4.6 both support tools and cache_control under ZDR).
   # No temperature: no sonnet-5 endpoint accepts it, so with require_parameters (sent with tools) OpenRouter skipped
   # sonnet-5 entirely and every turn ran on the fallback (probe 2026-10-13).
