@@ -64,6 +64,16 @@ describe('list_pool_leads', () => {
   });
 });
 
+describe('list_pool_leads declinedBack', () => {
+  it('flags a pool lead an agency declined back (decided_at kept) and not a fresh one', async () => {
+    const fresh = await mkLead({ email: 'f@y.co' });
+    const back = await mkLead({ email: 'g@y.co', decidedAt: new Date(), decidedBy: 'admin' });
+    const out = await call<{ leads: { id: string; declinedBack: boolean }[] }>(viewer, 'list_pool_leads');
+    expect(out.leads.find((l) => l.id === fresh)!.declinedBack).toBe(false);
+    expect(out.leads.find((l) => l.id === back)!.declinedBack).toBe(true);
+  });
+});
+
 describe('list_pool_leads recent assignments', () => {
   it('returns the last 20 assigned platform leads (business, agency name, assignedAt), newest first, and no agency-link leads', async () => {
     const t = (n: number) => new Date(Date.UTC(2026, 9, 1, 0, n));

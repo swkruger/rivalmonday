@@ -32,6 +32,8 @@ const PoolLead = z.object({
   preview: leadPreviewSchema,
   createdAt: z.date(),
   verifiedAt: z.date().nullable(),
+  /** Returned to the pool by an agency that declined it (decided_at survives the return). */
+  declinedBack: z.boolean(),
 });
 export type PoolLead = z.infer<typeof PoolLead>;
 const RecentAssignment = z.object({ leadId: z.string().uuid(), businessName: z.string(), agencyName: z.string(), assignedAt: z.date() });
@@ -77,7 +79,7 @@ export const listPoolLeadsTool = defineTool({
         recentAssignments: assigned.map((r) => ({ leadId: r.leadId, businessName: r.lookup.title, agencyName: r.agencyName, assignedAt: r.assignedAt! })),
         leads: rows.map((r) => ({
           id: r.id, ref: r.ref, businessName: r.lookup.title, address: r.lookup.address, city: r.lookup.city, category: r.lookup.category,
-          contactName: r.contactName, email: r.email, phone: r.phone, message: r.message, preview: r.preview, createdAt: r.createdAt, verifiedAt: r.verifiedAt,
+          contactName: r.contactName, email: r.email, phone: r.phone, message: r.message, preview: r.preview, createdAt: r.createdAt, verifiedAt: r.verifiedAt, declinedBack: r.decidedAt !== null,
         })),
         agencies,
       };

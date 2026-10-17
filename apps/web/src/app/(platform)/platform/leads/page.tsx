@@ -1,5 +1,5 @@
 import { platformRole } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { platformAdmins } from '@/server/runtime-env';
@@ -21,6 +21,7 @@ interface PoolLead {
   message: string | null;
   verifiedAt: Date | string | null;
   createdAt: Date | string;
+  declinedBack: boolean;
 }
 interface Recent {
   leadId: string;
@@ -65,6 +66,7 @@ export default async function PlatformLeadsPage() {
                   <TableRow key={l.id}>
                     <TableCell>
                       <div className="font-semibold">{l.businessName}</div>
+                      {l.declinedBack && <Badge variant="secondary">Declined by an agency</Badge>}
                       <div className="text-xs text-muted-foreground">{[l.address ?? l.city, l.category].filter(Boolean).join(' · ')}</div>
                       {l.message && <div className="mt-1 max-w-md whitespace-pre-wrap text-xs">{l.message}</div>}
                     </TableCell>

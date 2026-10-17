@@ -13,31 +13,31 @@ const lead = (over: Partial<LeadView> = {}): LeadView => ({
 
 describe('LeadCard', () => {
   it('shows business, contact, ref, message, preview and the source label', () => {
-    render(<LeadCard lead={lead()} verticals={verticals} platformName="the platform" />);
+    render(<LeadCard lead={lead()} verticals={verticals} />);
     expect(screen.getByText('Smith Dental')).toBeTruthy();
     expect(screen.getByText('From your website')).toBeTruthy();
     expect(screen.getByText('Sam Smith')).toBeTruthy();
     expect(screen.getByText(/Ref abc/)).toBeTruthy();
     expect(screen.getByText('Hello there')).toBeTruthy();
     expect(screen.getByText('Ranks 2nd by reviews')).toBeTruthy();
-    expect(sourceLabel('platform', 'the platform')).toBe('From the platform');
+    expect(sourceLabel('platform')).toBe('From the platform');
   });
 
   it('accept preselects the suggested vertical and confirms with the contact name', () => {
-    render(<LeadCard lead={lead()} verticals={verticals} platformName="x" />);
+    render(<LeadCard lead={lead()} verticals={verticals} />);
     fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
     expect((screen.getByLabelText('Service type') as HTMLSelectElement).value).toBe('hvac');
     expect(screen.getByRole('button', { name: 'Accept and invite Sam Smith' })).toBeTruthy();
   });
 
   it('decline of an agency-link lead offers "Let them know", on by default', () => {
-    render(<LeadCard lead={lead()} verticals={verticals} platformName="x" />);
+    render(<LeadCard lead={lead()} verticals={verticals} />);
     fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
     expect((screen.getByLabelText('Let them know') as HTMLInputElement).checked).toBe(true);
   });
 
   it('decline of a platform lead hides the checkbox and says it goes back to the pool', () => {
-    render(<LeadCard lead={lead({ source: 'platform' })} verticals={verticals} platformName="the platform" />);
+    render(<LeadCard lead={lead({ source: 'platform' })} verticals={verticals} />);
     expect(screen.getByText('From the platform')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
     expect(screen.queryByLabelText('Let them know')).toBeNull();
@@ -45,7 +45,7 @@ describe('LeadCard', () => {
   });
 
   it('decided leads have no accept/decline controls', () => {
-    render(<LeadCard lead={lead({ status: 'declined' })} verticals={verticals} platformName="x" />);
+    render(<LeadCard lead={lead({ status: 'declined' })} verticals={verticals} />);
     expect(screen.queryByRole('button', { name: 'Accept' })).toBeNull();
   });
 });

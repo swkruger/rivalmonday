@@ -24,6 +24,10 @@ describe('IntakeLinkCard', () => {
     expect(html.endsWith('>Get your free competitor snapshot</a>')).toBe(true);
   });
 
+  it('escapes & " < > in the URL inside the href', () => {
+    expect(buttonHtml('https://x.co/s?a=1&b="<>')).toContain('href="https://x.co/s?a=1&amp;b=&quot;&lt;&gt;"');
+  });
+
   it('shows the link, copy buttons, state and counts', () => {
     render(<IntakeLinkCard link={link} {...props} />);
     expect(screen.getByText(link.url)).toBeTruthy();

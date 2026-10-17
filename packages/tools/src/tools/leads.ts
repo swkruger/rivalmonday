@@ -44,7 +44,8 @@ const LeadSummary = z.object({
   clientId: uuid.nullable(),
 });
 type LeadSummaryOut = z.infer<typeof LeadSummary>;
-const LeadDetail = LeadSummary.extend({ lookup: setupLookupSchema, suggestedVerticalId: z.string().nullable() });
+const LeadListItem = LeadSummary.extend({ suggestedVerticalId: z.string().nullable() });
+const LeadDetail = LeadListItem.extend({ lookup: setupLookupSchema });
 
 const IntakeLinkOut = z.object({
   slug: z.string().nullable(),
@@ -66,6 +67,9 @@ const toSummary = (r: LeadRow): LeadSummaryOut => ({
   id: r.id, source: r.source, status: r.status as LeadSummaryOut['status'], ref: r.ref, businessName: r.lookup.title, address: r.lookup.address, city: r.lookup.city,
   contactName: r.contactName, email: r.email, phone: r.phone, message: r.message, preview: r.preview, createdAt: r.createdAt, verifiedAt: r.verifiedAt, decidedAt: r.decidedAt, clientId: r.clientId,
 });
+
+const loadPacks = async (deps: ToolDeps) => Promise.all((await listVerticalPacks()).map((id) => packsOf(deps)(id)));
+const suggestVertical = (packs: Awaited<ReturnType<typeof loadPacks>>, r: LeadRow): string | null => preselectVertical(packs, r.lookup.category ? [r.lookup.category] : []);
 
 /** Locks the caller's agency's verified lead, or refuses with not_found (another agency's, a pool lead, or already decided). */
 async function lockVerifiedLead(tx: Tx, ctx: AccessContext, leadId: string): Promise<LeadRow> {
@@ -92,8 +96,9 @@ export const listLeads = defineTool({
   access: 'read',
   description: 'List the leads that came in through this agency’s intake link or were assigned to it, newest first (agency users who cover all clients).',
   input: z.object({ status: z.enum(AGENCY_STATUSES).optional() }),
-  output: z.object({ leads: z.array(LeadSummary) }),
+  output: z.object({ leads: z.array(LeadListItem) }),
   permission: 'agency',
+  audit: 'skip-web',
   supportMask: ['leads[].email', 'leads[].message'],
   async handler(ctx, { status }, deps) {
     requireAllScope(ctx);
@@ -101,7 +106,8 @@ export const listLeads = defineTool({
       tx.select().from(lead)
         .where(and(eq(lead.agencyId, ctx.agencyId), status ? eq(lead.status, status) : inArray(lead.status, [...AGENCY_STATUSES])))
         .orderBy(desc(lead.createdAt)).limit(200));
-    return { leads: rows.map(toSummary) };
+    const packs = await loadPacks(deps);
+    return { leads: rows.map((r) => ({ ...toSummary(r), suggestedVerticalId: suggestVertical(packs, r) })) };
   },
 });
 
@@ -112,15 +118,14 @@ export const getLead = defineTool({
   input: z.object({ leadId: uuid }),
   output: LeadDetail,
   permission: 'agency',
+  audit: 'skip-web',
   supportMask: ['email', 'message'],
   async handler(ctx, { leadId }, deps) {
     requireAllScope(ctx);
     const [row] = await withTenant(deps.app, ctx, (tx) =>
       tx.select().from(lead).where(and(eq(lead.id, leadId), eq(lead.agencyId, ctx.agencyId), inArray(lead.status, [...AGENCY_STATUSES]))));
     if (!row) throw new ToolError('not_found', 'Lead not found');
-    const packs = await Promise.all((await listVerticalPacks()).map((id) => packsOf(deps)(id)));
-    const suggestedVerticalId = preselectVertical(packs, row.lookup.category ? [row.lookup.category] : []);
-    return { ...toSummary(row), lookup: row.lookup, suggestedVerticalId };
+    return { ...toSummary(row), lookup: row.lookup, suggestedVerticalId: suggestVertical(await loadPacks(deps), row) };
   },
 });
 
@@ -176,7 +181,7 @@ export const declineLead = defineTool({
         }
         // Spec §5 + ruling E: back to the pool, still verified; the agency and pool notice guards reset so the
         // platform is told again (and a later assignee's agency notice can go out).
-        await tx.update(lead).set({ agencyId: null, assignedBy: null, assignedAt: null, agencyNotifiedAt: null, poolNotifiedAt: null, updatedAt: now }).where(eq(lead.id, row.id));
+        await tx.update(lead).set({ agencyId: null, decidedBy: ctx.userId, decidedAt: now, assignedBy: null, assignedAt: null, agencyNotifiedAt: null, poolNotifiedAt: null, updatedAt: now }).where(eq(lead.id, row.id));
         return 'pooled' as const;
       }
       await tx.update(lead).set({ status: 'declined', decidedBy: ctx.userId, decidedAt: now, updatedAt: now }).where(eq(lead.id, row.id));

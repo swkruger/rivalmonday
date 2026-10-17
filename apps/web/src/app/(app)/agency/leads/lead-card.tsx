@@ -32,9 +32,9 @@ export interface LeadView {
 export const PLATFORM_NOTE = 'This lead goes back to the pool.';
 const fieldCls = 'h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
-/** "From your website" for the agency's own intake link; "From {platform}" for a lead the platform assigned. */
-export function sourceLabel(source: LeadView['source'], platformName: string): string {
-  return source === 'agency_link' ? 'From your website' : `From ${platformName}`;
+/** "From your website" for the agency's own intake link; a lead the platform assigned is "From the platform" (agency pages never name Rival Monday). */
+export function sourceLabel(source: LeadView['source']): string {
+  return source === 'agency_link' ? 'From your website' : 'From the platform';
 }
 
 function Preview({ preview }: { preview: LeadPreview }) {
@@ -96,7 +96,7 @@ function DeclineForm({ lead, onCancel }: { lead: LeadView; onCancel: () => void 
   );
 }
 
-export function LeadCard({ lead, verticals, platformName }: { lead: LeadView; verticals: VerticalOption[]; platformName: string }) {
+export function LeadCard({ lead, verticals }: { lead: LeadView; verticals: VerticalOption[] }) {
   const [mode, setMode] = useState<'accept' | 'decline' | null>(null);
   const date = new Date(lead.when).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
   return (
@@ -108,7 +108,7 @@ export function LeadCard({ lead, verticals, platformName }: { lead: LeadView; ve
             {lead.address && <p className="text-sm text-muted-foreground">{lead.address}</p>}
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary">{sourceLabel(lead.source, platformName)}</Badge>
+            <Badge variant="secondary">{sourceLabel(lead.source)}</Badge>
             <span className="text-xs text-muted-foreground">{date}</span>
           </div>
         </div>

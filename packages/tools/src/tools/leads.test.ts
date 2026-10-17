@@ -140,7 +140,8 @@ describe('decline_lead', () => {
   it('decline platform lead returns it to the pool and agency can no longer read it', async () => {
     const id = await mkLead({ source: 'platform', assignedBy: 'op', assignedAt: new Date(), agencyNotifiedAt: new Date() });
     await expect(call(admin, 'decline_lead', { leadId: id, notify: true })).resolves.toEqual({ ok: true });
-    expect(await leadRow(id)).toMatchObject({ agencyId: null, status: 'verified', assignedBy: null, assignedAt: null, agencyNotifiedAt: null });
+    expect(await leadRow(id)).toMatchObject({ agencyId: null, status: 'verified', assignedBy: null, assignedAt: null, agencyNotifiedAt: null, decidedBy: 'admin' });
+    expect((await leadRow(id)).decidedAt).toBeInstanceOf(Date);
     expect((await fails(call(admin, 'get_lead', { leadId: id }))).code).toBe('not_found');
     expect((await call<{ leads: unknown[] }>(admin, 'list_leads', {})).leads).toHaveLength(0);
     // Never the agency-branded "declined" mail to a lead that goes back to the pool.
@@ -220,6 +221,8 @@ describe('list_leads / get_lead', () => {
   it('get_lead returns the detail with a suggested vertical; unverified and foreign leads are not_found', async () => {
     const a = await mkLead();
     const out = await call<{ id: string; suggestedVerticalId: string | null; lookup: SetupLookup }>(admin, 'get_lead', { leadId: a });
+    const listed = await call<{ leads: { id: string; suggestedVerticalId: string | null }[] }>(admin, 'list_leads', {});
+    expect(listed.leads.find((l) => l.id === a)!.suggestedVerticalId).toBe('dental');
     expect(out).toMatchObject({ id: a, suggestedVerticalId: 'dental', lookup: { placeId: 'pl-smith-1' } });
     const u = await mkLead({ email: 'u@x.co', status: 'unverified', verifiedAt: null });
     expect((await fails(call(admin, 'get_lead', { leadId: u }))).code).toBe('not_found');

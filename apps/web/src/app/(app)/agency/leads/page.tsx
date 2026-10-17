@@ -25,6 +25,7 @@ interface Summary {
   decidedAt: Date | string | null;
   createdAt: Date | string;
   clientId: string | null;
+  suggestedVerticalId: string | null;
 }
 
 const TABS = [
@@ -48,23 +49,15 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   if (!isAgencyRole(ctx.role) || ctx.clientScope !== 'all') notFound();
   const tabKey = one((await searchParams).tab);
   const tab = TABS.find((t) => t.key === tabKey) ?? TABS[0];
-  const { leads: all } = await callTool<{ leads: Summary[] }>(ctx, 'list_leads', {});
-  const counts: Record<Status, number> = { verified: 0, accepted: 0, declined: 0 };
-  for (const l of all) counts[l.status] += 1;
-  const shown = all.filter((l) => l.status === tab.status);
+  // One status-filtered read per tab (a single unfiltered list would drop older New leads past the tool's cap while the badge counts them).
+  const lists = await Promise.all(TABS.map((t) => callTool<{ leads: Summary[] }>(ctx, 'list_leads', { status: t.status })));
+  const counts = Object.fromEntries(TABS.map((t, i) => [t.status, lists[i]!.leads.length])) as Record<Status, number>;
+  const shown = lists[TABS.indexOf(tab)]!.leads;
   const verticals = await verticalOptions();
-  // The suggested service type only matters while a lead is undecided.
-  const suggested = new Map<string, string | null>();
-  if (tab.status === 'verified') {
-    await Promise.all(shown.map(async (l) => {
-      const d = await callTool<{ suggestedVerticalId: string | null }>(ctx, 'get_lead', { leadId: l.id });
-      suggested.set(l.id, d.suggestedVerticalId);
-    }));
-  }
   const views: LeadView[] = shown.map((l) => ({
     id: l.id, source: l.source, status: l.status, ref: l.ref, businessName: l.businessName, address: l.address, contactName: l.contactName,
     email: l.email, phone: l.phone, message: l.message, preview: l.preview, clientId: l.clientId,
-    when: iso(l.status === 'verified' ? l.verifiedAt ?? l.createdAt : l.decidedAt ?? l.createdAt), suggestedVerticalId: suggested.get(l.id) ?? null,
+    when: iso(l.status === 'verified' ? l.verifiedAt ?? l.createdAt : l.decidedAt ?? l.createdAt), suggestedVerticalId: l.suggestedVerticalId,
   }));
 
   return (
@@ -88,7 +81,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       ) : (
         <div className="flex flex-col gap-4">
           {views.map((v) => (
-            <LeadCard key={v.id} lead={v} verticals={verticals} platformName="the platform" />
+            <LeadCard key={v.id} lead={v} verticals={verticals} />
           ))}
         </div>
       )}

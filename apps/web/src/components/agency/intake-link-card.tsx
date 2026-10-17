@@ -18,8 +18,9 @@ const fieldCls = 'h-9 rounded-md border border-input bg-transparent px-3 text-sm
 export const BUTTON_TEXT = 'Get your free competitor snapshot';
 
 /** The snippet an agency pastes into its website (inline styles only: it must work in any page builder). */
+const escapeAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 export function buttonHtml(url: string): string {
-  return `<a href="${url}" style="display:inline-block;background:#47A8E7;color:#ffffff;font-family:Inter,Arial,sans-serif;font-weight:700;font-size:16px;line-height:1;text-decoration:none;padding:14px 22px;border-radius:8px">${BUTTON_TEXT}</a>`;
+  return `<a href="${escapeAttr(url)}" style="display:inline-block;background:#47A8E7;color:#ffffff;font-family:Inter,Arial,sans-serif;font-weight:700;font-size:16px;line-height:1;text-decoration:none;padding:14px 22px;border-radius:8px">${BUTTON_TEXT}</a>`;
 }
 
 function CopyButton({ text, label }: { text: string; label: string }) {
