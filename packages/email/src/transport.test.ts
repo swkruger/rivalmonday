@@ -3,7 +3,7 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createConsoleTransport, createEmailTransportFromEnv, createFileTransport, createPostmarkTransport, isPostmarkTestServer, PermanentEmailError, POSTMARK_URL } from './transport';
+import { cleanCc, createConsoleTransport, createEmailTransportFromEnv, createFileTransport, createPostmarkTransport, isPostmarkTestServer, PermanentEmailError, POSTMARK_URL } from './transport';
 
 const msg = { from: 'Acme <briefs@acme.example>', to: 'pat@a1.example', replyTo: 'sam@acme.example', subject: 'S', html: '<p>h</p>', text: 'h', tag: 'alert', metadata: { notification: 'n1' } };
 const scope = { agencyId: 'a', clientId: 'c' };
@@ -80,6 +80,47 @@ describe('postmark transport', () => {
     expect(err).toBeInstanceOf(Error);
     expect(err).not.toBeInstanceOf(PermanentEmailError);
     expect(l.calls.map((c) => [c.ok, c.costUsd])).toEqual([[false, null], [false, null]]);
+  });
+});
+
+describe('cc (11b §3)', () => {
+  it('cleanCc drops invalid, duplicate and to-address entries and caps at 5', () => {
+    expect(cleanCc(undefined, 'pat@a1.example')).toEqual([]);
+    expect(cleanCc([' Sam@A1.example ', 'sam@a1.example', 'PAT@a1.example', 'nope', 'a@b', 'x y@a1.example', 'bad,@a1.example', '<e@a1.example>', ''], 'Pat@A1.example')).toEqual(['sam@a1.example']);
+    expect(cleanCc(['1@a.example', '2@a.example', '3@a.example', '4@a.example', '5@a.example', '6@a.example'], 'pat@a1.example')).toEqual(['1@a.example', '2@a.example', '3@a.example', '4@a.example', '5@a.example']);
+    // the cap applies after dropping, so invalid entries don't use up slots
+    expect(cleanCc(['bad', 'pat@a1.example', '1@a.example', '1@a.example', '2@a.example', '3@a.example', '4@a.example', '5@a.example', '6@a.example'], 'pat@a1.example')).toHaveLength(5);
+  });
+
+  it('postmark request carries Cc only when non-empty', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const fetch = (async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)));
+      return reply(200, { ErrorCode: 0, MessageID: 'pm-1' })();
+    }) as unknown as typeof globalThis.fetch;
+    const t = createPostmarkTransport({ token: 't', ledger: ledger().sink, fetch });
+    await t.send({ ...msg, cc: ['sam@a1.example', 'lee@a1.example'] }, scope);
+    await t.send({ ...msg, cc: [] }, scope);
+    await t.send(msg, scope);
+    expect(bodies[0]).toMatchObject({ Cc: 'sam@a1.example, lee@a1.example' });
+    expect(bodies[1]).not.toHaveProperty('Cc');
+    expect(bodies[2]).not.toHaveProperty('Cc');
+  });
+
+  it('file transport records cc', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'outbox-'));
+    await createFileTransport(dir).send({ ...msg, cc: ['sam@a1.example'] }, scope);
+    const json = (await readdir(dir)).find((f) => f.endsWith('.json'))!;
+    expect(JSON.parse(await readFile(join(dir, json), 'utf8'))).toMatchObject({ cc: ['sam@a1.example'] });
+  });
+
+  it('console transport prints cc when present', async () => {
+    const lines: string[] = [];
+    const t = createConsoleTransport((l) => lines.push(l));
+    await t.send({ ...msg, cc: ['sam@a1.example'] }, scope);
+    await t.send(msg, scope);
+    expect(lines[0]).toContain('cc=sam@a1.example');
+    expect(lines[1]).not.toContain('cc=');
   });
 });
 

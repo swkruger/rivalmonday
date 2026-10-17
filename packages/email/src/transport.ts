@@ -16,6 +16,8 @@ export interface OutgoingEmail {
   stream?: 'outbound' | 'broadcast';
   /** Phase 10: extra headers, e.g. `List-Unsubscribe` on broadcast mail. */
   headers?: { Name: string; Value: string }[];
+  /** Phase 11b §3: copied addresses — always pass through `cleanCc` (Postmark rejects the whole message on one bad Cc). */
+  cc?: string[];
 }
 export interface EmailTransport {
   readonly kind: 'postmark' | 'file' | 'memory' | 'console';
@@ -23,6 +25,25 @@ export interface EmailTransport {
 }
 /** The address can never receive this message (invalid, inactive, suppressed): do not retry. */
 export class PermanentEmailError extends Error {}
+
+/** 11b constraint: at most this many Cc addresses per message. */
+export const MAX_CC = 5;
+/** Deliberately strict: no spaces, commas, angle brackets, quotes or semicolons, and a dotted domain. */
+const CC_EMAIL = /^[^@\s,;<>"'()[\]\\]+@[^@\s,;<>"'()[\]\\]+\.[^@\s,;<>"'()[\]\\]+$/;
+
+/** Lower-cased, trimmed, valid addresses only, deduped, never the `to` address, at most `MAX_CC` (cap applied after dropping). */
+export function cleanCc(cc: readonly string[] | undefined, to: string): string[] {
+  const self = to.trim().toLowerCase();
+  const out: string[] = [];
+  for (const raw of Array.isArray(cc) ? cc : []) { // a stored payload is untyped jsonb: never iterate a bare string
+    if (typeof raw !== 'string') continue;
+    const e = raw.trim().toLowerCase();
+    if (!CC_EMAIL.test(e) || e === self || out.includes(e)) continue;
+    out.push(e);
+    if (out.length === MAX_CC) break;
+  }
+  return out;
+}
 
 export const POSTMARK_URL = 'https://api.postmarkapp.com/email';
 /** Postmark's documented sandbox token: accepted, never delivered. */
@@ -50,7 +71,7 @@ export function createPostmarkTransport(opts: { token: string; ledger: LedgerSin
           headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Postmark-Server-Token': opts.token },
           // Tracking off (decision 13): link tracking would rewrite the signed deep links; open tracking adds a pixel.
           body: JSON.stringify({
-            From: msg.from, To: msg.to, ReplyTo: msg.replyTo ?? undefined, Subject: msg.subject, HtmlBody: msg.html, TextBody: msg.text,
+            From: msg.from, To: msg.to, ...(msg.cc?.length && { Cc: msg.cc.join(', ') }), ReplyTo: msg.replyTo ?? undefined, Subject: msg.subject, HtmlBody: msg.html, TextBody: msg.text,
             MessageStream: msg.stream === 'broadcast' ? (opts.broadcastStream ?? 'broadcast') : (opts.messageStream ?? 'outbound'),
             TrackOpens: false, TrackLinks: 'None', Tag: msg.tag, Metadata: msg.metadata,
             ...(msg.headers?.length && { Headers: msg.headers }),
@@ -98,7 +119,7 @@ export function createConsoleTransport(log: (line: string) => void = console.log
     kind: 'console',
     async send(msg) {
       n++;
-      log(`[email:console] to=${msg.to} subject=${JSON.stringify(msg.subject)}
+      log(`[email:console] to=${msg.to}${msg.cc?.length ? ` cc=${msg.cc.join(',')}` : ''} subject=${JSON.stringify(msg.subject)}
 ${msg.text}`);
       return { providerId: `console:${n}` };
     },
