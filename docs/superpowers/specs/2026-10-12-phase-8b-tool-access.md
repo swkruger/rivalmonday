@@ -111,6 +111,10 @@ get_agency_profile (agency-onboarding.ts) | read | read (supportMask contactEmai
 update_agency_profile (agency-onboarding.ts) | write | updates agency + agency_profile
 upload_agency_logo (agency-onboarding.ts) | write | puts logos/<agency>/<sha>.png in object storage; updates agency.branding.logoUrl
 find_business (setup.ts) | read | paid vendor lookup, ledgered; refused under support sessions
+get_client_setup (setup.ts) | read | read
+save_setup_profile (setup.ts) | write | updates client profile + client_setup.last_changed_*; may start the first auto search
+pick_setup_competitors (setup.ts) | write | accepts/dismisses competitor suggestions (links competitors, enqueues discovery)
+advance_client_setup (setup.ts) | write | updates client_setup; start_search starts a discovery run
 get_billing_summary (billing.ts) | read | gateway reads only
 get_seat_report (billing.ts) | read | read
 create_checkout_session (billing.ts) | write | creates Stripe customer/session

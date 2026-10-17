@@ -1,10 +1,10 @@
 import { type AccessContext, appLinkFor, canAccessClient, toolkit, ToolError } from '@cs/core';
 import { ensureCompetitorSources, findExistingCompetitor, patchReusedCompetitor } from '@cs/collectors';
-import { ad, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, discoveryRun, trackedPage, type Tx, withTenant } from '@cs/db';
+import { ad, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, discoveryRun, type DiscoveryRunRow, trackedPage, type Tx, withTenant } from '@cs/db';
 import { and, asc, count, desc, eq, gt, inArray, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type ToolDeps } from '../deps';
-import { latestDoneRun, nextManualSearchAt, type SearchRefusal, startCompetitorSearch, weeklyLimitMessage } from '../rival-search';
+import { latestDoneRun, nextManualSearchAt, type SearchRefusal, type SearchStart, startCompetitorSearch, weeklyLimitMessage } from '../rival-search';
 import { detailOf, pageOf, pageResult } from '../paging';
 import { AdMatch, CompetitorSignalView, HiddenReason, pageFields, pagedItems, Signals, SuggestionView, Tier, TrackedCompetitor } from './schemas';
 
@@ -62,6 +62,42 @@ const hiddenCounts = (raw: Record<string, number> | null | undefined): Record<Hi
 
 const TIER_ORDER = sql`CASE ${competitorSuggestion.tier} WHEN 'top' THEN 0 WHEN 'watch' THEN 1 WHEN 'minor' THEN 2 ELSE 3 END`;
 
+type SuggestionRow = typeof competitorSuggestion.$inferSelect;
+type SuggestionStatus = 'suggested' | 'accepted' | 'dismissed';
+
+/**
+ * The suggestion set a client sees: the latest done run's suggestions plus those of any run started after it (live, or
+ * failed after writing them: its upsert moved run_id on, Ruling 11). Older runs' leftovers (and pre-12a rows, run_id
+ * NULL) stay hidden. Ordered Top rival → Worth watching → Minor, strongest overlap first; at most 100 rows.
+ * Shared by `list_competitor_suggestions` and the setup wizard (`get_client_setup`).
+ */
+export async function runSuggestionRows(tx: Pick<Tx, 'select'>, clientId: string, statuses: readonly SuggestionStatus[]): Promise<{ run: DiscoveryRunRow | null; rows: SuggestionRow[] }> {
+  const run = await latestDoneRun(tx, clientId);
+  if (!run) return { run: null, rows: [] };
+  const newer = (await tx.select({ id: discoveryRun.id }).from(discoveryRun).where(and(eq(discoveryRun.clientId, clientId), gt(discoveryRun.startedAt, run.startedAt)))).map((x) => x.id);
+  const rows = await tx.select().from(competitorSuggestion)
+    .where(and(eq(competitorSuggestion.clientId, clientId), inArray(competitorSuggestion.runId, [run.id, ...newer]), inArray(competitorSuggestion.status, [...statuses])))
+    .orderBy(TIER_ORDER, sql`${competitorSuggestion.overlap} DESC NULLS LAST`, desc(competitorSuggestion.overlapScore), desc(competitorSuggestion.appearances), asc(competitorSuggestion.id))
+    .limit(100);
+  return { run, rows };
+}
+
+/**
+ * D5: Top rivals are pre-ticked, strongest overlap first (`rows` already in display order), only up to the room left
+ * under the competitor limit — ticking every top rival could exceed it, and the all-or-nothing accept would refuse all.
+ */
+export function preTickTop<T extends { id: string; tier: string | null }>(rows: readonly T[], limit: number, tracked: number): Set<string> {
+  let room = Math.max(0, limit - tracked);
+  const ticked = new Set<string>();
+  for (const s of rows) {
+    if (room <= 0) break;
+    if (s.tier !== 'top') continue;
+    ticked.add(s.id);
+    room--;
+  }
+  return ticked;
+}
+
 export const listCompetitorSuggestions = defineTool({
   name: 'list_competitor_suggestions',
   access: 'read',
@@ -79,26 +115,13 @@ export const listCompetitorSuggestions = defineTool({
       const [c] = await tx.select({ limit: client.competitorLimit }).from(client).where(eq(client.id, clientId));
       if (!c) return null;
       const [tracked] = await tx.select({ n: count() }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId));
-      // The latest done run's suggestions plus those of any run started after it (live, or failed after writing them:
-      // its upsert moved run_id on, Ruling 11). Older runs' leftovers (and pre-12a rows, run_id NULL) stay hidden.
-      const run = await latestDoneRun(tx, clientId);
-      const newer = run
-        ? (await tx.select({ id: discoveryRun.id }).from(discoveryRun).where(and(eq(discoveryRun.clientId, clientId), gt(discoveryRun.startedAt, run.startedAt)))).map((x) => x.id)
-        : [];
-      const rows = run
-        ? await tx.select().from(competitorSuggestion)
-          .where(and(eq(competitorSuggestion.clientId, clientId), inArray(competitorSuggestion.runId, [run.id, ...newer]), eq(competitorSuggestion.status, 'suggested')))
-          .orderBy(TIER_ORDER, sql`${competitorSuggestion.overlap} DESC NULLS LAST`, desc(competitorSuggestion.overlapScore), desc(competitorSuggestion.appearances), asc(competitorSuggestion.id))
-          .limit(100)
-        : [];
+      const { run, rows } = await runSuggestionRows(tx, clientId, ['suggested']);
       return { limit: c.limit, tracked: tracked?.n ?? 0, run, rows };
     });
     if (!r) throw new ToolError('not_found', 'Client not found');
-    // D5: Top rivals are pre-ticked, strongest overlap first, up to the room left under the limit.
-    let room = Math.max(0, r.limit - r.tracked);
+    const ticked = preTickTop(r.rows, r.limit, r.tracked);
     const suggestions = r.rows.map((s) => {
-      const preselected = s.tier === 'top' && room > 0;
-      if (preselected) room--;
+      const preselected = ticked.has(s.id);
       return {
         id: s.id, name: s.name, domain: s.domain, placeId: s.placeId, rating: s.rating, votes: s.votes, appearances: s.appearances, bestRank: s.bestRank, overlapScore: s.overlapScore,
         tier: s.tier, category: s.category, distanceKm: s.distanceKm, signals: toSignals(s.signals),
@@ -114,7 +137,7 @@ export const listCompetitorSuggestions = defineTool({
 });
 
 /** Refusal copy for the manual search (daily cap copy decided in the 12a plan; weekly copy is `weeklyLimitMessage`). */
-const REFUSAL: Record<Exclude<SearchRefusal, 'weekly_limit'>, string> = {
+export const REFUSAL: Record<Exclude<SearchRefusal, 'weekly_limit'>, string> = {
   missing_profile: 'Add keywords, a service area and the Google place id to the client profile first',
   running: 'A competitor search is already running for this client',
   cooldown: 'A search just finished — its suggestions are below. You can search again in a few minutes.',
@@ -122,6 +145,11 @@ const REFUSAL: Record<Exclude<SearchRefusal, 'weekly_limit'>, string> = {
   service_paused: 'This client is paused. Resume it to search for competitors.',
   enqueue_failed: 'The search could not be started. Try again in a few minutes.',
 };
+
+/** The plain-words copy of a refused search start. */
+export function searchRefusalMessage(r: Extract<SearchStart, { refused: string }>): string {
+  return r.refused === 'weekly_limit' ? weeklyLimitMessage(r.nextLabel) : REFUSAL[r.refused];
+}
 
 export const requestCompetitorSuggestions = defineTool({
   name: 'request_competitor_suggestions',
@@ -135,7 +163,7 @@ export const requestCompetitorSuggestions = defineTool({
     const [c] = await withTenant(deps.app, ctx, (tx) => tx.select({ id: client.id }).from(client).where(eq(client.id, clientId)));
     if (!c) throw new ToolError('not_found', 'Client not found');
     const r = await startCompetitorSearch(deps, clientId, 'manual');
-    if ('refused' in r) throw new ToolError('invalid_input', r.refused === 'weekly_limit' ? weeklyLimitMessage(r.nextLabel) : REFUSAL[r.refused]);
+    if ('refused' in r) throw new ToolError('invalid_input', searchRefusalMessage(r));
     return { queued: true as const, runId: r.runId };
   },
 });
@@ -225,14 +253,17 @@ async function writeAccounts(tx: Tx, competitorId: string, before: { google: str
   if (Object.keys(patch).length > 0) await tx.update(competitor).set(patch).where(eq(competitor.id, competitorId));
 }
 
-type Accepted = { suggestionId: string; competitorId: string; discovery: Discovery };
+export type Accepted = { suggestionId: string; competitorId: string; discovery: Discovery };
+/** A caller's re-guard, run inside the write transaction right after the client row lock (Phase 11a wizard). */
+export type LockedRecheck = (tx: Tx) => Promise<void>;
 
 /**
  * Accepts suggestions of one client in ONE service transaction with the atomic limit check (12a; single and bulk
  * accept share it). Visibility is proved through RLS as the caller first. `strong` ad matches attach to the shared
- * competitor (append, no duplicates); `weak` ones wait in `client_competitor.pending_ad_matches` (D6).
+ * competitor (append, no duplicates); `weak` ones wait in `client_competitor.pending_ad_matches` (D6). Permission and
+ * feature checks are the caller's; `recheck` runs right after the client lock.
  */
-async function acceptSuggestions(ctx: AccessContext, deps: ToolDeps, clientId: string, ids: string[]): Promise<Accepted[]> {
+export async function acceptSuggestions(ctx: AccessContext, deps: ToolDeps, clientId: string, ids: string[], recheck?: LockedRecheck): Promise<Accepted[]> {
   if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Suggestion not found');
   const unique = [...new Set(ids)];
   const rows = await withTenant(deps.app, ctx, (tx) => tx.select().from(competitorSuggestion).where(inArray(competitorSuggestion.id, unique)));
@@ -241,6 +272,7 @@ async function acceptSuggestions(ctx: AccessContext, deps: ToolDeps, clientId: s
   const linked = await deps.service.transaction(async (tx) => {
     // Lock first, then read the tracked set and count, so nothing read below can be stale.
     const limit = await lockClientLimit(tx, clientId);
+    if (recheck) await recheck(tx);
     // Only open suggestions (re-read under the lock: a concurrent accept or dismiss may have changed them).
     const open = await tx.select({ id: competitorSuggestion.id }).from(competitorSuggestion).where(and(inArray(competitorSuggestion.id, unique), eq(competitorSuggestion.status, 'suggested')));
     if (open.length !== unique.length) throw new ToolError('not_found', 'Suggestion not found');
@@ -429,6 +461,28 @@ export const getCompetitorAdMatches = defineTool({
   },
 });
 
+/**
+ * Dismisses this client's still-open suggestions among `ids` through RLS (app_user may update `status` only); ids of
+ * other clients or no longer `suggested` are ignored. Returns the ids dismissed. Permission and feature checks are the
+ * caller's; with `recheck`, the client row is locked first and `recheck` runs right after, in the same transaction.
+ */
+export async function dismissSuggestions(ctx: AccessContext, deps: ToolDeps, clientId: string, ids: string[], recheck?: LockedRecheck): Promise<string[]> {
+  if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Suggestion not found');
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return [];
+  const rows = await withTenant(deps.app, ctx, async (tx) => {
+    if (recheck) {
+      const [c] = await tx.select({ id: client.id }).from(client).where(eq(client.id, clientId)).for('update');
+      if (!c) throw new ToolError('not_found', 'Client not found');
+      await recheck(tx);
+    }
+    return tx.update(competitorSuggestion).set({ status: 'dismissed' })
+      .where(and(inArray(competitorSuggestion.id, unique), eq(competitorSuggestion.clientId, clientId), eq(competitorSuggestion.status, 'suggested')))
+      .returning({ id: competitorSuggestion.id });
+  });
+  return rows.map((r) => r.id);
+}
+
 export const dismissCompetitorSuggestion = defineTool({
   name: 'dismiss_competitor_suggestion',
   access: 'write',
@@ -438,9 +492,10 @@ export const dismissCompetitorSuggestion = defineTool({
   permission: 'manage',
   feature: 'manage_competitors',
   async handler(ctx, { suggestionId }, deps) {
-    const rows = await withTenant(deps.app, ctx, (tx) =>
-      tx.update(competitorSuggestion).set({ status: 'dismissed' }).where(and(eq(competitorSuggestion.id, suggestionId), eq(competitorSuggestion.status, 'suggested'))).returning({ clientId: competitorSuggestion.clientId }));
-    if (!rows[0] || !canAccessClient(ctx, rows[0].clientId)) throw new ToolError('not_found', 'Suggestion not found');
+    const [s] = await withTenant(deps.app, ctx, (tx) => tx.select({ clientId: competitorSuggestion.clientId }).from(competitorSuggestion).where(eq(competitorSuggestion.id, suggestionId)));
+    if (!s) throw new ToolError('not_found', 'Suggestion not found');
+    const dismissed = await dismissSuggestions(ctx, deps, s.clientId, [suggestionId]);
+    if (dismissed.length === 0) throw new ToolError('not_found', 'Suggestion not found');
     return { dismissed: true as const };
   },
 });

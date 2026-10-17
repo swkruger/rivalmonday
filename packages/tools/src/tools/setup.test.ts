@@ -1,10 +1,14 @@
 import type { MapsPlace } from '@cs/collectors';
 import { type AccessContext, type CallScope, createAccessContext } from '@cs/core';
-import { vendorCall } from '@cs/db';
+import { client, clientCompetitor, clientSetup, competitorSuggestion, discoveryRun, vendorCall, withTenant } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { EnqueueJob } from '../deps';
 import { FIND_BUSINESS_DAILY_CAP } from '../setup/lookup';
+import type { SetupState } from '../setup/state';
 import { createToolRegistry } from '../registry';
+import { closedSetupRecheck, reportedSuggestions } from './setup';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -83,5 +87,402 @@ describe('find_business', () => {
     expect(e.code).toBe('internal');
     expect(e.message).toBe('Business search is not configured');
     expect(e.userFacing).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// Phase 11a Task 7: wizard tools.
+
+const wizEnqueue = vi.fn<EnqueueJob>(async () => {});
+const wiz = () => createToolRegistry({ app: dbs.app, service: dbs.service, enqueue: wizEnqueue }, { audit: { record: async () => {} } });
+const ownerA1 = mk('client_owner', [IDS.clientA1]);
+const viewerA1 = mk('client_viewer', [IDS.clientA1]);
+const adminB = createAccessContext({ agencyId: IDS.agencyB, userId: 'u-admin-b', role: 'agency_admin', clientScope: 'all', features: [] });
+const AREA = { center: { lat: 32.44, lng: -97.79 }, radiusKm: 10, zips: [] };
+const PROFILE = { keywords: ['ac repair'], serviceArea: AREA, placeId: 'ChIJa1hvacplace1' };
+type Out = { state: SetupState; searchRefusal?: string | null };
+type GetOut = Out & {
+  lookup: unknown; suggestions: { status: string };
+  competitorSuggestions: { id: string; tier: string; status: string; preTicked: boolean }[];
+  vertical: { services: { id: string; name: string }[]; seedKeywords: string[] };
+};
+
+const setupRow = (v: Partial<typeof clientSetup.$inferInsert> = {}) => dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, ...v });
+const setupOf = async () => (await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, IDS.clientA1)))[0]!;
+const fillProfile = () => dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+const runs = () => dbs.owner.select().from(discoveryRun).where(eq(discoveryRun.clientId, IDS.clientA1));
+const statuses = async () => Object.fromEntries((await dbs.owner.select().from(competitorSuggestion)).map((x) => [x.id, x.status]));
+
+type RunStatus = typeof discoveryRun.$inferInsert['status'];
+async function run(status: RunStatus, o: { trigger?: 'manual' | 'auto'; finishedAt?: Date | null; clientId?: string } = {}): Promise<string> {
+  const finishedAt = o.finishedAt === undefined ? (status === 'done' || status === 'failed' ? new Date(Date.now() - 3_600_000) : null) : o.finishedAt;
+  const [r] = await dbs.owner.insert(discoveryRun).values({
+    agencyId: IDS.agencyA, clientId: o.clientId ?? IDS.clientA1, trigger: o.trigger ?? 'auto', status, finishedAt,
+    startedAt: new Date((finishedAt ?? new Date()).getTime() - 600_000),
+  }).returning({ id: discoveryRun.id });
+  return r!.id;
+}
+
+async function sug(runId: string, name: string, o: { tier?: 'top' | 'watch' | 'minor'; overlap?: number; status?: 'suggested' | 'accepted' | 'dismissed'; clientId?: string } = {}): Promise<string> {
+  const [s] = await dbs.owner.insert(competitorSuggestion).values({
+    agencyId: IDS.agencyA, clientId: o.clientId ?? IDS.clientA1, runId, name, placeId: `pl-${name.replace(/\W/g, '')}-place`, appearances: 4, bestRank: 2,
+    overlapScore: o.overlap ?? 0.5, status: o.status ?? 'suggested', tier: o.tier ?? 'top', overlap: o.overlap ?? 0.5, activity: 0.5, rating: 4.5, votes: 40,
+    distanceKm: 3.1, signals: { rating: 4.5 }, adMatches: [{ platform: 'google', accountId: 'AR1', name: 'x', strength: 'weak' }],
+  }).returning({ id: competitorSuggestion.id });
+  return s!.id;
+}
+
+const get = (ctx: AccessContext, clientId: string = IDS.clientA1) => wiz().invoke(ctx, 'get_client_setup', { clientId }) as Promise<GetOut>;
+const save = (ctx: AccessContext, input: Record<string, unknown>) => wiz().invoke(ctx, 'save_setup_profile', { clientId: IDS.clientA1, ...input }) as Promise<Out>;
+const pick = (ctx: AccessContext, accept: string[], dismiss: string[] = [], clientId: string = IDS.clientA1) =>
+  wiz().invoke(ctx, 'pick_setup_competitors', { clientId, accept, dismiss }) as Promise<Out>;
+const advance = (ctx: AccessContext, action: string, clientId: string = IDS.clientA1) => wiz().invoke(ctx, 'advance_client_setup', { clientId, action }) as Promise<Out>;
+
+describe('wizard tools', () => {
+  beforeEach(() => wizEnqueue.mockClear());
+
+  describe('assertSetupActor', () => {
+    it('client_owner can save profile while open', async () => {
+      await setupRow();
+      const out = await save(ownerA1, { keywords: ['furnace repair'] });
+      expect(out.state.open).toBe(true);
+      const [c] = await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1));
+      expect(c!.keywords).toEqual(['furnace repair']);
+      expect(await setupOf()).toMatchObject({ lastChangedBy: 'u-client_owner', lastChangedRole: 'client_owner' });
+    });
+
+    it('client_owner refused after completion (permission_denied)', async () => {
+      await setupRow({ completedAt: new Date() });
+      const id = await sug(await run('done'), 'Rival One');
+      expect((await fails(save(ownerA1, { keywords: ['x'] }))).code).toBe('permission_denied');
+      expect((await fails(pick(ownerA1, [id]))).code).toBe('permission_denied');
+      expect((await fails(advance(ownerA1, 'confirm_competitors'))).code).toBe('permission_denied');
+      expect((await fails(advance(ownerA1, 'start_search'))).code).toBe('permission_denied');
+      const [c] = await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1));
+      expect(c!.keywords).toEqual([]);
+      expect(await statuses()).toEqual({ [id]: 'suggested' });
+      expect((await setupOf()).competitorsDoneAt).toBeNull();
+    });
+
+    it('client_owner refused once dismissed; staff still allowed', async () => {
+      await setupRow({ dismissedAt: new Date() });
+      expect((await fails(save(ownerA1, { keywords: ['x'] }))).code).toBe('permission_denied');
+      await expect(save(admin, { keywords: ['heat pump'] })).resolves.toMatchObject({ state: { open: false } });
+    });
+
+    it('the in-transaction re-check refuses a client owner once the row closed (a concurrent completion wins)', async () => {
+      await setupRow();
+      const ownerCheck = (ctx: AccessContext) => withTenant(dbs.app, ctx, (tx) => closedSetupRecheck(ctx, IDS.clientA1)(tx));
+      await expect(ownerCheck(ownerA1)).resolves.toBeUndefined();
+      await dbs.owner.update(clientSetup).set({ completedAt: new Date() }).where(eq(clientSetup.clientId, IDS.clientA1));
+      await expect(ownerCheck(ownerA1)).rejects.toMatchObject({ code: 'permission_denied' });
+      await expect(ownerCheck(admin)).resolves.toBeUndefined();
+      await expect(dbs.service.transaction((tx) => closedSetupRecheck(ownerA1, IDS.clientA1)(tx))).rejects.toMatchObject({ code: 'permission_denied' });
+    });
+
+    it('client_viewer refused', async () => {
+      await setupRow();
+      // The registry hides `manage` tools from viewers (not_found, like an unknown tool).
+      expect((await fails(save(viewerA1, { keywords: ['x'] }))).code).toBe('not_found');
+      expect((await fails(advance(viewerA1, 'skip_search'))).code).toBe('not_found');
+      expect((await fails(get(viewerA1))).code).toBe('not_found');
+      expect((await setupOf()).skipped).toEqual([]);
+    });
+
+    it('other agency → not_found', async () => {
+      await setupRow();
+      const id = await sug(await run('done'), 'Rival One');
+      expect((await fails(get(adminB))).code).toBe('not_found');
+      expect((await fails(save(adminB, { keywords: ['x'] }))).code).toBe('not_found');
+      expect((await fails(pick(adminB, [id]))).code).toBe('not_found');
+      expect((await fails(pick(adminB, [], [id]))).code).toBe('not_found');
+      expect((await fails(advance(adminB, 'skip_search'))).code).toBe('not_found');
+      expect((await setupOf()).skipped).toEqual([]);
+      expect(await statuses()).toEqual({ [id]: 'suggested' });
+    });
+
+    it('a client owner of another client → not_found', async () => {
+      await setupRow();
+      const other = mk('client_owner', [IDS.clientA2]);
+      expect((await fails(get(other))).code).toBe('not_found');
+      expect((await fails(advance(other, 'skip_search'))).code).toBe('not_found');
+    });
+  });
+
+  describe('get_client_setup', () => {
+    it('get_client_setup payload has none of overlap_score/signals/ad_matches/appearances/best_rank/upsell_tag', async () => {
+      await setupRow({ suggestions: { status: 'ready', services: [{ value: 'ac_repair', quote: 'we fix ACs' }], keywords: [], sources: ['gbp'], generatedAt: new Date().toISOString() } });
+      await sug(await run('done'), 'Rival One');
+      for (const ctx of [admin, ownerA1]) {
+        const out = await get(ctx);
+        expect(out.competitorSuggestions).toHaveLength(1);
+        const keys = new Set<string>();
+        JSON.stringify(out, (k, v: unknown) => { keys.add(k); return v; });
+        for (const k of ['overlap_score', 'overlapScore', 'signals', 'ad_matches', 'adMatches', 'appearances', 'best_rank', 'bestRank', 'upsell_tag', 'upsellTag']) expect(keys.has(k)).toBe(false);
+        expect(Object.keys(out.competitorSuggestions[0]!).sort()).toEqual(['distanceKm', 'id', 'name', 'preTicked', 'rating', 'status', 'tier', 'votes']);
+      }
+    });
+
+    it('returns state, lookup, suggestions and the vertical services + seed keywords', async () => {
+      await setupRow();
+      const out = await get(admin);
+      expect(out.state).toMatchObject({ open: true, exists: true });
+      expect(out.lookup).toBeNull();
+      expect(out.suggestions).toEqual({ status: 'none' });
+      expect(out.vertical.seedKeywords).toEqual(['hvac contractor', 'ac repair', 'plumber']);
+      expect(out.vertical.services.length).toBeGreaterThan(5);
+      expect(Object.keys(out.vertical.services[0]!).sort()).toEqual(['id', 'name']);
+    });
+
+    it('get_client_setup not_found for client role once closed; staff still read it', async () => {
+      await setupRow({ completedAt: new Date() });
+      expect((await fails(get(ownerA1))).code).toBe('not_found');
+      await expect(get(admin)).resolves.toMatchObject({ state: { open: false } });
+    });
+
+    it('get_client_setup not_found for client_viewer', async () => {
+      await setupRow();
+      expect((await fails(get(viewerA1))).code).toBe('not_found');
+    });
+
+    it('a client without a setup row: staff read it as complete, a client owner gets not_found', async () => {
+      await expect(get(admin)).resolves.toMatchObject({ state: { exists: false, open: false }, suggestions: { status: 'none' } });
+      expect((await fails(get(ownerA1))).code).toBe('not_found');
+    });
+
+    it('get_client_setup reports a stale pending suggestion as failed', async () => {
+      await setupRow({ suggestions: { status: 'pending' }, createdAt: new Date(Date.now() - 16 * 60_000) });
+      expect((await get(admin)).suggestions).toEqual({ status: 'failed' });
+      expect((await setupOf()).suggestions).toEqual({ status: 'pending' }); // no DB write
+      await dbs.owner.update(clientSetup).set({ createdAt: new Date(Date.now() - 5 * 60_000) });
+      expect((await get(admin)).suggestions).toEqual({ status: 'pending' });
+    });
+
+    it('reportedSuggestions: only pending older than 15 minutes turns failed', () => {
+      const now = new Date('2026-10-16T12:00:00Z');
+      const at = (min: number) => new Date(now.getTime() - min * 60_000);
+      expect(reportedSuggestions({ status: 'pending' }, at(15.01), now)).toEqual({ status: 'failed' });
+      expect(reportedSuggestions({ status: 'pending' }, at(15), now)).toEqual({ status: 'pending' });
+      expect(reportedSuggestions({ status: 'none' }, at(60), now)).toEqual({ status: 'none' });
+      const ready = { status: 'ready' as const, services: [], keywords: [], sources: [], generatedAt: now.toISOString() };
+      expect(reportedSuggestions(ready, at(60), now)).toBe(ready);
+    });
+
+    it('lists suggested and accepted rows of the latest done run, never dismissed or older-run rows', async () => {
+      await setupRow();
+      await sug(await run('done', { finishedAt: new Date(Date.now() - 3 * 86_400_000) }), 'Old Run Rival');
+      const r = await run('done');
+      const kept = await sug(r, 'Kept', { tier: 'watch' });
+      const taken = await sug(r, 'Taken', { status: 'accepted' });
+      await sug(r, 'Gone', { status: 'dismissed' });
+      const out = await get(admin);
+      expect(out.competitorSuggestions.map((s) => [s.id, s.status])).toEqual([[taken, 'accepted'], [kept, 'suggested']]);
+      expect(out.competitorSuggestions.every((s) => !s.preTicked || s.status === 'suggested')).toBe(true);
+    });
+
+    it('preTicked respects the competitor limit room', async () => {
+      await setupRow();
+      await dbs.owner.update(client).set({ competitorLimit: 3 }).where(eq(client.id, IDS.clientA1)); // tracks X already → room 2
+      const r = await run('done');
+      const weak = await sug(r, 'Top Weak', { overlap: 0.6 });
+      const strong = await sug(r, 'Top Strong', { overlap: 0.9 });
+      const mid = await sug(r, 'Top Mid', { overlap: 0.7 });
+      const watch = await sug(r, 'Watch', { tier: 'watch', overlap: 0.95 });
+      const out = await get(admin);
+      expect(out.competitorSuggestions.filter((s) => s.preTicked).map((s) => s.id)).toEqual([strong, mid]);
+      expect(out.competitorSuggestions.map((s) => s.id)).toEqual([strong, mid, weak, watch]);
+    });
+  });
+
+  describe('save_setup_profile', () => {
+    it('profile save while a search is running starts no second search', async () => {
+      await setupRow();
+      await run('searching');
+      const out = await save(ownerA1, PROFILE);
+      expect(out.searchRefusal).toBeNull();
+      expect(await runs()).toHaveLength(1);
+      expect(wizEnqueue.mock.calls.filter((c) => c[0] === 'rival-search')).toHaveLength(0);
+      expect(out.state.steps).toMatchObject({ profile: 'done', search: 'running' });
+    });
+
+    it('completing the profile starts the first auto search', async () => {
+      await setupRow();
+      const out = await save(ownerA1, PROFILE);
+      expect(out.searchRefusal).toBeNull();
+      expect((await runs()).map((x) => x.trigger)).toEqual(['auto']);
+      expect(out.state.steps.search).toBe('running');
+    });
+
+    it('save_setup_profile returns searchRefusal when the auto start is refused', async () => {
+      await setupRow();
+      await dbs.owner.update(client).set({ pausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+      const out = await save(admin, PROFILE);
+      expect(out.searchRefusal).toBe('This client is paused. Resume it to search for competitors.');
+      expect(out.state.steps).toMatchObject({ profile: 'done', search: 'todo' });
+    });
+
+    it('never changes name or features (not part of the input)', async () => {
+      await setupRow();
+      await save(ownerA1, { name: 'Hijacked', features: ['dashboard'], keywords: ['ok'] });
+      const [c] = await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1));
+      expect(c!.name).toBe('A1 HVAC');
+      expect(c!.features).toEqual([]);
+      expect(c!.keywords).toEqual(['ok']);
+    });
+
+    it('a profile save that completes the last open step sets completed_at', async () => {
+      await setupRow({ skipped: ['search', 'competitors'] });
+      const out = await save(admin, PROFILE);
+      expect(out.state.open).toBe(false);
+      expect((await setupOf()).completedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('pick_setup_competitors', () => {
+    it('client owner can pick competitors without manage_competitors while open', async () => {
+      await setupRow();
+      const r = await run('done');
+      const a = await sug(r, 'Pick Me');
+      const d = await sug(r, 'Not Me');
+      const out = await pick(ownerA1, [a], [d]);
+      expect(out.state.open).toBe(true);
+      expect(await statuses()).toEqual({ [a]: 'accepted', [d]: 'dismissed' });
+      expect(await dbs.owner.select().from(clientCompetitor).where(eq(clientCompetitor.clientId, IDS.clientA1))).toHaveLength(2);
+      // Outside the wizard the same owner still needs the flag.
+      const e = await sug(r, 'Elsewhere');
+      expect((await fails(wiz().invoke(ownerA1, 'accept_competitor_suggestion', { suggestionId: e }))).code).toBe('not_found');
+    });
+
+    it('ids of another client are ignored/refused', async () => {
+      await setupRow();
+      const mine = await sug(await run('done'), 'Mine');
+      const theirs = await sug(await run('done', { clientId: IDS.clientA2 }), 'Theirs', { clientId: IDS.clientA2 });
+      expect((await fails(pick(admin, [mine, theirs]))).code).toBe('not_found'); // accept is all-or-nothing
+      await pick(admin, [], [theirs]); // dismiss filters by client: ignored
+      expect(await statuses()).toEqual({ [mine]: 'suggested', [theirs]: 'suggested' });
+    });
+
+    it('pick re-submitting an accepted id succeeds', async () => {
+      await setupRow();
+      const r = await run('done');
+      const a = await sug(r, 'Pick Me');
+      const b = await sug(r, 'Me Too');
+      await pick(ownerA1, [a]);
+      await expect(pick(ownerA1, [a, b])).resolves.toMatchObject({ state: { open: true } });
+      await expect(pick(ownerA1, [a, b])).resolves.toMatchObject({ state: { open: true } });
+      expect(await statuses()).toEqual({ [a]: 'accepted', [b]: 'accepted' });
+    });
+
+    it('refuses an id in both lists', async () => {
+      await setupRow();
+      const a = await sug(await run('done'), 'Both');
+      expect((await fails(pick(admin, [a], [a]))).code).toBe('invalid_input');
+    });
+  });
+
+  describe('advance_client_setup', () => {
+    it('dismiss refused for client_owner', async () => {
+      await setupRow();
+      expect((await fails(advance(ownerA1, 'dismiss'))).code).toBe('permission_denied');
+      expect((await setupOf()).dismissedAt).toBeNull();
+      const out = await advance(admin, 'dismiss');
+      expect(out.state.open).toBe(false);
+      expect((await setupOf()).dismissedAt).toBeInstanceOf(Date);
+    });
+
+    it('confirm twice keeps the first competitors_done_at', async () => {
+      await setupRow();
+      await advance(admin, 'confirm_competitors');
+      const first = (await setupOf()).competitorsDoneAt;
+      expect(first).toBeInstanceOf(Date);
+      await advance(admin, 'confirm_competitors');
+      await advance(admin, 'skip_competitors');
+      const row = await setupOf();
+      expect(row.competitorsDoneAt).toEqual(first);
+      expect(row).toMatchObject({ lastChangedBy: 'u-agency_admin', lastChangedRole: 'agency_admin' });
+    });
+
+    it('staff and owner confirming at once set competitors_done_at and completed_at once', async () => {
+      await fillProfile();
+      await setupRow({ skipped: ['search'] });
+      const results = await Promise.allSettled([advance(admin, 'confirm_competitors'), advance(ownerA1, 'confirm_competitors')]);
+      expect(results[0]!.status).toBe('fulfilled');
+      const row = await setupOf();
+      expect(row.completedAt).toBeInstanceOf(Date);
+      expect(row.competitorsDoneAt!.getTime()).toBeLessThanOrEqual(row.completedAt!.getTime());
+    });
+
+    it('completed_at set once all steps done/skipped', async () => {
+      await fillProfile();
+      await setupRow();
+      await advance(ownerA1, 'skip_search');
+      expect((await setupOf()).completedAt).toBeNull();
+      const out = await advance(ownerA1, 'skip_competitors');
+      expect(out.state).toMatchObject({ open: false, steps: { profile: 'done', search: 'skipped', competitors: 'skipped' } });
+      const row = await setupOf();
+      expect([...row.skipped].sort()).toEqual(['competitors', 'search']);
+      const at = row.completedAt;
+      expect(at).toBeInstanceOf(Date);
+      await advance(admin, 'confirm_competitors');
+      expect((await setupOf()).completedAt).toEqual(at);
+    });
+
+    it('a dismissed setup is never completed afterwards', async () => {
+      await fillProfile();
+      await setupRow({ skipped: ['search'], dismissedAt: new Date() });
+      await advance(admin, 'confirm_competitors');
+      expect((await setupOf()).completedAt).toBeNull();
+    });
+
+    it('start_search starts an auto run when search is todo', async () => {
+      await fillProfile();
+      await setupRow();
+      const out = await advance(ownerA1, 'start_search');
+      expect(out.searchRefusal).toBeNull();
+      expect((await runs()).map((x) => x.trigger)).toEqual(['auto']);
+      expect(wizEnqueue).toHaveBeenCalledWith('rival-search', expect.anything(), `rival:${IDS.clientA1}`);
+      expect(out.state.steps.search).toBe('running');
+      expect(await setupOf()).toMatchObject({ lastChangedRole: 'client_owner' });
+    });
+
+    it('start_search returns searchRefusal (cooldown) without throwing', async () => {
+      await fillProfile();
+      await setupRow();
+      await run('failed', { finishedAt: new Date(Date.now() - 60_000) });
+      const out = await advance(admin, 'start_search');
+      expect(out.searchRefusal).toBe('A search just finished — its suggestions are below. You can search again in a few minutes.');
+      expect(await runs()).toHaveLength(1);
+      expect(out.state.steps.search).toBe('blocked');
+    });
+
+    it('start_search ignores the manual weekly limit', async () => {
+      await fillProfile();
+      await setupRow();
+      await run('failed', { trigger: 'manual', finishedAt: new Date(Date.now() - 3_600_000) });
+      const out = await advance(admin, 'start_search');
+      expect(out.searchRefusal).toBeNull();
+      expect(await runs()).toHaveLength(2);
+    });
+
+    it('start_search refused (invalid_input) while a run is running/done', async () => {
+      await fillProfile();
+      await setupRow();
+      await run('searching');
+      expect((await fails(advance(admin, 'start_search'))).code).toBe('invalid_input');
+      await dbs.owner.update(discoveryRun).set({ status: 'done', finishedAt: new Date(Date.now() - 3_600_000) });
+      expect((await fails(advance(admin, 'start_search'))).code).toBe('invalid_input');
+      expect(await runs()).toHaveLength(1);
+    });
+
+    it('start_search with an incomplete profile returns the missing-profile copy', async () => {
+      await setupRow();
+      const out = await advance(admin, 'start_search');
+      expect(out.searchRefusal).toBe('Add keywords, a service area and the Google place id to the client profile first');
+      expect(await runs()).toHaveLength(0);
+    });
+
+    it('refuses a client without a setup row (not_found)', async () => {
+      expect((await fails(advance(admin, 'skip_search'))).code).toBe('not_found');
+    });
   });
 });

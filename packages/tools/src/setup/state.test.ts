@@ -86,6 +86,13 @@ describe('getSetupState / completeIfDone', () => {
     expect((await dbs.owner.select().from(clientSetup))[0]!.completedAt).toEqual(NOW);
   });
 
+  it('completeIfDone leaves a dismissed row without completed_at', async () => {
+    await profile();
+    await insertSetup({ skipped: ['search', 'competitors'], dismissedAt: NOW });
+    expect(await completeIfDone(dbs.service, IDS.clientA1, NOW)).toBe(false);
+    expect((await dbs.owner.select().from(clientSetup))[0]!.completedAt).toBeNull();
+  });
+
   it('completeIfDone does nothing while a step is open', async () => {
     await profile();
     await insertSetup({ skipped: ['search'] });

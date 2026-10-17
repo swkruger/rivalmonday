@@ -84,12 +84,13 @@ async function hasPending(db: Db, clientId: string): Promise<boolean> {
 
 /**
  * Sets `completed_at` once profile, search and competitors are each done or skipped. Guarded UPDATE: never overwrites
- * or clears an existing `completed_at`. Pass a service-role tx (`app_user` can't write). Returns true if it just closed.
+ * or clears an existing `completed_at`, and never completes a dismissed row (its starting-point clock must not move to
+ * activation, spec §9). Pass a service-role tx (`app_user` can't write). Returns true if it just closed.
  */
 export async function completeIfDone(tx: Db, clientId: string, now: Date): Promise<boolean> {
   const s = await getSetupState(tx, clientId);
   if (!s.exists || s.completedAt) return false;
   if (!Object.values(s.steps).every((v) => v === 'done' || v === 'skipped')) return false;
-  const done = await tx.update(clientSetup).set({ completedAt: now }).where(and(eq(clientSetup.clientId, clientId), isNull(clientSetup.completedAt))).returning({ id: clientSetup.clientId });
+  const done = await tx.update(clientSetup).set({ completedAt: now }).where(and(eq(clientSetup.clientId, clientId), isNull(clientSetup.completedAt), isNull(clientSetup.dismissedAt))).returning({ id: clientSetup.clientId });
   return done.length > 0;
 }
