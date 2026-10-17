@@ -12,8 +12,13 @@ describe('startingPointClockStart', () => {
     expect(startingPointClockStart({ activatedAt: ACTIVATED, createdAt: CREATED }, null, NOW)).toEqual(ACTIVATED);
     expect(startingPointClockStart({ activatedAt: null, createdAt: CREATED }, null, NOW)).toEqual(CREATED);
   });
-  it('keeps the activated_at clock once the setup is completed', () => {
-    expect(startingPointClockStart({ activatedAt: ACTIVATED, createdAt: CREATED }, { ...NONE, completedAt: day(1), competitorsDoneAt: day(2) }, NOW)).toEqual(ACTIVATED);
+  it('completed setup keeps the competitors-done clock', () => {
+    expect(startingPointClockStart({ activatedAt: ACTIVATED, createdAt: CREATED }, { ...NONE, completedAt: day(1), competitorsDoneAt: day(2) }, NOW)).toEqual(day(2));
+    expect(startingPointClockStart({ activatedAt: ACTIVATED, createdAt: CREATED }, { ...NONE, completedAt: day(1), dismissedAt: day(1) }, NOW)).toEqual(day(1));
+  });
+  it('backfilled completed row (no competitors_done_at) keeps the activation clock', () => {
+    expect(startingPointClockStart({ activatedAt: ACTIVATED, createdAt: CREATED }, { ...NONE, completedAt: day(1) }, NOW)).toEqual(ACTIVATED);
+    expect(startingPointClockStart({ activatedAt: null, createdAt: CREATED }, { ...NONE, completedAt: day(1) }, NOW)).toEqual(CREATED);
   });
   it('an open setup starts the clock at competitors_done_at', () => {
     expect(startingPointClockStart({ activatedAt: ACTIVATED, createdAt: CREATED }, { ...NONE, competitorsDoneAt: day(1) }, NOW)).toEqual(day(1));

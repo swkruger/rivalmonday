@@ -2,9 +2,9 @@
 export const SETUP_HOLD_DAYS = 14;
 
 /**
- * When the starting point's 48 h wait begins. A client without a setup row (old clients, tests) or with a completed setup keeps
- * `activated_at ?? created_at`; an open setup waits for competitors to be picked/skipped (or the setup dismissed), capped at
- * 14 days. `null` = not due yet.
+ * When the starting point's 48 h wait begins (D8). A setup row with `competitors_done_at` / `dismissed_at` starts the clock
+ * there, open or completed. A client without a setup row (old clients, tests) or with a completed row that has neither
+ * (backfilled) keeps `activated_at ?? created_at`; an open setup with neither waits, capped at 14 days. `null` = not due yet.
  */
 export function startingPointClockStart(
   c: { activatedAt: Date | null; createdAt: Date },
@@ -12,8 +12,9 @@ export function startingPointClockStart(
   now: Date,
 ): Date | null {
   const base = c.activatedAt ?? c.createdAt;
-  if (!s || s.completedAt) return base;
+  if (!s) return base;
   const start = s.competitorsDoneAt ?? s.dismissedAt;
   if (start) return start;
+  if (s.completedAt) return base; // backfilled rows for pre-existing clients
   return now.getTime() - base.getTime() >= SETUP_HOLD_DAYS * 864e5 ? base : null; // null = not due yet
 }
