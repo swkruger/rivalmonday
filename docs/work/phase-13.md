@@ -4,10 +4,10 @@
 **Spec:** 13b [2026-10-17-phase-13b-local-rankings-design](../superpowers/specs/2026-10-17-phase-13b-local-rankings-design.md); 13a none yet. Not in roadmap (add at merge).
 
 ## Status (overwrite)
-13b spec written 2026-10-17 (owner review pending). 13a not designed.
+13b spec approved 2026-10-17; 13b plan written (owner review pending). 13a not designed.
 
 ## Next (overwrite)
-Owner reviews 13b spec → 13b lean plan; brainstorm 13a (Q2–5, Q12).
+Owner reviews 13b plan (docs/superpowers/plans/2026-10-17-phase-13b-local-rankings.md) → execute after phase-11 merges; brainstorm 13a (Q2–5, Q12).
 
 ## Interfaces this branch adds or changes
 Migrations: next free at execution time (main 0064; phase-10 0065–0066; phase-11 next).
