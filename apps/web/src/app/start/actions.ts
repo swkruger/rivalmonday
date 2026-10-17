@@ -1,7 +1,7 @@
 'use server';
 import { ToolError } from '@cs/core';
-import { createLedgerSink, type SetupLookup } from '@cs/db';
-import { hashIp, intakeLookup, sendLeadEmail, submitIntake } from '@cs/tools';
+import { createLedgerSink } from '@cs/db';
+import { hashIp, intakeLookup, sendLeadEmail, type SignedIntakePlace, submitIntake } from '@cs/tools';
 import { headers } from 'next/headers';
 import { after } from 'next/server';
 import { z } from 'zod';
@@ -18,7 +18,8 @@ import { REF_RE, SLUG_RE } from './params';
  * nothing here logs an email, a token or a raw IP — `submitIntake` logs its own refusal reason.
  */
 
-export type LookupResult = { ok: true; places: SetupLookup[] } | { ok: false; error: string };
+/** Each place comes signed (revised ruling F); the form posts the picked one back unchanged in a hidden field. */
+export type LookupResult = { ok: true; places: SignedIntakePlace[] } | { ok: false; error: string };
 export interface SubmitState {
   error: string | null;
   done: boolean;
@@ -46,9 +47,10 @@ function slugOf(raw: unknown): { slug: string | null } | null {
 export async function lookupBusinessAction(input: { slug: string | null; name: string; location: string }): Promise<LookupResult> {
   const s = slugOf(input?.slug);
   if (!s) return { ok: false, error: GONE };
-  const ipHash = hashIp((await clientIp()) ?? 'unknown', webEnv().authSecret);
+  const secret = webEnv().authSecret;
+  const ipHash = hashIp((await clientIp()) ?? 'unknown', secret);
   try {
-    const r = await intakeLookup(toolDeps(), { slug: s.slug, name: String(input.name ?? ''), location: String(input.location ?? ''), ipHash }, new Date());
+    const r = await intakeLookup(toolDeps(), { slug: s.slug, name: String(input.name ?? ''), location: String(input.location ?? ''), ipHash, intakeSecret: secret }, new Date());
     if ('refused' in r) return { ok: false, error: r.refused === 'daily' ? DAILY : RATE };
     return { ok: true, places: r.places };
   } catch (e) {
@@ -95,7 +97,8 @@ export async function submitIntakeAction(_prev: SubmitState, formData: FormData)
     // A malformed slug gets the same page; submitIntake refuses an unknown link itself (and logs the reason word).
     const r = await submitIntake(deps, {
       slug: s ? s.slug : text(formData, 'slug'),
-      lookup: lookup as SetupLookup, // validated by submitIntake (setupLookupSchema)
+      lookup, // the signed place; submitIntake checks its shape, caps and signature
+      intakeSecret: env.authSecret,
       contactName,
       email: address,
       phone: text(formData, 'phone').trim() || undefined,

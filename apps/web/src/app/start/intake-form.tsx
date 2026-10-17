@@ -1,5 +1,5 @@
 'use client';
-import type { SetupLookup } from '@cs/db';
+import type { SignedIntakePlace } from '@cs/tools';
 import { Button, Input, Label } from '@cs/ui';
 import Script from 'next/script';
 import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
@@ -21,9 +21,9 @@ const textareaClass = 'min-h-20 w-full rounded-md border border-input bg-transpa
 export function IntakeForm({ slug, refCode, siteKey }: { slug: string | null; refCode: string | null; siteKey: string | null }) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
-  const [places, setPlaces] = useState<SetupLookup[] | null>(null);
+  const [places, setPlaces] = useState<SignedIntakePlace[] | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
-  const [picked, setPicked] = useState<SetupLookup | null>(null);
+  const [picked, setPicked] = useState<SignedIntakePlace | null>(null);
   const [searching, startSearch] = useTransition();
   const [state, submit, submitting] = useActionState<SubmitState, FormData>(submitIntakeAction, { error: null, done: false });
 
@@ -67,14 +67,15 @@ export function IntakeForm({ slug, refCode, siteKey }: { slug: string | null; re
 
       {places && places.length > 0 && (
         <ul className="flex flex-col gap-2" aria-label="Matching businesses">
-          {places.map((p) => {
-            const on = picked?.placeId === p.placeId;
+          {places.map((signed) => {
+            const p = signed.place;
+            const on = picked?.place.placeId === p.placeId;
             return (
               <li key={p.placeId}>
                 <button
                   type="button"
                   aria-pressed={on}
-                  onClick={() => setPicked(p)}
+                  onClick={() => setPicked(signed)}
                   className={`flex w-full flex-col gap-1 rounded-[14px] border border-muted-surface p-4 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${on ? 'ring-2 ring-secondary' : 'hover:bg-muted-surface'}`}
                 >
                   <span className="font-semibold">{p.title}</span>
@@ -91,13 +92,13 @@ export function IntakeForm({ slug, refCode, siteKey }: { slug: string | null; re
         </ul>
       )}
 
-      {picked && <ContactForm key={picked.placeId} place={picked} slug={slug} refCode={refCode} siteKey={siteKey} state={state} submit={submit} submitting={submitting} />}
+      {picked && <ContactForm key={picked.place.placeId} place={picked} slug={slug} refCode={refCode} siteKey={siteKey} state={state} submit={submit} submitting={submitting} />}
     </div>
   );
 }
 
 function ContactForm({ place, slug, refCode, siteKey, state, submit, submitting }: {
-  place: SetupLookup; slug: string | null; refCode: string | null; siteKey: string | null;
+  place: SignedIntakePlace; slug: string | null; refCode: string | null; siteKey: string | null;
   state: SubmitState; submit: (fd: FormData) => void; submitting: boolean;
 }) {
   const [f, setF] = useState({ contactName: '', email: '', phone: '', message: '', consent: false });
@@ -107,6 +108,7 @@ function ContactForm({ place, slug, refCode, siteKey, state, submit, submitting 
   return (
     <form action={submit} onReset={(e) => e.preventDefault()} className="flex flex-col gap-4 border-t border-muted-surface pt-6">
       {state.error && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{state.error}</p>}
+      {/* The signed lookup result, posted back unchanged: submitIntake refuses an edited or expired one. */}
       <input type="hidden" name="lookup" value={JSON.stringify(place)} />
       <input type="hidden" name="slug" value={slug ?? ''} />
       {refCode && <input type="hidden" name="ref" value={refCode} />}

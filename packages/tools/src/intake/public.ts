@@ -1,11 +1,12 @@
 import { ToolError } from '@cs/core';
-import { agency, type AgencyBranding, agencyServiceable, type Db, intakeLink, type LeadPreview, leadPreviewSchema, type SetupLookup, setupLookupSchema } from '@cs/db';
+import { agency, type AgencyBranding, agencyServiceable, type Db, intakeLink, type LeadPreview, leadPreviewSchema, setupLookupSchema } from '@cs/db';
 import { resolveBranding } from '@cs/email';
 import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type ToolDeps } from '../deps';
 import { toSetupLookup } from '../setup/lookup';
 import { hitRate, INTAKE_LIMITS } from './rate';
+import { intakeLookupSchema, type SignedIntakePlace, signedIntakePlaceSchema, signIntakePlace, verifyIntakePlace } from './signed';
 import { hashToken, newToken } from './tokens';
 
 // Phase 11c §3: public (unauthenticated) intake service functions, called by server actions — not registered tools.
@@ -28,19 +29,22 @@ const linkKey = (agencyId: string | null) => (agencyId ? `link:${agencyId}` : 'p
 const ipKey = (ipHash: string) => `ip:${ipHash}`;
 /** Submits have their own hourly budget (ruling: searching must not use up the visitor's submit). */
 const ipSubmitKey = (ipHash: string) => `ipsubmit:${ipHash}`;
+/** Submits also have a daily ceiling per link/platform page (same caps as lookups), so previews stay bounded. */
+const submitKey = (agencyId: string | null) => `submit:${agencyId ?? 'platform'}`;
 
 const LookupInput = z.object({ name: z.string().trim().min(1).max(120), location: z.string().trim().min(2).max(120) });
 
 /**
  * The 11a business lookup for a public visitor. Rate-limited per hashed IP (hourly → `rate`; submits have a separate budget)
  * and per link/platform page (UTC day → `daily`). Ruling A: always ledgered as platform cost (`agencyId: null`), so a public visitor can
- * never consume an agency's `find_business` daily cap.
+ * never consume an agency's `find_business` daily cap. Each place is signed for this page (revised ruling F; `intakeSecret` = the
+ * web auth secret, as for `hashIp`); a place over the intake field caps is dropped.
  */
 export async function intakeLookup(
   deps: ToolDeps,
-  input: { slug: string | null; name: string; location: string; ipHash: string },
+  input: { slug: string | null; name: string; location: string; ipHash: string; intakeSecret: string },
   now: Date,
-): Promise<{ places: SetupLookup[] } | { refused: 'rate' | 'daily' }> {
+): Promise<{ places: SignedIntakePlace[] } | { refused: 'rate' | 'daily' }> {
   const q = LookupInput.safeParse(input);
   if (!q.success) throw new ToolError('invalid_input', 'Enter a business name and a city or ZIP code.', { userFacing: true });
   const target = await resolveIntake(deps.service, input.slug);
@@ -60,8 +64,8 @@ export async function intakeLookup(
     throw new ToolError('internal', "Business search isn't available right now. Try again in a minute.", { userFacing: true });
   }
   const places = found.filter((p) => !p.closed).flatMap((p) => {
-    const l = toSetupLookup(p);
-    return l ? [l] : [];
+    const l = intakeLookupSchema.safeParse(toSetupLookup(p));
+    return l.success ? [signIntakePlace(l.data, input.slug, input.intakeSecret, now)] : [];
   }).slice(0, 5);
   return { places };
 }
@@ -69,7 +73,7 @@ export async function intakeLookup(
 const optionalText = (max: number) => z.string().trim().max(max).optional().transform((v) => (v ? v : null));
 
 const SubmitInput = z.object({
-  lookup: setupLookupSchema, // ruling F: browser-sent, validated, unsigned (the agency reviews before accepting)
+  lookup: signedIntakePlaceSchema, // revised ruling F: browser-sent, capped, and signed by intakeLookup (checked below)
   contactName: z.string().trim().min(1).max(120),
   email: z.string().trim().max(320).email().transform((v) => v.toLowerCase()),
   phone: optionalText(40),
@@ -85,20 +89,25 @@ const refused = (reason: string): { send: null } => {
 /**
  * Creates (or, for the same open agency/pool + email + place, refreshes) an unverified lead with a fresh single-use
  * verify token (48 h). Returns what the caller needs to send `lead_verify`; `send: null` on any refusal. The caller
- * shows the same page either way (no existence, dedupe or refusal leaks).
+ * shows the same page either way (no existence, dedupe or refusal leaks). `lookup` must be a place `intakeLookup` signed
+ * for this page less than an hour ago (else refused as `signature`); submits count against the IP hourly budget and the
+ * link/platform daily cap.
  */
 export async function submitIntake(
   deps: ToolDeps,
-  input: { slug: string | null; lookup: SetupLookup; contactName: string; email: string; phone?: string; message?: string; ref?: string; ipHash: string },
+  input: { slug: string | null; lookup: unknown; contactName: string; email: string; phone?: string; message?: string; ref?: string; ipHash: string; intakeSecret: string },
   now: Date,
 ): Promise<{ send: { leadId: string; verifyRaw: string } | null }> {
   const target = await resolveIntake(deps.service, input.slug);
   if (!target) return refused('link');
   const parsed = SubmitInput.safeParse(input);
   if (!parsed.success) return refused('invalid');
+  if (!input.intakeSecret || !verifyIntakePlace(parsed.data.lookup, input.slug, input.intakeSecret, now)) return refused('signature');
   if (!(await hitRate(deps.service, ipSubmitKey(input.ipHash), 'hour', INTAKE_LIMITS.ipPerHour, now))) return refused('rate');
+  const dayLimit = target.agencyId ? INTAKE_LIMITS.linkPerDay : INTAKE_LIMITS.platformPerDay;
+  if (!(await hitRate(deps.service, submitKey(target.agencyId), 'day', dayLimit, now))) return refused('daily');
 
-  const v = parsed.data;
+  const v = { ...parsed.data, lookup: parsed.data.lookup.place };
   const token = newToken();
   const expires = new Date(now.getTime() + VERIFY_TTL_MS).toISOString();
   const at = now.toISOString();

@@ -22,9 +22,10 @@ vi.mock('next/server', () => ({ after: (fn: () => unknown) => { m.after.push(fn)
 const { lookupBusinessAction, submitIntakeAction } = await import('./actions');
 
 const place = { placeId: 'p1', cid: null, title: 'Smith Dental', address: '1 Main St', city: 'Austin', category: 'Dentist', phone: null, domain: null, rating: 4.5, votes: 10, lat: 1, lng: 2 };
+const signed = { place, exp: 1_800_000_000_000, sig: 'a'.repeat(64) };
 const form = (o: Record<string, string | null> = {}) => {
   const f = new FormData();
-  const all: Record<string, string | null> = { slug: 'smith-co', lookup: JSON.stringify(place), contactName: 'Sam', email: 'sam@smith.co', phone: '', message: '', ref: '', consent: 'on', ...o };
+  const all: Record<string, string | null> = { slug: 'smith-co', lookup: JSON.stringify(signed), contactName: 'Sam', email: 'sam@smith.co', phone: '', message: '', ref: '', consent: 'on', ...o };
   for (const [k, v] of Object.entries(all)) if (v !== null) f.set(k, v);
   return f;
 };
@@ -38,15 +39,15 @@ beforeEach(() => {
   m.turnstile.mockResolvedValue(true);
   m.submit.mockResolvedValue({ send: { leadId: 'L1', verifyRaw: 'RAWTOKEN' } });
   m.send.mockResolvedValue(undefined);
-  m.lookup.mockResolvedValue({ places: [place] });
+  m.lookup.mockResolvedValue({ places: [signed] });
   m.turnstileCfg = {};
 });
 
 describe('lookupBusinessAction', () => {
   it('hashes the first forwarded hop and returns the places', async () => {
-    expect(await lookupBusinessAction({ slug: 'smith-co', name: 'Smith', location: 'Austin, TX' })).toEqual({ ok: true, places: [place] });
+    expect(await lookupBusinessAction({ slug: 'smith-co', name: 'Smith', location: 'Austin, TX' })).toEqual({ ok: true, places: [signed] });
     const [, input] = m.lookup.mock.calls[0]! as [unknown, { slug: string; ipHash: string; name: string }];
-    expect(input).toMatchObject({ slug: 'smith-co', name: 'Smith', location: 'Austin, TX' });
+    expect(input).toMatchObject({ slug: 'smith-co', name: 'Smith', location: 'Austin, TX', intakeSecret: 's'.repeat(40) });
     expect(input.ipHash).toMatch(/^[0-9a-f]{64}$/);
     expect(input.ipHash).not.toContain('203.0.113.9');
   });
@@ -85,7 +86,7 @@ describe('submitIntakeAction', () => {
     expect(m.turnstile.mock.calls[0]![1]).toBe('203.0.113.9');
     const [deps, input] = m.submit.mock.calls[0]! as [{ service: string }, Record<string, unknown>];
     expect(deps.service).toBe('svc');
-    expect(input).toMatchObject({ slug: 'smith-co', lookup: place, contactName: 'Sam', email: 'sam@smith.co', phone: '512 555 0100', message: 'More calls', ref: 'spring-ad' });
+    expect(input).toMatchObject({ slug: 'smith-co', lookup: signed, intakeSecret: 's'.repeat(40), contactName: 'Sam', email: 'sam@smith.co', phone: '512 555 0100', message: 'More calls', ref: 'spring-ad' });
     expect(input.ipHash).toMatch(/^[0-9a-f]{64}$/);
     expect(m.send).not.toHaveBeenCalled(); // runs in after()
     await flushAfter();

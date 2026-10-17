@@ -3,11 +3,12 @@ import { type CallScope, createAccessContext } from '@cs/core';
 import { agency, agencyBilling, intakeLink, lead, plan, type SetupLookup, vendorCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EnqueueJob, ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
 import { FIND_BUSINESS_DAILY_CAP } from '../setup/lookup';
 import { getPublicPreview, intakeLookup, resolveIntake, submitIntake, verifyIntake } from './public';
+import { INTAKE_SIG_TTL_MS, signIntakePlace } from './signed';
 import { hashToken } from './tokens';
 
 const dbs = openTestDbs();
@@ -50,9 +51,15 @@ beforeEach(async () => {
   };
 });
 
-const look = (slug: string | null, ipHash = 'iphash-1', now = NOW) => intakeLookup(deps, { slug, name: 'Acme', location: 'Austin, TX', ipHash }, now);
-const submit = (over: Partial<Parameters<typeof submitIntake>[1]> = {}, now = NOW) =>
-  submitIntake(deps, { slug: 'agency-a', lookup: lookup(), contactName: 'Pat', email: 'pat@example.com', ipHash: 'iphash-1', ...over }, now);
+const SECRET = 's'.repeat(40);
+const look = (slug: string | null, ipHash = 'iphash-1', now = NOW) => intakeLookup(deps, { slug, name: 'Acme', location: 'Austin, TX', ipHash, intakeSecret: SECRET }, now);
+type SubmitOver = Partial<Omit<Parameters<typeof submitIntake>[1], 'lookup'>> & { place?: SetupLookup; lookup?: unknown };
+/** Signs `place` (default `lookup()`) for the submit's slug, as intakeLookup would have; `lookup` posts a raw value instead. */
+const submit = ({ place, ...over }: SubmitOver = {}, now = NOW) => {
+  const slug = over.slug === undefined ? 'agency-a' : over.slug;
+  const signed = signIntakePlace(place ?? lookup(), slug, SECRET, now);
+  return submitIntake(deps, { slug, lookup: signed, contactName: 'Pat', email: 'pat@example.com', ipHash: 'iphash-1', intakeSecret: SECRET, ...over }, now);
+};
 const leads = () => dbs.service.select().from(lead);
 
 describe('resolveIntake', () => {
@@ -78,7 +85,17 @@ describe('resolveIntake', () => {
 describe('intakeLookup', () => {
   it('returns usable places only', async () => {
     const r = await look('agency-a');
-    expect('places' in r && r.places.map((p) => p.placeId)).toEqual(['p1']);
+    expect('places' in r && r.places.map((p) => p.place.placeId)).toEqual(['p1']);
+  });
+
+  it('signs each place for the page with a 1 h expiry; a place over the field caps is dropped', async () => {
+    deps.setupLookup = async () => [place(1), place(2, { title: 'x'.repeat(201) }), place(3, { address: 'y'.repeat(301) })];
+    const r = await look('agency-a');
+    if (!('places' in r)) throw new Error('expected places');
+    expect(r.places).toHaveLength(1);
+    expect(r.places[0]).toEqual(signIntakePlace(r.places[0]!.place, 'agency-a', SECRET, NOW));
+    expect(r.places[0]!.exp).toBe(NOW.getTime() + INTAKE_SIG_TTL_MS);
+    expect(r.places[0]!.sig).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it('lookup refused after 5 per IP per hour', async () => {
@@ -111,7 +128,7 @@ describe('intakeLookup', () => {
 
   it("intake lookups ledger with agency_id NULL and do not count toward find_business's daily cap", async () => {
     await dbs.owner.insert(vendorCall).values(Array.from({ length: FIND_BUSINESS_DAILY_CAP - 1 }, () => ({ agencyId: IDS.agencyA, clientId: null, vendor: 'dataforseo', operation: OP, units: 1, latencyMs: 1, ok: true })));
-    for (let i = 0; i < 5; i++) await intakeLookup(deps, { slug: 'agency-a', name: 'Acme', location: 'Austin', ipHash: `ip-${i}` }, new Date());
+    for (let i = 0; i < 5; i++) await intakeLookup(deps, { slug: 'agency-a', name: 'Acme', location: 'Austin', ipHash: `ip-${i}`, intakeSecret: SECRET }, new Date());
     expect(scopes.every((s) => s.agencyId === null && s.clientId === null)).toBe(true);
     const nullRows = await dbs.service.select().from(vendorCall).where(sql`${vendorCall.agencyId} IS NULL`);
     expect(nullRows).toHaveLength(5);
@@ -164,16 +181,62 @@ describe('submitIntake', () => {
     expect(await submit({ contactName: '' })).toEqual({ send: null });
     expect(await submit({ ref: 'bad ref!' })).toEqual({ send: null });
     expect(await submit({ message: 'x'.repeat(501) })).toEqual({ send: null });
-    expect(await submit({ lookup: { placeId: 'x' } as unknown as SetupLookup })).toEqual({ send: null });
+    expect(await submit({ lookup: { placeId: 'x' } })).toEqual({ send: null });
     expect(await leads()).toHaveLength(0);
+  });
+
+  it('a lookup signed by intakeLookup is accepted', async () => {
+    const r = await look('agency-a');
+    if (!('places' in r)) throw new Error('expected places');
+    const s = await submitIntake(deps, { slug: 'agency-a', lookup: r.places[0], contactName: 'Pat', email: 'pat@example.com', ipHash: 'iphash-1', intakeSecret: SECRET }, NOW);
+    expect(s.send).not.toBeNull();
+    expect((await leads())[0]!.lookup).toEqual(r.places[0]!.place);
+  });
+
+  it('refuses a tampered, unsigned, re-targeted or wrongly keyed lookup', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const good = signIntakePlace(lookup(), 'agency-a', SECRET, NOW);
+    expect(await submit({ lookup: { ...good, place: { ...good.place, title: 'Click https://evil.example now' } } })).toEqual({ send: null });
+    expect(await submit({ lookup: { ...good, exp: good.exp + 1 } })).toEqual({ send: null });
+    expect(await submit({ lookup: lookup() })).toEqual({ send: null }); // a bare, unsigned place
+    expect(await submit({ lookup: { ...good, sig: 'f'.repeat(64) } })).toEqual({ send: null });
+    expect(await submit({ slug: null, lookup: good })).toEqual({ send: null }); // signed for another page
+    expect(await submit({ lookup: signIntakePlace(lookup(), 'agency-a', 't'.repeat(40), NOW) })).toEqual({ send: null });
+    expect(await leads()).toHaveLength(0);
+    expect(warn.mock.calls.flat().filter((m) => m === '[intake] refused signature')).toHaveLength(5);
+    warn.mockRestore();
+  });
+
+  it('refuses an expired signature', async () => {
+    const signed = signIntakePlace(lookup(), 'agency-a', SECRET, NOW);
+    expect(await submit({ lookup: signed }, new Date(NOW.getTime() + INTAKE_SIG_TTL_MS + 1))).toEqual({ send: null });
+    expect((await submit({ lookup: signed }, new Date(NOW.getTime() + INTAKE_SIG_TTL_MS - 1))).send).not.toBeNull();
+  });
+
+  it('refuses an over-long or out-of-range field even when signed', async () => {
+    expect(await submit({ place: { ...lookup(), title: 'x'.repeat(201) } })).toEqual({ send: null });
+    expect(await submit({ place: { ...lookup(), placeId: 'p'.repeat(301) } })).toEqual({ send: null });
+    expect(await submit({ place: { ...lookup(), rating: 6 } })).toEqual({ send: null });
+    expect(await submit({ place: { ...lookup(), votes: -1 } })).toEqual({ send: null });
+    expect(await submit({ place: { ...lookup(), lat: 91 } })).toEqual({ send: null });
+    expect(await leads()).toHaveLength(0);
+  });
+
+  it('daily submit cap: 50 per link, 200 for the platform page (UTC day)', async () => {
+    for (let i = 0; i < 50; i++) expect((await submit({ ipHash: `ip-${i}`, place: lookup(`p${i}`) })).send).not.toBeNull();
+    expect(await submit({ ipHash: 'ip-x', place: lookup('px') })).toEqual({ send: null });
+    expect((await submit({ slug: null, ipHash: 'ip-y', place: lookup('py') })).send).not.toBeNull(); // own counter
+    expect((await submit({ ipHash: 'ip-z', place: lookup('pz') }, new Date('2026-10-18T00:00:00Z'))).send).not.toBeNull();
+    for (let i = 1; i < 200; i++) await submit({ slug: null, ipHash: `pip-${i}`, place: lookup(`q${i}`) });
+    expect(await submit({ slug: null, ipHash: 'pip-x', place: lookup('qx') })).toEqual({ send: null });
   });
 
   it('submits have their own hourly IP budget: 5 lookups then a submit still succeeds; the 6th submit is refused', async () => {
     for (let i = 0; i < 5; i++) await look('agency-a', 'iphash-9');
     expect(await look('agency-a', 'iphash-9')).toEqual({ refused: 'rate' });
     expect((await submit({ ipHash: 'iphash-9' })).send).not.toBeNull();
-    for (let i = 0; i < 4; i++) expect((await submit({ ipHash: 'iphash-9', lookup: lookup(`p${i + 2}`) })).send).not.toBeNull();
-    expect(await submit({ ipHash: 'iphash-9', lookup: lookup('p9') })).toEqual({ send: null });
+    for (let i = 0; i < 4; i++) expect((await submit({ ipHash: 'iphash-9', place: lookup(`p${i + 2}`) })).send).not.toBeNull();
+    expect(await submit({ ipHash: 'iphash-9', place: lookup('p9') })).toEqual({ send: null });
     expect(await leads()).toHaveLength(5);
   });
 });
@@ -227,7 +290,7 @@ describe('verifyIntake', () => {
     expect(row!.status).toBe('verified');
     expect(row!.preview).toEqual({ status: 'none' });
     const noQueue = { ...deps, enqueue: undefined };
-    const s2 = await submitIntake(noQueue, { slug: null, lookup: lookup('p2'), contactName: 'Q', email: 'q@example.com', ipHash: 'iphash-2' }, NOW);
+    const s2 = await submitIntake(noQueue, { slug: null, lookup: signIntakePlace(lookup('p2'), null, SECRET, NOW), contactName: 'Q', email: 'q@example.com', ipHash: 'iphash-2', intakeSecret: SECRET }, NOW);
     expect(await verifyIntake(noQueue, s2.send!.verifyRaw, NOW)).toHaveProperty('viewRaw');
   });
 
