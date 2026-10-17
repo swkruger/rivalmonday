@@ -4,7 +4,7 @@
 **Plan/spec:** [spec](../superpowers/specs/2026-10-17-phase-13b-local-rankings-design.md) · [plan](../superpowers/plans/2026-10-17-phase-13b-local-rankings.md) · phase brief + 13a: [phase-13.md](phase-13.md)
 
 ## Status (overwrite)
-2026-10-17: Tasks 0-16 built and task-reviewed on phase-13b; final whole-branch review next (run `test:affected` and `e2e:affected --base main`; demo's newest alert/top brief item is now the rank climb, so check no E2E spec asserts old content).
+2026-10-17: Tasks 0–15 built and task-reviewed; final whole-branch review next (run `test:affected` and `e2e:affected --base main`). Expect the demo's newest alert/top brief item to be the rank climb (verify in the final e2e run).
 
 ## Next (overwrite)
 Final whole-branch review + one fix wave, then `/rm-wrap-up`; `/rm-merge` only with the owner's go-ahead.
@@ -34,6 +34,8 @@ Execution rulings:
 - `tier_change` "no model call" means no `decide` call (embed still runs).
 - `ServiceAreaWrite` 2-40 applies even though legacy 41-80 radii fail resubmission (cs_dev has none).
 - Reviews trend legend is now name-sorted (P15).
+- Task 9 ran before Task 8 (serveRankMap needs get_geogrid.map).
+- scanRankings keeps its `depth` option inside the prospect override.
 - Trend/Compare delta ramp uses derived blue/amber families (brand #F5A524 failed light-end contrast 1.99:1).
 
 ## New backlog (target → item)
@@ -48,8 +50,8 @@ Execution rulings:
 2. Run the worker; save rank settings on the cs_dev client; map image appears under the grid with attribution.
 3. Scan now on a client near its cap: cap copy shows.
 4. Run `signals-weekly` once: a tier change event appears.
-5. Sign off undecided copy. Task 13: "Compare needs at least two scans."; "Average map rank · “{kw}”" + subtitle; "Change from the scan of {A} to the scan of {B}."; ChangeGrid aria summary; empty states "No rank history yet." / "No rank data in these scans."; tooltips. Task 14: sheet labels ("Keywords to scan (up to 5)", "Grid", 5×5/7×7, "Radius (km)"); "The scan could not be started. Try again in a few minutes."; cap fallback; "next week" fallback.
+5. Sign off undecided copy. Task 13: "Compare needs at least two scans."; "Average map rank · “{kw}”" + subtitle; "Change from the scan of {A} to the scan of {B}."; ChangeGrid aria summary; empty states "No rank history yet." / "No rank data in these scans."; tooltips. Task 14: sheet labels ("Keywords to scan (up to 5)", "Grid", 5×5/7×7, "Radius (km)"); "The scan could not be started. Try again in a few minutes."; cap fallback "This scan would exceed this client's monthly cost cap. …"; "next week" fallback.
 6. Note the reviews trend legend is now name-sorted ("You" no longer first).
 
 ## Mark for closure at merge (BACKLOG)
-GeoGrid defs/hatch/ragged rows; `get_geogrid` selected scan; `tier_change`; `rank_scan.status` CHECK; map tiles under the geo-grid; Legend pinned "You".
+GeoGrid defs/hatch/ragged rows; `get_geogrid` selected scan; `tier_change`; `rank_scan.status` CHECK (that part only); map tiles under the geo-grid (that part only); Legend pinned "You" (that part only).
