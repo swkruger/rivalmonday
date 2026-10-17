@@ -4,10 +4,10 @@
 **Plan/spec:** `docs/superpowers/{specs,plans}/` — 11a (`2026-10-15-…-11a-…-design`, `2026-10-16-…-11a-…`), 11b, 11c (all `2026-10-16-phase-11{b,c}-*`).
 
 ## Status (overwrite)
-2026-10-17: 11a done (0–14), 11b done (15–24). 11c done — final review + fix wave; branch ready for /rm-merge.
+2026-10-17: 11a, 11b, 11c done (Tasks 0–35, final reviews + fix waves).
 
 ## Next (overwrite)
-Owner approval, then `/rm-merge` (full unit + E2E there). Test DB `cs_phase_11_test`.
+Before merge: mask `phone` in `list_leads`/`get_lead` supportMask (like `list_pool_leads`). Then owner approval → `/rm-merge`. Test DB `cs_phase_11_test`.
 
 ## Interfaces this branch adds or changes
 Migrations: 0067 client_setup, 0068 client_setup_rls, 0069 last_changed_by → text, 0070 client_setup_invite, 0071 invited_by → text, **0072 leads, 0073 leads_rls**. Next free: 0074.
