@@ -31,6 +31,7 @@ Agency-owned, white-labelable SaaS that monitors the competitors of **local-serv
 - **Review decisions stay on Jev** until pilot agencies supply gold labels at volume. Don't change verifier τ (0.85) before labelling `verifier_decisions` samples.
 - **Competitor discovery (Phase 12):** vendor-only two-stage search, $3/run cap; auto-run once when a profile completes, then 1 manual search/client/week + monthly refresh; tiers Top rival / Worth watching / Minor; shared-row ad-account removal only by the sole tracker.
 - **Billing (Phase 9):** platform → agency via Stripe Billing (pilot / 30-day trial / $229 incl. 3 seats + $99/seat); agency → client via Stripe Connect Standard, direct charges, platform fee 0 by default; nothing client-facing names Rival Monday. Paused clients (`client.paused_at`) get no recurring work and no seat.
+- **Agency onboarding (Phase 10):** agencies may self-sign-up (open trial: 1 active client, weekly pages until a card is added) or join via invite links; verify-then-create; the wizard is skippable.
 - **Starting-point brief:** one per client, deterministic self-rules + verified why-it-matters only; quiet weeks carry a "Where you stand" scorecard.
 - Phase-local decisions live in each plan's "Decisions" — never re-open those either.
 

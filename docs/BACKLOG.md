@@ -74,9 +74,18 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Missed `account.application.deauthorized` → reconnect reuses a dead account id; admin only sees the generic Stripe-failure copy — *9b R24*
 - [ ] Per-agency browser-tab titles on client pages (root title "Rival Monday" leaks; only `/c/[id]/settings/billing` fixed) — *9b R18*
 - [ ] Review an annual billing option for agency → client subscriptions (9b ships monthly only) — *9b brainstorm*
-- [ ] 9a: `redeem_discount_code` doesn't check `discount_code.max_redemptions` on direct coupon attach; `syncSeats` unlocked (out-of-order syncs leave Stripe < DB until nightly reconcile); `applyBillingSignal` inserts a default pilot row on a null transition → `startAgencyTrial` returns early (**Phase 10 risk**); `billing_notice.last_error` may hold a recipient address; rows at max attempts abandoned silently (a `client-payment-link` keeps `params.checkoutUrl`); stale digest/outbox items delivered after reactivation (no age cap — owner call) — *9a ledger*
+- [ ] 9a: `redeem_discount_code` doesn't check `discount_code.max_redemptions` on direct coupon attach; `syncSeats` unlocked (out-of-order syncs leave Stripe < DB until nightly reconcile); `applyBillingSignal` inserts a default pilot row on a null transition → `startAgencyTrial` returns early (Phase 10 sign-up sidesteps it, R3); `billing_notice.last_error` may hold a recipient address; rows at max attempts abandoned silently (a `client-payment-link` keeps `params.checkoutUrl`); stale digest/outbox items delivered after reactivation (no age cap — owner call) — *9a ledger*
 - [ ] 9a: grant/extend live-subscription check outside the `adminSignal` tx (TOCTOU); daily seat-retry step lacks its own try; percentOff > 2 decimals rounded vs raw to Stripe; promo code left active in Stripe if the DB insert fails — *9a ledger*
 - [ ] Test hygiene (fold in when touching): hand-set `pausedAt` in tests, unasserted seat sync after auto-pause, `sendClient`/`sendAgencyClient` untested, `get_connect_overview` N+1, `get_client_revenue` duplicates `clientMrrCents`, reconcile doesn't stamp `lastStripeEventAt`, invited `set_client_price` with unchanged amount re-mails, `next_bill` can create a duplicate-amount price, Stripe reads inside the webhook tx, `new Stripe()` without explicit `apiVersion` — *9a/9b ledgers*
+
+## Phase 10 follow-ups (agency onboarding)
+- [ ] Delete superseded logo objects under `logos/<agency>/`; SVG `<!DOCTYPE`/`<!ENTITY` rejects Illustrator exports with "scripts or external links" copy (tweak copy) — *phase-10*
+- [ ] Existing member whose second-agency invite breaks lands on `/agency` with no explanation (`onboarding-start.ts` checks membership first) — *phase-10*
+- [ ] Welcome-email link may open the wrong wizard for a user with two open agencies; sign-up email subject echoes the typed agency name (strip URL-like text?) — *phase-10*
+- [ ] Checkout return doesn't mark the plan step; wizard skip/continue tool failures show 404; team step has no post-invite hint — *phase-10*
+- [ ] `/sign-up` pause read fails closed on DB error; invite email `expiresAt` recomputed (ms drift); `get_billing_summary` reads billing twice; `billing-notices.ts` repeats the admins+deliver pattern 5× — *phase-10*
+- [ ] `couponFor` ignores `max_redemptions` (Stripe enforces; exhausted coupon → Checkout error) — *phase-10*
+- [ ] Test hygiene: >120-char CHECK tests, `parseWebEnv` new-var test, funnel non-active `cardAdded` case, sequential double-run nudge test, refused-duplicate E2E fixed 3 s wait, mock-based console spies — *phase-10*
 
 ## Polish (small UI/UX fixes, any time)
 
@@ -144,6 +153,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Quarterly report verified only by tests — no client predates a quarter yet; check the first real one — *from 4b live verification*
 
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
+- [ ] Postmark broadcast stream (`POSTMARK_BROADCAST_STREAM`) must use unsubscribe handling **"None"** (else Postmark suppresses without setting `unsubscribed_at` and tips 406-retry) — *phase-10*
 - [ ] Support-session email says "Reply to this email" but `replyTo` is null (replies go to `EMAIL_FROM`) — needs a reply-to address/env var — *from 8b*
 - [ ] Register **rivalmonday.com** / **.ai**; trademark knockout search — *from HANDOVER §7*
 - [ ] Publish the bot page `https://rivalmonday.com/bot` — required before crawling any real competitor (never run `collect-once` without `--vendors` until then) — *from Phase 1/2 carry-over, HANDOVER §5 item 6*
@@ -158,6 +168,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ## Unscheduled / ideas
 
 ### Features
+- [ ] Public "request access" form / marketing landing page (declined for now) — *phase-10*
 - [ ] Console: activity `client_activated` lacks `clientName` (record activation, e.g. `client.activated_at`); `list_platform_activity` loads all sources per call (bound/paginate in SQL); agencies list silently capped at 100 (paging or notice) — *from 8a*
 - [ ] Cost APIs for Vercel / Cloudflare R2; Neon storage cost; costs CSV export; renewal reminders — *from 8c*
 - [ ] REST API (spec §8.1) — *from 6a*
