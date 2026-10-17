@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { alert, brief, changeEvent, client, eventScore, llmCall, move, moveEvent, recommendation } from '@cs/db';
+import { alert, brief, changeEvent, client, clientSetup, eventScore, llmCall, move, moveEvent, recommendation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -67,5 +67,24 @@ describe('get_portfolio', () => {
     await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2));
     const { items } = (await registry.invoke(admin, 'get_portfolio', {})) as { items: { clientId: string }[] };
     expect(items.map((i) => i.clientId)).toEqual([IDS.clientA1]);
+  });
+
+  it('rows carry setup progress only for open setups', async () => {
+    const base = { agencyId: IDS.agencyA };
+    await dbs.owner.insert(clientSetup).values([
+      { ...base, clientId: IDS.clientA1, skipped: ['search'] },
+      { ...base, clientId: IDS.clientA2, completedAt: new Date() },
+    ]);
+    const { items } = (await registry.invoke(admin, 'get_portfolio', {})) as { items: { clientId: string; setup: { open: boolean; doneSteps: number } | null }[] };
+    // A1: profile todo (the seed client has no place id), search skipped, competitors todo.
+    const a1 = items.find((i) => i.clientId === IDS.clientA1)!.setup;
+    expect(a1).toMatchObject({ open: true });
+    expect(a1!.doneSteps).toBeGreaterThanOrEqual(1);
+    expect(items.find((i) => i.clientId === IDS.clientA2)!.setup).toBeNull(); // completed
+  });
+
+  it('rows without a setup row have no setup', async () => {
+    const { items } = (await registry.invoke(admin, 'get_portfolio', {})) as { items: { setup: unknown }[] };
+    expect(items.every((i) => i.setup === null)).toBe(true);
   });
 });
