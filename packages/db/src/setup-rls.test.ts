@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { IDS, errorText, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
-import { clientSetup } from './schema';
+import { clientSetup, contact } from './schema';
 import { withTenant } from './tenant';
 
 const dbs = openTestDbs();
@@ -53,6 +53,24 @@ describe('client_setup RLS', () => {
       await errorText(dbs.service.insert(clientSetup).values({ clientId: IDS.clientA2, agencyId: IDS.agencyA, skipped: ['profile' as never] })),
     ).toMatch(/client_setup_skipped_check/);
     await dbs.service.insert(clientSetup).values({ clientId: IDS.clientA2, agencyId: IDS.agencyA, skipped: ['search', 'competitors'] });
+  });
+});
+
+describe('client_setup invite columns', () => {
+  it('skipped accepts invite and billing, rejects others', async () => {
+    await dbs.service.delete(clientSetup).where(sql`client_id = ${IDS.clientA2}`);
+    expect(
+      await errorText(dbs.service.insert(clientSetup).values({ clientId: IDS.clientA2, agencyId: IDS.agencyA, skipped: ['other' as never] })),
+    ).toMatch(/client_setup_skipped_check/);
+    await dbs.service.insert(clientSetup).values({ clientId: IDS.clientA2, agencyId: IDS.agencyA, skipped: ['search', 'competitors', 'invite', 'billing'] });
+  });
+
+  it('invited_contact_id is nulled when the contact is deleted', async () => {
+    const [c] = await dbs.service.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@e.co' }).returning();
+    await dbs.service.update(clientSetup).set({ invitedContactId: c!.id }).where(sql`client_id = ${IDS.clientA1}`);
+    await dbs.service.delete(contact).where(sql`id = ${c!.id}`);
+    const [r] = await dbs.service.select().from(clientSetup).where(sql`client_id = ${IDS.clientA1}`);
+    expect(r!.invitedContactId).toBeNull();
   });
 });
 

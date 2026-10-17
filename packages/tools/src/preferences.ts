@@ -14,7 +14,9 @@ export interface MyContactSettings {
   kinds: { kind: string; channels: Record<PersonalChannel, boolean> }[];
 }
 
-const kindsFor = (clientId: string | null): readonly string[] => (clientId ? CLIENT_KINDS : AGENCY_KINDS);
+/** Transactional kinds are not switchable preferences (Phase 11b). */
+const TRANSACTIONAL_KINDS: readonly string[] = ['client_invite', 'competitor_review'];
+const kindsFor = (clientId: string | null): readonly string[] => (clientId ? CLIENT_KINDS.filter((k) => !TRANSACTIONAL_KINDS.includes(k)) : AGENCY_KINDS);
 
 async function myContact(service: Db, userId: string, contactId: string) {
   const [c] = await service.select().from(contact).where(and(eq(contact.id, contactId), eq(contact.userId, userId)));

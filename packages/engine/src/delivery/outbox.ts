@@ -162,7 +162,7 @@ const quoteName = (s: string) => `"${s.replace(/["\\\r\n]/g, '')}"`;
 export function createEmailSender(opts: { transport: EmailTransport; fromAddress: string }): ChannelSender {
   return {
     async send(n) {
-      const p = n.payload as (EmailPayload & { replyTo: string | null }) | null;
+      const p = n.payload as (EmailPayload & { replyTo: string | null; cc?: string[] }) | null;
       if (!p || !n.address) throw new PermanentSendError('email notification without payload or address');
       const r = await renderEmail(p);
       const b = p.props.branding;

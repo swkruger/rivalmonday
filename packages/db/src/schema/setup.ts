@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { check, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
+import { contact } from './delivery';
 import { agency, client } from './tenancy';
 
 const ts = (name: string) => timestamp(name, { withTimezone: true });
@@ -41,7 +42,7 @@ export const setupSuggestionsSchema = z.discriminatedUnion('status', [
 export type SetupSuggestions = z.infer<typeof setupSuggestionsSchema>;
 
 export type SetupSource = 'staff' | 'agency_link' | 'platform_lead';
-export type SetupSkippedStep = 'search' | 'competitors';
+export type SetupSkippedStep = 'search' | 'competitors' | 'invite' | 'billing';
 
 /**
  * Phase 11a: per-client setup-wizard state. Tenant-readable (agency + client visibility), service-role written.
@@ -57,6 +58,9 @@ export const clientSetup = pgTable(
     suggestions: jsonb('suggestions').$type<SetupSuggestions>().notNull().default(sql`'{"status":"none"}'::jsonb`),
     skipped: text('skipped').array().$type<SetupSkippedStep[]>().notNull().default(sql`'{}'::text[]`),
     competitorsDoneAt: ts('competitors_done_at'),
+    /** Phase 11b: the contact invited as client owner from the wizard, and the staff auth user who invited them (Cc). */
+    invitedContactId: uuid('invited_contact_id').references(() => contact.id, { onDelete: 'set null' }),
+    invitedBy: uuid('invited_by'),
     completedAt: ts('completed_at'),
     dismissedAt: ts('dismissed_at'),
     lastChangedBy: text('last_changed_by'), // auth user id (Better Auth ids are text, not uuids)
@@ -66,7 +70,7 @@ export const clientSetup = pgTable(
   },
   (t) => [
     check('client_setup_source_check', sql`${t.source} IN ('staff','agency_link','platform_lead')`),
-    check('client_setup_skipped_check', sql`${t.skipped} <@ ARRAY['search','competitors']::text[]`),
+    check('client_setup_skipped_check', sql`${t.skipped} <@ ARRAY['search','competitors','invite','billing']::text[]`),
     index('client_setup_open_idx').on(t.agencyId).where(sql`${t.completedAt} IS NULL AND ${t.dismissedAt} IS NULL`),
   ],
 );

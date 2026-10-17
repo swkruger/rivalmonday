@@ -11,7 +11,7 @@ const clientFk = (t: { clientId: AnyPgColumn; agencyId: AnyPgColumn }) =>
 /** Delivery channels. 'sms' is reserved (Twilio, after Phase 4b): the CHECKs allow it, nothing creates or sends one yet. */
 export type Channel = 'in_app' | 'email' | 'slack' | 'teams';
 export type ContactRole = 'agency_admin' | 'account_manager' | 'client_owner' | 'client_viewer';
-export const CLIENT_KINDS = ['alert', 'alert_digest', 'brief', 'trend_report'] as const;
+export const CLIENT_KINDS = ['alert', 'alert_digest', 'brief', 'trend_report', 'client_invite', 'competitor_review'] as const;
 export const AGENCY_KINDS = ['am_alert', 'brief_ready', 'brief_failed', 'brief_overdue', 'setup_suggestions_ready', 'setup_client_changed', 'setup_idle', 'trend_report'] as const;
 export type NotificationKind = (typeof CLIENT_KINDS)[number] | (typeof AGENCY_KINDS)[number];
 export type NotificationStatus = 'pending' | 'sending' | 'sent' | 'failed';
@@ -135,7 +135,7 @@ export const notification = pgTable(
     link: text('link'),
     /** Email: the address; webhooks: NULL (the URL is read from agency_webhook at send time). */
     address: text('address'),
-    /** Email template input ({ template, props, replyTo }); rendered at send time. */
+    /** Email template input ({ template, props, replyTo, cc? }); rendered at send time. */
     payload: jsonb('payload').$type<Record<string, unknown> | null>(),
     status: text('status').notNull(),
     notBefore: ts('not_before').notNull().defaultNow(),

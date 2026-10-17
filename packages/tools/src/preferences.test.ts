@@ -21,6 +21,15 @@ beforeEach(async () => {
   [clientContact, agencyContact, someoneElse] = rows.map((r) => r.id) as [string, string, string];
 });
 
+describe('transactional kinds', () => {
+  it('client contact settings do not list client_invite or competitor_review', async () => {
+    const c = (await myNotificationSettings(dbs.service, 'u1')).find((x) => x.contactId === clientContact)!;
+    expect(c.kinds.map((k) => k.kind)).not.toContain('client_invite');
+    expect(c.kinds.map((k) => k.kind)).not.toContain('competitor_review');
+    await expect(setMyNotificationPref(dbs.service, 'u1', { contactId: clientContact, kind: 'client_invite', channel: 'email', enabled: false })).rejects.toThrow(/does not apply/);
+  });
+});
+
 describe('myNotificationSettings', () => {
   it('lists each of my contacts with the kinds of its audience, defaulting to on', async () => {
     await setMyNotificationPref(dbs.service, 'u1', { contactId: clientContact, kind: 'alert', channel: 'email', enabled: false });
