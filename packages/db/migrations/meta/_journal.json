@@ -505,6 +505,20 @@
       "when": 1792216415860,
       "tag": "0071_client_setup_invited_by_text",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1792229617155,
+      "tag": "0072_leads",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1792229625723,
+      "tag": "0073_leads_rls",
+      "breakpoints": true
     }
   ]
 }
