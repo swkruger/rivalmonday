@@ -1,13 +1,14 @@
-import { changeEvent, client, clientCompetitor, EMBEDDING_DIMENSIONS, eventScore, scoreFailure, withTenant } from '@cs/db';
+import { changeEvent, client, clientCompetitor, detectedChange, EMBEDDING_DIMENSIONS, eventScore, rankScan, scoreFailure, withTenant } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { loadVerticalPack } from '@cs/verticals';
 import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createFakeAi } from '../../test/fake-ai';
 import { day } from '../../test/seed';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
 import { MAX_STAGE_ATTEMPTS } from '../stage';
 import { findEngineWork } from '../sweep';
-import { createPackLoader } from '../tag/tag-stage';
+import { createPackLoader, tagChange } from '../tag/tag-stage';
 import { detailsSignature, factsSignature, scoreEvent } from './score-stage';
 
 const dbs = openTestDbs();
@@ -191,6 +192,22 @@ describe('tenant-private events and event age (Phase 3b)', () => {
     await scoreEvent({ db: dbs.service, packs }, id, { now: day(20) });
     const [a1] = await dbs.owner.select().from(eventScore).where(eq(eventScore.clientId, IDS.clientA1));
     expect(a1).toMatchObject({ route: 'brief', factors: { staleCap: true } });
+  });
+
+  it('a watch to top tier_change on a scan that finished 10+ days ago still routes alert through tag then score', async () => {
+    const [scan] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'done', finishedAt: day(-5) }).returning({ id: rankScan.id });
+    const [ch] = await dbs.service.insert(detectedChange).values({
+      competitorId: IDS.competitorX, source: 'rank', kind: 'modified', rankScanId: scan!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1,
+      blockKey: 'tier:2026-10-07', beforeText: 'Worth watching', afterText: 'Top rival', stageVersion: 1,
+      details: { changeType: 'tier_change', from: 'watch', to: 'top' },
+    }).returning({ id: detectedChange.id });
+    const tagged = await tagChange({ db: dbs.service, ai: createFakeAi(), packs }, ch!.id);
+    expect(tagged).toMatchObject({ ran: true });
+    const [ev] = await dbs.owner.select().from(changeEvent);
+    expect(ev?.occurredAt).toEqual(new Date('2026-10-07T00:00:00Z'));
+    await scoreEvent({ db: dbs.service, packs }, ev!.id, { now: NOW });
+    const [a1] = await dbs.owner.select().from(eventScore).where(eq(eventScore.clientId, IDS.clientA1));
+    expect(a1).toMatchObject({ route: 'alert', factors: { staleCap: false, needsReviewCap: false } });
   });
 });
 
