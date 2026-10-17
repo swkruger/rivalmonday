@@ -7,7 +7,7 @@
 2026-10-17: 11a, 11b, 11c done (Tasks 0–35, final reviews + fix waves).
 
 ## Next (overwrite)
-Before merge: mask `phone` in `list_leads`/`get_lead` supportMask (like `list_pool_leads`). Then owner approval → `/rm-merge`. Test DB `cs_phase_11_test`.
+`/rm-merge phase-11` (owner go-ahead 2026-10-17; phone now masked for support sessions, core `maskPhone`). Test DB `cs_phase_11_test`.
 
 ## Interfaces this branch adds or changes
 Migrations: 0067 client_setup, 0068 client_setup_rls, 0069 last_changed_by → text, 0070 client_setup_invite, 0071 invited_by → text, **0072 leads, 0073 leads_rls**. Next free: 0074.
