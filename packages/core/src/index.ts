@@ -1,5 +1,6 @@
 export * from './access';
 export * from './domain';
+export * from './geo';
 export * from './kb';
 export * from './ledger';
 export * from './links';
