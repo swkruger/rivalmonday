@@ -1,4 +1,4 @@
-import { ad, capture, changeEvent, client, eventScore, move, moveEvent, withTenant } from '@cs/db';
+import { ad, capture, changeEvent, client, eventScore, move, moveEvent, rankScan, withTenant } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -82,6 +82,48 @@ describe('updateMovesForClient', () => {
     await run(100);
     expect(await withTenant(dbs.app, { agencyId: IDS.agencyB, clientScope: 'all' }, (tx) => tx.select().from(move))).toEqual([]);
     expect(await withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: [IDS.clientA1] }, (tx) => tx.select().from(move))).toHaveLength(1);
+  });
+});
+
+describe('map climb moves', () => {
+  async function rankEvent(competitorId: string, scanId: string, at: number, before: number, after: number) {
+    const [e] = await dbs.service
+      .insert(changeEvent)
+      .values({
+        competitorId, agencyId: IDS.agencyA, clientId: IDS.clientA1, changeType: 'rank_change', channels: ['rank'], summary: 'ac repair moved up', confidence: 0.9, occurredAt: day(at),
+        details: { keyword: 'ac repair', scanId, top3PointsBefore: before, top3PointsAfter: after },
+      })
+      .returning({ id: changeEvent.id });
+    await dbs.service.insert(eventScore).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, eventId: e!.id, score: 60, route: 'brief', factors, packVersion: 1 });
+    return e!.id;
+  }
+  const scan = async (at: number, status: 'done' | 'failed' = 'done') => {
+    const [s] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status, startedAt: day(at), finishedAt: day(at) }).returning({ id: rankScan.id });
+    return s!.id;
+  };
+
+  it('opens a map_climb move for a tracked competitor from the client done scans', async () => {
+    const s = await scan(97);
+    await rankEvent(IDS.competitorX, s, 97, 0, 6);
+    await run(100);
+    const m = (await moves()).find((x) => x.moveType === 'map_climb');
+    expect(m).toMatchObject({ competitorId: IDS.competitorX, ruleVersion: 3 });
+    expect(m?.details.facts).toEqual({ keyword: 'ac repair', pointsGained: 6 });
+  });
+
+  it('a failed scan is not part of the adjacency chain', async () => {
+    const s = await scan(97, 'failed');
+    await rankEvent(IDS.competitorX, s, 97, 0, 6);
+    await run(100);
+    expect((await moves()).map((x) => x.moveType)).not.toContain('map_climb');
+  });
+
+  it("an untracked competitor's rank events open no move", async () => {
+    const s = await scan(97);
+    await rankEvent(IDS.competitorY, s, 97, 0, 9);
+    await run(100);
+    expect((await moves()).every((x) => x.competitorId !== IDS.competitorY)).toBe(true);
+    expect((await moves()).map((x) => x.moveType)).not.toContain('map_climb');
   });
 });
 

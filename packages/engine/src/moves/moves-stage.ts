@@ -1,10 +1,10 @@
 import type { ChangeType } from '@cs/core';
-import { agencyServiceable, clientServiceable, changeEvent, client, clientCompetitor, type Db, eventScore, move, type MoveDetails, moveEvent, type MoveStatus } from '@cs/db';
+import { agencyServiceable, clientServiceable, changeEvent, client, clientCompetitor, type Db, eventScore, move, type MoveDetails, moveEvent, type MoveStatus, rankScan } from '@cs/db';
 import { and, asc, eq, gte, isNull, lte, ne, sql } from 'drizzle-orm';
 import type { PackLoader } from '../tag/tag-stage';
 import { type AdActivity, detectMoves, MOVE_WINDOW_DAYS, type MoveEvent, type MoveFinding } from './rules';
 
-export const MOVES_RULE_VERSION = 2;
+export const MOVES_RULE_VERSION = 3;
 /** A move is 'active' once it has held this long … */
 export const ACTIVE_AFTER_DAYS = 7;
 /** … or straight away at this confidence. */
@@ -83,6 +83,13 @@ export async function updateMovesForClient(deps: { db: Db; packs: PackLoader }, 
   const since = new Date(now.getTime() - MOVE_WINDOW_DAYS * DAY_MS);
   const links = await deps.db.select({ competitorId: clientCompetitor.competitorId }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId));
   const r: MovesRunResult = { opened: 0, updated: 0, fading: 0, closed: 0 };
+  // The client's finished rank scans in the window, oldest → newest: map_climb adjacency is measured on this list.
+  const scanRows = await deps.db
+    .select({ id: rankScan.id })
+    .from(rankScan)
+    .where(and(eq(rankScan.clientId, clientId), eq(rankScan.status, 'done'), gte(rankScan.finishedAt, since), lte(rankScan.finishedAt, now)))
+    .orderBy(asc(rankScan.finishedAt), asc(rankScan.id));
+  const rankScans = scanRows.map((s) => s.id);
 
   for (const { competitorId } of links) {
     const rows = await deps.db
@@ -96,7 +103,7 @@ export async function updateMovesForClient(deps: { db: Db; packs: PackLoader }, 
     }));
     const findings = detectMoves(events, {
       now, verticalId: c.verticalId, clientServices: c.services, clientZips: c.serviceArea?.zips ?? [], clientTowns: c.serviceArea?.towns ?? [],
-      thresholds: pack.move_thresholds, ads: await adActivity(deps.db, competitorId, now), serviceNames,
+      thresholds: pack.move_thresholds, ads: await adActivity(deps.db, competitorId, now), serviceNames, rankScans,
     });
     const open = await deps.db.select().from(move).where(and(eq(move.clientId, clientId), eq(move.competitorId, competitorId), isNull(move.closedAt)));
 

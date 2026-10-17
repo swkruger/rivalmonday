@@ -15,7 +15,7 @@ describe('domain constants', () => {
 
   it('lists the spec move types', () => {
     expect(MOVE_TYPES).toEqual([
-      'territory_expansion', 'price_war', 'new_service_line', 'hiring_push', 'promo_blitz', 'reputation_slump', 'ad_surge',
+      'territory_expansion', 'price_war', 'new_service_line', 'hiring_push', 'promo_blitz', 'reputation_slump', 'ad_surge', 'map_climb',
     ]);
   });
 });

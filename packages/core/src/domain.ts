@@ -9,7 +9,7 @@ export const CHANNELS = ['web', 'google_ads', 'meta_ads', 'google_business_profi
 export type Channel = (typeof CHANNELS)[number];
 
 export const MOVE_TYPES = [
-  'territory_expansion', 'price_war', 'new_service_line', 'hiring_push', 'promo_blitz', 'reputation_slump', 'ad_surge',
+  'territory_expansion', 'price_war', 'new_service_line', 'hiring_push', 'promo_blitz', 'reputation_slump', 'ad_surge', 'map_climb',
 ] as const;
 export type MoveType = (typeof MOVE_TYPES)[number];
 

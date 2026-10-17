@@ -2,7 +2,7 @@ import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { day } from '../../test/seed';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
-import { AD_SURGE_MIN_HISTORY_WEEKS, detectMoves, type MoveContext, moveConfidence, type MoveEvent, ratingDrawdown } from './rules';
+import { AD_SURGE_MIN_HISTORY_WEEKS, detectMoves, MAP_CLIMB_POINTS_MIN, type MoveContext, moveConfidence, type MoveEvent, ratingDrawdown } from './rules';
 
 let hvac: VerticalPack;
 beforeAll(async () => {
@@ -14,7 +14,7 @@ const ev = (over: Partial<MoveEvent>): MoveEvent => ({
   id: `e${++n}`, changeType: 'content', channels: ['web'], occurredAt: day(95), services: { hvac_plumbing: null }, facts: [], zips: [], summary: '', details: {}, ...over,
 });
 const ctx = (over: Partial<MoveContext> = {}): MoveContext => ({
-  now, verticalId: 'hvac_plumbing', clientServices: ['ac_tune_up'], clientZips: ['75023'], clientTowns: ['Frisco'], thresholds: hvac.move_thresholds, ads: { activeNow: 2, baseline: 2, historyWeeks: 12 }, serviceNames: { water_heater: 'Water heater installation' }, ...over,
+  now, verticalId: 'hvac_plumbing', clientServices: ['ac_tune_up'], clientZips: ['75023'], clientTowns: ['Frisco'], thresholds: hvac.move_thresholds, ads: { activeNow: 2, baseline: 2, historyWeeks: 12 }, serviceNames: { water_heater: 'Water heater installation' }, rankScans: [], ...over,
 });
 const cut = (from: string, to: string) => diffFacts(extractNumericFacts(from), extractNumericFacts(to));
 const types = (events: MoveEvent[], c = ctx()) => detectMoves(events, c).map((f) => f.type);
@@ -126,5 +126,50 @@ describe('detectMoves', () => {
     expect(AD_SURGE_MIN_HISTORY_WEEKS).toBe(4);
     expect(types([started], ctx({ ads: { activeNow: 8, baseline: 0, historyWeeks: 3 } }))).not.toContain('ad_surge');
     expect(types([started], ctx({ ads: { activeNow: 8, baseline: 3, historyWeeks: 4 } }))).toContain('ad_surge');
+  });
+});
+
+describe('map climb', () => {
+  const scans = ['s1', 's2', 's3', 's4'];
+  const rank = (scanId: string, before: number, after: number, over: Partial<MoveEvent> = {}) =>
+    ev({ changeType: 'rank_change', channels: ['rank'], details: { keyword: 'ac repair', scanId, top3PointsBefore: before, top3PointsAfter: after }, ...over });
+  const mc = (events: MoveEvent[], c = ctx({ rankScans: scans })) => detectMoves(events, c).filter((f) => f.type === 'map_climb');
+
+  it('single event with exactly 5 points fires', () => {
+    expect(MAP_CLIMB_POINTS_MIN).toBe(5);
+    const e = rank('s2', 4, 9);
+    const [f] = mc([e]);
+    expect(f).toMatchObject({ type: 'map_climb', eventIds: [e.id], facts: { keyword: 'ac repair', pointsGained: 5 }, summary: 'Climbed into the map top 3 at 5 more points for "ac repair"' });
+  });
+  it('4 points does not', () => expect(mc([rank('s2', 4, 8)])).toEqual([]));
+  it('3 + 2 on adjacent scans fires', () => {
+    const a = rank('s2', 1, 4);
+    const b = rank('s3', 4, 6);
+    const [f] = mc([a, b]);
+    expect([...(f?.eventIds ?? [])].sort()).toEqual([a.id, b.id].sort());
+    expect(f?.facts).toMatchObject({ pointsGained: 5 });
+  });
+  it('3 + 2 with a scan between does not', () => expect(mc([rank('s1', 1, 4), rank('s3', 4, 6)])).toEqual([]));
+  it('negative gain never counts', () => {
+    expect(mc([rank('s1', 10, 2), rank('s2', 2, 4), rank('s3', 4, 6)])).toEqual([]); // a drop never tops up a climb
+  });
+  it('events outside the window ignored', () => {
+    expect(mc([rank('s2', 0, 9, { occurredAt: day(5) })])).toEqual([]); // older than 90 days
+    expect(mc([rank('s9', 0, 9)])).toEqual([]); // scan not among the window's done scans
+  });
+  it('first qualifying keyword by name wins', () => {
+    const [f] = mc([rank('s2', 0, 9, { details: { keyword: 'plumber', scanId: 's2', top3PointsBefore: 0, top3PointsAfter: 9 } }), rank('s2', 0, 6)]);
+    expect(f?.facts).toMatchObject({ keyword: 'ac repair' });
+  });
+
+  const gbp = ev({ changeType: 'new_location', channels: ['google_business_profile'], zips: ['75023'] });
+  it('map_climb counts as a territory signal with a gbp_area event', () => {
+    const out = detectMoves([gbp, rank('s2', 0, 9)], ctx({ rankScans: scans }));
+    const t = out.find((f) => f.type === 'territory_expansion');
+    expect(t?.summary).toBe('Expanding into your area (gbp_area, map)');
+    expect(t?.eventIds).toContain(gbp.id);
+  });
+  it('map signal alone never opens territory_expansion', () => {
+    expect(types([rank('s2', 0, 9)], ctx({ rankScans: scans }))).toEqual(['map_climb']);
   });
 });

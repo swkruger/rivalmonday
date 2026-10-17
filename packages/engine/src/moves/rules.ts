@@ -41,6 +41,8 @@ export interface MoveContext {
   ads: AdActivity;
   /** Service id → display name from the client's vertical pack (move summaries). */
   serviceNames: Record<string, string>;
+  /** The client's done rank scan ids that finished within `MOVE_WINDOW_DAYS`, oldest → newest (map_climb adjacency). */
+  rankScans: string[];
 }
 
 export interface MoveFinding {
@@ -102,7 +104,35 @@ export function ratingDrawdown(ratings: MoveEvent[]): number {
   return Math.round(drop * 100) / 100;
 }
 
-/** Evaluates the seven spec §6.4 move rules over one competitor's events for one client. */
+/** A rival must gain at least this many top-3 grid points (one scan, or two adjacent scans together) to be climbing the map. */
+export const MAP_CLIMB_POINTS_MIN = 5;
+
+/** First qualifying keyword by name; the best single event or adjacent-scan pair for it. `rankScans` is oldest → newest. */
+function mapClimb(events: MoveEvent[], rankScans: string[]): { keyword: string; points: number; support: MoveEvent[] } | null {
+  const byKeyword = new Map<string, { idx: number; gain: number; e: MoveEvent }[]>();
+  for (const e of events) {
+    const d = e.details;
+    if (e.changeType !== 'rank_change' || d.keyword === undefined || d.scanId === undefined || d.top3PointsBefore === undefined || d.top3PointsAfter === undefined) continue;
+    const idx = rankScans.indexOf(d.scanId);
+    if (idx < 0) continue;
+    byKeyword.set(d.keyword, [...(byKeyword.get(d.keyword) ?? []), { idx, gain: d.top3PointsAfter - d.top3PointsBefore, e }]);
+  }
+  for (const keyword of [...byKeyword.keys()].sort()) {
+    const climbs = byKeyword.get(keyword)!.filter((x) => x.gain > 0);
+    let best: { points: number; support: MoveEvent[] } | null = null;
+    const consider = (points: number, support: MoveEvent[]) => {
+      if (points >= MAP_CLIMB_POINTS_MIN && (!best || points > best.points)) best = { points, support };
+    };
+    for (const a of climbs) {
+      consider(a.gain, [a.e]);
+      for (const b of climbs) if (b.idx === a.idx + 1) consider(a.gain + b.gain, [a.e, b.e]);
+    }
+    if (best) return { keyword, ...(best as { points: number; support: MoveEvent[] }) };
+  }
+  return null;
+}
+
+/** Evaluates the eight move rules over one competitor's events for one client. */
 export function detectMoves(all: MoveEvent[], ctx: MoveContext): MoveFinding[] {
   const now = ctx.now;
   const t = ctx.thresholds;
@@ -110,11 +140,18 @@ export function detectMoves(all: MoveEvent[], ctx: MoveContext): MoveFinding[] {
   const service = (e: MoveEvent) => e.services[ctx.verticalId] ?? null;
   const out: MoveFinding[] = [];
 
+  // Map climb (Phase 13b) — a rival gained ≥ MAP_CLIMB_POINTS_MIN grid points in the map top 3 for a keyword, in
+  // one scan or across two adjacent scans. Evaluated first: its events also count as a territory signal below.
+  const climb = mapClimb(events, ctx.rankScans);
+  if (climb) out.push(finding('map_climb', climb.support, 1, `Climbed into the map top 3 at ${climb.points} more points for "${climb.keyword}"`, { keyword: climb.keyword, pointsGained: climb.points }));
+
   // Territory expansion — ≥ 2 kinds of signal referencing the client's ZIPs or towns, at least one of them a
   // service-area / location signal: ads and job posts naming the client's town alone mean already local.
   if (ctx.clientZips.length > 0 || ctx.clientTowns.length > 0) {
     const signals = new Map<string, MoveEvent[]>();
     const add = (kind: string, e: MoveEvent) => signals.set(kind, [...(signals.get(kind) ?? []), e]);
+    // The grid is the client's own area, so a climb needs no ZIP/town match; it never opens the move alone (web_area / gbp_area required).
+    for (const e of climb?.support ?? []) add('map', e);
     for (const e of events.filter((x) => touchesTerritory(x, ctx))) {
       if ((e.changeType === 'service_area_change' || e.changeType === 'new_location') && e.channels.includes('web')) add('web_area', e);
       if (e.changeType === 'new_location' && e.channels.includes('google_business_profile')) add('gbp_area', e);

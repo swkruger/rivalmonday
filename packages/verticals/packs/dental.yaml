@@ -121,6 +121,13 @@ playbooks:
     template: >-
       {{competitor}} has sharply increased advertising. Protect branded search terms and check that your new-patient
       offer is visible in the same areas.
+  - id: map_climb_defend
+    trigger: map_climb
+    title: Defend your map visibility
+    template: >-
+      {{competitor}} is climbing into the Google Maps top 3 across your area. Refresh your Google Business Profile
+      (photos, services, posts), ask recent customers for reviews, and check that your service-area pages cover the
+      places where they gained.
   - id: ask_for_reviews
     effort: L
     impact: H

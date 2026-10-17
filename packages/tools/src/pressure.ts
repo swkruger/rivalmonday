@@ -22,7 +22,7 @@ export interface CompetitorPressure {
 export const PRESSURE_WINDOW_DAYS = 30;
 export const MOVE_LABELS: Record<string, string> = {
   territory_expansion: 'Territory expansion', price_war: 'Price war', new_service_line: 'New service line', hiring_push: 'Hiring push',
-  promo_blitz: 'Promo blitz', reputation_slump: 'Reputation slump', ad_surge: 'Ad surge',
+  promo_blitz: 'Promo blitz', reputation_slump: 'Reputation slump', ad_surge: 'Ad surge', map_climb: 'Map climb',
 };
 const MOVE_STATUS_WEIGHT: Record<string, number> = { active: 0.8, emerging: 0.5, fading: 0.3 };
 
