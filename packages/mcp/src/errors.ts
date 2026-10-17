@@ -33,6 +33,7 @@ function mapError(e: unknown, what: string): Mapped {
       case 'billing_not_eligible':
       case 'connect_not_ready':
       case 'no_client_owner':
+      case 'slug_taken':
         return { code: e.code, message: e.message };
       case 'permission_denied':
         return { code: 'not_found', message: 'Not found' };

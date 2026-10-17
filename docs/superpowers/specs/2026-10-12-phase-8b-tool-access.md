@@ -116,6 +116,12 @@ save_setup_profile (setup.ts) | write | updates client profile + client_setup.la
 pick_setup_competitors (setup.ts) | write | accepts/dismisses competitor suggestions (links competitors, enqueues discovery)
 advance_client_setup (setup.ts) | write | updates client_setup; start_search starts a discovery run
 invite_client_owner (setup.ts) | write | creates invitation + contact, sets client_setup.invited_*, queues the client_invite email
+list_leads (leads.ts) | read | read (supportMask leads[].email, leads[].message)
+get_lead (leads.ts) | read | read (supportMask email, message)
+accept_lead (leads.ts) | write | creates prospect client + client_setup, updates lead, creates invitation + contact, queues client_invite, enqueues setup-suggestions
+decline_lead (leads.ts) | write | updates lead (back to pool or declined); sends the pool notice or the declined email directly
+get_intake_link (leads.ts) | read | read
+update_intake_link (leads.ts) | write | creates/updates intake_link
 get_billing_summary (billing.ts) | read | gateway reads only
 get_seat_report (billing.ts) | read | read
 create_checkout_session (billing.ts) | write | creates Stripe customer/session
