@@ -168,8 +168,14 @@ export const requestCompetitorSuggestions = defineTool({
   },
 });
 
-const RUN_STATUSES = ['queued', 'searching', 'checking', 'finalising', 'done', 'failed'] as const;
+export const RUN_STATUSES = ['queued', 'searching', 'checking', 'finalising', 'done', 'failed'] as const;
 const count0 = (n: number | undefined) => (typeof n === 'number' ? n : 0);
+export const SearchProgress = z.object({ searchesDone: z.number().int(), searchesTotal: z.number().int(), checksDone: z.number().int(), checksTotal: z.number().int() });
+
+/** A run's progress counters (missing ones read 0). Shared with the setup wizard's `get_client_setup.search`. */
+export function searchProgress(p: DiscoveryRunRow['progress']): z.infer<typeof SearchProgress> {
+  return { searchesDone: count0(p.searchesDone), searchesTotal: count0(p.searchesTotal), checksDone: count0(p.checksDone), checksTotal: count0(p.checksTotal) };
+}
 
 export const getCompetitorSearchStatus = defineTool({
   name: 'get_competitor_search_status',
@@ -182,7 +188,7 @@ export const getCompetitorSearchStatus = defineTool({
       status: z.enum(RUN_STATUSES),
       /** When the next manual "Find competitors" is allowed (one per client-local week); null when allowed now. */
       nextManualSearchAt: z.string().nullable(),
-      progress: z.object({ searchesDone: z.number().int(), searchesTotal: z.number().int(), checksDone: z.number().int(), checksTotal: z.number().int() }),
+      progress: SearchProgress,
       kept: z.number().int().nullable(),
       hidden: z.record(HiddenReason, z.number().int()),
       finishedAt: z.string().nullable(),
@@ -201,11 +207,10 @@ export const getCompetitorSearchStatus = defineTool({
     if (!r) throw new ToolError('not_found', 'Client not found');
     const { run, next } = r;
     if (!run) return { status: 'none' as const, nextManualSearchAt: next };
-    const p = run.progress;
     return {
       status: run.status,
       nextManualSearchAt: next,
-      progress: { searchesDone: count0(p.searchesDone), searchesTotal: count0(p.searchesTotal), checksDone: count0(p.checksDone), checksTotal: count0(p.checksTotal) },
+      progress: searchProgress(run.progress),
       kept: run.kept, hidden: hiddenCounts(run.hidden), finishedAt: run.finishedAt?.toISOString() ?? null,
     };
   },

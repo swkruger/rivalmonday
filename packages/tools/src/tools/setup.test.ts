@@ -103,6 +103,7 @@ const PROFILE = { keywords: ['ac repair'], serviceArea: AREA, placeId: 'ChIJa1hv
 type Out = { state: SetupState; searchRefusal?: string | null };
 type GetOut = Out & {
   lookup: unknown; suggestions: { status: string };
+  search: { status: string; progress: Record<string, number>; kept: number | null; finishedAt: string | null } | null;
   competitorSuggestions: { id: string; tier: string; status: string; preTicked: boolean }[];
   vertical: { services: { id: string; name: string }[]; seedKeywords: string[] };
 };
@@ -212,15 +213,41 @@ describe('wizard tools', () => {
   describe('get_client_setup', () => {
     it('get_client_setup payload has none of overlap_score/signals/ad_matches/appearances/best_rank/upsell_tag', async () => {
       await setupRow({ suggestions: { status: 'ready', services: [{ value: 'ac_repair', quote: 'we fix ACs' }], keywords: [], sources: ['gbp'], generatedAt: new Date().toISOString() } });
-      await sug(await run('done'), 'Rival One');
+      const r = await run('done');
+      await sug(r, 'Rival One');
+      // Internal run data that must never reach the payload (hidden names/reasons, cost, vendor error text).
+      await dbs.owner.update(discoveryRun).set({
+        hidden: { chain: 2 }, costUsd: 1.23, error: 'vendor said no',
+        progress: { searchesDone: 9, searchesTotal: 9, checksDone: 5, checksTotal: 5, hiddenList: [{ name: 'Secret Chain', reason: 'chain' }] },
+      }).where(eq(discoveryRun.id, r));
       for (const ctx of [admin, ownerA1]) {
         const out = await get(ctx);
         expect(out.competitorSuggestions).toHaveLength(1);
         const keys = new Set<string>();
-        JSON.stringify(out, (k, v: unknown) => { keys.add(k); return v; });
-        for (const k of ['overlap_score', 'overlapScore', 'signals', 'ad_matches', 'adMatches', 'appearances', 'best_rank', 'bestRank', 'upsell_tag', 'upsellTag']) expect(keys.has(k)).toBe(false);
+        const json = JSON.stringify(out, (k, v: unknown) => { keys.add(k); return v; });
+        for (const k of ['overlap_score', 'overlapScore', 'signals', 'ad_matches', 'adMatches', 'appearances', 'best_rank', 'bestRank', 'upsell_tag', 'upsellTag', 'hidden', 'hiddenList', 'costUsd', 'cost_usd', 'error']) expect(keys.has(k)).toBe(false);
+        expect(json).not.toContain('Secret Chain');
+        expect(json).not.toContain('vendor said no');
         expect(Object.keys(out.competitorSuggestions[0]!).sort()).toEqual(['distanceKm', 'id', 'name', 'preTicked', 'rating', 'status', 'tier', 'votes']);
+        expect(Object.keys(out.search!).sort()).toEqual(['finishedAt', 'kept', 'progress', 'status']);
+        expect(Object.keys(out.search!.progress).sort()).toEqual(['checksDone', 'checksTotal', 'searchesDone', 'searchesTotal']);
       }
+    });
+
+    it('get_client_setup includes search progress while a run is running', async () => {
+      await setupRow();
+      const r = await run('checking');
+      await dbs.owner.update(discoveryRun).set({ progress: { searchesDone: 9, searchesTotal: 9, checksDone: 2 } }).where(eq(discoveryRun.id, r));
+      for (const ctx of [admin, ownerA1]) {
+        const out = await get(ctx);
+        expect(out.search).toEqual({ status: 'checking', progress: { searchesDone: 9, searchesTotal: 9, checksDone: 2, checksTotal: 0 }, kept: null, finishedAt: null });
+        expect(out.state.steps.search).toBe('running');
+      }
+    });
+
+    it('search is null without a run', async () => {
+      await setupRow();
+      expect((await get(ownerA1)).search).toBeNull();
     });
 
     it('returns state, lookup, suggestions and the vertical services + seed keywords', async () => {

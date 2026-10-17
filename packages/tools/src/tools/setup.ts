@@ -1,15 +1,15 @@
 import { MAPS_SEARCH_OPERATION } from '@cs/collectors';
 import { type AccessContext, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
-import { client, clientCompetitor, clientSetup, competitorSuggestion, setupLookupSchema, type SetupSkippedStep, type SetupSuggestions, setupSuggestionsSchema, type Tx, vendorCall, withTenant } from '@cs/db';
+import { client, clientCompetitor, clientSetup, competitorSuggestion, discoveryRun, setupLookupSchema, type SetupSkippedStep, type SetupSuggestions, setupSuggestionsSchema, type Tx, vendorCall, withTenant } from '@cs/db';
 import { listVerticalPacks } from '@cs/verticals';
-import { and, count, eq, gte, inArray, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
 import { startCompetitorSearch } from '../rival-search';
 import { FIND_BUSINESS_DAILY_CAP, preselectVertical, toSetupLookup } from '../setup/lookup';
 import { applyClientProfileChange } from '../setup/profile-change';
 import { completeIfDone, getSetupState, type SetupState } from '../setup/state';
-import { acceptSuggestions, dismissSuggestions, preTickTop, runSuggestionRows, searchRefusalMessage } from './competitors';
+import { acceptSuggestions, dismissSuggestions, preTickTop, RUN_STATUSES, runSuggestionRows, SearchProgress, searchProgress, searchRefusalMessage } from './competitors';
 import { ServiceAreaInput, Tier } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -124,6 +124,13 @@ const ClientSafeSuggestion = z.object({
 });
 export type ClientSafeSuggestion = z.infer<typeof ClientSafeSuggestion>;
 
+/**
+ * Client-safe view of the latest discovery run (the "Finding competitors" step polls it; client owners can't call
+ * `get_competitor_search_status`): stage + progress counters + kept count only — never hidden names/reasons, cost or
+ * vendor error text.
+ */
+const SetupSearch = z.object({ status: z.enum(RUN_STATUSES), progress: SearchProgress, kept: z.number().int().nullable(), finishedAt: z.string().nullable() });
+
 export const getClientSetup = defineTool({
   name: 'get_client_setup',
   access: 'read',
@@ -134,6 +141,7 @@ export const getClientSetup = defineTool({
     lookup: setupLookupSchema.nullable(),
     suggestions: setupSuggestionsSchema,
     competitorSuggestions: z.array(ClientSafeSuggestion),
+    search: SetupSearch.nullable(),
     vertical: z.object({ services: z.array(z.object({ id: z.string(), name: z.string() })), seedKeywords: z.array(z.string()) }),
   }),
   permission: 'read',
@@ -151,7 +159,9 @@ export const getClientSetup = defineTool({
       const state = await getSetupState(tx, clientId);
       const [tracked] = await tx.select({ n: count() }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId));
       const { rows } = await runSuggestionRows(tx, clientId, ['suggested', 'accepted']);
-      return { c, row: row ?? null, state, tracked: tracked?.n ?? 0, rows };
+      const [run] = await tx.select({ status: discoveryRun.status, progress: discoveryRun.progress, kept: discoveryRun.kept, finishedAt: discoveryRun.finishedAt })
+        .from(discoveryRun).where(eq(discoveryRun.clientId, clientId)).orderBy(desc(discoveryRun.startedAt)).limit(1);
+      return { c, row: row ?? null, state, tracked: tracked?.n ?? 0, rows, run: run ?? null };
     });
     if (!r) throw new ToolError('not_found', 'Client not found');
     if (!isAgencyRole(ctx.role) && !r.state.open) throw new ToolError('not_found', 'Client not found');
@@ -165,6 +175,7 @@ export const getClientSetup = defineTool({
       state: r.state,
       lookup: lookup?.success ? lookup.data : null,
       suggestions,
+      search: r.run ? { status: r.run.status, progress: searchProgress(r.run.progress), kept: r.run.kept, finishedAt: r.run.finishedAt?.toISOString() ?? null } : null,
       competitorSuggestions: r.rows.map((s) => ({
         id: s.id, name: s.name, tier: s.tier ?? 'minor', rating: s.rating, votes: s.votes, distanceKm: s.distanceKm,
         status: s.status as ClientSafeSuggestion['status'], preTicked: ticked.has(s.id),
