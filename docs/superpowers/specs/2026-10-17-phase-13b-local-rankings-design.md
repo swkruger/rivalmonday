@@ -13,7 +13,7 @@ Make the Local rankings view match competitors' table stakes (map background, we
 4. **Who pays:** included in the seat price; every scan counts toward `client.monthly_cap_usd`. A scan whose estimate would exceed the cap is skipped and the agency gets an in-app notice.
 5. **"Scan now":** agency roles only; ≤ 1 manual scan per client per rolling 7 days (scheduled scans don't count), ≤ 10 per agency per UTC day, refused on cap.
 6. **Agency settings per client:** ≤ 5 rank keywords (subset of `client.keywords`), grid 5×5 or 7×7, radius 2–40 km.
-7. **Map background:** one **MapTiler Static Maps** image per client area, cached in the evidence store, served from our host; required attribution shown. No live tiles, no map library. (Verify price + commercial terms at plan time.)
+7. **Map background:** one **Stadia Maps cacheable static** image (amended 2026-10-17 by the owner at plan Task 0: MapTiler's terms forbid server-side caching) per client area, cached in the evidence store, served from our host; required attribution shown. No live tiles, no map library. (Verify price + commercial terms at plan time.)
 8. **Trend UI:** two tabs on Local rankings — **Trend** (default: average-rank line + scan slider driving the grid) and **Compare** (two scans + per-point change grid). No small multiples.
 9. **Rank → intelligence:** both a new **Map climb** move and **`tier_change`** events.
 
@@ -56,7 +56,7 @@ CREATE TABLE rank_map_image (
 - `checkRankScanBudget(db, clientId, estimateUsd): { ok: true } | { ok: false; reason: 'cap'; spentUsd: number; capUsd: number }` — month-to-date client spend (`spendByClient` + `monthStart`, `packages/tools/src/usage.ts`, reused not duplicated) + estimate ≤ `monthly_cap_usd`.
 - `scanRankings(deps, clientId, opts: { trigger: 'scheduled' | 'manual'; requestedBy?: string })` — reads `rank_keywords` (fallback first 5 of `keywords`) and `rank_grid_size`; writes the settings snapshot; on budget failure inserts a `skipped` scan and an agency notice (new kind `rank_scan_skipped` appended to `AGENCY_KINDS`, `db/src/schema/delivery.ts`) and returns without vendor calls.
 - `rank-schedule`: cron `0 6 * * 0`; `listRankClients` unchanged filters + `client.paused_at IS NULL`.
-- New job `rank-map-refresh { clientId }` (single-shot): if no `rank_map_image` row or `settings_hash` differs, fetch the static image for the grid bbox + half-cell padding, store, upsert row. Enqueued by `update_client_rank_settings`, `update_client_profile` (service-area change) and once by the weekly schedule for clients without an image. No-op when `MAPTILER_API_KEY` is unset.
+- New job `rank-map-refresh { clientId }` (single-shot): if no `rank_map_image` row or `settings_hash` differs, fetch the static image for the grid bbox + half-cell padding, store, upsert row. Enqueued by `update_client_rank_settings`, `update_client_profile` (service-area change) and once by the weekly schedule for clients without an image. No-op when `STADIA_API_KEY` is unset.
 
 **Tools (`@cs/tools`)**
 - `update_client_rank_settings` (write, agency roles, audited): input `{ clientId, keywords: string[] (≤5, each ∈ client.keywords), gridSize: 5|7, radiusKm: number (2–40) }`; updates `client.rank_keywords`, `rank_grid_size`, `service_area.radiusKm`; enqueues `rank-map-refresh`.
@@ -77,7 +77,7 @@ CREATE TABLE rank_map_image (
 - **`tier_change`** event: written by `signals-weekly` when a tracked competitor's new `competitor_signal.tier` differs from its previous week's tier; `detected_change.rank_scan_id` = the client's latest `done` scan (no scan → no event); `details { changeType: 'tier_change', from, to }`. Scoring: promotion to `top` → alert-eligible; other promotions → brief; demotions → archive (mentioned only in quiet-week "Where you stand"). Tenant-private like `rank_change`; readers filter `retracted_at IS NULL`.
 
 ## Env
-- `MAPTILER_API_KEY` (worker) — owner adds to `.env` (ask first); add to `turbo.json` `globalPassThroughEnv`. Unset ⇒ grids render without a map.
+- `STADIA_API_KEY` (worker) — owner adds to `.env` (ask first); add to `turbo.json` `globalPassThroughEnv`. Unset ⇒ grids render without a map.
 
 ## Edge cases
 - Settings changed mid-history → trend shows a marker; Compare refuses mismatched scans with "Settings changed between these scans."

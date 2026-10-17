@@ -6,7 +6,9 @@ Steps use checkbox (`- [ ]`) syntax for tracking. **Lean plan format** (root `CL
 
 **Goal:** Local rankings gets a map background, weekly history, a Trend and a Compare tab, per-client rank settings and a capped "Scan now"; rank movement becomes a **Map climb** move and **`tier_change`** events.
 
-**Architecture:** Settings live on `client` and are snapshotted on every `rank_scan` (series identity). Cost estimate + month-to-date budget check run before any vendor call (`@cs/collectors`, spend helpers moved to `@cs/db`). A weekly `rank-schedule` fans out `rank-scan` jobs; a `rank-map-refresh` job stores one MapTiler static image per client in the evidence store, served by `/files/rank-map/[clientId]`. `@cs/tools` gains `get_rank_settings`, `update_client_rank_settings`, `request_rank_scan`, `get_rank_trend`; the engine gains a settings-aware rank diff, the `map_climb` rule and `tier_change` from `signals-weekly`.
+> **Amended 2026-10-17 (Task 0, owner):** the map provider is **Stadia Maps "cacheable static maps"**, not MapTiler. MapTiler's terms (§7.2 no server-side cache, §6.1 no proxy without approval) forbid D7's store-and-serve; Stadia §30.3.3 allows saving and redistributing cacheable images on a paid plan. Stadia takes centre + integer zoom + size (no bbox), so Task 2's `fitBoundsToImage` became `fitStaticMap`. Env `STADIA_API_KEY`. Wherever this plan still says MapTiler, read Stadia.
+
+**Architecture:** Settings live on `client` and are snapshotted on every `rank_scan` (series identity). Cost estimate + month-to-date budget check run before any vendor call (`@cs/collectors`, spend helpers moved to `@cs/db`). A weekly `rank-schedule` fans out `rank-scan` jobs; a `rank-map-refresh` job stores one Stadia static image per client in the evidence store, served by `/files/rank-map/[clientId]`. `@cs/tools` gains `get_rank_settings`, `update_client_rank_settings`, `request_rank_scan`, `get_rank_trend`; the engine gains a settings-aware rank diff, the `map_climb` rule and `tier_change` from `signals-weekly`.
 
 **Tech stack:** TypeScript, Drizzle + Postgres (RLS), pg-boss, `@cs/tools`, Next.js App Router, Tailwind/shadcn, hand-written inline SVG, Vitest, Playwright.
 
@@ -26,7 +28,7 @@ Steps use checkbox (`- [ ]`) syntax for tracking. **Lean plan format** (root `CL
 - Commits end with the Co-Authored-By line from root `CLAUDE.md`; LF only; never stage `apps/web/next-env.d.ts`.
 
 ## Decisions
-**Spec D1–D9** (order, weekly full scans, Sunday 06:00 UTC, cap-counted, Scan now limits, ≤5 keywords/5×5|7×7/2–40 km, MapTiler static, Trend+Compare, Map climb + tier_change) — by reference, never re-open.
+**Spec D1–D9** (order, weekly full scans, Sunday 06:00 UTC, cap-counted, Scan now limits, ≤5 keywords/5×5|7×7/2–40 km, static map (D7 amended: Stadia), Trend+Compare, Map climb + tier_change) — by reference, never re-open.
 
 **Plan-local:**
 - **P1 Spend helpers move to `@cs/db`.** `monthStart` and `spendByClient` move verbatim to `packages/db/src/spend.ts` (exported from the db index); `packages/tools/src/usage.ts` re-exports them so existing importers are unchanged. Reason: collectors can't import `@cs/tools` (tools → collectors).
@@ -48,7 +50,7 @@ Steps use checkbox (`- [ ]`) syntax for tracking. **Lean plan format** (root `CL
 ## File structure
 - `packages/db/migrations/<N>_rank_upgrade.sql` (generated + hand-edited), `<N+1>_rank_upgrade_rls.sql` (custom); `src/schema/client-intel.ts` (`rankScan` cols, new `rankMapImage`), `src/schema/tenancy.ts` (`client.rankKeywords`, `rankGridSize`), `src/schema/delivery.ts` (`AGENCY_KINDS`), `src/schema/engine.ts` (`ChangeDetails`), new `src/spend.ts`; tests `rank-upgrade.test.ts`, `evidence.test.ts`.
 - `packages/core/src/domain.ts` (`CHANGE_TYPES`, `MOVE_TYPES`, `TIER_LABELS`), new `src/geo.ts` (+ test).
-- `packages/collectors/src/rankings/{scan.ts, settings.ts (new), budget.ts (new), maptiler.ts (new), map-refresh.ts (new)}` + tests; `src/index.ts`.
+- `packages/collectors/src/rankings/{scan.ts, settings.ts (new), budget.ts (new), static-map.ts (new), map-refresh.ts (new)}` + tests; `src/index.ts`.
 - `packages/engine/src/structured/rank.ts`, `moves/{rules.ts, moves-stage.ts}`, `tag/structured.ts`, `score/{score.ts, score-stage.ts}`, `events/retract.ts`, new `delivery/rank-notices.ts`; `src/index.ts`.
 - `packages/collectors/src/signals/tracked.ts` (tier_change write).
 - `packages/verticals/packs/{hvac_plumbing,dental}.yaml`; `packages/email/src/{types.ts, labels.ts}`.
@@ -56,7 +58,7 @@ Steps use checkbox (`- [ ]`) syntax for tracking. **Lean plan format** (root `CL
 - `apps/worker/src/{deps.ts, main.ts}`, `jobs/vendor.ts`, `jobs/rivals.ts` (unchanged API), new `jobs/rank-map.ts`.
 - `apps/web/src/app/files/rank-map/[clientId]/route.ts` (new), `src/server/files.ts`, `src/server/inbox.ts`; `src/components/charts/{geo-grid.tsx, line-chart.tsx, change-grid.tsx (new), rank-trend.tsx (new)}`; `src/app/(app)/c/[clientId]/rankings/{page.tsx, tabs.tsx, scan-slider.tsx, rank-settings-sheet.tsx, scan-now-button.tsx, actions.ts}` (new files except `page.tsx`); `e2e/rankings.spec.ts` (new), `e2e/seed.ts`, `scripts/e2e-affected-rules.ts`.
 - `packages/demo/src/{rankings.ts, changes.ts, coverage.ts}` + tests.
-- `turbo.json` (`MAPTILER_API_KEY`), `docs/work/phase-13.md`.
+- `turbo.json` (`STADIA_API_KEY`), `docs/work/phase-13.md`.
 
 ## Dependencies on in-flight work
 - **phase-10:** merged into `main` (migrations 0065–0066). Re-check nothing else of it is pending: `git branch -a` shows no `phase-10`.
@@ -89,7 +91,7 @@ Steps use checkbox (`- [ ]`) syntax for tracking. **Lean plan format** (root `CL
 - [ ] Claim the next two free migration numbers; write them into this plan's Task 1 header.
 - [ ] Local test DB: `bash scripts/local-test-db.sh start` (or `setup`), `bash scripts/local-test-db.sh env` → use a DB name ending `_test` not used by another session; run `pnpm --filter @cs/worker exec vitest run src/boss.test.ts` once (pgboss schema).
 - [ ] `cs_dev` checks (read-only): `SELECT status, count(*) FROM rank_scan GROUP BY 1` (expect only running/done/failed); `SELECT count(*) FROM client WHERE (service_area->>'radiusKm')::float8 NOT BETWEEN 2 AND 40`.
-- [ ] **Ask the owner:** (a) confirm MapTiler Static Maps price per request and that commercial SaaS use with images cached in our store and served from our host is allowed under their terms; the required attribution text; whether `attribution=false` on the image is allowed when we print attribution beside it; the map style id (default `dataviz` light) — record the answers in the work file; (b) add `MAPTILER_API_KEY` to `.env` (never print it); (c) approve the proposed copy lines in Tasks 4, 10, 11, 13, 14.
+- [ ] **Ask the owner:** (a) confirm MapTiler Static Maps price per request and that commercial SaaS use with images cached in our store and served from our host is allowed under their terms; the required attribution text; whether `attribution=false` on the image is allowed when we print attribution beside it; the map style id (default `dataviz` light) — record the answers in the work file; (b) add `STADIA_API_KEY` to `.env` (never print it); (c) approve the proposed copy lines in Tasks 4, 10, 11, 13, 14.
 - [ ] With the owner's OK (one request): fetch one static image for the `cs_dev` fixture client's bbox with `padding=0` (or the documented equivalent) to confirm the URL format `https://api.maptiler.com/maps/{style}/static/{west},{south},{east},{north}/{w}x{h}@2x.png?key=…` and that the returned image spans exactly the requested bbox; save it as `packages/collectors/test/fixtures/vendors/maptiler-static.png` and note the confirmed URL shape in the work file.
 - **Done when:** work file updated; `pnpm test:affected` green on `main`.
 
@@ -164,14 +166,17 @@ WHERE c.id = rs.client_id AND rs.status = 'done' AND rs.grid_size IS NULL
 **Done when:** `pnpm --filter @cs/db generate` says "No schema changes"; `pnpm --filter @cs/db exec vitest run rank-upgrade evidence tenant vendor-history` green; `pnpm typecheck`.
 
 ### Task 2: Geo math in `@cs/core`
-**Goal:** grid bbox with half-cell padding, image-aspect fitting and Web Mercator projection, shared by worker and web (P13).
+**Goal:** grid bbox with half-cell padding, static-map framing (centre + integer zoom + size, Stadia) and Web Mercator projection, shared by worker and web (P13).
 **Files:** new `packages/core/src/geo.ts`, `geo.test.ts`; `src/index.ts` export.
 **Interfaces + full code:**
 ```ts
 export interface LatLng { lat: number; lng: number }
 export interface GeoBounds { west: number; south: number; east: number; north: number }
+export interface StaticMapFrame { center: LatLng; zoom: number; width: number; height: number; bounds: GeoBounds }
 export const KM_PER_DEG_LAT = 111.32; // same constant as collectors/local/grid.ts
-export const RANK_MAP_WIDTH = 640;
+/** Pixel width of the whole world at zoom 0 for the static-map provider (Stadia, GL-rendered: 512). Re-confirm with the Task 7 probe. */
+export const STATIC_MAP_WORLD_PX = 512;
+export const RANK_MAP_MAX_PX = 1024;
 const RAD = Math.PI / 180;
 const mercY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2));
 const invMercY = (y: number) => (2 * Math.atan(Math.exp(y)) - Math.PI / 2) / RAD;
@@ -186,16 +191,32 @@ export function rankGridBounds(center: LatLng, radiusKm: number, gridSize: numbe
 }
 
 /**
- * Picks an integer image size for `bounds` (fixed width) and stretches the bbox north/south in Mercator space so
- * its aspect equals the image's exactly: the provider then renders precisely these bounds (no fit padding).
+ * Frames `b` for a centre + integer-zoom static map: the largest zoom whose image of `b` fits `maxPx` on both axes,
+ * an image size that covers `b` (at least `minWidth` × `minHeight`), and the exact bounds that image spans.
  */
-export function fitBoundsToImage(b: GeoBounds, width = RANK_MAP_WIDTH): { bounds: GeoBounds; width: number; height: number } {
-  const xSpan = (b.east - b.west) * RAD;
-  const ySpan = mercY(b.north) - mercY(b.south);
-  const height = Math.min(1280, Math.max(320, Math.round((width * ySpan) / xSpan)));
+export function fitStaticMap(
+  b: GeoBounds,
+  opts: { worldPx?: number; maxPx?: number; minWidth?: number; minHeight?: number } = {},
+): StaticMapFrame {
+  const worldPx = opts.worldPx ?? STATIC_MAP_WORLD_PX;
+  const maxPx = opts.maxPx ?? RANK_MAP_MAX_PX;
+  const xFrac = ((b.east - b.west) * RAD) / (2 * Math.PI); // share of the world's width
+  const yFrac = (mercY(b.north) - mercY(b.south)) / (2 * Math.PI); // share of the world's Mercator height
+  const zoom = Math.max(0, Math.min(18, Math.floor(Math.log2(maxPx / (Math.max(xFrac, yFrac) * worldPx)))));
+  const scale = worldPx * 2 ** zoom; // world size in pixels at this zoom
+  const width = Math.max(opts.minWidth ?? 256, Math.ceil(xFrac * scale));
+  const height = Math.max(opts.minHeight ?? 64, Math.ceil(yFrac * scale));
+  const cx = (b.east + b.west) / 2;
   const cy = (mercY(b.north) + mercY(b.south)) / 2;
-  const half = (xSpan * height) / width / 2;
-  return { bounds: { west: b.west, east: b.east, north: invMercY(cy + half), south: invMercY(cy - half) }, width, height };
+  const halfX = (width / scale) * 180; // degrees
+  const halfY = (height / scale) * Math.PI; // Mercator radians
+  return {
+    center: { lat: invMercY(cy), lng: cx },
+    zoom,
+    width,
+    height,
+    bounds: { west: cx - halfX, east: cx + halfX, north: invMercY(cy + halfY), south: invMercY(cy - halfY) },
+  };
 }
 
 /** Pixel position of a point inside an image that spans `b` (Web Mercator, origin top-left). */
@@ -207,7 +228,7 @@ export function projectToImage(p: LatLng, b: GeoBounds, width: number, height: n
 
 export const insideBounds = (p: LatLng, b: GeoBounds): boolean => p.lng >= b.west && p.lng <= b.east && p.lat >= b.south && p.lat <= b.north;
 ```
-**Tests (TDD):** `bounds pad the grid by half a cell` (7×7, 15 km → r = 17.5 km); `bbox aspect equals image aspect after fitting` (Mercator ratio == width/height within 1e-9); `height is clamped to 320–1280`; `projects bounds corners to image corners`; `centre lands at the image centre horizontally and on the Mercator midline`; `round-trip within 0.5 px at lat 47.6 with a 40 km radius` (project grid points from collectors' formula reimplemented in-test; neighbouring columns equally spaced within 0.5 px); `insideBounds is inclusive`.
+**Tests (TDD):** `bounds pad the grid by half a cell` (7×7, 15 km → r = 17.5 km); `frame bounds aspect equals image aspect` (Mercator ratio == width/height within 1e-9); `zoom is the largest integer whose image fits maxPx` (zoom + 1 would exceed it); `frame bounds contain the grid bounds` (2 km and 40 km radius, lat 30 and 47.6); `min width 256 / min height 64 widen the frame around the same centre`; `projects bounds corners to image corners`; `centre lands at the image centre horizontally and on the Mercator midline`; `round-trip within 0.5 px at lat 47.6 with a 40 km radius` (project grid points from collectors' formula reimplemented in-test; neighbouring columns equally spaced within 0.5 px); `insideBounds is inclusive`.
 **Done when:** `pnpm --filter @cs/core exec vitest run geo` green; `pnpm typecheck`.
 
 ### Task 3: Spend helpers, settings, estimate, budget
@@ -265,7 +286,7 @@ export async function notifyRankScanSkipped(deps: { db: Db; delivery: DeliveryCo
 **Behaviour:**
 - `listRankClients` already filters `clientServiceable` (= active and `paused_at IS NULL`) + `agencyServiceable` — the spec's paused filter is satisfied; add a test that pins it, don't duplicate the clause.
 - `rank-schedule`: `failStaleRankScans` first, then enqueue a scan per client; for clients with no `rank_map_image` row enqueue `rank-map-refresh` once (the job no-ops without a key).
-- Worker wires `onSkipped` → `notifyRankScanSkipped` when `deliveryConfigFromEnv` is non-null (else log). `MAPTILER_API_KEY` added to `turbo.json` `globalPassThroughEnv`.
+- Worker wires `onSkipped` → `notifyRankScanSkipped` when `deliveryConfigFromEnv` is non-null (else log). `STADIA_API_KEY` added to `turbo.json` `globalPassThroughEnv`.
 - **Follow pattern:** existing `rankSchedule`/`rankScan` in `jobs/vendor.ts`.
 **Tests (TDD):** `rank-schedule runs on Sundays at 06:00 UTC`; `listRankClients excludes paused, prospect, read-only-agency clients`; `stale running scans older than 3 h are failed, fresh ones kept`; `rank-scan passes trigger and scanId through`; `schedule enqueues a map refresh only for clients without an image`.
 **Done when:** `pnpm --filter @cs/worker exec vitest run vendor` and `pnpm --filter @cs/collectors exec vitest run scan` green; `pnpm typecheck`.
@@ -301,26 +322,28 @@ output { queued: true; scanEtaMinutes: number } | { queued: false; reason: 'week
 **Tests (TDD):** `settings default to the first 5 keywords and grid 7`; `client roles cannot see get_rank_settings (not_found)`; `update rejects a keyword outside client.keywords`; `update rejects radius 41 and grid 6`; `update writes the three fields and enqueues one map refresh`; `request queues a manual scan with ETA`; `second request within 7 days → weekly_limit with nextAvailableAt`; `11th agency request today → agency_daily_limit`; `cap → cap, no row`; `running scheduled scan → not_ready`; `paused client → not_ready`; `concurrent requests insert one running row`; `enqueue failure leaves no row`; `create_client refuses radius 1`; access-marks snapshot updated.
 **Done when:** `pnpm --filter @cs/tools exec vitest run rank-scan rankings onboarding access-marks` green; `pnpm test:affected`; `pnpm typecheck`.
 
-### Task 7: MapTiler client + `rank-map-refresh` job
+### Task 7: Stadia static-map client + `rank-map-refresh` job
 **Goal:** spec job: fetch, store, upsert; no-op without a key.
-**Files:** new `packages/collectors/src/rankings/maptiler.ts`, `map-refresh.ts` (+ tests); new `apps/worker/src/jobs/rank-map.ts` (+ test); `apps/worker/src/{deps.ts, main.ts}`.
+**Files:** new `packages/collectors/src/rankings/static-map.ts`, `map-refresh.ts` (+ tests); new `apps/worker/src/jobs/rank-map.ts` (+ test); `apps/worker/src/{deps.ts, main.ts}`; `.env.example` (`STADIA_API_KEY=`).
 **Interfaces:**
 ```ts
-export interface StaticMapClient { fetchStatic(q: { bounds: GeoBounds; width: number; height: number }, scope: CallScope): Promise<Uint8Array> }
-export function createMapTilerClient(opts: { apiKey: string; style?: string; fetch?: typeof fetch; ledger: LedgerSink }): StaticMapClient;
-export const MAPTILER_ATTRIBUTION = '© MapTiler © OpenStreetMap contributors'; // replace with Task 0's confirmed text
+export interface StaticMapClient { fetchStatic(q: { center: LatLng; zoom: number; width: number; height: number }, scope: CallScope): Promise<Uint8Array> }
+export function createStadiaStaticClient(opts: { apiKey: string; style?: string; fetch?: typeof fetch; ledger: LedgerSink }): StaticMapClient; // style default 'alidade_smooth'
+export const STADIA_ATTRIBUTION = '© Stadia Maps © OpenMapTiles © OpenStreetMap contributors';
+export const STADIA_CACHEABLE_STATIC_USD = 0.06; // 2,000 credits × $0.03/1k (Starter overage rate)
 export async function refreshRankMap(deps: { db: Db; store: ObjectStore; maps: StaticMapClient | null }, clientId: string): Promise<'unchanged' | 'stored' | 'skipped'>;
 // job: name 'rank-map-refresh', schema z.object({ clientId: z.uuid() }), queue { policy: 'short', retryLimit: 2 }
 ```
 **Behaviour:**
-- `maps === null` (no `MAPTILER_API_KEY`) → `'skipped'`. No service area or client not serviceable → `'skipped'`.
+- `maps === null` (no `STADIA_API_KEY`) → `'skipped'`. No service area or client not serviceable → `'skipped'`.
 - Hash = `rankMapSettingsHash({ center, radiusKm: rankRadiusKm(r), gridSize })`; same hash as the row → `'unchanged'`.
-- `fitBoundsToImage(rankGridBounds(...))`; URL shape from Task 0 with `@2x` and `padding=0`; 10 s timeout; non-200 or non-`image/png` throws (pg-boss retries). Key never logged; error text strips the query string.
-- Store at `rank-map/{clientId}/{hash}.png`, upsert `rank_map_image` (service db) with fitted bounds, logical `width`/`height`.
-- Ledger one `vendor_call` (`vendor: 'maptiler'`, `operation: 'static'`, `costUsd` = Task 0 price) with the client scope via `safeRecordVendorCall`.
+- `fitStaticMap(rankGridBounds(...))`; GET `https://tiles.stadiamaps.com/static_cacheable/{style}.png?center={lat},{lng}&zoom={z}&size={w}x{h}@2x&manual_attribution=true&api_key=…` (the cacheable endpoint is what licenses storing the image — never `/static/`); 10 s timeout; non-200 or non-`image/png` throws (pg-boss retries). Key never logged; error text strips the query string.
+- Store at `rank-map/{clientId}/{hash}.png`, upsert `rank_map_image` (service db) with the frame's bounds and logical `width`/`height`.
+- Ledger one `vendor_call` (`vendor: 'stadia'`, `operation: 'static_cacheable'`, `costUsd: STADIA_CACHEABLE_STATIC_USD`) with the client scope via `safeRecordVendorCall`.
+- **Probe (only once `STADIA_API_KEY` is in `.env`, one request):** fetch the `cs_dev` fixture client's frame, save it as `packages/collectors/test/fixtures/vendors/stadia-static.png`, and confirm that the image is `2×width × 2×height` and that `STATIC_MAP_WORLD_PX` is right (a known landmark lands at its projected pixel). Until then tests use a fake client.
 - **Follow pattern:** `collectors/src/vendors/meta-search.ts` (fetch + ledger), `apps/worker/src/jobs/ask.ts` (short single job).
-**Tests (TDD):** `no key → skipped, no fetch`; `same settings → unchanged, no fetch`; `changed radius → fetch with fitted bbox, store, upsert`; `URL carries bbox, size@2x and padding, never logs the key`; `non-png response throws`; `ledgers one maptiler call with client scope`; worker `job calls refreshRankMap with the client id`.
-**Done when:** `pnpm --filter @cs/collectors exec vitest run maptiler map-refresh` and `pnpm --filter @cs/worker exec vitest run rank-map` green; `pnpm typecheck`.
+**Tests (TDD):** `no key → skipped, no fetch`; `same settings → unchanged, no fetch`; `changed radius → fetch with the fitted frame, store, upsert`; `URL uses static_cacheable with centre, zoom, size@2x and manual_attribution, never logs the key`; `non-png response throws`; `ledgers one stadia call with client scope`; worker `job calls refreshRankMap with the client id`.
+**Done when:** `pnpm --filter @cs/collectors exec vitest run static-map map-refresh` and `pnpm --filter @cs/worker exec vitest run rank-map` green; `pnpm typecheck`.
 
 ### Task 8: `/files/rank-map/[clientId]` route
 **Goal:** stream the stored image after the `get_geogrid` scope check; every refusal 404.
@@ -368,7 +391,7 @@ output { scans: { scanId; finishedAt; settingsKey; settingsChanged: boolean; sel
 ```
 **Behaviour:**
 - Trend: `done` scans only, newest first, `limit + 1` fetched for the cursor; `before` must be one of the client's done scans else `not_found`. `settingsChanged` = key differs from the next older scan (older scan beyond the page fetched with it). Metrics via `rankMetrics` on that keyword's snapshots; `self` null without a self business; competitors = tracked, tier from `competitor_signal` (null if unrated), name-sorted. All tenant reads in one `withTenant`.
-- `get_geogrid`: a selected scan older than the newest 12 is merged into `scans` (sorted by `finishedAt` desc); `map` per P12 (bounds from `rank_map_image` via `withTenant`, attribution `MAPTILER_ATTRIBUTION` imported from `@cs/collectors`).
+- `get_geogrid`: a selected scan older than the newest 12 is merged into `scans` (sorted by `finishedAt` desc); `map` per P12 (bounds from `rank_map_image` via `withTenant`, attribution `STADIA_ATTRIBUTION` imported from `@cs/collectors`).
 - `diffRankScan`: previous done scan's `rankSettingsKey` ≠ this scan's → `{ baseline: true }`. Threshold adds `top3After − top3Before` points ≥ `TOP3_POINTS_GAIN_MIN` (`rankMetrics` points × share, rounded); details gain `top3PointsBefore`, `top3PointsAfter`, `scanId`. Version stays 1 (P8).
 - **Follow pattern:** existing `getShareOfVoice`.
 **Tests (TDD):** `trend returns 12 newest done scans with self and competitor metrics`; `skipped and failed scans ignored`; `cursor pages back and ends with null`; `settingsChanged marks the scan after a settings change`; `limit 27 rejected`; `never reads another client's scans`; `tier null when unrated`; geogrid `selected scan older than 12 appears in scans`; `map null without an image or when a point is outside bounds`; `lats north→south and lngs west→east`; rank diff `settings change → baseline`; `top-3 point gain of 5 alone records a change with point details`; `gain of 4 with small share delta records nothing`; `legacy key equals legacy key`.
@@ -448,7 +471,7 @@ output { scans: { scanId; finishedAt; settingsKey; settingsChanged: boolean; sel
 ### Task 16: Docs + backlog closure
 **Goal:** branch work file only (shared docs change at merge).
 **Files:** `docs/work/phase-13.md`.
-**Behaviour:** Status/Next overwritten; "Interfaces this branch adds" lists migrations, tools, job, route, env; "New backlog" lists deferrals found during build; "Owner verification steps": set `MAPTILER_API_KEY`, run the worker, save rank settings on the `cs_dev` client → map image appears; Scan now on a client near its cap → cap copy; `signals-weekly` once → a tier change event. Mark for closure at merge: BACKLOG lines for GeoGrid defs/hatch/ragged rows, `get_geogrid` selected scan, `tier_change`, `rank_scan.status` CHECK (that part only), map tiles under the geo-grid (that part only), Legend pinned "You" (that part only).
+**Behaviour:** Status/Next overwritten; "Interfaces this branch adds" lists migrations, tools, job, route, env; "New backlog" lists deferrals found during build; "Owner verification steps": set `STADIA_API_KEY`, run the worker, save rank settings on the `cs_dev` client → map image appears; Scan now on a client near its cap → cap copy; `signals-weekly` once → a tier change event. Mark for closure at merge: BACKLOG lines for GeoGrid defs/hatch/ragged rows, `get_geogrid` selected scan, `tier_change`, `rank_scan.status` CHECK (that part only), map tiles under the geo-grid (that part only), Legend pinned "You" (that part only).
 **Done when:** work file ≤ 8 KB; `git ls-files --eol | grep crlf` prints nothing.
 
 ### Final review (whole branch, most capable model)
