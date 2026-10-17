@@ -1,6 +1,6 @@
 import type { CallScope } from '@cs/core';
 import { z } from 'zod';
-import { type DataForSeoClient, DFS_US, VendorError, isDfsOk, isNoResults, isRetryableDfsCode } from '../vendors/dataforseo';
+import { type DataForSeoClient, type DfsTask, DFS_US, VendorError, isDfsOk, isNoResults, isRetryableDfsCode } from '../vendors/dataforseo';
 
 export interface MapsPlace {
   placeId: string | null;
@@ -75,6 +75,30 @@ export async function mapsSearch(
     [{ keyword: q.keyword, location_coordinate: `${q.lat},${q.lng},${q.zoom ?? 14}z`, language_code: DFS_US.language_code, depth: q.depth ?? 20 }],
     scope,
   );
+  return mapsResult(task);
+}
+
+/** Ledger `operation` for a Maps search is the endpoint path (the client has no custom names). */
+export const MAPS_SEARCH_OPERATION = '/serp/google/maps/live/advanced';
+
+/**
+ * Free-text Maps search ("<business name> <city>") for the setup lookup. The ledger tells it apart from other
+ * Maps calls by scope: `agency_id` set, `client_id` NULL (no other Maps call is agency-only).
+ */
+export async function mapsSearchByText(
+  dfs: DataForSeoClient,
+  q: { keyword: string; locationName: string; depth?: number },
+  scope: CallScope,
+): Promise<{ places: MapsPlace[]; raw: unknown }> {
+  const [task] = await dfs.post(
+    MAPS_SEARCH_OPERATION,
+    [{ keyword: q.keyword, location_name: q.locationName, language_code: DFS_US.language_code, depth: q.depth ?? 10 }],
+    scope,
+  );
+  return mapsResult(task);
+}
+
+function mapsResult(task: DfsTask | undefined): { places: MapsPlace[]; raw: unknown[] } {
   // No task back is an error, not "nobody ranks here": a rank snapshot must never record an
   // empty result for a call that failed.
   if (!task) throw new VendorError('dataforseo', null, 'empty task', false);
