@@ -20,6 +20,8 @@ export interface WebEnv {
   platformAdmins: string[];
   /** 6b Q1: Ask runs on a deterministic scripted AI (E2E only; refused when VERCEL_ENV=production). */
   askFakeAi: boolean;
+  /** Phase 11a: `find_business` answers from a fixed fixture (E2E only; refused when VERCEL_ENV=production). DEMO/TEST always use the fixture regardless. */
+  setupFakeLookup: boolean;
   /** Phase 10: all optional. No Turnstile secret => the fake verifier; `supportReplyTo` is the Reply-To of lifecycle emails. */
   turnstile?: { siteKey?: string; secretKey?: string };
   supportReplyTo?: string;
@@ -51,6 +53,8 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
   if (defaultAgencyId && !isUuid(defaultAgencyId)) problems.push('DEFAULT_AGENCY_ID must be a uuid');
   const askFake = env.ASK_FAKE_AI?.trim() ?? '';
   if (askFake && env.VERCEL_ENV?.trim() === 'production') problems.push('ASK_FAKE_AI must not be set in production');
+  const setupFake = env.SETUP_FAKE_LOOKUP?.trim() ?? '';
+  if (setupFake && env.VERCEL_ENV?.trim() === 'production') problems.push('SETUP_FAKE_LOOKUP must not be set in production');
   const billingFake = env.BILLING_FAKE_GATEWAY?.trim() || undefined;
   if (billingFake && env.VERCEL_ENV?.trim() === 'production') problems.push('BILLING_FAKE_GATEWAY must not be set in production');
   const parsed: WebEnv = {
@@ -64,6 +68,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     kbImport: env.KB_IMPORT_ENABLED?.trim() === 'true',
     platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
     askFakeAi: askFake === '1',
+    setupFakeLookup: setupFake === '1',
     turnstile: { siteKey: env.TURNSTILE_SITE_KEY?.trim() || undefined, secretKey: env.TURNSTILE_SECRET_KEY?.trim() || undefined },
     supportReplyTo: env.SUPPORT_REPLY_TO?.trim() || undefined,
     stripe: {

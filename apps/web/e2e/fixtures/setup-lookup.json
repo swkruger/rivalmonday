@@ -1,0 +1,63 @@
+[
+  {
+    "placeId": "ChIJU55VwWDfUYYR09BiST63rQQ",
+    "cid": "337127025269723347",
+    "title": "Granbury Park Dental",
+    "domain": "granburypark.com",
+    "url": "https://granburypark.com/",
+    "rank": 1,
+    "rating": 4.9,
+    "votes": 246,
+    "category": "Dentist",
+    "address": "500 W Pearl St, Granbury, TX 76048",
+    "lat": 32.4425965,
+    "lng": -97.792211,
+    "additionalCategories": [],
+    "city": "Granbury",
+    "phone": "+1817-286-3655",
+    "isClaimed": true
+  },
+  {
+    "placeId": "ChIJ2SB4AYDfUYYRTZbPyhVFe7A",
+    "cid": "12716833932709959245",
+    "title": "Archstone Dental & Orthodontics Granbury",
+    "domain": "archstonedental.com",
+    "url": "https://archstonedental.com/granbury/?utm_source=google.com&utm_medium=business+profile&utm_campaign=",
+    "rank": 2,
+    "rating": 4.7,
+    "votes": 985,
+    "category": "Dentist",
+    "address": "301 East US Hwy 377 Ste 100, Granbury, TX 76048",
+    "lat": 32.4322735,
+    "lng": -97.7863464,
+    "additionalCategories": [
+      "Cosmetic dentist",
+      "Dental hygienist",
+      "Dental implants periodontist",
+      "Orthodontist",
+      "Pediatric dentist",
+      "Teeth whitening service"
+    ],
+    "city": "Granbury",
+    "phone": "+1817-776-4337",
+    "isClaimed": true
+  },
+  {
+    "placeId": "ChIJjRT27YTfUYYRjy19fWBmiIU",
+    "cid": "9622053168485313935",
+    "title": "Kyle W Rogers DDS Family Dentistry",
+    "domain": "www.dentistkylerogers.com",
+    "url": "https://www.dentistkylerogers.com/",
+    "rank": 3,
+    "rating": 4.1,
+    "votes": 9,
+    "category": "Dentist",
+    "address": "409 S Morgan St, Granbury, TX 76048",
+    "lat": 32.4391037,
+    "lng": -97.79395219999999,
+    "additionalCategories": [],
+    "city": "Granbury",
+    "phone": "+1817-579-0177",
+    "isClaimed": true
+  }
+]

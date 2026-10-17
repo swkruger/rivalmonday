@@ -11,6 +11,7 @@ import { webEnv } from './env';
 import { perEnv } from './env-cache';
 import { enqueueFor, jobStatusFor } from './queue';
 import { platformAdmins } from './runtime-env';
+import { setupLookupFor } from './setup-lookup';
 import { webStore } from './store';
 
 /**
@@ -51,6 +52,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     appUrl: webEnv().appUrl,
     evidenceStore: { get: (key) => store.get(key), put: (key, body, contentType) => store.put(key, body, contentType) },
     embedQuery: embedQueryFor(name, service),
+    setupLookup: setupLookupFor(name, service, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
     billing: gatewayFor(webEnv().stripe ?? {}, name) ?? undefined, // R27: absent = billing not configured
   };
 });
