@@ -229,6 +229,20 @@ describe('list_leads / get_lead', () => {
     expect((await fails(call(adminB, 'get_lead', { leadId: a }))).code).toBe('not_found');
   });
 
+  it('a support session sees the visitor phone masked in list_leads and get_lead; outside a session it is shown', async () => {
+    const a = await mkLead();
+    const support = createAccessContext({
+      agencyId: IDS.agencyA, userId: 'op-ctx', role: 'agency_admin', clientScope: 'all', features: [],
+      support: { sessionId: '00000000-0000-4000-8000-0000000005e5', platformUserId: 'op' },
+    });
+    const listed = await call<{ leads: { id: string; phone: string | null }[] }>(support, 'list_leads', {});
+    expect(listed.leads.find((l) => l.id === a)!.phone).toBe('•••-•••-0100');
+    const one = await call<{ phone: string | null }>(support, 'get_lead', { leadId: a });
+    expect(one.phone).toBe('•••-•••-0100');
+    const outside = await call<{ phone: string | null }>(admin, 'get_lead', { leadId: a });
+    expect(outside.phone).toBe('512-555-0100');
+  });
+
   it('account_manager with limited scope refused', async () => {
     const id = await mkLead();
     expect((await fails(call(amScoped, 'list_leads', {}))).code).toBe('permission_denied');

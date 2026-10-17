@@ -99,7 +99,7 @@ export const listLeads = defineTool({
   output: z.object({ leads: z.array(LeadListItem) }),
   permission: 'agency',
   audit: 'skip-web',
-  supportMask: ['leads[].email', 'leads[].message'],
+  supportMask: ['leads[].email', 'leads[].phone', 'leads[].message'],
   async handler(ctx, { status }, deps) {
     requireAllScope(ctx);
     const rows = await withTenant(deps.app, ctx, (tx) =>
@@ -119,7 +119,7 @@ export const getLead = defineTool({
   output: LeadDetail,
   permission: 'agency',
   audit: 'skip-web',
-  supportMask: ['email', 'message'],
+  supportMask: ['email', 'phone', 'message'],
   async handler(ctx, { leadId }, deps) {
     requireAllScope(ctx);
     const [row] = await withTenant(deps.app, ctx, (tx) =>
