@@ -366,7 +366,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       const jobs = await collectReadyJobs(base);
       return { reviews, jobs };
     },
-    scanRankings: (clientId) => scanRankings({ db: getDb(), store: getStore(), dfs: getDfs() }, clientId),
+    scanRankings: (clientId) => scanRankings({ db: getDb(), store: getStore(), dfs: getDfs() }, clientId, { trigger: 'scheduled' }),
     listRankClients: () => rankClients(getDb()),
     async runProspectSnapshot(clientId, reportId) {
       if (!vendorsConfigured()) {
@@ -374,7 +374,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
         return { status: 'failed' as const };
       }
       return runProspectSnapshot(
-        { db: getDb(), runSource, scanRankings: (id, opts) => scanRankings({ db: getDb(), store: getStore(), dfs: getDfs() }, id, opts) },
+        { db: getDb(), runSource, scanRankings: (id, prospect) => scanRankings({ db: getDb(), store: getStore(), dfs: getDfs() }, id, { trigger: 'scheduled', prospect }) },
         clientId, reportId,
       );
     },

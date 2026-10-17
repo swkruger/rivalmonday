@@ -126,7 +126,7 @@ export const notification = pgTable(
     webhookId: uuid('webhook_id').references(() => agencyWebhook.id, { onDelete: 'cascade' }),
     channel: text('channel').notNull(),
     kind: text('kind').notNull(),
-    subjectType: text('subject_type').notNull(), // 'alert' | 'brief' | 'digest' | 'trend_report'
+    subjectType: text('subject_type').notNull(), // 'alert' | 'brief' | 'digest' | 'trend_report' | 'rank_scan'
     subjectId: uuid('subject_id').notNull(),
     /** Idempotency: the same message to the same recipient on the same channel is inserted once. */
     dedupeKey: text('dedupe_key').notNull(),
