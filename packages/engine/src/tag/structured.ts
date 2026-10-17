@@ -124,7 +124,10 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
       const c = row.change;
       const type = c.details.changeType as ChangeType | undefined;
       if (!type || !(CHANGE_TYPES as readonly string[]).includes(type)) throw new Error(`detected_change ${changeId} has no valid details.changeType`);
-      const occurredAt = row.capturedAt ?? row.scannedAt;
+      // A tier change happened when the signals job ran (block_key tier:YYYY-MM-DD), not when the latest done scan finished.
+      const tierDay = type === 'tier_change' ? /^tier:(\d{4}-\d{2}-\d{2})$/.exec(c.blockKey ?? '')?.[1] : undefined;
+      const tierAt = tierDay ? new Date(`${tierDay}T00:00:00Z`) : null;
+      const occurredAt = (tierAt && !Number.isNaN(tierAt.getTime()) ? tierAt : null) ?? row.capturedAt ?? row.scannedAt;
       if (!occurredAt) throw new Error(`detected_change ${changeId} has no capture or finished rank scan`);
 
       const verticalIds = c.clientId
