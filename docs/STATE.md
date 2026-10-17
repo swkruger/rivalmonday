@@ -11,7 +11,7 @@
 - Migrations run through **`0066`** (next free `0067`). `cs_dev` is at 0066 (migrated 2026-10-16 at the Phase 10 merge). `cs_demo` is seeded by `pnpm demo:reset`.
 - Tests run on the local test cluster (`scripts/local-test-db.sh`, port 5444): `pnpm test:affected` while working; full suite and full E2E at `/rm-merge` and in CI. Phase 10 at merge: 4,715 unit (every package, 0 failed), 76/76 E2E.
 - Switches: `KB_IMPORT_ENABLED` (unset = off), `ASK_FAKE_AI` and `BILLING_FAKE_GATEWAY` (E2E only). Billing is off (gateway null) until `STRIPE_SECRET_KEY` is set. Turnstile is faked until `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY` are set (warning logged). Worker env `NEON_API_KEY`, `NEON_ORG_ID` not set yet.
-- **In flight:** Phase 11 (11a–11c) specs + plans approved; execution next (pre-flight rebase on this `main`, branch `phase-11`). Phase 7 deferred (parked on `phase-7-planning`).
+- **In flight:** Phase 11 executing on `phase-11` (11a built, 11b in progress, 11c next). **Phase 13** planned (owner-approved 2026-10-17): 13b local rankings ([work](work/phase-13b.md)) starts now **in parallel** on its own worktree `phase-13b`; 13a white-label (13a1 then 13a2) after 13b — umbrella + owner prerequisites in [work/phase-13.md](work/phase-13.md). Phase 7 deferred (parked on `phase-7-planning`).
 - Built: [ARCHITECTURE.md](ARCHITECTURE.md). Runbook: [OPS.md](OPS.md).
 
 ## Next up
@@ -27,7 +27,7 @@
 **Owner housekeeping:** set `NEON_API_KEY` + `NEON_ORG_ID` in the worker env at deploy. **At prod deploy (Phase 9):** `set_seat_cap_exempt` for the owner's agency if it has > 3 active clients.
 
 **Then:**
-1. **Phase 11 execution** (client onboarding wizard, 11a–11c) on branch `phase-11` — rebase on the new `main` first (Phase 10 adds `agency_onboarding`, `create_client` stamps `first_client_at`, `get_billing_summary` gains `reducedTrial`/`maxActiveClients`, open-trial 1-client cap).
+1. **Phase 11** finishes on `phase-11` and **Phase 13b** starts on `phase-13b` (fresh session: `/rm-start` in `../CompetitorSpy-wt/phase-13b`). Second to merge renumbers its migrations. Then 13a1 → 13a2 (owner first: neutral domain, Vercel wildcard + `mcp.` host, Postmark `mail.<neutral>`, Vercel + Postmark account tokens).
 2. Phase 9/10 "Soon" backlog items (BACKLOG § Phase 9 / Phase 10 follow-ups).
 3. **Waiting on real data:** first real alerts expected from the 2026-10-20 weekly pull. See BACKLOG § Waiting.
 

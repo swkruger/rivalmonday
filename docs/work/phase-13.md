@@ -7,7 +7,7 @@
 13b spec approved 2026-10-17; 13b plan owner-approved 2026-10-17 (incl. P1–P15; execute after phase-11 merges). 13a spec approved; 13a plan owner-approved 2026-10-17 (incl. P1–P24).
 
 ## Next (overwrite)
-Execute 13b (docs/superpowers/plans/2026-10-17-phase-13b-local-rankings.md) after phase-11 merges; then 13a1 → 13a2 (plan docs/superpowers/plans/2026-10-17-phase-13a-white-label.md). 13a owner tasks: neutral domain, Vercel wildcard + mcp host, Postmark mail.<neutral>, tokens.
+13b executes now in parallel with phase-11 (branch `phase-13b`, work file `phase-13b.md`); then 13a1 → 13a2 (plan docs/superpowers/plans/2026-10-17-phase-13a-white-label.md). 13a owner tasks: neutral domain, Vercel wildcard + mcp host, Postmark mail.<neutral>, tokens.
 
 ## Interfaces this branch adds or changes
 Migrations: next free at execution time (main 0064; phase-10 0065–0066; phase-11 next).
@@ -25,7 +25,7 @@ Migrations: next free at execution time (main 0064; phase-10 0065–0066; phase-
 5. 13b decisions 1–9: see 13b spec (weekly full scans, cap, MapTiler static, Trend+Compare, Map climb + tier_change).
 
 ## New backlog (target → item)
-- Unscheduled / future phase → Generic runbook with per-client customisation (replaces per-vertical packs; merge with "agencies add their own verticals") — owner idea 2026-10-17.
+Generic runbook item filed in BACKLOG § Unscheduled (2026-10-17).
 
 ## Owner verification steps
 TBD.
