@@ -4,7 +4,7 @@
 **Spec:** 13b [2026-10-17-phase-13b-local-rankings-design](../superpowers/specs/2026-10-17-phase-13b-local-rankings-design.md); 13a none yet. Not in roadmap (add at merge).
 
 ## Status (overwrite)
-13b spec approved 2026-10-17; 13b plan written (owner review pending). 13a not designed.
+13b spec approved 2026-10-17; 13b plan owner-approved 2026-10-17 (incl. P1–P15; execute after phase-11 merges). 13a not designed.
 
 ## Next (overwrite)
 Owner reviews 13b plan (docs/superpowers/plans/2026-10-17-phase-13b-local-rankings.md) → execute after phase-11 merges; brainstorm 13a (Q2–5, Q12).
