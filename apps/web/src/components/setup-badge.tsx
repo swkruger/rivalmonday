@@ -1,4 +1,10 @@
+import type { SetupState } from '@cs/tools';
 import Link from 'next/link';
+
+/** Done-or-skipped step count while the setup is open; null when closed or absent. Shared by both client overviews. */
+export function openSetupSteps(setup: { state: Pick<SetupState, 'open' | 'steps'> } | null): number | null {
+  return setup?.state.open ? Object.values(setup.state.steps).filter((x) => x === 'done' || x === 'skipped').length : null;
+}
 
 /** Calm chip linking to the setup wizard while a client's setup is open (Phase 11a §7). Not forced: it only nudges. */
 export function SetupBadge({ clientId, open, doneSteps }: { clientId: string; open: boolean; doneSteps: number }) {

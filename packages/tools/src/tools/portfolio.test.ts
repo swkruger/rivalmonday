@@ -79,7 +79,7 @@ describe('get_portfolio', () => {
     // A1: profile todo (the seed client has no place id), search skipped, competitors todo.
     const a1 = items.find((i) => i.clientId === IDS.clientA1)!.setup;
     expect(a1).toMatchObject({ open: true });
-    expect(a1!.doneSteps).toBeGreaterThanOrEqual(1);
+    expect(a1!.doneSteps).toBe(1);
     expect(items.find((i) => i.clientId === IDS.clientA2)!.setup).toBeNull(); // completed
   });
 

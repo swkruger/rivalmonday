@@ -5,7 +5,7 @@ import { WriteGuard } from '@/components/read-only';
 import type { ClientSetupView } from '../types';
 
 const areaClass = 'min-h-20 w-full max-w-xl rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
-const DEFAULT_RADIUS_KM = '25';
+const DEFAULT_RADIUS_KM = '15';
 
 export interface ProfileInitial {
   services: string[];
@@ -18,7 +18,7 @@ type Suggestion = { value: string; quote: string };
 
 /** The ready suggestions, or none: a ready set with both lists empty reads like a failed one (the seed keywords show instead). */
 function readySuggestions(s: ClientSetupView['suggestions']): { services: Suggestion[]; keywords: Suggestion[] } | null {
-  return s.status === 'ready' && (s.services.length > 0 || s.keywords.length > 0) ? { services: s.services, keywords: s.keywords } : null;
+  return s.status === 'ready' ? { services: s.services, keywords: s.keywords } : null;
 }
 
 function Chip({ checked, onToggle, label, value, name, quote }: { checked: boolean; onToggle: () => void; label: string; value: string; name: string; quote?: string }) {
@@ -55,7 +55,7 @@ export function BusinessStep({ view, profile, pending, onSave }: { view: ClientS
   const [center, setCenter] = useState(area ? `${area.center.lat}, ${area.center.lng}` : lookup ? `${lookup.lat}, ${lookup.lng}` : '');
   const [radius, setRadius] = useState(area ? String(area.radiusKm) : lookup ? DEFAULT_RADIUS_KM : '');
   const [zips, setZips] = useState(area?.zips.join(', ') ?? '');
-  const [towns, setTowns] = useState(area?.towns?.join('\n') ?? (lookup?.city && !area ? lookup.city : ''));
+  const [towns, setTowns] = useState(area?.towns?.length ? area.towns.join('\n') : (lookup?.city ?? ''));
   const [placeId, setPlaceId] = useState(profile.placeId ?? lookup?.placeId ?? '');
 
   // Suggestions that arrive after the form is shown: merge once, when the ready set first appears.
@@ -66,7 +66,7 @@ export function BusinessStep({ view, profile, pending, onSave }: { view: ClientS
     setKeywords((prev) => new Set([...prev, ...ready.keywords.map((s) => s.value)]));
   }
 
-  const keywordChips = [...new Set([...(ready?.keywords.map((s) => s.value) ?? view.vertical.seedKeywords), ...profile.keywords])];
+  const keywordChips = [...new Set([...((ready && ready.keywords.length > 0 ? ready.keywords.map((s) => s.value) : view.vertical.seedKeywords)), ...profile.keywords])];
   const quoteOf = new Map([...(ready?.services ?? []), ...(ready?.keywords ?? [])].map((s) => [s.value, s.quote]));
   const quotes = [...(ready?.services ?? []).map((s) => ({ ...s, label: view.vertical.services.find((v) => v.id === s.value)?.name ?? s.value })), ...(ready?.keywords ?? []).map((s) => ({ ...s, label: s.value }))];
 
@@ -80,7 +80,7 @@ export function BusinessStep({ view, profile, pending, onSave }: { view: ClientS
       className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card"
     >
       {waiting && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">Reading your Google profile…</p>}
-      {ready && (
+      {ready && (ready.services.length > 0 || ready.keywords.length > 0) && (
         <p className="text-sm text-muted-foreground">
           We pre-ticked what we found on the Google profile. Hover a chip to see where it came from, or see the list below.
         </p>
@@ -139,7 +139,7 @@ export function BusinessStep({ view, profile, pending, onSave }: { view: ClientS
       <div className="flex flex-col gap-2">
         <Label htmlFor="placeId">Google place id</Label>
         <Input id="placeId" name="placeId" value={placeId} onChange={(e) => setPlaceId(e.target.value)} className="max-w-md" />
-        <p className="text-sm text-muted-foreground">Lets Rival Monday benchmark the business’s own reviews against its competitors.</p>
+        <p className="text-sm text-muted-foreground">Lets us benchmark the business’s own reviews against its competitors.</p>
       </div>
 
       <WriteGuard>

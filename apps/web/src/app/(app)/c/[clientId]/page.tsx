@@ -18,7 +18,7 @@ import { foldSeries, LineChart } from '@/components/charts/line-chart';
 import { ClientHomeBasic } from '@/components/client-home-basic';
 import { AlertLinkList, BriefLinkList } from '@/components/client-lists';
 import { pendingStartingPoint, StartingPointCard } from '@/components/starting-point-card';
-import { SetupBadge } from '@/components/setup-badge';
+import { openSetupSteps, SetupBadge } from '@/components/setup-badge';
 import { StatCard } from '@/components/stat-card';
 import { BriefView } from '@/components/views/brief-view';
 import { requireContext } from '@/server/current-viewer';
@@ -49,7 +49,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
     // Agency staff and the client's owner while setup is open; anyone else (and a closed setup for owners) reads null.
     tryCallTool<{ state: SetupState }>(ctx, 'get_client_setup', { clientId }),
   ]);
-  const setupSteps = setup?.state.open ? Object.values(setup.state.steps).filter((x) => x === 'done' || x === 'skipped').length : null;
+  const setupSteps = openSetupSteps(setup);
   const preparing = pendingStartingPoint(starting, briefs.items);
   const { latest: first, rest: pastBriefs } = latestBrief(briefs.items);
   const latest = first ? await callTool<BriefDetail>(ctx, 'get_brief', { briefId: first.id }) : null;
