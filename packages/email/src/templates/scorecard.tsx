@@ -1,5 +1,6 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
+import { TIER_LABELS } from '@cs/core';
 import type { CSSProperties } from 'react';
 import { Section, Text } from 'react-email';
 import type { Branding } from '../branding';
@@ -8,7 +9,6 @@ import type { ScorecardModel } from '../types';
 const cell: CSSProperties = { fontSize: 13, margin: 0, padding: '4px 6px' };
 const num: CSSProperties = { textAlign: 'right', whiteSpace: 'nowrap' };
 const TREND_COLOUR = { up: '#15803D', down: '#B91C1C' } as const;
-const TIER_LABEL = { top: 'Top rival', watch: 'Worth watching', minor: 'Minor' } as const;
 
 /** Four tiles then a compact scorecard table (one real table with fixed widths, like `trend-table.tsx`). Trend colour is always paired with its text. */
 export function Scorecard(props: { branding: Branding; model: ScorecardModel; heading?: string }) {
@@ -46,7 +46,7 @@ export function Scorecard(props: { branding: Branding; model: ScorecardModel; he
               {r.cells.map((c, i) => (
                 <td key={i} style={{ ...cell, verticalAlign: 'top', ...(i === 0 ? {} : num) }}>
                   {c}
-                  {i === 0 && r.tier ? <span style={{ display: 'block', fontSize: 10, fontWeight: 400, color: '#5B6B7F' }}>{TIER_LABEL[r.tier]}</span> : null}
+                  {i === 0 && r.tier ? <span style={{ display: 'block', fontSize: 10, fontWeight: 400, color: '#5B6B7F' }}>{TIER_LABELS[r.tier]}</span> : null}
                 </td>
               ))}
             </tr>

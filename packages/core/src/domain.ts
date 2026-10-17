@@ -1,8 +1,11 @@
 export const CHANGE_TYPES = [
   'price_change', 'promo', 'new_service', 'service_removed', 'service_area_change', 'new_location',
-  'hiring', 'ad_started', 'ad_stopped', 'review_spike', 'rating_change', 'rank_change', 'content', 'cosmetic',
+  'hiring', 'ad_started', 'ad_stopped', 'review_spike', 'rating_change', 'rank_change', 'tier_change', 'content', 'cosmetic',
 ] as const;
 export type ChangeType = (typeof CHANGE_TYPES)[number];
+
+/** Display names of the competitor rating tiers (`competitor_signal.tier`); also the `tier_change` before/after text. */
+export const TIER_LABELS = { top: 'Top rival', watch: 'Worth watching', minor: 'Minor' } as const;
 
 /** Where a detected change came from: the `capture.source` of its evidence, or `rank` for tenant-private rank scans. */
 export const CHANNELS = ['web', 'google_ads', 'meta_ads', 'google_business_profile', 'google_reviews', 'google_jobs', 'rank'] as const;

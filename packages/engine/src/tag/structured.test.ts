@@ -155,3 +155,19 @@ describe('serviceForKeyword', () => {
     expect(serviceForKeyword('best plumber', hvac)).toBeNull();
   });
 });
+
+describe('tier_change events', () => {
+  it('summary uses tier labels, no model call', async () => {
+    const [scan] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'done', finishedAt: day(9) }).returning({ id: rankScan.id });
+    const id = await change({
+      source: 'rank', kind: 'modified', afterCaptureId: null, beforeCaptureId: null, rankScanId: scan!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1, blockKey: 'tier:2026-10-12',
+      beforeText: 'Worth watching', afterText: 'Top rival', details: { changeType: 'tier_change', from: 'watch', to: 'top' },
+    });
+    const ai = createFakeAi();
+    await tagChange({ db: dbs.service, ai, packs }, id);
+    const [ev] = await dbs.owner.select().from(changeEvent);
+    expect(ev).toMatchObject({ changeType: 'tier_change', agencyId: IDS.agencyA, clientId: IDS.clientA1, channels: ['rank'], occurredAt: day(9) });
+    expect(ev?.summary).toBe('Now rated "Top rival" (was "Worth watching")');
+    expect(ai.calls.decide).toHaveLength(0);
+  });
+});

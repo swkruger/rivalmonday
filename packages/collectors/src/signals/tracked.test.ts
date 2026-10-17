@@ -1,4 +1,4 @@
-import { ad, capture, client, competitor, competitorSignal, competitorSource, competitorSuggestion, observation, rankScan, rankSnapshot, review } from '@cs/db';
+import { ad, capture, client, competitor, detectedChange, competitorSignal, competitorSource, competitorSuggestion, observation, rankScan, rankSnapshot, review } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import type { VerticalPack } from '@cs/verticals';
 import { eq } from 'drizzle-orm';
@@ -110,6 +110,72 @@ describe('computeTrackedSignals', () => {
     await computeTrackedSignals(deps(), IDS.clientA2, NOW);
     const rows = await dbs.service.select().from(competitorSignal).where(eq(competitorSignal.clientId, IDS.clientA2));
     expect(rows.map((r) => r.competitorId)).toEqual([IDS.competitorY]);
+  });
+});
+
+describe('tier_change events', () => {
+  const sig = (tier: 'top' | 'watch' | 'minor') => ({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorY, tier, signals: {} });
+  const scan = async (status: 'done' | 'skipped' | 'running', at: Date) =>
+    (await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, status, startedAt: at, finishedAt: at }).returning())[0]!;
+  // competitor Y has no overlap in these tests → computes tier 'minor'; a previous row of another tier makes it a change.
+  const changes = () => dbs.service.select().from(detectedChange).where(eq(detectedChange.clientId, IDS.clientA2));
+
+  it('watch → top writes one tier_change on the latest done scan', async () => {
+    await dbs.owner.insert(competitorSuggestion).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, name: 'Bright Smiles', placeId: 'p-y', appearances: 5, overlapScore: 0.9, overlap: 0.9 });
+    // Active enough for Top: a fresh GBP profile with many reviews and an ad account match.
+    await dbs.service.insert(observation).values({ competitorId: IDS.competitorY, captureId: CAP, kind: 'gbp_profile', key: 'profile', data: { rating: 4.6, votes: 120, isClaimed: true }, observedAt: daysAgo(2) });
+    await dbs.service.insert(review).values([rev('a', daysAgo(1), 'Thanks!'), rev('b', daysAgo(5), 'Thanks'), rev('c', daysAgo(20))]);
+    await dbs.owner.update(competitor).set({ googleAdvertiserIds: ['AR1'] }).where(eq(competitor.id, IDS.competitorY));
+    await dbs.service.insert(competitorSignal).values(sig('watch'));
+    await scan('done', daysAgo(9));
+    const latest = await scan('done', daysAgo(2));
+    await scan('running', daysAgo(1));
+    await computeTrackedSignals(deps(), IDS.clientA2, NOW);
+    const rows = await changes();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      source: 'rank', kind: 'modified', rankScanId: latest.id, agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorY,
+      blockKey: 'tier:2026-10-14', beforeText: 'Worth watching', afterText: 'Top rival', stageVersion: 1,
+      details: { changeType: 'tier_change', from: 'watch', to: 'top' },
+    });
+  });
+
+  it('first rating (no previous row) writes nothing', async () => {
+    await scan('done', daysAgo(2));
+    await computeTrackedSignals(deps(), IDS.clientA2, NOW);
+    expect(await changes()).toHaveLength(0);
+  });
+
+  it('no done scan writes nothing', async () => {
+    await dbs.service.insert(competitorSignal).values(sig('top'));
+    await computeTrackedSignals(deps(), IDS.clientA2, NOW);
+    expect(await changes()).toHaveLength(0);
+  });
+
+  it('skipped latest scan is not used', async () => {
+    await dbs.service.insert(competitorSignal).values(sig('top'));
+    const done = await scan('done', daysAgo(9));
+    await scan('skipped', daysAgo(2));
+    await computeTrackedSignals(deps(), IDS.clientA2, NOW);
+    const rows = await changes();
+    expect(rows.map((r) => r.rankScanId)).toEqual([done.id]);
+    expect(rows[0]?.details).toMatchObject({ from: 'top', to: 'minor' });
+  });
+
+  it('same tier writes nothing', async () => {
+    await dbs.service.insert(competitorSignal).values(sig('minor'));
+    await scan('done', daysAgo(2));
+    await computeTrackedSignals(deps(), IDS.clientA2, NOW);
+    expect(await changes()).toHaveLength(0);
+  });
+
+  it('re-run the same day writes nothing new', async () => {
+    await dbs.service.insert(competitorSignal).values(sig('top'));
+    await scan('done', daysAgo(2));
+    await computeTrackedSignals(deps(), IDS.clientA2, NOW);
+    await dbs.service.update(competitorSignal).set({ tier: 'top' }).where(eq(competitorSignal.clientId, IDS.clientA2));
+    await computeTrackedSignals(deps(), IDS.clientA2, new Date(NOW.getTime() + 3_600_000));
+    expect(await changes()).toHaveLength(1);
   });
 });
 

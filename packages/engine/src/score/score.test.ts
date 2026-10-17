@@ -18,7 +18,7 @@ describe('scoreForClient', () => {
     const r = scoreForClient(input(), client, pack);
     expect(r.score).toBe(100);
     expect(r.route).toBe('alert');
-    expect(r.factors).toMatchObject({ typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 2 });
+    expect(r.factors).toMatchObject({ typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 3 });
   });
 
   it('scales size with the percent change, floored at price_min', () => {
@@ -95,5 +95,33 @@ describe('structured size curves and the alert age cap (Phase 3b)', () => {
     const stale = scoreForClient(input({ ageDays: 10 }), profile, pack);
     expect([fresh.route, fresh.factors.staleCap]).toEqual(['alert', false]);
     expect([stale.route, stale.factors.staleCap, stale.score]).toEqual(['brief', true, fresh.score]);
+  });
+});
+
+describe('tier_change scoring (P10)', () => {
+  const tier = (from: 'top' | 'watch' | 'minor', to: 'top' | 'watch' | 'minor', over: Partial<ScoreInput> = {}) =>
+    input({ changeType: 'tier_change', facts: [], serviceId: null, details: { changeType: 'tier_change', from, to }, ...over });
+
+  it('promotion to top routes alert', () => {
+    expect(scoreForClient(tier('watch', 'top'), client, pack)).toMatchObject({ score: 70, route: 'alert' });
+    expect(scoreForClient(tier('minor', 'top'), client, pack).route).toBe('alert');
+  });
+
+  it('watch promotion routes brief', () => {
+    expect(scoreForClient(tier('minor', 'watch'), client, pack)).toMatchObject({ score: 40, route: 'brief' });
+  });
+
+  it('demotion archives', () => {
+    expect(scoreForClient(tier('top', 'watch'), client, pack)).toMatchObject({ score: 0, route: 'archive' });
+    expect(scoreForClient(tier('watch', 'minor'), client, pack).route).toBe('archive');
+  });
+
+  it('needs-review cap still applies', () => {
+    const r = scoreForClient(tier('watch', 'top', { needsReview: true }), client, pack);
+    expect([r.route, r.factors.needsReviewCap]).toEqual(['brief', true]);
+  });
+
+  it('stale cap still applies', () => {
+    expect(scoreForClient(tier('watch', 'top', { ageDays: 10 }), client, pack)).toMatchObject({ route: 'brief' });
   });
 });

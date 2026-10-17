@@ -2,7 +2,7 @@
 export const CHANGE_LABELS: Record<string, string> = {
   price_change: 'price change', promo: 'new promotion', new_service: 'new service', service_removed: 'service removed',
   service_area_change: 'service area change', new_location: 'new location', hiring: 'hiring', ad_started: 'new ads', ad_stopped: 'ads stopped',
-  review_spike: 'complaint spike in reviews', rating_change: 'rating change', rank_change: 'local ranking change', content: 'website change', cosmetic: 'minor change',
+  review_spike: 'complaint spike in reviews', rating_change: 'rating change', rank_change: 'local ranking change', tier_change: 'competitor tier change', content: 'website change', cosmetic: 'minor change',
 };
 
 /** "price_change" → "Price change"; an unknown key is humanised instead of printed raw. */

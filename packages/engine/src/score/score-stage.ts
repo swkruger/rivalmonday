@@ -36,6 +36,8 @@ export function detailsSignature(changeType: string, d: ChangeDetails): string |
       return `rating|${d.ratingBefore ?? ''}|${d.ratingAfter ?? ''}`;
     case 'rank_change':
       return `rank|${d.keyword ?? ''}|${d.avgRankBefore ?? ''}|${d.avgRankAfter ?? ''}`;
+    case 'tier_change':
+      return `tier|${d.from ?? ''}|${d.to ?? ''}`;
     case 'review_spike':
       return `reviews|${d.theme ?? ''}|${d.count ?? ''}|${d.windowDays ?? ''}|${d.baselineMean ?? ''}`;
     case 'ad_started':

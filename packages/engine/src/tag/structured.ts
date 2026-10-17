@@ -1,6 +1,6 @@
 import type { Ai, DecisionQuestion } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
-import { CHANGE_TYPES, type ChangeType } from '@cs/core';
+import { CHANGE_TYPES, type ChangeType, TIER_LABELS } from '@cs/core';
 import { capture, type ChangeDetails, changeEvent, client, competitor, type Db, decisionReview, detectedChange, rankScan } from '@cs/db';
 import type { VerticalPack } from '@cs/verticals';
 import { and, eq } from 'drizzle-orm';
@@ -90,6 +90,9 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
       break;
     case 'rank_change':
       s = `"${d.keyword}": average map position ${d.avgRankBefore} → ${d.avgRankAfter}, top-3 share ${pct(d.top3Before)} → ${pct(d.top3After)}`;
+      break;
+    case 'tier_change':
+      s = `Now rated "${d.to ? TIER_LABELS[d.to] : after}" (was "${d.from ? TIER_LABELS[d.from] : before}")`;
       break;
     default: {
       s = `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(stripFieldLabel(d.field, before), 60)} → ${trunc(stripFieldLabel(d.field, after), 60)}`;

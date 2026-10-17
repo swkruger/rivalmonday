@@ -43,6 +43,7 @@ type_weights:
   review_spike: 0.6
   rating_change: 0.7
   rank_change: 0.5
+  tier_change: 0.6
   content: 0.2
   cosmetic: 0.0
 
@@ -56,7 +57,7 @@ move_thresholds:
   promo_blitz_window_days: 14
 
 scoring:
-  version: 2
+  version: 3
   routing: { alert: 70, brief: 40 }
   size:
     { default: 0.6, price_pct_for_full: 20, price_min: 0.3, ads_for_full: 5, jobs_for_full: 5, review_z_for_full: 4, rating_delta_for_full: 0.3, rank_delta_for_full: 5, structured_min: 0.3 }

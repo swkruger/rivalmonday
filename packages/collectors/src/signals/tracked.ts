@@ -1,7 +1,8 @@
 import {
-  ad, agencyServiceable, client, clientServiceable, clientCompetitor, competitor, competitorSignal, type CompetitorSignalRow, competitorSource, competitorSuggestion, type Db,
+  ad, agencyServiceable, client, clientServiceable, clientCompetitor, competitor, competitorSignal, detectedChange, type CompetitorSignalRow, competitorSource, competitorSuggestion, type Db,
   observation, type RankResult, rankScan, rankSnapshot, review, vendorTask,
 } from '@cs/db';
+import { TIER_LABELS } from '@cs/core';
 import { and, desc, eq, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { PackLoader } from '../rivals/run';
 import { activityScore, median, rankWeight, tierFor } from '../rivals/score';
@@ -124,6 +125,11 @@ export async function computeTrackedSignals(deps: { db: Db; packs: PackLoader },
 
   return db.transaction(async (tx) => {
     const out: CompetitorSignalRow[] = [];
+    // Phase 13b P9: read the previous tiers first; a changed tier is recorded against the latest finished scan (skipped/failed scans never count).
+    const before = new Map((await tx.select({ competitorId: competitorSignal.competitorId, tier: competitorSignal.tier }).from(competitorSignal)
+      .where(eq(competitorSignal.clientId, clientId))).map((r) => [r.competitorId, r.tier]));
+    const [lastScan] = await tx.select({ id: rankScan.id }).from(rankScan)
+      .where(and(eq(rankScan.clientId, clientId), eq(rankScan.status, 'done'))).orderBy(desc(rankScan.startedAt)).limit(1);
     for (const r of rated) {
       const activity = activityScore(r.signals, clientMedian);
       const row = { agencyId: c.agencyId, clientId, competitorId: r.id, overlap: r.overlap, activity, tier: r.overlap == null ? 'minor' as const : tierFor(r.overlap, activity, tiers), signals: r.signals, computedAt: now };
@@ -132,6 +138,14 @@ export async function computeTrackedSignals(deps: { db: Db; packs: PackLoader },
         set: { overlap: row.overlap, activity: row.activity, tier: row.tier, signals: row.signals, computedAt: row.computedAt },
       }).returning();
       out.push(saved!);
+      const from = before.get(r.id);
+      if (lastScan && from && from !== row.tier) {
+        await tx.insert(detectedChange).values({
+          source: 'rank', kind: 'modified', rankScanId: lastScan.id, agencyId: c.agencyId, clientId, competitorId: r.id,
+          blockKey: `tier:${now.toISOString().slice(0, 10)}`, beforeText: TIER_LABELS[from], afterText: TIER_LABELS[row.tier],
+          details: { changeType: 'tier_change', from, to: row.tier }, stageVersion: 1,
+        }).onConflictDoNothing();
+      }
     }
     const keep = rated.map((r) => r.id);
     await tx.delete(competitorSignal).where(and(eq(competitorSignal.clientId, clientId), ...(keep.length > 0 ? [notInArray(competitorSignal.competitorId, keep)] : [])));

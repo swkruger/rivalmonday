@@ -1,4 +1,4 @@
-import { changeEvent, detectedChange, eventChange, eventScore } from '@cs/db';
+import { changeEvent, detectedChange, eventChange, eventScore, rankScan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
@@ -146,5 +146,19 @@ describe('stage-version supersede (Phase 3d decision 7)', () => {
       { competitorId: IDS.competitorX, clientId: null, captureId: null, changeType: 'price_change', services: { hvac_plumbing: 'ac_tune_up' }, facts: [], embedding: null, occurredAt: day(1), text: 'AC tune-up $79' },
     );
     expect(target).toBeNull();
+  });
+});
+
+describe('rank-scope supersede (P9)', () => {
+  it('rank re-diff never supersedes tier rows', async () => {
+    const [scan] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'done', finishedAt: day(2) }).returning({ id: rankScan.id });
+    const base = { competitorId: IDS.competitorX, source: 'rank', kind: 'modified' as const, rankScanId: scan!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'event' as const, stageVersion: 0 };
+    const [rank] = await dbs.service.insert(detectedChange).values({ ...base, blockKey: 'rank:ac repair', details: { changeType: 'rank_change' } }).returning({ id: detectedChange.id });
+    const [tier] = await dbs.service.insert(detectedChange).values({ ...base, blockKey: 'tier:2026-10-12', details: { changeType: 'tier_change', from: 'watch', to: 'top' } }).returning({ id: detectedChange.id });
+    const r = await dbs.service.transaction((tx) => supersedePriorChanges(tx, { rankScanId: scan!.id }, 1));
+    expect(r.superseded).toBe(1);
+    const rows = await dbs.owner.select().from(detectedChange);
+    expect(rows.find((c) => c.id === rank!.id)?.status).toBe('superseded');
+    expect(rows.find((c) => c.id === tier!.id)?.status).toBe('event');
   });
 });

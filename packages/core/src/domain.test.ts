@@ -5,7 +5,7 @@ describe('domain constants', () => {
   it('lists the spec change types plus rank_change (Phase 3b)', () => {
     expect(CHANGE_TYPES).toEqual([
       'price_change', 'promo', 'new_service', 'service_removed', 'service_area_change', 'new_location',
-      'hiring', 'ad_started', 'ad_stopped', 'review_spike', 'rating_change', 'rank_change', 'content', 'cosmetic',
+      'hiring', 'ad_started', 'ad_stopped', 'review_spike', 'rating_change', 'rank_change', 'tier_change', 'content', 'cosmetic',
     ]);
   });
 

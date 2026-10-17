@@ -80,6 +80,13 @@ export function validThresholds(t: ScoreThresholds | null | undefined): t is Sco
   return !!t && Number.isFinite(t.alert) && Number.isFinite(t.brief) && t.brief >= 0 && t.alert <= 100 && t.brief < t.alert;
 }
 
+const TIER_RANK = { minor: 0, watch: 1, top: 2 } as const;
+
+function tierChangeScore(d: ChangeDetails, t: ScoreThresholds): number {
+  if (!d.from || !d.to || TIER_RANK[d.to] <= TIER_RANK[d.from]) return 0;
+  return d.to === 'top' ? t.alert : t.brief;
+}
+
 export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: VerticalPack): { score: number; route: Route; factors: ScoreFactors } {
   const typeWeight = pack.type_weights[input.changeType];
   const size = sizeFactor(input, pack);
@@ -87,9 +94,12 @@ export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: 
   const territory = TERRITORIAL_TYPES.has(input.changeType) ? territoryOverlap(input.zips, profile.zips, pack) : 1;
   const relevance = svc * territory;
   const novelty = noveltyFactor(input.maxSimilarity, pack);
-  const score = Math.round(100 * typeWeight * size * relevance * novelty * 10) / 10;
   if (profile.thresholds && !validThresholds(profile.thresholds)) console.warn('[engine] invalid client score thresholds; using the pack routing', profile.thresholds);
   const thresholds = validThresholds(profile.thresholds) ? profile.thresholds : pack.scoring.routing;
+  // P10: a tier change is deterministic. Promotion to top scores the alert threshold, any other promotion the brief threshold, a demotion 0.
+  const score = input.changeType === 'tier_change'
+    ? tierChangeScore(input.details, thresholds)
+    : Math.round(100 * typeWeight * size * relevance * novelty * 10) / 10;
   let route: Route = score >= thresholds.alert ? 'alert' : score >= thresholds.brief ? 'brief' : 'archive';
   const needsReviewCap = input.needsReview && route === 'alert';
   if (needsReviewCap) route = 'brief';

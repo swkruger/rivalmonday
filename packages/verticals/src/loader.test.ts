@@ -14,6 +14,7 @@ const weights = `
     review_spike: 0.6
     rating_change: 0.7
     rank_change: 0.5
+    tier_change: 0.6
     content: 0.2
     cosmetic: 0`;
 
