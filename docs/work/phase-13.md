@@ -1,13 +1,13 @@
 # phase-13 — Parity on overlap features (13a white-label, 13b local rankings)
 
 **Kind:** planning   **Worktree:** none — on `main` (owner instruction)   **Base:** main @ 4b1fb82
-**Spec:** 13b [2026-10-17-phase-13b-local-rankings-design](../superpowers/specs/2026-10-17-phase-13b-local-rankings-design.md); 13a none yet. Not in roadmap (add at merge).
+**Spec:** 13b [2026-10-17-phase-13b-local-rankings-design](../superpowers/specs/2026-10-17-phase-13b-local-rankings-design.md); 13a [2026-10-17-phase-13a-white-label-design](../superpowers/specs/2026-10-17-phase-13a-white-label-design.md). Not in roadmap (add at merge).
 
 ## Status (overwrite)
-13b spec approved 2026-10-17; 13b plan owner-approved 2026-10-17 (incl. P1–P15; execute after phase-11 merges). 13a not designed.
+13b spec approved 2026-10-17; 13b plan owner-approved 2026-10-17 (incl. P1–P15; execute after phase-11 merges). 13a spec written (owner review pending).
 
 ## Next (overwrite)
-Owner reviews 13b plan (docs/superpowers/plans/2026-10-17-phase-13b-local-rankings.md) → execute after phase-11 merges; brainstorm 13a (Q2–5, Q12).
+Owner reviews 13b plan (docs/superpowers/plans/2026-10-17-phase-13b-local-rankings.md) → execute after phase-11 merges; owner reviews 13a spec → 13a plan.
 
 ## Interfaces this branch adds or changes
 Migrations: next free at execution time (main 0064; phase-10 0065–0066; phase-11 next).
@@ -25,7 +25,7 @@ Migrations: next free at execution time (main 0064; phase-10 0065–0066; phase-
 5. 13b decisions 1–9: see 13b spec (weekly full scans, cap, MapTiler static, Trend+Compare, Map climb + tier_change).
 
 ## New backlog (target → item)
-None yet.
+- Unscheduled / future phase → Generic runbook with per-client customisation (replaces per-vertical packs; merge with "agencies add their own verticals") — owner idea 2026-10-17.
 
 ## Owner verification steps
 TBD.
@@ -76,9 +76,5 @@ Match table stakes (feasibility §4.2) before outside agencies arrive via Phase 
 
 ### 6. Open questions for the owner
 1. **Order/split.** Answered: 13b first; 13a after phase-10/11 merge (13a1 domains+sender / 13a2 scrubbing+voice).
-2. **Custom domains on Vercel.** (a) Vercel Domains API from the app; (b) manual by operator; (c) only `<agency>.rivalmonday.app`. *Rec: (a), with (c) as default host.*
-3. **Verification/TLS.** (a) agency adds CNAME (+ TXT if asked), worker polls Vercel, live once verified + cert issued; (b) our TXT token first, then CNAME. *Rec: (a).*
-4. **Host scope.** (a) app, sign-in, links, PDFs, logos, MCP + OAuth issuer all on the agency host; (b) all but MCP. *Rec: (a).*
-5. **Sending domain.** (a) Postmark Domains API, records shown to agency, platform sender until verified; (b) manual; (c) shared sender, agency From-name only. *Rec: (a).*
-6–11. Answered 2026-10-17 → 13b spec Decisions.
-12. **Voice settings.** (a) preset formal/friendly/blunt + preferred/banned terms (core §5.1); (b) free-text prompt. *Rec: (a).*
+2–11. Answered 2026-10-17 → 13a/13b spec Decisions.
+12. Answered: agency default + per-client override (13a spec D6).
