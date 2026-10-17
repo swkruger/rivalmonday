@@ -75,15 +75,10 @@ Match table stakes (feasibility §4.2) before outside agencies arrive via Phase 
 - **phase-7-planning** (docs): `/bot` stays Rival Monday on any host. 13b overlaps none.
 
 ### 6. Open questions for the owner
-1. **Order/split.** (a) 13a → 13b; (b) 13b first (no Phase 10/11 overlap, can start now); (c) parallel. *Rec: (b), then 13a after phase-10/11 merge, split 13a1 domains+sender / 13a2 scrubbing+voice.*
+1. **Order/split.** Answered: 13b first; 13a after phase-10/11 merge (13a1 domains+sender / 13a2 scrubbing+voice).
 2. **Custom domains on Vercel.** (a) Vercel Domains API from the app; (b) manual by operator; (c) only `<agency>.rivalmonday.app`. *Rec: (a), with (c) as default host.*
 3. **Verification/TLS.** (a) agency adds CNAME (+ TXT if asked), worker polls Vercel, live once verified + cert issued; (b) our TXT token first, then CNAME. *Rec: (a).*
 4. **Host scope.** (a) app, sign-in, links, PDFs, logos, MCP + OAuth issuer all on the agency host; (b) all but MCP. *Rec: (a).*
 5. **Sending domain.** (a) Postmark Domains API, records shown to agency, platform sender until verified; (b) manual; (c) shared sender, agency From-name only. *Rec: (a).*
-6. **Scan caps.** Weekly: (a) top 3 kw × 5×5, only clients with a tracked Top rival (~$0.15); (b) ≤5 kw × 7×7 (~$0.49). Monthly full stays. "Scan now": 1/client/week, ≤ $0.50/run (shrink grid, then keywords), 10/agency/day. *Rec: (a) + that manual cap.*
-7. **Who pays.** (a) in seat price, counts to `monthly_cap_usd`; (b) paid add-on for bigger grids. *Rec: (a).*
-8. **Agency config limits.** *Rec: ≤ 5 keywords, grid 5×5|7×7, radius 2–40 km* (alt: 10 kw / 9×9 as add-on).
-9. **Tile provider.** (a) MapTiler; (b) Stadia; both proxied via our host (no viewer leak, attribution). *Rec: (a).*
-10. **Trend UI.** (a) avg-rank line + scan scrubber; (b) small multiples; (c) two-scan compare with delta cells. *Rec: (a) + (c).*
-11. **Rank → moves.** (a) new "Map climb" move (rival into top-3 at ≥ N points over 2 scans); (b) `tier_change` from rank data; (c) both. *Rec: (c).*
+6–11. Answered 2026-10-17 → 13b spec Decisions.
 12. **Voice settings.** (a) preset formal/friendly/blunt + preferred/banned terms (core §5.1); (b) free-text prompt. *Rec: (a).*
