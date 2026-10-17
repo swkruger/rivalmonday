@@ -49,6 +49,8 @@ test.describe.serial('billing', () => {
   test('a trial agency at its 3-client cap cannot add a 4th active client and is offered an Upgrade link', { tag: ['@billing', '@clients'] }, async ({ browser }, testInfo) => {
     await as(browser, testInfo, 'trialAdmin', async (page) => {
       await page.goto('/agency/clients/new');
+      // Phase 11a: the page opens on the business lookup; the by-hand form is the fallback below it.
+      await page.getByRole('button', { name: /enter details by hand/i }).click();
       await page.getByLabel('Business name').fill('Fourth Client');
       await page.getByLabel('Vertical').selectOption('dental');
       await page.getByLabel(/search keywords/i).fill('dentist');

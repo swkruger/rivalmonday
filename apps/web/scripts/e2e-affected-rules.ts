@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@playbooks',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -63,6 +63,7 @@ export const RULES: Rule[] = [
     tags: 'all',
     why: 'shared server foundation',
   },
+  { pattern: /^packages\/tools\/src\/(?:setup\/|tools\/setup\.ts$)/, tags: ['@setup', '@clients'], why: 'client setup wizard tools (state, lookup, suggestions, profile change)' },
   { pattern: /^packages\/tools\/src\/(?:tools|platform)\/support\.ts$/, tags: ['@support', '@platform'], why: 'support-session tools and service (start/end, history, console list)' },
   { pattern: /^packages\/tools\/src\/(?:platform\/costs\/|tools\/platform-costs\.ts$)/, tags: ['@costs'], why: 'platform costs tools, maths and snapshot service' },
   { pattern: /^packages\/tools\/src\/(?:platform\/|tools\/platform-console\.ts$)/, tags: ['@platform'], why: 'platform console tools and nightly stats' },
@@ -112,7 +113,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${C}briefs/`), tags: ['@briefs', '@guest', '@starting-point'], why: 'brief page' },
   { pattern: re(`${C}changes/`), tags: ['@changes', '@evidence'], why: 'changes feed and evidence viewer' },
   { pattern: re(`${C}competitors/`), tags: ['@competitors', '@rivals'], why: 'competitors and profiles' },
-  { pattern: re(`${C}setup/`), tags: ['@clients', '@competitors', '@overview'], why: 'client setup wizard (Task 13 adds a dedicated @setup tag with its spec)' },
+  { pattern: re(`${C}setup/`), tags: ['@setup'], why: 'client setup wizard' },
   { pattern: re(`${C}evidence/`), tags: ['@evidence', '@guest'], why: 'evidence page' },
   { pattern: re(`${C}moves/`), tags: ['@moves'], why: 'moves' },
   { pattern: re(`${C}pitch-snapshot/`), tags: ['@prospects', '@guest'], why: 'pitch snapshot' },
@@ -141,7 +142,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}client-profile-form\\.tsx$`), tags: ['@clients', '@profile', '@prospects'], why: 'client/prospect forms' },
   { pattern: re(`${COMP}evidence-chips\\.tsx$`), tags: ['@briefs', '@recommendations', '@overview', '@alerts', '@guest'], why: 'evidence chips' },
   { pattern: re(`${COMP}evidence-image\\.tsx$`), tags: ['@changes', '@evidence'], why: 'evidence snapshots' },
-  { pattern: re(`${COMP}setup-badge\\.tsx$`), tags: ['@clients', '@overview'], why: 'Finish setup badge (client overview and portfolio)' },
+  { pattern: re(`${COMP}setup-badge\\.tsx$`), tags: ['@setup', '@clients', '@overview'], why: 'Finish setup badge (client overview and portfolio)' },
   { pattern: re(`${COMP}pressure-badge\\.tsx$`), tags: ['@clients', '@competitors'], why: 'pressure badge' },
   { pattern: re(`${COMP}rival/`), tags: ['@competitors', '@rivals'], why: 'rival tier chips and signal pills' },
   { pattern: re(`${COMP}prospect-landscape\\.tsx$`), tags: ['@prospects'], why: 'prospect landscape' },

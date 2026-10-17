@@ -2,12 +2,12 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { currentStandardPlan, ensureExemptPilot } from '@cs/billing';
 import { signLink } from '@cs/core';
-import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
+import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
 import { createStoreFromEnv } from '@cs/storage';
 import { eq, sql } from 'drizzle-orm';
 import { acceptInvitations, createInvitation } from '@cs/tools';
 import { resolveEvidenceDir } from '../src/server/files';
-import { ASK_FIXTURE_FILE, E2E_LINK_SECRET, MCP_CLIENTS_FILE, OUTBOX, OWNER_LINK_FILE, RIVALS_FIXTURE_FILE, STARTING_FIXTURE_FILE } from '../playwright.config';
+import { ASK_FIXTURE_FILE, E2E_LINK_SECRET, MCP_CLIENTS_FILE, OUTBOX, OWNER_LINK_FILE, RIVALS_FIXTURE_FILE, SETUP_FIXTURE_FILE, STARTING_FIXTURE_FILE } from '../playwright.config';
 
 /**
  * Seeds `cs_test` for the E2E smoke run: one agency, one client, one competitor, a sent brief, an invitation and a
@@ -196,6 +196,7 @@ export async function seed(): Promise<void> {
 
     await seedRivals(db, { agencyId });
     await seedStartingPoint(db, { agencyId });
+    await seedSetup(db, { agencyId });
 
     await seedAsk(db, { agencyId, competitorId: comp!.id, eventId: workspace.eventId, evidenceId: workspace.evidenceId });
 
@@ -545,4 +546,74 @@ async function seedStartingPoint(db: ReturnType<typeof createDb>['db'], o: { age
   };
   await mkdir(dirname(STARTING_FIXTURE_FILE), { recursive: true });
   await writeFile(STARTING_FIXTURE_FILE, JSON.stringify(fixture));
+}
+
+/** 11a E2E: what `client-setup.spec.ts` reads from `SETUP_FIXTURE_FILE`. */
+export type SetupFixture = {
+  finish: { id: string; name: string };
+  owner: { id: string; name: string };
+  badge: { id: string; name: string };
+  closed: { id: string; name: string };
+};
+export const SETUP_OWNER_EMAIL = 'setup-owner@e2e.test';
+
+/**
+ * 11a: no worker runs in E2E, so four open/closed setups are written directly (P5). Every open one has a done discovery
+ * run (so saving the profile never starts an auto search: `startFirstAutoSearch` skips clients with any run) and tiered
+ * suggestions. `finish` has a complete profile (opens on the pick step; staff finish it), `owner` has an empty profile
+ * with ready Google suggestions (its owner edits the profile, then picks), `badge` stays open untouched (portfolio
+ * badge), `closed` is completed (its owner gets 404). The setup owner owns `owner` and `closed`.
+ */
+async function seedSetup(db: ReturnType<typeof createDb>['db'], o: { agencyId: string }): Promise<void> {
+  const { agencyId } = o;
+  const area = { center: { lat: 32.4, lng: -97.79 }, radiusKm: 25, zips: ['76048'] };
+  const base = { agencyId, verticalId: 'hvac_plumbing', features: ['dashboard'] };
+  const [finish, owner, badge, closed] = await db.insert(client).values([
+    { ...base, name: 'Setup Finish Plumbing', keywords: ['plumber near me'], serviceArea: area, placeId: 'e2e-setup-finish-place' },
+    { ...base, name: 'Setup Owner Heating' },
+    { ...base, name: 'Setup Badge Cooling' },
+    { ...base, name: 'Setup Closed Air', keywords: ['ac repair'], serviceArea: area, placeId: 'e2e-setup-closed-place' },
+  ]).returning({ id: client.id, name: client.name });
+
+  const ready = {
+    status: 'ready' as const,
+    services: [{ value: 'ac_repair', quote: 'Air conditioning repair and installation' }],
+    keywords: [{ value: 'ac repair near me', quote: 'Air conditioning repair and installation' }],
+    sources: ['gbp' as const],
+    generatedAt: new Date().toISOString(),
+  };
+  await db.insert(clientSetup).values([
+    { clientId: finish!.id, agencyId, suggestions: { status: 'none' } },
+    { clientId: owner!.id, agencyId, suggestions: ready },
+    { clientId: badge!.id, agencyId, suggestions: { status: 'none' } },
+    { clientId: closed!.id, agencyId, suggestions: { status: 'none' }, competitorsDoneAt: new Date(), completedAt: new Date() },
+  ]);
+
+  const rowsFor = (clientId: string, runId: string, names: { name: string; tier: 'top' | 'watch' | 'minor'; overlap: number }[]) =>
+    names.map((r, i) => ({
+      agencyId, clientId, name: r.name, domain: null, placeId: `e2e-setup-${clientId}-${i}`, cid: null, rating: 4.5, votes: 100, appearances: 1, bestRank: 1,
+      overlapScore: r.overlap, status: 'suggested', runId, category: 'HVAC contractor', distanceKm: 3 + i, overlap: r.overlap, activity: 0.5, tier: r.tier, signals: NO_SIGNALS, adMatches: [],
+    }));
+  const doneRun = (clientId: string, kept: number) => ({ agencyId, clientId, trigger: 'auto' as const, status: 'done' as const, kept, startedAt: new Date(Date.now() - 3600_000), finishedAt: new Date(Date.now() - 3000_000), hidden: {} });
+  const [finishRun, ownerRun] = await db.insert(discoveryRun).values([doneRun(finish!.id, 4), doneRun(owner!.id, 2), doneRun(badge!.id, 0), doneRun(closed!.id, 0)]).returning({ id: discoveryRun.id });
+  await db.insert(competitorSuggestion).values([
+    ...rowsFor(finish!.id, finishRun!.id, [
+      { name: 'Setup Rival One Plumbing', tier: 'top', overlap: 0.9 },
+      { name: 'Setup Rival Two Plumbing', tier: 'top', overlap: 0.85 },
+      { name: 'Setup Watch Plumbing', tier: 'watch', overlap: 0.6 },
+      { name: 'Setup Minor Plumbing', tier: 'minor', overlap: 0.2 },
+    ]),
+    ...rowsFor(owner!.id, ownerRun!.id, [
+      { name: 'Owner Rival Heating', tier: 'top', overlap: 0.9 },
+      { name: 'Owner Watch Heating', tier: 'watch', overlap: 0.6 },
+    ]),
+  ]);
+
+  await createInvitation(db, { agencyId, email: SETUP_OWNER_EMAIL, role: 'client_owner', clientId: owner!.id, invitedBy: 'e2e-seed' });
+  await createInvitation(db, { agencyId, email: SETUP_OWNER_EMAIL, role: 'client_owner', clientId: closed!.id, invitedBy: 'e2e-seed' });
+
+  await mkdir(dirname(SETUP_FIXTURE_FILE), { recursive: true });
+  await writeFile(SETUP_FIXTURE_FILE, JSON.stringify({
+    finish: finish!, owner: owner!, badge: badge!, closed: closed!,
+  } satisfies SetupFixture));
 }

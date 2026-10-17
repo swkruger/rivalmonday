@@ -13,6 +13,8 @@ test.use({ storageState: ADMIN_STATE });
 
 test('an admin adds a client and lands on its competitors page', { tag: ['@clients', '@competitors'] }, async ({ page }) => {
   await page.goto('/agency/clients/new');
+  // Phase 11a: the page opens on the business lookup; the by-hand form is the fallback below it.
+  await page.getByRole('button', { name: /enter details by hand/i }).click();
   await page.getByLabel('Business name').fill('E2E Dental');
   await page.getByLabel('Vertical').selectOption('dental');
   await page.getByLabel(/search keywords/i).fill('dentist\nteeth cleaning');
