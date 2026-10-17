@@ -19,7 +19,7 @@ import {
   type AgencyClientBillingNoticeProps, type AgencyWelcomeProps, type BillingNoticeProps, type ClientBillingNoticeProps, createEmailTransportFromEnv, type OnboardingTipProps,
   type PlatformSignupNoticeProps, renderEmail, resolveBranding,
 } from '@cs/email';
-import { listMonthlyRivalClients, normalizeAdminEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps, unsubscribeToken } from '@cs/tools';
+import { type LeadEmailDeps, listMonthlyRivalClients, normalizeAdminEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps, unsubscribeToken } from '@cs/tools';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { lookup } from 'node:dns/promises';
@@ -81,6 +81,8 @@ export interface WorkerDeps {
   /** Phase 11a: AI profile suggestions for a client's setup wizard (never throws; a failure is recorded as `failed`). */
   generateSetupSuggestions(clientId: string): Promise<{ status: 'ready' | 'failed' } | { skipped: string }>;
   /** Phase 11c: the free competitive preview for a verified lead plus its confirmation / agency-new / pool-new emails (never throws; failures are recorded as `failed`). */
+  /** Phase 11c: the direct lead-mail sender deps (null when mail is not configured). */
+  leadEmailDeps(): LeadEmailDeps | null;
   generateLeadPreview(leadId: string): Promise<{ status: 'ready' | 'failed' } | { skipped: string }>;
   /** Phase 11a Task 9: daily reminders to agency staff about open setups (needs delivery config). */
   setupReminders(now: Date): Promise<{ queued: number }>;
@@ -263,6 +265,12 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     }
   };
 
+  const leadEmailDeps = (): LeadEmailDeps | null => {
+    const from = delivery?.fromAddress ?? env.EMAIL_FROM;
+    const appUrl = env.APP_URL?.trim();
+    return from && appUrl ? { service: getDb(), transport: getEmailTransport(), appUrl, fromAddress: from, platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS) } : null;
+  };
+
   return {
     claimDuePages: (limit) => claimDuePages(getDb(), limit),
     capturePage: (id) => capturePage({ db: getDb(), store: getStore(), renderer: getRenderer() }, id),
@@ -314,11 +322,9 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       }
       return runSetupSuggestions({ db: getDb(), ...clients, packs }, clientId);
     },
+    leadEmailDeps,
     async generateLeadPreview(leadId) {
-      const from = delivery?.fromAddress ?? env.EMAIL_FROM;
-      const appUrl = env.APP_URL?.trim();
-      const email = from && appUrl ? { service: getDb(), transport: getEmailTransport(), appUrl, fromAddress: from, platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS) } : null;
-      return runLeadPreview({ db: getDb(), clients: async () => ({ dfs: getDfs(), ai: await getAi() }), email }, leadId);
+      return runLeadPreview({ db: getDb(), clients: async () => ({ dfs: getDfs(), ai: await getAi() }), email: leadEmailDeps() }, leadId);
     },
     recommendForMoves: async (clientId) => recommendForMoves({ db: getDb(), ai: await getAi(), packs }, clientId),
     async discoverPages(competitorId) {

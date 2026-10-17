@@ -75,7 +75,7 @@ async function lockVerifiedLead(tx: Tx, ctx: AccessContext, leadId: string): Pro
 }
 
 /** Direct lead mail after commit (R1). Never throws: the decision already committed; guarded kinds are retried by leads-cleanup. */
-async function sendAfterCommit(deps: ToolDeps, leadId: string, kind: LeadEmailKind): Promise<void> {
+export async function sendAfterCommit(deps: ToolDeps, leadId: string, kind: LeadEmailKind): Promise<void> {
   if (!deps.leadEmail) {
     console.warn(`[leads] lead email is not configured; ${kind} not sent for lead=${leadId}`);
     return;

@@ -1,13 +1,13 @@
 import type { Ai } from '@cs/ai';
 import type { DataForSeoClient } from '@cs/collectors';
-import { agencyBilling, contact, type Db, lead, type SetupLookup } from '@cs/db';
+import { agencyBilling, contact, type Db, intakeRate, lead, type SetupLookup } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport } from '@cs/email';
 import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LeadEmailDeps } from '@cs/tools';
 import type { WorkerDeps } from '../deps';
-import { createLeadJobs, runLeadPreview as runReal } from './leads';
+import { createLeadJobs, runLeadPreview as runReal, runLeadsCleanup } from './leads';
 
 const runLeadPreview = (d: { db: Db; dfs: DataForSeoClient; ai: Ai; email: LeadEmailDeps | null }, id: string) => runReal({ db: d.db, email: d.email, clients: async () => ({ dfs: d.dfs, ai: d.ai }) }, id);
 
@@ -178,5 +178,117 @@ describe('lead-preview job', () => {
     const id = '11111111-1111-4111-8111-111111111111';
     expect(await preview.handler({ leadId: id })).toEqual({ status: 'ready' });
     expect(generateLeadPreview).toHaveBeenCalledWith(id);
+  });
+});
+
+describe('leads-cleanup', () => {
+  const DAYS = 86_400_000;
+  const ago = (ms: number) => new Date(Date.now() - ms);
+  const ready = { status: 'ready' as const, self: { name: 'Smith Dental', rating: 4.6, votes: 12 }, nearby: [], facts: [], summary: null, category: 'Dentist', generatedAt: '2026-10-17T00:00:00Z' };
+  const cleanup = (email: LeadEmailDeps | null = email_()) => runLeadsCleanup({ db: dbs.service, email });
+  const email_ = () => email();
+  let n = 0;
+  const mk = (over: Partial<typeof lead.$inferInsert> = {}) => mkLead({ email: `p${n++}@x.co`, preview: ready, ...over });
+
+  it('declares name, cron and skips in demo/test', async () => {
+    const runs = vi.fn();
+    expect(createLeadJobs({ serviceDb: runs } as unknown as WorkerDeps, { envName: 'dev' }).cleanup).toMatchObject({ name: 'leads-cleanup', cron: '30 3 * * *' });
+    for (const envName of ['demo', 'test'] as const) {
+      expect(await createLeadJobs({ serviceDb: runs } as unknown as WorkerDeps, { envName }).cleanup.handler({})).toEqual({ skipped: envName });
+    }
+    expect(runs).not.toHaveBeenCalled();
+  });
+
+  it('expires unverified leads past 48 h', async () => {
+    const old = await mk({ status: 'unverified', verifyExpiresAt: ago(1000) });
+    const fresh = await mk({ status: 'unverified', verifyExpiresAt: new Date(Date.now() + 3600_000) });
+    await cleanup();
+    expect((await row(old)).status).toBe('expired');
+    expect((await row(fresh)).status).toBe('unverified');
+  });
+
+  it('deletes declined/expired > 90 d, scrubs accepted > 90 d, keeps recent ones', async () => {
+    const stale = ago(91 * DAYS);
+    const declined = await mk({ status: 'declined', decidedAt: stale, updatedAt: stale, confirmationSentAt: stale });
+    const expired = await mk({ status: 'expired', updatedAt: stale });
+    const recentDeclined = await mk({ status: 'declined', decidedAt: ago(10 * DAYS), updatedAt: ago(10 * DAYS) });
+    const accepted = await mk({ status: 'accepted', decidedAt: stale, updatedAt: stale, message: 'hi', phone: '555' });
+    const recentAccepted = await mk({ status: 'accepted', decidedAt: ago(DAYS), updatedAt: ago(DAYS), message: 'hi', phone: '555' });
+    const r = await cleanup();
+    expect(r).toMatchObject({ deleted: 2, scrubbed: 1 });
+    expect(await dbs.service.select().from(lead).where(eq(lead.id, declined))).toEqual([]);
+    expect(await dbs.service.select().from(lead).where(eq(lead.id, expired))).toEqual([]);
+    expect((await row(recentDeclined)).status).toBe('declined');
+    expect(await row(accepted)).toMatchObject({ status: 'accepted', message: null, phone: null, contactName: 'Sam Smith' });
+    expect(await row(recentAccepted)).toMatchObject({ message: 'hi', phone: '555' });
+  });
+
+  it('purges rate rows older than 2 days', async () => {
+    await dbs.service.insert(intakeRate).values([
+      { key: 'old', windowStart: ago(3 * DAYS), count: 1 },
+      { key: 'new', windowStart: ago(3600_000), count: 1 },
+    ]);
+    expect(await cleanup()).toMatchObject({ ratePurged: 1 });
+    expect((await dbs.service.select().from(intakeRate)).map((x) => x.key)).toEqual(['new']);
+  });
+
+  it('stale pending preview becomes failed and the confirmation is sent once', async () => {
+    const stale = await mk({ preview: { status: 'pending' }, updatedAt: ago(20 * 60_000) });
+    const live = await mk({ preview: { status: 'pending' }, updatedAt: ago(60_000) });
+    await cleanup();
+    await cleanup();
+    expect((await row(stale)).preview).toEqual({ status: 'failed' });
+    expect((await row(live)).preview).toEqual({ status: 'pending' });
+    const toLead = transport.sent.filter((m) => m.to === 'sam@smith.co' || String(m.to).startsWith('p'));
+    expect(toLead.filter((m) => m.tag === 'lead_confirmation')).toHaveLength(1);
+    expect((await row(stale)).confirmationSentAt).toBeInstanceOf(Date);
+    expect((await row(live)).confirmationSentAt).toBeNull();
+  });
+
+  it('re-sends a confirmation whose guard was cleared, once', async () => {
+    const id = await mk();
+    await cleanup();
+    await cleanup();
+    expect(transport.sent.filter((m) => m.tag === 'lead_confirmation')).toHaveLength(1);
+    await dbs.service.update(lead).set({ confirmationSentAt: null }).where(eq(lead.id, id));
+    await cleanup();
+    await cleanup();
+    expect(transport.sent.filter((m) => m.tag === 'lead_confirmation')).toHaveLength(2);
+  });
+
+  it('re-sends agency_new and pool_new with null guards', async () => {
+    const agencyLead = await mk({ confirmationSentAt: new Date() });
+    const poolLead = await mk({ agencyId: null, source: 'platform', confirmationSentAt: new Date() });
+    const r = await cleanup();
+    expect(r.retried).toMatchObject({ agency_new: 1, pool_new: 1 });
+    expect(transport.sent.map((m) => m.tag).sort()).toEqual(['lead_agency_new', 'lead_pool_new']);
+    expect((await row(agencyLead)).agencyNotifiedAt).toBeInstanceOf(Date);
+    expect((await row(poolLead)).poolNotifiedAt).toBeInstanceOf(Date);
+  });
+
+  it('does not send an agency notice for an unassigned-preview agency lead still pending', async () => {
+    await mk({ preview: { status: 'none' }, confirmationSentAt: new Date() });
+    await cleanup();
+    expect(transport.sent).toEqual([]);
+  });
+
+  it('ignores leads updated > 7 days ago', async () => {
+    await mk({ updatedAt: ago(8 * DAYS) });
+    const r = await cleanup();
+    expect(r.retried).toEqual({ confirmation: 0, agency_new: 0, pool_new: 0 });
+    expect(transport.sent).toEqual([]);
+  });
+
+  it('never re-sends declined', async () => {
+    await mk({ status: 'declined', decidedAt: ago(DAYS), updatedAt: ago(DAYS), declinedNotifiedAt: null });
+    await cleanup();
+    expect(transport.sent).toEqual([]);
+  });
+
+  it('without email config it still cleans and skips the retry', async () => {
+    const id = await mk();
+    const r = await cleanup(null);
+    expect(r.retried).toEqual({ confirmation: 0, agency_new: 0, pool_new: 0 });
+    expect((await row(id)).confirmationSentAt).toBeNull();
   });
 });

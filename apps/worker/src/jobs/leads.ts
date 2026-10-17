@@ -1,8 +1,8 @@
 import type { Ai } from '@cs/ai';
 import { type DataForSeoClient, mapsSearch, redactForModel } from '@cs/collectors';
-import { agencyServiceable, type Db, type EnvName, lead, type LeadPreview } from '@cs/db';
+import { agencyServiceable, type Db, type EnvName, intakeRate, lead, type LeadPreview } from '@cs/db';
 import { buildSnapshot, LEAD_SUMMARY_SYSTEM, type LeadEmailDeps, leadSummaryJsonSchema, sendLeadEmail, snapshotFacts, validateSummary } from '@cs/tools';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
@@ -66,7 +66,7 @@ export async function runLeadPreview(
   if (row.status !== 'verified') return { skipped: `lead ${row.status}` };
   if (row.preview.status === 'ready') return { skipped: `preview ${row.preview.status}` };
 
-  await d.db.update(lead).set({ preview: { status: 'pending' } }).where(eq(lead.id, leadId));
+  await d.db.update(lead).set({ preview: { status: 'pending' }, updatedAt: new Date() }).where(eq(lead.id, leadId));
   let outcome: 'ready' | 'failed' = 'failed';
   try {
     const { dfs, ai } = await d.clients(); // lazy: an unconfigured vendor takes the normal failure path
@@ -100,6 +100,81 @@ export async function runLeadPreview(
   return { status: outcome };
 }
 
+const DAY = 86_400_000;
+const RETENTION_DAYS = 90;
+const RETRY_DAYS = 7;
+const PENDING_STALE_MS = 15 * 60_000;
+const RETRY_LIMIT = 200;
+
+export type LeadsCleanupResult = {
+  expired: number;
+  deleted: number;
+  scrubbed: number;
+  ratePurged: number;
+  staleFailed: number;
+  retried: { confirmation: number; agency_new: number; pool_new: number };
+};
+
+/**
+ * Phase 11c spec §7 + rulings C: daily retention and R1 retry. Unverified leads past `verify_expires_at` expire; declined/expired
+ * leads are deleted after 90 days (measured from the decision, else the last update); accepted leads lose `message` and `phone`
+ * after 90 days; `intake_rate` rows older than 2 days go. Previews stuck `pending` for 15 minutes become `failed`. Then the
+ * guarded confirmation / agency-new / pool-new sends are retried for leads updated in the last 7 days (declined mail never is).
+ */
+export async function runLeadsCleanup(d: { db: Db; email: LeadEmailDeps | null; now?: Date }): Promise<LeadsCleanupResult> {
+  const now = d.now ?? new Date();
+  const { db } = d;
+  const ago = (ms: number) => new Date(now.getTime() - ms);
+  const retention = ago(RETENTION_DAYS * DAY);
+
+  const expired = await db
+    .update(lead)
+    .set({ status: 'expired', updatedAt: now })
+    .where(and(eq(lead.status, 'unverified'), lt(lead.verifyExpiresAt, now)))
+    .returning({ id: lead.id });
+  const deleted = await db
+    .delete(lead)
+    .where(and(inArray(lead.status, ['declined', 'expired']), sql`coalesce(${lead.decidedAt}, ${lead.updatedAt}) < ${retention.toISOString()}::timestamptz`))
+    .returning({ id: lead.id });
+  const scrubbed = await db
+    .update(lead)
+    .set({ message: null, phone: null })
+    .where(and(eq(lead.status, 'accepted'), sql`coalesce(${lead.decidedAt}, ${lead.updatedAt}) < ${retention.toISOString()}::timestamptz`, or(isNotNull(lead.message), isNotNull(lead.phone))))
+    .returning({ id: lead.id });
+  const ratePurged = await db.delete(intakeRate).where(lt(intakeRate.windowStart, ago(2 * DAY))).returning({ key: intakeRate.key });
+  const staleFailed = await db
+    .update(lead)
+    .set({ preview: { status: 'failed' } })
+    .where(and(sql`${lead.preview}->>'status' = 'pending'`, lt(lead.updatedAt, ago(PENDING_STALE_MS))))
+    .returning({ id: lead.id });
+
+  const retried = { confirmation: 0, agency_new: 0, pool_new: 0 };
+  const recent = sql`${lead.updatedAt} >= ${ago(RETRY_DAYS * DAY).toISOString()}::timestamptz`;
+  const previewDone = sql`${lead.preview}->>'status' in ('ready', 'failed')`;
+  if (!d.email) {
+    console.error('[leads-cleanup] emails not configured; retry skipped');
+  } else {
+    const email = d.email;
+    const retry = async (kind: keyof typeof retried, where: ReturnType<typeof and>) => {
+      const rows = await db.select({ id: lead.id }).from(lead).where(and(eq(lead.status, 'verified'), recent, where)).orderBy(lead.createdAt).limit(RETRY_LIMIT);
+      for (const r of rows) {
+        try {
+          await sendLeadEmail(email, r.id, kind);
+          retried[kind]++;
+        } catch (err) {
+          console.error(`[leads-cleanup] ${r.id} ${kind} retry failed: ${err instanceof Error ? err.name : 'unknown'}`);
+        }
+      }
+    };
+    await retry('confirmation', and(isNull(lead.confirmationSentAt), previewDone));
+    await retry('agency_new', and(isNotNull(lead.agencyId), isNull(lead.agencyNotifiedAt), or(isNotNull(lead.assignedAt), previewDone), agencyServiceable(lead.agencyId)));
+    await retry('pool_new', and(isNull(lead.agencyId), isNull(lead.poolNotifiedAt), previewDone));
+  }
+  const result = { expired: expired.length, deleted: deleted.length, scrubbed: scrubbed.length, ratePurged: ratePurged.length, staleFailed: staleFailed.length, retried };
+  console.log(`[leads-cleanup] ${JSON.stringify(result)}`);
+  return result;
+}
+
 /** Phase 11c: `lead-preview`, enqueued by `verifyIntake` (singleton by lead id). */
 export function createLeadJobs(deps: WorkerDeps, opts: LeadJobOptions) {
   const preview = defineJob({
@@ -115,5 +190,18 @@ export function createLeadJobs(deps: WorkerDeps, opts: LeadJobOptions) {
       return deps.generateLeadPreview(leadId);
     },
   });
-  return { preview };
+  const cleanup = defineJob({
+    name: 'leads-cleanup',
+    schema: z.looseObject({}),
+    cron: '30 3 * * *',
+    queue: { expireInSeconds: 3600 },
+    handler: async () => {
+      if (opts.envName === 'demo' || opts.envName === 'test') {
+        console.log(`[leads-cleanup] skipped in ${opts.envName}`);
+        return { skipped: opts.envName };
+      }
+      return runLeadsCleanup({ db: deps.serviceDb(), email: deps.leadEmailDeps() });
+    },
+  });
+  return { preview, cleanup };
 }
