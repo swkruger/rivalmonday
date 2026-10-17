@@ -166,7 +166,7 @@ test.describe.serial('client intake and leads', () => {
   test('a platform operator assigns a pool lead and the agency sees it', { tag: ['@leads', '@platform'] }, async ({ browser }, testInfo) => {
     await ensureAdminState(browser, testInfo);
     await ensureSiAdmin(browser, testInfo);
-    const agencyName = await withDb(async (db) => (await db.select({ name: agency.name }).from(agency).where(eq(agency.name, SI_AGENCY)))[0]!.name);
+    const agencyName = SI_AGENCY;
 
     const op = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: ADMIN_STATE });
     try {
@@ -178,7 +178,15 @@ test.describe.serial('client intake and leads', () => {
       await row.getByLabel('Agency').selectOption(value);
       await row.getByRole('button', { name: 'Assign' }).click();
       await expect(page.getByRole('row').filter({ hasText: IN_POOL.business }).getByRole('button', { name: 'Assign' })).toHaveCount(0);
-      await expect(page.getByRole('row').filter({ hasText: agencyName })).toBeVisible(); // Recent assignments
+      // "Recent assignments": one row naming both the business and the agency.
+      const recent = page.getByText('Recent assignments', { exact: true }).locator('xpath=ancestor::*[.//table][1]');
+      await expect(recent.getByRole('row').filter({ hasText: IN_POOL.business }).filter({ hasText: agencyName })).toHaveCount(1);
+      await withDb(async (db) => {
+        const [row] = await db.select({ agencyName: agency.name, assignedAt: lead.assignedAt, status: lead.status }).from(lead).innerJoin(agency, eq(agency.id, lead.agencyId)).where(eq(lead.email, IN_POOL.email));
+        expect(row?.agencyName).toBe(SI_AGENCY);
+        expect(row?.assignedAt).not.toBeNull();
+        expect(row?.status).toBe('verified');
+      });
     } finally {
       await op.close();
     }
