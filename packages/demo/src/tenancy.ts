@@ -64,7 +64,17 @@ export const CLIENT_SPECS: Record<DemoClientKey, ClientSpec> = {
       { name: 'Harbor Lakes Family Dentistry', slug: 'harbor-lakes-dentistry', lat: 32.438, lng: -97.77 },
     ],
   },
+  // Phase 11a: the client left mid-setup (profile done, competitors step still to do); its competitors come from the wizard.
+  setupPending: {
+    name: 'Cedar Creek Plumbing', verticalId: 'hvac_plumbing', status: 'active', features: ['dashboard'],
+    services: ['drain_cleaning'], keywords: ['plumber granbury'],
+    serviceArea: { center: { lat: 32.4396, lng: -97.8013 }, radiusKm: 15, zips: ['76048'], towns: ['Granbury'] },
+    competitorLimit: 5,
+    competitors: [],
+  },
 };
+
+export const SETUP_PENDING_PLACE_ID = 'demo-place-cedar-creek-plumbing';
 
 const SOURCES = ['gbp', 'reviews', 'ads_google', 'ads_meta'] as const;
 
@@ -79,13 +89,13 @@ export async function seedTenancy(ctx: SeedContext): Promise<void> {
   ids.agencyId = a!.id;
   await ensureExemptPilot(db, ids.agencyId);
 
-  for (const key of ['loneStar', 'brazos', 'lakeside'] as const) {
+  for (const key of ['loneStar', 'brazos', 'lakeside', 'setupPending'] as const) {
     const s = CLIENT_SPECS[key];
     const [c] = await db.insert(client).values({
       agencyId: ids.agencyId, name: s.name, verticalId: s.verticalId, status: s.status, features: s.features, services: s.services, keywords: s.keywords,
-      serviceArea: s.serviceArea, placeId: key === 'loneStar' ? LONE_STAR_PLACE_ID : null,
+      serviceArea: s.serviceArea, placeId: key === 'loneStar' ? LONE_STAR_PLACE_ID : key === 'setupPending' ? SETUP_PENDING_PLACE_ID : null,
       scoreThresholds: key === 'loneStar' ? CLIENT_THRESHOLDS.loneStar : null, competitorLimit: s.competitorLimit,
-      createdAt: clock.daysAgo(key === 'lakeside' ? 10 : 400),
+      createdAt: clock.daysAgo(key === 'lakeside' ? 10 : key === 'setupPending' ? 1 : 400),
     }).returning({ id: client.id });
     ids.clients[key] = c!.id;
     ids.competitors[key] = await seedCompetitors(ctx, key, s);

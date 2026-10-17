@@ -61,6 +61,13 @@ export const PUBLIC_SCREENS: readonly { route: string; note: string }[] = [
   { route: '/u/[token]/done', note: 'shown after unsubscribing' },
 ];
 
+/** Phase 11a: the setup wizard reads the setup state and the client profile (header name, prefilled fields). */
+const setupCalls = (clientId: (ids: DemoIds) => string, expectSetup: CoverageCall['expect'] = 'data'): CoverageCall[] => [
+  { tool: 'get_client_setup', input: (ids) => ({ clientId: clientId(ids) }), path: 'competitorSuggestions', expect: expectSetup, ...(expectSetup === 'not_found' ? { why: 'a client owner gets a 404 once setup is closed' } : {}) },
+  { tool: 'get_client_profile', input: (ids) => ({ clientId: clientId(ids) }), path: 'keywords' },
+];
+const setupPending = (ids: DemoIds) => ids.clients.setupPending;
+
 /** Pages that show forms only (no seeded data to check). */
 export const NO_DATA_ROUTES = ['/agency/clients/new', '/agency/prospects/new'] as const;
 
@@ -94,6 +101,10 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/agency/branding', as: 'admin', calls: [{ tool: 'fn:getAgencyBranding', input: none, path: 'stored' }] },
   { route: '/agency/settings/platform-access', as: 'admin', calls: [{ tool: 'list_support_sessions', input: none, path: 'rows' }] },
   { route: '/agency/playbooks', as: 'admin', calls: [{ tool: 'list_playbooks', input: none, path: 'verticals' }] },
+  // Phase 11a: Cedar Creek Plumbing is mid-setup (suggestions ready, search done); `/agency/clients/new` is only a lookup form (reads happen on user action).
+  { route: '/c/[clientId]/setup', as: 'admin', calls: setupCalls(setupPending) },
+  { route: '/c/[clientId]/setup (client owner)', as: 'ownerSetup', calls: setupCalls(setupPending) },
+  { route: '/c/[clientId]/setup (closed, client owner)', as: 'ownerLoneStar', calls: setupCalls(ls, 'not_found') },
   { route: '/agency/prospects', as: 'admin', calls: [{ tool: 'list_prospects', input: none, path: 'items' }] },
   {
     route: '/agency/prospects/[clientId]', as: 'admin', calls: [
@@ -118,6 +129,8 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'list_recommendations', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       { tool: 'list_trend_reports', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       { tool: 'get_starting_point_status', input: (ids) => ({ clientId: ls(ids) }), path: 'state' },
+      // 11a: the overview shows the "Finish setting up" banner while a client's setup is open (Cedar Creek Plumbing).
+      { tool: 'get_client_setup', input: (ids) => ({ clientId: ids.clients.setupPending }), path: 'state.steps' },
       // 12b: a fresh client shows the "Preparing your starting point" checklist (state preparing, with its four checks).
       { tool: 'get_starting_point_status', input: (ids) => ({ clientId: ids.startingPointFresh }), path: 'state' },
       // 12b: Brazos already has its starting point.
