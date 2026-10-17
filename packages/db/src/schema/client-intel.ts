@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { type AnyPgColumn, check, doublePrecision, foreignKey, index, integer, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { type AnyPgColumn, check, doublePrecision, foreignKey, index, integer, jsonb, pgTable, smallint, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { capture } from './evidence';
 import { type Tier, discoveryRun } from './rivals';
 import { agency, client } from './tenancy';
@@ -62,7 +62,15 @@ export const rankScan = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     agencyId: uuid('agency_id').notNull().references(() => agency.id, { onDelete: 'cascade' }),
     clientId: uuid('client_id').notNull(),
-    status: text('status').notNull().default('running'), // running | done | failed
+    status: text('status').$type<RankScanStatus>().notNull().default('running'),
+    /** Phase 13b: weekly scheduled scan or an agency 'Scan now'. */
+    trigger: text('trigger').$type<RankScanTrigger>().notNull().default('scheduled'),
+    requestedBy: uuid('requested_by'),
+    /** Settings the scan ran with (null on pre-13b rows that could not be backfilled). */
+    gridSize: smallint('grid_size'),
+    radiusKm: doublePrecision('radius_km'),
+    keywords: jsonb('keywords').$type<string[]>(),
+    estimatedUsd: doublePrecision('estimated_usd'),
     snapshots: integer('snapshots').notNull().default(0),
     failed: integer('failed').notNull().default(0),
     startedAt: ts('started_at').notNull().defaultNow(),
@@ -71,8 +79,32 @@ export const rankScan = pgTable(
   (t) => [
     foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade'),
     index('rank_scan_client_idx').on(t.clientId, t.finishedAt),
+    uniqueIndex('rank_scan_running_unique').on(t.clientId).where(sql`status = 'running'`),
+    check('rank_scan_trigger_check', sql`"trigger" IN ('scheduled', 'manual')`),
+    check('rank_scan_status_check', sql`status IN ('running', 'done', 'failed', 'skipped')`),
   ],
 );
+
+export type RankScanTrigger = 'scheduled' | 'manual';
+export type RankScanStatus = 'running' | 'done' | 'failed' | 'skipped';
+export type RankMapBounds = { west: number; south: number; east: number; north: number };
+
+/** Static map background of a client's rank grid (Stadia static image in the evidence store). Service-role written; tenant reads via RLS. */
+export const rankMapImage = pgTable(
+  'rank_map_image',
+  {
+    clientId: uuid('client_id').primaryKey(),
+    agencyId: uuid('agency_id').notNull().references(() => agency.id, { onDelete: 'cascade' }),
+    settingsHash: text('settings_hash').notNull(),
+    objectKey: text('object_key').notNull(),
+    bounds: jsonb('bounds').$type<RankMapBounds>().notNull(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    fetchedAt: ts('fetched_at').notNull().defaultNow(),
+  },
+  (t) => [foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade')],
+);
+export type RankMapImageRow = typeof rankMapImage.$inferSelect;
 
 /** Local-pack results for one keyword at one grid point. Tenant-scoped (keywords reveal client strategy). */
 export const rankSnapshot = pgTable(

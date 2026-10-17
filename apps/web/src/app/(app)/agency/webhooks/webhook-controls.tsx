@@ -14,6 +14,7 @@ const AGENCY_KIND_OPTIONS: { value: string; label: string }[] = [
   { value: 'brief_failed', label: 'Brief failed' },
   { value: 'brief_overdue', label: 'Brief overdue' },
   { value: 'trend_report', label: 'Quarterly report' },
+  { value: 'rank_scan_skipped', label: 'Rank scan skipped' },
 ];
 
 export function AddWebhookForm() {

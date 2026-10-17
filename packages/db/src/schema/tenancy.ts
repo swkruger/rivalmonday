@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { type AnyPgColumn, boolean, check, doublePrecision, foreignKey, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { type AnyPgColumn, boolean, check, doublePrecision, foreignKey, index, integer, jsonb, pgTable, primaryKey, smallint, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 import type { AgencyBranding } from './delivery';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
@@ -69,6 +69,10 @@ export const client = pgTable(
     askReviewAllowed: boolean('ask_review_allowed').notNull().default(true),
     /** Phase 12b: when the client became active (convert_prospect / create_client). Service role only. */
     activatedAt: timestamp('activated_at', { withTimezone: true }),
+    /** Phase 13b: up to 5 keywords scanned for local rankings (agency-editable; empty = defaults). */
+    rankKeywords: jsonb('rank_keywords').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    /** Phase 13b: rank grid side (5x5 or 7x7). */
+    rankGridSize: smallint('rank_grid_size').notNull().default(7),
     createdAt: createdAt(),
   },
   (t) => [
@@ -95,6 +99,8 @@ export const client = pgTable(
     check('client_monthly_cap_check', sql`monthly_cap_usd > 0 AND monthly_cap_usd <= 10000`),
     check('client_competitor_limit_check', sql`competitor_limit BETWEEN 1 AND 10`),
     check('client_ask_monthly_quota_check', sql`ask_monthly_quota BETWEEN 0 AND 100000`),
+    check('client_rank_grid_size_check', sql`rank_grid_size IN (5, 7)`),
+    check('client_rank_keywords_check', sql`jsonb_typeof(rank_keywords) = 'array' AND jsonb_array_length(rank_keywords) <= 5`),
   ],
 );
 
@@ -135,3 +141,5 @@ export const clientCompetitor = pgTable(
     }).onDelete('cascade'),
   ],
 );
+
+export type ClientRow = typeof client.$inferSelect;

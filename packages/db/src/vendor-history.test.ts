@@ -40,7 +40,7 @@ describe('vendor history tables', () => {
     await dbs.service.insert(rankSnapshot).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, scanId: scan!.id, keyword: 'ac repair', lat: 1, lng: 2, results: [] });
     expect(await withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: [IDS.clientA1] }, (tx) => tx.select().from(rankScan))).toHaveLength(1);
     expect(await withTenant(dbs.app, { agencyId: IDS.agencyB, clientScope: 'all' }, (tx) => tx.select().from(rankScan))).toHaveLength(0);
-    expect(await errorText(dbs.service.insert(rankScan).values({ agencyId: IDS.agencyB, clientId: IDS.clientA1 }))).toMatch(/foreign key/i);
+    expect(await errorText(dbs.service.insert(rankScan).values({ agencyId: IDS.agencyB, clientId: IDS.clientA1, status: 'done' }))).toMatch(/foreign key/i);
   });
 
   it('an ad records the capture that ended it', async () => {

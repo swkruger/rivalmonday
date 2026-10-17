@@ -30,7 +30,7 @@ describe('myNotificationSettings', () => {
     expect(c.kinds.map((k) => k.kind)).toEqual(['alert', 'alert_digest', 'brief', 'trend_report']);
     expect(c.kinds[0]!.channels).toEqual({ in_app: true, email: false });
     const a = s.find((x) => x.contactId === agencyContact)!;
-    expect(a.kinds.map((k) => k.kind)).toEqual(['am_alert', 'brief_ready', 'brief_failed', 'brief_overdue', 'trend_report']);
+    expect(a.kinds.map((k) => k.kind)).toEqual(['am_alert', 'brief_ready', 'brief_failed', 'brief_overdue', 'trend_report', 'rank_scan_skipped']);
   });
 });
 

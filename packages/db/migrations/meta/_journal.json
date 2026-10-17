@@ -470,6 +470,20 @@
       "when": 1792124191237,
       "tag": "0066_onboarding_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792223357309,
+      "tag": "0067_rank_upgrade",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1792223372270,
+      "tag": "0068_rank_upgrade_rls",
+      "breakpoints": true
     }
   ]
 }

@@ -23,4 +23,5 @@ export const NOTIFICATION_KIND_LABELS: Record<string, string> = {
   brief_ready: 'Brief ready for review',
   brief_failed: 'Brief failed',
   brief_overdue: 'Brief overdue',
+  rank_scan_skipped: 'Rank scan skipped',
 };
