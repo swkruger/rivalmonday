@@ -484,6 +484,13 @@
       "when": 1792199614135,
       "tag": "0068_client_setup_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792201735176,
+      "tag": "0069_client_setup_changed_by_text",
+      "breakpoints": true
     }
   ]
 }

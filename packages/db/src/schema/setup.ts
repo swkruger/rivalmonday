@@ -59,7 +59,7 @@ export const clientSetup = pgTable(
     competitorsDoneAt: ts('competitors_done_at'),
     completedAt: ts('completed_at'),
     dismissedAt: ts('dismissed_at'),
-    lastChangedBy: uuid('last_changed_by'),
+    lastChangedBy: text('last_changed_by'), // auth user id (Better Auth ids are text, not uuids)
     lastChangedRole: text('last_changed_role'),
     lastChangedAt: ts('last_changed_at'),
     createdAt: ts('created_at').notNull().defaultNow(),
