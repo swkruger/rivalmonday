@@ -48,6 +48,19 @@ test.describe('agency staff', () => {
     await expect(page.getByText('Reading your Google profile…')).toBeVisible();
   });
 
+  test('staff adds a prospect by hand and lands in setup', { tag: ['@setup', '@prospects'] }, async ({ page }) => {
+    await page.goto('/agency/prospects/new');
+    await page.getByRole('button', { name: /enter details by hand/i }).click();
+    await page.getByLabel('Business name').fill('By Hand Prospect Dental');
+    await page.getByLabel('Vertical').selectOption('dental');
+    await page.getByLabel(/search keywords/i).fill('dentist');
+    await page.getByLabel(/map centre/i).fill('33.95, -84.33');
+    await page.getByLabel(/radius/i).fill('10');
+    await page.getByRole('button', { name: 'Create prospect' }).click();
+    await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/setup$/);
+    await expect(page.getByRole('list', { name: 'Setup steps' })).toBeVisible();
+  });
+
   test('staff finishes setup', { tag: ['@setup', '@clients', '@overview'] }, async ({ page }) => {
     const { id } = fx().finish;
     await page.goto(`/c/${id}`);

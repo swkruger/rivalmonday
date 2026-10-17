@@ -14,7 +14,7 @@ export async function createClientAction(_prev: FormResult, formData: FormData):
   if ('error' in parsed) return { ok: false, error: parsed.error };
   const r = await runTool<{ clientId: string }>(ctx, 'create_client', parsed);
   if (!r.ok) return r;
-  redirect(`/c/${r.data.clientId}/competitors`);
+  redirect(`/c/${r.data.clientId}/setup`); // Phase 11a: every new client goes through the wizard
 }
 
 export type FindBusinessResult =
