@@ -291,4 +291,29 @@ describe('leads-cleanup', () => {
     expect(r.retried).toEqual({ confirmation: 0, agency_new: 0, pool_new: 0 });
     expect((await row(id)).confirmationSentAt).toBeNull();
   });
+
+  it('a verified lead whose preview never started (enqueue lost) becomes failed and gets the confirmation', async () => {
+    const id = await mk({ preview: { status: 'none' }, updatedAt: ago(20 * 60_000) });
+    const fresh = await mk({ preview: { status: 'none' }, updatedAt: ago(60_000) });
+    const r = await cleanup();
+    expect((await row(id)).preview).toEqual({ status: 'failed' });
+    expect((await row(fresh)).preview).toEqual({ status: 'none' });
+    expect(r.retried.confirmation).toBe(1);
+    expect(transport.sent.filter((m) => m.tag === 'lead_confirmation')).toHaveLength(1);
+  });
+
+  it('one failing step does not stop the later steps, and the job still fails', async () => {
+    const id = await mk({ preview: { status: 'pending' }, updatedAt: ago(20 * 60_000) });
+    await dbs.service.insert(intakeRate).values({ key: 'old', windowStart: ago(3 * DAYS), count: 1 });
+    const db = dbs.service;
+    const broken = new Proxy(db, {
+      get(t, k, rcv) {
+        if (k === 'delete') return () => { throw new Error('boom'); };
+        return Reflect.get(t, k, rcv);
+      },
+    }) as Db;
+    await expect(runLeadsCleanup({ db: broken, email: email() })).rejects.toThrow(/delete, rate/);
+    expect((await row(id)).preview).toEqual({ status: 'failed' });
+    expect(transport.sent.filter((m) => m.tag === 'lead_confirmation')).toHaveLength(1);
+  });
 });

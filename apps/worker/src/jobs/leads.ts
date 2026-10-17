@@ -127,51 +127,60 @@ export async function runLeadsCleanup(d: { db: Db; email: LeadEmailDeps | null; 
   const ago = (ms: number) => new Date(now.getTime() - ms);
   const retention = ago(RETENTION_DAYS * DAY);
 
-  const expired = await db
-    .update(lead)
-    .set({ status: 'expired', updatedAt: now })
-    .where(and(eq(lead.status, 'unverified'), lt(lead.verifyExpiresAt, now)))
-    .returning({ id: lead.id });
-  const deleted = await db
-    .delete(lead)
-    .where(and(inArray(lead.status, ['declined', 'expired']), sql`coalesce(${lead.decidedAt}, ${lead.updatedAt}) < ${retention.toISOString()}::timestamptz`))
-    .returning({ id: lead.id });
-  const scrubbed = await db
-    .update(lead)
-    .set({ message: null, phone: null })
-    .where(and(eq(lead.status, 'accepted'), sql`coalesce(${lead.decidedAt}, ${lead.updatedAt}) < ${retention.toISOString()}::timestamptz`, or(isNotNull(lead.message), isNotNull(lead.phone))))
-    .returning({ id: lead.id });
-  const ratePurged = await db.delete(intakeRate).where(lt(intakeRate.windowStart, ago(2 * DAY))).returning({ key: intakeRate.key });
-  const staleFailed = await db
-    .update(lead)
-    .set({ preview: { status: 'failed' } })
-    .where(and(sql`${lead.preview}->>'status' = 'pending'`, lt(lead.updatedAt, ago(PENDING_STALE_MS))))
-    .returning({ id: lead.id });
+  // Each step is isolated: one failing statement must not starve the later steps (notably the stale sweep and the retries).
+  const failed: string[] = [];
+  const step = async <T>(name: string, fn: () => Promise<T>, empty: T): Promise<T> => {
+    try {
+      return await fn();
+    } catch (err) {
+      failed.push(name);
+      console.error(`[leads-cleanup] step ${name} failed: ${err instanceof Error ? err.name : 'unknown'}`);
+      return empty;
+    }
+  };
+  const olderThanRetention = sql`coalesce(${lead.decidedAt}, ${lead.updatedAt}) < ${retention.toISOString()}::timestamptz`;
+  const stale = ago(PENDING_STALE_MS);
+
+  const expired = await step('expire', () => db.update(lead).set({ status: 'expired', updatedAt: now })
+    .where(and(eq(lead.status, 'unverified'), lt(lead.verifyExpiresAt, now))).returning({ id: lead.id }), []);
+  const deleted = await step('delete', () => db.delete(lead)
+    .where(and(inArray(lead.status, ['declined', 'expired']), olderThanRetention)).returning({ id: lead.id }), []);
+  const scrubbed = await step('scrub', () => db.update(lead).set({ message: null, phone: null })
+    .where(and(eq(lead.status, 'accepted'), olderThanRetention, or(isNotNull(lead.message), isNotNull(lead.phone)))).returning({ id: lead.id }), []);
+  const ratePurged = await step('rate', () => db.delete(intakeRate).where(lt(intakeRate.windowStart, ago(2 * DAY))).returning({ key: intakeRate.key }), []);
+  // A preview stuck `pending`, or never started (`none` on a verified lead: the enqueue was lost), becomes `failed` so the confirmation goes out.
+  const staleFailed = await step('stale', () => db.update(lead).set({ preview: { status: 'failed' } })
+    .where(and(lt(lead.updatedAt, stale), or(sql`${lead.preview}->>'status' = 'pending'`, and(eq(lead.status, 'verified'), sql`${lead.preview}->>'status' = 'none'`))))
+    .returning({ id: lead.id }), []);
 
   const retried = { confirmation: 0, agency_new: 0, pool_new: 0 };
   const recent = sql`${lead.updatedAt} >= ${ago(RETRY_DAYS * DAY).toISOString()}::timestamptz`;
   const previewDone = sql`${lead.preview}->>'status' in ('ready', 'failed')`;
+  const guardCol = { confirmation: lead.confirmationSentAt, agency_new: lead.agencyNotifiedAt, pool_new: lead.poolNotifiedAt } as const;
   if (!d.email) {
     console.error('[leads-cleanup] emails not configured; retry skipped');
   } else {
     const email = d.email;
-    const retry = async (kind: keyof typeof retried, where: ReturnType<typeof and>) => {
+    const retry = (kind: keyof typeof retried, where: ReturnType<typeof and>) => step(`retry_${kind}`, async () => {
       const rows = await db.select({ id: lead.id }).from(lead).where(and(eq(lead.status, 'verified'), recent, where)).orderBy(lead.createdAt).limit(RETRY_LIMIT);
       for (const r of rows) {
         try {
           await sendLeadEmail(email, r.id, kind);
-          retried[kind]++;
+          // sendLeadEmail returns void and clears its guard when nothing went out: a set guard means a send happened.
+          const [after] = await db.select({ g: guardCol[kind] }).from(lead).where(eq(lead.id, r.id));
+          if (after?.g) retried[kind]++;
         } catch (err) {
           console.error(`[leads-cleanup] ${r.id} ${kind} retry failed: ${err instanceof Error ? err.name : 'unknown'}`);
         }
       }
-    };
+    }, undefined);
     await retry('confirmation', and(isNull(lead.confirmationSentAt), previewDone));
     await retry('agency_new', and(isNotNull(lead.agencyId), isNull(lead.agencyNotifiedAt), or(isNotNull(lead.assignedAt), previewDone), agencyServiceable(lead.agencyId)));
     await retry('pool_new', and(isNull(lead.agencyId), isNull(lead.poolNotifiedAt), previewDone));
   }
   const result = { expired: expired.length, deleted: deleted.length, scrubbed: scrubbed.length, ratePurged: ratePurged.length, staleFailed: staleFailed.length, retried };
   console.log(`[leads-cleanup] ${JSON.stringify(result)}`);
+  if (failed.length > 0) throw new Error(`leads-cleanup steps failed: ${failed.join(', ')}`);
   return result;
 }
 
