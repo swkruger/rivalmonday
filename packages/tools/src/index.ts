@@ -50,3 +50,4 @@ export {
 // Phase 8c: platform hosting costs (daily snapshot job, low-balance alerts).
 export { ADAPTERS as COST_ADAPTERS, evaluateAlerts as evaluateCostAlerts, platformOperatorEmails, platformOwnerEmails, type PlatformCostLowPayload, snapshotAll as snapshotPlatformCosts, type SnapshotDeps as PlatformCostSnapshotDeps, SERVICES as COST_SERVICES, type CostEnv, type ServiceKey as CostServiceKey } from './platform/costs';
 export { FIND_BUSINESS_DAILY_CAP, preselectVertical, toSetupLookup } from './setup/lookup';
+export { buildSuggestionSource, setupSuggestionsJsonSchema, type SuggestionSource, validateSuggestions } from './setup/suggestions';

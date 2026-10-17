@@ -38,10 +38,11 @@ tasks:
 
   it('loads the shipped default config', async () => {
     const cfg = await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH);
-    for (const task of ['brief_writer', 'ask_assistant', 'value_extract', 'theme_discovery', 'llm_decisions', 'review_decisions', 'price_decisions']) {
+    for (const task of ['brief_writer', 'ask_assistant', 'value_extract', 'theme_discovery', 'llm_decisions', 'review_decisions', 'price_decisions', 'setup_suggestions']) {
       expect(cfg.tasks[task]).toBeDefined();
     }
     expect(cfg.tasks.embeddings).toMatchObject({ provider: 'openrouter', mode: 'embeddings', model: 'openai/text-embedding-3-small', dimensions: 512 });
+    expect(cfg.tasks.setup_suggestions).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-sonnet-4.6', fallbacks: ['anthropic/claude-haiku-4.5'], temperature: 0.2, max_tokens: 800 });
   });
 
   it('config loads ask_assistant, ask_starters, ask_guard_decisions', async () => {
