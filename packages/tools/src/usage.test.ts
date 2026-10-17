@@ -10,6 +10,14 @@ beforeEach(async () => {
   await seedTenancy(dbs.owner);
 });
 
+describe('spend helpers move (P1)', () => {
+  it('usage.ts re-exports the same functions', async () => {
+    const db = await import('@cs/db');
+    expect(monthStart).toBe(db.monthStart);
+    expect(spendByClient).toBe(db.spendByClient);
+  });
+});
+
 describe('usage math', () => {
   it('starts the month at 00:00 UTC on the 1st', () => {
     expect(monthStart(new Date('2026-10-07T15:00:00Z')).toISOString()).toBe('2026-10-01T00:00:00.000Z');

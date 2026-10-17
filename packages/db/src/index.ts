@@ -6,4 +6,5 @@ export * from './ledger';
 export * from './migrate';
 export * from './reset';
 export * from './schema';
+export * from './spend';
 export * from './tenant';
