@@ -1,7 +1,68 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
+import { projectToImage } from '@cs/core';
 import { describe, expect, it } from 'vitest';
 import { GeoGrid, rankFill } from './geo-grid';
+
+describe('GeoGrid fixes and map (Task 12)', () => {
+  const cells = [[1, 4], [21, null]];
+  const hatchIds = (c: HTMLElement) => [...c.querySelectorAll('pattern')].map((p) => p.id);
+
+  it('two grids on one page use distinct hatch ids', () => {
+    const { container } = render(<><GeoGrid title="A" summary="S" cells={cells} businessName="You" keyword="k" /><GeoGrid title="B" summary="S" cells={cells} businessName="You" keyword="k" /></>);
+    const ids = hatchIds(container);
+    expect(ids.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(ids).size).toBe(ids.length);
+    ids.forEach((id) => expect(id).toMatch(/^[A-Za-z0-9_-]+$/));
+    const fills = [...container.querySelectorAll('rect[fill^="url(#"]')].map((r) => r.getAttribute('fill')!.slice(5, -1));
+    fills.forEach((f) => expect(ids).toContain(f));
+  });
+
+  it('legend emits one defs', () => {
+    const { container } = render(<GeoGrid title="T" summary="S" cells={cells} businessName="You" keyword="k" />);
+    expect(container.querySelectorAll('svg[data-legend-defs] defs').length).toBe(1);
+    expect(container.querySelector('ul')!.querySelectorAll('defs').length).toBe(0);
+    expect(container.querySelectorAll('ul svg use, ul svg rect[fill^="url(#"]').length).toBeGreaterThan(0);
+  });
+
+  it('a short row renders no-data cells', () => {
+    render(<GeoGrid title="T" summary="S" cells={[[1, 2, 3], [4]]} businessName="You" keyword="k" />);
+    const svg = screen.getByRole('img');
+    expect([...svg.querySelectorAll('text[data-rank]')].map((n) => n.textContent)).toEqual(['1', '2', '3', '4', '–', '–']);
+  });
+
+  const map = { url: '/files/rank-map/c1?v=1', bounds: { west: -97.8, south: 30.2, east: -97.6, north: 30.4 }, width: 400, height: 400, attribution: '© OpenStreetMap contributors' };
+  const lats = [30.35, 30.25];
+  const lngs = [-97.75, -97.65];
+
+  it('with a map the image and attribution render and cells sit at projected positions', () => {
+    render(<GeoGrid title="T" summary="S" cells={cells} businessName="You" keyword="k" map={map} lats={lats} lngs={lngs} />);
+    const svg = screen.getByRole('img');
+    expect(svg.getAttribute('viewBox')).toBe('0 0 400 400');
+    const img = svg.querySelector('image')!;
+    expect(img.getAttribute('href')).toBe(map.url);
+    expect(img.getAttribute('preserveAspectRatio')).toBe('none');
+    expect(img.getAttribute('aria-hidden')).toBe('true');
+    expect(screen.getByText('© OpenStreetMap contributors').closest('figcaption')).toBeTruthy();
+    expect(svg.querySelectorAll('text[data-compass]').length).toBe(0);
+    const p = projectToImage({ lat: lats[0]!, lng: lngs[0]! }, map.bounds, 400, 400);
+    const rect = svg.querySelector('g rect')!;
+    const x = Number(rect.getAttribute('x'));
+    const w = Number(rect.getAttribute('width'));
+    const y = Number(rect.getAttribute('y'));
+    const h = Number(rect.getAttribute('height'));
+    expect(x + w / 2).toBeCloseTo(p.x, 1);
+    expect(y + h / 2).toBeCloseTo(p.y, 1);
+    expect(w).toBeGreaterThanOrEqual(18);
+  });
+
+  it('without a map the plain grid renders', () => {
+    const { container } = render(<GeoGrid title="T" summary="S" cells={cells} businessName="You" keyword="k" map={null} lats={lats} lngs={lngs} />);
+    expect(container.querySelector('image')).toBeNull();
+    expect(container.querySelector('figcaption')).toBeNull();
+    expect(container.querySelectorAll('text[data-compass]').length).toBe(4);
+  });
+});
 
 describe('rankFill (decision 12)', () => {
   it('uses the validated single-hue ramp, darker for better ranks', () => {

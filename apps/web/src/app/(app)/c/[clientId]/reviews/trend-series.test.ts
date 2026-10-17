@@ -13,7 +13,7 @@ describe('trendSeries', () => {
     businesses[5] = biz(5, false, [3, 4]);
     const out = trendSeries({ businesses } as unknown as RatingTrendView);
     expect(out).toHaveLength(5);
-    expect(out[0]!.name).toBe('You');
+    expect(out.map((s) => s.name)).toContain('You'); // P15: pinned series is name-sorted with the kept ones
     const other = out.at(-1)!;
     expect(other.name).toBe('Other (average)');
     expect(other.points.every((p) => p === null || p <= 5)).toBe(true);

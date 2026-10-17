@@ -42,7 +42,8 @@ export function foldSeries(series: ChartSeries[], max = 5, opts: FoldOptions = {
     const vals = rest.map((s) => s.points[i]).filter((v): v is number => v !== null && v !== undefined);
     return vals.length ? AGGREGATE[aggregate](vals) : null;
   });
-  return [...pinned, ...kept, { key: 'other', name: label, points }];
+  const shown = [...pinned, ...kept].sort((a, b) => a.name.localeCompare(b.name, 'en'));
+  return [...shown, { key: 'other', name: label, points }];
 }
 
 const niceMax = (v: number) => {

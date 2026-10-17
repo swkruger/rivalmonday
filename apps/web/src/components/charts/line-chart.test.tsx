@@ -28,6 +28,14 @@ describe('foldSeries', () => {
   });
 });
 
+describe('foldSeries pinned ordering (P15)', () => {
+  it('foldSeries name-sorts a pinned series', () => {
+    const mk = (key: string, name: string, v: number) => ({ key, name, points: [v] });
+    const f = foldSeries([mk('z', 'Delta (you)', 1), mk('a', 'Alpha', 9), mk('b', 'Beta', 8), mk('c', 'Gamma', 7), mk('d', 'Zulu', 6), mk('e', 'Eps', 5)], 5, { pin: ['z'] });
+    expect(f.map((x) => x.name)).toEqual(['Alpha', 'Beta', 'Delta (you)', 'Gamma', 'Other']);
+  });
+});
+
 describe('LineChart', () => {
   it('draws one path segment per run of known points, with a legend and a table', () => {
     render(<LineChart title="Active competitor ads" valueLabel="active ads" labels={labels} series={[
@@ -123,10 +131,9 @@ describe('foldSeries aggregates', () => {
   it('never folds a pinned series, even when it is the lowest', () => {
     const f = foldSeries([mk('You', [1, 1]), ...base], 5, { pin: ['You'], aggregate: 'mean' });
     expect(f).toHaveLength(5);
-    expect(f[0]!.name).toBe('You');
     expect(f.at(-1)!.name).toBe('Other');
     expect(f.at(-1)!.points).toEqual([4, 6]);
-    expect(f.slice(1, 4).map((x) => x.name)).toEqual(['A', 'B', 'C']);
+    expect(f.slice(0, 4).map((x) => x.name)).toEqual(['A', 'B', 'C', 'You']); // P15: pinned is name-sorted with the kept ones
   });
 });
 
