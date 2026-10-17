@@ -4,10 +4,10 @@
 **Spec:** 13b [2026-10-17-phase-13b-local-rankings-design](../superpowers/specs/2026-10-17-phase-13b-local-rankings-design.md); 13a [2026-10-17-phase-13a-white-label-design](../superpowers/specs/2026-10-17-phase-13a-white-label-design.md). Not in roadmap (add at merge).
 
 ## Status (overwrite)
-13b spec approved 2026-10-17; 13b plan owner-approved 2026-10-17 (incl. P1–P15; execute after phase-11 merges). 13a spec approved; 13a plan written (owner review pending).
+13b spec approved 2026-10-17; 13b plan owner-approved 2026-10-17 (incl. P1–P15; execute after phase-11 merges). 13a spec approved; 13a plan owner-approved 2026-10-17 (incl. P1–P24).
 
 ## Next (overwrite)
-Owner reviews 13b plan (docs/superpowers/plans/2026-10-17-phase-13b-local-rankings.md) → execute after phase-11 merges; owner reviews 13a plan (docs/superpowers/plans/2026-10-17-phase-13a-white-label.md).
+Owner reviews 13b plan (docs/superpowers/plans/2026-10-17-phase-13b-local-rankings.md) → execute after phase-11 merges; then 13a1 → 13a2 (plan docs/superpowers/plans/2026-10-17-phase-13a-white-label.md). 13a owner tasks: neutral domain, Vercel wildcard + mcp host, Postmark mail.<neutral>, tokens.
 
 ## Interfaces this branch adds or changes
 Migrations: next free at execution time (main 0064; phase-10 0065–0066; phase-11 next).
