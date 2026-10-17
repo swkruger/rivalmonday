@@ -50,4 +50,12 @@ describe('SignInForm', () => {
     await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/could not send/i));
     expect(push).not.toHaveBeenCalled();
   });
+
+  it('prefills a valid email param and ignores an invalid one', () => {
+    const { unmount } = render(<SignInForm next="/" googleEnabled={false} error={null} emailHint="owner@example.com" />);
+    expect((screen.getByLabelText(/email/i) as HTMLInputElement).value).toBe('owner@example.com');
+    unmount();
+    render(<SignInForm next="/" googleEnabled={false} error={null} emailHint="not an email<script>" />);
+    expect((screen.getByLabelText(/email/i) as HTMLInputElement).value).toBe('');
+  });
 });

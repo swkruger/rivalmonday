@@ -9,6 +9,10 @@ const ERRORS: Record<string, string> = {
   google: 'Google sign-in did not work for this account. Use the email you were invited with.',
 };
 
+/** Phase 11b Q3: `?email=` only fills the field (display only); anything that is not a plain email address is ignored. */
+const EMAIL_HINT = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
+const validHint = (v: string | null | undefined): string => (v && v.length <= 320 && EMAIL_HINT.test(v) ? v : '');
+
 /**
  * The same "check your email" result is shown for any address, invited or not (decision 2) — this component never
  * learns whether the send actually went out, so it cannot leak that information either.
@@ -16,9 +20,9 @@ const ERRORS: Record<string, string> = {
  * S10: `errorCallbackURL` carries `reason`, not `error` — Better Auth's own redirect sets its own `error` query
  * param on that URL (overwriting anything we put there), so the page below reads `reason` for this message.
  */
-export function SignInForm({ next, googleEnabled, error }: { next: string; googleEnabled: boolean; error: string | null }) {
+export function SignInForm({ next, googleEnabled, error, emailHint = null }: { next: string; googleEnabled: boolean; error: string | null; emailHint?: string | null }) {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => validHint(emailHint));
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(error ? ERRORS[error] ?? 'Sign-in failed. Try again.' : null);
 

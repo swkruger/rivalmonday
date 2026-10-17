@@ -9,7 +9,13 @@ import type { ClientSafeSuggestion } from '../types';
 const TIER_ORDER: Tier[] = ['top', 'watch', 'minor'];
 
 /** Step 3. Top rivals arrive pre-ticked (`preTicked`, within the client's competitor limit); already-tracked ones are shown as tracking. */
-export function PickStep({ suggestions, pending, onDone, onSkip }: { suggestions: ClientSafeSuggestion[]; pending: boolean; onDone: (accept: string[]) => void; onSkip: () => void }) {
+export function PickStep({
+  suggestions, pending, onDone, onSkip, reviewer, onReview,
+}: {
+  suggestions: ClientSafeSuggestion[]; pending: boolean; onDone: (accept: string[]) => void; onSkip: () => void;
+  /** Staff only, once an owner is invited: the name on the "Ask {name} to review" button. */
+  reviewer?: string | null; onReview?: () => void;
+}) {
   const open = suggestions.filter((s) => s.status === 'suggested');
   const [selected, setSelected] = useState(() => new Set(open.filter((s) => s.preTicked).map((s) => s.id)));
   const toggle = (id: string) =>
@@ -50,6 +56,7 @@ export function PickStep({ suggestions, pending, onDone, onSkip }: { suggestions
         <div className="flex flex-wrap gap-2">
           <Button type="button" disabled={pending} onClick={() => onDone([...selected])}>Done picking</Button>
           <Button type="button" variant="outline" disabled={pending} onClick={onSkip}>Skip for now</Button>
+          {reviewer && onReview && <Button type="button" variant="ghost" disabled={pending} onClick={onReview}>Ask {reviewer} to review</Button>}
         </div>
       </WriteGuard>
     </section>

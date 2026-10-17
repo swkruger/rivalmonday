@@ -13,6 +13,8 @@ export interface ClientSetupView {
     finishedAt: string | null;
   } | null;
   competitorSuggestions: ClientSafeSuggestion[];
+  /** Phase 11b: the invited owner. Name and email are null for client roles. */
+  invite: { status: 'none' | 'pending' | 'accepted'; name: string | null; email: string | null };
   vertical: { services: { id: string; name: string }[]; seedKeywords: string[] };
 }
 

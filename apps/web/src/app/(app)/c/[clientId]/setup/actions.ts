@@ -2,6 +2,7 @@
 import { isAgencyRole } from '@cs/core';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { parseDollars } from '../../../agency/settings/billing/client-billing/money';
 import { requireContext } from '@/server/current-viewer';
 import { parseClientProfileForm } from '@/server/forms';
 import { runTool, type ToolResult } from '@/server/run-tool';
@@ -50,7 +51,7 @@ export async function pickSetupCompetitorsAction(clientId: string, accept: strin
   return { ok: true, searchRefusal: null };
 }
 
-export type SetupAdvance = 'start_search' | 'confirm_competitors' | 'skip_search' | 'skip_competitors' | 'dismiss';
+export type SetupAdvance = 'start_search' | 'confirm_competitors' | 'skip_search' | 'skip_competitors' | 'skip_invite' | 'skip_billing' | 'dismiss';
 
 export async function advanceSetupAction(clientId: string, action: SetupAdvance): Promise<SetupActionResult> {
   const r = await runTool<{ state: { open: boolean; clientOpen: boolean }; searchRefusal: string | null }>(await ctxOf(), 'advance_client_setup', { clientId, action });
@@ -58,4 +59,31 @@ export async function advanceSetupAction(clientId: string, action: SetupAdvance)
   refresh(clientId);
   await leaveIfClosed(clientId, r.data.state);
   return { ok: true, searchRefusal: r.data.searchRefusal };
+}
+
+/** Invite step (and the side-panel form on steps 1-3). Re-sending is the same call. */
+export async function inviteOwnerAction(clientId: string, name: string, email: string): Promise<SetupActionResult> {
+  const r = await runTool(await ctxOf(), 'invite_client_owner', { clientId, name, email: email.trim() });
+  if (!r.ok) return r;
+  refresh(clientId);
+  return { ok: true, searchRefusal: null };
+}
+
+/** Pick step: "Ask {ownerName} to review". `queued: false` covers every non-send reason (no invite, expired, already sent today). */
+export async function sendReviewAction(clientId: string): Promise<ToolResult<{ queued: boolean }>> {
+  const r = await runTool<{ queued: boolean }>(await ctxOf(), 'send_competitor_review', { clientId });
+  if (r.ok) refresh(clientId);
+  return r;
+}
+
+/** Billing step: dollars text -> cents; the '0 if paid before' setup-fee rule stays in `enable_client_billing`. */
+export async function enableBillingAction(clientId: string, price: string, setupFee: string): Promise<SetupActionResult> {
+  const priceCents = parseDollars(price);
+  if (priceCents === null) return { ok: false, error: 'Enter the monthly price in dollars, e.g. 299.' };
+  const setupFeeCents = parseDollars(setupFee === '' ? '0' : setupFee);
+  if (setupFeeCents === null) return { ok: false, error: 'Enter the setup fee in dollars, e.g. 0 or 99.50.' };
+  const r = await runTool(await ctxOf(), 'enable_client_billing', { clientId, priceCents, setupFeeCents });
+  if (!r.ok) return r;
+  refresh(clientId);
+  return { ok: true, searchRefusal: null };
 }
