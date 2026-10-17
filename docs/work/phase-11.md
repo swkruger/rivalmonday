@@ -40,7 +40,6 @@ Full lists in the specs (11a D1–D11, 11b E1–E7, 11c L1–L8). Headlines: spl
 - Polish → 11b deferred minors: wizard polish (no "billing on" success copy, `billingPrefill` live read on every poll); setup stuck "5 of 5" when derivation completes it (worker sweep); `clientBillingEligibility` import cycle; `invite_member` (client roles) allowed for paused agencies (queued invite sends after unpause).
 - Soon → `@cs/billing access.test.ts` reduced-trial test is order-dependent (failed in 2 affected runs, passes alone).
 - Soon → `start_search` retry bound is only the 10-min cooldown (≤ $3 each; client owner can trigger) — 11a M1; setup idle reminder dedupe has no cycle component (later idle spells never re-remind); concurrent double "Done picking" → second gets "Suggestion not found"; starting-point card shows checks pending during setup hold.
-- Watch → `@cs/billing access.test.ts` reduced-trial test failed once order-dependently.
 - Phase 10 merge → root `CLAUDE.md` § Decisions: note client self-start via intake links/pool next to Phase 10's f3.
 
 ## Owner verification steps
