@@ -1,13 +1,13 @@
 # phase-11 — Client onboarding wizard (GBP/DataForSEO prefill, competitor review emails, billing)
 
-**Kind:** planning → implementation (after phase-10)   **Worktree:** ../CompetitorSpy-wt/phase-11   **Base:** main @ 4b1fb82
+**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-11   **Base:** main @ 63259a8
 **Plan/spec:** `docs/superpowers/{specs,plans}/` — 11a (`2026-10-15-…-11a-…-design`, `2026-10-16-…-11a-…`), 11b, 11c (all `2026-10-16-phase-11{b,c}-*`).
 
 ## Status (overwrite)
-2026-10-16: specs approved for 11a (D1–D11), 11b (E1–E7), 11c (L1–L8; L7 amended 11a/11b: prospects get the invite step). Plans: 11a Tasks 0–14 ✅ approved, 11b 15–24 ✅ approved, 11c 25–35 ✅ approved. Nothing built; execution waits for phase-10 merge.
+2026-10-16: execution started (11a pre-flight done). Specs/plans approved: 11a (D1–D11, Tasks 0–14), 11b (E1–E7, 15–24), 11c (L1–L8, 25–35). Pre-flight patched the 11a plan for drift (see Assumes); controller rulings pending on the flagged items.
 
 ## Next (overwrite)
-After phase-10 merges (or owner-approved stacking): 11a Task 0 pre-flight (rebase, `pnpm install`, own test DB `cs_phase_11_test`, `boss.test.ts` once), then `superpowers:subagent-driven-development` Tasks 1–35 in order (11a 1–14 → 11b 15–24 → 11c 25–35; each sub-phase has its own pre-flight task). One final whole-branch review at the end. Nothing uncommitted; no background jobs.
+11a Task 1 (`client_setup` table, migrations 0067/0068) via `superpowers:subagent-driven-development`, then Tasks 2–14 → 11b 15–24 → 11c 25–35 (each sub-phase has its own pre-flight). One final whole-branch review at the end. Test DB `cs_phase_11_test` (pgboss schema created).
 
 
 ## Interfaces this branch adds or changes
@@ -18,7 +18,8 @@ After phase-10 merges (or owner-approved stacking): 11a Task 0 pre-flight (rebas
 
 
 ## Assumes from other branches
-- **phase-10** (executing, not merged; spec/plan already on `main`): migrations from **0065** (`pending_signup`, `agency_profile`, `agency_onboarding`) → Phase 11 takes the **next free number at execution time** (≥ 0066). Edits `create_client` (`first_client_at` in its tx; reduced-trial refusal → `/onboarding?step=plan`), 9a `billingAccess` (+`reducedTrial`, `maxActiveClients`), `OutgoingEmail` (+`stream`/`headers`), `(app)` layout redirect to `/onboarding`. Adds `/onboarding?step=…` (agency steps only), `/agency` checklist with a `first_client` item, tools `get_onboarding_status`/`mark_onboarding_step`/`dismiss_onboarding_checklist`, emails via `billing_notice` outbox, daily `onboarding-nudges` job. Collisions: `/onboarding` route, `first_client` link target, `create_client` tx.
+- **phase-10 (merged into main @ 63259a8):** migrations 0065/0066 (next free **0067**); `create_client` stamps `first_client_at` in its service tx, reduced-trial refusal is in `assertCanActivateClient`; checklist `first_client` → `/agency/clients/new`; `OutgoingEmail.stream/headers`; job factories in `main.ts`; `(app)` layout redirects only suspended agencies + a never-redirected admin once.
+- **Pre-flight drift 2026-10-16 (11a plan patched):** `collectGbpProfile` is a competitor capture collector → new `fetchGbpProfile` (Task 3/6); DFS ledger `operation` = path → cap counts maps path + `client_id IS NULL` (Task 4); `daily_cap` is not a `ToolErrorCode` → `rate_limited` + `userFacing` (Task 4/10); web `ToolDeps` has no DataForSEO client → `setupLookup` dep built in `server/tools.ts` (Task 4/10); `EnqueueJob(job, data, singletonKey)` + `QueueJob += 'setup-suggestions'`, failed enqueue → `failed` (Task 5); `ai.yaml` uses `fallbacks: []` (Task 6); `WorkerDeps` is a method interface → `generateSetupSuggestions` (Task 6); no `AGENCY_ROLES`/`toolError()` → `isAgencyRole`/`new ToolError` (Task 7); `acceptSuggestions` all-or-nothing + no dismiss helper + room-aware pre-tick (Task 7); readiness has no reasons list → `setupHold`, force `ready:false` (Task 8); `notify` needs `subjectType`/`link` → `LINK_TARGETS += 'setup'` moved from 11b Q2 into 11a Task 9, `SetupNoticeProps extends Base`; `SetupLookup += city`. Open rulings: see `.superpowers/sdd/2026-10-16-phase-11a-client-setup-wizard/task-0-report.md`.
 - **phase-7-planning** (parked, docs only): sender `mail.rivalmonday.app`, reply-to `support@`; no code overlap.
 
 ## Decisions (owner-approved)
@@ -38,22 +39,16 @@ Full lists in the specs: 11a D1–D11, 11b E1–E7, 11c L1–L8 (+ plan-local P1
 
 
 ## Owner verification steps
-Listed in the final task of each plan: 11a Task 14, 11b Task 24, 11c Task 35 (real lookup + suggestions, setup to starting point, Postmark Cc, pending-owner billing in Stripe test mode, intake + preview on `cs_dev`, copy sign-offs).
+Listed in the final task of each plan: 11a Task 14, 11b Task 24, 11c Task 35 (real lookup + suggestions, setup to starting point, Postmark Cc, pending-owner billing in Stripe test mode, intake + preview on `cs_dev`, copy sign-offs). Deploy: the web app (Vercel) needs `DATAFORSEO_LOGIN`/`_PASSWORD` for the business lookup (11a Task 4).
 
 
 ## Brief
 
 ### 1. Scope
-Roadmap row 11: "Multi-day GBP + DataForSEO prefill, competitor review emails, agency CC'd, billing"; plan *to be written*, **cites no spec §, no estimate**. Relevant: core **§4.1** (AM enters business/services/area → discovery → AM confirms 3–5 → page discovery), **§3** (roles; client owner `manage_competitors`), **§5.2 item 11** (client settings), **§9.4** (single sending domain), **§12** (E2E for onboarding). Build: guided client set-up that (a) finds the business on Google (DataForSEO) and prefills profile + place id, (b) is resumable over days while discovery/reviews/rank scan land, (c) emails the client to review competitors, agency CC'd, (d) ends in client invite + 9b billing.
+Roadmap row 11 (GBP + DataForSEO prefill, competitor review emails, agency CC'd, billing). Core spec §4.1, §3, §5.2 item 11, §9.4, §12. Split into 11a/11b/11c (see specs).
 
 ### 2. Already built — reuse, don't rebuild
-- **Client create/profile:** `create_client`, `update_client_profile` (`packages/tools/src/tools/onboarding.ts`; both call `startFirstAutoSearch` once keywords + service area + place id exist); `get_client_profile` (`tools/clients.ts`); `client-input.ts` validation; form `apps/web/src/components/client-profile-form.tsx` (place id is a **manual text field** today), pages `/agency/clients/new`, `/c/[clientId]/settings/profile`. Prospects: `convert_prospect`.
-- **Google lookup building blocks:** `collectors/src/local/maps.ts` (`mapsSearch`, `parseMapsItems` → `MapsPlace`), `collectors/src/gbp/collect-gbp.ts`, `local/self.ts` (`ensureSelfCompetitor`, `SELF_SOURCES` gbp/reviews/ads_google). No business-search tool exists.
-- **Discovery (12a):** `startCompetitorSearch`/`startFirstAutoSearch` in `tools/src/rival-search.ts` (refusals `missing_profile|cooldown|running|daily_cap|weekly_limit|service_paused|enqueue_failed`); tools `request_competitor_suggestions`, `get_competitor_search_status`, `list_competitor_suggestions`, `accept_competitor_suggestion(s)`, `dismiss_competitor_suggestion`, `add_competitor`, ad-match confirm/remove (`tools/competitors.ts`); `discovery_run`.
-- **Starting point (12b):** `engine/src/briefs/readiness.ts` (`startingPointReadiness` checks profile/reviews/rankings/competitors; `STARTING_POINT_WAIT_HOURS` 48 after `activated_at`), jobs `starting-point-schedule`/`-client`
-- **People:** `invite_member` (role `client_owner|client_viewer` + `clientId`; `tools/access/invitations.ts`, 14-day TTL), `/agency/team`; `add_client_recipient`/`contact` for brief emails; client feature flags (`manage_competitors`).
-- **Billing (9b):** `enable_client_billing` (needs a client owner email, active client, Connect `charges_enabled`, 9a state `active|pilot`), UI `/agency/settings/billing/client-billing`; `assertCanActivateClient`, `postCommitSeatSync`.
-- **Email:** `@cs/email` (`client-billing-notice.tsx` = agency-branded client mail), `notification` + `billing_notice` outboxes; `OutgoingEmail` has **no cc**.
+`create_client`/`update_client_profile` (`tools/onboarding.ts`), `client-input.ts`, `client-profile-form.tsx`; `collectors/local/maps.ts`, `gbp/collect-gbp.ts`, `local/self.ts`; discovery `tools/rival-search.ts` + `tools/competitors.ts`, `discovery_run`; starting point `engine/briefs/readiness.ts`; `invite_member`, `/agency/team`; 9b `enable_client_billing`, `assertCanActivateClient`, `postCommitSeatSync`; `@cs/email`, `notification`/`billing_notice` outboxes (`OutgoingEmail` has no cc).
 
 ### 3. Binding decisions (do not re-open)
 - Public data only; vendor APIs only for discovery (12a D1); $3/run cap, 5 runs/agency/day, auto-run once on profile completion, then 1 manual search/client/week + monthly refresh (12a D4/D7, root CLAUDE.md). AM confirms competitors; top rivals pre-ticked (D5). 
@@ -65,8 +60,5 @@ Roadmap row 11: "Multi-day GBP + DataForSEO prefill, competitor review emails, a
 ### 4. Backlog to fold in
 9b M5 (per-client price at enable) → folded into 11b. CS Dev Verification Agency/Client clean-up → before real onboarding (owner).
 
-### 5. In-flight workstreams
-See **Assumes from other branches**.
-
-### 6. Open questions
+### 5. Open questions
 All answered 2026-10-15 — see Decisions and the 11a spec §2. 11b/11c questions (CC mechanism, billing step, intake/lead pool) go to their own brainstorms.

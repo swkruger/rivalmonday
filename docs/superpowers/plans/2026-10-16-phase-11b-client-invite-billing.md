@@ -20,7 +20,7 @@
 
 ## Decisions (plan-local)
 - **Q1** `notify` keeps `recipientsFor` as the default; `contactIds` (new) loads exactly those contacts (same agency + client, any `active`) with their email channel only.
-- **Q2** `LINK_TARGETS` (`packages/core/src/links.ts`) += `'setup'`; `NotifyInput.subjectType` += `'setup'` (subject id = client id). The email button uses the **sign-in URL** (spec §6), not the personal `/l/` link — an invited owner has no session yet and the personal link's landing behaviour is for existing contacts.
+- **Q2** `LINK_TARGETS` (`packages/core/src/links.ts`) += `'setup'`; `NotifyInput.subjectType` += `'setup'` (subject id = client id). *(11a pre-flight 2026-10-16: both now land in 11a Task 9 — 11b only reuses them.)* The email button uses the **sign-in URL** (spec §6), not the personal `/l/` link — an invited owner has no session yet and the personal link's landing behaviour is for existing contacts.
 - **Q3** Sign-in page accepts `?email=` to prefill the field (display only; validated as an email, else ignored).
 - **Q4** `invite_member` for client roles delegates to `inviteClientUser`; for agency roles it is unchanged.
 - **Q5** The manual review send lives on the Pick step as a secondary button, visible to staff when an invited contact exists.
