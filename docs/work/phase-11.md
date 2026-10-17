@@ -25,7 +25,7 @@ R1 `applyClientProfileChange` returns SearchStart|null. R2 suggestions read GBP 
 - Automatic review email rides the daily 14:00 UTC `setup-reminders` job (≤ ~24 h delay); only when competitors is `todo`, not `skipped`; manual send ignores the step.
 - Migration 0071 (invited_by uuid → text) instead of editing 0070.
 - `inviteClientUser` (owner) and `enable_client_billing` call `completeIfDone`; invite startUrl and review-email `next` follow `clientOpen`; `convert_prospect` reopens only rows with competitors_done_at; invitee name/email null for client roles; `skip_billing` on a prospect = invalid_input.
-- Billing step is skipped by derivation unless the agency's Connect account is charging; a per-client price needs the agency's Stripe product (saving defaults creates it).
+- Billing step is skipped by derivation unless the agency's Connect account is charging; a per-client price creates the agency's Stripe product on first use. Final review: re-inviting a different owner email (wizard) revokes the old pending invite; Checkout email prefers an accepted owner.
 
 ## Assumes from other branches
 - **11b pre-flight:** email sender = `createEmailSender` in `engine/delivery/outbox.ts`; `contactFor` already reactivates.
