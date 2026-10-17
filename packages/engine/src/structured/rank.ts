@@ -1,4 +1,5 @@
 import { clientCompetitor, competitor, type Db, detectedChange, type RankResult, rankScan, rankSnapshot } from '@cs/db';
+import { createHash } from 'node:crypto';
 import { and, desc, eq, lt } from 'drizzle-orm';
 import { supersedePriorChanges } from '../events/retract';
 import { runStage, type StageOutcome } from '../stage';
@@ -33,8 +34,9 @@ export function rankMetrics(results: RankResult[][], match: (r: RankResult) => b
  * Pre-13b rows that could not be backfilled have all three null and share the key `legacy`.
  */
 export function rankSettingsKey(s: { gridSize: number | null; radiusKm: number | null; keywords: string[] | null }): string {
-  if (s.gridSize === null && s.radiusKm === null && s.keywords === null) return 'legacy';
-  return `g${s.gridSize ?? '?'}|r${s.radiusKm ?? '?'}|${s.keywords ? [...new Set(s.keywords)].sort().join(',') : '?'}`;
+  if (s.gridSize === null || s.radiusKm === null || s.keywords === null) return 'legacy';
+  const canonical = `${s.gridSize}|${s.radiusKm.toFixed(2)}|${[...s.keywords].sort().join('\u001f')}`;
+  return createHash('sha256').update(canonical).digest('hex').slice(0, 16);
 }
 
 const pointKey =(s: { keyword: string; lat: number; lng: number }) => `${s.keyword}|${s.lat.toFixed(5)},${s.lng.toFixed(5)}`;

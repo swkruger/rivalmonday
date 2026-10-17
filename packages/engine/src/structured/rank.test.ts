@@ -100,6 +100,16 @@ describe('rank settings series identity and top-3 point gain (Phase 13b)', () =>
     expect(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: ['a'] })).not.toBe(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: ['a', 'b'] }));
   });
 
+  it('rankSettingsKey follows P7: legacy, rounded radius, opaque hash, unambiguous keywords', () => {
+    expect(rankSettingsKey({ gridSize: 7, radiusKm: null, keywords: ['a'] })).toBe('legacy');
+    expect(rankSettingsKey({ gridSize: null, radiusKm: 25, keywords: ['a'] })).toBe('legacy');
+    expect(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: null })).toBe('legacy');
+    expect(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: ['a'] })).toBe(rankSettingsKey({ gridSize: 7, radiusKm: 25.000000001, keywords: ['a'] }));
+    expect(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: ['a'] })).toMatch(/^[0-9a-f]{16}$/);
+    expect(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: ['a,b'] })).not.toBe(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: ['a', 'b'] }));
+    expect(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: ['b', 'a'] })).toBe(rankSettingsKey({ gridSize: 7, radiusKm: 25, keywords: ['a', 'b'] }));
+  });
+
   it('settings change → baseline', async () => {
     await gridScan(0, 0, SETTINGS);
     const s1 = await gridScan(30, 20, { ...SETTINGS, radiusKm: 30 });
