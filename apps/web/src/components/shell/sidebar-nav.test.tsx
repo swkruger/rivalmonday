@@ -201,6 +201,17 @@ describe('SidebarNav', () => {
   });
 });
 
+describe('SidebarNav leads badge', () => {
+  it('shows the New-leads count on Leads and nothing when there are none', () => {
+    pathname = '/agency';
+    const { unmount } = render(<SidebarNav flags={{ ...agencyAdmin, leads: true, newLeads: 3 }} />);
+    expect(screen.getByRole('link', { name: /Leads/ }).textContent).toBe('Leads3');
+    unmount();
+    render(<SidebarNav flags={{ ...agencyAdmin, leads: true }} />);
+    expect(screen.getByRole('link', { name: 'Leads' }).textContent).toBe('Leads');
+  });
+});
+
 describe('SidebarNav sections', () => {
   const clients = [{ id: CLIENT_ID, name: 'Comfort Air Heating & Cooling' }];
   const linkNames = (group: HTMLElement) => within(group).getAllByRole('link').map((l) => l.textContent);
@@ -209,7 +220,7 @@ describe('SidebarNav sections', () => {
     pathname = '/agency';
     render(<SidebarNav flags={agencyAdmin} clients={clients} />);
     expect(linkNames(screen.getByRole('group', { name: 'Agency' }))).toEqual(['Portfolio', 'Approvals', 'Alert review', 'Prospects', 'Usage & limits', 'Playbooks']);
-    expect(linkNames(screen.getByRole('group', { name: 'Account' }))).toEqual(['Inbox', 'Team', 'AI connections', 'Branding', 'Slack & Teams', 'Billing', 'Platform access', 'Notifications']);
+    expect(linkNames(screen.getByRole('group', { name: 'Account' }))).toEqual(['Inbox', 'Team', 'AI connections', 'Branding', 'Slack & Teams', 'Billing', 'Intake link', 'Platform access', 'Notifications']);
     expect(screen.getByText('Select a client from Portfolio')).toBeTruthy();
     expect(screen.queryByRole('group', { name: /^Client/ })).toBeNull();
   });

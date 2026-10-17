@@ -1,6 +1,6 @@
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { agency, agencyServiceable, client, lead, leadPreviewSchema } from '@cs/db';
-import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { type PlatformRole, requirePlatformOperator } from '../platform';
@@ -34,14 +34,16 @@ const PoolLead = z.object({
   verifiedAt: z.date().nullable(),
 });
 export type PoolLead = z.infer<typeof PoolLead>;
+const RecentAssignment = z.object({ leadId: z.string().uuid(), businessName: z.string(), agencyName: z.string(), assignedAt: z.date() });
+export type RecentAssignment = z.infer<typeof RecentAssignment>;
 const PoolAgency = z.object({ id: z.string().uuid(), name: z.string(), verticals: z.array(z.string()), activeClients: z.number().int() });
 
 export const listPoolLeadsTool = defineTool({
   name: 'list_pool_leads',
   access: 'read',
-  description: 'Platform operators: verified leads from the platform intake that no agency holds yet, plus the agencies that can take one (with their verticals and active-client counts).',
+  description: 'Platform operators: verified leads from the platform intake that no agency holds yet, plus the agencies that can take one (with their verticals and active-client counts) and the last 20 assignments.',
   input: z.object({}),
-  output: z.object({ leads: z.array(PoolLead), agencies: z.array(PoolAgency) }),
+  output: z.object({ leads: z.array(PoolLead), agencies: z.array(PoolAgency), recentAssignments: z.array(RecentAssignment) }),
   permission: 'agency',
   audit: 'skip-web',
   async handler(ctx: AccessContext, input, deps) {
@@ -64,7 +66,15 @@ export const listPoolLeadsTool = defineTool({
         .where(agencyServiceable(agency.id))
         .groupBy(agency.id, agency.name)
         .orderBy(asc(agency.name));
+      const assigned = await deps.service
+        .select({ leadId: lead.id, lookup: lead.lookup, agencyName: agency.name, assignedAt: lead.assignedAt })
+        .from(lead)
+        .innerJoin(agency, eq(agency.id, lead.agencyId))
+        .where(and(eq(lead.source, 'platform'), isNotNull(lead.assignedAt)))
+        .orderBy(desc(lead.assignedAt))
+        .limit(20);
       return {
+        recentAssignments: assigned.map((r) => ({ leadId: r.leadId, businessName: r.lookup.title, agencyName: r.agencyName, assignedAt: r.assignedAt! })),
         leads: rows.map((r) => ({
           id: r.id, ref: r.ref, businessName: r.lookup.title, address: r.lookup.address, city: r.lookup.city, category: r.lookup.category,
           contactName: r.contactName, email: r.email, phone: r.phone, message: r.message, preview: r.preview, createdAt: r.createdAt, verifiedAt: r.verifiedAt,

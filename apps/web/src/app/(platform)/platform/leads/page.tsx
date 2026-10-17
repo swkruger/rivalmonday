@@ -1,0 +1,120 @@
+import { platformRole } from '@cs/tools';
+import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { requireOperatorContext } from '@/server/current-viewer';
+import { dbs } from '@/server/db';
+import { platformAdmins } from '@/server/runtime-env';
+import { callTool } from '@/server/tools';
+import { type AgencyOption, AssignForm } from './assign-form';
+
+export const dynamic = 'force-dynamic';
+
+interface PoolLead {
+  id: string;
+  ref: string | null;
+  businessName: string;
+  address: string | null;
+  city: string | null;
+  category: string | null;
+  contactName: string;
+  email: string;
+  phone: string | null;
+  message: string | null;
+  verifiedAt: Date | string | null;
+  createdAt: Date | string;
+}
+interface Recent {
+  leadId: string;
+  businessName: string;
+  agencyName: string;
+  assignedAt: Date | string;
+}
+
+const day = (d: Date | string | null) => (d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }) : '—');
+
+/** Phase 11c §6: the pool of verified platform leads. Operators only (a refusal is a 404); only owner and staff can assign. */
+export default async function PlatformLeadsPage() {
+  const { ctx } = await requireOperatorContext();
+  const [{ leads, agencies, recentAssignments }, role] = await Promise.all([
+    callTool<{ leads: PoolLead[]; agencies: AgencyOption[]; recentAssignments: Recent[] }>(ctx, 'list_pool_leads', {}),
+    platformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx),
+  ]);
+  const canAssign = role === 'owner' || role === 'staff';
+  return (
+    <>
+      <h1 className="text-[26px] font-extrabold tracking-tight">Leads</h1>
+      <p className="text-muted-foreground">Verified requests from the platform page that no agency holds yet. Assign one to an agency; it is notified by email.</p>
+      <Card>
+        <CardHeader>
+          <CardTitle>Pool ({leads.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {leads.length === 0 ? (
+            <p className="text-muted-foreground">The pool is empty.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Business</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Verified</TableHead>
+                  {canAssign && <TableHead>Assign</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leads.map((l) => (
+                  <TableRow key={l.id}>
+                    <TableCell>
+                      <div className="font-semibold">{l.businessName}</div>
+                      <div className="text-xs text-muted-foreground">{[l.address ?? l.city, l.category].filter(Boolean).join(' · ')}</div>
+                      {l.message && <div className="mt-1 max-w-md whitespace-pre-wrap text-xs">{l.message}</div>}
+                    </TableCell>
+                    <TableCell>
+                      <div>{l.contactName}</div>
+                      <div className="text-xs text-muted-foreground">{l.email}{l.phone ? ` · ${l.phone}` : ''}</div>
+                      {l.ref && <div className="text-xs text-muted-foreground">Ref {l.ref}</div>}
+                    </TableCell>
+                    <TableCell>{day(l.verifiedAt ?? l.createdAt)}</TableCell>
+                    {canAssign && (
+                      <TableCell>
+                        <AssignForm leadId={l.id} agencies={agencies} />
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent assignments</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recentAssignments.length === 0 ? (
+            <p className="text-muted-foreground">Nothing assigned yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Business</TableHead>
+                  <TableHead>Agency</TableHead>
+                  <TableHead>Assigned</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentAssignments.map((r) => (
+                  <TableRow key={r.leadId}>
+                    <TableCell className="font-semibold">{r.businessName}</TableCell>
+                    <TableCell>{r.agencyName}</TableCell>
+                    <TableCell>{day(r.assignedAt)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </>
+  );
+}

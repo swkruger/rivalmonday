@@ -64,6 +64,21 @@ describe('list_pool_leads', () => {
   });
 });
 
+describe('list_pool_leads recent assignments', () => {
+  it('returns the last 20 assigned platform leads (business, agency name, assignedAt), newest first, and no agency-link leads', async () => {
+    const t = (n: number) => new Date(Date.UTC(2026, 9, 1, 0, n));
+    const old = await mkLead({ email: 'a@y.co', agencyId: IDS.agencyA, assignedAt: t(1), assignedBy: 'op' });
+    const recent = await mkLead({ email: 'b@y.co', agencyId: IDS.agencyB, status: 'accepted', assignedAt: t(5), assignedBy: 'op' });
+    await mkLead({ email: 'c@y.co', agencyId: IDS.agencyA, source: 'agency_link' });
+    await mkLead({ email: 'd@y.co' });
+    const out = await call<{ recentAssignments: { leadId: string; businessName: string; agencyName: string; assignedAt: Date }[] }>(viewer, 'list_pool_leads');
+    expect(out.recentAssignments.map((r) => r.leadId)).toEqual([recent, old]);
+    expect(out.recentAssignments[0]).toMatchObject({ businessName: 'Smith Dental' });
+    expect(out.recentAssignments[0]!.agencyName).toBeTruthy();
+    expect(out.recentAssignments[0]!.assignedAt).toBeInstanceOf(Date);
+  });
+});
+
 describe('assign_lead', () => {
   it('assign audited', async () => {
     const id = await mkLead();

@@ -7,6 +7,8 @@ import { deliveryConfigFromEnv } from '@cs/engine';
 import { createToolRegistry, type ToolDeps } from '@cs/tools';
 import { notFound } from 'next/navigation';
 import { dbs } from './db';
+import { processGuardOn } from './dev-guard';
+import { webEmailTransport } from './email-transport';
 import { webEnv } from './env';
 import { perEnv } from './env-cache';
 import { enqueueFor, jobStatusFor } from './queue';
@@ -50,6 +52,8 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     kbImportEnabled: webEnv().kbImport,
     platformAdmins: platformAdmins(name),
     appUrl: webEnv().appUrl,
+    // Phase 11c: decline/assign send their lead mail directly after commit; the transport is built per environment (ledger = this env's db).
+    leadEmail: { transport: webEmailTransport(processGuardOn(), process.env, createLedgerSink(service)), appUrl: webEnv().appUrl, fromAddress: webEnv().emailFrom, platformAdmins: platformAdmins(name) },
     evidenceStore: { get: (key) => store.get(key), put: (key, body, contentType) => store.put(key, body, contentType) },
     embedQuery: embedQueryFor(name, service),
     setupLookup: setupLookupFor(name, service, { fake: webEnv().setupFakeLookup, processEnv: process.env }),

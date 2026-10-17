@@ -8,16 +8,32 @@ const C = '00000000-0000-4000-8000-0000000000a1';
 const ctx = (role: 'agency_admin' | 'account_manager' | 'client_owner' | 'client_viewer') =>
   createAccessContext({ agencyId: A, userId: 'u', role, clientScope: role.startsWith('client') ? [C] : 'all', features: [] });
 
+describe('Phase 11c leads flag', () => {
+  it('is set for agency users who cover all clients, not for client roles', () => {
+    expect(navFlagsFor({ kind: 'user', ctx: ctx('agency_admin') }).leads).toBe(true);
+    expect(navFlagsFor({ kind: 'user', ctx: ctx('account_manager') }).leads).toBe(true);
+    expect(navFlagsFor({ kind: 'user', ctx: ctx('client_owner') }).leads).toBe(false);
+  });
+  it('limited-scope account managers do not get Leads', () => {
+    const am = createAccessContext({ agencyId: A, userId: 'u', role: 'account_manager', clientScope: [C], features: [] });
+    expect(navFlagsFor({ kind: 'user', ctx: am }).leads).toBe(false);
+  });
+  it('puts the count on the Leads item', () => {
+    const items = navItemsFor({ ...navFlagsFor({ kind: 'user', ctx: ctx('agency_admin') }), newLeads: 2 }, null);
+    expect(items.find((i) => i.href === '/agency/leads')).toMatchObject({ label: 'Leads', count: 2 });
+  });
+});
+
 describe('navFor', () => {
   it('gives admins agency settings', () => {
     expect(navFor({ kind: 'user', ctx: ctx('agency_admin') }, null).map((n) => n.href)).toEqual([
-      '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/usage', '/agency/playbooks', '/inbox', '/agency/team', '/agency/ai', '/agency/branding', '/agency/webhooks', '/agency/settings/billing', '/agency/settings/platform-access', '/settings/notifications',
+      '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/leads', '/agency/usage', '/agency/playbooks', '/inbox', '/agency/team', '/agency/ai', '/agency/branding', '/agency/webhooks', '/agency/settings/billing', '/agency/settings/intake', '/agency/settings/platform-access', '/settings/notifications',
     ]);
   });
   it('gives account managers team but not branding/webhooks, plus client pages inside a client', () => {
     const hrefs = navFor({ kind: 'user', ctx: ctx('account_manager') }, C).map((n) => n.href);
     expect(hrefs).toEqual([
-      '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/usage', '/agency/playbooks', `/c/${C}`, `/c/${C}/competitors`, `/c/${C}/changes`, `/c/${C}/pricing`, `/c/${C}/ads`, `/c/${C}/reviews`, `/c/${C}/rankings`, `/c/${C}/moves`, `/c/${C}/recommendations`, `/c/${C}/ask`, `/c/${C}/settings/profile`, `/c/${C}/settings/delivery`, `/c/${C}/settings/alerts`, `/c/${C}/settings/ai`,
+      '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/leads', '/agency/usage', '/agency/playbooks', `/c/${C}`, `/c/${C}/competitors`, `/c/${C}/changes`, `/c/${C}/pricing`, `/c/${C}/ads`, `/c/${C}/reviews`, `/c/${C}/rankings`, `/c/${C}/moves`, `/c/${C}/recommendations`, `/c/${C}/ask`, `/c/${C}/settings/profile`, `/c/${C}/settings/delivery`, `/c/${C}/settings/alerts`, `/c/${C}/settings/ai`,
       '/inbox', '/agency/team', '/agency/ai', '/settings/notifications',
     ]);
   });
@@ -32,9 +48,9 @@ describe('navFor', () => {
     const groups = (role: Parameters<typeof ctx>[0]) =>
       Object.fromEntries(navFor({ kind: 'user', ctx: ctx(role) }, C).map((n) => [n.href, n.group]));
     expect(groups('agency_admin')).toEqual({
-      '/agency': 'agency', '/agency/approvals': 'agency', '/agency/alerts': 'agency', '/agency/prospects': 'agency', '/agency/usage': 'agency', '/agency/playbooks': 'agency',
+      '/agency': 'agency', '/agency/approvals': 'agency', '/agency/alerts': 'agency', '/agency/prospects': 'agency', '/agency/leads': 'agency', '/agency/usage': 'agency', '/agency/playbooks': 'agency',
       [`/c/${C}`]: 'client', [`/c/${C}/recommendations`]: 'client', [`/c/${C}/ask`]: 'client', [`/c/${C}/competitors`]: 'client', [`/c/${C}/changes`]: 'client', [`/c/${C}/pricing`]: 'client', [`/c/${C}/ads`]: 'client', [`/c/${C}/reviews`]: 'client', [`/c/${C}/rankings`]: 'client', [`/c/${C}/moves`]: 'client', [`/c/${C}/settings/profile`]: 'client', [`/c/${C}/settings/delivery`]: 'client', [`/c/${C}/settings/alerts`]: 'client', [`/c/${C}/settings/ai`]: 'client',
-      '/inbox': 'account', '/agency/team': 'account', '/agency/ai': 'account', '/agency/branding': 'account', '/agency/webhooks': 'account', '/agency/settings/billing': 'account', '/agency/settings/platform-access': 'account', '/settings/notifications': 'account',
+      '/inbox': 'account', '/agency/team': 'account', '/agency/ai': 'account', '/agency/branding': 'account', '/agency/webhooks': 'account', '/agency/settings/billing': 'account', '/agency/settings/intake': 'account', '/agency/settings/platform-access': 'account', '/settings/notifications': 'account',
     });
     expect(groups('client_viewer')).toEqual({ [`/c/${C}`]: 'client', [`/c/${C}/recommendations`]: 'client', '/inbox': 'account', '/settings/notifications': 'account' });
   });
@@ -96,7 +112,7 @@ describe('navFlagsFor', () => {
     expect(navFor(user, null).some((n) => n.href.startsWith('/platform'))).toBe(false);
     const platform = navFor(user, null, true).filter((n) => n.href.startsWith('/platform'));
     expect(platform.map((n) => [n.href, n.label])).toEqual([
-      ['/platform', 'Overview'], ['/platform/agencies', 'Agencies'], ['/platform/billing', 'Billing'], ['/platform/reviews', 'Model reviews'], ['/platform/themes', 'Theme proposals'],
+      ['/platform', 'Overview'], ['/platform/agencies', 'Agencies'], ['/platform/billing', 'Billing'], ['/platform/leads', 'Leads'], ['/platform/reviews', 'Model reviews'], ['/platform/themes', 'Theme proposals'],
       ['/platform/ask', 'Ask review'], ['/platform/knowledge', 'Knowledge'], ['/platform/health', 'Health'],
     ]);
     expect(platform.every((n) => n.group === 'account')).toBe(true);

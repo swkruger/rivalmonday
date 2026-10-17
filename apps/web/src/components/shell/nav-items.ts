@@ -14,10 +14,12 @@ export interface NavItem {
   group: NavGroup;
   /** Rendered as the assistant pill after the label's first word ("Ask" + the orange "Friday" pill). */
   pill?: string;
+  /** Phase 11c: a small count badge after the label (e.g. new leads); omitted when zero. */
+  count?: number;
   icon:
     | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
     | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects' | 'ask' | 'knowledge'
-    | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing';
+    | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing' | 'leads' | 'intake';
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
@@ -43,6 +45,10 @@ export interface NavRoleFlags {
   inbox?: boolean;
   /** 9b: a client owner with billing switched on for their client sees the Billing entry. */
   clientBilling?: boolean;
+  /** Phase 11c: agency users who cover all clients see the Leads entry (agency admin or scope `all`). */
+  leads?: boolean;
+  /** Phase 11c: how many leads are New (verified, undecided); shown as a badge on Leads. */
+  newLeads?: number;
   /** Phase 8b: inside a support session, the operator's way back to the agency's console page (the session continues). */
   backToPlatform?: string;
 }
@@ -57,7 +63,7 @@ export function clientIdFromPath(pathname: string): string | null {
 /** 5c adds its modules here; only screens that exist are listed. Mirrors the old `navFor` in `@/server/nav`. */
 export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavItem[] {
   const items: NavItem[] = [];
-  const agency = (href: string, label: string, icon: NavItem['icon']) => items.push({ href, label, icon, group: 'agency' });
+  const agency = (href: string, label: string, icon: NavItem['icon'], count?: number) => items.push({ href, label, icon, group: 'agency', ...(count ? { count } : {}) });
   const forClient = (href: string, label: string, icon: NavItem['icon'], pill?: string) => items.push({ href, label, ...(pill ? { pill } : {}), icon, group: 'client' });
   const account = (href: string, label: string, icon: NavItem['icon']) => items.push({ href, label, icon, group: 'account' });
   if (flags.isAgency) {
@@ -65,6 +71,7 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
     agency('/agency/approvals', 'Approvals', 'approvals');
     agency('/agency/alerts', 'Alert review', 'alerts');
     agency('/agency/prospects', 'Prospects', 'prospects');
+    if (flags.leads) agency('/agency/leads', 'Leads', 'leads', flags.newLeads);
     agency('/agency/usage', 'Usage & limits', 'usage');
     agency('/agency/playbooks', 'Playbooks', 'playbooks');
     if (clientId) clientModules(flags, `/c/${clientId}`, forClient);
@@ -82,6 +89,7 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
     // Phase 8b: agency admins only, never inside a support session (the page 404s there).
     // Phase 9a: agency admins only; the page 404s in a support session too.
     if (flags.isUser) account('/agency/settings/billing', 'Billing', 'billing');
+    if (flags.isUser) account('/agency/settings/intake', 'Intake link', 'intake');
     if (flags.isUser) account('/agency/settings/platform-access', 'Platform access', 'platformAccess');
   }
   if (flags.isUser) account('/settings/notifications', 'Notifications', 'bell');
@@ -90,6 +98,7 @@ export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavIt
     account('/platform', 'Overview', 'platform');
     account('/platform/agencies', 'Agencies', 'agencies');
     account('/platform/billing', 'Billing', 'billing');
+    account('/platform/leads', 'Leads', 'leads');
     account('/platform/reviews', 'Model reviews', 'reviews');
     account('/platform/themes', 'Theme proposals', 'themes');
     account('/platform/ask', 'Ask review', 'ask');
