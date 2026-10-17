@@ -20,8 +20,8 @@ export function BillingStep({
   const [fee, setFee] = useState(() => toField(prefill?.setupFeeCents ?? null));
   let body: React.ReactNode;
   if (!isAdmin) body = <p className="text-muted-foreground">An agency admin turns on billing.</p>;
-  else if (!prefill?.ready) body = <p className="text-muted-foreground">Connect Stripe in Settings → Billing to bill this client.</p>;
   else if (skipped) body = <p className="text-muted-foreground">Billing for clients starts once your plan is active.</p>;
+  else if (!prefill?.ready) body = <p className="text-muted-foreground">Connect Stripe in Settings → Billing to bill this client.</p>;
   else {
     body = (
       <form onSubmit={(e) => { e.preventDefault(); onEnable(price, fee); }} onReset={(e) => e.preventDefault()} className="flex flex-col gap-3">

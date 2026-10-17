@@ -1,7 +1,7 @@
 import { type AccessContext, canAccessClient, isAgencyRole, ToolError } from '@cs/core';
-import { client, clientSetup, contact, type Tx } from '@cs/db';
+import { client, clientSetup, contact, invitation, type Tx } from '@cs/db';
 import { loadBranding, notify } from '@cs/engine';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
 import { completeIfDone, getSetupState } from '../setup/state';
 import { normalizeEmail } from './invitations';
@@ -32,6 +32,19 @@ async function upsertContact(tx: Tx, agencyId: string, clientId: string, email: 
   return existing.id;
 }
 
+/** Revokes the pending (unaccepted, unrevoked) `client_owner` invitation of the setup's invited contact when its email differs from `email`. */
+async function revokeReplacedOwnerInvite(tx: Tx, agencyId: string, clientId: string, email: string, now: Date): Promise<void> {
+  const [prev] = await tx.select({ email: contact.email }).from(clientSetup)
+    .innerJoin(contact, eq(contact.id, clientSetup.invitedContactId))
+    .where(and(eq(clientSetup.clientId, clientId), eq(contact.agencyId, agencyId), eq(contact.clientId, clientId)));
+  const prevEmail = prev && normalizeEmail(prev.email);
+  if (!prevEmail || prevEmail === email) return;
+  await tx.update(invitation).set({ revokedAt: now }).where(and(
+    eq(invitation.agencyId, agencyId), eq(invitation.clientId, clientId), eq(invitation.role, 'client_owner'),
+    sql`lower(${invitation.email}) = ${prevEmail}`, isNull(invitation.acceptedAt), isNull(invitation.revokedAt),
+  ));
+}
+
 /**
  * Phase 11b §4 (security-sensitive): invites a client user and emails them a sign-in link, in one transaction that
  * first locks the `client` row, so a parallel wizard + team invite serialise (the second revokes the first's pending
@@ -41,7 +54,7 @@ async function upsertContact(tx: Tx, agencyId: string, clientId: string, email: 
 export async function inviteClientUser(
   ctx: AccessContext,
   deps: ToolDeps,
-  input: { clientId: string; email: string; name: string | null; role: ClientInviteRole },
+  input: { clientId: string; email: string; name: string | null; role: ClientInviteRole; replaceInvitedOwner?: boolean },
   now: Date,
 ): Promise<{ invitationId: string; expiresAt: Date; contactId: string }> {
   if (ctx.userId.startsWith('contact:')) throw new ToolError('permission_denied', 'Sign in to invite people');
@@ -55,6 +68,9 @@ export async function inviteClientUser(
       .where(and(eq(client.id, input.clientId), eq(client.agencyId, ctx.agencyId))).for('update');
     if (!c) throw new ToolError('not_found', 'Client not found');
 
+    // Wizard re-invite to a corrected address (I2): the earlier invited owner's pending invitation stops working, so a
+    // typo can't sign in, become a second owner or receive the payment link. Team-page invites (several owners) skip this.
+    if (input.replaceInvitedOwner && input.role === 'client_owner') await revokeReplacedOwnerInvite(tx, ctx.agencyId, c.id, email, now);
     const inv = await inviteMember(tx, ctx, { email, role: input.role, clientId: c.id }, now);
     const contactId = await upsertContact(tx, ctx.agencyId, c.id, email, input.name, input.role);
     if (input.role === 'client_owner') {

@@ -4,15 +4,15 @@
 **Plan/spec:** `docs/superpowers/{specs,plans}/` — 11a (`2026-10-15-…-11a-…-design`, `2026-10-16-…-11a-…`), 11b, 11c (all `2026-10-16-phase-11{b,c}-*`).
 
 ## Status (overwrite)
-2026-10-17: 11a done (Tasks 0–14). 11b built (Tasks 15–24), final 11b review pending; 11c next (own pre-flight). Plans approved: 11a (D1–D11), 11b (E1–E7), 11c (L1–L8, 25–35).
+2026-10-17: 11a done (Tasks 0–14). 11b done — final review + fix wave; 11c next (own pre-flight). Plans approved: 11a (D1–D11), 11b (E1–E7), 11c (L1–L8, 25–35).
 
 ## Next (overwrite)
-Final 11b whole-branch review (`pnpm test:affected --base main`, `e2e:affected --base main`), one fix wave → 11c Tasks 25–35. Test DB `cs_phase_11_test`.
+11c Tasks 25–35 (own pre-flight). Test DB `cs_phase_11_test`.
 
 ## Interfaces this branch adds or changes
 Migrations used: 0067 client_setup, 0068 client_setup_rls, 0069 last_changed_by → text, 0070 client_setup_invite, 0071 invited_by → text. **11c next free: 0072.**
 - **11a (BUILT):** `client_setup`; tools `find_business`, `get_client_setup`, `save_setup_profile`, `pick_setup_competitors`, `advance_client_setup`; `create_client` `lookup`; jobs `setup-suggestions`, `setup-reminders`; `/c/[clientId]/setup`; link target `setup`; E2E flag `SETUP_FAKE_LOOKUP`.
-- **11b (BUILT):** `OutgoingEmail.cc`, `notify` `contactIds`/`cc`, dispatcher lets `client_invite`/`competitor_review` reach inactive contacts; `inviteClientUser` (also `invite_member` for client roles); tools `invite_client_owner`, `send_competitor_review`; `clientOwnerEmails` includes pending invites; 5-step setup (prospects 4); sign-in `?email=` prefill.
+- **11b (BUILT):** `OutgoingEmail.cc`, `notify` `contactIds`/`cc`, dispatcher lets `client_invite`/`competitor_review` reach inactive contacts; `inviteClientUser` (also `invite_member` for client roles); tools `invite_client_owner`, `send_competitor_review`; `clientOwnerEmails` includes pending invites (`preferredOwnerEmail`: accepted owner first, for Checkout); 5-step setup (prospects 4); sign-in `?email=` prefill.
 - **11c (planned):** tables `intake_link`, `lead`, `intake_rate`; public fns `resolveIntake`/`intakeLookup`/`submitIntake`/`verifyIntake`/`getPublicPreview`; tools `list_leads`, `get_lead`, `accept_lead`, `decline_lead`, `get/update_intake_link`, `list_pool_leads`, `assign_lead`; `createClientCore`; AI task `lead_preview_summary`; jobs `lead-preview`, `leads-cleanup`; routes `/start`, `/start/[slug]`, `/start/v/[leadId]`, `/start/verify/[token]`, `/agency/leads`, `/platform/leads`.
 
 ## Rulings (11a)
@@ -36,9 +36,9 @@ Full lists in the specs (11a D1–D11, 11b E1–E7, 11c L1–L8). Headlines: spl
 
 ## New backlog (target → item)
 - Unscheduled → automatic lead routing to agencies (vertical/area/capacity/opt-in) on the 11c pool.
-- Polish → sign-in page uses host default branding (may show Rival Monday to white-label owners): check in verification (e).
-- Polish → 11b deferred minors: `cleanCc` regex accepts `a@b..c` (Postmark 300 would lose the `to` send); wizard polish (billing-note order, no "billing on" success copy, `billingPrefill` live read on every poll); setup stuck "5 of 5" when derivation completes it (worker sweep); `clientBillingEligibility` import cycle; `invite_member` (client roles) allowed for paused agencies (queued invite sends after unpause).
-- Soon → wizard billing step with no agency defaults fails with "Set a default price first…" (no Stripe product yet): prefill/explain or create the product.
+- Phase 13 → sign-in page uses host default branding (shows Rival Monday / the owning agency to a white-label agency's invited owners; breaks white-label once a second agency onboards clients): check in verification (e).
+- Polish → 11b deferred minors: wizard polish (no "billing on" success copy, `billingPrefill` live read on every poll); setup stuck "5 of 5" when derivation completes it (worker sweep); `clientBillingEligibility` import cycle; `invite_member` (client roles) allowed for paused agencies (queued invite sends after unpause).
+- Soon → `@cs/billing access.test.ts` reduced-trial test is order-dependent (failed in 2 affected runs, passes alone).
 - Soon → `start_search` retry bound is only the 10-min cooldown (≤ $3 each; client owner can trigger) — 11a M1; setup idle reminder dedupe has no cycle component (later idle spells never re-remind); concurrent double "Done picking" → second gets "Suggestion not found"; starting-point card shows checks pending during setup hold.
 - Watch → `@cs/billing access.test.ts` reduced-trial test failed once order-dependently.
 - Phase 10 merge → root `CLAUDE.md` § Decisions: note client self-start via intake links/pool next to Phase 10's f3.

@@ -28,8 +28,12 @@ export class PermanentEmailError extends Error {}
 
 /** 11b constraint: at most this many Cc addresses per message. */
 export const MAX_CC = 5;
-/** Deliberately strict: no spaces, commas, angle brackets, quotes or semicolons, and a dotted domain. */
-const CC_EMAIL = /^[^@\s,;<>"'()[\]\\]+@[^@\s,;<>"'()[\]\\]+\.[^@\s,;<>"'()[\]\\]+$/;
+/**
+ * Deliberately strict: no spaces, commas, angle brackets, quotes or semicolons in the local part; the domain is ≥ 2
+ * dot-separated (ASCII/punycode) labels, each non-empty with no leading/trailing hyphen (Postmark rejects the whole
+ * message on one bad Cc, losing the `to` send). Input is already lower-cased.
+ */
+const CC_EMAIL = /^[^@\s,;<>"'()[\]\\]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
 /** Lower-cased, trimmed, valid addresses only, deduped, never the `to` address, at most `MAX_CC` (cap applied after dropping). */
 export function cleanCc(cc: readonly string[] | undefined, to: string): string[] {

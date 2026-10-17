@@ -75,10 +75,7 @@ test.describe.serial('client setup: invite and billing', () => {
     await page.getByRole('button', { name: 'Connect Stripe' }).click();
     await page.getByRole('button', { name: 'Finish Stripe setup' }).click();
     await expect(page.getByText('Stripe is connected. Your clients pay you directly.')).toBeVisible();
-    // A per-client price needs the agency's Stripe product, which saving the defaults creates (see the report: the wizard alone cannot).
-    await page.getByLabel('Monthly price ($)').fill('199');
-    await page.getByRole('button', { name: 'Save defaults' }).click();
-    await expect(page.getByRole('status').filter({ hasText: 'Defaults saved.' })).toBeVisible();
+    // No defaults are saved: the wizard's per-client price must work on its own (it creates the agency's Stripe product on first use).
   });
 
   test('staff invites the owner from step 4: Cc is the inviter and the email carries the sign-in link', { tag: ['@setup', '@clients'] }, async ({ page }) => {

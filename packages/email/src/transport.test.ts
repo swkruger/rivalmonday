@@ -87,6 +87,8 @@ describe('cc (11b §3)', () => {
   it('cleanCc drops invalid, duplicate and to-address entries and caps at 5', () => {
     expect(cleanCc(undefined, 'pat@a1.example')).toEqual([]);
     expect(cleanCc([' Sam@A1.example ', 'sam@a1.example', 'PAT@a1.example', 'nope', 'a@b', 'x y@a1.example', 'bad,@a1.example', '<e@a1.example>', ''], 'Pat@A1.example')).toEqual(['sam@a1.example']);
+    // domain: dot-separated non-empty labels, no leading/trailing hyphen
+    expect(cleanCc(['a@b..c', 'a@b.c.', 'a@-b.c', 'a@b-.c', 'a@.b.c', 'a@b.-c', 'ok@mail.b-c.example'], 'pat@a1.example')).toEqual(['ok@mail.b-c.example']);
     expect(cleanCc(['1@a.example', '2@a.example', '3@a.example', '4@a.example', '5@a.example', '6@a.example'], 'pat@a1.example')).toEqual(['1@a.example', '2@a.example', '3@a.example', '4@a.example', '5@a.example']);
     // the cap applies after dropping, so invalid entries don't use up slots
     expect(cleanCc(['bad', 'pat@a1.example', '1@a.example', '1@a.example', '2@a.example', '3@a.example', '4@a.example', '5@a.example', '6@a.example'], 'pat@a1.example')).toHaveLength(5);

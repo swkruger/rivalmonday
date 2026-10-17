@@ -7,7 +7,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PAUSED_WRITE_ALLOW_LIST } from '../billing-guard';
 import { createToolRegistry } from '../registry';
 import { BILLING_NOT_CONFIGURED_MESSAGE } from './billing';
-import { clientOwnerEmails, CONNECT_FIRST_MESSAGE, PAYMENT_PROCESSING_MESSAGE, STRIPE_FAILED_MESSAGE } from './client-billing';
+import { clientOwnerEmails, CONNECT_FIRST_MESSAGE, preferredOwnerEmail, PAYMENT_PROCESSING_MESSAGE, STRIPE_FAILED_MESSAGE } from './client-billing';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -532,6 +532,32 @@ describe('per-client billing tools (Task 5)', () => {
       const n = await notices();
       expect(n).toHaveLength(1);
       expect(n[0]).toMatchObject({ audience: 'client', clientId: A2, kind: 'client-payment-link' });
+    });
+    it('enable_client_billing with a per-client price works when the agency never saved defaults', async () => {
+      await seedConnect();
+      await invite('pending@owner.test');
+      const r = await call(admin, 'enable_client_billing', { clientId: A2, priceCents: 15000 });
+      expect(r).toMatchObject({ ok: true, state: 'invited', priceCents: 15000 });
+      expect(gw.callsTo('createConnectedProduct')).toHaveLength(1);
+      const productId = (await connectRow())!.stripeProductId;
+      expect(productId).toMatch(/^prod_conn/);
+      expect(gw.callsTo('createConnectedPrice')[0]!.args[0]).toMatchObject({ productId, unitAmountCents: 15000 });
+      // A later per-client price reuses the stored product.
+      await call(admin, 'enable_client_billing', { clientId: A1, priceCents: 12000 });
+      expect(gw.callsTo('createConnectedProduct')).toHaveLength(1);
+      expect(gw.callsTo('createConnectedPrice')[1]!.args[0]).toMatchObject({ productId, unitAmountCents: 12000 });
+    });
+    it('Checkout customerEmail prefers an accepted owner over a pending invitation', async () => {
+      await ready();
+      await addUser('oz', 'z@owner.test', A2, new Date('2026-01-01'));
+      await invite('a@owner.test');
+      await call(admin, 'enable_client_billing', { clientId: A2 });
+      expect(checkoutArg()).toMatchObject({ customerEmail: 'z@owner.test' });
+      expect(await clientOwnerEmails(dbs.owner, A2, new Date())).toEqual(['a@owner.test', 'z@owner.test']);
+      expect(await preferredOwnerEmail(dbs.owner, A2, new Date())).toBe('z@owner.test');
+      await dbs.owner.delete(membership).where(eq(membership.userId, 'oz'));
+      expect(await preferredOwnerEmail(dbs.owner, A2, new Date())).toBe('a@owner.test');
+      expect(await preferredOwnerEmail(dbs.owner, IDS.clientB1, new Date())).toBeNull();
     });
     it('turning billing on as the last open setup step completes the setup (Phase 11b §8)', async () => {
       await ready();

@@ -8,6 +8,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import type { ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
+import { clientOwnerEmails } from '../tools/client-billing';
 import { inviteClientUser } from './client-invite';
 import { acceptInvitations } from './invitations';
 
@@ -180,9 +181,33 @@ describe('invite_client_owner tool', () => {
     expect(c).toMatchObject({ id: out.contactId, name: 'Pat', active: false });
     expect(await rows()).toHaveLength(1);
   });
+
+  it('re-inviting a different email revokes the previous pending owner invitation', async () => {
+    await openSetup();
+    // An unrelated pending owner invitation for another client stays untouched.
+    await registry().invoke(admin, 'invite_client_owner', { clientId: IDS.clientA2, name: 'Other', email: 'pat@acme.co' });
+    const first = (await registry().invoke(admin, 'invite_client_owner', { clientId: IDS.clientA1, name: 'Pat', email: 'pat@acme.co' })) as { invitationId: string; contactId: string };
+    const second = (await registry().invoke(admin, 'invite_client_owner', { clientId: IDS.clientA1, name: 'Pat', email: 'pat@acme.com' })) as { invitationId: string; contactId: string };
+    expect(second.contactId).not.toBe(first.contactId);
+    const pending = (await dbs.service.select().from(invitation).where(isNull(invitation.revokedAt))).map((i) => `${i.clientId}:${i.email}`).sort();
+    expect(pending).toEqual([`${IDS.clientA1}:pat@acme.com`, `${IDS.clientA2}:pat@acme.co`].sort());
+    expect((await invites()).find((i) => i.id === first.invitationId)!.revokedAt).toBeInstanceOf(Date);
+    expect(await clientOwnerEmails(dbs.service, IDS.clientA1, new Date())).toEqual(['pat@acme.com']);
+    const [setup] = await dbs.service.select().from(clientSetup).where(eq(clientSetup.clientId, IDS.clientA1));
+    expect(setup!.invitedContactId).toBe(second.contactId);
+  });
 });
 
 describe('invite_member with client roles', () => {
+  it('team-page invite of a second owner does not revoke the first', async () => {
+    await openSetup();
+    await registry().invoke(admin, 'invite_client_owner', { clientId: IDS.clientA1, name: 'Pat', email: 'pat@acme.com' });
+    await registry().invoke(admin, 'invite_member', { email: 'sam@acme.com', role: 'client_owner', clientId: IDS.clientA1 });
+    const pending = (await dbs.service.select().from(invitation).where(isNull(invitation.revokedAt))).map((i) => i.email).sort();
+    expect(pending).toEqual(['pat@acme.com', 'sam@acme.com']);
+    expect(await clientOwnerEmails(dbs.service, IDS.clientA1, new Date())).toEqual(['pat@acme.com', 'sam@acme.com']);
+  });
+
   it('team invite for client_viewer also queues client_invite', async () => {
     await openSetup(IDS.clientA2);
     const out = (await registry().invoke(am, 'invite_member', { email: 'v@x.co', role: 'client_viewer', clientId: IDS.clientA2 })) as { invitationId: string; expiresAt: string };

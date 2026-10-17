@@ -334,7 +334,7 @@ export const inviteClientOwner = defineTool({
   permission: 'agency',
   channels: ['web'],
   async handler(ctx, { clientId, name, email }, deps) {
-    const r = await inviteClientUser(ctx, deps, { clientId, email, name, role: 'client_owner' }, new Date());
+    const r = await inviteClientUser(ctx, deps, { clientId, email, name, role: 'client_owner', replaceInvitedOwner: true }, new Date());
     return { invitationId: r.invitationId, expiresAt: r.expiresAt.toISOString(), contactId: r.contactId };
   },
 });
