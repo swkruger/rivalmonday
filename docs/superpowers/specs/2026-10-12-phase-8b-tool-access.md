@@ -115,6 +115,7 @@ get_client_setup (setup.ts) | read | read
 save_setup_profile (setup.ts) | write | updates client profile + client_setup.last_changed_*; may start the first auto search
 pick_setup_competitors (setup.ts) | write | accepts/dismisses competitor suggestions (links competitors, enqueues discovery)
 advance_client_setup (setup.ts) | write | updates client_setup; start_search starts a discovery run
+invite_client_owner (setup.ts) | write | creates invitation + contact, sets client_setup.invited_*, queues the client_invite email
 get_billing_summary (billing.ts) | read | gateway reads only
 get_seat_report (billing.ts) | read | read
 create_checkout_session (billing.ts) | write | creates Stripe customer/session

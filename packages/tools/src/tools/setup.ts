@@ -4,6 +4,7 @@ import { client, clientCompetitor, clientSetup, competitorSuggestion, discoveryR
 import { listVerticalPacks } from '@cs/verticals';
 import { and, count, desc, eq, gte, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
+import { inviteClientUser } from '../access/client-invite';
 import { packsOf, type ToolDeps } from '../deps';
 import { startCompetitorSearch } from '../rival-search';
 import { FIND_BUSINESS_DAILY_CAP, preselectVertical, toSetupLookup } from '../setup/lookup';
@@ -306,4 +307,19 @@ export const advanceClientSetup = defineTool({
   },
 });
 
-export const setupTools = [findBusiness, getClientSetup, saveSetupProfile, pickSetupCompetitors, advanceClientSetup];
+/** Phase 11b §4: the wizard's "Invite the owner" step. Off the paused-agency allow-list (no new outward client work while paused). */
+export const inviteClientOwner = defineTool({
+  name: 'invite_client_owner',
+  access: 'write',
+  description: 'Invite the business owner to this client (client setup wizard): creates their invitation and contact and emails them a sign-in link, copying you.',
+  input: z.object({ clientId: uuid, name: z.string().trim().min(1).max(120), email: z.email().max(320) }),
+  output: z.object({ invitationId: uuid, expiresAt: z.string(), contactId: uuid }),
+  permission: 'agency',
+  channels: ['web'],
+  async handler(ctx, { clientId, name, email }, deps) {
+    const r = await inviteClientUser(ctx, deps, { clientId, email, name, role: 'client_owner' }, new Date());
+    return { invitationId: r.invitationId, expiresAt: r.expiresAt.toISOString(), contactId: r.contactId };
+  },
+});
+
+export const setupTools = [findBusiness, getClientSetup, saveSetupProfile, pickSetupCompetitors, advanceClientSetup, inviteClientOwner];

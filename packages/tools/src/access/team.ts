@@ -1,5 +1,5 @@
 import { type AccessContext, canAccessClient, isAgencyRole, type Role, ToolError } from '@cs/core';
-import { client, contact, type Db, invitation, membership } from '@cs/db';
+import { client, contact, type Db, invitation, membership, type Tx } from '@cs/db';
 import { and, asc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { createInvitation, type NewInvitation, normalizeEmail } from './invitations';
 
@@ -57,7 +57,7 @@ export async function listTeam(service: Db, ctx: AccessContext, now = new Date()
 /** Review fix round 1: a member already holding the exact scope (agency role, or this client) must be removed, not re-invited — an
  * invite-to-demote would otherwise let an admin overwrite their own (or another admin's) role at next sign-in, bypassing
  * revokeMembership's last-admin lock (Review Focus 4). */
-async function hasMemberAtScope(service: Db, agencyId: string, email: string, clientId: string | null): Promise<boolean> {
+async function hasMemberAtScope(service: Db | Tx, agencyId: string, email: string, clientId: string | null): Promise<boolean> {
   const rows = await service.execute(sql`
     select 1 from membership m join auth."user" u on u.id = m.user_id
     where m.agency_id = ${agencyId} and lower(u.email) = ${email}
@@ -66,7 +66,8 @@ async function hasMemberAtScope(service: Db, agencyId: string, email: string, cl
   return rows.length > 0;
 }
 
-export async function inviteMember(service: Db, ctx: AccessContext, input: Omit<NewInvitation, 'agencyId' | 'invitedBy'>, now = new Date()): Promise<{ id: string; expiresAt: Date }> {
+/** `service` may be the caller's transaction (11b `inviteClientUser`, which holds the client row lock). */
+export async function inviteMember(service: Db | Tx, ctx: AccessContext, input: Omit<NewInvitation, 'agencyId' | 'invitedBy'>, now = new Date()): Promise<{ id: string; expiresAt: Date }> {
   if (!isAgencyRole(ctx.role)) throw new ToolError('permission_denied', 'Only agency roles invite people');
   if (!isAdmin(ctx) && isAgencyRole(input.role)) throw new ToolError('permission_denied', 'Only agency admins invite agency staff');
   if (input.clientId && !canAccessClient(ctx, input.clientId)) throw new ToolError('not_found', 'Client not found');

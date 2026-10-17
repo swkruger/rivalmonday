@@ -498,6 +498,13 @@
       "when": 1792214391890,
       "tag": "0070_client_setup_invite",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1792216415860,
+      "tag": "0071_client_setup_invited_by_text",
+      "breakpoints": true
     }
   ]
 }

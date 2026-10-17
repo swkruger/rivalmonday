@@ -60,7 +60,7 @@ export const clientSetup = pgTable(
     competitorsDoneAt: ts('competitors_done_at'),
     /** Phase 11b: the contact invited as client owner from the wizard, and the staff auth user who invited them (Cc). */
     invitedContactId: uuid('invited_contact_id').references(() => contact.id, { onDelete: 'set null' }),
-    invitedBy: uuid('invited_by'),
+    invitedBy: text('invited_by'), // auth user id (Better Auth ids are text, not uuids)
     completedAt: ts('completed_at'),
     dismissedAt: ts('dismissed_at'),
     lastChangedBy: text('last_changed_by'), // auth user id (Better Auth ids are text, not uuids)

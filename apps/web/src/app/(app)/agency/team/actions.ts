@@ -15,6 +15,8 @@ export async function inviteAction(_prev: FormResult, formData: FormData): Promi
   const r = await runTool(ctx, 'invite_member', parsed);
   if (!r.ok) return r;
   revalidatePath('/agency/team');
+  // 11b: client roles get the `client_invite` email; agency staff still get the sign-in hint.
+  if (!isAgencyRole(parsed.role)) return { ok: true, message: `Invitation sent to ${parsed.email}.` };
   return { ok: true, message: `Invitation created. Ask them to sign in at ${webEnv().appUrl}/sign-in with this email.` };
 }
 

@@ -40,8 +40,11 @@ async function assertAgencyClients(tx: Tx, agencyId: string, ids: string[]) {
   if (rows.length !== new Set(ids).size) throw new ToolError('not_found', 'Client not found');
 }
 
-/** Low-level (not permission-checked): used by `inviteMember` (Task 3) and the admin CLI (Task 18). */
-export async function createInvitation(service: Db, input: NewInvitation, now = new Date()): Promise<{ id: string; expiresAt: Date }> {
+/**
+ * Low-level (not permission-checked): used by `inviteMember` (Task 3) and the admin CLI (Task 18). Accepts a caller's
+ * transaction (11b `inviteClientUser`): its own `.transaction()` then runs as a savepoint inside it.
+ */
+export async function createInvitation(service: Db | Tx, input: NewInvitation, now = new Date()): Promise<{ id: string; expiresAt: Date }> {
   const problem = invitationProblem(input);
   if (problem) throw new ToolError('invalid_input', problem);
   const email = normalizeEmail(input.email);
