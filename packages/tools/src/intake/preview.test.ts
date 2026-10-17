@@ -29,14 +29,22 @@ describe('snapshotFacts', () => {
       nearby: [{ name: 'Near Dental', rating: 4.8, votes: 40, distanceKm: 1.1 }, { name: 'Far Dental', rating: 4.1, votes: 5, distanceKm: 9.8 }],
     });
     expect(facts).toEqual([
-      'You rank 2 of 3 for review count among you and the nearby dentist businesses.',
-      'You rank 2 of 3 for Google rating among you and the nearby dentist businesses.',
+      'You rank 2 of 3 for review count among you and the nearby dentist businesses that show one.',
+      'You rank 2 of 3 for Google rating among you and the nearby dentist businesses that show one.',
       'The closest competitor is Near Dental, 1.1 km away.',
     ]);
   });
-  it('skips the rating fact when the business has no rating', () => {
+  it('skips the review and rating facts when the business has no votes or rating', () => {
     const facts = snapshotFacts({ self: { name: 'A', rating: null, votes: null }, category: '', nearby: [{ name: 'B', rating: 4, votes: 3, distanceKm: 2 }] });
-    expect(facts).toEqual(['You rank 2 of 2 for review count among you and the nearby businesses.', 'The closest competitor is B, 2.0 km away.']);
+    expect(facts).toEqual(['The closest competitor is B, 2.0 km away.']);
+  });
+  it('ranks only against competitors that have the value and keeps acronym casing', () => {
+    const facts = snapshotFacts({
+      self: { name: 'A', rating: 4.5, votes: 10 }, category: 'HVAC',
+      nearby: [{ name: 'B', rating: null, votes: null, distanceKm: 1 }, { name: 'C', rating: 4.9, votes: 50, distanceKm: 2 }],
+    });
+    expect(facts[0]).toBe('You rank 2 of 2 for review count among you and the nearby HVAC businesses that show one.');
+    expect(facts[1]).toBe('You rank 2 of 2 for Google rating among you and the nearby HVAC businesses that show one.');
   });
 });
 

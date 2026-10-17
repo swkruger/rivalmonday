@@ -29,14 +29,19 @@ export function buildSnapshot(self: SetupLookup, nearby: MapsPlace[]): Snap | nu
   return snap;
 }
 
-/** Deterministic facts: review-count rank, rating rank and the closest competitor. */
+/** Deterministic facts: review-count rank, rating rank and the closest competitor. A rank is stated only when the business has the value, and only against competitors that have it. */
 export function snapshotFacts(s: Pick<Snap, 'self' | 'nearby' | 'category'>): string[] {
-  const total = s.nearby.length + 1;
   const facts: string[] = [];
-  const noun = s.category.trim() ? `nearby ${s.category.trim().toLowerCase()} businesses` : 'nearby businesses';
-  const rank = (mine: number, others: (number | null)[]) => 1 + others.filter((o) => o != null && o > mine).length;
-  facts.push(`You rank ${rank(s.self.votes ?? 0, s.nearby.map((b) => b.votes))} of ${total} for review count among you and the ${noun}.`);
-  if (s.self.rating != null) facts.push(`You rank ${rank(s.self.rating, s.nearby.map((b) => b.rating))} of ${total} for Google rating among you and the ${noun}.`);
+  const cat = s.category.trim();
+  const catText = cat && cat === cat.toUpperCase() ? cat : cat.toLowerCase(); // keep acronyms (HVAC) as written
+  const noun = catText ? `nearby ${catText} businesses` : 'nearby businesses';
+  const rankFact = (label: string, mine: number | null, others: (number | null)[]) => {
+    if (mine == null) return;
+    const known = others.filter((o): o is number => o != null);
+    facts.push(`You rank ${1 + known.filter((o) => o > mine).length} of ${known.length + 1} for ${label} among you and the ${noun} that show one.`);
+  };
+  rankFact('review count', s.self.votes, s.nearby.map((b) => b.votes));
+  rankFact('Google rating', s.self.rating, s.nearby.map((b) => b.rating));
   const closest = [...s.nearby].sort((a, b) => a.distanceKm - b.distanceKm)[0];
   if (closest) facts.push(`The closest competitor is ${closest.name}, ${closest.distanceKm.toFixed(1)} km away.`);
   return facts;

@@ -54,7 +54,7 @@ async function sendNotices(email: LeadEmailDeps | null, leadId: string, agencyId
  * (with fallback copy). A model failure or a rejected summary leaves a `ready` preview with `summary: null`.
  */
 export async function runLeadPreview(
-  d: { db: Db; dfs: DataForSeoClient; ai: Ai; email: LeadEmailDeps | null },
+  d: { db: Db; clients: () => Promise<{ dfs: DataForSeoClient; ai: Ai }>; email: LeadEmailDeps | null },
   leadId: string,
 ): Promise<LeadPreviewOutcome> {
   const [row] = await d.db
@@ -64,21 +64,22 @@ export async function runLeadPreview(
     .limit(1);
   if (!row) return { skipped: 'lead not found or agency not serviceable' };
   if (row.status !== 'verified') return { skipped: `lead ${row.status}` };
-  if (row.preview.status !== 'none' && row.preview.status !== 'pending') return { skipped: `preview ${row.preview.status}` };
+  if (row.preview.status === 'ready') return { skipped: `preview ${row.preview.status}` };
 
   await d.db.update(lead).set({ preview: { status: 'pending' } }).where(eq(lead.id, leadId));
   let outcome: 'ready' | 'failed' = 'failed';
   try {
+    const { dfs, ai } = await d.clients(); // lazy: an unconfigured vendor takes the normal failure path
     const lookup = row.lookup;
     if (!lookup.category) throw new Error('no category');
-    const { places } = await mapsSearch(d.dfs, { keyword: lookup.category, lat: lookup.lat, lng: lookup.lng, depth: 20 }, SCOPE);
+    const { places } = await mapsSearch(dfs, { keyword: lookup.category, lat: lookup.lat, lng: lookup.lng, depth: 20 }, SCOPE);
     const snap = buildSnapshot(lookup, places);
     if (!snap) throw new Error('no usable nearby businesses');
     snap.facts = snapshotFacts(snap);
     try {
       const names = [snap.self.name, ...snap.nearby.map((b) => b.name)];
       const input = redactForModel(JSON.stringify({ self: snap.self, nearby: snap.nearby, category: snap.category }), { businessNames: names });
-      const res = await d.ai.chat(
+      const res = await ai.chat(
         'lead_preview_summary',
         { messages: [{ role: 'system', content: LEAD_SUMMARY_SYSTEM }, { role: 'user', content: input }], jsonSchema: leadSummaryJsonSchema },
         SCOPE,

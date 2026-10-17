@@ -1,12 +1,15 @@
 import type { Ai } from '@cs/ai';
 import type { DataForSeoClient } from '@cs/collectors';
-import { agencyBilling, contact, lead, type SetupLookup } from '@cs/db';
+import { agencyBilling, contact, type Db, lead, type SetupLookup } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport } from '@cs/email';
 import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { LeadEmailDeps } from '@cs/tools';
 import type { WorkerDeps } from '../deps';
-import { createLeadJobs, runLeadPreview } from './leads';
+import { createLeadJobs, runLeadPreview as runReal } from './leads';
+
+const runLeadPreview = (d: { db: Db; dfs: DataForSeoClient; ai: Ai; email: LeadEmailDeps | null }, id: string) => runReal({ db: d.db, email: d.email, clients: async () => ({ dfs: d.dfs, ai: d.ai }) }, id);
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -93,6 +96,24 @@ describe('runLeadPreview', () => {
     const id = await mkLead();
     await runLeadPreview({ db: dbs.service, dfs: fakeDfs(), ai: aiSays('You have 99 reviews, the best in town.'), email: email() }, id);
     expect((await row(id)).preview).toMatchObject({ status: 'ready', summary: null });
+  });
+
+  it('deps unconfigured → failed + confirmation once', async () => {
+    const id = await mkLead();
+    const d = { db: dbs.service, email: email(), clients: async (): Promise<never> => { throw new Error('DATAFORSEO_LOGIN required'); } };
+    expect(await runReal(d, id)).toEqual({ status: 'failed' });
+    expect((await row(id)).preview).toEqual({ status: 'failed' });
+    await runReal(d, id);
+    expect(transport.sent.filter((m) => m.to === 'sam@smith.co')).toHaveLength(1);
+  });
+
+  it('re-run on a failed preview rebuilds it and sends no second confirmation', async () => {
+    const id = await mkLead({ lookup: { ...lookup, category: null } });
+    await runLeadPreview({ db: dbs.service, dfs: fakeDfs(), ai: aiSays(CLEAN), email: email() }, id);
+    await dbs.service.update(lead).set({ lookup }).where(eq(lead.id, id));
+    expect(await runLeadPreview({ db: dbs.service, dfs: fakeDfs(), ai: aiSays(CLEAN), email: email() }, id)).toEqual({ status: 'ready' });
+    expect((await row(id)).preview.status).toBe('ready');
+    expect(transport.sent.filter((m) => m.to === 'sam@smith.co')).toHaveLength(1);
   });
 
   it('pool lead notifies platform admins once', async () => {
