@@ -78,6 +78,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Test hygiene (fold in when touching): hand-set `pausedAt` in tests, unasserted seat sync after auto-pause, `sendClient`/`sendAgencyClient` untested, `get_connect_overview` N+1, `get_client_revenue` duplicates `clientMrrCents`, reconcile doesn't stamp `lastStripeEventAt`, invited `set_client_price` with unchanged amount re-mails, `next_bill` can create a duplicate-amount price, Stripe reads inside the webhook tx, `new Stripe()` without explicit `apiVersion` — *9a/9b ledgers*
 
 ## Phase 11 follow-ups (client onboarding)
+- Flaky test → `page-controls.test.tsx` PinPageSwitch "shows a refusal, falling back to the server value" failed once under the full suite (timing; passes alone 3/3). (Phase 11 merge)
 **Soon**
 - [ ] `@cs/billing access.test.ts` reduced-trial test is order-dependent; `start_search` retry bound is only the 10-min cooldown (<= $3); setup idle reminder has no cycle component; concurrent double "Done picking" errors; starting-point card shows checks pending during setup hold - *phase-11*
 - [ ] Owner decision: verified leads never accepted/declined (incl. pool) keep name/email/phone/message forever; set a retention cap (e.g. 180 d) - *11c*
