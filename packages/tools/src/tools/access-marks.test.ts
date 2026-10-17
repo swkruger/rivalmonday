@@ -11,10 +11,10 @@ const WRITE_TOOLS = [
   'edit_brief_item', 'enable_client_billing', 'end_pilot', 'end_support_session', 'extend_trial', 'grant_pilot', 'import_kb_url', 'invite_member', 'open_billing_portal',
   'pause_client', 'rate_brief_item', 'redeem_discount_code', 'remove_ad_match', 'remove_competitor', 'resend_client_payment_link', 'resume_client', 'revoke_discount_code',
   'revoke_invite_link', 'set_client_billing_defaults', 'set_client_price', 'set_connect_fee_percent', 'set_seat_cap_exempt', 'set_signups_paused', 'start_stripe_connect',
-  'refresh_platform_costs', 'reorder_brief_items', 'request_competitor_suggestions', 'resolve_decision_review', 'revoke_api_token', 'revoke_invitation',
+  'refresh_platform_costs', 'reorder_brief_items', 'request_competitor_suggestions', 'request_rank_scan', 'resolve_decision_review', 'revoke_api_token', 'revoke_invitation',
   'revoke_membership', 'revoke_oauth_grant', 'run_prospect_snapshot', 'save_platform_cost_item', 'send_brief_now', 'set_alert_rules', 'set_brief_auto_send',
   'set_client_limits', 'set_kb_auto_sync', 'set_my_notification_pref', 'set_page_pin', 'set_support_access_notify', 'set_webhook_active', 'start_support_session', 'submit_feedback',
-  'update_agency_branding', 'update_agency_profile', 'update_client_delivery', 'update_platform_cost_service', 'update_client_profile', 'update_my_contact', 'update_playbook',
+  'update_agency_branding', 'update_agency_profile', 'update_client_delivery', 'update_platform_cost_service', 'update_client_profile', 'update_client_rank_settings', 'update_my_contact', 'update_playbook',
   'update_recommendation_status', 'upload_agency_logo', 'upsert_kb_article',
 ].sort();
 

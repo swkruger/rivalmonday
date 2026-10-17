@@ -117,6 +117,9 @@ create_portal_session (billing.ts) | write | creates Stripe portal session
 redeem_discount_code (billing.ts) | write | stores/attaches coupon
 pause_client (client-pause.ts) | write | sets client.paused_at
 resume_client (client-pause.ts) | write | clears client.paused_at
+get_rank_settings (rankings.ts) | read | read (agency roles only)
+update_client_rank_settings (rankings.ts) | write | updates client.rank_keywords/rank_grid_size/service_area; queues rank-map-refresh
+request_rank_scan (rankings.ts) | write | inserts rank_scan row; queues rank-scan job (paid vendor calls)
 get_connect_status (client-billing.ts) | read | live account read only; display-only merge, no writes
 start_stripe_connect (client-billing.ts) | write | creates Stripe account link; upserts agency_connect
 disconnect_stripe (client-billing.ts) | write | disconnects agency_connect and client_billing locally

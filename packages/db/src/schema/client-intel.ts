@@ -65,7 +65,7 @@ export const rankScan = pgTable(
     status: text('status').$type<RankScanStatus>().notNull().default('running'),
     /** Phase 13b: weekly scheduled scan or an agency 'Scan now'. */
     trigger: text('trigger').$type<RankScanTrigger>().notNull().default('scheduled'),
-    requestedBy: uuid('requested_by'),
+    requestedBy: text('requested_by'),
     /** Settings the scan ran with (null on pre-13b rows that could not be backfilled). */
     gridSize: smallint('grid_size'),
     radiusKm: doublePrecision('radius_km'),

@@ -484,6 +484,13 @@
       "when": 1792223372270,
       "tag": "0068_rank_upgrade_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792228279235,
+      "tag": "0069_rank_scan_requested_by_text",
+      "breakpoints": true
     }
   ]
 }

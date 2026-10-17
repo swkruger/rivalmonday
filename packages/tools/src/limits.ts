@@ -13,3 +13,6 @@ export const RIVAL_SEARCH_COOLDOWN_MINUTES = 10;
 export const RIVAL_SEARCHES_PER_AGENCY_DAY = 5;
 /** Phase 12a D4 (P7): converting a prospect reuses its last finished search when it is at most this old. */
 export const RIVAL_SEARCH_REUSE_DAYS = 30;
+/** Phase 13b: manual "Scan now" — one per client per 7 days, and at most 10 per agency per UTC day. */
+export const RANK_MANUAL_PER_CLIENT_DAYS = 7;
+export const RANK_MANUAL_PER_AGENCY_DAY = 10;

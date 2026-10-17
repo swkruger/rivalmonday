@@ -1,9 +1,11 @@
-import { toolkit, ToolError } from '@cs/core';
-import { type RankResult, rankScan, rankSnapshot, type Tx, withTenant } from '@cs/db';
+import { rankKeywordsFor } from '@cs/collectors';
+import { canAccessClient, toolkit, ToolError } from '@cs/core';
+import { client, type RankResult, rankScan, rankSnapshot, type Tx, withTenant } from '@cs/db';
 import { competitorMatcher, NOT_FOUND_RANK } from '@cs/engine';
 import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
+import { enqueueMapRefresh, rankScanAvailability, rankScanLabel, requestRankScan } from '../rank-scan';
 import { pickBusiness, workspaceBusinesses } from '../workspace/business';
 import { workspaceClient } from '../workspace/scope';
 import { BusinessKey, GeoGridView, ShareOfVoiceView } from './schemas';
@@ -140,4 +142,75 @@ export const getShareOfVoice = defineTool({
   },
 });
 
-export const rankingTools = [getGeogrid, getShareOfVoice];
+const GridSize = z.union([z.literal(5), z.literal(7)]);
+const ScanState = z.enum(['available', 'weekly_limit', 'agency_daily_limit', 'cap', 'running', 'not_ready']);
+
+/** The client in the caller's agency and scope, or the same `not_found` for unknown, other-agency and out-of-scope ids. */
+async function agencyClient(deps: ToolDeps, ctx: { agencyId: string; clientScope: 'all' | readonly string[] } & Parameters<typeof canAccessClient>[0], clientId: string) {
+  if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+  const [c] = await deps.service.select().from(client).where(and(eq(client.id, clientId), eq(client.agencyId, ctx.agencyId)));
+  if (!c) throw new ToolError('not_found', 'Client not found');
+  return c;
+}
+
+export const getRankSettings = defineTool({
+  name: 'get_rank_settings',
+  access: 'read',
+  description: "A client's local-rank settings (keywords, grid size, radius) and whether a manual scan can start now. Agency roles only.",
+  input: z.object({ clientId: uuid }),
+  output: z.object({
+    keywords: z.array(z.string()), allKeywords: z.array(z.string()), gridSize: GridSize, radiusKm: z.number().nullable(),
+    scan: z.object({ state: ScanState, nextAvailableAt: z.string().nullable(), label: z.string().nullable() }),
+  }),
+  permission: 'agency',
+  async handler(ctx, { clientId }, deps) {
+    const c = await agencyClient(deps, ctx, clientId);
+    const a = await rankScanAvailability(deps.service, { id: c.id, agencyId: c.agencyId }, new Date());
+    return {
+      keywords: rankKeywordsFor(c), allKeywords: c.keywords, gridSize: (c.rankGridSize === 5 ? 5 : 7) as 5 | 7, radiusKm: c.serviceArea?.radiusKm ?? null,
+      scan: { state: a.state, nextAvailableAt: a.nextAvailableAt ?? null, label: rankScanLabel(a, c) },
+    };
+  },
+});
+
+export const updateClientRankSettings = defineTool({
+  name: 'update_client_rank_settings',
+  access: 'write',
+  description: "Set which of a client's keywords are rank-scanned, the grid size (5 or 7) and the scan radius (2-40 km).",
+  input: z.object({
+    clientId: uuid, keywords: z.array(z.string().trim().min(1).max(120)).min(1).max(5), gridSize: GridSize, radiusKm: z.number().min(2).max(40),
+  }),
+  output: z.object({ ok: z.literal(true) }),
+  permission: 'agency',
+  async handler(ctx, input, deps) {
+    if (!canAccessClient(ctx, input.clientId)) throw new ToolError('not_found', 'Client not found');
+    const keywords = [...new Set(input.keywords)];
+    await withTenant(deps.app, ctx, async (tx) => {
+      const [current] = await tx.select().from(client).where(eq(client.id, input.clientId)).for('update');
+      if (!current) throw new ToolError('not_found', 'Client not found');
+      if (!keywords.every((k) => current.keywords.includes(k))) throw new ToolError('invalid_input', "Pick keywords from the client's keyword list.");
+      if (!current.serviceArea) throw new ToolError('invalid_input', 'Set a service area on the Profile page first.');
+      await tx.update(client).set({ rankKeywords: keywords, rankGridSize: input.gridSize, serviceArea: { ...current.serviceArea, radiusKm: input.radiusKm } }).where(eq(client.id, input.clientId));
+    });
+    await enqueueMapRefresh(deps, input.clientId);
+    return { ok: true as const };
+  },
+});
+
+export const requestRankScanTool = defineTool({
+  name: 'request_rank_scan',
+  access: 'write',
+  description: 'Start a manual local-rank scan ("Scan now") for a client: one per client per 7 days, 10 per agency per day, within the monthly cost cap.',
+  input: z.object({ clientId: uuid }),
+  output: z.union([
+    z.object({ queued: z.literal(true), scanEtaMinutes: z.number() }),
+    z.object({ queued: z.literal(false), reason: z.enum(['weekly_limit', 'agency_daily_limit', 'cap', 'not_ready']), nextAvailableAt: z.string().optional() }),
+  ]),
+  permission: 'agency',
+  async handler(ctx, { clientId }, deps) {
+    const c = await agencyClient(deps, ctx, clientId);
+    return requestRankScan(deps, ctx.userId, { id: c.id, agencyId: c.agencyId });
+  },
+});
+
+export const rankingTools = [getGeogrid, getShareOfVoice, getRankSettings, updateClientRankSettings, requestRankScanTool];

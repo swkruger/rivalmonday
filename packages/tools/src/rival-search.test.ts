@@ -304,7 +304,7 @@ describe('auto-run hooks (D4)', () => {
     await pastRun(IDS.clientA1, { status: 'failed', startedAgoMs: 3 * DAY, finishedAgoMs: 3 * DAY });
     await registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, ...PROFILE });
     expect(await runs(IDS.clientA1)).toHaveLength(1);
-    expect(enqueue).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalledWith('rival-search', expect.anything(), expect.anything());
   });
 
   it('convert reuses a 10-day-old run', async () => {

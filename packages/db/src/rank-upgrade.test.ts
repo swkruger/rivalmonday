@@ -52,6 +52,11 @@ describe('phase 13b rank upgrade schema', () => {
     await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'done' });
   });
 
+  it('rank_scan.requested_by accepts a non-uuid auth user id', async () => {
+    const [s] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, requestedBy: 'u-agency_admin' }).returning();
+    expect(s!.requestedBy).toBe('u-agency_admin');
+  });
+
   it("agency B cannot select agency A's rank_map_image", async () => {
     await dbs.service.insert(rankMapImage).values(image(IDS.agencyA, IDS.clientA1));
     expect(await withTenant(dbs.app, { agencyId: IDS.agencyB, clientScope: 'all' }, (tx) => tx.select().from(rankMapImage))).toHaveLength(0);

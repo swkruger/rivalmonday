@@ -7,10 +7,11 @@ import { z } from 'zod';
 import { type ClientInput, cleanClientInput, clientInputProblems } from '../client-input';
 import { postCommitSeatSync } from '../billing-guard';
 import { packsOf, type ToolDeps } from '../deps';
+import { enqueueMapRefresh } from '../rank-scan';
 import { startFirstAutoSearch } from '../rival-search';
 import { validTimezone } from '../timezone';
 import { reevaluateOnboardingCompletion } from './agency-onboarding';
-import { ServiceAreaInput } from './schemas';
+import { ServiceAreaWrite } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -45,7 +46,7 @@ export const createClient = defineTool({
   description: 'Create a client business — or a prospect being pitched — for this agency (agency users who cover all clients).',
   input: z.object({
     name: z.string().max(200), verticalId: z.string().max(40), services: z.array(z.string().max(80)).max(255), keywords: z.array(z.string().max(120)).max(20),
-    serviceArea: ServiceAreaInput.nullable(), placeId: z.string().max(300).nullable(), timezone: z.string().max(64).optional(), features: Features.default([]),
+    serviceArea: ServiceAreaWrite.nullable(), placeId: z.string().max(300).nullable(), timezone: z.string().max(64).optional(), features: Features.default([]),
     status: z.enum(CLIENT_STATUSES).default('active'),
   }),
   output: z.object({ clientId: uuid }),
@@ -81,7 +82,7 @@ export const updateClientProfile = defineTool({
   description: 'Update a client’s name, services, keywords, service area, Google place id or client features.',
   input: z.object({
     clientId: uuid, name: z.string().max(200).optional(), services: z.array(z.string().max(80)).max(255).optional(), keywords: z.array(z.string().max(120)).max(20).optional(),
-    serviceArea: ServiceAreaInput.nullable().optional(), placeId: z.string().max(300).nullable().optional(), features: Features.optional(),
+    serviceArea: ServiceAreaWrite.nullable().optional(), placeId: z.string().max(300).nullable().optional(), features: Features.optional(),
     askReviewAllowed: z.boolean().optional(),
   }),
   output: z.object({ clientId: uuid }),
@@ -93,7 +94,7 @@ export const updateClientProfile = defineTool({
     if (askReviewAllowed !== undefined && ctx.role !== 'agency_admin') throw new ToolError('permission_denied', 'Only agency admins change this setting');
     // Fix round 1 (#1): read-modify-write in ONE transaction with `for('update')`, so two
     // concurrent partial updates can't interleave and clobber each other (lost-update race).
-    const { placeChanged, searchInputsReady } = await withTenant(deps.app, ctx, async (tx) => {
+    const { placeChanged, searchInputsReady, mapChanged } = await withTenant(deps.app, ctx, async (tx) => {
       const [current] = await tx.select().from(client).where(eq(client.id, clientId)).for('update');
       if (!current) throw new ToolError('not_found', 'Client not found');
       const pack = await packFor(deps, current.verticalId);
@@ -110,7 +111,10 @@ export const updateClientProfile = defineTool({
       await tx.update(client).set({ name: merged.name, services: merged.services, keywords: merged.keywords, serviceArea: merged.serviceArea, placeId: merged.placeId, features: merged.features }).where(eq(client.id, clientId));
       const searchInputsChanged = canonical(merged.keywords) !== canonical(current.keywords)
         || canonical(merged.serviceArea) !== canonical(current.serviceArea) || merged.placeId !== current.placeId;
-      return { placeChanged: merged.placeId !== current.placeId, searchInputsReady: searchInputsChanged && merged.keywords.length > 0 && !!merged.serviceArea && !!merged.placeId };
+      // 13b: the rank map background depends on the service area's centre and radius only.
+      const mapChanged = !!merged.serviceArea && (merged.serviceArea.radiusKm !== current.serviceArea?.radiusKm
+        || merged.serviceArea.center.lat !== current.serviceArea?.center.lat || merged.serviceArea.center.lng !== current.serviceArea?.center.lng);
+      return { mapChanged, placeChanged: merged.placeId !== current.placeId, searchInputsReady: searchInputsChanged && merged.keywords.length > 0 && !!merged.serviceArea && !!merged.placeId };
     });
     // Final review: the self business was found by the old place id. Unlink it so benchmarks stop using the wrong
     // business and its paid gbp/reviews sources stop being claimed (unless something else still needs them); the next
@@ -119,6 +123,9 @@ export const updateClientProfile = defineTool({
     if (placeChanged) await deps.service.update(client).set({ selfCompetitorId: null }).where(eq(client.id, clientId));
     // app_user cannot write ask_review_allowed (column grants), so the service Db does, after the RLS-checked read above proved access.
     if (askReviewAllowed !== undefined) await deps.service.update(client).set({ askReviewAllowed }).where(and(eq(client.id, clientId), eq(client.agencyId, ctx.agencyId)));
+    // 13b: refresh the rank map background after commit (failure logged, never thrown). At rebase on phase-11 this moves
+    // inside the caller of `applyClientProfileChange`.
+    if (mapChanged) await enqueueMapRefresh(deps, clientId);
     // 12a D4 + owner decision 2026-10-15: after commit, the profile's first completion starts discovery once; a client
     // with any earlier run is never auto re-run by later edits (refusals stay silent).
     if (searchInputsReady) await startFirstAutoSearch(deps, clientId);

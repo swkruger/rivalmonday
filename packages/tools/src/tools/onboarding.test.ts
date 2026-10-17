@@ -30,6 +30,11 @@ beforeEach(async () => {
 });
 
 describe('create_client', () => {
+  it('create_client refuses radius 1 (service-area radius is 2-40 km)', async () => {
+    await expect(registry.invoke(admin, 'create_client', { ...input, serviceArea: { ...input.serviceArea, radiusKm: 1 } })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(registry.invoke(admin, 'create_client', { ...input, serviceArea: { ...input.serviceArea, radiusKm: 41 } })).rejects.toMatchObject({ code: 'invalid_input' });
+  });
+
   it('creates a client for admins and unrestricted AMs, audited', async () => {
     const { clientId } = (await registry.invoke(admin, 'create_client', input)) as { clientId: string };
     const [row] = await dbs.owner.select().from(client).where(eq(client.id, clientId));
