@@ -40,7 +40,14 @@ export const findBusiness = defineTool({
       throw new ToolError('rate_limited', `You've reached today's limit of ${FIND_BUSINESS_DAILY_CAP} business searches. Try again tomorrow or enter the details by hand.`, { userFacing: true });
     }
 
-    const found = await deps.setupLookup({ keyword: `${input.name} ${input.location}`, locationName: 'United States' }, { agencyId: ctx.agencyId, clientId: null });
+    let found: Awaited<ReturnType<NonNullable<typeof deps.setupLookup>>>;
+    try {
+      found = await deps.setupLookup({ keyword: `${input.name} ${input.location}`, locationName: 'United States' }, { agencyId: ctx.agencyId, clientId: null });
+    } catch (e) {
+      if (e instanceof ToolError) throw e;
+      console.error('[find_business] vendor lookup failed', { agencyId: ctx.agencyId }, (e as { name?: string } | null)?.name);
+      throw new ToolError('internal', "Business search isn't available right now. Try again, or enter the details by hand.", { userFacing: true });
+    }
     const usable = found.filter((p) => !p.closed).flatMap((p) => {
       const lookup = toSetupLookup(p);
       return lookup ? [{ lookup, categories: [p.category, ...(p.additionalCategories ?? [])].filter((c): c is string => !!c) }] : [];

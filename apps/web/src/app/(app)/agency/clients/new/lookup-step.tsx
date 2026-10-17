@@ -75,7 +75,7 @@ export function LookupStep({ find, createFromLookup, createByHand, verticals, ti
         </fieldset>
       </form>
 
-      {places && places.length === 0 && <p className="rounded-lg bg-muted-surface p-3 text-ink">No businesses found. Check the spelling or try a ZIP code.</p>}
+      {places && places.length === 0 && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">No businesses found. Check the spelling or try a ZIP code.</p>}
 
       {places && places.length > 0 && (
         <ul className="flex flex-col gap-2" aria-label="Matching businesses">

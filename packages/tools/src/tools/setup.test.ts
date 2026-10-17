@@ -69,6 +69,19 @@ describe('find_business', () => {
     await expect(find()).resolves.toBeTruthy();
   });
 
+  it('find_business turns a vendor failure into a user-facing refusal', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const reg = createToolRegistry(
+      { app: dbs.app, service: dbs.service, setupLookup: async () => { throw new Error('DataForSEO 503 for Smile Austin'); } },
+      { audit: { record: async () => {} } },
+    );
+    const e = await fails(reg.invoke(admin, 'find_business', { name: 'Smile', location: 'Austin, TX' }));
+    spy.mockRestore();
+    expect(e.code).toBe('internal');
+    expect(e.userFacing).toBe(true);
+    expect(e.message).toBe("Business search isn't available right now. Try again, or enter the details by hand.");
+  });
+
   it('ledgers with clientId null', async () => {
     await find();
     expect(calls).toEqual([{ q: { keyword: 'Smile Austin, TX', locationName: 'United States' }, scope: { agencyId: IDS.agencyA, clientId: null } }]);
