@@ -1,20 +1,29 @@
 import { hasFeature, isAgencyRole } from '@cs/core';
-import type { GeoGridView, ShareOfVoiceView } from '@cs/tools';
+import type { GeoGridView, RankTrendView, ShareOfVoiceView } from '@cs/tools';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ChangeGrid } from '@/components/charts/change-grid';
 import { GeoGrid } from '@/components/charts/geo-grid';
 import { LineChart } from '@/components/charts/line-chart';
+import { RankTrend } from '@/components/charts/rank-trend';
 import { requireContext } from '@/server/current-viewer';
 import { one, uuidParam } from '@/server/search-params';
 import { callTool, tryCallTool } from '@/server/tools';
+import { ScanSlider } from './scan-slider';
 import { sovSeries } from './sov';
+import { type RankQuery, type RankTab, RankTabs } from './tabs';
 
 export const dynamic = 'force-dynamic';
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+const selectCls = 'rounded-md border border-line bg-surface px-2 py-1.5';
+type TrendScan = RankTrendView['scans'][number];
 
-/** Module 7 (decisions 9–11): geo-grid per keyword and business, then share of voice over time. */
+/**
+ * Module 7 (decisions 9–11) + Phase 13b D8: Trend tab (average-rank line, scan slider driving the geo-grid, share of
+ * voice) and Compare tab (two scans with the same settings, per-point change grid).
+ */
 export default async function RankingsPage({ params, searchParams }: {
   params: Promise<{ clientId: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -23,16 +32,38 @@ export default async function RankingsPage({ params, searchParams }: {
   const sp = await searchParams;
   const { ctx } = await requireContext();
   if (!hasFeature(ctx, 'dashboard')) notFound();
+  const tab: RankTab = one(sp.tab) === 'compare' ? 'compare' : 'trend';
   const keyword = one(sp.keyword)?.slice(0, 100);
   const business = one(sp.business) === 'self' ? 'self' : uuidParam(sp, 'business');
-  const scanId = uuidParam(sp, 'scan');
+  const scanId = tab === 'trend' ? uuidParam(sp, 'scan') : undefined;
   const sovKeyword = one(sp.sov)?.slice(0, 100);
+  const query: RankQuery = {};
+  for (const k of ['tab', 'keyword', 'business', 'sov', 'scan', 'a', 'b']) { const v = one(sp[k]); if (v) query[k] = v; }
 
   // A stale business (removed competitor) or scan id falls back to the defaults and says so.
   const picked = await tryCallTool<GeoGridView>(ctx, 'get_geogrid', { clientId, ...(keyword ? { keyword } : {}), ...(business ? { business } : {}), ...(scanId ? { scanId } : {}) });
   const geo = picked ?? (await callTool<GeoGridView>(ctx, 'get_geogrid', { clientId, ...(keyword ? { keyword } : {}) }));
   const noBusiness = geo.setup === 'ready' && geo.business === null;
-  const sov = geo.setup === 'ready' && !noBusiness ? await callTool<ShareOfVoiceView>(ctx, 'get_share_of_voice', { clientId, ...(sovKeyword ? { keyword: sovKeyword } : {}) }) : null;
+  const ready = geo.setup === 'ready' && !noBusiness && geo.keyword !== null;
+  const trend = ready ? await callTool<RankTrendView>(ctx, 'get_rank_trend', { clientId, keyword: geo.keyword }) : null;
+  const history = trend ? [...trend.scans].reverse() : []; // oldest → newest
+  const sov = ready && tab === 'trend' ? await callTool<ShareOfVoiceView>(ctx, 'get_share_of_voice', { clientId, ...(sovKeyword ? { keyword: sovKeyword } : {}) }) : null;
+
+  // Compare: A (from, older) and B (to, newer), defaulting to the newest two; reversed picks are swapped.
+  let compare: { a: TrendScan; b: TrendScan; stale: boolean; grids: [GeoGridView, GeoGridView] | null } | null = null;
+  if (tab === 'compare' && trend && trend.scans.length >= 2) {
+    const byId = (key: 'a' | 'b') => { const id = uuidParam(sp, key); return id ? trend.scans.find((s) => s.scanId === id) : undefined; };
+    let a = byId('a');
+    let b = byId('b');
+    const stale = (one(sp.a) !== undefined && !a) || (one(sp.b) !== undefined && !b);
+    a ??= trend.scans[1]!;
+    b ??= trend.scans[0]!;
+    if (a.finishedAt > b.finishedAt) [a, b] = [b, a];
+    const grid = (id: string) => callTool<GeoGridView>(ctx, 'get_geogrid', { clientId, keyword: geo.keyword, ...(geo.business ? { business: geo.business } : {}), scanId: id });
+    const grids = a.settingsKey === b.settingsKey ? await Promise.all([grid(a.scanId), grid(b.scanId)]) : null;
+    compare = { a, b, stale, grids };
+  }
+
   const chosen = geo.businesses.find((b) => b.key === geo.business);
   const chosenName = chosen ? (chosen.self ? 'You' : chosen.name) : '';
   const summary = `Top 3 at ${geo.top3} of ${geo.points} points · average rank ${geo.avgRank ?? '—'}`;
@@ -41,7 +72,7 @@ export default async function RankingsPage({ params, searchParams }: {
     <>
       <div>
         <h1 className="text-[26px] font-extrabold tracking-tight">Local rankings</h1>
-        <p className="mt-1 text-muted-foreground">Where each business shows up in Google’s local results across your service area, from the monthly rank scan.</p>
+        <p className="mt-1 text-muted-foreground">Where each business shows up in Google’s local results across your service area, from the weekly rank scan.</p>
       </div>
 
       {geo.setup === 'no_keywords' ? (
@@ -50,7 +81,7 @@ export default async function RankingsPage({ params, searchParams }: {
           {isAgencyRole(ctx.role) && <> <Link href={`/c/${clientId}/settings/profile`} className="font-semibold text-primary-soft-text">Open Profile</Link></>}
         </p>
       ) : geo.setup === 'no_scan' ? (
-        <p className="rounded-lg bg-muted-surface p-3 text-ink">The first monthly rank scan hasn’t run yet.</p>
+        <p className="rounded-lg bg-muted-surface p-3 text-ink">The first weekly rank scan hasn’t run yet.</p>
       ) : noBusiness ? (
         <p className="rounded-lg bg-muted-surface p-3 text-ink">
           Add your place id or track a competitor.
@@ -58,70 +89,118 @@ export default async function RankingsPage({ params, searchParams }: {
         </p>
       ) : (
         <>
-          {!picked && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">That selection is no longer available, so the defaults are shown.</p>}
-          <form method="get" className="flex flex-wrap items-end gap-3 rounded-[14px] bg-surface p-4 shadow-card">
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-semibold text-ink">Keyword</span>
-              <select name="keyword" defaultValue={geo.keyword ?? ''} className="rounded-md border border-line bg-surface px-2 py-1.5">
-                {geo.keywords.map((k) => <option key={k} value={k}>{k}</option>)}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-semibold text-ink">Business</span>
-              <select name="business" defaultValue={geo.business ?? ''} className="rounded-md border border-line bg-surface px-2 py-1.5">
-                {geo.businesses.map((b) => <option key={b.key} value={b.key}>{b.self ? 'You' : b.name}</option>)}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-semibold text-ink">Scan</span>
-              <select name="scan" defaultValue={geo.scan?.id ?? ''} className="rounded-md border border-line bg-surface px-2 py-1.5">
-                {geo.scans.map((s) => <option key={s.id} value={s.id}>{fmtDate(s.finishedAt)}</option>)}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-semibold text-ink">Share of voice for</span>
-              <select name="sov" defaultValue={sovKeyword && geo.keywords.includes(sovKeyword) ? sovKeyword : ''} className="rounded-md border border-line bg-surface px-2 py-1.5">
-                <option value="">All keywords</option>
-                {geo.keywords.map((k) => <option key={k} value={k}>{k}</option>)}
-              </select>
-            </label>
-            <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white">Show</button>
-          </form>
+          {(!picked || compare?.stale) && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">That selection is no longer available, so the defaults are shown.</p>}
+          <RankTabs tab={tab} query={query} />
+          <div role="tabpanel" id="rank-tabpanel" aria-labelledby={`rank-tab-${tab}`} className="flex flex-col gap-6">
+            <form method="get" className="flex flex-wrap items-end gap-3 rounded-[14px] bg-surface p-4 shadow-card">
+              {tab === 'compare' && <input type="hidden" name="tab" value="compare" />}
+              {tab === 'trend' && scanId && <input type="hidden" name="scan" value={scanId} />}
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-semibold text-ink">Keyword</span>
+                <select name="keyword" defaultValue={geo.keyword ?? ''} className={selectCls}>
+                  {geo.keywords.map((k) => <option key={k} value={k}>{k}</option>)}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-semibold text-ink">Business</span>
+                <select name="business" defaultValue={geo.business ?? ''} className={selectCls}>
+                  {geo.businesses.map((b) => <option key={b.key} value={b.key}>{b.self ? 'You' : b.name}</option>)}
+                </select>
+              </label>
+              {tab === 'trend' ? (
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="font-semibold text-ink">Share of voice for</span>
+                  <select name="sov" defaultValue={sovKeyword && geo.keywords.includes(sovKeyword) ? sovKeyword : ''} className={selectCls}>
+                    <option value="">All keywords</option>
+                    {geo.keywords.map((k) => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                </label>
+              ) : compare && (
+                <>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="font-semibold text-ink">From scan</span>
+                    <select name="a" defaultValue={compare.a.scanId} className={selectCls}>
+                      {trend!.scans.map((s) => <option key={s.scanId} value={s.scanId}>{fmtDate(s.finishedAt)}</option>)}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="font-semibold text-ink">To scan</span>
+                    <select name="b" defaultValue={compare.b.scanId} className={selectCls}>
+                      {trend!.scans.map((s) => <option key={s.scanId} value={s.scanId}>{fmtDate(s.finishedAt)}</option>)}
+                    </select>
+                  </label>
+                </>
+              )}
+              <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white">Show</button>
+            </form>
 
-          <section className="rounded-[14px] bg-surface p-6 shadow-card">
-            <h2 className="text-lg font-bold text-ink">{chosenName} · “{geo.keyword}”</h2>
-            <p className="mb-3 text-sm text-muted-foreground">
-              {geo.scan && `Scan of ${fmtDate(geo.scan.finishedAt)} · `}Grid {geo.size}×{geo.size}{geo.radiusKm !== null && ` · ${geo.radiusKm} km radius`}
-            </p>
-            <p className="mb-3 font-semibold text-ink">{summary}</p>
-            <GeoGrid title={`Local rankings for ${geo.keyword}`} summary={summary} cells={geo.cells} businessName={chosenName} keyword={geo.keyword ?? ''} map={geo.map} lats={geo.lats} lngs={geo.lngs} />
-          </section>
+            {tab === 'trend' ? (
+              <>
+                <section className="rounded-[14px] bg-surface p-6 shadow-card">
+                  <h2 className="mb-1 text-lg font-bold text-ink">Average map rank · “{geo.keyword}”</h2>
+                  <p className="mb-3 text-sm text-muted-foreground">Average position across the grid, scan by scan (1 is best; 20+ is not in the top 20).</p>
+                  <RankTrend scans={history} keyword={geo.keyword ?? ''} />
+                  <div className="mt-4">
+                    <ScanSlider key={geo.scan?.id ?? ''} scans={history.map((s) => ({ id: s.scanId, label: fmtDate(s.finishedAt) }))} value={geo.scan?.id ?? null} query={query} />
+                  </div>
+                </section>
 
-          {sov && (
-            <section className="rounded-[14px] bg-surface p-6 shadow-card">
-              <h2 className="mb-1 text-lg font-bold text-ink">Share of voice</h2>
-              <p className="mb-3 text-sm text-muted-foreground">Share of the top-3 local-pack places, scan by scan ({sov.keyword ?? 'all keywords'}).</p>
-              <LineChart
-                title="Share of top-3 local-pack slots"
-                labels={sov.scans.map((s) => s.finishedAt.slice(0, 10))}
-                series={sovSeries(sov)}
-                valueLabel="share of top-3 places"
-                period="scan"
-                yMax={100}
-                formatValue={(v) => `${Math.round(v)}%`}
-              />
-              <Table className="mt-4">
-                <caption className="sr-only">Share of voice in the latest scan</caption>
-                <TableHeader><TableRow><TableHead scope="col">Business</TableHead><TableHead scope="col">Latest scan</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {sov.series.map((s) => {
-                    const v = s.points.at(-1) ?? null;
-                    return <TableRow key={s.key}><TableHead scope="row" className="font-normal">{s.self ? 'You' : s.name}</TableHead><TableCell>{v === null ? '—' : `${Math.round(v * 100)}%`}</TableCell></TableRow>;
-                  })}
-                </TableBody>
-              </Table>
-            </section>
-          )}
+                <section className="rounded-[14px] bg-surface p-6 shadow-card">
+                  <h2 className="text-lg font-bold text-ink">{chosenName} · “{geo.keyword}”</h2>
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    {geo.scan && `Scan of ${fmtDate(geo.scan.finishedAt)} · `}Grid {geo.size}×{geo.size}{geo.radiusKm !== null && ` · ${geo.radiusKm} km radius`}
+                  </p>
+                  <p className="mb-3 font-semibold text-ink">{summary}</p>
+                  <GeoGrid title={`Local rankings for ${geo.keyword}`} summary={summary} cells={geo.cells} businessName={chosenName} keyword={geo.keyword ?? ''} map={geo.map} lats={geo.lats} lngs={geo.lngs} />
+                </section>
+
+                {sov && (
+                  <section className="rounded-[14px] bg-surface p-6 shadow-card">
+                    <h2 className="mb-1 text-lg font-bold text-ink">Share of voice</h2>
+                    <p className="mb-3 text-sm text-muted-foreground">Share of the top-3 local-pack places, scan by scan ({sov.keyword ?? 'all keywords'}).</p>
+                    <LineChart
+                      title="Share of top-3 local-pack slots"
+                      labels={sov.scans.map((s) => s.finishedAt.slice(0, 10))}
+                      series={sovSeries(sov)}
+                      valueLabel="share of top-3 places"
+                      period="scan"
+                      yMax={100}
+                      formatValue={(v) => `${Math.round(v)}%`}
+                    />
+                    <Table className="mt-4">
+                      <caption className="sr-only">Share of voice in the latest scan</caption>
+                      <TableHeader><TableRow><TableHead scope="col">Business</TableHead><TableHead scope="col">Latest scan</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {sov.series.map((s) => {
+                          const v = s.points.at(-1) ?? null;
+                          return <TableRow key={s.key}><TableHead scope="row" className="font-normal">{s.self ? 'You' : s.name}</TableHead><TableCell>{v === null ? '—' : `${Math.round(v * 100)}%`}</TableCell></TableRow>;
+                        })}
+                      </TableBody>
+                    </Table>
+                  </section>
+                )}
+              </>
+            ) : !compare ? (
+              <p className="rounded-lg bg-muted-surface p-3 text-ink">Compare needs at least two scans.</p>
+            ) : (
+              <section className="rounded-[14px] bg-surface p-6 shadow-card">
+                <h2 className="text-lg font-bold text-ink">{chosenName} · “{geo.keyword}”</h2>
+                <p className="mb-3 text-sm text-muted-foreground">Change from the scan of {fmtDate(compare.a.finishedAt)} to the scan of {fmtDate(compare.b.finishedAt)}.</p>
+                {compare.grids ? (
+                  <ChangeGrid
+                    title={`Change in local rank for ${geo.keyword}`}
+                    before={compare.grids[0].cells}
+                    after={compare.grids[1].cells}
+                    lats={compare.grids[1].lats}
+                    lngs={compare.grids[1].lngs}
+                    map={compare.grids[1].map}
+                  />
+                ) : (
+                  <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">Settings changed between these scans.</p>
+                )}
+              </section>
+            )}
+          </div>
         </>
       )}
     </>

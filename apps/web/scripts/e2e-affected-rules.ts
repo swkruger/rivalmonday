@@ -147,6 +147,8 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}services-area-summary\\.tsx$`), tags: ['@profile'], why: 'client profile' },
   { pattern: re(`${COMP}spend-badge\\.tsx$`), tags: ['@clients', '@usage'], why: 'spend badge' },
   { pattern: re(`${COMP}charts/geo-grid\\.tsx$`), tags: ['@rankings'], why: 'geo-grid chart' },
+  { pattern: re(`${COMP}charts/rank-trend\\.tsx$`), tags: ['@rankings'], why: 'rank trend chart (rankings Trend tab)' },
+  { pattern: re(`${COMP}charts/change-grid\\.tsx$`), tags: ['@rankings'], why: 'rank change grid (rankings Compare tab)' },
   { pattern: re(`${COMP}charts/theme-heatmap\\.tsx$`), tags: ['@reviews'], why: 'theme heatmap' },
   { pattern: re(`${COMP}charts/line-chart\\.tsx$`), tags: ['@overview', '@pricing', '@ads', '@reviews', '@rankings'], why: 'line chart' },
   { pattern: re(`${COMP}views/brief-view\\.tsx$`), tags: ['@briefs', '@guest', '@auth', '@starting-point'], why: 'brief view (guest link lands here; starting point and quiet-week scorecard)' },

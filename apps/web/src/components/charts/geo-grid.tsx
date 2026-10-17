@@ -30,6 +30,45 @@ function Swatch({ rank, legendId }: { rank: number | null; legendId: string }) {
   );
 }
 
+type GridMap = NonNullable<GeoGridView['map']>;
+/** `map` is the background actually used (null = plain lattice); `centre` and `size` place each cell's square. */
+export interface GridLayout { map: GridMap | null; W: number; H: number; centre: (r: number, c: number) => { x: number; y: number }; size: number }
+
+/**
+ * Where each cell of a rows × cols grid sits: a plain lattice with a compass margin, or projected onto the map image
+ * when one is given and `lats`/`lngs` cover every row and column. Shared by GeoGrid and ChangeGrid.
+ */
+export function gridLayout(rows: number, cols: number, map: GridMap | null = null, lats?: number[], lngs?: number[]): GridLayout {
+  const CELL = 44;
+  const M = 22;
+  if (map !== null && lats !== undefined && lngs !== undefined && lats.length >= rows && lngs.length >= cols) {
+    const pts = lats.slice(0, rows).map((lat) => lngs.slice(0, cols).map((lng) => projectToImage({ lat, lng }, map.bounds, map.width, map.height)));
+    const gaps: number[] = [];
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      if (c + 1 < cols) gaps.push(Math.abs(pts[r]![c + 1]!.x - pts[r]![c]!.x));
+      if (r + 1 < rows) gaps.push(Math.abs(pts[r + 1]![c]!.y - pts[r]![c]!.y));
+    }
+    const spacing = gaps.length ? Math.min(...gaps) : CELL;
+    return { map, W: map.width, H: map.height, centre: (r, c) => pts[r]![c]!, size: Math.max(18, 0.86 * spacing) };
+  }
+  return {
+    map: null, W: cols * CELL + 2 * M, H: rows * CELL + 2 * M,
+    centre: (r, c) => ({ x: M + c * CELL + CELL / 2, y: M + r * CELL + CELL / 2 }), size: CELL - 2,
+  };
+}
+
+/** The four compass letters around a plain (map-less) grid. */
+export function Compass({ W, H }: { W: number; H: number }) {
+  return (
+    <>
+      <text data-compass x={W / 2} y={15} textAnchor="middle" fontSize={12} fontWeight={700} fill="#64748B">N</text>
+      <text data-compass x={W / 2} y={H - 6} textAnchor="middle" fontSize={12} fontWeight={700} fill="#64748B">S</text>
+      <text data-compass x={9} y={H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill="#64748B">W</text>
+      <text data-compass x={W - 9} y={H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill="#64748B">E</text>
+    </>
+  );
+}
+
 /**
  * Module 7 geo-grid (decision 9): a plain N×N grid, rows north → south and columns west → east, as the scan's
  * `gridPoints` lays them out. Every cell prints its rank, so colour is never the only signal.
@@ -41,27 +80,7 @@ export function GeoGrid({ title, summary, cells, businessName, keyword, map = nu
   const rows = cells.length;
   const cols = Math.max(0, ...cells.map((r) => r.length));
   if (rows === 0 || cols === 0) return <p className="text-sm text-muted-foreground">No rank data in this scan.</p>;
-  const onMap = map !== null && lats !== undefined && lngs !== undefined && lats.length >= rows && lngs.length >= cols;
-  const CELL = 44;
-  const M = 22;
-  let W = cols * CELL + 2 * M;
-  let H = rows * CELL + 2 * M;
-  // Cell centre and square size: a plain lattice, or projected onto the map image.
-  let centre = (r: number, c: number) => ({ x: M + c * CELL + CELL / 2, y: M + r * CELL + CELL / 2 });
-  let size = CELL - 2;
-  if (onMap) {
-    W = map.width;
-    H = map.height;
-    const pts = lats.slice(0, rows).map((lat, r) => lngs.slice(0, cols).map((lng) => projectToImage({ lat, lng }, map.bounds, map.width, map.height)));
-    centre = (r, c) => pts[r]![c]!;
-    const gaps: number[] = [];
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      if (c + 1 < cols) gaps.push(Math.abs(pts[r]![c + 1]!.x - pts[r]![c]!.x));
-      if (r + 1 < rows) gaps.push(Math.abs(pts[r + 1]![c]!.y - pts[r]![c]!.y));
-    }
-    const spacing = gaps.length ? Math.min(...gaps) : CELL;
-    size = Math.max(18, 0.86 * spacing);
-  }
+  const { map: bg, W, H, centre, size } = gridLayout(rows, cols, map, lats, lngs);
   return (
     <figure className="flex flex-col gap-2">
       <div className="mx-auto w-full max-w-[520px]">
@@ -72,15 +91,10 @@ export function GeoGrid({ title, summary, cells, businessName, keyword, map = nu
               <line x1="0" y1="0" x2="0" y2="6" stroke="#CBD5E1" strokeWidth="2" />
             </pattern>
           </defs>
-          {onMap ? (
-            <image aria-hidden="true" href={map.url} x={0} y={0} width={map.width} height={map.height} preserveAspectRatio="none" />
+          {bg ? (
+            <image aria-hidden="true" href={bg.url} x={0} y={0} width={bg.width} height={bg.height} preserveAspectRatio="none" />
           ) : (
-            <>
-              <text data-compass x={W / 2} y={15} textAnchor="middle" fontSize={12} fontWeight={700} fill="#64748B">N</text>
-              <text data-compass x={W / 2} y={H - 6} textAnchor="middle" fontSize={12} fontWeight={700} fill="#64748B">S</text>
-              <text data-compass x={9} y={H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill="#64748B">W</text>
-              <text data-compass x={W - 9} y={H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill="#64748B">E</text>
-            </>
+            <Compass W={W} H={H} />
           )}
           {cells.map((row, r) =>
             Array.from({ length: cols }, (_, c) => {
@@ -100,7 +114,7 @@ export function GeoGrid({ title, summary, cells, businessName, keyword, map = nu
           )}
         </svg>
       </div>
-      {onMap && <figcaption className="text-center text-xs text-muted-foreground">{map.attribution}</figcaption>}
+      {bg && <figcaption className="text-center text-xs text-muted-foreground">{bg.attribution}</figcaption>}
       <svg data-legend-defs aria-hidden width={0} height={0} style={{ position: 'absolute' }}>
         <defs>
           <pattern id={legendId} width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
