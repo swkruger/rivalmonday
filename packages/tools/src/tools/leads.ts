@@ -1,7 +1,7 @@
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { agency, intakeLink, lead, leadPreviewSchema, type LeadRow, type LeadStatus, setupLookupSchema, type Tx, withTenant } from '@cs/db';
 import { listVerticalPacks } from '@cs/verticals';
-import { and, count, desc, eq, gte, inArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { inviteClientUser } from '../access/client-invite';
 import { packsOf, type ToolDeps } from '../deps';
@@ -159,28 +159,39 @@ export const declineLead = defineTool({
   permission: 'agency',
   async handler(ctx, { leadId, notify }, deps) {
     requireAllScope(ctx);
-    const backToPool = await deps.service.transaction(async (tx) => {
+    const outcome = await deps.service.transaction(async (tx) => {
       const row = await lockVerifiedLead(tx, ctx, leadId);
       const now = new Date();
       if (row.source === 'platform') {
+        // Fix round 1: the visitor may have re-submitted on /start meanwhile, leaving an open pool twin (same
+        // lead_dedupe_idx key). Returning this row would violate the index, and the pool already holds the lead:
+        // close this one as declined instead and send no pool notice.
+        const [twin] = await tx.select({ id: lead.id }).from(lead).where(and(
+          isNull(lead.agencyId), inArray(lead.status, ['unverified', 'verified']), ne(lead.id, row.id),
+          sql`lower(${lead.email}) = lower(${row.email})`, sql`${lead.lookup}->>'placeId' = ${row.lookup.placeId}`,
+        )).for('update');
+        if (twin) {
+          await tx.update(lead).set({ status: 'declined', decidedBy: ctx.userId, decidedAt: now, updatedAt: now }).where(eq(lead.id, row.id));
+          return 'closed' as const;
+        }
         // Spec §5 + ruling E: back to the pool, still verified; the agency and pool notice guards reset so the
         // platform is told again (and a later assignee's agency notice can go out).
         await tx.update(lead).set({ agencyId: null, assignedBy: null, assignedAt: null, agencyNotifiedAt: null, poolNotifiedAt: null, updatedAt: now }).where(eq(lead.id, row.id));
-        return true;
+        return 'pooled' as const;
       }
       await tx.update(lead).set({ status: 'declined', decidedBy: ctx.userId, decidedAt: now, updatedAt: now }).where(eq(lead.id, row.id));
-      return false;
+      return 'declined' as const;
     });
-    // A pooled lead gets no agency-branded "declined" mail: another agency may still take it.
-    if (backToPool) await sendAfterCommit(deps, leadId, 'pool_new');
-    else if (notify) await sendAfterCommit(deps, leadId, 'declined');
+    // A platform lead never gets the agency-branded "declined" mail: the pool (or its twin there) may still be taken.
+    if (outcome === 'pooled') await sendAfterCommit(deps, leadId, 'pool_new');
+    else if (outcome === 'declined' && notify) await sendAfterCommit(deps, leadId, 'declined');
     return { ok: true as const };
   },
 });
 
 /** Pure: an agency name as an intake slug base (lower-case ASCII, hyphens, ≥ 3 and ≤ 40 characters). */
 export function slugBase(name: string): string {
-  const s = name.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, SLUG_MAX).replace(/-+$/, '');
+  const s = name.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, SLUG_MAX).replace(/-+$/, '');
   if (s.length >= 3) return s;
   return s ? `${s}-agency` : 'agency';
 }

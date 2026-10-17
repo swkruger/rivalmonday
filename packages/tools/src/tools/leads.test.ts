@@ -3,7 +3,7 @@ import { client, clientSetup, contact, intakeLink, invitation, lead, membership,
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import type { DeliveryConfig } from '@cs/engine';
 import { createMemoryTransport } from '@cs/email';
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import type { EnqueueJob, ToolDeps } from '../deps';
@@ -160,6 +160,16 @@ describe('decline_lead', () => {
     // A cleanup retry (guarded) does not send again.
     await sendLeadEmail({ service: dbs.service, transport, appUrl: 'https://app.test', fromAddress: 'briefs@app.test', platformAdmins: ['Owner@Env.co'] }, id, 'pool_new');
     expect(transport.sent).toHaveLength(2);
+  });
+
+  it('decline platform lead whose visitor re-submitted to the pool → ok, one open pool row', async () => {
+    const id = await mkLead({ source: 'platform', assignedBy: 'op', assignedAt: new Date() });
+    const twin = await mkLead({ agencyId: null, source: 'platform', status: 'unverified', email: 'sam@smith.co', verifiedAt: null });
+    await expect(call(admin, 'decline_lead', { leadId: id, notify: true })).resolves.toEqual({ ok: true });
+    expect(await leadRow(id)).toMatchObject({ status: 'declined', agencyId: IDS.agencyA, decidedBy: 'admin' });
+    const open = await dbs.service.select({ id: lead.id }).from(lead).where(and(isNull(lead.agencyId), inArray(lead.status, ['unverified', 'verified'])));
+    expect(open.map((r) => r.id)).toEqual([twin]);
+    expect(transport.sent).toHaveLength(0); // no pool notice, no agency-branded declined mail
   });
 
   it('decline agency lead with notify sends once', async () => {
