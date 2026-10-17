@@ -146,7 +146,7 @@ test.describe.serial('client setup: invite and billing', () => {
     }
   });
 
-  test('an agency admin turns on billing at $249 + $99 setup; the payment link goes to the pending owner', { tag: ['@setup', '@client-billing'] }, async ({ page }) => {
+  test('an agency admin turns on billing at $249 + $99 setup; a payment-link notice is queued for the pending owner', { tag: ['@setup', '@client-billing'] }, async ({ page }) => {
     const id = await clientId(SI_BILLING);
     await page.goto(`/c/${id}/setup`);
     await expect(page.getByRole('heading', { name: 'Billing', exact: true })).toBeVisible();
@@ -159,7 +159,8 @@ test.describe.serial('client setup: invite and billing', () => {
     await withDb(async (db) => {
       const [bill] = await db.select().from(clientBilling).where(eq(clientBilling.clientId, id));
       expect(bill).toMatchObject({ enabled: true, state: 'invited', priceCents: 24900, setupFeeCents: 9900 });
-      // The worker's billing-notices job mails this row to `clientOwnerEmails` (jobs are off in E2E); the owner's invitation is still pending.
+      // Jobs are off in E2E, so the email is not sent here. The send is covered by apps/worker/src/jobs/billing-notices.test.ts
+      // ("payment-link email reaches the pending owner's address"); this asserts the queued row and that the recipients include the pending owner.
       const [notice] = await db.select().from(billingNotice).where(and(eq(billingNotice.clientId, id), eq(billingNotice.kind, 'client-payment-link')));
       expect(notice).toMatchObject({ audience: 'client', sentAt: null });
       expect(await clientOwnerEmails(db as never, id, new Date())).toEqual([SI_PENDING_OWNER]);

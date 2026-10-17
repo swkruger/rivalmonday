@@ -28,22 +28,24 @@ R1 `applyClientProfileChange` returns SearchStart|null. R2 suggestions read GBP 
 - Billing step is skipped by derivation unless the agency's Connect account is charging; a per-client price needs the agency's Stripe product (saving defaults creates it).
 
 ## Assumes from other branches
+- **11b pre-flight:** email sender = `createEmailSender` in `engine/delivery/outbox.ts`; `contactFor` already reactivates.
 - **phase-10 (in main @ 63259a8):** `create_client` stamps `first_client_at`; checklist `first_client` → `/agency/clients/new`; `OutgoingEmail.stream/headers`; `(app)` layout redirects only suspended agencies.
 
 ## Decisions (owner-approved)
-Full lists in the specs (11a D1–D11, 11b E1–E7, 11c L1–L8). Headlines: split 11a lookup+wizard / 11b invite+review+billing (closes 9b M5) / 11c intake+preview+pool; staff and owner both run the wizard; starting-point clock starts at competitors-done (14-day cap); clients self-start only via agency intake link or platform pool (amends Phase 10 f3); prospects get the invite step (L7); billing may be enabled while the owner's invite is pending.
+Full lists in the specs (11a D1–D11, 11b E1–E7, 11c L1–L8). Headlines: split 11a lookup+wizard / 11b invite+review+billing (closes 9b M5) / 11c intake+preview+pool; staff and owner both run the wizard; starting-point clock starts at competitors-done (14-day cap); clients self-start only via agency intake link or platform pool (amends Phase 10 f3); `/start` shows Rival Monday until an agency is assigned (explicit white-label exception, 11c L4); prospects get the invite step (L7); billing may be enabled while the owner's invite is pending.
 
 ## New backlog (target → item)
+- Unscheduled → automatic lead routing to agencies (vertical/area/capacity/opt-in) on the 11c pool.
 - Polish → sign-in page uses host default branding (may show Rival Monday to white-label owners): check in verification (e).
 - Polish → 11b deferred minors: `cleanCc` regex accepts `a@b..c` (Postmark 300 would lose the `to` send); wizard polish (billing-note order, no "billing on" success copy, `billingPrefill` live read on every poll); setup stuck "5 of 5" when derivation completes it (worker sweep); `clientBillingEligibility` import cycle; `invite_member` (client roles) allowed for paused agencies (queued invite sends after unpause).
 - Soon → wizard billing step with no agency defaults fails with "Set a default price first…" (no Stripe product yet): prefill/explain or create the product.
-- Soon → `start_search` retry bound is only the 10-min cooldown (≤ $3 each) — 11a M1; setup reminder dedupe has no cycle component.
+- Soon → `start_search` retry bound is only the 10-min cooldown (≤ $3 each; client owner can trigger) — 11a M1; setup idle reminder dedupe has no cycle component (later idle spells never re-remind); concurrent double "Done picking" → second gets "Suggestion not found"; starting-point card shows checks pending during setup hold.
 - Watch → `@cs/billing access.test.ts` reduced-trial test failed once order-dependently.
 - Phase 10 merge → root `CLAUDE.md` § Decisions: note client self-start via intake links/pool next to Phase 10's f3.
 
 ## Owner verification steps
 11a (on `cs_dev`): 1 add a business via lookup; 2 suggestions within a minute, quotes match GBP; 3 search after "Save and find competitors" (≤ $3); 4 pick, Done → starting point due in 48 h; 5 invite an owner via `/agency/team`, they finish a second client's setup; 6 next day 14:00 UTC reminder for an idle setup; 7–8 set `DATAFORSEO_LOGIN/_PASSWORD` on Vercel; confirm GBP `description` on a live lookup; 9 copy sign-off (below).
 11b: (a) real Postmark test send shows the Cc in the client's mail client; (b) invite → accept: contact active, first brief only after acceptance; (c) billing step with a pending owner on Stripe test mode; (d) copy sign-off for both templates (below); (e) sign-in page branding for an invited white-label owner.
-11c Task 35 adds intake/preview checks.
+11c Task 35 adds intake/preview checks. Before real onboarding (owner): clean up the CS Dev Verification Agency/Client.
 - **Copy sign-off (11a):** setup notice lines in `jobs/setup.ts` `linesFor` (ready: "We found competitors that look like a fit for {client}." / "Pick the ones to track so their first brief can start."; changed: "{client}'s owner made changes to their setup." / "Take a look and finish what is left."; idle: "{client}'s setup has been waiting on you for 3 (or 7) days." / "A few quick choices are left before their first brief can start."); `find_business` outage, `setup/refusal-copy.ts`, place-id help line.
 - **Copy sign-off (11b):** email footers "Invitation from {agency}" / "Sent by {agency}" (Task 18); web strings "Invite sent.", "Nothing new to send right now.", "Owner's name", "Owner's email", price/fee errors, "An agency admin turns on billing." (Task 23).
