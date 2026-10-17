@@ -141,7 +141,7 @@ export default async function RankingsPage({ params, searchParams }: {
                   <p className="mb-3 text-sm text-muted-foreground">Average position across the grid, scan by scan (1 is best; 20+ is not in the top 20).</p>
                   <RankTrend scans={history} keyword={geo.keyword ?? ''} />
                   <div className="mt-4">
-                    <ScanSlider key={geo.scan?.id ?? ''} scans={history.map((s) => ({ id: s.scanId, label: fmtDate(s.finishedAt) }))} value={geo.scan?.id ?? null} query={query} />
+                    <ScanSlider scans={history.map((s) => ({ id: s.scanId, label: fmtDate(s.finishedAt) }))} value={geo.scan?.id ?? null} query={query} />
                   </div>
                 </section>
 
