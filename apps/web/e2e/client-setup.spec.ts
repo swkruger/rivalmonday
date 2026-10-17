@@ -66,6 +66,12 @@ test.describe('agency staff', () => {
     await page.goto(`/c/${id}`);
     await expect(page.getByRole('heading', { name: fx().finish.name })).toBeVisible();
     await expect(page.getByRole('link', { name: /Finish setup/ })).toHaveCount(0);
+    // Picking had an effect: the two ticked top rivals are tracked, the unticked ones are not.
+    await page.goto(`/c/${id}/competitors`);
+    const tracked = page.getByRole('table');
+    await expect(tracked.getByRole('link', { name: 'Setup Rival One Plumbing' })).toBeVisible();
+    await expect(tracked.getByRole('link', { name: 'Setup Rival Two Plumbing' })).toBeVisible();
+    await expect(tracked.getByRole('link', { name: 'Setup Watch Plumbing' })).toHaveCount(0);
   });
 
   test('portfolio shows Finish setup badge for an open setup', { tag: ['@setup', '@clients'] }, async ({ page }) => {
@@ -102,12 +108,13 @@ test.describe('client owner', () => {
     await expect(page.getByRole('checkbox', { name: 'Owner Rival Heating' })).toBeChecked();
     await expect(page.getByRole('checkbox', { name: 'Owner Watch Heating' })).not.toBeChecked();
     await page.getByRole('button', { name: 'Done picking' }).click();
-    // The setup is now closed. A client owner can't open a closed setup (next test), so this page no longer renders
-    // the wizard; the overview carries no Finish setup badge.
-    await expect(page.getByRole('button', { name: 'Done picking' })).toHaveCount(0);
-    await page.goto(`/c/${id}`);
-    await expect(page.getByRole('link', { name: /Finish setup/ })).toHaveCount(0);
+    // The setup is closed: a client owner can't open it any more, so they land on the overview, with the pick tracked.
+    await expect(page).toHaveURL(new RegExp(`/c/${id}$`));
     await expect(page.getByRole('heading', { name: fx().owner.name })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Finish setup/ })).toHaveCount(0);
+    await page.goto(`/c/${id}/competitors`);
+    await expect(page.getByRole('table').getByRole('link', { name: 'Owner Rival Heating' })).toBeVisible();
+    await expect(page.getByRole('table').getByRole('link', { name: 'Owner Watch Heating' })).toHaveCount(0);
   });
 
   test('client owner gets 404 on a finished setup', { tag: ['@setup'] }, async ({ page }) => {

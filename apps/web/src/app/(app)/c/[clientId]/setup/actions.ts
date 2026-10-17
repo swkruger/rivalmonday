@@ -1,5 +1,7 @@
 'use server';
+import { isAgencyRole } from '@cs/core';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import { parseClientProfileForm } from '@/server/forms';
 import { runTool, type ToolResult } from '@/server/run-tool';
@@ -10,6 +12,14 @@ const ctxOf = async () => (await requireContext()).ctx;
 
 function refresh(clientId: string): void {
   revalidatePath(`/c/${clientId}`, 'layout');
+}
+
+/**
+ * A client owner can't open a closed setup (404), so the write that closes it sends them to the overview instead of
+ * refreshing this page into the 404. Staff stay for the "Setup finished" summary.
+ */
+async function leaveIfClosed(clientId: string, open: boolean): Promise<void> {
+  if (!open && !isAgencyRole((await ctxOf()).role)) redirect(`/c/${clientId}`);
 }
 
 /** Polled by the wizard while suggestions are pending or the search runs. */
@@ -23,11 +33,12 @@ export async function saveSetupProfileAction(clientId: string, fd: FormData): Pr
   if ('error' in parsed) return { ok: false, error: parsed.error };
   const typed = String(fd.get('extraKeywords') ?? '').split(/\r?\n/).map((k) => k.trim()).filter(Boolean);
   const keywords = [...new Set([...fd.getAll('keywords').map((k) => String(k).trim()).filter(Boolean), ...typed])];
-  const r = await runTool<{ searchRefusal: string | null }>(await ctxOf(), 'save_setup_profile', {
+  const r = await runTool<{ state: { open: boolean }; searchRefusal: string | null }>(await ctxOf(), 'save_setup_profile', {
     clientId, services: parsed.services, keywords, serviceArea: parsed.serviceArea, placeId: parsed.placeId,
   });
   if (!r.ok) return r;
   refresh(clientId);
+  await leaveIfClosed(clientId, r.data.state.open);
   return { ok: true, searchRefusal: r.data.searchRefusal };
 }
 
@@ -41,8 +52,9 @@ export async function pickSetupCompetitorsAction(clientId: string, accept: strin
 export type SetupAdvance = 'start_search' | 'confirm_competitors' | 'skip_search' | 'skip_competitors' | 'dismiss';
 
 export async function advanceSetupAction(clientId: string, action: SetupAdvance): Promise<SetupActionResult> {
-  const r = await runTool<{ searchRefusal: string | null }>(await ctxOf(), 'advance_client_setup', { clientId, action });
+  const r = await runTool<{ state: { open: boolean }; searchRefusal: string | null }>(await ctxOf(), 'advance_client_setup', { clientId, action });
   if (!r.ok) return r;
   refresh(clientId);
+  await leaveIfClosed(clientId, r.data.state.open);
   return { ok: true, searchRefusal: r.data.searchRefusal };
 }
