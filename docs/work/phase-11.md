@@ -4,10 +4,10 @@
 **Plan/spec:** `docs/superpowers/{specs,plans}/` — 11a (`2026-10-15-…-11a-…-design`, `2026-10-16-…-11a-…`), 11b, 11c (all `2026-10-16-phase-11{b,c}-*`).
 
 ## Status (overwrite)
-2026-10-17: 11a done (Tasks 0–14). 11b done — final review + fix wave; 11c next (own pre-flight). Plans approved: 11a (D1–D11), 11b (E1–E7), 11c (L1–L8, 25–35).
+2026-10-17: 11a done (0–14), 11b done (15–24, final review + fix wave). 11c pre-flight done; Task 26 next.
 
 ## Next (overwrite)
-11c Tasks 25–35 (own pre-flight). Test DB `cs_phase_11_test`.
+11c Tasks 26–35 (pre-flight rulings in the SDD ledger). Test DB `cs_phase_11_test`.
 
 ## Interfaces this branch adds or changes
 Migrations used: 0067 client_setup, 0068 client_setup_rls, 0069 last_changed_by → text, 0070 client_setup_invite, 0071 invited_by → text. **11c next free: 0072.**
@@ -29,6 +29,7 @@ R1 `applyClientProfileChange` returns SearchStart|null. R2 suggestions read GBP 
 
 ## Assumes from other branches
 - **11b pre-flight:** email sender = `createEmailSender` in `engine/delivery/outbox.ts`; `contactFor` already reactivates.
+- **11c pre-flight drift 2026-10-17:** `verifyTurnstile` (`web/server/turnstile.ts`), `hashIp(ip, authSecret)`, `PUBLIC` = RegExp array; no `/agency/settings` page (intake card → new `/agency/settings/intake`); platform roles owner|staff|viewer (assign = staff); `assigned_by`/`decided_by` text; `inviteClientUser` owns its tx (accept passes `service: tx`); web enqueue throws in demo/test (verify enqueue non-fatal); NavItem has no count; migrations 0072/0073.
 - **phase-10 (in main @ 63259a8):** `create_client` stamps `first_client_at`; checklist `first_client` → `/agency/clients/new`; `OutgoingEmail.stream/headers`; `(app)` layout redirects only suspended agencies.
 
 ## Decisions (owner-approved)
