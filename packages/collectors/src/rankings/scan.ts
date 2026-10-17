@@ -1,6 +1,6 @@
-import { agencyServiceable, clientServiceable, client, type Db, type RankResult, rankScan, type RankScanTrigger, rankSnapshot } from '@cs/db';
+import { agencyServiceable, clientServiceable, client, type Db, type RankResult, rankMapImage, rankScan, type RankScanTrigger, rankSnapshot } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
-import { and, eq, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import { recordVendorCapture } from '../evidence/vendor-capture';
 import { gridPoints } from '../local/grid';
 import { mapsSearch } from '../local/maps';
@@ -138,11 +138,33 @@ export async function scanRankings(
   return { snapshots, failed, scanId };
 }
 
-/** Clients due a monthly rank scan: active (5b-2 decision 9), with a service area and at least one keyword. */
+/** Clients due a weekly rank scan: active (5b-2 decision 9), with a service area and at least one keyword. */
 export async function listRankClients(db: Db): Promise<string[]> {
   const rows = await db
     .select({ id: client.id })
     .from(client)
     .where(sql`${client.serviceArea} IS NOT NULL AND jsonb_array_length(${client.keywords}) > 0 AND ${clientServiceable(client)} AND ${agencyServiceable(client.agencyId)}`);
   return rows.map((r) => r.id);
+}
+
+/** A `running` rank scan older than this is presumed dead (the job's own expiry is 3 h): the weekly sweep fails it. */
+export const RANK_SCAN_STALE_HOURS = 3;
+
+/** Marks `running` scans older than RANK_SCAN_STALE_HOURS as failed (frees rank_scan_running_unique); returns how many. */
+export async function failStaleRankScans(db: Db, now: Date = new Date()): Promise<number> {
+  const cutoff = new Date(now.getTime() - RANK_SCAN_STALE_HOURS * 3_600_000);
+  const rows = await db
+    .update(rankScan)
+    .set({ status: 'failed', finishedAt: now })
+    .where(and(eq(rankScan.status, 'running'), lt(rankScan.startedAt, cutoff)))
+    .returning({ id: rankScan.id });
+  return rows.length;
+}
+
+/** Of `clientIds`, those with no `rank_map_image` row yet (the weekly schedule enqueues one map refresh for each). */
+export async function clientsWithoutRankMap(db: Db, clientIds: string[]): Promise<string[]> {
+  if (clientIds.length === 0) return [];
+  const have = await db.select({ id: rankMapImage.clientId }).from(rankMapImage).where(inArray(rankMapImage.clientId, clientIds));
+  const set = new Set(have.map((r) => r.id));
+  return clientIds.filter((id) => !set.has(id));
 }

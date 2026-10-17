@@ -15,7 +15,9 @@ export function createVendorJobs(
   deps: WorkerDeps,
   queue: {
     enqueueCollect(p: { competitorId: string; source: 'gbp' | 'ads_google' | 'ads_meta' }): Promise<void>;
-    enqueueRankScan(clientId: string): Promise<void>;
+    enqueueRankScan(clientId: string, data?: { trigger?: 'scheduled' | 'manual'; scanId?: string; requestedBy?: string }): Promise<void>;
+    /** Phase 13b: fetch the client's static map background (`rank-map-refresh`; the job no-ops without STADIA_API_KEY). */
+    enqueueRankMap(clientId: string): Promise<void>;
     /** Phase 12a: a discovery review sample landed for this run → non-forced `rival-finalise`. */
     enqueueRivalFinalise?(runId: string): Promise<void>;
   },
@@ -79,7 +81,7 @@ export function createVendorJobs(
     },
   });
   const rankSchedule = defineJob({
-    name: 'rank-schedule', schema: z.looseObject({}), cron: '0 6 1 * *',
+    name: 'rank-schedule', schema: z.looseObject({}), cron: '0 6 * * 0',
     handler: async () => {
       if (!deps.vendorsConfigured()) {
         if (!warnedRankUnconfigured) {
@@ -88,13 +90,20 @@ export function createVendorJobs(
         }
         return;
       }
-      for (const id of await deps.listRankClients()) await queue.enqueueRankScan(id);
+      const stale = await deps.failStaleRankScans();
+      if (stale > 0) console.warn(`[rank-schedule] failed ${stale} stale running rank scan(s)`);
+      const ids = await deps.listRankClients();
+      for (const id of ids) await queue.enqueueRankScan(id);
+      for (const id of await deps.clientsWithoutRankMap(ids)) await queue.enqueueRankMap(id);
     },
   });
   const rankScan = defineJob({
-    name: 'rank-scan', schema: z.object({ clientId: z.uuid() }), queue: SINGLE_SHOT_QUEUE,
-    handler: async ({ clientId }) => {
-      console.log(`[rank-scan] ${clientId} → ${JSON.stringify(await deps.scanRankings(clientId))}`);
+    name: 'rank-scan', schema: z.object({
+      clientId: z.uuid(), trigger: z.enum(['scheduled', 'manual']).default('scheduled'), scanId: z.uuid().optional(), requestedBy: z.string().optional(),
+    }),
+    queue: SINGLE_SHOT_QUEUE,
+    handler: async ({ clientId, trigger, scanId, requestedBy }) => {
+      console.log(`[rank-scan] ${clientId} → ${JSON.stringify(await deps.scanRankings(clientId, { trigger, scanId, requestedBy }))}`);
     },
   });
   return { schedule, collect, poll, rankSchedule, rankScan };

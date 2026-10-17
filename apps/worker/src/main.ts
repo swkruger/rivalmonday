@@ -75,8 +75,13 @@ const vendor = createVendorJobs(deps, {
   enqueueCollect: async (p) => {
     await enqueue(boss, vendor.collect, p);
   },
-  enqueueRankScan: async (clientId) => {
-    await enqueue(boss, vendor.rankScan, { clientId });
+  enqueueRankScan: async (clientId, data) => {
+    await enqueue(boss, vendor.rankScan, { clientId, trigger: data?.trigger ?? 'scheduled', scanId: data?.scanId, requestedBy: data?.requestedBy });
+  },
+  // The rank-map-refresh handler (and its queue registration) arrives with Phase 13b Task 7; pg-boss needs the queue to exist before send.
+  enqueueRankMap: async (clientId) => {
+    await boss.createQueue('rank-map-refresh');
+    await boss.send('rank-map-refresh', { clientId }, { singletonKey: clientId });
   },
   enqueueRivalFinalise: async (runId) => {
     await enqueue(boss, rivals.finalise, { runId, force: false }, { singletonKey: `rival-finalise:${runId}` });

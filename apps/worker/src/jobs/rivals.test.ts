@@ -155,7 +155,7 @@ describe('vendor-poll → rival-finalise', () => {
     });
     const enqueueRivalFinalise = vi.fn(async (_runId: string) => {});
     const deps = { vendorsConfigured: () => true, pollVendorTasks } as unknown as WorkerDeps;
-    const jobs = createVendorJobs(deps, { enqueueCollect: async () => {}, enqueueRankScan: async () => {}, enqueueRivalFinalise });
+    const jobs = createVendorJobs(deps, { enqueueCollect: async () => {}, enqueueRankScan: async () => {}, enqueueRankMap: async () => {}, enqueueRivalFinalise });
     await jobs.poll.handler({});
     await cb?.(RUN);
     expect(enqueueRivalFinalise).toHaveBeenCalledWith(RUN);

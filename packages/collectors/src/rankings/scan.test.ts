@@ -1,4 +1,4 @@
-import { capture, client, evidence, rankScan, rankSnapshot } from '@cs/db';
+import { capture, client, evidence, rankMapImage, rankScan, rankSnapshot } from '@cs/db';
 import type { RankScanSkipped } from './scan';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { VendorError } from '../vendors/dataforseo';
-import { listRankClients, scanRankings } from './scan';
+import { clientsWithoutRankMap, failStaleRankScans, listRankClients, RANK_SCAN_STALE_HOURS, scanRankings } from './scan';
 
 const USER = '00000000-0000-4000-8000-0000000000c1';
 const SCHEDULED = { trigger: 'scheduled' } as const;
@@ -250,5 +250,39 @@ describe('listRankClients and a paused client (9b)', () => {
     await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: area }).where(eq(client.id, IDS.clientB1));
     await pauseClient(dbs.owner, IDS.clientA1);
     expect(await listRankClients(dbs.service)).toEqual([IDS.clientB1]);
+  });
+});
+
+describe('rank schedule helpers', () => {
+  const area = { center: { lat: 32.44, lng: -97.79 }, radiusKm: 10, zips: [] };
+
+  it('listRankClients excludes paused, prospect, read-only-agency clients', async () => {
+    const set = { keywords: ['ac repair'], serviceArea: area };
+    for (const id of [IDS.clientA1, IDS.clientA2, IDS.clientB1]) await dbs.owner.update(client).set(set).where(eq(client.id, id));
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2));
+    await pauseClient(dbs.owner, IDS.clientB1);
+    expect(await listRankClients(dbs.service)).toEqual([IDS.clientA1]);
+    await pauseAgency(dbs.owner, IDS.agencyA);
+    expect(await listRankClients(dbs.service)).toEqual([]);
+  });
+
+  it('stale running scans older than 3 h are failed, fresh ones kept', async () => {
+    expect(RANK_SCAN_STALE_HOURS).toBe(3);
+    const now = new Date('2026-10-18T12:00:00Z');
+    const base = { agencyId: IDS.agencyA, gridSize: 3, radiusKm: 5, keywords: ['x'], estimatedUsd: 0.1, trigger: 'scheduled' as const };
+    await dbs.owner.insert(rankScan).values({ ...base, clientId: IDS.clientA1, status: 'running', startedAt: new Date('2026-10-18T08:00:00Z') });
+    await dbs.owner.insert(rankScan).values({ ...base, clientId: IDS.clientA2, status: 'running', startedAt: new Date('2026-10-18T10:30:00Z') });
+    expect(await failStaleRankScans(dbs.service, now)).toBe(1);
+    const rows = await dbs.owner.select().from(rankScan);
+    expect(rows.find((r) => r.clientId === IDS.clientA1)).toMatchObject({ status: 'failed', finishedAt: now });
+    expect(rows.find((r) => r.clientId === IDS.clientA2)?.status).toBe('running');
+  });
+
+  it('clientsWithoutRankMap returns only clients lacking an image row', async () => {
+    await dbs.owner.insert(rankMapImage).values({
+      clientId: IDS.clientA1, agencyId: IDS.agencyA, settingsHash: 'h', objectKey: 'k', bounds: { north: 1, south: 0, east: 1, west: 0 }, width: 10, height: 10,
+    });
+    expect(await clientsWithoutRankMap(dbs.service, [IDS.clientA1, IDS.clientA2])).toEqual([IDS.clientA2]);
+    expect(await clientsWithoutRankMap(dbs.service, [])).toEqual([]);
   });
 });

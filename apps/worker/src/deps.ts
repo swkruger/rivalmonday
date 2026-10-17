@@ -2,7 +2,7 @@ import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } fr
 import {
   capturePage, claimDuePages, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
   createDataForSeo, type DataForSeoClient, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
-  ensureSelfCompetitors, failProspectReport, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
+  clientsWithoutRankMap as rankClientsWithoutMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   runProspectSnapshot, scanRankings, type SourceKind,
 } from '@cs/collectors';
 import type { CaptureStatus } from '@cs/core';
@@ -11,7 +11,7 @@ import {
   analyzeReview as runAnalyzeReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createPackLoader, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
   type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
-  notifyBriefOutcome, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
+  notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
 import { generateStarters } from '@cs/ask';
@@ -98,8 +98,15 @@ export interface WorkerDeps {
     reviews: { collected: number; failed: number; reviews: number } | { skipped: string };
     jobs: { collected: number; failed: number; postings: number };
   }>;
-  scanRankings(clientId: string): Promise<{ snapshots: number; failed: number; scanId: string | null }>;
+  scanRankings(
+    clientId: string,
+    opts: { trigger: 'scheduled' | 'manual'; scanId?: string; requestedBy?: string },
+  ): Promise<{ snapshots: number; failed: number; scanId: string | null; skipped?: 'cap' }>;
   listRankClients(): Promise<string[]>;
+  /** Fails `running` rank scans older than RANK_SCAN_STALE_HOURS; returns how many. */
+  failStaleRankScans(): Promise<number>;
+  /** Of these clients, the ones with no `rank_map_image` row yet. */
+  clientsWithoutRankMap(clientIds: string[]): Promise<string[]>;
   /** 5b-2 decision 10: the one-off prospect snapshot (vendor pulls + 3×3 rank scan + deterministic report). Never throws. */
   runProspectSnapshot(clientId: string, reportId: string): Promise<{ status: 'ready' | 'failed' }>;
   /** Phase 12a: one competitor-discovery run (paid vendor calls; the job checks vendorsConfigured first). */
@@ -366,8 +373,23 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       const jobs = await collectReadyJobs(base);
       return { reviews, jobs };
     },
-    scanRankings: (clientId) => scanRankings({ db: getDb(), store: getStore(), dfs: getDfs() }, clientId, { trigger: 'scheduled' }),
+    scanRankings: (clientId, opts) =>
+      scanRankings(
+        {
+          db: getDb(), store: getStore(), dfs: getDfs(),
+          onSkipped: async (s) => {
+            if (!delivery) {
+              console.warn(`[rank-scan] ${clientId} skipped by the monthly cost cap; no agency notice sent (APP_URL / LINK_SIGNING_SECRET not set)`);
+              return;
+            }
+            await notifyRankScanSkipped({ db: getDb(), delivery }, s);
+          },
+        },
+        clientId, opts,
+      ),
     listRankClients: () => rankClients(getDb()),
+    failStaleRankScans: () => failStaleScans(getDb()),
+    clientsWithoutRankMap: (ids) => rankClientsWithoutMap(getDb(), ids),
     async runProspectSnapshot(clientId, reportId) {
       if (!vendorsConfigured()) {
         await failProspectReport(getDb(), reportId, 'Vendor APIs are not configured (DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD)');
