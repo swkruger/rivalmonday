@@ -9,6 +9,8 @@ import { AlertEmail, alertSubject } from './templates/alert';
 import { BillingNoticeEmail, billingNoticeSubject } from './templates/billing-notice';
 import { AgencyClientBillingNoticeEmail, agencyClientBillingNoticeSubject } from './templates/agency-client-billing-notice';
 import { ClientBillingNoticeEmail, clientBillingNoticeSubject } from './templates/client-billing-notice';
+import { ClientInviteEmail, clientInviteSubject } from './templates/client-invite';
+import { CompetitorReviewEmail, competitorReviewSubject } from './templates/competitor-review';
 import { BriefEmail, briefSubject } from './templates/brief';
 import { DigestEmail, digestSubject } from './templates/digest';
 import { PlatformCostLowEmail, platformCostLowSubject } from './templates/platform-cost-low';
@@ -37,6 +39,10 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
       return { el: createElement(BillingNoticeEmail, p.props), subject: billingNoticeSubject(p.props.kind) };
     case 'client_billing_notice':
       return { el: createElement(ClientBillingNoticeEmail, p.props), subject: clientBillingNoticeSubject(p.props) };
+    case 'client_invite':
+      return { el: createElement(ClientInviteEmail, p.props), subject: clientInviteSubject(p.props) };
+    case 'competitor_review':
+      return { el: createElement(CompetitorReviewEmail, p.props), subject: competitorReviewSubject(p.props) };
     case 'agency_client_billing_notice':
       return { el: createElement(AgencyClientBillingNoticeEmail, p.props), subject: agencyClientBillingNoticeSubject(p.props) };
     case 'agency_invite':
@@ -56,6 +62,6 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
 
 export async function renderEmail(payload: EmailPayload): Promise<RenderedEmail> {
   const { el, subject } = element(payload);
-  const [html, text] = await Promise.all([render(el), render(el, { plainText: true })]);
+  const [html, text] = await Promise.all([render(el), render(el, { plainText: true, ...(payload.template === 'competitor_review' ? { htmlToTextOptions: { selectors: [{ selector: 'ul', options: { itemPrefix: '- ' } }] } } : {}) })]);
   return { subject: subject.slice(0, 200), html, text };
 }

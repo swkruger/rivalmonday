@@ -107,6 +107,21 @@ export interface BillingNoticeProps {
   date?: string;
   billingUrl: string;
 }
+export interface ClientInviteProps {
+  branding: Branding;
+  businessName: string;
+  agencyName: string;
+  startUrl: string;
+}
+
+/** 1..5 names only; never carries suggestion-internal fields. */
+export interface CompetitorReviewProps {
+  branding: Branding;
+  businessName: string;
+  competitorNames: string[];
+  reviewUrl: string;
+}
+
 export type ClientBillingNoticeKind = 'client-payment-link' | 'client-payment-needed';
 /** Phase 9b Task 8: client-facing, agency-branded. Never mentions the platform. */
 export interface ClientBillingNoticeProps {
@@ -173,6 +188,8 @@ export type EmailPayload =
   | { template: 'support_session_started'; props: SupportSessionStartedProps }
   | { template: 'platform_cost_low'; props: PlatformCostLowProps }
   | { template: 'billing_notice'; props: BillingNoticeProps }
+  | { template: 'client_invite'; props: ClientInviteProps }
+  | { template: 'competitor_review'; props: CompetitorReviewProps }
   | { template: 'client_billing_notice'; props: ClientBillingNoticeProps }
   | { template: 'agency_client_billing_notice'; props: AgencyClientBillingNoticeProps }
   | { template: 'agency_invite'; props: AgencyInviteProps }
