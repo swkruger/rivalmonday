@@ -39,7 +39,7 @@ export interface NotifyInput {
   clientId: string;
   kind: NotificationKind;
   audience: Audience;
-  subjectType: 'alert' | 'brief' | 'digest' | 'trend_report';
+  subjectType: 'alert' | 'brief' | 'digest' | 'trend_report' | 'setup';
   subjectId: string;
   /** Stable for this message; the recipient and channel are appended to make each row's dedupe key. */
   dedupe: string;

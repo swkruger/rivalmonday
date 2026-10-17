@@ -19,8 +19,7 @@
 
 ## Assumes from other branches
 - **phase-10 (merged into main @ 63259a8):** migrations 0065/0066 (next free **0067**); `create_client` stamps `first_client_at` in its service tx, reduced-trial refusal is in `assertCanActivateClient`; checklist `first_client` → `/agency/clients/new`; `OutgoingEmail.stream/headers`; job factories in `main.ts`; `(app)` layout redirects only suspended agencies + a never-redirected admin once.
-- **Pre-flight drift 2026-10-16 (11a plan patched):** `collectGbpProfile` is a competitor capture collector → new `fetchGbpProfile` (Task 3/6); DFS ledger `operation` = path → cap counts maps path + `client_id IS NULL` (Task 4); `daily_cap` is not a `ToolErrorCode` → `rate_limited` + `userFacing` (Task 4/10); web `ToolDeps` has no DataForSEO client → `setupLookup` dep built in `server/tools.ts` (Task 4/10); `EnqueueJob(job, data, singletonKey)` + `QueueJob += 'setup-suggestions'`, failed enqueue → `failed` (Task 5); `ai.yaml` uses `fallbacks: []` (Task 6); `WorkerDeps` is a method interface → `generateSetupSuggestions` (Task 6); no `AGENCY_ROLES`/`toolError()` → `isAgencyRole`/`new ToolError` (Task 7); `acceptSuggestions` all-or-nothing + no dismiss helper + room-aware pre-tick (Task 7); readiness has no reasons list → `setupHold`, force `ready:false` (Task 8); `notify` needs `subjectType`/`link` → `LINK_TARGETS += 'setup'` moved from 11b Q2 into 11a Task 9, setup notices reuse `agency_notice`; `SetupLookup += city`. Rulings R1–R6 accepted 2026-10-16 (R1 `start_search` + "Find competitors"; R3 `agency_notice`; R4 evidence period stays at activation) — plan patched.
-- **phase-7-planning** (parked, docs only): sender `mail.rivalmonday.app`, reply-to `support@`; no code overlap.
+- **Pre-flight drift 2026-10-16:** 11a plan patched for drift and rulings R1-R6 (detail in the plan and `.superpowers/sdd/.../progress.md`); `LINK_TARGETS += 'setup'` landed in 11a Task 9, setup notices reuse `agency_notice`.
 
 ## Decisions (owner-approved)
 Full lists in the specs: 11a D1–D11, 11b E1–E7, 11c L1–L8 (+ plan-local P1–P6, Q1–Q5, R1–R4). Headlines:
@@ -40,6 +39,7 @@ Full lists in the specs: 11a D1–D11, 11b E1–E7, 11c L1–L8 (+ plan-local P1
 
 ## Owner verification steps
 Listed in the final task of each plan: 11a Task 14, 11b Task 24, 11c Task 35 (real lookup + suggestions, setup to starting point, Postmark Cc, pending-owner billing in Stripe test mode, intake + preview on `cs_dev`, copy sign-offs). Deploy: the web app (Vercel) needs `DATAFORSEO_LOGIN`/`_PASSWORD` for the business lookup (11a Task 4).
+- **Copy sign-off: setup notice lines** (11a Task 9, drafted in `apps/worker/src/jobs/setup.ts` `linesFor`; subjects are binding). Ready: "We found competitors that look like a fit for {client}." / "Pick the ones to track so their first brief can start." Changed: "{client}'s owner made changes to their setup." / "Take a look and finish what is left." Idle: "{client}'s setup has been waiting on you for 3 (or 7) days." / "A few quick choices are left before their first brief can start."
 
 
 ## Brief

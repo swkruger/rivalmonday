@@ -46,4 +46,15 @@ describe('renderEmail', () => {
     expect(a.subject).toBe('Brief ready for review: A1 HVAC');
     expect(a.text).toContain('3 items.');
   });
+
+  it.each([
+    ['setup_suggestions_ready', 'Competitor suggestions are ready for A1 HVAC'],
+    ['setup_client_changed', 'A1 HVAC updated their setup'],
+    ['setup_idle', "A1 HVAC's setup is waiting on you"],
+  ] as const)('agency_notice renders the %s setup notice with its title as subject', async (notice, title) => {
+    const r = await renderEmail({ template: 'agency_notice', props: { branding, recipientName: 'Sam', clientName: 'A1 HVAC', notice, title, lines: ['One line.'], link: 'https://app.example/l/s', actionLabel: 'Open setup' } });
+    expect(r.subject).toBe(title);
+    expect(r.text).toContain('One line.');
+    expect(r.html).toContain('Open setup');
+  });
 });

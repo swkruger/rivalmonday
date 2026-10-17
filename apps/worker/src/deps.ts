@@ -23,7 +23,7 @@ import { listMonthlyRivalClients, normalizeAdminEmails, type PlatformCostLowPayl
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { lookup } from 'node:dns/promises';
-import { failPendingSuggestions, runSetupSuggestions } from './jobs/setup';
+import { failPendingSuggestions, runSetupReminders, runSetupSuggestions } from './jobs/setup';
 import { createPdfRenderer } from './pdf';
 
 /** Phase 10 (R5): the sign-up lifecycle emails on the `billing_notice` outbox (Rival Monday-branded). */
@@ -79,6 +79,8 @@ export interface WorkerDeps {
   generateAskStarters(clientId: string): Promise<string[] | null>;
   /** Phase 11a: AI profile suggestions for a client's setup wizard (never throws; a failure is recorded as `failed`). */
   generateSetupSuggestions(clientId: string): Promise<{ status: 'ready' | 'failed' } | { skipped: string }>;
+  /** Phase 11a Task 9: daily reminders to agency staff about open setups (needs delivery config). */
+  setupReminders(now: Date): Promise<{ queued: number }>;
   recommendForMoves(clientId: string): Promise<{ created: number; skipped: number; failed: number }>;
   discoverPages(competitorId: string): Promise<{ selected: number; candidates: number; homepageStatus: string } | { skipped: string }>;
   /** True once DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD are both set — gates all vendor collection. */
@@ -400,6 +402,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     listMonthlyRivalClients: () => listMonthlyRivalClients(getDb()),
     computeTrackedSignals: async (clientId, now) => (await computeTrackedSignals({ db: getDb(), packs }, clientId, now)).length,
     deliveryConfigured: () => delivery !== null,
+    setupReminders: (now) => runSetupReminders({ db: getDb(), delivery: getDelivery() }, now),
     sweepAlerts: (now) => sweepAlerts(getDb(), now),
     processAlert: async (alertId, now) => processAlert({ db: getDb(), ai: await getAi(), packs, delivery: getDelivery() }, alertId, now),
     runAlertDigests: (now) => runAlertDigests({ db: getDb(), delivery: getDelivery() }, now),

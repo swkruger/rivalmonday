@@ -1,12 +1,12 @@
 import type { Ai } from '@cs/ai';
 import type { DataForSeoClient } from '@cs/collectors';
-import { agencyBilling, client, clientSetup, type SetupSuggestions } from '@cs/db';
+import { agencyBilling, agencyWebhook, client, clientSetup, competitorSuggestion, discoveryRun, notification, type SetupSuggestions } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { createPackLoader } from '@cs/engine';
-import { eq } from 'drizzle-orm';
+import { addContact, createPackLoader, type DeliveryConfig } from '@cs/engine';
+import { eq, like } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
-import { createSetupJobs, runSetupSuggestions } from './setup';
+import { createSetupJobs, runSetupReminders, runSetupSuggestions } from './setup';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -162,5 +162,127 @@ describe('setup-suggestions job', () => {
     const { suggestions } = createSetupJobs({ generateSetupSuggestions } as unknown as WorkerDeps, { envName: 'dev' });
     expect(await suggestions.handler({ clientId: ID })).toEqual({ status: 'ready' });
     expect(generateSetupSuggestions).toHaveBeenCalledWith(ID);
+  });
+});
+
+describe('runSetupReminders (Task 9)', () => {
+  const delivery: DeliveryConfig = { appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)], fromAddress: 'b@agency.example' };
+  const NOW = new Date('2026-10-20T14:00:00Z');
+  const D = 86_400_000;
+  const ago = (ms: number) => new Date(NOW.getTime() - ms);
+  const later = (ms: number) => new Date(NOW.getTime() + ms);
+  const run = (now = NOW) => runSetupReminders({ db: dbs.service, delivery }, now);
+  const rows = (kind?: string) =>
+    dbs.owner.select().from(notification).then((r) => r.filter((n) => n.channel === 'email' && (!kind || n.kind === kind)));
+  const tiers = async () => (await rows('setup_idle')).map((r) => r.dedupeKey.split(':')[2]).sort();
+
+  async function seedOpen(over: Partial<typeof clientSetup.$inferInsert> = {}) {
+    await dbs.owner.update(client).set({ keywords: ['hvac'], serviceArea: { kind: 'radius', lat: 1, lng: 1, miles: 10 } as never, placeId: 'p1' }).where(eq(client.id, ID));
+    await dbs.owner.insert(clientSetup).values({ clientId: ID, agencyId: IDS.agencyA, createdAt: ago(D), ...over });
+  }
+  async function withDoneRun(suggested: number) {
+    const [r] = await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: ID, status: 'done', trigger: 'auto', startedAt: ago(D / 2) }).returning();
+    for (let i = 0; i < suggested; i++) {
+      await dbs.owner.insert(competitorSuggestion).values({ agencyId: IDS.agencyA, clientId: ID, name: `Rival ${i}`, placeId: `rp${i}`, appearances: 1, overlapScore: 1, runId: r!.id, tier: 'top' });
+    }
+  }
+  beforeEach(async () => {
+    await addContact(dbs.service, { agencyId: IDS.agencyA, role: 'account_manager', email: 'am@a.example' });
+    await dbs.service.insert(agencyWebhook).values({ agencyId: IDS.agencyA, kind: 'slack', url: 'https://hooks.slack.com/services/T/B/X', createdBy: 'x' });
+  });
+
+  it('queues suggestions_ready once across two runs', async () => {
+    await seedOpen();
+    await withDoneRun(2);
+    expect((await run()).queued).toBe(3); // email + in_app + slack
+    expect(await run()).toEqual({ queued: 0 });
+    const [mail] = await rows('setup_suggestions_ready');
+    expect(mail).toMatchObject({ title: 'Competitor suggestions are ready for A1 HVAC', subjectType: 'setup', subjectId: ID, address: 'am@a.example' });
+    expect(mail!.dedupeKey).toMatch(new RegExp(`^setup-ready:${ID}:`));
+    expect(mail!.link).toContain('/l/');
+    expect(mail!.payload).toMatchObject({ template: 'agency_notice', props: { notice: 'setup_suggestions_ready', actionLabel: 'Open setup', clientName: 'A1 HVAC' } });
+  });
+
+  it('does not queue suggestions_ready for a done run with no suggested rows', async () => {
+    await seedOpen();
+    await withDoneRun(0);
+    await run();
+    expect(await rows('setup_suggestions_ready')).toHaveLength(0);
+  });
+
+  it('client_changed once per day', async () => {
+    await seedOpen({ lastChangedRole: 'client_owner', lastChangedAt: ago(2 * 3_600_000) });
+    expect((await run()).queued).toBe(3);
+    expect(await run()).toEqual({ queued: 0 });
+    const [mail] = await rows('setup_client_changed');
+    expect(mail).toMatchObject({ title: 'A1 HVAC updated their setup' });
+    expect(mail!.dedupeKey).toMatch(new RegExp(`^setup-client:${ID}:2026-10-20:`));
+    // a staff change does not queue; neither does a client change older than 24 h
+    await dbs.owner.update(clientSetup).set({ lastChangedRole: 'account_manager' });
+    expect(await run(later(3_600_000))).toEqual({ queued: 0 });
+    await dbs.owner.update(clientSetup).set({ lastChangedRole: 'client_owner' });
+    expect(await run(later(D))).toEqual({ queued: 0 });
+  });
+
+  it('idle at 3 and 7 days, never 14', async () => {
+    await seedOpen({ createdAt: ago(2 * D) });
+    expect(await run()).toEqual({ queued: 0 });
+    expect((await run(later(D))).queued).toBe(3);
+    expect((await rows('setup_idle'))[0]).toMatchObject({ title: "A1 HVAC's setup is waiting on you" });
+    expect((await run(later(3 * D))).queued).toBe(0);
+    expect((await run(later(5 * D))).queued).toBe(3); // 7 days old
+    expect(await tiers()).toEqual(['3', '7']);
+    expect((await run(later(12 * D))).queued).toBe(0); // 14 days old: nothing new
+  });
+
+  it('idle: a setup already past 7 days with no 3-day notice gets the 3-day first, then the 7-day', async () => {
+    await seedOpen({ createdAt: ago(8 * D) });
+    await run();
+    expect(await tiers()).toEqual(['3']);
+    await run(later(D));
+    expect(await tiers()).toEqual(['3', '7']);
+  });
+
+  it('idle counts from last_changed_at, and only while waiting on the agency', async () => {
+    await seedOpen({ createdAt: ago(10 * D), lastChangedAt: ago(D), lastChangedRole: 'account_manager' });
+    expect(await run()).toEqual({ queued: 0 });
+    await dbs.owner.update(clientSetup).set({ lastChangedAt: ago(4 * D) });
+    expect((await run()).queued).toBe(3);
+    // profile done + search running = waiting on the system, not the agency
+    await truncateAll(dbs.owner);
+    await seedTenancy(dbs.owner);
+    await addContact(dbs.service, { agencyId: IDS.agencyA, role: 'account_manager', email: 'am@a.example' });
+    await seedOpen({ createdAt: ago(10 * D) });
+    await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: ID, status: 'searching', trigger: 'auto' });
+    expect(await run()).toEqual({ queued: 0 });
+  });
+
+  it('skips completed, dismissed, paused clients and unserviceable agencies', async () => {
+    await seedOpen({ createdAt: ago(10 * D), lastChangedRole: 'client_owner', lastChangedAt: ago(3_600_000) });
+    await withDoneRun(1);
+    const set = (v: Partial<typeof clientSetup.$inferInsert>) => dbs.owner.update(clientSetup).set(v).where(eq(clientSetup.clientId, ID));
+    await set({ completedAt: ago(1000) });
+    expect(await run()).toEqual({ queued: 0 });
+    await set({ completedAt: null, dismissedAt: ago(1000) });
+    expect(await run()).toEqual({ queued: 0 });
+    await set({ dismissedAt: null });
+    await dbs.owner.update(client).set({ pausedAt: ago(1000) }).where(eq(client.id, ID));
+    expect(await run()).toEqual({ queued: 0 });
+    await dbs.owner.update(client).set({ pausedAt: null }).where(eq(client.id, ID));
+    await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'suspended' });
+    expect(await run()).toEqual({ queued: 0 });
+    expect(await dbs.owner.select().from(notification).where(like(notification.dedupeKey, 'setup-%'))).toHaveLength(0);
+  });
+
+  it('skips in demo/test and when delivery is not configured', async () => {
+    for (const envName of ['demo', 'test'] as const) {
+      const setupReminders = vi.fn();
+      const { reminders } = createSetupJobs({ setupReminders, deliveryConfigured: () => true } as unknown as WorkerDeps, { envName });
+      expect(await reminders.handler({})).toEqual({ skipped: envName });
+      expect(setupReminders).not.toHaveBeenCalled();
+    }
+    const setupReminders = vi.fn(async () => ({ queued: 2 }));
+    expect(await createSetupJobs({ setupReminders, deliveryConfigured: () => false } as unknown as WorkerDeps, { envName: 'dev' }).reminders.handler({})).toEqual({ skipped: 'delivery not configured' });
+    expect(await createSetupJobs({ setupReminders, deliveryConfigured: () => true } as unknown as WorkerDeps, { envName: 'dev' }).reminders.handler({})).toEqual({ queued: 2 });
   });
 });
