@@ -25,9 +25,9 @@ const LOOKUP: SetupLookup = {
 export async function seedSetup(ctx: SeedContext): Promise<void> {
   const { db, ids, clock } = ctx;
   const pending = ids.clients.setupPending;
-  const others = (await db.select({ id: client.id, createdAt: client.createdAt }).from(client)).filter((c) => c.id !== pending);
+  const others = (await db.select({ id: client.id, agencyId: client.agencyId, createdAt: client.createdAt }).from(client)).filter((c) => c.id !== pending);
   await db.insert(clientSetup).values(others.map((c) => ({
-    clientId: c.id, agencyId: ids.agencyId, source: 'staff' as const, competitorsDoneAt: c.createdAt, completedAt: c.createdAt, createdAt: c.createdAt,
+    clientId: c.id, agencyId: c.agencyId, source: 'staff' as const, competitorsDoneAt: c.createdAt, completedAt: c.createdAt, createdAt: c.createdAt,
   })));
 
   const suggestions: SetupSuggestions = {

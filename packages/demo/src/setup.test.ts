@@ -1,4 +1,4 @@
-import { client, clientSetup, competitorSuggestion, discoveryRun, setupSuggestionsSchema } from '@cs/db';
+import { agency, client, clientSetup, competitorSuggestion, discoveryRun, setupSuggestionsSchema } from '@cs/db';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
@@ -16,10 +16,19 @@ beforeAll(async () => {
   await resetDemoTables(dbs.owner);
   ctx = createSeedContext({ db: dbs.owner, store: createMemoryStore(), now: new Date(), salt: TEST_SALT });
   await seedTenancy(ctx);
+  // A client of a second agency (as the billing seeds create): its setup row must carry its own agency.
+  const [other] = await dbs.owner.insert(agency).values({ name: 'Other Agency' }).returning({ id: agency.id });
+  await dbs.owner.insert(client).values({ agencyId: other!.id, name: 'Other Agency Client', verticalId: 'hvac_plumbing', status: 'active' });
   await seedSetup(ctx);
 });
 
 describe('seedSetup (Phase 11a)', () => {
+  it('stamps every setup row with its client’s own agency', async () => {
+    const rows = await dbs.owner.select({ setupAgency: clientSetup.agencyId, clientAgency: client.agencyId }).from(clientSetup).innerJoin(client, eq(client.id, clientSetup.clientId));
+    expect(rows.length).toBeGreaterThan(1);
+    expect(rows.filter((r) => r.setupAgency !== r.clientAgency)).toEqual([]);
+  });
+
   it('leaves one client mid-setup: open row, ready suggestions with quotes, competitors step todo', async () => {
     const id = ctx.ids.clients.setupPending;
     const [row] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, id));
