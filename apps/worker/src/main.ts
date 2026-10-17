@@ -11,6 +11,7 @@ import { startCompetitorSearch } from '@cs/tools';
 import { createBoss, enqueue, registerJobs } from './boss';
 import { createWorkerDeps } from './deps';
 import { createAskJobs } from './jobs/ask';
+import { createRankMapJobs } from './jobs/rank-map';
 import { createKbJobs } from './jobs/kb';
 import { createBillingJobs } from './jobs/billing-daily';
 import { createBillingNoticeJobs } from './jobs/billing-notices';
@@ -78,10 +79,8 @@ const vendor = createVendorJobs(deps, {
   enqueueRankScan: async (clientId, data) => {
     await enqueue(boss, vendor.rankScan, { clientId, trigger: data?.trigger ?? 'scheduled', scanId: data?.scanId, requestedBy: data?.requestedBy });
   },
-  // The rank-map-refresh handler (and its queue registration) arrives with Phase 13b Task 7; pg-boss needs the queue to exist before send.
   enqueueRankMap: async (clientId) => {
-    await boss.createQueue('rank-map-refresh');
-    await boss.send('rank-map-refresh', { clientId }, { singletonKey: clientId });
+    await enqueue(boss, rankMap.refresh, { clientId }, { singletonKey: clientId });
   },
   enqueueRivalFinalise: async (runId) => {
     await enqueue(boss, rivals.finalise, { runId, force: false }, { singletonKey: `rival-finalise:${runId}` });
@@ -114,6 +113,7 @@ const moves = createMovesJobs(deps, {
   },
 });
 const ask = createAskJobs(deps);
+const rankMap = createRankMapJobs(deps);
 const kb = createKbJobs(deps, {
   enqueueEmbed: async (articleId) => {
     await enqueue(boss, kb.embed, { articleId }, { singletonKey: `kb-embed:${articleId}` });
@@ -149,7 +149,7 @@ const delivery = createDeliveryJobs(deps, {
   },
 });
 await registerJobs(boss, [
-  heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, prospects.snapshot,
+  heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, rankMap.refresh, prospects.snapshot,
   rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly, rivals.monthly, rivals.monthlyClient,
   engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.price, reviews.nightly, moves.nightly, moves.client,
   modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, onboarding.nudges, platformCosts.snapshot, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
