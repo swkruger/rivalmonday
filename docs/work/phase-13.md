@@ -1,13 +1,13 @@
 # phase-13 — Parity on overlap features (13a white-label, 13b local rankings)
 
 **Kind:** planning   **Worktree:** none — on `main` (owner instruction)   **Base:** main @ 4b1fb82
-**Plan/spec:** none yet; not in the roadmap (add row at merge).
+**Spec:** 13b [2026-10-17-phase-13b-local-rankings-design](../superpowers/specs/2026-10-17-phase-13b-local-rankings-design.md); 13a none yet. Not in roadmap (add at merge).
 
 ## Status (overwrite)
-Brief 2026-10-16; nothing designed.
+13b spec written 2026-10-17 (owner review pending). 13a not designed.
 
 ## Next (overwrite)
-Owner answers → brainstorm → spec → lean plan.
+Owner reviews 13b spec → 13b lean plan; brainstorm 13a (Q2–5, Q12).
 
 ## Interfaces this branch adds or changes
 Migrations: next free at execution time (main 0064; phase-10 0065–0066; phase-11 next).
@@ -22,6 +22,7 @@ Migrations: next free at execution time (main 0064; phase-10 0065–0066; phase-
 2. Geo-grid: **weekly scans for top-rival-tier competitors on the client's main keywords** + capped manual **"scan now"** with a cost guard (cf. $3 discovery cap). Scans are per client, so the tier picks which clients get them.
 3. Map tiles from a commercial provider (MapTiler/Stadia-class); not Google or public OSM tiles.
 4. Brief only; planned ahead of Phase 10.
+5. 13b decisions 1–9: see 13b spec (weekly full scans, cap, MapTiler static, Trend+Compare, Map climb + tier_change).
 
 ## New backlog (target → item)
 None yet.
