@@ -2,6 +2,7 @@ export * from './access';
 export * from './ask';
 export * from './billing';
 export * from './briefs';
+export * from './catalog';
 export * from './client-intel';
 export * from './delivery';
 export * from './engine';

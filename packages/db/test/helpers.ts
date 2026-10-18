@@ -2,6 +2,8 @@ import { eq, sql } from 'drizzle-orm';
 import { type Db, createDb } from '../src/client';
 import { agency, agencyBilling, client, clientCompetitor, competitor } from '../src/schema';
 
+export { seedVerticalCatalog } from '../src/catalog';
+
 export const testUrls = {
   owner: process.env.TEST_DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/cs_test',
   app: process.env.TEST_APP_DATABASE_URL ?? 'postgres://app_user:app_user@localhost:5432/cs_test',

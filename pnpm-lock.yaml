@@ -372,6 +372,9 @@ importers:
       '@cs/core':
         specifier: workspace:*
         version: link:../core
+      '@cs/verticals':
+        specifier: workspace:*
+        version: link:../verticals
       drizzle-orm:
         specifier: ^0.44.5
         version: 0.44.7(@types/pg@8.23.1)(kysely@0.28.17)(pg@8.23.1)(postgres@3.4.9)
@@ -711,6 +714,9 @@ importers:
       '@types/node':
         specifier: ^22.18.0
         version: 22.20.4
+      tsx:
+        specifier: ^4.20.5
+        version: 4.23.15
       typescript:
         specifier: ^5.9.2
         version: 5.9.3

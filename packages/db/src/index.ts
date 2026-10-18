@@ -1,4 +1,5 @@
 export * from './audit';
+export * from './catalog';
 export * from './client';
 export * from './environments';
 export * from './filters';

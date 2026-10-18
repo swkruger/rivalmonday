@@ -540,6 +540,13 @@
       "when": 1792234922000,
       "tag": "0076_rank_scan_requested_by_text",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1792310059838,
+      "tag": "0077_vertical_catalog",
+      "breakpoints": true
     }
   ]
 }
