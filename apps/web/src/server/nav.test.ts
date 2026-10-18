@@ -1,12 +1,14 @@
 import { createAccessContext } from '@cs/core';
 import { describe, expect, it } from 'vitest';
-import { navItemsFor } from '@/components/shell/nav-items';
-import { homePath, navFlagsFor, navFor } from './nav';
+import { settingsNavFor } from '@/components/shell/nav-items';
+import { homePath, navFlagsFor, navForViewer } from './nav';
 
 const A = '00000000-0000-4000-8000-00000000000a';
 const C = '00000000-0000-4000-8000-0000000000a1';
 const ctx = (role: 'agency_admin' | 'account_manager' | 'client_owner' | 'client_viewer') =>
   createAccessContext({ agencyId: A, userId: 'u', role, clientScope: role.startsWith('client') ? [C] : 'all', features: [] });
+const hrefs = (s: { items: { href: string }[] }[]) => s.flatMap((x) => x.items.map((i) => i.href));
+const labelsOf = (s: { items: { label: string }[] }[]) => s.flatMap((x) => x.items.map((i) => i.label));
 
 describe('Phase 11c leads flag', () => {
   it('is set for agency users who cover all clients, not for client roles', () => {
@@ -17,76 +19,71 @@ describe('Phase 11c leads flag', () => {
   it('limited-scope account managers do not get Leads', () => {
     const am = createAccessContext({ agencyId: A, userId: 'u', role: 'account_manager', clientScope: [C], features: [] });
     expect(navFlagsFor({ kind: 'user', ctx: am }).leads).toBe(false);
+    expect(hrefs(navForViewer({ kind: 'user', ctx: am }, 'agency', null))).not.toContain('/agency/leads');
+    expect(hrefs(navForViewer({ kind: 'user', ctx: ctx('account_manager') }, 'agency', null))).toContain('/agency/leads');
   });
-  it('puts the count on the Leads item', () => {
-    const items = navItemsFor({ ...navFlagsFor({ kind: 'user', ctx: ctx('agency_admin') }), newLeads: 2 }, null);
-    expect(items.find((i) => i.href === '/agency/leads')).toMatchObject({ label: 'Leads', count: 2 });
+  it('puts the leads count on the Leads item', () => {
+    const s = navForViewer({ kind: 'user', ctx: ctx('agency_admin') }, 'agency', null, false, false, { leads: 2 });
+    expect(s.flatMap((x) => x.items).find((i) => i.href === '/agency/leads')).toMatchObject({ label: 'Leads', count: 2 });
   });
 });
 
-describe('navFor', () => {
-  it('gives admins agency settings', () => {
-    expect(navFor({ kind: 'user', ctx: ctx('agency_admin') }, null).map((n) => n.href)).toEqual([
-      '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/leads', '/agency/usage', '/agency/playbooks', '/inbox', '/agency/team', '/agency/ai', '/agency/branding', '/agency/webhooks', '/agency/settings/billing', '/agency/settings/intake', '/agency/settings/platform-access', '/settings/notifications',
+describe('navForViewer', () => {
+  it('agency view for admins and account managers is the same grouped menu', () => {
+    const expected = ['/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/leads', '/agency/settings'];
+    expect(hrefs(navForViewer({ kind: 'user', ctx: ctx('agency_admin') }, 'agency', null))).toEqual(expected);
+    expect(hrefs(navForViewer({ kind: 'user', ctx: ctx('account_manager') }, 'agency', C))).toEqual(expected);
+  });
+
+  it('client view for an agency role covers the open client, Ask first (agency roles have every feature)', () => {
+    expect(hrefs(navForViewer({ kind: 'user', ctx: ctx('account_manager') }, 'client', C))).toEqual([
+      `/c/${C}/ask`, `/c/${C}`, `/c/${C}/competitors`, `/c/${C}/changes`, `/c/${C}/pricing`, `/c/${C}/ads`, `/c/${C}/reviews`, `/c/${C}/rankings`, `/c/${C}/moves`, `/c/${C}/recommendations`, `/c/${C}/briefs`, `/c/${C}/settings`,
     ]);
   });
-  it('gives account managers team but not branding/webhooks, plus client pages inside a client', () => {
-    const hrefs = navFor({ kind: 'user', ctx: ctx('account_manager') }, C).map((n) => n.href);
-    expect(hrefs).toEqual([
-      '/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/leads', '/agency/usage', '/agency/playbooks', `/c/${C}`, `/c/${C}/competitors`, `/c/${C}/changes`, `/c/${C}/pricing`, `/c/${C}/ads`, `/c/${C}/reviews`, `/c/${C}/rankings`, `/c/${C}/moves`, `/c/${C}/recommendations`, `/c/${C}/ask`, `/c/${C}/settings/profile`, `/c/${C}/settings/delivery`, `/c/${C}/settings/alerts`, `/c/${C}/settings/ai`,
-      '/inbox', '/agency/team', '/agency/ai', '/settings/notifications',
-    ]);
+
+  it('client viewer: Overview and Act only, no Inbox or Notifications in the menu', () => {
+    expect(hrefs(navForViewer({ kind: 'user', ctx: ctx('client_viewer') }, 'client', C))).toEqual([`/c/${C}`, `/c/${C}/recommendations`, `/c/${C}/briefs`]);
   });
-  it('gives client users their overview, inbox and preferences', () => {
-    expect(navFor({ kind: 'user', ctx: ctx('client_viewer') }, C).map((n) => n.href)).toEqual([`/c/${C}`, `/c/${C}/recommendations`, '/inbox', '/settings/notifications']);
-  });
-  it('gives a client owner with the dashboard feature Competitors, Changes and Moves after Overview', () => {
+
+  it('client owner with the dashboard feature gets Insights and Client settings', () => {
     const owner = createAccessContext({ agencyId: A, userId: 'u', role: 'client_owner', clientScope: [C], features: ['dashboard'] });
-    expect(navFor({ kind: 'user', ctx: owner }, C).map((n) => n.href)).toEqual([`/c/${C}`, `/c/${C}/competitors`, `/c/${C}/changes`, `/c/${C}/pricing`, `/c/${C}/ads`, `/c/${C}/reviews`, `/c/${C}/rankings`, `/c/${C}/moves`, `/c/${C}/recommendations`, `/c/${C}/settings/profile`, '/inbox', '/settings/notifications']);
+    const s = navForViewer({ kind: 'user', ctx: owner }, 'client', C);
+    expect(s.map((x) => x.id)).toEqual(['top', 'insights', 'act', 'foot']);
+    expect(hrefs(settingsNavFor('client', navFlagsFor({ kind: 'user', ctx: owner }), C))).toEqual([`/c/${C}/settings/profile`]);
   });
-  it('puts every item in the agency, client or account group', () => {
-    const groups = (role: Parameters<typeof ctx>[0]) =>
-      Object.fromEntries(navFor({ kind: 'user', ctx: ctx(role) }, C).map((n) => [n.href, n.group]));
-    expect(groups('agency_admin')).toEqual({
-      '/agency': 'agency', '/agency/approvals': 'agency', '/agency/alerts': 'agency', '/agency/prospects': 'agency', '/agency/leads': 'agency', '/agency/usage': 'agency', '/agency/playbooks': 'agency',
-      [`/c/${C}`]: 'client', [`/c/${C}/recommendations`]: 'client', [`/c/${C}/ask`]: 'client', [`/c/${C}/competitors`]: 'client', [`/c/${C}/changes`]: 'client', [`/c/${C}/pricing`]: 'client', [`/c/${C}/ads`]: 'client', [`/c/${C}/reviews`]: 'client', [`/c/${C}/rankings`]: 'client', [`/c/${C}/moves`]: 'client', [`/c/${C}/settings/profile`]: 'client', [`/c/${C}/settings/delivery`]: 'client', [`/c/${C}/settings/alerts`]: 'client', [`/c/${C}/settings/ai`]: 'client',
-      '/inbox': 'account', '/agency/team': 'account', '/agency/ai': 'account', '/agency/branding': 'account', '/agency/webhooks': 'account', '/agency/settings/billing': 'account', '/agency/settings/intake': 'account', '/agency/settings/platform-access': 'account', '/settings/notifications': 'account',
-    });
-    expect(groups('client_viewer')).toEqual({ [`/c/${C}`]: 'client', [`/c/${C}/recommendations`]: 'client', '/inbox': 'account', '/settings/notifications': 'account' });
-  });
-  it('gives guests no settings', () => {
-    expect(navFor({ kind: 'guest', ctx: ctx('client_viewer') }, C).map((n) => n.href)).toEqual([`/c/${C}`, `/c/${C}/recommendations`, '/inbox']);
+
+  it('guests never get Client settings', () => {
+    const g = createAccessContext({ agencyId: A, userId: 'contact:x', role: 'client_owner', clientScope: [C], features: ['dashboard', 'alert_rules'] });
+    expect(hrefs(navForViewer({ kind: 'guest', ctx: g }, 'client', C))).not.toContain(`/c/${C}/settings`);
   });
 });
 
-describe('navFor AI connections', () => {
-  it('hides AI connections from guests even when the client has the mcp feature (the token tools refuse guests)', () => {
+describe('client AI connection tab', () => {
+  it('is hidden from guests even when the client has the mcp feature (the token tools refuse guests)', () => {
     const withMcp = createAccessContext({ agencyId: A, userId: 'contact:x', role: 'client_owner', clientScope: [C], features: ['mcp'] });
-    expect(navFor({ kind: 'guest', ctx: withMcp }, C).map((n) => n.href)).not.toContain(`/c/${C}/settings/ai`);
-    expect(navFor({ kind: 'user', ctx: { ...withMcp, userId: 'u' } }, C).map((n) => n.href)).toContain(`/c/${C}/settings/ai`);
+    expect(settingsNavFor('client', navFlagsFor({ kind: 'guest', ctx: withMcp }), C)).toEqual([]);
+    expect(hrefs(settingsNavFor('client', navFlagsFor({ kind: 'user', ctx: { ...withMcp, userId: 'u' } }), C))).toEqual([`/c/${C}/settings/ai`]);
   });
 });
 
-describe('navFor Ask', () => {
+describe('Ask', () => {
   const withAsk = (userId = 'u') => createAccessContext({ agencyId: A, userId, role: 'client_viewer', clientScope: [C], features: ['ask'] });
 
-  it('shows "Ask {assistantName}" with the pill after Recommendations, only with the ask feature', () => {
-    const items = navFor({ kind: 'user', ctx: withAsk() }, C);
-    expect(items.map((n) => n.href)).toEqual([`/c/${C}`, `/c/${C}/recommendations`, `/c/${C}/ask`, '/inbox', '/settings/notifications']);
-    expect(items.find((n) => n.href === `/c/${C}/ask`)).toEqual({ href: `/c/${C}/ask`, label: 'Ask Friday', pill: 'Friday', icon: 'ask', group: 'client' });
-    expect(navFor({ kind: 'user', ctx: ctx('client_viewer') }, C).map((n) => n.href)).not.toContain(`/c/${C}/ask`);
+  it('shows "Ask {assistantName}" with the pill first in the client view, only with the ask feature', () => {
+    const s = navForViewer({ kind: 'user', ctx: withAsk() }, 'client', C);
+    expect(s[0]!.items[0]).toEqual({ href: `/c/${C}/ask`, label: 'Ask Friday', pill: 'Friday', icon: 'ask' });
+    expect(hrefs(navForViewer({ kind: 'user', ctx: ctx('client_viewer') }, 'client', C))).not.toContain(`/c/${C}/ask`);
   });
 
   it('uses the agency assistant name', () => {
     const flags = navFlagsFor({ kind: 'user', ctx: withAsk() }, false, 'Max');
     expect(flags).toMatchObject({ ask: true, assistantName: 'Max' });
-    expect(navItemsFor(flags, C).find((n) => n.icon === 'ask')).toMatchObject({ label: 'Ask Max', pill: 'Max' });
   });
 
   it('never shows Ask to guests, even with the feature', () => {
     const guestCtx = createAccessContext({ agencyId: A, userId: 'contact:x', role: 'client_owner', clientScope: [C], features: ['ask'] });
     expect(navFlagsFor({ kind: 'guest', ctx: guestCtx }).ask).toBe(false);
-    expect(navFor({ kind: 'guest', ctx: guestCtx }, C).map((n) => n.href)).not.toContain(`/c/${C}/ask`);
+    expect(hrefs(navForViewer({ kind: 'guest', ctx: guestCtx }, 'client', C))).not.toContain(`/c/${C}/ask`);
   });
 });
 
@@ -107,68 +104,54 @@ describe('navFlagsFor', () => {
     expect(navFlagsFor(guest, true).isPlatformOperator).toBe(false);
   });
 
-  it('shows the Platform items (Overview, Agencies, queues, Health) only when the flag is true', () => {
+  it('platform view only for operators; Costs only for the owner', () => {
     const user = { kind: 'user' as const, ctx: ctx('agency_admin'), email: 'someone@e.co' };
-    expect(navFor(user, null).some((n) => n.href.startsWith('/platform'))).toBe(false);
-    const platform = navFor(user, null, true).filter((n) => n.href.startsWith('/platform'));
-    expect(platform.map((n) => [n.href, n.label])).toEqual([
-      ['/platform', 'Overview'], ['/platform/agencies', 'Agencies'], ['/platform/billing', 'Billing'], ['/platform/leads', 'Leads'], ['/platform/reviews', 'Model reviews'], ['/platform/themes', 'Theme proposals'],
-      ['/platform/ask', 'Ask review'], ['/platform/knowledge', 'Knowledge'], ['/platform/health', 'Health'],
-    ]);
-    expect(platform.every((n) => n.group === 'account')).toBe(true);
+    expect(navForViewer(user, 'platform', null)).toEqual([]);
+    expect(labelsOf(navForViewer(user, 'platform', null, true))).toEqual(['Overview', 'Agencies', 'Lead pool', 'Billing & plans', 'Model reviews', 'Theme proposals', 'Ask reviews', 'Knowledge']);
+    expect(hrefs(navForViewer(user, 'platform', null, true, false))).not.toContain('/platform/costs');
+    expect(hrefs(navForViewer(user, 'platform', null, false, true))).toEqual([]);
+    expect(navForViewer(user, 'platform', null, true, true).at(-1)).toMatchObject({ id: 'system', items: [{ href: '/platform/costs', label: 'Costs', icon: 'costs' }] });
   });
 
-  it('nav shows Costs only with isPlatformOwner', () => {
-    const user = { kind: 'user' as const, ctx: ctx('agency_admin'), email: 'someone@e.co' };
-    const hrefs = (op: boolean, owner: boolean) => navFor(user, null, op, owner).map((n) => n.href);
-    expect(hrefs(true, false)).not.toContain('/platform/costs');
-    expect(hrefs(false, true)).not.toContain('/platform/costs');
-    const owner = hrefs(true, true);
-    expect(owner.indexOf('/platform/costs')).toBe(owner.indexOf('/platform/health') + 1);
-    expect(navFor(user, null, true, true).find((n) => n.href === '/platform/costs')).toMatchObject({ label: 'Costs', icon: 'costs', group: 'account' });
-  });
-
-  it('passes the client feature flags to the nav (agency roles get every flag)', () => {
+  it('passes the client feature flags to the nav (agency roles get every flag); manageCompetitors is gone', () => {
     const owner = createAccessContext({ agencyId: A, userId: 'u', role: 'client_owner', clientScope: [C], features: ['dashboard', 'alert_rules'] });
-    expect(navFlagsFor({ kind: 'user', ctx: owner, email: 'o@x.test' })).toMatchObject({ dashboard: true, alertRules: true, manageCompetitors: false, mcp: false });
+    const ownerFlags = navFlagsFor({ kind: 'user', ctx: owner, email: 'o@x.test' });
+    expect(ownerFlags).toMatchObject({ dashboard: true, alertRules: true, mcp: false });
+    expect(ownerFlags).not.toHaveProperty('manageCompetitors');
     const am = createAccessContext({ agencyId: A, userId: 'u', role: 'account_manager', clientScope: 'all', features: [] });
-    expect(navFlagsFor({ kind: 'user', ctx: am, email: 'am@x.test' })).toMatchObject({ dashboard: true, alertRules: true, manageCompetitors: true, mcp: true });
+    expect(navFlagsFor({ kind: 'user', ctx: am, email: 'am@x.test' })).toMatchObject({ dashboard: true, alertRules: true, mcp: true });
   });
 });
 
 describe('nav inside a support session (Phase 8b)', () => {
   const support = { kind: 'support' as const, ctx: createAccessContext({ agencyId: A, userId: 'op', role: 'agency_admin', clientScope: 'all', features: ['ask'], support: { sessionId: 's', platformUserId: 'op' } }) };
 
-  it('shows "Back to platform" to the agency console page, no Platform access, no Notifications, no platform items', () => {
-    const items = navItemsFor({ ...navFlagsFor(support, true), backToPlatform: `/platform/agencies/${A}` }, C);
-    const hrefs = items.map((n) => n.href);
-    expect(items.find((n) => n.label === 'Back to platform')).toMatchObject({ href: `/platform/agencies/${A}`, group: 'account' });
-    expect(hrefs).not.toContain('/agency/settings/platform-access');
-    expect(hrefs).not.toContain('/agency/settings/billing');
-    expect(hrefs).not.toContain('/settings/notifications');
-    expect(hrefs).not.toContain('/platform');
+  it('agency settings omit Billing, Intake link and Platform access; no platform view; no Back to platform item', () => {
+    const flags = { ...navFlagsFor(support, true), backToPlatform: `/platform/agencies/${A}` };
+    expect(labelsOf(settingsNavFor('agency', flags))).toEqual(['Branding & voice', 'Team', 'Playbooks', 'Usage & limits', 'Slack & Teams', 'AI connections']);
+    expect(navForViewer(support, 'platform', null, true)).toEqual([]);
+    expect(hrefs(navForViewer(support, 'agency', null, true))).not.toContain(`/platform/agencies/${A}`);
   });
 
-  it('hides the Inbox item (M2: the operator inbox 404s in a session) but keeps it for users and guests', () => {
+  it('keeps the inbox flag off for Task 5 (M2: the operator inbox 404s in a session) and on for users and guests', () => {
     expect(navFlagsFor(support).inbox).toBe(false);
-    expect(navFor(support, C).map((n) => n.href)).not.toContain('/inbox');
-    expect(navFor({ kind: 'user', ctx: ctx('agency_admin') }, C).map((n) => n.href)).toContain('/inbox');
-    expect(navFor({ kind: 'guest', ctx: ctx('client_viewer') }, C).map((n) => n.href)).toContain('/inbox');
+    expect(navFlagsFor({ kind: 'user', ctx: ctx('agency_admin') }).inbox).toBe(true);
+    expect(navFlagsFor({ kind: 'guest', ctx: ctx('client_viewer') }).inbox).toBe(true);
   });
 
-  it('keeps the Ask module (it shows the private-conversations copy)', () => {
-    expect(navFor(support, C).map((n) => n.href)).toContain(`/c/${C}/ask`);
+  it('keeps the Ask module (it shows the private-conversations copy) and Client settings', () => {
+    const s = navForViewer(support, 'client', C);
+    expect(hrefs(s)).toContain(`/c/${C}/ask`);
+    expect(hrefs(s)).toContain(`/c/${C}/settings`);
   });
 });
 
-describe('client Billing entry (9b)', () => {
-  it('shows after the settings items only when flagged (client owner with billing on); never for agency roles', () => {
+describe('client Billing tab (9b)', () => {
+  it('shows last only when flagged (client owner with billing on); never for agency roles', () => {
     const flags = { ...navFlagsFor({ kind: 'user', ctx: ctx('client_owner') }), clientBilling: true };
-    const hrefs = navItemsFor(flags, C).map((n) => n.href);
-    expect(hrefs).toContain(`/c/${C}/settings/billing`);
-    expect(navItemsFor(flags, C).find((n) => n.href.endsWith('/settings/billing'))).toMatchObject({ label: 'Billing', group: 'client' });
-    expect(navFor({ kind: 'user', ctx: ctx('client_owner') }, C).map((n) => n.href)).not.toContain(`/c/${C}/settings/billing`);
-    const agency = navItemsFor({ ...navFlagsFor({ kind: 'user', ctx: ctx('agency_admin') }), clientBilling: true }, C).map((n) => n.href);
-    expect(agency).not.toContain(`/c/${C}/settings/billing`);
+    expect(settingsNavFor('client', flags, C)[0]!.items.at(-1)).toMatchObject({ href: `/c/${C}/settings/billing`, label: 'Billing' });
+    expect(settingsNavFor('client', navFlagsFor({ kind: 'user', ctx: ctx('client_owner') }), C)).toEqual([]);
+    const agency = settingsNavFor('client', { ...navFlagsFor({ kind: 'user', ctx: ctx('agency_admin') }), clientBilling: true }, C);
+    expect(hrefs(agency)).not.toContain(`/c/${C}/settings/billing`);
   });
 });

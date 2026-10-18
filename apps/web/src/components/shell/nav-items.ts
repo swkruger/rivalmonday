@@ -1,28 +1,49 @@
 /**
- * Pure, client-safe nav building blocks. No server-only imports (not even `@cs/core`, whose barrel pulls in
- * `node:crypto` via `links.ts`) so this module can be imported from the 'use client' sidebar nav and client
+ * Pure, client-safe nav building blocks (Phase 15a §2.2–§2.5). No server-only imports (not even `@cs/core`, whose
+ * barrel pulls in `node:crypto` via `links.ts`) so this module can be imported from the 'use client' sidebar nav and
  * switcher without bundling server code. The server (`@/server/nav`) reduces `AccessContext` down to the plain
- * `NavRoleFlags` below and calls the same `navItemsFor` so both sides agree on the item list.
+ * `NavRoleFlags` below and calls the same `navFor` so both sides agree on the menus.
+ *
+ * Sidebar visibility is cosmetic: the tools behind each page decide access (refusals 404).
  */
+import type { NavContext } from './nav-context';
 
-/** Sidebar section: agency-wide pages, the open client's pages, then the viewer's account and agency settings. */
-export type NavGroup = 'agency' | 'client' | 'account';
+export { clientIdFromPath, contextOf, NAV_CTX_COOKIE, type NavContext, parseNavCookie } from './nav-context';
+
+export type IconKey =
+  | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
+  | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects' | 'ask' | 'knowledge'
+  | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing' | 'leads' | 'intake' | 'briefs' | 'settings';
 
 export interface NavItem {
   href: string;
   label: string;
-  group: NavGroup;
+  icon: IconKey;
   /** Rendered as the assistant pill after the label's first word ("Ask" + the orange "Friday" pill). */
   pill?: string;
-  /** Phase 11c: a small count badge after the label (e.g. new leads); omitted when zero. */
+  /** A small count badge after the label; omitted (never 0) when there is nothing waiting. */
   count?: number;
-  icon:
-    | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
-    | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects' | 'ask' | 'knowledge'
-    | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing' | 'leads' | 'intake';
 }
 
-/** Role/kind booleans plus the fixed home path for non-agency roles — everything `navItemsFor` needs besides the live `clientId`. */
+/** A labelled group of the sidebar (or a settings sub-nav). `label: null` = no heading; `foot` is pinned to the bottom. */
+export interface NavSection {
+  id: string;
+  label: string | null;
+  items: NavItem[];
+  placement?: 'top' | 'foot';
+}
+
+/** Badge counts (Task 3 fills them); a missing or zero count shows no badge. */
+export interface NavCounts {
+  approvals?: number;
+  alerts?: number;
+  leads?: number;
+  modelReviews?: number;
+  themes?: number;
+  askReviews?: number;
+}
+
+/** Role/kind booleans plus the fixed home path for non-agency roles — everything `navFor` needs besides the context and client id. */
 export interface NavRoleFlags {
   isAgency: boolean;
   isAgencyAdmin: boolean;
@@ -34,113 +55,174 @@ export interface NavRoleFlags {
   isPlatformOwner?: boolean;
   /** 5c-1 decision 2 — always true for agency roles. */
   dashboard: boolean;
-  manageCompetitors: boolean;
   alertRules: boolean;
   mcp: boolean;
   /** 6b: signed-in users with the `ask` feature (never guests, Q2). */
   ask?: boolean;
   /** 6b e10: the agency's assistant name ("Friday" when unset). */
   assistantName?: string;
-  /** Phase 8b M2: false inside a support session (`/inbox` 404s there); omitted means shown. */
+  /** Phase 8b M2: false inside a support session (`/inbox` 404s there); omitted means shown. Used by the top bar (15a Task 5). */
   inbox?: boolean;
-  /** 9b: a client owner with billing switched on for their client sees the Billing entry. */
+  /** 9b: a client owner with billing switched on for their client sees the Billing tab. */
   clientBilling?: boolean;
   /** Phase 11c: agency users who cover all clients see the Leads entry (agency admin or scope `all`). */
   leads?: boolean;
-  /** Phase 11c: how many leads are New (verified, undecided); shown as a badge on Leads. */
+  /** Phase 11c: how many leads are New (verified, undecided). Superseded by `NavCounts.leads` (15a Task 3). */
   newLeads?: number;
-  /** Phase 8b: inside a support session, the operator's way back to the agency's console page (the session continues). */
+  /** Phase 8b: inside a support session, the operator's way back to the agency's console page. Owned by the switcher (15a Task 5), not a nav item. */
   backToPlatform?: string;
 }
 
-const CLIENT_PATH = /^\/c\/([0-9a-f-]{36})/;
+type Add = (href: string, label: string, icon: IconKey, extra?: { pill?: string; count?: number }) => void;
 
-/** Extracts the `/c/<uuid>` client id from a live pathname (client-side) — the same shape proxy.ts/layout.tsx used to parse server-side. */
-export function clientIdFromPath(pathname: string): string | null {
-  return CLIENT_PATH.exec(pathname)?.[1] ?? null;
-}
-
-/** 5c adds its modules here; only screens that exist are listed. Mirrors the old `navFor` in `@/server/nav`. */
-export function navItemsFor(flags: NavRoleFlags, clientId: string | null): NavItem[] {
+/** Builds one section; returns null when every item was gated out, so empty groups never render. */
+function section(id: string, label: string | null, fill: (add: Add) => void, placement?: 'top' | 'foot'): NavSection | null {
   const items: NavItem[] = [];
-  const agency = (href: string, label: string, icon: NavItem['icon'], count?: number) => items.push({ href, label, icon, group: 'agency', ...(count ? { count } : {}) });
-  const forClient = (href: string, label: string, icon: NavItem['icon'], pill?: string) => items.push({ href, label, ...(pill ? { pill } : {}), icon, group: 'client' });
-  const account = (href: string, label: string, icon: NavItem['icon']) => items.push({ href, label, icon, group: 'account' });
-  if (flags.isAgency) {
-    agency('/agency', 'Portfolio', 'clients');
-    agency('/agency/approvals', 'Approvals', 'approvals');
-    agency('/agency/alerts', 'Alert review', 'alerts');
-    agency('/agency/prospects', 'Prospects', 'prospects');
-    if (flags.leads) agency('/agency/leads', 'Leads', 'leads', flags.newLeads);
-    agency('/agency/usage', 'Usage & limits', 'usage');
-    agency('/agency/playbooks', 'Playbooks', 'playbooks');
-    if (clientId) clientModules(flags, `/c/${clientId}`, forClient);
-  } else {
-    clientModules(flags, flags.homePath, forClient);
-  }
-  if (flags.inbox !== false) account('/inbox', 'Inbox', 'inbox');
-  if (flags.isAgency) {
-    account('/agency/team', 'Team', 'team');
-    account('/agency/ai', 'AI connections', 'ai');
-  }
-  if (flags.isAgencyAdmin) {
-    account('/agency/branding', 'Branding', 'branding');
-    account('/agency/webhooks', 'Slack & Teams', 'webhooks');
-    // Phase 8b: agency admins only, never inside a support session (the page 404s there).
-    // Phase 9a: agency admins only; the page 404s in a support session too.
-    if (flags.isUser) account('/agency/settings/billing', 'Billing', 'billing');
-    if (flags.isUser) account('/agency/settings/intake', 'Intake link', 'intake');
-    if (flags.isUser) account('/agency/settings/platform-access', 'Platform access', 'platformAccess');
-  }
-  if (flags.isUser) account('/settings/notifications', 'Notifications', 'bell');
-  if (flags.backToPlatform) account(flags.backToPlatform, 'Back to platform', 'platform');
-  if (flags.isPlatformOperator) {
-    account('/platform', 'Overview', 'platform');
-    account('/platform/agencies', 'Agencies', 'agencies');
-    account('/platform/billing', 'Billing', 'billing');
-    account('/platform/leads', 'Leads', 'leads');
-    account('/platform/reviews', 'Model reviews', 'reviews');
-    account('/platform/themes', 'Theme proposals', 'themes');
-    account('/platform/ask', 'Ask review', 'ask');
-    account('/platform/knowledge', 'Knowledge', 'knowledge');
-    account('/platform/health', 'Health', 'health');
-    if (flags.isPlatformOwner) account('/platform/costs', 'Costs', 'costs');
-  }
-  return items;
+  fill((href, itemLabel, icon, extra) => {
+    const item: NavItem = { href, label: itemLabel, icon };
+    if (extra?.pill) item.pill = extra.pill;
+    if (extra?.count) item.count = extra.count;
+    items.push(item);
+  });
+  if (!items.length) return null;
+  return placement ? { id, label, items, placement } : { id, label, items };
 }
 
-/** Client modules in mockup order (5c-1 Global Constraints). Later tasks add their item at the marked spot. */
-function clientModules(flags: NavRoleFlags, base: string, add: (href: string, label: string, icon: NavItem['icon'], pill?: string) => void): void {
-  add(base, 'Overview', 'overview');
-  if (flags.dashboard) add(`${base}/competitors`, 'Competitors', 'competitors');
-  if (flags.dashboard) add(`${base}/changes`, 'Changes', 'changes');
-  if (flags.dashboard) add(`${base}/pricing`, 'Pricing', 'pricing');
-  if (flags.dashboard) add(`${base}/ads`, 'Ads', 'ads');
-  if (flags.dashboard) add(`${base}/reviews`, 'Reviews', 'reputation');
-  if (flags.dashboard) add(`${base}/rankings`, 'Local rankings', 'rankings');
-  if (flags.dashboard) add(`${base}/moves`, 'Moves', 'moves');
-  add(`${base}/recommendations`, 'Recommendations', 'recommendations');
-  if (flags.ask) {
-    const name = flags.assistantName?.trim() || 'Friday';
-    add(`${base}/ask`, `Ask ${name}`, 'ask', name);
-  }
-  if (flags.isAgency) {
-    add(`${base}/settings/profile`, 'Profile', 'profile');
-    add(`${base}/settings/delivery`, 'Delivery', 'delivery');
-  } else if (flags.dashboard) {
-    add(`${base}/settings/profile`, 'Services & area', 'profile');
-  }
-  if (flags.alertRules) add(`${base}/settings/alerts`, 'Alert rules', 'alertRules');
-  if (flags.mcp) add(`${base}/settings/ai`, 'AI connections', 'ai');
-  if (!flags.isAgency && flags.clientBilling) add(`${base}/settings/billing`, 'Billing', 'billing');
+const compact = (sections: (NavSection | null)[]): NavSection[] => sections.filter((s): s is NavSection => s !== null);
+
+/** The client base path: client roles and guests always use their own client (homePath); agency roles the open one. */
+function clientBase(flags: NavRoleFlags, clientId: string | null | undefined): string | null {
+  if (!flags.isAgency && flags.homePath.startsWith('/c/')) return flags.homePath;
+  return clientId ? `/c/${clientId}` : null;
 }
 
-function isActive(href: string, active: string): boolean {
-  return active === href || active.startsWith(`${href}/`);
+/** Spec §2.3: the sidebar menu for one context. Empty when the viewer has no such context (or no client is open). */
+export function navFor(context: NavContext, flags: NavRoleFlags, clientId: string | null, counts: NavCounts = {}): NavSection[] {
+  if (context === 'platform') return flags.isPlatformOperator ? platformNav(flags, counts) : [];
+  if (context === 'agency') return flags.isAgency ? agencyNav(flags, counts) : [];
+  const base = clientBase(flags, clientId);
+  return base ? clientNav(flags, base) : [];
 }
 
-/** The deepest (longest-href) matching item wins, so `/c/<id>` doesn't also light up `/c/<id>/settings/delivery`. */
-export function activeHref(items: NavItem[], active: string): string | null {
-  const matches = items.filter((i) => isActive(i.href, active));
-  return matches.length ? matches.reduce((a, b) => (b.href.length > a.href.length ? b : a)).href : null;
+function platformNav(flags: NavRoleFlags, counts: NavCounts): NavSection[] {
+  // Health stays hidden until Phase 7.
+  return compact([
+    section('top', null, (add) => add('/platform', 'Overview', 'platform'), 'top'),
+    section('customers', 'Customers', (add) => {
+      add('/platform/agencies', 'Agencies', 'agencies');
+      add('/platform/leads', 'Lead pool', 'leads');
+    }),
+    section('revenue', 'Revenue', (add) => add('/platform/billing', 'Billing & plans', 'billing')),
+    section('quality', 'Quality', (add) => {
+      add('/platform/reviews', 'Model reviews', 'reviews', { count: counts.modelReviews });
+      add('/platform/themes', 'Theme proposals', 'themes', { count: counts.themes });
+      add('/platform/ask', 'Ask reviews', 'ask', { count: counts.askReviews });
+    }),
+    section('content', 'Content', (add) => add('/platform/knowledge', 'Knowledge', 'knowledge')),
+    section('system', 'System', (add) => {
+      if (flags.isPlatformOwner) add('/platform/costs', 'Costs', 'costs');
+    }),
+  ]);
+}
+
+function agencyNav(flags: NavRoleFlags, counts: NavCounts): NavSection[] {
+  return compact([
+    section('top', null, (add) => add('/agency', 'Portfolio', 'clients'), 'top'),
+    section('work', 'Work', (add) => {
+      add('/agency/approvals', 'Approvals', 'approvals', { count: counts.approvals });
+      add('/agency/alerts', 'Alert review', 'alerts', { count: counts.alerts });
+    }),
+    section('growth', 'Growth', (add) => {
+      add('/agency/prospects', 'Prospects', 'prospects');
+      if (flags.leads) add('/agency/leads', 'Leads', 'leads', { count: counts.leads });
+    }),
+    section('foot', null, (add) => add('/agency/settings', 'Agency settings', 'settings'), 'foot'),
+  ]);
+}
+
+function clientNav(flags: NavRoleFlags, base: string): NavSection[] {
+  const name = flags.assistantName?.trim() || 'Friday';
+  // Client settings: agency roles; client roles when any tab is visible to them; never guests (§2.3).
+  const settings = (flags.isUser || flags.isAgency) && clientSettings(flags, base) !== null;
+  return compact([
+    section('top', null, (add) => {
+      if (flags.ask) add(`${base}/ask`, `Ask ${name}`, 'ask', { pill: name });
+      add(base, 'Overview', 'overview');
+    }, 'top'),
+    section('insights', 'Insights', (add) => {
+      if (!flags.dashboard) return;
+      add(`${base}/competitors`, 'Competitors', 'competitors');
+      add(`${base}/changes`, 'Changes', 'changes');
+      add(`${base}/pricing`, 'Pricing', 'pricing');
+      add(`${base}/ads`, 'Ads', 'ads');
+      add(`${base}/reviews`, 'Reviews', 'reputation');
+      add(`${base}/rankings`, 'Local rankings', 'rankings');
+      add(`${base}/moves`, 'Moves', 'moves');
+    }),
+    section('act', 'Act', (add) => {
+      add(`${base}/recommendations`, 'Recommendations', 'recommendations');
+      add(`${base}/briefs`, 'Briefs & reports', 'briefs');
+    }),
+    section('foot', null, (add) => {
+      if (settings) add(`${base}/settings`, 'Client settings', 'settings');
+    }, 'foot'),
+  ]);
+}
+
+/** Spec §2.5: the settings sub-nav. Visibility per tab = the gate of the page today. */
+export function settingsNavFor(area: 'agency' | 'client', flags: NavRoleFlags, clientId?: string): NavSection[] {
+  if (area === 'agency') return flags.isAgency ? agencySettings(flags) : [];
+  const base = clientBase(flags, clientId);
+  const main = base ? clientSettings(flags, base) : null;
+  return main ? [main] : [];
+}
+
+function agencySettings(flags: NavRoleFlags): NavSection[] {
+  const admin = flags.isAgencyAdmin;
+  // Billing, Intake link and Platform access 404 inside a support session (8b/9a), hence `isUser`.
+  const adminUser = admin && flags.isUser;
+  return compact([
+    section('agency', 'Agency', (add) => {
+      if (admin) add('/agency/settings/branding', 'Branding & voice', 'branding');
+      add('/agency/settings/team', 'Team', 'team');
+      add('/agency/settings/playbooks', 'Playbooks', 'playbooks');
+    }),
+    section('plan', 'Plan', (add) => {
+      if (adminUser) add('/agency/settings/billing', 'Billing', 'billing');
+      add('/agency/settings/usage', 'Usage & limits', 'usage');
+    }),
+    section('growth', 'Growth', (add) => {
+      if (adminUser) add('/agency/settings/intake', 'Intake link', 'intake');
+    }),
+    section('integrations', 'Integrations', (add) => {
+      if (admin) add('/agency/settings/slack-teams', 'Slack & Teams', 'webhooks');
+      add('/agency/settings/ai', 'AI connections', 'ai');
+    }),
+    section('security', 'Security', (add) => {
+      if (adminUser) add('/agency/settings/platform-access', 'Platform access', 'platformAccess');
+    }),
+  ]);
+}
+
+function clientSettings(flags: NavRoleFlags, base: string): NavSection | null {
+  return section('main', null, (add) => {
+    // "Business profile" replaces both "Profile" (agency roles) and "Services & area" (client roles with dashboard).
+    if (flags.isAgency || flags.dashboard) add(`${base}/settings/profile`, 'Business profile', 'profile');
+    if (flags.isAgency) add(`${base}/settings/delivery`, 'Delivery', 'delivery');
+    if (flags.alertRules) add(`${base}/settings/alerts`, 'Alert rules', 'alertRules');
+    if (flags.mcp) add(`${base}/settings/ai`, 'AI connection', 'ai');
+    if (!flags.isAgency && flags.clientBilling) add(`${base}/settings/billing`, 'Billing', 'billing');
+  });
+}
+
+function isActive(href: string, path: string): boolean {
+  return path === href || path.startsWith(`${href}/`);
+}
+
+/** The deepest (longest-href) matching item wins, so `/c/<id>` doesn't also light up `/c/<id>/briefs/<x>`. */
+export function activeHref(sections: NavSection[], pathname: string): string | null {
+  const path = pathname.split(/[?#]/)[0]!;
+  let best: string | null = null;
+  for (const s of sections) for (const i of s.items) if (isActive(i.href, path) && (best === null || i.href.length > best.length)) best = i.href;
+  return best;
 }

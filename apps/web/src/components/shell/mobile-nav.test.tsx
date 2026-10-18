@@ -12,7 +12,7 @@ const { MobileNav } = await import('./mobile-nav');
 
 const flags: NavRoleFlags = {
   isAgency: false, isAgencyAdmin: false, isUser: true, homePath: '/c/11111111-1111-1111-1111-111111111111',
-  dashboard: true, manageCompetitors: false, alertRules: false, mcp: false,
+  dashboard: true, alertRules: false, mcp: false,
 };
 
 describe('MobileNav (decision 14)', () => {
