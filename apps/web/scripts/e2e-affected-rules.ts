@@ -25,6 +25,8 @@ const SERVER = `${WEB}src/server/`;
 const re = (s: string) => new RegExp(`^${s}`);
 
 const GUEST_FILES = ['@guest', '@evidence', '@briefs'];
+/** Every tag whose tests open an agency settings page (`/agency/settings/*`). */
+const SETTINGS_PAGES = ['@usage', '@playbooks', '@support', '@billing', '@client-billing', '@leads', '@ai-connections'];
 
 /** Keyword rules for the domain packages; anything there no keyword catches runs everything. */
 const PKG = 'packages/(?:tools|engine|email|storage|collectors|ai)/src/|packages/(?:verticals|demo)/';
@@ -74,7 +76,7 @@ export const RULES: Rule[] = [
   // --- AI connections (MCP server, OAuth consent, AI settings pages) ---
   { pattern: /^packages\/mcp\//, tags: ['@ai-connections'], why: 'AI connections (MCP server)' },
   { pattern: re(`${APP}(?:mcp/|\\.well-known/|oauth/)`), tags: ['@ai-connections'], why: 'AI connections (MCP route, OAuth metadata/consent)' },
-  { pattern: re(`${APP}\\(app\\)/(?:agency|c/\\[clientId\\]/settings|settings)/ai/`), tags: ['@ai-connections'], why: 'AI connections settings' },
+  { pattern: re(`${APP}\\(app\\)/(?:agency/settings|c/\\[clientId\\]/settings|settings)/ai/`), tags: ['@ai-connections'], why: 'AI connections settings' },
   { pattern: re(`${SERVER}(?:mcp|oauth-consent|ai-connections)\\.ts$`), tags: ['@ai-connections'], why: 'AI connections server module' },
   { pattern: re(`${COMP}ai-connections\\.tsx$`), tags: ['@ai-connections'], why: 'AI connections cards' },
 
@@ -98,11 +100,12 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}alerts/`), tags: ['@alerts'], why: 'alert queue' },
   { pattern: re(`${AGENCY}approvals/`), tags: ['@briefs', '@recommendations', '@starting-point'], why: 'brief approvals (a starting point is approved and sent here)' },
   { pattern: re(`${AGENCY}clients/`), tags: ['@clients'], why: 'new client' },
-  { pattern: re(`${AGENCY}playbooks/`), tags: ['@playbooks'], why: 'playbooks' },
+  { pattern: re(`${AGENCY}settings/playbooks/`), tags: ['@playbooks'], why: 'playbooks' },
   { pattern: re(`${AGENCY}prospects/`), tags: ['@prospects', '@clients'], why: 'prospects' },
-  { pattern: re(`${AGENCY}usage/`), tags: ['@usage'], why: 'usage and limits' },
-  { pattern: re(`${AGENCY}branding/logo/`), tags: ['@onboarding'], why: 'logo upload route (the wizard branding step uploads a logo)' },
-  { pattern: re(`${AGENCY}(?:branding|team|webhooks)/`), tags: [], why: 'no E2E covers this agency page' },
+  { pattern: re(`${AGENCY}settings/usage/`), tags: ['@usage'], why: 'usage and limits' },
+  { pattern: re(`${AGENCY}settings/branding/logo/`), tags: ['@onboarding'], why: 'logo upload route (the wizard branding step uploads a logo)' },
+  { pattern: re(`${AGENCY}settings/(?:branding|team|slack-teams)/`), tags: [], why: 'no E2E covers this agency page' },
+  { pattern: re(`${AGENCY}settings/(?:layout|page)\\.tsx$|${COMP}settings-nav\\.tsx$`), tags: SETTINGS_PAGES, why: 'agency settings layout, index redirect and sub-nav (wrap every agency settings page)' },
   { pattern: re(`${APP}\\(app\\)/onboarding/(?!start/)|${COMP}agency/`), tags: ['@onboarding'], why: 'onboarding wizard, checklist and shared branding editor' },
   { pattern: re(`${AGENCY}settings/platform-access/`), tags: ['@support'], why: 'agency support-session history and notify switch' },
   { pattern: re(`${C}settings/billing/`), tags: ['@billing', '@client-billing'], why: 'client owner billing page and portal action' },

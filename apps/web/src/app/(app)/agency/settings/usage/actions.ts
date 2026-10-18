@@ -22,6 +22,6 @@ export async function saveLimitsAction(_p: FormResult, fd: FormData): Promise<Fo
   }
   const r = await runTool(ctx, 'set_client_limits', { clientId: String(fd.get('clientId') ?? ''), monthlyCapUsd, competitorLimit, ...(askMonthlyQuota !== undefined ? { askMonthlyQuota } : {}) });
   if (!r.ok) return r;
-  revalidatePath('/agency/usage');
+  revalidatePath('/agency/settings/usage');
   return { ok: true, message: 'Limits saved.' };
 }

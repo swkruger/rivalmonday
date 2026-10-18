@@ -144,7 +144,7 @@ test('uploading a logo in the branding step shows it in the live preview', { tag
     await signUpAndConfirm(page, `owner@${domain('logo')}`, 'Logo Upload Agency');
     await page.goto('/onboarding?step=branding');
     await expect(page.getByRole('heading', { name: 'Make it yours', level: 1 })).toBeVisible();
-    const upload = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith('/agency/branding/logo'));
+    const upload = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith('/agency/settings/branding/logo'));
     const png = await sharp({ create: { width: 64, height: 32, channels: 3, background: '#2A6BAC' } }).png().toBuffer();
     await page.getByLabel('Upload logo').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png });
     expect((await upload).status()).toBe(200);

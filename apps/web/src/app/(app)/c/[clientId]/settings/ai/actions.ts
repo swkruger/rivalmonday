@@ -12,7 +12,7 @@ function pagePath(fd: FormData): string {
   return `/c/${clientId}/settings/ai`;
 }
 
-/** Client roles create client-bound tokens here (P10); agency roles create agency-wide ones on /agency/ai. */
+/** Client roles create client-bound tokens here (P10); agency roles create agency-wide ones on /agency/settings/ai. */
 export async function createClientTokenAction(_prev: CreateTokenResult, fd: FormData): Promise<CreateTokenResult> {
   const { ctx } = await requireContext();
   if (isAgencyRole(ctx.role)) notFound();

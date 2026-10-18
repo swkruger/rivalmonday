@@ -45,7 +45,7 @@ async function readCapped(req: Request, max: number): Promise<Uint8Array<ArrayBu
 }
 
 /**
- * Phase 10 `POST /agency/branding/logo` (multipart field `file`): agency admins only (everyone else 404, support
+ * Phase 10 `POST /agency/settings/branding/logo` (multipart field `file`): agency admins only (everyone else 404, support
  * sessions included — their writes are refused anyway). Size is checked before decoding (Content-Length, then a capped
  * read, then the file size), `normalizeLogo` re-encodes to a ≤ 512 px PNG, and `upload_agency_logo` stores it and
  * points `agency.branding.logoUrl` at `/files/logo/<agency>/<sha>.png`. Errors: 400 `{ error, message }`.

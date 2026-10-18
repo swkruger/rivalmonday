@@ -37,7 +37,7 @@ interface Props {
   footer?: React.ReactNode;
 }
 
-/** Shared by `/agency/branding` and the onboarding wizard's branding step. */
+/** Shared by `/agency/settings/branding` and the onboarding wizard's branding step. */
 export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Save changes', footer }: Props) {
   const [state, formAction, pending] = useActionState(action, { ok: true } as FormResult);
   const [uploading, setUploading] = useState(false);
@@ -57,7 +57,7 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
     try {
       const body = new FormData();
       body.append('file', file);
-      const res = await fetch('/agency/branding/logo', { method: 'POST', body });
+      const res = await fetch('/agency/settings/branding/logo', { method: 'POST', body });
       const json = (await res.json().catch(() => null)) as { logoUrl?: string; message?: string } | null;
       if (res.ok && json?.logoUrl) set('logoUrl')(json.logoUrl);
       else setUploadError(json?.message ?? "That logo couldn't be uploaded. Try a different file.");

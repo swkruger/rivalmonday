@@ -65,7 +65,7 @@ test('an admin dismisses a pending alert with a reason', { tag: ['@alerts'] }, a
 });
 
 test('usage shows the near-cap warning and an admin raises the cap', { tag: ['@usage'] }, async ({ page }) => {
-  await page.goto('/agency/usage');
+  await page.goto('/agency/settings/usage');
   await expect(page.getByText(/87% · near cap/)).toBeVisible();
   await page.getByLabel('Monthly cap for E2E HVAC (USD)').fill('30');
   await page.getByRole('button', { name: 'Save limits for E2E HVAC' }).click();
@@ -74,7 +74,7 @@ test('usage shows the near-cap warning and an admin raises the cap', { tag: ['@u
 });
 
 test('an admin edits a playbook and an unknown placeholder is refused', { tag: ['@playbooks'] }, async ({ page }) => {
-  await page.goto('/agency/playbooks');
+  await page.goto('/agency/settings/playbooks');
   const card = page.locator('form').filter({ has: page.locator('input[name="playbookId"][value="price_cut_bundle"]') });
   await card.getByLabel('Template').fill('Hi {{client}}');
   await card.getByRole('button', { name: 'Save' }).click();

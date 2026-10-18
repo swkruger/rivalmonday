@@ -46,7 +46,7 @@ export default async function AiConnectionsPage({ params }: { params: Promise<{ 
           agency ? (
             <p className="rounded-lg bg-muted-surface p-3 text-ink">
               Agency-wide tokens live under{' '}
-              <Link href="/agency/ai" className="font-semibold text-primary-soft-text underline">
+              <Link href="/agency/settings/ai" className="font-semibold text-primary-soft-text underline">
                 AI connections
               </Link>{' '}
               in the agency menu.

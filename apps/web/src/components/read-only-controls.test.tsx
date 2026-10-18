@@ -15,8 +15,8 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
 }
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
-vi.mock('@/app/(app)/agency/webhooks/actions', () => ({ addWebhookAction: vi.fn(), toggleWebhookAction: vi.fn() }));
-vi.mock('@/app/(app)/agency/team/actions', () => ({ inviteAction: vi.fn(), revokeInvitationAction: vi.fn(), revokeMembershipAction: vi.fn() }));
+vi.mock('@/app/(app)/agency/settings/slack-teams/actions', () => ({ addWebhookAction: vi.fn(), toggleWebhookAction: vi.fn() }));
+vi.mock('@/app/(app)/agency/settings/team/actions', () => ({ inviteAction: vi.fn(), revokeInvitationAction: vi.fn(), revokeMembershipAction: vi.fn() }));
 vi.mock('@/app/(app)/agency/approvals/[briefId]/actions', () => ({
   editItemAction: vi.fn(), dropItemAction: vi.fn(), moveItemAction: vi.fn(), rateItemAction: vi.fn(), approveAction: vi.fn(), sendNowAction: vi.fn(), autoSendAction: vi.fn(),
 }));
@@ -26,8 +26,8 @@ vi.mock('@/app/(app)/c/[clientId]/competitors/actions', () => ({
   requestSuggestionsAction: vi.fn(), acceptSuggestionsAction: vi.fn(), dismissSuggestionAction: vi.fn(), addCompetitorAction: vi.fn(), removeCompetitorAction: vi.fn(), searchStatusAction: vi.fn(),
 }));
 
-const { WebhookToggle, AddWebhookForm } = await import('@/app/(app)/agency/webhooks/webhook-controls');
-const { InviteForm, RemoveMemberButton } = await import('@/app/(app)/agency/team/invite-form');
+const { WebhookToggle, AddWebhookForm } = await import('@/app/(app)/agency/settings/slack-teams/webhook-controls');
+const { InviteForm, RemoveMemberButton } = await import('@/app/(app)/agency/settings/team/invite-form');
 const { AddRecipientForm, DeactivateRecipientButton, DeliveryForm } = await import('@/app/(app)/c/[clientId]/settings/delivery/delivery-controls');
 const { AddCompetitorForm, SuggestionsPanel, TrackedCompetitorsTable } = await import('@/app/(app)/c/[clientId]/competitors/competitor-controls');
 const { ReviewItem, ReviewFooter } = await import('@/app/(app)/agency/approvals/[briefId]/review-controls');
@@ -61,7 +61,7 @@ describe('write controls hide in a support session', () => {
       <>
         <InviteForm clients={[{ id: 'c1', name: 'Lone Star Air' }]} canInviteAgencyRoles />
         <RemoveMemberButton membershipId="m1" name="Ana" />
-        <a href="/agency/team?x=1">Older</a>
+        <a href="/agency/settings/team?x=1">Older</a>
       </>,
     );
     expect(container.querySelector('form')).toBeNull();

@@ -11,7 +11,7 @@ import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
 
 /**
- * Phase 6a "AI connections" cards, shared by `/c/<id>/settings/ai` and `/agency/ai`; the page passes its own server
+ * Phase 6a "AI connections" cards, shared by `/c/<id>/settings/ai` and `/agency/settings/ai`; the page passes its own server
  * actions. A new token's text lives only in this component's state (the create action's result): never logged, never
  * in a URL, never in browser storage. Every action result is held by the always-mounted card, not by the row or
  * dialog that triggered it, so it survives the `revalidatePath` that removes that row (apps/web CLAUDE.md).

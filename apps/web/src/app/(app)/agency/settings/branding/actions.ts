@@ -11,6 +11,6 @@ export async function saveBrandingAction(_prev: FormResult, formData: FormData):
   const branding = parseBrandingForm(formData);
   const r = await runTool(ctx, 'update_agency_branding', branding);
   if (!r.ok) return r;
-  revalidatePath('/agency/branding');
+  revalidatePath('/agency/settings/branding');
   return { ok: true, message: 'Branding saved.' };
 }

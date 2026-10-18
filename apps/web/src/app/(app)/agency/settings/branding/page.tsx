@@ -13,7 +13,7 @@ export default async function BrandingPage() {
 
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Branding</h1>
+      <h1 className="text-[26px] font-extrabold tracking-tight">Branding &amp; voice</h1>
       <p className="text-muted-foreground">Make Rival Monday look like your agency. Your clients never see our name.</p>
       <BrandingForm initial={stored} agencyName={resolved.displayName} />
     </>

@@ -13,6 +13,17 @@ const config: NextConfig = {
   // Native/heavy server dependencies pulled in through @cs/engine → @cs/collectors; never bundled.
   serverExternalPackages: ['playwright', 'playwright-core', 'pg-boss', 'pg', 'postgres', 'compromise', 'cheerio', 'pdf-lib'],
   poweredByHeader: false,
+  // Phase 15a §2.6 (D15): agency pages moved under `/agency/settings/`; old bookmarks keep working (308, path + query kept).
+  async redirects() {
+    return [
+      { source: '/agency/team/:path*', destination: '/agency/settings/team/:path*', permanent: true },
+      { source: '/agency/branding/:path*', destination: '/agency/settings/branding/:path*', permanent: true },
+      { source: '/agency/webhooks/:path*', destination: '/agency/settings/slack-teams/:path*', permanent: true },
+      { source: '/agency/ai/:path*', destination: '/agency/settings/ai/:path*', permanent: true },
+      { source: '/agency/usage/:path*', destination: '/agency/settings/usage/:path*', permanent: true },
+      { source: '/agency/playbooks/:path*', destination: '/agency/settings/playbooks/:path*', permanent: true },
+    ];
+  },
 };
 
 export default config;

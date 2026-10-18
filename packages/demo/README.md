@@ -18,14 +18,14 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | Screen | Signed in as | Tools that must return data | Empty on purpose |
 |---|---|---|---|
 | `/agency` | admin | `get_portfolio`, `list_client_billing_status`, `get_onboarding_status`, `get_billing_summary` | — |
-| `/agency/ai` | admin | `list_api_tokens` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
+| `/agency/settings/ai` | admin | `list_api_tokens` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
 | `/agency/alerts` | admin | `list_alert_queue` | — |
 | `/agency/approvals` | admin | `list_brief_queue` | — |
 | `/agency/approvals/[briefId]` | admin | `get_brief_review` | — |
 | `/agency/approvals/[briefId] (quiet)` | admin | — | `get_brief_review`: Brazos’s brief is held as quiet |
-| `/agency/branding` | admin | `fn:getAgencyBranding` | — |
+| `/agency/settings/branding` | admin | `fn:getAgencyBranding` | — |
 | `/agency/settings/platform-access` | admin | `list_support_sessions` | — |
-| `/agency/playbooks` | admin | `list_playbooks` | — |
+| `/agency/settings/playbooks` | admin | `list_playbooks` | — |
 | `/c/[clientId]/setup` | admin | `get_client_setup`, `get_client_profile`, `get_connect_status`, `list_client_billing_status` | — |
 | `/c/[clientId]/setup (client owner)` | ownerSetup | `get_client_setup`, `get_client_profile` | — |
 | `/c/[clientId]/setup (closed, client owner)` | ownerLoneStar | `get_client_profile` | `get_client_setup`: a client owner gets a 404 once setup is closed |
@@ -33,9 +33,9 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/settings/intake` | admin | `get_intake_link` | — |
 | `/agency/prospects` | admin | `list_prospects` | — |
 | `/agency/prospects/[clientId]` | admin | `get_client_profile`, `get_prospect_report`, `list_client_competitors` | — |
-| `/agency/team` | admin | `fn:listTeam`, `list_clients` | — |
-| `/agency/usage` | admin | `get_usage` | — |
-| `/agency/webhooks` | admin | `fn:listWebhooks` | — |
+| `/agency/settings/team` | admin | `fn:listTeam`, `list_clients` | — |
+| `/agency/settings/usage` | admin | `get_usage` | — |
+| `/agency/settings/slack-teams` | admin | `fn:listWebhooks` | — |
 | `/c/[clientId]` | admin | `get_client_profile`, `get_workspace_overview`, `get_ad_activity`, `get_brief`, `list_alerts`, `list_briefs`, `list_moves`, `list_recommendations`, `list_trend_reports`, `get_starting_point_status`, `get_client_setup`, `get_ask_starters` | — |
 | `/c/[clientId] (client owner)` | ownerLoneStar | `get_starting_point_status`, `get_workspace_overview`, `list_briefs`, `get_brief` | — |
 | `/c/[clientId]/ads` | admin | `get_ad_activity`, `list_ads` | `list_ads`: one competitor runs no ads |

@@ -49,7 +49,7 @@ describe('resolveAffected', () => {
   it('maps AI-connection paths to @ai-connections and settings/ai off the delivery rule', () => {
     for (const f of [
       'packages/mcp/src/handler.ts', 'apps/web/src/app/mcp/route.ts', 'apps/web/src/app/.well-known/oauth-protected-resource/[[...path]]/route.ts', 'apps/web/src/app/oauth/consent/page.tsx',
-      'apps/web/src/app/(app)/c/[clientId]/settings/ai/page.tsx', 'apps/web/src/app/(app)/agency/ai/page.tsx', 'apps/web/src/server/mcp.ts', 'apps/web/src/server/oauth-consent.ts',
+      'apps/web/src/app/(app)/c/[clientId]/settings/ai/page.tsx', 'apps/web/src/app/(app)/agency/settings/ai/page.tsx', 'apps/web/src/server/mcp.ts', 'apps/web/src/server/oauth-consent.ts',
       'apps/web/src/server/ai-connections.ts', 'apps/web/src/components/ai-connections.tsx', 'packages/tools/src/tools/api-tokens.ts', 'packages/tools/src/access/oauth.ts',
     ]) {
       expect(resolve(f), f).toMatchObject({ mode: 'some', tags: ['@ai-connections', '@smoke'] });
@@ -142,7 +142,17 @@ describe('resolveAffected', () => {
   });
 
   it('runs only @smoke for a page no test covers', () => {
-    expect(resolve('apps/web/src/app/(app)/agency/team/page.tsx')).toMatchObject({ mode: 'some', tags: ['@smoke'] });
+    expect(resolve('apps/web/src/app/(app)/agency/settings/team/page.tsx')).toMatchObject({ mode: 'some', tags: ['@smoke'] });
+  });
+
+  it('maps the moved agency settings pages and the shared settings layout (15a)', () => {
+    expect(resolve('apps/web/src/app/(app)/agency/settings/usage/page.tsx').tags).toEqual(['@smoke', '@usage']);
+    expect(resolve('apps/web/src/app/(app)/agency/settings/playbooks/page.tsx').tags).toEqual(['@playbooks', '@smoke']);
+    expect(resolve('apps/web/src/app/(app)/agency/settings/branding/logo/route.ts').tags).toEqual(['@onboarding', '@smoke']);
+    expect(matchRule('apps/web/src/app/(app)/agency/settings/ai/page.tsx').why).toMatch(/AI connections/);
+    for (const f of ['apps/web/src/app/(app)/agency/settings/layout.tsx', 'apps/web/src/app/(app)/agency/settings/page.tsx', 'apps/web/src/components/settings-nav.tsx']) {
+      expect(resolve(f).tags, f).toEqual(['@ai-connections', '@billing', '@client-billing', '@leads', '@playbooks', '@smoke', '@support', '@usage']);
+    }
   });
 
   it('builds a grep that does not match longer tags', () => {

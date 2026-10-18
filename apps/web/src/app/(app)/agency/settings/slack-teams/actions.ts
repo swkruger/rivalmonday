@@ -18,7 +18,7 @@ export async function addWebhookAction(_prev: FormResult, formData: FormData): P
   if (kind !== 'slack' && kind !== 'teams') return { ok: false, error: 'Choose Slack or Teams' };
   const r = await runTool(ctx, 'add_webhook', { kind, url: String(formData.get('url') ?? ''), kinds: kindsFromForm(formData) });
   if (!r.ok) return r;
-  revalidatePath('/agency/webhooks');
+  revalidatePath('/agency/settings/slack-teams');
   return { ok: true, message: 'Webhook added.' };
 }
 
@@ -32,6 +32,6 @@ export async function toggleWebhookAction(input: { id: string; active: boolean }
   if (ctx.role !== 'agency_admin') notFound();
   const r = await runTool(ctx, 'set_webhook_active', { webhookId: input.id, active: input.active });
   if (!r.ok && ctx.support) return { ok: false, error: READ_ONLY_SESSION_MESSAGE };
-  revalidatePath('/agency/webhooks');
+  revalidatePath('/agency/settings/slack-teams');
   return { ok: true };
 }

@@ -5,7 +5,7 @@ import type { CreateTokenResult, RowResult } from '@/components/ai-connections';
 import { runTool } from './run-tool';
 
 /**
- * Phase 6a: the write half of the AI connections pages (`/c/<id>/settings/ai`, `/agency/ai`). Every write is a
+ * Phase 6a: the write half of the AI connections pages (`/c/<id>/settings/ai`, `/agency/settings/ai`). Every write is a
  * registered tool via `runTool`; the caller has already re-derived `ctx` and checked its role. The created token's
  * text is returned to the form once and never logged.
  */

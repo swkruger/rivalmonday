@@ -101,7 +101,7 @@ test.describe('support sessions', () => {
       await expect(banner(page)).toContainText('Investigating a report that the weekly brief is late');
       await expect(banner(page).getByRole('button', { name: 'Exit' })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Add client' })).toHaveCount(0);
-      await page.goto('/agency/team');
+      await page.goto('/agency/settings/team');
       await expect(banner(page)).toBeVisible();
       await expect(page.getByRole('button', { name: /invite/i })).toHaveCount(0);
     });

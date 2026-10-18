@@ -5,7 +5,7 @@ import type { CreateTokenResult, RowResult } from '@/components/ai-connections';
 import { createToken, revokeGrant, revokeToken } from '@/server/ai-connections';
 import { requireContext } from '@/server/current-viewer';
 
-const PATH = '/agency/ai';
+const PATH = '/agency/settings/ai';
 
 async function agencyCtx(): Promise<AccessContext> {
   const { ctx } = await requireContext();

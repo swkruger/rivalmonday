@@ -80,14 +80,14 @@ const setupStaffCalls = (clientId: (ids: DemoIds) => string): CoverageCall[] => 
 ];
 const setupPending = (ids: DemoIds) => ids.clients.setupPending;
 
-/** Pages that show forms only (no seeded data to check). */
-export const NO_DATA_ROUTES = ['/agency/clients/new', '/agency/prospects/new'] as const;
+/** Pages that show forms only, or only redirect (`/agency/settings` opens its first tab): no seeded data to check. */
+export const NO_DATA_ROUTES = ['/agency/clients/new', '/agency/prospects/new', '/agency/settings'] as const;
 
 /**
  * Tools read by the shared shell (`components/shell/app-shell.tsx`, rendered by the `(app)` and `(platform)` layouts) on every page. They are checked once, in the screen entry named here, rather
  * than in every entry; the coverage test requires each layout read to be listed and its entry to call it.
  */
-export const SHARED_READS: Readonly<Record<string, string>> = { list_clients: '/agency/team' };
+export const SHARED_READS: Readonly<Record<string, string>> = { list_clients: '/agency/settings/team' };
 
 /** Spec §4.9: every screen route, the tool calls it makes, and the empty states left on purpose. */
 export const SCREENS: readonly ScreenCoverage[] = [
@@ -101,7 +101,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
     ],
   },
   {
-    route: '/agency/ai', as: 'admin', calls: [
+    route: '/agency/settings/ai', as: 'admin', calls: [
       { tool: 'list_api_tokens', input: none, path: 'items' },
       { tool: 'list_oauth_grants', input: none, path: 'items', expect: 'empty', why: 'OAuth grants need a real AI app to connect' },
     ],
@@ -110,9 +110,9 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/agency/approvals', as: 'admin', calls: [{ tool: 'list_brief_queue', input: none, path: 'items' }] },
   { route: '/agency/approvals/[briefId]', as: 'admin', calls: [{ tool: 'get_brief_review', input: (ids) => ({ briefId: ids.briefs.readyLoneStar }), path: 'items' }] },
   { route: '/agency/approvals/[briefId] (quiet)', as: 'admin', calls: [{ tool: 'get_brief_review', input: (ids) => ({ briefId: ids.briefs.quietBrazos }), path: 'items', expect: 'empty', why: 'Brazos’s brief is held as quiet' }] },
-  { route: '/agency/branding', as: 'admin', calls: [{ tool: 'fn:getAgencyBranding', input: none, path: 'stored' }] },
+  { route: '/agency/settings/branding', as: 'admin', calls: [{ tool: 'fn:getAgencyBranding', input: none, path: 'stored' }] },
   { route: '/agency/settings/platform-access', as: 'admin', calls: [{ tool: 'list_support_sessions', input: none, path: 'rows' }] },
-  { route: '/agency/playbooks', as: 'admin', calls: [{ tool: 'list_playbooks', input: none, path: 'verticals' }] },
+  { route: '/agency/settings/playbooks', as: 'admin', calls: [{ tool: 'list_playbooks', input: none, path: 'verticals' }] },
   // Phase 11a: Cedar Creek Plumbing is mid-setup (suggestions ready, search done); `/agency/clients/new` is only a lookup form (reads happen on user action).
   { route: '/c/[clientId]/setup', as: 'admin', calls: setupStaffCalls(setupPending) },
   { route: '/c/[clientId]/setup (client owner)', as: 'ownerSetup', calls: setupCalls(setupPending) },
@@ -128,9 +128,9 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'list_client_competitors', input: (ids) => ({ clientId: ids.clients.lakeside }), path: 'items' },
     ],
   },
-  { route: '/agency/team', as: 'admin', calls: [{ tool: 'fn:listTeam', input: none, path: 'members' }, { tool: 'fn:listTeam', input: none, path: 'invitations' }, { tool: 'list_clients', input: none, path: 'items' }] },
-  { route: '/agency/usage', as: 'admin', calls: [{ tool: 'get_usage', input: none, path: 'items' }] },
-  { route: '/agency/webhooks', as: 'admin', calls: [{ tool: 'fn:listWebhooks', input: none }] },
+  { route: '/agency/settings/team', as: 'admin', calls: [{ tool: 'fn:listTeam', input: none, path: 'members' }, { tool: 'fn:listTeam', input: none, path: 'invitations' }, { tool: 'list_clients', input: none, path: 'items' }] },
+  { route: '/agency/settings/usage', as: 'admin', calls: [{ tool: 'get_usage', input: none, path: 'items' }] },
+  { route: '/agency/settings/slack-teams', as: 'admin', calls: [{ tool: 'fn:listWebhooks', input: none }] },
   {
     route: '/c/[clientId]', as: 'admin', calls: [
       lsProfile,

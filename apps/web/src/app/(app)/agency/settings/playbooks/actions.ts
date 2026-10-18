@@ -20,6 +20,6 @@ export async function playbookAction(_p: FormResult, fd: FormData): Promise<Form
     verticalId: s(fd, 'verticalId'), playbookId: s(fd, 'playbookId'), title: reset ? null : s(fd, 'title') || null, template: reset ? null : s(fd, 'template') || null, disabled,
   });
   if (!r.ok) return r;
-  revalidatePath('/agency/playbooks');
+  revalidatePath('/agency/settings/playbooks');
   return { ok: true, message: DONE[intent] ?? 'Saved.' };
 }

@@ -17,7 +17,7 @@ function upload(bytes: Uint8Array | string | null, opts: { type?: string; origin
   if (bytes !== null) fd.set(opts.field ?? 'file', new Blob([typeof bytes === 'string' ? bytes : Buffer.from(bytes)], { type: opts.type ?? 'image/png' }), 'logo.png');
   const headers = new Headers(opts.headers);
   if (opts.origin !== null) headers.set('origin', opts.origin ?? ORIGIN);
-  return new Request('https://app.example/agency/branding/logo', { method: 'POST', body: fd, headers });
+  return new Request('https://app.example/agency/settings/branding/logo', { method: 'POST', body: fd, headers });
 }
 
 beforeEach(() => {
@@ -26,7 +26,7 @@ beforeEach(() => {
   m.runTool.mockImplementation(async (_ctx, _name, input: { sha256: string }) => ({ ok: true, data: { logoUrl: `https://app.example/files/logo/ag-1/${input.sha256}.png` } }));
 });
 
-describe('POST /agency/branding/logo', () => {
+describe('POST /agency/settings/branding/logo', () => {
   it('admin: normalises to a ≤512 px PNG and stores it via upload_agency_logo, returning the logo URL', async () => {
     const res = await POST(upload(await png()));
     expect(res.status).toBe(200);
@@ -108,7 +108,7 @@ describe('POST /agency/branding/logo', () => {
         else c.enqueue(chunk);
       },
     }, { highWaterMark: 0 });
-    const req = new Request('https://app.example/agency/branding/logo', {
+    const req = new Request('https://app.example/agency/settings/branding/logo', {
       method: 'POST', body, headers: { origin: ORIGIN, 'content-type': 'multipart/form-data; boundary=x' }, duplex: 'half',
     } as RequestInit);
     const res = await POST(req);

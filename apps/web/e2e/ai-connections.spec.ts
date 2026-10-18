@@ -29,8 +29,9 @@ async function callTool(request: APIRequestContext, token: string, name: string,
 
 test('an admin creates a token, sees it once, and revokes it', { tag: ['@ai-connections', '@nav'] }, async ({ page, request }) => {
   await page.goto('/agency');
-  await page.getByRole('link', { name: 'AI connections' }).click();
-  await expect(page).toHaveURL(/\/agency\/ai$/);
+  await page.getByRole('link', { name: 'Agency settings' }).first().click();
+  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'AI connections' }).click();
+  await expect(page).toHaveURL(/\/agency\/settings\/ai$/);
   await expect(page.getByRole('heading', { name: 'AI connections' })).toBeVisible();
   await expect(page.getByTestId('connector-url')).toHaveText('http://localhost:3100/mcp');
 

@@ -22,7 +22,7 @@ describe('BrandingEditor', () => {
     await pick(file());
     await waitFor(() => expect((screen.getByLabelText(/Logo URL/) as HTMLInputElement).value).toBe('http://localhost:3000/files/logo/a/h.png'));
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe('/agency/branding/logo');
+    expect(url).toBe('/agency/settings/branding/logo');
     expect(init.method).toBe('POST');
     expect((init.body as FormData).get('file')).toBeInstanceOf(File);
   });
