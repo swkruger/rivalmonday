@@ -15,6 +15,10 @@ describe('setupLookupFor', () => {
     expect(places).toHaveLength(4);
     expect(new Set(places.map((p) => p.placeId))).toHaveProperty('size', 3);
   });
+  it('answers a distillery search with the two distilleries (Phase 14a E2E)', async () => {
+    const places = await fixtureSetupLookup({ keyword: 'Hill Country Distillery Fredericksburg, TX', locationName: 'United States' }, scope);
+    expect(places.map((p) => p.category)).toEqual(['Distillery', 'Distillery']);
+  });
   it('uses the fixture in demo and test (R5: never a paid call)', () => {
     expect(setupLookupFor('demo', service, { fake: false, processEnv: real })).toBe(fixtureSetupLookup);
     expect(setupLookupFor('test', service, { fake: false, processEnv: real })).toBe(fixtureSetupLookup);

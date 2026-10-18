@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@playbooks',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -120,7 +120,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}settings/billing/`), tags: ['@billing', '@client-billing'], why: 'billing page, Client billing section, actions and seat CSV' },
   { pattern: re(`${APP}\\(app\\)/paused/`), tags: ['@billing'], why: 'suspended-workspace page' },
   { pattern: re(`${COMP}billing/`), tags: ['@billing', '@client-billing'], why: 'billing display formatting and client billing pill/actions shown on the billing pages' },
-  { pattern: re(`${COMP}new-business-type(?:-model)?\\.tsx?$`), tags: ['@clients', '@leads'], why: 'New business type panel (agency lookup step, lead accept)' },
+  { pattern: re(`${COMP}new-business-type(?:-model)?\\.tsx?$`), tags: ['@clients', '@leads', '@catalogue'], why: 'New business type panel (agency lookup step, lead accept)' },
   { pattern: re(`${COMP}place-summary\\.tsx$`), tags: ['@clients', '@leads'], why: 'lookup result card (agency lookup step, public intake form)' },
   { pattern: re(`${COMP}form-error\\.tsx$`), tags: 'all', why: 'ErrorNote/FormError: the one error primitive, rendered by form and action errors on almost every surface (incl. the seat-cap Upgrade link)' },
   { pattern: re(`${COMP}page-header\\.tsx$`), tags: 'all', why: 'PageHeader: the h1, breadcrumb and actions of almost every signed-in page (15a §2.7)' },
@@ -147,6 +147,8 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}\\(platform\\)/platform/billing/`), tags: ['@billing'], why: 'platform billing console (codes, invite links)' },
   { pattern: re(`${APP}\\(platform\\)/platform/costs/`), tags: ['@costs'], why: 'platform costs page, dialogs and warning strip' },
   { pattern: re(`${APP}\\(platform\\)/platform/agencies/\\[id\\]/`), tags: ['@platform', '@support'], why: 'platform agency page: View as agency dialog and start action' },
+  { pattern: re(`${APP}\\(platform\\)/platform/verticals/`), tags: ['@catalogue', '@platform'], why: 'platform business-type review queue' },
+  { pattern: /^packages\/tools\/src\/(?:catalog\/|tools\/(?:platform-)?verticals\.ts$)/, tags: ['@catalogue', '@clients', '@leads', '@platform'], why: 'vertical catalogue tools (create, review, merge)' },
   { pattern: re(`${APP}\\(platform\\)/platform/`), tags: ['@platform', '@reviews'], why: 'platform console, review/theme queues' },
   { pattern: re(`${APP}support/`), tags: ['@support'], why: 'support session Exit and end routes' },
   { pattern: re(`${APP}\\(app\\)/(?:inbox|settings/notifications)/`), tags: [], why: 'no E2E covers this page' },

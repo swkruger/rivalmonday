@@ -158,7 +158,7 @@ describe('SidebarNav sections (Task 4)', () => {
   it('renders the platform sections on /platform/agencies, labelled groups only', () => {
     pathname = '/platform/agencies';
     render(<Nav flags={operator} zone="platform" />);
-    expect(linkNames()).toEqual(['Overview', 'Agencies', 'Lead pool', 'Billing & plans', 'Model reviews', 'Theme proposals', 'Ask reviews', 'Knowledge']);
+    expect(linkNames()).toEqual(['Overview', 'Agencies', 'Lead pool', 'Billing & plans', 'Model reviews', 'Theme proposals', 'Ask reviews', 'Knowledge', 'Business types']);
     expect(screen.getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(['Customers', 'Revenue', 'Quality', 'Content']);
     expect(screen.getByText('Customers').className).toContain('uppercase');
     expect(activeHrefOf()).toBe('/platform/agencies');
@@ -169,6 +169,15 @@ describe('SidebarNav sections (Task 4)', () => {
     render(<Nav flags={operator} zone="platform" counts={{ modelReviews: 4 }} />);
     expect(screen.getByRole('link', { name: /Model reviews/ }).textContent).toBe('Model reviews4');
     expect(screen.getByRole('link', { name: 'Theme proposals' }).textContent).toBe('Theme proposals');
+  });
+
+  it('Phase 14a: Business types (Content) shows the catalogue review count and nothing when there is none', () => {
+    pathname = '/platform';
+    const { unmount } = render(<Nav flags={operator} zone="platform" counts={{ catalog: 2 }} />);
+    expect(screen.getByRole('link', { name: /Business types/ }).textContent).toBe('Business types2');
+    unmount();
+    render(<Nav flags={operator} zone="platform" />);
+    expect(screen.getByRole('link', { name: 'Business types' }).getAttribute('href')).toBe('/platform/verticals');
   });
 
   it('never renders an unnamed group (null-label sections have no group role)', () => {

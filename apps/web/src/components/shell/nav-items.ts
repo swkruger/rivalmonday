@@ -13,7 +13,7 @@ export { clientIdFromPath, contextOf, NAV_CTX_COOKIE, type NavContext, parseNavC
 export type IconKey =
   | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
   | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects' | 'ask' | 'knowledge'
-  | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing' | 'leads' | 'intake' | 'briefs' | 'settings';
+  | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing' | 'leads' | 'intake' | 'briefs' | 'settings' | 'catalogue';
 
 export interface NavItem {
   href: string;
@@ -40,6 +40,8 @@ export interface NavCounts {
   leads?: number;
   modelReviews?: number;
   themes?: number;
+  /** Phase 14a: business types and services waiting for operator review (Business types badge). */
+  catalog?: number;
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navFor` needs besides the context and client id. */
@@ -115,7 +117,10 @@ function platformNav(flags: NavRoleFlags, counts: NavCounts): NavSection[] {
       add('/platform/themes', 'Theme proposals', 'themes', { count: counts.themes });
       add('/platform/ask', 'Ask reviews', 'ask');
     }),
-    section('content', 'Content', (add) => add('/platform/knowledge', 'Knowledge', 'knowledge')),
+    section('content', 'Content', (add) => {
+      add('/platform/knowledge', 'Knowledge', 'knowledge');
+      add('/platform/verticals', 'Business types', 'catalogue', { count: counts.catalog });
+    }),
     section('system', 'System', (add) => {
       if (flags.isPlatformOwner) add('/platform/costs', 'Costs', 'costs');
     }),

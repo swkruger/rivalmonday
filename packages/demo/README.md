@@ -89,6 +89,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/platform/knowledge/new` | operator | `list_kb_targets` | — |
 | `/platform/knowledge/[id]` | operator | `get_kb_article_admin`, `list_kb_targets` | — |
 | `/platform/reviews` | operator | `list_decision_reviews` | — |
+| `/platform/verticals` | operator | `list_verticals` | `list_catalog_review`: the demo agencies add no business types; `list_catalog_review`: the demo agencies add no services |
 | `/platform/themes` | operator | `list_theme_proposals` | — |
 | `/settings/notifications` | admin | `fn:myNotificationSettings` | — |
 | `/sign-up` | public | — | sign-up form (paused copy while sign-ups are paused) |

@@ -341,6 +341,13 @@ export const SCREENS: readonly ScreenCoverage[] = [
     ],
   },
   { route: '/platform/reviews', as: 'operator', calls: [{ tool: 'list_decision_reviews', input: none, path: 'items' }] },
+  {
+    route: '/platform/verticals', as: 'operator', calls: [
+      { tool: 'list_catalog_review', input: none, path: 'verticals', expect: 'empty', why: 'the demo agencies add no business types' },
+      { tool: 'list_catalog_review', input: none, path: 'areas', expect: 'empty', why: 'the demo agencies add no services' },
+      { tool: 'list_verticals', input: none, path: 'verticals' },
+    ],
+  },
   { route: '/platform/themes', as: 'operator', calls: [{ tool: 'list_theme_proposals', input: none, path: 'pending' }, { tool: 'list_theme_proposals', input: none, path: 'decided' }] },
   { route: '/settings/notifications', as: 'admin', calls: [{ tool: 'fn:myNotificationSettings', input: none }] },
 ];

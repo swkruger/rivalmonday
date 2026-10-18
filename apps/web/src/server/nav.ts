@@ -53,9 +53,11 @@ export async function navCounts(ctx: AccessContext, opts: { agency: boolean; ope
       return null;
     }
   };
-  const [agency, platform] = await Promise.all([
+  const [agency, platform, catalog] = await Promise.all([
     opts.agency ? read<AgencyCounts>('get_nav_counts') : null,
     opts.operator ? read<PlatformCounts>('get_platform_nav_counts') : null,
+    // Phase 14a: the Business types badge (business types and services waiting for operator review).
+    opts.operator ? read<{ count: number }>('list_catalog_review') : null,
   ]);
   const out: NavCounts = {};
   if (agency) {
@@ -64,5 +66,6 @@ export async function navCounts(ctx: AccessContext, opts: { agency: boolean; ope
     if (opts.leads) out.leads = agency.leads;
   }
   if (platform) Object.assign(out, { modelReviews: platform.modelReviews, themes: platform.themes });
+  if (catalog) out.catalog = catalog.count;
   return out;
 }

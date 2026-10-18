@@ -24,6 +24,7 @@ async function operate<T>(deps: ToolDeps, ctx: AccessContext, min: PlatformRole,
 
 const idSchema = z.string().min(1).max(40);
 const aliasesSchema = z.array(z.string().trim().min(1).max(80)).max(8);
+const strings = (x: unknown): string[] => (Array.isArray(x) ? x.filter((e): e is string => typeof e === 'string') : []);
 const Creator = z.object({ agencyId: z.string(), name: z.string() }).nullable();
 
 export const listCatalogReviewTool = defineTool({
@@ -36,6 +37,11 @@ export const listCatalogReviewTool = defineTool({
       id: z.string(), name: z.string(), status: z.enum(['reviewed', 'unreviewed', 'merged']),
       services: z.array(z.object({ id: z.string(), name: z.string() })),
       createdBy: Creator, clientCount: z.number().int(), evidence: z.unknown(), draftCostUsd: z.number().nullable(), categories: z.array(z.string()),
+      /** What the Edit form starts from (update_vertical leaves omitted fields unchanged, so the form sends back what it shows). */
+      detail: z.object({
+        audienceNoun: z.string(), seedKeywords: z.array(z.string()), primaryCategories: z.array(z.string()), relatedCategories: z.array(z.string()),
+        themes: z.array(z.string()), areas: z.array(z.object({ id: z.string(), name: z.string(), aliases: z.array(z.string()) })),
+      }),
     })),
     areas: z.array(z.object({
       verticalId: z.string(), verticalName: z.string(), id: z.string(), name: z.string(), aliases: z.array(z.string()),
@@ -70,6 +76,13 @@ export const listCatalogReviewTool = defineTool({
           services: areas.filter((a) => a.verticalId === v.id).map((a) => ({ id: a.id, name: a.name })),
           createdBy: creator(v.createdByAgencyId), clientCount: clientsOf.get(v.id) ?? 0, evidence: v.draftEvidence ?? null,
           draftCostUsd: costs.get(v.id) ?? null, categories: [...v.gbpCategories, ...v.gbpRelatedCategories],
+          detail: {
+            audienceNoun: typeof v.config.audience_noun === 'string' ? v.config.audience_noun : '',
+            seedKeywords: strings((v.config.discovery as { seed_keywords?: unknown } | undefined)?.seed_keywords),
+            primaryCategories: v.gbpCategories, relatedCategories: v.gbpRelatedCategories,
+            themes: Array.isArray(v.config.themes) ? (v.config.themes as { name?: unknown }[]).flatMap((t) => (typeof t.name === 'string' ? [t.name] : [])) : [],
+            areas: areas.filter((a) => a.verticalId === v.id && a.status !== 'merged').map((a) => ({ id: a.id, name: a.name, aliases: a.aliases })),
+          },
         })),
         areas: pendingAreas.map((a) => ({
           verticalId: a.verticalId, verticalName: nameOf.get(a.verticalId) ?? a.verticalId, id: a.id, name: a.name, aliases: a.aliases,

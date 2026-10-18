@@ -233,6 +233,10 @@ describe('review_vertical / review_business_area / list_catalog_review', () => {
     expect(list.verticals[0]).toMatchObject({ id: 'distillery', createdBy: { agencyId: IDS.agencyA, name: 'Agency A' }, clientCount: 1, categories: ['distillery', 'liquor store'] });
     expect(list.verticals[0]!.draftCostUsd as number).toBeCloseTo(0.03);
     expect((list.verticals[0]!.services as unknown[]).length).toBe(2);
+    const detail = list.verticals[0]!.detail as { primaryCategories: string[]; areas: { id: string; name: string; aliases: string[] }[] };
+    expect(detail.primaryCategories).toEqual(['distillery']);
+    expect(detail.areas).toHaveLength(2);
+    expect(detail.areas.every((a) => a.id && a.name && Array.isArray(a.aliases))).toBe(true);
 
     expect(await call(staff, 'review_vertical', { verticalId: 'distillery', action: 'approve' })).toEqual({ verticalId: 'distillery', version: 1 });
     const [v] = await q<{ status: string; reviewed_by: string }>(sql`select status, reviewed_by from vertical where id = 'distillery'`);

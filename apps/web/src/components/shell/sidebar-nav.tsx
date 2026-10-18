@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, BadgeDollarSign, Bell, BookMarked, BookOpen, Building2, ClipboardCheck, Coins, CreditCard, FileText, Gauge, Globe, HeartPulse, Inbox, LayoutDashboard, Link2, ListChecks, UserPlus, MapPin, Megaphone, MessageCircle, Network, Palette, Plug, Scale, Send, Settings, ShieldCheck, Siren, SlidersHorizontal, Star, Swords, Tags, Telescope, TrendingUp, UserCog, Users, Webhook } from 'lucide-react';
+import { Activity, BadgeDollarSign, Bell, BookMarked, BookOpen, Building2, ClipboardCheck, Coins, CreditCard, FileText, Gauge, Globe, HeartPulse, Inbox, LayoutDashboard, Layers, Link2, ListChecks, UserPlus, MapPin, Megaphone, MessageCircle, Network, Palette, Plug, Scale, Send, Settings, ShieldCheck, Siren, SlidersHorizontal, Star, Swords, Tags, Telescope, TrendingUp, UserCog, Users, Webhook } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect } from 'react';
 import { activeHref, type IconKey, NAV_CTX_COOKIE, type NavCounts, type NavItem, type NavRoleFlags, navFor } from './nav-items';
@@ -11,7 +11,7 @@ export type { NavClient, NavFallback };
 const ICONS = {
   clients: Users, overview: LayoutDashboard, inbox: Inbox, team: UserCog, branding: Palette, webhooks: Webhook, bell: Bell, delivery: Send, profile: Building2, competitors: Swords,
   changes: Activity, moves: TrendingUp, pricing: BadgeDollarSign, ads: Megaphone, rankings: MapPin, reputation: Star, approvals: ClipboardCheck, alerts: Siren, recommendations: ListChecks, usage: Gauge, playbooks: BookOpen, reviews: Scale, themes: Tags, prospects: Telescope, alertRules: SlidersHorizontal, ai: Plug, ask: MessageCircle, knowledge: BookMarked,
-  platform: Globe, agencies: Network, health: HeartPulse, costs: Coins, platformAccess: ShieldCheck, billing: CreditCard, leads: UserPlus, intake: Link2, briefs: FileText, settings: Settings,
+  platform: Globe, agencies: Network, health: HeartPulse, costs: Coins, platformAccess: ShieldCheck, billing: CreditCard, leads: UserPlus, intake: Link2, briefs: FileText, settings: Settings, catalogue: Layers,
 } as const satisfies Record<IconKey, unknown>;
 
 function NavLink({ item, current }: { item: NavItem; current: boolean }) {

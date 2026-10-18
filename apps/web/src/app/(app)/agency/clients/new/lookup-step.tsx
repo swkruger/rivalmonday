@@ -36,6 +36,8 @@ export function LookupStep({ find, createFromLookup, createByHand, verticals, ve
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [picked, setPicked] = useState<Place | null>(null);
+  // Types created in this session: the page's `verticals` prop is static, so a second picked place of the same type needs the option too.
+  const [created, setCreated] = useState<VerticalOption[]>([]);
   const [searching, startSearch] = useTransition();
   const readOnly = useReadOnly();
 
@@ -105,7 +107,7 @@ export function LookupStep({ find, createFromLookup, createByHand, verticals, ve
         </ul>
       )}
 
-      {picked && <PickedPlace key={picked.placeId} place={picked} action={createFromLookup} verticals={verticals} verticalActions={verticalActions} canUpgrade={canUpgrade} label={createLabel} />}
+      {picked && <PickedPlace key={picked.placeId} place={picked} action={createFromLookup} verticals={[...verticals, ...created.filter((c) => !verticals.some((v) => v.id === c.id))]} onCreated={(v) => setCreated((x) => [...x, v])} verticalActions={verticalActions} canUpgrade={canUpgrade} label={createLabel} />}
 
       <button type="button" onClick={() => setByHand(true)} className="self-start text-sm font-semibold text-secondary underline">Can’t find it? Enter details by hand</button>
     </div>
@@ -113,12 +115,12 @@ export function LookupStep({ find, createFromLookup, createByHand, verticals, ve
 }
 
 /** The "new business type" panel (when no vertical matched) above the create form; both share the vertical choice. */
-function PickedPlace({ place, action, verticals, verticalActions, canUpgrade, label }: { place: Place; action: Props['createFromLookup']; verticals: VerticalOption[]; verticalActions?: VerticalActions; canUpgrade?: boolean; label: string }) {
+function PickedPlace({ place, action, verticals, onCreated, verticalActions, canUpgrade, label }: { place: Place; action: Props['createFromLookup']; verticals: VerticalOption[]; onCreated: (v: VerticalOption) => void; verticalActions?: VerticalActions; canUpgrade?: boolean; label: string }) {
   const choice = useVerticalChoice(verticals, place.suggestedVerticalId ?? '');
   return (
     <>
       {verticalActions && place.suggestedVerticalId === null && (
-        <NewBusinessType place={{ placeId: place.placeId, category: place.category }} actions={verticalActions} onSelect={choice.choose} onCreated={choice.choose} />
+        <NewBusinessType place={{ placeId: place.placeId, category: place.category }} actions={verticalActions} onSelect={choice.choose} onCreated={(id, name) => { onCreated({ id, name, services: [] }); choice.choose(id, name); }} />
       )}
       <CreateForm place={place} action={action} verticals={choice.options} verticalId={choice.value} onVerticalChange={(id) => choice.choose(id)} canUpgrade={canUpgrade} label={label} />
     </>
