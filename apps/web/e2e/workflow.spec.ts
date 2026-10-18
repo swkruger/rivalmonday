@@ -75,7 +75,8 @@ test('usage shows the near-cap warning and an admin raises the cap', { tag: ['@u
 
 test('an admin edits a playbook and an unknown placeholder is refused', { tag: ['@playbooks'] }, async ({ page }) => {
   await page.goto('/agency/settings/playbooks');
-  const card = page.locator('form').filter({ has: page.locator('input[name="playbookId"][value="price_cut_bundle"]') });
+  // One card per business type with that playbook (the catalogue specs may have added more): pin the seeded HVAC & plumbing one.
+  const card = page.locator('form').filter({ has: page.locator('input[name="verticalId"][value="hvac_plumbing"]') }).filter({ has: page.locator('input[name="playbookId"][value="price_cut_bundle"]') });
   await card.getByLabel('Template').fill('Hi {{client}}');
   await card.getByRole('button', { name: 'Save' }).click();
   await expect(card.getByRole('alert')).toContainText('{{client}}');
