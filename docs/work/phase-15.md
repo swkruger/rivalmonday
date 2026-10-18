@@ -4,13 +4,13 @@
 **Spec:** [2026-10-18-phase-15-ux-ia-design.md](../superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) (15a design + 15b/15c decisions). Audit: [ux-audit](../research/2026-10-18-phase-15-ux-audit.md). Inventory: [research/2026-10-18-phase-15-page-inventory.md](../research/2026-10-18-phase-15-page-inventory.md). **Not in the roadmap** — proposed row: `| 15. UI/UX & information architecture | *to be written* (15a IA + nav shell · 15b help & guides · 15c page fixes) | Designer review of mockups + all pages; platform / agency / client / account nav separation; platform ↔ agency switcher; tooltips, page help, guides | §3, §5 | ~2–3 wks |`
 
 ## Status (overwrite)
-2026-10-18: brainstorm done (visual companion; mockups in `.superpowers/brainstorm/`, not committed). 15a spec + plan owner-approved (plan: 13 tasks T0–T12, subagent-driven, Opus high). Execution started. **Sequencing (D5): 15a merges before phase-14b's 14a/14b code; 14b/13a rebase onto 15a and place pages per spec §3.**
+2026-10-19: **15a built** (29 commits, subagent-driven, Opus high). Final whole-branch review + one fix wave clean. `pnpm test:affected --base main` exit 0 (16/16); full E2E 104/104. Not merged. Owner verification + `/rm-merge` go-ahead pending. 15b/15c not started. Sequencing D5 stands: 14a/14b and 13a rebase onto 15a.
 
 ## Next (overwrite)
-Execute [15a plan](../superpowers/plans/2026-10-18-phase-15a-ia-nav-shell.md) via `superpowers:subagent-driven-development` from Task 0 (Opus, high effort). Then 15b/15c kickoff. 15b/15c kickoff after 15a.
+Owner verifies 15a (steps below) → `/rm-merge phase-15` (merge folds: ARCHITECTURE old `/agency/*` paths → `/agency/settings/*`; 6b spec disclosure fallback note; roadmap row 15). Then tell phase-14b to rebase (place pages per spec §3). Then `/rm-kickoff` 15b (help) and 15c (page fixes).
 
 ## Interfaces this branch adds or changes
-Planned (15a, spec §2): `NavContext`/`contextOf`, `NavSection`/`navFor`/`settingsNavFor` (flat `NavItem.group` removed), `ContextSwitcher` (replaces client + membership switchers), `PageHeader`, `/c/[id]/briefs`, settings layouts, agency pages moved under `/agency/settings/*` with 308 redirects, `@cs/ui` Popover/Command/Tabs. No migrations; main at 0076, 14a plans 0077–0078, 14b/13a claim more — take next free at execution.
+Built (15a): `@cs/ui` Popover, Command (cmdk 1.1.1), Tabs, TabsLinkList/TabsLink, Breadcrumb. Shell: `nav-context.ts` (`contextOf`, cookie `rm_nav_ctx`, `parseNavCookie`), `use-nav-context.ts`, `nav-items.ts` (`NavSection`, `navFor(context, flags, clientId, counts)`, `settingsNavFor`, `NavCounts`; `navItemsFor`/`NavGroup`/`manageCompetitors`/`newLeads` removed), `context-switcher.tsx` + `switcher-storage.ts` (localStorage `rm.switcher.recent|pins.<membershipId>`), `avatar-menu.tsx`; `client-switcher`/`membership-switcher` deleted. `server/nav.ts` `navForViewer`, `navCounts`. Tools `get_nav_counts`, `get_platform_nav_counts` (web-only, shared WHERE helpers with their lists). `PageHeader` (`components/page-header.tsx`), `SettingsNav`, `client-crumbs.ts`, `server/client-settings-nav.ts`. Routes: `/agency/{team,branding,webhooks→slack-teams,ai,usage,playbooks}` → `/agency/settings/*` (308); `/agency/settings` + `/c/<id>/settings` index redirects; `/c/<id>/briefs`. Titles `{page} · {displayName}` / `· Rival Monday` on platform; root neutral. `authBranding()` + neutral `AuthCard`; `mcpServerName()`; `displayNameFor()` (mcp). E2E `navigation.spec.ts` (@navigation). No migrations.
 
 ## Assumes from other branches
 - **phase-14b** (executing 14a): adds `/platform/verticals` + "Business types" nav item with a count badge (14a T11); `/agency/playbooks` → redirect to `/agency/runbook` ("Playbooks" → "Runbook"), new `/platform/runbook`, client module "Runbook" at `/c/[id]/settings/runbook` (agency roles only) (14b T8). All edit `nav-items.ts` + `sidebar-nav.tsx` icon map — direct conflict with any nav rework.
@@ -18,45 +18,26 @@ Planned (15a, spec §2): `NavContext`/`contextOf`, `NavSection`/`navFor`/`settin
 - **phase-7-planning** (parked): health page refines `/platform/health` only.
 
 ## Decisions (owner-approved)
-D1–D15 in the spec §1: split 15a/15b/15c; mockups first; switcher = navigation only, own memberships; HighLevel-style context switcher (Platform/Agency/Client); **15a built first, 14a/14b and 13a rebase onto it**; help layers 1–4 (KB guide drawer), tour → backlog; help keyed by page, agency overrides later; mobile drawer; enterprise → backlog; Briefs & reports page; no dark mode; white-label leaks in 15a; URL-derived context + browser-stored recents/pins; Ask {assistant} first in Client view only; agency pages under `/agency/settings/*`.
+D1–D15 in the spec §1 (split 15a/b/c; HighLevel context switcher; 15a first; help layers 1–4 via KB, tour → backlog; Ask first in client view only; agency pages under `/agency/settings/*`; etc.).
+Controller rulings during 15a (owner may overturn): Ask reviews badge dropped (no reviewed state); badge counts uncapped; settings layouts carry no h1; `/agency/clients/new` no step count, setup uses wizard "Step n of 5"; client Overview h1 = "Overview" (client name in description); Ask h1 plain text (pill in sidebar only); Previous = older, Next = newer; Briefs & reports tabs are links with Tabs visuals; one extra audited `get_client_profile` read per client page (breadcrumb); Ask disclosure without displayName → "reviewed by our support team"; guests have no Client settings sidebar path (pages keep guards); auth-branding reveals public branding for a known client id.
 
 ## New backlog (target → item)
-Unscheduled → product tour (Overview, Portfolio); agency help override editor; cross-device pins/recents; enterprise custom roles, multi-agency switcher, audit-log page; switcher "jump to any agency" via support session.
+Unscheduled → product tour (Overview, Portfolio); agency help override editor; cross-device pins/recents; enterprise custom roles, multi-agency switcher, audit-log page; switcher "jump to any agency" via support session; Ask review to-do state + badge.
+13a → client-visible "Rival Monday" fallbacks in MCP `serverInfo`/tool descriptions, `.well-known/oauth-protected-resource` `resource_name`, Ask system prompt + KB `{{product}}`.
+15c → ~50 `border-line`/`bg-line` uses (`bg-line` draws nothing); mixed date formats in BriefView/AlertView; intake button white text on light agency colours; owner-Billing rule duplicated (client-settings-nav + app-shell); command input h-10 in h-9 wrapper; briefs tab list clip if overflowing.
+15b → pin button nested in `role=option` (a11y); support viewers have no AI connection tab (no active tab on direct visit).
+Soon → nav-count tools audited every render (consider `skip-web`); switcher lists prospect clients (`list_clients` no status filter); make `apps/web` page changes trigger `@cs/demo#test`; hydration-path test for sidebar cookie.
 
 ## Owner verification steps
-TBD.
+On `cs_dev` (no migrations):
+1. Operator: sidebar switcher Platform ↔ Agency ↔ client (search, pin, Recent, Ctrl/Cmd+K); Platform view shows Rival Monday branding and only your agencies; Health hidden.
+2. Agency admin / account manager (scoped): menus Portfolio · Work · Growth · Agency settings; badges on Approvals/Alert review/Leads; AM sees only their clients.
+3. Client view: Ask Friday first, Insights / Act groups, Briefs & reports (tabs, Older/Newer, Previous/Next on details, "Brief archive →" on Overview), Client settings tabs ("Business profile").
+4. Client owner: no switcher, no Platform; avatar menu (name, role, Notification settings, Switch account, Sign out); bell shows a count.
+5. Old bookmarks `/agency/team`, `/agency/branding/logo`, `/agency/webhooks` land on `/agency/settings/*`.
+6. White-label: client of a white-label agency signs in via a client link → agency branding, tab titles without "Rival Monday"; evidence page says "captured by our monitoring service".
+7. Phone (390px): drawer shows switcher; long client list scrolls; drawer closes after navigation.
+8. Copy sign-off: group labels (Customers, Revenue, Quality, Content, System, Work, Growth, Insights, Act), "Lead pool", "Billing & plans", "Ask reviews", "Business profile", Briefs & reports empty states, Ask disclosure "…reviewed by our support team…", and the controller rulings listed under Decisions.
 
 ## Brief
-
-### 1. Scope
-Owner: act as a professional UI/UX designer — review `docs/brand/` mockups, then every page on `main` (76 routes, see inventory); propose usability improvements for production/enterprise; every page gets help (hints, tooltips, guides); orderly grouping; menu with clear **platform / agency / client / account-settings** separation; a **high-level platform ↔ agency view switcher** (owner's favourite). Also BACKLOG "UI/UX review against Mobbin".
-Core spec: §3 (Platform → Agency → Client; role table = who sees which menu), §5.1 (agency modules), §5.2 (11 client modules in order; Settings group), §8.4 (Ask visibility disclosure), §2.2 (renameable modules later).
-
-### 2. Already built — reuse, don't rebuild
-- Shell `apps/web/src/components/shell/` (app-shell, sidebar, sidebar-nav, nav-items, top-bar, mobile-nav, client-/membership-switcher, banners); `(app)` vs `(platform)` layouts (8b M5); `server/nav.ts`.
-- Roles: `@cs/core` `isAgencyRole`, `hasFeature`, `AccessContext.clientScope`; `@cs/tools` `platformRole` (env `PLATFORM_ADMIN_EMAILS` or `platform_admin` owner/staff/viewer), `requirePlatformOperator`; `server/current-viewer.ts`; viewer kinds user/guest/support (`ReadOnlyProvider`).
-- Help-ish: `@cs/ui` `Tooltip` (used once, `rival/signal-pills.tsx`); `StatCard` hint; `ErrorNote`; `OnboardingChecklist`; `SetupBadge`; KB `ArticleSheet`, `/kb/[id]`, `search_knowledge`, `docs/help/*.md` seed (3 articles), `/platform/knowledge` authoring.
-- `@cs/ui` (15 shadcn parts incl. tooltip, sheet, dialog, dropdown; no tabs/popover/breadcrumb); tokens `packages/ui/src/{theme.ts,styles.css}`; `docs/brand/brand.md`.
-
-### 3. Binding decisions (never re-open)
-- Brand (root CLAUDE.md): Rival Monday wordmark colours; Friday orange pill (#F5A524/#3B2300, renamable); primary #47A8E7 with white text; Inter; dark text on grey panels; content max-width 1560px; light layout (brand.md).
-- White-label: nothing client-facing names Rival Monday (help content and tooltips included); `/start` exception until a lead is assigned; 13a D1–D7 (host scope, Client customisation page, title `{page} · {displayName}`).
-- Page refusals → 404; web reads are `@cs/tools` tools, writes via `runTool`; sidebar visibility is cosmetic, tools decide (ARCHITECTURE).
-- 8b g1–g11: "view as agency" = reasoned, 60-min, read-only, audited support session with banner; no "as the client sees it" preview (g8); owner/staff only. 8a d2 operator definition.
-- Inline-SVG charts; Phase 10/11 wizard rules; drawer below `lg` (5c-2 d14).
-
-### 4. Backlog to fold in (verbatim)
-- [ ] **UI/UX review against Mobbin** (Mobbin MCP): compare the agency, client-workspace, onboarding and console screens with real-world app patterns and file concrete fixes; scope and details to be provided by the owner at planning — *owner, 2026-10-17*
-- [ ] Knowledge base: … browsable Help page (`/agency/help`, `/c/<id>/help`) … — *from 6c "Not in 6c"* (that part)
-- [ ] Console UI: name sort `<` vs `localeCompare`; spend delta "up" tone; duplicate "Overview" nav labels; … — *from 8a*
-- [ ] Mobile drawer stays open across a resize to `lg` — *from 5c-2 Task 18*
-- [ ] Usage page has no empty state for a zero-client agency; `list_alert_queue`'s `.limit(200)` gives no UI hint — *from 5b-2 Task 4, 5b-1 Task 12*
-- [ ] Feed brief pill hardcodes `text-[#B45309]` (use `text-accent-text`); AI page `Badge` secondary variant isn't the brand info pill; alert-rules "3 a day" text hard-coded; `NavRoleFlags.manageCompetitors` unused — *from 5c-1*
-- [ ] Rankings UI: … cap/daily notes not `aria-describedby`; … — *phase-13b*; `DuplicateHint` not tied to the list via `aria-describedby` — *phase-11-fixes*
-- Also BACKLOG § Polish (Competitor profile KPI/empty text, Heatmap table, Costs strip outside 1560px, dark chart theme, Phase 6 UI, Settings screens) = 15c candidates; triage at brainstorming.
-
-### 5. In-flight workstreams
-See **Assumes**. `phase-14b`: 9 commits ahead (docs + `packages/verticals` catalogue code), no web changes yet. `phase-7-planning`: docs only (3 files). Overlap is all in `nav-items.ts`/`sidebar-nav.tsx` and page titles.
-
-### 6. Open questions
-All answered 2026-10-18 — see Decisions / spec §1.
+Kickoff brief (scope, reuse list, binding decisions, backlog folded in, in-flight overlaps) is superseded by the spec + plan; full text in git history (`e53ec597`). Inventory: [page inventory](../research/2026-10-18-phase-15-page-inventory.md); audit: [ux-audit](../research/2026-10-18-phase-15-ux-audit.md) — 15b/15c take their items from audit §2–§3.
