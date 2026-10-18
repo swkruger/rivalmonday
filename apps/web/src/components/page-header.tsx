@@ -35,15 +35,16 @@ export function PageHeader({ title, description, breadcrumb, actions, step }: Pa
               return (
                 <Fragment key={`${i}-${crumb.label}`}>
                   {i > 0 && <BreadcrumbSeparator />}
-                  <BreadcrumbItem>
+                  {/* A crumb can be user text with no break point (an Ask thread title holding a URL): it shrinks and truncates, never widening the page. */}
+                  <BreadcrumbItem className="min-w-0 max-w-full">
                     {last ? (
-                      <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                      <BreadcrumbPage className="min-w-0 truncate" title={crumb.label}>{crumb.label}</BreadcrumbPage>
                     ) : crumb.href ? (
                       <BreadcrumbLink asChild>
-                        <Link href={crumb.href}>{crumb.label}</Link>
+                        <Link href={crumb.href} className="min-w-0 truncate">{crumb.label}</Link>
                       </BreadcrumbLink>
                     ) : (
-                      <span>{crumb.label}</span>
+                      <span className="min-w-0 truncate">{crumb.label}</span>
                     )}
                   </BreadcrumbItem>
                 </Fragment>

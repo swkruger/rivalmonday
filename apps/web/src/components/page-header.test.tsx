@@ -45,6 +45,20 @@ describe('PageHeader (15a §2.7)', () => {
     expect(within(nav).getByText('Acme').getAttribute('aria-current')).toBe('page');
   });
 
+  it('lets a long unbroken crumb (an Ask thread title with a URL) shrink and truncate instead of widening the page', () => {
+    const long = `What changed on https://example.com/${'a1b2'.repeat(60)}`;
+    render(<PageHeader title="Ask Friday" breadcrumb={[{ label: 'Acme', href: '/c/x' }, { label: long }]} />);
+    const nav = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    const current = within(nav).getByText(long);
+    expect(current.className).toMatch(/\btruncate\b/);
+    expect(current.className).toMatch(/\bmin-w-0\b/);
+    expect(current.getAttribute('title')).toBe(long);
+    for (const item of nav.querySelectorAll('li:not([aria-hidden])')) {
+      expect(item.className).toMatch(/\bmin-w-0\b/);
+      expect(item.className).toMatch(/\bmax-w-full\b/);
+    }
+  });
+
   it('shows "Step n of N" above the title', () => {
     render(<PageHeader title="Invite your team" step={{ n: 2, of: 4 }} />);
     const step = screen.getByText('Step 2 of 4');
