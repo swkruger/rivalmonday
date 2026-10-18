@@ -1,13 +1,13 @@
 # phase-14b — Dynamic verticals, business areas and runbooks
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-14b   **Base:** main @ 9bd2aab5
-**Plan/spec:** none yet. No Phase 14 roadmap row and no "14a" anywhere (roadmap, BACKLOG, STATE, work files) — see Q1; add the row at merge.
+**Spec:** [2026-10-17-phase-14-dynamic-verticals-runbooks-design.md](../superpowers/specs/2026-10-17-phase-14-dynamic-verticals-runbooks-design.md) (covers 14a + 14b). **Plan:** none yet. No Phase 14 roadmap row and no "14a" anywhere (roadmap, BACKLOG, STATE, work files) — see Q1; add the row at merge.
 
 ## Status (overwrite)
-Kickoff brief written; brainstorming not started.
+2026-10-17: brainstorm done, design approved section by section; spec written, awaiting owner review.
 
 ## Next (overwrite)
-Owner answers the open questions (Q1 first), then `superpowers:brainstorming`.
+Owner reviews the spec, then `superpowers:writing-plans` (lean format) — 14a plan first, 14b plan second.
 
 ## Interfaces this branch adds or changes
 None yet. Migrations: next free at execution time (main 0073; 13b holds 0074–0076; 13a1/13a2 claim the next four).
@@ -19,7 +19,7 @@ None yet. Migrations: next free at execution time (main 0073; 13b holds 0074–0
 - **phase-7-planning** (parked): only its "file tracing for `packages/verticals/packs/`" item (moot if packs move to the DB).
 
 ## Decisions (owner-approved)
-None yet.
+D1–D14 in the spec §1: 14a catalogue → 14b runbooks; business area = one-level service offers; anyone creates, usable now, operator queue reviews/merges; generic numbers + AI-drafted quoted text; rules-first GBP mapping, AI only on no match; seed HVAC/dental with same ids; per-vertical AI cost shown on /platform/costs; runbooks copy + "update available", platform → agency → client; plays + self-rules + safe knobs; AI-tailored client copies; agency-only; editors /platform/runbook, /agency/runbook, /c/[id]/settings/runbook.
 
 ## New backlog (target → item)
 None yet.
