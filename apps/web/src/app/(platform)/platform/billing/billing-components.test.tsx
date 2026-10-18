@@ -95,6 +95,33 @@ describe('InviteLinks', () => {
     expect(screen.queryByLabelText('New invite link')).toBeNull();
   });
 
+  describe('pilot date hint', () => {
+    const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+    const setDates = (pilot: string, days: string) => {
+      fireEvent.change(screen.getByLabelText('Pilot ends'), { target: { value: pilot } });
+      fireEvent.change(screen.getByLabelText('Expires in (days)'), { target: { value: days } });
+    };
+
+    it('shows a live hint when the pilot ends before the link expires', () => {
+      render(<InviteLinks links={[]} codes={[]} />);
+      setDates(day(3), '14');
+      expect(screen.getByRole('status').textContent).toContain('The pilot must end after this link expires');
+    });
+
+    it('shows none for valid dates', () => {
+      render(<InviteLinks links={[]} codes={[]} />);
+      setDates(day(30), '14');
+      expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('is hidden for a trial offer', () => {
+      render(<InviteLinks links={[]} codes={[]} />);
+      setDates(day(3), '14');
+      fireEvent.change(screen.getByLabelText('Offer'), { target: { value: 'trial' } });
+      expect(screen.queryByRole('status')).toBeNull();
+    });
+  });
+
   it('shows a refusal from the action', async () => {
     m.createInviteLinkAction.mockResolvedValue({ ok: false, error: 'A pilot offer needs pilotEndsAt' });
     render(<InviteLinks links={[]} codes={[]} />);

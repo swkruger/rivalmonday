@@ -1,8 +1,11 @@
 'use client';
+import { pilotLinkRefusal } from '@cs/core/invite-offer';
 import { Button } from '@cs/ui';
 import { useActionState, useState } from 'react';
+import { ErrorNote } from '@/components/form-error';
 import { Field, fieldCls, MiniForm } from '../_components/mini-form';
 import { createInviteLinkAction, type InviteLinkResult, revokeInviteLinkAction } from './actions';
+import { endOfDayIso, toInt } from './parse';
 
 export interface LinkRow {
   id: string;
@@ -44,6 +47,15 @@ function CopyBox({ url }: { url: string }) {
 export function InviteLinks({ links, codes }: { links: LinkRow[]; codes: { id: string; code: string }[] }) {
   const [state, formAction, pending] = useActionState<InviteLinkResult, FormData>(createInviteLinkAction, { ok: true });
   const [offer, setOffer] = useState<'pilot' | 'trial'>('pilot');
+  const [pilotEnd, setPilotEnd] = useState('');
+  const [days, setDays] = useState('14');
+  // Live hint only: the server check in create_invite_link is binding, so submit stays enabled.
+  const endIso = endOfDayIso(pilotEnd);
+  const daysN = toInt(days);
+  const now = new Date();
+  const hint = offer === 'pilot' && endIso && daysN !== null
+    ? pilotLinkRefusal(new Date(endIso), new Date(now.getTime() + daysN * 86_400_000), now)
+    : null;
   return (
     <div className="flex flex-col gap-4">
       <div className="overflow-x-auto">
@@ -84,7 +96,7 @@ export function InviteLinks({ links, codes }: { links: LinkRow[]; codes: { id: s
             <option value="trial">Trial</option>
           </select>
         </Field>
-        {offer === 'pilot' && <Field label="Pilot ends" htmlFor="il-pilot-end"><input id="il-pilot-end" name="pilotEndsAt" type="date" className={fieldCls} /></Field>}
+        {offer === 'pilot' && <Field label="Pilot ends" htmlFor="il-pilot-end"><input id="il-pilot-end" name="pilotEndsAt" type="date" value={pilotEnd} onChange={(e) => setPilotEnd(e.target.value)} className={fieldCls} /></Field>}
         <Field label="Discount code (optional)" htmlFor="il-code">
           <select id="il-code" name="discountCodeId" defaultValue="" className={fieldCls}>
             <option value="">None</option>
@@ -94,10 +106,11 @@ export function InviteLinks({ links, codes }: { links: LinkRow[]; codes: { id: s
         <Field label="Lock to email (optional)" htmlFor="il-email"><input id="il-email" name="emailLock" type="email" maxLength={254} className={`${fieldCls} w-56`} /></Field>
         <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="emailIt" className="size-4" />Email it to the locked address</label>
         <Field label="Max uses" htmlFor="il-max"><input id="il-max" name="maxUses" inputMode="numeric" defaultValue="1" className={`${fieldCls} w-20`} /></Field>
-        <Field label="Expires in (days)" htmlFor="il-days"><input id="il-days" name="expiresInDays" inputMode="numeric" defaultValue="14" className={`${fieldCls} w-24`} /></Field>
+        <Field label="Expires in (days)" htmlFor="il-days"><input id="il-days" name="expiresInDays" inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value)} className={`${fieldCls} w-24`} /></Field>
         <Field label="Note (optional)" htmlFor="il-note"><input id="il-note" name="note" maxLength={500} className={`${fieldCls} w-56`} /></Field>
         <Button type="submit" disabled={pending}>Create link</Button>
-        {!state.ok && <p role="alert" className="basis-full text-sm text-ink">{state.error}</p>}
+        {hint && <ErrorNote compact quiet className="basis-full">{hint}</ErrorNote>}
+        {!state.ok && <ErrorNote compact className="basis-full" focusKey={state}>{state.error}</ErrorNote>}
       </form>
       {state.ok && 'notice' in state && state.notice && <p role="alert" className="text-sm text-ink">{state.notice}</p>}
       {state.ok && 'url' in state && <CopyBox url={state.url} />}

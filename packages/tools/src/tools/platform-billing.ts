@@ -1,7 +1,7 @@
 import {
   type BillingGateway, type BillingSignal, CONNECT_FEE_KEY, applyBillingSignal, clientMrrCents, currentStandardPlan, generateInviteToken, globalConnectFeePercent, planFor, syncPlanToStripe,
 } from '@cs/billing';
-import { type AccessContext, ToolError, toolkit } from '@cs/core';
+import { type AccessContext, pilotLinkRefusal, ToolError, toolkit } from '@cs/core';
 import { agency, agencyBilling, agencyBillingEvent, agencyConnect, agencyDailyStat, agencyInviteLink, BILLING_STATES, client, clientBilling, discountCode, plan, platformSetting } from '@cs/db';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -298,11 +298,17 @@ export const createInviteLinkTool = defineTool({
         if (d.expiresAt && d.expiresAt.getTime() <= Date.now()) throw new ToolError('invalid_input', 'That discount code is expired');
         if (d.restrictedAgencyIds) throw new ToolError('invalid_input', 'That discount code is restricted to specific agencies and cannot go on an invite link');
       }
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + input.expiresInDays * DAY);
+      if (input.offer === 'pilot' && input.pilotEndsAt) {
+        const why = pilotLinkRefusal(new Date(input.pilotEndsAt), expiresAt, now);
+        if (why) throw new ToolError('invalid_input', why);
+      }
       const { token, hash, prefix } = generateInviteToken();
       await deps.service.insert(agencyInviteLink).values({
         tokenHash: hash, tokenPrefix: prefix, offer: input.offer, pilotEndsAt: input.pilotEndsAt ? new Date(input.pilotEndsAt) : null,
         discountCodeId: input.discountCodeId ?? null, emailLock: input.emailLock ?? null, maxUses: input.maxUses,
-        expiresAt: new Date(Date.now() + input.expiresInDays * DAY), note: input.note ?? null, createdBy: ctx.userId,
+        expiresAt, note: input.note ?? null, createdBy: ctx.userId,
       });
       return { url: `${deps.appUrl.replace(/\/+$/, '')}/join/${token}`, token };
     });

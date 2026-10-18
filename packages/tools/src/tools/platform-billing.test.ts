@@ -240,8 +240,31 @@ describe('invite links', () => {
     expect((await fails(call(staff, 'create_invite_link', { ...INVITE, expiresInDays: 91 }))).code).toBe('invalid_input');
     expect((await fails(call(staff, 'create_invite_link', { offer: 'pilot' }))).code).toBe('invalid_input');
     expect((await fails(call(staff, 'create_invite_link', { offer: 'trial', pilotEndsAt: new Date(Date.now() + DAY).toISOString() }))).code).toBe('invalid_input');
-    await call(staff, 'create_invite_link', { offer: 'pilot', pilotEndsAt: new Date(Date.now() + 30 * DAY).toISOString(), expiresInDays: 90 });
+    await call(staff, 'create_invite_link', { offer: 'pilot', pilotEndsAt: new Date(Date.now() + 120 * DAY).toISOString(), expiresInDays: 90 });
     expect(await dbs.owner.select().from(agencyInviteLink)).toHaveLength(1);
+  });
+
+  it('create_invite_link refuses a pilot ending on or before the link expiry', async () => {
+    const endOfDay = (t: number) => `${new Date(t).toISOString().slice(0, 10)}T23:59:59.000Z`;
+    const e = await fails(call(staff, 'create_invite_link', { offer: 'pilot', pilotEndsAt: endOfDay(Date.now() + 14 * DAY), expiresInDays: 14 }));
+    expect(e.code).toBe('invalid_input');
+    expect(e.message).toContain('after this link expires');
+    expect(await dbs.owner.select().from(agencyInviteLink)).toHaveLength(0);
+  });
+
+  it('create_invite_link refuses a pilot end in the past', async () => {
+    const e = await fails(call(staff, 'create_invite_link', { offer: 'pilot', pilotEndsAt: new Date(Date.now() - DAY).toISOString() }));
+    expect(e.code).toBe('invalid_input');
+    expect(e.message).toContain('already passed');
+  });
+
+  it('create_invite_link stores the expiry it checked (now + expiresInDays)', async () => {
+    const before = Date.now();
+    await call(staff, 'create_invite_link', { offer: 'pilot', pilotEndsAt: new Date(Date.now() + 30 * DAY).toISOString(), expiresInDays: 14 });
+    const [row] = await dbs.owner.select().from(agencyInviteLink);
+    const delta = row!.expiresAt.getTime() - (before + 14 * DAY);
+    expect(delta).toBeGreaterThanOrEqual(-1000);
+    expect(delta).toBeLessThan(2000);
   });
 
   it('discountCodeId must exist and not be revoked', async () => {
