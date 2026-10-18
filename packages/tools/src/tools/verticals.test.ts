@@ -113,6 +113,24 @@ describe('create_vertical', () => {
     expect(await q(sql`select vertical_id from llm_call`)).toEqual([{ vertical_id: 'distillery' }]);
   });
 
+  it('does not re-key another agency’s draft spend', async () => {
+    await dbs.owner.execute(sql`insert into llm_call (agency_id, task, provider, model, input_tokens, output_tokens, latency_ms, ok, vertical_id) values (${IDS.agencyB}, 't', 'p', 'm', 1, 1, 1, true, 'draft:pl2')`);
+    await create(admin, { ...distillery, draftPlaceId: 'pl2' });
+    expect(await q(sql`select vertical_id from llm_call`)).toEqual([{ vertical_id: 'draft:pl2' }]);
+  });
+
+  it('concurrent identical creates yield one vertical and the same id', async () => {
+    const [a, b] = await Promise.all([create(admin), create(admin)]);
+    expect(a).toEqual(b);
+    expect(await q(sql`select 1 from vertical where id like 'distill%'`)).toHaveLength(1);
+  });
+
+  it('concurrent similar-name creates by different agencies: one wins, the other gets a conflict', async () => {
+    const r = await Promise.allSettled([create(admin), create(adminB, { ...distillery, name: 'Distillery', categories: ['Other category'] })]);
+    expect(r.filter((x) => x.status === 'fulfilled')).toHaveLength(1);
+    expect((r.find((x) => x.status === 'rejected') as PromiseRejectedResult).reason).toMatchObject({ code: 'conflict' });
+  });
+
   it('is for agency staff only and refused in support sessions', async () => {
     await expect(create(viewer)).rejects.toMatchObject({ code: expect.stringMatching(/permission_denied|not_found/) });
     await expect(create(ctx('agency_admin', IDS.agencyA, true))).rejects.toMatchObject({ code: 'read_only_session' });
@@ -128,6 +146,18 @@ describe('add_business_area', () => {
     const rows = await q<{ status: string; created_by_agency_id: string }>(sql`select status, created_by_agency_id from business_area where vertical_id = 'dental' and id = 'teeth_alignment'`);
     expect(rows).toEqual([{ status: 'unreviewed', created_by_agency_id: IDS.agencyA }]);
     expect((await catalog.packs('dental')).services.some((s) => s.id === 'teeth_alignment')).toBe(true);
+  });
+
+  it('concurrent adds of the same name give one area and the same id', async () => {
+    const add = () => registry.invoke(am, 'add_business_area', { verticalId: 'dental', name: 'Teeth Alignment' });
+    const [a, b] = await Promise.all([add(), add()]);
+    expect(a).toEqual(b);
+    expect(await q(sql`select 1 from business_area where vertical_id = 'dental' and id like 'teeth_align%'`)).toHaveLength(1);
+  });
+
+  it('resolves a merged vertical id to its target', async () => {
+    await dbs.owner.execute(sql`insert into vertical (id, name, status, merged_into) values ('old_dental', 'Old dental', 'merged', 'dental')`);
+    expect(await registry.invoke(am, 'add_business_area', { verticalId: 'old_dental', name: 'Teeth Alignment' })).toEqual({ verticalId: 'dental', areaId: 'teeth_alignment' });
   });
 
   it('refuses unknown or generic verticals and client data in the name', async () => {

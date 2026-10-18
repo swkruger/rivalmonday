@@ -10,6 +10,10 @@ import type { ToolDeps } from '../deps';
 const { defineTool } = toolkit<ToolDeps>();
 
 const MAX_AREAS = 255;
+const MAX_MERGE_DEPTH = 5;
+/** Serialises every catalogue write: replays return the committed row and similarity checks see committed data. */
+const CATALOGUE_LOCK_KEY = 1_401_400_001;
+const lockCatalogue = (tx: Tx) => tx.execute(sql`select pg_advisory_xact_lock(${CATALOGUE_LOCK_KEY})`);
 const aliasesSchema = z.array(z.string().trim().min(1).max(80)).max(8);
 const areaInput = z.object({ name: z.string().trim().min(2).max(80), aliases: aliasesSchema.optional() });
 const categoriesSchema = z.array(z.string().trim().min(1).max(120));
@@ -132,7 +136,15 @@ function buildConfig(base: Record<string, unknown>, input: { audienceNoun?: stri
  * Runs on a transaction handle so `save_setup_profile` can reuse it inside its own transaction; the caller invalidates the catalogue.
  */
 export async function addBusinessAreaCore(tx: Tx, args: { verticalId: string; name: string; aliases?: readonly string[] | undefined; agencyId: string }): Promise<{ verticalId: string; areaId: string }> {
-  const [v] = await tx.select({ id: vertical.id, status: vertical.status }).from(vertical).where(eq(vertical.id, args.verticalId));
+  await lockCatalogue(tx);
+  let v: { id: string; status: string; mergedInto: string | null } | undefined;
+  let cur = args.verticalId;
+  for (let hop = 0; hop <= MAX_MERGE_DEPTH; hop++) {
+    [v] = await tx.select({ id: vertical.id, status: vertical.status, mergedInto: vertical.mergedInto }).from(vertical).where(eq(vertical.id, cur));
+    if (!v || v.status !== 'merged' || !v.mergedInto) break;
+    cur = v.mergedInto;
+    v = undefined;
+  }
   if (!v || v.id === GENERIC_VERTICAL_ID || v.status === 'merged') throw new ToolError('invalid_input', `Unknown business type: ${args.verticalId}`);
   const areas = await tx.select().from(businessArea).where(eq(businessArea.verticalId, v.id));
   const key = normaliseName(args.name);
@@ -187,6 +199,7 @@ export const createVertical = defineTool({
     if (!slug) throw new ToolError('invalid_input', 'Use a more specific business type name.', { userFacing: true });
 
     const result = await deps.service.transaction(async (tx) => {
+      await lockCatalogue(tx);
       const all = await tx.select().from(vertical);
       const mine = all.find((v) => v.id === slug);
       if (mine && mine.status === 'unreviewed' && mine.createdByAgencyId === ctx.agencyId) return { verticalId: mine.id, droppedCategories: [] as string[] };
@@ -223,7 +236,7 @@ export const createVertical = defineTool({
       });
       await tx.insert(businessArea).values(areas.map((a) => ({ verticalId: id, id: a.id, name: a.name, aliases: a.aliases, status: 'unreviewed' as const, createdByAgencyId: ctx.agencyId })));
       await writeCategories(tx, id, cats.primary, cats.related);
-      if (input.draftPlaceId) await tx.update(llmCall).set({ verticalId: id }).where(eq(llmCall.verticalId, `draft:${input.draftPlaceId}`));
+      if (input.draftPlaceId) await tx.update(llmCall).set({ verticalId: id }).where(and(eq(llmCall.verticalId, `draft:${input.draftPlaceId}`), eq(llmCall.agencyId, ctx.agencyId)));
       return { verticalId: id, droppedCategories: cats.dropped };
     });
     catalogOf(deps).invalidate();
