@@ -66,8 +66,6 @@ export interface NavRoleFlags {
   clientBilling?: boolean;
   /** Phase 11c: agency users who cover all clients see the Leads entry (agency admin or scope `all`). */
   leads?: boolean;
-  /** Phase 11c: how many leads are New (verified, undecided). Superseded by `NavCounts.leads` (15a Task 3). */
-  newLeads?: number;
   /** Phase 8b: inside a support session, the operator's way back to the agency's console page. Owned by the switcher (15a Task 5), not a nav item. */
   backToPlatform?: string;
 }

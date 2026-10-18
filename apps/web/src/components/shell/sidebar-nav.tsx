@@ -3,7 +3,8 @@
 import { Activity, BadgeDollarSign, Bell, BookMarked, BookOpen, Building2, ClipboardCheck, Coins, CreditCard, FileText, Gauge, Globe, HeartPulse, Inbox, LayoutDashboard, Link2, ListChecks, UserPlus, MapPin, Megaphone, MessageCircle, Network, Palette, Plug, Scale, Send, Settings, ShieldCheck, Siren, SlidersHorizontal, Star, Swords, Tags, Telescope, TrendingUp, UserCog, Users, Webhook } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { activeHref, clientIdFromPath, contextOf, type IconKey, type NavItem, type NavRoleFlags, navFor } from './nav-items';
+import { useEffect, useSyncExternalStore } from 'react';
+import { activeHref, clientIdFromPath, contextOf, type IconKey, NAV_CTX_COOKIE, type NavContext, type NavCounts, type NavItem, type NavRoleFlags, navFor, parseNavCookie } from './nav-items';
 
 const ICONS = {
   clients: Users, overview: LayoutDashboard, inbox: Inbox, team: UserCog, branding: Palette, webhooks: Webhook, bell: Bell, delivery: Send, profile: Building2, competitors: Swords,
@@ -16,17 +17,16 @@ export interface NavClient {
   name: string;
 }
 
-function NavLink({ item, current, compact = false }: { item: NavItem; current: boolean; compact?: boolean }) {
+function NavLink({ item, current }: { item: NavItem; current: boolean }) {
   const Icon = ICONS[item.icon];
-  const size = compact ? 'py-1.5 text-[13px]' : 'py-2 text-sm';
   return (
     <Link
       href={item.href}
       aria-current={current ? 'page' : undefined}
       className={
         current
-          ? `relative flex items-center gap-2.5 rounded-lg bg-primary-soft px-3 ${size} font-semibold text-primary-soft-text before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-primary`
-          : `flex items-center gap-2.5 rounded-lg px-3 ${size} font-medium text-ink/70 transition-colors hover:bg-muted-surface hover:text-ink`
+          ? 'relative flex items-center gap-2.5 rounded-lg bg-primary-soft px-3 py-2 text-sm font-semibold text-primary-soft-text before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-primary'
+          : 'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-ink/70 transition-colors hover:bg-muted-surface hover:text-ink'
       }
     >
       <Icon className="h-4 w-4 flex-shrink-0" strokeWidth={1.9} />
@@ -51,29 +51,67 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-ink">{children}</div>;
 }
 
+export type NavFallback = { context: NavContext; clientId: string | null };
+
+/** 30 days, path `/`, SameSite=Lax (spec §2.1); the value is `platform`, `agency` or `client:<uuid>` — no secrets. */
+const COOKIE_ATTRS = 'path=/; max-age=2592000; samesite=lax';
+
+function readNavCookie(): string | null {
+  const prefix = `${NAV_CTX_COOKIE}=`;
+  return document.cookie.split('; ').find((c) => c.startsWith(prefix))?.slice(prefix.length) ?? null;
+}
+const noSubscribe = () => () => {};
+
 /**
  * Client component so the active highlight and client-scoped items (`/c/<id>`, `/c/<id>/briefs`) track the live URL.
  * The App Router layout that renders `Sidebar` is preserved (not re-rendered) across client-side navigation, so a
  * server-computed path/clientId goes stale the moment a link is clicked — `usePathname()` re-runs this component on
  * every navigation instead.
  *
- * Phase 15a: one context's grouped menu (`navFor`), chosen from the URL. Interim rendering — Task 4 adds the cookie
- * fallback, zone and real counts; `clients` is kept for the Task 5 switcher.
+ * Phase 15a §2.1: one context's grouped menu (`navFor`). The context is the zone (`(platform)` pages), else the URL,
+ * else the last context: the `rm_nav_ctx` cookie this component writes on every contextual page. On the client the
+ * cookie itself is read (the layout's server-read `fallback` goes stale after a client-side navigation, and the
+ * drawer mounts later than the sidebar); during hydration `useSyncExternalStore` uses the server value, so both agree.
+ * P1: outside the platform zone a remembered `platform` reads as `agency`; client roles and guests are always `client`.
  */
-export function SidebarNav({ flags }: { flags: NavRoleFlags; clients?: NavClient[] }) {
+export function SidebarNav({ flags, counts, zone, fallback }: { flags: NavRoleFlags; counts: NavCounts; zone?: 'platform'; fallback: NavFallback | null }) {
   const pathname = usePathname();
   const active = pathname.split(/[?#]/)[0]!;
-  const context = contextOf(active, null) ?? (flags.isAgency ? 'agency' : 'client');
-  const sections = navFor(context, flags, clientIdFromPath(active), { leads: flags.newLeads });
+  const stored = useSyncExternalStore(noSubscribe, readNavCookie, () => undefined);
+  const remembered = (stored === undefined ? null : parseNavCookie(stored ?? undefined)) ?? fallback;
+  const here = contextOf(active, null);
+  const hereClientId = clientIdFromPath(active);
+  const context = zone ?? here ?? lastContext(remembered, flags);
+  const clientId = hereClientId ?? (here === null && context === 'client' ? (remembered?.clientId ?? null) : null);
+  // Only contextual pages are remembered; a neutral page (`/inbox`, `/kb/*`) keeps whatever was there.
+  const value = here === 'client' ? `client:${hereClientId}` : here;
+  useEffect(() => {
+    if (value) document.cookie = `${NAV_CTX_COOKIE}=${value}; ${COOKIE_ATTRS}`;
+  }, [value]);
+  const sections = navFor(context, flags, clientId, counts);
   const current = activeHref(sections, active);
   return (
     <nav className="flex flex-1 flex-col gap-5">
-      {sections.map((s) => (
-        <div key={s.id} role="group" aria-label={s.label ?? undefined} className={`flex flex-col gap-0.5${s.placement === 'foot' ? ' mt-auto border-t border-border pt-4' : ''}`}>
-          {s.label && <SectionLabel>{s.label}</SectionLabel>}
-          {s.items.map((item) => <NavLink key={item.href} item={item} current={item.href === current} />)}
-        </div>
-      ))}
+      {sections.map((s) => {
+        const className = `flex flex-col gap-0.5${s.placement === 'foot' ? ' mt-auto border-t border-border pt-4' : ''}`;
+        const links = s.items.map((item) => <NavLink key={item.href} item={item} current={item.href === current} />);
+        // Only a labelled section is a named group; an unnamed `role="group"` is noise for screen readers.
+        return s.label ? (
+          <div key={s.id} role="group" aria-label={s.label} className={className}>
+            <SectionLabel>{s.label}</SectionLabel>
+            {links}
+          </div>
+        ) : (
+          <div key={s.id} className={className}>{links}</div>
+        );
+      })}
     </nav>
   );
+}
+
+/** A neutral page's context: the remembered one (P1: `platform` → `agency`), else the viewer's home context. */
+function lastContext(remembered: NavFallback | null, flags: NavRoleFlags): NavContext {
+  if (!flags.isAgency) return 'client';
+  if (!remembered || remembered.context === 'platform') return 'agency';
+  return remembered.context;
 }

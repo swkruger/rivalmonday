@@ -17,7 +17,7 @@ const flags: NavRoleFlags = {
 
 describe('MobileNav (decision 14)', () => {
   it('opens a drawer with the same nav items and closes when a link is tapped', () => {
-    render(<MobileNav displayName="Rival Monday" logoUrl={null} whiteLabel={false} flags={flags} clients={[]} />);
+    render(<MobileNav displayName="Rival Monday" logoUrl={null} whiteLabel={false} flags={flags} counts={{}} fallback={null} clients={[]} />);
     expect(screen.queryByRole('dialog')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
     const dialog = screen.getByRole('dialog', { name: 'Menu' });
@@ -28,7 +28,7 @@ describe('MobileNav (decision 14)', () => {
   });
 
   it('closes on Escape', () => {
-    render(<MobileNav displayName="Rival Monday" logoUrl={null} whiteLabel={false} flags={flags} clients={[]} />);
+    render(<MobileNav displayName="Rival Monday" logoUrl={null} whiteLabel={false} flags={flags} counts={{}} fallback={null} clients={[]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();

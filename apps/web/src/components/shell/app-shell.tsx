@@ -1,6 +1,8 @@
 import { type AccessContext, isAgencyRole } from '@cs/core';
 import { client, withTenant } from '@cs/db';
+import { resolveBranding } from '@cs/email';
 import { type ClientSummary, type PlatformRole, platformRole as resolvePlatformRole, unreadCount } from '@cs/tools';
+import { themeVars } from '@cs/ui';
 import { eq } from 'drizzle-orm';
 import { ReadOnlyProvider } from '@/components/read-only';
 import { BillingBanner } from '@/components/shell/billing-banner';
@@ -8,6 +10,7 @@ import { ClientBillingBanner } from '@/components/shell/client-billing-banner';
 import { GuestBanner } from '@/components/shell/guest-banner';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { Sidebar } from '@/components/shell/sidebar';
+import type { NavFallback } from '@/components/shell/sidebar-nav';
 import { ShellTheme } from '@/components/shell/shell-theme';
 import { SupportBanner } from '@/components/shell/support-banner';
 import { TopBar } from '@/components/shell/top-bar';
@@ -33,11 +36,20 @@ import type { Viewer } from '@/server/viewer';
 /** The support banner's height: two lines (h-14) below `sm`, one line (h-9) from `sm` up. */
 const BANNER_OFFSET = 'pt-14 sm:pt-9';
 
-/** `platformRole` (8c): a caller that already resolved the viewer's platform role (the `(platform)` layout) passes it so it is looked up once; omitted (the `(app)` layout), the shell resolves the role itself, once. */
-export async function AppShell({ viewer, ctx, children, platformRole, billing = null }: { viewer: Exclude<Viewer, { kind: 'member-less' }>; ctx: AccessContext; children: React.ReactNode; platformRole?: PlatformRole | null; billing?: BillingSnapshot | null }) {
-  // 8b M1: the shell's own viewer themes it — the support agency in `(app)` during a session (g8), the operator's own
-  // agency in `(platform)`. The root layout's `<html>` vars are never the session's (it uses the operator viewer).
-  const { branding, style, assistantName } = await themeForViewer(viewer);
+/** The platform zone's look (spec §2.3): Rival Monday branding and the default theme, whatever the operator's own agency. */
+function platformTheme() {
+  const branding = resolveBranding('Rival Monday', null);
+  return { branding, style: themeVars(branding), assistantName: 'Friday' };
+}
+
+/**
+ * `platformRole` (8c): a caller that already resolved the viewer's platform role (the `(platform)` layout) passes it so it is looked up once; omitted (the `(app)` layout), the shell resolves the role itself, once.
+ * `zone="platform"` (15a, the `(platform)` layout): the platform menu with Rival Monday branding. `fallback` (the `(app)` layout): the `rm_nav_ctx` cookie, the menu for neutral pages.
+ */
+export async function AppShell({ viewer, ctx, children, platformRole, billing = null, zone, fallback = null }: { viewer: Exclude<Viewer, { kind: 'member-less' }>; ctx: AccessContext; children: React.ReactNode; platformRole?: PlatformRole | null; billing?: BillingSnapshot | null; zone?: 'platform'; fallback?: NavFallback | null }) {
+  // 8b M1: the shell's own viewer themes it — the support agency in `(app)` during a session (g8). 15a: the platform zone
+  // is always Rival Monday (no agency logo, colours or name). The root layout's `<html>` vars are never the session's.
+  const { branding, style, assistantName } = zone === 'platform' ? platformTheme() : await themeForViewer(viewer);
   const clients = isAgencyRole(ctx.role) ? (await callTool<{ items: ClientSummary[] }>(ctx, 'list_clients', {})).items : [];
   // Client/guest roles always have exactly one client (Review Focus — createAccessContext enforces it), so their
   // top-bar name isn't path-dependent: it's always "their" client, not whichever `/c/<id>` page they're currently on.
@@ -56,17 +68,18 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
   // Phase 9b: client roles' billing banners and the owner's Billing entry (only while billing is on for the client).
   const clientBilling = viewer.kind === 'support' ? null : await clientBillingNoticeOf(ctx);
   const navBase = navFlagsFor(viewer, operator, assistantName, role === 'owner');
-  const counts = await navCounts(ctx, { agency: navBase.isAgency, operator, leads: navBase.leads === true });
+  // Each zone reads only the badges it can show: agency counts outside the platform zone, platform counts inside it (P1:
+  // `(app)` never shows the platform menu).
+  const platformZone = zone === 'platform';
+  const counts = await navCounts(ctx, { agency: navBase.isAgency && !platformZone, operator: operator && platformZone, leads: navBase.leads === true });
   const flags = {
     ...navBase,
-    // Task 4 hands `counts` to the sidebar; until then the Leads badge still rides on `flags.newLeads`.
-    ...(counts.leads ? { newLeads: counts.leads } : {}),
     ...(support ? { backToPlatform: `/platform/agencies/${support.agencyId}` } : {}),
     ...(viewer.kind === 'user' && ctx.role === 'client_owner' && clientBilling?.enabled ? { clientBilling: true } : {}),
   };
   const navClients = clients.map(({ id, name }) => ({ id, name }));
   const menu = (
-    <MobileNav displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} flags={flags} clients={navClients} />
+    <MobileNav displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} />
   );
   return (
     <ReadOnlyProvider readOnly={support !== null}>
@@ -74,7 +87,7 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
       <div data-shell-theme="" className="contents" style={style as React.CSSProperties}>
         {support && <SupportBanner sessionId={support.id} agencyName={support.agencyName} reason={support.reason} expiresAt={support.expiresAt.toISOString()} />}
         <div className={`flex min-h-screen bg-canvas${support ? ` ${BANNER_OFFSET}` : ''}`}>
-          <Sidebar branding={branding} flags={flags} clients={navClients} offsetTop={support !== null} />
+          <Sidebar branding={branding} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} offsetTop={support !== null} />
           <div className="flex min-w-0 flex-1 flex-col">
             {viewer.kind === 'guest' && <GuestBanner />}
             <TopBar viewer={viewer} clients={clients} clientName={clientName} unread={unread} menu={menu} />

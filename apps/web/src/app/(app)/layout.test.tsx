@@ -14,7 +14,7 @@ vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ viewe
 vi.mock('@/server/billing-state', () => ({ billingSnapshotOf: async () => ({ state: m.billingState }) }));
 vi.mock('@/server/billing-redirect', () => ({ billingRedirectFor: () => null }));
 vi.mock('@/components/shell/app-shell', () => ({ AppShell: ({ children }: { children: React.ReactNode }) => children }));
-vi.mock('next/headers', () => ({ headers: async () => new Headers({ 'x-rm-path': m.path }) }));
+vi.mock('next/headers', () => ({ headers: async () => new Headers({ 'x-rm-path': m.path }), cookies: async () => ({ get: () => undefined }) }));
 vi.mock('@/server/tools', () => ({ callTool: async (_c: unknown, name: string) => { m.calls.push(name); return m.status; } }));
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => { m.calls.push(String(a[1])); return m.run(...a); } }));
 vi.mock('next/navigation', () => ({ redirect: (to: string) => { throw new Error(`NEXT_REDIRECT:${to}`); } }));

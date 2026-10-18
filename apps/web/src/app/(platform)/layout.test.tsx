@@ -2,7 +2,8 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ requireContext: vi.fn(), requireOperatorContext: vi.fn(), platformRole: vi.fn(), callTool: vi.fn() }));
+const m = vi.hoisted(() => ({ requireContext: vi.fn(), requireOperatorContext: vi.fn(), platformRole: vi.fn(), callTool: vi.fn(), navCookie: undefined as string | undefined }));
+vi.mock('next/headers', () => ({ headers: async () => new Headers(), cookies: async () => ({ get: (n: string) => (n === 'rm_nav_ctx' && m.navCookie !== undefined ? { name: n, value: m.navCookie } : undefined) }) }));
 vi.mock('@cs/tools', () => ({ platformRole: m.platformRole }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
@@ -10,8 +11,8 @@ vi.mock('@/server/tools', () => ({ callTool: m.callTool }));
 vi.mock('@/server/run-tool', () => ({ runTool: vi.fn() }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: m.requireContext, requireOperatorContext: m.requireOperatorContext }));
 vi.mock('@/components/shell/app-shell', () => ({
-  AppShell: ({ viewer, children, platformRole }: { viewer: { kind: string }; children: React.ReactNode; platformRole?: string | null }) => (
-    <div data-testid="shell" data-kind={viewer.kind} data-role={platformRole ?? ''}>
+  AppShell: ({ viewer, children, platformRole, zone, fallback }: { viewer: { kind: string }; children: React.ReactNode; platformRole?: string | null; zone?: string; fallback?: unknown }) => (
+    <div data-testid="shell" data-kind={viewer.kind} data-role={platformRole ?? ''} data-zone={zone ?? ''} data-fallback={JSON.stringify(fallback ?? null)}>
       {children}
     </div>
   ),
@@ -20,6 +21,7 @@ const { default: PlatformLayout } = await import('./layout');
 const { default: AppLayout } = await import('../(app)/layout');
 
 beforeEach(() => {
+  m.navCookie = undefined;
   m.requireContext.mockReset().mockResolvedValue({ viewer: { kind: 'support' }, ctx: { support: {} } });
   m.requireOperatorContext.mockReset().mockResolvedValue({ viewer: { kind: 'user' }, ctx: {} });
   m.platformRole.mockReset().mockResolvedValue('owner');
@@ -32,6 +34,19 @@ describe('route-group layouts (Phase 8b M5)', () => {
     expect(m.requireOperatorContext).toHaveBeenCalledTimes(1);
     expect(m.requireContext).not.toHaveBeenCalled();
     expect(screen.getByTestId('shell').dataset.kind).toBe('user');
+    expect(screen.getByTestId('shell').dataset.zone).toBe('platform');
+  });
+
+  it('(app) passes the parsed rm_nav_ctx cookie as the nav fallback and no zone (15a §2.1)', async () => {
+    const id = '11111111-1111-4111-8111-111111111111';
+    m.navCookie = `client:${id}`;
+    const { unmount } = render(await AppLayout({ children: <p>page</p> }));
+    expect(screen.getByTestId('shell').dataset.zone).toBe('');
+    expect(JSON.parse(screen.getByTestId('shell').dataset.fallback!)).toEqual({ context: 'client', clientId: id });
+    unmount();
+    m.navCookie = 'nonsense';
+    render(await AppLayout({ children: <p>page</p> }));
+    expect(screen.getByTestId('shell').dataset.fallback).toBe('null');
   });
 
   it('/agency and /c pages render the (support) context from requireContext', async () => {

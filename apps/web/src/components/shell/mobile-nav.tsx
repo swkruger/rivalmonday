@@ -3,19 +3,23 @@
 import { Sheet, SheetContent, SheetTitle, SheetTrigger, Wordmark } from '@cs/ui';
 import { Menu } from 'lucide-react';
 import { useState } from 'react';
-import type { NavRoleFlags } from './nav-items';
-import { type NavClient, SidebarNav } from './sidebar-nav';
+import type { NavCounts, NavRoleFlags } from './nav-items';
+import { type NavClient, type NavFallback, SidebarNav } from './sidebar-nav';
 
 /**
  * Decision 14: below `lg` the sidebar is hidden and this menu button opens the same `SidebarNav` in a drawer.
  * Any link tap closes it (including a tap on the current page, where the pathname doesn't change).
- * Plain props only — no `@cs/email` import in a client file (HANDOVER §6).
+ * Plain props only — no `@cs/email` import in a client file (HANDOVER §6). In the platform zone `AppShell` passes the
+ * Rival Monday name and no logo. `clients` is for the context switcher (15a Task 5).
  */
-export function MobileNav({ displayName, logoUrl, whiteLabel, flags, clients }: {
+export function MobileNav({ displayName, logoUrl, whiteLabel, flags, counts, zone, fallback }: {
   displayName: string;
   logoUrl: string | null;
   whiteLabel: boolean;
   flags: NavRoleFlags;
+  counts: NavCounts;
+  zone?: 'platform';
+  fallback: NavFallback | null;
   clients: NavClient[];
 }) {
   const [open, setOpen] = useState(false);
@@ -34,7 +38,7 @@ export function MobileNav({ displayName, logoUrl, whiteLabel, flags, clients }: 
             <Wordmark name={whiteLabel ? displayName : undefined} />
           )}
         </div>
-        <SidebarNav flags={flags} clients={clients} />
+        <SidebarNav flags={flags} counts={counts} zone={zone} fallback={fallback} />
       </SheetContent>
     </Sheet>
   );

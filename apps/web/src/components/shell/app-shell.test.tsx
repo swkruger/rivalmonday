@@ -1,15 +1,20 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WriteGuard } from '@/components/read-only';
 
-const m = vi.hoisted(() => ({ notice: null as null | { paused: boolean; paymentNeeded: boolean; enabled: boolean }, themed: [] as string[], unread: vi.fn(async () => 3), role: vi.fn(async () => 'owner' as string | null) }));
+const m = vi.hoisted(() => ({
+  notice: null as null | { paused: boolean; paymentNeeded: boolean; enabled: boolean }, themed: [] as string[], unread: vi.fn(async () => 3), role: vi.fn(async () => 'owner' as string | null),
+  logoUrl: null as string | null, realSidebar: false, counts: vi.fn(async (_ctx: unknown, _opts: { agency: boolean; operator: boolean; leads: boolean }) => ({ leads: 2 } as Record<string, number>)),
+}));
+let pathname = '/agency';
+vi.mock('next/navigation', () => ({ usePathname: () => pathname }));
 // The support viewer's ctx is the target agency's; a user viewer here is the operator's own agency.
 vi.mock('@/server/theme', () => ({
   themeForViewer: async (v: { kind: string }) => {
     m.themed.push(v.kind);
     const primary = v.kind === 'support' ? '#aa0000' : '#0000aa';
-    return { branding: { displayName: 'Acme Agency', logoUrl: null }, style: { '--primary': primary }, assistantName: 'Friday' };
+    return { branding: { displayName: 'Acme Agency', logoUrl: m.logoUrl }, style: { '--primary': primary }, assistantName: 'Friday' };
   },
 }));
 vi.mock('@/server/tools', () => ({ callTool: async () => ({ items: [] }) }));
@@ -17,11 +22,20 @@ vi.mock('@/server/client-billing-state', () => ({ clientBillingNoticeOf: async (
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {}, app: {} }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@cs/tools', () => ({ unreadCount: m.unread, platformRole: m.role }));
-vi.mock('./sidebar', () => ({
-  Sidebar: ({ flags }: { flags: { backToPlatform?: string; isPlatformOperator?: boolean; isPlatformOwner?: boolean; clientBilling?: boolean } }) => (
-    <nav data-testid="sidebar" data-billing={String(Boolean(flags.clientBilling))} data-back={flags.backToPlatform ?? ''} data-operator={String(Boolean(flags.isPlatformOperator))} data-owner={String(Boolean(flags.isPlatformOwner))} />
-  ),
-}));
+vi.mock('@/server/nav', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/server/nav')>()), navCounts: m.counts }));
+vi.mock('./sidebar', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./sidebar')>();
+  type Props = Parameters<typeof real.Sidebar>[0];
+  return {
+    Sidebar: (props: Props) => {
+      if (m.realSidebar) return <real.Sidebar {...props} />;
+      const { flags, counts } = props;
+      return (
+        <nav data-testid="sidebar" data-billing={String(Boolean(flags.clientBilling))} data-back={flags.backToPlatform ?? ''} data-operator={String(Boolean(flags.isPlatformOperator))} data-owner={String(Boolean(flags.isPlatformOwner))} data-leads={String(counts.leads ?? '')} data-flags={Object.keys(flags).join(',')} />
+      );
+    },
+  };
+});
 vi.mock('./mobile-nav', () => ({ MobileNav: () => null }));
 vi.mock('./client-switcher', () => ({ ClientSwitcher: () => null }));
 vi.mock('./inbox-bell', () => ({ InboxBell: ({ unread }: { unread: number }) => <span data-testid="bell">{unread}</span> }));
@@ -37,6 +51,10 @@ const supportViewer = {
 };
 
 beforeEach(() => {
+  pathname = '/agency';
+  m.realSidebar = false;
+  m.logoUrl = null;
+  m.counts.mockClear();
   m.themed.length = 0;
   m.notice = null;
   m.unread.mockClear();
@@ -67,7 +85,7 @@ describe('AppShell', () => {
     expect(m.unread).not.toHaveBeenCalled();
   });
 
-  it('(platform) / outside a session: themed with the viewer own agency; the inbox bell shows the unread count', async () => {
+  it('outside a session (no zone): themed with the viewer own agency; the inbox bell shows the unread count', async () => {
     const { support: _s, ...own } = ctx;
     const viewer = { kind: 'user', userId: 'op', email: 'op@example.com', name: 'Op Erator', ctx: own, membership: { id: 'm' }, memberships: [{ id: 'm' }] };
     const { container, unmount } = render(await AppShell({ viewer: viewer as never, ctx: own as never, children: <p>page</p> }));
@@ -106,6 +124,41 @@ describe('AppShell', () => {
     m.role.mockResolvedValue(null);
     render(await AppShell({ viewer: userViewer as never, ctx: own as never, children: <p>page</p> }));
     expect(screen.getByTestId('sidebar').dataset).toMatchObject({ operator: 'false', owner: 'false' });
+  });
+
+  it('hands the badge counts to the sidebar as `counts`, not through the flags', async () => {
+    render(await AppShell({ viewer: userViewer as never, ctx: own as never, children: <p>page</p> }));
+    expect(screen.getByTestId('sidebar').dataset.leads).toBe('2');
+    expect(screen.getByTestId('sidebar').dataset.flags).not.toContain('newLeads');
+    // (app) never shows the platform menu (P1), so it reads no platform counts.
+    expect(m.counts).toHaveBeenCalledWith(own, { agency: true, operator: false, leads: true });
+  });
+
+  it('platform zone: Rival Monday wordmark, default theme and "Platform" footer even for a white-label operator agency', async () => {
+    m.realSidebar = true;
+    m.logoUrl = 'https://acme.example/logo.png';
+    pathname = '/platform/agencies';
+    const { container } = render(await AppShell({ viewer: userViewer as never, ctx: own as never, platformRole: 'owner', zone: 'platform', children: <p>page</p> }));
+    const aside = screen.getByRole('complementary');
+    expect(within(aside).getByText('rival')).toBeTruthy();
+    expect(within(aside).getByText('monday')).toBeTruthy();
+    expect(within(aside).queryByRole('img')).toBeNull();
+    expect(within(aside).queryByText('Acme Agency')).toBeNull();
+    expect(within(aside).getByText('Platform')).toBeTruthy();
+    expect(within(aside).getByRole('link', { name: 'Agencies' })).toBeTruthy();
+    expect(m.themed).toEqual([]);
+    expect(themeOf(container)).toBe('#47A8E7');
+    expect(m.counts).toHaveBeenCalledWith(own, { agency: false, operator: true, leads: true });
+  });
+
+  it('agency view keeps the agency logo and its name in the footer', async () => {
+    m.realSidebar = true;
+    m.logoUrl = 'https://acme.example/logo.png';
+    render(await AppShell({ viewer: userViewer as never, ctx: own as never, children: <p>page</p> }));
+    const aside = screen.getByRole('complementary');
+    expect(within(aside).getByRole('img', { name: 'Acme Agency' }).getAttribute('src')).toBe('https://acme.example/logo.png');
+    expect(within(aside).getByText('Acme Agency', { selector: 'div' })).toBeTruthy();
+    expect(within(aside).getByRole('link', { name: 'Portfolio' })).toBeTruthy();
   });
 
   it('(platform) layout passes the role: no second lookup', async () => {

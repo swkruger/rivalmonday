@@ -13,6 +13,8 @@ export const dynamic = 'force-dynamic';
  * Phase 8b M5 / R3: `/platform/**` always renders the operator's own shell (branding, nav, clients), never the support
  * context, and shows no support banner — `requireOperatorContext()` ignores `rm_support`.
  *
+ * 15a: `zone="platform"` — always the platform menu, Rival Monday branding and the default theme (spec §2.3).
+ *
  * 8c: the platform role is resolved once here. Owners get the Costs nav item and, when a service is low on balance, the
  * warning strip; the strip read must never break a page, so any failure shows no strip.
  */
@@ -29,7 +31,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
     }
   }
   return (
-    <AppShell viewer={viewer} ctx={ctx} platformRole={role}>
+    <AppShell viewer={viewer} ctx={ctx} platformRole={role} zone="platform">
       <CostWarningStrip low={low} />
       {children}
     </AppShell>
