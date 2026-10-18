@@ -103,7 +103,7 @@ test('a client owner picks a workspace on the consent page', { tag: ['@ai-connec
     // 3. Sign in with a magic link: it resumes the authorize request and lands on the consent page.
     await openMagicLink(page, await requestMagicLink(page, 'mcp-owner@e2e.test'));
     await expect(page).toHaveURL(/\/oauth\/consent\?/);
-    await expect(page.getByText('Connect E2E Assistant to Rival Monday')).toBeVisible();
+    await expect(page.getByText('Connect E2E Assistant to E2E Agency')).toBeVisible();
     await expect(page.getByText("After you allow, you'll be sent to 127.0.0.1:47123.")).toBeVisible();
 
     // 4. The picker lists both workspaces; choose the second, read only.

@@ -124,7 +124,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-            <DetailRow label="Source" value={evidence.channel === 'web' ? `${evidence.channelLabel} · rendered by RivalMondayBot` : evidence.channelLabel} />
+            <DetailRow label="Source" value={evidence.channel === 'web' ? `${evidence.channelLabel} · captured by our monitoring service` : evidence.channelLabel} />
             <DetailRow label="URL" value={evidence.url ?? '—'} />
             <DetailRow label="Captured" value={captured} />
             <DetailRow label="Status" value={evidence.captureStatus} />

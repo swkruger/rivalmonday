@@ -73,7 +73,24 @@ function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) 
   );
 }
 
-export function ConnectorUrlCard({ url }: { url: string }) {
+/**
+ * 15a §2.10: the `claude mcp add` server name — a kebab slug of the agency's display name (ASCII letters and digits,
+ * at most 48 characters), or `competitor-intel` when there is nothing to slug. Never the product name.
+ */
+export function mcpServerName(displayName: string | null): string {
+  const slug = (displayName ?? '')
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48)
+    .replace(/-+$/, '');
+  return slug || 'competitor-intel';
+}
+
+/** `displayName` is the viewer's agency (white-label) name, used only for the Claude Code command's server name. */
+export function ConnectorUrlCard({ url, displayName }: { url: string; displayName: string | null }) {
   return (
     <Card>
       <CardHeader>
@@ -95,7 +112,7 @@ export function ConnectorUrlCard({ url }: { url: string }) {
           </li>
           <li>
             <strong>Claude Code</strong>: create a token below, then run{' '}
-            <code className="break-all rounded bg-muted-surface px-1.5 py-0.5 font-mono text-sm">{`claude mcp add --transport http rival-monday ${url} --header "Authorization: Bearer YOUR_TOKEN"`}</code>.
+            <code className="break-all rounded bg-muted-surface px-1.5 py-0.5 font-mono text-sm">{`claude mcp add --transport http ${mcpServerName(displayName)} ${url} --header "Authorization: Bearer YOUR_TOKEN"`}</code>.
           </li>
         </ul>
       </CardContent>

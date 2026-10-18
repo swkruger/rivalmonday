@@ -8,6 +8,7 @@ import { clientSettingsCrumbs } from '@/components/client-crumbs';
 import { PageHeader } from '@/components/page-header';
 import { hasClientSettings } from '@/server/client-settings-nav';
 import { requireContext } from '@/server/current-viewer';
+import { themeForViewer } from '@/server/theme';
 import { webEnv } from '@/server/env';
 import { callTool } from '@/server/tools';
 import { createClientTokenAction, revokeClientGrantAction, revokeClientTokenAction } from './actions';
@@ -31,6 +32,9 @@ export default async function AiConnectionsPage({ params }: { params: Promise<{ 
   const admin = ctx.role === 'agency_admin';
   const hidden = { clientId };
 
+  // 15a §2.10: the Claude Code command names the viewer's agency (cached branding read shared with the shell).
+  const { displayName } = (await themeForViewer(viewer)).branding;
+
   return (
     <>
       <PageHeader
@@ -39,7 +43,7 @@ export default async function AiConnectionsPage({ params }: { params: Promise<{ 
         description={`Connect Claude, ChatGPT or another AI assistant to ${profile.name}'s competitor data. Answers come with the same evidence links you see here.`}
       />
       {admin && <p className="text-muted-foreground">As an admin you see everyone&apos;s tokens and connected apps in this agency.</p>}
-      <ConnectorUrlCard url={`${webEnv().appUrl}/mcp`} />
+      <ConnectorUrlCard url={`${webEnv().appUrl}/mcp`} displayName={displayName} />
       <AccessTokensCard
         canCreate={!agency}
         scopes={agency ? [] : grantableScopes(ctx.role)}

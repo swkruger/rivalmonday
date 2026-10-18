@@ -17,7 +17,8 @@ const selectClass = 'h-9 w-full rounded-md border border-input bg-transparent px
 
 export function ConsentForm({ appName, productName, oauthQuery, options, redirectHost = null }: {
   appName: string;
-  productName: string;
+  /** The agency's name (15a §2.10); null when there is none to show — the copy then names no product at all. */
+  productName: string | null;
   oauthQuery: string;
   options: ConsentFormOption[];
   /** Host (and non-default port) of the verified redirect_uri; null omits the line. */
@@ -44,7 +45,7 @@ export function ConsentForm({ appName, productName, oauthQuery, options, redirec
       ) : (
         <>
           <p className="text-ink">
-            <strong>{appName}</strong> wants to use your {productName} data. It will act as you, within the access you choose.
+            <strong>{appName}</strong> wants to use your {productName ? `${productName} data` : 'data'}. It will act as you, within the access you choose.
           </p>
           {redirectHost && (
             <p className="text-ink">

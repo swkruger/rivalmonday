@@ -15,6 +15,12 @@ const EMAIL_HINT = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
 const validHint = (v: string | null | undefined): string => (v && v.length <= 320 && EMAIL_HINT.test(v) ? v : '');
 
 /**
+ * 15a §2.10: a client `next` (`/c/…`) rides along to check-email and the error returns, so those pages can brand by that
+ * client's agency (`authBranding`; the server re-validates the id). Other paths are left off, as before.
+ */
+const keepNext = (path: string, next: string) => (next.startsWith('/c/') ? `${path}${path.includes('?') ? '&' : '?'}next=${encodeURIComponent(next)}` : path);
+
+/**
  * The same "check your email" result is shown for any address, invited or not (decision 2) — this component never
  * learns whether the send actually went out, so it cannot leak that information either.
  *
@@ -30,13 +36,13 @@ export function SignInForm({ next, googleEnabled, error, emailHint = null }: { n
   async function sendLink(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const res = await authClient.signIn.magicLink({ email: email.trim(), callbackURL: next, errorCallbackURL: '/sign-in?reason=link' });
+    const res = await authClient.signIn.magicLink({ email: email.trim(), callbackURL: next, errorCallbackURL: keepNext('/sign-in?reason=link', next) });
     setBusy(false);
     if (res.error) {
       setProblem('We could not send a link just now. Wait a minute and try again.');
       return;
     }
-    router.push('/sign-in/check-email');
+    router.push(keepNext('/sign-in/check-email', next));
   }
 
   return (
@@ -57,7 +63,7 @@ export function SignInForm({ next, googleEnabled, error, emailHint = null }: { n
         <Button
           type="button"
           variant="outline"
-          onClick={() => authClient.signIn.social({ provider: 'google', callbackURL: next, errorCallbackURL: '/sign-in?reason=google' })}
+          onClick={() => authClient.signIn.social({ provider: 'google', callbackURL: next, errorCallbackURL: keepNext('/sign-in?reason=google', next) })}
         >
           Continue with Google
         </Button>

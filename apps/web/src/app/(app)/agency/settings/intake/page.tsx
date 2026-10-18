@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { IntakeLinkCard, type IntakeLinkState } from '@/components/agency/intake-link-card';
 import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
+import { themeForViewer } from '@/server/theme';
 import { callTool } from '@/server/tools';
 import { saveIntakeSlugAction, setIntakeEnabledAction } from './actions';
 
@@ -13,7 +14,7 @@ export const metadata = { title: 'Intake link' };
 export default async function IntakeSettingsPage() {
   const { viewer, ctx } = await requireContext();
   if (viewer.kind !== 'user' || ctx.role !== 'agency_admin') notFound();
-  const link = await callTool<IntakeLinkState>(ctx, 'get_intake_link', {});
+  const [link, theme] = await Promise.all([callTool<IntakeLinkState>(ctx, 'get_intake_link', {}), themeForViewer(viewer)]);
   return (
     <>
       <PageHeader
@@ -21,7 +22,7 @@ export default async function IntakeSettingsPage() {
         breadcrumb={[{ label: 'Agency settings', href: '/agency/settings' }, { label: 'Intake link' }]}
         description="A public page where businesses ask for a free competitor snapshot. New requests appear under Leads."
       />
-      <IntakeLinkCard link={link} save={saveIntakeSlugAction} toggle={setIntakeEnabledAction} />
+      <IntakeLinkCard link={link} primary={theme.branding.primary} save={saveIntakeSlugAction} toggle={setIntakeEnabledAction} />
     </>
   );
 }

@@ -15,13 +15,26 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('SignInForm', () => {
   it('requests a magic link with the safe next path and goes to check-email', async () => {
-    render(<SignInForm next="/c/1/briefs/2" googleEnabled={false} error={null} />);
+    render(<SignInForm next="/inbox" googleEnabled={false} error={null} />);
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'pat@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: /email me a sign-in link/i }));
     await waitFor(() =>
-      expect(magicLink).toHaveBeenCalledWith({ email: 'pat@example.com', callbackURL: '/c/1/briefs/2', errorCallbackURL: '/sign-in?reason=link' }),
+      expect(magicLink).toHaveBeenCalledWith({ email: 'pat@example.com', callbackURL: '/inbox', errorCallbackURL: '/sign-in?reason=link' }),
     );
     expect(push).toHaveBeenCalledWith('/sign-in/check-email');
+  });
+
+  it('15a §2.10: a client next path rides along to check-email and the error pages (they brand by its agency)', async () => {
+    const next = '/c/1/briefs/2';
+    const q = `next=${encodeURIComponent(next)}`;
+    const { rerender } = render(<SignInForm next={next} googleEnabled={false} error={null} />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'pat@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /email me a sign-in link/i }));
+    await waitFor(() => expect(magicLink).toHaveBeenCalledWith({ email: 'pat@example.com', callbackURL: next, errorCallbackURL: `/sign-in?reason=link&${q}` }));
+    expect(push).toHaveBeenCalledWith(`/sign-in/check-email?${q}`);
+    rerender(<SignInForm next={next} googleEnabled error={null} />);
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+    await waitFor(() => expect(social).toHaveBeenCalledWith({ provider: 'google', callbackURL: next, errorCallbackURL: `/sign-in?reason=google&${q}` }));
   });
 
   it('shows Google only when enabled and passes the next path', async () => {

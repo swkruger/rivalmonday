@@ -6,6 +6,7 @@ const callTool = vi.fn();
 const viewer = vi.fn();
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => viewer() }));
 vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a) }));
+vi.mock('@/server/theme', () => ({ themeForViewer: async () => ({ branding: { displayName: 'Acme Agency' } }) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.test' }) }));
 vi.mock('@/components/ai-connections', () => ({ AccessTokensCard: () => null, ConnectedAppsCard: () => null, ConnectorUrlCard: () => null }));
 vi.mock('./actions', () => ({ createClientTokenAction: vi.fn(), revokeClientGrantAction: vi.fn(), revokeClientTokenAction: vi.fn() }));

@@ -20,8 +20,13 @@ export const BUTTON_TEXT = 'Get your free competitor snapshot';
 
 /** The snippet an agency pastes into its website (inline styles only: it must work in any page builder). */
 const escapeAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-export function buttonHtml(url: string): string {
-  return `<a href="${escapeAttr(url)}" style="display:inline-block;background:#47A8E7;color:#ffffff;font-family:Inter,Arial,sans-serif;font-weight:700;font-size:16px;line-height:1;text-decoration:none;padding:14px 22px;border-radius:8px">${BUTTON_TEXT}</a>`;
+/** The brand-token primary (`--primary` default); used only when the agency has no valid primary colour of its own. */
+const DEFAULT_BUTTON_COLOR = '#47A8E7';
+const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+/** 15a §2.10: the button wears the agency's primary colour — only a plain hex reaches the inline style (pasted into any site). */
+export function buttonHtml(url: string, primary?: string | null): string {
+  const background = primary && HEX.test(primary) ? primary : DEFAULT_BUTTON_COLOR;
+  return `<a href="${escapeAttr(url)}" style="display:inline-block;background:${background};color:#ffffff;font-family:Inter,Arial,sans-serif;font-weight:700;font-size:16px;line-height:1;text-decoration:none;padding:14px 22px;border-radius:8px">${BUTTON_TEXT}</a>`;
 }
 
 function CopyButton({ text, label }: { text: string; label: string }) {
@@ -45,7 +50,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 }
 
 /** Phase 11c §5: the agency's public intake link. The save result stays mounted (not inside anything revalidation unmounts). */
-export function IntakeLinkCard({ link, save, toggle }: { link: IntakeLinkState; save: SaveAction; toggle: ToggleAction }) {
+export function IntakeLinkCard({ link, save, toggle, primary = null }: { link: IntakeLinkState; save: SaveAction; toggle: ToggleAction; primary?: string | null }) {
   const readOnly = useReadOnly();
   const [saved, saveAction, saving] = useActionState(save, { ok: true } as FormResult);
   const [enabled, setEnabled] = useOptimistic(link.enabled);
@@ -63,7 +68,7 @@ export function IntakeLinkCard({ link, save, toggle }: { link: IntakeLinkState; 
             <div className="flex flex-wrap items-center gap-2">
               <code className="rounded-md bg-muted-surface px-2 py-1 text-sm text-ink">{link.url}</code>
               <CopyButton text={link.url} label="Copy link" />
-              <CopyButton text={buttonHtml(link.url)} label="Copy button HTML" />
+              <CopyButton text={buttonHtml(link.url, primary)} label="Copy button HTML" />
             </div>
             <div className="flex items-center gap-3">
               <Switch

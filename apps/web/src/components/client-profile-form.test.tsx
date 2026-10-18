@@ -19,6 +19,12 @@ describe('ClientProfileForm', () => {
     expect(screen.getByLabelText('Cleaning')).toBeTruthy();
   });
 
+  it('15a §2.10: never names the product (the form is on the client-visible profile page)', () => {
+    const { container } = render(<ClientProfileForm mode="create" action={vi.fn()} verticals={verticals} timezoneOptions={['America/Chicago']} />);
+    expect(container.textContent).not.toMatch(/rival[\s-]*monday/i);
+    expect(container.textContent).toContain('Lets us benchmark the business’s own reviews against its competitors.');
+  });
+
   it('carries a custom submit label in create mode', () => {
     render(<ClientProfileForm mode="create" submitLabel="Create prospect" action={vi.fn()} verticals={verticals} timezoneOptions={['America/Chicago']} />);
     expect(screen.getByRole('button', { name: 'Create prospect' })).toBeTruthy();

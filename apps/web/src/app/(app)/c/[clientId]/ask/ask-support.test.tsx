@@ -13,7 +13,7 @@ vi.mock('@/server/current-viewer', () => ({
 vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => m.callTool(...a) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/ask', () => ({ assistantNameFor: async () => 'Friday' }));
-vi.mock('@cs/mcp', () => ({ productNameFor: async () => 'Rival Monday' }));
+vi.mock('@cs/mcp', () => ({ clientProductNameFor: async () => 'Acme Agency' }));
 vi.mock('@cs/core', async (orig) => ({ ...(await orig<typeof import('@cs/core')>()), hasFeature: (ctx: { features: string[] }, f: string) => ctx.features.includes(f) }));
 vi.mock('next/navigation', () => ({
   notFound: () => {

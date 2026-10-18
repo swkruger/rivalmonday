@@ -16,7 +16,7 @@ import type { AskFixture } from './seed';
 const ASKER_STATE = fileURLToPath(new URL('../test-results/asker-state.json', import.meta.url));
 const ASKER = 'asker@e2e.test';
 const QUOTA_COPY = "You have reached this month's quota.";
-const DISCLOSURE = 'Conversations may be reviewed by Rival Monday to improve answers.';
+const DISCLOSURE = 'Conversations may be reviewed by E2E Agency to improve answers.';
 
 const fx = (): AskFixture => JSON.parse(readFileSync(ASK_FIXTURE_FILE, 'utf8')) as AskFixture;
 

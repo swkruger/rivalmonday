@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ReadOnlyProvider } from '@/components/read-only';
 import { buttonHtml, IntakeLinkCard } from './intake-link-card';
@@ -26,6 +26,23 @@ describe('IntakeLinkCard', () => {
 
   it('escapes & " < > in the URL inside the href', () => {
     expect(buttonHtml('https://x.co/s?a=1&b="<>')).toContain('href="https://x.co/s?a=1&amp;b=&quot;&lt;&gt;"');
+  });
+
+  it("15a §2.10: the button uses the agency's primary colour; the token default only when unset or invalid", () => {
+    expect(buttonHtml(link.url, '#7A3EE8')).toContain('background:#7A3EE8;');
+    expect(buttonHtml(link.url, '#abc')).toContain('background:#abc;');
+    for (const unset of [undefined, null, '', 'red;color:#000', '#12345g', 'url(javascript:x)']) {
+      expect(buttonHtml(link.url, unset)).toContain('background:#47A8E7;');
+    }
+  });
+
+  it('Copy button HTML copies the snippet in the agency colour', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(<IntakeLinkCard link={link} primary="#7A3EE8" {...props} />);
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy button HTML' })));
+    expect(writeText).toHaveBeenCalledWith(buttonHtml(link.url, '#7A3EE8'));
+    expect(writeText.mock.calls[0]![0]).toContain('background:#7A3EE8;');
   });
 
   it('shows the link, copy buttons, state and counts', () => {

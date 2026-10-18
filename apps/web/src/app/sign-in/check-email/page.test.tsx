@@ -3,7 +3,11 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: 'svc' }) }));
-vi.mock('@/server/branding', () => ({ defaultBranding: async () => ({ displayName: 'Rival Monday', logoUrl: null }) }));
+vi.mock('@/server/branding', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/branding')>()),
+  defaultBranding: async () => ({ displayName: 'Rival Monday', logoUrl: null }),
+  authBranding: async () => null,
+}));
 vi.mock('@/server/env', () => ({ webEnv: () => ({}) }));
 vi.mock('@/components/auth-card', () => ({ AuthCard: ({ children }: { children: React.ReactNode }) => <main>{children}</main> }));
 const { default: Page } = await import('./page');

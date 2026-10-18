@@ -9,7 +9,7 @@ vi.mock('react', async (orig) => ({
   ...(await orig<typeof import('react')>()),
   useActionState: (fn: unknown, init: unknown) => [states.has(fn) ? states.get(fn) : init, vi.fn(), false],
 }));
-const { AccessTokensCard, ConnectedAppsCard, ConnectorUrlCard } = await import('./ai-connections');
+const { AccessTokensCard, ConnectedAppsCard, ConnectorUrlCard, mcpServerName } = await import('./ai-connections');
 
 const TOKEN = `rm_pat_${'a'.repeat(43)}`;
 const token = (over: Partial<ApiTokenView> = {}): ApiTokenView => ({
@@ -30,13 +30,31 @@ describe('ConnectorUrlCard', () => {
   it('shows the connector URL, the setup bullets with the URL, and copies it', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-    render(<ConnectorUrlCard url="https://app.example/mcp" />);
+    const { container } = render(<ConnectorUrlCard url="https://app.example/mcp" displayName="Cool Comfort Marketing" />);
     expect(screen.getByText('Connector URL')).toBeTruthy();
     expect(screen.getByText('https://app.example/mcp')).toBeTruthy();
     expect(screen.getByText(/Settings → Connectors → Add custom connector/)).toBeTruthy();
-    expect(screen.getByText(/claude mcp add --transport http rival-monday https:\/\/app\.example\/mcp --header "Authorization: Bearer YOUR_TOKEN"/)).toBeTruthy();
+    expect(screen.getByText(/claude mcp add --transport http cool-comfort-marketing https:\/\/app\.example\/mcp --header "Authorization: Bearer YOUR_TOKEN"/)).toBeTruthy();
+    expect(container.textContent).not.toMatch(/rival[\s-]*monday/i);
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy' })));
     expect(writeText).toHaveBeenCalledWith('https://app.example/mcp');
+  });
+});
+
+describe('mcpServerName (15a §2.10)', () => {
+  it.each([
+    ['Cool Comfort', 'cool-comfort'],
+    ['  Acme & Sons, LLC.  ', 'acme-sons-llc'],
+    ['Café Crème Média', 'cafe-creme-media'],
+    ['ABC---Marketing__2026', 'abc-marketing-2026'],
+    ['A'.repeat(80), 'a'.repeat(48)],
+  ])('%j → %s', (name, slug) => expect(mcpServerName(name)).toBe(slug));
+
+  it.each([[null], [''], ['   '], ['!!!'], ['日本']])('%j has nothing to slug → competitor-intel', (name) => expect(mcpServerName(name)).toBe('competitor-intel'));
+
+  it('no agency falls back to the neutral name in the command', () => {
+    render(<ConnectorUrlCard url="https://app.example/mcp" displayName={null} />);
+    expect(screen.getByText(/claude mcp add --transport http competitor-intel https:/)).toBeTruthy();
   });
 });
 
