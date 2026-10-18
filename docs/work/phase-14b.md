@@ -60,15 +60,5 @@ Root `CLAUDE.md` § Decisions (pilot verticals extended, not replaced; Jev casca
 ### 5. In-flight workstreams
 See **Assumes from other branches** (13b + phase-11-fixes merge first).
 
-### 6. Open questions (by design impact)
-1. **Split / naming** (no 14a exists). (a) 14a dynamic verticals + business areas, then 14b runbooks, planned on this branch; (b) one go here, "14a" reserved for something else — which?; (c) no split. **Rec (a)**: runbooks reference the catalogue; 14a touches every engine consumer.
-2. **"Business area" =** (a) service offers in a vertical (pack `services`, one level); (b) vertical → areas → offers; (c) a client's Google categories. **Rec (a)**, GBP categories as mapping input only.
-3. **Runbook model.** (a) overlay platform → vertical → agency → client, sparse patches resolved at read, version-stamped (like `playbook_override`/`effectiveVoice`); (b) copy-on-write, no updates flow down; (c) copy + "update available" pull. **Rec (a)**.
-4. **New vertical contents.** (a) generic defaults for numeric knobs + LLM-drafted, quoted text (name, audience noun, areas, aliases, seed keywords, categories, themes, playbook wording) reviewed in the wizard; (b) LLM drafts all incl. weights; (c) defaults, hand-typed rest. **Rec (a)**.
-5. **Governance.** (a) any agency user (intake: draft) creates, usable at once, "unreviewed" until an operator approves/merges/renames (like `theme_proposal`); (b) agency-private until promoted; (c) platform-only via requests. Dedup by GBP category id, slug, name similarity. **Rec (a)**; no client data in names.
-6. **GBP → vertical/areas.** (a) deterministic: primary category id + matched list; no match ⇒ draft vertical; areas from GBP `services[]` + rivals' categories; (b) LLM/Jev maps or proposes; (c) import DataForSEO's catalogue as fixed taxonomy. **Rec (a), (b) on no match**; verify endpoints live.
-7. **Runbook contents.** (a) playbooks + self-rules; (b) whole pack per client; (c) (a) + safe knobs (thresholds, focus areas, tier limits, playbook on/off). **Rec (c)**.
-8. **HVAC/dental migration.** (a) seed DB from YAML with same ids, `playbook_override` → agency layer, YAML as fixtures; (b) YAML + DB side by side; (c) fold into generic. **Rec (a)**.
-9. **Visibility.** (a) agency-only, clients see effects; (b) owner views; (c) owner edits. **Rec (a)**; platform text never names Rival Monday.
-10. **Per-vertical AI cost.** (a) accept, show on `/platform/costs`; (b) cap verticals per competitor/share answers; (c) tag generic areas only. **Rec (a)**.
-11. **Editor location.** (a) extend 13a2 Customisation page; (b) `/c/[clientId]/settings/runbook`; (c) `/agency/runbooks`. **Rec (a)** if 13a2 lands first, else (b).
+### 6. Open questions
+All answered 2026-10-17 — see Decisions and spec §1.
