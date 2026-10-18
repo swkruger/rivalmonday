@@ -74,7 +74,7 @@ export async function runSetupSuggestions(
     const system =
       'You suggest services and search keywords for a local business. Use only the text provided. For every item, copy a short exact quote from the text that supports it. ' +
       `Services must be ids from this list: ${packServices.map((s) => `${s.id} — ${s.name}`).join('; ')}. ` +
-      "At most 5 keywords, the way customers search (e.g. 'emergency plumber').";
+      "At most 5 keywords, the way customers search (e.g. 'same-day repair').";
     const res = await d.ai.chat(
       'setup_suggestions',
       { messages: [{ role: 'system', content: system }, { role: 'user', content: sourceText }], jsonSchema: setupSuggestionsJsonSchema },

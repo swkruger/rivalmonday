@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { agency, agencyOnboarding, agencyProfile } from '@cs/db';
+import { agency, agencyOnboarding, agencyProfile, catalogRows } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { eq } from 'drizzle-orm';
+import { createCatalog } from '@cs/verticals';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createToolRegistry } from '../registry';
 
@@ -181,6 +182,20 @@ describe('update_agency_profile', () => {
     await registry.invoke(admin, 'update_agency_profile', { ...PROFILE, timezone: 'UTC' });
     const [p] = await dbs.owner.select().from(agencyProfile).where(eq(agencyProfile.agencyId, IDS.agencyA));
     expect(p!.timezone).toBe('UTC');
+  });
+  it('accepts a DB-only vertical id, resolves a merged id to its target, refuses an unknown id', async () => {
+    await dbs.owner.execute(sql`
+      insert into vertical (id, name, status, gbp_categories, gbp_related_categories, config)
+      select 'distillery', 'Distillery', 'reviewed', gbp_categories, gbp_related_categories, config from vertical where id = 'dental'`);
+    await dbs.owner.execute(sql`insert into business_area (vertical_id, id, name, status) values ('distillery', 'spirits', 'Spirits', 'reviewed')`);
+    await dbs.owner.execute(sql`
+      insert into vertical (id, name, status, merged_into, gbp_categories, gbp_related_categories, config)
+      select 'old_dental', 'Old dental', 'merged', 'dental', gbp_categories, gbp_related_categories, config from vertical where id = 'dental'`);
+    const reg = createToolRegistry({ app: dbs.app, service: dbs.service, catalog: createCatalog(() => catalogRows(dbs.service)) }, { audit: { record: async () => undefined } });
+    await reg.invoke(admin, 'update_agency_profile', { ...PROFILE, verticals: ['distillery', 'old_dental', 'dental'] });
+    const [p] = await dbs.owner.select().from(agencyProfile).where(eq(agencyProfile.agencyId, IDS.agencyA));
+    expect(p!.verticals).toEqual(['distillery', 'dental']);
+    await expect(reg.invoke(admin, 'update_agency_profile', { ...PROFILE, verticals: ['nope'] })).rejects.toMatchObject({ code: 'invalid_input', message: 'Unknown business type.' });
   });
   it('upper-cases billingCountry, keeps http(s) websites and dedupes verticals', async () => {
     await registry.invoke(admin, 'update_agency_profile', { ...PROFILE, website: 'http://acme.co', billingSameAsPostal: false, billingCountry: 'ca', billingPostalCode: 'M5V 2T6', verticals: ['dental', 'dental', 'hvac_plumbing'] });

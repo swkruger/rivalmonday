@@ -5,6 +5,7 @@ import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { timezoneOptions } from '@/server/timezones';
 import { callTool } from '@/server/tools';
+import { verticalOptions } from '@/server/verticals';
 import { firstOpenStep, isStep, STEP_TITLES, STEPS, type StepStates } from './flow';
 import { Stepper } from './stepper';
 import { BrandingStep } from './steps/branding';
@@ -35,7 +36,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   let body: React.ReactNode;
   if (step === 'profile') {
     const profile = await callTool<ProfileValues>(ctx, 'get_agency_profile', {});
-    body = <ProfileStep initial={profile} timezones={timezoneOptions(profile.timezone)} />;
+    body = <ProfileStep initial={profile} timezones={timezoneOptions(profile.timezone)} verticalChoices={await verticalOptions()} />;
   } else if (step === 'team') {
     body = <TeamStep />;
   } else if (step === 'plan') {

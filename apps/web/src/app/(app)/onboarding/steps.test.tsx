@@ -14,6 +14,10 @@ vi.mock('./actions', () => m);
 vi.mock('next/link', () => ({ default: ({ href, children, ...r }: { href: string; children: React.ReactNode }) => <a href={href} {...r}>{children}</a> }));
 
 const { ProfileStep } = await import('./steps/profile');
+const VERTICALS = [
+  { id: 'hvac_plumbing', name: 'HVAC & plumbing' },
+  { id: 'dental', name: 'Dental' },
+];
 const { TeamStep } = await import('./steps/team');
 const { PlanStep } = await import('./steps/plan');
 const { BrandingStep } = await import('./steps/branding');
@@ -43,7 +47,7 @@ describe('Stepper', () => {
 
 describe('ProfileStep', () => {
   it('shows the decided intro and submits the form to saveProfileAction', async () => {
-    render(<ProfileStep initial={profile} timezones={['America/Chicago', 'UTC']} />);
+    render(<ProfileStep initial={profile} timezones={['America/Chicago', 'UTC']} verticalChoices={VERTICALS} />);
     expect(screen.getByText(/To save this step we need your agency name, a contact name, contact email and phone/)).toBeTruthy();
     expect((screen.getByLabelText('Agency name') as HTMLInputElement).value).toBe('Acme');
     await submit(screen.getByRole('button', { name: 'Save and continue' }));
@@ -53,7 +57,7 @@ describe('ProfileStep', () => {
 
   it('keeps what was typed after a validation error', async () => {
     m.saveProfileAction.mockResolvedValueOnce({ ok: false, error: 'Enter a US phone number' } as never);
-    render(<ProfileStep initial={profile} timezones={['America/Chicago', 'UTC']} />);
+    render(<ProfileStep initial={profile} timezones={['America/Chicago', 'UTC']} verticalChoices={VERTICALS} />);
     fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '12' } });
     fireEvent.change(screen.getByLabelText('Time zone'), { target: { value: 'UTC' } });
     fireEvent.click(screen.getByLabelText('Dental'));
@@ -65,7 +69,7 @@ describe('ProfileStep', () => {
   });
 
   it('"Billing address same as postal" is checked by default and reveals the billing address when unchecked', () => {
-    render(<ProfileStep initial={profile} timezones={['UTC']} />);
+    render(<ProfileStep initial={profile} timezones={['UTC']} verticalChoices={VERTICALS} />);
     const box = screen.getByLabelText('Billing address same as postal') as HTMLInputElement;
     expect(box.checked).toBe(true);
     expect(screen.queryByLabelText('Billing street address')).toBeNull();
@@ -74,7 +78,7 @@ describe('ProfileStep', () => {
   });
 
   it('"Skip for now" posts the profile step to skipStepAction', async () => {
-    render(<ProfileStep initial={profile} timezones={['UTC']} />);
+    render(<ProfileStep initial={profile} timezones={['UTC']} verticalChoices={VERTICALS} />);
     await submit(screen.getByRole('button', { name: 'Skip for now' }));
     await waitFor(() => expect(m.skipStepAction).toHaveBeenCalled());
     expect(lastArg(m.skipStepAction.mock.calls[0]).get('step')).toBe('profile');

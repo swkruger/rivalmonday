@@ -66,7 +66,7 @@ export const ASK_GUARD_QUESTIONS = {
   verdict: {
     type: 'choice',
     instructions:
-      "Classify the user's message to a competitor-intelligence assistant for a local-service business (for example HVAC, plumbing or dental).",
+      "Classify the user's message to a competitor-intelligence assistant for a local business.",
     options: {
       in_scope:
         "A question or request about the business, its competitors, their prices, ads, reviews, websites, rankings or local market, or about the assistant's own briefs, alerts, changes and recommendations; or how to use this product and its features (for example connecting an AI app, reading the brief, settings), even if the question is cut short; or a short reply, confirmation or follow-up to the assistant's previous message (for example \"yes\", \"do it\", \"save it\") when that message is in scope.",

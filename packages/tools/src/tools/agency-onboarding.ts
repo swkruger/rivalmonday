@@ -3,6 +3,7 @@ import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { agency, agencyOnboarding, agencyProfile, type Tx } from '@cs/db';
 import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { catalogOf } from '../catalog/access';
 import type { ToolDeps } from '../deps';
 import { validTimezone } from '../timezone';
 
@@ -11,7 +12,6 @@ const { defineTool } = toolkit<ToolDeps>();
 const STEPS = ['profile', 'team', 'plan', 'branding'] as const;
 type Step = (typeof STEPS)[number];
 const StepState = z.enum(['done', 'skipped', 'open']);
-const VERTICALS = ['hvac_plumbing', 'dental'] as const;
 const PHONE = /^\+?1?[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/;
 const ZIP = /^\d{5}(-\d{4})?$/;
 
@@ -214,7 +214,7 @@ export const UpdateAgencyProfileInput = z.object({
   line1: opt(200), line2: opt(200), city: opt(120), region: opt(120), postalCode: opt(20),
   country: z.string().trim().min(2).max(2).default('US').transform((v) => v.toUpperCase()),
   timezone: z.string().refine(validTimezone, 'Unknown time zone'),
-  verticals: z.array(z.enum(VERTICALS)).max(10).default([]).transform((v) => [...new Set(v)]),
+  verticals: z.array(z.string().max(40)).max(10).default([]),
   billingEmail: z.string().trim().max(254).email('Enter a valid billing email').nullish().or(z.literal('')).transform((v) => (v ? v : null)),
   billingSameAsPostal: z.boolean().default(true),
   billingLine1: opt(200), billingLine2: opt(200), billingCity: opt(120), billingRegion: opt(120), billingPostalCode: opt(20),
@@ -236,10 +236,17 @@ export const updateAgencyProfile = defineTool({
   permission: 'agency',
   async handler(ctx, v, deps) {
     requireAdmin(ctx);
+    const catalog = catalogOf(deps);
+    const resolved: string[] = [];
+    for (const id of v.verticals) {
+      const target = await catalog.resolveId(id);
+      if (target === null) throw new ToolError('invalid_input', 'Unknown business type.', { userFacing: true });
+      if (!resolved.includes(target)) resolved.push(target);
+    }
     const same = v.billingSameAsPostal;
     const values = {
       legalName: v.legalName, website: v.website, contactName: v.contactName, contactRole: v.contactRole, contactEmail: v.contactEmail, phone: v.phone,
-      line1: v.line1, line2: v.line2, city: v.city, region: v.region, postalCode: v.postalCode, country: v.country, timezone: v.timezone, verticals: v.verticals,
+      line1: v.line1, line2: v.line2, city: v.city, region: v.region, postalCode: v.postalCode, country: v.country, timezone: v.timezone, verticals: resolved,
       billingEmail: v.billingEmail, billingSameAsPostal: same, taxId: v.taxId,
       billingLine1: same ? v.line1 : v.billingLine1, billingLine2: same ? v.line2 : v.billingLine2, billingCity: same ? v.city : v.billingCity,
       billingRegion: same ? v.region : v.billingRegion, billingPostalCode: same ? v.postalCode : v.billingPostalCode,

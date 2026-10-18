@@ -3,7 +3,7 @@ import { redactContactInfo } from './privacy';
 
 /**
  * Serious health conditions (spec §4.5: "PII and health details stripped before any model call").
- * Dental procedures and HVAC services are deliberately absent — "root canal", "sedation", "pain",
+ * Service and product terms of any vertical are deliberately absent — "root canal", "sedation", "pain",
  * "AC repair" are what themes, tags and service mapping analyse.
  */
 const HEALTH = new RegExp(
