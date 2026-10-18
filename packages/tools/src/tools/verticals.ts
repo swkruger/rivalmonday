@@ -6,6 +6,7 @@ import { and, count, eq, gte, inArray, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { catalogOf } from '../catalog/access';
 import type { ToolDeps } from '../deps';
+import { platformRole } from '../platform';
 
 const { defineTool } = toolkit<ToolDeps>();
 
@@ -13,7 +14,7 @@ const MAX_AREAS = 255;
 const MAX_MERGE_DEPTH = 5;
 /** Serialises every catalogue write: replays return the committed row and similarity checks see committed data. */
 const CATALOGUE_LOCK_KEY = 1_401_400_001;
-const lockCatalogue = (tx: Tx) => tx.execute(sql`select pg_advisory_xact_lock(${CATALOGUE_LOCK_KEY})`);
+export const lockCatalogue = (tx: Tx) => tx.execute(sql`select pg_advisory_xact_lock(${CATALOGUE_LOCK_KEY})`);
 const aliasesSchema = z.array(z.string().trim().min(1).max(80)).max(8);
 const areaInput = z.object({ name: z.string().trim().min(2).max(80), aliases: aliasesSchema.optional() });
 const categoriesSchema = z.array(z.string().trim().min(1).max(120));
@@ -21,9 +22,12 @@ const themeInput = z.object({ name: z.string().trim().min(2).max(80), descriptio
 const seedKeywordsSchema = z.array(z.string().trim().min(2).max(60)).max(5);
 const audienceNounSchema = z.string().trim().min(1).max(40);
 
-/** One small gate for "may this caller change this vertical": the creating agency while it is unreviewed. Task 10 extends it to platform staff. */
-function canEditVertical(ctx: AccessContext, row: Pick<VerticalRow, 'status' | 'createdByAgencyId'>): boolean {
-  return row.status === 'unreviewed' && row.createdByAgencyId === ctx.agencyId;
+/** The single gate for "may this caller change this vertical": the creating agency while it is unreviewed, or platform staff (never a merged row). */
+async function canEditVertical(deps: ToolDeps, ctx: AccessContext, row: Pick<VerticalRow, 'status' | 'createdByAgencyId'>): Promise<boolean> {
+  if (row.status === 'unreviewed' && row.createdByAgencyId === ctx.agencyId) return true;
+  if (row.status === 'merged') return false;
+  const role = await platformRole(deps, ctx);
+  return role === 'owner' || role === 'staff';
 }
 
 function requireAgencyStaff(ctx: AccessContext): void {
@@ -31,8 +35,11 @@ function requireAgencyStaff(ctx: AccessContext): void {
 }
 
 /** D3 "no client data in names": refuse contact details or any of this agency's client names inside catalogue text. */
-export async function refuseClientData(deps: ToolDeps, ctx: AccessContext, texts: readonly string[]): Promise<void> {
-  const clientNames = (await deps.service.select({ name: client.name }).from(client).where(eq(client.agencyId, ctx.agencyId)))
+export const refuseClientData = (deps: ToolDeps, ctx: AccessContext, texts: readonly string[]): Promise<void> => refuseClientDataFor(deps, ctx.agencyId, texts);
+
+/** Same rule against the client names of an explicit agency (an operator checks the agency that created the entry). */
+export async function refuseClientDataFor(deps: ToolDeps, agencyId: string | null, texts: readonly string[]): Promise<void> {
+  const clientNames = (agencyId === null ? [] : await deps.service.select({ name: client.name }).from(client).where(eq(client.agencyId, agencyId)))
     .map((c) => c.name.trim().toLowerCase())
     .filter((n) => n.length >= 3);
   for (const t of texts) {
@@ -258,7 +265,7 @@ export const addBusinessAreaTool = defineTool({
 export const updateVertical = defineTool({
   name: 'update_vertical',
   access: 'write',
-  description: 'Edit a business type your agency created, until the platform team has reviewed it.',
+  description: 'Edit a business type your agency created, until the platform team has reviewed it (platform staff can edit any).',
   input: z.object({
     verticalId: z.string().max(40),
     name: z.string().trim().min(2).max(60).optional(),
@@ -276,8 +283,9 @@ export const updateVertical = defineTool({
     await refuseClientData(deps, ctx, [...(input.name ? [input.name] : []), ...(input.areas ?? []).flatMap((a) => [a.name, ...(a.aliases ?? [])]), ...(input.themes ?? []).map((t) => t.name)]);
 
     const out = await deps.service.transaction(async (tx) => {
+      await lockCatalogue(tx);
       const [v] = await tx.select().from(vertical).where(eq(vertical.id, input.verticalId)).for('update');
-      if (!v || v.id === GENERIC_VERTICAL_ID || !canEditVertical(ctx, v)) throw new ToolError('permission_denied', 'This business type cannot be edited');
+      if (!v || v.id === GENERIC_VERTICAL_ID || !(await canEditVertical(deps, ctx, v))) throw new ToolError('permission_denied', 'This business type cannot be edited');
       const existing = (await tx.select().from(businessArea).where(eq(businessArea.verticalId, v.id))).map(toAreaRow);
 
       let areas = existing;

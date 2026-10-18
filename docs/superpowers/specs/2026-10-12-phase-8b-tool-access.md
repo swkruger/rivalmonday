@@ -193,5 +193,10 @@ archive_platform_cost_item (platform-costs.ts) | write | archives a cost item; p
 list_verticals (verticals.ts) | read | read-only
 create_vertical (verticals.ts) | write | inserts vertical, areas, categories (service tx)
 add_business_area (verticals.ts) | write | inserts an unreviewed business area
-update_vertical (verticals.ts) | write | updates an unreviewed vertical the agency created
+update_vertical (verticals.ts) | write | updates an unreviewed vertical the agency created, or any live vertical for platform staff
 draft_vertical (verticals.ts) | write | one paid model call plus a vertical_draft insert (service); web only
+review_vertical (platform-verticals.ts) | write | approves or renames a vertical (service tx, catalogue lock)
+review_business_area (platform-verticals.ts) | write | approves or renames a business area
+merge_vertical (platform-verticals.ts) | write | rewrites clients, events, prices and agency settings onto the target vertical
+merge_business_area (platform-verticals.ts) | write | rewrites references from one area to another
+list_catalog_review (platform-verticals.ts) | read | operator-only read of unreviewed catalogue entries

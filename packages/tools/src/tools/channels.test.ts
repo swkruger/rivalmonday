@@ -26,7 +26,8 @@ const SKIP_WEB_TOOLS = ['list_clients', 'get_competitor_search_status', 'get_cli
   'list_platform_costs', 'refresh_platform_costs', 'update_platform_cost_service', 'save_platform_cost_item', 'archive_platform_cost_item',
   'attach_agency_discount', 'create_discount_code', 'create_invite_link', 'create_plan_version', 'end_pilot', 'extend_trial', 'get_agency_billing', 'get_billing_overview', 'get_connect_overview', 'grant_pilot', 'list_discount_codes', 'list_invite_links', 'list_plans', 'revoke_discount_code', 'revoke_invite_link', 'set_connect_fee_percent', 'set_seat_cap_exempt',
   'get_signups_paused', 'set_signups_paused', 'get_signup_funnel',
-  'list_leads', 'get_lead', 'list_pool_leads', 'assign_lead'];
+  'list_leads', 'get_lead', 'list_pool_leads', 'assign_lead',
+  'list_catalog_review', 'review_vertical', 'review_business_area', 'merge_vertical', 'merge_business_area'];
 
 const mcpTools = allTools.filter((t) => (t.channels ?? ['web']).includes('mcp'));
 const namesOfScope = (scope: TokenScope) => mcpTools.filter((t) => mcpScopeOf(t) === scope).map((t) => t.name).sort();
