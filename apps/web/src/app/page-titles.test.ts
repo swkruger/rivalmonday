@@ -47,13 +47,14 @@ const detailPages = [
   '(app)/kb/[id]/page.tsx',
 ];
 
-function pagesUnder(rel: string): string[] {
+/** Every `.tsx` (pages, layouts, components, tests) under a route tree. */
+function tsxUnder(rel: string): string[] {
   const out: string[] = [];
   const walk = (dir: string) => {
     for (const name of readdirSync(join(here, dir))) {
       const path = `${dir}/${name}`;
       if (statSync(join(here, path)).isDirectory()) walk(path);
-      else if (name === 'page.tsx' || name === 'layout.tsx') out.push(path);
+      else if (name.endsWith('.tsx')) out.push(path);
     }
   };
   walk(rel);
@@ -80,14 +81,15 @@ describe('page titles = menu labels (15a §2.7)', () => {
     expect(source).toContain('export async function generateMetadata');
   });
 
-  it('the wizards show their step', () => {
-    expect(read('(app)/agency/clients/new/page.tsx')).toMatch(/<PageHeader[^>]*\bstep=\{\{ n: 1, of: \d \}\}/);
+  it('onboarding shows its step; Add a client (the lookup preamble before the setup wizard) shows none', () => {
     expect(read('(app)/onboarding/page.tsx')).toMatch(/<PageHeader[^>]*\bstep=\{/);
+    expect(read('(app)/agency/clients/new/page.tsx')).toMatch(/<PageHeader/);
+    expect(read('(app)/agency/clients/new/page.tsx')).not.toMatch(/\bstep=/);
   });
 
-  it('no touched page or layout renders its own h1 (PageHeader owns it)', () => {
-    const files = ['(app)/agency', '(platform)/platform', '(app)/inbox', '(app)/settings', '(app)/kb', '(app)/onboarding'].flatMap(pagesUnder);
-    expect(files.length).toBeGreaterThan(30);
+  it('no file under the touched trees renders its own h1 (PageHeader owns it)', () => {
+    const files = ['(app)/agency', '(platform)/platform', '(app)/inbox', '(app)/settings', '(app)/kb', '(app)/onboarding'].flatMap(tsxUnder);
+    expect(files.length).toBeGreaterThan(100);
     for (const file of files) expect(read(file), file).not.toMatch(/<h1\b/);
   });
 });

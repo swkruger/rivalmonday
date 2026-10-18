@@ -18,7 +18,6 @@ export default async function NewClientPage() {
     <>
       <PageHeader
         title="Add a client"
-        step={{ n: 1, of: 6 }}
         breadcrumb={[{ label: 'Agency', href: '/agency' }, { label: 'Add a client' }]}
         description="Next you’ll pick 3–5 competitors to monitor."
       />
