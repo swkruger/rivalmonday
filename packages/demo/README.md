@@ -38,34 +38,35 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/settings/slack-teams` | admin | `fn:listWebhooks` | — |
 | `/c/[clientId]` | admin | `get_client_profile`, `get_workspace_overview`, `get_ad_activity`, `get_brief`, `list_alerts`, `list_briefs`, `list_moves`, `list_recommendations`, `list_trend_reports`, `get_starting_point_status`, `get_client_setup`, `get_ask_starters` | — |
 | `/c/[clientId] (client owner)` | ownerLoneStar | `get_starting_point_status`, `get_workspace_overview`, `list_briefs`, `get_brief` | — |
-| `/c/[clientId]/ads` | admin | `get_ad_activity`, `list_ads` | `list_ads`: one competitor runs no ads |
-| `/c/[clientId]/alerts/[alertId]` | admin | `get_alert` | — |
+| `/c/[clientId]/ads` | admin | `get_ad_activity`, `list_ads`, `get_client_profile` | `list_ads`: one competitor runs no ads |
+| `/c/[clientId]/alerts/[alertId]` | admin | `get_alert`, `get_client_profile`, `list_alerts` | — |
 | `/c/[clientId]/ask` | admin | `get_ask_starters`, `list_my_ask_threads`, `get_my_ask_thread`, `get_client_profile` | — |
 | `/c/[clientId]/ask/[threadId]` | admin | `get_ask_starters`, `list_my_ask_threads`, `get_my_ask_thread`, `get_client_profile` | — |
 | `/c/[clientId]/ask/[threadId] (client owner)` | ownerLoneStar | `list_my_ask_threads`, `get_my_ask_thread` | `get_my_ask_thread`: threads are author-only |
-| `/c/[clientId]/briefs/[briefId]` | ownerLoneStar | `get_brief` | — |
+| `/c/[clientId]/briefs` | admin | `get_client_profile`, `list_briefs`, `list_alerts`, `list_trend_reports` | — |
+| `/c/[clientId]/briefs/[briefId]` | ownerLoneStar | `get_brief`, `get_client_profile`, `list_briefs` | — |
 | `/c/[clientId]/briefs/[briefId] (starting point)` | ownerBrazos | `get_brief` | — |
 | `/c/[clientId]/briefs/[briefId] (starting point findings)` | ownerBrazos | `get_brief` | — |
 | `/c/[clientId]/briefs/[briefId] (quiet week)` | admin | `get_brief` | — |
 | `/c/[clientId]/changes` | admin | `search_events`, `get_event`, `compare_snapshots`, `list_client_competitors`, `get_client_profile` | — |
 | `/c/[clientId]/competitors` | admin | `get_client_profile`, `list_client_competitors`, `list_competitor_suggestions`, `get_competitor_search_status`, `get_competitor_signals` | — |
-| `/c/[clientId]/competitors/[competitorId]` | admin | `get_competitor_profile`, `get_competitor_timeline`, `list_tracked_pages`, `get_price_matrix`, `list_ads`, `get_theme_benchmark`, `get_geogrid`, `get_competitor_signals`, `get_competitor_ad_matches` | — |
-| `/c/[clientId]/evidence/[evidenceId]` | admin | `get_evidence` | — |
-| `/c/[clientId]/moves` | admin | `list_moves`, `get_move` | — |
+| `/c/[clientId]/competitors/[competitorId]` | admin | `get_competitor_profile`, `get_competitor_timeline`, `list_tracked_pages`, `get_price_matrix`, `list_ads`, `get_theme_benchmark`, `get_geogrid`, `get_competitor_signals`, `get_competitor_ad_matches`, `get_client_profile` | — |
+| `/c/[clientId]/evidence/[evidenceId]` | admin | `get_evidence`, `get_client_profile` | — |
+| `/c/[clientId]/moves` | admin | `list_moves`, `get_move`, `get_client_profile` | — |
 | `/c/[clientId]/pitch-snapshot` | admin | `get_client_profile`, `get_prospect_report` | — |
-| `/c/[clientId]/pricing` | admin | `get_price_matrix`, `get_price_history` | `get_price_history`: one competitor shows no prices |
-| `/c/[clientId]/rankings` | admin | `get_geogrid`, `get_rank_trend`, `get_share_of_voice`, `get_rank_settings` | `get_geogrid`: one competitor never ranks |
+| `/c/[clientId]/pricing` | admin | `get_price_matrix`, `get_price_history`, `get_client_profile` | `get_price_history`: one competitor shows no prices |
+| `/c/[clientId]/rankings` | admin | `get_geogrid`, `get_rank_trend`, `get_share_of_voice`, `get_rank_settings`, `get_client_profile` | `get_geogrid`: one competitor never ranks |
 | `/c/[clientId]/rankings (Brazos)` | admin | `get_geogrid` | — |
 | `/c/[clientId]/recommendations` | admin | `get_client_profile`, `list_recommendations` | — |
-| `/c/[clientId]/reports/[reportId]` | admin | `get_trend_report` | — |
-| `/c/[clientId]/reviews` | admin | `get_theme_benchmark`, `get_rating_trend`, `search_reviews` | — |
+| `/c/[clientId]/reports/[reportId]` | admin | `get_trend_report`, `get_client_profile`, `list_trend_reports` | — |
+| `/c/[clientId]/reviews` | admin | `get_theme_benchmark`, `get_rating_trend`, `search_reviews`, `get_client_profile` | — |
 | `/c/[clientId]/reviews (Brazos)` | admin | `get_rating_trend` | `search_reviews`: Brazos has no own business ("add your place id"); `search_reviews`: one competitor has no reviews |
 | `/c/[clientId]/settings/ai` | admin | `get_client_profile`, `list_api_tokens` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
 | `/c/[clientId]/settings/ai (client owner)` | ownerLoneStar | `get_client_profile`, `list_api_tokens` | — |
 | `/c/[clientId]/settings/alerts` | admin | `get_client_profile`, `get_alert_rules` | — |
 | `/c/[clientId]/settings/delivery` | admin | `get_client_profile` | — |
 | `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters`, `list_client_billing_status` | — |
-| `/c/[clientId]/settings/billing (client owner)` | ownerLoneStar | `get_my_billing` | — |
+| `/c/[clientId]/settings/billing (client owner)` | ownerLoneStar | `get_my_billing`, `get_client_profile` | — |
 | `/agency/settings/billing` | admin | `get_billing_summary`, `get_connect_status`, `get_client_revenue` | — |
 | `/onboarding (step=profile)` | admin | `get_onboarding_status`, `get_agency_profile` | — |
 | `/onboarding (step=team)` | admin | `get_onboarding_status` | — |

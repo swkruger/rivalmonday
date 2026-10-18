@@ -206,8 +206,8 @@ test('a support session switcher offers "Back to platform" and the session conti
     await expect(trigger(sidebar(page))).toContainText('Support Target Agency');
 
     await trigger(sidebar(page)).click();
-    await expect(page.getByRole('option', { name: 'Switch to Platform view' })).toHaveCount(0);
     await expect(page.getByRole('option', { name: /Target Plumbing/ })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Switch to Platform view' })).toHaveCount(0);
     await page.getByRole('option', { name: 'Back to platform' }).click();
     await expect(page).toHaveURL(new RegExp(`/platform/agencies/${agencyId}$`));
 

@@ -41,10 +41,10 @@ export function PageHeader({ title, description, breadcrumb, actions, step }: Pa
                       <BreadcrumbPage className="min-w-0 truncate" title={crumb.label}>{crumb.label}</BreadcrumbPage>
                     ) : crumb.href ? (
                       <BreadcrumbLink asChild>
-                        <Link href={crumb.href} className="min-w-0 truncate">{crumb.label}</Link>
+                        <Link href={crumb.href} className="min-w-0 truncate" title={crumb.label}>{crumb.label}</Link>
                       </BreadcrumbLink>
                     ) : (
-                      <span className="min-w-0 truncate">{crumb.label}</span>
+                      <span className="min-w-0 truncate" title={crumb.label}>{crumb.label}</span>
                     )}
                   </BreadcrumbItem>
                 </Fragment>

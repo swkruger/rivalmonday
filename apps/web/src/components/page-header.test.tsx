@@ -45,6 +45,14 @@ describe('PageHeader (15a §2.7)', () => {
     expect(within(nav).getByText('Acme').getAttribute('aria-current')).toBe('page');
   });
 
+  it('gives every truncating crumb (link, plain middle, current) its full label as a title', () => {
+    render(<PageHeader title="Acme" breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Customers' }, { label: 'Acme' }]} />);
+    const nav = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(nav).getByRole('link', { name: 'Platform' }).getAttribute('title')).toBe('Platform');
+    expect(within(nav).getByText('Customers').getAttribute('title')).toBe('Customers');
+    expect(within(nav).getByText('Acme').getAttribute('title')).toBe('Acme');
+  });
+
   it('lets a long unbroken crumb (an Ask thread title with a URL) shrink and truncate instead of widening the page', () => {
     const long = `What changed on https://example.com/${'a1b2'.repeat(60)}`;
     render(<PageHeader title="Ask Friday" breadcrumb={[{ label: 'Acme', href: '/c/x' }, { label: long }]} />);

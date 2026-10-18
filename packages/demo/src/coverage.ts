@@ -43,6 +43,10 @@ const askCalls: CoverageCall[] = [
   { tool: 'get_my_ask_thread', input: (ids) => ({ threadId: ids.ask.admin }), path: 'messages.*.citations' },
   lsProfile,
 ];
+/** Phase 15a: client pages read the client profile for their breadcrumb; the detail pages read their list for Previous/Next. */
+const lsBriefs: CoverageCall = { tool: 'list_briefs', input: (ids) => ({ clientId: ls(ids) }), path: 'items' };
+const lsAlerts: CoverageCall = { tool: 'list_alerts', input: (ids) => ({ clientId: ls(ids) }), path: 'items' };
+const lsReports: CoverageCall = { tool: 'list_trend_reports', input: (ids) => ({ clientId: ls(ids) }), path: 'items' };
 /** The Overview and Profile pages read the starters (Ask card; the admin's review toggle). */
 const lsStarters: CoverageCall = { tool: 'get_ask_starters', input: (ids) => ({ clientId: ls(ids) }), path: 'questions' };
 
@@ -80,8 +84,8 @@ const setupStaffCalls = (clientId: (ids: DemoIds) => string): CoverageCall[] => 
 ];
 const setupPending = (ids: DemoIds) => ids.clients.setupPending;
 
-/** Pages that show forms only, or only redirect (`/agency/settings` opens its first tab): no seeded data to check. */
-export const NO_DATA_ROUTES = ['/agency/clients/new', '/agency/prospects/new', '/agency/settings'] as const;
+/** Pages that show forms only, or only redirect (`/agency/settings` and `/c/[clientId]/settings` open their first tab): no seeded data to check. */
+export const NO_DATA_ROUTES = ['/agency/clients/new', '/agency/prospects/new', '/agency/settings', '/c/[clientId]/settings'] as const;
 
 /**
  * Tools read by the shared shell (`components/shell/app-shell.tsx`, rendered by the `(app)` and `(platform)` layouts) on every page. They are checked once, in the screen entry named here, rather
@@ -169,9 +173,10 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'list_ads', input: (ids) => ({ clientId: ls(ids), status: 'active', offset: 0 }), path: 'items' },
       { tool: 'list_ads', input: (ids) => ({ clientId: ls(ids), status: 'all' }), path: 'items' },
       { tool: 'list_ads', input: (ids) => ({ clientId: ls(ids), competitorId: ids.noData.ads, status: 'all' }), path: 'items', expect: 'empty', why: 'one competitor runs no ads' },
+      lsProfile,
     ],
   },
-  { route: '/c/[clientId]/alerts/[alertId]', as: 'admin', calls: [{ tool: 'get_alert', input: (ids) => ({ alertId: ids.alerts.delivered }), path: 'body' }] },
+  { route: '/c/[clientId]/alerts/[alertId]', as: 'admin', calls: [{ tool: 'get_alert', input: (ids) => ({ alertId: ids.alerts.delivered }), path: 'body' }, lsProfile, lsAlerts] },
   { route: '/c/[clientId]/ask', as: 'admin', calls: askCalls },
   { route: '/c/[clientId]/ask/[threadId]', as: 'admin', calls: askCalls },
   {
@@ -182,7 +187,9 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'get_my_ask_thread', input: (ids) => ({ threadId: ids.ask.admin }), expect: 'not_found', why: 'threads are author-only' },
     ],
   },
-  { route: '/c/[clientId]/briefs/[briefId]', as: 'ownerLoneStar', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.sentLoneStar[0] }), path: 'items' }] },
+  // Phase 15a: Briefs & reports, one tab per list (`?tab=briefs|alerts|reports`).
+  { route: '/c/[clientId]/briefs', as: 'admin', calls: [lsProfile, lsBriefs, lsAlerts, lsReports] },
+  { route: '/c/[clientId]/briefs/[briefId]', as: 'ownerLoneStar', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.sentLoneStar[0] }), path: 'items' }, lsProfile, lsBriefs] },
   // 12b: the starting point (tiles, scorecard rows, self findings) and a quiet week whose scorecard carries deltas and open first moves.
   { route: '/c/[clientId]/briefs/[briefId] (starting point)', as: 'ownerBrazos', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.startingPointBrazos }), path: 'scorecard.rows' }] },
   { route: '/c/[clientId]/briefs/[briefId] (starting point findings)', as: 'ownerBrazos', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.startingPointBrazos }), path: 'items' }] },
@@ -217,13 +224,15 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'get_geogrid', input: (ids) => ({ clientId: ls(ids), business: lsComp(ids) }), path: 'top3' },
       { tool: 'get_competitor_signals', input: (ids) => ({ clientId: ls(ids) }), path: 'competitors' },
       { tool: 'get_competitor_ad_matches', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids) }), path: 'pending' },
+      lsProfile,
     ],
   },
-  { route: '/c/[clientId]/evidence/[evidenceId]', as: 'admin', calls: [{ tool: 'get_evidence', input: (ids) => ({ clientId: ls(ids), evidenceId: lsEvent(ids).evidenceIds[0] }), path: 'citedBy' }] },
+  { route: '/c/[clientId]/evidence/[evidenceId]', as: 'admin', calls: [{ tool: 'get_evidence', input: (ids) => ({ clientId: ls(ids), evidenceId: lsEvent(ids).evidenceIds[0] }), path: 'citedBy' }, lsProfile] },
   {
     route: '/c/[clientId]/moves', as: 'admin', calls: [
       { tool: 'list_moves', input: (ids) => ({ clientId: ls(ids), status: 'all' }), path: 'items' },
       { tool: 'get_move', input: (ids) => ({ clientId: ls(ids), moveId: lsMove(ids).id }), path: 'events' },
+      lsProfile,
     ],
   },
   { route: '/c/[clientId]/pitch-snapshot', as: 'admin', calls: [lsProfile, { tool: 'get_prospect_report', input: (ids) => ({ clientId: ls(ids) }), path: 'report.data.businesses.*.gbp' }] },
@@ -232,6 +241,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'get_price_matrix', input: (ids) => ({ clientId: ls(ids) }), path: 'rows.*.cells.*.prices' },
       { tool: 'get_price_history', input: (ids) => ({ clientId: ls(ids), serviceId: 'ac_tune_up', days: 365 }), path: 'series.*.points' },
       { tool: 'get_price_history', input: (ids) => ({ clientId: ls(ids), serviceId: 'ac_tune_up', competitorId: ids.noData.pricing, days: 365 }), path: 'series.*.points', expect: 'empty', why: 'one competitor shows no prices' },
+      lsProfile,
     ],
   },
   {
@@ -241,16 +251,18 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'get_share_of_voice', input: (ids) => ({ clientId: ls(ids) }), path: 'series.*.points' },
       { tool: 'get_rank_settings', input: (ids) => ({ clientId: ls(ids) }), path: 'allKeywords' },
       { tool: 'get_geogrid', input: (ids) => ({ clientId: ls(ids), business: ids.noData.rankings }), path: 'top3', expect: 'empty', why: 'one competitor never ranks' },
+      lsProfile,
     ],
   },
   { route: '/c/[clientId]/rankings (Brazos)', as: 'admin', calls: [{ tool: 'get_geogrid', input: (ids) => ({ clientId: bz(ids) }), path: 'cells' }] },
   { route: '/c/[clientId]/recommendations', as: 'admin', calls: [lsProfile, { tool: 'list_recommendations', input: (ids) => ({ clientId: ls(ids) }), path: 'items' }] },
-  { route: '/c/[clientId]/reports/[reportId]', as: 'admin', calls: [{ tool: 'get_trend_report', input: (ids) => ({ reportId: ids.reportId }), path: 'data' }] },
+  { route: '/c/[clientId]/reports/[reportId]', as: 'admin', calls: [{ tool: 'get_trend_report', input: (ids) => ({ reportId: ids.reportId }), path: 'data' }, lsProfile, lsReports] },
   {
     route: '/c/[clientId]/reviews', as: 'admin', calls: [
       { tool: 'get_theme_benchmark', input: (ids) => ({ clientId: ls(ids) }), path: 'businesses.*.reviews' },
       { tool: 'get_rating_trend', input: (ids) => ({ clientId: ls(ids) }), path: 'businesses.*.reviews90d' },
       { tool: 'search_reviews', input: (ids) => ({ clientId: ls(ids), text: 'showed up two hours late', days: 365 }), path: 'items' },
+      lsProfile,
     ],
   },
   {
@@ -276,7 +288,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/c/[clientId]/settings/alerts', as: 'admin', calls: [lsProfile, { tool: 'get_alert_rules', input: (ids) => ({ clientId: ls(ids) }), path: 'custom' }] },
   { route: '/c/[clientId]/settings/delivery', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'serviceArea' }] },
   { route: '/c/[clientId]/settings/profile', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' }, lsStarters, { tool: 'list_client_billing_status', input: none, path: 'clients' }] },
-  { route: '/c/[clientId]/settings/billing (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'get_my_billing', input: (ids) => ({ clientId: ls(ids) }), path: 'agencyName' }] },
+  { route: '/c/[clientId]/settings/billing (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'get_my_billing', input: (ids) => ({ clientId: ls(ids) }), path: 'agencyName' }, lsProfile] },
   {
     route: '/agency/settings/billing', as: 'admin', calls: [
       { tool: 'get_billing_summary', input: none, path: 'state' },
