@@ -7,6 +7,7 @@ import { formatLongDate, formatUsd } from '@/components/billing/format';
 import { RefreshUntilChanged } from '@/components/billing/refresh-until-changed';
 import { clientSettingsCrumbs } from '@/components/client-crumbs';
 import { PageHeader } from '@/components/page-header';
+import { hasClientSettings } from '@/server/client-settings-nav';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { managePaymentAction } from './actions';
@@ -52,16 +53,17 @@ export default async function ClientBillingPage({ params, searchParams }: { para
   const { checkout } = await searchParams;
   const { ctx } = await requireContext();
   if (ctx.role !== 'client_owner') notFound();
-  const [b, profile] = await Promise.all([
+  const [b, profile, settingsLinked] = await Promise.all([
     callTool<MyBilling>(ctx, 'get_my_billing', { clientId }),
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
+    hasClientSettings(clientId),
   ]);
   const status = statusOf(b);
   const flash = one(checkout) === 'done' ? CHECKOUT_DONE_COPY : one(checkout) === 'cancelled' ? CHECKOUT_CANCELLED_COPY : null;
 
   return (
     <>
-      <PageHeader title="Billing" breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Billing')} />
+      <PageHeader title="Billing" breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Billing', settingsLinked)} />
       {one(checkout) === 'done' && <RefreshUntilChanged watch={b.state} />}
       {flash && <p role="status" className="rounded-md bg-muted-surface px-4 py-2 text-sm font-semibold text-ink">{flash}</p>}
       <Card>

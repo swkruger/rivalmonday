@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { clientSettingsCrumbs } from '@/components/client-crumbs';
 import { PageHeader } from '@/components/page-header';
+import { hasClientSettings } from '@/server/client-settings-nav';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { saveAlertRulesAction } from './actions';
@@ -18,13 +19,14 @@ export default async function AlertRulesPage({ params }: { params: Promise<{ cli
   const { clientId } = await params;
   const { ctx } = await requireContext();
   if (!hasFeature(ctx, 'alert_rules')) notFound();
-  const [rules, profile] = await Promise.all([
+  const [rules, profile, settingsLinked] = await Promise.all([
     callTool<AlertRulesView>(ctx, 'get_alert_rules', { clientId }),
     callTool<{ name: string }>(ctx, 'get_client_profile', { clientId }),
+    hasClientSettings(clientId),
   ]);
   return (
     <>
-      <PageHeader title="Alert rules" breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Alert rules')} />
+      <PageHeader title="Alert rules" breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Alert rules', settingsLinked)} />
       <Card>
         <CardContent className="flex flex-col gap-2">
           <p>Every competitor change gets a score from 0 to 100 for how much it matters to {profile.name}.</p>

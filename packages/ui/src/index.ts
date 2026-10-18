@@ -17,5 +17,7 @@ export * from './components/sheet';
 export * from './components/switch';
 export * from './components/table';
 export * from './components/tabs';
+export * from './components/tabs-classes';
+export * from './components/tabs-link';
 export * from './components/tooltip';
 export * from './components/wordmark';

@@ -2,6 +2,7 @@ import { isAgencyRole } from '@cs/core';
 import type { ClientProfile } from '@cs/tools';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { cache } from 'react';
 import { clientCrumbs } from '@/components/client-crumbs';
 import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
@@ -12,7 +13,6 @@ import type { ClientSetupView } from './types';
 import { wizardStep } from './wizard-steps';
 
 export const dynamic = 'force-dynamic';
-export const metadata: Metadata = { title: 'Setup' };
 
 const STEP_LABEL = { profile: 'Your business', search: 'Finding competitors', competitors: 'Pick competitors', invite: 'Invite the owner', billing: 'Billing' } as const;
 const STATUS_LABEL = { todo: 'Not started', running: 'Running', done: 'Done', skipped: 'Skipped', blocked: 'Needs attention' } as const;
@@ -41,16 +41,28 @@ async function billingPrefill(ctx: Ctx, clientId: string): Promise<BillingPrefil
  * Spec §7. `get_client_setup` refuses (-> 404) anyone but agency staff and the client's owner, and a client owner once
  * the setup is closed; staff may still open a finished or dismissed setup, read-only.
  */
-export default async function SetupPage({ params }: { params: Promise<{ clientId: string }> }) {
-  const { clientId } = await params;
+const loadSetup = cache(async (clientId: string) => {
   const { ctx } = await requireContext();
-  const agency = isAgencyRole(ctx.role);
   const [view, profile] = await Promise.all([
     callTool<ClientSetupView>(ctx, 'get_client_setup', { clientId }),
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
   ]);
+  return { ctx, view, profile };
+});
+
+const titleOf = (profile: ClientProfile) => `Set up ${profile.name}`;
+
+/** The tab title matches the h1; one read per request, shared with the page. */
+export async function generateMetadata({ params }: { params: Promise<{ clientId: string }> }): Promise<Metadata> {
+  return { title: titleOf((await loadSetup((await params).clientId)).profile) };
+}
+
+export default async function SetupPage({ params }: { params: Promise<{ clientId: string }> }) {
+  const { clientId } = await params;
+  const { ctx, view, profile } = await loadSetup(clientId);
+  const agency = isAgencyRole(ctx.role);
   const { state } = view;
-  const title = `Set up ${profile.name}`;
+  const title = titleOf(profile);
   const crumbs = clientCrumbs({ id: clientId, name: profile.name }, 'Setup');
 
   if (!state.open) {

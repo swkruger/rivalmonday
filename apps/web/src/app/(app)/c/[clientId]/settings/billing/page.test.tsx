@@ -14,6 +14,7 @@ vi.mock('@/server/tools', () => ({
   },
 }));
 vi.mock('./actions', () => ({ managePaymentAction: Object.assign(async () => ({ ok: true }), { bind: () => async () => ({ ok: true }) }) }));
+vi.mock('@/server/client-settings-nav', () => ({ hasClientSettings: async () => true }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
 vi.mock('@/components/billing/refresh-until-changed', () => ({ RefreshUntilChanged: ({ watch }: { watch: string }) => <span data-testid="refresh" hidden>{watch}</span> }));
 

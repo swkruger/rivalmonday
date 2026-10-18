@@ -18,3 +18,8 @@ export async function clientSettingsSections(clientId: string): Promise<NavSecti
   const clientBilling = viewer.kind === 'user' && ctx.role === 'client_owner' && (await clientBillingNoticeOf(ctx))?.enabled === true;
   return settingsNavFor('client', { ...flags, clientBilling }, clientId);
 }
+
+/** Whether `/c/<clientId>/settings` (the index) serves this viewer — false for guests — so a breadcrumb may link it. */
+export async function hasClientSettings(clientId: string): Promise<boolean> {
+  return (await clientSettingsSections(clientId)).length > 0;
+}

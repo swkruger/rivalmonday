@@ -114,7 +114,11 @@ describe('page titles = menu labels (15a §2.7)', () => {
   });
 
   it('settings tabs use the "Client settings" breadcrumb; the Overview has none (also on the briefs-only home)', () => {
-    for (const [file] of clientSettingsPages) expect(read(file), file).toContain('clientSettingsCrumbs(');
+    // "Client settings" links to the index only when it serves the viewer (not for guests).
+    for (const [file] of clientSettingsPages) {
+      expect(read(file), file).toContain('clientSettingsCrumbs(');
+      expect(read(file), file).toContain('hasClientSettings(clientId)');
+    }
     expect(read('(app)/c/[clientId]/page.tsx')).not.toMatch(/\bbreadcrumb=/);
     expect(read('../components/client-home-basic.tsx')).toMatch(/<PageHeader[^>]*\btitle="Overview"/);
     expect(read('../components/client-home-basic.tsx')).not.toMatch(/\bbreadcrumb=/);
@@ -132,10 +136,12 @@ describe('page titles = menu labels (15a §2.7)', () => {
     }
   });
 
-  it('the client setup wizard shows its own step; the finished setup none', () => {
+  it('the client setup wizard shows its own step; its tab title matches the h1 ("Set up {client}")', () => {
     const source = read('(app)/c/[clientId]/setup/page.tsx');
     expect(source).toMatch(/<PageHeader[^>]*\bstep=\{wizardStep\(/);
-    expect(source).toMatch(metadataTitle('Setup'));
+    expect(source).toContain('export async function generateMetadata');
+    expect(source).toContain('const titleOf = (profile: ClientProfile) => `Set up ${profile.name}`');
+    expect(source).not.toMatch(/export const metadata/);
   });
 
   it('onboarding shows its step; Add a client (the lookup preamble before the setup wizard) shows none', () => {

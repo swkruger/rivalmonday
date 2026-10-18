@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation';
 import { clientSettingsCrumbs } from '@/components/client-crumbs';
 import { PageHeader } from '@/components/page-header';
 import { WriteGuard } from '@/components/read-only';
+import { hasClientSettings } from '@/server/client-settings-nav';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { maskRecipientsForSupport } from '@/server/support-mask';
@@ -23,13 +24,13 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
   const { clientId } = await params;
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const profile = await callTool<ClientProfile>(ctx, 'get_client_profile', { clientId });
+  const [profile, settingsLinked] = await Promise.all([callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }), hasClientSettings(clientId)]);
   // Phase 8b: emails are masked in a support session before anything reaches a client component.
   const recipients = maskRecipientsForSupport(ctx, await listClientRecipients(dbs().service, ctx, clientId));
 
   return (
     <>
-      <PageHeader title="Delivery" breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Delivery')} />
+      <PageHeader title="Delivery" breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Delivery', settingsLinked)} />
       <DeliveryForm
         clientId={clientId}
         alertMode={profile.alertMode ?? 'after_am_check'}

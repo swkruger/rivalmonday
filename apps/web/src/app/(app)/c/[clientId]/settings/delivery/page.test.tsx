@@ -15,6 +15,7 @@ vi.mock('./delivery-controls', () => ({
   DeactivateRecipientButton: (p: unknown) => { m.props.push(p); return null; },
   DeliveryForm: (p: unknown) => { m.props.push(p); return null; },
 }));
+vi.mock('@/server/client-settings-nav', () => ({ hasClientSettings: async () => true }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
 
 import ClientDeliveryPage from './page';

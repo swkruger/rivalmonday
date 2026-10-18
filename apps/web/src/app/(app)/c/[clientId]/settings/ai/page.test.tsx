@@ -9,6 +9,7 @@ vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a)
 vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.test' }) }));
 vi.mock('@/components/ai-connections', () => ({ AccessTokensCard: () => null, ConnectedAppsCard: () => null, ConnectorUrlCard: () => null }));
 vi.mock('./actions', () => ({ createClientTokenAction: vi.fn(), revokeClientGrantAction: vi.fn(), revokeClientTokenAction: vi.fn() }));
+vi.mock('@/server/client-settings-nav', () => ({ hasClientSettings: async () => true }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
 
 import AiConnectionsPage from './page';

@@ -41,6 +41,9 @@ describe('Briefs & reports (15a §2.8)', () => {
     expect(callOf('list_briefs')).toEqual({ clientId: C, limit: 20 });
     expect(within(views()).getByRole('link', { name: 'Weekly briefs' }).getAttribute('aria-current')).toBe('page');
     expect(within(views()).getByRole('link', { name: 'Alerts' }).getAttribute('aria-current')).toBeNull();
+    // The @cs/ui Tabs look, active state from aria-current (not a third tab style).
+    expect(views().getAttribute('data-slot')).toBe('tabs-link-list');
+    expect(within(views()).getAllByRole('link').map((l) => l.getAttribute('data-slot'))).toEqual(['tabs-link', 'tabs-link', 'tabs-link']);
     const row = screen.getByRole('link', { name: /Oct 13, 2026/ });
     expect(row.getAttribute('href')).toBe(`/c/${C}/briefs/b2`);
     expect(row.textContent).toContain('Summary b2');

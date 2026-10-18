@@ -1,6 +1,6 @@
 import { isAgencyRole } from '@cs/core';
 import { type AlertSummary, type BriefSummary, type ClientProfile, encodeCursor, type ReportSummary } from '@cs/tools';
-import { Badge } from '@cs/ui';
+import { Badge, TabsLink, TabsLinkList } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { clientCrumbs } from '@/components/client-crumbs';
@@ -89,21 +89,13 @@ export default async function BriefsPage({ params, searchParams }: { params: Pro
     <>
       <PageHeader title="Briefs & reports" breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Act', 'Briefs & reports')} />
 
-      <nav aria-label="Briefs and reports views" className="flex gap-1 overflow-x-auto border-b border-border">
-        {TABS.map((t) => {
-          const on = t.key === tab;
-          return (
-            <Link
-              key={t.key}
-              href={hrefFor(clientId, t.key)}
-              aria-current={on ? 'page' : undefined}
-              className={`-mb-px shrink-0 border-b-2 px-4 py-2 text-sm font-semibold ${on ? 'border-primary text-ink' : 'border-transparent text-muted-foreground hover:text-ink'}`}
-            >
-              {t.label}
-            </Link>
-          );
-        })}
-      </nav>
+      <TabsLinkList aria-label="Briefs and reports views" className="max-w-full overflow-x-auto">
+        {TABS.map((t) => (
+          <TabsLink key={t.key} asChild active={t.key === tab} className="flex-none px-3">
+            <Link href={hrefFor(clientId, t.key)}>{t.label}</Link>
+          </TabsLink>
+        ))}
+      </TabsLinkList>
 
       {rows.length === 0 ? (
         <p className="rounded-[14px] bg-surface p-6 text-muted-foreground shadow-card">{page === 1 ? EMPTY[tab] : 'Nothing more to show.'}</p>

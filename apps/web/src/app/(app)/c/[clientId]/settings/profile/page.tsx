@@ -8,6 +8,7 @@ import { clientSettingsCrumbs } from '@/components/client-crumbs';
 import { ClientProfileForm } from '@/components/client-profile-form';
 import { PageHeader } from '@/components/page-header';
 import { ServicesAreaSummary } from '@/components/services-area-summary';
+import { hasClientSettings } from '@/server/client-settings-nav';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
@@ -22,12 +23,12 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
   const { ctx } = await requireContext();
   const agency = isAgencyRole(ctx.role);
   if (!agency && !hasFeature(ctx, 'dashboard')) notFound();
-  const p = await callTool<ClientProfile>(ctx, 'get_client_profile', { clientId });
+  const [p, settingsLinked] = await Promise.all([callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }), hasClientSettings(clientId)]);
   if (!agency) {
     const names = Object.fromEntries((await verticalOptions()).flatMap((v) => v.services.map((s) => [s.id, s.name] as const)));
     return (
       <>
-        <PageHeader title="Business profile" breadcrumb={clientSettingsCrumbs({ id: clientId, name: p.name }, 'Business profile')} />
+        <PageHeader title="Business profile" breadcrumb={clientSettingsCrumbs({ id: clientId, name: p.name }, 'Business profile', settingsLinked)} />
         <ServicesAreaSummary profile={p} serviceNames={names} />
         <p className="text-muted-foreground">To change these, contact your account manager.</p>
       </>
@@ -44,7 +45,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
           ← Back to the prospect
         </Link>
       )}
-      <PageHeader title="Business profile" breadcrumb={clientSettingsCrumbs({ id: clientId, name: p.name }, 'Business profile')} />
+      <PageHeader title="Business profile" breadcrumb={clientSettingsCrumbs({ id: clientId, name: p.name }, 'Business profile', settingsLinked)} />
       {billing && (
         <section aria-label="Billing" className="flex items-center gap-3">
           <span className="font-semibold">Billing</span>

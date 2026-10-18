@@ -19,6 +19,7 @@ const callTool = vi.fn(async (ctx: { support?: unknown }, name: string) => {
 vi.mock('@/server/tools', () => ({ callTool }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: state.ctx }) }));
 vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [{ id: 'hvac_plumbing', name: 'HVAC', services: [] }] }));
+vi.mock('@/server/client-settings-nav', () => ({ hasClientSettings: async () => true }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
 vi.mock('@/components/client-profile-form', () => ({ ClientProfileForm: () => <div>profile form</div> }));
 vi.mock('./client-features-form', () => ({ ClientFeaturesForm: (p: { role?: string }) => <div>features form role={String(p.role)}</div> }));

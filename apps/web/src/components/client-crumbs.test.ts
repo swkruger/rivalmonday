@@ -15,8 +15,14 @@ describe('clientCrumbs (15a §2.7: root = client name, then the group as text, t
   });
 
   it('settings pages: client › Client settings (linked) › tab', () => {
-    expect(clientSettingsCrumbs(client, 'Alert rules')).toEqual([
+    expect(clientSettingsCrumbs(client, 'Alert rules', true)).toEqual([
       { label: 'Cool Air', href: '/c/c1' }, { label: 'Client settings', href: '/c/c1/settings' }, { label: 'Alert rules' },
+    ]);
+  });
+
+  it('"Client settings" is plain text for a viewer the settings index would 404 (a guest: no visible tab)', () => {
+    expect(clientSettingsCrumbs(client, 'Alert rules', false)).toEqual([
+      { label: 'Cool Air', href: '/c/c1' }, { label: 'Client settings' }, { label: 'Alert rules' },
     ]);
   });
 });
