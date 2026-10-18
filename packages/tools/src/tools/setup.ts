@@ -156,7 +156,7 @@ export const getClientSetup = defineTool({
     suggestions: setupSuggestionsSchema,
     competitorSuggestions: z.array(ClientSafeSuggestion),
     search: SetupSearch.nullable(),
-    vertical: z.object({ services: z.array(z.object({ id: z.string(), name: z.string() })), seedKeywords: z.array(z.string()) }),
+    vertical: z.object({ name: z.string(), services: z.array(z.object({ id: z.string(), name: z.string() })), seedKeywords: z.array(z.string()) }),
     /** Phase 11b: the invited owner (invite step, "Ask {name} to review"). Name and email are for agency staff only. */
     invite: z.object({ status: z.enum(['none', 'pending', 'accepted']), name: z.string().nullable(), email: z.string().nullable() }),
   }),
@@ -201,7 +201,7 @@ export const getClientSetup = defineTool({
         id: s.id, name: s.name, tier: s.tier ?? 'minor', rating: s.rating, votes: s.votes, distanceKm: s.distanceKm,
         status: s.status as ClientSafeSuggestion['status'], preTicked: ticked.has(s.id),
       })),
-      vertical: { services: pack.services.map((s) => ({ id: s.id, name: s.name })), seedKeywords: [...pack.discovery.seed_keywords] },
+      vertical: { name: pack.name, services: pack.services.map((s) => ({ id: s.id, name: s.name })), seedKeywords: [...pack.discovery.seed_keywords] },
     };
   },
 });

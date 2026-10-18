@@ -51,7 +51,7 @@ export function ProfileStep({ initial, timezones }: { initial: ProfileValues; ti
   return (
     <div className="flex flex-col gap-4">
       <form action={formAction} onReset={(e) => e.preventDefault()} className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card">
-        <p className="text-muted-foreground">We use this to set up your account and invoices. Only your agency name is required to continue — you can skip and finish later.</p>
+        <p className="text-muted-foreground">We use this to set up your account and invoices. To save this step we need your agency name, a contact name, contact email and phone — everything else is optional. You can also skip and finish later.</p>
         <FormError state={state} />
         <fieldset disabled={readOnly} className="contents">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -44,7 +44,7 @@ describe('Stepper', () => {
 describe('ProfileStep', () => {
   it('shows the decided intro and submits the form to saveProfileAction', async () => {
     render(<ProfileStep initial={profile} timezones={['America/Chicago', 'UTC']} />);
-    expect(screen.getByText(/Only your agency name is required to continue/)).toBeTruthy();
+    expect(screen.getByText(/To save this step we need your agency name, a contact name, contact email and phone/)).toBeTruthy();
     expect((screen.getByLabelText('Agency name') as HTMLInputElement).value).toBe('Acme');
     await submit(screen.getByRole('button', { name: 'Save and continue' }));
     await waitFor(() => expect(m.saveProfileAction).toHaveBeenCalled());

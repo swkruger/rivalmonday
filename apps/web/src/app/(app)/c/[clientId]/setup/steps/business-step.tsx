@@ -85,6 +85,11 @@ export function BusinessStep({ view, profile, pending, onSave }: { view: ClientS
           We pre-ticked what we found on the Google profile. Hover a chip to see where it came from, or see the list below.
         </p>
       )}
+      {ready && ready.services.length === 0 && ready.keywords.length === 0 && (
+        <p role="status" className="text-sm text-muted-foreground">
+          We couldn&apos;t find suggestions in the Google profile — here are common keywords for {view.vertical.name}.
+        </p>
+      )}
 
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 font-semibold">Services the business offers</legend>

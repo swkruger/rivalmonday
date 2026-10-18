@@ -135,7 +135,7 @@ type GetOut = Out & {
   lookup: unknown; suggestions: { status: string };
   search: { status: string; progress: Record<string, number>; kept: number | null; finishedAt: string | null } | null;
   competitorSuggestions: { id: string; tier: string; status: string; preTicked: boolean }[];
-  vertical: { services: { id: string; name: string }[]; seedKeywords: string[] };
+  vertical: { name: string; services: { id: string; name: string }[]; seedKeywords: string[] };
 };
 
 const setupRow = (v: Partial<typeof clientSetup.$inferInsert> = {}) => dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, ...v });
@@ -313,6 +313,13 @@ describe('wizard tools', () => {
       expect(out.vertical.seedKeywords).toEqual(['hvac contractor', 'ac repair', 'plumber']);
       expect(out.vertical.services.length).toBeGreaterThan(5);
       expect(Object.keys(out.vertical.services[0]!).sort()).toEqual(['id', 'name']);
+    });
+
+    it('get_client_setup returns the pack name', async () => {
+      await setupRow();
+      const out = await get(admin);
+      expect(typeof out.vertical.name).toBe('string');
+      expect(out.vertical.name.length).toBeGreaterThan(0);
     });
 
     it('get_client_setup not_found for client role once closed; staff still read it', async () => {
