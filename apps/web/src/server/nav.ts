@@ -37,15 +37,32 @@ export function navForViewer(v: { kind: 'user' | 'guest' | 'support'; ctx: Acces
   return navFor(context, navFlagsFor(v, isPlatformOperator, 'Friday', isPlatformOwner), clientId, counts);
 }
 
+type AgencyCounts = { approvals: number; alerts: number; leads: number };
+type PlatformCounts = { modelReviews: number; themes: number; askReviews: number };
+
 /**
- * Phase 11c: the New-leads badge count, read through `list_leads`. Never throws: a failed read only hides the badge
- * (the shell must render). Only called for viewers whose `navFlagsFor(...).leads` is true.
+ * 15a P2: the sidebar's badge counts — one `get_nav_counts` read (agency viewers) and one `get_platform_nav_counts` read
+ * (platform operators), in parallel. Never throws: a failed read only omits its badges (the shell must render).
+ * `leads` (= `navFlagsFor(...).leads`) keeps the Leads count off for viewers who don't see the entry.
  */
-export async function newLeadsCount(ctx: AccessContext): Promise<number> {
-  try {
-    const { leads } = (await registry().invoke(ctx, 'list_leads', { status: 'verified' })) as { leads: unknown[] };
-    return leads.length;
-  } catch {
-    return 0;
+export async function navCounts(ctx: AccessContext, opts: { agency: boolean; operator: boolean; leads: boolean }): Promise<NavCounts> {
+  const read = async <T>(tool: string): Promise<T | null> => {
+    try {
+      return (await registry().invoke(ctx, tool, {})) as T;
+    } catch {
+      return null;
+    }
+  };
+  const [agency, platform] = await Promise.all([
+    opts.agency ? read<AgencyCounts>('get_nav_counts') : null,
+    opts.operator ? read<PlatformCounts>('get_platform_nav_counts') : null,
+  ]);
+  const out: NavCounts = {};
+  if (agency) {
+    out.approvals = agency.approvals;
+    out.alerts = agency.alerts;
+    if (opts.leads) out.leads = agency.leads;
   }
+  if (platform) Object.assign(out, { modelReviews: platform.modelReviews, themes: platform.themes, askReviews: platform.askReviews });
+  return out;
 }

@@ -14,7 +14,7 @@ import { TopBar } from '@/components/shell/top-bar';
 import type { BillingSnapshot } from '@/server/billing-state';
 import { clientBillingNoticeOf } from '@/server/client-billing-state';
 import { dbs } from '@/server/db';
-import { navFlagsFor, newLeadsCount } from '@/server/nav';
+import { navCounts, navFlagsFor } from '@/server/nav';
 import { platformAdmins } from '@/server/runtime-env';
 import { themeForViewer } from '@/server/theme';
 import { callTool } from '@/server/tools';
@@ -56,10 +56,11 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
   // Phase 9b: client roles' billing banners and the owner's Billing entry (only while billing is on for the client).
   const clientBilling = viewer.kind === 'support' ? null : await clientBillingNoticeOf(ctx);
   const navBase = navFlagsFor(viewer, operator, assistantName, role === 'owner');
-  const newLeads = navBase.leads ? await newLeadsCount(ctx) : 0;
+  const counts = await navCounts(ctx, { agency: navBase.isAgency, operator, leads: navBase.leads === true });
   const flags = {
     ...navBase,
-    ...(newLeads > 0 ? { newLeads } : {}),
+    // Task 4 hands `counts` to the sidebar; until then the Leads badge still rides on `flags.newLeads`.
+    ...(counts.leads ? { newLeads: counts.leads } : {}),
     ...(support ? { backToPlatform: `/platform/agencies/${support.agencyId}` } : {}),
     ...(viewer.kind === 'user' && ctx.role === 'client_owner' && clientBilling?.enabled ? { clientBilling: true } : {}),
   };

@@ -2,7 +2,7 @@ import { toolkit, ToolError } from '@cs/core';
 import { review, themeProposal } from '@cs/db';
 import { decideThemeProposal } from '@cs/engine';
 import { listVerticalPacks } from '@cs/verticals';
-import { and, desc, eq, gte, inArray, or } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
 import { requirePlatformOperator } from '../platform';
@@ -11,6 +11,16 @@ import { ThemeProposalView } from './schemas';
 const { defineTool } = toolkit<ToolDeps>();
 const SAMPLE_CHARS = 300;
 const DECIDED_WINDOW_DAYS = 30;
+
+/** The proposal rows `list_theme_proposals` reads: every proposed one plus decisions from the last 30 days ('none' rows never). */
+export const themeProposalsWhere = (now = Date.now()) =>
+  or(eq(themeProposal.status, 'proposed'), and(inArray(themeProposal.status, ['approved', 'rejected']), gte(themeProposal.decidedAt, new Date(now - DECIDED_WINDOW_DAYS * 86_400_000))));
+
+/** The Theme proposals badge: the list's `pending` rows (status `proposed`). Service role — proposals are platform-wide. */
+export async function countPendingThemeProposals(db: ToolDeps['service']): Promise<number> {
+  const [row] = await db.select({ n: count() }).from(themeProposal).where(and(themeProposalsWhere(), eq(themeProposal.status, 'proposed')));
+  return row?.n ?? 0;
+}
 
 export const listThemeProposals = defineTool({
   name: 'list_theme_proposals',
@@ -21,12 +31,11 @@ export const listThemeProposals = defineTool({
   permission: 'agency',
   async handler(ctx, _input, deps) {
     await requirePlatformOperator(deps, ctx);
-    const since = new Date(Date.now() - DECIDED_WINDOW_DAYS * 86_400_000);
     // 'none' rows (the model found nothing) are never listed.
     const rows = await deps.service
       .select()
       .from(themeProposal)
-      .where(or(eq(themeProposal.status, 'proposed'), and(inArray(themeProposal.status, ['approved', 'rejected']), gte(themeProposal.decidedAt, since))))
+      .where(themeProposalsWhere())
       .orderBy(desc(themeProposal.createdAt))
       .limit(50);
     const sampleIds = [...new Set(rows.flatMap((r) => r.sampleReviewIds.slice(0, 3)))];

@@ -91,6 +91,17 @@ export async function sendAfterCommit(deps: ToolDeps, leadId: string, kind: Lead
   }
 }
 
+/** The lead rows `list_leads` shows for this agency (one status, or every agency-visible one) — shared with the Leads badge. */
+export const agencyLeadsWhere = (ctx: AccessContext, status?: (typeof AGENCY_STATUSES)[number]) =>
+  and(eq(lead.agencyId, ctx.agencyId), status ? eq(lead.status, status) : inArray(lead.status, [...AGENCY_STATUSES]));
+
+/** The Leads badge: `list_leads({ status: 'verified' })` rows (New). Only for users who cover all clients — 0 for anyone else, whom `list_leads` refuses. */
+export async function countNewLeads(tx: Tx, ctx: AccessContext): Promise<number> {
+  if (ctx.clientScope !== 'all') return 0;
+  const [row] = await tx.select({ n: count() }).from(lead).where(agencyLeadsWhere(ctx, 'verified'));
+  return row?.n ?? 0;
+}
+
 export const listLeads = defineTool({
   name: 'list_leads',
   access: 'read',
@@ -104,7 +115,7 @@ export const listLeads = defineTool({
     requireAllScope(ctx);
     const rows = await withTenant(deps.app, ctx, (tx) =>
       tx.select().from(lead)
-        .where(and(eq(lead.agencyId, ctx.agencyId), status ? eq(lead.status, status) : inArray(lead.status, [...AGENCY_STATUSES])))
+        .where(agencyLeadsWhere(ctx, status))
         .orderBy(desc(lead.createdAt)).limit(200));
     const packs = await loadPacks(deps);
     return { leads: rows.map((r) => ({ ...toSummary(r), suggestedVerticalId: suggestVertical(packs, r) })) };

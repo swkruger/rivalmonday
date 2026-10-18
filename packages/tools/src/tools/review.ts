@@ -1,7 +1,7 @@
 import { canAccessClient, toolkit, ToolError } from '@cs/core';
-import { brief, briefItem, client, withTenant } from '@cs/db';
+import { brief, briefItem, client, type Tx, withTenant } from '@cs/db';
 import { approveBrief, dropBriefItem, editBriefItem, isUntouched, rateBriefItem, reorderBriefItems, sendBriefNow, updateClientDelivery } from '@cs/engine';
-import { asc, eq, gte, inArray, or } from 'drizzle-orm';
+import { and, asc, count, eq, gte, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, packsOf, type ToolDeps } from '../deps';
 import { briefDetail } from './briefs';
@@ -13,6 +13,19 @@ const text = z.string().max(2000);
 const ok = z.object({ ok: z.literal(true) });
 const reviewDeps = (deps: ToolDeps) => ({ service: deps.service, app: deps.app, packs: packsOf(deps) });
 
+/**
+ * The brief rows `list_brief_queue` reads: delivered in the last 7 days (UTC), or still `ready` however old. Decision 12
+ * then keeps the newest per client plus every `ready` one, so each `ready` row here is a queue row "Needs review" — the
+ * Approvals badge (`get_nav_counts`) counts them with this same filter so the two can't drift.
+ */
+export const briefQueueWhere = (now = Date.now()) => or(gte(brief.deliveryDate, new Date(now - 7 * 86_400_000).toISOString().slice(0, 10)), eq(brief.status, 'ready'));
+
+/** The Approvals badge: queue rows waiting for review, under the caller's RLS scope (`tx` from `withTenant`). */
+export async function countBriefsAwaitingReview(tx: Tx): Promise<number> {
+  const [row] = await tx.select({ n: count() }).from(brief).innerJoin(client, eq(client.id, brief.clientId)).where(and(briefQueueWhere(), eq(brief.status, 'ready')));
+  return row?.n ?? 0;
+}
+
 export const listBriefQueue = defineTool({
   name: 'list_brief_queue',
   access: 'read',
@@ -21,12 +34,11 @@ export const listBriefQueue = defineTool({
   output: z.object({ items: z.array(BriefQueueRow) }),
   permission: 'agency',
   async handler(ctx, _input, deps) {
-    const since = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
     const rows = await withTenant(deps.app, ctx, async (tx) => {
       const briefs = await tx
         .select({ b: brief, clientName: client.name, autoSend: client.briefAutoSend })
         .from(brief).innerJoin(client, eq(client.id, brief.clientId))
-        .where(or(gte(brief.deliveryDate, since), eq(brief.status, 'ready')))
+        .where(briefQueueWhere())
         .orderBy(asc(client.name), asc(brief.deliveryDate));
       const ids = briefs.map((r) => r.b.id);
       const items = ids.length ? await tx.select({ briefId: briefItem.briefId, status: briefItem.status }).from(briefItem).where(inArray(briefItem.briefId, ids)) : [];

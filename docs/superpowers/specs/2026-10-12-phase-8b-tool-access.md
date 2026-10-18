@@ -175,6 +175,8 @@ update_client_delivery (settings.ts) | write | updates delivery settings
 set_my_notification_pref (settings.ts) | write | updates preference
 update_my_contact (settings.ts) | write | updates contact
 list_theme_proposals (themes.ts) | read | read-only
+get_nav_counts (nav-counts.ts) | read | read-only counts (agency menu badges)
+get_platform_nav_counts (nav-counts.ts) | read | read-only counts; platform operator
 decide_theme_proposal (themes.ts) | write | decides proposal
 get_usage (usage.ts) | read | read-only
 set_client_limits (usage.ts) | write | updates client

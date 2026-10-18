@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { type AccessContext, ToolError } from '@cs/core';
 import { agency, askMessage, askThread, client, createAuditSink } from '@cs/db';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, sql } from 'drizzle-orm';
 import type { ToolDeps } from './deps';
 import { MCP_MAX_LIMIT, pageResult } from './paging';
 
@@ -53,6 +53,21 @@ export interface ReviewableAskThreadItem {
 
 type ReviewDeps = PlatformDeps;
 
+/** The thread rows `listReviewableAskThreads` pages through: clients that allow Ask review (6b e6). Over `ask_thread ⋈ client`. */
+const reviewableAskThreadsWhere = () => eq(client.askReviewAllowed, true);
+const askThreadClientJoin = () => and(eq(client.id, askThread.clientId), eq(client.agencyId, askThread.agencyId));
+
+/** The Ask reviews badge (15a): every thread `listReviewableAskThreads` lists. Threads have no reviewed state, so this is the list's total. Caller checks the operator. */
+export async function countReviewableAskThreads(db: ReviewDeps['service']): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(askThread)
+    .innerJoin(client, askThreadClientJoin())
+    .innerJoin(agency, eq(agency.id, askThread.agencyId))
+    .where(reviewableAskThreadsWhere());
+  return row?.n ?? 0;
+}
+
 export async function listReviewableAskThreads(
   deps: ReviewDeps,
   ctx: AccessContext,
@@ -82,9 +97,9 @@ export async function listReviewableAskThreads(
       quota: sql<boolean>`exists (select 1 from ask_message m where m.thread_id = ${askThread.id} and m.status = 'quota')`,
     })
     .from(askThread)
-    .innerJoin(client, and(eq(client.id, askThread.clientId), eq(client.agencyId, askThread.agencyId)))
+    .innerJoin(client, askThreadClientJoin())
     .innerJoin(agency, eq(agency.id, askThread.agencyId))
-    .where(eq(client.askReviewAllowed, true))
+    .where(reviewableAskThreadsWhere())
     .orderBy(desc(askThread.createdAt), asc(askThread.id))
     .limit(limit + 1)
     .offset(offset);
@@ -123,9 +138,9 @@ export async function getReviewableAskThread(deps: ReviewDeps, ctx: AccessContex
     ? await deps.service
         .select({ id: askThread.id, title: askThread.title, createdAt: askThread.createdAt, agencyName: agency.name, clientName: client.name })
         .from(askThread)
-        .innerJoin(client, and(eq(client.id, askThread.clientId), eq(client.agencyId, askThread.agencyId)))
+        .innerJoin(client, askThreadClientJoin())
         .innerJoin(agency, eq(agency.id, askThread.agencyId))
-        .where(and(eq(askThread.id, threadId), eq(client.askReviewAllowed, true)))
+        .where(and(eq(askThread.id, threadId), reviewableAskThreadsWhere()))
     : [];
   if (!t) throw new ToolError('not_found', 'Thread not found');
   const messages = await deps.service

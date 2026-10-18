@@ -1,13 +1,22 @@
 import { toolkit, ToolError } from '@cs/core';
-import { alert, client, competitor, withTenant } from '@cs/db';
+import { alert, client, competitor, type Tx, withTenant } from '@cs/db';
 import { approveAlert, dismissAlert } from '@cs/engine';
-import { and, asc, eq, or } from 'drizzle-orm';
+import { and, asc, count, eq, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { AlertQueueRow } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
+
+/** The alert rows `list_alert_queue` shows: waiting for the AM's check, or approved and held for the 17:00 digest. */
+export const alertQueueWhere = () => or(eq(alert.status, 'pending_review'), and(eq(alert.status, 'approved'), eq(alert.delivery, 'digest')));
+
+/** The Alert review badge: queue rows still waiting for a check (digest-held ones need nothing), under the caller's RLS scope. */
+export async function countAlertsAwaitingReview(tx: Tx): Promise<number> {
+  const [row] = await tx.select({ n: count() }).from(alert).innerJoin(client, eq(client.id, alert.clientId)).where(and(alertQueueWhere(), eq(alert.status, 'pending_review')));
+  return row?.n ?? 0;
+}
 
 export const listAlertQueue = defineTool({
   name: 'list_alert_queue',
@@ -23,7 +32,7 @@ export const listAlertQueue = defineTool({
         .from(alert)
         .innerJoin(client, eq(client.id, alert.clientId))
         .leftJoin(competitor, eq(competitor.id, alert.competitorId))
-        .where(or(eq(alert.status, 'pending_review'), and(eq(alert.status, 'approved'), eq(alert.delivery, 'digest'))))
+        .where(alertQueueWhere())
         .orderBy(asc(alert.createdAt))
         .limit(200));
     return {

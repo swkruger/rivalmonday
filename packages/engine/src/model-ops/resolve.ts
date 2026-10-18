@@ -1,7 +1,7 @@
 import type { DecisionQuestion, ResolvedAnswer } from '@cs/ai';
 import { type ChangeType, ToolError } from '@cs/core';
 import { changeEvent, client, competitor, type Db, decisionLabel, decisionReview, decisionSample, detectedChange, eventChange, eventScore } from '@cs/db';
-import { and, asc, eq, isNull, notInArray, sql } from 'drizzle-orm';
+import { and, asc, count, eq, isNull, notInArray, sql } from 'drizzle-orm';
 import { detachChange } from '../events/retract';
 import { writeEvent } from '../merge/merge';
 import { scoreEvent } from '../score/score-stage';
@@ -27,6 +27,20 @@ export interface OpenReview {
 /** Change statuses whose reviews are moot: superseded (replaced by a newer stage version's output) or suppressed (churn guard, never tagged). */
 const CLOSED_CHANGE_STATUSES = ['superseded', 'suppressed'];
 
+/** The open-review filter of `listOpenReviews` (over `decision_review ⋈ detected_change`), shared with `countOpenReviews`. */
+export const openReviewsWhere = () => and(isNull(decisionReview.resolvedAt), eq(decisionReview.subjectType, 'detected_change'), notInArray(detectedChange.status, CLOSED_CHANGE_STATUSES));
+
+/** How many reviews `listOpenReviews` would return without its limit (the Model reviews badge, 15a). */
+export async function countOpenReviews(db: Db): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(decisionReview)
+    .innerJoin(detectedChange, eq(detectedChange.id, decisionReview.subjectId))
+    .innerJoin(competitor, eq(competitor.id, detectedChange.competitorId))
+    .where(openReviewsWhere());
+  return row?.n ?? 0;
+}
+
 /** The AM review queue (spec §7.3), oldest first. Phase 5 puts a screen on this. */
 export async function listOpenReviews(db: Db, limit = 50): Promise<OpenReview[]> {
   return db
@@ -37,7 +51,7 @@ export async function listOpenReviews(db: Db, limit = 50): Promise<OpenReview[]>
     .from(decisionReview)
     .innerJoin(detectedChange, eq(detectedChange.id, decisionReview.subjectId))
     .innerJoin(competitor, eq(competitor.id, detectedChange.competitorId))
-    .where(and(isNull(decisionReview.resolvedAt), eq(decisionReview.subjectType, 'detected_change'), notInArray(detectedChange.status, CLOSED_CHANGE_STATUSES)))
+    .where(openReviewsWhere())
     .orderBy(asc(decisionReview.createdAt))
     .limit(limit);
 }
