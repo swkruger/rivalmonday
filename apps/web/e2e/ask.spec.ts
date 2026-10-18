@@ -94,7 +94,7 @@ test.describe('as a client user', () => {
     await expectNoUsageNumbers(page);
 
     await page.goto(`/c/${quotaCo.id}/settings/profile`);
-    await expect(page.getByRole('heading', { name: /^Services & area/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Business profile', exact: true })).toBeVisible();
     await expectNoUsageNumbers(page);
   });
 

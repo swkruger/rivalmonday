@@ -28,7 +28,7 @@ export default async function AiConnectionsPage({ params }: { params: Promise<{ 
 
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">AI connections</h1>
+      <h1 className="text-[26px] font-extrabold tracking-tight">AI connection</h1>
       <p className="text-ink">
         Connect Claude, ChatGPT or another AI assistant to {profile.name}&apos;s competitor data. Answers come with the same evidence links you see here.
       </p>
@@ -47,9 +47,9 @@ export default async function AiConnectionsPage({ params }: { params: Promise<{ 
             <p className="rounded-lg bg-muted-surface p-3 text-ink">
               Agency-wide tokens live under{' '}
               <Link href="/agency/settings/ai" className="font-semibold text-primary-soft-text underline">
-                AI connections
-              </Link>{' '}
-              in the agency menu.
+                Agency settings › AI connections
+              </Link>
+              .
             </p>
           ) : undefined
         }

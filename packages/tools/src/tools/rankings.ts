@@ -258,7 +258,7 @@ export const updateClientRankSettings = defineTool({
       const [current] = await tx.select().from(client).where(eq(client.id, input.clientId)).for('update');
       if (!current) throw new ToolError('not_found', 'Client not found');
       if (!keywords.every((k) => current.keywords.includes(k))) throw new ToolError('invalid_input', "Pick keywords from the client's keyword list.");
-      if (!current.serviceArea) throw new ToolError('invalid_input', 'Set a service area on the Profile page first.');
+      if (!current.serviceArea) throw new ToolError('invalid_input', 'Set a service area on the Business profile page first.');
       await tx.update(client).set({ rankKeywords: keywords, rankGridSize: input.gridSize, serviceArea: { ...current.serviceArea, radiusKm: input.radiusKm } }).where(eq(client.id, input.clientId));
     });
     await enqueueMapRefresh(deps, input.clientId);

@@ -27,6 +27,8 @@ const re = (s: string) => new RegExp(`^${s}`);
 const GUEST_FILES = ['@guest', '@evidence', '@briefs'];
 /** Every tag whose tests open an agency settings page (`/agency/settings/*`). */
 const SETTINGS_PAGES = ['@usage', '@playbooks', '@support', '@billing', '@client-billing', '@leads', '@ai-connections'];
+/** Every tag whose tests open a client settings page (`/c/<id>/settings/*`). */
+const CLIENT_SETTINGS_PAGES = ['@profile', '@clients', '@ask', '@support', '@billing', '@client-billing', '@setup', '@alert-rules', '@ai-connections'];
 
 /** Keyword rules for the domain packages; anything there no keyword catches runs everything. */
 const PKG = 'packages/(?:tools|engine|email|storage|collectors|ai)/src/|packages/(?:verticals|demo)/';
@@ -105,7 +107,9 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}settings/usage/`), tags: ['@usage'], why: 'usage and limits' },
   { pattern: re(`${AGENCY}settings/branding/logo/`), tags: ['@onboarding'], why: 'logo upload route (the wizard branding step uploads a logo)' },
   { pattern: re(`${AGENCY}settings/(?:branding|team|slack-teams)/`), tags: [], why: 'no E2E covers this agency page' },
-  { pattern: re(`${AGENCY}settings/(?:layout|page)\\.tsx$|${COMP}settings-nav\\.tsx$`), tags: SETTINGS_PAGES, why: 'agency settings layout, index redirect and sub-nav (wrap every agency settings page)' },
+  { pattern: re(`${AGENCY}settings/(?:layout|page)\\.tsx$`), tags: SETTINGS_PAGES, why: 'agency settings layout and index redirect (wrap every agency settings page)' },
+  { pattern: re(`${C}settings/(?:layout|page)\\.tsx$|${SERVER}client-settings-nav\\.ts$`), tags: CLIENT_SETTINGS_PAGES, why: 'client settings layout, index redirect and tab list (wrap every client settings page)' },
+  { pattern: re(`${COMP}settings-nav\\.tsx$`), tags: [...new Set([...SETTINGS_PAGES, ...CLIENT_SETTINGS_PAGES])], why: 'settings sub-nav (every agency and client settings page)' },
   { pattern: re(`${APP}\\(app\\)/onboarding/(?!start/)|${COMP}agency/`), tags: ['@onboarding'], why: 'onboarding wizard, checklist and shared branding editor' },
   { pattern: re(`${AGENCY}settings/platform-access/`), tags: ['@support'], why: 'agency support-session history and notify switch' },
   { pattern: re(`${C}settings/billing/`), tags: ['@billing', '@client-billing'], why: 'client owner billing page and portal action' },

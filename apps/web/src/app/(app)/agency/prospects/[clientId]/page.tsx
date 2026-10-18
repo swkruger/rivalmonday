@@ -42,7 +42,7 @@ export default async function ProspectHubPage({ params }: { params: Promise<{ cl
           {' · '}
           {profile.serviceArea ? 'Service area set' : 'No service area yet'}
         </p>
-        <Link href={`/c/${clientId}/settings/profile`} className="mt-2 inline-block font-semibold text-primary-soft-text">Edit profile</Link>
+        <Link href={`/c/${clientId}/settings/profile`} className="mt-2 inline-block font-semibold text-primary-soft-text">Edit business profile</Link>
       </div>
 
       <div className="rounded-[14px] bg-surface p-6 shadow-card">

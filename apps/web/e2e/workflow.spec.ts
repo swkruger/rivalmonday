@@ -30,7 +30,7 @@ test('an admin adds a client by hand, lands on its setup wizard, then uses its c
   await expect(find).toBeDisabled();
   await expect(page.getByText('Add keywords, a service area and a Google place id to search.')).toBeVisible();
   // Add the place id through the real profile form; website monitoring is off in E2E, so nothing is crawled.
-  await page.getByRole('link', { name: 'Go to Profile' }).click();
+  await page.getByRole('link', { name: 'Go to Business profile' }).click();
   await expect(page).toHaveURL(/\/settings\/profile$/);
   await page.getByLabel(/google place id/i).fill('ChIJe2eDentalPlace');
   await page.getByRole('button', { name: 'Save profile' }).click();

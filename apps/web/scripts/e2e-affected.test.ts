@@ -150,9 +150,17 @@ describe('resolveAffected', () => {
     expect(resolve('apps/web/src/app/(app)/agency/settings/playbooks/page.tsx').tags).toEqual(['@playbooks', '@smoke']);
     expect(resolve('apps/web/src/app/(app)/agency/settings/branding/logo/route.ts').tags).toEqual(['@onboarding', '@smoke']);
     expect(matchRule('apps/web/src/app/(app)/agency/settings/ai/page.tsx').why).toMatch(/AI connections/);
-    for (const f of ['apps/web/src/app/(app)/agency/settings/layout.tsx', 'apps/web/src/app/(app)/agency/settings/page.tsx', 'apps/web/src/components/settings-nav.tsx']) {
+    for (const f of ['apps/web/src/app/(app)/agency/settings/layout.tsx', 'apps/web/src/app/(app)/agency/settings/page.tsx']) {
       expect(resolve(f).tags, f).toEqual(['@ai-connections', '@billing', '@client-billing', '@leads', '@playbooks', '@smoke', '@support', '@usage']);
     }
+  });
+
+  it('maps the client settings layout, index and the shared sub-nav to every test that opens a settings page (15a)', () => {
+    const client = ['@ai-connections', '@alert-rules', '@ask', '@billing', '@client-billing', '@clients', '@profile', '@setup', '@smoke', '@support'];
+    for (const f of ['apps/web/src/app/(app)/c/[clientId]/settings/layout.tsx', 'apps/web/src/app/(app)/c/[clientId]/settings/page.tsx', 'apps/web/src/server/client-settings-nav.ts']) {
+      expect(resolve(f).tags, f).toEqual(client);
+    }
+    expect(resolve('apps/web/src/components/settings-nav.tsx').tags).toEqual(['@ai-connections', '@alert-rules', '@ask', '@billing', '@client-billing', '@clients', '@leads', '@playbooks', '@profile', '@setup', '@smoke', '@support', '@usage']);
   });
 
   it('builds a grep that does not match longer tags', () => {

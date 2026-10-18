@@ -279,7 +279,7 @@ export function SuggestionsPanel({
           <p className="text-muted-foreground">
             Add keywords, a service area and a Google place id to search.{' '}
             <Link href={`/c/${clientId}/settings/profile`} className="font-semibold text-primary-soft-text">
-              Go to Profile
+              Go to Business profile
             </Link>
           </p>
         )}

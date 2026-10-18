@@ -63,7 +63,7 @@ describe('update_client_rank_settings', () => {
 
   it('update needs a service area', async () => {
     await setup({ serviceArea: null });
-    await expect(registry.invoke(admin, 'update_client_rank_settings', input)).rejects.toMatchObject({ code: 'invalid_input', message: 'Set a service area on the Profile page first.' });
+    await expect(registry.invoke(admin, 'update_client_rank_settings', input)).rejects.toMatchObject({ code: 'invalid_input', message: 'Set a service area on the Business profile page first.' });
   });
 
   it('update writes the three fields and enqueues one map refresh', async () => {

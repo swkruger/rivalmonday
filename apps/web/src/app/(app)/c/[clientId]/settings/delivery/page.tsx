@@ -25,7 +25,7 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
 
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Delivery — {profile.name}</h1>
+      <h1 className="text-[26px] font-extrabold tracking-tight">Delivery</h1>
       <DeliveryForm
         clientId={clientId}
         alertMode={profile.alertMode ?? 'after_am_check'}

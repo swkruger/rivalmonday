@@ -68,7 +68,8 @@ test('the overview has no horizontal page scroll at 390 px', { tag: ['@responsiv
 test('alert rules refuse a brief above the alert and reset to the defaults', { tag: ['@alert-rules'] }, async ({ page }) => {
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
-  await page.getByRole('link', { name: 'Alert rules', exact: true }).click();
+  await page.getByRole('link', { name: 'Client settings' }).first().click();
+  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Alert rules', exact: true }).click();
   await page.getByLabel('Instant alert from score').fill('50');
   await page.getByLabel('Weekly brief from score').fill('60');
   await page.getByRole('button', { name: 'Save' }).click();

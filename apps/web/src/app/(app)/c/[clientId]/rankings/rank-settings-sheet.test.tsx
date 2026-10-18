@@ -52,12 +52,12 @@ describe('RankSettingsSheet', () => {
   });
 
   it('keeps the sheet open with the choices intact on a refusal', async () => {
-    saveRankSettings.mockResolvedValue({ ok: false, error: 'Set a service area on the Profile page first.' });
+    saveRankSettings.mockResolvedValue({ ok: false, error: 'Set a service area on the Business profile page first.' });
     render(<RankSettingsSheet clientId="c1" settings={settings} />);
     open();
     fireEvent.click(screen.getByRole('radio', { name: '5×5' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save settings' }));
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Set a service area on the Profile page first.'));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Set a service area on the Business profile page first.'));
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect((screen.getByRole('radio', { name: '5×5' }) as HTMLInputElement).checked).toBe(true);
   });

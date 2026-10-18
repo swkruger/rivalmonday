@@ -20,7 +20,7 @@ export default async function AlertRulesPage({ params }: { params: Promise<{ cli
   ]);
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Alert rules — {profile.name}</h1>
+      <h1 className="text-[26px] font-extrabold tracking-tight">Alert rules</h1>
       <Card>
         <CardContent className="flex flex-col gap-2">
           <p>Every competitor change gets a score from 0 to 100 for how much it matters to {profile.name}.</p>

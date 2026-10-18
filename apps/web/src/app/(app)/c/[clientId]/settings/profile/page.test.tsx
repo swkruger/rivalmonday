@@ -35,7 +35,7 @@ describe('client profile page', () => {
   it('renders in a support session without calling the support-hidden get_ask_starters, and omits the review toggle', async () => {
     callTool.mockClear();
     render(await Page({ params: Promise.resolve({ clientId: C }) }));
-    expect(screen.getByText('Profile — Target Plumbing')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Business profile' })).toBeTruthy();
     expect(callTool.mock.calls.map((c) => c[1])).not.toContain('get_ask_starters');
     expect(screen.getByText('features form role=undefined')).toBeTruthy();
   });

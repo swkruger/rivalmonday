@@ -38,7 +38,7 @@ describe('AiConnectionsPage (client)', () => {
   it('a signed-in client owner with the mcp feature sees the page', async () => {
     viewer.mockResolvedValue({ viewer: { kind: 'user', userId: 'u1' }, ctx: ctxOf('client_owner', ['mcp']) });
     render(await open());
-    expect(screen.getByRole('heading', { name: 'AI connections' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'AI connection' })).toBeTruthy();
     expect(callTool.mock.calls.map((c) => c[1]).sort()).toEqual(['get_client_profile', 'list_api_tokens', 'list_oauth_grants']);
   });
 });

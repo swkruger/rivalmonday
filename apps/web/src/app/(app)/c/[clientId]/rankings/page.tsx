@@ -97,15 +97,15 @@ export default async function RankingsPage({ params, searchParams }: {
 
       {geo.setup === 'no_keywords' ? (
         <p className="rounded-lg bg-muted-surface p-3 text-ink">
-          Rank tracking starts once keywords and a service area are set on the Profile page.
-          {isAgencyRole(ctx.role) && <> <Link href={`/c/${clientId}/settings/profile`} className="font-semibold text-primary-soft-text">Open Profile</Link></>}
+          Rank tracking starts once keywords and a service area are set on the Business profile page.
+          {isAgencyRole(ctx.role) && <> <Link href={`/c/${clientId}/settings/profile`} className="font-semibold text-primary-soft-text">Open Business profile</Link></>}
         </p>
       ) : geo.setup === 'no_scan' ? (
         <p className="rounded-lg bg-muted-surface p-3 text-ink">The first weekly rank scan hasn’t run yet.</p>
       ) : noBusiness ? (
         <p className="rounded-lg bg-muted-surface p-3 text-ink">
           Add your place id or track a competitor.
-          {isAgencyRole(ctx.role) && <> <Link href={`/c/${clientId}/settings/profile`} className="font-semibold text-primary-soft-text">Open Profile</Link></>}
+          {isAgencyRole(ctx.role) && <> <Link href={`/c/${clientId}/settings/profile`} className="font-semibold text-primary-soft-text">Open Business profile</Link></>}
         </p>
       ) : (
         <>

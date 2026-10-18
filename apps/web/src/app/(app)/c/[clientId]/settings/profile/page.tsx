@@ -23,7 +23,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
     const names = Object.fromEntries((await verticalOptions()).flatMap((v) => v.services.map((s) => [s.id, s.name] as const)));
     return (
       <>
-        <h1 className="text-[26px] font-extrabold tracking-tight">Services &amp; area — {p.name}</h1>
+        <h1 className="text-[26px] font-extrabold tracking-tight">Business profile</h1>
         <ServicesAreaSummary profile={p} serviceNames={names} />
         <p className="text-muted-foreground">To change these, contact your account manager.</p>
       </>
@@ -40,7 +40,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
           ← Back to the prospect
         </Link>
       )}
-      <h1 className="text-[26px] font-extrabold tracking-tight">Profile — {p.name}</h1>
+      <h1 className="text-[26px] font-extrabold tracking-tight">Business profile</h1>
       {billing && (
         <section aria-label="Billing" className="flex items-center gap-3">
           <span className="font-semibold">Billing</span>

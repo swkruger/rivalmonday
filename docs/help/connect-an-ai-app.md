@@ -7,7 +7,7 @@ kind: help
 
 You can connect an AI app such as Claude, ChatGPT or Claude Code to {{product}}. The app can then answer questions about your clients' competitors using the same monitored evidence you see in the dashboard.
 
-Connections are for agency staff. Open **AI connections** in the agency area (the page at `/agency/ai`). Each client page also has its own AI connections page under its settings.
+Connections are for agency staff. Open **Agency settings › AI connections** (`/agency/settings/ai`). Each client also has its own **AI connection** tab under **Client settings**.
 
 ## The connector URL
 
