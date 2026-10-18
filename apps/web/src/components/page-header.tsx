@@ -1,0 +1,69 @@
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@cs/ui';
+import Link from 'next/link';
+import { Fragment } from 'react';
+
+/** One breadcrumb step; without `href` it renders as plain text. The last crumb is always the current page. */
+export interface Crumb {
+  label: string;
+  href?: string;
+}
+
+export interface PageHeaderProps {
+  title: string;
+  description?: string;
+  breadcrumb?: Crumb[];
+  actions?: React.ReactNode;
+  /** 15b: opens the page guide. Renders nothing in 15a. */
+  helpKey?: string;
+  /** Wizards: "Step n of N" above the title. */
+  step?: { n: number; of: number };
+}
+
+/**
+ * Spec §2.7: every page's single `<h1>` (the browser tab title is the page's `metadata.title`, which equals `title`),
+ * an optional breadcrumb (`›` separators, last crumb `aria-current="page"`), description, and actions right-aligned
+ * from `sm` up (stacked below it).
+ */
+export function PageHeader({ title, description, breadcrumb, actions, step }: PageHeaderProps) {
+  return (
+    <header className="flex flex-col gap-2">
+      {breadcrumb && breadcrumb.length > 0 && (
+        <Breadcrumb>
+          <BreadcrumbList>
+            {breadcrumb.map((crumb, i) => {
+              const last = i === breadcrumb.length - 1;
+              return (
+                <Fragment key={`${i}-${crumb.label}`}>
+                  {i > 0 && <BreadcrumbSeparator />}
+                  <BreadcrumbItem>
+                    {last ? (
+                      <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                    ) : crumb.href ? (
+                      <BreadcrumbLink asChild>
+                        <Link href={crumb.href}>{crumb.label}</Link>
+                      </BreadcrumbLink>
+                    ) : (
+                      <span>{crumb.label}</span>
+                    )}
+                  </BreadcrumbItem>
+                </Fragment>
+              );
+            })}
+          </BreadcrumbList>
+        </Breadcrumb>
+      )}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          {step && (
+            <p className="text-sm font-semibold text-muted-ink">
+              Step {step.n} of {step.of}
+            </p>
+          )}
+          <h1 className="text-[26px] font-extrabold tracking-tight">{title}</h1>
+          {description && <p className="mt-1 text-muted-ink">{description}</p>}
+        </div>
+        {actions && <div className="flex flex-wrap items-center gap-3 sm:shrink-0 sm:justify-end">{actions}</div>}
+      </div>
+    </header>
+  );
+}
