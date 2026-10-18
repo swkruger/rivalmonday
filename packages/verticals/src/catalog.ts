@@ -30,6 +30,8 @@ export interface BusinessAreaRow {
 export const GENERIC_VERTICAL_ID = 'generic';
 const MAX_MERGE_DEPTH = 5;
 const DEFAULT_TTL_MS = 60_000;
+/** A miss on a snapshot at least this old reloads once (another process may have created/merged the id). */
+const DEFAULT_MISS_REFRESH_MS = 1500;
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -91,10 +93,11 @@ interface Snapshot {
 
 export function createCatalog(
   source: () => Promise<{ verticals: VerticalRow[]; areas: BusinessAreaRow[] }>,
-  opts: { ttlMs?: number; now?: () => number } = {},
+  opts: { ttlMs?: number; now?: () => number; missRefreshMs?: number } = {},
 ): Catalog {
   const ttl = opts.ttlMs ?? DEFAULT_TTL_MS;
   const now = opts.now ?? Date.now;
+  const missRefresh = opts.missRefreshMs ?? DEFAULT_MISS_REFRESH_MS;
   let snap: Snapshot | null = null;
   let inflight: Promise<Snapshot> | null = null;
   let generation = 0;
@@ -153,10 +156,21 @@ export function createCatalog(
     return null;
   }
 
+  /** Resolve with one refresh-on-miss: cross-process writes (create/merge) are invisible to this snapshot until the TTL. */
+  async function resolveFresh(id: string): Promise<{ s: Snapshot; final: string | null }> {
+    let s = await load();
+    let final = resolve(s, id);
+    if (final) return { s, final };
+    if (snap === s && now() - s.fetchedAt < missRefresh) return { s, final };
+    if (snap === s) snap = null; // else someone already replaced/invalidated it: just use the (shared) current load
+    s = await load();
+    final = resolve(s, id);
+    return { s, final };
+  }
+
   return {
     async packs(id) {
-      const s = await load();
-      const final = resolve(s, id);
+      const { s, final } = await resolveFresh(id);
       const pack = final ? s.packs.get(final) : undefined;
       if (!pack) throw new Error(`Unknown vertical: ${id}`);
       return pack;
@@ -168,7 +182,7 @@ export function createCatalog(
         .sort((a, b) => a.name.localeCompare(b.name));
     },
     async resolveId(id) {
-      return resolve(await load(), id);
+      return (await resolveFresh(id)).final;
     },
     invalidate() {
       generation++;

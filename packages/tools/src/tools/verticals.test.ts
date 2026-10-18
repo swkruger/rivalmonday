@@ -104,6 +104,27 @@ describe('create_vertical', () => {
     await expect(create(admin, { ...distillery, areas: [{ name: 'Tastings', aliases: ['acme heating tastings'] }] })).rejects.toMatchObject({ code: 'invalid_input' });
   });
 
+  it('matches client names as whole words only', async () => {
+    await dbs.owner.execute(sql`update client set name = 'Ace' where id = ${IDS.clientA1}`);
+    await expect(create(admin, { ...distillery, name: 'Furnace repair shops', categories: ['Furnace shop'] })).resolves.toMatchObject({ verticalId: 'furnace_repair_shop' });
+    await expect(create(admin, { ...distillery, name: 'Ace Plumbing services', categories: ['Plumbing shop'] })).rejects.toMatchObject({ code: 'invalid_input' });
+  });
+
+  it('refuses a name containing the business being onboarded (not yet a client)', async () => {
+    await expect(create(admin, { ...distillery, name: 'Hill Country Distillery tours', businessName: 'Hill Country Distillery' })).rejects.toMatchObject({ code: 'invalid_input', userFacing: true });
+    await expect(create(admin, { ...distillery, areas: [{ name: 'hill country distillery tasting' }], businessName: 'Hill Country Distillery' })).rejects.toMatchObject({ code: 'invalid_input' });
+    expect(await q(sql`select 1 from vertical where created_by_agency_id is not null`)).toHaveLength(0);
+    await expect(create(admin, { ...distillery, businessName: 'Hill Country Distillery' })).resolves.toMatchObject({ verticalId: 'distillery' });
+  });
+
+  it('replays idempotently even when the first create got a suffixed slug', async () => {
+    await dbs.owner.execute(sql`insert into vertical (id, name, status, merged_into) values ('distillery', 'Old stills', 'merged', 'dental')`);
+    const first = await create(admin);
+    expect(first.verticalId).toBe('distillery_2');
+    expect(await create(admin)).toEqual({ verticalId: 'distillery_2', droppedCategories: [] });
+    expect(await q(sql`select 1 from vertical where created_by_agency_id is not null`)).toHaveLength(1);
+  });
+
   it('copies draft evidence cached by another agency (the cache is global by place)', async () => {
     await dbs.owner.execute(sql`insert into vertical_draft (place_id, agency_id, draft) values ('pl3', ${IDS.agencyA}, '{"sources":["a"]}'::jsonb)`);
     await create(adminB, { ...distillery, draftPlaceId: 'pl3' });

@@ -20,6 +20,8 @@ export interface CreateVerticalInput {
   relatedCategories?: string[];
   themes?: { name: string }[];
   draftPlaceId?: string;
+  /** The business being onboarded: not a client yet, so the tool checks names against it (D3). */
+  businessName?: string;
 }
 
 export const MAX_KEYWORDS = 5;
@@ -46,7 +48,7 @@ export function canCreate(f: NewTypeForm): boolean {
 }
 
 /** `draftPlaceId` is sent only for an AI draft, so the tool can re-key the cached draft's evidence. */
-export function toCreateInput(f: NewTypeForm, placeId: string | null): CreateVerticalInput {
+export function toCreateInput(f: NewTypeForm, placeId: string | null, businessName?: string | null): CreateVerticalInput {
   const noun = f.audienceNoun.trim();
   const keywords = f.keywords.map((k) => k.value.trim()).filter((v) => v.length >= 2).slice(0, MAX_KEYWORDS);
   return {
@@ -58,5 +60,6 @@ export function toCreateInput(f: NewTypeForm, placeId: string | null): CreateVer
     ...(f.relatedCategories.length ? { relatedCategories: f.relatedCategories } : {}),
     ...(f.themes.length ? { themes: f.themes.map((name) => ({ name })) } : {}),
     ...(placeId ? { draftPlaceId: placeId } : {}),
+    ...(businessName?.trim() ? { businessName: businessName.trim().slice(0, 200) } : {}),
   };
 }

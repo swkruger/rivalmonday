@@ -17,6 +17,22 @@ async function lockVerticals(tx: Tx, ids: string[]): Promise<Map<string, typeof 
 }
 
 /**
+ * Re-keys service ids inside stored ready setup suggestions of the vertical's clients, so a client mid-setup does not save an id that
+ * no longer exists. `mapJson` is a JSON object old id -> new id; entries that collapse onto one id keep the first.
+ */
+async function rekeySuggestions(tx: Tx, verticalId: string, mapJson: string): Promise<void> {
+  await tx.execute(sql`UPDATE client_setup cs SET suggestions = jsonb_set(cs.suggestions, '{services}', (
+      SELECT coalesce(jsonb_agg(e ORDER BY ord), '[]'::jsonb) FROM (
+        SELECT DISTINCT ON (v) e, ord FROM (
+          SELECT jsonb_set(x, '{value}', to_jsonb(coalesce(${mapJson}::jsonb ->> (x ->> 'value'), x ->> 'value'))) AS e,
+                 coalesce(${mapJson}::jsonb ->> (x ->> 'value'), x ->> 'value') AS v, ord
+          FROM jsonb_array_elements(cs.suggestions -> 'services') WITH ORDINALITY AS t(x, ord)) a
+        ORDER BY v, ord) b))
+    WHERE cs.suggestions ->> 'status' = 'ready' AND jsonb_typeof(cs.suggestions -> 'services') = 'array'
+      AND cs.client_id IN (SELECT id FROM client WHERE vertical_id = ${verticalId})`);
+}
+
+/**
  * Merges vertical `sourceId` into `targetId` (binding algorithm, Phase 14a Task 10). Runs inside the caller's transaction,
  * after `lockCatalogue(tx)`. `areaMap`: source area id -> target area id, or null = move the area to the target.
  */
@@ -54,11 +70,14 @@ export async function mergeVerticalTx(tx: Tx, sourceId: string, targetId: string
 
   // 1. areas
   await tx.execute(sql`UPDATE business_area SET vertical_id = ${targetId} WHERE vertical_id = ${sourceId} AND id IN (SELECT jsonb_array_elements_text(${moveJson}::jsonb))`);
+  // Flatten area chains: areas already merged into a now-mapped source area point straight at its target.
+  await tx.execute(sql`UPDATE business_area SET merged_into = (${mapSql} ->> merged_into) WHERE vertical_id = ${sourceId} AND status = 'merged' AND merged_into IS NOT NULL AND ${mapSql} ->> merged_into IS NOT NULL`);
   await tx.execute(sql`UPDATE business_area SET status = 'merged', merged_into = m.tgt_area
     FROM (SELECT a.v AS src_area, b.v AS tgt_area FROM jsonb_array_elements_text(${mapSrc}::jsonb) WITH ORDINALITY AS a(v, o)
           JOIN jsonb_array_elements_text(${mapTgt}::jsonb) WITH ORDINALITY AS b(v, o) USING (o)) AS m
     WHERE vertical_id = ${sourceId} AND id = m.src_area`);
-  // 2. clients
+  // 2. clients (and their stored setup suggestions, while they still point at the source vertical)
+  await rekeySuggestions(tx, sourceId, JSON.stringify(mapped));
   const clients = await tx.execute(sql`UPDATE client c SET vertical_id = ${targetId}, services = (
     SELECT coalesce(jsonb_agg(s ORDER BY ord), '[]'::jsonb) FROM (
       SELECT DISTINCT ON (s) s, ord FROM (
@@ -94,6 +113,8 @@ export async function mergeVerticalTx(tx: Tx, sourceId: string, targetId: string
   // 7. categories and rows. The source's Google categories become the target's related categories (its primary ones stay primary).
   await tx.execute(sql`UPDATE vertical_category SET vertical_id = ${targetId}, kind = 'related' WHERE vertical_id = ${sourceId}`);
   await tx.execute(sql`UPDATE vertical SET status = 'merged', merged_into = ${targetId}, updated_at = now() WHERE id = ${sourceId}`);
+  // Flatten vertical chains (the resolver caps at 5 hops): everything that pointed at the source points at the target.
+  await tx.execute(sql`UPDATE vertical SET merged_into = ${targetId} WHERE merged_into = ${sourceId} AND id <> ${sourceId}`);
   await tx.execute(sql`UPDATE vertical t SET version = t.version + 1, updated_at = now(),
       gbp_related_categories = ARRAY(SELECT DISTINCT c FROM unnest(t.gbp_related_categories || s.gbp_categories || s.gbp_related_categories) AS c WHERE c <> ALL(t.gbp_categories))
     FROM vertical s WHERE t.id = ${targetId} AND s.id = ${sourceId}`);
@@ -113,6 +134,8 @@ export async function mergeAreaTx(tx: Tx, verticalId: string, sourceAreaId: stri
   if (src.status === 'merged' || tgt.status === 'merged') refuse('Both areas must be live (not already merged).');
 
   await tx.update(businessArea).set({ status: 'merged', mergedInto: targetAreaId }).where(and(eq(businessArea.verticalId, verticalId), eq(businessArea.id, sourceAreaId)));
+  await tx.execute(sql`UPDATE business_area SET merged_into = ${targetAreaId} WHERE vertical_id = ${verticalId} AND merged_into = ${sourceAreaId}`); // flatten chains
+  await rekeySuggestions(tx, verticalId, JSON.stringify({ [sourceAreaId]: targetAreaId }));
   const clients = await tx.execute(sql`UPDATE client c SET services = (
     SELECT coalesce(jsonb_agg(s ORDER BY ord), '[]'::jsonb) FROM (
       SELECT DISTINCT ON (s) s, ord FROM (

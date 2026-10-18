@@ -14,6 +14,10 @@ const MAX_AREAS = 255;
 const MAX_MERGE_DEPTH = 5;
 /** Serialises every catalogue write: replays return the committed row and similarity checks see committed data. */
 const CATALOGUE_LOCK_KEY = 1_401_400_001;
+/**
+ * Global lock order for transactions that touch the catalogue: catalogue advisory lock -> vertical rows (id order) -> client rows.
+ * A path that already needs a client row lock must call `lockCatalogue` first (the advisory xact lock is re-entrant).
+ */
 export const lockCatalogue = (tx: Tx) => tx.execute(sql`select pg_advisory_xact_lock(${CATALOGUE_LOCK_KEY})`);
 const aliasesSchema = z.array(z.string().trim().min(1).max(80)).max(8);
 const areaInput = z.object({ name: z.string().trim().min(2).max(80), aliases: aliasesSchema.optional() });
@@ -35,12 +39,13 @@ function requireAgencyStaff(ctx: AccessContext): void {
 }
 
 /** D3 "no client data in names": refuse contact details or any of this agency's client names inside catalogue text. */
-export const refuseClientData = (deps: ToolDeps, ctx: AccessContext, texts: readonly string[]): Promise<void> => refuseClientDataFor(deps, ctx.agencyId, texts);
+export const refuseClientData = (deps: ToolDeps, ctx: AccessContext, texts: readonly string[], extraNames: readonly string[] = []): Promise<void> =>
+  refuseClientDataFor(deps, ctx.agencyId, texts, extraNames);
 
 /** Same rule against the client names of an explicit agency (an operator checks the agency that created the entry). */
-export async function refuseClientDataFor(deps: ToolDeps, agencyId: string | null, texts: readonly string[]): Promise<void> {
-  const clientNames = (agencyId === null ? [] : await deps.service.select({ name: client.name }).from(client).where(eq(client.agencyId, agencyId)))
-    .map((c) => c.name.trim().toLowerCase())
+export async function refuseClientDataFor(deps: ToolDeps, agencyId: string | null, texts: readonly string[], extraNames: readonly string[] = []): Promise<void> {
+  const clientNames = [...(agencyId === null ? [] : await deps.service.select({ name: client.name }).from(client).where(eq(client.agencyId, agencyId))).map((c) => c.name), ...extraNames]
+    .map((n) => n.trim())
     .filter((n) => n.length >= 3);
   for (const t of texts) {
     if (hasClientData(t, clientNames)) throw new ToolError('invalid_input', NO_CLIENT_DATA, { userFacing: true });
@@ -191,20 +196,24 @@ export const createVertical = defineTool({
     relatedCategories: categoriesSchema.max(10).optional(),
     themes: z.array(themeInput).max(12).optional(),
     draftPlaceId: z.string().max(300).optional(),
+    /** The business being onboarded (not a client yet): its name is checked like a client name (D3). */
+    businessName: z.string().trim().max(200).optional(),
   }),
   output: z.object({ verticalId: z.string(), droppedCategories: z.array(z.string()) }),
   permission: 'manage',
   async handler(ctx, input, deps) {
     requireAgencyStaff(ctx);
-    await refuseClientData(deps, ctx, [input.name, ...input.areas.flatMap((a) => [a.name, ...(a.aliases ?? [])]), ...(input.themes ?? []).map((t) => t.name)]);
+    await refuseClientData(deps, ctx, [input.name, ...input.areas.flatMap((a) => [a.name, ...(a.aliases ?? [])]), ...(input.themes ?? []).map((t) => t.name)], input.businessName ? [input.businessName] : []);
     const slug = slugOf(input.name, 'drop');
     if (!slug) throw new ToolError('invalid_input', 'Use a more specific business type name.', { userFacing: true });
 
     const result = await deps.service.transaction(async (tx) => {
       await lockCatalogue(tx);
       const all = await tx.select().from(vertical);
-      const mine = all.find((v) => v.id === slug);
-      if (mine && mine.status === 'unreviewed' && mine.createdByAgencyId === ctx.agencyId) return { verticalId: mine.id, droppedCategories: [] as string[] };
+      // Replay: the agency's own unreviewed entry with this name, whatever slug it got (a collision may have suffixed it).
+      const nameKey = normaliseName(input.name);
+      const mine = all.find((v) => v.status === 'unreviewed' && v.createdByAgencyId === ctx.agencyId && normaliseName(v.name) === nameKey);
+      if (mine) return { verticalId: mine.id, droppedCategories: [] as string[] };
       const similar = similarVerticals(input.name, all.filter((v) => v.status !== 'merged' && v.id !== GENERIC_VERTICAL_ID).map((v) => ({ id: v.id, name: v.name, categories: v.gbpCategories })), 1);
       if (similar[0]) throw new ToolError('conflict', `A similar business type already exists: ${similar[0].name}.`, { userFacing: true });
       const id = uniqueSlug(slug, new Set(all.map((v) => v.id)));

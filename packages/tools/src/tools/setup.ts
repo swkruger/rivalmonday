@@ -12,7 +12,7 @@ import { applyClientProfileChange } from '../setup/profile-change';
 import { queueCompetitorReview } from '../setup/review-email';
 import { clientSetupOpen, completeIfDone, getSetupState, loadSetupInvite, type SetupState } from '../setup/state';
 import { normaliseName } from '@cs/verticals';
-import { addBusinessAreaCore, refuseClientData } from './verticals';
+import { addBusinessAreaCore, lockCatalogue, refuseClientData } from './verticals';
 import { acceptSuggestions, dismissSuggestions, preTickTop, RUN_STATUSES, runSuggestionRows, SearchProgress, searchProgress, searchRefusalMessage } from './competitors';
 import { ServiceAreaWrite, Tier } from './schemas';
 
@@ -235,6 +235,7 @@ export const saveSetupProfile = defineTool({
       // lock is global), BEFORE the tenant-side profile write; the new ids ride in `services`. Creation is idempotent by name, so a
       // failed or repeated save leaves at most an unreviewed area and never a duplicate.
       const ids = await deps.service.transaction(async (tx) => {
+        await lockCatalogue(tx); // lock order: catalogue -> vertical rows -> client rows (merges take them in that order)
         await lockClient(tx, clientId);
         await closedSetupRecheck(ctx, clientId)(tx);
         const [c] = await tx.select({ verticalId: client.verticalId, services: client.services }).from(client).where(eq(client.id, clientId));

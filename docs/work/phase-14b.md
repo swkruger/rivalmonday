@@ -1,19 +1,19 @@
 # phase-14b — Dynamic verticals, business areas and runbooks
 
 **Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-14b   **Base:** main @ 9bd2aab5
-**Spec:** [2026-10-17-phase-14-dynamic-verticals-runbooks-design.md](../superpowers/specs/2026-10-17-phase-14-dynamic-verticals-runbooks-design.md) (14a + 14b). **Plans:** [14a](../superpowers/plans/2026-10-18-phase-14a-vertical-catalogue.md), [14b](../superpowers/plans/2026-10-18-phase-14b-runbooks.md) (both owner-approved 2026-10-18). Add a Phase 14 (14a, 14b) roadmap row at merge.
+**Spec:** [2026-10-17-phase-14-dynamic-verticals-runbooks-design.md](../superpowers/specs/2026-10-17-phase-14-dynamic-verticals-runbooks-design.md) (14a + 14b). **Plans:** [14a](../superpowers/plans/2026-10-18-phase-14a-vertical-catalogue.md), [14b](../superpowers/plans/2026-10-18-phase-14b-runbooks.md). Add a Phase 14 (14a, 14b) roadmap row at merge.
 
 ## Status (overwrite)
-2026-10-18: 14a implemented (Tasks 0-12); final whole-branch review pending. Migrations 0077 (`vertical_catalog`) and 0078 (`llm_call_vertical`). 14b (runbooks, 10 tasks) not started.
+2026-10-18: 14a implemented (Tasks 0-12); final review fix wave done. Migrations 0077 (`vertical_catalog`) and 0078 (`llm_call_vertical`). 14b (runbooks, 10 tasks) not started.
 
 ## Next (overwrite)
-Final whole-branch review of 14a on the most capable model (`pnpm test:affected` and `e2e:affected --base main`), one fix wave, owner runs the verification steps below; then 14b Task 0 on the 14b plan.
+Owner runs the verification steps below; then 14b Task 0 on the 14b plan.
 
 ## Interfaces this branch adds or changes
 - **Tables (service-only RLS):** `vertical`, `business_area`, `vertical_category`, `vertical_draft` (0077, seeded from the YAML packs + `generic`); `llm_call.vertical_id` (0078, unconstrained text; drafts use `draft:<placeId>`). Merged rows keep `status='merged'` + `merged_into`, so old ids resolve.
 - **`@cs/verticals`:** `createCatalog`/`Catalog`, `assemblePack`, `splitPack`, `GENERIC_VERTICAL_ID`, `similarVerticals`, `verticalDraftSchema`/`validateDraft`/`normaliseQuote`. Packs are seed + fixtures only.
 - **`@cs/tools`:** `catalogOf(deps)`, `packsOf`, `catalogPacks`; `ToolDeps.catalog`, `ToolDeps.verticalDrafter`; `CallScope.verticalId`; `refuseClientData`/`hasClientData` (`catalog/client-data.ts`).
-- **Tools:** `list_verticals` (web/mcp/ask), `create_vertical`, `add_business_area`, `update_vertical`, `draft_vertical` (web, agency staff), `list_catalog_review` (platform viewer), `count_catalog_review`, `review_vertical`, `review_business_area`, `merge_vertical`, `merge_business_area` (staff). `list_platform_costs.aiByVertical`; `save_setup_profile.newAreas`; `SetupSuggestions.newAreas`; lead summaries gain `placeId`, `category`.
+- **Tools:** `list_verticals` (web/mcp/ask), `create_vertical` (+ optional `businessName`, D3), `add_business_area`, `update_vertical`, `draft_vertical` (web, agency staff), `list_catalog_review` (platform viewer), `count_catalog_review`, `review_vertical`, `review_business_area`, `merge_vertical`, `merge_business_area` (staff). `list_platform_costs.aiByVertical`; `save_setup_profile.newAreas`; `SetupSuggestions.newAreas`; lead summaries gain `placeId`, `category`.
 - **Web:** `/platform/verticals` (nav "Business types", pending badge); "New business type" panel in the lookup step and lead accept; "New" service chips in the setup business step; AI-by-business-type table on `/platform/costs`.
 - **Env/CI:** `E2E_PORT` (default 3100) for parallel worktrees; truncateAll re-seeds the catalogue.
 
@@ -31,19 +31,19 @@ Final whole-branch review of 14a on the most capable model (`pnpm test:affected`
 8. Draft cache is global by place; evidence copy is not agency-scoped (public profile text only); cost re-key is.
 9. `save_setup_profile.newAreas` must match a stored suggestion and pass the client-data check: owners can tick offered chips, not type free text. New areas are created in a short transaction before the profile write (not atomic; worst case an orphan unreviewed area shown in the queue).
 10. `list_catalog_review` is platform 'viewer'; writes 'staff'. Approving a type also approves its unreviewed areas.
-11. Merge also re-keys `price_block_map`, dedupes colliding open `price_point` rows, and `update_vertical` by staff checks D3 against the creator agency.
+11. Merge also re-keys `price_block_map` and stored setup suggestions, dedupes open `price_point` rows, flattens `merged_into` chains; staff `update_vertical` checks D3 against the creator agency. Catalogue lock order: catalogue -> vertical -> client rows. A catalogue miss older than 1.5 s reloads once (cross-process).
 12. Agency onboarding validates ids via `catalogOf(deps).resolveId` (stores the target id).
 13. E2E port 3100 is hard-coded upstream; made `E2E_PORT`-driven (other session holds 3100).
 
 ## New backlog (target → item)
 - Unscheduled → Drop `playbook_override` (and tools/tests) after the 14b runbook backfill is verified in prod; new migration.
 - 14b/polish → Batch theme-discovery spend (`discovery.ts` `collectBatch`) is untagged; per-result scope.
-- Polish → `vertical_draft_agency_day_idx` unused; add `(agency_id, task, created_at)` index on `llm_call` for the cap query; draft cap not atomic; stale-schema cached draft repeats paid misses (`DoUpdate`).
-- Polish → Test that 0077's embedded seed equals `VERTICAL_CATALOG_SEED`; guard against YAML pack use in production paths.
+- Polish → unused `vertical_draft_agency_day_idx`; index `llm_call(agency_id, task, created_at)` for the cap query; draft cap not atomic; stale cached draft repeats paid misses.
+- Polish → Test 0077's embedded seed equals `VERTICAL_CATALOG_SEED`; guard YAML pack use in prod paths.
 - Polish → `add_business_area` has no ownership check (creator's `update_vertical` can delete another agency's areas); staff edits create areas attributed to the operator's agency.
 - Polish → `update_vertical`/`review_vertical` rename skip similarity checks; no-op update bumps version; generic-only area names normalise to ''; `slugOf` drops non-ASCII.
-- Polish → Merged source areas dangle across vertical merges; `position` column for area order.
-- Polish → Client-data check skips seed keywords/audience noun/theme text; `save_setup_profile` stale `current` services on concurrent edit; GBP `services` read only for array shape (glance at live data).
+- Polish → `position` column for area order.
+- Polish → Client-data check skips seed keywords/audience noun/theme text; `save_setup_profile` stale `current` services on concurrent edit; GBP `services` read only for array shape.
 - Polish → Panel: fixed `nbt-*` DOM ids collide with two open lead cards; quotes only in title tooltips (not keyboard/touch).
 - Polish → Distillery E2E leaves rows in the shared E2E DB and is re-runnable only on a fresh DB; confirm no order dependence in the full run at `/rm-merge`.
 - Polish → Generic theme id `technician_professionalism` keeps an HVAC noun (id kept stable; name is neutral).

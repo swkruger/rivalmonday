@@ -133,4 +133,39 @@ describe('createCatalog', () => {
     expect((await cat2.list()).length).toBe(2);
     expect(flaky).toHaveBeenCalledTimes(2);
   });
+
+  it('reloads once on a miss when the snapshot is older than the miss threshold (cross-process create)', async () => {
+    let t = 0;
+    const f = await fixture();
+    const extra: VerticalRow = { ...f.verticals[1]!, id: 'newv', name: 'Newv' };
+    const extraAreas = f.areas.filter((a) => a.verticalId === 'dental').map((a) => ({ ...a, verticalId: 'newv' }));
+    let created = false;
+    const source = vi.fn(async () => ({ verticals: created ? [...f.verticals, extra] : f.verticals, areas: created ? [...f.areas, ...extraAreas] : f.areas }));
+    const cat = createCatalog(source, { ttlMs: 60_000, missRefreshMs: 1000, now: () => t });
+    await cat.list();
+    created = true;
+    expect(await cat.resolveId('newv')).toBeNull(); // snapshot is fresh: no reload
+    expect(source).toHaveBeenCalledTimes(1);
+    t = 1000;
+    expect(await cat.resolveId('newv')).toBe('newv');
+    expect(source).toHaveBeenCalledTimes(2);
+    t = 2000;
+    expect((await cat.packs('newv')).id).toBe('newv'); // found in the snapshot, no reload
+    expect(source).toHaveBeenCalledTimes(2);
+  });
+
+  it('a truly unknown id reloads at most once per threshold window, shared across concurrent misses', async () => {
+    let t = 0;
+    const source = vi.fn(fixture);
+    const cat = createCatalog(source, { ttlMs: 60_000, missRefreshMs: 1000, now: () => t });
+    await cat.list();
+    t = 1500;
+    await Promise.all([cat.resolveId('nope'), cat.resolveId('nope'), cat.packs('nope').catch(() => null)]);
+    expect(source).toHaveBeenCalledTimes(2);
+    await expect(cat.packs('nope')).rejects.toThrow('Unknown vertical: nope');
+    expect(source).toHaveBeenCalledTimes(2);
+    t = 2600;
+    expect(await cat.resolveId('nope')).toBeNull();
+    expect(source).toHaveBeenCalledTimes(3);
+  });
 });

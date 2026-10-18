@@ -120,7 +120,7 @@ function PickedPlace({ place, action, verticals, onCreated, verticalActions, can
   return (
     <>
       {verticalActions && place.suggestedVerticalId === null && (
-        <NewBusinessType place={{ placeId: place.placeId, category: place.category }} actions={verticalActions} onSelect={choice.choose} onCreated={(id, name) => { onCreated({ id, name, services: [] }); choice.choose(id, name); }} />
+        <NewBusinessType place={{ placeId: place.placeId, category: place.category, businessName: place.title }} actions={verticalActions} onSelect={choice.choose} onCreated={(id, name) => { onCreated({ id, name, services: [] }); choice.choose(id, name); }} />
       )}
       <CreateForm place={place} action={action} verticals={choice.options} verticalId={choice.value} onVerticalChange={(id) => choice.choose(id)} canUpgrade={canUpgrade} label={label} />
     </>

@@ -17,6 +17,12 @@ describe('new business type mapping', () => {
     });
   });
 
+  it('passes the business being onboarded as businessName (trimmed), omitted when blank', () => {
+    expect(toCreateInput(formFromDraft(draft), 'pl-1', '  Hill Country Distillery ').businessName).toBe('Hill Country Distillery');
+    expect(toCreateInput(formFromDraft(draft), null, ' ')).not.toHaveProperty('businessName');
+    expect(toCreateInput(formFromDraft(draft), null)).not.toHaveProperty('businessName');
+  });
+
   it('unticked categories and removed areas are left out; blank optional fields are omitted', () => {
     const f = formFromDraft(draft);
     f.categories = [{ value: 'Distillery', checked: true }, { value: 'Bar', checked: false }];

@@ -41,9 +41,9 @@ export interface ToolDeps {
   embedQuery?: (text: string, scope: CallScope) => Promise<number[]>;
   /** Phase 9a: billing gateway (`gatewayFor`): fake in DEMO/TEST, Stripe with a key, absent when billing is not configured (R27: Stripe-backed tools refuse, reads degrade, seat sync is skipped and the daily job reconciles). */
   billing?: BillingGateway;
-  /** Phase 11a: free-text Maps search for `find_business` (web builds it from DataForSEO, or a fixture under SETUP_FAKE_LOOKUP). Absent: the tool refuses with a user-facing `internal`. */
   /** Phase 14a: drafts a new business type from a Google profile with one AI call (web builds it; a fixture under SETUP_FAKE_LOOKUP). Absent: `draft_vertical` answers `draft: null` and the UI shows the manual form. */
   verticalDrafter?: (input: { placeId: string; nearbyCategories: string[] }, scope: CallScope) => Promise<{ draft: VerticalDraft | null; similar: { id: string; name: string }[] }>;
+  /** Phase 11a: free-text Maps search for `find_business` (web builds it from DataForSEO, or a fixture under SETUP_FAKE_LOOKUP). Absent: the tool refuses with a user-facing `internal`. */
   setupLookup?: (q: { keyword: string; locationName: string }, scope: CallScope) => Promise<MapsPlace[]>;
   /** Phase 11c (plan R1): direct lead mail after commit (`decline_lead`, `assign_lead`). Null or absent: the decision still commits and the send is skipped with a log line (the leads-cleanup job retries guarded pool/agency notices). */
   leadEmail?: Omit<LeadEmailDeps, 'service'> | null;

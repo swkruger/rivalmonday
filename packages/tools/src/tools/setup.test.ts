@@ -2,7 +2,7 @@ import type { MapsPlace } from '@cs/collectors';
 import { type AccessContext, type CallScope, createAccessContext } from '@cs/core';
 import { agencyConnect, businessArea, client, clientCompetitor, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, vendorCall, withTenant } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EnqueueJob } from '../deps';
 import { FIND_BUSINESS_DAILY_CAP } from '../setup/lookup';
@@ -433,6 +433,20 @@ describe('wizard tools', () => {
         const made = (await areasOf()).find((a) => a.name === 'Duct Sealing Specials');
         expect(made).toMatchObject({ status: 'unreviewed', createdByAgencyId: IDS.agencyA });
         expect(await servicesOf()).toEqual(['ac_repair', made!.id]);
+      });
+
+      it('takes the catalogue lock before the client row lock (lock order: catalogue -> vertical -> client)', async () => {
+        await offered('Duct Sealing Specials');
+        let saving: Promise<unknown> = Promise.resolve();
+        await dbs.owner.transaction(async (tx) => {
+          await tx.execute(sql`select pg_advisory_xact_lock(1401400001)`);
+          saving = save(admin, { newAreas: [{ name: 'Duct Sealing Specials' }] });
+          await new Promise((r) => setTimeout(r, 600));
+          // While a merge-like transaction holds the catalogue lock, the save must not yet hold the client row.
+          await expect(dbs.owner.transaction((t2) => t2.execute(sql`select 1 from client where id = ${IDS.clientA1} for update nowait`))).resolves.toBeDefined();
+        });
+        await saving;
+        expect((await areasOf()).some((a) => a.name === 'Duct Sealing Specials')).toBe(true);
       });
 
       it('is idempotent: saving the same new area twice creates one area and one service entry', async () => {

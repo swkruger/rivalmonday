@@ -60,7 +60,7 @@ function AddInput({ id, label, disabled, onAdd }: { id: string; label: string; d
  * is handed to `onCreated`, which selects it so the normal add-client / accept-lead flow continues. Never nested in a form.
  */
 export function NewBusinessType({ place, actions, onSelect, onCreated }: {
-  place: { placeId: string; category: string | null };
+  place: { placeId: string; category: string | null; businessName?: string };
   actions: VerticalActions;
   /** "Did you mean" chip: pick an existing type. */
   onSelect: (id: string, name: string) => void;
@@ -93,7 +93,7 @@ export function NewBusinessType({ place, actions, onSelect, onCreated }: {
     if (!form) return;
     setError(null);
     start(async () => {
-      const r = await actions.create(toCreateInput(form, fromDraft ? place.placeId : null));
+      const r = await actions.create(toCreateInput(form, fromDraft ? place.placeId : null, place.businessName));
       if (!r.ok) return fail(r.error);
       setDone({ name: r.name, dropped: r.droppedCategories });
       setPhase('created');

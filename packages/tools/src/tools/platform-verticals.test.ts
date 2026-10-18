@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { capture, catalogRows, changeEvent, client, platformAdmin, playbookOverride, priceBlockMap, pricePoint, review, reviewAnalysis, themeProposal, trackedPage, agencyProfile, llmCall } from '@cs/db';
+import { capture, catalogRows, clientSetup, changeEvent, client, platformAdmin, playbookOverride, priceBlockMap, pricePoint, review, reviewAnalysis, themeProposal, trackedPage, agencyProfile, llmCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createCatalog } from '@cs/verticals';
 import { eq, sql } from 'drizzle-orm';
@@ -178,6 +178,40 @@ describe('merge_vertical', () => {
     expect((await fails(call(viewer, 'merge_vertical', input))).code).toBe('permission_denied');
     expect((await fails(call(adminA, 'list_catalog_review'))).code).toBe('permission_denied');
     expect(await q(sql`select 1 from vertical where status = 'merged'`)).toHaveLength(0);
+  });
+});
+
+const ready = (...values: string[]) => ({
+  status: 'ready' as const, services: values.map((value) => ({ value, quote: `q-${value}` })), keywords: [], newAreas: [], sources: ['gbp' as const], generatedAt: new Date().toISOString(),
+});
+const suggestedOf = async () => ((await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, IDS.clientA1)))[0]!.suggestions as ReturnType<typeof ready>).services.map((x) => x.value);
+
+describe('merges keep other state consistent', () => {
+  it('flattens vertical chains: A into B, then B into C leaves A pointing at C', async () => {
+    await seedMergeData();
+    await call(adminA, 'create_vertical', { name: 'Craft wineries', areas: [{ name: 'Wine tasting' }], categories: ['Winery'] });
+    await call(staff, 'merge_vertical', { sourceId: 'distillery', targetId: 'brewery', areaMap: { tasting_room: 'taproom', bottle_sales: null } });
+    await call(staff, 'merge_vertical', { sourceId: 'brewery', targetId: 'winery', areaMap: { taproom: 'wine_tasting', growler_fills: null, bottle_sales: null } });
+    const rows = await q<{ id: string; merged_into: string | null }>(sql`select id, merged_into from vertical where id in ('distillery', 'brewery') order by id`);
+    expect(rows).toEqual([{ id: 'brewery', merged_into: 'winery' }, { id: 'distillery', merged_into: 'winery' }]);
+  });
+
+  it('flattens area chains inside a vertical', async () => {
+    await seedMergeData();
+    await call(op, 'merge_business_area', { verticalId: 'distillery', sourceAreaId: 'bottle_sales', targetAreaId: 'tasting_room' });
+    await dbs.owner.execute(sql`insert into business_area (vertical_id, id, name, status) values ('distillery', 'tours', 'Tours', 'unreviewed') on conflict do nothing`);
+    await call(op, 'merge_business_area', { verticalId: 'distillery', sourceAreaId: 'tasting_room', targetAreaId: 'tours' });
+    const rows = await q<{ id: string; merged_into: string | null }>(sql`select id, merged_into from business_area where vertical_id = 'distillery' and status = 'merged' order by id`);
+    expect(rows).toEqual([{ id: 'bottle_sales', merged_into: 'tours' }, { id: 'tasting_room', merged_into: 'tours' }]);
+  });
+
+  it('re-keys stored setup suggestions on an area merge and on a vertical merge', async () => {
+    await seedMergeData();
+    await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, suggestions: ready('bottle_sales', 'tasting_room', 'other') });
+    await call(op, 'merge_business_area', { verticalId: 'distillery', sourceAreaId: 'bottle_sales', targetAreaId: 'tasting_room' });
+    expect(await suggestedOf()).toEqual(['tasting_room', 'other']);
+    await call(staff, 'merge_vertical', { sourceId: 'distillery', targetId: 'brewery', areaMap: { tasting_room: 'taproom' } });
+    expect(await suggestedOf()).toEqual(['taproom', 'other']);
   });
 });
 

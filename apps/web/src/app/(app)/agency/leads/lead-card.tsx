@@ -66,7 +66,7 @@ function AcceptForm({ lead, verticals, verticalActions, onCancel }: { lead: Lead
   return (
     <div className="flex flex-col gap-3">
       {verticalActions && lead.lookup && lead.suggestedVerticalId === null && (
-        <NewBusinessType place={lead.lookup} actions={verticalActions} onSelect={choice.choose} onCreated={choice.choose} />
+        <NewBusinessType place={{ ...lead.lookup, businessName: lead.businessName }} actions={verticalActions} onSelect={choice.choose} onCreated={choice.choose} />
       )}
     <form action={action} onReset={(e) => e.preventDefault()} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="leadId" value={lead.id} />
