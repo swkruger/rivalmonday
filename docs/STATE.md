@@ -8,14 +8,14 @@
 
 ## Where `main` is
 - Phases 0-2, 3a-3d, 4a, 4b, 5a-5c-2, demo data / dev panel / snapshots, Phase 5 polish, Phase 6 (MCP, Ask "Friday", knowledge base), **Phase 8**, **Phase 12** + post-12 polish, **Phase 9** (9a/9b) + phase-9-fixes (all owner-verified), **Phase 10** (agency self-serve sign-up + onboarding wizard; merged 2026-10-16, owner verification pending) and **Phase 11** (11a setup wizard, 11b client invite/review email/billing, 11c intake links + lead pool; merged 2026-10-17, owner verification pending) are on `main`.
-- Migrations run through **`0073`** (next free `0074`). `cs_dev` is at 0066: **not yet migrated to 0067-0073** (pending owner OK). `cs_demo` is seeded by `pnpm demo:reset`.
+- Migrations run through **`0073`** (next free `0074`). `cs_dev` is at 0073 (migrated 2026-10-17; snapshot before it `backups/20261017-235928-cs_dev`). `cs_demo` is seeded by `pnpm demo:reset`.
 - Tests run on the local test cluster (`scripts/local-test-db.sh`, port 5444): `pnpm test:affected` while working; full suite and full E2E at `/rm-merge` and in CI.
 - Switches: `KB_IMPORT_ENABLED` (unset = off), `ASK_FAKE_AI`, `BILLING_FAKE_GATEWAY`, `SETUP_FAKE_LOOKUP` (E2E only). Billing is off (gateway null) until `STRIPE_SECRET_KEY` is set. Turnstile is faked until `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY` are set. Worker env `NEON_API_KEY`, `NEON_ORG_ID` not set yet.
 - **In flight:** **Phase 13b** local rankings on `phase-13b` ([work](work/phase-13b.md)). Phase 13 planning docs (umbrella [work/phase-13.md](work/phase-13.md), 13a white-label plan) are on `main`; 13a (13a1 then 13a2) follows 13b. Phase 7 deferred (parked on `phase-7-planning`).
 - Built: [ARCHITECTURE.md](ARCHITECTURE.md). Runbook: [OPS.md](OPS.md).
 
 ## Next up
-**Owner - Phase 11 verification** (after OK to migrate `cs_dev` to 0073):
+**Owner - Phase 11 verification** (`cs_dev` is at 0073):
 - **11a (`cs_dev`):** 1 add a business via lookup; 2 suggestions within a minute, quotes match GBP; 3 search after "Save and find competitors" (<= $3); 4 pick, Done -> starting point due in 48 h; 5 invite an owner via `/agency/team`, they finish a second client's setup; 6 14:00 UTC reminder next day; 7 `DATAFORSEO_LOGIN`/`_PASSWORD` on Vercel web; 8 GBP `description` on a live lookup.
 - **11b:** (a) real Postmark send shows the Cc; (b) invite -> accept: contact active, first brief only after acceptance; (c) billing step with a pending owner on Stripe test; (d) sign-in branding for an invited white-label owner.
 - **11c:** (a) real Turnstile on `cs_dev`; (b) real preview for a dental business, numbers match; (c) accept -> prospect -> owner invite; (d) platform `/start` branding; (e) set the agency's slug. Before real onboarding: clean up the CS Dev Verification Agency/Client.
