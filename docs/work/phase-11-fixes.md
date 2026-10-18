@@ -4,15 +4,15 @@
 **Plan/spec:** [plan](../superpowers/plans/2026-10-17-phase-11-fixes.md) (no spec: small fix batch, decisions below)
 
 ## Status (overwrite)
-planned 2026-10-17. Lean plan written (Tasks 0-7); awaiting owner approval. No product code yet.
+Plan owner-approved 2026-10-17 (incl. duplicate rule). No product code yet.
 
 ## Next (overwrite)
-Owner: approve the plan, answer the open question in the plan header (domain-only duplicate matching for chains), and sign off the drafted copy marked "owner sign-off". Then agent: `superpowers:subagent-driven-development` from Task 0.
+Agent: `superpowers:subagent-driven-development` from Task 0. Owner signs off the copy marked "owner sign-off" at review.
 
 ## Interfaces this branch adds or changes
 - **No migrations.** `SetupLookup` / `setupLookupSchema` / `intakeLookupSchema` are **unchanged** (persisted shape and the 11c intake signature canonical form stay the same).
 - `@cs/core`: new pure module `invite-offer.ts` (`pilotLinkRefusal`), exported from the index **and** a new subpath export `@cs/core/invite-offer` (client-safe import for the web form).
-- `@cs/tools` `setup/lookup.ts`: `collapseSameListing`, `possibleDuplicates`, `phoneKey`, `domainKey`.
+- `@cs/tools` `setup/lookup.ts`: `collapseSameListing`, `possibleDuplicates`, `phoneKey`, `domainKey`, `haversineKm`, `DUPLICATE_DOMAIN_KM`.
 - Tool outputs (web-only tools, no MCP schema change): `find_business` places gain `isClaimed: boolean | null`, `possibleDuplicate: boolean`; `get_client_setup.vertical` gains `name: string`. `intakeLookup` returns `IntakePlaceOption[]` (= `SignedIntakePlace & { isClaimed, possibleDuplicate }`, the extra fields unsigned, display only).
 - `create_invite_link` refuses pilot end dates in the past or on/before the link's expiry day (`invalid_input`, user-facing copy).
 - Web: `ErrorNote` in `apps/web/src/components/form-error.tsx` (FormError now uses it; danger-tinted, icon, `role="alert"`, scroll + focus on a new error); `PlaceSummary` in `apps/web/src/components/place-summary.tsx`; global `cursor: pointer` for enabled buttons in `packages/ui/src/styles.css`.
@@ -24,7 +24,7 @@ Owner: approve the plan, answer the open question in the plan header (domain-onl
 1. **Pilot invite links:** refuse a pilot link whose pilot end date is in the past, or whose pilot end (UTC day) is on or before the link's expiry day (now + "Expires in (days)"). Binding in `create_invite_link`; the form shows the same rule live.
 2. **R20 copy:** the onboarding profile intro must match validation (agency name, contact name, contact email, phone are required to save). Drafted copy in the plan, owner sign-off.
 3. **Highlighted errors:** one shared error component, danger style from existing tokens (`--danger` #DC2626, soft tint, calm), icon, `role="alert"`, scroll into view + focus when a new error appears; applied to FormError, the lookup step and every trivial ad-hoc error box.
-4. **Business lookup cards:** collapse identical place id / cid; show phone, website domain, category, rating + reviews, "Owner-verified" (DataForSEO `is_claimed`); "Address hidden — service-area business" when address is null; flag results sharing phone or domain with another result as "Possible duplicate listing" with a hint to pick the owner-verified one. Both the agency lookup step and the public intake form. Intake signing stays stable.
+4. **Business lookup cards:** collapse identical place id / cid; show phone, website domain, category, rating + reviews, "Owner-verified" (DataForSEO `is_claimed`); "Address hidden — service-area business" when address is null; flag results as "Possible duplicate listing" when they share a phone with another result, or share a website domain and lie within 0.5 km of it (haversine; no coordinates ⇒ a domain match alone never flags — owner ruling 2026-10-17, so chain locations aren't marked), with a hint to pick the owner-verified one. Both the agency lookup step and the public intake form. Intake signing stays stable.
 5. **Empty suggestions:** ready suggestions with no services and no keywords show "We couldn't find suggestions in the Google profile — here are common keywords for {vertical}." with the pack seed keywords as unticked chips.
 6. **Pointer cursor:** "Enter details by hand" (and similar link-style buttons) get a pointer cursor; fixed globally for enabled buttons (Tailwind v4 dropped the default).
 7. Owner test-step wording: no code change (skipped).
