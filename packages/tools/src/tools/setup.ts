@@ -11,7 +11,8 @@ import { collapseSameListing, FIND_BUSINESS_DAILY_CAP, possibleDuplicates, prese
 import { applyClientProfileChange } from '../setup/profile-change';
 import { queueCompetitorReview } from '../setup/review-email';
 import { clientSetupOpen, completeIfDone, getSetupState, loadSetupInvite, type SetupState } from '../setup/state';
-import { addBusinessAreaCore } from './verticals';
+import { normaliseName } from '@cs/verticals';
+import { addBusinessAreaCore, refuseClientData } from './verticals';
 import { acceptSuggestions, dismissSuggestions, preTickTop, RUN_STATUSES, runSuggestionRows, SearchProgress, searchProgress, searchRefusalMessage } from './competitors';
 import { ServiceAreaWrite, Tier } from './schemas';
 
@@ -225,6 +226,11 @@ export const saveSetupProfile = defineTool({
     await assertSetupActor(ctx, deps, clientId);
     const patch = { ...input };
     if (newAreas?.length) {
+      // Client owners may tick suggested chips but never type free text: each name must be one of this client's stored suggestions.
+      const [row] = await deps.service.select({ suggestions: clientSetup.suggestions }).from(clientSetup).where(eq(clientSetup.clientId, clientId));
+      const offered = new Set((row?.suggestions.status === 'ready' ? row.suggestions.newAreas ?? [] : []).map((a) => normaliseName(a.name)));
+      if (newAreas.some((a) => !offered.has(normaliseName(a.name)))) throw new ToolError('invalid_input', 'Pick new services from the suggestions.', { userFacing: true });
+      await refuseClientData(deps, ctx, newAreas.map((a) => a.name));
       // `business_area` is service-only, so the areas are created on the service connection in one short transaction (the catalogue
       // lock is global), BEFORE the tenant-side profile write; the new ids ride in `services`. Creation is idempotent by name, so a
       // failed or repeated save leaves at most an unreviewed area and never a duplicate.

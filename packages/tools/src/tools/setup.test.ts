@@ -424,10 +424,11 @@ describe('wizard tools', () => {
     describe('newAreas (14a)', () => {
       const areasOf = () => dbs.owner.select().from(businessArea).where(eq(businessArea.verticalId, 'hvac_plumbing'));
       const servicesOf = async () => (await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1)))[0]!.services;
+      const offered = (...names: string[]) => setupRow({ suggestions: { status: 'ready', services: [], keywords: [], newAreas: names.map((name) => ({ name, quote: name })), sources: ['gbp'], generatedAt: new Date().toISOString() } });
       beforeEach(() => catalogOf({ app: dbs.app, service: dbs.service }).invalidate());
 
       it('creates each ticked new area (unreviewed, the client agency) and adds its id to the client services', async () => {
-        await setupRow();
+        await offered('Duct Sealing Specials');
         await save(admin, { services: ['ac_repair'], newAreas: [{ name: 'Duct Sealing Specials' }] });
         const made = (await areasOf()).find((a) => a.name === 'Duct Sealing Specials');
         expect(made).toMatchObject({ status: 'unreviewed', createdByAgencyId: IDS.agencyA });
@@ -435,11 +436,37 @@ describe('wizard tools', () => {
       });
 
       it('is idempotent: saving the same new area twice creates one area and one service entry', async () => {
-        await setupRow();
+        await offered('Duct Sealing Specials');
         await save(admin, { newAreas: [{ name: 'Duct Sealing Specials' }] });
         await save(admin, { newAreas: [{ name: 'duct sealing specials' }] });
         expect((await areasOf()).filter((a) => a.name.toLowerCase() === 'duct sealing specials')).toHaveLength(1);
         expect(await servicesOf()).toHaveLength(1);
+      });
+
+      it('a client owner can tick a suggested chip', async () => {
+        await offered('Duct Sealing Specials');
+        await save(ownerA1, { newAreas: [{ name: 'Duct Sealing Specials' }] });
+        expect((await areasOf()).some((a) => a.name === 'Duct Sealing Specials')).toBe(true);
+      });
+
+      it('refuses a name that is not in the stored suggestions (no free text), creating nothing', async () => {
+        await offered('Duct Sealing Specials');
+        const before = (await areasOf()).length;
+        const e = await fails(save(ownerA1, { newAreas: [{ name: 'Something I typed' }] }));
+        expect(e).toMatchObject({ code: 'invalid_input', message: 'Pick new services from the suggestions.', userFacing: true });
+        expect((await areasOf()).length).toBe(before);
+      });
+
+      it('refuses when there are no ready suggestions at all', async () => {
+        await setupRow();
+        expect((await fails(save(admin, { newAreas: [{ name: 'Duct Sealing Specials' }] }))).code).toBe('invalid_input');
+      });
+
+      it.each(['Call 817-555-0100', 'Visit acme-plumbing.com', 'A1 HVAC Specials'])('refuses an offered name carrying client data: %s', async (name) => {
+        await offered(name);
+        const e = await fails(save(admin, { newAreas: [{ name }] }));
+        expect(e).toMatchObject({ code: 'invalid_input', userFacing: true });
+        expect(e.message).toMatch(/cannot include/);
       });
 
       it('rejects more than 5 new areas', async () => {

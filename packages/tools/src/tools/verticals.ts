@@ -1,4 +1,4 @@
-import { redactContactInfo } from '@cs/collectors';
+import { hasClientData, NO_CLIENT_DATA } from '../catalog/client-data';
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { businessArea, client, llmCall, type Tx, vertical, verticalCategory, verticalDraft } from '@cs/db';
 import { assemblePack, type BusinessAreaRow, GENERIC_VERTICAL_ID, normaliseName, similarVerticals, type VerticalDraft, verticalDraftSchema, type VerticalRow } from '@cs/verticals';
@@ -21,10 +21,6 @@ const themeInput = z.object({ name: z.string().trim().min(2).max(80), descriptio
 const seedKeywordsSchema = z.array(z.string().trim().min(2).max(60)).max(5);
 const audienceNounSchema = z.string().trim().min(1).max(40);
 
-/** redactContactInfo covers email and phone; web addresses are caught here. */
-const WEB_ADDRESS = /https?:\/\/|www\.|\b[a-z0-9-]+\.(?:com|net|org|io|co|us|biz|info|app|dev|ai|ca|uk)\b/i;
-const NO_CLIENT_DATA = 'Names cannot include a client’s business name, phone number, email or web address.';
-
 /** One small gate for "may this caller change this vertical": the creating agency while it is unreviewed. Task 10 extends it to platform staff. */
 function canEditVertical(ctx: AccessContext, row: Pick<VerticalRow, 'status' | 'createdByAgencyId'>): boolean {
   return row.status === 'unreviewed' && row.createdByAgencyId === ctx.agencyId;
@@ -35,13 +31,12 @@ function requireAgencyStaff(ctx: AccessContext): void {
 }
 
 /** D3 "no client data in names": refuse contact details or any of this agency's client names inside catalogue text. */
-async function refuseClientData(deps: ToolDeps, ctx: AccessContext, texts: readonly string[]): Promise<void> {
+export async function refuseClientData(deps: ToolDeps, ctx: AccessContext, texts: readonly string[]): Promise<void> {
   const clientNames = (await deps.service.select({ name: client.name }).from(client).where(eq(client.agencyId, ctx.agencyId)))
     .map((c) => c.name.trim().toLowerCase())
     .filter((n) => n.length >= 3);
   for (const t of texts) {
-    const lc = t.toLowerCase();
-    if (redactContactInfo(t) !== t || WEB_ADDRESS.test(t) || clientNames.some((n) => lc.includes(n))) throw new ToolError('invalid_input', NO_CLIENT_DATA, { userFacing: true });
+    if (hasClientData(t, clientNames)) throw new ToolError('invalid_input', NO_CLIENT_DATA, { userFacing: true });
   }
 }
 

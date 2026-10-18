@@ -89,7 +89,7 @@ export async function runSetupSuggestions(
     const valid = validateSuggestions(raw, { packServices, sourceText, city: setup.lookup?.city ?? null });
     if (!valid) throw new Error('model answer failed validation');
     // 14a: only for a real (non-generic) business type; deterministic, no extra AI call.
-    const newAreas = pack.id === 'generic' ? [] : detectNewAreas(gbpServiceNames(gbp), pack.services);
+    const newAreas = pack.id === 'generic' ? [] : detectNewAreas(gbpServiceNames(gbp), pack.services, [c.name, ...(gbp.title ? [gbp.title] : [])]);
     await writeSuggestions(d.db, clientId, { status: 'ready', ...valid, newAreas, sources: source.sources, generatedAt: new Date().toISOString() });
     console.log(`[setup-suggestions] ${clientId} ready: ${valid.services.length} services, ${valid.keywords.length} keywords`);
     return { status: 'ready' };
