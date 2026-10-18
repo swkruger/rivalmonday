@@ -19,7 +19,7 @@ import { navCounts } from './nav';
 
 const ctx = createAccessContext({ agencyId: '00000000-0000-4000-8000-00000000000a', userId: 'u', role: 'agency_admin', clientScope: 'all', features: [] });
 const agencyCounts = { approvals: 3, alerts: 2, leads: 4 };
-const platformCounts = { modelReviews: 5, themes: 1, askReviews: 7 };
+const platformCounts = { modelReviews: 5, themes: 1 };
 const byTool: Impl = async (_c, tool) => (tool === 'get_nav_counts' ? agencyCounts : tool === 'get_platform_nav_counts' ? platformCounts : Promise.reject(new Error(`unexpected ${tool}`)));
 
 beforeEach(() => {

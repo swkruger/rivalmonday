@@ -40,7 +40,6 @@ export interface NavCounts {
   leads?: number;
   modelReviews?: number;
   themes?: number;
-  askReviews?: number;
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navFor` needs besides the context and client id. */
@@ -116,7 +115,7 @@ function platformNav(flags: NavRoleFlags, counts: NavCounts): NavSection[] {
     section('quality', 'Quality', (add) => {
       add('/platform/reviews', 'Model reviews', 'reviews', { count: counts.modelReviews });
       add('/platform/themes', 'Theme proposals', 'themes', { count: counts.themes });
-      add('/platform/ask', 'Ask reviews', 'ask', { count: counts.askReviews });
+      add('/platform/ask', 'Ask reviews', 'ask');
     }),
     section('content', 'Content', (add) => add('/platform/knowledge', 'Knowledge', 'knowledge')),
     section('system', 'System', (add) => {

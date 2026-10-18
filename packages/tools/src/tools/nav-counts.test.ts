@@ -1,10 +1,8 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { alert, askThread, brief, capture, changeEvent, client, decisionReview, detectedChange, lead, review, themeProposal, trackedPage } from '@cs/db';
+import { alert, brief, capture, changeEvent, decisionReview, detectedChange, lead, review, themeProposal, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
-import { listReviewableAskThreads } from '../platform';
 import { createToolRegistry } from '../registry';
 
 const dbs = openTestDbs();
@@ -22,7 +20,7 @@ const supportA = mk('op', 'agency_admin', 'all', { support: { sessionId: '000000
 
 const call = <T>(ctx: AccessContext, tool: string) => registry.invoke(ctx, tool, {}) as Promise<T>;
 type AgencyCounts = { approvals: number; alerts: number; leads: number };
-type PlatformCounts = { modelReviews: number; themes: number; askReviews: number };
+type PlatformCounts = { modelReviews: number; themes: number };
 
 const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
 
@@ -129,22 +127,14 @@ describe('get_platform_nav_counts', () => {
       { verticalId: 'dental', themeId: 'parking', name: 'Parking', description: 'd', otherCount: 9, sampleReviewIds: [] },
       { verticalId: 'hvac_plumbing', themeId: 'late', name: 'Late', description: 'd', otherCount: 3, sampleReviewIds: [], status: 'approved', decidedAt: new Date(), decidedBy: 'op' },
     ]);
-    // Ask threads: A1 and B1 reviewable; A2 has review switched off (out).
-    await dbs.owner.update(client).set({ askReviewAllowed: false }).where(eq(client.id, IDS.clientA2));
-    await dbs.owner.insert(askThread).values([
-      { agencyId: IDS.agencyA, clientId: IDS.clientA1, userId: 'admin', title: 'One' },
-      { agencyId: IDS.agencyA, clientId: IDS.clientA2, userId: 'admin', title: 'Hidden' },
-      { agencyId: IDS.agencyB, clientId: IDS.clientB1, userId: 'op', title: 'Two' },
-    ]);
   });
 
   it('counts exactly the open rows the platform queue pages list', async () => {
     const counts = await call<PlatformCounts>(op, 'get_platform_nav_counts');
-    expect(counts).toEqual({ modelReviews: 2, themes: 2, askReviews: 2 });
+    expect(counts).toEqual({ modelReviews: 2, themes: 2 });
     const reviews = (await call<{ items: unknown[] }>(op, 'list_decision_reviews')).items;
     const themes = (await call<{ pending: unknown[] }>(op, 'list_theme_proposals')).pending;
-    const threads = (await listReviewableAskThreads({ service: dbs.service, platformAdmins }, op, { limit: 50 })).items;
-    expect(counts).toEqual({ modelReviews: reviews.length, themes: themes.length, askReviews: threads.length });
+    expect(counts).toEqual({ modelReviews: reviews.length, themes: themes.length });
   });
 
   it('looks unknown to non-operators (agency admins, client users)', async () => {
