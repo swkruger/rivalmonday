@@ -36,7 +36,8 @@ const EXEMPT: Record<string, string> = {
   'app/(app)/agency/settings/billing/page.tsx': 'page is a 404 in a support session (viewer.kind !== user); its buttons guard themselves with useReadOnly',
   'app/(app)/agency/settings/billing/client-billing/section.tsx': 'only passes connectAction to PaymentButton, which guards itself with useReadOnly; the page is a 404 in a support session',
   'app/(app)/c/[clientId]/settings/billing/page.tsx': 'client-owner only (a support viewer is an agency role, so the page is a 404); Manage payment is PaymentButton, which guards itself with useReadOnly',
-  'components/shell/membership-switcher.tsx': 'switchMembership sets a cookie, no write tool; not rendered for support viewers',
+  'components/shell/avatar-menu.tsx': 'switchMembership sets a cookie, no write tool; a support viewer gets no Switch account items',
+  'components/shell/context-switcher.tsx': 'switchMembership sets a cookie, no write tool; a support session lists no memberships',
   'components/kb/article-sheet.tsx': 'loadKbArticle is a read',
 };
 
@@ -67,6 +68,7 @@ const CLIENT_EXEMPT: Record<string, string> = {
   'components/ask/confirm-card.tsx': 'Ask UI is never rendered in a support session (supportAskView)',
   'components/sign-out-button.tsx': 'sign-out only; no write tool',
   'components/shell/guest-sign-out-button.tsx': 'guest sign-out only; no write tool',
+  'components/shell/context-switcher.tsx': 'switchMembership sets a cookie, no write tool; a support session lists no memberships',
   'components/kb/article-sheet.tsx': 'loadKbArticle is a read',
 };
 const CLIENT_ACTION = /useActionState\(|\b\w*[aA]ction\??:\s*(?:\(|FormAction|RowAction|SetStatusAction|SaveRecommendationAction|[A-Z]\w*Action\b)/;

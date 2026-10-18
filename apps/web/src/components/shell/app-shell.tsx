@@ -6,6 +6,7 @@ import { themeVars } from '@cs/ui';
 import { eq } from 'drizzle-orm';
 import { ReadOnlyProvider } from '@/components/read-only';
 import { BillingBanner } from '@/components/shell/billing-banner';
+import type { SwitcherProps } from '@/components/shell/context-switcher';
 import { ClientBillingBanner } from '@/components/shell/client-billing-banner';
 import { GuestBanner } from '@/components/shell/guest-banner';
 import { MobileNav } from '@/components/shell/mobile-nav';
@@ -21,6 +22,7 @@ import { navCounts, navFlagsFor } from '@/server/nav';
 import { platformAdmins } from '@/server/runtime-env';
 import { themeForViewer } from '@/server/theme';
 import { callTool } from '@/server/tools';
+import { verticalOptions } from '@/server/verticals';
 import type { Viewer } from '@/server/viewer';
 
 /**
@@ -30,7 +32,8 @@ import type { Viewer } from '@/server/viewer';
  * `/agency`; crossing groups always renders the other group's layout fresh.
  *
  * Accepted (ledgered) for 5a: `list_clients` goes through the audited tool registry, so every agency navigation
- * writes one `audit_log` row just to build the client switcher. The guest top-bar label reads the client name
+ * writes one `audit_log` row just to build the context switcher (15a: it lists them; sub-line = the vertical's name
+ * from the static, process-cached vertical packs — no extra tool call). The guest top-bar label reads the client name
  * directly through `withTenant` (RLS-scoped, not a registered tool) to avoid adding a second audited call here.
  */
 /** The support banner's height: two lines (h-14) below `sm`, one line (h-9) from `sm` up. */
@@ -52,7 +55,7 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
   const { branding, style, assistantName } = zone === 'platform' ? platformTheme() : await themeForViewer(viewer);
   const clients = isAgencyRole(ctx.role) ? (await callTool<{ items: ClientSummary[] }>(ctx, 'list_clients', {})).items : [];
   // Client/guest roles always have exactly one client (Review Focus — createAccessContext enforces it), so their
-  // top-bar name isn't path-dependent: it's always "their" client, not whichever `/c/<id>` page they're currently on.
+  // switcher name isn't path-dependent: it's always "their" client, not whichever `/c/<id>` page they're currently on.
   const singleClientId = ctx.clientScope === 'all' ? null : ctx.clientScope[0];
   const clientName =
     !isAgencyRole(ctx.role) && singleClientId
@@ -78,8 +81,24 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
     ...(viewer.kind === 'user' && ctx.role === 'client_owner' && clientBilling?.enabled ? { clientBilling: true } : {}),
   };
   const navClients = clients.map(({ id, name }) => ({ id, name }));
+  const verticalName = clients.length ? new Map((await verticalOptions()).map((v) => [v.id, v.name])) : new Map<string, string>();
+  // Spec §2.4: navigation only (D3) — every list is the viewer's own clients/memberships; a support session shows the
+  // supported agency's clients (its ctx) and "Back to platform", never the operator's memberships.
+  const switcher: SwitcherProps = {
+    zone, flags, fallback,
+    agencyName: viewer.kind === 'user' ? viewer.membership.agencyName : support ? support.agencyName : branding.displayName,
+    clients: isAgencyRole(ctx.role)
+      ? clients.map((c) => ({ id: c.id, name: c.name, sub: verticalName.get(c.verticalId) ?? null, setup: false }))
+      : singleClientId && clientName ? [{ id: singleClientId, name: clientName, sub: null, setup: false }] : [],
+    ownAgencies: viewer.kind === 'user' ? viewer.memberships.filter((m) => isAgencyRole(m.role)).map((m) => ({ membershipId: m.id, name: m.agencyName })) : [],
+    currentMembershipId: viewer.kind === 'user' ? viewer.membership.id : null,
+    supportAgency: support && flags.backToPlatform ? { name: support.agencyName, backHref: flags.backToPlatform } : null,
+    accounts: viewer.kind === 'user' && !isAgencyRole(ctx.role)
+      ? viewer.memberships.map((m) => ({ membershipId: m.id, name: m.clientName ?? m.agencyName, sub: m.clientName ? m.agencyName : 'Agency view' }))
+      : [],
+  };
   const menu = (
-    <MobileNav displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} />
+    <MobileNav displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} switcher={switcher} />
   );
   return (
     <ReadOnlyProvider readOnly={support !== null}>
@@ -87,10 +106,10 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
       <div data-shell-theme="" className="contents" style={style as React.CSSProperties}>
         {support && <SupportBanner sessionId={support.id} agencyName={support.agencyName} reason={support.reason} expiresAt={support.expiresAt.toISOString()} />}
         <div className={`flex min-h-screen bg-canvas${support ? ` ${BANNER_OFFSET}` : ''}`}>
-          <Sidebar branding={branding} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} offsetTop={support !== null} />
+          <Sidebar branding={branding} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} switcher={switcher} offsetTop={support !== null} />
           <div className="flex min-w-0 flex-1 flex-col">
             {viewer.kind === 'guest' && <GuestBanner />}
-            <TopBar viewer={viewer} clients={clients} clientName={clientName} unread={unread} menu={menu} />
+            <TopBar viewer={viewer} switcher={switcher} unread={unread} menu={menu} />
             {clientBilling && singleClientId && (clientBilling.paused || clientBilling.paymentNeeded) && (
               <ClientBillingBanner role={ctx.role} clientId={singleClientId} agencyName={branding.displayName} paused={clientBilling.paused} paymentNeeded={viewer.kind === 'user' && clientBilling.paymentNeeded} />
             )}

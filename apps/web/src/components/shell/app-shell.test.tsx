@@ -5,10 +5,10 @@ import { WriteGuard } from '@/components/read-only';
 
 const m = vi.hoisted(() => ({
   notice: null as null | { paused: boolean; paymentNeeded: boolean; enabled: boolean }, themed: [] as string[], unread: vi.fn(async () => 3), role: vi.fn(async () => 'owner' as string | null),
-  logoUrl: null as string | null, realSidebar: false, counts: vi.fn(async (_ctx: unknown, _opts: { agency: boolean; operator: boolean; leads: boolean }) => ({ leads: 2 } as Record<string, number>)),
+  logoUrl: null as string | null, realSidebar: false, clients: [] as { id: string; name: string; verticalId: string }[], counts: vi.fn(async (_ctx: unknown, _opts: { agency: boolean; operator: boolean; leads: boolean }) => ({ leads: 2 } as Record<string, number>)),
 }));
 let pathname = '/agency';
-vi.mock('next/navigation', () => ({ usePathname: () => pathname }));
+vi.mock('next/navigation', () => ({ usePathname: () => pathname, useRouter: () => ({ push: vi.fn() }) }));
 // The support viewer's ctx is the target agency's; a user viewer here is the operator's own agency.
 vi.mock('@/server/theme', () => ({
   themeForViewer: async (v: { kind: string }) => {
@@ -17,7 +17,7 @@ vi.mock('@/server/theme', () => ({
     return { branding: { displayName: 'Acme Agency', logoUrl: m.logoUrl }, style: { '--primary': primary }, assistantName: 'Friday' };
   },
 }));
-vi.mock('@/server/tools', () => ({ callTool: async () => ({ items: [] }) }));
+vi.mock('@/server/tools', () => ({ callTool: async () => ({ items: m.clients }) }));
 vi.mock('@/server/client-billing-state', () => ({ clientBillingNoticeOf: async () => m.notice }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {}, app: {} }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
@@ -37,7 +37,6 @@ vi.mock('./sidebar', async (importOriginal) => {
   };
 });
 vi.mock('./mobile-nav', () => ({ MobileNav: () => null }));
-vi.mock('./client-switcher', () => ({ ClientSwitcher: () => null }));
 vi.mock('./inbox-bell', () => ({ InboxBell: ({ unread }: { unread: number }) => <span data-testid="bell">{unread}</span> }));
 vi.mock('./guest-sign-out-button', () => ({ GuestSignOutButton: () => <button type="button">Guest sign out</button> }));
 vi.mock('@/components/sign-out-button', () => ({ SignOutButton: () => <button type="button">Sign out</button> }));
@@ -53,6 +52,7 @@ const supportViewer = {
 beforeEach(() => {
   pathname = '/agency';
   m.realSidebar = false;
+  m.clients = [];
   m.logoUrl = null;
   m.counts.mockClear();
   m.themed.length = 0;
@@ -144,11 +144,28 @@ describe('AppShell', () => {
     expect(within(aside).getByText('monday')).toBeTruthy();
     expect(within(aside).queryByRole('img')).toBeNull();
     expect(within(aside).queryByText('Acme Agency')).toBeNull();
-    expect(within(aside).getByText('Platform')).toBeTruthy();
+    expect(within(aside).getByText('Platform', { selector: 'div' })).toBeTruthy();
+    // 15a Task 5: the context switcher card at the top of the sidebar names the platform view.
+    expect(within(aside).getByRole('button', { name: /Platform\s*Operator console/ }).getAttribute('aria-haspopup')).toBe('dialog');
     expect(within(aside).getByRole('link', { name: 'Agencies' })).toBeTruthy();
     expect(m.themed).toEqual([]);
     expect(themeOf(container)).toBe('#47A8E7');
     expect(m.counts).toHaveBeenCalledWith(own, { agency: false, operator: true, leads: true });
+  });
+
+  it('context switcher: an open client shows its name and vertical; a support session names the supported agency', async () => {
+    m.realSidebar = true;
+    const C = '33333333-3333-4333-8333-333333333333';
+    m.clients = [{ id: C, name: 'Lone Star Cooling', verticalId: 'hvac_plumbing' }];
+    pathname = `/c/${C}/pricing`;
+    const viewer = { ...userViewer, membership: { id: 'm', agencyName: 'Acme Agency', role: 'agency_admin' }, memberships: [{ id: 'm', agencyName: 'Acme Agency', role: 'agency_admin' }] };
+    const { unmount } = render(await AppShell({ viewer: viewer as never, ctx: own as never, children: <p>page</p> }));
+    expect(within(screen.getByRole('complementary')).getByRole('button', { name: /Lone Star Cooling\s*HVAC & Plumbing/ })).toBeTruthy();
+    unmount();
+    pathname = '/agency';
+    m.clients = [];
+    render(await AppShell({ viewer: supportViewer as never, ctx: ctx as never, children: <p>page</p> }));
+    expect(within(screen.getByRole('complementary')).getByRole('button', { name: /Acme Agency\s*Agency view/ })).toBeTruthy();
   });
 
   it('agency view keeps the agency logo and its name in the footer', async () => {

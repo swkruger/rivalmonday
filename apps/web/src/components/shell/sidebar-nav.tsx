@@ -2,20 +2,17 @@
 
 import { Activity, BadgeDollarSign, Bell, BookMarked, BookOpen, Building2, ClipboardCheck, Coins, CreditCard, FileText, Gauge, Globe, HeartPulse, Inbox, LayoutDashboard, Link2, ListChecks, UserPlus, MapPin, Megaphone, MessageCircle, Network, Palette, Plug, Scale, Send, Settings, ShieldCheck, Siren, SlidersHorizontal, Star, Swords, Tags, Telescope, TrendingUp, UserCog, Users, Webhook } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useEffect, useSyncExternalStore } from 'react';
-import { activeHref, clientIdFromPath, contextOf, type IconKey, NAV_CTX_COOKIE, type NavContext, type NavCounts, type NavItem, type NavRoleFlags, navFor, parseNavCookie } from './nav-items';
+import { useEffect } from 'react';
+import { activeHref, type IconKey, NAV_CTX_COOKIE, type NavCounts, type NavItem, type NavRoleFlags, navFor } from './nav-items';
+import { type NavClient, type NavFallback, useNavContext } from './use-nav-context';
+
+export type { NavClient, NavFallback };
 
 const ICONS = {
   clients: Users, overview: LayoutDashboard, inbox: Inbox, team: UserCog, branding: Palette, webhooks: Webhook, bell: Bell, delivery: Send, profile: Building2, competitors: Swords,
   changes: Activity, moves: TrendingUp, pricing: BadgeDollarSign, ads: Megaphone, rankings: MapPin, reputation: Star, approvals: ClipboardCheck, alerts: Siren, recommendations: ListChecks, usage: Gauge, playbooks: BookOpen, reviews: Scale, themes: Tags, prospects: Telescope, alertRules: SlidersHorizontal, ai: Plug, ask: MessageCircle, knowledge: BookMarked,
   platform: Globe, agencies: Network, health: HeartPulse, costs: Coins, platformAccess: ShieldCheck, billing: CreditCard, leads: UserPlus, intake: Link2, briefs: FileText, settings: Settings,
 } as const satisfies Record<IconKey, unknown>;
-
-export interface NavClient {
-  id: string;
-  name: string;
-}
 
 function NavLink({ item, current }: { item: NavItem; current: boolean }) {
   const Icon = ICONS[item.icon];
@@ -51,16 +48,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-ink">{children}</div>;
 }
 
-export type NavFallback = { context: NavContext; clientId: string | null };
-
 /** 30 days, path `/`, SameSite=Lax (spec §2.1); the value is `platform`, `agency` or `client:<uuid>` — no secrets. */
 const COOKIE_ATTRS = 'path=/; max-age=2592000; samesite=lax';
-
-function readNavCookie(): string | null {
-  const prefix = `${NAV_CTX_COOKIE}=`;
-  return document.cookie.split('; ').find((c) => c.startsWith(prefix))?.slice(prefix.length) ?? null;
-}
-const noSubscribe = () => () => {};
 
 /**
  * Client component so the active highlight and client-scoped items (`/c/<id>`, `/c/<id>/briefs`) track the live URL.
@@ -68,25 +57,11 @@ const noSubscribe = () => () => {};
  * server-computed path/clientId goes stale the moment a link is clicked — `usePathname()` re-runs this component on
  * every navigation instead.
  *
- * Phase 15a §2.1: one context's grouped menu (`navFor`). The context is the zone (`(platform)` pages), else the URL,
- * else the last context: the `rm_nav_ctx` cookie this component writes on every contextual page. On the client the
- * cookie itself is read (the layout's server-read `fallback` goes stale after a client-side navigation, and the
- * drawer mounts later than the sidebar); during hydration `useSyncExternalStore` uses the server value, so both agree.
- * P1: outside the platform zone a remembered `platform` reads as `agency`; client roles and guests are always `client`.
- * `clients` = the viewer's own clients (agency roles): a remembered client not among them (membership switch, ended
- * support session, scope change, shared browser) reads as `agency`, so a neutral page never shows a menu of 404s.
+ * Phase 15a §2.1: one context's grouped menu (`navFor`); the context comes from `useNavContext` (shared with the
+ * context switcher). This component writes the `rm_nav_ctx` cookie on every contextual page.
  */
 export function SidebarNav({ flags, counts, zone, fallback, clients }: { flags: NavRoleFlags; counts: NavCounts; zone?: 'platform'; fallback: NavFallback | null; clients: NavClient[] }) {
-  const pathname = usePathname();
-  const active = pathname.split(/[?#]/)[0]!;
-  const stored = useSyncExternalStore(noSubscribe, readNavCookie, () => undefined);
-  const remembered = (stored === undefined ? null : parseNavCookie(stored ?? undefined)) ?? fallback;
-  const here = contextOf(active, null);
-  const hereClientId = clientIdFromPath(active);
-  const context = zone ?? here ?? lastContext(remembered, flags, clients);
-  const clientId = hereClientId ?? (here === null && context === 'client' ? (remembered?.clientId ?? null) : null);
-  // Only contextual pages are remembered; a neutral page (`/inbox`, `/kb/*`) keeps whatever was there.
-  const value = here === 'client' ? `client:${hereClientId}` : here;
+  const { active, context, clientId, remember: value } = useNavContext({ flags, zone, fallback, clients });
   useEffect(() => {
     if (value) document.cookie = `${NAV_CTX_COOKIE}=${value}; ${COOKIE_ATTRS}`;
   }, [value]);
@@ -109,12 +84,4 @@ export function SidebarNav({ flags, counts, zone, fallback, clients }: { flags: 
       })}
     </nav>
   );
-}
-
-/** A neutral page's context: the remembered one (P1: `platform` → `agency`; a client not the viewer's → `agency`), else the viewer's home context. */
-function lastContext(remembered: NavFallback | null, flags: NavRoleFlags, clients: NavClient[]): NavContext {
-  if (!flags.isAgency) return 'client';
-  if (!remembered || remembered.context === 'platform') return 'agency';
-  if (remembered.context === 'client' && !clients.some((c) => c.id === remembered.clientId)) return 'agency';
-  return remembered.context;
 }
