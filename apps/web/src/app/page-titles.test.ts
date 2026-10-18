@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { navFor, type NavRoleFlags, settingsNavFor } from '@/components/shell/nav-items';
 
 /**
- * 15a §2.7: every agency, platform, settings and account page renders one `PageHeader` whose `title` equals its menu
+ * 15a §2.7: every agency, platform, client, settings and account page renders one `PageHeader` whose `title` equals its menu
  * label, and exports the same `metadata.title` (the tab reads `{title} · {agency}`, or `· Rival Monday` on platform).
  * Source checks, like the settings layout test: the pages' server-only reads make importing them here impractical.
  */
@@ -27,6 +27,20 @@ const menuPages: [file: string, label: string][] = [
   ...navFor('platform', flags, null).flatMap((s) => s.items).map((i) => [`(platform)${i.href}/page.tsx`, i.label] as [string, string]),
 ];
 
+/**
+ * Client menu pages (`/c/x/<page>` → `(app)/c/[clientId]/<page>/page.tsx`). Ask's title carries the assistant's name
+ * (checked below) and `/c/x/settings` only redirects to the first tab. Settings tabs come from both role views
+ * (a client owner's Billing tab is client-only).
+ */
+const clientFile = (href: string) => `(app)/c/[clientId]${href.slice('/c/x'.length)}/page.tsx`;
+const owner: NavRoleFlags = { ...flags, isAgency: false, isAgencyAdmin: false, homePath: '/c/x', clientBilling: true };
+const clientMenuPages: [file: string, label: string][] = navFor('client', { ...flags, ask: true }, 'x')
+  .flatMap((s) => s.items).filter((i) => !i.href.endsWith('/ask') && !i.href.endsWith('/settings'))
+  .map((i) => [clientFile(i.href), i.label] as [string, string]);
+const clientSettingsPages: [file: string, label: string][] = [
+  ...new Map([...settingsNavFor('client', flags, 'x'), ...settingsNavFor('client', owner, 'x')].flatMap((s) => s.items).map((i) => [i.href, i.label])),
+].map(([href, label]) => [clientFile(href), label] as [string, string]);
+
 /** Pages outside the menus with a fixed title. */
 const otherPages: [file: string, label: string][] = [
   ['(app)/agency/clients/new/page.tsx', 'Add a client'],
@@ -35,6 +49,7 @@ const otherPages: [file: string, label: string][] = [
   ['(platform)/platform/health/page.tsx', 'Health'],
   ['(app)/inbox/page.tsx', 'Inbox'],
   ['(app)/settings/notifications/page.tsx', 'Notification settings'],
+  ['(app)/c/[clientId]/pitch-snapshot/page.tsx', 'Pitch snapshot'],
 ];
 
 /** Detail pages: the title comes from the record (`generateMetadata`, sharing the page's cached read). */
@@ -45,6 +60,11 @@ const detailPages = [
   '(platform)/platform/knowledge/[id]/page.tsx',
   '(platform)/platform/ask/[threadId]/page.tsx',
   '(app)/kb/[id]/page.tsx',
+  '(app)/c/[clientId]/briefs/[briefId]/page.tsx',
+  '(app)/c/[clientId]/alerts/[alertId]/page.tsx',
+  '(app)/c/[clientId]/reports/[reportId]/page.tsx',
+  '(app)/c/[clientId]/evidence/[evidenceId]/page.tsx',
+  '(app)/c/[clientId]/competitors/[competitorId]/page.tsx',
 ];
 
 /** Every `.tsx` (pages, layouts, components, tests) under a route tree. */
@@ -69,7 +89,15 @@ describe('page titles = menu labels (15a §2.7)', () => {
     expect(menuPages).toContainEqual(['(app)/agency/settings/team/page.tsx', 'Team']);
   });
 
-  it.each([...menuPages, ...otherPages])('%s: PageHeader title and metadata.title are "%s"', (file, label) => {
+  it('covers the client menu and its settings tabs', () => {
+    expect(clientMenuPages).toContainEqual(['(app)/c/[clientId]/page.tsx', 'Overview']);
+    expect(clientMenuPages).toContainEqual(['(app)/c/[clientId]/briefs/page.tsx', 'Briefs & reports']);
+    expect(clientMenuPages).toContainEqual(['(app)/c/[clientId]/rankings/page.tsx', 'Local rankings']);
+    expect(clientMenuPages).toHaveLength(10);
+    expect(clientSettingsPages.map(([, l]) => l)).toEqual(['Business profile', 'Delivery', 'Alert rules', 'AI connection', 'Billing']);
+  });
+
+  it.each([...menuPages, ...otherPages, ...clientMenuPages, ...clientSettingsPages])('%s: PageHeader title and metadata.title are "%s"', (file, label) => {
     const source = read(file);
     expect(source).toMatch(headerTitle(label));
     expect(source).toMatch(metadataTitle(label));
@@ -81,6 +109,35 @@ describe('page titles = menu labels (15a §2.7)', () => {
     expect(source).toContain('export async function generateMetadata');
   });
 
+  it.each([...clientMenuPages.filter(([, l]) => l !== 'Overview'), ...clientSettingsPages])('%s: a client breadcrumb', (file) => {
+    expect(read(file)).toMatch(/<PageHeader[^>]*\bbreadcrumb=\{client(Settings)?Crumbs\(/);
+  });
+
+  it('settings tabs use the "Client settings" breadcrumb; the Overview has none (also on the briefs-only home)', () => {
+    for (const [file] of clientSettingsPages) expect(read(file), file).toContain('clientSettingsCrumbs(');
+    expect(read('(app)/c/[clientId]/page.tsx')).not.toMatch(/\bbreadcrumb=/);
+    expect(read('../components/client-home-basic.tsx')).toMatch(/<PageHeader[^>]*\btitle="Overview"/);
+    expect(read('../components/client-home-basic.tsx')).not.toMatch(/\bbreadcrumb=/);
+  });
+
+  it('Ask is titled "Ask {assistant}" (a dynamic tab title) with a client breadcrumb', () => {
+    expect(read('(app)/c/[clientId]/ask/ask-screen.tsx')).toMatch(/<PageHeader[^>]*\btitle=\{askTitle\}[^>]*\bbreadcrumb=/);
+    expect(read('(app)/c/[clientId]/ask/ask-screen.tsx')).toContain('const askTitle = `Ask ${assistantName}`');
+    for (const f of ['(app)/c/[clientId]/ask/page.tsx', '(app)/c/[clientId]/ask/[threadId]/page.tsx']) expect(read(f), f).toContain('export async function generateMetadata');
+  });
+
+  it('client detail pages drop the "— {client}" title suffix', () => {
+    for (const f of ['(app)/c/[clientId]/competitors/page.tsx', '(app)/c/[clientId]/recommendations/page.tsx', '(app)/c/[clientId]/pitch-snapshot/page.tsx']) {
+      expect(read(f), f).not.toMatch(/— \{profile\.name\}/);
+    }
+  });
+
+  it('the client setup wizard shows its own step; the finished setup none', () => {
+    const source = read('(app)/c/[clientId]/setup/page.tsx');
+    expect(source).toMatch(/<PageHeader[^>]*\bstep=\{wizardStep\(/);
+    expect(source).toMatch(metadataTitle('Setup'));
+  });
+
   it('onboarding shows its step; Add a client (the lookup preamble before the setup wizard) shows none', () => {
     expect(read('(app)/onboarding/page.tsx')).toMatch(/<PageHeader[^>]*\bstep=\{/);
     expect(read('(app)/agency/clients/new/page.tsx')).toMatch(/<PageHeader/);
@@ -88,8 +145,11 @@ describe('page titles = menu labels (15a §2.7)', () => {
   });
 
   it('no file under the touched trees renders its own h1 (PageHeader owns it)', () => {
-    const files = ['(app)/agency', '(platform)/platform', '(app)/inbox', '(app)/settings', '(app)/kb', '(app)/onboarding'].flatMap(tsxUnder);
-    expect(files.length).toBeGreaterThan(100);
+    const files = [
+      ...['(app)/agency', '(platform)/platform', '(app)/inbox', '(app)/settings', '(app)/kb', '(app)/onboarding', '(app)/c', '../components/views'].flatMap(tsxUnder),
+      '../components/client-home-basic.tsx',
+    ];
+    expect(files.length).toBeGreaterThan(200);
     for (const file of files) expect(read(file), file).not.toMatch(/<h1\b/);
   });
 });

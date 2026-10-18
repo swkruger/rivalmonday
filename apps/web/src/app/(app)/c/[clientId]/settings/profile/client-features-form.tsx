@@ -11,7 +11,7 @@ const SWITCHES: { value: string; label: string; help: string }[] = [
   { value: 'alert_rules', label: 'Alert rules', help: 'Client owners can change the alert and brief thresholds.' },
   { value: 'manage_competitors', label: 'Manage competitors', help: 'Client owners can add and remove the competitors they track.' },
   { value: 'ask', label: 'Ask assistant', help: 'Client users can ask the assistant questions about their competitors, answered from the monitored evidence.' },
-  { value: 'mcp', label: 'AI connections', help: 'Shows the AI connections page (coming soon).' },
+  { value: 'mcp', label: 'AI connection', help: 'Shows the AI connection settings page.' },
 ];
 
 export function ClientFeaturesForm({ clientId, features, action, role, reviewAllowed = true }: {

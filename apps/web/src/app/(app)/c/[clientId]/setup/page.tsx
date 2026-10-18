@@ -1,13 +1,18 @@
 import { isAgencyRole } from '@cs/core';
 import type { ClientProfile } from '@cs/tools';
+import type { Metadata } from 'next';
 import Link from 'next/link';
+import { clientCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { callTool, tryCallTool } from '@/server/tools';
 import { SetupWizard } from './setup-wizard';
 import type { BillingPrefill } from './steps/billing-step';
 import type { ClientSetupView } from './types';
+import { wizardStep } from './wizard-steps';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Setup' };
 
 const STEP_LABEL = { profile: 'Your business', search: 'Finding competitors', competitors: 'Pick competitors', invite: 'Invite the owner', billing: 'Billing' } as const;
 const STATUS_LABEL = { todo: 'Not started', running: 'Running', done: 'Done', skipped: 'Skipped', blocked: 'Needs attention' } as const;
@@ -45,11 +50,13 @@ export default async function SetupPage({ params }: { params: Promise<{ clientId
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
   ]);
   const { state } = view;
+  const title = `Set up ${profile.name}`;
+  const crumbs = clientCrumbs({ id: clientId, name: profile.name }, 'Setup');
 
   if (!state.open) {
     return (
       <>
-        <h1 className="text-[26px] font-extrabold tracking-tight">{profile.name}</h1>
+        <PageHeader title={title} breadcrumb={crumbs} />
         <section className="flex max-w-2xl flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card">
           <h2 className="font-semibold">{state.dismissedAt ? 'Setup dismissed' : 'Setup finished'}</h2>
           <ul className="flex flex-col gap-1.5">
@@ -76,7 +83,7 @@ export default async function SetupPage({ params }: { params: Promise<{ clientId
   const billing = isAdmin && state.steps.billing !== undefined ? await billingPrefill(ctx, clientId) : null;
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Set up {profile.name}</h1>
+      <PageHeader title={title} breadcrumb={crumbs} step={wizardStep(view, agency)} />
       <SetupWizard
         clientId={clientId} agency={agency} isAdmin={isAdmin} view={view} billing={billing}
         profile={{ services: profile.services, keywords: profile.keywords, placeId: profile.placeId, serviceArea: profile.serviceArea }}

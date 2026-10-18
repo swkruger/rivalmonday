@@ -59,7 +59,7 @@ describe('RankingsPage', () => {
     expect(screen.getByText(/Add your place id or track a competitor\./)).toBeTruthy();
     expect(screen.queryByText(/20\+/)).toBeNull();
     expect(screen.queryByRole('heading', { name: /ac repair/ })).toBeNull();
-    expect(callTool.mock.calls.map((c) => c[1])).toEqual(['get_geogrid']); // no share-of-voice call either
+    expect(callTool.mock.calls.map((c) => c[1])).toEqual(['get_client_profile', 'get_geogrid']); // no share-of-voice call either
   });
 
   describe('Trend and Compare tabs', () => {
@@ -82,6 +82,7 @@ describe('RankingsPage', () => {
         if (name === 'get_geogrid') return input.scanId === S1 ? ready(S1, [[5, 2], [3, null]]) : ready(input.scanId ?? S3);
         if (name === 'get_rank_trend') return { scans: [trendScan(S3, keys[2], keys[2] !== keys[1]), trendScan(S2, keys[1]), trendScan(S1, keys[0])], nextCursor: null };
         if (name === 'get_share_of_voice') return sov;
+        if (name === 'get_client_profile') return { id: 'c1', name: 'Cool Air' };
         throw new Error(`unexpected ${name}`);
       });
     };

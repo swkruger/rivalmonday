@@ -1,14 +1,18 @@
 import { grantableScopes, hasFeature, isAgencyRole } from '@cs/core';
 import type { ApiTokenView, ClientProfile, OAuthGrantView } from '@cs/tools';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AccessTokensCard, ConnectedAppsCard, ConnectorUrlCard } from '@/components/ai-connections';
+import { clientSettingsCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
 import { callTool } from '@/server/tools';
 import { createClientTokenAction, revokeClientGrantAction, revokeClientTokenAction } from './actions';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'AI connection' };
 
 /** Phase 6a: a client's AI connections. Client roles create client-bound tokens here (P10); agency roles only see this client's lists. */
 export default async function AiConnectionsPage({ params }: { params: Promise<{ clientId: string }> }) {
@@ -28,10 +32,11 @@ export default async function AiConnectionsPage({ params }: { params: Promise<{ 
 
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">AI connection</h1>
-      <p className="text-ink">
-        Connect Claude, ChatGPT or another AI assistant to {profile.name}&apos;s competitor data. Answers come with the same evidence links you see here.
-      </p>
+      <PageHeader
+        title="AI connection"
+        breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'AI connection')}
+        description={`Connect Claude, ChatGPT or another AI assistant to ${profile.name}'s competitor data. Answers come with the same evidence links you see here.`}
+      />
       {admin && <p className="text-muted-foreground">As an admin you see everyone&apos;s tokens and connected apps in this agency.</p>}
       <ConnectorUrlCard url={`${webEnv().appUrl}/mcp`} />
       <AccessTokensCard

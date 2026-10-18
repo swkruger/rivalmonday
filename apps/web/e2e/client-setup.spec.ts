@@ -85,7 +85,8 @@ test.describe('agency staff', () => {
     await expect(page.getByRole('heading', { name: 'Setup finished' })).toBeVisible();
 
     await page.goto(`/c/${id}`);
-    await expect(page.getByRole('heading', { name: fx().finish.name })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Overview', exact: true, level: 1 })).toBeVisible();
+    await expect(page.getByText(`${fx().finish.name} · `).first()).toBeVisible();
     await expect(page.getByRole('link', { name: /Finish setup/ })).toHaveCount(0);
     // Picking had an effect: the two ticked top rivals are tracked, the unticked ones are not.
     await page.goto(`/c/${id}/competitors`);
@@ -131,7 +132,8 @@ test.describe('client owner', () => {
     await page.getByRole('button', { name: 'Done picking' }).click();
     // The setup is closed: a client owner can't open it any more, so they land on the overview, with the pick tracked.
     await expect(page).toHaveURL(new RegExp(`/c/${id}$`));
-    await expect(page.getByRole('heading', { name: fx().owner.name })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Overview', exact: true, level: 1 })).toBeVisible();
+    await expect(page.getByText(`${fx().owner.name} · `).first()).toBeVisible();
     await expect(page.getByRole('link', { name: /Finish setup/ })).toHaveCount(0);
     await page.goto(`/c/${id}/competitors`);
     await expect(page.getByRole('table').getByRole('link', { name: 'Owner Rival Heating' })).toBeVisible();

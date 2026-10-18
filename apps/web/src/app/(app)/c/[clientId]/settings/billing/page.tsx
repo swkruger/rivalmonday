@@ -1,15 +1,19 @@
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import type { ClientProfile } from '@cs/tools';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { cache } from 'react';
 import { PaymentButton } from '@/app/(app)/agency/settings/billing/payment-button';
 import { formatLongDate, formatUsd } from '@/components/billing/format';
 import { RefreshUntilChanged } from '@/components/billing/refresh-until-changed';
+import { clientSettingsCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { managePaymentAction } from './actions';
 
 export const dynamic = 'force-dynamic';
+/** R18: the (app) title template appends the agency's name: "Billing · {agency}". */
+export const metadata: Metadata = { title: 'Billing' };
 
 export interface MyBilling {
   agencyName: string;
@@ -24,23 +28,6 @@ export interface MyBilling {
 
 export const CHECKOUT_DONE_COPY = 'Thanks — your payment details are saved.';
 export const CHECKOUT_CANCELLED_COPY = 'Payment setup was cancelled.';
-
-/** One tool call per request, shared by `generateMetadata` and the page. */
-const loadBilling = cache(async (clientId: string) => {
-  const { ctx } = await requireContext();
-  if (ctx.role !== 'client_owner') notFound();
-  return callTool<MyBilling>(ctx, 'get_my_billing', { clientId });
-});
-
-/** R18: the browser tab names the agency, never the platform. A refused viewer gets a neutral title (the page itself is a 404). */
-export async function generateMetadata({ params }: { params: Promise<{ clientId: string }> }): Promise<Metadata> {
-  const { clientId } = await params;
-  try {
-    return { title: `Billing · ${(await loadBilling(clientId)).agencyName}` };
-  } catch {
-    return { title: 'Billing' };
-  }
-}
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
@@ -63,13 +50,18 @@ function statusOf(b: MyBilling): { label: string; tone: 'default' | 'secondary' 
 export default async function ClientBillingPage({ params, searchParams }: { params: Promise<{ clientId: string }>; searchParams: Promise<{ checkout?: string | string[] }> }) {
   const { clientId } = await params;
   const { checkout } = await searchParams;
-  const b = await loadBilling(clientId);
+  const { ctx } = await requireContext();
+  if (ctx.role !== 'client_owner') notFound();
+  const [b, profile] = await Promise.all([
+    callTool<MyBilling>(ctx, 'get_my_billing', { clientId }),
+    callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
+  ]);
   const status = statusOf(b);
   const flash = one(checkout) === 'done' ? CHECKOUT_DONE_COPY : one(checkout) === 'cancelled' ? CHECKOUT_CANCELLED_COPY : null;
 
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Billing</h1>
+      <PageHeader title="Billing" breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Billing')} />
       {one(checkout) === 'done' && <RefreshUntilChanged watch={b.state} />}
       {flash && <p role="status" className="rounded-md bg-muted-surface px-4 py-2 text-sm font-semibold text-ink">{flash}</p>}
       <Card>

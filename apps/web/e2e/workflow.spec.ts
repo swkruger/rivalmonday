@@ -24,7 +24,7 @@ test('an admin adds a client by hand, lands on its setup wizard, then uses its c
   // Phase 11a: every new client goes through the setup wizard, by-hand creates included.
   await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/setup$/);
   await page.goto(page.url().replace(/\/setup$/, '/competitors'));
-  await expect(page.getByRole('heading', { name: 'Competitors — E2E Dental' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Competitors', exact: true, level: 1 })).toBeVisible();
   // Searching needs keywords, a service area and a Google place id: the created client has no place id yet.
   const find = page.getByRole('button', { name: /find competitors/i });
   await expect(find).toBeDisabled();
@@ -90,20 +90,20 @@ test('an admin turns a client feature on and off on the profile page', { tag: ['
   await page.waitForURL(/\/c\/[0-9a-f-]{36}/);
   const clientId = /\/c\/([0-9a-f-]{36})/.exec(page.url())![1];
   await page.goto(`/c/${clientId}/settings/profile`);
-  const ai = page.getByLabel(/AI connections/);
+  const ai = page.getByLabel(/AI connection/);
   await expect(page.getByLabel(/Client dashboard/)).toBeChecked();
   await expect(ai).not.toBeChecked();
   await ai.check();
   await page.getByRole('button', { name: 'Save features' }).click();
   await expect(page.getByText('Features saved.')).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel(/AI connections/)).toBeChecked();
+  await expect(page.getByLabel(/AI connection/)).toBeChecked();
   // Back to the seed's features, so later tests see the client unchanged.
-  await page.getByLabel(/AI connections/).uncheck();
+  await page.getByLabel(/AI connection/).uncheck();
   await page.getByRole('button', { name: 'Save features' }).click();
   await expect(page.getByText('Features saved.')).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel(/AI connections/)).not.toBeChecked();
+  await expect(page.getByLabel(/AI connection/)).not.toBeChecked();
   await expect(page.getByLabel(/Alert rules/)).toBeChecked();
 });
 

@@ -2,7 +2,10 @@ import { isAgencyRole } from '@cs/core';
 import type { ClientProfile } from '@cs/tools';
 import { listClientRecipients } from '@cs/tools';
 import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { clientSettingsCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { WriteGuard } from '@/components/read-only';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
@@ -12,6 +15,7 @@ import { timezoneOptions } from '@/server/timezones';
 import { AddRecipientForm, DeactivateRecipientButton, DeliveryForm } from './delivery-controls';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Delivery' };
 
 const ROLE_LABEL: Record<string, string> = { client_owner: 'Owner', client_viewer: 'Viewer' };
 
@@ -25,7 +29,7 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
 
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Delivery</h1>
+      <PageHeader title="Delivery" breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Delivery')} />
       <DeliveryForm
         clientId={clientId}
         alertMode={profile.alertMode ?? 'after_am_check'}

@@ -1,12 +1,15 @@
 import { hasFeature, isAgencyRole } from '@cs/core';
-import type { GeoGridView, RankTrendView, ShareOfVoiceView } from '@cs/tools';
+import type { ClientProfile, GeoGridView, RankTrendView, ShareOfVoiceView } from '@cs/tools';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChangeGrid } from '@/components/charts/change-grid';
 import { GeoGrid } from '@/components/charts/geo-grid';
 import { LineChart } from '@/components/charts/line-chart';
 import { RankTrend } from '@/components/charts/rank-trend';
+import { clientCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { one, uuidParam } from '@/server/search-params';
 import { callTool, tryCallTool } from '@/server/tools';
@@ -18,6 +21,7 @@ import { sovSeries } from './sov';
 import { type RankQuery, type RankTab, RankTabs } from './tabs';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Local rankings' };
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 const selectCls = 'rounded-md border border-line bg-surface px-2 py-1.5';
@@ -46,7 +50,10 @@ export default async function RankingsPage({ params, searchParams }: {
   for (const k of ['tab', 'keyword', 'business', 'sov', 'scan', 'a', 'b']) { const v = one(sp[k]); if (v) query[k] = v; }
 
   // A stale business (removed competitor) or scan id falls back to the defaults and says so.
-  const picked = await tryCallTool<GeoGridView>(ctx, 'get_geogrid', { clientId, ...(keyword ? { keyword } : {}), ...(business ? { business } : {}), ...(scanId ? { scanId } : {}) });
+  const [profile, picked] = await Promise.all([
+    callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
+    tryCallTool<GeoGridView>(ctx, 'get_geogrid', { clientId, ...(keyword ? { keyword } : {}), ...(business ? { business } : {}), ...(scanId ? { scanId } : {}) }),
+  ]);
   const geo = picked ?? (await callTool<GeoGridView>(ctx, 'get_geogrid', { clientId, ...(keyword ? { keyword } : {}) }));
   const noBusiness = geo.setup === 'ready' && geo.business === null;
   const ready = geo.setup === 'ready' && !noBusiness && geo.keyword !== null;
@@ -82,18 +89,19 @@ export default async function RankingsPage({ params, searchParams }: {
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[26px] font-extrabold tracking-tight">Local rankings</h1>
-          <p className="mt-1 text-muted-foreground">Where each business shows up in Google’s local results across your service area, from the weekly rank scan.</p>
-        </div>
-        {controls && (
-          <div className="flex flex-wrap items-start gap-3">
-            <RankSettingsSheet clientId={clientId} settings={controls} />
-            <ScanNowButton clientId={clientId} scan={controls.scan} />
-          </div>
-        )}
-      </div>
+      <PageHeader
+        title="Local rankings"
+        breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Local rankings')}
+        description="Where each business shows up in Google’s local results across your service area, from the weekly rank scan."
+        actions={
+          controls ? (
+            <div className="flex flex-wrap items-start gap-3">
+              <RankSettingsSheet clientId={clientId} settings={controls} />
+              <ScanNowButton clientId={clientId} scan={controls.scan} />
+            </div>
+          ) : undefined
+        }
+      />
 
       {geo.setup === 'no_keywords' ? (
         <p className="rounded-lg bg-muted-surface p-3 text-ink">

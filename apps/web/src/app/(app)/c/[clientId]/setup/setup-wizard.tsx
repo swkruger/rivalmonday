@@ -11,19 +11,9 @@ import { InviteForm, InviteStatus, InviteStep } from './steps/invite-step';
 import { PickStep } from './steps/pick-step';
 import { SearchStep } from './steps/search-step';
 import type { ClientSetupView, SetupActionResult } from './types';
+import { currentStep, type StepKey, STEPS, stepsFor } from './wizard-steps';
 import { ErrorNote } from '@/components/form-error';
 
-type StepKey = 'profile' | 'search' | 'competitors' | 'invite' | 'billing';
-const STEPS: { key: StepKey; label: string }[] = [
-  { key: 'profile', label: 'Your business' },
-  { key: 'search', label: 'Finding competitors' },
-  { key: 'competitors', label: 'Pick competitors' },
-  { key: 'invite', label: 'Invite the owner' },
-  { key: 'billing', label: 'Billing' },
-];
-
-/** Client roles see only their own three steps; staff see 5 (clients) or 4 (prospects) — `totalSteps`. */
-const stepsFor = (agency: boolean, totalSteps: number) => STEPS.slice(0, agency ? totalSteps : 3);
 
 const FAST_POLL_MS = 5_000;
 const SLOW_POLL_MS = 10_000;
@@ -96,11 +86,6 @@ function Stepper({ current, steps, list }: { current: StepKey; steps: ClientSetu
       })}
     </ol>
   );
-}
-
-function currentStep(steps: ClientSetupView['state']['steps'], list: typeof STEPS): StepKey {
-  const open = (k: StepKey) => ['todo', 'running', 'blocked'].includes(steps[k] ?? 'done');
-  return list.find((s) => open(s.key))?.key ?? list[list.length - 1]!.key;
 }
 
 export function SetupWizard({

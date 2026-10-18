@@ -1,15 +1,24 @@
 import { type AccessContext, hasFeature } from '@cs/core';
 import { productNameFor } from '@cs/mcp';
-import type { AskThreadSummary, AskThreadView } from '@cs/tools';
-import { FridayBadge } from '@cs/ui';
+import type { AskThreadSummary, AskThreadView, ClientProfile } from '@cs/tools';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { AskChat } from '@/components/ask/ask-chat';
 import { ThreadDrawer, ThreadList } from '@/components/ask/thread-list';
+import { clientCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { assistantNameFor } from '@/server/ask';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
+import { themeForViewer } from '@/server/theme';
 import { callTool } from '@/server/tools';
 import { confirmAskAction, deleteAskThreadAction, saveAskRecommendation } from './actions';
+
+/** Both Ask pages' tab title, "Ask {assistant}" like the menu item (the shell's cached branding read supplies the name). */
+export async function askMetadata(): Promise<Metadata> {
+  const { viewer } = await requireContext();
+  return { title: `Ask ${(await themeForViewer(viewer)).assistantName}` };
+}
 
 /**
  * `/c/[clientId]/ask` and `/ask/[threadId]` (spec "Web"). Guests and clients without the `ask` feature get a 404 (Q2);
@@ -26,7 +35,8 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
   const { viewer, ctx } = await requireContext();
   if (viewer.kind === 'support') return supportAskView(clientId, ctx);
   if (viewer.kind !== 'user' || ctx.userId.startsWith('contact:') || !hasFeature(ctx, 'ask')) notFound();
-  const [starters, threads, thread] = await Promise.all([
+  const [profile, starters, threads, thread] = await Promise.all([
+    callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<{ questions: string[]; reviewAllowed: boolean }>(ctx, 'get_ask_starters', { clientId }),
     callTool<{ items: AskThreadSummary[] }>(ctx, 'list_my_ask_threads', { clientId }),
     threadId ? callTool<AskThreadView>(ctx, 'get_my_ask_thread', { threadId }) : Promise.resolve(null),
@@ -35,18 +45,17 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
   const { service } = dbs();
   const [assistantName, productName] = await Promise.all([assistantNameFor(service, ctx.agencyId), productNameFor(service, ctx.agencyId)]);
   const list = { clientId, threads: threads.items, activeId: thread?.id ?? null, deleteAction: deleteAskThreadAction };
+  const askTitle = `Ask ${assistantName}`;
+  const client = { id: clientId, name: profile.name };
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-[26px] font-extrabold tracking-tight">
-            Ask <FridayBadge name={assistantName} />
-          </h1>
-          <p className="truncate text-muted-foreground">{thread ? thread.title : 'Questions about your competitors and market, answered from the monitored evidence.'}</p>
-        </div>
-        <ThreadDrawer {...list} />
-      </div>
+      <PageHeader
+        title={askTitle}
+        breadcrumb={thread ? clientCrumbs(client, { label: askTitle, href: `/c/${clientId}/ask` }, thread.title) : clientCrumbs(client, askTitle)}
+        description={thread ? undefined : 'Questions about your competitors and market, answered from the monitored evidence.'}
+        actions={<ThreadDrawer {...list} />}
+      />
       <div className="flex items-start gap-5">
         <aside className="hidden w-64 flex-shrink-0 rounded-[14px] bg-surface p-3 shadow-card lg:sticky lg:top-6 lg:block">
           <ThreadList {...list} />
@@ -80,13 +89,12 @@ export const ASK_PRIVATE_COPY = 'Ask conversations are private to their authors.
  */
 async function supportAskView(clientId: string, ctx: AccessContext) {
   if (!hasFeature(ctx, 'ask')) notFound();
-  await callTool(ctx, 'get_client_profile', { clientId });
+  const profile = await callTool<ClientProfile>(ctx, 'get_client_profile', { clientId });
   const assistantName = await assistantNameFor(dbs().service, ctx.agencyId);
+  const askTitle = `Ask ${assistantName}`;
   return (
     <>
-      <h1 className="flex items-center gap-2 text-[26px] font-extrabold tracking-tight">
-        Ask <FridayBadge name={assistantName} />
-      </h1>
+      <PageHeader title={askTitle} breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, askTitle)} />
       <p className="rounded-[14px] bg-surface p-6 text-muted-foreground shadow-card">{ASK_PRIVATE_COPY}</p>
     </>
   );

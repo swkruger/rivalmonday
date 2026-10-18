@@ -1,9 +1,12 @@
 import { hasFeature, isAgencyRole } from '@cs/core';
 import type { ClientProfile } from '@cs/tools';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ClientBillingControls, type ClientBillingStatusRow } from '@/components/billing/client-billing-controls';
+import { clientSettingsCrumbs } from '@/components/client-crumbs';
 import { ClientProfileForm } from '@/components/client-profile-form';
+import { PageHeader } from '@/components/page-header';
 import { ServicesAreaSummary } from '@/components/services-area-summary';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
@@ -12,6 +15,7 @@ import { saveFeaturesAction, updateProfileAction } from './actions';
 import { ClientFeaturesForm } from './client-features-form';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Business profile' };
 
 export default async function ClientProfilePage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
@@ -23,7 +27,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
     const names = Object.fromEntries((await verticalOptions()).flatMap((v) => v.services.map((s) => [s.id, s.name] as const)));
     return (
       <>
-        <h1 className="text-[26px] font-extrabold tracking-tight">Business profile</h1>
+        <PageHeader title="Business profile" breadcrumb={clientSettingsCrumbs({ id: clientId, name: p.name }, 'Business profile')} />
         <ServicesAreaSummary profile={p} serviceNames={names} />
         <p className="text-muted-foreground">To change these, contact your account manager.</p>
       </>
@@ -40,7 +44,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
           ← Back to the prospect
         </Link>
       )}
-      <h1 className="text-[26px] font-extrabold tracking-tight">Business profile</h1>
+      <PageHeader title="Business profile" breadcrumb={clientSettingsCrumbs({ id: clientId, name: p.name }, 'Business profile')} />
       {billing && (
         <section aria-label="Billing" className="flex items-center gap-3">
           <span className="font-semibold">Billing</span>

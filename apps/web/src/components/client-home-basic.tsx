@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { callTool, tryCallTool } from '@/server/tools';
 import { AskCard } from './ask/ask-card';
 import { AlertLinkList, BriefLinkList } from './client-lists';
+import { PageHeader } from './page-header';
 import { openSetupSteps, SetupBadge } from './setup-badge';
 import { pendingStartingPoint, StartingPointCard } from './starting-point-card';
 
@@ -22,15 +23,20 @@ export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx
   const preparing = pendingStartingPoint(starting, briefs.items);
   return (
     <>
-      <div>
-        <h1 className="text-[26px] font-extrabold tracking-tight">{profile.name}</h1>
-        <p className="mt-1 text-muted-foreground">Weekly briefs, alerts and quarterly reports.</p>
-        {setupSteps !== null && (
-          <div className="mt-2">
-            <SetupBadge clientId={clientId} open {...setupSteps} />
-          </div>
-        )}
-      </div>
+      <PageHeader
+        title="Overview"
+        description={`${profile.name} · Weekly briefs, alerts and quarterly reports.`}
+        actions={
+          <Link href={`/c/${clientId}/briefs`} className="font-semibold text-primary-soft-text">
+            Brief archive →
+          </Link>
+        }
+      />
+      {setupSteps !== null && (
+        <div>
+          <SetupBadge clientId={clientId} open {...setupSteps} />
+        </div>
+      )}
       <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
         <Card>
           <CardHeader>
@@ -40,7 +46,7 @@ export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx
             {preparing ? (
               <StartingPointCard status={preparing} agency={false} />
             ) : (
-              <BriefLinkList clientId={clientId} items={briefs.items} empty="No briefs yet. The first one arrives on a Monday morning." />
+              <BriefLinkList clientId={clientId} items={briefs.items} empty="No briefs yet. The first one arrives on a Monday morning." agency={isAgencyRole(ctx.role)} />
             )}
           </CardContent>
         </Card>

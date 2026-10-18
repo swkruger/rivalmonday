@@ -33,10 +33,10 @@ const tabs = () => within(nav()!).getAllByRole('link').map((l) => l.textContent)
 afterEach(cleanup);
 
 describe('Client settings layout (15a §2.5)', () => {
-  it('shows the "Client settings" heading, the agency tabs for this client, and the page', async () => {
+  it('shows the agency tabs for this client and the page, and no h1 of its own (each page’s PageHeader is the one h1)', async () => {
     as('user', 'agency_admin');
     render(await SettingsLayout({ children: <p>page body</p>, params }));
-    expect(screen.getByRole('heading', { level: 1, name: 'Client settings' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
     expect(tabs()).toEqual(['Business profile', 'Delivery', 'Alert rules', 'AI connection']);
     expect(within(nav()!).getByRole('link', { name: 'Business profile' }).getAttribute('href')).toBe(`/c/${C}/settings/profile`);
     expect(screen.getByText('page body')).toBeTruthy();
@@ -90,10 +90,10 @@ describe('client settings page titles', () => {
     expect([...labels.keys()].sort()).toEqual(['ai', 'alerts', 'billing', 'delivery', 'profile']);
     for (const [dir, label] of labels) {
       const source = readFileSync(join(here, dir, 'page.tsx'), 'utf8');
-      const h1s = [...source.matchAll(/<h1[^>]*>([^<]*)<\/h1>|<PageHeader[^>]*\btitle="([^"]*)"/g)].map((x) => x[1] ?? x[2]);
-      // A plain h1 today; Task 9's PageHeader (its `title` prop) also passes. Every h1 on the page (profile has two branches).
-      expect(h1s.length, dir).toBeGreaterThan(0);
-      for (const h of h1s) expect(h, dir).toBe(label);
+      const titles = [...source.matchAll(/<PageHeader[^>]*\btitle="([^"]*)"/g)].map((x) => x[1]);
+      // Every PageHeader on the page (profile has two branches); page-titles.test.ts checks no page renders its own h1.
+      expect(titles.length, dir).toBeGreaterThan(0);
+      for (const t of titles) expect(t, dir).toBe(label);
     }
   });
 });

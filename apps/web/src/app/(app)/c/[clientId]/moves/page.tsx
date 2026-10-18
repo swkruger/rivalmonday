@@ -1,8 +1,11 @@
 import { hasFeature } from '@cs/core';
-import type { MoveDetail, MoveRow } from '@cs/tools';
+import type { ClientProfile, MoveDetail, MoveRow } from '@cs/tools';
 import { Card, CardContent } from '@cs/ui';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { clientCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { callTool, tryCallTool } from '@/server/tools';
 import { changesHref } from '../changes/params';
@@ -10,6 +13,7 @@ import { RoutePill } from '../changes/feed';
 import { MoveCard, movesHref } from './move-card';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Moves' };
 
 const STATUSES = ['open', 'closed', 'all'] as const;
 type Status = (typeof STATUSES)[number];
@@ -103,7 +107,10 @@ export default async function MovesPage({
   const { ctx } = await requireContext();
   if (!hasFeature(ctx, 'dashboard')) notFound();
 
-  const { items } = await callTool<{ items: MoveRow[] }>(ctx, 'list_moves', { clientId, status });
+  const [profile, { items }] = await Promise.all([
+    callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
+    callTool<{ items: MoveRow[] }>(ctx, 'list_moves', { clientId, status }),
+  ]);
   const selectedId = moveParam ?? items[0]?.id;
   // A bookmarked `?move=` may be closed out of its events, removed or not this client's: the list still renders and
   // the panel says so (same text for every case — no existence leak). The page-level gates above still 404.
@@ -115,12 +122,11 @@ export default async function MovesPage({
 
   return (
     <>
-      <div>
-        <h1 className="text-[26px] font-extrabold tracking-tight">Moves</h1>
-        <p className="mt-1 text-muted-foreground">
-          Patterns across several changes — a competitor expanding, cutting prices or pushing ads. Each one is backed by the changes listed.
-        </p>
-      </div>
+      <PageHeader
+        title="Moves"
+        breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Moves')}
+        description="Patterns across several changes — a competitor expanding, cutting prices or pushing ads. Each one is backed by the changes listed."
+      />
 
       <div className="flex items-center gap-1 rounded-lg bg-muted-surface p-1 w-fit">
         <StatusLink clientId={clientId} status="open" current={status} label="Open" />

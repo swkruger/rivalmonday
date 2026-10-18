@@ -1,14 +1,18 @@
 import { hasFeature } from '@cs/core';
-import type { AdActivityView, AdList } from '@cs/tools';
+import type { AdActivityView, AdList, ClientProfile } from '@cs/tools';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { foldSeries, LineChart } from '@/components/charts/line-chart';
+import { clientCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { offsetParam, one, uuidParam } from '@/server/search-params';
 import { callTool, tryCallTool } from '@/server/tools';
 import { AdCard } from './ad-card';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Ads' };
 
 const PAGE = 50;
 const pick = <T extends string>(v: string | undefined, allowed: readonly T[], fallback: T): T => ((allowed as readonly string[]).includes(v ?? '') ? (v as T) : fallback);
@@ -27,7 +31,10 @@ export default async function AdsPage({ params, searchParams }: {
   const status = pick(one(sp.status), ['active', 'ended', 'all'] as const, 'active');
   const offset = offsetParam(sp);
 
-  const activity = await callTool<AdActivityView>(ctx, 'get_ad_activity', { clientId, weeks: 12 });
+  const [profile, activity] = await Promise.all([
+    callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
+    callTool<AdActivityView>(ctx, 'get_ad_activity', { clientId, weeks: 12 }),
+  ]);
   const list = await tryCallTool<AdList>(ctx, 'list_ads', {
     clientId, ...(competitorId ? { competitorId } : {}), ...(platform !== 'all' ? { platform } : {}), status, offset, limit: PAGE,
   });
@@ -35,10 +42,11 @@ export default async function AdsPage({ params, searchParams }: {
 
   return (
     <>
-      <div>
-        <h1 className="text-[26px] font-extrabold tracking-tight">Ads</h1>
-        <p className="mt-1 text-muted-foreground">Ads your competitors run on Google and Meta, with when we first and last saw each one.</p>
-      </div>
+      <PageHeader
+        title="Ads"
+        breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Ads')}
+        description="Ads your competitors run on Google and Meta, with when we first and last saw each one."
+      />
 
       <div className="rounded-[14px] bg-surface p-6 shadow-card">
         <h2 className="mb-2 text-lg font-bold text-ink">Active ads per week</h2>

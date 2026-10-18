@@ -1,7 +1,11 @@
 import { isUuid } from '@cs/core';
-import { AskScreen } from './ask-screen';
+import { askMetadata, AskScreen } from './ask-screen';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata() {
+  return askMetadata();
+}
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const QUESTION_MAX = 2000;

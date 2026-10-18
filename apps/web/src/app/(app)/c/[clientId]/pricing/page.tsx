@@ -1,8 +1,11 @@
 import { hasFeature } from '@cs/core';
-import type { PriceHistoryView, PriceMatrixView } from '@cs/tools';
+import type { ClientProfile, PriceHistoryView, PriceMatrixView } from '@cs/tools';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { LineChart } from '@/components/charts/line-chart';
+import { clientCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
 import { one, uuidParam } from '@/server/search-params';
@@ -12,6 +15,7 @@ import { historySeries } from './history-series';
 import { PriceCard } from './price-card';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Pricing' };
 
 const PERIODS = [90, 180, 365] as const;
 type Period = (typeof PERIODS)[number];
@@ -30,7 +34,10 @@ export default async function PricingPage({ params, searchParams }: {
   const { ctx } = await requireContext();
   if (!hasFeature(ctx, 'dashboard')) notFound();
   const days = parseDays(sp.days);
-  const matrix = await callTool<PriceMatrixView>(ctx, 'get_price_matrix', { clientId });
+  const [profile, matrix] = await Promise.all([
+    callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
+    callTool<PriceMatrixView>(ctx, 'get_price_matrix', { clientId }),
+  ]);
   const competitor = uuidParam(sp, 'competitor');
   const service = one(sp.service);
   // A stale selection (removed competitor, price gone) simply shows no chart.
@@ -42,10 +49,11 @@ export default async function PricingPage({ params, searchParams }: {
 
   return (
     <>
-      <div>
-        <h1 className="text-[26px] font-extrabold tracking-tight">Pricing</h1>
-        <p className="mt-1 text-muted-foreground">What each competitor charges on its website now, and how that changed. Pick a service to see its price history.</p>
-      </div>
+      <PageHeader
+        title="Pricing"
+        breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Pricing')}
+        description="What each competitor charges on its website now, and how that changed. Pick a service to see its price history."
+      />
       {matrix.rows.length === 0 ? (
         <p className="rounded-lg bg-muted-surface p-3 text-ink">No competitors are tracked yet.</p>
       ) : (

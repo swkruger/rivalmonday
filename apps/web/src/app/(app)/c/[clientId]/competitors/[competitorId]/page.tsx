@@ -1,8 +1,12 @@
 import { canManageCompetitors, hasFeature, isAgencyRole, PAGE_TYPES } from '@cs/core';
-import type { AdList, AdMatch, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, ThemeBenchmarkView, TimelineItem, TrackedPageView } from '@cs/tools';
+import type { AdList, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, ThemeBenchmarkView, TimelineItem, TrackedPageView } from '@cs/tools';
 import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { cache } from 'react';
+import { clientCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { PressureBadge } from '@/components/pressure-badge';
 import { AdMatchChips } from '@/components/rival/ad-match-chips';
 import { ratedLabel } from '@/components/rival/rated-label';
@@ -36,6 +40,18 @@ function Kpi({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
+type Ctx = Awaited<ReturnType<typeof requireContext>>['ctx'];
+/** One `get_competitor_profile` per request (keyed by the request's cached ctx), shared by the tab title and the page. */
+const loadCompetitor = cache((ctx: Ctx, clientId: string, competitorId: string) => callTool<CompetitorProfile>(ctx, 'get_competitor_profile', { clientId, competitorId }));
+
+/** The tab title is the competitor's name; a refusal still 404s. */
+export async function generateMetadata({ params }: { params: Promise<{ clientId: string; competitorId: string }> }): Promise<Metadata> {
+  const { clientId, competitorId } = await params;
+  const { ctx } = await requireContext();
+  if (!hasFeature(ctx, 'dashboard')) notFound();
+  return { title: (await loadCompetitor(ctx, clientId, competitorId)).name };
+}
+
 export default async function CompetitorProfilePage({
   params,
   searchParams,
@@ -52,8 +68,8 @@ export default async function CompetitorProfilePage({
   // One batch: a bad id makes get_competitor_profile throw not_found (-> 404); Promise.all handles the sibling calls' rejections.
   // Ad-account matches are agency-only: other viewers never trigger the call or see the chips.
   const manageAds = isAgencyRole(ctx.role) && canManageCompetitors(ctx);
-  const [profile, timeline, pages, matrix, ads, benchmark, geo, signals, adMatches] = await Promise.all([
-    callTool<CompetitorProfile>(ctx, 'get_competitor_profile', { clientId, competitorId }),
+  const [profile, timeline, pages, matrix, ads, benchmark, geo, signals, adMatches, client] = await Promise.all([
+    loadCompetitor(ctx, clientId, competitorId),
     callTool<{ items: TimelineItem[] }>(ctx, 'get_competitor_timeline', { clientId, competitorId, days }),
     callTool<{ items: TrackedPageView[] }>(ctx, 'list_tracked_pages', { clientId, competitorId }),
     callTool<PriceMatrixView>(ctx, 'get_price_matrix', { clientId, competitorId }),
@@ -64,6 +80,7 @@ export default async function CompetitorProfilePage({
     manageAds
       ? callTool<{ matched: { platform: 'google' | 'meta'; accountId: string; name: string | null }[]; pending: AdMatch[] }>(ctx, 'get_competitor_ad_matches', { clientId, competitorId })
       : Promise.resolve(null),
+    callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
   ]);
   const rated = signals.competitors.find((x) => x.competitorId === competitorId) ?? null;
   const now = new Date();
@@ -71,16 +88,21 @@ export default async function CompetitorProfilePage({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-[26px] font-extrabold tracking-tight">{profile.name}</h1>
-        {profile.domain && (
-          <a href={`https://${profile.domain}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-soft-text">
-            {profile.domain}
-          </a>
-        )}
-        <PressureBadge score={profile.pressure.score} level={profile.pressure.level} />
-        <span className="text-sm text-muted-foreground">Tracked since {fmtDate(profile.addedAt, true)}</span>
-      </div>
+      <PageHeader
+        title={profile.name}
+        breadcrumb={clientCrumbs({ id: clientId, name: client.name }, { label: 'Competitors', href: `/c/${clientId}/competitors` }, profile.name)}
+        description={`Tracked since ${fmtDate(profile.addedAt, true)}`}
+        actions={
+          <>
+            {profile.domain && (
+              <a href={`https://${profile.domain}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-soft-text">
+                {profile.domain}
+              </a>
+            )}
+            <PressureBadge score={profile.pressure.score} level={profile.pressure.level} />
+          </>
+        }
+      />
 
       <div className="flex flex-col gap-3">
         {rated ? (

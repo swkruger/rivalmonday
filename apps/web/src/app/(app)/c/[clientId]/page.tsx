@@ -12,11 +12,13 @@ import type {
   StartingPointStatus,
   WorkspaceOverview,
 } from '@cs/tools';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AskCard } from '@/components/ask/ask-card';
 import { foldSeries, LineChart } from '@/components/charts/line-chart';
 import { ClientHomeBasic } from '@/components/client-home-basic';
 import { AlertLinkList, BriefLinkList } from '@/components/client-lists';
+import { PageHeader } from '@/components/page-header';
 import { pendingStartingPoint, StartingPointCard } from '@/components/starting-point-card';
 import { openSetupSteps, SetupBadge } from '@/components/setup-badge';
 import { StatCard } from '@/components/stat-card';
@@ -27,6 +29,7 @@ import { MoveCard, movesHref } from './moves/move-card';
 import { briefLabel, kpiCards, latestBrief } from './overview-kpis';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Overview' };
 
 const BAR: Record<'low' | 'elevated' | 'high', string> = { high: 'bg-[#DC2626]', elevated: 'bg-amber', low: 'bg-primary' };
 const cardCls = 'min-w-0 rounded-[14px] bg-surface p-6 shadow-card';
@@ -59,26 +62,22 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <PageHeader
+        title="Overview"
+        description={`${profile.name} · Tracking ${n} competitor${n === 1 ? '' : 's'}${overview.zips > 0 ? ` across ${overview.zips} ZIP codes` : ''}${delivered ? ` · ${briefLabel(delivered)}` : ''}`}
+        actions={
+          isAgencyRole(ctx.role) && overview.pitchSnapshot ? (
+            <Link href={`/c/${clientId}/pitch-snapshot`} className={linkCls}>
+              Pitch snapshot →
+            </Link>
+          ) : undefined
+        }
+      />
+      {setupSteps !== null && (
         <div>
-          <h1 className="text-[26px] font-extrabold tracking-tight">{profile.name}</h1>
-          <p className="mt-1 text-muted-foreground">
-            Tracking {n} competitor{n === 1 ? '' : 's'}
-            {overview.zips > 0 ? ` across ${overview.zips} ZIP codes` : ''}
-            {delivered ? ` · ${briefLabel(delivered)}` : ''}
-          </p>
-          {setupSteps !== null && (
-            <div className="mt-2">
-              <SetupBadge clientId={clientId} open {...setupSteps} />
-            </div>
-          )}
+          <SetupBadge clientId={clientId} open {...setupSteps} />
         </div>
-        {isAgencyRole(ctx.role) && overview.pitchSnapshot && (
-          <Link href={`/c/${clientId}/pitch-snapshot`} className={linkCls}>
-            Pitch snapshot →
-          </Link>
-        )}
-      </div>
+      )}
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {kpiCards(overview, { agency: isAgencyRole(ctx.role) }).map((k) => (
@@ -94,7 +93,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
               <p className="text-muted-foreground">No briefs yet. The first one arrives on a Monday morning.</p>
             </section>
           )}
-          {latest && <BriefView brief={latest} agency={isAgencyRole(ctx.role)} />}
+          {latest && <BriefView brief={latest} agency={isAgencyRole(ctx.role)} archiveHref={`/c/${clientId}/briefs`} />}
         </div>
 
         <div className="flex flex-col gap-5">
@@ -181,7 +180,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
         <section className={cardCls}>
           <h2 className="font-semibold">Past briefs</h2>
           <div className="mt-3">
-            <BriefLinkList clientId={clientId} items={pastBriefs} empty="No earlier briefs." />
+            <BriefLinkList clientId={clientId} items={pastBriefs} empty="No earlier briefs." agency={isAgencyRole(ctx.role)} />
           </div>
         </section>
         <section className={cardCls}>

@@ -2,8 +2,11 @@ import { canManageCompetitors, hasFeature, isAgencyRole } from '@cs/core';
 import type { ClientProfile, CompetitorSignalView, HiddenReason, SuggestionView, TrackedCompetitor } from '@cs/tools';
 import { searchDayLabelAt } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { clientCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { WriteGuard } from '@/components/read-only';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
@@ -11,6 +14,7 @@ import { RUN_STATE } from './search-state';
 import { AddCompetitorForm, SuggestionsPanel, TrackedCompetitorsTable } from './competitor-controls';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Competitors' };
 
 export default async function CompetitorsPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
@@ -41,10 +45,11 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
           ← Back to the prospect
         </Link>
       )}
-      <h1 className="text-[26px] font-extrabold tracking-tight">Competitors — {profile.name}</h1>
-      <p className="text-muted-foreground">
-        {agency ? `Track 3–5 direct competitors (${tracked.items.length} of ${tracked.limit}).` : `The businesses we monitor for you (${tracked.items.length} of ${tracked.limit}).`}
-      </p>
+      <PageHeader
+        title="Competitors"
+        breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Competitors')}
+        description={agency ? `Track 3–5 direct competitors (${tracked.items.length} of ${tracked.limit}).` : `The businesses we monitor for you (${tracked.items.length} of ${tracked.limit}).`}
+      />
       <Card>
         <CardHeader>
           <CardTitle>Tracked competitors</CardTitle>

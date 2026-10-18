@@ -1,10 +1,13 @@
 import { hasFeature, hasPermission } from '@cs/core';
-import type { EvidenceView } from '@cs/tools';
+import type { ClientProfile, EvidenceView } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import type { Metadata } from 'next';
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { cache, type ReactNode } from 'react';
 import { RATIONALE_MAX, SaveRecommendationDialog, TITLE_MAX } from '@/components/ask/save-recommendation-dialog';
 import { EvidenceImage } from '@/components/evidence-image';
+import { clientCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { assistantNameFor } from '@/server/ask';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
@@ -33,6 +36,18 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+type Ctx = Awaited<ReturnType<typeof requireContext>>['ctx'];
+/** One `get_evidence` per request (keyed by the request's cached ctx), shared by the tab title and the page. */
+const loadEvidence = cache((ctx: Ctx, clientId: string, evidenceId: string) => callTool<EvidenceView>(ctx, 'get_evidence', { clientId, evidenceId }));
+
+const titleOf = (evidence: EvidenceView) => `Evidence — ${evidence.competitorName}`;
+
+export async function generateMetadata({ params }: { params: Promise<{ clientId: string; evidenceId: string }> }): Promise<Metadata> {
+  const { clientId, evidenceId } = await params;
+  const { ctx } = await requireContext();
+  return { title: titleOf(await loadEvidence(ctx, clientId, evidenceId)) };
+}
+
 /**
  * Decision 7: `get_evidence` needs only `read` — no `dashboard` flag — so briefs-only clients' chips keep working.
  * The "part of these changes" list is shown only to `dashboard` users (decision 3's live-event rule already applied
@@ -42,7 +57,7 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
 export default async function EvidencePage({ params }: { params: Promise<{ clientId: string; evidenceId: string }> }) {
   const { clientId, evidenceId } = await params;
   const { viewer, ctx } = await requireContext();
-  const evidence = await callTool<EvidenceView>(ctx, 'get_evidence', { clientId, evidenceId });
+  const [evidence, profile] = await Promise.all([loadEvidence(ctx, clientId, evidenceId), callTool<ClientProfile>(ctx, 'get_client_profile', { clientId })]);
   const captured = formatUtc(evidence.capturedAt);
   // Ask entry points: signed-in users with the `ask` feature (never guests, Q2). "Add recommendation" mirrors
   // `add_recommendation` itself: `feedback` permission and the `dashboard` feature.
@@ -53,12 +68,12 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
 
   return (
     <>
-      <div>
-        <h1 className="text-[26px] font-extrabold tracking-tight">Evidence — {evidence.competitorName}</h1>
-        <p className="mt-1 text-muted-foreground">
-          {evidence.channelLabel} · captured {captured} · status {evidence.captureStatus}
-        </p>
-      </div>
+      {/* 15a §2.7: back to the Changes feed — only for viewers who have it (briefs-only clients reach evidence from a brief). */}
+      <PageHeader
+        title={titleOf(evidence)}
+        breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, ...(hasFeature(ctx, 'dashboard') ? [{ label: 'Changes', href: `/c/${clientId}/changes` }] : []), 'Evidence')}
+        description={`${evidence.channelLabel} · captured ${captured} · status ${evidence.captureStatus}`}
+      />
 
       {assistantName && (
         <div className="flex flex-wrap items-center gap-3">

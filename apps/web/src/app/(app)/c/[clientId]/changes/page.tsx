@@ -1,8 +1,11 @@
 import { hasFeature, hasPermission } from '@cs/core';
 import { changeTypeOptions, channelLabel, type ClientProfile, type CompareView, type EventDetail, type EventRow, type TrackedCompetitor } from '@cs/tools';
 import { Card, CardContent } from '@cs/ui';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { clientCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { callTool, tryCallTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
@@ -12,6 +15,7 @@ import { changesHref, parseChangesParams } from './params';
 import { EventViewer } from './viewer';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Changes' };
 
 function EmptyViewer({ message }: { message: string }) {
   return (
@@ -78,10 +82,11 @@ export default async function ChangesPage({
 
   return (
     <>
-      <div>
-        <h1 className="text-[26px] font-extrabold tracking-tight">Changes</h1>
-        <p className="mt-1 text-muted-foreground">Everything your competitors changed, scored for how much it matters to you. Every item links to proof.</p>
-      </div>
+      <PageHeader
+        title="Changes"
+        breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Changes')}
+        description="Everything your competitors changed, scored for how much it matters to you. Every item links to proof."
+      />
 
       <FilterBar
         clientId={clientId}

@@ -15,7 +15,7 @@ vi.mock('@/server/tools', () => ({
 vi.mock('./actions', () => ({ managePaymentAction: Object.assign(async () => ({ ok: true }), { bind: () => async () => ({ ok: true }) }) }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); }, useRouter: () => ({ refresh: () => {} }) }));
 
-import ClientBillingPage, { generateMetadata } from './page';
+import ClientBillingPage, { metadata } from './page';
 
 afterEach(() => { cleanup(); m.refuse = false; m.ctx = { role: 'client_owner' }; });
 
@@ -38,7 +38,7 @@ describe('client billing brand-leak guard', () => {
       const { container, unmount } = render(await ClientBillingPage({ params: Promise.resolve({ clientId: C }), searchParams: Promise.resolve({ checkout: 'done' }) }));
       out.push(container.innerHTML);
       unmount();
-      out.push(JSON.stringify(await generateMetadata({ params: Promise.resolve({ clientId: C }) })));
+      out.push(JSON.stringify(metadata));
     }
     for (const role of ['client_owner', 'client_viewer']) {
       for (const [paused, paymentNeeded] of [[true, false], [false, true], [true, true]] as const) {
@@ -50,14 +50,8 @@ describe('client billing brand-leak guard', () => {
     expect(out.join('\n')).not.toMatch(LEAK);
   });
 
-  it('the page title names the agency (R18), and a refused viewer gets a neutral title', async () => {
-    m.data = base;
-    expect(await generateMetadata({ params: Promise.resolve({ clientId: C }) })).toEqual({ title: 'Billing · Cool Agency' });
-    m.ctx = { role: 'client_viewer' };
-    expect(await generateMetadata({ params: Promise.resolve({ clientId: C }) })).toEqual({ title: 'Billing' });
-    m.ctx = { role: 'client_owner' };
-    m.refuse = true;
-    expect(await generateMetadata({ params: Promise.resolve({ clientId: C }) })).toEqual({ title: 'Billing' });
+  it('the tab title is the menu label; the (app) title template appends the agency name (R18, 15a §2.7)', () => {
+    expect(metadata).toEqual({ title: 'Billing' });
   });
 
   it.each([

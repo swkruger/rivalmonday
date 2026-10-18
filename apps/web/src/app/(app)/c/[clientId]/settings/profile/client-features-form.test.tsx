@@ -6,6 +6,13 @@ import { ClientFeaturesForm } from './client-features-form';
 
 describe('ClientFeaturesForm review toggle', () => {
   const action = vi.fn(async (_p: FormResult, _fd: FormData) => ({ ok: true as const, message: 'Features saved.' }));
+  it('names the AI connection switch after its settings page (15a)', () => {
+    render(<ClientFeaturesForm clientId="c1" features={['mcp']} action={action} role="account_manager" />);
+    expect(screen.getByText('AI connection')).toBeTruthy();
+    expect(screen.getByText('Shows the AI connection settings page.')).toBeTruthy();
+    expect(screen.queryByText(/coming soon/)).toBeNull();
+  });
+
   it('review toggle hidden for account_manager and client roles', () => {
     for (const role of ['account_manager', 'client_owner', 'client_viewer'] as const) {
       const { unmount } = render(<ClientFeaturesForm clientId="c1" features={['ask']} action={action} role={role} reviewAllowed />);

@@ -1,14 +1,18 @@
 import { hasFeature, hasPermission, isAgencyRole } from '@cs/core';
 import type { AlertRulesView } from '@cs/tools';
 import { Card, CardContent } from '@cs/ui';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { clientSettingsCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { saveAlertRulesAction } from './actions';
 import { AlertRulesForm } from './alert-rules-form';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Alert rules' };
 
 export default async function AlertRulesPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
@@ -20,7 +24,7 @@ export default async function AlertRulesPage({ params }: { params: Promise<{ cli
   ]);
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Alert rules</h1>
+      <PageHeader title="Alert rules" breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Alert rules')} />
       <Card>
         <CardContent className="flex flex-col gap-2">
           <p>Every competitor change gets a score from 0 to 100 for how much it matters to {profile.name}.</p>

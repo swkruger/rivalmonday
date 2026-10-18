@@ -1,8 +1,11 @@
 import { hasFeature, isAgencyRole } from '@cs/core';
-import type { RatingTrendView, ReviewList, ThemeBenchmarkView } from '@cs/tools';
+import type { ClientProfile, RatingTrendView, ReviewList, ThemeBenchmarkView } from '@cs/tools';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { LineChart } from '@/components/charts/line-chart';
+import { clientCrumbs } from '@/components/client-crumbs';
+import { PageHeader } from '@/components/page-header';
 import { ThemeHeatmap } from '@/components/charts/theme-heatmap';
 import { StatCard } from '@/components/stat-card';
 import { requireContext } from '@/server/current-viewer';
@@ -14,6 +17,7 @@ import { SelfNotice } from './self-notice';
 import { trendSeries } from './trend-series';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Reviews' };
 
 const PAGE = 20;
 const THEME = /^[a-z0-9_]{1,64}$/;
@@ -38,7 +42,8 @@ export default async function ReviewsPage({ params, searchParams }: {
   const days = [30, 90, 365].includes(daysN) ? daysN : 90;
   const offset = offsetParam(sp);
 
-  const [benchmark, trend] = await Promise.all([
+  const [profile, benchmark, trend] = await Promise.all([
+    callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<ThemeBenchmarkView>(ctx, 'get_theme_benchmark', { clientId }),
     callTool<RatingTrendView>(ctx, 'get_rating_trend', { clientId, months: 12 }),
   ]);
@@ -56,10 +61,11 @@ export default async function ReviewsPage({ params, searchParams }: {
 
   return (
     <>
-      <div>
-        <h1 className="text-[26px] font-extrabold tracking-tight">Reviews &amp; reputation</h1>
-        <p className="mt-1 text-muted-foreground">What customers say about you and your competitors on Google.</p>
-      </div>
+      <PageHeader
+        title="Reviews"
+        breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Reviews')}
+        description="What customers say about you and your competitors on Google."
+      />
 
       {self ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
