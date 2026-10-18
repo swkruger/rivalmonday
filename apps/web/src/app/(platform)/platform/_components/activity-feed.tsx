@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
+import { ErrorNote } from '@/components/form-error';
 
 export type ActivityKind = 'agency_created' | 'client_created' | 'client_activated' | 'first_brief_sent' | 'health_at_risk' | 'support_session_started';
 export interface ActivityItem {
@@ -67,7 +68,7 @@ export function ActivityFeed({ initial, loadMore }: { initial: ActivityPage; loa
           </li>
         ))}
       </ul>
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      {error && <ErrorNote compact>{error}</ErrorNote>}
       {page.nextCursor && (
         <button type="button" onClick={more} disabled={pending} className="self-start rounded-full bg-[#EEF2F6] px-4 py-1.5 text-sm font-semibold text-ink disabled:opacity-60">
           {pending ? 'Loading…' : 'Show more'}

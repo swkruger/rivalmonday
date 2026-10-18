@@ -5,6 +5,7 @@ import { useActionState, useState } from 'react';
 import { KbArticleView } from '@/components/kb/article-view';
 import type { FormResult } from '@/server/forms';
 import { type KbTargets, ScopeFields } from './scope-fields';
+import { ErrorNote } from '@/components/form-error';
 
 type Action = (prev: FormResult, fd: FormData) => Promise<FormResult>;
 export interface EditorArticle {
@@ -28,7 +29,7 @@ export interface EditorActions { save: Action; remove: Action; autoSync: Action 
 const inputClass = 'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs';
 
 function Notice({ result }: { result: FormResult }) {
-  if (!result.ok) return <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{result.error}</p>;
+  if (!result.ok) return <ErrorNote>{result.error}</ErrorNote>;
   return result.message ? <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{result.message}</p> : null;
 }
 

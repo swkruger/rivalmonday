@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { type ImportStatusResult, importErrorCopy, type StartImportResult } from './import-errors';
 import { type KbTargets, ScopeFields } from './scope-fields';
+import { ErrorNote } from '@/components/form-error';
 
 export const POLL_MS = 2000;
 type Phase = { kind: 'idle' } | { kind: 'working'; key: string } | { kind: 'error'; message: string };
@@ -80,7 +81,7 @@ export function ImportPanel({
         </div>
       </form>
       {phase.kind === 'working' && <p role="status" className="text-sm text-muted-foreground">Importing… this can take a minute.</p>}
-      {phase.kind === 'error' && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{phase.message}</p>}
+      {phase.kind === 'error' && <ErrorNote>{phase.message}</ErrorNote>}
     </section>
   );
 }

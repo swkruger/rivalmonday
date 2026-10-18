@@ -4,6 +4,7 @@ import { useActionState, useOptimistic, useState, useTransition } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { addWebhookAction, toggleWebhookAction } from './actions';
+import { ErrorNote } from '@/components/form-error';
 
 const selectClass = 'h-9 w-full max-w-[160px] rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
@@ -26,9 +27,9 @@ export function AddWebhookForm() {
   return (
     <form action={formAction} className="flex flex-col gap-4">
       {!state.ok && state.error && (
-        <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+        <ErrorNote focusKey={state}>
           {state.error}
-        </p>
+        </ErrorNote>
       )}
       {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
       <div className="flex flex-wrap items-end gap-4">
@@ -83,9 +84,9 @@ export function WebhookToggle({ id, active, label }: { id: string; active: boole
         }}
       />
       {error && (
-        <span role="alert" className="text-sm text-ink">
+        <ErrorNote compact>
           {error}
-        </span>
+        </ErrorNote>
       )}
     </span>
   );

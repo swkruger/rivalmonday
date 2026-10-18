@@ -2,6 +2,7 @@
 import { Button, Input, Label } from '@cs/ui';
 import { useActionState } from 'react';
 import { updateContactAction } from './actions';
+import { ErrorNote } from '@/components/form-error';
 
 export function ContactForm({
   contactId,
@@ -24,9 +25,9 @@ export function ContactForm({
     <form action={formAction} className="flex flex-col gap-4 border-t border-line pt-5">
       <input type="hidden" name="contactId" value={contactId} />
       {state.error && (
-        <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+        <ErrorNote focusKey={state}>
           {state.error}
-        </p>
+        </ErrorNote>
       )}
       <div className="flex flex-col gap-2">
         <Label htmlFor="timezone">Time zone</Label>

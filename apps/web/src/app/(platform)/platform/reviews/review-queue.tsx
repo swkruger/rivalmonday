@@ -3,6 +3,7 @@ import type { DecisionReviewView } from '@cs/tools';
 import { Button } from '@cs/ui';
 import { useActionState } from 'react';
 import type { FormResult } from '@/server/forms';
+import { ErrorNote } from '@/components/form-error';
 
 const selectClass = 'h-9 w-full max-w-md rounded-md border border-input bg-transparent px-3 text-sm shadow-xs';
 type Action = (prev: FormResult, fd: FormData) => Promise<FormResult>;
@@ -16,7 +17,7 @@ export function ReviewQueue({ items, action }: { items: DecisionReviewView[]; ac
   const [result, formAction, pending] = useActionState(action, { ok: true } as FormResult);
   return (
     <div className="flex flex-col gap-5">
-      {!result.ok && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{result.error}</p>}
+      {!result.ok && <ErrorNote>{result.error}</ErrorNote>}
       {result.ok && result.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{result.message}</p>}
       {items.length === 0 && <p className="text-muted-foreground">Nothing waiting for review.</p>}
       {items.map((item) => (

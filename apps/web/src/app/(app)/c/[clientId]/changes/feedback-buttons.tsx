@@ -10,6 +10,7 @@ import { Button } from '@cs/ui';
 import { useActionState } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
+import { ErrorNote } from '@/components/form-error';
 
 type Verdict = 'useful' | 'not_relevant' | 'wrong';
 
@@ -46,9 +47,9 @@ export function FeedbackButtons({
         ))}
       </div>
       {!state.ok && state.error ? (
-        <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+        <ErrorNote focusKey={state}>
           {state.error}
-        </p>
+        </ErrorNote>
       ) : state.ok && state.message ? (
         <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>
       ) : null}

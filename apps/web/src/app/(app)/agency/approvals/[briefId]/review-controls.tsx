@@ -6,15 +6,16 @@ import { EvidenceChips } from '@/components/evidence-chips';
 import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { approveAction, autoSendAction, dropItemAction, editItemAction, moveItemAction, rateItemAction, sendNowAction } from './actions';
+import { ErrorNote } from '@/components/form-error';
 
 const textareaClass = 'min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
 function Message({ state }: { state: FormResult }) {
   if (!state.ok && state.error) {
     return (
-      <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+      <ErrorNote focusKey={state}>
         {state.error}
-      </p>
+      </ErrorNote>
     );
   }
   if (state.ok && state.message) {

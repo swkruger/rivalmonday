@@ -3,6 +3,7 @@ import { Button, Input, Label } from '@cs/ui';
 import { useActionState } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
+import { ErrorNote } from '@/components/form-error';
 
 export function LimitsForm({
   action,
@@ -74,9 +75,9 @@ export function LimitsForm({
         Save
       </Button>
       {!state.ok && state.error && (
-        <p role="alert" className="w-full rounded-lg bg-muted-surface p-3 text-ink">
+        <ErrorNote focusKey={state} className="w-full">
           {state.error}
-        </p>
+        </ErrorNote>
       )}
       {state.ok && state.message && <p className="w-full rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
     </form>

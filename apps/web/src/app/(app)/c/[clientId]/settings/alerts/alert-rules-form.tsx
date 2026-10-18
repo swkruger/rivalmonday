@@ -3,6 +3,7 @@ import { Button, Input, Label } from '@cs/ui';
 import { useActionState } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
+import { ErrorNote } from '@/components/form-error';
 
 export interface AlertRulesProps {
   alert: number;
@@ -49,7 +50,7 @@ export function AlertRulesForm({ clientId, rules, canEdit: canEditProp, action }
           Instant alert from score {rules.alert}; weekly brief from score {rules.brief}.{readOnly ? '' : ' Ask your account manager to change these.'}
         </p>
       )}
-      {!state.ok && state.error && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{state.error}</p>}
+      {!state.ok && state.error && <ErrorNote focusKey={state}>{state.error}</ErrorNote>}
       {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
     </form>
   );

@@ -4,6 +4,7 @@ import { Badge, Button, Input, Label } from '@cs/ui';
 import { useActionState } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
+import { ErrorNote } from '@/components/form-error';
 
 const area = 'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
@@ -42,7 +43,7 @@ export function PlaybookEditor({ verticalId, playbook: p, canEdit, action }: { v
             <Button type="submit" name="intent" value={p.disabled ? 'enable' : 'disable'} variant="outline" disabled={pending}>{p.disabled ? 'Turn on' : 'Turn off'}</Button>
             {p.overridden && <Button type="submit" name="intent" value="reset" variant="outline" disabled={pending}>Reset to standard</Button>}
           </div>
-          {!state.ok && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{state.error}</p>}
+          {!state.ok && <ErrorNote focusKey={state}>{state.error}</ErrorNote>}
           {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
         </form>
       )}

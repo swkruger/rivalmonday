@@ -3,6 +3,7 @@ import { Button } from '@cs/ui';
 import { useActionState } from 'react';
 import type { FormResult } from '@/server/forms';
 import { assignLeadAction } from './actions';
+import { ErrorNote } from '@/components/form-error';
 
 export interface AgencyOption {
   id: string;
@@ -30,7 +31,7 @@ export function AssignForm({ leadId, agencies }: { leadId: string; agencies: Age
         ))}
       </select>
       <Button type="submit" size="sm" disabled={pending}>Assign</Button>
-      {!state.ok && <p role="alert" className="basis-full text-sm text-ink">{state.error}</p>}
+      {!state.ok && <ErrorNote compact focusKey={state} className="basis-full">{state.error}</ErrorNote>}
     </form>
   );
 }

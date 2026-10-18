@@ -3,6 +3,7 @@ import { Button, Input, Label } from '@cs/ui';
 import Script from 'next/script';
 import { useActionState, useEffect } from 'react';
 import { type SignupState, startSignup } from './actions';
+import { ErrorNote } from '@/components/form-error';
 
 const REASONS: Record<string, string> = {
   link: 'That link expired or was already used. Fill in the form to get a new one.',
@@ -25,9 +26,9 @@ export function SignUpForm({
   return (
     <form action={action} className="flex flex-col gap-4">
       {problem && (
-        <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+        <ErrorNote>
           {problem}
-        </p>
+        </ErrorNote>
       )}
       {inviteToken && <input type="hidden" name="inviteToken" value={inviteToken} />}
       <div className="flex flex-col gap-2">

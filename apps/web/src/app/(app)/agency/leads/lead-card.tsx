@@ -5,6 +5,7 @@ import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import type { VerticalOption } from '@/server/verticals';
 import { acceptLeadAction, declineLeadAction } from './actions';
+import { ErrorNote } from '@/components/form-error';
 
 export type LeadPreview =
   | { status: 'none' | 'pending' | 'failed' }
@@ -71,7 +72,7 @@ function AcceptForm({ lead, verticals, onCancel }: { lead: LeadView; verticals: 
       </div>
       <Button type="submit" disabled={pending}>Accept and invite {lead.contactName}</Button>
       <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-      {!state.ok && <p role="alert" className="basis-full text-sm text-ink">{state.error}</p>}
+      {!state.ok && <ErrorNote compact focusKey={state} className="basis-full">{state.error}</ErrorNote>}
     </form>
   );
 }
@@ -91,7 +92,7 @@ function DeclineForm({ lead, onCancel }: { lead: LeadView; onCancel: () => void 
       )}
       <Button type="submit" variant="outline" disabled={pending}>Decline</Button>
       <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
-      {!state.ok && <p role="alert" className="basis-full text-sm text-ink">{state.error}</p>}
+      {!state.ok && <ErrorNote compact focusKey={state} className="basis-full">{state.error}</ErrorNote>}
     </form>
   );
 }

@@ -6,6 +6,7 @@ import { clientBillingAction } from '@/app/(app)/agency/settings/billing/client-
 import { centsToField } from '@/app/(app)/agency/settings/billing/client-billing/money';
 import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
+import { ErrorNote } from '@/components/form-error';
 
 type PillKey = PillData['key'];
 const TONE: Record<PillKey, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -127,7 +128,7 @@ export function ClientBillingControls({ clientId, clientName, role, pill, billin
           </Dialog>
         </WriteGuard>
       </div>
-      {!state.ok && <p role="alert" className="text-sm text-ink">{state.error}</p>}
+      {!state.ok && <ErrorNote compact focusKey={state}>{state.error}</ErrorNote>}
       {state.ok && state.message && <p role="status" className="text-sm text-ink">{state.message}</p>}
     </div>
   );

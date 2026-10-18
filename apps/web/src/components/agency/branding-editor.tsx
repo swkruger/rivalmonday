@@ -5,6 +5,7 @@ import { Button, Input, Label, themeVars } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
+import { ErrorNote } from '@/components/form-error';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -72,9 +73,9 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
       <div className="flex flex-col gap-4">
       <form action={formAction} className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card">
         {!state.ok && state.error && (
-          <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+          <ErrorNote focusKey={state}>
             {state.error}
-          </p>
+          </ErrorNote>
         )}
         {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
         <fieldset disabled={readOnly} className="contents">
@@ -102,7 +103,7 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
               className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted-surface file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink"
             />
             <p className="text-sm text-muted-foreground">PNG, JPEG, WebP or SVG, up to 512 KB. It is resized to fit 512 × 512. {uploading ? 'Uploading…' : ''}</p>
-            {uploadError && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{uploadError}</p>}
+            {uploadError && <ErrorNote>{uploadError}</ErrorNote>}
           </div>
           <ColorField label="Primary colour" value={draft.primary ?? ''} onChange={set('primary')} />
           <ColorField label="Secondary colour" value={draft.secondary ?? ''} onChange={set('secondary')} />

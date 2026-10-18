@@ -3,6 +3,7 @@ import { Button, Input, Label } from '@cs/ui';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { authClient } from '@/lib/auth-client';
+import { ErrorNote } from '@/components/form-error';
 
 const ERRORS: Record<string, string> = {
   link: 'That sign-in link expired or was already used. Ask for a new one below.',
@@ -41,9 +42,9 @@ export function SignInForm({ next, googleEnabled, error, emailHint = null }: { n
   return (
     <form onSubmit={sendLink} className="flex flex-col gap-4">
       {problem && (
-        <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+        <ErrorNote>
           {problem}
-        </p>
+        </ErrorNote>
       )}
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Work email</Label>

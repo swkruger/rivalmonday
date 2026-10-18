@@ -3,6 +3,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Switch } from '@cs/ui
 import { useActionState, useOptimistic, useState, useTransition } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
+import { ErrorNote } from '@/components/form-error';
 
 export interface IntakeLinkState {
   slug: string | null;
@@ -79,7 +80,7 @@ export function IntakeLinkCard({ link, save, toggle }: { link: IntakeLinkState; 
               />
               <span className="text-sm">{enabled ? 'Accepting new leads' : 'Switched off — visitors see that the page is unavailable'}</span>
             </div>
-            {!toggled.ok && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{toggled.error}</p>}
+            {!toggled.ok && <ErrorNote>{toggled.error}</ErrorNote>}
           </div>
         ) : (
           <p className="text-sm">No link yet. Choose a name below, or leave it empty and we will use your agency name.</p>
@@ -91,7 +92,7 @@ export function IntakeLinkCard({ link, save, toggle }: { link: IntakeLinkState; 
               <input id="intake-slug" name="slug" defaultValue={link.slug ?? ''} maxLength={40} autoComplete="off" className={fieldCls} />
             </div>
             <Button type="submit" disabled={saving}>{link.url ? 'Save' : 'Create link'}</Button>
-            {!saved.ok && <p role="alert" className="basis-full text-sm text-ink">{saved.error}</p>}
+            {!saved.ok && <ErrorNote compact className="basis-full">{saved.error}</ErrorNote>}
             {saved.ok && saved.message && <p role="status" className="basis-full text-sm text-ink">{saved.message}</p>}
           </form>
         )}

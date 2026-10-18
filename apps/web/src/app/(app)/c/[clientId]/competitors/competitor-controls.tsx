@@ -11,13 +11,14 @@ import { ratedLabel } from '@/components/rival/rated-label';
 import { TIER_LABEL, TierChip } from '@/components/rival/tier-chip';
 import type { FormResult } from '@/server/forms';
 import { acceptSuggestionsAction, addCompetitorAction, dismissSuggestionAction, removeCompetitorAction, requestSuggestionsAction, type SearchState, type SearchStatus, searchStatusAction } from './actions';
+import { ErrorNote } from '@/components/form-error';
 
 function Message({ state }: { state: FormResult }) {
   if (!state.ok && state.error) {
     return (
-      <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+      <ErrorNote focusKey={state}>
         {state.error}
-      </p>
+      </ErrorNote>
     );
   }
   if (state.ok && state.message) {
@@ -141,9 +142,9 @@ function SearchProgress({ progress, status, found }: { progress: Progress; statu
   }
   if (progress === 'failed') {
     return (
-      <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+      <ErrorNote>
         The search didn&apos;t finish. Your earlier suggestions are still here. Try again later.
-      </p>
+      </ErrorNote>
     );
   }
   if (progress === 'gave_up') {

@@ -3,6 +3,7 @@ import { Button } from '@cs/ui';
 import { Loader2 } from 'lucide-react';
 import { WriteGuard } from '@/components/read-only';
 import type { ClientSetupView } from '../types';
+import { ErrorNote } from '@/components/form-error';
 
 const STAFF_COPY = "Finding competitors. This can take a few minutes — you can leave this page; we'll email you when suggestions are ready.";
 const OWNER_COPY = 'Finding competitors. This can take a few minutes — you can leave this page and come back.';
@@ -39,7 +40,7 @@ export function SearchStep({ view, agency, pending, refusal, onStart, onSkip }: 
         <>
           <h2 className="font-semibold">Find competitors</h2>
           <p className="text-muted-foreground">We search Google Maps around the service area for the businesses customers compare you with.</p>
-          {refusal && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{refusal}</p>}
+          {refusal && <ErrorNote>{refusal}</ErrorNote>}
         </>
       )}
       <WriteGuard>

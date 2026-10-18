@@ -3,6 +3,7 @@ import { Button, Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader,
 import { useActionState, useState } from 'react';
 import type { FormResult } from '@/server/forms';
 import { startSupportSessionAction } from './actions';
+import { ErrorNote } from '@/components/form-error';
 
 /** Matches the tool's lower bound (code points, after trimming); the server re-checks 5..300. */
 export const REASON_MIN = 5;
@@ -40,9 +41,9 @@ export function SupportDialog({ agencyId }: { agencyId: string }) {
             />
           </div>
           {!state.ok && state.error && (
-            <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+            <ErrorNote focusKey={state}>
               {state.error}
-            </p>
+            </ErrorNote>
           )}
           <DialogFooter>
             <DialogClose asChild>

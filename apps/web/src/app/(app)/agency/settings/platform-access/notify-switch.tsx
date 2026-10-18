@@ -3,6 +3,7 @@ import { Switch } from '@cs/ui';
 import { useOptimistic, useState, useTransition } from 'react';
 import type { FormResult } from '@/server/forms';
 import { setSupportNotifyAction } from './actions';
+import { ErrorNote } from '@/components/form-error';
 
 export const NOTIFY_LABEL = 'Email me when Rival Monday support opens a session';
 
@@ -29,9 +30,9 @@ export function NotifySwitch({ enabled }: { enabled: boolean }) {
         <span className="text-sm">{NOTIFY_LABEL}</span>
       </div>
       {!result.ok && (
-        <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+        <ErrorNote>
           {result.error}
-        </p>
+        </ErrorNote>
       )}
     </div>
   );

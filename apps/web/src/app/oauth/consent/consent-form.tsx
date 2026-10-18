@@ -4,6 +4,7 @@ import { Button, Label } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import type { FormResult } from '@/server/forms';
 import { decideConsent } from './actions';
+import { ErrorNote } from '@/components/form-error';
 
 export interface ConsentFormOption { membershipId: string; label: string; scopes: TokenScope[] }
 
@@ -33,9 +34,9 @@ export function ConsentForm({ appName, productName, oauthQuery, options, redirec
   return (
     <form action={formAction} className="flex flex-col gap-5">
       {!state.ok && (
-        <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+        <ErrorNote focusKey={state}>
           {state.error}
-        </p>
+        </ErrorNote>
       )}
       <input type="hidden" name="oauth_query" value={oauthQuery} />
       {options.length === 0 ? (

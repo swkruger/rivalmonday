@@ -4,6 +4,7 @@ import { Button } from '@cs/ui';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import type { ToolResult } from '@/server/run-tool';
+import { ErrorNote } from '@/components/form-error';
 
 export type ConfirmAskAction = (messageId: string, decision: 'confirm' | 'cancel') => Promise<ToolResult<{ state: string }>>;
 
@@ -19,9 +20,9 @@ export function ConfirmCard({ messageId, action, confirmAction }: { messageId: s
   if (!action) return null;
   if (action.state === 'failed') {
     return (
-      <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+      <ErrorNote>
         {action.summary} — {action.error ?? 'Something went wrong. Please try again.'}
-      </p>
+      </ErrorNote>
     );
   }
   if (action.state !== 'proposed') return null;
@@ -46,9 +47,9 @@ export function ConfirmCard({ messageId, action, confirmAction }: { messageId: s
         </Button>
       </div>
       {error && (
-        <p role="alert" className="mt-2 rounded-lg bg-muted-surface p-3 text-ink">
+        <ErrorNote className="mt-2">
           {error}
-        </p>
+        </ErrorNote>
       )}
     </div>
   );

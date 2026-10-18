@@ -8,6 +8,7 @@ import {
 import { type ReactNode, useActionState, useEffect, useRef, useState } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
+import { ErrorNote } from '@/components/form-error';
 
 /**
  * Phase 6a "AI connections" cards, shared by `/c/<id>/settings/ai` and `/agency/ai`; the page passes its own server
@@ -35,9 +36,9 @@ function HiddenFields({ fields }: { fields?: Hidden }) {
 function Message({ state }: { state: FormResult }) {
   if (!state.ok && state.error) {
     return (
-      <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+      <ErrorNote focusKey={state}>
         {state.error}
-      </p>
+      </ErrorNote>
     );
   }
   if (state.ok && state.message) return <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>;

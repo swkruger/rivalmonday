@@ -2,6 +2,7 @@
 import { Button } from '@cs/ui';
 import { type ReactNode, useActionState } from 'react';
 import type { FormResult } from '@/server/forms';
+import { ErrorNote } from '@/components/form-error';
 
 type Action = (prev: FormResult, fd: FormData) => Promise<FormResult>;
 
@@ -14,7 +15,7 @@ export function MiniForm({ action, submit, variant = 'default', className, child
     <form action={formAction} className={className ?? 'flex flex-wrap items-end gap-2'}>
       {children}
       <Button type="submit" variant={variant} disabled={pending}>{submit}</Button>
-      {!state.ok && <p role="alert" className="basis-full text-sm text-ink">{state.error}</p>}
+      {!state.ok && <ErrorNote compact focusKey={state} className="basis-full">{state.error}</ErrorNote>}
       {state.ok && state.message && <p role="status" className="basis-full text-sm text-ink">{state.message}</p>}
     </form>
   );

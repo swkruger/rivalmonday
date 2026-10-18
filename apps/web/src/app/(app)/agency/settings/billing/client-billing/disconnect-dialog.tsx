@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { disconnectAction } from './actions';
+import { ErrorNote } from '@/components/form-error';
 
 /** The trigger only opens the dialog; the disconnect runs from the confirm button alone. */
 export function DisconnectDialog() {
@@ -19,7 +20,7 @@ export function DisconnectDialog() {
           <DialogTitle>Disconnect Stripe?</DialogTitle>
           <DialogDescription>Your clients&apos; subscriptions keep running in your Stripe account, but Rival Monday will stop tracking payments.</DialogDescription>
         </DialogHeader>
-        {!state.ok && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-sm text-ink">{state.error}</p>}
+        {!state.ok && <ErrorNote focusKey={state}>{state.error}</ErrorNote>}
         <form action={formAction}>
           <input type="hidden" name="confirm" value="yes" />
           <DialogFooter>

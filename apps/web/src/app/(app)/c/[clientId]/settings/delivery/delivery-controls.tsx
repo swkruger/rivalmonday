@@ -4,6 +4,7 @@ import { useActionState, useState } from 'react';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { addRecipientAction, deactivateRecipientAction, saveDeliveryAction } from './actions';
+import { ErrorNote } from '@/components/form-error';
 
 const selectClass = 'h-9 w-full max-w-sm rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
@@ -36,9 +37,9 @@ export function DeliveryForm({
     <form action={formAction} className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card">
       <input type="hidden" name="clientId" value={clientId} />
       {!state.ok && state.error && (
-        <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+        <ErrorNote focusKey={state}>
           {state.error}
-        </p>
+        </ErrorNote>
       )}
       {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
 
@@ -91,9 +92,9 @@ export function AddRecipientForm({ clientId }: { clientId: string }) {
     <form action={formAction} className="flex flex-col gap-4">
       <input type="hidden" name="clientId" value={clientId} />
       {!state.ok && state.error && (
-        <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+        <ErrorNote focusKey={state}>
           {state.error}
-        </p>
+        </ErrorNote>
       )}
       {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
       <div className="flex flex-wrap items-end gap-4">
@@ -136,9 +137,9 @@ export function DeactivateRecipientButton({ clientId, contactId, email }: { clie
           <DialogDescription>Links already sent to this person stop working.</DialogDescription>
         </DialogHeader>
         {!state.ok && state.error && (
-          <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+          <ErrorNote focusKey={state}>
             {state.error}
-          </p>
+          </ErrorNote>
         )}
         <form action={formAction}>
           <input type="hidden" name="clientId" value={clientId} />

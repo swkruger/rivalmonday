@@ -3,6 +3,7 @@ import { Button } from '@cs/ui';
 import { useActionState } from 'react';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
+import { ErrorNote } from '@/components/form-error';
 
 /** The features with a switch; a client keeps any feature without one (hidden input). */
 const SWITCHES: { value: string; label: string; help: string }[] = [
@@ -57,9 +58,9 @@ export function ClientFeaturesForm({ clientId, features, action, role, reviewAll
       )}
       </fieldset>
       {!state.ok && state.error && (
-        <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+        <ErrorNote focusKey={state}>
           {state.error}
-        </p>
+        </ErrorNote>
       )}
       {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
       <WriteGuard>

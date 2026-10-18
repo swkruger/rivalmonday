@@ -5,6 +5,7 @@ import { useActionState } from 'react';
 import { EvidenceChips } from '@/components/evidence-chips';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
+import { ErrorNote } from '@/components/form-error';
 
 type SetStatusAction = (prev: FormResult, fd: FormData) => Promise<FormResult>;
 type Status = RecommendationView['status'];
@@ -21,9 +22,9 @@ interface Target {
 function Message({ state }: { state: FormResult }) {
   if (!state.ok && state.error) {
     return (
-      <p role="alert" className="mt-2 rounded-lg bg-muted-surface p-3 text-ink">
+      <ErrorNote focusKey={state} className="mt-2">
         {state.error}
-      </p>
+      </ErrorNote>
     );
   }
   return null;

@@ -5,6 +5,7 @@ import { useId, useState, useTransition } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import type { ToolResult } from '@/server/run-tool';
 import { plainAnswer } from './answer';
+import { ErrorNote } from '@/components/form-error';
 
 type Level = 'L' | 'M' | 'H';
 export type SaveRecommendationInput = { clientId: string; title: string; rationale: string; effort: Level; impact?: Level; evidenceIds: string[] };
@@ -81,9 +82,9 @@ export function SaveRecommendationDialog({
             <DialogDescription>It is added to Recommendations with the evidence this answer cites.</DialogDescription>
           </DialogHeader>
           {error && (
-            <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">
+            <ErrorNote>
               {error}
-            </p>
+            </ErrorNote>
           )}
           <form onSubmit={submit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">

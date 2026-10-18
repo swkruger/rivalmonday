@@ -4,6 +4,7 @@ import { Button, Input, Label } from '@cs/ui';
 import Script from 'next/script';
 import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
 import { lookupBusinessAction, type SubmitState, submitIntakeAction } from './actions';
+import { ErrorNote } from '@/components/form-error';
 
 declare global {
   interface Window {
@@ -51,7 +52,7 @@ export function IntakeForm({ slug, refCode, siteKey }: { slug: string | null; re
   return (
     <div className="flex flex-col gap-6">
       <form action={search} onReset={(e) => e.preventDefault()} className="flex flex-col gap-4">
-        {lookupError && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{lookupError}</p>}
+        {lookupError && <ErrorNote>{lookupError}</ErrorNote>}
         <div className="flex flex-col gap-2">
           <Label htmlFor="businessName">Business name</Label>
           <Input id="businessName" name="businessName" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
@@ -107,7 +108,7 @@ function ContactForm({ place, slug, refCode, siteKey, state, submit, submitting 
 
   return (
     <form action={submit} onReset={(e) => e.preventDefault()} className="flex flex-col gap-4 border-t border-muted-surface pt-6">
-      {state.error && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{state.error}</p>}
+      {state.error && <ErrorNote focusKey={state}>{state.error}</ErrorNote>}
       {/* The signed lookup result, posted back unchanged: submitIntake refuses an edited or expired one. */}
       <input type="hidden" name="lookup" value={JSON.stringify(place)} />
       <input type="hidden" name="slug" value={slug ?? ''} />

@@ -11,6 +11,7 @@ import { InviteForm, InviteStatus, InviteStep } from './steps/invite-step';
 import { PickStep } from './steps/pick-step';
 import { SearchStep } from './steps/search-step';
 import type { ClientSetupView, SetupActionResult } from './types';
+import { ErrorNote } from '@/components/form-error';
 
 type StepKey = 'profile' | 'search' | 'competitors' | 'invite' | 'billing';
 const STEPS: { key: StepKey; label: string }[] = [
@@ -145,7 +146,7 @@ export function SetupWizard({
     <div className="flex max-w-3xl flex-col gap-5">
       <Stepper current={current} steps={steps} list={list} />
       {notice?.kind === 'error' && (
-        <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{notice.text}</p>
+        <ErrorNote>{notice.text}</ErrorNote>
       )}
       {notice?.kind === 'ok' && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{notice.text}</p>}
       {current === 'profile' && (

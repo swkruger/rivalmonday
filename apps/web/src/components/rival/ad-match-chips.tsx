@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 import { confirmAdMatchAction, removeAdMatchAction } from '@/app/(app)/c/[clientId]/competitors/actions';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
+import { ErrorNote } from '@/components/form-error';
 
 type Matched = { platform: 'google' | 'meta'; accountId: string; name: string | null };
 const PLATFORM = { google: 'Google', meta: 'Meta' } as const;
@@ -69,7 +70,7 @@ export function AdMatchChips({ clientId, competitorId, matched, pending }: { cli
           </li>
         ))}
       </ul>
-      {result && !result.ok && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-sm text-ink">{result.error}</p>}
+      {result && !result.ok && <ErrorNote>{result.error}</ErrorNote>}
       {result && result.ok && result.message && <p className="rounded-lg bg-muted-surface p-3 text-sm text-ink">{result.message}</p>}
     </div>
   );
