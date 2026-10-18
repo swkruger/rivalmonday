@@ -1,16 +1,16 @@
 # phase-14b — Dynamic verticals, business areas and runbooks
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-14b   **Base:** main @ 9bd2aab5
-**Spec:** [2026-10-17-phase-14-dynamic-verticals-runbooks-design.md](../superpowers/specs/2026-10-17-phase-14-dynamic-verticals-runbooks-design.md) (covers 14a + 14b). **Plans:** 14a [2026-10-18-phase-14a-vertical-catalogue.md](../superpowers/plans/2026-10-18-phase-14a-vertical-catalogue.md) (owner-approved 2026-10-18, subagent-driven); 14b [2026-10-18-phase-14b-runbooks.md](../superpowers/plans/2026-10-18-phase-14b-runbooks.md) (awaiting owner approval). No Phase 14 roadmap row and no "14a" anywhere (roadmap, BACKLOG, STATE, work files) — see Q1; add the row at merge.
+**Kind:** planned, execution pending   **Worktree:** ../CompetitorSpy-wt/phase-14b   **Base:** main @ 9bd2aab5
+**Spec:** [2026-10-17-phase-14-dynamic-verticals-runbooks-design.md](../superpowers/specs/2026-10-17-phase-14-dynamic-verticals-runbooks-design.md) (covers 14a + 14b). **Plans:** 14a [2026-10-18-phase-14a-vertical-catalogue.md](../superpowers/plans/2026-10-18-phase-14a-vertical-catalogue.md) (owner-approved 2026-10-18, subagent-driven); 14b [2026-10-18-phase-14b-runbooks.md](../superpowers/plans/2026-10-18-phase-14b-runbooks.md) (owner-approved 2026-10-18, subagent-driven). Add a Phase 14 (14a, 14b) roadmap row at merge.
 
 ## Status (overwrite)
-2026-10-18: spec owner-approved; 14a plan approved (13 tasks, P1–P8); 14b plan written (10 tasks, R1–R9), awaiting owner approval.
+2026-10-18: planning complete. Spec + both plans owner-approved (14a: 13 tasks, P1–P8; 14b: 10 tasks, R1–R9). No code yet. Worktree has `pnpm install`, test DB `cs_phase_14b_test` (local cluster, pgboss schema created). Nothing uncommitted.
 
 ## Next (overwrite)
-Owner approves the 14b plan. Execution of 14a waits for phase-13b + phase-11-fixes to merge (Task 0 pre-flight).
+Wait for phase-13b and phase-11-fixes to merge to `main`. Then `/rm-start` here → 14a Task 0 (rebase, re-check deps, next free migration number) → `superpowers:subagent-driven-development` on the 14a plan; 14b plan after 14a is green.
 
 ## Interfaces this branch adds or changes
-None yet. Migrations: next free at execution time (main 0073; 13b holds 0074–0076; 13a1/13a2 claim the next four).
+Planned (not built): 14a tables `vertical`, `business_area`, `vertical_category`, `vertical_draft` (service-only), `llm_call.vertical_id`, `CallScope.verticalId`; `@cs/verticals` `Catalog`/`createCatalog`/`assemblePack`; `ToolDeps.catalog`/`catalogOf`; tools `list_verticals` (MCP), `create_vertical`, `add_business_area`, `update_vertical`, `draft_vertical`, operator review/merge tools; page `/platform/verticals`. 14b tables `runbook`, `runbook_item`, `brief_item/recommendation.playbook_version`; job `runbook-tailor`; runbook tools replace `list_playbooks`/`update_playbook`; `/agency/playbooks` → `/agency/runbook`. Migrations: next free at execution time (main 0073; 13b holds 0074–0076; 13a1/13a2 may claim more).
 
 ## Assumes from other branches
 - **phase-13b** (folded, awaiting merge): `@cs/core` gains `tier_change` (CHANGE_TYPES) + `map_climb` (MOVE_TYPES); both packs gain `type_weights.tier_change`, playbook `map_climb_defend`, `scoring.version: 3`; `ClientRow` moves to `@cs/db`; `ServiceAreaWrite` in `create_client`/`update_client_profile`/`save_setup_profile`; `profile-change.ts` enqueues a map refresh. A pack→DB migration must carry these keys.
@@ -22,7 +22,8 @@ None yet. Migrations: next free at execution time (main 0073; 13b holds 0074–0
 D1–D14 in the spec §1: 14a catalogue → 14b runbooks; business area = one-level service offers; anyone creates, usable now, operator queue reviews/merges; generic numbers + AI-drafted quoted text; rules-first GBP mapping, AI only on no match; seed HVAC/dental with same ids; per-vertical AI cost shown on /platform/costs; runbooks copy + "update available", platform → agency → client; plays + self-rules + safe knobs; AI-tailored client copies; agency-only; editors /platform/runbook, /agency/runbook, /c/[id]/settings/runbook.
 
 ## New backlog (target → item)
-None yet.
+- Unscheduled → Drop `playbook_override` (and its tools/tests) after the 14b runbook backfill is verified in prod — new migration.
+- Unscheduled → Phase 7 "Vercel file tracing for `packages/verticals/packs/`" becomes moot after 14a (packs are seed + fixtures only).
 
 ## Owner verification steps
 Acceptance: add a new **Distillery** client; onboarding creates its vertical and business areas where missing; the agency then customises the generic runbook for that client.
