@@ -81,7 +81,8 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
     ...(viewer.kind === 'user' && ctx.role === 'client_owner' && clientBilling?.enabled ? { clientBilling: true } : {}),
   };
   const navClients = clients.map(({ id, name }) => ({ id, name }));
-  const verticalName = clients.length ? new Map((await verticalOptions()).map((v) => [v.id, v.name])) : new Map<string, string>();
+  // The switcher's sub-line is cosmetic: an unreadable pack only drops it (the shell must render).
+  const verticalName = new Map(clients.length ? (await verticalOptions().catch(() => [])).map((v) => [v.id, v.name]) : []);
   // Spec §2.4: navigation only (D3) — every list is the viewer's own clients/memberships; a support session shows the
   // supported agency's clients (its ctx) and "Back to platform", never the operator's memberships.
   const switcher: SwitcherProps = {
