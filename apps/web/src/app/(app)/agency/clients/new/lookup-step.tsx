@@ -3,6 +3,7 @@ import { Button, Input, Label } from '@cs/ui';
 import { useActionState, useState, useTransition } from 'react';
 import { ClientProfileForm } from '@/components/client-profile-form';
 import { ErrorNote, FormError } from '@/components/form-error';
+import { DuplicateHint, PlaceSummary } from '@/components/place-summary';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import type { VerticalOption } from '@/server/verticals';
@@ -79,6 +80,8 @@ export function LookupStep({ find, createFromLookup, createByHand, verticals, ti
 
       {places && places.length === 0 && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">No businesses found. Check the spelling or try a ZIP code.</p>}
 
+      {places && places.some((p) => p.possibleDuplicate) && <DuplicateHint />}
+
       {places && places.length > 0 && (
         <ul className="flex flex-col gap-2" aria-label="Matching businesses">
           {places.map((p) => {
@@ -91,11 +94,7 @@ export function LookupStep({ find, createFromLookup, createByHand, verticals, ti
                   onClick={() => setPicked(p)}
                   className={`flex w-full flex-col gap-1 rounded-[14px] bg-surface p-4 text-left shadow-card outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${on ? 'ring-2 ring-secondary' : 'hover:bg-muted-surface'}`}
                 >
-                  <span className="font-semibold">{p.title}</span>
-                  {p.address && <span className="text-muted-foreground">{p.address}</span>}
-                  <span className="text-muted-foreground">
-                    {[p.category, p.rating !== null ? `${p.rating} ★${p.votes !== null ? ` ${p.votes.toLocaleString('en-US')}` : ''}` : null].filter(Boolean).join(' · ')}
-                  </span>
+                  <PlaceSummary place={p} isClaimed={p.isClaimed} possibleDuplicate={p.possibleDuplicate} />
                 </button>
               </li>
             );

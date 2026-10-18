@@ -1,7 +1,7 @@
 'use server';
 import { ToolError } from '@cs/core';
 import { createLedgerSink } from '@cs/db';
-import { hashIp, intakeLookup, sendLeadEmail, type SignedIntakePlace, submitIntake } from '@cs/tools';
+import { hashIp, type IntakePlaceOption, intakeLookup, sendLeadEmail, submitIntake } from '@cs/tools';
 import { headers } from 'next/headers';
 import { after } from 'next/server';
 import { z } from 'zod';
@@ -19,7 +19,7 @@ import { REF_RE, SLUG_RE } from './params';
  */
 
 /** Each place comes signed (revised ruling F); the form posts the picked one back unchanged in a hidden field. */
-export type LookupResult = { ok: true; places: SignedIntakePlace[] } | { ok: false; error: string };
+export type LookupResult = { ok: true; places: IntakePlaceOption[] } | { ok: false; error: string };
 export interface SubmitState {
   error: string | null;
   done: boolean;

@@ -1,10 +1,11 @@
 'use client';
-import type { SignedIntakePlace } from '@cs/tools';
+import type { IntakePlaceOption, SignedIntakePlace } from '@cs/tools';
 import { Button, Input, Label } from '@cs/ui';
 import Script from 'next/script';
 import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
 import { lookupBusinessAction, type SubmitState, submitIntakeAction } from './actions';
 import { ErrorNote } from '@/components/form-error';
+import { DuplicateHint, PlaceSummary } from '@/components/place-summary';
 
 declare global {
   interface Window {
@@ -22,9 +23,9 @@ const textareaClass = 'min-h-20 w-full rounded-md border border-input bg-transpa
 export function IntakeForm({ slug, refCode, siteKey }: { slug: string | null; refCode: string | null; siteKey: string | null }) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
-  const [places, setPlaces] = useState<SignedIntakePlace[] | null>(null);
+  const [places, setPlaces] = useState<IntakePlaceOption[] | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
-  const [picked, setPicked] = useState<SignedIntakePlace | null>(null);
+  const [picked, setPicked] = useState<IntakePlaceOption | null>(null);
   const [searching, startSearch] = useTransition();
   const [state, submit, submitting] = useActionState<SubmitState, FormData>(submitIntakeAction, { error: null, done: false });
 
@@ -66,6 +67,8 @@ export function IntakeForm({ slug, refCode, siteKey }: { slug: string | null; re
 
       {places && places.length === 0 && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">No businesses found. Check the spelling or try a ZIP code.</p>}
 
+      {places && places.some((o) => o.possibleDuplicate) && <DuplicateHint />}
+
       {places && places.length > 0 && (
         <ul className="flex flex-col gap-2" aria-label="Matching businesses">
           {places.map((signed) => {
@@ -79,13 +82,7 @@ export function IntakeForm({ slug, refCode, siteKey }: { slug: string | null; re
                   onClick={() => setPicked(signed)}
                   className={`flex w-full flex-col gap-1 rounded-[14px] border border-muted-surface p-4 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${on ? 'ring-2 ring-secondary' : 'hover:bg-muted-surface'}`}
                 >
-                  <span className="font-semibold">{p.title}</span>
-                  {p.address && <span className="text-sm text-muted-foreground">{p.address}</span>}
-                  {p.rating !== null && (
-                    <span className="text-sm text-muted-foreground">
-                      {p.rating} ★{p.votes !== null ? ` · ${p.votes.toLocaleString('en-US')} reviews` : ''}
-                    </span>
-                  )}
+                  <PlaceSummary place={p} isClaimed={signed.isClaimed} possibleDuplicate={signed.possibleDuplicate} />
                 </button>
               </li>
             );
@@ -99,7 +96,7 @@ export function IntakeForm({ slug, refCode, siteKey }: { slug: string | null; re
 }
 
 function ContactForm({ place, slug, refCode, siteKey, state, submit, submitting }: {
-  place: SignedIntakePlace; slug: string | null; refCode: string | null; siteKey: string | null;
+  place: IntakePlaceOption; slug: string | null; refCode: string | null; siteKey: string | null;
   state: SubmitState; submit: (fd: FormData) => void; submitting: boolean;
 }) {
   const [f, setF] = useState({ contactName: '', email: '', phone: '', message: '', consent: false });
@@ -110,7 +107,7 @@ function ContactForm({ place, slug, refCode, siteKey, state, submit, submitting 
     <form action={submit} onReset={(e) => e.preventDefault()} className="flex flex-col gap-4 border-t border-muted-surface pt-6">
       {state.error && <ErrorNote focusKey={state}>{state.error}</ErrorNote>}
       {/* The signed lookup result, posted back unchanged: submitIntake refuses an edited or expired one. */}
-      <input type="hidden" name="lookup" value={JSON.stringify(place)} />
+      <input type="hidden" name="lookup" value={JSON.stringify({ place: place.place, exp: place.exp, sig: place.sig } satisfies SignedIntakePlace)} />
       <input type="hidden" name="slug" value={slug ?? ''} />
       {refCode && <input type="hidden" name="ref" value={refCode} />}
       <div className="flex flex-col gap-2">

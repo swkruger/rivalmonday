@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ intake: vi.fn(), preview: vi.fn(), refresh: vi.fn() }));
@@ -137,5 +137,21 @@ describe('/start/v/<leadId>', () => {
     m.preview.mockResolvedValue({ businessName: 'Smith Dental', preview: { status: 'failed' }, branding: 'platform', agencyBranding: null });
     render(await open('V-f2'));
     expect(screen.getByText("We couldn't build your snapshot, but we have your details.")).toBeTruthy();
+  });
+});
+
+describe('intake form lookup field', () => {
+  it('posts exactly { place, exp, sig } for the picked business, never the hint fields', async () => {
+    const { lookupBusinessAction } = await import('./actions');
+    const place = { placeId: 'p1', cid: null, title: 'Smith Dental', address: null, city: null, category: 'Dentist', phone: '555', domain: 'x.com', rating: 4.5, votes: 10, lat: 1, lng: 2 };
+    vi.mocked(lookupBusinessAction).mockResolvedValue({ ok: true, places: [{ place, exp: 123, sig: 'abc', isClaimed: true, possibleDuplicate: true }] } as never);
+    const { container } = render(await PlatformPage({ searchParams: sp() }));
+    fireEvent.change(screen.getByLabelText('Business name'), { target: { value: 'Smith' } });
+    fireEvent.change(screen.getByLabelText('City and state, or ZIP'), { target: { value: 'Austin' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Find my business' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Smith Dental/ }));
+    const hidden = container.querySelector('input[name="lookup"]') as HTMLInputElement;
+    expect(Object.keys(JSON.parse(hidden.value)).sort()).toEqual(['exp', 'place', 'sig']);
+    expect(screen.getByText('Owner-verified')).toBeTruthy();
   });
 });
