@@ -22,9 +22,9 @@ const clientViewer: NavRoleFlags = {
 const clientOwnerWithDashboard: NavRoleFlags = { ...clientViewer, dashboard: true };
 
 type Fallback = { context: NavContext; clientId: string | null } | null;
-/** The required props with defaults: no counts, no zone, no server fallback. */
-function Nav({ flags, counts = {}, zone, fallback = null }: { flags: NavRoleFlags; counts?: NavCounts; zone?: 'platform'; fallback?: Fallback }) {
-  return <SidebarNav flags={flags} counts={counts} zone={zone} fallback={fallback} />;
+/** The required props with defaults: no counts, no zone, no server fallback; the viewer's clients hold CLIENT_ID. */
+function Nav({ flags, counts = {}, zone, fallback = null, clients = [{ id: CLIENT_ID, name: 'A1 HVAC' }] }: { flags: NavRoleFlags; counts?: NavCounts; zone?: 'platform'; fallback?: Fallback; clients?: { id: string; name: string }[] }) {
+  return <SidebarNav flags={flags} counts={counts} zone={zone} fallback={fallback} clients={clients} />;
 }
 
 const clearCookie = () => { document.cookie = 'rm_nav_ctx=; path=/; max-age=0'; };
@@ -209,6 +209,31 @@ describe('SidebarNav sections (Task 4)', () => {
     expect(screen.getByRole('link', { name: 'Changes' }).getAttribute('href')).toBe(`${B}/changes`);
     expect(screen.queryByRole('link', { name: 'Portfolio' })).toBeNull();
     expect(activeHrefOf()).toBeNull();
+  });
+
+  it('an agency viewer: a remembered client that is not theirs reads as agency (cookie and server fallback)', () => {
+    const UNKNOWN = '33333333-3333-4333-8333-333333333333';
+    document.cookie = `rm_nav_ctx=client:${UNKNOWN}; path=/`;
+    pathname = '/inbox';
+    const { unmount } = render(<Nav flags={agencyAdmin} />);
+    expect(linkNames()).toEqual(['Portfolio', 'Approvals', 'Alert review', 'Prospects', 'Agency settings']);
+    unmount();
+    clearCookie();
+    const again = render(<Nav flags={agencyAdmin} fallback={{ context: 'client', clientId: UNKNOWN }} />);
+    expect(screen.getByRole('link', { name: 'Portfolio' })).toBeTruthy();
+    again.unmount();
+    // a known id still shows that client's menu
+    document.cookie = `rm_nav_ctx=client:${CLIENT_ID}; path=/`;
+    render(<Nav flags={agencyAdmin} clients={[{ id: UNKNOWN, name: 'Other' }, { id: CLIENT_ID, name: 'A1 HVAC' }]} />);
+    expect(screen.getByRole('link', { name: 'Overview' }).getAttribute('href')).toBe(B);
+    expect(screen.queryByRole('link', { name: 'Portfolio' })).toBeNull();
+  });
+
+  it('a client role keeps its own client menu even with no clients list', () => {
+    document.cookie = `rm_nav_ctx=client:${CLIENT_ID}; path=/`;
+    pathname = '/inbox';
+    render(<Nav flags={clientViewer} clients={[]} />);
+    expect(screen.getByRole('link', { name: 'Overview' }).getAttribute('href')).toBe(B);
   });
 
   it('a neutral page with no cookie uses the server fallback', () => {

@@ -15,9 +15,9 @@ import { type NavClient, type NavFallback, SidebarNav } from './sidebar-nav';
 /**
  * `offsetTop`: a fixed 36px support banner sits above the shell (Phase 8b), so the sticky column starts below it.
  * `zone="platform"`: `AppShell` already passes Rival Monday `branding`; the footer reads "Platform" instead of a name.
- * `clients` is for the context switcher (15a Task 5).
+ * `clients` (the viewer's own clients) validates a remembered client; the context switcher (15a Task 5) lists them.
  */
-export function Sidebar({ branding, flags, counts, zone, fallback, offsetTop = false }: { branding: Branding; flags: NavRoleFlags; counts: NavCounts; zone?: 'platform'; fallback: NavFallback | null; clients: NavClient[]; offsetTop?: boolean }) {
+export function Sidebar({ branding, flags, counts, zone, fallback, clients, offsetTop = false }: { branding: Branding; flags: NavRoleFlags; counts: NavCounts; zone?: 'platform'; fallback: NavFallback | null; clients: NavClient[]; offsetTop?: boolean }) {
   const whiteLabel = branding.displayName !== 'Rival Monday';
   return (
     <aside className={`sticky ${offsetTop ? 'top-9 h-[calc(100vh-2.25rem)]' : 'top-0 h-screen'} hidden w-[232px] flex-shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-surface px-3.5 py-[22px] lg:flex`}>
@@ -29,7 +29,7 @@ export function Sidebar({ branding, flags, counts, zone, fallback, offsetTop = f
           <Wordmark name={whiteLabel ? branding.displayName : undefined} />
         )}
       </div>
-      <SidebarNav flags={flags} counts={counts} zone={zone} fallback={fallback} />
+      <SidebarNav flags={flags} counts={counts} zone={zone} fallback={fallback} clients={clients} />
       <div className="px-3 pt-4 text-[11px] text-muted-ink">{zone === 'platform' ? 'Platform' : branding.displayName}</div>
     </aside>
   );

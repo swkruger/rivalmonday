@@ -73,15 +73,17 @@ const noSubscribe = () => () => {};
  * cookie itself is read (the layout's server-read `fallback` goes stale after a client-side navigation, and the
  * drawer mounts later than the sidebar); during hydration `useSyncExternalStore` uses the server value, so both agree.
  * P1: outside the platform zone a remembered `platform` reads as `agency`; client roles and guests are always `client`.
+ * `clients` = the viewer's own clients (agency roles): a remembered client not among them (membership switch, ended
+ * support session, scope change, shared browser) reads as `agency`, so a neutral page never shows a menu of 404s.
  */
-export function SidebarNav({ flags, counts, zone, fallback }: { flags: NavRoleFlags; counts: NavCounts; zone?: 'platform'; fallback: NavFallback | null }) {
+export function SidebarNav({ flags, counts, zone, fallback, clients }: { flags: NavRoleFlags; counts: NavCounts; zone?: 'platform'; fallback: NavFallback | null; clients: NavClient[] }) {
   const pathname = usePathname();
   const active = pathname.split(/[?#]/)[0]!;
   const stored = useSyncExternalStore(noSubscribe, readNavCookie, () => undefined);
   const remembered = (stored === undefined ? null : parseNavCookie(stored ?? undefined)) ?? fallback;
   const here = contextOf(active, null);
   const hereClientId = clientIdFromPath(active);
-  const context = zone ?? here ?? lastContext(remembered, flags);
+  const context = zone ?? here ?? lastContext(remembered, flags, clients);
   const clientId = hereClientId ?? (here === null && context === 'client' ? (remembered?.clientId ?? null) : null);
   // Only contextual pages are remembered; a neutral page (`/inbox`, `/kb/*`) keeps whatever was there.
   const value = here === 'client' ? `client:${hereClientId}` : here;
@@ -109,9 +111,10 @@ export function SidebarNav({ flags, counts, zone, fallback }: { flags: NavRoleFl
   );
 }
 
-/** A neutral page's context: the remembered one (P1: `platform` → `agency`), else the viewer's home context. */
-function lastContext(remembered: NavFallback | null, flags: NavRoleFlags): NavContext {
+/** A neutral page's context: the remembered one (P1: `platform` → `agency`; a client not the viewer's → `agency`), else the viewer's home context. */
+function lastContext(remembered: NavFallback | null, flags: NavRoleFlags, clients: NavClient[]): NavContext {
   if (!flags.isAgency) return 'client';
   if (!remembered || remembered.context === 'platform') return 'agency';
+  if (remembered.context === 'client' && !clients.some((c) => c.id === remembered.clientId)) return 'agency';
   return remembered.context;
 }
