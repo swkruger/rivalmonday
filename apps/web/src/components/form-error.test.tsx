@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
-import { FormError } from './form-error';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ErrorNote, FormError } from './form-error';
 
 afterEach(cleanup);
 const cap = { ok: false, error: "You've used your 3 included clients. Upgrade to add more.", code: 'billing_seat_limit' } as const;
@@ -24,5 +24,40 @@ describe('FormError (billing cap Upgrade prompt)', () => {
     expect(screen.queryByRole('link')).toBeNull();
     rerender(<FormError state={{ ok: true }} canUpgrade />);
     expect(container.innerHTML).toBe('');
+  });
+});
+
+describe('ErrorNote', () => {
+  it('focuses itself and scrolls into view on mount', () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    render(<ErrorNote>Boom</ErrorNote>);
+    expect(document.activeElement).toBe(screen.getByRole('alert'));
+    expect(scroll).toHaveBeenCalledTimes(1);
+  });
+
+  it('refocuses when focusKey changes', () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    const { rerender } = render(<><ErrorNote focusKey={1}>Boom</ErrorNote><button>other</button></>);
+    screen.getByRole('button', { name: 'other' }).focus();
+    rerender(<><ErrorNote focusKey={1}>Boom</ErrorNote><button>other</button></>);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'other' }));
+    rerender(<><ErrorNote focusKey={2}>Boom</ErrorNote><button>other</button></>);
+    expect(document.activeElement).toBe(screen.getByRole('alert'));
+  });
+
+  it('quiet renders role=status and never focuses', () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    render(<ErrorNote quiet>Hint</ErrorNote>);
+    expect(screen.getByRole('status')).toBeTruthy();
+    expect(document.activeElement).toBe(document.body);
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it('renders the alert icon aria-hidden', () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    render(<ErrorNote>Boom</ErrorNote>);
+    expect(screen.getByRole('alert').querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
   });
 });

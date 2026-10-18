@@ -2,7 +2,7 @@
 import { Button, Input, Label } from '@cs/ui';
 import { useActionState, useState, useTransition } from 'react';
 import { ClientProfileForm } from '@/components/client-profile-form';
-import { FormError } from '@/components/form-error';
+import { ErrorNote, FormError } from '@/components/form-error';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import type { VerticalOption } from '@/server/verticals';
@@ -30,6 +30,7 @@ export function LookupStep({ find, createFromLookup, createByHand, verticals, ti
   const [byHand, setByHand] = useState(false);
   const [places, setPlaces] = useState<Place[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [picked, setPicked] = useState<Place | null>(null);
   const [searching, startSearch] = useTransition();
   const readOnly = useReadOnly();
@@ -45,6 +46,7 @@ export function LookupStep({ find, createFromLookup, createByHand, verticals, ti
 
   const search = (fd: FormData) => {
     setError(null);
+    setAttempt((n) => n + 1);
     setPicked(null);
     startSearch(async () => {
       const r = await find({ name: String(fd.get('businessName') ?? ''), location: String(fd.get('location') ?? '') });
@@ -59,7 +61,7 @@ export function LookupStep({ find, createFromLookup, createByHand, verticals, ti
   return (
     <div className="flex flex-col gap-5">
       <form action={search} className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card">
-        {error && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">{error}</p>}
+        {error && <ErrorNote focusKey={attempt}>{error}</ErrorNote>}
         <fieldset disabled={readOnly || searching} className="flex flex-wrap items-end gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="businessName">Business name</Label>
