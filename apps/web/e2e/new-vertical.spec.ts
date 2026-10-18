@@ -79,10 +79,12 @@ test.describe.serial('new business type', () => {
       const services = (await page.getByRole('button', { name: /^Approve / }).count()) - 1;
       await expect(badge).toHaveText(`Business types${1 + services}`);
       await expect(page.getByRole('heading', { name: new RegExp(TYPE_NAME) })).toBeVisible();
-      await expect(page.getByText(/Added by E2E Agency · 1 client/)).toBeVisible();
-      await expect(page.getByLabel('Google categories')).toContainText(/distillery/i);
-      await page.getByText(/^Evidence \(/).click();
-      await expect(page.getByText('“Guided distillery tours every hour”').first()).toBeVisible();
+      // The innermost block holding the type's heading is its card (other specs may leave service cards in the queue).
+      const card = page.locator('div', { has: page.getByRole('heading', { name: new RegExp(TYPE_NAME) }) }).last();
+      await expect(card.getByText(/Added by E2E Agency · 1 client/)).toBeVisible();
+      await expect(card.getByLabel('Google categories')).toContainText(/distillery/i);
+      await card.getByText(/^Evidence \(/).click();
+      await expect(card.getByText('“Guided distillery tours every hour”')).toBeVisible();
 
       await page.getByRole('button', { name: `Approve ${TYPE_NAME}` }).click();
       await expect(page.getByText(`Approved “${TYPE_NAME}”.`)).toBeVisible();
