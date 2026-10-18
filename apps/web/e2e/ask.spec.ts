@@ -152,7 +152,7 @@ test.describe('as the agency admin (also the platform operator)', () => {
   test('platform admin sees review-allowed thread with trace; disallowed client absent', { tag: ['@ask', '@platform'] }, async ({ page }) => {
     const { askCo, privateCo, askThreadId, privateThreadId } = fx();
     await page.goto('/platform/ask');
-    await expect(page.getByRole('heading', { name: 'Ask review', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Ask reviews', exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: askCo.name, exact: true }).first()).toBeVisible();
     await expect(page.getByRole('link', { name: privateCo.name, exact: true })).toHaveCount(0);
 

@@ -1,8 +1,11 @@
+import { PageHeader } from '@/components/page-header';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { type AgencyRow, type AgencySort, AgencyTable, defaultDir, SORTS, type SortDir } from './agency-table';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Agencies' };
 
 interface Search { sort?: string | string[]; dir?: string | string[] }
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -18,7 +21,7 @@ export default async function PlatformAgenciesPage({ searchParams }: { searchPar
   const { rows } = await callTool<{ rows: AgencyRow[]; nextCursor: string | null }>(ctx, 'list_platform_agencies', { sort, dir, limit: 100 });
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Agencies</h1>
+      <PageHeader title="Agencies" breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Agencies' }]} />
       <AgencyTable rows={rows} sort={sort} dir={dir} now={new Date()} />
     </>
   );

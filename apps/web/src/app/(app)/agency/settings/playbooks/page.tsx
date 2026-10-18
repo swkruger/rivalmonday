@@ -1,12 +1,15 @@
 import { isAgencyRole } from '@cs/core';
 import type { PlaybookVertical } from '@cs/tools';
 import { notFound } from 'next/navigation';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { playbookAction } from './actions';
 import { PlaybookEditor } from './playbook-editor';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Playbooks' };
 
 export default async function PlaybooksPage() {
   const { ctx } = await requireContext();
@@ -15,8 +18,11 @@ export default async function PlaybooksPage() {
   const canEdit = ctx.role === 'agency_admin';
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Playbooks</h1>
-      <p className="text-muted-foreground">How Friday words its recommendations for each kind of competitor move. Your edits apply to every client of this agency.</p>
+      <PageHeader
+        title="Playbooks"
+        breadcrumb={[{ label: 'Agency settings', href: '/agency/settings' }, { label: 'Playbooks' }]}
+        description="How Friday words its recommendations for each kind of competitor move. Your edits apply to every client of this agency."
+      />
       {verticals.map((v) => (
         <section key={v.id} className="flex flex-col gap-4">
           <h2 className="text-lg font-bold">{v.name}</h2>

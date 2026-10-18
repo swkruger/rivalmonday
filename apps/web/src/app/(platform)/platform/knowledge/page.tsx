@@ -1,5 +1,6 @@
 import { KB_KINDS, KB_LEVELS, type KbKind, type KbLevel } from '@cs/core';
 import Link from 'next/link';
+import { PageHeader } from '@/components/page-header';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
 import { callTool } from '@/server/tools';
@@ -10,6 +11,8 @@ import { SyncBadge } from './sync-badge';
 import type { KbListItem } from './sync-badge';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Knowledge' };
 
 type Params = { level?: string; agencyId?: string; clientId?: string; kind?: string; status?: string; q?: string; cursor?: string };
 
@@ -41,11 +44,12 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[26px] font-extrabold tracking-tight">Knowledge</h1>
-        <Link href="/platform/knowledge/new" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">New article</Link>
-      </div>
-      <p className="text-muted-foreground">Articles Friday can search and cite, at platform, agency and client level.</p>
+      <PageHeader
+        title="Knowledge"
+        breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Knowledge' }]}
+        description="Articles Friday can search and cite, at platform, agency and client level."
+        actions={<Link href="/platform/knowledge/new" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">New article</Link>}
+      />
       <form method="get" className="grid gap-2 rounded-[14px] bg-surface p-4 shadow-card md:grid-cols-6">
         <select name="level" aria-label="Level" defaultValue={sp.level ?? ''} className={selectClass}><option value="">All levels</option>{KB_LEVELS.map((l) => <option key={l} value={l}>{LEVEL_OPTION[l]}</option>)}</select>
         <select name="agencyId" aria-label="Agency" defaultValue={sp.agencyId ?? ''} className={selectClass}><option value="">All agencies</option>{targets.agencies.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>

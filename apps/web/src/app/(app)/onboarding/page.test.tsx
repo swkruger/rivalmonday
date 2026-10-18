@@ -54,6 +54,7 @@ describe('/onboarding page', () => {
     render(await run({ step: 'team' }));
     expect(screen.getByTestId('team')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Invite your team' })).toBeTruthy();
+    expect(screen.getByText('Step 2 of 4')).toBeTruthy();
     expect(screen.getByTestId('stepper').getAttribute('data-current')).toBe('team');
   });
 

@@ -1,5 +1,6 @@
 import { platformRole } from '@cs/tools';
 import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { PageHeader } from '@/components/page-header';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { platformAdmins } from '@/server/runtime-env';
@@ -7,6 +8,8 @@ import { callTool } from '@/server/tools';
 import { type AgencyOption, AssignForm } from './assign-form';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Lead pool' };
 
 interface PoolLead {
   id: string;
@@ -42,8 +45,11 @@ export default async function PlatformLeadsPage() {
   const canAssign = role === 'owner' || role === 'staff';
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Leads</h1>
-      <p className="text-muted-foreground">Verified requests from the platform page that no agency holds yet. Assign one to an agency; it is notified by email.</p>
+      <PageHeader
+        title="Lead pool"
+        breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Lead pool' }]}
+        description="Verified requests from the platform page that no agency holds yet. Assign one to an agency; it is notified by email."
+      />
       <Card>
         <CardHeader>
           <CardTitle>Pool ({leads.length})</CardTitle>

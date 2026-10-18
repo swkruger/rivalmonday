@@ -54,7 +54,7 @@ test.describe.serial('platform console', () => {
     await as(browser, testInfo, ADMIN_STATE, async (page) => {
       const res = await page.goto('/platform');
       expect(res?.status()).toBe(200);
-      await expect(page.getByRole('heading', { name: 'Platform overview', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Overview', exact: true, level: 1 })).toBeVisible();
       for (const title of ['Agencies', 'Active clients', 'Weekly active users', 'Spend this month']) {
         await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
       }

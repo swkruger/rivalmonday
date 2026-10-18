@@ -1,10 +1,13 @@
 import { listReviewableAskThreads } from '@cs/tools';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { PageHeader } from '@/components/page-header';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { isHiddenToolError, toolDeps } from '@/server/tools';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Ask reviews' };
 
 /** Read-only (6b e6). Non-operators get permission_denied → 404; only clients that allow review are listed. */
 export default async function PlatformAskPage({ searchParams }: { searchParams: Promise<{ cursor?: string }> }) {
@@ -19,8 +22,11 @@ export default async function PlatformAskPage({ searchParams }: { searchParams: 
   }
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Ask review</h1>
-      <p className="text-muted-foreground">Conversations from clients that allow review. Opening one is recorded in the audit log.</p>
+      <PageHeader
+        title="Ask reviews"
+        breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Ask reviews' }]}
+        description="Conversations from clients that allow review. Opening one is recorded in the audit log."
+      />
       {page.items.length === 0 ? (
         <p className="text-muted-foreground">No threads to review.</p>
       ) : (

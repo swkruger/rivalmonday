@@ -2,11 +2,14 @@ import { listWebhooks } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { WriteGuard } from '@/components/read-only';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { AddWebhookForm, WebhookToggle } from './webhook-controls';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Slack & Teams' };
 
 const KIND_LABEL: Record<string, string> = { slack: 'Slack', teams: 'Teams' };
 
@@ -17,8 +20,11 @@ export default async function WebhooksPage() {
 
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Slack &amp; Teams</h1>
-      <p className="text-muted-foreground">Post agency notices to a Slack or Teams channel.</p>
+      <PageHeader
+        title="Slack & Teams"
+        breadcrumb={[{ label: 'Agency settings', href: '/agency/settings' }, { label: 'Slack & Teams' }]}
+        description="Post agency notices to a Slack or Teams channel."
+      />
       <Card>
         <CardHeader>
           <CardTitle>Webhooks</CardTitle>

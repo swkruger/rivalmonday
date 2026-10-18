@@ -1,10 +1,13 @@
 import { notFound } from 'next/navigation';
 import { IntakeLinkCard, type IntakeLinkState } from '@/components/agency/intake-link-card';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { saveIntakeSlugAction, setIntakeEnabledAction } from './actions';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Intake link' };
 
 /** Phase 11c §5 (ruling G): agency admins only; any other role, and a support session, gets a 404. */
 export default async function IntakeSettingsPage() {
@@ -13,8 +16,11 @@ export default async function IntakeSettingsPage() {
   const link = await callTool<IntakeLinkState>(ctx, 'get_intake_link', {});
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Intake link</h1>
-      <p className="text-muted-foreground">A public page where businesses ask for a free competitor snapshot. New requests appear under Leads.</p>
+      <PageHeader
+        title="Intake link"
+        breadcrumb={[{ label: 'Agency settings', href: '/agency/settings' }, { label: 'Intake link' }]}
+        description="A public page where businesses ask for a free competitor snapshot. New requests appear under Leads."
+      />
       <IntakeLinkCard link={link} save={saveIntakeSlugAction} toggle={setIntakeEnabledAction} />
     </>
   );

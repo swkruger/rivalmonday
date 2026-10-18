@@ -27,10 +27,10 @@ const tabs = () => within(screen.getByRole('navigation', { name: 'Settings' })).
 afterEach(cleanup);
 
 describe('Agency settings layout (15a §2.5)', () => {
-  it('shows the "Agency settings" heading, every tab for an admin, and the page', async () => {
+  it('shows every tab for an admin and the page, and no h1 of its own (each page’s PageHeader is the one h1)', async () => {
     as('user', 'agency_admin');
     render(await SettingsLayout({ children: <p>page body</p> }));
-    expect(screen.getByRole('heading', { level: 1, name: 'Agency settings' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
     expect(tabs()).toEqual(['Branding & voice', 'Team', 'Playbooks', 'Billing', 'Usage & limits', 'Intake link', 'Slack & Teams', 'AI connections', 'Platform access']);
     expect(screen.getByText('page body')).toBeTruthy();
   });
@@ -63,9 +63,9 @@ describe('settings page titles', () => {
     const admin = { isAgency: true, isAgencyAdmin: true, isUser: true, homePath: '/agency', dashboard: true, alertRules: true, mcp: true };
     for (const item of settingsNavFor('agency', admin).flatMap((s) => s.items)) {
       const source = readFileSync(join(here, item.href.slice('/agency/settings/'.length), 'page.tsx'), 'utf8');
-      const label = item.label.replace('&', '(?:&|&amp;)');
-      // A plain h1 today; Task 8's PageHeader (`title="…"`) also passes.
-      expect(source, item.href).toMatch(new RegExp(`>${label}</h1>|title="${label}"`));
+      // The page's PageHeader title, under the "Agency settings" breadcrumb root.
+      expect(source, item.href).toMatch(new RegExp(`<PageHeader[^>]*\\btitle="${item.label}"`));
+      expect(source, item.href).toMatch(/breadcrumb=\{\[\{ label: 'Agency settings', href: '\/agency\/settings' \}/);
     }
   });
 });

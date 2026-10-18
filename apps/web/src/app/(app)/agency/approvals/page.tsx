@@ -3,11 +3,14 @@ import type { BriefQueueRow } from '@cs/tools';
 import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { STATUS_LABEL } from './status';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Approvals' };
 
 export default async function ApprovalsPage() {
   const { ctx } = await requireContext();
@@ -16,8 +19,11 @@ export default async function ApprovalsPage() {
 
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Approval queue</h1>
-      <p className="text-muted-foreground">Friday drafts each brief on Thursday night. Clients set to auto-send get untouched briefs Monday 07:00.</p>
+      <PageHeader
+        title="Approvals"
+        breadcrumb={[{ label: 'Agency', href: '/agency' }, { label: 'Approvals' }]}
+        description="Friday drafts each brief on Thursday night. Clients set to auto-send get untouched briefs Monday 07:00."
+      />
       {items.length === 0 ? (
         <p className="text-muted-foreground">Nothing to review this week.</p>
       ) : (

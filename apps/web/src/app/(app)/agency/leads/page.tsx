@@ -1,12 +1,15 @@
 import { isAgencyRole } from '@cs/core';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
 import { LeadCard, type LeadPreview, type LeadView } from './lead-card';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Leads' };
 
 type Status = 'verified' | 'accepted' | 'declined';
 interface Summary {
@@ -62,8 +65,11 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Leads</h1>
-      <p className="text-muted-foreground">Businesses that asked for a competitor snapshot. Accept one to set it up as a prospect and invite the contact.</p>
+      <PageHeader
+        title="Leads"
+        breadcrumb={[{ label: 'Agency', href: '/agency' }, { label: 'Leads' }]}
+        description="Businesses that asked for a competitor snapshot. Accept one to set it up as a prospect and invite the contact."
+      />
       <nav aria-label="Lead status" className="flex gap-1 border-b border-line">
         {TABS.map((t) => (
           <Link

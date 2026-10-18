@@ -2,6 +2,7 @@ import { BILLING_STATES, type BillingState } from '@cs/db';
 import { platformRole } from '@cs/tools';
 import { formatUsd } from '@/components/billing/format';
 import { StatCard } from '@/components/stat-card';
+import { PageHeader } from '@/components/page-header';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { platformAdmins } from '@/server/runtime-env';
@@ -14,6 +15,8 @@ import { PlanEditor, type PlanRow } from './plan-editor';
 import { parseDays, type SignupFunnel, SignupsPanel } from './signups-panel';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Billing & plans' };
 
 const card = 'min-w-0 rounded-[14px] bg-surface p-6 shadow-card';
 
@@ -39,7 +42,7 @@ export default async function PlatformBillingPage({ searchParams }: { searchPara
   ]);
   return (
     <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-5">
-      <h1 className="text-[26px] font-extrabold tracking-tight">Billing</h1>
+      <PageHeader title="Billing & plans" breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Billing & plans' }]} />
       <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
         <StatCard title="MRR" value={formatUsd(overview.mrrCents)} hint="From the latest daily stats" />
         <StatCard title="Paid seats" value={String(overview.paidSeats)} hint="From the latest daily stats" />

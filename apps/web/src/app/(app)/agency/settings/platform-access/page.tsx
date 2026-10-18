@@ -2,11 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { type SupportSessionRow, SupportSessionsTable } from '@/components/support-sessions-table';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { NotifySwitch } from './notify-switch';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Platform access' };
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
@@ -25,8 +28,11 @@ export default async function PlatformAccessPage({ searchParams }: { searchParam
   );
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Platform access</h1>
-      <p className="text-muted-foreground">Every time Rival Monday support opened a read-only session on your agency, and why.</p>
+      <PageHeader
+        title="Platform access"
+        breadcrumb={[{ label: 'Agency settings', href: '/agency/settings' }, { label: 'Platform access' }]}
+        description="Every time Rival Monday support opened a read-only session on your agency, and why."
+      />
       <Card>
         <CardHeader>
           <CardTitle>Notifications</CardTitle>

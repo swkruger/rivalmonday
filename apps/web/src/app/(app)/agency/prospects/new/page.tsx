@@ -1,5 +1,6 @@
 import { isAgencyRole } from '@cs/core';
 import { notFound } from 'next/navigation';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { timezoneOptions } from '@/server/timezones';
 import { verticalOptions } from '@/server/verticals';
@@ -9,13 +10,18 @@ import { createProspectAction, createProspectFromLookupAction } from './actions'
 
 export const dynamic = 'force-dynamic';
 
+export const metadata = { title: 'Add a prospect' };
+
 export default async function NewProspectPage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role) || ctx.clientScope !== 'all') notFound();
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Add a prospect</h1>
-      <p className="text-muted-foreground">Profile first — keywords and a service area let us find their competitors.</p>
+      <PageHeader
+        title="Add a prospect"
+        breadcrumb={[{ label: 'Agency', href: '/agency' }, { label: 'Prospects', href: '/agency/prospects' }, { label: 'Add a prospect' }]}
+        description="Profile first — keywords and a service area let us find their competitors."
+      />
       <LookupStep find={findBusinessAction} createFromLookup={createProspectFromLookupAction} createByHand={createProspectAction} byHandSubmitLabel="Create prospect" createLabel="Create prospect" verticals={await verticalOptions()} timezoneOptions={timezoneOptions('America/Chicago')} />
     </>
   );

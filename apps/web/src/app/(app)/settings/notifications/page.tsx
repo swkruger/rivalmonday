@@ -1,6 +1,7 @@
 import { myNotificationSettings } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { notFound } from 'next/navigation';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { NOTIFICATION_KIND_LABELS } from '@/server/inbox';
@@ -10,6 +11,8 @@ import { PrefSwitch } from './pref-switch';
 
 export const dynamic = 'force-dynamic';
 
+export const metadata = { title: 'Notification settings' };
+
 export default async function NotificationSettingsPage() {
   const { viewer } = await requireContext();
   if (viewer.kind !== 'user') notFound();
@@ -17,7 +20,7 @@ export default async function NotificationSettingsPage() {
 
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Notification settings</h1>
+      <PageHeader title="Notification settings" breadcrumb={[{ label: 'Notification settings' }]} />
       {settings.length === 0 ? (
         <p className="text-muted-foreground">You have no notification settings yet.</p>
       ) : (

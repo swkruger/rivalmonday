@@ -11,9 +11,12 @@ import { ClientBillingControls, type ClientBillingStatusRow } from '@/components
 import { PressureBadge } from '@/components/pressure-badge';
 import { SetupBadge } from '@/components/setup-badge';
 import { SpendBadge } from '@/components/spend-badge';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { relativeTime } from '@/server/format';
 import { callTool, tryCallTool } from '@/server/tools';
+
+export const metadata = { title: 'Portfolio' };
 
 const VERTICAL_LABELS: Record<string, string> = { hvac_plumbing: 'HVAC & plumbing', dental: 'Dental' };
 
@@ -54,19 +57,19 @@ export default async function AgencyPortfolioPage() {
 
   return (
     <>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[26px] font-extrabold tracking-tight">Portfolio</h1>
-          <p className="mt-1 text-muted-foreground">Every client at a glance — what needs you today.</p>
-        </div>
-        {canAddClient && (
-          <WriteGuard>
-            <Button asChild>
-              <Link href="/agency/clients/new">Add client</Link>
-            </Button>
-          </WriteGuard>
-        )}
-      </div>
+      <PageHeader
+        title="Portfolio"
+        description="Every client at a glance — what needs you today."
+        actions={
+          canAddClient && (
+            <WriteGuard>
+              <Button asChild>
+                <Link href="/agency/clients/new">Add client</Link>
+              </Button>
+            </WriteGuard>
+          )
+        }
+      />
 
       {showChecklist && <OnboardingChecklist status={onboarding} trialing={trialing} dismissAction={dismissChecklistAction} />}
 

@@ -1,4 +1,5 @@
 import { StatCard } from '@/components/stat-card';
+import { PageHeader } from '@/components/page-header';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { formatUsd } from '@/server/format';
 import { callTool } from '@/server/tools';
@@ -8,6 +9,8 @@ import { cardCls, deltaPill, PlatformCharts, type Point, type Tile } from './_co
 import { parseRange, RangeToggle } from './_components/range-toggle';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Overview' };
 
 interface Overview {
   tiles: { agencies: Tile; clientsActive: Tile; seats: Tile; wau: Tile; spendMonthUsd: Tile };
@@ -25,10 +28,7 @@ export default async function PlatformOverviewPage({ searchParams }: { searchPar
   const { tiles, series } = overview;
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[26px] font-extrabold tracking-tight">Platform overview</h1>
-        <RangeToggle current={range} basePath="/platform" />
-      </div>
+      <PageHeader title="Overview" actions={<RangeToggle current={range} basePath="/platform" />} />
       <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-5">
         <StatCard title="Agencies" value={String(tiles.agencies.value)} pill={deltaPill(tiles.agencies)} hint="Last 28 days" />
         <StatCard title="Active clients" value={String(tiles.clientsActive.value)} pill={deltaPill(tiles.clientsActive)} hint="Last 28 days" />

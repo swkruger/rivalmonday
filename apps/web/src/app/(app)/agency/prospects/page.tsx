@@ -4,11 +4,14 @@ import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, Tab
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { WriteGuard } from '@/components/read-only';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { relativeTime } from '@/server/format';
 import { callTool } from '@/server/tools';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Prospects' };
 
 function isReady(row: ProspectRow): boolean {
   return row.keywords > 0 && row.hasServiceArea && row.competitors > 0;
@@ -23,19 +26,20 @@ export default async function ProspectsPage() {
 
   return (
     <>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[26px] font-extrabold tracking-tight">Prospects</h1>
-          <p className="mt-1 text-muted-foreground">Businesses you’re pitching. A snapshot shows how they stack up locally — no monitoring until they sign.</p>
-        </div>
-        {canAdd && (
-          <WriteGuard>
-            <Button asChild>
-              <Link href="/agency/prospects/new">New prospect</Link>
-            </Button>
-          </WriteGuard>
-        )}
-      </div>
+      <PageHeader
+        title="Prospects"
+        breadcrumb={[{ label: 'Agency', href: '/agency' }, { label: 'Prospects' }]}
+        description="Businesses you’re pitching. A snapshot shows how they stack up locally — no monitoring until they sign."
+        actions={
+          canAdd && (
+            <WriteGuard>
+              <Button asChild>
+                <Link href="/agency/prospects/new">New prospect</Link>
+              </Button>
+            </WriteGuard>
+          )
+        }
+      />
 
       {items.length === 0 ? (
         <p className="text-muted-foreground">

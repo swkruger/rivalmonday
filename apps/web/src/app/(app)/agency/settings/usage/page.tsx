@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { SpendBadge } from '@/components/spend-badge';
 import { WriteGuard } from '@/components/read-only';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { formatUsd } from '@/server/format';
 import { callTool } from '@/server/tools';
@@ -13,6 +14,8 @@ import { LimitsForm } from './limits-form';
 import { QuestionsCell } from './questions-cell';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Usage & limits' };
 
 export default async function UsagePage() {
   const { ctx } = await requireContext();
@@ -23,10 +26,11 @@ export default async function UsagePage() {
 
   return (
     <>
-      <div>
-        <h1 className="text-[26px] font-extrabold tracking-tight">Usage & limits</h1>
-        <p className="mt-1 text-muted-foreground">{`Spend this month (${month}, UTC) — AI and data costs tied to each client.`}</p>
-      </div>
+      <PageHeader
+        title="Usage & limits"
+        breadcrumb={[{ label: 'Agency settings', href: '/agency/settings' }, { label: 'Usage & limits' }]}
+        description={`Spend this month (${month}, UTC) — AI and data costs tied to each client.`}
+      />
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="rounded-[14px] bg-surface p-6 shadow-card">

@@ -1,10 +1,11 @@
 import { getAgencyBranding } from '@cs/tools';
 import { notFound, redirect } from 'next/navigation';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { timezoneOptions } from '@/server/timezones';
 import { callTool } from '@/server/tools';
-import { firstOpenStep, isStep, STEP_TITLES, type StepStates } from './flow';
+import { firstOpenStep, isStep, STEP_TITLES, STEPS, type StepStates } from './flow';
 import { Stepper } from './stepper';
 import { BrandingStep } from './steps/branding';
 import { PlanStep, type PlanSummary } from './steps/plan';
@@ -12,6 +13,8 @@ import { ProfileStep, type ProfileValues } from './steps/profile';
 import { TeamStep } from './steps/team';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Set up your agency' };
 
 interface Status {
   steps: StepStates & { first_client: string };
@@ -44,7 +47,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">{STEP_TITLES[step]}</h1>
+      <PageHeader title={STEP_TITLES[step]} step={{ n: STEPS.indexOf(step) + 1, of: STEPS.length }} />
       <Stepper current={step} steps={status.steps} />
       {body}
     </>

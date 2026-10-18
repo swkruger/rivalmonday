@@ -2,8 +2,11 @@ import { isAgencyRole } from '@cs/core';
 import { scorecardModel } from '@cs/engine';
 import type { BriefReview } from '@cs/tools';
 import { Badge } from '@cs/ui';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { cache } from 'react';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { Scorecard } from '@/components/views/scorecard';
@@ -12,11 +15,21 @@ import { STATUS_LABEL } from '../status';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ApprovalReviewPage({ params }: { params: Promise<{ briefId: string }> }) {
-  const { briefId } = await params;
+/** One read per request, shared by the tab title and the page. */
+const loadBrief = cache(async (briefId: string) => {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const brief = await callTool<BriefReview>(ctx, 'get_brief_review', { briefId });
+  return callTool<BriefReview>(ctx, 'get_brief_review', { briefId });
+});
+
+const titleOf = (brief: BriefReview) => `${brief.clientName} · ${brief.kind === 'starting_point' ? 'Starting point' : `week of ${brief.deliveryDate}`}`;
+
+export async function generateMetadata({ params }: { params: Promise<{ briefId: string }> }): Promise<Metadata> {
+  return { title: titleOf(await loadBrief((await params).briefId)) };
+}
+
+export default async function ApprovalReviewPage({ params }: { params: Promise<{ briefId: string }> }) {
+  const brief = await loadBrief((await params).briefId);
 
   const active = brief.items.filter((i) => i.status === 'active').sort((a, b) => a.ord - b.ord);
   const dropped = brief.items.filter((i) => i.status !== 'active').sort((a, b) => a.ord - b.ord);
@@ -27,15 +40,18 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-[26px] font-extrabold tracking-tight">
-          {brief.clientName} · {startingPoint ? 'Starting point' : `week of ${brief.deliveryDate}`}
-        </h1>
-        <Badge variant="secondary">{STATUS_LABEL[brief.status] ?? brief.status}</Badge>
-        <Link href={`/c/${brief.clientId}/briefs/${brief.id}`} className="ml-auto font-semibold text-primary-soft-text">
-          Client view
-        </Link>
-      </div>
+      <PageHeader
+        title={titleOf(brief)}
+        breadcrumb={[{ label: 'Agency', href: '/agency' }, { label: 'Approvals', href: '/agency/approvals' }, { label: titleOf(brief) }]}
+        actions={
+          <>
+            <Badge variant="secondary">{STATUS_LABEL[brief.status] ?? brief.status}</Badge>
+            <Link href={`/c/${brief.clientId}/briefs/${brief.id}`} className="font-semibold text-primary-soft-text">
+              Client view
+            </Link>
+          </>
+        }
+      />
 
       <div className="rounded-lg bg-muted-surface p-3 text-ink">
         <p>✔ Every remaining sentence was checked against saved evidence.</p>

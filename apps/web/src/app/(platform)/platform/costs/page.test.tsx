@@ -24,7 +24,7 @@ describe('/platform/costs', () => {
   it('renders the decided copy, summary and a disabled refresh while queued', async () => {
     h.callTool.mockResolvedValue(data);
     render(await PlatformCostsPage());
-    expect(screen.getByRole('heading', { name: 'Platform costs' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Costs', level: 1 })).toBeTruthy();
     expect(screen.getByText('What it costs to run Rival Monday. API balances refresh daily at 06:00 UTC.')).toBeTruthy();
     expect(screen.getByText('Monthly spend (approximate: balance services are estimated from daily readings)')).toBeTruthy();
     expect(screen.getByText('$9.50')).toBeTruthy();

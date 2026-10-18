@@ -4,6 +4,7 @@ import { listTeam } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { WriteGuard } from '@/components/read-only';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { maskTeamForSupport } from '@/server/support-mask';
@@ -11,6 +12,8 @@ import { callTool } from '@/server/tools';
 import { InviteForm, RemoveMemberButton, RevokeInvitationButton } from './invite-form';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Team' };
 
 const ROLE_LABELS: Record<Role, string> = { agency_admin: 'Admin', account_manager: 'Account manager', client_owner: 'Client owner', client_viewer: 'Client viewer' };
 
@@ -34,7 +37,10 @@ export default async function TeamPage() {
 
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Team</h1>
+      <PageHeader
+        title="Team"
+        breadcrumb={[{ label: 'Agency settings', href: '/agency/settings' }, { label: 'Team' }]}
+      />
       <Card>
         <CardHeader>
           <CardTitle>Members</CardTitle>

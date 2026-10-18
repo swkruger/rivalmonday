@@ -62,7 +62,7 @@ test.describe.serial('platform costs', () => {
     await as(browser, testInfo, ADMIN_STATE, async (page) => {
       const res = await page.goto('/platform/costs');
       expect(res?.status()).toBe(200);
-      await expect(page.getByRole('heading', { name: 'Platform costs', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Costs', exact: true, level: 1 })).toBeVisible();
       for (const title of ['Spent this month', 'Projected this month', 'Warnings']) await expect(card(page, title)).toBeVisible();
       await expect(card(page, 'Warnings')).toContainText('1');
       const row = page.getByRole('row', { name: /DataForSEO/ });

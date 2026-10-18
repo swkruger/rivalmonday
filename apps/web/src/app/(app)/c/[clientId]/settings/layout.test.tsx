@@ -90,8 +90,8 @@ describe('client settings page titles', () => {
     expect([...labels.keys()].sort()).toEqual(['ai', 'alerts', 'billing', 'delivery', 'profile']);
     for (const [dir, label] of labels) {
       const source = readFileSync(join(here, dir, 'page.tsx'), 'utf8');
-      const h1s = [...source.matchAll(/<h1[^>]*>([^<]*)<\/h1>|title="([^"]*)"/g)].map((x) => x[1] ?? x[2]);
-      // A plain h1 today; Task 8's PageHeader (`title="…"`) also passes. Every h1 on the page (profile has two branches).
+      const h1s = [...source.matchAll(/<h1[^>]*>([^<]*)<\/h1>|<PageHeader[^>]*\btitle="([^"]*)"/g)].map((x) => x[1] ?? x[2]);
+      // A plain h1 today; Task 9's PageHeader (its `title` prop) also passes. Every h1 on the page (profile has two branches).
       expect(h1s.length, dir).toBeGreaterThan(0);
       for (const h of h1s) expect(h, dir).toBe(label);
     }

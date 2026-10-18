@@ -1,4 +1,7 @@
 import { platformRole } from '@cs/tools';
+import type { Metadata } from 'next';
+import { cache } from 'react';
+import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { type SupportSessionRow, SupportSessionsTable } from '@/components/support-sessions-table';
 import { requireOperatorContext } from '@/server/current-viewer';
@@ -29,16 +32,30 @@ const TEAM: { key: keyof Detail['team']; label: string }[] = [
   { key: 'clientViewer', label: 'Client viewers' },
 ];
 
+type Range = ReturnType<typeof parseRange>;
+interface Props { params: Promise<{ id: string }>; searchParams: Promise<{ range?: string | string[]; ended?: string | string[] }> }
+
+/** One detail read per request, shared by the tab title and the page. */
+const loadAgency = cache(async (agencyId: string, range: Range) => {
+  const { ctx } = await requireOperatorContext();
+  return callTool<Detail>(ctx, 'get_platform_agency', { agencyId, range });
+});
+
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
+  const { agency } = await loadAgency((await params).id, parseRange((await searchParams).range));
+  return { title: agency.name };
+}
+
 /**
  * Unknown/malformed id or a non-operator → the tool's not_found / permission_denied → 404 (callTool).
  * Phase 8b: "View as agency" (owner/staff only), recent support sessions, and the `?ended=1` flash after Exit/expiry.
  */
-export default async function PlatformAgencyPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ range?: string | string[]; ended?: string | string[] }> }) {
+export default async function PlatformAgencyPage({ params, searchParams }: Props) {
   const { id } = await params;
   const sp = await searchParams;
   const range = parseRange(sp.range);
   const { ctx } = await requireOperatorContext();
-  const { agency, tiles, series, team, clients } = await callTool<Detail>(ctx, 'get_platform_agency', { agencyId: id, range });
+  const { agency, tiles, series, team, clients } = await loadAgency(id, range);
   const [{ rows: sessions }, role] = await Promise.all([
     callTool<{ rows: SupportSessionRow[] }>(ctx, 'list_agency_support_sessions', { agencyId: agency.id }),
     platformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx),
@@ -57,17 +74,18 @@ export default async function PlatformAgencyPage({ params, searchParams }: { par
           Support session ended.
         </p>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-[26px] font-extrabold tracking-tight">{agency.name}</h1>
-          <HealthPill health={agency.health} />
-          <span className="text-sm text-muted-foreground">Created {agency.createdAt.slice(0, 10)}</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {canStart && <SupportDialog agencyId={agency.id} />}
-          <RangeToggle current={range} basePath={`/platform/agencies/${agency.id}`} />
-        </div>
-      </div>
+      <PageHeader
+        title={agency.name}
+        breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Agencies', href: '/platform/agencies' }, { label: agency.name }]}
+        description={`Created ${agency.createdAt.slice(0, 10)}`}
+        actions={
+          <>
+            <HealthPill health={agency.health} />
+            {canStart && <SupportDialog agencyId={agency.id} />}
+            <RangeToggle current={range} basePath={`/platform/agencies/${agency.id}`} />
+          </>
+        }
+      />
       <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
         <StatCard title="Active clients" value={String(tiles.clientsActive.value)} pill={deltaPill(tiles.clientsActive)} hint="Last 28 days" />
         <StatCard title="Seats" value={String(tiles.seats.value)} pill={deltaPill(tiles.seats)} hint="Last 28 days" />

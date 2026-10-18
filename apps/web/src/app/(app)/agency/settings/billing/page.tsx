@@ -3,6 +3,7 @@ import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { formatLongDate, formatUsd } from '@/components/billing/format';
 import { RefreshUntilChanged } from '@/components/billing/refresh-until-changed';
+import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import type { FormResult } from '@/server/forms';
 import { callTool } from '@/server/tools';
@@ -13,6 +14,8 @@ import type { Revenue } from './client-billing/revenue-card';
 import { RedeemForm } from './redeem-form';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { title: 'Billing' };
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
@@ -69,7 +72,10 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const pay = paymentAction(s);
   return (
     <>
-      <h1 className="text-[26px] font-extrabold tracking-tight">Billing</h1>
+      <PageHeader
+        title="Billing"
+        breadcrumb={[{ label: 'Agency settings', href: '/agency/settings' }, { label: 'Billing' }]}
+      />
       {done && <RefreshUntilChanged watch={`${s.state}:${s.hasSubscription}`} />}
       {done && (
         <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">
