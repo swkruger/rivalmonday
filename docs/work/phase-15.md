@@ -4,10 +4,10 @@
 **Spec:** [2026-10-18-phase-15-ux-ia-design.md](../superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) (15a design + 15b/15c decisions). Audit: [ux-audit](../research/2026-10-18-phase-15-ux-audit.md). Inventory: [research/2026-10-18-phase-15-page-inventory.md](../research/2026-10-18-phase-15-page-inventory.md). **Not in the roadmap** — proposed row: `| 15. UI/UX & information architecture | *to be written* (15a IA + nav shell · 15b help & guides · 15c page fixes) | Designer review of mockups + all pages; platform / agency / client / account nav separation; platform ↔ agency switcher; tooltips, page help, guides | §3, §5 | ~2–3 wks |`
 
 ## Status (overwrite)
-2026-10-18: brainstorm done (visual companion; mockups in `.superpowers/brainstorm/`, not committed). 15a spec written, awaiting owner review. No code.
+2026-10-18: brainstorm done (visual companion; mockups in `.superpowers/brainstorm/`, not committed). 15a spec owner-approved; 15a plan written (13 tasks, T0–T12), awaiting owner approval. No code.
 
 ## Next (overwrite)
-Owner reviews the spec → `superpowers:writing-plans` (lean format) for **15a** → owner approval → execute. 15b/15c kickoff after 15a.
+Owner approves the 15a plan ([plan](../superpowers/plans/2026-10-18-phase-15a-ia-nav-shell.md)) → `superpowers:subagent-driven-development` from Task 0 (Opus, high effort). 15b/15c kickoff after 15a.
 
 ## Interfaces this branch adds or changes
 Planned (15a, spec §2): `NavContext`/`contextOf`, `NavSection`/`navFor`/`settingsNavFor` (flat `NavItem.group` removed), `ContextSwitcher` (replaces client + membership switchers), `PageHeader`, `/c/[id]/briefs`, settings layouts, agency pages moved under `/agency/settings/*` with 308 redirects, `@cs/ui` Popover/Command/Tabs. No migrations; main at 0076, 14a plans 0077–0078, 14b/13a claim more — take next free at execution.
