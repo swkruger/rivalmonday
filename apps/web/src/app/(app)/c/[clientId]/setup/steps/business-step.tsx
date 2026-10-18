@@ -16,6 +16,11 @@ export interface ProfileInitial {
 
 type Suggestion = { value: string; quote: string };
 
+/** A pack name for mid-sentence use: each word lowercased except all-caps tokens ("HVAC & Plumbing" -> "HVAC & plumbing"). */
+export function inSentence(name: string): string {
+  return name.split(' ').map((w) => (/^[A-Z0-9]{2,}$/.test(w) ? w : w.toLowerCase())).join(' ');
+}
+
 /** The ready suggestions, or none: a ready set with both lists empty reads like a failed one (the seed keywords show instead). */
 function readySuggestions(s: ClientSetupView['suggestions']): { services: Suggestion[]; keywords: Suggestion[] } | null {
   return s.status === 'ready' ? { services: s.services, keywords: s.keywords } : null;
@@ -87,7 +92,7 @@ export function BusinessStep({ view, profile, pending, onSave }: { view: ClientS
       )}
       {ready && ready.services.length === 0 && ready.keywords.length === 0 && (
         <p role="status" className="text-sm text-muted-foreground">
-          We couldn&apos;t find suggestions in the Google profile — here are common keywords for {view.vertical.name}.
+          We couldn&apos;t find suggestions in the Google profile — here are common keywords for {inSentence(view.vertical.name)}.
         </p>
       )}
 

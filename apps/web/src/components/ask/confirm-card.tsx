@@ -17,10 +17,13 @@ export function ConfirmCard({ messageId, action, confirmAction }: { messageId: s
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // A failure already stored when the card mounted (thread history) is shown passively; one that appears after a
+  // decision here is a new error and takes focus.
+  const [failedOnMount] = useState(action?.state === 'failed');
   if (!action) return null;
   if (action.state === 'failed') {
     return (
-      <ErrorNote>
+      <ErrorNote passive={failedOnMount}>
         {action.summary} — {action.error ?? 'Something went wrong. Please try again.'}
       </ErrorNote>
     );

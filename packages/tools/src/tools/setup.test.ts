@@ -318,8 +318,7 @@ describe('wizard tools', () => {
     it('get_client_setup returns the pack name', async () => {
       await setupRow();
       const out = await get(admin);
-      expect(typeof out.vertical.name).toBe('string');
-      expect(out.vertical.name.length).toBeGreaterThan(0);
+      expect(out.vertical.name).toBe('HVAC & Plumbing');
     });
 
     it('get_client_setup not_found for client role once closed; staff still read it', async () => {

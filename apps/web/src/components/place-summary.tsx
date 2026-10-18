@@ -1,11 +1,23 @@
 import type { SetupLookup } from '@cs/db';
 import { BadgeCheck } from 'lucide-react';
 
+/**
+ * US numbers (10 digits, or 11 with a leading 1; a "+" prefix must be "+1") as `(817) 286-3655`; anything else raw.
+ * DataForSEO sends e.g. `+1817-286-3655`, which reads like a typo on an owner-facing card.
+ */
+export function formatPhone(raw: string): string {
+  const t = raw.trim();
+  if (t.startsWith('+') && !t.startsWith('+1')) return raw;
+  let d = t.replace(/\D/g, '');
+  if (d.length === 11 && d.startsWith('1')) d = d.slice(1);
+  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : raw;
+}
+
 /** Phase 11 fixes D4: the card body for a Google Maps business match. The caller keeps the surrounding `<button aria-pressed>`. */
 export function PlaceSummary({ place, isClaimed, possibleDuplicate }: { place: SetupLookup; isClaimed: boolean | null; possibleDuplicate: boolean }) {
   const rating = place.rating !== null ? `${place.rating} ★${place.votes !== null ? ` ${place.votes.toLocaleString('en-US')} reviews` : ''}` : null;
   const reputation = [place.category, rating].filter(Boolean).join(' · ');
-  const contact = [place.phone, place.domain].filter(Boolean).join(' · ');
+  const contact = [place.phone && formatPhone(place.phone), place.domain].filter(Boolean).join(' · ');
   return (
     <>
       <span className="flex flex-wrap items-center gap-2">
@@ -18,7 +30,7 @@ export function PlaceSummary({ place, isClaimed, possibleDuplicate }: { place: S
         )}
         {possibleDuplicate && <span className="rounded-full bg-muted-surface px-2 py-0.5 text-xs font-medium text-ink">Possible duplicate listing</span>}
       </span>
-      {place.address ? <span className="text-sm text-muted-foreground">{place.address}</span> : <span className="text-sm text-muted-foreground">Address hidden — service-area business</span>}
+      <span className="text-sm text-muted-foreground">{place.address || 'Address hidden — service-area business'}</span>
       {reputation && <span className="text-sm text-muted-foreground">{reputation}</span>}
       {contact && <span className="text-sm text-muted-foreground">{contact}</span>}
     </>

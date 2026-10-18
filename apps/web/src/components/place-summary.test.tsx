@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { DuplicateHint, PlaceSummary } from './place-summary';
+import { DuplicateHint, formatPhone, PlaceSummary } from './place-summary';
 
 const place = {
   placeId: 'p1', cid: 'c1', title: 'Smith Dental', address: '1 Main St, Austin, TX', city: 'Austin', category: 'Dentist',
@@ -37,6 +37,24 @@ describe('PlaceSummary', () => {
   it('omits missing details cleanly', () => {
     render(<PlaceSummary place={{ ...place, phone: null, domain: null, category: null, rating: null, votes: null }} isClaimed={null} possibleDuplicate={false} />);
     expect(screen.queryByText(/·/)).toBeNull();
+  });
+});
+
+describe('formatPhone', () => {
+  it('formats US numbers as (817) 286-3655: 10 digits, or 11 with a leading 1', () => {
+    expect(formatPhone('+1817-286-3655')).toBe('(817) 286-3655');
+    expect(formatPhone('817.286.3655')).toBe('(817) 286-3655');
+    expect(formatPhone('18172863655')).toBe('(817) 286-3655');
+  });
+  it('leaves anything else raw', () => {
+    expect(formatPhone('+44 20 7946 0958')).toBe('+44 20 7946 0958');
+    expect(formatPhone('+3312345678')).toBe('+3312345678');
+    expect(formatPhone('555-0100')).toBe('555-0100');
+    expect(formatPhone('28172863655')).toBe('28172863655');
+  });
+  it('PlaceSummary shows the formatted number', () => {
+    render(<PlaceSummary place={{ ...place, phone: '+1512-555-0100' }} isClaimed={null} possibleDuplicate={false} />);
+    expect(screen.getByText('(512) 555-0100 · smithdental.com')).toBeTruthy();
   });
 });
 

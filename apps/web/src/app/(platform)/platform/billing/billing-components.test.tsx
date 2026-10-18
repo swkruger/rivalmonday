@@ -114,6 +114,22 @@ describe('InviteLinks', () => {
       expect(screen.queryByRole('status')).toBeNull();
     });
 
+    it('treats blank days as the 14-day default', () => {
+      render(<InviteLinks links={[]} codes={[]} />);
+      setDates(day(3), '');
+      expect(screen.getByRole('status').textContent).toContain('The pilot must end after this link expires');
+    });
+
+    it('hides the live hint while the server refusal shows the same sentence', async () => {
+      render(<InviteLinks links={[]} codes={[]} />);
+      setDates(day(3), '14');
+      const hint = screen.getByRole('status').textContent ?? '';
+      m.createInviteLinkAction.mockResolvedValue({ ok: false, error: hint });
+      fireEvent.click(screen.getByRole('button', { name: 'Create link' }));
+      await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(hint));
+      expect(screen.queryByRole('status')).toBeNull();
+    });
+
     it('is hidden for a trial offer', () => {
       render(<InviteLinks links={[]} codes={[]} />);
       setDates(day(3), '14');

@@ -26,7 +26,7 @@ export function SignUpForm({
   return (
     <form action={action} className="flex flex-col gap-4">
       {problem && (
-        <ErrorNote>
+        <ErrorNote focusKey={state}>
           {problem}
         </ErrorNote>
       )}

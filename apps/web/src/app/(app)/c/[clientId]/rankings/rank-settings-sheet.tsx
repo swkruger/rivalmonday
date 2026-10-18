@@ -1,6 +1,7 @@
 'use client';
 import { Button, Input, Label, Sheet, SheetContent, SheetTitle, SheetTrigger } from '@cs/ui';
 import { useActionState, useEffect, useRef, useState } from 'react';
+import { ErrorNote } from '@/components/form-error';
 import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { saveRankSettings } from './actions';
@@ -81,7 +82,7 @@ export function RankSettingsSheet({ clientId, settings }: { clientId: string; se
                 <Label htmlFor="rank-radius">Radius (km)</Label>
                 <Input id="rank-radius" name="radiusKm" type="number" required min={2} max={40} step="any" value={radius} onChange={(e) => setRadius(e.currentTarget.value)} className="w-28" />
               </div>
-              {submitted && !state.ok && <p role="alert" className="text-sm text-ink">{state.error}</p>}
+              {submitted && !state.ok && <ErrorNote compact focusKey={state}>{state.error}</ErrorNote>}
               <Button type="submit" disabled={pending || chosen.length === 0} className="self-start">Save settings</Button>
             </form>
           </SheetContent>

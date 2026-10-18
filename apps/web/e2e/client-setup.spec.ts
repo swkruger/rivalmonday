@@ -41,7 +41,7 @@ test.describe('agency staff', () => {
     await expect(results.getByRole('listitem')).toHaveCount(3);
     const granbury = results.getByRole('button', { name: /Granbury Park Dental/ });
     await expect(granbury).toContainText('Owner-verified');
-    await expect(granbury).toContainText('817-286-3655');
+    await expect(granbury).toContainText('(817) 286-3655');
     await granbury.click();
     await page.getByRole('button', { name: 'Create client' }).click();
 

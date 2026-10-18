@@ -70,17 +70,22 @@ type Progress = 'searching' | 'done' | 'failed' | 'gave_up' | null;
  * (a full search runs hundreds of paid map lookups and usually takes 20–40 minutes). When it finishes the page data is re-fetched so the new
  * suggestions appear without a reload. A search already running when the page loads is picked up the same way.
  */
-function useSearchProgress(clientId: string, initialSearch: SearchState, request: FormResult, enabled = true): { progress: Progress; status: SearchStatus | null } {
+function useSearchProgress(clientId: string, initialSearch: SearchState, request: FormResult, enabled = true): { progress: Progress; status: SearchStatus | null; failedOnLoad: boolean } {
   // Destructured so a re-render (status updates) does not restart the poll timer.
   const { refresh } = useRouter();
   const [progress, setProgress] = useState<Progress>(
     !enabled ? null : initialSearch === 'queued' || initialSearch === 'running' ? 'searching' : initialSearch === 'failed' ? 'failed' : null,
   );
   const [status, setStatus] = useState<SearchStatus | null>(null);
+  // A failed search already stored when the page loaded is shown passively (no focus); a later failure is new.
+  const [failedOnLoad, setFailedOnLoad] = useState(enabled && initialSearch === 'failed');
 
   // Each accepted "Find competitors" request is a new result object, so this starts (or restarts) the watch.
   useEffect(() => {
-    if (enabled && request.ok && request.message) setProgress('searching');
+    if (enabled && request.ok && request.message) {
+      setProgress('searching');
+      setFailedOnLoad(false);
+    }
   }, [request, enabled]);
 
   useEffect(() => {
@@ -117,10 +122,10 @@ function useSearchProgress(clientId: string, initialSearch: SearchState, request
     };
   }, [progress, clientId, refresh, enabled]);
 
-  return { progress, status };
+  return { progress, status, failedOnLoad };
 }
 
-function SearchProgress({ progress, status, found }: { progress: Progress; status: SearchStatus | null; found: number }) {
+function SearchProgress({ progress, status, found, failedOnLoad = false }: { progress: Progress; status: SearchStatus | null; found: number; failedOnLoad?: boolean }) {
   if (progress === 'searching') {
     const checking = status?.stage === 'checking' || status?.stage === 'finalising';
     return (
@@ -142,7 +147,7 @@ function SearchProgress({ progress, status, found }: { progress: Progress; statu
   }
   if (progress === 'failed') {
     return (
-      <ErrorNote>
+      <ErrorNote passive={failedOnLoad}>
         The search didn&apos;t finish. Your earlier suggestions are still here. Try again later.
       </ErrorNote>
     );
@@ -233,7 +238,7 @@ export function SuggestionsPanel({
 }) {
   const [state, formAction, pending] = useActionState(requestSuggestionsAction, { ok: true } as FormResult);
   const readOnly = useReadOnly();
-  const { progress, status } = useSearchProgress(clientId, initialSearch, state, canSearch && !readOnly);
+  const { progress, status, failedOnLoad } = useSearchProgress(clientId, initialSearch, state, canSearch && !readOnly);
   const searching = progress === 'searching';
   const [rowState, rowAction, rowPending] = useActionState(dismissAction, { ok: true } as RowResult);
 
@@ -295,7 +300,7 @@ export function SuggestionsPanel({
             </Button>
             <p className="text-sm text-muted-foreground">A full search runs hundreds of map lookups and usually takes 20–40 minutes. You can leave this page.</p>
             {!state.ok && <Message state={state} />}
-            <SearchProgress progress={progress} status={status} found={suggestions.length} />
+            <SearchProgress progress={progress} status={status} found={suggestions.length} failedOnLoad={failedOnLoad} />
           </form>
         ) : (
           <p className="text-sm text-muted-foreground">Your account manager can look for more competitors for you.</p>

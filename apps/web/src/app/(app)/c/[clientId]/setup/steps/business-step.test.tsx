@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ClientSetupView } from '../types';
-import { BusinessStep } from './business-step';
+import { BusinessStep, inSentence } from './business-step';
 
 afterEach(cleanup);
 
@@ -20,7 +20,14 @@ const show = (s: ClientSetupView['suggestions']) => render(<BusinessStep view={b
 const ready = (services: { value: string; quote: string }[], keywords: { value: string; quote: string }[]): ClientSetupView['suggestions'] => ({
   status: 'ready', services, keywords, sources: ['gbp'], generatedAt: '2026-10-17T00:00:00.000Z',
 });
-const NOTE = "We couldn't find suggestions in the Google profile — here are common keywords for Dental practices.";
+const NOTE = "We couldn't find suggestions in the Google profile — here are common keywords for dental practices.";
+
+describe('inSentence', () => {
+  it('lowercases words for mid-sentence use but keeps all-caps tokens', () => {
+    expect(inSentence('HVAC & Plumbing')).toBe('HVAC & plumbing');
+    expect(inSentence('Dental practices')).toBe('dental practices');
+  });
+});
 
 describe('BusinessStep suggestions note', () => {
   it('ready with nothing found: note names the vertical and the seed chips are unticked', () => {

@@ -80,7 +80,7 @@ export function IntakeLinkCard({ link, save, toggle }: { link: IntakeLinkState; 
               />
               <span className="text-sm">{enabled ? 'Accepting new leads' : 'Switched off — visitors see that the page is unavailable'}</span>
             </div>
-            {!toggled.ok && <ErrorNote>{toggled.error}</ErrorNote>}
+            {!toggled.ok && <ErrorNote focusKey={toggled}>{toggled.error}</ErrorNote>}
           </div>
         ) : (
           <p className="text-sm">No link yet. Choose a name below, or leave it empty and we will use your agency name.</p>
@@ -92,7 +92,7 @@ export function IntakeLinkCard({ link, save, toggle }: { link: IntakeLinkState; 
               <input id="intake-slug" name="slug" defaultValue={link.slug ?? ''} maxLength={40} autoComplete="off" className={fieldCls} />
             </div>
             <Button type="submit" disabled={saving}>{link.url ? 'Save' : 'Create link'}</Button>
-            {!saved.ok && <ErrorNote compact className="basis-full">{saved.error}</ErrorNote>}
+            {!saved.ok && <ErrorNote compact focusKey={saved} className="basis-full">{saved.error}</ErrorNote>}
             {saved.ok && saved.message && <p role="status" className="basis-full text-sm text-ink">{saved.message}</p>}
           </form>
         )}

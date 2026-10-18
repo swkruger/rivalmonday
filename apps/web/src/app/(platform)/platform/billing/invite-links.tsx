@@ -51,7 +51,7 @@ export function InviteLinks({ links, codes }: { links: LinkRow[]; codes: { id: s
   const [days, setDays] = useState('14');
   // Live hint only: the server check in create_invite_link is binding, so submit stays enabled.
   const endIso = endOfDayIso(pilotEnd);
-  const daysN = toInt(days);
+  const daysN = toInt(days || '14'); // blank posts as the action's 14-day default
   const now = new Date();
   const hint = offer === 'pilot' && endIso && daysN !== null
     ? pilotLinkRefusal(new Date(endIso), new Date(now.getTime() + daysN * 86_400_000), now)
@@ -109,7 +109,7 @@ export function InviteLinks({ links, codes }: { links: LinkRow[]; codes: { id: s
         <Field label="Expires in (days)" htmlFor="il-days"><input id="il-days" name="expiresInDays" inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value)} className={`${fieldCls} w-24`} /></Field>
         <Field label="Note (optional)" htmlFor="il-note"><input id="il-note" name="note" maxLength={500} className={`${fieldCls} w-56`} /></Field>
         <Button type="submit" disabled={pending}>Create link</Button>
-        {hint && <ErrorNote compact quiet className="basis-full">{hint}</ErrorNote>}
+        {hint && (state.ok || state.error !== hint) && <ErrorNote compact quiet className="basis-full">{hint}</ErrorNote>}
         {!state.ok && <ErrorNote compact className="basis-full" focusKey={state}>{state.error}</ErrorNote>}
       </form>
       {state.ok && 'notice' in state && state.notice && <p role="alert" className="text-sm text-ink">{state.notice}</p>}

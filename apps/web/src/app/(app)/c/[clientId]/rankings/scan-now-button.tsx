@@ -1,6 +1,7 @@
 'use client';
 import { Button } from '@cs/ui';
 import { useActionState } from 'react';
+import { ErrorNote } from '@/components/form-error';
 import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { requestRankScan } from './actions';
@@ -28,7 +29,7 @@ export function ScanNowButton({ clientId, scan }: { clientId: string; scan: Rank
           <Button type="submit" variant="outline" disabled={pending || running || scan.state !== 'available'}>{label}</Button>
         </form>
         {note && <p className="text-right text-sm text-muted-foreground">{note}</p>}
-        {!state.ok && <p role="alert" className="text-right text-sm text-ink">{state.error}</p>}
+        {!state.ok && <ErrorNote compact focusKey={state} className="justify-end text-right">{state.error}</ErrorNote>}
         {state.ok && state.message && <p role="status" className="text-right text-sm text-ink">{state.message}</p>}
       </div>
     </WriteGuard>

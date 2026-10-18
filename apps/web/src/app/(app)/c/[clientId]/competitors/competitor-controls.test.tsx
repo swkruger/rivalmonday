@@ -147,6 +147,13 @@ describe('SuggestionsPanel search progress', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
+  it('a search already failed on page load shows passively: role=status, no focus', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} atLimit={false} initialSearch="failed" canSearch />);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('status').textContent).toMatch(/search didn't finish/i);
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it('keeps polling past 30 minutes, stops after 60 and asks to check back later', async () => {
     await startSearch();
     await tick(30 * 60_000);

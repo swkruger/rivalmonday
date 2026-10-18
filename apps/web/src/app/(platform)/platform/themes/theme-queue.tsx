@@ -18,7 +18,7 @@ export function ThemeQueue({ pending, decided, action }: { pending: ThemeProposa
   const [result, formAction, busy] = useActionState(action, { ok: true } as FormResult);
   return (
     <div className="flex flex-col gap-5">
-      {!result.ok && <ErrorNote>{result.error}</ErrorNote>}
+      {!result.ok && <ErrorNote focusKey={result}>{result.error}</ErrorNote>}
       {result.ok && result.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{result.message}</p>}
       {pending.length === 0 && <p className="text-muted-foreground">No proposals waiting.</p>}
       {pending.map((p) => (

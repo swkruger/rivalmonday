@@ -30,8 +30,18 @@ describe('SnapshotControls', () => {
     expect(refresh).toHaveBeenCalled();
   });
 
-  it('shows a failed snapshot’s reason', () => {
+  it('shows a failed snapshot’s reason (stored on load: passive, no focus)', () => {
     render(<SnapshotControls clientId="c1" report={{ id: 'r1', status: 'failed', createdAt: '2026-10-07T00:00:00.000Z', finishedAt: null, error: 'The snapshot timed out — run it again', data: null }} canRun blockers={[]} action={vi.fn()} />);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('status').textContent).toMatch(/timed out/);
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('a snapshot that fails while the page watches it run is a new error (alert, focused)', () => {
+    const base = { id: 'r1', createdAt: '2026-10-07T00:00:00.000Z', finishedAt: null, data: null };
+    const { rerender } = render(<SnapshotControls clientId="c1" report={{ ...base, status: 'running', error: null }} canRun blockers={[]} action={vi.fn()} />);
+    rerender(<SnapshotControls clientId="c1" report={{ ...base, status: 'failed', error: 'The snapshot timed out — run it again' }} canRun blockers={[]} action={vi.fn()} />);
     expect(screen.getByRole('alert').textContent).toMatch(/timed out/);
+    expect(document.activeElement).toBe(screen.getByRole('alert'));
   });
 });

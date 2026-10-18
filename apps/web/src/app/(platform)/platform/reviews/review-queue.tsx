@@ -17,7 +17,7 @@ export function ReviewQueue({ items, action }: { items: DecisionReviewView[]; ac
   const [result, formAction, pending] = useActionState(action, { ok: true } as FormResult);
   return (
     <div className="flex flex-col gap-5">
-      {!result.ok && <ErrorNote>{result.error}</ErrorNote>}
+      {!result.ok && <ErrorNote focusKey={result}>{result.error}</ErrorNote>}
       {result.ok && result.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{result.message}</p>}
       {items.length === 0 && <p className="text-muted-foreground">Nothing waiting for review.</p>}
       {items.map((item) => (

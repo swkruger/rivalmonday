@@ -55,6 +55,17 @@ describe('ErrorNote', () => {
     expect(scroll).not.toHaveBeenCalled();
   });
 
+  it('passive keeps the danger style, renders role=status and never focuses or scrolls, even when focusKey changes', () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    const { rerender } = render(<ErrorNote passive focusKey={1}>Stored failure</ErrorNote>);
+    const note = screen.getByRole('status');
+    expect(note.className).toContain('border-danger/30');
+    rerender(<ErrorNote passive focusKey={2}>Stored failure</ErrorNote>);
+    expect(document.activeElement).toBe(document.body);
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
   it('renders the alert icon aria-hidden', () => {
     Element.prototype.scrollIntoView = vi.fn();
     render(<ErrorNote>Boom</ErrorNote>);

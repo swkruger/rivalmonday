@@ -7,29 +7,32 @@ import type { FormResult } from '@/server/forms';
 /**
  * The one error primitive. Danger-tinted block with an icon; a new error takes focus and scrolls into view.
  * `compact` is the inline one-line variant; `quiet` is a live hint (role="status", never focuses or scrolls).
+ * `passive` is for stored errors shown on load (a failed run in history): danger style kept, role="status" so a stale
+ * error isn't re-announced as an alert, and it never takes focus or scrolls.
  * `focusKey` re-runs focus/scroll when it changes (FormError passes its action state, so a repeated identical
  * error refocuses).
  */
-export function ErrorNote({ children, compact = false, quiet = false, focusKey, className }: {
+export function ErrorNote({ children, compact = false, quiet = false, passive = false, focusKey, className }: {
   children: React.ReactNode;
   compact?: boolean;
   quiet?: boolean;
+  passive?: boolean;
   focusKey?: unknown;
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (quiet || !ref.current) return;
+    if (quiet || passive || !ref.current) return;
     const el = ref.current;
     el.focus({ preventScroll: true });
     const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     el.scrollIntoView?.({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
-  }, [focusKey, quiet]);
+  }, [focusKey, quiet, passive]);
   const base = compact
     ? 'flex items-start gap-1.5 text-sm text-ink'
     : 'flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/[0.06] p-3 text-ink';
   return (
-    <div ref={ref} role={quiet ? 'status' : 'alert'} tabIndex={-1} className={`${base} outline-none${className ? ` ${className}` : ''}`}>
+    <div ref={ref} role={quiet || passive ? 'status' : 'alert'} tabIndex={-1} className={`${base} outline-none${className ? ` ${className}` : ''}`}>
       <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-danger" />
       <div>{children}</div>
     </div>

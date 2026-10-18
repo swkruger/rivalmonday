@@ -29,7 +29,7 @@ export interface EditorActions { save: Action; remove: Action; autoSync: Action 
 const inputClass = 'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs';
 
 function Notice({ result }: { result: FormResult }) {
-  if (!result.ok) return <ErrorNote>{result.error}</ErrorNote>;
+  if (!result.ok) return <ErrorNote focusKey={result}>{result.error}</ErrorNote>;
   return result.message ? <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{result.message}</p> : null;
 }
 

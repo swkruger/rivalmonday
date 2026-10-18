@@ -20,7 +20,7 @@ export function DisconnectDialog() {
           <DialogTitle>Disconnect Stripe?</DialogTitle>
           <DialogDescription>Your clients&apos; subscriptions keep running in your Stripe account, but Rival Monday will stop tracking payments.</DialogDescription>
         </DialogHeader>
-        {!state.ok && <ErrorNote focusKey={state}>{state.error}</ErrorNote>}
+        {!state.ok && <ErrorNote focusKey={state} className="text-sm">{state.error}</ErrorNote>}
         <form action={formAction}>
           <input type="hidden" name="confirm" value="yes" />
           <DialogFooter>

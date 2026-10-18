@@ -169,6 +169,13 @@ describe('ConfirmCard', () => {
     rerender(<ConfirmCard messageId={T} action={{ tool: 'submit_feedback', summary: 's', state: 'failed', error: 'Every evidence id must be one you can see' }} confirmAction={confirmAction} />);
     expect(screen.getByRole('alert').textContent).toContain('Every evidence id must be one you can see');
   });
+
+  it('a failure already stored in thread history is passive: role=status, no focus', () => {
+    render(<ConfirmCard messageId={T} action={{ tool: 'submit_feedback', summary: 's', state: 'failed', error: 'Old failure' }} confirmAction={confirmAction} />);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('status').textContent).toContain('Old failure');
+    expect(document.activeElement).toBe(document.body);
+  });
 });
 
 describe('readAskStream', () => {
