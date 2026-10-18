@@ -105,6 +105,20 @@ test('a pilot invite link shows its offer, and the new agency is on the pilot', 
   });
 });
 
+test('a pilot link ending before it expires is refused', { tag: ['@billing', '@platform'] }, async ({ browser }, testInfo) => {
+  await ensureAdminState(browser, testInfo);
+  const today = new Date().toISOString().slice(0, 10);
+  await fresh(browser, testInfo, async (page) => {
+    await page.goto('/platform/billing');
+    await page.getByLabel('Offer').selectOption('pilot');
+    await page.getByLabel('Pilot ends').fill(today);
+    await page.getByLabel('Note (optional)').fill(`e2e pilot refused ${RUN}`);
+    await page.getByRole('button', { name: 'Create link' }).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'after this link expires' })).toBeVisible();
+    await expect(page.getByLabel('New invite link')).toHaveCount(0);
+  }, ADMIN_STATE);
+});
+
 test('a second trial for a company domain gets the same check-email page and no link', { tag: ['@auth'] }, async ({ browser }, testInfo) => {
   const dom = domain('dup');
   // The domain already completed an open sign-up (seeded directly: the refusal is the subject here, not the first trial).

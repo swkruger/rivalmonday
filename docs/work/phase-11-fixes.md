@@ -4,10 +4,17 @@
 **Plan/spec:** [plan](../superpowers/plans/2026-10-17-phase-11-fixes.md) (no spec: small fix batch, decisions below)
 
 ## Status (overwrite)
-Plan owner-approved 2026-10-17 (incl. duplicate rule). No product code yet.
+Built, Tasks 0-7 (plan owner-approved 2026-10-17 incl. duplicate rule). E2E added: pilot refusal (`signup.spec.ts`), lookup card badge + phone (`client-setup.spec.ts`), intake card badge and submit (`intake.spec.ts`). Final whole-branch review pending.
 
 ## Next (overwrite)
-Agent: `superpowers:subagent-driven-development` from Task 0. Owner signs off the copy marked "owner sign-off" at review.
+Final whole-branch review (most capable model, `test:affected` + `e2e:affected --base main`), one fix wave (deferred minors below), owner sign-off of the copy below, then `/rm-merge` on the owner's go-ahead.
+
+## Copy for owner sign-off
+- Pilot refusal: "The pilot must end after this link expires on {date}. Choose a later pilot end date or a shorter expiry." / "The pilot end date has already passed. Choose a later date." (also shown as a quiet live hint in the form)
+- Card badges: "Owner-verified"; "Possible duplicate listing"; line "Address hidden — service-area business"; phone · domain line.
+- Duplicate hint: "Google shows more than one listing with the same phone number or website. Pick the owner-verified one if it's there."
+- Empty suggestions: "We couldn't find suggestions in the Google profile — here are common keywords for {vertical}."
+- R20: the onboarding profile intro naming the four required fields (agency name, contact name, contact email, phone).
 
 ## Interfaces this branch adds or changes
 - **No migrations.** `SetupLookup` / `setupLookupSchema` / `intakeLookupSchema` are **unchanged** (persisted shape and the 11c intake signature canonical form stay the same).
@@ -31,6 +38,13 @@ Agent: `superpowers:subagent-driven-development` from Task 0. Owner signs off th
 
 ## New backlog (target → item)
 - Polish → convert phase-13b's new ad-hoc `role="alert"` boxes after both branches merge (if not done at merge).
+- Polish → blank expiry days hides the live pilot hint though the server defaults to 14 (use `toInt(days || '14')`); `DAY` literal duplicated in the form.
+- Polish → missing `focusKey` on action-state errors (review-queue, theme-queue, knowledge editor Notice, intake-link-card `saved.error`, ad-match-chips, sign-up-form); dropped `text-sm` in disconnect-dialog + ad-match-chips.
+- Polish → agency CreateForm posts hint fields (schema strips them; tidy to SetupLookup keys); duplicate ternary classes in the address line; `DuplicateHint` not tied to the list via `aria-describedby`.
+- Tech debt → third haversine copy (collectors `filters.ts`, intake `preview.ts`, setup `lookup.ts`): consolidate into 13b's `core/geo.ts`.
+- Tech debt → collapse edge case with mixed placeId/cid; phone extensions don't match as duplicates.
+- Tests → `get_client_setup` ready with services only; pack-name test asserts non-empty, not exact.
+- Note: `ErrorNote` role=alert + focus may double-announce on some screen readers (brief-mandated).
 
 ## Owner verification steps
 1. `/platform/billing` → Pilot, pilot end = today, expiry 14 → live hint + refusal "The pilot must end after this link expires…"; pilot end = yesterday → "already passed"; pilot end = 30 days out, expiry 14 → link created.

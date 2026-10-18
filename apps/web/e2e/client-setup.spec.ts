@@ -39,7 +39,10 @@ test.describe('agency staff', () => {
     await page.getByRole('button', { name: 'Find business' }).click();
     const results = page.getByRole('list', { name: 'Matching businesses' });
     await expect(results.getByRole('listitem')).toHaveCount(3);
-    await results.getByRole('button', { name: /Granbury Park Dental/ }).click();
+    const granbury = results.getByRole('button', { name: /Granbury Park Dental/ });
+    await expect(granbury).toContainText('Owner-verified');
+    await expect(granbury).toContainText('817-286-3655');
+    await granbury.click();
     await page.getByRole('button', { name: 'Create client' }).click();
 
     await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/setup$/);

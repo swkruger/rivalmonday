@@ -74,7 +74,9 @@ test.describe.serial('client intake and leads', () => {
       await page.getByLabel('Business name').fill('Granbury dentist');
       await page.getByLabel('City and state, or ZIP').fill('Granbury, TX');
       await page.getByRole('button', { name: 'Find my business' }).click();
-      await page.getByRole('button', { name: /Granbury Park Dental/ }).click();
+      const card = page.getByRole('button', { name: /Granbury Park Dental/ });
+      await expect(card).toContainText('Owner-verified');
+      await card.click();
       await page.getByLabel('Your name').fill('Vera Visitor');
       await page.getByLabel('Email', { exact: true }).fill(visitor);
       await page.getByLabel('I agree to be contacted about my request.').check();
