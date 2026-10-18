@@ -190,3 +190,7 @@ refresh_platform_costs (platform-costs.ts) | write | enqueues a worker job; plat
 update_platform_cost_service (platform-costs.ts) | write | updates vendor settings; platform owner; supportHidden
 save_platform_cost_item (platform-costs.ts) | write | inserts/updates a cost item; platform owner; supportHidden
 archive_platform_cost_item (platform-costs.ts) | write | archives a cost item; platform owner; supportHidden
+list_verticals (verticals.ts) | read | read-only
+create_vertical (verticals.ts) | write | inserts vertical, areas, categories (service tx)
+add_business_area (verticals.ts) | write | inserts an unreviewed business area
+update_vertical (verticals.ts) | write | updates an unreviewed vertical the agency created
