@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { inviteClientUser } from '../access/client-invite';
 import { packsOf, type ToolDeps } from '../deps';
 import { startCompetitorSearch } from '../rival-search';
-import { FIND_BUSINESS_DAILY_CAP, preselectVertical, toSetupLookup } from '../setup/lookup';
+import { collapseSameListing, FIND_BUSINESS_DAILY_CAP, possibleDuplicates, preselectVertical, toSetupLookup } from '../setup/lookup';
 import { applyClientProfileChange } from '../setup/profile-change';
 import { queueCompetitorReview } from '../setup/review-email';
 import { clientSetupOpen, completeIfDone, getSetupState, loadSetupInvite, type SetupState } from '../setup/state';
@@ -17,7 +17,7 @@ import { ServiceAreaWrite, Tier } from './schemas';
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
 
-const FoundPlace = setupLookupSchema.extend({ suggestedVerticalId: z.string().nullable() });
+const FoundPlace = setupLookupSchema.extend({ suggestedVerticalId: z.string().nullable(), isClaimed: z.boolean().nullable(), possibleDuplicate: z.boolean() });
 
 export const findBusiness = defineTool({
   name: 'find_business',
@@ -50,12 +50,13 @@ export const findBusiness = defineTool({
       console.error('[find_business] vendor lookup failed', { agencyId: ctx.agencyId }, (e as { name?: string } | null)?.name);
       throw new ToolError('internal', "Business search isn't available right now. Try again, or enter the details by hand.", { userFacing: true });
     }
-    const usable = found.filter((p) => !p.closed).flatMap((p) => {
+    const usable = collapseSameListing(found.filter((p) => !p.closed).flatMap((p) => {
       const lookup = toSetupLookup(p);
-      return lookup ? [{ lookup, categories: [p.category, ...(p.additionalCategories ?? [])].filter((c): c is string => !!c) }] : [];
-    }).slice(0, 5);
+      return lookup ? [{ ...lookup, isClaimed: p.isClaimed ?? null, categories: [p.category, ...(p.additionalCategories ?? [])].filter((c): c is string => !!c) }] : [];
+    })).slice(0, 5);
+    const dup = possibleDuplicates(usable);
     const packs = usable.length ? await Promise.all((await listVerticalPacks()).map((id) => packsOf(deps)(id))) : [];
-    return { places: usable.map(({ lookup, categories }) => ({ ...lookup, suggestedVerticalId: preselectVertical(packs, categories) })) };
+    return { places: usable.map(({ categories, ...rest }, i) => ({ ...rest, suggestedVerticalId: preselectVertical(packs, categories), possibleDuplicate: dup[i]! })) };
   },
 });
 

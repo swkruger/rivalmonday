@@ -8,7 +8,7 @@ import type { EnqueueJob, ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
 import { FIND_BUSINESS_DAILY_CAP } from '../setup/lookup';
 import { getPublicPreview, intakeLookup, resolveIntake, submitIntake, verifyIntake } from './public';
-import { INTAKE_SIG_TTL_MS, signIntakePlace } from './signed';
+import { INTAKE_SIG_TTL_MS, signIntakePlace, verifyIntakePlace } from './signed';
 import { hashToken } from './tokens';
 
 const dbs = openTestDbs();
@@ -88,12 +88,24 @@ describe('intakeLookup', () => {
     expect('places' in r && r.places.map((p) => p.place.placeId)).toEqual(['p1']);
   });
 
+  it('collapses identical listings, adds hints, and the place still verifies and submits', async () => {
+    deps.setupLookup = async () => [place(1, { phone: '555-123-4567', isClaimed: false }), place(1, { isClaimed: true }), place(2, { phone: '(555) 123-4567' }), place(3)];
+    const r = await look('agency-a');
+    if (!('places' in r)) throw new Error('expected places');
+    expect(r.places.map((p) => [p.place.placeId, p.isClaimed, p.possibleDuplicate])).toEqual([['p1', true, true], ['p2', null, true], ['p3', null, false]]);
+    expect(verifyIntakePlace({ place: r.places[0]!.place, exp: r.places[0]!.exp, sig: r.places[0]!.sig }, 'agency-a', SECRET, NOW)).toBe(true);
+    const { place: pl, exp, sig } = r.places[0]!;
+    const s = await submitIntake(deps, { slug: 'agency-a', lookup: { place: pl, exp, sig }, contactName: 'Pat', email: 'pat@example.com', ipHash: 'iphash-1', intakeSecret: SECRET }, NOW);
+    expect(s.send).not.toBeNull();
+  });
+
   it('signs each place for the page with a 1 h expiry; a place over the field caps is dropped', async () => {
     deps.setupLookup = async () => [place(1), place(2, { title: 'x'.repeat(201) }), place(3, { address: 'y'.repeat(301) })];
     const r = await look('agency-a');
     if (!('places' in r)) throw new Error('expected places');
     expect(r.places).toHaveLength(1);
-    expect(r.places[0]).toEqual(signIntakePlace(r.places[0]!.place, 'agency-a', SECRET, NOW));
+    const { isClaimed: _c, possibleDuplicate: _d, ...signed } = r.places[0]!;
+    expect(signed).toEqual(signIntakePlace(r.places[0]!.place, 'agency-a', SECRET, NOW));
     expect(r.places[0]!.exp).toBe(NOW.getTime() + INTAKE_SIG_TTL_MS);
     expect(r.places[0]!.sig).toMatch(/^[0-9a-f]{64}$/);
   });

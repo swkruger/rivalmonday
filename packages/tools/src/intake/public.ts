@@ -4,7 +4,7 @@ import { resolveBranding } from '@cs/email';
 import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type ToolDeps } from '../deps';
-import { toSetupLookup } from '../setup/lookup';
+import { collapseSameListing, possibleDuplicates, toSetupLookup } from '../setup/lookup';
 import { hitRate, INTAKE_LIMITS } from './rate';
 import { intakeLookupSchema, type SignedIntakePlace, signedIntakePlaceSchema, signIntakePlace, verifyIntakePlace } from './signed';
 import { hashToken, newToken } from './tokens';
@@ -16,6 +16,9 @@ const VERIFY_TTL_MS = 48 * 3_600_000;
 const VIEW_TTL = '30 days';
 
 export type IntakeBranding = 'agency' | 'platform';
+
+/** A signed place plus listing hints. The hints sit beside the signed place (never inside it) and are not part of the signature. */
+export type IntakePlaceOption = SignedIntakePlace & { isClaimed: boolean | null; possibleDuplicate: boolean };
 
 /** Slug → enabled `intake_link` of a serviceable agency; `null` slug = the platform page. Unknown, disabled or read-only/suspended agency → null (page 404s). */
 export async function resolveIntake(service: Db, slug: string | null): Promise<{ agencyId: string | null; branding: IntakeBranding } | null> {
@@ -44,7 +47,7 @@ export async function intakeLookup(
   deps: ToolDeps,
   input: { slug: string | null; name: string; location: string; ipHash: string; intakeSecret: string },
   now: Date,
-): Promise<{ places: SignedIntakePlace[] } | { refused: 'rate' | 'daily' }> {
+): Promise<{ places: IntakePlaceOption[] } | { refused: 'rate' | 'daily' }> {
   const q = LookupInput.safeParse(input);
   if (!q.success) throw new ToolError('invalid_input', 'Enter a business name and a city or ZIP code.', { userFacing: true });
   const target = await resolveIntake(deps.service, input.slug);
@@ -63,10 +66,12 @@ export async function intakeLookup(
     console.error('[intake] vendor lookup failed', (e as { name?: string } | null)?.name);
     throw new ToolError('internal', "Business search isn't available right now. Try again in a minute.", { userFacing: true });
   }
-  const places = found.filter((p) => !p.closed).flatMap((p) => {
+  const shown = collapseSameListing(found.filter((p) => !p.closed).flatMap((p) => {
     const l = intakeLookupSchema.safeParse(toSetupLookup(p));
-    return l.success ? [signIntakePlace(l.data, input.slug, input.intakeSecret, now)] : [];
-  }).slice(0, 5);
+    return l.success ? [{ ...l.data, isClaimed: p.isClaimed ?? null }] : [];
+  })).slice(0, 5);
+  const dup = possibleDuplicates(shown);
+  const places = shown.map(({ isClaimed, ...place }, i) => ({ ...signIntakePlace(place, input.slug, input.intakeSecret, now), isClaimed, possibleDuplicate: dup[i]! }));
   return { places };
 }
 

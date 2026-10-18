@@ -22,7 +22,7 @@ const place = (i: number, over: Partial<MapsPlace> = {}): MapsPlace => ({
 let calls: { q: { keyword: string; locationName: string }; scope: CallScope }[];
 let results: MapsPlace[];
 let registry: ReturnType<typeof createToolRegistry>;
-const find = (ctx: AccessContext = admin) => registry.invoke(ctx, 'find_business', { name: 'Smile', location: 'Austin, TX' }) as Promise<{ places: (MapsPlace & { suggestedVerticalId: string | null })[] }>;
+const find = (ctx: AccessContext = admin) => registry.invoke(ctx, 'find_business', { name: 'Smile', location: 'Austin, TX' }) as Promise<{ places: (MapsPlace & { suggestedVerticalId: string | null; isClaimed: boolean | null; possibleDuplicate: boolean })[] }>;
 const fails = async (p: Promise<unknown>) => {
   try { await p; } catch (e) { return e as { code?: string; message: string; userFacing?: boolean }; }
   throw new Error('expected a failure');
@@ -42,6 +42,22 @@ beforeEach(async () => {
 });
 
 describe('find_business', () => {
+  it('find_business collapses identical listings before the 5-result cap', async () => {
+    results = [place(1), place(2), place(1, { rank: 3 }), place(3), place(2, { placeId: 'other', rank: 5 }), place(4), place(5), place(6)];
+    const r = await find();
+    expect(r.places.map((p) => p.placeId)).toEqual(['p1', 'p2', 'p3', 'p4', 'p5']);
+  });
+
+  it('find_business flags rows sharing a phone', async () => {
+    results = [place(1, { phone: '+1817-286-3655' }), place(2, { phone: '(817) 286-3655' }), place(3, { phone: '+1817-111-2222' })];
+    expect((await find()).places.map((p) => p.possibleDuplicate)).toEqual([true, true, false]);
+  });
+
+  it('find_business passes isClaimed through (a collapsed twin claims it)', async () => {
+    results = [place(1, { isClaimed: false }), place(1, { isClaimed: true }), place(2, { isClaimed: false }), place(3)];
+    expect((await find()).places.map((p) => p.isClaimed)).toEqual([true, false, null]);
+  });
+
   it('refuses client-scoped staff', async () => {
     expect((await fails(find(mk('account_manager', [IDS.clientA1])))).code).toBe('permission_denied');
     expect(calls).toHaveLength(0);

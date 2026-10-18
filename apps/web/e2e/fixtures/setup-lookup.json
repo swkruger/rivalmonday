@@ -59,5 +59,23 @@
     "city": "Granbury",
     "phone": "+1817-579-0177",
     "isClaimed": true
+  },
+  {
+    "placeId": "ChIJU55VwWDfUYYR09BiST63rQQ",
+    "cid": "337127025269723347",
+    "title": "Granbury Park Dental",
+    "domain": "granburypark.com",
+    "url": "https://granburypark.com/",
+    "rank": 4,
+    "rating": 4.9,
+    "votes": 246,
+    "category": "Dentist",
+    "address": "500 W Pearl St, Granbury, TX 76048",
+    "lat": 32.4425965,
+    "lng": -97.792211,
+    "additionalCategories": [],
+    "city": "Granbury",
+    "phone": "+1817-286-3655",
+    "isClaimed": false
   }
 ]
