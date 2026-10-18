@@ -219,7 +219,7 @@ export const createVertical = defineTool({
 
       let draftEvidence: unknown = null;
       if (input.draftPlaceId) {
-        const [d] = await tx.select({ draft: verticalDraft.draft }).from(verticalDraft).where(and(eq(verticalDraft.placeId, input.draftPlaceId), eq(verticalDraft.agencyId, ctx.agencyId)));
+        const [d] = await tx.select({ draft: verticalDraft.draft }).from(verticalDraft).where(eq(verticalDraft.placeId, input.draftPlaceId)); // global cache, built from public profile text only
         draftEvidence = d?.draft ?? null;
       }
 
@@ -357,8 +357,9 @@ export const draftVertical = defineTool({
 
     const startOfDay = new Date();
     startOfDay.setUTCHours(0, 0, 0, 0);
-    const [{ n } = { n: 0 }] = await deps.service.select({ n: count() }).from(verticalDraft)
-      .where(and(eq(verticalDraft.agencyId, ctx.agencyId), gte(verticalDraft.createdAt, startOfDay)));
+    // Attempts, not stored drafts: a null draft still spent a vendor and a model call (the task name survives create_vertical's re-key).
+    const [{ n } = { n: 0 }] = await deps.service.select({ n: count() }).from(llmCall)
+      .where(and(eq(llmCall.task, 'vertical_draft'), eq(llmCall.agencyId, ctx.agencyId), gte(llmCall.createdAt, startOfDay)));
     if (n >= DRAFTS_PER_DAY) throw new ToolError('rate_limited', `You've drafted ${DRAFTS_PER_DAY} new business types today. Try again tomorrow.`, { userFacing: true });
 
     if (!deps.verticalDrafter) return { draft: null, similar: [], cached: false };

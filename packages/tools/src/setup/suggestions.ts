@@ -62,8 +62,6 @@ const rawSchema = z.object({
   keywords: z.array(z.object({ text: z.string(), quote: z.string() })),
 });
 
-const norm = normaliseQuote;
-
 /**
  * Deterministic gate on the model's answer (spec §6.4): *no evidence, no claim*. Keeps only items whose quote appears in
  * the source text; null when the answer is not the expected shape.
@@ -74,8 +72,8 @@ export function validateSuggestions(
 ): { services: SetupSuggestion[]; keywords: SetupSuggestion[] } | null {
   const parsed = rawSchema.safeParse(raw);
   if (!parsed.success) return null;
-  const haystack = norm(ctx.sourceText);
-  const quoted = (quote: string) => norm(quote).length >= 3 && haystack.includes(norm(quote));
+  const haystack = normaliseQuote(ctx.sourceText);
+  const quoted = (quote: string) => normaliseQuote(quote).length >= 3 && haystack.includes(normaliseQuote(quote));
   const names = new Map(ctx.packServices.map((s) => [s.id, s.name]));
 
   const services: SetupSuggestion[] = [];
@@ -90,7 +88,7 @@ export function validateSuggestions(
   const seenKeywords = new Set<string>();
   const addKeyword = (text: string, quote: string) => {
     const value = text.trim();
-    const key = norm(value);
+    const key = normaliseQuote(value);
     if (value.length < 2 || value.length > 60 || seenKeywords.has(key)) return;
     seenKeywords.add(key);
     keywords.push({ value, quote });

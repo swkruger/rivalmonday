@@ -104,6 +104,13 @@ describe('create_vertical', () => {
     await expect(create(admin, { ...distillery, areas: [{ name: 'Tastings', aliases: ['acme heating tastings'] }] })).rejects.toMatchObject({ code: 'invalid_input' });
   });
 
+  it('copies draft evidence cached by another agency (the cache is global by place)', async () => {
+    await dbs.owner.execute(sql`insert into vertical_draft (place_id, agency_id, draft) values ('pl3', ${IDS.agencyA}, '{"sources":["a"]}'::jsonb)`);
+    await create(adminB, { ...distillery, draftPlaceId: 'pl3' });
+    const [v] = await q<{ draft_evidence: unknown }>(sql`select draft_evidence from vertical where id = 'distillery'`);
+    expect(v!.draft_evidence).toEqual({ sources: ['a'] });
+  });
+
   it('copies the agency’s draft evidence and re-keys the draft LLM spend', async () => {
     await dbs.owner.execute(sql`insert into vertical_draft (place_id, agency_id, draft) values ('pl1', ${IDS.agencyA}, '{"sources":["a"]}'::jsonb)`);
     await dbs.owner.execute(sql`insert into llm_call (agency_id, task, provider, model, input_tokens, output_tokens, latency_ms, ok, vertical_id) values (${IDS.agencyA}, 't', 'p', 'm', 1, 1, 1, true, 'draft:pl1')`);
@@ -224,7 +231,12 @@ describe('draft_vertical', () => {
   let calls: { placeId: string; nearbyCategories: string[] }[] = [];
   let behaviour: () => Promise<{ draft: typeof sample | null; similar: { id: string; name: string }[] }> = async () => ({ draft: sample, similar: [] });
   const drafting = createToolRegistry(
-    { app: dbs.app, service: dbs.service, catalog, verticalDrafter: async (input) => { calls.push(input); return behaviour(); } },
+    { app: dbs.app, service: dbs.service, catalog, verticalDrafter: async (input, scope) => {
+      calls.push(input);
+      // The real drafter's ai.chat writes an llm_call row; simulate it so the attempt cap has something to count.
+      await dbs.owner.execute(sql`insert into llm_call (agency_id, task, provider, model, input_tokens, output_tokens, latency_ms, ok, vertical_id) values (${scope.agencyId}, 'vertical_draft', 'p', 'm', 1, 1, 1, true, ${scope.verticalId})`);
+      return behaviour();
+    } },
     { audit: { record: async () => {} } },
   );
   type Out = { draft: unknown; similar: unknown[]; cached: boolean };
@@ -248,10 +260,13 @@ describe('draft_vertical', () => {
     expect(await q(sql`select 1 from vertical_draft`)).toHaveLength(0);
   });
 
-  it('refuses the 11th new draft in a UTC day with a user-facing rate_limited', async () => {
-    for (let i = 0; i < 10; i++) await draft(admin, `p${i}`);
+  it('refuses the 11th attempt in a UTC day with a user-facing rate_limited, counting null drafts', async () => {
+    await draft(admin, 'p0');
+    behaviour = async () => ({ draft: null, similar: [] });
+    for (let i = 1; i < 10; i++) await draft(admin, `p${i}`);
     await expect(draft(admin, 'p-extra')).rejects.toMatchObject({ code: 'rate_limited', userFacing: true, message: "You've drafted 10 new business types today. Try again tomorrow." });
-    expect((await draft(admin, 'p3')).cached).toBe(true); // cache hits are free
+    expect(calls).toHaveLength(10);
+    expect((await draft(admin, 'p0')).cached).toBe(true); // a cache hit at the cap is still free
     await expect(draft(adminB, 'p-b')).resolves.toMatchObject({ cached: false });
   });
 
