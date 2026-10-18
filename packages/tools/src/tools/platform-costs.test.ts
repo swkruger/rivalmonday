@@ -1,7 +1,8 @@
 import { type AuditEvent, createAccessContext, FEATURES } from '@cs/core';
-import { auditLog, platformAdmin, platformAuditLog, platformCostItem, platformCostService, platformCostSnapshot } from '@cs/db';
+import { auditLog, catalogRows, llmCall, platformAdmin, platformAuditLog, platformCostItem, platformCostService, platformCostSnapshot } from '@cs/db';
 import { IDS, openTestDbs, seedPlatformCostServices, truncateAll } from '@cs/db/test-helpers';
-import { eq } from 'drizzle-orm';
+import { createCatalog } from '@cs/verticals';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import type { EnqueueJob, JobStatusLookup, ToolDeps } from '../deps';
@@ -34,6 +35,7 @@ type Listing = {
   months: { month: string; apiUsd: number; manualUsd: number }[];
   summary: { mtdUsd: number; projectedMonthUsd: number; lowCount: number };
   refreshQueued: boolean;
+  aiByVertical: { verticalId: string; name: string; calls: number; costUsd: number }[];
 };
 const list = () => registry.invoke(op, 'list_platform_costs', {}) as Promise<Listing>;
 
@@ -41,6 +43,7 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(at('2026-10-15T12:00:00Z'));
   webAudit.length = 0;
+  deps.catalog = createCatalog(() => catalogRows(dbs.service)); // fresh per test: catalogue rows are inserted/truncated between tests
   enqueue.mockClear();
   jobStatus.mockReset();
   jobStatus.mockResolvedValue(null);
@@ -80,6 +83,33 @@ describe('platform cost tools: access', () => {
     const names = registry.list(support).map((t) => t.name);
     for (const t of TOOLS) expect(names).not.toContain(t);
     expect(registry.list(op).map((t) => t.name)).toEqual(expect.arrayContaining(TOOLS));
+  });
+});
+
+describe('list_platform_costs: AI by vertical', () => {
+  const call = (verticalId: string | null, costUsd: number | null, createdAt = at('2026-10-10T00:00:00Z')) => ({
+    agencyId: null, clientId: null, task: 't', provider: 'p', model: 'm', inputTokens: 1, outputTokens: 1, costUsd, latencyMs: 1, ok: true, verticalId, createdAt,
+  });
+
+  it('aggregates the last 30 days by vertical with catalogue names, folds merged ids and draft rows, skips null and old rows', async () => {
+    await dbs.owner.execute(sql`
+      insert into vertical (id, name, status, merged_into, gbp_categories, gbp_related_categories, config)
+      select 'old_hvac', 'Old HVAC', 'merged', 'hvac_plumbing', gbp_categories, gbp_related_categories, config from vertical where id = 'hvac_plumbing'`);
+    await dbs.owner.insert(llmCall).values([
+      call('hvac_plumbing', 1.5), call('old_hvac', 0.5), call('dental', 0.25),
+      call('draft:abc', 0.1), call('draft:def', 0.2),
+      call(null, 9), call('dental', 9, at('2026-08-01T00:00:00Z')),
+    ]);
+    const r = await registry.invoke(op, 'list_platform_costs', {}) as Listing;
+    expect(r.aiByVertical).toEqual([
+      { verticalId: 'hvac_plumbing', name: 'HVAC & Plumbing', calls: 2, costUsd: 2 },
+      { verticalId: 'draft', name: 'Drafts not yet created', calls: 2, costUsd: 0.3 },
+      { verticalId: 'dental', name: 'Dental practices', calls: 1, costUsd: 0.25 },
+    ]);
+  });
+
+  it('is empty without vertical calls', async () => {
+    expect((await list()).aiByVertical).toEqual([]);
   });
 });
 

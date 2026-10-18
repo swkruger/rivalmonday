@@ -1,7 +1,8 @@
 import { type AccessContext, ToolError, toolkit } from '@cs/core';
-import { platformCostItem, platformCostService } from '@cs/db';
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { llmCall, platformCostItem, platformCostService } from '@cs/db';
+import { and, asc, eq, gte, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { catalogOf } from '../catalog/access';
 import { enqueueOf, jobStatusOf, type ToolDeps } from '../deps';
 import { requirePlatformOperator } from '../platform';
 import { withPlatformAudit } from '../platform/audit';
@@ -60,6 +61,35 @@ const CostItemRow = z.object({
   notes: z.string().nullable(),
 });
 
+const DRAFT_PREFIX = 'draft:';
+const AI_VERTICAL_LIMIT = 20;
+const AiVerticalRow = z.object({ verticalId: z.string(), name: z.string(), calls: z.number(), costUsd: z.number() });
+
+/** AI spend of the last 30 days by business type: merged ids fold into their target, `draft:<placeId>` rows into one "Drafts not yet created" row. */
+async function aiByVertical(deps: ToolDeps, now: Date): Promise<z.infer<typeof AiVerticalRow>[]> {
+  const since = new Date(now.getTime() - 30 * DAY_MS);
+  const rows = await deps.service
+    .select({ verticalId: llmCall.verticalId, calls: sql<number>`count(*)::int`, costUsd: sql<number>`coalesce(sum(${llmCall.costUsd}), 0)::float8` })
+    .from(llmCall)
+    .where(and(sql`${llmCall.verticalId} IS NOT NULL`, gte(llmCall.createdAt, since)))
+    .groupBy(llmCall.verticalId);
+  const catalog = catalogOf(deps);
+  const names = new Map((await catalog.list()).map((v) => [v.id, v.name]));
+  const folded = new Map<string, { calls: number; costUsd: number }>();
+  for (const r of rows) {
+    const raw = r.verticalId!;
+    const id = raw.startsWith(DRAFT_PREFIX) ? 'draft' : ((await catalog.resolveId(raw)) ?? raw);
+    const acc = folded.get(id) ?? { calls: 0, costUsd: 0 };
+    acc.calls += r.calls;
+    acc.costUsd += r.costUsd;
+    folded.set(id, acc);
+  }
+  return [...folded.entries()]
+    .map(([verticalId, v]) => ({ verticalId, name: verticalId === 'draft' ? 'Drafts not yet created' : (names.get(verticalId) ?? verticalId), calls: v.calls, costUsd: round2(v.costUsd) }))
+    .sort((a, b) => b.costUsd - a.costUsd || a.name.localeCompare(b.name))
+    .slice(0, AI_VERTICAL_LIMIT);
+}
+
 const QUEUED = new Set(['created', 'retry', 'active']);
 
 async function refreshQueued(deps: ToolDeps): Promise<boolean> {
@@ -79,6 +109,7 @@ export const listPlatformCosts = defineTool({
     months: z.array(z.object({ month: z.string(), apiUsd: z.number(), manualUsd: z.number() })),
     summary: z.object({ mtdUsd: z.number(), projectedMonthUsd: z.number(), lowCount: z.number() }),
     refreshQueued: z.boolean(),
+    aiByVertical: z.array(AiVerticalRow),
   }),
   permission: 'agency',
   audit: 'skip-web',
@@ -156,6 +187,7 @@ export const listPlatformCosts = defineTool({
           lowCount: services.filter((s) => s.status === 'low').length,
         },
         refreshQueued: await refreshQueued(deps),
+        aiByVertical: await aiByVertical(deps, now),
       };
     });
   },

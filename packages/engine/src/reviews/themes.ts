@@ -5,7 +5,7 @@ import type { VerticalPack } from '@cs/verticals';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import { runStage, type StageOutcome } from '../stage';
-import { competitorVerticals, type PackLoader } from '../tag/tag-stage';
+import { competitorVerticals, type PackLoader, singleVerticalScope } from '../tag/tag-stage';
 
 export const REVIEW_STAGE = 'review_themes';
 export const REVIEW_VERSION = 1;
@@ -14,7 +14,6 @@ export const REVIEW_ANALYSIS_DAYS = 180;
 export const MIN_REVIEW_CHARS = 10;
 export const MAX_REVIEW_CHARS = 2000;
 export const SENTIMENT_LEVELS = ['very negative', 'negative', 'mixed or neutral', 'positive', 'very positive'];
-const PLATFORM = { agencyId: null, clientId: null } as const;
 
 export interface Theme {
   id: string;
@@ -119,7 +118,7 @@ export async function analyzeReview(deps: { db: Db; ai: Ai; packs: PackLoader },
         rating: row.r.rating,
         review: redactForModel(text, { businessNames: [row.competitorName] }).slice(0, MAX_REVIEW_CHARS),
       };
-      const result = await deps.ai.decide('review_decisions', state, buildReviewQuestions(verticals), PLATFORM);
+      const result = await deps.ai.decide('review_decisions', state, buildReviewQuestions(verticals), singleVerticalScope(verticalIds));
       return resolveReviewAnalysis(result, verticals, { reviewId, competitorId: row.r.competitorId, textSha: sha256Hex(text) });
     },
     async (tx, rows) => {

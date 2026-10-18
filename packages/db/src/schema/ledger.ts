@@ -46,9 +46,13 @@ export const llmCall = pgTable(
     costUsd: doublePrecision('cost_usd'),
     latencyMs: integer('latency_ms').notNull(),
     ok: boolean('ok').notNull(),
+    verticalId: text('vertical_id'),
     createdAt: createdAt(),
   },
-  (t) => [index('llm_call_agency_created_idx').on(t.agencyId, t.createdAt)],
+  (t) => [
+    index('llm_call_agency_created_idx').on(t.agencyId, t.createdAt),
+    index('llm_call_vertical_created_idx').on(t.verticalId, t.createdAt).where(sql`vertical_id IS NOT NULL`),
+  ],
 );
 
 export const vendorCall = pgTable(

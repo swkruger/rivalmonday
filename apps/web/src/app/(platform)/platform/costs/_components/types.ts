@@ -35,10 +35,13 @@ export interface CostItem {
 
 export interface CostMonth { month: string; apiUsd: number; manualUsd: number }
 
+export interface AiVerticalCost { verticalId: string; name: string; calls: number; costUsd: number }
+
 export interface CostsData {
   services: CostService[];
   items: CostItem[];
   months: CostMonth[];
   summary: { mtdUsd: number; projectedMonthUsd: number; lowCount: number };
   refreshQueued: boolean;
+  aiByVertical: AiVerticalCost[];
 }

@@ -1,3 +1,4 @@
+import type { CallScope } from '@cs/core';
 import type { Ai, BatchItemResult, BatchRequest, ChatResult, DecisionQuestion, DecisionResult, EmbeddingResult, ResolvedAnswer } from '@cs/ai';
 import { EMBEDDING_DIMENSIONS } from '@cs/db';
 
@@ -64,9 +65,10 @@ export function structuredResult(input: { services?: Record<string, string>; off
 
 export interface FakeAi extends Ai {
   calls: {
-    chat: { task: string; content: string }[];
-    decide: { task: string; state: unknown; questions: Record<string, DecisionQuestion> }[];
+    chat: { task: string; content: string; scope: CallScope }[];
+    decide: { task: string; state: unknown; questions: Record<string, DecisionQuestion>; scope: CallScope }[];
     embed: string[][];
+    embedScopes: CallScope[];
     batches: { task: string; requests: BatchRequest[] }[];
   };
 }
@@ -79,25 +81,26 @@ export function createFakeAi(opts: {
     collect?: (task: string, batchId: string) => { status: 'in_progress' } | { status: 'ended'; results: BatchItemResult[] };
   };
 } = {}): FakeAi {
-  const calls: FakeAi['calls'] = { chat: [], decide: [], embed: [], batches: [] };
+  const calls: FakeAi['calls'] = { chat: [], decide: [], embed: [], embedScopes: [], batches: [] };
   return {
     calls,
-    async chat(task, input) {
+    async chat(task, input, scope) {
       const content = input.messages.at(-1)?.content ?? '';
-      calls.chat.push({ task, content });
+      calls.chat.push({ task, content, scope });
       const text = opts.chat ? opts.chat(task, content) : JSON.stringify({ facts: [] });
       return { text, model: 'fake', inputTokens: 0, outputTokens: 0, costUsd: 0, cachedTokens: 0, toolCalls: [], finishReason: null } satisfies ChatResult;
     },
     async chatWithTools() {
       throw new Error('fake ai: chatWithTools is not faked');
     },
-    async decide<K extends string>(task: string, state: unknown, questions: Record<K, DecisionQuestion>): Promise<DecisionResult<K>> {
-      calls.decide.push({ task, state, questions });
+    async decide<K extends string>(task: string, state: unknown, questions: Record<K, DecisionQuestion>, scope: CallScope): Promise<DecisionResult<K>> {
+      calls.decide.push({ task, state, questions, scope });
       if (!opts.decide) throw new Error('fake ai: no decide handler');
       return (await opts.decide(state, questions)) as DecisionResult<K>;
     },
-    async embed(_task, texts) {
+    async embed(_task, texts, scope) {
       calls.embed.push(texts);
+      calls.embedScopes.push(scope);
       return { vectors: texts.map(fakeEmbedding), model: 'fake-embed', inputTokens: 0, costUsd: 0 } satisfies EmbeddingResult;
     },
     batchAvailable: () => opts.batch !== undefined,

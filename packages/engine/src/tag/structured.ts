@@ -1,6 +1,6 @@
 import type { Ai, DecisionQuestion } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
-import { CHANGE_TYPES, type ChangeType, TIER_LABELS } from '@cs/core';
+import { type CallScope, CHANGE_TYPES, type ChangeType, TIER_LABELS } from '@cs/core';
 import { capture, type ChangeDetails, changeEvent, client, competitor, type Db, decisionReview, detectedChange, rankScan } from '@cs/db';
 import type { VerticalPack } from '@cs/verticals';
 import { and, eq } from 'drizzle-orm';
@@ -8,9 +8,8 @@ import { diffFacts, extractNumericFacts, MONEY_KINDS } from '../facts/numeric';
 import { findMergeTarget, writeEvent } from '../merge/merge';
 import { runStage, type StageOutcome } from '../stage';
 import { serviceQuestionKey } from './questions';
-import { competitorVerticals, extractZips, type PackLoader, TAG_STAGE, TAG_VERSION, type TagOutcome } from './tag-stage';
+import { competitorVerticals, extractZips, type PackLoader, singleVerticalScope, TAG_STAGE, TAG_VERSION, type TagOutcome } from './tag-stage';
 
-const PLATFORM = { agencyId: null, clientId: null } as const;
 const MAX_STATE_TEXT = 1500;
 
 export const STRUCTURED_DECISION_TASK = 'structured_decisions';
@@ -135,7 +134,7 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
         : await competitorVerticals(deps.db, c.competitorId);
       const packs = await Promise.all(verticalIds.map(deps.packs));
       // Usage is logged against the tenant for tenant-private (rank) changes; the null scope is reserved for global changes.
-      const scope = c.clientId ? { agencyId: c.agencyId, clientId: c.clientId } : PLATFORM;
+      const scope: CallScope = c.clientId ? { agencyId: c.agencyId, clientId: c.clientId, ...(verticalIds.length === 1 ? { verticalId: verticalIds[0]! } : {}) } : singleVerticalScope(verticalIds);
       const text = (c.afterText ?? c.beforeText ?? '').slice(0, MAX_STATE_TEXT);
 
       // A GBP title rename's new (and old) public name must never be mistaken for a person — it's
