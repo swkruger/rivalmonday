@@ -2,7 +2,7 @@ import { client, contact } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { addContact, recipientsFor, replyToFor, setNotificationPref } from './contacts';
+import { addContact, contactsByIds, recipientsFor, replyToFor, setNotificationPref } from './contacts';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -17,6 +17,31 @@ const forClient = (kind: 'alert' | 'brief' = 'alert') => recipientsFor(dbs.servi
 const forAgency = (kind: 'am_alert' | 'brief_ready' = 'am_alert', clientId: string = IDS.clientA1) => recipientsFor(dbs.service, { agencyId: IDS.agencyA, clientId, kind, audience: 'agency' });
 
 describe('recipients', () => {
+  it('recipientsFor still skips inactive contacts', async () => {
+    const gone = await add({ email: 'gone@a1.example' });
+    await dbs.service.update(contact).set({ active: false }).where(eq(contact.id, gone));
+    for (const kind of ['alert', 'brief', 'client_invite', 'competitor_review'] as const) {
+      expect(await recipientsFor(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, kind, audience: 'client' })).toEqual([]);
+    }
+  });
+
+  it('contactsByIds loads exactly the listed contacts of this client, any active state, email only, ignoring prefs', async () => {
+    const gone = await add({ email: 'gone@a1.example', name: 'Gone' });
+    await dbs.service.update(contact).set({ active: false }).where(eq(contact.id, gone));
+    await setNotificationPref(dbs.service, { contactId: gone, kind: 'client_invite', channel: 'email', enabled: false });
+    const zoned = await add({ email: 'z@a1.example', timezone: 'America/New_York' });
+    await add({ email: 'unlisted@a1.example' });
+    const otherClient = await add({ email: 'o@a2.example', clientId: IDS.clientA2 });
+    const otherAgency = await addContact(dbs.service, { agencyId: IDS.agencyB, role: 'client_owner', clientId: IDS.clientB1, email: 'o@b1.example' });
+    const staff = await add({ email: 'am@a.example', role: 'account_manager', clientId: null });
+    const r = await contactsByIds(dbs.service, IDS.agencyA, IDS.clientA1, [gone, zoned, otherClient, otherAgency, staff, 'not-a-uuid']);
+    expect(r.map((x) => x.email).sort()).toEqual(['gone@a1.example', 'z@a1.example']);
+    expect(r.find((x) => x.contactId === gone)).toMatchObject({ name: 'Gone', role: 'client_owner', timezone: 'America/Los_Angeles', channels: ['email'] });
+    expect(r.find((x) => x.contactId === zoned)?.timezone).toBe('America/New_York');
+    expect(await contactsByIds(dbs.service, IDS.agencyA, IDS.clientA1, [])).toEqual([]);
+    expect(await contactsByIds(dbs.service, IDS.agencyB, IDS.clientA1, [gone])).toEqual([]);
+  });
+
   it('lists a client\'s active contacts with default channels and the client\'s zone', async () => {
     const owner = await add({ email: 'owner@a1.example', name: 'Pat' });
     await add({ email: 'viewer@a1.example', role: 'client_viewer' });

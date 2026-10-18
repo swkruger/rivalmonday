@@ -1,8 +1,8 @@
 import { type LinkTarget, MIN_LINK_SECRET_LENGTH, signLink } from '@cs/core';
 import { agencyServiceable, agency, agencyWebhook, alert, changeEvent, type Channel, contact, type Db, notification, type NotificationKind } from '@cs/db';
-import { type Branding, type EmailPayload, type EmailTransport, PermanentEmailError, renderEmail, resolveBranding } from '@cs/email';
+import { type Branding, cleanCc, type EmailPayload, type EmailTransport, PermanentEmailError, renderEmail, resolveBranding } from '@cs/email';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
-import { type Audience, type Conn, type Recipient, recipientsFor, replyToFor } from './contacts';
+import { type Audience, type Conn, contactsByIds, type Recipient, recipientsFor, replyToFor } from './contacts';
 import { quietUntil } from './time';
 
 export interface DeliveryConfig {
@@ -34,12 +34,15 @@ export async function loadBranding(db: Conn, agencyId: string): Promise<Branding
   return resolveBranding(a.name, a.branding ?? null);
 }
 
+/** 11b: the only kinds that may be delivered to an inactive contact (the setup invite and the competitor review). */
+export const INACTIVE_OK_KINDS: readonly NotificationKind[] = ['client_invite', 'competitor_review'];
+
 export interface NotifyInput {
   agencyId: string;
   clientId: string;
   kind: NotificationKind;
   audience: Audience;
-  subjectType: 'alert' | 'brief' | 'digest' | 'trend_report' | 'rank_scan';
+  subjectType: 'alert' | 'brief' | 'digest' | 'trend_report' | 'setup' | 'rank_scan';
   subjectId: string;
   /** Stable for this message; the recipient and channel are appended to make each row's dedupe key. */
   dedupe: string;
@@ -47,6 +50,10 @@ export interface NotifyInput {
   now: Date;
   /** Text for in-app/webhook rows and the email payload; `r` is null for a webhook. */
   build: (r: Recipient | null, link: string) => { title: string; body: string; email: EmailPayload | null };
+  /** 11b Q1: explicit recipients (this client's contacts, any `active`, email only) instead of `recipientsFor`; `INACTIVE_OK_KINDS` only. */
+  contactIds?: string[];
+  /** 11b §3: copied addresses, cleaned per recipient into `payload.cc`. */
+  cc?: string[];
 }
 
 /**
@@ -54,7 +61,10 @@ export interface NotifyInput {
  * the message exists exactly when the change commits. In-app rows are the inbox and are stored already 'sent'.
  */
 export async function notify(conn: Conn, cfg: DeliveryConfig, input: NotifyInput): Promise<number> {
-  const recipients = await recipientsFor(conn, input);
+  if (input.contactIds && (input.audience !== 'client' || !INACTIVE_OK_KINDS.includes(input.kind))) {
+    throw new Error(`contactIds is only allowed for client kinds ${INACTIVE_OK_KINDS.join(', ')} (got ${input.audience} ${input.kind})`);
+  }
+  const recipients = input.contactIds ? await contactsByIds(conn, input.agencyId, input.clientId, input.contactIds) : await recipientsFor(conn, input);
   const replyTo = input.audience === 'client' ? (await replyToFor(conn, input.agencyId, input.clientId))?.email ?? null : null;
   const scope = { agencyId: input.agencyId, clientId: input.clientId };
   const base = { agencyId: input.agencyId, clientId: input.clientId, kind: input.kind, subjectType: input.subjectType, subjectId: input.subjectId };
@@ -69,7 +79,7 @@ export async function notify(conn: Conn, cfg: DeliveryConfig, input: NotifyInput
       } else if (draft.email) {
         values.push({
           ...base, contactId: r.contactId, channel, dedupeKey: key, title: draft.title, body: draft.body, link, address: r.email,
-          payload: { ...draft.email, replyTo } as Record<string, unknown>, status: 'pending', notBefore: quietUntil(input.now, r.timezone, r.quietHours) ?? input.now,
+          payload: { ...draft.email, replyTo, cc: cleanCc(input.cc, r.email) } as Record<string, unknown>, status: 'pending', notBefore: quietUntil(input.now, r.timezone, r.quietHours) ?? input.now,
         });
       }
     }
@@ -107,7 +117,8 @@ export const SENDING_STALE_MINUTES = 30;
 async function undeliverableReason(db: Db, n: NotificationRow): Promise<string | null> {
   if (n.contactId) {
     const [c] = await db.select({ active: contact.active }).from(contact).where(eq(contact.id, n.contactId));
-    if (!c?.active) return 'recipient contact is inactive';
+    if (!c) return 'recipient contact no longer exists';
+    if (!c.active && !INACTIVE_OK_KINDS.includes(n.kind as NotificationKind)) return 'recipient contact is inactive';
   }
   if (n.kind === 'alert') {
     const [a] = await db.select({ status: alert.status, retractedAt: changeEvent.retractedAt }).from(alert).innerJoin(changeEvent, eq(changeEvent.id, alert.eventId)).where(eq(alert.id, n.subjectId));
@@ -162,14 +173,14 @@ const quoteName = (s: string) => `"${s.replace(/["\\\r\n]/g, '')}"`;
 export function createEmailSender(opts: { transport: EmailTransport; fromAddress: string }): ChannelSender {
   return {
     async send(n) {
-      const p = n.payload as (EmailPayload & { replyTo: string | null }) | null;
+      const p = n.payload as (EmailPayload & { replyTo: string | null; cc?: string[] }) | null;
       if (!p || !n.address) throw new PermanentSendError('email notification without payload or address');
       const r = await renderEmail(p);
       const b = p.props.branding;
       try {
         const res = await opts.transport.send(
           // Always the configured address: branding.fromEmail waits for Phase 2 per-agency sending domains (decision 13).
-          { from: `${quoteName(b.fromName)} <${opts.fromAddress}>`, to: n.address, replyTo: p.replyTo, subject: r.subject, html: r.html, text: r.text, tag: n.kind, metadata: { notification: n.id } },
+          { from: `${quoteName(b.fromName)} <${opts.fromAddress}>`, to: n.address, cc: cleanCc(p.cc, n.address), replyTo: p.replyTo, subject: r.subject, html: r.html, text: r.text, tag: n.kind, metadata: { notification: n.id } },
           { agencyId: n.agencyId, clientId: n.clientId },
         );
         return { providerId: res.providerId };

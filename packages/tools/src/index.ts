@@ -1,3 +1,5 @@
+export { queueCompetitorReview } from './setup/review-email';
+export { completeIfDone, deriveSetupState, getSetupState, type SetupState, type SetupStateInput, type StepStatus } from './setup/state';
 export * from './access/invitations';
 export * from './access/signup';
 export * from './access/signup-complete';
@@ -25,6 +27,7 @@ export { EVIDENCE_CONTENT_TYPES, evidenceContentType, type ServableEvidenceKind 
 export * from './workspace/labels';
 export * from './workspace/word-diff';
 export * from './tools/schemas';
+export { clientOwnerEmails } from './tools/client-billing';
 export { assertRoomForCompetitors, type Discovery, lockClientLimit, startDiscovery } from './tools/competitors';
 export { latestDoneRun, listMonthlyRivalClients, manualSearchWeek, nextManualSearchAt, type SearchRefusal, type SearchStart, type SearchTrigger, searchDayLabel, searchDayLabelAt, startCompetitorSearch } from './rival-search';
 // Shared by the `fetch` tool and the MCP `evidence://` / `brief://` resources (@cs/mcp); every refusal is `not_found`.
@@ -48,3 +51,11 @@ export {
 } from './platform/stats';
 // Phase 8c: platform hosting costs (daily snapshot job, low-balance alerts).
 export { ADAPTERS as COST_ADAPTERS, evaluateAlerts as evaluateCostAlerts, platformOperatorEmails, platformOwnerEmails, type PlatformCostLowPayload, snapshotAll as snapshotPlatformCosts, type SnapshotDeps as PlatformCostSnapshotDeps, SERVICES as COST_SERVICES, type CostEnv, type ServiceKey as CostServiceKey } from './platform/costs';
+export type { ClientSafeSuggestion } from './tools/setup';
+export { FIND_BUSINESS_DAILY_CAP, preselectVertical, toSetupLookup } from './setup/lookup';
+export { buildSuggestionSource, setupSuggestionsJsonSchema, type SuggestionSource, validateSuggestions } from './setup/suggestions';
+// Phase 11c: public intake service functions (no session; called by the /start server actions).
+export { getPublicPreview, type IntakeBranding, intakeLookup, type PublicAgencyBranding, resolveIntake, submitIntake, verifyIntake } from './intake/public';
+export { INTAKE_SIG_TTL_MS, intakeLookupSchema, type SignedIntakePlace, signedIntakePlaceSchema } from './intake/signed';
+export { buildSnapshot, LEAD_SUMMARY_SYSTEM, leadSummaryJsonSchema, snapshotFacts, validateSummary } from './intake/preview';
+export { type LeadEmailDeps, type LeadEmailKind, sendLeadEmail } from './intake/emails';

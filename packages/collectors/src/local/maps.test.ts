@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
-import { mapsSearch, parseMapsItems } from './maps';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { MAPS_SEARCH_OPERATION, mapsSearch, mapsSearchByText, parseMapsItems } from './maps';
 
 const result = [{
   items: [
@@ -73,5 +75,36 @@ describe('parseMapsItems richer fields', () => {
   it('accepts an item-level current_status', () => {
     const [p] = parseMapsItems([{ items: [{ type: 'maps_search', rank_absolute: 1, title: 'X', current_status: 'closed_forever' }] }]);
     expect(p?.closed).toBe(true);
+  });
+});
+
+describe('mapsSearchByText', () => {
+  const env = JSON.parse(readFileSync(fileURLToPath(new URL('../../test/fixtures/vendors/maps-search-text.json', import.meta.url)), 'utf8')) as { tasks: { result: unknown[] }[] };
+  const fixtureResult = env.tasks[0]?.result ?? [];
+
+  it('posts location_name and keyword and parses places', async () => {
+    const dfs = fakeDfs(() => [dfsTask(fixtureResult)]);
+    const r = await mapsSearchByText(dfs, { keyword: 'dentist granbury tx', locationName: 'Granbury,Texas,United States' }, { agencyId: 'a1', clientId: null });
+    expect(r.places.length).toBeGreaterThan(0);
+    expect(r.places[0]).toMatchObject({ title: 'Granbury Park Dental', placeId: expect.any(String) });
+    expect(r.raw).toBe(fixtureResult);
+    expect(MAPS_SEARCH_OPERATION).toBe('/serp/google/maps/live/advanced');
+    expect(dfs.calls[0]).toMatchObject({
+      method: 'POST', path: MAPS_SEARCH_OPERATION,
+      body: [{ keyword: 'dentist granbury tx', location_name: 'Granbury,Texas,United States', language_code: 'en', depth: 10 }],
+    });
+  });
+
+  it('passes the given scope to dfs.post and honours depth', async () => {
+    const dfs = fakeDfs(() => [dfsTask(fixtureResult)]);
+    await mapsSearchByText(dfs, { keyword: 'x', locationName: 'Y', depth: 5 }, { agencyId: 'agency-9', clientId: null });
+    expect(dfs.calls[0]?.scope).toEqual({ agencyId: 'agency-9', clientId: null });
+    expect(dfs.calls[0]?.body?.[0]).toMatchObject({ depth: 5 });
+  });
+
+  it('returns no places on a no-results task and throws a VendorError on a task error', async () => {
+    expect((await mapsSearchByText(fakeDfs(() => [dfsTask([], { statusCode: 40102, statusMessage: 'No Search Results.' })]), { keyword: 'x', locationName: 'Y' }, { agencyId: 'a', clientId: null })).places).toEqual([]);
+    await expect(mapsSearchByText(fakeDfs(() => [dfsTask([], { statusCode: 40202, statusMessage: 'Too many requests' })]), { keyword: 'x', locationName: 'Y' }, { agencyId: 'a', clientId: null }))
+      .rejects.toMatchObject({ name: 'VendorError', retryable: true });
   });
 });

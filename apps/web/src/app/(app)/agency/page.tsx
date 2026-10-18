@@ -9,6 +9,7 @@ import { WriteGuard } from '@/components/read-only';
 import { dismissChecklistAction } from '../onboarding/actions';
 import { ClientBillingControls, type ClientBillingStatusRow } from '@/components/billing/client-billing-controls';
 import { PressureBadge } from '@/components/pressure-badge';
+import { SetupBadge } from '@/components/setup-badge';
 import { SpendBadge } from '@/components/spend-badge';
 import { requireContext } from '@/server/current-viewer';
 import { relativeTime } from '@/server/format';
@@ -166,6 +167,11 @@ function ClientName({ row }: { row: PortfolioRow }) {
         {row.name}
       </Link>
       <div className="text-muted-ink">{VERTICAL_LABELS[row.verticalId] ?? row.verticalId}</div>
+      {row.setup?.open && (
+        <div className="mt-1">
+          <SetupBadge clientId={row.clientId} open doneSteps={row.setup.doneSteps} totalSteps={row.setup.totalSteps} />
+        </div>
+      )}
     </div>
   );
 }

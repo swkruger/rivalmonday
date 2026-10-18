@@ -1,5 +1,5 @@
 {
-  "id": "a8af5b16-2b07-4ec3-97be-cc00ff94d003",
+  "id": "838980ae-3ae4-4184-b0c4-b04eb3d3c350",
   "prevId": "a125f695-52c2-42de-a982-6d6d67105655",
   "version": "7",
   "dialect": "postgresql",
@@ -3351,97 +3351,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.rank_map_image": {
-      "name": "rank_map_image",
-      "schema": "",
-      "columns": {
-        "client_id": {
-          "name": "client_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "agency_id": {
-          "name": "agency_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "settings_hash": {
-          "name": "settings_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "object_key": {
-          "name": "object_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bounds": {
-          "name": "bounds",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "width": {
-          "name": "width",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "height": {
-          "name": "height",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fetched_at": {
-          "name": "fetched_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "rank_map_image_agency_id_agency_id_fk": {
-          "name": "rank_map_image_agency_id_agency_id_fk",
-          "tableFrom": "rank_map_image",
-          "tableTo": "agency",
-          "columnsFrom": [
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "rank_map_image_client_id_agency_id_client_id_agency_id_fk": {
-          "name": "rank_map_image_client_id_agency_id_client_id_agency_id_fk",
-          "tableFrom": "rank_map_image",
-          "tableTo": "client",
-          "columnsFrom": [
-            "client_id",
-            "agency_id"
-          ],
-          "columnsTo": [
-            "id",
-            "agency_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.rank_scan": {
       "name": "rank_scan",
       "schema": "",
@@ -3471,43 +3380,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'running'"
-        },
-        "trigger": {
-          "name": "trigger",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'scheduled'"
-        },
-        "requested_by": {
-          "name": "requested_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "grid_size": {
-          "name": "grid_size",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "radius_km": {
-          "name": "radius_km",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "keywords": {
-          "name": "keywords",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "estimated_usd": {
-          "name": "estimated_usd",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": false
         },
         "snapshots": {
           "name": "snapshots",
@@ -3558,22 +3430,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "rank_scan_running_unique": {
-          "name": "rank_scan_running_unique",
-          "columns": [
-            {
-              "expression": "client_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "status = 'running'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -3609,16 +3465,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "rank_scan_trigger_check": {
-          "name": "rank_scan_trigger_check",
-          "value": "\"trigger\" IN ('scheduled', 'manual')"
-        },
-        "rank_scan_status_check": {
-          "name": "rank_scan_status_check",
-          "value": "status IN ('running', 'done', 'failed', 'skipped')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.rank_snapshot": {
@@ -10463,6 +10310,154 @@
       },
       "isRLSEnabled": false
     },
+    "public.client_setup": {
+      "name": "client_setup",
+      "schema": "",
+      "columns": {
+        "client_id": {
+          "name": "client_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agency_id": {
+          "name": "agency_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'staff'"
+        },
+        "lookup": {
+          "name": "lookup",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "suggestions": {
+          "name": "suggestions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{\"status\":\"none\"}'::jsonb"
+        },
+        "skipped": {
+          "name": "skipped",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "competitors_done_at": {
+          "name": "competitors_done_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dismissed_at": {
+          "name": "dismissed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_changed_by": {
+          "name": "last_changed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_changed_role": {
+          "name": "last_changed_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_changed_at": {
+          "name": "last_changed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "client_setup_open_idx": {
+          "name": "client_setup_open_idx",
+          "columns": [
+            {
+              "expression": "agency_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"client_setup\".\"completed_at\" IS NULL AND \"client_setup\".\"dismissed_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "client_setup_client_id_client_id_fk": {
+          "name": "client_setup_client_id_client_id_fk",
+          "tableFrom": "client_setup",
+          "tableTo": "client",
+          "columnsFrom": [
+            "client_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "client_setup_agency_id_agency_id_fk": {
+          "name": "client_setup_agency_id_agency_id_fk",
+          "tableFrom": "client_setup",
+          "tableTo": "agency",
+          "columnsFrom": [
+            "agency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "client_setup_source_check": {
+          "name": "client_setup_source_check",
+          "value": "\"client_setup\".\"source\" IN ('staff','agency_link','platform_lead')"
+        },
+        "client_setup_skipped_check": {
+          "name": "client_setup_skipped_check",
+          "value": "\"client_setup\".\"skipped\" <@ ARRAY['search','competitors']::text[]"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.ad": {
       "name": "ad",
       "schema": "",
@@ -11486,20 +11481,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "rank_keywords": {
-          "name": "rank_keywords",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "rank_grid_size": {
-          "name": "rank_grid_size",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 7
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -11593,14 +11574,6 @@
         "client_ask_monthly_quota_check": {
           "name": "client_ask_monthly_quota_check",
           "value": "ask_monthly_quota BETWEEN 0 AND 100000"
-        },
-        "client_rank_grid_size_check": {
-          "name": "client_rank_grid_size_check",
-          "value": "rank_grid_size IN (5, 7)"
-        },
-        "client_rank_keywords_check": {
-          "name": "client_rank_keywords_check",
-          "value": "jsonb_typeof(rank_keywords) = 'array' AND jsonb_array_length(rank_keywords) <= 5"
         }
       },
       "isRLSEnabled": false

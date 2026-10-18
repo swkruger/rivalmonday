@@ -93,6 +93,20 @@ describe('resolveAffected', () => {
     }
   });
 
+  it('maps the client setup wizard files to @setup', () => {
+    for (const f of [
+      'apps/web/src/app/(app)/c/[clientId]/setup/page.tsx',
+      'apps/web/src/app/(app)/c/[clientId]/setup/steps/pick-step.tsx',
+      'apps/web/src/components/setup-badge.tsx',
+      'packages/tools/src/setup/state.ts',
+      'packages/tools/src/setup/lookup.ts',
+      'packages/tools/src/tools/setup.ts',
+    ]) {
+      expect(resolve(f).tags, f).toContain('@setup');
+      expect(resolve(f).mode, f).toBe('some');
+    }
+  });
+
   it('maps the platform-costs files to @costs', () => {
     for (const f of [
       'apps/web/src/app/(platform)/platform/costs/page.tsx',

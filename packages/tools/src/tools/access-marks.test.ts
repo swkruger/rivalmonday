@@ -4,17 +4,17 @@ import { allTools } from './all';
 
 /** Reviewed list of tools that mutate tenant/external state (support sessions refuse these). Additions must be reviewed. */
 const WRITE_TOOLS = [
-  'accept_competitor_suggestion', 'accept_competitor_suggestions', 'add_client_recipient', 'add_competitor', 'add_recommendation', 'add_tracked_page', 'add_webhook',
-  'approve_alert', 'approve_brief', 'archive_platform_cost_item', 'attach_agency_discount', 'confirm_ad_match', 'convert_prospect', 'create_api_token', 'create_checkout_session',
-  'create_client', 'create_discount_code', 'create_invite_link', 'create_plan_version', 'create_portal_session', 'deactivate_recipient', 'decide_theme_proposal',
+  'accept_competitor_suggestion', 'accept_competitor_suggestions', 'accept_lead', 'add_client_recipient', 'add_competitor', 'add_recommendation', 'add_tracked_page', 'add_webhook',
+  'advance_client_setup', 'approve_alert', 'approve_brief', 'archive_platform_cost_item', 'assign_lead', 'attach_agency_discount', 'confirm_ad_match', 'convert_prospect', 'create_api_token', 'create_checkout_session',
+  'create_client', 'create_discount_code', 'decline_lead', 'create_invite_link', 'create_plan_version', 'create_portal_session', 'deactivate_recipient', 'decide_theme_proposal',
   'delete_kb_article', 'delete_my_ask_thread', 'dismiss_onboarding_checklist', 'mark_onboarding_redirected', 'mark_onboarding_step', 'disable_client_billing', 'disconnect_stripe', 'dismiss_alert', 'dismiss_competitor_suggestion', 'drop_brief_item',
-  'edit_brief_item', 'enable_client_billing', 'end_pilot', 'end_support_session', 'extend_trial', 'grant_pilot', 'import_kb_url', 'invite_member', 'open_billing_portal',
-  'pause_client', 'rate_brief_item', 'redeem_discount_code', 'remove_ad_match', 'remove_competitor', 'resend_client_payment_link', 'resume_client', 'revoke_discount_code',
-  'revoke_invite_link', 'set_client_billing_defaults', 'set_client_price', 'set_connect_fee_percent', 'set_seat_cap_exempt', 'set_signups_paused', 'start_stripe_connect',
+  'edit_brief_item', 'enable_client_billing', 'end_pilot', 'end_support_session', 'extend_trial', 'grant_pilot', 'import_kb_url', 'invite_client_owner', 'invite_member', 'open_billing_portal',
+  'pause_client', 'pick_setup_competitors', 'rate_brief_item', 'redeem_discount_code', 'remove_ad_match', 'remove_competitor', 'resend_client_payment_link', 'resume_client', 'revoke_discount_code',
+  'revoke_invite_link', 'set_client_billing_defaults', 'set_client_price', 'set_connect_fee_percent', 'set_seat_cap_exempt', 'send_competitor_review', 'set_signups_paused', 'start_stripe_connect',
   'refresh_platform_costs', 'reorder_brief_items', 'request_competitor_suggestions', 'request_rank_scan', 'resolve_decision_review', 'revoke_api_token', 'revoke_invitation',
-  'revoke_membership', 'revoke_oauth_grant', 'run_prospect_snapshot', 'save_platform_cost_item', 'send_brief_now', 'set_alert_rules', 'set_brief_auto_send',
+  'revoke_membership', 'revoke_oauth_grant', 'run_prospect_snapshot', 'save_platform_cost_item', 'save_setup_profile', 'send_brief_now', 'set_alert_rules', 'set_brief_auto_send',
   'set_client_limits', 'set_kb_auto_sync', 'set_my_notification_pref', 'set_page_pin', 'set_support_access_notify', 'set_webhook_active', 'start_support_session', 'submit_feedback',
-  'update_agency_branding', 'update_agency_profile', 'update_client_delivery', 'update_platform_cost_service', 'update_client_profile', 'update_client_rank_settings', 'update_my_contact', 'update_playbook',
+  'update_agency_branding', 'update_agency_profile', 'update_client_delivery', 'update_platform_cost_service', 'update_client_profile', 'update_client_rank_settings', 'update_intake_link', 'update_my_contact', 'update_playbook',
   'update_recommendation_status', 'upload_agency_logo', 'upsert_kb_article',
 ].sort();
 

@@ -1,6 +1,6 @@
 # Rival Monday — Architecture (what is built and where)
 
-Status: Phases 0–6 and 8 and the demo tool are complete and owner-verified (2026-10-11). Plans: `docs/superpowers/plans/`. Runbook for the live dev environment: [OPS.md](OPS.md). Migrations run through `0051`.
+Status: Phases 0–6 and 8 and the demo tool are complete and owner-verified (2026-10-11). Plans: `docs/superpowers/plans/`. Runbook for the live dev environment: [OPS.md](OPS.md). Migrations run through `0073`.
 
 ## Package / app map
 
@@ -56,6 +56,11 @@ Status: Phases 0–6 and 8 and the demo tool are complete and owner-verified (20
 - **10 — Agency onboarding** ([plan](superpowers/plans/2026-10-14-phase-10-agency-onboarding.md)). Open self-serve sign-up (`/sign-up`, Turnstile, verify-then-create via `pending_signup` + `completePendingSignups`) and 9a invite links (`/join/[token]`, `create_invite_link` `emailIt`); callback `/onboarding/start` → skippable 4-step wizard `/onboarding` (profile, logo via `POST /agency/branding/logo` → `/files/logo/…`, team, plan) + `/agency` checklist. Migrations 0065–0066 (`pending_signup`, `agency_profile`, `agency_onboarding`; legacy backfill = completed). Reduced open trial (`billingAccess.reducedTrial`: 1 active client, daily web pages → weekly). Emails `agency_welcome`/`onboarding_tip`/`platform_signup_notice` via the 9a `billing_notice` outbox, tips on the Postmark broadcast stream with `/u/[token]` unsubscribe; job `onboarding-nudges` (15:00 UTC). Console: `set_signups_paused` (`platform_setting`), `get_signup_funnel`.
 
 - **12 — Competitor discovery & starting point** ([12a](superpowers/plans/2026-10-14-phase-12a-competitor-discovery.md) · [12b](superpowers/plans/2026-10-14-phase-12b-starting-point-brief.md)). 12a: two-stage cost-capped ($3/run, 5 runs/agency/day) vendor-only discovery (`rival-search`/`rival-finalise`/`rival-sweep`), tiers (Top rival / Worth watching / Minor) + signal icons (`competitor_signal`, weekly `signals-weekly` re-rating), Meta/Google ad-account matching with agency confirm/remove; tables `discovery_run`, `competitor_signal`, extended `competitor_suggestion`; `startCompetitorSearch` (Phase 11 entry point). 12b: one `starting_point` brief per client (deterministic pack self-rules + verified why-it-matters, `brief.scorecard`, `starting-point-schedule`/`-client` jobs, `brief-once --starting-point`) and the quiet-week "Where you stand" scorecard. Migrations 0052–0055.
+
+- **11 - Client onboarding** ([11a](superpowers/plans/2026-10-16-phase-11a-client-setup-wizard.md) · [11b](superpowers/plans/2026-10-16-phase-11b-client-invite-billing.md) · [11c](superpowers/plans/2026-10-16-phase-11c-client-intake-leads.md)). Migrations 0067-0073.
+  - **11a setup wizard:** `client_setup` (RLS); tools `find_business` (DataForSEO GBP lookup), `get_client_setup`, `save_setup_profile`, `pick_setup_competitors`, `advance_client_setup`; `create_client` `lookup`; jobs `setup-suggestions`, `setup-reminders` (daily 14:00 UTC); `/c/[clientId]/setup`. Starting-point clock starts at competitors-done (14-day cap).
+  - **11b invite + review + billing:** `OutgoingEmail.cc`, `notify` `contactIds`/`cc`; `inviteClientUser`; tools `invite_client_owner`, `send_competitor_review`; billing may be enabled while the owner's invite is pending (`clientOwnerEmails` counts pending invites); 5-step setup (prospects 4).
+  - **11c intake + leads:** tables `intake_link`, `lead`, `intake_rate`; public fns `resolveIntake`/`intakeLookup`/`submitIntake`/`verifyIntake`/`getPublicPreview`; tools `list_leads`, `get_lead`, `accept_lead`, `decline_lead`, `get/update_intake_link`, `list_pool_leads`, `assign_lead`; AI task `lead_preview_summary`; jobs `lead-preview`, `leads-cleanup`; routes `/start/*`, `/agency/leads`, `/agency/settings/intake`, `/platform/leads`.
 
 ## Conventions a new feature must follow
 

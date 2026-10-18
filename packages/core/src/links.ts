@@ -5,7 +5,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
  * a PDF) from an email. Phase 5 serves `${APP_URL}/l/<token>`: it verifies the token, refuses one issued before the
  * contact's `links_revoked_before`, maps `sub` (a contact id) to a session and redirects to the target.
  */
-export const LINK_TARGETS = ['brief', 'brief_item', 'brief_pdf', 'alert', 'digest', 'trend_report', 'trend_report_pdf', 'notifications'] as const;
+export const LINK_TARGETS = ['brief', 'brief_item', 'brief_pdf', 'alert', 'digest', 'trend_report', 'trend_report_pdf', 'notifications', 'setup'] as const;
 export type LinkTarget = (typeof LINK_TARGETS)[number];
 export interface LinkClaims {
   v: 1;

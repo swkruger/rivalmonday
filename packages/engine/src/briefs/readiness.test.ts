@@ -1,4 +1,4 @@
-import { brief, briefItem, capture, client, clientCompetitor, competitor, discoveryRun, evidence, observation, rankScan, recommendation, vendorTask } from '@cs/db';
+import { brief, briefItem, capture, client, clientSetup, clientCompetitor, competitor, discoveryRun, evidence, observation, rankScan, recommendation, vendorTask } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -41,7 +41,7 @@ describe('startingPointReadiness', () => {
   it('rankings and competitors are null (not applicable) without keywords, service area or place id', async () => {
     await activate(hoursAgo(1));
     expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toEqual({
-      ready: false, timedOut: false, checks: { profile: false, reviews: false, rankings: null, competitors: null },
+      ready: false, timedOut: false, setupHold: false, checks: { profile: false, reviews: false, rankings: null, competitors: null },
     });
     await seedProfile();
     await seedReviewsDone();
@@ -83,6 +83,40 @@ describe('startingPointReadiness: failed discovery', () => {
     await dbs.owner.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'done', finishedAt: hoursAgo(0.5) });
     await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'auto', status: 'failed' });
     expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ ready: true, checks: { competitors: null } });
+  });
+});
+
+describe('setup clock', () => {
+  const openSetup = (o: Partial<typeof clientSetup.$inferInsert> = {}) => dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, ...o });
+
+  it('readiness holds an open setup and times out 48 h after competitors_done_at', async () => {
+    await activate(hoursAgo(24 * 5));
+    await openSetup();
+    await seedProfile();
+    await seedReviewsDone();
+    expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ ready: false, timedOut: false, setupHold: true });
+    expect(await listStartingPointDue(dbs.service, NOW)).toEqual([]);
+    await dbs.owner.update(clientSetup).set({ competitorsDoneAt: hoursAgo(10) });
+    expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ ready: true, setupHold: false });
+    await dbs.owner.update(brief).set({ status: 'sent' }).where(eq(brief.clientId, IDS.clientA2));
+    await dbs.owner.delete(vendorTask);
+    expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ ready: false, timedOut: false });
+    await dbs.owner.update(clientSetup).set({ competitorsDoneAt: hoursAgo(49) });
+    expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ ready: false, timedOut: true });
+    expect(await listStartingPointDue(dbs.service, NOW)).toEqual([IDS.clientA1]);
+  });
+
+  it('an open setup nobody finished is due 14 days after activation', async () => {
+    await activate(hoursAgo(24 * 14 + 1));
+    await openSetup();
+    expect(await listStartingPointDue(dbs.service, NOW)).toEqual([IDS.clientA1]);
+  });
+
+  it('existing client without a row keeps the activated_at clock', async () => {
+    await activate(hoursAgo(49));
+    expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ timedOut: true, setupHold: false });
+    await openSetup({ completedAt: hoursAgo(1) });
+    expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ timedOut: true, setupHold: false });
   });
 });
 

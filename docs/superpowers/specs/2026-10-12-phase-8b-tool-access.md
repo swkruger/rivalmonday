@@ -111,6 +111,20 @@ mark_onboarding_redirected (agency-onboarding.ts) | write | updates agency_onboa
 get_agency_profile (agency-onboarding.ts) | read | read (supportMask contactEmail, billingEmail)
 update_agency_profile (agency-onboarding.ts) | write | updates agency + agency_profile
 upload_agency_logo (agency-onboarding.ts) | write | puts logos/<agency>/<sha>.png in object storage; updates agency.branding.logoUrl
+find_business (setup.ts) | read | paid vendor lookup, ledgered; refused under support sessions
+get_client_setup (setup.ts) | read | read
+save_setup_profile (setup.ts) | write | updates client profile + client_setup.last_changed_*; may start the first auto search
+pick_setup_competitors (setup.ts) | write | accepts/dismisses competitor suggestions (links competitors, enqueues discovery)
+advance_client_setup (setup.ts) | write | updates client_setup; start_search starts a discovery run
+invite_client_owner (setup.ts) | write | creates invitation + contact, sets client_setup.invited_*, queues the client_invite email
+list_leads (leads.ts) | read | read (supportMask leads[].email, leads[].message)
+get_lead (leads.ts) | read | read (supportMask email, message)
+accept_lead (leads.ts) | write | creates prospect client + client_setup, updates lead, creates invitation + contact, queues client_invite, enqueues setup-suggestions
+decline_lead (leads.ts) | write | updates lead (back to pool or declined); sends the pool notice or the declined email directly
+get_intake_link (leads.ts) | read | read
+update_intake_link (leads.ts) | write | creates/updates intake_link
+list_pool_leads (platform-leads.ts) | read | read (supportMask leads[].email, leads[].phone, leads[].message)
+assign_lead (platform-leads.ts) | write | updates lead (agency, assigned_*, clears decided_*); sends the agency new-lead email directly
 get_billing_summary (billing.ts) | read | gateway reads only
 get_seat_report (billing.ts) | read | read
 create_checkout_session (billing.ts) | write | creates Stripe customer/session

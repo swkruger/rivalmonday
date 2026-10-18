@@ -4,9 +4,10 @@ import {
 } from '@cs/billing';
 import { type AccessContext, canAccessClient, toolkit, ToolError, type ToolErrorCode } from '@cs/core';
 import { type ClientBillingRow, type ClientBillingState, type Tx, agency, agencyBilling, agencyConnect, client, clientBilling } from '@cs/db';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
+import { completeIfDone } from '../setup/state';
 import { gatewayOf } from './billing';
 
 /**
@@ -188,6 +189,23 @@ const Defaults = z.object({
   autoPauseAfterDays: z.number().int().min(1).max(90).nullable().optional(),
 });
 
+/**
+ * The agency's connected Stripe product (every client price hangs off it), created on first use: by Save defaults or by
+ * the first per-client price (11b fix wave I1). Stored at once, so a retry after a failed price step reuses it; a
+ * concurrent first use keeps the stored one (the loser's product is an unused orphan, harmless). Throws the raw Stripe
+ * error: callers wrap it in `stripeFailed`.
+ */
+async function ensureConnectedProduct(deps: ToolDeps, agencyId: string, acct: string, productId: string | null): Promise<string> {
+  if (productId) return productId;
+  const [a] = await deps.service.select({ name: agency.name }).from(agency).where(eq(agency.id, agencyId));
+  const created = (await gatewayOf(deps).createConnectedProduct({ stripeAccount: acct, name: `${a?.name ?? 'Agency'} competitor monitoring` })).id;
+  const [won] = await deps.service.update(agencyConnect).set({ stripeProductId: created, updatedAt: new Date() })
+    .where(and(eq(agencyConnect.agencyId, agencyId), isNull(agencyConnect.stripeProductId))).returning({ id: agencyConnect.stripeProductId });
+  if (won) return created;
+  const stored = (await connectRowOf(deps, agencyId))?.stripeProductId;
+  return stored ?? created;
+}
+
 export const setClientBillingDefaultsTool = defineTool({
   name: 'set_client_billing_defaults',
   access: 'write',
@@ -207,20 +225,13 @@ export const setClientBillingDefaultsTool = defineTool({
     const row = await connectRowOf(deps, ctx.agencyId);
     if (!row?.stripeAccountId || row.status === 'disconnected') throw refuse('conflict', CONNECT_FIRST_MESSAGE);
     const acct = row.stripeAccountId;
-    const save = (v: Partial<typeof agencyConnect.$inferInsert>) =>
-      deps.service.update(agencyConnect).set({ ...v, updatedAt: new Date() }).where(eq(agencyConnect.agencyId, ctx.agencyId));
 
-    let productId = row.stripeProductId;
     let priceId = row.stripeDefaultPriceId;
     const oldPriceId = priceId;
     const priceChanged = !priceId || row.defaultPriceCents !== input.priceCents;
     if (priceChanged) {
       try {
-        if (!productId) {
-          const [a] = await deps.service.select({ name: agency.name }).from(agency).where(eq(agency.id, ctx.agencyId));
-          productId = (await gw.createConnectedProduct({ stripeAccount: acct, name: `${a?.name ?? 'Agency'} competitor monitoring` })).id;
-          await save({ stripeProductId: productId }); // kept even if the price step fails, so a retry reuses it
-        }
+        const productId = await ensureConnectedProduct(deps, ctx.agencyId, acct, row.stripeProductId);
         priceId = (await gw.createConnectedPrice({ stripeAccount: acct, productId, unitAmountCents: input.priceCents, currency: row.currency })).id;
       } catch (e) {
         stripeFailed(ctx.agencyId, 'createConnectedPrice', e);
@@ -258,7 +269,7 @@ export const setClientBillingDefaultsTool = defineTool({
 
 export const BILLING_NOT_ELIGIBLE_MESSAGE = 'Client billing is available once your Rival Monday subscription is active.';
 export const CONNECT_NOT_READY_MESSAGE = 'Finish your Stripe setup first.';
-export const NO_CLIENT_OWNER_MESSAGE = 'Invite a client owner first.';
+export const NO_CLIENT_OWNER_MESSAGE = 'Invite the business owner first.';
 export const NO_DEFAULT_PRICE_MESSAGE = 'Set a default price first, or give this client a price.';
 const NO_PENDING_LINK_MESSAGE = 'No payment link is pending for this client.';
 export const PAYMENT_PROCESSING_MESSAGE = "This client's first payment is still processing.";
@@ -282,34 +293,74 @@ async function ownClient(deps: ToolDeps, ctx: AccessContext, clientId: string) {
 const billingRowOf = async (deps: ToolDeps, clientId: string): Promise<ClientBillingRow | null> =>
   (await deps.service.select().from(clientBilling).where(eq(clientBilling.clientId, clientId)))[0] ?? null;
 
-/** f8: 9a state `active|pilot` (a missing row counts as the default pilot), then a connected account with charges enabled. */
-async function eligibleConnect(deps: ToolDeps, agencyId: string) {
-  const [b] = await deps.service.select({ state: agencyBilling.state }).from(agencyBilling).where(eq(agencyBilling.agencyId, agencyId));
+export type ClientBillingEligibility =
+  | { ok: true; connect: typeof agencyConnect.$inferSelect; acct: string }
+  | { ok: false; code: 'billing_not_eligible' | 'conflict' | 'connect_not_ready'; message: string };
+
+/**
+ * f8: 9a state `active|pilot` (a missing row counts as the default pilot), then a connected account with charges enabled.
+ * Shared by `enable_client_billing` & co. (which throw the refusal) and the setup wizard's billing step (Phase 11b §7:
+ * ineligible = skipped). Takes the service connection (the Connect tables are service-role only).
+ */
+export async function clientBillingEligibility(db: Pick<Tx, 'select'>, agencyId: string): Promise<ClientBillingEligibility> {
+  const [b] = await db.select({ state: agencyBilling.state }).from(agencyBilling).where(eq(agencyBilling.agencyId, agencyId));
   const state = b?.state ?? 'pilot';
-  if (state !== 'active' && state !== 'pilot') throw refuse('billing_not_eligible', BILLING_NOT_ELIGIBLE_MESSAGE);
-  const connect = await connectRowOf(deps, agencyId);
-  if (!connect?.stripeAccountId || connect.status === 'disconnected') throw refuse('conflict', CONNECT_FIRST_MESSAGE);
-  if (connect.status !== 'connected' || !connect.chargesEnabled) throw refuse('connect_not_ready', CONNECT_NOT_READY_MESSAGE);
-  return { connect, acct: connect.stripeAccountId };
+  if (state !== 'active' && state !== 'pilot') return { ok: false, code: 'billing_not_eligible', message: BILLING_NOT_ELIGIBLE_MESSAGE };
+  const [connect] = await db.select().from(agencyConnect).where(eq(agencyConnect.agencyId, agencyId));
+  if (!connect?.stripeAccountId || connect.status === 'disconnected') return { ok: false, code: 'conflict', message: CONNECT_FIRST_MESSAGE };
+  if (connect.status !== 'connected' || !connect.chargesEnabled) return { ok: false, code: 'connect_not_ready', message: CONNECT_NOT_READY_MESSAGE };
+  return { ok: true, connect, acct: connect.stripeAccountId };
 }
 
-/** Client owner emails in a deterministic order (membership age, then id), de-duplicated case-insensitively. */
-async function clientOwnerEmails(deps: ToolDeps, clientId: string): Promise<string[]> {
-  const rows = await deps.service.execute<{ email: string }>(sql`
-    select u.email from membership m join auth."user" u on u.id = m.user_id
-    where m.client_id = ${clientId} and m.role = 'client_owner' order by m.created_at, m.id`);
-  const seen = new Set<string>();
-  return [...rows].map((r) => r.email).filter((e) => {
-    const k = e.toLowerCase();
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
+async function eligibleConnect(deps: ToolDeps, agencyId: string) {
+  const e = await clientBillingEligibility(deps.service, agencyId);
+  if (!e.ok) throw refuse(e.code, e.message);
+  return { connect: e.connect, acct: e.acct };
+}
+
+/**
+ * Phase 11b §7: accepted `client_owner` memberships UNION pending (not accepted, not revoked, unexpired) `client_owner`
+ * invitations for the client. Lower-cased, de-duplicated, sorted. Takes any connection (the worker passes its tx).
+ */
+export async function clientOwnerEmails(db: Pick<Tx, 'execute'>, clientId: string, now: Date): Promise<string[]> {
+  const rows = await db.execute<{ email: string }>(sql`
+    select lower(u.email) as email from membership m join auth."user" u on u.id = m.user_id
+    where m.client_id = ${clientId} and m.role = 'client_owner'
+    union
+    select lower(i.email) as email from invitation i
+    where i.client_id = ${clientId} and i.role = 'client_owner'
+      and i.accepted_at is null and i.revoked_at is null and i.expires_at > ${now.toISOString()}::timestamptz
+    order by email`);
+  return [...new Set([...rows].map((r) => r.email))].sort();
+}
+
+/**
+ * The one owner address to use where a single email is needed (Stripe Checkout `customer_email`): an accepted
+ * `client_owner` first (alphabetical), else the first pending invitation (same rules as `clientOwnerEmails`), else null.
+ */
+export async function preferredOwnerEmail(db: Pick<Tx, 'execute'>, clientId: string, now: Date): Promise<string | null> {
+  const rows = await db.execute<{ email: string }>(sql`
+    select email from (
+      select lower(u.email) as email, 0 as rank from membership m join auth."user" u on u.id = m.user_id
+      where m.client_id = ${clientId} and m.role = 'client_owner'
+      union all
+      select lower(i.email) as email, 1 as rank from invitation i
+      where i.client_id = ${clientId} and i.role = 'client_owner'
+        and i.accepted_at is null and i.revoked_at is null and i.expires_at > ${now.toISOString()}::timestamptz
+    ) o order by rank, email limit 1`);
+  return [...rows][0]?.email ?? null;
 }
 
 function appBase(deps: ToolDeps): string {
   if (!deps.appUrl) throw new ToolError('internal', 'Billing is not configured (APP_URL)');
   return deps.appUrl.replace(/\/+$/, '');
+}
+
+/** Checkout's `customerEmail`: called after the caller checked `clientOwnerEmails` is non-empty. */
+async function ownerEmailFor(deps: ToolDeps, clientId: string): Promise<string> {
+  const email = await preferredOwnerEmail(deps.service, clientId, new Date());
+  if (!email) throw refuse('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
+  return email;
 }
 
 /** The Checkout URL is returned only to be stored in the outbox row; it is never logged or put in a tool result. */
@@ -359,10 +410,11 @@ function currentDefault(connect: ConnectRow): { priceId: string; priceCents: num
   return { priceId: connect.stripeDefaultPriceId, priceCents: connect.defaultPriceCents };
 }
 
+/** A per-client price on the agency's connected product (created here on first use, I1: no saved defaults needed). */
 async function connectedPrice(deps: ToolDeps, ctx: AccessContext, connect: { stripeProductId: string | null; currency: string }, acct: string, cents: number): Promise<string> {
-  if (!connect.stripeProductId) throw refuse('conflict', NO_DEFAULT_PRICE_MESSAGE);
   try {
-    return (await deps.billing!.createConnectedPrice({ stripeAccount: acct, productId: connect.stripeProductId, unitAmountCents: cents, currency: connect.currency })).id;
+    const productId = await ensureConnectedProduct(deps, ctx.agencyId, acct, connect.stripeProductId);
+    return (await deps.billing!.createConnectedPrice({ stripeAccount: acct, productId, unitAmountCents: cents, currency: connect.currency })).id;
   } catch (e) {
     stripeFailed(ctx.agencyId, 'createConnectedPrice', e);
   }
@@ -459,6 +511,21 @@ const archiveQuietly = (deps: ToolDeps, agencyId: string, acct: string, priceId:
         console.error('[billing] archiveConnectedPrice failed', { agencyId }, (e as { name?: string } | null)?.name))
     : Promise.resolve();
 
+/**
+ * Phase 11b §8: billing on is the setup wizard's last step; close the setup if every step is now done or skipped (guarded,
+ * under the shared client-row lock). Best effort: billing is already on, so a failure here is logged, not thrown.
+ */
+async function completeSetupQuietly(deps: ToolDeps, clientId: string): Promise<void> {
+  try {
+    await deps.service.transaction(async (tx) => {
+      await tx.select({ id: client.id }).from(client).where(eq(client.id, clientId)).for('update');
+      await completeIfDone(tx, clientId, new Date());
+    });
+  } catch (e) {
+    console.error('[billing] setup completion check failed', { clientId }, (e as { name?: string } | null)?.name);
+  }
+}
+
 export const enableClientBillingTool = defineTool({
   name: 'enable_client_billing',
   access: 'write',
@@ -476,7 +543,7 @@ export const enableClientBillingTool = defineTool({
     if (existing?.enabled && ['invited', 'active', 'payment_needed'].includes(existing.state)) throw refuse('conflict', ALREADY_BILLING_MESSAGE);
     // R21: a tracked subscription (also an invited one whose first payment is processing) must end first.
     if (existing && !existing.enabled && isSubscribed(existing)) throw refuse('conflict', SUBSCRIPTION_ENDING_MESSAGE);
-    const emails = await clientOwnerEmails(deps, c.id);
+    const emails = await clientOwnerEmails(deps.service, c.id, new Date());
     if (emails.length === 0) throw refuse('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
     if (existing) await clearEndedSubscription(deps, ctx.agencyId, acct, existing);
 
@@ -495,7 +562,7 @@ export const enableClientBillingTool = defineTool({
     }
     // The one-time setup fee is only for a client who has never paid.
     const setupFeeCents = existing?.lastPaidAt ? 0 : input.setupFeeCents ?? (stored ? storedRow!.setupFeeCents : null) ?? connect.defaultSetupFeeCents ?? 0;
-    const checkout = await checkoutFor(deps, ctx, { acct, clientId: c.id, priceId, setupFeeCents, email: emails[0]! });
+    const checkout = await checkoutFor(deps, ctx, { acct, clientId: c.id, priceId, setupFeeCents, email: await ownerEmailFor(deps, c.id) });
     const r = await commitInvite(
       deps, ctx, c.id, acct,
       { type: 'invited', priceCents, setupFeeCents, stripePriceId: priceId, checkoutUrl: checkout.url, checkoutSessionId: checkout.id },
@@ -507,6 +574,7 @@ export const enableClientBillingTool = defineTool({
       },
       ALREADY_BILLING_MESSAGE,
     );
+    await completeSetupQuietly(deps, c.id);
     return { ok: true as const, state: r.state!, priceCents, setupFeeCents, recipients: emails.length };
   },
 });
@@ -526,13 +594,13 @@ export const resendClientPaymentLinkTool = defineTool({
     const row = await billingRowOf(deps, c.id);
     if (!row || !row.enabled || row.state !== 'invited' || row.priceCents === null) throw refuse('conflict', NO_PENDING_LINK_MESSAGE);
     if (isPaymentProcessing(row)) throw refuse('conflict', PAYMENT_PROCESSING_MESSAGE);
-    const emails = await clientOwnerEmails(deps, c.id);
+    const emails = await clientOwnerEmails(deps.service, c.id, new Date());
     if (emails.length === 0) throw refuse('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
     const setupFeeCents = row.setupFeeCents ?? 0;
     await assertNotPaid(deps, ctx, acct, row.checkoutSessionId);
     // R20: the client's own price while still usable, else the CURRENT default (never an archived old default).
     const price = (await storedPriceUsable(deps, ctx, connect, acct, row.stripePriceId, row.priceCents)) ?? currentDefault(connect);
-    const checkout = await checkoutFor(deps, ctx, { acct, clientId: c.id, priceId: price.priceId, setupFeeCents, email: emails[0]! });
+    const checkout = await checkoutFor(deps, ctx, { acct, clientId: c.id, priceId: price.priceId, setupFeeCents, email: await ownerEmailFor(deps, c.id) });
     const r = await commitInvite(
       deps, ctx, c.id, acct,
       { type: 'invited', priceCents: price.priceCents, setupFeeCents, stripePriceId: price.priceId, checkoutUrl: checkout.url, checkoutSessionId: checkout.id },
@@ -600,7 +668,7 @@ export const setClientPriceTool = defineTool({
     const apply = input.applyTo === 'next_bill' && live;
     let emails: string[] = [];
     if (invited) {
-      emails = await clientOwnerEmails(deps, c.id);
+      emails = await clientOwnerEmails(deps.service, c.id, new Date());
       if (emails.length === 0) throw refuse('no_client_owner', NO_CLIENT_OWNER_MESSAGE);
     }
     if (invited) await assertNotPaid(deps, ctx, acct, row!.checkoutSessionId);
@@ -623,7 +691,7 @@ export const setClientPriceTool = defineTool({
     if (invited) {
       // The mailed link still charges the old price: replace it (R9/R10). New link first, old one expired after the commit (R13).
       const setupFeeCents = row!.setupFeeCents ?? 0;
-      const checkout = await checkoutFor(deps, ctx, { acct, clientId: c.id, priceId, setupFeeCents, email: emails[0]! });
+      const checkout = await checkoutFor(deps, ctx, { acct, clientId: c.id, priceId, setupFeeCents, email: await ownerEmailFor(deps, c.id) });
       await commitInvite(
         deps, ctx, c.id, acct,
         { type: 'invited', priceCents: input.priceCents, setupFeeCents, stripePriceId: priceId, checkoutUrl: checkout.url, checkoutSessionId: checkout.id },

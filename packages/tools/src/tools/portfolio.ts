@@ -1,8 +1,9 @@
 import { toolkit } from '@cs/core';
-import { alert, brief, client, eventScore, recommendation, withTenant } from '@cs/db';
-import { and, asc, count, desc, eq, gte, inArray, max, ne } from 'drizzle-orm';
+import { alert, brief, client, clientSetup, eventScore, recommendation, withTenant } from '@cs/db';
+import { and, asc, count, desc, eq, gte, inArray, isNull, max, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
+import { getSetupState } from '../setup/state';
 import { combinePressure, pressureByClient } from '../pressure';
 import { monthStart, spendByClient } from '../usage';
 import { PortfolioRow } from './schemas';
@@ -29,7 +30,7 @@ export const getPortfolio = defineTool({
       const clients = await tx.select({ id: client.id, name: client.name, verticalId: client.verticalId, cap: client.monthlyCapUsd }).from(client).where(eq(client.status, 'active')).orderBy(asc(client.name));
       const ids = clients.map((c) => c.id);
       if (ids.length === 0) return { items: [] };
-      const [pending, delivered, ready, recs, lastScore, lastAlert, lastSent, pressure, spend] = await Promise.all([
+      const [pending, delivered, ready, recs, lastScore, lastAlert, lastSent, pressure, spend, openSetups] = await Promise.all([
         tx.select({ id: alert.clientId, n: count() }).from(alert).where(and(inArray(alert.clientId, ids), eq(alert.status, 'pending_review'))).groupBy(alert.clientId),
         tx.select({ id: alert.clientId, n: count() }).from(alert).where(and(inArray(alert.clientId, ids), eq(alert.status, 'delivered'), gte(alert.deliveredAt, weekAgo))).groupBy(alert.clientId),
         tx.select({ id: brief.id, clientId: brief.clientId, deliveryDate: brief.deliveryDate }).from(brief).where(and(inArray(brief.clientId, ids), eq(brief.status, 'ready'))).orderBy(desc(brief.deliveryDate)),
@@ -39,7 +40,14 @@ export const getPortfolio = defineTool({
         tx.select({ id: brief.clientId, at: max(brief.sentAt) }).from(brief).where(inArray(brief.clientId, ids)).groupBy(brief.clientId),
         pressureByClient(tx, ids, now),
         spendByClient(deps.service, ids, since),
+        tx.select({ id: clientSetup.clientId }).from(clientSetup).where(and(inArray(clientSetup.clientId, ids), isNull(clientSetup.completedAt), isNull(clientSetup.dismissedAt))),
       ]);
+      // Only clients with an open setup row need the derived step states (a handful at most). Tenant-visible ids; the
+      // state's invite/billing reads need the service connection.
+      const setupBy = new Map(await Promise.all(openSetups.map(async ({ id }) => {
+        const { steps, totalSteps } = await getSetupState(deps.service, id);
+        return [id, { open: true as const, doneSteps: Object.values(steps).filter((s) => s === 'done' || s === 'skipped').length, totalSteps }] as const;
+      })));
       const byId = <T extends { id: string }>(rows: T[]) => new Map(rows.map((r) => [r.id, r]));
       const [p, d, r, ls, la, lb] = [byId(pending), byId(delivered), byId(recs), byId(lastScore), byId(lastAlert), byId(lastSent)];
       return {
@@ -53,7 +61,7 @@ export const getPortfolio = defineTool({
             alertsPending: p.get(c.id)?.n ?? 0, alertsDelivered7d: d.get(c.id)?.n ?? 0,
             briefToApprove: readyBrief ? { id: readyBrief.id, deliveryDate: readyBrief.deliveryDate } : null,
             openRecommendations: r.get(c.id)?.n ?? 0, lastActivityAt: last ? last.toISOString() : null,
-            spend: spendView(spend.get(c.id) ?? 0, c.cap),
+            spend: spendView(spend.get(c.id) ?? 0, c.cap), setup: setupBy.get(c.id) ?? null,
           };
         }),
       };

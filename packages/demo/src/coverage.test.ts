@@ -141,7 +141,7 @@ describe('demo seed coverage (spec §4.9, §8)', () => {
     }
   });
 
-  it('lists every public sign-up screen (/sign-up, /join, /u) in PUBLIC_SCREENS', () => {
+  it('lists every public screen (/sign-up, /join, /u, /start) in PUBLIC_SCREENS', () => {
     const appDir = fileURLToPath(new URL('../../../apps/web/src/app', import.meta.url));
     const found: string[] = [];
     const walk = (dir: string) => {
@@ -151,7 +151,7 @@ describe('demo seed coverage (spec §4.9, §8)', () => {
         else if (name === 'page.tsx') found.push(`/${relative(appDir, dir).split(sep).join('/')}`);
       }
     };
-    for (const top of ['sign-up', 'join', 'u']) walk(join(appDir, top));
+    for (const top of ['sign-up', 'join', 'u', 'start']) walk(join(appDir, top));
     expect(found.sort()).toEqual(PUBLIC_SCREENS.map((s) => s.route).sort());
   });
 

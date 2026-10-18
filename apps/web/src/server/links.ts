@@ -19,6 +19,8 @@ export function destinationPath(t: LinkTarget, id: string, clientId: string, bri
       return `/c/${clientId}/reports/${id}`;
     case 'trend_report_pdf':
       return `/files/report/${id}`;
+    case 'setup':
+      return `/c/${clientId}/setup`;
     case 'digest':
     case 'notifications':
       return '/inbox';

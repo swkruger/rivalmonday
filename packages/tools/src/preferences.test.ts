@@ -21,6 +21,15 @@ beforeEach(async () => {
   [clientContact, agencyContact, someoneElse] = rows.map((r) => r.id) as [string, string, string];
 });
 
+describe('transactional kinds', () => {
+  it('client contact settings do not list client_invite or competitor_review', async () => {
+    const c = (await myNotificationSettings(dbs.service, 'u1')).find((x) => x.contactId === clientContact)!;
+    expect(c.kinds.map((k) => k.kind)).not.toContain('client_invite');
+    expect(c.kinds.map((k) => k.kind)).not.toContain('competitor_review');
+    await expect(setMyNotificationPref(dbs.service, 'u1', { contactId: clientContact, kind: 'client_invite', channel: 'email', enabled: false })).rejects.toThrow(/does not apply/);
+  });
+});
+
 describe('myNotificationSettings', () => {
   it('lists each of my contacts with the kinds of its audience, defaulting to on', async () => {
     await setMyNotificationPref(dbs.service, 'u1', { contactId: clientContact, kind: 'alert', channel: 'email', enabled: false });
@@ -30,7 +39,7 @@ describe('myNotificationSettings', () => {
     expect(c.kinds.map((k) => k.kind)).toEqual(['alert', 'alert_digest', 'brief', 'trend_report']);
     expect(c.kinds[0]!.channels).toEqual({ in_app: true, email: false });
     const a = s.find((x) => x.contactId === agencyContact)!;
-    expect(a.kinds.map((k) => k.kind)).toEqual(['am_alert', 'brief_ready', 'brief_failed', 'brief_overdue', 'trend_report', 'rank_scan_skipped']);
+    expect(a.kinds.map((k) => k.kind)).toEqual(['am_alert', 'brief_ready', 'brief_failed', 'brief_overdue', 'setup_suggestions_ready', 'setup_client_changed', 'setup_idle', 'trend_report', 'rank_scan_skipped']);
   });
 });
 

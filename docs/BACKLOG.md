@@ -66,7 +66,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] `BILLING_FAKE_GATEWAY` accepted on Vercel preview and by the worker (refuse when `VERCEL_ENV` is set; worker ignores it) — *9a final re-review*
 
 **Later**
-- [ ] Per-client price/setup fee at enable time in the UI (today: enable at default, then change price → second link) — *9b M5*
 - [ ] `refunded_at`/`disputed_at` write-once and not shown; exempt refund/dispute signals from the R3 ordering guard — *9b M6*
 - [ ] `stripe_connect_event` stores unhandled event types (insert before the `HANDLED` check) — *9b M7*
 - [ ] Connect product name uses `agency.name`, not `branding.displayName` (shows on Checkout/receipts) — *9b M9*
@@ -77,6 +76,17 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] 9a: `redeem_discount_code` doesn't check `discount_code.max_redemptions` on direct coupon attach; `syncSeats` unlocked (out-of-order syncs leave Stripe < DB until nightly reconcile); `applyBillingSignal` inserts a default pilot row on a null transition → `startAgencyTrial` returns early (Phase 10 sign-up sidesteps it, R3); `billing_notice.last_error` may hold a recipient address; rows at max attempts abandoned silently (a `client-payment-link` keeps `params.checkoutUrl`); stale digest/outbox items delivered after reactivation (no age cap — owner call) — *9a ledger*
 - [ ] 9a: grant/extend live-subscription check outside the `adminSignal` tx (TOCTOU); daily seat-retry step lacks its own try; percentOff > 2 decimals rounded vs raw to Stripe; promo code left active in Stripe if the DB insert fails — *9a ledger*
 - [ ] Test hygiene (fold in when touching): hand-set `pausedAt` in tests, unasserted seat sync after auto-pause, `sendClient`/`sendAgencyClient` untested, `get_connect_overview` N+1, `get_client_revenue` duplicates `clientMrrCents`, reconcile doesn't stamp `lastStripeEventAt`, invited `set_client_price` with unchanged amount re-mails, `next_bill` can create a duplicate-amount price, Stripe reads inside the webhook tx, `new Stripe()` without explicit `apiVersion` — *9a/9b ledgers*
+
+## Phase 11 follow-ups (client onboarding)
+- Flaky test → `page-controls.test.tsx` PinPageSwitch "shows a refusal, falling back to the server value" failed once under the full suite (timing; passes alone 3/3). (Phase 11 merge)
+**Soon**
+- [ ] `@cs/billing access.test.ts` reduced-trial test is order-dependent; `start_search` retry bound is only the 10-min cooldown (<= $3); setup idle reminder has no cycle component; concurrent double "Done picking" errors; starting-point card shows checks pending during setup hold - *phase-11*
+- [ ] Owner decision: verified leads never accepted/declined (incl. pool) keep name/email/phone/message forever; set a retention cap (e.g. 180 d) - *11c*
+
+**Later**
+- [ ] 11b polish: no "billing on" success copy, `billingPrefill` live read per poll; setup stuck "5 of 5" (worker sweep); `clientBillingEligibility` import cycle; `invite_member` (client roles) allowed for paused agencies
+- [ ] 11c polish: partial index on `lead.verify_token_hash`; `validateSummary` checks digits only; each verify use rotates the view token; a resubmit rotates the verify token (first link dies); snippet button hard-codes #47A8E7 (agency primary?); resubmit > 30 d after verify -> preview 404; nav lead badge loads 200 rows; confirmation retry still sent after the agency became non-serviceable
+- [ ] Phase 13: sign-in page uses host default branding (breaks white-label once a second agency onboards clients) - check in 11b verification (e)
 
 ## Phase 10 follow-ups (agency onboarding)
 - [ ] Delete superseded logo objects under `logos/<agency>/`; SVG `<!DOCTYPE`/`<!ENTITY` rejects Illustrator exports with "scripts or external links" copy (tweak copy) — *phase-10*
@@ -168,6 +178,9 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ## Unscheduled / ideas
 
 ### Features
+- [ ] **UI/UX review against Mobbin** (Mobbin MCP): compare the agency, client-workspace, onboarding and console screens with real-world app patterns and file concrete fixes; scope and details to be provided by the owner at planning — *owner, 2026-10-17*
+- [ ] **Affiliate program (fully featured)**: affiliate sign-up and approval, referral links/codes attributed through agency sign-up (Phase 10) and billing (9a Stripe), commission rules (one-off / recurring %, cookie window, clawback on refund or churn), affiliate dashboard (clicks, sign-ups, conversions, earnings), payouts, console management + fraud checks; scope and details to be provided by the owner at planning — *owner, 2026-10-17*
+- [ ] Automatic lead routing to agencies (vertical/area/capacity/opt-in) on the 11c platform pool - *phase-11*
 - [ ] Public "request access" form / marketing landing page (declined for now) — *phase-10*
 - [ ] Console: activity `client_activated` lacks `clientName` (record activation, e.g. `client.activated_at`); `list_platform_activity` loads all sources per call (bound/paginate in SQL); agencies list silently capped at 100 (paging or notice) — *from 8a*
 - [ ] Cost APIs for Vercel / Cloudflare R2; Neon storage cost; costs CSV export; renewal reminders — *from 8c*

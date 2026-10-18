@@ -23,11 +23,12 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   const oauthNext = await oauthResumePath(params, env.authSecret, verifyOAuthQueryParams);
   const target = safeNext(oauthNext ?? (typeof params.next === 'string' ? params.next : undefined));
   const reason = typeof params.reason === 'string' ? params.reason : null;
+  const emailHint = typeof params.email === 'string' ? params.email : null;
   const viewer = await getViewer();
   if (viewer && viewer.kind !== 'guest') redirect(target);
   return (
     <AuthCard branding={await defaultBranding(dbs().service, env)} title="Sign in">
-      <SignInForm next={target} googleEnabled={env.google !== null} error={reason} />
+      <SignInForm next={target} googleEnabled={env.google !== null} error={reason} emailHint={emailHint} />
     </AuthCard>
   );
 }

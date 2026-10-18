@@ -8,6 +8,7 @@ import type {
   MoveRow,
   RecommendationView,
   ReportSummary,
+  SetupState,
   StartingPointStatus,
   WorkspaceOverview,
 } from '@cs/tools';
@@ -17,6 +18,7 @@ import { foldSeries, LineChart } from '@/components/charts/line-chart';
 import { ClientHomeBasic } from '@/components/client-home-basic';
 import { AlertLinkList, BriefLinkList } from '@/components/client-lists';
 import { pendingStartingPoint, StartingPointCard } from '@/components/starting-point-card';
+import { openSetupSteps, SetupBadge } from '@/components/setup-badge';
 import { StatCard } from '@/components/stat-card';
 import { BriefView } from '@/components/views/brief-view';
 import { requireContext } from '@/server/current-viewer';
@@ -34,7 +36,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
   const { clientId } = await params;
   const { ctx } = await requireContext();
   if (!hasFeature(ctx, 'dashboard')) return <ClientHomeBasic clientId={clientId} ctx={ctx} />;
-  const [profile, overview, ads, moves, briefs, alerts, recs, reports, starting] = await Promise.all([
+  const [profile, overview, ads, moves, briefs, alerts, recs, reports, starting, setup] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<WorkspaceOverview>(ctx, 'get_workspace_overview', { clientId }),
     callTool<AdActivityView>(ctx, 'get_ad_activity', { clientId, weeks: 12 }),
@@ -44,7 +46,10 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
     callTool<{ items: RecommendationView[] }>(ctx, 'list_recommendations', { clientId }),
     callTool<{ items: ReportSummary[] }>(ctx, 'list_trend_reports', { clientId }),
     tryCallTool<StartingPointStatus>(ctx, 'get_starting_point_status', { clientId }),
+    // Agency staff and the client's owner while setup is open; anyone else (and a closed setup for owners) reads null.
+    tryCallTool<{ state: SetupState }>(ctx, 'get_client_setup', { clientId }),
   ]);
+  const setupSteps = openSetupSteps(setup, isAgencyRole(ctx.role));
   const preparing = pendingStartingPoint(starting, briefs.items);
   const { latest: first, rest: pastBriefs } = latestBrief(briefs.items);
   const latest = first ? await callTool<BriefDetail>(ctx, 'get_brief', { briefId: first.id }) : null;
@@ -62,6 +67,11 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
             {overview.zips > 0 ? ` across ${overview.zips} ZIP codes` : ''}
             {delivered ? ` · ${briefLabel(delivered)}` : ''}
           </p>
+          {setupSteps !== null && (
+            <div className="mt-2">
+              <SetupBadge clientId={clientId} open {...setupSteps} />
+            </div>
+          )}
         </div>
         {isAgencyRole(ctx.role) && overview.pitchSnapshot && (
           <Link href={`/c/${clientId}/pitch-snapshot`} className={linkCls}>

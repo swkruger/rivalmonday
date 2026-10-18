@@ -17,6 +17,11 @@ describe('deep links', () => {
     expect(verifyLink([SECRET], token, NOW)).toEqual({ v: 1, ...claims, iat: NOW.getTime() / 1000, exp: NOW.getTime() / 1000 + LINK_TTL_SECONDS });
   });
 
+  it('signLink/verifyLink round-trip for t=setup', () => {
+    const c = { ...claims, t: 'setup' as const };
+    expect(verifyLink([SECRET], signLink(SECRET, c, NOW), NOW)).toMatchObject({ t: 'setup', client: claims.client });
+  });
+
   it('refuses a tampered payload or signature, and garbage', () => {
     const token = signLink(SECRET, claims, NOW);
     const [p, s] = token.split('.');

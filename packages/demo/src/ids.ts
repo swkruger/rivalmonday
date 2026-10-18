@@ -1,6 +1,6 @@
 import type { DemoUserKey } from './users';
 
-export type DemoClientKey = 'loneStar' | 'brazos' | 'lakeside';
+export type DemoClientKey = 'loneStar' | 'brazos' | 'lakeside' | 'setupPending';
 export type ActiveClientKey = 'loneStar' | 'brazos';
 export type Route = 'alert' | 'brief' | 'archive';
 
@@ -66,9 +66,9 @@ export interface DemoIds {
 export function emptyIds(): DemoIds {
   return {
     agencyId: '',
-    clients: { loneStar: '', brazos: '', lakeside: '' },
+    clients: { loneStar: '', brazos: '', lakeside: '', setupPending: '' },
     selfLoneStar: '',
-    competitors: { loneStar: [], brazos: [], lakeside: [] },
+    competitors: { loneStar: [], brazos: [], lakeside: [], setupPending: [] },
     noData: { pricing: '', ads: '', reviews: '', rankings: '' },
     users: {} as DemoIds['users'],
     pages: {},

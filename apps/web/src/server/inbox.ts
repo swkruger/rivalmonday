@@ -23,5 +23,8 @@ export const NOTIFICATION_KIND_LABELS: Record<string, string> = {
   brief_ready: 'Brief ready for review',
   brief_failed: 'Brief failed',
   brief_overdue: 'Brief overdue',
+  setup_suggestions_ready: 'Competitor suggestions ready',
+  setup_client_changed: 'Client updated their setup',
+  setup_idle: 'Setup waiting on you',
   rank_scan_skipped: 'Rank scan skipped',
 };

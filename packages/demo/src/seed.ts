@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { seedAds } from './ads';
 import { seedAsk } from './ask';
 import { seedKb } from './kb';
+import { seedLeads } from './leads';
 import { seedOnboarding } from './onboarding';
 import { seedAi } from './ai';
 import { seedAgency } from './agency';
@@ -21,6 +22,7 @@ import { seedPricing } from './pricing';
 import { seedRankings } from './rankings';
 import { seedReviews } from './reviews';
 import { seedRivals } from './rivals';
+import { seedSetup } from './setup';
 import { seedTenancy } from './tenancy';
 
 export interface SeedDemoOptions {
@@ -52,6 +54,8 @@ const STEPS: readonly [string, (ctx: SeedContext) => Promise<void>][] = [
   ['billing states', seedBilling],
   ['client billing (Connect)', seedClientBilling],
   ['agency onboarding (mid-wizard)', seedOnboarding],
+  ['client setup wizard', seedSetup],
+  ['intake link and leads', seedLeads],
   ['AI connections', seedAi],
   ['Ask threads and starters', seedAsk],
   ['knowledge base', seedKb],

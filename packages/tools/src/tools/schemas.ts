@@ -156,6 +156,8 @@ export const PortfolioRow = z.object({
   clientId: uuid, name: z.string(), verticalId: z.string(), pressure: PressureView, topCompetitor: z.string().nullable(),
   alertsPending: z.number().int(), alertsDelivered7d: z.number().int(), briefToApprove: z.object({ id: uuid, deliveryDate: z.string() }).nullable(),
   openRecommendations: z.number().int(), lastActivityAt: iso.nullable(), spend: SpendView,
+  /** Phase 11a/11b: set while the client's setup wizard is open (doneSteps counts done or skipped of totalSteps: 5, 4 for prospects); null otherwise. */
+  setup: z.object({ open: z.literal(true), doneSteps: z.number().int().min(0).max(5), totalSteps: z.union([z.literal(4), z.literal(5)]) }).nullable(),
 });
 export type PortfolioRow = z.infer<typeof PortfolioRow>;
 

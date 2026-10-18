@@ -18,7 +18,7 @@ const sig = (o: Partial<Sig>): Sig => ({ ...NO, ...o });
 type Match = { platform: 'google' | 'meta'; accountId: string; name: string; strength: 'strong' | 'weak' };
 
 /** Eight candidates across all three tiers; unchecked signals stay null (a vendor outage, not "zero"). */
-const CANDIDATES: { tier: 'top' | 'watch' | 'minor'; overlap: number; activity: number; signals: Sig; adMatches?: Match[] }[] = [
+export const CANDIDATES: { tier: 'top' | 'watch' | 'minor'; overlap: number; activity: number; signals: Sig; adMatches?: Match[] }[] = [
   { tier: 'top', overlap: 0.92, activity: 0.8, signals: sig({ rating: 4.7, votes: 212, reviews30d: 9, googleAdsActive: 4, googleAdsNew30d: 2, googleAccount: 'matched', metaPage: 'matched', metaAdsActive: 3, claimed: true, chain: false, categoryMatch: 'main', distanceKm: 3.1, presence: { searches: 9, appeared: 8, bestRank: 1 } }), adMatches: [{ platform: 'google', accountId: 'AR0DEMO001', name: 'Rapid Air Solutions LLC', strength: 'strong' }] },
   { tier: 'top', overlap: 0.85, activity: 0.55, signals: sig({ rating: 4.5, votes: 140, reviews30d: 3, googleAdsActive: 2, googleAdsNew30d: 0, googleAccount: 'matched', metaPage: 'none', claimed: true, chain: false, categoryMatch: 'main', distanceKm: 5.4, presence: { searches: 9, appeared: 7, bestRank: 2 } }) },
   { tier: 'watch', overlap: 0.66, activity: 0.5, signals: sig({ rating: 4.2, votes: 64, reviews30d: 5, googleAdsActive: 0, googleAdsNew30d: 0, googleAccount: 'none', metaPage: 'possible', metaAdsActive: null, claimed: true, chain: false, categoryMatch: 'main', distanceKm: 9.8, presence: { searches: 9, appeared: 5, bestRank: 3 } }), adMatches: [{ platform: 'meta', accountId: '1000000000DEMO', name: 'Texan Temp Control Weatherford', strength: 'weak' }] },

@@ -51,6 +51,12 @@ describe('parseWebEnv', () => {
     expect(() => parseWebEnv({ ...ok, BILLING_FAKE_GATEWAY: '1', VERCEL_ENV: 'production' } as unknown as NodeJS.ProcessEnv)).toThrow(/BILLING_FAKE_GATEWAY/);
   });
 
+  it('reads SETUP_FAKE_LOOKUP and refuses it in production', () => {
+    expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).setupFakeLookup).toBe(false);
+    expect(parseWebEnv({ ...ok, SETUP_FAKE_LOOKUP: '1' } as unknown as NodeJS.ProcessEnv).setupFakeLookup).toBe(true);
+    expect(() => parseWebEnv({ ...ok, SETUP_FAKE_LOOKUP: '1', VERCEL_ENV: 'production' } as unknown as NodeJS.ProcessEnv)).toThrow(/SETUP_FAKE_LOOKUP/);
+  });
+
   it('reads ASK_FAKE_AI and refuses it in production', () => {
     expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).askFakeAi).toBe(false);
     expect(parseWebEnv({ ...ok, ASK_FAKE_AI: '1' } as unknown as NodeJS.ProcessEnv).askFakeAi).toBe(true);

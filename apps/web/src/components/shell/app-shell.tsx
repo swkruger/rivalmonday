@@ -14,7 +14,7 @@ import { TopBar } from '@/components/shell/top-bar';
 import type { BillingSnapshot } from '@/server/billing-state';
 import { clientBillingNoticeOf } from '@/server/client-billing-state';
 import { dbs } from '@/server/db';
-import { navFlagsFor } from '@/server/nav';
+import { navFlagsFor, newLeadsCount } from '@/server/nav';
 import { platformAdmins } from '@/server/runtime-env';
 import { themeForViewer } from '@/server/theme';
 import { callTool } from '@/server/tools';
@@ -55,8 +55,11 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
   const support = viewer.kind === 'support' ? viewer.session : null;
   // Phase 9b: client roles' billing banners and the owner's Billing entry (only while billing is on for the client).
   const clientBilling = viewer.kind === 'support' ? null : await clientBillingNoticeOf(ctx);
+  const navBase = navFlagsFor(viewer, operator, assistantName, role === 'owner');
+  const newLeads = navBase.leads ? await newLeadsCount(ctx) : 0;
   const flags = {
-    ...navFlagsFor(viewer, operator, assistantName, role === 'owner'),
+    ...navBase,
+    ...(newLeads > 0 ? { newLeads } : {}),
     ...(support ? { backToPlatform: `/platform/agencies/${support.agencyId}` } : {}),
     ...(viewer.kind === 'user' && ctx.role === 'client_owner' && clientBilling?.enabled ? { clientBilling: true } : {}),
   };

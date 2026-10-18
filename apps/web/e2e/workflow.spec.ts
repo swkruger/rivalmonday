@@ -11,15 +11,19 @@ test.beforeAll(async ({ browser }, testInfo) => ensureAdminState(browser, testIn
 
 test.use({ storageState: ADMIN_STATE });
 
-test('an admin adds a client and lands on its competitors page', { tag: ['@clients', '@competitors'] }, async ({ page }) => {
+test('an admin adds a client by hand, lands on its setup wizard, then uses its competitors page', { tag: ['@clients', '@competitors'] }, async ({ page }) => {
   await page.goto('/agency/clients/new');
+  // Phase 11a: the page opens on the business lookup; the by-hand form is the fallback below it.
+  await page.getByRole('button', { name: /enter details by hand/i }).click();
   await page.getByLabel('Business name').fill('E2E Dental');
   await page.getByLabel('Vertical').selectOption('dental');
   await page.getByLabel(/search keywords/i).fill('dentist\nteeth cleaning');
   await page.getByLabel(/map centre/i).fill('33.95, -84.33');
   await page.getByLabel(/radius/i).fill('10');
   await page.getByRole('button', { name: 'Create client' }).click();
-  await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/competitors$/);
+  // Phase 11a: every new client goes through the setup wizard, by-hand creates included.
+  await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/setup$/);
+  await page.goto(page.url().replace(/\/setup$/, '/competitors'));
   await expect(page.getByRole('heading', { name: 'Competitors — E2E Dental' })).toBeVisible();
   // Searching needs keywords, a service area and a Google place id: the created client has no place id yet.
   const find = page.getByRole('button', { name: /find competitors/i });

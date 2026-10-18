@@ -1,4 +1,4 @@
-import type { OnboardingStep, TrendReportData, TrendSnapshot } from '@cs/db';
+import type { LeadPreview, OnboardingStep, TrendReportData, TrendSnapshot } from '@cs/db';
 import type { Branding } from './branding';
 
 interface Base {
@@ -20,7 +20,7 @@ export interface DigestEmailProps extends Base {
   link: string;
 }
 export interface AgencyNoticeProps extends Base {
-  notice: 'am_alert' | 'brief_ready' | 'brief_failed' | 'brief_overdue' | 'rank_scan_skipped';
+  notice: 'am_alert' | 'brief_ready' | 'brief_failed' | 'brief_overdue' | 'setup_suggestions_ready' | 'setup_client_changed' | 'setup_idle' | 'rank_scan_skipped';
   title: string;
   lines: string[];
   link: string;
@@ -107,6 +107,21 @@ export interface BillingNoticeProps {
   date?: string;
   billingUrl: string;
 }
+export interface ClientInviteProps {
+  branding: Branding;
+  businessName: string;
+  agencyName: string;
+  startUrl: string;
+}
+
+/** 1..5 names only; never carries suggestion-internal fields. */
+export interface CompetitorReviewProps {
+  branding: Branding;
+  businessName: string;
+  competitorNames: string[];
+  reviewUrl: string;
+}
+
 export type ClientBillingNoticeKind = 'client-payment-link' | 'client-payment-needed';
 /** Phase 9b Task 8: client-facing, agency-branded. Never mentions the platform. */
 export interface ClientBillingNoticeProps {
@@ -163,6 +178,37 @@ export interface PlatformSignupNoticeProps {
   pilotEndsAt?: string;
   consoleUrl: string;
 }
+/** Phase 11c Task 30: lead mail. Agency leads use agency branding; unassigned pool leads use Rival Monday branding. */
+export interface LeadVerifyProps {
+  branding: Branding;
+  businessName: string;
+  /** Contains the raw verify token, so never log it. */
+  verifyUrl: string;
+}
+export interface LeadConfirmationProps {
+  branding: Branding;
+  businessName: string;
+  /** Null for an unassigned platform-pool lead (platform wording). */
+  agencyName: string | null;
+  preview: LeadPreview;
+}
+export interface LeadDeclinedProps {
+  branding: Branding;
+  businessName: string;
+  agencyName: string;
+}
+export interface LeadNewProps {
+  branding: Branding;
+  businessName: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string | null;
+  ref: string | null;
+  /** The /agency/leads or /platform/leads link. */
+  leadsUrl: string;
+  /** True for the platform pool notice. */
+  pool: boolean;
+}
 export type EmailPayload =
   | { template: 'alert'; props: AlertEmailProps }
   | { template: 'alert_digest'; props: DigestEmailProps }
@@ -173,12 +219,18 @@ export type EmailPayload =
   | { template: 'support_session_started'; props: SupportSessionStartedProps }
   | { template: 'platform_cost_low'; props: PlatformCostLowProps }
   | { template: 'billing_notice'; props: BillingNoticeProps }
+  | { template: 'client_invite'; props: ClientInviteProps }
+  | { template: 'competitor_review'; props: CompetitorReviewProps }
   | { template: 'client_billing_notice'; props: ClientBillingNoticeProps }
   | { template: 'agency_client_billing_notice'; props: AgencyClientBillingNoticeProps }
   | { template: 'agency_invite'; props: AgencyInviteProps }
   | { template: 'agency_welcome'; props: AgencyWelcomeProps }
   | { template: 'onboarding_tip'; props: OnboardingTipProps }
-  | { template: 'platform_signup_notice'; props: PlatformSignupNoticeProps };
+  | { template: 'platform_signup_notice'; props: PlatformSignupNoticeProps }
+  | { template: 'lead_verify'; props: LeadVerifyProps }
+  | { template: 'lead_confirmation'; props: LeadConfirmationProps }
+  | { template: 'lead_declined'; props: LeadDeclinedProps }
+  | { template: 'lead_new'; props: LeadNewProps };
 export interface RenderedEmail {
   subject: string;
   html: string;

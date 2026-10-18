@@ -32,6 +32,9 @@ importers:
       '@cs/billing':
         specifier: workspace:*
         version: link:../../packages/billing
+      '@cs/collectors':
+        specifier: workspace:*
+        version: link:../../packages/collectors
       '@cs/core':
         specifier: workspace:*
         version: link:../../packages/core

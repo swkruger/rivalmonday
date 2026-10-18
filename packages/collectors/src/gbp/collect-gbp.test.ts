@@ -5,7 +5,7 @@ import { and, eq, ne } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { VendorError } from '../vendors/errors';
-import { collectGbpProfile, extractGbpProfile, isUniqueViolation } from './collect-gbp';
+import { collectGbpProfile, extractGbpProfile, fetchGbpProfile, isUniqueViolation } from './collect-gbp';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -119,5 +119,30 @@ describe('self business naming from GBP', () => {
     const dfs = fakeDfs(() => [dfsTask([{ items: [{ ...item, title: 'Smith Heating & Air' }] }])]);
     await collectGbpProfile({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, placeId: 'p1', cid: null });
     expect((await dbs.owner.select().from(competitor).where(eq(competitor.id, IDS.competitorX)))[0]?.name).toBe('Smith HVAC');
+  });
+});
+
+describe('extractGbpProfile description', () => {
+  it('parses description when present, null when absent', () => {
+    expect(extractGbpProfile({ ...item, description: 'Family-owned since 1998.' })?.description).toBe('Family-owned since 1998.');
+    expect(extractGbpProfile(item)?.description).toBeNull();
+  });
+});
+
+describe('fetchGbpProfile', () => {
+  it('posts place_id with the given scope and returns the profile', async () => {
+    const dfs = fakeDfs(() => [dfsTask([{ items: [{ ...item, description: 'Hello' }] }])]);
+    const p = await fetchGbpProfile(dfs, { placeId: 'p1' }, { agencyId: 'a1', clientId: null });
+    expect(dfs.calls[0]).toMatchObject({
+      path: '/business_data/google/my_business_info/live', body: [{ keyword: 'place_id:p1', location_code: 2840, language_code: 'en' }], scope: { agencyId: 'a1', clientId: null },
+    });
+    expect(p).toMatchObject({ title: 'Smith HVAC', category: 'HVAC contractor', additionalCategories: ['Plumber'], description: 'Hello' });
+  });
+
+  it('returns null on no results and on an empty item list, throws VendorError on a task error', async () => {
+    const scope = { agencyId: 'a1', clientId: null };
+    expect(await fetchGbpProfile(fakeDfs(() => [dfsTask([], { statusCode: 40102, statusMessage: 'No Search Results.' })]), { placeId: 'p1' }, scope)).toBeNull();
+    expect(await fetchGbpProfile(fakeDfs(() => [dfsTask([{ items: [] }])]), { placeId: 'p1' }, scope)).toBeNull();
+    await expect(fetchGbpProfile(fakeDfs(() => [dfsTask([], { statusCode: 40400, statusMessage: 'Not Found.' })]), { placeId: 'p1' }, scope)).rejects.toBeInstanceOf(VendorError);
   });
 });

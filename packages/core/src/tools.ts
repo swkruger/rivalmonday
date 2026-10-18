@@ -4,7 +4,7 @@ import { type TokenScope, scopeCovers } from './tokens';
 import { maskSupportFields } from './mask';
 import { type AccessContext, type Feature, type Permission, type Role, hasPermission, isAgencyRole } from './access';
 
-export type ToolErrorCode = 'not_found' | 'permission_denied' | 'invalid_input' | 'rate_limited' | 'quota_exceeded' | 'read_only_session' | 'conflict' | 'billing_seat_limit' | 'service_paused' | 'invalid_code' | 'billing_not_eligible' | 'connect_not_ready' | 'no_client_owner' | 'internal';
+export type ToolErrorCode = 'not_found' | 'permission_denied' | 'invalid_input' | 'rate_limited' | 'quota_exceeded' | 'read_only_session' | 'conflict' | 'billing_seat_limit' | 'service_paused' | 'invalid_code' | 'billing_not_eligible' | 'connect_not_ready' | 'no_client_owner' | 'slug_taken' | 'internal';
 
 export class ToolError extends Error {
   readonly code: ToolErrorCode;

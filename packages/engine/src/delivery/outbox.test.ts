@@ -60,6 +60,35 @@ describe('notify', () => {
     expect((await rows()).filter((x) => x.channel === 'slack')).toHaveLength(1);
   });
 
+  it('notify with contactIds reaches an inactive contact and sets payload.cc', async () => {
+    const invited = await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'new@a1.example', quietHours: { start: '21:00', end: '07:00' } });
+    await dbs.owner.update(contact).set({ active: false }).where(eq(contact.id, invited));
+    await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_viewer', email: 'other@a1.example' }); // active, not listed: not reached
+    const elsewhere = await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA2, role: 'client_owner', email: 'o@a2.example' });
+    const n = await notify(dbs.service, cfg, input({
+      kind: 'client_invite', subjectType: 'setup', dedupe: 'invite:1', link: { t: 'setup', id: IDS.clientA1 },
+      contactIds: [invited, elsewhere], cc: ['AM@a.example', 'new@a1.example', 'bad address', 'am@a.example'],
+    }));
+    expect(n).toBe(1); // email only, no in-app row; the other client's contact is never reached
+    const [r] = await rows();
+    expect(r).toMatchObject({ channel: 'email', contactId: invited, address: 'new@a1.example', kind: 'client_invite', status: 'pending' });
+    expect((r!.payload as { cc: string[] }).cc).toEqual(['am@a.example']);
+    expect(r!.notBefore.toISOString()).toBe('2026-10-06T14:00:00.000Z'); // contact quiet hours in the client zone
+  });
+
+  it('notify refuses contactIds for a kind that may not reach inactive contacts', async () => {
+    const c = await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@a1.example' });
+    await expect(notify(dbs.service, cfg, input({ contactIds: [c] }))).rejects.toThrow(/contactIds/);
+    expect(await rows()).toEqual([]);
+  });
+
+  it('notify without contactIds still cleans cc into payload.cc', async () => {
+    await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@a1.example' });
+    await notify(dbs.service, cfg, input({ cc: ['o@a1.example', 'am@a.example'] }));
+    const [email] = await rows();
+    expect((email!.payload as { cc: string[] }).cc).toEqual(['am@a.example']);
+  });
+
   it('leaves nothing behind when the surrounding transaction rolls back', async () => {
     await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@a1.example' });
     await dbs.service.transaction(async (tx) => {
@@ -133,6 +162,34 @@ describe('dispatchDue', () => {
     expect((await dbs.owner.select().from(notification).where(eq(notification.id, n.id)))[0]).toMatchObject({ status: 'failed', error: 'not sent: recipient contact is inactive', attempts: 1 });
   });
 
+  it('dispatcher sends client_invite to an inactive contact', async () => {
+    const send = vi.fn(async () => ({ providerId: 'p' }));
+    for (const kind of ['client_invite', 'competitor_review'] as const) {
+      const n = await pendingEmail({ kind, subjectType: 'setup' });
+      await dbs.owner.update(contact).set({ active: false }).where(eq(contact.id, n.contactId!));
+    }
+    expect(await dispatchDue({ db: dbs.service, senders: { email: sender(send) } }, NOW)).toEqual({ sent: 2, failed: 0, retried: 0 });
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it('dispatcher still refuses a brief to an inactive contact', async () => {
+    const kinds = ['brief', 'alert', 'alert_digest', 'trend_report'] as const;
+    for (const kind of kinds) {
+      const n = await pendingEmail({ kind, subjectType: 'brief' });
+      await dbs.owner.update(contact).set({ active: false }).where(eq(contact.id, n.contactId!));
+    }
+    const send = vi.fn(async () => ({ providerId: 'p' }));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(await dispatchDue({ db: dbs.service, senders: { email: sender(send) } }, NOW)).toEqual({ sent: 0, failed: kinds.length, retried: 0 });
+    } finally {
+      warn.mockRestore();
+    }
+    expect(send).not.toHaveBeenCalled();
+    const all = await dbs.owner.select().from(notification);
+    expect(all.every((r) => r.status === 'failed' && r.error === 'not sent: recipient contact is inactive')).toBe(true);
+  });
+
   it('fails an alert email whose alert was withdrawn or dismissed or whose evidence was retracted; sends a live one', async () => {
     const alertFor = async (status: 'delivered' | 'withdrawn' | 'dismissed', retract = false) => {
       const e = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, route: 'alert', occurredAt: day(4), services: { hvac_plumbing: `svc_${Math.random()}` } });
@@ -177,6 +234,17 @@ describe('email sender', () => {
     const row = { id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...p, props: { ...p.props, branding: own } } } as never;
     await s.send(row, NOW);
     expect(transport.sent[0]!.from).toBe('"Team A" <briefs@agency.example>');
+  });
+
+  it('passes payload.cc through cleanCc into the outgoing email', async () => {
+    const transport = createMemoryTransport();
+    const s = createEmailSender({ transport, fromAddress: 'briefs@agency.example' });
+    const cc = ['AM@a.example', 'o@a1.example', 'not an email', 'am@a.example', '1@x.example', '2@x.example', '3@x.example', '4@x.example', '5@x.example'];
+    const row = { id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'client_invite', address: 'O@a1.example', payload: { ...payload('x'), replyTo: null, cc } } as never;
+    await s.send(row, NOW);
+    expect(transport.sent[0]!.cc).toEqual(['am@a.example', '1@x.example', '2@x.example', '3@x.example', '4@x.example']);
+    await s.send({ id: 'n2', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...payload('x'), replyTo: null } } as never, NOW);
+    expect(transport.sent[1]!.cc).toEqual([]);
   });
 
   it('turns a permanent transport error into a permanent send error', async () => {

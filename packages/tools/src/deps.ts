@@ -1,10 +1,12 @@
 import type { BillingGateway } from '@cs/billing';
+import type { MapsPlace } from '@cs/collectors';
 import { type CallScope, ToolError } from '@cs/core';
 import type { Db } from '@cs/db';
 import { createPackLoader, type DeliveryConfig, type PackLoader } from '@cs/engine';
+import type { LeadEmailDeps } from './intake/emails';
 
 /** Jobs the web app may enqueue. The worker owns the queues (5a decision 8); `singletonKey` dedupes on `short`-policy queues. */
-export type QueueJob = 'brief-pdf' | 'report-pdf' | 'rival-search' | 'discover-pages' | 'prospect-snapshot' | 'kb-embed' | 'kb-import' | 'platform-costs-snapshot' | 'rank-scan' | 'rank-map-refresh';
+export type QueueJob = 'brief-pdf' | 'report-pdf' | 'rival-search' | 'discover-pages' | 'prospect-snapshot' | 'kb-embed' | 'kb-import' | 'platform-costs-snapshot' | 'setup-suggestions' | 'lead-preview' | 'rank-scan' | 'rank-map-refresh';
 export type EnqueueJob = (job: QueueJob, data: Record<string, string>, singletonKey: string) => Promise<void>;
 /** pg-boss job states (v10). */
 export type JobState = 'created' | 'retry' | 'active' | 'completed' | 'cancelled' | 'failed';
@@ -36,6 +38,10 @@ export interface ToolDeps {
   embedQuery?: (text: string, scope: CallScope) => Promise<number[]>;
   /** Phase 9a: billing gateway (`gatewayFor`): fake in DEMO/TEST, Stripe with a key, absent when billing is not configured (R27: Stripe-backed tools refuse, reads degrade, seat sync is skipped and the daily job reconciles). */
   billing?: BillingGateway;
+  /** Phase 11a: free-text Maps search for `find_business` (web builds it from DataForSEO, or a fixture under SETUP_FAKE_LOOKUP). Absent: the tool refuses with a user-facing `internal`. */
+  setupLookup?: (q: { keyword: string; locationName: string }, scope: CallScope) => Promise<MapsPlace[]>;
+  /** Phase 11c (plan R1): direct lead mail after commit (`decline_lead`, `assign_lead`). Null or absent: the decision still commits and the send is skipped with a log line (the leads-cleanup job retries guarded pool/agency notices). */
+  leadEmail?: Omit<LeadEmailDeps, 'service'> | null;
   /** Object storage (evidence adapter, `ObjectStore` shape): `get` for `fetch` and the MCP evidence resources; `put` for agency logos (Phase 10 R9). */
   evidenceStore?: {
     get(key: string): Promise<Uint8Array | null>;

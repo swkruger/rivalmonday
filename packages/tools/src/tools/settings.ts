@@ -1,7 +1,8 @@
-import { type AccessContext, ROLES, toolkit, ToolError } from '@cs/core';
+import { type AccessContext, isAgencyRole, ROLES, toolkit, ToolError } from '@cs/core';
 import { AGENCY_KINDS, CLIENT_KINDS, type NotificationKind } from '@cs/db';
 import { ALERT_MODES, PERSONAL_CHANNELS } from '@cs/engine';
 import { z } from 'zod';
+import { inviteClientUser } from '../access/client-invite';
 import { inviteMember, revokeInvitation, revokeMembership } from '../access/team';
 import type { ToolDeps } from '../deps';
 import { setMyNotificationPref, updateMyContact } from '../preferences';
@@ -27,6 +28,13 @@ export const inviteMemberTool = defineTool({
   output: z.object({ invitationId: uuid, expiresAt: z.string() }),
   permission: 'agency',
   async handler(ctx, input, deps) {
+    // 11b Q4: client roles go through the shared client invite (contact + `client_invite` email); agency roles unchanged.
+    if (!isAgencyRole(input.role)) {
+      if (!input.clientId) throw new ToolError('invalid_input', 'Client roles need a client');
+      if (input.clientScope != null) throw new ToolError('invalid_input', 'Only account managers have a client scope');
+      const r = await inviteClientUser(ctx, deps, { clientId: input.clientId, email: input.email, name: null, role: input.role as 'client_owner' | 'client_viewer' }, new Date());
+      return { invitationId: r.invitationId, expiresAt: r.expiresAt.toISOString() };
+    }
     const r = await inviteMember(deps.service, ctx, input);
     return { invitationId: r.id, expiresAt: r.expiresAt.toISOString() };
   },

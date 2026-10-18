@@ -1,9 +1,10 @@
+import type { CallScope } from '@cs/core';
 import { client, competitor, type Db, observation } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { and, eq, isNull, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { recordVendorCapture } from '../evidence/vendor-capture';
-import { type DataForSeoClient, DFS_US, isDfsOk, isNoResults } from '../vendors/dataforseo';
+import { type DataForSeoClient, type DfsTask, DFS_US, isDfsOk, isNoResults, isRetryableDfsCode } from '../vendors/dataforseo';
 import { VendorError } from '../vendors/errors';
 
 export const DFS_COLLECTOR_VERSION = 'dfs/1';
@@ -24,6 +25,7 @@ const gbpSchema = z.looseObject({
   work_time: z.unknown().optional(),
   services: z.unknown().optional(),
   attributes: z.unknown().optional(),
+  description: z.string().nullish(),
 });
 
 // Live-verified 2026-10-01: my_business_info has no top-level `current_status`; it is nested at
@@ -34,12 +36,19 @@ function workTimeStatus(workTime: unknown): string | null {
   return typeof status === 'string' ? status : null;
 }
 
-export function extractGbpProfile(item: unknown): Record<string, unknown> | null {
+export type GbpProfile = {
+  title: string | null; category: string | null; additionalCategories: string[]; description: string | null;
+  rating: number | null; votes: number | null; phone: string | null; url: string | null; domain: string | null; address: string | null;
+  isClaimed: boolean | null; currentStatus: string | null; cid: string | null; placeId: string | null;
+  workHours: unknown; services: unknown; attributes: unknown;
+};
+
+export function extractGbpProfile(item: unknown): GbpProfile | null {
   const p = gbpSchema.safeParse(item);
   if (!p.success) return null;
   const i = p.data;
   return {
-    title: i.title ?? null, category: i.category ?? null, additionalCategories: i.additional_categories ?? [],
+    title: i.title ?? null, category: i.category ?? null, additionalCategories: i.additional_categories ?? [], description: i.description ?? null,
     rating: i.rating?.value ?? null, votes: i.rating?.votes_count ?? null, phone: i.phone ?? null, url: i.url ?? null,
     domain: i.domain ?? null, address: i.address ?? null, isClaimed: i.is_claimed ?? null, currentStatus: i.current_status ?? workTimeStatus(i.work_time), cid: i.cid ?? null,
     placeId: i.place_id ?? null, workHours: i.work_time ?? null, services: i.services ?? null, attributes: i.attributes ?? null,
@@ -52,6 +61,29 @@ export function isUniqueViolation(err: unknown): boolean {
   return e?.code === '23505' || e?.cause?.code === '23505';
 }
 
+const GBP_INFO_PATH = '/business_data/google/my_business_info/live';
+
+/** The shared my_business_info post (used by the capture collector and the fetch-only helper). */
+function postGbpInfo(dfs: DataForSeoClient, keyword: string, scope: CallScope): Promise<DfsTask[]> {
+  return dfs.post(GBP_INFO_PATH, [{ keyword, ...DFS_US }], scope);
+}
+
+function parseGbpResult(raw: unknown[]): GbpProfile | null {
+  return extractGbpProfile((raw[0] as { items?: unknown[] } | undefined)?.items?.[0]);
+}
+
+/**
+ * Fetch-only GBP profile for a place id: no capture, no observation (a new client has no competitor row yet).
+ * Null when the listing is not found or has no items; throws VendorError on a vendor failure.
+ */
+export async function fetchGbpProfile(dfs: DataForSeoClient, q: { placeId: string }, scope: CallScope): Promise<GbpProfile | null> {
+  const [task] = await postGbpInfo(dfs, `place_id:${q.placeId}`, scope);
+  if (!task) throw new VendorError('dataforseo', null, 'empty task', false);
+  if (isNoResults(task)) return null;
+  if (!isDfsOk(task.statusCode)) throw new VendorError('dataforseo', task.statusCode, task.statusMessage, isRetryableDfsCode(task.statusCode));
+  return parseGbpResult(task.result ?? []);
+}
+
 export async function collectGbpProfile(
   deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient },
   c: { id: string; placeId: string | null; cid: string | null },
@@ -61,7 +93,7 @@ export async function collectGbpProfile(
   const base = { competitorId: c.id, source: 'google_business_profile', collectorVersion: DFS_COLLECTOR_VERSION };
   let raw: unknown[];
   try {
-    const [task] = await deps.dfs.post('/business_data/google/my_business_info/live', [{ keyword, ...DFS_US }], { agencyId: null, clientId: null });
+    const [task] = await postGbpInfo(deps.dfs, keyword, { agencyId: null, clientId: null });
     // DataForSEO can return HTTP 200 with an OK envelope while an individual task still failed
     // (e.g. place not found), or with no task at all — never record an empty 'ok' capture in either case.
     if (!task) {
@@ -85,7 +117,7 @@ export async function collectGbpProfile(
     return { status: 'vendor_error', captureId: r.captureId };
   }
   const { captureId } = await recordVendorCapture(deps, { ...base, status: 'ok', payload: raw });
-  const profile = extractGbpProfile((raw[0] as { items?: unknown[] } | undefined)?.items?.[0]);
+  const profile = parseGbpResult(raw);
   if (profile) {
     await deps.db.insert(observation).values({ competitorId: c.id, captureId, kind: 'gbp_profile', key: 'profile', data: profile });
     if (!c.cid && typeof profile.cid === 'string') {

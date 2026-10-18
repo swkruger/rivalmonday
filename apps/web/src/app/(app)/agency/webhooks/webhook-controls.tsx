@@ -13,6 +13,9 @@ const AGENCY_KIND_OPTIONS: { value: string; label: string }[] = [
   { value: 'brief_ready', label: 'Brief ready for review' },
   { value: 'brief_failed', label: 'Brief failed' },
   { value: 'brief_overdue', label: 'Brief overdue' },
+  { value: 'setup_suggestions_ready', label: 'Competitor suggestions ready' },
+  { value: 'setup_client_changed', label: 'Client updated their setup' },
+  { value: 'setup_idle', label: 'Setup waiting on you' },
   { value: 'trend_report', label: 'Quarterly report' },
   { value: 'rank_scan_skipped', label: 'Rank scan skipped' },
 ];

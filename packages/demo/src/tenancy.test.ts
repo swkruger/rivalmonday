@@ -23,10 +23,11 @@ beforeAll(async () => {
 });
 
 describe('seedTenancy', () => {
-  it('creates Brazos Digital, three clients and their competitors, plus Lone Star’s own business', async () => {
+  it('creates Brazos Digital, four clients and their competitors, plus Lone Star’s own business', async () => {
     const clients = await dbs.owner.select().from(client);
     expect(clients.map((c) => [c.name, c.status, c.verticalId]).sort()).toEqual([
       ['Brazos Plumbing Co', 'active', 'hvac_plumbing'],
+      ['Cedar Creek Plumbing', 'active', 'hvac_plumbing'],
       ['Lakeside Family Dental', 'prospect', 'dental'],
       ['Lone Star Cooling', 'active', 'hvac_plumbing'],
     ]);

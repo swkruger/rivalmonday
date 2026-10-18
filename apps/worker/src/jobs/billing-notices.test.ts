@@ -1,4 +1,4 @@
-import { agency, agencyOnboarding, type AgencyInviteLinkRow, billingNotice, clientBilling, membership, type PendingSignupRow, platformAdmin } from '@cs/db';
+import { agency, agencyOnboarding, type AgencyInviteLinkRow, billingNotice, clientBilling, invitation, membership, type PendingSignupRow, platformAdmin } from '@cs/db';
 import { enqueueSignupEmails } from '@cs/tools';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { asc, eq, sql } from 'drizzle-orm';
@@ -94,6 +94,15 @@ describe('9b client billing notices', () => {
     expect(r.sentAt).not.toBeNull();
     expect(r.params).not.toHaveProperty('checkoutUrl');
     expect(JSON.stringify(r.params)).not.toContain('secret');
+  });
+
+  it("payment-link email reaches the pending owner's address", async () => {
+    await setBilling('invited');
+    await dbs.owner.insert(invitation).values({ agencyId: IDS.agencyA, email: 'Pending@Client.test', role: 'client_owner', clientId: IDS.clientA1, invitedBy: 'a1', expiresAt: new Date(Date.now() + 864e5) });
+    await dbs.owner.insert(invitation).values({ agencyId: IDS.agencyA, email: 'gone@client.test', role: 'client_owner', clientId: IDS.clientA1, invitedBy: 'a1', expiresAt: new Date(Date.now() + 864e5), revokedAt: new Date() });
+    await clientNotice('client-payment-link', { checkoutUrl: 'https://checkout.stripe.test/c/secret' });
+    await run();
+    expect(sentClient.map((s) => s.to)).toEqual(['pending@client.test']);
   });
 
   it('client-payment-needed links to the client billing page', async () => {

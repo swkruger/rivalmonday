@@ -28,10 +28,20 @@ function parsePath(path: string): { key: string | null; each: boolean }[] {
 
 type Step = { key: string | null; each: boolean };
 
-/** A dedicated e-mail field (last key matches /email/i) is masked fail-closed; any other key may hold an address inside free text. */
+/** A phone number keeps only its last four digits and its separators (`512-555-0100` → `•••-•••-0100`); fewer than five digits is fully masked. */
+export function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 5) return '•••';
+  let seen = 0;
+  const total = digits.length;
+  return phone.replace(/\d/g, (d) => (++seen <= total - 4 ? '•' : d));
+}
+
+/** A dedicated e-mail or phone field (last key matches /email/i or /phone/i) is masked fail-closed; any other key may hold an address inside free text. */
 function maskLeaf(node: unknown, steps: Step[]): unknown {
   if (typeof node !== 'string') return node;
   const last = [...steps].reverse().find((s) => s.key !== null)?.key ?? '';
+  if (/phone/i.test(last)) return maskPhone(node);
   return /email/i.test(last) ? maskEmail(node) : maskEmailsIn(node);
 }
 

@@ -65,6 +65,25 @@ export async function recipientsFor(db: Conn, input: { agencyId: string; clientI
   return out;
 }
 
+/**
+ * 11b Q1: exactly these contacts of this client (same agency + client), whatever their `active` state, email channel only,
+ * preferences ignored. Only for the setup kinds that may reach an inactive contact (`INACTIVE_OK_KINDS`); `notify` enforces that.
+ */
+export async function contactsByIds(db: Conn, agencyId: string, clientId: string, ids: string[]): Promise<Recipient[]> {
+  const wanted = [...new Set(ids.filter(isUuid))];
+  if (wanted.length === 0) return [];
+  const [c] = await db.select({ timezone: client.timezone }).from(client).where(and(eq(client.id, clientId), eq(client.agencyId, agencyId)));
+  if (!c) return [];
+  const rows = await db
+    .select()
+    .from(contact)
+    .where(and(eq(contact.agencyId, agencyId), eq(contact.clientId, clientId), inArray(contact.id, wanted)))
+    .orderBy(asc(contact.createdAt), asc(contact.id));
+  return rows.map((r) => ({
+    contactId: r.id, name: r.name, email: r.email, role: r.role as ContactRole, timezone: safeTimezone(r.timezone ?? c.timezone), quietHours: r.quietHours ?? null, channels: ['email'],
+  }));
+}
+
 export async function addContact(db: Conn, input: NewContact): Promise<string> {
   const email = input.email.trim();
   if (!EMAIL.test(email)) throw new ToolError('invalid_input', 'Invalid email address');

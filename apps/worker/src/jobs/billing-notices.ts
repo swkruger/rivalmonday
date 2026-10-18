@@ -1,6 +1,6 @@
 import { noticeEmailFor } from '@cs/billing';
 import { type EnvName, agency, agencyOnboarding, billingNotice, client, clientBilling } from '@cs/db';
-import { platformOperatorEmails } from '@cs/tools';
+import { clientOwnerEmails, platformOperatorEmails } from '@cs/tools';
 import { and, asc, eq, isNull, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { OnboardingEmail, WorkerDeps } from '../deps';
@@ -135,13 +135,7 @@ export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJob
                 if (cb?.state === 'disconnected') {
                   skipReason = 'skipped: billing disconnected';
                 } else {
-                  const owners = [
-                    ...(await tx.execute<Recipient>(sql`
-                      select distinct on (lower(u.email)) u.id, u.email
-                      from membership m join auth."user" u on u.id = m.user_id
-                      where m.agency_id = ${row.agencyId} and m.client_id = ${row.clientId} and m.role = 'client_owner'
-                      order by lower(u.email)`)),
-                  ];
+                  const owners: Recipient[] = (await clientOwnerEmails(tx, row.clientId, new Date())).map((email, i) => ({ id: `owner#${i + 1}`, email }));
                   const actionUrl = row.kind === 'client-payment-link' ? checkoutUrl : `${mail.appUrl}/c/${row.clientId}/settings/billing`;
                   if (owners.length === 0) skipReason = 'skipped: no client owners';
                   else if (!actionUrl) skipReason = 'skipped: no checkout link';
