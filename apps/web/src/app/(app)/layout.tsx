@@ -1,14 +1,27 @@
+import type { Metadata } from 'next';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { AppShell } from '@/components/shell/app-shell';
 import { NAV_CTX_COOKIE, parseNavCookie } from '@/components/shell/nav-context';
 import { billingRedirectFor } from '@/server/billing-redirect';
 import { billingSnapshotOf } from '@/server/billing-state';
-import { requireContext } from '@/server/current-viewer';
+import { getViewer, requireContext } from '@/server/current-viewer';
 import { runTool } from '@/server/run-tool';
+import { themeForViewer } from '@/server/theme';
 import { callTool } from '@/server/tools';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * 15a §2.7: tab titles read `{page} · {displayName}` — the same branding the shell shows this viewer (the supported
+ * agency's during a support session). No viewer (about to be sent to sign-in): a bare title, never a product name.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const viewer = await getViewer();
+  if (!viewer || viewer.kind === 'member-less') return { title: { default: 'Dashboard', template: '%s' } };
+  const { displayName } = (await themeForViewer(viewer)).branding;
+  return { title: { default: displayName, template: `%s · ${displayName}` } };
+}
 
 /**
  * `/agency/*`, `/c/*` and shared pages. During a support session this is the read-only support context (banner on).

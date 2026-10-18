@@ -1,4 +1,5 @@
 import { platformRole } from '@cs/tools';
+import type { Metadata } from 'next';
 import { AppShell } from '@/components/shell/app-shell';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
@@ -8,6 +9,9 @@ import { CostWarningStrip } from './platform/costs/_components/cost-warning-stri
 import type { CostService } from './platform/costs/_components/types';
 
 export const dynamic = 'force-dynamic';
+
+/** 15a §2.7: platform pages may name the product. */
+export const metadata: Metadata = { title: { default: 'Rival Monday', template: '%s · Rival Monday' } };
 
 /**
  * Phase 8b M5 / R3: `/platform/**` always renders the operator's own shell (branding, nav, clients), never the support

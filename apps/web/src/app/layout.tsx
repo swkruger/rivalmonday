@@ -6,7 +6,8 @@ import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', weight: ['400', '500', '600', '700', '800'] });
 
-export const metadata: Metadata = { title: 'Rival Monday', robots: { index: false, follow: false } };
+/** 15a §2.7 / D12: no product name here — `(app)` names the viewer's agency, `(platform)` names the product. */
+export const metadata: Metadata = { title: { default: 'Dashboard', template: '%s' }, robots: { index: false, follow: false } };
 
 /**
  * Review Focus 5: `style` only ever carries the validated hex colours `themeVars` returns — never raw agency input.

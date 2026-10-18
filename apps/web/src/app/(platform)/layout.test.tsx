@@ -2,14 +2,15 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ requireContext: vi.fn(), requireOperatorContext: vi.fn(), platformRole: vi.fn(), callTool: vi.fn(), navCookie: undefined as string | undefined }));
+const m = vi.hoisted(() => ({ requireContext: vi.fn(), requireOperatorContext: vi.fn(), getViewer: vi.fn(), themeForViewer: vi.fn(), platformRole: vi.fn(), callTool: vi.fn(), navCookie: undefined as string | undefined }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers(), cookies: async () => ({ get: (n: string) => (n === 'rm_nav_ctx' && m.navCookie !== undefined ? { name: n, value: m.navCookie } : undefined) }) }));
 vi.mock('@cs/tools', () => ({ platformRole: m.platformRole }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@/server/tools', () => ({ callTool: m.callTool }));
 vi.mock('@/server/run-tool', () => ({ runTool: vi.fn() }));
-vi.mock('@/server/current-viewer', () => ({ requireContext: m.requireContext, requireOperatorContext: m.requireOperatorContext }));
+vi.mock('@/server/current-viewer', () => ({ requireContext: m.requireContext, requireOperatorContext: m.requireOperatorContext, getViewer: m.getViewer }));
+vi.mock('@/server/theme', () => ({ themeForViewer: m.themeForViewer }));
 vi.mock('@/components/shell/app-shell', () => ({
   AppShell: ({ viewer, children, platformRole, zone, fallback }: { viewer: { kind: string }; children: React.ReactNode; platformRole?: string | null; zone?: string; fallback?: unknown }) => (
     <div data-testid="shell" data-kind={viewer.kind} data-role={platformRole ?? ''} data-zone={zone ?? ''} data-fallback={JSON.stringify(fallback ?? null)}>
@@ -17,8 +18,8 @@ vi.mock('@/components/shell/app-shell', () => ({
     </div>
   ),
 }));
-const { default: PlatformLayout } = await import('./layout');
-const { default: AppLayout } = await import('../(app)/layout');
+const { default: PlatformLayout, metadata: platformMetadata } = await import('./layout');
+const { default: AppLayout, generateMetadata: appMetadata } = await import('../(app)/layout');
 
 beforeEach(() => {
   m.navCookie = undefined;
@@ -77,5 +78,28 @@ describe('route-group layouts (Phase 8b M5)', () => {
     render(await PlatformLayout({ children: <p>page still renders</p> }));
     expect(screen.getByText('page still renders')).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Low balance warning' })).toBeNull();
+  });
+});
+
+describe('tab title templates (15a §2.7)', () => {
+  it('(app) pages read "{page} · {agency displayName}", from the same viewer branding the shell uses', async () => {
+    const viewer = { kind: 'user', ctx: {} };
+    m.getViewer.mockReset().mockResolvedValue(viewer);
+    m.themeForViewer.mockReset().mockResolvedValue({ branding: { displayName: 'Acme Marketing' } });
+    expect((await appMetadata()).title).toEqual({ default: 'Acme Marketing', template: '%s · Acme Marketing' });
+    expect(m.themeForViewer).toHaveBeenCalledWith(viewer);
+  });
+
+  it('(app) with no signed-in viewer falls back to a bare template, never a product name', async () => {
+    m.getViewer.mockReset().mockResolvedValue(null);
+    m.themeForViewer.mockReset();
+    expect((await appMetadata()).title).toEqual({ default: 'Dashboard', template: '%s' });
+    m.getViewer.mockResolvedValue({ kind: 'member-less' });
+    expect((await appMetadata()).title).toEqual({ default: 'Dashboard', template: '%s' });
+    expect(m.themeForViewer).not.toHaveBeenCalled();
+  });
+
+  it('platform pages read "{page} · Rival Monday"', () => {
+    expect(platformMetadata.title).toEqual({ default: 'Rival Monday', template: '%s · Rival Monday' });
   });
 });
