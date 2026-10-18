@@ -36,7 +36,7 @@ export async function saveSetupProfileAction(clientId: string, fd: FormData): Pr
   const typed = String(fd.get('extraKeywords') ?? '').split(/\r?\n/).map((k) => k.trim()).filter(Boolean);
   const keywords = [...new Set([...fd.getAll('keywords').map((k) => String(k).trim()).filter(Boolean), ...typed])];
   const r = await runTool<{ state: { open: boolean; clientOpen: boolean }; searchRefusal: string | null }>(await ctxOf(), 'save_setup_profile', {
-    clientId, services: parsed.services, keywords, serviceArea: parsed.serviceArea, placeId: parsed.placeId,
+    clientId, services: parsed.services, keywords, newAreas: fd.getAll('newAreas').map((n) => ({ name: String(n).trim() })).filter((n) => n.name), serviceArea: parsed.serviceArea, placeId: parsed.placeId,
   });
   if (!r.ok) return r;
   refresh(clientId);

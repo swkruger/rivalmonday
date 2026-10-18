@@ -101,12 +101,20 @@ describe('runSetupSuggestions', () => {
     const { ai, chat } = answering(good);
     expect(await runSetupSuggestions({ db: dbs.service, dfs, ai, packs }, ID)).toEqual({ status: 'ready' });
     expect(await stored()).toMatchObject({
-      status: 'ready', sources: ['gbp'],
+      status: 'ready', newAreas: [], sources: ['gbp'],
       services: [{ value: 'ac_repair', quote: 'AC repair' }],
       keywords: [{ value: 'emergency plumber', quote: 'Emergency plumber' }, { value: 'ac repair austin', quote: 'AC repair' }],
     });
     expect(dfs.calls[0]).toMatchObject({ scope: { agencyId: IDS.agencyA, clientId: ID } });
     expect(chat).toHaveBeenCalledWith('setup_suggestions', expect.anything(), { agencyId: IDS.agencyA, clientId: ID });
+  });
+
+  it('stores Google services that match no area as newAreas (14a), from the GBP services alone', async () => {
+    await seed();
+    const dfs = fakeDfs({ ...gbpItem, services: [{ name: 'Radiant floor heating' }, { name: 'AC repair' }] });
+    const { ai } = answering(good);
+    await runSetupSuggestions({ db: dbs.service, dfs, ai, packs }, ID);
+    expect(await stored()).toMatchObject({ status: 'ready', newAreas: [{ name: 'Radiant floor heating', quote: 'Radiant floor heating' }] });
   });
 
   it('model input is redacted', async () => {

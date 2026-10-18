@@ -1,6 +1,6 @@
 import type { MapsPlace } from '@cs/collectors';
 import { type AccessContext, type CallScope, createAccessContext } from '@cs/core';
-import { agencyConnect, client, clientCompetitor, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, vendorCall, withTenant } from '@cs/db';
+import { agencyConnect, businessArea, client, clientCompetitor, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, vendorCall, withTenant } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,6 +8,7 @@ import type { EnqueueJob } from '../deps';
 import { FIND_BUSINESS_DAILY_CAP } from '../setup/lookup';
 import type { SetupState } from '../setup/state';
 import { createToolRegistry } from '../registry';
+import { catalogOf } from '../catalog/access';
 import { closedSetupRecheck, reportedSuggestions } from './setup';
 
 const dbs = openTestDbs();
@@ -266,7 +267,7 @@ describe('wizard tools', () => {
 
   describe('get_client_setup', () => {
     it('get_client_setup payload has none of overlap_score/signals/ad_matches/appearances/best_rank/upsell_tag', async () => {
-      await setupRow({ suggestions: { status: 'ready', services: [{ value: 'ac_repair', quote: 'we fix ACs' }], keywords: [], sources: ['gbp'], generatedAt: new Date().toISOString() } });
+      await setupRow({ suggestions: { status: 'ready', services: [{ value: 'ac_repair', quote: 'we fix ACs' }], keywords: [], newAreas: [], sources: ['gbp'], generatedAt: new Date().toISOString() } });
       const r = await run('done');
       await sug(r, 'Rival One');
       // Internal run data that must never reach the payload (hidden names/reasons, cost, vendor error text).
@@ -363,7 +364,7 @@ describe('wizard tools', () => {
       expect(reportedSuggestions({ status: 'pending' }, at(15.01), now)).toEqual({ status: 'failed' });
       expect(reportedSuggestions({ status: 'pending' }, at(15), now)).toEqual({ status: 'pending' });
       expect(reportedSuggestions({ status: 'none' }, at(60), now)).toEqual({ status: 'none' });
-      const ready = { status: 'ready' as const, services: [], keywords: [], sources: [], generatedAt: now.toISOString() };
+      const ready = { status: 'ready' as const, services: [], keywords: [], newAreas: [], sources: [], generatedAt: now.toISOString() };
       expect(reportedSuggestions(ready, at(60), now)).toBe(ready);
     });
 
@@ -418,6 +419,34 @@ describe('wizard tools', () => {
       const out = await save(admin, PROFILE);
       expect(out.searchRefusal).toBe('This client is paused. Resume it to search for competitors.');
       expect(out.state.steps).toMatchObject({ profile: 'done', search: 'todo' });
+    });
+
+    describe('newAreas (14a)', () => {
+      const areasOf = () => dbs.owner.select().from(businessArea).where(eq(businessArea.verticalId, 'hvac_plumbing'));
+      const servicesOf = async () => (await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1)))[0]!.services;
+      beforeEach(() => catalogOf({ app: dbs.app, service: dbs.service }).invalidate());
+
+      it('creates each ticked new area (unreviewed, the client agency) and adds its id to the client services', async () => {
+        await setupRow();
+        await save(admin, { services: ['ac_repair'], newAreas: [{ name: 'Duct Sealing Specials' }] });
+        const made = (await areasOf()).find((a) => a.name === 'Duct Sealing Specials');
+        expect(made).toMatchObject({ status: 'unreviewed', createdByAgencyId: IDS.agencyA });
+        expect(await servicesOf()).toEqual(['ac_repair', made!.id]);
+      });
+
+      it('is idempotent: saving the same new area twice creates one area and one service entry', async () => {
+        await setupRow();
+        await save(admin, { newAreas: [{ name: 'Duct Sealing Specials' }] });
+        await save(admin, { newAreas: [{ name: 'duct sealing specials' }] });
+        expect((await areasOf()).filter((a) => a.name.toLowerCase() === 'duct sealing specials')).toHaveLength(1);
+        expect(await servicesOf()).toHaveLength(1);
+      });
+
+      it('rejects more than 5 new areas', async () => {
+        await setupRow();
+        const e = await fails(save(admin, { newAreas: Array.from({ length: 6 }, (_, i) => ({ name: `Extra area ${i}` })) }));
+        expect(e.code).toBe('invalid_input');
+      });
     });
 
     it('never changes name or features (not part of the input)', async () => {

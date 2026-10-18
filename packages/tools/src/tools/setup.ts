@@ -4,13 +4,14 @@ import { client, clientCompetitor, clientSetup, competitorSuggestion, discoveryR
 import { and, count, desc, eq, gte, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { inviteClientUser } from '../access/client-invite';
-import { catalogPacks, packsOf } from '../catalog/access';
+import { catalogOf, catalogPacks, packsOf } from '../catalog/access';
 import type { ToolDeps } from '../deps';
 import { startCompetitorSearch } from '../rival-search';
 import { collapseSameListing, FIND_BUSINESS_DAILY_CAP, possibleDuplicates, preselectVertical, toSetupLookup } from '../setup/lookup';
 import { applyClientProfileChange } from '../setup/profile-change';
 import { queueCompetitorReview } from '../setup/review-email';
 import { clientSetupOpen, completeIfDone, getSetupState, loadSetupInvite, type SetupState } from '../setup/state';
+import { addBusinessAreaCore } from './verticals';
 import { acceptSuggestions, dismissSuggestions, preTickTop, RUN_STATUSES, runSuggestionRows, SearchProgress, searchProgress, searchRefusalMessage } from './competitors';
 import { ServiceAreaWrite, Tier } from './schemas';
 
@@ -213,13 +214,32 @@ export const saveSetupProfile = defineTool({
   input: z.object({
     clientId: uuid, services: z.array(z.string().max(80)).max(255).optional(), keywords: z.array(z.string().max(120)).max(20).optional(),
     serviceArea: ServiceAreaWrite.nullable().optional(), placeId: z.string().max(300).nullable().optional(),
+    /** 14a: ticked "New" chips; each becomes an unreviewed business area of the client's vertical and is added to the client's services. */
+    newAreas: z.array(z.object({ name: z.string().trim().min(2).max(80) })).max(5).optional(),
   }),
   output: z.object({ state: SetupStateOut, searchRefusal: z.string().nullable() }),
   permission: 'manage',
   channels: ['web'],
-  async handler(ctx, { clientId, ...patch }, deps) {
+  async handler(ctx, { clientId, newAreas, ...input }, deps) {
     await assertClientVisible(ctx, deps, clientId);
     await assertSetupActor(ctx, deps, clientId);
+    const patch = { ...input };
+    if (newAreas?.length) {
+      // `business_area` is service-only, so the areas are created on the service connection in one short transaction (the catalogue
+      // lock is global), BEFORE the tenant-side profile write; the new ids ride in `services`. Creation is idempotent by name, so a
+      // failed or repeated save leaves at most an unreviewed area and never a duplicate.
+      const ids = await deps.service.transaction(async (tx) => {
+        await lockClient(tx, clientId);
+        await closedSetupRecheck(ctx, clientId)(tx);
+        const [c] = await tx.select({ verticalId: client.verticalId, services: client.services }).from(client).where(eq(client.id, clientId));
+        if (!c) throw new ToolError('not_found', 'Client not found');
+        const made: string[] = [];
+        for (const a of newAreas) made.push((await addBusinessAreaCore(tx, { verticalId: c.verticalId, name: a.name, agencyId: ctx.agencyId })).areaId);
+        return { made, current: c.services };
+      });
+      catalogOf(deps).invalidate();
+      patch.services = [...new Set([...(input.services ?? ids.current), ...ids.made])];
+    }
     // No name/features in the input: client owners can't change them here.
     const { search } = await applyClientProfileChange(ctx, deps, clientId, patch, { userId: ctx.userId, role: ctx.role }, closedSetupRecheck(ctx, clientId));
     // Spec §4: the write that leaves every step done or skipped sets completed_at (guarded; no-op otherwise).

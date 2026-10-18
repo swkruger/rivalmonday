@@ -35,6 +35,8 @@ export const setupSuggestionsSchema = z.discriminatedUnion('status', [
     status: z.literal('ready'),
     services: z.array(setupSuggestionSchema),
     keywords: z.array(setupSuggestionSchema),
+    /** 14a: Google service names that match none of the vertical's areas (`quote` is the service name itself). Old rows parse as `[]`. */
+    newAreas: z.array(z.object({ name: z.string(), quote: z.string() })).default([]),
     sources: z.array(z.enum(['gbp', 'reviews', 'website'])),
     generatedAt: z.string(),
   }),

@@ -44,6 +44,7 @@ export async function seedSetup(ctx: SeedContext): Promise<void> {
       { value: 'water heater replacement', quote: 'Our most requested job is replacing a failing water heater, usually in under a day.' },
       { value: 'emergency plumber near me', quote: 'Available for emergency plumbing calls evenings and weekends.' },
     ],
+    newAreas: [],
     sources: ['gbp', 'reviews'],
     generatedAt: clock.daysAgo(1).toISOString(),
   };

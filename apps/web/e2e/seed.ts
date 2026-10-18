@@ -600,6 +600,7 @@ async function seedSetup(db: ReturnType<typeof createDb>['db'], o: { agencyId: s
     status: 'ready' as const,
     services: [{ value: 'ac_repair', quote: 'Air conditioning repair and installation' }],
     keywords: [{ value: 'ac repair near me', quote: 'Air conditioning repair and installation' }],
+    newAreas: [{ name: 'Radiant floor heating', quote: 'Radiant floor heating' }],
     sources: ['gbp' as const],
     generatedAt: new Date().toISOString(),
   };

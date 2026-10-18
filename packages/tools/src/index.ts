@@ -55,7 +55,7 @@ export {
 export { ADAPTERS as COST_ADAPTERS, evaluateAlerts as evaluateCostAlerts, platformOperatorEmails, platformOwnerEmails, type PlatformCostLowPayload, snapshotAll as snapshotPlatformCosts, type SnapshotDeps as PlatformCostSnapshotDeps, SERVICES as COST_SERVICES, type CostEnv, type ServiceKey as CostServiceKey } from './platform/costs';
 export type { ClientSafeSuggestion } from './tools/setup';
 export { FIND_BUSINESS_DAILY_CAP, preselectVertical, toSetupLookup } from './setup/lookup';
-export { buildSuggestionSource, setupSuggestionsJsonSchema, type SuggestionSource, validateSuggestions } from './setup/suggestions';
+export { buildSuggestionSource, detectNewAreas, gbpServiceNames, setupSuggestionsJsonSchema, type SuggestionSource, validateSuggestions } from './setup/suggestions';
 // Phase 11c: public intake service functions (no session; called by the /start server actions).
 export { getPublicPreview, type IntakeBranding, type IntakePlaceOption, intakeLookup, type PublicAgencyBranding, resolveIntake, submitIntake, verifyIntake } from './intake/public';
 export { INTAKE_SIG_TTL_MS, intakeLookupSchema, type SignedIntakePlace, signedIntakePlaceSchema } from './intake/signed';

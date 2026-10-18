@@ -1,7 +1,7 @@
 import type { GbpProfile } from '@cs/collectors';
 import type { JsonSchemaFormat } from '@cs/ai';
 import type { SetupSuggestion } from '@cs/db';
-import { normaliseQuote } from '@cs/verticals';
+import { normaliseName, normaliseQuote } from '@cs/verticals';
 import { z } from 'zod';
 import { MAX_KEYWORDS } from '../client-input';
 
@@ -19,6 +19,29 @@ function strings(v: unknown, out: string[] = [], depth = 0): string[] {
     for (const x of v) strings(x, out, depth + 1);
   } else if (v && typeof v === 'object') {
     for (const x of Object.values(v)) strings(x, out, depth + 1);
+  }
+  return out;
+}
+
+/** The GBP profile's service names (shape-agnostic string leaves, capped). */
+export const gbpServiceNames = (gbp: GbpProfile): string[] => strings(gbp.services);
+
+const MAX_NEW_AREAS = 8;
+
+/**
+ * 14a: Google service names that match none of the vertical's areas, deterministically (no AI call). A name is new when its
+ * `normaliseName` equals no area name or alias; the quote is the name itself (it is in the source). 2-80 chars, deduped, max 8.
+ */
+export function detectNewAreas(serviceNames: readonly string[], areas: readonly { name: string; aliases: readonly string[] }[]): { name: string; quote: string }[] {
+  const known = new Set(areas.flatMap((a) => [a.name, ...a.aliases]).map(normaliseName).filter(Boolean));
+  const out: { name: string; quote: string }[] = [];
+  for (const raw of serviceNames) {
+    const name = raw.replace(/\s+/g, ' ').trim();
+    const key = normaliseName(name);
+    if (name.length < 2 || name.length > 80 || !key || known.has(key)) continue;
+    known.add(key);
+    out.push({ name, quote: name });
+    if (out.length >= MAX_NEW_AREAS) break;
   }
   return out;
 }
