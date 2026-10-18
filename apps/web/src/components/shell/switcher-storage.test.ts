@@ -43,6 +43,12 @@ describe('switcher storage (spec §2.4: browser storage, every access in try/cat
     expect(readIds('rm.switcher.recent.other')).toEqual([]);
   });
 
+  it('pushRecent with the known ids drops stale ones so they cannot crowd out Recent', () => {
+    writeIds(`rm.switcher.recent.${M}`, ['gone1', 'c1', 'gone2']);
+    pushRecent(M, 'c2', ['c1', 'c2']);
+    expect(readIds(`rm.switcher.recent.${M}`)).toEqual(['c2', 'c1']);
+  });
+
   it('togglePin adds then removes an id and returns the new list', () => {
     expect(togglePin(M, 'c1')).toEqual(['c1']);
     expect(togglePin(M, 'c2')).toEqual(['c1', 'c2']);

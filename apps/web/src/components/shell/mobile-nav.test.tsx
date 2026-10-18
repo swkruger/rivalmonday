@@ -66,6 +66,19 @@ describe('MobileNav (decision 14)', () => {
     expect(within(dialog).getByText('A1 HVAC')).toBeTruthy();
   });
 
+  it('the drawer copy of the switcher opens a modal popover (scrollable inside the modal Sheet)', () => {
+    globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
+    Element.prototype.scrollIntoView ??= () => {};
+    const agency: NavRoleFlags = { ...flags, isAgency: true, isAgencyAdmin: true, homePath: '/agency' };
+    render(<MobileNav displayName="Rival Monday" logoUrl={null} whiteLabel={false} flags={agency} counts={{}} fallback={null} clients={[]} switcher={switcherFor(agency)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    const sheet = screen.getByRole('dialog', { name: 'Menu' });
+    fireEvent.click(within(sheet).getByRole('button', { name: /A1 HVAC/ }));
+    expect(screen.getByPlaceholderText('Search clients')).toBeTruthy();
+    // A modal Radix Popover hides everything outside it (hideOthers) and owns the scroll lock.
+    expect(sheet.closest('[aria-hidden="true"]')).not.toBeNull();
+  });
+
   it('closes when the viewport grows to lg (min-width: 1024px)', () => {
     const listeners: ((e: { matches: boolean }) => void)[] = [];
     vi.stubGlobal('matchMedia', (query: string) => ({

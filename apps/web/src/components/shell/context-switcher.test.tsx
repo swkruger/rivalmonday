@@ -69,7 +69,8 @@ describe('ContextSwitcher (spec §2.4)', () => {
     expect(screen.getByRole('option', { name: 'Switch to Platform view' })).toBeTruthy();
     expect(screen.queryByRole('option', { name: 'Switch to Agency view' })).toBeNull();
     expect(optionTexts('All clients')).toEqual(['Acme Heating', 'Bright Smiles Dental', 'Cedar Creek Plumbing']);
-    fireEvent.click(screen.getByRole('option', { name: '+ Add client' }));
+    expect(screen.getByRole('option', { name: 'Add client' }).textContent).toBe('Add client');
+    fireEvent.click(screen.getByRole('option', { name: 'Add client' }));
     expect(push).toHaveBeenCalledWith('/agency/clients/new');
   });
 
@@ -90,7 +91,7 @@ describe('ContextSwitcher (spec §2.4)', () => {
     expect(optionTexts('Recent')).toEqual(['Cedar Creek Plumbing', 'Acme Heating']);
     fireEvent.click(within(screen.getByRole('group', { name: 'All clients' })).getByText('Bright Smiles Dental'));
     expect(push).toHaveBeenCalledWith(`/c/${C2}`);
-    expect(JSON.parse(localStorage.getItem(`rm.switcher.recent.${M}`)!)).toEqual([C2, C3, STALE, C1]);
+    expect(JSON.parse(localStorage.getItem(`rm.switcher.recent.${M}`)!)).toEqual([C2, C3, C1]);
   });
 
   it('pinned clients come first; the pin button toggles aria-pressed, persists, and does not navigate', () => {
@@ -168,7 +169,7 @@ describe('ContextSwitcher (spec §2.4)', () => {
     expect(trigger().textContent).toContain('Target Agency');
     open();
     expect(screen.queryByRole('option', { name: 'Switch to Platform view' })).toBeNull();
-    expect(screen.queryByRole('option', { name: '+ Add client' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Add client' })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Pin / })).toBeNull();
     expect(screen.queryByRole('group', { name: 'Recent' })).toBeNull();
     fireEvent.click(within(screen.getByRole('group', { name: 'All clients' })).getByText('Acme Heating'));

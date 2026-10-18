@@ -88,9 +88,11 @@ export function ContextName(p: SwitcherProps) {
  * Spec §2.4 / D4: the HighLevel-style context switcher at the top of the sidebar and the mobile drawer — a trigger
  * card (Platform / Agency / Client) and a popover with search, context links, Recent and All clients (pins first).
  * Hidden (static name) when the viewer has only one context and one client. `hotkey`: this instance answers
- * Cmd/Ctrl+K (the sidebar's, from `lg` up; the drawer's copy never does).
+ * Cmd/Ctrl+K (the sidebar's, from `lg` up; the drawer's copy never does). `modal`: the drawer's copy — the Sheet is a
+ * modal Radix Dialog whose scroll lock blocks wheel/touch outside it, and the popover portals out of it, so the list
+ * could not scroll; a modal popover takes over the lock (the known combobox-in-dialog fix).
  */
-export function ContextSwitcher({ hotkey = false, ...p }: SwitcherProps & { hotkey?: boolean }) {
+export function ContextSwitcher({ hotkey = false, modal = false, ...p }: SwitcherProps & { hotkey?: boolean; modal?: boolean }) {
   const router = useRouter();
   const current = useCurrent(p);
   const { context, clientId } = current;
@@ -117,8 +119,8 @@ export function ContextSwitcher({ hotkey = false, ...p }: SwitcherProps & { hotk
   // "Recent" = the last clients opened, however they were opened (portfolio, links, this switcher).
   const known = clientId !== null && p.clients.some((c) => c.id === clientId);
   useEffect(() => {
-    if (storage && context === 'client' && known && clientId) pushRecent(storage, clientId);
-  }, [storage, context, known, clientId]);
+    if (storage && context === 'client' && known && clientId) pushRecent(storage, clientId, p.clients.map((c) => c.id));
+  }, [storage, context, known, clientId, p.clients]);
 
   useEffect(() => {
     if (!hotkey || hidden) return;
@@ -155,7 +157,7 @@ export function ContextSwitcher({ hotkey = false, ...p }: SwitcherProps & { hotk
     });
   };
   const openClient = (id: string) => {
-    if (storage) pushRecent(storage, id);
+    if (storage) pushRecent(storage, id, p.clients.map((c) => c.id));
     go(`/c/${id}`);
   };
 
@@ -219,7 +221,7 @@ export function ContextSwitcher({ hotkey = false, ...p }: SwitcherProps & { hotk
   const nothing = (platform ? agencies.length === 0 : listAccounts ? accounts.length === 0 : allClients.length === 0) && q !== '';
 
   return (
-    <Popover open={open} onOpenChange={show}>
+    <Popover open={open} onOpenChange={show} modal={modal}>
       <PopoverTrigger asChild>
         <button type="button" aria-haspopup="dialog" className={`${CARD} hover:bg-muted-surface`}>
           <Card current={current} interactive />
@@ -272,7 +274,8 @@ export function ContextSwitcher({ hotkey = false, ...p }: SwitcherProps & { hotk
                 <CommandSeparator />
                 <CommandGroup>
                   <CommandItem value="link:add-client" onSelect={() => go('/agency/clients/new')}>
-                    <Plus aria-hidden />+ Add client
+                    <Plus aria-hidden />
+                    Add client
                   </CommandItem>
                 </CommandGroup>
               </>

@@ -55,7 +55,7 @@ export function MobileNav({ displayName, logoUrl, whiteLabel, flags, counts, zon
           )}
         </div>
         <div className="pb-4">
-          <ContextSwitcher {...switcher} />
+          <ContextSwitcher {...switcher} modal />
         </div>
         <SidebarNav flags={flags} counts={counts} zone={zone} fallback={fallback} clients={clients} />
       </SheetContent>

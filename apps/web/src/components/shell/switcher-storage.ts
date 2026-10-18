@@ -28,10 +28,14 @@ export function writeIds(key: string, ids: string[], max?: number): void {
   }
 }
 
-/** Moves `clientId` to the front of the membership's recent list (at most 5). */
-export function pushRecent(membershipId: string, clientId: string): void {
+/**
+ * Moves `clientId` to the front of the membership's recent list (at most 5). `known` (the viewer's current client ids)
+ * drops stale ids first, so clients the viewer no longer sees can't crowd the live ones out of the five slots.
+ */
+export function pushRecent(membershipId: string, clientId: string, known?: readonly string[]): void {
   const key = recentKey(membershipId);
-  writeIds(key, [clientId, ...readIds(key).filter((id) => id !== clientId)], RECENT_MAX);
+  const keep = (id: string) => id !== clientId && (!known || known.includes(id));
+  writeIds(key, [clientId, ...readIds(key).filter(keep)], RECENT_MAX);
 }
 
 export function readRecent(membershipId: string): string[] {

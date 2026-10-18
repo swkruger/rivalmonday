@@ -31,7 +31,7 @@ vi.mock('./sidebar', async (importOriginal) => {
       if (m.realSidebar) return <real.Sidebar {...props} />;
       const { flags, counts } = props;
       return (
-        <nav data-testid="sidebar" data-billing={String(Boolean(flags.clientBilling))} data-back={flags.backToPlatform ?? ''} data-operator={String(Boolean(flags.isPlatformOperator))} data-owner={String(Boolean(flags.isPlatformOwner))} data-leads={String(counts.leads ?? '')} data-flags={Object.keys(flags).join(',')} />
+        <nav data-testid="sidebar" data-billing={String(Boolean(flags.clientBilling))} data-back={flags.backToPlatform ?? ''} data-operator={String(Boolean(flags.isPlatformOperator))} data-owner={String(Boolean(flags.isPlatformOwner))} data-leads={String(counts.leads ?? '')} data-flags={Object.keys(flags).join(',')} data-own-agencies={JSON.stringify(props.switcher.ownAgencies)} data-accounts={JSON.stringify(props.switcher.accounts)} />
       );
     },
   };
@@ -166,6 +166,22 @@ describe('AppShell', () => {
     m.clients = [];
     render(await AppShell({ viewer: supportViewer as never, ctx: ctx as never, children: <p>page</p> }));
     expect(within(screen.getByRole('complementary')).getByRole('button', { name: /Acme Agency\s*Agency view/ })).toBeTruthy();
+  });
+
+  it('switcher lists: ownAgencies holds only agency memberships; a support session gets no memberships at all', async () => {
+    const memberships = [
+      { id: 'm', agencyName: 'Acme Agency', role: 'agency_admin', clientName: null },
+      { id: 'm2', agencyName: 'Other Agency', role: 'client_owner', clientName: 'Brazos Plumbing' },
+      { id: 'm3', agencyName: 'Third Agency', role: 'account_manager', clientName: null },
+    ];
+    const viewer = { ...userViewer, membership: memberships[0], memberships };
+    const { unmount } = render(await AppShell({ viewer: viewer as never, ctx: own as never, children: <p>page</p> }));
+    expect(JSON.parse(screen.getByTestId('sidebar').dataset.ownAgencies!)).toEqual([{ membershipId: 'm', name: 'Acme Agency' }, { membershipId: 'm3', name: 'Third Agency' }]);
+    expect(JSON.parse(screen.getByTestId('sidebar').dataset.accounts!)).toEqual([]);
+    unmount();
+    render(await AppShell({ viewer: supportViewer as never, ctx: ctx as never, children: <p>page</p> }));
+    expect(JSON.parse(screen.getByTestId('sidebar').dataset.ownAgencies!)).toEqual([]);
+    expect(JSON.parse(screen.getByTestId('sidebar').dataset.accounts!)).toEqual([]);
   });
 
   it('agency view keeps the agency logo and its name in the footer', async () => {
