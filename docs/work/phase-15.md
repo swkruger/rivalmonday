@@ -1,16 +1,16 @@
 # phase-15 — UI/UX review and information architecture (nav, view switcher, help)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15   **Base:** main @ e0f6f627
-**Plan/spec:** none yet. Inventory: [research/2026-10-18-phase-15-page-inventory.md](../research/2026-10-18-phase-15-page-inventory.md). **Not in the roadmap** — proposed row: `| 15. UI/UX & information architecture | *to be written* (15a IA + nav shell · 15b help & guides · 15c page fixes) | Designer review of mockups + all pages; platform / agency / client / account nav separation; platform ↔ agency switcher; tooltips, page help, guides | §3, §5 | ~2–3 wks |`
+**Spec:** [2026-10-18-phase-15-ux-ia-design.md](../superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) (15a design + 15b/15c decisions). Audit: [ux-audit](../research/2026-10-18-phase-15-ux-audit.md). Inventory: [research/2026-10-18-phase-15-page-inventory.md](../research/2026-10-18-phase-15-page-inventory.md). **Not in the roadmap** — proposed row: `| 15. UI/UX & information architecture | *to be written* (15a IA + nav shell · 15b help & guides · 15c page fixes) | Designer review of mockups + all pages; platform / agency / client / account nav separation; platform ↔ agency switcher; tooltips, page help, guides | §3, §5 | ~2–3 wks |`
 
 ## Status (overwrite)
-Brief written; no spec or code.
+2026-10-18: brainstorm done (visual companion; mockups in `.superpowers/brainstorm/`, not committed). 15a spec written, awaiting owner review. No code.
 
 ## Next (overwrite)
-Owner answers the open questions; then `superpowers:brainstorming` (mockups first, visual companion).
+Owner reviews the spec → `superpowers:writing-plans` (lean format) for **15a** → owner approval → execute. 15b/15c kickoff after 15a.
 
 ## Interfaces this branch adds or changes
-None yet. Migrations probably none; main at 0076, 14a plans 0077–0078, 14b/13a claim more — take next free at execution.
+Planned (15a, spec §2): `NavContext`/`contextOf`, `NavSection`/`navFor`/`settingsNavFor` (flat `NavItem.group` removed), `ContextSwitcher` (replaces client + membership switchers), `PageHeader`, `/c/[id]/briefs`, settings layouts, agency pages moved under `/agency/settings/*` with 308 redirects, `@cs/ui` Popover/Command/Tabs. No migrations; main at 0076, 14a plans 0077–0078, 14b/13a claim more — take next free at execution.
 
 ## Assumes from other branches
 - **phase-14b** (executing 14a): adds `/platform/verticals` + "Business types" nav item with a count badge (14a T11); `/agency/playbooks` → redirect to `/agency/runbook` ("Playbooks" → "Runbook"), new `/platform/runbook`, client module "Runbook" at `/c/[id]/settings/runbook` (agency roles only) (14b T8). All edit `nav-items.ts` + `sidebar-nav.tsx` icon map — direct conflict with any nav rework.
@@ -18,10 +18,10 @@ None yet. Migrations probably none; main at 0076, 14a plans 0077–0078, 14b/13a
 - **phase-7-planning** (parked): health page refines `/platform/health` only.
 
 ## Decisions (owner-approved)
-None yet.
+D1–D15 in the spec §1: split 15a/15b/15c; mockups first; switcher = navigation only, own memberships; HighLevel-style context switcher (Platform/Agency/Client); **15a built first, 14a/14b and 13a rebase onto it**; help layers 1–4 (KB guide drawer), tour → backlog; help keyed by page, agency overrides later; mobile drawer; enterprise → backlog; Briefs & reports page; no dark mode; white-label leaks in 15a; URL-derived context + browser-stored recents/pins; Ask {assistant} first in Client view only; agency pages under `/agency/settings/*`.
 
 ## New backlog (target → item)
-None yet.
+Unscheduled → product tour (Overview, Portfolio); agency help override editor; cross-device pins/recents; enterprise custom roles, multi-agency switcher, audit-log page; switcher "jump to any agency" via support session.
 
 ## Owner verification steps
 TBD.
@@ -58,15 +58,5 @@ Core spec: §3 (Platform → Agency → Client; role table = who sees which menu
 ### 5. In-flight workstreams
 See **Assumes**. `phase-14b`: 9 commits ahead (docs + `packages/verticals` catalogue code), no web changes yet. `phase-7-planning`: docs only (3 files). Overlap is all in `nav-items.ts`/`sidebar-nav.tsx` and page titles.
 
-### 6. Open questions for the owner (by design impact)
-1. **Split?** (a) one phase; (b) **15a audit + IA/nav shell + switcher, 15b help system + per-page help, 15c page-level UX fixes**; (c) 15a design doc only, then decide. **Rec: (b)** (15a reframes every page).
-2. **Review output?** (a) design doc + HTML mockups in the visual companion, owner approves, then code; (b) straight to code with screenshots; (c) doc only. **Rec: (a)** (mockup-first preference).
-3. **Switcher semantics?** (a) navigation only: "Platform | Agency" switch for operators (own agency), other agencies via support session; (b) + "view as client" preview (overrides 8b g8); (c) workspace list of every agency, pick = support session. **Rec: (a)**, (c) later.
-4. **Menu structure?** (a) switcher → section nav → client panel; personal items in the avatar menu; agency settings in a "Settings" area; (b) one sidebar + group labels; (c) top tabs per zone. **Rec: (a)**.
-5. **Sequencing vs 14a/14b/13a?** (a) 15a after 14b + 13a2 merge, absorbing their nav items; (b) 15a first, they rebase; (c) parallel design, code after them. **Rec: (c)**.
-6. **Help system form?** (a) inline hints + "?" tooltips; (b) (a) + per-page guide drawer from KB articles; (c) (b) + product tour; (d) external help centre. **Rec: (b)**.
-7. **Help content white-label + editable?** (a) static brand-neutral copy; (b) KB-backed, platform-authored, `{displayName}`/assistant placeholders; (c) (b) + agency overrides. **Rec: (b)**.
-8. **Mobile nav?** (a) keep drawer, add switcher + sections inside it; (b) bottom tab bar for client roles; (c) defer. **Rec: (a)**.
-9. **Enterprise scope now?** (a) none; (b) multi-agency switcher, custom roles, audit page; (c) design hooks only, (b) to backlog. **Rec: (c)**.
-10. **Index pages for briefs/alerts/reports?** (a) a "Briefs & reports" client page; (b) Overview/Inbox only. **Rec: (a)**.
-11. **Dark mode?** (a) out of scope; (b) tokens only. **Rec: (a)**.
+### 6. Open questions
+All answered 2026-10-18 — see Decisions / spec §1.
