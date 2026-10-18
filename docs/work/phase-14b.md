@@ -1,13 +1,13 @@
 # phase-14b — Dynamic verticals, business areas and runbooks
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-14b   **Base:** main @ 9bd2aab5
-**Spec:** [2026-10-17-phase-14-dynamic-verticals-runbooks-design.md](../superpowers/specs/2026-10-17-phase-14-dynamic-verticals-runbooks-design.md) (covers 14a + 14b). **Plans:** 14a [2026-10-18-phase-14a-vertical-catalogue.md](../superpowers/plans/2026-10-18-phase-14a-vertical-catalogue.md) (awaiting owner approval); 14b not written. No Phase 14 roadmap row and no "14a" anywhere (roadmap, BACKLOG, STATE, work files) — see Q1; add the row at merge.
+**Spec:** [2026-10-17-phase-14-dynamic-verticals-runbooks-design.md](../superpowers/specs/2026-10-17-phase-14-dynamic-verticals-runbooks-design.md) (covers 14a + 14b). **Plans:** 14a [2026-10-18-phase-14a-vertical-catalogue.md](../superpowers/plans/2026-10-18-phase-14a-vertical-catalogue.md) (owner-approved 2026-10-18, subagent-driven); 14b [2026-10-18-phase-14b-runbooks.md](../superpowers/plans/2026-10-18-phase-14b-runbooks.md) (awaiting owner approval). No Phase 14 roadmap row and no "14a" anywhere (roadmap, BACKLOG, STATE, work files) — see Q1; add the row at merge.
 
 ## Status (overwrite)
-2026-10-18: spec owner-approved; 14a plan written (13 tasks, plan-local decisions P1–P8), awaiting owner approval.
+2026-10-18: spec owner-approved; 14a plan approved (13 tasks, P1–P8); 14b plan written (10 tasks, R1–R9), awaiting owner approval.
 
 ## Next (overwrite)
-Owner approves the 14a plan; then write the 14b plan. Execution of 14a waits for phase-13b + phase-11-fixes to merge (Task 0 pre-flight).
+Owner approves the 14b plan. Execution of 14a waits for phase-13b + phase-11-fixes to merge (Task 0 pre-flight).
 
 ## Interfaces this branch adds or changes
 None yet. Migrations: next free at execution time (main 0073; 13b holds 0074–0076; 13a1/13a2 claim the next four).

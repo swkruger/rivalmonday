@@ -193,8 +193,9 @@ export async function writeItem(service: Db, runbookId: string, item: RunbookIte
 export const tailorOutputSchema = z.strictObject({ items: z.array(z.strictObject({ key: z.string(), title: z.string(), template: z.string(),
   businessAreaIds: z.array(z.string()).nullable() })).max(40) });
 export function applyTailoring(base: RunbookItem[], raw: unknown, ctx: { areaIds: string[] }): { items: RunbookItem[]; rejected: string[] };
-export async function tailorClientRunbook(d: { db: Db; ai: Ai; packs: PackLoader }, clientId: string, opts?: { onlyKey?: string }): Promise<{ status: 'done' | 'failed' | 'skipped'; rejected: string[] }>;
-// job: defineJob({ name: 'runbook-tailor', schema: z.object({ clientId: z.uuid(), onlyKey: z.string().optional() }), queue: { policy: 'short', retryLimit: 1 } })
+export async function tailorClientRunbook(d: { db: Db; ai: Ai; packs: PackLoader }, clientId: string): Promise<{ status: 'done' | 'failed' | 'skipped'; rejected: string[] }>;   // writes
+export async function proposeTailoring(d: { db: Db; ai: Ai; packs: PackLoader }, clientId: string, key: string, parentContent: unknown): Promise<{ title: string; template: string; businessAreaIds: string[] | null } | null>;   // one item, never writes
+// job: defineJob({ name: 'runbook-tailor', schema: z.object({ clientId: z.uuid() }), queue: { policy: 'short', retryLimit: 1 } })
 ```
 **Behaviour:**
 - **Skips:** paused / non-active clients and non-serviceable agencies (`skipped`). Demo/test envs also skip (the job is not run in E2E; E2E seeds a tailored runbook).
@@ -205,15 +206,12 @@ export async function tailorClientRunbook(d: { db: Db; ai: Ai; packs: PackLoader
   - the plays' key/title/template
 - **Instruction:** "Rewrite each play's title and template so it fits a {vertical} serving {audience_noun}. Keep every {{placeholder}} exactly as written, add no new placeholders, keep titles under 200 characters with no placeholders, keep the advice practical and specific to the listed services. Optionally limit a play to the service ids it is about. Return JSON."
 - **`applyTailoring` (Review Focus 3):** per item, accept only when the key exists, it is a play, `playContentSchema` passes with the base trigger/effort/impact, the placeholder set ⊆ the base item's placeholders, and `businessAreaIds ⊆ ctx.areaIds` (empty → null). Otherwise keep the base and add the key to `rejected`. Tailored items keep `upstreamSnapshot` = the agency content, so later agency edits still show as updates, and get `customised = false`.
-- **Write:**
-  - `createClientRunbook` when the client has none.
-  - With `onlyKey`, replace that item only. This is the pull/re-tailor path; the result is staged in `upstream_snapshot`-diff state for review in Task 6, not auto-saved. Store it under `content` with `customised=false` and return it to the tool.
-  - Set `runbook.tailor_status`/`tailored_at`.
-  - The AI scope is `{ agencyId, clientId, verticalId }`.
+- **Write:** `tailorClientRunbook` creates the client runbook when it has none, or replaces the play contents of an existing runbook whose `tailor_status` is `pending` (the `key:'*'` create path). It never overwrites a `customised` item. It sets `runbook.tailor_status`/`tailored_at`. The AI scope is `{ agencyId, clientId, verticalId }`.
+- **`proposeTailoring`:** the same prompt and `applyTailoring` rules for one play (the parent's new content as the base). It returns the proposal or null and **never writes**. The pull/re-tailor tools (Task 6) show it for review.
 - **Failure:** the AI error → the untailored copy is written, `tailor_status = 'failed'`.
 - **Enqueue:** `advance_client_setup` (`confirm_competitors`/`skip_competitors`, first time only) enqueues `runbook-tailor` with singleton key `runbook-tailor:<clientId>` after commit, in a try/catch like `enqueueSetupSuggestions`.
 - `ai.yaml`: `runbook_tailor: { provider: openrouter, model: <same as setup_suggestions>, fallbacks: [...], temperature: 0.3, max_tokens: 4000 }`.
-**Tests (TDD):** `applyTailoring` rejects an unknown var, a `{{` title, a changed trigger, an over-length template, a foreign area id; accepts a valid rewrite. `tailorClientRunbook`: paused → skipped; AI failure → untailored + failed; success → client runbook with tailored text and a correct `upstreamSnapshot`; the `onlyKey` path touches one item. `advance_client_setup` enqueues once.
+**Tests (TDD):** `applyTailoring` rejects an unknown var, a `{{` title, a changed trigger, an over-length template, a foreign area id; accepts a valid rewrite. `tailorClientRunbook`: paused → skipped; AI failure → untailored + failed; success → client runbook with tailored text and a correct `upstreamSnapshot`; a customised item is never overwritten; `proposeTailoring` writes nothing. `advance_client_setup` enqueues once.
 **Done when:** `pnpm test:affected` passes.
 
 ### Task 6: Runbook tools
@@ -239,7 +237,7 @@ retailor_runbook_item { owner: {level:'client'; clientId}; key } → { proposed:
 - **Content validation:** `content` is validated by `parseItemContent`; failures → `invalid_input` with the zod message (userFacing).
 - **Client `thresholds` knob (R3):** writes through the `set_alert_rules` core (respects the CHECK).
 - **Pulls and the client copy:** `pull_runbook_update` sets content (parent content, or the reviewed re-tailored content at client level), `upstreamVersion = parent.version`, `upstreamSnapshot = parent`, `customised = (content ≠ parent content)`. `dismiss` sets `dismissedUpstreamVersion`.
-- **Re-tailoring:** `retailor_runbook_item` runs `tailorClientRunbook(..., {onlyKey})` **synchronously** (one AI call, rejected → `proposed: null`) and does not save.
+- **Re-tailoring:** `retailor_runbook_item` runs `proposeTailoring` **synchronously** (one AI call; rejected → `proposed: null`) and does not save.
 - **Removed tools:** `list_playbooks`/`update_playbook` are removed. The web page is replaced in Task 8. Grep for other callers first.
 **Tests (TDD):** each gate (client_owner, viewer, out-of-scope AM, other agency's clientId → not_found; AM can't edit the agency level); each update action against fixtures; an invalid content refusal; the thresholds knob writes `client.score_thresholds`; the `key:'*'` create copies and enqueues; lazy agency runbook; platform edit bumps the version and the agency sees `update_available`.
 **Done when:** `pnpm --filter @cs/tools exec vitest run runbooks` passes.
