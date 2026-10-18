@@ -194,3 +194,4 @@ list_verticals (verticals.ts) | read | read-only
 create_vertical (verticals.ts) | write | inserts vertical, areas, categories (service tx)
 add_business_area (verticals.ts) | write | inserts an unreviewed business area
 update_vertical (verticals.ts) | write | updates an unreviewed vertical the agency created
+draft_vertical (verticals.ts) | write | one paid model call plus a vertical_draft insert (service); web only

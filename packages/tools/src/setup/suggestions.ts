@@ -1,6 +1,7 @@
 import type { GbpProfile } from '@cs/collectors';
 import type { JsonSchemaFormat } from '@cs/ai';
 import type { SetupSuggestion } from '@cs/db';
+import { normaliseQuote } from '@cs/verticals';
 import { z } from 'zod';
 import { MAX_KEYWORDS } from '../client-input';
 
@@ -61,8 +62,7 @@ const rawSchema = z.object({
   keywords: z.array(z.object({ text: z.string(), quote: z.string() })),
 });
 
-const norm = (s: string) => s.normalize('NFKC').replace(/[‘’]/g, "'").replace(/[“”]/g, '"')
-  .replace(/\s+/g, ' ').trim().toLowerCase();
+const norm = normaliseQuote;
 
 /**
  * Deterministic gate on the model's answer (spec §6.4): *no evidence, no claim*. Keeps only items whose quote appears in

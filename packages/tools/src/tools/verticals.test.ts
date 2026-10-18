@@ -214,3 +214,60 @@ describe('list_verticals', () => {
     expect(out.verticals[0]!.services.length).toBeGreaterThan(0);
   });
 });
+
+describe('draft_vertical', () => {
+  const sample = {
+    name: 'Craft distilleries', audienceNoun: 'guests',
+    areas: [{ name: 'Tastings', aliases: [], quote: 'barrel tastings' }],
+    seedKeywords: [], categories: ['Distillery'], relatedCategories: [], themes: [],
+  };
+  let calls: { placeId: string; nearbyCategories: string[] }[] = [];
+  let behaviour: () => Promise<{ draft: typeof sample | null; similar: { id: string; name: string }[] }> = async () => ({ draft: sample, similar: [] });
+  const drafting = createToolRegistry(
+    { app: dbs.app, service: dbs.service, catalog, verticalDrafter: async (input) => { calls.push(input); return behaviour(); } },
+    { audit: { record: async () => {} } },
+  );
+  type Out = { draft: unknown; similar: unknown[]; cached: boolean };
+  const draft = (c: AccessContext, placeId: string) => drafting.invoke(c, 'draft_vertical', { placeId, nearbyCategories: ['Distillery'] }) as Promise<Out>;
+  beforeEach(() => {
+    calls = [];
+    behaviour = async () => ({ draft: sample, similar: [] });
+  });
+
+  it('stores a non-null draft and answers the second call from the cache without calling the drafter', async () => {
+    expect(await draft(admin, 'p1')).toEqual({ draft: sample, similar: [], cached: false });
+    expect(await draft(admin, 'p1')).toMatchObject({ draft: sample, cached: true });
+    expect(calls).toHaveLength(1);
+  });
+
+  it('does not store a null draft, so a retry calls the drafter again', async () => {
+    behaviour = async () => ({ draft: null, similar: [] });
+    expect(await draft(admin, 'p2')).toEqual({ draft: null, similar: [], cached: false });
+    await draft(admin, 'p2');
+    expect(calls).toHaveLength(2);
+    expect(await q(sql`select 1 from vertical_draft`)).toHaveLength(0);
+  });
+
+  it('refuses the 11th new draft in a UTC day with a user-facing rate_limited', async () => {
+    for (let i = 0; i < 10; i++) await draft(admin, `p${i}`);
+    await expect(draft(admin, 'p-extra')).rejects.toMatchObject({ code: 'rate_limited', userFacing: true, message: "You've drafted 10 new business types today. Try again tomorrow." });
+    expect((await draft(admin, 'p3')).cached).toBe(true); // cache hits are free
+    await expect(draft(adminB, 'p-b')).resolves.toMatchObject({ cached: false });
+  });
+
+  it('turns a drafter failure into draft: null', async () => {
+    behaviour = async () => { throw new Error('model down'); };
+    expect(await draft(admin, 'p9')).toEqual({ draft: null, similar: [], cached: false });
+  });
+
+  it('is for agency staff and refused in support sessions', async () => {
+    await expect(draft(viewer, 'p1')).rejects.toMatchObject({ code: expect.stringMatching(/permission_denied|not_found/) });
+    await expect(draft(ctx('agency_admin', IDS.agencyA, true), 'p1')).rejects.toMatchObject({ code: 'read_only_session' });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('caches by place across agencies (the draft comes from a public profile only)', async () => {
+    await draft(admin, 'shared');
+    await expect(draft(adminB, 'shared')).resolves.toMatchObject({ cached: true });
+  });
+});

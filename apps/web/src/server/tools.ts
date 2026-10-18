@@ -16,6 +16,7 @@ import { enqueueFor, jobStatusFor } from './queue';
 import { platformAdmins } from './runtime-env';
 import { setupLookupFor } from './setup-lookup';
 import { webStore } from './store';
+import { verticalDrafterFor } from './vertical-draft';
 
 /**
  * P16: query embeddings for `search` exist only in the `dev` environment with an OpenRouter key (DEMO/TEST/E2E never
@@ -43,10 +44,11 @@ function embedQueryFor(name: EnvName, service: Db): ToolDeps['embedQuery'] {
 export const toolDeps = perEnv((name: EnvName): ToolDeps => {
   const { app, service } = dbs(name);
   const store = webStore(name);
+  const catalog = createCatalog(() => catalogRows(service), { ttlMs: 60_000 });
   return {
     app,
     service,
-    catalog: createCatalog(() => catalogRows(service), { ttlMs: 60_000 }),
+    catalog,
     delivery: deliveryConfigFromEnv(process.env),
     enqueue: enqueueFor(name),
     jobStatus: jobStatusFor(name),
@@ -59,6 +61,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     evidenceStore: { get: (key) => store.get(key), put: (key, body, contentType) => store.put(key, body, contentType) },
     embedQuery: embedQueryFor(name, service),
     setupLookup: setupLookupFor(name, service, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
+    verticalDrafter: verticalDrafterFor(name, service, catalog, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
     billing: gatewayFor(webEnv().stripe ?? {}, name) ?? undefined, // R27: absent = billing not configured
   };
 });

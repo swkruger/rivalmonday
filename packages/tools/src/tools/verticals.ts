@@ -1,8 +1,8 @@
 import { redactContactInfo } from '@cs/collectors';
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { businessArea, client, llmCall, type Tx, vertical, verticalCategory, verticalDraft } from '@cs/db';
-import { assemblePack, type BusinessAreaRow, GENERIC_VERTICAL_ID, normaliseName, similarVerticals, type VerticalRow } from '@cs/verticals';
-import { and, eq, inArray, ne, sql } from 'drizzle-orm';
+import { assemblePack, type BusinessAreaRow, GENERIC_VERTICAL_ID, normaliseName, similarVerticals, type VerticalDraft, verticalDraftSchema, type VerticalRow } from '@cs/verticals';
+import { and, count, eq, gte, inArray, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { catalogOf } from '../catalog/access';
 import type { ToolDeps } from '../deps';
@@ -331,4 +331,48 @@ export const updateVertical = defineTool({
   },
 });
 
-export const verticalTools = [listVerticals, createVertical, addBusinessAreaTool, updateVertical];
+const DRAFTS_PER_DAY = 10;
+const draftOutput = z.object({
+  draft: verticalDraftSchema.nullable(),
+  similar: z.array(z.object({ id: z.string(), name: z.string() })),
+  cached: z.boolean(),
+});
+
+export const draftVertical = defineTool({
+  name: 'draft_vertical',
+  access: 'write',
+  description: 'Draft a new business type from a Google Business Profile, every item quoted from the profile (agency admins and account managers). Nothing is saved to the catalogue until create_vertical.',
+  input: z.object({ placeId: z.string().min(1).max(300), nearbyCategories: z.array(z.string().max(80)).max(20) }),
+  output: draftOutput,
+  permission: 'manage',
+  channels: ['web'],
+  async handler(ctx, input, deps) {
+    requireAgencyStaff(ctx);
+    const similarTo = async (name: string) =>
+      similarVerticals(name, (await catalogOf(deps).list()).map((v) => ({ id: v.id, name: v.name, categories: [] })));
+
+    const [hit] = await deps.service.select({ draft: verticalDraft.draft }).from(verticalDraft).where(eq(verticalDraft.placeId, input.placeId)).limit(1);
+    const stored = verticalDraftSchema.safeParse(hit?.draft);
+    if (stored.success) return { draft: stored.data, similar: await similarTo(stored.data.name), cached: true };
+
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const [{ n } = { n: 0 }] = await deps.service.select({ n: count() }).from(verticalDraft)
+      .where(and(eq(verticalDraft.agencyId, ctx.agencyId), gte(verticalDraft.createdAt, startOfDay)));
+    if (n >= DRAFTS_PER_DAY) throw new ToolError('rate_limited', `You've drafted ${DRAFTS_PER_DAY} new business types today. Try again tomorrow.`, { userFacing: true });
+
+    if (!deps.verticalDrafter) return { draft: null, similar: [], cached: false };
+    let out: Awaited<ReturnType<NonNullable<typeof deps.verticalDrafter>>>;
+    try {
+      out = await deps.verticalDrafter({ placeId: input.placeId, nearbyCategories: input.nearbyCategories }, { agencyId: ctx.agencyId, clientId: null, verticalId: `draft:${input.placeId}` });
+    } catch (e) {
+      console.error(`[draft_vertical] drafter failed: ${e instanceof Error ? e.name : 'unknown'}`);
+      return { draft: null, similar: [], cached: false };
+    }
+    if (!out.draft) return { draft: null, similar: out.similar, cached: false };
+    await deps.service.insert(verticalDraft).values({ placeId: input.placeId, agencyId: ctx.agencyId, draft: out.draft satisfies VerticalDraft }).onConflictDoNothing();
+    return { draft: out.draft, similar: out.similar, cached: false };
+  },
+});
+
+export const verticalTools = [listVerticals, createVertical, addBusinessAreaTool, updateVertical, draftVertical];

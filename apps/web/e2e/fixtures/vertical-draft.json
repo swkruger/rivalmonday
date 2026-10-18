@@ -1,0 +1,21 @@
+{
+  "name": "Craft distilleries",
+  "audienceNoun": "guests",
+  "areas": [
+    { "name": "Tasting room", "aliases": ["tastings"], "quote": "Tasting room open Thursday to Sunday" },
+    { "name": "Distillery tours", "aliases": ["guided tours"], "quote": "Guided distillery tours every hour" },
+    { "name": "Bottle sales", "aliases": ["bottle shop"], "quote": "Buy bottles straight from the distillery" },
+    { "name": "Cocktail bar", "aliases": ["cocktails"], "quote": "Craft cocktails made with our own spirits" },
+    { "name": "Private events", "aliases": ["event hire"], "quote": "Private events and group bookings" }
+  ],
+  "seedKeywords": [
+    { "value": "distillery tour", "quote": "Guided distillery tours every hour" },
+    { "value": "craft cocktails", "quote": "Craft cocktails made with our own spirits" }
+  ],
+  "categories": ["Distillery", "Whiskey distillery"],
+  "relatedCategories": ["Liquor store"],
+  "themes": [
+    { "name": "Tour quality", "quote": "Guided distillery tours every hour" },
+    { "name": "Cocktail quality", "quote": "Craft cocktails made with our own spirits" }
+  ]
+}

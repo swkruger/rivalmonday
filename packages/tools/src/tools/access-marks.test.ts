@@ -15,7 +15,7 @@ const WRITE_TOOLS = [
   'revoke_membership', 'revoke_oauth_grant', 'run_prospect_snapshot', 'save_platform_cost_item', 'save_setup_profile', 'send_brief_now', 'set_alert_rules', 'set_brief_auto_send',
   'set_client_limits', 'set_kb_auto_sync', 'set_my_notification_pref', 'set_page_pin', 'set_support_access_notify', 'set_webhook_active', 'start_support_session', 'submit_feedback',
   'update_agency_branding', 'update_agency_profile', 'update_client_delivery', 'update_platform_cost_service', 'update_client_profile', 'update_client_rank_settings', 'update_intake_link', 'update_my_contact', 'update_playbook',
-  'update_recommendation_status', 'update_vertical', 'upload_agency_logo', 'upsert_kb_article',
+  'update_recommendation_status', 'update_vertical', 'draft_vertical', 'upload_agency_logo', 'upsert_kb_article',
 ].sort();
 
 const ASK_THREAD_TOOLS = ['delete_my_ask_thread', 'get_ask_starters', 'get_my_ask_thread', 'list_my_ask_threads'];
