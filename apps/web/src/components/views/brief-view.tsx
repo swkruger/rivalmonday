@@ -1,6 +1,7 @@
 import type { BriefDetail } from '@cs/tools';
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import { formatMetric, scorecardModel } from '@cs/engine';
+import Link from 'next/link';
 import { EvidenceChips } from '@/components/evidence-chips';
 import { OpenFirstMoves, Scorecard } from './scorecard';
 
@@ -38,22 +39,33 @@ function TrendTable({ trend }: { trend: NonNullable<BriefDetail['trend']> }) {
 /**
  * Item ids are exposed as `#item-<id>` anchors so Task 15's email deep links can scroll straight to one.
  * Client roles never see `upsellTag` (the tool already strips it) or non-active items (dropped/replaced).
+ * `archiveHref` (the Overview card) adds "Brief archive →"; `titled={false}` (the brief page, whose `PageHeader` names
+ * the week) drops the card's own title.
  */
-export function BriefView({ brief, agency }: { brief: BriefDetail; agency: boolean }) {
+export function BriefView({ brief, agency, archiveHref, titled = true }: { brief: BriefDetail; agency: boolean; archiveHref?: string; titled?: boolean }) {
   const items = [...brief.items].filter((i) => agency || i.status === 'active').sort((a, b) => a.ord - b.ord);
   const startingPoint = brief.kind === 'starting_point';
   const model = brief.scorecard ? scorecardModel(brief.scorecard, { clientName: brief.items.find((i) => i.subject === 'self')?.competitorName ?? '' }) : null;
   const deliverable = brief.status === 'approved' || brief.status === 'sent';
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center gap-3">
-        <CardTitle className="text-[17px]">{startingPoint ? 'Your starting point' : `Week of ${brief.deliveryDate}`}</CardTitle>
+      <CardHeader className="flex flex-row flex-wrap items-center gap-3">
+        {titled && <CardTitle className="text-[17px]">{startingPoint ? 'Your starting point' : `Week of ${brief.deliveryDate}`}</CardTitle>}
         {startingPoint && <Badge variant="outline">Starting point · {brief.deliveryDate}</Badge>}
         {agency && <Badge variant="secondary">{brief.status}</Badge>}
-        {deliverable && (
-          <a href={`/files/brief/${brief.id}`} target="_blank" rel="noopener noreferrer" className="ml-auto font-semibold text-primary-soft-text">
-            Download PDF
-          </a>
+        {(deliverable || archiveHref) && (
+          <span className="ml-auto flex items-center gap-4">
+            {deliverable && (
+              <a href={`/files/brief/${brief.id}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-soft-text">
+                Download PDF
+              </a>
+            )}
+            {archiveHref && (
+              <Link href={archiveHref} className="font-semibold text-primary-soft-text">
+                Brief archive →
+              </Link>
+            )}
+          </span>
         )}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">

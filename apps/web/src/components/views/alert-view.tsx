@@ -6,8 +6,9 @@ import { EvidenceChips } from '@/components/evidence-chips';
  * The `written === 'template'` note tells an agency reader the model text failed verification and a
  * deterministic template was sent instead (HANDOVER §6 "Review a few rendered template alerts…"). Client
  * roles never see it, or the score/status badges — this is the one agency-only distinction in alert text.
+ * `titled={false}` (the alert page, whose `PageHeader` is the headline) drops the card's own headline.
  */
-export function AlertView({ alert, agency }: { alert: AlertDetail; agency: boolean }) {
+export function AlertView({ alert, agency, titled = true }: { alert: AlertDetail; agency: boolean; titled?: boolean }) {
   const when = alert.deliveredAt ?? alert.createdAt;
   return (
     <Card>
@@ -18,7 +19,7 @@ export function AlertView({ alert, agency }: { alert: AlertDetail; agency: boole
         <span className="ml-auto text-sm text-muted-foreground">{when}</span>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <h2 className="text-[17px] font-bold">{alert.headline}</h2>
+        {titled && <h2 className="text-[17px] font-bold">{alert.headline}</h2>}
         <p className="leading-relaxed">{alert.body}</p>
         <EvidenceChips clientId={alert.clientId} ids={alert.evidenceIds} />
         {agency && alert.written === 'template' && (

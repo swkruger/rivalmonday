@@ -2,8 +2,11 @@ import type { AlertSummary, BriefSummary } from '@cs/tools';
 import { Badge } from '@cs/ui';
 import Link from 'next/link';
 
-/** Brief links (week, summary, status) — shared by the 5a home (`ClientHomeBasic`) and the Overview's "Past briefs". */
-export function BriefLinkList({ clientId, items, empty }: { clientId: string; items: BriefSummary[]; empty: string }) {
+/**
+ * Brief links (week, summary, status) — shared by the 5a home (`ClientHomeBasic`) and the Overview's "Past briefs".
+ * The status chip is agency-only (15a §2.8): client roles only ever get delivered briefs, so it would say nothing.
+ */
+export function BriefLinkList({ clientId, items, empty, agency }: { clientId: string; items: BriefSummary[]; empty: string; agency: boolean }) {
   return (
     <div className="flex flex-col gap-2">
       {items.length === 0 && <p className="text-muted-foreground">{empty}</p>}
@@ -11,9 +14,11 @@ export function BriefLinkList({ clientId, items, empty }: { clientId: string; it
         <Link key={b.id} href={`/c/${clientId}/briefs/${b.id}`} className="flex items-center gap-3 rounded-lg bg-muted-surface px-3 py-2 hover:bg-muted-surface-2">
           <span className="font-semibold">{b.kind === 'starting_point' ? 'Starting point' : 'Week of'} {b.deliveryDate}</span>
           <span className="truncate text-muted-foreground">{b.summary}</span>
-          <Badge variant="secondary" className="ml-auto">
-            {b.status}
-          </Badge>
+          {agency && (
+            <Badge variant="secondary" className="ml-auto">
+              {b.status}
+            </Badge>
+          )}
         </Link>
       ))}
     </div>

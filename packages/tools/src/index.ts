@@ -26,6 +26,8 @@ export * from './usage';
 export { EVIDENCE_CONTENT_TYPES, evidenceContentType, type ServableEvidenceKind } from './workspace/evidence-access';
 export * from './workspace/labels';
 export * from './workspace/word-diff';
+// 15a: the web's numbered pages (Briefs & reports) ask a paged list tool for page n.
+export { encodeCursor } from './paging';
 export * from './tools/schemas';
 export { clientOwnerEmails } from './tools/client-billing';
 export { assertRoomForCompetitors, type Discovery, lockClientLimit, startDiscovery } from './tools/competitors';

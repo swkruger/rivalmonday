@@ -106,6 +106,17 @@ describe('BriefView', () => {
     expect(screen.getByText('Headline 3')).toBeTruthy();
   });
 
+  it('the Overview card links to the brief archive; the brief page drops the card title (15a §2.8)', () => {
+    const { unmount } = render(<BriefView brief={brief} agency={false} archiveHref={`/c/${C}/briefs`} />);
+    expect(screen.getByRole('link', { name: 'Brief archive →' }).getAttribute('href')).toBe(`/c/${C}/briefs`);
+    expect(screen.getByText(`Week of ${brief.deliveryDate}`)).toBeTruthy();
+    unmount();
+    render(<BriefView brief={brief} agency={false} titled={false} />);
+    expect(screen.queryByRole('link', { name: 'Brief archive →' })).toBeNull();
+    expect(screen.queryByText(`Week of ${brief.deliveryDate}`)).toBeNull();
+    expect(screen.getByRole('link', { name: 'Download PDF' })).toBeTruthy();
+  });
+
   it('renders a quiet brief without items', () => {
     render(<BriefView brief={{ ...brief, kind: 'quiet', items: [], summary: 'No significant competitor moves this week.' }} agency={false} />);
     expect(screen.getByText('No significant competitor moves this week.')).toBeTruthy();

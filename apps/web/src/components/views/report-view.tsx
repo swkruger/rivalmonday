@@ -9,13 +9,16 @@ const ratingArrow = (avg: number | null, prev: number | null) => {
   return avg > prev ? ' ▲' : ' ▼';
 };
 
-/** Spec §9.2: every number here is deterministic, computed and stored at generation time — nothing model-written to verify. */
-export function ReportView({ report }: { report: ReportDetail }) {
+/**
+ * Spec §9.2: every number here is deterministic, computed and stored at generation time — nothing model-written to verify.
+ * `titled={false}` (the report page, whose `PageHeader` names the quarter) drops the card's own title.
+ */
+export function ReportView({ report, titled = true }: { report: ReportDetail; titled?: boolean }) {
   const data = report.data as TrendReportData | null;
   return (
     <Card>
       <CardHeader className="flex flex-row items-center gap-3">
-        <h2 className="text-[17px] font-semibold leading-none">Competitor trends — {report.quarter}</h2>
+        {titled && <h2 className="text-[17px] font-semibold leading-none">Competitor trends — {report.quarter}</h2>}
         {report.status === 'sent' && (
           <a href={`/files/report/${report.id}`} target="_blank" rel="noopener noreferrer" className="ml-auto font-semibold text-primary-soft-text">
             Download PDF

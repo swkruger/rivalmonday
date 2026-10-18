@@ -121,6 +121,8 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}place-summary\\.tsx$`), tags: ['@clients', '@leads'], why: 'lookup result card (agency lookup step, public intake form)' },
   { pattern: re(`${COMP}form-error\\.tsx$`), tags: 'all', why: 'ErrorNote/FormError: the one error primitive, rendered by form and action errors on almost every surface (incl. the seat-cap Upgrade link)' },
   { pattern: re(`${COMP}page-header\\.tsx$`), tags: 'all', why: 'PageHeader: the h1, breadcrumb and actions of almost every signed-in page (15a §2.7)' },
+  { pattern: re(`${COMP}client-crumbs\\.ts$`), tags: 'all', why: 'client breadcrumbs: every /c/<id> page header (15a §2.7)' },
+  { pattern: re(`${COMP}prev-next\\.tsx$`), tags: ['@briefs', '@alerts', '@starting-point'], why: 'Previous / Next on the brief, alert and report pages (15a §2.8)' },
   { pattern: re(`${C}(?:page\\.tsx|overview-kpis\\.ts)$`), tags: ['@overview', '@starting-point'], why: 'client overview (starting-point progress card)' },
   { pattern: re(`${C}ads/`), tags: ['@ads'], why: 'ads view' },
   { pattern: re(`${C}alerts/`), tags: ['@alerts'], why: 'alert page' },
