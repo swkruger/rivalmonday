@@ -97,6 +97,14 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] `couponFor` ignores `max_redemptions` (Stripe enforces; exhausted coupon → Checkout error) — *phase-10*
 - [ ] Test hygiene: >120-char CHECK tests, `parseWebEnv` new-var test, funnel non-active `cardAdded` case, sequential double-run nudge test, refused-duplicate E2E fixed 3 s wait, mock-based console spies — *phase-10*
 
+## Phase 13b follow-ups (local rankings)
+- [ ] Soon: Stadia one-image probe (confirm `STATIC_MAP_WORLD_PX=512`, @2x size, max size; add a fixture) before enabling the key in prod; `SINGLE_SHOT` 3 h expiry on a long Sunday fan-out (pre-existing); `request_rank_scan` stale sweep covers all tenants and, with no DataForSEO-configured signal in `ToolDeps`, an unconfigured worker leaves a manual row `running` until the 3 h sweep — *phase-13b*
+- [ ] Soon: Compare limited to the newest 12 scans (slider vs grid mismatch when `?scan=` is older); orphaned `rank-map/{id}/{oldHash}.png` on a hash change; failed map fetches ledgered at the full $0.06 while network-error fetches ledger 0 (redact the key on all error paths) — *phase-13b*
+- [ ] Rankings data/logic: `get_geogrid` map non-null for a zero-snapshot scan; trend cursor lacks an id tiebreak; `tier_change` factors report unused weights; `block_key` dates like 02-30 roll over; demo `rank_change` ignores `diffRankScan` thresholds; `get_rank_settings` returns the raw legacy radius (41-80 fails resubmission); client components importing `@cs/engine` pull `node:crypto` via the barrel — *phase-13b*
+- [ ] Rankings UI: cap fallback copy lacks client name/amount; weekly fallback date uses UTC; `queued` keeps "Scan running..." until navigation; cap/daily notes not `aria-describedby`; slider debounce compares a stale value; brief thumb snap-back mid-drag; ChangeGrid duplicates GeoGrid hatch defs — *phase-13b*
+- [ ] Rankings tests: 0068 backfill untested; `fitStaticMap` centre/y-placement and zoom-clamp; agency 10/day `FOR UPDATE` concurrency; "never logs the key" and failure-ledger; trend legend order asserted only via `toContain('You')`; `tier_change` `failed` status — *phase-13b*
+- [ ] Pre-existing on main: `apps/worker/src/jobs/leads.ts` fails the UTF-8 check (polish) — *found at 13b merge*
+
 ## Polish (small UI/UX fixes, any time)
 
 ### Phase 6 UI polish
@@ -125,10 +133,8 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ### Data views & charts
 - [ ] Ads "More ads" link loops to page 1 past the offset cap of 5000; Reviews "More" link resets past the cap; `?business=self` while the self business is pending says "no longer available" — *from 5c-2 Tasks 7, 12*
 - [ ] Heatmap "Show as table" cells unstyled and omit the delta; SVG text shrinks at phone width — *from 5c-2 Task 11*
-- [ ] `GeoGrid`: legend emits duplicate `<defs id="geogrid-hatch-legend">` five times; fixed hatch id collides with two grids on a page; ragged rows not defended — *from 5c-2 Task 15*
-- [ ] `get_geogrid`: a selected scan older than the newest 12 is missing from the scans list — *from 5c-2 Task 13*
 - [ ] Mobile drawer stays open across a resize to `lg` — *from 5c-2 Task 18*
-- [ ] Legend: pinned "You" leads instead of following the name sort; rival "Other (average)" rating is an unweighted mean of monthly averages — *from 5c-2 re-review*
+- [ ] Legend: rival "Other (average)" rating is an unweighted mean of monthly averages — *from 5c-2 re-review*
 - [ ] `ReportView`'s "Changes detected" isn't sorted by count like the email; trend table plain-text fallback lists one cell per line — *from 5a T14, 4b Task 6*
 
 ### Settings, auth & admin screens
@@ -198,12 +204,11 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Batch-priced brief writing (not needed at pilot volume) — *from 4a*
 - [ ] Per-client page deactivation; drag-and-drop reordering; agency-wide recommendation board — *from 5b-1*
 - [ ] Delete/archive a prospect (needs soft-delete first); per-agency default caps/limits — *from 5b-2*
-- [ ] Ad images (vendor media URLs expire and leak viewer requests); map tiles under the geo-grid; dark chart theme (with the app's dark theme) — *from 5c-1/5c-2*
+- [ ] Ad images (vendor media URLs expire and leak viewer requests); dark chart theme (with the app's dark theme) — *from 5c-1/5c-2*
 - [ ] Own-site prices: a "you" column; feed ads/own-website prices into `price_point` (3c decision 11) — *from 3c, 5c-2*
 - [ ] Change-region boxes on screenshots (owner: not wanted for now) — *from 5c-1*
 - [ ] Instagram Business Discovery (needs a Facebook app, a connected Page and app review; Graph API v26.0) — *from Phase 2 planning*
 - [ ] Decide the `briefs_only` feature flag — *from Phase 1 review*
-- [ ] `tier_change` event when a tracked competitor's tier changes (deferred: `detected_change_subject_check` needs a capture or rank scan) — *from phase-12 plan 12a P4*
 
 ### Collectors
 - [ ] Tracked pages: re-discovery never deactivates unselected pages; `active: true` re-activates human-deactivated pages; http/https and www/bare tracked separately — *from 2a review*
@@ -229,7 +234,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] AM "updated" path doesn't recompute `details.offer`/summary or clear `needs_review` on detach — *from 3d final review*
 - [ ] Anthropic batch: submit precedes `model_batch` insert (orphans not auto-reconciled); apply not idempotent; `collectModelBatches` no per-item try/catch; no `ok:false` ledger row on submit/status/results throw — *from 3d Tasks 8–9, 4a*
 - [ ] `ensureSelfCompetitor` read-then-write race on a place-id change — *from 5b-1*
-- [ ] Structured: `ad` started/stopped queries lack `ORDER BY`; `rank_scan.status` no CHECK; jobs lookback ignores `capture.source`; `upsertReviews` hard-codes `source: 'google'` — *from 3b Tasks 2, 5–7*
+- [ ] Structured: `ad` started/stopped queries lack `ORDER BY`; jobs lookback ignores `capture.source`; `upsertReviews` hard-codes `source: 'google'` — *from 3b Tasks 2, 5–7*
 - [ ] Prices: unhyphenated "off peak" read as discount; dead `-1` in `pricesInBlock`; over-cap pages (> `PRICE_MAX_BLOCKS`) end no spans — *from 3c Tasks 8–9*
 
 ### Briefs, alerts & delivery

@@ -33,6 +33,7 @@ Agency-owned, white-labelable SaaS that monitors the competitors of **local-serv
 - **Billing (Phase 9):** platform → agency via Stripe Billing (pilot / 30-day trial / $229 incl. 3 seats + $99/seat); agency → client via Stripe Connect Standard, direct charges, platform fee 0 by default; nothing client-facing names Rival Monday. Paused clients (`client.paused_at`) get no recurring work and no seat.
 - **Agency onboarding (Phase 10):** agencies may self-sign-up (open trial: 1 active client, weekly pages until a card is added) or join via invite links; verify-then-create; the wizard is skippable.
 - **Client onboarding (Phase 11):** resumable setup wizard (lookup -> profile -> competitors -> invite owner -> billing); starting-point clock starts when competitors are done (14-day cap). Clients self-start only via an agency intake link or the platform pool; `/start` may show Rival Monday until a lead is assigned (white-label exception).
+- **Local rankings (13b):** map backgrounds are Stadia Maps cacheable static images stored in our evidence store (MapTiler's terms forbid server caching); weekly rank scans Sunday 06:00 UTC count against the client cap; Scan now <= 1/client/7 days and <= 10/agency/day.
 - **Starting-point brief:** one per client, deterministic self-rules + verified why-it-matters only; quiet weeks carry a "Where you stand" scorecard.
 - Phase-local decisions live in each plan's "Decisions" — never re-open those either.
 
