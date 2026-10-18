@@ -61,3 +61,4 @@ export { getPublicPreview, type IntakeBranding, type IntakePlaceOption, intakeLo
 export { INTAKE_SIG_TTL_MS, intakeLookupSchema, type SignedIntakePlace, signedIntakePlaceSchema } from './intake/signed';
 export { buildSnapshot, LEAD_SUMMARY_SYSTEM, leadSummaryJsonSchema, snapshotFacts, validateSummary } from './intake/preview';
 export { type LeadEmailDeps, type LeadEmailKind, sendLeadEmail } from './intake/emails';
+export { catalogOf, catalogPacks } from './catalog/access';

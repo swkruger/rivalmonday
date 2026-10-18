@@ -9,8 +9,9 @@ try {
 const { writeFile } = await import('node:fs/promises');
 const { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } = await import('@cs/ai');
 const { verifyLink } = await import('@cs/core');
-const { brief, client, createDb, createDecisionSampleSink, createLedgerSink } = await import('@cs/db');
+const { brief, catalogRows, client, createDb, createDecisionSampleSink, createLedgerSink } = await import('@cs/db');
 const engine = await import('@cs/engine');
+const { createCatalog } = await import('@cs/verticals');
 const { createEmailTransportFromEnv } = await import('@cs/email');
 const { createStoreFromEnv } = await import('@cs/storage');
 const { eq } = await import('drizzle-orm');
@@ -34,7 +35,7 @@ const needDelivery = () => {
 };
 const { db, close } = createDb(serviceUrl);
 const ai = () => loadAiConfigFile(DEFAULT_AI_CONFIG_PATH).then((cfg) => createAiFromEnv(process.env, cfg, createLedgerSink(db), createDecisionSampleSink(db)));
-const packs = engine.createPackLoader();
+const packs = createCatalog(() => catalogRows(db), { ttlMs: 60_000 }).packs;
 const print = (label: string, value: unknown) => console.log(`[${label}] ${JSON.stringify(value, null, 2)}`);
 try {
   const now = 'now' in args && args.now ? args.now : new Date();

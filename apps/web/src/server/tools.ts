@@ -2,9 +2,10 @@ import 'server-only';
 import { gatewayFor } from '@cs/billing';
 import { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile, type Ai } from '@cs/ai';
 import { type AccessContext, ToolError, type ToolRegistry } from '@cs/core';
-import { createLedgerSink, type Db, type EnvName } from '@cs/db';
+import { catalogRows, createLedgerSink, type Db, type EnvName } from '@cs/db';
 import { deliveryConfigFromEnv } from '@cs/engine';
 import { createToolRegistry, type ToolDeps } from '@cs/tools';
+import { createCatalog } from '@cs/verticals';
 import { notFound } from 'next/navigation';
 import { dbs } from './db';
 import { processGuardOn } from './dev-guard';
@@ -45,6 +46,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
   return {
     app,
     service,
+    catalog: createCatalog(() => catalogRows(service), { ttlMs: 60_000 }),
     delivery: deliveryConfigFromEnv(process.env),
     enqueue: enqueueFor(name),
     jobStatus: jobStatusFor(name),

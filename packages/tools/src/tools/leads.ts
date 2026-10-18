@@ -1,10 +1,10 @@
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { agency, intakeLink, lead, leadPreviewSchema, type LeadRow, type LeadStatus, setupLookupSchema, type Tx, withTenant } from '@cs/db';
-import { listSelectableVerticalPacks } from '@cs/verticals';
 import { and, count, desc, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { inviteClientUser } from '../access/client-invite';
-import { packsOf, type ToolDeps } from '../deps';
+import { catalogPacks } from '../catalog/access';
+import type { ToolDeps } from '../deps';
 import { type LeadEmailKind, sendLeadEmail } from '../intake/emails';
 import { preselectVertical } from '../setup/lookup';
 import { createClientCore } from './onboarding';
@@ -68,7 +68,7 @@ const toSummary = (r: LeadRow): LeadSummaryOut => ({
   contactName: r.contactName, email: r.email, phone: r.phone, message: r.message, preview: r.preview, createdAt: r.createdAt, verifiedAt: r.verifiedAt, decidedAt: r.decidedAt, clientId: r.clientId,
 });
 
-const loadPacks = async (deps: ToolDeps) => Promise.all((await listSelectableVerticalPacks()).map((id) => packsOf(deps)(id)));
+const loadPacks = (deps: ToolDeps) => catalogPacks(deps);
 const suggestVertical = (packs: Awaited<ReturnType<typeof loadPacks>>, r: LeadRow): string | null => preselectVertical(packs, r.lookup.category ? [r.lookup.category] : []);
 
 /** Locks the caller's agency's verified lead, or refuses with not_found (another agency's, a pool lead, or already decided). */

@@ -1,11 +1,11 @@
 import { MAPS_SEARCH_OPERATION } from '@cs/collectors';
 import { type AccessContext, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
 import { client, clientCompetitor, clientSetup, competitorSuggestion, discoveryRun, setupLookupSchema, type SetupSkippedStep, type SetupSuggestions, setupSuggestionsSchema, type Tx, vendorCall, withTenant } from '@cs/db';
-import { listSelectableVerticalPacks } from '@cs/verticals';
 import { and, count, desc, eq, gte, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { inviteClientUser } from '../access/client-invite';
-import { packsOf, type ToolDeps } from '../deps';
+import { catalogPacks, packsOf } from '../catalog/access';
+import type { ToolDeps } from '../deps';
 import { startCompetitorSearch } from '../rival-search';
 import { collapseSameListing, FIND_BUSINESS_DAILY_CAP, possibleDuplicates, preselectVertical, toSetupLookup } from '../setup/lookup';
 import { applyClientProfileChange } from '../setup/profile-change';
@@ -55,7 +55,7 @@ export const findBusiness = defineTool({
       return lookup ? [{ ...lookup, isClaimed: p.isClaimed ?? null, categories: [p.category, ...(p.additionalCategories ?? [])].filter((c): c is string => !!c) }] : [];
     })).slice(0, 5);
     const dup = possibleDuplicates(usable);
-    const packs = usable.length ? await Promise.all((await listSelectableVerticalPacks()).map((id) => packsOf(deps)(id))) : [];
+    const packs = usable.length ? await catalogPacks(deps) : [];
     return { places: usable.map(({ categories, ...rest }, i) => ({ ...rest, suggestedVerticalId: preselectVertical(packs, categories), possibleDuplicate: dup[i]! })) };
   },
 });

@@ -6,9 +6,10 @@ import {
   runProspectSnapshot, scanRankings, type SourceKind,
 } from '@cs/collectors';
 import type { CaptureStatus } from '@cs/core';
-import { type AgencyBranding, competitor, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
+import { type AgencyBranding, competitor, catalogRows, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
+import { createCatalog } from '@cs/verticals';
 import {
-  analyzeReview as runAnalyzeReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createPackLoader, createWebhookSender,
+  analyzeReview as runAnalyzeReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
   type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
@@ -194,7 +195,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
   // replica. The deployment is a single always-on worker container by design; scaling out to
   // multiple replicas would need a shared (e.g. DB- or Redis-backed) limiter instead of this one.
   const limiter = new HostRateLimiter();
-  const packs = createPackLoader();
+  const packs = createCatalog(() => catalogRows(getDb()), { ttlMs: 60_000 }).packs;
 
   const getDb = () => {
     if (!db) {

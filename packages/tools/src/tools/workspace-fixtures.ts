@@ -6,7 +6,6 @@ import { randomUUID } from 'node:crypto';
 import { type AccessContext, createAccessContext, type Feature } from '@cs/core';
 import { ad, capture, changeEvent, type ChangeDetails, client, competitor, detectedChange, eventChange, eventScore, evidence, move, moveEvent, type NumericChange, observation, pricePoint, type PriceQualifier, rankScan, rankSnapshot, type RankResult, review, reviewAnalysis, type ScoreFactors, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { createPackLoader } from '@cs/engine';
 import { asc, eq } from 'drizzle-orm';
 import { afterAll } from 'vitest';
 import { createToolRegistry } from '../registry';
@@ -14,7 +13,7 @@ import { createToolRegistry } from '../registry';
 export const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 
-export const registry = createToolRegistry({ app: dbs.app, service: dbs.service, packs: createPackLoader() }, { audit: { record: async () => {} } });
+export const registry = createToolRegistry({ app: dbs.app, service: dbs.service }, { audit: { record: async () => {} } });
 
 export const ctx = (role: AccessContext['role'], scope: AccessContext['clientScope'], features: Feature[] = [], agencyId: string = IDS.agencyA): AccessContext =>
   createAccessContext({ agencyId, userId: `u-${role}`, role, clientScope: scope, features });

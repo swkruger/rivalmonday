@@ -1,5 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 import { type Db, createDb } from '../src/client';
+import { seedVerticalCatalog } from '../src/catalog';
 import { agency, agencyBilling, client, clientCompetitor, competitor } from '../src/schema';
 
 export { seedVerticalCatalog } from '../src/catalog';
@@ -41,7 +42,7 @@ export function openTestDbs() {
  * tables on Windows. A superuser (local test cluster, CI) DELETEs with FK triggers off instead (~5–75 ms on test-sized
  * data); other owners (Neon's owner is not superuser) fall back to a single TRUNCATE statement (~0.4 s).
  */
-export async function truncateAll(db: Db): Promise<void> {
+async function truncateEverything(db: Db): Promise<void> {
   try {
     await db.transaction(async (tx) => {
       await tx.execute(sql`SET LOCAL session_replication_role = replica`);
@@ -64,6 +65,12 @@ export async function truncateAll(db: Db): Promise<void> {
                  FROM pg_tables WHERE schemaname = 'public');
       END $$;`);
   }
+}
+
+/** Empties every public table, then restores the seeded vertical catalogue (generic, hvac_plumbing, dental; migration 0077 seeds it once, the truncate would wipe it). */
+export async function truncateAll(db: Db): Promise<void> {
+  await truncateEverything(db);
+  await seedVerticalCatalog(db);
 }
 
 export const IDS = {

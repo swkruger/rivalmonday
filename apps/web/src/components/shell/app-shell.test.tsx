@@ -21,6 +21,8 @@ vi.mock('@/server/tools', () => ({ callTool: async () => ({ items: m.clients }) 
 vi.mock('@/server/client-billing-state', () => ({ clientBillingNoticeOf: async () => m.notice }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {}, app: {} }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
+// Phase 14a: vertical names come from the DB catalogue (`verticalOptions`), not the YAML packs.
+vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [{ id: 'hvac_plumbing', name: 'HVAC & Plumbing', services: [] }] }));
 vi.mock('@cs/tools', () => ({ unreadCount: m.unread, platformRole: m.role }));
 vi.mock('@/server/nav', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/server/nav')>()), navCounts: m.counts }));
 vi.mock('./sidebar', async (importOriginal) => {

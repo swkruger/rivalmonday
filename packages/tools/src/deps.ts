@@ -2,7 +2,8 @@ import type { BillingGateway } from '@cs/billing';
 import type { MapsPlace } from '@cs/collectors';
 import { type CallScope, ToolError } from '@cs/core';
 import type { Db } from '@cs/db';
-import { createPackLoader, type DeliveryConfig, type PackLoader } from '@cs/engine';
+import type { DeliveryConfig, PackLoader } from '@cs/engine';
+import type { Catalog } from '@cs/verticals';
 import type { LeadEmailDeps } from './intake/emails';
 
 /** Jobs the web app may enqueue. The worker owns the queues (5a decision 8); `singletonKey` dedupes on `short`-policy queues. */
@@ -18,8 +19,10 @@ export interface ToolDeps {
   app: Db;
   /** Service role: audit, global tables, and engine functions that need it. */
   service: Db;
-  /** Vertical packs; defaults to the bundled YAML packs. */
+  /** Vertical packs; defaults to the DB catalogue's loader. */
   packs?: PackLoader;
+  /** Vertical catalogue; absent: a per-service-connection DB catalogue (see catalog/access.ts). */
+  catalog?: Catalog;
   /** Null or absent when APP_URL / LINK_SIGNING_SECRET are missing — sending tools refuse with a clear message. */
   delivery?: DeliveryConfig | null;
   /** Absent: tools that start background work refuse with `internal`. */
@@ -49,8 +52,7 @@ export interface ToolDeps {
   };
 }
 
-let bundledPacks: PackLoader | null = null;
-export const packsOf = (deps: ToolDeps): PackLoader => deps.packs ?? (bundledPacks ??= createPackLoader());
+export { packsOf } from './catalog/access';
 
 export function jobStatusOf(deps: ToolDeps): JobStatusLookup {
   if (!deps.jobStatus) throw new ToolError('internal', 'Background job status is not configured');

@@ -7,8 +7,9 @@ try {
 }
 
 const { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } = await import('@cs/ai');
-const { brief, briefItem, client, createDb, createDecisionSampleSink, createLedgerSink } = await import('@cs/db');
-const { createPackLoader, deliveryDateFor, generateBrief, generateStartingPoint, resetStartingPoint, safeTimezone } = await import('@cs/engine');
+const { brief, briefItem, catalogRows, client, createDb, createDecisionSampleSink, createLedgerSink } = await import('@cs/db');
+const { deliveryDateFor, generateBrief, generateStartingPoint, resetStartingPoint, safeTimezone } = await import('@cs/engine');
+const { createCatalog } = await import('@cs/verticals');
 const { and, eq, inArray } = await import('drizzle-orm');
 const { parseBriefArgs } = await import('./brief-args');
 
@@ -27,7 +28,7 @@ if (!serviceUrl || !process.env.OPENROUTER_API_KEY) {
 const { db, close } = createDb(serviceUrl);
 try {
   const ai = createAiFromEnv(process.env, await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH), createLedgerSink(db), createDecisionSampleSink(db));
-  const packs = createPackLoader();
+  const packs = createCatalog(() => catalogRows(db), { ttlMs: 60_000 }).packs;
 
   if (args.startingPoint) {
     const [c] = await db.select({ id: client.id }).from(client).where(eq(client.id, args.client));

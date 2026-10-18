@@ -30,7 +30,7 @@ describe('vertical catalogue tables', () => {
   });
 
   it('seedVerticalCatalog restores three verticals after truncateAll and is idempotent', async () => {
-    await truncateAll(dbs.owner);
+    for (const t of ['vertical_draft', 'vertical_category', 'business_area', 'vertical']) await dbs.owner.execute(sql.raw(`delete from ${t}`));
     expect((await catalogRows(dbs.service)).verticals).toHaveLength(0);
     await seedVerticalCatalog(dbs.owner);
     await seedVerticalCatalog(dbs.owner);

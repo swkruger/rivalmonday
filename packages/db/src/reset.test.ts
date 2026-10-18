@@ -77,9 +77,10 @@ describe('prepareTestDatabase / truncateAll', () => {
       const [row] = [
         ...(await dbs.owner.execute<{ n: number }>(sql`
           select coalesce(sum((xpath('/row/c/text()', query_to_xml(format('select count(*) as c from public.%I', tablename), false, true, '')))[1]::text::int), 0)::int as n
-          from pg_tables where schemaname = 'public'`)),
+          from pg_tables where schemaname = 'public' and tablename not in ('vertical', 'business_area', 'vertical_category', 'vertical_draft')`)),
       ];
       expect(Number(row!.n)).toBe(0);
+      expect((await dbs.owner.execute<{ n: number }>(sql`select count(*)::int as n from vertical`))[0]!.n).toBe(3); // truncateAll re-seeds the catalogue
     } finally {
       await dbs.closeAll();
     }
