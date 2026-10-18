@@ -1,13 +1,12 @@
 import { FEATURES, ToolError, type AccessContext, type Role } from '@cs/core';
-import { client, clientSetup, withTenant, type Tx } from '@cs/db';
+import { client, type ClientRow, clientSetup, withTenant, type Tx } from '@cs/db';
 import { listVerticalPacks, type VerticalPack } from '@cs/verticals';
 import { eq } from 'drizzle-orm';
 import { type ClientInput, cleanClientInput, clientInputProblems } from '../client-input';
 import { packsOf, type ToolDeps } from '../deps';
+import { enqueueMapRefresh } from '../rank-scan';
 import { startFirstAutoSearch, type SearchStart } from '../rival-search';
 import type { ServiceAreaInput } from '../tools/schemas';
-
-export type ClientRow = typeof client.$inferSelect;
 
 /**
  * Fix round 1 (#2): decide "unknown vertical" against the real pack catalog instead of
@@ -48,7 +47,7 @@ export async function applyClientProfileChange(
   ctx: AccessContext, deps: ToolDeps, clientId: string, patch: ClientProfilePatch,
   actor?: { userId: string; role: Role }, recheck?: (tx: Tx) => Promise<void>,
 ): Promise<{ client: ClientRow; search: SearchStart | null }> {
-  const { updated, placeChanged, searchInputsReady } = await withTenant(deps.app, ctx, async (tx) => {
+  const { updated, placeChanged, searchInputsReady, mapChanged } = await withTenant(deps.app, ctx, async (tx) => {
     const [current] = await tx.select().from(client).where(eq(client.id, clientId)).for('update');
     if (!current) throw new ToolError('not_found', 'Client not found');
     if (recheck) await recheck(tx);
@@ -66,7 +65,10 @@ export async function applyClientProfileChange(
     const [updated] = await tx.update(client).set({ name: merged.name, services: merged.services, keywords: merged.keywords, serviceArea: merged.serviceArea, placeId: merged.placeId, features: merged.features }).where(eq(client.id, clientId)).returning();
     const searchInputsChanged = canonical(merged.keywords) !== canonical(current.keywords)
       || canonical(merged.serviceArea) !== canonical(current.serviceArea) || merged.placeId !== current.placeId;
-    return { updated: updated!, placeChanged: merged.placeId !== current.placeId, searchInputsReady: searchInputsChanged && merged.keywords.length > 0 && !!merged.serviceArea && !!merged.placeId };
+    // 13b: the rank map background depends on the service area's centre and radius only.
+    const mapChanged = !!merged.serviceArea && (merged.serviceArea.radiusKm !== current.serviceArea?.radiusKm
+      || merged.serviceArea.center.lat !== current.serviceArea?.center.lat || merged.serviceArea.center.lng !== current.serviceArea?.center.lng);
+    return { updated: updated!, mapChanged, placeChanged: merged.placeId !== current.placeId, searchInputsReady: searchInputsChanged && merged.keywords.length > 0 && !!merged.serviceArea && !!merged.placeId };
   });
   // Final review: the self business was found by the old place id. Unlink it so benchmarks stop using the wrong
   // business and its paid gbp/reviews sources stop being claimed (unless something else still needs them); the next
@@ -75,6 +77,9 @@ export async function applyClientProfileChange(
   if (placeChanged) await deps.service.update(client).set({ selfCompetitorId: null }).where(eq(client.id, clientId));
   // No row (old clients, tests) → nothing to stamp.
   if (actor) await deps.service.update(clientSetup).set({ lastChangedBy: actor.userId, lastChangedRole: actor.role, lastChangedAt: new Date() }).where(eq(clientSetup.clientId, clientId));
+  // 13b: refresh the rank map background after commit (failure logged, never thrown) — covers both callers
+  // (`update_client_profile` and `save_setup_profile`).
+  if (mapChanged) await enqueueMapRefresh(deps, clientId);
   // 12a D4 + owner decision 2026-10-15: after commit, the profile's first completion starts discovery once; a client
   // with any earlier run is never auto re-run by later edits.
   const search = searchInputsReady ? await startFirstAutoSearch(deps, clientId) : null;

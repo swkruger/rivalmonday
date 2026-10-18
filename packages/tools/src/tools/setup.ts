@@ -12,7 +12,7 @@ import { applyClientProfileChange } from '../setup/profile-change';
 import { queueCompetitorReview } from '../setup/review-email';
 import { clientSetupOpen, completeIfDone, getSetupState, loadSetupInvite, type SetupState } from '../setup/state';
 import { acceptSuggestions, dismissSuggestions, preTickTop, RUN_STATUSES, runSuggestionRows, SearchProgress, searchProgress, searchRefusalMessage } from './competitors';
-import { ServiceAreaInput, Tier } from './schemas';
+import { ServiceAreaWrite, Tier } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -211,7 +211,7 @@ export const saveSetupProfile = defineTool({
   description: 'Save the "Your business" step of the client setup wizard: services, keywords, service area and Google place id.',
   input: z.object({
     clientId: uuid, services: z.array(z.string().max(80)).max(255).optional(), keywords: z.array(z.string().max(120)).max(20).optional(),
-    serviceArea: ServiceAreaInput.nullable().optional(), placeId: z.string().max(300).nullable().optional(),
+    serviceArea: ServiceAreaWrite.nullable().optional(), placeId: z.string().max(300).nullable().optional(),
   }),
   output: z.object({ state: SetupStateOut, searchRefusal: z.string().nullable() }),
   permission: 'manage',

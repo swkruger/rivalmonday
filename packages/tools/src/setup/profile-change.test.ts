@@ -48,4 +48,26 @@ describe('applyClientProfileChange', () => {
     const [row] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, IDS.clientA1));
     expect(row!.lastChangedBy).toBeNull();
   });
+
+  it('enqueues rank-map-refresh after commit only when the centre or radius changes', async () => {
+    const admin = ctx('agency_admin', 'all');
+    const refreshes = () => enqueue.mock.calls.filter((c) => c[0] === 'rank-map-refresh');
+    await applyClientProfileChange(admin, deps, IDS.clientA1, { serviceArea: AREA });
+    expect(refreshes()).toEqual([['rank-map-refresh', { clientId: IDS.clientA1 }, `rank-map:${IDS.clientA1}`]]);
+    await applyClientProfileChange(admin, deps, IDS.clientA1, { serviceArea: { ...AREA, zips: ['30022'] }, name: 'Same area' });
+    expect(refreshes()).toHaveLength(1);
+    await applyClientProfileChange(admin, deps, IDS.clientA1, { serviceArea: { ...AREA, center: { lat: 34, lng: -84.33 } } });
+    expect(refreshes()).toHaveLength(2);
+    await applyClientProfileChange(admin, deps, IDS.clientA1, { serviceArea: null });
+    expect(refreshes()).toHaveLength(2);
+  });
+
+  it('a failed map-refresh enqueue is logged, not thrown, and the change still commits', async () => {
+    enqueue.mockRejectedValueOnce(new Error('queue down'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const out = await applyClientProfileChange(ctx('agency_admin', 'all'), deps, IDS.clientA1, { serviceArea: AREA });
+    expect(out.client.serviceArea).toMatchObject({ radiusKm: 15 });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('[rank-map] refresh enqueue'));
+    warn.mockRestore();
+  });
 });

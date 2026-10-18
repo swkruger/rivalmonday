@@ -407,6 +407,20 @@ describe('wizard tools', () => {
       expect(c!.keywords).toEqual(['ok']);
     });
 
+    it('a service-area centre/radius change enqueues rank-map-refresh; a keyword-only save does not', async () => {
+      await setupRow();
+      await save(ownerA1, { keywords: ['furnace repair'] });
+      expect(wizEnqueue).not.toHaveBeenCalledWith('rank-map-refresh', expect.anything(), expect.anything());
+      await save(ownerA1, { serviceArea: AREA });
+      expect(wizEnqueue).toHaveBeenCalledWith('rank-map-refresh', { clientId: IDS.clientA1 }, `rank-map:${IDS.clientA1}`);
+    });
+
+    it('rejects a radius outside 2-40 km (ServiceAreaWrite)', async () => {
+      await setupRow();
+      expect((await fails(save(ownerA1, { serviceArea: { ...AREA, radiusKm: 41 } }))).code).toBe('invalid_input');
+      expect((await fails(save(ownerA1, { serviceArea: { ...AREA, radiusKm: 1 } }))).code).toBe('invalid_input');
+    });
+
     it('a profile save that completes the last open step sets completed_at', async () => {
       await setupRow({ skipped: ['search', 'competitors', 'invite'] });
       const out = await save(admin, PROFILE);
