@@ -249,6 +249,24 @@ describe('review_vertical / review_business_area / list_catalog_review', () => {
     expect((await call<{ count: number }>(viewer, 'list_catalog_review')).count).toBe(0);
   });
 
+  it('count_catalog_review matches the list count, is operator-only and writes no platform audit row', async () => {
+    await call(adminA, 'create_vertical', distillery);
+    const [before] = await q<{ n: number }>(sql`select count(*)::int as n from platform_audit_log`);
+    const listed = await call<{ count: number }>(viewer, 'list_catalog_review');
+    const counted = await call<{ count: number }>(viewer, 'count_catalog_review');
+    expect(counted).toEqual({ count: 1 });
+    expect(counted.count).toBe(listed.count);
+    await call(staff, 'review_vertical', { verticalId: 'distillery', action: 'approve' });
+    await call(adminA, 'add_business_area', { verticalId: 'distillery', name: 'Merch' });
+    expect(await call(viewer, 'count_catalog_review')).toEqual({ count: 1 });
+    const [mid] = await q<{ n: number }>(sql`select count(*)::int as n from platform_audit_log`);
+    // list + approve audit (2 rows); the two counts add none.
+    const [afterRow] = await q<{ n: number }>(sql`select count(*)::int as n from platform_audit_log where tool = 'count_catalog_review'`);
+    expect(afterRow!.n).toBe(0);
+    expect(mid!.n - before!.n).toBe(2);
+    expect((await fails(call(adminA, 'count_catalog_review'))).code).toBe('permission_denied');
+  });
+
   it('rename keeps the id and refuses client data; approve does not bump the version', async () => {
     await call(adminA, 'create_vertical', distillery);
     const r = await call<{ verticalId: string; version: number }>(staff, 'review_vertical', { verticalId: 'distillery', action: 'rename', name: 'Spirit distilleries' });

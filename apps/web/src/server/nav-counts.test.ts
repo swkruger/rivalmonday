@@ -22,7 +22,7 @@ const agencyCounts = { approvals: 3, alerts: 2, leads: 4 };
 const platformCounts = { modelReviews: 5, themes: 1 };
 const catalogCounts = { count: 2 };
 const byTool: Impl = async (_c, tool) =>
-  tool === 'get_nav_counts' ? agencyCounts : tool === 'get_platform_nav_counts' ? platformCounts : tool === 'list_catalog_review' ? catalogCounts : Promise.reject(new Error(`unexpected ${tool}`));
+  tool === 'get_nav_counts' ? agencyCounts : tool === 'get_platform_nav_counts' ? platformCounts : tool === 'count_catalog_review' ? catalogCounts : Promise.reject(new Error(`unexpected ${tool}`));
 
 beforeEach(() => {
   m.calls = [];
@@ -33,7 +33,7 @@ beforeEach(() => {
 describe('navCounts', () => {
   it('reads each count tool once and merges them', async () => {
     expect(await navCounts(ctx, { agency: true, operator: true, leads: true })).toEqual({ ...agencyCounts, ...platformCounts, catalog: 2 });
-    expect(m.calls).toEqual([[ctx, 'get_nav_counts', {}], [ctx, 'get_platform_nav_counts', {}], [ctx, 'list_catalog_review', {}]]);
+    expect(m.calls).toEqual([[ctx, 'get_nav_counts', {}], [ctx, 'get_platform_nav_counts', {}], [ctx, 'count_catalog_review', {}]]);
   });
 
   it('leaves out the leads count unless the viewer sees the Leads entry', async () => {
@@ -65,7 +65,7 @@ describe('navCounts', () => {
   });
 
   it('Phase 14a: the Business types count comes from the catalogue review read; a failed read hides only that badge', async () => {
-    m.impl = async (c, tool, i) => (tool === 'list_catalog_review' ? Promise.reject(new Error('permission_denied')) : byTool(c, tool, i));
+    m.impl = async (c, tool, i) => (tool === 'count_catalog_review' ? Promise.reject(new Error('permission_denied')) : byTool(c, tool, i));
     expect(await navCounts(ctx, { agency: false, operator: true, leads: false })).toEqual(platformCounts);
   });
 });

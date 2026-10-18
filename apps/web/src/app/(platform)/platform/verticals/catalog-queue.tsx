@@ -215,7 +215,7 @@ function EditForm({ v, formAction, busy, onDone }: { v: ReviewVertical; formActi
   };
   const p = payload();
   return (
-    <form action={(fd) => { formAction(fd); onDone(); }} onReset={(e) => e.preventDefault()} aria-label={`Edit ${v.name}`} className="flex flex-col gap-3 rounded-lg bg-muted-surface p-4">
+    <form action={(fd) => { formAction(fd); onDone(); }} aria-label={`Edit ${v.name}`} className="flex flex-col gap-3 rounded-lg bg-muted-surface p-4">
       <Post fields={{ intent: 'edit-vertical', id: v.id, label: v.name, payload: JSON.stringify(p) }}>
         <div className="flex flex-wrap gap-4">
           <div className="flex flex-col gap-1"><Label htmlFor={`e-name-${v.id}`}>Business type name</Label><Input id={`e-name-${v.id}`} value={name} maxLength={60} onChange={(e) => setName(e.target.value)} className="w-64" /></div>
@@ -254,7 +254,7 @@ function MergeForm({ v, targets, maps, formAction, busy, onDone }: { v: ReviewVe
     setMap(maps[id] ?? {});
   };
   return (
-    <form action={(fd) => { formAction(fd); onDone(); }} onReset={(e) => e.preventDefault()} aria-label={`Merge ${v.name}`} className="flex flex-col gap-3 rounded-lg bg-muted-surface p-4">
+    <form action={(fd) => { formAction(fd); onDone(); }} aria-label={`Merge ${v.name}`} className="flex flex-col gap-3 rounded-lg bg-muted-surface p-4">
       <Post fields={{ intent: 'merge-vertical', id: v.id, label: v.name, targetId, payload: JSON.stringify(map) }}>
         <div className="flex flex-col gap-1">
           <Label htmlFor={`m-target-${v.id}`}>Merge into</Label>
@@ -318,7 +318,7 @@ function AreaCard({ a, siblings, canEdit, formAction, busy }: { a: ReviewArea; s
             />
             {mode === 'rename' && <RenameForm intent="rename-area" id={a.id} verticalId={a.verticalId} current={a.name} formAction={formAction} busy={busy} onDone={() => setMode('none')} />}
             {mode === 'merge' && (
-              <form action={(fd) => { formAction(fd); setMode('none'); }} onReset={(e) => e.preventDefault()} aria-label={`Merge ${a.name}`} className="flex flex-wrap items-end gap-2 rounded-lg bg-muted-surface p-4">
+              <form action={(fd) => { formAction(fd); setMode('none'); }} aria-label={`Merge ${a.name}`} className="flex flex-wrap items-end gap-2 rounded-lg bg-muted-surface p-4">
                 <Post fields={{ intent: 'merge-area', id: a.id, verticalId: a.verticalId, label: a.name, targetId }}>
                   <div className="flex flex-col gap-1">
                     <Label htmlFor={`am-${a.verticalId}-${a.id}`}>Merge into</Label>

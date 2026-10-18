@@ -94,6 +94,29 @@ export const listCatalogReviewTool = defineTool({
   },
 });
 
+/**
+ * The nav badge: the same two sets as `list_catalog_review` (unreviewed non-merged types except generic, plus unreviewed areas of reviewed types) as two
+ * `count(*)` queries. Deliberately unaudited and cheap: the shell calls it on every operator page, like the Leads badge. It returns a number only.
+ */
+export const countCatalogReviewTool = defineTool({
+  name: 'count_catalog_review',
+  access: 'read',
+  description: 'Platform operators: how many business types and areas wait for review (for the sidebar badge).',
+  input: z.object({}),
+  output: z.object({ count: z.number().int() }),
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, _input, deps) {
+    await requirePlatformOperator(deps, ctx, 'viewer');
+    const db = deps.service;
+    const [v] = await db.select({ n: sql<number>`count(*)::int` }).from(vertical).where(and(eq(vertical.status, 'unreviewed'), ne(vertical.id, GENERIC_VERTICAL_ID)));
+    const [a] = await db.select({ n: sql<number>`count(*)::int` }).from(businessArea)
+      .innerJoin(vertical, eq(vertical.id, businessArea.verticalId))
+      .where(and(eq(businessArea.status, 'unreviewed'), eq(vertical.status, 'reviewed'), ne(vertical.id, GENERIC_VERTICAL_ID)));
+    return { count: (v?.n ?? 0) + (a?.n ?? 0) };
+  },
+});
+
 export const reviewVerticalTool = defineTool({
   name: 'review_vertical',
   access: 'write',
@@ -199,4 +222,4 @@ export const mergeBusinessAreaTool = defineTool({
   },
 });
 
-export const platformVerticalTools = [listCatalogReviewTool, reviewVerticalTool, reviewBusinessAreaTool, mergeVerticalTool, mergeBusinessAreaTool];
+export const platformVerticalTools = [listCatalogReviewTool, countCatalogReviewTool, reviewVerticalTool, reviewBusinessAreaTool, mergeVerticalTool, mergeBusinessAreaTool];

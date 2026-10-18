@@ -200,3 +200,4 @@ review_business_area (platform-verticals.ts) | write | approves or renames a bus
 merge_vertical (platform-verticals.ts) | write | rewrites clients, events, prices and agency settings onto the target vertical
 merge_business_area (platform-verticals.ts) | write | rewrites references from one area to another
 list_catalog_review (platform-verticals.ts) | read | operator-only read of unreviewed catalogue entries
+count_catalog_review (platform-verticals.ts) | read | operator-only count of unreviewed catalogue entries (sidebar badge; unaudited)
