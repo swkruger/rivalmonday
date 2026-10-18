@@ -286,6 +286,10 @@ export const updateVertical = defineTool({
       await lockCatalogue(tx);
       const [v] = await tx.select().from(vertical).where(eq(vertical.id, input.verticalId)).for('update');
       if (!v || v.id === GENERIC_VERTICAL_ID || !(await canEditVertical(deps, ctx, v))) throw new ToolError('permission_denied', 'This business type cannot be edited');
+      // Platform staff may edit another agency's entry: D3 also applies against the creating agency's client names.
+      if (v.createdByAgencyId && v.createdByAgencyId !== ctx.agencyId) {
+        await refuseClientDataFor(deps, v.createdByAgencyId, [...(input.name ? [input.name] : []), ...(input.areas ?? []).flatMap((a) => [a.name, ...(a.aliases ?? [])]), ...(input.themes ?? []).map((t) => t.name)]);
+      }
       const existing = (await tx.select().from(businessArea).where(eq(businessArea.verticalId, v.id))).map(toAreaRow);
 
       let areas = existing;

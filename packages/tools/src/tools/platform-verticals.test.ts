@@ -34,6 +34,10 @@ const CAP = '00000000-0000-4000-8000-0000000000c1';
 const distillery = { name: 'Craft distilleries', areas: [{ name: 'Tasting room' }, { name: 'Bottle sales' }], categories: ['Distillery'], relatedCategories: ['Liquor store'] };
 const brewery = { name: 'Craft breweries', areas: [{ name: 'Taproom' }, { name: 'Growler fills' }], categories: ['Brewery', 'Brewpub'] };
 
+
+const ppSql = (page: string, vertical: string, service: string) => sql`insert into price_point (competitor_id, tracked_page_id, vertical_id, service_id, amount, unit, qualifier, raw, context, first_seen_at, last_seen_at, first_capture_id, last_capture_id)
+  values (${IDS.competitorX}, ${page}, ${vertical}, ${service}, 10, 'USD', 'from', '$10', 'from $10', now(), now(), ${CAP}, ${CAP})`;
+
 async function seedMergeData(): Promise<void> {
   await call(adminA, 'create_vertical', distillery);
   await call(adminB, 'create_vertical', brewery);
@@ -138,6 +142,15 @@ describe('merge_vertical', () => {
     expect(await catalog.resolveId('distillery')).toBe('brewery');
   });
 
+  it('many-to-one areaMap: source rows that collapse onto one key keep exactly one', async () => {
+    await seedMergeData();
+    await dbs.owner.execute(sql`delete from price_point`);
+    await dbs.owner.execute(ppSql(PAGE1, 'distillery', 'tasting_room'));
+    await dbs.owner.execute(ppSql(PAGE1, 'distillery', 'bottle_sales'));
+    await call(staff, 'merge_vertical', { sourceId: 'distillery', targetId: 'brewery', areaMap: { tasting_room: 'taproom', bottle_sales: 'taproom' } });
+    expect(await q<{ vertical_id: string; service_id: string }>(sql`select vertical_id, service_id from price_point`)).toEqual([{ vertical_id: 'brewery', service_id: 'taproom' }]);
+  });
+
   it('refuses itself, a merged row, generic, an incomplete or invalid areaMap, and a colliding move', async () => {
     await seedMergeData();
     const m = (over: Record<string, unknown>) => call(staff, 'merge_vertical', { sourceId: 'distillery', targetId: 'brewery', areaMap: { tasting_room: 'taproom', bottle_sales: null }, ...over });
@@ -186,10 +199,18 @@ describe('merge_business_area', () => {
     expect(v!.version).toBe(2);
   });
 
-  it('drops an open duplicate price and refuses bad inputs', async () => {
+  it('drops source open prices that duplicate the target area on the same page (exactly one survives)', async () => {
+    await seedMergeData();
+    await dbs.owner.execute(sql`delete from price_point`);
+    await dbs.owner.execute(ppSql(PAGE1, 'distillery', 'tasting_room'));
+    await dbs.owner.execute(ppSql(PAGE1, 'distillery', 'bottle_sales'));
+    await call(staff, 'merge_business_area', { verticalId: 'distillery', sourceAreaId: 'bottle_sales', targetAreaId: 'tasting_room' });
+    expect(await q<{ service_id: string }>(sql`select service_id from price_point`)).toEqual([{ service_id: 'tasting_room' }]);
+  });
+
+  it('refuses bad inputs', async () => {
     await seedMergeData();
     await call(staff, 'merge_business_area', { verticalId: 'distillery', sourceAreaId: 'bottle_sales', targetAreaId: 'tasting_room' });
-    await dbs.owner.execute(sql`delete from price_point`);
     const m = (over: Record<string, unknown>) => call(staff, 'merge_business_area', { verticalId: 'distillery', sourceAreaId: 'tasting_room', targetAreaId: 'bottle_sales', ...over });
     expect((await fails(m({}))).code).toBe('invalid_input'); // target already merged
     expect((await fails(m({ targetAreaId: 'tasting_room' }))).code).toBe('invalid_input');
@@ -246,6 +267,8 @@ describe('review_vertical / review_business_area / list_catalog_review', () => {
     await call(staff, 'review_vertical', { verticalId: 'distillery', action: 'approve' });
     expect((await fails(call(adminA, 'update_vertical', { verticalId: 'distillery', name: 'Whisky makers' }))).code).toBe('permission_denied');
     expect(await call(staff, 'update_vertical', { verticalId: 'distillery', name: 'Whisky makers' })).toEqual({ verticalId: 'distillery', version: 2 });
+    const otherAgencyStaff = ctxOf('staff', IDS.agencyB);
+    expect((await fails(call(otherAgencyStaff, 'update_vertical', { verticalId: 'distillery', name: 'A1 HVAC' }))).code).toBe('invalid_input');
     await call(staff, 'merge_vertical', { sourceId: 'distillery', targetId: 'dental', areaMap: { tasting_room: null, bottle_sales: null } });
     expect((await fails(call(staff, 'update_vertical', { verticalId: 'distillery', name: 'Again' }))).code).toBe('permission_denied');
   });

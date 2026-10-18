@@ -77,6 +77,10 @@ export async function mergeVerticalTx(tx: Tx, sourceId: string, targetId: string
     SELECT 1 FROM price_point q WHERE q.vertical_id = ${targetId} AND q.ended_at IS NULL AND q.tracked_page_id = p.tracked_page_id
       AND q.service_id IS NOT DISTINCT FROM coalesce(${mapSql} ->> p.service_id, p.service_id)
       AND q.unit IS NOT DISTINCT FROM p.unit AND q.qualifier IS NOT DISTINCT FROM p.qualifier AND q.amount = p.amount)`);
+  // Several source rows can collapse onto one key once areas are mapped many-to-one: keep the first (open rows only).
+  await tx.execute(sql`DELETE FROM price_point WHERE id IN (
+    SELECT id FROM (SELECT id, row_number() OVER (PARTITION BY tracked_page_id, coalesce(${mapSql} ->> service_id, service_id), unit, qualifier, amount ORDER BY first_seen_at, id) AS rn
+      FROM price_point WHERE vertical_id = ${sourceId} AND ended_at IS NULL) r WHERE rn > 1)`);
   await tx.execute(sql`UPDATE price_point SET vertical_id = ${targetId}, service_id = coalesce(${mapSql} ->> service_id, service_id) WHERE vertical_id = ${sourceId}`);
   // 5. derived analyses are dropped, the next run re-derives them under the target (P8)
   await tx.execute(sql`DELETE FROM review_analysis WHERE vertical_id = ${sourceId}`);
