@@ -120,6 +120,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}settings/billing/`), tags: ['@billing', '@client-billing'], why: 'billing page, Client billing section, actions and seat CSV' },
   { pattern: re(`${APP}\\(app\\)/paused/`), tags: ['@billing'], why: 'suspended-workspace page' },
   { pattern: re(`${COMP}billing/`), tags: ['@billing', '@client-billing'], why: 'billing display formatting and client billing pill/actions shown on the billing pages' },
+  { pattern: re(`${COMP}new-business-type(?:-model)?\\.tsx?$`), tags: ['@clients', '@leads'], why: 'New business type panel (agency lookup step, lead accept)' },
   { pattern: re(`${COMP}place-summary\\.tsx$`), tags: ['@clients', '@leads'], why: 'lookup result card (agency lookup step, public intake form)' },
   { pattern: re(`${COMP}form-error\\.tsx$`), tags: 'all', why: 'ErrorNote/FormError: the one error primitive, rendered by form and action errors on almost every surface (incl. the seat-cap Upgrade link)' },
   { pattern: re(`${COMP}page-header\\.tsx$`), tags: 'all', why: 'PageHeader: the h1, breadcrumb and actions of almost every signed-in page (15a §2.7)' },

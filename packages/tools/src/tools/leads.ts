@@ -33,6 +33,9 @@ const LeadSummary = z.object({
   businessName: z.string(),
   address: z.string().nullable(),
   city: z.string().nullable(),
+  /** The Google listing's id and category: feed the "new business type" panel. */
+  placeId: z.string(),
+  category: z.string().nullable(),
   contactName: z.string(),
   email: z.string(),
   phone: z.string().nullable(),
@@ -64,7 +67,7 @@ function requireAdmin(ctx: AccessContext): void {
 }
 
 const toSummary = (r: LeadRow): LeadSummaryOut => ({
-  id: r.id, source: r.source, status: r.status as LeadSummaryOut['status'], ref: r.ref, businessName: r.lookup.title, address: r.lookup.address, city: r.lookup.city,
+  id: r.id, source: r.source, status: r.status as LeadSummaryOut['status'], ref: r.ref, businessName: r.lookup.title, address: r.lookup.address, city: r.lookup.city, placeId: r.lookup.placeId, category: r.lookup.category,
   contactName: r.contactName, email: r.email, phone: r.phone, message: r.message, preview: r.preview, createdAt: r.createdAt, verifiedAt: r.verifiedAt, decidedAt: r.decidedAt, clientId: r.clientId,
 });
 

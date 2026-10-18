@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
+import { createVerticalAction, draftVerticalAction } from '../clients/new/vertical-actions';
 import { LeadCard, type LeadPreview, type LeadView } from './lead-card';
 
 export const dynamic = 'force-dynamic';
@@ -29,6 +30,8 @@ interface Summary {
   createdAt: Date | string;
   clientId: string | null;
   suggestedVerticalId: string | null;
+  placeId: string;
+  category: string | null;
 }
 
 const TABS = [
@@ -61,6 +64,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     id: l.id, source: l.source, status: l.status, ref: l.ref, businessName: l.businessName, address: l.address, contactName: l.contactName,
     email: l.email, phone: l.phone, message: l.message, preview: l.preview, clientId: l.clientId,
     when: iso(l.status === 'verified' ? l.verifiedAt ?? l.createdAt : l.decidedAt ?? l.createdAt), suggestedVerticalId: l.suggestedVerticalId,
+    lookup: { placeId: l.placeId, category: l.category },
   }));
 
   return (
@@ -87,7 +91,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       ) : (
         <div className="flex flex-col gap-4">
           {views.map((v) => (
-            <LeadCard key={v.id} lead={v} verticals={verticals} />
+            <LeadCard key={v.id} lead={v} verticals={verticals} verticalActions={{ draft: draftVerticalAction, create: createVerticalAction }} />
           ))}
         </div>
       )}

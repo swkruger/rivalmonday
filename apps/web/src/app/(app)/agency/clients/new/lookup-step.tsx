@@ -3,6 +3,7 @@ import { Button, Input, Label } from '@cs/ui';
 import { useActionState, useState, useTransition } from 'react';
 import { ClientProfileForm } from '@/components/client-profile-form';
 import { ErrorNote, FormError } from '@/components/form-error';
+import { NewBusinessType, type VerticalActions, useVerticalChoice } from '@/components/new-business-type';
 import { DuplicateHint, PlaceSummary } from '@/components/place-summary';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
@@ -19,6 +20,8 @@ interface Props {
   /** The old by-hand form's action: unchanged create path. */
   createByHand: (prev: FormResult, fd: FormData) => Promise<FormResult>;
   verticals: VerticalOption[];
+  /** Draft/create a business type when the picked place matches none (omitted: no panel). */
+  verticalActions?: VerticalActions;
   timezoneOptions: string[];
   canUpgrade?: boolean;
   /** Label of the by-hand form's submit button (prospects: "Create prospect"). */
@@ -27,7 +30,7 @@ interface Props {
 }
 
 /** Phase 11a §5: find the business on Google Maps first; the profile form is the fallback. */
-export function LookupStep({ find, createFromLookup, createByHand, verticals, timezoneOptions, canUpgrade, byHandSubmitLabel, createLabel = 'Create client' }: Props) {
+export function LookupStep({ find, createFromLookup, createByHand, verticals, verticalActions, timezoneOptions, canUpgrade, byHandSubmitLabel, createLabel = 'Create client' }: Props) {
   const [byHand, setByHand] = useState(false);
   const [places, setPlaces] = useState<Place[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -102,18 +105,31 @@ export function LookupStep({ find, createFromLookup, createByHand, verticals, ti
         </ul>
       )}
 
-      {picked && <CreateForm key={picked.placeId} place={picked} action={createFromLookup} verticals={verticals} canUpgrade={canUpgrade} label={createLabel} />}
+      {picked && <PickedPlace key={picked.placeId} place={picked} action={createFromLookup} verticals={verticals} verticalActions={verticalActions} canUpgrade={canUpgrade} label={createLabel} />}
 
       <button type="button" onClick={() => setByHand(true)} className="self-start text-sm font-semibold text-secondary underline">Can’t find it? Enter details by hand</button>
     </div>
   );
 }
 
-function CreateForm({ place, action, verticals, canUpgrade, label }: { place: Place; action: Props['createFromLookup']; verticals: VerticalOption[]; canUpgrade?: boolean; label: string }) {
+/** The "new business type" panel (when no vertical matched) above the create form; both share the vertical choice. */
+function PickedPlace({ place, action, verticals, verticalActions, canUpgrade, label }: { place: Place; action: Props['createFromLookup']; verticals: VerticalOption[]; verticalActions?: VerticalActions; canUpgrade?: boolean; label: string }) {
+  const choice = useVerticalChoice(verticals, place.suggestedVerticalId ?? '');
+  return (
+    <>
+      {verticalActions && place.suggestedVerticalId === null && (
+        <NewBusinessType place={{ placeId: place.placeId, category: place.category }} actions={verticalActions} onSelect={choice.choose} onCreated={choice.choose} />
+      )}
+      <CreateForm place={place} action={action} verticals={choice.options} verticalId={choice.value} onVerticalChange={(id) => choice.choose(id)} canUpgrade={canUpgrade} label={label} />
+    </>
+  );
+}
+
+function CreateForm({ place, action, verticals, verticalId, onVerticalChange, canUpgrade, label }: { place: Place; action: Props['createFromLookup']; verticals: VerticalOption[]; verticalId: string; onVerticalChange: (id: string) => void; canUpgrade?: boolean; label: string }) {
   const [state, formAction, pending] = useActionState(action, { ok: true } as FormResult);
   const readOnly = useReadOnly();
   return (
-    <form action={formAction} className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card">
+    <form action={formAction} onReset={(e) => e.preventDefault()} className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card">
       <input type="hidden" name="lookup" value={JSON.stringify(place)} />
       <FormError state={state} canUpgrade={canUpgrade === true} />
       <fieldset disabled={readOnly} className="contents">
@@ -123,7 +139,7 @@ function CreateForm({ place, action, verticals, canUpgrade, label }: { place: Pl
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="lookupVertical">Vertical</Label>
-          <select id="lookupVertical" name="verticalId" defaultValue={place.suggestedVerticalId ?? ''} required className={selectClass}>
+          <select id="lookupVertical" name="verticalId" value={verticalId} onChange={(e) => onVerticalChange(e.target.value)} required className={selectClass}>
             {!place.suggestedVerticalId && <option value="" disabled>Choose a vertical</option>}
             {verticals.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
           </select>

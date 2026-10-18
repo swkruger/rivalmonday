@@ -6,7 +6,7 @@ try {
 } catch {
   // optional
 }
-const PORT = 3100;
+const PORT = Number(process.env.E2E_PORT ?? 3100);
 export const OUTBOX = fileURLToPath(new URL('./test-results/outbox', import.meta.url));
 export const OWNER_LINK_FILE = fileURLToPath(new URL('./test-results/owner-link.txt', import.meta.url));
 /** Phase 6a: the two clients the seeded `mcp-owner@e2e.test` owns (`{ first, second }`, each `{ id, name }`). */

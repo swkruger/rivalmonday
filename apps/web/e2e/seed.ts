@@ -204,7 +204,7 @@ export async function seed(): Promise<void> {
 
     const token = signLink(E2E_LINK_SECRET, { sub: ownerContact!.id, agency: agencyId, client: clientId, t: 'brief', id: briefId });
     await mkdir(dirname(OWNER_LINK_FILE), { recursive: true });
-    await writeFile(OWNER_LINK_FILE, `http://localhost:3100/l/${token}`);
+    await writeFile(OWNER_LINK_FILE, `http://localhost:${process.env.E2E_PORT ?? 3100}/l/${token}`);
 
     // Phase 10: the seeded agencies stand in for pre-Phase-10 agencies, which migration 0066 backfills as completed
     // `legacy` onboarding. Without a row the getting-started checklist shows on /agency (and pushes the portfolio down).
