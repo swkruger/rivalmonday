@@ -8,10 +8,12 @@ const q = { keyword: 'x', locationName: 'United States' };
 const real = { DATAFORSEO_LOGIN: 'l', DATAFORSEO_PASSWORD: 'p' } as unknown as NodeJS.ProcessEnv;
 
 describe('setupLookupFor', () => {
-  it('uses the three-place fixture under the fake flag even with credentials', async () => {
+  it('uses the fixture (three places plus one same-listing twin) under the fake flag even with credentials', async () => {
     const f = setupLookupFor('dev', service, { fake: true, processEnv: real })!;
     expect(f).toBe(fixtureSetupLookup);
-    expect((await f(q, scope)).map((p) => p.title)).toHaveLength(3);
+    const places = await f(q, scope);
+    expect(places).toHaveLength(4);
+    expect(new Set(places.map((p) => p.placeId))).toHaveProperty('size', 3);
   });
   it('uses the fixture in demo and test (R5: never a paid call)', () => {
     expect(setupLookupFor('demo', service, { fake: false, processEnv: real })).toBe(fixtureSetupLookup);
