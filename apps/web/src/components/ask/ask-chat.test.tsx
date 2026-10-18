@@ -21,7 +21,7 @@ const msg = (over: Partial<AskMessageView> = {}): AskMessageView => ({
   createdAt: '2026-10-12T10:00:00.000Z', ...over,
 });
 
-const base = { clientId: C, threadId: T, assistantName: 'Friday', productName: 'Rival Monday', starters: [], confirmAction, saveAction };
+const base = { clientId: C, threadId: T, assistantName: 'Friday', productName: null as string | null, starters: [], confirmAction, saveAction };
 
 beforeEach(() => {
   confirmAction.mockReset();
@@ -37,6 +37,12 @@ describe('AskChat', () => {
     unmount();
     render(<AskChat {...base} productName="Summit Insights" reviewAllowed messages={[]} />);
     expect(screen.getByText('Conversations may be reviewed by Summit Insights to improve answers.')).toBeTruthy();
+  });
+
+  it('15a §2.10 fix 1: no white-label name → "our support team" (platform staff review, 6b e5/e6), never a product name', () => {
+    const { container } = render(<AskChat {...base} productName={null} reviewAllowed messages={[]} />);
+    expect(screen.getByText('Conversations may be reviewed by our support team to improve answers.')).toBeTruthy();
+    expect(container.textContent).not.toMatch(/rival[\s-]*monday/i);
   });
 
   it('save button only with citations', () => {

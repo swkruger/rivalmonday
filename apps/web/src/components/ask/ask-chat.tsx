@@ -15,7 +15,11 @@ const WORKING = 'Working…';
 const QUESTION_MAX = 2000;
 /** Decided copy (spec); `@cs/ask` is server-only, so the client keeps its own copy of these two lines. */
 const errorCopy = (assistantName: string) => `${assistantName} couldn't answer just now — please try again.`;
-const disclosureCopy = (productName: string) => `Conversations may be reviewed by ${productName} to improve answers.`;
+/**
+ * Platform staff review threads (6b e5/e6): a white-label `displayName` names that service; without one the copy names no
+ * company (15a §2.10 fix 1) — never the agency's legal name, never Rival Monday.
+ */
+const disclosureCopy = (productName: string | null) => `Conversations may be reviewed by ${productName ?? 'our support team'} to improve answers.`;
 
 type FinalEvent = Extract<AskEvent, { type: 'final' }>;
 type ChatMessage = Pick<AskMessageView, 'id' | 'role' | 'content' | 'citations' | 'status' | 'action'>;
@@ -63,7 +67,8 @@ export interface AskChatProps {
   /** null on `/c/<id>/ask` (the first question starts a thread). */
   threadId: string | null;
   assistantName: string;
-  productName: string;
+  /** The agency's white-label `displayName`, or null when it has none. */
+  productName: string | null;
   /** `client.ask_review_allowed` — the disclosure line shows only while true. */
   reviewAllowed: boolean;
   messages: AskMessageView[];

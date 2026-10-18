@@ -71,6 +71,7 @@ const LinkOther = await import('@/app/link-other-account/page');
 const NoAccess = await import('@/app/no-access/page');
 const Evidence = await import('@/app/(app)/c/[clientId]/evidence/[evidenceId]/page');
 const { ConnectorUrlCard } = await import('@/components/ai-connections');
+const { AskChat } = await import('@/components/ask/ask-chat');
 
 const ctx = { agencyId: AG, userId: 'u1', role: 'client_owner', clientScope: [C], features: new Set(['dashboard', 'ask', 'mcp']) };
 const membership = { id: 'm1', agencyId: AG, agencyName: 'Acme Marketing LLC', role: 'client_owner', clientId: C, clientName: 'Lone Star Cooling', clientScope: null, contactId: null };
@@ -150,6 +151,15 @@ describe('white-label leak guard (15a §2.10)', () => {
     const text = grab(await Evidence.default(params));
     expect(text).toContain('Website · captured by our monitoring service');
     out.push(titleOf(await Evidence.generateMetadata(params)));
+    expect(out.join('\n')).not.toMatch(LEAK);
+  });
+
+  it('the Ask review disclosure: the white-label service name, else "our support team" (fix round 1)', () => {
+    const chat = { clientId: C, threadId: null, assistantName: 'Sunny', starters: [], reviewAllowed: true, messages: [], confirmAction: vi.fn(), saveAction: vi.fn() };
+    expect(grab(<AskChat {...chat} productName={WHITE_LABEL.displayName} />)).toContain('Conversations may be reviewed by Cool Comfort to improve answers.');
+    const neutral = grab(<AskChat {...chat} productName={null} />);
+    expect(neutral).toContain('Conversations may be reviewed by our support team to improve answers.');
+    expect(neutral).not.toContain('Acme Marketing');
     expect(out.join('\n')).not.toMatch(LEAK);
   });
 

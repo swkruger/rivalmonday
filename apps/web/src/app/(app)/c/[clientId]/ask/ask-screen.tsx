@@ -1,5 +1,5 @@
 import { type AccessContext, hasFeature } from '@cs/core';
-import { clientProductNameFor } from '@cs/mcp';
+import { displayNameFor } from '@cs/mcp';
 import type { AskThreadSummary, AskThreadView, ClientProfile } from '@cs/tools';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -43,7 +43,7 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
   ]);
   if (thread && thread.clientId !== clientId) notFound();
   const { service } = dbs();
-  const [assistantName, productName] = await Promise.all([assistantNameFor(service, ctx.agencyId), clientProductNameFor(service, ctx.agencyId)]);
+  const [assistantName, productName] = await Promise.all([assistantNameFor(service, ctx.agencyId), displayNameFor(service, ctx.agencyId)]);
   const list = { clientId, threads: threads.items, activeId: thread?.id ?? null, deleteAction: deleteAskThreadAction };
   const askTitle = `Ask ${assistantName}`;
   const client = { id: clientId, name: profile.name };

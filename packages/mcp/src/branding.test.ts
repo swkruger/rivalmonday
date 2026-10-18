@@ -3,7 +3,7 @@ import { IDS } from '@cs/db/test-helpers';
 import { dbs, resetWorkspace } from '@cs/tools/test-fixtures';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { clientProductNameFor, DEFAULT_PRODUCT_NAME, NEUTRAL_PRODUCT_NAME, productNameFor } from './branding';
+import { DEFAULT_PRODUCT_NAME, displayNameFor, NEUTRAL_PRODUCT_NAME, productNameFor } from './branding';
 
 const set = (values: { name?: string; branding?: Record<string, unknown> | null }) => dbs.service.update(agency).set(values).where(eq(agency.id, IDS.agencyA));
 
@@ -20,23 +20,21 @@ describe('productNameFor (agency-facing, unchanged)', () => {
   });
 });
 
-describe('clientProductNameFor (15a §2.10: client-facing, never Rival Monday)', () => {
-  it('prefers the trimmed branding displayName', async () => {
+describe('displayNameFor (15a §2.10 fix round 1: the Ask disclosure names only the white-label service)', () => {
+  it('is the trimmed branding displayName', async () => {
     await set({ name: 'Acme Marketing LLC', branding: { displayName: ' Cool Comfort ' } });
-    expect(await clientProductNameFor(dbs.service, IDS.agencyA)).toBe('Cool Comfort');
+    expect(await displayNameFor(dbs.service, IDS.agencyA)).toBe('Cool Comfort');
   });
 
-  it('falls back to the agency name when no displayName is set (or it is blank)', async () => {
-    await set({ name: ' Acme Marketing ', branding: null });
-    expect(await clientProductNameFor(dbs.service, IDS.agencyA)).toBe('Acme Marketing');
+  it('is null without a displayName (blank included) or for an unknown agency — never the agency name or Rival Monday', async () => {
+    await set({ name: 'Acme Marketing', branding: null });
+    expect(await displayNameFor(dbs.service, IDS.agencyA)).toBeNull();
     await set({ branding: { displayName: '   ' } });
-    expect(await clientProductNameFor(dbs.service, IDS.agencyA)).toBe('Acme Marketing');
+    expect(await displayNameFor(dbs.service, IDS.agencyA)).toBeNull();
+    expect(await displayNameFor(dbs.service, '00000000-0000-4000-8000-00000000dead')).toBeNull();
   });
 
-  it("uses the neutral \"your agency's assistant\" when the agency has no name to show, or is unknown", async () => {
-    await set({ name: '  ', branding: null });
-    expect(await clientProductNameFor(dbs.service, IDS.agencyA)).toBe(NEUTRAL_PRODUCT_NAME);
+  it("the neutral consent fallback stays \"your agency's assistant\"", () => {
     expect(NEUTRAL_PRODUCT_NAME).toBe("your agency's assistant");
-    expect(await clientProductNameFor(dbs.service, '00000000-0000-4000-8000-00000000dead')).toBe(NEUTRAL_PRODUCT_NAME);
   });
 });
