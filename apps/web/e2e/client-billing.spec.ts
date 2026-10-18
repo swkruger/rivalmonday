@@ -92,8 +92,10 @@ test.describe.serial('client billing', () => {
     const { clientId } = await ids();
     await as(browser, testInfo, 'owner', async (page) => {
       await page.goto(`/c/${clientId}`);
-      await expect(page.getByRole('link', { name: 'Billing', exact: true })).toBeVisible();
-      await page.goto(`/c/${clientId}/settings/billing`);
+      // 15a §2.5: Billing is a Client settings tab (the sidebar foot opens the settings area).
+      await page.getByRole('link', { name: 'Client settings', exact: true }).first().click();
+      await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Billing', exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`/c/${clientId}/settings/billing$`));
       await expect(page.getByRole('heading', { name: 'Billing', exact: true })).toBeVisible();
       await expect(page.getByText(`Your plan with ${CB_AGENCY}`)).toBeVisible();
       await expect(page.getByText('Awaiting payment setup')).toBeVisible();
@@ -103,7 +105,10 @@ test.describe.serial('client billing', () => {
     });
     await as(browser, testInfo, 'viewer', async (page) => {
       await page.goto(`/c/${clientId}`);
-      await expect(page.getByRole('link', { name: 'Billing', exact: true })).toHaveCount(0);
+      await page.getByRole('link', { name: 'Client settings', exact: true }).first().click();
+      const tabs = page.getByRole('navigation', { name: 'Settings' });
+      await expect(tabs.getByRole('link', { name: 'Business profile', exact: true })).toBeVisible();
+      await expect(tabs.getByRole('link', { name: 'Billing', exact: true })).toHaveCount(0);
       expect((await page.goto(`/c/${clientId}/settings/billing`))?.status()).toBe(404);
     });
   });

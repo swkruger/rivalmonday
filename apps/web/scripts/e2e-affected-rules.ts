@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@playbooks',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -26,9 +26,9 @@ const re = (s: string) => new RegExp(`^${s}`);
 
 const GUEST_FILES = ['@guest', '@evidence', '@briefs'];
 /** Every tag whose tests open an agency settings page (`/agency/settings/*`). */
-const SETTINGS_PAGES = ['@usage', '@playbooks', '@support', '@billing', '@client-billing', '@leads', '@ai-connections'];
+const SETTINGS_PAGES = ['@usage', '@playbooks', '@support', '@billing', '@client-billing', '@leads', '@ai-connections', '@navigation'];
 /** Every tag whose tests open a client settings page (`/c/<id>/settings/*`). */
-const CLIENT_SETTINGS_PAGES = ['@profile', '@clients', '@ask', '@support', '@billing', '@client-billing', '@setup', '@alert-rules', '@ai-connections'];
+const CLIENT_SETTINGS_PAGES = ['@profile', '@clients', '@ask', '@support', '@billing', '@client-billing', '@setup', '@alert-rules', '@ai-connections', '@navigation'];
 
 /** Keyword rules for the domain packages; anything there no keyword catches runs everything. */
 const PKG = 'packages/(?:tools|engine|email|storage|collectors|ai)/src/|packages/(?:verticals|demo)/';
@@ -106,7 +106,9 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}prospects/`), tags: ['@prospects', '@clients'], why: 'prospects' },
   { pattern: re(`${AGENCY}settings/usage/`), tags: ['@usage'], why: 'usage and limits' },
   { pattern: re(`${AGENCY}settings/branding/logo/`), tags: ['@onboarding'], why: 'logo upload route (the wizard branding step uploads a logo)' },
-  { pattern: re(`${AGENCY}settings/(?:branding|team|slack-teams)/`), tags: [], why: 'no E2E covers this agency page' },
+  { pattern: re(`${AGENCY}settings/team/`), tags: ['@support', '@navigation'], why: 'agency team page (a support session opens it; old /agency/team redirects here)' },
+  { pattern: re(`${AGENCY}settings/branding/`), tags: ['@navigation'], why: 'agency branding page (old /agency/branding redirects here)' },
+  { pattern: re(`${AGENCY}settings/slack-teams/`), tags: [], why: 'no E2E covers this agency page' },
   { pattern: re(`${AGENCY}settings/(?:layout|page)\\.tsx$`), tags: SETTINGS_PAGES, why: 'agency settings layout and index redirect (wrap every agency settings page)' },
   { pattern: re(`${C}settings/(?:layout|page)\\.tsx$|${SERVER}client-settings-nav\\.ts$`), tags: CLIENT_SETTINGS_PAGES, why: 'client settings layout, index redirect and tab list (wrap every client settings page)' },
   { pattern: re(`${COMP}settings-nav\\.tsx$`), tags: [...new Set([...SETTINGS_PAGES, ...CLIENT_SETTINGS_PAGES])], why: 'settings sub-nav (every agency and client settings page)' },
@@ -122,11 +124,11 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}form-error\\.tsx$`), tags: 'all', why: 'ErrorNote/FormError: the one error primitive, rendered by form and action errors on almost every surface (incl. the seat-cap Upgrade link)' },
   { pattern: re(`${COMP}page-header\\.tsx$`), tags: 'all', why: 'PageHeader: the h1, breadcrumb and actions of almost every signed-in page (15a §2.7)' },
   { pattern: re(`${COMP}client-crumbs\\.ts$`), tags: 'all', why: 'client breadcrumbs: every /c/<id> page header (15a §2.7)' },
-  { pattern: re(`${COMP}prev-next\\.tsx$`), tags: ['@briefs', '@alerts', '@starting-point'], why: 'Previous / Next on the brief, alert and report pages (15a §2.8)' },
+  { pattern: re(`${COMP}prev-next\\.tsx$`), tags: ['@briefs', '@alerts', '@starting-point', '@navigation'], why: 'Previous / Next on the brief, alert and report pages (15a §2.8)' },
   { pattern: re(`${C}(?:page\\.tsx|overview-kpis\\.ts)$`), tags: ['@overview', '@starting-point'], why: 'client overview (starting-point progress card)' },
   { pattern: re(`${C}ads/`), tags: ['@ads'], why: 'ads view' },
   { pattern: re(`${C}alerts/`), tags: ['@alerts'], why: 'alert page' },
-  { pattern: re(`${C}briefs/`), tags: ['@briefs', '@guest', '@starting-point'], why: 'brief page' },
+  { pattern: re(`${C}briefs/`), tags: ['@briefs', '@guest', '@starting-point', '@navigation'], why: 'Briefs & reports list and brief page (tabs, paging, Previous / Next)' },
   { pattern: re(`${C}changes/`), tags: ['@changes', '@evidence'], why: 'changes feed and evidence viewer' },
   { pattern: re(`${C}competitors/`), tags: ['@competitors', '@rivals'], why: 'competitors and profiles' },
   { pattern: re(`${C}setup/`), tags: ['@setup'], why: 'client setup wizard' },

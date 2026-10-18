@@ -81,10 +81,10 @@ test.describe.serial('billing', () => {
     await as(browser, testInfo, 'pausedAdmin', async (page) => {
       await page.goto('/agency');
       await expect(page).toHaveURL(/\/agency\/settings\/billing$/);
-      // A client-side navigation through the sidebar is sent back too.
-      await page.getByRole('link', { name: 'Playbooks' }).first().click();
+      // A client-side navigation through the Settings sub-nav is sent back too.
+      await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Playbooks', exact: true }).click();
       await expect(page).toHaveURL(/\/agency\/settings\/billing$/);
-      await expect(page.getByRole('heading', { name: 'Billing' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Billing', exact: true })).toBeVisible();
     });
     await as(browser, testInfo, 'pausedOwner', async (page) => {
       await page.goto('/');

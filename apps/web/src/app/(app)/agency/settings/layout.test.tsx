@@ -35,8 +35,11 @@ describe('Agency settings layout (15a §2.5)', () => {
     expect(screen.getByText('page body')).toBeTruthy();
   });
 
-  it('hides the admin-only tabs from an account manager (scoped or not)', async () => {
-    as('user', 'account_manager', [C]);
+  it.each<[string, 'all' | string[]]>([
+    ['scoped', [C]],
+    ['all', 'all'],
+  ])('hides the admin-only tabs from an account manager (%s scope)', async (_label, scope) => {
+    as('user', 'account_manager', scope);
     render(await SettingsLayout({ children: null }));
     expect(tabs()).toEqual(['Team', 'Playbooks', 'Usage & limits', 'AI connections']);
   });

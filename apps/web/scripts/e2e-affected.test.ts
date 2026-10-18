@@ -142,7 +142,7 @@ describe('resolveAffected', () => {
   });
 
   it('runs only @smoke for a page no test covers', () => {
-    expect(resolve('apps/web/src/app/(app)/agency/settings/team/page.tsx')).toMatchObject({ mode: 'some', tags: ['@smoke'] });
+    expect(resolve('apps/web/src/app/(app)/agency/settings/slack-teams/page.tsx')).toMatchObject({ mode: 'some', tags: ['@smoke'] });
   });
 
   it('maps the moved agency settings pages and the shared settings layout (15a)', () => {
@@ -150,17 +150,29 @@ describe('resolveAffected', () => {
     expect(resolve('apps/web/src/app/(app)/agency/settings/playbooks/page.tsx').tags).toEqual(['@playbooks', '@smoke']);
     expect(resolve('apps/web/src/app/(app)/agency/settings/branding/logo/route.ts').tags).toEqual(['@onboarding', '@smoke']);
     expect(matchRule('apps/web/src/app/(app)/agency/settings/ai/page.tsx').why).toMatch(/AI connections/);
+    // support.spec opens /agency/settings/team; navigation.spec follows the old /agency/team and /agency/branding links.
+    expect(resolve('apps/web/src/app/(app)/agency/settings/team/page.tsx').tags).toEqual(['@navigation', '@smoke', '@support']);
+    expect(resolve('apps/web/src/app/(app)/agency/settings/branding/page.tsx').tags).toEqual(['@navigation', '@smoke']);
     for (const f of ['apps/web/src/app/(app)/agency/settings/layout.tsx', 'apps/web/src/app/(app)/agency/settings/page.tsx']) {
-      expect(resolve(f).tags, f).toEqual(['@ai-connections', '@billing', '@client-billing', '@leads', '@playbooks', '@smoke', '@support', '@usage']);
+      expect(resolve(f).tags, f).toEqual(['@ai-connections', '@billing', '@client-billing', '@leads', '@navigation', '@playbooks', '@smoke', '@support', '@usage']);
     }
   });
 
   it('maps the client settings layout, index and the shared sub-nav to every test that opens a settings page (15a)', () => {
-    const client = ['@ai-connections', '@alert-rules', '@ask', '@billing', '@client-billing', '@clients', '@profile', '@setup', '@smoke', '@support'];
+    const client = ['@ai-connections', '@alert-rules', '@ask', '@billing', '@client-billing', '@clients', '@navigation', '@profile', '@setup', '@smoke', '@support'];
     for (const f of ['apps/web/src/app/(app)/c/[clientId]/settings/layout.tsx', 'apps/web/src/app/(app)/c/[clientId]/settings/page.tsx', 'apps/web/src/server/client-settings-nav.ts']) {
       expect(resolve(f).tags, f).toEqual(client);
     }
-    expect(resolve('apps/web/src/components/settings-nav.tsx').tags).toEqual(['@ai-connections', '@alert-rules', '@ask', '@billing', '@client-billing', '@clients', '@leads', '@playbooks', '@profile', '@setup', '@smoke', '@support', '@usage']);
+    expect(resolve('apps/web/src/components/settings-nav.tsx').tags).toEqual(['@ai-connections', '@alert-rules', '@ask', '@billing', '@client-billing', '@clients', '@leads', '@navigation', '@playbooks', '@profile', '@setup', '@smoke', '@support', '@usage']);
+  });
+
+  it('maps the shell, page header and Briefs & reports to @navigation (15a)', () => {
+    for (const f of ['apps/web/src/components/shell/context-switcher.tsx', 'apps/web/src/components/shell/mobile-nav.tsx', 'apps/web/src/components/page-header.tsx', 'apps/web/next.config.ts']) {
+      expect(resolve(f).mode, f).toBe('all');
+    }
+    for (const f of ['apps/web/src/app/(app)/c/[clientId]/briefs/page.tsx', 'apps/web/src/app/(app)/c/[clientId]/briefs/[briefId]/page.tsx', 'apps/web/src/components/prev-next.tsx']) {
+      expect(resolve(f).tags, f).toContain('@navigation');
+    }
   });
 
   it('builds a grep that does not match longer tags', () => {

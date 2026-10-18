@@ -198,6 +198,7 @@ export async function seed(): Promise<void> {
     await seedStartingPoint(db, { agencyId });
     await seedSetup(db, { agencyId });
     await seedInviteSetup(db);
+    await seedNavigation(db, { agencyId });
 
     await seedAsk(db, { agencyId, competitorId: comp!.id, eventId: workspace.eventId, evidenceId: workspace.evidenceId });
 
@@ -636,6 +637,27 @@ async function seedSetup(db: ReturnType<typeof createDb>['db'], o: { agencyId: s
   await writeFile(SETUP_FIXTURE_FILE, JSON.stringify({
     finish: finish!, owner: owner!, badge: badge!, closed: closed!,
   } satisfies SetupFixture));
+}
+
+/** 15a E2E (`navigation.spec.ts`): a client with more sent weekly briefs than one Briefs & reports page holds (20). */
+export const NAV_ARCHIVE_NAME = 'Archive Heating Co';
+export const NAV_ARCHIVE_BRIEFS = 22;
+
+async function seedNavigation(db: ReturnType<typeof createDb>['db'], o: { agencyId: string }): Promise<void> {
+  const { agencyId } = o;
+  const [c] = await db.insert(client).values({
+    agencyId, name: NAV_ARCHIVE_NAME, verticalId: 'hvac_plumbing', features: ['dashboard', 'ask'], keywords: ['furnace repair'],
+    serviceArea: { center: { lat: 32.4, lng: -97.79 }, radiusKm: 25, zips: ['76048'] },
+  }).returning({ id: client.id });
+  // Weekly Mondays from 2026-03-02; week n's summary names n, newest (n = 22) first in the list.
+  await db.insert(brief).values(Array.from({ length: NAV_ARCHIVE_BRIEFS }, (_, i) => {
+    const monday = new Date(Date.UTC(2026, 2, 2) + i * 7 * DAY);
+    const iso = monday.toISOString().slice(0, 10);
+    return {
+      agencyId, clientId: c!.id, deliveryDate: iso, periodStart: new Date(monday.getTime() - 7 * DAY), periodEnd: monday, status: 'sent' as const,
+      summary: `Archive week ${i + 1}: a quiet week for rivals.`, approvedAt: monday, sentAt: monday,
+    };
+  }));
 }
 
 /** 11b E2E (`client-setup-invite.spec.ts`): an exempt-pilot agency with three open setups, looked up by name. */
