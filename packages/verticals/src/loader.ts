@@ -27,3 +27,8 @@ export async function loadVerticalPack(id: string, dir: string = PACKS_DIR): Pro
   if (pack.id !== id) throw new Error(`Vertical pack ${file} declares id "${pack.id}", expected "${id}"`);
   return pack;
 }
+
+/** Packs a user may pick: everything except the vertical-neutral `generic` base (interim until the DB catalogue, Phase 14a Task 3). */
+export async function listSelectableVerticalPacks(dir: string = PACKS_DIR): Promise<string[]> {
+  return (await listVerticalPacks(dir)).filter((id) => id !== 'generic');
+}

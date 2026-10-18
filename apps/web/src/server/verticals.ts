@@ -1,5 +1,5 @@
 import 'server-only';
-import { listVerticalPacks, loadVerticalPack } from '@cs/verticals';
+import { listSelectableVerticalPacks, loadVerticalPack } from '@cs/verticals';
 
 export interface VerticalOption {
   id: string;
@@ -12,7 +12,7 @@ let cached: Promise<VerticalOption[]> | null = null;
 export function verticalOptions(): Promise<VerticalOption[]> {
   if (!cached) {
     const load = (async () => {
-      const ids = await listVerticalPacks();
+      const ids = await listSelectableVerticalPacks();
       const packs = await Promise.all(ids.map((id) => loadVerticalPack(id)));
       return packs.map((p) => ({ id: p.id, name: p.name, services: p.services.map((s) => ({ id: s.id, name: s.name })) }));
     })();

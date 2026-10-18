@@ -1,6 +1,6 @@
 import { FEATURES, ToolError, type AccessContext, type Role } from '@cs/core';
 import { client, type ClientRow, clientSetup, withTenant, type Tx } from '@cs/db';
-import { listVerticalPacks, type VerticalPack } from '@cs/verticals';
+import { listSelectableVerticalPacks, type VerticalPack } from '@cs/verticals';
 import { eq } from 'drizzle-orm';
 import { type ClientInput, cleanClientInput, clientInputProblems } from '../client-input';
 import { packsOf, type ToolDeps } from '../deps';
@@ -15,7 +15,7 @@ import type { ServiceAreaInput } from '../tools/schemas';
  * it as `internal`, not a user-fixable input error.
  */
 export async function packFor(deps: ToolDeps, verticalId: string): Promise<VerticalPack> {
-  if (!(await listVerticalPacks()).includes(verticalId)) throw new ToolError('invalid_input', `Unknown vertical: ${verticalId}`);
+  if (!(await listSelectableVerticalPacks()).includes(verticalId)) throw new ToolError('invalid_input', `Unknown vertical: ${verticalId}`);
   return packsOf(deps)(verticalId);
 }
 

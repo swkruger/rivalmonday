@@ -1,7 +1,7 @@
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { playbookOverride, withTenant } from '@cs/db';
 import { PLAYBOOK_TEMPLATE_MAX, PLAYBOOK_TITLE_MAX, PLAYBOOK_VARS, unknownPlaybookVars, upsertPlaybookOverride } from '@cs/engine';
-import { listVerticalPacks, type VerticalPack } from '@cs/verticals';
+import { listSelectableVerticalPacks, type VerticalPack } from '@cs/verticals';
 import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
 import { PlaybookVertical, PlaybookView } from './schemas';
@@ -27,7 +27,7 @@ export const listPlaybooks = defineTool({
   permission: 'agency',
   async handler(ctx, _input, deps) {
     const overrides = await overridesFor(deps, ctx);
-    const packs = await Promise.all((await listVerticalPacks()).map((id) => packsOf(deps)(id)));
+    const packs = await Promise.all((await listSelectableVerticalPacks()).map((id) => packsOf(deps)(id)));
     return {
       verticals: packs.map((pack) => ({
         id: pack.id, name: pack.name,
@@ -49,7 +49,7 @@ export const updatePlaybook = defineTool({
   permission: 'agency',
   async handler(ctx, input, deps) {
     if (ctx.role !== 'agency_admin') throw new ToolError('permission_denied', 'Only agency admins edit playbooks');
-    if (!(await listVerticalPacks()).includes(input.verticalId)) throw new ToolError('invalid_input', `Unknown business type: ${input.verticalId}`);
+    if (!(await listSelectableVerticalPacks()).includes(input.verticalId)) throw new ToolError('invalid_input', `Unknown business type: ${input.verticalId}`);
     const pack = await packsOf(deps)(input.verticalId);
     const p = pack.playbooks.find((x) => x.id === input.playbookId);
     if (!p) throw new ToolError('invalid_input', `Unknown playbook: ${input.playbookId}`);

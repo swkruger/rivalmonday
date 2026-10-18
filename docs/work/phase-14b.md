@@ -63,3 +63,18 @@ See **Assumes from other branches** (13b + phase-11-fixes merge first).
 
 ### 6. Open questions
 All answered 2026-10-17 — see Decisions and spec §1.
+
+## Copy for owner sign-off
+Rewritten from HVAC wording in `packages/verticals/packs/generic.yaml` (all else identical to hvac_plumbing):
+- `themes[response_time].description`: "the business ... shows up" (was "the company ... arrives")
+- `themes[technician_professionalism]`: name "Staff professionalism", description "... conduct of the staff"
+- `themes[fix_quality].name`: "Quality of work"
+- `themes[communication].description`, `themes[price_transparency].description`: unchanged wording; dropped cleanliness, upsell_pressure, scheduling themes
+- `playbooks[price_cut_bundle].template`: "a free add-on or priority scheduling" (was filter replacement)
+- `playbooks[price_war_hold_position].template`: "a repeat-customer offer" (was maintenance-plan offer)
+- `playbooks[hiring_push_capacity].template`: "early renewals or repeat-customer offers" (was maintenance-plan renewals)
+- `playbooks[ask_for_reviews].template`: "right after the visit" (was job)
+- `playbooks[consider_search_ads].template`: "your main service" (was main repair service)
+- `playbooks[fix_theme].template`: "tell your team" (was technicians)
+- `playbooks[improve_map_rank].template`: "photos of your work" (was job photos)
+- `services`: single area `general` "General service"; `discovery.categories`: "Service establishment", no seed keywords
