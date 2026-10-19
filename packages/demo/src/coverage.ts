@@ -348,6 +348,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'list_catalog_review', input: none, path: 'verticals', expect: 'empty', why: 'the demo agencies add no business types' },
       { tool: 'list_catalog_review', input: none, path: 'areas', expect: 'empty', why: 'the demo agencies add no services' },
       { tool: 'list_verticals', input: none, path: 'verticals' },
+      // The shell's nav-badge read (every operator page), listed here because /platform/verticals is where the badge counts.
       { tool: 'count_catalog_review', input: none, path: 'count', expect: 'empty', why: 'nothing waits for review in the demo' },
     ],
   },

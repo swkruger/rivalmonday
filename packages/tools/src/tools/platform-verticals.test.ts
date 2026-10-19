@@ -328,7 +328,7 @@ describe('review_vertical / review_business_area / list_catalog_review', () => {
     const [afterRow] = await q<{ n: number }>(sql`select count(*)::int as n from platform_audit_log where tool = 'count_catalog_review'`);
     expect(afterRow!.n).toBe(0);
     expect(mid!.n - before!.n).toBe(2);
-    expect((await fails(call(adminA, 'count_catalog_review'))).code).toBe('permission_denied');
+    expect((await fails(call(adminA, 'count_catalog_review'))).code).toBe('not_found');
   });
 
   it('rename keeps the id and refuses client data; approve does not bump the version', async () => {

@@ -107,7 +107,13 @@ export const countCatalogReviewTool = defineTool({
   permission: 'agency',
   audit: 'skip-web',
   async handler(ctx: AccessContext, _input, deps) {
-    await requirePlatformOperator(deps, ctx, 'viewer');
+    try {
+      await requirePlatformOperator(deps, ctx, 'viewer');
+    } catch (e) {
+      // The shell calls this for operators only; anyone else is told it doesn't exist, like an unknown tool.
+      if (e instanceof ToolError && e.code === 'permission_denied') throw new ToolError('not_found', 'Unknown tool: count_catalog_review');
+      throw e;
+    }
     const db = deps.service;
     const [v] = await db.select({ n: sql<number>`count(*)::int` }).from(vertical).where(and(eq(vertical.status, 'unreviewed'), ne(vertical.id, GENERIC_VERTICAL_ID)));
     const [a] = await db.select({ n: sql<number>`count(*)::int` }).from(businessArea)
