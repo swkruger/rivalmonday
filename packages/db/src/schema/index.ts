@@ -21,3 +21,4 @@ export * from './rivals';
 export * from './setup';
 export * from './sources';
 export * from './tenancy';
+export * from './runbooks';
