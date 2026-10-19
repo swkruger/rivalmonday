@@ -4,10 +4,12 @@
 **Plan/spec:** [7a spec](../superpowers/specs/2026-10-19-phase-7a-launch-production-security-design.md) (supersedes the parked 2026-10-12 spec); plans [7a1](../superpowers/plans/2026-10-19-phase-7a1-deploy-observability.md), [7a2](../superpowers/plans/2026-10-19-phase-7a2-security-data-lifecycle.md). Item lists: [phase-7-scope.md](phase-7-scope.md).
 
 ## Status (overwrite)
-2026-10-19: 7a spec + 7a1/7a2 plans owner-approved. 7a2 execution started (implementation worktree); 7a1 waits for phase-14b merge (pre-flight rebase), its live deploy for owner accounts.
+2026-10-19: 7a spec + 7a1/7a2 plans owner-approved (no code yet). Worktree set up for implementation: own test DB `cs_phase_7_test`, `pnpm install` + pgboss schema run in the background at wrap-up (re-run `pnpm install` if `node_modules` is incomplete). 7a2 SDD workspace prepared (ledger/briefs in `.superpowers/`, gitignored) — no task dispatched.
 
 ## Next (overwrite)
-Owner approves the 7a1 + 7a2 plans (incl. `/bot` copy, new env vars `SENTRY_*`/`NEXT_PUBLIC_SENTRY_DSN`/`LOG_LEVEL`/`POSTMARK_WEBHOOK_SECRET`, and creating `cs_worker`/`cs_web` on Neon dev before migration 0080) → `superpowers:subagent-driven-development` for 7a1, then 7a2. 7a1 Task 12 (live deploy) waits for O17 accounts. 7b brainstorming may start (O1).
+1. **7a1 first** — 7a2's Task 0 needs 7a1's `@cs/core/server` split (correction: 7a2 can't run ahead of 7a1). 7a1 Task 0 pre-flight rebases on `main` once phase-14b merges (or stack on it with owner OK); then `superpowers:subagent-driven-development` on `docs/superpowers/plans/2026-10-19-phase-7a1-deploy-observability.md`, then 7a2.
+2. Owner: create `cs_worker`/`cs_web` roles on Neon dev before the roles migration; prod accounts before 7a1 Task 12 (O17).
+3. 7b brainstorming may start any time (O1).
 
 ## Interfaces this branch adds or changes
 None yet. Migrations: main ends `0076`; `phase-14b` holds `0077`–`0079`; 13a claims 4 at execution. **Phase 7 starts at `0080`** if it lands after 14b and before 13a; claim at pre-flight (7a1 `runtime_roles`, 7a2 `lifecycle`). **phase-15b** (planning) may also claim one after 14b.
