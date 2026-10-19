@@ -47,7 +47,7 @@
   - 14a facts hold: `generic.yaml`; `catalogOf`/`packsOf`/`catalogPacks` in `packages/tools/src/catalog/access.ts`; `CallScope.verticalId` (`packages/core/src/ledger.ts:6`). `resolvePlaybooks` in `packages/engine/src/briefs/playbooks.ts` is **unchanged by 14a** (still `(db, agencyId, pack: VerticalPack)`); the 14a `catalogOf(deps).resolveId` change is in `packages/tools/src/tools/playbooks.ts` (the `list_playbooks`/`update_playbook` tools). The engine function `upsertPlaybookOverride` (same engine file) is only called by `update_playbook`.
   - `packages/engine` depends on `@cs/collectors`, so collectors cannot import engine: the tier knob stays a dep-injected `runbookTiers` (Task 4).
   - phase-13b merged: `map_climb_defend` playbook and `map_visibility_gap` -> `improve_map_rank` exist in all three packs; `MOVE_TYPES` includes `map_climb`.
-  - **(pre-flight finding, controller decision needed) Packs differ from `generic.yaml`.** Self-rule ids are identical in all three packs (8: `review_velocity_gap reply_rate_gap rating_gap rival_only_advertiser theme_weakness theme_strength map_visibility_gap profile_gap`). Playbook ids: `hvac_plumbing` has the same 18 ids as `generic`, but the texts differ in 7 diff hunks of the playbooks block (e.g. `price_cut_bundle`, `ask_for_reviews`, `hiring_push_capacity`). `dental` has 18 ids of which 4 are NOT in generic: `new_patient_offer_response`, `new_service_cosmetic`, `price_war_membership`, `territory_new_location`; and 4 generic ids are NOT in dental: `new_service_response`, `price_cut_bundle`, `price_war_hold_position`, `territory_defend`. Consequences: (1) R6's "platform play ids equal today's pack ids, so legacy clients map one to one" is false for dental; (2) R2 step 3 (client with no runbook and no overrides -> agency runbook = generic copy) would change brief wording for HVAC clients and swap dental plays for generic ones, so it is **not output-neutral**; (3) the tailor base (agency = generic copy) lacks dental plays. Recommended ruling: R2 step 3 is dropped for clients whose pack is not `generic` (they stay on the legacy view until backfilled/tailored); `legacyClientItems` keeps pack-only play ids with `upstreamVersion = null` (self-added, `in_sync`) and does not show them as "Customised"; tailoring uses the legacy items of the client's pack as its base when the pack is not `generic`. Not applied to the tasks below until the controller rules.
+  - **(pre-flight finding, controller decision needed) Packs differ from `generic.yaml`.** Self-rule ids are identical in all three packs (8: `review_velocity_gap reply_rate_gap rating_gap rival_only_advertiser theme_weakness theme_strength map_visibility_gap profile_gap`). Playbook ids: `hvac_plumbing` has the same 18 ids as `generic`, but the texts differ in 7 diff hunks of the playbooks block (e.g. `price_cut_bundle`, `ask_for_reviews`, `hiring_push_capacity`). `dental` has 18 ids of which 4 are NOT in generic: `new_patient_offer_response`, `new_service_cosmetic`, `price_war_membership`, `territory_new_location`; and 4 generic ids are NOT in dental: `new_service_response`, `price_cut_bundle`, `price_war_hold_position`, `territory_defend`. Consequences: (1) R6's "platform play ids equal today's pack ids, so legacy clients map one to one" is false for dental; (2) R2 step 3 (client with no runbook and no overrides -> agency runbook = generic copy) would change brief wording for HVAC clients and swap dental plays for generic ones, so it is **not output-neutral**; (3) the tailor base (agency = generic copy) lacks dental plays. Recommended ruling: R2 step 3 is dropped for clients whose pack is not `generic` (they stay on the legacy view until backfilled/tailored); `legacyClientItems` keeps pack-only play ids with `upstreamVersion = null` (self-added, `in_sync`) and does not show them as "Customised"; tailoring uses the legacy items of the client's pack as its base when the pack is not `generic`. **Ruling adopted by the controller and folded into Tasks 2, 3, 4, 5 and 7.**
 
 ## Review Focus
 1. **Agency edits an item the client copy customised.** Expected: the client sees "Update available" with a diff against `upstream_snapshot`. Pull replaces it only after review, and Dismiss hides it until the next agency change (Task 2 + Task 6 tests).
@@ -139,6 +139,7 @@ export function itemsFromPack(pack: VerticalPack): Omit<RunbookItem,'version'|'u
 // state.ts
 export type UpdateState = 'in_sync' | 'update_available' | 'new_upstream' | 'removed_upstream';
 export function compareWithParent(child: RunbookItem[], parent: RunbookItem[]): { key: string; state: UpdateState; parentVersion: number | null }[];
+export function packUsesGenericPlays(pack: VerticalPack, generic: VerticalPack): boolean;   // (pre-flight ruling) pure: true iff pack.playbooks (ids + content) and pack.self_rules deep-equal generic's
 export function copyItems(parent: RunbookItem[]): RunbookItem[];   // upstreamVersion = parent.version, upstreamSnapshot = parent content+enabled+areas, customised false
 export interface EffectiveRunbook { source: 'client' | 'agency' | 'legacy'; plays: (Playbook & { version: number; businessAreaIds: string[] | null; effort?: 'L'|'M'|'H'; impact?: 'L'|'M'|'H' })[];
   selfRules: PackSelfRule[]; thresholds: ScoreThresholds | null; focusAreaIds: string[]; tierLimits: DiscoveryConfig['tiers'] | null }
@@ -154,7 +155,7 @@ export function effectiveFrom(items: RunbookItem[], source: EffectiveRunbook['so
   - Self-rules: disabled rules are dropped.
   - Knobs: missing knobs → null/[].
   - `Playbook.source` = `'agency'` for compatibility with existing callers.
-**Tests (TDD):** each state from fixtures; a dismissed version is hidden but a newer one shows; a tombstone blocks `new_upstream`; `copyItems` snapshots; `effectiveFrom` filters disabled plays and area-limited plays; the play schema refuses `{{` in a title, an unknown var, and an over-length template; `itemsFromPack(hvac)` round-trips today's playbooks.
+**Tests (TDD), pre-flight ruling:** `packUsesGenericPlays`: a catalogue vertical with generic config -> true; hvac_plumbing (wording diffs) -> false; dental -> false. Plus: each state from fixtures; a dismissed version is hidden but a newer one shows; a tombstone blocks `new_upstream`; `copyItems` snapshots; `effectiveFrom` filters disabled plays and area-limited plays; the play schema refuses `{{` in a title, an unknown var, and an over-length template; `itemsFromPack(hvac)` round-trips today's playbooks.
 **Done when:** `pnpm --filter @cs/engine exec vitest run runbook` passes.
 
 ### Task 3: Runbook store + effective resolution with fallback
@@ -172,14 +173,14 @@ export async function writeItem(service: Db, runbookId: string, item: RunbookIte
 **Behaviour (R2, binding order):**
 1. If a client runbook exists → `effectiveFrom(items, 'client', client.services)`.
 2. Else, if the agency has any `playbook_override` row for the client's vertical → **legacy**: plays from `resolvePlaybooks(db, agencyId, pack)` (today's function, kept as `resolveLegacyPlaybooks`) and self-rules from `pack.self_rules`.
-3. Else, if an agency runbook exists → `effectiveFrom(agencyItems, 'agency', client.services)`.
+3. Else, if an agency runbook exists **and `packUsesGenericPlays(pack, generic)` (pre-flight ruling)** → `effectiveFrom(agencyItems, 'agency', client.services)`. Otherwise (hvac, dental, any pack with its own plays) → legacy (pack + overrides) until the client has its own runbook.
 4. Else → legacy (pack only).
 
-**(pre-flight note)** Branch 3 is not output-neutral for non-generic packs; see the pack-diff finding under Dependencies (hvac texts differ from generic, dental has 4 ids not in generic and lacks 4 generic ids). Apply the controller's ruling to branch 3 and to `itemsFromPack`/`legacyClientItems` before implementing.
+**(pre-flight note)** Branch 3 is not output-neutral for non-generic packs; see the pack-diff finding under Dependencies (hvac texts differ from generic, dental has 4 ids not in generic and lacks 4 generic ids). Controller ruling adopted and applied (branch 3 gated by `packUsesGenericPlays`; Tasks 2, 4, 5, 7).
 
 `thresholds` always resolves per R3 (the client column first). A DB error propagates (no silent empty runbook). Item content that fails `parseItemContent` is skipped with a warning (Review Focus 2).
 
-**Tests (TDD):** each branch of the order; an invalid stored item is skipped; ensure* are idempotent under concurrent calls (two `Promise.all` calls → one runbook); the R3 threshold order.
+**Tests (TDD):** each branch of the order; an invalid stored item is skipped; ensure* are idempotent under concurrent calls (two `Promise.all` calls → one runbook); the R3 threshold order; **(pre-flight ruling)** an HVAC client with an agency runbook and no client runbook resolves to legacy, output unchanged.
 **Done when:** `pnpm --filter @cs/engine exec vitest run runbook` passes.
 
 ### Task 4: Engine reads the runbook
@@ -196,6 +197,7 @@ export async function writeItem(service: Db, runbookId: string, item: RunbookIte
 - **Focus areas (R4):** in `gather.ts`, sort candidates by (service ∈ focusAreaIds desc, existing order) before the cap.
 - **Tier limits (R5):** `rivals/run.ts:369` and `tracked.ts:108` use the client's `tierLimits ?? pack.discovery.tiers`. Collectors receive a `runbookTiers?: (clientId) => Promise<Tiers | null>` dep; when it is absent (tests), they use the pack.
 - `resolvePlaybooks` is renamed `resolveLegacyPlaybooks` and used only by the store's legacy branch.
+- **(pre-flight ruling)** Also assert: an HVAC and a dental client with an agency runbook but no client runbook produce output identical to today (legacy view).
 - **Golden equivalence (built inline, see the ruling above):** for the seeded HVAC + dental test clients with and without `playbook_override`, the legacy path and a client runbook copied from the agency runbook with the overrides applied inline produce identical `Playbook[]`, self-rules and thresholds.
 **Tests (TDD):** existing `playbooks`, `generate`, `recommendations`, `starting-point`, `score`, rivals tests pass; new: the golden equivalence; a client runbook with a customised play changes the brief prompt text; an area-limited play is skipped for a client without that area; a focus area re-orders candidates; the `tier_limits` knob changes the tier; `playbook_version` is stored.
 **Done when:** `pnpm test:affected` passes.
@@ -214,7 +216,7 @@ export async function proposeTailoring(d: { db: Db; ai: Ai; packs: PackLoader },
 ```
 **Behaviour:**
 - **Skips:** paused / non-active clients and non-serviceable agencies (`skipped`). Demo/test envs also skip (the job is not run in E2E; E2E seeds a tailored runbook).
-- **Base:** the agency runbook items (`ensureAgencyRunbook` first) → `copyItems`.
+- **Base (pre-flight ruling):** `ensureAgencyRunbook` first; if `packUsesGenericPlays(pack, generic)` → `copyItems(agency items)`; else → `legacyClientItems` (the pack's plays, with overrides). `applyTailoring` rules unchanged.
 - **Prompt input** (through `redactForModel` with the client's business name):
   - the vertical name and audience noun
   - the client's business-area names with ids
@@ -264,8 +266,10 @@ retailor_runbook_item { owner: {level:'client'; clientId}; key } → { proposed:
 **Interfaces:**
 ```ts
 export async function legacyClientItems(deps: { db: Db; packs: PackLoader }, clientId: string, agencyItems: RunbookItem[]): Promise<RunbookItem[]>;
-// plays from resolveLegacyPlaybooks (overrides applied, disabled → enabled=false), self_rules from pack;
-// upstreamVersion = agency item version, upstreamSnapshot = agency content, customised = content ≠ agency content (D14: no AI)
+// plays from resolveLegacyPlaybooks (overrides applied, disabled → enabled=false), self_rules from pack (D14: no AI)
+// (pre-flight ruling) ids also in the agency runbook: upstreamVersion = agency item version, upstreamSnapshot = agency content,
+//   customised = content ≠ agency content. Pack-only ids (e.g. dental's): upstreamVersion null (client-owned, always in_sync).
+//   Generic-only ids (e.g. dental lacks price_cut_bundle): absent, so they surface as new_upstream "New" on the client.
 ```
 **Behaviour:**
 - The CLI `pnpm --filter @cs/worker runbook:backfill [--dry-run]`:
@@ -277,7 +281,7 @@ export async function legacyClientItems(deps: { db: Db; packs: PackLoader }, cli
   It is idempotent. It does not touch `playbook_override`.
 - **(pre-flight ruling)** The golden equivalence from Task 4 (built inline there) is asserted here too, now with `legacyClientItems`: the effective runbook of a backfilled client equals its legacy view.
 - `docs/OPS.md` gets the backfill step for `cs_dev` and prod (after migrating, before the next brief run).
-**Tests (TDD):** `legacy.test.ts` (override applied, disabled carried, customised flag); the CLI dry-run on seeded data reports counts and writes nothing; a second run is a no-op.
+**Tests (TDD):** `legacy.test.ts` (override applied, disabled carried, customised flag; **pre-flight ruling:** shared id gets the agency version/snapshot, pack-only id has upstreamVersion null and is in_sync, generic-only id is absent and shows `new_upstream`); the CLI dry-run on seeded data reports counts and writes nothing; a second run is a no-op.
 **Done when:** `pnpm test:affected` passes.
 
 ### Task 8: Shared editor + three pages
