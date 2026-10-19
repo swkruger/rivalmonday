@@ -13,7 +13,7 @@ import {
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
   type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
-  runReviewInsights, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
+  runReviewInsights, loadClientRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
 import { generateStarters } from '@cs/ask';
 import {
@@ -195,7 +195,11 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
   // replica. The deployment is a single always-on worker container by design; scaling out to
   // multiple replicas would need a shared (e.g. DB- or Redis-backed) limiter instead of this one.
   const limiter = new HostRateLimiter();
-  const packs = createCatalog(() => catalogRows(getDb()), { ttlMs: 60_000 }).packs;
+  const catalog = createCatalog(() => catalogRows(getDb()), { ttlMs: 60_000 });
+  const packs = catalog.packs;
+  const generic = () => catalog.generic();
+  /** R5: the client's runbook tier limits (null = the pack's). */
+  const runbookTiers = async (clientId: string) => (await loadClientRunbook({ db: getDb(), packs, generic }, clientId)).tierLimits;
 
   const getDb = () => {
     if (!db) {
@@ -251,6 +255,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     get dfs() { return getDfs(); },
     meta: { apiKey: env.SCRAPECREATORS_API_KEY || undefined, apifyToken: env.APIFY_TOKEN || undefined, ledger: createLedgerSink(getDb()) },
     packs,
+    runbookTiers,
   });
   const runSource: WorkerDeps['runSource'] = async (competitorId, source) => {
     const [c] = await loadCompetitors([competitorId]);
@@ -293,7 +298,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       return r.ran ? { ran: true, eventId: r.result.eventId } : { ran: false, eventId: null };
     },
     async scoreEvent(eventId) {
-      const { scored, failed } = await runScoreStage({ db: getDb(), packs }, eventId);
+      const { scored, failed } = await runScoreStage({ db: getDb(), packs, generic }, eventId);
       return { scored, failed };
     },
     findEngineWork: (limit) => findEngineWork(getDb(), { limit }),
@@ -317,9 +322,9 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     updateMoves: (clientId) => updateMovesForClient({ db: getDb(), packs }, clientId),
     listMoveClients: () => listMoveClients(getDb()),
     listBriefDueClients: (now) => listBriefDueClients(getDb(), now),
-    generateBrief: async (clientId) => generateBrief({ db: getDb(), ai: await getAi(), packs }, clientId),
+    generateBrief: async (clientId) => generateBrief({ db: getDb(), ai: await getAi(), packs, generic }, clientId),
     listStartingPointDue: (now) => listStartingPointDue(getDb(), now),
-    generateStartingPoint: async (clientId) => generateStartingPoint({ db: getDb(), ai: await getAi(), packs }, clientId),
+    generateStartingPoint: async (clientId) => generateStartingPoint({ db: getDb(), ai: await getAi(), packs, generic }, clientId),
     generateAskStarters: async (clientId) => generateStarters({ service: getDb(), ai: await getAi() }, clientId),
     async generateSetupSuggestions(clientId) {
       let clients: { dfs: DataForSeoClient; ai: Ai };
@@ -336,7 +341,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     async generateLeadPreview(leadId) {
       return runLeadPreview({ db: getDb(), clients: async () => ({ dfs: getDfs(), ai: await getAi() }), email: leadEmailDeps() }, leadId);
     },
-    recommendForMoves: async (clientId) => recommendForMoves({ db: getDb(), ai: await getAi(), packs }, clientId),
+    recommendForMoves: async (clientId) => recommendForMoves({ db: getDb(), ai: await getAi(), packs, generic }, clientId),
     async discoverPages(competitorId) {
       const [c] = await getDb().select().from(competitor).where(eq(competitor.id, competitorId)).limit(1);
       if (!c?.domain) return { skipped: 'competitor has no domain' };
@@ -442,7 +447,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     sweepRivalRuns: (now) => sweepRivalRuns(rivalDeps(), now),
     listSignalClients: () => listSignalClients(getDb()),
     listMonthlyRivalClients: () => listMonthlyRivalClients(getDb()),
-    computeTrackedSignals: async (clientId, now) => (await computeTrackedSignals({ db: getDb(), packs }, clientId, now)).length,
+    computeTrackedSignals: async (clientId, now) => (await computeTrackedSignals({ db: getDb(), packs, runbookTiers }, clientId, now)).length,
     deliveryConfigured: () => delivery !== null,
     setupReminders: (now) => runSetupReminders({ db: getDb(), delivery: getDelivery() }, now),
     sweepAlerts: (now) => sweepAlerts(getDb(), now),

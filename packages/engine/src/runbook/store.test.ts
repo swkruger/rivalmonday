@@ -3,7 +3,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resolvePlaybooks } from '../briefs/playbooks';
+import { resolveLegacyPlaybooks } from '../briefs/playbooks';
 import { copyItems, createClientRunbook, ensureAgencyRunbook, ensurePlatformRunbook, itemsFromPack, loadClientRunbook, readRunbookItems, writeItem, type RunbookItem } from './index';
 
 const dbs = openTestDbs();
@@ -108,7 +108,7 @@ describe('loadClientRunbook order', () => {
     await ensureAgencyRunbook(db, IDS.agencyA, generic);
     const e = await loadClientRunbook(deps(), IDS.clientA1);
     expect(e.source).toBe('legacy');
-    const legacy = await resolvePlaybooks(db, IDS.agencyA, hvac);
+    const legacy = await resolveLegacyPlaybooks(db, IDS.agencyA, hvac);
     expect(e.plays).toEqual(legacy.map((p) => ({ ...p, version: 0, businessAreaIds: null })));
     expect(e.selfRules).toEqual(hvac.self_rules);
   });

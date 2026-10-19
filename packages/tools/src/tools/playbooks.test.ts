@@ -1,6 +1,6 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { resolvePlaybooks } from '@cs/engine';
+import { resolveLegacyPlaybooks } from '@cs/engine';
 import { loadVerticalPack } from '@cs/verticals';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createToolRegistry } from '../registry';
@@ -35,7 +35,7 @@ describe('playbooks (Review Focus 5)', () => {
     expect((await find(adminB, 'price_cut_bundle')).overridden).toBe(false);
     await registry.invoke(admin, 'update_playbook', { verticalId: 'hvac_plumbing', playbookId: 'price_cut_bundle', title: null, template: null, disabled: true });
     const pack = await loadVerticalPack('hvac_plumbing');
-    expect((await resolvePlaybooks(dbs.service, IDS.agencyA, pack)).some((p) => p.id === 'price_cut_bundle')).toBe(false);
+    expect((await resolveLegacyPlaybooks(dbs.service, IDS.agencyA, pack)).some((p) => p.id === 'price_cut_bundle')).toBe(false);
     await registry.invoke(admin, 'update_playbook', { verticalId: 'hvac_plumbing', playbookId: 'price_cut_bundle', title: null, template: null, disabled: false });
     const reset = await find(admin, 'price_cut_bundle');
     expect(reset).toMatchObject({ overridden: false, disabled: false });

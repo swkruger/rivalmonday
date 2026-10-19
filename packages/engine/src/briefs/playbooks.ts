@@ -48,17 +48,23 @@ export function playbookVars(c: BriefCandidate): Record<string, string | undefin
   };
 }
 
-export async function resolvePlaybooks(db: Db, agencyId: string, pack: VerticalPack): Promise<Playbook[]> {
+export async function resolveLegacyPlaybooks(db: Db, agencyId: string, pack: VerticalPack): Promise<Playbook[]> {
   const overrides = await db.select().from(playbookOverride).where(and(eq(playbookOverride.agencyId, agencyId), eq(playbookOverride.verticalId, pack.id)));
   return pack.playbooks.flatMap((p): Playbook[] => {
     const o = overrides.find((x) => x.playbookId === p.id);
     if (o?.disabledBy) return [];
     if (!o || (o.title === null && o.template === null)) return [{ ...p, source: 'pack' }];
-    return [{ id: p.id, trigger: p.trigger, title: o.title ?? p.title, template: o.template ?? p.template, source: 'agency' }];
+    return [{ ...p, title: o.title ?? p.title, template: o.template ?? p.template, source: 'agency' }];
   });
 }
 
-export const playbookFor = (playbooks: Playbook[], trigger: string) => playbooks.find((p) => p.trigger === trigger);
+/** The stored provenance of a play: its id and (runbook) version; a legacy play (version 0) has no version. */
+export function playbookRef(playbooks: (Playbook & { version: number })[], c: BriefCandidate): { playbookId: string | null; playbookVersion: number | null } {
+  const pb = playbookFor(playbooks, candidateTrigger(c));
+  return { playbookId: pb?.id ?? null, playbookVersion: pb && pb.version > 0 ? pb.version : null };
+}
+
+export const playbookFor = <P extends Playbook>(playbooks: P[], trigger: string): P | undefined => playbooks.find((p) => p.trigger === trigger);
 
 /** Spec §5.1/§8.5: agency roles edit the vertical playbooks for their agency (Phase 5 screen). */
 export async function upsertPlaybookOverride(

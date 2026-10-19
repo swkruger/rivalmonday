@@ -6,11 +6,13 @@ import { and, asc, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { reviewBenchmark } from '../reviews/benchmark';
 import { ratingTrend } from '../reviews/rating-trend';
+import type { VerticalPack } from '@cs/verticals';
 import type { PackLoader } from '../tag/tag-stage';
 import { localClock } from '../delivery/time';
 import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES, briefErrorMessage, type BriefRunResult } from './generate';
 import { type BriefClient, loadBriefClient } from './gather';
-import { renderPlaybook, resolvePlaybooks } from './playbooks';
+import { loadClientRunbook } from '../runbook/store';
+import { renderPlaybook } from './playbooks';
 import { checkSentence, type RuleEvidence, splitSentences } from './rules';
 import { safeTimezone } from './schedule';
 import { buildScorecard, median, type Scorecard } from './scorecard';
@@ -160,14 +162,14 @@ async function claimStartingPoint(db: Db, c: { id: string; agencyId: string }, d
 
 interface SpItem {
   ruleId: SelfRuleId | null; headline: string; whatChanged: string; whyItMatters: string; recommendedAction: string;
-  effort: 'L' | 'M' | 'H'; impact: 'L' | 'M' | 'H'; evidenceIds: string[]; playbookId: string | null;
+  effort: 'L' | 'M' | 'H'; impact: 'L' | 'M' | 'H'; evidenceIds: string[]; playbookId: string | null; playbookVersion: number | null;
 }
 
 /**
  * Spec § Generation / D10–D11: the one-off starting point. Scorecard → self-rules → items (fixed facts, playbook actions) → optional
  * writer pass for "why it matters" through the two-layer verifier → `ready`. No qualifying finding ships the decided baseline item.
  */
-export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackLoader; now?: () => Date }, clientId: string): Promise<BriefRunResult> {
+export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackLoader; generic?: () => Promise<VerticalPack>; now?: () => Date }, clientId: string): Promise<BriefRunResult> {
   const now = deps.now?.() ?? new Date();
   const [row] = await deps.db.select().from(client).where(eq(client.id, clientId)).limit(1);
   if (!row) throw new Error(`client ${clientId} not found`);
@@ -189,13 +191,14 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
     const trend = await ratingTrend(deps, clientId, { now });
     const themes = (await reviewBenchmark(deps, clientId, { now })).businesses;
     const rankEvidenceIds = await rankEvidence(deps.db, clientId);
+    const runbook = await loadClientRunbook(deps, clientId);
     const findings = evaluateSelfRules({
-      scorecard, themes, profile: await selfProfile(deps.db, row.selfCompetitorId), rules: pack.self_rules, playbooks: pack.playbooks,
+      scorecard, themes, profile: await selfProfile(deps.db, row.selfCompetitorId), rules: runbook.selfRules, playbooks: runbook.plays,
       rankHasEvidence: rankEvidenceIds.length > 0, audienceNoun: pack.audience_noun, rankEvidenceIds,
       evidenceByCompetitor: Object.fromEntries(trend.businesses.map((b) => [b.competitorId, b.evidenceIds])),
       adEvidenceByCompetitor: await adEvidence(deps.db, scorecard.rows.flatMap((r) => (r.competitorId ? [r.competitorId] : []))),
     });
-    const playbooks = await resolvePlaybooks(deps.db, c.agencyId, pack);
+    const playbooks = runbook.plays;
     const dropped: BriefDropStats = { items: 0, sentences: 0 };
     const evText = scorecardEvidenceText(scorecard, findings);
     const rivalNames = scorecard.rows.filter((r) => !r.self).map((r) => r.name);
@@ -244,8 +247,9 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
       ? kept.map((k, i) => ({
         ruleId: k.f.ruleId, headline: k.title, whatChanged: k.f.fact, whyItMatters: why.get(findingRef(i)) ?? SELF_WHY_IT_MATTERS[k.f.ruleId],
         recommendedAction: k.action, effort: k.f.effort, impact: k.f.impact, evidenceIds: k.f.evidenceIds, playbookId: k.f.playbookId,
+        playbookVersion: (() => { const v = playbooks.find((p) => p.id === k.f.playbookId)?.version ?? 0; return v > 0 ? v : null; })(),
       }))
-      : [{ ruleId: null, headline: BASELINE_HEADLINE, whatChanged: BASELINE_BODY, whyItMatters: '', recommendedAction: '', effort: 'L', impact: 'L', evidenceIds: scorecard.evidenceIds, playbookId: null }];
+      : [{ ruleId: null, headline: BASELINE_HEADLINE, whatChanged: BASELINE_BODY, whyItMatters: '', recommendedAction: '', effort: 'L', impact: 'L', evidenceIds: scorecard.evidenceIds, playbookId: null, playbookVersion: null }];
     const summary = startingPointSummary(c.name, rivalNames.length);
 
     return await deps.db.transaction(async (tx): Promise<BriefRunResult> => {
@@ -256,7 +260,7 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
       await tx.insert(briefItem).values(items.map((i, ord) => ({
         briefId, agencyId: row.agencyId, clientId, ord, competitorId: null, subject: 'self' as const,
         headline: i.headline, whatChanged: i.whatChanged, whyItMatters: i.whyItMatters, recommendedAction: i.recommendedAction,
-        confidence: 1, effort: i.effort, impact: i.impact, eventIds: [], moveId: null, evidenceIds: i.evidenceIds, upsellTag: null, playbookId: i.playbookId,
+        confidence: 1, effort: i.effort, impact: i.impact, eventIds: [], moveId: null, evidenceIds: i.evidenceIds, upsellTag: null, playbookId: i.playbookId, playbookVersion: i.playbookVersion,
       })));
       return { status: 'ready' as const, briefId, kind: 'starting_point', items: items.length, dropped };
     });

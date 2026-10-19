@@ -55,7 +55,7 @@ try {
       break;
     }
     case 'resolve':
-      console.log(JSON.stringify(await resolveDecisionReview({ db, packs: createCatalog(() => catalogRows(db), { ttlMs: 60_000 }).packs }, args.reviewId, { answers: args.answers, resolvedBy: args.by })));
+      console.log(JSON.stringify(await resolveDecisionReview({ db, ...(() => { const cat = createCatalog(() => catalogRows(db), { ttlMs: 60_000 }); return { packs: cat.packs, generic: () => cat.generic() }; })() }, args.reviewId, { answers: args.answers, resolvedBy: args.by })));
       break;
   }
 } catch (err) {

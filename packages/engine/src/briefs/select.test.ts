@@ -28,6 +28,16 @@ describe('selectBriefItems', () => {
     expect(out.map((c) => (c.kind === 'event' ? c.eventId : c.moveId))).toEqual(['m', 'b']);
   });
 
+  it('focus areas put in-focus candidates first without excluding the rest (R4)', () => {
+    const inFocus = { ...ev('f', 'y', 45), serviceId: 'ac_tune_up' };
+    const events = [ev('a', 'x', 80), ev('b', 'z', 70), inFocus];
+    const ids = (focusAreaIds?: string[]) => selectBriefItems({ events, moves: [] }, { focusAreaIds }).map((c) => (c.kind === 'event' ? c.eventId : ''));
+    expect(ids()).toEqual(['a', 'b', 'f']);
+    expect(ids(['ac_tune_up'])).toEqual(['f', 'a', 'b']);
+    const m = mv('m', 'q', 50, [{ ...ev('g', 'q', 50), serviceId: 'ac_tune_up' }]);
+    expect(selectBriefItems({ events, moves: [m] }, { focusAreaIds: ['ac_tune_up'] }).map((c) => (c.kind === 'event' ? c.eventId : c.moveId))).toEqual(['m', 'f', 'a', 'b']);
+  });
+
   it('never pads: no candidates, no items', () => {
     expect(selectBriefItems({ events: [], moves: [] })).toEqual([]);
   });

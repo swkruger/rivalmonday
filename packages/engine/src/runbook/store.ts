@@ -2,8 +2,7 @@ import { client, type Db, playbookOverride, runbook, runbookItem } from '@cs/db'
 import type { PackLoader, VerticalPack } from '@cs/verticals';
 import { and, eq, sql } from 'drizzle-orm';
 import { isDeepStrictEqual } from 'node:util';
-// Task 4 renames `resolvePlaybooks` to `resolveLegacyPlaybooks`; a local alias keeps this task independent of it.
-import { resolvePlaybooks as resolveLegacyPlaybooks } from '../briefs/playbooks';
+import { resolveLegacyPlaybooks } from '../briefs/playbooks';
 import { itemsFromPack, parseItemContent, type RunbookItem } from './items';
 import { copyItems, type EffectiveRunbook, effectiveFrom, packUsesGenericPlays } from './state';
 
@@ -119,7 +118,7 @@ const thresholdOf = (items: RunbookItem[] | null) =>
   (items?.find((i) => i.key === 'knob:thresholds' && i.enabled)?.content as { alert: number; brief: number } | undefined) ?? null;
 
 /** Resolution order (R2): client runbook, legacy when the agency has overrides for the vertical, agency runbook for generic-play packs, else legacy. */
-export async function loadClientRunbook(deps: { db: Db; packs: PackLoader; generic: () => Promise<VerticalPack> }, clientId: string): Promise<EffectiveRunbook> {
+export async function loadClientRunbook(deps: { db: Db; packs: PackLoader; generic?: () => Promise<VerticalPack> }, clientId: string): Promise<EffectiveRunbook> {
   const { db } = deps;
   const [c] = await db.select({ agencyId: client.agencyId, verticalId: client.verticalId, services: client.services, scoreThresholds: client.scoreThresholds }).from(client).where(eq(client.id, clientId));
   if (!c) throw new Error(`Unknown client ${clientId}`);
@@ -134,7 +133,8 @@ export async function loadClientRunbook(deps: { db: Db; packs: PackLoader; gener
 
   const overrides = await db.select({ id: playbookOverride.playbookId }).from(playbookOverride)
     .where(and(eq(playbookOverride.agencyId, c.agencyId), eq(playbookOverride.verticalId, pack.id))).limit(1);
-  if (overrides.length === 0 && agencyItems && packUsesGenericPlays(pack, await deps.generic())) {
+  // Without a `generic` loader (tests, tools that never wired it) the agency runbook cannot be validated, so the legacy view applies.
+  if (overrides.length === 0 && agencyItems && deps.generic && packUsesGenericPlays(pack, await deps.generic())) {
     return { ...effectiveFrom(agencyItems, 'agency', c.services), thresholds };
   }
   const plays = await resolveLegacyPlaybooks(db, c.agencyId, pack);

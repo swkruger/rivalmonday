@@ -1,5 +1,7 @@
 import { changeEvent, type ChangeDetails, client, clientCompetitor, competitor, type Db, eventScore, move, moveEvent, type NumericChange } from '@cs/db';
 import { and, desc, eq, gt, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import type { VerticalPack } from '@cs/verticals';
+import { loadClientRunbook } from '../runbook/store';
 import type { PackLoader } from '../tag/tag-stage';
 import { type EvidenceChange, loadEventEvidence } from './evidence';
 
@@ -13,6 +15,8 @@ export interface BriefClient {
   /** Names of every competitor this client tracks (the rules check sentences naming one of them). */
   competitorNames: string[];
   briefThreshold: number;
+  /** The runbook's focus areas (R4); `selectBriefItems` puts candidates in these services first. */
+  focusAreaIds?: string[];
 }
 
 export interface EventCandidate {
@@ -33,10 +37,11 @@ export const candidateEventIds = (c: BriefCandidate): string[] => candidateEvent
 export const candidateEvidenceIds = (c: BriefCandidate): string[] =>
   [...new Set(candidateEvents(c).flatMap((e) => e.changes.flatMap((ch) => ch.evidenceIds)))].sort();
 
-export async function loadBriefClient(deps: { db: Db; packs: PackLoader }, clientId: string): Promise<BriefClient> {
+export async function loadBriefClient(deps: { db: Db; packs: PackLoader; generic?: () => Promise<VerticalPack> }, clientId: string): Promise<BriefClient> {
   const [c] = await deps.db.select().from(client).where(eq(client.id, clientId)).limit(1);
   if (!c) throw new Error(`client ${clientId} not found`);
   const pack = await deps.packs(c.verticalId);
+  const runbook = await loadClientRunbook(deps, clientId);
   const names = await deps.db
     .select({ name: competitor.name })
     .from(clientCompetitor)
@@ -46,7 +51,7 @@ export async function loadBriefClient(deps: { db: Db; packs: PackLoader }, clien
     id: c.id, agencyId: c.agencyId, name: c.name, verticalId: c.verticalId, verticalName: pack.name,
     services: c.services, serviceNames: c.services.map((s) => pack.services.find((p) => p.id === s)?.name ?? s),
     towns: c.serviceArea?.towns ?? [], zips: c.serviceArea?.zips ?? [], competitorNames: names.map((n) => n.name).sort(),
-    briefThreshold: c.scoreThresholds?.brief ?? pack.scoring.routing.brief,
+    briefThreshold: runbook.thresholds?.brief ?? pack.scoring.routing.brief, focusAreaIds: runbook.focusAreaIds,
   };
 }
 

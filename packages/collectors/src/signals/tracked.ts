@@ -3,6 +3,7 @@ import {
   observation, type RankResult, rankScan, rankSnapshot, review, vendorTask,
 } from '@cs/db';
 import { TIER_LABELS } from '@cs/core';
+import type { DiscoveryConfig } from '@cs/verticals';
 import { and, desc, eq, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { PackLoader } from '../rivals/run';
 import { activityScore, median, rankWeight, tierFor } from '../rivals/score';
@@ -97,7 +98,7 @@ async function signalsFor(db: Db, c: Tracked, now: Date): Promise<Omit<Signals, 
  * from the client's suggestion for that place id, else rank-weighted presence in the latest rank scan, else
  * null (tier Minor). Upserts `competitor_signal` and deletes rows for competitors no longer tracked.
  */
-export async function computeTrackedSignals(deps: { db: Db; packs: PackLoader }, clientId: string, now: Date): Promise<CompetitorSignalRow[]> {
+export async function computeTrackedSignals(deps: { db: Db; packs: PackLoader; runbookTiers?: (clientId: string) => Promise<DiscoveryConfig['tiers'] | null> }, clientId: string, now: Date): Promise<CompetitorSignalRow[]> {
   const { db } = deps;
   const [c] = await db.select({ agencyId: client.agencyId, verticalId: client.verticalId, selfId: client.selfCompetitorId }).from(client).where(eq(client.id, clientId)).limit(1);
   if (!c) throw new Error(`client ${clientId} not found`);
@@ -106,7 +107,7 @@ export async function computeTrackedSignals(deps: { db: Db; packs: PackLoader },
     metaPageIds: competitor.metaPageIds, googleAdvertiserIds: competitor.googleAdvertiserIds,
   }).from(clientCompetitor).innerJoin(competitor, eq(competitor.id, clientCompetitor.competitorId))
     .where(eq(clientCompetitor.clientId, clientId))).filter((t) => t.id !== c.selfId);
-  const { tiers } = (await deps.packs(c.verticalId)).discovery;
+  const tiers = (await deps.runbookTiers?.(clientId)) ?? (await deps.packs(c.verticalId)).discovery.tiers;
 
   const placeIds = tracked.flatMap((t) => (t.placeId ? [t.placeId] : []));
   const suggested = new Map((placeIds.length === 0 ? [] : await db.select({ placeId: competitorSuggestion.placeId, overlap: competitorSuggestion.overlap })

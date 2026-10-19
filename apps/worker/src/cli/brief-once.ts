@@ -28,7 +28,9 @@ if (!serviceUrl || !process.env.OPENROUTER_API_KEY) {
 const { db, close } = createDb(serviceUrl);
 try {
   const ai = createAiFromEnv(process.env, await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH), createLedgerSink(db), createDecisionSampleSink(db));
-  const packs = createCatalog(() => catalogRows(db), { ttlMs: 60_000 }).packs;
+  const catalog = createCatalog(() => catalogRows(db), { ttlMs: 60_000 });
+  const packs = catalog.packs;
+  const generic = () => catalog.generic();
 
   if (args.startingPoint) {
     const [c] = await db.select({ id: client.id }).from(client).where(eq(client.id, args.client));
@@ -53,8 +55,8 @@ try {
   }
 
   const r = args.startingPoint
-    ? await generateStartingPoint({ db, ai, packs, ...(args.now ? { now: () => args.now! } : {}) }, args.client)
-    : await generateBrief({ db, ai, packs }, args.client, { now: args.now });
+    ? await generateStartingPoint({ db, ai, packs, generic, ...(args.now ? { now: () => args.now! } : {}) }, args.client)
+    : await generateBrief({ db, ai, packs, generic }, args.client, { now: args.now });
   console.log(`[brief] ${JSON.stringify(r)}`);
   if (r.status === 'ready') {
     const [b] = await db.select().from(brief).where(eq(brief.id, r.briefId));

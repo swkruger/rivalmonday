@@ -6,10 +6,12 @@ import {
 } from '@cs/db';
 import { and, desc, eq, isNull, ne, notExists, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import type { VerticalPack } from '@cs/verticals';
 import type { PackLoader } from '../tag/tag-stage';
 import { escapeEvidence, loadEventEvidence } from './evidence';
 import { type EventCandidate, loadBriefClient, MOVE_EVIDENCE_EVENTS, type MoveCandidate } from './gather';
-import { type Playbook, playbookFor, playbookVars, renderPlaybook, resolvePlaybooks } from './playbooks';
+import { type Playbook, playbookFor, playbookVars, renderPlaybook } from './playbooks';
+import { loadClientRunbook } from '../runbook/store';
 import { localParts, safeTimezone } from './schedule';
 import { verifyText } from './verify';
 import { candidateContextText, periodLine, UPSELL_TAGS } from './writer';
@@ -19,7 +21,7 @@ export function recommendationFromItem(item: typeof briefItem.$inferSelect): typ
   return {
     // The action is what the owner tracks; the verified fact behind it is the rationale.
     agencyId: item.agencyId, clientId: item.clientId, title: item.recommendedAction.slice(0, 200) || item.headline, rationale: item.whatChanged,
-    evidenceIds: item.evidenceIds, eventIds: item.eventIds, moveId: item.moveId, briefItemId: item.id, playbookId: item.playbookId,
+    evidenceIds: item.evidenceIds, eventIds: item.eventIds, moveId: item.moveId, briefItemId: item.id, playbookId: item.playbookId, playbookVersion: item.playbookVersion,
     effort: item.effort, impact: item.impact, owner: 'client', status: 'todo', source: 'brief', upsellTag: item.upsellTag,
   };
 }
@@ -47,14 +49,14 @@ const SYSTEM = [
 ].join(' ');
 
 /** Spec §8.5 move-triggered playbooks: one recommendation per active move; its rationale passes the brief verifier. */
-export async function recommendForMoves(deps: { db: Db; ai: Ai; packs: PackLoader }, clientId: string, opts: { now?: Date } = {}): Promise<{ created: number; skipped: number; failed: number }> {
+export async function recommendForMoves(deps: { db: Db; ai: Ai; packs: PackLoader; generic?: () => Promise<VerticalPack> }, clientId: string, opts: { now?: Date } = {}): Promise<{ created: number; skipped: number; failed: number }> {
   const now = opts.now ?? new Date();
   const [tz] = await deps.db.select({ timezone: client.timezone }).from(client).where(eq(client.id, clientId)).limit(1);
   const year = localParts(now, safeTimezone(tz?.timezone)).year;
   const out = { created: 0, skipped: 0, failed: 0 };
   const c = await loadBriefClient(deps, clientId);
   const pack = await deps.packs(c.verticalId);
-  const playbooks = await resolvePlaybooks(deps.db, c.agencyId, pack);
+  const playbooks = (await loadClientRunbook(deps, clientId)).plays;
   const moves = await deps.db
     .select({ m: move, name: competitor.name })
     .from(move)
@@ -66,7 +68,7 @@ export async function recommendForMoves(deps: { db: Db; ai: Ai; packs: PackLoade
         or(eq(recommendation.source, 'move'), ne(recommendation.status, 'dismissed')))))));
   for (const { m, name } of moves) {
     try {
-      const pb: Playbook | undefined = playbookFor(playbooks, m.moveType);
+      const pb: (Playbook & { version: number }) | undefined = playbookFor(playbooks, m.moveType);
       if (!pb) {
         out.skipped++;
         continue;
@@ -118,7 +120,7 @@ export async function recommendForMoves(deps: { db: Db; ai: Ai; packs: PackLoade
         .insert(recommendation)
         .values({
           agencyId: c.agencyId, clientId, title, rationale: verified.kept, evidenceIds, eventIds: events.map((e) => e.eventId), moveId: m.id,
-          playbookId: pb.id, effort: parsed.data.effort, impact: parsed.data.impact, owner: parsed.data.owner, source: 'move',
+          playbookId: pb.id, playbookVersion: pb.version > 0 ? pb.version : null, effort: parsed.data.effort, impact: parsed.data.impact, owner: parsed.data.owner, source: 'move',
           upsellTag: parsed.data.upsell_tag === 'none' ? null : parsed.data.upsell_tag,
         })
         .onConflictDoNothing()

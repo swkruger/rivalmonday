@@ -1,9 +1,11 @@
 import type { Ai } from '@cs/ai';
 import { agencyServiceable, clientServiceable, brief, type BriefDropStats, briefItem, type BriefKind, changeEvent, client, type Db, recommendation } from '@cs/db';
 import { and, asc, desc, eq, inArray, isNotNull, ne, notInArray, sql } from 'drizzle-orm';
+import type { VerticalPack } from '@cs/verticals';
 import type { PackLoader } from '../tag/tag-stage';
 import { candidateEventIds, candidateEvidenceIds, gatherBriefCandidates, loadBriefClient } from './gather';
-import { candidateTrigger, playbookFor, resolvePlaybooks } from './playbooks';
+import { loadClientRunbook } from '../runbook/store';
+import { type Playbook, playbookRef } from './playbooks';
 import { briefDue, briefPeriod, deliveryDateFor, localParts, safeTimezone } from './schedule';
 import { selectBriefItems } from './select';
 import { buildScorecard, Scorecard } from './scorecard';
@@ -80,7 +82,7 @@ export function briefErrorMessage(err: unknown): string {
   return String(err);
 }
 
-export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader }, clientId: string, opts: { now?: Date } = {}): Promise<BriefRunResult> {
+export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader; generic?: () => Promise<VerticalPack> }, clientId: string, opts: { now?: Date } = {}): Promise<BriefRunResult> {
   const now = opts.now ?? new Date();
   const [row] = await deps.db.select({ id: client.id, agencyId: client.agencyId, timezone: client.timezone }).from(client).where(eq(client.id, clientId)).limit(1);
   if (!row) throw new Error(`client ${clientId} not found`);
@@ -102,13 +104,12 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
 
   try {
     const c = await loadBriefClient(deps, clientId);
-    const pack = await deps.packs(c.verticalId);
-    const selected = selectBriefItems(await gatherBriefCandidates(deps, c, period));
+    const selected = selectBriefItems(await gatherBriefCandidates(deps, c, period), { focusAreaIds: c.focusAreaIds });
     const trend = await trendSnapshot(deps, clientId, period);
     let verified = { summary: '', items: [] as Awaited<ReturnType<typeof verifyDraft>>['items'], dropped: { items: 0, sentences: 0 } as BriefDropStats };
-    let playbooks: Awaited<ReturnType<typeof resolvePlaybooks>> = [];
+    let playbooks: (Playbook & { version: number })[] = [];
     if (selected.length > 0) {
-      playbooks = await resolvePlaybooks(deps.db, c.agencyId, pack);
+      playbooks = (await loadClientRunbook(deps, clientId)).plays;
       const draft = await writeBrief(deps.ai, scope, c, selected, playbooks, period);
       verified = await verifyDraft(deps.ai, scope, c, selected, draft, { year: localParts(now, tz).year, period });
     }
@@ -140,7 +141,7 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader },
           headline: i.headline, whatChanged: i.what_changed, whyItMatters: i.why_it_matters, recommendedAction: i.recommended_action,
           confidence: i.candidate.confidence, effort: i.effort, impact: i.impact,
           eventIds: candidateEventIds(i.candidate), moveId: i.candidate.kind === 'move' ? i.candidate.moveId : null, evidenceIds: candidateEvidenceIds(i.candidate),
-          upsellTag: i.upsell_tag === 'none' ? null : i.upsell_tag, playbookId: playbookFor(playbooks, candidateTrigger(i.candidate))?.id ?? null,
+          upsellTag: i.upsell_tag === 'none' ? null : i.upsell_tag, ...playbookRef(playbooks, i.candidate),
         })));
       }
       return { status: 'ready' as const, briefId, kind, items: items.length, dropped };

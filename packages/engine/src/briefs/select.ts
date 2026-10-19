@@ -6,11 +6,17 @@ export const BRIEF_MAX_PER_COMPETITOR = 2;
 
 const key = (c: BriefCandidate) => (c.kind === 'event' ? c.eventId : c.moveId);
 
-export function selectBriefItems(input: { events: EventCandidate[]; moves: MoveCandidate[] }): BriefCandidate[] {
+const inFocus = (c: BriefCandidate, areas: ReadonlySet<string>) =>
+  (c.kind === 'event' ? [c] : c.events).some((e) => e.serviceId !== null && areas.has(e.serviceId));
+
+/** R4: the runbook's focus areas only re-order candidates (in-focus first, then the usual order) before the cap; nothing is excluded. */
+export function selectBriefItems(input: { events: EventCandidate[]; moves: MoveCandidate[] }, opts: { focusAreaIds?: string[] } = {}): BriefCandidate[] {
+  const focus = new Set(opts.focusAreaIds ?? []);
   const absorbed = new Set(input.moves.flatMap((m) => m.events.map((e) => e.eventId)));
   const pool: BriefCandidate[] = [...input.moves, ...input.events.filter((e) => !absorbed.has(e.eventId))];
   pool.sort((a, b) =>
-    b.score - a.score
+    (focus.size > 0 ? Number(inFocus(b, focus)) - Number(inFocus(a, focus)) : 0)
+    || b.score - a.score
     || (a.kind === b.kind ? 0 : a.kind === 'move' ? -1 : 1)
     || b.occurredAt.getTime() - a.occurredAt.getTime()
     || key(a).localeCompare(key(b)));

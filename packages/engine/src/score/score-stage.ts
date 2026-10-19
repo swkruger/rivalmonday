@@ -1,6 +1,8 @@
 import type { ChangeType } from '@cs/core';
 import { agencyServiceable, clientServiceable, type ChangeDetails, changeEvent, client, clientCompetitor, type Db, eventScore, type NumericChange, scoreFailure } from '@cs/db';
 import { type AnyColumn, and, cosineDistance, desc, eq, gte, isNotNull, isNull, lt, ne, or, type SQL, sql } from 'drizzle-orm';
+import type { VerticalPack } from '@cs/verticals';
+import { loadClientRunbook } from '../runbook/store';
 import { MAX_STAGE_ATTEMPTS, RETRY_BACKOFF_MINUTES } from '../stage';
 import type { PackLoader } from '../tag/tag-stage';
 import { type Route, scoreForClient } from './score';
@@ -101,7 +103,7 @@ export interface ScoreRunResult {
 }
 
 /** Scores the event for every tracking client that has no score yet. Idempotent via event_score's primary key. */
-export async function scoreEvent(deps: { db: Db; packs: PackLoader }, eventId: string, opts: { now?: Date } = {}): Promise<ScoreRunResult> {
+export async function scoreEvent(deps: { db: Db; packs: PackLoader; generic?: () => Promise<VerticalPack> }, eventId: string, opts: { now?: Date } = {}): Promise<ScoreRunResult> {
   const [ev] = await deps.db.select().from(changeEvent).where(eq(changeEvent.id, eventId)).limit(1);
   if (!ev) throw new Error(`event ${eventId} not found`);
   const empty: ScoreRunResult = { scored: 0, failed: 0, routes: { alert: 0, brief: 0, archive: 0 } };
@@ -134,12 +136,13 @@ export async function scoreEvent(deps: { db: Db; packs: PackLoader }, eventId: s
       const pack = await deps.packs(c.verticalId);
       const window = pack.scoring.novelty_window_days;
       if (!similarityByWindow.has(window)) similarityByWindow.set(window, noveltySimilarity(deps.db, ev, window));
+      const runbook = await loadClientRunbook(deps, c.id);
       const s = scoreForClient(
         {
           changeType: ev.changeType as ChangeType, facts: ev.facts, serviceId: ev.services[c.verticalId] ?? null, zips: ev.zips, needsReview: ev.needsReview,
           maxSimilarity: await similarityByWindow.get(window)!, details: ev.details, ageDays,
         },
-        { services: c.services, zips: c.serviceArea?.zips ?? [], thresholds: c.scoreThresholds ?? null },
+        { services: c.services, zips: c.serviceArea?.zips ?? [], thresholds: runbook.thresholds ?? c.scoreThresholds ?? null },
         pack,
       );
       const inserted = await deps.db
