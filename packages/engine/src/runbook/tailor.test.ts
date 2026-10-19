@@ -4,7 +4,7 @@ import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeAi } from '../../test/fake-ai';
-import { applyTailoring, ensureAgencyRunbook, proposeTailoring, readRunbookItems, tailorClientRunbook, type RunbookItem } from './index';
+import { applyTailoring, createClientRunbook, ensureAgencyRunbook, proposeTailoring, readRunbookItems, tailorClientRunbook, type RunbookItem } from './index';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -159,6 +159,64 @@ describe('tailorClientRunbook', () => {
     expect(after.filter((i) => free.includes(i.key)).every((i) => (i.content as { title: string }).title.startsWith('Tailored '))).toBe(true);
     for (const i of before.filter((x) => x.customised)) expect(after.find((a) => a.key === i.key)!.content).toEqual(i.content);
     expect((await clientRunbook())!.tailorStatus).toBe('done');
+  });
+
+  it('a runbook created by another path while the model runs is left untouched (not mislabelled)', async () => {
+    const manual: RunbookItem = { key: 'play:mine', kind: 'play', content: { trigger: 'price_change', title: 'Mine', template: 'x' }, enabled: true, businessAreaIds: null, version: 1, upstreamVersion: null, upstreamSnapshot: null, dismissedUpstreamVersion: null, customised: false, removedUpstream: false };
+    const ai = createFakeAi({
+      chat: (_t, content) => {
+        void content;
+        throw new Error('replaced below');
+      },
+    });
+    const racing = {
+      ...ai,
+      chat: async (...args: Parameters<typeof ai.chat>) => {
+        const id = await createClientRunbook(db, IDS.clientA1, [manual], 'u');
+        await dbs.owner.update(runbook).set({ tailorStatus: 'skipped' }).where(eq(runbook.id, id));
+        return rewriteAll().chat(...args);
+      },
+    } as unknown as ReturnType<typeof createFakeAi>;
+    expect((await tailorClientRunbook(deps(racing), IDS.clientA1)).status).toBe('skipped');
+    const rb = (await clientRunbook())!;
+    expect(rb.tailorStatus).toBe('skipped');
+    expect(rb.tailoredAt).toBeNull();
+    expect((await readRunbookItems(db, rb.id)).map((i) => i.key)).toEqual(['play:mine']);
+  });
+
+  it('a runbook created meanwhile as pending gets the tailored plays it shares', async () => {
+    const shared = hvac.playbooks[0]!;
+    const mine: RunbookItem = { key: `play:${shared.id}`, kind: 'play', content: { trigger: shared.trigger, title: 'Mine', template: shared.template }, enabled: true, businessAreaIds: null, version: 1, upstreamVersion: null, upstreamSnapshot: null, dismissedUpstreamVersion: null, customised: false, removedUpstream: false };
+    const inner = rewriteAll();
+    const racing = {
+      ...inner,
+      chat: async (...args: Parameters<typeof inner.chat>) => {
+        const id = await createClientRunbook(db, IDS.clientA1, [mine], 'u');
+        await dbs.owner.update(runbook).set({ tailorStatus: 'pending' }).where(eq(runbook.id, id));
+        return inner.chat(...args);
+      },
+    } as unknown as ReturnType<typeof createFakeAi>;
+    expect((await tailorClientRunbook(deps(racing), IDS.clientA1)).status).toBe('done');
+    const rb = (await clientRunbook())!;
+    expect(rb.tailorStatus).toBe('done');
+    const items = await readRunbookItems(db, rb.id);
+    expect(items).toHaveLength(1);
+    expect((items[0]!.content as { title: string }).title).toBe(`Tailored ${shared.title}`.slice(0, 190));
+  });
+
+  it('every play rejected individually is a failure, with the untailored copy written', async () => {
+    const ai = createFakeAi({
+      chat: (_t, content) => {
+        const input = JSON.parse(content) as { plays: { key: string }[] };
+        return JSON.stringify({ items: input.plays.map((p) => ({ key: p.key, title: 't', template: 'x {{bogus}}', businessAreaIds: null })) });
+      },
+    });
+    const r = await tailorClientRunbook(deps(ai), IDS.clientA1);
+    expect(r.status).toBe('failed');
+    expect(r.rejected).toHaveLength(hvac.playbooks.length);
+    const rb = (await clientRunbook())!;
+    expect(rb.tailorStatus).toBe('failed');
+    expect((await readRunbookItems(db, rb.id)).filter((i) => i.kind === 'play').map((i) => (i.content as { title: string }).title).sort()).toEqual(hvac.playbooks.map((p) => p.title).sort());
   });
 
   it('leaves an already tailored runbook alone', async () => {

@@ -3,11 +3,12 @@ import { redactForModel } from '@cs/collectors';
 import { agencyServiceable, client, clientServiceable, type Db, runbook, runbookItem } from '@cs/db';
 import type { PackLoader, VerticalPack } from '@cs/verticals';
 import { and, eq, sql } from 'drizzle-orm';
+import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import { type RunbookItem, playContentSchema } from './items';
 import { legacyClientItems } from './legacy';
 import { copyItems, packUsesGenericPlays } from './state';
-import { createClientRunbook, ensureAgencyRunbook, readRunbookItems } from './store';
+import { createClientRunbookIfAbsent, ensureAgencyRunbook, readRunbookItems } from './store';
 
 const SYSTEM_USER = 'system';
 const WHOLE_ANSWER = '*';
@@ -152,21 +153,38 @@ export async function tailorClientRunbook(
     console.warn(`[runbook-tailor] ${clientId} failed: ${err instanceof Error ? `${err.name}: ${err.message}` : 'unknown error'}`);
   }
 
-  const status = result ? 'done' : 'failed';
+  const plays = base.filter((i) => i.kind === 'play');
+  const accepted = result ? result.items.filter((i, n) => i !== base[n]).length : 0;
+  // Every play rejected individually is as good as a failure (nothing was tailored).
+  const status = result && (plays.length === 0 || accepted > 0) ? 'done' : 'failed';
   const items = result?.items ?? base;
-  let runbookId = existing?.id;
-  if (!runbookId) runbookId = await createClientRunbook(d.db, clientId, items, SYSTEM_USER);
-  else if (result) {
+  const stamp = (id: string, onlyPending: boolean) =>
+    d.db.update(runbook).set({ tailorStatus: status, tailoredAt: new Date() })
+      .where(and(eq(runbook.id, id), ...(onlyPending ? [eq(runbook.tailorStatus, 'pending')] : [])));
+
+  let target = existing?.id;
+  if (!target) {
+    const made = await createClientRunbookIfAbsent(d.db, clientId, items, SYSTEM_USER);
+    if (made.created) {
+      await stamp(made.id, false);
+      return { status, rejected: result?.rejected ?? [] };
+    }
+    // Another path created the runbook while the model ran: leave it alone unless it is waiting to be tailored.
+    const [other] = await d.db.select({ tailorStatus: runbook.tailorStatus }).from(runbook).where(eq(runbook.id, made.id));
+    if (other?.tailorStatus !== 'pending') return { status: 'skipped', rejected: [] };
+    target = made.id;
+  }
+  if (result) {
     // A pending runbook: replace the play contents, never a customised item (and never add or remove items).
-    const before = new Map(base.map((i) => [i.key, i]));
+    const fresh = new Map((await readRunbookItems(d.db, target)).map((i) => [i.key, i]));
     for (const i of items) {
-      const was = before.get(i.key);
-      if (i.kind !== 'play' || !was || was.customised || (was.content === i.content && was.businessAreaIds === i.businessAreaIds)) continue;
+      const was = fresh.get(i.key);
+      if (i.kind !== 'play' || !was || was.customised || (isDeepStrictEqual(was.content, i.content) && isDeepStrictEqual(was.businessAreaIds, i.businessAreaIds))) continue;
       await d.db.update(runbookItem).set({ content: i.content, businessAreaIds: i.businessAreaIds, version: sql`${runbookItem.version} + 1`, updatedBy: SYSTEM_USER, updatedAt: new Date() })
-        .where(and(eq(runbookItem.runbookId, runbookId), eq(runbookItem.itemKey, i.key), eq(runbookItem.customised, false)));
+        .where(and(eq(runbookItem.runbookId, target), eq(runbookItem.itemKey, i.key), eq(runbookItem.customised, false)));
     }
   }
-  await d.db.update(runbook).set({ tailorStatus: status, tailoredAt: new Date() }).where(eq(runbook.id, runbookId));
+  await stamp(target, true);
   return { status, rejected: result?.rejected ?? [] };
 }
 

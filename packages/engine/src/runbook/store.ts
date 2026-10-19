@@ -41,7 +41,7 @@ async function insertRunbook(
   owner: { level: 'platform' | 'agency' | 'client'; agencyId?: string; clientId?: string },
   buildItems: (tx: Tx) => Promise<RunbookItem[]>,
   by: string,
-): Promise<string> {
+): Promise<{ id: string; created: boolean }> {
   const existing = () =>
     service.select({ id: runbook.id }).from(runbook).where(
       owner.level === 'platform' ? eq(runbook.level, 'platform')
@@ -49,7 +49,7 @@ async function insertRunbook(
         : and(eq(runbook.level, 'client'), eq(runbook.clientId, owner.clientId!)),
     );
   const found = await existing();
-  if (found[0]) return found[0].id;
+  if (found[0]) return { id: found[0].id, created: false };
   const created = await service.transaction(async (tx) => {
     const [row] = await tx.insert(runbook).values({ level: owner.level, agencyId: owner.agencyId ?? null, clientId: owner.clientId ?? null }).onConflictDoNothing().returning({ id: runbook.id });
     if (!row) return null;
@@ -57,10 +57,10 @@ async function insertRunbook(
     if (items.length) await tx.insert(runbookItem).values(items.map((i) => toRow(row.id, i, by)));
     return row.id;
   });
-  if (created) return created;
+  if (created) return { id: created, created: true };
   const [again] = await existing();
   if (!again) throw new Error('runbook insert conflicted but no row found');
-  return again.id;
+  return { id: again.id, created: false };
 }
 
 const base = (i: Pick<RunbookItem, 'key' | 'kind' | 'content' | 'enabled' | 'businessAreaIds'>): RunbookItem => ({
@@ -74,7 +74,7 @@ export async function ensurePlatformRunbook(service: Db, generic: VerticalPack):
       ...itemsFromPack(generic).map(base),
       base({ key: 'knob:thresholds', kind: 'knob', content: { alert, brief }, enabled: true, businessAreaIds: null }),
     ];
-  }, SYSTEM);
+  }, SYSTEM).then((r) => r.id);
 }
 
 export async function ensureAgencyRunbook(service: Db, agencyId: string, generic: VerticalPack): Promise<string> {
@@ -82,13 +82,18 @@ export async function ensureAgencyRunbook(service: Db, agencyId: string, generic
   return insertRunbook(service, { level: 'agency', agencyId }, async (tx) => {
     const rows = await tx.select().from(runbookItem).where(eq(runbookItem.runbookId, platformId));
     return copyItems(rows.map(toItem));
-  }, SYSTEM);
+  }, SYSTEM).then((r) => r.id);
 }
 
-export async function createClientRunbook(service: Db, clientId: string, items: RunbookItem[], by: string): Promise<string> {
+/** Like `createClientRunbook`, but reports whether this call inserted the row (false: another path created it first, nothing was written). */
+export async function createClientRunbookIfAbsent(service: Db, clientId: string, items: RunbookItem[], by: string): Promise<{ id: string; created: boolean }> {
   const [c] = await service.select({ agencyId: client.agencyId }).from(client).where(eq(client.id, clientId));
   if (!c) throw new Error(`Unknown client ${clientId}`);
   return insertRunbook(service, { level: 'client', agencyId: c.agencyId, clientId }, async () => items, by);
+}
+
+export async function createClientRunbook(service: Db, clientId: string, items: RunbookItem[], by: string): Promise<string> {
+  return (await createClientRunbookIfAbsent(service, clientId, items, by)).id;
 }
 
 /** Bumps `version` on an existing key (new keys keep `item.version`); `customised` = the stored state differs from `upstreamSnapshot`. */

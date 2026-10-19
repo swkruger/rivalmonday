@@ -13,7 +13,7 @@ import {
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
   type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
-  runReviewInsights, loadClientRunbook, tailorClientRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
+  runReviewInsights, loadClientRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
 import { generateStarters } from '@cs/ask';
 import {
@@ -25,6 +25,7 @@ import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { lookup } from 'node:dns/promises';
 import { runLeadPreview } from './jobs/leads';
+import { runRunbookTailor } from './jobs/runbooks';
 import { failPendingSuggestions, runSetupReminders, runSetupSuggestions } from './jobs/setup';
 import { createPdfRenderer } from './pdf';
 
@@ -339,7 +340,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       }
       return runSetupSuggestions({ db: getDb(), ...clients, packs }, clientId);
     },
-    tailorRunbook: async (clientId) => tailorClientRunbook({ db: getDb(), ai: await getAi(), packs, generic }, clientId),
+    tailorRunbook: (clientId) => runRunbookTailor({ db: getDb(), getAi, packs, generic }, clientId),
     leadEmailDeps,
     async generateLeadPreview(leadId) {
       return runLeadPreview({ db: getDb(), clients: async () => ({ dfs: getDfs(), ai: await getAi() }), email: leadEmailDeps() }, leadId);
