@@ -42,6 +42,12 @@
 - **14a complete on this branch:** `generic.yaml` (playbooks + self_rules with the same ids as HVAC/dental), `catalogOf(deps)`, `CallScope.verticalId`, the catalogue `packs` loader in worker/web.
 - **phase-13b merged:** playbook `map_climb_defend`; `MOVE_TYPES` includes `map_climb`; self-rule `map_visibility_gap` → `improve_map_rank`.
 - **13a2** (if merged first): its Customisation page links to `/c/[id]/settings/runbook`. No other coupling.
+- **Pre-flight results (Task 0, verified at HEAD a694d40a; main unmoved at e0f6f627):**
+  - **Migration number: `0079_runbooks.sql`** (14a used 0077, 0078). Generate with `pnpm --filter @cs/db generate --custom --name=runbooks`.
+  - 14a facts hold: `generic.yaml`; `catalogOf`/`packsOf`/`catalogPacks` in `packages/tools/src/catalog/access.ts`; `CallScope.verticalId` (`packages/core/src/ledger.ts:6`). `resolvePlaybooks` in `packages/engine/src/briefs/playbooks.ts` is **unchanged by 14a** (still `(db, agencyId, pack: VerticalPack)`); the 14a `catalogOf(deps).resolveId` change is in `packages/tools/src/tools/playbooks.ts` (the `list_playbooks`/`update_playbook` tools). The engine function `upsertPlaybookOverride` (same engine file) is only called by `update_playbook`.
+  - `packages/engine` depends on `@cs/collectors`, so collectors cannot import engine: the tier knob stays a dep-injected `runbookTiers` (Task 4).
+  - phase-13b merged: `map_climb_defend` playbook and `map_visibility_gap` -> `improve_map_rank` exist in all three packs; `MOVE_TYPES` includes `map_climb`.
+  - **(pre-flight finding, controller decision needed) Packs differ from `generic.yaml`.** Self-rule ids are identical in all three packs (8: `review_velocity_gap reply_rate_gap rating_gap rival_only_advertiser theme_weakness theme_strength map_visibility_gap profile_gap`). Playbook ids: `hvac_plumbing` has the same 18 ids as `generic`, but the texts differ in 7 diff hunks of the playbooks block (e.g. `price_cut_bundle`, `ask_for_reviews`, `hiring_push_capacity`). `dental` has 18 ids of which 4 are NOT in generic: `new_patient_offer_response`, `new_service_cosmetic`, `price_war_membership`, `territory_new_location`; and 4 generic ids are NOT in dental: `new_service_response`, `price_cut_bundle`, `price_war_hold_position`, `territory_defend`. Consequences: (1) R6's "platform play ids equal today's pack ids, so legacy clients map one to one" is false for dental; (2) R2 step 3 (client with no runbook and no overrides -> agency runbook = generic copy) would change brief wording for HVAC clients and swap dental plays for generic ones, so it is **not output-neutral**; (3) the tailor base (agency = generic copy) lacks dental plays. Recommended ruling: R2 step 3 is dropped for clients whose pack is not `generic` (they stay on the legacy view until backfilled/tailored); `legacyClientItems` keeps pack-only play ids with `upstreamVersion = null` (self-added, `in_sync`) and does not show them as "Customised"; tailoring uses the legacy items of the client's pack as its base when the pack is not `generic`. Not applied to the tasks below until the controller rules.
 
 ## Review Focus
 1. **Agency edits an item the client copy customised.** Expected: the client sees "Update available" with a diff against `upstream_snapshot`. Pull replaces it only after review, and Dismiss hides it until the next agency change (Task 2 + Task 6 tests).
@@ -53,13 +59,15 @@
 ---
 
 ### Task 0: Pre-flight
-- [ ] Confirm 14a is complete and green on `phase-14b` (`pnpm test:affected --base main`). Rebase on `main` if it moved.
-- [ ] Re-check the Dependencies lines and every path in this plan. Record the next free migration number. Fix the plan in place and commit `docs(phase-14b): 14b pre-flight`.
+- [x] Confirm 14a is complete and green on `phase-14b`. Main did not move, so no rebase. **(pre-flight ruling)** `pnpm test:affected --base main` skipped: the 14a final review ran it at 6e169594 (16/16, E2E 101/101) and later fixes ran their affected suites.
+- [x] Re-check the Dependencies lines and every path in this plan; migration number recorded (`0079`). Plan fixed in place; commit `docs(phase-14b): 14b pre-flight`.
+- **(pre-flight ruling)** All E2E runs in this phase use `E2E_PORT=3101` (another worktree's session holds 3100).
 
 **Done when:** the plan matches the code.
 
 ### Task 1: Migration — runbook tables + provenance columns
-**Files:** migration `NNNN_runbooks.sql`; `packages/db/src/schema/runbooks.ts`, `schema/index.ts`, `schema/briefs.ts` (two columns); `packages/db/src/runbooks-rls.test.ts`.
+**Files:** migration `0079_runbooks.sql` (pre-flight: next free number); `packages/db/src/schema/runbooks.ts`, `schema/index.ts`, `schema/briefs.ts` (two columns); `packages/db/src/runbooks-rls.test.ts`.
+**Pre-flight check:** the composite FK target already exists: `client_id_agency_id_unique UNIQUE (id, agency_id)` (migration `0002_tenant_integrity.sql`, `schema/tenancy.ts:83`). **No `ALTER TABLE client ADD CONSTRAINT` is needed.** The FK is `MATCH SIMPLE`, so platform/agency rows (`client_id` NULL) skip it. Use `ls packages/db/migrations` to confirm 0079 is still free before generating.
 
 **SQL (binding):**
 ```sql
@@ -108,6 +116,8 @@ ALTER TABLE recommendation ADD COLUMN playbook_version integer;
 
 ### Task 2: Runbook model (pure): items, effective view, update state
 **Files:** create `packages/engine/src/runbook/{items.ts,state.ts,index.ts}` + tests.
+
+**Imports (pre-flight, verified):** `MOVE_TYPES`, `CHANGE_TYPES`, `SELF_RULE_IDS` from `@cs/core` (`domain.ts`); `selfRuleSchema`, `discoverySchema`, `type PackSelfRule`, `type DiscoveryConfig` from `@cs/verticals` (`src/schema.ts`; `discoverySchema.shape.tiers` is a `z.strictObject({ top, watch })`, so `.shape` works on the strictObject); `type ScoreThresholds` (`{ alert; brief }`) from `@cs/db` (`schema/tenancy.ts:20`); `PLAYBOOK_TITLE_MAX`, `PLAYBOOK_TEMPLATE_MAX`, `PLAYBOOK_VARS`, `unknownPlaybookVars`, `type Playbook` from `../briefs/playbooks` (also re-exported by `@cs/engine`). `Playbook.source` is `'pack' | 'agency'` and has no version/area fields, so `EffectiveRunbook.plays` extends it as written.
 
 **Interfaces:**
 ```ts
@@ -165,6 +175,8 @@ export async function writeItem(service: Db, runbookId: string, item: RunbookIte
 3. Else, if an agency runbook exists → `effectiveFrom(agencyItems, 'agency', client.services)`.
 4. Else → legacy (pack only).
 
+**(pre-flight note)** Branch 3 is not output-neutral for non-generic packs; see the pack-diff finding under Dependencies (hvac texts differ from generic, dental has 4 ids not in generic and lacks 4 generic ids). Apply the controller's ruling to branch 3 and to `itemsFromPack`/`legacyClientItems` before implementing.
+
 `thresholds` always resolves per R3 (the client column first). A DB error propagates (no silent empty runbook). Item content that fails `parseItemContent` is skipped with a warning (Review Focus 2).
 
 **Tests (TDD):** each branch of the order; an invalid stored item is skipped; ensure* are idempotent under concurrent calls (two `Promise.all` calls → one runbook); the R3 threshold order.
@@ -174,14 +186,17 @@ export async function writeItem(service: Db, runbookId: string, item: RunbookIte
 **Goal:** Briefs, move recommendations, the starting point, scoring thresholds and tiers use `loadClientRunbook`, with output unchanged for existing clients.
 **Files:** modify `packages/engine/src/briefs/{playbooks,generate,recommendations,starting-point,gather,writer}.ts`, `packages/engine/src/score/{score,score-stage}.ts`, `packages/collectors/src/rivals/run.ts`, `packages/collectors/src/signals/tracked.ts`; tests alongside.
 
+**Line refs (pre-flight, all verified at a694d40a):** `generate.ts:111` (`playbooks = await resolvePlaybooks(...)`, with the `let playbooks: Awaited<ReturnType<typeof resolvePlaybooks>>` type at :109 to update); `recommendations.ts:57`; `starting-point.ts:193-195` (`evaluateSelfRules({ rules: pack.self_rules, playbooks: pack.playbooks, ... })`) and `:200` (`resolvePlaybooks`); `gather.ts:49` (`briefThreshold: c.scoreThresholds?.brief ?? pack.scoring.routing.brief` inside `loadBriefClient`); `score-stage.ts:142` (passes `c.scoreThresholds ?? null` into the profile) and `score.ts:100` (`validThresholds(profile.thresholds) ? ... : pack.scoring.routing`); `rivals/run.ts:369` and `tracked.ts:108` (`const { tiers } = (await deps.packs(c.verticalId)).discovery;`). `alert-rules.ts:14` also reads `scoring.routing` (R3 default for the settings page; update it to the resolved default). `briefs/index.ts` re-exports `./playbooks` but there is no `runbook` export yet: add `export * from './runbook'` to `packages/engine/src/index.ts`.
+
 **Behaviour:**
+- **(pre-flight ruling) Golden-equivalence test:** it builds the client copy inline (the agency runbook via `copyItems` plus overrides applied in the test); it does not depend on Task 7. Task 7 adds the same assertion using `legacyClientItems`.
 - **Brief playbooks:** `generate.ts:111` and `recommendations.ts:57` call `loadClientRunbook` instead of `resolvePlaybooks`. They store `playbookVersion` next to `playbookId` in `brief_item`/`recommendation` (`recommendationFromItem` copies it).
 - **Starting point:** `starting-point.ts:193-215` passes `runbook.selfRules` and `runbook.plays` (for effort/impact) into `evaluateSelfRules`. Playbook lookup goes through `runbook.plays`.
 - **Thresholds:** `gather.ts:49` and `score.ts`/`score-stage.ts` use `runbook.thresholds ?? pack.scoring.routing` (score-stage loads the runbook once per client per run).
 - **Focus areas (R4):** in `gather.ts`, sort candidates by (service ∈ focusAreaIds desc, existing order) before the cap.
 - **Tier limits (R5):** `rivals/run.ts:369` and `tracked.ts:108` use the client's `tierLimits ?? pack.discovery.tiers`. Collectors receive a `runbookTiers?: (clientId) => Promise<Tiers | null>` dep; when it is absent (tests), they use the pack.
 - `resolvePlaybooks` is renamed `resolveLegacyPlaybooks` and used only by the store's legacy branch.
-- **Golden equivalence:** for the seeded HVAC + dental test clients with and without `playbook_override`, the legacy path and a backfilled client runbook (Task 7's converter) produce identical `Playbook[]`, self-rules and thresholds.
+- **Golden equivalence (built inline, see the ruling above):** for the seeded HVAC + dental test clients with and without `playbook_override`, the legacy path and a client runbook copied from the agency runbook with the overrides applied inline produce identical `Playbook[]`, self-rules and thresholds.
 **Tests (TDD):** existing `playbooks`, `generate`, `recommendations`, `starting-point`, `score`, rivals tests pass; new: the golden equivalence; a client runbook with a customised play changes the brief prompt text; an area-limited play is skipped for a client without that area; a focus area re-orders candidates; the `tier_limits` knob changes the tier; `playbook_version` is stored.
 **Done when:** `pnpm test:affected` passes.
 
@@ -210,12 +225,13 @@ export async function proposeTailoring(d: { db: Db; ai: Ai; packs: PackLoader },
 - **`proposeTailoring`:** the same prompt and `applyTailoring` rules for one play (the parent's new content as the base). It returns the proposal or null and **never writes**. The pull/re-tailor tools (Task 6) show it for review.
 - **Failure:** the AI error → the untailored copy is written, `tailor_status = 'failed'`.
 - **Enqueue:** `advance_client_setup` (`confirm_competitors`/`skip_competitors`, first time only) enqueues `runbook-tailor` with singleton key `runbook-tailor:<clientId>` after commit, in a try/catch like `enqueueSetupSuggestions`.
-- `ai.yaml`: `runbook_tailor: { provider: openrouter, model: <same as setup_suggestions>, fallbacks: [...], temperature: 0.3, max_tokens: 4000 }`.
+- `ai.yaml`: `runbook_tailor: { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.3, max_tokens: 4000 }` (pre-flight: copied from `setup_suggestions`, `ai.yaml:17`).
+- **Pre-flight paths:** `enqueueSetupSuggestions` is a private helper at `packages/tools/src/tools/onboarding.ts:20` (not exported; copy the pattern into `setup.ts`, do not import it); `advance_client_setup` is at `packages/tools/src/tools/setup.ts:303` (actions at :298, `competitorsDoneAt` set at :342-343); `QueueJob` is the union at `packages/tools/src/deps.ts:10`; worker jobs live in `apps/worker/src/jobs/*.ts` and are registered in `apps/worker/src/main.ts`. The base for non-generic packs follows the controller's ruling on the pack-diff finding.
 **Tests (TDD):** `applyTailoring` rejects an unknown var, a `{{` title, a changed trigger, an over-length template, a foreign area id; accepts a valid rewrite. `tailorClientRunbook`: paused → skipped; AI failure → untailored + failed; success → client runbook with tailored text and a correct `upstreamSnapshot`; a customised item is never overwritten; `proposeTailoring` writes nothing. `advance_client_setup` enqueues once.
 **Done when:** `pnpm test:affected` passes.
 
 ### Task 6: Runbook tools
-**Files:** create `packages/tools/src/tools/runbooks.ts`, `runbooks.test.ts`; modify `tools/all.ts` (add `runbookTools`, remove `playbookTools`), `tools/schemas.ts`.
+**Files:** create `packages/tools/src/tools/runbooks.ts`, `runbooks.test.ts`; modify `tools/all.ts` (add `runbookTools`; **(pre-flight ruling) keep `playbookTools` registered here** so `/agency/playbooks` and its actions keep working until Task 8, which removes `playbookTools` from `all.ts` together with the page and actions), `tools/schemas.ts`; add the new write tools to the list in `tools/access-marks.test.ts:17` and the read tools to the read set there.
 
 **Interfaces (all `channels: ['web']`, writes via the service connection inside `withPlatformAudit` for the platform level):**
 ```ts
@@ -238,12 +254,12 @@ retailor_runbook_item { owner: {level:'client'; clientId}; key } → { proposed:
 - **Client `thresholds` knob (R3):** writes through the `set_alert_rules` core (respects the CHECK).
 - **Pulls and the client copy:** `pull_runbook_update` sets content (parent content, or the reviewed re-tailored content at client level), `upstreamVersion = parent.version`, `upstreamSnapshot = parent`, `customised = (content ≠ parent content)`. `dismiss` sets `dismissedUpstreamVersion`.
 - **Re-tailoring:** `retailor_runbook_item` runs `proposeTailoring` **synchronously** (one AI call; rejected → `proposed: null`) and does not save.
-- **Removed tools:** `list_playbooks`/`update_playbook` are removed. The web page is replaced in Task 8. Grep for other callers first.
+- **(pre-flight ruling) Playbook tools:** `list_playbooks`/`update_playbook` stay registered in this task (`runbookTools` is added alongside). Task 8 removes them with the page. Pre-flight caller grep (outside the files the plan lists): `apps/web/src/app/(app)/agency/playbooks/{page,actions}.ts*`; `packages/demo/src/coverage.ts:115` (`/agency/playbooks` -> `list_playbooks`); `packages/tools/src/tools/access-marks.test.ts:17` (`update_playbook`); `packages/tools/src/tools/playbooks.test.ts`; `docs/superpowers/specs/2026-10-12-phase-8b-tool-access.md:74-75` (table rows). No callers in `apps/web/src` outside that page, `packages/ask` or `packages/mcp` (web-only channel). `packages/tools/src/catalog/merge.ts:118-120` and `platform-verticals.test.ts`, `packages/demo/src/agency.ts:82`, `packages/db/src/briefs.test.ts:119` use the `playbook_override` table, which stays in this phase.
 **Tests (TDD):** each gate (client_owner, viewer, out-of-scope AM, other agency's clientId → not_found; AM can't edit the agency level); each update action against fixtures; an invalid content refusal; the thresholds knob writes `client.score_thresholds`; the `key:'*'` create copies and enqueues; lazy agency runbook; platform edit bumps the version and the agency sees `update_available`.
 **Done when:** `pnpm --filter @cs/tools exec vitest run runbooks` passes.
 
 ### Task 7: Agency hooks + legacy backfill CLI
-**Files:** modify `packages/tools/src/access/signup-complete.ts` (after the agency insert, `ensureAgencyRunbook` in the same tx), `apps/web/scripts/admin.ts` (`create-agency`), `apps/web/e2e/seed.ts`, `packages/demo/src/tenancy.ts`; create `apps/worker/src/cli/runbook-backfill.ts` (+ `package.json` script `runbook:backfill`), `packages/engine/src/runbook/legacy.ts` (+ test).
+**Files:** modify `packages/tools/src/access/signup-complete.ts` (after the agency insert at :75, `ensureAgencyRunbook` in the same tx), `apps/web/scripts/admin.ts` (`create-agency` at :24), `apps/web/e2e/seed.ts` (agency inserts at :20 and others; hooks are optional because `get_runbook` and the backfill create the agency runbook lazily), `packages/demo/src/tenancy.ts` (:84); the CLI goes in `apps/worker/src/cli/` and its script next to `billing:sync-plan` in `apps/worker/package.json`; create `apps/worker/src/cli/runbook-backfill.ts` (+ `package.json` script `runbook:backfill`), `packages/engine/src/runbook/legacy.ts` (+ test).
 
 **Interfaces:**
 ```ts
@@ -259,13 +275,16 @@ export async function legacyClientItems(deps: { db: Db; packs: PackLoader }, cli
   4. Print counts.
 
   It is idempotent. It does not touch `playbook_override`.
-- The golden equivalence from Task 4 is asserted here too: the effective runbook of a backfilled client equals its legacy view.
+- **(pre-flight ruling)** The golden equivalence from Task 4 (built inline there) is asserted here too, now with `legacyClientItems`: the effective runbook of a backfilled client equals its legacy view.
 - `docs/OPS.md` gets the backfill step for `cs_dev` and prod (after migrating, before the next brief run).
 **Tests (TDD):** `legacy.test.ts` (override applied, disabled carried, customised flag); the CLI dry-run on seeded data reports counts and writes nothing; a second run is a no-op.
 **Done when:** `pnpm test:affected` passes.
 
 ### Task 8: Shared editor + three pages
 **Files:** create `apps/web/src/components/runbook/{runbook-editor.tsx,item-card.tsx,diff.tsx}` (+ `runbook-editor.test.tsx`), `apps/web/src/app/(platform)/platform/runbook/{page.tsx,actions.ts}`, `apps/web/src/app/(app)/agency/runbook/{page.tsx,actions.ts}`, `apps/web/src/app/(app)/c/[clientId]/settings/runbook/{page.tsx,actions.ts}`; modify `apps/web/src/app/(app)/agency/playbooks/page.tsx` (→ `redirect('/agency/runbook')`; delete `actions.ts`, `playbook-editor.tsx` and its test, moving reusable bits), `apps/web/src/components/shell/nav-items.ts` ("Playbooks" → "Runbook" at `/agency/runbook`; client module "Runbook" for agency roles only; platform "Runbook"), `sidebar-nav.tsx` icon map.
+
+**Pre-flight paths (verified):** nav key `'playbooks'` at `nav-items.ts:21`, item at `:78`; icon map entry `playbooks: BookOpen` at `sidebar-nav.tsx:10`; `useSetupPoll` is a local function in `apps/web/src/app/(app)/c/[clientId]/setup/setup-wizard.tsx:40` (not exported: copy the pattern into the runbook page). Tests that name `/agency/playbooks` and must be updated: `apps/web/src/server/nav.test.ts:30,36,51`; `components/shell/sidebar-nav.test.tsx:97-100,233`; `components/read-only-guard.test.ts:17` (drop the `agency/playbooks/page.tsx` row, add the three runbook pages); `apps/web/e2e/workflow.spec.ts:76` (`@playbooks` test drives the old page: rewrite it against `/agency/runbook` or delete it). Also update `packages/demo/src/coverage.ts:115` (route -> `/agency/runbook`, tool `get_runbook`). Platform pages live under `apps/web/src/app/(platform)/platform/` (no `runbook` dir yet).
+- **(pre-flight ruling) Playbook tool removal:** this task removes `playbookTools` from `packages/tools/src/tools/all.ts` together with the `/agency/playbooks` page and its actions (delete `packages/tools/src/tools/playbooks.ts` + `playbooks.test.ts`, the `update_playbook` entry in `access-marks.test.ts:17`, the two rows in the 8b tool-access spec, and the coverage row). The engine's `upsertPlaybookOverride` stays (legacy path and tests); `PlaybookView`/`PlaybookVertical` in `tools/schemas.ts` are removed if unused.
 
 **Behaviour:**
 - **Sections:** "Plays", "Starting-point rules", "Settings" (knobs).
@@ -292,7 +311,7 @@ export async function legacyClientItems(deps: { db: Db; packs: PackLoader }, cli
 ### Task 9: E2E acceptance + docs
 **Files:** create `apps/web/e2e/runbook.spec.ts`; modify `apps/web/e2e/seed.ts` (a tailored Distillery client runbook for the 14a Distillery client or a seeded one, plus an agency runbook), `apps/web/e2e/workflow.spec.ts` (the playbook card now reads from the runbook), `docs/work/phase-14b.md`, `docs/OPS.md`, `packages/engine/CLAUDE.md` (runbook resolution order).
 
-**E2E `runbook.spec.ts` (`@runbook`):**
+**E2E `runbook.spec.ts` (`@runbook`):** run with `E2E_PORT=3101` (pre-flight ruling).
 1. The agency admin opens `/c/<distillery>/settings/runbook` and sees tailored plays. They edit one play's template, which then shows "Customised".
 2. The agency admin edits the same play in `/agency/runbook`. The client page shows "Update available"; "Keep mine" hides it.
 3. The client owner gets 404 on `/c/<id>/settings/runbook`.
