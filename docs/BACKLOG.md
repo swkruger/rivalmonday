@@ -106,6 +106,13 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Rankings tests: 0068 backfill untested; `fitStaticMap` centre/y-placement and zoom-clamp; agency 10/day `FOR UPDATE` concurrency; "never logs the key" and failure-ledger; trend legend order asserted only via `toContain('You')`; `tier_change` `failed` status — *phase-13b*
 - [ ] Pre-existing on main: `apps/worker/src/jobs/leads.ts` fails the UTF-8 check (polish) — *found at 13b merge*
 
+## Phase 15 follow-ups (UX & information architecture)
+- [ ] **15b** help system: `HelpTip`/`FieldHint`/`PageGuide` (KB articles keyed `page:<context>.<page>`, `PageHeader.helpKey`), teaching empty states, glossary pass, Help pages — spec 2026-10-18 §4; audit §2–§3 items tagged 15b. Also: pin button nested in `role=option` (a11y); support viewers have no AI connection settings tab — *phase-15a*
+- [ ] **15c** page fixes from the audit (§2–§3 tagged 15c: `loading.tsx`/`error.tsx`/404 + Skeleton, StatusChip + enum labels, date/money/unit formatters (miles), ConfirmDialog, SaveBar, mobile list/detail for Changes/Moves, `/platform/billing` tabs, a11y sweep). Also: ~50 `border-line`/`bg-line` uses (`bg-line` draws nothing); mixed date formats in BriefView/AlertView; intake button white text on light agency colours; owner-Billing rule duplicated (`client-settings-nav.ts` + `app-shell.tsx`); command input h-10 in h-9 wrapper; briefs tab list clips if it overflows — *phase-15a*
+- [ ] 13a: client-visible "Rival Monday" fallbacks in MCP `serverInfo`/tool descriptions, `.well-known/oauth-protected-resource` `resource_name`, Ask system prompt + KB `{{product}}` (only when no agency name resolves) — *phase-15a*
+- [ ] Soon: nav-count tools write an `audit_log` row every shell render (consider `skip-web`; update `channels.test` `SKIP_WEB_TOOLS`); switcher lists prospect clients (`list_clients` has no status filter); `togglePin` never prunes stale ids; `apps/web` page changes don't trigger `@cs/demo#test` (coverage scan); no hydration-path test for the sidebar cookie; `navForViewer` positional booleans — *phase-15a*
+- [ ] Unscheduled: product tour (Overview, Portfolio); agency help override editor; cross-device pinned/recent clients; enterprise custom roles, multi-agency switcher, audit-log page; switcher "jump to any agency" via support session; Ask review to-do state + badge — *phase-15 decisions*
+
 ## Polish (small UI/UX fixes, any time)
 
 ### Phase 6 UI polish
@@ -134,7 +141,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ### Data views & charts
 - [ ] Ads "More ads" link loops to page 1 past the offset cap of 5000; Reviews "More" link resets past the cap; `?business=self` while the self business is pending says "no longer available" — *from 5c-2 Tasks 7, 12*
 - [ ] Heatmap "Show as table" cells unstyled and omit the delta; SVG text shrinks at phone width — *from 5c-2 Task 11*
-- [ ] Mobile drawer stays open across a resize to `lg` — *from 5c-2 Task 18*
 - [ ] Legend: rival "Other (average)" rating is an unweighted mean of monthly averages — *from 5c-2 re-review*
 - [ ] `ReportView`'s "Changes detected" isn't sorted by count like the email; trend table plain-text fallback lists one cell per line — *from 5a T14, 4b Task 6*
 
@@ -147,11 +153,11 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] `PrefSwitch` discards `isPending` and doesn't revert on a failed `setPrefAction` — *from 5a T17*
 - [ ] Dismiss/remove dialog refusal text persists across close/reopen — *from 5b-1 re-review*
 - [ ] Usage page has no empty state for a zero-client agency; `list_alert_queue`'s `.limit(200)` gives no UI hint — *from 5b-2 Task 4, 5b-1 Task 12*
-- [ ] Feed brief pill hardcodes `text-[#B45309]` (use `text-accent-text`); AI page `Badge` secondary variant isn't the brand info pill; alert-rules "3 a day" text hard-coded; `NavRoleFlags.manageCompetitors` unused — *from 5c-1*
+- [ ] Feed brief pill hardcodes `text-[#B45309]` (use `text-accent-text`); alert-rules "3 a day" text hard-coded — *from 5c-1*
 
 ### Phase 8 follow-ups (console, support sessions, costs)
 - [ ] Console stats: `wau`/`last_activity_at` ignore `membership.created_at`; `runDailyStats` accepts today/future `day`; backfill is 400×agencies sequential queries — *from 8a*
-- [ ] Console UI: name sort `<` vs `localeCompare`; spend delta "up" tone; duplicate "Overview" nav labels; unused `email?` in `nav.ts` viewer type — *from 8a*
+- [ ] Console UI: name sort `<` vs `localeCompare`; spend delta "up" tone; unused `email?` in `nav.ts` viewer type — *from 8a*
 - [ ] Console tests: CLI add/revoke SQL; 27/28-day health boundary; `tilesOf` ms28 filter + NULL-last sort; agency-cascade/`relforcerowsecurity` asserts; page-level tests; E2E audit before/after count — *from 8a*
 - [ ] Support sessions: member-less env-only platform owners can't reach `/platform` or open sessions; operator console list shows the raw platform user name (agency list falls back to "Rival Monday support"); a >64-char non-RFC email local part is only partly masked — *from 8b*
 - [ ] Support audit: direct service reads in sessions (`listTeam`, `listClientRecipients`, `getAgencyBranding`, `listWebhooks`, `/go`, evidence/PDF bytes) aren't session-audited themselves; `end_support_session` audit lands in the operator's home agency — *from 8b*
@@ -185,14 +191,14 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ## Unscheduled / ideas
 
 ### Features
-- [ ] **UI/UX review against Mobbin** (Mobbin MCP): compare the agency, client-workspace, onboarding and console screens with real-world app patterns and file concrete fixes; scope and details to be provided by the owner at planning — *owner, 2026-10-17*
+- [ ] **UI/UX review against Mobbin** (Mobbin MCP): optional cross-check of 15b/15c against real-world app patterns (the Phase 15 designer audit replaced the main review) — *owner, 2026-10-17*
 - [ ] **Affiliate program (fully featured)**: affiliate sign-up and approval, referral links/codes attributed through agency sign-up (Phase 10) and billing (9a Stripe), commission rules (one-off / recurring %, cookie window, clawback on refund or churn), affiliate dashboard (clicks, sign-ups, conversions, earnings), payouts, console management + fraud checks; scope and details to be provided by the owner at planning — *owner, 2026-10-17*
 - [ ] Automatic lead routing to agencies (vertical/area/capacity/opt-in) on the 11c platform pool - *phase-11*
 - [ ] Public "request access" form / marketing landing page (declined for now) — *phase-10*
 - [ ] Console: activity `client_activated` lacks `clientName` (record activation, e.g. `client.activated_at`); `list_platform_activity` loads all sources per call (bound/paginate in SQL); agencies list silently capped at 100 (paging or notice) — *from 8a*
 - [ ] Cost APIs for Vercel / Cloudflare R2; Neon storage cost; costs CSV export; renewal reminders — *from 8c*
 - [ ] REST API (spec §8.1) — *from 6a*
-- [ ] Knowledge base: file upload (PDF/DOCX), browsable Help page (`/agency/help`, `/c/<id>/help`), agency/client self-authoring (`manage_knowledge`), KB in weekly briefs, citation analytics — *from 6c "Not in 6c"*
+- [ ] Knowledge base: file upload (PDF/DOCX), browsable Help page (`/agency/help`, `/c/<id>/help` → Phase 15b), agency/client self-authoring (`manage_knowledge`), KB in weekly briefs, citation analytics — *from 6c "Not in 6c"*
 - [ ] Brief writers (`brief_writer`/`playbook_writer`/`theme_discovery`) back to sonnet-5 (probe 2026-10-12 OK for ZDR + strict json_schema) — *from 6b*
 - [ ] Agencies add their own business types (verticals) and services, not just built-in packs — *from end-of-Phase-5 owner request*
 - [ ] Generic runbook with per-client customisation (replaces per-vertical packs; merge with the custom-verticals item above) — own future phase — *owner idea 2026-10-17*

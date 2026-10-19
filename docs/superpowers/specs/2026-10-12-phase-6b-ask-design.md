@@ -171,7 +171,7 @@ Registry: every read tool in the 6a `read` set plus the e8 writes add `'ask'` to
 - No evidence: "I don't have evidence for that in the monitored data."
 - Refusal: "I can only help with your competitors and market."
 - Error: "{assistantName} couldn't answer just now — please try again."
-- Disclosure (only while `ask_review_allowed`): "Conversations may be reviewed by {productName} to improve answers." `productName` = 6a P15 white-label name.
+- Disclosure (only while `ask_review_allowed`): "Conversations may be reviewed by {productName} to improve answers." `productName` = 6a P15 white-label name. Phase 15a: with no agency displayName the line reads "…reviewed by our support team…" (never the product or agency legal name).
 - Cancelled action: "Cancelled."
 
 ## Not in 6b
