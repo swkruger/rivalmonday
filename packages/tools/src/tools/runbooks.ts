@@ -10,7 +10,7 @@ import { catalogOf, packsOf } from '../catalog/access';
 import { enqueueOf, type ToolDeps } from '../deps';
 import { type PlatformRole, requirePlatformOperator } from '../platform';
 import { withPlatformAudit } from '../platform/audit';
-import { applyClientThresholds, validateThresholds } from './alert-rules';
+import { setClientThresholdsColumn, validateThresholds } from './alert-rules';
 import { workspaceClient, type WorkspaceClient } from '../workspace/scope';
 import { RunbookItemRow, RunbookItemView, RunbookOwner, RunbookTailoring } from './schemas';
 
@@ -133,7 +133,7 @@ async function syncClientThresholds(deps: ToolDeps, ctx: AccessContext, t: Targe
   if (!t.client || key !== 'knob:thresholds') return;
   const item = (await readRunbookItems(deps.service, t.runbookId!)).find((i) => i.key === key);
   const c = item?.content as { alert: number; brief: number } | undefined;
-  await applyClientThresholds(deps, ctx, t.client.id, item && c && item.enabled && item.customised ? validateThresholds(c.alert, c.brief) : null);
+  await setClientThresholdsColumn(deps, ctx, t.client.id, item && c && item.enabled && item.customised ? validateThresholds(c.alert, c.brief) : null);
 }
 
 const kindOf = (k: string): RunbookItem['kind'] | null => {
@@ -181,7 +181,8 @@ export const getRunbook = defineTool({
       businessAreas = pack.services.filter((s) => c.services.includes(s.id)).map((s) => ({ id: s.id, name: s.name }));
       const [row] = await withTenant(deps.app, ctx, (tx) => tx.select({ t: client.scoreThresholds }).from(client).where(eq(client.id, c.id)));
       const custom = row?.t;
-      if (custom && items.some((i) => i.key === 'knob:thresholds')) items = items.map((i) => (i.key === 'knob:thresholds' ? { ...i, content: { alert: custom.alert, brief: custom.brief } } : i));
+      const knob = items.find((i) => i.key === 'knob:thresholds');
+      if (custom && knob?.enabled && knob.customised) items = items.map((i) => (i === knob ? { ...i, content: { alert: custom.alert, brief: custom.brief } } : i));
     }
     const parent = t.parent;
     const rows = parent
@@ -349,7 +350,7 @@ export const removeRunbookItem = defineTool({
       if (up) await writeItem(deps.service, runbookId, { ...item, enabled: false, removedUpstream: false, dismissedUpstreamVersion: up.version }, ctx.userId);
       else await deps.service.delete(runbookItem).where(and(eq(runbookItem.runbookId, runbookId), eq(runbookItem.itemKey, input.key)));
       // Item first; a removed thresholds knob means the client is back on the defaults.
-      if (t.client && input.key === 'knob:thresholds') await applyClientThresholds(deps, ctx, t.client.id, null);
+      if (t.client && input.key === 'knob:thresholds') await setClientThresholdsColumn(deps, ctx, t.client.id, null);
       return { ok: true as const };
     });
   },

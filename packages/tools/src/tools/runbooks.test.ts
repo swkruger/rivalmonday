@@ -244,6 +244,22 @@ describe('client runbook', () => {
     expect(await thresholds()).toBeNull();
   });
 
+  it('set_alert_rules keeps the client runbook knob in step: customised values survive an off/on toggle; "use defaults" makes it non-customised', async () => {
+    const thresholds = async () => (await dbs.owner.select({ t: client.scoreThresholds }).from(client).where(eq(client.id, IDS.clientA1)))[0]!.t;
+    await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
+    await call(admin, 'set_alert_rules', { clientId: IDS.clientA1, alert: 80, brief: 40 });
+    expect(await itemOf(admin, C1, 'knob:thresholds')).toMatchObject({ content: { alert: 80, brief: 40 }, enabled: true, customised: true });
+    await call(admin, 'set_runbook_item_enabled', { owner: C1, key: 'knob:thresholds', enabled: false });
+    expect(await thresholds()).toBeNull();
+    await call(admin, 'set_runbook_item_enabled', { owner: C1, key: 'knob:thresholds', enabled: true });
+    expect(await thresholds()).toEqual({ alert: 80, brief: 40 });
+    await call(admin, 'set_alert_rules', { clientId: IDS.clientA1, reset: true });
+    expect(await thresholds()).toBeNull();
+    const item = await itemOf(admin, C1, 'knob:thresholds');
+    expect(item.customised).toBe(false);
+    expect(item.content).toEqual(item.parent.content);
+  });
+
   it('agency and platform threshold defaults follow the same rules as set_alert_rules', async () => {
     for (const [ctx, o] of [[admin, A], [staff, P]] as const) {
       expect((await fails(call(ctx, 'update_runbook_item', { owner: o, key: 'knob:thresholds', content: { alert: 1, brief: 0 } }))).code).toBe('invalid_input');

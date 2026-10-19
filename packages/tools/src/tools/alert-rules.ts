@@ -1,7 +1,7 @@
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
-import { client, type ScoreThresholds, withTenant } from '@cs/db';
-import { defaultThresholds, validThresholds } from '@cs/engine';
-import { eq } from 'drizzle-orm';
+import { client, runbook, type ScoreThresholds, withTenant } from '@cs/db';
+import { defaultThresholds, readRunbookItems, type RunbookItem, validThresholds, writeItem } from '@cs/engine';
+import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { type ToolDeps, packsOf } from '../deps';
 import { workspaceClient } from '../workspace/scope';
@@ -48,9 +48,40 @@ export function validateThresholds(alert: number | undefined, brief: number | un
 }
 
 /** `app_user` holds UPDATE (score_thresholds) — RLS scopes the row (decision 14). `next` must already be validated; null = back to the defaults. */
-export async function applyClientThresholds(deps: ToolDeps, ctx: AccessContext, clientId: string, next: ScoreThresholds | null): Promise<void> {
+export async function setClientThresholdsColumn(deps: ToolDeps, ctx: AccessContext, clientId: string, next: ScoreThresholds | null): Promise<void> {
   const updated = await withTenant(deps.app, ctx, (tx) => tx.update(client).set({ scoreThresholds: next }).where(eq(client.id, clientId)).returning({ id: client.id }));
   if (updated.length === 0) throw new ToolError('not_found', 'Client not found');
+}
+
+/**
+ * The client's thresholds are one setting (R3): the column and, when the client has a runbook, its `knob:thresholds` item.
+ * A value writes the item (content, enabled) so it is customised when it differs from upstream; clearing puts the item back
+ * on its upstream snapshot (non-customised), or switches it off when it has none. The runbook tools use `setClientThresholdsColumn`
+ * and derive the column from the item themselves, so there is no loop.
+ */
+export async function applyClientThresholds(deps: ToolDeps, ctx: AccessContext, clientId: string, next: ScoreThresholds | null): Promise<void> {
+  await setClientThresholdsColumn(deps, ctx, clientId, next);
+  const [rb] = await deps.service.select({ id: runbook.id }).from(runbook).where(and(eq(runbook.level, 'client'), eq(runbook.clientId, clientId)));
+  if (!rb) return;
+  const item = (await readRunbookItems(deps.service, rb.id)).find((i) => i.key === 'knob:thresholds');
+  if (next) {
+    // A new item is linked to the agency's knob when there is one, so clearing returns to a non-customised copy.
+    let up: RunbookItem | undefined;
+    if (!item) {
+      const [ag] = await deps.service.select({ id: runbook.id }).from(runbook).where(and(eq(runbook.level, 'agency'), eq(runbook.agencyId, ctx.agencyId)));
+      up = ag ? (await readRunbookItems(deps.service, ag.id)).find((i) => i.key === 'knob:thresholds') : undefined;
+    }
+    const base: RunbookItem = item ?? {
+      key: 'knob:thresholds', kind: 'knob', content: next, enabled: true, businessAreaIds: null, version: 1,
+      upstreamVersion: up?.version ?? null,
+      upstreamSnapshot: up ? { content: structuredClone(up.content), enabled: up.enabled, businessAreaIds: up.businessAreaIds } : null,
+      dismissedUpstreamVersion: null, customised: true, removedUpstream: false,
+    };
+    await writeItem(deps.service, rb.id, { ...base, content: next, enabled: true }, ctx.userId);
+  } else if (item) {
+    const snap = item.upstreamSnapshot as { content: unknown; enabled: boolean } | null;
+    await writeItem(deps.service, rb.id, snap ? { ...item, content: structuredClone(snap.content), enabled: snap.enabled } : { ...item, enabled: false }, ctx.userId);
+  }
 }
 
 export const setAlertRules = defineTool({
