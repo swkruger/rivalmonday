@@ -4,6 +4,7 @@ import type { PackLoader } from '@cs/verticals';
 import { and, eq } from 'drizzle-orm';
 import { isDeepStrictEqual } from 'node:util';
 import { itemsFromPack, type RunbookItem } from './items';
+import { withColumnThresholds } from './state';
 
 /**
  * The client runbook that reproduces what the legacy path (pack plays + agency `playbook_override`s) shows today:
@@ -12,13 +13,13 @@ import { itemsFromPack, type RunbookItem } from './items';
  * ids are client-owned (`upstreamVersion` null); generic-only ids are absent so they surface as `new_upstream`.
  */
 export async function legacyClientItems(deps: { db: Db; packs: PackLoader }, clientId: string, agencyItems: RunbookItem[]): Promise<RunbookItem[]> {
-  const [c] = await deps.db.select({ agencyId: client.agencyId, verticalId: client.verticalId }).from(client).where(eq(client.id, clientId));
+  const [c] = await deps.db.select({ agencyId: client.agencyId, verticalId: client.verticalId, scoreThresholds: client.scoreThresholds }).from(client).where(eq(client.id, clientId));
   if (!c) throw new Error(`Unknown client ${clientId}`);
   const pack = await deps.packs(c.verticalId);
   const overrides = await deps.db.select().from(playbookOverride).where(and(eq(playbookOverride.agencyId, c.agencyId), eq(playbookOverride.verticalId, pack.id)));
   const parents = new Map(agencyItems.map((i) => [i.key, i]));
 
-  return itemsFromPack(pack).map((p): RunbookItem => {
+  const items = itemsFromPack(pack).map((p): RunbookItem => {
     let { content, enabled } = p;
     if (p.kind === 'play') {
       const o = overrides.find((x) => `play:${x.playbookId}` === p.key);
@@ -39,4 +40,5 @@ export async function legacyClientItems(deps: { db: Db; packs: PackLoader }, cli
       customised: !(isDeepStrictEqual(content, parent.content) && enabled === parent.enabled),
     };
   });
+  return withColumnThresholds(items, c.scoreThresholds, agencyItems);
 }

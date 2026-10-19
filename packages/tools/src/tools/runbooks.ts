@@ -2,7 +2,7 @@ import { type AccessContext, isAgencyRole, toolkit, ToolError } from '@cs/core';
 import { agencyServiceable, client, clientServiceable, playbookOverride, runbookItem, runbook, withTenant } from '@cs/db';
 import {
   compareWithParent, copyItems, createClientRunbookIfAbsent, ensureAgencyRunbook, ensurePlatformRunbook, legacyClientItems, packUsesGenericPlays, PLAYBOOK_VARS,
-  parseItemContent, readRunbookItems, type RunbookItem, type UpdateState, writeItem,
+  parseItemContent, readRunbookItems, type RunbookItem, type UpdateState, withColumnThresholds, writeItem,
 } from '@cs/engine';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -38,14 +38,19 @@ interface Target {
   platformRole?: PlatformRole;
 }
 
+const PENDING_TTL_MS = 10 * 60 * 1000;
+
 const generic = (deps: ToolDeps) => catalogOf(deps).generic();
 
 async function findRunbook(deps: ToolDeps, level: Level, ids: { agencyId?: string; clientId?: string }): Promise<{ id: string; tailorStatus: string | null } | undefined> {
+  // A `pending` that no job ever finished (no queue, exhausted retries, ...) must not lock the editor: after 10 minutes it reads as failed.
   const where = level === 'platform' ? eq(runbook.level, 'platform')
     : level === 'agency' ? and(eq(runbook.level, 'agency'), eq(runbook.agencyId, ids.agencyId!))
     : and(eq(runbook.level, 'client'), eq(runbook.clientId, ids.clientId!));
-  const [row] = await deps.service.select({ id: runbook.id, tailorStatus: runbook.tailorStatus }).from(runbook).where(where);
-  return row;
+  const [row] = await deps.service.select({ id: runbook.id, tailorStatus: runbook.tailorStatus, createdAt: runbook.createdAt }).from(runbook).where(where);
+  if (!row) return undefined;
+  const stale = row.tailorStatus === 'pending' && Date.now() - row.createdAt.getTime() > PENDING_TTL_MS;
+  return { id: row.id, tailorStatus: stale ? 'failed' : row.tailorStatus };
 }
 
 /** Lazy creation (platform/agency); a read-only support session never writes, so it sees what exists. */
@@ -95,6 +100,11 @@ async function resolve(deps: ToolDeps, ctx: AccessContext, owner: RunbookOwner, 
   return { level: 'client', runbookId: null, items: base.items, parent: agency.items, source: base.source, tailorStatus: null, client: c };
 }
 
+async function columnThresholds(deps: ToolDeps, ctx: AccessContext, clientId: string) {
+  const [row] = await withTenant(deps.app, ctx, (tx) => tx.select({ t: client.scoreThresholds }).from(client).where(eq(client.id, clientId)));
+  return row?.t ?? null;
+}
+
 const toView = (i: RunbookItem): z.input<typeof RunbookItemView> => ({
   key: i.key, kind: i.kind, content: i.content, enabled: i.enabled, businessAreaIds: i.businessAreaIds, version: i.version,
   customised: i.customised, upstreamVersion: i.upstreamVersion, dismissedUpstreamVersion: i.dismissedUpstreamVersion,
@@ -118,6 +128,14 @@ async function mutate<T>(deps: ToolDeps, ctx: AccessContext, tool: string, input
 }
 
 /** `knob:thresholds` content must pass the `set_alert_rules` rules at every level, so a default it would refuse can never be stored. Runs before any write. */
+function checkKnobs(t: Target, item: RunbookItem): void {
+  checkThresholds(item);
+  if (item.key === 'knob:focus_areas' && t.client) {
+    const bad = ((item.content as { areaIds?: string[] }).areaIds ?? []).filter((a) => !t.client!.services.includes(a));
+    if (bad.length > 0) throw refuse(`Unknown service: ${bad.join(', ')}`);
+  }
+}
+
 function checkThresholds(item: RunbookItem): void {
   if (item.key !== 'knob:thresholds') return;
   const c = item.content as { alert?: number; brief?: number };
@@ -179,10 +197,12 @@ export const getRunbook = defineTool({
       const c = t.client;
       const pack = await packsOf(deps)(c.verticalId);
       businessAreas = pack.services.filter((s) => c.services.includes(s.id)).map((s) => ({ id: s.id, name: s.name }));
-      const [row] = await withTenant(deps.app, ctx, (tx) => tx.select({ t: client.scoreThresholds }).from(client).where(eq(client.id, c.id)));
-      const custom = row?.t;
+      const custom = await columnThresholds(deps, ctx, c.id);
       const knob = items.find((i) => i.key === 'knob:thresholds');
+      const up = t.parent?.find((i) => i.key === 'knob:thresholds');
       if (custom && knob?.enabled && knob.customised) items = items.map((i) => (i === knob ? { ...i, content: { alert: custom.alert, brief: custom.brief } } : i));
+      // R3: a non-customised thresholds knob follows its parent (the engine does), so it shows the parent's values, in sync.
+      else if (knob && !knob.customised && up && up.kind === 'knob') items = items.map((i) => (i === knob ? { ...i, content: structuredClone(up.content), enabled: up.enabled, upstreamVersion: up.version, upstreamSnapshot: snapshotOf(up), dismissedUpstreamVersion: null } : i));
     }
     const parent = t.parent;
     const rows = parent
@@ -222,7 +242,7 @@ export const updateRunbookItem = defineTool({
       if (!parsed.ok) throw refuse(parsed.error);
       const item = existing ?? { ...blank(input.key, kind, parsed.value), customised: true }; // no parent snapshot: client-owned
       const next: RunbookItem = { ...item, content: parsed.value, businessAreaIds: checkAreas(t, item, input.businessAreaIds) };
-      checkThresholds(next);
+      checkKnobs(t, next);
       await writeItem(deps.service, runbookId, next, ctx.userId);
       await syncClientThresholds(deps, ctx, t, input.key);
       return reread(deps, t, input.key);
@@ -243,7 +263,7 @@ export const setRunbookItemEnabled = defineTool({
       const item = t.items.find((i) => i.key === input.key);
       if (!item) throw NOT_FOUND();
       const next = { ...item, enabled: input.enabled };
-      if (next.enabled) checkThresholds(next);
+      if (next.enabled) checkKnobs(t, next);
       await writeItem(deps.service, runbookId, next, ctx.userId);
       await syncClientThresholds(deps, ctx, t, input.key);
       return reread(deps, t, input.key);
@@ -276,7 +296,7 @@ export const pullRunbookUpdate = defineTool({
       }
       if (input.businessAreaIds !== undefined) next = { ...next, businessAreaIds: checkAreas(t, item, input.businessAreaIds) };
       next = { ...next, upstreamVersion: up.version, upstreamSnapshot: snapshotOf(up), dismissedUpstreamVersion: null, removedUpstream: false };
-      checkThresholds(next);
+      checkKnobs(t, next);
       await writeItem(deps.service, runbookId, next, ctx.userId);
       await syncClientThresholds(deps, ctx, t, input.key);
       return reread(deps, t, input.key);
@@ -308,12 +328,15 @@ async function createClientRunbook(deps: ToolDeps, ctx: AccessContext, t: Target
   const c = t.client!;
   const [live] = await deps.service.select({ id: client.id }).from(client).where(and(eq(client.id, c.id), clientServiceable(client), agencyServiceable(client.agencyId)));
   // One transaction: the runbook, its items and `pending` (paused / inactive clients: untailored, no status, no job).
-  const made = await createClientRunbookIfAbsent(deps.service, c.id, t.items, ctx.userId, live ? 'pending' : undefined);
+  const items = withColumnThresholds(t.items, await columnThresholds(deps, ctx, c.id), t.parent);
+  const made = await createClientRunbookIfAbsent(deps.service, c.id, items, ctx.userId, live ? 'pending' : undefined);
   if (!made.created || !live) return;
   try {
     await enqueueOf(deps)('runbook-tailor', { clientId: c.id }, `runbook-tailor:${c.id}`);
   } catch (err) {
     console.warn(`[add_runbook_item] runbook-tailor enqueue for ${c.id} failed: ${err instanceof Error ? err.message : String(err)}`);
+    // The untailored copy is already written; nothing will tailor it, so say so (editable, with the failed copy).
+    await deps.service.update(runbook).set({ tailorStatus: 'failed' }).where(and(eq(runbook.id, made.id), eq(runbook.tailorStatus, 'pending')));
   }
 }
 
@@ -335,7 +358,10 @@ export const addRunbookItem = defineTool({
       const runbookId = need(t);
       const up = t.parent?.find((i) => i.key === input.key);
       if (!up || t.items.some((i) => i.key === input.key)) throw NOT_FOUND();
-      await writeItem(deps.service, runbookId, copyItems([up])[0]!, ctx.userId);
+      let added = copyItems([up])[0]!;
+      // R3: a set column stays the client's own value, so the copy is customised against the agency knob.
+      if (t.client && input.key === 'knob:thresholds') added = withColumnThresholds([added], await columnThresholds(deps, ctx, t.client.id), t.parent)[0]!;
+      await writeItem(deps.service, runbookId, added, ctx.userId);
       return reread(deps, t, input.key);
     });
   },

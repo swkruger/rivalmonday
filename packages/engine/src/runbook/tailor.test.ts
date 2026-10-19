@@ -91,6 +91,23 @@ describe('tailorClientRunbook', () => {
     expect(await clientRunbook()).toBeUndefined();
   });
 
+  it('a pending runbook of a client that is no longer serviceable is stamped skipped', async () => {
+    const ai = rewriteAll();
+    await dbs.owner.update(client).set({ verticalId: 'hvac_plumbing' }).where(eq(client.id, IDS.clientA1));
+    await tailorClientRunbook(deps(ai), IDS.clientA1);
+    await dbs.owner.update(runbook).set({ tailorStatus: 'pending' }).where(eq(runbook.clientId, IDS.clientA1));
+    await dbs.owner.update(client).set({ pausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    expect((await tailorClientRunbook(deps(ai), IDS.clientA1)).status).toBe('skipped');
+    expect((await clientRunbook())!.tailorStatus).toBe('skipped');
+  });
+
+  it('a created generic-play runbook holds a set score_thresholds column as a customised knob', async () => {
+    await dbs.owner.update(client).set({ scoreThresholds: { alert: 60, brief: 30 } }).where(eq(client.id, IDS.clientA1));
+    await tailorClientRunbook(deps(rewriteAll(), genericPacks), IDS.clientA1);
+    const items = await readRunbookItems(db, (await clientRunbook())!.id);
+    expect(items.find((i) => i.key === 'knob:thresholds')).toMatchObject({ content: { alert: 60, brief: 30 }, enabled: true, customised: true });
+  });
+
   it('AI failure writes the untailored copy with tailor_status failed', async () => {
     const ai = createFakeAi({ chat: () => { throw new Error('openrouter down'); } });
     expect((await tailorClientRunbook(deps(ai), IDS.clientA1)).status).toBe('failed');

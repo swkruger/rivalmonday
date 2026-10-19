@@ -13,7 +13,7 @@ import {
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
   type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
-  runReviewInsights, loadClientRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
+  runReviewInsights, loadClientRunbook, skipPendingRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
 import { generateStarters } from '@cs/ask';
 import {
@@ -84,6 +84,8 @@ export interface WorkerDeps {
   generateSetupSuggestions(clientId: string): Promise<{ status: 'ready' | 'failed' } | { skipped: string }>;
   /** Phase 14b: AI-tailors a client's runbook plays (never throws; an AI failure writes the untailored copy as `failed`). */
   tailorRunbook(clientId: string): Promise<{ status: 'done' | 'failed' | 'skipped'; rejected: string[] }>;
+  /** Marks a still-`pending` client runbook `skipped` (the job ran where tailoring never happens), so the editor unlocks. */
+  skipRunbookTailor(clientId: string): Promise<void>;
   /** Phase 11c: the free competitive preview for a verified lead plus its confirmation / agency-new / pool-new emails (never throws; failures are recorded as `failed`). */
   /** Phase 11c: the direct lead-mail sender deps (null when mail is not configured). */
   leadEmailDeps(): LeadEmailDeps | null;
@@ -341,6 +343,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       return runSetupSuggestions({ db: getDb(), ...clients, packs }, clientId);
     },
     tailorRunbook: (clientId) => runRunbookTailor({ db: getDb(), getAi, packs, generic }, clientId),
+    skipRunbookTailor: (clientId) => skipPendingRunbook(getDb(), clientId),
     leadEmailDeps,
     async generateLeadPreview(leadId) {
       return runLeadPreview({ db: getDb(), clients: async () => ({ dfs: getDfs(), ai: await getAi() }), email: leadEmailDeps() }, leadId);

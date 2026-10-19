@@ -122,6 +122,10 @@ async function itemsWhere(db: Db, where: ReturnType<typeof and>): Promise<Runboo
 const thresholdOf = (items: RunbookItem[] | null) =>
   (items?.find((i) => i.key === 'knob:thresholds' && i.enabled)?.content as { alert: number; brief: number } | undefined) ?? null;
 
+/** R5: an enabled `knob:tier_limits` of a runbook (client, then agency; the pack fallback happens at the collector). */
+const tierLimitsOf = (items: RunbookItem[] | null) =>
+  (items?.find((i) => i.key === 'knob:tier_limits' && i.enabled)?.content as EffectiveRunbook['tierLimits'] | undefined) ?? null;
+
 /** R3 default thresholds without the client column: agency knob, then platform knob, then the pack's routing (what the engine uses for a client with no custom thresholds). */
 export async function defaultThresholds(db: Db, agencyId: string, pack: VerticalPack): Promise<{ alert: number; brief: number }> {
   const agencyItems = await itemsWhere(db, and(eq(runbook.level, 'agency'), eq(runbook.agencyId, agencyId)));
@@ -141,7 +145,10 @@ export async function loadClientRunbook(deps: { db: Db; packs: PackLoader; gener
   const thresholds = c.scoreThresholds ?? thresholdOf(agencyItems) ?? thresholdOf(platformItems) ?? { alert: pack.scoring.routing.alert, brief: pack.scoring.routing.brief };
 
   const clientItems = await itemsWhere(db, and(eq(runbook.level, 'client'), eq(runbook.clientId, clientId)));
-  if (clientItems) return { ...effectiveFrom(clientItems, 'client', c.services), thresholds };
+  if (clientItems) {
+    const eff = effectiveFrom(clientItems, 'client', c.services);
+    return { ...eff, thresholds, tierLimits: eff.tierLimits ?? tierLimitsOf(agencyItems) };
+  }
 
   const overrides = await db.select({ id: playbookOverride.playbookId }).from(playbookOverride)
     .where(and(eq(playbookOverride.agencyId, c.agencyId), eq(playbookOverride.verticalId, pack.id))).limit(1);
@@ -157,6 +164,6 @@ export async function loadClientRunbook(deps: { db: Db; packs: PackLoader; gener
     selfRules: pack.self_rules,
     thresholds,
     focusAreaIds: [],
-    tierLimits: null,
+    tierLimits: tierLimitsOf(agencyItems),
   };
 }

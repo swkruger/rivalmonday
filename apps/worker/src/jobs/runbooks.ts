@@ -35,6 +35,7 @@ export function createRunbookJobs(deps: WorkerDeps, opts: RunbookJobOptions) {
     handler: async ({ clientId }) => {
       if (opts.envName === 'demo' || opts.envName === 'test') {
         console.log(`[runbook-tailor] skipped in ${opts.envName}`);
+        await deps.skipRunbookTailor(clientId);
         return { skipped: opts.envName };
       }
       return deps.tailorRunbook(clientId);

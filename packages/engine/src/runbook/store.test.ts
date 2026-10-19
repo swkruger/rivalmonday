@@ -152,3 +152,21 @@ describe('thresholds (R3)', () => {
     expect((await loadClientRunbook(deps(), IDS.clientA1)).thresholds).toEqual({ alert: 90, brief: 60 });
   });
 });
+
+describe('tier limits (R5)', () => {
+  const tiers = (o: number) => ({ top: { overlap: o, activity: 0.25 }, watch: { overlap: 0.35, activity: 0.6 } });
+  const tierKnob = (o: number, enabled = true) => base('knob:tier_limits', { kind: 'knob', content: tiers(o), enabled });
+  it('client knob, then agency knob, then null - in the client and the legacy branches', async () => {
+    expect((await loadClientRunbook(deps(), IDS.clientA1)).tierLimits).toBeNull();
+    const agencyId = await ensureAgencyRunbook(db, IDS.agencyA, generic);
+    await writeItem(db, agencyId, tierKnob(0.5), 'u');
+    expect((await loadClientRunbook(deps(), IDS.clientA1)).tierLimits).toEqual(tiers(0.5)); // legacy branch
+    await createClientRunbook(db, IDS.clientA1, [base('play:mine')], 'u1');
+    expect((await loadClientRunbook(deps(), IDS.clientA1)).tierLimits).toEqual(tiers(0.5)); // client runbook without a knob
+    const [rb] = await db.select({ id: runbook.id }).from(runbook).where(eq(runbook.clientId, IDS.clientA1));
+    await writeItem(db, rb!.id, tierKnob(0.7), 'u');
+    expect((await loadClientRunbook(deps(), IDS.clientA1)).tierLimits).toEqual(tiers(0.7));
+    await writeItem(db, rb!.id, tierKnob(0.7, false), 'u');
+    expect((await loadClientRunbook(deps(), IDS.clientA1)).tierLimits).toEqual(tiers(0.5)); // disabled client knob falls to the agency
+  });
+});

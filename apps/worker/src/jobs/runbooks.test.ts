@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
 import { client, runbook } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { skipPendingRunbook } from '@cs/engine';
 import { loadVerticalPack } from '@cs/verticals';
 import { eq } from 'drizzle-orm';
 import { afterAll } from 'vitest';
@@ -16,9 +17,11 @@ describe('runbook-tailor job', () => {
   });
   it.each(['demo', 'test'] as const)('skips in %s', async (envName) => {
     const tailorRunbook = vi.fn();
-    const { tailor } = createRunbookJobs({ tailorRunbook } as unknown as WorkerDeps, { envName });
+    const skipRunbookTailor = vi.fn(async () => {});
+    const { tailor } = createRunbookJobs({ tailorRunbook, skipRunbookTailor } as unknown as WorkerDeps, { envName });
     expect(await tailor.handler({ clientId: ID })).toEqual({ skipped: envName });
     expect(tailorRunbook).not.toHaveBeenCalled();
+    expect(skipRunbookTailor).toHaveBeenCalledWith(ID);
   });
   it('delegates to deps in dev', async () => {
     const tailorRunbook = vi.fn(async () => ({ status: 'done' as const, rejected: [] }));
@@ -31,6 +34,17 @@ describe('runbook-tailor job', () => {
 describe('runRunbookTailor', () => {
   const dbs = openTestDbs();
   afterAll(() => dbs.closeAll());
+  it('skipPendingRunbook stamps only a pending runbook', async () => {
+    await truncateAll(dbs.owner);
+    await seedTenancy(dbs.owner);
+    await dbs.owner.delete(runbook);
+    const [rb] = await dbs.owner.insert(runbook).values({ level: 'client', agencyId: IDS.agencyA, clientId: IDS.clientA1, tailorStatus: 'pending' }).returning();
+    await skipPendingRunbook(dbs.service, IDS.clientA1);
+    expect((await dbs.owner.select().from(runbook).where(eq(runbook.id, rb!.id)))[0]!.tailorStatus).toBe('skipped');
+    await dbs.owner.update(runbook).set({ tailorStatus: 'done' }).where(eq(runbook.id, rb!.id));
+    await skipPendingRunbook(dbs.service, IDS.clientA1);
+    expect((await dbs.owner.select().from(runbook).where(eq(runbook.id, rb!.id)))[0]!.tailorStatus).toBe('done');
+  });
   it('writes the untailored copy as failed when the AI client cannot be built', async () => {
     await truncateAll(dbs.owner);
     await seedTenancy(dbs.owner);

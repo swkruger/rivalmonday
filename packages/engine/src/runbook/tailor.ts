@@ -7,7 +7,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import { type RunbookItem, playContentSchema } from './items';
 import { legacyClientItems } from './legacy';
-import { copyItems, packUsesGenericPlays } from './state';
+import { copyItems, packUsesGenericPlays, withColumnThresholds } from './state';
 import { createClientRunbookIfAbsent, ensureAgencyRunbook, readRunbookItems } from './store';
 
 const SYSTEM_USER = 'system';
@@ -125,12 +125,20 @@ async function loadContext(db: Db, packs: PackLoader, row: { id: string; agencyI
 
 const clientCols = { id: client.id, agencyId: client.agencyId, verticalId: client.verticalId, name: client.name, services: client.services };
 
+/** A runbook still waiting to be tailored that never will be (paused / suspended / demo): mark it `skipped` so the editor unlocks. */
+export async function skipPendingRunbook(db: Db, clientId: string): Promise<void> {
+  await db.update(runbook).set({ tailorStatus: 'skipped' }).where(and(eq(runbook.level, 'client'), eq(runbook.clientId, clientId), eq(runbook.tailorStatus, 'pending')));
+}
+
 export async function tailorClientRunbook(
   d: { db: Db; ai: Ai; packs: PackLoader; generic: () => Promise<VerticalPack> },
   clientId: string,
 ): Promise<{ status: 'done' | 'failed' | 'skipped'; rejected: string[] }> {
   const [row] = await d.db.select(clientCols).from(client).where(and(eq(client.id, clientId), clientServiceable(client), agencyServiceable(client.agencyId)));
-  if (!row) return { status: 'skipped', rejected: [] };
+  if (!row) {
+    await skipPendingRunbook(d.db, clientId);
+    return { status: 'skipped', rejected: [] };
+  }
   const [existing] = await d.db.select({ id: runbook.id, tailorStatus: runbook.tailorStatus }).from(runbook).where(and(eq(runbook.level, 'client'), eq(runbook.clientId, clientId)));
   if (existing && existing.tailorStatus !== 'pending') return { status: 'skipped', rejected: [] };
 
@@ -139,7 +147,8 @@ export async function tailorClientRunbook(
   if (existing) base = await readRunbookItems(d.db, existing.id);
   else {
     const agency = await readRunbookItems(d.db, await ensureAgencyRunbook(d.db, row.agencyId, await d.generic()));
-    base = packUsesGenericPlays(c.pack, await d.generic()) ? copyItems(agency) : await legacyClientItems({ db: d.db, packs: d.packs }, clientId, agency);
+    const [col] = await d.db.select({ t: client.scoreThresholds }).from(client).where(eq(client.id, clientId));
+    base = packUsesGenericPlays(c.pack, await d.generic()) ? withColumnThresholds(copyItems(agency), col?.t, agency) : await legacyClientItems({ db: d.db, packs: d.packs }, clientId, agency);
   }
 
   let result: { items: RunbookItem[]; rejected: string[] } | null = null;

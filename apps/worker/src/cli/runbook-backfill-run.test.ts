@@ -1,6 +1,6 @@
 import { client, playbookOverride, runbook } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { loadClientRunbook } from '@cs/engine';
+import { loadClientRunbook, readRunbookItems } from '@cs/engine';
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { count, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -22,6 +22,16 @@ const deps = () => ({ db, packs: async (id: string) => packs[id]!, generic: asyn
 const runbooks = async () => (await db.select({ n: count() }).from(runbook))[0]!.n;
 
 describe('runbook:backfill', () => {
+  it('a client with a custom thresholds column gets a customised knob holding it', async () => {
+    await db.update(client).set({ scoreThresholds: { alert: 60, brief: 30 } }).where(eq(client.id, IDS.clientA1));
+    await runRunbookBackfill(deps());
+    const [rb] = await db.select({ id: runbook.id }).from(runbook).where(eq(runbook.clientId, IDS.clientA1));
+    const knob = (await readRunbookItems(db, rb!.id)).find((i) => i.key === 'knob:thresholds');
+    expect(knob).toMatchObject({ content: { alert: 60, brief: 30 }, enabled: true, customised: true });
+    expect((await db.select({ t: client.scoreThresholds }).from(client).where(eq(client.id, IDS.clientA1)))[0]!.t).toEqual({ alert: 60, brief: 30 });
+  });
+
+
   it('dry run reports counts and writes nothing', async () => {
     const clients = (await db.select({ n: count() }).from(client))[0]!.n;
     const c = await runRunbookBackfill(deps(), { dryRun: true });

@@ -2,7 +2,7 @@ import { type AccessContext, createAccessContext } from '@cs/core';
 import { catalogRows, client, platformAdmin, runbook, runbookItem } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createCatalog } from '@cs/verticals';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import type { ToolDeps } from '../deps';
@@ -222,7 +222,53 @@ describe('client runbook', () => {
     await dbs.owner.update(client).set({ pausedAt: null }).where(eq(client.id, IDS.clientA1));
     enqueue.mockRejectedValueOnce(new Error('queue down'));
     await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
-    expect((await dbs.owner.select().from(runbook).where(eq(runbook.level, 'client')))[0]!.tailorStatus).toBe('pending');
+    expect((await dbs.owner.select().from(runbook).where(eq(runbook.level, 'client')))[0]!.tailorStatus).toBe('failed');
+  });
+
+  it('a pending runbook older than 10 minutes reads as failed and unlocks the editor', async () => {
+    await call(am, 'add_runbook_item', { owner: C1, key: '*' });
+    expect((await call(am, 'get_runbook', { owner: C1 })).tailorStatus).toBe('pending');
+    await dbs.owner.update(runbook).set({ createdAt: new Date(Date.now() - 11 * 60_000) }).where(eq(runbook.level, 'client'));
+    expect((await call(am, 'get_runbook', { owner: C1 })).tailorStatus).toBe('failed');
+  });
+
+  it('focus_areas must name the client services', async () => {
+    await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
+    const r = await fails(call(admin, 'update_runbook_item', { owner: C1, key: 'knob:focus_areas', content: { areaIds: ['no_such_service'] } }));
+    expect(r.code).toBe('invalid_input');
+    expect(r.message).toMatch(/Unknown service/);
+  });
+
+  describe('R3 one thresholds setting', () => {
+    const thresholds = async () => (await dbs.owner.select({ t: client.scoreThresholds }).from(client).where(eq(client.id, IDS.clientA1)))[0]!.t;
+    const setColumn = () => dbs.owner.update(client).set({ scoreThresholds: { alert: 60, brief: 30 } }).where(eq(client.id, IDS.clientA1));
+
+    it("'*' with a custom column creates a customised knob holding it", async () => {
+      await setColumn();
+      await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
+      expect(await itemOf(admin, C1, 'knob:thresholds')).toMatchObject({ content: { alert: 60, brief: 30 }, enabled: true, customised: true });
+      expect(await thresholds()).toEqual({ alert: 60, brief: 30 });
+    });
+
+    it('add_runbook_item on thresholds with a set column is customised; off/on keeps the values', async () => {
+      await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
+      const [rb] = await dbs.owner.select().from(runbook).where(eq(runbook.level, 'client'));
+      await dbs.owner.delete(runbookItem).where(and(eq(runbookItem.runbookId, rb!.id), eq(runbookItem.itemKey, 'knob:thresholds')));
+      await setColumn();
+      await call(admin, 'add_runbook_item', { owner: C1, key: 'knob:thresholds' });
+      expect(await itemOf(admin, C1, 'knob:thresholds')).toMatchObject({ content: { alert: 60, brief: 30 }, customised: true });
+      await call(admin, 'set_runbook_item_enabled', { owner: C1, key: 'knob:thresholds', enabled: false });
+      await call(admin, 'set_runbook_item_enabled', { owner: C1, key: 'knob:thresholds', enabled: true });
+      expect(await thresholds()).toEqual({ alert: 60, brief: 30 });
+    });
+
+    it('a non-customised knob follows the agency: in_sync with the new parent values and no update prompt', async () => {
+      await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
+      if ((await itemOf(admin, C1, 'knob:thresholds')).state === 'new_upstream') await call(admin, 'add_runbook_item', { owner: C1, key: 'knob:thresholds' });
+      await call(admin, 'update_runbook_item', { owner: A, key: 'knob:thresholds', content: { alert: 90, brief: 50 } });
+      expect(await itemOf(admin, C1, 'knob:thresholds')).toMatchObject({ content: { alert: 90, brief: 50 }, state: 'in_sync', customised: false });
+      expect(await thresholds()).toBeNull();
+    });
   });
 
   it('an account manager in scope edits the client level; unknown services are refused', async () => {

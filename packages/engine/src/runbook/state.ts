@@ -44,6 +44,25 @@ export function copyItems(parent: RunbookItem[]): RunbookItem[] {
   }));
 }
 
+/**
+ * R3 "one setting": a set `client.score_thresholds` column always lives in the client's `knob:thresholds` item, customised against the
+ * parent (agency) knob. Replaces/adds that item in a to-be-created client runbook; no column leaves the items alone.
+ */
+export function withColumnThresholds(items: RunbookItem[], column: { alert: number; brief: number } | null | undefined, parents: RunbookItem[] | null): RunbookItem[] {
+  if (!column) return items;
+  const content = { alert: column.alert, brief: column.brief };
+  const up = parents?.find((i) => i.key === 'knob:thresholds' && i.kind === 'knob');
+  const own = items.find((i) => i.key === 'knob:thresholds');
+  const snapshot = up ? structuredClone({ content: up.content, enabled: up.enabled, businessAreaIds: up.businessAreaIds }) : null;
+  const next: RunbookItem = {
+    key: 'knob:thresholds', kind: 'knob', content, enabled: true, businessAreaIds: null, version: own?.version ?? 1,
+    upstreamVersion: up?.version ?? null, upstreamSnapshot: snapshot, dismissedUpstreamVersion: null,
+    customised: snapshot ? !(isDeepStrictEqual(snapshot.content, content) && snapshot.enabled === true && snapshot.businessAreaIds === null) : true,
+    removedUpstream: false,
+  };
+  return own ? items.map((i) => (i === own ? next : i)) : [...items, next];
+}
+
 export interface EffectiveRunbook {
   source: 'client' | 'agency' | 'legacy';
   plays: (Playbook & { version: number; businessAreaIds: string[] | null; effort?: 'L' | 'M' | 'H'; impact?: 'L' | 'M' | 'H' })[];
