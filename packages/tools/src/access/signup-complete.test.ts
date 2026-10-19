@@ -1,6 +1,6 @@
 import {
   agency, agencyBilling, agencyBillingEvent, agencyInviteLink, agencyOnboarding, agencyProfile, billingNotice, contact, discountCode, membership,
-  pendingSignup, plan,
+  pendingSignup, plan, runbook,
 } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
@@ -43,6 +43,15 @@ const code = async (o: Partial<typeof discountCode.$inferInsert> = {}) => {
 const newAgencies = async () => (await dbs.owner.select().from(agency)).filter((a) => a.id !== IDS.agencyA && a.id !== IDS.agencyB);
 
 describe('completePendingSignups', () => {
+  it('creates the agency runbook (copied from the platform one) in the same transaction', async () => {
+    await pending();
+    const r = await completePendingSignups(dbs.service, USER, NOW);
+    const rows = await dbs.owner.select().from(runbook).where(eq(runbook.agencyId, r.agencyIds[0]!));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.level).toBe('agency');
+    expect((await dbs.owner.select().from(runbook).where(eq(runbook.level, 'platform')))).toHaveLength(1);
+  });
+
   it('uses the sign-up contact name for the admin contact when the user has no name (magic link)', async () => {
     await pending();
     const r = await completePendingSignups(dbs.service, { ...USER, name: '' }, NOW);

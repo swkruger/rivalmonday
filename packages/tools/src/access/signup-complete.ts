@@ -3,9 +3,11 @@ import {
   agency, agencyInviteLink, type AgencyInviteLinkRow, agencyOnboarding, agencyProfile, billingNotice, type Db, discountCode, membership,
   pendingSignup, type PendingSignupRow, type Tx,
 } from '@cs/db';
-import { addContact } from '@cs/engine';
+import { addContact, ensureAgencyRunbook } from '@cs/engine';
 import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
+import { catalogOf } from '../catalog/access';
 import { normalizeEmail } from './invitations';
+import type { ToolDeps } from '../deps';
 import type { SignupProblem } from './signup';
 
 /** The Stripe coupon of the link's discount code, if the code is still usable (not revoked, not expired). */
@@ -74,6 +76,8 @@ export async function completePendingSignups(
       }
       const [a] = await tx.insert(agency).values({ name: p.agencyName, branding: null }).returning({ id: agency.id });
       const agencyId = a!.id;
+      // Phase 14b: the agency's runbook (a copy of the platform one), atomic with the agency.
+      await ensureAgencyRunbook(tx, agencyId, await catalogOf({ service } as ToolDeps).generic());
       await tx.insert(agencyProfile).values({ agencyId, contactName: p.contactName, contactEmail: p.email });
       // Mirrors acceptInvitations: the admin's notification contact, then the membership pointing at it.
       const contactId = await addContact(tx, { agencyId, clientId: null, role: 'agency_admin', email: p.email, name: user.name || p.contactName || null, clientScope: null, userId: user.id });

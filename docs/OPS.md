@@ -31,6 +31,15 @@ pnpm --filter @cs/worker brief-once --client 25f99947-4559-4150-ab5d-dd432540aca
 ```
 `brief-once` should store the first live standard brief. Other `engine-once` flags: `--insights`, `--competitor`, `--rounds`. `brief-once` also accepts `--now <iso>`.
 
+## Runbook backfill (Phase 14b)
+
+After migrating `0079` on `cs_dev` and on prod, and before the next brief run, once per database:
+```
+pnpm --filter @cs/worker runbook:backfill --dry-run
+pnpm --filter @cs/worker runbook:backfill
+```
+Creates the platform runbook, one per agency, and for every client (all statuses) a client runbook that reproduces what it sees today (pack plays with `playbook_override`s applied, self-rules, thresholds), with `tailor_status = 'skipped'`. Idempotent; leaves `playbook_override` alone. New agencies get theirs at sign-up and via `admin create-agency`.
+
 ## Crawler ban
 
 Don't point the web crawler at real competitors until `https://rivalmonday.com/bot` exists. That covers `collect-once` without `--vendors` and `collect-once` with `--web`. `--vendors` on its own calls only vendor APIs. `WEB_MONITORING_ENABLED` stays off.

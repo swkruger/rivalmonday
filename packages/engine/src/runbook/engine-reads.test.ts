@@ -7,7 +7,7 @@ import type { BriefClient, EventCandidate } from '../briefs/gather';
 import { playbookRef, resolveLegacyPlaybooks } from '../briefs/playbooks';
 import { recommendationFromItem } from '../briefs/recommendations';
 import { buildWriterPrompt } from '../briefs/writer';
-import { copyItems, createClientRunbook, ensureAgencyRunbook, itemsFromPack, loadClientRunbook, type RunbookItem } from './index';
+import { copyItems, createClientRunbook, ensureAgencyRunbook, itemsFromPack, legacyClientItems, loadClientRunbook, readRunbookItems, type RunbookItem } from './index';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -71,6 +71,27 @@ describe.each(CLIENTS)('golden equivalence ($label)', ({ id, vertical }) => {
       expect([...copy.selfRules].sort((a, b) => a.id.localeCompare(b.id))).toEqual([...legacy.selfRules].sort((a, b) => a.id.localeCompare(b.id)));
       expect(copy.thresholds).toEqual(legacy.thresholds);
       expect(copy.thresholds).toEqual({ alert: pack.scoring.routing.alert, brief: pack.scoring.routing.brief });
+    });
+  }
+
+  for (const withOverride of [false, true]) {
+    it(`a legacyClientItems backfill equals the legacy view ${withOverride ? 'with' : 'without'} a playbook_override`, async () => {
+      const pack = packs[vertical]!;
+      if (withOverride) {
+        await db.insert(playbookOverride).values([
+          { agencyId: IDS.agencyA, verticalId: vertical, playbookId: pack.playbooks[0]!.id, title: 'Custom title', template: 'Custom {{competitor}}', updatedBy: 'u1' },
+          { agencyId: IDS.agencyA, verticalId: vertical, playbookId: pack.playbooks[1]!.id, disabledBy: 'u1', updatedBy: 'u1' },
+        ]);
+      }
+      const legacy = await loadClientRunbook(deps(), id);
+      expect(legacy.source).toBe('legacy');
+      const agencyItems = await readRunbookItems(db, await ensureAgencyRunbook(db, IDS.agencyA, generic));
+      await createClientRunbook(db, id, await legacyClientItems({ db, packs: deps().packs }, id, agencyItems), 'u1');
+      const copy = await loadClientRunbook(deps(), id);
+      expect(copy.source).toBe('client');
+      expect(byId(copy.plays).map(playShape)).toEqual(byId(legacy.plays).map(playShape));
+      expect([...copy.selfRules].sort((a, b) => a.id.localeCompare(b.id))).toEqual([...legacy.selfRules].sort((a, b) => a.id.localeCompare(b.id)));
+      expect(copy.thresholds).toEqual(legacy.thresholds);
     });
   }
 

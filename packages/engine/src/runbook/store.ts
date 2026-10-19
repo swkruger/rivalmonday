@@ -1,4 +1,4 @@
-import { client, type Db, playbookOverride, runbook, runbookItem } from '@cs/db';
+import { client, type Db, playbookOverride, runbook, runbookItem, type Tx as DbTx } from '@cs/db';
 import type { PackLoader, VerticalPack } from '@cs/verticals';
 import { and, eq, sql } from 'drizzle-orm';
 import { isDeepStrictEqual } from 'node:util';
@@ -8,7 +8,7 @@ import { copyItems, type EffectiveRunbook, effectiveFrom, packUsesGenericPlays }
 
 const SYSTEM = 'system';
 type Row = typeof runbookItem.$inferSelect;
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+type Tx = DbTx;
 
 const toItem = (r: Row): RunbookItem => ({
   key: r.itemKey, kind: r.kind, content: r.content, enabled: r.enabled, businessAreaIds: r.businessAreaIds,
@@ -37,8 +37,8 @@ function validItems(items: RunbookItem[], runbookId: string): RunbookItem[] {
 
 /** Inserts the runbook and its items in one transaction; a concurrent loser blocks on the unique index until the winner commits. */
 async function insertRunbook(
-  service: Db,
-  owner: { level: 'platform' | 'agency' | 'client'; agencyId?: string; clientId?: string; tailorStatus?: 'pending' },
+  service: Db | Tx,
+  owner: { level: 'platform' | 'agency' | 'client'; agencyId?: string; clientId?: string; tailorStatus?: 'pending' | 'skipped' },
   buildItems: (tx: Tx) => Promise<RunbookItem[]>,
   by: string,
 ): Promise<{ id: string; created: boolean }> {
@@ -67,7 +67,7 @@ const base = (i: Pick<RunbookItem, 'key' | 'kind' | 'content' | 'enabled' | 'bus
   ...i, version: 1, upstreamVersion: null, upstreamSnapshot: null, dismissedUpstreamVersion: null, customised: false, removedUpstream: false,
 });
 
-export async function ensurePlatformRunbook(service: Db, generic: VerticalPack): Promise<string> {
+export async function ensurePlatformRunbook(service: Db | Tx, generic: VerticalPack): Promise<string> {
   return insertRunbook(service, { level: 'platform' }, async () => {
     const { alert, brief } = generic.scoring.routing;
     return [
@@ -77,7 +77,7 @@ export async function ensurePlatformRunbook(service: Db, generic: VerticalPack):
   }, SYSTEM).then((r) => r.id);
 }
 
-export async function ensureAgencyRunbook(service: Db, agencyId: string, generic: VerticalPack): Promise<string> {
+export async function ensureAgencyRunbook(service: Db | Tx, agencyId: string, generic: VerticalPack): Promise<string> {
   const platformId = await ensurePlatformRunbook(service, generic);
   return insertRunbook(service, { level: 'agency', agencyId }, async (tx) => {
     const rows = await tx.select().from(runbookItem).where(eq(runbookItem.runbookId, platformId));
@@ -86,7 +86,7 @@ export async function ensureAgencyRunbook(service: Db, agencyId: string, generic
 }
 
 /** Like `createClientRunbook`, but reports whether this call inserted the row (false: another path created it first, nothing was written). */
-export async function createClientRunbookIfAbsent(service: Db, clientId: string, items: RunbookItem[], by: string, tailorStatus?: 'pending'): Promise<{ id: string; created: boolean }> {
+export async function createClientRunbookIfAbsent(service: Db, clientId: string, items: RunbookItem[], by: string, tailorStatus?: 'pending' | 'skipped'): Promise<{ id: string; created: boolean }> {
   const [c] = await service.select({ agencyId: client.agencyId }).from(client).where(eq(client.id, clientId));
   if (!c) throw new Error(`Unknown client ${clientId}`);
   return insertRunbook(service, { level: 'client', agencyId: c.agencyId, clientId, tailorStatus }, async () => items, by);
