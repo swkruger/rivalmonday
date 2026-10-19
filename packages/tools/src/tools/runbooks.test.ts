@@ -215,6 +215,31 @@ describe('client runbook', () => {
     expect(await thresholds()).toBeNull();
   });
 
+  it('the thresholds column follows the item: re-enable restores it, an update while disabled leaves it null', async () => {
+    await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
+    const thresholds = async () => (await dbs.owner.select({ t: client.scoreThresholds }).from(client).where(eq(client.id, IDS.clientA1)))[0]!.t;
+    await call(admin, 'update_runbook_item', { owner: C1, key: 'knob:thresholds', content: { alert: 80, brief: 40 } });
+    await call(admin, 'set_runbook_item_enabled', { owner: C1, key: 'knob:thresholds', enabled: false });
+    expect(await thresholds()).toBeNull();
+    await call(admin, 'update_runbook_item', { owner: C1, key: 'knob:thresholds', content: { alert: 70, brief: 30 } });
+    expect(await thresholds()).toBeNull();
+    await call(admin, 'set_runbook_item_enabled', { owner: C1, key: 'knob:thresholds', enabled: true });
+    expect(await thresholds()).toEqual({ alert: 70, brief: 30 });
+  });
+
+  it('agency and platform threshold defaults follow the same rules as set_alert_rules', async () => {
+    for (const [ctx, o] of [[admin, A], [staff, P]] as const) {
+      expect((await fails(call(ctx, 'update_runbook_item', { owner: o, key: 'knob:thresholds', content: { alert: 1, brief: 0 } }))).code).toBe('invalid_input');
+      expect((await call(ctx, 'update_runbook_item', { owner: o, key: 'knob:thresholds', content: { alert: 90, brief: 50 } })).content).toEqual({ alert: 90, brief: 50 });
+    }
+  });
+
+  it("the '*' path stores pending with the runbook itself", async () => {
+    await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
+    const [rb] = await dbs.owner.select().from(runbook).where(eq(runbook.level, 'client'));
+    expect(rb!.tailorStatus).toBe('pending');
+  });
+
   it('retailor proposes without saving; an absent tailorer answers null; unknown key and client roles are not_found', async () => {
     const key = await firstPlayKey(A);
     tailorer.mockResolvedValue({ title: 'T', template: 'x {{competitor}}', businessAreaIds: null });

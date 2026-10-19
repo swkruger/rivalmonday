@@ -1,5 +1,5 @@
 import { type AccessContext, isAgencyRole, toolkit, ToolError } from '@cs/core';
-import { agencyServiceable, client, clientServiceable, playbookOverride, type ScoreThresholds, runbook, runbookItem, withTenant } from '@cs/db';
+import { agencyServiceable, client, clientServiceable, playbookOverride, runbookItem, runbook, withTenant } from '@cs/db';
 import {
   compareWithParent, copyItems, createClientRunbookIfAbsent, ensureAgencyRunbook, ensurePlatformRunbook, legacyClientItems, packUsesGenericPlays, PLAYBOOK_VARS,
   parseItemContent, readRunbookItems, type RunbookItem, type UpdateState, writeItem,
@@ -10,6 +10,7 @@ import { catalogOf, packsOf } from '../catalog/access';
 import { enqueueOf, type ToolDeps } from '../deps';
 import { type PlatformRole, requirePlatformOperator } from '../platform';
 import { withPlatformAudit } from '../platform/audit';
+import { applyClientThresholds, validateThresholds } from './alert-rules';
 import { workspaceClient, type WorkspaceClient } from '../workspace/scope';
 import { RunbookItemRow, RunbookItemView, RunbookOwner, RunbookTailoring } from './schemas';
 
@@ -116,17 +117,21 @@ async function mutate<T>(deps: ToolDeps, ctx: AccessContext, tool: string, input
   return fn(t);
 }
 
-const whole = (v: number, min: number, max: number) => Number.isInteger(v) && v >= min && v <= max;
+/** `knob:thresholds` content must pass the `set_alert_rules` rules at every level, so a default it would refuse can never be stored. Runs before any write. */
+function checkThresholds(item: RunbookItem): void {
+  if (item.key !== 'knob:thresholds') return;
+  const c = item.content as { alert?: number; brief?: number };
+  validateThresholds(c.alert, c.brief);
+}
 
-/** R3: the client's knob is `client.score_thresholds`, written with the `set_alert_rules` rules (null = back to the defaults). */
-async function writeClientThresholds(deps: ToolDeps, ctx: AccessContext, clientId: string, value: ScoreThresholds | null): Promise<void> {
-  if (value) {
-    if (!whole(value.alert, 2, 100)) throw refuse('The alert threshold must be a whole number from 2 to 100.');
-    if (!whole(value.brief, 1, 99)) throw refuse('The brief threshold must be a whole number from 1 to 99.');
-    if (value.brief >= value.alert) throw refuse('The brief threshold must be lower than the alert threshold.');
-  }
-  const updated = await withTenant(deps.app, ctx, (tx) => tx.update(client).set({ scoreThresholds: value }).where(eq(client.id, clientId)).returning({ id: client.id }));
-  if (updated.length === 0) throw NOT_FOUND();
+/**
+ * R3: after the item is written (item first, so a failed item write never moves the column), the client's
+ * `client.score_thresholds` is derived from the resulting item: its content when enabled, else null (the defaults).
+ */
+async function syncClientThresholds(deps: ToolDeps, ctx: AccessContext, t: Target, item: RunbookItem): Promise<void> {
+  if (!t.client || item.key !== 'knob:thresholds') return;
+  const c = item.content as { alert: number; brief: number };
+  await applyClientThresholds(deps, ctx, t.client.id, item.enabled ? validateThresholds(c.alert, c.brief) : null);
 }
 
 const kindOf = (k: string): RunbookItem['kind'] | null => {
@@ -210,8 +215,9 @@ export const updateRunbookItem = defineTool({
       if (!parsed.ok) throw refuse(parsed.error);
       const item = existing ?? blank(input.key, kind, parsed.value);
       const next: RunbookItem = { ...item, content: parsed.value, businessAreaIds: checkAreas(t, item, input.businessAreaIds) };
-      if (t.client && input.key === 'knob:thresholds') await writeClientThresholds(deps, ctx, t.client.id, parsed.value as ScoreThresholds);
+      checkThresholds(next);
       await writeItem(deps.service, runbookId, next, ctx.userId);
+      await syncClientThresholds(deps, ctx, t, next);
       return reread(deps, t, input.key);
     });
   },
@@ -229,9 +235,10 @@ export const setRunbookItemEnabled = defineTool({
       const runbookId = need(t);
       const item = t.items.find((i) => i.key === input.key);
       if (!item) throw NOT_FOUND();
-      // Off = back to the defaults for the client's thresholds.
-      if (t.client && input.key === 'knob:thresholds' && !input.enabled) await writeClientThresholds(deps, ctx, t.client.id, null);
-      await writeItem(deps.service, runbookId, { ...item, enabled: input.enabled }, ctx.userId);
+      const next = { ...item, enabled: input.enabled };
+      if (next.enabled) checkThresholds(next);
+      await writeItem(deps.service, runbookId, next, ctx.userId);
+      await syncClientThresholds(deps, ctx, t, next);
       return reread(deps, t, input.key);
     });
   },
@@ -259,8 +266,9 @@ export const pullRunbookUpdate = defineTool({
         next = { ...item, content: parsed.value };
       }
       next = { ...next, upstreamVersion: up.version, upstreamSnapshot: snapshotOf(up), dismissedUpstreamVersion: null, removedUpstream: false };
-      if (t.client && input.key === 'knob:thresholds') await writeClientThresholds(deps, ctx, t.client.id, input.content === undefined ? null : (next.content as ScoreThresholds));
+      checkThresholds(next);
       await writeItem(deps.service, runbookId, next, ctx.userId);
+      await syncClientThresholds(deps, ctx, t, next);
       return reread(deps, t, input.key);
     });
   },
@@ -288,11 +296,10 @@ export const dismissRunbookUpdate = defineTool({
 /** The client runbook is created pending, then tailored by the worker; the enqueue happens after the commit and never fails the call. */
 async function createClientRunbook(deps: ToolDeps, ctx: AccessContext, t: Target): Promise<void> {
   const c = t.client!;
-  const made = await createClientRunbookIfAbsent(deps.service, c.id, t.items, ctx.userId);
-  if (!made.created) return;
   const [live] = await deps.service.select({ id: client.id }).from(client).where(and(eq(client.id, c.id), clientServiceable(client), agencyServiceable(client.agencyId)));
-  if (!live) return; // paused / inactive: the runbook exists untailored, no job
-  await deps.service.update(runbook).set({ tailorStatus: 'pending' }).where(eq(runbook.id, made.id));
+  // One transaction: the runbook, its items and `pending` (paused / inactive clients: untailored, no status, no job).
+  const made = await createClientRunbookIfAbsent(deps.service, c.id, t.items, ctx.userId, live ? 'pending' : undefined);
+  if (!made.created || !live) return;
   try {
     await enqueueOf(deps)('runbook-tailor', { clientId: c.id }, `runbook-tailor:${c.id}`);
   } catch (err) {
@@ -337,9 +344,10 @@ export const removeRunbookItem = defineTool({
       const item = t.items.find((i) => i.key === input.key);
       if (!item) throw NOT_FOUND();
       const up = t.parent?.find((i) => i.key === input.key);
-      if (t.client && input.key === 'knob:thresholds') await writeClientThresholds(deps, ctx, t.client.id, null);
-      if (up) await writeItem(deps.service, runbookId, { ...item, enabled: false, dismissedUpstreamVersion: up.version }, ctx.userId);
+      if (up) await writeItem(deps.service, runbookId, { ...item, enabled: false, removedUpstream: false, dismissedUpstreamVersion: up.version }, ctx.userId);
       else await deps.service.delete(runbookItem).where(and(eq(runbookItem.runbookId, runbookId), eq(runbookItem.itemKey, input.key)));
+      // Item first; a removed thresholds knob means the client is back on the defaults.
+      if (t.client && input.key === 'knob:thresholds') await applyClientThresholds(deps, ctx, t.client.id, null);
       return { ok: true as const };
     });
   },

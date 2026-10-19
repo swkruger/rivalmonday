@@ -38,7 +38,7 @@ function validItems(items: RunbookItem[], runbookId: string): RunbookItem[] {
 /** Inserts the runbook and its items in one transaction; a concurrent loser blocks on the unique index until the winner commits. */
 async function insertRunbook(
   service: Db,
-  owner: { level: 'platform' | 'agency' | 'client'; agencyId?: string; clientId?: string },
+  owner: { level: 'platform' | 'agency' | 'client'; agencyId?: string; clientId?: string; tailorStatus?: 'pending' },
   buildItems: (tx: Tx) => Promise<RunbookItem[]>,
   by: string,
 ): Promise<{ id: string; created: boolean }> {
@@ -51,7 +51,7 @@ async function insertRunbook(
   const found = await existing();
   if (found[0]) return { id: found[0].id, created: false };
   const created = await service.transaction(async (tx) => {
-    const [row] = await tx.insert(runbook).values({ level: owner.level, agencyId: owner.agencyId ?? null, clientId: owner.clientId ?? null }).onConflictDoNothing().returning({ id: runbook.id });
+    const [row] = await tx.insert(runbook).values({ level: owner.level, agencyId: owner.agencyId ?? null, clientId: owner.clientId ?? null, tailorStatus: owner.tailorStatus ?? null }).onConflictDoNothing().returning({ id: runbook.id });
     if (!row) return null;
     const items = await buildItems(tx);
     if (items.length) await tx.insert(runbookItem).values(items.map((i) => toRow(row.id, i, by)));
@@ -86,10 +86,10 @@ export async function ensureAgencyRunbook(service: Db, agencyId: string, generic
 }
 
 /** Like `createClientRunbook`, but reports whether this call inserted the row (false: another path created it first, nothing was written). */
-export async function createClientRunbookIfAbsent(service: Db, clientId: string, items: RunbookItem[], by: string): Promise<{ id: string; created: boolean }> {
+export async function createClientRunbookIfAbsent(service: Db, clientId: string, items: RunbookItem[], by: string, tailorStatus?: 'pending'): Promise<{ id: string; created: boolean }> {
   const [c] = await service.select({ agencyId: client.agencyId }).from(client).where(eq(client.id, clientId));
   if (!c) throw new Error(`Unknown client ${clientId}`);
-  return insertRunbook(service, { level: 'client', agencyId: c.agencyId, clientId }, async () => items, by);
+  return insertRunbook(service, { level: 'client', agencyId: c.agencyId, clientId, tailorStatus }, async () => items, by);
 }
 
 export async function createClientRunbook(service: Db, clientId: string, items: RunbookItem[], by: string): Promise<string> {
