@@ -286,6 +286,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
     ],
   },
   { route: '/c/[clientId]/settings/alerts', as: 'admin', calls: [lsProfile, { tool: 'get_alert_rules', input: (ids) => ({ clientId: ls(ids) }), path: 'custom' }] },
+  { route: '/c/[clientId]/settings/runbook', as: 'admin', calls: [lsProfile, { tool: 'get_runbook', input: (ids) => ({ owner: { level: 'client', clientId: ls(ids) } }), path: 'items' }] },
   { route: '/c/[clientId]/settings/delivery', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'serviceArea' }] },
   { route: '/c/[clientId]/settings/profile', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' }, lsStarters, { tool: 'list_client_billing_status', input: none, path: 'clients' }] },
   { route: '/c/[clientId]/settings/billing (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'get_my_billing', input: (ids) => ({ clientId: ls(ids) }), path: 'agencyName' }, lsProfile] },
@@ -306,6 +307,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/inbox (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'fn:listInbox', input: none }] },
   { route: '/kb/[id]', as: 'admin', calls: [{ tool: 'get_kb_article', input: (ids) => ({ kbId: ids.kbArticleId }), path: 'bodyMd' }] },
   { route: '/platform', as: 'operator', calls: [{ tool: 'platform_overview', input: () => ({ range: '12w' }), path: 'series' }, { tool: 'list_platform_activity', input: () => ({ limit: 20 }), path: 'items' }] },
+  { route: '/platform/runbook', as: 'operator', calls: [{ tool: 'get_runbook', input: () => ({ owner: { level: 'platform' } }), path: 'items' }] },
   { route: '/platform/agencies', as: 'operator', calls: [{ tool: 'list_platform_agencies', input: () => ({ sort: 'name', dir: 'asc', limit: 100 }), path: 'rows' }] },
   {
     route: '/platform/agencies/[id]', as: 'operator', calls: [
