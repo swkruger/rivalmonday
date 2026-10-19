@@ -94,7 +94,7 @@ export function createVendorJobs(
       if (stale > 0) console.warn(`[rank-schedule] failed ${stale} stale running rank scan(s)`);
       const ids = await deps.listRankClients();
       for (const id of ids) await queue.enqueueRankScan(id);
-      for (const id of await deps.clientsWithoutRankMap(ids)) await queue.enqueueRankMap(id);
+      for (const id of await deps.clientsNeedingRankMap(ids)) await queue.enqueueRankMap(id);
     },
   });
   const rankScan = defineJob({

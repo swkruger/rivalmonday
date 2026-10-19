@@ -1,11 +1,35 @@
 import { projectToImage } from '@cs/core';
 import type { GeoGridView } from '@cs/tools';
 import { useId } from 'react';
+import { MapZoom } from './map-zoom';
 
 const INK = '#0B2540';
 const WHITE = '#FFFFFF';
 const LINE = '#E2E8F0';
 const HATCH_ID = 'geogrid-hatch';
+
+/**
+ * Phase 13b polish (owner, 2026-10-19): on a map, cells are 60% of the point spacing and see-through so the streets
+ * show. Ranked cells keep their colour at 80%; the no-signal cell ("20+", or "=" on Compare) is 35% white with a faint
+ * outline; the no-data hatch stays opaque. Plain (map-less) grids are unchanged.
+ */
+export const MAP_CELL = { fraction: 0.6, solidOpacity: 0.8, quietOpacity: 0.35, quietStroke: 'rgba(11,37,64,0.25)' } as const;
+
+export interface CellPaint { fill: string; fillOpacity?: number; stroke: string; strokeWidth: number }
+
+/** SVG paint for one cell; `quiet` marks the no-signal cell. */
+export function cellPaint(fill: string, stroke: string | null, quiet: boolean, onMap: boolean): CellPaint {
+  if (!onMap) return { fill, stroke: stroke ?? 'none', strokeWidth: stroke ? 1 : 0 };
+  if (quiet) return { fill: WHITE, fillOpacity: MAP_CELL.quietOpacity, stroke: MAP_CELL.quietStroke, strokeWidth: 1.5 };
+  if (fill.startsWith('url(')) return { fill, stroke: stroke ?? 'none', strokeWidth: stroke ? 1.5 : 0 };
+  return { fill, fillOpacity: MAP_CELL.solidOpacity, stroke: 'none', strokeWidth: 0 };
+}
+
+/** A soft halo behind a label on a map (dark behind white text, light behind dark text); none on a plain grid. */
+export function labelHalo(text: string, fontSize: number, onMap: boolean): { stroke?: string; strokeWidth?: number; paintOrder?: 'stroke'; strokeLinejoin?: 'round' } {
+  if (!onMap) return {};
+  return { stroke: text === WHITE ? 'rgba(11,37,64,0.35)' : 'rgba(255,255,255,0.7)', strokeWidth: fontSize * 0.15, paintOrder: 'stroke', strokeLinejoin: 'round' };
+}
 
 /** Decision 12: single-hue ordinal ramp (validated 2026-10-08), darker = better; 21 = not in the top 20; null = no data. */
 export function rankFill(rank: number | null, hatchId: string = HATCH_ID): { fill: string; text: string; label: string; stroke: string | null } {
@@ -21,11 +45,12 @@ const LEGEND: { label: string; rank: number | null }[] = [
   { label: '1–3', rank: 1 }, { label: '4–10', rank: 4 }, { label: '11–20', rank: 11 }, { label: 'Not in top 20', rank: 21 }, { label: 'No data', rank: null },
 ];
 
-function Swatch({ rank, legendId }: { rank: number | null; legendId: string }) {
+function Swatch({ rank, legendId, onMap }: { rank: number | null; legendId: string; onMap: boolean }) {
   const f = rankFill(rank, legendId);
+  const quiet = onMap && rank !== null && rank > 20;
   return (
     <svg aria-hidden width={16} height={12} viewBox="0 0 16 12">
-      <rect x={0.5} y={0.5} width={15} height={11} rx={2} fill={f.fill} stroke={f.stroke ?? 'none'} />
+      <rect x={0.5} y={0.5} width={15} height={11} rx={2} fill={quiet ? WHITE : f.fill} stroke={quiet ? '#94A3B8' : f.stroke ?? 'none'} />
     </svg>
   );
 }
@@ -49,7 +74,7 @@ export function gridLayout(rows: number, cols: number, map: GridMap | null = nul
       if (r + 1 < rows) gaps.push(Math.abs(pts[r + 1]![c]!.y - pts[r]![c]!.y));
     }
     const spacing = gaps.length ? Math.min(...gaps) : CELL;
-    return { map, W: map.width, H: map.height, centre: (r, c) => pts[r]![c]!, size: Math.max(18, 0.86 * spacing) };
+    return { map, W: map.width, H: map.height, centre: (r, c) => pts[r]![c]!, size: Math.max(18, MAP_CELL.fraction * spacing) };
   }
   return {
     map: null, W: cols * CELL + 2 * M, H: rows * CELL + 2 * M,
@@ -59,10 +84,10 @@ export function gridLayout(rows: number, cols: number, map: GridMap | null = nul
 
 /**
  * Cell label font size in viewBox units. A map frame (512–1024 px wide) is drawn at ≤ 520 px, so a fixed 13 would
- * shrink to ~6.5 px; on a map the label scales with the cell (≈ 0.3 × size → ~12–13 px rendered). Plain grid: 13.
+ * shrink to ~6.5 px; on a map the label scales with the cell (0.35 × a 60%-spacing cell → ~13–16 px rendered). Plain grid: 13.
  */
 export function gridLabelFont(size: number, onMap: boolean): { fontSize: number; dy: number } {
-  const fontSize = onMap ? Math.max(13, size * 0.3) : 13;
+  const fontSize = onMap ? Math.max(13, size * 0.35) : 13;
   return { fontSize, dy: fontSize * 0.38 };
 }
 
@@ -90,11 +115,11 @@ export function GeoGrid({ title, summary, cells, businessName, keyword, map = nu
   const cols = Math.max(0, ...cells.map((r) => r.length));
   if (rows === 0 || cols === 0) return <p className="text-sm text-muted-foreground">No rank data in this scan.</p>;
   const { map: bg, W, H, centre, size } = gridLayout(rows, cols, map, lats, lngs);
-  const { fontSize, dy } = gridLabelFont(size, bg !== null);
-  return (
-    <figure className="flex flex-col gap-2">
-      <div className="mx-auto w-full max-w-[520px]">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${summary}`} className="w-full">
+  const onMap = bg !== null;
+  const { fontSize, dy } = gridLabelFont(size, onMap);
+  const rx = onMap ? size * 0.1 : 4;
+  const chart = (
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${summary}`} className="block w-full">
           <defs>
             <pattern id={hatchId} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="6" height="6" fill={WHITE} />
@@ -110,12 +135,13 @@ export function GeoGrid({ title, summary, cells, businessName, keyword, map = nu
             Array.from({ length: cols }, (_, c) => {
               const rank = row[c] ?? null;
               const f = rankFill(rank, hatchId);
+              const p = cellPaint(f.fill, f.stroke, rank !== null && rank > 20, onMap);
               const { x, y } = centre(r, c);
               return (
                 <g key={`${r}-${c}`}>
                   <title>{`${businessName}: ${sayRank(rank)} for "${keyword}" (row ${r + 1} of ${rows}, column ${c + 1} of ${cols})`}</title>
-                  <rect x={x - size / 2} y={y - size / 2} width={size} height={size} rx={4} fill={f.fill} stroke={f.stroke ?? 'none'} strokeWidth={f.stroke ? 1 : 0} />
-                  <text data-rank x={x} y={y + dy} textAnchor="middle" fontSize={fontSize}fontWeight={700} fill={f.text} pointerEvents="none">
+                  <rect x={x - size / 2} y={y - size / 2} width={size} height={size} rx={rx} fill={p.fill} fillOpacity={p.fillOpacity} stroke={p.stroke} strokeWidth={p.strokeWidth} />
+                  <text data-rank x={x} y={y + dy} textAnchor="middle" fontSize={fontSize} fontWeight={700} fill={f.text} pointerEvents="none" {...labelHalo(f.text, fontSize, onMap)}>
                     {f.label}
                   </text>
                 </g>
@@ -123,7 +149,10 @@ export function GeoGrid({ title, summary, cells, businessName, keyword, map = nu
             }),
           )}
         </svg>
-      </div>
+  );
+  return (
+    <figure className="flex flex-col gap-2">
+      <div className="mx-auto w-full max-w-[520px]">{onMap ? <MapZoom>{chart}</MapZoom> : chart}</div>
       {bg && <figcaption className="text-center text-xs text-muted-foreground">{bg.attribution}</figcaption>}
       <svg data-legend-defs aria-hidden width={0} height={0} style={{ position: 'absolute' }}>
         <defs>
@@ -136,7 +165,7 @@ export function GeoGrid({ title, summary, cells, businessName, keyword, map = nu
       <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-ink">
         {LEGEND.map((l) => (
           <li key={l.label} className="flex items-center gap-1.5">
-            <Swatch rank={l.rank} legendId={legendId} />
+            <Swatch rank={l.rank} legendId={legendId} onMap={onMap} />
             <span>{l.label}</span>
           </li>
         ))}

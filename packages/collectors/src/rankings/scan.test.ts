@@ -6,7 +6,8 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { VendorError } from '../vendors/dataforseo';
-import { clientsWithoutRankMap, failStaleRankScans, listRankClients, RANK_SCAN_STALE_HOURS, scanRankings } from './scan';
+import { rankMapSettingsHash } from './settings';
+import { clientsNeedingRankMap, failStaleRankScans, listRankClients, RANK_SCAN_STALE_HOURS, scanRankings } from './scan';
 
 const USER = '00000000-0000-4000-8000-0000000000c1';
 const SCHEDULED = { trigger: 'scheduled' } as const;
@@ -278,11 +279,21 @@ describe('rank schedule helpers', () => {
     expect(rows.find((r) => r.clientId === IDS.clientA2)?.status).toBe('running');
   });
 
-  it('clientsWithoutRankMap returns only clients lacking an image row', async () => {
+  it('clientsNeedingRankMap returns clients lacking an image row or whose image is stale', async () => {
+    const img = { agencyId: IDS.agencyA, objectKey: 'k', bounds: { north: 1, south: 0, east: 1, west: 0 }, width: 10, height: 10 };
+    const current = rankMapSettingsHash({ center: { lat: 33.9, lng: -84.3 }, radiusKm: 8, gridSize: 5 });
+    await dbs.owner.insert(rankMapImage).values({ clientId: IDS.clientA1, settingsHash: current, ...img });
+    expect(await clientsNeedingRankMap(dbs.service, [IDS.clientA1, IDS.clientA2])).toEqual([IDS.clientA2]);
+    await dbs.owner.update(rankMapImage).set({ settingsHash: 'old-style-hash' }).where(eq(rankMapImage.clientId, IDS.clientA1));
+    expect(await clientsNeedingRankMap(dbs.service, [IDS.clientA1, IDS.clientA2])).toEqual([IDS.clientA1, IDS.clientA2]);
+    expect(await clientsNeedingRankMap(dbs.service, [])).toEqual([]);
+  });
+
+  it('clientsNeedingRankMap skips a stale row when the client has no service area', async () => {
     await dbs.owner.insert(rankMapImage).values({
-      clientId: IDS.clientA1, agencyId: IDS.agencyA, settingsHash: 'h', objectKey: 'k', bounds: { north: 1, south: 0, east: 1, west: 0 }, width: 10, height: 10,
+      clientId: IDS.clientA2, agencyId: IDS.agencyA, settingsHash: 'whatever', objectKey: 'k', bounds: { north: 1, south: 0, east: 1, west: 0 }, width: 10, height: 10,
     });
-    expect(await clientsWithoutRankMap(dbs.service, [IDS.clientA1, IDS.clientA2])).toEqual([IDS.clientA2]);
-    expect(await clientsWithoutRankMap(dbs.service, [])).toEqual([]);
+    await dbs.owner.update(client).set({ serviceArea: null }).where(eq(client.id, IDS.clientA2));
+    expect(await clientsNeedingRankMap(dbs.service, [IDS.clientA2])).toEqual([]);
   });
 });

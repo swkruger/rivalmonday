@@ -65,9 +65,40 @@ describe('GeoGrid fixes and map (Task 12)', () => {
     const font = Number(label.getAttribute('font-size'));
     expect(size).toBeGreaterThan(100);
     expect(font).toBeGreaterThan(13);
-    expect(font).toBeCloseTo(size * 0.3, 1);
+    expect(font).toBeCloseTo(size * 0.35, 1);
     // Rendered at the chart's 520 px max width the label stays at least ~12 px.
     expect(font * (520 / 1024)).toBeGreaterThanOrEqual(12);
+  });
+
+  it('on a map cells are 60% of the smallest point spacing', () => {
+    render(<GeoGrid title="T" summary="S" cells={cells} businessName="You" keyword="k" map={map} lats={lats} lngs={lngs} />);
+    const p = (la: number, ln: number) => projectToImage({ lat: la, lng: ln }, map.bounds, 400, 400);
+    const spacing = Math.min(Math.abs(p(lats[0]!, lngs[1]!).x - p(lats[0]!, lngs[0]!).x), Math.abs(p(lats[1]!, lngs[0]!).y - p(lats[0]!, lngs[0]!).y));
+    expect(Number(screen.getByRole('img').querySelector('g rect')!.getAttribute('width'))).toBeCloseTo(0.6 * spacing, 1);
+  });
+
+  it('on a map ranked cells are 80% opaque, 20+ is 35% white with a faint outline, and labels get a halo', () => {
+    render(<GeoGrid title="T" summary="S" cells={cells} businessName="You" keyword="k" map={map} lats={lats} lngs={lngs} />);
+    const rects = [...screen.getByRole('img').querySelectorAll('g rect')];
+    expect(rects[0]!.getAttribute('fill')).toBe('#0d366b');
+    expect(rects[0]!.getAttribute('fill-opacity')).toBe('0.8');
+    expect(rects[1]!.getAttribute('fill-opacity')).toBe('0.8');
+    expect(rects[2]!.getAttribute('fill')).toBe('#FFFFFF');
+    expect(rects[2]!.getAttribute('fill-opacity')).toBe('0.35');
+    expect(rects[2]!.getAttribute('stroke')).toBe('rgba(11,37,64,0.25)');
+    expect(rects[3]!.getAttribute('fill')).toMatch(/^url\(#/);
+    const labels = [...screen.getByRole('img').querySelectorAll('text[data-rank]')];
+    expect(labels[0]!.getAttribute('paint-order')).toBe('stroke');
+    expect(labels[0]!.getAttribute('stroke')).toBe('rgba(11,37,64,0.35)');
+    expect(labels[2]!.getAttribute('stroke')).toBe('rgba(255,255,255,0.7)');
+  });
+
+  it('on a map the grid sits inside the zoom controls and the legend shows 20+ as see-through white', () => {
+    const { container } = render(<GeoGrid title="T" summary="S" cells={cells} businessName="You" keyword="k" map={map} lats={lats} lngs={lngs} />);
+    expect(screen.getByRole('button', { name: 'Zoom in' })).toBeTruthy();
+    const swatch = screen.getByText('Not in top 20').closest('li')!.querySelector('rect')!;
+    expect(swatch!.getAttribute('fill')).toBe('#FFFFFF');
+    expect(container.querySelector('[data-map-zoom] svg[role="img"]')).toBeTruthy();
   });
 
   it('without a map the plain grid renders', () => {
@@ -76,6 +107,11 @@ describe('GeoGrid fixes and map (Task 12)', () => {
     expect(container.querySelector('figcaption')).toBeNull();
     expect(container.querySelectorAll('text[data-compass]').length).toBe(4);
     expect(container.querySelector('text[data-rank]')!.getAttribute('font-size')).toBe('13');
+    const rect = container.querySelector('g rect')!;
+    expect(rect!.getAttribute('width')).toBe('42');
+    expect(rect.hasAttribute('fill-opacity')).toBe(false);
+    expect(container.querySelector('text[data-rank]')!.hasAttribute('paint-order')).toBe(false);
+    expect(screen.queryByRole('button', { name: 'Zoom in' })).toBeNull();
   });
 });
 

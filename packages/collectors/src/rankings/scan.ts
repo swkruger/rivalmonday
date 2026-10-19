@@ -7,7 +7,7 @@ import { mapsSearch } from '../local/maps';
 import { DFS_COLLECTOR_VERSION } from '../gbp/collect-gbp';
 import { type DataForSeoClient, VendorError } from '../vendors/dataforseo';
 import { checkRankScanBudget, estimateRankScanUsd } from './budget';
-import { RANK_MAX_KEYWORDS, rankKeywordsFor, rankRadiusKm } from './settings';
+import { RANK_MAX_KEYWORDS, rankKeywordsFor, rankMapSettingsHash, rankRadiusKm } from './settings';
 
 export interface RankScanSkipped { scanId: string; agencyId: string; clientId: string; clientName: string; spentUsd: number; capUsd: number; estimatedUsd: number }
 
@@ -161,10 +161,22 @@ export async function failStaleRankScans(db: Db, now: Date = new Date()): Promis
   return rows.length;
 }
 
-/** Of `clientIds`, those with no `rank_map_image` row yet (the weekly schedule enqueues one map refresh for each). */
-export async function clientsWithoutRankMap(db: Db, clientIds: string[]): Promise<string[]> {
+/**
+ * Of `clientIds`, those whose map needs a refresh: no `rank_map_image` row yet, or a row whose settings hash no longer
+ * matches the client's grid settings and map style (the weekly schedule enqueues one map refresh for each). A row for
+ * a client without a service area is left alone (the refresh would skip it).
+ */
+export async function clientsNeedingRankMap(db: Db, clientIds: string[]): Promise<string[]> {
   if (clientIds.length === 0) return [];
-  const have = await db.select({ id: rankMapImage.clientId }).from(rankMapImage).where(inArray(rankMapImage.clientId, clientIds));
-  const set = new Set(have.map((r) => r.id));
-  return clientIds.filter((id) => !set.has(id));
+  const rows = await db
+    .select({ id: client.id, serviceArea: client.serviceArea, gridSize: client.rankGridSize, hash: rankMapImage.settingsHash })
+    .from(client)
+    .leftJoin(rankMapImage, eq(rankMapImage.clientId, client.id))
+    .where(inArray(client.id, clientIds));
+  const need = new Set(rows.filter((r) => {
+    if (r.hash === null) return true;
+    if (!r.serviceArea) return false;
+    return r.hash !== rankMapSettingsHash({ center: r.serviceArea.center, radiusKm: rankRadiusKm(r.serviceArea.radiusKm), gridSize: r.gridSize });
+  }).map((r) => r.id));
+  return clientIds.filter((id) => need.has(id));
 }

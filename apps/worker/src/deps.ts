@@ -2,7 +2,7 @@ import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } fr
 import {
   capturePage, claimDuePages, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
   createDataForSeo, type DataForSeoClient, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
-  clientsWithoutRankMap as rankClientsWithoutMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
+  clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   runProspectSnapshot, scanRankings, type SourceKind,
 } from '@cs/collectors';
 import type { CaptureStatus } from '@cs/core';
@@ -115,8 +115,8 @@ export interface WorkerDeps {
   listRankClients(): Promise<string[]>;
   /** Fails `running` rank scans older than RANK_SCAN_STALE_HOURS; returns how many. */
   failStaleRankScans(): Promise<number>;
-  /** Of these clients, the ones with no `rank_map_image` row yet. */
-  clientsWithoutRankMap(clientIds: string[]): Promise<string[]>;
+  /** Of these clients, the ones with no `rank_map_image` row yet or a stale one (settings or map style changed). */
+  clientsNeedingRankMap(clientIds: string[]): Promise<string[]>;
   /** Phase 13b: refreshes the client's rank-grid static map image; 'skipped' without STADIA_API_KEY. */
   refreshRankMap(clientId: string): Promise<'unchanged' | 'stored' | 'skipped'>;
   /** 5b-2 decision 10: the one-off prospect snapshot (vendor pulls + 3×3 rank scan + deterministic report). Never throws. */
@@ -422,7 +422,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       ),
     listRankClients: () => rankClients(getDb()),
     failStaleRankScans: () => failStaleScans(getDb()),
-    clientsWithoutRankMap: (ids) => rankClientsWithoutMap(getDb(), ids),
+    clientsNeedingRankMap: (ids) => rankClientsNeedingMap(getDb(), ids),
     refreshRankMap: (clientId) =>
       refreshMap({ db: getDb(), store: getStore(), maps: env.STADIA_API_KEY ? createStadiaStaticClient({ apiKey: env.STADIA_API_KEY, ledger: createLedgerSink(getDb()) }) : null }, clientId),
     async runProspectSnapshot(clientId, reportId) {

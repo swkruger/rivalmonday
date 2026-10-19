@@ -1,6 +1,6 @@
 import type { VendorCallRecord } from '@cs/core';
 import { describe, expect, it, vi } from 'vitest';
-import { createStadiaStaticClient, STADIA_CACHEABLE_STATIC_USD } from './static-map';
+import { createStadiaStaticClient, RANK_MAP_STYLE, STADIA_CACHEABLE_STATIC_USD } from './static-map';
 
 const PNG = new Uint8Array([137, 80, 78, 71, 1, 2, 3]);
 const scope = { agencyId: 'a1', clientId: 'c1' };
@@ -22,7 +22,7 @@ describe('createStadiaStaticClient', () => {
       const bytes = await createStadiaStaticClient({ apiKey: 'SECRETKEY', fetch: asFetch(fetch), ledger }).fetchStatic(q, scope);
       expect(Array.from(bytes)).toEqual(Array.from(PNG));
       const url = new URL(String(fetch.mock.calls[0]![0]));
-      expect(url.origin + url.pathname).toBe('https://tiles.stadiamaps.com/static_cacheable/alidade_smooth.png');
+      expect(url.origin + url.pathname).toBe('https://tiles.stadiamaps.com/static_cacheable/osm_bright.png');
       expect(url.searchParams.get('center')).toBe('33.9,-84.3');
       expect(url.searchParams.get('zoom')).toBe('11');
       expect(url.searchParams.get('size')).toBe('640x480@2x');
@@ -30,6 +30,10 @@ describe('createStadiaStaticClient', () => {
       expect(url.searchParams.get('api_key')).toBe('SECRETKEY');
       expect(JSON.stringify([...log.mock.calls, ...err.mock.calls])).not.toContain('SECRETKEY');
     } finally { log.mockRestore(); err.mockRestore(); }
+  });
+
+  it('default style is the Google-like osm_bright (RANK_MAP_STYLE)', () => {
+    expect(RANK_MAP_STYLE).toBe('osm_bright');
   });
 
   it('non-png response throws without the key in the message', async () => {

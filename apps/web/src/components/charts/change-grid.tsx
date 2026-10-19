@@ -1,6 +1,7 @@
 import type { GeoGridView } from '@cs/tools';
 import { useId } from 'react';
-import { Compass, gridLabelFont, gridLayout } from './geo-grid';
+import { cellPaint, Compass, gridLabelFont, gridLayout, labelHalo } from './geo-grid';
+import { MapZoom } from './map-zoom';
 
 const INK = '#0B2540';
 const WHITE = '#FFFFFF';
@@ -64,17 +65,17 @@ export function ChangeGrid({ before, after, lats, lngs, map = null, title = 'Cha
   const cols = Math.max(0, ...before.map((r) => r.length), ...after.map((r) => r.length));
   if (rows === 0 || cols === 0) return <p className="text-sm text-muted-foreground">No rank data in these scans.</p>;
   const { map: bg, W, H, centre, size } = gridLayout(rows, cols, map, lats, lngs);
-  const { fontSize, dy } = gridLabelFont(size, bg !== null);
+  const onMap = bg !== null;
+  const { fontSize, dy } = gridLabelFont(size, onMap);
+  const rx = onMap ? size * 0.1 : 4;
   const deltas = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => rankChange(before[r]?.[c], after[r]?.[c])));
   const flat = deltas.flat();
   const up = flat.filter((d) => d !== null && d > 0).length;
   const same = flat.filter((d) => d === 0).length;
   const down = flat.filter((d) => d !== null && d < 0).length;
   const summary = `${up} points moved up, ${same} stayed the same, ${down} moved down`;
-  return (
-    <figure className="flex flex-col gap-2">
-      <div className="mx-auto w-full max-w-[520px]">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${summary}.`} className="w-full">
+  const chart = (
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${summary}.`} className="block w-full">
           <defs>
             <pattern id={hatchId} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="6" height="6" fill={WHITE} />
@@ -86,16 +87,20 @@ export function ChangeGrid({ before, after, lats, lngs, map = null, title = 'Cha
             const f = changeFill(d, hatchId);
             const { x, y } = centre(r, c);
             const outlined = d === null || d === 0;
+            const p = cellPaint(f.fill, outlined ? LINE : null, d === 0, onMap);
             return (
               <g key={`${r}-${c}`}>
                 <title>{`${sayChange(before[r]?.[c] ?? null, after[r]?.[c] ?? null, d)} (row ${r + 1} of ${rows}, column ${c + 1} of ${cols})`}</title>
-                <rect x={x - size / 2} y={y - size / 2} width={size} height={size} rx={4} fill={f.fill} stroke={outlined ? LINE : 'none'} strokeWidth={outlined ? 1 : 0} />
-                <text data-change x={x} y={y + dy} textAnchor="middle" fontSize={fontSize}fontWeight={700} fill={f.text} pointerEvents="none">{f.label}</text>
+                <rect x={x - size / 2} y={y - size / 2} width={size} height={size} rx={rx} fill={p.fill} fillOpacity={p.fillOpacity} stroke={p.stroke} strokeWidth={p.strokeWidth} />
+                <text data-change x={x} y={y + dy} textAnchor="middle" fontSize={fontSize} fontWeight={700} fill={f.text} pointerEvents="none" {...labelHalo(f.text, fontSize, onMap)}>{f.label}</text>
               </g>
             );
           }))}
         </svg>
-      </div>
+  );
+  return (
+    <figure className="flex flex-col gap-2">
+      <div className="mx-auto w-full max-w-[520px]">{onMap ? <MapZoom>{chart}</MapZoom> : chart}</div>
       {bg && <figcaption className="text-center text-xs text-muted-foreground">{bg.attribution}</figcaption>}
       <svg data-legend-defs aria-hidden width={0} height={0} style={{ position: 'absolute' }}>
         <defs>

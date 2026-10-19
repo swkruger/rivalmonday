@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { rankKeywordsFor, rankMapSettingsHash, rankRadiusKm } from './settings';
+import { RANK_MAP_STYLE } from './static-map';
 
 describe('rank settings', () => {
   it('rankKeywordsFor falls back to the first 5 keywords', () => {
@@ -22,5 +23,10 @@ describe('rank settings', () => {
     expect(a).toBe(b);
     expect(a).toMatch(/^[0-9a-f]{64}$/);
     expect(rankMapSettingsHash({ center: { lat: 1, lng: 2 }, radiusKm: 9, gridSize: 5 })).not.toBe(a);
+  });
+  it('settings hash covers the map style (default RANK_MAP_STYLE)', () => {
+    const s = { center: { lat: 1, lng: 2 }, radiusKm: 8, gridSize: 5 };
+    expect(rankMapSettingsHash(s)).toBe(rankMapSettingsHash({ ...s, style: RANK_MAP_STYLE }));
+    expect(rankMapSettingsHash({ ...s, style: 'alidade_smooth' })).not.toBe(rankMapSettingsHash(s));
   });
 });

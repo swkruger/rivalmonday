@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { LatLng } from '@cs/core';
 import type { ClientRow } from '@cs/db';
+import { RANK_MAP_STYLE } from './static-map';
 
 export const RANK_MAX_KEYWORDS = 5;
 export const RANK_RADIUS_KM = { min: 2, max: 40 } as const;
@@ -17,8 +18,8 @@ export function rankRadiusKm(radiusKm: number): number {
   return Math.min(RANK_RADIUS_KM.max, Math.max(RANK_RADIUS_KM.min, radiusKm));
 }
 
-/** sha256 hex of canonical JSON (fixed key order) so equal settings hash equally. */
-export function rankMapSettingsHash(s: { center: LatLng; radiusKm: number; gridSize: number }): string {
-  const canonical = JSON.stringify({ center: { lat: s.center.lat, lng: s.center.lng }, gridSize: s.gridSize, radiusKm: s.radiusKm });
+/** sha256 hex of canonical JSON (fixed key order) so equal settings hash equally; a style change makes every map stale. */
+export function rankMapSettingsHash(s: { center: LatLng; radiusKm: number; gridSize: number; style?: string }): string {
+  const canonical = JSON.stringify({ center: { lat: s.center.lat, lng: s.center.lng }, gridSize: s.gridSize, radiusKm: s.radiusKm, style: s.style ?? RANK_MAP_STYLE });
   return createHash('sha256').update(canonical).digest('hex');
 }

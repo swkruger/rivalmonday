@@ -170,6 +170,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}charts/geo-grid\\.tsx$`), tags: ['@rankings'], why: 'geo-grid chart' },
   { pattern: re(`${COMP}charts/rank-trend\\.tsx$`), tags: ['@rankings'], why: 'rank trend chart (rankings Trend tab)' },
   { pattern: re(`${COMP}charts/change-grid\\.tsx$`), tags: ['@rankings'], why: 'rank change grid (rankings Compare tab)' },
+  { pattern: re(`${COMP}charts/map-zoom\\.tsx$`), tags: ['@rankings'], why: 'zoom/pan for map-backed rank grids' },
   { pattern: re(`${COMP}charts/theme-heatmap\\.tsx$`), tags: ['@reviews'], why: 'theme heatmap' },
   { pattern: re(`${COMP}charts/line-chart\\.tsx$`), tags: ['@overview', '@pricing', '@ads', '@reviews', '@rankings'], why: 'line chart' },
   { pattern: re(`${COMP}views/brief-view\\.tsx$`), tags: ['@briefs', '@guest', '@auth', '@starting-point'], why: 'brief view (guest link lands here; starting point and quiet-week scorecard)' },

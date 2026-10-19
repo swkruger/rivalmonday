@@ -131,7 +131,7 @@ describe('vendor jobs', () => {
       vendorsConfigured: () => true,
       failStaleRankScans: vi.fn(async () => { order.push('stale'); return 1; }),
       listRankClients: vi.fn(async () => ['c1', 'c2']),
-      clientsWithoutRankMap: vi.fn(async () => []),
+      clientsNeedingRankMap: vi.fn(async () => []),
     } as unknown as WorkerDeps;
     const enqueueRankScan = vi.fn(async (id: string) => { order.push(`scan:${id}`); });
     const jobs = createVendorJobs(deps, { enqueueCollect: async () => {}, enqueueRankScan, enqueueRankMap: async () => {} });
@@ -139,17 +139,17 @@ describe('vendor jobs', () => {
     expect(order).toEqual(['stale', 'scan:c1', 'scan:c2']);
   });
 
-  it('schedule enqueues a map refresh only for clients without an image', async () => {
+  it('schedule enqueues a map refresh only for clients whose map is missing or stale', async () => {
     const deps = {
       vendorsConfigured: () => true,
       failStaleRankScans: async () => 0,
       listRankClients: async () => ['c1', 'c2'],
-      clientsWithoutRankMap: vi.fn(async (ids: string[]) => ids.filter((i) => i === 'c2')),
+      clientsNeedingRankMap: vi.fn(async (ids: string[]) => ids.filter((i) => i === 'c2')),
     } as unknown as WorkerDeps;
     const enqueueRankMap = vi.fn(async (_id: string) => {});
     const jobs = createVendorJobs(deps, { enqueueCollect: async () => {}, enqueueRankScan: async () => {}, enqueueRankMap });
     await jobs.rankSchedule.handler({});
-    expect(deps.clientsWithoutRankMap).toHaveBeenCalledWith(['c1', 'c2']);
+    expect(deps.clientsNeedingRankMap).toHaveBeenCalledWith(['c1', 'c2']);
     expect(enqueueRankMap.mock.calls).toEqual([['c2']]);
   });
 

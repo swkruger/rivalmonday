@@ -42,6 +42,17 @@ describe('ChangeGrid', () => {
     expect(screen.getByText('© OpenStreetMap contributors')).toBeTruthy();
   });
 
+  it('on a map coloured cells are 80% opaque, "=" is 35% white with an outline, and the grid is zoomable', () => {
+    const map = { url: '/files/rank-map/c1?v=1', bounds: { west: -97.85, south: 30.15, east: -97.65, north: 30.35 }, width: 400, height: 400, attribution: '© OpenStreetMap contributors' };
+    render(<ChangeGrid before={[[7, 2], [5, null]]} after={[[3, 9], [5, 4]]} lats={[30.3, 30.2]} lngs={[-97.8, -97.7]} map={map} />);
+    const rects = [...screen.getByRole('img').querySelectorAll('g rect')];
+    expect(rects[0]!.getAttribute('fill-opacity')).toBe('0.8');
+    expect(rects[2]!.getAttribute('fill')).toBe('#FFFFFF');
+    expect(rects[2]!.getAttribute('fill-opacity')).toBe('0.35');
+    expect(screen.getByRole('img').querySelector('text[data-change]')!.getAttribute('paint-order')).toBe('stroke');
+    expect(screen.getByRole('button', { name: 'Zoom in' })).toBeTruthy();
+  });
+
   it('on a 1024-wide map frame the change labels scale with the cell size', () => {
     const map = { url: '/files/rank-map/c1?v=1', bounds: { west: -97.85, south: 30.15, east: -97.65, north: 30.35 }, width: 1024, height: 1024, attribution: '© OpenStreetMap contributors' };
     render(<ChangeGrid before={[[1, 2], [3, 4]]} after={[[1, 2], [3, 4]]} lats={[30.3, 30.2]} lngs={[-97.8, -97.7]} map={map} />);
@@ -49,7 +60,7 @@ describe('ChangeGrid', () => {
     const size = Number(svg.querySelector('g rect')!.getAttribute('width'));
     const font = Number(svg.querySelector('text[data-change]')!.getAttribute('font-size'));
     expect(font).toBeGreaterThan(13);
-    expect(font).toBeCloseTo(size * 0.3, 1);
+    expect(font).toBeCloseTo(size * 0.35, 1);
     expect(font * (520 / 1024)).toBeGreaterThanOrEqual(12);
   });
 });

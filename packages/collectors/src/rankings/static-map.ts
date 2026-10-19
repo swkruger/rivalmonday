@@ -1,6 +1,8 @@
 import type { CallScope, LatLng, LedgerSink } from '@cs/core';
 import { safeRecordVendorCall, VendorError } from '../vendors/errors';
 
+/** The Stadia style for rank maps: Google-like colours (roads, parks, water). Part of the map's settings hash. */
+export const RANK_MAP_STYLE = 'osm_bright';
 export const STADIA_ATTRIBUTION = '© Stadia Maps © OpenMapTiles © OpenStreetMap contributors';
 /** 2,000 credits × $0.03/1k (Starter overage rate) per cacheable static image. */
 export const STADIA_CACHEABLE_STATIC_USD = 0.06;
@@ -17,7 +19,7 @@ const stripQuery = (s: string): string => s.replace(/(https?:\/\/[^\s?#]+)[?#]\S
  * (never `/static/`). `size` is the logical size; `@2x` makes the PNG twice as large for retina.
  */
 export function createStadiaStaticClient(opts: { apiKey: string; style?: string; fetch?: typeof fetch; ledger: LedgerSink }): StaticMapClient {
-  const style = opts.style ?? 'alidade_smooth';
+  const style = opts.style ?? RANK_MAP_STYLE;
   return {
     async fetchStatic(q, scope) {
       const doFetch = opts.fetch ?? globalThis.fetch;
