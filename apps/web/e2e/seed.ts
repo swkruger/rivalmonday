@@ -2,8 +2,10 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { currentStandardPlan, ensureExemptPilot } from '@cs/billing';
 import { signLink } from '@cs/core';
-import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, intakeLink, lead, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankMapImage, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, themeProposal, trackedPage } from '@cs/db';
+import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, businessArea, catalogRows, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, intakeLink, lead, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankMapImage, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, themeProposal, trackedPage, vertical } from '@cs/db';
+import { copyItems, createClientRunbookIfAbsent, ensureAgencyRunbook, readRunbookItems } from '@cs/engine';
 import { createStoreFromEnv } from '@cs/storage';
+import { createCatalog } from '@cs/verticals';
 import { eq, sql } from 'drizzle-orm';
 import { acceptInvitations, createInvitation } from '@cs/tools';
 import { resolveEvidenceDir } from '../src/server/files';
@@ -201,6 +203,8 @@ export async function seed(): Promise<void> {
     await seedNavigation(db, { agencyId });
 
     await seedAsk(db, { agencyId, competitorId: comp!.id, eventId: workspace.eventId, evidenceId: workspace.evidenceId });
+
+    await seedRunbook(db, { agencyId });
 
     const token = signLink(E2E_LINK_SECRET, { sub: ownerContact!.id, agency: agencyId, client: clientId, t: 'brief', id: briefId });
     await mkdir(dirname(OWNER_LINK_FILE), { recursive: true });
@@ -715,4 +719,26 @@ async function seedIntake(db: ReturnType<typeof createDb>['db'], agencyId: strin
     { agencyId, source: 'agency_link', contactName: IN_LEAD.contact, email: IN_LEAD.email, lookup: place(1, IN_LEAD.business, 'Dentist'), preview, ...verified },
     { agencyId: null, source: 'platform', contactName: IN_POOL.contact, email: IN_POOL.email, lookup: place(2, IN_POOL.business, 'Plumber'), preview: { status: 'none' }, ...verified },
   ]);
+}
+
+/** Phase 14b: a Distillery-type client (a catalogue type without own plays, so it uses the agency runbook) with a tailored client runbook; the Ask client user owns it (the 404 check). */
+export const RB_CLIENT = 'Distillery Runbook Co';
+export const RB_TAILORED_KEY = 'play:promo_blitz_counter';
+export const RB_TAILORED_TEXT = 'Tailored for a distillery: answer {{competitor}} with a tasting-room bundle instead of discounting.';
+
+async function seedRunbook(db: ReturnType<typeof createDb>['db'], o: { agencyId: string }): Promise<void> {
+  const { agencyId } = o;
+  await db.insert(vertical).values({ id: 'e2e_distillery', name: 'Bespoke toy workshops', status: 'reviewed', version: 1, gbpCategories: ['E2E toy workshop'] });
+  await db.insert(businessArea).values({ verticalId: 'e2e_distillery', id: 'tasting_room', name: 'Toy tasting room', status: 'reviewed' });
+  const catalog = createCatalog(() => catalogRows(db), { ttlMs: 0 });
+  const agencyRunbookId = await ensureAgencyRunbook(db, agencyId, await catalog.generic());
+  const [c] = await db.insert(client).values({ agencyId, name: RB_CLIENT, verticalId: 'e2e_distillery', features: ['dashboard'], keywords: ['craft distillery'], serviceArea: { center: { lat: 30.2, lng: -98.0 }, radiusKm: 25, zips: ['78620'] }, placeId: 'e2e-distillery-place' }).returning();
+  const [rival] = await db.insert(competitor).values({ name: 'Rival Spirits Distillers', placeId: 'e2e-rival-spirits-place' }).returning();
+  await db.insert(clientCompetitor).values({ agencyId, clientId: c!.id, competitorId: rival!.id });
+  // What the tailoring job would leave behind: the agency runbook's items, one play reworded for the client.
+  const items = copyItems(await readRunbookItems(db, agencyRunbookId)).map((i) =>
+    i.key === RB_TAILORED_KEY ? { ...i, customised: true, content: { ...(i.content as object), template: RB_TAILORED_TEXT } } : i);
+  await createClientRunbookIfAbsent(db, c!.id, items, 'e2e-seed');
+  await createInvitation(db, { agencyId, email: ASK_USER_EMAIL, role: 'client_owner', clientId: c!.id, invitedBy: 'e2e-seed' });
+  await acceptInvitations(db, { id: ASK_USER_ID, email: ASK_USER_EMAIL, name: 'Asha Asker' });
 }
