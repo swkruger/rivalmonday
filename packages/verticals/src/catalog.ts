@@ -80,6 +80,8 @@ export type PackLoader = (verticalId: string) => Promise<VerticalPack>;
 
 export interface Catalog {
   packs: PackLoader;
+  /** The generic pack (never selectable through `packs`); used for pack-vs-generic comparisons. Throws if the row is missing. */
+  generic(): Promise<VerticalPack>;
   list(): Promise<VerticalSummary[]>;
   resolveId(id: string): Promise<string | null>;
   invalidate(): void;
@@ -88,6 +90,7 @@ export interface Catalog {
 interface Snapshot {
   rows: Map<string, VerticalRow>;
   packs: Map<string, VerticalPack>;
+  generic: VerticalPack;
   fetchedAt: number;
 }
 
@@ -109,6 +112,7 @@ export function createCatalog(
     const generic = rows.get(GENERIC_VERTICAL_ID);
     if (!generic) throw new Error('Vertical catalogue has no generic row');
     const packs = new Map<string, VerticalPack>();
+    const genericPack = assemblePack(generic, areas, generic);
     for (const row of verticals) {
       if (row.id === GENERIC_VERTICAL_ID || row.status === 'merged') continue;
       try {
@@ -120,7 +124,7 @@ export function createCatalog(
         }
       }
     }
-    return { rows, packs, fetchedAt: now() };
+    return { rows, packs, generic: genericPack, fetchedAt: now() };
   }
 
   async function load(): Promise<Snapshot> {
@@ -174,6 +178,9 @@ export function createCatalog(
       const pack = final ? s.packs.get(final) : undefined;
       if (!pack) throw new Error(`Unknown vertical: ${id}`);
       return pack;
+    },
+    async generic() {
+      return (await load()).generic;
     },
     async list() {
       const s = await load();

@@ -88,6 +88,15 @@ describe('createCatalog', () => {
     warn.mockRestore();
   });
 
+  it('generic() returns the assembled generic pack even though packs(generic) throws; throws when the row is missing', async () => {
+    const cat = createCatalog(fixture);
+    expect(await cat.generic()).toEqual(byName(await loadVerticalPack('generic')));
+    await expect(cat.packs('generic')).rejects.toThrow();
+    const f = await fixture();
+    const noGeneric = createCatalog(async () => ({ verticals: f.verticals.filter((v) => v.id !== 'generic'), areas: f.areas }));
+    await expect(noGeneric.generic()).rejects.toThrow(/generic/);
+  });
+
   it('follows merged chains, rejects generic and invalid rows', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const cat = createCatalog(fixture);
