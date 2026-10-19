@@ -18,7 +18,24 @@ None yet. Migrations: main ends `0076`; `phase-14b` holds `0077`–`0079`; 13a c
 - **15c** (not started): error/404 pages overlap 13a + 7a error reporting.
 
 ## Decisions (owner-approved)
-1. Phase 7 revived as launch readiness: 7a production & security, 7b money, 7c scale & pilot (owner 2026-10-19; order to confirm, Q1).
+Owner 2026-10-19 (brief Q1–Q17):
+1. Order 7a → 7b → 7c; 7b may start once the 7a spec is approved.
+2. 7a ‖ 13a with split files (7a: CI, Docker, tracing, logging, DB roles; 13a: proxy, auth host, email sender). White-label sign-in/tab titles leave 7a. 7a deploy before 13a's live-domain step.
+3. Hosting: Vercel iad1 + Railway worker + separate Neon prod; prod + local only; deploy job migrates then deploys.
+4. Canonical domain rivalmonday.app (crawler UA, /bot, sender, CLAUDE.md).
+5. Observability: Sentry (web + worker) + pino JSON logs + operator /platform/health.
+6. DB roles cs_worker + cs_web, explicit grants incl. pgboss; no owner URL in prod.
+7. archived_at on agency/client + operator purge CLI after N days; evidence kept while referenced.
+8. Unactioned verified leads: PII deleted after 180 days.
+9. Postmark hard bounce/complaint → contact deactivated + agency notified; soft bounces ignored.
+10. Client at 100% of cap: **warn only** (no pausing) — owner override of the recommendation.
+11. Shared collection cost split evenly across active clients tracking the competitor.
+12. Queued notifications older than 7 days on reactivation are skipped.
+13. Ask/MCP per-plan flag, all on during the pilot.
+14. Worker: more concurrency in one worker; one-replica rule stays; Postgres rate limits designed for later.
+15. Eval sets at spec §12 sizes, LLM pre-labelled, owner confirms.
+16. Pilot: runbook/checklist on existing screens; rename the dev agency/client to a demo name.
+17. Owner sets up prod accounts (Vercel, Railway, Neon prod, R2, Postmark + DNS, Sentry, live Stripe/Turnstile, /bot) before 7a's final deploy task; code built against fakes.
 
 ## New backlog (target → item)
 None yet.
