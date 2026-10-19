@@ -1,16 +1,16 @@
 # phase-7 — Launch readiness (7a production & security, 7b money, 7c scale & pilot)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-7   **Base:** main @ f1ec9683
-**Plan/spec:** [7a spec](../superpowers/specs/2026-10-19-phase-7a-launch-production-security-design.md) (supersedes the parked 2026-10-12 spec; parked [7a plan](../superpowers/plans/2026-10-12-phase-7a-deploy-observability.md) = starting material). Item lists: [phase-7-scope.md](phase-7-scope.md).
+**Plan/spec:** [7a spec](../superpowers/specs/2026-10-19-phase-7a-launch-production-security-design.md) (supersedes the parked 2026-10-12 spec); plans [7a1](../superpowers/plans/2026-10-19-phase-7a1-deploy-observability.md), [7a2](../superpowers/plans/2026-10-19-phase-7a2-security-data-lifecycle.md). Item lists: [phase-7-scope.md](phase-7-scope.md).
 
 ## Status (overwrite)
-7a spec written — owner review (2026-10-19).
+7a1 + 7a2 plans written — owner approval (2026-10-19).
 
 ## Next (overwrite)
-Owner reviews the 7a spec → `superpowers:writing-plans` for 7a1, then 7a2 (lean format). 7b brainstorming may start once the spec is approved (O1).
+Owner approves the 7a1 + 7a2 plans (incl. `/bot` copy, new env vars `SENTRY_*`/`NEXT_PUBLIC_SENTRY_DSN`/`LOG_LEVEL`/`POSTMARK_WEBHOOK_SECRET`, and creating `cs_worker`/`cs_web` on Neon dev before migration 0080) → `superpowers:subagent-driven-development` for 7a1, then 7a2. 7a1 Task 12 (live deploy) waits for O17 accounts. 7b brainstorming may start (O1).
 
 ## Interfaces this branch adds or changes
-None yet. Migrations: main ends `0076`; `phase-14b` holds `0077`–`0079`; 13a claims 4 at execution. **Phase 7 starts at `0080`** if it lands after 14b and before 13a; claim at pre-flight.
+None yet. Migrations: main ends `0076`; `phase-14b` holds `0077`–`0079`; 13a claims 4 at execution. **Phase 7 starts at `0080`** if it lands after 14b and before 13a; claim at pre-flight (7a1 `runtime_roles`, 7a2 `lifecycle`). **phase-15b** (planning) may also claim one after 14b.
 
 ## Assumes from other branches
 - **phase-14b** (not rebased on 15a): `packages/db/src/schema/ledger.ts` (`llm_call.vertical_id`, 0078) — 7b `cost_usd → numeric` must follow it; `platform-costs.ts` (`aiByVertical`); new worker jobs (`runbook-tailor`, catalogue) + `QueueJob`, `apps/worker/src/main.ts`, `deps.ts`; `ai.yaml` (`runbook_tailor`); `packages/verticals` packs become seed + fixtures (7a file tracing); new tools (isolation suite must cover); `E2E_PORT`.
@@ -72,21 +72,5 @@ Verbatim per sub-phase in [phase-7-scope.md](phase-7-scope.md).
 ### 5. In-flight workstreams
 `git branch --no-merged main`: **phase-14b** (only one besides phase-7/-planning) — 187 files, migrations 0077–0079, overlaps above. **13a** not started (plan on main). Overlap with 7a white-label items: tab titles done by 15a, sign-in branding = 13a Task 5 → drop both from 7a.
 
-### 6. Open questions for the owner (by design impact)
-1. **Split/order.** (a) 7a → 7b → 7c, 7b may run in parallel after the 7a spec; (b) 7b first (money bugs); (c) 7a+7b as one. **Rec (a).**
-2. **7a vs 13a.** (a) parallel: 7a owns CI/Docker/tracing/logs/roles, 13a owns proxy/auth/sender, white-label items leave 7a; (b) 7a waits for 13a; (c) 13a waits for 7a. **Rec (a)**; 7a deploys before 13a's live-domain step.
-3. **Hosting re-confirm** (parked D2/D6): (a) Vercel `iad1` + Railway worker + separate Neon prod project, prod + local only, deploy job migrates then deploys; (b) same + Vercel previews/staging; (c) Fly.io worker. **Rec (a).**
-4. **Domain:** (a) `rivalmonday.app` everywhere (UA, `/bot`, mail, CLAUDE.md); (b) keep `.com`. **Rec (a).**
-5. **Observability vendor:** (a) Sentry + pino JSON logs + operator health page; (b) OpenTelemetry → Grafana/Neon logs; (c) Better Stack/Axiom logs + Sentry. **Rec (a).**
-6. **DB roles:** (a) `cs_worker` + `cs_web` with explicit grants incl. `pgboss`; (b) worker role only; (c) owner URL for the pilot. **Rec (a).**
-7. **Soft-delete/evidence:** (a) `archived_at` on agency/client, purge via operator CLI after N days, evidence kept while referenced; (b) no deletes in pilot, FKs to `RESTRICT`; (c) full retention policy + pruning job now. **Rec (a).**
-8. **Lead PII retention** for undecided verified leads: (a) 180 d then delete; (b) 90 d like declined; (c) 365 d. **Rec (a).**
-9. **Stale outbox age cap** after reactivation: (a) drop items older than 7 d; (b) 30 d; (c) deliver all. **Rec (a).**
-10. **Postmark bounces:** (a) hard bounce + spam complaint deactivate the contact + agency notice, soft bounces ignored; (b) also after N soft bounces; (c) notice only. **Rec (a).**
-11. **At 100 % of cap:** (a) pause Ask, prospects, discovery, theme discovery, rank scans; briefs/alerts/core pulls continue; AM override; (b) pause all paid work but briefs; (c) warn only. **Rec (a).**
-12. **Shared collection cost:** (a) split evenly across active clients tracking it; (b) first tracker pays; (c) agency-level only. **Rec (a).**
-13. **Ask/MCP tier gating:** (a) flag per plan, all on for the pilot; (b) per-client toggle; (c) none. **Rec (a).**
-14. **Worker scale:** (a) local concurrency only, keep one replica; (b) Postgres politeness + breakers, lift one-replica rule; (c) split crawler vs API workers. **Rec (a)**, design (b) for later.
-15. **Eval labels:** (a) owner hand-labels small sets; (b) LLM pre-fills, human confirms, full §12 sizes; (c) wait for pilot labels. **Rec (b).**
-16. **Pilot onboarding / dev agency:** (a) runbook + checklist on existing screens, rename dev agency to a demo name; (b) in-app checklist, delete dev agency. **Rec (a).**
-17. **Owner-only prerequisites** (Vercel + token, Railway, Neon prod, R2, Postmark approval + DKIM/SPF/DMARC, `APP_URL`, `/bot`, Sentry, GitHub secrets, live Stripe/Turnstile, Jev price): (a) code against fakes, owner provisions before the final deploy task; (b) all before 7a starts. **Rec (a).**
+### 6. Open questions for the owner
+All answered 2026-10-19 → Decisions 1–18 above (question text: `git show 67082736:docs/work/phase-7.md`).
