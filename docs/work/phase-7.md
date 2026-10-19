@@ -36,8 +36,8 @@ Owner 2026-10-19 (brief Q1–Q17):
 15. Eval sets at spec §12 sizes, LLM pre-labelled, owner confirms.
 16. Pilot: runbook/checklist on existing screens; rename the dev agency/client to a demo name.
 17. Owner sets up prod accounts (Vercel, Railway, Neon prod, R2, Postmark + DNS, Sentry, live Stripe/Turnstile, /bot) before 7a's final deploy task; code built against fakes.
-19. 7a1 + 7a2 plans approved incl. /bot copy (parked §3.5) and new env vars (Sentry, POSTMARK_WEBHOOK_SECRET, LOG_LEVEL, deploy secrets).
 18. 7a split into 7a1 (deploy/observability/roles) and 7a2 (security/data lifecycle); purge 90 d after archive.
+19. 7a1 + 7a2 plans approved incl. /bot copy (parked §3.5) and new env vars (Sentry, POSTMARK_WEBHOOK_SECRET, LOG_LEVEL, deploy secrets).
 
 ## New backlog (target → item)
 None yet.
