@@ -126,12 +126,14 @@ function checkThresholds(item: RunbookItem): void {
 
 /**
  * R3: after the item is written (item first, so a failed item write never moves the column), the client's
- * `client.score_thresholds` is derived from the resulting item: its content when enabled, else null (the defaults).
+ * `client.score_thresholds` holds the item's content only while the item is enabled AND customised (re-read: writeItem computes
+ * `customised`); otherwise null, so agency/platform changes keep flowing through R3 like a non-customised play.
  */
-async function syncClientThresholds(deps: ToolDeps, ctx: AccessContext, t: Target, item: RunbookItem): Promise<void> {
-  if (!t.client || item.key !== 'knob:thresholds') return;
-  const c = item.content as { alert: number; brief: number };
-  await applyClientThresholds(deps, ctx, t.client.id, item.enabled ? validateThresholds(c.alert, c.brief) : null);
+async function syncClientThresholds(deps: ToolDeps, ctx: AccessContext, t: Target, key: string): Promise<void> {
+  if (!t.client || key !== 'knob:thresholds') return;
+  const item = (await readRunbookItems(deps.service, t.runbookId!)).find((i) => i.key === key);
+  const c = item?.content as { alert: number; brief: number } | undefined;
+  await applyClientThresholds(deps, ctx, t.client.id, item && c && item.enabled && item.customised ? validateThresholds(c.alert, c.brief) : null);
 }
 
 const kindOf = (k: string): RunbookItem['kind'] | null => {
@@ -213,11 +215,11 @@ export const updateRunbookItem = defineTool({
       if (!kind) throw NOT_FOUND();
       const parsed = parseItemContent(kind, input.key, input.content);
       if (!parsed.ok) throw refuse(parsed.error);
-      const item = existing ?? blank(input.key, kind, parsed.value);
+      const item = existing ?? { ...blank(input.key, kind, parsed.value), customised: true }; // no parent snapshot: client-owned
       const next: RunbookItem = { ...item, content: parsed.value, businessAreaIds: checkAreas(t, item, input.businessAreaIds) };
       checkThresholds(next);
       await writeItem(deps.service, runbookId, next, ctx.userId);
-      await syncClientThresholds(deps, ctx, t, next);
+      await syncClientThresholds(deps, ctx, t, input.key);
       return reread(deps, t, input.key);
     });
   },
@@ -238,7 +240,7 @@ export const setRunbookItemEnabled = defineTool({
       const next = { ...item, enabled: input.enabled };
       if (next.enabled) checkThresholds(next);
       await writeItem(deps.service, runbookId, next, ctx.userId);
-      await syncClientThresholds(deps, ctx, t, next);
+      await syncClientThresholds(deps, ctx, t, input.key);
       return reread(deps, t, input.key);
     });
   },
@@ -268,7 +270,7 @@ export const pullRunbookUpdate = defineTool({
       next = { ...next, upstreamVersion: up.version, upstreamSnapshot: snapshotOf(up), dismissedUpstreamVersion: null, removedUpstream: false };
       checkThresholds(next);
       await writeItem(deps.service, runbookId, next, ctx.userId);
-      await syncClientThresholds(deps, ctx, t, next);
+      await syncClientThresholds(deps, ctx, t, input.key);
       return reread(deps, t, input.key);
     });
   },

@@ -227,6 +227,23 @@ describe('client runbook', () => {
     expect(await thresholds()).toEqual({ alert: 70, brief: 30 });
   });
 
+  it('the column holds a value only for an enabled, customised knob: copy and pure pull keep it null, a reviewed pull sets it', async () => {
+    const thresholds = async () => (await dbs.owner.select({ t: client.scoreThresholds }).from(client).where(eq(client.id, IDS.clientA1)))[0]!.t;
+    await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
+    expect(await thresholds()).toBeNull();
+    await call(admin, 'update_runbook_item', { owner: C1, key: 'knob:thresholds', content: { alert: 80, brief: 40 } });
+    expect(await thresholds()).toEqual({ alert: 80, brief: 40 });
+    await call(admin, 'update_runbook_item', { owner: A, key: 'knob:thresholds', content: { alert: 90, brief: 50 } });
+    await call(admin, 'pull_runbook_update', { owner: C1, key: 'knob:thresholds' });
+    expect((await itemOf(admin, C1, 'knob:thresholds')).content).toEqual({ alert: 90, brief: 50 });
+    expect(await thresholds()).toBeNull();
+    await call(admin, 'update_runbook_item', { owner: A, key: 'knob:thresholds', content: { alert: 95, brief: 55 } });
+    await call(admin, 'pull_runbook_update', { owner: C1, key: 'knob:thresholds', content: { alert: 60, brief: 20 } });
+    expect(await thresholds()).toEqual({ alert: 60, brief: 20 });
+    await call(admin, 'set_runbook_item_enabled', { owner: C1, key: 'knob:thresholds', enabled: false });
+    expect(await thresholds()).toBeNull();
+  });
+
   it('agency and platform threshold defaults follow the same rules as set_alert_rules', async () => {
     for (const [ctx, o] of [[admin, A], [staff, P]] as const) {
       expect((await fails(call(ctx, 'update_runbook_item', { owner: o, key: 'knob:thresholds', content: { alert: 1, brief: 0 } }))).code).toBe('invalid_input');
