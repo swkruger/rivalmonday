@@ -1,7 +1,7 @@
 import { ToolError } from '@cs/core';
 import { agencyBilling, agencyOnboarding, client } from '@cs/db';
 import { IDS, openTestDbs } from '@cs/db/test-helpers';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { assertCanActivateClient, billingAccess } from './access';
 import { AGENCY, addClients, resetBilling, setBilling } from './test-util';
@@ -133,8 +133,9 @@ describe('reduced trial allowance (phase 10 f12)', () => {
   const REDUCED = 'Your trial includes 1 active client. Add a payment method to monitor up to 3.';
   const source = (s: 'open' | 'invite' | 'legacy') => dbs.owner.insert(agencyOnboarding).values({ agencyId: AGENCY, source: s });
   const toOneActive = async () => {
-    // agency A starts with 2 active clients; keep one so the cap decision is about the second.
-    const [c] = await dbs.owner.select({ id: client.id }).from(client).where(eq(client.agencyId, AGENCY)).limit(1);
+    // agency A starts with 2 active clients; keep one so the cap decision is about the second. Pick a still-active one:
+    // without the status filter a second call could re-pick the same row (no ORDER BY), leaving 1 active (CI flake).
+    const [c] = await dbs.owner.select({ id: client.id }).from(client).where(and(eq(client.agencyId, AGENCY), eq(client.status, 'active'))).limit(1);
     await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, c!.id));
   };
 
