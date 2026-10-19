@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { inviteClientUser } from '../access/client-invite';
 import { catalogOf, catalogPacks, packsOf } from '../catalog/access';
 import type { ToolDeps } from '../deps';
+import { enqueueOf } from '../deps';
 import { startCompetitorSearch } from '../rival-search';
 import { collapseSameListing, FIND_BUSINESS_DAILY_CAP, possibleDuplicates, preselectVertical, toSetupLookup } from '../setup/lookup';
 import { applyClientProfileChange } from '../setup/profile-change';
@@ -295,6 +296,15 @@ export const pickSetupCompetitors = defineTool({
   },
 });
 
+/** The step already committed: a missing queue or a failed enqueue only means the client keeps the untailored runbook. */
+async function enqueueRunbookTailor(deps: ToolDeps, clientId: string): Promise<void> {
+  try {
+    await enqueueOf(deps)('runbook-tailor', { clientId }, `runbook-tailor:${clientId}`);
+  } catch (err) {
+    console.warn(`[advance_client_setup] runbook-tailor enqueue for ${clientId} failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 const ACTIONS = ['start_search', 'confirm_competitors', 'skip_search', 'skip_competitors', 'skip_invite', 'skip_billing', 'dismiss'] as const;
 /** Staff-only actions (11b: invite and billing are staff steps). */
 const AGENCY_ONLY = new Set<(typeof ACTIONS)[number]>(['dismiss', 'skip_invite', 'skip_billing']);
@@ -329,6 +339,7 @@ export const advanceClientSetup = defineTool({
       return { state: await getSetupState(deps.service, clientId), searchRefusal: 'refused' in r ? searchRefusalMessage(r) : null };
     }
 
+    let competitorsJustDone = false;
     await deps.service.transaction(async (tx) => {
       await lockClient(tx, clientId);
       const [row] = await tx.select({ skipped: clientSetup.skipped, competitorsDoneAt: clientSetup.competitorsDoneAt, dismissedAt: clientSetup.dismissedAt })
@@ -338,6 +349,7 @@ export const advanceClientSetup = defineTool({
       // Under the row lock: first timestamps win, skipped stays a set.
       const skip = (step: SetupSkippedStep): SetupSkippedStep[] => (row.skipped.includes(step) ? row.skipped : [...row.skipped, step]);
       const competitorsDoneAt = row.competitorsDoneAt ?? now;
+      competitorsJustDone = row.competitorsDoneAt === null && (action === 'confirm_competitors' || action === 'skip_competitors');
       const patch =
         action === 'confirm_competitors' ? { competitorsDoneAt }
           : action === 'skip_competitors' ? { competitorsDoneAt, skipped: skip('competitors') }
@@ -348,6 +360,8 @@ export const advanceClientSetup = defineTool({
       await tx.update(clientSetup).set({ ...patch, ...changedBy(ctx, now) }).where(eq(clientSetup.clientId, clientId));
       await completeIfDone(tx, clientId, now);
     });
+    // First time the competitors step closes: tailor the client's runbook plays (Phase 14b). After commit; never fails the step.
+    if (competitorsJustDone) await enqueueRunbookTailor(deps, clientId);
     return { state: await getSetupState(deps.service, clientId), searchRefusal: null };
   },
 });

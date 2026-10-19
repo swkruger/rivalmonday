@@ -603,6 +603,22 @@ describe('wizard tools', () => {
       expect(row).toMatchObject({ lastChangedBy: 'u-agency_admin', lastChangedRole: 'agency_admin' });
     });
 
+    it('enqueues runbook-tailor once, after the first competitors close; an enqueue failure does not fail the step', async () => {
+      await setupRow();
+      wizEnqueue.mockClear();
+      await advance(admin, 'confirm_competitors');
+      await advance(admin, 'confirm_competitors');
+      await advance(admin, 'skip_competitors');
+      const tailor = wizEnqueue.mock.calls.filter((c) => c[0] === 'runbook-tailor');
+      expect(tailor).toEqual([['runbook-tailor', { clientId: IDS.clientA1 }, `runbook-tailor:${IDS.clientA1}`]]);
+
+      await dbs.owner.update(clientSetup).set({ competitorsDoneAt: null, skipped: [] }).where(eq(clientSetup.clientId, IDS.clientA1));
+      wizEnqueue.mockRejectedValueOnce(new Error('queue down'));
+      const out = await advance(admin, 'confirm_competitors');
+      expect(out.state.steps.competitors).toBe('done');
+      expect((await setupOf()).competitorsDoneAt).toBeInstanceOf(Date);
+    });
+
     it('staff and owner confirming at once set competitors_done_at and completed_at once', async () => {
       await fillProfile();
       await setupRow({ skipped: ['search', 'invite'] });

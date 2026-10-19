@@ -15,6 +15,8 @@ tasks:
   # Phase 4b: instant alert headline + body (JSON schema), verified like brief text; same ZDR-safe routing as brief_writer.
   alert_writer:    { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.2, max_tokens: 600 }
   setup_suggestions: { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.2, max_tokens: 800 }
+  # Phase 14b: rewrites a client's runbook plays for its business type and areas (validated in code; failures keep the untailored text).
+  runbook_tailor:  { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.3, max_tokens: 4000 }
   # Phase 14a: drafts a new business type from a Google profile (every item quoted; validated in code).
   vertical_draft:  { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.2, max_tokens: 1200 }
   # Phase 11c: free competitive preview summary for a verified lead (validated in code; dropped on any unknown number or name).
