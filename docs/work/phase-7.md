@@ -1,13 +1,13 @@
 # phase-7 — Launch readiness (7a production & security, 7b money, 7c scale & pilot)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-7   **Base:** main @ f1ec9683
-**Plan/spec:** none yet. Parked drafts (2026-10-12, starting material only): [7a spec](../superpowers/specs/2026-10-12-phase-7a-deploy-observability-design.md), [7a plan](../superpowers/plans/2026-10-12-phase-7a-deploy-observability.md). Item lists: [phase-7-scope.md](phase-7-scope.md).
+**Plan/spec:** [7a spec](../superpowers/specs/2026-10-19-phase-7a-launch-production-security-design.md) (supersedes the parked 2026-10-12 spec; parked [7a plan](../superpowers/plans/2026-10-12-phase-7a-deploy-observability.md) = starting material). Item lists: [phase-7-scope.md](phase-7-scope.md).
 
 ## Status (overwrite)
-Brief done 2026-10-18; supersedes `phase-7-planning`.
+7a spec written — owner review (2026-10-19).
 
 ## Next (overwrite)
-Owner answers §6 → `superpowers:brainstorming` for 7a → 7a spec (new decisions only).
+Owner reviews the 7a spec → `superpowers:writing-plans` for 7a1, then 7a2 (lean format). 7b brainstorming may start once the spec is approved (O1).
 
 ## Interfaces this branch adds or changes
 None yet. Migrations: main ends `0076`; `phase-14b` holds `0077`–`0079`; 13a claims 4 at execution. **Phase 7 starts at `0080`** if it lands after 14b and before 13a; claim at pre-flight.
@@ -36,6 +36,7 @@ Owner 2026-10-19 (brief Q1–Q17):
 15. Eval sets at spec §12 sizes, LLM pre-labelled, owner confirms.
 16. Pilot: runbook/checklist on existing screens; rename the dev agency/client to a demo name.
 17. Owner sets up prod accounts (Vercel, Railway, Neon prod, R2, Postmark + DNS, Sentry, live Stripe/Turnstile, /bot) before 7a's final deploy task; code built against fakes.
+18. 7a split into 7a1 (deploy/observability/roles) and 7a2 (security/data lifecycle); purge 90 d after archive.
 
 ## New backlog (target → item)
 None yet.

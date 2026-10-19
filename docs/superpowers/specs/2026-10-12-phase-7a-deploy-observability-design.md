@@ -1,6 +1,6 @@
 # Phase 7a — Deploy & observability (design)
 
-> **PARKED DRAFT (2026-10-12, predates Phases 8–15) — starting material only, NOT approved for execution.** Re-validated in `docs/work/phase-7.md` § Brief; superseded by the Phase 7a spec/plan once written.
+> **SUPERSEDED** by [2026-10-19-phase-7a-launch-production-security-design.md](2026-10-19-phase-7a-launch-production-security-design.md); sections it cites as "parked §x" stay binding.
 
 **Date:** 2026-10-12 · **Branch:** `phase-7-planning` (planning) · **Core spec:** §10.2, §11, §1.4 · **Roadmap:** Phase 7, sub-phase a of 3.
 New decisions and interfaces only; everything else follows the core spec and root `CLAUDE.md`.
