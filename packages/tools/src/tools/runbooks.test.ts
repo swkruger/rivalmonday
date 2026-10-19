@@ -113,6 +113,37 @@ describe('get_runbook', () => {
   });
 });
 
+describe('update snapshot and service restriction', () => {
+  it('get_runbook returns the snapshot taken at the last pull, so a customised item diffs against what upstream looked like', async () => {
+    const key = await firstPlayKey(A);
+    const before = (await itemOf(admin, A, key)).parent.content;
+    await call(admin, 'update_runbook_item', { owner: A, key, content: play('My agency wording') });
+    await call(staff, 'update_runbook_item', { owner: P, key, content: play('Platform new') });
+    const row = await itemOf(admin, A, key);
+    expect(row.state).toBe('update_available');
+    expect(row.content.title).toBe('My agency wording');
+    expect(row.upstreamSnapshot).toEqual({ content: before });
+    expect(row.parent.content.title).toBe('Platform new');
+    expect((await itemOf(staff, P, key)).upstreamSnapshot).toBeNull();
+  });
+
+  it('pull at the client level can set the service restriction; "use as is" keeps the client restriction', async () => {
+    const [c] = await dbs.owner.select({ v: client.verticalId }).from(client).where(eq(client.id, IDS.clientA1));
+    const area = (await catalog.packs(c!.v)).services[0]!.id;
+    await dbs.owner.update(client).set({ services: [area] }).where(eq(client.id, IDS.clientA1));
+    await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
+    const r = await call(admin, 'get_runbook', { owner: C1 });
+    const key = r.items.find((i: Row) => i.kind === 'play').key;
+    await call(admin, 'update_runbook_item', { owner: A, key, content: play('Agency v2') });
+    const pulled = await call(admin, 'pull_runbook_update', { owner: C1, key, content: play('Reviewed v2'), businessAreaIds: [area] });
+    expect(pulled.businessAreaIds).toEqual([area]);
+    expect((await fails(call(admin, 'pull_runbook_update', { owner: C1, key, content: play('x'), businessAreaIds: ['nope'] }))).message).toMatch(/Unknown service/);
+    await call(admin, 'update_runbook_item', { owner: A, key, content: play('Agency v3') });
+    const asIs = await call(admin, 'pull_runbook_update', { owner: C1, key });
+    expect(asIs).toMatchObject({ content: expect.objectContaining({ title: 'Agency v3' }), businessAreaIds: [area] });
+  });
+});
+
 describe('platform edits', () => {
   it('a platform edit bumps the version and the agency sees update_available; pulling brings it in', async () => {
     const key = await firstPlayKey(A);

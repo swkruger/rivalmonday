@@ -11,7 +11,7 @@ export async function applyRunbookOp(ctx: AccessContext, owner: RunbookOwner, op
   switch (op.op) {
     case 'toggle': r = await call('set_runbook_item_enabled', { key: op.key, enabled: op.enabled }); break;
     case 'save': r = await call('update_runbook_item', { key: op.key, content: op.content, ...(op.businessAreaIds !== undefined ? { businessAreaIds: op.businessAreaIds } : {}) }); break;
-    case 'pull': r = await call('pull_runbook_update', { key: op.key, ...(op.content !== undefined ? { content: op.content } : {}) }); break;
+    case 'pull': r = await call('pull_runbook_update', { key: op.key, ...(op.content !== undefined ? { content: op.content } : {}), ...(op.businessAreaIds !== undefined ? { businessAreaIds: op.businessAreaIds } : {}) }); break;
     case 'dismiss': r = await call('dismiss_runbook_update', { key: op.key }); break;
     case 'add': r = await call('add_runbook_item', { key: op.key }); break;
     case 'remove': r = await call('remove_runbook_item', { key: op.key }); break;

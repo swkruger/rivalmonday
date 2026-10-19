@@ -104,6 +104,9 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
   }
   const mine = item.content as Partial<PlayContent>;
   const theirs = parent.content as Partial<PlayContent>;
+  // "Before" is what the level above looked like when this item last took it, so a customised item's own edits don't read as upstream changes.
+  const beforeContent = item.upstreamSnapshot?.content ?? item.content;
+  const before = beforeContent as Partial<PlayContent>;
   if (stage === 'tailored') {
     const p = proposed;
     return (
@@ -117,7 +120,7 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
         ) : <p>We couldn’t tailor this update for the client. You can use the {name} text as it is.</p>}
         {canEdit && (
           <div className="flex gap-2">
-            {p && <Button size="sm" disabled={pending} onClick={() => go({ op: 'pull', key, content: { ...theirs, title: p.title, template: p.template } })}>Approve</Button>}
+            {p && <Button size="sm" disabled={pending} onClick={() => go({ op: 'pull', key, content: { ...theirs, title: p.title, template: p.template }, businessAreaIds: p.businessAreaIds })}>Approve</Button>}
             <Button size="sm" variant="outline" disabled={pending} onClick={() => go({ op: 'pull', key })}>Use as is</Button>
           </div>
         )}
@@ -138,10 +141,17 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
       <p className="font-semibold">What changed in the {name}</p>
       {play ? (
         <>
-          {mine.title !== theirs.title && <DiffView before={mine.title ?? ''} after={theirs.title ?? ''} label="the title" />}
-          {mine.template !== theirs.template && <DiffView before={mine.template ?? ''} after={theirs.template ?? ''} label="the template" />}
+          {before.title !== theirs.title && <DiffView before={before.title ?? ''} after={theirs.title ?? ''} label="the title" />}
+          {before.template !== theirs.template && <DiffView before={before.template ?? ''} after={theirs.template ?? ''} label="the template" />}
+          {item.customised && (
+            <div data-testid="runbook-yours" className="flex flex-col gap-1 text-muted-ink">
+              <p className="font-semibold">Your version</p>
+              <p>{mine.title}</p>
+              <p className="whitespace-pre-wrap">{mine.template}</p>
+            </div>
+          )}
         </>
-      ) : <DiffView before={textOf(item.content)} after={textOf(parent.content)} label="this item" />}
+      ) : <DiffView before={textOf(beforeContent)} after={textOf(parent.content)} label="this item" />}
       {canEdit && (
         <div className="flex gap-2">
           <Button size="sm" disabled={pending} onClick={useUpdate}>Use the update</Button>

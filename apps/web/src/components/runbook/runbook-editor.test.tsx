@@ -64,6 +64,29 @@ describe('RunbookEditor', () => {
     await waitFor(() => expect(action).toHaveBeenCalledWith({ op: 'pull', key: 'play:c' }));
   });
 
+  it('diffs a customised item from the snapshot to the new parent text and shows "Your version" beneath', () => {
+    const snap = { trigger: 'price_change', title: 'Old', template: 'Old text for {{service}}.' };
+    const item = play('c', 'My wording', {
+      customised: true, content: { trigger: 'price_change', title: 'My wording', template: 'My own text.' }, upstreamSnapshot: { content: snap },
+      ...withState('update_available', { parent: { content: { trigger: 'price_change', title: 'Old', template: 'Old text for {{service}} now.' }, version: 2 } }),
+    });
+    render(<RunbookEditor data={data([item])} canEdit action={ok} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Review update' }));
+    const diff = screen.getByTestId('runbook-diff');
+    expect(diff.textContent).toMatch(/^Old text for/);
+    expect(diff.textContent).not.toMatch(/My own text/);
+    expect(diff.querySelector('ins')?.textContent).toMatch(/now/);
+    expect(screen.getByTestId('runbook-yours').textContent).toMatch(/My own text\./);
+  });
+
+  it('a new setting from above shows only Add / Not now, no fields', () => {
+    const knob: RunbookItemData = { ...play('x', 'x'), key: 'knob:thresholds', kind: 'knob', content: { alert: 70, brief: 40 }, enabled: false, ...withState('new_upstream', { parent: { content: { alert: 70, brief: 40 }, version: 1 } }) };
+    render(<RunbookEditor data={data([knob])} canEdit action={ok} />);
+    expect(screen.getByText('New setting available')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Save thresholds' })).toBeNull();
+    expect(screen.queryByLabelText('Weekly brief from score')).toBeNull();
+  });
+
   it('at the client level "Use the update" asks for a tailored version first and offers "Use as is"', async () => {
     const parent = { content: { trigger: 'price_change', title: 'Updated play', template: 'Agency text' }, version: 2 };
     const action = vi.fn(async (op: { op: string }) => (op.op === 'retailor' ? { ok: true as const, proposed: { title: 'Updated play', template: 'Tailored text', businessAreaIds: null } } : { ok: true as const }));
@@ -74,7 +97,7 @@ describe('RunbookEditor', () => {
     await screen.findByText('Tailored for this client');
     expect(screen.getByText('Tailored text')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
-    await waitFor(() => expect(action).toHaveBeenCalledWith({ op: 'pull', key: 'play:c', content: { trigger: 'price_change', title: 'Updated play', template: 'Tailored text' } }));
+    await waitFor(() => expect(action).toHaveBeenCalledWith({ op: 'pull', key: 'play:c', content: { trigger: 'price_change', title: 'Updated play', template: 'Tailored text' }, businessAreaIds: null }));
     expect(screen.getByRole('button', { name: 'Use as is' })).toBeTruthy();
   });
 

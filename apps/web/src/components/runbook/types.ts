@@ -14,6 +14,8 @@ export interface RunbookItemData {
   dismissedUpstreamVersion: number | null;
   state: ItemState;
   parent: { content: unknown; version: number } | null;
+  /** The level above as this item last took it: the "before" side of the update diff. */
+  upstreamSnapshot?: { content: unknown } | null;
 }
 
 export interface RunbookData {
@@ -35,7 +37,7 @@ export interface Tailoring {
 export type RunbookOp =
   | { op: 'toggle'; key: string; enabled: boolean }
   | { op: 'save'; key: string; content: unknown; businessAreaIds?: string[] | null }
-  | { op: 'pull'; key: string; content?: unknown }
+  | { op: 'pull'; key: string; content?: unknown; businessAreaIds?: string[] | null }
   | { op: 'dismiss'; key: string }
   | { op: 'add'; key: string }
   | { op: 'remove'; key: string }

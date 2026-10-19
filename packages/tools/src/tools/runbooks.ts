@@ -195,7 +195,11 @@ export const getRunbook = defineTool({
       const up = theirs.get(r.key);
       // A new upstream item is shown from the parent, switched off, until it is added.
       const base = own ?? { ...up!, enabled: false, version: 0, upstreamVersion: null, dismissedUpstreamVersion: null, customised: false };
-      return { ...toView(base), state: r.state, parent: up ? { content: up.content, version: up.version } : null };
+      const snap = own?.upstreamSnapshot as { content?: unknown } | null | undefined;
+      return {
+        ...toView(base), state: r.state, parent: up ? { content: up.content, version: up.version } : null,
+        upstreamSnapshot: snap && snap.content !== undefined ? { content: snap.content } : null,
+      };
     });
     return { level: t.level, ...(t.source ? { source: t.source } : {}), tailorStatus: t.tailorStatus, items: out, vars: [...PLAYBOOK_VARS], businessAreas };
   },
@@ -251,7 +255,7 @@ export const pullRunbookUpdate = defineTool({
   name: 'pull_runbook_update',
   access: 'write',
   description: 'Take the newer version of an item from the level above. At the client level, pass the reviewed re-tailored text as content.',
-  input: z.object({ owner: RunbookOwner, key, content: z.unknown().optional() }),
+  input: z.object({ owner: RunbookOwner, key, content: z.unknown().optional(), businessAreaIds: z.array(z.string().max(40)).max(20).nullable().optional() }),
   output: RunbookItemView,
   permission: 'agency',
   async handler(ctx, input, deps) {
@@ -262,12 +266,15 @@ export const pullRunbookUpdate = defineTool({
       if (!item || !up || up.kind !== item.kind) throw NOT_FOUND();
       let next: RunbookItem;
       if (input.content === undefined) {
-        next = { ...item, content: structuredClone(up.content), enabled: up.enabled, businessAreaIds: up.businessAreaIds ? [...up.businessAreaIds] : null };
+        // At the client level "use as is" keeps the client's own service restriction instead of copying the agency's over it.
+        const areas = t.level === 'client' ? item.businessAreaIds : up.businessAreaIds ? [...up.businessAreaIds] : null;
+        next = { ...item, content: structuredClone(up.content), enabled: up.enabled, businessAreaIds: areas };
       } else {
         const parsed = parseItemContent(item.kind, item.key, input.content);
         if (!parsed.ok) throw refuse(parsed.error);
         next = { ...item, content: parsed.value };
       }
+      if (input.businessAreaIds !== undefined) next = { ...next, businessAreaIds: checkAreas(t, item, input.businessAreaIds) };
       next = { ...next, upstreamVersion: up.version, upstreamSnapshot: snapshotOf(up), dismissedUpstreamVersion: null, removedUpstream: false };
       checkThresholds(next);
       await writeItem(deps.service, runbookId, next, ctx.userId);

@@ -157,6 +157,8 @@ export type RunbookItemView = z.infer<typeof RunbookItemView>;
 export const RunbookItemRow = RunbookItemView.extend({
   state: z.enum(['in_sync', 'update_available', 'new_upstream', 'removed_upstream']),
   parent: z.object({ content: z.unknown(), version: z.number().int() }).nullable(),
+  /** What the level above looked like when this item last took it (the "before" side of an update diff); null when this item was never copied from above. */
+  upstreamSnapshot: z.object({ content: z.unknown() }).nullable(),
 });
 export const RunbookTailoring = z.object({ title: z.string(), template: z.string(), businessAreaIds: z.array(z.string()).nullable() });
 export type RunbookTailoring = z.infer<typeof RunbookTailoring>;

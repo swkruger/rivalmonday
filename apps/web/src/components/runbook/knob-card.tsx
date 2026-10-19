@@ -50,6 +50,18 @@ export function KnobCard({ name, item, level, businessAreas, canEdit, run }: {
   const [t, setT] = useState({ to: tiers ? String(tiers.top.overlap) : '', ta: tiers ? String(tiers.top.activity) : '', wo: tiers ? String(tiers.watch.overlap) : '', wa: tiers ? String(tiers.watch.activity) : '' });
   const [areas, setAreas] = useState<string[]>(item ? ((item.content as { areaIds?: string[] }).areaIds ?? []) : []);
   const badge = item ? badgeFor(item, level) : null;
+  // A setting that is only on offer from above (not yet added) shows just its Add / Not now prompt.
+  if (item?.state === 'new_upstream') {
+    return (
+      <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card" data-item={key}>
+        <div className="flex flex-wrap items-center gap-2">
+          {badge && <Badge variant={badge.variant}>{badge.label}</Badge>}
+          <h3 className="font-semibold">{KNOB_TITLE[name]}</h3>
+        </div>
+        <UpdatePrompts item={item} level={level} canEdit={canEdit} run={run} />
+      </div>
+    );
+  }
   const save = (content: unknown) => go({ op: 'save', key, content }, (r) => setError(r.ok ? null : r.error));
 
   const saveThresholds = () => {
