@@ -28,9 +28,9 @@ describe('navFor platform', () => {
       ['customers', 'Customers', ['Agencies', 'Lead pool']],
       ['revenue', 'Revenue', ['Billing & plans']],
       ['quality', 'Quality', ['Model reviews', 'Theme proposals', 'Ask reviews']],
-      ['content', 'Content', ['Knowledge']],
+      ['content', 'Content', ['Knowledge', 'Business types', 'Runbook']],
     ]);
-    expect(hrefs(s)).toEqual(['/platform', '/platform/agencies', '/platform/leads', '/platform/billing', '/platform/reviews', '/platform/themes', '/platform/ask', '/platform/knowledge']);
+    expect(hrefs(s)).toEqual(['/platform', '/platform/agencies', '/platform/leads', '/platform/billing', '/platform/reviews', '/platform/themes', '/platform/ask', '/platform/knowledge', '/platform/verticals', '/platform/runbook']);
     expect(s[0]!.placement).toBe('top');
   });
 
@@ -163,14 +163,14 @@ describe('settingsNavFor agency', () => {
   it('agency admin: every group and tab in spec order with the settings routes', () => {
     const s = settingsNavFor('agency', agencyAdmin);
     expect(labels(s)).toEqual([
-      ['agency', 'Agency', ['Branding & voice', 'Team', 'Playbooks']],
+      ['agency', 'Agency', ['Branding & voice', 'Team', 'Runbook']],
       ['plan', 'Plan', ['Billing', 'Usage & limits']],
       ['growth', 'Growth', ['Intake link']],
       ['integrations', 'Integrations', ['Slack & Teams', 'AI connections']],
       ['security', 'Security', ['Platform access']],
     ]);
     expect(hrefs(s)).toEqual([
-      '/agency/settings/branding', '/agency/settings/team', '/agency/settings/playbooks',
+      '/agency/settings/branding', '/agency/settings/team', '/agency/settings/runbook',
       '/agency/settings/billing', '/agency/settings/usage',
       '/agency/settings/intake',
       '/agency/settings/slack-teams', '/agency/settings/ai',
@@ -180,7 +180,7 @@ describe('settingsNavFor agency', () => {
 
   it('account manager: no Branding, Billing, Intake, Slack & Teams or Platform access; empty groups dropped', () => {
     expect(labels(settingsNavFor('agency', accountManager))).toEqual([
-      ['agency', 'Agency', ['Team', 'Playbooks']],
+      ['agency', 'Agency', ['Team', 'Runbook']],
       ['plan', 'Plan', ['Usage & limits']],
       ['integrations', 'Integrations', ['AI connections']],
     ]);
@@ -188,7 +188,7 @@ describe('settingsNavFor agency', () => {
 
   it('support session: no Billing, Intake link or Platform access (they 404 in a session)', () => {
     expect(labels(settingsNavFor('agency', support))).toEqual([
-      ['agency', 'Agency', ['Branding & voice', 'Team', 'Playbooks']],
+      ['agency', 'Agency', ['Branding & voice', 'Team', 'Runbook']],
       ['plan', 'Plan', ['Usage & limits']],
       ['integrations', 'Integrations', ['Slack & Teams', 'AI connections']],
     ]);
@@ -200,10 +200,10 @@ describe('settingsNavFor agency', () => {
 });
 
 describe('settingsNavFor client', () => {
-  it('agency roles: Business profile, Delivery, Alert rules, AI connection; never client Billing', () => {
+  it('agency roles: Business profile, Delivery, Alert rules, Runbook, AI connection; never client Billing', () => {
     const s = settingsNavFor('client', { ...agencyAdmin, clientBilling: true }, C);
-    expect(labels(s)).toEqual([['main', null, ['Business profile', 'Delivery', 'Alert rules', 'AI connection']]]);
-    expect(hrefs(s)).toEqual([`${B}/settings/profile`, `${B}/settings/delivery`, `${B}/settings/alerts`, `${B}/settings/ai`]);
+    expect(labels(s)).toEqual([['main', null, ['Business profile', 'Delivery', 'Alert rules', 'Runbook', 'AI connection']]]);
+    expect(hrefs(s)).toEqual([`${B}/settings/profile`, `${B}/settings/delivery`, `${B}/settings/alerts`, `${B}/settings/runbook`, `${B}/settings/ai`]);
   });
 
   it('client owner: Billing only while billing is on', () => {

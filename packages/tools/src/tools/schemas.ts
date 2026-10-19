@@ -143,14 +143,6 @@ export const UsageRow = z.object({
 });
 export type UsageRow = z.infer<typeof UsageRow>;
 
-export const PlaybookView = z.object({
-  id: z.string(), trigger: z.string(), packTitle: z.string(), packTemplate: z.string(), title: z.string(), template: z.string(),
-  overridden: z.boolean(), disabled: z.boolean(), updatedAt: iso.nullable(),
-});
-export type PlaybookView = z.infer<typeof PlaybookView>;
-export const PlaybookVertical = z.object({ id: z.string(), name: z.string(), playbooks: z.array(PlaybookView) });
-export type PlaybookVertical = z.infer<typeof PlaybookVertical>;
-
 export const RunbookOwner = z.discriminatedUnion('level', [
   z.object({ level: z.literal('platform') }),
   z.object({ level: z.literal('agency') }),

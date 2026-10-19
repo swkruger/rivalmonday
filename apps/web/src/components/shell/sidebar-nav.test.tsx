@@ -158,7 +158,7 @@ describe('SidebarNav sections (Task 4)', () => {
   it('renders the platform sections on /platform/agencies, labelled groups only', () => {
     pathname = '/platform/agencies';
     render(<Nav flags={operator} zone="platform" />);
-    expect(linkNames()).toEqual(['Overview', 'Agencies', 'Lead pool', 'Billing & plans', 'Model reviews', 'Theme proposals', 'Ask reviews', 'Knowledge', 'Business types']);
+    expect(linkNames()).toEqual(['Overview', 'Agencies', 'Lead pool', 'Billing & plans', 'Model reviews', 'Theme proposals', 'Ask reviews', 'Knowledge', 'Business types', 'Runbook']);
     expect(screen.getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(['Customers', 'Revenue', 'Quality', 'Content']);
     expect(screen.getByText('Customers').className).toContain('uppercase');
     expect(activeHrefOf()).toBe('/platform/agencies');

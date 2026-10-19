@@ -147,23 +147,23 @@ describe('resolveAffected', () => {
 
   it('maps the moved agency settings pages and the shared settings layout (15a)', () => {
     expect(resolve('apps/web/src/app/(app)/agency/settings/usage/page.tsx').tags).toEqual(['@smoke', '@usage']);
-    expect(resolve('apps/web/src/app/(app)/agency/settings/playbooks/page.tsx').tags).toEqual(['@playbooks', '@smoke']);
+    expect(resolve('apps/web/src/app/(app)/agency/settings/runbook/page.tsx').tags).toEqual(['@runbook', '@smoke']);
     expect(resolve('apps/web/src/app/(app)/agency/settings/branding/logo/route.ts').tags).toEqual(['@onboarding', '@smoke']);
     expect(matchRule('apps/web/src/app/(app)/agency/settings/ai/page.tsx').why).toMatch(/AI connections/);
     // support.spec opens /agency/settings/team; navigation.spec follows the old /agency/team and /agency/branding links.
     expect(resolve('apps/web/src/app/(app)/agency/settings/team/page.tsx').tags).toEqual(['@navigation', '@smoke', '@support']);
     expect(resolve('apps/web/src/app/(app)/agency/settings/branding/page.tsx').tags).toEqual(['@navigation', '@smoke']);
     for (const f of ['apps/web/src/app/(app)/agency/settings/layout.tsx', 'apps/web/src/app/(app)/agency/settings/page.tsx']) {
-      expect(resolve(f).tags, f).toEqual(['@ai-connections', '@billing', '@client-billing', '@leads', '@navigation', '@playbooks', '@smoke', '@support', '@usage']);
+      expect(resolve(f).tags, f).toEqual(['@ai-connections', '@billing', '@client-billing', '@leads', '@navigation', '@runbook', '@smoke', '@support', '@usage']);
     }
   });
 
   it('maps the client settings layout, index and the shared sub-nav to every test that opens a settings page (15a)', () => {
-    const client = ['@ai-connections', '@alert-rules', '@ask', '@billing', '@client-billing', '@clients', '@navigation', '@profile', '@setup', '@smoke', '@support'];
+    const client = ['@ai-connections', '@alert-rules', '@ask', '@billing', '@client-billing', '@clients', '@navigation', '@profile', '@runbook', '@setup', '@smoke', '@support'];
     for (const f of ['apps/web/src/app/(app)/c/[clientId]/settings/layout.tsx', 'apps/web/src/app/(app)/c/[clientId]/settings/page.tsx', 'apps/web/src/server/client-settings-nav.ts']) {
       expect(resolve(f).tags, f).toEqual(client);
     }
-    expect(resolve('apps/web/src/components/settings-nav.tsx').tags).toEqual(['@ai-connections', '@alert-rules', '@ask', '@billing', '@client-billing', '@clients', '@leads', '@navigation', '@playbooks', '@profile', '@setup', '@smoke', '@support', '@usage']);
+    expect(resolve('apps/web/src/components/settings-nav.tsx').tags).toEqual(['@ai-connections', '@alert-rules', '@ask', '@billing', '@client-billing', '@clients', '@leads', '@navigation', '@profile', '@runbook', '@setup', '@smoke', '@support', '@usage']);
   });
 
   it('maps the shell, page header and Briefs & reports to @navigation (15a)', () => {

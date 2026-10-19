@@ -31,7 +31,7 @@ describe('Agency settings layout (15a §2.5)', () => {
     as('user', 'agency_admin');
     render(await SettingsLayout({ children: <p>page body</p> }));
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
-    expect(tabs()).toEqual(['Branding & voice', 'Team', 'Playbooks', 'Billing', 'Usage & limits', 'Intake link', 'Slack & Teams', 'AI connections', 'Platform access']);
+    expect(tabs()).toEqual(['Branding & voice', 'Team', 'Runbook', 'Billing', 'Usage & limits', 'Intake link', 'Slack & Teams', 'AI connections', 'Platform access']);
     expect(screen.getByText('page body')).toBeTruthy();
   });
 
@@ -41,13 +41,13 @@ describe('Agency settings layout (15a §2.5)', () => {
   ])('hides the admin-only tabs from an account manager (%s scope)', async (_label, scope) => {
     as('user', 'account_manager', scope);
     render(await SettingsLayout({ children: null }));
-    expect(tabs()).toEqual(['Team', 'Playbooks', 'Usage & limits', 'AI connections']);
+    expect(tabs()).toEqual(['Team', 'Runbook', 'Usage & limits', 'AI connections']);
   });
 
   it('hides the tabs that 404 in a support session', async () => {
     as('support', 'agency_admin');
     render(await SettingsLayout({ children: null }));
-    expect(tabs()).toEqual(['Branding & voice', 'Team', 'Playbooks', 'Usage & limits', 'Slack & Teams', 'AI connections']);
+    expect(tabs()).toEqual(['Branding & voice', 'Team', 'Runbook', 'Usage & limits', 'Slack & Teams', 'AI connections']);
   });
 
   it('404s for client roles', async () => {

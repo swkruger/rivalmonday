@@ -21,7 +21,7 @@ describe('SettingsNav', () => {
     render(<SettingsNav sections={sections} />);
     const nav = screen.getByRole('navigation', { name: 'Settings' });
     expect(within(nav).getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(['Agency', 'Plan', 'Growth', 'Integrations', 'Security']);
-    expect(within(within(nav).getByRole('group', { name: 'Agency' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['Branding & voice', 'Team', 'Playbooks']);
+    expect(within(within(nav).getByRole('group', { name: 'Agency' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['Branding & voice', 'Team', 'Runbook']);
     expect(within(within(nav).getByRole('group', { name: 'Integrations' })).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['/agency/settings/slack-teams', '/agency/settings/ai']);
   });
 

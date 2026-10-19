@@ -37,7 +37,7 @@ describe('Client settings layout (15a §2.5)', () => {
     as('user', 'agency_admin');
     render(await SettingsLayout({ children: <p>page body</p>, params }));
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
-    expect(tabs()).toEqual(['Business profile', 'Delivery', 'Alert rules', 'AI connection']);
+    expect(tabs()).toEqual(['Business profile', 'Delivery', 'Alert rules', 'Runbook', 'AI connection']);
     expect(within(nav()!).getByRole('link', { name: 'Business profile' }).getAttribute('href')).toBe(`/c/${C}/settings/profile`);
     expect(screen.getByText('page body')).toBeTruthy();
   });
@@ -57,7 +57,7 @@ describe('Client settings layout (15a §2.5)', () => {
   it('keeps the agency tabs in a support session (no AI connection: tokens are user-only)', async () => {
     as('support', 'agency_admin');
     render(await SettingsLayout({ children: null, params }));
-    expect(tabs()).toEqual(['Business profile', 'Delivery', 'Alert rules']);
+    expect(tabs()).toEqual(['Business profile', 'Delivery', 'Alert rules', 'Runbook']);
   });
 
   it('still renders the page for a guest, with no settings header or sub-nav (the page keeps its own guard)', async () => {
@@ -87,7 +87,7 @@ describe('client settings page titles', () => {
     const agency = { ...flags, isAgency: true, homePath: '/agency' };
     const items = [...settingsNavFor('client', agency, 'x'), ...settingsNavFor('client', flags, 'x')].flatMap((s) => s.items);
     const labels = new Map(items.map((i) => [i.href.slice('/c/x/settings/'.length), i.label]));
-    expect([...labels.keys()].sort()).toEqual(['ai', 'alerts', 'billing', 'delivery', 'profile']);
+    expect([...labels.keys()].sort()).toEqual(['ai', 'alerts', 'billing', 'delivery', 'profile', 'runbook']);
     for (const [dir, label] of labels) {
       const source = readFileSync(join(here, dir, 'page.tsx'), 'utf8');
       const titles = [...source.matchAll(/<PageHeader[^>]*\btitle="([^"]*)"/g)].map((x) => x[1]);

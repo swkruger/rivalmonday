@@ -107,7 +107,7 @@ describe('navFlagsFor', () => {
   it('platform view only for operators; Costs only for the owner', () => {
     const user = { kind: 'user' as const, ctx: ctx('agency_admin'), email: 'someone@e.co' };
     expect(navForViewer(user, 'platform', null)).toEqual([]);
-    expect(labelsOf(navForViewer(user, 'platform', null, true))).toEqual(['Overview', 'Agencies', 'Lead pool', 'Billing & plans', 'Model reviews', 'Theme proposals', 'Ask reviews', 'Knowledge', 'Business types']);
+    expect(labelsOf(navForViewer(user, 'platform', null, true))).toEqual(['Overview', 'Agencies', 'Lead pool', 'Billing & plans', 'Model reviews', 'Theme proposals', 'Ask reviews', 'Knowledge', 'Business types', 'Runbook']);
     expect(hrefs(navForViewer(user, 'platform', null, true, false))).not.toContain('/platform/costs');
     expect(hrefs(navForViewer(user, 'platform', null, false, true))).toEqual([]);
     expect(navForViewer(user, 'platform', null, true, true).at(-1)).toMatchObject({ id: 'system', items: [{ href: '/platform/costs', label: 'Costs', icon: 'costs' }] });
@@ -128,7 +128,7 @@ describe('nav inside a support session (Phase 8b)', () => {
 
   it('agency settings omit Billing, Intake link and Platform access; no platform view; no Back to platform item', () => {
     const flags = { ...navFlagsFor(support, true), backToPlatform: `/platform/agencies/${A}` };
-    expect(labelsOf(settingsNavFor('agency', flags))).toEqual(['Branding & voice', 'Team', 'Playbooks', 'Usage & limits', 'Slack & Teams', 'AI connections']);
+    expect(labelsOf(settingsNavFor('agency', flags))).toEqual(['Branding & voice', 'Team', 'Runbook', 'Usage & limits', 'Slack & Teams', 'AI connections']);
     expect(navForViewer(support, 'platform', null, true)).toEqual([]);
     expect(hrefs(navForViewer(support, 'agency', null, true))).not.toContain(`/platform/agencies/${A}`);
   });

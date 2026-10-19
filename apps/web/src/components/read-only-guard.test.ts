@@ -14,7 +14,8 @@ const EXEMPT: Record<string, string> = {
   // The action is passed as a prop to a component that guards itself.
   'app/(app)/agency/settings/ai/page.tsx': 'passes actions to AccessTokensCard/ConnectedAppsCard, which use useReadOnly',
   'app/(app)/c/[clientId]/settings/ai/page.tsx': 'same: ai-connections cards guard themselves',
-  'app/(app)/agency/settings/playbooks/page.tsx': 'PlaybookEditor falls back to its read-only view via useReadOnly',
+  'app/(app)/agency/settings/runbook/page.tsx': 'RunbookEditor guards every write control via useReadOnly',
+  'app/(app)/c/[clientId]/settings/runbook/page.tsx': 'RunbookEditor guards every write control via useReadOnly',
   'app/(app)/agency/clients/new/page.tsx': 'ClientProfileForm guards its submit',
   'app/(app)/agency/settings/branding/branding-form.tsx': 'passes the action to BrandingEditor, which guards its submit with WriteGuard',
   'app/(app)/onboarding/steps/branding.tsx': 'passes the action to BrandingEditor, which guards its submit with WriteGuard',

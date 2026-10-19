@@ -73,16 +73,16 @@ test('usage shows the near-cap warning and an admin raises the cap', { tag: ['@u
   await expect(page.getByText(/43%/)).toBeVisible();
 });
 
-test('an admin edits a playbook and an unknown placeholder is refused', { tag: ['@playbooks'] }, async ({ page }) => {
-  await page.goto('/agency/settings/playbooks');
-  // One card per business type with that playbook (the catalogue specs may have added more): pin the seeded HVAC & plumbing one.
-  const card = page.locator('form').filter({ has: page.locator('input[name="verticalId"][value="hvac_plumbing"]') }).filter({ has: page.locator('input[name="playbookId"][value="price_cut_bundle"]') });
+test('an admin edits a runbook play and an unknown placeholder is refused', { tag: ['@runbook'] }, async ({ page }) => {
+  await page.goto('/agency/settings/runbook');
+  const card = page.locator('[data-item="play:price_cut_bundle"]');
+  await card.getByRole('button', { name: 'Edit' }).click();
   await card.getByLabel('Template').fill('Hi {{client}}');
   await card.getByRole('button', { name: 'Save' }).click();
   await expect(card.getByRole('alert')).toContainText('{{client}}');
   await card.getByLabel('Template').fill('Bundle {{service}} instead of matching {{competitor}}.');
   await card.getByRole('button', { name: 'Save' }).click();
-  await expect(card.getByText('Playbook saved.')).toBeVisible();
+  await expect(card.getByText('Customised')).toBeVisible();
 });
 
 test('an admin turns a client feature on and off on the profile page', { tag: ['@profile', '@clients'] }, async ({ page }) => {

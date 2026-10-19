@@ -116,7 +116,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/agency/approvals/[briefId] (quiet)', as: 'admin', calls: [{ tool: 'get_brief_review', input: (ids) => ({ briefId: ids.briefs.quietBrazos }), path: 'items', expect: 'empty', why: 'Brazos’s brief is held as quiet' }] },
   { route: '/agency/settings/branding', as: 'admin', calls: [{ tool: 'fn:getAgencyBranding', input: none, path: 'stored' }] },
   { route: '/agency/settings/platform-access', as: 'admin', calls: [{ tool: 'list_support_sessions', input: none, path: 'rows' }] },
-  { route: '/agency/settings/playbooks', as: 'admin', calls: [{ tool: 'list_playbooks', input: none, path: 'verticals' }] },
+  { route: '/agency/settings/runbook', as: 'admin', calls: [{ tool: 'get_runbook', input: () => ({ owner: { level: 'agency' } }), path: 'items' }] },
   // Phase 11a: Cedar Creek Plumbing is mid-setup (suggestions ready, search done); `/agency/clients/new` is only a lookup form (reads happen on user action).
   { route: '/c/[clientId]/setup', as: 'admin', calls: setupStaffCalls(setupPending) },
   { route: '/c/[clientId]/setup (client owner)', as: 'ownerSetup', calls: setupCalls(setupPending) },

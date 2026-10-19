@@ -71,8 +71,6 @@ platform_overview (platform-console.ts) | read | read; audit row only
 list_platform_agencies (platform-console.ts) | read | read; audit row only
 get_platform_agency (platform-console.ts) | read | read; audit row only
 list_platform_activity (platform-console.ts) | read | read; audit row only
-list_playbooks (playbooks.ts) | read | read-only
-update_playbook (playbooks.ts) | write | upserts playbook override
 get_runbook (runbooks.ts) | read | lazily creates the platform/agency runbook (skipped under support)
 update_runbook_item (runbooks.ts) | write | upserts runbook item; client thresholds write client.score_thresholds
 set_runbook_item_enabled (runbooks.ts) | write | updates runbook item
