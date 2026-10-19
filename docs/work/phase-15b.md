@@ -1,13 +1,13 @@
 # phase-15b — help system and per-page help
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15b   **Base:** main @ f1ec9683
-**Plan/spec:** inputs [15 spec](../superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) §1 D6–D7, §2.7, §4 · [audit](../research/2026-10-18-phase-15-ux-audit.md) · [inventory](../research/2026-10-18-phase-15-page-inventory.md) · [6c KB spec](../superpowers/specs/2026-10-12-phase-6c-knowledge-design.md). 15b spec addendum + plan: not written.
+**Spec:** [2026-10-19-phase-15b-help-system-design.md](../superpowers/specs/2026-10-19-phase-15b-help-system-design.md). **Plan/spec:** inputs [15 spec](../superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) §1 D6–D7, §2.7, §4 · [audit](../research/2026-10-18-phase-15-ux-audit.md) · [inventory](../research/2026-10-18-phase-15-page-inventory.md) · [6c KB spec](../superpowers/specs/2026-10-12-phase-6c-knowledge-design.md). 15b spec addendum + plan: not written.
 
 ## Status (overwrite)
-Kicked off 2026-10-19. Brief below; open questions await the owner.
+2026-10-19: brainstorm done; spec written (B1–B10), awaiting owner review. No code. Planning-only worktree (no pnpm install yet).
 
 ## Next (overwrite)
-Owner answers the open questions → `superpowers:brainstorming` → spec addendum → lean plan.
+Owner reviews spec → lean plan for **15b-1** → owner approval → execute **after phase-14b merges** (B6): pre-flight rebase, `pnpm install`, own test DB, next free migration. 15b-2 plan after 15b-1 merges.
 
 ## Interfaces this branch adds or changes
 None yet. Likely: KB page-key lookup (maybe a migration — next free at execution, after 14b's 0079), `HelpTip`/`FieldHint`/`PageGuide`, `/agency/help`, `/c/<id>/help`.
@@ -16,10 +16,10 @@ None yet. Likely: KB page-key lookup (maybe a migration — next free at executi
 - `phase-14b` merges first or 15b rebases onto it; its pages need keys (below).
 
 ## Decisions (owner-approved)
-None yet.
+B1–B10 in the spec §1: split 15b-1 system / 15b-2 content; audience all/agency/client/operator; Claude drafts, owner signs off per batch; Help pages per context; guides citable by Ask/MCP (audience-filtered); 15b-1 after 14b merges; guides = repo Markdown via kb:seed; short copy = TS constants, glossary = typed list in @cs/core; placeholders + neutral fallback; tour/override editor/analytics/new hints → backlog.
 
 ## New backlog (target → item)
-- none yet
+Unscheduled → product tour; agency guide override editor; console editor for platform guides; help-usage analytics; first-visit "new" hints (B10).
 
 ## Owner verification steps
 TBD.
@@ -60,14 +60,4 @@ TBD.
 - 13a (not started): Domains, Client customisation tabs → keys later. `phase-7-planning`: parked, docs only.
 - Migrations: next free at execution (0080+ after 14b).
 
-**6. Open questions** (by design impact)
-1. **Split?** a) 15b-1 components + drawer + Help pages + KB keying, 15b-2 content applied page by page *(rec.)*; b) one phase; c) by area.
-2. **Page-key storage.** a) new `help_key` column, unique per (key, level, agency) — override-ready, migration 0080+ *(rec.)*; b) reuse `seed_key` = key (no migration; blocks D7 overrides); c) key → id map in code.
-3. **Audience.** Levels are tenant scope, not audience. a) `audience` column all/agency/client *(rec.)*; b) separate keys (`…@agency`); c) one guide, sections per role.
-4. **Short copy home** (tips, descriptions, empty states). a) typed TS constants per page *(rec.)*; b) KB "snippet" articles; c) JSON file.
-5. **Who drafts?** a) Claude drafts all, owner signs off in batches *(rec.)*; b) owner supplies source; c) Claude drafts guides only.
-6. **Help index.** a) guides by area + search + glossary + "Ask {assistant}" (if `ask`) *(rec.)*; b) search only; c) guides + glossary.
-7. **Guides in Ask/MCP?** a) yes, kind `help` *(rec.)*; b) drawer only; c) client-facing ones only.
-8. **Placeholders.** a) keep `{{product}}`/`{{assistant}}`, add `{{client}}`, neutral fallback *(rec.)*; b) D7's `{agency}` form.
-9. **Timing vs 14b.** a) plan now, run 15b-1 now, 15b-2 after 14b merges *(rec.)*; b) wait; c) run all, 14b adds its own.
-10. **Extras.** a) none, backlog *(rec.)*; b) usage analytics; c) "new" hints.
+**6. Open questions** — all answered 2026-10-19; see Decisions / spec §1.
