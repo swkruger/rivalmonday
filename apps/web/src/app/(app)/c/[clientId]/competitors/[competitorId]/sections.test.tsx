@@ -44,7 +44,7 @@ describe('competitor profile sections (decision 13)', () => {
 
   it('lists each keyword’s ranking with a link to its geo-grid, or the setup state', () => {
     const base = { scan: null, scans: [], keywords: ['ac repair'], keyword: 'ac repair', businesses: [], business: X, size: 3, cells: [], top3: 0, points: 0, avgRank: null, radiusKm: 25, lats: [], lngs: [], map: null };
-    const { unmount } = render(<RankingsSection clientId={C} competitorId={X} geo={{ ...base, setup: 'ready', keywordSummaries: [{ keyword: 'ac repair', top3: 8, points: 8, avgRank: 1.4 }] }} />);
+    const { unmount } = render(<RankingsSection clientId={C} competitorId={X} geo={{ ...base, setup: 'ready', keywordSummaries: [{ keyword: 'ac repair', top3: 8, points: 8, avgRank: 1.4, evidenceIds: [] }] }} />);
     const link = screen.getByRole('link', { name: 'ac repair — top 3 at 8 of 8 · avg 1.4' });
     expect(link.getAttribute('href')).toBe(`/c/${C}/rankings?keyword=ac+repair&business=${X}`);
     unmount();

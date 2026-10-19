@@ -1,6 +1,6 @@
 import { rankKeywordsFor, STADIA_ATTRIBUTION } from '@cs/collectors';
 import { canAccessClient, insideBounds, toolkit, ToolError } from '@cs/core';
-import { client, competitorSignal, type RankResult, rankMapImage, rankScan, rankSnapshot, type Tier, type Tx, withTenant } from '@cs/db';
+import { client, competitorSignal, evidence, type RankResult, rankMapImage, rankScan, rankSnapshot, type Tier, type Tx, withTenant } from '@cs/db';
 import { competitorMatcher, NOT_FOUND_RANK, rankMetrics, rankSettingsKey } from '@cs/engine';
 import { and, desc, eq, inArray, isNotNull, lt } from 'drizzle-orm';
 import { z } from 'zod';
@@ -35,7 +35,8 @@ export async function doneScan(tx: Tx, clientId: string, id: string): Promise<Sc
 export const getGeogrid = defineTool({
   name: 'get_geogrid',
   access: 'read',
-  description: 'Local-pack rank of one business (you or a tracked competitor) at every point of a rank-scan grid for one keyword, plus per-keyword summaries.',
+  description: 'Local-pack rank of one business (you or a tracked competitor) at every point of a rank-scan grid for one keyword, plus per-keyword summaries. '
+    + "Each summary's evidenceIds are the evidence to cite for it (the scan id is not evidence).",
   input: z.object({ clientId: uuid, keyword: z.string().trim().min(1).max(100).optional(), business: BusinessKey.optional(), scanId: uuid.optional() }),
   output: GeoGridView,
   permission: 'read',
@@ -60,7 +61,7 @@ export const getGeogrid = defineTool({
         if (!chosen) throw new ToolError('not_found', 'Scan not found');
       }
       const rows = chosen
-        ? await tx.select({ keyword: rankSnapshot.keyword, lat: rankSnapshot.lat, lng: rankSnapshot.lng, results: rankSnapshot.results }).from(rankSnapshot).where(eq(rankSnapshot.scanId, chosen.id))
+        ? await tx.select({ keyword: rankSnapshot.keyword, lat: rankSnapshot.lat, lng: rankSnapshot.lng, results: rankSnapshot.results, captureId: rankSnapshot.captureId }).from(rankSnapshot).where(eq(rankSnapshot.scanId, chosen.id))
         : [];
       // An older scan opened by id is merged into the list so the picker can show it.
       const scans = chosen && !recent.some((s) => s.id === chosen!.id)
@@ -86,9 +87,23 @@ export const getGeogrid = defineTool({
       const s = snaps.find((x) => x.keyword === keyword && x.lat === lat && x.lng === lng);
       return s ? rankIn(s.results) : null;
     }));
+    // One citable evidence row per keyword: the centre point's capture (the client's own business), else any captured point.
+    const midLat = lats[Math.floor(lats.length / 2)];
+    const midLng = lngs[Math.floor(lngs.length / 2)];
+    const captureFor = (kw: string): string | null => {
+      const own = snaps.filter((s) => s.keyword === kw && s.captureId !== null);
+      return (own.find((s) => s.lat === midLat && s.lng === midLng) ?? own[0])?.captureId ?? null;
+    };
+    const captureIds = [...new Set(keywords.map(captureFor).filter((x): x is string => x !== null))];
+    // The snapshot (and so its capture id) was read through RLS above; `evidence` is a global table.
+    const evRows = captureIds.length
+      ? await deps.service.select({ id: evidence.id, captureId: evidence.captureId }).from(evidence).where(inArray(evidence.captureId, captureIds))
+      : [];
     const summary = (kw: string) => {
       const ranks = snaps.filter((s) => s.keyword === kw).map((s) => rankIn(s.results)).filter((r): r is number => r !== null);
-      return { keyword: kw, top3: ranks.filter((r) => r <= 3).length, points: ranks.length, avgRank: ranks.length ? r1(ranks.reduce((a, b) => a + b, 0) / ranks.length) : null };
+      const cap = captureFor(kw);
+      const evidenceIds = cap ? evRows.filter((e) => e.captureId === cap).map((e) => e.id).slice(0, 1) : [];
+      return { keyword: kw, top3: ranks.filter((r) => r <= 3).length, points: ranks.length, avgRank: ranks.length ? r1(ranks.reduce((a, b) => a + b, 0) / ranks.length) : null, evidenceIds };
     };
     const current = keyword ? summary(keyword) : { top3: 0, points: 0, avgRank: null };
     // The map shows only when it covers every point of this scan (the grid may have grown since the image was made).

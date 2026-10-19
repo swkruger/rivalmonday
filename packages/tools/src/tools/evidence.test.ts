@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { evidenceContentType } from '../workspace/evidence-access';
 import { firstVisibleEvent } from '../workspace/scope';
 import type { CompareView, EvidenceView } from './schemas';
-import { ctx, day, dbs, registry, resetWorkspace, seedCapture, seedEvent } from './workspace-fixtures';
+import { ctx, day, dbs, registry, resetWorkspace, seedCapture, seedEvent, seedSelf } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
 const viewerBriefsOnly = ctx('client_viewer', [IDS.clientA1]);
@@ -127,6 +127,16 @@ describe('get_evidence', () => {
     expect((await getEvidence(am, a.ids.html!)).servable).toBe(false);
     expect((await getEvidence(am, a.ids.text!)).servable).toBe(true);
     expect(['screenshot', 'text', 'html', 'vendor_json', 'toString'].map(evidenceContentType)).toEqual(['image/webp', 'text/plain; charset=utf-8', undefined, undefined, undefined]);
+  });
+
+  it("opens evidence of the client's own business (e.g. a rank snapshot), never another client's", async () => {
+    const self = await seedSelf();
+    const own = await seedCapture({ competitorId: self, source: 'google_maps_rank', kinds: ['vendor_json'] });
+    expect(await getEvidence(viewerBriefsOnly, own.ids.vendor_json!)).toMatchObject({ evidenceId: own.ids.vendor_json, channelLabel: 'Local rankings', competitorName: 'A1 HVAC' });
+    const otherSelf = await seedSelf({ clientId: IDS.clientA2, name: 'A2 Plumbing', placeId: 'a2-place' });
+    const other = await seedCapture({ competitorId: otherSelf, source: 'google_maps_rank', kinds: ['vendor_json'] });
+    await expect(getEvidence(viewerBriefsOnly, other.ids.vendor_json!)).rejects.toMatchObject({ code: 'not_found' });
+    expect((await getEvidence(ownerA2, other.ids.vendor_json!, IDS.clientA2)).evidenceId).toBe(other.ids.vendor_json);
   });
 
   it('keeps evidence open after the competitor is removed only while a visible brief item cites that competitor (decision 7)', async () => {

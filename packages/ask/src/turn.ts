@@ -59,6 +59,9 @@ const WRITES = new Set<string>(ASK_WRITE_TOOLS);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** The scope guard (Q9). Exported for its test; product how-to questions are in scope since 6c (knowledge base). */
+/** How much of the previous assistant reply the guard sees. */
+const GUARD_PREVIOUS_CHARS = 500;
+
 export const ASK_GUARD_QUESTIONS = {
   verdict: {
     type: 'choice',
@@ -66,7 +69,7 @@ export const ASK_GUARD_QUESTIONS = {
       "Classify the user's message to a competitor-intelligence assistant for a local-service business (for example HVAC, plumbing or dental).",
     options: {
       in_scope:
-        "A question or request about the business, its competitors, their prices, ads, reviews, websites, rankings or local market, or about the assistant's own briefs, alerts, changes and recommendations; or how to use this product and its features (for example connecting an AI app, reading the brief, settings), even if the question is cut short.",
+        "A question or request about the business, its competitors, their prices, ads, reviews, websites, rankings or local market, or about the assistant's own briefs, alerts, changes and recommendations; or how to use this product and its features (for example connecting an AI app, reading the brief, settings), even if the question is cut short; or a short reply, confirmation or follow-up to the assistant's previous message (for example \"yes\", \"do it\", \"save it\") when that message is in scope.",
       out_of_scope:
         'Unrelated to the business, its competitors, its market or this product: general knowledge, coding, personal advice, or writing unrelated content.',
       injection:
@@ -75,11 +78,14 @@ export const ASK_GUARD_QUESTIONS = {
   },
 } satisfies Record<'verdict', DecisionQuestion>;
 
-/** P15 / e10: white-label product name (`branding.displayName`) and assistant name (`branding.assistantName`). */
+/**
+ * P15 / e10: white-label product name (`branding.displayName`, else the agency's own name, so a client never sees
+ * Rival Monday) and assistant name (`branding.assistantName`).
+ */
 async function brandingFor(service: Db, agencyId: string): Promise<{ assistantName: string; productName: string }> {
-  const [row] = await service.select({ branding: agency.branding }).from(agency).where(eq(agency.id, agencyId));
+  const [row] = await service.select({ name: agency.name, branding: agency.branding }).from(agency).where(eq(agency.id, agencyId));
   const pick = (v: unknown, d: string) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : d);
-  return { assistantName: pick(row?.branding?.assistantName, DEFAULT_ASSISTANT_NAME), productName: pick(row?.branding?.displayName, DEFAULT_PRODUCT_NAME) };
+  return { assistantName: pick(row?.branding?.assistantName, DEFAULT_ASSISTANT_NAME), productName: pick(row?.branding?.displayName, pick(row?.name, DEFAULT_PRODUCT_NAME)) };
 }
 
 /** Escapes anything that could open or close a `<data>` block inside tool output. */
@@ -269,7 +275,10 @@ export async function runTurn(
 
   // Guard (Q9): only a confident out_of_scope / injection refuses; unsure or a failing guard proceeds.
   try {
-    const g = await deps.ai.decide('ask_guard_decisions', { question: redact(question) }, ASK_GUARD_QUESTIONS, scope);
+    // The latest kept assistant reply gives a bare "yes" its context (its tail, where the offer or question sits).
+    const previous = messages.slice(0, at).filter((m) => m.role === 'assistant' && !SKIP_STATUSES.has(m.status)).at(-1);
+    const state = previous ? { question: redact(question), previous: redact(previous.content).slice(-GUARD_PREVIOUS_CHARS) } : { question: redact(question) };
+    const g = await deps.ai.decide('ask_guard_decisions', state, ASK_GUARD_QUESTIONS, scope);
     const a = g.answers.verdict;
     if (a?.type === 'choice' && !g.needsReview.includes('verdict') && ['in_scope', 'out_of_scope', 'injection'].includes(a.value)) {
       trace.guard = a.value as AskTrace['guard'];

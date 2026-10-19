@@ -375,7 +375,8 @@ export const GeoGridView = z.object({
   top3: z.number().int(),
   points: z.number().int(),
   avgRank: z.number().nullable(),
-  keywordSummaries: z.array(z.object({ keyword: z.string(), top3: z.number().int(), points: z.number().int(), avgRank: z.number().nullable() })),
+  /** `evidenceIds`: the scan's evidence for that keyword (the centre point's capture, else any captured point; empty when none). */
+  keywordSummaries: z.array(z.object({ keyword: z.string(), top3: z.number().int(), points: z.number().int(), avgRank: z.number().nullable(), evidenceIds: z.array(z.string().uuid()) })),
   radiusKm: z.number().nullable(),
   /** Grid point latitudes (north → south) and longitudes (west → east): the axes of `cells`. */
   lats: z.array(z.number()),

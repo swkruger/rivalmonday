@@ -2,7 +2,7 @@ import { client, feedback, recommendation } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ctx, dbs, registry, resetWorkspace, seedCapture, seedEvent } from './workspace-fixtures';
+import { ctx, dbs, registry, resetWorkspace, seedCapture, seedEvent, seedSelf } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
 const viewer = ctx('client_viewer', [IDS.clientA1], ['dashboard']);
@@ -29,6 +29,21 @@ describe('add_recommendation', () => {
     await expect(add(am, { ...base, evidenceIds: [cap.ids.text] })).rejects.toMatchObject({ code: 'invalid_input', message: 'Every evidence id must be one you can see' });
     await expect(add(am, { ...base, evidenceIds: ['00000000-0000-4000-8000-0000000000ee'] })).rejects.toMatchObject({ code: 'invalid_input' });
     expect(await dbs.owner.select().from(recommendation)).toHaveLength(0);
+  });
+
+  it("accepts evidence of the client's own business (rank snapshots, own profile)", async () => {
+    // Live 2026-10-19: a rank-grid recommendation could not be saved; own-business captures failed the linked check.
+    const self = await seedSelf();
+    const cap = await seedCapture({ competitorId: self, source: 'google_maps_rank', kinds: ['vendor_json'] });
+    const out = await add(am, { ...base, evidenceIds: [cap.ids.vendor_json!] });
+    const [r] = await dbs.owner.select().from(recommendation).where(eq(recommendation.id, out.id));
+    expect(r!.evidenceIds).toEqual([cap.ids.vendor_json]);
+  });
+
+  it('rejects the own-business evidence of another client', async () => {
+    const otherSelf = await seedSelf({ clientId: IDS.clientA2, name: 'A2 Plumbing', placeId: 'a2-place' });
+    const cap = await seedCapture({ competitorId: otherSelf, source: 'google_maps_rank', kinds: ['vendor_json'] });
+    await expect(add(am, { ...base, evidenceIds: [cap.ids.vendor_json!] })).rejects.toMatchObject({ code: 'invalid_input', message: 'Every evidence id must be one you can see' });
   });
 
   it('rejects a retracted event', async () => {

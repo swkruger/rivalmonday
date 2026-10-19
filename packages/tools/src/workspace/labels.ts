@@ -11,7 +11,7 @@ export const humanise = (k: string): string => {
 
 export const CHANNEL_LABELS: Record<string, string> = {
   web: 'Website', google_ads: 'Google ads', meta_ads: 'Meta ads', google_business_profile: 'Google Business Profile',
-  google_reviews: 'Google reviews', google_jobs: 'Google Jobs', rank: 'Local rankings',
+  google_reviews: 'Google reviews', google_jobs: 'Google Jobs', rank: 'Local rankings', google_maps_rank: 'Local rankings',
 };
 export const channelLabel = (c: string): string => CHANNEL_LABELS[c] ?? humanise(c);
 

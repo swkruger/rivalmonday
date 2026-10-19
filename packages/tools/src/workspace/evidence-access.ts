@@ -1,5 +1,5 @@
 import { type AccessContext, isAgencyRole } from '@cs/core';
-import { alert, brief, briefItem, capture, clientCompetitor, type Db, evidence, withTenant } from '@cs/db';
+import { alert, brief, briefItem, capture, client, clientCompetitor, type Db, evidence, withTenant } from '@cs/db';
 import { and, desc, eq, inArray, lt } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
 import type { SnapshotSide } from '../tools/schemas';
@@ -18,12 +18,15 @@ export const evidenceContentType = (kind: string): (typeof EVIDENCE_CONTENT_TYPE
   Object.hasOwn(EVIDENCE_CONTENT_TYPES, kind) ? EVIDENCE_CONTENT_TYPES[kind as ServableEvidenceKind] : undefined;
 
 /**
- * Decision 7: tracked now, or cited by this client's alert / active brief item — for client roles only a delivered alert
+ * Decision 7: the client's own business, tracked now, or cited by this client's alert / active brief item — for client roles only a delivered alert
  * or an item of an approved/sent brief counts (the 5a client-facing status rule). Tenant tables, so it runs through RLS.
  */
 export async function competitorLinked(deps: ToolDeps, ctx: AccessContext, clientId: string, competitorId: string): Promise<boolean> {
   const agency = isAgencyRole(ctx.role);
   return withTenant(deps.app, ctx, async (tx) => {
+    // The client's own business (rank snapshots, own profile and reviews) is always visible to that client.
+    const [own] = await tx.select({ id: client.id }).from(client).where(and(eq(client.id, clientId), eq(client.selfCompetitorId, competitorId))).limit(1);
+    if (own) return true;
     const [t] = await tx.select({ id: clientCompetitor.competitorId }).from(clientCompetitor)
       .where(and(eq(clientCompetitor.clientId, clientId), eq(clientCompetitor.competitorId, competitorId))).limit(1);
     if (t) return true;

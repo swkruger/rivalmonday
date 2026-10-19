@@ -5,6 +5,8 @@
 
 ## Status (overwrite)
 **13b merged 2026-10-17** (migrations 0074-0076; owner verification pending, see STATE). 13a spec approved; 13a plan owner-approved 2026-10-17 (incl. P1–P24); 13a is next.
+**13b polish 2026-10-19 (owner feedback, mockups approved):** map style `osm_bright` (`RANK_MAP_STYLE`, part of `rankMapSettingsHash`, so every stored map is stale once; the Sunday `rank-schedule` refetches via `clientsNeedingRankMap` = missing or stale, ~$0.06/client once); on a map, cells are 60% of the point spacing, ranked 80% opaque, "20+"/"=" 35% white + faint outline, labels with a halo (`cellPaint`/`labelHalo` in `geo-grid.tsx`, shared by `ChangeGrid`); `MapZoom` (`components/charts/map-zoom.tsx`) adds +/−/reset, drag-pan, pinch and Ctrl+wheel, 1–2× (the @2x image stays sharp). Plain grids unchanged.
+**Ask fixes 2026-10-19 (owner report):** the guard gets the last kept assistant reply (tail, 500 chars) as `previous`, and `in_scope` covers short replies/confirmations, so "yes" to an offer isn't refused; `competitorLinked` counts the client's own business (`client.self_competitor_id`), so own-business evidence opens and backs `add_recommendation`; `get_geogrid` `keywordSummaries[].evidenceIds` = the centre point's rank capture (else any captured point); rank captures label "Local rankings"; with no `branding.displayName` Ask names the agency (`agency.name`) instead of Rival Monday.
 
 ## Next (overwrite)
 13b done; next 13a1 → 13a2 (plan docs/superpowers/plans/2026-10-17-phase-13a-white-label.md). 13a owner tasks: neutral domain, Vercel wildcard + mcp host, Postmark mail.<neutral>, tokens.

@@ -1,11 +1,11 @@
 import { STADIA_ATTRIBUTION } from '@cs/collectors';
-import { client, clientCompetitor, competitorSignal, rankMapImage } from '@cs/db';
+import { client, clientCompetitor, competitorSignal, rankMapImage, rankSnapshot } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { rankSettingsKey } from '@cs/engine';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { GeoGridView, RankTrendView, ShareOfVoiceView } from './schemas';
-import { ago, ctx, dbs, gridSnapshots, registry, resetWorkspace, rr, seedRankScan, seedSelf, setPlace } from './workspace-fixtures';
+import { ago, ctx, dbs, gridSnapshots, registry, resetWorkspace, rr, seedCapture, seedRankScan, seedSelf, setPlace } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
 const owner = ctx('client_owner', [IDS.clientA1], ['dashboard']);
@@ -48,9 +48,26 @@ describe('get_geogrid', () => {
     expect(r.cells).toEqual([[21, 21, 21], [21, 21, 21], [21, 21, 21]]);
     expect([r.top3, r.points, r.avgRank]).toEqual([0, 9, 21]);
     expect(r.keywordSummaries).toEqual([
-      { keyword: 'ac repair', top3: 8, points: 8, avgRank: 1.4 },
-      { keyword: 'plumber', top3: 0, points: 9, avgRank: 21 },
+      { keyword: 'ac repair', top3: 8, points: 8, avgRank: 1.4, evidenceIds: [] },
+      { keyword: 'plumber', top3: 0, points: 9, avgRank: 21, evidenceIds: [] },
     ]);
+  });
+
+  it('each keyword summary cites the evidence of its centre grid point, so Ask can save a recommendation from it', async () => {
+    await setupClient();
+    const self = (await dbs.owner.select({ id: client.selfCompetitorId }).from(client).where(eq(client.id, IDS.clientA1)))[0]!.id!;
+    const scan = await seedRankScan({ finishedAt: ago(5), snapshots: [...acRepair(), ...plumber()] });
+    const centre = await seedCapture({ competitorId: self, source: 'google_maps_rank', kinds: ['vendor_json'] });
+    const corner = await seedCapture({ competitorId: self, source: 'google_maps_rank', kinds: ['vendor_json'] });
+    await dbs.owner.update(rankSnapshot).set({ captureId: centre.captureId })
+      .where(and(eq(rankSnapshot.scanId, scan), eq(rankSnapshot.keyword, 'ac repair'), eq(rankSnapshot.lat, 31.99), eq(rankSnapshot.lng, -96.99)));
+    await dbs.owner.update(rankSnapshot).set({ captureId: corner.captureId })
+      .where(and(eq(rankSnapshot.scanId, scan), eq(rankSnapshot.keyword, 'plumber'), eq(rankSnapshot.lat, 32), eq(rankSnapshot.lng, -97)));
+    const r = (await registry.invoke(owner, 'get_geogrid', { clientId: IDS.clientA1 })) as GeoGridView;
+    // Centre first; a keyword whose centre has no capture falls back to any captured point of that keyword.
+    expect(r.keywordSummaries.map((k) => [k.keyword, k.evidenceIds])).toEqual([['ac repair', [centre.ids.vendor_json]], ['plumber', [corner.ids.vendor_json]]]);
+    const ev = await registry.invoke(owner, 'get_evidence', { clientId: IDS.clientA1, evidenceId: centre.ids.vendor_json! });
+    expect(ev).toMatchObject({ evidenceId: centre.ids.vendor_json });
   });
 
   it('falls back to the first keyword for an unknown one and opens an older scan by id', async () => {
@@ -82,7 +99,7 @@ describe('get_geogrid', () => {
     expect([r.setup, r.business, r.businesses]).toEqual(['ready', null, []]);
     expect(r.cells.flat().every((c) => c === null)).toBe(true);
     expect([r.top3, r.points, r.avgRank]).toEqual([0, 0, null]);
-    expect(r.keywordSummaries).toEqual([{ keyword: 'ac repair', top3: 0, points: 0, avgRank: null }]);
+    expect(r.keywordSummaries).toEqual([{ keyword: 'ac repair', top3: 0, points: 0, avgRank: null, evidenceIds: [] }]);
   });
 
   it('reports the setup state, and refuses an untracked business and a missing dashboard flag', async () => {
