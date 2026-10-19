@@ -15,7 +15,7 @@ const MAX_MERGE_DEPTH = 5;
 /** Serialises every catalogue write: replays return the committed row and similarity checks see committed data. */
 const CATALOGUE_LOCK_KEY = 1_401_400_001;
 /**
- * Global lock order for transactions that touch the catalogue: catalogue advisory lock -> vertical rows (id order) -> client rows.
+ * Global lock order for transactions that touch the catalogue: catalogue advisory lock -> vertical rows (id order) -> client rows (id order) -> dependent rows (e.g. client_setup).
  * A path that already needs a client row lock must call `lockCatalogue` first (the advisory xact lock is re-entrant).
  */
 export const lockCatalogue = (tx: Tx) => tx.execute(sql`select pg_advisory_xact_lock(${CATALOGUE_LOCK_KEY})`);

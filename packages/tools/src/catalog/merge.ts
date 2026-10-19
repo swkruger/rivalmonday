@@ -16,11 +16,19 @@ async function lockVerticals(tx: Tx, ids: string[]): Promise<Map<string, typeof 
   return new Map(rows.map((r) => [r.id, r]));
 }
 
+/** Locks the vertical's client rows in id order and returns their ids. Lock order: catalogue -> vertical rows -> client rows -> dependent rows (client_setup). */
+async function lockClients(tx: Tx, verticalId: string): Promise<string[]> {
+  const rows = (await tx.execute(sql`SELECT id FROM client WHERE vertical_id = ${verticalId} ORDER BY id FOR UPDATE`)) as unknown as { id: string }[];
+  return rows.map((r) => r.id);
+}
+
 /**
  * Re-keys service ids inside stored ready setup suggestions of the vertical's clients, so a client mid-setup does not save an id that
- * no longer exists. `mapJson` is a JSON object old id -> new id; entries that collapse onto one id keep the first.
+ * no longer exists. Callers pass the ids of client rows they already hold locked (lock order: ... -> client rows -> client_setup, the
+ * same order `advance_client_setup` takes). `mapJson` is a JSON object old id -> new id; entries that collapse onto one id keep the first.
  */
-async function rekeySuggestions(tx: Tx, verticalId: string, mapJson: string): Promise<void> {
+async function rekeySuggestions(tx: Tx, clientIds: string[], mapJson: string): Promise<void> {
+  if (clientIds.length === 0) return;
   await tx.execute(sql`UPDATE client_setup cs SET suggestions = jsonb_set(cs.suggestions, '{services}', (
       SELECT coalesce(jsonb_agg(e ORDER BY ord), '[]'::jsonb) FROM (
         SELECT DISTINCT ON (v) e, ord FROM (
@@ -29,7 +37,7 @@ async function rekeySuggestions(tx: Tx, verticalId: string, mapJson: string): Pr
           FROM jsonb_array_elements(cs.suggestions -> 'services') WITH ORDINALITY AS t(x, ord)) a
         ORDER BY v, ord) b))
     WHERE cs.suggestions ->> 'status' = 'ready' AND jsonb_typeof(cs.suggestions -> 'services') = 'array'
-      AND cs.client_id IN (SELECT id FROM client WHERE vertical_id = ${verticalId})`);
+      AND cs.client_id IN (SELECT jsonb_array_elements_text(${JSON.stringify(clientIds)}::jsonb)::uuid)`);
 }
 
 /**
@@ -76,8 +84,9 @@ export async function mergeVerticalTx(tx: Tx, sourceId: string, targetId: string
     FROM (SELECT a.v AS src_area, b.v AS tgt_area FROM jsonb_array_elements_text(${mapSrc}::jsonb) WITH ORDINALITY AS a(v, o)
           JOIN jsonb_array_elements_text(${mapTgt}::jsonb) WITH ORDINALITY AS b(v, o) USING (o)) AS m
     WHERE vertical_id = ${sourceId} AND id = m.src_area`);
-  // 2. clients (and their stored setup suggestions, while they still point at the source vertical)
-  await rekeySuggestions(tx, sourceId, JSON.stringify(mapped));
+  // 2. clients. Lock the source's client rows first (id order): a wizard action holds client -> client_setup, so we must too.
+  const movedIds = await lockClients(tx, sourceId);
+  await rekeySuggestions(tx, movedIds, JSON.stringify(mapped)); // exactly the moved clients, not target clients with colliding area ids
   const clients = await tx.execute(sql`UPDATE client c SET vertical_id = ${targetId}, services = (
     SELECT coalesce(jsonb_agg(s ORDER BY ord), '[]'::jsonb) FROM (
       SELECT DISTINCT ON (s) s, ord FROM (
@@ -135,7 +144,8 @@ export async function mergeAreaTx(tx: Tx, verticalId: string, sourceAreaId: stri
 
   await tx.update(businessArea).set({ status: 'merged', mergedInto: targetAreaId }).where(and(eq(businessArea.verticalId, verticalId), eq(businessArea.id, sourceAreaId)));
   await tx.execute(sql`UPDATE business_area SET merged_into = ${targetAreaId} WHERE vertical_id = ${verticalId} AND merged_into = ${sourceAreaId}`); // flatten chains
-  await rekeySuggestions(tx, verticalId, JSON.stringify({ [sourceAreaId]: targetAreaId }));
+  // Client rows first, then client_setup (the order advance_client_setup takes); vertical_id does not change here.
+  await rekeySuggestions(tx, await lockClients(tx, verticalId), JSON.stringify({ [sourceAreaId]: targetAreaId }));
   const clients = await tx.execute(sql`UPDATE client c SET services = (
     SELECT coalesce(jsonb_agg(s ORDER BY ord), '[]'::jsonb) FROM (
       SELECT DISTINCT ON (s) s, ord FROM (

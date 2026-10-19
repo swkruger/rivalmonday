@@ -39,14 +39,15 @@ Owner runs the verification steps below; then 14b Task 0 on the 14b plan.
 - Unscheduled → Drop `playbook_override` (and tools/tests) after the 14b runbook backfill is verified in prod; new migration.
 - 14b/polish → Batch theme-discovery spend (`discovery.ts` `collectBatch`) is untagged; per-result scope.
 - Polish → unused `vertical_draft_agency_day_idx`; index `llm_call(agency_id, task, created_at)` for the cap query; draft cap not atomic; stale cached draft repeats paid misses.
-- Polish → Test 0077's embedded seed equals `VERTICAL_CATALOG_SEED`; guard YAML pack use in prod paths.
+- Polish → Test 0077's embedded seed equals `VERTICAL_CATALOG_SEED`; guard YAML pack use in prod.
 - Polish → `add_business_area` has no ownership check (creator's `update_vertical` can delete another agency's areas); staff edits create areas attributed to the operator's agency.
 - Polish → `update_vertical`/`review_vertical` rename skip similarity checks; no-op update bumps version; generic-only area names normalise to ''; `slugOf` drops non-ASCII.
 - Polish → `position` column for area order.
 - Polish → Client-data check skips seed keywords/audience noun/theme text; `save_setup_profile` stale `current` services on concurrent edit; GBP `services` read only for array shape.
-- Polish → Panel: fixed `nbt-*` DOM ids collide with two open lead cards; quotes only in title tooltips (not keyboard/touch).
-- Polish → Distillery E2E leaves rows in the shared E2E DB and is re-runnable only on a fresh DB; confirm no order dependence in the full run at `/rm-merge`.
-- Polish → Generic theme id `technician_professionalism` keeps an HVAC noun (id kept stable; name is neutral).
+- Polish → Panel: fixed `nbt-*` DOM ids collide across open lead cards; quotes only in title tooltips.
+- Polish → Distillery E2E leaves rows in the shared E2E DB (re-runnable only on a fresh DB); check order dependence at `/rm-merge`.
+- Polish → Areas merged into a *moved* area keep pointing across verticals after a vertical merge.
+- Polish → Generic theme id `technician_professionalism` keeps an HVAC noun (name is neutral).
 
 ## Owner verification steps
 Acceptance: add a new **Distillery** client; onboarding creates its vertical and business areas where missing; the agency then customises the generic runbook for that client (14b).

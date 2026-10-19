@@ -215,6 +215,36 @@ describe('merges keep other state consistent', () => {
   });
 });
 
+describe('merge lock order (catalogue -> vertical -> client -> client_setup)', () => {
+  // Hold a client_setup row lock so the merge stalls at its client_setup write; by then it must already hold the client rows.
+  const stalledAtSetup = async (run: () => Promise<unknown>) => {
+    let merging: Promise<unknown> = Promise.resolve();
+    let held: unknown;
+    await dbs.owner.transaction(async (tx) => {
+      await tx.execute(sql`select 1 from client_setup where client_id = ${IDS.clientA1} for update`);
+      merging = run();
+      await new Promise((r) => setTimeout(r, 800));
+      held = await dbs.owner.transaction((t2) => t2.execute(sql`select 1 from client where id = ${IDS.clientA1} for update nowait`)).then(() => false, () => true);
+    });
+    await merging;
+    return held;
+  };
+
+  it('merge_vertical holds the client rows before it writes client_setup', async () => {
+    await seedMergeData();
+    await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, suggestions: ready('bottle_sales', 'tasting_room') });
+    expect(await stalledAtSetup(() => call(staff, 'merge_vertical', { sourceId: 'distillery', targetId: 'brewery', areaMap: { tasting_room: 'taproom', bottle_sales: null } }))).toBe(true);
+    expect(await suggestedOf()).toEqual(['bottle_sales', 'taproom']);
+  });
+
+  it('merge_business_area holds the client rows before it writes client_setup', async () => {
+    await seedMergeData();
+    await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, suggestions: ready('bottle_sales', 'tasting_room') });
+    expect(await stalledAtSetup(() => call(op, 'merge_business_area', { verticalId: 'distillery', sourceAreaId: 'bottle_sales', targetAreaId: 'tasting_room' }))).toBe(true);
+    expect(await suggestedOf()).toEqual(['tasting_room']);
+  });
+});
+
 describe('merge_business_area', () => {
   it('merges one area into another inside the vertical', async () => {
     await seedMergeData();
