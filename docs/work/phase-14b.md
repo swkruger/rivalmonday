@@ -1,10 +1,10 @@
 # phase-14b — Dynamic verticals, business areas and runbooks
 
-**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-14b   **Base:** main @ 9bd2aab5
+**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-14b   **Base:** main @ f1ec9683 (rebased onto 15a 2026-10-19)
 **Spec:** [2026-10-17-phase-14-dynamic-verticals-runbooks-design.md](../superpowers/specs/2026-10-17-phase-14-dynamic-verticals-runbooks-design.md). **Plans:** [14a](../superpowers/plans/2026-10-18-phase-14a-vertical-catalogue.md), [14b](../superpowers/plans/2026-10-18-phase-14b-runbooks.md). Add a Phase 14 (14a, 14b) roadmap row at merge. Assumes 13a2 (`voice_override`, `/c/[clientId]/settings/customisation`).
 
 ## Status (overwrite)
-2026-10-19: 14a and 14b implemented (Tasks 0-9). Migrations 0077 `vertical_catalog`, 0078 `llm_call_vertical`, 0079 runbooks. E2E `runbook.spec.ts` (5 tests, `@runbook`) passes. Final review fix wave done (pending never sticks, one thresholds setting, R5 tier limits). Awaiting owner verification.
+2026-10-19: 14a and 14b implemented (Tasks 0-9); rebased onto 15a and placed per 15 spec §3 (Platform › Content: Business types, Runbook; agency Runbook at `/agency/settings/runbook` replacing Playbooks, 308s from `/agency/playbooks` and `/agency/settings/playbooks`; client Runbook tab in Client settings). After rebase: test:affected 16/16, E2E 112/112. Migrations 0077 `vertical_catalog`, 0078 `llm_call_vertical`, 0079 runbooks. E2E `runbook.spec.ts` (5 tests, `@runbook`) passes. Final review fix wave done (pending never sticks, one thresholds setting, R5 tier limits). Awaiting owner verification.
 
 ## Next (overwrite)
 Owner runs the steps below; `/rm-merge` runs the full unit + E2E suites. Run `pnpm --filter @cs/worker runbook:backfill` on `cs_dev` first.
