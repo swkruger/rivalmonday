@@ -4,10 +4,10 @@
 **Spec:** [2026-10-19-phase-15b-help-system-design.md](../superpowers/specs/2026-10-19-phase-15b-help-system-design.md). **Plan/spec:** inputs [15 spec](../superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) §1 D6–D7, §2.7, §4 · [audit](../research/2026-10-18-phase-15-ux-audit.md) · [inventory](../research/2026-10-18-phase-15-page-inventory.md) · [6c KB spec](../superpowers/specs/2026-10-12-phase-6c-knowledge-design.md). 15b spec addendum + plan: not written.
 
 ## Status (overwrite)
-2026-10-19: brainstorm done; spec written (B1–B10), awaiting owner review. No code. Planning-only worktree (no pnpm install yet).
+2026-10-19: spec owner-approved; 15b-1 plan written ([plan](../superpowers/plans/2026-10-19-phase-15b1-help-system.md), 12 tasks T0–T11), awaiting owner approval. No code. Planning-only worktree (no pnpm install yet).
 
 ## Next (overwrite)
-Owner reviews spec → lean plan for **15b-1** → owner approval → execute **after phase-14b merges** (B6): pre-flight rebase, `pnpm install`, own test DB, next free migration. 15b-2 plan after 15b-1 merges.
+Owner approves the 15b-1 plan → execute **after phase-14b merges** (B6): pre-flight rebase, `pnpm install`, own test DB, next free migration. 15b-2 plan after 15b-1 merges.
 
 ## Interfaces this branch adds or changes
 None yet. Likely: KB page-key lookup (maybe a migration — next free at execution, after 14b's 0079), `HelpTip`/`FieldHint`/`PageGuide`, `/agency/help`, `/c/<id>/help`.
