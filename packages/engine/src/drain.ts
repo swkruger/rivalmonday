@@ -24,7 +24,7 @@ export interface DrainResult {
 
 /** Runs the engine inline until no work is left (CLI and tests); the worker uses jobs instead. */
 export async function drainEngine(
-  deps: { db: Db; store: ObjectStore; ai: Ai; packs: PackLoader; generic?: () => Promise<VerticalPack> },
+  deps: { db: Db; store: ObjectStore; ai: Ai; packs: PackLoader; generic: () => Promise<VerticalPack> },
   opts: { competitorId?: string; limit?: number; maxRounds?: number } = {},
 ): Promise<DrainResult> {
   const r: DrainResult = { diffs: 0, changes: 0, tagged: 0, events: 0, scored: 0, rankDiffs: 0, reviews: 0, prices: 0, errors: 0 };

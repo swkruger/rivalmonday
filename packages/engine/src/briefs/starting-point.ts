@@ -169,7 +169,7 @@ interface SpItem {
  * Spec § Generation / D10–D11: the one-off starting point. Scorecard → self-rules → items (fixed facts, playbook actions) → optional
  * writer pass for "why it matters" through the two-layer verifier → `ready`. No qualifying finding ships the decided baseline item.
  */
-export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackLoader; generic?: () => Promise<VerticalPack>; now?: () => Date }, clientId: string): Promise<BriefRunResult> {
+export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackLoader; generic: () => Promise<VerticalPack>; now?: () => Date }, clientId: string): Promise<BriefRunResult> {
   const now = deps.now?.() ?? new Date();
   const [row] = await deps.db.select().from(client).where(eq(client.id, clientId)).limit(1);
   if (!row) throw new Error(`client ${clientId} not found`);

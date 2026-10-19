@@ -1,5 +1,7 @@
 import type { AccessContext } from '@cs/core';
-import { changeEvent, client, eventScore } from '@cs/db';
+import { changeEvent, client, eventScore, runbook } from '@cs/db';
+import { ensureAgencyRunbook, writeItem } from '@cs/engine';
+import { loadVerticalPack } from '@cs/verticals';
 import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -21,6 +23,14 @@ describe('alert rules', () => {
     expect(await stored()).toEqual({ alert: 60, brief: 30 });
     expect(await set(am, { reset: true })).toMatchObject({ alert: 70, brief: 40, custom: false });
     expect(await stored()).toBeNull();
+  });
+
+  it('the default reflects the agency thresholds knob (R3)', async () => {
+    const pack = await loadVerticalPack('generic');
+    const agencyId = await ensureAgencyRunbook(dbs.service, IDS.agencyA, pack);
+    await writeItem(dbs.service, agencyId, { key: 'knob:thresholds', kind: 'knob', content: { alert: 80, brief: 50 }, enabled: true, businessAreaIds: null, version: 1, upstreamVersion: null, upstreamSnapshot: null, dismissedUpstreamVersion: null, customised: false, removedUpstream: false }, 'u1');
+    expect(await registry.invoke(ownerRules, 'get_alert_rules', { clientId: IDS.clientA1 })).toEqual({ alert: 80, brief: 50, custom: false, defaults: { alert: 80, brief: 50 } });
+    await dbs.owner.delete(runbook);
   });
 
   it('refuses bad thresholds with a message and changes nothing (Review Focus 4)', async () => {

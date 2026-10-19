@@ -82,7 +82,7 @@ export function briefErrorMessage(err: unknown): string {
   return String(err);
 }
 
-export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader; generic?: () => Promise<VerticalPack> }, clientId: string, opts: { now?: Date } = {}): Promise<BriefRunResult> {
+export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader; generic: () => Promise<VerticalPack> }, clientId: string, opts: { now?: Date } = {}): Promise<BriefRunResult> {
   const now = opts.now ?? new Date();
   const [row] = await deps.db.select({ id: client.id, agencyId: client.agencyId, timezone: client.timezone }).from(client).where(eq(client.id, clientId)).limit(1);
   if (!row) throw new Error(`client ${clientId} not found`);

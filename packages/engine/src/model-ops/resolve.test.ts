@@ -9,11 +9,13 @@ import { supersedePriorChanges } from '../events/retract';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
 import { createPackLoader } from '../tag/tag-stage';
 import { listOpenReviews, resolveDecisionReview, reviewQuestions } from './resolve';
+import { loadVerticalPack } from '@cs/verticals';
+const generic = () => loadVerticalPack('generic');
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const packs = createPackLoader();
-const deps = { db: dbs.service, packs };
+const deps = { db: dbs.service, packs, generic };
 beforeEach(async () => {
   await truncateAll(dbs.owner);
   await seedTenancy(dbs.owner); // A1 and B1 (both hvac) track X

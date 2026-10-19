@@ -117,6 +117,13 @@ async function itemsWhere(db: Db, where: ReturnType<typeof and>): Promise<Runboo
 const thresholdOf = (items: RunbookItem[] | null) =>
   (items?.find((i) => i.key === 'knob:thresholds' && i.enabled)?.content as { alert: number; brief: number } | undefined) ?? null;
 
+/** R3 default thresholds without the client column: agency knob, then platform knob, then the pack's routing (what the engine uses for a client with no custom thresholds). */
+export async function defaultThresholds(db: Db, agencyId: string, pack: VerticalPack): Promise<{ alert: number; brief: number }> {
+  const agencyItems = await itemsWhere(db, and(eq(runbook.level, 'agency'), eq(runbook.agencyId, agencyId)));
+  const platformItems = await itemsWhere(db, eq(runbook.level, 'platform'));
+  return thresholdOf(agencyItems) ?? thresholdOf(platformItems) ?? { alert: pack.scoring.routing.alert, brief: pack.scoring.routing.brief };
+}
+
 /** Resolution order (R2): client runbook, legacy when the agency has overrides for the vertical, agency runbook for generic-play packs, else legacy. */
 export async function loadClientRunbook(deps: { db: Db; packs: PackLoader; generic?: () => Promise<VerticalPack> }, clientId: string): Promise<EffectiveRunbook> {
   const { db } = deps;

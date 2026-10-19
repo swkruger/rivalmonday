@@ -103,7 +103,7 @@ export interface ScoreRunResult {
 }
 
 /** Scores the event for every tracking client that has no score yet. Idempotent via event_score's primary key. */
-export async function scoreEvent(deps: { db: Db; packs: PackLoader; generic?: () => Promise<VerticalPack> }, eventId: string, opts: { now?: Date } = {}): Promise<ScoreRunResult> {
+export async function scoreEvent(deps: { db: Db; packs: PackLoader; generic: () => Promise<VerticalPack> }, eventId: string, opts: { now?: Date } = {}): Promise<ScoreRunResult> {
   const [ev] = await deps.db.select().from(changeEvent).where(eq(changeEvent.id, eventId)).limit(1);
   if (!ev) throw new Error(`event ${eventId} not found`);
   const empty: ScoreRunResult = { scored: 0, failed: 0, routes: { alert: 0, brief: 0, archive: 0 } };
@@ -142,7 +142,7 @@ export async function scoreEvent(deps: { db: Db; packs: PackLoader; generic?: ()
           changeType: ev.changeType as ChangeType, facts: ev.facts, serviceId: ev.services[c.verticalId] ?? null, zips: ev.zips, needsReview: ev.needsReview,
           maxSimilarity: await similarityByWindow.get(window)!, details: ev.details, ageDays,
         },
-        { services: c.services, zips: c.serviceArea?.zips ?? [], thresholds: runbook.thresholds ?? c.scoreThresholds ?? null },
+        { services: c.services, zips: c.serviceArea?.zips ?? [], thresholds: runbook.thresholds },
         pack,
       );
       const inserted = await deps.db

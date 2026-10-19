@@ -116,7 +116,7 @@ export async function reviewQuestions(deps: { db: Db; packs: PackLoader }, revie
  * event, and a human-answered question gold-labels the linked sample. Never calls a model.
  */
 export async function resolveDecisionReview(
-  deps: { db: Db; packs: PackLoader; generic?: () => Promise<VerticalPack> },
+  deps: { db: Db; packs: PackLoader; generic: () => Promise<VerticalPack> },
   reviewId: string,
   input: { answers: Record<string, string | boolean>; resolvedBy: string },
 ): Promise<{ action: ResolveAction; eventId: string | null; labels: number }> {

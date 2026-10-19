@@ -6,6 +6,8 @@ import { createFakeAi, tagResult } from '../test/fake-ai';
 import { day, fixture, seedPage, seedWebCapture } from '../test/seed';
 import { drainEngine } from './drain';
 import { createPackLoader } from './tag/tag-stage';
+import { loadVerticalPack } from '@cs/verticals';
+const generic = () => loadVerticalPack('generic');
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -21,7 +23,7 @@ describe('drainEngine', () => {
     await seedWebCapture(dbs.service, store, { competitorId: IDS.competitorX, trackedPageId: page, html: await fixture('hvac-home-v1.html'), capturedAt: day(0) });
     await seedWebCapture(dbs.service, store, { competitorId: IDS.competitorX, trackedPageId: page, html: await fixture('hvac-home-v2.html'), capturedAt: day(1) });
     const ai = createFakeAi({ decide: tagResult({ meaningful: true, type: 'price_change', services: { hvac_plumbing: 'ac_tune_up' } }) });
-    const deps = { db: dbs.service, store, ai, packs: createPackLoader() };
+    const deps = { db: dbs.service, store, ai, packs: createPackLoader(), generic };
     // The HVAC fixtures each have one priced block (the AC tune-up), so the drain also runs price_extract
     // on both captures: $89 opens a span, then $69 ends it and opens a new one (2 price points).
     expect(await drainEngine(deps)).toEqual({ diffs: 2, changes: 1, tagged: 1, events: 1, scored: 2, rankDiffs: 0, reviews: 0, prices: 2, errors: 0 });
@@ -36,7 +38,7 @@ describe('drainEngine', () => {
     await seedWebCapture(dbs.service, store, { competitorId: IDS.competitorX, trackedPageId: page, html: await fixture('hvac-home-v1.html'), capturedAt: day(0) });
     await seedWebCapture(dbs.service, store, { competitorId: IDS.competitorX, trackedPageId: page, html: await fixture('hvac-home-v2.html'), capturedAt: day(1) });
     const ai = createFakeAi({ decide: () => { throw new Error('down'); } });
-    const deps = { db: dbs.service, store, ai, packs: createPackLoader() };
+    const deps = { db: dbs.service, store, ai, packs: createPackLoader(), generic };
     // Round 1 diffs both captures, creating one pending change, and also attempts price_extract on
     // both (the fixtures each have one priced block) — both fail once since `decide` always throws.
     // Round 2 attempts to tag the pending change and fails once too (attempts 1 of MAX_STAGE_ATTEMPTS

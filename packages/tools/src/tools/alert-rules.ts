@@ -1,6 +1,6 @@
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { client, type ScoreThresholds, withTenant } from '@cs/db';
-import { validThresholds } from '@cs/engine';
+import { defaultThresholds, validThresholds } from '@cs/engine';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { type ToolDeps, packsOf } from '../deps';
@@ -10,9 +10,8 @@ import { AlertRulesView } from './schemas';
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
 
-async function view(deps: ToolDeps, verticalId: string, t: ScoreThresholds | null): Promise<AlertRulesView> {
-  const d = (await packsOf(deps)(verticalId)).scoring.routing;
-  const defaults = { alert: d.alert, brief: d.brief };
+async function view(deps: ToolDeps, agencyId: string, verticalId: string, t: ScoreThresholds | null): Promise<AlertRulesView> {
+  const defaults = await defaultThresholds(deps.service, agencyId, await packsOf(deps)(verticalId));
   return validThresholds(t) ? { alert: t.alert, brief: t.brief, custom: true, defaults } : { ...defaults, custom: false, defaults };
 }
 
@@ -32,7 +31,7 @@ export const getAlertRules = defineTool({
   feature: 'alert_rules',
   async handler(ctx, { clientId }, deps) {
     const { c, t } = await thresholdsOf(deps, ctx, clientId);
-    return view(deps, c.verticalId, t);
+    return view(deps, ctx.agencyId, c.verticalId, t);
   },
 });
 
@@ -61,7 +60,7 @@ export const setAlertRules = defineTool({
     // `app_user` holds UPDATE (score_thresholds) — RLS scopes the row (decision 14).
     const updated = await withTenant(deps.app, ctx, (tx) => tx.update(client).set({ scoreThresholds: next }).where(eq(client.id, c.id)).returning({ id: client.id }));
     if (updated.length === 0) throw new ToolError('not_found', 'Client not found');
-    return view(deps, c.verticalId, next);
+    return view(deps, ctx.agencyId, c.verticalId, next);
   },
 });
 

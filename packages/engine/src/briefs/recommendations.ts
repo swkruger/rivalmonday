@@ -49,7 +49,7 @@ const SYSTEM = [
 ].join(' ');
 
 /** Spec §8.5 move-triggered playbooks: one recommendation per active move; its rationale passes the brief verifier. */
-export async function recommendForMoves(deps: { db: Db; ai: Ai; packs: PackLoader; generic?: () => Promise<VerticalPack> }, clientId: string, opts: { now?: Date } = {}): Promise<{ created: number; skipped: number; failed: number }> {
+export async function recommendForMoves(deps: { db: Db; ai: Ai; packs: PackLoader; generic: () => Promise<VerticalPack> }, clientId: string, opts: { now?: Date } = {}): Promise<{ created: number; skipped: number; failed: number }> {
   const now = opts.now ?? new Date();
   const [tz] = await deps.db.select({ timezone: client.timezone }).from(client).where(eq(client.id, clientId)).limit(1);
   const year = localParts(now, safeTimezone(tz?.timezone)).year;
