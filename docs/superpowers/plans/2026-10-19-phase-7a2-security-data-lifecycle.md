@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development. **Lean plan format** (root `CLAUDE.md`): Interfaces are binding; implementers write code + tests from Behaviour + Tests. Full code appears only for SQL/RLS, security-sensitive logic, non-obvious algorithms and decided copy.
 
+**Owner-approved 2026-10-19.**
+
 **Goal:** Close the security and data-lifecycle gaps before any real pilot agency is onboarded (spec D1): one SSRF guard, Ask pinned to its thread's client with request checks and a per-turn budget, plan feature flags and MCP client scope, KB URL validation, no-overwrite object store, support-session audit gaps, Postmark bounce handling, archival + purge, lead PII cap and stale-outbox skipping.
 
 **Spec:** `docs/superpowers/specs/2026-10-19-phase-7a-launch-production-security-design.md` §2 (D11–D19), §4, §6–§10 (binding). Runs after 7a1's code tasks (needs `@cs/core/server` from 7a1 Task 1); does not wait for 7a1's live deploy.

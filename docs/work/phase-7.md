@@ -4,7 +4,7 @@
 **Plan/spec:** [7a spec](../superpowers/specs/2026-10-19-phase-7a-launch-production-security-design.md) (supersedes the parked 2026-10-12 spec); plans [7a1](../superpowers/plans/2026-10-19-phase-7a1-deploy-observability.md), [7a2](../superpowers/plans/2026-10-19-phase-7a2-security-data-lifecycle.md). Item lists: [phase-7-scope.md](phase-7-scope.md).
 
 ## Status (overwrite)
-7a1 + 7a2 plans written — owner approval (2026-10-19).
+2026-10-19: 7a spec + 7a1/7a2 plans owner-approved. 7a2 execution started (implementation worktree); 7a1 waits for phase-14b merge (pre-flight rebase), its live deploy for owner accounts.
 
 ## Next (overwrite)
 Owner approves the 7a1 + 7a2 plans (incl. `/bot` copy, new env vars `SENTRY_*`/`NEXT_PUBLIC_SENTRY_DSN`/`LOG_LEVEL`/`POSTMARK_WEBHOOK_SECRET`, and creating `cs_worker`/`cs_web` on Neon dev before migration 0080) → `superpowers:subagent-driven-development` for 7a1, then 7a2. 7a1 Task 12 (live deploy) waits for O17 accounts. 7b brainstorming may start (O1).
@@ -36,6 +36,7 @@ Owner 2026-10-19 (brief Q1–Q17):
 15. Eval sets at spec §12 sizes, LLM pre-labelled, owner confirms.
 16. Pilot: runbook/checklist on existing screens; rename the dev agency/client to a demo name.
 17. Owner sets up prod accounts (Vercel, Railway, Neon prod, R2, Postmark + DNS, Sentry, live Stripe/Turnstile, /bot) before 7a's final deploy task; code built against fakes.
+19. 7a1 + 7a2 plans approved incl. /bot copy (parked §3.5) and new env vars (Sentry, POSTMARK_WEBHOOK_SECRET, LOG_LEVEL, deploy secrets).
 18. 7a split into 7a1 (deploy/observability/roles) and 7a2 (security/data lifecycle); purge 90 d after archive.
 
 ## New backlog (target → item)

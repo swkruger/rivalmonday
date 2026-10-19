@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development. **Lean plan format** (root `CLAUDE.md`): Interfaces are binding; implementers write code + tests from Behaviour + Tests. Full code appears only for SQL/grants, security-sensitive logic and decided copy.
 
+**Owner-approved 2026-10-19.**
+
 **Goal:** First gated production deploy at `https://rivalmonday.app` — Edge-safe core, bounded request-path AI, CI on PG18, measured page latency, Sentry + pino + `/platform/health`, least-privilege runtime DB roles, the `/bot` page and a migrate-then-deploy GitHub Actions pipeline. The live deploy (Task 12) runs only once the owner's accounts exist (O17).
 
 **Spec:** `docs/superpowers/specs/2026-10-19-phase-7a-launch-production-security-design.md` §2–§3, §5–§9 (binding), and the parked `2026-10-12-phase-7a-deploy-observability-design.md` §3.1 (worker health/env/Dockerfile, minus roles), §3.2 (logging), §3.3 (Sentry), §3.4 (thresholds), §3.5 (`/bot` copy), §3.7 (pipeline), §3.9 (`DEPLOY.md`). "O*n*" = owner decision *n* in `docs/work/phase-7.md`.
