@@ -14,6 +14,7 @@ import { webEnv } from './env';
 import { perEnv } from './env-cache';
 import { enqueueFor, jobStatusFor } from './queue';
 import { platformAdmins } from './runtime-env';
+import { runbookTailorerFor } from './runbook-tailor';
 import { setupLookupFor } from './setup-lookup';
 import { webStore } from './store';
 import { verticalDrafterFor } from './vertical-draft';
@@ -62,6 +63,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     embedQuery: embedQueryFor(name, service),
     setupLookup: setupLookupFor(name, service, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
     verticalDrafter: verticalDrafterFor(name, service, catalog, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
+    runbookTailorer: runbookTailorerFor(name, service, catalog, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
     billing: gatewayFor(webEnv().stripe ?? {}, name) ?? undefined, // R27: absent = billing not configured
   };
 });

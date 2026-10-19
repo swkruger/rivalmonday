@@ -43,6 +43,8 @@ export interface ToolDeps {
   billing?: BillingGateway;
   /** Phase 14a: drafts a new business type from a Google profile with one AI call (web builds it; a fixture under SETUP_FAKE_LOOKUP). Absent: `draft_vertical` answers `draft: null` and the UI shows the manual form. */
   verticalDrafter?: (input: { placeId: string; nearbyCategories: string[] }, scope: CallScope) => Promise<{ draft: VerticalDraft | null; similar: { id: string; name: string }[] }>;
+  /** Phase 14b: one AI rewrite of a play for a client (web builds it; a fixture under SETUP_FAKE_LOOKUP/demo/test). Absent: `retailor_runbook_item` answers `proposed: null`. Never writes. */
+  runbookTailorer?: (input: { clientId: string; key: string; parentContent: unknown }) => Promise<{ title: string; template: string; businessAreaIds: string[] | null } | null>;
   /** Phase 11a: free-text Maps search for `find_business` (web builds it from DataForSEO, or a fixture under SETUP_FAKE_LOOKUP). Absent: the tool refuses with a user-facing `internal`. */
   setupLookup?: (q: { keyword: string; locationName: string }, scope: CallScope) => Promise<MapsPlace[]>;
   /** Phase 11c (plan R1): direct lead mail after commit (`decline_lead`, `assign_lead`). Null or absent: the decision still commits and the send is skipped with a log line (the leads-cleanup job retries guarded pool/agency notices). */

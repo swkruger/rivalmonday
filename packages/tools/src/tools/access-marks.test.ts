@@ -15,6 +15,7 @@ const WRITE_TOOLS = [
   'revoke_membership', 'revoke_oauth_grant', 'run_prospect_snapshot', 'save_platform_cost_item', 'save_setup_profile', 'send_brief_now', 'set_alert_rules', 'set_brief_auto_send',
   'set_client_limits', 'set_kb_auto_sync', 'set_my_notification_pref', 'set_page_pin', 'set_support_access_notify', 'set_webhook_active', 'start_support_session', 'submit_feedback',
   'update_agency_branding', 'update_agency_profile', 'update_client_delivery', 'update_platform_cost_service', 'update_client_profile', 'update_client_rank_settings', 'update_intake_link', 'update_my_contact', 'update_playbook',
+  'add_runbook_item', 'dismiss_runbook_update', 'pull_runbook_update', 'remove_runbook_item', 'retailor_runbook_item', 'set_runbook_item_enabled', 'update_runbook_item',
   'update_recommendation_status', 'update_vertical', 'draft_vertical', 'review_vertical', 'review_business_area', 'merge_vertical', 'merge_business_area', 'upload_agency_logo', 'upsert_kb_article',
 ].sort();
 

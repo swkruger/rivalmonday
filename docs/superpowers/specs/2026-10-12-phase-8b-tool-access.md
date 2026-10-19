@@ -73,6 +73,14 @@ get_platform_agency (platform-console.ts) | read | read; audit row only
 list_platform_activity (platform-console.ts) | read | read; audit row only
 list_playbooks (playbooks.ts) | read | read-only
 update_playbook (playbooks.ts) | write | upserts playbook override
+get_runbook (runbooks.ts) | read | lazily creates the platform/agency runbook (skipped under support)
+update_runbook_item (runbooks.ts) | write | upserts runbook item; client thresholds write client.score_thresholds
+set_runbook_item_enabled (runbooks.ts) | write | updates runbook item
+pull_runbook_update (runbooks.ts) | write | updates runbook item from the level above
+dismiss_runbook_update (runbooks.ts) | write | updates runbook item
+add_runbook_item (runbooks.ts) | write | inserts item; key * creates the client runbook and enqueues runbook-tailor
+remove_runbook_item (runbooks.ts) | write | tombstones or deletes runbook item
+retailor_runbook_item (runbooks.ts) | write | one paid model call, saves nothing
 get_portfolio (portfolio.ts) | read | read-only
 get_price_matrix (pricing.ts) | read | read-only
 get_price_history (pricing.ts) | read | read-only

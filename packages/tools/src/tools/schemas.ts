@@ -151,6 +151,24 @@ export type PlaybookView = z.infer<typeof PlaybookView>;
 export const PlaybookVertical = z.object({ id: z.string(), name: z.string(), playbooks: z.array(PlaybookView) });
 export type PlaybookVertical = z.infer<typeof PlaybookVertical>;
 
+export const RunbookOwner = z.discriminatedUnion('level', [
+  z.object({ level: z.literal('platform') }),
+  z.object({ level: z.literal('agency') }),
+  z.object({ level: z.literal('client'), clientId: z.string().uuid() }),
+]);
+export type RunbookOwner = z.infer<typeof RunbookOwner>;
+export const RunbookItemView = z.object({
+  key: z.string(), kind: z.enum(['play', 'self_rule', 'knob']), content: z.unknown(), enabled: z.boolean(), businessAreaIds: z.array(z.string()).nullable(),
+  version: z.number().int(), customised: z.boolean(), upstreamVersion: z.number().int().nullable(), dismissedUpstreamVersion: z.number().int().nullable(),
+});
+export type RunbookItemView = z.infer<typeof RunbookItemView>;
+export const RunbookItemRow = RunbookItemView.extend({
+  state: z.enum(['in_sync', 'update_available', 'new_upstream', 'removed_upstream']),
+  parent: z.object({ content: z.unknown(), version: z.number().int() }).nullable(),
+});
+export const RunbookTailoring = z.object({ title: z.string(), template: z.string(), businessAreaIds: z.array(z.string()).nullable() });
+export type RunbookTailoring = z.infer<typeof RunbookTailoring>;
+
 export const PressureView = z.object({ score: z.number().int(), level: z.enum(['low', 'elevated', 'high']), reasons: z.array(z.string()) });
 export const PortfolioRow = z.object({
   clientId: uuid, name: z.string(), verticalId: z.string(), pressure: PressureView, topCompetitor: z.string().nullable(),
