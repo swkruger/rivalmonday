@@ -1,71 +1,54 @@
 # phase-14b — Dynamic verticals, business areas and runbooks
 
 **Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-14b   **Base:** main @ 9bd2aab5
-**Spec:** [2026-10-17-phase-14-dynamic-verticals-runbooks-design.md](../superpowers/specs/2026-10-17-phase-14-dynamic-verticals-runbooks-design.md) (14a + 14b). **Plans:** [14a](../superpowers/plans/2026-10-18-phase-14a-vertical-catalogue.md), [14b](../superpowers/plans/2026-10-18-phase-14b-runbooks.md). Add a Phase 14 (14a, 14b) roadmap row at merge.
+**Spec:** [2026-10-17-phase-14-dynamic-verticals-runbooks-design.md](../superpowers/specs/2026-10-17-phase-14-dynamic-verticals-runbooks-design.md). **Plans:** [14a](../superpowers/plans/2026-10-18-phase-14a-vertical-catalogue.md), [14b](../superpowers/plans/2026-10-18-phase-14b-runbooks.md). Add a Phase 14 (14a, 14b) roadmap row at merge. Assumes 13a2 (`voice_override`, `/c/[clientId]/settings/customisation`).
 
 ## Status (overwrite)
-2026-10-18: 14a implemented (Tasks 0-12); final review fix wave done. Migrations 0077 (`vertical_catalog`) and 0078 (`llm_call_vertical`). 14b (runbooks, 10 tasks) not started.
+2026-10-19: 14a and 14b implemented (Tasks 0-9). Migrations 0077 `vertical_catalog`, 0078 `llm_call_vertical`, 0079 runbooks. E2E `runbook.spec.ts` (5 tests, `@runbook`) passes. Awaiting the final whole-branch review, then owner verification.
 
 ## Next (overwrite)
-Owner runs the verification steps below; then 14b Task 0 on the 14b plan.
+Final review + one fix wave; owner runs the steps below; `/rm-merge` runs the full unit + E2E suites. Run `pnpm --filter @cs/worker runbook:backfill` on `cs_dev` first.
 
-## Interfaces this branch adds or changes
-- **Tables (service-only RLS):** `vertical`, `business_area`, `vertical_category`, `vertical_draft` (0077, seeded from the YAML packs + `generic`); `llm_call.vertical_id` (0078, unconstrained text; drafts use `draft:<placeId>`). Merged rows keep `status='merged'` + `merged_into`, so old ids resolve.
-- **`@cs/verticals`:** `createCatalog`/`Catalog`, `assemblePack`, `splitPack`, `GENERIC_VERTICAL_ID`, `similarVerticals`, `verticalDraftSchema`/`validateDraft`/`normaliseQuote`. Packs are seed + fixtures only.
-- **`@cs/tools`:** `catalogOf(deps)`, `packsOf`, `catalogPacks`; `ToolDeps.catalog`, `ToolDeps.verticalDrafter`; `CallScope.verticalId`; `refuseClientData`/`hasClientData` (`catalog/client-data.ts`).
-- **Tools:** `list_verticals` (web/mcp/ask), `create_vertical` (+ optional `businessName`, D3), `add_business_area`, `update_vertical`, `draft_vertical` (web, agency staff), `list_catalog_review` (platform viewer), `count_catalog_review`, `review_vertical`, `review_business_area`, `merge_vertical`, `merge_business_area` (staff). `list_platform_costs.aiByVertical`; `save_setup_profile.newAreas`; `SetupSuggestions.newAreas`; lead summaries gain `placeId`, `category`.
-- **Web:** `/platform/verticals` (nav "Business types", pending badge); "New business type" panel in the lookup step and lead accept; "New" service chips in the setup business step; AI-by-business-type table on `/platform/costs`.
-- **Env/CI:** `E2E_PORT` (default 3100) for parallel worktrees; truncateAll re-seeds the catalogue.
+## Interfaces
+- **14a:** tables `vertical`, `business_area`, `vertical_category`, `vertical_draft` (service-only RLS, seeded from YAML packs); `@cs/verticals` `createCatalog` (+ `generic()`), `assemblePack`, `similarVerticals`, `validateDraft`; tools `list_verticals`, `create_vertical`, `add_business_area`, `update_vertical`, `draft_vertical`, review/merge tools; `/platform/verticals`; `E2E_PORT` (default 3100).
+- **14b tables:** `runbook` (level platform/agency/client, `tailor_status`) and `runbook_item` (key `play:`/`self_rule:`/`knob:`, `version`, `upstream_version`, `upstream_snapshot`, `customised`, `removed_upstream`); `brief_item/recommendation.playbook_version`.
+- **Engine** (`runbook/`): `loadClientRunbook` (client runbook, else legacy when the agency has overrides, else agency runbook only if `packUsesGenericPlays`, else legacy), `ensure*Runbook`, `copyItems`, `legacyClientItems`, `tailorClientRunbook`, `compareWithParent`. Tools `get_runbook`, `save/toggle/pull/dismiss/add/remove_runbook_item`, `retailor_runbook_item`; `update_playbook` removed. Pages `/platform/runbook` (Platform › Content), `/agency/settings/runbook` (Agency settings, replaces Playbooks), `/c/[id]/settings/runbook` (Client settings tab); `/agency/playbooks` and `/agency/settings/playbooks` redirect (next.config, 308).
 
-## Assumes from other branches
-- 13b, phase-11-fixes and 13a2 were assumed and re-checked at Task 0; 14b re-checks 13a2 (`voice_override`, `/c/[clientId]/settings/customisation`).
+## Decisions taken during 14a execution
+Draft calls tagged `draft:<placeId>` and re-keyed on create; categories mirrored to the row; services sort by name; 10 drafts/agency/UTC day; owners tick offered area chips only; approving a type approves its areas; merges re-key prices/suggestions; `E2E_PORT` replaces hard-coded 3100.
 
-## Decisions taken during execution (overrule here)
-1. Draft cost: drafter tags calls `draft:<placeId>`; `create_vertical` re-keys them (agency-scoped) to the new id; `aiByVertical` folds leftover drafts into "Drafts not yet created". Why: owner step 6 needs draft cost under the type.
-2. Categories also written to `vertical.gbp_categories`/`gbp_related_categories`; merges append the source's categories to the target's related list. Why: `assemblePack` and preselect read the row.
-3. Assembled packs sort services by name (no order column). Overrule: add a `position` column.
-4. `truncateAll` re-seeds the catalogue so existing tests run unchanged.
-5. AI calls carry a vertical only when exactly one is in hand; multi-vertical and batch theme-discovery calls stay untagged (splitting cost is a guess).
-6. `list_verticals` is also on `ask` (repo invariant); names never hold client data (D3). The check uses contact/URL detection plus the agency's client names, not `redactForModel` (it would refuse "Cancer Care").
-7. Draft cap = 10 attempts per agency per UTC day (llm_call rows, null drafts count, cache hits free). Overrides "counted when stored": failures cost DataForSEO + Sonnet.
-8. Draft cache is global by place; evidence copy is not agency-scoped (public profile text only); cost re-key is.
-9. `save_setup_profile.newAreas` must match a stored suggestion and pass the client-data check: owners can tick offered chips, not type free text. New areas are created in a short transaction before the profile write (not atomic; worst case an orphan unreviewed area shown in the queue).
-10. `list_catalog_review` is platform 'viewer'; writes 'staff'. Approving a type also approves its unreviewed areas.
-11. Merge also re-keys `price_block_map` and stored setup suggestions, dedupes open `price_point` rows, flattens `merged_into` chains; staff `update_vertical` checks D3 against the creator agency. Catalogue lock order: catalogue -> vertical -> client rows. A catalogue miss older than 1.5 s reloads once (cross-process).
-12. Agency onboarding validates ids via `catalogOf(deps).resolveId` (stores the target id).
-13. E2E port 3100 is hard-coded upstream; made `E2E_PORT`-driven (other session holds 3100).
+## Decisions taken during 14b execution
+- Agency runbook applies only when `packUsesGenericPlays` (R6 false for HVAC/dental); legacy otherwise.
+- `legacyClientItems` lives in Task 5 (the tailor base needs it); non-generic packs tailor from it.
+- A child-added item whose key the parent later adds shows `update_available`; empty `businessAreaIds` = unrestricted.
+- Platform runbook reads at operator 'viewer', writes 'staff'; `generic` passed as a dep (the catalogue refuses `packs('generic')`).
+- Focus areas applied in `selectBriefItems`; tailored rows written directly (not `customised`).
+- `client.score_thresholds` holds a value only when the knob is customised; `set_alert_rules` also writes the knob item.
+- "Keep"/"Not now" are session-only; platform level is called "standard runbook".
+- `playbookTools` stayed until Task 8; the Task 0 `test:affected --base main` re-run was skipped (14a review ran it).
 
-## New backlog (target → item)
-- Unscheduled → Drop `playbook_override` (and tools/tests) after the 14b runbook backfill is verified in prod; new migration.
-- 14b/polish → Batch theme-discovery spend (`discovery.ts` `collectBatch`) is untagged; per-result scope.
-- Polish → unused `vertical_draft_agency_day_idx`; index `llm_call(agency_id, task, created_at)` for the cap query; draft cap not atomic; stale cached draft repeats paid misses.
-- Polish → Test 0077's embedded seed equals `VERTICAL_CATALOG_SEED`; guard YAML pack use in prod.
-- Polish → `add_business_area` has no ownership check (creator's `update_vertical` can delete another agency's areas); staff edits create areas attributed to the operator's agency.
-- Polish → `update_vertical`/`review_vertical` rename skip similarity checks; no-op update bumps version; generic-only area names normalise to ''; `slugOf` drops non-ASCII.
-- Polish → `position` column for area order.
-- Polish → Client-data check skips seed keywords/audience noun/theme text; `save_setup_profile` stale `current` services on concurrent edit; GBP `services` read only for array shape.
-- Polish → Panel: fixed `nbt-*` DOM ids collide across open lead cards; quotes only in title tooltips.
-- Polish → Distillery E2E leaves rows in the shared E2E DB (re-runnable only on a fresh DB); check order dependence at `/rm-merge`.
-- Polish → Areas merged into a *moved* area keep pointing across verticals after a vertical merge.
-- Polish → Generic theme id `technician_professionalism` keeps an HVAC noun (name is neutral).
+## New backlog (target to item)
+- Unscheduled: drop `playbook_override` (and tools/tests) after the backfill is verified in prod; new migration.
+- 14b/polish: prospects are never tailored on activation; paid `retailor_runbook_item` has no rate limit; "Keep"/"Not now" not persisted; preview lacks candidate vars.
+- 14b/polish: `set_alert_rules` column + item writes non-atomic; create-vs-pause race; platform thresholds knob shadows a pack's own routing; redundant runbook loads per brief.
+- Polish: batch theme discovery untagged; draft-cap index/atomicity; `add_business_area` has no ownership check; rename skips similarity checks; `position` column for areas; client-data check skips seed keywords; merged areas can point across verticals; generic theme `technician_professionalism`; Distillery E2E rows linger (fresh DB).
 
 ## Owner verification steps
-Acceptance: add a new **Distillery** client; onboarding creates its vertical and business areas where missing; the agency then customises the generic runbook for that client (14b).
-On `cs_dev`, after migrating 0077-0078:
-1. Look up a real distillery and draft it; the quotes match the Google profile.
-2. Create it and finish setup.
-3. A second distillery preselects the type.
-4. Approve the type in `/platform/verticals`.
-5. Merge a test duplicate.
-6. `/platform/costs` shows the draft cost under the type.
-7. Set a real distillery's Google profile and check the "New" service chips on a matched type.
-Note: the Distillery E2E leaves rows in the shared E2E DB; the full E2E runs at `/rm-merge`.
+Acceptance: add a Distillery client; onboarding creates its vertical and areas; its runbook is tailored from the generic one. On `cs_dev` after migrating 0077-0079:
+1. 14a: look up and draft a real distillery (quotes match the profile), create it, finish setup; a second distillery preselects it; approve it in `/platform/verticals`; merge a duplicate; `/platform/costs` shows the draft cost.
+2. Run the backfill; existing clients' next briefs are unchanged.
+3. A Distillery client's runbook is tailored and the quotes make sense.
+4. Customise a play; the next brief uses it.
+5. An agency edit shows "Update available" on the client.
+6. A platform runbook edit reaches agencies as an update.
 
 ## Copy for owner sign-off
-**`packages/verticals/packs/generic.yaml`** (rewritten from HVAC wording; rest identical): `response_time` "the business ... shows up"; `technician_professionalism` name "Staff professionalism", "... conduct of the staff"; `fix_quality` name "Quality of work"; dropped cleanliness, upsell_pressure, scheduling themes; `price_cut_bundle` "a free add-on or priority scheduling"; `price_war_hold_position` "a repeat-customer offer"; `hiring_push_capacity` "early renewals or repeat-customer offers"; `ask_for_reviews` "right after the visit"; `consider_search_ads` "your main service"; `fix_theme` "tell your team"; `improve_map_rank` "photos of your work"; service `general` "General service"; category "Service establishment", no seed keywords.
-**`platform/costs/_components/ai-by-vertical-table.tsx`:** "AI by business type (last 30 days)"; columns "Business type", "Calls", "Cost"; row "Drafts not yet created"; empty "No AI calls with a business type in the last 30 days."
-**`tools/tools/verticals.ts` + `catalog/client-data.ts` (refusals):** "Names cannot include a client’s business name, phone number, email or web address."; "Another business type just claimed one of those categories. Try again."; "Use a more specific business type name."; "A similar business type already exists: {name}."; "Add at least one Google category that no other business type uses."; "Clients use {name}. Ask the platform team to merge it instead."
-**Draft limit:** "You've drafted 10 new business types today. Try again tomorrow."
-**`components/new-business-type.tsx`:** "We can draft it from the Google profile. You review it before anything is saved."; "Draft it"; "Drafting from the Google profile…"; "Did you mean {name}?"; "We couldn’t draft this business type. Enter a name and its main services."; "Add a service"/"Add a keyword"; "Create business type"; "Created {name}. Our team reviews new business types; you can use it now."; "Left out {list}: already used by another business type."
-**Setup business step (`c/[clientId]/setup/steps/business-step.tsx`):** chip tag "New"; help "Not in our list yet. Tick to add it as a service; our team reviews new ones."; refusal "Pick new services from the suggestions."
-**`/platform/verticals` (`catalog-queue.tsx`, `page.tsx`), invented by Task 11:** h1 and nav "Business types"; intro "New business types and services agencies added. Approve what is right, fix what is not, or merge duplicates into an existing entry."; headings "New business types", "New services"; buttons Approve, Rename, Edit, "Merge into…", "Save name", "Save changes", Merge, Cancel; merge option "Move (keep as a new service)"; column "Becomes"; card "Added by {agency} · N clients · draft cost $x.xxx"; "Evidence (n)"; "No evidence recorded."; results `Approved “X”.`, `Renamed to “X”.`, `Saved “X”.`, `Merged “X”.`; errors "Choose the business type to merge into.", "Choose the service to merge into.", "Could not read the changes. Try again."; merge refusals "A business type cannot be merged into itself.", "The generic business type cannot be merged.", "Both business types must be live (not already merged)."
+**generic.yaml** (reworded from HVAC): themes "Staff professionalism", "Quality of work"; plays `price_cut_bundle` "a free add-on or priority scheduling", `price_war_hold_position` "a repeat-customer offer", `hiring_push_capacity`, `ask_for_reviews`, `consider_search_ads`, `fix_theme`, `improve_map_rank`; service "General service".
+**Costs table:** "AI by business type (last 30 days)", "Drafts not yet created", empty "No AI calls with a business type in the last 30 days."
+**Refusals/limits:** "Names cannot include a client's business name, phone number, email or web address."; "Use a more specific business type name."; "A similar business type already exists: {name}."; "Add at least one Google category that no other business type uses."; "Clients use {name}. Ask the platform team to merge it instead."; "You've drafted 10 new business types today. Try again tomorrow."
+**New business type / setup:** "We can draft it from the Google profile. You review it before anything is saved."; "Draft it"; "Did you mean {name}?"; "Create business type"; "Created {name}. Our team reviews new business types; you can use it now."; chip "New", "Not in our list yet. Tick to add it as a service; our team reviews new ones."
+Also: "Drafting from the Google profile..."; "We couldn't draft this business type. Enter a name and its main services."; "Add a service"/"Add a keyword"; "Left out {list}: already used by another business type."; "Another business type just claimed one of those categories. Try again."; setup refusal "Pick new services from the suggestions."
+**/platform/verticals:** nav/h1 "Business types"; intro "New business types and services agencies added. Approve what is right, fix what is not, or merge duplicates into an existing entry."; "New business types", "New services"; Approve, Rename, Edit, "Merge into...", "Save name", "Save changes", Merge, Cancel; "Move (keep as a new service)"; column "Becomes"; "Added by {agency} - N clients - draft cost $x.xxx"; "Evidence (n)"; "No evidence recorded."; results Approved/Renamed/Saved/Merged "X"; errors "Choose the business type to merge into.", "Choose the service to merge into.", "Could not read the changes. Try again.", "A business type cannot be merged into itself.", "The generic business type cannot be merged.", "Both business types must be live (not already merged)."
+**Tailoring prompt (Task 5, system message):** "Rewrite each play's title and template so it fits a {vertical} serving {audience}. Keep every {{placeholder}} exactly as written, add no new placeholders, keep titles under 200 characters with no placeholders, keep the advice practical and specific to the listed services. Optionally limit a play to the service ids it is about (businessAreaIds, or null for no limit). Return JSON."
+**Runbook pages, decided (Task 8):** badges Inherited, Customised, Update available, New, Removed upstream; Use the update / Keep mine; "Tailored for this client", Use as is; "New play available" Add / Not now; "No longer in the agency runbook" Keep / Remove; "This client uses the agency runbook." + "Create a runbook for this client"; "Tailoring plays for {vertical}..."; "We couldn't tailor these plays. They match the agency runbook; edit them as needed."
+**Invented (Task 8):** "A newer version is available from the {agency|standard} runbook." / "Review update" / "What changed in the {...}" / "New {play|rule|setting} available"; "Approve"; "We couldn't tailor this update for the client. You can use the agency runbook text as it is."; "Effort: Low/Medium/High"; "Only for these services" + "Leave all unticked to use this play for every service."; "Unknown placeholder {{x}}. Use one of ..."; "The title cannot contain placeholders."; knobs "Alert and brief thresholds", "Focus services", "Competitor tiers"; "Switch it off to leave it out of the starting-point brief."; page intros.
