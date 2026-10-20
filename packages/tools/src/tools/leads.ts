@@ -1,10 +1,10 @@
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { agency, intakeLink, lead, leadPreviewSchema, type LeadRow, type LeadStatus, setupLookupSchema, type Tx, withTenant } from '@cs/db';
-import { listVerticalPacks } from '@cs/verticals';
 import { and, count, desc, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { inviteClientUser } from '../access/client-invite';
-import { packsOf, type ToolDeps } from '../deps';
+import { catalogPacks } from '../catalog/access';
+import type { ToolDeps } from '../deps';
 import { type LeadEmailKind, sendLeadEmail } from '../intake/emails';
 import { preselectVertical } from '../setup/lookup';
 import { createClientCore } from './onboarding';
@@ -33,6 +33,9 @@ const LeadSummary = z.object({
   businessName: z.string(),
   address: z.string().nullable(),
   city: z.string().nullable(),
+  /** The Google listing's id and category: feed the "new business type" panel. */
+  placeId: z.string(),
+  category: z.string().nullable(),
   contactName: z.string(),
   email: z.string(),
   phone: z.string().nullable(),
@@ -64,11 +67,11 @@ function requireAdmin(ctx: AccessContext): void {
 }
 
 const toSummary = (r: LeadRow): LeadSummaryOut => ({
-  id: r.id, source: r.source, status: r.status as LeadSummaryOut['status'], ref: r.ref, businessName: r.lookup.title, address: r.lookup.address, city: r.lookup.city,
+  id: r.id, source: r.source, status: r.status as LeadSummaryOut['status'], ref: r.ref, businessName: r.lookup.title, address: r.lookup.address, city: r.lookup.city, placeId: r.lookup.placeId, category: r.lookup.category,
   contactName: r.contactName, email: r.email, phone: r.phone, message: r.message, preview: r.preview, createdAt: r.createdAt, verifiedAt: r.verifiedAt, decidedAt: r.decidedAt, clientId: r.clientId,
 });
 
-const loadPacks = async (deps: ToolDeps) => Promise.all((await listVerticalPacks()).map((id) => packsOf(deps)(id)));
+const loadPacks = (deps: ToolDeps) => catalogPacks(deps);
 const suggestVertical = (packs: Awaited<ReturnType<typeof loadPacks>>, r: LeadRow): string | null => preselectVertical(packs, r.lookup.category ? [r.lookup.category] : []);
 
 /** Locks the caller's agency's verified lead, or refuses with not_found (another agency's, a pool lead, or already decided). */

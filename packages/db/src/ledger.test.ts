@@ -29,6 +29,14 @@ describe('ledger sink', () => {
     expect(seenByA[0]).toMatchObject({ agencyId: IDS.agencyA, costUsd: 0.001, ok: true });
   });
 
+  it('records vertical_id on llm calls, null when the call has no vertical', async () => {
+    const sink = createLedgerSink(dbs.service);
+    await sink.recordLlmCall({ ...base, agencyId: null, clientId: null, verticalId: 'dental' });
+    await sink.recordLlmCall({ ...base, agencyId: null, clientId: null });
+    const rows = await dbs.service.select({ v: llmCall.verticalId }).from(llmCall);
+    expect(rows.map((r) => r.v).sort()).toEqual(['dental', null]);
+  });
+
   it('records vendor calls', async () => {
     const sink = createLedgerSink(dbs.service);
     await expect(

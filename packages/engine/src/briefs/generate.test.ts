@@ -9,6 +9,8 @@ import type { EventCandidate, MoveCandidate } from './gather';
 import * as scorecardMod from './scorecard';
 import { committableItems, generateBrief, listBriefDueClients, QUIET_SUMMARY } from './generate';
 import type { VerifiedItem } from './verify';
+import { loadVerticalPack } from '@cs/verticals';
+const generic = () => loadVerticalPack('generic');
 
 const { buildScorecard } = scorecardMod;
 const scorecardFail = vi.hoisted(() => ({ on: false }));
@@ -27,7 +29,7 @@ const draft = (refs: string[], headline = 'Smith HVAC cut its AC tune-up to $69.
   items: refs.map((ref) => ({ ref, headline, what_changed: 'The pricing page shows $69, down from $89.', why_it_matters: 'Price shoppers may compare.', recommended_action: 'Bundle a filter change.', effort: 'L', impact: 'M', upsell_tag: 'ppc' })),
 });
 const supportAll = (_s: unknown, qs: Record<string, unknown>) => ({ answers: Object.fromEntries(Object.keys(qs).map((k) => [k, noul(true)])), needsReview: [] });
-const run = (ai = createFakeAi({ chat: () => draft(['C1']), decide: supportAll }), now = NOW) => generateBrief({ db: dbs.service, ai, packs }, IDS.clientA1, { now });
+const run = (ai = createFakeAi({ chat: () => draft(['C1']), decide: supportAll }), now = NOW) => generateBrief({ db: dbs.service, ai, generic, packs }, IDS.clientA1, { now });
 const seedEvent = (o = {}) => seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(-1), createdAt: day(-1), ...o });
 
 beforeEach(async () => {

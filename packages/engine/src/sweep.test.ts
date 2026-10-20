@@ -6,6 +6,8 @@ import { scoreEvent } from './score/score-stage';
 import { MAX_STAGE_ATTEMPTS } from './stage';
 import { findEngineWork } from './sweep';
 import { createPackLoader } from './tag/tag-stage';
+import { loadVerticalPack } from '@cs/verticals';
+const generic = () => loadVerticalPack('generic');
 
 const minutesAgo = (n: number) => new Date(Date.now() - n * 60_000);
 
@@ -99,7 +101,7 @@ describe('findEngineWork', () => {
       .values({ competitorId: IDS.competitorX, agencyId: IDS.agencyA, clientId: IDS.clientA1, changeType: 'rank_change', summary: 'r', confidence: 1, occurredAt: new Date() })
       .returning({ id: changeEvent.id });
     expect((await findEngineWork(dbs.service, { limit: 50 })).score).toContain(ev!.id);
-    await scoreEvent({ db: dbs.service, packs: createPackLoader() }, ev!.id);
+    await scoreEvent({ db: dbs.service, generic, packs: createPackLoader() }, ev!.id);
     expect((await findEngineWork(dbs.service, { limit: 50 })).score).not.toContain(ev!.id); // B1 tracks X but is not owed this score
   });
 

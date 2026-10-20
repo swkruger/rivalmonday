@@ -3,6 +3,7 @@ import { toolkit } from '@cs/core';
 import { listOpenReviews, resolveDecisionReview, reviewQuestions } from '@cs/engine';
 import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
+import { catalogOf } from '../catalog/access';
 import { requirePlatformOperator } from '../platform';
 import { DecisionReviewView } from './schemas';
 
@@ -61,7 +62,7 @@ export const resolveDecisionReviewTool = defineTool({
   permission: 'agency',
   async handler(ctx, { reviewId, answers }, deps) {
     await requirePlatformOperator(deps, ctx);
-    return resolveDecisionReview({ db: deps.service, packs: packsOf(deps) }, reviewId, { answers, resolvedBy: ctx.userId });
+    return resolveDecisionReview({ db: deps.service, packs: packsOf(deps), generic: () => catalogOf(deps).generic() }, reviewId, { answers, resolvedBy: ctx.userId });
   },
 });
 

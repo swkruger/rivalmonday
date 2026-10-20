@@ -1,5 +1,6 @@
 import type { Ai } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
+import type { CallScope } from '@cs/core';
 import {
   capture, captureBlock, changeEvent, client, clientCompetitor, competitor, type Db, decisionReview, detectedChange, type NumericChange, trackedPage,
 } from '@cs/db';
@@ -17,6 +18,11 @@ export const TAG_VERSION = 1;
 /** ai.yaml task for web-change tagging decisions (Phase 3d: one task per decision use). */
 export const TAG_DECISION_TASK = 'tag_decisions';
 const PLATFORM = { agencyId: null, clientId: null } as const;
+
+/** Platform scope tagged with the vertical when the work serves exactly one (several verticals: spend stays unattributed). */
+export function singleVerticalScope(verticalIds: string[]): CallScope {
+  return verticalIds.length === 1 ? { ...PLATFORM, verticalId: verticalIds[0]! } : PLATFORM;
+}
 
 export interface TagOutcome {
   eventId: string | null;
@@ -149,12 +155,13 @@ export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, cha
       if (!row) throw new Error(`detected_change ${changeId} not found`);
       if (row.change.status !== 'pending') return { row, resolution: null, answers: null, embedding: null, target: null, sampleId: null };
 
-      const packs = await Promise.all((await competitorVerticals(deps.db, row.change.competitorId)).map(deps.packs));
+      const verticalIds = await competitorVerticals(deps.db, row.change.competitorId);
+      const packs = await Promise.all(verticalIds.map(deps.packs));
       const state = buildTagState({
         competitorName: row.competitorName, pageUrl: row.pageUrl, pageType: row.pageType, kind: row.change.kind,
         beforeText: row.change.beforeText, afterText: row.change.afterText, numericChanges: row.change.numericChanges,
       });
-      const result = await deps.ai.decide(TAG_DECISION_TASK, state, buildTagQuestions(packs), PLATFORM);
+      const result = await deps.ai.decide(TAG_DECISION_TASK, state, buildTagQuestions(packs), singleVerticalScope(verticalIds));
       const resolution = resolveTag(row.change.numericChanges, result, packs);
 
       const embedding = await blockEmbedding(deps.db, row.change);

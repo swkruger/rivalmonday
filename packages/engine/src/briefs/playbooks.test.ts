@@ -4,7 +4,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { listVerticalPacks, loadVerticalPack } from '@cs/verticals';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { EventCandidate } from './gather';
-import { playbookVars, renderPlaybook, resolvePlaybooks, playbookFor, unknownPlaybookVars, upsertPlaybookOverride } from './playbooks';
+import { playbookVars, renderPlaybook, resolveLegacyPlaybooks, playbookFor, unknownPlaybookVars, upsertPlaybookOverride } from './playbooks';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -38,10 +38,10 @@ describe('playbooks', () => {
     const pack = await loadVerticalPack('hvac_plumbing');
     await upsertPlaybookOverride({ service: dbs.service, app: dbs.app }, am, { verticalId: 'hvac_plumbing', playbookId: 'price_cut_bundle', template: 'Bundle {{service}}.' }, pack);
     await upsertPlaybookOverride({ service: dbs.service, app: dbs.app }, am, { verticalId: 'hvac_plumbing', playbookId: 'ad_surge_watch', disabled: true }, pack);
-    const list = await resolvePlaybooks(dbs.service, IDS.agencyA, pack);
+    const list = await resolveLegacyPlaybooks(dbs.service, IDS.agencyA, pack);
     expect(playbookFor(list, 'price_change')).toMatchObject({ template: 'Bundle {{service}}.', source: 'agency', title: 'Answer a price cut with a value bundle' });
     expect(playbookFor(list, 'ad_surge')).toBeUndefined();
-    expect(playbookFor(await resolvePlaybooks(dbs.service, IDS.agencyB, pack), 'ad_surge')).toBeDefined();
+    expect(playbookFor(await resolveLegacyPlaybooks(dbs.service, IDS.agencyB, pack), 'ad_surge')).toBeDefined();
   });
 
   it('lists unknown placeholders, whatever their spelling', () => {

@@ -11,9 +11,9 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 
 /** Every tag a spec test may carry. `@smoke` runs on every non-`none` decision. */
 export const KNOWN_TAGS = [
-  '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@playbooks',
+  '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@runbook',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -26,9 +26,9 @@ const re = (s: string) => new RegExp(`^${s}`);
 
 const GUEST_FILES = ['@guest', '@evidence', '@briefs'];
 /** Every tag whose tests open an agency settings page (`/agency/settings/*`). */
-const SETTINGS_PAGES = ['@usage', '@playbooks', '@support', '@billing', '@client-billing', '@leads', '@ai-connections', '@navigation'];
+const SETTINGS_PAGES = ['@usage', '@runbook', '@support', '@billing', '@client-billing', '@leads', '@ai-connections', '@navigation'];
 /** Every tag whose tests open a client settings page (`/c/<id>/settings/*`). */
-const CLIENT_SETTINGS_PAGES = ['@profile', '@clients', '@ask', '@support', '@billing', '@client-billing', '@setup', '@alert-rules', '@ai-connections', '@navigation'];
+const CLIENT_SETTINGS_PAGES = ['@profile', '@clients', '@ask', '@support', '@billing', '@client-billing', '@setup', '@alert-rules', '@ai-connections', '@navigation', '@runbook'];
 
 /** Keyword rules for the domain packages; anything there no keyword catches runs everything. */
 const PKG = 'packages/(?:tools|engine|email|storage|collectors|ai)/src/|packages/(?:verticals|demo)/';
@@ -102,7 +102,10 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}alerts/`), tags: ['@alerts'], why: 'alert queue' },
   { pattern: re(`${AGENCY}approvals/`), tags: ['@briefs', '@recommendations', '@starting-point'], why: 'brief approvals (a starting point is approved and sent here)' },
   { pattern: re(`${AGENCY}clients/`), tags: ['@clients'], why: 'new client' },
-  { pattern: re(`${AGENCY}settings/playbooks/`), tags: ['@playbooks'], why: 'playbooks' },
+  { pattern: re(`${AGENCY}settings/runbook/`), tags: ['@runbook'], why: 'agency runbook (Agency settings; old Playbooks paths redirect here)' },
+  { pattern: re(`${C}settings/runbook/`), tags: ['@runbook'], why: 'client runbook page' },
+  { pattern: re(`${APP}\\(platform\\)/platform/runbook/`), tags: ['@runbook', '@platform'], why: 'platform runbook page' },
+  { pattern: re(`(?:${COMP}runbook/|${SERVER}runbook-[^/]+\\.ts$)`), tags: ['@runbook'], why: 'runbook editor components and server helpers' },
   { pattern: re(`${AGENCY}prospects/`), tags: ['@prospects', '@clients'], why: 'prospects' },
   { pattern: re(`${AGENCY}settings/usage/`), tags: ['@usage'], why: 'usage and limits' },
   { pattern: re(`${AGENCY}settings/branding/logo/`), tags: ['@onboarding'], why: 'logo upload route (the wizard branding step uploads a logo)' },
@@ -120,6 +123,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}settings/billing/`), tags: ['@billing', '@client-billing'], why: 'billing page, Client billing section, actions and seat CSV' },
   { pattern: re(`${APP}\\(app\\)/paused/`), tags: ['@billing'], why: 'suspended-workspace page' },
   { pattern: re(`${COMP}billing/`), tags: ['@billing', '@client-billing'], why: 'billing display formatting and client billing pill/actions shown on the billing pages' },
+  { pattern: re(`${COMP}new-business-type(?:-model)?\\.tsx?$`), tags: ['@clients', '@leads', '@catalogue'], why: 'New business type panel (agency lookup step, lead accept)' },
   { pattern: re(`${COMP}place-summary\\.tsx$`), tags: ['@clients', '@leads'], why: 'lookup result card (agency lookup step, public intake form)' },
   { pattern: re(`${COMP}form-error\\.tsx$`), tags: 'all', why: 'ErrorNote/FormError: the one error primitive, rendered by form and action errors on almost every surface (incl. the seat-cap Upgrade link)' },
   { pattern: re(`${COMP}page-header\\.tsx$`), tags: 'all', why: 'PageHeader: the h1, breadcrumb and actions of almost every signed-in page (15a §2.7)' },
@@ -146,6 +150,8 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}\\(platform\\)/platform/billing/`), tags: ['@billing'], why: 'platform billing console (codes, invite links)' },
   { pattern: re(`${APP}\\(platform\\)/platform/costs/`), tags: ['@costs'], why: 'platform costs page, dialogs and warning strip' },
   { pattern: re(`${APP}\\(platform\\)/platform/agencies/\\[id\\]/`), tags: ['@platform', '@support'], why: 'platform agency page: View as agency dialog and start action' },
+  { pattern: re(`${APP}\\(platform\\)/platform/verticals/`), tags: ['@catalogue', '@platform'], why: 'platform business-type review queue' },
+  { pattern: /^packages\/tools\/src\/(?:catalog\/|tools\/(?:platform-)?verticals\.ts$)/, tags: ['@catalogue', '@clients', '@leads', '@platform'], why: 'vertical catalogue tools (create, review, merge)' },
   { pattern: re(`${APP}\\(platform\\)/platform/`), tags: ['@platform', '@reviews'], why: 'platform console, review/theme queues' },
   { pattern: re(`${APP}support/`), tags: ['@support'], why: 'support session Exit and end routes' },
   { pattern: re(`${APP}\\(app\\)/(?:inbox|settings/notifications)/`), tags: [], why: 'no E2E covers this page' },
@@ -188,7 +194,7 @@ export const RULES: Rule[] = [
   kw('api-tokens|oauth', ['@ai-connections'], 'AI connections (tokens, OAuth)'),
   kw('word-diff|events|evidence|diff|changes', ['@changes', '@evidence'], 'events/evidence/diff'),
   kw('pric', ['@pricing'], 'pricing'),
-  kw('playbook', ['@playbooks'], 'playbooks'),
+  kw('playbook|runbook', ['@runbook'], 'playbooks and runbooks'),
   kw('scorecard|starting-point|readiness|self-rules', ['@starting-point', '@briefs'], 'starting point and scorecard'),
   kw('brief|recommendation', ['@briefs', '@recommendations', '@starting-point'], 'briefs/recommendations (incl. the starting-point status tool)'),
   kw('\\bads\\b', ['@ads'], 'ads'),

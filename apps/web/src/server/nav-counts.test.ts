@@ -20,7 +20,9 @@ import { navCounts } from './nav';
 const ctx = createAccessContext({ agencyId: '00000000-0000-4000-8000-00000000000a', userId: 'u', role: 'agency_admin', clientScope: 'all', features: [] });
 const agencyCounts = { approvals: 3, alerts: 2, leads: 4 };
 const platformCounts = { modelReviews: 5, themes: 1 };
-const byTool: Impl = async (_c, tool) => (tool === 'get_nav_counts' ? agencyCounts : tool === 'get_platform_nav_counts' ? platformCounts : Promise.reject(new Error(`unexpected ${tool}`)));
+const catalogCounts = { count: 2 };
+const byTool: Impl = async (_c, tool) =>
+  tool === 'get_nav_counts' ? agencyCounts : tool === 'get_platform_nav_counts' ? platformCounts : tool === 'count_catalog_review' ? catalogCounts : Promise.reject(new Error(`unexpected ${tool}`));
 
 beforeEach(() => {
   m.calls = [];
@@ -29,9 +31,9 @@ beforeEach(() => {
 });
 
 describe('navCounts', () => {
-  it('reads both count tools once each and merges them', async () => {
-    expect(await navCounts(ctx, { agency: true, operator: true, leads: true })).toEqual({ ...agencyCounts, ...platformCounts });
-    expect(m.calls).toEqual([[ctx, 'get_nav_counts', {}], [ctx, 'get_platform_nav_counts', {}]]);
+  it('reads each count tool once and merges them', async () => {
+    expect(await navCounts(ctx, { agency: true, operator: true, leads: true })).toEqual({ ...agencyCounts, ...platformCounts, catalog: 2 });
+    expect(m.calls).toEqual([[ctx, 'get_nav_counts', {}], [ctx, 'get_platform_nav_counts', {}], [ctx, 'count_catalog_review', {}]]);
   });
 
   it('leaves out the leads count unless the viewer sees the Leads entry', async () => {
@@ -42,7 +44,7 @@ describe('navCounts', () => {
   it('skips the agency read for non-agency viewers and the platform read for non-operators', async () => {
     expect(await navCounts(ctx, { agency: false, operator: false, leads: false })).toEqual({});
     expect(m.calls).toEqual([]);
-    expect(await navCounts(ctx, { agency: false, operator: true, leads: false })).toEqual(platformCounts);
+    expect(await navCounts(ctx, { agency: false, operator: true, leads: false })).toEqual({ ...platformCounts, catalog: 2 });
   });
 
   it('returns {} when the tools throw (the shell must still render)', async () => {
@@ -59,6 +61,11 @@ describe('navCounts', () => {
 
   it('a failed read omits only its own badges', async () => {
     m.impl = async (c, tool, i) => (tool === 'get_platform_nav_counts' ? Promise.reject(new Error('down')) : byTool(c, tool, i));
-    expect(await navCounts(ctx, { agency: true, operator: true, leads: true })).toEqual(agencyCounts);
+    expect(await navCounts(ctx, { agency: true, operator: true, leads: true })).toEqual({ ...agencyCounts, catalog: 2 });
+  });
+
+  it('Phase 14a: the Business types count comes from the catalogue review read; a failed read hides only that badge', async () => {
+    m.impl = async (c, tool, i) => (tool === 'count_catalog_review' ? Promise.reject(new Error('permission_denied')) : byTool(c, tool, i));
+    expect(await navCounts(ctx, { agency: false, operator: true, leads: false })).toEqual(platformCounts);
   });
 });

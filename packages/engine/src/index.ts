@@ -36,6 +36,7 @@ export * from './model-ops/labels';
 export * from './model-ops/report';
 export * from './model-ops/resolve';
 export * from './briefs';
+export * from './runbook';
 export * from './delivery';
 export * from './alerts';
 export * from './reports';

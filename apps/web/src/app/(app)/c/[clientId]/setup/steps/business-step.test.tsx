@@ -18,7 +18,7 @@ const baseView = (suggestions: ClientSetupView['suggestions']): ClientSetupView 
 const profile = { services: [], keywords: [], placeId: null, serviceArea: null };
 const show = (s: ClientSetupView['suggestions']) => render(<BusinessStep view={baseView(s)} profile={profile} pending={false} onSave={() => {}} />);
 const ready = (services: { value: string; quote: string }[], keywords: { value: string; quote: string }[]): ClientSetupView['suggestions'] => ({
-  status: 'ready', services, keywords, sources: ['gbp'], generatedAt: '2026-10-17T00:00:00.000Z',
+  status: 'ready', services, keywords, newAreas: [], sources: ['gbp'], generatedAt: '2026-10-17T00:00:00.000Z',
 });
 const NOTE = "We couldn't find suggestions in the Google profile — here are common keywords for dental practices.";
 
@@ -51,5 +51,25 @@ describe('BusinessStep suggestions note', () => {
     show({ status: 'pending' });
     expect(screen.getByRole('status').textContent).toBe('Reading your Google profile…');
     expect(screen.queryByText(NOTE)).toBeNull();
+  });
+});
+
+describe('BusinessStep new areas (14a)', () => {
+  const withNew = (names: string[]): ClientSetupView['suggestions'] => ({
+    status: 'ready', services: [], keywords: [], newAreas: names.map((name) => ({ name, quote: name })), sources: ['gbp'], generatedAt: '2026-10-17T00:00:00.000Z',
+  });
+
+  it('shows unticked New chips with the help text', () => {
+    show(withNew(['Duct sealing']));
+    const box = screen.getByRole('checkbox', { name: /Duct sealing/ }) as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    expect(box.name).toBe('newAreas');
+    expect(screen.getByText('New')).toBeTruthy();
+    expect(screen.getByText('Not in our list yet. Tick to add it as a service; our team reviews new ones.')).toBeTruthy();
+  });
+
+  it('hides a new chip once the vertical already lists an area of that name', () => {
+    show(withNew(['implants']));
+    expect(screen.queryByText('New')).toBeNull();
   });
 });

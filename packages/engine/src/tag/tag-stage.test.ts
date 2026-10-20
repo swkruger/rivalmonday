@@ -155,6 +155,21 @@ describe('tagChange', () => {
     expect(await dbs.owner.select().from(changeEvent)).toHaveLength(1);
   });
 
+  it('passes the competitor vertical in the AI scope when exactly one vertical tracks it', async () => {
+    const id = await change('AC Tune-Up $89', 'AC Tune-Up $69');
+    const ai = createFakeAi({ decide: tagResult({ meaningful: true, type: 'price_change', services: { hvac_plumbing: 'ac_tune_up' } }) });
+    await tagChange({ db: dbs.service, ai, packs }, id);
+    expect(ai.calls.decide[0]!.scope).toEqual({ agencyId: null, clientId: null, verticalId: 'hvac_plumbing' });
+  });
+
+  it('leaves verticalId off the scope when several verticals track the competitor', async () => {
+    await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorX });
+    const id = await change('AC Tune-Up $89', 'AC Tune-Up $69');
+    const ai = createFakeAi({ decide: tagResult({ meaningful: true, type: 'price_change' }) });
+    await tagChange({ db: dbs.service, ai, packs }, id);
+    expect(ai.calls.decide[0]!.scope.verticalId).toBeUndefined();
+  });
+
   it('asks one service question per vertical of the clients tracking the competitor, with redacted state', async () => {
     await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorX });
     const id = await change('Call 972-555-0100', 'Call 972-555-0100 for $49 whitening');

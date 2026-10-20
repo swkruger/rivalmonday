@@ -25,7 +25,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/approvals/[briefId] (quiet)` | admin | — | `get_brief_review`: Brazos’s brief is held as quiet |
 | `/agency/settings/branding` | admin | `fn:getAgencyBranding` | — |
 | `/agency/settings/platform-access` | admin | `list_support_sessions` | — |
-| `/agency/settings/playbooks` | admin | `list_playbooks` | — |
+| `/agency/settings/runbook` | admin | `get_runbook` | — |
 | `/c/[clientId]/setup` | admin | `get_client_setup`, `get_client_profile`, `get_connect_status`, `list_client_billing_status` | — |
 | `/c/[clientId]/setup (client owner)` | ownerSetup | `get_client_setup`, `get_client_profile` | — |
 | `/c/[clientId]/setup (closed, client owner)` | ownerLoneStar | `get_client_profile` | `get_client_setup`: a client owner gets a 404 once setup is closed |
@@ -64,6 +64,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/settings/ai` | admin | `get_client_profile`, `list_api_tokens` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
 | `/c/[clientId]/settings/ai (client owner)` | ownerLoneStar | `get_client_profile`, `list_api_tokens` | — |
 | `/c/[clientId]/settings/alerts` | admin | `get_client_profile`, `get_alert_rules` | — |
+| `/c/[clientId]/settings/runbook` | admin | `get_client_profile`, `get_runbook` | — |
 | `/c/[clientId]/settings/delivery` | admin | `get_client_profile` | — |
 | `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters`, `list_client_billing_status` | — |
 | `/c/[clientId]/settings/billing (client owner)` | ownerLoneStar | `get_my_billing`, `get_client_profile` | — |
@@ -77,6 +78,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/inbox (client owner)` | ownerLoneStar | `fn:listInbox` | — |
 | `/kb/[id]` | admin | `get_kb_article` | — |
 | `/platform` | operator | `platform_overview`, `list_platform_activity` | — |
+| `/platform/runbook` | operator | `get_runbook` | — |
 | `/platform/agencies` | operator | `list_platform_agencies` | — |
 | `/platform/agencies/[id]` | operator | `get_platform_agency`, `list_agency_support_sessions`, `get_agency_billing`, `list_discount_codes` | — |
 | `/platform/billing` | operator | `get_billing_overview`, `list_plans`, `list_discount_codes`, `get_connect_overview`, `get_signup_funnel` | `list_invite_links`: the demo seeds no invite links; `get_signups_paused`: open sign-up is not paused in the demo |
@@ -89,6 +91,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/platform/knowledge/new` | operator | `list_kb_targets` | — |
 | `/platform/knowledge/[id]` | operator | `get_kb_article_admin`, `list_kb_targets` | — |
 | `/platform/reviews` | operator | `list_decision_reviews` | — |
+| `/platform/verticals` | operator | `list_verticals` | `list_catalog_review`: the demo agencies add no business types; `list_catalog_review`: the demo agencies add no services; `count_catalog_review`: nothing waits for review in the demo |
 | `/platform/themes` | operator | `list_theme_proposals` | — |
 | `/settings/notifications` | admin | `fn:myNotificationSettings` | — |
 | `/sign-up` | public | — | sign-up form (paused copy while sign-ups are paused) |

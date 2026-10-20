@@ -7,9 +7,10 @@ try {
   // optional
 }
 
-const { createDb } = await import('@cs/db');
+const { catalogRows, createDb } = await import('@cs/db');
+const { createCatalog } = await import('@cs/verticals');
 const {
-  computeDecisionReport, createPackLoader, exportUnlabeled, formatReport, importLabels, listOpenReviews, loadLabeledAnswers, parseLabelCsv, resolveDecisionReview, toCsv,
+  computeDecisionReport, exportUnlabeled, formatReport, importLabels, listOpenReviews, loadLabeledAnswers, parseLabelCsv, resolveDecisionReview, toCsv,
 } = await import('@cs/engine');
 const { parseDecisionsArgs } = await import('./decisions-args');
 
@@ -54,7 +55,7 @@ try {
       break;
     }
     case 'resolve':
-      console.log(JSON.stringify(await resolveDecisionReview({ db, packs: createPackLoader() }, args.reviewId, { answers: args.answers, resolvedBy: args.by })));
+      console.log(JSON.stringify(await resolveDecisionReview({ db, ...(() => { const cat = createCatalog(() => catalogRows(db), { ttlMs: 60_000 }); return { packs: cat.packs, generic: () => cat.generic() }; })() }, args.reviewId, { answers: args.answers, resolvedBy: args.by })));
       break;
   }
 } catch (err) {

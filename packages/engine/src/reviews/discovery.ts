@@ -148,7 +148,7 @@ export async function discoverTheme(
 ): Promise<{ status: 'proposed' | 'none'; proposalId: string } | { skipped: string }> {
   const prep = await prepareThemeDiscovery(deps, verticalId, opts);
   if ('skipped' in prep) return prep;
-  const res = await deps.ai.chat('theme_discovery', { jsonSchema: prep.jsonSchema, messages: prep.messages }, PLATFORM);
+  const res = await deps.ai.chat('theme_discovery', { jsonSchema: prep.jsonSchema, messages: prep.messages }, { ...PLATFORM, verticalId });
   return applyThemeProposal(deps.db, prep.context, res.text);
 }
 

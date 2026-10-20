@@ -1,10 +1,10 @@
 import { toolkit, ToolError } from '@cs/core';
 import { review, themeProposal } from '@cs/db';
 import { decideThemeProposal } from '@cs/engine';
-import { listVerticalPacks } from '@cs/verticals';
 import { and, count, desc, eq, gte, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
-import { packsOf, type ToolDeps } from '../deps';
+import { catalogPacks } from '../catalog/access';
+import type { ToolDeps } from '../deps';
 import { requirePlatformOperator } from '../platform';
 import { ThemeProposalView } from './schemas';
 
@@ -41,7 +41,7 @@ export const listThemeProposals = defineTool({
     const sampleIds = [...new Set(rows.flatMap((r) => r.sampleReviewIds.slice(0, 3)))];
     const texts = sampleIds.length ? await deps.service.select({ id: review.id, text: review.text }).from(review).where(inArray(review.id, sampleIds)) : [];
     const textOf = new Map(texts.map((t) => [t.id, t.text ?? '']));
-    const packs = await Promise.all((await listVerticalPacks()).map((id) => packsOf(deps)(id)));
+    const packs = await catalogPacks(deps);
     const names = new Map(packs.map((p) => [p.id, p.name]));
     const toView = (r: (typeof rows)[number]): z.input<typeof ThemeProposalView> => ({
       id: r.id, verticalId: r.verticalId, verticalName: names.get(r.verticalId) ?? r.verticalId, themeId: r.themeId, name: r.name, description: r.description,

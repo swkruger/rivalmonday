@@ -1,5 +1,7 @@
 import { ensureExemptPilot } from '@cs/billing';
-import { agency, client, clientCompetitor, competitor, competitorSource, membership, type ServiceArea, trackedPage } from '@cs/db';
+import { agency, catalogRows, client, clientCompetitor, competitor, competitorSource, membership, type ServiceArea, trackedPage } from '@cs/db';
+import { ensureAgencyRunbook } from '@cs/engine';
+import { createCatalog } from '@cs/verticals';
 import { acceptInvitations, createInvitation } from '@cs/tools';
 import { eq, sql } from 'drizzle-orm';
 import type { SeedContext } from './context';
@@ -88,6 +90,7 @@ export async function seedTenancy(ctx: SeedContext): Promise<void> {
   }).returning({ id: agency.id });
   ids.agencyId = a!.id;
   await ensureExemptPilot(db, ids.agencyId);
+  await ensureAgencyRunbook(db, ids.agencyId, await createCatalog(() => catalogRows(db), { ttlMs: 60_000 }).generic());
 
   for (const key of ['loneStar', 'brazos', 'lakeside', 'setupPending'] as const) {
     const s = CLIENT_SPECS[key];

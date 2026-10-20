@@ -2,12 +2,13 @@ import 'server-only';
 import { createDataForSeo, DFS_BASE_URL, type MapsPlace, mapsSearchByText } from '@cs/collectors';
 import { createLedgerSink, type Db, type EnvName } from '@cs/db';
 import type { ToolDeps } from '@cs/tools';
+import distilleries from '../../e2e/fixtures/setup-lookup-distillery.json';
 import fixture from '../../e2e/fixtures/setup-lookup.json';
 
 type SetupLookup = NonNullable<ToolDeps['setupLookup']>;
 
-/** The fixed places E2E and DEMO answer with: three Granbury dentists, never a paid call. */
-export const fixtureSetupLookup: SetupLookup = async () => fixture as MapsPlace[];
+/** The fixed places E2E and DEMO answer with: three Granbury dentists (two distilleries when the search says "distillery"), never a paid call. */
+export const fixtureSetupLookup: SetupLookup = async (q) => (/distiller/i.test(q.keyword) ? distilleries : fixture) as MapsPlace[];
 
 /**
  * Phase 11a Task 10: `find_business`'s search. Fixture under `SETUP_FAKE_LOOKUP` and in the DEMO/TEST environments

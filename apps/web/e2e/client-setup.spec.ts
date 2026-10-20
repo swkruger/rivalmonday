@@ -117,6 +117,11 @@ test.describe('client owner', () => {
     await expect(page.getByRole('checkbox', { name: 'AC repair', exact: true })).toBeChecked();
     await expect(page.getByRole('checkbox', { name: 'ac repair near me' })).toBeChecked();
     await expect(page.getByRole('button', { name: 'Dismiss setup' })).toHaveCount(0);
+    // 14a: a Google service we have no area for is an unticked "New" chip; ticking it adds it as a service.
+    const newChip = page.getByRole('checkbox', { name: /Radiant floor heating/ });
+    await expect(newChip).not.toBeChecked();
+    await expect(page.getByText('Not in our list yet. Tick to add it as a service; our team reviews new ones.')).toBeVisible();
+    await newChip.check();
 
     await page.getByLabel('Add your own (one per line)').fill('emergency furnace repair');
     await page.getByLabel('Map centre (latitude, longitude)').fill('32.4, -97.79');

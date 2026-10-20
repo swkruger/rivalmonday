@@ -16,10 +16,6 @@ export interface ProfileValues {
   billingCity?: string | null; billingRegion?: string | null; billingPostalCode?: string | null; billingCountry?: string | null; taxId?: string | null;
 }
 
-const VERTICALS = [
-  { id: 'hvac_plumbing', label: 'HVAC & plumbing' },
-  { id: 'dental', label: 'Dental' },
-];
 
 function Field({ id, label, children, hint }: { id: string; label: string; children: React.ReactNode; hint?: string }) {
   return (
@@ -31,7 +27,7 @@ function Field({ id, label, children, hint }: { id: string; label: string; child
   );
 }
 
-export function ProfileStep({ initial, timezones }: { initial: ProfileValues; timezones: string[] }) {
+export function ProfileStep({ initial, timezones, verticalChoices }: { initial: ProfileValues; timezones: string[]; verticalChoices: { id: string; name: string }[] }) {
   const [state, formAction, pending] = useActionState(saveProfileAction, { ok: true } as FormResult);
   const [same, setSame] = useState(initial.billingSameAsPostal ?? true);
   // Controlled: React 19 resets uncontrolled fields after a form action, so a validation error would wipe what was typed.
@@ -71,10 +67,10 @@ export function ProfileStep({ initial, timezones }: { initial: ProfileValues; ti
           <fieldset className="flex flex-col gap-2">
             <legend className="text-sm font-medium">Industries you serve</legend>
             <div className="flex flex-wrap gap-4">
-              {VERTICALS.map((v) => (
+              {verticalChoices.map((v) => (
                 <label key={v.id} className="flex items-center gap-2 text-sm">
                   <input type="checkbox" name="verticals" value={v.id} checked={verticals.includes(v.id)} onChange={(e) => setVerticals((x) => (e.target.checked ? [...x, v.id] : x.filter((i) => i !== v.id)))} />
-                  {v.label}
+                  {v.name}
                 </label>
               ))}
             </div>

@@ -29,7 +29,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Per-task AI HTTP timeouts (60 s × 3 worst case, `packages/ai/src/http.ts`) — *from Phase 1 review (Vercel)*
 
 ### Deployment
-- [ ] Vercel file tracing for `packages/ai/config/ai.yaml` and `packages/verticals/packs/` — *from Phase 1 review*
+- [ ] Vercel file tracing for `packages/ai/config/ai.yaml` — *from Phase 1 review*
 - [ ] `@cs/core` uses `node:crypto` (not Edge-safe) — *from Phase 1 review*
 - [ ] Deploy note: migration `0025`'s `client_score_thresholds_check` fails on any existing malformed row — check before applying to a DB with real clients — *from 3d final review*
 - [ ] Deploy note: `magicLink({ storeToken: 'hashed' })` invalidates links issued before the cutover (15-min window) — expect a few "expired" reports — *from 5b-2 final review Minor 7*
@@ -115,18 +115,21 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ## Polish (small UI/UX fixes, any time)
 
+### Phase 14 follow-ups (verticals & runbooks)
+- [ ] 14b: prospects never tailored on activation; paid `retailor_runbook_item` has no rate limit; "Keep"/"Not now" not persisted; preview lacks candidate vars
+- [ ] 14b: `set_alert_rules` column + item writes non-atomic; create-vs-pause race; platform thresholds knob shadows a pack's own routing; redundant runbook loads per brief; score stage needs a thresholds-only loader / per-run cache
+- [ ] 14b: legacy `customised` flag conflates pack-vs-generic wording with human edits ('*' then tailors fewer HVAC plays); redaction tokens can be written back from askModel; starting-point actions from tailored templates lack a fact check
+- [ ] 14a: batch theme discovery untagged; draft-cap index/atomicity; `add_business_area` has no ownership check; rename skips similarity checks; `position` column for areas; client-data check skips seed keywords; merged areas can point across verticals; generic theme `technician_professionalism`; Distillery E2E rows linger (fresh DB)
+
 ### Phase 6 UI polish
 - [ ] Ask UI: thread delete is one-click with error only in a tooltip; save dialog allows duplicate saves; pre-persist error has empty `messageId`; quota 0 shows "N of 0"; `assistantName` read twice — *from 6b*
 - [ ] `/platform/knowledge`: `start()` throw uncaught in import panel; preview shows stale kind; inline delete confirm lacks focus handling; "Saved." banner after publish — *from 6c*
 
 ### Workflow & behaviour
-- [ ] Let agencies add their own verticals and services (feature-sized) — *from phase5-polish*
 - [ ] Franchise brands: jobs postings are brand-wide (Aire Serv's 2026-10-14 postings are "United States"), not the local franchisee's — *from phase5-polish*
 - [ ] A removed competitor's pending alerts and brief items are still approvable — *from 5b-1 final review Minor 5*
 - [ ] Trend table shows "— → —" for a business with no rating; show a single "—" (owner undecided) — *from 5b-1 owner verification*
 - [ ] Webhook/notification toggle actions (`agency/webhooks/actions.ts`, `settings/notifications/actions.ts`) ignore the `runTool` result — surface the error like `AutoSendSwitch` — *from 5b-2 Minor 4*
-- [ ] Playbook disable/enable intents submit the current (unsaved) title/template fields (`agency/playbooks/actions.ts`) — *from 5b-2 Minor 5*
-- [ ] Playbook titles aren't checked for placeholders (`packages/tools/src/tools/playbooks.ts`); refuse `{{` in titles — *from 5b-2 Minor 6*
 - [ ] `SignOutButton` clears guest cookies only after `authClient.signOut()` succeeds — a failed sign-out can leave a stale guest session — *from 5a fix-wave re-review*
 - [ ] `/go` skips client-facing status filters (a draft brief's webhook link 302s then 404s) — *from 5a T15*
 - [ ] Starting-point copy: approval message "Approved — sent to the client." is wrong when delivery is unconfigured (show by status); "In progress" label while waiting for the agency to track a rival; deleted-brief notice link 404s after `--force` — *from phase-12*
@@ -191,6 +194,8 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ## Unscheduled / ideas
 
 ### Features
+- [ ] Drop `playbook_override` (table, tools, tests) after the runbook backfill is verified in prod; new migration — *phase-14b*
+- [ ] "Sync platform runbook" step: the platform runbook is seeded once from `generic.yaml`; later generic/pack additions don't reach existing runbooks — *phase-14b*
 - [ ] **UI/UX review against Mobbin** (Mobbin MCP): optional cross-check of 15b/15c against real-world app patterns (the Phase 15 designer audit replaced the main review) — *owner, 2026-10-17*
 - [ ] **Affiliate program (fully featured)**: affiliate sign-up and approval, referral links/codes attributed through agency sign-up (Phase 10) and billing (9a Stripe), commission rules (one-off / recurring %, cookie window, clawback on refund or churn), affiliate dashboard (clicks, sign-ups, conversions, earnings), payouts, console management + fraud checks; scope and details to be provided by the owner at planning — *owner, 2026-10-17*
 - [ ] Automatic lead routing to agencies (vertical/area/capacity/opt-in) on the 11c platform pool - *phase-11*
@@ -200,8 +205,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] REST API (spec §8.1) — *from 6a*
 - [ ] Knowledge base: file upload (PDF/DOCX), browsable Help page (`/agency/help`, `/c/<id>/help` → Phase 15b), agency/client self-authoring (`manage_knowledge`), KB in weekly briefs, citation analytics — *from 6c "Not in 6c"*
 - [ ] Brief writers (`brief_writer`/`playbook_writer`/`theme_discovery`) back to sonnet-5 (probe 2026-10-12 OK for ZDR + strict json_schema) — *from 6b*
-- [ ] Agencies add their own business types (verticals) and services, not just built-in packs — *from end-of-Phase-5 owner request*
-- [ ] Generic runbook with per-client customisation (replaces per-vertical packs; merge with the custom-verticals item above) — own future phase — *owner idea 2026-10-17*
 - [ ] Volatile-mask unmask UI (AM): pass the capture id explicitly; manual unmask re-pinned only within the 6-capture window — *from 3d, 5c-1/5c-2*
 - [ ] SMS (Twilio) — `sms` channel slot reserved — *from 4a/4b (Phase 7+)*
 - [ ] Agency custom domains; custom sending domains + DKIM per agency — *from 4b, 5a*

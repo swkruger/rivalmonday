@@ -2,6 +2,8 @@
 export interface CallScope {
   agencyId: string | null;
   clientId: string | null;
+  /** The business type this spend serves (cost attribution); absent when the call is not vertical-specific. */
+  verticalId?: string;
 }
 
 export interface LlmCallRecord extends CallScope {

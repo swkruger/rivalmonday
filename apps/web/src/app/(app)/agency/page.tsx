@@ -15,10 +15,9 @@ import { PageHeader } from '@/components/page-header';
 import { requireContext } from '@/server/current-viewer';
 import { relativeTime } from '@/server/format';
 import { callTool, tryCallTool } from '@/server/tools';
+import { verticalOptions } from '@/server/verticals';
 
 export const metadata = { title: 'Portfolio' };
-
-const VERTICAL_LABELS: Record<string, string> = { hvac_plumbing: 'HVAC & plumbing', dental: 'Dental' };
 
 /** True when a client needs attention now — pulled to the top of the portfolio table. */
 function isUrgent(row: PortfolioRow): boolean {
@@ -50,6 +49,7 @@ export default async function AgencyPortfolioPage() {
   const billingRole = ctx.role === 'agency_admin' ? 'agency_admin' : 'account_manager';
   const now = new Date();
   const canAddClient = ctx.clientScope === 'all';
+  const verticalLabels = new Map((await verticalOptions()).map((v) => [v.id, v.name]));
   const rows = sortRows(items);
   const alertsWaiting = items.reduce((sum, r) => sum + r.alertsPending, 0);
   const briefsToApprove = items.filter((r) => r.briefToApprove !== null).length;
@@ -113,7 +113,7 @@ export default async function AgencyPortfolioPage() {
             <ul className="flex flex-col divide-y divide-line xl:hidden">
               {rows.map((row) => (
                 <li key={row.clientId} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0">
-                  <ClientName row={row} />
+                  <ClientName row={row} labels={verticalLabels} />
                   <Pressure row={row} />
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
                     <Field label="Budget"><SpendBadge spend={row.spend} /></Field>
@@ -143,7 +143,7 @@ export default async function AgencyPortfolioPage() {
                 <TableBody>
                   {rows.map((row) => (
                     <TableRow key={row.clientId}>
-                      <TableCell><ClientName row={row} /></TableCell>
+                      <TableCell><ClientName row={row} labels={verticalLabels} /></TableCell>
                       <TableCell className="whitespace-normal"><Pressure row={row} /></TableCell>
                       <TableCell><SpendBadge spend={row.spend} /></TableCell>
                       <TableCell><Alerts row={row} /></TableCell>
@@ -163,13 +163,13 @@ export default async function AgencyPortfolioPage() {
   );
 }
 
-function ClientName({ row }: { row: PortfolioRow }) {
+function ClientName({ row, labels }: { row: PortfolioRow; labels: Map<string, string> }) {
   return (
     <div>
       <Link href={`/c/${row.clientId}`} className="font-semibold text-primary-soft-text">
         {row.name}
       </Link>
-      <div className="text-muted-ink">{VERTICAL_LABELS[row.verticalId] ?? row.verticalId}</div>
+      <div className="text-muted-ink">{labels.get(row.verticalId) ?? row.verticalId}</div>
       {row.setup?.open && (
         <div className="mt-1">
           <SetupBadge clientId={row.clientId} open doneSteps={row.setup.doneSteps} totalSteps={row.setup.totalSteps} />

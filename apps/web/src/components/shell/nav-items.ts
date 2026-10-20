@@ -12,8 +12,8 @@ export { clientIdFromPath, contextOf, NAV_CTX_COOKIE, type NavContext, parseNavC
 
 export type IconKey =
   | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
-  | 'alertRules' | 'ai' | 'usage' | 'playbooks' | 'reviews' | 'themes' | 'prospects' | 'ask' | 'knowledge'
-  | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing' | 'leads' | 'intake' | 'briefs' | 'settings';
+  | 'alertRules' | 'ai' | 'usage' | 'runbook' | 'reviews' | 'themes' | 'prospects' | 'ask' | 'knowledge'
+  | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing' | 'leads' | 'intake' | 'briefs' | 'settings' | 'catalogue';
 
 export interface NavItem {
   href: string;
@@ -40,6 +40,8 @@ export interface NavCounts {
   leads?: number;
   modelReviews?: number;
   themes?: number;
+  /** Phase 14a: business types and services waiting for operator review (Business types badge). */
+  catalog?: number;
 }
 
 /** Role/kind booleans plus the fixed home path for non-agency roles — everything `navFor` needs besides the context and client id. */
@@ -115,7 +117,11 @@ function platformNav(flags: NavRoleFlags, counts: NavCounts): NavSection[] {
       add('/platform/themes', 'Theme proposals', 'themes', { count: counts.themes });
       add('/platform/ask', 'Ask reviews', 'ask');
     }),
-    section('content', 'Content', (add) => add('/platform/knowledge', 'Knowledge', 'knowledge')),
+    section('content', 'Content', (add) => {
+      add('/platform/knowledge', 'Knowledge', 'knowledge');
+      add('/platform/verticals', 'Business types', 'catalogue', { count: counts.catalog });
+      add('/platform/runbook', 'Runbook', 'runbook');
+    }),
     section('system', 'System', (add) => {
       if (flags.isPlatformOwner) add('/platform/costs', 'Costs', 'costs');
     }),
@@ -182,7 +188,8 @@ function agencySettings(flags: NavRoleFlags): NavSection[] {
     section('agency', 'Agency', (add) => {
       if (admin) add('/agency/settings/branding', 'Branding & voice', 'branding');
       add('/agency/settings/team', 'Team', 'team');
-      add('/agency/settings/playbooks', 'Playbooks', 'playbooks');
+      // Phase 14b: the agency runbook replaces Playbooks (old paths redirect here, next.config).
+      add('/agency/settings/runbook', 'Runbook', 'runbook');
     }),
     section('plan', 'Plan', (add) => {
       if (adminUser) add('/agency/settings/billing', 'Billing', 'billing');
@@ -207,6 +214,8 @@ function clientSettings(flags: NavRoleFlags, base: string): NavSection | null {
     if (flags.isAgency || flags.dashboard) add(`${base}/settings/profile`, 'Business profile', 'profile');
     if (flags.isAgency) add(`${base}/settings/delivery`, 'Delivery', 'delivery');
     if (flags.alertRules) add(`${base}/settings/alerts`, 'Alert rules', 'alertRules');
+    // Phase 14b: the client's own runbook (agency roles only; the page 404s for client roles).
+    if (flags.isAgency) add(`${base}/settings/runbook`, 'Runbook', 'runbook');
     if (flags.mcp) add(`${base}/settings/ai`, 'AI connection', 'ai');
     if (!flags.isAgency && flags.clientBilling) add(`${base}/settings/billing`, 'Billing', 'billing');
   });

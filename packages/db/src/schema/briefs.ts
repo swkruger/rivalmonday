@@ -104,6 +104,8 @@ export const briefItem = pgTable(
     /** Agency-only (spec §8.5): read paths strip it for client roles. */
     upsellTag: text('upsell_tag'),
     playbookId: text('playbook_id'),
+    /** Phase 14b: runbook item version the text came from (null = legacy pack). */
+    playbookVersion: integer('playbook_version'),
     status: text('status').notNull().default('active'),
     editedBy: text('edited_by'),
     createdAt: ts('created_at').notNull().defaultNow(),
@@ -132,6 +134,8 @@ export const recommendation = pgTable(
     moveId: uuid('move_id').references(() => move.id, { onDelete: 'set null' }),
     briefItemId: uuid('brief_item_id').references(() => briefItem.id, { onDelete: 'set null' }),
     playbookId: text('playbook_id'),
+    /** Phase 14b: runbook item version the text came from (null = legacy pack). */
+    playbookVersion: integer('playbook_version'),
     effort: text('effort').notNull(),
     impact: text('impact').notNull(),
     owner: text('owner').notNull(),

@@ -1,6 +1,7 @@
 import { PageHeader } from '@/components/page-header';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { callTool } from '@/server/tools';
+import { AiByVerticalTable } from './_components/ai-by-vertical-table';
 import { CostItemDialog } from './_components/cost-item-dialog';
 import { CostItemsTable } from './_components/cost-items-table';
 import { MonthlyChart } from './_components/monthly-chart';
@@ -36,6 +37,10 @@ export default async function PlatformCostsPage() {
         <h2 className="font-semibold">Monthly spend</h2>
         <p className="mb-3 text-sm text-muted-foreground">Monthly spend (approximate: balance services are estimated from daily readings)</p>
         <MonthlyChart months={data.months} />
+      </section>
+      <section className={card}>
+        <h2 className="mb-3 font-semibold">AI by business type (last 30 days)</h2>
+        <AiByVerticalTable rows={data.aiByVertical} />
       </section>
       <section className={card}>
         <div className="mb-3 flex items-center justify-between gap-3">

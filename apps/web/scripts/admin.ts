@@ -1,7 +1,9 @@
 import { fileURLToPath } from 'node:url';
 import { signLink } from '@cs/core';
-import { agency, contact, createDb } from '@cs/db';
+import { agency, catalogRows, contact, createDb } from '@cs/db';
+import { ensureAgencyRunbook } from '@cs/engine';
 import { createInvitation } from '@cs/tools';
+import { createCatalog } from '@cs/verticals';
 import { asc, eq } from 'drizzle-orm';
 import { ADMIN_USAGE, parseAdminArgs } from './admin-args';
 
@@ -22,6 +24,8 @@ try {
     for (const a of await db.select({ id: agency.id, name: agency.name }).from(agency).orderBy(asc(agency.name))) console.log(`${a.id}  ${a.name}`);
   } else if (parsed.cmd === 'create-agency') {
     const [a] = await db.insert(agency).values({ name: parsed.name }).returning({ id: agency.id });
+    const catalog = createCatalog(() => catalogRows(db), { ttlMs: 60_000 });
+    await ensureAgencyRunbook(db, a!.id, await catalog.generic());
     console.log(a!.id);
   } else if (parsed.cmd === 'invite') {
     const r = await createInvitation(db, { agencyId: parsed.agency, email: parsed.email, role: parsed.role, clientId: parsed.client ?? null, invitedBy: 'cli' });

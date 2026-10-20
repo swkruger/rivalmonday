@@ -540,6 +540,27 @@
       "when": 1792234922000,
       "tag": "0076_rank_scan_requested_by_text",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1792310059838,
+      "tag": "0077_vertical_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1792319675353,
+      "tag": "0078_llm_call_vertical",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1792370409110,
+      "tag": "0079_runbooks",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import type { GbpProfile } from '@cs/collectors';
 import { describe, expect, it } from 'vitest';
-import { buildSuggestionSource, setupSuggestionsJsonSchema, validateSuggestions } from './suggestions';
+import { setupSuggestionsSchema } from '@cs/db';
+import { buildSuggestionSource, detectNewAreas, gbpServiceNames, setupSuggestionsJsonSchema, validateSuggestions } from './suggestions';
 
 const packServices = [{ id: 'ac_repair', name: 'AC Repair' }, { id: 'drain_cleaning', name: 'Drain Cleaning' }];
 const sourceText = 'We offer 24/7 AC repair and  drain\ncleaning.  “Emergency plumber” in Austin. It’s family-owned.';
@@ -83,5 +84,41 @@ describe('setupSuggestionsJsonSchema', () => {
   it('names the object shape', () => {
     expect(setupSuggestionsJsonSchema.name).toBe('setup_suggestions');
     expect(setupSuggestionsJsonSchema.schema).toMatchObject({ required: ['services', 'keywords'] });
+  });
+});
+
+describe('detectNewAreas', () => {
+  const areas = [{ id: 'ac_repair', name: 'AC Repair', aliases: ['air conditioning repair'] }, { id: 'drain_cleaning', name: 'Drain Cleaning', aliases: [] }];
+
+  it('keeps only names that match no area name or alias (normalised), with the name as its own quote', () => {
+    const r = detectNewAreas(['AC repair', 'Air Conditioning Repair', 'drain cleanings', 'Duct sealing', 'duct  sealing', 'Water softener install'], areas);
+    expect(r).toEqual([{ name: 'Duct sealing', quote: 'Duct sealing' }, { name: 'Water softener install', quote: 'Water softener install' }]);
+  });
+
+  it('drops names that are too short/long or normalise to nothing, and caps at 8', () => {
+    const many = Array.from({ length: 12 }, (_, i) => `Special service number ${String.fromCharCode(97 + i)}${i}`);
+    expect(detectNewAreas(['x', 'The', 'y'.repeat(81), ...many], areas)).toHaveLength(8);
+  });
+});
+
+describe('gbpServiceNames + client-data filter', () => {
+  const gbp = (services: unknown) => ({ services }) as unknown as GbpProfile;
+
+  it('reads only name-like keys (title/name/service_name) and plain strings, ignoring price and snippet', () => {
+    expect(gbpServiceNames(gbp([{ category: 'Heating', title: 'Radiant floor heating', snippet: 'Call 817-555-0100 today', price: '$99' }, { name: 'Duct sealing' }, { service_name: 'Zoning' }, 'Humidifiers', { price: '$5' }]))).toEqual(['Radiant floor heating', 'Duct sealing', 'Zoning', 'Humidifiers']);
+    expect(gbpServiceNames(gbp({ nested: [{ title: 'x' }] }))).toEqual([]);
+    expect(gbpServiceNames(gbp(null))).toEqual([]);
+  });
+
+  it('detectNewAreas drops phones, emails, URLs and the business name', () => {
+    const r = detectNewAreas(['Call 817-555-0100', 'a@b.co', 'https://acme.com/hvac', 'acme-hvac.com', 'Cedar Creek Plumbing repair', 'Duct sealing'], [], ['cedar creek plumbing']);
+    expect(r).toEqual([{ name: 'Duct sealing', quote: 'Duct sealing' }]);
+  });
+});
+
+describe('setupSuggestionsSchema newAreas', () => {
+  it('an old ready row without newAreas still parses (defaults to [])', () => {
+    const r = setupSuggestionsSchema.parse({ status: 'ready', services: [], keywords: [], sources: ['gbp'], generatedAt: 'x' });
+    expect(r).toMatchObject({ status: 'ready', newAreas: [] });
   });
 });

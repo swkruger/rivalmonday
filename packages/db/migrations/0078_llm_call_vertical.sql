@@ -1,0 +1,2 @@
+ALTER TABLE "llm_call" ADD COLUMN "vertical_id" text;--> statement-breakpoint
+CREATE INDEX "llm_call_vertical_created_idx" ON "llm_call" USING btree ("vertical_id","created_at") WHERE vertical_id IS NOT NULL;

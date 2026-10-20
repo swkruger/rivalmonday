@@ -20,7 +20,7 @@ import { type AdMatch, Signals } from './signals';
 
 /** Loads a vertical pack by id (`loadVerticalPack` in production). */
 export type PackLoader = (verticalId: string) => Promise<VerticalPack>;
-export type RivalSearchDeps = { db: Db; dfs: DataForSeoClient; meta: MetaSearchDeps; packs: PackLoader; now?: () => Date };
+export type RivalSearchDeps = { db: Db; dfs: DataForSeoClient; meta: MetaSearchDeps; packs: PackLoader; /** The client's runbook tier limits (R5); absent or null: the pack's. */ runbookTiers?: (clientId: string) => Promise<DiscoveryConfig['tiers'] | null>; now?: () => Date };
 export { postReviewSamples };
 
 type Progress = DiscoveryRunProgress & { searchesDone: number; searchesTotal: number; checksDone: number; checksTotal: number; hiddenList?: { name: string; reason: HiddenReason }[] };
@@ -366,7 +366,7 @@ async function recomputeShortlist(deps: RivalSearchDeps, run: DiscoveryRunRow, o
   if (!opts.force && short.some((r) => r.signals.reviews30d === undefined)) return 'waiting';
   const [c] = await db.select({ verticalId: client.verticalId }).from(client).where(eq(client.id, run.clientId)).limit(1);
   if (!c) throw new Error(`client ${run.clientId} not found`);
-  const { tiers } = (await deps.packs(c.verticalId)).discovery;
+  const tiers = (await deps.runbookTiers?.(run.clientId)) ?? (await deps.packs(c.verticalId)).discovery.tiers;
   const filled = short.map((r) => ({ ...r, signals: Signals.parse({ ...NULL_REVIEWS, ...r.signals }) }));
   const runMedian = median(filled.flatMap((r) => (r.signals.reviews30d == null ? [] : [r.signals.reviews30d])));
   await db.transaction(async (tx) => {

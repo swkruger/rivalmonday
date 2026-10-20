@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import postgres from 'postgres';
+import { VERTICAL_CATALOG_SEED } from './catalog-seed.sql';
 import { assertDatabase } from './environments';
 import { MIGRATIONS_FOLDER, runMigrations } from './migrate';
 
@@ -65,7 +66,7 @@ const META = 'cs_test_meta';
 
 /**
  * Test-run start: wipe + migrate only when the migrations changed since the last run (or `TEST_DB_FULL_RESET=1`);
- * otherwise empty every table in `public` and `auth`, which is what a fresh migrate leaves (no migration seeds data).
+ * otherwise empty every table in `public` and `auth` and re-seed the vertical catalogue, which is what a fresh migrate leaves.
  * The fingerprint lives in its own schema, which the wipe never drops; it is cleared before a rebuild and written only
  * after a successful migrate, so an interrupted run always rebuilds next time.
  */
@@ -84,6 +85,8 @@ export async function prepareTestDatabase(ownerUrl: string, expected: string): P
         select string_agg(format('%I.%I', schemaname, tablename), ', ') as tables
         from pg_tables where schemaname in ('public', 'auth')`;
       if (list?.tables) await sql.unsafe(`TRUNCATE TABLE ${list.tables} RESTART IDENTITY CASCADE`);
+      // Migration 0077 seeds the vertical catalogue, so a fresh migrate leaves it; the truncate must restore it.
+      for (const stmt of VERTICAL_CATALOG_SEED) await sql.unsafe(stmt);
       return 'truncated';
     }
     await sql`delete from cs_test_meta.fingerprint`;

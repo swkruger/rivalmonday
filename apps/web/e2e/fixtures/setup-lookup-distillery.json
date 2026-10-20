@@ -1,0 +1,38 @@
+[
+  {
+    "placeId": "ChIJdistilleryHillCountry0001",
+    "cid": "710000000000000001",
+    "title": "Hill Country Distillery",
+    "domain": "hillcountrydistillery.example",
+    "url": "https://hillcountrydistillery.example/",
+    "rank": 1,
+    "rating": 4.8,
+    "votes": 312,
+    "category": "Distillery",
+    "address": "12 Ranch Rd, Fredericksburg, TX 78624",
+    "lat": 30.2752,
+    "lng": -98.8719,
+    "additionalCategories": ["Whiskey distillery"],
+    "city": "Fredericksburg",
+    "phone": "+1830-555-0101",
+    "isClaimed": true
+  },
+  {
+    "placeId": "ChIJdistilleryLoneStar000002",
+    "cid": "710000000000000002",
+    "title": "Lone Star Spirits Distillery",
+    "domain": "lonestarspirits.example",
+    "url": "https://lonestarspirits.example/",
+    "rank": 2,
+    "rating": 4.6,
+    "votes": 188,
+    "category": "Distillery",
+    "address": "88 Main St, Dripping Springs, TX 78620",
+    "lat": 30.1902,
+    "lng": -98.0867,
+    "additionalCategories": [],
+    "city": "Dripping Springs",
+    "phone": "+1512-555-0102",
+    "isClaimed": true
+  }
+]

@@ -71,8 +71,14 @@ platform_overview (platform-console.ts) | read | read; audit row only
 list_platform_agencies (platform-console.ts) | read | read; audit row only
 get_platform_agency (platform-console.ts) | read | read; audit row only
 list_platform_activity (platform-console.ts) | read | read; audit row only
-list_playbooks (playbooks.ts) | read | read-only
-update_playbook (playbooks.ts) | write | upserts playbook override
+get_runbook (runbooks.ts) | read | lazily creates the platform/agency runbook (skipped under support)
+update_runbook_item (runbooks.ts) | write | upserts runbook item; client thresholds write client.score_thresholds
+set_runbook_item_enabled (runbooks.ts) | write | updates runbook item
+pull_runbook_update (runbooks.ts) | write | updates runbook item from the level above
+dismiss_runbook_update (runbooks.ts) | write | updates runbook item
+add_runbook_item (runbooks.ts) | write | inserts item; key * creates the client runbook and enqueues runbook-tailor
+remove_runbook_item (runbooks.ts) | write | tombstones or deletes runbook item
+retailor_runbook_item (runbooks.ts) | write | one paid model call, saves nothing
 get_portfolio (portfolio.ts) | read | read-only
 get_price_matrix (pricing.ts) | read | read-only
 get_price_history (pricing.ts) | read | read-only
@@ -190,3 +196,14 @@ refresh_platform_costs (platform-costs.ts) | write | enqueues a worker job; plat
 update_platform_cost_service (platform-costs.ts) | write | updates vendor settings; platform owner; supportHidden
 save_platform_cost_item (platform-costs.ts) | write | inserts/updates a cost item; platform owner; supportHidden
 archive_platform_cost_item (platform-costs.ts) | write | archives a cost item; platform owner; supportHidden
+list_verticals (verticals.ts) | read | read-only
+create_vertical (verticals.ts) | write | inserts vertical, areas, categories (service tx)
+add_business_area (verticals.ts) | write | inserts an unreviewed business area
+update_vertical (verticals.ts) | write | updates an unreviewed vertical the agency created, or any live vertical for platform staff
+draft_vertical (verticals.ts) | write | one paid model call plus a vertical_draft insert (service); web only
+review_vertical (platform-verticals.ts) | write | approves or renames a vertical (service tx, catalogue lock)
+review_business_area (platform-verticals.ts) | write | approves or renames a business area
+merge_vertical (platform-verticals.ts) | write | rewrites clients, events, prices and agency settings onto the target vertical
+merge_business_area (platform-verticals.ts) | write | rewrites references from one area to another
+list_catalog_review (platform-verticals.ts) | read | operator-only read of unreviewed catalogue entries
+count_catalog_review (platform-verticals.ts) | read | operator-only count of unreviewed catalogue entries (sidebar badge; unaudited)

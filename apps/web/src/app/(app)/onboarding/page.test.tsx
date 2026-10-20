@@ -9,6 +9,7 @@ const m = vi.hoisted(() => ({
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: m.ctx, viewer: { kind: 'user' } }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/timezones', () => ({ timezoneOptions: () => ['UTC'] }));
+vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [{ id: 'dental', name: 'Dental', services: [] }] }));
 vi.mock('@cs/tools', () => ({ getAgencyBranding: async () => ({ stored: { displayName: 'Acme' }, resolved: { displayName: 'Acme' } }) }));
 vi.mock('@/server/tools', () => ({
   callTool: async (_c: unknown, name: string) => {

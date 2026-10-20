@@ -26,7 +26,7 @@ function readySuggestions(s: ClientSetupView['suggestions']): { services: Sugges
   return s.status === 'ready' ? { services: s.services, keywords: s.keywords } : null;
 }
 
-function Chip({ checked, onToggle, label, value, name, quote }: { checked: boolean; onToggle: () => void; label: string; value: string; name: string; quote?: string }) {
+function Chip({ checked, onToggle, label, value, name, quote, tag }: { checked: boolean; onToggle: () => void; label: string; value: string; name: string; quote?: string; tag?: string }) {
   return (
     <label
       title={quote ? `From Google: “${quote}”` : undefined}
@@ -34,6 +34,7 @@ function Chip({ checked, onToggle, label, value, name, quote }: { checked: boole
     >
       <input type="checkbox" name={name} value={value} checked={checked} onChange={onToggle} className="h-4 w-4" />
       {label}
+      {tag && <span className="rounded-full bg-surface px-2 text-xs font-semibold text-ink">{tag}</span>}
     </label>
   );
 }
@@ -56,6 +57,10 @@ export function BusinessStep({ view, profile, pending, onSave }: { view: ClientS
 
   const [services, setServices] = useState(() => new Set([...profile.services, ...(ready?.services.map((s) => s.value) ?? [])]));
   const [keywords, setKeywords] = useState(() => new Set([...profile.keywords, ...(ready?.keywords.map((s) => s.value) ?? [])]));
+  // 14a: Google services that match none of our areas. Unticked by default; hidden once saved (the area is then in the vertical's list).
+  const known = new Set(view.vertical.services.map((v) => v.name.trim().toLowerCase()));
+  const newAreas = (view.suggestions.status === 'ready' ? view.suggestions.newAreas : []).filter((a) => !known.has(a.name.trim().toLowerCase()));
+  const [pickedNew, setPickedNew] = useState<Set<string>>(() => new Set());
   const [extra, setExtra] = useState('');
   const [center, setCenter] = useState(area ? `${area.center.lat}, ${area.center.lng}` : lookup ? `${lookup.lat}, ${lookup.lng}` : '');
   const [radius, setRadius] = useState(area ? String(area.radiusKm) : lookup ? DEFAULT_RADIUS_KM : '');
@@ -102,7 +107,11 @@ export function BusinessStep({ view, profile, pending, onSave }: { view: ClientS
           {view.vertical.services.map((s) => (
             <Chip key={s.id} name="services" value={s.id} label={s.name} checked={services.has(s.id)} onToggle={() => setServices((p) => toggled(p, s.id))} quote={quoteOf.get(s.id)} />
           ))}
+          {newAreas.map((a) => (
+            <Chip key={a.name} name="newAreas" value={a.name} label={a.name} tag="New" checked={pickedNew.has(a.name)} onToggle={() => setPickedNew((p) => toggled(p, a.name))} quote={a.quote} />
+          ))}
         </div>
+        {newAreas.length > 0 && <p className="text-sm text-muted-foreground">Not in our list yet. Tick to add it as a service; our team reviews new ones.</p>}
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">

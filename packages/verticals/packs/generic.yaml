@@ -1,0 +1,183 @@
+id: generic
+name: Generic local service
+version: 1
+audience_noun: customers
+
+services:
+  - { id: general, name: General service, aliases: [] }
+
+themes:
+  - { id: response_time, name: Response time, description: How quickly the business answers, schedules and shows up }
+  - { id: price_transparency, name: Price transparency, description: Clear quotes, no surprise or hidden fees }
+  - { id: technician_professionalism, name: Staff professionalism, description: Courtesy, expertise and conduct of the staff }
+  - { id: communication, name: Communication, description: Updates, explanations and follow-up }
+  - { id: fix_quality, name: Quality of work, description: Problem solved the first time, no repeat visits }
+
+type_weights:
+  price_change: 1.0
+  promo: 0.85
+  new_service: 0.7
+  service_removed: 0.5
+  service_area_change: 0.9
+  new_location: 0.9
+  hiring: 0.5
+  ad_started: 0.6
+  ad_stopped: 0.3
+  review_spike: 0.6
+  rating_change: 0.7
+  rank_change: 0.5
+  tier_change: 0.6
+  content: 0.2
+  cosmetic: 0.0
+
+move_thresholds:
+  hiring_push_postings_30d: 3
+  rating_drop_90d: 0.2
+  ad_surge_multiplier: 2.0
+  complaint_spike_multiplier: 2.0
+  price_war_cuts_90d: 2
+  ad_burst_starts_30d: 3
+  promo_blitz_window_days: 14
+
+scoring:
+  version: 3
+  routing: { alert: 70, brief: 40 }
+  size:
+    { default: 0.6, price_pct_for_full: 20, price_min: 0.3, ads_for_full: 5, jobs_for_full: 5, review_z_for_full: 4, rating_delta_for_full: 0.3, rank_delta_for_full: 5, structured_min: 0.3 }
+  relevance: { matched: 1.0, unmapped: 0.6, unmatched: 0.2, outside_territory: 0.3 }
+  novelty_similarity_floor: 0.5
+  novelty_window_days: 365
+  alert_max_age_days: 7
+
+discovery:
+  seed_keywords: []
+  categories: [Service establishment]
+  related_categories: []
+  grid: { size: 7, fallback_size: 5 }
+  shortlist: 20
+  cost_cap_usd: 3
+  tiers: { top: { overlap: 0.55, activity: 0.25 }, watch: { overlap: 0.35, activity: 0.6 } }
+
+playbooks:
+  - id: price_cut_bundle
+    trigger: price_change
+    title: Answer a price cut with a value bundle
+    template: >-
+      {{competitor}} cut {{service}} to {{new_price}}. Rather than matching, offer {{service}} at a comparable
+      price bundled with a visible extra (e.g. a free add-on or priority scheduling) and promote it on your
+      Google Business Profile and in ads covering the affected ZIP codes.
+  - id: price_war_hold_position
+    trigger: price_war
+    title: Hold price, sell certainty
+    template: >-
+      {{competitor}} is repeatedly discounting overlapping services. Avoid a race to the bottom: lead with guarantees
+      (upfront pricing, satisfaction guarantee, on-time promise) and a repeat-customer offer that locks in customers.
+  - id: territory_defend
+    trigger: territory_expansion
+    title: Defend the territory they are entering
+    template: >-
+      {{competitor}} is expanding into {{areas}}. Publish or refresh service-area pages for those towns, post weekly
+      on your Google Business Profile, and raise Local Services Ads budget in the affected ZIP codes for 60 days.
+  - id: new_service_response
+    trigger: new_service_line
+    title: Respond to a new service line
+    template: >-
+      {{competitor}} launched {{service}}. If you offer it, make it prominent on your site and profile now; if not,
+      decide whether to add it or partner, and prepare a comparison answer for sales calls.
+  - id: hiring_push_capacity
+    trigger: hiring_push
+    title: Prepare for added competitor capacity
+    template: >-
+      {{competitor}} is hiring aggressively, signalling growth. Lock in existing customers with early renewals or
+      repeat-customer offers and review your own recruiting message and pay against their postings.
+  - id: promo_blitz_counter
+    trigger: promo_blitz
+    title: Counter a promo blitz without discounting everything
+    template: >-
+      {{competitor}} is running promotions across several channels. Run one targeted, time-limited offer on your
+      highest-margin service and remind past customers by email/SMS.
+  - id: reputation_slump_capture
+    trigger: reputation_slump
+    title: Win customers unhappy with a competitor
+    template: >-
+      {{competitor}}'s reviews show rising complaints about {{theme}}. Highlight your strength on {{theme}} in ads and
+      on your homepage, backed by your own recent reviews that mention it.
+  - id: ad_surge_watch
+    trigger: ad_surge
+    title: Protect visibility during an ad surge
+    template: >-
+      {{competitor}} has sharply increased advertising. Check your impression share for core services, protect
+      branded search terms, and make sure your offer is visible where their ads run.
+  - id: map_climb_defend
+    trigger: map_climb
+    title: Defend your map visibility
+    template: >-
+      {{competitor}} is climbing into the Google Maps top 3 across your area. Refresh your Google Business Profile
+      (photos, services, posts), ask recent customers for reviews, and check that your service-area pages cover the
+      places where they gained.
+  - id: ask_for_reviews
+    effort: L
+    impact: H
+    trigger: review_velocity_gap
+    title: Ask more customers for a review
+    template: >-
+      Text every customer a Google review link right after the visit, and aim for a few new reviews each week.
+  - id: reply_to_reviews
+    effort: L
+    impact: M
+    trigger: reply_rate_gap
+    title: Reply to your reviews
+    template: >-
+      Reply to every new review within two days, starting with the last 20.
+  - id: fix_top_complaint
+    effort: M
+    impact: H
+    trigger: rating_gap
+    title: Fix the most common complaint
+    template: >-
+      Read your lowest reviews from the last 90 days, pick the complaint customers repeat most, and fix it this month.
+  - id: consider_search_ads
+    effort: M
+    impact: M
+    trigger: rival_only_advertiser
+    title: Try a small Google search ads budget
+    template: >-
+      Run a small Google search campaign for your main service in your service area so you show up next to those rivals.
+  - id: fix_theme
+    effort: M
+    impact: M
+    trigger: theme_weakness
+    title: Address a weak spot customers notice
+    template: >-
+      Name one change to fix {{theme}}, tell your team, and ask happy customers who notice it to say so in their review.
+  - id: promote_strength
+    effort: L
+    impact: M
+    trigger: theme_strength
+    title: Promote what customers praise
+    template: >-
+      Feature {{theme}} as a strength on your website and Google profile, with a short quote from a customer review.
+  - id: improve_map_rank
+    effort: M
+    impact: H
+    trigger: map_visibility_gap
+    title: Climb the Google map results
+    template: >-
+      Add photos of your work, list every service and city you cover, and post an update on your Google profile each week, and make sure your name, address and phone match everywhere online.
+  - id: complete_profile
+    effort: L
+    impact: M
+    trigger: profile_gap
+    title: Complete your Google profile
+    template: >-
+      Claim your Google profile and fill in your hours, services and extra categories so customers see a complete listing.
+
+self_rules:
+  - { id: review_velocity_gap, weight: 1.0, playbook: ask_for_reviews, params: { ratio: 0.5 } }
+  - { id: reply_rate_gap, weight: 0.8, playbook: reply_to_reviews, params: { gap: 0.25 } }
+  - { id: rating_gap, weight: 0.9, playbook: fix_top_complaint, params: { gap: 0.2 } }
+  - { id: rival_only_advertiser, weight: 0.6, playbook: consider_search_ads }
+  - { id: theme_weakness, weight: 0.7, playbook: fix_theme, params: { gap: 0.1 } }
+  - { id: theme_strength, weight: 0.5, playbook: promote_strength, strength: true, params: { gap: 0.1 } }
+  - { id: map_visibility_gap, weight: 0.8, playbook: improve_map_rank, params: { gap: 0.1 } }
+  - { id: profile_gap, weight: 0.7, playbook: complete_profile, params: { min_categories: 2 } }

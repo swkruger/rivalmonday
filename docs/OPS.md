@@ -31,6 +31,17 @@ pnpm --filter @cs/worker brief-once --client 25f99947-4559-4150-ab5d-dd432540aca
 ```
 `brief-once` should store the first live standard brief. Other `engine-once` flags: `--insights`, `--competitor`, `--rounds`. `brief-once` also accepts `--now <iso>`.
 
+## Runbook backfill (Phase 14b)
+
+After migrating `0079` on `cs_dev` and on prod, and before the next brief run, once per database:
+```
+pnpm --filter @cs/worker runbook:backfill --dry-run
+pnpm --filter @cs/worker runbook:backfill
+```
+Creates the platform runbook, one per agency, and for every client (all statuses) a client runbook that reproduces what it sees today (pack plays with `playbook_override`s applied, self-rules; a custom thresholds setting becomes a customised `knob:thresholds` item and `client.score_thresholds` keeps its value; clients without one get no thresholds item and follow the agency), with `tailor_status = 'skipped'`. Idempotent; leaves `playbook_override` alone. New agencies get theirs at sign-up and via `admin create-agency`.
+
+After the backfill nothing calls the model: backfilled clients stay `skipped`. A new client's runbook is created (and tailored by the `runbook-tailor` worker job, one OpenRouter call) when the setup wizard advances (`advance_client_setup`) or an agency admin uses "Create a runbook for this client"; `runbook.tailor_status` is `pending` / `done` / `failed` / `skipped` (a failed run leaves the agency runbook copy, editable). Check a client with `select tailor_status from runbook where client_id = '<id>'`. To roll back before dropping `playbook_override`, delete the client/agency runbook rows: clients fall back to the legacy view.
+
 ## Crawler ban
 
 Don't point the web crawler at real competitors until `https://rivalmonday.com/bot` exists. That covers `collect-once` without `--vendors` and `collect-once` with `--web`. `--vendors` on its own calls only vendor APIs. `WEB_MONITORING_ENABLED` stays off.
@@ -70,3 +81,11 @@ Sentiment misses are off by one only. Both providers are overconfident on sentim
 - `pnpm db:snapshot` dumps `cs_dev` and zips its evidence into `backups/<timestamp>-cs_dev/` with a manifest. The first real one is `backups/20261011-200754-cs_dev/`, and it restored successfully.
 - `pnpm db:restore <folder> [--into <db>]` restores into a new `cs_dev_restore_<timestamp>` by default. Restoring over an existing DB requires typing its name, and a fresh snapshot is taken first. It never restores into a `_test` DB.
 - The tools need PostgreSQL 18 client tools through `PG_BIN` (verified with 18.6 from `D:\Program Files\PostgreSQL\18\bin`). The round-trip test is skipped without it.
+
+## Catalogue review and merge
+
+- Queue: `/platform/verticals` (nav "Business types", badge = pending). Agencies create types and services on the fly; they are usable at once and wait here for review.
+- Per card: **Approve** (a type also approves its unreviewed services), **Rename**, **Edit** (name, audience noun, services, categories), or **Merge into...** an existing entry. Check the quotes under "Evidence" first.
+- A vertical merge runs in one transaction: moves or maps the source's services (a mapped service becomes `merged`), sets clients' `vertical_id` and `services`, rewrites `event.services`, `price_point`, `price_block_map`, `playbook_override` and `agency_profile.verticals`, appends the source's Google categories to the target's related categories, and marks the source `merged`. It deletes the source's derived analyses (`review_analysis`, `price_block_map`, proposed `theme_proposal`); the next run re-derives them under the target. Colliding open `price_point` rows are deduped.
+- Merges are irreversible. Merged ids keep resolving to the target (`merged_into`), so old links and saved ids still work. `generic` cannot be merged.
+- Drafting is capped at 10 attempts per agency per UTC day (failed drafts count, cache hits do not). Draft cost shows on `/platform/costs` under the type, or "Drafts not yet created".

@@ -21,7 +21,9 @@ const config: NextConfig = {
       { source: '/agency/webhooks/:path*', destination: '/agency/settings/slack-teams/:path*', permanent: true },
       { source: '/agency/ai/:path*', destination: '/agency/settings/ai/:path*', permanent: true },
       { source: '/agency/usage/:path*', destination: '/agency/settings/usage/:path*', permanent: true },
-      { source: '/agency/playbooks/:path*', destination: '/agency/settings/playbooks/:path*', permanent: true },
+      // Phase 14b: the runbook replaces Playbooks; both old Playbooks paths land on it.
+      { source: '/agency/playbooks/:path*', destination: '/agency/settings/runbook/:path*', permanent: true },
+      { source: '/agency/settings/playbooks/:path*', destination: '/agency/settings/runbook/:path*', permanent: true },
     ];
   },
 };

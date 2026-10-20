@@ -7,7 +7,7 @@ import { PACKS_DIR, listVerticalPacks, loadVerticalPack } from './loader';
 
 describe('pilot vertical packs', () => {
   it('ships exactly the pilot packs', async () => {
-    expect(await listVerticalPacks()).toEqual(['dental', 'hvac_plumbing']);
+    expect(await listVerticalPacks()).toEqual(['dental', 'generic', 'hvac_plumbing']);
   });
 
   it.each(['hvac_plumbing', 'dental'])('%s loads with a playbook for every move type', async (id) => {

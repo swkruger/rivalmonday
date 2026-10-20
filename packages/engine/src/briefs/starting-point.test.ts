@@ -13,6 +13,8 @@ import { generateBrief } from './generate';
 import { approveBrief } from './review';
 import { Scorecard } from './scorecard';
 import { BASELINE_BODY, BASELINE_HEADLINE, generateStartingPoint, SELF_WHY_IT_MATTERS } from './starting-point';
+import { loadVerticalPack } from '@cs/verticals';
+const generic = () => loadVerticalPack('generic');
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -25,7 +27,7 @@ const ago = (d: number) => new Date(NOW.getTime() - d * 86_400_000);
 const ACTIVATED = ago(3);
 const supportAll = (_s: unknown, qs: Record<string, unknown>) => ({ answers: Object.fromEntries(Object.keys(qs).map((k) => [k, noul(true)])), needsReview: [] });
 const writer = () => JSON.stringify({ items: [{ ref: 'F1', why_it_matters: 'Fresh reviews help you show up first.' }, { ref: 'F2', why_it_matters: 'Rivals got 99 reviews.' }] });
-const run = (ai = createFakeAi({ chat: writer, decide: supportAll }), now = NOW) => generateStartingPoint({ db: dbs.service, ai, packs, now: () => now }, IDS.clientA1);
+const run = (ai = createFakeAi({ chat: writer, decide: supportAll }), now = NOW) => generateStartingPoint({ db: dbs.service, ai, generic, packs, now: () => now }, IDS.clientA1);
 let selfId: string;
 
 async function evidenceFor(competitorId: string, source: string, capturedAt?: Date): Promise<{ captureId: string; evidenceId: string }> {
@@ -145,7 +147,7 @@ describe('generateStartingPoint', () => {
   it('retries a failed starting point on its own row, up to three attempts', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     // Break generation: the pack loader throws.
-    const broken = () => generateStartingPoint({ db: dbs.service, ai: createFakeAi({ decide: supportAll }), packs: async () => { throw new Error('pack down'); }, now: () => NOW }, IDS.clientA1);
+    const broken = () => generateStartingPoint({ db: dbs.service, ai: createFakeAi({ decide: supportAll }), generic, packs: async () => { throw new Error('pack down'); }, now: () => NOW }, IDS.clientA1);
     expect(await broken()).toMatchObject({ status: 'failed', error: expect.stringMatching(/pack down/) });
     await broken();
     await broken();
@@ -162,7 +164,7 @@ describe('generateStartingPoint', () => {
   it('weekly brief on same date skipped', async () => {
     // Monday 2026-10-19 10:00 Chicago: the starting point takes that date; Thursday 2026-10-15 22:30's weekly brief is for the same Monday.
     expect(await run(undefined, new Date('2026-10-19T15:00:00Z'))).toMatchObject({ status: 'ready' });
-    const weekly = () => generateBrief({ db: dbs.service, ai: createFakeAi({ decide: supportAll }), packs }, IDS.clientA1, { now: new Date('2026-10-16T03:30:00Z') });
+    const weekly = () => generateBrief({ db: dbs.service, ai: createFakeAi({ decide: supportAll }), generic, packs }, IDS.clientA1, { now: new Date('2026-10-16T03:30:00Z') });
     expect(await weekly()).toMatchObject({ status: 'skipped' });
     // A failed starting point is never reclaimed by the weekly run.
     await dbs.owner.update(brief).set({ status: 'failed', attempts: 1 });
@@ -174,7 +176,7 @@ describe('generateStartingPoint', () => {
     await run();
     // Next weekly brief (Thursday 2026-10-22 22:30 Chicago): its period is the default first week, not "since the starting point".
     const thu = new Date('2026-10-23T03:30:00Z');
-    expect(await generateBrief({ db: dbs.service, ai: createFakeAi({ decide: supportAll }), packs }, IDS.clientA1, { now: thu })).toMatchObject({ status: 'ready', kind: 'quiet' });
+    expect(await generateBrief({ db: dbs.service, ai: createFakeAi({ decide: supportAll }), generic, packs }, IDS.clientA1, { now: thu })).toMatchObject({ status: 'ready', kind: 'quiet' });
     const [weekly] = await dbs.owner.select().from(brief).where(eq(brief.kind, 'quiet'));
     expect(weekly!.periodStart.toISOString()).toBe(new Date(thu.getTime() - 7 * 86_400_000).toISOString());
   });

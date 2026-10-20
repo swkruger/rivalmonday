@@ -42,7 +42,7 @@ type PlatformCounts = { modelReviews: number; themes: number };
 
 /**
  * 15a P2: the sidebar's badge counts — one `get_nav_counts` read (agency viewers) and one `get_platform_nav_counts` read
- * (platform operators), in parallel. Never throws: a failed read only omits its badges (the shell must render).
+ * (platform operators, plus Phase 14a's cheap `count_catalog_review` for the Business types badge), in parallel. Never throws: a failed read only omits its badges (the shell must render).
  * `leads` (= `navFlagsFor(...).leads`) keeps the Leads count off for viewers who don't see the entry.
  */
 export async function navCounts(ctx: AccessContext, opts: { agency: boolean; operator: boolean; leads: boolean }): Promise<NavCounts> {
@@ -53,9 +53,11 @@ export async function navCounts(ctx: AccessContext, opts: { agency: boolean; ope
       return null;
     }
   };
-  const [agency, platform] = await Promise.all([
+  const [agency, platform, catalog] = await Promise.all([
     opts.agency ? read<AgencyCounts>('get_nav_counts') : null,
     opts.operator ? read<PlatformCounts>('get_platform_nav_counts') : null,
+    // Phase 14a: the Business types badge (business types and services waiting for operator review).
+    opts.operator ? read<{ count: number }>('count_catalog_review') : null,
   ]);
   const out: NavCounts = {};
   if (agency) {
@@ -64,5 +66,6 @@ export async function navCounts(ctx: AccessContext, opts: { agency: boolean; ope
     if (opts.leads) out.leads = agency.leads;
   }
   if (platform) Object.assign(out, { modelReviews: platform.modelReviews, themes: platform.themes });
+  if (catalog) out.catalog = catalog.count;
   return out;
 }

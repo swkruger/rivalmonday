@@ -15,7 +15,8 @@
     "deliver-once": "tsx src/cli/deliver-once.ts",
     "kb-seed": "tsx src/cli/kb-seed.ts",
     "platform-admin": "tsx src/cli/platform-admin.ts",
-    "billing:sync-plan": "tsx src/cli/billing-sync-plan.ts"
+    "billing:sync-plan": "tsx src/cli/billing-sync-plan.ts",
+    "runbook:backfill": "tsx src/cli/runbook-backfill.ts"
   },
   "dependencies": {
     "@cs/ai": "workspace:*",

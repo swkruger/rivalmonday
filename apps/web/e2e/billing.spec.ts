@@ -82,7 +82,7 @@ test.describe.serial('billing', () => {
       await page.goto('/agency');
       await expect(page).toHaveURL(/\/agency\/settings\/billing$/);
       // A client-side navigation through the Settings sub-nav is sent back too.
-      await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Playbooks', exact: true }).click();
+      await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Runbook', exact: true }).click();
       await expect(page).toHaveURL(/\/agency\/settings\/billing$/);
       await expect(page.getByRole('heading', { name: 'Billing', exact: true })).toBeVisible();
     });

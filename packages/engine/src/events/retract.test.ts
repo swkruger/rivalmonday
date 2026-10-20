@@ -12,6 +12,8 @@ import { findEngineWork } from '../sweep';
 import { createPackLoader } from '../tag/tag-stage';
 import { diffWebCapture, WEB_DIFF_VERSION } from '../web/diff-stage';
 import { detachChange, retractEvent, supersedePriorChanges } from './retract';
+import { loadVerticalPack } from '@cs/verticals';
+const generic = () => loadVerticalPack('generic');
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -68,7 +70,7 @@ describe('event retraction (Phase 3d decision 6)', () => {
   it('retractEvent keeps the event row but removes its scores', async () => {
     const { cap } = await webCapture();
     const ev = await eventFor([await change(cap)]);
-    await scoreEvent({ db: dbs.service, packs }, ev);
+    await scoreEvent({ db: dbs.service, generic, packs }, ev);
     expect((await dbs.owner.select().from(eventScore)).length).toBeGreaterThan(0);
     await dbs.service.transaction((tx) => retractEvent(tx, ev, 'review'));
     const [row] = await dbs.owner.select().from(changeEvent).where(eq(changeEvent.id, ev));
@@ -139,7 +141,7 @@ describe('stage-version supersede (Phase 3d decision 7)', () => {
   it('retracted events are invisible to merge, scoring and the score sweep', async () => {
     const { cap } = await webCapture();
     const ev = await eventFor([await change(cap)], { retractedAt: day(2), retractionReason: 'superseded', facts: [] });
-    expect(await scoreEvent({ db: dbs.service, packs }, ev)).toEqual({ scored: 0, failed: 0, routes: { alert: 0, brief: 0, archive: 0 } });
+    expect(await scoreEvent({ db: dbs.service, generic, packs }, ev)).toEqual({ scored: 0, failed: 0, routes: { alert: 0, brief: 0, archive: 0 } });
     expect((await findEngineWork(dbs.service, { limit: 10 })).score).not.toContain(ev);
     const target = await findMergeTarget(
       { db: dbs.service, ai: createFakeAi() },

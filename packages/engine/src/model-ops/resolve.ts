@@ -2,6 +2,7 @@ import type { DecisionQuestion, ResolvedAnswer } from '@cs/ai';
 import { type ChangeType, ToolError } from '@cs/core';
 import { changeEvent, client, competitor, type Db, decisionLabel, decisionReview, decisionSample, detectedChange, eventChange, eventScore } from '@cs/db';
 import { and, asc, count, eq, isNull, notInArray, sql } from 'drizzle-orm';
+import type { VerticalPack } from '@cs/verticals';
 import { detachChange } from '../events/retract';
 import { writeEvent } from '../merge/merge';
 import { scoreEvent } from '../score/score-stage';
@@ -115,7 +116,7 @@ export async function reviewQuestions(deps: { db: Db; packs: PackLoader }, revie
  * event, and a human-answered question gold-labels the linked sample. Never calls a model.
  */
 export async function resolveDecisionReview(
-  deps: { db: Db; packs: PackLoader },
+  deps: { db: Db; packs: PackLoader; generic: () => Promise<VerticalPack> },
   reviewId: string,
   input: { answers: Record<string, string | boolean>; resolvedBy: string },
 ): Promise<{ action: ResolveAction; eventId: string | null; labels: number }> {
@@ -209,6 +210,6 @@ export async function resolveDecisionReview(
     }
     return { action, eventId: newEventId, labels };
   });
-  if (outcome.eventId && (outcome.action === 'created' || outcome.action === 'updated')) await scoreEvent({ db, packs: deps.packs }, outcome.eventId);
+  if (outcome.eventId && (outcome.action === 'created' || outcome.action === 'updated')) await scoreEvent({ db, packs: deps.packs, generic: deps.generic }, outcome.eventId);
   return { action: outcome.action, eventId: outcome.action === 'unchanged' ? null : outcome.eventId, labels: outcome.labels };
 }

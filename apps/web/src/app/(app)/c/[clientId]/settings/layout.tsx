@@ -3,7 +3,7 @@ import { clientSettingsSections } from '@/server/client-settings-nav';
 
 /**
  * Phase 15a §2.5: every client settings page (`/c/<id>/settings/*`) sits beside one sub-nav (Business profile, Delivery,
- * Alert rules, AI connection, Billing — each tab gated like its page). Each page's own `PageHeader` (breadcrumb
+ * Alert rules, AI connection, Runbook (agency roles), Billing — each tab gated like its page). Each page's own `PageHeader` (breadcrumb
  * "{client} › Client settings › {tab}") is the page's single h1, so this layout renders none. The pages still check
  * access themselves (404s unchanged), so this layout never refuses: a viewer with no tab (a guest, or a client owner on
  * Billing while billing is off) just gets the page without the sub-nav.

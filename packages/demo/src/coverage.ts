@@ -116,7 +116,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/agency/approvals/[briefId] (quiet)', as: 'admin', calls: [{ tool: 'get_brief_review', input: (ids) => ({ briefId: ids.briefs.quietBrazos }), path: 'items', expect: 'empty', why: 'Brazos’s brief is held as quiet' }] },
   { route: '/agency/settings/branding', as: 'admin', calls: [{ tool: 'fn:getAgencyBranding', input: none, path: 'stored' }] },
   { route: '/agency/settings/platform-access', as: 'admin', calls: [{ tool: 'list_support_sessions', input: none, path: 'rows' }] },
-  { route: '/agency/settings/playbooks', as: 'admin', calls: [{ tool: 'list_playbooks', input: none, path: 'verticals' }] },
+  { route: '/agency/settings/runbook', as: 'admin', calls: [{ tool: 'get_runbook', input: () => ({ owner: { level: 'agency' } }), path: 'items' }] },
   // Phase 11a: Cedar Creek Plumbing is mid-setup (suggestions ready, search done); `/agency/clients/new` is only a lookup form (reads happen on user action).
   { route: '/c/[clientId]/setup', as: 'admin', calls: setupStaffCalls(setupPending) },
   { route: '/c/[clientId]/setup (client owner)', as: 'ownerSetup', calls: setupCalls(setupPending) },
@@ -286,6 +286,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
     ],
   },
   { route: '/c/[clientId]/settings/alerts', as: 'admin', calls: [lsProfile, { tool: 'get_alert_rules', input: (ids) => ({ clientId: ls(ids) }), path: 'custom' }] },
+  { route: '/c/[clientId]/settings/runbook', as: 'admin', calls: [lsProfile, { tool: 'get_runbook', input: (ids) => ({ owner: { level: 'client', clientId: ls(ids) } }), path: 'items' }] },
   { route: '/c/[clientId]/settings/delivery', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'serviceArea' }] },
   { route: '/c/[clientId]/settings/profile', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' }, lsStarters, { tool: 'list_client_billing_status', input: none, path: 'clients' }] },
   { route: '/c/[clientId]/settings/billing (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'get_my_billing', input: (ids) => ({ clientId: ls(ids) }), path: 'agencyName' }, lsProfile] },
@@ -306,6 +307,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/inbox (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'fn:listInbox', input: none }] },
   { route: '/kb/[id]', as: 'admin', calls: [{ tool: 'get_kb_article', input: (ids) => ({ kbId: ids.kbArticleId }), path: 'bodyMd' }] },
   { route: '/platform', as: 'operator', calls: [{ tool: 'platform_overview', input: () => ({ range: '12w' }), path: 'series' }, { tool: 'list_platform_activity', input: () => ({ limit: 20 }), path: 'items' }] },
+  { route: '/platform/runbook', as: 'operator', calls: [{ tool: 'get_runbook', input: () => ({ owner: { level: 'platform' } }), path: 'items' }] },
   { route: '/platform/agencies', as: 'operator', calls: [{ tool: 'list_platform_agencies', input: () => ({ sort: 'name', dir: 'asc', limit: 100 }), path: 'rows' }] },
   {
     route: '/platform/agencies/[id]', as: 'operator', calls: [
@@ -341,6 +343,15 @@ export const SCREENS: readonly ScreenCoverage[] = [
     ],
   },
   { route: '/platform/reviews', as: 'operator', calls: [{ tool: 'list_decision_reviews', input: none, path: 'items' }] },
+  {
+    route: '/platform/verticals', as: 'operator', calls: [
+      { tool: 'list_catalog_review', input: none, path: 'verticals', expect: 'empty', why: 'the demo agencies add no business types' },
+      { tool: 'list_catalog_review', input: none, path: 'areas', expect: 'empty', why: 'the demo agencies add no services' },
+      { tool: 'list_verticals', input: none, path: 'verticals' },
+      // The shell's nav-badge read (every operator page), listed here because /platform/verticals is where the badge counts.
+      { tool: 'count_catalog_review', input: none, path: 'count', expect: 'empty', why: 'nothing waits for review in the demo' },
+    ],
+  },
   { route: '/platform/themes', as: 'operator', calls: [{ tool: 'list_theme_proposals', input: none, path: 'pending' }, { tool: 'list_theme_proposals', input: none, path: 'decided' }] },
   { route: '/settings/notifications', as: 'admin', calls: [{ tool: 'fn:myNotificationSettings', input: none }] },
 ];

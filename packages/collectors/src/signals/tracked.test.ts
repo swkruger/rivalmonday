@@ -64,6 +64,17 @@ describe('computeTrackedSignals', () => {
     expect(await dbs.service.select().from(competitorSignal).where(eq(competitorSignal.clientId, IDS.clientA2))).toHaveLength(1);
   });
 
+  it('runbookTiers (R5) replaces the pack tiers; absent or null uses the pack', async () => {
+    await dbs.owner.insert(competitorSuggestion).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, name: 'Bright Smiles', placeId: 'p-y', appearances: 5, overlapScore: 0.7, overlap: 0.7 });
+    const tierOf = async (runbookTiers?: (id: string) => Promise<typeof pack.tiers | null>) => (await computeTrackedSignals({ ...deps(), runbookTiers }, IDS.clientA2, NOW))[0]!.tier;
+    expect(await tierOf()).toBe('watch');
+    expect(await tierOf(async () => null)).toBe('watch');
+    const strict = { top: { overlap: 0.99, activity: 0.99 }, watch: { overlap: 0.99, activity: 0.99 } };
+    expect(await tierOf(async () => strict)).toBe('minor');
+    const lax = { top: { overlap: 0.1, activity: 0 }, watch: { overlap: 0.1, activity: 0 } };
+    expect(await tierOf(async () => lax)).toBe('watch');
+  });
+
   it('no ads source run → googleAdsActive null', async () => {
     const [r] = await computeTrackedSignals(deps(), IDS.clientA2, NOW);
     expect(r!.signals).toMatchObject({

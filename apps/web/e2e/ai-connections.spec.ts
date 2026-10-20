@@ -33,7 +33,7 @@ test('an admin creates a token, sees it once, and revokes it', { tag: ['@ai-conn
   await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'AI connections' }).click();
   await expect(page).toHaveURL(/\/agency\/settings\/ai$/);
   await expect(page.getByRole('heading', { name: 'AI connections' })).toBeVisible();
-  await expect(page.getByTestId('connector-url')).toHaveText('http://localhost:3100/mcp');
+  await expect(page.getByTestId('connector-url')).toHaveText(`http://localhost:${process.env.E2E_PORT ?? 3100}/mcp`);
 
   const name = `E2E token ${Date.now()}`;
   await page.getByLabel('Name').fill(name);
@@ -71,7 +71,7 @@ test('a client owner picks a workspace on the consent page', { tag: ['@ai-connec
   // An AI app has no browser session: its requests carry no cookies (the file-level admin storage state would).
   const request = await playwright.request.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
   const clients = JSON.parse(await readFile(MCP_CLIENTS_FILE, 'utf8')) as Record<'first' | 'second', { id: string; name: string }>;
-  const appUrl = 'http://localhost:3100';
+  const appUrl = `http://localhost:${process.env.E2E_PORT ?? 3100}`;
   const redirectUri = 'http://127.0.0.1:47123/callback';
   const scope = 'read feedback offline_access';
 

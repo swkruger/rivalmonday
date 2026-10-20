@@ -1,16 +1,19 @@
 import { MAPS_SEARCH_OPERATION } from '@cs/collectors';
 import { type AccessContext, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
 import { client, clientCompetitor, clientSetup, competitorSuggestion, discoveryRun, setupLookupSchema, type SetupSkippedStep, type SetupSuggestions, setupSuggestionsSchema, type Tx, vendorCall, withTenant } from '@cs/db';
-import { listVerticalPacks } from '@cs/verticals';
 import { and, count, desc, eq, gte, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { inviteClientUser } from '../access/client-invite';
-import { packsOf, type ToolDeps } from '../deps';
+import { catalogOf, catalogPacks, packsOf } from '../catalog/access';
+import type { ToolDeps } from '../deps';
+import { enqueueOf } from '../deps';
 import { startCompetitorSearch } from '../rival-search';
 import { collapseSameListing, FIND_BUSINESS_DAILY_CAP, possibleDuplicates, preselectVertical, toSetupLookup } from '../setup/lookup';
 import { applyClientProfileChange } from '../setup/profile-change';
 import { queueCompetitorReview } from '../setup/review-email';
 import { clientSetupOpen, completeIfDone, getSetupState, loadSetupInvite, type SetupState } from '../setup/state';
+import { normaliseName } from '@cs/verticals';
+import { addBusinessAreaCore, lockCatalogue, refuseClientData } from './verticals';
 import { acceptSuggestions, dismissSuggestions, preTickTop, RUN_STATUSES, runSuggestionRows, SearchProgress, searchProgress, searchRefusalMessage } from './competitors';
 import { ServiceAreaWrite, Tier } from './schemas';
 
@@ -55,7 +58,7 @@ export const findBusiness = defineTool({
       return lookup ? [{ ...lookup, isClaimed: p.isClaimed ?? null, categories: [p.category, ...(p.additionalCategories ?? [])].filter((c): c is string => !!c) }] : [];
     })).slice(0, 5);
     const dup = possibleDuplicates(usable);
-    const packs = usable.length ? await Promise.all((await listVerticalPacks()).map((id) => packsOf(deps)(id))) : [];
+    const packs = usable.length ? await catalogPacks(deps) : [];
     return { places: usable.map(({ categories, ...rest }, i) => ({ ...rest, suggestedVerticalId: preselectVertical(packs, categories), possibleDuplicate: dup[i]! })) };
   },
 });
@@ -213,13 +216,38 @@ export const saveSetupProfile = defineTool({
   input: z.object({
     clientId: uuid, services: z.array(z.string().max(80)).max(255).optional(), keywords: z.array(z.string().max(120)).max(20).optional(),
     serviceArea: ServiceAreaWrite.nullable().optional(), placeId: z.string().max(300).nullable().optional(),
+    /** 14a: ticked "New" chips; each becomes an unreviewed business area of the client's vertical and is added to the client's services. */
+    newAreas: z.array(z.object({ name: z.string().trim().min(2).max(80) })).max(5).optional(),
   }),
   output: z.object({ state: SetupStateOut, searchRefusal: z.string().nullable() }),
   permission: 'manage',
   channels: ['web'],
-  async handler(ctx, { clientId, ...patch }, deps) {
+  async handler(ctx, { clientId, newAreas, ...input }, deps) {
     await assertClientVisible(ctx, deps, clientId);
     await assertSetupActor(ctx, deps, clientId);
+    const patch = { ...input };
+    if (newAreas?.length) {
+      // Client owners may tick suggested chips but never type free text: each name must be one of this client's stored suggestions.
+      const [row] = await deps.service.select({ suggestions: clientSetup.suggestions }).from(clientSetup).where(eq(clientSetup.clientId, clientId));
+      const offered = new Set((row?.suggestions.status === 'ready' ? row.suggestions.newAreas ?? [] : []).map((a) => normaliseName(a.name)));
+      if (newAreas.some((a) => !offered.has(normaliseName(a.name)))) throw new ToolError('invalid_input', 'Pick new services from the suggestions.', { userFacing: true });
+      await refuseClientData(deps, ctx, newAreas.map((a) => a.name));
+      // `business_area` is service-only, so the areas are created on the service connection in one short transaction (the catalogue
+      // lock is global), BEFORE the tenant-side profile write; the new ids ride in `services`. Creation is idempotent by name, so a
+      // failed or repeated save leaves at most an unreviewed area and never a duplicate.
+      const ids = await deps.service.transaction(async (tx) => {
+        await lockCatalogue(tx); // lock order: catalogue -> vertical rows -> client rows (merges take them in that order)
+        await lockClient(tx, clientId);
+        await closedSetupRecheck(ctx, clientId)(tx);
+        const [c] = await tx.select({ verticalId: client.verticalId, services: client.services }).from(client).where(eq(client.id, clientId));
+        if (!c) throw new ToolError('not_found', 'Client not found');
+        const made: string[] = [];
+        for (const a of newAreas) made.push((await addBusinessAreaCore(tx, { verticalId: c.verticalId, name: a.name, agencyId: ctx.agencyId })).areaId);
+        return { made, current: c.services };
+      });
+      catalogOf(deps).invalidate();
+      patch.services = [...new Set([...(input.services ?? ids.current), ...ids.made])];
+    }
     // No name/features in the input: client owners can't change them here.
     const { search } = await applyClientProfileChange(ctx, deps, clientId, patch, { userId: ctx.userId, role: ctx.role }, closedSetupRecheck(ctx, clientId));
     // Spec §4: the write that leaves every step done or skipped sets completed_at (guarded; no-op otherwise).
@@ -268,6 +296,15 @@ export const pickSetupCompetitors = defineTool({
   },
 });
 
+/** The step already committed: a missing queue or a failed enqueue only means the client keeps the untailored runbook. */
+async function enqueueRunbookTailor(deps: ToolDeps, clientId: string): Promise<void> {
+  try {
+    await enqueueOf(deps)('runbook-tailor', { clientId }, `runbook-tailor:${clientId}`);
+  } catch (err) {
+    console.warn(`[advance_client_setup] runbook-tailor enqueue for ${clientId} failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 const ACTIONS = ['start_search', 'confirm_competitors', 'skip_search', 'skip_competitors', 'skip_invite', 'skip_billing', 'dismiss'] as const;
 /** Staff-only actions (11b: invite and billing are staff steps). */
 const AGENCY_ONLY = new Set<(typeof ACTIONS)[number]>(['dismiss', 'skip_invite', 'skip_billing']);
@@ -302,6 +339,7 @@ export const advanceClientSetup = defineTool({
       return { state: await getSetupState(deps.service, clientId), searchRefusal: 'refused' in r ? searchRefusalMessage(r) : null };
     }
 
+    let competitorsJustDone = false;
     await deps.service.transaction(async (tx) => {
       await lockClient(tx, clientId);
       const [row] = await tx.select({ skipped: clientSetup.skipped, competitorsDoneAt: clientSetup.competitorsDoneAt, dismissedAt: clientSetup.dismissedAt })
@@ -311,6 +349,7 @@ export const advanceClientSetup = defineTool({
       // Under the row lock: first timestamps win, skipped stays a set.
       const skip = (step: SetupSkippedStep): SetupSkippedStep[] => (row.skipped.includes(step) ? row.skipped : [...row.skipped, step]);
       const competitorsDoneAt = row.competitorsDoneAt ?? now;
+      competitorsJustDone = row.competitorsDoneAt === null && (action === 'confirm_competitors' || action === 'skip_competitors');
       const patch =
         action === 'confirm_competitors' ? { competitorsDoneAt }
           : action === 'skip_competitors' ? { competitorsDoneAt, skipped: skip('competitors') }
@@ -321,6 +360,8 @@ export const advanceClientSetup = defineTool({
       await tx.update(clientSetup).set({ ...patch, ...changedBy(ctx, now) }).where(eq(clientSetup.clientId, clientId));
       await completeIfDone(tx, clientId, now);
     });
+    // First time the competitors step closes: tailor the client's runbook plays (Phase 14b). After commit; never fails the step.
+    if (competitorsJustDone) await enqueueRunbookTailor(deps, clientId);
     return { state: await getSetupState(deps.service, clientId), searchRefusal: null };
   },
 });

@@ -1,6 +1,7 @@
 'use client';
 import { Badge, Button, Card, CardContent } from '@cs/ui';
 import { useActionState, useState } from 'react';
+import { NewBusinessType, type VerticalActions, useVerticalChoice } from '@/components/new-business-type';
 import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import type { VerticalOption } from '@/server/verticals';
@@ -27,6 +28,8 @@ export interface LeadView {
   /** ISO date of the decision (accepted/declined tabs) or of verification (New). */
   when: string;
   suggestedVerticalId: string | null;
+  /** The Google listing, for the "new business type" panel when nothing matched. */
+  lookup?: { placeId: string; category: string | null };
 }
 
 /** Shown instead of the "Let them know" checkbox: a declined platform lead returns to the pool and the visitor is not emailed. */
@@ -56,16 +59,21 @@ function Preview({ preview }: { preview: LeadPreview }) {
   );
 }
 
-function AcceptForm({ lead, verticals, onCancel }: { lead: LeadView; verticals: VerticalOption[]; onCancel: () => void }) {
+function AcceptForm({ lead, verticals, verticalActions, onCancel }: { lead: LeadView; verticals: VerticalOption[]; verticalActions?: VerticalActions; onCancel: () => void }) {
   const [state, action, pending] = useActionState(acceptLeadAction, { ok: true } as FormResult);
-  const [verticalId, setVerticalId] = useState(lead.suggestedVerticalId ?? verticals[0]?.id ?? '');
+  const choice = useVerticalChoice(verticals, lead.suggestedVerticalId ?? verticals[0]?.id ?? '');
+  const { value: verticalId, options } = choice;
   return (
+    <div className="flex flex-col gap-3">
+      {verticalActions && lead.lookup && lead.suggestedVerticalId === null && (
+        <NewBusinessType place={{ ...lead.lookup, businessName: lead.businessName }} actions={verticalActions} onSelect={choice.choose} onCreated={choice.choose} />
+      )}
     <form action={action} onReset={(e) => e.preventDefault()} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="leadId" value={lead.id} />
       <div className="flex flex-col gap-1 text-sm">
         <label htmlFor={`v-${lead.id}`} className="font-medium">Service type</label>
-        <select id={`v-${lead.id}`} name="verticalId" value={verticalId} onChange={(e) => setVerticalId(e.target.value)} className={fieldCls}>
-          {verticals.map((v) => (
+        <select id={`v-${lead.id}`} name="verticalId" value={verticalId} onChange={(e) => choice.choose(e.target.value)} className={fieldCls}>
+          {options.map((v) => (
             <option key={v.id} value={v.id}>{v.name}</option>
           ))}
         </select>
@@ -74,6 +82,7 @@ function AcceptForm({ lead, verticals, onCancel }: { lead: LeadView; verticals: 
       <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
       {!state.ok && <ErrorNote compact focusKey={state} className="basis-full">{state.error}</ErrorNote>}
     </form>
+    </div>
   );
 }
 
@@ -97,7 +106,7 @@ function DeclineForm({ lead, onCancel }: { lead: LeadView; onCancel: () => void 
   );
 }
 
-export function LeadCard({ lead, verticals }: { lead: LeadView; verticals: VerticalOption[] }) {
+export function LeadCard({ lead, verticals, verticalActions }: { lead: LeadView; verticals: VerticalOption[]; verticalActions?: VerticalActions }) {
   const [mode, setMode] = useState<'accept' | 'decline' | null>(null);
   const date = new Date(lead.when).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
   return (
@@ -128,7 +137,7 @@ export function LeadCard({ lead, verticals }: { lead: LeadView; verticals: Verti
                 <Button variant="outline" onClick={() => setMode('decline')}>Decline</Button>
               </div>
             ) : mode === 'accept' ? (
-              <AcceptForm lead={lead} verticals={verticals} onCancel={() => setMode(null)} />
+              <AcceptForm lead={lead} verticals={verticals} verticalActions={verticalActions} onCancel={() => setMode(null)} />
             ) : (
               <DeclineForm lead={lead} onCancel={() => setMode(null)} />
             )}
