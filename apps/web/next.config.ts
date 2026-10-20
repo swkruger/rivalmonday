@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs/config';
 
 try {
   process.loadEnvFile(fileURLToPath(new URL('../../.env', import.meta.url)));
@@ -13,6 +14,8 @@ const config: NextConfig = {
   // Native/heavy server dependencies pulled in through @cs/engine → @cs/collectors; never bundled.
   serverExternalPackages: ['playwright', 'playwright-core', 'pg-boss', 'pg', 'postgres', 'compromise', 'cheerio', 'pdf-lib'],
   poweredByHeader: false,
+  // Vercel bundles only traced files; the AI task config is read from disk at runtime. (Verticals packs are not read at runtime.)
+  outputFileTracingIncludes: { '/**': ['../../packages/ai/config/**'] },
   // Phase 15a §2.6 (D15): agency pages moved under `/agency/settings/`; old bookmarks keep working (308, path + query kept).
   async redirects() {
     return [
@@ -28,4 +31,9 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+// Source maps upload only with SENTRY_AUTH_TOKEN; the wrapper itself is inert without a DSN.
+export default withSentryConfig(config, {
+  silent: true,
+  authToken: process.env.SENTRY_AUTH_TOKEN || undefined,
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN, deleteSourcemapsAfterUpload: true },
+});

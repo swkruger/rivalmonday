@@ -13,6 +13,7 @@
     "e2e": "playwright test",
     "e2e:affected": "tsx scripts/e2e-affected.ts",
     "e2e:panel": "playwright test -c playwright.panel.config.ts",
+    "check:tracing": "tsx scripts/check-tracing.ts",
     "check:no-dev-panel": "tsx scripts/check-no-dev-panel.ts",
     "admin": "tsx scripts/admin.ts"
   },
@@ -33,6 +34,7 @@
     "@cs/tools": "workspace:*",
     "@cs/ui": "workspace:*",
     "@cs/verticals": "workspace:*",
+    "@sentry/nextjs": "11.4.0",
     "better-auth": "1.7.7",
     "drizzle-orm": "^0.44.5",
     "kysely": "^0.28.17",

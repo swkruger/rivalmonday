@@ -29,6 +29,8 @@ export interface WebEnv {
    * Phase 9a: Stripe settings, all optional, shaped for `gatewayFor` (R27: no key in DEV/production => no gateway, billing
    * not configured). `BILLING_FAKE_GATEWAY=1` selects the fake gateway (E2E only; refused on Vercel production).
    */
+  /** Phase 7a1: all optional; Sentry is inert without a DSN. */
+  sentry?: { dsn?: string; publicDsn?: string; environment?: string; issuesUrl?: string };
   stripe?: { STRIPE_SECRET_KEY?: string; STRIPE_WEBHOOK_SECRET?: string; STRIPE_CONNECT_WEBHOOK_SECRET?: string; STRIPE_TAX_ENABLED?: string; NODE_ENV?: string; VITEST?: string; BILLING_FAKE_GATEWAY?: string };
 }
 
@@ -71,6 +73,12 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     setupFakeLookup: setupFake === '1',
     turnstile: { siteKey: env.TURNSTILE_SITE_KEY?.trim() || undefined, secretKey: env.TURNSTILE_SECRET_KEY?.trim() || undefined },
     supportReplyTo: env.SUPPORT_REPLY_TO?.trim() || undefined,
+    sentry: {
+      dsn: env.SENTRY_DSN?.trim() || undefined,
+      publicDsn: env.NEXT_PUBLIC_SENTRY_DSN?.trim() || undefined,
+      environment: env.SENTRY_ENVIRONMENT?.trim() || undefined,
+      issuesUrl: env.SENTRY_ISSUES_URL?.trim() || undefined,
+    },
     stripe: {
       STRIPE_SECRET_KEY: env.STRIPE_SECRET_KEY?.trim() || undefined,
       STRIPE_WEBHOOK_SECRET: env.STRIPE_WEBHOOK_SECRET?.trim() || undefined,
