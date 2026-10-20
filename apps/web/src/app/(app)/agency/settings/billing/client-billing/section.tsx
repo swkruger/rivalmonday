@@ -24,7 +24,7 @@ export function ClientBillingSection({ status, revenue, connect, help }: { statu
     <Card>
       <CardHeader>
         <CardTitle className="inline-flex items-center gap-1.5">
-          Client billing
+          <span>Client billing</span>
           {help}
         </CardTitle>
       </CardHeader>
