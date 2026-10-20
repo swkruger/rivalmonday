@@ -1,9 +1,10 @@
-import { type AccessContext, isAgencyRole } from '@cs/core';
+import { type AccessContext, isAgencyRole, viewerAudience } from '@cs/core';
 import { client, withTenant } from '@cs/db';
 import { resolveBranding } from '@cs/email';
 import { type ClientSummary, type PlatformRole, platformRole as resolvePlatformRole, unreadCount } from '@cs/tools';
 import { themeVars } from '@cs/ui';
 import { eq } from 'drizzle-orm';
+import { HelpProvider } from '@/components/help/help-context';
 import { ReadOnlyProvider } from '@/components/read-only';
 import { BillingBanner } from '@/components/shell/billing-banner';
 import type { SwitcherProps } from '@/components/shell/context-switcher';
@@ -98,11 +99,19 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
       ? viewer.memberships.map((m) => ({ membershipId: m.id, name: m.clientName ?? m.agencyName, sub: m.clientName ? m.agencyName : 'Agency view' }))
       : [],
   };
+  // 15b: who is reading the help copy. The shell knows the zone (platform vs not) and role, not the `/c/<id>` path, so an
+  // agency viewer's `client` name is left unset (copy then reads "your business"). Never "Rival Monday" as the agency.
+  const helpAgency = zone === 'platform' || branding.displayName === 'Rival Monday' ? 'your agency' : branding.displayName;
+  const help = {
+    audience: viewerAudience(viewer.kind === 'guest' ? 'guest' : ctx.role, zone === 'platform' ? 'platform' : isAgencyRole(ctx.role) ? 'agency' : 'client'),
+    names: { agency: helpAgency, assistant: assistantName, ...(clientName ? { client: clientName } : {}) },
+  };
   const menu = (
     <MobileNav displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} switcher={switcher} />
   );
   return (
     <ReadOnlyProvider readOnly={support !== null}>
+      <HelpProvider value={help}>
       <ShellTheme vars={style} />
       <div data-shell-theme="" className="contents" style={style as React.CSSProperties}>
         {support && <SupportBanner sessionId={support.id} agencyName={support.agencyName} reason={support.reason} expiresAt={support.expiresAt.toISOString()} />}
@@ -119,6 +128,7 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
           </div>
         </div>
       </div>
+      </HelpProvider>
     </ReadOnlyProvider>
   );
 }
