@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { CallTiming } from './config';
 import { AiProviderError, type HttpDeps, defaultHttpDeps, postJson } from './http';
 import type { OpenRouterOptions } from './openrouter';
 
@@ -14,6 +15,7 @@ export interface EmbeddingRequest {
   model: string;
   input: string[];
   dimensions?: number;
+  timing?: CallTiming;
 }
 
 export interface EmbeddingResult {
@@ -41,7 +43,7 @@ export function createOpenRouterEmbeddings(opts: OpenRouterOptions): EmbeddingPr
         ...(req.dimensions ? { dimensions: req.dimensions } : {}),
         provider: { data_collection: opts.dataCollection, zdr: opts.zdr },
       };
-      const json = await postJson('openrouter', EMBEDDINGS_URL, body, headers, http);
+      const json = await postJson('openrouter', EMBEDDINGS_URL, body, headers, http, req.timing);
       const parsed = responseSchema.safeParse(json);
       if (!parsed.success) {
         throw new AiProviderError('openrouter', 200, 'Unexpected OpenRouter embeddings response shape', false, { cause: parsed.error });

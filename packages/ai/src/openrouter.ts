@@ -91,7 +91,7 @@ export function createOpenRouterProvider(opts: OpenRouterOptions): ChatProvider 
         usage: { include: true },
       };
 
-      const json = await postJson('openrouter', OPENROUTER_URL, body, headers, http);
+      const json = await postJson('openrouter', OPENROUTER_URL, body, headers, http, req.timing);
       const parsed = responseSchema.safeParse(json);
       if (!parsed.success) {
         throw new AiProviderError('openrouter', 200, 'Unexpected OpenRouter response shape', false, { cause: parsed.error });

@@ -1,7 +1,7 @@
 import type { CallScope, DecisionSampleSink, LedgerSink, LlmCallRecord } from '@cs/core';
 import type { BatchItemResult, BatchProvider, BatchRequest } from './anthropic-batch';
 import type { ChatMessage, ChatProvider, ChatResult, ChatTool, JsonSchemaFormat } from './chat';
-import type { AiConfig, ConfidenceThresholds, TaskConfig } from './config';
+import { type AiConfig, type CallTiming, type ConfidenceThresholds, type TaskConfig, timingOf } from './config';
 import { CascadingDecisionProvider, type DecisionResult } from './decisions/cascade';
 import { createLlmDecisionProvider } from './decisions/llm';
 import type { DecisionProvider, DecisionQuestion } from './decisions/types';
@@ -32,7 +32,7 @@ export interface Ai {
 export interface AiDeps {
   openrouter: ChatProvider;
   /** Builds the Jev provider for a task's configured model (spec §7.2: models are configured per task). */
-  jev: ((model: string) => DecisionProvider) | null;
+  jev: ((model: string, timing?: CallTiming) => DecisionProvider) | null;
   embeddings?: EmbeddingProvider;
   ledger: LedgerSink;
   now?: () => number;
@@ -98,10 +98,11 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
     };
   }
 
-  function llmDecisions(name: string, scope: CallScope, ledgerTask = name): DecisionProvider {
+  /** `timing` overrides the decision task's own (a Jev task's escalation runs on the calling task's timing). */
+  function llmDecisions(name: string, scope: CallScope, ledgerTask = name, timing?: CallTiming): DecisionProvider {
     const t = task(name);
     if (t.provider !== 'openrouter' || t.mode !== 'decisions') throw new Error(`Task ${name} is not a decision task`);
-    return recording(createLlmDecisionProvider(deps.openrouter, { model: t.model, fallbacks: t.fallbacks }), ledgerTask, scope, t.model);
+    return recording(createLlmDecisionProvider(deps.openrouter, { model: t.model, fallbacks: t.fallbacks, timing: timing ?? timingOf(t) }), ledgerTask, scope, t.model);
   }
 
   async function runChat(
@@ -115,7 +116,7 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
     let result;
     try {
       result = await deps.openrouter.complete({
-        ...input, model: t.model, fallbacks: t.fallbacks, temperature: t.temperature, maxTokens: t.max_tokens,
+        ...input, model: t.model, fallbacks: t.fallbacks, temperature: t.temperature, maxTokens: t.max_tokens, timing: timingOf(t),
       });
     } catch (err) {
       await safeRecord(deps.ledger, {
@@ -148,9 +149,9 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
         thresholds = t.min_confidence;
         rate = deps.shadowRateOverride ?? t.shadow_rate;
         const sampled = deps.samples !== undefined && deps.jev !== null && t.escalate_to !== undefined && rate > 0 && random() < rate;
-        const escalation = t.escalate_to ? llmDecisions(t.escalate_to, scope, sampled ? `${t.escalate_to}:shadow` : t.escalate_to) : null;
+        const escalation = t.escalate_to ? llmDecisions(t.escalate_to, scope, sampled ? `${t.escalate_to}:shadow` : t.escalate_to, timingOf(t)) : null;
         if (deps.jev) {
-          primary = recording(deps.jev(t.model), name, scope, t.model);
+          primary = recording(deps.jev(t.model, timingOf(t)), name, scope, t.model);
           fallback = escalation;
         } else if (escalation) {
           primary = escalation;
@@ -179,7 +180,7 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
         const started = now();
         let r: EmbeddingResult;
         try {
-          r = await deps.embeddings.embed({ model: t.model, input, dimensions: t.dimensions });
+          r = await deps.embeddings.embed({ model: t.model, input, dimensions: t.dimensions, timing: timingOf(t) });
         } catch (err) {
           await safeRecord(deps.ledger, {
             ...scope, task: name, provider: deps.embeddings.id, model: t.model,

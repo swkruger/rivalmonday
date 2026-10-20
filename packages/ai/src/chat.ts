@@ -1,3 +1,5 @@
+import type { CallTiming } from './config';
+
 export type ToolCall = { id: string; name: string; arguments: string };
 
 export type ChatMessage =
@@ -22,6 +24,8 @@ export interface ChatRequest {
   jsonSchema?: JsonSchemaFormat;
   tools?: ChatTool[];
   toolChoice?: 'auto' | 'none';
+  /** Per-call timeout/attempts (from the task); absent = the provider's construction-time defaults. */
+  timing?: CallTiming;
 }
 
 export interface ChatResult {

@@ -1,3 +1,5 @@
+import type { CallTiming } from './config';
+
 export class AiProviderError extends Error {
   constructor(
     readonly provider: string,
@@ -35,16 +37,19 @@ export async function postJson(
   body: unknown,
   headers: Record<string, string>,
   deps: HttpDeps,
+  timing?: CallTiming,
 ): Promise<unknown> {
+  const timeoutMs = timing?.timeoutMs ?? deps.timeoutMs;
+  const maxRetries = timing ? timing.maxAttempts - 1 : deps.maxRetries;
   for (let attempt = 0; ; attempt++) {
-    const canRetry = attempt < deps.maxRetries;
+    const canRetry = attempt < maxRetries;
     let res: Response;
     try {
       res = await deps.fetch(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...headers },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(deps.timeoutMs),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err) {
       if (canRetry) {

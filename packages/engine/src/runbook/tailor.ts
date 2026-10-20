@@ -96,7 +96,7 @@ const INSTRUCTION = (vertical: string, audience: string) =>
   'Optionally limit a play to the service ids it is about (businessAreaIds, or null for no limit). Return JSON.';
 
 /** Calls the model for the given plays; the reply is parsed JSON (throws on an AI error or unparseable text). */
-async function askModel(ai: Ai, c: TailorContext, plays: RunbookItem[]): Promise<unknown> {
+async function askModel(ai: Ai, c: TailorContext, plays: RunbookItem[], task: 'runbook_tailor' | 'runbook_retailor' = 'runbook_tailor'): Promise<unknown> {
   const red = (s: string) => redactForModel(s, { businessNames: [c.name] });
   const input = {
     vertical: red(c.pack.name),
@@ -108,7 +108,7 @@ async function askModel(ai: Ai, c: TailorContext, plays: RunbookItem[]): Promise
     }),
   };
   const res = await ai.chat(
-    'runbook_tailor',
+    task,
     { messages: [{ role: 'system', content: INSTRUCTION(c.pack.name, c.pack.audience_noun) }, { role: 'user', content: JSON.stringify(input) }], jsonSchema: tailorJsonSchema },
     { agencyId: c.agencyId, clientId: c.clientId, verticalId: c.verticalId },
   );
@@ -213,7 +213,7 @@ export async function proposeTailoring(
       key, kind: 'play', content: parsed.data, enabled: true, businessAreaIds: null, version: 1, upstreamVersion: null,
       upstreamSnapshot: null, dismissedUpstreamVersion: null, customised: false, removedUpstream: false,
     };
-    const r = applyTailoring([item], await askModel(d.ai, c, [item]), { areaIds: row.services });
+    const r = applyTailoring([item], await askModel(d.ai, c, [item], 'runbook_retailor'), { areaIds: row.services });
     if (r.rejected.length > 0) return null;
     const out = r.items[0]!;
     const content = out.content as PlayContent;

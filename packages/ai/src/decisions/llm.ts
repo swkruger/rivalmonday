@@ -1,4 +1,5 @@
 import type { ChatProvider } from '../chat';
+import type { CallTiming } from '../config';
 import { AiProviderError } from '../http';
 import { type DecisionAnswer, type DecisionProvider, type DecisionQuestion, noulConfidence, validateQuestions } from './types';
 
@@ -48,7 +49,7 @@ function invalid(key: string): AiProviderError {
   return new AiProviderError('llm', null, `Invalid or missing answer for ${key}`, false);
 }
 
-export function createLlmDecisionProvider(chat: ChatProvider, opts: { model: string; fallbacks?: string[] }): DecisionProvider {
+export function createLlmDecisionProvider(chat: ChatProvider, opts: { model: string; fallbacks?: string[]; timing?: CallTiming }): DecisionProvider {
   return {
     id: 'llm',
     async decide<K extends string>(state: unknown, questions: Record<K, DecisionQuestion>) {
@@ -67,6 +68,7 @@ export function createLlmDecisionProvider(chat: ChatProvider, opts: { model: str
       const result = await chat.complete({
         model: opts.model,
         fallbacks: opts.fallbacks,
+        timing: opts.timing,
         temperature: 0,
         jsonSchema: { name: 'decisions', schema },
         messages: [

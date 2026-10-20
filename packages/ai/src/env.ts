@@ -1,7 +1,7 @@
 import type { DecisionSampleSink, LedgerSink } from '@cs/core';
 import { type Ai, createAi } from './ai';
 import { createAnthropicBatchProvider } from './anthropic-batch';
-import type { AiConfig } from './config';
+import type { AiConfig, CallTiming } from './config';
 import { createJevProvider } from './decisions/jev';
 import { createOpenRouterEmbeddings } from './embeddings';
 import { createOpenRouterProvider, type OpenRouterOptions } from './openrouter';
@@ -18,7 +18,7 @@ export function createAiFromEnv(env: NodeJS.ProcessEnv, config: AiConfig, ledger
   };
   const jevKey = env.TYPESAFE_API_KEY;
   const jev = jevKey
-    ? (model: string) => createJevProvider({ apiKey: jevKey, model, inputUsdPerMTok: config.jev.input_usd_per_mtok })
+    ? (model: string, timing?: CallTiming) => createJevProvider({ apiKey: jevKey, model, timing, inputUsdPerMTok: config.jev.input_usd_per_mtok })
     : null;
   const raw = env.AI_SHADOW_RATE;
   const override = raw === undefined || raw === '' ? undefined : Number(raw);

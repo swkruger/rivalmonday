@@ -152,4 +152,39 @@ describe('Ai facade', () => {
     expect(records.map((x) => [x.task, x.provider, x.ok, x.costUsd])).toEqual([['theme_discovery_batch', 'anthropic', true, 1.5], ['theme_discovery_batch', 'anthropic', false, null]]);
     await expect(ai.chat('theme_discovery_batch', { messages: [] }, scope)).rejects.toThrow(/not a chat task/);
   });
+
+  it('escalation uses the jev task\'s timing, and chat/embeddings pass their own task timing', async () => {
+    const cfg = parseAiConfig(`
+tasks:
+  llm_decisions: { provider: openrouter, model: a/small, mode: decisions, timeout_ms: 50000, max_attempts: 3 }
+  fast_decisions: { provider: jev, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, request_path: true, timeout_ms: 10000, max_attempts: 2 }
+  chatty: { provider: openrouter, model: a/writer, request_path: true, timeout_ms: 20000, max_attempts: 2 }
+  embeddings: { provider: openrouter, model: e/small, mode: embeddings, dimensions: 512, request_path: true, timeout_ms: 8000, max_attempts: 2 }
+`);
+    const records: LlmCallRecord[] = [];
+    const ledger: LedgerSink = { recordLlmCall: async (r) => { records.push(r); }, recordVendorCall: async () => {} };
+    const complete = vi.fn(async (req: { model: string }) => ({ text: JSON.stringify({ m: { probability: 0.99 } }), model: req.model, inputTokens: 1, outputTokens: 1, costUsd: 0 }));
+    const jevTimings: unknown[] = [];
+    // Jev answers with low confidence so the cascade escalates to the LLM provider.
+    const lowJev: DecisionProvider = {
+      id: 'jev',
+      decide: vi.fn(async () => ({
+        answers: { m: { type: 'noul', value: true, probability: 0.55, confidence: 0.1 } }, model: 'jev-x', inputTokens: 1, outputTokens: 1, costUsd: 0,
+      })) as unknown as DecisionProvider['decide'],
+    };
+    const embed = vi.fn(async () => ({ vectors: [[1]], model: 'e', inputTokens: 1, costUsd: 0 }));
+    const ai = createAi(cfg, {
+      openrouter: { id: 'openrouter', complete } as unknown as ChatProvider,
+      jev: (_m, timing) => { jevTimings.push(timing); return lowJev; },
+      embeddings: { id: 'openrouter', embed } as unknown as import('./embeddings').EmbeddingProvider,
+      ledger,
+    });
+    await ai.decide('fast_decisions', {}, q, scope);
+    expect(jevTimings).toEqual([{ timeoutMs: 10_000, maxAttempts: 2 }]);
+    expect(complete).toHaveBeenCalledWith(expect.objectContaining({ timing: { timeoutMs: 10_000, maxAttempts: 2 } }));
+    await ai.chat('chatty', { messages: [] }, scope);
+    expect(complete).toHaveBeenLastCalledWith(expect.objectContaining({ timing: { timeoutMs: 20_000, maxAttempts: 2 } }));
+    await ai.embed('embeddings', ['x'], scope);
+    expect(embed).toHaveBeenCalledWith(expect.objectContaining({ timing: { timeoutMs: 8_000, maxAttempts: 2 } }));
+  });
 });

@@ -259,4 +259,12 @@ describe('proposeTailoring', () => {
     const down = createFakeAi({ chat: () => { throw new Error('down'); } });
     expect(await proposeTailoring({ db, ai: down, packs: hvacPacks }, IDS.clientA1, 'play:price_change', parent)).toBeNull();
   });
+  it('proposeTailoring calls runbook_retailor, tailorClientRunbook calls runbook_tailor', async () => {
+    const one = createFakeAi({ chat: () => JSON.stringify({ items: [{ key: 'play:price_change', title: 'Defend your HVAC price', template: 'Watch {{competitor}} on {{service}} calls.', businessAreaIds: null }] }) });
+    await proposeTailoring({ db, ai: one, packs: hvacPacks }, IDS.clientA1, 'play:price_change', parent);
+    expect(one.calls.chat.map((c) => c.task)).toEqual(['runbook_retailor']);
+    const whole = rewriteAll();
+    await tailorClientRunbook(deps(whole), IDS.clientA1);
+    expect(whole.calls.chat.map((c) => c.task)).toEqual(['runbook_tailor']);
+  });
 });

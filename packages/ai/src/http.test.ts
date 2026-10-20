@@ -64,4 +64,23 @@ describe('postJson', () => {
     expect(err).toMatchObject({ provider: 'p', status: 200, retryable: false });
     expect(d.calls).toBe(1);
   });
+
+  it('postJson aborts at the per-call timeout', async () => {
+    const d = deps([]);
+    d.maxRetries = 0;
+    d.timeoutMs = 60_000;
+    d.fetch = ((_u: unknown, init: RequestInit) =>
+      new Promise((_res, rej) => {
+        init.signal!.addEventListener('abort', () => rej(init.signal!.reason));
+      })) as unknown as typeof fetch;
+    const started = Date.now();
+    await expect(postJson('p', 'u', {}, {}, d, { timeoutMs: 30, maxAttempts: 1 })).rejects.toBeInstanceOf(AiProviderError);
+    expect(Date.now() - started).toBeLessThan(5_000);
+  });
+
+  it('per-call maxAttempts caps retries (maxRetries = attempts - 1)', async () => {
+    const d = deps([status(503), status(503), ok({})]);
+    await expect(postJson('p', 'u', {}, {}, d, { timeoutMs: 1000, maxAttempts: 2 })).rejects.toBeInstanceOf(AiProviderError);
+    expect(d.calls).toBe(2);
+  });
 });

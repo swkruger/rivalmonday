@@ -8,6 +8,9 @@ jev:
   input_usd_per_mtok: 0.042
 
 tasks:
+  # Timing (per task): timeout_ms and max_attempts default to 60000 x 3. A task reachable from a web request is marked
+  # request_path: true and must fit Vercel's 45 s budget: timeout_ms x max_attempts <= 45000, or 2 x that for a Jev task
+  # with escalate_to (the escalation call runs on the Jev task's timing, so both stages count). Enforced by the schema.
   # Verified 2026-10-03: anthropic/claude-sonnet-5 had no ZDR endpoint serving strict json_schema on OpenRouter (404 "No endpoints
   # found"), and openai/gpt-5-mini failed the ZDR data-policy filter — so the JSON-schema writers use sonnet-4.6 → haiku-4.5.
   brief_writer:    { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.3, max_tokens: 4000 }
@@ -17,14 +20,16 @@ tasks:
   setup_suggestions: { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.2, max_tokens: 800 }
   # Phase 14b: rewrites a client's runbook plays for its business type and areas (validated in code; failures keep the untailored text).
   runbook_tailor:  { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.3, max_tokens: 4000 }
+  # Web: re-tailors ONE play (proposeTailoring). The worker's whole-runbook runbook_tailor call cannot fit 45 s; this one must.
+  runbook_retailor: { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.3, max_tokens: 1000, request_path: true, timeout_ms: 20000, max_attempts: 2 }
   # Phase 14a: drafts a new business type from a Google profile (every item quoted; validated in code).
-  vertical_draft:  { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.2, max_tokens: 1200 }
+  vertical_draft:  { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5], temperature: 0.2, max_tokens: 1200, request_path: true, timeout_ms: 20000, max_attempts: 2 }
   # Phase 11c: free competitive preview summary for a verified lead (validated in code; dropped on any unknown number or name).
   lead_preview_summary: { provider: openrouter, model: anthropic/claude-haiku-4.5, temperature: 0.3, max_tokens: 300 }
   # Phase 6b Ask/Friday (tool calling; probe 2026-10-12: sonnet-5 and sonnet-4.6 both support tools and cache_control under ZDR).
   # No temperature: no sonnet-5 endpoint accepts it, so with require_parameters (sent with tools) OpenRouter skipped
   # sonnet-5 entirely and every turn ran on the fallback (probe 2026-10-13).
-  ask_assistant:   { provider: openrouter, model: anthropic/claude-sonnet-5, fallbacks: [anthropic/claude-sonnet-4.6], max_tokens: 6000 }
+  ask_assistant:   { provider: openrouter, model: anthropic/claude-sonnet-5, fallbacks: [anthropic/claude-sonnet-4.6], max_tokens: 6000, request_path: true, timeout_ms: 20000, max_attempts: 2 }
   ask_starters:    { provider: openrouter, model: anthropic/claude-haiku-4.5, temperature: 0.5, max_tokens: 400 }
   value_extract:   { provider: openrouter, model: anthropic/claude-haiku-4.5 }
   theme_discovery: { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5] }
@@ -38,13 +43,14 @@ tasks:
   review_decisions:     { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.02 }
   price_decisions:      { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
   # Phase 4a: brief/recommendation support checks (spec §7.4) — its own task so accuracy, τ and routing are tunable alone.
-  verifier_decisions:   { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
+  # verifier_decisions is shared by Ask grounding (web) and worker briefs, so both get the 10 s x 2 request-path budget.
+  verifier_decisions:   { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05, request_path: true, timeout_ms: 10000, max_attempts: 2 }
   # Phase 6b: Ask answer-guard checks, its own task so routing and tau are tunable alone (same shape as verifier_decisions).
-  ask_guard_decisions:  { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
+  ask_guard_decisions:  { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05, request_path: true, timeout_ms: 10000, max_attempts: 2 }
   # Ask interpretation lines (uncited / "Possible reason:"): a clear yes is enough (0.2 = p >= 0.6). Owner decision 2026-10-13.
-  ask_interpretation_decisions: { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.2 }, shadow_rate: 0.05 }
+  ask_interpretation_decisions: { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.2 }, shadow_rate: 0.05, request_path: true, timeout_ms: 10000, max_attempts: 2 }
   # Verified 2026-10-01: ZDR-compatible ($0.02/M tokens). voyageai/voyage-4-lite fails the ZDR policy.
-  embeddings:      { provider: openrouter, model: openai/text-embedding-3-small, mode: embeddings, dimensions: 512 }
+  embeddings:      { provider: openrouter, model: openai/text-embedding-3-small, mode: embeddings, dimensions: 512, request_path: true, timeout_ms: 8000, max_attempts: 2 }
   # Opt-in (Phase 3d decision 9): used only when ANTHROPIC_API_KEY is set; otherwise theme discovery stays on theme_discovery.
   # Anthropic Message Batches: claude-sonnet-5 at batch prices ($2/$10 list → $1/$5 per MTok). Not OpenRouter ZDR-routed.
   theme_discovery_batch: { provider: anthropic, model: claude-sonnet-5, mode: batch, max_tokens: 8000, input_usd_per_mtok: 1.0, output_usd_per_mtok: 5.0 }

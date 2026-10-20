@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { CallTiming } from '../config';
 import { AiProviderError, type HttpDeps, defaultHttpDeps, postJson } from '../http';
 import { type DecisionAnswer, type DecisionProvider, type DecisionQuestion, noulConfidence, validateQuestions } from './types';
 
@@ -63,6 +64,8 @@ export interface JevOptions {
   model?: string;
   inputUsdPerMTok?: number;
   http?: Partial<HttpDeps>;
+  /** Per-call timeout/attempts from the task; absent = `http` / defaults. */
+  timing?: CallTiming;
 }
 
 export function createJevProvider(opts: JevOptions): DecisionProvider {
@@ -79,7 +82,7 @@ export function createJevProvider(opts: JevOptions): DecisionProvider {
         state,
         questions: Object.fromEntries(Object.entries<DecisionQuestion>(questions).map(([k, q]) => [k, toJevQuestion(q)])),
       };
-      const json = await postJson('jev', JEV_URL, body, { authorization: `Bearer ${opts.apiKey}` }, http);
+      const json = await postJson('jev', JEV_URL, body, { authorization: `Bearer ${opts.apiKey}` }, http, opts.timing);
       const parsed = responseSchema.safeParse(json);
       if (!parsed.success) throw new AiProviderError('jev', 200, 'Unexpected Jev response shape', false, { cause: parsed.error });
 
