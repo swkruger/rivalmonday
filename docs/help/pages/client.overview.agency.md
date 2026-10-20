@@ -29,7 +29,7 @@ The client's own Google business has not been read yet. Add its Google place id 
 
 ### How is competitive pressure worked out?
 
-From the last 30 days: the scores of the competitor's changes routed to the brief or an alert, plus its open moves (active, confident moves weigh more). They are combined so that each adds to the total without it passing 100. 70 and above is high, 40 to 69 is elevated, below 40 is low. Archived changes don't count.
+From the last 30 days: the scores of the competitor's changes routed to the brief or an alert, plus its open moves (active, confident moves weigh more). They are combined so that each adds to the total without it passing 100. The label reads High pressure (70 and above), Medium pressure (40 to 69), Low pressure (1 to 39) or Quiet (0). Archived changes don't count.
 
 ### Does the client see upsell tags?
 

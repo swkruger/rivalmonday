@@ -258,6 +258,17 @@ describe('client batch C: Alert rules', () => {
   });
 });
 
+describe('client batch C: Alert rules daily-limit line', () => {
+  const LINE = /Instant alerts are still limited to 3 a day/;
+  it('is shown to agency roles only', async () => {
+    await show(page('client.settings.alerts'), 'client');
+    expect(document.body.textContent).not.toMatch(LINE);
+    cleanup();
+    await show(page('client.settings.alerts'), 'agency');
+    expect(document.body.textContent).toMatch(LINE);
+  });
+});
+
 describe('client batch C: AI connection', () => {
   it('description with the client name; connector, token, permission and connected-app tips for client and agency', async () => {
     for (const audience of ['client', 'agency'] as const) {

@@ -29,7 +29,7 @@ It counts the changes from the last 7 days that were important enough to be sent
 
 ### How is competitive pressure worked out?
 
-It adds up a competitor's changes from the last 30 days that made your brief or an alert, plus any moves it is making, such as a price war or an ad surge. Each one pushes the number up without it passing 100. 70 and above is high, 40 to 69 is elevated and below 40 is low. A competitor with nothing recent scores 0.
+It adds up a competitor's changes from the last 30 days that made your brief or an alert, plus any moves it is making, such as a price war or an ad surge. Each one pushes the number up without it passing 100. The label reads High pressure (70 and above), Medium pressure (40 to 69), Low pressure (1 to 39) or Quiet (0). A competitor with nothing recent scores 0 and reads Quiet.
 
 ### Why does my rating show a dash?
 

@@ -101,6 +101,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}dev-panel/`), tags: ['@dev-panel'], why: 'dev-panel route shell' },
   { pattern: re(`${AGENCY}page\\.tsx$`), tags: ['@clients', '@client-billing', '@onboarding'], why: 'agency client list (billing pill and actions, getting-started checklist)' },
   { pattern: re(`${AGENCY}alerts/`), tags: ['@alerts'], why: 'alert queue' },
+  { pattern: re(`${COMP}confidence-label\.ts$`), tags: ['@briefs', '@starting-point'], why: 'confidence wording in the brief view and the approvals review controls (15b-2)' },
   { pattern: re(`${AGENCY}approvals/`), tags: ['@briefs', '@recommendations', '@starting-point'], why: 'brief approvals (a starting point is approved and sent here)' },
   { pattern: re(`${AGENCY}clients/`), tags: ['@clients'], why: 'new client' },
   { pattern: re(`${AGENCY}settings/runbook/`), tags: ['@runbook'], why: 'agency runbook (Agency settings; old Playbooks paths redirect here)' },

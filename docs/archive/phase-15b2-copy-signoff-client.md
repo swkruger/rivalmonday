@@ -1757,10 +1757,19 @@ Short labels that sit beside a tip (the tip text above is the copy to sign off),
 
 ## Notes for the owner (batch C)
 
-- **Alert caps stay out of client copy** (owner ruling 2026-10-20). The Alert rules page itself still prints "Instant alerts are still limited to 3 a day; extra ones go into the daily digest." to everyone who can open it, so a client owner can read it there. Say if you want that sentence made agency-only.
+- **Alert caps stay out of client copy** (owner ruling 2026-10-20). Fix round 1: the Alert rules page line "Instant alerts are still limited to 3 a day; extra ones go into the daily digest." is now shown to agency roles only.
 - **"15 miles · 0 ZIP codes":** the Business profile Area line currently prints the radius in kilometres ("15 km around the business"); the tips and guides say "radius" and quote only "0 ZIP codes". Converting the value is 15c.
 - **The setup form shows "Google place id" to client owners** (Advanced, from Task 3). The client guide calls it "the Google listing" and never says "place id"; the field label itself is unchanged.
-- **Pressure** is explained in the Business profile guides (both audiences), with the same four labels as the badge. The Overview "Competitive pressure" tip from the pilot still says "high / elevated / low" and has not been changed.
+- **Pressure** is explained in the Business profile guides (both audiences), with the same four labels as the badge. Fix round 1 changed pilot copy you already signed off: the Overview "Competitive pressure" tip and both Overview guides now use the badge words (see the rows below).
 - **Billing** (client owner): "Awaiting payment setup" assumes the payment link was emailed, as the page says. The guide gives no price, never names the platform or a payment vendor.
 - **Alert rules and the runbook share two numbers:** saving the levels on the Alert rules page also updates the client's runbook thresholds setting. The runbook guide says so in one direction only (Alert rules updates the runbook setting).
 - **Existing e2e locators checked** against every new tip title: none collide (the Time zone tip is titled "What runs on this clock", not "Business time zone", so `getByLabel` on the select still finds one element).
+
+## Fix round 1 (Task 6) - changes to signed-off and new copy
+
+| Item | Audience | Text | Source |
+|---|---|---|---|
+| Overview tip `pressure` (pilot, changed) | all | ...The label reads High pressure (70 and above), Medium pressure (40 to 69), Low pressure (1 to 39) or Quiet (0). The line under each name is its main reason. | `packages/tools/src/pressure.ts:combinePressure`; `apps/web/src/components/pressure-badge.tsx:pressureText` |
+| `client.overview.agency.md` pressure answer (pilot, changed) | agency | ...The label reads High pressure (70 and above), Medium pressure (40 to 69), Low pressure (1 to 39) or Quiet (0). Archived changes don't count. | same |
+| `client.overview.client.md` pressure answer (pilot, changed) | client | ...The label reads High pressure (70 and above), Medium pressure (40 to 69), Low pressure (1 to 39) or Quiet (0). A competitor with nothing recent scores 0 and reads Quiet. | same |
+| Alert rules page line "Instant alerts are still limited to 3 a day; extra ones go into the daily digest." (now agency-only) | agency | unchanged text, hidden from client roles | `settings/alerts/page.tsx` (`isAgencyRole`); `packages/engine/src/alerts/route.ts:ALERTS_PER_DAY` |

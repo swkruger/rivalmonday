@@ -54,7 +54,7 @@ export default async function AlertRulesPage({ params }: { params: Promise<{ cli
             From {rules.alert}: an instant alert. From {rules.brief} to {rules.alert - 1}: the weekly brief. Below {rules.brief}: archived — still visible under Changes.
           </p>
           <p>New thresholds apply to changes detected from now on; changes already scored keep their place.</p>
-          <p>Instant alerts are still limited to 3 a day; extra ones go into the daily digest.</p>
+          {isAgencyRole(ctx.role) && <p>Instant alerts are still limited to 3 a day; extra ones go into the daily digest.</p>}
           {isAgencyRole(ctx.role) && (
             <p>
               <Link href={`/c/${clientId}/settings/delivery`} className="font-semibold text-primary-soft-text">

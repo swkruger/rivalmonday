@@ -34,7 +34,7 @@ export const CLIENT_COPY = {
       // source: packages/tools/src/pressure.ts:combinePressure, pressureByClient
       pressure: {
         title: 'Competitive pressure',
-        body: 'How much each competitor has been doing lately, from 0 to 100: its changes from the last 30 days that made the brief or an alert, plus its open moves. 70 and above is high, 40 to 69 elevated, below 40 low. The line under each name is its main reason.',
+        body: 'How much each competitor has been doing lately, from 0 to 100: its changes from the last 30 days that made the brief or an alert, plus its open moves. The label reads High pressure (70 and above), Medium pressure (40 to 69), Low pressure (1 to 39) or Quiet (0). The line under each name is its main reason.',
         guideAnchor: 'common-questions',
       },
     },
