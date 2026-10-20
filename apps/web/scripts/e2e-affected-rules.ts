@@ -160,6 +160,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}\\(platform\\)/platform/agencies/\\[id\\]/`), tags: ['@platform', '@support'], why: 'platform agency page: View as agency dialog and start action' },
   { pattern: re(`${APP}\\(platform\\)/platform/verticals/`), tags: ['@catalogue', '@platform'], why: 'platform business-type review queue' },
   { pattern: /^packages\/tools\/src\/(?:catalog\/|tools\/(?:platform-)?verticals\.ts$)/, tags: ['@catalogue', '@clients', '@leads', '@platform'], why: 'vertical catalogue tools (create, review, merge)' },
+  { pattern: re(`${APP}\\(platform\\)/platform/health/`), tags: ['@platform'], why: 'platform health page (operator tables)' },
   { pattern: re(`${APP}\\(platform\\)/platform/`), tags: ['@platform', '@reviews'], why: 'platform console, review/theme queues' },
   { pattern: re(`${APP}support/`), tags: ['@support'], why: 'support session Exit and end routes' },
   { pattern: re(`${APP}\\(app\\)/(?:inbox|settings/notifications)/`), tags: [], why: 'no E2E covers this page' },

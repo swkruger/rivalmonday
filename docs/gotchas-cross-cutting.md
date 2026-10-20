@@ -52,3 +52,12 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 - **Stacked branches merge once, from the tip:** rebase the base on `main`, then each child with `git rebase --onto <base> <old-base-sha>`; fold every work file on the tip and `merge --ff-only` it. On Windows `git worktree remove --force` can leave the folder (locked files, over-long `node_modules` paths) — delete it with `cmd /c rd /s /q "\\?\<abs path>"`, then `git worktree prune`.
 - **After merging a branch that adds a workspace package, run `pnpm install` in the main checkout** (else `ERR_MODULE_NOT_FOUND @cs/<pkg>`).
 - **Scripted edits must read/write UTF-8 explicitly** (Python on Windows defaults to cp1252 and corrupts `—`/`…`): check a branch with `iconv -f utf-8 -t utf-8` over `git diff --name-only main...HEAD`.
+
+## Deploy & observability (Phase 7a1)
+- **Runtime roles `cs_worker`/`cs_web`** (migration `0080` aborts if missing; it also grants `pgboss`). Locally `bash scripts/local-test-db.sh start` runs `ensure_roles`; `infra/db/init/01-roles.sql` is idempotent. Neon: create them with SQL as the owner before `pnpm db:migrate` (`docs/DEPLOY.md` § Roles).
+- **Sentry is inert without a DSN** (web and worker); tests and local runs never send events.
+- **Worker `/healthz`** on `PORT` (default 8080): healthy iff <= 660 s since `max(start, last heartbeat)`.
+- **Strict prod env:** with `NODE_ENV=production` the worker exits 1 naming missing vars (`REQUIRED_PROD_ENV`, `apps/worker/src/env.ts`).
+- **Latency:** `PROFILE_TOOLS=1` on the server + `pnpm --filter @cs/web profile:pages` times tool stages vs DB stages (the shell's sequential DB stages are backlog).
+- **`Logger` overload:** `log.error(msg)` or `log.error({ ...fields }, msg)`, never `(msg, x)`.
+- **No-console guard:** `apps/web/src/no-console.test.ts` — zero `console.*` in `apps/worker/src` outside `cli/**`; web may not exceed `console-baseline.json`.

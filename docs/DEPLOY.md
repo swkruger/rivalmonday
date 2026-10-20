@@ -14,7 +14,7 @@
 7. **Sentry:** projects for web and worker, alert rules (new issue, regression, cron check-in missed); an org auth token with release + source-map scope.
 8. **GitHub** environment `production` (required reviewer optional) with the secrets below.
 9. **First deploy:** push to `main`, watch `test` → `image` → `deploy`.
-10. **Bootstrap** (owner, from a shell with the prod env loaded, never committed): `pnpm --filter @cs/worker platform-admin add <email> --role owner` (uses `SERVICE_DATABASE_URL`); `pnpm --filter @cs/web admin create-agency --name <name>` then `admin invite --agency <id> --email <email> --role agency_admin`.
+10. **Bootstrap** (owner, from a shell with the prod env loaded, never committed): `pnpm --filter @cs/worker platform-admin add <email> --role owner` (uses `SERVICE_DATABASE_URL`); `pnpm --filter @cs/web admin create-agency --name <name>` then `admin invite --agency <id> --email <email> --role agency_admin`; then `pnpm kb:seed` against prod (prod `SERVICE_DATABASE_URL`) — re-run it whenever `docs/help` changes.
 11. Run the § Checklist.
 
 **GitHub secrets (`production`):** `MIGRATION_DATABASE_URL`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `RAILWAY_TOKEN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT_WEB`, `SENTRY_PROJECT_WORKER`.
@@ -47,13 +47,14 @@ The owner URL lives **only** in the GitHub secret `MIGRATION_DATABASE_URL` (dire
 ## Checklist (after each first-of-its-kind deploy)
 - TLS on `rivalmonday.app`; magic-link sign-in arrives from `briefs@mail.rivalmonday.app`; mail-tester ≥ 9/10.
 - Sentry test event from web and worker (worker release = commit SHA, not `dev`).
-- Railway `/healthz` 200; `/platform/health` all green after one hour.
+- Railway marks the new deployment **Active** (`railway up --ci` may only wait for the build); `/healthz` 200; `/platform/health` all green after one hour.
 - `/bot` and `/robots.txt` load signed-out.
-- Latency: `pnpm --filter @cs/web profile:pages --base https://rivalmonday.app --cookie FILE` (a signed-in storage state or Cookie header): agency/workspace pages p75 ≤ 1.5 s, every page ≤ 3 s; misses → backlog. Per-tool timings need `PROFILE_TOOLS=1` on the server. The shell's sequential DB stages are a known backlog item, so this p75 is a measurement, not proof of spec D7.
+- Latency: `pnpm --filter @cs/web profile:pages --base https://rivalmonday.app --cookie FILE` (a signed-in storage state or Cookie header): agency/workspace pages p75 ≤ 1.5 s, every page ≤ 3 s; misses → backlog. Per-tool timings need `PROFILE_TOOLS=1` on the server. The shell's sequential DB stages are a known backlog item, so this p75 is a measurement, not proof of spec D7 (backlog gate before the first deploy).
 
 ## Notes
 - **0025 pre-check:** runs every deploy; on the fresh prod DB it passes trivially. If it fails it prints `client` ids — fix those rows, re-run the job.
 - **Magic-link cutover (spec D3):** prod starts fresh, so nothing to do. If a database from before hashed magic-link tokens (5b-2) is ever promoted, links issued before that deploy fail as "expired or already used" for their 15-minute window — expected, not a bug.
+- **Worker Sentry release reads `dev`:** fallback is `railway variables --set SENTRY_RELEASE=<sha> --skip-deploys` before `railway up`.
 - **One worker replica only** (in-process per-host crawl limits). Railway briefly runs old and new containers together until the new one passes `/healthz`; never raise `numReplicas`.
 
 ## Rollback
