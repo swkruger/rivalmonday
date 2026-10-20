@@ -8,7 +8,8 @@
     "typecheck": "tsc -p .",
     "test": "vitest run",
     "generate": "drizzle-kit generate",
-    "migrate": "tsx src/cli/migrate.ts"
+    "migrate": "tsx src/cli/migrate.ts",
+    "predeploy-check": "tsx src/cli/predeploy-check.ts"
   },
   "dependencies": {
     "@cs/core": "workspace:*",

@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:pg18
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: cs_dev
@@ -34,6 +34,8 @@ jobs:
       - name: Install Playwright chromium
         run: pnpm --filter @cs/collectors exec playwright install --with-deps chromium
       - run: pnpm typecheck
+      - name: Schema drift (drizzle-kit check)
+        run: pnpm --filter @cs/db exec drizzle-kit check
       - run: pnpm test
       - name: Install Playwright chromium for web E2E
         run: pnpm --filter @cs/web exec playwright install --with-deps chromium
