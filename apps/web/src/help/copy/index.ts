@@ -1,3 +1,4 @@
+import { clientFallbackFor, type ViewerAudience } from '@cs/core';
 import { PAGE_COPY, type PageKey, type Tip } from './client';
 
 export { PAGE_COPY } from './client';
@@ -10,9 +11,12 @@ export const OPEN_PAGE_GUIDE_EVENT = 'open-page-guide';
 
 export interface CopyNames { agency: string; assistant: string; client?: string }
 
-/** Fills `{agency}`, `{assistant}`, `{client}` (single braces; the KB uses double). A missing client reads "your business". */
-export function renderCopy(text: string, names: CopyNames): string {
-  const map: Record<string, string> = { agency: names.agency, assistant: names.assistant, client: names.client ?? 'your business' };
+/**
+ * Fills `{agency}`, `{assistant}`, `{client}` (single braces; the KB uses double). A missing client reads "your business"
+ * to client viewers (and when no `audience` is given) and "the client" to agency staff and operators.
+ */
+export function renderCopy(text: string, names: CopyNames, audience?: ViewerAudience): string {
+  const map: Record<string, string> = { agency: names.agency, assistant: names.assistant, client: names.client ?? clientFallbackFor(audience === undefined || audience === 'client') };
   return text.replace(/\{(agency|assistant|client)\}/g, (_, k: string) => map[k]!);
 }
 

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ tryCallTool: vi.fn() }));
 vi.mock('./tools', () => ({ tryCallTool: m.tryCallTool }));
-const { helpGuides, helpClientName } = await import('./help');
+const { helpAgencyName, helpGuides, helpClientName } = await import('./help');
 
 const A = '00000000-0000-4000-8000-00000000000a';
 const C = '00000000-0000-4000-8000-0000000000c1';
@@ -39,5 +39,15 @@ describe('helpClientName', () => {
     expect(await helpClientName(ctx(), C)).toBeNull();
     m.tryCallTool.mockRejectedValueOnce(new Error('x'));
     expect(await helpClientName(ctx(), C)).toBeNull();
+  });
+});
+
+describe('helpAgencyName', () => {
+  it('the white-label name outside the platform zone', () => {
+    expect(helpAgencyName(false, ' Acme Intel ')).toBe('Acme Intel');
+  });
+  it('"your agency" in the platform zone, for the Rival Monday default and for no name', () => {
+    expect(helpAgencyName(true, 'Acme Intel')).toBe('your agency');
+    for (const n of ['Rival Monday', '', '  ', null, undefined]) expect(helpAgencyName(false, n)).toBe('your agency');
   });
 });

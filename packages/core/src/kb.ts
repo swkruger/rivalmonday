@@ -7,13 +7,26 @@ export const KB_MAX_CHUNKS = 200;
 export const KB_CHUNK_CHARS = 1500;
 export const KB_MAX_BODY_BYTES = 204_800;
 
+/** The agency's name in client-facing text when it has no white-label name: never the Rival Monday brand. */
+export const NEUTRAL_AGENCY_NAME = 'your agency';
+
+/**
+ * What `{{client}}` (KB) / `{client}` (web short copy) reads when no client name is known: the client's own people read
+ * about "your business"; agency staff and operators read about "the client".
+ */
+export function clientFallbackFor(clientFacing: boolean): string {
+  return clientFacing ? 'your business' : 'the client';
+}
+
+export interface KbNames { productName: string; assistantName: string; clientName?: string; clientFallback?: string }
+
 /**
  * Replaces `{{product}}` / `{{assistant}}` / `{{client}}` (inner whitespace allowed); any other `{{x}}` stays literal.
- * `{{client}}` renders "your business" when no `clientName` is given.
+ * `{{client}}` renders `clientFallback` (default "your business") when no `clientName` is given.
  */
-export function renderKbText(text: string, names: { productName: string; assistantName: string; clientName?: string }): string {
+export function renderKbText(text: string, names: KbNames): string {
   return text.replace(/\{\{\s*(product|assistant|client)\s*\}\}/g, (_m, k: string) =>
-    k === 'product' ? names.productName : k === 'assistant' ? names.assistantName : names.clientName?.trim() || 'your business',
+    k === 'product' ? names.productName : k === 'assistant' ? names.assistantName : names.clientName?.trim() || (names.clientFallback ?? clientFallbackFor(true)),
   );
 }
 

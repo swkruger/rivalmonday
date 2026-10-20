@@ -19,6 +19,7 @@ import { TopBar } from '@/components/shell/top-bar';
 import type { BillingSnapshot } from '@/server/billing-state';
 import { clientBillingNoticeOf } from '@/server/client-billing-state';
 import { dbs } from '@/server/db';
+import { helpAgencyName } from '@/server/help';
 import { navCounts, navFlagsFor } from '@/server/nav';
 import { platformAdmins } from '@/server/runtime-env';
 import { themeForViewer } from '@/server/theme';
@@ -100,8 +101,8 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
       : [],
   };
   // 15b: who is reading the help copy. The shell knows the zone (platform vs not) and role, not the `/c/<id>` path, so an
-  // agency viewer's `client` name is left unset (copy then reads "your business"). Never "Rival Monday" as the agency.
-  const helpAgency = zone === 'platform' || branding.displayName === 'Rival Monday' ? 'your agency' : branding.displayName;
+  // agency viewer's `client` name is left unset (copy then reads "the client"). Never "Rival Monday" as the agency.
+  const helpAgency = helpAgencyName(zone === 'platform', branding.displayName);
   const help = {
     audience: viewerAudience(viewer.kind === 'guest' ? 'guest' : ctx.role, zone === 'platform' ? 'platform' : isAgencyRole(ctx.role) ? 'agency' : 'client'),
     names: { agency: helpAgency, assistant: assistantName, ...(clientName ? { client: clientName } : {}) },

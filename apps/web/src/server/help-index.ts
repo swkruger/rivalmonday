@@ -4,6 +4,7 @@ import { groupGuides, type HelpGuide } from '@/components/help/help-groups';
 import type { HelpIndexProps } from '@/components/help/help-index';
 import { type NavContext, navFor, settingsNavFor } from '@/components/shell/nav-items';
 import { renderCopy } from '@/help/copy';
+import { helpAgencyName } from './help';
 import { navFlagsFor } from './nav';
 import { themeForViewer } from './theme';
 import { callTool, tryCallTool } from './tools';
@@ -41,14 +42,14 @@ export async function loadHelpIndex(o: {
       })
     : null;
 
-  const names = { agency: theme.branding.displayName, assistant: theme.assistantName };
+  const names = { agency: helpAgencyName(context === 'platform', theme.branding.displayName), assistant: theme.assistantName };
   const audience = viewerAudience(viewer.kind === 'guest' ? 'guest' : ctx.role, context);
   const askable = context === 'client' && !!clientId && !!flags.ask && viewer.kind !== 'support';
   return {
     articleBase: context === 'platform' ? '/platform/knowledge' : '/kb',
     groups: groupGuides(context, menu, settings, guides),
     glossary: glossaryFor(audience).map((t) => ({
-      id: t.id, term: renderCopy(t.term, names), short: renderCopy(t.short, names), ...(t.long ? { long: renderCopy(t.long, names) } : {}),
+      id: t.id, term: renderCopy(t.term, names, audience), short: renderCopy(t.short, names, audience), ...(t.long ? { long: renderCopy(t.long, names, audience) } : {}),
     })),
     query,
     results: query ? (search?.results ?? []).map((r) => ({ kbId: r.kbId, title: r.title, excerpt: (r.chunks[0] ?? '').replace(/\s+/g, ' ').slice(0, EXCERPT) })) : null,

@@ -51,7 +51,10 @@ const lsReports: CoverageCall = { tool: 'list_trend_reports', input: (ids) => ({
 const lsStarters: CoverageCall = { tool: 'get_ask_starters', input: (ids) => ({ clientId: ls(ids) }), path: 'questions' };
 
 /** 15b-1: the Help pages' reads. No page guides are seeded yet (empty on purpose); the search finds the demo article. */
-const helpGuidesEmpty = (input: CoverageCall['input']): CoverageCall => ({ tool: 'list_help_guides', input, path: 'guides', expect: 'empty', why: 'the seed has no page guides (`demo:reset` loads docs/help)' });
+// 15b-1: `demo:reset` (and the coverage test) load the real docs/help guides; the pilot has client pages only.
+const helpGuides = (input: CoverageCall['input']): CoverageCall => ({ tool: 'list_help_guides', input, path: 'guides' });
+const helpGuidesEmpty = (input: CoverageCall['input']): CoverageCall => ({ tool: 'list_help_guides', input, path: 'guides', expect: 'empty', why: 'the 15b-1 pilot has client page guides only' });
+const lsGuides = helpGuides((ids) => ({ context: 'client', clientId: ls(ids) }));
 const helpSearch = (extra: CoverageCall['input']): CoverageCall => ({ tool: 'search_knowledge', input: (ids) => ({ query: 'demo article', limit: 8, ...extra(ids) }), path: 'results' });
 
 /** Phase 10: every wizard step reads the progress (the stepper and the finished/dismissed redirect); so does `/agency`. */
@@ -142,6 +145,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
   {
     route: '/c/[clientId]', as: 'admin', calls: [
       lsProfile,
+      lsGuides,
       { tool: 'get_workspace_overview', input: (ids) => ({ clientId: ls(ids) }), path: 'pressure.*.pressure.score' },
       { tool: 'get_ad_activity', input: (ids) => ({ clientId: ls(ids), weeks: 12 }), path: 'series.*.points' },
       // The overview opens the newest brief in the list: the agency sees the ready one first.
@@ -205,6 +209,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'compare_snapshots', input: (ids) => ({ clientId: ls(ids), changeId: lsEvent(ids).changeId }), path: 'after' },
       { tool: 'list_client_competitors', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       lsProfile,
+      lsGuides,
     ],
   },
   {
@@ -267,6 +272,7 @@ export const SCREENS: readonly ScreenCoverage[] = [
       { tool: 'get_rating_trend', input: (ids) => ({ clientId: ls(ids) }), path: 'businesses.*.reviews90d' },
       { tool: 'search_reviews', input: (ids) => ({ clientId: ls(ids), text: 'showed up two hours late', days: 365 }), path: 'items' },
       lsProfile,
+      lsGuides,
     ],
   },
   {
@@ -357,10 +363,10 @@ export const SCREENS: readonly ScreenCoverage[] = [
     ],
   },
   { route: '/platform/themes', as: 'operator', calls: [{ tool: 'list_theme_proposals', input: none, path: 'pending' }, { tool: 'list_theme_proposals', input: none, path: 'decided' }] },
-  // 15b-1: the Help pages. `seedDemo` loads no page guides (`demo:reset` adds the docs/help ones through `seedKnowledge`), so the guide list is empty here on purpose; the search finds the demo article.
+  // 15b-1: the Help pages. The docs/help guides (loaded by `demo:reset` through `seedKnowledge`) cover client pages only, so the agency and platform lists are empty on purpose; the search finds the demo article.
   { route: '/agency/help', as: 'admin', calls: [helpGuidesEmpty(() => ({ context: 'agency' })), helpSearch(none)] },
-  { route: '/c/[clientId]/help', as: 'admin', calls: [helpGuidesEmpty((ids) => ({ context: 'client', clientId: ls(ids) })), helpSearch((ids) => ({ clientId: ls(ids) })), lsProfile] },
-  { route: '/c/[clientId]/help (client owner)', as: 'ownerLoneStar', calls: [helpGuidesEmpty((ids) => ({ context: 'client', clientId: ls(ids) })), helpSearch((ids) => ({ clientId: ls(ids) })), lsProfile] },
+  { route: '/c/[clientId]/help', as: 'admin', calls: [lsGuides, helpSearch((ids) => ({ clientId: ls(ids) })), lsProfile] },
+  { route: '/c/[clientId]/help (client owner)', as: 'ownerLoneStar', calls: [lsGuides, helpSearch((ids) => ({ clientId: ls(ids) })), lsProfile] },
   { route: '/platform/help', as: 'operator', calls: [helpGuidesEmpty(() => ({ context: 'platform' })), helpSearch(() => ({ context: 'platform' }))] },
   { route: '/settings/notifications', as: 'admin', calls: [{ tool: 'fn:myNotificationSettings', input: none }] },
 ];

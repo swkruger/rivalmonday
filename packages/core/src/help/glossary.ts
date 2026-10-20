@@ -134,7 +134,7 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     term: 'Business type',
     audience: 'all',
     short: 'The kind of business, such as HVAC and plumbing or dental. It decides which services, review themes and scoring rules apply.',
-    long: 'Business types come from a shared catalogue. Older screens may still call this the vertical or industry.',
+    long: 'Business types come from a shared catalog. Older screens may still call this the vertical or industry.',
     seeAlso: ['theme', 'score'],
   },
   {
@@ -204,7 +204,7 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     term: 'Theme',
     audience: 'all',
     short: 'A topic customers bring up in reviews, such as response time, price transparency or cleanliness. Each business type has its own list.',
-    long: "A theme's share is the percentage of the last 90 days' reviews that mention it, out of those that could be read clearly for it. Its sentiment runs from very negative to very positive.",
+    long: "A theme's share is the percentage of the reviews checked for that theme in the last 90 days that mention it. Its sentiment runs from very negative to very positive.",
     seeAlso: ['business-type'],
   },
   {

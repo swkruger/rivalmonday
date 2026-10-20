@@ -1,5 +1,5 @@
 import { redactForModel } from '@cs/collectors';
-import { type AccessContext, type CallMeta, KB_KINDS, KB_LEVELS, type KbKind, type KbLevel, renderKbText, toolkit, ToolError, type ViewerAudience, visibleAudiences } from '@cs/core';
+import { type AccessContext, type CallMeta, KB_KINDS, KB_LEVELS, type KbKind, type KbLevel, type KbNames, renderKbText, toolkit, ToolError, type ViewerAudience, visibleAudiences } from '@cs/core';
 import { kbArticle, withTenant } from '@cs/db';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -82,7 +82,7 @@ export async function searchKnowledgeHits(deps: ToolDeps, ctx: AccessContext, cl
 }
 
 /** `ask`/`mcp` text goes to a model or external client: placeholders first, then `redactForModel`. `web` is the in-tenant human: render only. */
-function textFor(meta: CallMeta, names: { productName: string; assistantName: string }, text: string): string {
+function textFor(meta: CallMeta, names: KbNames, text: string): string {
   const rendered = renderKbText(text, names);
   return meta.channel === 'web' ? rendered : redactForModel(rendered);
 }

@@ -117,9 +117,10 @@ describe('get_page_guide access', () => {
   it("platform context ignores the operator's own agency-level rows", async () => {
     const opRow = await guide({ audience: 'operator' });
     await guide({ level: 'agency', audience: 'all', title: 'ours' });
-    await guide({ level: 'agency', audience: 'all', helpKey: 'page:agency.portfolio', title: 'ours only' });
+    const opListed = await guide({ audience: 'operator', helpKey: 'page:platform.agencies' });
+    await guide({ level: 'agency', audience: 'all', helpKey: 'page:platform.agencies', title: 'ours only' });
     expect((await get(op, { context: 'platform' }))!.id).toBe(opRow);
-    expect((await list(op, { context: 'platform' })).guides).toEqual([{ helpKey: 'page:client.overview', title: 'platform/operator', articleId: opRow }]);
+    expect((await list(op, { context: 'platform' })).guides).toEqual([{ helpKey: 'page:platform.agencies', title: 'platform/operator', articleId: opListed }]);
     expect((await get(op, { context: 'agency' }))!.title).toBe('ours');
   });
 
@@ -148,7 +149,15 @@ describe('get_page_guide names', () => {
     await guide({ audience: 'all' });
     expect((await get(viewer, forClient))!.sections[0]!.markdown).toBe('platform/all overview for your agency.');
     expect((await get(admin, { context: 'agency' }))!.sections[0]!.markdown).toBe('platform/all overview for Rival Monday.');
-    expect((await get(admin, { context: 'agency' }))!.sections[1]!.markdown).toContain('about your business');
+  });
+
+  it('{{client}} without a client name: "your business" for clients is never used for agency staff or operators', async () => {
+    await guide({ audience: 'all' });
+    await guide({ audience: 'all', helpKey: 'page:agency.portfolio' });
+    expect((await get(admin, { context: 'agency' }))!.sections[1]!.markdown).toContain('about the client');
+    expect((await get(op, { context: 'platform' }))!.sections[1]!.markdown).toContain('about the client');
+    expect((await get(admin, { context: 'agency', helpKey: 'page:agency.portfolio' }))!.sections[1]!.markdown).toContain('about the client');
+    expect((await get(admin, forClient))!.sections[1]!.markdown).toContain('about A1 HVAC');
   });
 });
 
@@ -166,9 +175,18 @@ describe('list_help_guides', () => {
       { helpKey: 'page:client.changes', title: 'Changes (ours)', articleId: mine },
       { helpKey: 'page:client.overview', title: 'Overview for A1 HVAC', articleId: exact },
     ]);
-    expect((await list(admin, { context: 'agency' })).guides.map((g) => [g.helpKey, g.title])).toEqual([
-      ['page:agency.portfolio', 'Portfolio'], ['page:client.changes', 'Changes (ours)'], ['page:client.overview', 'Overview (all)'],
+    expect((await list(admin, forClient)).guides.map((g) => [g.helpKey, g.title])).toEqual([
+      ['page:client.changes', 'Changes (ours)'], ['page:client.overview', 'Overview (all)'],
     ]);
-    expect((await list(op, { context: 'platform' })).guides.map((g) => g.helpKey)).toEqual(['page:agency.portfolio', 'page:client.overview', 'page:platform.agencies']); // client.changes: only an agency-level row is operator-visible
+    expect((await list(admin, { context: 'agency' })).guides.map((g) => [g.helpKey, g.title])).toEqual([['page:agency.portfolio', 'Portfolio']]);
+    expect((await list(op, { context: 'platform' })).guides.map((g) => g.helpKey)).toEqual(['page:platform.agencies']);
+  });
+
+  it("lists only the context's own area: client pages in client context, agency pages in agency context, platform pages in platform context", async () => {
+    for (const helpKey of ['page:client.overview', 'page:agency.portfolio', 'page:platform.agencies', 'page:account.profile']) await guide({ helpKey, audience: 'all' });
+    expect((await list(admin, forClient)).guides.map((g) => g.helpKey)).toEqual(['page:client.overview']);
+    expect((await list(viewer, forClient)).guides.map((g) => g.helpKey)).toEqual(['page:client.overview']);
+    expect((await list(admin, { context: 'agency' })).guides.map((g) => g.helpKey)).toEqual(['page:agency.portfolio']);
+    expect((await list(op, { context: 'platform' })).guides.map((g) => g.helpKey)).toEqual(['page:platform.agencies']);
   });
 });

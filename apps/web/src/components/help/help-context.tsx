@@ -1,12 +1,12 @@
 'use client';
-import type { ViewerAudience } from '@cs/core';
+import { NEUTRAL_AGENCY_NAME, type ViewerAudience } from '@cs/core';
 import { createContext, useContext, useEffect, useSyncExternalStore } from 'react';
 import { renderCopy } from '@/help/copy';
 
 export interface HelpValue { audience: ViewerAudience; names: { agency: string; assistant: string; client?: string } }
 
 /** Outside a provider: the most restrictive audience and neutral names. */
-const FALLBACK: HelpValue = { audience: 'client', names: { agency: 'your agency', assistant: 'your assistant' } };
+const FALLBACK: HelpValue = { audience: 'client', names: { agency: NEUTRAL_AGENCY_NAME, assistant: 'your assistant' } };
 
 const HelpContext = createContext<HelpValue>(FALLBACK);
 
@@ -20,7 +20,8 @@ export function useHelp(): HelpValue {
 
 /** A short-copy string (`PAGE_COPY`) rendered with the viewer's names; for server pages that pass copy into markup. */
 export function HelpText({ text }: { text: string }) {
-  return <>{renderCopy(text, useHelp().names)}</>;
+  const { names, audience } = useHelp();
+  return <>{renderCopy(text, names, audience)}</>;
 }
 
 /*

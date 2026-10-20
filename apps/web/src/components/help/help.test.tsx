@@ -191,6 +191,14 @@ describe('copy', () => {
     expect(renderCopy('{{client}} {other}', { agency: 'A', assistant: 'F', client: 'C' })).toBe('{C} {other}');
   });
 
+  it('renderCopy: a missing client reads "your business" to clients and "the client" to agency staff and operators', () => {
+    const n = { agency: 'A', assistant: 'F' };
+    expect(renderCopy('For {client}.', n, 'client')).toBe('For your business.');
+    expect(renderCopy('For {client}.', n, 'agency')).toBe('For the client.');
+    expect(renderCopy('For {client}.', n, 'operator')).toBe('For the client.');
+    expect(renderCopy('For {client}.', { ...n, client: 'C' }, 'agency')).toBe('For C.');
+  });
+
   it('resolveTip handles dotted page keys and unknown keys', () => {
     expect(resolveTip('client.changes.score')?.title).toBe('How the score works');
     expect(resolveTip('client.changes.nope')).toBeNull();
@@ -248,13 +256,28 @@ describe('EmptyState', () => {
     expect(seen).toHaveBeenCalledTimes(1);
     expect((seen.mock.calls[0]![0] as CustomEvent).detail).toEqual({ anchor: 'changes' });
   });
+
+  it('an audience-limited empty state renders only for viewers in that audience', () => {
+    const es = <EmptyState audience="agency" title="No upsells yet" body="Tag items for {client}." />;
+    const { rerender } = render(wrap('client', es));
+    expect(screen.queryByRole('heading', { name: 'No upsells yet' })).toBeNull();
+    rerender(wrap('agency', es));
+    expect(screen.getByRole('heading', { name: 'No upsells yet' })).toBeTruthy();
+    expect(screen.getByText('Tag items for the client.')).toBeTruthy();
+    rerender(wrap('operator', es));
+    expect(screen.getByRole('heading', { name: 'No upsells yet' })).toBeTruthy();
+    rerender(wrap('agency', <EmptyState audience="operator" title="Pool empty" body="b" />));
+    expect(screen.queryByRole('heading', { name: 'Pool empty' })).toBeNull();
+  });
 });
 
 describe('HelpText', () => {
-  it('renders short copy with the viewer names; a missing client reads "your business"', () => {
+  it('renders short copy with the viewer names; a missing client reads "your business" to clients, "the client" to agency staff', () => {
     const { rerender } = render(wrap('agency', <p><HelpText text="How {client} compares." /></p>, 'Bob HVAC'));
     expect(screen.getByText('How Bob HVAC compares.')).toBeTruthy();
     rerender(wrap('agency', <p><HelpText text="How {client} compares." /></p>));
+    expect(screen.getByText('How the client compares.')).toBeTruthy();
+    rerender(wrap('client', <p><HelpText text="How {client} compares." /></p>));
     expect(screen.getByText('How your business compares.')).toBeTruthy();
   });
 });

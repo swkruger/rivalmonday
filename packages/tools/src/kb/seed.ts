@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { GLOSSARY, type GlossaryTerm, type HelpAudience, KB_KINDS, type KbKind, lintKbText } from '@cs/core';
 import { type Db, kbArticle } from '@cs/db';
 import { and, eq, inArray, isNotNull } from 'drizzle-orm';
+import { PAGE_HELP_KEY } from '../tools/help';
 import { saveArticle } from './write';
 
 export interface SeedArticle {
@@ -39,6 +40,7 @@ export function parseGuideFile(name: string, text: string): { article?: SeedArti
   const audience = fm.audience ?? '';
   const body = m[2]!.trim();
   if (!helpKey) errors.push(`${name}: help_key is required`);
+  else if (!PAGE_HELP_KEY.test(helpKey)) errors.push(`${name}: help_key "${helpKey}" must match ${PAGE_HELP_KEY.source} (what get_page_guide accepts)`);
   if (title.length < 1 || title.length > 200) errors.push(`${name}: title is required (1 to 200 characters)`);
   if (!(AUDIENCES as readonly string[]).includes(audience)) errors.push(`${name}: unknown audience "${audience}" (use ${AUDIENCES.join(', ')})`);
 

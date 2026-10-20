@@ -142,6 +142,7 @@ describe('page guides and glossary', () => {
     await putGuide('y.md', guide('page:y', 'client', '## How to use it\n\nx\n\n## What this page tells you\n\ny\n\n## Common questions\n\nz'));
     await putGuide('z.md', guide('page:z', 'client', sections('\nAsk Friday about Rival Monday.')));
     await putGuide('w.agency.md', guide('page:w', 'client'));
+    await putGuide('Bad_Key.md', guide('page:Bad_Key', 'client'));
     const msg = await failure();
     expect(msg).toMatch(/client\.reviews\.md: help_key "page:client\.other" must be "page:client\.reviews"/);
     expect(msg).toMatch(/x\.md: unknown audience "nobody"/);
@@ -149,6 +150,7 @@ describe('page guides and glossary', () => {
     expect(msg).toMatch(/z\.md: Uses "Rival Monday"/);
     expect(msg).toMatch(/z\.md: Uses "Friday"/);
     expect(msg).toMatch(/w\.agency\.md: file-name audience "agency" does not match/);
+    expect(msg).toMatch(/Bad_Key\.md: help_key "page:Bad_Key" must match \^page:\[a-z0-9\.-\]\+\$/);
     expect(await rows()).toHaveLength(0);
   });
 

@@ -19,13 +19,13 @@ function useResolved(props: Props): Resolved | null {
   if ('tip' in props) {
     const tip = resolveTip(props.tip);
     if (!tip) return null;
-    const title = renderCopy(tip.title, names);
-    return { title, body: renderCopy(tip.body, names), guideAnchor: tip.guideAnchor, label: props.label ?? title, visible: ok.includes(tip.audience ?? 'all') };
+    const title = renderCopy(tip.title, names, audience);
+    return { title, body: renderCopy(tip.body, names, audience), guideAnchor: tip.guideAnchor, label: props.label ?? title, visible: ok.includes(tip.audience ?? 'all') };
   }
   const list = props.terms ?? GLOSSARY;
   const t = list.find((x) => x.id === props.term) ?? list.find((x) => x.term === props.term);
   if (!t) return null;
-  return { title: t.term, body: renderCopy(t.short, names), long: t.long ? renderCopy(t.long, names) : undefined, label: props.label ?? `What is ${t.term}?`, visible: ok.includes(t.audience) };
+  return { title: t.term, body: renderCopy(t.short, names, audience), long: t.long ? renderCopy(t.long, names, audience) : undefined, label: props.label ?? `What is ${t.term}?`, visible: ok.includes(t.audience) };
 }
 
 /** Hover opens only with a fine pointer; touch and keyboard use click/Enter/Space (Radix handles those). */

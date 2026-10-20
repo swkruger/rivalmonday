@@ -8,6 +8,8 @@ const m = vi.hoisted(() => ({
   refuse: false,
   fromEmail: null as string | null,
   glossary: [] as string[],
+  displayName: 'Acme',
+  anyShort: null as string | null,
 }));
 vi.mock('server-only', () => ({}));
 vi.mock('./tools', () => ({
@@ -22,11 +24,12 @@ vi.mock('./tools', () => ({
     return { results: m.results };
   },
 }));
-vi.mock('./theme', () => ({ themeForViewer: async () => ({ branding: { displayName: 'Acme', fromEmail: m.fromEmail }, assistantName: 'Penny' }) }));
+vi.mock('./theme', () => ({ themeForViewer: async () => ({ branding: { displayName: m.displayName, fromEmail: m.fromEmail }, assistantName: 'Penny' }) }));
 vi.mock('@cs/core', async (orig) => ({
   ...(await orig<typeof import('@cs/core')>()),
   glossaryFor: (a: string) => {
     m.glossary.push(a);
+    if (m.anyShort) return [{ id: 't', term: 'Term', audience: a, short: m.anyShort }];
     return a === 'client' ? [{ id: 't', term: 'Term', audience: 'client', short: 'Short for {agency}.' }] : [];
   },
 }));
@@ -38,7 +41,7 @@ const ctx = (role: Role) => createAccessContext({ agencyId: A, userId: 'u', role
 const viewer = (role: Role | 'guest', kind: 'user' | 'guest' | 'support' = 'user') => ({ kind, ctx: ctx(role === 'guest' ? 'client_viewer' : role), email: 'x@y.z' }) as never;
 
 beforeEach(() => {
-  m.calls = []; m.guides = []; m.results = []; m.refuse = false; m.fromEmail = null; m.glossary = [];
+  m.calls = []; m.guides = []; m.results = []; m.refuse = false; m.fromEmail = null; m.glossary = []; m.displayName = 'Acme'; m.anyShort = null;
 });
 
 describe('loadHelpIndex', () => {
@@ -63,6 +66,18 @@ describe('loadHelpIndex', () => {
     const r = await loadHelpIndex({ viewer: viewer('guest', 'guest'), ctx: ctx('client_viewer'), context: 'client', clientId: C });
     expect(m.glossary).toEqual(['operator', 'agency', 'agency', 'client']);
     expect(r.glossary).toEqual([{ id: 't', term: 'Term', short: 'Short for Acme.' }]);
+  });
+
+  it('names: the shell mapping ("your agency" on platform and for the Rival Monday default); {client} reads "the client" to agency staff', async () => {
+    m.anyShort = '{agency} for {client}.';
+    const short = async (role: Role, context: 'platform' | 'agency' | 'client') =>
+      (await loadHelpIndex({ viewer: viewer(role), ctx: ctx(role), context, ...(context === 'client' ? { clientId: C } : {}) })).glossary[0]!.short;
+    expect(await short('agency_admin', 'agency')).toBe('Acme for the client.');
+    expect(await short('agency_admin', 'platform')).toBe('your agency for the client.');
+    expect(await short('client_owner', 'client')).toBe('Acme for your business.');
+    m.displayName = 'Rival Monday';
+    expect(await short('agency_admin', 'agency')).toBe('your agency for the client.');
+    expect(await short('client_owner', 'client')).toBe('your agency for your business.');
   });
 
   it('searches only with a query: platform passes context, client passes the client id; results are trimmed', async () => {

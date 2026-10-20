@@ -13,12 +13,14 @@ import { kbNamesFor } from '../kb/names';
 const { defineTool } = toolkit<ToolDeps>();
 
 const HELP_CONTEXTS = ['platform', 'agency', 'client'] as const;
-const PAGE_KEY = /^page:[a-z0-9.-]+$/;
+type HelpContextName = (typeof HELP_CONTEXTS)[number];
+/** A page guide's help key (`page:<area>.<page>`); the seed checks guide files against it too. */
+export const PAGE_HELP_KEY = /^page:[a-z0-9.-]+$/;
 
 interface GuideRow { id: string; helpKey: string; title: string; bodyMd: string; level: string; audience: string }
 
 /** Resolves the caller's audience and checks the context: platform → operators only; any `clientId` → `canAccessClient`; client context needs one. */
-async function guideScope(deps: ToolDeps, ctx: AccessContext, input: { context: (typeof HELP_CONTEXTS)[number]; clientId?: string | undefined }): Promise<{ audience: ViewerAudience; clientName?: string }> {
+async function guideScope(deps: ToolDeps, ctx: AccessContext, input: { context: HelpContextName; clientId?: string | undefined }): Promise<{ audience: ViewerAudience; clientName?: string }> {
   const audience = await helpAudienceFor(deps, ctx, input.context);
   if (input.context === 'client' && !input.clientId) throw new ToolError('not_found', 'Client not found');
   if (!input.clientId) return { audience };
@@ -28,8 +30,16 @@ async function guideScope(deps: ToolDeps, ctx: AccessContext, input: { context: 
   return { audience, clientName: c.name };
 }
 
-/** Published guide rows the audience may see: platform rows and (outside platform context) the caller agency's own agency-level rows (RLS on top). */
-async function guideRows(deps: ToolDeps, ctx: AccessContext, audience: ViewerAudience, helpKey?: string): Promise<GuideRow[]> {
+/**
+ * A context lists only its own area's guides. 15b-2 decides where account guides (`page:account.*`, none yet) are listed.
+ */
+const LIST_PREFIX: Record<HelpContextName, string> = { client: 'page:client.%', agency: 'page:agency.%', platform: 'page:platform.%' };
+
+/**
+ * Published guide rows the audience may see: platform rows and (outside platform context) the caller agency's own
+ * agency-level rows (RLS on top). One `helpKey`, or (for the list) every guide of `context`'s area.
+ */
+async function guideRows(deps: ToolDeps, ctx: AccessContext, audience: ViewerAudience, key: { helpKey: string } | { context: HelpContextName }): Promise<GuideRow[]> {
   // Platform context reads platform rows only: an operator's own agency-level rows must not shadow operator guides.
   const levels = audience === 'operator' ? eq(kbArticle.level, 'platform') : or(eq(kbArticle.level, 'platform'), and(eq(kbArticle.level, 'agency'), eq(kbArticle.agencyId, ctx.agencyId)));
   const rows = await withTenant(deps.app, ctx, (tx) => tx.select({
@@ -37,7 +47,7 @@ async function guideRows(deps: ToolDeps, ctx: AccessContext, audience: ViewerAud
   }).from(kbArticle).where(and(
     eq(kbArticle.status, 'published'),
     isNotNull(kbArticle.helpKey),
-    helpKey ? eq(kbArticle.helpKey, helpKey) : like(kbArticle.helpKey, 'page:%'),
+    'helpKey' in key ? eq(kbArticle.helpKey, key.helpKey) : like(kbArticle.helpKey, LIST_PREFIX[key.context]),
     inArray(kbArticle.audience, visibleAudiences(audience)),
     levels,
   )));
@@ -79,12 +89,12 @@ export const getPageGuide = defineTool({
   name: 'get_page_guide',
   access: 'read',
   description: "The guide for one page, for the viewer's audience, split into its sections; null when the page has none.",
-  input: z.object({ helpKey: z.string().max(100).regex(PAGE_KEY), ...contextInput }),
+  input: z.object({ helpKey: z.string().max(100).regex(PAGE_HELP_KEY), ...contextInput }),
   output: z.object({ id: z.string(), title: z.string(), sections: z.array(z.object({ heading: z.string(), markdown: z.string() })) }).nullable(),
   permission: 'read',
   async handler(ctx, input, deps) {
     const { audience, clientName } = await guideScope(deps, ctx, input);
-    const row = preferred(await guideRows(deps, ctx, audience, input.helpKey), audience).get(input.helpKey);
+    const row = preferred(await guideRows(deps, ctx, audience, { helpKey: input.helpKey }), audience).get(input.helpKey);
     if (!row) return null;
     const names = await namesFor(deps, ctx, audience, clientName);
     return {
@@ -97,13 +107,13 @@ export const getPageGuide = defineTool({
 export const listHelpGuides = defineTool({
   name: 'list_help_guides',
   access: 'read',
-  description: "Every page guide the viewer's audience can open in this context, one per page, by help key.",
+  description: "Every page guide of this context's area (client, agency or platform pages) the viewer's audience can open, one per page, by help key.",
   input: z.object(contextInput),
   output: z.object({ guides: z.array(z.object({ helpKey: z.string(), title: z.string(), articleId: z.string() })) }),
   permission: 'read',
   async handler(ctx, input, deps) {
     const { audience, clientName } = await guideScope(deps, ctx, input);
-    const best = preferred(await guideRows(deps, ctx, audience), audience);
+    const best = preferred(await guideRows(deps, ctx, audience, { context: input.context }), audience);
     const names = await namesFor(deps, ctx, audience, clientName);
     return {
       guides: [...best.values()].sort((a, b) => a.helpKey.localeCompare(b.helpKey)).map((r) => ({ helpKey: r.helpKey, title: renderKbText(r.title, names), articleId: r.id })),

@@ -36,7 +36,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/settings/team` | admin | `fn:listTeam`, `list_clients` | — |
 | `/agency/settings/usage` | admin | `get_usage` | — |
 | `/agency/settings/slack-teams` | admin | `fn:listWebhooks` | — |
-| `/c/[clientId]` | admin | `get_client_profile`, `get_workspace_overview`, `get_ad_activity`, `get_brief`, `list_alerts`, `list_briefs`, `list_moves`, `list_recommendations`, `list_trend_reports`, `get_starting_point_status`, `get_client_setup`, `get_ask_starters` | — |
+| `/c/[clientId]` | admin | `get_client_profile`, `list_help_guides`, `get_workspace_overview`, `get_ad_activity`, `get_brief`, `list_alerts`, `list_briefs`, `list_moves`, `list_recommendations`, `list_trend_reports`, `get_starting_point_status`, `get_client_setup`, `get_ask_starters` | — |
 | `/c/[clientId] (client owner)` | ownerLoneStar | `get_starting_point_status`, `get_workspace_overview`, `list_briefs`, `get_brief` | — |
 | `/c/[clientId]/ads` | admin | `get_ad_activity`, `list_ads`, `get_client_profile` | `list_ads`: one competitor runs no ads |
 | `/c/[clientId]/alerts/[alertId]` | admin | `get_alert`, `get_client_profile`, `list_alerts` | — |
@@ -48,7 +48,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/briefs/[briefId] (starting point)` | ownerBrazos | `get_brief` | — |
 | `/c/[clientId]/briefs/[briefId] (starting point findings)` | ownerBrazos | `get_brief` | — |
 | `/c/[clientId]/briefs/[briefId] (quiet week)` | admin | `get_brief` | — |
-| `/c/[clientId]/changes` | admin | `search_events`, `get_event`, `compare_snapshots`, `list_client_competitors`, `get_client_profile` | — |
+| `/c/[clientId]/changes` | admin | `search_events`, `get_event`, `compare_snapshots`, `list_client_competitors`, `get_client_profile`, `list_help_guides` | — |
 | `/c/[clientId]/competitors` | admin | `get_client_profile`, `list_client_competitors`, `list_competitor_suggestions`, `get_competitor_search_status`, `get_competitor_signals` | — |
 | `/c/[clientId]/competitors/[competitorId]` | admin | `get_competitor_profile`, `get_competitor_timeline`, `list_tracked_pages`, `get_price_matrix`, `list_ads`, `get_theme_benchmark`, `get_geogrid`, `get_competitor_signals`, `get_competitor_ad_matches`, `get_client_profile` | — |
 | `/c/[clientId]/evidence/[evidenceId]` | admin | `get_evidence`, `get_client_profile` | — |
@@ -59,7 +59,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/rankings (Brazos)` | admin | `get_geogrid` | — |
 | `/c/[clientId]/recommendations` | admin | `get_client_profile`, `list_recommendations` | — |
 | `/c/[clientId]/reports/[reportId]` | admin | `get_trend_report`, `get_client_profile`, `list_trend_reports` | — |
-| `/c/[clientId]/reviews` | admin | `get_theme_benchmark`, `get_rating_trend`, `search_reviews`, `get_client_profile` | — |
+| `/c/[clientId]/reviews` | admin | `get_theme_benchmark`, `get_rating_trend`, `search_reviews`, `get_client_profile`, `list_help_guides` | — |
 | `/c/[clientId]/reviews (Brazos)` | admin | `get_rating_trend` | `search_reviews`: Brazos has no own business ("add your place id"); `search_reviews`: one competitor has no reviews |
 | `/c/[clientId]/settings/ai` | admin | `get_client_profile`, `list_api_tokens` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
 | `/c/[clientId]/settings/ai (client owner)` | ownerLoneStar | `get_client_profile`, `list_api_tokens` | — |
@@ -93,10 +93,10 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/platform/reviews` | operator | `list_decision_reviews` | — |
 | `/platform/verticals` | operator | `list_verticals` | `list_catalog_review`: the demo agencies add no business types; `list_catalog_review`: the demo agencies add no services; `count_catalog_review`: nothing waits for review in the demo |
 | `/platform/themes` | operator | `list_theme_proposals` | — |
-| `/agency/help` | admin | `search_knowledge` | `list_help_guides`: the seed has no page guides (`demo:reset` loads docs/help) |
-| `/c/[clientId]/help` | admin | `search_knowledge`, `get_client_profile` | `list_help_guides`: the seed has no page guides (`demo:reset` loads docs/help) |
-| `/c/[clientId]/help (client owner)` | ownerLoneStar | `search_knowledge`, `get_client_profile` | `list_help_guides`: the seed has no page guides (`demo:reset` loads docs/help) |
-| `/platform/help` | operator | `search_knowledge` | `list_help_guides`: the seed has no page guides (`demo:reset` loads docs/help) |
+| `/agency/help` | admin | `search_knowledge` | `list_help_guides`: the 15b-1 pilot has client page guides only |
+| `/c/[clientId]/help` | admin | `list_help_guides`, `search_knowledge`, `get_client_profile` | — |
+| `/c/[clientId]/help (client owner)` | ownerLoneStar | `list_help_guides`, `search_knowledge`, `get_client_profile` | — |
+| `/platform/help` | operator | `search_knowledge` | `list_help_guides`: the 15b-1 pilot has client page guides only |
 | `/settings/notifications` | admin | `fn:myNotificationSettings` | — |
 | `/sign-up` | public | — | sign-up form (paused copy while sign-ups are paused) |
 | `/sign-up/problem` | public | — | needs a signed-in user whose invite-link sign-up failed |

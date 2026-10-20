@@ -207,6 +207,17 @@ describe('help audience filter', () => {
     expect((await search(admin, { query: 'gadget' })).results[0]!.title).toBe('About Rival Monday');
   });
 
+  it('{{client}} with no client name reads "your business" to clients and "the client" to agency staff', async () => {
+    const id = await seed({ title: 'About {{client}}', body: 'How {{client}} gadgets compare.', chunks: ['How {{client}} gadgets compare.'] });
+    expect((await search(viewer, { query: 'gadgets' })).results[0]!.title).toBe('About your business');
+    expect((await search(admin, { query: 'gadgets' })).results[0]).toMatchObject({ title: 'About the client', chunks: ['How the client gadgets compare.'] });
+    const getA = (c: typeof admin) => registry.invoke(c, 'get_kb_article', { kbId: id }, web) as Promise<{ bodyMd: string }>;
+    expect((await getA(viewer)).bodyMd).toBe('How your business gadgets compare.');
+    expect((await getA(admin)).bodyMd).toBe('How the client gadgets compare.');
+    const fetched = (await registry.invoke(admin, 'fetch', { id: `knowledge:${id}` }, mcp)) as { title: string };
+    expect(fetched.title).toBe('About the client');
+  });
+
   it('get_kb_article and fetch refuse a guide outside the caller audience', async () => {
     const g = await guides();
     const getA = (c: typeof admin, kbId: string) => registry.invoke(c, 'get_kb_article', { kbId }, web);

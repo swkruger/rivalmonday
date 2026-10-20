@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chunkMarkdown, KB_CHUNK_CHARS, KB_MAX_CHUNKS, lintKbText, renderKbText } from './kb';
+import { chunkMarkdown, clientFallbackFor, KB_CHUNK_CHARS, KB_MAX_CHUNKS, lintKbText, renderKbText } from './kb';
 
 const names = { productName: 'Acme Spy', assistantName: 'Penny' };
 
@@ -82,6 +82,11 @@ describe('renderKbText {{client}}', () => {
     expect(renderKbText('Watching {{client}} / {{ client }}', { ...names, clientName: 'Acme HVAC' })).toBe('Watching Acme HVAC / Acme HVAC');
     expect(renderKbText('For {{client}}.', names)).toBe('For your business.');
     expect(renderKbText('For {{client}}.', { ...names, clientName: '  ' })).toBe('For your business.');
+  });
+  it('uses clientFallback when given (agency/operator readers: "the client"); a name still wins', () => {
+    expect(renderKbText('For {{client}}.', { ...names, clientFallback: clientFallbackFor(false) })).toBe('For the client.');
+    expect(renderKbText('For {{client}}.', { ...names, clientName: 'Acme HVAC', clientFallback: 'the client' })).toBe('For Acme HVAC.');
+    expect(clientFallbackFor(true)).toBe('your business');
   });
   it('lintKbText accepts {{client}} in platform articles', () => {
     expect(lintKbText('platform', 'How {{client}} compares, via {{product}} and {{assistant}}')).toEqual([]);

@@ -6,7 +6,7 @@ import { type AccessContext, isCurrentPdfKey, ToolError } from '@cs/core';
 import { databaseNameOf } from '@cs/db';
 import { openTestDbs, testUrls } from '@cs/db/test-helpers';
 import { createFsStore } from '@cs/storage';
-import { accessContextFor, createToolRegistry, getAgencyBranding, getReviewableAskThread, listInbox, listMemberships, listReviewableAskThreads, listTeam, listWebhooks, myNotificationSettings } from '@cs/tools';
+import { accessContextFor, createToolRegistry, getAgencyBranding, getReviewableAskThread, listInbox, listMemberships, listReviewableAskThreads, listTeam, listWebhooks, myNotificationSettings, seedKnowledge } from '@cs/tools';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { baseRoute, isNonEmpty, NO_DATA_ROUTES, pathExists, PUBLIC_SCREENS, README_MARKERS, renderCoverageTable, SCREENS, SHARED_READS, toolReadsOf, valueAt } from './coverage';
@@ -47,6 +47,8 @@ beforeAll(async () => {
   await resetDemoTables(dbs.owner);
   // Spec §8: the seed takes its expected database name; here it is the cs_test name.
   ids = await seedDemo({ ownerUrl: testUrls.owner, expected: databaseNameOf(testUrls.owner), store, salt: process.env.REVIEWER_HASH_SALT ?? TEST_SALT });
+  // As `demo:reset`: the real docs/help articles and page guides on top of the seed.
+  await seedKnowledge(dbs.service, fileURLToPath(new URL('../../../docs/help', import.meta.url)));
   for (const [key, u] of Object.entries(ids.users) as [DemoUserKey, DemoIds['users'][DemoUserKey]][]) {
     const [m] = await listMemberships(dbs.service, u.userId);
     contexts.set(key, await accessContextFor(dbs.service, u.userId, m!));

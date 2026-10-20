@@ -1,19 +1,22 @@
 'use client';
+import { type HelpAudience, visibleAudiences } from '@cs/core';
 import { OPEN_PAGE_GUIDE_EVENT, renderCopy } from '@/help/copy';
 import { useHelp, usePageGuideAvailable } from './help-context';
 
 /**
  * A teaching empty state: what this place is for, and the next step (`action`). `title` and `body` may carry the short-copy
  * placeholders (`{client}`, `{agency}`, `{assistant}`), filled with the viewer's names. "More in the guide" shows only
- * when `guideAnchor` is set and the page has a guide for this viewer.
+ * when `guideAnchor` is set and the page has a guide for this viewer. `audience` (default `all`) hides the empty state
+ * from viewers outside it, like a tip's audience.
  */
-export function EmptyState({ title, body, action, guideAnchor }: { title: string; body: string; action?: React.ReactNode; guideAnchor?: string }) {
-  const { names } = useHelp();
+export function EmptyState({ title, body, action, guideAnchor, audience = 'all' }: { title: string; body: string; action?: React.ReactNode; guideAnchor?: string; audience?: HelpAudience }) {
+  const { names, audience: viewer } = useHelp();
   const guide = usePageGuideAvailable();
+  if (!visibleAudiences(viewer).includes(audience)) return null;
   return (
     <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed border-border bg-surface p-6 text-ink">
-      <h3 className="text-base font-semibold">{renderCopy(title, names)}</h3>
-      <p className="max-w-prose text-sm text-muted-ink">{renderCopy(body, names)}</p>
+      <h3 className="text-base font-semibold">{renderCopy(title, names, viewer)}</h3>
+      <p className="max-w-prose text-sm text-muted-ink">{renderCopy(body, names, viewer)}</p>
       {action}
       {guideAnchor !== undefined && guide && (
         <button
