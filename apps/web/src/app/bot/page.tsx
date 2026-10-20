@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { Wordmark } from '@cs/ui';
+import { RIVAL_MONDAY_TOKENS } from '@cs/email/branding';
+import { themeVars, Wordmark } from '@cs/ui';
 import { BOT_TOKEN, BOT_USER_AGENT } from '@cs/collectors';
 
 /**
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 
 export default function BotPage() {
   return (
-    <main className="min-h-screen bg-canvas px-4 py-12 text-ink">
+    <main style={themeVars(RIVAL_MONDAY_TOKENS) as React.CSSProperties} className="min-h-screen bg-canvas px-4 py-12 text-ink">
       <div className="mx-auto max-w-[720px] space-y-5 leading-relaxed">
         <Wordmark />
         <h1 className="text-3xl font-bold">RivalMondayBot</h1>
