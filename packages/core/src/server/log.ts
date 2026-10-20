@@ -2,7 +2,8 @@ import { createRequire } from 'node:module';
 import pino from 'pino';
 
 export interface LogContext { requestId?: string; job?: string; jobId?: string; agencyId?: string; clientId?: string; role?: string }
-type LogFn = (o: object | string, msg?: string) => void;
+/** A bare message takes no second argument (pino would silently drop it); structured fields go first. */
+type LogFn = { (msg: string): void; (o: object, msg?: string): void };
 export interface Logger { debug: LogFn; info: LogFn; warn: LogFn; error: LogFn; child(ctx: LogContext): Logger }
 
 const SECRET_KEY = /token|secret|key|password|passwd|authorization|cookie|signature/i;
@@ -53,7 +54,7 @@ export function createLogger(opts: { level?: string; pretty?: boolean; destinati
 }
 
 function wrap(p: pino.Logger): Logger {
-  const fn = (level: 'debug' | 'info' | 'warn' | 'error'): LogFn => (o, msg) => {
+  const fn = (level: 'debug' | 'info' | 'warn' | 'error'): LogFn => (o: object | string, msg?: string) => {
     if (typeof o === 'string') p[level](o);
     else p[level](o, msg);
   };

@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import * as Sentry from '@sentry/node';
 import { resolveActiveEnvName } from '@cs/db';
 
 try {
@@ -189,6 +190,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     healthServer.close();
     await boss.stop({ graceful: true, timeout: 30_000, wait: true });
     await deps.close();
+    await Sentry.close(2000); // flush events captured just before SIGTERM; no-op without a client
     process.exit(0);
   });
 }

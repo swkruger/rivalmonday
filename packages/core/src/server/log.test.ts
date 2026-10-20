@@ -55,3 +55,12 @@ describe('createLogger', () => {
     expect(JSON.stringify(row)).not.toContain('sekret');
   });
 });
+
+describe('Logger types', () => {
+  it('rejects a second argument after a bare message (pino would drop it)', () => {
+    const log = createLogger({ level: 'silent' });
+    // @ts-expect-error a string first argument takes no msg
+    log.error('failed', 'extra');
+    log.error({ a: 1 }, 'ok');
+  });
+});

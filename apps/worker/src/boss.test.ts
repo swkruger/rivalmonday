@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createBoss, enqueue, registerJobs } from './boss';
 import { defineJob } from './jobs';
@@ -80,6 +80,8 @@ describe('job output (Phase 6c)', () => {
 });
 
 describe('job failures (Phase 7a1)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it('runs handlers through runJob, so a throw still fails the pg-boss job', async () => {
     vi.spyOn(workerLog, 'child').mockReturnValue({ ...workerLog, error: vi.fn() });
     const id = (await boss.send(failJob.name, {})) as string;
@@ -90,7 +92,6 @@ describe('job failures (Phase 7a1)', () => {
       if (Date.now() > deadline) throw new Error('timeout');
       await new Promise((r) => setTimeout(r, 300));
     }
-    vi.restoreAllMocks();
   });
 });
 

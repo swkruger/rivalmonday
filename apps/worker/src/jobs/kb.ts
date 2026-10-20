@@ -170,7 +170,7 @@ export function createKbJobs(deps: WorkerDeps, opts: { enqueueEmbed?: (articleId
           }
         } catch (e) {
           // One bad row (DB error) must not abort the rest; log the id only, never body text.
-          workerLog.error(`[kb-sync] article ${row.id} failed`, e instanceof Error ? e.name : 'error');
+          workerLog.error({ errName: e instanceof Error ? e.name : 'error' }, `[kb-sync] article ${row.id} failed`);
         }
       }
       workerLog.info(`[kb-sync] ${rows.length} articles, ${changed} changed`);
