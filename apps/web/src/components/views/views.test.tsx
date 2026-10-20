@@ -83,6 +83,12 @@ describe('BriefView starting point and quiet week', () => {
 });
 
 describe('BriefView', () => {
+  it('words the confidence, not only the amber border', () => {
+    render(<BriefView brief={{ ...brief, items: [item(1, { confidence: 0.9 }), item(2, { confidence: 0.6 })] }} agency={false} />);
+    expect(screen.getByText('High confidence 90%')).toBeTruthy();
+    expect(screen.getByText('Confidence 60%')).toBeTruthy();
+  });
+
   it('opens the PDF in a new browser tab', () => {
     render(<BriefView brief={brief} agency={false} />);
     const a = screen.getByRole('link', { name: 'Download PDF' });

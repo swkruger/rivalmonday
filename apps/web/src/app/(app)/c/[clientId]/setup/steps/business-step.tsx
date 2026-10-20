@@ -1,6 +1,7 @@
 'use client';
 import { Button, Input, Label } from '@cs/ui';
 import { useState } from 'react';
+import { FieldHint, useFieldHint } from '@/components/help/field-hint';
 import { WriteGuard } from '@/components/read-only';
 import type { ClientSetupView } from '../types';
 
@@ -49,11 +50,23 @@ const toggled = (set: Set<string>, v: string) => {
  * Step 1. A controlled form (React 19 resets an uncontrolled `<form action>` after every action). Suggestions arrive
  * while the agency is already typing: new ones are merged in pre-ticked, never overwriting what is already chosen.
  */
-export function BusinessStep({ view, profile, pending, onSave }: { view: ClientSetupView; profile: ProfileInitial; pending: boolean; onSave: (fd: FormData) => void }) {
+/** Save errors about the fields inside "Advanced" (source: apps/web/src/server/forms.ts:parseClientProfileForm centre message). */
+const ADVANCED_ERROR = /centre|latitude|longitude|place id/i;
+
+export function BusinessStep({ view, profile, pending, onSave, error = null }: { view: ClientSetupView; profile: ProfileInitial; pending: boolean; onSave: (fd: FormData) => void; error?: string | null }) {
   const ready = readySuggestions(view.suggestions);
   const waiting = view.suggestions.status === 'pending';
   const area = profile.serviceArea;
   const { lookup } = view;
+  const centerHint = useFieldHint('center');
+  const placeHint = useFieldHint('placeId');
+  // "Advanced" stays closed unless a save error is about one of its fields; the agency can still toggle it.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [seenError, setSeenError] = useState<string | null>(null);
+  if (error !== seenError) {
+    setSeenError(error);
+    if (error && ADVANCED_ERROR.test(error)) setAdvancedOpen(true);
+  }
 
   const [services, setServices] = useState(() => new Set([...profile.services, ...(ready?.services.map((s) => s.value) ?? [])]));
   const [keywords, setKeywords] = useState(() => new Set([...profile.keywords, ...(ready?.keywords.map((s) => s.value) ?? [])]));
@@ -141,10 +154,6 @@ export function BusinessStep({ view, profile, pending, onSave }: { view: ClientS
         <legend className="mb-1 font-semibold">Service area</legend>
         <div className="flex flex-wrap gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="center">Map centre (latitude, longitude)</Label>
-            <Input id="center" name="center" placeholder="33.95, -84.33" value={center} onChange={(e) => setCenter(e.target.value)} className="w-64" />
-          </div>
-          <div className="flex flex-col gap-2">
             <Label htmlFor="radiusKm">Radius (km)</Label>
             <Input id="radiusKm" name="radiusKm" type="number" min={2} max={40} step="any" inputMode="decimal" value={radius} onChange={(e) => setRadius(e.target.value)} className="w-28" />
           </div>
@@ -155,11 +164,21 @@ export function BusinessStep({ view, profile, pending, onSave }: { view: ClientS
         <textarea id="towns" name="towns" value={towns} onChange={(e) => setTowns(e.target.value)} className={areaClass} />
       </fieldset>
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="placeId">Google place id</Label>
-        <Input id="placeId" name="placeId" value={placeId} onChange={(e) => setPlaceId(e.target.value)} className="max-w-md" />
-        <p className="text-sm text-muted-foreground">Lets us benchmark the business’s own reviews against its competitors.</p>
-      </div>
+      <details open={advancedOpen} onToggle={(e) => setAdvancedOpen(e.currentTarget.open)} className="text-sm">
+        <summary className="cursor-pointer font-semibold">Advanced</summary>
+        <div className="mt-3 flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="center">Map centre (latitude, longitude)</Label>
+            <Input id="center" name="center" placeholder="33.95, -84.33" value={center} onChange={(e) => setCenter(e.target.value)} className="w-64" {...centerHint.describedBy} />
+            <FieldHint id="center">The middle of the service area, filled in from the Google lookup. Change it only if the business serves around a different point. The radius is measured from here.</FieldHint>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="placeId">Google place id</Label>
+            <Input id="placeId" name="placeId" value={placeId} onChange={(e) => setPlaceId(e.target.value)} className="max-w-md" {...placeHint.describedBy} />
+            <FieldHint id="placeId">Identifies the business’s Google listing. It lets us benchmark the business’s own reviews against its competitors. Leave it as found unless the listing is wrong.</FieldHint>
+          </div>
+        </div>
+      </details>
 
       <WriteGuard>
         <Button type="submit" disabled={pending} className="self-start">Save and find competitors</Button>

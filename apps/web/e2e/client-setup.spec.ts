@@ -124,6 +124,7 @@ test.describe('client owner', () => {
     await newChip.check();
 
     await page.getByLabel('Add your own (one per line)').fill('emergency furnace repair');
+    await page.getByText('Advanced', { exact: true }).click(); // map centre and place id live in the closed Advanced disclosure
     await page.getByLabel('Map centre (latitude, longitude)').fill('32.4, -97.79');
     await page.getByLabel('Radius (km)').fill('20');
     await page.getByLabel('ZIP codes served').fill('76048');

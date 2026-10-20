@@ -8,4 +8,18 @@ describe('PressureBadge', () => {
     render(<PressureBadge score={86} level="high" />);
     expect(screen.getByLabelText('Competitive pressure 86 of 100, high')).toBeTruthy();
   });
+
+  it.each([
+    [86, 'high', 'High pressure'],
+    [70, 'high', 'High pressure'],
+    [55, 'elevated', 'Medium pressure'],
+    [40, 'elevated', 'Medium pressure'],
+    [12, 'low', 'Low pressure'],
+    [0, 'low', 'Quiet'],
+  ] as const)('score %i (%s) shows visible text "%s" next to the number', (score, level, text) => {
+    const { container } = render(<PressureBadge score={score} level={level} />);
+    const label = screen.getByText(text);
+    expect(label.className).not.toContain('sr-only');
+    expect(container.textContent).toContain(String(score));
+  });
 });

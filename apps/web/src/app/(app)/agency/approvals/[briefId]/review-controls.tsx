@@ -2,6 +2,7 @@
 import type { BriefItemView } from '@cs/tools';
 import { Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, Switch } from '@cs/ui';
 import { useActionState, useOptimistic, useState, useTransition } from 'react';
+import { confidenceLabel } from '@/components/confidence-label';
 import { EvidenceChips } from '@/components/evidence-chips';
 import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
@@ -163,7 +164,7 @@ export function ReviewItem({ briefId, clientId, item, editable, first, last }: {
   return (
     <article
       id={`item-${item.id}`}
-      className={`rounded-r-[10px] border-l-[3px] bg-muted-surface px-3.5 py-3 ${item.confidence >= 0.85 ? 'border-amber' : 'border-primary'} ${dropped ? 'opacity-60' : ''}`}
+      className={`rounded-r-[10px] border-l-[3px] bg-muted-surface px-3.5 py-3 ${confidenceLabel(item.confidence).high ? 'border-amber' : 'border-primary'} ${dropped ? 'opacity-60' : ''}`}
     >
       <h3 className="mb-1.5 text-[15px] font-bold">{item.headline}</h3>
       <p className="my-1">
@@ -177,7 +178,7 @@ export function ReviewItem({ briefId, clientId, item, editable, first, last }: {
         <EvidenceChips clientId={clientId} ids={item.evidenceIds} />
         {item.upsellTag && <span className="rounded-md bg-[#FFF3DC] px-2 py-0.5 text-xs font-semibold text-accent-text">Upsell: {item.upsellTag}</span>}
         {dropped && <Badge variant="outline">Dropped</Badge>}
-        <span className="ml-auto rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">Confidence {Math.round(item.confidence * 100)}%</span>
+        <span className="ml-auto rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">{confidenceLabel(item.confidence).text}</span>
       </div>
       <WriteGuard>
         <div className="mt-3 flex flex-wrap items-center gap-2">

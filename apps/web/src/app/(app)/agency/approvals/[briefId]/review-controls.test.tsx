@@ -32,6 +32,13 @@ describe('approval review controls', () => {
     expect(screen.getByRole('link', { name: 'Evidence 1' }).getAttribute('href')).toBe('/c/c1/evidence/e1');
   });
 
+  it('words the confidence next to the amber border', () => {
+    const { rerender } = render(<ReviewItem briefId="b1" clientId="c1" item={item} editable first last />);
+    expect(screen.getByText('High confidence 90%')).toBeTruthy();
+    rerender(<ReviewItem briefId="b1" clientId="c1" item={{ ...item, confidence: 0.6 }} editable first last />);
+    expect(screen.getByText('Confidence 60%')).toBeTruthy();
+  });
+
   it('is read-only once approved, but still ratable', () => {
     render(<ReviewItem briefId="b1" clientId="c1" item={item} editable={false} first last />);
     expect(screen.queryByRole('button', { name: /edit/i })).toBeNull();
