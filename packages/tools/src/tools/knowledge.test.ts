@@ -196,6 +196,8 @@ describe('help audience filter', () => {
     expect(ids(await search(opCtx, { query: 'widget', context: 'platform' }, opReg)).sort()).toEqual([g.all, g.agency, g.operator].sort());
     expect(ids(await search(opCtx, { query: 'widget' }, opReg)).sort()).toEqual([g.all, g.agency].sort());
     for (const c of [admin, viewer]) await expect(search(c, { query: 'widget', context: 'platform' }, opReg)).rejects.toMatchObject({ code: 'not_found' });
+    // On ask/mcp the model picks the arguments: `context` is ignored, so an operator gets no operator rows there.
+    for (const meta of [ask, mcp]) expect(ids(await search(opCtx, { query: 'widget', context: 'platform' }, opReg, meta)).sort(), meta.channel).toEqual([g.all, g.agency].sort());
   });
 
   it('client-audience results never name Rival Monday', async () => {

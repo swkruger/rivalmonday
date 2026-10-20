@@ -28,8 +28,10 @@ async function guideScope(deps: ToolDeps, ctx: AccessContext, input: { context: 
   return { audience, clientName: c.name };
 }
 
-/** Published guide rows the audience may see: platform rows and the caller agency's own agency-level rows (RLS on top). */
+/** Published guide rows the audience may see: platform rows and (outside platform context) the caller agency's own agency-level rows (RLS on top). */
 async function guideRows(deps: ToolDeps, ctx: AccessContext, audience: ViewerAudience, helpKey?: string): Promise<GuideRow[]> {
+  // Platform context reads platform rows only: an operator's own agency-level rows must not shadow operator guides.
+  const levels = audience === 'operator' ? eq(kbArticle.level, 'platform') : or(eq(kbArticle.level, 'platform'), and(eq(kbArticle.level, 'agency'), eq(kbArticle.agencyId, ctx.agencyId)));
   const rows = await withTenant(deps.app, ctx, (tx) => tx.select({
     id: kbArticle.id, helpKey: kbArticle.helpKey, title: kbArticle.title, bodyMd: kbArticle.bodyMd, level: kbArticle.level, audience: kbArticle.audience,
   }).from(kbArticle).where(and(
@@ -37,7 +39,7 @@ async function guideRows(deps: ToolDeps, ctx: AccessContext, audience: ViewerAud
     isNotNull(kbArticle.helpKey),
     helpKey ? eq(kbArticle.helpKey, helpKey) : like(kbArticle.helpKey, 'page:%'),
     inArray(kbArticle.audience, visibleAudiences(audience)),
-    or(eq(kbArticle.level, 'platform'), and(eq(kbArticle.level, 'agency'), eq(kbArticle.agencyId, ctx.agencyId))),
+    levels,
   )));
   return rows as GuideRow[];
 }

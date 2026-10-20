@@ -96,7 +96,7 @@ export const searchKnowledge = defineTool({
     clientId: z.string().uuid().optional(),
     kinds: z.array(z.enum(KB_KINDS)).min(1).max(KB_KINDS.length).optional(),
     limit: z.number().int().min(1).max(8).default(5),
-    /** 15b: `platform` (the platform Help page) adds operator help and is refused (`not_found`) for non-operators. */
+    /** 15b: `platform` (the platform Help page) adds operator help and is refused (`not_found`) for non-operators. Web only; ignored on ask/mcp. */
     context: z.enum(['platform', 'agency', 'client']).optional(),
   }),
   output: z.object({
@@ -105,7 +105,8 @@ export const searchKnowledge = defineTool({
   permission: 'read',
   channels: ['web', 'mcp', 'ask'],
   async handler(ctx, input, deps, meta) {
-    const audience = await helpAudienceFor(deps, ctx, input.context);
+    // `context` is honoured on web only: on ask/mcp the model picks the arguments, so it must never widen the audience.
+    const audience = await helpAudienceFor(deps, ctx, meta.channel === 'web' ? input.context : undefined);
     const hits = await searchKnowledgeHits(deps, ctx, input.clientId ?? null, input.query, input.kinds, input.limit, { audience });
     const names = await kbNamesFor(deps.service, ctx.agencyId, { clientFacing: audience === 'client' });
     return {

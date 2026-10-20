@@ -114,6 +114,15 @@ describe('get_page_guide access', () => {
     expect((await get(op, { context: 'platform' }))!.title).toBe('platform/operator');
   });
 
+  it("platform context ignores the operator's own agency-level rows", async () => {
+    const opRow = await guide({ audience: 'operator' });
+    await guide({ level: 'agency', audience: 'all', title: 'ours' });
+    await guide({ level: 'agency', audience: 'all', helpKey: 'page:agency.portfolio', title: 'ours only' });
+    expect((await get(op, { context: 'platform' }))!.id).toBe(opRow);
+    expect((await list(op, { context: 'platform' })).guides).toEqual([{ helpKey: 'page:client.overview', title: 'platform/operator', articleId: opRow }]);
+    expect((await get(op, { context: 'agency' }))!.title).toBe('ours');
+  });
+
   it('a foreign or missing client is not_found', async () => {
     await guide({ audience: 'all' });
     await expect(get(viewer, { context: 'client', clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
@@ -160,6 +169,6 @@ describe('list_help_guides', () => {
     expect((await list(admin, { context: 'agency' })).guides.map((g) => [g.helpKey, g.title])).toEqual([
       ['page:agency.portfolio', 'Portfolio'], ['page:client.changes', 'Changes (ours)'], ['page:client.overview', 'Overview (all)'],
     ]);
-    expect((await list(op, { context: 'platform' })).guides.map((g) => g.helpKey)).toEqual(['page:agency.portfolio', 'page:client.changes', 'page:client.overview', 'page:platform.agencies']);
+    expect((await list(op, { context: 'platform' })).guides.map((g) => g.helpKey)).toEqual(['page:agency.portfolio', 'page:client.overview', 'page:platform.agencies']); // client.changes: only an agency-level row is operator-visible
   });
 });
