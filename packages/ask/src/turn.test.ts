@@ -247,7 +247,7 @@ describe('runTurn', () => {
   it('deadline re-checked after a slow tool batch', async () => {
     let t = 1_000_000;
     onSearch = () => {
-      t += 65_000; // 65 s < 90 s deadline, but under the 30 s final-call reserve
+      t += 65_000; // 65 s < 90 s deadline, but inside the 45 s final-call reserve
     };
     const { ai, trace, last } = await turn(
       [
@@ -261,6 +261,22 @@ describe('runTurn', () => {
     expect(ai.calls.chat[1]!.toolChoice).toBe('none');
     expect(trace.deadlineHit).toBe(true);
     expect(last.status).toBe('ok');
+  });
+
+  it('final-call reserve is 45 s (46 s into a 90 s turn forces the final call)', async () => {
+    let t = 1_000_000;
+    onSearch = () => {
+      t += 46_000; // a 30 s reserve would still allow another tool round here
+    };
+    const { ai, trace } = await turn(
+      [
+        { kind: 'chat', reply: { toolCalls: [search] } },
+        { kind: 'chat', reply: { text: `Reserve answer [ev:${EV1}].` } },
+      ],
+      { extra: { now: () => new Date(t) } },
+    );
+    expect(ai.calls.chat[1]!.toolChoice).toBe('none');
+    expect(trace.deadlineHit).toBe(true);
   });
 
   it('write tool becomes proposed action and is never invoked', async () => {

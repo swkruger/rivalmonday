@@ -3,7 +3,7 @@ import { askDeps, handleAskTurn } from '@/server/ask';
 import { getViewerForClient } from '@/server/current-viewer';
 
 export const runtime = 'nodejs';
-export const maxDuration = 120;
+export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
 /** Ask a question (6b): an SSE stream of `AskEvent`s. The turn outlives a client disconnect (`after` keeps it alive). */

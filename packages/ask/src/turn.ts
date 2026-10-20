@@ -12,8 +12,11 @@ import { progressLabel } from './labels';
 import { ASK_STEP_LIMIT, buildSystemPrompt } from './prompt';
 import { ASK_COPY } from './quota';
 
-/** The forced final (`toolChoice: 'none'`) call starts once less than this remains before the turn deadline. */
-const FINAL_CALL_RESERVE_MS = 30_000;
+/**
+ * The forced final (`toolChoice: 'none'`) call starts once less than this remains before the turn deadline. Covers one
+ * `ask_assistant` worst case (ai.yaml: 20 s timeout x 2 attempts) plus overhead; the route's `maxDuration` is 300 s.
+ */
+const FINAL_CALL_RESERVE_MS = 45_000;
 
 export type { AskAction } from './actions';
 
@@ -339,8 +342,8 @@ export async function runTurn(
   async function loop(): Promise<Outcome> {
     let draft = '';
     for (let step = 0; ; step++) {
-      // Re-checked after every tool batch (loop top). A model call can take up to its 60 s HTTP timeout, so the forced final
-      // call must start while FINAL_CALL_RESERVE_MS of the budget is still left.
+      // Re-checked after every tool batch (loop top). An `ask_assistant` call can take up to 20 s x 2 attempts (ai.yaml), so
+      // the forced final call must start while FINAL_CALL_RESERVE_MS of the budget is still left.
       const overDeadline = now().getTime() - started >= deadlineMs - Math.min(FINAL_CALL_RESERVE_MS, deadlineMs / 2);
       if (overDeadline) trace.deadlineHit = true;
       const last = step >= stepLimit || overDeadline;
