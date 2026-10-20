@@ -1,64 +1,46 @@
 # phase-15b — help system and per-page help
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15b   **Base:** main @ b38e36ba
+**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-15b   **Base:** main @ b38e36ba
 **Spec:** [2026-10-19-phase-15b-help-system-design.md](../superpowers/specs/2026-10-19-phase-15b-help-system-design.md). **Plan/spec:** inputs [15 spec](../superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) §1 D6–D7, §2.7, §4 · [audit](../research/2026-10-18-phase-15-ux-audit.md) · [inventory](../research/2026-10-18-phase-15-page-inventory.md) · [6c KB spec](../superpowers/specs/2026-10-12-phase-6c-knowledge-design.md). 15b spec addendum + plan: not written.
 
 ## Status (overwrite)
-2026-10-19: 15b-1 plan owner-approved; **execution started** (SDD). Pre-flight done: rebased on main (Phase 14), `pnpm install`, test DB `cs_phase_15b_test` (local cluster).
+2026-10-20: **15b-1 built and reviewed — ready to merge after owner copy sign-off.** Tasks 0–11 done (SDD, per-task reviews + final whole-branch review on the most capable model, one fix wave). `pnpm test:affected --base main` 15/15 packages (6,119 tests) green; `e2e:affected --base main --full` 117/117 (E2E_PORT=3101). Test DB `cs_phase_15b_test`.
 
 ## Next (overwrite)
-Execute 15b-1 Tasks 1–11 (SDD ledger in `.superpowers/sdd/2026-10-19-phase-15b1-help-system/`). 15b-2 plan after 15b-1 merges.
+1. Owner: sign off [archive/phase-15b1-copy-signoff.md](../archive/phase-15b1-copy-signoff.md) (10 questions at the end) — B3 merge gate; copy edits go in before merge.
+2. `/rm-merge phase-15b` with the owner's go-ahead (phase-7 then renumbers its migrations to 0081+).
+3. 15b-2 plan after merge (content wave; first decide where `page:account.*` guides list, enforce the coverage test from spec §8).
 
 ## Interfaces this branch adds or changes
-- Migration **0080** `kb_help_key` (`kb_article.help_key`, `audience`) — phase-7 must start at 0081 if 15b merges first.
-- Planned: `@cs/core` `help/*` (`HelpAudience`, glossary), tools `get_page_guide`/`list_help_guides` (web), `search_knowledge` audience filter, `HelpTip`/`FieldHint`/`EmptyState`/`PageGuide`, Help pages `/platform/help`, `/agency/help`, `/c/<id>/help`.
+- Migration **0080** `kb_help_key`: `kb_article.help_key` (nullable), `audience` (`all|agency|client|operator`, default `all`), partial unique index (help_key, audience, level, agency). phase-7 must start at **0081**.
+- `@cs/core`: `help/*` — `HelpAudience`, `ViewerAudience`, `visibleAudiences`, `viewerAudience`, `GlossaryTerm`, `GLOSSARY` (26 terms), `glossaryFor`, `filterGlossary`; `renderKbText` `{{client}}` (fallback "your business" for client audience, "the client" otherwise); `NEUTRAL_AGENCY_NAME`.
+- `@cs/tools`: web-only `get_page_guide`, `list_help_guides` (context-prefixed `page:<context>.%`); audience filter on `search_knowledge` (+ optional `context`, honoured on web only; `platform` = operator-only), `get_kb_article`, `fetch knowledge:`, workspace `search`; `kb/audience.ts` (`roleAudience`, `helpAudienceFor`); `kbNamesFor(..., { clientFacing })`; `seedKnowledge(db, dir, userId, { glossary? })` also seeds `docs/help/pages/*.md` + glossary rows (`SaveExtra` gains helpKey/audience/clientVisible).
+- Web: `components/help/*` (`HelpProvider`/`useHelp`, `HelpTip`, `FieldHint`, `EmptyState`, `PageGuide`, `help-index`, `ClientHelpName`), `help/copy/*` (`PAGE_COPY`, `renderCopy`, `OPEN_PAGE_GUIDE_EVENT`), `server/help.ts` (`helpGuides`, `helpClientName`, `helpAgencyName`), `loadPageGuide` action; `PageHeader` `guide?`; new `c/[clientId]/layout.tsx` (client name for help copy); Help pages `/platform/help`, `/agency/help`, `/c/<id>/help`; avatar menu Help link (`AvatarMenu` requires `switcher`); `NavRoleFlags.clientAi` (support viewers see the AI connection tab); switcher pin button outside `role=option`.
+- E2E: `@help` tag, `e2e/help.spec.ts`; E2E seed runs `seedKnowledge` on `docs/help`; demo coverage seeds `docs/help`.
 
 ## Assumes from other branches
-- `phase-14b` merges first or 15b rebases onto it; its pages need keys (below).
+- None open (phase-14b merged; rebased on main b38e36ba).
 
 ## Decisions (owner-approved)
 B1–B10 in the spec §1: split 15b-1 system / 15b-2 content; audience all/agency/client/operator; Claude drafts, owner signs off per batch; Help pages per context; guides citable by Ask/MCP (audience-filtered); 15b-1 after 14b merges; guides = repo Markdown via kb:seed; short copy = TS constants, glossary = typed list in @cs/core; placeholders + neutral fallback; tour/override editor/analytics/new hints → backlog.
 
+
+**Execution rulings (Claude, 15b-1 SDD — reversible):** R1 `HelpAudience` type created in Task 1 (db→core dependency). R2 tool shapes per plan (flat `list_help_guides`, markdown sections, `context` input). R3 glossary seed key `glossary:<id>#<audience>`. R4 "Ask about this page" uses `?q=` (auto-sends). R5 migration 0080 claimed. R6 no "Open full article" in platform context. R7 `HelpProvider` mounted in app-shell. R8 nested client-name provider via new `c/[clientId]/layout.tsx`. R9 platform Help links open `/platform/knowledge/<id>` (seed rows read-only there). R10 final fix wave included cheap hardening (context-prefixed guide list, shared agency-name helper, "the client" fallback, seed key regex, EmptyState audience guard).
+
 ## New backlog (target → item)
+15b-2 → decide where `page:account.*` guides list; `EmptyState` everywhere with audience; strip Markdown from Help search excerpts; Help search button focus ring check. Soon → `c/[clientId]/layout.tsx` adds an audited `get_client_profile` read per agency request (resolve the name from the switcher list instead); seed imports `PAGE_HELP_KEY` from `tools/help` (move to a shared module); `docs/help/asking-the-assistant.md` "Cancelled." spelling.
 Unscheduled → product tour; agency guide override editor; console editor for platform guides; help-usage analytics; first-visit "new" hints (B10).
 
 ## Owner verification steps
-TBD.
+After merge: `pnpm db:migrate` on `cs_dev` (0080), then `pnpm kb:seed` (guides + glossary; the hourly `kb-embed` sweep fills vectors). `pnpm demo:reset` picks up `docs/help`.
+1. Client owner on Overview / Changes / Reviews: "? Guide" opens the client version; no agency wording (routing, upsell, seats); `?` tips open on click/tap/Enter and hover; "More in the guide →" jumps to the section.
+2. Agency admin on the same pages: agency version of the Overview guide; tips mention the client by name.
+3. White-label agency without a display name: guides/tips/Help pages say "your agency" and the agency's assistant name, never "Rival Monday".
+4. `/c/<id>/help` and `/agency/help`: search finds guides; glossary A–Z shows client terms only for client owners ("Upsell tag" only for agency); "Contact your agency" uses the agency sender email when set.
+5. "Ask {assistant} about this page" sends "Explain the Overview page" (auto-sends, ruling R4). Hidden in support sessions.
+6. `/platform/help` as operator; Avatar menu → Help opens the current context's page.
+7. Support session: AI connection settings tab visible read-only; switcher pin button still works by mouse and Tab.
+8. Copy sign-off doc answered.
 
 ## Brief
-
-**1. Scope** (spec §4, D6, D7, §2.7)
-- Help layers 1–4 on every page: description (`PageHeader.description`), `?` tips on metrics/terms, teaching empty states, **"? Guide" drawer**. Product tour → backlog (D6).
-- Components: `HelpTip` (popover; tap + keyboard), `FieldHint` (`aria-describedby`), `PageGuide` (Sheet reading the KB article for `PageHeader.helpKey`).
-- Content keyed `page:<context>.<page>` (e.g. `page:client.reviews`), platform-authored, white-label placeholders, never "Rival Monday" client-facing; same key at agency level = later override (editor → backlog) (D7). One guide per page key.
-- Glossary/terminology pass (audit §3 Terminology); Help index `/agency/help`, `/c/<id>/help` (`/kb/[id]` = article view, audit §2.5); avatar-menu Help link (§2.9).
-
-**2. Already built — reuse, don't rebuild** (`apps/web/src/` unless noted)
-- `components/page-header.tsx`: `helpKey?` accepted, renders nothing; 59/79 pages use `PageHeader`, none pass a key.
-- `@cs/ui` (`packages/ui/src/components/`): Tooltip (used once, `components/rival/signal-pills.tsx`), Popover, Sheet, Dialog, Command, Tabs.
-- `components/stat-card.tsx` (`hint`), `components/form-error.tsx` (`ErrorNote`), `components/agency/onboarding-checklist.tsx`, `components/read-only.tsx` (`ReadOnlyProvider`).
-- KB: `kb_article`/`kb_chunk` (0045/0046; levels platform/agency/client, kinds help|playbook|qa|blog|fact, `seed_key` UNIQUE, **no page-key column**); `search_knowledge` (web/ask/mcp) + `get_kb_article` (web, **by id only**) in `packages/tools/src/tools/knowledge.ts`; `renderKbText`/`lintKbText` (`{{product}}`, `{{assistant}}`) in `packages/core/src/kb.ts`; `kbNamesFor` (`packages/tools/src/kb/names.ts`, falls back to "Rival Monday").
-- `components/kb/article-sheet.tsx` (lazy `loadKbArticle`, `app/(app)/kb/actions.ts`), `components/kb/article-view.tsx` (`KbArticleView`, level labels), `app/(app)/kb/[id]`; `/platform/knowledge`, `/new`, `/[id]` (seed rows read-only).
-- `docs/help/*.md` (3 articles) + `pnpm kb:seed` (`apps/worker/src/cli/kb-seed.ts`, `packages/tools/src/kb/seed.ts`); demo `packages/demo/src/kb.ts`.
-- `components/shell/avatar-menu.tsx` ("Help joins in 15b"), `components/shell/nav-items.ts` (`navFor`, `settingsNavFor` = page labels/keys).
-- White-label: `displayNameFor`/`NEUTRAL_PRODUCT_NAME` (`packages/mcp/src/branding.ts`), `assistantNameFor` (`server/ask.ts`); access-level copy in `app/oauth/consent/consent-form.tsx`.
-
-**3. Binding** — root `CLAUDE.md` § Decisions (incl. "UX & IA (Phase 15)"; nothing client-facing names Rival Monday; Friday renamable → always `assistantName`); spec D1–D15 (esp. D6, D7); 6c k1–k11 (operator-only authoring, read-time placeholders, `search_knowledge`); 15a rulings (STATE "Next up" 8: labels, "Business profile", Ask disclosure "…reviewed by our support team…", title = menu label). Never reopen.
-
-**4. Backlog to fold in** (verbatim)
-- "**15b** help system: `HelpTip`/`FieldHint`/`PageGuide` (KB articles keyed `page:<context>.<page>`, `PageHeader.helpKey`), teaching empty states, glossary pass, Help pages — spec 2026-10-18 §4; audit §2–§3 items tagged 15b. Also: pin button nested in `role=option` (a11y); support viewers have no AI connection settings tab — *phase-15a*"
-- "Knowledge base: file upload (PDF/DOCX), browsable Help page (`/agency/help`, `/c/<id>/help` → Phase 15b), …" (only the Help page part).
-- Related: 13a item "KB `{{product}}` 'Rival Monday' fallback" — a client-read guide must not hit it.
-- Audit items tagged 15b (full list audit §2):
-  - Platform §2.1: overview tile hints; agencies Health legend; support dialog (60 min/read-only/audited); billing UUID entry; themes "theme/topic"; guides billing, reviews (τ), knowledge.
-  - Agency §2.2: Pressure colour-only (H); Portfolio empty state + checklist 5 vs 4; Vertical/Service type/Industries; hard-coded "Friday"; approval confidence colour-only (H); alert score/17:00 digest; Convert; Accept and invite; Cap/Limit labels; playbook placeholders; Seat undefined (H); AI access levels; webhook how-to; "includes 3 clients" (H); intake slug; onboarding plan step; guides Monday routine, reviewing a brief.
-  - Client §2.3–2.4: Overview pills/terms; tiers + "Rated"; profile pressure (H); Changes score scale (H) + route pills; Pricing pill; Ads targeting; Reviews heatmap (H); Rankings jargon (H); Moves wording/statuses; Ask disclosure line; evidence hashes; setup "Advanced" (H); profile summary + AM link; "After AM check" (H); alert band bar; guides changes, reviews, rankings, AI connection.
-  - Account §2.5: notification labels. §3: Hover help, Terminology.
-- 15c owns formatters/miles/StatusChip; 15b copy assumes miles.
-
-**5. In flight**
-- `phase-14b` (base e0f6f627, pre-15a; must rebase): 14a done — `/platform/verticals` "Business types" (0077–0078); 14b in progress — runbooks (0079), `/platform/runbook`, `/agency/settings/runbook` (replaces Playbooks), client Runbook tab. Needs keys + copy for those 4 pages plus new-business-type panel/"New" chips. No KB overlap (runbook ≠ KB `playbook` kind; avoid that word in the glossary).
-- 13a (not started): Domains, Client customisation tabs → keys later. `phase-7-planning`: parked, docs only.
-- Migrations: next free at execution (0080+ after 14b).
-
-**6. Open questions** — all answered 2026-10-19; see Decisions / spec §1.
+Superseded by the [15b spec](../superpowers/specs/2026-10-19-phase-15b-help-system-design.md) and [15b-1 plan](../superpowers/plans/2026-10-19-phase-15b1-help-system.md); kickoff brief is in git history (5fa1d0e4). 15b-2 inputs: audit §2–§3 items tagged 15b ([audit](../research/2026-10-18-phase-15-ux-audit.md)), 14b pages (Business types, platform/agency/client Runbook, new-business-type panel).
