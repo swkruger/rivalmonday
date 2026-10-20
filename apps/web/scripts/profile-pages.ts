@@ -117,7 +117,8 @@ async function main(): Promise<number> {
   }
   const unresolved = routes.filter((r) => !resolved.has(r));
 
-  // --- Measurement: one warm visit per resolved route, sequentially. ---
+  // --- Measurement: one warm visit per resolved route. The visits MUST stay sequential: spans are joined to a visit by
+  // path and by its time window (±SLACK_MS), so two overlapping visits of one path would share spans. ---
   const measuredFrom = nowMs();
   const visits: (Visit & { route: string })[] = [];
   for (const [route, path] of resolved) visits.push({ ...(await visit(path, cookie)), route });
@@ -125,44 +126,75 @@ async function main(): Promise<number> {
   const timings: ToolTiming[] = existsSync(TOOLS_FILE)
     ? readFileSync(TOOLS_FILE, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l) as ToolTiming).filter((t) => t.startMs >= measuredFrom - 1)
     : [];
+  const toolCount = timings.filter((t) => t.kind !== 'db').length;
+  const dbCount = timings.length - toolCount;
   const SLACK_MS = 5; // the server's clock reading and ours differ by microseconds; allow a little either side
   const rows = visits.map((v) => {
-    const tools = timings.filter((t) => t.path === v.path && t.startMs >= v.startMs - SLACK_MS && t.endMs <= v.endMs + SLACK_MS).sort((a, b) => a.startMs - b.startMs);
+    const mine = timings.filter((t) => t.path === v.path && t.startMs >= v.startMs - SLACK_MS && t.endMs <= v.endMs + SLACK_MS).sort((a, b) => a.startMs - b.startMs);
+    const tools = mine.filter((t) => t.kind !== 'db');
+    const queries = mine.filter((t) => t.kind === 'db');
     return {
-      route: v.route, path: v.path, status: v.status, ms: Math.round(v.ms), stages: sequentialStages(tools),
+      route: v.route, path: v.path, status: v.status, ms: Math.round(v.ms),
+      /** Spec D7 as asserted: sequential tool stages (layout + page tool calls). */
+      stages: sequentialStages(tools),
+      /** Sequential DB round-trip stages on the web pools, shell and direct reads included (not Better Auth's pool). */
+      dbStages: sequentialStages(queries),
+      queries: queries.length,
       tools: tools.map((t) => ({ tool: t.tool, ms: Math.round(t.endMs - t.startMs), atMs: Math.round(t.startMs - v.startMs) })),
+      /** report.json only: each query's label (`select client`), duration and start offset. */
+      db: queries.map((t) => ({ query: t.tool, ms: Math.round((t.endMs - t.startMs) * 10) / 10, atMs: Math.round(t.startMs - v.startMs) })),
     };
   }).sort((a, b) => b.ms - a.ms);
 
   const p75 = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.ceil(xs.length * 0.75) - 1]! : 0);
+  const max = (xs: number[]) => Math.max(0, ...xs);
   const workspace = rows.filter((r) => r.route.startsWith('/agency') || r.route.startsWith('/c/'));
   mkdirSync(PROFILE_DIR, { recursive: true });
   writeFileSync(join(PROFILE_DIR, 'report.json'), JSON.stringify({ base: args.base, at: new Date().toISOString(), rows, unresolved }, null, 2));
 
-  console.log(`Profiled ${rows.length} pages on ${args.base} (${timings.length} tool timings${timings.length ? '' : ' — is the server running with PROFILE_TOOLS=1?'})`);
-  console.log(`Agency/workspace p75 ${p75(workspace.map((r) => r.ms))} ms; slowest page ${rows[0]?.ms ?? 0} ms; max stages ${Math.max(0, ...rows.map((r) => r.stages))}\n`);
-  console.log('Slowest 15 (ms · stages · status · tools as name:ms@start):');
+  console.log(`Profiled ${rows.length} of ${routes.length} routes on ${args.base} (${toolCount} tool timings, ${dbCount} DB timings${timings.length ? '' : ' — is the server running with PROFILE_TOOLS=1?'})`);
+  console.log(`Agency/workspace p75 ${p75(workspace.map((r) => r.ms))} ms; slowest page ${rows[0]?.ms ?? 0} ms`);
+  console.log(`Max sequential tool stages ${max(rows.map((r) => r.stages))}; max sequential DB stages (incl. shell) ${max(rows.map((r) => r.dbStages))}, median ${[...rows.map((r) => r.dbStages)].sort((a, b) => a - b)[Math.floor(rows.length / 2)] ?? 0}\n`);
+  console.log('Slowest 15 (ms · tool stages · DB stages/queries · status · tools as name:ms@start):');
   for (const r of rows.slice(0, 15)) {
-    console.log(`${String(r.ms).padStart(6)} ms  ${String(r.stages).padStart(2)} st  ${r.status}  ${r.route}`);
+    console.log(`${String(r.ms).padStart(6)} ms  ${String(r.stages).padStart(2)} tool st  ${String(r.dbStages).padStart(3)} db st/${r.queries} q  ${r.status}  ${r.route}`);
     if (r.tools.length) console.log(`        ${r.tools.map((t) => `${t.tool}:${t.ms}@${t.atMs}`).join('  ')}`);
   }
-  if (unresolved.length) console.log(`\nNo link found for (not profiled): ${unresolved.join(', ')}`);
+  if (unresolved.length) console.log(`\nWARN ${unresolved.length} route(s) not profiled (no link found; pass --param): ${unresolved.join(', ')}`);
   const bad = rows.filter((r) => r.status >= 500);
   if (bad.length) console.log(`\nServer errors: ${bad.map((r) => `${r.status} ${r.path}`).join(', ')}`);
 
+  let failed = false;
+  const scope = unresolved.length ? `All ${rows.length} profiled pages (${unresolved.length} route(s) not profiled)` : 'Every page';
+  if (args.assertStages !== null || args.assertDbStages !== null) {
+    if (toolCount === 0) {
+      console.error('\n--assert-stages/--assert-db-stages need timings: run the server with PROFILE_TOOLS=1 on this machine.');
+      return 1;
+    }
+    if (bad.length) failed = true;
+  }
   if (args.assertStages !== null) {
     const over = rows.filter((r) => r.stages > args.assertStages!);
-    if (timings.length === 0) {
-      console.error('\n--assert-stages needs tool timings: run the server with PROFILE_TOOLS=1 on this machine.');
-      return 1;
-    }
-    if (over.length || bad.length) {
-      console.error(`\nOver ${args.assertStages} stages: ${over.map((r) => `${r.route} (${r.stages})`).join(', ') || 'none'}`);
-      return 1;
-    }
-    console.log(`\nEvery page renders in ≤ ${args.assertStages} sequential stages.`);
+    if (over.length) {
+      console.error(`\nOver ${args.assertStages} tool stages: ${over.map((r) => `${r.route} (${r.stages})`).join(', ')}`);
+      failed = true;
+    } else console.log(`\n${scope}: ≤ ${args.assertStages} sequential tool stages.`);
   }
-  return 0;
+  if (args.assertDbStages !== null) {
+    const over = rows.filter((r) => r.dbStages > args.assertDbStages!);
+    if (dbCount === 0) {
+      console.error('\n--assert-db-stages: no DB timings recorded (is the server built from this branch with PROFILE_TOOLS=1?).');
+      failed = true;
+    } else if (over.length) {
+      console.error(`\nOver ${args.assertDbStages} DB stages: ${over.map((r) => `${r.route} (${r.dbStages})`).join(', ')}`);
+      failed = true;
+    } else console.log(`${scope}: ≤ ${args.assertDbStages} sequential DB stages.`);
+  }
+  if (args.strictRoutes && unresolved.length) {
+    console.error(`\n--strict-routes: ${unresolved.length} route(s) not profiled.`);
+    failed = true;
+  }
+  return failed ? 1 : 0;
 }
 
 process.exitCode = await main();

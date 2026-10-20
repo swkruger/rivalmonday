@@ -3,13 +3,16 @@ import { cookieHeaderFrom, fillKnownParams, parseProfileArgs, routePattern } fro
 
 describe('parseProfileArgs', () => {
   it('defaults to the local E2E server on E2E_PORT (3100 when unset), no cookie file, no assertion', () => {
-    expect(parseProfileArgs([], {})).toEqual({ base: 'http://localhost:3100', cookie: null, assertStages: null, params: {} });
+    expect(parseProfileArgs([], {})).toEqual({ base: 'http://localhost:3100', cookie: null, assertStages: null, assertDbStages: null, strictRoutes: false, params: {} });
     expect(parseProfileArgs([], { E2E_PORT: '3107' })).toMatchObject({ base: 'http://localhost:3107' });
   });
   it('takes --base (trailing slash dropped), --cookie and --assert-stages', () => {
     expect(parseProfileArgs(['--base', 'https://rivalmonday.app/', '--cookie', 'c.json', '--assert-stages', '4'], {}))
-      .toEqual({ base: 'https://rivalmonday.app', cookie: 'c.json', assertStages: 4, params: {} });
+      .toEqual({ base: 'https://rivalmonday.app', cookie: 'c.json', assertStages: 4, assertDbStages: null, strictRoutes: false, params: {} });
     expect(parseProfileArgs(['--assert-stages=4'], {})).toMatchObject({ assertStages: 4 });
+  });
+  it('takes --assert-db-stages and --strict-routes (both off by default)', () => {
+    expect(parseProfileArgs(['--assert-db-stages', '12', '--strict-routes'], {})).toMatchObject({ assertDbStages: 12, strictRoutes: true, assertStages: null });
   });
   it('collects repeated --param name=value overrides', () => {
     expect(parseProfileArgs(['--param', 'clientId=abc', '--param', 'briefId=def'], {})).toMatchObject({ params: { clientId: 'abc', briefId: 'def' } });
@@ -18,6 +21,7 @@ describe('parseProfileArgs', () => {
   it('rejects a bad --assert-stages, a non-http base, a malformed --param and unknown flags', () => {
     expect(parseProfileArgs(['--assert-stages', 'x'], {})).toHaveProperty('error');
     expect(parseProfileArgs(['--assert-stages', '0'], {})).toHaveProperty('error');
+    expect(parseProfileArgs(['--assert-db-stages', '1.5'], {})).toHaveProperty('error');
     expect(parseProfileArgs(['--base', 'ftp://x'], {})).toHaveProperty('error');
     expect(parseProfileArgs(['--param', 'clientId'], {})).toHaveProperty('error');
     expect(parseProfileArgs(['--nope'], {})).toHaveProperty('error');

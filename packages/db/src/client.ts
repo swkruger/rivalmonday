@@ -2,9 +2,17 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
 
-export function createDb(url: string) {
+export interface CreateDbOptions {
+  /**
+   * Wraps the postgres client drizzle runs on (7a1 Task 9: the web's `PROFILE_TOOLS=1` query timer). The returned client
+   * must behave exactly like the one passed in; `close` always ends the original.
+   */
+  instrument?: (client: postgres.Sql) => postgres.Sql;
+}
+
+export function createDb(url: string, opts: CreateDbOptions = {}) {
   const sqlClient = postgres(url, { max: 5, onnotice: () => {} });
-  const db = drizzle(sqlClient, { schema });
+  const db = drizzle(opts.instrument ? opts.instrument(sqlClient) : sqlClient, { schema });
   return { db, close: () => sqlClient.end({ timeout: 5 }) };
 }
 

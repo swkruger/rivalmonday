@@ -14,9 +14,12 @@ export const nowMs = (): number => performance.timeOrigin + performance.now();
 export interface ToolTiming {
   /** The request's `x-rm-path` (path + search, set by `proxy.ts`); '' outside a request. */
   path: string;
+  /** A tool name, or for `kind: 'db'` a query label (`select client`: first keyword and table only, never text or params). */
   tool: string;
   startMs: number;
   endMs: number;
+  /** Absent = 'tool'. 'db' = one postgres round trip on the web's drizzle pools (`db-timing.ts`). */
+  kind?: 'tool' | 'db';
 }
 
 /** Appends one NDJSON line. A no-op unless `PROFILE_TOOLS=1`; never throws into the request it measures. */
@@ -25,7 +28,7 @@ export function recordToolTiming(e: ToolTiming): void {
   try {
     const dir = join(process.cwd(), '.profile');
     mkdirSync(dir, { recursive: true });
-    appendFileSync(join(dir, 'tools.ndjson'), `${JSON.stringify({ path: e.path, tool: e.tool, startMs: e.startMs, endMs: e.endMs })}\n`);
+    appendFileSync(join(dir, 'tools.ndjson'), `${JSON.stringify({ path: e.path, tool: e.tool, startMs: e.startMs, endMs: e.endMs, kind: e.kind ?? 'tool' })}\n`);
   } catch {
     // profiling must never break a page
   }

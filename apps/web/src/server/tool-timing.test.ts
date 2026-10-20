@@ -48,9 +48,11 @@ describe('recordToolTiming', () => {
     vi.stubEnv('PROFILE_TOOLS', '1');
     recordToolTiming(e);
     recordToolTiming({ ...e, tool: 'get_nav_counts' });
-    const lines = readFileSync(file(), 'utf8').trim().split('\n').map((l) => JSON.parse(l) as { tool: string });
-    expect(lines.map((l) => l.tool)).toEqual(['list_clients', 'get_nav_counts']);
-    expect(lines[0]).toEqual(e);
+    recordToolTiming({ ...e, tool: 'select client', kind: 'db' });
+    const lines = readFileSync(file(), 'utf8').trim().split('\n').map((l) => JSON.parse(l) as { tool: string; kind: string });
+    expect(lines.map((l) => l.tool)).toEqual(['list_clients', 'get_nav_counts', 'select client']);
+    expect(lines[0]).toEqual({ ...e, kind: 'tool' }); // absent kind = tool
+    expect(lines[2]!.kind).toBe('db');
   });
 
   it('never throws into a request (unwritable location)', () => {

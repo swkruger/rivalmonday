@@ -6,9 +6,9 @@ import { catalogRows, createLedgerSink, type Db, type EnvName } from '@cs/db';
 import { deliveryConfigFromEnv } from '@cs/engine';
 import { createToolRegistry, type ToolDeps } from '@cs/tools';
 import { createCatalog } from '@cs/verticals';
-import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { dbs } from './db';
+import { requestPath } from './db-timing';
 import { processGuardOn } from './dev-guard';
 import { webEmailTransport } from './email-transport';
 import { webEnv } from './env';
@@ -88,15 +88,6 @@ export const registry = (name?: EnvName) => registries(name);
 export function isHiddenToolError(e: unknown): boolean {
   return e instanceof ToolError
     && (e.code === 'not_found' || e.code === 'permission_denied' || e.code === 'invalid_input' || e.code === 'read_only_session');
-}
-
-/** The request's `x-rm-path`, '' outside a request. Only read while profiling. */
-async function requestPath(): Promise<string> {
-  try {
-    return (await headers()).get('x-rm-path') ?? '';
-  } catch {
-    return '';
-  }
 }
 
 /**

@@ -5,45 +5,55 @@ export interface ProfileArgs {
   base: string;
   /** A Playwright storage-state JSON or a raw Cookie header; null = the E2E admin's storage state. */
   cookie: string | null;
-  /** Exit 1 when any page has more sequential stages than this. */
+  /** Exit 1 when any page has more sequential tool stages than this (spec D7). */
   assertStages: number | null;
+  /** Exit 1 when any page has more sequential DB stages (shell included) than this; off by default. */
+  assertDbStages: number | null;
+  /** Exit 1 when any route could not be resolved (so was never profiled). */
+  strictRoutes: boolean;
   /** Route-param overrides (`--param clientId=<uuid>`, or one route's param: `--param /kb/[id]=<uuid>`), used instead of ids found by crawling. */
   params: Record<string, string>;
 }
 
-export const PROFILE_USAGE = `Usage: pnpm --filter @cs/web profile:pages [--base URL] [--cookie FILE] [--assert-stages N] [--param name=value]...
+export const PROFILE_USAGE = `Usage: pnpm --filter @cs/web profile:pages [--base URL] [--cookie FILE] [--assert-stages N] [--assert-db-stages N] [--strict-routes] [--param name=value]...
   --base URL           server to profile (default http://localhost:$E2E_PORT, port 3100 when unset); it must run with PROFILE_TOOLS=1
                        for per-tool timings (a server without it gives page times only)
   --cookie FILE        Playwright storage-state JSON or a raw Cookie header (default: the E2E admin's storage state,
                        signing in once if it is missing)
   --assert-stages N    exit 1 when any page renders with more than N sequential tool stages (spec D7: 4)
+  --assert-db-stages N exit 1 when any page makes more than N sequential DB round-trip stages (shell included)
+  --strict-routes      exit 1 when any coverage route could not be resolved (and so was not profiled)
   --param name=value   use this id for a route param (e.g. clientId, or /kb/[id] for one route's param) instead of the
                        first one found by crawling`;
 
 export function parseProfileArgs(argv: string[], env: Record<string, string | undefined>): ProfileArgs | { error: string } {
-  let values: { base?: string; cookie?: string; 'assert-stages'?: string; param?: string[] };
+  let values: { base?: string; cookie?: string; 'assert-stages'?: string; 'assert-db-stages'?: string; 'strict-routes'?: boolean; param?: string[] };
   try {
     ({ values } = parseArgs({
       args: argv, strict: true, allowPositionals: false,
-      options: { base: { type: 'string' }, cookie: { type: 'string' }, 'assert-stages': { type: 'string' }, param: { type: 'string', multiple: true } },
+      options: { base: { type: 'string' }, cookie: { type: 'string' }, 'assert-stages': { type: 'string' }, 'assert-db-stages': { type: 'string' }, 'strict-routes': { type: 'boolean' }, param: { type: 'string', multiple: true } },
     }));
   } catch (e) {
     return { error: (e as Error).message };
   }
   const base = (values.base ?? `http://localhost:${env.E2E_PORT?.trim() || '3100'}`).replace(/\/+$/, '');
   if (!/^https?:\/\/[^/]+$/.test(base)) return { error: '--base must be an http(s) origin, e.g. https://rivalmonday.app' };
-  let assertStages: number | null = null;
-  if (values['assert-stages'] !== undefined) {
-    assertStages = Number(values['assert-stages']);
-    if (!Number.isInteger(assertStages) || assertStages < 1) return { error: '--assert-stages must be a whole number ≥ 1' };
-  }
+  const stagesOpt = (flag: 'assert-stages' | 'assert-db-stages'): number | null | { error: string } => {
+    if (values[flag] === undefined) return null;
+    const n = Number(values[flag]);
+    return Number.isInteger(n) && n >= 1 ? n : { error: `--${flag} must be a whole number ≥ 1` };
+  };
+  const assertStages = stagesOpt('assert-stages');
+  if (assertStages !== null && typeof assertStages === 'object') return assertStages;
+  const assertDbStages = stagesOpt('assert-db-stages');
+  if (assertDbStages !== null && typeof assertDbStages === 'object') return assertDbStages;
   const params: Record<string, string> = {};
   for (const p of values.param ?? []) {
     const m = /^([\w/[\]-]+)=(.+)$/.exec(p);
     if (!m) return { error: `--param must be name=value (got "${p}")` };
     params[m[1]!] = m[2]!;
   }
-  return { base, cookie: values.cookie ?? null, assertStages, params };
+  return { base, cookie: values.cookie ?? null, assertStages, assertDbStages, strictRoutes: values['strict-routes'] === true, params };
 }
 
 /** `/c/[clientId]/briefs/[briefId]` → a whole-path regex with one named group per param. */
