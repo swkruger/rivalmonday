@@ -243,7 +243,7 @@ export const AGENCY_COPY = {
       },
       // source: packages/core/src/tokens.ts:grantableScopes (agency roles: read, feedback, manage), effectiveScope; packages/core/src/tools.ts:mcpScopeOf; packages/tools/src/tools/alert-rules.ts:setAlertRules (manage); apps/web/src/components/ai-connections.tsx:ACCESS_LABEL
       levels: {
-        title: 'Access levels',
+        title: 'Permission levels',
         body: "Read only lets an assistant look things up. Read and feedback also lets it record feedback, such as changing a recommendation's status. Read, feedback and manage also lets it make changes that need manage permission, such as setting a client's alert levels. A token or connected app never gets more than your own role allows.",
         guideAnchor: 'common-questions',
       },
@@ -282,7 +282,7 @@ export const AGENCY_COPY = {
       },
       // source: apps/web/src/app/(app)/agency/settings/billing/client-billing/section.tsx, defaults-form.tsx (price, setup fee, pause unpaid clients after 1 to 90 days); packages/db filters.ts:clientServiceable
       clientBilling: {
-        title: 'Client billing',
+        title: 'About client billing',
         body: 'Connect your own Stripe account to bill your clients for monitoring: payments go straight to you, not through your plan. Once connected, set the default monthly price and setup fee, and optionally pause unpaid clients after a number of days (1 to 90). A new price applies to new sign-ups; existing subscriptions are unchanged. A paused client is no longer monitored and stops counting toward your plan.',
         guideAnchor: 'how-to-use-it',
       },
@@ -366,7 +366,7 @@ export const AGENCY_COPY = {
     tips: {
       // source: packages/tools/src/platform/support.ts:SUPPORT_SESSION_MINUTES (60), startSession; packages/tools/src/tools/support.ts:startSupportSession (reason 5 to 300 characters, audited into the target agency); packages/core/src/tools.ts:READ_ONLY_SESSION_MESSAGE, AuditEvent (role platform_support)
       sessions: {
-        title: 'Support sessions',
+        title: 'What a support session is',
         body: "A support session is when platform support opens your agency to help with a problem. A session lasts at most 60 minutes, is read-only so nothing can be changed, and starts with a reason you can read in this list. Everything done in a session is recorded in your agency's audit log.",
         guideAnchor: 'what-this-page-tells-you',
       },
@@ -492,7 +492,7 @@ export const AGENCY_COPY = {
     tips: {
       // source: packages/tools/src/tools/usage.ts:getUsage (llm_call and vendor_call cost tied to the client since packages/db monthStart, UTC; agencyLevelSpend); apps/web/src/app/(app)/agency/settings/usage/page.tsx (footnote)
       spend: {
-        title: 'Spend',
+        title: 'What spend includes',
         body: "The AI and data costs tied to the client so far this month, against its monthly cap. The month is a UTC calendar month. Shared monitoring of competitors (Google profile, reviews, ads) and the intelligence engine's shared work are not split across clients yet, so they are not in these figures. If you cover all clients, spend that is not tied to a client is listed under the table.",
         guideAnchor: 'what-this-page-tells-you',
       },
@@ -510,7 +510,7 @@ export const AGENCY_COPY = {
       },
       // source: apps/web/src/app/(app)/agency/settings/usage/questions-cell.tsx; packages/ask/src/quota.ts:beginTurn (client roles only; agency users are never counted nor stopped); packages/tools/src/tools/usage.ts:getUsage (counts_toward_quota, this UTC month)
       questions: {
-        title: 'Questions',
+        title: 'Question quota',
         body: "The Ask questions the client's people have asked this UTC month, against the client's monthly quota. Only questions from client owners and viewers count; your own team's questions use none. At quota, the client's people cannot ask more until next month.",
         guideAnchor: 'common-questions',
       },

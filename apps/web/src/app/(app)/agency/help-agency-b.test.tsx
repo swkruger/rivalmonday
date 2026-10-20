@@ -142,8 +142,8 @@ describe('agency batch B: AI connections', () => {
   it('description and the four tips; the levels tip names all three agency levels and the role cap', async () => {
     await show('agency.settings.ai');
     expect(screen.getByText(/to every client you can access/)).toBeTruthy();
-    for (const t of ['Adding the connector', 'What a token is', 'Access levels', 'Connected apps']) expect(hasTip(t), t).toBe(true);
-    const l = open('Access levels');
+    for (const t of ['Adding the connector', 'What a token is', 'Permission levels', 'Connected apps']) expect(hasTip(t), t).toBe(true);
+    const l = open('Permission levels');
     for (const w of ['Read only', 'Read and feedback', 'Read, feedback and manage', 'alert levels']) expect(l, w).toContain(w);
   });
 
@@ -167,7 +167,7 @@ describe('agency batch B: Billing', () => {
     await show('agency.settings.billing');
     const s = open('Billing status');
     for (const w of ['Pilot', 'Trial', 'Active', 'Payment overdue', 'Paused', 'Suspended', 'Cancelled', '7 days']) expect(s, w).toContain(w);
-    for (const t of ['Next invoice', 'Client billing', 'Discount codes']) expect(hasTip(t), t).toBe(true);
+    for (const t of ['Next invoice', 'About client billing', 'Discount codes']) expect(hasTip(t), t).toBe(true);
   });
 
   it('with no invoices: a teaching empty state', async () => {
@@ -204,7 +204,7 @@ describe('agency batch B: Intake link', () => {
 describe('agency batch B: Platform access', () => {
   it('the sessions tip states 60 minutes, read-only and the audit record, and never names the platform', async () => {
     await show('agency.settings.platform-access');
-    const s = open('Support sessions');
+    const s = open('What a support session is');
     for (const w of ['60 minutes', 'read-only', 'audit log']) expect(s, w).toContain(w);
     expect(s).not.toMatch(/rival\s*monday/i);
     for (const t of ['Email alerts', 'End reasons']) expect(hasTip(t), t).toBe(true);
@@ -270,7 +270,7 @@ describe('agency batch B: Usage & limits', () => {
     for (const w of ['$15', '$1 to $10,000', '5', '1 to 10', '100']) expect(c, w).toContain(w);
     cleanup();
     await show('agency.settings.usage');
-    expect(open('Questions')).toMatch(/client owners and viewers/);
+    expect(open('Question quota')).toMatch(/client owners and viewers/);
     cleanup();
     await show('agency.settings.usage');
     const n = open('Near cap and over cap');
@@ -281,7 +281,7 @@ describe('agency batch B: Usage & limits', () => {
   it('the spend tip says what is counted and what is not split by client', async () => {
     m.usage = [USAGE_ROW];
     await show('agency.settings.usage');
-    const s = open('Spend');
+    const s = open('What spend includes');
     expect(s).toMatch(/UTC/);
     expect(s).toMatch(/not split/);
   });
