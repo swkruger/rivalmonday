@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PageHeader } from './page-header';
+
+vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/agency' }));
 
 afterEach(cleanup);
 
@@ -78,5 +81,23 @@ describe('PageHeader (15a §2.7)', () => {
     const { container } = render(<PageHeader title="Prospects" helpKey="prospects" actions={<button type="button">New prospect</button>} />);
     expect(screen.getByRole('button', { name: 'New prospect' })).toBeTruthy();
     expect(container.textContent).not.toContain('prospects');
+  });
+});
+
+describe('PageHeader Guide button (15b-1)', () => {
+  it('shows Guide before the actions only with a helpKey and a guide', async () => {
+    render(<PageHeader title="Overview" helpKey="page:overview" guide actions={<button type="button">Act</button>} />);
+    const guide = await screen.findByRole('button', { name: /guide/i });
+    const act = screen.getByRole('button', { name: 'Act' });
+    expect(guide.compareDocumentPosition(act) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('shows no button without a guide, without a key, or with neither', () => {
+    const { rerender } = render(<PageHeader title="Overview" helpKey="page:overview" actions={<button type="button">Act</button>} />);
+    expect(screen.queryByRole('button', { name: /guide/i })).toBeNull();
+    rerender(<PageHeader title="Overview" guide actions={<button type="button">Act</button>} />);
+    expect(screen.queryByRole('button', { name: /guide/i })).toBeNull();
+    rerender(<PageHeader title="Overview" />);
+    expect(screen.queryByRole('button')).toBeNull();
   });
 });

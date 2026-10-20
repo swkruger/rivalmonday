@@ -127,6 +127,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}place-summary\\.tsx$`), tags: ['@clients', '@leads'], why: 'lookup result card (agency lookup step, public intake form)' },
   { pattern: re(`${COMP}form-error\\.tsx$`), tags: 'all', why: 'ErrorNote/FormError: the one error primitive, rendered by form and action errors on almost every surface (incl. the seat-cap Upgrade link)' },
   { pattern: re(`${COMP}page-header\\.tsx$`), tags: 'all', why: 'PageHeader: the h1, breadcrumb and actions of almost every signed-in page (15a §2.7)' },
+  { pattern: re(`${APP}\\(app\\)/c/\\[clientId\\]/layout\\.tsx$|${COMP}help/client-help-name\\.tsx$`), tags: 'all', why: 'pass-through layout wrapping every client page in the help-name provider (15b-1 R8)' },
   { pattern: re(`${COMP}help/help-context\\.tsx$`), tags: 'all', why: 'HelpProvider: mounted by the app shell on every signed-in page (15b)' },
   { pattern: re(`${COMP}help/`), tags: [], why: 'HelpTip/FieldHint/EmptyState: not rendered on any page yet; unit-tested (15b Task 5)' },
   { pattern: re(`${COMP}client-crumbs\\.ts$`), tags: 'all', why: 'client breadcrumbs: every /c/<id> page header (15a §2.7)' },

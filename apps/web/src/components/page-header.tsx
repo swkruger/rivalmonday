@@ -1,6 +1,9 @@
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@cs/ui';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Fragment } from 'react';
+// Lazy: the guide sheet (and the action behind it) loads only on pages that have a guide.
+const PageGuide = dynamic(() => import('@/components/help/page-guide').then((m) => m.PageGuide));
 
 /** One breadcrumb step; without `href` it renders as plain text. The last crumb is always the current page. */
 export interface Crumb {
@@ -13,8 +16,10 @@ export interface PageHeaderProps {
   description?: string;
   breadcrumb?: Crumb[];
   actions?: React.ReactNode;
-  /** 15b: opens the page guide. Renders nothing in 15a. */
+  /** 15b-1: the page's guide key (`page:<slug>`). With `guide`, shows the "? Guide" button before the actions. */
   helpKey?: string;
+  /** 15b-1: a guide exists for this viewer (`helpGuides(...).has(helpKey)`). Without it no button shows. */
+  guide?: boolean;
   /** Wizards: "Step n of N" above the title. */
   step?: { n: number; of: number };
 }
@@ -24,7 +29,8 @@ export interface PageHeaderProps {
  * an optional breadcrumb (`›` separators, last crumb `aria-current="page"`), description, and actions right-aligned
  * from `sm` up (stacked below it).
  */
-export function PageHeader({ title, description, breadcrumb, actions, step }: PageHeaderProps) {
+export function PageHeader({ title, description, breadcrumb, actions, step, helpKey, guide }: PageHeaderProps) {
+  const showGuide = Boolean(helpKey && guide);
   return (
     <header className="flex flex-col gap-2">
       {breadcrumb && breadcrumb.length > 0 && (
@@ -63,7 +69,12 @@ export function PageHeader({ title, description, breadcrumb, actions, step }: Pa
           <h1 className="text-[26px] font-extrabold tracking-tight">{title}</h1>
           {description && <p className="mt-1 text-muted-ink">{description}</p>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-3 sm:shrink-0 sm:justify-end">{actions}</div>}
+        {(actions || showGuide) && (
+          <div className="flex flex-wrap items-center gap-3 sm:shrink-0 sm:justify-end">
+            {showGuide && <PageGuide helpKey={helpKey!} pageTitle={title} />}
+            {actions}
+          </div>
+        )}
       </div>
     </header>
   );
