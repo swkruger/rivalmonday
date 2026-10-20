@@ -59,3 +59,31 @@ describe('URL scrubbing', () => {
     expect(out).toContain('[redacted]');
   });
 });
+
+describe('v11 probe event (token-carrying headers, nextjs context, body, IP)', () => {
+  const probe = () => ({
+    request: {
+      url: 'https://app.test/l/GUESTTOK?a=1',
+      headers: { 'x-rm-path': '/l/tok123?a=1', referer: 'https://app.test/u/UNSUBTOK?b=2', 'user-agent': 'UA' },
+      data: '{"password":"hunter2","question":"what did rival X change?"}',
+    },
+    contexts: { nextjs: { request_path: '/join/invtok?x=1', router_kind: 'App Router' }, trace: { data: { 'url.path': '/l/SPANTOK', 'url.query': 'q=QTOK' } } },
+    user: { id: 'u1', ip_address: '203.0.113.9' },
+  });
+  for (const [name, run] of [
+    ['server hook', (e: unknown) => scrubEventUrls(redactForLog(e))],
+    ['browser hook', (e: unknown) => scrubBrowserEvent(e)],
+  ] as const) {
+    it(`${name} drops every leak`, () => {
+      const out = run(probe()) as ReturnType<typeof probe>;
+      const json = JSON.stringify(out);
+      for (const leak of ['tok123', 'UNSUBTOK', 'invtok', 'GUESTTOK', 'SPANTOK', 'QTOK', 'hunter2', 'rival X', '203.0.113.9', 'x-rm-path', 'b=2', 'x=1'])
+        expect(json).not.toContain(leak);
+      expect(out.request.headers.referer).toBe('https://app.test/u/[redacted]');
+      expect(out.contexts.nextjs.request_path).toBe('/join/[redacted]');
+      expect(out.request).not.toHaveProperty('data');
+      expect(out.user).toEqual({ id: 'u1' });
+      expect(out.request.headers['user-agent']).toBe('UA');
+    });
+  }
+});

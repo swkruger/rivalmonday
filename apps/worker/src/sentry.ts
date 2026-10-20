@@ -11,18 +11,51 @@ function releaseFile(): string | undefined {
   }
 }
 
-/** Inert (returns false) unless SENTRY_DSN is set. Release: SENTRY_RELEASE, else apps/worker/.release, else 'dev'. */
-export function initWorkerSentry(env: NodeJS.ProcessEnv): boolean {
-  const dsn = env.SENTRY_DSN?.trim();
-  if (!dsn) return false;
-  Sentry.init({
+type InitOptions = NonNullable<Parameters<typeof Sentry.init>[0]>;
+
+/**
+ * Copy of apps/web `SENTRY_DATA_COLLECTION` (the worker does not depend on apps/web): @sentry/* 11 replaced
+ * `sendDefaultPii` with `dataCollection`, whose defaults send user info/IP, cookies, headers, bodies and query strings.
+ */
+export const WORKER_DATA_COLLECTION = {
+  userInfo: false,
+  cookies: false,
+  httpHeaders: { request: { allow: ['user-agent', 'content-type', 'x-vercel-id'] }, response: false },
+  httpBodies: [],
+  urlQueryParams: false,
+  graphQL: { document: false, variables: false },
+  genAI: { inputs: false, outputs: false },
+  databaseQueryData: false,
+  stackFrameVariables: false,
+} satisfies NonNullable<InitOptions['dataCollection']>;
+
+/** Worker events carry no HTTP request; drop one (and any user IP) if an integration ever attaches it. */
+function scrubWorkerEvent<T>(event: T): T {
+  const e = redactForLog(event) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (e && typeof e === 'object') {
+    delete e.request;
+    if (e.user && typeof e.user === 'object') delete e.user.ip_address;
+  }
+  return e as T;
+}
+
+export function workerSentryOptions(dsn: string, env: NodeJS.ProcessEnv) {
+  return {
     dsn,
     release: env.SENTRY_RELEASE?.trim() || releaseFile() || 'dev',
     environment: env.SENTRY_ENVIRONMENT || env.NODE_ENV || 'production',
     tracesSampleRate: 0.1,
-    beforeSend: (event) => redactForLog(event) as typeof event,
-    beforeSendTransaction: (event) => redactForLog(event) as typeof event,
-  });
+    dataCollection: WORKER_DATA_COLLECTION,
+    beforeSend: (event) => scrubWorkerEvent(event),
+    beforeSendTransaction: (event) => scrubWorkerEvent(event),
+  } satisfies InitOptions;
+}
+
+/** Inert (returns false) unless SENTRY_DSN is set. Release: SENTRY_RELEASE, else apps/worker/.release, else 'dev'. */
+export function initWorkerSentry(env: NodeJS.ProcessEnv): boolean {
+  const dsn = env.SENTRY_DSN?.trim();
+  if (!dsn) return false;
+  Sentry.init(workerSentryOptions(dsn, env));
   return true;
 }
 

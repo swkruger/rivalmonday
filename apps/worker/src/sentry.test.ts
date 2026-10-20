@@ -9,7 +9,7 @@ vi.mock('@sentry/node', () => ({
   withMonitor: vi.fn((_slug: string, cb: () => unknown) => cb()),
 }));
 
-import { initWorkerSentry, runJob } from './sentry';
+import { initWorkerSentry, runJob, workerSentryOptions } from './sentry';
 
 function fakeLog() {
   const ctxs: LogContext[] = [];
@@ -31,6 +31,17 @@ describe('initWorkerSentry', () => {
     const opts = vi.mocked(Sentry.init).mock.calls[0]![0] as unknown as { release: string; beforeSend: (e: unknown) => { token: string } };
     expect(opts.release).toBe('abc123');
     expect(opts.beforeSend({ token: 'secret' }).token).toBe('[redacted]');
+  });
+  it('turns off v11 default data collection (no bodies, cookies or user info)', () => {
+    const opts = workerSentryOptions('https://k@o.ingest.sentry.io/1', {});
+    expect(opts.dataCollection).toMatchObject({ httpBodies: [], cookies: false, userInfo: false, urlQueryParams: false });
+    expect(opts).not.toHaveProperty('sendDefaultPii');
+  });
+  it('beforeSend drops any request and user IP', () => {
+    const opts = workerSentryOptions('https://k@o.ingest.sentry.io/1', {});
+    const out = opts.beforeSend({ request: { data: 'pw' }, user: { id: 'u1', ip_address: '1.2.3.4' } } as never) as unknown as Record<string, unknown>;
+    expect(out.request).toBeUndefined();
+    expect(out.user).toEqual({ id: 'u1' });
   });
 });
 

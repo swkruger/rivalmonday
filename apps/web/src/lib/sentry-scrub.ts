@@ -32,23 +32,39 @@ export function scrubUrl(value: string): string {
   return value.replace(/[?#]\S*/g, '').replace(SECRET_PATH, '$1$2/[redacted]');
 }
 
-const URL_KEYS = ['url', 'from', 'to', 'http.url', 'url.full', 'http.target'];
+const URL_KEYS = ['url', 'from', 'to', 'http.url', 'url.full', 'http.target', 'url.path'];
+/** Query-only attributes (OTel `url.query` = `a=1&token=…`, no leading `?`): dropped outright. */
+const QUERY_KEYS = ['url.query', 'http.query'];
 
 function scrubUrlFields(obj: unknown): void {
   if (!obj || typeof obj !== 'object') return;
   const o = obj as Record<string, unknown>;
   for (const k of URL_KEYS) if (typeof o[k] === 'string') o[k] = scrubUrl(o[k]);
+  for (const k of QUERY_KEYS) delete o[k];
 }
 
 /** Scrub URL-valued fields of an (already key/email-redacted) Sentry event, in place on that copy. */
 export function scrubEventUrls<T>(event: T): T {
   if (!event || typeof event !== 'object') return event;
   const e = event as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  // Defence in depth behind `dataCollection` (sentry-options.ts): never ship bodies, IPs or path-carrying headers.
   if (e.request && typeof e.request === 'object') {
     delete e.request.query_string;
     delete e.request.cookies;
+    delete e.request.data;
     scrubUrlFields(e.request);
+    const h = e.request.headers;
+    if (h && typeof h === 'object') {
+      for (const k of Object.keys(h)) {
+        const lk = k.toLowerCase();
+        if (lk === 'x-rm-path') delete h[k]; // proxy.ts sets it to path+search (guest/unsubscribe/invite tokens)
+        else if (lk === 'referer' && typeof h[k] === 'string') h[k] = scrubUrl(h[k]);
+      }
+    }
   }
+  if (e.user && typeof e.user === 'object') delete e.user.ip_address;
+  const nextReq = e.contexts?.nextjs;
+  if (nextReq && typeof nextReq === 'object' && typeof nextReq.request_path === 'string') nextReq.request_path = scrubUrl(nextReq.request_path);
   for (const key of ['transaction', 'description']) if (typeof e[key] === 'string') e[key] = scrubUrl(e[key]);
   for (const b of Array.isArray(e.breadcrumbs) ? e.breadcrumbs : []) scrubUrlFields(b?.data);
   for (const s of Array.isArray(e.spans) ? e.spans : []) {
