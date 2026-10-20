@@ -102,7 +102,7 @@ export function PageGuide({ helpKey, pageTitle, load = loadPageGuide }: { helpKe
         Guide
       </button>
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-full max-w-full gap-4 overflow-y-auto px-5 md:w-[480px] md:max-w-[480px]">
+        <SheetContent side="right" aria-describedby={undefined} className="w-full max-w-full gap-4 overflow-y-auto px-5 md:w-[480px] md:max-w-[480px]">
           <SheetTitle className="text-lg">{guide?.title ?? 'Page guide'}</SheetTitle>
           {state.status === 'loading' && (
             <div role="status" aria-label="Loading the guide" className="flex flex-col gap-3">

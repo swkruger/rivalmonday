@@ -88,7 +88,7 @@ export const PAGE_COPY = {
       // source: packages/engine/src/reviews/benchmark.ts:summarizeWindow; apps/web/src/components/charts/theme-heatmap.tsx:sentimentFill
       heatmap: {
         title: 'Reading the heatmap',
-        body: "Rows are review themes; columns are businesses, {client} first. The number is the share of the last 90 days' reviews that mention the theme. The colour is how positive those mentions are: blue is positive, red is negative, grey is neutral. A dash means there are not enough reviews, and ▲▼ marks a change of 5 points or more since the previous 90 days.",
+        body: "Rows are review themes; columns are businesses, {client} first. The number is the share of the reviews checked for that theme in the last 90 days that mention it. The color is how positive those mentions are: blue is positive, red is negative, gray is neutral. A dash means there are not enough reviews, and ▲▼ marks a change of 5 points or more since the previous 90 days.",
         guideAnchor: 'how-to-use-it',
       },
       // source: packages/engine/src/reviews/rating-trend.ts:ratingStats (mix counts every collected review by stars)

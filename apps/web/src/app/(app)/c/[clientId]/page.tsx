@@ -41,8 +41,13 @@ const cardCls = 'min-w-0 rounded-[14px] bg-surface p-6 shadow-card';
 const linkCls = 'font-semibold text-primary-soft-text';
 const HELP_KEY = 'page:client.overview';
 const COPY = PAGE_COPY['client.overview'];
-/** One tip per KPI card, in `kpiCards` order. */
-const KPI_TIPS: readonly TipKey[] = ['client.overview.changesWeek', 'client.overview.priceMoves', 'client.overview.activeAds', 'client.overview.ratingVsArea'];
+/** One tip per KPI card, keyed by the card's title (`kpiCards`), so reordering the cards can't attach the wrong tip. */
+const KPI_TIPS: Readonly<Record<string, TipKey>> = {
+  'Changes this week': 'client.overview.changesWeek',
+  'Competitor price moves': 'client.overview.priceMoves',
+  'Active competitor ads': 'client.overview.activeAds',
+  'Your rating vs area': 'client.overview.ratingVsArea',
+};
 
 export default async function ClientHome({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
@@ -99,9 +104,10 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
       )}
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {kpiCards(overview, { agency }).map((k, i) => (
-          <StatCard key={k.title} {...k} help={KPI_TIPS[i] && <HelpTip tip={KPI_TIPS[i]} />} />
-        ))}
+        {kpiCards(overview, { agency }).map((k) => {
+          const tip = KPI_TIPS[k.title];
+          return <StatCard key={k.title} {...k} help={tip && <HelpTip tip={tip} />} />;
+        })}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">

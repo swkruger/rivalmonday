@@ -3,7 +3,7 @@
 Draft copy for the 15b-1 help system (2026-10-19), quoted from the source. Approve or edit per section; edits go back into the named file.
 
 - **Audience**: `all` = everyone; `agency` = agency staff only; `client` = client owners, viewers and guests only (B2). Client roles never receive `agency` text.
-- **Placeholders**: short copy uses `{client}`, `{agency}`, `{assistant}`; guides use `{{client}}`, `{{product}}` (the agency's name; "your agency" when it has none), `{{assistant}}`. The glossary uses none (it feeds both renderers). Nothing names the product or the default assistant.
+- **Placeholders**: short copy uses `{client}`, `{agency}`, `{assistant}`; guides use `{{client}}`, `{{product}}` (the agency's name; "your agency" when it has none), `{{assistant}}`. With no client name, `{client}`/`{{client}}` reads "your business" to client viewers and "the client" to agency staff and operators. The glossary uses none (it feeds both renderers). Nothing names the product or the default assistant.
 - **Sources**: glossary in `packages/core/src/help/glossary.ts`; tips, descriptions and empty states in `apps/web/src/help/copy/client.ts`; guides in `docs/help/pages/`. Every metric definition cites the function that computes it in a code comment.
 
 ## Glossary
@@ -13,7 +13,7 @@ Draft copy for the 15b-1 help system (2026-10-19), quoted from the source. Appro
 | Alert | all | A change important enough not to wait for the weekly brief: its score reached the alert level. Alerts arrive between briefs. |  |
 | Average map rank | all | For one search term, the average position a business holds in Google Maps results across all points of the rank grid. 1 is best. | A point where the business is not in the first 20 results counts as 21. |
 | Brief | all | The weekly report on competitors, dated each Monday. Each item says what changed, why it matters and what to do, with its evidence. | A quiet week says so instead of padding the brief, and shows "Where you stand": how the business compares with its competitors on rating, new reviews, reply rate and map positions. |
-| Business type | all | The kind of business, such as HVAC and plumbing or dental. It decides which services, review themes and scoring rules apply. | Business types come from a shared catalogue. Older screens may still call this the vertical or industry. |
+| Business type | all | The kind of business, such as HVAC and plumbing or dental. It decides which services, review themes and scoring rules apply. | Business types come from a shared catalog. Older screens may still call this the vertical or industry. |
 | Change | all | One difference found in a competitor's public information, such as a new price, a new offer or page, an ad that started or stopped, or a jump in reviews. | The same change seen in several places, say the website and an ad, is shown once. Every change links to its evidence and gets a score. |
 | Competitive pressure | all | How much a competitor has been doing lately that could affect the business, from 0 to 100. | It combines the scores of its changes from the last 30 days that made the brief or an alert, plus its open moves (active, confident moves count for more). Each one adds to the total without it passing 100. 70 and above is high, 40 to 69 is elevated and below 40 is low. A competitor with nothing recent scores 0. |
 | Competitor | all | A local business that competes for the same customers in the same area. Each one is monitored from public information only: its website, Google profile, reviews, ads and job posts. | Competitors are grouped into tiers. "Top rival" is a tier, not another word for competitor. |
@@ -33,7 +33,7 @@ Draft copy for the 15b-1 help system (2026-10-19), quoted from the source. Appro
 | Share of voice | all | Of all the top-3 map spots in a weekly rank scan (every grid point and search term), the share each business holds. | For example, a business that holds 12 of 60 top-3 spots has a 20% share of voice. Businesses that are not tracked are grouped as "Other businesses". |
 | Signal | all | A quick fact about a competitor, shown as a small pill: its Google rating, its new reviews in the last 30 days, its Google ads and its Meta ads. | A highlighted pill is worth a look, for example 5 or more new reviews in 30 days, or Google ads that started in the last 30 days. "Not checked" means the fact could not be read yet; it never means zero. |
 | Starting point | all | The first brief for a new business: where it stands against its competitors before weekly briefs begin. | It is prepared once the competitor list is set, from the Google profile, reviews, map rankings and competitors, and suggests first steps. |
-| Theme | all | A topic customers bring up in reviews, such as response time, price transparency or cleanliness. Each business type has its own list. | A theme's share is the percentage of the last 90 days' reviews that mention it, out of those that could be read clearly for it. Its sentiment runs from very negative to very positive. |
+| Theme | all | A topic customers bring up in reviews, such as response time, price transparency or cleanliness. Each business type has its own list. | A theme's share is the percentage of the reviews checked for that theme in the last 90 days that mention it. Its sentiment runs from very negative to very positive. |
 | Tier | all | How closely a competitor competes: Top rival, Worth watching or Minor. | Tiers come from two checks. Overlap: how often the business shows up in Google Maps searches for the same services nearby (a higher spot, a shorter distance and the same main category count for more). Activity: its Google and Meta ads, its new reviews in the last 30 days and whether it has claimed its Google profile. A Top rival is high on both, Worth watching is high on either, and the rest are Minor. When activity could not be checked, Worth watching is the highest tier possible. |
 | Upsell tag | agency | A note on a brief item or recommendation naming a service your agency could offer in response, such as local SEO, PPC or reputation work. | Only agency staff see it. It is removed from everything the client sees. |
 
@@ -237,7 +237,7 @@ The change supports one or more moves (patterns over the last 90 days). Select a
 |---|---|---|
 | Description | all | What customers say about {client} and its competitors on Google. |
 | Tip `newReviews` | all | **New reviews (90 days)**: Reviews posted on {client}'s Google profile in the last 90 days. |
-| Tip `heatmap` (guide link: how-to-use-it) | all | **Reading the heatmap**: Rows are review themes; columns are businesses, {client} first. The number is the share of the last 90 days' reviews that mention the theme. The colour is how positive those mentions are: blue is positive, red is negative, grey is neutral. A dash means there are not enough reviews, and ▲▼ marks a change of 5 points or more since the previous 90 days. |
+| Tip `heatmap` (guide link: how-to-use-it) | all | **Reading the heatmap**: Rows are review themes; columns are businesses, {client} first. The number is the share of the reviews checked for that theme in the last 90 days that mention it. The color is how positive those mentions are: blue is positive, red is negative, gray is neutral. A dash means there are not enough reviews, and ▲▼ marks a change of 5 points or more since the previous 90 days. |
 | Tip `ratingMix` | all | **Your rating mix**: How many of {client}'s collected Google reviews gave 1, 2, 3, 4 or 5 stars. |
 | Tip `ratingTrend` | all | **Rating trend**: The average stars of the reviews posted in each month, for {client} and each competitor. A month without reviews has no point. With many competitors, some are combined into one "Other (average)" line. |
 | Empty `noMatch` | all | **No reviews match**: Try another business, theme or star rating, or a longer period. |
@@ -256,11 +256,11 @@ What customers say on Google about {{client}} and its competitors.
 #### How to use it
 
 1. **Read the heatmap row by row.** Each row is a theme and each column a business.
-   - The **number** is the share of the last 90 days' reviews that mention the theme, out of those that could be read clearly for it.
-   - The **colour** is how positive those mentions are: blue is positive, red is negative and grey is neutral.
+   - The **number** is the share of the reviews checked for that theme in the last 90 days that mention it.
+   - The **color** is how positive those mentions are: blue is positive, red is negative and gray is neutral.
    - A **dash** means there are not enough reviews. **▲** or **▼** means the share moved by 5 points or more compared with the previous 90 days.
    - Prefer a table? Open **Show as table** under the heatmap. The second number there is the sentiment, from -1 (very negative) to +1 (very positive).
-2. **Find what competitors are praised or criticised for.** A theme that is blue for a competitor and red for {{client}} is worth acting on.
+2. **Find what competitors are praised or criticized for.** A theme that is blue for a competitor and red for {{client}} is worth acting on.
 3. **Read the reviews behind it.** Filter **Reviews** by business, theme, stars, period or words, then select **Search**.
 4. **Keep an eye on replies.** A low reply rate next to competitors who reply often is an easy thing to fix.
 
@@ -294,7 +294,7 @@ The rating is the overall rating on the Google profile. The trend averages only 
 | No results | all | "No results for “{query}”." |
 | Guides heading | all | "Guides" |
 | No guides | all | "No guides are available here yet." |
-| Guide group headings | all | the menu's section labels, plus "General" (unlabelled section), "Settings", "Other" |
+| Guide group headings | all | the menu's section labels, plus "General" (unlabeled section), "Settings", "Other" |
 | Glossary heading | all | "Glossary" |
 | Ask link (client context, Ask on, not in a support session) | all | "Ask {assistant}" |
 | Contact link (client roles, when the agency has a sender address) | client | "Contact your agency" |

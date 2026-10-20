@@ -201,7 +201,9 @@ describe('white-label leak guard (15a §2.10)', () => {
   });
 
   it('every pilot tip, opened for a client, renders with the agency and assistant names and no product name', () => {
-    const keys = (Object.keys(PAGE_COPY) as (keyof typeof PAGE_COPY)[]).flatMap((page) => Object.keys(PAGE_COPY[page].tips ?? {}).map((id) => `${page}.${id}`));
+    // Agency-only tips render nothing for a client (HelpTip's audience check); every other tip must open.
+    const keys = (Object.keys(PAGE_COPY) as (keyof typeof PAGE_COPY)[]).flatMap((page) =>
+      Object.entries(PAGE_COPY[page].tips ?? {}).filter(([, t]) => ['all', 'client'].includes(t.audience ?? 'all')).map(([id]) => `${page}.${id}`));
     expect(keys.length).toBeGreaterThan(0);
     for (const key of keys) {
       const { unmount } = render(
@@ -209,11 +211,11 @@ describe('white-label leak guard (15a §2.10)', () => {
           <HelpTip tip={key as never} />
         </HelpProvider>,
       );
-      const trigger = screen.queryAllByRole('button')[0];
-      if (trigger) {
-        fireEvent.click(trigger);
-        out.push(document.body.innerHTML, document.body.textContent ?? '');
-      }
+      const trigger = screen.getByRole('button');
+      fireEvent.click(trigger);
+      expect(trigger.getAttribute('aria-expanded'), key).toBe('true');
+      expect(screen.getByRole('dialog').textContent, key).not.toBe('');
+      out.push(document.body.innerHTML, document.body.textContent ?? '');
       unmount();
     }
     expect(out.join('\n')).not.toMatch(LEAK);

@@ -28,7 +28,7 @@ export function HelpIndex({ articleBase, groups, glossary, query, results, ask, 
           id="help-search" name="q" type="search" defaultValue={query} maxLength={300} placeholder="Search help"
           className="h-9 w-full max-w-md rounded-md border border-border bg-surface px-3 text-sm text-ink"
         />
-        <button type="submit" className="inline-flex h-9 items-center rounded-md border border-border bg-surface px-3 text-sm font-medium text-ink hover:bg-accent">Search</button>
+        <button type="submit" className="inline-flex h-9 items-center rounded-md border border-border bg-surface px-3 text-sm font-medium text-ink hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Search</button>
       </form>
 
       {results && (

@@ -17,7 +17,7 @@ export async function loadKbArticle(kbId: string): Promise<KbArticle | null> {
 /**
  * 15b-1: lazy-loads one page guide for the Guide sheet through `get_page_guide`. The platform context uses the operator's
  * own ctx (like every `/platform` page). Any refusal is `guide: null`. `canAsk` = the viewer's Ask module is on (the same
- * flag that shows the Ask menu item), and never in a support session (Ask pages 404 there).
+ * flag that shows the Ask menu item); never in a support session: read-only, and the link auto-sends a question.
  */
 export async function loadPageGuide(helpKey: string, context: 'platform' | 'agency' | 'client', clientId?: string): Promise<PageGuideResult> {
   const { viewer, ctx } = context === 'platform' ? await requireOperatorContext() : await requireContext();

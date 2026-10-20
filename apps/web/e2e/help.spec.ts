@@ -72,8 +72,12 @@ test.describe('as a client owner', () => {
     const { askCo } = fx();
     await page.goto(`/c/${askCo.id}`);
     await page.getByRole('button', { name: 'Guide', exact: true }).click();
-    await page.getByRole('link', { name: 'Ask Friday about this page', exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`/c/${askCo.id}/ask`));
+    const link = page.getByRole('link', { name: 'Ask Friday about this page', exact: true });
+    await expect(link).toHaveAttribute('href', `/c/${askCo.id}/ask?q=Explain%20the%20Overview%20page`);
+    // Ask replaces the URL once the question is sent, so wait for the `?q=` URL from before the click.
+    const asked = page.waitForURL((u) => u.pathname === `/c/${askCo.id}/ask` && u.searchParams.get('q') === 'Explain the Overview page');
+    await link.click();
+    await asked;
     await expect(page.getByText('Explain the Overview page', { exact: true }).first()).toBeVisible();
   });
 });
