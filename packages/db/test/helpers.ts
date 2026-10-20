@@ -1,6 +1,11 @@
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { eq, sql } from 'drizzle-orm';
+import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { type Db, createDb } from '../src/client';
 import { seedVerticalCatalog } from '../src/catalog';
+import { MIGRATIONS_FOLDER } from '../src/migrate';
 import { agency, agencyBilling, client, clientCompetitor, competitor } from '../src/schema';
 
 export { seedVerticalCatalog } from '../src/catalog';
@@ -126,4 +131,46 @@ export async function pauseAgency(owner: Db, agencyId: string, state: 'read_only
 /** Phase 9b: pauses a client (`paused_at` set) for scheduler-exclusion tests. */
 export async function pauseClient(owner: Db, clientId: string, by = 'auto'): Promise<void> {
   await owner.update(client).set({ pausedAt: new Date(), pausedBy: by }).where(eq(client.id, clientId));
+}
+
+/** `testUrls.owner` with another role's credentials (local/CI roles use password = name), optionally another database. */
+export function roleUrl(role: string, database?: string): string {
+  const u = new URL(testUrls.owner);
+  u.username = role;
+  u.password = role;
+  if (database) u.pathname = `/${database}`;
+  return u.toString();
+}
+
+/** `testUrls.owner` pointed at another database on the same server. */
+export function ownerUrlFor(database: string): string {
+  const u = new URL(testUrls.owner);
+  u.pathname = `/${database}`;
+  return u.toString();
+}
+
+/**
+ * Runs ONE migration (by journal tag) through the real drizzle migrator, from a temp folder holding only that entry,
+ * against `url` (normally a scratch database). `edit` may rewrite its SQL first (e.g. point a check at a missing role).
+ */
+export async function applySingleMigration(url: string, tag: string, edit: (sql: string) => string = (s) => s): Promise<void> {
+  const journal = JSON.parse(readFileSync(join(MIGRATIONS_FOLDER, 'meta', '_journal.json'), 'utf8')) as {
+    entries: { tag: string }[];
+  } & Record<string, unknown>;
+  const entry = journal.entries.find((e) => e.tag === tag);
+  if (!entry) throw new Error(`No migration ${tag}`);
+  const dir = mkdtempSync(join(tmpdir(), 'cs-mig-'));
+  try {
+    mkdirSync(join(dir, 'meta'));
+    writeFileSync(join(dir, 'meta', '_journal.json'), JSON.stringify({ ...journal, entries: [entry] }));
+    writeFileSync(join(dir, `${tag}.sql`), edit(readFileSync(join(MIGRATIONS_FOLDER, `${tag}.sql`), 'utf8')));
+    const { db, close } = createDb(url);
+    try {
+      await migrate(db, { migrationsFolder: dir });
+    } finally {
+      await close();
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }

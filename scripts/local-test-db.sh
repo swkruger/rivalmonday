@@ -4,7 +4,7 @@
 # on Neon. Throwaway data: fsync is off.
 #
 #   bash scripts/local-test-db.sh setup    # once: copy PG18 binaries, build pgvector, initdb, roles, cs_test
-#   bash scripts/local-test-db.sh start    # after a reboot
+#   bash scripts/local-test-db.sh start    # after a reboot (also adds roles added since setup, e.g. cs_worker/cs_web)
 #   bash scripts/local-test-db.sh stop | status | env
 #
 # Needs: PostgreSQL 18 installed (server binaries), VS 2022 Build Tools (C++), git. No admin rights: everything
@@ -22,6 +22,9 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 winpath() { cygpath -w "$1"; }
 
 psql_su() { PGPASSWORD=postgres "$BIN/psql.exe" -h 127.0.0.1 -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -q "$@"; }
+# Runtime roles cs_worker/cs_web (migration 0080 aborts without them): the idempotent DO blocks of 01-roles.sql, so
+# clusters set up before they existed get them on `start`. Roles are cluster-wide; safe to run from two worktrees at once.
+ensure_roles() { sed -n '/^DO \$\$/,/^END \$\$;/p' "$REPO/infra/db/init/01-roles.sql" | psql_su -d postgres -f -; }
 
 case "${1:-}" in
   setup)
@@ -58,7 +61,10 @@ EOF
     psql_su -f "$REPO/infra/db/init/01-roles.sql" # same roles and cs_test as CI
     echo "Done. Point the three TEST_* URLs in .env at it:"; "$0" env
     ;;
-  start) "$BIN/pg_ctl.exe" -D "$DATA" -l "$RM_PG_DIR/server.log" -w start ;;
+  start)
+    "$BIN/pg_ctl.exe" -D "$DATA" status >/dev/null 2>&1 || "$BIN/pg_ctl.exe" -D "$DATA" -l "$RM_PG_DIR/server.log" -w start
+    ensure_roles
+    ;;
   stop) "$BIN/pg_ctl.exe" -D "$DATA" -w stop ;;
   status) "$BIN/pg_ctl.exe" -D "$DATA" status ;;
   env)

@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import * as Sentry from '@sentry/node';
-import { resolveActiveEnvName } from '@cs/db';
+import { createDb, resolveActiveEnvName } from '@cs/db';
 
 try {
   process.loadEnvFile(fileURLToPath(new URL('../../../.env', import.meta.url)));
@@ -36,6 +36,7 @@ import { createRivalJobs } from './jobs/rivals';
 import { createVendorJobs } from './jobs/vendor';
 import { createWebJobs } from './jobs/web';
 import { workerLog } from './log';
+import { ensureQueueGrants } from './queue-grants';
 import { initWorkerSentry } from './sentry';
 
 initWorkerSentry(process.env);
@@ -56,6 +57,19 @@ const healthServer = startHealthServer(Number(process.env.PORT) || 8080);
 const boss = createBoss(url);
 await boss.start();
 healthState.startedAt = new Date();
+// Spec D9: let cs_web enqueue and read job status. Non-fatal: a failure only stops web enqueues (logged + Sentry),
+// while crashing here would stop every background job and restart-loop the container.
+{
+  const grants = createDb(url);
+  try {
+    await ensureQueueGrants(grants.db);
+  } catch (err) {
+    Sentry.captureException(err);
+    workerLog.error({ err }, 'queue grants for cs_web failed; web enqueues will be refused');
+  } finally {
+    await grants.close();
+  }
+}
 
 const deps = createWorkerDeps(process.env);
 const liveEnvName = resolveActiveEnvName(process.env, fileURLToPath(new URL('../../../', import.meta.url)));
