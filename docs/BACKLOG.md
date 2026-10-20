@@ -107,11 +107,13 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Pre-existing on main: `apps/worker/src/jobs/leads.ts` fails the UTF-8 check (polish) — *found at 13b merge*
 
 ## Phase 15 follow-ups (UX & information architecture)
-- [ ] **15b** help system: `HelpTip`/`FieldHint`/`PageGuide` (KB articles keyed `page:<context>.<page>`, `PageHeader.helpKey`), teaching empty states, glossary pass, Help pages — spec 2026-10-18 §4; audit §2–§3 items tagged 15b. Also: pin button nested in `role=option` (a11y); support viewers have no AI connection settings tab — *phase-15a*
+- [ ] **15b-2** help content wave: guides, `?` tips and teaching `EmptyState`s on every page (incl. 14b pages: Business types, platform/agency/client Runbook, new-business-type panel), glossary/terminology pass, audit §2–§3 items tagged 15b — [15b spec](superpowers/specs/2026-10-19-phase-15b-help-system-design.md) §7. Rename "Theme" → "topic" everywhere (UI, glossary, guides, filters, heatmap; owner 2026-10-20). Decide where `page:account.*` guides list; enforce the coverage test (spec §8); strip Markdown from Help search excerpts; check the Help search button focus ring — *phase-15b*
 - [ ] **15c** page fixes from the audit (§2–§3 tagged 15c: `loading.tsx`/`error.tsx`/404 + Skeleton, StatusChip + enum labels, date/money/unit formatters (miles), ConfirmDialog, SaveBar, mobile list/detail for Changes/Moves, `/platform/billing` tabs, a11y sweep). Also: ~50 `border-line`/`bg-line` uses (`bg-line` draws nothing); mixed date formats in BriefView/AlertView; intake button white text on light agency colours; owner-Billing rule duplicated (`client-settings-nav.ts` + `app-shell.tsx`); command input h-10 in h-9 wrapper; briefs tab list clips if it overflows — *phase-15a*
-- [ ] 13a: client-visible "Rival Monday" fallbacks in MCP `serverInfo`/tool descriptions, `.well-known/oauth-protected-resource` `resource_name`, KB `{{product}}` (only when no agency name resolves; the Ask system prompt now falls back to `agency.name`, 2026-10-19) — *phase-15a*
+- [ ] 13a: client-visible "Rival Monday" fallbacks in MCP `serverInfo`/tool descriptions, `.well-known/oauth-protected-resource` `resource_name`, agency-facing KB `{{product}}` (client-facing KB help now falls back to "your agency"; `kbNamesFor` agency-facing still reads "Rival Monday") (only when no agency name resolves; the Ask system prompt now falls back to `agency.name`, 2026-10-19) — *phase-15a*
 - [ ] Soon: nav-count tools write an `audit_log` row every shell render (consider `skip-web`; update `channels.test` `SKIP_WEB_TOOLS`); switcher lists prospect clients (`list_clients` has no status filter); `togglePin` never prunes stale ids; `apps/web` page changes don't trigger `@cs/demo#test` (coverage scan); no hydration-path test for the sidebar cookie; `navForViewer` positional booleans — *phase-15a*
+- [ ] Soon (15b-1): `c/[clientId]/layout.tsx` adds an audited `get_client_profile` read per agency request (resolve the name from the switcher list instead); seed imports `PAGE_HELP_KEY` from `tools/help` (move to a shared module); `docs/help/asking-the-assistant.md` "Cancelled." spelling — *phase-15b*
 - [ ] Unscheduled: product tour (Overview, Portfolio); agency help override editor; cross-device pinned/recent clients; enterprise custom roles, multi-agency switcher, audit-log page; switcher "jump to any agency" via support session; Ask review to-do state + badge — *phase-15 decisions*
+- [ ] Unscheduled (15b): console editor for platform guides; help-usage analytics; first-visit "new" hints — *phase-15b*
 
 ## Polish (small UI/UX fixes, any time)
 
@@ -203,7 +205,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Console: activity `client_activated` lacks `clientName` (record activation, e.g. `client.activated_at`); `list_platform_activity` loads all sources per call (bound/paginate in SQL); agencies list silently capped at 100 (paging or notice) — *from 8a*
 - [ ] Cost APIs for Vercel / Cloudflare R2; Neon storage cost; costs CSV export; renewal reminders — *from 8c*
 - [ ] REST API (spec §8.1) — *from 6a*
-- [ ] Knowledge base: file upload (PDF/DOCX), browsable Help page (`/agency/help`, `/c/<id>/help` → Phase 15b), agency/client self-authoring (`manage_knowledge`), KB in weekly briefs, citation analytics — *from 6c "Not in 6c"*
+- [ ] Knowledge base: file upload (PDF/DOCX), agency/client self-authoring (`manage_knowledge`), KB in weekly briefs, citation analytics — *from 6c "Not in 6c"*
 - [ ] Brief writers (`brief_writer`/`playbook_writer`/`theme_discovery`) back to sonnet-5 (probe 2026-10-12 OK for ZDR + strict json_schema) — *from 6b*
 - [ ] Volatile-mask unmask UI (AM): pass the capture id explicitly; manual unmask re-pinned only within the 6-capture window — *from 3d, 5c-1/5c-2*
 - [ ] SMS (Twilio) — `sms` channel slot reserved — *from 4a/4b (Phase 7+)*

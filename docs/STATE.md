@@ -4,18 +4,25 @@
 > In-flight work is NOT recorded here - each branch keeps `docs/work/<branch>.md`; `/rm-start` lists them.
 > History lives in git and in `docs/archive/`.
 
-**Updated:** 2026-10-19
+**Updated:** 2026-10-20
 
 ## Where `main` is
-- Phases 0-2, 3a-3d, 4a, 4b, 5a-5c-2, demo data / dev panel / snapshots, Phase 5 polish, Phase 6 (MCP, Ask "Friday", KB), **Phase 8**, **Phase 12** + polish, **Phase 9** + fixes (owner-verified), **Phase 10** (2026-10-16), **Phase 11** (2026-10-17), **phase-11-fixes** (2026-10-18), **Phase 13b** (2026-10-17; owner-closed 2026-10-19 with a polish: `osm_bright` map, see-through 60% cells, 1-2× zoom) + **Ask fixes** (2026-10-19: guard sees the previous reply so "yes" isn't refused; own-business evidence backs recommendations; agency name instead of Rival Monday without a displayName) **Phase 15a** (UX/IA: context switcher Platform/Agency/Client, grouped menus, `/agency/settings/*` + `/c/<id>/settings/*`, `PageHeader`, Briefs & reports; merged 2026-10-19) and **Phase 14** (14a vertical catalogue, 14b runbooks; merged 2026-10-19) are on `main`. Owner verification pending for 10, 11, 11-fixes, 15a, 14. **Phase 13 is not finished: 13a (white-label) is unbuilt.**
-- Migrations run through **`0079`** (next free `0080`; 14 added 0077-0079). `cs_dev` at 0079. `cs_demo` is seeded by `pnpm demo:reset` (it lagged the schema at 2026-10-18 - re-run before demoing).
-- Tests on the local test cluster (`scripts/local-test-db.sh`, port 5444). 13b polish + Ask fixes (2026-10-19): `pnpm test:affected` 8/8 packages green; affected E2E (`@rankings`, `@ask`) **not run yet** (dev server held `.next`) - run it or let CI. At the 15a merge (2026-10-19): full unit suite 16/16 packages, 5,685 tests (35 min; `@cs/tools` re-run alone after a self-inflicted overlap deadlock); full E2E 104/104 (6.0 min).
+- Phases 0-2, 3a-3d, 4a, 4b, 5a-5c-2, demo data / dev panel / snapshots, Phase 5 polish, Phase 6 (MCP, Ask "Friday", KB), **Phase 8**, **Phase 12** + polish, **Phase 9** + fixes (owner-verified), **Phase 10** (2026-10-16), **Phase 11** (2026-10-17), **phase-11-fixes** (2026-10-18), **Phase 13b** (2026-10-17; owner-closed 2026-10-19 with a polish: `osm_bright` map, see-through 60% cells, 1-2× zoom) + **Ask fixes** (2026-10-19: guard sees the previous reply so "yes" isn't refused; own-business evidence backs recommendations; agency name instead of Rival Monday without a displayName) **Phase 15a** (UX/IA: context switcher Platform/Agency/Client, grouped menus, `/agency/settings/*` + `/c/<id>/settings/*`, `PageHeader`, Briefs & reports; merged 2026-10-19) and **Phase 14** (14a vertical catalogue, 14b runbooks; merged 2026-10-19) and **Phase 15b-1** (help system: `?` tips, page guides, Help pages, glossary; merged 2026-10-20) are on `main`. Owner verification pending for 10, 11, 11-fixes, 15a, 14, 15b-1. **Phase 13 is not finished: 13a (white-label) is unbuilt.**
+- Migrations run through **`0080`** (next free `0081`; 15b added 0080). `cs_dev` at 0080 + `kb:seed` run 2026-10-20. `cs_demo` is seeded by `pnpm demo:reset` (it lagged the schema at 2026-10-18 - re-run before demoing).
+- Tests on the local test cluster (`scripts/local-test-db.sh`, port 5444). <!-- TESTS -->
 - Switches: `KB_IMPORT_ENABLED`, `ASK_FAKE_AI`, `BILLING_FAKE_GATEWAY`, `SETUP_FAKE_LOOKUP` (E2E only). Billing off until `STRIPE_SECRET_KEY`; Turnstile faked until its keys; `STADIA_API_KEY` set in `.env` (dev); unset = rank grids without a map; existing maps refetch once (style change) on the next Sunday `rank-schedule` or a rank-settings save. Worker env `NEON_API_KEY`, `NEON_ORG_ID` not set yet.
-- **In flight:** `phase-15b` (help) and `phase-7` worktrees must **rebase onto Phase 14** (15b: help keys for `/platform/verticals`, `/platform/runbook`, `/agency/settings/runbook`, client Runbook tab; 7: migrations from 0080, `llm_call.vertical_id`, new catalogue/runbook tools + `runbook-tailor` job in the isolation suite). 13a (white-label hosts) not started; builds on 15a. 15c to kick off. `phase-7-planning` parked.
-- **`main` not pushed** (Phase 14 merge 035101e6 + earlier commits ahead of `origin/main`): owner runs `git push origin main`.
+- **In flight:** `phase-7` must **rebase onto main** and renumber its migrations to **0081+** (plus `llm_call.vertical_id`, catalogue/runbook tools and `runbook-tailor` in the isolation suite, and the new help tools `get_page_guide`/`list_help_guides`). Next: 15b-2 (help content wave), 15c. 13a (white-label hosts) not started. `phase-7-planning` parked.
+- **`main` not pushed** (Phase 14/15b merges + earlier commits ahead of `origin/main`): owner runs `git push origin main`.
 - Built: [ARCHITECTURE.md](ARCHITECTURE.md). Runbook: [OPS.md](OPS.md).
 
 ## Next up
+**Owner - Phase 15b-1 verification** (`pnpm db:migrate` 0080 and `pnpm kb:seed` done on `cs_dev`; `pnpm demo:reset` picks up `docs/help`):
+1. Client owner on Overview / Changes / Reviews: "? Guide" opens the client version, no agency wording (routing, upsell, seats); `?` tips open on click/tap/Enter and hover; "More in the guide" jumps to the section.
+2. Agency admin: agency version of the guides; tips name the client.
+3. White-label agency without a display name: copy says "your agency" and its assistant name, never "Rival Monday".
+4. `/c/<id>/help`, `/agency/help`, `/platform/help`: search finds guides; glossary shows client terms only to client owners; avatar menu Help opens the current context.
+5. "Ask {assistant} about this page" auto-sends (hidden in support sessions). Support session: AI connection tab read-only; switcher pin works by mouse and Tab.
+
 **Owner - Phase 14 verification** (after 0077-0079 on `cs_dev`): run `pnpm --filter @cs/worker runbook:backfill --dry-run`, then for real, **before the next brief run**. Then: (1) look up and draft a real distillery (quotes match the profile), create it, finish setup; a second distillery preselects it; approve it in `/platform/verticals`; merge a duplicate; `/platform/costs` shows the draft cost. (2) After the backfill, existing clients' next briefs are unchanged. (3) A Distillery client's runbook is tailored; quotes make sense. (4) Customise a play; the next brief uses it. (5) An agency edit shows "Update available" on the client. (6) A platform runbook edit reaches agencies as an update. Copy sign-off: [archive/phase-14-copy-signoff.md](archive/phase-14-copy-signoff.md).
 
 **Owner - Phase 15a verification** (no migrations):
@@ -38,7 +45,7 @@
 
 **Then:**
 1. 13a1 → 13a2 (owner first: neutral domain, Vercel wildcard + `mcp.` host, Postmark `mail.<neutral>`, tokens).
-2. `/rm-kickoff phase-15b` (help system) and `phase-15c` (audit page fixes) - [spec](superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) §4, [audit](research/2026-10-18-phase-15-ux-audit.md).
+2. 15b-2 (help content wave; [backlog](BACKLOG.md)) and `/rm-kickoff phase-15c` (audit page fixes) - [spec](superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) §4, [audit](research/2026-10-18-phase-15-ux-audit.md).
 3. Phase 9/10/11/15 "Soon" backlog items. **Waiting on real data:** first real alerts from the 2026-10-20 weekly pull.
 
 ## Process (short)
