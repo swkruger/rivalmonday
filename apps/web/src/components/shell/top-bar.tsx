@@ -30,7 +30,7 @@ export function TopBar({
         {/* Phase 8b M2: no bell in a support session (the operator's own inbox 404s there). */}
         {switcher.flags.inbox !== false && <InboxBell unread={unread} />}
         {viewer.kind !== 'guest' ? (
-          <AvatarMenu viewer={viewer} />
+          <AvatarMenu viewer={viewer} switcher={switcher} />
         ) : (
           // Important I1 (final review): a guest reaching "Sign out" (not "Sign in") can always end their session.
           <GuestSignOutButton />

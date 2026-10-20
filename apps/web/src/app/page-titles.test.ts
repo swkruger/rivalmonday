@@ -48,6 +48,9 @@ const otherPages: [file: string, label: string][] = [
   ['(platform)/platform/knowledge/new/page.tsx', 'New article'],
   ['(platform)/platform/health/page.tsx', 'Health'],
   ['(app)/inbox/page.tsx', 'Inbox'],
+  ['(app)/agency/help/page.tsx', 'Help'],
+  ['(app)/c/[clientId]/help/page.tsx', 'Help'],
+  ['(platform)/platform/help/page.tsx', 'Help'],
   ['(app)/settings/notifications/page.tsx', 'Notification settings'],
   ['(app)/c/[clientId]/pitch-snapshot/page.tsx', 'Pitch snapshot'],
 ];

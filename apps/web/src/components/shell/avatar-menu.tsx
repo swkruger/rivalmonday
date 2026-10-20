@@ -4,6 +4,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import Link from 'next/link';
 import { switchMembership } from '@/app/(app)/actions';
 import { SignOutButton } from '@/components/sign-out-button';
+import type { SwitcherProps } from './context-switcher';
+import { HelpMenuItem } from './help-menu-item';
 import type { Viewer } from '@/server/viewer';
 
 /** Spec §2.9 (ruling): the account menu's role names; the team page's "Admin" is scoped to one agency already. */
@@ -23,11 +25,11 @@ function roleLine(m: MembershipSummary): string {
 /**
  * Spec §2.9: name, role line, Notification settings, Switch account (one `switchMembership` form per *other*
  * membership — the action sets the cookie, no write tool; never rendered for support viewers, who have no
- * memberships here), Sign out. Help joins in 15b. A support viewer is a signed-in operator, so it gets the real
+ * memberships here), Sign out. Help (15b-1) opens the live context's Help page. A support viewer is a signed-in operator, so it gets the real
  * sign-out (which also ends the session, Phase 8b M2); its own notification settings 404 there, so no link.
  * Guests never reach this (they keep `GuestSignOutButton`).
  */
-export function AvatarMenu({ viewer }: { viewer: Extract<Viewer, { kind: 'user' } | { kind: 'support' }> }) {
+export function AvatarMenu({ viewer, switcher }: { viewer: Extract<Viewer, { kind: 'user' } | { kind: 'support' }>; switcher: SwitcherProps }) {
   const others = viewer.kind === 'user' ? viewer.memberships.filter((m) => m.id !== viewer.membership.id) : [];
   const line = viewer.kind === 'user' ? roleLine(viewer.membership) : `Support session · ${viewer.session.agencyName}`;
   return (
@@ -46,6 +48,7 @@ export function AvatarMenu({ viewer }: { viewer: Extract<Viewer, { kind: 'user' 
             <Link href="/settings/notifications">Notification settings</Link>
           </DropdownMenuItem>
         )}
+        <HelpMenuItem {...switcher} />
         {others.length > 0 && (
           <>
             <DropdownMenuSeparator />

@@ -50,6 +50,10 @@ const lsReports: CoverageCall = { tool: 'list_trend_reports', input: (ids) => ({
 /** The Overview and Profile pages read the starters (Ask card; the admin's review toggle). */
 const lsStarters: CoverageCall = { tool: 'get_ask_starters', input: (ids) => ({ clientId: ls(ids) }), path: 'questions' };
 
+/** 15b-1: the Help pages' reads. No page guides are seeded yet (empty on purpose); the search finds the demo article. */
+const helpGuidesEmpty = (input: CoverageCall['input']): CoverageCall => ({ tool: 'list_help_guides', input, path: 'guides', expect: 'empty', why: 'no page guides are seeded yet' });
+const helpSearch = (extra: CoverageCall['input']): CoverageCall => ({ tool: 'search_knowledge', input: (ids) => ({ query: 'demo article', limit: 8, ...extra(ids) }), path: 'results' });
+
 /** Phase 10: every wizard step reads the progress (the stepper and the finished/dismissed redirect); so does `/agency`. */
 const onboardingStatus: CoverageCall = { tool: 'get_onboarding_status', input: none, path: 'steps' };
 
@@ -353,6 +357,11 @@ export const SCREENS: readonly ScreenCoverage[] = [
     ],
   },
   { route: '/platform/themes', as: 'operator', calls: [{ tool: 'list_theme_proposals', input: none, path: 'pending' }, { tool: 'list_theme_proposals', input: none, path: 'decided' }] },
+  // 15b-1: the Help pages. No page guides are seeded yet (the guide content ships with the help content task), so the guide list is empty on purpose; the search finds the demo article.
+  { route: '/agency/help', as: 'admin', calls: [helpGuidesEmpty(() => ({ context: 'agency' })), helpSearch(none)] },
+  { route: '/c/[clientId]/help', as: 'admin', calls: [helpGuidesEmpty((ids) => ({ context: 'client', clientId: ls(ids) })), helpSearch((ids) => ({ clientId: ls(ids) })), lsProfile] },
+  { route: '/c/[clientId]/help (client owner)', as: 'ownerLoneStar', calls: [helpGuidesEmpty((ids) => ({ context: 'client', clientId: ls(ids) })), helpSearch((ids) => ({ clientId: ls(ids) })), lsProfile] },
+  { route: '/platform/help', as: 'operator', calls: [helpGuidesEmpty(() => ({ context: 'platform' })), helpSearch(() => ({ context: 'platform' }))] },
   { route: '/settings/notifications', as: 'admin', calls: [{ tool: 'fn:myNotificationSettings', input: none }] },
 ];
 

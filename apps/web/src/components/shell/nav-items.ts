@@ -247,3 +247,15 @@ export function activeHref(sections: NavSection[], pathname: string): string | n
   }
   return best;
 }
+
+/**
+ * 15b-1: a menu item's help page id, dot-separated like the `PAGE_COPY` keys and `page:<id>` help keys:
+ * `/c/<id>/reviews` → `client.reviews`, `/agency/settings/team` → `agency.settings.team`, and the three roots
+ * `client.overview`, `agency.portfolio`, `platform.overview`.
+ */
+export function pageIdOf(context: NavContext, href: string): string {
+  const parts = href.split(/[?#]/)[0]!.split('/').filter(Boolean);
+  const rest = context === 'client' ? parts.slice(2) : parts.slice(1);
+  if (rest.length) return [context, ...rest].join('.');
+  return context === 'client' ? 'client.overview' : context === 'agency' ? 'agency.portfolio' : 'platform.overview';
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeHref, type NavRoleFlags, type NavSection, navFor, settingsNavFor } from './nav-items';
+import { activeHref, type NavRoleFlags, type NavSection, navFor, pageIdOf, settingsNavFor } from './nav-items';
 
 const C = '00000000-0000-4000-8000-0000000000a1';
 const B = `/c/${C}`;
@@ -249,5 +249,17 @@ describe('activeHref', () => {
     expect(activeHref(s, `${B}/briefs?tab=alerts`)).toBe(`${B}/briefs`);
     expect(activeHref(s, `${B}/briefsx`)).toBe(B);
     expect(activeHref(s, '/inbox')).toBeNull();
+  });
+});
+
+describe('pageIdOf (15b-1 help page ids)', () => {
+  it('maps menu hrefs to dot-separated page ids, roots included', () => {
+    expect(pageIdOf('client', '/c/00000000-0000-4000-8000-0000000000c1')).toBe('client.overview');
+    expect(pageIdOf('client', '/c/00000000-0000-4000-8000-0000000000c1/reviews')).toBe('client.reviews');
+    expect(pageIdOf('client', '/c/00000000-0000-4000-8000-0000000000c1/settings/profile')).toBe('client.settings.profile');
+    expect(pageIdOf('agency', '/agency')).toBe('agency.portfolio');
+    expect(pageIdOf('agency', '/agency/settings/slack-teams')).toBe('agency.settings.slack-teams');
+    expect(pageIdOf('platform', '/platform')).toBe('platform.overview');
+    expect(pageIdOf('platform', '/platform/agencies?x=1')).toBe('platform.agencies');
   });
 });

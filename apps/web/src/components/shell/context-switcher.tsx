@@ -78,6 +78,17 @@ const CARD = 'flex w-full items-center gap-2.5 rounded-lg border border-border b
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' });
 const matches = (q: string, ...fields: (string | null)[]) => fields.some((f) => f?.toLowerCase().includes(q));
 
+/** 15b-1: the Help page of the live context (`/platform/help`, `/agency/help`, `/c/<id>/help`); client roles without a resolved client use their home client. */
+export function useHelpHref(p: SwitcherProps): string {
+  const { context, clientId } = useCurrent(p);
+  if (context === 'platform') return '/platform/help';
+  if (context === 'client') {
+    if (clientId) return `/c/${clientId}/help`;
+    if (p.flags.homePath.startsWith('/c/')) return `${p.flags.homePath}/help`;
+  }
+  return '/agency/help';
+}
+
 /** Below `lg` the top bar names the current context (spec §2.9). */
 export function ContextName(p: SwitcherProps) {
   const { name } = useCurrent(p);
