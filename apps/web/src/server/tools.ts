@@ -6,6 +6,7 @@ import { catalogRows, createLedgerSink, type Db, type EnvName } from '@cs/db';
 import { deliveryConfigFromEnv } from '@cs/engine';
 import { createToolRegistry, type ToolDeps } from '@cs/tools';
 import { createCatalog } from '@cs/verticals';
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { dbs } from './db';
 import { processGuardOn } from './dev-guard';
@@ -16,6 +17,7 @@ import { enqueueFor, jobStatusFor, queueStatsFor } from './queue';
 import { platformAdmins } from './runtime-env';
 import { runbookTailorerFor } from './runbook-tailor';
 import { tagRequest } from './sentry-tags';
+import { nowMs, profilingOn, recordToolTiming } from './tool-timing';
 import { setupLookupFor } from './setup-lookup';
 import { webStore } from './store';
 import { verticalDrafterFor } from './vertical-draft';
@@ -88,10 +90,34 @@ export function isHiddenToolError(e: unknown): boolean {
     && (e.code === 'not_found' || e.code === 'permission_denied' || e.code === 'invalid_input' || e.code === 'read_only_session');
 }
 
+/** The request's `x-rm-path`, '' outside a request. Only read while profiling. */
+async function requestPath(): Promise<string> {
+  try {
+    return (await headers()).get('x-rm-path') ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Task 9 (spec D7): `registry.invoke`, timed into `.profile/tools.ndjson` when the server runs with `PROFILE_TOOLS=1`
+ * (see `tool-timing.ts`); otherwise exactly `invoke`.
+ */
+async function invokeTimed(reg: () => Pick<ToolRegistry<ToolDeps>, 'invoke'>, ctx: AccessContext, name: string, input: unknown): Promise<unknown> {
+  if (!profilingOn()) return reg().invoke(ctx, name, input);
+  const path = await requestPath();
+  const startMs = nowMs();
+  try {
+    return await reg().invoke(ctx, name, input);
+  } finally {
+    recordToolTiming({ path, tool: name, startMs, endMs: nowMs() });
+  }
+}
+
 export async function callTool<T>(ctx: AccessContext, name: string, input: unknown): Promise<T> {
   await tagRequest(ctx, input);
   try {
-    return (await registry().invoke(ctx, name, input)) as T;
+    return (await invokeTimed(registry, ctx, name, input)) as T;
   } catch (e) {
     if (isHiddenToolError(e)) notFound();
     throw e;
@@ -106,7 +132,7 @@ export async function callTool<T>(ctx: AccessContext, name: string, input: unkno
 export function createTryCallTool(reg: () => Pick<ToolRegistry<ToolDeps>, 'invoke'>) {
   return async function tryCallTool<T>(ctx: AccessContext, name: string, input: unknown): Promise<T | null> {
     try {
-      return (await reg().invoke(ctx, name, input)) as T;
+      return (await invokeTimed(reg, ctx, name, input)) as T;
     } catch (e) {
       if (isHiddenToolError(e)) return null;
       throw e;

@@ -3,3 +3,4 @@ test-results/
 playwright-report/
 .outbox/
 tsconfig.tsbuildinfo
+.profile/

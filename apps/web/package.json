@@ -15,7 +15,8 @@
     "e2e:panel": "playwright test -c playwright.panel.config.ts",
     "check:tracing": "tsx scripts/check-tracing.ts",
     "check:no-dev-panel": "tsx scripts/check-no-dev-panel.ts",
-    "admin": "tsx scripts/admin.ts"
+    "admin": "tsx scripts/admin.ts",
+    "profile:pages": "tsx scripts/profile-pages.ts"
   },
   "dependencies": {
     "@better-auth/oauth-provider": "1.7.7",

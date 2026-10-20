@@ -1,5 +1,8 @@
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { ToolError } from '@cs/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createTryCallTool, isHiddenToolError } from './tools';
 
 describe('isHiddenToolError', () => {
@@ -28,5 +31,39 @@ describe('tryCallTool', () => {
   });
   it('lets other failures reach the error boundary', async () => {
     await expect(createTryCallTool(reg(async () => { throw new ToolError('internal', 'boom'); }))(ctx, 't', {})).rejects.toThrow('boom');
+  });
+});
+
+describe('tool timing hook (Task 9)', () => {
+  const ctx = {} as never;
+  const reg = (impl: () => Promise<unknown>) => () => ({ invoke: impl }) as never;
+  const withProfileDir = async (profile: string, run: (file: string) => Promise<void>) => {
+    const dir = mkdtempSync(join(tmpdir(), 'tools-timing-'));
+    vi.spyOn(process, 'cwd').mockReturnValue(dir);
+    vi.stubEnv('PROFILE_TOOLS', profile);
+    try {
+      await run(join(dir, '.profile', 'tools.ndjson'));
+    } finally {
+      vi.restoreAllMocks();
+      vi.unstubAllEnvs();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  it('records each read, refused ones included, when PROFILE_TOOLS=1', async () => {
+    await withProfileDir('1', async (file) => {
+      await createTryCallTool(reg(async () => ({ id: 'x' })))(ctx, 'get_move', {});
+      await createTryCallTool(reg(async () => { throw new ToolError('not_found', 'x'); }))(ctx, 'get_event', {});
+      const rows = readFileSync(file, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as { tool: string; path: string; startMs: number; endMs: number });
+      expect(rows.map((r) => r.tool)).toEqual(['get_move', 'get_event']);
+      expect(rows[0]!.path).toBe(''); // outside a request
+      expect(rows[0]!.endMs).toBeGreaterThanOrEqual(rows[0]!.startMs);
+    });
+  });
+  it('records nothing by default', async () => {
+    await withProfileDir('', async (file) => {
+      await createTryCallTool(reg(async () => ({ id: 'x' })))(ctx, 'get_move', {});
+      expect(existsSync(file)).toBe(false);
+    });
   });
 });
