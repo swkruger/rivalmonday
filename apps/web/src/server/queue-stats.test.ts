@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { queueStatsOn } from './queue';
 
 /**
- * `queueStatsOn` as production runs it: a scratch database holding only migration 0080, pgboss created by cs_worker,
+ * `queueStatsOn` as production runs it: a scratch database holding only migration 0081, pgboss created by cs_worker,
  * and cs_web with exactly the grants of `ensureQueueGrants` (SELECT on version/queue, SELECT+INSERT on job; nothing on
  * archive). The shared test DB would not catch a missing grant: its pgboss belongs to the superuser.
  */
@@ -28,7 +28,7 @@ async function insertJob(queue: string, state: string, o: { createdOn?: string; 
 
 beforeAll(async () => {
   await admin.db.execute(sql.raw(`CREATE DATABASE ${name}`));
-  await applySingleMigration(ownerUrlFor(name), '0080_runtime_roles');
+  await applySingleMigration(ownerUrlFor(name), '0081_runtime_roles');
   boss = new PgBoss({ connectionString: roleUrl('cs_worker', name), supervise: false, schedule: false, migrate: true, max: 2 });
   boss.on('error', () => {});
   await boss.start();

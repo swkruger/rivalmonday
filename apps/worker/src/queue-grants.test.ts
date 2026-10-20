@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ensureQueueGrants } from './queue-grants';
 
 /**
- * Spec D9 / migration 0080. Everything runs in one scratch database (always dropped) holding only 0080, so pgboss is
+ * Spec D9 / migration 0081. Everything runs in one scratch database (always dropped) holding only 0081, so pgboss is
  * fresh and created by cs_worker, exactly like production: the shared test DB's pgboss was created by the superuser.
  */
 const name = `cs_qgrants_${randomUUID().replaceAll('-', '').slice(0, 12)}`;
@@ -49,7 +49,7 @@ const failure = errorText;
 
 beforeAll(async () => {
   await admin.db.execute(sql.raw(`CREATE DATABASE ${name}`));
-  await applySingleMigration(ownerUrlFor(name), '0080_runtime_roles');
+  await applySingleMigration(ownerUrlFor(name), '0081_runtime_roles');
   // pgboss created by cs_worker on a fresh schema, as in production. No grants yet: each test sets up what it needs.
   worker = boss(roleUrl('cs_worker', name), true);
   await worker.start();
@@ -62,7 +62,7 @@ afterAll(async () => {
   await admin.close();
 });
 
-describe('ensureQueueGrants + cs_web (0080)', () => {
+describe('ensureQueueGrants + cs_web (0081)', () => {
   it('fresh pgboss: worker start as cs_worker + ensureQueueGrants → cs_web send works', async () => {
     // Start from "no grants" whatever ran before (cs_worker owns the tables, so it may revoke).
     await asWorker((db) => db.execute(sql`REVOKE ALL ON pgboss.version, pgboss.queue, pgboss.job FROM cs_web`));

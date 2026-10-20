@@ -20,14 +20,14 @@
 **GitHub secrets (`production`):** `MIGRATION_DATABASE_URL`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `RAILWAY_TOKEN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT_WEB`, `SENTRY_PROJECT_WORKER`.
 
 ## Roles
-Run as the **Neon owner role** in the SQL editor — not the console's "add role": the creator gets ADMIN on the role, which migration `0080_runtime_roles` needs (it runs `GRANT cs_worker TO CURRENT_USER`, then gives `cs_worker` the `pgboss` schema and `CREATE` on the database, and `cs_web` enqueue/read on `pgboss` only). Generate each password with `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
+Run as the **Neon owner role** in the SQL editor — not the console's "add role": the creator gets ADMIN on the role, which migration `0081_runtime_roles` needs (it runs `GRANT cs_worker TO CURRENT_USER`, then gives `cs_worker` the `pgboss` schema and `CREATE` on the database, and `cs_web` enqueue/read on `pgboss` only). Generate each password with `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
 ```sql
 CREATE ROLE app_user LOGIN PASSWORD '…';
 CREATE ROLE app_service LOGIN PASSWORD '…' BYPASSRLS;
 CREATE ROLE cs_worker LOGIN PASSWORD '…';
 CREATE ROLE cs_web LOGIN PASSWORD '…';
 ```
-Run this before the first deploy (`0080` aborts while `cs_worker`/`cs_web` are missing). Then point each service at its own role:
+Run this before the first deploy (`0081` aborts while `cs_worker`/`cs_web` are missing). Then point each service at its own role:
 
 | Variable | Railway (worker) | Vercel (web) |
 |---|---|---|

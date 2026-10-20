@@ -3,7 +3,7 @@ The single background worker: pg-boss queues and jobs (collection, engine sweep,
 
 ## Gotchas
 - **Run exactly one replica** — see `docs/gotchas-cross-cutting.md` (per-host rate limiting is in-process).
-- **pg-boss 10:** queue names use hyphens; `work()` handlers receive arrays; in production the worker's `DATABASE_URL` is the least-privilege `cs_worker` role (owns schema `pgboss`; migration `0080`) and data goes through `SERVICE_DATABASE_URL` — see `docs/DEPLOY.md` § Roles. Locally it is still the owner URL.
+- **pg-boss 10:** queue names use hyphens; `work()` handlers receive arrays; in production the worker's `DATABASE_URL` is the least-privilege `cs_worker` role (owns schema `pgboss`; migration `0081`) and data goes through `SERVICE_DATABASE_URL` — see `docs/DEPLOY.md` § Roles. Locally it is still the owner URL.
 - **cwd-relative dirs:** when run via `pnpm --filter`, `EVIDENCE_FS_DIR=./.evidence` lands in `apps/worker/.evidence/` and `EMAIL_OUTBOX_DIR` (default `./.outbox`) in `apps/worker/.outbox/` (gitignored).
 - **`.outbox/` is the dev mailbox:** whenever `POSTMARK_SERVER_TOKEN` is unset, every email is a `.json` + `.html` pair there — open the newest `.html` to see what a client would receive. With the Postmark test-server token set, the worker and `deliver-once dispatch` are safe to run against the `@example.com` `cs_dev` contacts (accepted, never delivered).
 - **PDFs block every network request except the agency's own `https` logo URL:** the Playwright brief/report render disables JavaScript and blocks all other requests, so a second external asset in a template silently fails to render (no error).

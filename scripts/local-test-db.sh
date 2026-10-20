@@ -22,7 +22,7 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 winpath() { cygpath -w "$1"; }
 
 psql_su() { PGPASSWORD=postgres "$BIN/psql.exe" -h 127.0.0.1 -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -q "$@"; }
-# The idempotent role DO blocks of 01-roles.sql (incl. cs_worker/cs_web, which migration 0080 needs), so
+# The idempotent role DO blocks of 01-roles.sql (incl. cs_worker/cs_web, which migration 0081 needs), so
 # clusters set up before they existed get them on `start`. Roles are cluster-wide; safe to run from two worktrees at once.
 ensure_roles() { sed -n '/^DO \$\$/,/^END \$\$;/p' "$REPO/infra/db/init/01-roles.sql" | psql_su -d postgres -f -; }
 

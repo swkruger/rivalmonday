@@ -3,8 +3,8 @@ import postgres from 'postgres';
 import { afterAll, describe, expect, it } from 'vitest';
 import { applySingleMigration, ownerUrlFor, roleUrl, testUrls } from '../test/helpers';
 
-/** Spec D9 / migration 0080: least-privilege runtime roles. pg-boss behaviour is covered in apps/worker queue-grants.test.ts. */
-const TAG = '0080_runtime_roles';
+/** Spec D9 / migration 0081: least-privilege runtime roles. pg-boss behaviour is covered in apps/worker queue-grants.test.ts. */
+const TAG = '0081_runtime_roles';
 const admin = postgres(testUrls.owner, { max: 1, onnotice: () => {} });
 const scratch: string[] = [];
 /** Scratch databases are always dropped in afterAll. */
@@ -31,7 +31,7 @@ afterAll(async () => {
   await admin.end();
 });
 
-describe('runtime roles (0080)', () => {
+describe('runtime roles (0081)', () => {
   // Table level, not schema level: the test DB's wipe recreates `public` without USAGE for PUBLIC, while Neon keeps
   // `=U/pg_database_owner` there, so only table/sequence privileges stand between these roles and tenant data.
   it.each(['cs_web', 'cs_worker'])('%s has no privilege on any relation or sequence in public or auth', async (role) => {

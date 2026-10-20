@@ -2,7 +2,7 @@ import type { Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
 
 /**
- * Spec D9 / migration 0080: what `cs_web` needs to enqueue and read job status — `version` (start), `queue` (send),
+ * Spec D9 / migration 0081: what `cs_web` needs to enqueue and read job status — `version` (start), `queue` (send),
  * `job` (send + status). Queries go through the partitioned parent, so per-queue partitions need no grant. Run after
  * `boss.start()`, because on a fresh database pg-boss creates these tables only then.
  *

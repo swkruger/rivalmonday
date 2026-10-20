@@ -54,7 +54,7 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 - **Scripted edits must read/write UTF-8 explicitly** (Python on Windows defaults to cp1252 and corrupts `—`/`…`): check a branch with `iconv -f utf-8 -t utf-8` over `git diff --name-only main...HEAD`.
 
 ## Deploy & observability (Phase 7a1)
-- **Runtime roles `cs_worker`/`cs_web`** (migration `0080` aborts if missing; it also grants `pgboss`). Locally `bash scripts/local-test-db.sh start` runs `ensure_roles`; `infra/db/init/01-roles.sql` is idempotent. Neon: create them with SQL as the owner before `pnpm db:migrate` (`docs/DEPLOY.md` § Roles).
+- **Runtime roles `cs_worker`/`cs_web`** (migration `0081` aborts if missing; it also grants `pgboss`). Locally `bash scripts/local-test-db.sh start` runs `ensure_roles`; `infra/db/init/01-roles.sql` is idempotent. Neon: create them with SQL as the owner before `pnpm db:migrate` (`docs/DEPLOY.md` § Roles).
 - **Sentry is inert without a DSN** (web and worker); tests and local runs never send events.
 - **Worker `/healthz`** on `PORT` (default 8080): healthy iff <= 660 s since `max(start, last heartbeat)`.
 - **Strict prod env:** with `NODE_ENV=production` the worker exits 1 naming missing vars (`REQUIRED_PROD_ENV`, `apps/worker/src/env.ts`).

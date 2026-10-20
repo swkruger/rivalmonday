@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - name: Create roles (incl. runtime cs_worker/cs_web, which migration 0080 needs) and test database
+      - name: Create roles (incl. runtime cs_worker/cs_web, which migration 0081 needs) and test database
         run: psql postgres://postgres:postgres@localhost:5432/cs_dev -f infra/db/init/01-roles.sql
       - run: pnpm install --frozen-lockfile
       - name: Install Playwright chromium

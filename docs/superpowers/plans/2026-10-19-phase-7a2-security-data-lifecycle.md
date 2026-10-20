@@ -42,7 +42,7 @@
 ## Dependencies on in-flight work (re-check in Task 0)
 - **phase-14b** (unmerged): `packages/db/src/schema/ledger.ts` (`llm_call.vertical_id`, 0078) — this plan edits the same file (drops FKs); migrations `0077`–`0079`; new tools/jobs (archival filters + plan gating must cover any new client/agency scheduler or MCP/Ask tool).
 - **13a** (plan on `main`): `proxy.ts` (only the `PUBLIC` hunk here), per-agency Postmark servers (the webhook keys on `notification.provider_id`, so their URL is reused), `turbo.json` env list.
-- **phase-15b** (planning): may touch KB (`kb/seed.ts`, page keys) and claim a migration. **7a1**: `@cs/core/server` (`hashInput`), migration `0080`. Migration number = next free at execution (assumed `0081`).
+- **phase-15b** (planning): may touch KB (`kb/seed.ts`, page keys) and claim a migration. **7a1**: `@cs/core/server` (`hashInput`), migration `0081_runtime_roles`. Migration number = next free at execution (assumed `0082`).
 
 ## Review focus
 1. **SSRF address forms** — SIIT `::ffff:0:a.b.c.d`, mapped `::ffff:127.0.0.1`, NAT64 `64:ff9b::7f00:1`, 6to4, decimal host `http://2130706433/`, DNS answers mixing public + private, a redirect hop or sub-resource to `127.0.0.1`, and a service worker/WebSocket bypass (Task 2 tests).
