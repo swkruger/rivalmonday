@@ -147,14 +147,16 @@ interface RecommendationBoardProps {
   canEdit: boolean;
   agency: boolean;
   action: SetStatusAction;
+  /** What to show when there are no recommendations (the page passes the teaching empty state). */
+  empty?: React.ReactNode;
 }
 
 /** Agency and client roles (including guests) land here from the nav — `canEdit` is false for viewers and guests. */
-export function RecommendationBoard({ clientId, items, canEdit: canEditProp, agency, action }: RecommendationBoardProps) {
+export function RecommendationBoard({ clientId, items, canEdit: canEditProp, agency, action, empty }: RecommendationBoardProps) {
   // Phase 8b: status changes are writes, hidden in a support session.
   const canEdit = canEditProp && !useReadOnly();
   if (items.length === 0) {
-    return <p className="text-muted-foreground">No recommendations yet — they arrive with each approved weekly brief.</p>;
+    return <>{empty ?? <p className="text-muted-foreground">No recommendations yet — they arrive with each approved weekly brief.</p>}</>;
   }
   const todo = items.filter((i) => i.status === 'todo');
   const inProgress = items.filter((i) => i.status === 'in_progress');

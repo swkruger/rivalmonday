@@ -41,4 +41,4 @@ No. Upsell tags, item statuses and the pitch snapshot are agency-only; they are 
 
 ### When does the first quarterly report appear?
 
-After a full quarter of monitoring.
+In the first week after a quarter ends, for the quarter that just ended.

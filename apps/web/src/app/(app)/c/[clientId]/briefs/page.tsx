@@ -4,15 +4,25 @@ import { Badge, TabsLink, TabsLinkList } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { clientCrumbs } from '@/components/client-crumbs';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
+import { type EmptyCopy, PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { one, type SearchParams } from '@/server/search-params';
 import { callTool } from '@/server/tools';
-import { ALERT_STATUS, BRIEF_STATUS, type BriefsTab, EMPTY, REPORT_STATUS, TABS } from './copy';
+import { ALERT_STATUS, BRIEF_STATUS, type BriefsTab, REPORT_STATUS, TABS } from './copy';
 import { formatDay } from './format';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Briefs & reports' };
+
+const HELP_KEY = 'page:client.briefs';
+const COPY = PAGE_COPY['client.briefs'];
+/** The teaching empty state of each tab (later pages read "Nothing more to show."). */
+const EMPTY_STATE: Record<BriefsTab, EmptyCopy> = { briefs: COPY.empty.noBriefs, alerts: COPY.empty.noAlerts, reports: COPY.empty.noReports };
 
 const PER_PAGE = 20;
 /** The list cursor stops at offset 1,000,000. */
@@ -80,25 +90,40 @@ export default async function BriefsPage({ params, searchParams }: { params: Pro
   const page = parsePage(one(sp.page));
   const { ctx } = await requireContext();
   const agency = isAgencyRole(ctx.role);
-  const [profile, { rows, hasMore }] = await Promise.all([
+  const [profile, { rows, hasMore }, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     loadTab(ctx, tab, clientId, page),
+    helpGuides(ctx, 'client', clientId),
   ]);
 
   return (
     <>
-      <PageHeader title="Briefs & reports" breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Act', 'Briefs & reports')} />
+      <PageHeader
+        title="Briefs & reports"
+        breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Act', 'Briefs & reports')}
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
+      />
 
-      <TabsLinkList aria-label="Briefs and reports views" className="max-w-full overflow-x-auto">
-        {TABS.map((t) => (
-          <TabsLink key={t.key} asChild active={t.key === tab} className="flex-none px-3">
-            <Link href={hrefFor(clientId, t.key)}>{t.label}</Link>
-          </TabsLink>
-        ))}
-      </TabsLinkList>
+      <div className="flex items-center gap-2">
+        <TabsLinkList aria-label="Briefs and reports views" className="max-w-full overflow-x-auto">
+          {TABS.map((t) => (
+            <TabsLink key={t.key} asChild active={t.key === tab} className="flex-none px-3">
+              <Link href={hrefFor(clientId, t.key)}>{t.label}</Link>
+            </TabsLink>
+          ))}
+        </TabsLinkList>
+        <HelpTip tip="client.briefs.kinds" />
+        {agency && <HelpTip tip="client.briefs.status" />}
+      </div>
 
       {rows.length === 0 ? (
-        <p className="rounded-[14px] bg-surface p-6 text-muted-foreground shadow-card">{page === 1 ? EMPTY[tab] : 'Nothing more to show.'}</p>
+        page === 1 ? (
+          <EmptyState {...EMPTY_STATE[tab]} />
+        ) : (
+          <p className="rounded-[14px] bg-surface p-6 text-muted-foreground shadow-card">Nothing more to show.</p>
+        )
       ) : (
         <ul className="flex flex-col gap-1 rounded-[14px] bg-surface p-3 shadow-card">
           {rows.map((r) => (

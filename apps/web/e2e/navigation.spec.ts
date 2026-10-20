@@ -150,10 +150,11 @@ test.describe('as the operator', () => {
 
     await tabs.getByRole('link', { name: 'Alerts', exact: true }).click();
     await expect(page).toHaveURL(/\?tab=alerts$/);
-    await expect(page.getByText('No alerts yet. Alerts are sent when a competitor makes an urgent change.')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'No alerts yet', exact: true })).toBeVisible();
+    await expect(page.getByText('Alerts are sent when a competitor makes an urgent change.')).toBeVisible();
     await tabs.getByRole('link', { name: 'Quarterly reports', exact: true }).click();
     await expect(page).toHaveURL(/\?tab=reports$/);
-    await expect(page.getByText('No quarterly reports yet.')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'No quarterly reports yet', exact: true })).toBeVisible();
 
     await tabs.getByRole('link', { name: 'Weekly briefs', exact: true }).click();
     await page.getByRole('main').getByRole('link', { name: /Archive week 21:/ }).click();

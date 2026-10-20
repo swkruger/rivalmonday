@@ -43,8 +43,11 @@ export const CLIENT_COPY = {
       noCompetitorsAgency: { title: 'No competitors tracked yet', body: 'Add competitors on the Competitors page to see how much pressure each one puts on {client}.', audience: 'agency' },
       noCompetitorsClient: { title: 'No competitors tracked yet', body: 'Your competitors appear here once {agency} has set them up.', audience: 'client' },
       noMoves: { title: 'No moves right now', body: "A move is a pattern in a competitor's changes, such as a price war or an ad surge. Moves show here when one is spotted." },
-      noRecommendations: { title: 'Nothing open right now', body: 'New recommendations come with each brief. You can also save one from an {assistant} answer.' },
-      noReports: { title: 'No quarterly reports yet', body: 'The first report arrives after a full quarter of monitoring.' },
+      // The page shows noRecommendationsAsk only to a viewer who can save from an answer (Ask on, feedback permission), noRecommendations otherwise.
+      noRecommendations: { title: 'Nothing open right now', body: 'New recommendations come with each brief.' },
+      noRecommendationsAsk: { title: 'Nothing open right now', body: 'New recommendations come with each brief. You can also save one from an {assistant} answer.' },
+      // source: packages/engine/src/reports/quarterly.ts:runQuarterlyReports (days 1-7 of January, April, July and October, the previous quarter)
+      noReports: { title: 'No quarterly reports yet', body: 'A report arrives in the first week after each quarter ends.' },
     },
   },
   'client.changes': {
@@ -267,6 +270,219 @@ export const CLIENT_COPY = {
       noOpen: { title: 'No open moves', body: "A move is a pattern in one competitor's changes, such as a price war or an ad surge. It appears here when one is spotted. Choose Closed or All to see earlier ones." },
       noMatch: { title: 'No moves here', body: "Moves are spotted from patterns in a competitor's changes, so a quiet stretch can have none." },
       noSelection: { title: 'Pick a move', body: 'Select a move on the left to see the changes behind it and their evidence.' },
+    },
+  },
+  'client.recommendations': {
+    description: 'Next steps from your weekly briefs and detected competitor moves.',
+    tips: {
+      // source: apps/web/src/components/recommendation-board.tsx:RecommendationBoard (columns, targetsFor, ReopenForm, DismissDialog); packages/core/src/access.ts:ROLE_PERMISSIONS (client_viewer has read only)
+      stages: {
+        title: 'Recommendation stages',
+        body: 'To do, In progress and Done are the stages. Use Start, Done or Back to to-do on a card to move it. A dismissed recommendation goes to the list at the bottom with the reason given, and can be reopened. People with view-only access can read the board but not change it.',
+        guideAnchor: 'how-to-use-it',
+      },
+      // source: apps/web/src/components/recommendation-board.tsx:RecommendationCard (effort and impact shown as L, M or H); packages/engine/src/briefs/writer.ts (LEVELS L, M, H)
+      effortImpact: {
+        title: 'Effort and impact',
+        body: 'Rough estimates, shown as L, M or H for low, medium or high: how much work the step is, and how much it could help. They help you pick where to start. They are estimates, not measurements.',
+      },
+      // source: packages/engine/src/briefs/recommendations.ts (owner client | agency); apps/web/src/components/recommendation-board.tsx:RecommendationCard ("For you" / "Agency")
+      owner: {
+        title: 'For you or Agency',
+        body: '"For you" marks a step the business owner can take, such as asking customers for reviews. "Agency" marks a step {agency} can take.',
+      },
+      // source: apps/web/src/components/recommendation-board.tsx:SOURCE_LABEL; packages/engine/src/briefs/recommendations.ts:recommendationFromItem (source brief) and the move plays (source move)
+      origin: {
+        title: 'Where a recommendation came from',
+        body: "From weekly brief: the step is the recommended action of a brief item. From a detected move: it answers a pattern in a competitor's changes. From Ask: it was saved from an assistant answer. The evidence links on each card open the stored proof.",
+        guideAnchor: 'what-this-page-tells-you',
+      },
+    },
+    empty: {
+      // The page shows noRecsAsk only to a viewer who can save from an answer (the Ask module on and the feedback permission), noRecs otherwise.
+      noRecs: { title: 'No recommendations yet', body: 'Recommendations arrive with each approved weekly brief, and when a competitor move calls for a response.' },
+      noRecsAsk: { title: 'No recommendations yet', body: 'Recommendations arrive with each approved weekly brief, and when a competitor move calls for a response. You can also save one from an {assistant} answer.' },
+    },
+  },
+  'client.ask': {
+    description: 'Questions about your competitors and market, answered from the monitored evidence.',
+    tips: {
+      // source: packages/ask/src/prompt.ts:buildSystemPrompt (rules 1, 2, 6); packages/ask/src/grounding.ts:groundAnswer (unsupported sentences removed)
+      answers: {
+        title: 'How answers are checked',
+        body: '{assistant} answers from what has been monitored for {client}, such as changes, prices, ads and reviews. Facts link to their evidence. A sentence that starts with "Possible reason:" is an interpretation, not a stated fact. Sentences the evidence does not support are removed before you see the answer, and if there is no evidence for something, the answer says so.',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/ask/src/starters.ts:generateStarters (four questions from the last 7 days of events); packages/tools/src/tools/ask-threads.ts:getAskStarters (general questions until a set exists)
+      starters: {
+        title: 'Starter questions',
+        body: 'Four suggested questions, written from what competitors did in the last 7 days. Until the first set exists you see general ones. Pick one to ask it, or type your own.',
+      },
+      // source: apps/web/src/components/ask/ask-chat.tsx:disclosureCopy; apps/web/src/components/ask/thread-list.tsx (delete, "Only you can see them"); apps/web/src/app/(app)/c/[clientId]/ask/ask-screen.tsx:ASK_PRIVATE_COPY; packages/tools/src/tools/ask-threads.ts:getAskStarters (reviewAllowed)
+      privacy: {
+        title: 'Who can see your questions',
+        body: 'Your questions and answers are private to you; other people at {client} or {agency} cannot open them. When a line under the box says conversations may be reviewed to improve answers, the people it names can read them. That line shows only while review is allowed for {client}. Delete a thread with the bin icon beside it.',
+        guideAnchor: 'common-questions',
+      },
+      // source: packages/ask/src/actions.ts:actionSummary (add_recommendation, update_recommendation_status, submit_feedback); apps/web/src/components/ask/confirm-card.tsx; apps/web/src/components/ask/save-recommendation-dialog.tsx
+      changes: {
+        title: 'What {assistant} can change',
+        body: '{assistant} can propose saving a recommendation, changing a recommendation\'s status or rating a change. It shows a card with what it would do, and nothing happens until you confirm. Under an answer that cites evidence, "Save as recommendation" adds it to the Recommendations page.',
+        guideAnchor: 'how-to-use-it',
+      },
+    },
+  },
+  'client.ask.thread': {
+    description: 'A saved conversation. It is private to you, and you can delete it from the list.',
+    // The thread page shows the tips of client.ask (answers, privacy, changes).
+    tips: {},
+  },
+  'client.briefs': {
+    description: "{client}'s weekly briefs, alerts and quarterly reports, newest first.",
+    tips: {
+      // source: packages/engine/src/briefs/deliver.ts:DELIVERY_LOCAL_HOUR (Monday 07:00 client time); packages/engine/src/score/score.ts:scoreForClient (alert and brief routes); packages/engine/src/reports/quarterly.ts:runQuarterlyReports (first week of a quarter); packages/engine/src/briefs/starting-point.ts (starting_point kind)
+      kinds: {
+        title: 'Briefs, alerts and reports',
+        body: 'A weekly brief arrives on Monday morning: what changed, why it matters and what to do. An alert is a change important enough to send between briefs. A quarterly report gives the numbers for the quarter that just ended. A brief tagged Starting point is the first one, showing where {client} stands before weekly briefs begin.',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: apps/web/src/app/(app)/c/[clientId]/briefs/copy.ts:BRIEF_STATUS, ALERT_STATUS, REPORT_STATUS; apps/web/src/app/(app)/c/[clientId]/briefs/page.tsx (chips for agency roles only; client roles only get delivered items)
+      status: {
+        title: 'Status chips',
+        body: 'The chip shows where each item stands in your review, such as Needs review, Approved or Sent. Items waiting for review are in Approvals. Client users only see items that were delivered, and no chips.',
+        audience: 'agency',
+        guideAnchor: 'how-to-use-it',
+      },
+    },
+    empty: {
+      noBriefs: { title: 'No weekly briefs yet', body: 'The first one arrives the Monday after setup is complete.' },
+      noAlerts: { title: 'No alerts yet', body: 'Alerts are sent when a competitor makes an urgent change.' },
+      // source: packages/engine/src/reports/quarterly.ts:runQuarterlyReports (days 1-7 of January, April, July and October, the previous quarter)
+      noReports: { title: 'No quarterly reports yet', body: 'A report arrives in the first week after each quarter ends, and covers that quarter.' },
+    },
+  },
+  'client.briefs.detail': {
+    description: "What {client}'s competitors did, why it matters and what to do about it. Every point links to its evidence.",
+    tips: {
+      // source: apps/web/src/components/confidence-label.ts:confidenceLabel ("High confidence NN%" / "Confidence NN%", amber edge on the high band; the threshold itself is agency-only); packages/db/src/schema/briefs.ts:briefItem.confidence
+      confidence: {
+        title: 'Confidence',
+        body: 'The percentage on each point shows how well the evidence supports it. Higher is better supported. "High confidence" marks the points we are most sure of, which also have an amber edge. Every point links to its evidence either way.',
+        guideAnchor: 'common-questions',
+      },
+      // source: apps/web/src/components/evidence-chips.tsx:EvidenceChips (Evidence N links open /c/<id>/evidence/<evidenceId>)
+      evidence: {
+        title: 'Evidence links',
+        body: 'Each Evidence link opens the stored proof for the point above it: a snapshot, text or data captured from public information, with the date and a fingerprint that shows it has not been altered.',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/engine/src/briefs/generate.ts:QUIET_SUMMARY (kind quiet stores the scorecard); packages/engine/src/briefs/scorecard-model.ts:scorecardModel (tiles Rating, New reviews 90 d, Reply rate, Top-3 in map pack; rivals median; since your starting point)
+      quiet: {
+        title: 'Quiet weeks',
+        body: 'When no competitor made a significant move, the brief shows where {client} stands instead: rating, new reviews in the last 90 days, reply rate and share of top-3 map spots, each next to the median of the rivals we watch and the change since the starting point. The table lists every business.',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/engine/src/briefs/starting-point.ts; packages/engine/src/briefs/scorecard-model.ts:scorecardModel; apps/web/src/components/views/brief-view.tsx:BriefView (First moves still open)
+      startingPoint: {
+        title: 'About the starting point',
+        body: 'The first brief. It shows where {client} stands against the competitors we watch on day one, and the first moves to make. Weekly briefs after it show what has changed since.',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/engine/src/briefs/trend.ts:trendSnapshot (TREND_WINDOW_DAYS 30; reviews, rating before and after, active ads); apps/web/src/components/views/brief-view.tsx:TrendTable (caption "Last N days")
+      trend: {
+        title: 'The last-days table',
+        body: 'Numbers for {client} and each competitor over the period in the table caption: new reviews, average rating before and after, and ads running now. A dash in Active ads means not checked for that business.',
+      },
+    },
+  },
+  'client.alerts.detail': {
+    description: 'A change important enough to send between weekly briefs, with the evidence behind it.',
+    tips: {
+      // source: packages/engine/src/score/score.ts:scoreForClient (alert, brief and archived routes)
+      alertVsBrief: {
+        title: 'Alert or brief',
+        body: 'An alert is a change that was important enough to send straight away. Smaller changes wait for the weekly brief, and the smallest are only recorded. Every alert links to the evidence behind it.',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/engine/src/score/score.ts:scoreForClient (score 0-100, alert level); apps/web/src/app/(app)/c/[clientId]/briefs/copy.ts:ALERT_STATUS; apps/web/src/components/views/alert-view.tsx ("Template text")
+      score: {
+        title: 'Score, status and template text',
+        body: 'The score is the change\'s score from 0 to 100; an alert is sent when it reaches the client\'s alert level (Settings › Alert rules). The status shows where the alert is in your review. "Template text" means the written text did not pass verification, so a fixed template was used instead.',
+        audience: 'agency',
+        guideAnchor: 'how-to-use-it',
+      },
+    },
+  },
+  'client.reports.detail': {
+    description: 'The numbers for one quarter: how {client} and its competitors compared, what changed and what was done about it.',
+    tips: {
+      // source: packages/engine/src/reports/quarterly.ts:computeTrendReport (QUARTER_WINDOW_DAYS 90, trendSnapshot businesses); packages/engine/src/briefs/trend.ts:trendSnapshot (activeAds = adActivity.activeNow, null for the client itself); apps/web/src/components/views/report-view.tsx (▲ ▼)
+      businesses: {
+        title: 'Reviews, rating and ads',
+        body: 'Reviews: new Google reviews in the last 90 days of the quarter. Average rating: the average stars over those 90 days; ▲ or ▼ shows it rose or fell compared with the 90 days before. Active ads: ads running when the report was made, shown only for competitors.',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/engine/src/reports/quarterly.ts:computeTrendReport (byType: scored events in the period, cosmetic and retracted excluded)
+      changes: {
+        title: 'Changes detected',
+        body: 'How many changes were scored for {client} during the quarter, grouped by type. Tiny cosmetic changes are left out.',
+      },
+      // source: packages/engine/src/reports/quarterly.ts:computeTrendReport (moves first detected in the period with at least one live event; status closed when closedAt is set)
+      moves: {
+        title: 'Moves in the quarter',
+        body: 'Moves first detected during the quarter, with their status when the report was made. A move counts only while at least one change behind it is still valid.',
+      },
+      // source: packages/engine/src/reports/quarterly.ts:computeTrendReport (briefsSent, alertsDelivered, recommendations created, done, inProgress, dismissed by status at report time)
+      activity: {
+        title: 'Briefs, alerts and recommendations',
+        body: 'Briefs sent and alerts delivered during the quarter, and the recommendations created in it, counted by where each one stood when the report was made: Done, In progress or Dismissed.',
+      },
+    },
+  },
+  'client.evidence.detail': {
+    description: 'The stored proof behind a point in a brief or alert: what was captured, when, and its fingerprint.',
+    tips: {
+      // source: apps/web/src/app/(app)/c/[clientId]/evidence/[evidenceId]/page.tsx (Source row: web evidence reads "captured by our monitoring service"); packages/db/src/schema/evidence.ts:capture, evidence (immutable)
+      captured: {
+        title: 'Where this was captured',
+        body: "Pages on a competitor's own website are captured automatically by our monitoring service. Other sources, such as Google profiles and ad libraries, are recorded when their data is collected. Once stored, evidence is never edited.",
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/core/src/domain.ts:CAPTURE_STATUSES; packages/db/src/schema/evidence.ts:capture.status
+      status: {
+        title: 'Capture status',
+        body: 'Whether the capture worked. "ok" means the page or data was read normally.',
+      },
+      // source: packages/collectors/src/evidence/recorder.ts:sha256Hex; packages/db/src/schema/evidence.ts:evidence.sha256
+      fingerprint: {
+        title: 'What the fingerprint is',
+        body: 'A long code (a SHA-256 hash) worked out from the captured content. The same content always gives the same code, and changing even one character gives a completely different one. Working the code out again from the stored file and getting the same result shows it has not been altered since it was captured.',
+        guideAnchor: 'common-questions',
+      },
+      // source: apps/web/src/app/(app)/c/[clientId]/evidence/[evidenceId]/page.tsx (Kept row: legalHold, retention policy, delivered brief)
+      kept: {
+        title: 'How long evidence is kept',
+        body: 'Evidence is kept under the retention policy, and for as long as a delivered brief cites it. Evidence on legal hold is never deleted.',
+      },
+    },
+  },
+  'client.pitch-snapshot': {
+    description: 'The market picture shown to {client} before it became a client: its Google profile, ads and map visibility next to its competitors.',
+    tips: {
+      // source: apps/web/src/components/prospect-landscape.tsx:ProspectLandscape ("No AI-written text"); packages/db/src/schema/client-intel.ts:ProspectBusiness (ads null = not checked)
+      figures: {
+        title: 'Where the figures come from',
+        body: 'Figures only, straight from stored data, with no AI-written text. Rating, reviews and category come from the Google Business Profile, and ads running from the Google and Meta ad libraries. "Not checked" means there was no website or Meta page to look up.',
+        audience: 'agency',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/collectors/src/prospect/report.ts:summarizeRanks (found, top3, averageRank over the points where the business appears); apps/web/src/components/prospect-landscape.tsx (3x3 grid, "not in the top 20")
+      mapVisibility: {
+        title: 'Reading map visibility',
+        body: 'Each cell reads "found/points · top 3 · avg". For one search term, found is the number of grid points where the business appeared, top 3 is how many of those it was in the first three, and avg is its average position at the points where it appeared. Unlike Local rankings, points where it did not appear are not counted as 21.',
+        audience: 'agency',
+        guideAnchor: 'how-to-use-it',
+      },
     },
   },
 } as const satisfies Record<`client.${string}`, PageCopy>;

@@ -7,14 +7,21 @@ import { cache, type ReactNode } from 'react';
 import { RATIONALE_MAX, SaveRecommendationDialog, TITLE_MAX } from '@/components/ask/save-recommendation-dialog';
 import { EvidenceImage } from '@/components/evidence-image';
 import { clientCrumbs } from '@/components/client-crumbs';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY, type TipKey } from '@/help/copy';
 import { assistantNameFor } from '@/server/ask';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
+import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { saveAskRecommendation } from '../../ask/actions';
 
 export const dynamic = 'force-dynamic';
+
+const HELP_KEY = 'page:client.evidence.detail';
+const COPY = PAGE_COPY['client.evidence.detail'];
 
 /** `get_evidence`'s `kind` values that are never served raw (decision 6) — their readable label for the placeholder message. */
 const RAW_KIND_LABEL: Record<string, string> = { html: 'page HTML', vendor_json: 'vendor data' };
@@ -27,10 +34,13 @@ function formatUtcDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 
-function DetailRow({ label, value }: { label: string; value: ReactNode }) {
+function DetailRow({ label, value, tip }: { label: string; value: ReactNode; tip?: TipKey }) {
   return (
     <div>
-      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dt className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        {label}
+        {tip && <HelpTip tip={tip} />}
+      </dt>
       <dd className="break-all">{value}</dd>
     </div>
   );
@@ -57,7 +67,7 @@ export async function generateMetadata({ params }: { params: Promise<{ clientId:
 export default async function EvidencePage({ params }: { params: Promise<{ clientId: string; evidenceId: string }> }) {
   const { clientId, evidenceId } = await params;
   const { viewer, ctx } = await requireContext();
-  const [evidence, profile] = await Promise.all([loadEvidence(ctx, clientId, evidenceId), callTool<ClientProfile>(ctx, 'get_client_profile', { clientId })]);
+  const [evidence, profile, guides] = await Promise.all([loadEvidence(ctx, clientId, evidenceId), callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }), helpGuides(ctx, 'client', clientId)]);
   const captured = formatUtc(evidence.capturedAt);
   // Ask entry points: signed-in users with the `ask` feature (never guests, Q2). "Add recommendation" mirrors
   // `add_recommendation` itself: `feedback` permission and the `dashboard` feature.
@@ -72,7 +82,13 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
       <PageHeader
         title={titleOf(evidence)}
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, ...(hasFeature(ctx, 'dashboard') ? [{ label: 'Changes', href: `/c/${clientId}/changes` }] : []), 'Evidence')}
-        description={`${evidence.channelLabel} · captured ${captured} · status ${evidence.captureStatus}`}
+        description={
+          <>
+            <HelpText text={COPY.description} /> {`${evidence.channelLabel} · captured ${captured} · status ${evidence.captureStatus}`}
+          </>
+        }
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
       />
 
       {assistantName && (
@@ -124,13 +140,14 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-            <DetailRow label="Source" value={evidence.channel === 'web' ? `${evidence.channelLabel} · captured by our monitoring service` : evidence.channelLabel} />
+            <DetailRow label="Source" tip="client.evidence.detail.captured" value={evidence.channel === 'web' ? `${evidence.channelLabel} · captured by our monitoring service` : evidence.channelLabel} />
             <DetailRow label="URL" value={evidence.url ?? '—'} />
             <DetailRow label="Captured" value={captured} />
-            <DetailRow label="Status" value={evidence.captureStatus} />
-            <DetailRow label="SHA-256" value={<span className="font-mono break-all">{evidence.sha256}</span>} />
+            <DetailRow label="Status" tip="client.evidence.detail.status" value={evidence.captureStatus} />
+            <DetailRow label="SHA-256" tip="client.evidence.detail.fingerprint" value={<span className="font-mono break-all">{evidence.sha256}</span>} />
             <DetailRow
               label="Kept"
+              tip="client.evidence.detail.kept"
               value={evidence.legalHold ? 'On legal hold — never deleted' : 'Kept under the retention policy, and for as long as a delivered brief cites it'}
             />
           </dl>

@@ -9,7 +9,6 @@ vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: 
 vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a), tryCallTool: (...a: unknown[]) => callTool(...a) }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
 
-import { EMPTY } from './copy';
 import BriefsPage from './page';
 
 const C = '00000000-0000-4000-8000-0000000000c1';
@@ -115,13 +114,13 @@ describe('Briefs & reports (15a §2.8)', () => {
   });
 
   it.each([
-    ['briefs', 'No weekly briefs yet. The first one arrives the Monday after setup is complete.'],
-    ['alerts', 'No alerts yet. Alerts are sent when a competitor makes an urgent change.'],
-    ['reports', 'No quarterly reports yet.'],
-  ] as const)('empty state for %s', async (tab, copy) => {
+    ['briefs', 'No weekly briefs yet', 'The first one arrives the Monday after setup is complete.'],
+    ['alerts', 'No alerts yet', 'Alerts are sent when a competitor makes an urgent change.'],
+    ['reports', 'No quarterly reports yet', 'A report arrives in the first week after each quarter ends, and covers that quarter.'],
+  ] as const)('empty state for %s', async (tab, title, body) => {
     mount({});
     await show({ tab });
-    expect(EMPTY[tab]).toBe(copy);
-    expect(screen.getByText(copy)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: title })).toBeTruthy();
+    expect(screen.getByText(body)).toBeTruthy();
   });
 });

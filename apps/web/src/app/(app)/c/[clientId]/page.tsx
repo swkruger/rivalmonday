@@ -1,4 +1,4 @@
-import { hasFeature, isAgencyRole } from '@cs/core';
+import { hasFeature, hasPermission, isAgencyRole } from '@cs/core';
 import type {
   AdActivityView,
   AlertSummary,
@@ -51,7 +51,7 @@ const KPI_TIPS: Readonly<Record<string, TipKey>> = {
 
 export default async function ClientHome({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
-  const { ctx } = await requireContext();
+  const { viewer, ctx } = await requireContext();
   if (!hasFeature(ctx, 'dashboard')) return <ClientHomeBasic clientId={clientId} ctx={ctx} />;
   const [profile, overview, ads, moves, briefs, alerts, recs, reports, starting, setup, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
@@ -76,6 +76,8 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
   const openRecs = recs.items.filter((r) => r.status === 'todo' || r.status === 'in_progress');
   const n = overview.trackedCompetitors;
   const agency = isAgencyRole(ctx.role);
+  // Offer "save from an assistant answer" only to a viewer who can (Ask on for a signed-in user, may give feedback).
+  const canSaveFromAsk = viewer.kind === 'user' && !ctx.userId.startsWith('contact:') && hasFeature(ctx, 'ask') && hasPermission(ctx, 'feedback');
 
   return (
     <>
@@ -199,7 +201,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
             <span className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-bold text-primary-soft-text">{openRecs.length} open</span>
           </div>
           <div className="mt-3 flex flex-col gap-2">
-            {openRecs.length === 0 && <EmptyState {...COPY.empty.noRecommendations} />}
+            {openRecs.length === 0 && <EmptyState {...(canSaveFromAsk ? COPY.empty.noRecommendationsAsk : COPY.empty.noRecommendations)} />}
             {openRecs.slice(0, 4).map((r) => (
               <div key={r.id} className="rounded-lg bg-muted-surface px-3 py-2">
                 <div className="font-semibold">{r.title}</div>

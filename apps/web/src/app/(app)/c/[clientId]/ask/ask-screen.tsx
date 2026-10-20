@@ -6,13 +6,26 @@ import { notFound } from 'next/navigation';
 import { AskChat } from '@/components/ask/ask-chat';
 import { ThreadDrawer, ThreadList } from '@/components/ask/thread-list';
 import { clientCrumbs } from '@/components/client-crumbs';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY, type TipKey } from '@/help/copy';
 import { assistantNameFor } from '@/server/ask';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
+import { helpGuides } from '@/server/help';
 import { themeForViewer } from '@/server/theme';
 import { callTool } from '@/server/tools';
 import { confirmAskAction, deleteAskThreadAction, saveAskRecommendation } from './actions';
+
+/** Both Ask pages share one help key per page (the PageHeader renders here, not in the route files). */
+const helpKeyFor = (threadId: string | null) => (threadId ? 'client.ask.thread' : 'client.ask');
+const tipsFor = (threadId: string | null): readonly { label: string; tip: TipKey }[] => [
+  { label: 'Answers', tip: 'client.ask.answers' },
+  ...(threadId ? [] : [{ label: 'Suggestions', tip: 'client.ask.starters' } as const]),
+  { label: 'Privacy', tip: 'client.ask.privacy' },
+  { label: 'Making changes', tip: 'client.ask.changes' },
+];
 
 /** Both Ask pages' tab title, "Ask {assistant}" like the menu item (the shell's cached branding read supplies the name). */
 export async function askMetadata(): Promise<Metadata> {
@@ -33,13 +46,14 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
   seedEvidenceId?: string;
 }) {
   const { viewer, ctx } = await requireContext();
-  if (viewer.kind === 'support') return supportAskView(clientId, ctx);
+  if (viewer.kind === 'support') return supportAskView(clientId, threadId, ctx);
   if (viewer.kind !== 'user' || ctx.userId.startsWith('contact:') || !hasFeature(ctx, 'ask')) notFound();
-  const [profile, starters, threads, thread] = await Promise.all([
+  const [profile, starters, threads, thread, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<{ questions: string[]; reviewAllowed: boolean }>(ctx, 'get_ask_starters', { clientId }),
     callTool<{ items: AskThreadSummary[] }>(ctx, 'list_my_ask_threads', { clientId }),
     threadId ? callTool<AskThreadView>(ctx, 'get_my_ask_thread', { threadId }) : Promise.resolve(null),
+    helpGuides(ctx, 'client', clientId),
   ]);
   if (thread && thread.clientId !== clientId) notFound();
   const { service } = dbs();
@@ -53,9 +67,19 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
       <PageHeader
         title={askTitle}
         breadcrumb={thread ? clientCrumbs(client, { label: askTitle, href: `/c/${clientId}/ask` }, thread.title) : clientCrumbs(client, askTitle)}
-        description={thread ? undefined : 'Questions about your competitors and market, answered from the monitored evidence.'}
+        description={<HelpText text={PAGE_COPY[helpKeyFor(threadId)].description} />}
+        helpKey={`page:${helpKeyFor(threadId)}`}
+        guide={guides.has(`page:${helpKeyFor(threadId)}`)}
         actions={<ThreadDrawer {...list} />}
       />
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
+        {tipsFor(threadId).map((t) => (
+          <span key={t.tip} className="inline-flex items-center gap-1.5">
+            {t.label}
+            <HelpTip tip={t.tip} />
+          </span>
+        ))}
+      </div>
       <div className="flex items-start gap-5">
         <aside className="hidden w-64 flex-shrink-0 rounded-[14px] bg-surface p-3 shadow-card lg:sticky lg:top-6 lg:block">
           <ThreadList {...list} />
@@ -87,14 +111,22 @@ export const ASK_PRIVATE_COPY = 'Ask conversations are private to their authors.
  * Phase 8b: a support viewer sees that the module exists but no conversation. No thread tools are called (they are
  * hidden in a session anyway); the client is still gated by a read tool so a foreign or malformed id is a 404.
  */
-async function supportAskView(clientId: string, ctx: AccessContext) {
+async function supportAskView(clientId: string, threadId: string | null, ctx: AccessContext) {
   if (!hasFeature(ctx, 'ask')) notFound();
-  const profile = await callTool<ClientProfile>(ctx, 'get_client_profile', { clientId });
-  const assistantName = await assistantNameFor(dbs().service, ctx.agencyId);
+  const [profile, assistantName, guides] = await Promise.all([
+    callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
+    assistantNameFor(dbs().service, ctx.agencyId),
+    helpGuides(ctx, 'client', clientId),
+  ]);
   const askTitle = `Ask ${assistantName}`;
   return (
     <>
-      <PageHeader title={askTitle} breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, askTitle)} />
+      <PageHeader
+        title={askTitle}
+        breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, askTitle)}
+        helpKey={`page:${helpKeyFor(threadId)}`}
+        guide={guides.has(`page:${helpKeyFor(threadId)}`)}
+      />
       <p className="rounded-[14px] bg-surface p-6 text-muted-foreground shadow-card">{ASK_PRIVATE_COPY}</p>
     </>
   );

@@ -3,22 +3,30 @@ import type { ClientProfile, ProspectReportView } from '@cs/tools';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { clientCrumbs } from '@/components/client-crumbs';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
 import { ProspectLandscape } from '@/components/prospect-landscape';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Pitch snapshot' };
+
+const HELP_KEY = 'page:client.pitch-snapshot';
+const COPY = PAGE_COPY['client.pitch-snapshot'];
 
 /** Agency-only: the landscape shown to this business before it became a client (5b-2 Minor 2 carry-over). */
 export default async function PitchSnapshotPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const [profile, { report }] = await Promise.all([
+  const [profile, { report }, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<{ report: ProspectReportView | null }>(ctx, 'get_prospect_report', { clientId }),
+    helpGuides(ctx, 'client', clientId),
   ]);
   if (!report || report.status !== 'ready' || !report.data) notFound();
   return (
@@ -27,8 +35,24 @@ export default async function PitchSnapshotPage({ params }: { params: Promise<{ 
       <PageHeader
         title="Pitch snapshot"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Pitch snapshot')}
-        description={`The landscape we showed before ${profile.name} became a client (${(report.finishedAt ?? report.createdAt).slice(0, 10)}).`}
+        description={
+          <>
+            <HelpText text={COPY.description} /> {`Generated ${(report.finishedAt ?? report.createdAt).slice(0, 10)}.`}
+          </>
+        }
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
       />
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          Figures
+          <HelpTip tip="client.pitch-snapshot.figures" />
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          Map visibility
+          <HelpTip tip="client.pitch-snapshot.mapVisibility" />
+        </span>
+      </div>
       <div className="rounded-[14px] bg-surface p-6 shadow-card">
         <ProspectLandscape data={report.data} />
       </div>

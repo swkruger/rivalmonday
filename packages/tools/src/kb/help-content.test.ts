@@ -18,8 +18,15 @@ const PILOT = ['page:client.changes#agency', 'page:client.changes#client', 'page
 const BATCH_A_SPLIT = ['page:client.competitors', 'page:client.competitors.detail', 'page:client.rankings'];
 const BATCH_A_ALL = ['page:client.ads', 'page:client.moves', 'page:client.pricing'];
 const BATCH_A = [...BATCH_A_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`]), ...BATCH_A_ALL.map((k) => `${k}#all`)];
-const CLIENT_PAGES = [...PILOT, ...BATCH_A].sort();
+/** 15b-2 Task 5, client batch B. Pitch snapshot is agency-only (a client role gets a 404), so it has an agency guide and no client guide. */
+const BATCH_B_SPLIT = ['page:client.recommendations', 'page:client.ask', 'page:client.briefs', 'page:client.briefs.detail', 'page:client.alerts.detail'];
+const BATCH_B_ALL = ['page:client.ask.thread', 'page:client.reports.detail', 'page:client.evidence.detail'];
+const AGENCY_ONLY_PAGES = ['page:client.pitch-snapshot'];
+const BATCH_B = [...BATCH_B_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`]), ...BATCH_B_ALL.map((k) => `${k}#all`), ...AGENCY_ONLY_PAGES.map((k) => `${k}#agency`)];
+const CLIENT_PAGES = [...PILOT, ...BATCH_A, ...BATCH_B].sort();
 const CLIENT_KEYS = [...new Set(CLIENT_PAGES.map((k) => k.split('#')[0]!))].sort();
+/** What a client role can read: every client page guide except the agency-only pages. */
+const CLIENT_ROLE_KEYS = CLIENT_KEYS.filter((k) => !AGENCY_ONLY_PAGES.includes(k));
 /**
  * Words a client must never read in help: agency-internal concepts and the product name (client-facing text falls back to
  * "your agency"). The default assistant name is fine once rendered (it is what an un-renamed assistant is called); the
@@ -63,10 +70,10 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     for (const g of [o, a]) expect(g!.sections.map((s) => s.heading)).toEqual(['What this page tells you', 'How to use it', 'Common questions']);
   });
 
-  it('list_help_guides gives both audiences every client page guide (pilot and batch A)', async () => {
-    for (const c of [owner, admin]) {
+  it('list_help_guides gives agency roles every client page guide and client roles all but the agency-only pages (pilot, batches A and B)', async () => {
+    for (const [c, keys] of [[owner, CLIENT_ROLE_KEYS], [viewer, CLIENT_ROLE_KEYS], [admin, CLIENT_KEYS], [am, CLIENT_KEYS]] as const) {
       const { guides } = (await registry.invoke(c, 'list_help_guides', { context: 'client', clientId: IDS.clientA1 })) as { guides: { helpKey: string }[] };
-      expect(guides.map((g) => g.helpKey).sort(), c.role).toEqual(CLIENT_KEYS);
+      expect(guides.map((g) => g.helpKey).sort(), c.role).toEqual(keys);
     }
   });
 
@@ -106,8 +113,63 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     expect(text(await guide(owner, 'page:client.ads'))).toContain('Targeting not disclosed (US)');
   });
 
+  it('batch B: split pages give each audience its own guide, the rest share one `all` guide, all with the three standard sections', async () => {
+    for (const key of BATCH_B_SPLIT) {
+      const [o, v, a, m] = await Promise.all([guide(owner, key), guide(viewer, key), guide(admin, key), guide(am, key)]);
+      expect(o!.id, key).toBe(v!.id);
+      expect(a!.id, key).toBe(m!.id);
+      expect(a!.id, key).not.toBe(o!.id);
+    }
+    for (const key of BATCH_B_ALL) {
+      const [o, a] = await Promise.all([guide(owner, key), guide(admin, key)]);
+      expect(o!.id, key).toBe(a!.id);
+    }
+    for (const key of [...BATCH_B_SPLIT, ...BATCH_B_ALL]) {
+      for (const c of [owner, admin]) expect((await guide(c, key))!.sections.map((s) => s.heading), key).toEqual(['What this page tells you', 'How to use it', 'Common questions']);
+    }
+  });
+
+  it('batch B: pitch snapshot has an agency guide and no client guide', async () => {
+    const key = 'page:client.pitch-snapshot';
+    expect((await guide(admin, key))!.sections.map((s) => s.heading)).toEqual(['What this page tells you', 'How to use it', 'Common questions']);
+    expect(await guide(am, key)).not.toBeNull();
+    expect(await guide(owner, key)).toBeNull();
+    expect(await guide(viewer, key)).toBeNull();
+  });
+
+  it('batch B: the agency versions carry the agency-only content, the client versions leave it out', async () => {
+    const recA = text(await guide(admin, 'page:client.recommendations'));
+    for (const w of ['Upsell', 'From a detected move', 'Reopen', 'manage permission']) expect(recA, w).toContain(w);
+    const recC = text(await guide(owner, 'page:client.recommendations'));
+    expect(recC).not.toMatch(/upsell|runbook|manage permission/i);
+    for (const w of ['To do', 'In progress', 'Effort', 'For you']) expect(recC, w).toContain(w);
+    const askA = text(await guide(admin, 'page:client.ask'));
+    for (const w of ['Allow review to improve answers', 'our support team', 'Assistant name']) expect(askA, w).toContain(w);
+    const askC = text(await guide(owner, 'page:client.ask'));
+    expect(askC).not.toMatch(/Allow review|Client features|quota|allowance|Assistant name|support session/i);
+    expect(askC).toContain('Possible reason:');
+    const briefsA = text(await guide(admin, 'page:client.briefs'));
+    for (const w of ['Thursday night', 'Auto-send', 'Needs review', 'overdue']) expect(briefsA, w).toContain(w);
+    const briefsC = text(await guide(owner, 'page:client.briefs'));
+    expect(briefsC).not.toMatch(/Thursday|Auto-send|Needs review|overdue|status chip/i);
+    expect(briefsC).toContain('Monday morning');
+    const briefA = text(await guide(admin, 'page:client.briefs.detail'));
+    for (const w of ['Upsell', '85%', 'Open in approvals']) expect(briefA, w).toContain(w);
+    const briefC = text(await guide(owner, 'page:client.briefs.detail'));
+    expect(briefC).not.toMatch(/0\.85|85\s*%|threshold|upsell|Open in approvals/i);
+    for (const w of ['High confidence', 'Where you stand', 'First moves still open']) expect(briefC, w).toContain(w);
+    const alertA = text(await guide(admin, 'page:client.alerts.detail'));
+    for (const w of ['Score', 'Template text', 'Alert review', '3 instant alerts']) expect(alertA, w).toContain(w);
+    const alertC = text(await guide(owner, 'page:client.alerts.detail'));
+    expect(alertC).not.toMatch(/score|template text|3 instant|alert level|alert review/i);
+    expect(text(await guide(owner, 'page:client.reports.detail'))).toContain('first week after each quarter ends');
+    const ev = text(await guide(owner, 'page:client.evidence.detail'));
+    for (const w of ['captured automatically by our monitoring service', 'changing even one character gives a completely different one']) expect(ev, w).toContain(w);
+    expect(text(await guide(admin, 'page:client.pitch-snapshot'))).toContain('not in the top 20 at any of 9 points');
+  });
+
   it('nothing a client reads names agency-internal concepts or the product, and every placeholder is filled', async () => {
-    for (const key of CLIENT_KEYS) {
+    for (const key of CLIENT_ROLE_KEYS) {
       const t = text(await guide(owner, key));
       expect(t, key).not.toMatch(AGENCY_ONLY);
       expect(t, key).not.toContain('{{');
