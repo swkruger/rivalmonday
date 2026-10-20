@@ -120,6 +120,7 @@ export const CLIENT_COPY = {
     empty: {
       noTrackedAgency: { title: 'No competitors tracked yet', body: 'Accept a suggestion below or add one by name. A name is required; a website is optional.', audience: 'agency' },
       noTrackedManage: { title: 'No competitors tracked yet', body: 'Add one with the form below. A name is required; a website is optional.', audience: 'client' },
+      noTrackedReadOnly: { title: 'No competitors tracked yet', body: 'No competitors are tracked for {client} yet. This session is read-only, so none can be added.', audience: 'agency' },
       noTrackedView: { title: 'No competitors tracked yet', body: 'Your competitors appear here once {agency} has set them up.', audience: 'client' },
     },
   },
@@ -231,7 +232,7 @@ export const CLIENT_COPY = {
       },
       // source: packages/tools/src/limits.ts:RANK_MANUAL_PER_CLIENT_DAYS (7), RANK_MANUAL_PER_AGENCY_DAY (10); packages/tools/src/rank-scan.ts:rankScanAvailability (UTC day; monthly cost cap); apps/worker/src/jobs/vendor.ts:rankSchedule (Sunday 06:00 UTC); packages/collectors/src/rankings/settings.ts (RANK_MAX_KEYWORDS 5)
       scanNow: {
-        title: 'Scan now limits',
+        title: 'Manual scan limits',
         body: 'The weekly scan runs on Sundays at 06:00 UTC. Scan now starts an extra one. A client can be scanned by hand once every 7 days, and your agency can start 10 manual scans a day (counted per UTC day). A scan that would push the client past its monthly cost cap is refused. Rank settings change the keywords (up to 5), grid size and radius for the next scan.',
         audience: 'agency',
         guideAnchor: 'how-to-use-it',

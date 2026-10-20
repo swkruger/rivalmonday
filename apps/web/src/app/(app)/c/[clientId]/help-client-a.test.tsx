@@ -6,7 +6,7 @@ import { HelpProvider } from '@/components/help/help-context';
 /**
  * 15b-2 Task 4, client batch A (Competitors, Competitor profile, Pricing, Ads, Local rankings, Moves): the Guide button
  * follows `list_help_guides` for the client scope, tips and empty states follow the viewer's audience, and the copy is
- * rendered with the viewer's names. Agency-only tips (Scan now limits, suggestions, pinned pages) never reach a client.
+ * rendered with the viewer's names. Agency-only tips (Manual scan limits, suggestions, pinned pages) never reach a client.
  */
 const C = '00000000-0000-4000-8000-0000000000c1';
 const X = '00000000-0000-4000-8000-0000000000d1';
@@ -179,15 +179,15 @@ describe('client batch A: descriptions and tips by audience', () => {
     }
   });
 
-  it('Rankings: grid, average rank, share of voice and schedule tips for everyone; Scan now limits for agency only', async () => {
+  it('Rankings: grid, average rank, share of voice and schedule tips for everyone; Manual scan limits for agency only', async () => {
     await show(page('client.rankings'), 'client');
     expect(screen.getByText(/Where each business shows up in Google’s local results/)).toBeTruthy();
     tipNames(['The rank grid', 'Average map rank', 'Share of voice', 'When scans run']);
-    expect(hasTip('Scan now limits')).toBe(false);
+    expect(hasTip('Manual scan limits')).toBe(false);
     expect(screen.queryByRole('button', { name: 'Scan now' })).toBeNull();
     cleanup();
     await show(page('client.rankings'), 'agency');
-    tipNames(['The rank grid', 'Average map rank', 'Share of voice', 'When scans run', 'Scan now limits']);
+    tipNames(['The rank grid', 'Average map rank', 'Share of voice', 'When scans run', 'Manual scan limits']);
   });
 
   it('Rankings Compare tab: the compare tip for everyone', async () => {
@@ -225,9 +225,9 @@ describe('client batch A: descriptions and tips by audience', () => {
 });
 
 describe('client batch A: Rankings scan facts come from the code', () => {
-  it('the agency Scan now limits tip states 1 per client per 7 days and 10 per agency a day; the grid tip says 21 never appears (20+)', async () => {
+  it('the agency Manual scan limits tip states 1 per client per 7 days and 10 per agency a day; the grid tip says 21 never appears (20+)', async () => {
     await show(page('client.rankings'), 'agency');
-    fireEvent.click(screen.getByRole('button', { name: 'Scan now limits' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Manual scan limits' }));
     const text = document.body.textContent ?? '';
     expect(text).toMatch(/once every 7 days/);
     expect(text).toMatch(/10 manual scans a day/);
@@ -240,7 +240,7 @@ describe('client batch A: Rankings scan facts come from the code', () => {
     expect(document.body.textContent).toMatch(/counts as 21/);
   });
 
-  it('the schedule tip tells a client the scan runs once a week and never names the Scan now limits', async () => {
+  it('the schedule tip tells a client the scan runs once a week and never names the Manual scan limits', async () => {
     await show(page('client.rankings'), 'client');
     fireEvent.click(screen.getByRole('button', { name: 'When scans run' }));
     expect(document.body.textContent).toMatch(/once a week/);

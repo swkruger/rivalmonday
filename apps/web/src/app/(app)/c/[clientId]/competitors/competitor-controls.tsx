@@ -454,7 +454,10 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
             <EmptyState {...COPY.empty.noTrackedManage} />
           </>
         ) : (
-          <EmptyState {...COPY.empty.noTrackedView} />
+          <>
+            <EmptyState {...COPY.empty.noTrackedReadOnly} />
+            <EmptyState {...COPY.empty.noTrackedView} />
+          </>
         )
       ) : (
         <Table>
