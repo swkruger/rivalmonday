@@ -65,7 +65,7 @@ export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx
               <CardTitle>Quarterly reports</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
-              {reports.items.length === 0 && <p className="text-muted-foreground">The first report arrives after a full quarter.</p>}
+              {reports.items.length === 0 && <p className="text-muted-foreground">A report arrives in the first week after each quarter ends.</p>}
               {reports.items.map((r) => (
                 <Link key={r.id} href={`/c/${clientId}/reports/${r.id}`} className="rounded-lg px-2 py-1 hover:bg-muted-surface">
                   {r.quarter}
