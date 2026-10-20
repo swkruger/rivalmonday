@@ -5,8 +5,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { clientCrumbs } from '@/components/client-crumbs';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
 import { changesHref } from '../changes/params';
 import { RoutePill } from '../changes/feed';
@@ -14,6 +19,9 @@ import { MoveCard, movesHref } from './move-card';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Moves' };
+
+const HELP_KEY = 'page:client.moves';
+const COPY = PAGE_COPY['client.moves'];
 
 const STATUSES = ['open', 'closed', 'all'] as const;
 type Status = (typeof STATUSES)[number];
@@ -63,7 +71,10 @@ function MoveStatusRow({ move }: { move: MoveDetail }) {
 function EvidenceChain({ clientId, move }: { clientId: string; move: MoveDetail }) {
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-sm font-semibold text-ink">Evidence chain</h3>
+      <div className="flex items-center gap-1.5">
+        <h3 className="text-sm font-semibold text-ink">Evidence chain</h3>
+        <HelpTip tip="client.moves.signals" />
+      </div>
       <ul className="flex flex-col divide-y divide-line">
         {move.events.map((e) => (
           <li key={e.eventId}>
@@ -107,9 +118,10 @@ export default async function MovesPage({
   const { ctx } = await requireContext();
   if (!hasFeature(ctx, 'dashboard')) notFound();
 
-  const [profile, { items }] = await Promise.all([
+  const [profile, { items }, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<{ items: MoveRow[] }>(ctx, 'list_moves', { clientId, status }),
+    helpGuides(ctx, 'client', clientId),
   ]);
   const selectedId = moveParam ?? items[0]?.id;
   // A bookmarked `?move=` may be closed out of its events, removed or not this client's: the list still renders and
@@ -125,20 +137,25 @@ export default async function MovesPage({
       <PageHeader
         title="Moves"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Moves')}
-        description="Patterns across several changes — a competitor expanding, cutting prices or pushing ads. Each one is backed by the changes listed."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
       />
 
-      <div className="flex items-center gap-1 rounded-lg bg-muted-surface p-1 w-fit">
-        <StatusLink clientId={clientId} status="open" current={status} label="Open" />
-        <StatusLink clientId={clientId} status="closed" current={status} label="Closed" />
-        <StatusLink clientId={clientId} status="all" current={status} label="All" />
+      <div className="flex items-center gap-2">
+        <div className="flex w-fit items-center gap-1 rounded-lg bg-muted-surface p-1">
+          <StatusLink clientId={clientId} status="open" current={status} label="Open" />
+          <StatusLink clientId={clientId} status="closed" current={status} label="Closed" />
+          <StatusLink clientId={clientId} status="all" current={status} label="All" />
+        </div>
+        <HelpTip tip="client.moves.statuses" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[420px_1fr]">
         <Card>
           <CardContent className="p-2">
             {items.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground">No moves detected in this period.</div>
+              <EmptyState {...(status === 'open' ? COPY.empty.noOpen : COPY.empty.noMatch)} />
             ) : (
               <div className="flex flex-col gap-1">
                 {items.map((m) => (
@@ -175,7 +192,7 @@ export default async function MovesPage({
           ) : (
             <Card>
               <CardContent className="py-10 text-center text-muted-foreground">
-                {selectedId ? 'This move is no longer available.' : 'Select a move on the left to see its evidence chain.'}
+                {selectedId ? 'This move is no longer available.' : <EmptyState {...COPY.empty.noSelection} />}
               </CardContent>
             </Card>
           )}

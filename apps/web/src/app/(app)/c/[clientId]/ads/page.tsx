@@ -5,14 +5,22 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { foldSeries, LineChart } from '@/components/charts/line-chart';
 import { clientCrumbs } from '@/components/client-crumbs';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { offsetParam, one, uuidParam } from '@/server/search-params';
 import { callTool, tryCallTool } from '@/server/tools';
 import { AdCard } from './ad-card';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Ads' };
+
+const HELP_KEY = 'page:client.ads';
+const COPY = PAGE_COPY['client.ads'];
 
 const PAGE = 50;
 const pick = <T extends string>(v: string | undefined, allowed: readonly T[], fallback: T): T => ((allowed as readonly string[]).includes(v ?? '') ? (v as T) : fallback);
@@ -31,9 +39,10 @@ export default async function AdsPage({ params, searchParams }: {
   const status = pick(one(sp.status), ['active', 'ended', 'all'] as const, 'active');
   const offset = offsetParam(sp);
 
-  const [profile, activity] = await Promise.all([
+  const [profile, activity, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<AdActivityView>(ctx, 'get_ad_activity', { clientId, weeks: 12 }),
+    helpGuides(ctx, 'client', clientId),
   ]);
   const list = await tryCallTool<AdList>(ctx, 'list_ads', {
     clientId, ...(competitorId ? { competitorId } : {}), ...(platform !== 'all' ? { platform } : {}), status, offset, limit: PAGE,
@@ -45,11 +54,16 @@ export default async function AdsPage({ params, searchParams }: {
       <PageHeader
         title="Ads"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Ads')}
-        description="Ads your competitors run on Google and Meta, with when we first and last saw each one."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
       />
 
       <div className="rounded-[14px] bg-surface p-6 shadow-card">
-        <h2 className="mb-2 text-lg font-bold text-ink">Active ads per week</h2>
+        <div className="mb-2 flex items-center gap-1.5">
+          <h2 className="text-lg font-bold text-ink">Active ads per week</h2>
+          <HelpTip tip="client.ads.adsPerWeek" />
+        </div>
         <LineChart
           title="Active competitor ads per week"
           labels={activity.weeks}
@@ -85,10 +99,21 @@ export default async function AdsPage({ params, searchParams }: {
         <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white">Apply</button>
       </form>
 
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          Active and ended
+          <HelpTip tip="client.ads.status" />
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          Targeting
+          <HelpTip tip="client.ads.targeting" />
+        </span>
+      </div>
+
       {!list ? (
         <p className="rounded-lg bg-muted-surface p-3 text-ink">This competitor is no longer tracked.</p>
       ) : list.items.length === 0 ? (
-        <p className="rounded-lg bg-muted-surface p-3 text-ink">No ads match these filters.</p>
+        <EmptyState {...COPY.empty.noMatch} />
       ) : (
         <>
           <h2 className="sr-only">Ads</h2>

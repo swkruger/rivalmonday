@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import { clientCrumbs } from '@/components/client-crumbs';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
 import { PressureBadge } from '@/components/pressure-badge';
 import { AdMatchChips } from '@/components/rival/ad-match-chips';
@@ -13,9 +16,11 @@ import { ratedLabel } from '@/components/rival/rated-label';
 import { SignalPills } from '@/components/rival/signal-pills';
 import { TierChip } from '@/components/rival/tier-chip';
 import { WriteGuard } from '@/components/read-only';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
 import { relativeTime } from '@/server/format';
+import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { AddPageForm, PinPageSwitch } from './page-controls';
 import { AdsSection, PricesSection, RankingsSection, ReviewsSection } from './sections';
@@ -25,15 +30,20 @@ import { Timeline } from './timeline';
 export const dynamic = 'force-dynamic';
 
 const PERIODS = [30, 90, 365] as const;
+const HELP_KEY = 'page:client.competitors.detail';
+const COPY = PAGE_COPY['client.competitors.detail'];
 
 const fmtDate = (iso: string, withYear = false) =>
   new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'UTC' });
 
-function Kpi({ label, children }: { label: string; children: React.ReactNode }) {
+function Kpi({ label, help, children }: { label: string; help?: React.ReactNode; children: React.ReactNode }) {
   return (
     <Card>
       <CardContent className="flex flex-col gap-1 pt-5">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+          {help}
+        </div>
         {children}
       </CardContent>
     </Card>
@@ -68,7 +78,7 @@ export default async function CompetitorProfilePage({
   // One batch: a bad id makes get_competitor_profile throw not_found (-> 404); Promise.all handles the sibling calls' rejections.
   // Ad-account matches are agency-only: other viewers never trigger the call or see the chips.
   const manageAds = isAgencyRole(ctx.role) && canManageCompetitors(ctx);
-  const [profile, timeline, pages, matrix, ads, benchmark, geo, signals, adMatches, client] = await Promise.all([
+  const [profile, timeline, pages, matrix, ads, benchmark, geo, signals, adMatches, client, guides] = await Promise.all([
     loadCompetitor(ctx, clientId, competitorId),
     callTool<{ items: TimelineItem[] }>(ctx, 'get_competitor_timeline', { clientId, competitorId, days }),
     callTool<{ items: TrackedPageView[] }>(ctx, 'list_tracked_pages', { clientId, competitorId }),
@@ -81,6 +91,7 @@ export default async function CompetitorProfilePage({
       ? callTool<{ matched: { platform: 'google' | 'meta'; accountId: string; name: string | null }[]; pending: AdMatch[] }>(ctx, 'get_competitor_ad_matches', { clientId, competitorId })
       : Promise.resolve(null),
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
+    helpGuides(ctx, 'client', clientId),
   ]);
   const rated = signals.competitors.find((x) => x.competitorId === competitorId) ?? null;
   const now = new Date();
@@ -91,7 +102,13 @@ export default async function CompetitorProfilePage({
       <PageHeader
         title={profile.name}
         breadcrumb={clientCrumbs({ id: clientId, name: client.name }, { label: 'Competitors', href: `/c/${clientId}/competitors` }, profile.name)}
-        description={`Tracked since ${fmtDate(profile.addedAt, true)}`}
+        description={
+          <>
+            <HelpText text={COPY.description} /> {`Tracked since ${fmtDate(profile.addedAt, true)}.`}
+          </>
+        }
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
         actions={
           <>
             {profile.domain && (
@@ -100,6 +117,7 @@ export default async function CompetitorProfilePage({
               </a>
             )}
             <PressureBadge score={profile.pressure.score} level={profile.pressure.level} />
+            <HelpTip term="pressure" />
           </>
         }
       />
@@ -108,11 +126,16 @@ export default async function CompetitorProfilePage({
         {rated ? (
           <div className="flex flex-wrap items-center gap-3">
             <TierChip tier={rated.tier} />
+            <HelpTip tip="client.competitors.tiers" />
             <SignalPills signals={rated.signals} mode="tracked" />
             <span className="text-xs text-muted-foreground">{ratedLabel(rated.computedAt)}</span>
+            <HelpTip tip="client.competitors.rated" />
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Not rated yet</p>
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            Not rated yet
+            <HelpTip tip="client.competitors.rated" />
+          </p>
         )}
         {adMatches && <AdMatchChips clientId={clientId} competitorId={competitorId} matched={adMatches.matched} pending={adMatches.pending} />}
       </div>
@@ -135,12 +158,12 @@ export default async function CompetitorProfilePage({
             Google {profile.activeAds.google} · Meta {profile.activeAds.meta}
           </span>
         </Kpi>
-        <Kpi label="Open moves">
+        <Kpi label="Open moves" help={<HelpTip tip="client.competitors.detail.openMoves" />}>
           <Link href={`/c/${clientId}/moves`} className="text-[34px] font-extrabold leading-tight text-primary-soft-text">
             {profile.openMoves}
           </Link>
         </Kpi>
-        <Kpi label="Pages monitored">
+        <Kpi label="Pages monitored" help={<HelpTip tip="client.competitors.detail.pagesMonitored" />}>
           <span className="text-[34px] font-extrabold leading-tight text-secondary">{profile.pages.active}</span>
           {profile.pages.blocked > 0 && (
             <span className="w-fit rounded-md bg-[#FEE2E2] px-2 py-0.5 text-xs font-semibold text-[#B91C1C]">Site blocks monitoring</span>
@@ -180,7 +203,10 @@ export default async function CompetitorProfilePage({
         <div className="flex flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardTitle>Collection status</CardTitle>
+              <CardTitle className="flex items-center gap-1.5">
+                Collection status
+                <HelpTip tip="client.competitors.detail.collection" />
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {profile.sources.length === 0 ? (
@@ -215,7 +241,7 @@ function PagesCard({ clientId, competitorId, pages, agency }: { clientId: string
       </CardHeader>
       <CardContent>
         {pages.length === 0 ? (
-          <p className="text-muted-foreground">No pages tracked yet.</p>
+          <EmptyState {...COPY.empty.noPages} />
         ) : (
           <Table>
             <TableHeader>
@@ -224,7 +250,12 @@ function PagesCard({ clientId, competitorId, pages, agency }: { clientId: string
                 <TableHead>Type</TableHead>
                 <TableHead>Cadence</TableHead>
                 <TableHead>Last captured</TableHead>
-                <TableHead>Pinned</TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1.5">
+                    Pinned
+                    <HelpTip tip="client.competitors.detail.pinned" />
+                  </span>
+                </TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>

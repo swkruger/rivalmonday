@@ -202,6 +202,10 @@ describe('copy', () => {
   it('resolveTip handles dotted page keys and unknown keys', () => {
     expect(resolveTip('client.changes.score')?.title).toBe('How the score works');
     expect(resolveTip('client.changes.nope')).toBeNull();
+    // `client.competitors` is a prefix of `client.competitors.detail`: a detail tip still resolves, and so does a tip of the shorter key.
+    expect(resolveTip('client.competitors.detail.collection')?.title).toBe('Collection status');
+    expect(resolveTip('client.competitors.tiers')?.title).toBe('Competitor tiers');
+    expect(resolveTip('client.competitors.detail.nope')).toBeNull();
     expect(resolveTip('other.page.x')).toBeNull();
   });
 });

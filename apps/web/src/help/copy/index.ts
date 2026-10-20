@@ -33,7 +33,9 @@ export function resolveTip(key: string): Tip | null {
   for (const page of Object.keys(PAGE_COPY) as PageKey[]) {
     if (!key.startsWith(`${page}.`)) continue;
     const tips: Record<string, Tip> | undefined = PAGE_COPY[page].tips;
-    return tips?.[key.slice(page.length + 1)] ?? null;
+    // A page key can be the prefix of another (`client.competitors` and `client.competitors.detail`): keep looking.
+    const tip = tips?.[key.slice(page.length + 1)];
+    if (tip) return tip;
   }
   return null;
 }

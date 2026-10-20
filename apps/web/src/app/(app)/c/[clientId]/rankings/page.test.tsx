@@ -56,10 +56,10 @@ describe('RankingsPage', () => {
   it('asks for a place id or a competitor instead of drawing a grid when there is no business', async () => {
     callTool.mockResolvedValue(geo);
     await render5();
-    expect(screen.getByText(/Add your place id or track a competitor\./)).toBeTruthy();
+    expect(screen.getByText(/The grid appears once .* has added/)).toBeTruthy();
     expect(screen.queryByText(/20\+/)).toBeNull();
     expect(screen.queryByRole('heading', { name: /ac repair/ })).toBeNull();
-    expect(callTool.mock.calls.map((c) => c[1])).toEqual(['get_client_profile', 'get_geogrid']); // no share-of-voice call either
+    expect(callTool.mock.calls.map((c) => c[1]).filter((n) => n !== 'list_help_guides')).toEqual(['get_client_profile', 'get_geogrid']); // no share-of-voice call either
   });
 
   describe('Trend and Compare tabs', () => {

@@ -5,10 +5,13 @@ import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState, useTransition } from 'react';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpTip } from '@/components/help/help-tip';
 import { useReadOnly } from '@/components/read-only';
 import { SignalPills } from '@/components/rival/signal-pills';
 import { ratedLabel } from '@/components/rival/rated-label';
 import { TIER_LABEL, TierChip } from '@/components/rival/tier-chip';
+import { PAGE_COPY } from '@/help/copy';
 import type { FormResult } from '@/server/forms';
 import { acceptSuggestionsAction, addCompetitorAction, dismissSuggestionAction, removeCompetitorAction, requestSuggestionsAction, type SearchState, type SearchStatus, searchStatusAction } from './actions';
 import { ErrorNote } from '@/components/form-error';
@@ -57,6 +60,8 @@ function DismissSuggestionForm({ clientId, suggestion, action, pending }: { clie
     </form>
   );
 }
+
+const COPY = PAGE_COPY['client.competitors'];
 
 const FAST_POLL_MS = 5_000;
 const SLOW_POLL_MS = 10_000;
@@ -272,7 +277,10 @@ export function SuggestionsPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Suggested competitors</CardTitle>
+        <CardTitle className="flex items-center gap-1.5">
+          Suggested competitors
+          <HelpTip tip="client.competitors.suggestions" />
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         {canSearch && !readOnly && !ready && (
@@ -440,13 +448,30 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
     <div className="flex flex-col gap-4">
       {result.ok && <Message state={result} />}
       {items.length === 0 ? (
-        <p className="text-muted-foreground">{canRemove ? 'None yet — accept a suggestion or add one below.' : 'No competitors tracked yet.'}</p>
+        canRemove ? (
+          <>
+            <EmptyState {...COPY.empty.noTrackedAgency} />
+            <EmptyState {...COPY.empty.noTrackedManage} />
+          </>
+        ) : (
+          <EmptyState {...COPY.empty.noTrackedView} />
+        )
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Signals</TableHead>
+              <TableHead>
+                <span className="inline-flex items-center gap-1.5">
+                  Name
+                  <HelpTip tip="client.competitors.rated" />
+                </span>
+              </TableHead>
+              <TableHead>
+                <span className="inline-flex items-center gap-1.5">
+                  Signals
+                  <HelpTip term="signal" />
+                </span>
+              </TableHead>
               <TableHead>Website</TableHead>
               <TableHead>Pages monitored</TableHead>
               <TableHead>Since</TableHead>

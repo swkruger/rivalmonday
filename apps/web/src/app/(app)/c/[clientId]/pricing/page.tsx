@@ -5,9 +5,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { LineChart } from '@/components/charts/line-chart';
 import { clientCrumbs } from '@/components/client-crumbs';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
+import { helpGuides } from '@/server/help';
 import { one, uuidParam } from '@/server/search-params';
 import { callTool, tryCallTool } from '@/server/tools';
 import { pricingHref } from './format';
@@ -16,6 +21,9 @@ import { PriceCard } from './price-card';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Pricing' };
+
+const HELP_KEY = 'page:client.pricing';
+const COPY = PAGE_COPY['client.pricing'];
 
 const PERIODS = [90, 180, 365] as const;
 type Period = (typeof PERIODS)[number];
@@ -34,9 +42,10 @@ export default async function PricingPage({ params, searchParams }: {
   const { ctx } = await requireContext();
   if (!hasFeature(ctx, 'dashboard')) notFound();
   const days = parseDays(sp.days);
-  const [profile, matrix] = await Promise.all([
+  const [profile, matrix, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<PriceMatrixView>(ctx, 'get_price_matrix', { clientId }),
+    helpGuides(ctx, 'client', clientId),
   ]);
   const competitor = uuidParam(sp, 'competitor');
   const service = one(sp.service);
@@ -52,17 +61,33 @@ export default async function PricingPage({ params, searchParams }: {
       <PageHeader
         title="Pricing"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Pricing')}
-        description="What each competitor charges on its website now, and how that changed. Pick a service to see its price history."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
       />
       {matrix.rows.length === 0 ? (
-        <p className="rounded-lg bg-muted-surface p-3 text-ink">No competitors are tracked yet.</p>
+        <>
+          <EmptyState {...COPY.empty.noCompetitorsAgency} />
+          <EmptyState {...COPY.empty.noCompetitorsClient} />
+        </>
       ) : (
         <>
           {!anyPrice && (
-            <p className="rounded-lg bg-muted-surface p-3 text-ink">
-              Prices come from competitor websites.{!webEnv().webMonitoring && ' Website monitoring isn’t switched on yet, so there’s nothing to show.'}
-            </p>
+            <EmptyState
+              {...COPY.empty.noPrices}
+              action={!webEnv().webMonitoring ? <p className="text-sm text-ink">Website monitoring isn’t switched on yet, so there’s nothing to show.</p> : undefined}
+            />
           )}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              Price change
+              <HelpTip tip="client.pricing.priceChange" />
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              Your service
+              <HelpTip tip="client.pricing.yourService" />
+            </span>
+          </div>
           <div className="grid gap-4 xl:grid-cols-2">
             {matrix.rows.map((row) => (
               <PriceCard

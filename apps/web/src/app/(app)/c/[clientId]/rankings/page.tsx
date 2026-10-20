@@ -9,8 +9,13 @@ import { GeoGrid } from '@/components/charts/geo-grid';
 import { LineChart } from '@/components/charts/line-chart';
 import { RankTrend } from '@/components/charts/rank-trend';
 import { clientCrumbs } from '@/components/client-crumbs';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { one, uuidParam } from '@/server/search-params';
 import { callTool, tryCallTool } from '@/server/tools';
 import { RankSettingsSheet } from './rank-settings-sheet';
@@ -22,6 +27,9 @@ import { type RankQuery, type RankTab, RankTabs } from './tabs';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Local rankings' };
+
+const HELP_KEY = 'page:client.rankings';
+const COPY = PAGE_COPY['client.rankings'];
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 const selectCls = 'rounded-md border border-line bg-surface px-2 py-1.5';
@@ -50,9 +58,10 @@ export default async function RankingsPage({ params, searchParams }: {
   for (const k of ['tab', 'keyword', 'business', 'sov', 'scan', 'a', 'b']) { const v = one(sp[k]); if (v) query[k] = v; }
 
   // A stale business (removed competitor) or scan id falls back to the defaults and says so.
-  const [profile, picked] = await Promise.all([
+  const [profile, picked, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     tryCallTool<GeoGridView>(ctx, 'get_geogrid', { clientId, ...(keyword ? { keyword } : {}), ...(business ? { business } : {}), ...(scanId ? { scanId } : {}) }),
+    helpGuides(ctx, 'client', clientId),
   ]);
   const geo = picked ?? (await callTool<GeoGridView>(ctx, 'get_geogrid', { clientId, ...(keyword ? { keyword } : {}) }));
   const noBusiness = geo.setup === 'ready' && geo.business === null;
@@ -92,29 +101,38 @@ export default async function RankingsPage({ params, searchParams }: {
       <PageHeader
         title="Local rankings"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Local rankings')}
-        description="Where each business shows up in Google’s local results across your service area, from the weekly rank scan."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
         actions={
           controls ? (
             <div className="flex flex-wrap items-start gap-3">
               <RankSettingsSheet clientId={clientId} settings={controls} />
               <ScanNowButton clientId={clientId} scan={controls.scan} />
+              <HelpTip tip="client.rankings.scanNow" />
             </div>
           ) : undefined
         }
       />
 
       {geo.setup === 'no_keywords' ? (
-        <p className="rounded-lg bg-muted-surface p-3 text-ink">
-          Rank tracking starts once keywords and a service area are set on the Business profile page.
-          {isAgencyRole(ctx.role) && <> <Link href={`/c/${clientId}/settings/profile`} className="font-semibold text-primary-soft-text">Open Business profile</Link></>}
-        </p>
+        <>
+          <EmptyState
+            {...COPY.empty.noKeywordsAgency}
+            action={<Link href={`/c/${clientId}/settings/profile`} className="text-sm font-semibold text-primary-soft-text">Open Business profile</Link>}
+          />
+          <EmptyState {...COPY.empty.noKeywordsClient} />
+        </>
       ) : geo.setup === 'no_scan' ? (
-        <p className="rounded-lg bg-muted-surface p-3 text-ink">The first weekly rank scan hasn’t run yet.</p>
+        <EmptyState {...COPY.empty.noScan} />
       ) : noBusiness ? (
-        <p className="rounded-lg bg-muted-surface p-3 text-ink">
-          Add your place id or track a competitor.
-          {isAgencyRole(ctx.role) && <> <Link href={`/c/${clientId}/settings/profile`} className="font-semibold text-primary-soft-text">Open Business profile</Link></>}
-        </p>
+        <>
+          <EmptyState
+            {...COPY.empty.noBusinessAgency}
+            action={<Link href={`/c/${clientId}/settings/profile`} className="text-sm font-semibold text-primary-soft-text">Open Business profile</Link>}
+          />
+          <EmptyState {...COPY.empty.noBusinessClient} />
+        </>
       ) : (
         <>
           {(!picked || compare?.stale) && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">That selection is no longer available, so the defaults are shown.</p>}
@@ -165,8 +183,14 @@ export default async function RankingsPage({ params, searchParams }: {
             {tab === 'trend' ? (
               <>
                 <section className="rounded-[14px] bg-surface p-6 shadow-card">
-                  <h2 className="mb-1 text-lg font-bold text-ink">Average map rank · “{geo.keyword}”</h2>
-                  <p className="mb-3 text-sm text-muted-foreground">Average position across the grid, scan by scan (1 is best; 20+ is not in the top 20).</p>
+                  <div className="mb-1 flex items-center gap-1.5">
+                    <h2 className="text-lg font-bold text-ink">Average map rank · “{geo.keyword}”</h2>
+                    <HelpTip tip="client.rankings.avgRank" />
+                  </div>
+                  <p className="mb-3 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+                    Average position across the grid, scan by scan (1 is best; 20+ is not in the top 20).
+                    <HelpTip tip="client.rankings.schedule" />
+                  </p>
                   <RankTrend scans={history} keyword={geo.keyword ?? ''} />
                   <div className="mt-4">
                     <ScanSlider scans={history.map((s) => ({ id: s.scanId, label: fmtDate(s.finishedAt) }))} value={geo.scan?.id ?? null} query={query} />
@@ -174,7 +198,10 @@ export default async function RankingsPage({ params, searchParams }: {
                 </section>
 
                 <section className="rounded-[14px] bg-surface p-6 shadow-card">
-                  <h2 className="text-lg font-bold text-ink">{chosenName} · “{geo.keyword}”</h2>
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="text-lg font-bold text-ink">{chosenName} · “{geo.keyword}”</h2>
+                    <HelpTip tip="client.rankings.grid" />
+                  </div>
                   <p className="mb-3 text-sm text-muted-foreground">
                     {geo.scan && `Scan of ${fmtDate(geo.scan.finishedAt)} · `}Grid {geo.size}×{geo.size}{geo.radiusKm !== null && ` · ${geo.radiusKm} km radius`}
                   </p>
@@ -184,7 +211,10 @@ export default async function RankingsPage({ params, searchParams }: {
 
                 {sov && (
                   <section className="rounded-[14px] bg-surface p-6 shadow-card">
-                    <h2 className="mb-1 text-lg font-bold text-ink">Share of voice</h2>
+                    <div className="mb-1 flex items-center gap-1.5">
+                      <h2 className="text-lg font-bold text-ink">Share of voice</h2>
+                      <HelpTip tip="client.rankings.sov" />
+                    </div>
                     <p className="mb-3 text-sm text-muted-foreground">Share of the top-3 local-pack places, scan by scan ({sov.keyword ?? 'all keywords'}).</p>
                     <LineChart
                       title="Share of top-3 local-pack slots"
@@ -209,10 +239,13 @@ export default async function RankingsPage({ params, searchParams }: {
                 )}
               </>
             ) : !compare ? (
-              <p className="rounded-lg bg-muted-surface p-3 text-ink">Compare needs at least two scans.</p>
+              <EmptyState {...COPY.empty.compareNeedsTwo} />
             ) : (
               <section className="rounded-[14px] bg-surface p-6 shadow-card">
-                <h2 className="text-lg font-bold text-ink">{chosenName} · “{geo.keyword}”</h2>
+                <div className="flex items-center gap-1.5">
+                  <h2 className="text-lg font-bold text-ink">{chosenName} · “{geo.keyword}”</h2>
+                  <HelpTip tip="client.rankings.compare" />
+                </div>
                 <p className="mb-3 text-sm text-muted-foreground">Change from the scan of {fmtDate(compare.a.finishedAt)} to the scan of {fmtDate(compare.b.finishedAt)}.</p>
                 {compare.grids ? (
                   <ChangeGrid

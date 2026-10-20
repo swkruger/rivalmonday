@@ -6,9 +6,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { clientCrumbs } from '@/components/client-crumbs';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
 import { WriteGuard } from '@/components/read-only';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { RUN_STATE } from './search-state';
 import { AddCompetitorForm, SuggestionsPanel, TrackedCompetitorsTable } from './competitor-controls';
@@ -16,13 +20,16 @@ import { AddCompetitorForm, SuggestionsPanel, TrackedCompetitorsTable } from './
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Competitors' };
 
+const HELP_KEY = 'page:client.competitors';
+const COPY = PAGE_COPY['client.competitors'];
+
 export default async function CompetitorsPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
   const { ctx } = await requireContext();
   if (!hasFeature(ctx, 'dashboard')) notFound();
   const agency = isAgencyRole(ctx.role);
   const canManage = canManageCompetitors(ctx);
-  const [profile, tracked, suggestions, search, rated] = await Promise.all([
+  const [profile, tracked, suggestions, search, rated, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<{ items: TrackedCompetitor[]; limit: number }>(ctx, 'list_client_competitors', { clientId }),
     // 12a: suggestions (with ad-account matches) are agency-only.
@@ -34,6 +41,7 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
       : Promise.resolve({ status: 'none', nextManualSearchAt: null }),
     // Tier and signals are for every role (no ad-match data in this payload).
     callTool<{ competitors: CompetitorSignalView[] }>(ctx, 'get_competitor_signals', { clientId }),
+    helpGuides(ctx, 'client', clientId),
   ]);
   const atLimit = tracked.items.length >= tracked.limit;
   // One manual search per client-local week: the button names the next allowed day in the client's timezone.
@@ -48,11 +56,20 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
       <PageHeader
         title="Competitors"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Competitors')}
-        description={agency ? `Track 3–5 direct competitors (${tracked.items.length} of ${tracked.limit}).` : `The businesses we monitor for you (${tracked.items.length} of ${tracked.limit}).`}
+        description={
+          <>
+            <HelpText text={COPY.description} /> {`${tracked.items.length} of ${tracked.limit} tracked.`}
+          </>
+        }
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
       />
       <Card>
         <CardHeader>
-          <CardTitle>Tracked competitors</CardTitle>
+          <CardTitle className="flex items-center gap-1.5">
+            Tracked competitors
+            <HelpTip tip="client.competitors.tiers" />
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <TrackedCompetitorsTable clientId={clientId} items={tracked.items} canRemove={canManage} signals={rated.competitors} />

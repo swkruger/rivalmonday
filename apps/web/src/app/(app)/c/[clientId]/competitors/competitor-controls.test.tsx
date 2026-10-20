@@ -220,7 +220,7 @@ describe('row messages survive revalidation', () => {
     await waitFor(() => expect(removeCompetitorAction).toHaveBeenCalledTimes(1));
     rerender(<TrackedCompetitorsTable clientId="c1" items={[]} canRemove />);
     await waitFor(() => expect(screen.getByText('Competitor removed. Its history is kept.')).toBeTruthy());
-    expect(screen.getByText(/None yet/)).toBeTruthy();
+    expect(screen.getByText(/Add one with the form below/)).toBeTruthy();
   });
 
   it('shows a remove refusal inside the open dialog', async () => {
@@ -313,8 +313,8 @@ describe('TrackedCompetitorsTable ratings', () => {
 
   it('client user sees a tier pill after the name, no Tier column, no match chips', () => {
     render(<TrackedCompetitorsTable clientId="c1" items={[tracked, other]} canRemove={false} signals={[rating]} />);
-    expect(screen.queryByRole('columnheader', { name: 'Tier' })).toBeNull();
-    expect(screen.getByRole('columnheader', { name: 'Signals' })).toBeTruthy();
+    expect(screen.queryByRole('columnheader', { name: /^Tier/ })).toBeNull();
+    expect(screen.getByRole('columnheader', { name: /^Signals/ })).toBeTruthy();
     const nameCell = screen.getByRole('link', { name: 'Smith HVAC' }).closest('td')!;
     expect(within(nameCell as HTMLElement).getByText('Top rival')).toBeTruthy();
     expect(within(nameCell as HTMLElement).getByText('Rated Tue 13 Oct')).toBeTruthy();
