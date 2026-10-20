@@ -182,11 +182,22 @@ describe('list_help_guides', () => {
     expect((await list(op, { context: 'platform' })).guides.map((g) => g.helpKey)).toEqual(['page:platform.agencies']);
   });
 
-  it("lists only the context's own area: client pages in client context, agency pages in agency context, platform pages in platform context", async () => {
+  it("lists the context's own area plus account guides: client pages in client context, agency pages in agency context, platform pages in platform context", async () => {
     for (const helpKey of ['page:client.overview', 'page:agency.portfolio', 'page:platform.agencies', 'page:account.profile']) await guide({ helpKey, audience: 'all' });
-    expect((await list(admin, forClient)).guides.map((g) => g.helpKey)).toEqual(['page:client.overview']);
-    expect((await list(viewer, forClient)).guides.map((g) => g.helpKey)).toEqual(['page:client.overview']);
-    expect((await list(admin, { context: 'agency' })).guides.map((g) => g.helpKey)).toEqual(['page:agency.portfolio']);
-    expect((await list(op, { context: 'platform' })).guides.map((g) => g.helpKey)).toEqual(['page:platform.agencies']);
+    expect((await list(admin, forClient)).guides.map((g) => g.helpKey)).toEqual(['page:account.profile', 'page:client.overview']);
+    expect((await list(viewer, forClient)).guides.map((g) => g.helpKey)).toEqual(['page:account.profile', 'page:client.overview']);
+    expect((await list(admin, { context: 'agency' })).guides.map((g) => g.helpKey)).toEqual(['page:account.profile', 'page:agency.portfolio']);
+    expect((await list(op, { context: 'platform' })).guides.map((g) => g.helpKey)).toEqual(['page:account.profile', 'page:platform.agencies']);
+  });
+
+  it('account guides stay audience-filtered: an agency-only account guide is hidden from client roles, an operator-only one from agency roles', async () => {
+    await guide({ helpKey: 'page:account.profile', audience: 'all', title: 'Profile' });
+    await guide({ helpKey: 'page:account.team-tips', audience: 'agency', title: 'Team tips' });
+    await guide({ helpKey: 'page:account.ops', audience: 'operator', title: 'Ops' });
+    expect((await list(viewer, forClient)).guides.map((g) => g.helpKey)).toEqual(['page:account.profile']);
+    expect((await list(owner, forClient)).guides.map((g) => g.helpKey)).toEqual(['page:account.profile']);
+    expect((await list(admin, forClient)).guides.map((g) => g.helpKey)).toEqual(['page:account.profile', 'page:account.team-tips']);
+    expect((await list(admin, { context: 'agency' })).guides.map((g) => g.helpKey)).toEqual(['page:account.profile', 'page:account.team-tips']);
+    expect((await list(op, { context: 'platform' })).guides.map((g) => g.helpKey)).toEqual(['page:account.ops', 'page:account.profile', 'page:account.team-tips']);
   });
 });

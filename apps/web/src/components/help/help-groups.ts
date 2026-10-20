@@ -1,7 +1,7 @@
 /**
  * 15b-1: groups a context's page guides by its menu sections for the Help page. Pure and client-safe, like `nav-items`.
  * A guide belongs to the menu item whose page id (`pageIdOf`) equals its help key (`page:<id>`); settings tabs fall under
- * one "Settings" group; guides matching no menu item (a hidden page, a retired one) go under "Other".
+ * one "Settings" group; account guides (`page:account.*`, listed in every context) go under "Your account" after the menu groups; guides matching no menu item (a hidden page, a retired one) go under "Other".
  */
 import { type NavContext, type NavSection, pageIdOf } from '@/components/shell/nav-items';
 
@@ -11,7 +11,9 @@ export interface HelpGroup { heading: string; guides: HelpGuide[] }
 const idOf = (g: HelpGuide) => g.helpKey.replace(/^page:/, '');
 
 export function groupGuides(context: NavContext, menu: NavSection[], settings: NavSection[], guides: HelpGuide[]): HelpGroup[] {
-  const byPage = new Map(guides.map((g) => [idOf(g), g]));
+  const isAccount = (g: HelpGuide) => idOf(g).startsWith('account.');
+  const account = guides.filter(isAccount);
+  const byPage = new Map(guides.filter((g) => !isAccount(g)).map((g) => [idOf(g), g]));
   const used = new Set<string>();
   const sections: { heading: string; hrefs: string[] }[] = [
     ...menu.map((s) => ({ heading: s.label ?? 'General', hrefs: s.items.filter((i) => !i.match).map((i) => i.href) })), // a `match` item is the settings entry (links to its first tab); the tabs group under Settings
@@ -33,7 +35,8 @@ export function groupGuides(context: NavContext, menu: NavSection[], settings: N
     if (existing) existing.guides.push(...found);
     else groups.push({ heading: s.heading, guides: found });
   }
-  const other = guides.filter((g) => !used.has(idOf(g)));
+  if (account.length) groups.push({ heading: 'Your account', guides: account });
+  const other = guides.filter((g) => !isAccount(g) && !used.has(idOf(g)));
   if (other.length) groups.push({ heading: 'Other', guides: other });
   return groups;
 }

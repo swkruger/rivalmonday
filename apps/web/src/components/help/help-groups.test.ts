@@ -25,6 +25,18 @@ describe('groupGuides', () => {
     ]);
   });
 
+  it('puts account guides in "Your account", after the menu groups and Settings, before "Other"', () => {
+    const groups = groupGuides('client', navFor('client', flags, C), settingsNavFor('client', flags, C), [
+      g('account.profile'), g('account.security'), g('client.nowhere'), g('client.overview'), g('client.settings.profile'),
+    ]);
+    expect(groups.map((x) => [x.heading, x.guides.map((y) => y.helpKey)])).toEqual([
+      ['General', ['page:client.overview']],
+      ['Settings', ['page:client.settings.profile']],
+      ['Your account', ['page:account.profile', 'page:account.security']],
+      ['Other', ['page:client.nowhere']],
+    ]);
+  });
+
   it('is empty without guides', () => {
     expect(groupGuides('platform', navFor('platform', { ...flags, isPlatformOperator: true }, null), [], [])).toEqual([]);
   });

@@ -1,8 +1,16 @@
-import { clientFallbackFor, type ViewerAudience } from '@cs/core';
-import { PAGE_COPY, type PageKey, type Tip } from './client';
+import { clientFallbackFor, type HelpAudience, type ViewerAudience } from '@cs/core';
+import { ACCOUNT_COPY } from './account';
+import { AGENCY_COPY } from './agency';
+import { CLIENT_COPY } from './client';
+import { PLATFORM_COPY } from './platform';
 
-export { PAGE_COPY } from './client';
-export type { EmptyCopy, PageCopy, PageKey, Tip } from './client';
+export interface Tip { title: string; body: string; audience?: HelpAudience; guideAnchor?: string }
+export interface EmptyCopy { title: string; body: string; audience?: HelpAudience }
+export interface PageCopy { description: string; tips?: Record<string, Tip>; empty?: Record<string, EmptyCopy> }
+
+/** Every page's short copy, merged from the per-context files (the literal types keep `PageKey` and `TipKey` narrow). */
+export const PAGE_COPY = { ...CLIENT_COPY, ...AGENCY_COPY, ...PLATFORM_COPY, ...ACCOUNT_COPY } as const satisfies Record<string, PageCopy>;
+export type PageKey = keyof typeof PAGE_COPY;
 
 export type TipKey = { [K in PageKey]: `${K}.${Extract<keyof NonNullable<(typeof PAGE_COPY)[K]['tips']>, string>}` }[PageKey];
 

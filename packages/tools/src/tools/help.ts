@@ -31,8 +31,10 @@ async function guideScope(deps: ToolDeps, ctx: AccessContext, input: { context: 
 }
 
 /**
- * A context lists only its own area's guides. 15b-2 decides where account guides (`page:account.*`, none yet) are listed.
+ * A context lists its own area's guides plus the account guides (`page:account.*`, the same in every context; they stay
+ * audience-filtered like any other row).
  */
+const ACCOUNT_PREFIX = 'page:account.%';
 const LIST_PREFIX: Record<HelpContextName, string> = { client: 'page:client.%', agency: 'page:agency.%', platform: 'page:platform.%' };
 
 /**
@@ -47,7 +49,7 @@ async function guideRows(deps: ToolDeps, ctx: AccessContext, audience: ViewerAud
   }).from(kbArticle).where(and(
     eq(kbArticle.status, 'published'),
     isNotNull(kbArticle.helpKey),
-    'helpKey' in key ? eq(kbArticle.helpKey, key.helpKey) : like(kbArticle.helpKey, LIST_PREFIX[key.context]),
+    'helpKey' in key ? eq(kbArticle.helpKey, key.helpKey) : or(like(kbArticle.helpKey, LIST_PREFIX[key.context]), like(kbArticle.helpKey, ACCOUNT_PREFIX)),
     inArray(kbArticle.audience, visibleAudiences(audience)),
     levels,
   )));
@@ -107,7 +109,7 @@ export const getPageGuide = defineTool({
 export const listHelpGuides = defineTool({
   name: 'list_help_guides',
   access: 'read',
-  description: "Every page guide of this context's area (client, agency or platform pages) the viewer's audience can open, one per page, by help key.",
+  description: "Every page guide of this context's area (client, agency or platform pages) plus the account guides the viewer's audience can open, one per page, by help key.",
   input: z.object(contextInput),
   output: z.object({ guides: z.array(z.object({ helpKey: z.string(), title: z.string(), articleId: z.string() })) }),
   permission: 'read',

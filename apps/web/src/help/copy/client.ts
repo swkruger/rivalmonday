@@ -1,9 +1,4 @@
-import type { HelpAudience } from '@cs/core';
-
-export type PageKey = 'client.overview' | 'client.changes' | 'client.reviews'; // 15b-2 extends
-export interface Tip { title: string; body: string; audience?: HelpAudience; guideAnchor?: string }
-export interface EmptyCopy { title: string; body: string; audience?: HelpAudience }
-export interface PageCopy { description: string; tips?: Record<string, Tip>; empty?: Record<string, EmptyCopy> }
+import type { PageCopy } from '.';
 
 /**
  * Short in-page help copy (15b-1 pilot; draft for owner sign-off in `docs/archive/phase-15b1-copy-signoff.md`).
@@ -11,7 +6,7 @@ export interface PageCopy { description: string; tips?: Record<string, Tip>; emp
  * an `audience` is for everyone; `agency` copy never reaches client roles. `guideAnchor` values are the guide's section
  * slugs (`what-this-page-tells-you`, `how-to-use-it`, `common-questions`). Metric copy cites the code that computes it.
  */
-export const PAGE_COPY = {
+export const CLIENT_COPY = {
   'client.overview': {
     description: 'How {client} compares with its competitors this week.',
     tips: {
@@ -100,4 +95,4 @@ export const PAGE_COPY = {
       noMatch: { title: 'No reviews match', body: 'Try another business, theme or star rating, or a longer period.' },
     },
   },
-} as const satisfies Record<PageKey, PageCopy>;
+} as const satisfies Record<`client.${string}`, PageCopy>;
