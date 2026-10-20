@@ -1,9 +1,10 @@
 import { redactForModel } from '@cs/collectors';
-import { type AccessContext, type CallMeta, KB_KINDS, KB_LEVELS, type KbKind, type KbLevel, renderKbText, toolkit, ToolError } from '@cs/core';
+import { type AccessContext, type CallMeta, KB_KINDS, KB_LEVELS, type KbKind, type KbLevel, renderKbText, toolkit, ToolError, type ViewerAudience, visibleAudiences } from '@cs/core';
 import { kbArticle, withTenant } from '@cs/db';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
+import { helpAudienceFor, roleAudience } from '../kb/audience';
 import { kbNamesFor } from '../kb/names';
 import { rrfMerge } from '../search/rrf';
 import { requireActiveClient } from '../search/scope';
@@ -36,14 +37,18 @@ interface ChunkRow extends Record<string, unknown> {
 
 /**
  * Tenant-isolation boundary for knowledge reads. RLS (kb_article/kb_chunk policies) decides tenant and role visibility;
- * on top, client-level rows are returned only for `clientId` (plan S9). Hybrid FTS + vector, fused with RRF (k = 60).
+ * on top, client-level rows are returned only for `clientId` (plan S9) and only rows whose help `audience` the caller may
+ * see (15b: `opts.audience`, default the caller's role audience — RLS shows platform rows to every role). Hybrid FTS +
+ * vector, fused with RRF (k = 60).
  */
-export async function searchKnowledgeHits(deps: ToolDeps, ctx: AccessContext, clientId: string | null, query: string, kinds?: KbKind[], limit = 5, opts?: { queryVector?: number[] | null }): Promise<KbHit[]> {
+export async function searchKnowledgeHits(deps: ToolDeps, ctx: AccessContext, clientId: string | null, query: string, kinds?: KbKind[], limit = 5, opts?: { queryVector?: number[] | null; audience?: ViewerAudience }): Promise<KbHit[]> {
   if (clientId) await requireActiveClient(deps, ctx, clientId);
   const scope = clientId ? sql`(c.level <> 'client' OR c.client_id = ${clientId}::uuid)` : sql`c.level <> 'client'`;
   const kindFilter = kinds && kinds.length > 0 ? sql`AND a.kind = ANY(ARRAY[${sql.join(kinds.map((k) => sql`${k}`), sql`, `)}]::text[])` : sql``;
   const cols = sql`c.id::text AS key, a.id AS kb_id, a.title, a.kind, a.level, a.updated_at, a.client_id, c.text`;
-  const base = sql`FROM kb_chunk c JOIN kb_article a ON a.id = c.article_id WHERE a.status = 'published' AND ${scope} ${kindFilter}`;
+  const audiences = visibleAudiences(opts?.audience ?? roleAudience(ctx));
+  const audienceFilter = sql`a.audience = ANY(ARRAY[${sql.join(audiences.map((a) => sql`${a}`), sql`, `)}]::text[])`;
+  const base = sql`FROM kb_chunk c JOIN kb_article a ON a.id = c.article_id WHERE a.status = 'published' AND ${audienceFilter} AND ${scope} ${kindFilter}`;
 
   const fts = await withTenant(deps.app, ctx, async (tx) => [...(await tx.execute<ChunkRow>(sql`
     SELECT ${cols} ${base} AND c.search_tsv @@ websearch_to_tsquery('english', ${query})
@@ -91,6 +96,8 @@ export const searchKnowledge = defineTool({
     clientId: z.string().uuid().optional(),
     kinds: z.array(z.enum(KB_KINDS)).min(1).max(KB_KINDS.length).optional(),
     limit: z.number().int().min(1).max(8).default(5),
+    /** 15b: `platform` (the platform Help page) adds operator help and is refused (`not_found`) for non-operators. */
+    context: z.enum(['platform', 'agency', 'client']).optional(),
   }),
   output: z.object({
     results: z.array(z.object({ kbId: z.string(), title: z.string(), kind: z.enum(KB_KINDS), level: z.enum(KB_LEVELS), updatedAt: z.string(), chunks: z.array(z.string()) })),
@@ -98,8 +105,9 @@ export const searchKnowledge = defineTool({
   permission: 'read',
   channels: ['web', 'mcp', 'ask'],
   async handler(ctx, input, deps, meta) {
-    const hits = await searchKnowledgeHits(deps, ctx, input.clientId ?? null, input.query, input.kinds, input.limit);
-    const names = await kbNamesFor(deps.service, ctx.agencyId);
+    const audience = await helpAudienceFor(deps, ctx, input.context);
+    const hits = await searchKnowledgeHits(deps, ctx, input.clientId ?? null, input.query, input.kinds, input.limit, { audience });
+    const names = await kbNamesFor(deps.service, ctx.agencyId, { clientFacing: audience === 'client' });
     return {
       results: hits.map((h) => ({
         kbId: h.kbId, title: textFor(meta, names, h.title), kind: h.kind, level: h.level, updatedAt: h.updatedAt.toISOString(),
@@ -120,9 +128,11 @@ export const getKbArticle = defineTool({
   permission: 'read',
   channels: ['web'],
   async handler(ctx, input, deps) {
-    const [a] = await withTenant(deps.app, ctx, (tx) => tx.select().from(kbArticle).where(and(eq(kbArticle.id, input.kbId), eq(kbArticle.status, 'published'))));
+    const audience = roleAudience(ctx);
+    const [a] = await withTenant(deps.app, ctx, (tx) => tx.select().from(kbArticle)
+      .where(and(eq(kbArticle.id, input.kbId), eq(kbArticle.status, 'published'), inArray(kbArticle.audience, visibleAudiences(audience)))));
     if (!a) throw new ToolError('not_found', 'Article not found');
-    const names = await kbNamesFor(deps.service, ctx.agencyId);
+    const names = await kbNamesFor(deps.service, ctx.agencyId, { clientFacing: audience === 'client' });
     return {
       kbId: a.id, title: renderKbText(a.title, names), kind: a.kind, level: a.level, bodyMd: renderKbText(a.bodyMd, names),
       sourceUrl: a.sourceUrl, updatedAt: a.updatedAt.toISOString(),

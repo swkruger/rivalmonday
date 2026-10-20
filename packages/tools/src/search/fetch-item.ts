@@ -1,10 +1,11 @@
 import { redactForModel } from '@cs/collectors';
-import { type AccessContext, appLinkFor, hasFeature, renderKbText, ToolError } from '@cs/core';
+import { type AccessContext, appLinkFor, hasFeature, renderKbText, ToolError, visibleAudiences } from '@cs/core';
 import { alert, briefItem, kbArticle, capture, captureBlock, changeEvent, client, clientCompetitor, competitor, eventScore, evidence, recommendation, review, trackedPage, withTenant } from '@cs/db';
 import { changeTypeLabel } from '@cs/email';
 import { getAlert } from '@cs/engine';
 import { and, asc, desc, eq, exists, inArray, isNull } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
+import { roleAudience } from '../kb/audience';
 import { kbNamesFor } from '../kb/names';
 import { briefDetail } from '../tools/briefs';
 import { competitorLinked } from '../workspace/evidence-access';
@@ -284,10 +285,12 @@ async function fetchPage(deps: ToolDeps, ctx: AccessContext, id: string): Promis
 
 /** A published, RLS-visible article (as `get_kb_article`), rendered with the agency's names and then redacted. Client-level articles also need an active, accessible client. */
 async function fetchKnowledge(deps: ToolDeps, ctx: AccessContext, id: string): Promise<FetchOutput> {
-  const [a] = await withTenant(deps.app, ctx, (tx) => tx.select().from(kbArticle).where(and(eq(kbArticle.id, id), eq(kbArticle.status, 'published'))));
+  const audience = roleAudience(ctx); // 15b: help audience, as `get_kb_article`
+  const [a] = await withTenant(deps.app, ctx, (tx) => tx.select().from(kbArticle)
+    .where(and(eq(kbArticle.id, id), eq(kbArticle.status, 'published'), inArray(kbArticle.audience, visibleAudiences(audience)))));
   if (!a) throw notFound();
   if (a.clientId) await requireActiveClient(deps, ctx, a.clientId);
-  const names = await kbNamesFor(deps.service, ctx.agencyId);
+  const names = await kbNamesFor(deps.service, ctx.agencyId, { clientFacing: audience === 'client' });
   const text = (t: string): string => redactForModel(renderKbText(t, names));
   return {
     id: `knowledge:${id}`, title: text(a.title), text: text(a.bodyMd), url: appLinkFor(deps.appUrl, { t: 'kb', id }),

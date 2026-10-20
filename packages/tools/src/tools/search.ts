@@ -5,6 +5,7 @@ import { changeTypeLabel } from '@cs/email';
 import { and, type AnyColumn, asc, cosineDistance, desc, eq, inArray, isNotNull, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
+import { roleAudience } from '../kb/audience';
 import { kbNamesFor } from '../kb/names';
 import { rrfMerge } from '../search/rrf';
 import { AGENCY_BRIEF_STATUSES, CLIENT_BRIEF_STATUSES, DASHBOARD_ITEM_TYPES, searchClient } from '../search/scope';
@@ -161,9 +162,10 @@ async function vectorHits(deps: ToolDeps, ctx: AccessContext, c: WorkspaceClient
 
 /** Knowledge hits (platform, agency and, for this client, client-level articles): rendered with the agency's names, then redacted (mcp/ask channel). */
 async function knowledgeHits(deps: ToolDeps, ctx: AccessContext, c: WorkspaceClient, query: string, limit: number, queryVector: number[] | null): Promise<Hit[]> {
-  const hits = await searchKnowledgeHits(deps, ctx, c.id, query, undefined, limit, { queryVector });
+  const audience = roleAudience(ctx);
+  const hits = await searchKnowledgeHits(deps, ctx, c.id, query, undefined, limit, { queryVector, audience });
   if (hits.length === 0) return [];
-  const names = await kbNamesFor(deps.service, ctx.agencyId);
+  const names = await kbNamesFor(deps.service, ctx.agencyId, { clientFacing: audience === 'client' });
   const text = (t: string): string => redactForModel(renderKbText(t, names));
   return hits.map((h) => ({ key: `knowledge:${h.kbId}`, title: text(h.title), snippet: text(h.chunks[0] ?? '').slice(0, SNIPPET_CHARS), names: [], target: { t: 'kb', id: h.kbId }, final: true }));
 }

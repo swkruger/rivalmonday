@@ -54,8 +54,10 @@ delete_kb_article (knowledge-admin.ts) | write | deletes article
 set_kb_auto_sync (knowledge-admin.ts) | write | updates article
 import_kb_url (knowledge-admin.ts) | write | enqueues kb-import
 get_kb_import_status (knowledge-admin.ts) | read | reads job state only
-search_knowledge (knowledge.ts) | read | read; embedding skipped under support ctx
+search_knowledge (knowledge.ts) | read | read; embedding skipped under support ctx; help-audience filtered (15b)
 get_kb_article (knowledge.ts) | read | read-only
+get_page_guide (help.ts) | read | read-only; audience-filtered page guide (15b)
+list_help_guides (help.ts) | read | read-only; audience-filtered guide list (15b)
 list_decision_reviews (model-ops.ts) | read | read; no side effects
 resolve_decision_review (model-ops.ts) | write | answers a decision review
 list_moves (moves.ts) | read | read-only

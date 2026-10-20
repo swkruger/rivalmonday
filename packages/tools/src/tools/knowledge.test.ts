@@ -5,11 +5,13 @@ import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
+import { seedUser, truncateAuth } from '../../test/fixtures';
 import { ctx, dbs, registry, resetWorkspace } from './workspace-fixtures';
 
 type Out = { results: { kbId: string; title: string; kind: string; level: string; updatedAt: string; chunks: string[] }[] };
 const web = { channel: 'web' as const };
 const ask = { channel: 'ask' as const };
+const mcp = { channel: 'mcp' as const, tokenId: 'pat-1', tokenScope: 'read' as const };
 const admin = ctx('agency_admin', 'all');
 const viewer = ctx('client_viewer', [IDS.clientA1], ['dashboard', 'ask']);
 const unit = (i: number) => Array.from({ length: EMBEDDING_DIMENSIONS }, (_, j) => (j === i ? 1 : 0));
@@ -27,6 +29,8 @@ interface Seed {
   status?: 'draft' | 'published';
   clientVisible?: boolean;
   body?: string;
+  audience?: 'all' | 'agency' | 'client' | 'operator';
+  helpKey?: string;
   chunks: string[];
   vectors?: number[][];
 }
@@ -36,14 +40,14 @@ async function seed(s: Seed): Promise<string> {
   const clientId = s.clientId !== undefined ? s.clientId : null;
   const [a] = await dbs.owner.insert(kbArticle).values({
     level, agencyId, clientId, kind: s.kind ?? 'help', title: s.title ?? 'Article', bodyMd: s.body ?? s.chunks.join('\n\n'), status: s.status ?? 'published',
-    clientVisible: s.clientVisible ?? true, source: 'manual', createdBy: 't', updatedBy: 't',
+    clientVisible: s.clientVisible ?? true, source: 'manual', createdBy: 't', updatedBy: 't', audience: s.audience ?? 'all', helpKey: s.helpKey ?? null,
   }).returning();
   await dbs.owner.insert(kbChunk).values(s.chunks.map((text, ord) => ({
     articleId: a!.id, level, agencyId, clientId, clientVisible: s.clientVisible ?? true, ord, text, embedding: s.vectors?.[ord] ?? null,
   })));
   return a!.id;
 }
-const search = (c: typeof admin, input: Record<string, unknown>, reg = registry, meta: typeof web | typeof ask = web) => reg.invoke(c, 'search_knowledge', input, meta) as Promise<Out>;
+const search = (c: typeof admin, input: Record<string, unknown>, reg = registry, meta: typeof web | typeof ask | typeof mcp = web) => reg.invoke(c, 'search_knowledge', input, meta) as Promise<Out>;
 const ids = (o: Out) => o.results.map((r) => r.kbId);
 
 beforeEach(resetWorkspace);
@@ -128,7 +132,7 @@ describe('get_kb_article', () => {
 
   it('returns a rendered body for a visible article', async () => {
     const id = await seed({ title: 'T', body: '# Hi\n\nWelcome to {{product}}.', chunks: ['Welcome'] });
-    expect(await get(viewer, id)).toMatchObject({ kbId: id, title: 'T', level: 'platform', bodyMd: '# Hi\n\nWelcome to Rival Monday.', sourceUrl: null });
+    expect(await get(viewer, id)).toMatchObject({ kbId: id, title: 'T', level: 'platform', bodyMd: '# Hi\n\nWelcome to your agency.', sourceUrl: null });
   });
 
   it('not_found for draft, foreign, hidden and unknown ids', async () => {
@@ -151,5 +155,65 @@ describe('search_knowledge under a support session', () => {
     const out = await search(supportCtx, { query: 'pricing' }, reg);
     expect(calls).toBe(1);
     expect(out.results).toHaveLength(1); // still found by full text
+  });
+});
+
+describe('help audience filter', () => {
+  // `mcp` lets client roles reach the mcp channel at all (the registry's feature check).
+  const viewerM = ctx('client_viewer', [IDS.clientA1], ['dashboard', 'ask', 'mcp']);
+  const owner = ctx('client_owner', [IDS.clientA1], ['dashboard', 'ask', 'mcp']);
+  const am = ctx('account_manager', [IDS.clientA1]);
+  const opCtx = createAccessContext({ agencyId: IDS.agencyA, userId: 'op', role: 'agency_admin', clientScope: 'all', features: [] });
+  const opReg = withDeps({ platformAdmins: ['op@example.com'] });
+  const guides = async () => ({
+    all: await seed({ title: 'G all', audience: 'all', helpKey: 'page:x', chunks: ['widget guide for everyone'] }),
+    client: await seed({ title: 'G client', audience: 'client', helpKey: 'page:x', chunks: ['widget guide for clients'] }),
+    agency: await seed({ title: 'G agency', audience: 'agency', helpKey: 'page:x', clientVisible: false, chunks: ['widget guide for agencies'] }),
+    operator: await seed({ title: 'G operator', audience: 'operator', helpKey: 'page:x', clientVisible: false, chunks: ['widget guide for operators'] }),
+  });
+
+  it('search_knowledge hides agency and operator guides from client roles on web, ask and mcp', async () => {
+    const g = await guides();
+    for (const c of [viewerM, owner]) {
+      for (const meta of [web, ask, mcp]) {
+        expect(ids(await search(c, { query: 'widget', clientId: IDS.clientA1 }, registry, meta)).sort(), `${c.role} ${meta.channel}`).toEqual([g.all, g.client].sort());
+        expect(ids(await search(c, { query: 'widget' }, registry, meta)).sort()).toEqual([g.all, g.client].sort());
+      }
+    }
+  });
+
+  it('search_knowledge gives agency roles agency guides but never operator ones', async () => {
+    const g = await guides();
+    for (const c of [admin, am]) {
+      for (const meta of [web, ask, mcp]) expect(ids(await search(c, { query: 'widget' }, registry, meta)).sort()).toEqual([g.all, g.agency].sort());
+    }
+  });
+
+  it("search_knowledge context 'platform' is operator-only and adds operator guides", async () => {
+    const g = await guides();
+    await truncateAuth(dbs.owner);
+    await seedUser(dbs.owner, 'op', 'op@example.com');
+    expect(ids(await search(opCtx, { query: 'widget', context: 'platform' }, opReg)).sort()).toEqual([g.all, g.agency, g.operator].sort());
+    expect(ids(await search(opCtx, { query: 'widget' }, opReg)).sort()).toEqual([g.all, g.agency].sort());
+    for (const c of [admin, viewer]) await expect(search(c, { query: 'widget', context: 'platform' }, opReg)).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('client-audience results never name Rival Monday', async () => {
+    await seed({ title: 'About {{product}}', chunks: ['{{product}} gadget help'] });
+    const out = await search(viewer, { query: 'gadget' });
+    expect(out.results[0]).toMatchObject({ title: 'About your agency', chunks: ['your agency gadget help'] });
+    expect((await search(admin, { query: 'gadget' })).results[0]!.title).toBe('About Rival Monday');
+  });
+
+  it('get_kb_article and fetch refuse a guide outside the caller audience', async () => {
+    const g = await guides();
+    const getA = (c: typeof admin, kbId: string) => registry.invoke(c, 'get_kb_article', { kbId }, web);
+    await expect(getA(viewer, g.agency)).rejects.toMatchObject({ code: 'not_found' });
+    await expect(getA(viewer, g.operator)).rejects.toMatchObject({ code: 'not_found' });
+    await expect(getA(admin, g.operator)).rejects.toMatchObject({ code: 'not_found' });
+    expect(await getA(viewer, g.client)).toMatchObject({ kbId: g.client });
+    expect(await getA(admin, g.agency)).toMatchObject({ kbId: g.agency });
+    await expect(registry.invoke(viewerM, 'fetch', { id: `knowledge:${g.agency}` }, mcp)).rejects.toMatchObject({ code: 'not_found' });
+    expect(await registry.invoke(viewerM, 'fetch', { id: `knowledge:${g.client}` }, mcp)).toMatchObject({ id: `knowledge:${g.client}` });
   });
 });
