@@ -23,9 +23,9 @@
 3. **Worker health** counts `boss.start()` as the first beat (Railway health checks pass before the first 5-min heartbeat); ok iff `now − max(startedAt, lastHeartbeatAt) ≤ 660 s`.
 4. **Strict prod env** = parked list + `SERVICE_DATABASE_URL`, `LINK_SIGNING_SECRET` (the worker needs both): `DATABASE_URL`, `SERVICE_DATABASE_URL`, `APP_URL`, `LINK_SIGNING_SECRET`, `EMAIL_FROM`, `POSTMARK_SERVER_TOKEN`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `OPENROUTER_API_KEY`, `TYPESAFE_API_KEY`, `SENTRY_DSN`.
 5. **"Lint" = a guard test.** The repo has no ESLint; `apps/web/src/no-console.test.ts` scans `apps/**/src` (not tests): zero `console.*` in `apps/worker/src` outside `cli/**` (human CLI output); `apps/web/src` may not exceed a checked-in per-file baseline (`apps/web/src/console-baseline.json`).
-6. **pg-boss grants on a fresh DB:** pg-boss creates `pgboss.job` only when the worker first starts, after the deploy job's migration. So the migration grants what exists, and the worker runs `ensureQueueGrants()` after `boss.start()` (as owner `cs_worker`, idempotent). Pre-flight may add statements (spec §3 "whatever pre-flight proves").
+6. **pg-boss grants on a fresh DB:** pg-boss creates `pgboss.job` only when the worker first starts, after the deploy job's migration. So the migration grants what exists, and the worker runs `ensureQueueGrants()` after `boss.start()` (as owner `cs_worker`, idempotent). **Pre-flight proved (PG18, non-superuser owner):** the owner needs `GRANT cs_worker TO CURRENT_USER` (else `must be able to SET ROLE "cs_worker"`) and `cs_worker` needs `CREATE` on the database (else pg-boss's `CREATE SCHEMA IF NOT EXISTS` fails `permission denied for database` on a fresh DB); `cs_web` needs exactly `SELECT` on `pgboss.version`/`pgboss.queue` + `SELECT, INSERT` on `pgboss.job` (parent only; partitions need nothing); no `EXECUTE` grants. Grants name tables explicitly — `GRANT … ON ALL TABLES` as `cs_worker` errors once a dev worker running as the owner has created a queue partition.
 7. **Health page** drops the parked "spend" panel (8c `/platform/costs` owns spend). `sources[]` kinds are `vendor_call` and `capture`: `warn` when the last ok row is > 26 h old, `down` when > 72 h or never. Vendor `errorRate = errors24h / calls24h` (0 when no calls) feeds the parked thresholds. Queue stats reach the tool via injected `ToolDeps.queueStats` (pattern: `jobStatus`).
-8. **Browser Sentry init** uses the file the installed `@sentry/nextjs` documents for Next 16 (`instrumentation-client.ts` if so); spec's `sentry.client.config.ts` name yields.
+8. **Browser Sentry init** in `apps/web/instrumentation-client.ts` (confirmed at pre-flight: `@sentry/nextjs` 11.4.0 deprecates `sentry.client.config.ts`, which doesn't work under Turbopack). Pin `@sentry/nextjs` and `@sentry/node` to **`11.4.0`** (2026-10-02; supports `next ^16`, Node ≥ 23.2).
 9. **Worker release id:** the deploy job writes `apps/worker/.release` (= `GITHUB_SHA`) before `railway up`; Sentry release = `SENTRY_RELEASE ?? <.release> ?? 'dev'`.
 10. **`/robots.txt` joins `PUBLIC`** in the same `proxy.ts` hunk (else signed-out crawlers get a sign-in redirect and `robots.ts` is moot).
 
@@ -34,15 +34,15 @@
 - `packages/ai/src/{config,ai,http,openrouter,embeddings,chat}.ts`, `packages/ai/src/decisions/{jev,llm}.ts`, `packages/ai/config/ai.yaml`
 - `apps/web/{instrumentation.ts,instrumentation-client.ts,sentry.server.config.ts,next.config.ts}`, `apps/web/src/server/{env,request-id,queue,tools}.ts`, `apps/web/src/runtime.test.ts`, `apps/web/src/no-console.test.ts`
 - `apps/worker/src/{health,env,sentry,log,main,boss}.ts`, `apps/worker/src/jobs/heartbeat.ts`, `apps/worker/Dockerfile`, `apps/worker/railway.json`, `apps/worker/scripts/image-smoke.ts`, `.dockerignore`
-- `packages/db/src/cli/predeploy-check.ts`, `packages/db/migrations/<next>_runtime_roles.sql`, `infra/db/init/01-roles.sql`, `scripts/local-test-db.sh`
+- `packages/db/src/cli/predeploy-check.ts`, `packages/db/migrations/0080_runtime_roles.sql`, `infra/db/init/01-roles.sql`, `scripts/local-test-db.sh`
 - `packages/tools/src/{deps.ts,platform/system-health.ts,tools/platform-health.ts,tools/all.ts}`, `apps/web/src/app/(platform)/platform/health/page.tsx`
 - `packages/collectors/src/web/user-agent.ts`, `apps/web/src/app/{bot/page.tsx,robots.ts}`, `apps/web/src/proxy.ts`
 - `apps/web/scripts/profile-pages.ts`, `.github/workflows/ci.yml`, `docker-compose.yml`, `turbo.json`, `docs/DEPLOY.md`, `apps/web/e2e/ops.spec.ts`
 
 ## Dependencies on in-flight work (re-check in Task 0)
-- **phase-14b** (unmerged; migrations `0077`–`0079`; `packages/db/src/schema/ledger.ts` `llm_call.vertical_id`; `ai.yaml` `runbook_tailor`; worker `main.ts` new jobs; packs become seed + fixtures). If merged: its new jobs get logger/Sentry for free via `registerJobs`; its new AI tasks are worker-only unless web-reachable; drop `packages/verticals/packs/**` from tracing + image if nothing loads packs at runtime.
-- **13a** (plan on `main`, not started): owns `proxy.ts` beyond `PUBLIC`, auth host, sender, `turbo.json` env additions (merge both sides). Whichever lands second rebases the `PUBLIC` hunk.
-- **phase-15b** (planning; may claim a migration after 14b). Migration number = next free at execution (assumed `0080`).
+- **phase-14b — merged on `main` (Task 0, 2026-10-19; branch rebased onto `b38e36ba`).** Adds worker job `runbook-tailor` (gets logger/Sentry via `registerJobs`; its `console.log` joins Task 4's sweep — 34 worker files now), CLI `runbook-backfill`, AI tasks `runbook_tailor` + `vertical_draft` (**both also web-reachable**, see Task 2), tools `list_verticals`/`create_vertical`/`add_business_area`/`update_vertical`/`draft_vertical`, `list_catalog_review`/`count_catalog_review`/`review_vertical`/`review_business_area`/`merge_vertical`/`merge_business_area`, runbook tools (`get_runbook` … `retailor_runbook_item`; `playbooks` tools removed), `QueueJob` `'runbook-tailor'`. **Packs are not read at runtime** (DB catalogue via `createCatalog`; `loadVerticalPack` only in `seed-sql` + tests): drop `packages/verticals/packs/**` from tracing (Task 3) and the image (Task 10).
+- **13a** (plan on `main`, not started; no branch): owns `proxy.ts` beyond `PUBLIC`, auth host, sender, `turbo.json` env additions (merge both sides). Whichever lands second rebases the `PUBLIC` hunk.
+- **phase-15b** (in progress) already committed its own `0080_kb_help_key` on its branch and adds one export line to `packages/core/src/index.ts` (trivial merge with Task 1; its `help/*` modules must pass Task 1's edge-safe test). **Phase 7 takes `0080_runtime_roles`** (next free on `main`); whichever of 7 / 15b merges second renumbers (`packages/db/CLAUDE.md` § renumbering).
 
 ## Review focus
 1. **Redaction misses** — an email inside `Error.message`/`stack`, nested `{ headers: { Authorization } }`, arrays of objects, `cause` chains and circular objects are scrubbed without throwing (Task 1 tests).
@@ -63,6 +63,7 @@
 - Read the installed `@sentry/nextjs`/`@sentry/node` READMEs (Next 16 file names, `withMonitor`, `captureRequestError`) and Turborepo's bundled docs (AGENTS.md) before touching `turbo.json`.
 - Conflict-scan every task's Files against `main`.
 **Done when:** findings + migration number recorded in `docs/work/phase-7.md`; plan edited where an assumption failed.
+**Done 2026-10-19** — findings in `docs/work/phase-7.md` § Pre-flight findings; edits in Dependencies, Decisions 6/8 and Tasks 2, 3, 4, 6, 10.
 
 ### Task 1: `@cs/core/server` — Edge-safe split, logger, redaction
 **Goal:** `@cs/core`'s main entry imports no `node:*`; crypto and the pino logger live in `@cs/core/server`.
@@ -111,7 +112,7 @@ export function redactForLog(value: unknown, seen = new WeakSet<object>()): unkn
 
 ### Task 2: Per-task AI timeouts
 **Goal:** Every AI task can set its timeout/attempts; web-reachable tasks fit inside Vercel's budget.
-**Files:** modify `packages/ai/src/{config,ai,http,chat,openrouter,embeddings}.ts`, `packages/ai/src/decisions/{jev,llm}.ts`, their tests, `packages/ai/config/ai.yaml`, `packages/ai/src/config.test.ts`.
+**Files:** modify `packages/ai/src/{config,ai,http,chat,openrouter,embeddings}.ts`, `packages/ai/src/decisions/{jev,llm}.ts`, their tests, `packages/ai/config/ai.yaml`, `packages/ai/src/config.test.ts`, `packages/engine/src/runbook/tailor.ts` (+ test; Task 0 finding).
 **Interfaces:**
 ```ts
 // config.ts — every task variant gains (snake_case like the YAML):
@@ -129,10 +130,11 @@ export function timingOf(task: TaskConfig): CallTiming;
 - Providers merge `timing` per call over their construction-time `HttpDeps` (`timeoutMs`, `maxRetries = maxAttempts − 1`); absent ⇒ today's behaviour. Fallback models reuse the task timing.
 - `createAi`: chat/embeddings/Jev calls pass `timingOf(task)`; a Jev task's `escalate_to` provider gets the **Jev task's** timing (Decision 2).
 - Superrefine: a `request_path` task must satisfy `timeout_ms × max_attempts ≤ 45 000`, or `2 ×` that when it is Jev with `escalate_to`.
-- `ai.yaml` (all `request_path: true`): `ask_assistant` 20000×2; `ask_guard_decisions`, `ask_interpretation_decisions` 10000×2; `embeddings` 8000×2. Comment the rule in the YAML. Worker tasks unchanged.
-- Pre-flight list of web-reachable tasks (`rg "createAiFromEnv|\.chat\(|\.decide\(|\.embed\(" apps/web/src packages/tools/src packages/ask/src`); any other becomes `request_path`.
-**Tests (TDD):** `defaults timeout 60000 / attempts 3 / request_path false`; `rejects max_attempts 4`; `rejects a request_path task over budget`; `rejects a request_path jev task whose two stages exceed 45 s`; `bundled ai.yaml: ask_assistant, ask_guard_decisions, ask_interpretation_decisions, embeddings are request_path and fit`; `postJson aborts at the per-call timeout` (fake fetch honouring `signal`); `escalation uses the jev task's timing` (fake openrouter records `timing`).
-**Done when:** `pnpm --filter @cs/ai exec vitest run config http ai` + `pnpm test:affected` pass.
+- `ai.yaml` (all `request_path: true`): `ask_assistant` 20000×2; `ask_guard_decisions`, `ask_interpretation_decisions`, **`verifier_decisions`** 10000×2; `embeddings` 8000×2; **`vertical_draft`** 20000×2; new **`runbook_retailor`** (same model/fallbacks/temperature as `runbook_tailor`, `max_tokens: 1000`) 20000×2. Comment the rule in the YAML. `runbook_tailor` and other worker tasks unchanged.
+- **Pre-flight list of web-reachable tasks (done):** Ask turn → `ask_assistant`, `ask_guard_decisions`; Ask grounding (`packages/ask/src/grounding.ts`) → `verifier_decisions` (facts; shared with worker briefs, which then also get the 10 s × 2 budget — fine for a one-shot decision) and `ask_interpretation_decisions`; `search`/`knowledge` tools → `embeddings` (`server/tools.ts` `embedQueryFor`); `draft_vertical` → `vertical_draft` (`server/vertical-draft.ts`); `retailor_runbook_item` → `runbook_tailor` via `proposeTailoring` (`server/runbook-tailor.ts`). `llm_decisions` is reached only as an escalation (caller's timing, Decision 2). `ask_starters` is worker-only.
+- **`runbook_retailor` split (Task 0):** the worker's whole-runbook `runbook_tailor` call (`max_tokens: 4000`, all plays) can't fit 45 s, but the web's one-play `proposeTailoring` must. `tailor.ts`: `askModel(ai, c, plays, task = 'runbook_tailor')`; `proposeTailoring` passes `'runbook_retailor'`. Prompt, schema and validation unchanged.
+**Tests (TDD):** `defaults timeout 60000 / attempts 3 / request_path false`; `rejects max_attempts 4`; `rejects a request_path task over budget`; `rejects a request_path jev task whose two stages exceed 45 s`; `bundled ai.yaml: ask_assistant, ask_guard_decisions, ask_interpretation_decisions, verifier_decisions, embeddings, vertical_draft, runbook_retailor are request_path and fit`; `proposeTailoring calls runbook_retailor, tailorClientRunbook calls runbook_tailor` (engine, fake ai records the task); `postJson aborts at the per-call timeout` (fake fetch honouring `signal`); `escalation uses the jev task's timing` (fake openrouter records `timing`).
+**Done when:** `pnpm --filter @cs/ai exec vitest run config http ai`, `pnpm --filter @cs/engine exec vitest run tailor` + `pnpm test:affected` pass.
 
 ### Task 3: Web Sentry, file tracing, Node-only runtime, request id
 **Goal:** Web errors reach Sentry redacted; Vercel bundles carry runtime config files; nothing opts into Edge.
@@ -145,17 +147,17 @@ sentry: { dsn?: string; publicDsn?: string; environment?: string; issuesUrl?: st
 export function requestIdFrom(h: Headers): string;   // x-vercel-id, else crypto.randomUUID()
 ```
 **Behaviour:**
-- `instrumentation.ts`: `register()` imports `sentry.server.config` when `NEXT_RUNTIME === 'nodejs'`; `export const onRequestError = Sentry.captureRequestError`. Init only with a DSN; `tracesSampleRate: 0.1`, no replay, `sendDefaultPii: false`, `beforeSend`/`beforeSendTransaction` → `redactForLog` (server, from `@cs/core/server`). The browser file must not import `@cs/core/server`; it inlines the email mask + key redaction, with a parity test.
+- `instrumentation.ts`: `register()` imports `sentry.server.config` when `NEXT_RUNTIME === 'nodejs'`; `export const onRequestError = Sentry.captureRequestError` (exported by `@sentry/nextjs` 11.4.0). `instrumentation-client.ts` may also export `onRouterTransitionStart = Sentry.captureRouterTransitionStart`. Init only with a DSN; `tracesSampleRate: 0.1`, no replay, `sendDefaultPii: false`, `beforeSend`/`beforeSendTransaction` → `redactForLog` (server, from `@cs/core/server`). The browser file must not import `@cs/core/server`; it inlines the email mask + key redaction, with a parity test.
 - Tags = ids only (`agencyId`, `clientId`, `requestId`) where a request context exists.
-- `next.config.ts`: `outputFileTracingIncludes: { '/**': ['../../packages/ai/config/**', '../../packages/verticals/packs/**'] }` (packs per Task 0); wrap with `withSentryConfig` (silent; upload only when `SENTRY_AUTH_TOKEN` set; delete maps after upload).
+- `next.config.ts`: `outputFileTracingIncludes: { '/**': ['../../packages/ai/config/**'] }` (packs dropped — not read at runtime, Task 0); wrap with `withSentryConfig` (`silent`; upload only when `SENTRY_AUTH_TOKEN` set; `sourcemaps.deleteSourcemapsAfterUpload: true`).
 - `runtime.test.ts`: no `apps/web/src/**/{page,route,layout}.ts(x)` exports `runtime = 'edge'`.
-- `check-tracing.ts` (after `next build`): some `.next/server/**/*.nft.json` lists `packages/ai/config/ai.yaml` (and a pack if kept); exit 1 otherwise.
+- `check-tracing.ts` (after `next build`): some `.next/server/**/*.nft.json` lists `packages/ai/config/ai.yaml`; exit 1 otherwise.
 **Tests (TDD):** `no route or page opts into the Edge runtime`; `requestIdFrom prefers x-vercel-id`; `requestIdFrom falls back to a uuid`; `parseWebEnv leaves sentry fields undefined when unset`; `browser scrubber masks like redactForLog` (shared fixtures).
 **Done when:** focused tests, `pnpm --filter @cs/web build`, `pnpm --filter @cs/web check:tracing`, typecheck, `pnpm --filter @cs/web e2e:affected` pass.
 
 ### Task 4: Worker observability — `/healthz`, strict env, Sentry, logger
 **Goal:** Railway can health-check the worker; a misconfigured prod worker refuses to start; every job runs in a Sentry span with structured logs.
-**Files:** create `apps/worker/src/{health,env,sentry,log}.ts` (+ tests); modify `main.ts`, `boss.ts` (+ `boss.test.ts`), `jobs/heartbeat.ts`, every `apps/worker/src/**` file with `console.*` (not `cli/**` tables), `apps/worker/package.json` (`@sentry/node`); create `apps/web/src/no-console.test.ts` + `apps/web/src/console-baseline.json` (Decision 5).
+**Files:** create `apps/worker/src/{health,env,sentry,log}.ts` (+ tests); modify `main.ts`, `boss.ts` (+ `boss.test.ts`), `jobs/heartbeat.ts`, every `apps/worker/src/**` file with `console.*` (not `cli/**` tables), `apps/worker/package.json` (`@sentry/node` `11.4.0`; `withMonitor(slug, cb, { schedule, checkinMargin, maxRuntime })` confirmed in its types); create `apps/web/src/no-console.test.ts` + `apps/web/src/console-baseline.json` (Decision 5).
 **Interfaces:**
 ```ts
 export interface HealthState { startedAt: Date | null; lastHeartbeatAt: Date | null }
@@ -193,15 +195,21 @@ export async function findPredeployProblems(db: Db): Promise<string[]>;  // [] =
 
 ### Task 6: Runtime roles `cs_worker` / `cs_web`
 **Goal:** No owner URL at runtime: worker owns `pgboss`, web may only enqueue and read jobs (spec D9).
-**Files:** create `packages/db/migrations/<next>_runtime_roles.sql` (`pnpm --filter @cs/db generate --custom --name=runtime_roles`), `packages/db/src/runtime-roles.test.ts`, `apps/worker/src/queue-grants.ts` (+ test); modify `infra/db/init/01-roles.sql`, `scripts/local-test-db.sh` (idempotent `ensure_roles` on `setup`/`start`), `apps/worker/src/main.ts`.
-**Interfaces:** `export async function ensureQueueGrants(db: Db): Promise<void>` (runs the two guarded statements below; called after `boss.start()`).
-**Migration SQL** (plus Task 0 findings):
+**Files:** create `packages/db/migrations/0080_runtime_roles.sql` (`pnpm --filter @cs/db generate --custom --name=runtime_roles`), `packages/db/src/runtime-roles.test.ts`, `apps/worker/src/queue-grants.ts` (+ test); modify `infra/db/init/01-roles.sql`, `scripts/local-test-db.sh` (idempotent `ensure_roles` on `setup`/`start`), `apps/worker/src/main.ts`.
+**Interfaces:** `export async function ensureQueueGrants(db: Db): Promise<void>` (runs the two statements below; called after `boss.start()`).
+**Migration SQL** — `0080_runtime_roles` (Task 0 proved this exact text on PG18 with a non-superuser `CREATEROLE BYPASSRLS` owner, through the drizzle migrator, fresh and existing `pgboss`):
 ```sql
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'cs_worker') OR NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'cs_web') THEN
     RAISE EXCEPTION 'roles cs_worker/cs_web missing: run infra/db/init/01-roles.sql (local) or docs/DEPLOY.md § Roles (Neon) first';
   END IF;
 END $$;
+--> statement-breakpoint
+-- A non-superuser owner (Neon) may only hand objects to a role it can SET ROLE to (PG16+); CREATEROLE gives ADMIN, not membership.
+GRANT cs_worker TO CURRENT_USER;
+--> statement-breakpoint
+-- pg-boss runs `CREATE SCHEMA IF NOT EXISTS pgboss` on a fresh DB, which checks CREATE on the database first.
+DO $$ BEGIN EXECUTE format('GRANT CREATE ON DATABASE %I TO cs_worker', current_database()); END $$;
 --> statement-breakpoint
 CREATE SCHEMA IF NOT EXISTS pgboss;
 --> statement-breakpoint
@@ -224,16 +232,17 @@ END $$;
 --> statement-breakpoint
 GRANT USAGE ON SCHEMA pgboss TO cs_web;
 --> statement-breakpoint
-GRANT SELECT ON ALL TABLES IN SCHEMA pgboss TO cs_web;
---> statement-breakpoint
-ALTER DEFAULT PRIVILEGES FOR ROLE cs_worker IN SCHEMA pgboss GRANT SELECT ON TABLES TO cs_web;
---> statement-breakpoint
-DO $$ BEGIN IF to_regclass('pgboss.job') IS NOT NULL THEN GRANT INSERT ON pgboss.job TO cs_web; END IF; END $$;
+-- cs_web needs exactly: version (start), queue (send), job (send + status). Queries go through the partitioned parent,
+-- so per-queue partitions need no grant. Absent on a fresh DB: the worker's ensureQueueGrants() grants them after boss.start().
+DO $$ BEGIN
+  IF to_regclass('pgboss.version') IS NOT NULL THEN GRANT SELECT ON pgboss.version, pgboss.queue TO cs_web; END IF;
+  IF to_regclass('pgboss.job') IS NOT NULL THEN GRANT SELECT, INSERT ON pgboss.job TO cs_web; END IF;
+END $$;
 -- no grants on schema public for either role
 ```
-`ensureQueueGrants`: `GRANT SELECT ON ALL TABLES IN SCHEMA pgboss TO cs_web` + `GRANT INSERT ON pgboss.job TO cs_web` (as `cs_worker`; no-op when the URL is the local owner).
-**01-roles.sql:** add `cs_worker`/`cs_web` (`LOGIN PASSWORD '<name>'`) in `DO … IF NOT EXISTS` blocks. **Owner step** before this migration reaches Neon dev (`pnpm db:migrate`): create both roles there + Task 0's membership grant (`DEPLOY.md` § Roles), else the guard aborts the migration.
-**Tests (TDD)** (URLs derived from `TEST_DATABASE_URL` by swapping user/password): `cs_web can send a job and read its status`; `cs_web cannot UPDATE or DELETE pgboss.job`; `cs_web cannot SELECT public.client`; `cs_worker cannot SELECT public.client`; `fresh pgboss: worker start as cs_worker + ensureQueueGrants → cs_web send works`; `migration fails with the roles message when cs_web is missing` (temp DB).
+`ensureQueueGrants` (as `cs_worker`; no-op when the URL is the local owner): `GRANT SELECT ON pgboss.version, pgboss.queue TO cs_web` + `GRANT SELECT, INSERT ON pgboss.job TO cs_web`. **Never `ON ALL TABLES IN SCHEMA pgboss`:** a dev worker on the owner URL creates owner-owned queue partitions, and `cs_worker` granting on those fails `permission denied for table j…` (proved). No default privileges, no `EXECUTE` grants (cs_web calls no pgboss function). Before the worker's first start `cs_web` gets `pg-boss is not installed` on `start()` — `createBossQueue` already resets and retries.
+**01-roles.sql:** add `cs_worker`/`cs_web` (`LOGIN PASSWORD '<name>'`) in `DO … IF NOT EXISTS` blocks. **Owner step** before this migration reaches Neon dev (`pnpm db:migrate`): create both roles there **with SQL as the owner role** (`CREATE ROLE cs_worker LOGIN PASSWORD '…'; CREATE ROLE cs_web LOGIN PASSWORD '…';` — the creator gets ADMIN, which the migration's `GRANT cs_worker TO CURRENT_USER` needs; roles made in the Neon console may not give the owner ADMIN), `DEPLOY.md` § Roles, else the guard aborts the migration. Dev keeps using the owner URL for worker + web enqueue (proved: owner still starts pg-boss with `migrate: true`, creates queues, sends and reads after the migration, via its `cs_worker` membership).
+**Tests (TDD)** (URLs derived from `TEST_DATABASE_URL` by swapping user/password): `cs_web can send a job and read its status`; `cs_web cannot UPDATE or DELETE pgboss.job`; `cs_web cannot SELECT pgboss.archive`; `cs_web cannot SELECT public.client`; `cs_worker cannot SELECT public.client`; `fresh pgboss: worker start as cs_worker + ensureQueueGrants → cs_web send works`; `ensureQueueGrants succeeds when an owner-created queue partition exists`; `migration fails with the roles message when cs_web is missing` (temp DB).
 **Done when:** focused tests, `pnpm --filter @cs/worker exec vitest run boss`, `drizzle-kit check` pass.
 
 ### Task 7: `get_platform_health` + `/platform/health`
@@ -296,12 +305,13 @@ export function sequentialStages(spans: { startMs: number; endMs: number }[]): n
 **Goal:** A portable worker image and a gated migrate-then-deploy pipeline; the owner can deploy and roll back from one runbook.
 **Files:** create `apps/worker/Dockerfile`, `.dockerignore`, `apps/worker/railway.json`, `apps/worker/scripts/image-smoke.ts`, `docs/DEPLOY.md` (≤ 8 KB), `scripts/ci-workflow.test.mjs` (or a vitest under `apps/web/scripts`); modify `.github/workflows/ci.yml`, `apps/worker/package.json` (`smoke:image`), `turbo.json`.
 **Behaviour:**
-- Dockerfile per parked §3.1 (prune → `node:24-bookworm-slim`, frozen install, `playwright install --with-deps chromium`, explicit copy of `packages/ai/config/` [+ packs], `apps/worker/.release` if present, non-root user, `NODE_ENV=production PORT=8080`, `EXPOSE 8080`). `.dockerignore` excludes `node_modules`, `.env*`, `.git`, `.turbo`, `.next`, `.evidence`, `App/`, `.claude/`, `.superpowers/`, `docs/`.
-- `image-smoke.ts`: loads `ai.yaml` (+ packs if runtime), launches/closes Chromium with `setContent`; no network/DB; prints `image-smoke ok`.
+- Dockerfile per parked §3.1 (prune → `node:24-bookworm-slim`, frozen install, `playwright install --with-deps chromium`, explicit copy of `packages/ai/config/` (no packs — Task 0), `apps/worker/.release` if present, non-root user, `NODE_ENV=production PORT=8080`, `EXPOSE 8080`). `.dockerignore` excludes `node_modules`, `.env*`, `.git`, `.turbo`, `.next`, `.evidence`, `App/`, `.claude/`, `.superpowers/`, `docs/`.
+- Prune with the positional form `turbo prune @cs/worker --docker` (`--scope` is deprecated in turbo 2.11.5).
+- `image-smoke.ts`: loads `ai.yaml`, launches/closes Chromium with `setContent`; no network/DB; prints `image-smoke ok`.
 - `railway.json`: Dockerfile build, healthcheck `/healthz` (timeout 300), restart on failure, 1 replica, drain 40 s (verify field names).
 - CI: `image` job (`docker build` + `docker run … smoke:image`); `deploy` job — `needs: [test, image]`, `if: github.ref == 'refs/heads/main' && github.event_name == 'push'`, `environment: production`, `concurrency: { group: production, cancel-in-progress: false }`; steps: install → `pnpm --filter @cs/db predeploy-check` → `pnpm --filter @cs/db migrate` (both `DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}`) → `vercel pull/build --prod/deploy --prebuilt --prod` (`VERCEL_*`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT=${{ secrets.SENTRY_PROJECT_WEB }}`) → `echo $GITHUB_SHA > apps/worker/.release` + `railway up --ci --service rivalmonday-worker` → `sentry-cli releases new/finalize` for `SENTRY_PROJECT_WORKER`. Pin `vercel`, `@railway/cli`, `@sentry/cli` to exact versions ≥ 2 weeks old. No `continue-on-error`.
-- `turbo.json`: `"agentGuidance": false`; pass-through `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_ISSUES_URL`, `SENTRY_RELEASE`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `LOG_LEVEL`, `PORT`, `PROFILE_TOOLS`.
-- `DEPLOY.md` = parked §3.9 order + § Roles (Neon SQL for `cs_worker`/`cs_web` incl. Task 0's membership grants; `DATABASE_URL` per service: Railway = `cs_worker`, Vercel = `cs_web`, `APP_`/`SERVICE_DATABASE_URL` = `app_user`/`app_service`, owner only as `MIGRATION_DATABASE_URL`) + magic-link cutover note (spec D3) + secrets list (spec §3) + rollback + "set `WEB_MONITORING_ENABLED=true` only after `/bot` is live".
+- `turbo.json` (bundled docs read at Task 0): `"agentGuidance": false` is root-only and does not remove the existing `AGENTS.md` block (keep it committed). Root-level `globalPassThroughEnv` is deprecated in favour of `global.passThroughEnv` behind `futureFlags.globalConfiguration`, but still works in 2.11.5 — **keep the root key** (13a edits the same list; migrating is a separate backlog item). Pass-through `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_ISSUES_URL`, `SENTRY_RELEASE`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `LOG_LEVEL`, `PORT`, `PROFILE_TOOLS`.
+- `DEPLOY.md` = parked §3.9 order + § Roles (Neon SQL run **as the owner** for `cs_worker`/`cs_web` — creator gets ADMIN, the migration then grants itself membership and `CREATE` on the database (Task 6 SQL); `DATABASE_URL` per service: Railway = `cs_worker`, Vercel = `cs_web`, `APP_`/`SERVICE_DATABASE_URL` = `app_user`/`app_service`, owner only as `MIGRATION_DATABASE_URL`) + magic-link cutover note (spec D3) + secrets list (spec §3) + rollback + "set `WEB_MONITORING_ENABLED=true` only after `/bot` is live".
 **Tests (TDD):** workflow-shape test: `deploy.needs ⊇ [test, image]`; `if` has `refs/heads/main` + `push`; concurrency `production`/no cancel; step order predeploy-check → migrate → Vercel → Railway; migrate/pre-check use `MIGRATION_DATABASE_URL`; no `continue-on-error`; postgres image ends `pg18`; `drizzle-kit check` step present.
 **Done when:** shape test passes; `npx --yes @action-validator/cli .github/workflows/ci.yml` clean; host `pnpm --filter @cs/worker smoke:image` passes (no local Docker — image build proven in CI; say so in the report).
 

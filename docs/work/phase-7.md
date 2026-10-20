@@ -1,21 +1,31 @@
 # phase-7 — Launch readiness (7a production & security, 7b money, 7c scale & pilot)
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-7   **Base:** main @ f1ec9683
+**Kind:** implementation (7a1)   **Worktree:** ../CompetitorSpy-wt/phase-7   **Base:** main @ b38e36ba
 **Plan/spec:** [7a spec](../superpowers/specs/2026-10-19-phase-7a-launch-production-security-design.md) (supersedes the parked 2026-10-12 spec); plans [7a1](../superpowers/plans/2026-10-19-phase-7a1-deploy-observability.md), [7a2](../superpowers/plans/2026-10-19-phase-7a2-security-data-lifecycle.md). Item lists: [phase-7-scope.md](phase-7-scope.md).
 
 ## Status (overwrite)
-2026-10-19: 7a spec + 7a1/7a2 plans owner-approved (no code yet). Worktree set up for implementation: own test DB `cs_phase_7_test`, `pnpm install` + pgboss schema run in the background at wrap-up (re-run `pnpm install` if `node_modules` is incomplete). 7a2 SDD workspace prepared (ledger/briefs in `.superpowers/`, gitignored) — no task dispatched.
+2026-10-19: 7a1 executing (SDD). **Task 0 pre-flight done**: rebased onto local `main` @ b38e36ba (Phase 14 merged), `pnpm install`, findings below, plan edited inline. Own test DB `cs_phase_7_test` (has `pgboss`).
 
 ## Next (overwrite)
-1. **7a1 first** — 7a2's Task 0 needs 7a1's `@cs/core/server` split (correction: 7a2 can't run ahead of 7a1). 7a1 Task 0 pre-flight rebases on `main` once phase-14b merges (or stack on it with owner OK); then `superpowers:subagent-driven-development` on `docs/superpowers/plans/2026-10-19-phase-7a1-deploy-observability.md`, then 7a2.
-2. Owner: create `cs_worker`/`cs_web` roles on Neon dev before the roles migration; prod accounts before 7a1 Task 12 (O17).
+1. 7a1 Tasks 1–11 via SDD (`docs/superpowers/plans/2026-10-19-phase-7a1-deploy-observability.md`), then 7a2 (needs 7a1's `@cs/core/server`).
+2. Owner: create `cs_worker`/`cs_web` on Neon dev **with SQL as the owner role** before `0080` reaches `cs_dev`; prod accounts before 7a1 Task 12 (O17).
 3. 7b brainstorming may start any time (O1).
 
 ## Interfaces this branch adds or changes
-None yet. Migrations: main ends `0076`; `phase-14b` holds `0077`–`0079`; 13a claims 4 at execution. **Phase 7 starts at `0080`** if it lands after 14b and before 13a; claim at pre-flight (7a1 `runtime_roles`, 7a2 `lifecycle`). **phase-15b** (planning) may also claim one after 14b.
+- **Migrations:** 7a1 `0080_runtime_roles`, 7a2 `0081_lifecycle` (controller ruling: next free on `main`). **phase-15b already committed its own `0080_kb_help_key`** on its branch — whichever merges second renumbers (`packages/db/CLAUDE.md` § renumbering). 13a claims at its execution.
+
+## Pre-flight findings (7a1 Task 0, 2026-10-19)
+- **14b merged:** job `runbook-tailor`; AI tasks `runbook_tailor`, `vertical_draft`; vertical/catalogue/runbook tools (playbook tools gone). Packs are seed + fixtures only (runtime = DB catalogue) → dropped from web tracing and the worker image.
+- **Web-reachable AI tasks:** `ask_assistant`, `ask_guard_decisions`, `ask_interpretation_decisions`, `verifier_decisions` (Ask grounding — missed by the plan), `embeddings`, `vertical_draft`, `runbook_tailor` (via `retailor_runbook_item`). Plan: all `request_path`; web retailor moves to a new `runbook_retailor` task (worker's 4000-token whole-runbook call can't fit 45 s).
+- **pg-boss 10.4.2 grants on PG18, non-superuser owner (proved, scratch DBs dropped):** the plan's SQL failed `must be able to SET ROLE "cs_worker"` → needs `GRANT cs_worker TO CURRENT_USER`; a fresh DB failed `permission denied for database` at worker start → needs `GRANT CREATE ON DATABASE … TO cs_worker`. `cs_web` needs only `SELECT` on `pgboss.version`/`queue` + `SELECT, INSERT` on `pgboss.job`; no `EXECUTE`. `GRANT … ON ALL TABLES` as `cs_worker` errors once the owner-run dev worker has made a queue partition → explicit tables. Owner (dev) still runs the worker and enqueues after the migration. Negatives hold (`cs_web` no UPDATE/DELETE job, no archive; neither role reads `public.client`). Exact SQL: plan Task 6.
+- **Owner URL in web:** only `server/queue.ts` + `server/env.ts` (as required).
+- **Sentry:** not installed yet; pin `@sentry/nextjs`/`@sentry/node` `11.4.0` (2026-10-02). Browser file `instrumentation-client.ts` (`sentry.client.config.ts` deprecated, breaks Turbopack); `captureRequestError`, `captureRouterTransitionStart`, `withMonitor(slug, cb, { schedule, checkinMargin, maxRuntime })` exist.
+- **Turborepo 2.11.5:** `agentGuidance` is root-only and keeps the `AGENTS.md` block; root `globalPassThroughEnv` is deprecated (→ `global.passThroughEnv` behind a future flag) but works — keep it in 7a1. `turbo prune` takes a positional package (`--scope` deprecated).
+- **Conflict scan:** every plan path exists or is new; 14 touched `ai.yaml`, `next.config.ts`, worker `main.ts`, `tools/deps.ts`, `tools/all.ts`, `web/server/tools.ts` — no plan conflict beyond the above. Worker `console.*` files now 34. 15b overlaps only `packages/core/src/index.ts` (one export line).
 
 ## Assumes from other branches
-- **phase-14b** (not rebased on 15a): `packages/db/src/schema/ledger.ts` (`llm_call.vertical_id`, 0078) — 7b `cost_usd → numeric` must follow it; `platform-costs.ts` (`aiByVertical`); new worker jobs (`runbook-tailor`, catalogue) + `QueueJob`, `apps/worker/src/main.ts`, `deps.ts`; `ai.yaml` (`runbook_tailor`); `packages/verticals` packs become seed + fixtures (7a file tracing); new tools (isolation suite must cover); `E2E_PORT`.
+- **phase-14b — merged** (b38e36ba): `llm_call.vertical_id` (0078) — 7b `cost_usd → numeric` must follow it; new tools are in the isolation suite's scope; `E2E_PORT`.
+- **phase-15b** (in progress): `0080_kb_help_key`, `packages/core/src/help/*` + one `index.ts` export (must stay Edge-safe for 7a1 Task 1).
 - **13a** (plan approved on main, not started): `apps/web/src/proxy.ts` (host resolution, `/health` on any host), per-origin Better Auth (`auth.ts`, `authFor`), `senderFor`/`platformFrom` + per-agency Postmark domains (overlaps 7a Postmark webhooks + email env), `NEUTRAL_DOMAIN`/`VERCEL_*`/`POSTMARK_ACCOUNT_TOKEN` env, error pages, P22 titles, P23 Stripe name, `turbo.json`. Needs a Vercel project + wildcard → 7a deploy precedes 13a live.
 - **15c** (not started): error/404 pages overlap 13a + 7a error reporting.
 
