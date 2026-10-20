@@ -129,7 +129,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}page-header\\.tsx$`), tags: 'all', why: 'PageHeader: the h1, breadcrumb and actions of almost every signed-in page (15a §2.7)' },
   { pattern: re(`${COMP}help/help-context\\.tsx$`), tags: 'all', why: 'HelpProvider: mounted by the app shell on every signed-in page (15b)' },
   { pattern: re(`${COMP}help/`), tags: [], why: 'HelpTip/FieldHint/EmptyState: not rendered on any page yet; unit-tested (15b Task 5)' },
-  { pattern: re(`${COMP}client-crumbs\\.ts$`),tags: 'all', why: 'client breadcrumbs: every /c/<id> page header (15a §2.7)' },
+  { pattern: re(`${COMP}client-crumbs\\.ts$`), tags: 'all', why: 'client breadcrumbs: every /c/<id> page header (15a §2.7)' },
   { pattern: re(`${COMP}prev-next\\.tsx$`), tags: ['@briefs', '@alerts', '@starting-point', '@navigation'], why: 'Previous / Next on the brief, alert and report pages (15a §2.8)' },
   { pattern: re(`${C}(?:page\\.tsx|overview-kpis\\.ts)$`), tags: ['@overview', '@starting-point'], why: 'client overview (starting-point progress card)' },
   { pattern: re(`${C}ads/`), tags: ['@ads'], why: 'ads view' },

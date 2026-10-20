@@ -45,13 +45,13 @@ describe('HelpTip', () => {
     expect(btn.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('opens on hover only with a fine pointer', () => {
+  it('opens on hover only with a fine pointer', async () => {
     render(wrap('client', <HelpTip term="share-of-voice" terms={TERMS} />));
     const btn = screen.getByRole('button');
     fireEvent.pointerEnter(btn, { pointerType: 'mouse' });
     expect(btn.getAttribute('aria-expanded')).toBe('true');
     fireEvent.pointerLeave(btn, { pointerType: 'mouse' });
-    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    await waitFor(() => expect(btn.getAttribute('aria-expanded')).toBe('false'));
     cleanup();
     mockPointer(false);
     render(wrap('client', <HelpTip term="share-of-voice" terms={TERMS} />));
@@ -105,6 +105,61 @@ describe('HelpTip', () => {
     render(wrap('client', <HelpTip term="share-of-voice" terms={TERMS} />));
     fireEvent.click(screen.getByRole('button'));
     expect(screen.queryByText(/More in the guide/)).toBeNull();
+  });
+});
+
+describe('HelpTip hover behaviour', () => {
+  afterEach(() => vi.useRealTimers());
+  const tipWithGuide = () => {
+    const terms = TERMS;
+    return render(wrap('client', <HelpTip tip="client.overview.placeholder" terms={terms} />));
+  };
+
+  it('stays open while the pointer moves from the trigger onto the content, and the guide link works', async () => {
+    vi.useFakeTimers();
+    const { PAGE_COPY } = await import('@/help/copy');
+    (PAGE_COPY['client.overview'].tips.placeholder as { guideAnchor?: string }).guideAnchor = 'tips';
+    const seen = vi.fn();
+    window.addEventListener(OPEN_PAGE_GUIDE_EVENT, seen);
+    tipWithGuide();
+    const btn = screen.getByRole('button');
+    fireEvent.pointerEnter(btn, { pointerType: 'mouse' });
+    fireEvent.pointerLeave(btn, { pointerType: 'mouse' });
+    const content = document.querySelector('[data-slot="popover-content"]')!;
+    act(() => { vi.advanceTimersByTime(50); });
+    fireEvent.pointerEnter(content, { pointerType: 'mouse' });
+    act(() => { vi.advanceTimersByTime(500); });
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(screen.getByText(/More in the guide/));
+    window.removeEventListener(OPEN_PAGE_GUIDE_EVENT, seen);
+    delete (PAGE_COPY['client.overview'].tips.placeholder as { guideAnchor?: string }).guideAnchor;
+    expect((seen.mock.calls[0]![0] as CustomEvent).detail).toEqual({ anchor: 'tips' });
+  });
+
+  it('a click after a hover-open keeps it open (pinned, no close on leave); a second click closes', () => {
+    vi.useFakeTimers();
+    tipWithGuide();
+    const btn = screen.getByRole('button');
+    fireEvent.pointerEnter(btn, { pointerType: 'mouse' });
+    fireEvent.click(btn);
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.pointerLeave(btn, { pointerType: 'mouse' });
+    act(() => { vi.advanceTimersByTime(500); });
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(btn);
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('closes after the delay when the pointer leaves and does not return', () => {
+    vi.useFakeTimers();
+    tipWithGuide();
+    const btn = screen.getByRole('button');
+    fireEvent.pointerEnter(btn, { pointerType: 'mouse' });
+    fireEvent.pointerLeave(btn, { pointerType: 'mouse' });
+    act(() => { vi.advanceTimersByTime(100); });
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+    act(() => { vi.advanceTimersByTime(100); });
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
   });
 });
 

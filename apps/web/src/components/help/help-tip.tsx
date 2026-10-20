@@ -1,7 +1,7 @@
 'use client';
 import { GLOSSARY, type GlossaryTerm, visibleAudiences } from '@cs/core';
 import { Popover, PopoverContent, PopoverTrigger } from '@cs/ui';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { OPEN_PAGE_GUIDE_EVENT, renderCopy, resolveTip, type TipKey } from '@/help/copy';
 import { useHelp } from './help-context';
 
@@ -33,24 +33,72 @@ function finePointer(e: React.PointerEvent): boolean {
   return e.pointerType === 'mouse' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: fine)').matches;
 }
 
+const HOVER_CLOSE_DELAY_MS = 150;
+
 export function HelpTip(props: Props) {
   const r = useResolved(props);
   const [open, setOpen] = useState(false);
+  // `hovered`: opened by pointer hover (no focus move, closes on leave). `pinned`: a click turned a hover-open into a normal open.
+  const hovered = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelClose = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  useEffect(() => cancelClose, []);
   if (!r || !r.visible) return null;
+  const enter = (e: React.PointerEvent) => {
+    if (!finePointer(e)) return;
+    cancelClose();
+    if (!open) {
+      hovered.current = true;
+      setOpen(true);
+    }
+  };
+  const leave = (e: React.PointerEvent) => {
+    if (!finePointer(e) || !hovered.current) return;
+    cancelClose();
+    timer.current = setTimeout(() => {
+      hovered.current = false;
+      setOpen(false);
+    }, HOVER_CLOSE_DELAY_MS);
+  };
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        cancelClose();
+        hovered.current = false;
+        setOpen(next);
+      }}
+    >
       <PopoverTrigger asChild>
         <button
           type="button"
           aria-label={r.label}
-          onPointerEnter={(e) => { if (finePointer(e)) setOpen(true); }}
-          onPointerLeave={(e) => { if (finePointer(e)) setOpen(false); }}
+          onPointerEnter={enter}
+          onPointerLeave={leave}
+          onClick={(e) => {
+            // A click during a hover-open pins it open instead of toggling it closed.
+            if (open && hovered.current) {
+              e.preventDefault();
+              cancelClose();
+              hovered.current = false;
+            }
+          }}
           className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-border text-[10px] font-bold leading-none text-muted-ink hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           ?
         </button>
       </PopoverTrigger>
-      <PopoverContent className="text-sm" onPointerEnter={(e) => { if (finePointer(e)) setOpen(true); }} onPointerLeave={(e) => { if (finePointer(e)) setOpen(false); }}>
+      <PopoverContent
+        className="text-sm"
+        onPointerEnter={enter}
+        onPointerLeave={leave}
+        onOpenAutoFocus={(e) => {
+          if (hovered.current) e.preventDefault();
+        }}
+      >
         <p className="font-semibold">{r.title}</p>
         <p className="mt-1 text-muted-ink">{r.body}</p>
         {r.long && <p className="mt-2 text-muted-ink">{r.long}</p>}
