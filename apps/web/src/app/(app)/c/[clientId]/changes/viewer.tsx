@@ -8,6 +8,7 @@ import { humanise } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
 import { EvidenceImage } from '@/components/evidence-image';
+import { HelpTip } from '@/components/help/help-tip';
 import { submitFeedbackAction } from './actions';
 import { DiffText } from './diff-text';
 import { FeedbackButtons } from './feedback-buttons';
@@ -103,8 +104,9 @@ function ScorePanel({ detail }: { detail: EventDetail }) {
   const f = detail.factors;
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex items-center gap-1.5">
         <CardTitle>Why this scored {detail.score}</CardTitle>
+        <HelpTip tip="client.changes.score" />
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <FactorBar label="Type" value={f.typeWeight} />

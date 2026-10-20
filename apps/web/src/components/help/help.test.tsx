@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OPEN_PAGE_GUIDE_EVENT, renderCopy, resolveTip } from '@/help/copy';
 import { EmptyState } from './empty-state';
 import { FieldHint, useFieldHint } from './field-hint';
-import { HelpProvider, useHelp } from './help-context';
+import { HelpProvider, HelpText, useHelp, useRegisterPageGuide } from './help-context';
 import { HelpTip } from './help-tip';
 
 const TERMS: GlossaryTerm[] = [
@@ -24,6 +24,12 @@ afterEach(cleanup);
 const wrap = (audience: 'client' | 'agency' | 'operator', ui: React.ReactNode, client?: string) => (
   <HelpProvider value={{ audience, names: { agency: 'Acme Agency', assistant: 'Friday', client } }}>{ui}</HelpProvider>
 );
+
+/** Stands in for `PageGuide`: the page has a guide while this is mounted. */
+function GuideMounted() {
+  useRegisterPageGuide();
+  return null;
+}
 
 describe('HelpTip', () => {
   it('opens on click, shows rendered copy and labels the button', () => {
@@ -85,9 +91,30 @@ describe('HelpTip', () => {
   });
 
   it('resolves a page tip, labels it with its title, and a tip with no audience counts as all', () => {
-    render(wrap('client', <HelpTip tip="client.overview.placeholder" />, 'Bob HVAC'));
-    fireEvent.click(screen.getByRole('button', { name: 'Placeholder tip' }));
-    expect(screen.getByText('Placeholder tip body for Bob HVAC.')).toBeTruthy();
+    render(wrap('client', <HelpTip tip="client.overview.ratingVsArea" />, 'Bob HVAC'));
+    fireEvent.click(screen.getByRole('button', { name: 'Your rating vs area' }));
+    expect(screen.getByText("Bob HVAC's Google rating next to the average rating of the tracked competitors.")).toBeTruthy();
+  });
+
+  it('audience-specific page tips: routing is agency-only, the plain route wording client-only', () => {
+    const both = <><HelpTip tip="client.changes.routes" /><HelpTip tip="client.changes.routing" /></>;
+    const { rerender } = render(wrap('client', both));
+    expect(screen.getByRole('button', { name: 'Alert, Brief and Archived' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Routing' })).toBeNull();
+    rerender(wrap('agency', both));
+    expect(screen.getByRole('button', { name: 'Routing' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Alert, Brief and Archived' })).toBeNull();
+  });
+
+  it('shows "More in the guide" only while the page has a guide (a PageGuide is mounted)', () => {
+    const { rerender } = render(wrap('client', <><HelpTip tip="client.overview.changesWeek" />{null}</>));
+    fireEvent.click(screen.getByRole('button', { name: 'Changes this week' }));
+    expect(screen.queryByText(/More in the guide/)).toBeNull();
+    // A sibling mounts and unmounts, the tip itself stays mounted and open.
+    rerender(wrap('client', <><HelpTip tip="client.overview.changesWeek" /><GuideMounted /></>));
+    expect(screen.getByText(/More in the guide/)).toBeTruthy();
+    rerender(wrap('client', <><HelpTip tip="client.overview.changesWeek" />{null}</>));
+    expect(screen.queryByText(/More in the guide/)).toBeNull();
   });
 
   it('falls back to the client audience outside a provider', () => {
@@ -101,8 +128,8 @@ describe('HelpTip', () => {
     expect(screen.getByText('client|your agency|your assistant')).toBeTruthy();
   });
 
-  it('shows no guide link without an anchor (placeholder tips have none)', () => {
-    render(wrap('client', <HelpTip term="share-of-voice" terms={TERMS} />));
+  it('shows no guide link without an anchor (glossary terms have none), even when the page has a guide', () => {
+    render(wrap('client', <><GuideMounted /><HelpTip term="share-of-voice" terms={TERMS} /></>));
     fireEvent.click(screen.getByRole('button'));
     expect(screen.queryByText(/More in the guide/)).toBeNull();
   });
@@ -110,15 +137,10 @@ describe('HelpTip', () => {
 
 describe('HelpTip hover behaviour', () => {
   afterEach(() => vi.useRealTimers());
-  const tipWithGuide = () => {
-    const terms = TERMS;
-    return render(wrap('client', <HelpTip tip="client.overview.placeholder" terms={terms} />));
-  };
+  const tipWithGuide = () => render(wrap('client', <><GuideMounted /><HelpTip tip="client.overview.changesWeek" /></>));
 
   it('stays open while the pointer moves from the trigger onto the content, and the guide link works', async () => {
     vi.useFakeTimers();
-    const { PAGE_COPY } = await import('@/help/copy');
-    (PAGE_COPY['client.overview'].tips.placeholder as { guideAnchor?: string }).guideAnchor = 'tips';
     const seen = vi.fn();
     window.addEventListener(OPEN_PAGE_GUIDE_EVENT, seen);
     tipWithGuide();
@@ -132,8 +154,7 @@ describe('HelpTip hover behaviour', () => {
     expect(btn.getAttribute('aria-expanded')).toBe('true');
     fireEvent.click(screen.getByText(/More in the guide/));
     window.removeEventListener(OPEN_PAGE_GUIDE_EVENT, seen);
-    delete (PAGE_COPY['client.overview'].tips.placeholder as { guideAnchor?: string }).guideAnchor;
-    expect((seen.mock.calls[0]![0] as CustomEvent).detail).toEqual({ anchor: 'tips' });
+    expect((seen.mock.calls[0]![0] as CustomEvent).detail).toEqual({ anchor: 'common-questions' });
   });
 
   it('a click after a hover-open keeps it open (pinned, no close on leave); a second click closes', () => {
@@ -171,7 +192,7 @@ describe('copy', () => {
   });
 
   it('resolveTip handles dotted page keys and unknown keys', () => {
-    expect(resolveTip('client.changes.placeholder')?.title).toBe('Placeholder tip');
+    expect(resolveTip('client.changes.score')?.title).toBe('How the score works');
     expect(resolveTip('client.changes.nope')).toBeNull();
     expect(resolveTip('other.page.x')).toBeNull();
   });
@@ -211,13 +232,29 @@ describe('EmptyState', () => {
     expect(screen.queryByText(/More in the guide/)).toBeNull();
   });
 
+  it('fills the copy placeholders with the viewer names, and hides the guide link when the page has no guide', () => {
+    render(wrap('client', <EmptyState title="No briefs for {client}" body="Ask {agency} or {assistant}." guideAnchor="how-to-use-it" />, 'Bob HVAC'));
+    expect(screen.getByRole('heading', { name: 'No briefs for Bob HVAC' })).toBeTruthy();
+    expect(screen.getByText('Ask Acme Agency or Friday.')).toBeTruthy();
+    expect(screen.queryByText(/More in the guide/)).toBeNull();
+  });
+
   it('opens the page guide at the anchor', () => {
     const seen = vi.fn();
     window.addEventListener(OPEN_PAGE_GUIDE_EVENT, seen);
-    render(<EmptyState title="t" body="b" guideAnchor="changes" />);
+    render(<><GuideMounted /><EmptyState title="t" body="b" guideAnchor="changes" /></>);
     act(() => { fireEvent.click(screen.getByText(/More in the guide/)); });
     window.removeEventListener(OPEN_PAGE_GUIDE_EVENT, seen);
     expect(seen).toHaveBeenCalledTimes(1);
     expect((seen.mock.calls[0]![0] as CustomEvent).detail).toEqual({ anchor: 'changes' });
+  });
+});
+
+describe('HelpText', () => {
+  it('renders short copy with the viewer names; a missing client reads "your business"', () => {
+    const { rerender } = render(wrap('agency', <p><HelpText text="How {client} compares." /></p>, 'Bob HVAC'));
+    expect(screen.getByText('How Bob HVAC compares.')).toBeTruthy();
+    rerender(wrap('agency', <p><HelpText text="How {client} compares." /></p>));
+    expect(screen.getByText('How your business compares.')).toBeTruthy();
   });
 });

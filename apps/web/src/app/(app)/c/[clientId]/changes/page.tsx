@@ -5,8 +5,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { clientCrumbs } from '@/components/client-crumbs';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
 import { FeedList, FilterBar } from './feed';
@@ -16,6 +20,8 @@ import { EventViewer } from './viewer';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Changes' };
+const HELP_KEY = 'page:client.changes';
+const COPY = PAGE_COPY['client.changes'];
 
 function EmptyViewer({ message }: { message: string }) {
   return (
@@ -46,7 +52,7 @@ export default async function ChangesPage({
   // only when it's one of the real change types (brief: "avoid that").
   const changeType = p.type && types.some((t) => t.id === p.type) ? p.type : undefined;
 
-  const [profile, feed, tracked] = await Promise.all([
+  const [profile, feed, tracked, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<{ items: EventRow[]; hasMore: boolean }>(ctx, 'search_events', {
       clientId,
@@ -60,6 +66,7 @@ export default async function ChangesPage({
       limit: 50,
     }),
     callTool<{ items: TrackedCompetitor[] }>(ctx, 'list_client_competitors', { clientId }),
+    helpGuides(ctx, 'client', clientId),
   ]);
   const services = (await verticalOptions()).find((v) => v.id === profile.verticalId)?.services.filter((s) => profile.services.includes(s.id)) ?? [];
   const rows = feed.items.map((r) => ({ ...r, channels: r.channels.map(channelLabel) }));
@@ -85,7 +92,9 @@ export default async function ChangesPage({
       <PageHeader
         title="Changes"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Changes')}
-        description="Everything your competitors changed, scored for how much it matters to you. Every item links to proof."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
       />
 
       <FilterBar
@@ -100,13 +109,17 @@ export default async function ChangesPage({
         <Card>
           <CardContent className="p-0">
             {rows.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 p-6 text-center text-muted-foreground">
-                <p>No changes match these filters.</p>
-                {p.route === 'flagged' && (
-                  <Link href={changesHref(clientId, { ...p, route: 'all' })} className="font-semibold text-primary-soft-text">
-                    Show all changes, including archived
-                  </Link>
-                )}
+              <div className="p-4">
+                <EmptyState
+                  {...COPY.empty.noMatch}
+                  action={
+                    p.route === 'flagged' ? (
+                      <Link href={changesHref(clientId, { ...p, route: 'all' })} className="font-semibold text-primary-soft-text">
+                        Show all changes, including archived
+                      </Link>
+                    ) : undefined
+                  }
+                />
               </div>
             ) : (
               <>
@@ -132,8 +145,10 @@ export default async function ChangesPage({
               compare={compare}
               canGiveFeedback={hasPermission(ctx, 'feedback') && !ctx.userId.startsWith('contact:')}
             />
+          ) : selectedId ? (
+            <EmptyViewer message="This change is no longer available." />
           ) : (
-            <EmptyViewer message={selectedId ? 'This change is no longer available.' : 'Select a change on the left to see the evidence behind it.'} />
+            <EmptyState {...COPY.empty.noSelection} />
           )}
         </div>
       </div>

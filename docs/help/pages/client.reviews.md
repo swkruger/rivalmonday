@@ -1,0 +1,38 @@
+---
+help_key: page:client.reviews
+audience: all
+title: Reviews
+---
+## What this page tells you
+
+What customers say on Google about {{client}} and its competitors.
+
+- **The four numbers at the top** are for {{client}}: its Google rating, new reviews in the last 90 days, reviews per month (the last 6 months, averaged) and its reply rate (the share of the last 90 days' reviews that got a reply from the owner).
+- **What customers talk about** is a heatmap of review themes, topics such as response time or cleanliness, for each business, {{client}} first.
+- **Your rating mix** shows how many reviews gave 1 to 5 stars; **Rating trend** shows the average stars per month over the last 12 months.
+- **Reviews** lists the reviews themselves.
+
+## How to use it
+
+1. **Read the heatmap row by row.** Each row is a theme and each column a business.
+   - The **number** is the share of the last 90 days' reviews that mention the theme, out of those that could be read clearly for it.
+   - The **colour** is how positive those mentions are: blue is positive, red is negative and grey is neutral.
+   - A **dash** means there are not enough reviews. **▲** or **▼** means the share moved by 5 points or more compared with the previous 90 days.
+   - Prefer a table? Open **Show as table** under the heatmap. The second number there is the sentiment, from -1 (very negative) to +1 (very positive).
+2. **Find what competitors are praised or criticised for.** A theme that is blue for a competitor and red for {{client}} is worth acting on.
+3. **Read the reviews behind it.** Filter **Reviews** by business, theme, stars, period or words, then select **Search**.
+4. **Keep an eye on replies.** A low reply rate next to competitors who reply often is an easy thing to fix.
+
+## Common questions
+
+### Why are my own numbers missing?
+
+The page needs {{client}}'s own Google business on file. Until then it shows a note instead of the numbers; they appear after the next Google profile check.
+
+### Which reviews count?
+
+The Google reviews collected for each business. The numbers at the top and the heatmap use the last 90 days, reviews per month uses the last 6 months, and the rating mix uses every review collected.
+
+### What is the difference between the rating and the rating trend?
+
+The rating is the overall rating on the Google profile. The trend averages only the reviews posted in each month, so it shows recent changes sooner.

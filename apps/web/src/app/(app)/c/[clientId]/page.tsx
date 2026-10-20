@@ -18,12 +18,17 @@ import { AskCard } from '@/components/ask/ask-card';
 import { foldSeries, LineChart } from '@/components/charts/line-chart';
 import { ClientHomeBasic } from '@/components/client-home-basic';
 import { AlertLinkList, BriefLinkList } from '@/components/client-lists';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
 import { pendingStartingPoint, StartingPointCard } from '@/components/starting-point-card';
 import { openSetupSteps, SetupBadge } from '@/components/setup-badge';
 import { StatCard } from '@/components/stat-card';
 import { BriefView } from '@/components/views/brief-view';
+import { PAGE_COPY, type TipKey } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
 import { MoveCard, movesHref } from './moves/move-card';
 import { briefLabel, kpiCards, latestBrief } from './overview-kpis';
@@ -34,12 +39,16 @@ export const metadata: Metadata = { title: 'Overview' };
 const BAR: Record<'low' | 'elevated' | 'high', string> = { high: 'bg-[#DC2626]', elevated: 'bg-amber', low: 'bg-primary' };
 const cardCls = 'min-w-0 rounded-[14px] bg-surface p-6 shadow-card';
 const linkCls = 'font-semibold text-primary-soft-text';
+const HELP_KEY = 'page:client.overview';
+const COPY = PAGE_COPY['client.overview'];
+/** One tip per KPI card, in `kpiCards` order. */
+const KPI_TIPS: readonly TipKey[] = ['client.overview.changesWeek', 'client.overview.priceMoves', 'client.overview.activeAds', 'client.overview.ratingVsArea'];
 
 export default async function ClientHome({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
   const { ctx } = await requireContext();
   if (!hasFeature(ctx, 'dashboard')) return <ClientHomeBasic clientId={clientId} ctx={ctx} />;
-  const [profile, overview, ads, moves, briefs, alerts, recs, reports, starting, setup] = await Promise.all([
+  const [profile, overview, ads, moves, briefs, alerts, recs, reports, starting, setup, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<WorkspaceOverview>(ctx, 'get_workspace_overview', { clientId }),
     callTool<AdActivityView>(ctx, 'get_ad_activity', { clientId, weeks: 12 }),
@@ -51,6 +60,8 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
     tryCallTool<StartingPointStatus>(ctx, 'get_starting_point_status', { clientId }),
     // Agency staff and the client's owner while setup is open; anyone else (and a closed setup for owners) reads null.
     tryCallTool<{ state: SetupState }>(ctx, 'get_client_setup', { clientId }),
+    // Same scope `PageGuide` derives from `/c/<id>`: client context for this client.
+    helpGuides(ctx, 'client', clientId),
   ]);
   const setupSteps = openSetupSteps(setup, isAgencyRole(ctx.role));
   const preparing = pendingStartingPoint(starting, briefs.items);
@@ -59,14 +70,22 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
   const delivered = latest && (latest.status === 'approved' || latest.status === 'sent') ? latest : null;
   const openRecs = recs.items.filter((r) => r.status === 'todo' || r.status === 'in_progress');
   const n = overview.trackedCompetitors;
+  const agency = isAgencyRole(ctx.role);
 
   return (
     <>
       <PageHeader
         title="Overview"
-        description={`${profile.name} · Tracking ${n} competitor${n === 1 ? '' : 's'}${overview.zips > 0 ? ` across ${overview.zips} ZIP codes` : ''}${delivered ? ` · ${briefLabel(delivered)}` : ''}`}
+        description={
+          <>
+            <HelpText text={COPY.description} />{' '}
+            {`Tracking ${n} competitor${n === 1 ? '' : 's'}${overview.zips > 0 ? ` across ${overview.zips} ZIP codes` : ''}${delivered ? ` · ${briefLabel(delivered)}` : ''}`}
+          </>
+        }
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
         actions={
-          isAgencyRole(ctx.role) && overview.pitchSnapshot ? (
+          agency && overview.pitchSnapshot ? (
             <Link href={`/c/${clientId}/pitch-snapshot`} className={linkCls}>
               Pitch snapshot →
             </Link>
@@ -80,28 +99,31 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
       )}
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {kpiCards(overview, { agency: isAgencyRole(ctx.role) }).map((k) => (
-          <StatCard key={k.title} {...k} />
+        {kpiCards(overview, { agency }).map((k, i) => (
+          <StatCard key={k.title} {...k} help={KPI_TIPS[i] && <HelpTip tip={KPI_TIPS[i]} />} />
         ))}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
         <div className="flex min-w-0 flex-col gap-5">
-          {preparing && <StartingPointCard status={preparing} agency={isAgencyRole(ctx.role)} />}
+          {preparing && <StartingPointCard status={preparing} agency={agency} />}
           {!latest && !preparing && (
             <section className={cardCls}>
-              <p className="text-muted-foreground">No briefs yet. The first one arrives on a Monday morning.</p>
+              <EmptyState {...COPY.empty.noBrief} />
             </section>
           )}
-          {latest && <BriefView brief={latest} agency={isAgencyRole(ctx.role)} archiveHref={`/c/${clientId}/briefs`} />}
+          {latest && <BriefView brief={latest} agency={agency} archiveHref={`/c/${clientId}/briefs`} />}
         </div>
 
         <div className="flex flex-col gap-5">
           <AskCard clientId={clientId} ctx={ctx} />
           <section className={cardCls}>
-            <h2 className="font-semibold">Competitive pressure</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="font-semibold">Competitive pressure</h2>
+              <HelpTip tip="client.overview.pressure" />
+            </div>
             <div className="mt-3 flex flex-col gap-3">
-              {overview.pressure.length === 0 && <p className="text-muted-foreground">No competitors tracked yet.</p>}
+              {overview.pressure.length === 0 && <EmptyState {...(agency ? COPY.empty.noCompetitorsAgency : COPY.empty.noCompetitorsClient)} />}
               {overview.pressure.map((p) => (
                 <div key={p.competitorId}>
                   <div className="flex items-baseline justify-between gap-2">
@@ -119,7 +141,10 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
             </div>
           </section>
           <section className={cardCls}>
-            <h2 className="font-semibold">Recent alerts</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="font-semibold">Recent alerts</h2>
+              <HelpTip term="alert" />
+            </div>
             <div className="mt-3">
               <AlertLinkList clientId={clientId} items={alerts.items} />
             </div>
@@ -130,13 +155,16 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
       <div className="grid gap-5 lg:grid-cols-3">
         <section className={cardCls}>
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Moves detected</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="font-semibold">Moves detected</h2>
+              <HelpTip term="move" />
+            </div>
             <Link href={movesHref(clientId)} className={linkCls}>
               All →
             </Link>
           </div>
           <div className="mt-3 flex flex-col gap-1">
-            {moves.items.length === 0 && <p className="text-muted-foreground">No moves detected right now.</p>}
+            {moves.items.length === 0 && <EmptyState {...COPY.empty.noMoves} />}
             {moves.items.slice(0, 3).map((m) => (
               <MoveCard key={m.id} move={m} selected={false} href={movesHref(clientId, { move: m.id })} />
             ))}
@@ -158,11 +186,14 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
         </section>
         <section className={cardCls}>
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Recommendations</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="font-semibold">Recommendations</h2>
+              <HelpTip term="recommendation" />
+            </div>
             <span className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-bold text-primary-soft-text">{openRecs.length} open</span>
           </div>
           <div className="mt-3 flex flex-col gap-2">
-            {openRecs.length === 0 && <p className="text-muted-foreground">Nothing open right now.</p>}
+            {openRecs.length === 0 && <EmptyState {...COPY.empty.noRecommendations} />}
             {openRecs.slice(0, 4).map((r) => (
               <div key={r.id} className="rounded-lg bg-muted-surface px-3 py-2">
                 <div className="font-semibold">{r.title}</div>
@@ -180,13 +211,16 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
         <section className={cardCls}>
           <h2 className="font-semibold">Past briefs</h2>
           <div className="mt-3">
-            <BriefLinkList clientId={clientId} items={pastBriefs} empty="No earlier briefs." agency={isAgencyRole(ctx.role)} />
+            <BriefLinkList clientId={clientId} items={pastBriefs} empty="No earlier briefs." agency={agency} />
           </div>
         </section>
         <section className={cardCls}>
-          <h2 className="font-semibold">Quarterly reports</h2>
+          <div className="flex items-center gap-1.5">
+            <h2 className="font-semibold">Quarterly reports</h2>
+            <HelpTip term="report" />
+          </div>
           <div className="mt-3 flex flex-col gap-2">
-            {reports.items.length === 0 && <p className="text-muted-foreground">The first report arrives after a full quarter.</p>}
+            {reports.items.length === 0 && <EmptyState {...COPY.empty.noReports} />}
             {reports.items.map((r) => (
               <Link key={r.id} href={`/c/${clientId}/reports/${r.id}`} className="rounded-lg px-2 py-1 hover:bg-muted-surface">
                 {r.quarter}

@@ -13,11 +13,18 @@ const TONE: Record<StatPill['tone'], string> = {
   info: 'bg-primary-soft text-primary-soft-text',
 };
 
-/** Overview KPI card (mockup 01): title, big number, optional tone pill, quiet hint. */
-export function StatCard({ title, value, pill, hint }: { title: string; value: string; pill?: StatPill | null; hint: string }) {
+/** Overview KPI card (mockup 01): title, big number, optional tone pill, quiet hint. `help` (15b): a `HelpTip` beside the title. */
+export function StatCard({ title, value, pill, hint, help }: { title: string; value: string; pill?: StatPill | null; hint: string; help?: React.ReactNode }) {
   return (
     <div className="rounded-[14px] bg-surface p-6 shadow-card">
-      <h3 className="text-sm font-semibold text-muted-foreground">{title}</h3>
+      {help ? (
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-semibold text-muted-foreground">{title}</h3>
+          {help}
+        </div>
+      ) : (
+        <h3 className="text-sm font-semibold text-muted-foreground">{title}</h3>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="text-[34px] font-extrabold text-secondary">{value}</span>
         {pill && <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${TONE[pill.tone]}`}>{pill.glyph && <span aria-hidden="true">{pill.glyph} </span>}{pill.srLabel && <span className="sr-only">{pill.srLabel} </span>}{pill.text}</span>}

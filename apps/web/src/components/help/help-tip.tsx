@@ -3,7 +3,7 @@ import { GLOSSARY, type GlossaryTerm, visibleAudiences } from '@cs/core';
 import { Popover, PopoverContent, PopoverTrigger } from '@cs/ui';
 import { useEffect, useRef, useState } from 'react';
 import { OPEN_PAGE_GUIDE_EVENT, renderCopy, resolveTip, type TipKey } from '@/help/copy';
-import { useHelp } from './help-context';
+import { useHelp, usePageGuideAvailable } from './help-context';
 
 type Props = ({ term: string } | { tip: TipKey }) & {
   label?: string;
@@ -37,6 +37,7 @@ const HOVER_CLOSE_DELAY_MS = 150;
 
 export function HelpTip(props: Props) {
   const r = useResolved(props);
+  const guide = usePageGuideAvailable();
   const [open, setOpen] = useState(false);
   // `hovered`: opened by pointer hover (no focus move, closes on leave). `pinned`: a click turned a hover-open into a normal open.
   const hovered = useRef(false);
@@ -102,7 +103,7 @@ export function HelpTip(props: Props) {
         <p className="font-semibold">{r.title}</p>
         <p className="mt-1 text-muted-ink">{r.body}</p>
         {r.long && <p className="mt-2 text-muted-ink">{r.long}</p>}
-        {r.guideAnchor !== undefined && (
+        {r.guideAnchor !== undefined && guide && (
           <button
             type="button"
             className="mt-2 text-sm font-medium text-secondary underline-offset-2 hover:underline"

@@ -40,7 +40,7 @@ test('reviews shows the heatmap and searches review text', { tag: ['@reviews'] }
   await expect(page.getByRole('img', { name: /What customers talk about/ })).toBeVisible();
   await expect(page.getByText('The technician was late and pushy.')).toBeVisible();
   await page.goto(`/c/${clientId}/reviews?q=zzz`);
-  await expect(page.getByText('No reviews match.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No reviews match' })).toBeVisible();
 });
 
 test('local rankings draws the geo-grid and share of voice', { tag: ['@rankings'] }, async ({ page }) => {

@@ -5,10 +5,15 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { LineChart } from '@/components/charts/line-chart';
 import { clientCrumbs } from '@/components/client-crumbs';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
 import { ThemeHeatmap } from '@/components/charts/theme-heatmap';
 import { StatCard } from '@/components/stat-card';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { offsetParam, one, uuidParam } from '@/server/search-params';
 import { callTool, tryCallTool } from '@/server/tools';
 import { RatingMix } from './rating-mix';
@@ -20,6 +25,8 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Reviews' };
 
 const PAGE = 20;
+const HELP_KEY = 'page:client.reviews';
+const COPY = PAGE_COPY['client.reviews'];
 const THEME = /^[a-z0-9_]{1,64}$/;
 
 /** Module 6 (mockup 03, decisions 6–8). */
@@ -42,10 +49,11 @@ export default async function ReviewsPage({ params, searchParams }: {
   const days = [30, 90, 365].includes(daysN) ? daysN : 90;
   const offset = offsetParam(sp);
 
-  const [profile, benchmark, trend] = await Promise.all([
+  const [profile, benchmark, trend, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<ThemeBenchmarkView>(ctx, 'get_theme_benchmark', { clientId }),
     callTool<RatingTrendView>(ctx, 'get_rating_trend', { clientId, months: 12 }),
+    helpGuides(ctx, 'client', clientId),
   ]);
   // An unknown theme id (hand-edited URL, retired theme) is dropped rather than hiding the whole list.
   const themeId = themeRaw && benchmark.themes.some((t) => t.id === themeRaw) ? themeRaw : undefined;
@@ -64,33 +72,44 @@ export default async function ReviewsPage({ params, searchParams }: {
       <PageHeader
         title="Reviews"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Reviews')}
-        description="What customers say about you and your competitors on Google."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
       />
 
       {self ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard title="Your rating" value={self.gbpRating === null ? '—' : `${self.gbpRating.toFixed(1)} ★`} hint="Google rating" />
-          <StatCard title="New reviews (90 days)" value={String(self.reviews90d)} hint="Reviews posted in the last 90 days" />
-          <StatCard title="Reviews per month" value={self.perMonth.toFixed(1)} hint="Average over the last 6 months" />
-          <StatCard title="Replies to reviews" value={self.replyRate === null ? '—' : `${Math.round(self.replyRate * 100)}%`} hint="Share of the last 90 days’ reviews you answered" />
+          <StatCard title="New reviews (90 days)" value={String(self.reviews90d)} hint="Reviews posted in the last 90 days" help={<HelpTip tip="client.reviews.newReviews" />} />
+          <StatCard title="Reviews per month" value={self.perMonth.toFixed(1)} hint="Average over the last 6 months" help={<HelpTip term="review-velocity" />} />
+          <StatCard title="Replies to reviews" value={self.replyRate === null ? '—' : `${Math.round(self.replyRate * 100)}%`} hint="Share of the last 90 days’ reviews you answered" help={<HelpTip term="reply-rate" />} />
         </div>
       ) : (
         <SelfNotice clientId={clientId} selfPending={trend.selfPending} isAgency={isAgencyRole(ctx.role)} />
       )}
 
       <section className="rounded-[14px] bg-surface p-6 shadow-card">
-        <h2 className="mb-1 text-lg font-bold text-ink">What customers talk about</h2>
+        <div className="mb-1 flex items-center gap-1.5">
+          <h2 className="text-lg font-bold text-ink">What customers talk about</h2>
+          <HelpTip tip="client.reviews.heatmap" />
+        </div>
         <p className="mb-3 text-sm text-muted-foreground">Last 90 days. The number is how often a theme comes up; the colour is how positive those mentions are.</p>
         <ThemeHeatmap title="What customers talk about" benchmark={benchmark} />
       </section>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
         <section className="rounded-[14px] bg-surface p-6 shadow-card">
-          <h2 className="mb-3 text-lg font-bold text-ink">Your rating mix</h2>
+          <div className="mb-3 flex items-center gap-1.5">
+            <h2 className="text-lg font-bold text-ink">Your rating mix</h2>
+            <HelpTip tip="client.reviews.ratingMix" />
+          </div>
           {self ? <RatingMix mix={self.mix} /> : <p className="text-sm text-muted-foreground">Not available until your business is set up.</p>}
         </section>
         <section className="rounded-[14px] bg-surface p-6 shadow-card">
-          <h2 className="mb-3 text-lg font-bold text-ink">Rating trend</h2>
+          <div className="mb-3 flex items-center gap-1.5">
+            <h2 className="text-lg font-bold text-ink">Rating trend</h2>
+            <HelpTip tip="client.reviews.ratingTrend" />
+          </div>
           <LineChart title="Average stars per month" labels={trend.months} series={trendSeriesList} valueLabel="stars" yMax={5} period="month" formatValue={(v) => v.toFixed(1)} />
         </section>
       </div>
@@ -138,7 +157,7 @@ export default async function ReviewsPage({ params, searchParams }: {
             {business ? 'That business is no longer available.' : 'These reviews could not be loaded.'}
           </p>
         ) : reviews.items.length === 0 ? (
-          <p className="text-muted-foreground">No reviews match.</p>
+          <EmptyState {...COPY.empty.noMatch} />
         ) : (
           <>
             <div className="flex flex-col divide-y divide-line">{reviews.items.map((r) => <ReviewItem key={r.reviewId} review={r} />)}</div>

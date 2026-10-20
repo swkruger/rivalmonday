@@ -8,7 +8,7 @@ import { ErrorNote } from '@/components/form-error';
 import { KbMarkdown } from '@/components/kb/article-view';
 import { useReadOnly } from '@/components/read-only';
 import { OPEN_PAGE_GUIDE_EVENT } from '@/help/copy';
-import { useHelp } from './help-context';
+import { useHelp, useRegisterPageGuide } from './help-context';
 
 export interface PageGuideData { id: string; title: string; sections: { heading: string; markdown: string }[] }
 /** `canAsk` is resolved server-side: the viewer's Ask module is on (and not a support session). */
@@ -43,6 +43,7 @@ export function PageGuide({ helpKey, pageTitle, load = loadPageGuide }: { helpKe
   const scope = helpScopeOf(usePathname() ?? '');
   const clientId = scope.context === 'client' ? scope.clientId : undefined;
   const { names } = useHelp();
+  useRegisterPageGuide();
   const readOnly = useReadOnly();
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<State>({ status: 'idle' });

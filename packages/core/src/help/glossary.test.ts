@@ -26,3 +26,59 @@ describe('glossaryFor', () => {
     expect(glossaryFor('client')).toEqual(filterGlossary(GLOSSARY, 'client'));
   });
 });
+
+/** 15b-1 pilot content: the real glossary's invariants (the owner signs off the wording; these keep it safe to render). */
+describe('GLOSSARY content', () => {
+  const REQUIRED = [
+    'competitor', 'tier', 'change', 'move', 'signal', 'brief', 'report', 'alert', 'pressure', 'score', 'routing', 'confidence', 'seat',
+    'business-type', 'paused', 'monitoring-paused', 'share-of-voice', 'local-pack', 'average-map-rank', 'review-velocity', 'reply-rate',
+    'theme', 'starting-point', 'recommendation', 'evidence', 'upsell-tag',
+  ];
+  const text = (x: GlossaryTerm) => [x.term, x.short, x.long ?? ''].join('\n');
+  const clientVisible = GLOSSARY.filter((x) => x.audience === 'all' || x.audience === 'client');
+
+  it('has every pilot term, once, with kebab-case ids', () => {
+    const ids = GLOSSARY.map((x) => x.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const id of REQUIRED) expect(ids, id).toContain(id);
+    for (const id of ids) expect(id).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+  });
+
+  it('agency-internal terms are agency-only', () => {
+    for (const id of ['routing', 'seat', 'paused', 'upsell-tag']) expect(GLOSSARY.find((x) => x.id === id)!.audience, id).toBe('agency');
+    expect(GLOSSARY.find((x) => x.id === 'monitoring-paused')!.audience).toBe('client');
+  });
+
+  it('uses no placeholders: the web ({x}) and KB ({{x}}) renderers would each leave the other kind literal', () => {
+    for (const x of GLOSSARY) expect(text(x), x.id).not.toMatch(/[{}]/);
+  });
+
+  it('never names the product or the default assistant, and uses miles, not km', () => {
+    for (const x of GLOSSARY) {
+      expect(text(x), x.id).not.toMatch(/rival\s*monday|\bfriday\b/i);
+      expect(text(x), x.id).not.toMatch(/\bkm\b|kilomet/i);
+    }
+  });
+
+  it('client-visible terms never mention agency-internal concepts', () => {
+    for (const x of clientVisible) expect(text(x), x.id).not.toMatch(/\bseats?\b|\brout(e|ed|ing)\b|upsell|AM check|place id|prospect/i);
+  });
+
+  it('seeAlso points at existing terms the same readers can see', () => {
+    const byId = new Map(GLOSSARY.map((x) => [x.id, x]));
+    for (const x of GLOSSARY) {
+      for (const id of x.seeAlso ?? []) {
+        const target = byId.get(id);
+        expect(target, `${x.id} -> ${id}`).toBeDefined();
+        if (x.audience !== 'agency' && x.audience !== 'operator') expect(['all', x.audience], `${x.id} -> ${id}`).toContain(target!.audience);
+      }
+    }
+  });
+
+  it('every term has a short definition of one to three sentences', () => {
+    for (const x of GLOSSARY) {
+      expect(x.short.length, x.id).toBeGreaterThan(20);
+      expect(x.short.length, x.id).toBeLessThanOrEqual(320);
+    }
+  });
+});

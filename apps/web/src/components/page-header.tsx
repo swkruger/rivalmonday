@@ -13,7 +13,8 @@ export interface Crumb {
 
 export interface PageHeaderProps {
   title: string;
-  description?: string;
+  /** Usually a string; a node when part of it is rendered with the viewer's names (`HelpText`). */
+  description?: React.ReactNode;
   breadcrumb?: Crumb[];
   actions?: React.ReactNode;
   /** 15b-1: the page's guide key (`page:<slug>`). With `guide`, shows the "? Guide" button before the actions. */

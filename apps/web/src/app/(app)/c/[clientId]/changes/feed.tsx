@@ -6,6 +6,7 @@
 import type { EventRow } from '@cs/tools';
 import { Button, Input } from '@cs/ui';
 import Link from 'next/link';
+import { HelpTip } from '@/components/help/help-tip';
 import type { WeekLabel } from './group';
 import { changesHref, type ChangesParams } from './params';
 
@@ -99,10 +100,15 @@ export function FilterBar({
         </select>
         <Button type="submit">Apply</Button>
       </form>
-      <div className="flex items-center gap-1 rounded-lg bg-muted-surface p-1">
-        <SegmentLink clientId={clientId} params={params} route="flagged" label="Alerts + brief" />
-        <SegmentLink clientId={clientId} params={params} route="all" label="All" />
-        <SegmentLink clientId={clientId} params={params} route="archive" label="Archived" />
+      <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 rounded-lg bg-muted-surface p-1">
+          <SegmentLink clientId={clientId} params={params} route="flagged" label="Alerts + brief" />
+          <SegmentLink clientId={clientId} params={params} route="all" label="All" />
+          <SegmentLink clientId={clientId} params={params} route="archive" label="Archived" />
+        </div>
+        {/* One of the two shows (by audience): the client wording, or the agency's routing rules. */}
+        <HelpTip tip="client.changes.routes" />
+        <HelpTip tip="client.changes.routing" />
       </div>
     </div>
   );
