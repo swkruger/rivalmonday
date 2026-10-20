@@ -14,7 +14,7 @@ describe('ClientProfileForm', () => {
   it('shows the services of the chosen vertical when creating', () => {
     render(<ClientProfileForm mode="create" action={vi.fn()} verticals={verticals} timezoneOptions={['America/Chicago']} />);
     expect(screen.getByLabelText('AC tune-up')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'dental' } });
+    fireEvent.change(screen.getByLabelText('Business type'), { target: { value: 'dental' } });
     expect(screen.queryByLabelText('AC tune-up')).toBeNull();
     expect(screen.getByLabelText('Cleaning')).toBeTruthy();
   });

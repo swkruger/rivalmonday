@@ -26,7 +26,7 @@ describe('LeadCard', () => {
   it('accept preselects the suggested vertical and confirms with the contact name', () => {
     render(<LeadCard lead={lead()} verticals={verticals} />);
     fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
-    expect((screen.getByLabelText('Service type') as HTMLSelectElement).value).toBe('hvac');
+    expect((screen.getByLabelText('Business type') as HTMLSelectElement).value).toBe('hvac');
     expect(screen.getByRole('button', { name: 'Accept and invite Sam Smith' })).toBeTruthy();
   });
 

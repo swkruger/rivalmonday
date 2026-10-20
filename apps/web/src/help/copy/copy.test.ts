@@ -26,7 +26,8 @@ describe('PAGE_COPY content', () => {
   });
 
   it('copy a client can see never mentions agency-internal concepts', () => {
-    for (const e of entries.filter((x) => x.audience !== 'agency' && x.audience !== 'operator')) {
+    // Pages under `agency.` and `platform.` are reached by agency and operator roles only (client roles get a 404), so their copy may use these words.
+    for (const e of entries.filter((x) => x.audience !== 'agency' && x.audience !== 'operator' && !x.where.startsWith('agency.') && !x.where.startsWith('platform.'))) {
       expect(e.text, e.where).not.toMatch(/\bseats?\b|\brout(e|ed|ing)\b|upsell|AM check|place id|prospect/i);
     }
   });

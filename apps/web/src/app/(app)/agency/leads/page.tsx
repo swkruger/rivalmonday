@@ -1,8 +1,13 @@
 import { isAgencyRole } from '@cs/core';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
 import { createVerticalAction, draftVerticalAction } from '../clients/new/vertical-actions';
@@ -40,10 +45,12 @@ const TABS = [
   { key: 'declined', label: 'Declined', status: 'declined' },
 ] as const satisfies readonly { key: string; label: string; status: Status }[];
 
-const EMPTY: Record<(typeof TABS)[number]['key'], string> = {
-  new: 'No new leads. Share your intake link to start getting them.',
-  accepted: 'No accepted leads yet.',
-  declined: 'No declined leads.',
+const HELP_KEY = 'page:agency.leads';
+const COPY = PAGE_COPY['agency.leads'];
+const EMPTY: Record<(typeof TABS)[number]['key'], { title: string; body: string }> = {
+  new: COPY.empty.newLeads,
+  accepted: COPY.empty.accepted,
+  declined: COPY.empty.declined,
 };
 
 const iso = (d: Date | string | null): string => (d ? new Date(d).toISOString() : new Date(0).toISOString());
@@ -56,7 +63,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const tabKey = one((await searchParams).tab);
   const tab = TABS.find((t) => t.key === tabKey) ?? TABS[0];
   // One status-filtered read per tab (a single unfiltered list would drop older New leads past the tool's cap while the badge counts them).
-  const lists = await Promise.all(TABS.map((t) => callTool<{ leads: Summary[] }>(ctx, 'list_leads', { status: t.status })));
+  const [guides, lists] = await Promise.all([helpGuides(ctx, 'agency'), Promise.all(TABS.map((t) => callTool<{ leads: Summary[] }>(ctx, 'list_leads', { status: t.status })))]);
   const counts = Object.fromEntries(TABS.map((t, i) => [t.status, lists[i]!.leads.length])) as Record<Status, number>;
   const shown = lists[TABS.indexOf(tab)]!.leads;
   const verticals = await verticalOptions();
@@ -72,7 +79,17 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       <PageHeader
         title="Leads"
         breadcrumb={[{ label: 'Agency', href: '/agency' }, { label: 'Leads' }]}
-        description="Businesses that asked for a competitor snapshot. Accept one to set it up as a prospect and invite the contact."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
+      />
+      <TipRow
+        items={[
+          { label: 'Tabs', tip: 'agency.leads.tabs' },
+          { label: 'Sources', tip: 'agency.leads.source' },
+          { label: 'Deciding', tip: 'agency.leads.decide' },
+          { label: 'Snapshots', tip: 'agency.leads.preview' },
+        ]}
       />
       <nav aria-label="Lead status" className="flex gap-1 border-b border-line">
         {TABS.map((t) => (
@@ -87,7 +104,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         ))}
       </nav>
       {views.length === 0 ? (
-        <p className="text-muted-foreground">{EMPTY[tab.key]}</p>
+        <EmptyState title={EMPTY[tab.key].title} body={EMPTY[tab.key].body} guideAnchor="how-to-use-it" />
       ) : (
         <div className="flex flex-col gap-4">
           {views.map((v) => (

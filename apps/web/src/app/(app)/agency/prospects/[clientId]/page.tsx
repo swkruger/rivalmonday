@@ -4,16 +4,23 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { cache } from 'react';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { WriteGuard } from '@/components/read-only';
 import { ProspectLandscape } from '@/components/prospect-landscape';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { convertAction, runSnapshotAction } from './actions';
 import { ConvertButton } from './convert-button';
 import { SnapshotControls } from './snapshot-controls';
 
 export const dynamic = 'force-dynamic';
+
+const HELP_KEY = 'page:agency.prospects.detail';
+const COPY = PAGE_COPY['agency.prospects.detail'];
 
 /** One profile read per request, shared by the tab title and the page. */
 const loadProfile = cache(async (clientId: string) => {
@@ -30,10 +37,11 @@ export default async function ProspectHubPage({ params }: { params: Promise<{ cl
   const { clientId } = await params;
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const [profile, competitors, { report }] = await Promise.all([
+  const [profile, competitors, { report }, guides] = await Promise.all([
     loadProfile(clientId),
     callTool<{ items: TrackedCompetitor[]; limit: number }>(ctx, 'list_client_competitors', { clientId }),
     callTool<{ report: ProspectReportView | null }>(ctx, 'get_prospect_report', { clientId }),
+    helpGuides(ctx, 'agency'),
   ]);
   // A converted prospect's hub no longer applies — the client's own pages take over.
   if (profile.status === 'active') redirect(`/c/${clientId}`);
@@ -49,7 +57,17 @@ export default async function ProspectHubPage({ params }: { params: Promise<{ cl
       <PageHeader
         title={profile.name}
         breadcrumb={[{ label: 'Agency', href: '/agency' }, { label: 'Prospects', href: '/agency/prospects' }, { label: profile.name }]}
-        description="Find their competitors, run a one-off snapshot, and share the landscape. Nothing is monitored until you convert them."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
+      />
+
+      <TipRow
+        items={[
+          { label: 'Steps', tip: 'agency.prospects.detail.steps' },
+          { label: 'Snapshot', tip: 'agency.prospects.detail.snapshot' },
+          { label: 'Converting', tip: 'agency.prospects.detail.convert' },
+        ]}
       />
 
       <div className="rounded-[14px] bg-surface p-6 shadow-card">

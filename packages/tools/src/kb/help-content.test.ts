@@ -31,8 +31,11 @@ const BATCH_C_SPLIT = ['page:client.setup', 'page:client.settings.profile', 'pag
 const BATCH_C_AGENCY_ONLY = ['page:client.settings.delivery', 'page:client.settings.runbook'];
 const BATCH_C_CLIENT_ONLY = ['page:client.settings.billing'];
 const BATCH_C = [...BATCH_C_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`]), ...BATCH_C_AGENCY_ONLY.map((k) => `${k}#agency`), ...BATCH_C_CLIENT_ONLY.map((k) => `${k}#client`)];
-const CLIENT_PAGES = [...PILOT, ...BATCH_A, ...BATCH_B, ...BATCH_C].sort();
-const CLIENT_KEYS = [...new Set(CLIENT_PAGES.map((k) => k.split('#')[0]!))].sort();
+/** 15b-2 Task 7, agency batch A: every page is reachable by agency roles only, so each has one `agency` guide and no client version. */
+const AGENCY_A = ['page:agency.portfolio', 'page:agency.clients.new', 'page:agency.approvals', 'page:agency.approvals.detail', 'page:agency.alerts', 'page:agency.prospects', 'page:agency.prospects.new', 'page:agency.prospects.detail', 'page:agency.leads'];
+const AGENCY_KEYS = [...AGENCY_A].sort();
+const CLIENT_PAGES = [...PILOT, ...BATCH_A, ...BATCH_B, ...BATCH_C, ...AGENCY_A.map((k) => `${k}#agency`)].sort();
+const CLIENT_KEYS = [...new Set(CLIENT_PAGES.map((k) => k.split('#')[0]!))].filter((k) => !AGENCY_KEYS.includes(k)).sort();
 /** What a client role can read: every client page guide except the agency-only pages. */
 const CLIENT_ROLE_KEYS = CLIENT_KEYS.filter((k) => !AGENCY_ONLY_PAGES.includes(k) && !BATCH_C_AGENCY_ONLY.includes(k));
 /** What an agency role can read: every client page guide except the client-owner-only pages (Billing). */
@@ -240,6 +243,42 @@ describe('help content (real docs/help + GLOSSARY)', () => {
       expect(t, key).not.toContain('{{');
     }
     for (const t of GLOSSARY.filter((x) => x.audience === 'all' || x.audience === 'client')) expect(`${t.term}\n${t.short}\n${t.long ?? ''}`, t.id).not.toMatch(AGENCY_ONLY);
+  });
+
+  it('agency batch A: agency roles read the nine guides in the agency context, with the three standard sections; client roles read none', async () => {
+    const list = (c: AccessContext) => registry.invoke(c, 'list_help_guides', { context: 'agency' }) as Promise<{ guides: { helpKey: string }[] }>;
+    const agencyGuide = (c: AccessContext, helpKey: string) => registry.invoke(c, 'get_page_guide', { helpKey, context: 'agency' }) as Promise<Guide>;
+    for (const c of [admin, am]) expect((await list(c)).guides.map((g) => g.helpKey).sort(), c.role).toEqual(AGENCY_KEYS);
+    for (const c of [owner, viewer]) expect((await list(c)).guides, c.role).toEqual([]);
+    for (const key of AGENCY_KEYS) {
+      expect((await agencyGuide(admin, key))!.sections.map((s) => s.heading), key).toEqual(['What this page tells you', 'How to use it', 'Common questions']);
+      expect(await agencyGuide(owner, key), key).toBeNull();
+    }
+  });
+
+  it('agency batch A: the guides carry the numbers and labels the pages use, and never name the product (the assistant is a placeholder, checked by the terminology test)', async () => {
+    const agencyGuide = async (key: string) => text((await registry.invoke(admin, 'get_page_guide', { helpKey: key, context: 'agency' })) as Guide);
+    const port = await agencyGuide('page:agency.portfolio');
+    for (const w of ['High pressure (70 and above)', 'Medium pressure (40 to 69)', 'Low pressure (1 to 39)', 'Quiet (0)', '80%', '30 days', 'Finish setup']) expect(port, w).toContain(w);
+    const wizard = await agencyGuide('page:agency.clients.new');
+    for (const w of ['Your business', 'Finding competitors', 'Pick competitors', 'Invite the owner', 'Billing']) expect(wizard, w).toContain(w);
+    expect(wizard).toContain('business type');
+    const appr = await agencyGuide('page:agency.approvals');
+    for (const w of ['Thursday night', 'Monday 07:00', 'Needs review', 'Failed — retrying']) expect(appr, w).toContain(w);
+    const det = await agencyGuide('page:agency.approvals.detail');
+    for (const w of ['85%', 'High confidence', 'Upsell', 'Send now']) expect(det, w).toContain(w);
+    expect(det).not.toMatch(/medium confidence|low confidence/i);
+    const alerts = await agencyGuide('page:agency.alerts');
+    for (const w of ['70', '17:00', '3 instant alerts', '7 days', 'I review alerts first']) expect(alerts, w).toContain(w);
+    const pr = await agencyGuide('page:agency.prospects.detail');
+    for (const w of ['3 by 3 grid', 'Convert to client', 'client limit']) expect(pr, w).toContain(w);
+    const leads = await agencyGuide('page:agency.leads');
+    for (const w of ['Accept and invite', 'pool', 'Let them know', 'From your website', 'From the platform']) expect(leads, w).toContain(w);
+    for (const key of AGENCY_KEYS) {
+      const t = await agencyGuide(key);
+      expect(t, key).not.toMatch(/rival\s*monday|\btheme/i);
+      expect(t, key).not.toContain('{{');
+    }
   });
 
   it('the client Changes guide leaves out the alert caps (owner 2026-10-20) that the agency guide keeps', async () => {

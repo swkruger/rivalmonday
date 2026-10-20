@@ -6,14 +6,21 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { Scorecard } from '@/components/views/scorecard';
 import { ReviewFooter, ReviewItem } from './review-controls';
 import { STATUS_LABEL } from '../status';
 
 export const dynamic = 'force-dynamic';
+
+const HELP_KEY = 'page:agency.approvals.detail';
+const COPY = PAGE_COPY['agency.approvals.detail'];
 
 /** One read per request, shared by the tab title and the page. */
 const loadBrief = cache(async (briefId: string) => {
@@ -30,6 +37,8 @@ export async function generateMetadata({ params }: { params: Promise<{ briefId: 
 
 export default async function ApprovalReviewPage({ params }: { params: Promise<{ briefId: string }> }) {
   const brief = await loadBrief((await params).briefId);
+  const { ctx } = await requireContext();
+  const guides = await helpGuides(ctx, 'agency');
 
   const active = brief.items.filter((i) => i.status === 'active').sort((a, b) => a.ord - b.ord);
   const dropped = brief.items.filter((i) => i.status !== 'active').sort((a, b) => a.ord - b.ord);
@@ -43,6 +52,9 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
       <PageHeader
         title={titleOf(brief)}
         breadcrumb={[{ label: 'Agency', href: '/agency' }, { label: 'Approvals', href: '/agency/approvals' }, { label: titleOf(brief) }]}
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
         actions={
           <>
             <Badge variant="secondary">{STATUS_LABEL[brief.status] ?? brief.status}</Badge>
@@ -51,6 +63,16 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
             </Link>
           </>
         }
+      />
+
+      <TipRow
+        items={[
+          { label: 'Confidence', tip: 'agency.approvals.detail.confidence' },
+          { label: 'Fact-check', tip: 'agency.approvals.detail.factCheck' },
+          { label: 'Upsell tags', tip: 'agency.approvals.detail.upsell' },
+          { label: 'Approving', tip: 'agency.approvals.detail.approving' },
+          { label: 'Ratings', tip: 'agency.approvals.detail.rating' },
+        ]}
       />
 
       <div className="rounded-lg bg-muted-surface p-3 text-ink">

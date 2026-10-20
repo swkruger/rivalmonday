@@ -47,7 +47,7 @@ test.describe.serial('new business type', () => {
       await page.getByRole('button', { name: 'Remove Private events' }).click();
       await page.getByRole('button', { name: 'Create business type' }).click();
       await expect(page.getByRole('status').filter({ hasText: `Created ${TYPE_NAME}` })).toBeVisible();
-      await expect(page.getByLabel('Vertical').locator('option:checked')).toHaveText(TYPE_NAME);
+      await expect(page.getByLabel('Business type', { exact: true }).locator('option:checked')).toHaveText(TYPE_NAME);
 
       // A fresh search now preselects the new type for every distillery; the created option must exist for a second place too.
       await page.locator('#businessName').fill('Lone Star Spirits Distillery');
@@ -56,7 +56,7 @@ test.describe.serial('new business type', () => {
       const again = page.getByRole('list', { name: 'Matching businesses' });
       await expect(again.getByRole('listitem')).toHaveCount(2);
       await again.getByRole('button', { name: /Lone Star Spirits Distillery/ }).click();
-      await expect(page.getByLabel('Vertical').locator('option:checked')).toHaveText(TYPE_NAME);
+      await expect(page.getByLabel('Business type', { exact: true }).locator('option:checked')).toHaveText(TYPE_NAME);
       await expect(page.getByText('We don’t track this business type yet')).toHaveCount(0);
 
       await again.getByRole('button', { name: /Hill Country Distillery/ }).click();
@@ -102,7 +102,7 @@ test.describe.serial('new business type', () => {
       await page.getByLabel('City and state, or ZIP').fill('Dripping Springs, TX');
       await page.getByRole('button', { name: 'Find business' }).click();
       await page.getByRole('list', { name: 'Matching businesses' }).getByRole('button', { name: /Lone Star Spirits Distillery/ }).click();
-      await expect(page.getByLabel('Vertical').locator('option:checked')).toHaveText(TYPE_NAME);
+      await expect(page.getByLabel('Business type', { exact: true }).locator('option:checked')).toHaveText(TYPE_NAME);
       await expect(page.getByText('We don’t track this business type yet')).toHaveCount(0);
     });
   });

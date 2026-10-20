@@ -48,7 +48,7 @@ export function ClientProfileForm(props: Props) {
 
       {props.mode === 'create' && (
         <div className="flex flex-col gap-2">
-          <Label htmlFor="verticalId">Vertical</Label>
+          <Label htmlFor="verticalId">Business type</Label>
           <select id="verticalId" name="verticalId" value={verticalId} onChange={(e) => setVerticalId(e.target.value)} className={selectClass}>
             {props.verticals.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
           </select>

@@ -3,15 +3,23 @@ import type { ProspectRow } from '@cs/tools';
 import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { WriteGuard } from '@/components/read-only';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { relativeTime } from '@/server/format';
+import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Prospects' };
+
+const HELP_KEY = 'page:agency.prospects';
+const COPY = PAGE_COPY['agency.prospects'];
 
 function isReady(row: ProspectRow): boolean {
   return row.keywords > 0 && row.hasServiceArea && row.competitors > 0;
@@ -20,7 +28,7 @@ function isReady(row: ProspectRow): boolean {
 export default async function ProspectsPage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const { items } = await callTool<{ items: ProspectRow[] }>(ctx, 'list_prospects', {});
+  const [{ items }, guides] = await Promise.all([callTool<{ items: ProspectRow[] }>(ctx, 'list_prospects', {}), helpGuides(ctx, 'agency')]);
   const now = new Date();
   const canAdd = ctx.clientScope === 'all';
 
@@ -29,7 +37,9 @@ export default async function ProspectsPage() {
       <PageHeader
         title="Prospects"
         breadcrumb={[{ label: 'Agency', href: '/agency' }, { label: 'Prospects' }]}
-        description="Businesses you’re pitching. A snapshot shows how they stack up locally — no monitoring until they sign."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
         actions={
           canAdd && (
             <WriteGuard>
@@ -42,24 +52,33 @@ export default async function ProspectsPage() {
       />
 
       {items.length === 0 ? (
-        <p className="text-muted-foreground">
-          No prospects yet.{' '}
-          {canAdd && (
-            <WriteGuard>
-              <Link href="/agency/prospects/new" className="font-semibold text-primary-soft-text">
-                New prospect
-              </Link>
-            </WriteGuard>
-          )}
-        </p>
+        canAdd ? (
+          <EmptyState
+            title={COPY.empty.noProspects.title}
+            body={COPY.empty.noProspects.body}
+            action={
+              <WriteGuard>
+                <Link href="/agency/prospects/new" className="font-semibold text-primary-soft-text">
+                  New prospect
+                </Link>
+              </WriteGuard>
+            }
+          />
+        ) : (
+          <EmptyState title={COPY.empty.noProspectsScoped.title} body={COPY.empty.noProspectsScoped.body} />
+        )
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Business</TableHead>
               <TableHead>Competitors</TableHead>
-              <TableHead>Ready?</TableHead>
-              <TableHead>Snapshot</TableHead>
+              <TableHead>
+                <span className="inline-flex items-center gap-1.5">Ready? <HelpTip tip="agency.prospects.ready" /></span>
+              </TableHead>
+              <TableHead>
+                <span className="inline-flex items-center gap-1.5">Snapshot <HelpTip tip="agency.prospects.snapshot" /></span>
+              </TableHead>
               <TableHead>Added</TableHead>
             </TableRow>
           </TableHeader>

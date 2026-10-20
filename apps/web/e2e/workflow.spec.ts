@@ -16,7 +16,7 @@ test('an admin adds a client by hand, lands on its setup wizard, then uses its c
   // Phase 11a: the page opens on the business lookup; the by-hand form is the fallback below it.
   await page.getByRole('button', { name: /enter details by hand/i }).click();
   await page.getByLabel('Business name').fill('E2E Dental');
-  await page.getByLabel('Vertical').selectOption('dental');
+  await page.getByLabel('Business type', { exact: true }).selectOption('dental');
   await page.getByLabel(/search keywords/i).fill('dentist\nteeth cleaning');
   await page.getByLabel(/map centre/i).fill('33.95, -84.33');
   await page.getByLabel(/radius/i).fill('10');

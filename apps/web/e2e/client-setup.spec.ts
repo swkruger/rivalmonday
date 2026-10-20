@@ -55,7 +55,7 @@ test.describe('agency staff', () => {
     await page.goto('/agency/prospects/new');
     await page.getByRole('button', { name: /enter details by hand/i }).click();
     await page.getByLabel('Business name').fill('By Hand Prospect Dental');
-    await page.getByLabel('Vertical').selectOption('dental');
+    await page.getByLabel('Business type', { exact: true }).selectOption('dental');
     await page.getByLabel(/search keywords/i).fill('dentist');
     await page.getByLabel(/map centre/i).fill('33.95, -84.33');
     await page.getByLabel(/radius/i).fill('10');

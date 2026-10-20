@@ -140,9 +140,9 @@ function CreateForm({ place, action, verticals, verticalId, onVerticalChange, ca
           <Input id="lookupName" name="name" required maxLength={120} defaultValue={place.title} className="max-w-sm" />
         </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="lookupVertical">Vertical</Label>
+          <Label htmlFor="lookupVertical">Business type</Label>
           <select id="lookupVertical" name="verticalId" value={verticalId} onChange={(e) => onVerticalChange(e.target.value)} required className={selectClass}>
-            {!place.suggestedVerticalId && <option value="" disabled>Choose a vertical</option>}
+            {!place.suggestedVerticalId && <option value="" disabled>Choose a business type</option>}
             {verticals.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
           </select>
         </div>

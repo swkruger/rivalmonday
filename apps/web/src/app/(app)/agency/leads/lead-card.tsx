@@ -71,7 +71,7 @@ function AcceptForm({ lead, verticals, verticalActions, onCancel }: { lead: Lead
     <form action={action} onReset={(e) => e.preventDefault()} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="leadId" value={lead.id} />
       <div className="flex flex-col gap-1 text-sm">
-        <label htmlFor={`v-${lead.id}`} className="font-medium">Service type</label>
+        <label htmlFor={`v-${lead.id}`} className="font-medium">Business type</label>
         <select id={`v-${lead.id}`} name="verticalId" value={verticalId} onChange={(e) => choice.choose(e.target.value)} className={fieldCls}>
           {options.map((v) => (
             <option key={v.id} value={v.id}>{v.name}</option>

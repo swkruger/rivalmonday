@@ -11,13 +11,21 @@ import { ClientBillingControls, type ClientBillingStatusRow } from '@/components
 import { PressureBadge } from '@/components/pressure-badge';
 import { SetupBadge } from '@/components/setup-badge';
 import { SpendBadge } from '@/components/spend-badge';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { relativeTime } from '@/server/format';
+import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
 
 export const metadata = { title: 'Portfolio' };
+
+const HELP_KEY = 'page:agency.portfolio';
+const COPY = PAGE_COPY['agency.portfolio'];
 
 /** True when a client needs attention now — pulled to the top of the portfolio table. */
 function isUrgent(row: PortfolioRow): boolean {
@@ -37,7 +45,7 @@ function sortRows(items: PortfolioRow[]): PortfolioRow[] {
 export default async function AgencyPortfolioPage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const { items } = await callTool<{ items: PortfolioRow[] }>(ctx, 'get_portfolio', {});
+  const [{ items }, guides] = await Promise.all([callTool<{ items: PortfolioRow[] }>(ctx, 'get_portfolio', {}), helpGuides(ctx, 'agency')]);
   const billingRows = await callTool<{ clients: ClientBillingStatusRow[] }>(ctx, 'list_client_billing_status', {});
   const billingBy = new Map((billingRows?.clients ?? []).map((b) => [b.clientId, b]));
   // Admins only: account managers get no checklist and no extra reads.
@@ -59,7 +67,9 @@ export default async function AgencyPortfolioPage() {
     <>
       <PageHeader
         title="Portfolio"
-        description="Every client at a glance — what needs you today."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
         actions={
           canAddClient && (
             <WriteGuard>
@@ -69,6 +79,17 @@ export default async function AgencyPortfolioPage() {
             </WriteGuard>
           )
         }
+      />
+
+      <TipRow
+        items={[
+          { label: 'Pressure', tip: 'agency.portfolio.pressure' },
+          { label: 'Budget', tip: 'agency.portfolio.budget' },
+          { label: 'Alerts and briefs', tip: 'agency.portfolio.alertsBriefs' },
+          { label: 'Open actions', tip: 'agency.portfolio.openActions' },
+          { label: 'Setup chip', tip: 'agency.portfolio.setup' },
+          ...(showChecklist ? [{ label: 'Checklist', tip: 'agency.portfolio.checklist' } as const] : []),
+        ]}
       />
 
       {showChecklist && <OnboardingChecklist status={onboarding} trialing={trialing} dismissAction={dismissChecklistAction} />}
@@ -93,16 +114,23 @@ export default async function AgencyPortfolioPage() {
       </div>
 
       {items.length === 0 ? (
-        <p className="text-muted-foreground">
-          No clients yet.{' '}
-          {canAddClient && (
-            <WriteGuard>
-              <Link href="/agency/clients/new" className="font-semibold text-primary-soft-text">
-                Add client
-              </Link>
-            </WriteGuard>
+        <>
+          {canAddClient ? (
+            <EmptyState
+              title={COPY.empty.noClients.title}
+              body={COPY.empty.noClients.body}
+              action={
+                <WriteGuard>
+                  <Link href="/agency/clients/new" className="font-semibold text-primary-soft-text">
+                    Add client
+                  </Link>
+                </WriteGuard>
+              }
+            />
+          ) : (
+            <EmptyState title={COPY.empty.noClientsScoped.title} body={COPY.empty.noClientsScoped.body} />
           )}
-        </p>
+        </>
       ) : (
         <Card>
           <CardHeader>
