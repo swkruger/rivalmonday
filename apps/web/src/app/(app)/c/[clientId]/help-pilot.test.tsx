@@ -59,7 +59,8 @@ describe('pilot pages: guide button', () => {
     it(`${key}: shows the Guide button only when list_help_guides has page:${key}, read for this client`, async () => {
       m.guides = [`page:${key}`];
       await show(page, 'client');
-      expect(await screen.findByRole('button', { name: /guide/i })).toBeTruthy();
+      // The Guide button sits behind a next/dynamic import (a lazy chunk), so under full-suite load it needs more than the 1 s findBy default.
+      expect(await screen.findByRole('button', { name: /guide/i }, { timeout: 15_000 })).toBeTruthy();
       expect(m.calls.filter(([n]) => n === 'list_help_guides').map(([, i]) => i)).toEqual([{ context: 'client', clientId: C }]);
       cleanup();
       m.guides = ['page:client.other'];

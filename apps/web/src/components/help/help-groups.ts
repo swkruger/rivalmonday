@@ -14,7 +14,7 @@ export function groupGuides(context: NavContext, menu: NavSection[], settings: N
   const byPage = new Map(guides.map((g) => [idOf(g), g]));
   const used = new Set<string>();
   const sections: { heading: string; hrefs: string[] }[] = [
-    ...menu.map((s) => ({ heading: s.label ?? 'General', hrefs: s.items.map((i) => i.href) })),
+    ...menu.map((s) => ({ heading: s.label ?? 'General', hrefs: s.items.filter((i) => !i.match).map((i) => i.href) })), // a `match` item is the settings entry (links to its first tab); the tabs group under Settings
     { heading: 'Settings', hrefs: settings.flatMap((s) => s.items.map((i) => i.href)) },
   ];
   const groups: HelpGroup[] = [];
