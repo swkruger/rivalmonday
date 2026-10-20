@@ -42,4 +42,4 @@ Yes. If you see **Alert rules** in your settings, you can change them there; oth
 
 ### Why does a high score sometimes go to the brief and not an alert?
 
-A change found more than 7 days after it happened is no longer urgent, and a change that still needs a second look waits for the brief. Instant alerts are also limited to 3 a day; extra ones go into the daily digest.
+Some changes need a second look before they are sent as an alert, so they wait for your weekly brief instead.

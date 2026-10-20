@@ -1,6 +1,6 @@
 ---
 help_key: page:client.reviews
-audience: all
+audience: client
 title: Reviews
 ---
 ## What this page tells you

@@ -4,10 +4,10 @@
 **Spec:** [2026-10-19-phase-15b-help-system-design.md](../superpowers/specs/2026-10-19-phase-15b-help-system-design.md). **Plan/spec:** inputs [15 spec](../superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) §1 D6–D7, §2.7, §4 · [audit](../research/2026-10-18-phase-15-ux-audit.md) · [inventory](../research/2026-10-18-phase-15-page-inventory.md) · [6c KB spec](../superpowers/specs/2026-10-12-phase-6c-knowledge-design.md). 15b spec addendum + plan: not written.
 
 ## Status (overwrite)
-2026-10-20: **15b-1 built and reviewed — ready to merge after owner copy sign-off.** Tasks 0–11 done (SDD, per-task reviews + final whole-branch review on the most capable model, one fix wave). `pnpm test:affected --base main` 15/15 packages (6,119 tests) green; `e2e:affected --base main --full` 117/117 (E2E_PORT=3101). Test DB `cs_phase_15b_test`.
+2026-10-20: **15b-1 built and reviewed — ready to merge; copy owner-approved 2026-10-20.** Tasks 0–11 done (SDD, per-task reviews + final whole-branch review on the most capable model, one fix wave). `pnpm test:affected --base main` 15/15 packages (6,119 tests) green; `e2e:affected --base main --full` 117/117 (E2E_PORT=3101). Test DB `cs_phase_15b_test`.
 
 ## Next (overwrite)
-1. Owner: sign off [archive/phase-15b1-copy-signoff.md](../archive/phase-15b1-copy-signoff.md) (10 questions at the end) — B3 merge gate; copy edits go in before merge.
+1. Copy sign-off done 2026-10-20 ([archive/phase-15b1-copy-signoff.md](../archive/phase-15b1-copy-signoff.md)); await the owner's merge go-ahead.
 2. `/rm-merge phase-15b` with the owner's go-ahead (phase-7 then renumbers its migrations to 0081+).
 3. 15b-2 plan after merge (content wave; first decide where `page:account.*` guides list, enforce the coverage test from spec §8).
 
@@ -28,7 +28,7 @@ B1–B10 in the spec §1: split 15b-1 system / 15b-2 content; audience all/agenc
 **Execution rulings (Claude, 15b-1 SDD — reversible):** R1 `HelpAudience` type created in Task 1 (db→core dependency). R2 tool shapes per plan (flat `list_help_guides`, markdown sections, `context` input). R3 glossary seed key `glossary:<id>#<audience>`. R4 "Ask about this page" uses `?q=` (auto-sends). R5 migration 0080 claimed. R6 no "Open full article" in platform context. R7 `HelpProvider` mounted in app-shell. R8 nested client-name provider via new `c/[clientId]/layout.tsx`. R9 platform Help links open `/platform/knowledge/<id>` (seed rows read-only there). R10 final fix wave included cheap hardening (context-prefixed guide list, shared agency-name helper, "the client" fallback, seed key regex, EmptyState audience guard).
 
 ## New backlog (target → item)
-15b-2 → decide where `page:account.*` guides list; `EmptyState` everywhere with audience; strip Markdown from Help search excerpts; Help search button focus ring check. Soon → `c/[clientId]/layout.tsx` adds an audited `get_client_profile` read per agency request (resolve the name from the switcher list instead); seed imports `PAGE_HELP_KEY` from `tools/help` (move to a shared module); `docs/help/asking-the-assistant.md` "Cancelled." spelling.
+15b-2 → rename "Theme" → "topic" everywhere (UI, glossary, guides, filters, heatmap) — owner 2026-10-20. 15b-2 → decide where `page:account.*` guides list; `EmptyState` everywhere with audience; strip Markdown from Help search excerpts; Help search button focus ring check. Soon → `c/[clientId]/layout.tsx` adds an audited `get_client_profile` read per agency request (resolve the name from the switcher list instead); seed imports `PAGE_HELP_KEY` from `tools/help` (move to a shared module); `docs/help/asking-the-assistant.md` "Cancelled." spelling.
 Unscheduled → product tour; agency guide override editor; console editor for platform guides; help-usage analytics; first-visit "new" hints (B10).
 
 ## Owner verification steps

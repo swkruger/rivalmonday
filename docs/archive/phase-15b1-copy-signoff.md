@@ -1,5 +1,7 @@
 # phase-15b-1 - help copy for owner sign-off
 
+**Status: Owner-approved 2026-10-20** (answers under "Owner decisions" at the end; changed rows: Seat, the two Reviews guides, the client Changes guide).
+
 Draft copy for the 15b-1 help system (2026-10-19), quoted from the source. Approve or edit per section; edits go back into the named file.
 
 - **Audience**: `all` = everyone; `agency` = agency staff only; `client` = client owners, viewers and guests only (B2). Client roles never receive `agency` text.
@@ -29,7 +31,7 @@ Draft copy for the 15b-1 help system (2026-10-19), quoted from the source. Appro
 | Review velocity | all | How fast a business gets new Google reviews, shown as reviews per month: the reviews posted in the last 6 months, divided by 6. |  |
 | Routing | agency | Where a scored change goes: Alert (at or above the alert level), Brief (at or above the brief level) or Archived (below both). | Two caps send a would-be alert to the brief instead: the change still needs a human check, or it is too old to be urgent. A competitor promoted to Top rival is routed as an alert, other promotions go to the brief, and demotions are archived. The levels default to 70 and 40 and can be changed per client under Settings › Alert rules. Instant alerts are limited to 3 a day; extra ones go into the daily digest. How an alert then reaches the client (direct, after your check, or digest only) is set under Settings › Delivery. |
 | Score | all | How much a change matters to the business, from 0 to 100. It is 100 × type × size × relevance × novelty, each factor between 0 and 1. | Type: how much this kind of change usually matters. Size: how big it is, such as the size of a price cut. Relevance: whether it touches services the business offers and, for changes to a service area, the area it serves. Novelty: whether it is new rather than a repeat of something already seen. By default a score of 70 or more is an alert, 40 or more goes in the brief, and anything lower is archived. |
-| Seat | agency | One active client on your agency's plan. Paused clients and prospects don't use a seat. | The plan includes a number of seats; each extra active client is billed as one more seat. |
+| Seat | agency | One active client on your agency's plan. Paused clients and prospects don't use a seat. | The plan costs $229 a month and includes 3 seats; each extra active client is billed as one more seat at $99 a month (source: `packages/billing/src/seed.ts`, the standard plan). |
 | Share of voice | all | Of all the top-3 map spots in a weekly rank scan (every grid point and search term), the share each business holds. | For example, a business that holds 12 of 60 top-3 spots has a 20% share of voice. Businesses that are not tracked are grouped as "Other businesses". |
 | Signal | all | A quick fact about a competitor, shown as a small pill: its Google rating, its new reviews in the last 30 days, its Google ads and its Meta ads. | A highlighted pill is worth a look, for example 5 or more new reviews in 30 days, or Google ads that started in the last 30 days. "Not checked" means the fact could not be read yet; it never means zero. |
 | Starting point | all | The first brief for a new business: where it stands against its competitors before weekly briefs begin. | It is prepared once the competitor list is set, from the Google profile, reviews, map rankings and competitors, and suggests first steps. |
@@ -194,7 +196,7 @@ Yes. If you see **Alert rules** in your settings, you can change them there; oth
 
 ##### Why does a high score sometimes go to the brief and not an alert?
 
-A change found more than 7 days after it happened is no longer urgent, and a change that still needs a second look waits for the brief. Instant alerts are also limited to 3 a day; extra ones go into the daily digest.
+Some changes need a second look before they are sent as an alert, so they wait for your weekly brief instead. (Owner 2026-10-20: the 3-a-day instant alert cap and the 7-day age cap were removed from this guide; the agency guide keeps both.)
 
 ### Guide: agency (`docs/help/pages/client.changes.agency.md`)
 
@@ -242,7 +244,9 @@ The change supports one or more moves (patterns over the last 90 days). Select a
 | Tip `ratingTrend` | all | **Rating trend**: The average stars of the reviews posted in each month, for {client} and each competitor. A month without reviews has no point. With many competitors, some are combined into one "Other (average)" line. |
 | Empty `noMatch` | all | **No reviews match**: Try another business, theme or star rating, or a longer period. |
 
-### Guide: all (`docs/help/pages/client.reviews.md`)
+### Guide: client (`docs/help/pages/client.reviews.client.md`)
+
+Unchanged text from the earlier all-audience guide.
 
 #### What this page tells you
 
@@ -277,6 +281,14 @@ The Google reviews collected for each business. The numbers at the top and the h
 ##### What is the difference between the rating and the rating trend?
 
 The rating is the overall rating on the Google profile. The trend averages only the reviews posted in each month, so it shows recent changes sooner.
+
+### Guide: agency (`docs/help/pages/client.reviews.agency.md`) - new 2026-10-20
+
+Same sections as the client guide, with these differences:
+
+- Opening adds: "Client users see the same page."
+- Step 4 adds: "... and a good talking point for the client."
+- The missing-numbers question becomes **Why are the rating or review counts missing?**: "The page needs {{client}}'s own Google business on file. Add the Google place id under **Settings › Business profile**; the numbers appear after the next Google profile check. Until then the page shows a note instead of the numbers."
 
 ## Help pages
 
@@ -315,15 +327,15 @@ The rating is the overall rating on the Google profile. The trend averages only 
 | Tip and empty-state link (only when the page has a guide for this viewer) | all | "More in the guide →" |
 | Overview description | all | "How {client} compares with its competitors this week." followed by the existing "Tracking N competitors across N ZIP codes · Brief for the week of …" (the client name prefix moved into the sentence) |
 
-## Questions for the owner
+## Owner decisions (2026-10-20)
 
-1. **Confidence is `all`, not agency-only.** Clients already see "Confidence N%" on brief items and moves, so an agency-only definition would leave them with an unexplained number. Keep `all`, or hide the percentage from clients (15c)?
-2. **Theme or topic?** The audit standard is "topic", but the Reviews page still says "Theme" (filter, heatmap). The glossary term is "Theme" ("a topic customers bring up"). Rename everywhere in 15b-2?
-3. **"After AM check"** is still the Delivery label. The guides call it "after your check"; the audit's "I review alerts first" lands with 15b-2's terminology fixes. OK?
-4. **Paused**: one agency term covering both meanings (paused client vs paused service) and a separate client term "Monitoring paused". OK, or two agency terms?
-5. **Glossary without names**: no `{client}`/`{assistant}` in the glossary (the web and KB renderers use different placeholder syntax), so it says "the business" and "a chat answer". Acceptable?
-6. **Seat** gives no prices (they live in billing). Add the plan numbers?
-7. **Reviews** has one guide for everyone. The agency version could add "add the place id under Settings › Business profile" for the missing-numbers case. Worth a separate agency guide?
-8. **Client Changes guide** tells clients about the 3-a-day instant alert cap and the 7-day age cap. Too much detail for owners?
-9. **Empty states on the Overview** now use the dashed `EmptyState` box inside the small cards (pressure, moves, recommendations, reports). Visually heavier than the old one-line text; keep, or keep one-liners for in-card empties?
-10. **Client guide wording "Contact {{product}}"**: renders the agency's name for clients (or "your agency"). OK as the contact route?
+1. Confidence: keep `all`.
+2. Theme -> "topic": rename everywhere (UI, glossary, guides, filters, heatmap) in 15b-2. No change now.
+3. "After AM check": OK.
+4. Paused: OK as drafted.
+5. Glossary without placeholders: accepted; now a standing rule (`packages/core/CLAUDE.md`).
+6. Seat: prices added ($229 a month, 3 seats included, $99 per extra seat).
+7. Agency Reviews guide added (`client.reviews.agency.md`); the client guide is `client.reviews.client.md`.
+8. Caps (3 instant alerts a day, 7-day age) removed from the client Changes guide; the agency guide keeps them.
+9. Dashed EmptyState boxes: keep.
+10. "Contact {{product}}": OK.

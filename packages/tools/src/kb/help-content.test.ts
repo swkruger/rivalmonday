@@ -13,7 +13,7 @@ import { seedKnowledge } from './seed';
  * then the help tools read it back per audience. Guards the owner-facing copy against validation errors and audience leaks.
  */
 const DOCS = join(dirname(fileURLToPath(import.meta.url)), '../../../../docs/help');
-const PILOT = ['page:client.changes#agency', 'page:client.changes#client', 'page:client.overview#agency', 'page:client.overview#client', 'page:client.reviews#all'];
+const PILOT = ['page:client.changes#agency', 'page:client.changes#client', 'page:client.overview#agency', 'page:client.overview#client', 'page:client.reviews#agency', 'page:client.reviews#client'];
 /**
  * Words a client must never read in help: agency-internal concepts and the product name (client-facing text falls back to
  * "your agency"). The default assistant name is fine once rendered (it is what an un-renamed assistant is called); the
@@ -46,15 +46,14 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     expect(await seedKnowledge(dbs.service, DOCS, 'system:seed', { glossary: GLOSSARY })).toMatchObject({ created: 0, updated: 0, removed: 0 });
   });
 
-  it('client roles get the client version, agency roles the agency version; Reviews is one shared guide', async () => {
-    for (const key of ['page:client.overview', 'page:client.changes']) {
+  it('client roles get the client version, agency roles the agency version', async () => {
+    for (const key of ['page:client.overview', 'page:client.changes', 'page:client.reviews']) {
       const [o, v, a, m] = await Promise.all([guide(owner, key), guide(viewer, key), guide(admin, key), guide(am, key)]);
       expect(o!.id, key).toBe(v!.id);
       expect(a!.id, key).toBe(m!.id);
       expect(a!.id, key).not.toBe(o!.id);
     }
     const [o, a] = await Promise.all([guide(owner, 'page:client.reviews'), guide(admin, 'page:client.reviews')]);
-    expect(o!.id).toBe(a!.id);
     for (const g of [o, a]) expect(g!.sections.map((s) => s.heading)).toEqual(['What this page tells you', 'How to use it', 'Common questions']);
   });
 
@@ -74,11 +73,18 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     for (const t of GLOSSARY.filter((x) => x.audience === 'all' || x.audience === 'client')) expect(`${t.term}\n${t.short}\n${t.long ?? ''}`, t.id).not.toMatch(AGENCY_ONLY);
   });
 
+  it('the client Changes guide leaves out the alert caps (owner 2026-10-20) that the agency guide keeps', async () => {
+    expect(text(await guide(owner, 'page:client.changes'))).not.toMatch(/3 a day|7 days|3 instant/i);
+    expect(text(await guide(admin, 'page:client.changes'))).toMatch(/3 instant alerts/);
+  });
+
   it('the agency versions cover what agency staff need', async () => {
     const overview = text(await guide(admin, 'page:client.overview'));
     for (const w of ['Upsell', 'Approvals', 'Pitch snapshot', 'Settings › Delivery', 'place id']) expect(overview, w).toContain(w);
     const changes = text(await guide(admin, 'page:client.changes'));
     for (const w of ['routing', 'Settings › Alert rules', 'Archived']) expect(changes, w).toContain(w);
-    expect(`${overview}\n${changes}`).not.toContain('{{');
+    const reviews = text(await guide(admin, 'page:client.reviews'));
+    expect(reviews).toContain('Settings › Business profile');
+    expect(`${overview}\n${changes}\n${reviews}`).not.toContain('{{');
   });
 });
