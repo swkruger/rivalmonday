@@ -1,4 +1,4 @@
-import { generatePat } from '@cs/core';
+import { generatePat } from '@cs/core/server';
 import { apiToken, invitation, membership } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, testUrls, truncateAll } from '@cs/db/test-helpers';
 import { resolveBranding } from '@cs/email';

@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { currentStandardPlan, ensureExemptPilot } from '@cs/billing';
-import { signLink } from '@cs/core';
+import { signLink } from '@cs/core/server';
 import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, businessArea, catalogRows, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, intakeLink, lead, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankMapImage, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, themeProposal, trackedPage, vertical } from '@cs/db';
 import { copyItems, createClientRunbookIfAbsent, ensureAgencyRunbook, readRunbookItems } from '@cs/engine';
 import { createStoreFromEnv } from '@cs/storage';

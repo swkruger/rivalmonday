@@ -1,4 +1,4 @@
-import { verifyLink } from '@cs/core';
+import { verifyLink } from '@cs/core/server';
 import { client, clientCompetitor, competitor, contact, membership } from '@cs/db';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';

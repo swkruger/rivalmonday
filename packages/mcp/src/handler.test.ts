@@ -1,4 +1,4 @@
-import { generatePat } from '@cs/core';
+import { generatePat } from '@cs/core/server';
 import { agency, apiToken, membership } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { createToolRegistry, type ToolDeps } from '@cs/tools';

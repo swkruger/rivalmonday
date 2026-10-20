@@ -1,4 +1,5 @@
-import { canAccessClient, generatePat, grantableScopes, isAgencyRole, TOKEN_SCOPES, toolkit, ToolError, type AccessContext, type TokenScope } from '@cs/core';
+import { canAccessClient, grantableScopes, isAgencyRole, TOKEN_SCOPES, toolkit, ToolError, type AccessContext, type TokenScope } from '@cs/core';
+import { generatePat } from '@cs/core/server';
 import { apiToken, client, oauthGrantBinding, withTenant } from '@cs/db';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';

@@ -1,6 +1,7 @@
 import { ASK_COPY, type AskDeps, type AskEvent } from '@cs/ask';
 import { createScriptedAskAi, type ScriptedStep } from '@cs/ask/testing';
 import { type AccessContext, type AuditSink, createAccessContext, ToolRegistry, toolkit } from '@cs/core';
+import { hashInput } from '@cs/core/server';
 import { agency, askMessage, client } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import type { ToolDeps } from '@cs/tools';
@@ -31,7 +32,7 @@ vi.mock('@/server/current-viewer', () => ({
 vi.mock('next/server', async (orig) => ({ ...(await orig<object>()), after: (task: () => Promise<unknown>) => void m.kept.push(task()) }));
 
 const { defineTool } = toolkit<ToolDeps>();
-const registry = new ToolRegistry<ToolDeps>({} as ToolDeps, { record: async () => {} }).register(
+const registry = new ToolRegistry<ToolDeps>({} as ToolDeps, { record: async () => {} }, Date.now, { hashInput }).register(
   defineTool({
     name: 'search_events', access: 'read', description: 'Search changes', input: z.object({ clientId: z.string() }), output: z.any(), permission: 'read', channels: ['ask'],
     handler: async () => ({ items: [{ id: 'e1', title: 'Acme cut AC tune-up to $69', evidenceIds: [EV1] }] }) as never,

@@ -1,4 +1,5 @@
-import { type AuditEvent, createAccessContext, hashInput } from '@cs/core';
+import { type AuditEvent, createAccessContext } from '@cs/core';
+import { hashInput } from '@cs/core/server';
 import { agency, agencyBilling, agencyDailyStat, auditLog, brief, client, llmCall, membership, platformAdmin, platformAuditLog, vendorCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';

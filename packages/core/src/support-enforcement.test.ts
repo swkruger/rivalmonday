@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createAccessContext } from './access';
+import { hashInput } from './server/hash';
 import { type AuditEvent, ToolError, ToolRegistry, toolkit } from './tools';
 
 const A = '00000000-0000-4000-8000-00000000000a';
@@ -42,7 +43,7 @@ let registry: ToolRegistry<Record<string, never>>;
 beforeEach(() => {
   events = [];
   writeHandler.mockClear();
-  registry = new ToolRegistry<Record<string, never>>({}, { record: async (e) => { events.push(e); } });
+  registry = new ToolRegistry<Record<string, never>>({}, { record: async (e) => { events.push(e); } }, Date.now, { hashInput });
   registry.register(writeTool, readTool, hiddenTool, quietTool);
 });
 

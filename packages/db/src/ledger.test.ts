@@ -1,4 +1,5 @@
 import { createAccessContext, ToolRegistry, toolkit } from '@cs/core';
+import { hashInput } from '@cs/core/server';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { errorText, IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
@@ -48,7 +49,7 @@ describe('ledger sink', () => {
 describe('audit sink', () => {
   it('persists registry audit events', async () => {
     const { defineTool } = toolkit<null>();
-    const registry = new ToolRegistry(null, createAuditSink(dbs.service)).register(
+    const registry = new ToolRegistry(null, createAuditSink(dbs.service), Date.now, { hashInput }).register(
       defineTool({
         name: 'ping',
         access: 'read',

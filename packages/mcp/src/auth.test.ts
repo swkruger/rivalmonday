@@ -1,4 +1,4 @@
-import { generatePat } from '@cs/core';
+import { generatePat } from '@cs/core/server';
 import { apiToken, client, membership, oauthGrantBinding } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';

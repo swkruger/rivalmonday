@@ -1,4 +1,4 @@
-import { generatePat } from '@cs/core';
+import { generatePat } from '@cs/core/server';
 import { apiToken } from '@cs/db';
 import type { SeedContext } from './context';
 

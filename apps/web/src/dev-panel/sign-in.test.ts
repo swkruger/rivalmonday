@@ -1,4 +1,4 @@
-import { signLink } from '@cs/core';
+import { signLink } from '@cs/core/server';
 import type { EnvName } from '@cs/db';
 import { describe, expect, it, vi } from 'vitest';
 import { captureMagicLink, devSignIn, type SignInDeps } from './sign-in';

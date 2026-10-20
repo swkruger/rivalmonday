@@ -1,4 +1,4 @@
-import { verifyLink } from '@cs/core';
+import { verifyLink } from '@cs/core/server';
 import { agencyBilling, agencyWebhook, alert, changeEvent, client, contact, notification } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport, type EmailPayload, PermanentEmailError, resolveBranding } from '@cs/email';

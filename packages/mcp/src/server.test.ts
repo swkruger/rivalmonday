@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { type AccessContext, type TokenScope, ToolError, ToolRegistry, toolkit } from '@cs/core';
+import { hashInput } from '@cs/core/server';
 import { brief, briefItem } from '@cs/db';
 import { IDS, pauseAgency } from '@cs/db/test-helpers';
 import { createToolRegistry, type ToolDeps } from '@cs/tools';
@@ -29,7 +30,7 @@ const registry = createToolRegistry(deps, { audit: { record: async () => {} } })
 /** A tiny registry whose tools throw each error kind. */
 const { defineTool } = toolkit<ToolDeps>();
 const SECRET = 'db password is hunter2';
-const fakes = new ToolRegistry<ToolDeps>(deps, { record: async () => {} }).register(
+const fakes = new ToolRegistry<ToolDeps>(deps, { record: async () => {} }, Date.now, { hashInput }).register(
   defineTool({
     name: 'echo', access: 'read', description: 'Rival Monday echoes. Ask Rival Monday anything.', input: z.object({ text: z.string() }), output: z.object({ text: z.string() }),
     permission: 'read', channels: ['mcp'], handler: async (_c, i) => ({ text: i.text }),

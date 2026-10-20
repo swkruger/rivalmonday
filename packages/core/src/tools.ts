@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { type TokenScope, scopeCovers } from './tokens';
 import { maskSupportFields } from './mask';
@@ -113,11 +112,6 @@ function isVisible<D>(ctx: AccessContext, tool: AnyTool<D>, opts: CallOptions): 
 
 const WEB: CallOptions = { channel: 'web' };
 
-/** Audit input hash: sha256 of `JSON.stringify(value ?? null)` (registry `audit_log` rows and platform audit rows). */
-export function hashInput(value: unknown): string {
-  return createHash('sha256').update(JSON.stringify(value ?? null)).digest('hex');
-}
-
 export function countRows(data: unknown): number | null {
   if (Array.isArray(data)) return data.length;
   if (data && typeof data === 'object') {
@@ -131,7 +125,11 @@ export function countRows(data: unknown): number | null {
 
 /** Registry-level hook run for write tools only (after visibility checks, before input parsing and the handler). Throw a `ToolError` to refuse. */
 export type WriteGuard = (ctx: AccessContext, tool: { name: string; access: 'read' | 'write' }) => Promise<void>;
-export interface ToolRegistryOptions { writeGuard?: WriteGuard }
+export interface ToolRegistryOptions {
+  writeGuard?: WriteGuard;
+  /** Audit input hash (`hashInput` from `@cs/core/server`); injected so the main entry stays Edge-safe. */
+  hashInput: (value: unknown) => string;
+}
 
 export class ToolRegistry<D> {
   private readonly tools = new Map<string, AnyTool<D>>();
@@ -140,7 +138,7 @@ export class ToolRegistry<D> {
     private readonly deps: D,
     private readonly audit: AuditSink,
     private readonly now: () => number = Date.now,
-    private readonly options: ToolRegistryOptions = {},
+    private readonly options: ToolRegistryOptions,
   ) {}
 
   register(...defs: AnyTool<D>[]): this {
@@ -173,7 +171,7 @@ export class ToolRegistry<D> {
     const tool = this.tools.get(name);
     try {
       try {
-        inputHash = hashInput(rawInput);
+        inputHash = this.options.hashInput(rawInput);
       } catch (err) {
         throw new ToolError('invalid_input', 'Input is not serialisable', { cause: err });
       }
@@ -193,7 +191,7 @@ export class ToolRegistry<D> {
 
       const parsed = tool.input.safeParse(rawInput);
       if (!parsed.success) throw new ToolError('invalid_input', z.prettifyError(parsed.error));
-      inputHash = hashInput(parsed.data);
+      inputHash = this.options.hashInput(parsed.data);
 
       let raw: unknown;
       try {

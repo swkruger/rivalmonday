@@ -1,4 +1,5 @@
-import { type AccessContext, effectiveScope, hashPat, isAgencyRole, isPatFormat, PAT_PREFIX, type TokenScope } from '@cs/core';
+import { type AccessContext, effectiveScope, isAgencyRole, isPatFormat, PAT_PREFIX, type TokenScope } from '@cs/core';
+import { hashPat } from '@cs/core/server';
 import { apiToken, client, type Db, oauthGrantBinding } from '@cs/db';
 import { accessContextFor, listMemberships } from '@cs/tools';
 import { and, eq, isNull, sql } from 'drizzle-orm';

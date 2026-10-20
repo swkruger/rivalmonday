@@ -1,4 +1,5 @@
 import { type AccessContext, type AuditEvent, createAccessContext, ToolError, ToolRegistry, toolkit } from '@cs/core';
+import { hashInput } from '@cs/core/server';
 import { agency, askMessage, askThread, auditLog, capture, evidence } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import type { ToolDeps } from '@cs/tools';
@@ -30,7 +31,7 @@ const KB2 = '55555555-5555-4555-8555-555555555555';
 const kbSeen: unknown[] = [];
 const eventsSeen: unknown[] = [];
 
-const registry = new ToolRegistry<ToolDeps>({} as ToolDeps, { record: async (e) => void audited.push(e) }).register(
+const registry = new ToolRegistry<ToolDeps>({} as ToolDeps, { record: async (e) => void audited.push(e) }, Date.now, { hashInput }).register(
   defineTool({
     name: 'search_events', access: 'read', description: 'Search changes', input: z.object({ clientId: z.string(), query: z.string().optional(), route: z.string().optional() }), output: z.any(),
     permission: 'read', channels: ['ask'],

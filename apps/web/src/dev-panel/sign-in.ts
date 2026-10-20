@@ -1,4 +1,5 @@
-import { isUuid, verifyLink } from '@cs/core';
+import { isUuid } from '@cs/core';
+import { verifyLink } from '@cs/core/server';
 import type { EnvName } from '@cs/db';
 import { DEMO_LINK_TARGET, isDemoEmail } from '@cs/demo/users';
 

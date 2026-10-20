@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { effectiveScope, generatePat, grantableScopes, hashPat, isPatFormat, scopeCovers } from './tokens';
+import { effectiveScope, grantableScopes, isPatFormat, scopeCovers } from './tokens';
+import { generatePat, hashPat } from './server/tokens';
 
 describe('generatePat', () => {
   it('prefix, 50 chars, base62', () => {

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createAccessContext } from './access';
+import { hashInput } from './server/hash';
 import { type AuditEvent, ToolError, ToolRegistry, countRows, mcpScopeOf, toolkit } from './tools';
 
 const A = '00000000-0000-4000-8000-00000000000a';
@@ -71,7 +72,7 @@ let registry: ToolRegistry<Deps>;
 beforeEach(() => {
   events = [];
   let t = 1000;
-  registry = new ToolRegistry<Deps>({ greeting: 'hi' }, { record: async (e) => { events.push(e); } }, () => (t += 5));
+  registry = new ToolRegistry<Deps>({ greeting: 'hi' }, { record: async (e) => { events.push(e); } }, () => (t += 5), { hashInput });
   registry.register(echo, manage, broken, denied, badOutput);
 });
 
@@ -143,6 +144,8 @@ describe('ToolRegistry', () => {
       const failingRegistry = new ToolRegistry<Deps>(
         { greeting: 'hi' },
         { record: async () => { throw new Error('audit sink down'); } },
+        Date.now,
+        { hashInput },
       );
       failingRegistry.register(echo);
 
@@ -272,7 +275,7 @@ describe('countRows', () => {
 describe('error logging', () => {
   it('logs the handler error before the audit error', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const r = new ToolRegistry<Deps>({ greeting: 'hi' }, { record: async () => { throw new Error('sink down'); } });
+    const r = new ToolRegistry<Deps>({ greeting: 'hi' }, { record: async () => { throw new Error('sink down'); } }, Date.now, { hashInput });
     r.register(broken);
     await expect(r.invoke(viewer, 'broken', {})).rejects.toMatchObject({ code: 'internal', message: 'Audit logging failed' });
     expect(spy.mock.calls[0]?.[0]).toBe('[tools] tool error before audit failure');
@@ -286,6 +289,7 @@ describe('ToolRegistry writeGuard', () => {
   function guarded(guard: (name: string) => Promise<void>) {
     const calls: string[] = [];
     const reg = new ToolRegistry<Deps>({ greeting: 'hi' }, { record: async () => {} }, Date.now, {
+      hashInput,
       writeGuard: async (_ctx, tool) => { calls.push(tool.name); await guard(tool.name); },
     });
     reg.register(echo, manage);

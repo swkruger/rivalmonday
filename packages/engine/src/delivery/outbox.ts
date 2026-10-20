@@ -1,4 +1,5 @@
-import { type LinkTarget, MIN_LINK_SECRET_LENGTH, signLink } from '@cs/core';
+import { type LinkTarget, MIN_LINK_SECRET_LENGTH } from '@cs/core';
+import { signLink } from '@cs/core/server';
 import { agencyServiceable, agency, agencyWebhook, alert, changeEvent, type Channel, contact, type Db, notification, type NotificationKind } from '@cs/db';
 import { type Branding, cleanCc, type EmailPayload, type EmailTransport, PermanentEmailError, renderEmail, resolveBranding } from '@cs/email';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';

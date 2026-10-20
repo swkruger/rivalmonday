@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { signLink } from '@cs/core';
+import { signLink } from '@cs/core/server';
 import { agency, catalogRows, contact, createDb } from '@cs/db';
 import { ensureAgencyRunbook } from '@cs/engine';
 import { createInvitation } from '@cs/tools';

@@ -1,4 +1,4 @@
-import { signLink } from '@cs/core';
+import { signLink } from '@cs/core/server';
 import { contact, type Db } from '@cs/db';
 import { and, eq, isNotNull, like } from 'drizzle-orm';
 import { DEMO_DOMAIN, DEMO_LINK_TARGET, DEMO_USERS, type DemoUserKey } from './users';

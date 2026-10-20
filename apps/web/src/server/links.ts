@@ -1,4 +1,5 @@
-import { type AccessContext, isAgencyRole, isUuid, LINK_TARGETS, type LinkTarget, verifyLink } from '@cs/core';
+import { type AccessContext, isAgencyRole, isUuid, LINK_TARGETS, type LinkTarget } from '@cs/core';
+import { verifyLink } from '@cs/core/server';
 import { alert, brief, briefItem, contact, type Db, trendReport, withTenant } from '@cs/db';
 import { listMemberships } from '@cs/tools';
 import { and, eq } from 'drizzle-orm';

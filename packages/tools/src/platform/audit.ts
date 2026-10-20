@@ -1,4 +1,5 @@
-import { type AccessContext, hashInput, ToolError } from '@cs/core';
+import { type AccessContext, ToolError } from '@cs/core';
+import { hashInput } from '@cs/core/server';
 import { auditLog, platformAuditLog } from '@cs/db';
 import type { ToolDeps } from '../deps';
 import type { PlatformRole } from '../platform';

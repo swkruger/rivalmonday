@@ -8,7 +8,7 @@ try {
 
 const { writeFile } = await import('node:fs/promises');
 const { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } = await import('@cs/ai');
-const { verifyLink } = await import('@cs/core');
+const { verifyLink } = await import('@cs/core/server');
 const { brief, catalogRows, client, createDb, createDecisionSampleSink, createLedgerSink } = await import('@cs/db');
 const engine = await import('@cs/engine');
 const { createCatalog } = await import('@cs/verticals');

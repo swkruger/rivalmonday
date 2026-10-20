@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { appLinkFor, appPath, LINK_TTL_SECONDS, signLink, verifyLink } from './links';
+import { appLinkFor, appPath, LINK_TTL_SECONDS } from './links';
+import { signLink, verifyLink } from './server/links';
 
 const SECRET = 'a'.repeat(32);
 const OLD = 'b'.repeat(32);

@@ -1,4 +1,5 @@
-import { createAccessContext, hashInput, ToolError } from '@cs/core';
+import { createAccessContext, ToolError } from '@cs/core';
+import { hashInput } from '@cs/core/server';
 import { auditLog, platformAuditLog } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';

@@ -21,7 +21,7 @@ describe('guest cookie', () => {
   });
 
   it('is not interchangeable with a link token signed by the same secret', async () => {
-    const { signLink } = await import('@cs/core');
+    const { signLink } = await import('@cs/core/server');
     const token = signLink(S, { sub: claims.contactId, agency: claims.agencyId, client: claims.clientId, t: 'brief', id: claims.clientId }, t0);
     expect(verifyGuest([S], token, t0)).toBeNull();
   });

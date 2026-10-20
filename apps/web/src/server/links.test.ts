@@ -1,4 +1,5 @@
-import { createAccessContext, signLink } from '@cs/core';
+import { createAccessContext } from '@cs/core';
+import { signLink } from '@cs/core/server';
 import { brief, briefItem, contact, membership } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
