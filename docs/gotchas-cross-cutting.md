@@ -23,6 +23,7 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 - Trailer on every commit: `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>` (subagent commits may name their own model). Never stage `.env`, `.claude/`, `App/`, `.superpowers/`.
 - **LF only** (`.gitattributes` `* text=auto eol=lf`). `git ls-files --eol | grep crlf` must print nothing. Python edits on Windows leave `w/crlf` working copies even when the index is LF — re-checkout those files.
 - A gitignore entry meant for one root folder needs a leading slash: a bare `App/` matched `apps/web/src/app` case-insensitively on Windows (now `/App/`).
+- **Root `.pnpmfile.cjs` must be present in every install (CI, Docker, Vercel):** the lockfile records its `pnpmfileChecksum`, so a frozen install without it fails. It drops drizzle-orm's optional `@opentelemetry/api` peer; otherwise `@sentry/nextjs` forks drizzle-orm into two instances and SQL types stop matching across packages.
 
 ## Testing
 - **Use the local test cluster, not Neon, for tests:** `bash scripts/local-test-db.sh setup` once (PG18 + pgvector v0.8.1 built with VS 2022 Build Tools, under `D:\rm-pg`, port 5444, superuser like CI), `start` after a reboot, `env` prints the three `TEST_*` lines. Neon costs ~50 ms per query and ~1.7 s per connection.

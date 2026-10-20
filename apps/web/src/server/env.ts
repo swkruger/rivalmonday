@@ -25,12 +25,12 @@ export interface WebEnv {
   /** Phase 10: all optional. No Turnstile secret => the fake verifier; `supportReplyTo` is the Reply-To of lifecycle emails. */
   turnstile?: { siteKey?: string; secretKey?: string };
   supportReplyTo?: string;
+  /** Phase 7a1: all optional; Sentry is inert without a DSN. */
+  sentry?: { dsn?: string; publicDsn?: string; environment?: string; issuesUrl?: string };
   /**
    * Phase 9a: Stripe settings, all optional, shaped for `gatewayFor` (R27: no key in DEV/production => no gateway, billing
    * not configured). `BILLING_FAKE_GATEWAY=1` selects the fake gateway (E2E only; refused on Vercel production).
    */
-  /** Phase 7a1: all optional; Sentry is inert without a DSN. */
-  sentry?: { dsn?: string; publicDsn?: string; environment?: string; issuesUrl?: string };
   stripe?: { STRIPE_SECRET_KEY?: string; STRIPE_WEBHOOK_SECRET?: string; STRIPE_CONNECT_WEBHOOK_SECRET?: string; STRIPE_TAX_ENABLED?: string; NODE_ENV?: string; VITEST?: string; BILLING_FAKE_GATEWAY?: string };
 }
 

@@ -20,3 +20,43 @@ export function scrubEvent(value: unknown, seen = new WeakSet<object>()): unknow
   }
   return out;
 }
+
+// ---- URL hygiene (shared by the server and browser Sentry hooks) ----
+// Routes whose PATH carries a secret or one-shot id: guest links `/l/<token>`, invites `/join/<token>`, sign-up
+// verification `/start/verify/<token>` and `/start/v/<leadId>`, dev sign-in. Keep in step with `src/app`.
+const SECRET_PATH = /(^|\s|:\/\/[^/\s]*)(\/(?:l|join|start\/verify|start\/v|dev-panel\/sign-in))\/[^/?#\s]+/g;
+
+/** Drop `?query` and `#fragment` and mask secret path segments. Safe on absolute URLs, paths and "GET /path" names. */
+export function scrubUrl(value: string): string {
+  return value.replace(/[?#]\S*/g, '').replace(SECRET_PATH, '$1$2/[redacted]');
+}
+
+const URL_KEYS = ['url', 'from', 'to', 'http.url', 'url.full', 'http.target'];
+
+function scrubUrlFields(obj: unknown): void {
+  if (!obj || typeof obj !== 'object') return;
+  const o = obj as Record<string, unknown>;
+  for (const k of URL_KEYS) if (typeof o[k] === 'string') o[k] = scrubUrl(o[k]);
+}
+
+/** Scrub URL-valued fields of an (already key/email-redacted) Sentry event, in place on that copy. */
+export function scrubEventUrls<T>(event: T): T {
+  if (!event || typeof event !== 'object') return event;
+  const e = event as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (e.request && typeof e.request === 'object') {
+    delete e.request.query_string;
+    delete e.request.cookies;
+    scrubUrlFields(e.request);
+  }
+  for (const key of ['transaction', 'description']) if (typeof e[key] === 'string') e[key] = scrubUrl(e[key]);
+  for (const b of Array.isArray(e.breadcrumbs) ? e.breadcrumbs : []) scrubUrlFields(b?.data);
+  for (const s of Array.isArray(e.spans) ? e.spans : []) {
+    if (typeof s?.description === 'string') s.description = scrubUrl(s.description);
+    scrubUrlFields(s?.data);
+  }
+  scrubUrlFields(e.contexts?.trace?.data);
+  return event;
+}
+
+/** Browser `beforeSend` / `beforeSendTransaction`. */
+export const scrubBrowserEvent = <T>(event: T): T => scrubEventUrls(scrubEvent(event) as T);

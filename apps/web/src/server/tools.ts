@@ -15,6 +15,7 @@ import { perEnv } from './env-cache';
 import { enqueueFor, jobStatusFor } from './queue';
 import { platformAdmins } from './runtime-env';
 import { runbookTailorerFor } from './runbook-tailor';
+import { tagRequest } from './sentry-tags';
 import { setupLookupFor } from './setup-lookup';
 import { webStore } from './store';
 import { verticalDrafterFor } from './vertical-draft';
@@ -86,6 +87,7 @@ export function isHiddenToolError(e: unknown): boolean {
 }
 
 export async function callTool<T>(ctx: AccessContext, name: string, input: unknown): Promise<T> {
+  await tagRequest(ctx, input);
   try {
     return (await registry().invoke(ctx, name, input)) as T;
   } catch (e) {
