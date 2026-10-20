@@ -5,6 +5,7 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BillingEmailSender, WorkerDeps } from '../deps';
 import { createBillingNoticeJobs } from './billing-notices';
+import { workerLog } from '../log';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -64,8 +65,8 @@ beforeEach(async () => {
   sentOnboarding = [];
   onboardingSend = null;
   send = async (to, agencyId, props) => void sent.push({ to, agencyId, props });
-  vi.spyOn(console, 'log').mockImplementation(() => {});
-  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.spyOn(workerLog, 'info').mockImplementation(() => {});
+  vi.spyOn(workerLog, 'warn').mockImplementation(() => {});
 });
 
 describe('9b client billing notices', () => {

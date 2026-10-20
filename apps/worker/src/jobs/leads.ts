@@ -6,6 +6,7 @@ import { and, eq, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
+import { workerLog } from '../log';
 
 // Phase 11c Task 29 (spec §4): builds the free competitive preview for a verified lead, then sends the lead emails.
 // Platform cost: Maps and AI calls ledger with agency_id NULL (ruling A) so a public visitor cannot spend an agency's caps.
@@ -26,25 +27,25 @@ async function writePreview(db: Db, leadId: string, preview: LeadPreview): Promi
 
 /** Marks a still-pending preview failed (the page and email fall back to "we couldn't build your snapshot"). Never throws. */
 export async function failPendingPreview(db: Db, leadId: string, reason: string): Promise<void> {
-  console.error(`[lead-preview] ${leadId} failed: ${reason}`);
+  workerLog.error(`[lead-preview] ${leadId} failed: ${reason}`);
   try {
     await writePreview(db, leadId, { status: 'failed' });
   } catch (err) {
-    console.error(`[lead-preview] ${leadId} could not record failure: ${err instanceof Error ? err.name : 'unknown'}`);
+    workerLog.error(`[lead-preview] ${leadId} could not record failure: ${err instanceof Error ? err.name : 'unknown'}`);
   }
 }
 
 /** Confirmation to the lead, then the agency notice (agency leads) or the platform pool notice. Guards live in `sendLeadEmail`; never throws. */
 async function sendNotices(email: LeadEmailDeps | null, leadId: string, agencyId: string | null): Promise<void> {
   if (!email) {
-    console.error(`[lead-preview] ${leadId} emails not configured`);
+    workerLog.error(`[lead-preview] ${leadId} emails not configured`);
     return;
   }
   for (const kind of ['confirmation', agencyId ? 'agency_new' : 'pool_new'] as const) {
     try {
       await sendLeadEmail(email, leadId, kind);
     } catch (err) {
-      console.error(`[lead-preview] ${leadId} ${kind} email failed: ${err instanceof Error ? err.name : 'unknown'}`);
+      workerLog.error(`[lead-preview] ${leadId} ${kind} email failed: ${err instanceof Error ? err.name : 'unknown'}`);
     }
   }
 }
@@ -87,12 +88,12 @@ export async function runLeadPreview(
       const parsed = z.object({ summary: z.string() }).safeParse(JSON.parse(res.text));
       snap.summary = parsed.success ? validateSummary(parsed.data.summary, snap) : null;
     } catch (err) {
-      console.error(`[lead-preview] ${leadId} summary failed: ${err instanceof Error ? err.name : 'unknown'}`);
+      workerLog.error(`[lead-preview] ${leadId} summary failed: ${err instanceof Error ? err.name : 'unknown'}`);
       snap.summary = null;
     }
     await writePreview(d.db, leadId, snap);
     outcome = 'ready';
-    console.log(`[lead-preview] ${leadId} ready: ${snap.nearby.length} nearby, summary ${snap.summary ? 'kept' : 'dropped'}`);
+    workerLog.info(`[lead-preview] ${leadId} ready: ${snap.nearby.length} nearby, summary ${snap.summary ? 'kept' : 'dropped'}`);
   } catch (err) {
     await failPendingPreview(d.db, leadId, err instanceof Error ? `${err.name}: ${err.message}` : 'unknown error');
   }
@@ -134,7 +135,7 @@ export async function runLeadsCleanup(d: { db: Db; email: LeadEmailDeps | null; 
       return await fn();
     } catch (err) {
       failed.push(name);
-      console.error(`[leads-cleanup] step ${name} failed: ${err instanceof Error ? err.name : 'unknown'}`);
+      workerLog.error(`[leads-cleanup] step ${name} failed: ${err instanceof Error ? err.name : 'unknown'}`);
       return empty;
     }
   };
@@ -158,7 +159,7 @@ export async function runLeadsCleanup(d: { db: Db; email: LeadEmailDeps | null; 
   const previewDone = sql`${lead.preview}->>'status' in ('ready', 'failed')`;
   const guardCol = { confirmation: lead.confirmationSentAt, agency_new: lead.agencyNotifiedAt, pool_new: lead.poolNotifiedAt } as const;
   if (!d.email) {
-    console.error('[leads-cleanup] emails not configured; retry skipped');
+    workerLog.error('[leads-cleanup] emails not configured; retry skipped');
   } else {
     const email = d.email;
     const retry = (kind: keyof typeof retried, where: ReturnType<typeof and>) => step(`retry_${kind}`, async () => {
@@ -170,7 +171,7 @@ export async function runLeadsCleanup(d: { db: Db; email: LeadEmailDeps | null; 
           const [after] = await db.select({ g: guardCol[kind] }).from(lead).where(eq(lead.id, r.id));
           if (after?.g) retried[kind]++;
         } catch (err) {
-          console.error(`[leads-cleanup] ${r.id} ${kind} retry failed: ${err instanceof Error ? err.name : 'unknown'}`);
+          workerLog.error(`[leads-cleanup] ${r.id} ${kind} retry failed: ${err instanceof Error ? err.name : 'unknown'}`);
         }
       }
     }, undefined);
@@ -179,7 +180,7 @@ export async function runLeadsCleanup(d: { db: Db; email: LeadEmailDeps | null; 
     await retry('pool_new', and(isNull(lead.agencyId), isNull(lead.poolNotifiedAt), previewDone));
   }
   const result = { expired: expired.length, deleted: deleted.length, scrubbed: scrubbed.length, ratePurged: ratePurged.length, staleFailed: staleFailed.length, retried };
-  console.log(`[leads-cleanup] ${JSON.stringify(result)}`);
+  workerLog.info(`[leads-cleanup] ${JSON.stringify(result)}`);
   if (failed.length > 0) throw new Error(`leads-cleanup steps failed: ${failed.join(', ')}`);
   return result;
 }
@@ -193,7 +194,7 @@ export function createLeadJobs(deps: WorkerDeps, opts: LeadJobOptions) {
     queue: { policy: 'short', retryLimit: 0 },
     handler: async ({ leadId }) => {
       if (opts.envName === 'demo' || opts.envName === 'test') {
-        console.log(`[lead-preview] skipped in ${opts.envName}`);
+        workerLog.info(`[lead-preview] skipped in ${opts.envName}`);
         return { skipped: opts.envName };
       }
       return deps.generateLeadPreview(leadId);
@@ -206,7 +207,7 @@ export function createLeadJobs(deps: WorkerDeps, opts: LeadJobOptions) {
     queue: { expireInSeconds: 3600 },
     handler: async () => {
       if (opts.envName === 'demo' || opts.envName === 'test') {
-        console.log(`[leads-cleanup] skipped in ${opts.envName}`);
+        workerLog.info(`[leads-cleanup] skipped in ${opts.envName}`);
         return { skipped: opts.envName };
       }
       return runLeadsCleanup({ db: deps.serviceDb(), email: deps.leadEmailDeps() });

@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
 import { createOnboardingJobs, dueTipSlot, nextOnboardingStep } from './onboarding';
+import { workerLog } from '../log';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -18,7 +19,7 @@ const D = 24 * H;
 beforeEach(async () => {
   await truncateAll(dbs.owner);
   await seedTenancy(dbs.owner);
-  vi.spyOn(console, 'log').mockImplementation(() => {});
+  vi.spyOn(workerLog, 'info').mockImplementation(() => {});
 });
 
 const run = (envName: 'dev' | 'demo' | 'test' = 'dev') =>
@@ -144,7 +145,7 @@ describe('onboarding-nudges', () => {
   });
 
   it('one agency failing does not stop the others, and cleanup still runs', async () => {
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const errSpy = vi.spyOn(workerLog, 'error').mockImplementation(() => {});
     await seed();
     await dbs.owner.insert(agencyOnboarding).values({ agencyId: IDS.agencyB, source: 'open', createdAt: ago(7 * D) });
     await dbs.owner.insert(pendingSignup).values({ email: 'old@x.test', agencyName: 'X', source: 'open', ipHash: 'h', expiresAt: ago(31 * D) });

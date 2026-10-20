@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
 import { SINGLE_SHOT_QUEUE } from './vendor';
+import { workerLog } from '../log';
 
 /** Review samples get 30 min to land before finalise is forced (reviews then stay null). */
 export const FORCE_FINALISE_AFTER_SECONDS = 1800;
@@ -35,12 +36,12 @@ export function createRivalJobs(
     queue: { ...SINGLE_SHOT_QUEUE, expireInSeconds: 7200, policy: 'short' },
     handler: async ({ runId }) => {
       if (!deps.vendorsConfigured()) {
-        console.log(`[rival-search] DATAFORSEO_LOGIN/DATAFORSEO_PASSWORD not set; failing run ${runId}`);
+        workerLog.info(`[rival-search] DATAFORSEO_LOGIN/DATAFORSEO_PASSWORD not set; failing run ${runId}`);
         await deps.failRivalRun(runId, 'vendors_unconfigured');
         return;
       }
       const r = await deps.runRivalSearch(runId);
-      console.log(`[rival-search] ${runId} → ${r.status}`);
+      workerLog.info(`[rival-search] ${runId} → ${r.status}`);
       if (r.status === 'finalising') await queue.enqueueFinalise(runId, { force: true, startAfter: FORCE_FINALISE_AFTER_SECONDS });
     },
   });
@@ -49,14 +50,14 @@ export function createRivalJobs(
     queue: { policy: 'short' },
     handler: async ({ runId, force }) => {
       const r = await deps.finaliseRivalSearch(runId, { force });
-      if (r === 'done') console.log(`[rival-finalise] ${runId} done${force ? ' (forced)' : ''}`);
+      if (r === 'done') workerLog.info(`[rival-finalise] ${runId} done${force ? ' (forced)' : ''}`);
     },
   });
   const sweep = defineJob({
     name: 'rival-sweep', schema: z.looseObject({}), cron: '*/15 * * * *',
     handler: async () => {
       const r = await deps.sweepRivalRuns(now());
-      if (r.stale + r.finalised > 0) console.log(`[rival-sweep] ${JSON.stringify(r)}`);
+      if (r.stale + r.finalised > 0) workerLog.info(`[rival-sweep] ${JSON.stringify(r)}`);
     },
   });
   const signalsWeekly = defineJob({
@@ -68,10 +69,10 @@ export function createRivalJobs(
         try {
           rated += await deps.computeTrackedSignals(clientId, at);
         } catch (err) {
-          console.error(`[signals-weekly] client ${clientId} failed`, err);
+          workerLog.error({ err }, `[signals-weekly] client ${clientId} failed`);
         }
       }
-      console.log(`[signals-weekly] rated ${rated} tracked competitor(s)`);
+      workerLog.info(`[signals-weekly] rated ${rated} tracked competitor(s)`);
     },
   });
   // Owner decision 2026-10-15: monthly automatic refresh. Standard cron ORs day-of-month with day-of-week, so
@@ -91,10 +92,10 @@ export function createRivalJobs(
           await queue.enqueueMonthlyClient(clientId, { startAfter: queued * RIVAL_MONTHLY_SPACING_SECONDS, singletonKey: `rival-monthly:${clientId}:${month}` });
           queued++;
         } catch (err) {
-          console.error(`[rival-monthly] client ${clientId} failed`, err);
+          workerLog.error({ err }, `[rival-monthly] client ${clientId} failed`);
         }
       }
-      console.log(`[rival-monthly] queued ${queued} client refresh(es)`);
+      workerLog.info(`[rival-monthly] queued ${queued} client refresh(es)`);
     },
   });
   const monthlyClient = defineJob({
@@ -102,7 +103,7 @@ export function createRivalJobs(
     queue: { policy: 'short' },
     handler: async ({ clientId }) => {
       const r = await queue.startScheduledSearch(clientId);
-      console.log(`[rival-monthly-client] ${clientId} → ${'runId' in r ? `run ${r.runId}` : `refused (${r.refused})`}`);
+      workerLog.info(`[rival-monthly-client] ${clientId} → ${'runId' in r ? `run ${r.runId}` : `refused (${r.refused})`}`);
     },
   });
   return { search, finalise, sweep, signalsWeekly, monthly, monthlyClient };

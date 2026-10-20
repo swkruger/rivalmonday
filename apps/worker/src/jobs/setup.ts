@@ -8,6 +8,7 @@ import { and, desc, eq, inArray, isNotNull, isNull, like, sql } from 'drizzle-or
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
+import { workerLog } from '../log';
 
 export type SetupSuggestionsOutcome = { status: 'ready' | 'failed' } | { skipped: string };
 
@@ -26,11 +27,11 @@ async function writeSuggestions(db: Db, clientId: string, suggestions: SetupSugg
 
 /** Marks a still-pending suggestion run failed (the wizard falls back to the pack's seed keywords). Never throws. */
 export async function failPendingSuggestions(db: Db, clientId: string, reason: string): Promise<void> {
-  console.error(`[setup-suggestions] ${clientId} failed: ${reason}`);
+  workerLog.error(`[setup-suggestions] ${clientId} failed: ${reason}`);
   try {
     await writeSuggestions(db, clientId, { status: 'failed' });
   } catch (err) {
-    console.error(`[setup-suggestions] ${clientId} could not record failure: ${err instanceof Error ? err.name : 'unknown'}`);
+    workerLog.error(`[setup-suggestions] ${clientId} could not record failure: ${err instanceof Error ? err.name : 'unknown'}`);
   }
 }
 
@@ -91,7 +92,7 @@ export async function runSetupSuggestions(
     // 14a: only for a real (non-generic) business type; deterministic, no extra AI call.
     const newAreas = pack.id === 'generic' ? [] : detectNewAreas(gbpServiceNames(gbp), pack.services, [c.name, ...(gbp.title ? [gbp.title] : [])]);
     await writeSuggestions(d.db, clientId, { status: 'ready', ...valid, newAreas, sources: source.sources, generatedAt: new Date().toISOString() });
-    console.log(`[setup-suggestions] ${clientId} ready: ${valid.services.length} services, ${valid.keywords.length} keywords`);
+    workerLog.info(`[setup-suggestions] ${clientId} ready: ${valid.services.length} services, ${valid.keywords.length} keywords`);
     return { status: 'ready' };
   } catch (err) {
     await failPendingSuggestions(d.db, clientId, err instanceof Error ? `${err.name}: ${err.message}` : 'unknown error');
@@ -157,7 +158,7 @@ export async function runSetupReminders(d: { db: Db; delivery: DeliveryConfig },
       try {
         if (await queueCompetitorReview(d.db, d.delivery, { agencyId: c.agencyId, clientId: c.id, dedupe: `competitor-review:${c.id}`, now })) queued += 1;
       } catch (err) {
-        console.error(`[setup-reminders] ${c.id} competitor review failed: ${err instanceof Error ? err.name : 'unknown'}`); // staff notices below still go out
+        workerLog.error(`[setup-reminders] ${c.id} competitor review failed: ${err instanceof Error ? err.name : 'unknown'}`); // staff notices below still go out
       }
       if (due.length === 0) continue;
       const branding = await loadBranding(d.db, c.agencyId);
@@ -170,7 +171,7 @@ export async function runSetupReminders(d: { db: Db; delivery: DeliveryConfig },
         });
       }
     } catch (err) {
-      console.error(`[setup-reminders] ${c.id} failed: ${err instanceof Error ? err.name : 'unknown'}`);
+      workerLog.error(`[setup-reminders] ${c.id} failed: ${err instanceof Error ? err.name : 'unknown'}`);
     }
   }
   return { queued };
@@ -185,7 +186,7 @@ export function createSetupJobs(deps: WorkerDeps, opts: SetupJobOptions) {
     queue: { policy: 'short', retryLimit: 0 },
     handler: async ({ clientId }) => {
       if (opts.envName === 'demo' || opts.envName === 'test') {
-        console.log(`[setup-suggestions] skipped in ${opts.envName}`);
+        workerLog.info(`[setup-suggestions] skipped in ${opts.envName}`);
         return { skipped: opts.envName };
       }
       const out = await deps.generateSetupSuggestions(clientId);
@@ -199,7 +200,7 @@ export function createSetupJobs(deps: WorkerDeps, opts: SetupJobOptions) {
     queue: { expireInSeconds: 3600 },
     handler: async () => {
       if (opts.envName === 'demo' || opts.envName === 'test') {
-        console.log(`[setup-reminders] skipped in ${opts.envName}`);
+        workerLog.info(`[setup-reminders] skipped in ${opts.envName}`);
         return { skipped: opts.envName };
       }
       if (!deps.deliveryConfigured()) return { skipped: 'delivery not configured' };

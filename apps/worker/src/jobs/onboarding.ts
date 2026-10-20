@@ -3,6 +3,7 @@ import { and, eq, isNull, lt, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
+import { workerLog } from '../log';
 
 export interface OnboardingJobOptions {
   /** The live environment (`resolveActiveEnvName`); DEMO and TEST send no onboarding tips. */
@@ -54,7 +55,7 @@ export function createOnboardingJobs(deps: WorkerDeps, opts: OnboardingJobOption
     queue: { expireInSeconds: 3600 },
     handler: async () => {
       if (opts.envName === 'demo' || opts.envName === 'test') {
-        console.log(`[onboarding-nudges] skipped in ${opts.envName}`);
+        workerLog.info(`[onboarding-nudges] skipped in ${opts.envName}`);
         return { skipped: opts.envName };
       }
       const db = deps.serviceDb();
@@ -98,7 +99,7 @@ export function createOnboardingJobs(deps: WorkerDeps, opts: OnboardingJobOption
           } catch (err) {
             // One agency's failure must not stop the others; log the id and error name only.
             failed++;
-            console.error(`[onboarding-nudges] tip failed for agency ${row.agencyId}: ${err instanceof Error ? err.name : 'unknown'}`);
+            workerLog.error(`[onboarding-nudges] tip failed for agency ${row.agencyId}: ${err instanceof Error ? err.name : 'unknown'}`);
           }
         }
       } finally {
@@ -111,7 +112,7 @@ export function createOnboardingJobs(deps: WorkerDeps, opts: OnboardingJobOption
         cleaned = gone.length;
       }
       const out = { sent, failed, cleaned };
-      console.log(`[onboarding-nudges] ${JSON.stringify(out)}`);
+      workerLog.info(`[onboarding-nudges] ${JSON.stringify(out)}`);
       return out;
     },
   });

@@ -1,0 +1,18 @@
+{
+  "app/(app)/actions.ts": 1,
+  "app/(app)/c/[clientId]/ask/actions.ts": 1,
+  "app/(app)/c/[clientId]/rankings/actions.ts": 1,
+  "app/(platform)/platform/billing/actions.ts": 1,
+  "app/api/stripe/connect-webhook/route.ts": 2,
+  "app/api/stripe/webhook/route.ts": 2,
+  "app/sign-up/actions.ts": 1,
+  "app/start/actions.ts": 3,
+  "app/support/exit/route.ts": 2,
+  "server/ask.ts": 1,
+  "server/auth-options.ts": 2,
+  "server/queue.ts": 1,
+  "server/runbook-tailor.ts": 1,
+  "server/support-email.ts": 3,
+  "server/turnstile.ts": 1,
+  "server/vertical-draft.ts": 1
+}

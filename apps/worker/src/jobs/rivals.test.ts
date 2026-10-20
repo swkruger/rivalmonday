@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
 import { createRivalJobs, RIVAL_MONTHLY_SPACING_SECONDS } from './rivals';
 import { createVendorJobs, SINGLE_SHOT_QUEUE } from './vendor';
+import { workerLog } from '../log';
 
 const RUN = '00000000-0000-4000-8000-0000000000a1';
 const NOW = new Date('2026-10-19T09:00:00Z');
@@ -13,7 +14,7 @@ function setup(
   startScheduledSearch = vi.fn(async (_clientId: string): Promise<Started> => ({ runId: RUN })),
   enqueueMonthlyClient = vi.fn(async (_clientId: string, _o: { startAfter: number; singletonKey: string }) => {}),
 ) {
-  vi.spyOn(console, 'log').mockImplementation(() => {});
+  vi.spyOn(workerLog, 'info').mockImplementation(() => {});
   const deps = {
     vendorsConfigured: () => true,
     runRivalSearch: vi.fn(async () => ({ status: 'finalising' as const })),
@@ -47,7 +48,7 @@ describe('rival jobs', () => {
 
   it('rival-search fails the run without vendor calls when vendors are not configured', async () => {
     const { deps, jobs } = setup({ vendorsConfigured: () => false });
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(workerLog, 'info').mockImplementation(() => {});
     await jobs.search.handler({ runId: RUN });
     expect(deps.runRivalSearch).not.toHaveBeenCalled();
     expect(deps.failRivalRun).toHaveBeenCalledWith(RUN, 'vendors_unconfigured');
@@ -81,7 +82,7 @@ describe('rival jobs', () => {
       return 2;
     });
     const { deps, jobs } = setup({ computeTrackedSignals } as Partial<WorkerDeps>);
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(workerLog, 'error').mockImplementation(() => {});
     expect(jobs.signalsWeekly.cron).toBe('0 9 * * 1');
     await jobs.signalsWeekly.handler({});
     expect(deps.listSignalClients).toHaveBeenCalled();
@@ -116,7 +117,7 @@ describe('rival-monthly (first Monday of the month)', () => {
       if (clientId === 'm2') throw new Error('queue down');
     });
     const { deps, jobs, startScheduledSearch } = setup({}, FIRST_MONDAY, undefined, enqueueMonthlyClient);
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(workerLog, 'error').mockImplementation(() => {});
     await jobs.monthly.handler({});
     expect(deps.listMonthlyRivalClients).toHaveBeenCalledTimes(1);
     expect(RIVAL_MONTHLY_SPACING_SECONDS).toBe(2700);

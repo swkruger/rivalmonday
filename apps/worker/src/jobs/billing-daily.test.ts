@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
 import { createBillingJobs } from './billing-daily';
+import { workerLog } from '../log';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -14,8 +15,8 @@ const deps = { serviceDb: () => dbs.service } as unknown as WorkerDeps;
 beforeEach(async () => {
   await truncateAll(dbs.owner);
   await seedTenancy(dbs.owner);
-  vi.spyOn(console, 'log').mockImplementation(() => {});
-  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.spyOn(workerLog, 'info').mockImplementation(() => {});
+  vi.spyOn(workerLog, 'warn').mockImplementation(() => {});
 });
 
 describe('billing-daily', () => {
@@ -33,7 +34,7 @@ describe('billing-daily', () => {
   });
 
   it('billing not configured (no key in dev, R27): runs timers without a gateway and says so', async () => {
-    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const log = vi.spyOn(workerLog, 'info').mockImplementation(() => {});
     await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'trialing', trialEndsAt: new Date('2020-01-01T00:00:00Z'), stripeSubscriptionId: null, seatSyncPending: true });
     const { daily } = createBillingJobs(deps, { envName: 'dev', env: {}, now: () => new Date('2026-10-14T02:30:00Z') });
     expect(await daily.handler({})).toEqual({ transitions: 1, reminders: 0, seatRetries: 0, drift: 0 });

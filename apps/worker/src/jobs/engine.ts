@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
+import { workerLog } from '../log';
 
 export const ENGINE_SWEEP_LIMIT = 100;
 
@@ -32,7 +33,7 @@ export function createEngineJobs(
       if (!deps.engineConfigured()) {
         if (!warnedUnconfigured) {
           warnedUnconfigured = true;
-          console.log('[engine-sweep] OPENROUTER_API_KEY not set; skipping');
+          workerLog.info('[engine-sweep] OPENROUTER_API_KEY not set; skipping');
         }
         return;
       }
@@ -44,7 +45,7 @@ export function createEngineJobs(
       for (const id of w.reviews) await queue.enqueueReview(id);
       for (const id of w.prices) await queue.enqueuePrice(id);
       if (w.diff.length + w.rankDiff.length + w.tag.length + w.score.length + w.reviews.length + w.prices.length > 0)
-        console.log(
+        workerLog.info(
           `[engine-sweep] enqueued diff ${w.diff.length}, rank ${w.rankDiff.length}, tag ${w.tag.length}, score ${w.score.length}, review ${w.reviews.length}, price ${w.prices.length}`,
         );
     },
@@ -54,7 +55,7 @@ export function createEngineJobs(
     handler: async ({ captureId }) => {
       const r = await deps.diffCapture(captureId);
       for (const id of r.changeIds) await queue.enqueueTag(id);
-      if (r.ran) console.log(`[engine-diff] ${captureId} → ${r.changeIds.length} change(s)`);
+      if (r.ran) workerLog.info(`[engine-diff] ${captureId} → ${r.changeIds.length} change(s)`);
     },
   });
   const tag = defineJob({
@@ -67,7 +68,7 @@ export function createEngineJobs(
   const score = defineJob({
     name: 'engine-score', schema: z.object({ eventId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
     handler: async ({ eventId }) => {
-      console.log(`[engine-score] ${eventId} → ${JSON.stringify(await deps.scoreEvent(eventId))}`);
+      workerLog.info(`[engine-score] ${eventId} → ${JSON.stringify(await deps.scoreEvent(eventId))}`);
     },
   });
   const rankDiff = defineJob({
@@ -75,7 +76,7 @@ export function createEngineJobs(
     handler: async ({ scanId }) => {
       const r = await deps.diffRankScan(scanId);
       for (const id of r.changeIds) await queue.enqueueTag(id);
-      if (r.ran) console.log(`[engine-rank-diff] ${scanId} → ${r.changeIds.length} change(s)`);
+      if (r.ran) workerLog.info(`[engine-rank-diff] ${scanId} → ${r.changeIds.length} change(s)`);
     },
   });
   const review = defineJob({
@@ -88,7 +89,7 @@ export function createEngineJobs(
     name: 'engine-price', schema: z.object({ captureId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
     handler: async ({ captureId }) => {
       const r = await deps.extractPrices(captureId);
-      if (r.ran && r.points + r.ended > 0) console.log(`[engine-price] ${captureId} → ${r.points} new, ${r.ended} ended`);
+      if (r.ran && r.points + r.ended > 0) workerLog.info(`[engine-price] ${captureId} → ${r.points} new, ${r.ended} ended`);
     },
   });
   return { sweep, diff, rankDiff, tag, score, review, price };

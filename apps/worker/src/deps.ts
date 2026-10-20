@@ -28,6 +28,7 @@ import { runLeadPreview } from './jobs/leads';
 import { runRunbookTailor } from './jobs/runbooks';
 import { failPendingSuggestions, runSetupReminders, runSetupSuggestions } from './jobs/setup';
 import { createPdfRenderer } from './pdf';
+import { workerLog } from './log';
 
 /** Phase 10 (R5): the sign-up lifecycle emails on the `billing_notice` outbox (Rival Monday-branded). */
 export type OnboardingEmail =
@@ -373,7 +374,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       if (reviewsSkip) {
         if (!warnedNoSalt) {
           warnedNoSalt = true;
-          console.log(`[vendor-schedule] not posting reviews: ${reviewsSkip}`);
+          workerLog.info(`[vendor-schedule] not posting reviews: ${reviewsSkip}`);
         }
         for (const id of reviewIds) await markSourceResult(getDb(), id, 'reviews', 'skipped_no_salt');
       } else if (reviewIds.length > 0) {
@@ -410,7 +411,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
       if (skipReason) {
         if (!warnedNoSalt) {
           warnedNoSalt = true;
-          console.log(`[vendor-poll] skipping reviews: ${skipReason}`);
+          workerLog.info(`[vendor-poll] skipping reviews: ${skipReason}`);
         }
         reviews = { skipped: skipReason };
       } else {
@@ -425,7 +426,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
           db: getDb(), store: getStore(), dfs: getDfs(),
           onSkipped: async (s) => {
             if (!delivery) {
-              console.warn(`[rank-scan] ${clientId} skipped by the monthly cost cap; no agency notice sent (APP_URL / LINK_SIGNING_SECRET not set)`);
+              workerLog.warn(`[rank-scan] ${clientId} skipped by the monthly cost cap; no agency notice sent (APP_URL / LINK_SIGNING_SECRET not set)`);
               return;
             }
             await notifyRankScanSkipped({ db: getDb(), delivery }, s);

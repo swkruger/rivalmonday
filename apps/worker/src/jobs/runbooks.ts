@@ -5,6 +5,7 @@ import type { PackLoader, VerticalPack } from '@cs/verticals';
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
+import { workerLog } from '../log';
 
 export interface RunbookJobOptions {
   /** The live environment (`resolveActiveEnvName`); DEMO and TEST make no paid calls. */
@@ -34,7 +35,7 @@ export function createRunbookJobs(deps: WorkerDeps, opts: RunbookJobOptions) {
     queue: { policy: 'short', retryLimit: 1 },
     handler: async ({ clientId }) => {
       if (opts.envName === 'demo' || opts.envName === 'test') {
-        console.log(`[runbook-tailor] skipped in ${opts.envName}`);
+        workerLog.info(`[runbook-tailor] skipped in ${opts.envName}`);
         await deps.skipRunbookTailor(clientId);
         return { skipped: opts.envName };
       }

@@ -3,6 +3,7 @@ import { IDS, openTestDbs, seedTenancy, testUrls, truncateAll } from '@cs/db/tes
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWorkerDeps } from './deps';
+import { workerLog } from './log';
 
 // Exercises WorkerDeps.postBatchTasks end to end against the real test DB, with the network
 // boundary (global fetch, which DataForSeoClient calls through) stubbed so no real DataForSEO
@@ -78,7 +79,7 @@ describe('WorkerDeps.postBatchTasks', () => {
       throw new Error(`unexpected fetch ${url}`);
     });
     vi.stubGlobal('fetch', fetchMock);
-    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const log = vi.spyOn(workerLog, 'info').mockImplementation(() => {});
     const deps = createWorkerDeps({ ...BASE_ENV, REVIEWER_HASH_SALT: 'short' } as NodeJS.ProcessEnv);
     try {
       const r = await deps.postBatchTasks([

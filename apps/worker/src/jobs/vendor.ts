@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
+import { workerLog } from '../log';
 
 const BATCH = new Set(['reviews', 'jobs']);
 
@@ -31,12 +32,12 @@ export function createVendorJobs(
       if (!deps.vendorsConfigured()) {
         if (!warnedScheduleUnconfigured) {
           warnedScheduleUnconfigured = true;
-          console.log('[vendor-schedule] DATAFORSEO_LOGIN/DATAFORSEO_PASSWORD not set; skipping vendor source claiming');
+          workerLog.info('[vendor-schedule] DATAFORSEO_LOGIN/DATAFORSEO_PASSWORD not set; skipping vendor source claiming');
         }
         return;
       }
       const linked = await deps.ensureSelfCompetitors();
-      if (linked > 0) console.log(`[vendor-schedule] linked ${linked} client(s) to their own business for review benchmarking`);
+      if (linked > 0) workerLog.info(`[vendor-schedule] linked ${linked} client(s) to their own business for review benchmarking`);
       const due = await deps.claimDueSources(500);
       const batch = due.filter((d) => BATCH.has(d.source)) as { competitorId: string; source: 'reviews' | 'jobs' }[];
       // Enqueue the synchronous collects first: if the batch task_post below throws, those
@@ -49,11 +50,11 @@ export function createVendorJobs(
           // independently, so one failing never touches the other). Nothing here needs releasing:
           // anything already marked this tick, by definition, must not be reset.
           const { failed } = await deps.postBatchTasks(batch);
-          if (failed > 0) console.warn(`[vendor-schedule] ${failed} of ${batch.length} source(s) failed to post and were released for retry`);
+          if (failed > 0) workerLog.warn(`[vendor-schedule] ${failed} of ${batch.length} source(s) failed to post and were released for retry`);
         } catch (err) {
           // Unexpected (non-VendorError) failure inside postBatchTasks itself, e.g. a DB error —
           // some sources in the batch may already be correctly marked; just log it.
-          console.error(`[vendor-schedule] postBatchTasks failed unexpectedly for ${batch.length} source(s)`, err);
+          workerLog.error({ err }, `[vendor-schedule] postBatchTasks failed unexpectedly for ${batch.length} source(s)`);
         }
       }
     },
@@ -62,7 +63,7 @@ export function createVendorJobs(
     name: 'vendor-collect',
     schema: z.object({ competitorId: z.uuid(), source: z.enum(['gbp', 'ads_google', 'ads_meta']) }),
     handler: async ({ competitorId, source }) => {
-      console.log(`[vendor-collect] ${competitorId} ${source} → ${JSON.stringify(await deps.runSource(competitorId, source))}`);
+      workerLog.info(`[vendor-collect] ${competitorId} ${source} → ${JSON.stringify(await deps.runSource(competitorId, source))}`);
     },
   });
   const poll = defineJob({
@@ -71,13 +72,13 @@ export function createVendorJobs(
       if (!deps.vendorsConfigured()) {
         if (!warnedPollUnconfigured) {
           warnedPollUnconfigured = true;
-          console.log('[vendor-poll] DATAFORSEO_LOGIN/DATAFORSEO_PASSWORD not set; skipping');
+          workerLog.info('[vendor-poll] DATAFORSEO_LOGIN/DATAFORSEO_PASSWORD not set; skipping');
         }
         return;
       }
       const r = await deps.pollVendorTasks({ onSuggestionReviews: queue.enqueueRivalFinalise });
       const reviewsCollected = 'collected' in r.reviews ? r.reviews.collected : 0;
-      if (reviewsCollected + r.jobs.collected > 0) console.log(`[vendor-poll] ${JSON.stringify(r)}`);
+      if (reviewsCollected + r.jobs.collected > 0) workerLog.info(`[vendor-poll] ${JSON.stringify(r)}`);
     },
   });
   const rankSchedule = defineJob({
@@ -86,12 +87,12 @@ export function createVendorJobs(
       if (!deps.vendorsConfigured()) {
         if (!warnedRankUnconfigured) {
           warnedRankUnconfigured = true;
-          console.log('[rank-schedule] DATAFORSEO_LOGIN/DATAFORSEO_PASSWORD not set; skipping');
+          workerLog.info('[rank-schedule] DATAFORSEO_LOGIN/DATAFORSEO_PASSWORD not set; skipping');
         }
         return;
       }
       const stale = await deps.failStaleRankScans();
-      if (stale > 0) console.warn(`[rank-schedule] failed ${stale} stale running rank scan(s)`);
+      if (stale > 0) workerLog.warn(`[rank-schedule] failed ${stale} stale running rank scan(s)`);
       const ids = await deps.listRankClients();
       for (const id of ids) await queue.enqueueRankScan(id);
       for (const id of await deps.clientsNeedingRankMap(ids)) await queue.enqueueRankMap(id);
@@ -103,7 +104,7 @@ export function createVendorJobs(
     }),
     queue: SINGLE_SHOT_QUEUE,
     handler: async ({ clientId, trigger, scanId, requestedBy }) => {
-      console.log(`[rank-scan] ${clientId} → ${JSON.stringify(await deps.scanRankings(clientId, { trigger, scanId, requestedBy }))}`);
+      workerLog.info(`[rank-scan] ${clientId} → ${JSON.stringify(await deps.scanRankings(clientId, { trigger, scanId, requestedBy }))}`);
     },
   });
   return { schedule, collect, poll, rankSchedule, rankScan };

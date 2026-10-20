@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
 import { createMovesJobs } from './moves';
+import { workerLog } from '../log';
 
 const U = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
@@ -53,7 +54,7 @@ describe('moves jobs', () => {
       }),
     } as unknown as WorkerDeps;
     const jobs = createMovesJobs(deps, { enqueueMovesClient: vi.fn() });
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warn = vi.spyOn(workerLog, 'warn').mockImplementation(() => {});
     await expect(jobs.client.handler({ clientId: U(3) })).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('boom'));
     warn.mockRestore();

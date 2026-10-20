@@ -5,6 +5,7 @@ import { and, asc, eq, isNull, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { OnboardingEmail, WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
+import { workerLog } from '../log';
 
 export const BILLING_NOTICE_MAX_ATTEMPTS = 5;
 const BATCH = 100;
@@ -60,7 +61,7 @@ async function deliver(recipients: Recipient[], what: string, send: (to: string)
       ok++;
     } catch (err) {
       lastErr = err instanceof Error ? `${err.name}: ${err.message}` : 'unknown';
-      console.warn(`[billing-notices] send failed for ${what} user ${r.id}`);
+      workerLog.warn(`[billing-notices] send failed for ${what} user ${r.id}`);
     }
   }
   if (recipients.length > 0 && ok === 0) throw new SendFailed(lastErr);
@@ -86,7 +87,7 @@ export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJob
     queue: { expireInSeconds: 600 },
     handler: async () => {
       if (opts.envName === 'demo' || opts.envName === 'test') {
-        console.log(`[billing-notices] skipped in ${opts.envName}`);
+        workerLog.info(`[billing-notices] skipped in ${opts.envName}`);
         return { skipped: opts.envName };
       }
       const db = deps.serviceDb();
@@ -152,7 +153,7 @@ export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJob
               const onboardingUrl = `${mail.appUrl}/onboarding/start`;
               if (row.kind === 'agency_welcome') {
                 const admins = await adminsOf();
-                if (admins.length === 0) console.warn(`[billing-notices] no agency admins for agency ${row.agencyId}`);
+                if (admins.length === 0) workerLog.warn(`[billing-notices] no agency admins for agency ${row.agencyId}`);
                 const agencyName = str(params.agencyName) ?? ag?.name ?? '';
                 await deliver(admins, `admin (agency ${row.agencyId})`, (to) =>
                   mail.sendOnboarding(to, row.agencyId, { template: 'agency_welcome', props: { agencyName, url: onboardingUrl } }),
@@ -178,7 +179,7 @@ export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJob
                 else if (typeof day !== 'number' || !TIP_DAYS.has(day) || typeof nextStep !== 'string' || !TIP_STEPS.has(nextStep)) skipReason = 'skipped: bad params';
                 else {
                   const admins = await adminsOf();
-                  if (admins.length === 0) console.warn(`[billing-notices] no agency admins for agency ${row.agencyId}`);
+                  if (admins.length === 0) workerLog.warn(`[billing-notices] no agency admins for agency ${row.agencyId}`);
                   const props: TipProps = { agencyName: ag?.name ?? '', day: day as TipProps['day'], nextStep: nextStep as TipProps['nextStep'], url: onboardingUrl };
                   await deliver(admins, `admin (agency ${row.agencyId})`, (to) => mail.sendOnboarding(to, row.agencyId, { template: 'onboarding_tip', props }));
                 }
@@ -190,7 +191,7 @@ export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJob
                 skipReason = 'skipped: unknown client';
               } else {
                 const admins = await adminsOf();
-                if (admins.length === 0) console.warn(`[billing-notices] no agency admins for agency ${row.agencyId}`);
+                if (admins.length === 0) workerLog.warn(`[billing-notices] no agency admins for agency ${row.agencyId}`);
                 const n = typeof params.n === 'number' ? params.n : undefined;
                 const props = { kind: row.kind as 'client-payment-failed' | 'client-paid' | 'client-auto-paused', clientName, ...(n !== undefined && { n }), billingUrl: `${mail.appUrl}/agency/settings/billing` };
                 await deliver(admins, `admin (agency ${row.agencyId})`, (to) => mail.sendAgencyClient(to, row.agencyId, props));
@@ -201,7 +202,7 @@ export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJob
                 skipReason = 'skipped';
               } else {
                 const admins = await adminsOf();
-                if (admins.length === 0) console.warn(`[billing-notices] no agency admins for agency ${row.agencyId}`);
+                if (admins.length === 0) workerLog.warn(`[billing-notices] no agency admins for agency ${row.agencyId}`);
                 const props = { kind: email.kind, agencyName: ag?.name ?? '', ...(email.date && { date: email.date }), billingUrl: `${mail.appUrl}/agency/settings/billing` };
                 await deliver(admins, `admin (agency ${row.agencyId})`, (to) => mail.send(to, row.agencyId, props));
               }
@@ -227,7 +228,7 @@ export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJob
             .where(eq(billingNotice.id, id));
         }
       }
-      console.log(`[billing-notices] ${JSON.stringify(out)}`);
+      workerLog.info(`[billing-notices] ${JSON.stringify(out)}`);
       return { ...out };
     },
   });

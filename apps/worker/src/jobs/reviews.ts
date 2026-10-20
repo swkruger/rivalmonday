@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
+import { workerLog } from '../log';
 
 /** Spec §6.4/§6.5: complaint-theme spikes and theme discovery, nightly before moves (04:30) so new complaint events can feed reputation slump. */
 export function createReviewJobs(deps: WorkerDeps) {
@@ -13,11 +14,11 @@ export function createReviewJobs(deps: WorkerDeps) {
       if (!deps.engineConfigured()) {
         if (!warned) {
           warned = true;
-          console.log('[reviews-nightly] OPENROUTER_API_KEY not set; skipping');
+          workerLog.info('[reviews-nightly] OPENROUTER_API_KEY not set; skipping');
         }
         return;
       }
-      console.log(`[reviews-nightly] ${JSON.stringify(await deps.runReviewInsights())}`);
+      workerLog.info(`[reviews-nightly] ${JSON.stringify(await deps.runReviewInsights())}`);
     },
   });
   return { nightly };

@@ -2,6 +2,7 @@ import { snapshotPlatformCosts } from '@cs/tools';
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
+import { workerLog } from '../log';
 
 /**
  * Phase 8c: daily platform hosting-cost snapshot (06:00 UTC) plus low-balance emails to platform owners. `short` policy keeps
@@ -16,7 +17,7 @@ export function createPlatformCostsJobs(deps: WorkerDeps) {
     queue: { policy: 'short', expireInSeconds: 600, retryLimit: 1 },
     handler: async () => {
       const { statuses } = await snapshotPlatformCosts(deps.platformCosts());
-      console.log(`[platform-costs-snapshot] ${JSON.stringify(statuses)}`);
+      workerLog.info(`[platform-costs-snapshot] ${JSON.stringify(statuses)}`);
       return { statuses };
     },
   });

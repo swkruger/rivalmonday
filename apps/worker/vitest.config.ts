@@ -9,6 +9,7 @@ try {
 
 export default defineConfig({
   test: {
+    env: { LOG_LEVEL: 'silent' },
     fileParallelism: false,
     testTimeout: 30_000,
     hookTimeout: 60_000,

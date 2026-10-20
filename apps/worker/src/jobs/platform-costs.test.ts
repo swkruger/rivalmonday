@@ -3,6 +3,7 @@ import { openTestDbs, seedPlatformCostServices, truncateAll } from '@cs/db/test-
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
 import { createPlatformCostsJobs } from './platform-costs';
+import { workerLog } from '../log';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -24,7 +25,7 @@ describe('platform-costs-snapshot', () => {
     const deps = {
       platformCosts: () => ({ service: dbs.service, env: { OPENROUTER_API_KEY: 'k' }, fetchImpl, platformAdmins: [], appUrl: 'https://app.example', sendLowEmail: async () => {} }),
     } as unknown as WorkerDeps;
-    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const log = vi.spyOn(workerLog, 'info').mockImplementation(() => {});
     const out = await createPlatformCostsJobs(deps).snapshot.handler({});
     log.mockRestore();
     expect(out).toEqual({

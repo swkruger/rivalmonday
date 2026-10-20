@@ -1,9 +1,11 @@
 import PgBoss from 'pg-boss';
 import type { JobDefinition } from './jobs';
+import { workerLog } from './log';
+import { runJob } from './sentry';
 
 export function createBoss(url: string): PgBoss {
   const boss = new PgBoss(url);
-  boss.on('error', (err) => console.error('[pg-boss]', err));
+  boss.on('error', (err) => workerLog.error({ err }, 'pg-boss error'));
   return boss;
 }
 
@@ -21,7 +23,7 @@ export async function registerJobs(
     await boss.work(job.name, { pollingIntervalSeconds: opts.pollingIntervalSeconds ?? 2 }, async (batch) => {
       let result: void | Record<string, unknown> = undefined;
       for (const item of batch) {
-        result = await job.handler(job.schema.parse(item.data));
+        result = await runJob(job, item.id, job.schema.parse(item.data), job.handler, workerLog);
       }
       return result ?? undefined;
     });

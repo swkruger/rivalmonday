@@ -5,6 +5,7 @@ import { eq, isNull, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
 import { createKbJobs } from './kb';
+import { workerLog } from '../log';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -295,7 +296,7 @@ describe('kb-sync', () => {
         return Reflect.get(target, prop, recv);
       },
     });
-    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const err = vi.spyOn(workerLog, 'error').mockImplementation(() => {});
     await createKbJobs({ ...deps, serviceDb: () => flaky } as unknown as WorkerDeps, { enqueueEmbed }).sync.handler({});
     const changedRows = [await get(first.id), await get(second.id)].filter((r) => r.bodyMd !== OLD);
     expect(changedRows).toHaveLength(1);

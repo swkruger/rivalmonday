@@ -10,6 +10,8 @@ try {
 import { startCompetitorSearch } from '@cs/tools';
 import { createBoss, enqueue, registerJobs } from './boss';
 import { createWorkerDeps } from './deps';
+import { missingProdEnv } from './env';
+import { healthState, startHealthServer } from './health';
 import { createAskJobs } from './jobs/ask';
 import { createRankMapJobs } from './jobs/rank-map';
 import { createKbJobs } from './jobs/kb';
@@ -32,15 +34,27 @@ import { createReviewJobs } from './jobs/reviews';
 import { createRivalJobs } from './jobs/rivals';
 import { createVendorJobs } from './jobs/vendor';
 import { createWebJobs } from './jobs/web';
+import { workerLog } from './log';
+import { initWorkerSentry } from './sentry';
 
-const url = process.env.DATABASE_URL;
-if (!url) {
-  console.error('DATABASE_URL is required');
+initWorkerSentry(process.env);
+const missing = missingProdEnv(process.env);
+if (missing.length > 0) {
+  process.stderr.write(`[worker] missing required env: ${missing.join(', ')}\n`);
   process.exit(1);
 }
 
+const url = process.env.DATABASE_URL;
+if (!url) {
+  process.stderr.write('[worker] DATABASE_URL is required\n');
+  process.exit(1);
+}
+
+// Railway's health check. 503 until boss.start() below; boss.start() counts as the first heartbeat (plan D3).
+const healthServer = startHealthServer(Number(process.env.PORT) || 8080);
 const boss = createBoss(url);
 await boss.start();
+healthState.startedAt = new Date();
 
 const deps = createWorkerDeps(process.env);
 const liveEnvName = resolveActiveEnvName(process.env, fileURLToPath(new URL('../../../', import.meta.url)));
@@ -161,7 +175,7 @@ await registerJobs(boss, [
   modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, onboarding.nudges, setup.suggestions, setup.reminders, runbooks.tailor, leads.preview, leads.cleanup, platformCosts.snapshot, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
   delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,
 ]);
-console.log('[worker] started');
+workerLog.info('worker started');
 warnIfDeliveryUnconfigured(deps);
 
 // pg-boss 10's stop({ graceful: true, wait: true }) resolves only after in-flight handlers drain
@@ -172,6 +186,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, async () => {
     if (shuttingDown) return;
     shuttingDown = true;
+    healthServer.close();
     await boss.stop({ graceful: true, timeout: 30_000, wait: true });
     await deps.close();
     process.exit(0);

@@ -7,6 +7,7 @@ import { eq, like } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
 import { createSetupJobs, runSetupReminders, runSetupSuggestions } from './setup';
+import { workerLog } from '../log';
 
 const review = vi.hoisted(() => ({ failFor: null as string | null }));
 vi.mock('@cs/tools', async (orig) => {
@@ -73,8 +74,8 @@ const stored = async () => (await dbs.owner.select().from(clientSetup).where(eq(
 beforeEach(async () => {
   await truncateAll(dbs.owner);
   await seedTenancy(dbs.owner);
-  vi.spyOn(console, 'log').mockImplementation(() => {});
-  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(workerLog, 'info').mockImplementation(() => {});
+  vi.spyOn(workerLog, 'error').mockImplementation(() => {});
 });
 
 describe('runSetupSuggestions', () => {
@@ -352,7 +353,7 @@ describe('runSetupReminders (Task 9)', () => {
       await withDoneRun(1);
       await invite();
       review.failFor = ID;
-      vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.spyOn(workerLog, 'error').mockImplementation(() => {});
       expect((await run()).queued).toBe(6); // suggestions_ready + client_changed, 3 rows each; no review
       expect(await reviews()).toHaveLength(0);
       expect(await rows('setup_client_changed')).toHaveLength(1);

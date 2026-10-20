@@ -7,6 +7,7 @@ import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
+import { workerLog } from '../log';
 
 const BATCH = 64;
 const SWEEP_CAP = 500;
@@ -60,7 +61,7 @@ export function createKbJobs(deps: WorkerDeps, opts: { enqueueEmbed?: (articleId
       if (!markdown.trim()) return { ok: false, error: 'no_content' };
       return { ok: true, title: page.title, finalUrl: page.finalUrl, markdown };
     } catch (err) {
-      console.error('[kb-fetch]', err instanceof Error ? err.message : err);
+      workerLog.error({ error: err instanceof Error ? err.message : String(err) }, '[kb-fetch]');
       return { ok: false, error: 'fetch_failed' };
     } finally {
       await page?.close().catch(() => {});
@@ -90,7 +91,7 @@ export function createKbJobs(deps: WorkerDeps, opts: { enqueueEmbed?: (articleId
           if (v) await db.update(kbChunk).set({ embedding: v }).where(and(eq(kbChunk.id, c.id), isNull(kbChunk.embedding)));
         }
       }
-      console.log(`[kb-embed] ${articleId ?? 'sweep'} → ${pending.length} chunks`);
+      workerLog.info(`[kb-embed] ${articleId ?? 'sweep'} → ${pending.length} chunks`);
     },
   });
 
@@ -119,7 +120,7 @@ export function createKbJobs(deps: WorkerDeps, opts: { enqueueEmbed?: (articleId
         { level: d.level, agencyId: d.agencyId, clientId: d.clientId, kind: d.kind, title, bodyMd: r.markdown, status: 'draft' },
         { source: 'url', sourceUrl: r.finalUrl, autoSync: d.autoSync },
       );
-      console.log(`[kb-import] ${d.url} → ${saved.id}`);
+      workerLog.info(`[kb-import] ${d.url} → ${saved.id}`);
       return { articleId: saved.id };
     },
   });
@@ -165,14 +166,14 @@ export function createKbJobs(deps: WorkerDeps, opts: { enqueueEmbed?: (articleId
           try {
             await opts.enqueueEmbed?.(row.id);
           } catch (e) {
-            console.error('[kb-sync] enqueue kb-embed failed', e instanceof Error ? e.message : e); // the hourly sweep embeds it anyway
+            workerLog.error({ error: e instanceof Error ? e.message : String(e) }, '[kb-sync] enqueue kb-embed failed'); // the hourly sweep embeds it anyway
           }
         } catch (e) {
           // One bad row (DB error) must not abort the rest; log the id only, never body text.
-          console.error(`[kb-sync] article ${row.id} failed`, e instanceof Error ? e.name : 'error');
+          workerLog.error(`[kb-sync] article ${row.id} failed`, e instanceof Error ? e.name : 'error');
         }
       }
-      console.log(`[kb-sync] ${rows.length} articles, ${changed} changed`);
+      workerLog.info(`[kb-sync] ${rows.length} articles, ${changed} changed`);
     },
   });
 

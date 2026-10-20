@@ -4,6 +4,7 @@ import { asc, eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
 import { createPlatformStatsJobs } from './platform-stats';
+import { workerLog } from '../log';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -32,7 +33,7 @@ describe('platform-daily-stats', () => {
     vi.setSystemTime(new Date('2026-10-13T02:00:00Z'));
     try {
       await dbs.owner.update(agency).set({ createdAt: new Date('2026-10-09T08:00:00Z') });
-      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const log = vi.spyOn(workerLog, 'info').mockImplementation(() => {});
       const { daily } = createPlatformStatsJobs(deps);
       expect(await daily.handler({})).toEqual({ agencies: 2, days: 4 });
       expect(await days()).toEqual(['2026-10-09', '2026-10-10', '2026-10-11', '2026-10-12']);
@@ -48,7 +49,7 @@ describe('platform-daily-stats', () => {
   it('{ day } recomputes one day', async () => {
     await dbs.owner.update(agency).set({ createdAt: new Date('2026-01-01T00:00:00Z') });
     const { daily } = createPlatformStatsJobs(deps);
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(workerLog, 'info').mockImplementation(() => {});
     expect(await daily.handler({ day: '2026-03-04' })).toEqual({ agencies: 2, days: 1 });
     expect(await days()).toEqual(['2026-03-04']);
   });

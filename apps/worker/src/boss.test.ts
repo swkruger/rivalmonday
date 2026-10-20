@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createBoss, enqueue, registerJobs } from './boss';
 import { defineJob } from './jobs';
+import { workerLog } from './log';
 
 const url = process.env.TEST_DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/cs_test';
 const boss = createBoss(url);
@@ -28,11 +29,13 @@ const singleShotJob = defineJob({
 
 const outputJob = defineJob({ name: 'test-output', schema: z.object({}), handler: async () => ({ articleId: 'a1' }), queue: { retryLimit: 0, policy: 'short' } });
 
+const failJob = defineJob({ name: 'test-fail', schema: z.object({}), handler: async () => { throw new Error('nope'); }, queue: { retryLimit: 0 } });
+
 const shortJob = defineJob({ name: 'test-short', schema: z.object({ id: z.string() }), handler: async () => {}, queue: { retryLimit: 0, policy: 'short' } });
 
 beforeAll(async () => {
   await boss.start();
-  await registerJobs(boss, [echoJob, singleShotJob, shortJob, outputJob], { pollingIntervalSeconds: 0.5 });
+  await registerJobs(boss, [echoJob, singleShotJob, shortJob, outputJob, failJob], { pollingIntervalSeconds: 0.5 });
 });
 afterAll(async () => {
   await boss.stop({ graceful: false });
@@ -73,6 +76,21 @@ describe('job output (Phase 6c)', () => {
       if (Date.now() > deadline) throw new Error('timeout');
       await new Promise((r) => setTimeout(r, 300));
     }
+  });
+});
+
+describe('job failures (Phase 7a1)', () => {
+  it('runs handlers through runJob, so a throw still fails the pg-boss job', async () => {
+    vi.spyOn(workerLog, 'child').mockReturnValue({ ...workerLog, error: vi.fn() });
+    const id = (await boss.send(failJob.name, {})) as string;
+    const deadline = Date.now() + 15_000;
+    for (;;) {
+      const job = await boss.getJobById(failJob.name, id);
+      if (job?.state === 'failed') break;
+      if (Date.now() > deadline) throw new Error('timeout');
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    vi.restoreAllMocks();
   });
 });
 

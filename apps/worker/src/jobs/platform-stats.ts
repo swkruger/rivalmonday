@@ -2,6 +2,7 @@ import { runDailyStats } from '@cs/tools';
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
+import { workerLog } from '../log';
 
 /**
  * Phase 8a spec § Nightly job: one agency_daily_stat row per agency for yesterday (UTC), 02:00 UTC. Idempotent upsert;
@@ -17,7 +18,7 @@ export function createPlatformStatsJobs(deps: WorkerDeps) {
     queue: { expireInSeconds: 3600 },
     handler: async (data) => {
       const r = await runDailyStats(deps.serviceDb(), { day: data.day, backfill: data.backfill });
-      console.log(`[platform-daily-stats] ${JSON.stringify(r)}`);
+      workerLog.info(`[platform-daily-stats] ${JSON.stringify(r)}`);
       return r;
     },
   });
