@@ -11,7 +11,8 @@
 - Migrations run through **`0079`** (next free `0080`; 14 added 0077-0079). `cs_dev` at 0079. `cs_demo` is seeded by `pnpm demo:reset` (it lagged the schema at 2026-10-18 - re-run before demoing).
 - Tests on the local test cluster (`scripts/local-test-db.sh`, port 5444). 13b polish + Ask fixes (2026-10-19): `pnpm test:affected` 8/8 packages green; affected E2E (`@rankings`, `@ask`) **not run yet** (dev server held `.next`) - run it or let CI. At the 15a merge (2026-10-19): full unit suite 16/16 packages, 5,685 tests (35 min; `@cs/tools` re-run alone after a self-inflicted overlap deadlock); full E2E 104/104 (6.0 min).
 - Switches: `KB_IMPORT_ENABLED`, `ASK_FAKE_AI`, `BILLING_FAKE_GATEWAY`, `SETUP_FAKE_LOOKUP` (E2E only). Billing off until `STRIPE_SECRET_KEY`; Turnstile faked until its keys; `STADIA_API_KEY` set in `.env` (dev); unset = rank grids without a map; existing maps refetch once (style change) on the next Sunday `rank-schedule` or a rank-settings save. Worker env `NEON_API_KEY`, `NEON_ORG_ID` not set yet.
-- **In flight:** 13a (white-label hosts) not started; it builds on 15a (Domains → Agency settings › Security; Client customisation → Client settings tab). Phase 15b (help) and 15c (page fixes) to kick off. Phase 7 deferred (`phase-7-planning`).
+- **In flight:** `phase-15b` (help) and `phase-7` worktrees must **rebase onto Phase 14** (15b: help keys for `/platform/verticals`, `/platform/runbook`, `/agency/settings/runbook`, client Runbook tab; 7: migrations from 0080, `llm_call.vertical_id`, new catalogue/runbook tools + `runbook-tailor` job in the isolation suite). 13a (white-label hosts) not started; builds on 15a. 15c to kick off. `phase-7-planning` parked.
+- **`main` not pushed** (Phase 14 merge 035101e6 + earlier commits ahead of `origin/main`): owner runs `git push origin main`.
 - Built: [ARCHITECTURE.md](ARCHITECTURE.md). Runbook: [OPS.md](OPS.md).
 
 ## Next up
