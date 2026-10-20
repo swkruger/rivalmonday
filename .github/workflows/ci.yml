@@ -41,3 +41,72 @@ jobs:
         run: pnpm --filter @cs/web exec playwright install --with-deps chromium
       - name: Web E2E
         run: pnpm --filter @cs/web e2e
+
+  # Worker image: built from the repo root (turbo prune inside the Dockerfile), then smoke-tested offline
+  # (loads ai.yaml, launches + closes Chromium; no DB, no network). No local Docker on the dev machine — this is the proof.
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build worker image
+        run: docker build -f apps/worker/Dockerfile -t rivalmonday-worker:ci .
+      - name: Image smoke test
+        run: docker run --rm --network none rivalmonday-worker:ci pnpm --filter @cs/worker smoke:image
+
+  # Gated migrate-then-deploy (docs/DEPLOY.md). Any failed step stops every later one.
+  deploy:
+    needs: [test, image]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Pre-deploy data check (migration 0025)
+        run: pnpm --filter @cs/db predeploy-check
+        env:
+          DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+      - name: Migrate production database
+        run: pnpm --filter @cs/db migrate
+        env:
+          DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+      - name: Vercel pull
+        run: npx --yes vercel@62.4.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: Vercel build (uploads web source maps to Sentry)
+        run: npx --yes vercel@62.4.0 build --prod --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_WEB }}
+      - name: Vercel deploy
+        run: npx --yes vercel@62.4.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: Stamp worker release
+        run: echo "$GITHUB_SHA" > apps/worker/.release
+      - name: Railway deploy (worker)
+        run: npx --yes @railway/cli@5.63.1 up --ci --service rivalmonday-worker
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Sentry release (worker)
+        run: |
+          npx --yes @sentry/cli@3.8.0 releases new "$GITHUB_SHA"
+          npx --yes @sentry/cli@3.8.0 releases finalize "$GITHUB_SHA"
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_WORKER }}

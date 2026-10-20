@@ -1,0 +1,17 @@
+# Worker image build context (repo root). Keep secrets, local state and bulky dirs out.
+**/node_modules
+**/.env*
+.git
+**/.turbo
+**/.next
+**/.evidence*
+**/.outbox
+**/test-results
+**/playwright-report
+/App/
+.claude/
+.superpowers/
+docs/
+backups/
+coverage/
+dist/

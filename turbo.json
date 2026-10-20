@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "agentGuidance": false,
   "globalPassThroughEnv": [
     "TEST_DATABASE_URL",
     "TEST_APP_DATABASE_URL",
@@ -50,7 +51,18 @@
     "STRIPE_SECRET_KEY",
     "STRIPE_WEBHOOK_SECRET",
     "STRIPE_CONNECT_WEBHOOK_SECRET",
-    "STRIPE_TAX_ENABLED"
+    "STRIPE_TAX_ENABLED",
+    "SENTRY_DSN",
+    "NEXT_PUBLIC_SENTRY_DSN",
+    "SENTRY_ENVIRONMENT",
+    "SENTRY_ISSUES_URL",
+    "SENTRY_RELEASE",
+    "SENTRY_AUTH_TOKEN",
+    "SENTRY_ORG",
+    "SENTRY_PROJECT",
+    "LOG_LEVEL",
+    "PORT",
+    "PROFILE_TOOLS"
   ],
   "tasks": {
     "typecheck": { "dependsOn": ["^typecheck"] },

@@ -1,0 +1,2 @@
+# `railway up` (deploy job) skips .gitignore'd paths; this file outranks .gitignore, so whitelist the Sentry release stamp.
+!apps/worker/.release

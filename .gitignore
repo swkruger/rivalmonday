@@ -13,3 +13,4 @@ coverage/
 .outbox/
 /backups/
 /.dev-env.json
+/apps/worker/.release
