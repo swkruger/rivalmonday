@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { resolveBranding } from '@cs/email';
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { Metadata } from 'next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -37,8 +37,10 @@ vi.mock('@/server/branding', async (importOriginal) => ({
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {}, app: {} }) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.example', authSecret: 's'.repeat(40), google: null, defaultAgencyId: null }) }));
-vi.mock('@/server/tools', () => ({
-  callTool: async (_ctx: unknown, name: string) => {
+vi.mock('@/server/tools', () => {
+  const callTool = async (_ctx: unknown, name: string, input?: { query?: string }) => {
+    if (name === 'list_help_guides') return { guides: [{ helpKey: 'page:client.overview', title: 'Overview', articleId: '00000000-0000-4000-8000-0000000000b1' }] };
+    if (name === 'search_knowledge') return { results: [{ kbId: '00000000-0000-4000-8000-0000000000b1', title: 'Overview', chunks: [`Matches for ${input?.query}.`] }] };
     if (name === 'get_client_profile') return { id: C, name: 'Lone Star Cooling' };
     if (name === 'get_evidence') {
       return {
@@ -48,8 +50,9 @@ vi.mock('@/server/tools', () => ({
       };
     }
     return { items: [] };
-  },
-}));
+  };
+  return { callTool, tryCallTool: callTool };
+});
 vi.mock('@/server/client-billing-state', () => ({ clientBillingNoticeOf: async () => null }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@/server/nav', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/server/nav')>()), navCounts: async () => ({}) }));
@@ -72,6 +75,11 @@ const NoAccess = await import('@/app/no-access/page');
 const Evidence = await import('@/app/(app)/c/[clientId]/evidence/[evidenceId]/page');
 const { ConnectorUrlCard } = await import('@/components/ai-connections');
 const { AskChat } = await import('@/components/ask/ask-chat');
+const ClientHelp = await import('@/app/(app)/c/[clientId]/help/page');
+const { HelpProvider } = await import('@/components/help/help-context');
+const { HelpTip } = await import('@/components/help/help-tip');
+const { PageGuide } = await import('@/components/help/page-guide');
+const { PAGE_COPY } = await import('@/help/copy');
 
 const ctx = { agencyId: AG, userId: 'u1', role: 'client_owner', clientScope: [C], features: new Set(['dashboard', 'ask', 'mcp']) };
 const membership = { id: 'm1', agencyId: AG, agencyName: 'Acme Marketing LLC', role: 'client_owner', clientId: C, clientName: 'Lone Star Cooling', clientScope: null, contactId: null };
@@ -166,6 +174,48 @@ describe('white-label leak guard (15a §2.10)', () => {
   it('the AI connections block names the agency in the Claude Code command', () => {
     expect(grab(<ConnectorUrlCard url="https://app.example/mcp" displayName={WHITE_LABEL.displayName} />)).toContain('claude mcp add --transport http cool-comfort https://app.example/mcp');
     grab(<ConnectorUrlCard url="https://app.example/mcp" displayName={null} />);
+    expect(out.join('\n')).not.toMatch(LEAK);
+  });
+
+  it('the client Help page (guides, search results, glossary, Ask link) and its title', async () => {
+    const params = { params: Promise.resolve({ clientId: C }) };
+    const text = grab(await ClientHelp.default({ ...params, ...sp({ q: 'heatmap' }) }));
+    expect(text).toContain('Matches for heatmap.');
+    expect(text).toContain('Ask Sunny');
+    expect(text).toContain('Glossary');
+    out.push(titleOf(ClientHelp.metadata as Metadata));
+    expect(out.join('\n')).not.toMatch(LEAK);
+  });
+
+  it('the page guide sheet names the white-label assistant, never the product', async () => {
+    const guide = { id: '00000000-0000-4000-8000-0000000000b1', title: 'Overview', sections: [{ heading: 'What this page tells you', markdown: 'Your home page.' }] };
+    render(
+      <HelpProvider value={{ audience: 'client', names: { agency: WHITE_LABEL.displayName, assistant: 'Sunny' } }}>
+        <PageGuide helpKey="page:client.overview" pageTitle="Overview" load={async () => ({ guide, canAsk: true })} />
+      </HelpProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /guide/i }));
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Ask Sunny about this page' })).toBeTruthy());
+    out.push(document.body.innerHTML, document.body.textContent ?? '');
+    expect(out.join('\n')).not.toMatch(LEAK);
+  });
+
+  it('every pilot tip, opened for a client, renders with the agency and assistant names and no product name', () => {
+    const keys = (Object.keys(PAGE_COPY) as (keyof typeof PAGE_COPY)[]).flatMap((page) => Object.keys(PAGE_COPY[page].tips ?? {}).map((id) => `${page}.${id}`));
+    expect(keys.length).toBeGreaterThan(0);
+    for (const key of keys) {
+      const { unmount } = render(
+        <HelpProvider value={{ audience: 'client', names: { agency: WHITE_LABEL.displayName, assistant: 'Sunny' } }}>
+          <HelpTip tip={key as never} />
+        </HelpProvider>,
+      );
+      const trigger = screen.queryAllByRole('button')[0];
+      if (trigger) {
+        fireEvent.click(trigger);
+        out.push(document.body.innerHTML, document.body.textContent ?? '');
+      }
+      unmount();
+    }
     expect(out.join('\n')).not.toMatch(LEAK);
   });
 });

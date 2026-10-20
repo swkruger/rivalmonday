@@ -192,6 +192,14 @@ describe('parseSpecTests', () => {
       { title: 'c', tags: ['@z'] },
     ]);
   });
+
+  it('maps help guides, Help pages and help components to @help', () => {
+    const resolve = (...files: string[]) => resolveAffected(files, SPEC_TAGS);
+    expect(resolve('docs/help/pages/client.reviews.md')).toMatchObject({ mode: 'some', tags: ['@help', '@smoke'] });
+    expect(resolve('apps/web/src/app/(app)/c/[clientId]/help/page.tsx')).toMatchObject({ mode: 'some', tags: ['@help', '@smoke'] });
+    expect(resolve('apps/web/src/components/help/help-tip.tsx').tags).toContain('@help');
+    expect(resolve('apps/web/e2e/help.spec.ts').mode).toBe('some');
+  });
 });
 
 describe('coverage guard', () => {

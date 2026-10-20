@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@runbook',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue', '@help',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -40,6 +40,7 @@ const kw = (words: string, tags: string[], why: string): Rule => ({
 
 export const RULES: Rule[] = [
   // --- No E2E needed ---
+  { pattern: /^docs\/help\//, tags: ['@help'], why: 'help guides and topic articles, seeded into the E2E database (15b-1)' },
   { pattern: /\.md$/, tags: 'none', why: 'documentation' },
   { pattern: /^docs\//, tags: 'none', why: 'documentation' },
   { pattern: /^\.claude\//, tags: 'none', why: 'agent tooling' },
@@ -129,15 +130,15 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}page-header\\.tsx$`), tags: 'all', why: 'PageHeader: the h1, breadcrumb and actions of almost every signed-in page (15a §2.7)' },
   { pattern: re(`${APP}\\(app\\)/c/\\[clientId\\]/layout\\.tsx$|${COMP}help/client-help-name\\.tsx$`), tags: 'all', why: 'pass-through layout wrapping every client page in the help-name provider (15b-1 R8)' },
   { pattern: re(`${COMP}help/help-context\\.tsx$`), tags: 'all', why: 'HelpProvider: mounted by the app shell on every signed-in page (15b)' },
-  { pattern: re(`${APP}\\(app\\)/(?:agency/help|c/\\[clientId\\]/help)/`), tags: [], why: 'agency and client Help pages (15b-1): unit-tested, no browser flow yet' },
-  { pattern: re(`${COMP}help/`), tags: [], why: 'HelpTip/FieldHint/EmptyState/HelpIndex: not on a page with an E2E flow; unit-tested (15b)' },
+  { pattern: re(`${APP}\\(app\\)/(?:agency/help|c/\\[clientId\\]/help)/`), tags: ['@help'], why: 'agency and client Help pages (15b-1)' },
+  { pattern: re(`${COMP}help/`), tags: ['@help', '@reviews', '@overview'], why: 'HelpTip/PageGuide/HelpIndex: the pilot pages (Overview, Reviews) and the Help pages (15b-1)' },
   { pattern: re(`${COMP}client-crumbs\\.ts$`), tags: 'all', why: 'client breadcrumbs: every /c/<id> page header (15a §2.7)' },
   { pattern: re(`${COMP}prev-next\\.tsx$`), tags: ['@briefs', '@alerts', '@starting-point', '@navigation'], why: 'Previous / Next on the brief, alert and report pages (15a §2.8)' },
-  { pattern: re(`${C}(?:page\\.tsx|overview-kpis\\.ts)$`), tags: ['@overview', '@starting-point'], why: 'client overview (starting-point progress card)' },
+  { pattern: re(`${C}(?:page\\.tsx|overview-kpis\\.ts)$`), tags: ['@overview', '@starting-point', '@help'], why: 'client overview (starting-point progress card)' },
   { pattern: re(`${C}ads/`), tags: ['@ads'], why: 'ads view' },
   { pattern: re(`${C}alerts/`), tags: ['@alerts'], why: 'alert page' },
   { pattern: re(`${C}briefs/`), tags: ['@briefs', '@guest', '@starting-point', '@navigation'], why: 'Briefs & reports list and brief page (tabs, paging, Previous / Next)' },
-  { pattern: re(`${C}changes/`), tags: ['@changes', '@evidence'], why: 'changes feed and evidence viewer' },
+  { pattern: re(`${C}changes/`), tags: ['@changes', '@evidence', '@help'], why: 'changes feed and evidence viewer (page guide and tips)' },
   { pattern: re(`${C}competitors/`), tags: ['@competitors', '@rivals'], why: 'competitors and profiles' },
   { pattern: re(`${C}setup/`), tags: ['@setup'], why: 'client setup wizard' },
   { pattern: re(`${C}evidence/`), tags: ['@evidence', '@guest'], why: 'evidence page' },
@@ -147,7 +148,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${C}rankings/`), tags: ['@rankings'], why: 'local rankings view' },
   { pattern: re(`${C}recommendations/`), tags: ['@recommendations'], why: 'recommendation board' },
   { pattern: re(`${C}reports/`), tags: [], why: 'no E2E covers the trend report page' },
-  { pattern: re(`${C}reviews/`), tags: ['@reviews'], why: 'reviews view' },
+  { pattern: re(`${C}reviews/`), tags: ['@reviews', '@help'], why: 'reviews view (page guide and tips)' },
   { pattern: re(`${C}settings/alerts/`), tags: ['@alert-rules'], why: 'alert rules' },
   { pattern: re(`${C}settings/profile/`), tags: ['@profile', '@clients', '@client-billing'], why: 'client profile and features (billing pill and actions)' },
   { pattern: re(`${C}settings/delivery/`), tags: [], why: 'no E2E covers this settings page' },

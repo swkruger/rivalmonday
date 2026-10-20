@@ -7,7 +7,7 @@ import { copyItems, createClientRunbookIfAbsent, ensureAgencyRunbook, readRunboo
 import { createStoreFromEnv } from '@cs/storage';
 import { createCatalog } from '@cs/verticals';
 import { eq, sql } from 'drizzle-orm';
-import { acceptInvitations, createInvitation } from '@cs/tools';
+import { acceptInvitations, createInvitation, seedKnowledge } from '@cs/tools';
 import { resolveEvidenceDir } from '../src/server/files';
 import { ASK_FIXTURE_FILE, E2E_LINK_SECRET, MCP_CLIENTS_FILE, OUTBOX, OWNER_LINK_FILE, RIVALS_FIXTURE_FILE, SETUP_FIXTURE_FILE, STARTING_FIXTURE_FILE } from '../playwright.config';
 
@@ -205,6 +205,9 @@ export async function seed(): Promise<void> {
     await seedAsk(db, { agencyId, competitorId: comp!.id, eventId: workspace.eventId, evidenceId: workspace.evidenceId });
 
     await seedRunbook(db, { agencyId });
+
+    // 15b-1 (`help.spec.ts`): the real page guides, topic articles and glossary, exactly as `kb:seed` publishes them.
+    await seedKnowledge(db, resolve(import.meta.dirname, '../../../docs/help'));
 
     const token = signLink(E2E_LINK_SECRET, { sub: ownerContact!.id, agency: agencyId, client: clientId, t: 'brief', id: briefId });
     await mkdir(dirname(OWNER_LINK_FILE), { recursive: true });
