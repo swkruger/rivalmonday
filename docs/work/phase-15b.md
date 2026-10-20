@@ -1,16 +1,17 @@
 # phase-15b — help system and per-page help
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15b   **Base:** main @ f1ec9683
+**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15b   **Base:** main @ b38e36ba
 **Spec:** [2026-10-19-phase-15b-help-system-design.md](../superpowers/specs/2026-10-19-phase-15b-help-system-design.md). **Plan/spec:** inputs [15 spec](../superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) §1 D6–D7, §2.7, §4 · [audit](../research/2026-10-18-phase-15-ux-audit.md) · [inventory](../research/2026-10-18-phase-15-page-inventory.md) · [6c KB spec](../superpowers/specs/2026-10-12-phase-6c-knowledge-design.md). 15b spec addendum + plan: not written.
 
 ## Status (overwrite)
-2026-10-19: spec owner-approved; 15b-1 plan written ([plan](../superpowers/plans/2026-10-19-phase-15b1-help-system.md), 12 tasks T0–T11), awaiting owner approval. No code. Planning-only worktree (no pnpm install yet).
+2026-10-19: 15b-1 plan owner-approved; **execution started** (SDD). Pre-flight done: rebased on main (Phase 14), `pnpm install`, test DB `cs_phase_15b_test` (local cluster).
 
 ## Next (overwrite)
-Owner approves the 15b-1 plan → execute **after phase-14b merges** (B6): pre-flight rebase, `pnpm install`, own test DB, next free migration. 15b-2 plan after 15b-1 merges.
+Execute 15b-1 Tasks 1–11 (SDD ledger in `.superpowers/sdd/2026-10-19-phase-15b1-help-system/`). 15b-2 plan after 15b-1 merges.
 
 ## Interfaces this branch adds or changes
-None yet. Likely: KB page-key lookup (maybe a migration — next free at execution, after 14b's 0079), `HelpTip`/`FieldHint`/`PageGuide`, `/agency/help`, `/c/<id>/help`.
+- Migration **0080** `kb_help_key` (`kb_article.help_key`, `audience`) — phase-7 must start at 0081 if 15b merges first.
+- Planned: `@cs/core` `help/*` (`HelpAudience`, glossary), tools `get_page_guide`/`list_help_guides` (web), `search_knowledge` audience filter, `HelpTip`/`FieldHint`/`EmptyState`/`PageGuide`, Help pages `/platform/help`, `/agency/help`, `/c/<id>/help`.
 
 ## Assumes from other branches
 - `phase-14b` merges first or 15b rebases onto it; its pages need keys (below).

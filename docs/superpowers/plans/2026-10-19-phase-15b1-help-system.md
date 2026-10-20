@@ -18,7 +18,7 @@
 - Read `docs/gotchas-cross-cutting.md` and touched packages' `CLAUDE.md` first. Focused tests: `pnpm --filter <pkg> exec vitest run <pattern>`.
 
 ## Decisions
-Spec B1–B10. Plan-local: **Q1** `PageKey` ids reuse the route's menu identity, dot-separated (`client.overview`, `client.changes`, `client.reviews`, `agency.portfolio`, `agency.settings.team`, `platform.agencies` …); 15b-1 only needs the three pilot keys + the Help pages. **Q2** Guide existence for the button comes from `list_help_guides` (one call per request, `cache()`d) — no extra tool. **Q3** Ask prefill uses the existing `/c/<id>/ask?q=` support (already in `ask/page.tsx`).
+Spec B1–B10. Plan-local: **Q1** `PageKey` ids reuse the route's menu identity, dot-separated (`client.overview`, `client.changes`, `client.reviews`, `agency.portfolio`, `agency.settings.team`, `platform.agencies` …); 15b-1 only needs the three pilot keys + the Help pages. **Q2** Guide existence for the button comes from `list_help_guides` (one call per request, `cache()`d) — no extra tool. **Q3** Ask prefill uses the existing `/c/<id>/ask?q=` support (already in `ask/page.tsx`). Note (pre-flight): `?q=` auto-sends the question on load (`autoSend: true`); that is intended — the user clicked an explicit "Ask … about this page".
 
 ## File structure
 - `packages/db/src/schema/knowledge.ts` + migration `<next>_kb_help_key.sql`.
@@ -42,12 +42,12 @@ Spec B1–B10. Plan-local: **Q1** `PageKey` ids reuse the route's menu identity,
 
 ---
 
-### Task 0: Pre-flight
+### Task 0: Pre-flight — done 2026-10-19 (rebased on main @ b38e36ba; migration 0080; test DB `cs_phase_15b_test`; Task 1 also creates the `HelpAudience` type)
 - [ ] Confirm `phase-14b` is merged into `main`; `git rebase main`; `pnpm install`; create test DB `cs_phase_15b_test` (rm-kickoff §1 recipe); `pnpm --filter @cs/worker exec vitest run src/boss.test.ts`.
 - [ ] Find the next free migration number; re-check every path in this plan; grep `kb_article` writers (`seed.ts`, `write.ts`, demo `kb.ts`) for the new columns' impact. Commit plan fixes `docs(phase-15b): 15b-1 pre-flight`.
 
 ### Task 1: Migration — `help_key`, `audience`
-**Files:** `packages/db/src/schema/knowledge.ts`; `pnpm --filter @cs/db generate --custom --name=kb_help_key` → SQL; db tests.
+**Files:** `packages/db/src/schema/knowledge.ts`; create `packages/core/src/help/audience.ts` with only `export type HelpAudience = 'all' | 'agency' | 'client' | 'operator';` (exported from `@cs/core`; `@cs/db` depends on `@cs/core`, so the type must exist before the schema uses it — Task 2 adds the functions); `pnpm --filter @cs/db generate --custom --name=kb_help_key` → `0080_kb_help_key.sql` (pre-flight 2026-10-19: next free after Phase 14's 0079); db tests.
 **Interfaces (SQL, binding):**
 ```sql
 ALTER TABLE kb_article ADD COLUMN help_key text;
