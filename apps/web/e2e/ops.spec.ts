@@ -4,7 +4,7 @@ import { ADMIN_STATE, ensureAdminState } from './admin-session';
 /** Phase 7a1: the public crawler page, robots.txt and the operator health page. The agency-admin 404 on `/platform/health` is in platform.spec.ts (ROUTES). */
 const BOT_UA = 'Mozilla/5.0 (compatible; RivalMondayBot/1.0; +https://rivalmonday.app/bot)';
 
-test('signed-out /bot shows RivalMondayBot and the exact UA', { tag: ['@smoke'] }, async ({ page }) => {
+test('signed-out /bot shows RivalMondayBot and the exact UA', { tag: ['@ops'] }, async ({ page }) => {
   const res = await page.goto('/bot');
   expect(res?.status()).toBe(200);
   await expect(page).toHaveURL(/\/bot$/);
@@ -12,7 +12,7 @@ test('signed-out /bot shows RivalMondayBot and the exact UA', { tag: ['@smoke'] 
   await expect(page.getByText(BOT_UA, { exact: true })).toBeVisible();
 });
 
-test('/robots.txt has Allow: /bot and Disallow: /', { tag: ['@smoke'] }, async ({ request }) => {
+test('/robots.txt has Allow: /bot and Disallow: /', { tag: ['@ops'] }, async ({ request }) => {
   const res = await request.get('/robots.txt');
   expect(res.status()).toBe(200);
   const lines = (await res.text()).split('\n').map((l) => l.trim());
