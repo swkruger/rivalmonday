@@ -12,7 +12,7 @@ import { processGuardOn } from './dev-guard';
 import { webEmailTransport } from './email-transport';
 import { webEnv } from './env';
 import { perEnv } from './env-cache';
-import { enqueueFor, jobStatusFor } from './queue';
+import { enqueueFor, jobStatusFor, queueStatsFor } from './queue';
 import { platformAdmins } from './runtime-env';
 import { runbookTailorerFor } from './runbook-tailor';
 import { tagRequest } from './sentry-tags';
@@ -54,6 +54,8 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     delivery: deliveryConfigFromEnv(process.env),
     enqueue: enqueueFor(name),
     jobStatus: jobStatusFor(name),
+    queueStats: queueStatsFor(name),
+    sentryIssuesUrl: webEnv().sentry?.issuesUrl,
     webMonitoring: webEnv().webMonitoring,
     kbImportEnabled: webEnv().kbImport,
     platformAdmins: platformAdmins(name),

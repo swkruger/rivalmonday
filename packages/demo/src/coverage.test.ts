@@ -24,7 +24,7 @@ afterAll(async () => {
 });
 
 const registry = createToolRegistry(
-  { app: dbs.app, service: dbs.service, platformAdmins: [DEMO_OPERATOR_EMAIL], jobStatus: async () => null },
+  { app: dbs.app, service: dbs.service, platformAdmins: [DEMO_OPERATOR_EMAIL], jobStatus: async () => null, queueStats: async () => ({ queues: [], lastHeartbeatAt: null }) },
   { audit: { record: async () => {} } },
 );
 let ids: DemoIds;

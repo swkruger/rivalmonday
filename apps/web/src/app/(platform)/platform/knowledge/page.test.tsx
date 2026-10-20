@@ -14,7 +14,7 @@ vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => 
 vi.mock('@cs/tools', () => ({ createToolRegistry: () => ({ invoke: h.invoke }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ app: {}, service: {} }) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ webMonitoring: false, get kbImport() { return h.kbImport; }, appUrl: 'http://localhost' }) }));
-vi.mock('@/server/queue', () => ({ enqueueFor: () => undefined, jobStatusFor: () => undefined }));
+vi.mock('@/server/queue', () => ({ enqueueFor: () => undefined, jobStatusFor: () => undefined, queueStatsFor: () => undefined }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@/server/store', () => ({ webStore: () => ({ get: async () => null }) }));
 vi.mock('@/server/run-tool', () => ({ runTool: vi.fn() }));

@@ -30,6 +30,7 @@ import { platformBillingTools } from './platform-billing';
 import { platformLeadTools } from './platform-leads';
 import { platformSignupsTools } from './platform-signups';
 import { platformCostTools } from './platform-costs';
+import { platformHealthTools } from './platform-health';
 import { runbookTools } from './runbooks';
 import { portfolioTools } from './portfolio';
 import { pricingTools } from './pricing';
@@ -51,4 +52,4 @@ import { platformVerticalTools } from './platform-verticals';
 import { verticalTools } from './verticals';
 
 /** Every registered tool. Each 5b-1/5b-2 task appends its array here. */
-export const allTools = [...clientTools, ...briefTools, ...alertTools, ...alertQueueTools, ...reportTools, ...onboardingTools, ...competitorTools, ...pageTools, ...portfolioTools, ...reviewTools, ...recommendationTools, ...usageTools, ...modelOpsTools, ...themeTools, ...prospectTools, ...settingsTools, ...eventTools, ...evidenceTools, ...moveTools, ...competitorProfileTools, ...overviewTools, ...alertRuleTools, ...pricingTools, ...adTools, ...reputationTools, ...rankingTools, ...addRecommendationTools, ...searchTools, ...fetchTools, ...apiTokenTools, ...askThreadTools, ...knowledgeAdminTools, ...knowledgeTools, ...platformConsoleTools, ...supportTools, ...platformCostTools, ...billingTools, ...clientPauseTools, ...clientBillingTools, ...myBillingTools, ...platformBillingTools, ...platformSignupsTools, ...agencyOnboardingTools, ...setupTools, ...leadTools, ...platformLeadTools, ...navCountTools, ...verticalTools, ...platformVerticalTools, ...runbookTools, ...helpTools];
+export const allTools = [...clientTools, ...briefTools, ...alertTools, ...alertQueueTools, ...reportTools, ...onboardingTools, ...competitorTools, ...pageTools, ...portfolioTools, ...reviewTools, ...recommendationTools, ...usageTools, ...modelOpsTools, ...themeTools, ...prospectTools, ...settingsTools, ...eventTools, ...evidenceTools, ...moveTools, ...competitorProfileTools, ...overviewTools, ...alertRuleTools, ...pricingTools, ...adTools, ...reputationTools, ...rankingTools, ...addRecommendationTools, ...searchTools, ...fetchTools, ...apiTokenTools, ...askThreadTools, ...knowledgeAdminTools, ...knowledgeTools, ...platformConsoleTools, ...supportTools, ...platformCostTools, ...platformHealthTools, ...billingTools, ...clientPauseTools, ...clientBillingTools, ...myBillingTools, ...platformBillingTools, ...platformSignupsTools, ...agencyOnboardingTools, ...setupTools, ...leadTools, ...platformLeadTools, ...navCountTools, ...verticalTools, ...platformVerticalTools, ...runbookTools, ...helpTools];

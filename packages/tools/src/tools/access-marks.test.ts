@@ -21,7 +21,7 @@ const WRITE_TOOLS = [
 
 const ASK_THREAD_TOOLS = ['delete_my_ask_thread', 'get_ask_starters', 'get_my_ask_thread', 'list_my_ask_threads'];
 const PLATFORM_COST_TOOLS = ['archive_platform_cost_item', 'list_platform_costs', 'refresh_platform_costs', 'save_platform_cost_item', 'update_platform_cost_service'];
-const SUPPORT_HIDDEN_TOOLS = [...ASK_THREAD_TOOLS, ...PLATFORM_COST_TOOLS, 'list_support_sessions'].sort();
+const SUPPORT_HIDDEN_TOOLS = [...ASK_THREAD_TOOLS, ...PLATFORM_COST_TOOLS, 'list_support_sessions', 'get_platform_health'].sort();
 
 /** Every key matching /email/i in a zod schema, as a support-mask path (`[]` for arrays). `stack` holds ancestors only, so a reused sub-schema is walked at each use. */
 function emailPaths(schema: z.ZodType, prefix = '', stack: readonly unknown[] = [], keyMatches: (k: string) => boolean = (k) => /email/i.test(k)): string[] {

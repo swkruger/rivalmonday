@@ -120,3 +120,11 @@ describe('queue in DEMO or TEST', () => {
     expect(createDbMock).not.toHaveBeenCalled();
   });
 });
+
+describe('queueStatsFor', () => {
+  it('DEMO and TEST read empty stats without connecting', async () => {
+    const { queueStatsFor } = await import('./queue');
+    for (const env of ['demo', 'test'] as const) await expect(queueStatsFor(env)()).resolves.toEqual({ queues: [], lastHeartbeatAt: null });
+    expect(createDbMock).not.toHaveBeenCalled();
+  });
+});

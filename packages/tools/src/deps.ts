@@ -14,6 +14,11 @@ export type JobState = 'created' | 'retry' | 'active' | 'completed' | 'cancelled
 /** The newest job queued under `singletonKey`, or null when there is none (never queued, or archived). */
 export type JobStatusLookup = (job: QueueJob, singletonKey: string) => Promise<{ state: JobState; createdOn: Date; completedOn: Date | null; output: unknown } | null>;
 
+/** Phase 7a1: one pg-boss queue's live counts (read-only). */
+export interface QueueStat { name: string; queued: number; active: number; failed24h: number; oldestQueuedAt: Date | null }
+/** Per-queue counts plus the newest completed `system-heartbeat` (the worker's pulse). DEMO/TEST: no queues, null. */
+export type QueueStatsLookup = () => Promise<{ queues: QueueStat[]; lastHeartbeatAt: Date | null }>;
+
 export interface ToolDeps {
   /** app_user connection: tenant reads go through withTenant + RLS. */
   app: Db;
@@ -29,6 +34,10 @@ export interface ToolDeps {
   enqueue?: EnqueueJob;
   /** Absent: tools that report background progress refuse with `internal`. */
   jobStatus?: JobStatusLookup;
+  /** Absent: `get_platform_health` refuses with `internal`. */
+  queueStats?: QueueStatsLookup;
+  /** Phase 7a1: the Sentry issues page the health page links to (SENTRY_ISSUES_URL). */
+  sentryIssuesUrl?: string;
   /** Decision 7: website crawling (page discovery, manual pages) only when true. */
   webMonitoring?: boolean;
   /** Phase 6c: KB_IMPORT_ENABLED. Off or absent: the URL-import tools refuse with `not_found`. */

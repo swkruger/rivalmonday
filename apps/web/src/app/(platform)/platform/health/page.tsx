@@ -1,36 +1,54 @@
-import { isPlatformOperator } from '@cs/tools';
-import { notFound } from 'next/navigation';
-import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
-import { dbs } from '@/server/db';
 import { helpGuides } from '@/server/help';
-import { platformAdmins } from '@/server/runtime-env';
+import { callTool } from '@/server/tools';
+import { type HealthData, QueuesTable, SourcesTable, VendorsTable, WorkerTable } from './_components/health-tables';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Health' };
 
+const card = 'min-w-0 rounded-[14px] bg-surface p-6 shadow-card';
 const HELP_KEY = 'page:platform.health';
 const COPY = PAGE_COPY['platform.health'];
 
-/** Placeholder (spec d6). Gated by the operator check directly (no tool call, so no audit row); others get the 404. */
+/** Platform operators only: the tool's `permission_denied` becomes a 404 in `callTool`. */
 export default async function PlatformHealthPage() {
   const { ctx } = await requireOperatorContext();
-  if (!(await isPlatformOperator({ service: dbs().service, platformAdmins: platformAdmins() }, ctx))) notFound();
-  const guides = await helpGuides(ctx, 'platform');
+  const [data, guides] = await Promise.all([callTool<HealthData>(ctx, 'get_platform_health', {}), helpGuides(ctx, 'platform')]);
+  const now = new Date(data.generatedAt);
   return (
-    <>
+    <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-5">
       <PageHeader
         title="Health"
         breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Health' }]}
         description={<HelpText text={COPY.description} />}
+        actions={
+          data.sentryUrl ? (
+            <a href={data.sentryUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-medium underline">Open Sentry</a>
+          ) : undefined
+        }
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
       />
-      <EmptyState {...COPY.empty.placeholder} guideAnchor="what-this-page-tells-you" />
-    </>
+      <section className={card}>
+        <h2 className="mb-3 font-semibold">Worker</h2>
+        <WorkerTable worker={data.worker} now={now} />
+      </section>
+      <section className={card}>
+        <h2 className="mb-3 font-semibold">Queues</h2>
+        <QueuesTable queues={data.queues} />
+      </section>
+      <section className={card}>
+        <h2 className="mb-3 font-semibold">Vendors</h2>
+        <VendorsTable vendors={data.vendors} now={now} />
+      </section>
+      <section className={card}>
+        <h2 className="mb-3 font-semibold">Sources</h2>
+        <SourcesTable sources={data.sources} now={now} />
+      </section>
+    </div>
   );
 }

@@ -33,7 +33,7 @@ holder.auth = testAuth;
 vi.mock('./auth', () => ({ auth: () => holder.auth }));
 vi.mock('./db', () => ({ dbs: () => ({ app: dbs.app, service: dbs.service }) }));
 vi.mock('./env', () => ({ webEnv: () => ({ appUrl: 'https://app.example', webMonitoring: false, kbImport: false, platformAdmins: [] }) }));
-vi.mock('./queue', () => ({ enqueueFor: () => async () => {}, jobStatusFor: () => async () => null }));
+vi.mock('./queue', () => ({ enqueueFor: () => async () => {}, jobStatusFor: () => async () => null, queueStatsFor: () => async () => ({ queues: [], lastHeartbeatAt: null }) }));
 vi.mock('./runtime-env', () => ({ platformAdmins: () => [] }));
 const store = createMemoryStore();
 vi.mock('./store', () => ({ webStore: () => store }));

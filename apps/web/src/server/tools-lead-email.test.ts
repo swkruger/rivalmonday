@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('./db', () => ({ dbs: () => ({ app: {}, service: {} }) }));
 vi.mock('./env', () => ({ webEnv: () => ({ appUrl: 'https://app.example', emailFrom: 'briefs@app.example', webMonitoring: false, kbImport: false, platformAdmins: ['op@example.com'], setupFakeLookup: true }) }));
-vi.mock('./queue', () => ({ enqueueFor: () => async () => {}, jobStatusFor: () => async () => null }));
+vi.mock('./queue', () => ({ enqueueFor: () => async () => {}, jobStatusFor: () => async () => null, queueStatsFor: () => async () => ({ queues: [], lastHeartbeatAt: null }) }));
 vi.mock('./runtime-env', () => ({ platformAdmins: () => ['op@example.com'] }));
 vi.mock('./store', () => ({ webStore: () => ({ get: async () => null, put: async () => {} }) }));
 

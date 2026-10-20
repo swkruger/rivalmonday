@@ -1,7 +1,7 @@
 import 'server-only';
 import { ToolError } from '@cs/core';
 import { createDb, type Db, type EnvName } from '@cs/db';
-import type { EnqueueJob, JobState, JobStatusLookup, QueueJob } from '@cs/tools';
+import type { EnqueueJob, JobState, JobStatusLookup, QueueJob, QueueStat, QueueStatsLookup } from '@cs/tools';
 import { sql } from 'drizzle-orm';
 import PgBoss from 'pg-boss';
 import { BACKGROUND_OFF } from './background-off';
@@ -116,3 +116,37 @@ const noJob: JobStatusLookup = async () => null;
 export const jobStatusFor = (name: EnvName): JobStatusLookup => (name === 'dev' ? devJobStatus : noJob);
 /** The live environment's job status lookup. */
 export const jobStatus: JobStatusLookup = (job, singletonKey) => jobStatusFor(activeEnvName())(job, singletonKey);
+
+type StatRow = { name: string; queued: number; active: number; failed24h: number; oldest: Date | string | null };
+
+/**
+ * Phase 7a1: per-queue counts and the worker's last completed `system-heartbeat`, read from `pgboss.job` / `pgboss.queue`
+ * only — the grants `cs_web` has. Completed jobs stay in `pgboss.job` until archived (pg-boss 10 default: 12 h after
+ * completion), far longer than the 30-minute "worker down" threshold, so `pgboss.archive` (no grant) is not needed.
+ * `oldest` counts from when a job became eligible to run (`start_after`), so a delayed retry is not reported as stuck.
+ */
+export async function queueStatsOn(db: Db): Promise<{ queues: QueueStat[]; lastHeartbeatAt: Date | null }> {
+  const rows = (await db.execute(sql`
+    SELECT q.name AS name,
+           count(j.id) FILTER (WHERE j.state IN ('created', 'retry'))::int AS queued,
+           count(j.id) FILTER (WHERE j.state = 'active')::int AS active,
+           count(j.id) FILTER (WHERE j.state = 'failed' AND j.completed_on > now() - interval '24 hours')::int AS failed24h,
+           min(greatest(j.created_on, j.start_after)) FILTER (WHERE j.state IN ('created', 'retry')) AS oldest
+      FROM pgboss.queue q LEFT JOIN pgboss.job j ON j.name = q.name
+     GROUP BY q.name ORDER BY q.name`)) as unknown as StatRow[];
+  const [hb] = (await db.execute(sql`
+    SELECT max(completed_on) AS at FROM pgboss.job WHERE name = 'system-heartbeat' AND state = 'completed'`)) as unknown as { at: Date | string | null }[];
+  return {
+    queues: rows.map((r) => ({ name: r.name, queued: Number(r.queued), active: Number(r.active), failed24h: Number(r.failed24h), oldestQueuedAt: r.oldest ? new Date(r.oldest) : null })),
+    lastHeartbeatAt: hb?.at ? new Date(hb.at) : null,
+  };
+}
+
+const devQueueStats: QueueStatsLookup = () => {
+  queueDb ??= createDb(envUrls('dev').owner).db;
+  return queueStatsOn(queueDb);
+};
+const noQueueStats: QueueStatsLookup = async () => ({ queues: [], lastHeartbeatAt: null });
+
+/** DEMO and TEST have no queue: empty stats without connecting. Same connection as `jobStatusFor`. */
+export const queueStatsFor = (name: EnvName): QueueStatsLookup => (name === 'dev' ? devQueueStats : noQueueStats);

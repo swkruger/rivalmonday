@@ -341,7 +341,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   },
   { route: '/platform/costs', as: 'operator', calls: [{ tool: 'list_platform_costs', input: none, path: 'services' }] },
   { route: '/platform/leads', as: 'operator', calls: [{ tool: 'list_pool_leads', input: none, path: 'leads' }, { tool: 'list_pool_leads', input: none, path: 'agencies' }] },
-  { route: '/platform/health', as: 'operator', calls: [] },
+  { route: '/platform/health', as: 'operator', calls: [{ tool: 'get_platform_health', input: none, path: 'sources' }] },
   { route: '/platform/ask', as: 'operator', calls: [{ tool: 'fn:listReviewableAskThreads', input: none, path: 'items' }] },
   { route: '/platform/ask/[threadId]', as: 'operator', calls: [{ tool: 'fn:getReviewableAskThread', input: (ids) => ({ threadId: ids.ask.ownerLoneStar }), path: 'messages.*.trace' }] },
   { route: '/platform/knowledge', as: 'operator', calls: [{ tool: 'list_kb_articles', input: none, path: 'items' }, { tool: 'list_kb_targets', input: none, path: 'agencies' }] },
