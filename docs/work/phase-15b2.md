@@ -1,16 +1,17 @@
 # phase-15b2 — Help content wave: guides, tips, descriptions, empty states for every page
 
 **Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-15b2   **Base:** main @ 00e8e02a
-**Plan/spec:** [15b spec](../superpowers/specs/2026-10-19-phase-15b-help-system-design.md) §7–§8 (plan not written; 15b-1 plan is the pattern)
+**Plan/spec:** [15b-2 spec](../superpowers/specs/2026-10-20-phase-15b2-help-content-design.md) (C1–C7) on [15b spec](../superpowers/specs/2026-10-19-phase-15b-help-system-design.md) §7–§8 · [plan](../superpowers/plans/2026-10-20-phase-15b2-help-content.md) (T0–T11)
 
 ## Status (overwrite)
-Kickoff 2026-10-20: brief written, nothing built.
+2026-10-20: brief, spec addendum (owner-approved) and lean plan (12 tasks) committed; **plan awaiting owner review** before execution. No code. Worktree installed; test DB `cs_phase_15b2_test` (local cluster, has pgboss). E2E on `E2E_PORT=3101`.
 
 ## Next (overwrite)
-Owner answers Brief § 6; then brainstorming -> lean plan -> approval.
+1. Owner reviews the plan → execute via `superpowers:subagent-driven-development` from Task 0 (pre-flight: rebase, recount pages, size the terminology grep).
+2. After 15b-2 merges: 15b-3 (topic rename, spec C7) plan; then 15c (rebases on 15b-2).
 
 ## Interfaces this branch adds or changes
-Expected: ~61 `PAGE_COPY` keys (`apps/web/src/help/copy/`), ~100 guides in `docs/help/pages/`, glossary `theme` -> `topic`, coverage test, demo coverage entries. No migration (next free: 0081).
+Planned (no migration; next free 0081): `list_help_guides` returns `page:account.%` in every context; Help pages "Your account" group; copy split `apps/web/src/help/copy/{client,agency,platform,account}.ts`; ~61 page keys + guides; glossary `theme` → `topic`; `apps/web/src/help/coverage.test.ts`; `PressureBadge`/approval confidence text labels; heatmap legend; Setup "Advanced" disclosure. User-facing "Theme" → "topic" only (routes/tools/DB keep `theme` until 15b-3).
 
 ## Assumes from other branches
 - **phase-7** (7a1 executing): no `page.tsx`/help files. Touches `server/tools.ts`, `server/env.ts`, `next.config.ts`, `core/src/index.ts` (one line), Sentry files. Its `0080_runtime_roles`/`0081_lifecycle` collide with main's `0080_kb_help_key`; it renumbers to 0081/0082. Add no migration here without re-checking.
@@ -19,17 +20,15 @@ Expected: ~61 `PAGE_COPY` keys (`apps/web/src/help/copy/`), ~100 guides in `docs
 - **15c** (not started): overlaps nearly every page (error/404/loading, StatusChip, miles/formatters, ConfirmDialog, SaveBar). See Q2.
 
 ## Decisions (owner-approved)
-Binding ones: Brief § 4. None new.
+Binding: Brief § 4. New 2026-10-20 (spec C1–C7): C1 one branch, 4 batches (client/agency/platform+account/terminology) each with a sign-off doc, coverage test last, one merge; C2 15b-2 before 15c; C3 user-facing terminology now, identifiers in 15b-3; C4 only (H) structural items (labels beside colour, heatmap legend, Setup Advanced); C5 every PageHeader page gets a guide except Help pages + `/kb/[id]`; C6 "Your account" group on all Help pages; C7 15b-3 full rename incl. DB/tools/packs with MCP aliases, LLM question keys/gold labels/model_batch names stay `theme`.
 
 ## New backlog / Owner verification
-None yet. Verification: per-batch sign-off docs (B3), archived in `docs/archive/`.
+New backlog: 15b-3 → topic rename (spec C7); 15c → non-(H) structural audit items (Ask visibility line, alert-rules band bar, …). Verification: four sign-off docs (C1); after merge `pnpm kb:seed` on `cs_dev`.
 
 ## Brief
 
 ### 1. Scope
-- **Spec §7:** every `PageHeader` page gets `helpKey` + `guide={guides.has(KEY)}`, a `PAGE_COPY` description, tips for audit-named terms/metrics, `EmptyState` copy and a guide (`all` or per audience, B2); includes 14b pages and audit §3 terminology. Sign-off per batch (B3).
-- **§8:** coverage test enforced now: every `PageHeader` page has a `helpKey`; every used key has a guide per reachable audience; every `TipKey` exists. Leak test covers new copy; E2E per spec.
-- **Roadmap row 15** (15b-2 "to be written"); **Phase 15 spec** D6 (help layers 1-4), D7 (platform-authored, placeholders, keyed `page:<ctx>.<page>`), §4 (glossary/terminology, one guide per key).
+See the [15b-2 spec](../superpowers/specs/2026-10-20-phase-15b2-help-content-design.md) and [15b spec](../superpowers/specs/2026-10-19-phase-15b-help-system-design.md) §7–§8.
 
 ### 2. Page inventory (64 keys `page:<ctx>.<id>`; 3 pilot done, 61 to write)
 - **platform 17:** overview, agencies, agencies.detail, billing, leads, reviews, themes, ask, ask.thread, knowledge, knowledge.new, knowledge.detail, health, costs, verticals (14b), runbook (14b).
@@ -62,9 +61,4 @@ Root `CLAUDE.md` UX & IA (Phase 15) and Help (15b) lines; spec B1-B10 (audience 
 - **Terminology:** competitor/Top rival; change/move/signal/first steps; brief/report/alert; business type; seat; paused; topic; `assistantName`.
 
 ### 6. Open questions for the owner
-1. **Batching.** (a) one branch/plan, task groups by context (client, agency, platform + account, glossary), a sign-off doc each, coverage test last, one merge; (b) a branch per context; (c) one big sign-off. **Recommend (a):** the coverage test only passes at the end.
-2. **Order vs 15c.** (a) 15b-2 first (edits sit at page tops), 15c rebases; (b) 15c first; (c) combined. **Recommend (a),** copy/terminology only.
-3. **Structural 15b audit items** (colour-only badges, Ask visibility line, band bar, "Advanced" setup fields). (a) all; (b) none, to 15c; (c) (H) items only. **Recommend (c);** miles stay 15c.
-4. **Coverage vs every page.** (a) every page incl. Help pages; (b) tiny exempt list (Help x3, `kb.detail`), short guides elsewhere incl. detail pages, panel via FieldHints + parent guides; (c) detail pages reuse parent guide. **Recommend (b).**
-5. **`page:account.*` listing.** (a) "Your account" group on all Help pages, `onboarding` under agency "Other"; (b) agency/client only; (c) existing "Settings"/"Other". **Recommend (a).**
-6. **Theme -> topic depth.** (a) UI strings, glossary, guides, filters, heatmap only; (b) (a) plus route `/platform/themes` -> `/platform/topics` (redirect) and key; (c) also DB/tools/packs. **Recommend (b):** (c) is a migration and MCP change for no user value.
+All answered 2026-10-20 — see Decisions (spec C1–C7).
