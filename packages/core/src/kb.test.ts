@@ -76,3 +76,14 @@ describe('chunkMarkdown', () => {
     expect(chunkMarkdown(Array.from({ length: 200 }, (_, i) => `# S${i}\n\nb`).join('\n\n')).truncated).toBe(false);
   });
 });
+
+describe('renderKbText {{client}}', () => {
+  it('renders the client name, or your business when absent or blank', () => {
+    expect(renderKbText('Watching {{client}} / {{ client }}', { ...names, clientName: 'Acme HVAC' })).toBe('Watching Acme HVAC / Acme HVAC');
+    expect(renderKbText('For {{client}}.', names)).toBe('For your business.');
+    expect(renderKbText('For {{client}}.', { ...names, clientName: '  ' })).toBe('For your business.');
+  });
+  it('lintKbText accepts {{client}} in platform articles', () => {
+    expect(lintKbText('platform', 'How {{client}} compares, via {{product}} and {{assistant}}')).toEqual([]);
+  });
+});

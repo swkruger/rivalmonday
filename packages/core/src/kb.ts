@@ -7,9 +7,14 @@ export const KB_MAX_CHUNKS = 200;
 export const KB_CHUNK_CHARS = 1500;
 export const KB_MAX_BODY_BYTES = 204_800;
 
-/** Replaces `{{product}}` / `{{assistant}}` (inner whitespace allowed); any other `{{x}}` stays literal. */
-export function renderKbText(text: string, names: { productName: string; assistantName: string }): string {
-  return text.replace(/\{\{\s*(product|assistant)\s*\}\}/g, (_m, k: string) => (k === 'product' ? names.productName : names.assistantName));
+/**
+ * Replaces `{{product}}` / `{{assistant}}` / `{{client}}` (inner whitespace allowed); any other `{{x}}` stays literal.
+ * `{{client}}` renders "your business" when no `clientName` is given.
+ */
+export function renderKbText(text: string, names: { productName: string; assistantName: string; clientName?: string }): string {
+  return text.replace(/\{\{\s*(product|assistant|client)\s*\}\}/g, (_m, k: string) =>
+    k === 'product' ? names.productName : k === 'assistant' ? names.assistantName : names.clientName?.trim() || 'your business',
+  );
 }
 
 /** Platform articles must use placeholders, not the literal brand names. Other levels are never linted. */
