@@ -81,17 +81,6 @@ export default async function AgencyPortfolioPage() {
         }
       />
 
-      <TipRow
-        items={[
-          { label: 'Pressure', tip: 'agency.portfolio.pressure' },
-          { label: 'Budget', tip: 'agency.portfolio.budget' },
-          { label: 'Alerts and briefs', tip: 'agency.portfolio.alertsBriefs' },
-          { label: 'Open actions', tip: 'agency.portfolio.openActions' },
-          { label: 'Setup chip', tip: 'agency.portfolio.setup' },
-          ...(showChecklist ? [{ label: 'Checklist', tip: 'agency.portfolio.checklist' } as const] : []),
-        ]}
-      />
-
       {showChecklist && <OnboardingChecklist status={onboarding} trialing={trialing} dismissAction={dismissChecklistAction} />}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
@@ -187,6 +176,17 @@ export default async function AgencyPortfolioPage() {
           </CardContent>
         </Card>
       )}
+
+      <TipRow
+        items={[
+          { label: 'Pressure', tip: 'agency.portfolio.pressure' },
+          { label: 'Budget', tip: 'agency.portfolio.budget' },
+          { label: 'Alerts and briefs', tip: 'agency.portfolio.alertsBriefs' },
+          { label: 'Open actions', tip: 'agency.portfolio.openActions' },
+          { label: 'Setup chip', tip: 'agency.portfolio.setup' },
+          ...(showChecklist ? [{ label: 'Checklist', tip: 'agency.portfolio.checklist' } as const] : []),
+        ]}
+      />
     </>
   );
 }
