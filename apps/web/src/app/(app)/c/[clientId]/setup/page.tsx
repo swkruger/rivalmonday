@@ -4,8 +4,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { cache } from 'react';
 import { clientCrumbs } from '@/components/client-crumbs';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
 import { SetupWizard } from './setup-wizard';
 import type { BillingPrefill } from './steps/billing-step';
@@ -13,6 +17,9 @@ import type { ClientSetupView } from './types';
 import { wizardStep } from './wizard-steps';
 
 export const dynamic = 'force-dynamic';
+
+const HELP_KEY = 'page:client.setup';
+const COPY = PAGE_COPY['client.setup'];
 
 const STEP_LABEL = { profile: 'Your business', search: 'Finding competitors', competitors: 'Pick competitors', invite: 'Invite the owner', billing: 'Billing' } as const;
 const STATUS_LABEL = { todo: 'Not started', running: 'Running', done: 'Done', skipped: 'Skipped', blocked: 'Needs attention' } as const;
@@ -64,11 +71,13 @@ export default async function SetupPage({ params }: { params: Promise<{ clientId
   const { state } = view;
   const title = titleOf(profile);
   const crumbs = clientCrumbs({ id: clientId, name: profile.name }, 'Setup');
+  const guides = await helpGuides(ctx, 'client', clientId);
+  const header = { description: <HelpText text={COPY.description} />, helpKey: HELP_KEY, guide: guides.has(HELP_KEY) };
 
   if (!state.open) {
     return (
       <>
-        <PageHeader title={title} breadcrumb={crumbs} />
+        <PageHeader title={title} breadcrumb={crumbs} {...header} />
         <section className="flex max-w-2xl flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card">
           <h2 className="font-semibold">{state.dismissedAt ? 'Setup dismissed' : 'Setup finished'}</h2>
           <ul className="flex flex-col gap-1.5">
@@ -95,7 +104,14 @@ export default async function SetupPage({ params }: { params: Promise<{ clientId
   const billing = isAdmin && state.steps.billing !== undefined ? await billingPrefill(ctx, clientId) : null;
   return (
     <>
-      <PageHeader title={title} breadcrumb={crumbs} step={wizardStep(view, agency)} />
+      <PageHeader title={title} breadcrumb={crumbs} step={wizardStep(view, agency)} {...header} />
+      <TipRow
+        items={[
+          { label: 'Steps', tip: 'client.setup.stepsAgency' },
+          { label: 'Steps', tip: 'client.setup.stepsClient' },
+          { label: 'First brief', tip: 'client.setup.firstBrief' },
+        ]}
+      />
       <SetupWizard
         clientId={clientId} agency={agency} isAdmin={isAdmin} view={view} billing={billing}
         profile={{ services: profile.services, keywords: profile.keywords, placeId: profile.placeId, serviceArea: profile.serviceArea }}

@@ -23,10 +23,20 @@ const BATCH_B_SPLIT = ['page:client.recommendations', 'page:client.ask', 'page:c
 const BATCH_B_ALL = ['page:client.ask.thread', 'page:client.reports.detail', 'page:client.evidence.detail'];
 const AGENCY_ONLY_PAGES = ['page:client.pitch-snapshot'];
 const BATCH_B = [...BATCH_B_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`]), ...BATCH_B_ALL.map((k) => `${k}#all`), ...AGENCY_ONLY_PAGES.map((k) => `${k}#agency`)];
-const CLIENT_PAGES = [...PILOT, ...BATCH_A, ...BATCH_B].sort();
+/**
+ * 15b-2 Task 6, client batch C. Delivery and Runbook are agency-only (a client role gets a 404): agency guide only.
+ * Billing is client-owner-only (an agency role gets a 404): client guide only.
+ */
+const BATCH_C_SPLIT = ['page:client.setup', 'page:client.settings.profile', 'page:client.settings.alerts', 'page:client.settings.ai'];
+const BATCH_C_AGENCY_ONLY = ['page:client.settings.delivery', 'page:client.settings.runbook'];
+const BATCH_C_CLIENT_ONLY = ['page:client.settings.billing'];
+const BATCH_C = [...BATCH_C_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`]), ...BATCH_C_AGENCY_ONLY.map((k) => `${k}#agency`), ...BATCH_C_CLIENT_ONLY.map((k) => `${k}#client`)];
+const CLIENT_PAGES = [...PILOT, ...BATCH_A, ...BATCH_B, ...BATCH_C].sort();
 const CLIENT_KEYS = [...new Set(CLIENT_PAGES.map((k) => k.split('#')[0]!))].sort();
 /** What a client role can read: every client page guide except the agency-only pages. */
-const CLIENT_ROLE_KEYS = CLIENT_KEYS.filter((k) => !AGENCY_ONLY_PAGES.includes(k));
+const CLIENT_ROLE_KEYS = CLIENT_KEYS.filter((k) => !AGENCY_ONLY_PAGES.includes(k) && !BATCH_C_AGENCY_ONLY.includes(k));
+/** What an agency role can read: every client page guide except the client-owner-only pages (Billing). */
+const AGENCY_ROLE_KEYS = CLIENT_KEYS.filter((k) => !BATCH_C_CLIENT_ONLY.includes(k));
 /**
  * Words a client must never read in help: agency-internal concepts and the product name (client-facing text falls back to
  * "your agency"). The default assistant name is fine once rendered (it is what an un-renamed assistant is called); the
@@ -70,8 +80,8 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     for (const g of [o, a]) expect(g!.sections.map((s) => s.heading)).toEqual(['What this page tells you', 'How to use it', 'Common questions']);
   });
 
-  it('list_help_guides gives agency roles every client page guide and client roles all but the agency-only pages (pilot, batches A and B)', async () => {
-    for (const [c, keys] of [[owner, CLIENT_ROLE_KEYS], [viewer, CLIENT_ROLE_KEYS], [admin, CLIENT_KEYS], [am, CLIENT_KEYS]] as const) {
+  it('list_help_guides gives agency roles every client page guide but Billing and client roles all but the agency-only pages (pilot, batches A, B and C)', async () => {
+    for (const [c, keys] of [[owner, CLIENT_ROLE_KEYS], [viewer, CLIENT_ROLE_KEYS], [admin, AGENCY_ROLE_KEYS], [am, AGENCY_ROLE_KEYS]] as const) {
       const { guides } = (await registry.invoke(c, 'list_help_guides', { context: 'client', clientId: IDS.clientA1 })) as { guides: { helpKey: string }[] };
       expect(guides.map((g) => g.helpKey).sort(), c.role).toEqual(keys);
     }
@@ -166,6 +176,61 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     const ev = text(await guide(owner, 'page:client.evidence.detail'));
     for (const w of ['captured automatically by our monitoring service', 'changing even one character gives a completely different one']) expect(ev, w).toContain(w);
     expect(text(await guide(admin, 'page:client.pitch-snapshot'))).toContain('not in the top 20 at any of 9 points');
+  });
+
+  it('batch C: split pages give each audience its own guide, all with the three standard sections', async () => {
+    for (const key of BATCH_C_SPLIT) {
+      const [o, v, a, m] = await Promise.all([guide(owner, key), guide(viewer, key), guide(admin, key), guide(am, key)]);
+      expect(o!.id, key).toBe(v!.id);
+      expect(a!.id, key).toBe(m!.id);
+      expect(a!.id, key).not.toBe(o!.id);
+    }
+    for (const key of [...BATCH_C_SPLIT, ...BATCH_C_AGENCY_ONLY]) expect((await guide(admin, key))!.sections.map((s) => s.heading), key).toEqual(['What this page tells you', 'How to use it', 'Common questions']);
+    for (const key of [...BATCH_C_SPLIT, ...BATCH_C_CLIENT_ONLY]) expect((await guide(owner, key))!.sections.map((s) => s.heading), key).toEqual(['What this page tells you', 'How to use it', 'Common questions']);
+  });
+
+  it('batch C: Delivery and Runbook have an agency guide and no client guide; Billing has a client guide and no agency guide', async () => {
+    for (const key of BATCH_C_AGENCY_ONLY) {
+      expect(await guide(admin, key), key).not.toBeNull();
+      expect(await guide(am, key), key).not.toBeNull();
+      expect(await guide(owner, key), key).toBeNull();
+      expect(await guide(viewer, key), key).toBeNull();
+    }
+    for (const key of BATCH_C_CLIENT_ONLY) {
+      expect(await guide(owner, key), key).not.toBeNull();
+      expect(await guide(viewer, key), key).not.toBeNull();
+      expect(await guide(admin, key), key).toBeNull();
+      expect(await guide(am, key), key).toBeNull();
+    }
+  });
+
+  it('batch C: the agency versions carry the agency-only content, the client versions leave it out', async () => {
+    const setupA = text(await guide(admin, 'page:client.setup'));
+    for (const w of ['Invite the owner', 'Billing', 'Google place id', 'Dismiss setup', '48-hour', '14 days']) expect(setupA, w).toContain(w);
+    const setupC = text(await guide(owner, 'page:client.setup'));
+    expect(setupC).not.toMatch(/Invite the owner|Billing|Dismiss setup|place id|prospect/i);
+    for (const w of ['Advanced', '48 hours', '14 days', 'Pick competitors']) expect(setupC, w).toContain(w);
+    const profA = text(await guide(admin, 'page:client.settings.profile'));
+    for (const w of ['Client features', 'Allow review to improve answers', 'Medium pressure', '0 ZIP codes']) expect(profA, w).toContain(w);
+    const profC = text(await guide(owner, 'page:client.settings.profile'));
+    expect(profC).not.toMatch(/Client features|Allow review|account manager/i);
+    for (const w of ['Medium pressure', '0 ZIP codes', 'Quiet']) expect(profC, w).toContain(w);
+    const del = text(await guide(admin, 'page:client.settings.delivery'));
+    for (const w of ['I review alerts first', '17:00', 'Monday from 07:00', '3 instant alerts']) expect(del, w).toContain(w);
+    const alertsA = text(await guide(admin, 'page:client.settings.alerts'));
+    for (const w of ['3 instant alerts', '17:00', 'Delivery']) expect(alertsA, w).toContain(w);
+    const alertsC = text(await guide(owner, 'page:client.settings.alerts'));
+    expect(alertsC).not.toMatch(/3 instant|17:00|digest|Delivery|review alerts first/i);
+    const aiA = text(await guide(admin, 'page:client.settings.ai'));
+    for (const w of ['Agency settings › AI connections', 'Read, feedback and manage']) expect(aiA, w).toContain(w);
+    const aiC = text(await guide(owner, 'page:client.settings.ai'));
+    expect(aiC).not.toMatch(/manage|Agency settings/i);
+    for (const w of ['Read only', 'Read and feedback', 'shown once']) expect(aiC, w).toContain(w);
+    const bill = text(await guide(owner, 'page:client.settings.billing'));
+    for (const w of ['Your plan with', 'Payment needed', 'Awaiting payment setup', 'Manage payment']) expect(bill, w).toContain(w);
+    expect(bill).not.toMatch(/stripe|platform|seats?|\$\d/i);
+    const rb = text(await guide(admin, 'page:client.settings.runbook'));
+    for (const w of ['Update available', 'Use the update', 'Keep mine', 'Customised', 'Create a runbook for this client']) expect(rb, w).toContain(w);
   });
 
   it('nothing a client reads names agency-internal concepts or the product, and every placeholder is filled', async () => {

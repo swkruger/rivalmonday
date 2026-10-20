@@ -8,10 +8,10 @@ import { HelpProvider } from '@/components/help/help-context';
  * scope, tips and empty states follow the viewer's audience, and the copy is rendered with the viewer's names.
  */
 const C = '00000000-0000-4000-8000-0000000000c1';
-const m = vi.hoisted(() => ({ role: 'client_owner', guides: [] as string[], calls: [] as [string, unknown][] }));
+const m = vi.hoisted(() => ({ role: 'client_owner', features: ['dashboard'] as string[], guides: [] as string[], calls: [] as [string, unknown][] }));
 
 vi.mock('@/server/current-viewer', () => ({
-  requireContext: async () => ({ viewer: { kind: 'user' }, ctx: { role: m.role, userId: 'u1', agencyId: 'a1', clientScope: [C], features: new Set(['dashboard']) } }),
+  requireContext: async () => ({ viewer: { kind: 'user' }, ctx: { role: m.role, userId: 'u1', agencyId: 'a1', clientScope: [C], features: new Set(m.features) } }),
 }));
 const tool = async (_ctx: unknown, name: string, input: unknown) => {
   m.calls.push([name, input]);
@@ -51,7 +51,7 @@ async function show(page: () => Promise<React.ReactNode>, audience: 'agency' | '
   render(<HelpProvider value={{ audience, names: { agency: 'Cool Comfort', assistant: 'Sunny', client: 'Lone Star Cooling' } }}>{await page()}</HelpProvider>);
 }
 
-beforeEach(() => { m.guides = []; m.calls = []; });
+beforeEach(() => { m.guides = []; m.calls = []; m.features = ['dashboard']; });
 afterEach(cleanup);
 
 describe('pilot pages: guide button', () => {
@@ -83,6 +83,23 @@ describe('pilot pages: copy, tips and empty states by audience', () => {
     cleanup();
     await show(PAGES[0][1], 'agency');
     expect(screen.getByText('Add competitors on the Competitors page to see how much pressure each one puts on Lone Star Cooling.')).toBeTruthy();
+  });
+
+  it('Overview: the no-recommendations empty state offers saving from an assistant answer only when Ask is on and the viewer can give feedback', async () => {
+    m.features = ['dashboard', 'ask'];
+    await show(PAGES[0][1], 'client');
+    expect(screen.getByText('New recommendations come with each brief. You can also save one from an Sunny answer.')).toBeTruthy();
+    cleanup();
+    m.features = ['dashboard'];
+    await show(PAGES[0][1], 'client');
+    expect(screen.getByText('New recommendations come with each brief.')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/save one from/);
+    cleanup();
+    m.features = ['dashboard', 'ask'];
+    m.role = 'client_viewer';
+    render(<HelpProvider value={{ audience: 'client', names: { agency: 'Cool Comfort', assistant: 'Sunny', client: 'Lone Star Cooling' } }}>{await Overview(args)}</HelpProvider>);
+    expect(screen.getByText('New recommendations come with each brief.')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/save one from/);
   });
 
   it('Changes: clients get the plain route tip, agency staff the routing tip; the empty states use the new copy', async () => {

@@ -6,10 +6,14 @@ import { notFound } from 'next/navigation';
 import { ClientBillingControls, type ClientBillingStatusRow } from '@/components/billing/client-billing-controls';
 import { clientSettingsCrumbs } from '@/components/client-crumbs';
 import { ClientProfileForm } from '@/components/client-profile-form';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { ServicesAreaSummary } from '@/components/services-area-summary';
+import { PAGE_COPY } from '@/help/copy';
 import { hasClientSettings } from '@/server/client-settings-nav';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
 import { saveFeaturesAction, updateProfileAction } from './actions';
@@ -18,19 +22,31 @@ import { ClientFeaturesForm } from './client-features-form';
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Business profile' };
 
+const HELP_KEY = 'page:client.settings.profile';
+const COPY = PAGE_COPY['client.settings.profile'];
+const TIPS = [
+  { label: 'Services and keywords', tip: 'client.settings.profile.servicesKeywords' },
+  { label: 'Service area', tip: 'client.settings.profile.area' },
+  { label: 'Google Business Profile', tip: 'client.settings.profile.googleProfile' },
+  { label: 'Client features', tip: 'client.settings.profile.features' },
+  { label: 'Changing these details', tip: 'client.settings.profile.change' },
+] as const;
+
 export default async function ClientProfilePage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
   const { ctx } = await requireContext();
   const agency = isAgencyRole(ctx.role);
   if (!agency && !hasFeature(ctx, 'dashboard')) notFound();
-  const [p, settingsLinked] = await Promise.all([callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }), hasClientSettings(clientId)]);
+  const [p, settingsLinked, guides] = await Promise.all([callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }), hasClientSettings(clientId), helpGuides(ctx, 'client', clientId)]);
+  const header = { description: <HelpText text={COPY.description} />, helpKey: HELP_KEY, guide: guides.has(HELP_KEY) };
   if (!agency) {
     const names = Object.fromEntries((await verticalOptions()).flatMap((v) => v.services.map((s) => [s.id, s.name] as const)));
     return (
       <>
-        <PageHeader title="Business profile" breadcrumb={clientSettingsCrumbs({ id: clientId, name: p.name }, 'Business profile', settingsLinked)} />
+        <PageHeader title="Business profile" breadcrumb={clientSettingsCrumbs({ id: clientId, name: p.name }, 'Business profile', settingsLinked)} {...header} />
+        <TipRow items={[...TIPS]} />
         <ServicesAreaSummary profile={p} serviceNames={names} />
-        <p className="text-muted-foreground">To change these, contact your account manager.</p>
+        <p className="text-muted-foreground"><HelpText text="To change these, contact {agency}." /></p>
       </>
     );
   }
@@ -45,7 +61,8 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
           ← Back to the prospect
         </Link>
       )}
-      <PageHeader title="Business profile" breadcrumb={clientSettingsCrumbs({ id: clientId, name: p.name }, 'Business profile', settingsLinked)} />
+      <PageHeader title="Business profile" breadcrumb={clientSettingsCrumbs({ id: clientId, name: p.name }, 'Business profile', settingsLinked)} {...header} />
+      <TipRow items={[...TIPS]} />
       {billing && (
         <section aria-label="Billing" className="flex items-center gap-3">
           <span className="font-semibold">Billing</span>

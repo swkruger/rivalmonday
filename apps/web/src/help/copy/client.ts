@@ -485,4 +485,220 @@ export const CLIENT_COPY = {
       },
     },
   },
+  'client.setup': {
+    description: 'Get {client} ready for monitoring: confirm the business, then choose the competitors to watch.',
+    tips: {
+      // source: apps/web/src/app/(app)/c/[clientId]/setup/wizard-steps.ts:STEPS, stepsFor (staff see 5 steps for a client, 4 for a prospect); setup-wizard.tsx (Dismiss setup; the stepper opens the first step not done); setup/page.tsx (closed setup stays editable in settings)
+      stepsAgency: {
+        title: 'About the setup steps',
+        body: 'A client has five steps: Your business, Finding competitors, Pick competitors, Invite the owner and Billing. A prospect has the first four. You can skip a step and come back, and setup reopens at the first step that is not done. Dismiss setup hides it; everything stays editable under Client settings and on the Competitors page.',
+        audience: 'agency',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: apps/web/src/app/(app)/c/[clientId]/setup/wizard-steps.ts:stepsFor (client roles see the first 3 steps; currentStep = first step not done)
+      stepsClient: {
+        title: 'About the setup steps',
+        body: 'Setup has three steps: Your business, Finding competitors and Pick competitors. Confirm the details, wait while we look for competitors, then choose the ones to watch. You can leave and come back; setup reopens at the first step that is not done.',
+        audience: 'client',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/engine/src/briefs/setup-clock.ts:startingPointClockStart, SETUP_HOLD_DAYS (14); packages/engine/src/briefs/readiness.ts:startingPointReadiness, STARTING_POINT_WAIT_HOURS (48)
+      firstBrief: {
+        title: 'Your first brief',
+        body: 'The first brief, the starting point, shows where {client} stands next to its competitors. Its 48-hour wait starts when the competitors step is done (or setup is dismissed). It is made as soon as the business profile, reviews, first map scan and competitors are ready, or when those 48 hours are up. If setup never reaches the competitors step, the brief is held for at most 14 days after the client was added.',
+        guideAnchor: 'common-questions',
+      },
+      // source: packages/tools/src/client-input.ts (service area, keywords); packages/engine/src/briefs/readiness.ts:startingPointReadiness (rankings need keywords and a service area); apps/web/src/app/(app)/c/[clientId]/setup/steps/business-step.tsx (Advanced: map centre, Google listing)
+      serviceArea: {
+        title: 'Service area',
+        body: 'Where {client} serves: a radius around a centre point, plus ZIP codes and towns if you list them. Competitor suggestions and local-ranking scans both use it. The centre point and the Google listing sit under Advanced; they are filled in from the lookup, so you will rarely need to touch them.',
+        guideAnchor: 'how-to-use-it',
+      },
+    },
+  },
+  'client.settings.profile': {
+    description: "The services, search keywords and service area used to find and compare {client}'s competitors.",
+    tips: {
+      // source: packages/tools/src/client-input.ts:MAX_KEYWORDS (5); apps/web/src/components/client-profile-form.tsx (keywords "Used for competitor discovery and local-ranking scans")
+      servicesKeywords: {
+        title: 'Services and keywords',
+        body: 'Services are what the business offers. Keywords are the searches customers use, up to 5, for example “ac repair”. Both are used to find competitors and to scan local rankings.',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: apps/web/src/components/services-area-summary.tsx (Area line "N ZIP codes"); packages/engine/src/briefs/readiness.ts:startingPointReadiness (service area used for rank scans and discovery)
+      area: {
+        title: 'Service area',
+        body: 'A radius around the business, plus any ZIP codes and towns that are listed. “0 ZIP codes” means none are listed; the radius still applies. It decides which competitors are suggested and where local rankings are scanned.',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: apps/web/src/components/services-area-summary.tsx (Linked / Not linked from placeId); apps/web/src/app/(app)/c/[clientId]/setup/steps/business-step.tsx (placeId hint: benchmark the business's own reviews)
+      googleProfile: {
+        title: 'Google Business Profile',
+        body: "Linked means {client}'s Google listing is connected, which lets us compare its reviews with its competitors'. Not linked means the listing still needs to be connected.",
+        guideAnchor: 'common-questions',
+      },
+      // source: apps/web/src/app/(app)/c/[clientId]/settings/profile/client-features-form.tsx:SWITCHES, askReviewAllowed (agency admins only)
+      features: {
+        title: 'Client features',
+        body: "Which parts of the workspace the client can use: the dashboard, alert rules, managing competitors, the {assistant} and the AI connection page. A feature that is off is hidden from the client, not from your team. Allow review, for admins only, lets the platform team read this client's {assistant} conversations to improve answers.",
+        audience: 'agency',
+        guideAnchor: 'how-to-use-it',
+      },
+      change: {
+        title: 'Changing these details',
+        body: 'Your agency keeps these details up to date because they decide which competitors are watched. If something is wrong, contact {agency}.',
+        audience: 'client',
+      },
+    },
+  },
+  'client.settings.delivery': {
+    description: "How and when {client} receives alerts and briefs, in the business's own time zone, and who they go to.",
+    tips: {
+      // source: apps/web/src/app/(app)/c/[clientId]/settings/delivery/delivery-controls.tsx:MODES; packages/engine/src/alerts/route.ts:processAlert, ALERTS_PER_DAY (3), releaseAlert; packages/engine/src/alerts/digest.ts:DIGEST_LOCAL_HOUR (17)
+      alertMode: {
+        title: 'Alert mode',
+        body: 'Direct sends each alert to the client at once. I review alerts first holds each alert for you to approve or dismiss before it is sent. Digest only never sends alerts one by one: they go out together in one digest from 17:00 business time. In every mode a client gets at most 3 instant alerts a day; any extra waits for that evening digest.',
+        audience: 'agency',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/engine/src/briefs/deliver.ts:deliverDueBriefs, isUntouched (no human edit, drop or reorder), notifyOverdue, DELIVERY_LOCAL_HOUR (7)
+      autoSend: {
+        title: 'Automatic sending',
+        body: 'When on, a weekly brief that nobody has edited, dropped or reordered items in is approved and sent on Monday from 07:00 business time. A brief you touched waits for your approval, and you are told it is overdue.',
+        audience: 'agency',
+        guideAnchor: 'how-to-use-it',
+      },
+      // source: packages/engine/src/briefs/deliver.ts:DELIVERY_LOCAL_HOUR (7); packages/engine/src/alerts/digest.ts:DIGEST_LOCAL_HOUR (17); packages/engine/src/reports/quarterly.ts:runQuarterlyReports (08:00 client-local); packages/engine/src/alerts/route.ts:releaseAlert (local day)
+      timezone: {
+        title: 'What runs on this clock',
+        body: "The clock for this client's deliveries: weekly briefs go out on Monday at 07:00, the evening digest from 17:00, quarterly reports from 08:00 in the first week of a quarter, and the 3-a-day alert limit counts each local day. It is the business's time zone, not your agency's.",
+        audience: 'agency',
+        guideAnchor: 'common-questions',
+      },
+      // source: packages/engine/src/delivery/contacts.ts:recipientsFor (active contacts of the client, each person's own notification preferences); settings/delivery/page.tsx:ROLE_LABEL; delivery-controls.tsx:DeactivateRecipientButton; packages/core/src/tokens.ts:grantableScopes; settings/billing/page.tsx (client owner only)
+      recipients: {
+        title: 'Recipients',
+        body: "The people who get this client's alerts and briefs. An Owner can also sign in and use whatever the client's features allow, including billing; a Viewer can only look. Each person can switch off kinds of message in their own preferences. Deactivating someone stops their messages, and links already sent to them stop working.",
+        audience: 'agency',
+        guideAnchor: 'how-to-use-it',
+      },
+    },
+    empty: {
+      noRecipients: { title: 'No recipients yet', body: "Nobody receives this client's alerts or briefs yet. Add the owner's email below.", audience: 'agency' },
+    },
+  },
+  'client.settings.alerts': {
+    description: 'The score at which a competitor change becomes an instant alert or goes into the weekly brief.',
+    tips: {
+      // source: packages/engine/src/score/score.ts:scoreForClient (alert, brief and archived routes); apps/web/src/components/runbook/knob-card.tsx:thresholdError (brief 1-99, alert 2-100, brief below alert); settings/alerts/page.tsx
+      levels: {
+        title: 'Alert and brief levels',
+        body: 'Every competitor change gets a score from 0 to 100 for how much it matters to {client}. At or above the alert level it is an instant alert; from the brief level up to the alert level it goes in the weekly brief; below the brief level it is archived but still listed under Changes. Both levels are whole numbers: brief 1 to 99, alert 2 to 100, with brief lower than alert. New levels apply to changes detected from now on.',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/engine/src/alerts/route.ts:ALERTS_PER_DAY (3), releaseAlert (client-local day, extras become digest); packages/engine/src/alerts/digest.ts:DIGEST_LOCAL_HOUR (17)
+      dailyLimit: {
+        title: 'Instant alerts per day',
+        body: "A client gets at most 3 instant alerts a day, counted on the business's local day. Extra alerts wait for the evening digest, sent from 17:00 business time. How alerts are released is set under Delivery.",
+        audience: 'agency',
+        guideAnchor: 'common-questions',
+      },
+    },
+  },
+  'client.settings.ai': {
+    description: "Connect Claude, ChatGPT or another AI assistant to {client}'s competitor data. Answers come with the same evidence links you see here.",
+    tips: {
+      // source: apps/web/src/components/ai-connections.tsx:ConnectorUrlCard
+      connector: {
+        title: 'Adding the connector',
+        body: 'Paste the connector URL into your AI assistant, then sign in and choose this workspace. Claude and ChatGPT add it from their Connectors settings. For Claude Code, create a token first and run the command shown.',
+        guideAnchor: 'how-to-use-it',
+      },
+      // source: apps/web/src/components/ai-connections.tsx:AccessTokensCard, ShownOncePanel, RevokeTokenButton
+      tokens: {
+        title: 'What a token is',
+        body: 'A token is a password for tools that cannot sign in, such as Claude Code or a script. It acts as you, with the permission level you choose. It is shown once when you create it, so copy it straight away. Revoke it at any time and anything using it stops working.',
+        guideAnchor: 'common-questions',
+      },
+      // source: packages/core/src/tokens.ts:grantableScopes, effectiveScope (client owner: read, feedback; client viewer: read); packages/core/src/tools.ts:mcpScopeOf; apps/web/src/components/ai-connections.tsx:ACCESS_LABEL
+      levels: {
+        title: 'Permission levels',
+        body: "Read only lets an assistant look things up. Read and feedback also lets it record feedback, such as changing a recommendation's status or rating a change. A token or connected app never gets more than your own role allows: owners can choose either level, viewers only Read only.",
+        guideAnchor: 'common-questions',
+      },
+      // source: apps/web/src/app/(app)/c/[clientId]/settings/ai/page.tsx (agency roles cannot create tokens here; an admin sees everyone's)
+      agencyTokens: {
+        title: 'Agency tokens',
+        body: "Agency roles do not create tokens on a client page. Agency-wide tokens live under Agency settings › AI connections, where a third level, Read, feedback and manage, is available. Here you see this client's tokens and connected apps; an admin sees everyone's.",
+        audience: 'agency',
+        guideAnchor: 'how-to-use-it',
+      },
+      // source: apps/web/src/components/ai-connections.tsx:ConnectedAppsCard, DisconnectButton
+      apps: {
+        title: 'Connected apps',
+        body: 'Apps that were connected by signing in, rather than with a token. Each shows its permission level and which workspace it can reach. Disconnect removes its access straight away, and the app has to ask again next time.',
+        guideAnchor: 'common-questions',
+      },
+    },
+    empty: {
+      noTokens: { title: 'No access tokens yet', body: 'Create one when a tool such as Claude Code needs access. Assistants you connect by signing in, like Claude or ChatGPT, do not need a token.' },
+      noApps: { title: 'No connected apps yet', body: 'Paste the connector URL into Claude or ChatGPT and sign in. The app then shows up here.' },
+    },
+  },
+  'client.settings.billing': {
+    description: 'The status of your plan, your next charge and your payment method.',
+    tips: {
+      // source: apps/web/src/app/(app)/c/[clientId]/settings/billing/page.tsx:statusOf
+      status: {
+        title: 'Billing status',
+        body: 'Active: your plan is running. Payment needed: the last payment did not go through, so update your payment method. Awaiting payment setup: {agency} has emailed you a payment link. Cancelled: the plan is cancelled; if an end date is shown, that is the last day covered and there are no further charges. Paused: monitoring is paused, so contact {agency}. Not set up: billing has not been turned on for this workspace, so contact {agency}.',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: apps/web/src/app/(app)/c/[clientId]/settings/billing/page.tsx (nextChargeDate, nextChargeAmountCents, endsOn); packages/tools/src/tools/my-billing.ts:getMyBillingTool
+      nextCharge: {
+        title: 'Next charge',
+        body: 'The date and amount of your next payment. If there is no next date, the page shows the monthly amount instead. When a plan is ending, it shows the day it ends rather than a charge.',
+        guideAnchor: 'common-questions',
+      },
+      // source: packages/tools/src/tools/my-billing.ts:getMyBillingTool (canManagePayment), openBillingPortalTool (payment method and invoices, returns to this page)
+      managePayment: {
+        title: 'Manage payment details',
+        body: 'Opens a secure payment page where you update your payment method and see your invoices, then brings you back here. The button appears once payment details exist; before that, use the payment link {agency} emailed you.',
+        guideAnchor: 'how-to-use-it',
+      },
+    },
+  },
+  'client.settings.runbook': {
+    description: 'The plays, starting-point rules and settings used for this client’s briefs and recommendations.',
+    tips: {
+      // source: apps/web/src/components/runbook/runbook-editor.tsx (Plays, Starting-point rules, Settings); knob-card.tsx:KNOB_TITLE; item-card.tsx:ItemCard (EnabledSwitch, rule text)
+      sections: {
+        title: 'Plays, rules and settings',
+        body: 'Plays are the recommendations a brief can suggest, each with a trigger and a template. Starting-point rules shape the first brief. Settings cover the alert and brief thresholds, focus services and competitor tiers. Switch an item off to leave it out.',
+        audience: 'agency',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: apps/web/src/components/runbook/item-card.tsx:badgeFor, PlayEditor
+      badges: {
+        title: 'Inherited and customised',
+        body: "Inherited means the item matches the agency runbook. Customised means someone on your team changed it for this client. Edit changes a play's title, template and the services it applies to; saving marks it Customised.",
+        audience: 'agency',
+        guideAnchor: 'how-to-use-it',
+      },
+      // source: apps/web/src/components/runbook/item-card.tsx:UpdatePrompts (Review update, Use the update, Keep mine, Tailored for this client: Approve / Use as is; New: Add / Not now; Removed upstream: Keep / Remove)
+      updates: {
+        title: 'Update available',
+        body: 'The agency runbook changed an item this client inherited. Review update shows what changed, and your own version if you customised it. Use the update takes the new text; for a play it is first tailored to this client, and you choose Approve or Use as is. Keep mine leaves the item as it is. A new item offers Add or Not now; one removed upstream offers Keep or Remove.',
+        audience: 'agency',
+        guideAnchor: 'common-questions',
+      },
+      // source: apps/web/src/components/runbook/runbook-editor.tsx (hasRunbook, canEdit); settings/runbook/page.tsx (admins and account managers edit); packages/engine/CLAUDE.md § Runbooks (loadClientRunbook order)
+      ownRunbook: {
+        title: 'This client’s own runbook',
+        body: 'Until you create a runbook for this client, briefs use the agency runbook (HVAC and dental clients use the built-in plays) and this page is view-only. Creating one copies the agency items so you can tailor them. Only admins and account managers can edit.',
+        audience: 'agency',
+        guideAnchor: 'common-questions',
+      },
+    },
+  },
 } as const satisfies Record<`client.${string}`, PageCopy>;

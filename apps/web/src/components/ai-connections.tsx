@@ -90,11 +90,14 @@ export function mcpServerName(displayName: string | null): string {
 }
 
 /** `displayName` is the viewer's agency (white-label) name, used only for the Claude Code command's server name. */
-export function ConnectorUrlCard({ url, displayName }: { url: string; displayName: string | null }) {
+export function ConnectorUrlCard({ url, displayName, help }: { url: string; displayName: string | null; help?: ReactNode }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Connector URL</CardTitle>
+        <CardTitle className="inline-flex items-center gap-1.5">
+          Connector URL
+          {help}
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -170,7 +173,7 @@ function RevokeTokenButton({ item, action, pending, result, hidden }: { item: Ap
   );
 }
 
-export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, createAction, revokeAction, note, hidden }: {
+export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, createAction, revokeAction, note, hidden, help, empty }: {
   canCreate: boolean;
   scopes: TokenScope[];
   tokens: ApiTokenView[];
@@ -180,6 +183,10 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, createA
   /** Shown instead of the create form (e.g. agency roles on a client page). */
   note?: ReactNode;
   hidden?: Hidden;
+  /** Help tips shown beside the card title. */
+  help?: ReactNode;
+  /** Replaces the plain "No access tokens yet." line. */
+  empty?: ReactNode;
 }) {
   const readOnly = useReadOnly();
   const [created, create, creating] = useActionState(createAction, { ok: true } as CreateTokenResult);
@@ -195,7 +202,10 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, createA
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Access tokens</CardTitle>
+        <CardTitle className="inline-flex items-center gap-1.5">
+          Access tokens
+          {help}
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         <p className="text-ink">For Claude Code, scripts and tools that can&apos;t sign in. A token acts as you, with the access level you choose.</p>
@@ -231,7 +241,7 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, createA
         {fresh && fresh.token && <ShownOncePanel token={fresh.token} onDone={() => setDoneId(fresh.id ?? null)} />}
         {revoked.ok && <Message state={revoked} />}
         {tokens.length === 0 ? (
-          <p className="text-muted-foreground">No access tokens yet.</p>
+          (empty ?? <p className="text-muted-foreground">No access tokens yet.</p>)
         ) : (
           <Table>
             <TableHeader>
@@ -307,19 +317,22 @@ function DisconnectButton({ item, action, pending, result, hidden }: { item: OAu
   );
 }
 
-export function ConnectedAppsCard({ grants, showOwner, revokeAction, hidden }: { grants: OAuthGrantView[]; showOwner: boolean; revokeAction: FormAction<RowResult>; hidden?: Hidden }) {
+export function ConnectedAppsCard({ grants, showOwner, revokeAction, hidden, help, empty }: { grants: OAuthGrantView[]; showOwner: boolean; revokeAction: FormAction<RowResult>; hidden?: Hidden; help?: ReactNode; empty?: ReactNode }) {
   const readOnly = useReadOnly();
   const [result, revoke, pending] = useActionState(revokeAction, { ok: true } as RowResult);
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Connected apps</CardTitle>
+        <CardTitle className="inline-flex items-center gap-1.5">
+          Connected apps
+          {help}
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         <p className="text-ink">Apps you&apos;ve connected by signing in.</p>
         {result.ok && <Message state={result} />}
         {grants.length === 0 ? (
-          <p className="text-muted-foreground">No connected apps yet.</p>
+          (empty ?? <p className="text-muted-foreground">No connected apps yet.</p>)
         ) : (
           <Table>
             <TableHeader>

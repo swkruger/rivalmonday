@@ -5,9 +5,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { clientSettingsCrumbs } from '@/components/client-crumbs';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { hasClientSettings } from '@/server/client-settings-nav';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { saveAlertRulesAction } from './actions';
 import { AlertRulesForm } from './alert-rules-form';
@@ -15,18 +19,34 @@ import { AlertRulesForm } from './alert-rules-form';
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Alert rules' };
 
+const HELP_KEY = 'page:client.settings.alerts';
+const COPY = PAGE_COPY['client.settings.alerts'];
+
 export default async function AlertRulesPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
   const { ctx } = await requireContext();
   if (!hasFeature(ctx, 'alert_rules')) notFound();
-  const [rules, profile, settingsLinked] = await Promise.all([
+  const [rules, profile, settingsLinked, guides] = await Promise.all([
     callTool<AlertRulesView>(ctx, 'get_alert_rules', { clientId }),
     callTool<{ name: string }>(ctx, 'get_client_profile', { clientId }),
     hasClientSettings(clientId),
+    helpGuides(ctx, 'client', clientId),
   ]);
   return (
     <>
-      <PageHeader title="Alert rules" breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Alert rules', settingsLinked)} />
+      <PageHeader
+        title="Alert rules"
+        breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Alert rules', settingsLinked)}
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
+      />
+      <TipRow
+        items={[
+          { label: 'Alert and brief levels', tip: 'client.settings.alerts.levels' },
+          { label: 'Instant alerts per day', tip: 'client.settings.alerts.dailyLimit' },
+        ]}
+      />
       <Card>
         <CardContent className="flex flex-col gap-2">
           <p>Every competitor change gets a score from 0 to 100 for how much it matters to {profile.name}.</p>

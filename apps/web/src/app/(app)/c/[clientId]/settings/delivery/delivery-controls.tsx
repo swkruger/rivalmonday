@@ -1,6 +1,7 @@
 'use client';
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label, Switch } from '@cs/ui';
 import { useActionState, useState } from 'react';
+import { HelpTip } from '@/components/help/help-tip';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { addRecipientAction, deactivateRecipientAction, saveDeliveryAction } from './actions';
@@ -45,7 +46,10 @@ export function DeliveryForm({
 
       <fieldset disabled={readOnly} className="contents">
       <fieldset className="flex flex-col gap-3">
-        <legend className="font-semibold">Alert mode</legend>
+        <legend className="inline-flex items-center gap-1.5 font-semibold">
+          Alert mode
+          <HelpTip tip="client.settings.delivery.alertMode" />
+        </legend>
         {MODES.map((m) => (
           <label key={m.value} className="flex items-start gap-3 rounded-lg border border-line p-3">
             <input type="radio" name="alertMode" value={m.value} defaultChecked={m.value === alertMode} className="mt-1 h-4 w-4" />
@@ -61,10 +65,14 @@ export function DeliveryForm({
         <Switch checked={autoSend} onCheckedChange={setAutoSend} aria-label="Send untouched briefs automatically on Monday 07:00" />
         <input type="hidden" name="briefAutoSend" value={autoSend ? 'on' : ''} />
         <Label>Send untouched briefs automatically on Monday 07:00</Label>
+        <HelpTip tip="client.settings.delivery.autoSend" />
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="timezone">Business time zone</Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="timezone">Business time zone</Label>
+          <HelpTip tip="client.settings.delivery.timezone" />
+        </div>
         <select id="timezone" name="timezone" defaultValue={timezone} className={selectClass}>
           {timezoneOptions.map((tz) => (
             <option key={tz} value={tz}>

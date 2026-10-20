@@ -2,6 +2,7 @@
 import { Button, Input, Label } from '@cs/ui';
 import { useState } from 'react';
 import { FieldHint, useFieldHint } from '@/components/help/field-hint';
+import { HelpTip } from '@/components/help/help-tip';
 import { WriteGuard } from '@/components/read-only';
 import type { ClientSetupView } from '../types';
 
@@ -151,7 +152,10 @@ export function BusinessStep({ view, profile, pending, onSave, error = null }: {
       )}
 
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-1 font-semibold">Service area</legend>
+        <legend className="mb-1 inline-flex items-center gap-1.5 font-semibold">
+          Service area
+          <HelpTip tip="client.setup.serviceArea" />
+        </legend>
         <div className="flex flex-wrap gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="radiusKm">Radius (km)</Label>

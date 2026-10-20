@@ -5,11 +5,16 @@ import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, Tabl
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { clientSettingsCrumbs } from '@/components/client-crumbs';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
 import { WriteGuard } from '@/components/read-only';
+import { PAGE_COPY } from '@/help/copy';
 import { hasClientSettings } from '@/server/client-settings-nav';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
+import { helpGuides } from '@/server/help';
 import { maskRecipientsForSupport } from '@/server/support-mask';
 import { callTool } from '@/server/tools';
 import { timezoneOptions } from '@/server/timezones';
@@ -18,19 +23,28 @@ import { AddRecipientForm, DeactivateRecipientButton, DeliveryForm } from './del
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Delivery' };
 
+const HELP_KEY = 'page:client.settings.delivery';
+const COPY = PAGE_COPY['client.settings.delivery'];
+
 const ROLE_LABEL: Record<string, string> = { client_owner: 'Owner', client_viewer: 'Viewer' };
 
 export default async function ClientDeliveryPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const [profile, settingsLinked] = await Promise.all([callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }), hasClientSettings(clientId)]);
+  const [profile, settingsLinked, guides] = await Promise.all([callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }), hasClientSettings(clientId), helpGuides(ctx, 'client', clientId)]);
   // Phase 8b: emails are masked in a support session before anything reaches a client component.
   const recipients = maskRecipientsForSupport(ctx, await listClientRecipients(dbs().service, ctx, clientId));
 
   return (
     <>
-      <PageHeader title="Delivery" breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Delivery', settingsLinked)} />
+      <PageHeader
+        title="Delivery"
+        breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Delivery', settingsLinked)}
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
+      />
       <DeliveryForm
         clientId={clientId}
         alertMode={profile.alertMode ?? 'after_am_check'}
@@ -40,11 +54,14 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
       />
       <Card>
         <CardHeader>
-          <CardTitle>Recipients</CardTitle>
+          <CardTitle className="inline-flex items-center gap-1.5">
+            Recipients
+            <HelpTip tip="client.settings.delivery.recipients" />
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           {recipients.length === 0 ? (
-            <p className="text-muted-foreground">No recipients yet.</p>
+            <EmptyState {...COPY.empty.noRecipients} guideAnchor="how-to-use-it" />
           ) : (
             <Table>
               <TableHeader>

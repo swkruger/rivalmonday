@@ -6,15 +6,22 @@ import { PaymentButton } from '@/app/(app)/agency/settings/billing/payment-butto
 import { formatLongDate, formatUsd } from '@/components/billing/format';
 import { RefreshUntilChanged } from '@/components/billing/refresh-until-changed';
 import { clientSettingsCrumbs } from '@/components/client-crumbs';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { hasClientSettings } from '@/server/client-settings-nav';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { managePaymentAction } from './actions';
 
 export const dynamic = 'force-dynamic';
 /** R18: the (app) title template appends the agency's name: "Billing · {agency}". */
 export const metadata: Metadata = { title: 'Billing' };
+
+const HELP_KEY = 'page:client.settings.billing';
+const COPY = PAGE_COPY['client.settings.billing'];
 
 export interface MyBilling {
   agencyName: string;
@@ -53,17 +60,31 @@ export default async function ClientBillingPage({ params, searchParams }: { para
   const { checkout } = await searchParams;
   const { ctx } = await requireContext();
   if (ctx.role !== 'client_owner') notFound();
-  const [b, profile, settingsLinked] = await Promise.all([
+  const [b, profile, settingsLinked, guides] = await Promise.all([
     callTool<MyBilling>(ctx, 'get_my_billing', { clientId }),
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     hasClientSettings(clientId),
+    helpGuides(ctx, 'client', clientId),
   ]);
   const status = statusOf(b);
   const flash = one(checkout) === 'done' ? CHECKOUT_DONE_COPY : one(checkout) === 'cancelled' ? CHECKOUT_CANCELLED_COPY : null;
 
   return (
     <>
-      <PageHeader title="Billing" breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Billing', settingsLinked)} />
+      <PageHeader
+        title="Billing"
+        breadcrumb={clientSettingsCrumbs({ id: clientId, name: profile.name }, 'Billing', settingsLinked)}
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
+      />
+      <TipRow
+        items={[
+          { label: 'Status', tip: 'client.settings.billing.status' },
+          { label: 'Next charge', tip: 'client.settings.billing.nextCharge' },
+          { label: 'Manage payment details', tip: 'client.settings.billing.managePayment' },
+        ]}
+      />
       {one(checkout) === 'done' && <RefreshUntilChanged watch={b.state} />}
       {flash && <p role="status" className="rounded-md bg-muted-surface px-4 py-2 text-sm font-semibold text-ink">{flash}</p>}
       <Card>

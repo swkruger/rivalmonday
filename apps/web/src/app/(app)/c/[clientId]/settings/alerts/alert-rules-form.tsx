@@ -1,6 +1,7 @@
 'use client';
 import { Button, Input, Label } from '@cs/ui';
 import { useActionState } from 'react';
+import { HelpText } from '@/components/help/help-context';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
@@ -47,7 +48,7 @@ export function AlertRulesForm({ clientId, rules, canEdit: canEditProp, action }
         </>
       ) : (
         <p>
-          Instant alert from score {rules.alert}; weekly brief from score {rules.brief}.{readOnly ? '' : ' Ask your account manager to change these.'}
+          Instant alert from score {rules.alert}; weekly brief from score {rules.brief}.{readOnly ? '' : <HelpText text=" Ask {agency} to change these." />}
         </p>
       )}
       {!state.ok && state.error && <ErrorNote focusKey={state}>{state.error}</ErrorNote>}
