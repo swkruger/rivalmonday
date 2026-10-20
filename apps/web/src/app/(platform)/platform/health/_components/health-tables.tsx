@@ -1,17 +1,9 @@
+import type { PlatformHealth } from '@cs/tools';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { relativeTime } from '@/server/format';
 
-export type HealthStatus = 'ok' | 'warn' | 'down';
-
-/** Shape of `get_platform_health` (packages/tools/src/platform/system-health.ts), kept structural for the page. */
-export interface HealthData {
-  generatedAt: string;
-  worker: { lastHeartbeatAt: string | null; status: HealthStatus };
-  queues: { name: string; queued: number; active: number; failed24h: number; oldestQueuedAgeS: number | null; status: HealthStatus }[];
-  vendors: { vendor: string; calls24h: number; errors24h: number; lastOkAt: string | null; status: HealthStatus }[];
-  sources: { kind: 'vendor_call' | 'capture'; lastOkAt: string | null; status: HealthStatus }[];
-  sentryUrl: string | null;
-}
+export type HealthData = PlatformHealth;
+export type HealthStatus = PlatformHealth['worker']['status'];
 
 const LABEL: Record<HealthStatus, string> = { ok: 'OK', warn: 'Watch', down: 'Down' };
 const TONE: Record<HealthStatus, string> = {
@@ -54,7 +46,8 @@ export function WorkerTable({ worker, now }: { worker: HealthData['worker']; now
   );
 }
 
-export function QueuesTable({ queues }: { queues: HealthData['queues'] }) {
+export function QueuesTable({ queues, queueError = false }: { queues: HealthData['queues']; queueError?: boolean }) {
+  if (queueError) return <p className="text-sm text-muted-foreground">Queue database unreachable — check the worker&apos;s grants and DATABASE_URL.</p>;
   if (queues.length === 0) return <p className="text-sm text-muted-foreground">No queues reported.</p>;
   return (
     <Table>

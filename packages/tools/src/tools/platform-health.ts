@@ -26,9 +26,13 @@ export const getPlatformHealth = defineTool({
     const since48 = new Date(now.getTime() - 48 * HOUR_MS);
     const since24 = new Date(now.getTime() - 24 * HOUR_MS);
 
+    let queueError = false;
     const [queue, vendorRows, [okCall], [okCapture]] = await Promise.all([
-      // An unreachable queue database is itself the finding: report the worker as down instead of failing the whole page.
-      deps.queueStats().catch(() => ({ queues: [], lastHeartbeatAt: null })),
+      // An unreachable queue database must not fail the page: flag it and show the worker as down. The web wrapper logs and reports the cause.
+      deps.queueStats().catch(() => {
+        queueError = true;
+        return { queues: [], lastHeartbeatAt: null };
+      }),
       deps.service
         .select({
           vendor: vendorCall.vendor,
@@ -51,6 +55,7 @@ export const getPlatformHealth = defineTool({
       lastOkVendorCallAt: okCall?.at ?? null,
       lastOkCaptureAt: okCapture?.at ?? null,
       sentryUrl: deps.sentryIssuesUrl ?? null,
+      queueError,
     });
   },
 });

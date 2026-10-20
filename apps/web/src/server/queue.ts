@@ -1,8 +1,10 @@
 import 'server-only';
 import { ToolError } from '@cs/core';
+import { createLogger } from '@cs/core/server';
 import { createDb, type Db, type EnvName } from '@cs/db';
 import type { EnqueueJob, JobState, JobStatusLookup, QueueJob, QueueStat, QueueStatsLookup } from '@cs/tools';
 import { sql } from 'drizzle-orm';
+import * as Sentry from '@sentry/nextjs';
 import PgBoss from 'pg-boss';
 import { BACKGROUND_OFF } from './background-off';
 import { activeEnvName } from './dev-guard';
@@ -127,6 +129,7 @@ type StatRow = { name: string; queued: number; active: number; failed24h: number
  */
 export async function queueStatsOn(db: Db): Promise<{ queues: QueueStat[]; lastHeartbeatAt: Date | null }> {
   const rows = (await db.execute(sql`
+    -- "oldest" = oldest eligible: greatest(created_on, start_after)
     SELECT q.name AS name,
            count(j.id) FILTER (WHERE j.state IN ('created', 'retry'))::int AS queued,
            count(j.id) FILTER (WHERE j.state = 'active')::int AS active,
@@ -142,10 +145,27 @@ export async function queueStatsOn(db: Db): Promise<{ queues: QueueStat[]; lastH
   };
 }
 
-const devQueueStats: QueueStatsLookup = () => {
+/** A failing queue read must be visible (log + Sentry), not just a blank health page; the error is rethrown for the tool to flag. */
+export function withQueueStatsReporting(
+  lookup: QueueStatsLookup,
+  report: { log: (o: object, msg: string) => void; capture: (e: unknown) => void } = { log: (o, m) => queueLog.error(o, m), capture: (e) => void Sentry.captureException(e) },
+): QueueStatsLookup {
+  return async () => {
+    try {
+      return await lookup();
+    } catch (e) {
+      report.log({ err: e instanceof Error ? { name: e.name, message: e.message } : String(e) }, 'queue stats read failed');
+      report.capture(e);
+      throw e;
+    }
+  };
+}
+const queueLog = createLogger(process.env.VITEST ? { pretty: false } : {}).child({ role: 'web' });
+
+const devQueueStats: QueueStatsLookup = withQueueStatsReporting(() => {
   queueDb ??= createDb(envUrls('dev').owner).db;
   return queueStatsOn(queueDb);
-};
+});
 const noQueueStats: QueueStatsLookup = async () => ({ queues: [], lastHeartbeatAt: null });
 
 /** DEMO and TEST have no queue: empty stats without connecting. Same connection as `jobStatusFor`. */

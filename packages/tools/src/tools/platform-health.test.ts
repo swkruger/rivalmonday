@@ -48,6 +48,7 @@ describe('get_platform_health', () => {
     const out = await health();
     expect(out.worker).toEqual({ lastHeartbeatAt: null, status: 'down' });
     expect(out.queues).toEqual([]);
+    expect(out.queueError).toBe(true);
   });
 
   it('empty DB: worker down, no queues or vendors, sources down, no divide-by-zero', async () => {
@@ -57,6 +58,7 @@ describe('get_platform_health', () => {
     expect(out.vendors).toEqual([]);
     expect(out.sources.map((s) => [s.kind, s.status])).toEqual([['vendor_call', 'down'], ['capture', 'down']]);
     expect(out.sentryUrl).toBe('https://sentry.example/issues');
+    expect(out.queueError).toBe(false);
   });
 
   it('aggregates vendor calls over 48 h, error rate inputs over 24 h, and the latest ok source rows', async () => {

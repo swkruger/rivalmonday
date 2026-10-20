@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ToolError } from '@cs/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BACKGROUND_OFF, type Boss, createBossQueue, createJobStatusLookup, refuseJobs } from './queue';
+import { BACKGROUND_OFF, type Boss, createBossQueue, createJobStatusLookup, refuseJobs, withQueueStatsReporting } from './queue';
 
 const createDbMock = vi.hoisted(() => vi.fn());
 vi.mock('@cs/db', async (orig) => ({ ...(await orig<typeof import('@cs/db')>()), createDb: createDbMock }));
@@ -126,5 +126,19 @@ describe('queueStatsFor', () => {
     const { queueStatsFor } = await import('./queue');
     for (const env of ['demo', 'test'] as const) await expect(queueStatsFor(env)()).resolves.toEqual({ queues: [], lastHeartbeatAt: null });
     expect(createDbMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('withQueueStatsReporting', () => {
+  it('logs and captures a failing read, then rethrows; passes a good read through', async () => {
+    const report = { log: vi.fn(), capture: vi.fn() };
+    const boom = new Error('permission denied for table job');
+    await expect(withQueueStatsReporting(async () => { throw boom; }, report)()).rejects.toBe(boom);
+    expect(report.log).toHaveBeenCalledWith({ err: { name: 'Error', message: 'permission denied for table job' } }, 'queue stats read failed');
+    expect(report.capture).toHaveBeenCalledWith(boom);
+    const ok = { queues: [], lastHeartbeatAt: null };
+    report.log.mockClear();
+    await expect(withQueueStatsReporting(async () => ok, report)()).resolves.toBe(ok);
+    expect(report.log).not.toHaveBeenCalled();
   });
 });

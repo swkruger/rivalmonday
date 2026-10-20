@@ -11,6 +11,8 @@ export const platformHealthOutput = z.object({
   vendors: z.array(z.object({ vendor: z.string(), calls24h: z.number(), errors24h: z.number(), lastOkAt: z.string().nullable(), status: Status })),
   sources: z.array(z.object({ kind: z.enum(['vendor_call', 'capture']), lastOkAt: z.string().nullable(), status: Status })),
   sentryUrl: z.string().nullable(),
+  /** True when the queue database could not be read (worker then shows down, queues empty). */
+  queueError: z.boolean(),
 });
 export type PlatformHealth = z.infer<typeof platformHealthOutput>;
 
@@ -22,6 +24,7 @@ export interface RawHealth {
   lastOkVendorCallAt: Date | null;
   lastOkCaptureAt: Date | null;
   sentryUrl: string | null;
+  queueError?: boolean;
 }
 
 const MIN_MS = 60_000;
@@ -59,5 +62,6 @@ export function healthStatuses(now: Date, raw: RawHealth): PlatformHealth {
     vendors,
     sources: [source('vendor_call', raw.lastOkVendorCallAt), source('capture', raw.lastOkCaptureAt)],
     sentryUrl: raw.sentryUrl,
+    queueError: raw.queueError ?? false,
   };
 }

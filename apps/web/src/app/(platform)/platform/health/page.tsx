@@ -39,7 +39,7 @@ export default async function PlatformHealthPage() {
       </section>
       <section className={card}>
         <h2 className="mb-3 font-semibold">Queues</h2>
-        <QueuesTable queues={data.queues} />
+        <QueuesTable queues={data.queues} queueError={data.queueError} />
       </section>
       <section className={card}>
         <h2 className="mb-3 font-semibold">Vendors</h2>

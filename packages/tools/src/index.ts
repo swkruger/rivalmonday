@@ -62,3 +62,4 @@ export { INTAKE_SIG_TTL_MS, intakeLookupSchema, type SignedIntakePlace, signedIn
 export { buildSnapshot, LEAD_SUMMARY_SYSTEM, leadSummaryJsonSchema, snapshotFacts, validateSummary } from './intake/preview';
 export { type LeadEmailDeps, type LeadEmailKind, sendLeadEmail } from './intake/emails';
 export { catalogOf, catalogPacks } from './catalog/access';
+export { platformHealthOutput, type PlatformHealth } from './platform/system-health';
