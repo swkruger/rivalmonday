@@ -22,12 +22,13 @@ export function scrubEvent(value: unknown, seen = new WeakSet<object>()): unknow
 }
 
 // ---- URL hygiene (shared by the server and browser Sentry hooks) ----
-// Routes whose PATH carries a secret or one-shot id: guest links `/l/<token>`, invites `/join/<token>`, sign-up
+// Routes whose PATH carries a secret or one-shot id: guest links `/l/<token>`, unsubscribe `/u/<token>[/confirm|/done]`, invites `/join/<token>`, sign-up
 // verification `/start/verify/<token>` and `/start/v/<leadId>`, dev sign-in. Keep in step with `src/app`.
-const SECRET_PATH = /(^|\s|:\/\/[^/\s]*)(\/(?:l|join|start\/verify|start\/v|dev-panel\/sign-in))\/[^/?#\s]+/g;
+const SECRET_PATH = /(^|\s|:\/\/[^/\s]*)(\/(?:l|u|join|start\/verify|start\/v|dev-panel\/sign-in))\/[^/?#\s]+/g;
 
 /** Drop `?query` and `#fragment` and mask secret path segments. Safe on absolute URLs, paths and "GET /path" names. */
 export function scrubUrl(value: string): string {
+  if (!/^(\/|https?:|[A-Z]+ \/)/.test(value)) return value; // not a URL/path (e.g. a SQL span with `?` placeholders)
   return value.replace(/[?#]\S*/g, '').replace(SECRET_PATH, '$1$2/[redacted]');
 }
 

@@ -41,6 +41,11 @@ describe('URL scrubbing', () => {
     expect(scrubUrl('https://app.test/start/verify/TOK?x=1')).toBe('https://app.test/start/verify/[redacted]');
     expect(scrubUrl('/start/v/LEAD')).toBe('/start/v/[redacted]');
     expect(scrubUrl('/c/abc/briefs/1')).toBe('/c/abc/briefs/1');
+    expect(scrubUrl('/u/UNSUBTOKEN')).toBe('/u/[redacted]');
+    expect(scrubUrl('https://app.test/u/UNSUBTOKEN/confirm?x=1')).toBe('https://app.test/u/[redacted]/confirm');
+    expect(scrubUrl('GET /u/UNSUBTOKEN/done')).toBe('GET /u/[redacted]/done');
+    expect(scrubUrl('/users/abc')).toBe('/users/abc');
+    expect(scrubUrl('select * from t where id = ? and x = $1')).toBe('select * from t where id = ? and x = $1');
   });
   it('scrubs breadcrumb urls', () => {
     const e = scrubEventUrls(event());
