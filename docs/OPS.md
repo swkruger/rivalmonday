@@ -44,7 +44,7 @@ After the backfill nothing calls the model: backfilled clients stay `skipped`. A
 
 ## Crawler ban
 
-Don't point the web crawler at real competitors until `https://rivalmonday.com/bot` exists. That covers `collect-once` without `--vendors` and `collect-once` with `--web`. `--vendors` on its own calls only vendor APIs. `WEB_MONITORING_ENABLED` stays off.
+Don't point the web crawler at real competitors until `https://rivalmonday.app/bot` exists. That covers `collect-once` without `--vendors` and `collect-once` with `--web`. `--vendors` on its own calls only vendor APIs. `WEB_MONITORING_ENABLED` stays off.
 
 ## Gold labels and decision labelling
 

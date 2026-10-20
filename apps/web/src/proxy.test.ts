@@ -49,4 +49,9 @@ describe('proxy', () => {
       expect(res.headers.get('x-middleware-request-x-rm-path'), p).toBe(p);
     }
   });
+
+  it('lets /bot and /robots.txt through without cookies, but nothing that merely starts like them', () => {
+    for (const p of ['/bot', '/robots.txt']) expect(run(p).headers.get('location'), p).toBeNull();
+    for (const p of ['/bots', '/botx', '/bot-admin', '/bot/x', '/robots.txt/x']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
+  });
 });

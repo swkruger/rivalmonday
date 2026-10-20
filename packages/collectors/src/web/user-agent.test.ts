@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { BOT_TOKEN, defaultFetchText } from './user-agent';
+import { BOT_TOKEN, BOT_USER_AGENT, defaultFetchText } from './user-agent';
 
 const BIG_BODY_SIZE = 2 * 1024 * 1024; // 2 MB, well over the 512 KB cap
 const MAX_BODY = 512 * 1024;
@@ -31,5 +31,12 @@ describe('defaultFetchText', () => {
     expect(result.status).toBe(200);
     expect(result.body.length).toBeLessThanOrEqual(MAX_BODY);
     expect(lastUserAgent).toContain(BOT_TOKEN);
+  });
+});
+
+describe('BOT_USER_AGENT', () => {
+  it('points at the live bot page on rivalmonday.app', () => {
+    expect(BOT_USER_AGENT).toContain('+https://rivalmonday.app/bot');
+    expect(BOT_USER_AGENT).toContain(BOT_TOKEN);
   });
 });

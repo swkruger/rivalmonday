@@ -129,8 +129,8 @@ The worker crawls and captures competitor web pages as immutable evidence.
 - **Worker jobs:** `web-schedule` runs on a cron (`*/15 * * * *`) and claims up to 200 due tracked pages; `web-capture-page` renders one page, detects blocks/unchanged/errors, and writes evidence; `discover-pages` finds a competitor's trackable pages (sitemap + nav, AI-classified with a URL-keyword fallback).
 - **Manual one-off collection:** `pnpm --filter @cs/worker collect-once --domain <domain> [--name "<name>"]` upserts a competitor (service role), runs discovery, captures every tracked page once, and prints a summary table of `url`, `type`, `status`. Do not run `collect-once` against a domain while the worker is running and crawling it — it is a separate process with its own rate limiter, so it would break the per-host spacing.
 - **The worker must run as a single replica.** Per-host rate limiting (≥ 3 s between requests to the same host) is held in-process; running two worker replicas would let two requests race past the limiter at once. Scaling out would need a shared (DB- or Redis-backed) limiter instead.
-- **The bot information page `https://rivalmonday.com/bot` must exist before crawling real competitors.** Until then, only run `collect-once` against safe, non-competitor domains such as `example.com`.
-- **Crawler conduct (spec §4.2, non-negotiable):** User-Agent `Mozilla/5.0 (compatible; RivalMondayBot/1.0; +https://rivalmonday.com/bot)`, robots token `RivalMondayBot`; honours robots.txt per RFC 9309 (2xx → obey rules; 4xx → allow all; 5xx/unreachable → disallow all); at least 3 s between requests to the same host (or robots `Crawl-delay` if larger, capped at 60 s); no logins, no proxies, no anti-bot evasion; a challenge or 401/403/429 response is recorded as `blocked` and is never retried with different tactics.
+- **The bot information page `https://rivalmonday.app/bot` must exist before crawling real competitors.** Until then, only run `collect-once` against safe, non-competitor domains such as `example.com`.
+- **Crawler conduct (spec §4.2, non-negotiable):** User-Agent `Mozilla/5.0 (compatible; RivalMondayBot/1.0; +https://rivalmonday.app/bot)`, robots token `RivalMondayBot`; honours robots.txt per RFC 9309 (2xx → obey rules; 4xx → allow all; 5xx/unreachable → disallow all); at least 3 s between requests to the same host (or robots `Crawl-delay` if larger, capped at 60 s); no logins, no proxies, no anti-bot evasion; a challenge or 401/403/429 response is recorded as `blocked` and is never retried with different tactics.
 
 ## Vendor sources (Phase 2b)
 
@@ -165,7 +165,7 @@ The worker also pulls paid-vendor data (Google Business Profile, Google/Meta ads
 ### `collect-once --vendors` / `--web` / `--poll`
 
 ```bash
-# Web-only (Phase 2a, unchanged) — requires https://rivalmonday.com/bot to exist first:
+# Web-only (Phase 2a, unchanged) — requires https://rivalmonday.app/bot to exist first:
 pnpm --filter @cs/worker collect-once --domain example.com --name "Example Co"
 
 # Vendor sources only (safe before the bot page exists — no crawling): enrolls the competitor

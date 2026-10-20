@@ -1,6 +1,6 @@
 /** Robots.txt product token. Honest identification is a legal/ethical requirement (spec §4.2). */
 export const BOT_TOKEN = 'RivalMondayBot';
-export const BOT_USER_AGENT = `Mozilla/5.0 (compatible; ${BOT_TOKEN}/1.0; +https://rivalmonday.com/bot)`;
+export const BOT_USER_AGENT = `Mozilla/5.0 (compatible; ${BOT_TOKEN}/1.0; +https://rivalmonday.app/bot)`;
 
 export type FetchText = (url: string) => Promise<{ status: number; body: string; finalUrl?: string }>;
 

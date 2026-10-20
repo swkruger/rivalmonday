@@ -5,8 +5,8 @@
 ## Names
 - **Product:** Rival Monday (wordmark: one word, lowercase — `rivalmonday`).
 - **Default AI assistant:** Friday — the aide who prepares the brief at the end of the week; the product delivers it Monday. Agencies can rename the assistant.
-- **Crawler User-Agent:** `RivalMondayBot/1.0 (+https://rivalmonday.com/bot; bot@rivalmonday.com)`.
-- **Domains to register:** rivalmonday.com, rivalmonday.ai (DNS check showed both unregistered on 2026-09-29; confirm at registrar).
+- **Crawler User-Agent:** `RivalMondayBot/1.0 (+https://rivalmonday.app/bot; bot@rivalmonday.app)`.
+- **Domains:** rivalmonday.app is the production domain (Namecheap). rivalmonday.ai is a possible future registration; confirm at the registrar.
 - **Pending:** trademark attorney knockout search (main watch-out: monday.com marks in software classes).
 
 ## Wordmark

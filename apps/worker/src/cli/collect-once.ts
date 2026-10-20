@@ -77,7 +77,7 @@ try {
   if (!row) throw new Error('competitor upsert failed');
   console.log(`competitor ${row.id} (${domain})`);
 
-  // The crawler must not hit real sites before https://rivalmonday.com/bot exists: with --vendors,
+  // The crawler must not hit real sites before https://rivalmonday.app/bot exists: with --vendors,
   // skip Phase 2a web discovery/capture unless --web is explicitly also passed.
   if (!values.vendors || values.web) {
     console.log('discovering pages…');
