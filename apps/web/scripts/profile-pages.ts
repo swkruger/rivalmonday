@@ -43,14 +43,14 @@ async function cookieHeader(): Promise<string> {
   return cookieHeaderFrom(readFileSync(ADMIN_STATE, 'utf8'), host);
 }
 
-interface Visit { path: string; status: number; ms: number; startMs: number; endMs: number; html: string }
+interface Visit { path: string; status: number; ms: number; startMs: number; endMs: number; html: string; location: string | null }
 
 async function visit(path: string, cookie: string): Promise<Visit> {
   const startMs = nowMs();
   const res = await fetch(`${args.base}${path}`, { headers: { cookie }, redirect: 'manual' });
   const html = await res.text();
   const endMs = nowMs();
-  return { path, status: res.status, ms: endMs - startMs, startMs, endMs, html };
+  return { path, status: res.status, ms: endMs - startMs, startMs, endMs, html, location: res.headers.get('location') };
 }
 
 /** In-app link paths (no query or hash) found in a page. */
@@ -58,98 +58,111 @@ function linksIn(html: string): string[] {
   return [...html.matchAll(/href="(\/[^"]*)"/g)].map((m) => m[1]!.replace(/&amp;/g, '&').split(/[?#]/)[0]!);
 }
 
-const cookie = await cookieHeader();
-if (!cookie) {
-  console.error(`No cookie for ${host}: pass --cookie FILE (a storage state or a raw Cookie header).`);
-  process.exit(2);
-}
-
-// --- Discovery: visit what can be visited, learn ids from links, repeat until nothing new resolves. ---
-const routes = [...new Set(SCREENS.map((s) => baseRoute(s.route)))];
-/**
- * Chosen ids, keyed by param: `clientId` is one id for every `/c/` route (one client throughout); any other param is
- * keyed by the route prefix that owns it (`/platform/agencies/[id]` and `/kb/[id]` are different things; a prospect
- * is not the workspace client). `--param` may name either the param or that key.
- */
-const known: Record<string, string> = {};
-const keyOf = (route: string, name: string) => (name === 'clientId' && route.startsWith('/c/') ? name : route.slice(0, route.indexOf(`[${name}]`) + name.length + 2));
-const paramsFor = (route: string) => {
-  const out: Record<string, string> = {};
-  for (const [, name] of route.matchAll(/\[(\w+)\]/g)) {
-    const v = args.params[keyOf(route, name!)] ?? args.params[name!] ?? known[keyOf(route, name!)];
-    if (v !== undefined) out[name!] = v;
+/** Exit codes: 0 ok, 1 an assertion failed, 2 a usage/session problem. Returned, not `process.exit`ed: exiting with
+ * fetch sockets still open trips a libuv assertion on Windows. */
+async function main(): Promise<number> {
+  const cookie = await cookieHeader();
+  if (!cookie) {
+    console.error(`No cookie for ${host}: pass --cookie FILE (a storage state or a raw Cookie header).`);
+    return 2;
   }
-  return out;
-};
-const resolved = new Map<string, string>(); // route -> concrete path
-const learn = (html: string) => {
-  for (const link of linksIn(html)) {
+
+  // --- Discovery: visit what can be visited, learn ids from links, repeat until nothing new resolves. ---
+  const routes = [...new Set(SCREENS.map((s) => baseRoute(s.route)))];
+  /**
+   * Chosen ids, keyed by param: `clientId` is one id for every `/c/` route (one client throughout); any other param is
+   * keyed by the route prefix that owns it (`/platform/agencies/[id]` and `/kb/[id]` are different things; a prospect
+   * is not the workspace client). `--param` may name either the param or that key.
+   */
+  const known: Record<string, string> = {};
+  const keyOf = (route: string, name: string) => (name === 'clientId' && route.startsWith('/c/') ? name : route.slice(0, route.indexOf(`[${name}]`) + name.length + 2));
+  const paramsFor = (route: string) => {
+    const out: Record<string, string> = {};
+    for (const [, name] of route.matchAll(/\[(\w+)\]/g)) {
+      const v = args.params[keyOf(route, name!)] ?? args.params[name!] ?? known[keyOf(route, name!)];
+      if (v !== undefined) out[name!] = v;
+    }
+    return out;
+  };
+  const resolved = new Map<string, string>(); // route -> concrete path
+  const learn = (html: string) => {
+    for (const link of linksIn(html)) {
+      for (const route of routes) {
+        if (!route.includes('[')) continue;
+        const m = routePattern(route).exec(link);
+        if (!m?.groups) continue;
+        const have = paramsFor(route);
+        // Only adopt a link that agrees with the ids already chosen.
+        if (Object.entries(m.groups).some(([k, v]) => have[k] !== undefined && have[k] !== decodeURIComponent(v))) continue;
+        for (const [k, v] of Object.entries(m.groups)) known[keyOf(route, k)] ??= decodeURIComponent(v);
+      }
+    }
+  };
+  // A cookie the server does not accept (expired session, reset database) sends every page to sign-in: say so and stop.
+  const probe = await visit(fillKnownParams(routes[0]!, {}) ?? '/agency', cookie);
+  if (probe.location?.includes('/sign-in')) {
+    console.error(`${probe.path} redirects to sign-in: the session cookie is not accepted (expired, or the database was reset — delete the storage state and re-run).`);
+    return 2;
+  }
+  for (let progress = true; progress;) {
+    progress = false;
     for (const route of routes) {
-      if (!route.includes('[')) continue;
-      const m = routePattern(route).exec(link);
-      if (!m?.groups) continue;
-      const have = paramsFor(route);
-      // Only adopt a link that agrees with the ids already chosen.
-      if (Object.entries(m.groups).some(([k, v]) => have[k] !== undefined && have[k] !== decodeURIComponent(v))) continue;
-      for (const [k, v] of Object.entries(m.groups)) known[keyOf(route, k)] ??= decodeURIComponent(v);
+      if (resolved.has(route)) continue;
+      const path = fillKnownParams(route, paramsFor(route));
+      if (!path) continue;
+      resolved.set(route, path);
+      progress = true;
+      learn((await visit(path, cookie)).html);
     }
   }
-};
-for (let progress = true; progress;) {
-  progress = false;
-  for (const route of routes) {
-    if (resolved.has(route)) continue;
-    const path = fillKnownParams(route, paramsFor(route));
-    if (!path) continue;
-    resolved.set(route, path);
-    progress = true;
-    learn((await visit(path, cookie)).html);
+  const unresolved = routes.filter((r) => !resolved.has(r));
+
+  // --- Measurement: one warm visit per resolved route, sequentially. ---
+  const measuredFrom = nowMs();
+  const visits: (Visit & { route: string })[] = [];
+  for (const [route, path] of resolved) visits.push({ ...(await visit(path, cookie)), route });
+
+  const timings: ToolTiming[] = existsSync(TOOLS_FILE)
+    ? readFileSync(TOOLS_FILE, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l) as ToolTiming).filter((t) => t.startMs >= measuredFrom - 1)
+    : [];
+  const SLACK_MS = 5; // the server's clock reading and ours differ by microseconds; allow a little either side
+  const rows = visits.map((v) => {
+    const tools = timings.filter((t) => t.path === v.path && t.startMs >= v.startMs - SLACK_MS && t.endMs <= v.endMs + SLACK_MS).sort((a, b) => a.startMs - b.startMs);
+    return {
+      route: v.route, path: v.path, status: v.status, ms: Math.round(v.ms), stages: sequentialStages(tools),
+      tools: tools.map((t) => ({ tool: t.tool, ms: Math.round(t.endMs - t.startMs), atMs: Math.round(t.startMs - v.startMs) })),
+    };
+  }).sort((a, b) => b.ms - a.ms);
+
+  const p75 = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.ceil(xs.length * 0.75) - 1]! : 0);
+  const workspace = rows.filter((r) => r.route.startsWith('/agency') || r.route.startsWith('/c/'));
+  mkdirSync(PROFILE_DIR, { recursive: true });
+  writeFileSync(join(PROFILE_DIR, 'report.json'), JSON.stringify({ base: args.base, at: new Date().toISOString(), rows, unresolved }, null, 2));
+
+  console.log(`Profiled ${rows.length} pages on ${args.base} (${timings.length} tool timings${timings.length ? '' : ' — is the server running with PROFILE_TOOLS=1?'})`);
+  console.log(`Agency/workspace p75 ${p75(workspace.map((r) => r.ms))} ms; slowest page ${rows[0]?.ms ?? 0} ms; max stages ${Math.max(0, ...rows.map((r) => r.stages))}\n`);
+  console.log('Slowest 15 (ms · stages · status · tools as name:ms@start):');
+  for (const r of rows.slice(0, 15)) {
+    console.log(`${String(r.ms).padStart(6)} ms  ${String(r.stages).padStart(2)} st  ${r.status}  ${r.route}`);
+    if (r.tools.length) console.log(`        ${r.tools.map((t) => `${t.tool}:${t.ms}@${t.atMs}`).join('  ')}`);
   }
-}
-const unresolved = routes.filter((r) => !resolved.has(r));
+  if (unresolved.length) console.log(`\nNo link found for (not profiled): ${unresolved.join(', ')}`);
+  const bad = rows.filter((r) => r.status >= 500);
+  if (bad.length) console.log(`\nServer errors: ${bad.map((r) => `${r.status} ${r.path}`).join(', ')}`);
 
-// --- Measurement: one warm visit per resolved route, sequentially. ---
-const measuredFrom = nowMs();
-const visits: (Visit & { route: string })[] = [];
-for (const [route, path] of resolved) visits.push({ ...(await visit(path, cookie)), route });
-
-const timings: ToolTiming[] = existsSync(TOOLS_FILE)
-  ? readFileSync(TOOLS_FILE, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l) as ToolTiming).filter((t) => t.startMs >= measuredFrom - 1)
-  : [];
-const SLACK_MS = 5; // the server's clock reading and ours differ by microseconds; allow a little either side
-const rows = visits.map((v) => {
-  const tools = timings.filter((t) => t.path === v.path && t.startMs >= v.startMs - SLACK_MS && t.endMs <= v.endMs + SLACK_MS).sort((a, b) => a.startMs - b.startMs);
-  return {
-    route: v.route, path: v.path, status: v.status, ms: Math.round(v.ms), stages: sequentialStages(tools),
-    tools: tools.map((t) => ({ tool: t.tool, ms: Math.round(t.endMs - t.startMs), atMs: Math.round(t.startMs - v.startMs) })),
-  };
-}).sort((a, b) => b.ms - a.ms);
-
-const p75 = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.ceil(xs.length * 0.75) - 1]! : 0);
-const workspace = rows.filter((r) => r.route.startsWith('/agency') || r.route.startsWith('/c/'));
-mkdirSync(PROFILE_DIR, { recursive: true });
-writeFileSync(join(PROFILE_DIR, 'report.json'), JSON.stringify({ base: args.base, at: new Date().toISOString(), rows, unresolved }, null, 2));
-
-console.log(`Profiled ${rows.length} pages on ${args.base} (${timings.length} tool timings${timings.length ? '' : ' — is the server running with PROFILE_TOOLS=1?'})`);
-console.log(`Agency/workspace p75 ${p75(workspace.map((r) => r.ms))} ms; slowest page ${rows[0]?.ms ?? 0} ms; max stages ${Math.max(0, ...rows.map((r) => r.stages))}\n`);
-console.log('Slowest 15 (ms · stages · status · tools as name:ms@start):');
-for (const r of rows.slice(0, 15)) {
-  console.log(`${String(r.ms).padStart(6)} ms  ${String(r.stages).padStart(2)} st  ${r.status}  ${r.route}`);
-  if (r.tools.length) console.log(`        ${r.tools.map((t) => `${t.tool}:${t.ms}@${t.atMs}`).join('  ')}`);
-}
-if (unresolved.length) console.log(`\nNo link found for (not profiled): ${unresolved.join(', ')}`);
-const bad = rows.filter((r) => r.status >= 500);
-if (bad.length) console.log(`\nServer errors: ${bad.map((r) => `${r.status} ${r.path}`).join(', ')}`);
-
-if (args.assertStages !== null) {
-  const over = rows.filter((r) => r.stages > args.assertStages!);
-  if (timings.length === 0) {
-    console.error('\n--assert-stages needs tool timings: run the server with PROFILE_TOOLS=1 on this machine.');
-    process.exit(1);
+  if (args.assertStages !== null) {
+    const over = rows.filter((r) => r.stages > args.assertStages!);
+    if (timings.length === 0) {
+      console.error('\n--assert-stages needs tool timings: run the server with PROFILE_TOOLS=1 on this machine.');
+      return 1;
+    }
+    if (over.length || bad.length) {
+      console.error(`\nOver ${args.assertStages} stages: ${over.map((r) => `${r.route} (${r.stages})`).join(', ') || 'none'}`);
+      return 1;
+    }
+    console.log(`\nEvery page renders in ≤ ${args.assertStages} sequential stages.`);
   }
-  if (over.length || bad.length) {
-    console.error(`\nOver ${args.assertStages} stages: ${over.map((r) => `${r.route} (${r.stages})`).join(', ') || 'none'}`);
-    process.exit(1);
-  }
-  console.log(`\nEvery page renders in ≤ ${args.assertStages} sequential stages.`);
+  return 0;
 }
+
+process.exitCode = await main();
