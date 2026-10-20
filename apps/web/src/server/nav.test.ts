@@ -29,15 +29,15 @@ describe('Phase 11c leads flag', () => {
 });
 
 describe('navForViewer', () => {
-  it('agency view for admins and account managers is the same grouped menu', () => {
-    const expected = ['/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/leads', '/agency/settings'];
-    expect(hrefs(navForViewer({ kind: 'user', ctx: ctx('agency_admin') }, 'agency', null))).toEqual(expected);
-    expect(hrefs(navForViewer({ kind: 'user', ctx: ctx('account_manager') }, 'agency', C))).toEqual(expected);
+  it("agency view for admins and account managers is the same grouped menu (settings opens the viewer's first tab)", () => {
+    const expected = ['/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/leads'];
+    expect(hrefs(navForViewer({ kind: 'user', ctx: ctx('agency_admin') }, 'agency', null))).toEqual([...expected, '/agency/settings/branding']);
+    expect(hrefs(navForViewer({ kind: 'user', ctx: ctx('account_manager') }, 'agency', C))).toEqual([...expected, '/agency/settings/team']);
   });
 
   it('client view for an agency role covers the open client, Ask first (agency roles have every feature)', () => {
     expect(hrefs(navForViewer({ kind: 'user', ctx: ctx('account_manager') }, 'client', C))).toEqual([
-      `/c/${C}/ask`, `/c/${C}`, `/c/${C}/competitors`, `/c/${C}/changes`, `/c/${C}/pricing`, `/c/${C}/ads`, `/c/${C}/reviews`, `/c/${C}/rankings`, `/c/${C}/moves`, `/c/${C}/recommendations`, `/c/${C}/briefs`, `/c/${C}/settings`,
+      `/c/${C}/ask`, `/c/${C}`, `/c/${C}/competitors`, `/c/${C}/changes`, `/c/${C}/pricing`, `/c/${C}/ads`, `/c/${C}/reviews`, `/c/${C}/rankings`, `/c/${C}/moves`, `/c/${C}/recommendations`, `/c/${C}/briefs`, `/c/${C}/settings/profile`,
     ]);
   });
 
@@ -54,7 +54,7 @@ describe('navForViewer', () => {
 
   it('guests never get Client settings', () => {
     const g = createAccessContext({ agencyId: A, userId: 'contact:x', role: 'client_owner', clientScope: [C], features: ['dashboard', 'alert_rules'] });
-    expect(hrefs(navForViewer({ kind: 'guest', ctx: g }, 'client', C))).not.toContain(`/c/${C}/settings`);
+    expect(hrefs(navForViewer({ kind: 'guest', ctx: g }, 'client', C)).filter((h) => h.includes('/settings'))).toEqual([]);
   });
 });
 
@@ -142,7 +142,7 @@ describe('nav inside a support session (Phase 8b)', () => {
   it('keeps the Ask module (it shows the private-conversations copy) and Client settings', () => {
     const s = navForViewer(support, 'client', C);
     expect(hrefs(s)).toContain(`/c/${C}/ask`);
-    expect(hrefs(s)).toContain(`/c/${C}/settings`);
+    expect(hrefs(s)).toContain(`/c/${C}/settings/profile`);
   });
 });
 

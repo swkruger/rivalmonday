@@ -41,10 +41,10 @@ describe('SettingsNav', () => {
     expect(current()).toEqual(['/agency/settings/usage']);
   });
 
-  it('marks nothing on a path outside the tabs', () => {
+  it('marks the first tab on the bare index, which only redirects there', () => {
     pathname = '/agency/settings';
     render(<SettingsNav sections={sections} />);
-    expect(current()).toEqual([]);
+    expect(current()).toEqual(['/agency/settings/branding']);
   });
 
   it('renders an unlabelled section without a group', () => {

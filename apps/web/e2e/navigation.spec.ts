@@ -109,6 +109,22 @@ test.describe('as the operator', () => {
     await expect(page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Agency settings', exact: true })).toBeVisible();
   });
 
+  test('the sidebar settings links open the first tab, selected', { tag: ['@navigation'] }, async ({ page }) => {
+    const settingsNav = page.getByRole('navigation', { name: 'Settings' });
+    await page.goto('/agency');
+    await sidebar(page).getByRole('link', { name: 'Agency settings', exact: true }).click();
+    await expect(page).toHaveURL(/\/agency\/settings\/branding$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Branding & voice', exact: true })).toBeVisible();
+    await expect(settingsNav.locator('a[aria-current="page"]')).toHaveText('Branding & voice');
+
+    const clientId = await idOf('client', NAV_ARCHIVE_NAME);
+    await page.goto(`/c/${clientId}`);
+    await sidebar(page).getByRole('link', { name: 'Client settings', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/c/${clientId}/settings/profile$`));
+    await expect(page.getByRole('heading', { level: 1, name: 'Business profile', exact: true })).toBeVisible();
+    await expect(settingsNav.locator('a[aria-current="page"]')).toHaveText('Business profile');
+  });
+
   test('Briefs & reports: tabs, the next page and Previous / Next on a brief', { tag: ['@navigation', '@briefs'] }, async ({ page }) => {
     const clientId = await idOf('client', NAV_ARCHIVE_NAME);
     await page.goto(`/c/${clientId}`);

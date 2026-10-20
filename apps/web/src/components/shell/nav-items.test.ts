@@ -68,7 +68,7 @@ describe('navFor agency', () => {
       ['growth', 'Growth', ['Prospects', 'Leads']],
       ['foot', null, ['Agency settings']],
     ]);
-    expect(hrefs(s)).toEqual(['/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/leads', '/agency/settings']);
+    expect(hrefs(s)).toEqual(['/agency', '/agency/approvals', '/agency/alerts', '/agency/prospects', '/agency/leads', '/agency/settings/branding']);
     expect(s.at(-1)!.placement).toBe('foot');
     expect(item(s, 'Agency settings')!.icon).toBe('settings');
   });
@@ -81,7 +81,13 @@ describe('navFor agency', () => {
 
   it('has no Inbox, Notifications, Back to platform or settings pages in the menu', () => {
     const all = hrefs(navFor('agency', support, null));
-    for (const h of ['/inbox', '/settings/notifications', '/platform/agencies/x', '/agency/team', '/agency/settings/team', '/agency/usage']) expect(all).not.toContain(h);
+    for (const h of ['/inbox', '/settings/notifications', '/platform/agencies/x', '/agency/team', '/agency/usage']) expect(all).not.toContain(h);
+    expect(all.filter((h) => h.startsWith('/agency/settings'))).toHaveLength(1);
+  });
+
+  it('links Agency settings to the first tab the viewer can see', () => {
+    expect(item(navFor('agency', agencyAdmin, null), 'Agency settings')).toMatchObject({ href: '/agency/settings/branding', match: '/agency/settings' });
+    expect(item(navFor('agency', accountManager, null), 'Agency settings')!.href).toBe('/agency/settings/team');
   });
 
   it('puts counts on Approvals, Alert review and Leads; hides zero and missing counts', () => {
@@ -108,7 +114,7 @@ describe('navFor client', () => {
       ['act', 'Act', ['Recommendations', 'Briefs & reports']],
       ['foot', null, ['Client settings']],
     ]);
-    expect(hrefs(s)).toEqual([`${B}/ask`, B, `${B}/competitors`, `${B}/changes`, `${B}/pricing`, `${B}/ads`, `${B}/reviews`, `${B}/rankings`, `${B}/moves`, `${B}/recommendations`, `${B}/briefs`, `${B}/settings`]);
+    expect(hrefs(s)).toEqual([`${B}/ask`, B, `${B}/competitors`, `${B}/changes`, `${B}/pricing`, `${B}/ads`, `${B}/reviews`, `${B}/rankings`, `${B}/moves`, `${B}/recommendations`, `${B}/briefs`, `${B}/settings/profile`]);
     expect(s[0]!.items[0]).toEqual({ href: `${B}/ask`, label: 'Ask Friday', pill: 'Friday', icon: 'ask' });
     expect(item(s, 'Briefs & reports')!.icon).toBe('briefs');
   });
@@ -126,7 +132,7 @@ describe('navFor client', () => {
     const s = navFor('client', clientOwner, null);
     expect(ids(s)).toEqual(['top', 'insights', 'act', 'foot']);
     expect(hrefs(s)[1]).toBe(B);
-    expect(item(s, 'Client settings')!.href).toBe(`${B}/settings`);
+    expect(item(s, 'Client settings')!.href).toBe(`${B}/settings/profile`);
   });
 
   it('client viewer without dashboard: no Insights, no Ask, no settings foot when no tab is visible', () => {
@@ -229,9 +235,14 @@ describe('activeHref', () => {
   it('picks the longest matching href', () => {
     expect(activeHref(s, B)).toBe(B);
     expect(activeHref(s, `${B}/briefs/abc`)).toBe(`${B}/briefs`);
-    expect(activeHref(s, `${B}/settings/delivery`)).toBe(`${B}/settings`);
-    expect(activeHref(navFor('agency', agencyAdmin, null), '/agency/settings/team')).toBe('/agency/settings');
     expect(activeHref(navFor('agency', agencyAdmin, null), '/agency/approvals/x')).toBe('/agency/approvals');
+  });
+
+  it('highlights a settings entry (linked to its first tab) on every tab and on the bare index', () => {
+    expect(activeHref(s, `${B}/settings/delivery`)).toBe(`${B}/settings/profile`);
+    expect(activeHref(s, `${B}/settings`)).toBe(`${B}/settings/profile`);
+    expect(activeHref(navFor('agency', agencyAdmin, null), '/agency/settings/team')).toBe('/agency/settings/branding');
+    expect(activeHref(navFor('agency', agencyAdmin, null), '/agency/settings')).toBe('/agency/settings/branding');
   });
 
   it('ignores query strings and does not match on partial segments', () => {

@@ -25,7 +25,8 @@ function TabLink({ item, current }: { item: NavItem; current: boolean }) {
  * keeps its own guard (refusals 404).
  */
 export function SettingsNav({ sections }: { sections: NavSection[] }) {
-  const current = activeHref(sections, usePathname() ?? '');
+  // The bare index (`/agency/settings`, `/c/<id>/settings`) only redirects to the first tab: select it meanwhile.
+  const current = activeHref(sections, usePathname() ?? '') ?? sections[0]?.items[0]?.href ?? null;
   return (
     <nav aria-label="Settings" className="-mx-4 flex gap-1 overflow-x-auto border-b border-border px-4 pb-2 md:mx-0 md:w-52 md:shrink-0 md:flex-col md:gap-5 md:overflow-visible md:border-b-0 md:px-0 md:pb-0">
       {sections.map((s) => {

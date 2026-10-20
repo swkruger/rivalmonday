@@ -20,22 +20,22 @@ const flags: NavRoleFlags = {
   isPlatformOperator: true, isPlatformOwner: true, leads: true,
 };
 
-/** Menu pages: `(group)/<href>/page.tsx` → its nav label. `/agency/settings` itself only redirects to the first tab. */
+/** Menu pages: `(group)/<href>/page.tsx` → its nav label. The settings entries link to a settings tab (titled as the tab). */
 const menuPages: [file: string, label: string][] = [
-  ...navFor('agency', flags, null).flatMap((s) => s.items).filter((i) => i.href !== '/agency/settings').map((i) => [`(app)${i.href}/page.tsx`, i.label] as [string, string]),
+  ...navFor('agency', flags, null).flatMap((s) => s.items).filter((i) => !i.match).map((i) => [`(app)${i.href}/page.tsx`, i.label] as [string, string]),
   ...settingsNavFor('agency', flags).flatMap((s) => s.items).map((i) => [`(app)${i.href}/page.tsx`, i.label] as [string, string]),
   ...navFor('platform', flags, null).flatMap((s) => s.items).map((i) => [`(platform)${i.href}/page.tsx`, i.label] as [string, string]),
 ];
 
 /**
  * Client menu pages (`/c/x/<page>` → `(app)/c/[clientId]/<page>/page.tsx`). Ask's title carries the assistant's name
- * (checked below) and `/c/x/settings` only redirects to the first tab. Settings tabs come from both role views
+ * (checked below) and Client settings links to a settings tab (titled as the tab). Settings tabs come from both role views
  * (a client owner's Billing tab is client-only).
  */
 const clientFile = (href: string) => `(app)/c/[clientId]${href.slice('/c/x'.length)}/page.tsx`;
 const owner: NavRoleFlags = { ...flags, isAgency: false, isAgencyAdmin: false, homePath: '/c/x', clientBilling: true };
 const clientMenuPages: [file: string, label: string][] = navFor('client', { ...flags, ask: true }, 'x')
-  .flatMap((s) => s.items).filter((i) => !i.href.endsWith('/ask') && !i.href.endsWith('/settings'))
+  .flatMap((s) => s.items).filter((i) => !i.href.endsWith('/ask') && !i.match)
   .map((i) => [clientFile(i.href), i.label] as [string, string]);
 const clientSettingsPages: [file: string, label: string][] = [
   ...new Map([...settingsNavFor('client', flags, 'x'), ...settingsNavFor('client', owner, 'x')].flatMap((s) => s.items).map((i) => [i.href, i.label])),

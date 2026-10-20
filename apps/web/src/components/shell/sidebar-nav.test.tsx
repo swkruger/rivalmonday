@@ -68,13 +68,13 @@ describe('SidebarNav (15a grouped menus)', () => {
     expect(screen.queryByRole('link', { name: 'Portfolio' })).toBeNull();
     expect(linkNames(screen.getByRole('group', { name: 'Insights' }))).toEqual(['Competitors', 'Changes', 'Pricing', 'Ads', 'Reviews', 'Local rankings', 'Moves']);
     expect(linkNames(screen.getByRole('group', { name: 'Act' }))).toEqual(['Recommendations', 'Briefs & reports']);
-    expect(screen.getByRole('link', { name: 'Client settings' }).getAttribute('href')).toBe(`${B}/settings`);
+    expect(screen.getByRole('link', { name: 'Client settings' }).getAttribute('href')).toBe(`${B}/settings/profile`);
   });
 
   it('highlights Client settings (deepest match) on /c/<uuid>/settings/delivery, not Overview', () => {
     pathname = `${B}/settings/delivery`;
     render(<Nav flags={agencyAdmin} />);
-    expect(activeHrefOf()).toBe(`${B}/settings`);
+    expect(activeHrefOf()).toBe(`${B}/settings/profile`);
   });
 
   it('highlights Briefs & reports on a brief detail page', () => {
@@ -97,7 +97,7 @@ describe('SidebarNav (15a grouped menus)', () => {
     unmount();
     pathname = '/agency/settings/team';
     render(<Nav flags={agencyAdmin} />);
-    expect(activeHrefOf()).toBe('/agency/settings');
+    expect(activeHrefOf()).toBe('/agency/settings/branding');
   });
 
   it('highlights Competitors on /c/<uuid>/competitors/<other uuid>', () => {
@@ -137,7 +137,7 @@ describe('SidebarNav (15a grouped menus)', () => {
     pathname = `${B}/settings/delivery`;
     render(<Nav flags={agencyAdmin} />);
     const current = screen.getAllByRole('link').filter((l) => l.getAttribute('aria-current') === 'page');
-    expect(current.map((l) => l.getAttribute('href'))).toEqual([`${B}/settings`]);
+    expect(current.map((l) => l.getAttribute('href'))).toEqual([`${B}/settings/profile`]);
   });
 });
 

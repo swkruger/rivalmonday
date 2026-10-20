@@ -23,6 +23,8 @@ export interface NavItem {
   pill?: string;
   /** A small count badge after the label; omitted (never 0) when there is nothing waiting. */
   count?: number;
+  /** The path this item highlights under, when it differs from `href` (the settings entries link to their first tab). */
+  match?: string;
 }
 
 /** A labelled group of the sidebar (or a settings sub-nav). `label: null` = no heading; `foot` is pinned to the bottom. */
@@ -72,7 +74,7 @@ export interface NavRoleFlags {
   backToPlatform?: string;
 }
 
-type Add = (href: string, label: string, icon: IconKey, extra?: { pill?: string; count?: number }) => void;
+type Add = (href: string, label: string, icon: IconKey, extra?: { pill?: string; count?: number; match?: string }) => void;
 
 /** Builds one section; returns null when every item was gated out, so empty groups never render. */
 function section(id: string, label: string | null, fill: (add: Add) => void, placement?: 'top' | 'foot'): NavSection | null {
@@ -81,6 +83,7 @@ function section(id: string, label: string | null, fill: (add: Add) => void, pla
     const item: NavItem = { href, label: itemLabel, icon };
     if (extra?.pill) item.pill = extra.pill;
     if (extra?.count) item.count = extra.count;
+    if (extra?.match && extra.match !== href) item.match = extra.match;
     items.push(item);
   });
   if (!items.length) return null;
@@ -139,14 +142,15 @@ function agencyNav(flags: NavRoleFlags, counts: NavCounts): NavSection[] {
       add('/agency/prospects', 'Prospects', 'prospects');
       if (flags.leads) add('/agency/leads', 'Leads', 'leads', { count: counts.leads });
     }),
-    section('foot', null, (add) => add('/agency/settings', 'Agency settings', 'settings'), 'foot'),
+    // Links straight to the first visible tab (no blank index page in between); highlighted on every settings tab.
+    section('foot', null, (add) => add(firstHref(agencySettings(flags)) ?? '/agency/settings', 'Agency settings', 'settings', { match: '/agency/settings' }), 'foot'),
   ]);
 }
 
 function clientNav(flags: NavRoleFlags, base: string): NavSection[] {
   const name = flags.assistantName?.trim() || 'Friday';
   // Client settings: agency roles; client roles when any tab is visible to them; never guests (§2.3).
-  const settings = (flags.isUser || flags.isAgency) && clientSettings(flags, base) !== null;
+  const settings = flags.isUser || flags.isAgency ? firstHref([clientSettings(flags, base)]) : null;
   return compact([
     section('top', null, (add) => {
       if (flags.ask) add(`${base}/ask`, `Ask ${name}`, 'ask', { pill: name });
@@ -167,7 +171,7 @@ function clientNav(flags: NavRoleFlags, base: string): NavSection[] {
       add(`${base}/briefs`, 'Briefs & reports', 'briefs');
     }),
     section('foot', null, (add) => {
-      if (settings) add(`${base}/settings`, 'Client settings', 'settings');
+      if (settings) add(settings, 'Client settings', 'settings', { match: `${base}/settings` });
     }, 'foot'),
   ]);
 }
@@ -221,6 +225,11 @@ function clientSettings(flags: NavRoleFlags, base: string): NavSection | null {
   });
 }
 
+/** The first item's href of the first non-empty section (a settings area's landing tab). */
+function firstHref(sections: (NavSection | null)[]): string | null {
+  return compact(sections)[0]?.items[0]?.href ?? null;
+}
+
 function isActive(href: string, path: string): boolean {
   return path === href || path.startsWith(`${href}/`);
 }
@@ -229,6 +238,12 @@ function isActive(href: string, path: string): boolean {
 export function activeHref(sections: NavSection[], pathname: string): string | null {
   const path = pathname.split(/[?#]/)[0]!;
   let best: string | null = null;
-  for (const s of sections) for (const i of s.items) if (isActive(i.href, path) && (best === null || i.href.length > best.length)) best = i.href;
+  let bestLength = -1;
+  for (const s of sections) {
+    for (const i of s.items) {
+      const match = i.match ?? i.href;
+      if (isActive(match, path) && match.length > bestLength) [best, bestLength] = [i.href, match.length];
+    }
+  }
   return best;
 }
