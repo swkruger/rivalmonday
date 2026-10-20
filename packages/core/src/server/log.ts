@@ -55,8 +55,9 @@ export function createLogger(opts: { level?: string; pretty?: boolean; destinati
 
 function wrap(p: pino.Logger): Logger {
   const fn = (level: 'debug' | 'info' | 'warn' | 'error'): LogFn => (o: object | string, msg?: string) => {
-    if (typeof o === 'string') p[level](o);
-    else p[level](o, msg);
+    // Message strings are masked too (the formatter only sees the object).
+    if (typeof o === 'string') p[level](redactForLog(o) as string);
+    else p[level](o, msg === undefined ? undefined : (redactForLog(msg) as string));
   };
   return { debug: fn('debug'), info: fn('info'), warn: fn('warn'), error: fn('error'), child: (ctx) => wrap(p.child(redactForLog(ctx) as object)) };
 }

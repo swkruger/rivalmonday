@@ -54,6 +54,15 @@ describe('createLogger', () => {
     expect(row).toMatchObject({ msg: 'hello', clientId: 'c1', job: 'j', apiKey: '[redacted]', who: 'a***@b.com' });
     expect(JSON.stringify(row)).not.toContain('sekret');
   });
+  it('masks emails inside message strings (bare and after an object)', () => {
+    const lines: string[] = [];
+    const destination = new Writable({ write(chunk, _e, cb) { lines.push(String(chunk)); cb(); } });
+    const log = createLogger({ level: 'info', pretty: false, destination });
+    log.warn('invite failed for jane.doe@example.com');
+    log.error({ clientId: 'c1' }, 'bounce from bob@acme.io');
+    expect(lines.map((l) => JSON.parse(l).msg)).toEqual(['invite failed for j***@example.com', 'bounce from b***@acme.io']);
+    expect(lines.join('')).not.toMatch(/jane\.doe|bob@/);
+  });
 });
 
 describe('Logger types', () => {
