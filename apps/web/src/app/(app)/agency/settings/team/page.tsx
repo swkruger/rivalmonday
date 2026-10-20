@@ -3,10 +3,15 @@ import type { ClientSummary } from '@cs/tools';
 import { listTeam } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { notFound } from 'next/navigation';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { WriteGuard } from '@/components/read-only';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
+import { helpGuides } from '@/server/help';
 import { maskTeamForSupport } from '@/server/support-mask';
 import { callTool } from '@/server/tools';
 import { InviteForm, RemoveMemberButton, RevokeInvitationButton } from './invite-form';
@@ -14,6 +19,9 @@ import { InviteForm, RemoveMemberButton, RevokeInvitationButton } from './invite
 export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Team' };
+
+const HELP_KEY = 'page:agency.settings.team';
+const COPY = PAGE_COPY['agency.settings.team'];
 
 const ROLE_LABELS: Record<Role, string> = { agency_admin: 'Admin', account_manager: 'Account manager', client_owner: 'Client owner', client_viewer: 'Client viewer' };
 
@@ -24,7 +32,7 @@ function formatDate(d: Date): string {
 export default async function TeamPage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const [team, { items: clients }] = await Promise.all([listTeam(dbs().service, ctx), callTool<{ items: ClientSummary[] }>(ctx, 'list_clients', {})]);
+  const [team, { items: clients }, guides] = await Promise.all([listTeam(dbs().service, ctx), callTool<{ items: ClientSummary[] }>(ctx, 'list_clients', {}), helpGuides(ctx, 'agency')]);
   // Phase 8b: emails are masked in a support session before anything reaches a client component.
   const { members, invitations } = maskTeamForSupport(ctx, team);
   const clientName = new Map(clients.map((c) => [c.id, c.name]));
@@ -40,6 +48,17 @@ export default async function TeamPage() {
       <PageHeader
         title="Team"
         breadcrumb={[{ label: 'Agency settings', href: '/agency/settings' }, { label: 'Team' }]}
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
+      />
+      <TipRow
+        items={[
+          { label: 'Roles', tip: 'agency.settings.team.roles' },
+          { label: 'Assigned clients', tip: 'agency.settings.team.scope' },
+          { label: 'Invitations', tip: 'agency.settings.team.invitations' },
+          { label: 'Removing', tip: 'agency.settings.team.removing' },
+        ]}
       />
       <Card>
         <CardHeader>
@@ -47,7 +66,7 @@ export default async function TeamPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           {members.length === 0 ? (
-            <p className="text-muted-foreground">No members yet.</p>
+            <EmptyState {...COPY.empty.noMembers} guideAnchor="what-this-page-tells-you" />
           ) : (
             <Table>
               <TableHeader>
@@ -91,7 +110,7 @@ export default async function TeamPage() {
         </CardHeader>
         <CardContent>
           {invitations.length === 0 ? (
-            <p className="text-muted-foreground">No pending invitations.</p>
+            <EmptyState {...COPY.empty.noInvites} guideAnchor="common-questions" />
           ) : (
             <Table>
               <TableHeader>

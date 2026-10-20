@@ -1,37 +1,52 @@
 import { listWebhooks } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { notFound } from 'next/navigation';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { WriteGuard } from '@/components/read-only';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
+import { helpGuides } from '@/server/help';
 import { AddWebhookForm, WebhookToggle } from './webhook-controls';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Slack & Teams' };
 
+const HELP_KEY = 'page:agency.settings.slack-teams';
+const COPY = PAGE_COPY['agency.settings.slack-teams'];
+
 const KIND_LABEL: Record<string, string> = { slack: 'Slack', teams: 'Teams' };
 
 export default async function WebhooksPage() {
   const { ctx } = await requireContext();
   if (ctx.role !== 'agency_admin') notFound();
-  const webhooks = await listWebhooks(dbs().service, ctx);
+  const [webhooks, guides] = await Promise.all([listWebhooks(dbs().service, ctx), helpGuides(ctx, 'agency')]);
 
   return (
     <>
       <PageHeader
         title="Slack & Teams"
         breadcrumb={[{ label: 'Agency settings', href: '/agency/settings' }, { label: 'Slack & Teams' }]}
-        description="Post agency notices to a Slack or Teams channel."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
       />
       <Card>
         <CardHeader>
-          <CardTitle>Webhooks</CardTitle>
+          <CardTitle className="inline-flex items-center gap-1.5">
+            Webhooks
+            <HelpTip tip="agency.settings.slack-teams.how" />
+            <HelpTip tip="agency.settings.slack-teams.kinds" />
+            <HelpTip tip="agency.settings.slack-teams.secret" />
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           {webhooks.length === 0 ? (
-            <p className="text-muted-foreground">No webhooks yet.</p>
+            <EmptyState {...COPY.empty.noWebhooks} guideAnchor="how-to-use-it" />
           ) : (
             <Table>
               <TableHeader>
@@ -39,7 +54,12 @@ export default async function WebhooksPage() {
                   <TableHead>Kind</TableHead>
                   <TableHead>Host</TableHead>
                   <TableHead>Notices</TableHead>
-                  <TableHead>Active</TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1.5">
+                      Active
+                      <HelpTip tip="agency.settings.slack-teams.off" />
+                    </span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

@@ -43,7 +43,7 @@ describe('/agency/settings/platform-access', () => {
     m.callTool.mockResolvedValue({ rows: [], nextCursor: 'next', notifyEnabled: false });
     render(await page({ cursor: 'c1' }));
     expect(m.callTool).toHaveBeenCalledWith(m.ctx, 'list_support_sessions', { cursor: 'c1' });
-    expect(screen.getByText('Rival Monday support has not opened a session on your agency.')).toBeTruthy();
+    expect(screen.getByText('No support sessions')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Older sessions' }).getAttribute('href')).toBe('/agency/settings/platform-access?cursor=next');
   });
 

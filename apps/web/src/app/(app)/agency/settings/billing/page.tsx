@@ -3,8 +3,13 @@ import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { formatLongDate, formatUsd } from '@/components/billing/format';
 import { RefreshUntilChanged } from '@/components/billing/refresh-until-changed';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import type { FormResult } from '@/server/forms';
 import { callTool } from '@/server/tools';
 import { checkoutAction, portalAction } from './actions';
@@ -16,6 +21,9 @@ import { RedeemForm } from './redeem-form';
 export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Billing' };
+
+const HELP_KEY = 'page:agency.settings.billing';
+const COPY = PAGE_COPY['agency.settings.billing'];
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
@@ -65,7 +73,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const done = one(sp.done) === '1';
   const connect = one(sp.connect);
-  const s = await callTool<Summary>(ctx, 'get_billing_summary', {});
+  const [s, guides] = await Promise.all([callTool<Summary>(ctx, 'get_billing_summary', {}), helpGuides(ctx, 'agency')]);
   const connectStatus = await callTool<ConnectStatus>(ctx, 'get_connect_status', {});
   const revenue = connectStatus.status === 'connected' ? await callTool<Revenue>(ctx, 'get_client_revenue', {}) : null;
   const date = keyDate(s);
@@ -75,6 +83,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       <PageHeader
         title="Billing"
         breadcrumb={[{ label: 'Agency settings', href: '/agency/settings' }, { label: 'Billing' }]}
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
       />
       {done && <RefreshUntilChanged watch={`${s.state}:${s.hasSubscription}`} />}
       {done && (
@@ -85,8 +96,14 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       <Card>
         <CardHeader>
           <CardTitle className="flex flex-wrap items-center gap-3">
-            <span>{s.plan?.name ?? 'No plan'}</span>
-            <Badge variant={STATE_TONE[s.state]}>{STATE_LABEL[s.state]}</Badge>
+            <span className="inline-flex items-center gap-1.5">
+              {s.plan?.name ?? 'No plan'}
+              <HelpTip tip="agency.settings.billing.plan" />
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Badge variant={STATE_TONE[s.state]}>{STATE_LABEL[s.state]}</Badge>
+              <HelpTip tip="agency.settings.billing.status" />
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
@@ -114,10 +131,13 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           </div>
         </CardContent>
       </Card>
-      <ClientBillingSection status={connectStatus} revenue={revenue} connect={connect} />
+      <ClientBillingSection status={connectStatus} revenue={revenue} connect={connect} help={<HelpTip tip="agency.settings.billing.clientBilling" />} />
       <Card>
         <CardHeader>
-          <CardTitle>Discount code</CardTitle>
+          <CardTitle className="inline-flex items-center gap-1.5">
+            Discount code
+            <HelpTip tip="agency.settings.billing.discount" />
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <RedeemForm />
@@ -125,11 +145,14 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Recent invoices</CardTitle>
+          <CardTitle className="inline-flex items-center gap-1.5">
+            Recent invoices
+            <HelpTip tip="agency.settings.billing.invoice" />
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {s.recentInvoices.length === 0 ? (
-            <p className="text-muted-foreground">No invoices yet.</p>
+            <EmptyState {...COPY.empty.noInvoices} guideAnchor="what-this-page-tells-you" />
           ) : (
             <ul className="flex flex-col gap-2">
               {s.recentInvoices.map((i) => (

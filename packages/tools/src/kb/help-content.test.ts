@@ -33,8 +33,10 @@ const BATCH_C_CLIENT_ONLY = ['page:client.settings.billing'];
 const BATCH_C = [...BATCH_C_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`]), ...BATCH_C_AGENCY_ONLY.map((k) => `${k}#agency`), ...BATCH_C_CLIENT_ONLY.map((k) => `${k}#client`)];
 /** 15b-2 Task 7, agency batch A: every page is reachable by agency roles only, so each has one `agency` guide and no client version. */
 const AGENCY_A = ['page:agency.portfolio', 'page:agency.clients.new', 'page:agency.approvals', 'page:agency.approvals.detail', 'page:agency.alerts', 'page:agency.prospects', 'page:agency.prospects.new', 'page:agency.prospects.detail', 'page:agency.leads'];
-const AGENCY_KEYS = [...AGENCY_A].sort();
-const CLIENT_PAGES = [...PILOT, ...BATCH_A, ...BATCH_B, ...BATCH_C, ...AGENCY_A.map((k) => `${k}#agency`)].sort();
+/** 15b-2 Task 8, agency batch B: the agency settings pages. All reachable by agency roles only, so each has one `agency` guide. */
+const AGENCY_B = ['page:agency.settings.ai', 'page:agency.settings.billing', 'page:agency.settings.branding', 'page:agency.settings.intake', 'page:agency.settings.platform-access', 'page:agency.settings.runbook', 'page:agency.settings.slack-teams', 'page:agency.settings.team', 'page:agency.settings.usage'];
+const AGENCY_KEYS = [...AGENCY_A, ...AGENCY_B].sort();
+const CLIENT_PAGES = [...PILOT, ...BATCH_A, ...BATCH_B, ...BATCH_C, ...AGENCY_KEYS.map((k) => `${k}#agency`)].sort();
 const CLIENT_KEYS = [...new Set(CLIENT_PAGES.map((k) => k.split('#')[0]!))].filter((k) => !AGENCY_KEYS.includes(k)).sort();
 /** What a client role can read: every client page guide except the agency-only pages. */
 const CLIENT_ROLE_KEYS = CLIENT_KEYS.filter((k) => !AGENCY_ONLY_PAGES.includes(k) && !BATCH_C_AGENCY_ONLY.includes(k));
@@ -245,7 +247,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     for (const t of GLOSSARY.filter((x) => x.audience === 'all' || x.audience === 'client')) expect(`${t.term}\n${t.short}\n${t.long ?? ''}`, t.id).not.toMatch(AGENCY_ONLY);
   });
 
-  it('agency batch A: agency roles read the nine guides in the agency context, with the three standard sections; client roles read none', async () => {
+  it('agency batches A and B: agency roles read the eighteen guides in the agency context, with the three standard sections; client roles read none', async () => {
     const list = (c: AccessContext) => registry.invoke(c, 'list_help_guides', { context: 'agency' }) as Promise<{ guides: { helpKey: string }[] }>;
     const agencyGuide = (c: AccessContext, helpKey: string) => registry.invoke(c, 'get_page_guide', { helpKey, context: 'agency' }) as Promise<Guide>;
     for (const c of [admin, am]) expect((await list(c)).guides.map((g) => g.helpKey).sort(), c.role).toEqual(AGENCY_KEYS);
@@ -275,6 +277,30 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     const leads = await agencyGuide('page:agency.leads');
     for (const w of ['Accept and invite', 'pool', 'Let them know', 'From your website', 'From the platform']) expect(leads, w).toContain(w);
     for (const key of AGENCY_KEYS) {
+      const t = await agencyGuide(key);
+      expect(t, key).not.toMatch(/rival\s*monday|\btheme/i);
+      expect(t, key).not.toContain('{{');
+    }
+  });
+
+  it('agency batch B: the settings guides carry the numbers and labels the pages use, and never name the product', async () => {
+    const agencyGuide = async (key: string) => text((await registry.invoke(admin, 'get_page_guide', { helpKey: key, context: 'agency' })) as Guide);
+    const bill = await agencyGuide('page:agency.settings.billing');
+    for (const w of ['Payment overdue', 'Paused', 'Suspended', 'Seats', '7 days', '30 days', '1 to 90', 'extra-client price', 'active client that is not paused']) expect(bill, w).toContain(w);
+    expect(bill).not.toMatch(/\$\d/);
+    const intake = await agencyGuide('page:agency.settings.intake');
+    for (const w of ['3 to 40', 'The old address stops working', 'does not redirect', 'Copy button HTML']) expect(intake, w).toContain(w);
+    const access = await agencyGuide('page:agency.settings.platform-access');
+    for (const w of ['60 minutes', 'read-only', 'audit log', 'Timed out', 'Access revoked']) expect(access, w).toContain(w);
+    const usage = await agencyGuide('page:agency.settings.usage');
+    for (const w of ['80%', '$1 to $10,000', '$15', '1 to 10', '0 to 100,000', 'UTC', 'Only questions from the client']) expect(usage, w).toContain(w);
+    const hooks = await agencyGuide('page:agency.settings.slack-teams');
+    for (const w of ['hooks.slack.com', 'webhook.office.com', 'logic.azure.com', 'environment.api.powerplatform.com']) expect(hooks, w).toContain(w);
+    const team = await agencyGuide('page:agency.settings.team');
+    for (const w of ['Admin', 'Account manager', 'Client owner', 'Client viewer', '14 days']) expect(team, w).toContain(w);
+    const brand = await agencyGuide('page:agency.settings.branding');
+    for (const w of ['registered name', '512 KB', '30 characters', '300 characters']) expect(brand, w).toContain(w);
+    for (const key of AGENCY_B) {
       const t = await agencyGuide(key);
       expect(t, key).not.toMatch(/rival\s*monday|\btheme/i);
       expect(t, key).not.toContain('{{');

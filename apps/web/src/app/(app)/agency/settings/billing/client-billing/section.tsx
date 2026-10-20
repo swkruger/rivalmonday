@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import type { ReactNode } from 'react';
 import { PaymentButton } from '../payment-button';
 import { connectAction } from './actions';
 import { DefaultsForm } from './defaults-form';
@@ -14,7 +15,7 @@ export interface ConnectStatus {
 }
 
 /** Phase 9b: the "Client billing" section of the agency billing page (agency admin only; the page gates the role). */
-export function ClientBillingSection({ status, revenue, connect }: { status: ConnectStatus; revenue: Revenue | null; connect: string | undefined }) {
+export function ClientBillingSection({ status, revenue, connect, help }: { status: ConnectStatus; revenue: Revenue | null; connect: string | undefined; help?: ReactNode }) {
   const s = status.status;
   const connected = s === 'connected';
   // Returning from Stripe (done) before the account is chargeable reads the same as a refresh (retry).
@@ -22,7 +23,10 @@ export function ClientBillingSection({ status, revenue, connect }: { status: Con
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Client billing</CardTitle>
+        <CardTitle className="inline-flex items-center gap-1.5">
+          Client billing
+          {help}
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {!status.billingConfigured ? (

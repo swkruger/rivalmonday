@@ -69,7 +69,7 @@ test.describe.serial('billing', () => {
       await expect(page.getByRole('heading', { name: 'Billing' })).toBeVisible();
       await expect(page.getByText('Trial', { exact: true })).toBeVisible();
       await expect(page.getByText(/Seats: 3 of 3 included/)).toBeVisible();
-      await expect(page.getByText('No invoices yet.')).toBeVisible();
+      await expect(page.getByText('No invoices yet', { exact: true })).toBeVisible();
     });
     await as(browser, testInfo, 'trialAm', async (page) => {
       const response = await page.goto('/agency/settings/billing');

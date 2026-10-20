@@ -3,11 +3,16 @@ import type { UsageRow } from '@cs/tools';
 import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { SpendBadge } from '@/components/spend-badge';
 import { WriteGuard } from '@/components/read-only';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { formatUsd } from '@/server/format';
+import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { saveLimitsAction } from './actions';
 import { LimitsForm } from './limits-form';
@@ -17,10 +22,13 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Usage & limits' };
 
+const HELP_KEY = 'page:agency.settings.usage';
+const COPY = PAGE_COPY['agency.settings.usage'];
+
 export default async function UsagePage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const { month, items, agencyLevelUsd } = await callTool<{ month: string; items: UsageRow[]; agencyLevelUsd: number | null }>(ctx, 'get_usage', {});
+  const [{ month, items, agencyLevelUsd }, guides] = await Promise.all([callTool<{ month: string; items: UsageRow[]; agencyLevelUsd: number | null }>(ctx, 'get_usage', {}), helpGuides(ctx, 'agency')]);
   const atWarning = items.filter((r) => r.spend.level === 'warning').length;
   const atOver = items.filter((r) => r.spend.level === 'over').length;
 
@@ -29,7 +37,13 @@ export default async function UsagePage() {
       <PageHeader
         title="Usage & limits"
         breadcrumb={[{ label: 'Agency settings', href: '/agency/settings' }, { label: 'Usage & limits' }]}
-        description={`Spend this month (${month}, UTC) — AI and data costs tied to each client.`}
+        description={
+          <>
+            <HelpText text={COPY.description} /> Showing {month}.
+          </>
+        }
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
       />
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -43,17 +57,43 @@ export default async function UsagePage() {
         </div>
       </div>
 
+      {items.length === 0 && <EmptyState {...COPY.empty.noClients} guideAnchor="what-this-page-tells-you" />}
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Client</TableHead>
-            <TableHead>Spend</TableHead>
-            <TableHead>Share</TableHead>
-            <TableHead>Competitors</TableHead>
-            <TableHead>Questions</TableHead>
+            <TableHead>
+              <span className="inline-flex items-center gap-1.5">
+                Spend
+                <HelpTip tip="agency.settings.usage.spend" />
+              </span>
+            </TableHead>
+            <TableHead>
+              <span className="inline-flex items-center gap-1.5">
+                Share
+                <HelpTip tip="agency.settings.usage.share" />
+              </span>
+            </TableHead>
+            <TableHead>
+              <span className="inline-flex items-center gap-1.5">
+                Competitors
+                <HelpTip tip="agency.settings.usage.competitors" />
+              </span>
+            </TableHead>
+            <TableHead>
+              <span className="inline-flex items-center gap-1.5">
+                Questions
+                <HelpTip tip="agency.settings.usage.questions" />
+              </span>
+            </TableHead>
             {ctx.role === 'agency_admin' && (
               <WriteGuard>
-                <TableHead>Limits</TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1.5">
+                    Limits
+                    <HelpTip tip="agency.settings.usage.limits" />
+                  </span>
+                </TableHead>
               </WriteGuard>
             )}
           </TableRow>

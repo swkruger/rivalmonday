@@ -43,4 +43,4 @@ The table lists active clients. Prospects are under Prospects.
 
 ### Where do I change a client's cap or alert level?
 
-The cap is in Agency settings under Usage. Alert levels are in the client's Settings under Alert rules.
+The cap is in Agency settings under Usage & limits. Alert levels are in the client's Settings under Alert rules.
