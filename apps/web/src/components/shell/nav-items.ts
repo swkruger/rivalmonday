@@ -60,6 +60,8 @@ export interface NavRoleFlags {
   dashboard: boolean;
   alertRules: boolean;
   mcp: boolean;
+  /** 15b-1: the client settings "AI connection" tab — `mcp` plus support viewers (the page serves them read-only). Settings only; the sidebar keeps `mcp`. */
+  clientAi?: boolean;
   /** 6b: signed-in users with the `ask` feature (never guests, Q2). */
   ask?: boolean;
   /** 6b e10: the agency's assistant name ("Friday" when unset). */
@@ -220,7 +222,7 @@ function clientSettings(flags: NavRoleFlags, base: string): NavSection | null {
     if (flags.alertRules) add(`${base}/settings/alerts`, 'Alert rules', 'alertRules');
     // Phase 14b: the client's own runbook (agency roles only; the page 404s for client roles).
     if (flags.isAgency) add(`${base}/settings/runbook`, 'Runbook', 'runbook');
-    if (flags.mcp) add(`${base}/settings/ai`, 'AI connection', 'ai');
+    if (flags.mcp || flags.clientAi) add(`${base}/settings/ai`, 'AI connection', 'ai');
     if (!flags.isAgency && flags.clientBilling) add(`${base}/settings/billing`, 'Billing', 'billing');
   });
 }

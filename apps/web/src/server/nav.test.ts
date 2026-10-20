@@ -139,6 +139,13 @@ describe('nav inside a support session (Phase 8b)', () => {
     expect(navFlagsFor({ kind: 'guest', ctx: ctx('client_viewer') }).inbox).toBe(true);
   });
 
+  it('shows the AI connection settings tab (the page serves support read-only) without widening the sidebar `mcp` flag', () => {
+    expect(navFlagsFor(support).mcp).toBe(false);
+    expect(hrefs(settingsNavFor('client', navFlagsFor(support), C))).toContain(`/c/${C}/settings/ai`);
+    const guest = { kind: 'guest' as const, ctx: ctx('client_owner') };
+    expect(hrefs(settingsNavFor('client', navFlagsFor(guest), C))).not.toContain(`/c/${C}/settings/ai`);
+  });
+
   it('keeps the Ask module (it shows the private-conversations copy) and Client settings', () => {
     const s = navForViewer(support, 'client', C);
     expect(hrefs(s)).toContain(`/c/${C}/ask`);

@@ -54,10 +54,10 @@ describe('Client settings layout (15a §2.5)', () => {
     expect(tabs()).toEqual(['Alert rules']);
   });
 
-  it('keeps the agency tabs in a support session (no AI connection: tokens are user-only)', async () => {
+  it('keeps the agency tabs in a support session, with AI connection (the page serves support read-only)', async () => {
     as('support', 'agency_admin');
     render(await SettingsLayout({ children: null, params }));
-    expect(tabs()).toEqual(['Business profile', 'Delivery', 'Alert rules', 'Runbook']);
+    expect(tabs()).toEqual(['Business profile', 'Delivery', 'Alert rules', 'Runbook', 'AI connection']);
   });
 
   it('still renders the page for a guest, with no settings header or sub-nav (the page keeps its own guard)', async () => {

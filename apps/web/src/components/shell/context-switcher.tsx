@@ -200,32 +200,32 @@ export function ContextSwitcher({ hotkey = false, modal = false, ...p }: Switche
 
   const clientRow = (c: SwitcherClient, group: 'recent' | 'all') => {
     const isPinned = pinned.includes(c.id);
+    // The pin is a sibling of the option, not a descendant: `role="option"` may not contain interactive content (a11y).
+    // The wrapper keeps the old look (pin at the row's right edge, inside the highlight); `pr-9` leaves it room.
     return (
-      <CommandItem key={`${group}:${c.id}`} value={`${group}:${c.id}`} onSelect={() => openClient(c.id)} className="gap-2.5">
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span data-name className="truncate">{c.name}</span>
-          {c.sub && <span className="truncate text-xs text-muted-ink">{c.sub}</span>}
-        </span>
+      <div key={`${group}:${c.id}`} data-client-row className="relative">
+        <CommandItem value={`${group}:${c.id}`} onSelect={() => openClient(c.id)} className={`gap-2.5 ${group === 'all' && storage ? 'pr-10' : ''}`}>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span data-name className="truncate">{c.name}</span>
+            {c.sub && <span className="truncate text-xs text-muted-ink">{c.sub}</span>}
+          </span>
+        </CommandItem>
         {group === 'all' && storage && (
           <button
             type="button"
             aria-pressed={isPinned}
             aria-label={`Pin ${c.name}`}
-            onPointerDown={(e) => e.stopPropagation()}
             // cmdk selects the highlighted row on Enter at its root; a key on the pin button must only toggle the pin.
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
             }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setPins(togglePin(storage, c.id));
-            }}
-            className={`grid h-7 w-7 flex-shrink-0 place-items-center rounded-md hover:bg-muted-surface ${isPinned ? 'text-primary-soft-text' : 'text-muted-ink'}`}
+            onClick={() => setPins(togglePin(storage, c.id))}
+            className={`absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-md hover:bg-muted-surface ${isPinned ? 'text-primary-soft-text' : 'text-muted-ink'}`}
           >
             <Pin aria-hidden className={`h-3.5 w-3.5 ${isPinned ? 'fill-current' : ''}`} />
           </button>
         )}
-      </CommandItem>
+      </div>
     );
   };
 

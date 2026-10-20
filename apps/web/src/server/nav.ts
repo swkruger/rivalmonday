@@ -23,6 +23,8 @@ export function navFlagsFor(v: { kind: 'user' | 'guest' | 'support'; ctx: Access
     dashboard: hasFeature(v.ctx, 'dashboard'),
     alertRules: hasFeature(v.ctx, 'alert_rules'),
     mcp: v.kind === 'user' && hasFeature(v.ctx, 'mcp'),
+    // 15b-1: `/c/<id>/settings/ai` also serves a support session (read-only, owner names masked); guests 404 there.
+    clientAi: (v.kind === 'user' || v.kind === 'support') && hasFeature(v.ctx, 'mcp'),
     // Q2: guests have no Ask (and a magic-link contact id is never a thread author). Phase 8b: a support viewer sees
     // the module, which only says Ask conversations are private to their authors.
     ask: (v.kind === 'user' || v.kind === 'support') && !v.ctx.userId.startsWith('contact:') && hasFeature(v.ctx, 'ask'),

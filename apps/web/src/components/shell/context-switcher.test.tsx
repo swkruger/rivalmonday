@@ -110,6 +110,18 @@ describe('ContextSwitcher (spec §2.4)', () => {
     expect(JSON.parse(localStorage.getItem(`rm.switcher.pins.${M}`)!)).toEqual([C3, STALE, C2]);
   });
 
+  it('the pin button is a sibling of the option, never inside role="option" (a11y), and no option holds interactive content', () => {
+    render(<ContextSwitcher {...props()} />);
+    open();
+    const pin = screen.getByRole('button', { name: 'Pin Bright Smiles Dental' });
+    expect(pin.closest('[role="option"]')).toBeNull();
+    for (const o of screen.getAllByRole('option')) expect(o.querySelector('button, a, input, select, textarea, [tabindex]')).toBeNull();
+    // Same row wrapper as its option, so it still sits beside it.
+    const row = pin.closest('[data-client-row]')!;
+    expect(within(row as HTMLElement).getAllByRole('option')).toHaveLength(1);
+    expect(pin.tabIndex).toBeGreaterThanOrEqual(0);
+  });
+
   it('opens with Ctrl+K and Cmd+K', () => {
     render(<ContextSwitcher {...props()} hotkey />);
     expect(screen.queryByPlaceholderText('Search clients')).toBeNull();
