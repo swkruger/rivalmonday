@@ -73,8 +73,12 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const done = one(sp.done) === '1';
   const connect = one(sp.connect);
-  const [s, guides] = await Promise.all([callTool<Summary>(ctx, 'get_billing_summary', {}), helpGuides(ctx, 'agency')]);
-  const connectStatus = await callTool<ConnectStatus>(ctx, 'get_connect_status', {});
+  // 7a1 D7: the platform plan, the Connect account and the page guides are independent reads (one stage).
+  const [s, connectStatus, guides] = await Promise.all([
+    callTool<Summary>(ctx, 'get_billing_summary', {}),
+    callTool<ConnectStatus>(ctx, 'get_connect_status', {}),
+    helpGuides(ctx, 'agency'),
+  ]);
   const revenue = connectStatus.status === 'connected' ? await callTool<Revenue>(ctx, 'get_client_revenue', {}) : null;
   const date = keyDate(s);
   const pay = paymentAction(s);

@@ -66,12 +66,15 @@ export default async function RankingsPage({ params, searchParams }: {
   const geo = picked ?? (await callTool<GeoGridView>(ctx, 'get_geogrid', { clientId, ...(keyword ? { keyword } : {}) }));
   const noBusiness = geo.setup === 'ready' && geo.business === null;
   const ready = geo.setup === 'ready' && !noBusiness && geo.keyword !== null;
-  const trend = ready ? await callTool<RankTrendView>(ctx, 'get_rank_trend', { clientId, keyword: geo.keyword }) : null;
-  const history = trend ? [...trend.scans].reverse() : []; // oldest → newest
-  const sov = ready && tab === 'trend' ? await callTool<ShareOfVoiceView>(ctx, 'get_share_of_voice', { clientId, ...(sovKeyword ? { keyword: sovKeyword } : {}) }) : null;
   // Phase 13b: agency-only controls. `not_ready` covers a paused or inactive client (or agency) and a client without
   // keywords or a service area, so neither control shows for one; client roles never read the settings.
-  const rankSettings = isAgencyRole(ctx.role) && geo.setup !== 'no_keywords' ? await callTool<RankSettingsView>(ctx, 'get_rank_settings', { clientId }) : null;
+  // 7a1 D7: the three reads depend only on `geo`, so they run together (one stage).
+  const [trend, sov, rankSettings] = await Promise.all([
+    ready ? callTool<RankTrendView>(ctx, 'get_rank_trend', { clientId, keyword: geo.keyword }) : null,
+    ready && tab === 'trend' ? callTool<ShareOfVoiceView>(ctx, 'get_share_of_voice', { clientId, ...(sovKeyword ? { keyword: sovKeyword } : {}) }) : null,
+    isAgencyRole(ctx.role) && geo.setup !== 'no_keywords' ? callTool<RankSettingsView>(ctx, 'get_rank_settings', { clientId }) : null,
+  ]);
+  const history = trend ? [...trend.scans].reverse() : []; // oldest → newest
   const controls = rankSettings && rankSettings.scan.state !== 'not_ready' ? rankSettings : null;
 
   // Compare: A (from, older) and B (to, newer), defaulting to the newest two; reversed picks are swapped.

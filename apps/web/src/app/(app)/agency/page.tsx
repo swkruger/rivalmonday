@@ -45,11 +45,14 @@ function sortRows(items: PortfolioRow[]): PortfolioRow[] {
 export default async function AgencyPortfolioPage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const [{ items }, guides] = await Promise.all([callTool<{ items: PortfolioRow[] }>(ctx, 'get_portfolio', {}), helpGuides(ctx, 'agency')]);
-  const billingRows = await callTool<{ clients: ClientBillingStatusRow[] }>(ctx, 'list_client_billing_status', {});
+  // 7a1 D7: independent reads in one stage. Admins only: account managers get no checklist and no extra reads.
+  const [{ items }, billingRows, onboarding, guides] = await Promise.all([
+    callTool<{ items: PortfolioRow[] }>(ctx, 'get_portfolio', {}),
+    callTool<{ clients: ClientBillingStatusRow[] }>(ctx, 'list_client_billing_status', {}),
+    ctx.role === 'agency_admin' ? callTool<ChecklistStatus>(ctx, 'get_onboarding_status', {}) : null,
+    helpGuides(ctx, 'agency'),
+  ]);
   const billingBy = new Map((billingRows?.clients ?? []).map((b) => [b.clientId, b]));
-  // Admins only: account managers get no checklist and no extra reads.
-  const onboarding = ctx.role === 'agency_admin' ? await callTool<ChecklistStatus>(ctx, 'get_onboarding_status', {}) : null;
   const showChecklist = !!onboarding && !onboarding.completed && !onboarding.dismissed;
   // Fails soft: a refused or failing billing read only hides the "Add a payment method" sub-line.
   const billingSummary = showChecklist ? await tryCallTool<{ state: string }>(ctx, 'get_billing_summary', {}).catch(() => null) : null;
