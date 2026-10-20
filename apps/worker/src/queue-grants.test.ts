@@ -21,16 +21,28 @@ const boss = (url: string, migrate: boolean) => {
   return b;
 };
 let worker: PgBoss;
-let web: PgBoss;
+let web: PgBoss | undefined;
 const webDb = () => createDb(roleUrl('cs_web', name));
 
-async function grantAsWorker(): Promise<void> {
+async function asWorker(fn: (db: ReturnType<typeof createDb>['db']) => Promise<unknown>): Promise<void> {
   const { db, close } = createDb(roleUrl('cs_worker', name));
   try {
-    await ensureQueueGrants(db);
+    await fn(db);
   } finally {
     await close();
   }
+}
+const grantAsWorker = () => asWorker(ensureQueueGrants);
+
+/** Grants (idempotent), then a cs_web boss started once and shared; every test that needs it calls this itself. */
+async function startedWeb(): Promise<PgBoss> {
+  await grantAsWorker();
+  if (!web) {
+    const b = boss(roleUrl('cs_web', name), false);
+    await b.start();
+    web = b;
+  }
+  return web;
 }
 
 const failure = errorText;
@@ -38,6 +50,10 @@ const failure = errorText;
 beforeAll(async () => {
   await admin.db.execute(sql.raw(`CREATE DATABASE ${name}`));
   await applySingleMigration(ownerUrlFor(name), '0080_runtime_roles');
+  // pgboss created by cs_worker on a fresh schema, as in production. No grants yet: each test sets up what it needs.
+  worker = boss(roleUrl('cs_worker', name), true);
+  await worker.start();
+  await worker.createQueue(QUEUE);
 });
 afterAll(async () => {
   await web?.stop({ graceful: false }).catch(() => {});
@@ -48,20 +64,24 @@ afterAll(async () => {
 
 describe('ensureQueueGrants + cs_web (0080)', () => {
   it('fresh pgboss: worker start as cs_worker + ensureQueueGrants → cs_web send works', async () => {
-    worker = boss(roleUrl('cs_worker', name), true);
-    await worker.start();
-    await worker.createQueue(QUEUE);
+    // Start from "no grants" whatever ran before (cs_worker owns the tables, so it may revoke).
+    await asWorker((db) => db.execute(sql`REVOKE ALL ON pgboss.version, pgboss.queue, pgboss.job FROM cs_web`));
     // Before the grants cs_web cannot even start (it reads pgboss.version); the web's createBossQueue retries later.
     const early = boss(roleUrl('cs_web', name), false);
     expect(await failure(early.start())).toContain('permission denied');
     await early.stop({ graceful: false }).catch(() => {});
     await grantAsWorker();
-    web = boss(roleUrl('cs_web', name), false);
-    await web.start();
-    expect(await web.send(QUEUE, { n: 1 })).toEqual(expect.any(String));
+    const fresh = boss(roleUrl('cs_web', name), false);
+    try {
+      await fresh.start();
+      expect(await fresh.send(QUEUE, { n: 1 })).toEqual(expect.any(String));
+    } finally {
+      await fresh.stop({ graceful: false }).catch(() => {});
+    }
   });
 
   it('cs_web can send a job and read its status', async () => {
+    const web = await startedWeb();
     const id = await web.send(QUEUE, { n: 2 }, { singletonKey: 'k2' });
     const { db, close } = webDb();
     try {
@@ -74,6 +94,7 @@ describe('ensureQueueGrants + cs_web (0080)', () => {
   });
 
   it('cs_web cannot UPDATE or DELETE pgboss.job', async () => {
+    await grantAsWorker(); // denied even with the grants in place
     const { db, close } = webDb();
     try {
       expect(await failure(db.execute(sql`UPDATE pgboss.job SET state = 'cancelled' WHERE name = ${QUEUE}`))).toContain('permission denied');
@@ -84,6 +105,7 @@ describe('ensureQueueGrants + cs_web (0080)', () => {
   });
 
   it('cs_web cannot SELECT pgboss.archive', async () => {
+    await grantAsWorker(); // denied even with the grants in place
     const { db, close } = webDb();
     try {
       expect(await failure(db.execute(sql`SELECT 1 FROM pgboss.archive LIMIT 1`))).toContain('permission denied');
@@ -102,6 +124,6 @@ describe('ensureQueueGrants + cs_web (0080)', () => {
       await owner.stop({ graceful: false });
     }
     await expect(grantAsWorker()).resolves.toBeUndefined();
-    expect(await web.send(OWNER_QUEUE, { n: 3 })).toEqual(expect.any(String));
+    expect(await (await startedWeb()).send(OWNER_QUEUE, { n: 3 })).toEqual(expect.any(String));
   });
 });
