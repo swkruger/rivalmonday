@@ -1,4 +1,4 @@
-import { chunkMarkdown, KB_MAX_BODY_BYTES, type KbKind, type KbLevel, lintKbText, ToolError } from '@cs/core';
+import { chunkMarkdown, type HelpAudience, KB_MAX_BODY_BYTES, type KbKind, type KbLevel, lintKbText, ToolError } from '@cs/core';
 import { agency, client, type Db, kbArticle, kbChunk, type Tx } from '@cs/db';
 import { and, eq, sql } from 'drizzle-orm';
 
@@ -19,6 +19,11 @@ export interface SaveExtra {
   sourceUrl?: string | null;
   seedKey?: string | null;
   autoSync?: boolean;
+  /** Help-system keying (15b): page guides and glossary rows. */
+  helpKey?: string | null;
+  audience?: HelpAudience;
+  /** Platform level only: hide audience-restricted help from clients. */
+  clientVisible?: boolean;
 }
 
 export const TRUNCATED_WARNING = 'Too long: only the first 200 sections are searchable.';
@@ -62,7 +67,8 @@ export async function saveArticle(
   const title = input.title.trim();
   if (title.length < 1 || title.length > 200) throw new ToolError('invalid_input', 'Title must be 1 to 200 characters');
   if (Buffer.byteLength(input.bodyMd, 'utf8') > KB_MAX_BODY_BYTES) throw new ToolError('invalid_input', 'Article body is too large (200 KB maximum)');
-  const clientVisible = input.level === 'agency' ? (input.clientVisible ?? true) : true;
+  // Platform rows are client-visible unless the seed (help audience) says otherwise; operator tools can't hide them.
+  const clientVisible = input.level === 'agency' ? (input.clientVisible ?? true) : input.level === 'platform' ? (extra.clientVisible ?? true) : true;
 
   const { id, chunkCount } = await service.transaction(async (tx) => {
     const scope = await resolveScope(tx, input);
@@ -80,6 +86,8 @@ export async function saveArticle(
           ...(extra.sourceUrl !== undefined && { sourceUrl: extra.sourceUrl }),
           ...(extra.seedKey !== undefined && { seedKey: extra.seedKey }),
           ...(extra.autoSync !== undefined && { autoSync: extra.autoSync }),
+          ...(extra.helpKey !== undefined && { helpKey: extra.helpKey }),
+          ...(extra.audience !== undefined && { audience: extra.audience }),
         })
         .where(eq(kbArticle.id, input.id));
       articleId = input.id;
@@ -92,6 +100,8 @@ export async function saveArticle(
           sourceUrl: extra.sourceUrl ?? null,
           seedKey: extra.seedKey ?? null,
           autoSync: extra.autoSync ?? false,
+          helpKey: extra.helpKey ?? null,
+          ...(extra.audience !== undefined && { audience: extra.audience }),
           createdBy: userId,
         })
         .returning({ id: kbArticle.id });

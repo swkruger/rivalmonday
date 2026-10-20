@@ -1,12 +1,13 @@
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { lintKbText } from '@cs/core';
-import { kbArticle, kbChunk } from '@cs/db';
+import { agency, kbArticle, kbChunk } from '@cs/db';
 import { openTestDbs, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { parseSeedFile, seedKnowledge } from './seed';
+import type { GlossaryTerm } from '@cs/core';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -78,6 +79,94 @@ describe('seedKnowledge', () => {
     await put('a.md', file('same'));
     await put('b.md', file('same'));
     await expect(seedKnowledge(dbs.service, dir)).rejects.toThrow(/same/);
+  });
+});
+
+describe('page guides and glossary', () => {
+  const sections = (extra = '') => `## What this page tells you\n\nIt shows things.\n\n## How to use it\n\nLook at them.\n\n## Common questions\n\nNone yet.\n${extra}`;
+  const guide = (key: string, audience: string, body = sections(), title = 'A guide') => `---\nhelp_key: ${key}\naudience: ${audience}\ntitle: ${title}\n---\n${body}\n`;
+  const putGuide = async (name: string, text: string) => {
+    await mkdir(join(dir, 'pages'), { recursive: true });
+    await writeFile(join(dir, 'pages', name), text);
+  };
+  const terms: GlossaryTerm[] = [
+    { id: 'pressure', term: 'Pressure', audience: 'all', short: 'How hard rivals are pushing.', long: 'More detail.' },
+    { id: 'seats', term: 'Seats', audience: 'agency', short: 'Billable users.' },
+  ];
+  const seed = (glossary: readonly GlossaryTerm[] = []) => seedKnowledge(dbs.service, dir, 'system:seed', { glossary });
+  const failure = async (glossary: readonly GlossaryTerm[] = []) => (await seed(glossary).then(() => null, (e: Error) => e))?.message ?? '';
+
+  it('seeds a client and an agency guide plus glossary rows with the right keys and visibility', async () => {
+    await putGuide('client.reviews.client.md', guide('page:client.reviews', 'client'));
+    await putGuide('agency.team.md', guide('page:agency.team', 'agency'));
+    await put('a.md', file('a'));
+    expect(await seed(terms)).toEqual({ created: 5, updated: 0, removed: 0, unchanged: 0 });
+    const by = Object.fromEntries((await rows()).map((r) => [r.seedKey, r]));
+    expect(by['page:client.reviews#client']).toMatchObject({ helpKey: 'page:client.reviews', audience: 'client', clientVisible: true, level: 'platform', status: 'published', kind: 'help', source: 'seed' });
+    expect(by['page:agency.team#agency']).toMatchObject({ audience: 'agency', clientVisible: false });
+    expect(by['glossary:pressure#all']).toMatchObject({ helpKey: 'glossary:pressure', title: 'Pressure', bodyMd: 'How hard rivals are pushing.\n\nMore detail.', clientVisible: true });
+    expect(by['glossary:seats#agency']).toMatchObject({ bodyMd: 'Billable users.', clientVisible: false });
+    expect(by.a).toMatchObject({ helpKey: null, audience: 'all' });
+    expect(await dbs.service.select().from(kbChunk)).not.toHaveLength(0);
+  });
+
+  it('re-run is unchanged and an edit updates', async () => {
+    await putGuide('client.reviews.md', guide('page:client.reviews', 'client'));
+    await seed(terms);
+    expect(await seed(terms)).toEqual({ created: 0, updated: 0, removed: 0, unchanged: 3 });
+    await putGuide('client.reviews.md', guide('page:client.reviews', 'client', sections('\nMore words.')));
+    expect(await seed([terms[0]!, { ...terms[1]!, short: 'Changed.' }])).toEqual({ created: 0, updated: 2, removed: 0, unchanged: 1 });
+  });
+
+  it('removing a guide or glossary term removes only its seed row', async () => {
+    await putGuide('client.reviews.md', guide('page:client.reviews', 'client'));
+    await putGuide('agency.team.md', guide('page:agency.team', 'agency'));
+    await seed(terms);
+    const [ag] = await dbs.owner.insert(agency).values({ name: 'Ag' }).returning();
+    await dbs.service.insert(kbArticle).values({ level: 'agency', agencyId: ag!.id, kind: 'help', title: 'Mine', bodyMd: 'x', status: 'published', source: 'manual', helpKey: 'page:agency.team', audience: 'agency', createdBy: 'op', updatedBy: 'op' });
+    await rm(join(dir, 'pages', 'agency.team.md'));
+    expect(await seed([terms[0]!])).toMatchObject({ removed: 2, unchanged: 2 });
+    expect((await rows()).map((r) => r.seedKey).sort()).toEqual(['glossary:pressure#all', null, 'page:client.reviews#client']);
+  });
+
+  it('a missing pages folder is fine', async () => {
+    await put('a.md', file('a'));
+    expect(await seed()).toMatchObject({ created: 1 });
+  });
+
+  it('reports every validation error at once and writes nothing', async () => {
+    await putGuide('client.reviews.md', guide('page:client.other', 'client'));
+    await putGuide('x.md', guide('page:x', 'nobody'));
+    await putGuide('y.md', guide('page:y', 'client', '## How to use it\n\nx\n\n## What this page tells you\n\ny\n\n## Common questions\n\nz'));
+    await putGuide('z.md', guide('page:z', 'client', sections('\nAsk Friday about Rival Monday.')));
+    await putGuide('w.agency.md', guide('page:w', 'client'));
+    const msg = await failure();
+    expect(msg).toMatch(/client\.reviews\.md: help_key "page:client\.other" must be "page:client\.reviews"/);
+    expect(msg).toMatch(/x\.md: unknown audience "nobody"/);
+    expect(msg).toMatch(/y\.md: H2 sections must be exactly/);
+    expect(msg).toMatch(/z\.md: Uses "Rival Monday"/);
+    expect(msg).toMatch(/z\.md: Uses "Friday"/);
+    expect(msg).toMatch(/w\.agency\.md: file-name audience "agency" does not match/);
+    expect(await rows()).toHaveLength(0);
+  });
+
+  it('rejects a missing section and a duplicate key+audience', async () => {
+    await putGuide('a.md', guide('page:a', 'all', '## What this page tells you\n\nx\n\n## How to use it\n\ny'));
+    await putGuide('a.all.md', guide('page:a', 'all'));
+    await putGuide('a.client.md', guide('page:a', 'client'));
+    const msg = await failure([terms[0]!, terms[0]!]);
+    expect(msg).toMatch(/a\.md: H2 sections/);
+    expect(msg).toMatch(/glossary:pressure: duplicate key\+audience "glossary:pressure#all"/);
+  });
+
+  it('rejects duplicate guides for one key and audience', async () => {
+    await putGuide('a.md', guide('page:a', 'client'));
+    await putGuide('a.client.md', guide('page:a', 'client'));
+    expect(await failure()).toMatch(/duplicate key\+audience "page:a#client"/);
+  });
+
+  it('lints glossary text', async () => {
+    expect(await failure([{ id: 'g', term: 'G', audience: 'all', short: 'Ask Friday.' }])).toMatch(/glossary:g: Uses "Friday"/);
   });
 });
 
