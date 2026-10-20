@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, foreignKey, index, integer, pgTable, text, timestamp, unique, uuid, vector } from 'drizzle-orm/pg-core';
+import { boolean, check, foreignKey, index, integer, pgTable, text, timestamp, unique, uniqueIndex, uuid, vector } from 'drizzle-orm/pg-core';
+import type { HelpAudience } from '@cs/core';
 import { EMBEDDING_DIMENSIONS } from './engine';
 import { agency, client } from './tenancy';
 
@@ -29,6 +30,8 @@ export const kbArticle = pgTable(
     source: text('source').$type<KbSource>().notNull(),
     sourceUrl: text('source_url'),
     seedKey: text('seed_key').unique(),
+    helpKey: text('help_key'),
+    audience: text('audience').$type<HelpAudience>().notNull().default('all'),
     autoSync: boolean('auto_sync').notNull().default(false),
     lastSyncedAt: ts('last_synced_at'),
     syncError: text('sync_error'),
@@ -41,6 +44,11 @@ export const kbArticle = pgTable(
   (t) => [
     index('kb_article_scope_idx').on(t.level, t.agencyId, t.clientId, t.status),
     foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade'),
+    uniqueIndex('kb_article_help_key_uq')
+      .on(t.helpKey, t.audience, t.level, sql`COALESCE(${t.agencyId}, '00000000-0000-0000-0000-000000000000'::uuid)`)
+      .where(sql`${t.helpKey} IS NOT NULL`),
+    index('kb_article_help_key_idx').on(t.helpKey).where(sql`${t.helpKey} IS NOT NULL`),
+    check('kb_article_audience_check', sql`audience IN ('all','agency','client','operator')`),
     check('kb_article_level_check', sql`level IN ('platform','agency','client')`),
     check('kb_article_kind_check', sql`kind IN ('help','playbook','qa','blog','fact')`),
     check('kb_article_title_check', sql`char_length(title) BETWEEN 1 AND 200`),
