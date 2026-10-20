@@ -54,12 +54,15 @@ const THEME = /\b(un)?theme(s|d)?\b/i;
 const IDENTIFIER_LIKE = /^[a-z0-9_:/.?=&#[\]-]+$/;
 /** UI-theme senses (brand colours, dark/light) that legitimately use the word inside a string: none today; add a snippet here with a reason. */
 const UI_THEME_STRINGS: string[] = [];
+/** Model-facing prompt text, never shown to users; the model's output field is still named `themes` (renamed with the tool rename in 15b-3). */
+const MODEL_PROMPT_FILES = new Set(['apps/web/src/server/vertical-draft.ts']);
 
 const rel = (f: string) => relative(ROOT, f).split(sep).join('/');
 
 function themeHits(files: string[]): Hit[] {
   const hits: Hit[] = [];
   for (const f of files) {
+    if (MODEL_PROMPT_FILES.has(rel(f))) continue;
     for (const t of textsOf(f)) {
       if (!THEME.test(t.text)) continue;
       if (t.kind === 'string' && IDENTIFIER_LIKE.test(t.text)) continue;

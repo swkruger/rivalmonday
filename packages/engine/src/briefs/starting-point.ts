@@ -62,7 +62,7 @@ export function scorecardEvidenceText(sc: Scorecard, findings: SelfFinding[]): s
   }
   for (const f of findings) {
     if (typeof f.values.theme === 'string' && typeof f.values.you === 'number' && typeof f.values.median === 'number') {
-      lines.push(`Theme ${f.values.theme}: your share ${pct(f.values.you)}; rival median ${pct(f.values.median)}.`);
+      lines.push(`Topic ${f.values.theme}: your share ${pct(f.values.you)}; rival median ${pct(f.values.median)}.`);
     }
   }
   return lines.join('\n');
