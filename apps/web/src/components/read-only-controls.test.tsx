@@ -131,10 +131,10 @@ describe('write controls hide in a support session', () => {
 
   it('a dialog-triggered write (alert Dismiss) and its Approve button are absent', () => {
     const alert = { id: 'al1', clientName: 'Lone Star Air', competitorName: 'Peachtree', score: 80, headline: 'Price drop', body: 'b', evidenceCount: 2, written: 'llm', status: 'pending_review', heldForDigest: false } as never;
-    inWritable(<AlertList items={[alert]} />);
+    inWritable(<AlertList items={[alert]} assistantName="Friday" />);
     expect(screen.getByRole('button', { name: 'Dismiss' })).toBeTruthy();
     document.body.innerHTML = '';
-    inReadOnly(<AlertList items={[alert]} />);
+    inReadOnly(<AlertList items={[alert]} assistantName="Friday" />);
     expect(screen.getByText('Price drop')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /dismiss|approve/i })).toBeNull();
   });

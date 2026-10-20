@@ -107,7 +107,7 @@ describe('navFlagsFor', () => {
   it('platform view only for operators; Costs only for the owner', () => {
     const user = { kind: 'user' as const, ctx: ctx('agency_admin'), email: 'someone@e.co' };
     expect(navForViewer(user, 'platform', null)).toEqual([]);
-    expect(labelsOf(navForViewer(user, 'platform', null, true))).toEqual(['Overview', 'Agencies', 'Lead pool', 'Billing & plans', 'Model reviews', 'Theme proposals', 'Ask reviews', 'Knowledge', 'Business types', 'Runbook']);
+    expect(labelsOf(navForViewer(user, 'platform', null, true))).toEqual(['Overview', 'Agencies', 'Lead pool', 'Billing & plans', 'Model reviews', 'Topic proposals', 'Ask reviews', 'Knowledge', 'Business types', 'Runbook']);
     expect(hrefs(navForViewer(user, 'platform', null, true, false))).not.toContain('/platform/costs');
     expect(hrefs(navForViewer(user, 'platform', null, false, true))).toEqual([]);
     expect(navForViewer(user, 'platform', null, true, true).at(-1)).toMatchObject({ id: 'system', items: [{ href: '/platform/costs', label: 'Costs', icon: 'costs' }] });

@@ -123,7 +123,7 @@ describe('pilot pages: copy, tips and empty states by audience', () => {
         fireEvent.click(b);
       }
       expect(seen.join('\n')).not.toMatch(/\brout(e|ed|ing)\b|upsell|\bseats?\b|AM check/i);
-      expect(seen.join('\n')).toMatch(/0 to 100|Rows are review themes|Alert: important enough/);
+      expect(seen.join('\n')).toMatch(/0 to 100|Rows are review topics|Alert: important enough/);
       cleanup();
     }
   });

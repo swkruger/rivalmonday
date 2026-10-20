@@ -47,7 +47,7 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
       <PageHeader
         title="Knowledge"
         breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Knowledge' }]}
-        description="Articles Friday can search and cite, at platform, agency and client level."
+        description="Articles the Ask assistant can search and cite, at platform, agency and client level."
         actions={<Link href="/platform/knowledge/new" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">New article</Link>}
       />
       <form method="get" className="grid gap-2 rounded-[14px] bg-surface p-4 shadow-card md:grid-cols-6">

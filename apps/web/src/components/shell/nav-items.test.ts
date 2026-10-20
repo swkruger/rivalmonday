@@ -27,7 +27,7 @@ describe('navFor platform', () => {
       ['top', null, ['Overview']],
       ['customers', 'Customers', ['Agencies', 'Lead pool']],
       ['revenue', 'Revenue', ['Billing & plans']],
-      ['quality', 'Quality', ['Model reviews', 'Theme proposals', 'Ask reviews']],
+      ['quality', 'Quality', ['Model reviews', 'Topic proposals', 'Ask reviews']],
       ['content', 'Content', ['Knowledge', 'Business types', 'Runbook']],
     ]);
     expect(hrefs(s)).toEqual(['/platform', '/platform/agencies', '/platform/leads', '/platform/billing', '/platform/reviews', '/platform/themes', '/platform/ask', '/platform/knowledge', '/platform/verticals', '/platform/runbook']);
@@ -53,7 +53,7 @@ describe('navFor platform', () => {
   it('puts queue counts on the quality items and hides badges at 0', () => {
     const s = navFor('platform', operator, null, { modelReviews: 4, themes: 0 });
     expect(item(s, 'Model reviews')).toMatchObject({ count: 4 });
-    expect(item(s, 'Theme proposals')).not.toHaveProperty('count');
+    expect(item(s, 'Topic proposals')).not.toHaveProperty('count');
     expect(item(s, 'Ask reviews')).not.toHaveProperty('count'); // no Ask reviews badge (no reviewed state to count)
     expect(item(navFor('platform', operator, null), 'Model reviews')).not.toHaveProperty('count');
   });

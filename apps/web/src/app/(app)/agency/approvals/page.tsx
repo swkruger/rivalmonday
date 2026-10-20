@@ -4,7 +4,9 @@ import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
+import { assistantNameFor } from '@/server/ask';
 import { requireContext } from '@/server/current-viewer';
+import { dbs } from '@/server/db';
 import { callTool } from '@/server/tools';
 import { STATUS_LABEL } from './status';
 
@@ -15,14 +17,14 @@ export const metadata = { title: 'Approvals' };
 export default async function ApprovalsPage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const { items } = await callTool<{ items: BriefQueueRow[] }>(ctx, 'list_brief_queue', {});
+  const [{ items }, assistantName] = await Promise.all([callTool<{ items: BriefQueueRow[] }>(ctx, 'list_brief_queue', {}), assistantNameFor(dbs().service, ctx.agencyId)]);
 
   return (
     <>
       <PageHeader
         title="Approvals"
         breadcrumb={[{ label: 'Agency', href: '/agency' }, { label: 'Approvals' }]}
-        description="Friday drafts each brief on Thursday night. Clients set to auto-send get untouched briefs Monday 07:00."
+        description={`${assistantName} drafts each brief on Thursday night. Clients set to auto-send get untouched briefs Monday 07:00.`}
       />
       {items.length === 0 ? (
         <p className="text-muted-foreground">Nothing to review this week.</p>

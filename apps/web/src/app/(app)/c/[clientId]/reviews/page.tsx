@@ -93,7 +93,7 @@ export default async function ReviewsPage({ params, searchParams }: {
           <h2 className="text-lg font-bold text-ink">What customers talk about</h2>
           <HelpTip tip="client.reviews.heatmap" />
         </div>
-        <p className="mb-3 text-sm text-muted-foreground">Last 90 days. The number is how often a theme comes up; the colour is how positive those mentions are.</p>
+        <p className="mb-3 text-sm text-muted-foreground">Last 90 days. The number is how often a topic comes up; the colour is how positive those mentions are.</p>
         <ThemeHeatmap title="What customers talk about" benchmark={benchmark} />
       </section>
 
@@ -125,9 +125,9 @@ export default async function ReviewsPage({ params, searchParams }: {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-semibold text-ink">Theme</span>
+            <span className="font-semibold text-ink">Topic</span>
             <select name="theme" defaultValue={themeId ?? ''} className="rounded-md border border-line bg-surface px-2 py-1.5">
-              <option value="">All themes</option>
+              <option value="">All topics</option>
               {benchmark.themes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </label>

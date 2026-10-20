@@ -23,7 +23,7 @@ export function ThemeQueue({ pending, decided, action }: { pending: ThemeProposa
       {pending.length === 0 && <p className="text-muted-foreground">No proposals waiting.</p>}
       {pending.map((p) => (
         <div key={p.id} className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
-          <div className="text-sm text-muted-ink">{p.verticalName} · {p.otherCount} unthemed reviews</div>
+          <div className="text-sm text-muted-ink">{p.verticalName} · {p.otherCount} reviews with no topic</div>
           <h3 className="text-lg font-bold">{p.name} <span className="font-mono text-xs text-muted-ink">{p.themeId}</span></h3>
           <p>{p.description}</p>
           {p.samples.length > 0 && (

@@ -133,9 +133,9 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     id: 'business-type',
     term: 'Business type',
     audience: 'all',
-    short: 'The kind of business, such as HVAC and plumbing or dental. It decides which services, review themes and scoring rules apply.',
+    short: 'The kind of business, such as HVAC and plumbing or dental. It decides which services, review topics and scoring rules apply.',
     long: 'Business types come from a shared catalog. Older screens may still call this the vertical or industry.',
-    seeAlso: ['theme', 'score'],
+    seeAlso: ['topic', 'score'],
   },
   {
     // source: packages/db/src/filters.ts:clientServiceable, agencyServiceable; packages/tools/src/billing-guard.ts (service_paused)
@@ -199,12 +199,12 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     seeAlso: ['review-velocity'],
   },
   {
-    // source: packages/engine/src/reviews/benchmark.ts:summarizeWindow (share = mentioning / asked), sentimentScore; themes: packages/verticals/packs/*.yaml
-    id: 'theme',
-    term: 'Theme',
+    // source: packages/engine/src/reviews/benchmark.ts:summarizeWindow (share = mentioning / asked), sentimentScore; topics (packs call them themes): packages/verticals/packs/*.yaml
+    id: 'topic',
+    term: 'Topic',
     audience: 'all',
     short: 'A topic customers bring up in reviews, such as response time, price transparency or cleanliness. Each business type has its own list.',
-    long: "A theme's share is the percentage of the reviews checked for that theme in the last 90 days that mention it. Its sentiment runs from very negative to very positive.",
+    long: "A topic's share is the percentage of the reviews checked for that topic in the last 90 days that mention it. Its sentiment runs from very negative to very positive.",
     seeAlso: ['business-type'],
   },
   {

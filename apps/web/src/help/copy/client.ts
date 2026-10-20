@@ -83,7 +83,7 @@ export const CLIENT_COPY = {
       // source: packages/engine/src/reviews/benchmark.ts:summarizeWindow; apps/web/src/components/charts/theme-heatmap.tsx:sentimentFill
       heatmap: {
         title: 'Reading the heatmap',
-        body: "Rows are review themes; columns are businesses, {client} first. The number is the share of the reviews checked for that theme in the last 90 days that mention it. The color is how positive those mentions are: blue is positive, red is negative, gray is neutral. A dash means there are not enough reviews, and ▲▼ marks a change of 5 points or more since the previous 90 days.",
+        body: "Rows are review topics; columns are businesses, {client} first. The number is the share of the reviews checked for that topic in the last 90 days that mention it. The color is how positive those mentions are: blue is positive, red is negative, gray is neutral. A dash means there are not enough reviews, and ▲▼ marks a change of 5 points or more since the previous 90 days.",
         guideAnchor: 'how-to-use-it',
       },
       // source: packages/engine/src/reviews/rating-trend.ts:ratingStats (mix counts every collected review by stars)
@@ -92,7 +92,7 @@ export const CLIENT_COPY = {
       ratingTrend: { title: 'Rating trend', body: 'The average stars of the reviews posted in each month, for {client} and each competitor. A month without reviews has no point. With many competitors, some are combined into one "Other (average)" line.' },
     },
     empty: {
-      noMatch: { title: 'No reviews match', body: 'Try another business, theme or star rating, or a longer period.' },
+      noMatch: { title: 'No reviews match', body: 'Try another business, topic or star rating, or a longer period.' },
     },
   },
 } as const satisfies Record<`client.${string}`, PageCopy>;

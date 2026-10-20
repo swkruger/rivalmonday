@@ -7,7 +7,7 @@ import { ThemeQueue } from './theme-queue';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = { title: 'Theme proposals' };
+export const metadata = { title: 'Topic proposals' };
 
 /** Non-operators get the tool's permission_denied → 404 (decision 2). */
 export default async function ThemeProposalsPage() {
@@ -16,8 +16,8 @@ export default async function ThemeProposalsPage() {
   return (
     <>
       <PageHeader
-        title="Theme proposals"
-        breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Theme proposals' }]}
+        title="Topic proposals"
+        breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Topic proposals' }]}
         description="New review topics found in reviews that didn’t fit any existing topic. Approved topics are asked for every review analysed from now on."
       />
       <ThemeQueue pending={pending} decided={decided} action={decideThemeAction} />

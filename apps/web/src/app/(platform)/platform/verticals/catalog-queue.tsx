@@ -224,7 +224,7 @@ function EditForm({ v, formAction, busy, onDone }: { v: ReviewVertical; formActi
         <div className="flex flex-col gap-1"><Label htmlFor={`e-kw-${v.id}`}>Keywords (comma separated, up to 5)</Label><Input id={`e-kw-${v.id}`} value={keywords} onChange={(e) => setKeywords(e.target.value)} /></div>
         <div className="flex flex-col gap-1"><Label htmlFor={`e-cat-${v.id}`}>Google categories</Label><Input id={`e-cat-${v.id}`} value={primary} onChange={(e) => setPrimary(e.target.value)} /></div>
         <div className="flex flex-col gap-1"><Label htmlFor={`e-rel-${v.id}`}>Related Google categories</Label><Input id={`e-rel-${v.id}`} value={related} onChange={(e) => setRelated(e.target.value)} /></div>
-        <div className="flex flex-col gap-1"><Label htmlFor={`e-th-${v.id}`}>Review themes (comma separated)</Label><Input id={`e-th-${v.id}`} value={themes} onChange={(e) => setThemes(e.target.value)} /></div>
+        <div className="flex flex-col gap-1"><Label htmlFor={`e-th-${v.id}`}>Review topics (comma separated)</Label><Input id={`e-th-${v.id}`} value={themes} onChange={(e) => setThemes(e.target.value)} /></div>
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-semibold">Services</legend>
           {areaRows.map((r, i) => (

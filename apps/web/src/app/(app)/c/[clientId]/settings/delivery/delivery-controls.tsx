@@ -10,7 +10,7 @@ const selectClass = 'h-9 w-full max-w-sm rounded-md border border-input bg-trans
 
 const MODES: { value: 'direct' | 'after_am_check' | 'digest_only'; label: string; help: string }[] = [
   { value: 'direct', label: 'Direct', help: 'Alerts go to the client at once.' },
-  { value: 'after_am_check', label: 'After AM check (default)', help: 'You approve each alert first.' },
+  { value: 'after_am_check', label: 'I review alerts first (default)', help: 'You approve each alert first.' },
   { value: 'digest_only', label: 'Digest only', help: 'Alerts wait for the 17:00 digest.' },
 ];
 

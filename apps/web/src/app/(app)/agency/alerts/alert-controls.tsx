@@ -83,7 +83,7 @@ function DismissDialog({ alertId, action, pending, result }: { alertId: string; 
 }
 
 /** One alert waiting for review, or held for the 17:00 digest (read-only aside from Dismiss, since it was already approved). */
-function AlertCard({ alert, action, pending, result }: { alert: AlertQueueRow; action: QueueAction; pending: boolean; result: QueueResult }) {
+function AlertCard({ alert, action, pending, result, assistantName }: { alert: AlertQueueRow; action: QueueAction; pending: boolean; result: QueueResult; assistantName: string }) {
   const pendingReview = alert.status === 'pending_review';
   return (
     <article className="rounded-[14px] bg-surface p-6 shadow-card">
@@ -99,7 +99,7 @@ function AlertCard({ alert, action, pending, result }: { alert: AlertQueueRow; a
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <span className="rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">{alert.evidenceCount} evidence items</span>
       </div>
-      {alert.written === 'template' && <p className="mt-2 text-muted-foreground">Friday couldn’t verify its own wording, so this uses the evidence summary.</p>}
+      {alert.written === 'template' && <p className="mt-2 text-muted-foreground">{assistantName} couldn’t verify its own wording, so this uses the evidence summary.</p>}
       <WriteGuard>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {pendingReview && <ApproveButton alertId={alert.id} action={action} pending={pending} />}
@@ -114,7 +114,7 @@ function AlertCard({ alert, action, pending, result }: { alert: AlertQueueRow; a
  * The alert queue plus a flash line above it with the last approve/dismiss outcome. A dismiss refusal is shown in
  * that alert's dialog instead (the dialog is still open, covering the page).
  */
-export function AlertList({ items }: { items: AlertQueueRow[] }) {
+export function AlertList({ items, assistantName }: { items: AlertQueueRow[]; assistantName: string }) {
   const [result, action, pending] = useActionState(queueAction, { ok: true } as QueueResult);
   const flash = result.ok || result.intent !== 'dismiss';
   return (
@@ -125,7 +125,7 @@ export function AlertList({ items }: { items: AlertQueueRow[] }) {
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((item) => (
-            <AlertCard key={item.id} alert={item} action={action} pending={pending} result={result} />
+            <AlertCard key={item.id} alert={item} action={action} pending={pending} result={result} assistantName={assistantName} />
           ))}
         </div>
       )}

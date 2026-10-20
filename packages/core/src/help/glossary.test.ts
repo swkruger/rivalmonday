@@ -32,7 +32,7 @@ describe('GLOSSARY content', () => {
   const REQUIRED = [
     'competitor', 'tier', 'change', 'move', 'signal', 'brief', 'report', 'alert', 'pressure', 'score', 'routing', 'confidence', 'seat',
     'business-type', 'paused', 'monitoring-paused', 'share-of-voice', 'local-pack', 'average-map-rank', 'review-velocity', 'reply-rate',
-    'theme', 'starting-point', 'recommendation', 'evidence', 'upsell-tag',
+    'topic', 'starting-point', 'recommendation', 'evidence', 'upsell-tag',
   ];
   const text = (x: GlossaryTerm) => [x.term, x.short, x.long ?? ''].join('\n');
   const clientVisible = GLOSSARY.filter((x) => x.audience === 'all' || x.audience === 'client');

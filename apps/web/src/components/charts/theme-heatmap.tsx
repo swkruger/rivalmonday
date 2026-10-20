@@ -39,7 +39,7 @@ export function ThemeHeatmap({ title, benchmark }: { title: string; benchmark: P
   return (
     <figure className="flex flex-col gap-2">
       <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${themes.length} themes for ${businesses.length} businesses; colour shows how positive mentions are, the number how often the theme comes up.`} style={{ minWidth: Math.round(W * 0.75) }} className="w-full">
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${themes.length} topics for ${businesses.length} businesses; colour shows how positive mentions are, the number how often the topic comes up.`} style={{ minWidth: Math.round(W * 0.75) }} className="w-full">
           {businesses.map((b, j) => (
             <g key={b.competitorId}>
               <title>{b.name}</title>
@@ -94,7 +94,7 @@ export function ThemeHeatmap({ title, benchmark }: { title: string; benchmark: P
             <caption className="sr-only">{title}</caption>
             <thead>
               <tr>
-                <th scope="col">Theme</th>
+                <th scope="col">Topic</th>
                 {businesses.map((b) => <th key={b.competitorId} scope="col">{colName(b)}</th>)}
               </tr>
             </thead>
