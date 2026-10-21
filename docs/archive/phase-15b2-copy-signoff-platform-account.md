@@ -1,6 +1,38 @@
-# phase-15b2 - platform and account help copy for owner sign-off (Task 9a: platform; Task 9b adds Account)
+# phase-15b2 - platform and account help copy for owner sign-off (Tasks 9a and 9b)
 
-**Status: Task 9a (platform) written, 2026-10-21. Account (Task 9b) follows in this file.** Sixteen operator-only platform pages: Overview, Agencies, an agency, Billing & plans, Lead pool, Model reviews, Topic proposals, Ask reviews, an Ask conversation, Knowledge, New article, an article, Health, Costs, Business types and Runbook. `/platform/help` is exempt.
+**Status: final for owner sign-off, 2026-10-21.** Part 1 is Task 9a: sixteen operator-only platform pages (Overview, Agencies, an agency, Billing & plans, Lead pool, Model reviews, Topic proposals, Ask reviews, an Ask conversation, Knowledge, New article, an article, Health, Costs, Business types, Runbook; `/platform/help` is exempt). Part 2 is Task 9b: three account pages (Inbox, Notification settings, the agency setup wizard; `kb.detail` is exempt). Each row lists the string, who sees it and the code it comes from.
+
+## Owner checklist (start here)
+
+Three sign-ins cover everything. About 45 minutes in total.
+
+**Operator (platform owner)**
+1. Work through "Owner checklist (platform)" further down (16 pages, about 20 minutes).
+2. Account pages: sign in as an operator who also has an agency membership. Inbox and Notification settings show the agency version of the Guide and tips (operators have no separate account guides). A member-less operator never reaches them.
+
+**Agency (agency admin; then an account manager)**
+1. **Inbox**: the sentence under the title says "latest 100 ... newest first". The three **?** tips read right (Unread and read, What the labels mean, What arrives). The labels tip lists Client alerts (agency), Brief ready for review, Brief failed, Brief overdue, Rank scan skipped, the three setup notices and Quarterly report. On a fresh account the empty state says "Nothing here yet" and points to Notification settings. **Guide** opens the agency version.
+2. **Notification settings** (account menu): tips In-app and email, Quiet hours, Time zone, Agency notices. Confirm the claims against what you see: switches save at once, quiet hours need both times, emails are held until the window ends, a blank time zone means US Central time.
+3. **Setup wizard**: sign in as a brand-new agency admin. Each of the four steps has its own **About this step** tip plus **Skipping a step**; **Guide** opens the wizard guide. Skip a step and check it stays on the Getting started card on the Portfolio. As an account manager, `/onboarding` must be "not found".
+
+**Client (client owner; then a client viewer; then a guest via an emailed link)**
+1. **Inbox**: **What the labels mean** lists only Instant alerts, Alert digest, Weekly brief and Quarterly report. Nothing mentions agency notices, cost caps, Slack, account managers or Agency settings. **Guide** opens the client version.
+2. **Notification settings**: the tips are In-app and email, Quiet hours, Time zone (says "the time zone saved for your business", never US Central) and Notices about your business. The guide says a few messages, such as an invitation, have no switch.
+3. A guest (emailed link) can open the Inbox and sees the Guide; Notification settings is "not found" for a guest.
+4. Help page "Your account" group: an agency admin lists three guides (Inbox, Notification settings, Set up your agency); a client owner lists two.
+
+### Decisions for the owner (account)
+
+| # | Decision | Where | Current state |
+|---|---|---|---|
+| A1 | **Quiet hours wording.** The page's own hint says "No notifications by email in this window (in-app still arrive)". The tip and guides say emails are *held and sent when the window ends*, because that is what the delivery code does (`notBefore`). The hint on the page itself was left as it was. | Notification settings | Tip and guides new; page hint unchanged. Owner may want the hint changed to match. |
+| A2 | **"Business time zone" for agency staff means US Central.** The option label is shared with client contacts (where it is the business's zone); for an agency contact the code falls back to America/Chicago. The tip and guide say so; the option label is unchanged. | Notification settings | Stated in copy. |
+| A3 | **Empty states replaced one-liners**: "Nothing here yet. Alerts, briefs and reports you receive also appear here." became a titled state "Nothing here yet" with a next step; "You have no notification settings yet." became "No notification settings yet" with an explanation. | Inbox, Notification settings | Changed. |
+| A4 | **Wizard plan tip states no trial numbers.** The plan step already shows its own trial note (1 client weekly, 3 daily with a card); the tip points to that note rather than repeating the numbers, so the two cannot drift. | Setup wizard | As described. |
+| A5 | **Setup notices** (Competitor suggestions ready, Client updated their setup, Setup waiting on you) are explained in one line each, from `apps/worker/src/jobs/setup.ts`; their email text there is still marked "owner sign-off pending" in the worker. | Inbox and Notification settings, agency | Help copy added; worker copy not touched. |
+| A6 | **Client guides never mention agency notices, cost caps, Slack/Teams, account managers or Agency settings.** The seed test enforces it. | Client guides | As described. |
+
+## Platform notes (Task 9a)
 
 - **Audience**: platform pages are reachable by platform operators only (`requireOperatorContext`; anyone else gets "not found"). Every guide is `operator` (one per page, no `all` or agency version); client roles and agency roles never receive one (tested in `packages/tools/src/kb/help-content.test.ts`). An operator reads `all`, `agency` and `operator` help (`visibleAudiences`), so every short-copy tip and empty state here is `audience: operator` or unset and renders for operators only.
 - **Product name**: operator copy may name the product. The shared copy test (`help/copy/copy.test.ts`) forbids the literal name in any short copy, so the tips and descriptions here do not name it; guides use `{{product}}` (the seed lint forbids the literal name in platform guides). The only guide that names it is Costs.
@@ -888,8 +920,329 @@ They are the evidence recorded when the business type was drafted, and show why 
 - Guides state what each page does today. Where the code does not say (for example what happens to an agency that already redeemed a revoked link) nothing is claimed.
 - The operator versions are the only versions: if the platform ever opens a page to agency roles, its guide needs an agency version first.
 - The Knowledge list shows these guides too, badged "Managed in repo", after `kb:seed` runs.
-- Account pages (inbox, notification settings, onboarding) are added by Task 9b in a separate section below.
+- The account pages (inbox, notification settings, setup wizard) follow in "Batch: account".
 
-# Batch: account (Task 9b)
+# Batch: account (Task 9b, 3 pages)
 
-_Task 9b adds this section and finalises the document._
+Pages: Inbox (`/inbox`), Notification settings (`/settings/notifications`) and the agency setup wizard (`/onboarding`). `kb.detail` (`/kb/<id>`) is exempt.
+
+## Who reaches each page, and which guide they get
+
+| Page | Reached by | Guides | Notes |
+|---|---|---|---|
+| Inbox `page:account.inbox` | Agency admin, account manager, client owner, client viewer, and client guests (magic-link contacts). A platform operator reaches it only through an own agency membership, so as agency staff. A support session gets a 404 (`ctx.support`). | `agency` + `client` (guests and client roles read `client`) | Both read the same page; the labels differ by role because agency staff and client contacts get different kinds of notice. |
+| Notification settings `page:account.settings.notifications` | Any signed-in user (`viewer.kind === user`); guests and support sessions get a 404. Agency roles see the agency card (and a client card if they are also a client contact); client roles see client cards. | `agency` + `client` | Agency labels (Client alerts (agency), Rank scan skipped) appear only on an agency card; client cards list Instant alerts, Alert digest, Weekly brief, Quarterly report. |
+| Setup wizard `page:account.onboarding` | Agency admin only (`ctx.role !== agency_admin` is a 404); a finished or dismissed wizard redirects to `/agency`. | `agency` only | No client guide. The seed test proves client roles read none. |
+
+- **Operators**: there is no operator version of any account page. An operator signed in with an agency membership reads the agency versions (`roleAudience` never returns `operator` outside the platform context); a member-less operator is sent to `/no-access` before any account page.
+- **Guide scope**: these routes are outside `/agency`, `/c/<id>` and `/platform`, so `helpScopeOf` gives `{ context: 'agency' }`. Each page reads `helpGuides(ctx, 'agency')` and the drawer loads `get_page_guide` with `context: 'agency'`, whatever the viewer is. Client roles are not refused in the agency context for account keys; the tool returns the client version for them (tested).
+- **Your account**: `list_help_guides` returns `page:account.%` rows in every context, and the Help pages group them under "Your account" (`groupGuides`, tested for an agency and a client menu). An agency role is listed all three; a client role is listed Inbox and Notification settings only.
+- **Wiring**: each page passes `helpKey` + `guide={guides.has(KEY)}` to `PageHeader`, the description through `HelpText`, and its tips in a `TipRow` under the header (Notification settings shows its row only when there is at least one card; the wizard shows the skip tip plus a tip for the current step). Tips for the other audience are left out whole by `TipRow`.
+- **Empty states**: Inbox ("Nothing here yet") and Notification settings ("No notification settings yet") each have one, for every audience. The wizard has none (it always shows a form, or redirects).
+- **Product name / assistant**: none of the account copy names the product or the assistant; no placeholder is used.
+## Short copy (descriptions, tips, empty states)
+
+### account.inbox (Inbox)
+
+| Item | Audience | Text | Source |
+|---|---|---|---|
+| Description | all | Your latest 100 notifications, newest first: the alerts, briefs, reports and notices sent to you. Select one to open it. | apps/web/src/app/(app)/inbox/page.tsx (listInbox limit 100, newest first, Mark all read); inbox/actions.ts:openNotification |
+| Tip `unread` | all | **Unread and read**: A bold title is unread. Selecting a notification marks it read and takes you to the page it is about; a notice with nothing to open brings you back here. Mark all read marks every notification you have, not only the ones on this page. | apps/web/src/app/(app)/inbox/page.tsx (unread title font-bold, read font-medium); inbox/actions.ts:openNotification (markRead then redirect to the notice's page, or back to /inbox when it has none), markAllReadAction |
+| Tip `labelsAgency` | agency | **What the labels mean**: The grey label names the kind of notice. Client alerts (agency): an alert to review, or one that was already sent, for a client you cover. Brief ready for review and Brief failed: a client's weekly brief is ready for your approval, or could not be produced. Brief overdue: a brief was still waiting for approval at 07:00 client time. Rank scan skipped: a map ranking scan would have gone over the client's monthly cost cap. Competitor suggestions ready, Client updated their setup and Setup waiting on you: where a client's setup stands. Quarterly report: a client's quarterly report is ready. | apps/web/src/server/inbox.ts:NOTIFICATION_KIND_LABELS; packages/db/src/schema/delivery.ts:CLIENT_KINDS, AGENCY_KINDS; packages/engine/src/alerts/route.ts:notifyAm (alert to review or sent), briefs/notify.ts (brief ready or failed), briefs/deliver.ts:notifyOverdue (not sent at 07:00 client time), delivery/rank-notices.ts:notifyRankScanSkipped (monthly cost cap); apps/worker/src/jobs/setup.ts (setup reminders: suggestions ready, client changed their setup, idle) |
+| Tip `labelsClient` | client | **What the labels mean**: The grey label names the kind of notice. Instant alerts: one change that matters, sent when it is ready. Alert digest: alerts held back for an evening roundup. Weekly brief: your brief for the week. Quarterly report: the report written after each quarter. | apps/web/src/server/inbox.ts:NOTIFICATION_KIND_LABELS; packages/db/src/schema/delivery.ts:CLIENT_KINDS (alert, alert_digest, brief, trend_report); packages/engine/src/alerts/route.ts, alerts/digest.ts, briefs/deliver.ts, reports/quarterly.ts |
+| Tip `choose` | all | **Choosing what arrives**: Notification settings, in the account menu, has two switches for each kind of notice: In-app and Email. Switch In-app off and new notices of that kind stop appearing here; the ones already here stay. | apps/web/src/components/shell/avatar-menu.tsx (Notification settings link); packages/engine/src/delivery/contacts.ts:recipientsFor (a switched-off channel is skipped, so a notice is not created) |
+| Empty `none` | all | **Nothing here yet**: Alerts, briefs and reports you receive appear here, newest first. Choose which ones in Notification settings, in the account menu. | teaching empty state (no figures) |
+
+### account.settings.notifications (Notification settings)
+
+| Item | Audience | Text | Source |
+|---|---|---|---|
+| Description | all | Choose which notices reach you in the app and by email, and set a time zone and quiet hours for email. | apps/web/src/app/(app)/settings/notifications/page.tsx, contact-form.tsx; packages/tools/src/preferences.ts:myNotificationSettings |
+| Tip `channels` | all | **In-app and email**: Each row has two switches. In-app puts the notice in your Inbox; Email sends it to the address on this list. Both start on. A switch saves the moment you change it, and only affects new notices. With both on, you get the same notice both ways. | apps/web/src/app/(app)/settings/notifications/pref-switch.tsx (saves at once, no Save button); packages/tools/src/preferences.ts:myNotificationSettings (default on); packages/engine/src/delivery/contacts.ts:recipientsFor (channels left on) |
+| Tip `quiet` | all | **Quiet hours**: Fill in both a start and an end to turn quiet hours on; clear one of them and save to turn them off. A window can run overnight, such as 21:00 to 07:00. Emails that would arrive inside it are held and sent when it ends. In-app notices still arrive at once. | apps/web/src/app/(app)/settings/notifications/contact-form.tsx (hint text, Save), actions.ts:updateContactAction (both times or none); packages/engine/src/delivery/time.ts:quietUntil (wraps midnight); delivery/outbox.ts:notify (email notBefore = end of the window; in-app not delayed) |
+| Tip `timezoneAgency` | agency | **Time zone**: The clock your quiet hours follow. Left on Business time zone, they follow US Central time (America/Chicago). Pick a zone if you want your own local time. | packages/engine/src/delivery/contacts.ts:recipientsFor (an agency contact with no time zone falls back to DEFAULT_TIMEZONE); packages/engine/src/briefs/schedule.ts:DEFAULT_TIMEZONE (America/Chicago) |
+| Tip `timezoneClient` | client | **Time zone**: The clock your quiet hours follow. Left on Business time zone, they follow the time zone saved for your business. Pick a zone if you want your own local time. | packages/engine/src/delivery/contacts.ts:recipientsFor (a client contact with no time zone falls back to the client's time zone) |
+| Tip `agencyKinds` | agency | **Agency notices**: Client alerts (agency): an alert to review or one already sent. Brief ready for review, Brief failed and Brief overdue: where a client's weekly brief stands. Rank scan skipped: a map ranking scan went over the client's monthly cost cap. Competitor suggestions ready, Client updated their setup and Setup waiting on you: where a client's setup stands. An account manager who covers only some clients gets these only for those clients. Slack and Teams messages are set up under Agency settings, not here. | apps/web/src/server/inbox.ts:NOTIFICATION_KIND_LABELS; packages/db/src/schema/delivery.ts:AGENCY_KINDS; packages/engine/src/delivery/contacts.ts:recipientsFor (agency contacts: a client scope limits which clients' notices arrive); the briefs, alerts and rank notices cited under account.inbox.labelsAgency |
+| Tip `clientKinds` | client | **Notices about your business**: Instant alerts: one change that matters, sent when it is ready. Alert digest: alerts held back for an evening roundup. Weekly brief: your brief for the week. Quarterly report: the report written after each quarter. A few messages, such as an invitation to join, are needed for your account and have no switch. | packages/tools/src/preferences.ts:kindsFor (CLIENT_KINDS minus client_invite and competitor_review, which are not switchable) |
+| Tip `several` | all | **More than one list**: There is one card for each place you receive notices from, titled with its name. Switches, time zone and quiet hours are saved separately for each card. | packages/tools/src/preferences.ts:myNotificationSettings (one entry per active contact the person has: the agency list and each client list); page.tsx (card title = client name, else agency name) |
+| Empty `none` | all | **No notification settings yet**: A list of switches appears here for each agency or business you are set up to receive notices from. | teaching empty state (no figures) |
+
+### account.onboarding (Set up your agency (wizard))
+
+| Item | Audience | Text | Source |
+|---|---|---|---|
+| Description | all | Four short steps to get your agency ready: profile, team, plan and branding. You can skip any step and finish it later. | apps/web/src/app/(app)/onboarding/flow.ts:STEPS (profile, team, plan, branding), nextPath, step-nav.tsx (Skip for now); page.tsx (redirect to /agency once completed or dismissed) |
+| Tip `skip` | all | **Skipping a step**: Skip for now moves you on and marks the step Skipped. Back returns to the previous step. A step you skip stays on the Getting started card on your Portfolio, where it links back here, until you finish it or dismiss the card. | apps/web/src/app/(app)/onboarding/step-nav.tsx; stepper.tsx (Done / Skipped labels); apps/web/src/components/agency/onboarding-checklist.tsx (open and skipped steps stay as links on the Getting started card; Dismiss hides it) |
+| Tip `profile` | agency | **About this step**: To save this step we need your agency name, a contact name, a contact email and a phone number. Everything else is optional. We use it to set up your account and invoices. | apps/web/src/app/(app)/onboarding/steps/profile.tsx (copy: agency name, a contact name, contact email and phone are needed to save; the rest is optional) |
+| Tip `team` | agency | **About this step**: Add an email and a role for each person: Agency admin or Account manager. Each person gets an invitation by email. Leave the list empty and you are asked to confirm before moving on. You can invite more people later from Team. | apps/web/src/app/(app)/onboarding/steps/team.tsx (roles Agency admin and Account manager; Continue without inviting anyone? confirmation); actions.ts:inviteTeamAction |
+| Tip `plan` | agency | **About this step**: Shows your plan, when a pilot or trial ends and how many clients it includes. Add payment method opens a secure payment page and brings you back here; if your trial has limits, the note on this step says what they are. Save and continue marks the step done and moves you on. | apps/web/src/app/(app)/onboarding/steps/plan.tsx (plan state, end date, clients included, Add payment method, trial note); actions.ts:startCheckoutAction, continuePlanAction |
+| Tip `branding` | agency | **About this step**: Set the name, logo and colours your clients see, with a live preview. You can change all of it later in Agency settings. | apps/web/src/app/(app)/onboarding/steps/branding.tsx (BrandingEditor, Save and continue) |
+
+## Numbers in the account guides and tips
+
+| Number or label | Where | Source |
+|---|---|---|
+| 100 notifications, newest first | Inbox description, both guides | apps/web/src/app/(app)/inbox/page.tsx (`listInbox(..., { limit: 100 })`; `packages/tools/src/inbox.ts:listInbox` orders by `createdAt` desc) |
+| Mark all read covers older ones too | Inbox guides | packages/tools/src/inbox.ts:markAllRead (no limit); inbox/actions.ts:markAllReadAction |
+| 07:00 client time (brief overdue) | Inbox agency label tip and guide | packages/engine/src/briefs/deliver.ts:notifyOverdue ("not sent at 07:00 client time") |
+| Monthly cost cap (rank scan skipped), "Usage" | Inbox and Notification settings, agency | packages/engine/src/delivery/rank-notices.ts:notifyRankScanSkipped ("would exceed ... monthly cost cap ... Raise the cap in Usage") |
+| Setup notices: client change within the last day; waiting on you 3 days, again at 7 days | Inbox agency guide and label tip | apps/worker/src/jobs/setup.ts (DAY_MS window for setup_client_changed; setup_idle at age >= 3 days, 7 days once the 3-day notice exists) |
+| Notice labels (all 12 named) | Inbox and Notification settings | apps/web/src/server/inbox.ts:NOTIFICATION_KIND_LABELS; packages/db/src/schema/delivery.ts:CLIENT_KINDS, AGENCY_KINDS |
+| Both switches start on | Notification settings | packages/tools/src/preferences.ts:myNotificationSettings (`?? true`); packages/engine/src/delivery/contacts.ts:recipientsFor |
+| A switch saves at once (no Save button) | Notification settings | settings/notifications/pref-switch.tsx (`setPrefAction` on change); contact-form.tsx Save covers time zone and quiet hours only |
+| US Central time (America/Chicago) for agency contacts without a time zone | Notification settings agency tip and guide | packages/engine/src/briefs/schedule.ts:DEFAULT_TIMEZONE; packages/engine/src/delivery/contacts.ts:recipientsFor (`input.audience === client ? c.timezone : DEFAULT_TIMEZONE`) |
+| A client contact without a time zone follows the business time zone | Notification settings client tip and guide | packages/engine/src/delivery/contacts.ts:recipientsFor |
+| Quiet hours need both times; clear one to turn off | Notification settings tip and guides | settings/notifications/actions.ts:updateContactAction (`start && end ? { start, end } : null`) |
+| 21:00 to 07:00 overnight window | Notification settings tip and guides | packages/db/src/schema/delivery.ts:QuietHours (example "21:00 -> 07:00"); packages/engine/src/delivery/time.ts:quietUntil (start >= end wraps midnight) |
+| Email held until the window ends; in-app not delayed | Notification settings tip and guides | packages/engine/src/delivery/outbox.ts:notify (email `notBefore: quietUntil(...)`; in-app rows get no `notBefore`) |
+| Invitation / competitor-review messages have no switch | Notification settings client tip and guide | packages/tools/src/preferences.ts:TRANSACTIONAL_KINDS, kindsFor |
+| Account managers with a client list get agency notices only for those clients | Inbox and Notification settings, agency | packages/engine/src/delivery/contacts.ts:recipientsFor (`contact.clientScope`) |
+| Four steps: profile, team, plan, branding | Wizard description, tips, guide | apps/web/src/app/(app)/onboarding/flow.ts:STEPS, STEP_TITLES |
+| Agency name, contact name, contact email and phone needed to save step 1 | Wizard tip and guide | apps/web/src/app/(app)/onboarding/steps/profile.tsx (intro paragraph) |
+| Roles Agency admin and Account manager; confirm when no one is invited | Wizard tip and guide | onboarding/steps/team.tsx (role select, "Continue without inviting anyone?"); actions.ts:inviteTeamAction |
+| Skipped / Done states; skipped steps stay on the Getting started card | Wizard tip and guide | onboarding/stepper.tsx (LABEL); step-nav.tsx; apps/web/src/components/agency/onboarding-checklist.tsx (open and skipped steps are links; Dismiss) |
+| Wizard redirects to /agency once completed or dismissed; agency admins only | Wizard guide | onboarding/page.tsx |
+
+No trial or plan numbers are stated: the plan step shows its own note, and the guide only points to it.
+
+## Guides (full text)
+
+### account.inbox.agency.md
+
+```markdown
+---
+help_key: page:account.inbox
+audience: agency
+title: Inbox
+---
+## What this page tells you
+
+Your own notifications, newest first: the latest 100 that were sent to you in the app. They cover the clients you receive notices for, and anything addressed to you as a contact for a client. A bold title is unread.
+
+Each row shows the title, the time, the start of the message and a grey label for the kind of notice:
+
+- **Client alerts (agency)**: an alert to review, or one that was already sent, for a client you cover.
+- **Brief ready for review**: a client's weekly brief is ready for your approval.
+- **Brief failed**: the brief could not be produced and nothing will be sent for that week.
+- **Brief overdue**: a brief was still waiting for approval at 07:00 client time, so it was not sent.
+- **Rank scan skipped**: a map ranking scan would have gone over the client's monthly cost cap. The notice points you to Usage to raise the cap.
+- **Competitor suggestions ready**: suggested competitors are waiting for you to pick from, so the client's first brief can start.
+- **Client updated their setup**: someone at the client changed their setup in the last day.
+- **Setup waiting on you**: a client's setup has been waiting on you for 3 days, and again at 7 days.
+- **Quarterly report**: a client's quarterly report is ready.
+
+## How to use it
+
+1. **Open a notice.** Select a row. It is marked read and you land on the page it is about, such as the alert or the brief. A notice with nothing to open brings you back here.
+2. **Clear the bold.** **Mark all read** marks every notification you have as read, including any older than the 100 shown.
+3. **Choose what arrives.** Open **Notification settings** from the account menu. Each kind of notice has an **In-app** and an **Email** switch. Switching In-app off stops new notices of that kind appearing here; the ones already here stay.
+
+## Common questions
+
+### Why do I not see notices for some clients?
+
+If you are an account manager who covers only some clients, you receive agency notices only for those clients.
+
+### Why is it empty?
+
+Nothing has been sent to you yet, or In-app is switched off for the kinds you expected. Check Notification settings.
+
+### Can I delete a notification?
+
+No. The page has no delete control; mark it read instead.
+
+### Do Slack and Teams messages show up here?
+
+No. Those are set up under Agency settings and go to the channel you connected, not to your inbox.
+
+### I get the same notice by email and here. Is that a mistake?
+
+No. When both **In-app** and **Email** are on for a kind, you get it both ways. Switch one off to get it once.
+```
+
+### account.inbox.client.md
+
+```markdown
+---
+help_key: page:account.inbox
+audience: client
+title: Inbox
+---
+## What this page tells you
+
+Your own notifications, newest first: the latest 100 that were sent to you in the app. A bold title is unread.
+
+Each row shows the title, the time, the start of the message and a grey label for the kind of notice:
+
+- **Instant alerts**: one change that matters, sent when it is ready.
+- **Alert digest**: alerts held back for an evening roundup.
+- **Weekly brief**: your brief for the week.
+- **Quarterly report**: the report written after each quarter.
+
+## How to use it
+
+1. **Open a notice.** Select a row. It is marked read and you land on the page it is about, such as the alert or the brief. A notice with nothing to open brings you back here.
+2. **Clear the bold.** **Mark all read** marks every notification you have as read, including any older than the 100 shown.
+3. **Choose what arrives.** Open **Notification settings** from the account menu. Each kind of notice has an **In-app** and an **Email** switch. Switching In-app off stops new notices of that kind appearing here; the ones already here stay.
+
+## Common questions
+
+### Why is it empty?
+
+Nothing has been sent to you yet, or In-app is switched off for the kinds you expected. Check Notification settings.
+
+### Can I delete a notification?
+
+No. The page has no delete control; mark it read instead.
+
+### I get the same notice by email and here. Is that a mistake?
+
+No. When both **In-app** and **Email** are on for a kind, you get it both ways. Switch one off to get it once.
+
+### Where do I change how I get my weekly brief?
+
+In Notification settings, on the **Weekly brief** row.
+```
+
+### account.settings.notifications.agency.md
+
+```markdown
+---
+help_key: page:account.settings.notifications
+audience: agency
+title: Notification settings
+---
+## What this page tells you
+
+Which notices reach you, in the app and by email, plus a time zone and quiet hours for email. This page is about you only: nothing here changes what your clients or teammates receive.
+
+There is one card for each place you receive notices from, titled with its name: your agency, and any client you are also a contact for. Each card has a row per kind of notice with two switches:
+
+- **In-app** puts the notice in your Inbox.
+- **Email** sends it to the address on that card.
+
+Your agency card lists **Client alerts (agency)**, **Brief ready for review**, **Brief failed**, **Brief overdue**, **Rank scan skipped**, **Quarterly report** and three setup notices that follow a client's setup: **Competitor suggestions ready**, **Client updated their setup** and **Setup waiting on you**. An account manager who covers only some clients gets these notices only for those clients.
+
+## How to use it
+
+1. **Switch a notice on or off.** Every switch starts on. A switch saves the moment you change it, with no Save button, and applies to new notices only.
+2. **Pick a time zone.** It sets the clock your quiet hours follow. Left on **Business time zone**, quiet hours follow US Central time (America/Chicago).
+3. **Set quiet hours.** Fill in both a start and an end time, then select **Save**. A window can run overnight, such as 21:00 to 07:00. To turn quiet hours off, clear one of the times and save.
+
+Emails that would arrive inside the quiet window are held and sent when it ends. In-app notices are not delayed.
+
+## Common questions
+
+### Where do I set up Slack or Teams messages?
+
+Under Agency settings. Those go to a channel you connect, not to you personally, so they are not on this page.
+
+### Why is there more than one card?
+
+You receive notices from more than one place, for example the agency and a client you are also a contact for. Switches, time zone and quiet hours are saved separately on each card.
+
+### Will quiet hours stop alerts to my clients?
+
+No. Quiet hours only delay emails sent to you.
+
+### Why do I get a notice by email and in the app?
+
+Both switches are on for that row. Switch one off to get it once.
+```
+
+### account.settings.notifications.client.md
+
+```markdown
+---
+help_key: page:account.settings.notifications
+audience: client
+title: Notification settings
+---
+## What this page tells you
+
+Which notices reach you, in the app and by email, plus a time zone and quiet hours for email. This page is about you only: nothing here changes what anyone else receives.
+
+There is one card for each business you receive notices about, titled with its name. Each card has a row per kind of notice with two switches:
+
+- **In-app** puts the notice in your Inbox.
+- **Email** sends it to the address on that card.
+
+The rows are **Instant alerts** (one change that matters, sent when it is ready), **Alert digest** (alerts held back for an evening roundup), **Weekly brief** (your brief for the week) and **Quarterly report** (the report written after each quarter).
+
+## How to use it
+
+1. **Switch a notice on or off.** Every switch starts on. A switch saves the moment you change it, with no Save button, and applies to new notices only.
+2. **Pick a time zone.** It sets the clock your quiet hours follow. Left on **Business time zone**, quiet hours follow the time zone saved for your business.
+3. **Set quiet hours.** Fill in both a start and an end time, then select **Save**. A window can run overnight, such as 21:00 to 07:00. To turn quiet hours off, clear one of the times and save.
+
+Emails that would arrive inside the quiet window are held and sent when it ends. In-app notices are not delayed.
+
+## Common questions
+
+### Why can I not switch off every message?
+
+A few messages that are needed for your account, such as an invitation to join, are not optional and have no switch here.
+
+### Will I miss something if I switch Email off?
+
+You will not get that kind of notice by email. If In-app is still on, it appears in your Inbox.
+
+### Why is there more than one card?
+
+You receive notices about more than one business. Switches, time zone and quiet hours are saved separately on each card.
+
+### Why do I get a notice by email and in the app?
+
+Both switches are on for that row. Switch one off to get it once.
+```
+
+### account.onboarding.agency.md
+
+```markdown
+---
+help_key: page:account.onboarding
+audience: agency
+title: Set up your agency
+---
+## What this page tells you
+
+A short setup for a new agency, in four steps shown across the top. Each step shows **Done** or **Skipped** once you have dealt with it:
+
+1. **Your agency**: your agency name, a contact name, contact email and phone, plus optional details such as your time zone and billing address. These set up your account and invoices.
+2. **Invite your team**: the people who will manage clients with you.
+3. **Your plan**: your plan, when a pilot or trial ends and how many clients it includes.
+4. **Make it yours**: the name, logo and colours your clients see, with a live preview.
+
+Only agency admins can open this page. Once all steps are done, or the Getting started card on your Portfolio has been dismissed, the address takes you to the Portfolio instead.
+
+## How to use it
+
+1. **Fill in a step and save.** **Save and continue** (or **Done** on the team step) marks it done and moves you to the next. To save your agency details we need the agency name, a contact name, a contact email and a phone number.
+2. **Invite your team.** Enter an email and choose **Agency admin** or **Account manager** for each person, and use **Add another** for more. Each person gets an invitation by email. If you leave every email empty you are asked to confirm before moving on.
+3. **Check your plan.** **Add payment method** opens a secure payment page and brings you back to this step. If your trial has limits, the note on the step says what they are. **Save and continue** marks the step done.
+4. **Skip what you are not ready for.** **Skip for now** moves you on and marks the step **Skipped**. **Back** returns to the previous step. Skipped and open steps stay on the Getting started card on your Portfolio, each linking back here, until you finish them or dismiss the card.
+
+## Common questions
+
+### Do I have to finish every step?
+
+No. Every step can be skipped and finished later from the Getting started card.
+
+### Where do I change this later?
+
+Under Agency settings: your team, plan and branding each have a page there.
+
+### Why do I land on the Portfolio instead of this page?
+
+The setup is finished or the Getting started card was dismissed.
+
+### Why can an account manager not open this page?
+
+Setup changes the agency itself, so it is limited to agency admins.
+```
+
+## Notes for the owner (account)
+
+- The same Inbox and Notification settings pages serve agency staff and client contacts, so there are two guides each; the client versions never mention agency notices, cost caps, Slack/Teams or Agency settings.
+- Quiet hours hold emails rather than dropping them (`notBefore`). The page itself says "No notifications by email in this window (in-app still arrive)"; the tips and guides say the emails are held and sent when the window ends, which is what the code does.
+- For agency contacts the "Business time zone" option actually means US Central time. The tip and guide say so; the option label itself is unchanged (a product decision, not help copy).

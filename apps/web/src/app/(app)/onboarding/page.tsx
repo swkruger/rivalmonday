@@ -1,8 +1,12 @@
 import { getAgencyBranding } from '@cs/tools';
 import { notFound, redirect } from 'next/navigation';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
+import { helpGuides } from '@/server/help';
 import { timezoneOptions } from '@/server/timezones';
 import { callTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
@@ -17,6 +21,9 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Set up your agency' };
 
+const HELP_KEY = 'page:account.onboarding';
+const COPY = PAGE_COPY['account.onboarding'];
+
 interface Status {
   steps: StepStates & { first_client: string };
   dismissed: boolean;
@@ -30,6 +37,8 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   const status = await callTool<Status>(ctx, 'get_onboarding_status', {});
   if (status.completed || status.dismissed) redirect('/agency');
 
+  // /onboarding is outside /agency, /c and /platform, so the guide drawer reads the agency scope (helpScopeOf); read the same one here.
+  const guides = await helpGuides(ctx, 'agency');
   const { step: requested } = await searchParams;
   const step = isStep(requested) ? requested : firstOpenStep(status.steps);
 
@@ -48,7 +57,19 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PageHeader title={STEP_TITLES[step]} step={{ n: STEPS.indexOf(step) + 1, of: STEPS.length }} />
+      <PageHeader
+        title={STEP_TITLES[step]}
+        step={{ n: STEPS.indexOf(step) + 1, of: STEPS.length }}
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
+      />
+      <TipRow
+        items={[
+          { label: 'Skipping a step', tip: 'account.onboarding.skip' },
+          { label: 'About this step', tip: `account.onboarding.${step}` as const },
+        ]}
+      />
       <Stepper current={step} steps={status.steps} />
       {body}
     </>

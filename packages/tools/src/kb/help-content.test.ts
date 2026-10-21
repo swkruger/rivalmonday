@@ -44,6 +44,17 @@ const AGENCY_B = ['page:agency.settings.ai', 'page:agency.settings.billing', 'pa
 const PLATFORM_KEYS = [
   'overview', 'agencies', 'agencies.detail', 'billing', 'leads', 'reviews', 'themes', 'ask', 'ask.thread', 'knowledge', 'knowledge.new', 'knowledge.detail', 'health', 'costs', 'verticals', 'runbook',
 ].map((k) => `page:platform.${k}`).sort();
+/**
+ * 15b-2 Task 9b, account pages: listed in every context (`page:account.%`, `list_help_guides`) and audience-filtered. Inbox and Notification
+ * settings are reached by agency roles and client roles (inbox also by guests), so each has an agency and a client version; the
+ * agency setup wizard is agency-admin only, so it has an agency guide and no client guide.
+ */
+const ACCOUNT_SPLIT = ['page:account.inbox', 'page:account.settings.notifications'];
+const ACCOUNT_AGENCY_ONLY = ['page:account.onboarding'];
+const ACCOUNT_SEEDS = [...ACCOUNT_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`]), ...ACCOUNT_AGENCY_ONLY.map((k) => `${k}#agency`)];
+/** What an agency role / a client role reads of the account guides, in any context. */
+const ACCOUNT_AGENCY_ROLE = [...ACCOUNT_SPLIT, ...ACCOUNT_AGENCY_ONLY].sort();
+const ACCOUNT_CLIENT_ROLE = [...ACCOUNT_SPLIT].sort();
 const AGENCY_KEYS = [...AGENCY_A, ...AGENCY_B].sort();
 const CLIENT_PAGES = [...PILOT, ...BATCH_A, ...BATCH_B, ...BATCH_C, ...AGENCY_KEYS.map((k) => `${k}#agency`)].sort();
 const CLIENT_KEYS = [...new Set(CLIENT_PAGES.map((k) => k.split('#')[0]!))].filter((k) => !AGENCY_KEYS.includes(k)).sort();
@@ -81,7 +92,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     const rows = await dbs.service.select({ seedKey: kbArticle.seedKey, helpKey: kbArticle.helpKey, audience: kbArticle.audience, clientVisible: kbArticle.clientVisible })
       .from(kbArticle).where(isNotNull(kbArticle.helpKey));
     const keys = rows.map((r) => r.seedKey!);
-    expect(keys.filter((k) => k.startsWith('page:')).sort()).toEqual([...CLIENT_PAGES, ...PLATFORM_KEYS.map((k) => `${k}#operator`)].sort());
+    expect(keys.filter((k) => k.startsWith('page:')).sort()).toEqual([...CLIENT_PAGES, ...ACCOUNT_SEEDS, ...PLATFORM_KEYS.map((k) => `${k}#operator`)].sort());
     expect(keys.filter((k) => k.startsWith('glossary:')).sort()).toEqual(GLOSSARY.map((t) => `glossary:${t.id}#${t.audience}`).sort());
     for (const r of rows) expect(r.clientVisible, r.seedKey!).toBe(r.audience === 'all' || r.audience === 'client');
     // A second run changes nothing.
@@ -100,7 +111,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
   });
 
   it('list_help_guides gives agency roles every client page guide but Billing and client roles all but the agency-only pages (pilot, batches A, B and C)', async () => {
-    for (const [c, keys] of [[owner, CLIENT_ROLE_KEYS], [viewer, CLIENT_ROLE_KEYS], [admin, AGENCY_ROLE_KEYS], [am, AGENCY_ROLE_KEYS]] as const) {
+    for (const [c, keys] of [[owner, [...CLIENT_ROLE_KEYS, ...ACCOUNT_CLIENT_ROLE].sort()], [viewer, [...CLIENT_ROLE_KEYS, ...ACCOUNT_CLIENT_ROLE].sort()], [admin, [...AGENCY_ROLE_KEYS, ...ACCOUNT_AGENCY_ROLE].sort()], [am, [...AGENCY_ROLE_KEYS, ...ACCOUNT_AGENCY_ROLE].sort()]] as const) {
       const { guides } = (await registry.invoke(c, 'list_help_guides', { context: 'client', clientId: IDS.clientA1 })) as { guides: { helpKey: string }[] };
       expect(guides.map((g) => g.helpKey).sort(), c.role).toEqual(keys);
     }
@@ -264,8 +275,9 @@ describe('help content (real docs/help + GLOSSARY)', () => {
   it('agency batches A and B: agency roles read the eighteen guides in the agency context, with the three standard sections; client roles read none', async () => {
     const list = (c: AccessContext) => registry.invoke(c, 'list_help_guides', { context: 'agency' }) as Promise<{ guides: { helpKey: string }[] }>;
     const agencyGuide = (c: AccessContext, helpKey: string) => registry.invoke(c, 'get_page_guide', { helpKey, context: 'agency' }) as Promise<Guide>;
-    for (const c of [admin, am]) expect((await list(c)).guides.map((g) => g.helpKey).sort(), c.role).toEqual(AGENCY_KEYS);
-    for (const c of [owner, viewer]) expect((await list(c)).guides, c.role).toEqual([]);
+    for (const c of [admin, am]) expect((await list(c)).guides.map((g) => g.helpKey).sort(), c.role).toEqual([...AGENCY_KEYS, ...ACCOUNT_AGENCY_ROLE].sort());
+    // Client roles read no agency page guide; the account guides are the only ones they see in the agency context.
+    for (const c of [owner, viewer]) expect((await list(c)).guides.map((g) => g.helpKey).sort(), c.role).toEqual(ACCOUNT_CLIENT_ROLE);
     for (const key of AGENCY_KEYS) {
       expect((await agencyGuide(admin, key))!.sections.map((s) => s.heading), key).toEqual(['What this page tells you', 'How to use it', 'Common questions']);
       expect(await agencyGuide(owner, key), key).toBeNull();
@@ -379,6 +391,70 @@ describe('help content (real docs/help + GLOSSARY)', () => {
       for (const w of want[k]!) expect(t, `${k}: ${w}`).toContain(w);
       expect(t, k).not.toMatch(/\bthemes?\b/i);
       expect(t, k).not.toContain('{{');
+    }
+  });
+
+  it('account batch (Task 9b): Inbox and Notification settings give each audience its own guide; the wizard has an agency guide only; all have the three standard sections', async () => {
+    const acct = (c: AccessContext, helpKey: string, context: 'agency' | 'client' = 'agency') =>
+      registry.invoke(c, 'get_page_guide', { helpKey, context, ...(context === 'client' ? { clientId: IDS.clientA1 } : {}) }) as Promise<Guide>;
+    for (const key of ACCOUNT_SPLIT) {
+      const [o, v, a, m] = await Promise.all([acct(owner, key), acct(viewer, key), acct(admin, key), acct(am, key)]);
+      expect(o!.id, key).toBe(v!.id);
+      expect(a!.id, key).toBe(m!.id);
+      expect(a!.id, key).not.toBe(o!.id);
+      for (const g of [o, a]) expect(g!.sections.map((s) => s.heading), key).toEqual(['What this page tells you', 'How to use it', 'Common questions']);
+      // The same guide whichever context the page is opened in (account pages are the same everywhere).
+      expect((await acct(owner, key, 'client'))!.id, key).toBe(o!.id);
+      expect((await acct(admin, key, 'client'))!.id, key).toBe(a!.id);
+    }
+    const key = 'page:account.onboarding';
+    expect((await acct(admin, key))!.sections.map((s) => s.heading)).toEqual(['What this page tells you', 'How to use it', 'Common questions']);
+    for (const c of [owner, viewer]) {
+      expect(await acct(c, key), c.role).toBeNull();
+      expect(await acct(c, key, 'client'), c.role).toBeNull();
+    }
+    const rows = await dbs.service.select({ seedKey: kbArticle.seedKey, audience: kbArticle.audience, clientVisible: kbArticle.clientVisible, level: kbArticle.level }).from(kbArticle);
+    for (const seed of ACCOUNT_SEEDS) {
+      const r = rows.find((x) => x.seedKey === seed);
+      const audience = seed.split('#')[1];
+      expect(r, seed).toMatchObject({ audience, clientVisible: audience === 'client', level: 'platform' });
+    }
+  });
+
+  it('account guides list in every context, each viewer with its own version, and a client role never gets the agency-only wizard guide', async () => {
+    const list = async (c: AccessContext, input: Record<string, unknown>) =>
+      ((await registry.invoke(c, 'list_help_guides', input)) as { guides: { helpKey: string; articleId: string }[] }).guides.filter((g) => g.helpKey.startsWith('page:account.'));
+    const own = async (c: AccessContext, key: string) => (await guide(c, key))?.id;
+    for (const [c, keys] of [[admin, ACCOUNT_AGENCY_ROLE], [am, ACCOUNT_AGENCY_ROLE], [owner, ACCOUNT_CLIENT_ROLE], [viewer, ACCOUNT_CLIENT_ROLE]] as const) {
+      for (const input of [{ context: 'agency' }, { context: 'client', clientId: IDS.clientA1 }]) {
+        const got = await list(c, input);
+        expect(got.map((g) => g.helpKey).sort(), `${c.role} ${input.context}`).toEqual(keys);
+        // The listed article is the very one the page opens for this role: the agency or the client version.
+        for (const g of got) expect(g.articleId, `${c.role} ${g.helpKey}`).toBe(await own(c, g.helpKey));
+      }
+    }
+    const [forAdmin, forOwner] = [await list(admin, { context: 'agency' }), await list(owner, { context: 'agency' })];
+    for (const key of ACCOUNT_SPLIT) expect(forAdmin.find((g) => g.helpKey === key)!.articleId, key).not.toBe(forOwner.find((g) => g.helpKey === key)!.articleId);
+    expect(forOwner.map((g) => g.helpKey)).not.toContain('page:account.onboarding');
+  });
+
+  it('account batch: the guides carry the labels and numbers the pages use; the client versions leave the agency content out; nothing names the product or leaves a placeholder', async () => {
+    const agencyText = async (c: AccessContext, key: string) => text(await (registry.invoke(c, 'get_page_guide', { helpKey: key, context: 'agency' }) as Promise<Guide>));
+    const inboxA = await agencyText(admin, 'page:account.inbox');
+    for (const w of ['latest 100', 'Client alerts (agency)', 'Brief ready for review', 'Brief failed', 'Brief overdue', 'Rank scan skipped', 'Quarterly report', 'Mark all read', 'In-app']) expect(inboxA, w).toContain(w);
+    const inboxC = await agencyText(owner, 'page:account.inbox');
+    for (const w of ['latest 100', 'Instant alerts', 'Alert digest', 'Weekly brief', 'Quarterly report', 'Mark all read']) expect(inboxC, w).toContain(w);
+    expect(inboxC).not.toMatch(/Client alerts|Brief (ready|failed|overdue)|Rank scan|cost cap|approval|account manager|Agency settings/i);
+    const setA = await agencyText(admin, 'page:account.settings.notifications');
+    for (const w of ['Client alerts (agency)', 'Rank scan skipped', 'US Central time (America/Chicago)', '21:00 to 07:00', 'no Save button', 'held and sent when it ends']) expect(setA, w).toContain(w);
+    const setC = await agencyText(owner, 'page:account.settings.notifications');
+    for (const w of ['Instant alerts', 'Alert digest', 'Weekly brief', 'Quarterly report', '21:00 to 07:00', 'time zone saved for your business', 'invitation']) expect(setC, w).toContain(w);
+    expect(setC).not.toMatch(/Client alerts|Rank scan|Central|Chicago|Slack|Teams|Agency settings|account manager/i);
+    const wizard = await agencyText(admin, 'page:account.onboarding');
+    for (const w of ['Your agency', 'Invite your team', 'Your plan', 'Make it yours', 'Skip for now', 'Add payment method', 'Getting started', 'Agency admin', 'Account manager', 'Skipped']) expect(wizard, w).toContain(w);
+    for (const t of [inboxA, inboxC, setA, setC, wizard]) {
+      expect(t).not.toMatch(/rival\s*monday|\btheme/i);
+      expect(t).not.toContain('{{');
     }
   });
 
