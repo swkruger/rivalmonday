@@ -122,4 +122,16 @@ describe('terminology: the assistant name is never hard-coded', () => {
     }
     expect(hits, `Hard-coded "Friday"; use the agency's assistantName:\n${fmt(hits)}`).toEqual([]);
   });
+
+  it('no help guide and no glossary entry says Friday ({{assistant}} in guides, no placeholder in the glossary)', () => {
+    const dir = join(ROOT, 'docs', 'help', 'pages');
+    const hits: Hit[] = [];
+    for (const name of readdirSync(dir).filter((n) => n.endsWith('.md'))) {
+      readFileSync(join(dir, name), 'utf8').split('\n').forEach((line, i) => {
+        if (/\bFriday\b/.test(line)) hits.push({ where: `docs/help/pages/${name}:${i + 1}`, text: line });
+      });
+    }
+    for (const e of GLOSSARY) if (/\bFriday\b/.test(`${e.term} ${e.short} ${e.long ?? ''}`)) hits.push({ where: `glossary:${e.id}`, text: e.short });
+    expect(hits, `Hard-coded "Friday" in help content:\n${fmt(hits)}`).toEqual([]);
+  });
 });

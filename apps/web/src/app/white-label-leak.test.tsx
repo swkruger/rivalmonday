@@ -79,7 +79,10 @@ const ClientHelp = await import('@/app/(app)/c/[clientId]/help/page');
 const { HelpProvider } = await import('@/components/help/help-context');
 const { HelpTip } = await import('@/components/help/help-tip');
 const { PageGuide } = await import('@/components/help/page-guide');
-const { PAGE_COPY } = await import('@/help/copy');
+const { PAGE_COPY, renderCopy } = await import('@/help/copy');
+const { renderKbText, NEUTRAL_AGENCY_NAME, GLOSSARY } = await import('@cs/core');
+const { readdirSync, readFileSync } = await import('node:fs');
+const { join } = await import('node:path');
 
 const ctx = { agencyId: AG, userId: 'u1', role: 'client_owner', clientScope: [C], features: new Set(['dashboard', 'ask', 'mcp']) };
 const membership = { id: 'm1', agencyId: AG, agencyName: 'Acme Marketing LLC', role: 'client_owner', clientId: C, clientName: 'Lone Star Cooling', clientScope: null, contactId: null };
@@ -219,5 +222,68 @@ describe('white-label leak guard (15a §2.10)', () => {
       unmount();
     }
     expect(out.join('\n')).not.toMatch(LEAK);
+  });
+});
+
+/**
+ * 15b-2 (P3): every help string a client role can reach — page descriptions, tips, empty states, guides, glossary — read for
+ * a client of a white-label agency that set no display name (neutral "your agency") and for one that did: never the product
+ * name, never a placeholder left over, never wording that belongs to the agency side.
+ */
+describe('help content a client can reach (15b-2)', () => {
+  /** Agency-side vocabulary a client-facing string must not use (copy rules: routing, upsell, seats, review queue, AMs, spend, vendors, thresholds). */
+  const AGENCY_ONLY = /\b(routing|upsell|seats?|review queue|approvals?|account managers?|AM|spend|DataForSEO|Stadia|OpenRouter|Jev|TypeSafe)\b|confidence threshold/i;
+  /** Client routes the client roles never reach: their copy is agency-only by construction. */
+  const AGENCY_ONLY_KEYS = new Set(['client.pitch-snapshot', 'client.settings.delivery', 'client.settings.runbook']);
+  const SCENARIOS = [
+    { label: 'no display name', agency: NEUTRAL_AGENCY_NAME, assistant: 'Friday' },
+    { label: 'display name set', agency: 'Cool Comfort', assistant: 'Sunny' },
+  ];
+  const clientPageKeys = (Object.keys(PAGE_COPY) as (keyof typeof PAGE_COPY)[]).filter((k) =>
+    (k.startsWith('client.') && !AGENCY_ONLY_KEYS.has(k)) || k === 'account.inbox' || k === 'account.settings.notifications');
+  const visibleToClient = (a?: string) => ['all', 'client'].includes(a ?? 'all');
+
+  const check = (where: string, text: string, problems: string[]) => {
+    if (LEAK.test(text)) problems.push(`${where}: names the product`);
+    if (/\{\{?\s*\w+\s*\}?\}/.test(text)) problems.push(`${where}: unfilled placeholder`);
+    const hit = AGENCY_ONLY.exec(text);
+    if (hit) problems.push(`${where}: agency-side wording "${hit[0]}"`);
+  };
+
+  it('page descriptions, client-visible tips and empty states', () => {
+    const problems: string[] = [];
+    for (const s of SCENARIOS) {
+      const names = { agency: s.agency, assistant: s.assistant };
+      for (const page of clientPageKeys) {
+        const copy = PAGE_COPY[page] as { description: string; tips?: Record<string, { title: string; body: string; audience?: string }>; empty?: Record<string, { title: string; body: string; audience?: string }> };
+        check(`[${s.label}] ${page} description`, renderCopy(copy.description, names, 'client'), problems);
+        for (const [id, t] of Object.entries(copy.tips ?? {})) if (visibleToClient(t.audience)) check(`[${s.label}] ${page}.${id}`, renderCopy(`${t.title} ${t.body}`, names, 'client'), problems);
+        for (const [id, e] of Object.entries(copy.empty ?? {})) if (visibleToClient(e.audience)) check(`[${s.label}] ${page} empty ${id}`, renderCopy(`${e.title} ${e.body}`, names, 'client'), problems);
+      }
+    }
+    expect(problems, problems.join('\n')).toEqual([]);
+  });
+
+  it('every client and all-audience guide, rendered for both agencies', () => {
+    const dir = join(__dirname, '..', '..', '..', '..', 'docs', 'help', 'pages');
+    const problems: string[] = [];
+    let seen = 0;
+    for (const name of readdirSync(dir).filter((n) => n.endsWith('.md'))) {
+      const md = readFileSync(join(dir, name), 'utf8');
+      const audience = /^audience:\s*(\S+)/m.exec(md)?.[1];
+      const key = /^help_key:\s*page:(\S+)/m.exec(md)?.[1] ?? '';
+      if (!visibleToClient(audience) || AGENCY_ONLY_KEYS.has(key)) continue;
+      seen++;
+      const body = md.replace(/^---[\s\S]*?\n---/, '');
+      for (const s of SCENARIOS) check(`[${s.label}] ${name}`, renderKbText(body, { productName: s.agency, assistantName: s.assistant }), problems);
+    }
+    expect(seen).toBeGreaterThan(20);
+    expect(problems, problems.join('\n')).toEqual([]);
+  });
+
+  it('the glossary terms a client can see', () => {
+    const problems: string[] = [];
+    for (const e of GLOSSARY) if (visibleToClient(e.audience)) check(`glossary ${e.id}`, `${e.term} ${e.short} ${e.long ?? ''}`, problems);
+    expect(problems, problems.join('\n')).toEqual([]);
   });
 });

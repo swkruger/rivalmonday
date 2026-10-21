@@ -217,6 +217,15 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     seeAlso: ['brief'],
   },
   {
+    // source: packages/engine/src/briefs/scorecard-model.ts:scorecardModel (openFirstMoves); apps/web/src/components/views/scorecard.tsx
+    id: 'first-steps',
+    term: 'First steps',
+    audience: 'all',
+    short: 'The first actions suggested for your business in the starting point. They are your own to-dos, not something a competitor did.',
+    long: "Do not mix them up with a move, which is a pattern in a competitor's changes. The starting point lists the first steps that are still open.",
+    seeAlso: ['starting-point', 'move', 'recommendation'],
+  },
+  {
     // source: packages/db/src/schema/briefs.ts:RecommendationStatus
     id: 'recommendation',
     term: 'Recommendation',
