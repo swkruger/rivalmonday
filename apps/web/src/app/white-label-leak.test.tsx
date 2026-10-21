@@ -85,7 +85,7 @@ const { renderKbText, NEUTRAL_AGENCY_NAME, GLOSSARY } = await import('@cs/core')
 const { readdirSync, readFileSync } = await import('node:fs');
 const { join } = await import('node:path');
 
-const ctx = { agencyId: AG, userId: 'u1', role: 'client_owner', clientScope: [C], features: new Set(['dashboard', 'ask', 'mcp']) };
+const ctx = { agencyId: AG, userId: 'u1', role: 'client_owner', clientScope: [C], features: new Set(['dashboard', 'ask', 'mcp']), planFeatures: new Set(['ask', 'mcp']) };
 const membership = { id: 'm1', agencyId: AG, agencyName: 'Acme Marketing LLC', role: 'client_owner', clientId: C, clientName: 'Lone Star Cooling', clientScope: null, contactId: null };
 const owner = { kind: 'user', userId: 'u1', email: 'owner@example.com', name: 'Olive Owner', ctx, membership, memberships: [membership] };
 

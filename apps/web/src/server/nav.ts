@@ -1,4 +1,4 @@
-import { type AccessContext, hasFeature, isAgencyRole } from '@cs/core';
+import { type AccessContext, hasChannel, hasFeature, isAgencyRole } from '@cs/core';
 import { registry } from './tools';
 import { type NavContext, type NavCounts, type NavRoleFlags, type NavSection, navFor } from '@/components/shell/nav-items';
 
@@ -22,12 +22,12 @@ export function navFlagsFor(v: { kind: 'user' | 'guest' | 'support'; ctx: Access
     leads: isAgencyRole(v.ctx.role) && v.ctx.clientScope === 'all',
     dashboard: hasFeature(v.ctx, 'dashboard'),
     alertRules: hasFeature(v.ctx, 'alert_rules'),
-    mcp: v.kind === 'user' && hasFeature(v.ctx, 'mcp'),
+    mcp: v.kind === 'user' && hasChannel(v.ctx, 'mcp'),
     // 15b-1: `/c/<id>/settings/ai` also serves a support session (read-only, owner names masked); guests 404 there.
-    clientAi: (v.kind === 'user' || v.kind === 'support') && hasFeature(v.ctx, 'mcp'),
+    clientAi: (v.kind === 'user' || v.kind === 'support') && hasChannel(v.ctx, 'mcp'),
     // Q2: guests have no Ask (and a magic-link contact id is never a thread author). Phase 8b: a support viewer sees
     // the module, which only says Ask conversations are private to their authors.
-    ask: (v.kind === 'user' || v.kind === 'support') && !v.ctx.userId.startsWith('contact:') && hasFeature(v.ctx, 'ask'),
+    ask: (v.kind === 'user' || v.kind === 'support') && !v.ctx.userId.startsWith('contact:') && hasChannel(v.ctx, 'ask'),
     assistantName,
     // Phase 8b M2: the operator's own inbox is not part of the agency view (`/inbox` 404s in a session).
     inbox: v.kind !== 'support',

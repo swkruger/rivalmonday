@@ -206,7 +206,8 @@ function agencySettings(flags: NavRoleFlags): NavSection[] {
     }),
     section('integrations', 'Integrations', (add) => {
       if (admin) add('/agency/settings/slack-teams', 'Slack & Teams', 'webhooks');
-      add('/agency/settings/ai', 'AI connections', 'ai');
+      // 7a2 D13: hidden when the agency's plan has no MCP (`mcp`/`clientAi` already fold in the plan).
+      if (flags.mcp || flags.clientAi) add('/agency/settings/ai', 'AI connections', 'ai');
     }),
     section('security', 'Security', (add) => {
       if (adminUser) add('/agency/settings/platform-access', 'Platform access', 'platformAccess');

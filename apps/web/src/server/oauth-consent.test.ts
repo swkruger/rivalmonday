@@ -1,6 +1,6 @@
 import { verifyOAuthQueryParams } from '@better-auth/oauth-provider';
 import { consentIdFor } from '@cs/tools';
-import { client, invitation, membership, oauthGrantBinding } from '@cs/db';
+import { agencyBilling, client, invitation, membership, oauthGrantBinding, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, testUrls, truncateAll } from '@cs/db/test-helpers';
 import { resolveBranding } from '@cs/email';
 import { betterAuth } from 'better-auth';
@@ -78,6 +78,15 @@ describe('consentOptions', () => {
     expect((await consentOptions(dbs.service, 'u1', 'manage'))[0]!.scopes).toEqual(['read', 'feedback', 'manage']);
     await dbs.service.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA1));
     expect(await consentOptions(dbs.service, 'u1', 'read')).toEqual([]);
+  });
+
+  it('skips memberships whose agency plan has no mcp (7a2 D13)', async () => {
+    await member('u1', 'agency_admin');
+    await enableMcp(IDS.clientB1);
+    await member('u1', 'client_owner', IDS.clientB1, IDS.agencyB);
+    const [p] = await dbs.owner.insert(plan).values({ code: 'nomcp', version: 1, name: 'No MCP', basePriceCents: 0, includedSeats: 3, seatPriceCents: 0, trialDays: 30, features: ['ask'], createdBy: 't' }).returning({ id: plan.id });
+    await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'active', planId: p!.id });
+    expect((await consentOptions(dbs.service, 'u1', 'read')).map((o) => o.agencyId)).toEqual([IDS.agencyB]);
   });
 
   it("requested 'read' caps options to read", async () => {

@@ -45,7 +45,7 @@ vi.mock('@/components/sign-out-button', () => ({ SignOutButton: () => <button ty
 const { AppShell } = await import('./app-shell');
 
 const AG = '22222222-2222-4222-8222-222222222222';
-const ctx = { agencyId: AG, userId: 'op', role: 'agency_admin', clientScope: 'all', features: [], support: { sessionId: 's', platformUserId: 'op' } };
+const ctx = { agencyId: AG, userId: 'op', role: 'agency_admin', clientScope: 'all', features: [], planFeatures: new Set(['ask', 'mcp']), support: { sessionId: 's', platformUserId: 'op' } };
 const supportViewer = {
   kind: 'support', userId: 'op', email: 'op@example.com', name: 'Op Erator', ctx,
   session: { id: '11111111-1111-4111-8111-111111111111', platformUserId: 'op', agencyId: AG, agencyName: 'Acme Agency', reason: 'Checking brief setup', expiresAt: new Date(Date.now() + 30 * 60_000) },
@@ -206,7 +206,7 @@ describe('AppShell', () => {
 describe('AppShell client billing (9b)', () => {
   const CL = '00000000-0000-4000-8000-0000000000a1';
   const asClient = (role: string, kind = 'user') => {
-    const c = { agencyId: AG, userId: 'u', role, clientScope: [CL], features: new Set() };
+    const c = { agencyId: AG, userId: 'u', role, clientScope: [CL], features: new Set(), planFeatures: new Set(['ask', 'mcp']) };
     return { viewer: { kind, userId: 'u', email: 'u@c.test', name: 'U', ctx: c, membership: { id: 'm', clientName: 'A1 HVAC' }, memberships: [{ id: 'm' }] }, ctx: c };
   };
   const shell = async (role: string, kind?: string) => { const { viewer, ctx: c } = asClient(role, kind); return render(await AppShell({ viewer: viewer as never, ctx: c as never, children: <p>page</p> })); };

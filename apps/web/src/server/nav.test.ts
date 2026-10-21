@@ -162,3 +162,30 @@ describe('client Billing tab (9b)', () => {
     expect(hrefs(agency)).not.toContain(`/c/${C}/settings/billing`);
   });
 });
+
+describe('plan features (7a2 D13)', () => {
+  const onPlan = (role: 'agency_admin' | 'client_owner', planFeatures: ('ask' | 'mcp')[]) =>
+    createAccessContext({ agencyId: A, userId: 'u', role, clientScope: role === 'client_owner' ? [C] : 'all', features: ['dashboard', 'ask', 'mcp'], planFeatures });
+
+  it('plan without ask: no ask flag and no Ask entry, for agency and client roles and support sessions', () => {
+    for (const role of ['agency_admin', 'client_owner'] as const) {
+      const c = onPlan(role, ['mcp']);
+      expect(navFlagsFor({ kind: 'user', ctx: c }).ask).toBe(false);
+      expect(hrefs(navForViewer({ kind: 'user', ctx: c }, 'client', C))).not.toContain(`/c/${C}/ask`);
+      expect(navFlagsFor({ kind: 'user', ctx: c }).mcp).toBe(true);
+    }
+    expect(navFlagsFor({ kind: 'support', ctx: onPlan('agency_admin', ['mcp']) }).ask).toBe(false);
+  });
+
+  it('plan without mcp: no mcp/clientAi flags, no agency or client AI connection settings', () => {
+    for (const role of ['agency_admin', 'client_owner'] as const) {
+      const flags = navFlagsFor({ kind: 'user', ctx: onPlan(role, ['ask']) });
+      expect(flags).toMatchObject({ mcp: false, clientAi: false, ask: true });
+      expect(hrefs(settingsNavFor('client', flags, C))).not.toContain(`/c/${C}/settings/ai`);
+    }
+    const admin = navFlagsFor({ kind: 'user', ctx: onPlan('agency_admin', ['ask']) });
+    expect(hrefs(settingsNavFor('agency', admin))).not.toContain('/agency/settings/ai');
+    expect(hrefs(settingsNavFor('agency', navFlagsFor({ kind: 'user', ctx: onPlan('agency_admin', ['ask', 'mcp']) })))).toContain('/agency/settings/ai');
+    expect(navFlagsFor({ kind: 'support', ctx: onPlan('agency_admin', ['ask']) }).clientAi).toBe(false);
+  });
+});

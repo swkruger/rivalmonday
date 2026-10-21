@@ -104,6 +104,11 @@ export function hasFeature(ctx: AccessContext, feature: Feature): boolean {
   return isAgencyRole(ctx.role) || ctx.features.has(feature);
 }
 
+/** 7a2 D13: a channel (Ask/MCP) is on only when the agency's plan includes it AND the role/client flag allows it. */
+export function hasChannel(ctx: AccessContext, f: PlanFeature): boolean {
+  return ctx.planFeatures.has(f) && hasFeature(ctx, f);
+}
+
 export function isClientRole(role: Role): boolean {
   return role === 'client_owner' || role === 'client_viewer';
 }

@@ -1,5 +1,5 @@
 import type { AccessContext } from '@cs/core';
-import { hasFeature } from '@cs/core';
+import { hasChannel } from '@cs/core';
 import { Button } from '@cs/ui';
 import Link from 'next/link';
 import { assistantNameFor } from '@/server/ask';
@@ -17,7 +17,7 @@ const QUESTION_MAX = 2000;
 
 export async function AskCard({ clientId, ctx }: { clientId: string; ctx: AccessContext }) {
   // Phase 8b: Ask tools are not offered in a support session (conversations are private), so the card is not rendered there.
-  if (ctx.support || ctx.userId.startsWith('contact:') || !hasFeature(ctx, 'ask')) return null;
+  if (ctx.support || ctx.userId.startsWith('contact:') || !hasChannel(ctx, 'ask')) return null;
   const [starters, assistantName] = await Promise.all([
     callTool<{ questions: string[] }>(ctx, 'get_ask_starters', { clientId }),
     assistantNameFor(dbs().service, ctx.agencyId),

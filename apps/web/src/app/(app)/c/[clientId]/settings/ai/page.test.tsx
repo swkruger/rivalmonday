@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_
 
 import AiConnectionsPage from './page';
 
-const ctxOf = (role: string, features: string[]) => ({ role, agencyId: 'a1', clientScope: ['c1'], features: new Set(features) });
+const ctxOf = (role: string, features: string[], planFeatures: string[] = ['ask', 'mcp']) => ({ role, agencyId: 'a1', clientScope: ['c1'], features: new Set(features), planFeatures: new Set(planFeatures) });
 const open = () => AiConnectionsPage({ params: Promise.resolve({ clientId: 'c1' }) });
 
 afterEach(cleanup);
@@ -34,6 +34,14 @@ describe('AiConnectionsPage (client)', () => {
   it('a client role without the mcp feature gets 404 before any tool call', async () => {
     viewer.mockResolvedValue({ viewer: { kind: 'user', userId: 'u1' }, ctx: ctxOf('client_owner', []) });
     await expect(open()).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(callTool).not.toHaveBeenCalled();
+  });
+
+  it('plan without mcp → 404 before any tool call, for agency and client roles (7a2 D13)', async () => {
+    for (const [role, features] of [['agency_admin', []], ['client_owner', ['mcp']]] as const) {
+      viewer.mockResolvedValue({ viewer: { kind: 'user', userId: 'u1' }, ctx: ctxOf(role, [...features], ['ask']) });
+      await expect(open()).rejects.toThrow('NEXT_NOT_FOUND');
+    }
     expect(callTool).not.toHaveBeenCalled();
   });
 

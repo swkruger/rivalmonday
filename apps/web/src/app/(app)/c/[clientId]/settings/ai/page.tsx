@@ -1,4 +1,4 @@
-import { grantableScopes, hasFeature, isAgencyRole } from '@cs/core';
+import { grantableScopes, hasChannel, isAgencyRole } from '@cs/core';
 import type { ApiTokenView, ClientProfile, OAuthGrantView } from '@cs/tools';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -29,8 +29,8 @@ export default async function AiConnectionsPage({ params }: { params: Promise<{ 
   const { clientId } = await params;
   const { viewer, ctx } = await requireContext();
   // Page refusals are 404s, decided before any tool call: signed-link guests never manage tokens (P10), and client
-  // roles need the client's `mcp` feature (agency roles bypass it in `hasFeature`).
-  if (viewer.kind === 'guest' || !hasFeature(ctx, 'mcp')) notFound();
+  // roles need the client's `mcp` feature (agency roles bypass it), and every role needs the plan's `mcp` (7a2 D13).
+  if (viewer.kind === 'guest' || !hasChannel(ctx, 'mcp')) notFound();
   const [profile, settingsLinked, guides] = await Promise.all([callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }), hasClientSettings(clientId), helpGuides(ctx, 'client', clientId)]);
   const [tokens, grants] = await Promise.all([
     callTool<{ items: ApiTokenView[] }>(ctx, 'list_api_tokens', { clientId }),

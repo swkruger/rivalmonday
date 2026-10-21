@@ -1,4 +1,4 @@
-import { hasFeature, hasPermission } from '@cs/core';
+import { hasChannel, hasFeature, hasPermission } from '@cs/core';
 import type { ClientProfile, EvidenceView } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import type { Metadata } from 'next';
@@ -71,7 +71,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
   const captured = formatUtc(evidence.capturedAt);
   // Ask entry points: signed-in users with the `ask` feature (never guests, Q2). "Add recommendation" mirrors
   // `add_recommendation` itself: `feedback` permission and the `dashboard` feature.
-  const canAsk = viewer.kind === 'user' && !ctx.userId.startsWith('contact:') && hasFeature(ctx, 'ask');
+  const canAsk = viewer.kind === 'user' && !ctx.userId.startsWith('contact:') && hasChannel(ctx, 'ask');
   const canRecommend = canAsk && hasPermission(ctx, 'feedback') && hasFeature(ctx, 'dashboard');
   const assistantName = canAsk ? await assistantNameFor(dbs().service, ctx.agencyId) : null;
   const fileHref = `/files/evidence/${clientId}/${evidenceId}`;

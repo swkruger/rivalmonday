@@ -20,6 +20,11 @@ describe('AskCard', () => {
     expect(await AskCard({ clientId: C, ctx: ctx(['ask'], 'contact:abc') })).toBeNull();
     expect(callTool).not.toHaveBeenCalled();
   });
+  it('ask card hidden when the agency plan has no ask (7a2 D13)', async () => {
+    const off = createAccessContext({ agencyId: A, userId: 'u1', role: 'agency_admin', clientScope: 'all', features: [], planFeatures: ['mcp'] });
+    expect(await AskCard({ clientId: C, ctx: off })).toBeNull();
+    expect(callTool).not.toHaveBeenCalled();
+  });
   it('is not rendered inside a support session (Ask tools are hidden there)', async () => {
     const support = createAccessContext({ agencyId: A, userId: 'op', role: 'agency_admin', clientScope: 'all', features: ['ask'] as never, support: { sessionId: C, platformUserId: 'op' } });
     expect(await AskCard({ clientId: C, ctx: support })).toBeNull();

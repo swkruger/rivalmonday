@@ -1,4 +1,4 @@
-import { type AccessContext, hasFeature } from '@cs/core';
+import { type AccessContext, hasChannel } from '@cs/core';
 import { displayNameFor } from '@cs/mcp';
 import type { AskThreadSummary, AskThreadView, ClientProfile } from '@cs/tools';
 import type { Metadata } from 'next';
@@ -47,7 +47,7 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
 }) {
   const { viewer, ctx } = await requireContext();
   if (viewer.kind === 'support') return supportAskView(clientId, threadId, ctx);
-  if (viewer.kind !== 'user' || ctx.userId.startsWith('contact:') || !hasFeature(ctx, 'ask')) notFound();
+  if (viewer.kind !== 'user' || ctx.userId.startsWith('contact:') || !hasChannel(ctx, 'ask')) notFound();
   const [profile, starters, threads, thread, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<{ questions: string[]; reviewAllowed: boolean }>(ctx, 'get_ask_starters', { clientId }),
@@ -105,7 +105,7 @@ export const ASK_PRIVATE_COPY = 'Ask conversations are private to their authors.
  * hidden in a session anyway); the client is still gated by a read tool so a foreign or malformed id is a 404.
  */
 async function supportAskView(clientId: string, threadId: string | null, ctx: AccessContext) {
-  if (!hasFeature(ctx, 'ask')) notFound();
+  if (!hasChannel(ctx, 'ask')) notFound();
   const [profile, assistantName, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     assistantNameFor(dbs().service, ctx.agencyId),

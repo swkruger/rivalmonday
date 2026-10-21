@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessClient, canManageCompetitors, createAccessContext, scopeToClient, hasFeature, hasPermission, isAgencyRole, isClientRole, type Feature, type Role } from './access';
+import { canAccessClient, canManageCompetitors, createAccessContext, hasChannel, scopeToClient, hasFeature, hasPermission, isAgencyRole, isClientRole, type Feature, type Role } from './access';
 
 const A = '00000000-0000-4000-8000-00000000000a';
 const C1 = '00000000-0000-4000-8000-0000000000c1';
@@ -114,5 +114,18 @@ describe('scopeToClient (7a2 decision 3)', () => {
   it('createAccessContext copies planFeatures and drops unknown values', () => {
     const ctx = createAccessContext({ agencyId: A, userId: 'u1', role: 'agency_admin', clientScope: 'all', features: [], planFeatures: ['mcp', 'bogus' as 'ask'] });
     expect([...ctx.planFeatures]).toEqual(['mcp']);
+  });
+});
+
+describe('hasChannel (7a2 D13)', () => {
+  it('needs the plan feature for every role and the client flag for client roles', () => {
+    const admin = (planFeatures: ('ask' | 'mcp')[]) => createAccessContext({ agencyId: A, userId: 'u1', role: 'agency_admin', clientScope: 'all', features: [], planFeatures });
+    expect(hasChannel(admin(['ask', 'mcp']), 'mcp')).toBe(true);
+    expect(hasChannel(admin(['ask']), 'mcp')).toBe(false);
+    expect(hasChannel(admin(['ask']), 'ask')).toBe(true);
+    const owner = (features: Feature[], planFeatures?: ('ask' | 'mcp')[]) => createAccessContext({ agencyId: A, userId: 'u1', role: 'client_owner', clientScope: [C1], features, planFeatures });
+    expect(hasChannel(owner([]), 'ask')).toBe(false);
+    expect(hasChannel(owner(['ask']), 'ask')).toBe(true);
+    expect(hasChannel(owner(['ask'], ['mcp']), 'ask')).toBe(false);
   });
 });

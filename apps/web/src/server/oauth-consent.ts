@@ -2,7 +2,7 @@ import { getOAuthProviderApi, type OAuthOptions, type Scope } from '@better-auth
 import { isAgencyRole, scopeCovers, TOKEN_SCOPES, type TokenScope, grantableScopes } from '@cs/core';
 import { client, type Db, oauthGrantBinding } from '@cs/db';
 import type { VerifyOAuth } from '@cs/mcp';
-import { consentIdFor, listMemberships, revokePluginTokens } from '@cs/tools';
+import { consentIdFor, listMemberships, planFeaturesFor, revokePluginTokens } from '@cs/tools';
 import type { AuthContext, GenericEndpointContext } from 'better-auth';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 
@@ -15,6 +15,8 @@ export async function consentOptions(service: Db, userId: string, requested: str
   const cap: TokenScope | null = asked.length ? asked.reduce((a, b) => (scopeCovers(a, b) ? a : b)) : null;
   const out: ConsentOption[] = [];
   for (const m of await listMemberships(service, userId)) {
+    // 7a2 D13: nothing to bind in an agency whose plan has no MCP (every tool would be invisible).
+    if (!(await planFeaturesFor(service, m.agencyId)).includes('mcp')) continue;
     const agency = isAgencyRole(m.role);
     if (!agency) {
       const [c] = await service.select({ status: client.status, features: client.features }).from(client).where(eq(client.id, m.clientId!));

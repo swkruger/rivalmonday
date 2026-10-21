@@ -7,14 +7,14 @@ const m = vi.hoisted(() => ({ callTool: vi.fn(), features: ['ask'] as string[] }
 vi.mock('@/server/current-viewer', () => ({
   requireContext: async () => ({
     viewer: { kind: 'support', userId: 'op', session: { agencyId: 'ag' } },
-    ctx: { agencyId: 'ag', userId: 'op', role: 'agency_admin', clientScope: 'all', features: m.features, support: { sessionId: 's', platformUserId: 'op' } },
+    ctx: { agencyId: 'ag', userId: 'op', role: 'agency_admin', clientScope: 'all', features: m.features, planFeatures: new Set(m.features), support: { sessionId: 's', platformUserId: 'op' } },
   }),
 }));
 vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => m.callTool(...a) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/ask', () => ({ assistantNameFor: async () => 'Friday' }));
 vi.mock('@cs/mcp', () => ({ displayNameFor: async () => 'Acme Agency' }));
-vi.mock('@cs/core', async (orig) => ({ ...(await orig<typeof import('@cs/core')>()), hasFeature: (ctx: { features: string[] }, f: string) => ctx.features.includes(f) }));
+vi.mock('@cs/core', async (orig) => ({ ...(await orig<typeof import('@cs/core')>()), hasFeature: (ctx: { features: string[] }, f: string) => ctx.features.includes(f), hasChannel: (ctx: { features: string[]; planFeatures: Set<string> }, f: string) => ctx.planFeatures.has(f) && ctx.features.includes(f) }));
 vi.mock('next/navigation', () => ({
   notFound: () => {
     throw new Error('NEXT_NOT_FOUND');

@@ -1,4 +1,4 @@
-import { grantableScopes, isAgencyRole } from '@cs/core';
+import { grantableScopes, hasChannel, isAgencyRole } from '@cs/core';
 import type { ApiTokenView, OAuthGrantView } from '@cs/tools';
 import { notFound } from 'next/navigation';
 import { AccessTokensCard, ConnectedAppsCard, ConnectorUrlCard } from '@/components/ai-connections';
@@ -24,7 +24,7 @@ const COPY = PAGE_COPY['agency.settings.ai'];
 /** Phase 6a: agency-wide AI connections (P10). Agency roles only; admins see every member's tokens and apps. */
 export default async function AgencyAiConnectionsPage() {
   const { viewer, ctx } = await requireContext();
-  if (!isAgencyRole(ctx.role)) notFound();
+  if (!isAgencyRole(ctx.role) || !hasChannel(ctx, 'mcp')) notFound(); // 7a2 D13: plan without MCP → 404
   const [tokens, grants, guides] = await Promise.all([
     callTool<{ items: ApiTokenView[] }>(ctx, 'list_api_tokens', {}),
     callTool<{ items: OAuthGrantView[] }>(ctx, 'list_oauth_grants', {}),
