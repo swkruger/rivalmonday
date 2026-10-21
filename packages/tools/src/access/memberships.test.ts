@@ -1,4 +1,4 @@
-import { client, contact, membership } from '@cs/db';
+import { agencyBilling, client, contact, membership, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -53,6 +53,33 @@ describe('accessContextFor', () => {
     const ctx = await accessContextFor(dbs.service, 'u1', m!);
     expect(ctx.clientScope).toEqual([IDS.clientA1]);
     expect([...ctx.features]).toEqual(['dashboard']);
+  });
+});
+
+describe('plan features on access contexts (7a2 decision 1)', () => {
+  async function agencyOnPlan(features: ('ask' | 'mcp')[]) {
+    const [p] = await dbs.owner.insert(plan).values({
+      code: 'np', version: 1, name: 'No MCP', basePriceCents: 0, includedSeats: 3, seatPriceCents: 0, trialDays: 30, features, createdBy: 'test',
+    }).returning({ id: plan.id });
+    await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'active', planId: p!.id });
+  }
+
+  it('accessContextFor sets planFeatures from the DB', async () => {
+    await member({});
+    const [m] = await listMemberships(dbs.service, 'u1');
+    expect([...(await accessContextFor(dbs.service, 'u1', m!)).planFeatures].sort()).toEqual(['ask', 'mcp']);
+    await agencyOnPlan(['ask']);
+    expect([...(await accessContextFor(dbs.service, 'u1', m!)).planFeatures]).toEqual(['ask']);
+    await dbs.service.update(membership).set({ role: 'client_owner', clientId: IDS.clientA1 }).where(eq(membership.id, m!.id));
+    const [m2] = await listMemberships(dbs.service, 'u1');
+    expect([...(await accessContextFor(dbs.service, 'u1', m2!)).planFeatures]).toEqual(['ask']);
+  });
+
+  it('guestAccessFor sets planFeatures from the DB', async () => {
+    await agencyOnPlan([]);
+    const [c] = await dbs.service.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'g@e.co' }).returning();
+    const ctx = await guestAccessFor(dbs.service, { contactId: c!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1, iat: Math.floor(Date.now() / 1000) });
+    expect([...ctx!.planFeatures]).toEqual([]);
   });
 });
 

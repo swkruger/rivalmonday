@@ -75,7 +75,7 @@ describe('consentOptions', () => {
     await member('u1', 'client_owner', IDS.clientA1);
     expect(await consentOptions(dbs.service, 'u1', 'read')).toEqual([]);
     await enableMcp(IDS.clientA1);
-    expect((await consentOptions(dbs.service, 'u1', 'manage'))[0]!.scopes).toEqual(['read', 'feedback']);
+    expect((await consentOptions(dbs.service, 'u1', 'manage'))[0]!.scopes).toEqual(['read', 'feedback', 'manage']);
     await dbs.service.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA1));
     expect(await consentOptions(dbs.service, 'u1', 'read')).toEqual([]);
   });

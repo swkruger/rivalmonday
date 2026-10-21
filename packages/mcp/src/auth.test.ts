@@ -121,6 +121,13 @@ describe('tokenAccess', () => {
     expect((await tokenAccess(dbs.service, t))?.scope).toBe('read');
   });
 
+  it('keeps manage for a client_owner token and sets planFeatures from the DB (7a2 D13/D14)', async () => {
+    await member({ role: 'client_owner', clientId: IDS.clientA1 });
+    const r = await tokenAccess(dbs.service, tok({ clientId: IDS.clientA1, scope: 'manage' }));
+    expect(r?.scope).toBe('manage');
+    expect([...r!.ctx.planFeatures].sort()).toEqual(['ask', 'mcp']);
+  });
+
   it('narrows an account manager to the live scope', async () => {
     const m = await member({ role: 'account_manager', clientScope: [IDS.clientA1] });
     const r = await tokenAccess(dbs.service, tok());

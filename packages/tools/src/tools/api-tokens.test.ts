@@ -54,10 +54,11 @@ describe('create_api_token', () => {
     expect(a.id).not.toBe(b.id);
   });
 
-  it('client_viewer cannot create feedback; client_owner cannot create manage', async () => {
+  it('client_viewer cannot create feedback or manage; client_owner may create manage (7a2 D14)', async () => {
     expect((await fails(create(viewer, 'x', 'feedback'))).message).toBe("Your role can't create a token with that access level.");
-    expect((await fails(create(owner, 'x', 'manage'))).message).toBe("Your role can't create a token with that access level.");
+    expect((await fails(create(viewer, 'x', 'manage'))).message).toBe("Your role can't create a token with that access level.");
     await expect(create(owner, 'ok', 'feedback')).resolves.toBeTruthy();
+    await expect(create(owner, 'ok2', 'manage')).resolves.toBeTruthy();
   });
 
   it('agency token client_id null, client token bound', async () => {

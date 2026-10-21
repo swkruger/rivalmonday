@@ -8,7 +8,8 @@ export const scopeCovers = (have: TokenScope, need: TokenScope): boolean => RANK
 
 export function grantableScopes(role: Role): TokenScope[] {
   if (isAgencyRole(role)) return ['read', 'feedback', 'manage'];
-  return role === 'client_owner' ? ['read', 'feedback'] : ['read']; // d4/d5: no manage for client roles in 6a
+  // 7a2 D14: a client owner may grant manage (still bounded by role permission, client features and clientScope).
+  return role === 'client_owner' ? ['read', 'feedback', 'manage'] : ['read'];
 }
 
 export function effectiveScope(granted: TokenScope, role: Role): TokenScope {

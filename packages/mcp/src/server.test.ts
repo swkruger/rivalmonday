@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { type AccessContext, type TokenScope, ToolError, ToolRegistry, toolkit } from '@cs/core';
+import { type AccessContext, createAccessContext, type TokenScope, ToolError, ToolRegistry, toolkit } from '@cs/core';
 import { hashInput } from '@cs/core/server';
 import { brief, briefItem } from '@cs/db';
 import { IDS, pauseAgency } from '@cs/db/test-helpers';
@@ -112,7 +112,7 @@ describe('tools', () => {
     expect(await names(client)).toEqual([...MCP_READ_TOOLS, ...MCP_FEEDBACK_TOOLS].sort());
   });
 
-  it('client token never sees manage', async () => {
+  it('client token sees no agency-permission manage tools and needs the client feature for the rest', async () => {
     const owner = ctx('client_owner', [IDS.clientA1], ['dashboard', 'mcp']);
     const { client } = await connect(owner, 'manage');
     const listed = await names(client);
@@ -121,6 +121,26 @@ describe('tools', () => {
     // P4: a client role without the mcp feature sees no tools (and is not refused outright).
     const { client: noMcp } = await connect(ctx('client_owner', [IDS.clientA1], ['dashboard']), 'manage');
     expect(await names(noMcp)).toEqual([]);
+  });
+
+  it('client_owner token with manage reaches a manage tool (7a2 D14)', async () => {
+    const owner = ctx('client_owner', [IDS.clientA1], ['dashboard', 'mcp', 'alert_rules']);
+    const { client } = await connect(owner, 'manage');
+    const listed = await names(client);
+    expect(listed).toContain('set_alert_rules');
+    for (const t of ['update_client_profile', 'set_page_pin', 'run_prospect_snapshot']) expect(listed).not.toContain(t);
+    // Visible, so the call reaches input validation (not the hidden-tool not_found).
+    expect(errorOf(await call(client, 'set_alert_rules', {}))).toMatchObject({ code: 'invalid_input' });
+    // A feedback-scoped token of the same owner still cannot reach it.
+    const { client: fb } = await connect(owner, 'feedback');
+    expect(await names(fb)).not.toContain('set_alert_rules');
+  });
+
+  it('plan without mcp lists no tools for agency_admin (7a2 D13)', async () => {
+    const off = createAccessContext({ agencyId: IDS.agencyA, userId: 'u-agency_admin', role: 'agency_admin', clientScope: 'all', features: [], planFeatures: ['ask'] });
+    const { client } = await connect(off, 'manage');
+    expect(await names(client)).toEqual([]);
+    expect(errorOf(await call(client, 'list_clients', {}))).toEqual({ code: 'not_found', message: 'Unknown tool: list_clients' });
   });
 
   it('descriptions use productName', async () => {

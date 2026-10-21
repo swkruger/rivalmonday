@@ -45,14 +45,21 @@ describe('scopes', () => {
   });
   it('grantableScopes per role', () => {
     expect(grantableScopes('agency_admin')).toEqual(['read', 'feedback', 'manage']);
-    expect(grantableScopes('client_owner')).toEqual(['read', 'feedback']);
+    expect(grantableScopes('client_owner')).toEqual(['read', 'feedback', 'manage']);
     expect(grantableScopes('client_viewer')).toEqual(['read']);
   });
   it('effectiveScope caps for client_owner/client_viewer', () => {
-    expect(effectiveScope('manage', 'client_owner')).toBe('feedback');
+    expect(effectiveScope('manage', 'client_owner')).toBe('manage');
     expect(effectiveScope('manage', 'client_viewer')).toBe('read');
     expect(effectiveScope('feedback', 'client_viewer')).toBe('read');
     expect(effectiveScope('read', 'client_owner')).toBe('read');
     expect(effectiveScope('manage', 'agency_admin')).toBe('manage');
+  });
+});
+
+describe('MCP client scope (7a2 D14)', () => {
+  it('client_viewer cannot be granted manage', () => {
+    expect(grantableScopes('client_viewer')).not.toContain('manage');
+    expect(effectiveScope('manage', 'client_viewer')).toBe('read');
   });
 });

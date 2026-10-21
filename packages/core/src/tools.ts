@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { type TokenScope, scopeCovers } from './tokens';
 import { maskSupportFields } from './mask';
-import { type AccessContext, type Feature, type Permission, type Role, hasPermission, isAgencyRole } from './access';
+import { type AccessContext, type Feature, type Permission, type PlanFeature, type Role, hasPermission, isAgencyRole, PLAN_FEATURES } from './access';
 
 export type ToolErrorCode = 'not_found' | 'permission_denied' | 'invalid_input' | 'rate_limited' | 'quota_exceeded' | 'read_only_session' | 'conflict' | 'billing_seat_limit' | 'service_paused' | 'invalid_code' | 'billing_not_eligible' | 'connect_not_ready' | 'no_client_owner' | 'slug_taken' | 'internal';
 
@@ -95,6 +95,7 @@ export function mcpScopeOf(tool: { permission: Permission; mcpScope?: TokenScope
 /** Spec 8b g10 copy for a write attempted inside a read-only support session. */
 export const READ_ONLY_SESSION_MESSAGE = 'Read-only support session — changes are disabled.';
 
+const isPlanFeature = (f: Feature): f is PlanFeature => (PLAN_FEATURES as readonly string[]).includes(f);
 const CHANNEL_FEATURE: Partial<Record<ToolChannel, Feature>> = { mcp: 'mcp', ask: 'ask' };
 function isVisible<D>(ctx: AccessContext, tool: AnyTool<D>, opts: CallOptions): boolean {
   // Phase 8b: a support session is web-only and never sees `supportHidden` tools (Ask threads).
@@ -103,8 +104,11 @@ function isVisible<D>(ctx: AccessContext, tool: AnyTool<D>, opts: CallOptions): 
   if (!hasPermission(ctx, tool.permission)) return false;
   const agency = isAgencyRole(ctx.role);
   if (tool.feature && !agency && !ctx.features.has(tool.feature)) return false;
+  // 7a2 D13 / decision 2: the agency's plan switches Ask and MCP off for every role, incl. ask/mcp-feature web tools.
+  if (tool.feature && isPlanFeature(tool.feature) && !ctx.planFeatures.has(tool.feature)) return false;
   const chf = CHANNEL_FEATURE[opts.channel];
   if (chf && !agency && !ctx.features.has(chf)) return false;
+  if (chf && isPlanFeature(chf) && !ctx.planFeatures.has(chf)) return false;
   if (opts.channel === 'mcp' && !opts.tokenScope) return false; // P4: fail closed
   if (opts.tokenScope && !scopeCovers(opts.tokenScope, mcpScopeOf(tool))) return false;
   return true;

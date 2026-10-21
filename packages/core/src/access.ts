@@ -17,6 +17,8 @@ export interface AccessContext {
   readonly role: Role;
   readonly clientScope: ClientScope;
   readonly features: ReadonlySet<Feature>;
+  /** 7a2 D13: channels the agency's platform plan allows (every role). */
+  readonly planFeatures: ReadonlySet<PlanFeature>;
   /** Set only for a platform operator's read-only support session. */
   readonly support?: SupportInfo;
 }
@@ -29,6 +31,8 @@ export interface AccessContextInput {
   role: Role;
   clientScope: ClientScope;
   features: readonly Feature[];
+  /** 7a2 decision 1: defaults to every plan feature; viewers always pass `planFeaturesFor()` explicitly. */
+  planFeatures?: readonly PlanFeature[];
   support?: SupportInfo;
 }
 
@@ -68,7 +72,16 @@ export function createAccessContext(input: AccessContextInput): AccessContext {
     role: input.role,
     clientScope: input.clientScope === 'all' ? 'all' : Object.freeze([...input.clientScope]),
     features: new Set(input.features),
+    planFeatures: new Set((input.planFeatures ?? PLAN_FEATURES).filter((f) => (PLAN_FEATURES as readonly string[]).includes(f))),
     ...(input.support ? { support: Object.freeze({ sessionId: input.support.sessionId, platformUserId: input.support.platformUserId }) } : {}),
+  });
+}
+
+/** 7a2 decision 3: the same viewer pinned to one client — never a support session; keeps client and plan features. */
+export function scopeToClient(ctx: AccessContext, clientId: string): AccessContext {
+  return createAccessContext({
+    agencyId: ctx.agencyId, userId: ctx.userId, role: ctx.role, clientScope: [clientId],
+    features: [...ctx.features], planFeatures: [...ctx.planFeatures],
   });
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessClient, canManageCompetitors, createAccessContext, hasFeature, hasPermission, isAgencyRole, isClientRole, type Feature, type Role } from './access';
+import { canAccessClient, canManageCompetitors, createAccessContext, scopeToClient, hasFeature, hasPermission, isAgencyRole, isClientRole, type Feature, type Role } from './access';
 
 const A = '00000000-0000-4000-8000-00000000000a';
 const C1 = '00000000-0000-4000-8000-0000000000c1';
@@ -87,5 +87,32 @@ describe('hasFeature', () => {
 describe('isClientRole', () => {
   it('is true only for client_owner and client_viewer', () => {
     expect((['agency_admin', 'account_manager', 'client_owner', 'client_viewer'] as const).map(isClientRole)).toEqual([false, false, true, true]);
+  });
+});
+
+describe('scopeToClient (7a2 decision 3)', () => {
+  it('scopeToClient drops support and keeps planFeatures', () => {
+    const ctx = createAccessContext({
+      agencyId: A, userId: 'u1', role: 'agency_admin', clientScope: 'all', features: ['dashboard'], planFeatures: ['ask'],
+      support: { sessionId: 's', platformUserId: 'p' },
+    });
+    const scoped = scopeToClient(ctx, C2);
+    expect(scoped.clientScope).toEqual([C2]);
+    expect(scoped.support).toBeUndefined();
+    expect('support' in scoped).toBe(false);
+    expect([...scoped.planFeatures]).toEqual(['ask']);
+    expect([...scoped.features]).toEqual(['dashboard']);
+    expect(scoped).toMatchObject({ agencyId: A, userId: 'u1', role: 'agency_admin' });
+    expect(Object.isFrozen(scoped)).toBe(true);
+  });
+
+  it('refuses an invalid client id', () => {
+    const ctx = createAccessContext({ agencyId: A, userId: 'u1', role: 'agency_admin', clientScope: 'all', features: [] });
+    expect(() => scopeToClient(ctx, 'nope')).toThrow(/clientScope/);
+  });
+
+  it('createAccessContext copies planFeatures and drops unknown values', () => {
+    const ctx = createAccessContext({ agencyId: A, userId: 'u1', role: 'agency_admin', clientScope: 'all', features: [], planFeatures: ['mcp', 'bogus' as 'ask'] });
+    expect([...ctx.planFeatures]).toEqual(['mcp']);
   });
 });

@@ -6,6 +6,7 @@ export * from './access/signup-complete';
 export * from './access/free-mail';
 export * from './ask-tools';
 export * from './access/memberships';
+export * from './access/plan-features';
 export * from './access/oauth';
 export * from './access/team';
 export * from './access/unsubscribe';

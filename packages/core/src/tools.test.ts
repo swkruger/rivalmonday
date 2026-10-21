@@ -310,3 +310,56 @@ describe('ToolRegistry writeGuard', () => {
     await expect(reg.invoke(admin, 'add_thing', {})).resolves.toEqual({ ok: true });
   });
 });
+
+describe('plan features (7a2 D13)', () => {
+  const askRead = defineTool({
+    name: 'ask_read', access: 'read', description: 'ask read', input: z.object({}), output: z.object({ ok: z.boolean() }),
+    permission: 'read', channels: ['ask'], handler: async () => ({ ok: true }),
+  });
+  const askThreads = defineTool({
+    name: 'ask_threads', access: 'read', description: 'ask-feature web tool', input: z.object({}), output: z.object({ ok: z.boolean() }),
+    permission: 'read', feature: 'ask', handler: async () => ({ ok: true }),
+  });
+  const mcpTokens = defineTool({
+    name: 'mcp_tokens', access: 'read', description: 'mcp-feature web tool', input: z.object({}), output: z.object({ ok: z.boolean() }),
+    permission: 'read', feature: 'mcp', handler: async () => ({ ok: true }),
+  });
+  const names = (ctx: typeof admin, opts?: Parameters<typeof registry.list>[1]) => registry.list(ctx, opts).map((t) => t.name).sort();
+  const adminWith = (planFeatures: ('ask' | 'mcp')[], role: 'agency_admin' | 'account_manager' = 'agency_admin') =>
+    createAccessContext({ agencyId: A, userId: 'admin', role, clientScope: 'all', features: [], planFeatures });
+
+  beforeEach(() => {
+    registry.register(mcpRead, mcpManage, agencyOnlyManage, askRead, askThreads, mcpTokens);
+  });
+
+  it('plan without mcp hides every mcp tool for agency_admin', async () => {
+    const off = adminWith(['ask']);
+    expect(names(off, { channel: 'mcp', tokenScope: 'manage' })).toEqual([]);
+    expect(names(off)).not.toContain('mcp_tokens');
+    await expect(registry.invoke(off, 'mcp_read', {}, { channel: 'mcp', tokenScope: 'manage' })).rejects.toMatchObject({ code: 'not_found', message: 'Unknown tool: mcp_read' });
+    expect(names(off, { channel: 'ask' })).toContain('ask_read');
+    expect(names(adminWith(['ask', 'mcp']), { channel: 'mcp', tokenScope: 'manage' })).toEqual(['agency_manage', 'mcp_manage', 'mcp_read']);
+  });
+
+  it('plan without ask hides ask tools and ask-feature web tools for agency roles', async () => {
+    for (const role of ['agency_admin', 'account_manager'] as const) {
+      const off = adminWith(['mcp'], role);
+      expect(names(off, { channel: 'ask' })).toEqual([]);
+      expect(names(off)).not.toContain('ask_threads');
+      expect(names(off)).toContain('mcp_tokens');
+      await expect(registry.invoke(off, 'ask_threads', {})).rejects.toMatchObject({ code: 'not_found', message: 'Unknown tool: ask_threads' });
+    }
+  });
+
+  it('plan off hides channel tools from client roles even with the client feature', () => {
+    const owner = createAccessContext({ agencyId: A, userId: 'o', role: 'client_owner', clientScope: [C1], features: ['mcp', 'ask'], planFeatures: [] });
+    expect(names(owner, { channel: 'mcp', tokenScope: 'manage' })).toEqual([]);
+    expect(names(owner, { channel: 'ask' })).toEqual([]);
+    expect(names(owner)).not.toContain('ask_threads');
+  });
+
+  it('defaults to both plan features when none are given', () => {
+    expect([...admin.planFeatures].sort()).toEqual(['ask', 'mcp']);
+    expect(names(admin, { channel: 'ask' })).toContain('ask_read');
+  });
+});
