@@ -1,6 +1,5 @@
 import { isAgencyRole } from '@cs/core';
-import type { ClientProfile } from '@cs/tools';
-import { listClientRecipients } from '@cs/tools';
+import type { ClientProfile, RecipientView } from '@cs/tools';
 import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -13,9 +12,7 @@ import { WriteGuard } from '@/components/read-only';
 import { PAGE_COPY } from '@/help/copy';
 import { hasClientSettings } from '@/server/client-settings-nav';
 import { requireContext } from '@/server/current-viewer';
-import { dbs } from '@/server/db';
 import { helpGuides } from '@/server/help';
-import { maskRecipientsForSupport } from '@/server/support-mask';
 import { callTool } from '@/server/tools';
 import { timezoneOptions } from '@/server/timezones';
 import { AddRecipientForm, DeactivateRecipientButton, DeliveryForm } from './delivery-controls';
@@ -32,9 +29,13 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
   const { clientId } = await params;
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const [profile, settingsLinked, guides] = await Promise.all([callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }), hasClientSettings(clientId), helpGuides(ctx, 'client', clientId)]);
-  // Phase 8b: emails are masked in a support session before anything reaches a client component.
-  const recipients = maskRecipientsForSupport(ctx, await listClientRecipients(dbs().service, ctx, clientId));
+  // 7a2: a registered read (audited in a support session); 8b masks its emails there before anything reaches a client component.
+  const [profile, settingsLinked, { items: recipients }, guides] = await Promise.all([
+    callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
+    hasClientSettings(clientId),
+    callTool<{ items: RecipientView[] }>(ctx, 'list_client_recipients', { clientId }),
+    helpGuides(ctx, 'client', clientId),
+  ]);
 
   return (
     <>

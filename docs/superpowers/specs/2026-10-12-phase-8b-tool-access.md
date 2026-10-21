@@ -112,6 +112,10 @@ invite_member (settings.ts) | write | creates invitation (email)
 revoke_membership (settings.ts) | write | revokes
 revoke_invitation (settings.ts) | write | revokes
 update_agency_branding (settings.ts) | write | updates agency
+get_team (agency-settings-reads.ts) | read | read-only; agency roles; masks members[].email/name, invitations[].email (7a2)
+get_agency_branding (agency-settings-reads.ts) | read | read-only; agency_admin; masks stored/resolved.fromEmail (7a2)
+list_webhooks (agency-settings-reads.ts) | read | read-only; agency_admin; host only (7a2)
+list_client_recipients (agency-settings-reads.ts) | read | read-only; agency roles; masks items[].email/name (7a2)
 get_onboarding_status (agency-onboarding.ts) | read | read
 mark_onboarding_step (agency-onboarding.ts) | write | updates agency_onboarding
 dismiss_onboarding_checklist (agency-onboarding.ts) | write | updates agency_onboarding
@@ -189,7 +193,7 @@ decide_theme_proposal (themes.ts) | write | decides proposal
 get_usage (usage.ts) | read | read-only
 set_client_limits (usage.ts) | write | updates client
 start_support_session (support.ts) | write | opens a session row + audit; operator ctx only
-end_support_session (support.ts) | write | ends the caller's open session
+end_support_session (support.ts) | write | ends the caller's open session; audited under the session's agency (7a2)
 list_support_sessions (support.ts) | read | read-only; agency_admin; supportHidden
 set_support_access_notify (support.ts) | write | updates agency flag
 list_agency_support_sessions (support.ts) | read | read; audit row only (platform console)

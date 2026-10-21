@@ -2,7 +2,7 @@ import { isAbsolute, resolve } from 'node:path';
 import { type AccessContext, isCurrentPdfKey, isUuid, READ_ONLY_SESSION_MESSAGE, ToolError, type ToolRegistry } from '@cs/core';
 import { brief, type Db, evidence, rankMapImage, trendReport } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
-import { type BriefDetail, evidenceContentType, type EvidenceView, type GeoGridView, type ReportDetail, type ToolDeps } from '@cs/tools';
+import { type BriefDetail, evidenceContentType, type EvidenceView, type GeoGridView, recordSupportAccess, type ReportDetail, type ToolDeps } from '@cs/tools';
 import { and, eq } from 'drizzle-orm';
 import { BACKGROUND_OFF } from './background-off';
 
@@ -92,6 +92,8 @@ export async function servePdf(input: {
     }
     return preparing();
   }
+  // 7a2 §4: a support session's download is audited in the target agency (the access tool's own row says only "viewed").
+  await recordSupportAccess(input.service, input.ctx, { surface: 'pdf', subjectId: input.id });
 
   // S9: ObjectStore.get returns Uint8Array<ArrayBufferLike>, which TS 5.9's DOM lib does not accept as BodyInit —
   // re-wrap to a plain Uint8Array.
@@ -135,6 +137,7 @@ export async function serveEvidence(input: {
   const [row] = await input.service.select({ key: evidence.objectKey }).from(evidence).where(eq(evidence.id, input.evidenceId));
   const bytes = row ? await input.store.get(row.key) : null;
   if (!bytes) return notFound();
+  await recordSupportAccess(input.service, input.ctx, { surface: 'evidence', subjectId: input.evidenceId });
 
   return new Response(new Uint8Array(bytes), {
     status: 200,
@@ -175,6 +178,7 @@ export async function serveRankMap(input: {
     .where(and(eq(rankMapImage.clientId, input.clientId), eq(rankMapImage.agencyId, input.ctx.agencyId)));
   const bytes = row ? await input.store.get(row.key) : null;
   if (!bytes) return notFound();
+  await recordSupportAccess(input.service, input.ctx, { surface: 'rank_map', subjectId: input.clientId });
 
   return new Response(new Uint8Array(bytes), {
     status: 200,

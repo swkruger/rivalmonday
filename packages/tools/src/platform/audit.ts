@@ -1,6 +1,6 @@
 import { type AccessContext, ToolError } from '@cs/core';
 import { hashInput } from '@cs/core/server';
-import { auditLog, platformAuditLog } from '@cs/db';
+import { auditLog, type Db, platformAuditLog } from '@cs/db';
 import type { ToolDeps } from '../deps';
 import type { PlatformRole } from '../platform';
 
@@ -21,6 +21,8 @@ export interface PlatformAuditEntry {
 /** What a tool body may add to its own audit row once it knows it (set before returning or throwing). */
 export interface PlatformAuditNote {
   supportSessionId?: string;
+  /** 7a2: the target agency when only the body learns it (`end_support_session`: the ended session's agency). */
+  agencyId?: string;
 }
 
 /**
@@ -75,4 +77,21 @@ export async function withPlatformAudit<T>(
       throw new ToolError('internal', 'Audit logging failed', { cause: err });
     }
   }
+}
+
+/** What a support session opened outside the tool registry: `/go/<target>/<id>` and the `/files/*` routes. */
+export type SupportAccessSurface = 'go' | 'evidence' | 'pdf' | 'rank_map';
+
+/**
+ * 7a2 §4: a support session's direct reads (link redirects and file downloads, which the registry never sees as their
+ * own call) leave one row in the target agency's `audit_log`, like a tool call inside the session. No-op without
+ * `ctx.support`. Callers invoke it only once access succeeded (a refusal is already audited by the access tool).
+ */
+export async function recordSupportAccess(service: Db, ctx: AccessContext, a: { surface: SupportAccessSurface; subjectId: string }): Promise<void> {
+  if (!ctx.support) return;
+  await service.insert(auditLog).values({
+    agencyId: ctx.agencyId, userId: ctx.support.platformUserId, role: 'platform_support', tool: `support_view_${a.surface}`,
+    inputHash: hashInput({ surface: a.surface, subjectId: a.subjectId }), outcome: 'ok', rowCount: null, durationMs: 0, channel: 'web',
+    tokenId: null, supportSessionId: ctx.support.sessionId,
+  });
 }

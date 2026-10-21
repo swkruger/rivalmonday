@@ -1,11 +1,11 @@
-import { getAgencyBranding } from '@cs/tools';
+import type { AgencyBranding } from '@cs/db';
+import type { Branding } from '@cs/email';
 import { notFound, redirect } from 'next/navigation';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
-import { dbs } from '@/server/db';
 import { helpGuides } from '@/server/help';
 import { timezoneOptions } from '@/server/timezones';
 import { callTool } from '@/server/tools';
@@ -51,7 +51,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   } else if (step === 'plan') {
     body = <PlanStep summary={await callTool<PlanSummary>(ctx, 'get_billing_summary', {})} />;
   } else {
-    const { stored, resolved } = await getAgencyBranding(dbs().service, ctx);
+    const { stored, resolved } = await callTool<{ stored: AgencyBranding; resolved: Branding }>(ctx, 'get_agency_branding', {});
     body = <BrandingStep initial={stored} agencyName={resolved.displayName} />;
   }
 

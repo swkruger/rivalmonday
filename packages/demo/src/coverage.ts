@@ -119,7 +119,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   { route: '/agency/approvals', as: 'admin', calls: [{ tool: 'list_brief_queue', input: none, path: 'items' }] },
   { route: '/agency/approvals/[briefId]', as: 'admin', calls: [{ tool: 'get_brief_review', input: (ids) => ({ briefId: ids.briefs.readyLoneStar }), path: 'items' }] },
   { route: '/agency/approvals/[briefId] (quiet)', as: 'admin', calls: [{ tool: 'get_brief_review', input: (ids) => ({ briefId: ids.briefs.quietBrazos }), path: 'items', expect: 'empty', why: 'Brazos’s brief is held as quiet' }] },
-  { route: '/agency/settings/branding', as: 'admin', calls: [{ tool: 'fn:getAgencyBranding', input: none, path: 'stored' }] },
+  { route: '/agency/settings/branding', as: 'admin', calls: [{ tool: 'get_agency_branding', input: none, path: 'stored' }] },
   { route: '/agency/settings/platform-access', as: 'admin', calls: [{ tool: 'list_support_sessions', input: none, path: 'rows' }] },
   { route: '/agency/settings/runbook', as: 'admin', calls: [{ tool: 'get_runbook', input: () => ({ owner: { level: 'agency' } }), path: 'items' }] },
   // Phase 11a: Cedar Creek Plumbing is mid-setup (suggestions ready, search done); `/agency/clients/new` is only a lookup form (reads happen on user action).
@@ -137,9 +137,9 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'list_client_competitors', input: (ids) => ({ clientId: ids.clients.lakeside }), path: 'items' },
     ],
   },
-  { route: '/agency/settings/team', as: 'admin', calls: [{ tool: 'fn:listTeam', input: none, path: 'members' }, { tool: 'fn:listTeam', input: none, path: 'invitations' }, { tool: 'list_clients', input: none, path: 'items' }] },
+  { route: '/agency/settings/team', as: 'admin', calls: [{ tool: 'get_team', input: none, path: 'members' }, { tool: 'get_team', input: none, path: 'invitations' }, { tool: 'list_clients', input: none, path: 'items' }] },
   { route: '/agency/settings/usage', as: 'admin', calls: [{ tool: 'get_usage', input: none, path: 'items' }] },
-  { route: '/agency/settings/slack-teams', as: 'admin', calls: [{ tool: 'fn:listWebhooks', input: none }] },
+  { route: '/agency/settings/slack-teams', as: 'admin', calls: [{ tool: 'list_webhooks', input: none, path: 'items' }] },
   {
     route: '/c/[clientId]', as: 'admin', calls: [
       lsProfile,
@@ -295,7 +295,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   },
   { route: '/c/[clientId]/settings/alerts', as: 'admin', calls: [lsProfile, { tool: 'get_alert_rules', input: (ids) => ({ clientId: ls(ids) }), path: 'custom' }] },
   { route: '/c/[clientId]/settings/runbook', as: 'admin', calls: [lsProfile, { tool: 'get_runbook', input: (ids) => ({ owner: { level: 'client', clientId: ls(ids) } }), path: 'items' }] },
-  { route: '/c/[clientId]/settings/delivery', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'serviceArea' }] },
+  { route: '/c/[clientId]/settings/delivery', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'serviceArea' }, { tool: 'list_client_recipients', input: (ids) => ({ clientId: ls(ids) }), path: 'items' }] },
   { route: '/c/[clientId]/settings/profile', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' }, lsStarters, { tool: 'list_client_billing_status', input: none, path: 'clients' }] },
   { route: '/c/[clientId]/settings/billing (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'get_my_billing', input: (ids) => ({ clientId: ls(ids) }), path: 'agencyName' }, lsProfile] },
   {
@@ -309,7 +309,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   { route: '/onboarding (step=profile)', as: 'admin', calls: [onboardingStatus, { tool: 'get_agency_profile', input: none, path: 'contactName' }] },
   { route: '/onboarding (step=team)', as: 'admin', calls: [onboardingStatus] },
   { route: '/onboarding (step=plan)', as: 'admin', calls: [onboardingStatus, { tool: 'get_billing_summary', input: none, path: 'maxActiveClients' }] },
-  { route: '/onboarding (step=branding)', as: 'admin', calls: [onboardingStatus, { tool: 'fn:getAgencyBranding', input: none, path: 'stored' }] },
+  { route: '/onboarding (step=branding)', as: 'admin', calls: [onboardingStatus, { tool: 'get_agency_branding', input: none, path: 'stored' }] },
   { route: '/agency/clients/new', as: 'admin', calls: [] },
   { route: '/agency/prospects/new', as: 'admin', calls: [] },
   { route: '/paused', as: 'admin', calls: [] },

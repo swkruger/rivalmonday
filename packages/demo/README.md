@@ -23,7 +23,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/approvals` | admin | `list_brief_queue`, `list_help_guides` | — |
 | `/agency/approvals/[briefId]` | admin | `get_brief_review`, `list_help_guides` | — |
 | `/agency/approvals/[briefId] (quiet)` | admin | — | `get_brief_review`: Brazos’s brief is held as quiet |
-| `/agency/settings/branding` | admin | `fn:getAgencyBranding`, `list_help_guides` | — |
+| `/agency/settings/branding` | admin | `get_agency_branding`, `list_help_guides` | — |
 | `/agency/settings/platform-access` | admin | `list_support_sessions`, `list_help_guides` | — |
 | `/agency/settings/runbook` | admin | `get_runbook`, `list_help_guides` | — |
 | `/c/[clientId]/setup` | admin | `get_client_setup`, `get_client_profile`, `get_connect_status`, `list_client_billing_status`, `list_help_guides` | — |
@@ -33,9 +33,9 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/settings/intake` | admin | `get_intake_link`, `list_help_guides` | — |
 | `/agency/prospects` | admin | `list_prospects`, `list_help_guides` | — |
 | `/agency/prospects/[clientId]` | admin | `get_client_profile`, `get_prospect_report`, `list_client_competitors`, `list_help_guides` | — |
-| `/agency/settings/team` | admin | `fn:listTeam`, `list_clients`, `list_help_guides` | — |
+| `/agency/settings/team` | admin | `get_team`, `list_clients`, `list_help_guides` | — |
 | `/agency/settings/usage` | admin | `get_usage`, `list_help_guides` | — |
-| `/agency/settings/slack-teams` | admin | `fn:listWebhooks`, `list_help_guides` | — |
+| `/agency/settings/slack-teams` | admin | `list_webhooks`, `list_help_guides` | — |
 | `/c/[clientId]` | admin | `get_client_profile`, `list_help_guides`, `get_workspace_overview`, `get_ad_activity`, `get_brief`, `list_alerts`, `list_briefs`, `list_moves`, `list_recommendations`, `list_trend_reports`, `get_starting_point_status`, `get_client_setup`, `get_ask_starters` | — |
 | `/c/[clientId] (client owner)` | ownerLoneStar | `get_starting_point_status`, `get_workspace_overview`, `list_briefs`, `get_brief` | — |
 | `/c/[clientId]/ads` | admin | `get_ad_activity`, `list_ads`, `get_client_profile`, `list_help_guides` | `list_ads`: one competitor runs no ads |
@@ -65,14 +65,14 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/settings/ai (client owner)` | ownerLoneStar | `get_client_profile`, `list_api_tokens` | — |
 | `/c/[clientId]/settings/alerts` | admin | `get_client_profile`, `get_alert_rules`, `list_help_guides` | — |
 | `/c/[clientId]/settings/runbook` | admin | `get_client_profile`, `get_runbook`, `list_help_guides` | — |
-| `/c/[clientId]/settings/delivery` | admin | `get_client_profile`, `list_help_guides` | — |
+| `/c/[clientId]/settings/delivery` | admin | `get_client_profile`, `list_client_recipients`, `list_help_guides` | — |
 | `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters`, `list_client_billing_status`, `list_help_guides` | — |
 | `/c/[clientId]/settings/billing (client owner)` | ownerLoneStar | `get_my_billing`, `get_client_profile`, `list_help_guides` | — |
 | `/agency/settings/billing` | admin | `get_billing_summary`, `get_connect_status`, `get_client_revenue`, `list_help_guides` | — |
 | `/onboarding (step=profile)` | admin | `get_onboarding_status`, `get_agency_profile`, `list_help_guides` | — |
 | `/onboarding (step=team)` | admin | `get_onboarding_status` | — |
 | `/onboarding (step=plan)` | admin | `get_onboarding_status`, `get_billing_summary` | — |
-| `/onboarding (step=branding)` | admin | `get_onboarding_status`, `fn:getAgencyBranding` | — |
+| `/onboarding (step=branding)` | admin | `get_onboarding_status`, `get_agency_branding` | — |
 | `/agency/clients/new` | admin | `list_help_guides` | — |
 | `/agency/prospects/new` | admin | `list_help_guides` | — |
 | `/paused` | admin | — | — |

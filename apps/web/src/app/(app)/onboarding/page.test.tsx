@@ -7,16 +7,15 @@ const m = vi.hoisted(() => ({
   status: { steps: { profile: 'open', team: 'open', plan: 'open', branding: 'open', first_client: 'open' }, dismissed: false, completed: false, redirected: true, source: 'open' } as Record<string, unknown>,
 }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: m.ctx, viewer: { kind: 'user' } }) }));
-vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/timezones', () => ({ timezoneOptions: () => ['UTC'] }));
 vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [{ id: 'dental', name: 'Dental', services: [] }] }));
-vi.mock('@cs/tools', () => ({ getAgencyBranding: async () => ({ stored: { displayName: 'Acme' }, resolved: { displayName: 'Acme' } }) }));
 vi.mock('@/server/tools', () => ({
   callTool: async (_c: unknown, name: string) => {
     if (m.ctx.role !== 'agency_admin') throw new Error('NEXT_NOT_FOUND');
     if (name === 'get_onboarding_status') return m.status;
     if (name === 'get_agency_profile') return { name: 'Acme' };
     if (name === 'get_billing_summary') return { state: 'trialing' };
+    if (name === 'get_agency_branding') return { stored: { displayName: 'Acme' }, resolved: { displayName: 'Acme' } };
     throw new Error(`unexpected ${name}`);
   },
 }));

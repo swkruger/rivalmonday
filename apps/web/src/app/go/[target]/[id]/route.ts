@@ -1,3 +1,4 @@
+import { recordSupportAccess } from '@cs/tools';
 import { NextResponse } from 'next/server';
 import { agencySuspended } from '@/server/billing-state';
 import { getViewer } from '@/server/current-viewer';
@@ -30,5 +31,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ target:
   }
   if (await agencySuspended(gate.viewer)) return new NextResponse('Not found', { status: 404 });
   const to = await goDestination(dbs().app, gate.viewer.ctx, target, id);
-  return to ? NextResponse.redirect(new URL(safeNext(to), env.appUrl)) : new NextResponse('Not found', { status: 404 });
+  if (!to) return new NextResponse('Not found', { status: 404 });
+  // 7a2 §4: in a support session the resolved link is audited in the target agency (the page it opens audits its own reads).
+  await recordSupportAccess(dbs().service, gate.viewer.ctx, { surface: 'go', subjectId: `${target}:${id}` });
+  return NextResponse.redirect(new URL(safeNext(to), env.appUrl));
 }

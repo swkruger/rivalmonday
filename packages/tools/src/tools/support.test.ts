@@ -92,6 +92,28 @@ describe('end_support_session', () => {
     expect(await registry.invoke(staff, 'end_support_session', {})).toEqual({ agencyId: null });
   });
 
+  it('end_support_session audits under the session agency', async () => {
+    const a = await start(staff, IDS.agencyB);
+    await registry.invoke(staff, 'end_support_session', {});
+    const rows = await dbs.owner.select().from(auditLog).where(eq(auditLog.tool, 'end_support_session'));
+    expect(rows).toEqual([expect.objectContaining({ agencyId: IDS.agencyB, userId: 'staff', role: 'platform_staff', outcome: 'ok', channel: 'web', supportSessionId: a.sessionId })]);
+    expect(webAudit.filter((e) => e.tool === 'end_support_session')).toHaveLength(0);
+    // No open session: the platform log, never the caller's own agency.
+    await registry.invoke(staff, 'end_support_session', {});
+    await registry.invoke(admin, 'end_support_session', {});
+    expect(await dbs.owner.select().from(auditLog).where(eq(auditLog.tool, 'end_support_session'))).toHaveLength(1);
+    expect((await dbs.owner.select().from(platformAuditLog).where(eq(platformAuditLog.tool, 'end_support_session'))).map((r) => [r.userId, r.outcome]).sort())
+      .toEqual([['admin', 'ok'], ['staff', 'ok']]);
+  });
+
+  it('a revoked operator ending a session audits as platform_viewer', async () => {
+    const a = await start(staff, IDS.agencyB);
+    await dbs.owner.update(platformAdmin).set({ revokedAt: new Date() }).where(eq(platformAdmin.userId, 'staff'));
+    await registry.invoke(staff, 'end_support_session', {});
+    const [row] = await dbs.owner.select().from(auditLog).where(eq(auditLog.tool, 'end_support_session'));
+    expect(row).toMatchObject({ agencyId: IDS.agencyB, role: 'platform_viewer', supportSessionId: a.sessionId });
+  });
+
   it('never touches another operator session', async () => {
     const a = await start(staff);
     expect(await registry.invoke(op, 'end_support_session', {})).toEqual({ agencyId: null });

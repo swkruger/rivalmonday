@@ -1,12 +1,13 @@
-import { getAgencyBranding } from '@cs/tools';
+import type { AgencyBranding } from '@cs/db';
+import type { Branding } from '@cs/email';
 import { notFound } from 'next/navigation';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
-import { dbs } from '@/server/db';
 import { helpGuides } from '@/server/help';
+import { callTool } from '@/server/tools';
 import { BrandingForm } from './branding-form';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +20,10 @@ const COPY = PAGE_COPY['agency.settings.branding'];
 export default async function BrandingPage() {
   const { ctx } = await requireContext();
   if (ctx.role !== 'agency_admin') notFound();
-  const [{ stored, resolved }, guides] = await Promise.all([getAgencyBranding(dbs().service, ctx), helpGuides(ctx, 'agency')]);
+  const [{ stored, resolved }, guides] = await Promise.all([
+    callTool<{ stored: AgencyBranding; resolved: Branding }>(ctx, 'get_agency_branding', {}),
+    helpGuides(ctx, 'agency'),
+  ]);
 
   return (
     <>

@@ -1,5 +1,6 @@
 import { createAccessContext, ToolError } from '@cs/core';
-import { brief, capture, client, evidence, rankMapImage, trackedPage, trendReport } from '@cs/db';
+import { hashInput } from '@cs/core/server';
+import { auditLog, brief, capture, client, evidence, rankMapImage, trackedPage, trendReport } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { briefPdfKey } from '@cs/engine';
 import { createMemoryStore, type ObjectStore } from '@cs/storage';
@@ -177,6 +178,22 @@ describe('serveEvidence', () => {
     expect(r.headers.get('cache-control')).toBe('private, no-store');
     const t = await serveEvidence({ clientId: IDS.clientA1, evidenceId: ids.text, ctx: am, registry, service: dbs.service, store });
     expect(t.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+  });
+
+  it('/files/evidence in a support session writes support_view_evidence (and nothing outside one or on a refusal)', async () => {
+    const support = createAccessContext({
+      agencyId: IDS.agencyA, userId: 'op', role: 'agency_admin', clientScope: 'all', features: [],
+      support: { sessionId: '00000000-0000-4000-8000-0000000005e5', platformUserId: 'op' },
+    });
+    const views = () => dbs.owner.select().from(auditLog).where(eq(auditLog.tool, 'support_view_evidence'));
+    expect((await serveEvidence({ clientId: IDS.clientA1, evidenceId: ids.screenshot, ctx: am, registry, service: dbs.service, store })).status).toBe(200);
+    expect(await views()).toEqual([]);
+    expect((await serveEvidence({ clientId: IDS.clientA1, evidenceId: ids.html, ctx: support, registry, service: dbs.service, store })).status).toBe(404);
+    expect(await views()).toEqual([]);
+    expect((await serveEvidence({ clientId: IDS.clientA1, evidenceId: ids.screenshot, ctx: support, registry, service: dbs.service, store })).status).toBe(200);
+    expect(await views()).toEqual([
+      expect.objectContaining({ agencyId: IDS.agencyA, userId: 'op', role: 'platform_support', supportSessionId: '00000000-0000-4000-8000-0000000005e5', inputHash: hashInput({ surface: 'evidence', subjectId: ids.screenshot }) }),
+    ]);
   });
 
   it('never serves html or vendor json, other tenants, bad ids or missing objects (Review Focus 1, 5)', async () => {

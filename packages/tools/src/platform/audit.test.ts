@@ -3,7 +3,7 @@ import { hashInput } from '@cs/core/server';
 import { auditLog, platformAuditLog } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { recordPlatformAudit, withPlatformAudit } from './audit';
+import { recordPlatformAudit, recordSupportAccess, withPlatformAudit } from './audit';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -55,5 +55,29 @@ describe('withPlatformAudit', () => {
     await withPlatformAudit(deps, op, { tool: 't_plain', input: {}, role: 'staff', agencyId: IDS.agencyB }, async () => 1);
     const rows = await dbs.owner.select({ tool: auditLog.tool, sid: auditLog.supportSessionId }).from(auditLog);
     expect(rows.sort((a, b) => a.tool.localeCompare(b.tool))).toEqual([{ tool: 't_plain', sid: null }, { tool: 't_sid', sid }]);
+  });
+});
+
+describe('recordSupportAccess (7a2 Task 7)', () => {
+  const sessionId = '00000000-0000-4000-8000-0000000005e5';
+  const support = createAccessContext({
+    agencyId: IDS.agencyB, userId: 'op', role: 'agency_admin', clientScope: 'all', features: [],
+    support: { sessionId, platformUserId: 'op' },
+  });
+
+  it('recordSupportAccess no-op outside support', async () => {
+    await recordSupportAccess(dbs.service, op, { surface: 'evidence', subjectId: 'e1' });
+    expect(await dbs.owner.select().from(auditLog)).toEqual([]);
+    expect(await dbs.owner.select().from(platformAuditLog)).toEqual([]);
+  });
+
+  it('writes one support_view_<surface> row in the session agency', async () => {
+    await recordSupportAccess(dbs.service, support, { surface: 'rank_map', subjectId: IDS.clientB1 });
+    expect(await dbs.owner.select().from(auditLog)).toEqual([
+      expect.objectContaining({
+        agencyId: IDS.agencyB, userId: 'op', role: 'platform_support', tool: 'support_view_rank_map', inputHash: hashInput({ surface: 'rank_map', subjectId: IDS.clientB1 }),
+        outcome: 'ok', channel: 'web', tokenId: null, rowCount: null, supportSessionId: sessionId,
+      }),
+    ]);
   });
 });

@@ -4,9 +4,9 @@ import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { pageOf, pageResult } from '../paging';
-import { requirePlatformOperator } from '../platform';
+import { platformRoleForUser, requirePlatformOperator } from '../platform';
 import { withPlatformAudit } from '../platform/audit';
-import { endOpenSessionFor, startSession } from '../platform/support';
+import { endOpenSessionRowFor, startSession } from '../platform/support';
 
 /**
  * Phase 8b support-session tools (spec § Tools). `start`/`end` run on the operator's own context (never a support context);
@@ -88,8 +88,19 @@ export const endSupportSession = defineTool({
   input: z.object({}),
   output: z.object({ agencyId: z.string().nullable() }),
   permission: 'agency',
-  async handler(ctx: AccessContext, _input, deps) {
-    return { agencyId: await endOpenSessionFor(deps.service, ctx.userId) };
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps) {
+    // 7a2 §4: the row lands in the ended session's agency (with its id); nothing open ⇒ the platform log. Anyone may
+    // call it (idempotent), so a non-operator (or a since-revoked one) is recorded as a platform viewer.
+    const role = (await platformRoleForUser(deps, ctx.userId)) ?? 'viewer';
+    return withPlatformAudit(deps, ctx, { tool: 'end_support_session', input, role }, async (note) => {
+      const ended = await endOpenSessionRowFor(deps.service, ctx.userId);
+      if (ended) {
+        note.agencyId = ended.agencyId;
+        note.supportSessionId = ended.id;
+      }
+      return { agencyId: ended?.agencyId ?? null };
+    });
   },
 });
 

@@ -1,6 +1,5 @@
 import { isAgencyRole, type Role } from '@cs/core';
-import type { ClientSummary } from '@cs/tools';
-import { listTeam } from '@cs/tools';
+import type { ClientSummary, PendingInvite, TeamMember } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
@@ -10,9 +9,7 @@ import { WriteGuard } from '@/components/read-only';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
-import { dbs } from '@/server/db';
 import { helpGuides } from '@/server/help';
-import { maskTeamForSupport } from '@/server/support-mask';
 import { callTool } from '@/server/tools';
 import { InviteForm, RemoveMemberButton, RevokeInvitationButton } from './invite-form';
 
@@ -32,9 +29,12 @@ function formatDate(d: Date): string {
 export default async function TeamPage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const [team, { items: clients }, guides] = await Promise.all([listTeam(dbs().service, ctx), callTool<{ items: ClientSummary[] }>(ctx, 'list_clients', {}), helpGuides(ctx, 'agency')]);
-  // Phase 8b: emails are masked in a support session before anything reaches a client component.
-  const { members, invitations } = maskTeamForSupport(ctx, team);
+  // 7a2: a registered read (audited in a support session); 8b masks its emails there before anything reaches a client component.
+  const [{ members, invitations }, { items: clients }, guides] = await Promise.all([
+    callTool<{ members: TeamMember[]; invitations: PendingInvite[] }>(ctx, 'get_team', {}),
+    callTool<{ items: ClientSummary[] }>(ctx, 'list_clients', {}),
+    helpGuides(ctx, 'agency'),
+  ]);
   const clientName = new Map(clients.map((c) => [c.id, c.name]));
 
   const scopeLabel = (m: { clientId: string | null; clientScope: string[] | null }): string => {

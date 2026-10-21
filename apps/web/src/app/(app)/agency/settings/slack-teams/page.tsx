@@ -1,4 +1,4 @@
-import { listWebhooks } from '@cs/tools';
+import type { WebhookView } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
@@ -8,8 +8,8 @@ import { WriteGuard } from '@/components/read-only';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
-import { dbs } from '@/server/db';
 import { helpGuides } from '@/server/help';
+import { callTool } from '@/server/tools';
 import { AddWebhookForm, WebhookToggle } from './webhook-controls';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +24,7 @@ const KIND_LABEL: Record<string, string> = { slack: 'Slack', teams: 'Teams' };
 export default async function WebhooksPage() {
   const { ctx } = await requireContext();
   if (ctx.role !== 'agency_admin') notFound();
-  const [webhooks, guides] = await Promise.all([listWebhooks(dbs().service, ctx), helpGuides(ctx, 'agency')]);
+  const [{ items: webhooks }, guides] = await Promise.all([callTool<{ items: WebhookView[] }>(ctx, 'list_webhooks', {}), helpGuides(ctx, 'agency')]);
 
   return (
     <>
