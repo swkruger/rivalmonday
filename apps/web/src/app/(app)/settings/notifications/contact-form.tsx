@@ -55,7 +55,7 @@ export function ContactForm({
           <Input id="quietEnd" name="quietEnd" type="time" defaultValue={quietHours?.end ?? ''} className="w-36" />
         </div>
       </div>
-      <p className="text-sm text-muted-foreground">No notifications by email in this window (in-app still arrive).</p>
+      <p className="text-sm text-muted-foreground">Emails in this window are held and sent when it ends (in-app notices still arrive at once).</p>
       <Button type="submit" disabled={pending} className="self-start">
         Save
       </Button>

@@ -36,14 +36,14 @@ export const ACCOUNT_COPY = {
       // source: apps/web/src/components/shell/avatar-menu.tsx (Notification settings link); packages/engine/src/delivery/contacts.ts:recipientsFor (a switched-off channel is skipped, so a notice is not created)
       choose: {
         title: 'Choosing what arrives',
-        body: 'Notification settings, in the account menu, has two switches for each kind of notice: In-app and Email. Switch In-app off and new notices of that kind stop appearing here; the ones already here stay.',
+        body: 'If you have an account menu, Notification settings there has two switches for each kind of notice: In-app and Email. Switch In-app off and new notices of that kind stop appearing here; the ones already here stay.',
         guideAnchor: 'how-to-use-it',
       },
     },
     empty: {
       none: {
         title: 'Nothing here yet',
-        body: 'Alerts, briefs and reports you receive appear here, newest first. Choose which ones in Notification settings, in the account menu.',
+        body: 'Alerts, briefs and reports you receive appear here, newest first. If you have an account menu, you can choose which ones in Notification settings.',
       },
     },
   },

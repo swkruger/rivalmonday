@@ -25,7 +25,7 @@ Three sign-ins cover everything. About 45 minutes in total.
 
 | # | Decision | Where | Current state |
 |---|---|---|---|
-| A1 | **Quiet hours wording.** The page's own hint says "No notifications by email in this window (in-app still arrive)". The tip and guides say emails are *held and sent when the window ends*, because that is what the delivery code does (`notBefore`). The hint on the page itself was left as it was. | Notification settings | Tip and guides new; page hint unchanged. Owner may want the hint changed to match. |
+| A1 | **Quiet hours wording (changed).** The page hint read "No notifications by email in this window (in-app still arrive)." but the code holds those emails and sends them when the window ends (`outbox.ts:notify`, `notBefore`). The hint now reads "Emails in this window are held and sent when it ends (in-app notices still arrive at once)." (`contact-form.tsx`); tip and guides say the same. | Notification settings | Changed in Task 9b fix round 1. |
 | A2 | **"Business time zone" for agency staff means US Central.** The option label is shared with client contacts (where it is the business's zone); for an agency contact the code falls back to America/Chicago. The tip and guide say so; the option label is unchanged. | Notification settings | Stated in copy. |
 | A3 | **Empty states replaced one-liners**: "Nothing here yet. Alerts, briefs and reports you receive also appear here." became a titled state "Nothing here yet" with a next step; "You have no notification settings yet." became "No notification settings yet" with an explanation. | Inbox, Notification settings | Changed. |
 | A4 | **Wizard plan tip states no trial numbers.** The plan step already shows its own trial note (1 client weekly, 3 daily with a card); the tip points to that note rather than repeating the numbers, so the two cannot drift. | Setup wizard | As described. |
@@ -950,8 +950,8 @@ Pages: Inbox (`/inbox`), Notification settings (`/settings/notifications`) and t
 | Tip `unread` | all | **Unread and read**: A bold title is unread. Selecting a notification marks it read and takes you to the page it is about; a notice with nothing to open brings you back here. Mark all read marks every notification you have, not only the ones on this page. | apps/web/src/app/(app)/inbox/page.tsx (unread title font-bold, read font-medium); inbox/actions.ts:openNotification (markRead then redirect to the notice's page, or back to /inbox when it has none), markAllReadAction |
 | Tip `labelsAgency` | agency | **What the labels mean**: The grey label names the kind of notice. Client alerts (agency): an alert to review, or one that was already sent, for a client you cover. Brief ready for review and Brief failed: a client's weekly brief is ready for your approval, or could not be produced. Brief overdue: a brief was still waiting for approval at 07:00 client time. Rank scan skipped: a map ranking scan would have gone over the client's monthly cost cap. Competitor suggestions ready, Client updated their setup and Setup waiting on you: where a client's setup stands. Quarterly report: a client's quarterly report is ready. | apps/web/src/server/inbox.ts:NOTIFICATION_KIND_LABELS; packages/db/src/schema/delivery.ts:CLIENT_KINDS, AGENCY_KINDS; packages/engine/src/alerts/route.ts:notifyAm (alert to review or sent), briefs/notify.ts (brief ready or failed), briefs/deliver.ts:notifyOverdue (not sent at 07:00 client time), delivery/rank-notices.ts:notifyRankScanSkipped (monthly cost cap); apps/worker/src/jobs/setup.ts (setup reminders: suggestions ready, client changed their setup, idle) |
 | Tip `labelsClient` | client | **What the labels mean**: The grey label names the kind of notice. Instant alerts: one change that matters, sent when it is ready. Alert digest: alerts held back for an evening roundup. Weekly brief: your brief for the week. Quarterly report: the report written after each quarter. | apps/web/src/server/inbox.ts:NOTIFICATION_KIND_LABELS; packages/db/src/schema/delivery.ts:CLIENT_KINDS (alert, alert_digest, brief, trend_report); packages/engine/src/alerts/route.ts, alerts/digest.ts, briefs/deliver.ts, reports/quarterly.ts |
-| Tip `choose` | all | **Choosing what arrives**: Notification settings, in the account menu, has two switches for each kind of notice: In-app and Email. Switch In-app off and new notices of that kind stop appearing here; the ones already here stay. | apps/web/src/components/shell/avatar-menu.tsx (Notification settings link); packages/engine/src/delivery/contacts.ts:recipientsFor (a switched-off channel is skipped, so a notice is not created) |
-| Empty `none` | all | **Nothing here yet**: Alerts, briefs and reports you receive appear here, newest first. Choose which ones in Notification settings, in the account menu. | teaching empty state (no figures) |
+| Tip `choose` | all | **Choosing what arrives**: If you have an account menu, Notification settings there has two switches for each kind of notice: In-app and Email. Switch In-app off and new notices of that kind stop appearing here; the ones already here stay. | apps/web/src/components/shell/avatar-menu.tsx (Notification settings link); packages/engine/src/delivery/contacts.ts:recipientsFor (a switched-off channel is skipped, so a notice is not created) |
+| Empty `none` | all | **Nothing here yet**: Alerts, briefs and reports you receive appear here, newest first. If you have an account menu, you can choose which ones in Notification settings. | teaching empty state (no figures) |
 
 ### account.settings.notifications (Notification settings)
 
@@ -1035,7 +1035,7 @@ Each row shows the title, the time, the start of the message and a grey label fo
 
 1. **Open a notice.** Select a row. It is marked read and you land on the page it is about, such as the alert or the brief. A notice with nothing to open brings you back here.
 2. **Clear the bold.** **Mark all read** marks every notification you have as read, including any older than the 100 shown.
-3. **Choose what arrives.** Open **Notification settings** from the account menu. Each kind of notice has an **In-app** and an **Email** switch. Switching In-app off stops new notices of that kind appearing here; the ones already here stay.
+3. **Choose what arrives.** If you have an account menu, open **Notification settings** there. Each kind of notice has an **In-app** and an **Email** switch. Switching In-app off stops new notices of that kind appearing here; the ones already here stay.
 
 ## Common questions
 
@@ -1083,7 +1083,7 @@ Each row shows the title, the time, the start of the message and a grey label fo
 
 1. **Open a notice.** Select a row. It is marked read and you land on the page it is about, such as the alert or the brief. A notice with nothing to open brings you back here.
 2. **Clear the bold.** **Mark all read** marks every notification you have as read, including any older than the 100 shown.
-3. **Choose what arrives.** Open **Notification settings** from the account menu. Each kind of notice has an **In-app** and an **Email** switch. Switching In-app off stops new notices of that kind appearing here; the ones already here stay.
+3. **Choose what arrives.** If you have an account menu, open **Notification settings** there. Each kind of notice has an **In-app** and an **Email** switch. Switching In-app off stops new notices of that kind appearing here; the ones already here stay.
 
 ## Common questions
 
