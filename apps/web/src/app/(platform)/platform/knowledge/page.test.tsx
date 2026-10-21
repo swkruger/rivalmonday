@@ -2,7 +2,7 @@
 import { ToolError } from '@cs/core';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HelpProvider } from '@/components/help/help-context';
+import { HelpProvider } from '@/components/help/help-provider';
 
 const h = vi.hoisted(() => ({
   invoke: vi.fn(),

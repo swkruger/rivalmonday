@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { LineChart } from '@/components/charts/line-chart';
 import { clientCrumbs } from '@/components/client-crumbs';
-import { EmptyState } from '@/components/help/empty-state';
+import { EmptyState, HelpEmpty } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
@@ -67,8 +67,9 @@ export default async function PricingPage({ params, searchParams }: {
       />
       {matrix.rows.length === 0 ? (
         <>
-          <EmptyState {...COPY.empty.noCompetitorsAgency} />
-          <EmptyState {...COPY.empty.noCompetitorsClient} />
+          {/* By key: only the viewer's variant is in the help payload, so the other never reaches the browser (I1). */}
+          <HelpEmpty id="client.pricing.noCompetitorsAgency" />
+          <HelpEmpty id="client.pricing.noCompetitorsClient" />
         </>
       ) : (
         <>

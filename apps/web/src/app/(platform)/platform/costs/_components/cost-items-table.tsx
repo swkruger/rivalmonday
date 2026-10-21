@@ -1,9 +1,8 @@
 'use client';
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { useActionState } from 'react';
-import { EmptyState } from '@/components/help/empty-state';
+import { HelpEmpty } from '@/components/help/empty-state';
 import { useReadOnly, WriteGuard } from '@/components/read-only';
-import { PAGE_COPY } from '@/help/copy';
 import type { FormResult } from '@/server/forms';
 import { formatUsd } from '@/server/format';
 import { archiveCostItemAction } from '../actions';
@@ -44,7 +43,7 @@ function ArchiveButton({ item }: { item: CostItem }) {
 /** Manual costs. The Actions column is dropped in a read-only session (nothing to put in it). */
 export function CostItemsTable({ items }: { items: CostItem[] }) {
   const readOnly = useReadOnly();
-  if (items.length === 0) return <EmptyState {...PAGE_COPY['platform.costs'].empty.manual} guideAnchor="common-questions" />;
+  if (items.length === 0) return <HelpEmpty id="platform.costs.manual" guideAnchor="common-questions" />;
   return (
     <Table>
       <TableHeader>

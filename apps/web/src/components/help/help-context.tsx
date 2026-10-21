@@ -1,16 +1,24 @@
 'use client';
 import { NEUTRAL_AGENCY_NAME, type ViewerAudience } from '@cs/core';
 import { createContext, useContext, useEffect, useSyncExternalStore } from 'react';
-import { renderCopy } from '@/help/copy';
+import type { EmptyKey } from '@/help/copy';
+import type { HelpCopy } from '@/help/copy/payload';
+import { renderCopy } from '@/help/render';
 
-export interface HelpValue { audience: ViewerAudience; names: { agency: string; assistant: string; client?: string } }
+export interface HelpViewer { audience: ViewerAudience; names: { agency: string; assistant: string; client?: string } }
+/** `copy`: the short help copy this viewer's audience may read, resolved on the server (`helpCopyFor`; final review I1). */
+export interface HelpValue extends HelpViewer { copy: HelpCopy }
 
-/** Outside a provider: the most restrictive audience and neutral names. */
-const FALLBACK: HelpValue = { audience: 'client', names: { agency: NEUTRAL_AGENCY_NAME, assistant: 'your assistant' } };
+/** Outside a provider: the most restrictive audience, neutral names and no copy. */
+const FALLBACK: HelpValue = { audience: 'client', names: { agency: NEUTRAL_AGENCY_NAME, assistant: 'your assistant' }, copy: { tips: {}, empty: {}, terms: [] } };
 
 const HelpContext = createContext<HelpValue>(FALLBACK);
 
-export function HelpProvider({ value, children }: { value: HelpValue; children: React.ReactNode }) {
+/**
+ * The client half of the help provider. Server code renders `HelpProvider` (`./help-provider`), which resolves `copy`
+ * for the viewer's audience; this one only carries the value (and `ClientHelpName` re-provides it with the client name).
+ */
+export function HelpClientProvider({ value, children }: { value: HelpValue; children: React.ReactNode }) {
   return <HelpContext.Provider value={value}>{children}</HelpContext.Provider>;
 }
 
@@ -18,6 +26,10 @@ export function useHelp(): HelpValue {
   return useContext(HelpContext);
 }
 
+/** A page's empty-state copy from the provider, or null when it is not for this viewer (render nothing then). */
+export function useEmptyCopy(key: EmptyKey): HelpCopy['empty'][string] | null {
+  return useContext(HelpContext).copy.empty[key] ?? null;
+}
 /** A short-copy string (`PAGE_COPY`) rendered with the viewer's names; for server pages that pass copy into markup. */
 export function HelpText({ text }: { text: string }) {
   const { names, audience } = useHelp();

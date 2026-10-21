@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HelpProvider } from '@/components/help/help-context';
+import { HelpProvider } from '@/components/help/help-provider';
 
 /**
  * 15b-2 Task 5, client batch B (Recommendations, Ask, Ask thread, Briefs & reports, Brief, Alert, Report, Evidence,

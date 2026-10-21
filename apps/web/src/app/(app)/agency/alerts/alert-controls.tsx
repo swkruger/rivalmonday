@@ -2,9 +2,8 @@
 import type { AlertQueueRow } from '@cs/tools';
 import { Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label } from '@cs/ui';
 import { useActionState } from 'react';
-import { EmptyState } from '@/components/help/empty-state';
+import { HelpEmpty } from '@/components/help/empty-state';
 import { WriteGuard } from '@/components/read-only';
-import { PAGE_COPY } from '@/help/copy';
 import type { FormResult } from '@/server/forms';
 import { approveAlertAction, dismissAlertAction } from './actions';
 import { ErrorNote } from '@/components/form-error';
@@ -123,7 +122,7 @@ export function AlertList({ items, assistantName }: { items: AlertQueueRow[]; as
     <>
       {flash && <Message state={result} />}
       {items.length === 0 ? (
-        <EmptyState title={PAGE_COPY['agency.alerts'].empty.noAlerts.title} body={PAGE_COPY['agency.alerts'].empty.noAlerts.body} guideAnchor="what-this-page-tells-you" />
+        <HelpEmpty id="agency.alerts.noAlerts" guideAnchor="what-this-page-tells-you" />
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((item) => (

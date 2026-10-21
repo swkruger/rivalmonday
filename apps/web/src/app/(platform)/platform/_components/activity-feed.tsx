@@ -2,8 +2,7 @@
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { ErrorNote } from '@/components/form-error';
-import { EmptyState } from '@/components/help/empty-state';
-import { PAGE_COPY } from '@/help/copy';
+import { HelpEmpty } from '@/components/help/empty-state';
 
 export type ActivityKind = 'agency_created' | 'client_created' | 'client_activated' | 'first_brief_sent' | 'health_at_risk' | 'support_session_started';
 export interface ActivityItem {
@@ -39,7 +38,7 @@ export function ActivityFeed({ initial, loadMore }: { initial: ActivityPage; loa
   const [page, setPage] = useState(initial);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  if (page.items.length === 0) return <EmptyState {...PAGE_COPY['platform.overview'].empty.activity} guideAnchor="common-questions" />;
+  if (page.items.length === 0) return <HelpEmpty id="platform.overview.activity" guideAnchor="common-questions" />;
   const more = () => {
     const cursor = page.nextCursor;
     if (!cursor) return;

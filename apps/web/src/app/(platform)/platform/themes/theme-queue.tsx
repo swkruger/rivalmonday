@@ -4,8 +4,7 @@ import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, Tab
 import { useActionState } from 'react';
 import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
-import { EmptyState } from '@/components/help/empty-state';
-import { PAGE_COPY } from '@/help/copy';
+import { HelpEmpty } from '@/components/help/empty-state';
 
 type Action = (prev: FormResult, fd: FormData) => Promise<FormResult>;
 
@@ -22,7 +21,7 @@ export function ThemeQueue({ pending, decided, action }: { pending: ThemeProposa
     <div className="flex flex-col gap-5">
       {!result.ok && <ErrorNote focusKey={result}>{result.error}</ErrorNote>}
       {result.ok && result.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{result.message}</p>}
-      {pending.length === 0 && <EmptyState {...PAGE_COPY['platform.themes'].empty.queue} guideAnchor="what-this-page-tells-you" />}
+      {pending.length === 0 && <HelpEmpty id="platform.themes.queue" guideAnchor="what-this-page-tells-you" />}
       {pending.map((p) => (
         <div key={p.id} className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
           <div className="text-sm text-muted-ink">{p.verticalName} · {p.otherCount} reviews with no topic</div>

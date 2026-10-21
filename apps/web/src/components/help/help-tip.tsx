@@ -1,28 +1,30 @@
 'use client';
-import { GLOSSARY, type GlossaryTerm, visibleAudiences } from '@cs/core';
+import { type GlossaryTerm, visibleAudiences } from '@cs/core';
 import { Popover, PopoverContent, PopoverTrigger } from '@cs/ui';
 import { useEffect, useRef, useState } from 'react';
-import { OPEN_PAGE_GUIDE_EVENT, renderCopy, resolveTip, type TipKey } from '@/help/copy';
+import type { TipKey } from '@/help/copy';
+import { OPEN_PAGE_GUIDE_EVENT, renderCopy } from '@/help/render';
 import { useHelp, usePageGuideAvailable } from './help-context';
 
 type Props = ({ term: string } | { tip: TipKey }) & {
   label?: string;
-  /** Test seam: the glossary to look terms up in (defaults to the real one). */
+  /** Test seam: the glossary to look terms up in (defaults to the viewer's terms from `HelpProvider`). */
   terms?: readonly GlossaryTerm[];
 };
 
 interface Resolved { title: string; body: string; long?: string; guideAnchor?: string; label: string; visible: boolean }
 
 function useResolved(props: Props): Resolved | null {
-  const { audience, names } = useHelp();
+  const { audience, names, copy } = useHelp();
   const ok = visibleAudiences(audience);
   if ('tip' in props) {
-    const tip = resolveTip(props.tip);
+    // The provider holds only this viewer's tips (final review I1): a tip that is not there is not for them.
+    const tip = copy.tips[props.tip];
     if (!tip) return null;
     const title = renderCopy(tip.title, names, audience);
     return { title, body: renderCopy(tip.body, names, audience), guideAnchor: tip.guideAnchor, label: props.label ?? title, visible: ok.includes(tip.audience ?? 'all') };
   }
-  const list = props.terms ?? GLOSSARY;
+  const list = props.terms ?? copy.terms;
   const t = list.find((x) => x.id === props.term) ?? list.find((x) => x.term === props.term);
   if (!t) return null;
   return { title: t.term, body: renderCopy(t.short, names, audience), long: t.long ? renderCopy(t.long, names, audience) : undefined, label: props.label ?? `What is ${t.term}?`, visible: ok.includes(t.audience) };

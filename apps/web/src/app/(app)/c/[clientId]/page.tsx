@@ -18,7 +18,7 @@ import { AskCard } from '@/components/ask/ask-card';
 import { foldSeries, LineChart } from '@/components/charts/line-chart';
 import { ClientHomeBasic } from '@/components/client-home-basic';
 import { AlertLinkList, BriefLinkList } from '@/components/client-lists';
-import { EmptyState } from '@/components/help/empty-state';
+import { EmptyState, HelpEmpty } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
@@ -131,7 +131,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
               <HelpTip tip="client.overview.pressure" />
             </div>
             <div className="mt-3 flex flex-col gap-3">
-              {overview.pressure.length === 0 && <EmptyState {...(agency ? COPY.empty.noCompetitorsAgency : COPY.empty.noCompetitorsClient)} />}
+              {overview.pressure.length === 0 && <HelpEmpty id={agency ? 'client.overview.noCompetitorsAgency' : 'client.overview.noCompetitorsClient'} />}
               {overview.pressure.map((p) => (
                 <div key={p.competitorId}>
                   <div className="flex items-baseline justify-between gap-2">

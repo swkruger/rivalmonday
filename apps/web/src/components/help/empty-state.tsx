@@ -1,7 +1,17 @@
 'use client';
 import { type HelpAudience, visibleAudiences } from '@cs/core';
-import { OPEN_PAGE_GUIDE_EVENT, renderCopy } from '@/help/copy';
-import { useHelp, usePageGuideAvailable } from './help-context';
+import type { EmptyKey } from '@/help/copy';
+import { OPEN_PAGE_GUIDE_EVENT, renderCopy } from '@/help/render';
+import { useEmptyCopy, useHelp, usePageGuideAvailable } from './help-context';
+
+/**
+ * An `EmptyState` whose copy a client component reads by key (`<page key>.<id>`) from the shell's `HelpProvider`, so the
+ * copy never sits in the client bundle (final review I1). Renders nothing when the copy is not for this viewer.
+ */
+export function HelpEmpty({ id, action, guideAnchor }: { id: EmptyKey; action?: React.ReactNode; guideAnchor?: string }) {
+  const copy = useEmptyCopy(id);
+  return copy ? <EmptyState {...copy} action={action} guideAnchor={guideAnchor} /> : null;
+}
 
 /**
  * A teaching empty state: what this place is for, and the next step (`action`). `title` and `body` may carry the short-copy

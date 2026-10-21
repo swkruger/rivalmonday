@@ -5,13 +5,12 @@ import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState, useTransition } from 'react';
-import { EmptyState } from '@/components/help/empty-state';
+import { HelpEmpty } from '@/components/help/empty-state';
 import { HelpTip } from '@/components/help/help-tip';
 import { useReadOnly } from '@/components/read-only';
 import { SignalPills } from '@/components/rival/signal-pills';
 import { ratedLabel } from '@/components/rival/rated-label';
 import { TIER_LABEL, TierChip } from '@/components/rival/tier-chip';
-import { PAGE_COPY } from '@/help/copy';
 import type { FormResult } from '@/server/forms';
 import { acceptSuggestionsAction, addCompetitorAction, dismissSuggestionAction, removeCompetitorAction, requestSuggestionsAction, type SearchState, type SearchStatus, searchStatusAction } from './actions';
 import { ErrorNote } from '@/components/form-error';
@@ -60,8 +59,6 @@ function DismissSuggestionForm({ clientId, suggestion, action, pending }: { clie
     </form>
   );
 }
-
-const COPY = PAGE_COPY['client.competitors'];
 
 const FAST_POLL_MS = 5_000;
 const SLOW_POLL_MS = 10_000;
@@ -450,13 +447,13 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
       {items.length === 0 ? (
         canRemove ? (
           <>
-            <EmptyState {...COPY.empty.noTrackedAgency} />
-            <EmptyState {...COPY.empty.noTrackedManage} />
+            <HelpEmpty id="client.competitors.noTrackedAgency" />
+            <HelpEmpty id="client.competitors.noTrackedManage" />
           </>
         ) : (
           <>
-            <EmptyState {...COPY.empty.noTrackedReadOnly} />
-            <EmptyState {...COPY.empty.noTrackedView} />
+            <HelpEmpty id="client.competitors.noTrackedReadOnly" />
+            <HelpEmpty id="client.competitors.noTrackedView" />
           </>
         )
       ) : (

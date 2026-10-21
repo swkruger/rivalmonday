@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { HelpProvider } from '@/components/help/help-context';
+import { HelpProvider } from '@/components/help/help-provider';
 import { ActivityFeed, type ActivityItem } from './activity-feed';
 import { HealthPill } from './health-pill';
 import { RangeToggle } from './range-toggle';

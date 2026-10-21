@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HelpProvider } from '@/components/help/help-context';
+import { HelpProvider } from '@/components/help/help-provider';
 import { PAGE_COPY, type PageCopy } from '@/help/copy';
 
 /**

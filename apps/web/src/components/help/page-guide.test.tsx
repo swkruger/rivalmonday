@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OPEN_PAGE_GUIDE_EVENT } from '@/help/copy';
 import { ReadOnlyProvider } from '@/components/read-only';
-import { HelpProvider } from './help-context';
+import { HelpProvider } from './help-provider';
 
 const m = vi.hoisted(() => ({ path: '/agency' }));
 vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));

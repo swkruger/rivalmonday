@@ -7,7 +7,7 @@ import { loadPageGuide } from '@/app/(app)/kb/actions';
 import { ErrorNote } from '@/components/form-error';
 import { KbMarkdown } from '@/components/kb/article-view';
 import { useReadOnly } from '@/components/read-only';
-import { OPEN_PAGE_GUIDE_EVENT } from '@/help/copy';
+import { OPEN_PAGE_GUIDE_EVENT } from '@/help/render';
 import { useHelp, useRegisterPageGuide } from './help-context';
 
 export interface PageGuideData { id: string; title: string; sections: { heading: string; markdown: string }[] }

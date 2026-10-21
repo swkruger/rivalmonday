@@ -2,7 +2,8 @@
 import { createAccessContext } from '@cs/core';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HelpProvider, useHelp } from '@/components/help/help-context';
+import { useHelp } from '@/components/help/help-context';
+import { HelpProvider } from '@/components/help/help-provider';
 
 const m = vi.hoisted(() => ({ ctx: null as unknown, name: null as string | null, reads: 0 }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: m.ctx }) }));

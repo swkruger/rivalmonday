@@ -3,6 +3,7 @@ import { join, relative, sep } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { PAGE_COPY, resolveTip } from './copy';
+import { AGENCY_ONLY_CLIENT_KEYS, AGENCY_ONLY_CLIENT_ROUTES, CLIENT_ONLY_CLIENT_ROUTES, clientPageKeyOf } from './reach';
 
 /**
  * Phase 15b-2 gate (P3): the help wave stays complete. Statically scans every `page.tsx`:
@@ -22,10 +23,9 @@ type Audience = 'agency' | 'client' | 'operator';
 
 /** Help/KB hubs that list guides rather than being one. */
 const EXEMPT = ['/platform/help', '/agency/help', '/c/[clientId]/help', '/kb/[id]'];
-/** `/c/[clientId]` pages that 404 client roles: agency guide only. */
-const AGENCY_ONLY_CLIENT_PAGES = ['/c/[clientId]/pitch-snapshot', '/c/[clientId]/settings/delivery', '/c/[clientId]/settings/runbook'];
-/** `/c/[clientId]` pages only the client owner reaches (agency staff 404): client guide only. */
-const CLIENT_ONLY_CLIENT_PAGES = ['/c/[clientId]/settings/billing'];
+/** `/c/[clientId]` pages that 404 client roles (agency guide only) or agency staff (client guide only); one source, `./reach`. */
+const AGENCY_ONLY_CLIENT_PAGES: readonly string[] = AGENCY_ONLY_CLIENT_ROUTES;
+const CLIENT_ONLY_CLIENT_PAGES: readonly string[] = CLIENT_ONLY_CLIENT_ROUTES;
 /** Routes outside /c, /agency and /platform that show a PageHeader, with who reaches them. */
 const ACCOUNT_ROUTES: Record<string, Audience[]> = {
   '/inbox': ['agency', 'client'],
@@ -189,5 +189,10 @@ describe('help coverage gate (P3)', () => {
   it('the declared page lists point at real routes', () => {
     const routes = new Set(walk(APP, (n) => n === 'page.tsx').map(routeOf));
     for (const r of [...AGENCY_ONLY_CLIENT_PAGES, ...CLIENT_ONLY_CLIENT_PAGES, ...EXEMPT, ...Object.keys(ACCOUNT_ROUTES)]) expect(routes.has(r), r).toBe(true);
+  });
+
+  it('the agency-only client page keys (leak gate, client payload) are derived from the routes and name real copy pages', () => {
+    expect([...AGENCY_ONLY_CLIENT_KEYS]).toEqual(AGENCY_ONLY_CLIENT_PAGES.map(clientPageKeyOf));
+    for (const k of AGENCY_ONLY_CLIENT_KEYS) expect(Object.keys(PAGE_COPY), k).toContain(k);
   });
 });

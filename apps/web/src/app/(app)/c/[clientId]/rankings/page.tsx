@@ -9,7 +9,7 @@ import { GeoGrid } from '@/components/charts/geo-grid';
 import { LineChart } from '@/components/charts/line-chart';
 import { RankTrend } from '@/components/charts/rank-trend';
 import { clientCrumbs } from '@/components/client-crumbs';
-import { EmptyState } from '@/components/help/empty-state';
+import { EmptyState, HelpEmpty } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
@@ -117,21 +117,22 @@ export default async function RankingsPage({ params, searchParams }: {
 
       {geo.setup === 'no_keywords' ? (
         <>
-          <EmptyState
-            {...COPY.empty.noKeywordsAgency}
+          {/* By key: only the viewer's variant is in the help payload, so the other never reaches the browser (I1). */}
+          <HelpEmpty
+            id="client.rankings.noKeywordsAgency"
             action={<Link href={`/c/${clientId}/settings/profile`} className="text-sm font-semibold text-primary-soft-text">Open Business profile</Link>}
           />
-          <EmptyState {...COPY.empty.noKeywordsClient} />
+          <HelpEmpty id="client.rankings.noKeywordsClient" />
         </>
       ) : geo.setup === 'no_scan' ? (
         <EmptyState {...COPY.empty.noScan} />
       ) : noBusiness ? (
         <>
-          <EmptyState
-            {...COPY.empty.noBusinessAgency}
+          <HelpEmpty
+            id="client.rankings.noBusinessAgency"
             action={<Link href={`/c/${clientId}/settings/profile`} className="text-sm font-semibold text-primary-soft-text">Open Business profile</Link>}
           />
-          <EmptyState {...COPY.empty.noBusinessClient} />
+          <HelpEmpty id="client.rankings.noBusinessClient" />
         </>
       ) : (
         <>

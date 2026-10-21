@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { HelpProvider } from '@/components/help/help-context';
+import { HelpProvider } from '@/components/help/help-provider';
 import { AgencyTable, type AgencyRow } from './agency-table';
 
 const NOW = new Date('2026-10-13T12:00:00.000Z');

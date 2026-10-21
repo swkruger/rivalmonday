@@ -76,10 +76,11 @@ const Evidence = await import('@/app/(app)/c/[clientId]/evidence/[evidenceId]/pa
 const { ConnectorUrlCard } = await import('@/components/ai-connections');
 const { AskChat } = await import('@/components/ask/ask-chat');
 const ClientHelp = await import('@/app/(app)/c/[clientId]/help/page');
-const { HelpProvider } = await import('@/components/help/help-context');
+const { HelpProvider } = await import('@/components/help/help-provider');
 const { HelpTip } = await import('@/components/help/help-tip');
 const { PageGuide } = await import('@/components/help/page-guide');
 const { PAGE_COPY, renderCopy } = await import('@/help/copy');
+const { AGENCY_ONLY_CLIENT_KEYS } = await import('@/help/reach');
 const { renderKbText, NEUTRAL_AGENCY_NAME, GLOSSARY } = await import('@cs/core');
 const { readdirSync, readFileSync } = await import('node:fs');
 const { join } = await import('node:path');
@@ -204,10 +205,23 @@ describe('white-label leak guard (15a §2.10)', () => {
   });
 
   it('every pilot tip, opened for a client, renders with the agency and assistant names and no product name', () => {
-    // Agency-only tips render nothing for a client (HelpTip's audience check); every other tip must open.
-    const keys = (Object.keys(PAGE_COPY) as (keyof typeof PAGE_COPY)[]).flatMap((page) =>
+    // Agency-only tips, and every tip on an agency or platform page, are not in a client's help payload (final review I1),
+    // so they render nothing; every other tip must open.
+    const reachable = (page: string) => (page.startsWith('client.') && !AGENCY_ONLY_CLIENT_KEYS.has(page)) || page.startsWith('account.');
+    const keys = (Object.keys(PAGE_COPY) as (keyof typeof PAGE_COPY)[]).filter(reachable).flatMap((page) =>
       Object.entries(PAGE_COPY[page].tips ?? {}).filter(([, t]) => ['all', 'client'].includes(t.audience ?? 'all')).map(([id]) => `${page}.${id}`));
     expect(keys.length).toBeGreaterThan(0);
+    const unreachable = (Object.keys(PAGE_COPY) as (keyof typeof PAGE_COPY)[]).filter((p) => !reachable(p)).flatMap((page) => Object.keys(PAGE_COPY[page].tips ?? {}).map((id) => `${page}.${id}`));
+    expect(unreachable.length).toBeGreaterThan(0);
+    for (const key of unreachable) {
+      const { container, unmount } = render(
+        <HelpProvider value={{ audience: 'client', names: { agency: WHITE_LABEL.displayName, assistant: 'Sunny' } }}>
+          <HelpTip tip={key as never} />
+        </HelpProvider>,
+      );
+      expect(container.innerHTML, key).toBe('');
+      unmount();
+    }
     for (const key of keys) {
       const { unmount } = render(
         <HelpProvider value={{ audience: 'client', names: { agency: WHITE_LABEL.displayName, assistant: 'Sunny' } }}>
@@ -231,12 +245,15 @@ describe('white-label leak guard (15a §2.10)', () => {
  * name, never a placeholder left over, never wording that belongs to the agency side.
  */
 describe('help content a client can reach (15b-2)', () => {
-  /** Agency-side vocabulary a client-facing string must not use (copy rules: routing, upsell, seats, review queue, AMs, spend, vendors, thresholds). */
-  const AGENCY_ONLY = /\b(routing|upsell|seats?|review queue|approvals?|account managers?|spend|DataForSEO|Stadia|OpenRouter|Jev|TypeSafe)\b|confidence threshold/i;
+  /**
+   * Agency- and operator-side vocabulary a client-facing string must not use (copy rules: routing, upsell, seats, review
+   * queue, AMs, spend, costs, margins, vendors, operators, thresholds).
+   */
+  const AGENCY_ONLY = /\b(routing|upsell|seats?|review queue|approvals?|account managers?|spend|costs?|margins?|markup|wholesale|vendors?|operators?|platform team|thresholds?|DataForSEO|Stadia|MapTiler|OpenRouter|Postmark|Stripe Connect|Jev|TypeSafe)\b|confidence threshold/i;
   /** The abbreviation "AM" (account manager), case-sensitive so the word "am" is fine. */
   const AM_WORD = /\bAMs?\b/;
-  /** Client routes the client roles never reach: their copy is agency-only by construction. */
-  const AGENCY_ONLY_KEYS = new Set(['client.pitch-snapshot', 'client.settings.delivery', 'client.settings.runbook']);
+  /** Client routes the client roles never reach: their copy is agency-only by construction (one source, `@/help/reach`). */
+  const AGENCY_ONLY_KEYS = AGENCY_ONLY_CLIENT_KEYS;
   const SCENARIOS = [
     { label: 'no display name', agency: NEUTRAL_AGENCY_NAME, assistant: 'Friday' },
     { label: 'display name set', agency: 'Cool Comfort', assistant: 'Sunny' },

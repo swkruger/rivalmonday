@@ -4,7 +4,7 @@ import { resolveBranding } from '@cs/email';
 import { type ClientSummary, type PlatformRole, platformRole as resolvePlatformRole, unreadCount } from '@cs/tools';
 import { themeVars } from '@cs/ui';
 import { eq } from 'drizzle-orm';
-import { HelpProvider } from '@/components/help/help-context';
+import { HelpProvider } from '@/components/help/help-provider';
 import { ReadOnlyProvider } from '@/components/read-only';
 import { BillingBanner } from '@/components/shell/billing-banner';
 import type { SwitcherProps } from '@/components/shell/context-switcher';
@@ -102,6 +102,7 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
   };
   // 15b: who is reading the help copy. The shell knows the zone (platform vs not) and role, not the `/c/<id>` path, so an
   // agency viewer's `client` name is left unset (copy then reads "the client"). Never "Rival Monday" as the agency.
+  // `HelpProvider` (server) ships only this audience's tips, empty states and glossary terms to the browser (I1).
   const helpAgency = helpAgencyName(zone === 'platform', branding.displayName);
   const help = {
     audience: viewerAudience(viewer.kind === 'guest' ? 'guest' : ctx.role, zone === 'platform' ? 'platform' : isAgencyRole(ctx.role) ? 'agency' : 'client'),

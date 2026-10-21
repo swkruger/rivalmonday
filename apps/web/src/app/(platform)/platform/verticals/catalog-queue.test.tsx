@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HelpProvider } from '@/components/help/help-context';
+import { HelpProvider } from '@/components/help/help-provider';
 import type { FormResult } from '@/server/forms';
 import { CatalogQueue, quotesOf, type ReviewArea, type ReviewVertical } from './catalog-queue';
 

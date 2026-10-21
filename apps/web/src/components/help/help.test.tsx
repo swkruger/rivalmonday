@@ -5,7 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OPEN_PAGE_GUIDE_EVENT, renderCopy, resolveTip } from '@/help/copy';
 import { EmptyState } from './empty-state';
 import { FieldHint, useFieldHint } from './field-hint';
-import { HelpProvider, HelpText, useHelp, useRegisterPageGuide } from './help-context';
+import { HelpText, useHelp, useRegisterPageGuide } from './help-context';
+import { HelpProvider } from './help-provider';
 import { HelpTip } from './help-tip';
 
 const TERMS: GlossaryTerm[] = [

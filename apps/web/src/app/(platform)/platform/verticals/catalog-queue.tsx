@@ -2,8 +2,7 @@
 import { Button, Input, Label } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
-import { EmptyState } from '@/components/help/empty-state';
-import { PAGE_COPY } from '@/help/copy';
+import { HelpEmpty } from '@/components/help/empty-state';
 import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 
@@ -103,11 +102,11 @@ export function CatalogQueue({ verticals, areas, targets, catalogue, defaultMaps
       {result.ok && result.message && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{result.message}</p>}
 
       <h2 className="text-lg font-bold">New business types</h2>
-      {verticals.length === 0 && <EmptyState {...PAGE_COPY['platform.verticals'].empty.types} guideAnchor="what-this-page-tells-you" />}
+      {verticals.length === 0 && <HelpEmpty id="platform.verticals.types" guideAnchor="what-this-page-tells-you" />}
       {verticals.map((v) => <VerticalCard key={v.id} v={v} targets={targets.filter((t) => t.id !== v.id)} maps={defaultMaps[v.id] ?? {}} canEdit={canEdit} formAction={formAction} busy={busy} />)}
 
       <h2 className="text-lg font-bold">New services</h2>
-      {areas.length === 0 && <EmptyState {...PAGE_COPY['platform.verticals'].empty.services} guideAnchor="what-this-page-tells-you" />}
+      {areas.length === 0 && <HelpEmpty id="platform.verticals.services" guideAnchor="what-this-page-tells-you" />}
       {areas.map((a) => <AreaCard key={`${a.verticalId}/${a.id}`} a={a} siblings={(catalogue.find((c) => c.id === a.verticalId)?.services ?? []).filter((s) => s.id !== a.id)} canEdit={canEdit} formAction={formAction} busy={busy} />)}
     </div>
   );

@@ -345,14 +345,14 @@ describe('TrackedCompetitorsTable empty state by viewer', () => {
   afterEach(cleanup);
 
   it('a read-only agency viewer gets an explanation, not a blank block', async () => {
-    const { HelpProvider } = await import('@/components/help/help-context');
+    const { HelpProvider } = await import('@/components/help/help-provider');
     render(<HelpProvider value={{ audience: 'agency', names }}><TrackedCompetitorsTable clientId="c1" items={[]} canRemove={false} /></HelpProvider>);
     expect(screen.getByRole('heading', { name: 'No competitors tracked yet' })).toBeTruthy();
     expect(screen.getByText(/No competitors are tracked for Lone Star Cooling yet\. This session is read-only/)).toBeTruthy();
   });
 
   it('a view-only client is told their agency sets competitors up', async () => {
-    const { HelpProvider } = await import('@/components/help/help-context');
+    const { HelpProvider } = await import('@/components/help/help-provider');
     render(<HelpProvider value={{ audience: 'client', names }}><TrackedCompetitorsTable clientId="c1" items={[]} canRemove={false} /></HelpProvider>);
     expect(screen.getByText('Your competitors appear here once Cool Comfort has set them up.')).toBeTruthy();
     expect(screen.queryByText(/read-only/)).toBeNull();

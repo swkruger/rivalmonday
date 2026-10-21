@@ -3,7 +3,7 @@ import { createAccessContext } from '@cs/core';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { groupGuides } from '@/components/help/help-groups';
-import { HelpProvider } from '@/components/help/help-context';
+import { HelpProvider } from '@/components/help/help-provider';
 import { navFor, settingsNavFor } from '@/components/shell/nav-items';
 import { PAGE_COPY } from '@/help/copy';
 
