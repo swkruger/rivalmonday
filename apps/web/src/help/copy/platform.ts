@@ -382,7 +382,7 @@ export const PLATFORM_COPY = {
     },
   },
   'platform.knowledge.detail': {
-    description: 'Read or edit one article. Changes to a published article reach the assistant when you publish them again.',
+    description: 'Read or edit one article. Publish saves a change to a published article and queues it for the assistant\'s search index; Save draft takes it out of search.',
     tips: {
       // source: apps/web/src/app/(platform)/platform/knowledge/editor.tsx (source seed shows only "Managed in repo" and the rendered article)
       managed: {

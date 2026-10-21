@@ -13,7 +13,7 @@ One article, open for reading or editing. The page title is the article's title.
 
 ## How to use it
 
-1. **Edit and publish.** A published article reaches the assistant when you publish it again after a change.
+1. **Edit and publish.** **Publish** saves your change to a published article, re-indexes it and queues it for the search index, so the assistant finds the new text shortly after. **Save draft** takes it out of search until you publish again.
 2. **Turn auto-sync on or off** for a URL article. With it on, the page is re-read every Sunday at 05:00 UTC and the text updated if it changed. Turning it off keeps the current text.
 3. **Unpublish** to take the article out of search but keep it.
 4. **Delete** removes the article and its search index and cannot be undone; you are asked to confirm.

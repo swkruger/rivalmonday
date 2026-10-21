@@ -156,7 +156,7 @@ Sign in as a platform owner. About 20 minutes.
 
 | Item | Audience | Text | Source |
 |---|---|---|---|
-| Description | all | Read or edit one article. Changes to a published article reach the assistant when you publish them again. |  |
+| Description | all | Read or edit one article. Publish saves a change to a published article and queues it for the assistant's search index; Save draft takes it out of search. |  |
 | Tip `managed` | operator | **Managed in repo**: This article is seeded from the repository, so it is shown read-only. To change it, edit its Markdown in the repo and run kb:seed again. | apps/web/src/app/(platform)/platform/knowledge/editor.tsx (source seed shows only "Managed in repo" and the rendered article) |
 | Tip `autosync` | operator | **Auto-sync**: With auto-sync on, the article is re-read from its web address every Sunday at 05:00 UTC and updated when the page changed; the text before the last change is kept under Previous version. A sync error is shown in red. Turning auto-sync off keeps the current text. | apps/worker/src/jobs/kb.ts (kb-sync cron '0 5 * * 0'); editor.tsx (Auto-sync switch, Previous version, sync error) |
 | Tip `delete` | operator | **Deleting an article**: Delete removes the article and its search index and cannot be undone. To take an article out of search but keep it, unpublish it instead. | apps/web/src/app/(platform)/platform/knowledge/editor.tsx (delete confirmation: "Delete this article and its search index? This cannot be undone.") |
@@ -253,7 +253,7 @@ title: Agency
 ---
 ## What this page tells you
 
-One agency in full: its health flag, five live figures, charts, team, clients, billing and recent support sessions. The subtitle shows when it was created.
+One agency in full: its health flag, four live figures, charts, team, clients, billing and recent support sessions. The subtitle shows when it was created.
 
 - **Health** (next to the title) uses the same rules as the Agencies list.
 - **The four figures** (active clients, seats, weekly active users, spend this month) are today's live values with a change since 28 days ago. The range toggle switches the charts between 12 weeks and 12 months.
@@ -555,7 +555,7 @@ One article, open for reading or editing. The page title is the article's title.
 
 ## How to use it
 
-1. **Edit and publish.** A published article reaches the assistant when you publish it again after a change.
+1. **Edit and publish.** **Publish** saves your change to a published article, re-indexes it and queues it for the search index, so the assistant finds the new text shortly after. **Save draft** takes it out of search until you publish again.
 2. **Turn auto-sync on or off** for a URL article. With it on, the page is re-read every Sunday at 05:00 UTC and the text updated if it changed. Turning it off keeps the current text.
 3. **Unpublish** to take the article out of search but keep it.
 4. **Delete** removes the article and its search index and cannot be undone; you are asked to confirm.

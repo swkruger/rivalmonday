@@ -5,7 +5,7 @@ title: Agency
 ---
 ## What this page tells you
 
-One agency in full: its health flag, five live figures, charts, team, clients, billing and recent support sessions. The subtitle shows when it was created.
+One agency in full: its health flag, four live figures, charts, team, clients, billing and recent support sessions. The subtitle shows when it was created.
 
 - **Health** (next to the title) uses the same rules as the Agencies list.
 - **The four figures** (active clients, seats, weekly active users, spend this month) are today's live values with a change since 28 days ago. The range toggle switches the charts between 12 weeks and 12 months.
