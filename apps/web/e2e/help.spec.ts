@@ -56,6 +56,14 @@ test.describe('as a client owner', () => {
     await expect(tip).toBeFocused();
   });
 
+  test('the Competitors guide (content wave) shows the client version, without agency-only suggestions', { tag: ['@help', '@competitors'] }, async ({ page }) => {
+    await page.goto(`/c/${fx().askCo.id}/competitors`);
+    await page.getByRole('button', { name: 'Guide', exact: true }).click();
+    const sheet = page.getByRole('dialog');
+    await expect(sheet.getByText('with how closely each one competes.', { exact: false })).toBeVisible({ timeout: 15_000 });
+    await expect(sheet.getByText('Suggested competitors', { exact: false })).toHaveCount(0);
+  });
+
   test('the Help page searches the guides and lists client glossary terms only', { tag: ['@help'] }, async ({ page }) => {
     await page.goto(`/c/${fx().askCo.id}/help`);
     await page.getByRole('searchbox', { name: 'Search help' }).fill('heatmap');
@@ -95,5 +103,24 @@ test.describe('as an agency admin', () => {
 
     await page.goto('/agency/help');
     await expect(page.getByRole('region', { name: 'Glossary' }).getByText('Upsell tag', { exact: true })).toBeVisible();
+  });
+
+  test('the Team guide (agency content wave) opens with the agency version', { tag: ['@help', '@navigation'] }, async ({ page }) => {
+    await page.goto('/agency/settings/team');
+    await page.getByRole('button', { name: 'Guide', exact: true }).click();
+    await expect(page.getByRole('dialog').getByText('The people who can work in your agency', { exact: false })).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('the Inbox (account) and platform Health guides show their own versions', { tag: ['@help', '@platform'] }, async ({ page }) => {
+    // Account page: the agency version mentions the clients you receive notices for.
+    await page.goto('/inbox');
+    await page.getByRole('button', { name: 'Guide', exact: true }).click();
+    await expect(page.getByRole('dialog').getByText('They cover the clients you receive notices for', { exact: false })).toBeVisible({ timeout: 15_000 });
+    await page.keyboard.press('Escape');
+
+    // Platform page (admin@e2e.test is also an operator): the operator guide.
+    await page.goto('/platform/health');
+    await page.getByRole('button', { name: 'Guide', exact: true }).click();
+    await expect(page.getByRole('dialog').getByText('platform health (jobs, queues, vendors)', { exact: false })).toBeVisible({ timeout: 15_000 });
   });
 });

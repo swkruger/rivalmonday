@@ -29,11 +29,4 @@ export const helpGuides = cache(async (ctx: AccessContext, context: HelpContext,
   }
 });
 
-/** The client's name for the help copy (`{client}`), or null when unreadable. Never refuses: pages do their own access checks. */
-export const helpClientName = cache(async (ctx: AccessContext, clientId: string): Promise<string | null> => {
-  try {
-    return (await tryCallTool<{ name: string }>(ctx, 'get_client_profile', { clientId }))?.name ?? null;
-  } catch {
-    return null;
-  }
-});
+export { helpClientName } from './help-client-name';

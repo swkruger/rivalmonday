@@ -50,10 +50,8 @@ const lsReports: CoverageCall = { tool: 'list_trend_reports', input: (ids) => ({
 /** The Overview and Profile pages read the starters (Ask card; the admin's review toggle). */
 const lsStarters: CoverageCall = { tool: 'get_ask_starters', input: (ids) => ({ clientId: ls(ids) }), path: 'questions' };
 
-/** 15b-1: the Help pages' reads. No page guides are seeded yet (empty on purpose); the search finds the demo article. */
-// 15b-1: `demo:reset` (and the coverage test) load the real docs/help guides; the pilot has client pages only.
+/** 15b-1/15b-2: the Help pages' reads. `demo:reset` (and the coverage test) load the real docs/help guides: client, agency, platform and account pages. The search finds the demo article. */
 const helpGuides = (input: CoverageCall['input']): CoverageCall => ({ tool: 'list_help_guides', input, path: 'guides' });
-const helpGuidesEmpty = (input: CoverageCall['input']): CoverageCall => ({ tool: 'list_help_guides', input, path: 'guides', expect: 'empty', why: 'the 15b-1 pilot has client page guides only' });
 const lsGuides = helpGuides((ids) => ({ context: 'client', clientId: ls(ids) }));
 const helpSearch = (extra: CoverageCall['input']): CoverageCall => ({ tool: 'search_knowledge', input: (ids) => ({ query: 'demo article', limit: 8, ...extra(ids) }), path: 'results' });
 
@@ -91,8 +89,8 @@ const setupStaffCalls = (clientId: (ids: DemoIds) => string): CoverageCall[] => 
 ];
 const setupPending = (ids: DemoIds) => ids.clients.setupPending;
 
-/** Pages that show forms only, or only redirect (`/agency/settings` and `/c/[clientId]/settings` open their first tab): no seeded data to check. */
-export const NO_DATA_ROUTES = ['/agency/clients/new', '/agency/prospects/new', '/agency/settings', '/c/[clientId]/settings'] as const;
+/** Pages that only redirect (`/agency/settings` and `/c/[clientId]/settings` open their first tab): no seeded data to check. The two creation forms (`/agency/clients/new`, `/agency/prospects/new`) read only the page guide list (15b-2), added by `withGuideReads`. */
+export const NO_DATA_ROUTES = ['/agency/settings', '/c/[clientId]/settings'] as const;
 
 /**
  * Tools read by the shared shell (`components/shell/app-shell.tsx`, rendered by the `(app)` and `(platform)` layouts) on every page. They are checked once, in the screen entry named here, rather
@@ -101,7 +99,7 @@ export const NO_DATA_ROUTES = ['/agency/clients/new', '/agency/prospects/new', '
 export const SHARED_READS: Readonly<Record<string, string>> = { list_clients: '/agency/settings/team' };
 
 /** Spec §4.9: every screen route, the tool calls it makes, and the empty states left on purpose. */
-export const SCREENS: readonly ScreenCoverage[] = [
+const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   {
     route: '/agency', as: 'admin', calls: [
       { tool: 'get_portfolio', input: none, path: 'items' },
@@ -312,6 +310,8 @@ export const SCREENS: readonly ScreenCoverage[] = [
   { route: '/onboarding (step=team)', as: 'admin', calls: [onboardingStatus] },
   { route: '/onboarding (step=plan)', as: 'admin', calls: [onboardingStatus, { tool: 'get_billing_summary', input: none, path: 'maxActiveClients' }] },
   { route: '/onboarding (step=branding)', as: 'admin', calls: [onboardingStatus, { tool: 'fn:getAgencyBranding', input: none, path: 'stored' }] },
+  { route: '/agency/clients/new', as: 'admin', calls: [] },
+  { route: '/agency/prospects/new', as: 'admin', calls: [] },
   { route: '/paused', as: 'admin', calls: [] },
   { route: '/inbox', as: 'admin', calls: [{ tool: 'fn:listInbox', input: none }] },
   { route: '/inbox (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'fn:listInbox', input: none }] },
@@ -363,13 +363,49 @@ export const SCREENS: readonly ScreenCoverage[] = [
     ],
   },
   { route: '/platform/themes', as: 'operator', calls: [{ tool: 'list_theme_proposals', input: none, path: 'pending' }, { tool: 'list_theme_proposals', input: none, path: 'decided' }] },
-  // 15b-1: the Help pages. The docs/help guides (loaded by `demo:reset` through `seedKnowledge`) cover client pages only, so the agency and platform lists are empty on purpose; the search finds the demo article.
-  { route: '/agency/help', as: 'admin', calls: [helpGuidesEmpty(() => ({ context: 'agency' })), helpSearch(none)] },
+  // 15b-1: the Help pages. The docs/help guides (loaded by `demo:reset` through `seedKnowledge`) cover every context; the search finds the demo article.
+  { route: '/agency/help', as: 'admin', calls: [helpGuides(() => ({ context: 'agency' })), helpSearch(none)] },
   { route: '/c/[clientId]/help', as: 'admin', calls: [lsGuides, helpSearch((ids) => ({ clientId: ls(ids) })), lsProfile] },
   { route: '/c/[clientId]/help (client owner)', as: 'ownerLoneStar', calls: [lsGuides, helpSearch((ids) => ({ clientId: ls(ids) })), lsProfile] },
-  { route: '/platform/help', as: 'operator', calls: [helpGuidesEmpty(() => ({ context: 'platform' })), helpSearch(() => ({ context: 'platform' }))] },
+  { route: '/platform/help', as: 'operator', calls: [helpGuides(() => ({ context: 'platform' })), helpSearch(() => ({ context: 'platform' }))] },
   { route: '/settings/notifications', as: 'admin', calls: [{ tool: 'fn:myNotificationSettings', input: none }] },
 ];
+
+/**
+ * 15b-2: every page with a Guide button reads `list_help_guides` once (`helpGuides`). Rather than repeating the call in
+ * ~55 entries, it is added here to the first entry of each listed route: client routes read the client scope, agency and
+ * account routes the agency scope, platform routes the platform scope. A page that gains a guide read must be listed here
+ * (the coverage test fails otherwise); `/c/[clientId]` routes already listing `lsGuides` and the Help pages are untouched.
+ */
+const GUIDE_ROUTES: readonly string[] = [
+  '/agency', '/agency/alerts', '/agency/approvals', '/agency/approvals/[briefId]', '/agency/clients/new', '/agency/leads', '/agency/prospects',
+  '/agency/prospects/new', '/agency/prospects/[clientId]', '/agency/settings/ai', '/agency/settings/billing', '/agency/settings/branding',
+  '/agency/settings/intake', '/agency/settings/platform-access', '/agency/settings/runbook', '/agency/settings/slack-teams',
+  '/agency/settings/team', '/agency/settings/usage', '/inbox', '/onboarding', '/settings/notifications',
+  '/c/[clientId]/ads', '/c/[clientId]/alerts/[alertId]', '/c/[clientId]/briefs', '/c/[clientId]/briefs/[briefId]', '/c/[clientId]/competitors',
+  '/c/[clientId]/competitors/[competitorId]', '/c/[clientId]/evidence/[evidenceId]', '/c/[clientId]/moves', '/c/[clientId]/pitch-snapshot',
+  '/c/[clientId]/pricing', '/c/[clientId]/rankings', '/c/[clientId]/recommendations', '/c/[clientId]/reports/[reportId]', '/c/[clientId]/settings/ai',
+  '/c/[clientId]/settings/alerts', '/c/[clientId]/settings/billing', '/c/[clientId]/settings/delivery', '/c/[clientId]/settings/profile',
+  '/c/[clientId]/settings/runbook', '/c/[clientId]/setup',
+  '/platform', '/platform/agencies', '/platform/agencies/[id]', '/platform/ask', '/platform/ask/[threadId]', '/platform/billing', '/platform/costs',
+  '/platform/health', '/platform/knowledge', '/platform/knowledge/new', '/platform/knowledge/[id]', '/platform/leads', '/platform/reviews',
+  '/platform/runbook', '/platform/themes', '/platform/verticals',
+];
+const guideCallFor = (route: string): CoverageCall =>
+  route.startsWith('/c/') ? lsGuides
+  : route.startsWith('/platform') ? helpGuides(() => ({ context: 'platform' }))
+  : helpGuides(() => ({ context: 'agency' }));
+function withGuideReads(entries: readonly ScreenCoverage[]): ScreenCoverage[] {
+  const done = new Set<string>();
+  return entries.map((s) => {
+    const route = baseRoute(s.route);
+    if (!GUIDE_ROUTES.includes(route) || done.has(route) || s.calls.some((c) => c.tool === 'list_help_guides')) return s;
+    done.add(route);
+    return { ...s, calls: [...s.calls, guideCallFor(route)] };
+  });
+}
+
+export const SCREENS: readonly ScreenCoverage[] = withGuideReads(SCREEN_ENTRIES);
 
 /** The value at a dot path; a `*` segment maps the rest of the path over each element of an array. */
 export function valueAt(out: unknown, path?: string): unknown {
@@ -404,7 +440,9 @@ export function toolReadsOf(source: string): string[] {
 }
 
 /** The route of a coverage entry without its "(…)" suffix. */
-export const baseRoute = (route: string): string => route.replace(/\s*\(.*\)$/, '');
+export function baseRoute(route: string): string {
+  return route.replace(/\s*\(.*\)$/, '');
+}
 
 export const README_MARKERS = { start: '<!-- coverage:start -->', end: '<!-- coverage:end -->' } as const;
 

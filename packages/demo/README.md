@@ -17,87 +17,89 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 <!-- coverage:start -->
 | Screen | Signed in as | Tools that must return data | Empty on purpose |
 |---|---|---|---|
-| `/agency` | admin | `get_portfolio`, `list_client_billing_status`, `get_onboarding_status`, `get_billing_summary` | — |
-| `/agency/settings/ai` | admin | `list_api_tokens` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
-| `/agency/alerts` | admin | `list_alert_queue` | — |
-| `/agency/approvals` | admin | `list_brief_queue` | — |
-| `/agency/approvals/[briefId]` | admin | `get_brief_review` | — |
+| `/agency` | admin | `get_portfolio`, `list_client_billing_status`, `get_onboarding_status`, `get_billing_summary`, `list_help_guides` | — |
+| `/agency/settings/ai` | admin | `list_api_tokens`, `list_help_guides` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
+| `/agency/alerts` | admin | `list_alert_queue`, `list_help_guides` | — |
+| `/agency/approvals` | admin | `list_brief_queue`, `list_help_guides` | — |
+| `/agency/approvals/[briefId]` | admin | `get_brief_review`, `list_help_guides` | — |
 | `/agency/approvals/[briefId] (quiet)` | admin | — | `get_brief_review`: Brazos’s brief is held as quiet |
-| `/agency/settings/branding` | admin | `fn:getAgencyBranding` | — |
-| `/agency/settings/platform-access` | admin | `list_support_sessions` | — |
-| `/agency/settings/runbook` | admin | `get_runbook` | — |
-| `/c/[clientId]/setup` | admin | `get_client_setup`, `get_client_profile`, `get_connect_status`, `list_client_billing_status` | — |
+| `/agency/settings/branding` | admin | `fn:getAgencyBranding`, `list_help_guides` | — |
+| `/agency/settings/platform-access` | admin | `list_support_sessions`, `list_help_guides` | — |
+| `/agency/settings/runbook` | admin | `get_runbook`, `list_help_guides` | — |
+| `/c/[clientId]/setup` | admin | `get_client_setup`, `get_client_profile`, `get_connect_status`, `list_client_billing_status`, `list_help_guides` | — |
 | `/c/[clientId]/setup (client owner)` | ownerSetup | `get_client_setup`, `get_client_profile` | — |
 | `/c/[clientId]/setup (closed, client owner)` | ownerLoneStar | `get_client_profile` | `get_client_setup`: a client owner gets a 404 once setup is closed |
-| `/agency/leads` | admin | `list_leads` | — |
-| `/agency/settings/intake` | admin | `get_intake_link` | — |
-| `/agency/prospects` | admin | `list_prospects` | — |
-| `/agency/prospects/[clientId]` | admin | `get_client_profile`, `get_prospect_report`, `list_client_competitors` | — |
-| `/agency/settings/team` | admin | `fn:listTeam`, `list_clients` | — |
-| `/agency/settings/usage` | admin | `get_usage` | — |
-| `/agency/settings/slack-teams` | admin | `fn:listWebhooks` | — |
+| `/agency/leads` | admin | `list_leads`, `list_help_guides` | — |
+| `/agency/settings/intake` | admin | `get_intake_link`, `list_help_guides` | — |
+| `/agency/prospects` | admin | `list_prospects`, `list_help_guides` | — |
+| `/agency/prospects/[clientId]` | admin | `get_client_profile`, `get_prospect_report`, `list_client_competitors`, `list_help_guides` | — |
+| `/agency/settings/team` | admin | `fn:listTeam`, `list_clients`, `list_help_guides` | — |
+| `/agency/settings/usage` | admin | `get_usage`, `list_help_guides` | — |
+| `/agency/settings/slack-teams` | admin | `fn:listWebhooks`, `list_help_guides` | — |
 | `/c/[clientId]` | admin | `get_client_profile`, `list_help_guides`, `get_workspace_overview`, `get_ad_activity`, `get_brief`, `list_alerts`, `list_briefs`, `list_moves`, `list_recommendations`, `list_trend_reports`, `get_starting_point_status`, `get_client_setup`, `get_ask_starters` | — |
 | `/c/[clientId] (client owner)` | ownerLoneStar | `get_starting_point_status`, `get_workspace_overview`, `list_briefs`, `get_brief` | — |
-| `/c/[clientId]/ads` | admin | `get_ad_activity`, `list_ads`, `get_client_profile` | `list_ads`: one competitor runs no ads |
-| `/c/[clientId]/alerts/[alertId]` | admin | `get_alert`, `get_client_profile`, `list_alerts` | — |
+| `/c/[clientId]/ads` | admin | `get_ad_activity`, `list_ads`, `get_client_profile`, `list_help_guides` | `list_ads`: one competitor runs no ads |
+| `/c/[clientId]/alerts/[alertId]` | admin | `get_alert`, `get_client_profile`, `list_alerts`, `list_help_guides` | — |
 | `/c/[clientId]/ask` | admin | `get_ask_starters`, `list_my_ask_threads`, `get_my_ask_thread`, `get_client_profile` | — |
 | `/c/[clientId]/ask/[threadId]` | admin | `get_ask_starters`, `list_my_ask_threads`, `get_my_ask_thread`, `get_client_profile` | — |
 | `/c/[clientId]/ask/[threadId] (client owner)` | ownerLoneStar | `list_my_ask_threads`, `get_my_ask_thread` | `get_my_ask_thread`: threads are author-only |
-| `/c/[clientId]/briefs` | admin | `get_client_profile`, `list_briefs`, `list_alerts`, `list_trend_reports` | — |
-| `/c/[clientId]/briefs/[briefId]` | ownerLoneStar | `get_brief`, `get_client_profile`, `list_briefs` | — |
+| `/c/[clientId]/briefs` | admin | `get_client_profile`, `list_briefs`, `list_alerts`, `list_trend_reports`, `list_help_guides` | — |
+| `/c/[clientId]/briefs/[briefId]` | ownerLoneStar | `get_brief`, `get_client_profile`, `list_briefs`, `list_help_guides` | — |
 | `/c/[clientId]/briefs/[briefId] (starting point)` | ownerBrazos | `get_brief` | — |
 | `/c/[clientId]/briefs/[briefId] (starting point findings)` | ownerBrazos | `get_brief` | — |
 | `/c/[clientId]/briefs/[briefId] (quiet week)` | admin | `get_brief` | — |
 | `/c/[clientId]/changes` | admin | `search_events`, `get_event`, `compare_snapshots`, `list_client_competitors`, `get_client_profile`, `list_help_guides` | — |
-| `/c/[clientId]/competitors` | admin | `get_client_profile`, `list_client_competitors`, `list_competitor_suggestions`, `get_competitor_search_status`, `get_competitor_signals` | — |
-| `/c/[clientId]/competitors/[competitorId]` | admin | `get_competitor_profile`, `get_competitor_timeline`, `list_tracked_pages`, `get_price_matrix`, `list_ads`, `get_theme_benchmark`, `get_geogrid`, `get_competitor_signals`, `get_competitor_ad_matches`, `get_client_profile` | — |
-| `/c/[clientId]/evidence/[evidenceId]` | admin | `get_evidence`, `get_client_profile` | — |
-| `/c/[clientId]/moves` | admin | `list_moves`, `get_move`, `get_client_profile` | — |
-| `/c/[clientId]/pitch-snapshot` | admin | `get_client_profile`, `get_prospect_report` | — |
-| `/c/[clientId]/pricing` | admin | `get_price_matrix`, `get_price_history`, `get_client_profile` | `get_price_history`: one competitor shows no prices |
-| `/c/[clientId]/rankings` | admin | `get_geogrid`, `get_rank_trend`, `get_share_of_voice`, `get_rank_settings`, `get_client_profile` | `get_geogrid`: one competitor never ranks |
+| `/c/[clientId]/competitors` | admin | `get_client_profile`, `list_client_competitors`, `list_competitor_suggestions`, `get_competitor_search_status`, `get_competitor_signals`, `list_help_guides` | — |
+| `/c/[clientId]/competitors/[competitorId]` | admin | `get_competitor_profile`, `get_competitor_timeline`, `list_tracked_pages`, `get_price_matrix`, `list_ads`, `get_theme_benchmark`, `get_geogrid`, `get_competitor_signals`, `get_competitor_ad_matches`, `get_client_profile`, `list_help_guides` | — |
+| `/c/[clientId]/evidence/[evidenceId]` | admin | `get_evidence`, `get_client_profile`, `list_help_guides` | — |
+| `/c/[clientId]/moves` | admin | `list_moves`, `get_move`, `get_client_profile`, `list_help_guides` | — |
+| `/c/[clientId]/pitch-snapshot` | admin | `get_client_profile`, `get_prospect_report`, `list_help_guides` | — |
+| `/c/[clientId]/pricing` | admin | `get_price_matrix`, `get_price_history`, `get_client_profile`, `list_help_guides` | `get_price_history`: one competitor shows no prices |
+| `/c/[clientId]/rankings` | admin | `get_geogrid`, `get_rank_trend`, `get_share_of_voice`, `get_rank_settings`, `get_client_profile`, `list_help_guides` | `get_geogrid`: one competitor never ranks |
 | `/c/[clientId]/rankings (Brazos)` | admin | `get_geogrid` | — |
-| `/c/[clientId]/recommendations` | admin | `get_client_profile`, `list_recommendations` | — |
-| `/c/[clientId]/reports/[reportId]` | admin | `get_trend_report`, `get_client_profile`, `list_trend_reports` | — |
+| `/c/[clientId]/recommendations` | admin | `get_client_profile`, `list_recommendations`, `list_help_guides` | — |
+| `/c/[clientId]/reports/[reportId]` | admin | `get_trend_report`, `get_client_profile`, `list_trend_reports`, `list_help_guides` | — |
 | `/c/[clientId]/reviews` | admin | `get_theme_benchmark`, `get_rating_trend`, `search_reviews`, `get_client_profile`, `list_help_guides` | — |
 | `/c/[clientId]/reviews (Brazos)` | admin | `get_rating_trend` | `search_reviews`: Brazos has no own business ("add your place id"); `search_reviews`: one competitor has no reviews |
-| `/c/[clientId]/settings/ai` | admin | `get_client_profile`, `list_api_tokens` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
+| `/c/[clientId]/settings/ai` | admin | `get_client_profile`, `list_api_tokens`, `list_help_guides` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
 | `/c/[clientId]/settings/ai (client owner)` | ownerLoneStar | `get_client_profile`, `list_api_tokens` | — |
-| `/c/[clientId]/settings/alerts` | admin | `get_client_profile`, `get_alert_rules` | — |
-| `/c/[clientId]/settings/runbook` | admin | `get_client_profile`, `get_runbook` | — |
-| `/c/[clientId]/settings/delivery` | admin | `get_client_profile` | — |
-| `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters`, `list_client_billing_status` | — |
-| `/c/[clientId]/settings/billing (client owner)` | ownerLoneStar | `get_my_billing`, `get_client_profile` | — |
-| `/agency/settings/billing` | admin | `get_billing_summary`, `get_connect_status`, `get_client_revenue` | — |
-| `/onboarding (step=profile)` | admin | `get_onboarding_status`, `get_agency_profile` | — |
+| `/c/[clientId]/settings/alerts` | admin | `get_client_profile`, `get_alert_rules`, `list_help_guides` | — |
+| `/c/[clientId]/settings/runbook` | admin | `get_client_profile`, `get_runbook`, `list_help_guides` | — |
+| `/c/[clientId]/settings/delivery` | admin | `get_client_profile`, `list_help_guides` | — |
+| `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters`, `list_client_billing_status`, `list_help_guides` | — |
+| `/c/[clientId]/settings/billing (client owner)` | ownerLoneStar | `get_my_billing`, `get_client_profile`, `list_help_guides` | — |
+| `/agency/settings/billing` | admin | `get_billing_summary`, `get_connect_status`, `get_client_revenue`, `list_help_guides` | — |
+| `/onboarding (step=profile)` | admin | `get_onboarding_status`, `get_agency_profile`, `list_help_guides` | — |
 | `/onboarding (step=team)` | admin | `get_onboarding_status` | — |
 | `/onboarding (step=plan)` | admin | `get_onboarding_status`, `get_billing_summary` | — |
 | `/onboarding (step=branding)` | admin | `get_onboarding_status`, `fn:getAgencyBranding` | — |
+| `/agency/clients/new` | admin | `list_help_guides` | — |
+| `/agency/prospects/new` | admin | `list_help_guides` | — |
 | `/paused` | admin | — | — |
-| `/inbox` | admin | `fn:listInbox` | — |
+| `/inbox` | admin | `fn:listInbox`, `list_help_guides` | — |
 | `/inbox (client owner)` | ownerLoneStar | `fn:listInbox` | — |
 | `/kb/[id]` | admin | `get_kb_article` | — |
-| `/platform` | operator | `platform_overview`, `list_platform_activity` | — |
-| `/platform/runbook` | operator | `get_runbook` | — |
-| `/platform/agencies` | operator | `list_platform_agencies` | — |
-| `/platform/agencies/[id]` | operator | `get_platform_agency`, `list_agency_support_sessions`, `get_agency_billing`, `list_discount_codes` | — |
-| `/platform/billing` | operator | `get_billing_overview`, `list_plans`, `list_discount_codes`, `get_connect_overview`, `get_signup_funnel` | `list_invite_links`: the demo seeds no invite links; `get_signups_paused`: open sign-up is not paused in the demo |
-| `/platform/costs` | operator | `list_platform_costs` | — |
-| `/platform/leads` | operator | `list_pool_leads` | — |
-| `/platform/health` | operator | — | — |
-| `/platform/ask` | operator | `fn:listReviewableAskThreads` | — |
-| `/platform/ask/[threadId]` | operator | `fn:getReviewableAskThread` | — |
-| `/platform/knowledge` | operator | `list_kb_articles`, `list_kb_targets` | — |
-| `/platform/knowledge/new` | operator | `list_kb_targets` | — |
-| `/platform/knowledge/[id]` | operator | `get_kb_article_admin`, `list_kb_targets` | — |
-| `/platform/reviews` | operator | `list_decision_reviews` | — |
-| `/platform/verticals` | operator | `list_verticals` | `list_catalog_review`: the demo agencies add no business types; `list_catalog_review`: the demo agencies add no services; `count_catalog_review`: nothing waits for review in the demo |
-| `/platform/themes` | operator | `list_theme_proposals` | — |
-| `/agency/help` | admin | `search_knowledge` | `list_help_guides`: the 15b-1 pilot has client page guides only |
+| `/platform` | operator | `platform_overview`, `list_platform_activity`, `list_help_guides` | — |
+| `/platform/runbook` | operator | `get_runbook`, `list_help_guides` | — |
+| `/platform/agencies` | operator | `list_platform_agencies`, `list_help_guides` | — |
+| `/platform/agencies/[id]` | operator | `get_platform_agency`, `list_agency_support_sessions`, `get_agency_billing`, `list_discount_codes`, `list_help_guides` | — |
+| `/platform/billing` | operator | `get_billing_overview`, `list_plans`, `list_discount_codes`, `get_connect_overview`, `get_signup_funnel`, `list_help_guides` | `list_invite_links`: the demo seeds no invite links; `get_signups_paused`: open sign-up is not paused in the demo |
+| `/platform/costs` | operator | `list_platform_costs`, `list_help_guides` | — |
+| `/platform/leads` | operator | `list_pool_leads`, `list_help_guides` | — |
+| `/platform/health` | operator | `list_help_guides` | — |
+| `/platform/ask` | operator | `fn:listReviewableAskThreads`, `list_help_guides` | — |
+| `/platform/ask/[threadId]` | operator | `fn:getReviewableAskThread`, `list_help_guides` | — |
+| `/platform/knowledge` | operator | `list_kb_articles`, `list_kb_targets`, `list_help_guides` | — |
+| `/platform/knowledge/new` | operator | `list_kb_targets`, `list_help_guides` | — |
+| `/platform/knowledge/[id]` | operator | `get_kb_article_admin`, `list_kb_targets`, `list_help_guides` | — |
+| `/platform/reviews` | operator | `list_decision_reviews`, `list_help_guides` | — |
+| `/platform/verticals` | operator | `list_verticals`, `list_help_guides` | `list_catalog_review`: the demo agencies add no business types; `list_catalog_review`: the demo agencies add no services; `count_catalog_review`: nothing waits for review in the demo |
+| `/platform/themes` | operator | `list_theme_proposals`, `list_help_guides` | — |
+| `/agency/help` | admin | `list_help_guides`, `search_knowledge` | — |
 | `/c/[clientId]/help` | admin | `list_help_guides`, `search_knowledge`, `get_client_profile` | — |
 | `/c/[clientId]/help (client owner)` | ownerLoneStar | `list_help_guides`, `search_knowledge`, `get_client_profile` | — |
-| `/platform/help` | operator | `search_knowledge` | `list_help_guides`: the 15b-1 pilot has client page guides only |
-| `/settings/notifications` | admin | `fn:myNotificationSettings` | — |
+| `/platform/help` | operator | `list_help_guides`, `search_knowledge` | — |
+| `/settings/notifications` | admin | `fn:myNotificationSettings`, `list_help_guides` | — |
 | `/sign-up` | public | — | sign-up form (paused copy while sign-ups are paused) |
 | `/sign-up/problem` | public | — | needs a signed-in user whose invite-link sign-up failed |
 | `/join/[token]` | public | — | needs a fresh invite link (create one in /platform/billing) |
