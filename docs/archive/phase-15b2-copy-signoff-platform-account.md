@@ -1244,5 +1244,5 @@ Setup changes the agency itself, so it is limited to agency admins.
 ## Notes for the owner (account)
 
 - The same Inbox and Notification settings pages serve agency staff and client contacts, so there are two guides each; the client versions never mention agency notices, cost caps, Slack/Teams or Agency settings.
-- Quiet hours hold emails rather than dropping them (`notBefore`). The page itself says "No notifications by email in this window (in-app still arrive)"; the tips and guides say the emails are held and sent when the window ends, which is what the code does.
+- Quiet hours hold emails rather than dropping them (`notBefore`). The page hint used to say "No notifications by email in this window (in-app still arrive)"; it now reads "Emails in this window are held and sent when it ends (in-app notices still arrive at once)" (row A1), the same as the tips and guides, which is what the code does.
 - For agency contacts the "Business time zone" option actually means US Central time. The tip and guide say so; the option label itself is unchanged (a product decision, not help copy).

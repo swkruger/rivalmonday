@@ -90,7 +90,7 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     term: 'Competitive pressure',
     audience: 'all',
     short: 'How much a competitor has been doing lately that could affect the business, from 0 to 100.',
-    long: 'It combines the scores of its changes from the last 30 days that made the brief or an alert, plus its open moves (active, confident moves count for more). Each one adds to the total without it passing 100. 70 and above is high, 40 to 69 is elevated and below 40 is low. A competitor with nothing recent scores 0.',
+    long: 'It combines the scores of its changes from the last 30 days that made the brief or an alert, plus its open moves (active, confident moves count for more). Each one adds to the total without it passing 100. 70 and above is High pressure, 40 to 69 is Medium pressure, 1 to 39 is Low pressure, and a competitor with nothing recent scores 0 and shows as Quiet.',
     seeAlso: ['score', 'move'],
   },
   {
