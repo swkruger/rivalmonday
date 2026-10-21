@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Ai, ChatMessage, ChatTool, DecisionQuestion } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
-import { type AccessContext, type AuditSink, type CallScope, countRows, createAccessContext, ToolError, type ToolRegistry } from '@cs/core';
+import { type AccessContext, type AuditSink, type CallScope, canAccessClient, countRows, scopeToClient, ToolError, type ToolRegistry } from '@cs/core';
 import { agency, askMessage, askThread, client, clientCompetitor, competitor, createAuditSink, type Db, withTenant } from '@cs/db';
 import { ASK_WRITE_TOOLS, fetchItem, type ToolDeps } from '@cs/tools';
 import { and, asc, eq } from 'drizzle-orm';
@@ -17,6 +17,9 @@ import { ASK_COPY } from './quota';
  * `ask_assistant` worst case (ai.yaml: 20 s timeout x 2 attempts) plus overhead; the route's `maxDuration` is 300 s.
  */
 const FINAL_CALL_RESERVE_MS = 45_000;
+
+/** 7a2 (spec §4): once a turn's model calls cost this much, the next call is the forced final one. */
+export const ASK_TURN_BUDGET_USD = 0.3;
 
 export type { AskAction } from './actions';
 
@@ -49,6 +52,8 @@ export type AskTrace = {
   guard: 'in_scope' | 'out_of_scope' | 'injection' | 'unsure';
   removedSentences: number;
   deadlineHit: boolean;
+  /** 7a2: the turn reached ASK_TURN_BUDGET_USD and was forced to answer. */
+  budgetHit: boolean;
   costUsd: number | null;
 };
 
@@ -169,18 +174,11 @@ const MARKER = /\[ev:([0-9a-f-]{36})\]/gi;
  * thread's client only. Anything the caller can't see, or a read failure, leaves the id as it is.
  */
 async function addEvidenceAccessText(
-  deps: AskDeps, ctx: AccessContext, clientId: string, draft: string, evidence: Map<string, string>, bodied: ReadonlySet<string>,
+  deps: AskDeps, scoped: AccessContext, clientId: string, draft: string, evidence: Map<string, string>, bodied: ReadonlySet<string>,
   redact: (t: string) => string,
 ): Promise<void> {
   const wanted = [...new Set([...draft.matchAll(MARKER)].map((m) => `ev:${m[1]!.toLowerCase()}`))].filter((k) => evidence.has(k) && !bodied.has(k));
   if (wanted.length === 0) return;
-  let scoped: AccessContext;
-  try {
-    // Only the thread's client: evidence visible through another client of this user never grounds this thread.
-    scoped = createAccessContext({ agencyId: ctx.agencyId, userId: ctx.userId, role: ctx.role, clientScope: [clientId], features: [...ctx.features] });
-  } catch {
-    return;
-  }
   await Promise.all(wanted.map(async (key) => {
     try {
       const item = await fetchItem(deps.toolDeps, scoped, 'evidence', key.slice(3));
@@ -215,7 +213,7 @@ export async function runTurn(
 ): Promise<void> {
   // Phase 8b defence in depth: Ask is author-only and support sessions are read-only/web-only. The route already
   // 404s non-users and the registry refuses `ask` under support; this keeps a session out even if those gates move
-  // (the scoped evidence ctx below is rebuilt without `support`).
+  // (the pinned ctx below is rebuilt without `support`).
   if (ctx.support) throw new ToolError('permission_denied', 'Ask is not available in a support session');
   const now = deps.now ?? (() => new Date());
   const started = now().getTime();
@@ -247,6 +245,10 @@ export async function runTurn(
   if (at < 0) throw new ToolError('not_found', 'Message not found');
   const question = messages[at]!.content;
   const scope: CallScope = { agencyId: thread.agencyId, clientId: thread.clientId };
+  // 7a2 D12: every tool sees only the thread's client (an agency admin's other clients are out of reach), and evidence
+  // visible through another client of this user never grounds this thread.
+  if (!canAccessClient(ctx, thread.clientId)) throw new ToolError('not_found', 'Thread not found');
+  const pinned = scopeToClient(ctx, thread.clientId);
   const { assistantName, productName } = await brandingFor(deps.service, thread.agencyId);
 
   await (deps.audit ?? createAuditSink(deps.service)).record({
@@ -255,7 +257,7 @@ export async function runTurn(
     channel: 'ask', tokenId: null, outcome: 'ok', rowCount: null, durationMs: 0,
   });
 
-  const trace: AskTrace = { model: '', steps: [], guard: 'unsure', removedSentences: 0, deadlineHit: false, costUsd: 0 };
+  const trace: AskTrace = { model: '', steps: [], guard: 'unsure', removedSentences: 0, deadlineHit: false, budgetHit: false, costUsd: 0 };
   const redact = (t: string) => redactForModel(t, { businessNames: names });
 
   /** Inserts the turn's closing message and bumps the thread, in one RLS transaction. */
@@ -295,10 +297,10 @@ export async function runTurn(
   }
 
   const tools: ChatTool[] = deps.registry
-    .describe(ctx, { channel: 'ask' })
+    .describe(pinned, { channel: 'ask' })
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
     .map((t) => ({ name: t.name, description: t.description, parameters: t.inputSchema }));
-  const visible = new Map(deps.registry.list(ctx, { channel: 'ask' }).map((t) => [t.name, t]));
+  const visible = new Map(deps.registry.list(pinned, { channel: 'ask' }).map((t) => [t.name, t]));
 
   const turnLines = [`The business is ${clientName || 'the selected client'} (clientId ${thread.clientId}). Today is ${now().toISOString().slice(0, 10)}.`];
   if (input.seedEvidenceId && UUID.test(input.seedEvidenceId)) turnLines.push(`The user is viewing evidence ev:${input.seedEvidenceId}.`);
@@ -346,10 +348,12 @@ export async function runTurn(
       // the forced final call must start while FINAL_CALL_RESERVE_MS of the budget is still left.
       const overDeadline = now().getTime() - started >= deadlineMs - Math.min(FINAL_CALL_RESERVE_MS, deadlineMs / 2);
       if (overDeadline) trace.deadlineHit = true;
-      const last = step >= stepLimit || overDeadline;
+      const last = step >= stepLimit || overDeadline || trace.budgetHit;
       const res = await deps.ai.chatWithTools('ask_assistant', { messages: [...chat], tools, toolChoice: last ? 'none' : 'auto' }, scope);
       trace.model = res.model;
       addCost(res.costUsd);
+      // Decision 5: an unknown cost (null) never trips the budget; the step limit and deadline still bound the turn.
+      if (trace.costUsd !== null && trace.costUsd >= ASK_TURN_BUDGET_USD) trace.budgetHit = true;
       if (last || res.toolCalls.length === 0) {
         draft = res.text;
         break;
@@ -386,7 +390,7 @@ export async function runTurn(
             if (call.name === 'search_events' && parsed.value && typeof parsed.value === 'object' && !Array.isArray(parsed.value)) {
               parsed.value = { route: 'all', ...(parsed.value as Record<string, unknown>) };
             }
-            result = await deps.registry.invoke(ctx, call.name, parsed.value, { channel: 'ask' });
+            result = await deps.registry.invoke(pinned, call.name, parsed.value, { channel: 'ask' });
             rows = countRows(result);
             collectEvidence(call.name, result, evidence, bodied);
             collectAppData(result, thread.clientId, appData);
@@ -398,7 +402,7 @@ export async function runTurn(
         chat.push({ role: 'tool', toolCallId: call.id, content: dataBlock(call.name, error ? { error } : result) });
       }
     }
-    await addEvidenceAccessText(deps, ctx, thread.clientId, draft, evidence, bodied, redact);
+    await addEvidenceAccessText(deps, pinned, thread.clientId, draft, evidence, bodied, redact);
     for (const [key, d] of appData) evidence.set(key, d.text);
     const grounded = await groundAnswer(deps.ai, scope, draft, evidence);
     trace.removedSentences = grounded.removed;

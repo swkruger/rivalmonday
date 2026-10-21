@@ -2,14 +2,15 @@ import { type AccessContext, type AuditEvent, createAccessContext, ToolError, To
 import { hashInput } from '@cs/core/server';
 import { agency, askMessage, askThread, auditLog, capture, evidence } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import type { ToolDeps } from '@cs/tools';
+import { ASK_WRITE_TOOLS, createToolRegistry, type ToolDeps } from '@cs/tools';
 import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { buildSystemPrompt } from './prompt';
 import { ASK_COPY, beginTurn } from './quota';
 import { createScriptedAskAi, type ScriptedStep } from './testing';
-import { type AskDeps, type AskEvent, type AskTrace, runTurn, ASK_GUARD_QUESTIONS } from './turn';
+import { actionAllowed } from './actions';
+import { type AskDeps, type AskEvent, type AskTrace, ASK_GUARD_QUESTIONS, ASK_TURN_BUDGET_USD, runTurn } from './turn';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -492,5 +493,139 @@ describe('runTurn', () => {
     const evidenceSeen = ai.calls.decide.filter((d) => d.task === 'verifier_decisions').map((d) => (d.state as { evidence: string }).evidence).join(' | ');
     expect(evidenceSeen).toContain('AC tune-up now $79');
     expect(evidenceSeen).not.toContain('Teeth cleaning');
+  });
+});
+
+describe('runTurn client pinning (7a2 D12)', () => {
+  const admin: AccessContext = createAccessContext({ agencyId: IDS.agencyA, userId: 'u-admin', role: 'agency_admin', clientScope: 'all', features: [] });
+  const store = new Map<string, string>();
+  const toolDeps = () => ({ app: dbs.app, service: dbs.service, evidenceStore: { get: async (k: string) => (store.has(k) ? new TextEncoder().encode(store.get(k)) : null), put: async () => {} } }) as ToolDeps;
+  const real = () => createToolRegistry(toolDeps(), { audit: { record: async () => {} } });
+
+  beforeEach(async () => {
+    await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values ('u-admin', 'u-admin', 'u-admin@example.com', true)`);
+    store.clear();
+  });
+
+  async function adminTurn(script: ScriptedStep[], reg: AskDeps['registry']) {
+    const ai = createScriptedAskAi(script);
+    const r = await beginTurn(dbs.app, admin, { clientId: IDS.clientA1, question: 'What changed?' });
+    if (r.kind !== 'ok') throw new Error('quota');
+    await runTurn(deps(ai, { registry: reg, toolDeps: toolDeps() }), admin, r, () => {});
+    return ai;
+  }
+  const done = { kind: 'chat', reply: { text: 'Nothing to report.' } } as const;
+
+  it('search_events with a foreign in-scope clientId returns not_found', async () => {
+    const reg = real();
+    // The admin can read A2 directly: only the thread pin refuses it.
+    await expect(reg.invoke(admin, 'search_events', { clientId: IDS.clientA2 }, { channel: 'ask' })).resolves.toBeTruthy();
+    const ai = await adminTurn([
+      { kind: 'chat', reply: { toolCalls: [{ name: 'search_events', args: { clientId: IDS.clientA2 } }, { name: 'search', args: { clientId: IDS.clientA2, query: 'price' } }] } },
+      done,
+    ], reg);
+    expect(toolMessages(ai)).toEqual(['<data tool="search_events">{"error":"not_found"}</data>', '<data tool="search">{"error":"not_found"}</data>']);
+  });
+
+  it("fetch of another client's evidence is refused", async () => {
+    const [c] = await dbs.owner.insert(capture).values({ competitorId: IDS.competitorY, source: 'web', url: 'https://brightsmiles.example/pricing', status: 'ok', collectorVersion: 't' }).returning();
+    const [e] = await dbs.owner.insert(evidence).values({ captureId: c!.id, kind: 'text', objectKey: 'k-y', sha256: 'sha-k-y', bytes: 10, contentType: 'text/plain' }).returning();
+    store.set('k-y', 'Teeth cleaning now $50');
+    const reg = real();
+    await expect(reg.invoke(admin, 'fetch', { id: `evidence:${e!.id}` }, { channel: 'ask' })).resolves.toMatchObject({ metadata: { client_id: IDS.clientA2 } });
+    const ai = await adminTurn([{ kind: 'chat', reply: { toolCalls: [{ name: 'fetch', args: { id: `evidence:${e!.id}` } }] } }, done], reg);
+    expect(toolMessages(ai)).toEqual(['<data tool="fetch">{"error":"not_found"}</data>']);
+    expect(toolMessages(ai).join('')).not.toContain('Teeth');
+  });
+
+  it('describe is computed with the pinned context', async () => {
+    const seen: { op: string; ctx: AccessContext }[] = [];
+    const spy: AskDeps['registry'] = {
+      describe: (ctx, o) => (seen.push({ op: 'describe', ctx }), registry.describe(ctx, o)),
+      list: (ctx, o) => (seen.push({ op: 'list', ctx }), registry.list(ctx, o)),
+      invoke: (ctx, n, i, o) => (seen.push({ op: 'invoke', ctx }), registry.invoke(ctx, n, i, o)),
+    };
+    await adminTurn([{ kind: 'chat', reply: { toolCalls: [search] } }, done], spy);
+    expect(seen.map((s) => s.op)).toEqual(['describe', 'list', 'invoke']);
+    for (const s of seen) {
+      expect(s.ctx.clientScope).toEqual([IDS.clientA1]);
+      expect(s.ctx.support).toBeUndefined();
+      expect(s.ctx.userId).toBe('u-admin');
+    }
+  });
+});
+
+describe('runTurn budget (7a2)', () => {
+  it('forced final once cost reaches 0.30', async () => {
+    expect(ASK_TURN_BUDGET_USD).toBe(0.3);
+    const { ai, trace } = await turn([
+      { kind: 'chat', reply: { toolCalls: [search], costUsd: 0.2 } },
+      { kind: 'chat', reply: { toolCalls: [search], costUsd: 0.15 } },
+      { kind: 'chat', reply: { text: `Done [ev:${EV1}].`, costUsd: 0.01 } },
+    ]);
+    expect(ai.calls.chat.map((c) => c.toolChoice)).toEqual(['auto', 'auto', 'none']);
+    expect(trace.budgetHit).toBe(true);
+    expect(trace.deadlineHit).toBe(false);
+  });
+  it('under budget never forces', async () => {
+    const { ai, trace } = await turn([
+      { kind: 'chat', reply: { toolCalls: [search], costUsd: 0.2 } },
+      { kind: 'chat', reply: { text: `Done [ev:${EV1}].`, costUsd: 0.05 } },
+    ]);
+    expect(ai.calls.chat.map((c) => c.toolChoice)).toEqual(['auto', 'auto']);
+    expect(trace.budgetHit).toBe(false);
+  });
+  it('null cost never forces', async () => {
+    const { ai, trace } = await turn([
+      // The first call's cost is unknown, later ones are large: the turn's cost stays unknown and only the step limit stops it.
+      { kind: 'chat', repeat: true, reply: (req) => (req.toolChoice === 'none' ? { text: `Done [ev:${EV1}].`, costUsd: 1 } : { toolCalls: [search], costUsd: req.messages.some((m) => m.role === 'tool') ? 1 : null }) },
+    ]);
+    expect(ai.calls.chat).toHaveLength(9);
+    expect(trace.costUsd).toBeNull();
+    expect(trace.budgetHit).toBe(false);
+  });
+});
+
+describe('actionAllowed (7a2 D12)', () => {
+  const A1 = IDS.clientA1;
+  const rec = { clientId: A1, title: 'Bundle', rationale: 'Because of reasons.', evidenceIds: [EV1], effort: 'L' };
+  it('accepts a write naming the thread client', () => {
+    expect(actionAllowed({ tool: 'add_recommendation', input: rec }, A1)).toBe(true);
+    expect(actionAllowed({ tool: 'submit_feedback', input: { clientId: A1, eventId: EV1, verdict: 'useful' } }, A1)).toBe(true);
+    // update_recommendation_status has no clientId in its schema; the pinned context checks the recommendation's client.
+    expect(actionAllowed({ tool: 'update_recommendation_status', input: { recommendationId: EV1, status: 'done' } }, A1)).toBe(true);
+  });
+  it('actionAllowed rejects a non-write tool', () => {
+    expect(actionAllowed({ tool: 'search_events', input: { clientId: A1 } }, A1)).toBe(false);
+    expect(actionAllowed({ tool: 'delete_my_ask_thread', input: { threadId: EV1 } }, A1)).toBe(false);
+    expect(actionAllowed({ tool: 'constructor', input: { clientId: A1 } }, A1)).toBe(false);
+  });
+  it('rejects a mismatched clientId', () => {
+    expect(actionAllowed({ tool: 'add_recommendation', input: { ...rec, clientId: IDS.clientA2 } }, A1)).toBe(false);
+    expect(actionAllowed({ tool: 'update_recommendation_status', input: { recommendationId: EV1, status: 'done', clientId: IDS.clientA2 } }, A1)).toBe(false);
+  });
+  it('rejects a mismatched nested clientId', () => {
+    expect(actionAllowed({ tool: 'add_recommendation', input: { ...rec, extra: { clientId: IDS.clientA2 } } }, A1)).toBe(false);
+    expect(actionAllowed({ tool: 'add_recommendation', input: { ...rec, list: [{ deeper: { clientId: IDS.clientA2 } }] } }, A1)).toBe(false);
+    expect(actionAllowed({ tool: 'add_recommendation', input: { ...rec, extra: { clientId: 7 } } }, A1)).toBe(false);
+    // Deeper than the walk reads: refused rather than left unchecked.
+    expect(actionAllowed({ tool: 'add_recommendation', input: { ...rec, a: { b: { c: { d: { clientId: A1 } } } } } }, A1)).toBe(false);
+  });
+  it('requires a clientId for tools whose schema has one', () => {
+    const { clientId: _c, ...noClient } = rec;
+    expect(actionAllowed({ tool: 'add_recommendation', input: noClient }, A1)).toBe(false);
+    expect(actionAllowed({ tool: 'submit_feedback', input: { eventId: EV1, verdict: 'useful' } }, A1)).toBe(false);
+    expect(actionAllowed({ tool: 'add_recommendation', input: null }, A1)).toBe(false);
+  });
+  it("the clientId rule matches the real write tools' schemas", () => {
+    const admin = createAccessContext({ agencyId: IDS.agencyA, userId: 'u', role: 'agency_admin', clientScope: 'all', features: [] });
+    const reg = createToolRegistry({ app: dbs.app, service: dbs.service } as ToolDeps, { audit: { record: async () => {} } });
+    const defs = new Map(reg.list(admin, { channel: 'ask' }).map((t) => [t.name, t]));
+    for (const tool of ASK_WRITE_TOOLS) {
+      const shape = (defs.get(tool)!.input as unknown as { shape: Record<string, unknown> }).shape;
+      // Without a clientId an input is allowed only for a tool whose schema has none.
+      const bare = Object.fromEntries(Object.keys(shape).filter((k) => k !== 'clientId').map((k) => [k, 'x']));
+      expect(actionAllowed({ tool, input: bare }, IDS.clientA1)).toBe(!('clientId' in shape));
+    }
   });
 });

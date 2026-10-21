@@ -34,9 +34,9 @@ const ctxFor = (userId: string): AccessContext =>
   createAccessContext({ agencyId: IDS.agencyA, userId, role: 'client_owner', clientScope: [IDS.clientA1], features: ['ask', 'dashboard'] });
 const INPUT = { clientId: IDS.clientA1, title: 'Match the $69 tune-up', rationale: 'Acme cut its price to $69.', evidenceIds: [EV1], effort: 'L', impact: 'M' };
 
-async function seedAction(userId = 'u1'): Promise<{ threadId: string; messageId: string }> {
+async function seedAction(userId = 'u1', stored: { tool?: string; input?: unknown } = {}): Promise<{ threadId: string; messageId: string }> {
   const [t] = await dbs.owner.insert(askThread).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, userId, title: 'Prices' }).returning();
-  const action: AskAction = { tool: 'add_recommendation', input: INPUT, summary: 'Save recommendation: "Match the $69 tune-up"', state: 'proposed' };
+  const action = { tool: stored.tool ?? 'add_recommendation', input: stored.input ?? INPUT, summary: 'Save recommendation: "Match the $69 tune-up"', state: 'proposed' } as AskAction;
   const [msg] = await dbs.owner
     .insert(askMessage)
     .values({ threadId: t!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1, userId, role: 'action', content: action.summary, action })
@@ -113,6 +113,53 @@ describe('confirmAskAction', () => {
     m.runTool = vi.fn(async () => { throw new Error('db down'); });
     await expect(confirmAskAction(second.messageId, 'confirm')).resolves.toMatchObject({ ok: false });
     expect((await actionOf(second.messageId)).state).toBe('failed');
+  });
+});
+
+describe('confirmAskAction pinning (7a2 D12)', () => {
+  const pinnedTo = (clientId: string) => expect.objectContaining({ clientScope: [clientId] });
+
+  it('runs the tool with the context pinned to the thread client', async () => {
+    m.ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'u1', role: 'agency_admin', clientScope: 'all', features: [] });
+    const { messageId } = await seedAction();
+    await expect(confirmAskAction(messageId, 'confirm')).resolves.toEqual({ ok: true, data: { state: 'confirmed' } });
+    expect(m.runTool).toHaveBeenCalledWith(pinnedTo(IDS.clientA1), 'add_recommendation', INPUT, { channel: 'ask' });
+    const used = m.runTool.mock.calls[0]![0] as AccessContext;
+    expect(used.support).toBeUndefined();
+    expect(used.userId).toBe('u1');
+  });
+
+  it('confirm with a mismatched clientId marks failed and never runs the tool', async () => {
+    m.ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'u1', role: 'agency_admin', clientScope: 'all', features: [] });
+    for (const input of [
+      { ...INPUT, clientId: IDS.clientA2 },
+      { ...INPUT, nested: { clientId: IDS.clientA2 } },
+      { ...INPUT, list: [{ clientId: IDS.clientA2 }] },
+    ]) {
+      const { threadId, messageId } = await seedAction('u1', { input });
+      await expect(confirmAskAction(messageId, 'confirm')).resolves.toEqual({ ok: false, error: 'Not allowed' });
+      expect(await actionOf(messageId)).toMatchObject({ state: 'failed', error: 'Not allowed' });
+      expect((await messages(threadId)).map((r) => r.content)).not.toContain('Saved.');
+    }
+    expect(m.runTool).not.toHaveBeenCalled();
+  });
+
+  it('a stored non-write tool is never run', async () => {
+    for (const tool of ['search_events', 'delete_my_ask_thread', 'invite_member']) {
+      const { messageId } = await seedAction('u1', { tool, input: { clientId: IDS.clientA1, threadId: EV1 } });
+      await expect(confirmAskAction(messageId, 'confirm')).resolves.toEqual({ ok: false, error: 'Not allowed' });
+      expect(await actionOf(messageId)).toMatchObject({ state: 'failed', error: 'Not allowed' });
+    }
+    expect(m.runTool).not.toHaveBeenCalled();
+  });
+
+  it("a thread client outside the viewer's scope is never run", async () => {
+    m.ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'u1', role: 'client_owner', clientScope: [IDS.clientA2], features: ['ask', 'dashboard'] });
+    const { messageId } = await seedAction();
+    // RLS already hides the other client's message (the in-action scope check is defence in depth).
+    await expect(confirmAskAction(messageId, 'confirm')).resolves.toEqual({ ok: false, error: 'Not found' });
+    expect((await actionOf(messageId)).state).toBe('proposed');
+    expect(m.runTool).not.toHaveBeenCalled();
   });
 });
 

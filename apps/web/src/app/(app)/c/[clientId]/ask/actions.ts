@@ -1,6 +1,6 @@
 'use server';
-import { ASK_COPY, type AskAction } from '@cs/ask';
-import { isUuid } from '@cs/core';
+import { ASK_COPY, type AskAction, actionAllowed } from '@cs/ask';
+import { canAccessClient, isUuid, scopeToClient } from '@cs/core';
 import { askMessage, askThread, withTenant } from '@cs/db';
 import { eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
@@ -14,6 +14,7 @@ import { runTool, type ToolResult } from '@/server/run-tool';
 const NOT_FOUND = { ok: false as const, error: 'Not found' };
 const SAVED = 'Saved.';
 const FAILED = 'Something went wrong. Please try again.';
+const NOT_ALLOWED = 'Not allowed';
 
 type Claimed = { action: AskAction; threadId: string; clientId: string };
 
@@ -21,6 +22,8 @@ type Claimed = { action: AskAction; threadId: string; clientId: string };
  * e8: Confirm or Cancel a proposed write. The state moves off `proposed` in one guarded UPDATE through RLS (author-only),
  * so a foreign message, a repeat click or a race all get 0 rows → "Not found", and the tool runs at most once.
  * On confirm the tool runs on the `ask` channel; a refusal marks the action `failed` with the error.
+ * 7a2 D12: the tool runs pinned to the thread's client, and only an Ask write tool whose input names no other client
+ * (and a thread client the viewer can still reach); anything else is marked `failed` ("Not allowed") without running.
  */
 export async function confirmAskAction(messageId: string, decision: 'confirm' | 'cancel'): Promise<ToolResult<{ state: AskAction['state'] }>> {
   const { viewer, ctx } = await requireContext();
@@ -44,12 +47,16 @@ export async function confirmAskAction(messageId: string, decision: 'confirm' | 
     result = { ok: true, data: { state: 'cancelled' } };
   } else {
     let error: string | null = null;
-    try {
-      const r = await runTool(ctx, claimed.action.tool, claimed.action.input, { channel: 'ask' });
-      if (!r.ok) error = r.error;
-    } catch (e) {
-      console.error('[ask] confirmed action failed', e instanceof Error ? e.message : e);
-      error = FAILED;
+    if (!canAccessClient(ctx, claimed.clientId) || !actionAllowed(claimed.action, claimed.clientId)) {
+      error = NOT_ALLOWED;
+    } else {
+      try {
+        const r = await runTool(scopeToClient(ctx, claimed.clientId), claimed.action.tool, claimed.action.input, { channel: 'ask' });
+        if (!r.ok) error = r.error;
+      } catch (e) {
+        console.error('[ask] confirmed action failed', e instanceof Error ? e.message : e);
+        error = FAILED;
+      }
     }
     if (error === null) {
       await addActionMessage(ctx, claimed.threadId, SAVED);
