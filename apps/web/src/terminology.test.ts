@@ -85,7 +85,10 @@ describe('terminology: "theme" is "topic" in user-facing text (C3)', () => {
     const dir = join(ROOT, 'docs', 'help', 'pages');
     const hits: Hit[] = [];
     for (const name of readdirSync(dir).filter((n) => n.endsWith('.md'))) {
-      readFileSync(join(dir, name), 'utf8').split('\n').forEach((line, i) => { if (THEME.test(line)) hits.push({ where: `docs/help/pages/${name}:${i + 1}`, text: line }); });
+      readFileSync(join(dir, name), 'utf8').split('\n').forEach((line, i) => {
+        // The front-matter key is an identifier (`page:platform.themes` stays until 15b-3), not prose.
+        if (/^help_key:\s*page:[a-z0-9.-]+\s*$/.test(line)) return;
+        if (THEME.test(line)) hits.push({ where: `docs/help/pages/${name}:${i + 1}`, text: line }); });
     }
     expect(hits, `Found "theme" in a guide:\n${fmt(hits)}`).toEqual([]);
   });

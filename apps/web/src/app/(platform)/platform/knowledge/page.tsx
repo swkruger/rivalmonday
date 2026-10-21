@@ -1,8 +1,13 @@
 import { KB_KINDS, KB_LEVELS, type KbKind, type KbLevel } from '@cs/core';
 import Link from 'next/link';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
+import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { kbImportStatusAction, startKbImportAction } from './actions';
 import { ImportPanel } from './import-panel';
@@ -13,6 +18,9 @@ import type { KbListItem } from './sync-badge';
 export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Knowledge' };
+
+const HELP_KEY = 'page:platform.knowledge';
+const COPY = PAGE_COPY['platform.knowledge'];
 
 type Params = { level?: string; agencyId?: string; clientId?: string; kind?: string; status?: string; q?: string; cursor?: string };
 
@@ -37,7 +45,7 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
     ...(sp.cursor ? { cursor: sp.cursor } : {}),
   };
   const page = await callTool<{ items: KbListItem[]; nextCursor: string | null }>(ctx, 'list_kb_articles', { ...filters, limit: 25 });
-  const targets = await callTool<KbTargets>(ctx, 'list_kb_targets', {});
+  const [targets, guides] = await Promise.all([callTool<KbTargets>(ctx, 'list_kb_targets', {}), helpGuides(ctx, 'platform')]);
   const clients = targets.agencies.filter((a) => !sp.agencyId || a.id === sp.agencyId).flatMap((a) => a.clients);
   const more = new URLSearchParams(Object.entries(sp).filter(([k, v]) => k !== 'cursor' && v) as [string, string][]);
   if (page.nextCursor) more.set('cursor', page.nextCursor);
@@ -47,8 +55,18 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
       <PageHeader
         title="Knowledge"
         breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Knowledge' }]}
-        description="Articles the Ask assistant can search and cite, at platform, agency and client level."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
         actions={<Link href="/platform/knowledge/new" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">New article</Link>}
+      />
+      <TipRow
+        items={[
+          { label: 'Levels and kinds', tip: 'platform.knowledge.levels' },
+          { label: 'Draft or published', tip: 'platform.knowledge.status' },
+          { label: 'Repo articles', tip: 'platform.knowledge.repo' },
+          { label: 'URL articles', tip: 'platform.knowledge.sync' },
+        ]}
       />
       <form method="get" className="grid gap-2 rounded-[14px] bg-surface p-4 shadow-card md:grid-cols-6">
         <select name="level" aria-label="Level" defaultValue={sp.level ?? ''} className={selectClass}><option value="">All levels</option>{KB_LEVELS.map((l) => <option key={l} value={l}>{LEVEL_OPTION[l]}</option>)}</select>
@@ -62,7 +80,7 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
         </div>
       </form>
       {page.items.length === 0 ? (
-        <p className="text-muted-foreground">No articles yet.</p>
+        <EmptyState {...COPY.empty.none} guideAnchor="how-to-use-it" />
       ) : (
         <ul className="divide-y rounded-lg border bg-card">
           {page.items.map((a) => (

@@ -1,12 +1,17 @@
 import { platformRole } from '@cs/tools';
 import type { Metadata } from 'next';
 import { cache } from 'react';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { type SupportSessionRow, SupportSessionsTable } from '@/components/support-sessions-table';
+import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { formatUsd } from '@/server/format';
+import { helpGuides } from '@/server/help';
 import { platformAdmins } from '@/server/runtime-env';
 import { callTool } from '@/server/tools';
 import { type Health, HealthPill } from '../../_components/health-pill';
@@ -16,6 +21,9 @@ import { type AgencyBilling, BillingPanel } from './billing-panel';
 import { SupportDialog } from './support-dialog';
 
 export const dynamic = 'force-dynamic';
+
+const HELP_KEY = 'page:platform.agencies.detail';
+const COPY = PAGE_COPY['platform.agencies.detail'];
 
 interface Detail {
   agency: { id: string; name: string; createdAt: string; health: Health };
@@ -56,9 +64,10 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
   const range = parseRange(sp.range);
   const { ctx } = await requireOperatorContext();
   const { agency, tiles, series, team, clients } = await loadAgency(id, range);
-  const [{ rows: sessions }, role] = await Promise.all([
+  const [{ rows: sessions }, role, guides] = await Promise.all([
     callTool<{ rows: SupportSessionRow[] }>(ctx, 'list_agency_support_sessions', { agencyId: agency.id }),
     platformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx),
+    helpGuides(ctx, 'platform'),
   ]);
   const canStart = role === 'owner' || role === 'staff';
   const [billing, codes] = await Promise.all([
@@ -77,7 +86,13 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
       <PageHeader
         title={agency.name}
         breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Agencies', href: '/platform/agencies' }, { label: agency.name }]}
-        description={`Created ${agency.createdAt.slice(0, 10)}`}
+        description={
+          <>
+            <HelpText text={COPY.description} /> Created {agency.createdAt.slice(0, 10)}.
+          </>
+        }
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
         actions={
           <>
             <HealthPill health={agency.health} />
@@ -85,6 +100,14 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
             <RangeToggle current={range} basePath={`/platform/agencies/${agency.id}`} />
           </>
         }
+      />
+      <TipRow
+        items={[
+          { label: 'About health', tip: 'platform.agencies.health' },
+          { label: 'About support sessions', tip: 'platform.agencies.detail.support' },
+          { label: 'About the team counts', tip: 'platform.agencies.detail.team' },
+          { label: 'About the billing panel', tip: 'platform.agencies.detail.billingPanel' },
+        ]}
       />
       <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
         <StatCard title="Active clients" value={String(tiles.clientsActive.value)} pill={deltaPill(tiles.clientsActive)} hint="Last 28 days" />
@@ -109,7 +132,9 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
       <section className={cardCls}>
         <h2 className="font-semibold">Clients</h2>
         {clients.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">No clients yet.</p>
+          <div className="mt-3">
+            <EmptyState {...COPY.empty.noClients} />
+          </div>
         ) : (
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[420px] text-left text-sm">

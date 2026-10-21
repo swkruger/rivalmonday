@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { HelpProvider } from '@/components/help/help-context';
 import { ActivityFeed, type ActivityItem } from './activity-feed';
 import { HealthPill } from './health-pill';
 import { RangeToggle } from './range-toggle';
@@ -66,7 +67,7 @@ describe('ActivityFeed', () => {
   });
 
   it('shows an empty message', () => {
-    render(<ActivityFeed initial={{ items: [], nextCursor: null }} loadMore={vi.fn()} />);
-    expect(screen.getByText(/no activity yet/i)).toBeTruthy();
+    render(<HelpProvider value={{ audience: 'operator', names: { agency: 'your agency', assistant: 'Sunny' } }}><ActivityFeed initial={{ items: [], nextCursor: null }} loadMore={vi.fn()} /></HelpProvider>);
+    expect(screen.getByText('No activity yet')).toBeTruthy();
   });
 });

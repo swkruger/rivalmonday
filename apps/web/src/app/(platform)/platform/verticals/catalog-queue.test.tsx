@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { HelpProvider } from '@/components/help/help-context';
 import type { FormResult } from '@/server/forms';
 import { CatalogQueue, quotesOf, type ReviewArea, type ReviewVertical } from './catalog-queue';
 
@@ -25,8 +26,9 @@ function setup(over: Partial<React.ComponentProps<typeof CatalogQueue>> = {}) {
 
 describe('CatalogQueue', () => {
   it('shows the empty state per section', () => {
-    setup({ verticals: [], areas: [] });
-    expect(screen.getAllByText('Nothing to review.')).toHaveLength(2);
+    cleanup();
+    render(<HelpProvider value={{ audience: 'operator', names: { agency: 'your agency', assistant: 'Sunny' } }}><CatalogQueue verticals={[]} areas={[]} targets={targets} catalogue={targets} defaultMaps={maps} canEdit action={vi.fn()} /></HelpProvider>);
+    expect(screen.getAllByText('Nothing to review')).toHaveLength(2);
   });
 
   it('approves a business type and keeps the message', async () => {

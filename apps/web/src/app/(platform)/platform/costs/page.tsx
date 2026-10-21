@@ -1,5 +1,10 @@
+import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { AiByVerticalTable } from './_components/ai-by-vertical-table';
 import { CostItemDialog } from './_components/cost-item-dialog';
@@ -15,36 +20,58 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Costs' };
 
 const card = 'min-w-0 rounded-[14px] bg-surface p-6 shadow-card';
+const HELP_KEY = 'page:platform.costs';
+const COPY = PAGE_COPY['platform.costs'];
 
 /** Owners only: the tool's `permission_denied` becomes a 404 in `callTool`. */
 export default async function PlatformCostsPage() {
   const { ctx } = await requireOperatorContext();
-  const data = await callTool<CostsData>(ctx, 'list_platform_costs', {});
+  const [data, guides] = await Promise.all([callTool<CostsData>(ctx, 'list_platform_costs', {}), helpGuides(ctx, 'platform')]);
   return (
     <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-5">
       <PageHeader
         title="Costs"
         breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Costs' }]}
-        description="What it costs to run Rival Monday. API balances refresh daily at 06:00 UTC."
+        description={<HelpText text={COPY.description} />}
         actions={<RefreshButton refreshQueued={data.refreshQueued} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
+      />
+      <TipRow
+        items={[
+          { label: 'About projected spend', tip: 'platform.costs.projected' },
+          { label: 'About low balance warnings', tip: 'platform.costs.low' },
+        ]}
       />
       <SummaryCards summary={data.summary} />
       <section className={card}>
-        <h2 className="mb-3 font-semibold">Services</h2>
+        <div className="mb-3 flex items-center gap-1.5">
+          <h2 className="font-semibold">Services</h2>
+          <HelpTip tip="platform.costs.services" />
+        </div>
         <ServicesTable services={data.services} now={new Date()} />
       </section>
       <section className={card}>
-        <h2 className="font-semibold">Monthly spend</h2>
+        <div className="flex items-center gap-1.5">
+          <h2 className="font-semibold">Monthly spend</h2>
+          <HelpTip tip="platform.costs.monthly" />
+        </div>
         <p className="mb-3 text-sm text-muted-foreground">Monthly spend (approximate: balance services are estimated from daily readings)</p>
         <MonthlyChart months={data.months} />
       </section>
       <section className={card}>
-        <h2 className="mb-3 font-semibold">AI by business type (last 30 days)</h2>
+        <div className="mb-3 flex items-center gap-1.5">
+          <h2 className="font-semibold">AI by business type (last 30 days)</h2>
+          <HelpTip tip="platform.costs.ai" />
+        </div>
         <AiByVerticalTable rows={data.aiByVertical} />
       </section>
       <section className={card}>
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="font-semibold">Manual costs</h2>
+          <div className="flex items-center gap-1.5">
+            <h2 className="font-semibold">Manual costs</h2>
+            <HelpTip tip="platform.costs.manual" />
+          </div>
           <CostItemDialog />
         </div>
         <CostItemsTable items={data.items} />

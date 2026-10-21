@@ -1,10 +1,12 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { type AccessContext, GLOSSARY } from '@cs/core';
+import { type AccessContext, createAccessContext, GLOSSARY } from '@cs/core';
 import { kbArticle } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { isNotNull } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { seedUser, truncateAuth } from '../../test/fixtures';
+import { createToolRegistry } from '../registry';
 import { ctx, dbs, registry, resetWorkspace } from '../tools/workspace-fixtures';
 import { seedKnowledge } from './seed';
 
@@ -35,6 +37,13 @@ const BATCH_C = [...BATCH_C_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`])
 const AGENCY_A = ['page:agency.portfolio', 'page:agency.clients.new', 'page:agency.approvals', 'page:agency.approvals.detail', 'page:agency.alerts', 'page:agency.prospects', 'page:agency.prospects.new', 'page:agency.prospects.detail', 'page:agency.leads'];
 /** 15b-2 Task 8, agency batch B: the agency settings pages. All reachable by agency roles only, so each has one `agency` guide. */
 const AGENCY_B = ['page:agency.settings.ai', 'page:agency.settings.billing', 'page:agency.settings.branding', 'page:agency.settings.intake', 'page:agency.settings.platform-access', 'page:agency.settings.runbook', 'page:agency.settings.slack-teams', 'page:agency.settings.team', 'page:agency.settings.usage'];
+/**
+ * 15b-2 Task 9a, platform pages: operator-only (`requireOperatorContext`), so every page has one `operator` guide and nothing else.
+ * Themes is the Topic proposals page (key unchanged, text says "topic").
+ */
+const PLATFORM_KEYS = [
+  'overview', 'agencies', 'agencies.detail', 'billing', 'leads', 'reviews', 'themes', 'ask', 'ask.thread', 'knowledge', 'knowledge.new', 'knowledge.detail', 'health', 'costs', 'verticals', 'runbook',
+].map((k) => `page:platform.${k}`).sort();
 const AGENCY_KEYS = [...AGENCY_A, ...AGENCY_B].sort();
 const CLIENT_PAGES = [...PILOT, ...BATCH_A, ...BATCH_B, ...BATCH_C, ...AGENCY_KEYS.map((k) => `${k}#agency`)].sort();
 const CLIENT_KEYS = [...new Set(CLIENT_PAGES.map((k) => k.split('#')[0]!))].filter((k) => !AGENCY_KEYS.includes(k)).sort();
@@ -54,11 +63,16 @@ const owner = ctx('client_owner', [IDS.clientA1]);
 const viewer = ctx('client_viewer', [IDS.clientA1]);
 const admin = ctx('agency_admin', 'all');
 const am = ctx('account_manager', [IDS.clientA1]);
+/** A platform operator: `op@example.com` is in the registry's platform admin list (an agency admin of agency A by role). */
+const opRegistry = createToolRegistry({ app: dbs.app, service: dbs.service, platformAdmins: ['op@example.com'] }, { audit: { record: async () => {} } });
+const op = createAccessContext({ agencyId: IDS.agencyA, userId: 'op', role: 'agency_admin', clientScope: 'all', features: [] });
 const guide = (c: AccessContext, helpKey: string) => registry.invoke(c, 'get_page_guide', { helpKey, context: 'client', clientId: IDS.clientA1 }) as Promise<Guide>;
 const text = (g: Guide) => (g ? [g.title, ...g.sections.flatMap((s) => [s.heading, s.markdown])].join('\n') : '');
 
 beforeEach(async () => {
   await resetWorkspace();
+  await truncateAuth(dbs.owner);
+  await seedUser(dbs.owner, 'op', 'op@example.com');
   await seedKnowledge(dbs.service, DOCS, 'system:seed', { glossary: GLOSSARY });
 });
 
@@ -67,7 +81,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     const rows = await dbs.service.select({ seedKey: kbArticle.seedKey, helpKey: kbArticle.helpKey, audience: kbArticle.audience, clientVisible: kbArticle.clientVisible })
       .from(kbArticle).where(isNotNull(kbArticle.helpKey));
     const keys = rows.map((r) => r.seedKey!);
-    expect(keys.filter((k) => k.startsWith('page:')).sort()).toEqual(CLIENT_PAGES);
+    expect(keys.filter((k) => k.startsWith('page:')).sort()).toEqual([...CLIENT_PAGES, ...PLATFORM_KEYS.map((k) => `${k}#operator`)].sort());
     expect(keys.filter((k) => k.startsWith('glossary:')).sort()).toEqual(GLOSSARY.map((t) => `glossary:${t.id}#${t.audience}`).sort());
     for (const r of rows) expect(r.clientVisible, r.seedKey!).toBe(r.audience === 'all' || r.audience === 'client');
     // A second run changes nothing.
@@ -304,6 +318,67 @@ describe('help content (real docs/help + GLOSSARY)', () => {
       const t = await agencyGuide(key);
       expect(t, key).not.toMatch(/rival\s*monday|\btheme/i);
       expect(t, key).not.toContain('{{');
+    }
+  });
+
+  it('platform batch (Task 9a): operators read the sixteen operator guides in the platform context, with the three standard sections', async () => {
+    const platform = (await opRegistry.invoke(op, 'list_help_guides', { context: 'platform' })) as { guides: { helpKey: string }[] };
+    expect(platform.guides.map((g) => g.helpKey).filter((k) => k.startsWith('page:platform.')).sort()).toEqual(PLATFORM_KEYS);
+    for (const key of PLATFORM_KEYS) {
+      const g = (await opRegistry.invoke(op, 'get_page_guide', { helpKey: key, context: 'platform' })) as Guide;
+      expect(g!.sections.map((s) => s.heading), key).toEqual(['What this page tells you', 'How to use it', 'Common questions']);
+    }
+    const rows = await dbs.service.select({ seedKey: kbArticle.seedKey, audience: kbArticle.audience, clientVisible: kbArticle.clientVisible, level: kbArticle.level }).from(kbArticle);
+    for (const key of PLATFORM_KEYS) {
+      const r = rows.find((x) => x.seedKey === `${key}#operator`);
+      expect(r, key).toMatchObject({ audience: 'operator', clientVisible: false, level: 'platform' });
+    }
+  });
+
+  it('platform batch: operator guides are hidden from agency and client roles in every context, and the platform context itself is refused to them', async () => {
+    const asGuide = (c: AccessContext, input: Record<string, unknown>) => registry.invoke(c, 'get_page_guide', input) as Promise<Guide>;
+    for (const key of PLATFORM_KEYS) {
+      expect(await asGuide(admin, { helpKey: key, context: 'agency' }), `admin ${key}`).toBeNull();
+      expect(await asGuide(am, { helpKey: key, context: 'client', clientId: IDS.clientA1 }), `am ${key}`).toBeNull();
+      expect(await asGuide(owner, { helpKey: key, context: 'client', clientId: IDS.clientA1 }), `owner ${key}`).toBeNull();
+      expect(await asGuide(viewer, { helpKey: key, context: 'client', clientId: IDS.clientA1 }), `viewer ${key}`).toBeNull();
+    }
+    for (const c of [admin, am, owner, viewer]) {
+      await expect(registry.invoke(c, 'get_page_guide', { helpKey: PLATFORM_KEYS[0], context: 'platform' }), c.role).rejects.toMatchObject({ code: 'not_found' });
+      await expect(registry.invoke(c, 'list_help_guides', { context: 'platform' }), c.role).rejects.toMatchObject({ code: 'not_found' });
+    }
+    // The agency and client lists never carry a platform key (the agency list is exact: see the agency batches above).
+    for (const c of [admin, am]) {
+      const { guides } = (await registry.invoke(c, 'list_help_guides', { context: 'client', clientId: IDS.clientA1 })) as { guides: { helpKey: string }[] };
+      expect(guides.map((g) => g.helpKey).filter((k) => k.startsWith('page:platform.')), c.role).toEqual([]);
+    }
+  });
+
+  it('platform batch: the guides carry the numbers and labels the pages use, say "topic" not "theme", and leave no placeholder unfilled', async () => {
+    const pg = async (key: string) => text((await opRegistry.invoke(op, 'get_page_guide', { helpKey: `page:platform.${key}`, context: 'platform' })) as Guide);
+    const want: Record<string, string[]> = {
+      overview: ['Last 28 days', '12 weeks', '12 months', 'Monday', '7 days', '20 at a time'],
+      agencies: ['At risk', 'Idle', 'Growing', 'Steady', '28 days', '14 days', '7 days', '30 days'],
+      'agencies.detail': ['60 minutes', 'read-only', '5 to 300', 'audit log', 'View as agency'],
+      billing: ['agency ids', '100', '1,000', '1 to 90', '14 if blank', '1 to 36', '30 or 90 days', 'shown once'],
+      leads: ['200', 'Declined by an agency', 'Assign', '20'],
+      reviews: ['Jev', '0.85', 'language model', 'Model said', 'gold labels', '50'],
+      themes: ['topic', '20', '90 days', 'fifth', '30 days'],
+      ask: ['audit log', 'quota', '25'],
+      'ask.thread': ['Citations', 'Trace', 'cancelled'],
+      knowledge: ['Managed in repo', 'kb:seed', 'Sunday at 05:00 UTC', 'Published'],
+      'knowledge.new': ['Visible to client users', 'Preview', 'Publish'],
+      'knowledge.detail': ['Managed in repo', 'Auto-sync', 'Previous version', 'cannot be undone'],
+      health: ['Agencies', 'Costs'],
+      costs: ['06:00 UTC', '14 days', '7 days', 'six months', '30 days', 'Projected this month'],
+      verticals: ['old id', 'Merge into', 'Evidence', 'owners and staff'],
+      runbook: ['Update available', 'Removed upstream', 'owners and staff'],
+    };
+    for (const k of PLATFORM_KEYS.map((x) => x.replace('page:platform.', ''))) {
+      const t = await pg(k);
+      for (const w of want[k]!) expect(t, `${k}: ${w}`).toContain(w);
+      expect(t, k).not.toMatch(/\bthemes?\b/i);
+      expect(t, k).not.toContain('{{');
     }
   });
 

@@ -1,3 +1,5 @@
+import { EmptyState } from '@/components/help/empty-state';
+import { PAGE_COPY } from '@/help/copy';
 import { formatUsd, relativeTime } from '@/server/format';
 import Link from 'next/link';
 import type { BillingState } from '@cs/db';
@@ -91,7 +93,7 @@ export function AgencyTable({ rows, sort, dir, now }: { rows: AgencyRow[]; sort:
           </tbody>
         </table>
       </div>
-      {rows.length === 0 && <p className="px-3 py-6 text-muted-foreground">No agencies yet.</p>}
+      {rows.length === 0 && <EmptyState {...PAGE_COPY['platform.agencies'].empty.none} guideAnchor="what-this-page-tells-you" />}
     </div>
   );
 }

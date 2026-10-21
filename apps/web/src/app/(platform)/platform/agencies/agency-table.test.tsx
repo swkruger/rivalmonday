@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { HelpProvider } from '@/components/help/help-context';
 import { AgencyTable, type AgencyRow } from './agency-table';
 
 const NOW = new Date('2026-10-13T12:00:00.000Z');
@@ -11,8 +12,9 @@ const row = (over: Partial<AgencyRow> = {}): AgencyRow => ({
 
 describe('AgencyTable', () => {
   it('renders the empty copy', () => {
-    render(<AgencyTable rows={[]} sort="name" dir="asc" now={NOW} />);
-    expect(screen.getByText('No agencies yet.')).toBeTruthy();
+    render(<HelpProvider value={{ audience: 'operator', names: { agency: 'your agency', assistant: 'Sunny' } }}><AgencyTable rows={[]} sort="name" dir="asc" now={NOW} /></HelpProvider>);
+    expect(screen.getByText('No agencies yet')).toBeTruthy();
+    expect(screen.getByText(/Agencies appear here when they sign up/)).toBeTruthy();
   });
 
   it('links each row to its detail page and shows the health pill', () => {

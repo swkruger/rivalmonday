@@ -1,10 +1,12 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { EmptyState } from '@/components/help/empty-state';
+import { PAGE_COPY } from '@/help/copy';
 import { formatUsd } from '@/server/format';
 import type { AiVerticalCost } from './types';
 
 /** AI spend by business type for the last 30 days (owner-only page; the tool folds merged and draft ids). */
 export function AiByVerticalTable({ rows }: { rows: AiVerticalCost[] }) {
-  if (rows.length === 0) return <p className="text-sm text-muted-foreground">No AI calls with a business type in the last 30 days.</p>;
+  if (rows.length === 0) return <EmptyState {...PAGE_COPY['platform.costs'].empty.ai} guideAnchor="common-questions" />;
   return (
     <Table>
       <TableHeader>

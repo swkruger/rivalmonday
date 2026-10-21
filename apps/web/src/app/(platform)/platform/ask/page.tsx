@@ -1,18 +1,27 @@
 import { listReviewableAskThreads } from '@cs/tools';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
+import { helpGuides } from '@/server/help';
 import { isHiddenToolError, toolDeps } from '@/server/tools';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Ask reviews' };
 
+const HELP_KEY = 'page:platform.ask';
+const COPY = PAGE_COPY['platform.ask'];
+
 /** Read-only (6b e6). Non-operators get permission_denied → 404; only clients that allow review are listed. */
 export default async function PlatformAskPage({ searchParams }: { searchParams: Promise<{ cursor?: string }> }) {
   const { ctx } = await requireOperatorContext();
   const { cursor } = await searchParams;
+  const guides = await helpGuides(ctx, 'platform');
   let page: Awaited<ReturnType<typeof listReviewableAskThreads>>;
   try {
     page = await listReviewableAskThreads(toolDeps(), ctx, { ...(cursor ? { cursor } : {}), limit: 25 });
@@ -25,10 +34,19 @@ export default async function PlatformAskPage({ searchParams }: { searchParams: 
       <PageHeader
         title="Ask reviews"
         breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Ask reviews' }]}
-        description="Conversations from clients that allow review. Opening one is recorded in the audit log."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
+      />
+      <TipRow
+        items={[
+          { label: 'Which conversations', tip: 'platform.ask.allowed' },
+          { label: 'What is recorded', tip: 'platform.ask.audit' },
+          { label: 'The badges', tip: 'platform.ask.flags' },
+        ]}
       />
       {page.items.length === 0 ? (
-        <p className="text-muted-foreground">No threads to review.</p>
+        <EmptyState {...COPY.empty.none} guideAnchor="what-this-page-tells-you" />
       ) : (
         <ul className="divide-y rounded-lg border bg-card">
           {page.items.map((t) => (

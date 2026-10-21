@@ -1,8 +1,13 @@
 import { platformRole } from '@cs/tools';
 import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { EmptyState } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
+import { helpGuides } from '@/server/help';
 import { platformAdmins } from '@/server/runtime-env';
 import { callTool } from '@/server/tools';
 import { type AgencyOption, AssignForm } from './assign-form';
@@ -10,6 +15,9 @@ import { type AgencyOption, AssignForm } from './assign-form';
 export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Lead pool' };
+
+const HELP_KEY = 'page:platform.leads';
+const COPY = PAGE_COPY['platform.leads'];
 
 interface PoolLead {
   id: string;
@@ -38,9 +46,10 @@ const day = (d: Date | string | null) => (d ? new Date(d).toLocaleDateString('en
 /** Phase 11c §6: the pool of verified platform leads. Operators only (a refusal is a 404); only owner and staff can assign. */
 export default async function PlatformLeadsPage() {
   const { ctx } = await requireOperatorContext();
-  const [{ leads, agencies, recentAssignments }, role] = await Promise.all([
+  const [{ leads, agencies, recentAssignments }, role, guides] = await Promise.all([
     callTool<{ leads: PoolLead[]; agencies: AgencyOption[]; recentAssignments: Recent[] }>(ctx, 'list_pool_leads', {}),
     platformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx),
+    helpGuides(ctx, 'platform'),
   ]);
   const canAssign = role === 'owner' || role === 'staff';
   return (
@@ -48,7 +57,16 @@ export default async function PlatformLeadsPage() {
       <PageHeader
         title="Lead pool"
         breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Lead pool' }]}
-        description="Verified requests from the platform page that no agency holds yet. Assign one to an agency; it is notified by email."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
+      />
+      <TipRow
+        items={[
+          { label: 'About the pool', tip: 'platform.leads.pool' },
+          { label: 'About giving a lead', tip: 'platform.leads.giving' },
+          { label: 'About returned leads', tip: 'platform.leads.declined' },
+        ]}
       />
       <Card>
         <CardHeader>
@@ -56,7 +74,7 @@ export default async function PlatformLeadsPage() {
         </CardHeader>
         <CardContent>
           {leads.length === 0 ? (
-            <p className="text-muted-foreground">The pool is empty.</p>
+            <EmptyState {...COPY.empty.pool} guideAnchor="what-this-page-tells-you" />
           ) : (
             <Table>
               <TableHeader>
@@ -100,7 +118,7 @@ export default async function PlatformLeadsPage() {
         </CardHeader>
         <CardContent>
           {recentAssignments.length === 0 ? (
-            <p className="text-muted-foreground">Nothing assigned yet.</p>
+            <EmptyState {...COPY.empty.assigned} />
           ) : (
             <Table>
               <TableHeader>

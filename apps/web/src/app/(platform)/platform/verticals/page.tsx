@@ -1,8 +1,12 @@
 import { platformRole } from '@cs/tools';
 import { normaliseName } from '@cs/verticals';
+import { HelpText } from '@/components/help/help-context';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
+import { helpGuides } from '@/server/help';
 import { platformAdmins } from '@/server/runtime-env';
 import { callTool } from '@/server/tools';
 import { catalogReviewAction } from './actions';
@@ -12,13 +16,17 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Business types' };
 
+const HELP_KEY = 'page:platform.verticals';
+const COPY = PAGE_COPY['platform.verticals'];
+
 /** Phase 14a: the operator queue for business types and services agencies added. Operators only (a refusal is a 404). */
 export default async function PlatformVerticalsPage() {
   const { ctx } = await requireOperatorContext();
-  const [review, all, role] = await Promise.all([
+  const [review, all, role, guides] = await Promise.all([
     callTool<{ verticals: ReviewVertical[]; areas: ReviewArea[]; count: number }>(ctx, 'list_catalog_review', {}),
     callTool<{ verticals: TargetVertical[] }>(ctx, 'list_verticals', {}),
     platformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx),
+    helpGuides(ctx, 'platform'),
   ]);
   const targets = all.verticals.filter((v) => v.status === 'reviewed');
   // Merge form defaults: each source area maps to the target area with the same normalised name, else null ("Move").
@@ -35,7 +43,17 @@ export default async function PlatformVerticalsPage() {
       <PageHeader
         title="Business types"
         breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Business types' }]}
-        description="New business types and services agencies added. Approve what is right, fix what is not, or merge duplicates into an existing entry."
+        description={<HelpText text={COPY.description} />}
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
+      />
+      <TipRow
+        items={[
+          { label: 'What lands here', tip: 'platform.verticals.queue' },
+          { label: 'Approving and editing', tip: 'platform.verticals.approve' },
+          { label: 'Merging duplicates', tip: 'platform.verticals.merge' },
+          { label: 'Who can change things', tip: 'platform.verticals.roles' },
+        ]}
       />
       <CatalogQueue
         verticals={review.verticals}

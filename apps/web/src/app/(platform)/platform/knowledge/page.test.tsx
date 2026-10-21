@@ -2,6 +2,7 @@
 import { ToolError } from '@cs/core';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { HelpProvider } from '@/components/help/help-context';
 
 const h = vi.hoisted(() => ({
   invoke: vi.fn(),
@@ -39,8 +40,8 @@ describe('/platform/knowledge', () => {
 
   it('shows the empty state', async () => {
     h.invoke.mockImplementation(answer([]));
-    render(await KnowledgePage({ searchParams: Promise.resolve({}) }));
-    expect(screen.getByText('No articles yet.')).toBeTruthy();
+    render(<HelpProvider value={{ audience: 'operator', names: { agency: 'your agency', assistant: 'Sunny' } }}>{await KnowledgePage({ searchParams: Promise.resolve({}) })}</HelpProvider>);
+    expect(screen.getByText('No articles yet')).toBeTruthy();
   });
 
   it('passes valid filters to the tool and ignores junk', async () => {
