@@ -62,7 +62,8 @@ describe('sendSupportSessionStartedEmail', () => {
     await dbs.owner.execute(sql`update auth."user" set name = 'pat@rivalmonday.test' where id = 'op'`);
     const t = createMemoryTransport();
     await run(t);
-    expect(t.sent[0]!.text).toContain('Rival Monday support opened a read-only session');
+    // The body falls back to the neutral `SUPPORT_DISPLAY_NAME` (T8); the subject still names the product (backlog 13a).
+    expect(t.sent[0]!.text).toContain('Platform support opened a read-only session on October 13, 2026.');
     expect(JSON.stringify(t.sent)).not.toContain('pat@rivalmonday.test');
   });
 
