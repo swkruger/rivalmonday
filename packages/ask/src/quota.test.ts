@@ -101,6 +101,13 @@ describe('beginTurn', () => {
     expect(await dbs.owner.select().from(askMessage)).toHaveLength(0);
   });
 
+  it('a plan without ask → not_found, for agency and client roles (7a2 defence in depth)', async () => {
+    const admin = createAccessContext({ agencyId: IDS.agencyA, userId: 'u1', role: 'agency_admin', clientScope: 'all', features: [], planFeatures: ['mcp'] });
+    const owner = createAccessContext({ agencyId: IDS.agencyA, userId: 'u1', role: 'client_owner', clientScope: [IDS.clientA1], features: ['ask'], planFeatures: [] });
+    for (const ctx of [admin, owner]) await expect(beginTurn(dbs.app, ctx, q())).rejects.toMatchObject({ code: 'not_found' });
+    expect(await dbs.owner.select().from(askMessage)).toHaveLength(0);
+  });
+
   it('client role without the ask feature → not_found; out-of-scope client → not_found', async () => {
     const noAsk = createAccessContext({ agencyId: IDS.agencyA, userId: 'u-owner', role: 'client_owner', clientScope: [IDS.clientA1], features: [] });
     await expect(beginTurn(dbs.app, noAsk, q())).rejects.toMatchObject({ code: 'not_found' });

@@ -1,4 +1,4 @@
-import { type AccessContext, canAccessClient, hasFeature, isClientRole, ToolError } from '@cs/core';
+import { type AccessContext, canAccessClient, hasChannel, isClientRole, ToolError } from '@cs/core';
 import { askMessage, askThread, client, type Db, type Tx, withTenant } from '@cs/db';
 import { monthStart } from '@cs/tools';
 import { and, eq, sql } from 'drizzle-orm';
@@ -56,8 +56,9 @@ async function insertMessage(
  * only; agency users are never counted nor stopped) and stores the user's question. Returns no counts or limits.
  */
 export async function beginTurn(app: Db, ctx: AccessContext, input: BeginTurnInput, now: Date = new Date()): Promise<BeginTurnResult> {
-  // Guests (magic-link contacts) have no Ask (Q2); a client role needs the `ask` feature. Both look like a missing page.
-  if (ctx.userId.startsWith('contact:') || !hasFeature(ctx, 'ask')) throw new ToolError('not_found', 'Not found');
+  // Guests (contacts) have no Ask (Q2); a client role needs the `ask` feature and the plan must include Ask (7a2).
+  // All look like a missing page.
+  if (ctx.userId.startsWith('contact:') || !hasChannel(ctx, 'ask')) throw new ToolError('not_found', 'Not found');
   if (!canAccessClient(ctx, input.clientId)) throw new ToolError('not_found', 'Client not found');
   const question = input.question.trim();
   if (question.length < 1 || question.length > MAX_QUESTION) throw new ToolError('invalid_input', `The question must be 1–${MAX_QUESTION} characters`);

@@ -8,8 +8,6 @@ export const dynamic = 'force-dynamic';
 
 /** Ask a question (6b): an SSE stream of `AskEvent`s. The turn outlives a client disconnect (`after` keeps it alive). */
 export async function POST(req: Request): Promise<Response> {
-  // The path names no client: resolve the membership under the body's clientId (validated again in handleAskTurn).
-  const body: unknown = await req.clone().json().catch(() => null);
-  const clientId = body && typeof body === 'object' && typeof (body as { clientId?: unknown }).clientId === 'string' ? (body as { clientId: string }).clientId : null;
-  return handleAskTurn(req, { viewer: await getViewerForClient(clientId), deps: () => askDeps(), keepAlive: (turn) => after(() => turn) });
+  // No pre-parse (7a2 §4): handleAskTurn gates with no client hint first, then re-resolves under the parsed clientId.
+  return handleAskTurn(req, { viewerFor: getViewerForClient, deps: () => askDeps(), keepAlive: (turn) => after(() => turn) });
 }

@@ -2,7 +2,7 @@ import 'server-only';
 import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
 import { ASK_COPY, type AskDeps, type AskEvent, beginTurn, DEFAULT_ASSISTANT_NAME, runTurn } from '@cs/ask';
 import { createScriptedAskAi, type ScriptedReply, type ScriptedStep } from '@cs/ask/testing';
-import { type AccessContext, canAccessClient, hasFeature, ToolError } from '@cs/core';
+import { type AccessContext, canAccessClient, hasChannel, ToolError } from '@cs/core';
 import { agency, client, createDecisionSampleSink, createLedgerSink, type Db, type EnvName, withTenant } from '@cs/db';
 import { assertAgencyServiceable } from '@cs/tools';
 import { eq } from 'drizzle-orm';
@@ -150,32 +150,95 @@ async function clientVisible(app: Db, ctx: AccessContext, clientId: string): Pro
 }
 
 export type AskTurnOptions = {
-  viewer: Viewer | null;
+  /** Resolves the viewer; `null` = no client hint (the early gate), else the body's `clientId` picks the membership. */
+  viewerFor: (clientId: string | null) => Promise<Viewer | null>;
   deps: () => Promise<AskDeps>;
   /** Keeps the serverless invocation alive until the turn settles (Next `after`); the turn never depends on it. */
   keepAlive?: (turn: Promise<void>) => void;
 };
 
+/** 7a2 spec §4: the largest `/api/ask/turn` body, by `Content-Length` and by streamed byte count. */
+export const ASK_MAX_BODY_BYTES = 32 * 1024;
+
 /**
- * `POST /api/ask/turn` (spec "Web", Q2, Q3, Q11). Refusals are an empty 404 (guest, no session, member-less, a client
- * out of scope or without the `ask` feature). Otherwise an SSE stream with exactly one `final`: the quota copy, the
- * turn's own final, or the error copy for anything that throws. The turn runs to completion even if the client
- * disconnects (e1): a closed stream only stops the writes.
+ * Reads a JSON body of at most `max` bytes. A larger `Content-Length` is 413 without reading; otherwise the body is
+ * streamed and counted (a chunked body has no length), and the stream is cancelled as soon as the count passes `max`.
+ * An empty body, a read error, invalid UTF-8 or invalid JSON is 400.
+ */
+export async function readCappedJson(req: Request, max: number): Promise<{ ok: true; value: unknown } | { ok: false; status: 400 | 413 }> {
+  const declared = req.headers.get('content-length');
+  if (declared !== null && Number(declared) > max) return { ok: false, status: 413 };
+  if (!req.body) return { ok: false, status: 400 };
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > max) {
+        await reader.cancel().catch(() => undefined);
+        return { ok: false, status: 413 };
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return { ok: false, status: 400 };
+  }
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    bytes.set(c, at);
+    at += c.byteLength;
+  }
+  try {
+    return { ok: true, value: JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) };
+  } catch {
+    return { ok: false, status: 400 };
+  }
+}
+
+/** The media type of a `content-type` header: before any `;`, trimmed, lower-cased. */
+const mediaType = (header: string | null) => (header ?? '').split(';')[0]!.trim().toLowerCase();
+
+/**
+ * `POST /api/ask/turn` (spec "Web", Q2, Q3, Q11; 7a2 spec §4 order, Decision 4). Refusals are an empty 404 and come
+ * before any body handling: no user viewer, a contact, a plan without Ask, a missing or foreign `Origin`. Then 415 (not
+ * JSON), 413 (over 32 KB), 400 (malformed), and the client checks under the membership the body's `clientId` picks
+ * (404). Otherwise an SSE stream with exactly one `final`: the quota copy, the turn's own final, or the error copy for
+ * anything that throws. The turn runs to completion even if the client disconnects (e1): a closed stream only stops
+ * the writes.
  */
 export async function handleAskTurn(req: Request, o: AskTurnOptions): Promise<Response> {
-  const viewer = o.viewer;
-  if (!viewer || viewer.kind !== 'user') return notFound();
-  const ctx = viewer.ctx;
-  let raw: unknown;
+  // 1. Early gate with no client hint. A null-hint context may belong to another single-client membership, so the
+  //    client-level `ask` feature is checked after parsing, against the hinted viewer.
+  const early = await o.viewerFor(null);
+  if (!early || early.kind !== 'user' || early.ctx.userId.startsWith('contact:') || !early.ctx.planFeatures.has('ask')) return notFound();
+
+  // 2. CSRF: the browser's `Origin` must name this host. `x-forwarded-host` is deliberately not trusted.
+  const host = req.headers.get('host')?.toLowerCase() ?? null;
+  let originHost: string | null = null;
   try {
-    raw = await req.json();
+    originHost = new URL(req.headers.get('origin') ?? '').host.toLowerCase();
   } catch {
-    return new Response(null, { status: 400 });
+    originHost = null;
   }
-  const body = AskTurnBody.safeParse(raw);
+  if (!host || !originHost || originHost !== host) return notFound();
+
+  // 3–4. JSON only, capped by header and by streamed count.
+  if (mediaType(req.headers.get('content-type')) !== 'application/json') return new Response(null, { status: 415 });
+  const raw = await readCappedJson(req, ASK_MAX_BODY_BYTES);
+  if (!raw.ok) return new Response(null, { status: raw.status });
+
+  // 5. Parse, then the client checks under the membership covering the body's client.
+  const body = AskTurnBody.safeParse(raw.value);
   if (!body.success) return new Response(null, { status: 400 });
   const input = body.data;
-  if (ctx.userId.startsWith('contact:') || !hasFeature(ctx, 'ask') || !canAccessClient(ctx, input.clientId)) return notFound();
+  const viewer = await o.viewerFor(input.clientId);
+  if (!viewer || viewer.kind !== 'user') return notFound();
+  const ctx = viewer.ctx;
+  if (ctx.userId.startsWith('contact:') || !hasChannel(ctx, 'ask') || !canAccessClient(ctx, input.clientId)) return notFound();
 
   let deps: AskDeps | null = null;
   let begun: Awaited<ReturnType<typeof beginTurn>> | null = null;
