@@ -232,7 +232,9 @@ describe('white-label leak guard (15a §2.10)', () => {
  */
 describe('help content a client can reach (15b-2)', () => {
   /** Agency-side vocabulary a client-facing string must not use (copy rules: routing, upsell, seats, review queue, AMs, spend, vendors, thresholds). */
-  const AGENCY_ONLY = /\b(routing|upsell|seats?|review queue|approvals?|account managers?|AM|spend|DataForSEO|Stadia|OpenRouter|Jev|TypeSafe)\b|confidence threshold/i;
+  const AGENCY_ONLY = /\b(routing|upsell|seats?|review queue|approvals?|account managers?|spend|DataForSEO|Stadia|OpenRouter|Jev|TypeSafe)\b|confidence threshold/i;
+  /** The abbreviation "AM" (account manager), case-sensitive so the word "am" is fine. */
+  const AM_WORD = /\bAMs?\b/;
   /** Client routes the client roles never reach: their copy is agency-only by construction. */
   const AGENCY_ONLY_KEYS = new Set(['client.pitch-snapshot', 'client.settings.delivery', 'client.settings.runbook']);
   const SCENARIOS = [
@@ -246,7 +248,7 @@ describe('help content a client can reach (15b-2)', () => {
   const check = (where: string, text: string, problems: string[]) => {
     if (LEAK.test(text)) problems.push(`${where}: names the product`);
     if (/\{\{?\s*\w+\s*\}?\}/.test(text)) problems.push(`${where}: unfilled placeholder`);
-    const hit = AGENCY_ONLY.exec(text);
+    const hit = AGENCY_ONLY.exec(text) ?? AM_WORD.exec(text);
     if (hit) problems.push(`${where}: agency-side wording "${hit[0]}"`);
   };
 

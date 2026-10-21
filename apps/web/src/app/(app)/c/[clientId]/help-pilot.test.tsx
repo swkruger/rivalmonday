@@ -70,6 +70,21 @@ describe('pilot pages: guide button', () => {
   }
 });
 
+describe('Overview without the dashboard feature (briefs-only home)', () => {
+  it('still shows the Guide button for a client when page:client.overview has a guide', async () => {
+    m.features = [];
+    m.guides = ['page:client.overview'];
+    m.role = 'client_owner';
+    // The briefs-only home is an async server component, so resolve it before rendering.
+    const el = (await Overview(args)) as React.ReactElement<{ clientId: string; ctx: never }>;
+    const home = await (el.type as (p: typeof el.props) => Promise<React.ReactNode>)(el.props);
+    render(<HelpProvider value={{ audience: 'client', names: { agency: 'Cool Comfort', assistant: 'Sunny', client: 'Lone Star Cooling' } }}>{home}</HelpProvider>);
+    expect(screen.getByText('Weekly briefs')).toBeTruthy();
+    expect(await screen.findByRole('button', { name: /guide/i }, { timeout: 15_000 })).toBeTruthy();
+    expect(m.calls.filter(([n]) => n === 'list_help_guides').map(([, i]) => i)).toEqual([{ context: 'client', clientId: C }]);
+  });
+});
+
 describe('pilot pages: copy, tips and empty states by audience', () => {
   it('Overview: description with the client name, KPI and pressure tips, audience-specific empty state', async () => {
     await show(PAGES[0][1], 'client');

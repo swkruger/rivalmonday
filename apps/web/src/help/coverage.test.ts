@@ -35,7 +35,31 @@ const ACCOUNT_ROUTES: Record<string, Audience[]> = {
 /** Components that render a page's PageHeader on its behalf (the route file only renders them), scanned explicitly. */
 const DELEGATED_HEADERS: { file: string; route: string }[] = [
   { file: join(APP, '(app)', 'c', '[clientId]', 'ask', 'ask-screen.tsx'), route: '/c/[clientId]/ask' },
+  // The briefs-only home (no `dashboard` feature), rendered by /c/[clientId]/page.tsx.
+  { file: join(SRC, 'components', 'client-home-basic.tsx'), route: '/c/[clientId]' },
 ];
+
+/**
+ * Per `<PageHeader …>` element: keyed when it has a `helpKey` attribute, or a spread (`{...header}`) in a file that sets a
+ * `helpKey:` property (Setup and Business profile build the header props once and spread them).
+ */
+function headerStats(src: string): { total: number; unkeyed: number } {
+  const sf = ts.createSourceFile('x.tsx', src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let total = 0;
+  let unkeyed = 0;
+  const visit = (n: ts.Node) => {
+    if ((ts.isJsxOpeningElement(n) || ts.isJsxSelfClosingElement(n)) && n.tagName.getText(sf) === 'PageHeader') {
+      total++;
+      const attrs = n.attributes.properties;
+      const direct = attrs.some((a) => ts.isJsxAttribute(a) && a.name.getText(sf) === 'helpKey');
+      const spread = attrs.some((a) => ts.isJsxSpreadAttribute(a)) && /\bhelpKey\s*:/.test(src);
+      if (!direct && !spread) unkeyed++;
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
+  return { total, unkeyed };
+}
 
 const rel = (f: string) => relative(ROOT, f).split(sep).join('/');
 
@@ -109,16 +133,20 @@ export function findGaps(): string[] {
   const guides = loadGuides();
   const used = new Map<string, { audiences: Audience[]; routes: string[] }>();
 
-  const pages = [
-    ...walk(APP, (n) => n === 'page.tsx').map((file) => ({ file, route: routeOf(file) })),
-    ...DELEGATED_HEADERS,
-  ];
+  const pageFiles = walk(APP, (n) => n === 'page.tsx');
+  const pages = [...pageFiles.map((file) => ({ file, route: routeOf(file) })), ...DELEGATED_HEADERS];
+  // Any other non-test component that renders a PageHeader must be declared in DELEGATED_HEADERS, so a new delegated header fails the gate.
+  const known = new Set(pages.map((p) => p.file));
+  for (const file of walk(SRC, (n) => n.endsWith('.tsx') && !/\.test\.tsx$/.test(n))) {
+    if (!known.has(file) && headerStats(readFileSync(file, 'utf8')).total > 0) gaps.push(`${rel(file)}: renders <PageHeader> but is neither a page nor listed in DELEGATED_HEADERS`);
+  }
   for (const { file, route } of pages) {
     const src = readFileSync(file, 'utf8');
-    if (!src.includes('<PageHeader')) continue;
+    const stats = headerStats(src);
+    if (stats.total === 0) continue;
     if (EXEMPT.includes(route)) continue;
     const keys = keysIn(src);
-    if (!/helpKey\s*[=:]/.test(src) || keys.length === 0) { gaps.push(`${rel(file)}: <PageHeader> without a recognisable helpKey (route ${route})`); continue; }
+    if (stats.unkeyed > 0 || keys.length === 0) { gaps.push(`${rel(file)}: ${stats.unkeyed || stats.total} <PageHeader> without a recognisable helpKey (route ${route})`); continue; }
     const audiences = reachable(route);
     if (!audiences) { gaps.push(`${rel(file)}: route ${route} has no audience rule (add it to ACCOUNT_ROUTES)`); continue; }
     for (const key of keys) {

@@ -2,6 +2,7 @@ import { type AccessContext, isAgencyRole } from '@cs/core';
 import type { AlertSummary, BriefSummary, ClientProfile, ReportSummary, SetupState, StartingPointStatus } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
+import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
 import { AskCard } from './ask/ask-card';
 import { AlertLinkList, BriefLinkList } from './client-lists';
@@ -9,15 +10,18 @@ import { PageHeader } from './page-header';
 import { openSetupSteps, SetupBadge } from './setup-badge';
 import { pendingStartingPoint, StartingPointCard } from './starting-point-card';
 
+const HELP_KEY = 'page:client.overview';
+
 /** The 5a client home, kept for client users without the `dashboard` feature (briefs-only plans). */
 export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx: AccessContext }) {
   const profile = await callTool<ClientProfile>(ctx, 'get_client_profile', { clientId });
-  const [briefs, alerts, reports, starting, setup] = await Promise.all([
+  const [briefs, alerts, reports, starting, setup, guides] = await Promise.all([
     callTool<{ items: BriefSummary[] }>(ctx, 'list_briefs', { clientId, limit: 10 }),
     callTool<{ items: AlertSummary[] }>(ctx, 'list_alerts', { clientId, limit: 10 }),
     callTool<{ items: ReportSummary[] }>(ctx, 'list_trend_reports', { clientId }),
     tryCallTool<StartingPointStatus>(ctx, 'get_starting_point_status', { clientId }),
     tryCallTool<{ state: SetupState }>(ctx, 'get_client_setup', { clientId }),
+    helpGuides(ctx, 'client', clientId),
   ]);
   const setupSteps = openSetupSteps(setup, isAgencyRole(ctx.role));
   const preparing = pendingStartingPoint(starting, briefs.items);
@@ -25,6 +29,8 @@ export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx
     <>
       <PageHeader
         title="Overview"
+        helpKey={HELP_KEY}
+        guide={guides.has(HELP_KEY)}
         description={`${profile.name} · Weekly briefs, alerts and quarterly reports.`}
         actions={
           <Link href={`/c/${clientId}/briefs`} className="font-semibold text-primary-soft-text">
