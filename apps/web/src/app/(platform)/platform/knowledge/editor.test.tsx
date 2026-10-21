@@ -75,6 +75,7 @@ describe('ImportPanel', () => {
       no_content: "We couldn't find readable text on this page.",
       off_site: 'The page redirected to another site.',
       fetch_failed: "We couldn't load the page. Try again later.",
+      not_public: 'That address is not a public web page.',
     });
     expect(importErrorCopy(undefined)).toBe(IMPORT_ERROR_COPY.fetch_failed);
   });

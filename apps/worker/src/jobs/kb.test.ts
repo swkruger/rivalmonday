@@ -164,6 +164,7 @@ describe('kb-import', () => {
     ['timeout', { status: 'timeout', httpStatus: null }, 'fetch_failed'],
     ['render throws', new Error('boom'), 'fetch_failed'],
     ['empty page', { html: '<html><body><nav>x</nav></body></html>' }, 'no_content'],
+    ['renderer refused a request (redirect to a private address)', { status: 'error', httpStatus: null, error: 'ssrf_blocked' }, 'not_public'],
   ])('%s maps to %s and saves nothing', async (_n, fake, error) => {
     const { deps, close } = importDeps(fake);
     await expect(run(deps)).resolves.toEqual({ error });
@@ -175,9 +176,28 @@ describe('kb-import', () => {
     const job = createKbJobs(importDeps({}).deps).importUrl;
     for (const url of ['http://127.0.0.1/x', 'file:///etc/passwd', 'http://169.254.169.254/', 'https://u:p@example.com/']) expect(job.schema.safeParse({ ...importInput, url }).success).toBe(false);
     const { deps, render } = importDeps({}, true, ['93.184.216.34', '10.0.0.5']);
-    await expect(run(deps)).resolves.toEqual({ error: 'blocked' });
+    await expect(run(deps)).resolves.toEqual({ error: 'not_public' });
     expect(render).not.toHaveBeenCalled();
     expect(await urlRows()).toHaveLength(0);
+  });
+
+  it('kb-import maps ssrf to not_public for every embedded-IPv4 answer form, without rendering', async () => {
+    for (const addr of ['::ffff:127.0.0.1', '::ffff:0:127.0.0.1', '64:ff9b::7f00:1', '2002:7f00:1::', 'fd00::1']) {
+      const { deps, render } = importDeps({}, true, [addr]);
+      await expect(run(deps)).resolves.toEqual({ error: 'not_public' });
+      expect(render).not.toHaveBeenCalled();
+    }
+    const { deps, render } = importDeps({}, true, []);
+    await expect(run(deps)).resolves.toEqual({ error: 'not_public' });
+    expect(render).not.toHaveBeenCalled();
+  });
+
+  it('a DNS lookup failure is an ordinary fetch failure, not not_public', async () => {
+    const { deps, render, resolveHost } = importDeps({});
+    resolveHost.mockRejectedValueOnce(new Error('ENOTFOUND example.com'));
+    vi.spyOn(workerLog, 'error').mockImplementation(() => {});
+    await expect(run(deps)).resolves.toEqual({ error: 'fetch_failed' });
+    expect(render).not.toHaveBeenCalled();
   });
 
   it('returns disabled without fetching when the flag is off', async () => {
@@ -260,7 +280,7 @@ describe('kb-sync', () => {
     const { deps, render } = importDeps({}, true, ['10.0.0.5']);
     await sync(deps);
     expect(render).not.toHaveBeenCalled();
-    expect(await get(a.id)).toMatchObject({ syncError: 'blocked', syncFailures: 1, bodyMd: OLD });
+    expect(await get(a.id)).toMatchObject({ syncError: 'not_public', syncFailures: 1, bodyMd: OLD });
   });
 
   it('a success resets the failure count', async () => {

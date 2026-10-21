@@ -6,17 +6,10 @@ export type FetchText = (url: string) => Promise<{ status: number; body: string;
 
 const MAX_BODY = 512 * 1024;
 
-export const defaultFetchText: FetchText = async (url) => {
-  const res = await fetch(url, {
-    headers: { 'user-agent': BOT_USER_AGENT, accept: 'text/plain,text/html,application/xml;q=0.9,*/*;q=0.5' },
-    redirect: 'follow',
-    signal: AbortSignal.timeout(10_000),
-  });
-  return { status: res.status, body: await readCapped(res.body), finalUrl: res.url || url };
-};
+// The crawler's fetch (`defaultFetchText` = `guardedFetchText`) lives in ../net/guard.ts: every hop is SSRF-checked.
 
 /** Reads at most MAX_BODY bytes from a response stream, then cancels it so the rest is never downloaded. */
-async function readCapped(stream: ReadableStream<Uint8Array> | null): Promise<string> {
+export async function readCapped(stream: ReadableStream<Uint8Array> | null): Promise<string> {
   if (!stream) return '';
   const reader = stream.getReader();
   const chunks: Uint8Array[] = [];

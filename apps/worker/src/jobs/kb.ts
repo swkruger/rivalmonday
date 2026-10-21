@@ -1,8 +1,8 @@
-import type { RenderedPage } from '@cs/collectors';
+import { assertPublicUrl, type RenderedPage, SsrfBlockedError } from '@cs/collectors';
 import { KB_KINDS, KB_LEVELS, KB_MAX_BODY_BYTES } from '@cs/core';
 import { kbArticle, kbChunk } from '@cs/db';
 import { extractBlocks } from '@cs/engine';
-import { blocksToMarkdown, type ImportError, isPublicAddress, isPublicHttpUrl, rechunk, saveArticle } from '@cs/tools';
+import { blocksToMarkdown, type ImportError, isPublicHttpUrl, rechunk, saveArticle } from '@cs/tools';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
@@ -34,6 +34,7 @@ export function truncateBody(md: string): string {
 
 function importErrorOf(page: RenderedPage): ImportError | null {
   if (page.status === 'robots_disallowed') return 'robots_disallowed';
+  if (page.error === 'ssrf_blocked') return 'not_public'; // the renderer refused the page or a redirect hop
   if (page.status === 'blocked') return 'blocked';
   if (page.error?.startsWith('redirected off-site')) return 'off_site';
   if (page.httpStatus !== null && page.httpStatus >= 400) return 'http_error';
@@ -49,11 +50,9 @@ export function createKbJobs(deps: WorkerDeps, opts: { enqueueEmbed?: (articleId
   async function fetchMarkdown(url: string): Promise<Fetched> {
     let page: RenderedPage | null = null;
     try {
-      // SSRF guard: every address the host resolves to must be public, or nothing is rendered (a DNS-rebinding race remains between this check and the render).
-      if (!isPublicHttpUrl(url)) return { ok: false, error: 'blocked' };
-      const host = new URL(url).hostname.replace(/^\[|\]$/g, '');
-      const addrs = await deps.resolveHost(host);
-      if (addrs.length === 0 || !addrs.every(isPublicAddress)) return { ok: false, error: 'blocked' };
+      // SSRF guard: every address the host resolves to must be public, or nothing is rendered. The renderer checks
+      // every request and redirect hop again (a DNS-rebinding race remains between a check and Chromium's connection).
+      await assertPublicUrl(url, deps.resolveHost);
       page = await deps.politeRenderer().render(url);
       const error = importErrorOf(page);
       if (error) return { ok: false, error };
@@ -61,6 +60,7 @@ export function createKbJobs(deps: WorkerDeps, opts: { enqueueEmbed?: (articleId
       if (!markdown.trim()) return { ok: false, error: 'no_content' };
       return { ok: true, title: page.title, finalUrl: page.finalUrl, markdown };
     } catch (err) {
+      if (err instanceof SsrfBlockedError) return { ok: false, error: 'not_public' };
       workerLog.error({ error: err instanceof Error ? err.message : String(err) }, '[kb-fetch]');
       return { ok: false, error: 'fetch_failed' };
     } finally {

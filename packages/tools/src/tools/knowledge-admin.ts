@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import { isPublicHttpUrl } from '@cs/collectors';
 import { KB_KINDS, KB_LEVELS, KB_MAX_BODY_BYTES, toolkit, ToolError } from '@cs/core';
 import { agency, client, kbArticle } from '@cs/db';
 import { and, asc, desc, eq, ilike, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, jobStatusOf, type ToolDeps } from '../deps';
 import { IMPORT_ERRORS } from '../kb/import-error';
-import { isPublicHttpUrl } from '../kb/public-url';
 import { saveArticle } from '../kb/write';
 import { MCP_MAX_LIMIT, pageResult } from '../paging';
 import { requirePlatformOperator } from '../platform';
@@ -224,6 +224,15 @@ export const importKbUrl = defineTool({
     requireImportEnabled(deps);
     if (input.level !== 'platform' && !input.agencyId) throw new ToolError('invalid_input', 'An agency is required');
     if (input.level === 'client' && !input.clientId) throw new ToolError('invalid_input', 'A client is required');
+    // Check the scope now, not when the job saves: a bad pair would otherwise fetch the page and fail late.
+    if (input.level !== 'platform') {
+      const [ag] = await deps.service.select({ id: agency.id }).from(agency).where(eq(agency.id, input.agencyId!));
+      if (!ag) throw new ToolError('invalid_input', 'Agency not found');
+      if (input.level === 'client') {
+        const [cl] = await deps.service.select({ id: client.id }).from(client).where(and(eq(client.id, input.clientId!), eq(client.agencyId, ag.id)));
+        if (!cl) throw new ToolError('invalid_input', 'Client not found in that agency');
+      }
+    }
     const key = randomUUID();
     const data: Record<string, string> = { key, url: input.url, level: input.level, kind: input.kind, autoSync: input.autoSync ? 'true' : 'false', userId: ctx.userId };
     if (input.agencyId) data.agencyId = input.agencyId;

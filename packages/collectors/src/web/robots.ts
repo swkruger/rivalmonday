@@ -1,4 +1,5 @@
 import robotsParser from 'robots-parser';
+import { guardedFetchText } from '../net/guard';
 import { BOT_TOKEN, type FetchText } from './user-agent';
 
 export interface RobotsVerdict {
@@ -15,7 +16,8 @@ export class RobotsPolicy {
   private readonly cache = new Map<string, { at: number; parsed: Parsed }>();
 
   constructor(
-    private readonly fetchText: FetchText,
+    /** Defaults to the SSRF-guarded fetch; a refused robots URL throws and so reads as unreachable (disallow). */
+    private readonly fetchText: FetchText = guardedFetchText,
     private readonly now: () => number = Date.now,
     private readonly ttlMs: number = 24 * 60 * 60 * 1000,
     /**

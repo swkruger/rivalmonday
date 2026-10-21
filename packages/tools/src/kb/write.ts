@@ -1,3 +1,4 @@
+import { isPublicHttpUrl } from '@cs/collectors';
 import { chunkMarkdown, type HelpAudience, KB_MAX_BODY_BYTES, type KbKind, type KbLevel, lintKbText, ToolError } from '@cs/core';
 import { agency, client, type Db, kbArticle, kbChunk, type Tx } from '@cs/db';
 import { and, eq, sql } from 'drizzle-orm';
@@ -67,6 +68,8 @@ export async function saveArticle(
   const title = input.title.trim();
   if (title.length < 1 || title.length > 200) throw new ToolError('invalid_input', 'Title must be 1 to 200 characters');
   if (Buffer.byteLength(input.bodyMd, 'utf8') > KB_MAX_BODY_BYTES) throw new ToolError('invalid_input', 'Article body is too large (200 KB maximum)');
+  // Every writer of kb_article.source_url goes through here (spec §4): it is rendered as a link and re-fetched by kb-sync.
+  if (extra.sourceUrl != null && !isPublicHttpUrl(extra.sourceUrl)) throw new ToolError('invalid_input', 'The source URL must be a public http(s) address');
   // Platform rows are client-visible unless the seed (help audience) says otherwise; operator tools can't hide them.
   const clientVisible = input.level === 'agency' ? (input.clientVisible ?? true) : input.level === 'platform' ? (extra.clientVisible ?? true) : true;
 

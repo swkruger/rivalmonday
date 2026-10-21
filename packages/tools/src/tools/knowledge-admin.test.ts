@@ -150,6 +150,27 @@ describe('knowledge admin tools', () => {
       expect(enqueue).toHaveBeenCalledWith('kb-import', { key, url: imp.url, level: 'platform', kind: 'blog', autoSync: 'true', userId: 'op' }, key);
     });
 
+    it('import_kb_url rejects a client of another agency, and an unknown agency, before enqueue', async () => {
+      const missing = '00000000-0000-4000-8000-0000000000ff';
+      const bad = [
+        { ...imp, level: 'client', agencyId: IDS.agencyA, clientId: IDS.clientB1 },
+        { ...imp, level: 'client', agencyId: IDS.agencyA, clientId: missing },
+        { ...imp, level: 'agency', agencyId: missing },
+        { ...imp, level: 'client', agencyId: missing, clientId: IDS.clientB1 },
+      ];
+      for (const input of bad) await expect(on.invoke(op, 'import_kb_url', input)).rejects.toMatchObject({ code: 'invalid_input' });
+      expect(enqueue).not.toHaveBeenCalled();
+      await on.invoke(op, 'import_kb_url', { ...imp, level: 'client', agencyId: IDS.agencyA, clientId: IDS.clientA1 });
+      await on.invoke(op, 'import_kb_url', { ...imp, level: 'agency', agencyId: IDS.agencyB });
+      expect(enqueue).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects IPv6-embedded and numeric loopback urls', async () => {
+      for (const url of ['http://[::ffff:0:127.0.0.1]/', 'http://[64:ff9b::7f00:1]/', 'http://2130706433/', 'http://0x7f.1/'])
+        await expect(on.invoke(op, 'import_kb_url', { ...imp, url })).rejects.toMatchObject({ code: 'invalid_input' });
+      expect(enqueue).not.toHaveBeenCalled();
+    });
+
     it('maps job states to import status', async () => {
       const id = '00000000-0000-4000-8000-0000000000c1';
       const status = async () => on.invoke(op, 'get_kb_import_status', { key: 'k' });

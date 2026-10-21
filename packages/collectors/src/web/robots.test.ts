@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createGuardedFetchText, SsrfBlockedError } from '../net/guard';
+import { startFixtureServer } from '../../test/fixtures-server';
 import { RobotsPolicy } from './robots';
 import { BOT_TOKEN } from './user-agent';
 
@@ -83,5 +85,27 @@ describe('RobotsPolicy', () => {
     t += 2 * 60 * 60 * 1000; // +2h, still under the 24h ttlMs
     await p.check('https://site.example/b');
     expect(fetchText).toHaveBeenCalledTimes(callsBefore);
+  });
+
+
+  it('blocked robots URL ⇒ disallow (an SSRF refusal reads as unreachable)', async () => {
+    expect(await policy(new SsrfBlockedError('http://127.0.0.1/robots.txt')).p.check('http://127.0.0.1/a')).toMatchObject({ allowed: false, reason: 'robots_unavailable' });
+    // End to end through the guarded fetch: a robots.txt that redirects to loopback is never fetched there.
+    const fetch = vi.fn(async (input: string | URL | Request) =>
+      String(input) === 'https://site.example/robots.txt' ? new Response('', { status: 301, headers: { location: 'http://127.0.0.1/robots.txt' } }) : new Response('User-agent: *\nAllow: /'),
+    );
+    const guarded = createGuardedFetchText({ fetch: fetch as unknown as typeof globalThis.fetch, assertUrl: async (u) => { if (u.includes('127.0.0.1')) throw new SsrfBlockedError(u); } });
+    expect(await new RobotsPolicy(guarded).check('https://site.example/page')).toMatchObject({ allowed: false, reason: 'robots_unavailable' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the guarded fetch by default: a loopback robots.txt is refused, though it would allow all', async () => {
+    const server = await startFixtureServer({ '/robots.txt': { body: 'User-agent: *\nAllow: /', contentType: 'text/plain' } });
+    try {
+      expect(await new RobotsPolicy().check(server.url('/x'))).toMatchObject({ allowed: false, reason: 'robots_unavailable' });
+      expect(await new RobotsPolicy(createGuardedFetchText({ assertUrl: async () => {} })).check(server.url('/x'))).toMatchObject({ allowed: true });
+    } finally {
+      await server.close();
+    }
   });
 });

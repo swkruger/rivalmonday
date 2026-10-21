@@ -68,4 +68,18 @@ describe('saveArticle', () => {
     const [a] = await dbs.service.select().from(kbArticle).where(eq(kbArticle.id, r.id));
     expect(a).toMatchObject({ source: 'url', sourceUrl: 'https://x.example/a', autoSync: true, bodyMd: 'two', previousBodyMd: 'one', createdBy: 'op', updatedBy: 'op' });
   });
+
+  it('rejects a non-public sourceUrl (file:, loopback, credentials) and accepts a public or null one', async () => {
+    const base = { level: 'platform', kind: 'help', title: 'T', bodyMd: BODY, status: 'draft' } as const;
+    for (const sourceUrl of ['file:///etc/passwd', 'http://127.0.0.1/x', 'http://[::ffff:127.0.0.1]/', 'https://u:p@example.com/', 'javascript:alert(1)']) {
+      await expect(saveArticle(dbs.service, 'op', base, { source: 'url', sourceUrl })).rejects.toMatchObject({ code: 'invalid_input' });
+    }
+    expect(await dbs.service.select().from(kbArticle)).toHaveLength(0);
+    const ok = await saveArticle(dbs.service, 'op', base, { source: 'url', sourceUrl: 'https://example.com/a' });
+    const none = await saveArticle(dbs.service, 'op', base, { sourceUrl: null });
+    const rows = await dbs.service.select().from(kbArticle);
+    expect(rows.map((r) => r.id).sort()).toEqual([ok.id, none.id].sort());
+    // An update is checked too.
+    await expect(saveArticle(dbs.service, 'op', { ...base, id: ok.id }, { sourceUrl: 'file:///etc/passwd' })).rejects.toMatchObject({ code: 'invalid_input' });
+  });
 });
