@@ -6,6 +6,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('./actions', () => ({ approveAlertAction: vi.fn(), dismissAlertAction: vi.fn() }));
 const { approveAlertAction, dismissAlertAction } = await import('./actions');
 const { AlertList } = await import('./alert-controls');
+const { HelpProvider } = await import('@/components/help/help-provider');
+/** The shell's help provider for agency staff: the empty state reads its copy from it (final review I1). */
+const asAgency = ({ children }: { children: React.ReactNode }) => <HelpProvider value={{ audience: 'agency', names: { agency: 'Acme', assistant: 'Friday' } }}>{children}</HelpProvider>;
 const approveMock = vi.mocked(approveAlertAction);
 const dismissMock = vi.mocked(dismissAlertAction);
 
@@ -61,7 +64,7 @@ describe('AlertList', () => {
   });
 
   it('shows the empty state when nothing is waiting', () => {
-    render(<AlertList items={[]} assistantName="Friday" />);
+    render(<AlertList items={[]} assistantName="Friday" />, { wrapper: asAgency });
     expect(screen.getByText(/No alerts waiting/)).toBeTruthy();
   });
 
@@ -72,7 +75,7 @@ describe('AlertList', () => {
     ['withdrawn', 'Withdrawn — its evidence was retracted, so nothing was sent.'],
   ])('keeps the %s approve outcome after the card leaves the list', async (_outcome, message) => {
     approveMock.mockResolvedValueOnce({ ok: true, message });
-    const { rerender } = render(<AlertList items={[base]} assistantName="Friday" />);
+    const { rerender } = render(<AlertList items={[base]} assistantName="Friday" />, { wrapper: asAgency });
     fireEvent.click(screen.getByRole('button', { name: /approve/i }));
     await waitFor(() => expect(approveMock).toHaveBeenCalledTimes(1));
     expect((approveMock.mock.calls[0]![1] as FormData).get('alertId')).toBe('a1');

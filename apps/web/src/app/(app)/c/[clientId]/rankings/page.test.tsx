@@ -10,6 +10,7 @@ vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a)
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); }, useRouter: () => ({ replace }) }));
 vi.mock('./actions', () => ({ saveRankSettings: vi.fn(), requestRankScan: vi.fn() }));
 
+import { HelpProvider } from '@/components/help/help-provider';
 import RankingsPage from './page';
 
 const geo = {
@@ -18,7 +19,9 @@ const geo = {
   cells: [[null, null, null], [null, null, null], [null, null, null]], top3: 0, points: 0, avgRank: null, keywordSummaries: [], radiusKm: 25, lats: [], lngs: [], map: null,
 };
 
-const render5 = async (sp: Record<string, string> = {}) => render(await RankingsPage({ params: Promise.resolve({ clientId: 'c1' }), searchParams: Promise.resolve(sp) }));
+// The shell's help provider for a client viewer (empty states read their copy from it).
+const asClient = ({ children }: { children: React.ReactNode }) => <HelpProvider value={{ audience: 'client', names: { agency: 'your agency', assistant: 'Sunny' } }}>{children}</HelpProvider>;
+const render5 = async (sp: Record<string, string> = {}) => render(await RankingsPage({ params: Promise.resolve({ clientId: 'c1' }), searchParams: Promise.resolve(sp) }), { wrapper: asClient });
 
 describe('RankingsPage', () => {
   beforeEach(() => { callTool.mockReset(); replace.mockReset(); viewer.role = 'client_owner'; });

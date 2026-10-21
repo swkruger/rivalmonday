@@ -214,7 +214,10 @@ describe('row messages survive revalidation', () => {
 
   it('keeps the remove message after the tracked row is gone', async () => {
     vi.mocked(removeCompetitorAction).mockResolvedValueOnce({ ok: true, message: 'Competitor removed. Its history is kept.' });
-    const { rerender } = render(<TrackedCompetitorsTable clientId="c1" items={[tracked]} canRemove />);
+    const { HelpProvider } = await import('@/components/help/help-provider');
+    // A client owner who manages competitors: the empty state reads its copy from the shell's help provider.
+    const wrapper = ({ children }: { children: React.ReactNode }) => <HelpProvider value={{ audience: 'client', names: { agency: 'Acme', assistant: 'Sunny' } }}>{children}</HelpProvider>;
+    const { rerender } = render(<TrackedCompetitorsTable clientId="c1" items={[tracked]} canRemove />, { wrapper });
     fireEvent.click(screen.getByRole('button', { name: /^remove$/i }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /stop tracking/i }));
     await waitFor(() => expect(removeCompetitorAction).toHaveBeenCalledTimes(1));
