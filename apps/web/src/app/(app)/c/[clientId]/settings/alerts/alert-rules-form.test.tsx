@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { HelpProvider } from '@/components/help/help-provider';
 import type { FormResult } from '@/server/forms';
 import { AlertRulesForm } from './alert-rules-form';
 
@@ -27,6 +28,18 @@ describe('AlertRulesForm', () => {
     render(<AlertRulesForm clientId="c1" rules={rules} canEdit={false} action={vi.fn()} />);
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
     expect(screen.getByText(/Instant alert from score 70/)).toBeTruthy();
+  });
+  it('tells only client roles to ask the agency; agency staff without edit rights get the facts only', () => {
+    const view = (audience: 'client' | 'agency') => (
+      <HelpProvider value={{ audience, names: { agency: 'Cool Comfort', assistant: 'Sunny' } }}>
+        <AlertRulesForm clientId="c1" rules={rules} canEdit={false} action={vi.fn()} />
+      </HelpProvider>
+    );
+    const { container, rerender } = render(view('client'));
+    expect(container.textContent).toContain('Ask Cool Comfort to change these.');
+    rerender(view('agency'));
+    expect(container.textContent).toContain('Instant alert from score 70; weekly brief from score 40.');
+    expect(container.textContent).not.toContain('Ask Cool Comfort');
   });
   it('offers the defaults button only for custom thresholds', () => {
     const { rerender } = render(<AlertRulesForm clientId="c1" rules={rules} canEdit action={vi.fn()} />);

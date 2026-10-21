@@ -36,7 +36,7 @@ There is no data for that point in that scan.
 
 ### Why can't I compare two scans?
 
-Compare needs at least two scans, and they must have the same settings (keywords, grid size and radius). {{product}} can tell you if the settings were changed.
+Compare needs at least two scans, and they must have the same settings (keywords, grid size and radius). Ask {{product}} whether the settings were changed.
 
 ### Why is there no grid yet?
 

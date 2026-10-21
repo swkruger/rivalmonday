@@ -48,7 +48,7 @@ describe('ThemeHeatmap', () => {
   it('explains the cell colour, the number and the 5-point arrows in a legend', () => {
     render(<ThemeHeatmap title="What customers talk about" benchmark={benchmark} />);
     const legend = screen.getByTestId('heatmap-legend');
-    expect(legend.textContent).toContain('Colour shows how positive the mentions are');
+    expect(legend.textContent).toContain('Color shows how positive the mentions are');
     expect(legend.textContent).toContain('share of reviews checked for the topic that mention it');
     expect(legend.textContent).toContain('▲▼ the share moved by 5 or more points');
     expect(legend.textContent).toContain('previous 90 days');

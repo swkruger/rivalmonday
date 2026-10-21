@@ -89,7 +89,7 @@ export function ThemeHeatmap({ title, benchmark }: { title: string; benchmark: P
       </ul>
       {/* source: packages/engine/src/reviews/benchmark.ts (BENCHMARK_WINDOW_DAYS = 90; shareDelta = share − previous-window share) and the arrow rule above (|shareDelta| >= 0.05) */}
       <p data-testid="heatmap-legend" className="text-xs text-muted-ink">
-        Colour shows how positive the mentions are. The number is the share of reviews checked for the topic that mention it. ▲▼ the share moved by 5 or more points compared with the previous 90 days.
+        Color shows how positive the mentions are. The number is the share of reviews checked for the topic that mention it. ▲▼ the share moved by 5 or more points compared with the previous 90 days.
       </p>
       <details className="text-xs">
         <summary className="cursor-pointer text-muted-foreground">Show as table</summary>

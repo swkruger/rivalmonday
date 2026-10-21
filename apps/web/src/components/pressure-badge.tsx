@@ -16,7 +16,7 @@ export function pressureText(score: number, level: 'low' | 'elevated' | 'high'):
 
 export function PressureBadge({ score, level }: { score: number; level: 'low' | 'elevated' | 'high' }) {
   return (
-    <span aria-label={`Competitive pressure ${score} of 100, ${level}`} className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 py-0.5 text-sm ${TONE[level]}`}>
+    <span aria-label={`Competitive pressure ${score} of 100, ${pressureText(score, level).toLowerCase()}`} className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 py-0.5 text-sm ${TONE[level]}`}>
       <span className="min-w-6 text-center font-bold tabular-nums">{score}</span>
       <span className="text-xs font-semibold">{pressureText(score, level)}</span>
     </span>

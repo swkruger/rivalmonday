@@ -7,7 +7,7 @@ import { AskChat } from '@/components/ask/ask-chat';
 import { ThreadDrawer, ThreadList } from '@/components/ask/thread-list';
 import { clientCrumbs } from '@/components/client-crumbs';
 import { HelpText } from '@/components/help/help-context';
-import { HelpTip } from '@/components/help/help-tip';
+import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY, type TipKey } from '@/help/copy';
 import { assistantNameFor } from '@/server/ask';
@@ -72,14 +72,7 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
         guide={guides.has(`page:${helpKeyFor(threadId)}`)}
         actions={<ThreadDrawer {...list} />}
       />
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
-        {tipsFor(threadId).map((t) => (
-          <span key={t.tip} className="inline-flex items-center gap-1.5">
-            {t.label}
-            <HelpTip tip={t.tip} />
-          </span>
-        ))}
-      </div>
+      <TipRow items={[...tipsFor(threadId)]} />
       <div className="flex items-start gap-5">
         <aside className="hidden w-64 flex-shrink-0 rounded-[14px] bg-surface p-3 shadow-card lg:sticky lg:top-6 lg:block">
           <ThreadList {...list} />

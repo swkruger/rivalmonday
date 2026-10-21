@@ -1,7 +1,7 @@
 'use client';
 import { Button, Input, Label } from '@cs/ui';
 import { useActionState } from 'react';
-import { HelpText } from '@/components/help/help-context';
+import { HelpText, useHelp } from '@/components/help/help-context';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
@@ -20,6 +20,7 @@ export function AlertRulesForm({ clientId, rules, canEdit: canEditProp, action }
   action: (prev: FormResult, fd: FormData) => Promise<FormResult>;
 }) {
   const readOnly = useReadOnly();
+  const { audience } = useHelp();
   const canEdit = canEditProp && !readOnly;
   const [state, formAction, pending] = useActionState(action, { ok: true } as FormResult);
   return (
@@ -48,7 +49,8 @@ export function AlertRulesForm({ clientId, rules, canEdit: canEditProp, action }
         </>
       ) : (
         <p>
-          Instant alert from score {rules.alert}; weekly brief from score {rules.brief}.{readOnly ? '' : <HelpText text=" Ask {agency} to change these." />}
+          {/* "Ask {agency}…" speaks to the client; agency staff without edit rights (and support sessions) get the facts only. */}
+          Instant alert from score {rules.alert}; weekly brief from score {rules.brief}.{!readOnly && audience === 'client' ? <HelpText text=" Ask {agency} to change these." /> : ''}
         </p>
       )}
       {!state.ok && state.error && <ErrorNote focusKey={state}>{state.error}</ErrorNote>}

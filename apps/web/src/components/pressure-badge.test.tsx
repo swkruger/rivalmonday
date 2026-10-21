@@ -4,9 +4,14 @@ import { describe, expect, it } from 'vitest';
 import { PressureBadge } from './pressure-badge';
 
 describe('PressureBadge', () => {
-  it('names the level for screen readers', () => {
-    render(<PressureBadge score={86} level="high" />);
-    expect(screen.getByLabelText('Competitive pressure 86 of 100, high')).toBeTruthy();
+  it('names the level for screen readers in the same words as the visible text', () => {
+    const { unmount } = render(<PressureBadge score={86} level="high" />);
+    expect(screen.getByLabelText('Competitive pressure 86 of 100, high pressure')).toBeTruthy();
+    unmount();
+    render(<PressureBadge score={55} level="elevated" />);
+    expect(screen.getByLabelText('Competitive pressure 55 of 100, medium pressure')).toBeTruthy();
+    render(<PressureBadge score={0} level="low" />);
+    expect(screen.getByLabelText('Competitive pressure 0 of 100, quiet')).toBeTruthy();
   });
 
   it.each([

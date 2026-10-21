@@ -1,7 +1,8 @@
 import type { PageCopy } from '.';
 
 /**
- * Short in-page help copy (15b-1 pilot; draft for owner sign-off in `docs/archive/phase-15b1-copy-signoff.md`).
+ * Short in-page help copy for the client pages (`client.*`): the 15b-1 pilot pages plus the 15b-2 client batch, signed
+ * off per batch (`docs/archive/phase-15b1-copy-signoff.md`, `docs/archive/phase-15b2-copy-signoff-client.md`).
  * `{agency}`, `{assistant}` and `{client}` are filled by `renderCopy` with the viewer's names. A tip or empty state without
  * an `audience` is for everyone; `agency` copy never reaches client roles. `guideAnchor` values are the guide's section
  * slugs (`what-this-page-tells-you`, `how-to-use-it`, `common-questions`). Metric copy cites the code that computes it.
