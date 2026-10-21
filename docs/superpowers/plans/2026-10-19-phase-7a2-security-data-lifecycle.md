@@ -28,7 +28,7 @@
 8. **`skipped` notifications** read like `failed` everywhere a status is shown or counted.
 
 ## File structure
-- `packages/db/migrations/<next>_lifecycle.sql`; `packages/db/src/schema/{tenancy,billing,delivery,ledger}.ts`; `packages/db/src/filters.ts`
+- `packages/db/migrations/0082_lifecycle.sql`; `packages/db/src/schema/{tenancy,billing,delivery,ledger}.ts`; `packages/db/src/filters.ts`
 - `packages/collectors/src/net/guard.ts` (+ test), `packages/collectors/src/web/{user-agent,renderer,robots}.ts`, `packages/collectors/src/index.ts`; delete `packages/tools/src/kb/public-url.ts` (+ test)
 - `packages/tools/src/{index.ts,kb/import-error.ts,kb/write.ts,tools/knowledge-admin.ts}`, `apps/worker/src/jobs/kb.ts`
 - `packages/core/src/{access,tools,tokens}.ts`; `packages/tools/src/access/{memberships,plan-features}.ts`
@@ -40,9 +40,9 @@
 - `apps/web/e2e/ops.spec.ts` (7a1) or new `apps/web/e2e/security.spec.ts`, `docs/DEPLOY.md`
 
 ## Dependencies on in-flight work (re-check in Task 0)
-- **phase-14b** (unmerged): `packages/db/src/schema/ledger.ts` (`llm_call.vertical_id`, 0078) — this plan edits the same file (drops FKs); migrations `0077`–`0079`; new tools/jobs (archival filters + plan gating must cover any new client/agency scheduler or MCP/Ask tool).
+- **Task 0 (2026-10-21):** phase-14b and phase-15b are merged (main 00e8e02a); branch = 7a1 on top. Migrations end at `0081_runtime_roles`; **7a2 claims `0082_lifecycle`**. `@cs/core/server` (`hashInput`) exists.
+- **phase-15b2** (in flight, worktree `../CompetitorSpy-wt/phase-15b2`, no migrations): edits `agency/settings/{team,branding,slack-teams}/page.tsx`, `c/[clientId]/settings/delivery/page.tsx`, `packages/tools/src/tools/support.ts` (+ test) (Task 7), `apps/web/scripts/e2e-affected-rules.ts`, `packages/db/CLAUDE.md` (Task 12), help copy/tips on most pages. Small hunks either side; whichever lands second rebases (Task 7 keeps page edits to the data-fetch lines).
 - **13a** (plan on `main`): `proxy.ts` (only the `PUBLIC` hunk here), per-agency Postmark servers (the webhook keys on `notification.provider_id`, so their URL is reused), `turbo.json` env list.
-- **phase-15b** (planning): may touch KB (`kb/seed.ts`, page keys) and claim a migration. **7a1**: `@cs/core/server` (`hashInput`), migration `0081_runtime_roles`. Migration number = next free at execution (assumed `0082`).
 
 ## Review focus
 1. **SSRF address forms** — SIIT `::ffff:0:a.b.c.d`, mapped `::ffff:127.0.0.1`, NAT64 `64:ff9b::7f00:1`, 6to4, decimal host `http://2130706433/`, DNS answers mixing public + private, a redirect hop or sub-resource to `127.0.0.1`, and a service worker/WebSocket bypass (Task 2 tests).
@@ -67,7 +67,8 @@
 
 ### Task 1: Lifecycle migration + schema
 **Goal:** Columns, constraints and FK changes the later tasks need, in one migration.
-**Files:** create `packages/db/migrations/<next>_lifecycle.sql` (`generate --custom --name=lifecycle`); modify `packages/db/src/schema/{tenancy,billing,delivery,ledger}.ts`, `packages/db/src/schema.test.ts` / privilege guard tests as needed; create `packages/db/src/lifecycle.test.ts`.
+**Task 0 findings:** every name below exists exactly (`notification_status_check`, the five `*_fk`, policy `client_isolation` FOR ALL with today's USING/WITH CHECK). Transitive cascade scan from agency/client (all FK actions `c`/`n`, no `r`/`a`): **no purge blockers beyond the five FKs dropped here.** SET NULL survivors (all nullable, no CHECK broken): `lead.client_id`, `pending_signup.completed_agency_id`, `vertical`/`business_area.created_by_agency_id`, `decision_review.sample_id`, `brief_item.move_id`, `recommendation.{move_id,brief_item_id}`, `competitor_suggestion.run_id`, `membership.contact_id`, `client_setup.invited_contact_id`. Only non-internal triggers are `evidence_immutable`/`capture_immutable`; neither table is reachable by cascade. `app_service` has BYPASSRLS + DELETE on agency/client; `app_user` has no table-level UPDATE on agency/client.
+**Files:** create `packages/db/migrations/0082_lifecycle.sql` (`generate --custom --name=lifecycle`); modify `packages/db/src/schema/{tenancy,billing,delivery,ledger}.ts` (`auditLog`, `llmCall`, `vendorCall` all in `ledger.ts`), `packages/db/src/schema.test.ts` / privilege guard tests as needed; create `packages/db/src/lifecycle.test.ts`.
 **Interfaces:** `agency.archivedAt`, `client.archivedAt` (`timestamptz` null); `plan.features` (`jsonb`, `$type<PlanFeature[]>()`); `NotificationStatus` += `'skipped'`; `.references()` removed from `auditLog.agencyId`, `llmCall.agencyId/clientId`, `vendorCall.agencyId/clientId` (columns kept).
 **SQL** (+ Task 0 blockers):
 ```sql
@@ -105,7 +106,8 @@ CREATE POLICY client_isolation ON client FOR ALL
 
 ### Task 2: One SSRF guard (+ KB URL rules)
 **Goal:** Every user/page-supplied URL, redirect hop and Playwright request is checked against public addresses (spec D11); KB writers and import scope are validated.
-**Files:** create `packages/collectors/src/net/guard.ts` (+ `guard.test.ts`, moved table from `tools/src/kb/public-url.test.ts`); modify `packages/collectors/src/web/{user-agent,renderer,robots}.ts` (+ tests), `packages/collectors/src/index.ts`, `packages/tools/src/{index.ts,kb/import-error.ts,kb/write.ts,tools/knowledge-admin.ts}` (+ tests), `apps/worker/src/jobs/kb.ts` (+ test), the KB import UI copy map (`rg "off_site" apps/web/src`); delete `packages/tools/src/kb/public-url.ts` (+ test).
+**Files:** create `packages/collectors/src/net/guard.ts` (+ `guard.test.ts`, moved table from `tools/src/kb/public-url.test.ts`); modify `packages/collectors/src/web/{user-agent,renderer,robots}.ts` (+ tests), `packages/collectors/src/index.ts`, `packages/tools/src/{index.ts,kb/import-error.ts,kb/write.ts,tools/knowledge-admin.ts}` (+ tests), `apps/worker/src/jobs/kb.ts` (+ test), the KB import UI copy map `apps/web/src/app/(platform)/platform/knowledge/import-errors.ts` (+ `editor.test.tsx`); delete `packages/tools/src/kb/public-url.ts` (+ test).
+**Task 0 fetch sites (collectors):** user/page URLs — `web/user-agent.ts:10` `defaultFetchText` (→ `guardedFetchText`), reached via injected `FetchText` from `web/robots.ts:52`, `discovery/sitemap.ts:40`, `discovery/discover.ts:40` (worker wires `defaultFetchText` in `apps/worker/src/deps.ts:199,357`); Playwright `web/renderer.ts`. Fixed vendor hosts stay: `vendors/dataforseo.ts:87`. Outside collectors (unchanged): `engine/delivery/webhooks.ts` (4b host allowlist, `redirect: 'manual'`), `email/transport.ts` (Postmark), `ai/http.ts` (OpenRouter), `apps/worker/src/pdf.ts` (route allowlist), `web/server/turnstile.ts`. Worker `jobs/kb.ts:49-56` `fetchMarkdown` is today's check (`isPublicHttpUrl` + `deps.resolveHost`).
 **Interfaces:** spec §4 verbatim (`isPublicAddress`, `isPublicHttpUrl`, `assertPublicUrl`, `SsrfBlockedError`, `guardedFetchText`), plus `export type LookupFn = (host: string) => Promise<string[]>`; `createPlaywrightRenderer(opts & { assertUrl?: (url: string) => Promise<void> })` (default `assertPublicUrl`); `IMPORT_ERRORS` += `'not_public'`.
 **Behaviour (security-sensitive):**
 - `isPublicAddress`: moved; add before the IPv4-compatible rule: `h[0..3] === 0 && h[4] === 0xffff && h[5] === 0` (SIIT `::ffff:0:0:0/96`) ⇒ `false`; mapped `::ffff:0:0/96` stays judged by its IPv4.
@@ -119,7 +121,7 @@ CREATE POLICY client_isolation ON client FOR ALL
 
 ### Task 3: Plan feature flags + MCP client scope
 **Goal:** `plan.features` gates Ask and MCP for every role (spec D13); `client_owner` may hold `manage` (D14).
-**Files:** create `packages/tools/src/access/plan-features.ts` (+ test); modify `packages/core/src/{access,tools,tokens}.ts` (+ tests), `packages/tools/src/access/memberships.ts` (+ test), `packages/mcp/src/*` tests touching scopes, any UI listing grantable scopes (`rg grantableScopes apps/web/src`).
+**Files:** create `packages/tools/src/access/plan-features.ts` (+ test); modify `packages/core/src/{access,tools,tokens}.ts` (+ tests), `packages/tools/src/access/memberships.ts` (+ test), `packages/mcp/src/*` tests touching scopes; UI reads `grantableScopes(role)` dynamically (`agency/settings/ai/page.tsx`, `c/[clientId]/settings/ai/page.tsx`, `server/oauth-consent.ts`) — no code change, update their tests (`components/ai-connections.test.tsx`, oauth-consent tests) if they pin client_owner scopes. `planFeaturesFor` reads `agency_billing.{plan_id,state}` (service role; `app_user` has no grant on `plan`/`agency_billing`).
 **Interfaces:**
 ```ts
 // @cs/core access.ts
@@ -181,21 +183,22 @@ if (!host || !originHost || originHost !== host) return notFound();
 
 ### Task 6: Object store never overwrites by default
 **Goal:** `put` refuses an existing key unless told otherwise (spec D15).
-**Files:** modify `packages/storage/src/{store,fs,memory,r2,contract}.ts`, `r2.live.test.ts`, `packages/tools/src/deps.ts` (`evidenceStore.put` opts), `apps/web/src/server/tools.ts` (adapter), `packages/tools/src/tools/agency-onboarding.ts`, `packages/collectors/src/rankings/map-refresh.ts`, `packages/engine/src/briefs/pdf.ts`, `packages/engine/src/reports/quarterly.ts`, `packages/demo/src/{evidence,briefs}.ts`, `apps/web/e2e/seed.ts` (+ affected tests).
+**Files:** modify `packages/storage/src/{store,fs,memory,r2,contract}.ts`, `r2.live.test.ts`, `packages/tools/src/deps.ts` (`evidenceStore.put` opts), `apps/web/src/server/tools.ts` (adapter), `packages/tools/src/tools/agency-onboarding.ts`, `packages/collectors/src/rankings/map-refresh.ts`, `packages/engine/src/briefs/pdf.ts`, `packages/engine/src/reports/quarterly.ts`, `packages/demo/src/{evidence,briefs}.ts`, `apps/web/e2e/seed.ts`, `packages/engine/test/seed.ts` (test helper, `overwrite: true`) (+ affected tests). Evidence callers that propagate: `packages/collectors/src/evidence/{recorder,vendor-capture}.ts`.
+**Task 0 R2:** no R2 creds in the root `.env` → **R2 uses HEAD-then-put** (`HeadObject` 200 ⇒ `ObjectExistsError`, 404 ⇒ put); the live `IfNoneMatch` case is not proved. `r2.live.test.ts` keeps its `describe.skipIf(!configured)` guard; add a live case `second put without overwrite throws ObjectExistsError`.
 **Interfaces:**
 ```ts
 export class ObjectExistsError extends Error { readonly code = 'object_exists'; constructor(readonly key: string) }
 export interface ObjectStore { put(key: string, body: Uint8Array, contentType: string, opts?: { overwrite?: boolean }): Promise<void>; /* get/exists unchanged */ }
 ```
 **Behaviour:**
-- fs: `writeFile(p, body, { flag: opts?.overwrite ? 'w' : 'wx' })`, `EEXIST` → `ObjectExistsError`. memory: same semantics. R2: `IfNoneMatch: '*'` (412 → `ObjectExistsError`) when Task 0 proved it, else `HeadObject` then put; `overwrite` ⇒ plain put.
+- fs: `writeFile(p, body, { flag: opts?.overwrite ? 'w' : 'wx' })`, `EEXIST` → `ObjectExistsError`. memory: same semantics. R2: `HeadObject` then put (Task 0: IfNoneMatch unproved); `overwrite` ⇒ plain put.
 - Logos and rank maps (content-addressed) catch `ObjectExistsError` as stored; brief/report PDFs pass `overwrite: true`; evidence (`recorder.ts`, `vendor-capture.ts`) propagates; demo and E2E seeds pass `overwrite: true` (re-seeding).
 **Tests (TDD):** contract: `second put without overwrite throws ObjectExistsError`; `overwrite: true replaces`; `logo re-upload of the same bytes succeeds`; `rank map refresh with an existing key stores the row`; `brief PDF re-render overwrites`; live R2 case (skipped without creds).
 **Done when:** `pnpm --filter @cs/storage exec vitest run`, affected package tests pass.
 
 ### Task 7: Support-session audit gaps
 **Goal:** Every support-session read is audited in the target agency; `end_support_session` lands there too.
-**Files:** modify `packages/tools/src/tools/settings.ts` (or new `packages/tools/src/tools/agency-settings-reads.ts`), `packages/tools/src/tools/{all,support}.ts`, `packages/tools/src/platform/audit.ts` (+ tests); pages `apps/web/src/app/(app)/agency/settings/{team,branding,slack-teams}/page.tsx`, `apps/web/src/app/(app)/c/[clientId]/settings/delivery/page.tsx`, `apps/web/src/app/(app)/onboarding/page.tsx`; routes `apps/web/src/app/go/[target]/[id]/route.ts`, `apps/web/src/app/files/{brief/[id],report/[id],evidence/[clientId]/[evidenceId],rank-map/[clientId]}/route.ts`.
+**Files:** modify `packages/tools/src/tools/settings.ts` (or new `packages/tools/src/tools/agency-settings-reads.ts`), `packages/tools/src/tools/{all,support}.ts`, `packages/tools/src/platform/audit.ts` (+ tests); pages `apps/web/src/app/(app)/agency/settings/{team,branding,slack-teams}/page.tsx`, `apps/web/src/app/(app)/c/[clientId]/settings/delivery/page.tsx`, `apps/web/src/app/(app)/onboarding/page.tsx`; routes `apps/web/src/app/go/[target]/[id]/route.ts`, `apps/web/src/app/files/{brief/[id],report/[id],evidence/[clientId]/[evidenceId],rank-map/[clientId]}/route.ts`. Service functions live in `packages/tools/src/settings.ts` (`getAgencyBranding`, `listWebhooks`, `listClientRecipients`) and `packages/tools/src/access/team.ts` (`listTeam`). phase-15b2 also edits the four settings pages and `tools/support.ts` (see Dependencies).
 **Interfaces:**
 ```ts
 // web-only read tools wrapping the service functions (outputs = their return shapes, zod-described):
@@ -211,7 +214,7 @@ export async function recordSupportAccess(service: Db, ctx: AccessContext, a: { 
 
 ### Task 8: Postmark bounce & complaint webhook
 **Goal:** Hard bounces and spam complaints deactivate the address agency-wide and notify the agency (spec D19).
-**Files:** create `apps/web/src/app/api/postmark/webhook/route.ts` (+ test), `packages/engine/src/delivery/bounces.ts` (+ test); modify `packages/db/src/schema/delivery.ts` (`AGENCY_KINDS` += `'contact_bounced'`), `packages/email/src/types.ts` (`notice` union), `apps/web/src/server/inbox.ts`, `apps/web/src/app/(app)/agency/settings/slack-teams/webhook-controls.tsx`, `apps/web/src/server/env.ts` (`postmarkWebhookSecret?`), `apps/web/src/proxy.ts` (`PUBLIC` += `/^\/api\/postmark\/webhook$/`, same hunk as 7a1), `turbo.json`.
+**Files:** create `apps/web/src/app/api/postmark/webhook/route.ts` (+ test), `packages/engine/src/delivery/bounces.ts` (+ test); modify `packages/db/src/schema/delivery.ts` (`AGENCY_KINDS` += `'contact_bounced'`), `packages/email/src/types.ts` (`notice` union), `apps/web/src/server/inbox.ts`, `apps/web/src/app/(app)/agency/settings/slack-teams/webhook-controls.tsx`, `apps/web/src/server/env.ts` (`postmarkWebhookSecret?`), `apps/web/src/proxy.ts` (`PUBLIC` += `/^\/api\/postmark\/webhook$/`, same hunk as 7a1), `turbo.json`; `packages/tools/src/preferences.test.ts` pins the `AGENCY_KINDS` list (add `contact_bounced`).
 **Interfaces:**
 ```ts
 export type PostmarkOutcome = 'deactivated' | 'ignored';
@@ -236,6 +239,7 @@ export function postmarkAuthOk(header: string | null, secret: string): boolean {
 ### Task 9: Archival filters + `evidenceReferenced`
 **Goal:** Archived agencies/clients behave as deleted for tenants and schedulers (spec D16).
 **Files:** modify `packages/db/src/filters.ts` (+ `filters.test.ts` or nearest), `packages/tools/src/access/memberships.ts`, `packages/tools/src/tools/{portfolio,platform-console,search}.ts` and other service-role lists of agencies/clients found by `rg "from\(agency\)|from\(client\)" packages/tools/src apps/web/src --glob '!*.test.*'`, `packages/mcp/src/*` if it lists clients outside tools.
+**Task 0 query result (service-role selects only; `withTenant(deps.app…)` reads — `portfolio.ts`, `search/scope.ts`, `workspace/scope.ts`, `app-shell.tsx` — are covered by the new `client_isolation` clause):** multi-row lists to filter: `tools/platform-console.ts:295,386,387`, `platform/stats.ts:198`, `tools/platform-billing.ts:30,164,401`, `tools/platform-verticals.ts:57,62`, `tools/knowledge-admin.ts:127,128` (pickers), `tools/platform-leads.ts:104`, `tools/support.ts:59` (support target), `packages/billing/src/access.ts` `countActiveClients` (add to Files). Single-row service lookups by id (`mcp/auth.ts:38`, `web/server/{branding,viewer,oauth-consent,unsubscribe,ask}.ts`, `rival-search.ts:94`, `tools/{client-pause,client-billing,rankings,runbooks,verticals,setup}.ts`, `settings.ts:60`, `kb/names.ts`, `mcp/branding.ts`) are reached only via a membership/ctx, which `listMemberships` already drops — leave them.
 **Interfaces:**
 ```ts
 export function evidenceReferenced(evidenceIdCol: AnyColumn | SQL): SQL;  // @cs/db filters.ts
@@ -268,13 +272,14 @@ export async function purgeArchived(db: Db, o: { olderThanDays: number; dryRun: 
 - `purgeArchived` (non-obvious), cutoff = `now − olderThanDays`:
   - each agency with `archived_at < cutoff`, one tx: `UPDATE audit_log SET user_id = 'purged' WHERE agency_id = $a`; `DELETE FROM agency WHERE id = $a AND archived_at < $cutoff`.
   - each client with `archived_at < cutoff` in a non-archived agency, one tx: `UPDATE audit_log SET user_id = 'purged' WHERE agency_id = $agency AND (user_id IN (SELECT m.user_id FROM membership m WHERE m.client_id = $c AND NOT EXISTS (SELECT 1 FROM membership m2 WHERE m2.user_id = m.user_id AND m2.client_id IS DISTINCT FROM $c)) OR user_id IN (SELECT 'contact:' || id FROM contact WHERE client_id = $c))`; `DELETE FROM client WHERE id = $c`.
-  - Task 0 blockers handled first in the same tx; evidence, captures and objects are never touched. `dryRun` counts only. One `platform_audit_log` row per run; prints counts.
+  - Task 0: no blockers beyond Task 1's dropped FKs (no pre-delete steps); evidence/capture have no FK path from agency/client. Evidence, captures and objects are never touched. `dryRun` counts only. One `platform_audit_log` row per run; prints counts.
 **Tests (TDD):** `refuses --older-than 29d`; `archive then --undo clears archived_at`; `purge deletes an agency archived 91 days ago and keeps its audit_log/llm_call/vendor_call rows with user_id purged`; `skips one archived 10 days ago`; `client purge anonymises a client-only user but not one with another membership`; `evidence and capture rows unchanged`; `dry-run writes nothing`.
 **Done when:** `pnpm --filter @cs/worker exec vitest run purge archive-args purge-args` pass.
 
 ### Task 11: Lead PII cap + stale outbox
 **Goal:** Undecided verified leads are deleted after 180 days (O8); pending notifications overdue by 7 days are skipped at send time (D18).
 **Files:** modify `apps/worker/src/jobs/leads.ts` (+ test), `packages/engine/src/delivery/outbox.ts` (+ test), status readers from Task 0 (Decision 8).
+**Task 0 status readers:** no UI/tool lists or counts `notification.status` today (inbox reads in-app rows, always `sent`). Touch points: `dispatchDue` result type → `apps/worker/src/deps.ts:148` (`dispatchNotifications`), `apps/worker/src/jobs/delivery.ts:47` (log), `apps/worker/src/cli/deliver-once.ts:73` (print); `outbox.test.ts` has ~12 `toEqual({ sent, failed, retried })` assertions that gain `skipped: 0`. `packages/billing/src/client-pause.ts:33` only moves `pending` → `failed` (unaffected); `NotificationStatus` in `packages/db/src/schema/delivery.ts:17` (Task 1).
 **Interfaces:** `LeadsCleanupResult` gains `deletedVerified: number`; `export const STALE_OUTBOX_DAYS = 7;` (outbox.ts); `dispatchDue` result gains `skipped: number`.
 **Behaviour:**
 - `runLeadsCleanup` step `verified`: delete `status = 'verified'` leads (incl. pool, `agency_id IS NULL`) with `coalesce(verified_at, updated_at) < now − 180 d`; isolated like the other steps.

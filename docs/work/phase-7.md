@@ -4,7 +4,14 @@
 **Plan/spec:** [7a spec](../superpowers/specs/2026-10-19-phase-7a-launch-production-security-design.md) (supersedes the parked 2026-10-12 spec); plans [7a1](../superpowers/plans/2026-10-19-phase-7a1-deploy-observability.md), [7a2](../superpowers/plans/2026-10-19-phase-7a2-security-data-lifecycle.md). Item lists: [phase-7-scope.md](phase-7-scope.md).
 
 ## Status (overwrite)
-2026-10-20: 7a1 Tasks 0-11 built (SDD, each reviewed); final review fix wave done (rebased on 15b, migration renumbered to `0081`, Sentry 11 `dataCollection`, Ask 300 s). **Task 12 (live deploy) waits on the owner's prod accounts (O17)** and on the shell-DB-stages gate (backlog). 7a2 next (needs `@cs/core/server`). Own test DB `cs_phase_7_test` (reset at 0081). Pre-flight findings and the original brief: `git show 67082736:docs/work/phase-7.md` and the plan files.
+2026-10-21: 7a1 Tasks 0-11 built and reviewed; **Task 12 (live deploy) waits on the owner's prod accounts (O17)** and the shell-DB-stages gate (backlog). **7a2 Task 0 (pre-flight) done**; Tasks 1-12 next via SDD. Own test DB `cs_phase_7_test` (at 0081). 7a1 pre-flight history: `git show 67082736:docs/work/phase-7.md`.
+
+## 7a2 pre-flight findings (details in the 7a2 plan, per task)
+- Migration `0082_lifecycle`; all names Task 1 drops exist as written.
+- Purge: transitive cascade scan from agency/client finds only CASCADE/SET NULL FKs and no blocking trigger (evidence/capture immutability triggers are unreachable) - no blockers beyond the 5 dropped ledger/audit FKs.
+- R2: no test creds -> HEAD-then-put (IfNoneMatch unproved).
+- No UI reads `notification.status`; `skipped` touches only the dispatch result type/log and outbox tests.
+- `git branch --no-merged main`: `phase-15b2` (in flight, no migrations; overlaps Task 7 settings pages + `tools/support.ts`, Task 12 `e2e-affected-rules.ts`, `packages/db/CLAUDE.md`), `phase-7-planning` (parked docs only).
 
 ## Next (overwrite)
 1. Owner: prod accounts (O17); create `cs_worker`/`cs_web` on Neon dev (below) before `0081` reaches `cs_dev`.
@@ -12,7 +19,7 @@
 3. 7a2 via SDD; 7b brainstorming may start any time (O1).
 
 ## Interfaces this branch adds or changes
-- **Migrations:** `0081_runtime_roles` (renumbered after 15b's `0080_kb_help_key`). 7a2 `0082_lifecycle`.
+- **Migrations:** `0081_runtime_roles` (renumbered after 15b's `0080_kb_help_key`). 7a2 `0082_lifecycle` (confirmed in 7a2 Task 0).
 - **Code:** `@cs/core/server` (Node-only logging/redaction; Edge-safe root stays), tool `get_platform_health` (`queueError`), pages `/platform/health`, `/bot`, `/robots.txt`, worker `/healthz` (`PORT`), `REQUIRED_PROD_ENV` (`apps/worker/src/env.ts`), `pnpm --filter @cs/web profile:pages`, `CallTiming` + AI `request_path` tasks (new `runbook_retailor`), `predeploy-check`, `ensureQueueGrants`, `docs/DEPLOY.md`, worker Dockerfile + `railway.json`.
 
 ## Owner verification steps
@@ -29,6 +36,7 @@ At first deploy (`docs/DEPLOY.md`):
 - **phase-14b — merged** (b38e36ba): `llm_call.vertical_id` (0078) — 7b `cost_usd → numeric` must follow it; new tools are in the isolation suite's scope; `E2E_PORT`.
 - **phase-15b — merged** (00e8e02a): `0080_kb_help_key`, `packages/core/src/help/*` (Edge-safe root export).
 - **13a** (plan approved on main, not started): `apps/web/src/proxy.ts` (host resolution, `/health` on any host), per-origin Better Auth (`auth.ts`, `authFor`), `senderFor`/`platformFrom` + per-agency Postmark domains (overlaps 7a Postmark webhooks + email env), `NEUTRAL_DOMAIN`/`VERCEL_*`/`POSTMARK_ACCOUNT_TOKEN` env, error pages, P22 titles, P23 Stripe name, `turbo.json`. Needs a Vercel project + wildcard → 7a deploy precedes 13a live.
+- **phase-15b2** (in flight): see 7a2 pre-flight findings.
 - **15c** (not started): error/404 pages overlap 13a + 7a error reporting.
 
 ## Decisions (owner-approved)
