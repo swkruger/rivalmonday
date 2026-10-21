@@ -2,7 +2,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { assertValidKey } from './keys';
-import type { ObjectStore } from './store';
+import { ObjectExistsError, type ObjectStore } from './store';
 
 /** Local-disk store for development. Not for production (no signed URLs, no replication). */
 export function createFsStore(rootDir: string): ObjectStore {
@@ -13,10 +13,15 @@ export function createFsStore(rootDir: string): ObjectStore {
   };
   return {
     kind: 'fs',
-    async put(key, body) {
+    async put(key, body, _contentType, opts) {
       const p = pathFor(key);
       await mkdir(dirname(p), { recursive: true });
-      await writeFile(p, body);
+      try {
+        await writeFile(p, body, { flag: opts?.overwrite ? 'w' : 'wx' });
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'EEXIST') throw new ObjectExistsError(key);
+        throw err;
+      }
     },
     async get(key) {
       try {

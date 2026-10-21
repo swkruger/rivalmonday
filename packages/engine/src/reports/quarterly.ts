@@ -118,7 +118,7 @@ export async function renderReportPdf(deps: PdfDeps, reportId: string): Promise<
   const html = await renderTrendReportDocument({ branding, recipientName: null, clientName: row.name, quarter: row.r.quarter, data: row.r.data, link: null, pdfLink: null });
   const bytes = await deps.pdf(html, { title: `${row.name} — competitor trends ${row.r.quarter}`, author: branding.displayName, subject: 'Quarterly competitor trend report' }, { allowUrls: branding.logoUrl ? [branding.logoUrl] : [] });
   const key = reportPdfKey(row.r.agencyId, reportId);
-  await deps.store.put(key, bytes, 'application/pdf');
+  await deps.store.put(key, bytes, 'application/pdf', { overwrite: true });
   await deps.db.update(trendReport).set({ pdfKey: key }).where(eq(trendReport.id, reportId));
   return { key };
 }

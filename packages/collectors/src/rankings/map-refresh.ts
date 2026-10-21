@@ -1,6 +1,6 @@
 import { fitStaticMap, rankGridBounds } from '@cs/core';
 import { agencyServiceable, client, clientServiceable, type Db, rankMapImage } from '@cs/db';
-import type { ObjectStore } from '@cs/storage';
+import { ObjectExistsError, type ObjectStore } from '@cs/storage';
 import { and, eq } from 'drizzle-orm';
 import { rankMapSettingsHash, rankRadiusKm } from './settings';
 import type { StaticMapClient } from './static-map';
@@ -32,7 +32,12 @@ export async function refreshRankMap(
     { agencyId: c.agencyId, clientId },
   );
   const objectKey = `rank-map/${clientId}/${hash}.png`;
-  await deps.store.put(objectKey, png, 'image/png');
+  // Content-addressed by settings hash: an existing object is the same map, so treat it as stored.
+  try {
+    await deps.store.put(objectKey, png, 'image/png');
+  } catch (err) {
+    if (!(err instanceof ObjectExistsError)) throw err;
+  }
   const row = { agencyId: c.agencyId, settingsHash: hash, objectKey, bounds: frame.bounds, width: frame.width, height: frame.height, fetchedAt: new Date() };
   await deps.db.insert(rankMapImage).values({ clientId, ...row }).onConflictDoUpdate({ target: rankMapImage.clientId, set: row });
   return 'stored';

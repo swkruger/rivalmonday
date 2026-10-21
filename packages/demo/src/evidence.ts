@@ -10,7 +10,7 @@ const FILE: Record<EvidenceKind, string> = { html: 'page.html', text: 'text.txt'
 /** Writes the file to the environment's evidence store and its `evidence` row (real sha256 and size). */
 export async function putEvidence(ctx: SeedContext, o: { captureId: string; competitorId: string; kind: EvidenceKind; body: Uint8Array; contentType: string }): Promise<string> {
   const objectKey = `evidence/${o.competitorId}/${o.captureId}/${FILE[o.kind]}`;
-  await ctx.store.put(objectKey, o.body, o.contentType);
+  await ctx.store.put(objectKey, o.body, o.contentType, { overwrite: true });
   const [row] = await ctx.db.insert(evidence).values({
     captureId: o.captureId, kind: o.kind, objectKey, sha256: createHash('sha256').update(o.body).digest('hex'), bytes: o.body.byteLength, contentType: o.contentType,
   }).returning({ id: evidence.id });

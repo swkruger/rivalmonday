@@ -39,6 +39,14 @@ describe('renderBriefPdf', () => {
     expect(calls[0]!.allowUrls).toEqual([]);
   });
 
+  it('brief PDF re-render overwrites', async () => {
+    const id = await seedBrief('sent');
+    const store = createMemoryStore();
+    await renderBriefPdf({ db: dbs.service, store, pdf: async () => new Uint8Array([1]) }, id);
+    await renderBriefPdf({ db: dbs.service, store, pdf: async () => new Uint8Array([2]) }, id);
+    expect(await store.get(briefPdfKey(IDS.agencyA, id))).toEqual(new Uint8Array([2]));
+  });
+
   it('skips a brief that is not approved or sent', async () => {
     const id = await seedBrief('ready');
     expect(await renderBriefPdf({ db: dbs.service, store: createMemoryStore(), pdf: async () => new Uint8Array() }, id)).toEqual({ skipped: 'brief is ready' });

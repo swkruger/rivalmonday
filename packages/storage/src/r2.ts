@@ -1,7 +1,7 @@
 import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { assertValidKey } from './keys';
-import type { ObjectStore } from './store';
+import { ObjectExistsError, type ObjectStore } from './store';
 
 export interface R2Config {
   accountId: string;
@@ -28,8 +28,19 @@ export function createR2Store(cfg: R2Config, client?: S3Client): ObjectStore {
     });
   return {
     kind: 'r2',
-    async put(key, body, contentType) {
+    async put(key, body, contentType, opts) {
       assertValidKey(key);
+      // HEAD-then-put (conditional IfNoneMatch is not proven on R2); a concurrent same-key race is accepted.
+      if (!opts?.overwrite) {
+        let found = true;
+        try {
+          await s3.send(new HeadObjectCommand({ Bucket: cfg.bucket, Key: key }));
+        } catch (err) {
+          if (!isNotFound(err)) throw err;
+          found = false;
+        }
+        if (found) throw new ObjectExistsError(key);
+      }
       await s3.send(new PutObjectCommand({ Bucket: cfg.bucket, Key: key, Body: body, ContentType: contentType }));
     },
     async get(key) {

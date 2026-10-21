@@ -256,7 +256,7 @@ async function seedWorkspace(
       ['html', 'page.html', 'text/html', Buffer.from('<p>AC tune-up</p>')],
     ] as const) {
       const objectKey = `evidence/${competitorId}/${c!.id}/${name}`;
-      await store.put(objectKey, body, contentType);
+      await store.put(objectKey, body, contentType, { overwrite: true });
       const [ev] = await db.insert(evidence).values({ captureId: c!.id, kind, objectKey, sha256: SHA, bytes: body.length, contentType }).returning();
       if (kind === 'screenshot') shot = ev!.id;
     }
@@ -340,7 +340,7 @@ async function seedWorkspace(
   }
   // A stored map background whose bounds hold every grid point (no Stadia call in E2E: a 1×1 PNG stands in).
   const mapKey = `rank-map/${clientId}/e2e.png`;
-  await store.put(mapKey, PNG_1PX, 'image/png');
+  await store.put(mapKey, PNG_1PX, 'image/png', { overwrite: true });
   await db.insert(rankMapImage).values({ clientId, agencyId, settingsHash: 'e2e0000000000000', objectKey: mapKey, bounds: { west: -97.95, south: 32.25, east: -97.63, north: 32.55 }, width: 640, height: 640 });
 
   await db.update(briefItem).set({ evidenceIds: [after.shot] }).where(eq(briefItem.id, o.sentItemId));

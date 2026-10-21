@@ -31,6 +31,14 @@ describe('refreshRankMap', () => {
     expect(maps.fetchStatic).not.toHaveBeenCalled();
   });
 
+  it('rank map refresh with an existing key stores the row', async () => {
+    const store = createMemoryStore();
+    const hash = rankMapSettingsHash({ center, radiusKm: 8, gridSize: 5 });
+    await store.put(`rank-map/${IDS.clientA1}/${hash}.png`, new Uint8Array([1]), 'image/png');
+    expect(await refreshRankMap({ db: dbs.service, store, maps: fakeMaps() }, IDS.clientA1)).toBe('stored');
+    expect(await dbs.service.select().from(rankMapImage)).toHaveLength(1);
+  });
+
   it('changed settings -> fetch with the fitted frame, store, upsert; same settings -> unchanged', async () => {
     const store = createMemoryStore();
     const maps = fakeMaps();

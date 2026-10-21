@@ -61,7 +61,7 @@ export interface ToolDeps {
   /** Object storage (evidence adapter, `ObjectStore` shape): `get` for `fetch` and the MCP evidence resources; `put` for agency logos (Phase 10 R9). */
   evidenceStore?: {
     get(key: string): Promise<Uint8Array | null>;
-    put(key: string, body: Uint8Array, contentType: string): Promise<void>;
+    put(key: string, body: Uint8Array, contentType: string, opts?: { overwrite?: boolean }): Promise<void>;
   };
 }
 

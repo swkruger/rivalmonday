@@ -20,7 +20,7 @@ export async function seedWebCapture(
   const id = randomUUID();
   const key = `evidence/${input.competitorId}/${id}/page.html.gz`;
   const body = new Uint8Array(gzipSync(input.html));
-  await store.put(key, body, 'application/gzip');
+  await store.put(key, body, 'application/gzip', { overwrite: true });
   await db.insert(capture).values({
     id, competitorId: input.competitorId, trackedPageId: input.trackedPageId, source: 'web', url: input.url ?? 'https://smithhvac.example/',
     status: 'ok', httpStatus: 200, collectorVersion: 'web/1', capturedAt: input.capturedAt,

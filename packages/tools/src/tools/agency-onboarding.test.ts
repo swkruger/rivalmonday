@@ -208,7 +208,11 @@ describe('upload_agency_logo', () => {
   const objects = new Map<string, { body: Uint8Array; contentType: string }>();
   const evidenceStore = {
     get: async (k: string) => objects.get(k)?.body ?? null,
-    put: async (k: string, body: Uint8Array, contentType: string) => void objects.set(k, { body, contentType }),
+    // Mirrors the real store: an existing key without `overwrite` throws ObjectExistsError (code 'object_exists').
+    put: async (k: string, body: Uint8Array, contentType: string, opts?: { overwrite?: boolean }) => {
+      if (!opts?.overwrite && objects.has(k)) throw Object.assign(new Error('object already exists'), { code: 'object_exists' });
+      objects.set(k, { body, contentType });
+    },
   };
   const APP = 'https://app.example';
   const logoRegistry = createToolRegistry({ app: dbs.app, service: dbs.service, evidenceStore, appUrl: APP }, { audit: { record: async () => undefined } });
@@ -218,6 +222,12 @@ describe('upload_agency_logo', () => {
   const input = (b = PNG, h = sha(b)) => ({ png: Buffer.from(b).toString('base64'), sha256: h });
   const branding = async () => (await dbs.owner.select({ b: agency.branding }).from(agency).where(eq(agency.id, IDS.agencyA)))[0]!.b;
   beforeEach(() => objects.clear());
+
+  it('logo re-upload of the same bytes succeeds', async () => {
+    await logoRegistry.invoke(admin, 'upload_agency_logo', input());
+    const again = await logoRegistry.invoke(admin, 'upload_agency_logo', input());
+    expect(again).toEqual({ logoUrl: `${APP}/files/logo/${IDS.agencyA}/${sha(PNG)}.png` });
+  });
 
   it('stores logos/<agency>/<sha>.png as image/png and sets branding.logoUrl, keeping other branding keys', async () => {
     await dbs.owner.update(agency).set({ branding: { primary: '#112233', logoUrl: 'https://old.example/l.png' } }).where(eq(agency.id, IDS.agencyA));

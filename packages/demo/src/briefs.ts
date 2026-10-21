@@ -218,7 +218,7 @@ async function seedPdfs(ctx: SeedContext): Promise<void> {
   const { db, ids, store } = ctx;
   const put = async (id: string, title: string): Promise<string> => {
     const key = `demo/pdf/${id}${PDF_KEY_SUFFIX}`;
-    await store.put(key, demoPdf(title, ['Brazos Digital - demo data', 'This placeholder stands in for the rendered PDF.']), 'application/pdf');
+    await store.put(key, demoPdf(title, ['Brazos Digital - demo data', 'This placeholder stands in for the rendered PDF.']), 'application/pdf', { overwrite: true });
     return key;
   };
   for (const id of [...ids.briefs.sentLoneStar, ...ids.briefs.sentBrazos, ids.briefs.startingPointBrazos, ids.briefs.readyLoneStar]) {

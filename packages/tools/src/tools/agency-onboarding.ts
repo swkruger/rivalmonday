@@ -287,7 +287,12 @@ export const uploadAgencyLogo = defineTool({
     if (createHash('sha256').update(bytes).digest('hex') !== sha256) throw new ToolError('invalid_input', 'Logo checksum does not match');
     const key = `logos/${ctx.agencyId}/${sha256}.png`;
     // Store first: a failed branding update leaves an unreferenced object (harmless); the reverse would leave a broken URL.
-    await store.put(key, bytes, 'image/png');
+    // Content-addressed by sha256: an existing object is the same logo, so treat it as stored.
+    try {
+      await store.put(key, bytes, 'image/png');
+    } catch (err) {
+      if ((err as { code?: string }).code !== 'object_exists') throw err; // ObjectExistsError (@cs/storage is not a dependency of @cs/tools)
+    }
     const logoUrl = `${deps.appUrl.replace(/\/+$/, '')}/files/logo/${ctx.agencyId}/${sha256}.png`;
     await deps.service
       .update(agency)
