@@ -14,7 +14,7 @@ const LABELS: Readonly<Record<string, string>> = {
   get_price_history: 'Reading price history…',
   list_ads: 'Looking at ads…',
   get_ad_activity: 'Reading ad activity…',
-  get_theme_benchmark: 'Comparing review themes…',
+  get_theme_benchmark: 'Comparing review topics…',
   search_reviews: 'Searching reviews…',
   get_rating_trend: 'Reading rating trends…',
   get_geogrid: 'Checking local rankings…',

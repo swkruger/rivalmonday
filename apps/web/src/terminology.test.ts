@@ -81,6 +81,13 @@ describe('terminology: "theme" is "topic" in user-facing text (C3)', () => {
     expect(hits, `Found "theme" in user-facing text; say "topic":\n${fmt(hits)}`).toEqual([]);
   });
 
+  it('no user-facing label in the packages says theme (Ask progress labels, workspace labels)', () => {
+    // Final review I2: labels outside apps/web that the UI shows verbatim. Object keys (tool names) are identifiers.
+    const LABEL_FILES = ['packages/ask/src/labels.ts', 'packages/tools/src/workspace/labels.ts'].map((f) => join(ROOT, f));
+    const hits = themeHits(LABEL_FILES);
+    expect(hits, `Found "theme" in a user-facing label; say "topic":\n${fmt(hits)}`).toEqual([]);
+  });
+
   it('no help guide says theme', () => {
     const dir = join(ROOT, 'docs', 'help', 'pages');
     const hits: Hit[] = [];
