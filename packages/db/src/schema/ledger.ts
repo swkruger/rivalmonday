@@ -1,7 +1,6 @@
 import type { ToolChannel } from '@cs/core';
 import { sql } from 'drizzle-orm';
 import { boolean, check, doublePrecision, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
-import { agency, client } from './tenancy';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
@@ -9,7 +8,8 @@ export const auditLog = pgTable(
   'audit_log',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    agencyId: uuid('agency_id').notNull().references(() => agency.id, { onDelete: 'cascade' }),
+    /** No FK since 7a2: audit rows outlive an agency purge. */
+    agencyId: uuid('agency_id').notNull(),
     userId: text('user_id').notNull(),
     role: text('role').notNull(),
     tool: text('tool').notNull(),
@@ -36,8 +36,9 @@ export const llmCall = pgTable(
   'llm_call',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    agencyId: uuid('agency_id').references(() => agency.id, { onDelete: 'cascade' }),
-    clientId: uuid('client_id').references(() => client.id, { onDelete: 'cascade' }),
+    /** No FKs since 7a2: spend rows outlive an agency/client purge. */
+    agencyId: uuid('agency_id'),
+    clientId: uuid('client_id'),
     task: text('task').notNull(),
     provider: text('provider').notNull(),
     model: text('model').notNull(),
@@ -59,8 +60,9 @@ export const vendorCall = pgTable(
   'vendor_call',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    agencyId: uuid('agency_id').references(() => agency.id, { onDelete: 'cascade' }),
-    clientId: uuid('client_id').references(() => client.id, { onDelete: 'cascade' }),
+    /** No FKs since 7a2: spend rows outlive an agency/client purge. */
+    agencyId: uuid('agency_id'),
+    clientId: uuid('client_id'),
     vendor: text('vendor').notNull(),
     operation: text('operation').notNull(),
     units: integer('units').notNull(),

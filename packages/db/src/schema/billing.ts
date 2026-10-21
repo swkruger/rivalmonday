@@ -1,3 +1,4 @@
+import type { PlanFeature } from '@cs/core';
 import { sql } from 'drizzle-orm';
 import { boolean, check, index, integer, jsonb, numeric, pgTable, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { agency, client } from './tenancy';
@@ -24,6 +25,8 @@ export const plan = pgTable(
     stripeBasePriceId: text('stripe_base_price_id'),
     stripeSeatPriceId: text('stripe_seat_price_id'),
     isCurrent: boolean('is_current').notNull().default(false),
+    /** Phase 7a2: channels this plan includes (spec D13); the CHECK admits only known values. */
+    features: jsonb('features').$type<PlanFeature[]>().notNull().default(sql`'["ask","mcp"]'::jsonb`),
     createdAt: ts('created_at').notNull().defaultNow(),
     createdBy: text('created_by').notNull(),
   },
@@ -34,6 +37,7 @@ export const plan = pgTable(
     check('plan_included_seats_check', sql`${t.includedSeats} >= 0`),
     check('plan_seat_price_cents_check', sql`${t.seatPriceCents} >= 0`),
     check('plan_trial_days_check', sql`${t.trialDays} BETWEEN 0 AND 90`),
+    check('plan_features_check', sql`jsonb_typeof(features) = 'array' AND features <@ '["ask","mcp"]'::jsonb`),
   ],
 );
 

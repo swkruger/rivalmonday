@@ -4,6 +4,10 @@ export type Role = (typeof ROLES)[number];
 export const FEATURES = ['dashboard', 'ask', 'mcp', 'manage_competitors', 'alert_rules'] as const;
 export type Feature = (typeof FEATURES)[number];
 
+/** Phase 7a2: channels a platform plan can switch off for a whole agency (spec D13). */
+export const PLAN_FEATURES = ['ask', 'mcp'] as const;
+export type PlanFeature = (typeof PLAN_FEATURES)[number];
+
 export type Permission = 'read' | 'feedback' | 'manage' | 'agency';
 export type ClientScope = 'all' | readonly string[];
 

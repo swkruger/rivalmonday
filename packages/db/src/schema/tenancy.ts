@@ -29,6 +29,8 @@ export const agency = pgTable('agency', {
   branding: jsonb('branding').$type<AgencyBranding | null>(),
   /** Phase 8b: email agency admins when platform support opens a session. Service role only (app_user has no UPDATE on agency). */
   notifySupportAccess: boolean('notify_support_access').notNull().default(false),
+  /** Phase 7a2: archived (hidden, no work) — purged 30 days later. Service role only. */
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
   createdAt: createdAt(),
 });
 
@@ -73,6 +75,8 @@ export const client = pgTable(
     rankKeywords: jsonb('rank_keywords').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     /** Phase 13b: rank grid side (5x5 or 7x7). */
     rankGridSize: smallint('rank_grid_size').notNull().default(7),
+    /** Phase 7a2: archived clients are invisible to app_user (RLS) and purged 30 days later. Service role only (no column grant). */
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [

@@ -14,7 +14,8 @@ export type ContactRole = 'agency_admin' | 'account_manager' | 'client_owner' | 
 export const CLIENT_KINDS = ['alert', 'alert_digest', 'brief', 'trend_report', 'client_invite', 'competitor_review'] as const;
 export const AGENCY_KINDS = ['am_alert', 'brief_ready', 'brief_failed', 'brief_overdue', 'setup_suggestions_ready', 'setup_client_changed', 'setup_idle', 'trend_report', 'rank_scan_skipped'] as const;
 export type NotificationKind = (typeof CLIENT_KINDS)[number] | (typeof AGENCY_KINDS)[number];
-export type NotificationStatus = 'pending' | 'sending' | 'sent' | 'failed';
+/** Phase 7a2: 'skipped' = never sent (suppressed address); reads like 'failed' wherever a status is shown or counted. */
+export type NotificationStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'skipped';
 export type AlertMode = 'direct' | 'after_am_check' | 'digest_only';
 export type AlertStatus = 'drafting' | 'pending_review' | 'approved' | 'delivered' | 'dismissed' | 'withdrawn' | 'expired';
 export type AlertDelivery = 'immediate' | 'digest';
@@ -153,7 +154,7 @@ export const notification = pgTable(
     index('notification_contact_idx').on(t.contactId, t.createdAt),
     clientFk(t),
     check('notification_channel_check', sql`channel IN ('in_app', 'email', 'slack', 'teams', 'sms')`),
-    check('notification_status_check', sql`status IN ('pending', 'sending', 'sent', 'failed')`),
+    check('notification_status_check', sql`status IN ('pending', 'sending', 'sent', 'failed', 'skipped')`),
     check('notification_recipient_check', sql`(contact_id IS NULL) <> (webhook_id IS NULL)`),
   ],
 );
