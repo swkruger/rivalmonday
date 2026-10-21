@@ -130,7 +130,7 @@ test.describe('support sessions', () => {
     // Capture a real server-action request (the "Email me when support opens a session" switch) as the agency's own admin...
     const captured = await as(browser, testInfo, 'target', async (page) => {
       await page.goto('/agency/settings/platform-access');
-      const switchEl = page.getByRole('switch', { name: 'Email me when Rival Monday support opens a session' });
+      const switchEl = page.getByRole('switch', { name: 'Email me when platform support opens a session' });
       await expect(switchEl).toBeVisible();
       const reqPromise = page.waitForRequest((r) => r.method() === 'POST' && r.headers()['next-action'] !== undefined);
       await switchEl.click();

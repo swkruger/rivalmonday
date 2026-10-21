@@ -101,15 +101,15 @@ describe('end_support_session', () => {
 });
 
 describe('list_support_sessions', () => {
-  it('shows the operator real name, or "Rival Monday support" when the name is blank or an email (M7d)', async () => {
+  it('shows the operator real name, or "Platform support" when the name is blank or an email (M7d)', async () => {
     await start(staff, IDS.agencyA);
     const name = async () => ((await registry.invoke(admin, 'list_support_sessions', {})) as { rows: Row[] }).rows[0]!.platformUserName;
     await dbs.owner.execute(sql`update auth."user" set name = 'Sam Staff' where id = 'staff'`);
     expect(await name()).toBe('Sam Staff');
     await dbs.owner.execute(sql`update auth."user" set name = '  ' where id = 'staff'`);
-    expect(await name()).toBe('Rival Monday support');
+    expect(await name()).toBe('Platform support');
     await dbs.owner.execute(sql`update auth."user" set name = 'Sam <sam@rivalmonday.com>' where id = 'staff'`);
-    expect(await name()).toBe('Rival Monday support');
+    expect(await name()).toBe('Platform support');
   });
 
   it('lists this agency sessions newest first with the documented row shape, never another agency', async () => {
@@ -122,7 +122,7 @@ describe('list_support_sessions', () => {
     expect(r.rows.map((x) => x.reason)).toEqual(['second visit reason', 'first visit reason']);
     expect(Object.keys(r.rows[0]!).sort()).toEqual(['durationMinutes', 'endReason', 'endedAt', 'platformUserName', 'reason', 'startedAt']);
     // M7(d): the seeded name is the email, so the agency sees the generic label, never the address.
-    expect(r.rows[0]).toMatchObject({ platformUserName: 'Rival Monday support', endedAt: null, durationMinutes: null, endReason: null });
+    expect(r.rows[0]).toMatchObject({ platformUserName: 'Platform support', endedAt: null, durationMinutes: null, endReason: null });
     expect(r.rows[1]).toMatchObject({ durationMinutes: 12, endReason: 'exit' });
     expect(JSON.stringify(r)).not.toContain('other agency reason');
     const b = (await registry.invoke(adminB, 'list_support_sessions', {})) as { rows: Row[] };

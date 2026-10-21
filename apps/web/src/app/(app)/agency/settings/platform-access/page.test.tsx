@@ -35,7 +35,7 @@ describe('/agency/settings/platform-access', () => {
     expect(screen.getByText('Checking brief setup')).toBeTruthy();
     expect(screen.getByText('12 min')).toBeTruthy();
     expect(screen.getByText('Timed out')).toBeTruthy();
-    const toggle = screen.getByRole('switch', { name: 'Email me when Rival Monday support opens a session' });
+    const toggle = screen.getByRole('switch', { name: 'Email me when platform support opens a session' });
     expect(toggle.getAttribute('aria-checked')).toBe('true');
   });
 

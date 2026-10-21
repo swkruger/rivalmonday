@@ -5,7 +5,7 @@ import type { FormResult } from '@/server/forms';
 import { setSupportNotifyAction } from './actions';
 import { ErrorNote } from '@/components/form-error';
 
-export const NOTIFY_LABEL = 'Email me when Rival Monday support opens a session';
+export const NOTIFY_LABEL = 'Email me when platform support opens a session';
 
 /** Follows `AutoSendSwitch`: `useOptimistic` + `startTransition`, and the refusal stays visible below the switch. */
 export function NotifySwitch({ enabled }: { enabled: boolean }) {

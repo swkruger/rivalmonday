@@ -30,7 +30,7 @@ const SessionRow = z.object({
 type RawRow = { started_at: string | Date; ended_at: string | Date | null; name: string; reason: string; end_reason: 'exit' | 'expired' | 'replaced' | 'revoked' | null };
 
 /** 8b M7(d): what an agency sees when a staff account's name is blank or is its email (never show the address). */
-export const SUPPORT_DISPLAY_NAME = 'Rival Monday support';
+export const SUPPORT_DISPLAY_NAME = 'Platform support';
 const EMAIL_LIKE = /\S@\S/;
 
 export function supportDisplayName(name: string | null | undefined): string {
