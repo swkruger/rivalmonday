@@ -27,6 +27,8 @@ function v4Public(a: number, b: number, c: number): boolean {
   if (a === 192 && b === 168) return false;
   if (a === 192 && b === 0 && c === 0) return false; // IETF protocol assignments
   if (a === 198 && (b === 18 || b === 19)) return false; // benchmarking
+  if ((a === 192 && b === 0 && c === 2) || (a === 198 && b === 51 && c === 100) || (a === 203 && b === 0 && c === 113)) return false; // TEST-NET-1/2/3
+  if (a === 192 && b === 88 && c === 99) return false; // 6to4 relay anycast
   return true;
 }
 
@@ -62,6 +64,9 @@ export function isPublicAddress(addr: string): boolean {
   const v4of = (hi: number, lo: number) => v4Public(hi >> 8, hi & 255, lo >> 8);
   if (h.every((x) => x === 0) || (h.slice(0, 7).every((x) => x === 0) && h[7] === 1)) return false; // :: and ::1
   if ((h[0]! & 0xfe00) === 0xfc00 || (h[0]! & 0xffc0) === 0xfe80 || (h[0]! & 0xff00) === 0xff00) return false; // ULA, link-local, multicast
+  if ((h[0]! & 0xffc0) === 0xfec0) return false; // deprecated site-local fec0::/10
+  if (h[0] === 0x2001 && (h[1] === 0 || h[1] === 0x0db8)) return false; // Teredo 2001::/32, documentation 2001:db8::/32
+  if (h[0] === 0x64 && h[1] === 0xff9b && h[2] === 1) return false; // local-use NAT64 64:ff9b:1::/48
   if (h.slice(0, 5).every((x) => x === 0) && h[5] === 0xffff) return v4of(h[6]!, h[7]!); // IPv4-mapped ::ffff:0:0/96
   if (h.slice(0, 4).every((x) => x === 0) && h[4] === 0xffff && h[5] === 0) return false; // SIIT ::ffff:0:0:0/96
   if (h.slice(0, 6).every((x) => x === 0)) return false; // IPv4-compatible / reserved ::/96

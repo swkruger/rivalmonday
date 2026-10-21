@@ -1,3 +1,5 @@
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { chromium } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startFixtureServer } from '../../test/fixtures-server';
 import { SsrfBlockedError } from '../net/guard';
@@ -11,6 +13,9 @@ const renderer = createPlaywrightRenderer({ timeoutMs: 3000, assertUrl: permissi
 const refusing = (...paths: string[]) => async (u: string) => {
   if (paths.includes(new URL(u).pathname)) throw new SsrfBlockedError(u);
 };
+/** A local file a `file:` redirect would read (this test file itself). */
+const LOCAL_FILE = pathToFileURL(fileURLToPath(import.meta.url)).href;
+const settle = () => new Promise((r) => setTimeout(r, 800));
 
 beforeAll(async () => {
   server = await startFixtureServer({
@@ -34,6 +39,25 @@ beforeAll(async () => {
       </script></body></html>`,
     },
     '/sw.js': { body: "self.addEventListener('fetch', () => {});", contentType: 'text/javascript' },
+    '/redir-file': { status: 302, body: '', headers: { location: LOCAL_FILE } },
+    '/redir-data': { status: 302, body: '', headers: { location: 'data:text/html,<title>pwned</title><body>from a data url</body>' } },
+    '/shared-worker-page': {
+      body: `<html><head><title>shared</title></head><body><p>Shared worker page</p><script>
+        try { new SharedWorker('/shared.js'); } catch (e) {}
+      </script></body></html>`,
+    },
+    '/shared.js': { body: "fetch('/secret-shared');", contentType: 'text/javascript' },
+    '/worker-page': {
+      body: `<html><head><title>worker</title></head><body><script>
+        try { new Worker('/worker.js'); } catch (e) {}
+      </script></body></html>`,
+    },
+    '/worker.js': { body: "fetch('/secret-worker');", contentType: 'text/javascript' },
+    '/font-page': {
+      body: `<html><head><title>fonts</title><link rel="prefetch" href="/prefetch.bin"><style>
+        @font-face { font-family: X; src: url('/font.woff2') format('woff2'); } body { font-family: X; }
+      </style></head><body><p>Fonts and other</p></body></html>`,
+    },
     '/ws-page': {
       body: `<html><head><title>pending</title></head><body><script>
         const ws = new WebSocket(location.origin.replace('http', 'ws') + '/ws');
@@ -172,11 +196,66 @@ describe('Playwright renderer', () => {
     }
   });
 
-  it('closes every WebSocket before it reaches the network', async () => {
-    const page = await renderer.render(server.url('/ws-page'));
+  it('closes every WebSocket before it reaches the network (Local Network Access checks off, so only our route can stop it)', async () => {
+    const lnaOff = createPlaywrightRenderer({
+      timeoutMs: 3000,
+      assertUrl: permissive,
+      launch: () => chromium.launch({ headless: true, args: ['--disable-features=LocalNetworkAccessChecks'] }),
+    });
     try {
-      await new Promise((r) => setTimeout(r, 800));
+      const page = await lnaOff.render(server.url('/ws-page'));
+      expect(page.status).toBe('ok');
+      await settle();
+      await page.close();
       expect(server.upgrades).toEqual([]);
+    } finally {
+      await lnaOff.close();
+    }
+  });
+
+  it.each(['/redir-file', '/redir-data'])('refuses a main-frame redirect to a non-http(s) URL (%s), even with a permissive guard', async (path) => {
+    const page = await renderer.render(server.url(path));
+    expect(page).toMatchObject({ status: 'error', error: 'ssrf_blocked', html: '', text: '' });
+    await page.close();
+  });
+
+  it('refuses a non-http(s) start URL', async () => {
+    const page = await renderer.render(LOCAL_FILE);
+    expect(page).toMatchObject({ status: 'error', error: 'ssrf_blocked', html: '' });
+  });
+
+  it('blocks shared workers (their requests are never routed)', async () => {
+    const page = await renderer.render(server.url('/shared-worker-page'));
+    try {
+      expect(page).toMatchObject({ status: 'ok', title: 'shared' });
+      await settle();
+      expect(server.hits).not.toContain('/secret-shared');
+    } finally {
+      await page.close();
+    }
+  });
+
+  it('routes dedicated worker requests through the guard', async () => {
+    const guarded = createPlaywrightRenderer({ timeoutMs: 3000, assertUrl: refusing('/secret-worker') });
+    try {
+      const page = await guarded.render(server.url('/worker-page'));
+      expect(page.status).toBe('ok');
+      await settle();
+      await page.close();
+      expect(server.hits).not.toContain('/secret-worker');
+    } finally {
+      await guarded.close();
+    }
+  });
+
+  it('never fetches fonts or "other" resources (prefetch), and still renders', async () => {
+    const page = await renderer.render(server.url('/font-page'));
+    try {
+      expect(page).toMatchObject({ status: 'ok', title: 'fonts' });
+      expect(page.text).toContain('Fonts and other');
+      await settle();
+      expect(server.hits).not.toContain('/font.woff2');
+      expect(server.hits).not.toContain('/prefetch.bin');
     } finally {
       await page.close();
     }

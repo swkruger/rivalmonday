@@ -95,6 +95,9 @@ function withDeadline<T>(promise: Promise<T>, ms: number, message: string): Prom
 
 const RENDER_DEADLINE_MESSAGE = 'render deadline exceeded';
 const MAX_REDIRECTS = 5;
+const isHttp = (u: string) => /^https?:/i.test(u);
+/** Resource types never fetched: `route.fetch` buffers whole bodies and a capture needs none of them. */
+const SKIPPED_TYPES = new Set(['media', 'font', 'other']);
 
 function redirectLocation(res: APIResponse): string | null {
   const s = res.status();
@@ -112,20 +115,29 @@ type GuardState = { blocked: boolean; redirect: string | null };
  *   target itself, so the hop comes back through this handler (and `page.url()` stays the real final URL);
  * - everything else (sub-resources, iframes, popups): hops are followed here, then the final response is fulfilled.
  * A refusal aborts with `blockedbyclient`; a refused main-frame navigation marks the render `ssrf_blocked`.
- * Media is aborted outright: `route.fetch` buffers whole bodies, and a capture needs no video/audio.
+ * Redirect targets must be http(s) (a `file:`/`data:` Location is refused whatever `assertUrl` says). Media, font and
+ * "other" requests are aborted outright: `route.fetch` buffers whole bodies, and a capture needs none of them.
  */
 async function guardRoute(route: Route, page: Page, state: GuardState, assertUrl: (url: string) => Promise<void>, fetchTimeoutMs: number) {
   const req = route.request();
   const url = req.url();
   try {
-    if (!/^https?:/i.test(url)) return await route.continue();
     let mainNav = false;
     try {
       mainNav = req.isNavigationRequest() && req.frame() === page.mainFrame();
     } catch {
       // Service-worker requests have no frame (and service workers are blocked anyway).
     }
+    if (!isHttp(url)) {
+      if (!mainNav) return await route.continue();
+      state.blocked = true;
+      return await route.abort('blockedbyclient');
+    }
     const check = async (u: string): Promise<boolean> => {
+      if (!isHttp(u)) {
+        if (mainNav) state.blocked = true;
+        return false;
+      }
       try {
         await assertUrl(u);
         return true;
@@ -136,12 +148,15 @@ async function guardRoute(route: Route, page: Page, state: GuardState, assertUrl
       }
     };
     if (!(await check(url))) return await route.abort('blockedbyclient');
-    if (req.resourceType() === 'media') return await route.abort('blockedbyclient');
+    if (SKIPPED_TYPES.has(req.resourceType())) return await route.abort('blockedbyclient');
     let res = await route.fetch({ maxRedirects: 0, timeout: fetchTimeoutMs });
     if (mainNav) {
       const location = redirectLocation(res);
       if (location) {
-        state.redirect = new URL(location, url).href;
+        const target = new URL(location, url).href;
+        // Checked here too: a non-http(s) target (file:, data:) must never reach `page.goto`.
+        if (!(await check(target))) return await route.abort('blockedbyclient');
+        state.redirect = target;
         return await route.fulfill({ status: 200, contentType: 'text/html', body: '' });
       }
       return await route.fulfill({ response: res });
@@ -170,6 +185,8 @@ export function createPlaywrightRenderer(
     renderDeadlineMs?: number;
     /** SSRF check for every request and redirect hop; throws `SsrfBlockedError` to refuse. Tests on 127.0.0.1 fixtures inject a permissive one. */
     assertUrl?: (url: string) => Promise<void>;
+    /** Browser launcher (test seam, e.g. extra Chromium flags); defaults to headless Chromium. */
+    launch?: () => Promise<Browser>;
   } = {},
 ): Renderer {
   const userAgent = opts.userAgent ?? BOT_USER_AGENT;
@@ -177,7 +194,7 @@ export function createPlaywrightRenderer(
   const renderDeadlineMs = opts.renderDeadlineMs ?? timeoutMs * 2;
   const maxHeight = opts.maxScreenshotHeight ?? 8000;
   const assertUrl = opts.assertUrl ?? ((u: string) => assertPublicUrl(u));
-  const browserCache = createBrowserCache(() => chromium.launch({ headless: true }));
+  const browserCache = createBrowserCache(opts.launch ?? (() => chromium.launch({ headless: true })));
 
   return {
     async render(url) {
@@ -187,8 +204,13 @@ export function createPlaywrightRenderer(
       // whose JS hangs forever can never stall the single worker indefinitely.
       const deadlineAt = Date.now() + renderDeadlineMs;
       try {
-        // Service workers would fetch outside our routes; WebSockets are never routed through them either.
+        if (!isHttp(url)) return emptyPage(url, 'error', 'ssrf_blocked');
+        // Service and shared workers fetch outside our routes (Playwright never routes their requests); WebSockets
+        // are not routed by `route` either, so each one is closed before it connects.
         context = await (await browserCache.get()).newContext({ userAgent, viewport: { width: 1366, height: 900 }, serviceWorkers: 'block' });
+        await context.addInitScript(() => {
+          delete (globalThis as { SharedWorker?: unknown }).SharedWorker;
+        });
         await context.routeWebSocket(() => true, (ws) => ws.close());
         const page = await context.newPage();
         // The fetch timeout outlives goto's, so a slow page still reports `timeout` (goto's TimeoutError) first.

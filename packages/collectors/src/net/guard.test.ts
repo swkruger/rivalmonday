@@ -56,6 +56,22 @@ describe('isPublicAddress', () => {
     ['64:ff9b::a00:5', false], // NAT64 of 10.0.0.5
     ['2002:7f00:1::', false], // 6to4 of 127.0.0.1
     ['2002:a9fe:a9fe::1', false], // 6to4 of 169.254.169.254
+    ['64:ff9b:1::a00:5', false], // local-use NAT64 64:ff9b:1::/48
+    ['64:ff9b:1:ffff::1', false],
+    ['fec0::1', false], // deprecated site-local fec0::/10
+    ['feff::1', false],
+    ['2001::1', false], // Teredo 2001::/32
+    ['2001:0:4136:e378:8000:63bf:3fff:fdd2', false],
+    ['2001:db8::1', false], // documentation 2001:db8::/32
+    ['2001:db8:ffff::1', false],
+    ['2001:4860:4860::8888', true], // a real 2001: address stays public
+    ['192.0.2.10', false], // TEST-NET-1
+    ['198.51.100.7', false], // TEST-NET-2
+    ['203.0.113.200', false], // TEST-NET-3
+    ['192.88.99.1', false], // 6to4 relay anycast
+    ['192.0.3.1', true],
+    ['198.51.101.1', true],
+    ['203.0.114.1', true],
     ['2130706433', false], // decimal host is not an address literal
     ['garbage', false],
     ['', false],
