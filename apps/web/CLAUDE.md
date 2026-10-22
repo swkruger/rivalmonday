@@ -7,7 +7,7 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 
 ### Next.js / build
 - **Next.js 16 uses `proxy.ts`, not `middleware.ts`** (deprecated), and `params`/`cookies()`/`headers()` are async — always `await` them.
-- **Turbopack can't resolve `new URL('<relative>', import.meta.url)` file lookups:** any package `apps/web` imports must use `path.join(dirname(fileURLToPath(import.meta.url)), …)` (`@cs/db` `migrate.ts`, `@cs/verticals` loader, `@cs/ai` config loader; else authed pages 500).
+- **Turbopack can't resolve `new URL('<relative>', import.meta.url)` file lookups:** any package `apps/web` imports must use `path.join(dirname(fileURLToPath(import.meta.url)), …)` (`@cs/db`, `@cs/verticals`, `@cs/ai` loaders; else authed pages 500).
 - **`next build` and `next dev` share `.next`:** never build while the dev server runs.
 - **One `sharp` version repo-wide (0.34.5):** two versions loaded in one process fail `next build` on Windows with `ERR_DLOPEN_FAILED`.
 - **`AGENTS.md` is Next.js-managed** (`next dev` upserts its block); keep `@AGENTS.md` as this file's first line.
@@ -21,9 +21,8 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **OAuth provider (migration `0041`):** the plugin seeds `auth."oauthResource"` once per instance — tests never truncate it (else `invalid_target`). Consent re-dispatches `/oauth2/authorize` *through hooks*, so an authorize before-hook must not undo it (`isConsentRequest`). Plugin endpoints aren't on `auth().api`'s type; call `auth().handler(new Request(...))`.
 - **Magic-link sends run in Next's `after()`** (no account enumeration); `buildAuthOptions(..., { runInBackground })` needs the runner (the `admin` CLI passes `(p) => p`). In dev, links land in `apps/web/.outbox/*.html` while `POSTMARK_SERVER_TOKEN` is unset.
 - **Self-serve sign-up (Phase 10) is a service fn, not a tool:** `/sign-up` calls `startAgencySignup` directly (no agency ctx); refused and accepted paths must stay identical (same redirect, 400 ms floor, `rm_signup` cookie always set). Magic-link/Google callback is `/onboarding/start`, which picks the new agency's membership.
-- **`admin` CLI:** `pnpm --filter @cs/web admin invite --agency <id> --email <email> --role agency_admin` and `pnpm --filter @cs/web admin link --contact <id> --target brief --id <id>`.
+- **`admin` CLI:** `pnpm --filter @cs/web admin invite --agency <id> --email <e> --role agency_admin` / `admin link --contact <id> --target brief --id <id>`.
 - **Guest cookies (`rm_guest`, 24 h, client contacts via `/l/<token>`) are re-checked every request** (`active`, `links_revoked_before` vs `iat`), so deactivation ends them on the next request.
-- **A relative `EVIDENCE_FS_DIR` resolves against `apps/worker/`** (shared by both processes in dev).
 - **`/mcp` and `/.well-known/*` are public in `proxy.ts`** (Bearer token / public metadata; `/oauth/consent` stays behind the session). A new route under them needs its own auth; a new `/mcp`-adjacent path goes in the proxy `PUBLIC` list and the e2e rules.
 - **`POST /api/ask/turn` (SSE) is public in `proxy.ts` and authenticates itself:** one `final` event per response, `emit` never throws, membership by the body's `clientId` (`getViewerForClient`), new thread id in `x-ask-thread-id`.
 - **Consent order (`/oauth/consent`):** `pickConsent` → plugin accept → `bindConsent` → redirect; a failed bind keeps the code server-side; authorize drops a consent with no binding.
@@ -38,11 +37,13 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **Action-result state must survive `revalidatePath`:** a `useActionState` message rendered only inside the triggering button/dialog vanishes when revalidation unmounts it. Hoist it to an always-mounted component (`ReviewFooter`, `AlertList`). Server-action switches use `useOptimistic` + `startTransition` (`AutoSendSwitch`), not `PinPageSwitch`'s ref/RAF hack.
 - **React 19 resets a `<form action>` after every action, error results included** — even controlled selects. Wizard-style forms control every field and add `onReset={e => e.preventDefault()}` (`(app)/onboarding/steps/*`), else a failed submit silently reverts choices (e.g. invite role → admin).
 - **`LineChart` callers must pass series name-sorted:** colours follow position in the kept set.
+- **Formatting:** use `@/lib/format` (dates, money, distance) and `@/lib/labels` (enum labels, chip tones), never local formatters or raw enums. Distances: km stored, miles shown/typed via `lib/format/distance`.
+- **No `loading.tsx` under `app/(app)` or `app/(platform)`** — it turns `notFound()` into HTTP 200; use `<Suspense fallback={<PageSkeleton/>}>` inside pages after access checks.
 - **No mobile layout** (fixed 232px sidebar; 390px overview E2E is `test.fixme`).
 
 ### Help (15b)
 - **Help copy (`@/help/copy`) is `server-only`:** client components get it from `HelpProvider` context (shell), never by importing copy values (`help/copy-bundle.test.ts` fails). A `<PageHeader` outside `page.tsx` goes in `DELEGATED_HEADERS` (`help/coverage.test.ts`); reach lists: `help/reach.ts`.
-- **A `HelpTip`'s title is its accessible name:** Playwright `name:` matches substrings ("Scan now limits" broke `{ name: 'Scan now' }`) — grep e2e locators for new tip titles; a tip inside a heading needs the heading text in its own `<span>`.
+- **A `HelpTip`'s title is its accessible name:** Playwright `name:` matches substrings — grep e2e locators for new tip titles; a tip inside a heading needs the heading text in its own `<span>`.
 
 ### Dev panel & environments
 - **Run with `pnpm dev:web`.** `DEV_PANEL` is set only by `scripts/dev.ts`, never by hand or in production. `RM_DEV_ENV_FILE` overrides the location of `.dev-env.json` (git-ignored; the selected database; ignored unless the guard holds).
@@ -53,8 +54,7 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 
 ### E2E
 - **`pnpm --filter @cs/web e2e`** (Playwright smoke suite) is not part of `pnpm test`: it builds and starts a production server against `cs_test` (`playwright.config.ts` sets its own env), runs as its own CI job after `pnpm test`, and must never run concurrently with another `cs_test` run.
-- **Reuse signed-in sessions; never add a magic-link sign-in:** Better Auth allows 5 magic-link requests/IP/60 s; full runs already hit it (`smoke.spec` :6/:41 fail in full suites, pass alone). Specs reuse storage states (`workflow.spec` `beforeAll`, shared admin/`asker-state.json`). `latestMagicLink()`/`newMagicLink()` filter by recipient after an outbox snapshot (Playwright restarts workers after a failure).
-- **A one-off "destination stream closed early" is an infra flake** — re-run once.
+- **Reuse signed-in sessions; never add a magic-link sign-in:** Better Auth allows 5 magic-link requests/IP/60 s; full runs already hit it (`smoke.spec` :6/:41 fail in full suites, pass alone). Specs reuse storage states. `latestMagicLink()`/`newMagicLink()` filter by recipient after an outbox snapshot.
 
 ### Affected-only E2E
 - **During development run `pnpm --filter @cs/web e2e:affected`** (`--dry-run`, `--base <ref>`, `--full`): tests whose tags the changed files map to (plus `@smoke`), rebuilds only when needed. It can pull one test out of a `describe.serial` file (false failure) — re-run the whole file. Full `e2e` only in `/rm-merge`.
