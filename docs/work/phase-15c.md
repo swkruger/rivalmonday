@@ -1,13 +1,13 @@
 # phase-15c — audit page fixes (UX/IA follow-up)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15c   **Base:** main @ 10ce242d
-**Plan/spec:** [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) (awaiting owner approval); inputs [15 spec](../superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) §4, [audit](../research/2026-10-18-phase-15-ux-audit.md)
+**Plan/spec:** [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) (approved 2026-10-21); plan [15c-1](../superpowers/plans/2026-10-21-phase-15c1-shared-pieces.md); inputs [15 spec](../superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) §4, [audit](../research/2026-10-18-phase-15-ux-audit.md)
 
 ## Status (overwrite)
-Brainstormed 2026-10-21; spec written + builder-checked, awaiting owner approval. Three sub-phases: 15c-1 shared pieces, 15c-2 page fixes + small features, 15c-3 agency management.
+Spec approved 2026-10-21. 15c-1 plan written, awaiting owner approval. 15c-2 and 15c-3 plans follow after 15c-1 merges.
 
 ## Next (overwrite)
-Owner approves the spec → `superpowers:writing-plans` for **15c-1** (lean format) → owner approval → install + own test DB → SDD.
+Owner approves the 15c-1 plan → Task 0 pre-flight (install, `cs_phase_15c_test`) → Task 1 mockups (owner gate) → SDD.
 
 ## Interfaces this branch adds or changes
 TBD. Likely no migration; next free **0084** (main 0080, phase-7 0081/0082, 15b-3 0083).
