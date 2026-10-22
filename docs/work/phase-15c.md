@@ -19,7 +19,7 @@ TBD. Likely no migration; next free **0084** (main 0080, phase-7 0081/0082, 15b-
 - **phase-7-planning**: parked, no overlap.
 
 ## Decisions (owner-approved)
-C1–C11 in the 15c spec §2 (split; neutral error pages now; miles in UI; small features incl. intake preview + page diff; agency management incl. separate plans; hold = read-only + billing paused; start now, theme pages last; tz rule; mobile sheet; mockups + copy sign-off per sub-phase).
+C1–C11 in the 15c spec §2 (split; neutral error pages now; miles in UI; small features incl. intake preview + page diff; agency management incl. separate plans; hold = read-only + billing paused; start now, theme pages last; tz rule; mobile sheet; mockups + copy sign-off per sub-phase). 15c-1 mockups approved 2026-10-21 as planned (chip tints = plan P2, copy unchanged); service area radius = rank radius select (plan R1).
 
 ## New backlog (target → item)
 None yet.
