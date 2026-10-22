@@ -4,13 +4,13 @@
 **Plan/spec:** spec [15b-3 design](../superpowers/specs/2026-10-21-phase-15b3-topic-rename-design.md) (approved 2026-10-21); plan [15b-3a](../superpowers/plans/2026-10-21-phase-15b3a-topic-rename-data.md)
 
 ## Status (overwrite)
-Spec approved 2026-10-21; 15b-3a plan written, awaiting owner approval. 15b-3a (data & engine) runs on this branch; 15b-3b (surfaces) gets its own kickoff after 3a merges.
+15b-3a built 2026-10-22 (Tasks 0–6 + final-review fix wave; HEAD 28ed2346). Final review: ready to merge, 0 Critical/Important; `test:affected` 15/15 and `e2e:affected` 121 green. 15b-3b (surfaces) not started. 15b-3a (data & engine) runs on this branch; 15b-3b (surfaces) gets its own kickoff after 3a merges.
 
 ## Next (overwrite)
-Owner approves the 15b-3a plan → Task 0 pre-flight → `superpowers:subagent-driven-development`.
+Owner go-ahead → `/rm-merge phase-15b3` (renumber migration 0081 if phase-7 merges first). Then `/rm-kickoff phase-15b3b` (routes, page key, MCP/Ask tool names; delete `toLegacyThemeFields`).
 
 ## Interfaces this branch adds or changes
-TBD. Next free migration: **0083** (main ends at 0080; phase-7 holds 0081, 0082).
+Migration `0081_topic_rename` (local number): `topic_proposal`, `review_analysis.topics`, backfilled ids/keys. Tools `list_topic_proposals`, `decide_topic_proposal` (input `proposalId`), `get_platform_nav_counts` → `topics`. `findTopicLeftovers` + `pnpm --filter @cs/db topic-leftovers`. MCP `get_theme_benchmark`/`search_reviews` unchanged (legacy mapping); `get_move` fact label now reads "Topic". Next free migration: **0083** (main ends at 0080; phase-7 holds 0081, 0082).
 
 ## Assumes from other branches
 - **phase-7** (base 00e8e02a, 0081 `runtime_roles` + 0082 `lifecycle`): touches `nav-items.ts` (Health entry beside Topic proposals; AI-connections gate), `server/nav.ts`, `ai.yaml` (adds `request_path`/timeouts, new `runbook_retailor`), `tools/all.ts`, `channels.test.ts`, `mcp/server.test.ts`, `demo/coverage.ts`, `e2e/seed.ts`, `e2e-affected-rules.ts`, worker `jobs/reviews.ts`/`model-ops.ts` (logging). No `theme` renames. Whichever merges second rebases; this phase's migration is 0083+.
@@ -23,7 +23,7 @@ D1–D6 in the 15b-3 spec §1: two sub-phases (3a data & engine, 3b surfaces); f
 None yet.
 
 ## Owner verification steps
-TBD.
+After merge, on `cs_dev` per `docs/OPS.md`: run the `fix_theme`-slug pre-check, stop the worker, migrate, deploy web + worker together, then `pnpm --filter @cs/db topic-leftovers` (expect no output).
 
 ## Brief
 
