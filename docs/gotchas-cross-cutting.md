@@ -3,7 +3,7 @@
 Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `packages/*/CLAUDE.md`).
 
 ## Environment
-- Windows 11, Git Bash + PowerShell. Node 24.19, pnpm 10.34. No Docker (use Neon). The local PostgreSQL 17 service is **not used**.
+- Windows 11, Git Bash + PowerShell. Node 24.19, pnpm 10.34. No Docker. The local PostgreSQL 17 service is **not used**.
 - Neon: Postgres 18.6 (CI/compose run 16 — carry-over to align). The owner role is **not superuser but has BYPASSRLS** (the test harness relies on it). Databases: `cs_dev` (dev), `cs_test` (tests/E2E), `cs_demo` (demo).
 - **Repo-root `.env` is gitignored — never print or commit it; ask the owner before adding vars.** Holds: `NEON_OWNER_URL`; `DATABASE_URL` (owner → `cs_dev`), `APP_DATABASE_URL` (`app_user`), `SERVICE_DATABASE_URL` (`app_service`, BYPASSRLS) and the three `TEST_*_DATABASE_URL` equivalents for `cs_test`; `OPENROUTER_API_KEY`, `TYPESAFE_API_KEY`, `ANTHROPIC_API_KEY`; `APP_URL` (`http://localhost:3000`; `https://rm.nofingers.ai` when deployed); `LINK_SIGNING_SECRET`, `BETTER_AUTH_SECRET`; `EMAIL_FROM` (`swkruger@nofingers.ai`); `POSTMARK_SERVER_TOKEN` (a **test-server** key: accepted, never delivered); `EVIDENCE_FS_DIR=./.evidence`; `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD`, `APIFY_TOKEN`, `SCRAPECREATORS_API_KEY`; `REVIEWER_HASH_SALT` (**never change it**).
 - Not set: `AI_SHADOW_RATE` (costs money), `LINK_SIGNING_SECRET_PREVIOUS` (rotation), R2 vars (production), `GOOGLE_CLIENT_ID`/`_SECRET`, `DEFAULT_AGENCY_ID`, `WEB_MONITORING_ENABLED` (keep unset until `https://rivalmonday.com/bot` exists). Needed for owner verification only: `PLATFORM_ADMIN_EMAILS` (comma-separated, case-insensitive; unlocks `/platform/reviews`, `/platform/themes`) and `POSTMARK_TEST_SERVER=true`. `DATAFORSEO_BASE_URL=https://sandbox.dataforseo.com/v3` switches to the free sandbox.
@@ -22,16 +22,15 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 ## Git & commits
 - Trailer on every commit: `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>` (subagent commits may name their own model). Never stage `.env`, `.claude/`, `App/`, `.superpowers/`.
 - **LF only** (`.gitattributes` `* text=auto eol=lf`). `git ls-files --eol | grep crlf` must print nothing. Python edits on Windows leave `w/crlf` working copies even when the index is LF — re-checkout those files.
-- **E2E sign-ins:** magic links are rate-limited to 5 per IP per minute; a new spec that signs in a new user can push the run over it — reuse a shared session (`ensureAdminState`) where possible.
 - A gitignore entry meant for one root folder needs a leading slash: a bare `App/` matched `apps/web/src/app` case-insensitively on Windows (now `/App/`).
 
 ## Testing
 - **Use the local test cluster, not Neon, for tests:** `bash scripts/local-test-db.sh setup` once (PG18 + pgvector v0.8.1 built with VS 2022 Build Tools, under `D:\rm-pg`, port 5444, superuser like CI), `start` after a reboot, `env` prints the three `TEST_*` lines. Neon costs ~50 ms per query and ~1.7 s per connection.
-- **Timing (local cluster):** full unit suite ~35-40 min, full E2E ~6-7 min. After a rebase `next build` can exceed Playwright's 300 s webServer timeout — use `e2e:affected --full` (builds first, then `E2E_SKIP_BUILD=1`).
+- **Timing (local cluster):** full unit suite ~45-60 min, full E2E ~7-9 min. After a rebase `next build` can exceed Playwright's 300 s webServer timeout — use `e2e:affected --full` (builds first, then `E2E_SKIP_BUILD=1`).
 - **Run the full suite with `run_in_background`** (longer than the Bash tool's 10-min cap). **Never run two test runs against the same database** (incl. E2E): they collide (FK/duplicate-key errors, deadlocks). A backgrounded `typecheck; test:affected` prints turbo's typecheck summary first: wait for the task-completion notice, not a "Tasks: N successful" line, before starting the next run. Parallel worktrees get their own `cs_<branch>_test` (see `/rm-kickoff`). The DB name **must end in `_test`** (the harness refuses others). Parallel worktrees also need their own E2E port (`E2E_PORT=3101`; default 3100).
 - **Global setup resets once:** it wipes + migrates only when the migration files' fingerprint changed (stored in schema `cs_test_meta`); otherwise it empties the tables. Force a rebuild with `TEST_DB_FULL_RESET=1`.
 - **`truncateAll` is a DELETE** with `session_replication_role = replica` when the owner is a superuser (local, CI); on Neon it falls back to one `TRUNCATE` statement. Don't reintroduce per-table TRUNCATE loops (slow on Windows).
-- **Focused runs:** `pnpm --filter <pkg> exec vitest run <pattern>`. `pnpm --filter <pkg> test -- <pattern>` does *not* narrow.
+- **Focused runs:** `pnpm --filter <pkg> exec vitest run <pattern>`. `pnpm --filter <pkg> test -- <pattern>` does *not* narrow. `pnpm test:affected --base <sha>` selects no tests — use the default merge-base.
 - **Keep going past failures:** `npx turbo run test --concurrency=1 --continue` (not `pnpm test -- --continue`).
 - **Flakes:** only `ETIMEDOUT`/`ECONNRESET`/timeouts (Neon) → re-run that package once; web `page-controls` PinPageSwitch and collectors `renderer` "reports timeouts" flake under load → re-run focused.
 - **Subagents:** tell implementers to run focused tests in the foreground (`timeout: 600000`), poll any background whole-package run with short foreground checks, and **never hand back while a test run they started is still running**. On API timeouts, resume subagents rather than restart.
