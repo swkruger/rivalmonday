@@ -62,6 +62,7 @@ Tests pinning each are listed in Tasks 4, 5, 6, 8, 2 respectively.
 - [ ] `git rebase main` in the worktree; `pnpm install` (background); create test DB `cs_phase_15c_test` on the local cluster and point `.env` `TEST_*` URLs at it (per `/rm-kickoff` step 1); run `pnpm --filter @cs/worker exec vitest run src/boss.test.ts` once.
 - [ ] Re-check: `git branch --no-merged main` and each in-flight work file's Interfaces; the km site list in Task 6 (`rg -n -i "\bkm\b|radiusKm|_KM\b" apps/web/src packages/tools/src --glob '!*.test.*'`); the old formatter call sites (`rg -n "formatUsd|formatMoney|formatDay|formatLongDate|formatShortDate" apps/web/src`); `rg -l "border-line|bg-line" apps/web/src packages/ui/src`; that no `loading/error/not-found/global-error.tsx` exists yet.
 - [ ] Fix any drift in this plan; record findings under this task; commit `docs(phase-15c): 15c-1 pre-flight`.
+  - **Findings (2026-10-21):** main = base (10ce242d), no rebase needed; install + `cs_phase_15c_test` ready. No boundary files exist. 37 files use the old formatters, 30 use `border-line`/`bg-line`. **The service area radius *is* the rank-scan radius** (`ServiceAreaWrite` 2–40 km, `tools/schemas.ts:20`, 13b P14; profile form min 2 max 40) → **Ruling R1:** one radius control everywhere (rank settings, profile form, setup business step) = the `RADIUS_MILES` select + "≈ N mi (custom)" passthrough; `serviceAreaKmFromMiles` and the 1–50 mi / 80 km rule are dropped; `client-input.ts` 1–80 km check unchanged. Extra km text sites: `server/forms.ts:57-58` error copy (→ miles wording), `tools/rankings.ts:263` description.
 
 ### Task 1: Mockups (owner gate)
 **Goal:** Owner approves the look before code (C10, owner preference "mockup first, calm chips").
@@ -162,14 +163,13 @@ export function formatMiles(km: number): string;          // "3 mi"; < 1 mi → 
 export const RADIUS_MILES = [2, 3, 5, 10, 15, 20, 25] as const;
 export function radiusKmFromMiles(mi: number): number;     // min(round(milesToKm(mi) * 10) / 10, 40)
 export function radiusChoiceForKm(km: number): number | null; // the RADIUS_MILES entry whose radiusKmFromMiles === km, else null
-export function serviceAreaKmFromMiles(mi: number): number; // min(round1(milesToKm(mi)), 80); input 1–50 mi, step 1
 ```
 **Behaviour:**
 - Rank settings: `<select>` of `RADIUS_MILES` ("5 mi"); stored km with no matching choice → an extra first option "≈ N mi (custom)" carrying the **original km** value, selected, so saving other fields keeps it exactly. Action parses miles (or the custom km passthrough) → km. Server bounds unchanged (2–40 km).
-- Profile/setup service area: number input labelled "Service area (miles)", min 1, max 50, step 1, default 10 mi (replaces `DEFAULT_RADIUS_KM='15'`, ≈ 9.3 mi → use 10); prefill = `Math.round(kmToMiles(stored))`; **an untouched field re-submits the original km** (hidden `original_km` + `original_mi`; if the mile value is unchanged, keep km).
+- Profile form + setup business step (R1): the same radius select, labelled "Service area radius", default 10 mi (replaces `DEFAULT_RADIUS_KM='15'`); a stored km not in the list → the "≈ N mi (custom)" option carrying the original km, so an untouched field re-submits the exact km. Form field stays `radiusKm` (value = km); `server/forms.ts` error copy → "Choose a radius" / "Radius must be between 2 and 25 miles.".
 - Display: rankings line "· 5 mi radius", pick step "2.3 mi away" (one decimal under 10 mi), services summary "10 miles around the business", lead page column "Distance (mi)".
 - Tool **input schemas stay km**; descriptions say "in kilometres".
-**Tests (TDD):** `kmToMiles/milesToKm round trip`; `formatMiles under and over 1 mile`; `radiusKmFromMiles(25) is 40`; `radiusChoiceForKm(8) is 5`; `radiusChoiceForKm(7) is null`; rank settings `legacy 7 km shows ≈ 4 mi (custom) and saves 7 unchanged`; `choosing 10 mi saves 16.1`; profile form `unchanged miles keep the stored km`; `50 mi saves 80`; services summary `renders miles`; lead preview fact `uses miles`.
+**Tests (TDD):** `kmToMiles/milesToKm round trip`; `formatMiles under and over 1 mile`; `radiusKmFromMiles(25) is 40`; `radiusChoiceForKm(8) is 5`; `radiusChoiceForKm(7) is null`; rank settings `legacy 7 km shows ≈ 4 mi (custom) and saves 7 unchanged`; `choosing 10 mi saves 16.1`; profile form `untouched custom radius keeps the stored km`; `choosing 25 mi saves 40`; services summary `renders miles`; lead preview fact `uses miles`.
 **Done when:** `pnpm --filter @cs/web exec vitest run distance rank-settings rankings setup client-profile services-area start competitor-controls forms` , `pnpm --filter @cs/tools exec vitest run preview rankings`, `pnpm typecheck` green; `rg -n -i "\bkm\b" apps/web/src --glob '!*.test.*'` shows only storage/variable names, no rendered text.
 
 ### Task 7: Loading skeletons
@@ -211,5 +211,5 @@ export function ErrorPanel(p: { kind: 'not_found' | 'error'; digest?: string; on
 ### Task 10: Copy sign-off + wrap
 **Goal:** Owner can sign off every new user-facing string; docs updated.
 **Files:** create `docs/work/phase-15c1-copy-signoff.md` (moved to `docs/archive/` at merge); modify `docs/work/phase-15c.md` (Status, Interfaces: new `@cs/ui` exports, `lib/labels`, `lib/format/*`, `viewerTimeZone`, `reportError`, error pages, `--you`/`--color-line`/chip tokens; note for 13a and phase-7), `apps/web/CLAUDE.md` (≤ 3 lines: use `lib/format` + `lib/labels`, never local formatters; distances via `lib/format/distance`).
-**Behaviour:** sign-off doc tables: every label in `lib/labels.ts` (value → label → tone), error/404 copy, ConfirmDialog/SaveBar default strings, miles strings ("≈ N mi (custom)", "Service area (miles)", "N miles around the business"), "Loading…". "Decisions for the owner" section lists any label you were unsure of.
+**Behaviour:** sign-off doc tables: every label in `lib/labels.ts` (value → label → tone), error/404 copy, ConfirmDialog/SaveBar default strings, miles strings ("≈ N mi (custom)", "Service area radius", "N miles around the business"), "Loading…". "Decisions for the owner" section lists any label you were unsure of.
 **Done when:** `pnpm test:affected --base main`, `pnpm --filter @cs/web e2e:affected --base main`, `pnpm typecheck`, `pnpm lint` green; `git ls-files --eol | grep crlf` prints nothing.
