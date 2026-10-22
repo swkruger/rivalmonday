@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeHref, type NavRoleFlags, type NavSection, navFor, pageIdOf, settingsNavFor } from './nav-items';
+import { activeHref, type NavRoleFlags, type NavSection, navFor, pageIdOf, settingsNavFor, showsClientBilling } from './nav-items';
 
 const C = '00000000-0000-4000-8000-0000000000a1';
 const B = `/c/${C}`;
@@ -261,5 +261,15 @@ describe('pageIdOf (15b-1 help page ids)', () => {
     expect(pageIdOf('agency', '/agency/settings/slack-teams')).toBe('agency.settings.slack-teams');
     expect(pageIdOf('platform', '/platform')).toBe('platform.overview');
     expect(pageIdOf('platform', '/platform/agencies?x=1')).toBe('platform.agencies');
+  });
+});
+
+describe('showsClientBilling', () => {
+  it('is true only for client_owner with billing enabled', () => {
+    expect(showsClientBilling('client_owner', { enabled: true })).toBe(true);
+    expect(showsClientBilling('client_owner', { enabled: false })).toBe(false);
+    expect(showsClientBilling('client_owner', null)).toBe(false);
+    expect(showsClientBilling('client_owner', undefined)).toBe(false);
+    for (const r of ['agency_admin', 'account_manager', 'client_viewer'] as const) expect(showsClientBilling(r, { enabled: true })).toBe(false);
   });
 });

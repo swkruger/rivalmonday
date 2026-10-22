@@ -11,6 +11,7 @@ import type { SwitcherProps } from '@/components/shell/context-switcher';
 import { ClientBillingBanner } from '@/components/shell/client-billing-banner';
 import { GuestBanner } from '@/components/shell/guest-banner';
 import { MobileNav } from '@/components/shell/mobile-nav';
+import { showsClientBilling } from '@/components/shell/nav-items';
 import { Sidebar } from '@/components/shell/sidebar';
 import type { NavFallback } from '@/components/shell/sidebar-nav';
 import { ShellTheme } from '@/components/shell/shell-theme';
@@ -81,7 +82,7 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
   const flags = {
     ...navBase,
     ...(support ? { backToPlatform: `/platform/agencies/${support.agencyId}` } : {}),
-    ...(viewer.kind === 'user' && ctx.role === 'client_owner' && clientBilling?.enabled ? { clientBilling: true } : {}),
+    ...(viewer.kind === 'user' && showsClientBilling(ctx.role, clientBilling) ? { clientBilling: true } : {}),
   };
   const navClients = clients.map(({ id, name }) => ({ id, name }));
   // The switcher's sub-line is cosmetic: an unreadable pack only drops it (the shell must render).

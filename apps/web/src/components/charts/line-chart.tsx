@@ -1,11 +1,22 @@
 /** Decision 18 + the dataviz method: fixed-order categorical slots (validated 2026-10-08), legend for >= 2 series, table view, native tooltips. */
 export const SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4'] as const;
 export const OTHER_COLOR = '#94a3b8';
+/** P4: the viewer's own business, in every chart — the `--you` token, never a series slot. */
+export const YOU_COLOR = 'var(--you)';
 
 export interface ChartSeries {
   key: string;
   name: string;
   points: (number | null)[];
+  /** The client's own business: drawn in `YOU_COLOR`, outside the categorical slots. */
+  you?: boolean;
+}
+
+/** Colour of one series: "You" and "Other" are fixed, the rest take the slots in order. */
+export function seriesColor(s: ChartSeries, all: ChartSeries[]): string {
+  if (s.you) return YOU_COLOR;
+  if (s.key === 'other') return OTHER_COLOR;
+  return SERIES_COLORS[all.filter((x) => x.key !== 'other' && !x.you).indexOf(s) % SERIES_COLORS.length]!;
 }
 
 const last = (p: (number | null)[]): number => {
@@ -94,8 +105,7 @@ export function LineChart({
   const yMax = yMaxProp === undefined ? niceMax(dataMax) : Math.max(yMaxProp, dataMax);
   const x = (i: number) => L + (labels.length === 1 ? 0 : (i * (W - L - R)) / (labels.length - 1));
   const y = (v: number) => T + (1 - v / yMax) * (H - T - B);
-  const named = series.filter((s) => s.key !== 'other');
-  const colorOf = (s: ChartSeries) => (s.key === 'other' ? OTHER_COLOR : SERIES_COLORS[named.indexOf(s) % SERIES_COLORS.length]!);
+  const colorOf = (s: ChartSeries) => seriesColor(s, series);
   const latest = (s: ChartSeries) => (last(s.points) === -Infinity ? 'no data' : fmt(last(s.points)));
   const summary = series.map((s) => `${s.name} ${latest(s)}`).join(', ');
   const runs = (p: (number | null)[]) => {

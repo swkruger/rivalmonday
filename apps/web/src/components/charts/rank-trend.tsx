@@ -1,5 +1,5 @@
 import type { RankTrendView } from '@cs/tools';
-import { type ChartSeries, foldSeries, OTHER_COLOR, SERIES_COLORS } from './line-chart';
+import { type ChartSeries, foldSeries, seriesColor } from './line-chart';
 
 const NOT_IN_TOP = 21;
 const MUTED = '#64748B';
@@ -19,7 +19,7 @@ export function rankSeries(scans: RankTrendView['scans']): ChartSeries[] {
   const names = new Map<string, string>();
   for (const s of scans) for (const c of s.competitors) names.set(c.competitorId, c.name);
   const series: ChartSeries[] = [];
-  if (scans.some((s) => s.self !== null)) series.push({ key: 'self', name: 'You', points: scans.map((s) => (s.self ? clamp(s.self.avgRank) : null)) });
+  if (scans.some((s) => s.self !== null)) series.push({ key: 'self', name: 'You', you: true, points: scans.map((s) => (s.self ? clamp(s.self.avgRank) : null)) });
   for (const [id, name] of names) {
     series.push({ key: id, name, points: scans.map((s) => { const c = s.competitors.find((x) => x.competitorId === id); return c ? clamp(c.avgRank) : null; }) });
   }
@@ -47,8 +47,7 @@ export function RankTrend({ scans, keyword, height = 200 }: { scans: RankTrendVi
   const n = scans.length;
   const x = (i: number) => L + (n === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (n - 1));
   const y = (v: number) => T + ((v - 1) / (NOT_IN_TOP - 1)) * (H - T - B);
-  const named = series.filter((s) => s.key !== 'other');
-  const colorOf = (s: ChartSeries) => (s.key === 'other' ? OTHER_COLOR : SERIES_COLORS[named.indexOf(s) % SERIES_COLORS.length]!);
+  const colorOf = (s: ChartSeries) => seriesColor(s, series);
   const latest = (s: ChartSeries) => { const v = [...s.points].reverse().find((p) => p !== null); return v == null ? 'no data' : fmt(v); };
   const summary = series.map((s) => `${s.name} ${latest(s)}`).join(', ');
   const changed = scans.map((s, i) => (s.settingsChanged ? i : -1)).filter((i) => i >= 0);

@@ -43,7 +43,7 @@ export function ThemeHeatmap({ title, benchmark }: { title: string; benchmark: P
           {businesses.map((b, j) => (
             <g key={b.competitorId}>
               <title>{b.name}</title>
-              <text data-head x={LABEL_W + j * COL_W + COL_W / 2} y={HEAD_H - 14} textAnchor="middle" fontSize={12} fontWeight={600} fill={INK}>
+              <text data-head x={LABEL_W + j * COL_W + COL_W / 2} y={HEAD_H - 14} textAnchor="middle" fontSize={12} fontWeight={600} fill={b.self ? 'var(--you)' : INK}>
                 {short(colName(b))}
               </text>
             </g>

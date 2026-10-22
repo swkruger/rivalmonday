@@ -1,5 +1,5 @@
 import 'server-only';
-import { type NavSection, settingsNavFor } from '@/components/shell/nav-items';
+import { type NavSection, settingsNavFor, showsClientBilling } from '@/components/shell/nav-items';
 import { clientBillingNoticeOf } from './client-billing-state';
 import { requireContext } from './current-viewer';
 import { navFlagsFor } from './nav';
@@ -15,9 +15,11 @@ export async function clientSettingsSections(clientId: string): Promise<NavSecti
   const { viewer, ctx } = await requireContext();
   const flags = navFlagsFor(viewer);
   if (!flags.isUser && !flags.isAgency) return [];
-  const clientBilling = viewer.kind === 'user' && ctx.role === 'client_owner' && (await clientBillingNoticeOf(ctx))?.enabled === true;
+  const clientBilling = viewer.kind === 'user' && showsClientBilling(ctx.role, await clientBillingNoticeOf(ctx));
   return settingsNavFor('client', { ...flags, clientBilling }, clientId);
 }
+
+export { showsClientBilling };
 
 /** Whether `/c/<clientId>/settings` (the index) serves this viewer — false for guests — so a breadcrumb may link it. */
 export async function hasClientSettings(clientId: string): Promise<boolean> {

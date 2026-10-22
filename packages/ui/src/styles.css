@@ -12,6 +12,8 @@
   --ink: #0B2540;
   --muted-ink: #64748B;
   --line: #E2E8F0;
+  /* P4: the viewer's own business in charts, legends and tables. */
+  --you: var(--secondary);
   --canvas: #F6F9FC;
   --surface: #FFFFFF;
   --muted-surface: #EEF2F6;
@@ -79,6 +81,8 @@
   --color-muted-foreground: var(--muted-ink);
   --color-accent: var(--muted-surface);
   --color-accent-foreground: var(--ink);
+  --color-line: var(--line);
+  --color-you: var(--you);
   --color-border: var(--line);
   --color-input: var(--line);
   --color-ring: var(--primary);

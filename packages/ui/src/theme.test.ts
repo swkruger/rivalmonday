@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { mixHex, themeVars } from './theme';
 
@@ -24,5 +26,16 @@ describe('themeVars', () => {
   it('never emits a non-hex value (Review Focus 5)', () => {
     const v = themeVars({ primary: 'red;}body{display:none', secondary: 'url(x)' });
     expect(Object.values(v).every((x) => /^#[0-9a-fA-F]{6}$/.test(x))).toBe(true);
+  });
+});
+
+describe('styles.css tokens', () => {
+  const css = readFileSync(fileURLToPath(new URL('./styles.css', import.meta.url)), 'utf8');
+  it('maps --color-line so border-line / bg-line / divide-line draw', () => {
+    expect(css).toMatch(/--color-line:\s*var\(--line\);/);
+  });
+  it('maps the You token to the secondary brand colour', () => {
+    expect(css).toMatch(/--you:\s*var\(--secondary\);/);
+    expect(css).toMatch(/--color-you:\s*var\(--you\);/);
   });
 });

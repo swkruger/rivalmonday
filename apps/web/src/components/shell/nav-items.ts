@@ -6,6 +6,7 @@
  *
  * Sidebar visibility is cosmetic: the tools behind each page decide access (refusals 404).
  */
+import type { Role } from '@cs/core';
 import type { NavContext } from './nav-context';
 
 export { clientIdFromPath, contextOf, NAV_CTX_COOKIE, type NavContext, parseNavCookie } from './nav-context';
@@ -261,4 +262,12 @@ export function pageIdOf(context: NavContext, href: string): string {
   const rest = context === 'client' ? parts.slice(2) : parts.slice(1);
   if (rest.length) return [context, ...rest].join('.');
   return context === 'client' ? 'client.overview' : context === 'agency' ? 'agency.portfolio' : 'platform.overview';
+}
+
+/**
+ * The one owner-Billing rule (P-sweep): a client owner sees the client Billing entry only while billing is on for the
+ * client. Shared by the shell (`flags.clientBilling`) and the client-settings tabs so they cannot drift.
+ */
+export function showsClientBilling(role: Role, clientBilling: { enabled: boolean } | null | undefined): boolean {
+  return role === 'client_owner' && clientBilling?.enabled === true;
 }

@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { foldSeries, LineChart, OTHER_COLOR, SERIES_COLORS } from './line-chart';
@@ -150,5 +152,23 @@ describe('LineChart robustness', () => {
     const keyWarnings = err.mock.calls.filter((c) => String(c[0]).includes('same key'));
     err.mockRestore();
     expect(keyWarnings).toHaveLength(0);
+  });
+});
+
+describe('You colour (P4)', () => {
+  it('draws the you series in var(--you) and keeps competitor slots from 0', () => {
+    render(<LineChart title="Stars" valueLabel="stars" labels={['2026-09-01', '2026-09-08']} series={[
+      { key: 'me', name: 'You', you: true, points: [4, 5] },
+      { key: 'a', name: 'Acme', points: [3, 4] },
+    ]} />);
+    expect(document.querySelector('polyline[data-series="me"]')?.getAttribute('stroke')).toBe('var(--you)');
+    expect(document.querySelector('polyline[data-series="a"]')?.getAttribute('stroke')).toBe(SERIES_COLORS[0]);
+  });
+
+  it('no component uses a hex for the You marker', () => {
+    const dir = join(process.cwd(), 'src', 'components', 'charts', '/');
+    const root = join(process.cwd(), 'src', 'app', '(app)', 'c', '[clientId]', '/');
+    const files = [`${dir}line-chart.tsx`, `${dir}rank-trend.tsx`, `${dir}theme-heatmap.tsx`, `${root}rankings/page.tsx`, `${root}reviews/page.tsx`, `${root}reviews/review-item.tsx`];
+    for (const f of files) expect(readFileSync(f, 'utf8'), f).not.toMatch(/#2A6BAC|#47A8E7/i);
   });
 });
