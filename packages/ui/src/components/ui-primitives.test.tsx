@@ -72,6 +72,32 @@ describe('ConfirmDialog', () => {
     expect(action).not.toHaveBeenCalled();
   });
 
+  it('Cancel is disabled while the action is pending', async () => {
+    let finish!: () => void;
+    const action = vi.fn(() => new Promise<void>((r) => { finish = r; }));
+    openDialog({ action });
+    const cancel = (await screen.findByRole('button', { name: 'Cancel' })) as HTMLButtonElement;
+    expect(cancel.disabled).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    await waitFor(() => expect(cancel.disabled).toBe(true));
+    finish();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('Esc does not close the dialog while the action is pending', async () => {
+    let finish!: () => void;
+    const action = vi.fn(() => new Promise<void>((r) => { finish = r; }));
+    openDialog({ action });
+    await screen.findByRole('dialog');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByRole('dialog')).not.toBeNull();
+    finish();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
   it('confirm stays disabled until requireText matches exactly', async () => {
     openDialog({ requireText: 'Acme' });
     const confirm = (await screen.findByRole('button', { name: 'Remove' })) as HTMLButtonElement;

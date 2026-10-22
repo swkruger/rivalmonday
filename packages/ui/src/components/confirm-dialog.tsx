@@ -50,6 +50,18 @@ function ConfirmButton({
   )
 }
 
+/** Cancel is disabled while the confirm action is pending, like the confirm button. */
+function CancelButton({ ref }: { ref: React.Ref<HTMLButtonElement> }) {
+  const { pending } = useFormStatus()
+  return (
+    <DialogClose asChild>
+      <Button ref={ref} type="button" variant="outline" disabled={pending}>
+        Cancel
+      </Button>
+    </DialogClose>
+  )
+}
+
 /** Confirmation modal around a server/client action. Cancel is focused first; closes after the action resolves. */
 function ConfirmDialog({
   trigger,
@@ -64,12 +76,15 @@ function ConfirmDialog({
   const [open, setOpen] = React.useState(false)
   const [typed, setTyped] = React.useState("")
   const cancelRef = React.useRef<HTMLButtonElement>(null)
+  // A ref, not state: Esc/overlay must be refused in the same tick the action starts.
+  const pendingRef = React.useRef(false)
   const blocked = requireText !== undefined && typed.trim() !== requireText
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        if (!next && pendingRef.current) return
         setOpen(next)
         if (!next) setTyped("")
       }}
@@ -86,7 +101,12 @@ function ConfirmDialog({
           className="grid gap-4"
           action={async (fd) => {
             if (blocked) return
-            await action(fd)
+            pendingRef.current = true
+            try {
+              await action(fd)
+            } finally {
+              pendingRef.current = false
+            }
             setOpen(false)
           }}
         >
@@ -116,11 +136,7 @@ function ConfirmDialog({
             </div>
           ) : null}
           <DialogFooter>
-            <DialogClose asChild>
-              <Button ref={cancelRef} type="button" variant="outline">
-                Cancel
-              </Button>
-            </DialogClose>
+            <CancelButton ref={cancelRef} />
             <ConfirmButton label={confirmLabel} tone={tone} blocked={blocked} />
           </DialogFooter>
         </form>
