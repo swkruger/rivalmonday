@@ -121,6 +121,6 @@ test.describe('as an agency admin', () => {
     // Platform page (admin@e2e.test is also an operator): the operator guide.
     await page.goto('/platform/health');
     await page.getByRole('button', { name: 'Guide', exact: true }).click();
-    await expect(page.getByRole('dialog').getByText('platform health (jobs, queues, vendors)', { exact: false })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('dialog').getByText('the background worker, its job queues, the data vendors', { exact: false })).toBeVisible({ timeout: 15_000 });
   });
 });
