@@ -19,7 +19,7 @@ const m = vi.hoisted(() => ({
 globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
 
 vi.mock('@/server/current-viewer', () => ({
-  requireContext: async () => ({ viewer: { kind: 'user' }, ctx: { role: m.role, userId: 'u1', agencyId: 'a1', clientScope: [C], features: new Set(m.features) } }),
+  requireContext: async () => ({ viewer: { kind: 'user' }, ctx: { role: m.role, userId: 'u1', agencyId: 'a1', clientScope: [C], features: new Set(m.features), planFeatures: new Set(['ask', 'mcp']) } }),
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/theme', () => ({ themeForViewer: async () => ({ branding: { displayName: 'Cool Comfort' } }) }));
@@ -27,11 +27,6 @@ vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.test' }) 
 vi.mock('@/server/timezones', () => ({ timezoneOptions: () => ['America/Chicago'] }));
 vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [{ id: 'hvac_plumbing', name: 'HVAC & Plumbing', services: [{ id: 'ac_repair', name: 'AC repair' }] }] }));
 vi.mock('@/server/client-settings-nav', () => ({ hasClientSettings: async () => true }));
-vi.mock('@/server/support-mask', () => ({ maskRecipientsForSupport: (_c: unknown, r: unknown) => r }));
-vi.mock('@cs/tools', async (orig) => ({
-  ...(await orig<object>()),
-  listClientRecipients: async () => (m.recipients ? [{ contactId: 'k1', email: 'owner@client.com', name: 'Owner', role: 'client_owner', active: true, hasAccount: true }] : []),
-}));
 vi.mock('@/components/billing/client-billing-controls', () => ({ ClientBillingControls: () => null }));
 vi.mock('@/components/runbook/runbook-editor', () => ({ RunbookEditor: () => <div>runbook editor</div> }));
 vi.mock('@/components/client-profile-form', () => ({ ClientProfileForm: () => <div>profile form</div> }));
@@ -69,6 +64,7 @@ const tool = async (_ctx: unknown, name: string, input: Record<string, unknown>)
       };
     case 'get_connect_status': return { status: 'off', chargesEnabled: false, defaultPriceCents: null, defaultSetupFeeCents: null };
     case 'list_client_billing_status': return { clients: [] };
+    case 'list_client_recipients': return { items: m.recipients ? [{ contactId: 'k1', email: 'owner@client.com', name: 'Owner', role: 'client_owner', active: true, hasAccount: true }] : [] };
     case 'get_alert_rules': return { alert: 70, brief: 40, custom: false, defaults: { alert: 70, brief: 40 } };
     case 'list_api_tokens': return { items: m.tokens ? [{ id: 't1', name: 'Laptop', prefix: 'rm_pat_abc', scope: 'read', createdAt: '2026-10-01T00:00:00.000Z', lastUsedAt: null, ownerName: null }] : [] };
     case 'list_oauth_grants': return { items: m.grants ? [{ id: 'g1', appName: 'Claude', scope: 'read', clientName: null, connectedAt: '2026-10-01T00:00:00.000Z', ownerName: null }] : [] };

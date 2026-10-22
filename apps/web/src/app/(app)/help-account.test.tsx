@@ -30,7 +30,6 @@ vi.mock('@/server/current-viewer', () => ({
 vi.mock('@cs/tools', () => ({
   listInbox: async () => m.inbox,
   myNotificationSettings: async () => m.settings,
-  getAgencyBranding: async () => ({ stored: { displayName: 'Acme' }, resolved: { displayName: 'Acme' } }),
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/timezones', () => ({ timezoneOptions: () => ['UTC'] }));
@@ -42,6 +41,7 @@ const tool = async (_ctx: unknown, name: string, input: unknown) => {
     case 'get_onboarding_status': return m.status;
     case 'get_agency_profile': return { name: 'Acme' };
     case 'get_billing_summary': return { state: 'trialing' };
+    case 'get_agency_branding': return { stored: { displayName: 'Acme' }, resolved: { displayName: 'Acme' } };
     default: throw new Error(`unmocked tool ${name}`);
   }
 };

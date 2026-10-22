@@ -381,7 +381,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
       knowledge: ['Managed in repo', 'kb:seed', 'Sunday at 05:00 UTC', 'Published'],
       'knowledge.new': ['Visible to client users', 'Preview', 'Publish'],
       'knowledge.detail': ['Managed in repo', 'Auto-sync', 'Previous version', 'cannot be undone'],
-      health: ['Agencies', 'Costs'],
+      health: ['Worker', 'Queues', 'Vendors', 'Sources', '11 minutes', '2 hours', '72 hours', 'Costs'],
       costs: ['06:00 UTC', '14 days', '7 days', 'six months', '30 days', 'Projected this month'],
       verticals: ['old id', 'Merge into', 'Evidence', 'owners and staff'],
       runbook: ['Update available', 'Removed upstream', 'owners and staff'],

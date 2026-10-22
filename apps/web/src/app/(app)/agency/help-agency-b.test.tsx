@@ -28,12 +28,7 @@ vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/ask', () => ({ assistantNameFor: async () => 'Sunny' }));
 vi.mock('@/server/theme', () => ({ themeForViewer: async () => ({ branding: { displayName: 'Cool Comfort', primary: '#47A8E7' }, style: {}, assistantName: 'Sunny' }) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.test' }) }));
-vi.mock('@/server/support-mask', () => ({ maskTeamForSupport: (_c: unknown, t: unknown) => t }));
-vi.mock('@cs/tools', () => ({
-  getAgencyBranding: async () => ({ stored: {}, resolved: { displayName: 'Cool Comfort' } }),
-  listWebhooks: async () => m.webhooks,
-  listTeam: async () => m.team,
-}));
+vi.mock('@cs/tools', () => ({}));
 vi.mock('@/components/spend-badge', () => ({ SpendBadge: () => <span /> }));
 vi.mock('@/components/runbook/runbook-editor', () => ({ RunbookEditor: () => <div data-testid="editor" /> }));
 vi.mock('@/components/billing/refresh-until-changed', () => ({ RefreshUntilChanged: () => null }));
@@ -61,6 +56,9 @@ const tool = async (_ctx: unknown, name: string) => {
     case 'get_intake_link': return m.link;
     case 'list_support_sessions': return { rows: m.sessions, nextCursor: null, notifyEnabled: false };
     case 'get_runbook': return { level: 'agency', items: [], vars: [], businessAreas: [], source: 'agency' };
+    case 'get_agency_branding': return { stored: {}, resolved: { displayName: 'Cool Comfort' } };
+    case 'list_webhooks': return { items: m.webhooks };
+    case 'get_team': return m.team;
     case 'get_usage': return { month: '2026-10', items: m.usage, agencyLevelUsd: null };
     default: return { items: [] };
   }
