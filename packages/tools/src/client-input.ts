@@ -54,7 +54,7 @@ export function clientInputProblems(input: ClientInput, pack: VerticalPack): str
   if (a) {
     if (!(a.center.lat >= -90 && a.center.lat <= 90)) p.push('Latitude must be between -90 and 90');
     if (!(a.center.lng >= -180 && a.center.lng <= 180)) p.push('Longitude must be between -180 and 180');
-    if (!(a.radiusKm >= 1 && a.radiusKm <= 80)) p.push('Radius must be 1–80 km');
+    if (!(a.radiusKm >= 1 && a.radiusKm <= 80)) p.push('Radius must be 1–80 kilometres');
     const badZips = a.zips.filter((z) => !ZIP.test(z));
     if (badZips.length) p.push(`ZIP codes must be 5 digits: ${badZips.join(', ')}`);
     if (a.zips.length > 100) p.push('Use at most 100 ZIP codes');

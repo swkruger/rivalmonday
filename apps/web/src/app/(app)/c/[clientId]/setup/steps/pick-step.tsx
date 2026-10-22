@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { WriteGuard } from '@/components/read-only';
 import { TIER_LABEL, TierChip } from '@/components/rival/tier-chip';
 import type { ClientSafeSuggestion } from '../types';
+import { formatMilesAway } from '@/lib/format';
 
 const TIER_ORDER: Tier[] = ['top', 'watch', 'minor'];
 
@@ -45,7 +46,7 @@ export function PickStep({
                 <span className="font-semibold">{s.name}</span>
                 <TierChip tier={s.tier} />
                 {rated && <span className="text-sm text-muted-foreground">{rated}</span>}
-                {s.distanceKm != null && <span className="text-sm text-muted-foreground">{s.distanceKm.toFixed(1)} km away</span>}
+                {s.distanceKm != null && <span className="text-sm text-muted-foreground">{formatMilesAway(s.distanceKm)} away</span>}
                 {tracked && <span className="ml-auto text-sm font-semibold">Tracking</span>}
               </label>
             );

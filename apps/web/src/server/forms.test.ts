@@ -68,12 +68,12 @@ describe('parseClientProfileForm', () => {
 
   it('explains an unreadable centre or radius', () => {
     expect(parseClientProfileForm(fd([['name', 'X'], ['center', 'Dunwoody'], ['radiusKm', '10']]))).toEqual({ error: 'Enter the centre as "latitude, longitude" (e.g. 33.95, -84.33)' });
-    expect(parseClientProfileForm(fd([['name', 'X'], ['center', '33.9, -84.3'], ['radiusKm', 'far']]))).toEqual({ error: 'Enter the radius in kilometres' });
+    expect(parseClientProfileForm(fd([['name', 'X'], ['center', '33.9, -84.3'], ['radiusKm', 'far']]))).toEqual({ error: 'Choose a radius' });
   });
 
-  it('refuses a radius outside 2–40 km with friendly copy and accepts the bounds', () => {
+  it('refuses a radius outside 2–40 km (2–25 miles) with friendly copy and accepts the bounds', () => {
     const at = (r: string) => parseClientProfileForm(fd([['name', 'X'], ['center', '33.9, -84.3'], ['radiusKm', r]]));
-    for (const r of ['1.9', '0', '40.5', '100']) expect(at(r)).toEqual({ error: 'Radius must be between 2 and 40 km.' });
+    for (const r of ['1.9', '0', '40.5', '100']) expect(at(r)).toEqual({ error: 'Radius must be between 2 and 25 miles.' });
     for (const r of ['2', '40', '15.5']) expect(at(r)).not.toHaveProperty('error');
   });
 });

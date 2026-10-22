@@ -7,6 +7,7 @@ import type { LeadPreview, SetupLookup } from '@cs/db';
 type Snap = Extract<LeadPreview, { status: 'ready' }>;
 
 const MAX_NEARBY = 5;
+const KM_PER_MILE = 1.609344;
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const r = (x: number) => (x * Math.PI) / 180;
@@ -43,7 +44,7 @@ export function snapshotFacts(s: Pick<Snap, 'self' | 'nearby' | 'category'>): st
   rankFact('review count', s.self.votes, s.nearby.map((b) => b.votes));
   rankFact('Google rating', s.self.rating, s.nearby.map((b) => b.rating));
   const closest = [...s.nearby].sort((a, b) => a.distanceKm - b.distanceKm)[0];
-  if (closest) facts.push(`The closest competitor is ${closest.name}, ${closest.distanceKm.toFixed(1)} km away.`);
+  if (closest) facts.push(`The closest competitor is ${closest.name}, ${(closest.distanceKm / KM_PER_MILE).toFixed(1)} mi away.`);
   return facts;
 }
 
@@ -64,6 +65,7 @@ export function validateSummary(summary: string, s: Pick<Snap, 'self' | 'nearby'
     add(b.rating);
     add(b.votes);
     add(b.distanceKm);
+    add(b.distanceKm / KM_PER_MILE); // the closest-competitor fact states miles
   });
   add(s.nearby.length);
   for (let i = 1; i <= s.nearby.length; i++) add(i);

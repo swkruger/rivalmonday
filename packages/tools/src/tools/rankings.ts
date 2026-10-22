@@ -260,7 +260,7 @@ export const getRankSettings = defineTool({
 export const updateClientRankSettings = defineTool({
   name: 'update_client_rank_settings',
   access: 'write',
-  description: "Set which of a client's keywords are rank-scanned, the grid size (5 or 7) and the scan radius (2-40 km).",
+  description: "Set which of a client's keywords are rank-scanned, the grid size (5 or 7) and the scan radius (2-40 kilometres).",
   input: z.object({
     clientId: uuid, keywords: z.array(z.string().trim().min(1).max(120)).min(1).max(5), gridSize: GridSize, radiusKm: z.number().min(2).max(40),
   }),

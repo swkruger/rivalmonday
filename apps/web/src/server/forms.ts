@@ -54,8 +54,8 @@ export function parseClientProfileForm(fd: FormData): ClientProfileFields | { er
     const m = CENTER.exec(center);
     if (!m) return { error: 'Enter the centre as "latitude, longitude" (e.g. 33.95, -84.33)' };
     const radiusKm = Number(radius);
-    if (!radius || !Number.isFinite(radiusKm)) return { error: 'Enter the radius in kilometres' };
-    if (radiusKm < 2 || radiusKm > 40) return { error: 'Radius must be between 2 and 40 km.' };
+    if (!radius || !Number.isFinite(radiusKm)) return { error: 'Choose a radius' };
+    if (radiusKm < 2 || radiusKm > 40) return { error: 'Radius must be between 2 and 25 miles.' };
     const towns = lines(str(fd, 'towns'));
     serviceArea = { center: { lat: Number(m[1]), lng: Number(m[2]) }, radiusKm, zips, ...(towns.length ? { towns } : {}) };
   }

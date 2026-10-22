@@ -2,6 +2,7 @@
 import { Button, Input, Label } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { FormError } from '@/components/form-error';
+import { DEFAULT_RADIUS_KM, RadiusSelect } from '@/components/radius-select';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import type { VerticalOption } from '@/server/verticals';
@@ -81,8 +82,8 @@ export function ClientProfileForm(props: Props) {
             <Input id="center" name="center" placeholder="33.95, -84.33" defaultValue={area ? `${area.center.lat}, ${area.center.lng}` : ''} className="w-64" />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="radiusKm">Radius (km)</Label>
-            <Input id="radiusKm" name="radiusKm" type="number" min={2} max={40} step="any" inputMode="decimal" defaultValue={area ? String(area.radiusKm) : ''} className="w-28" />
+            <Label htmlFor="radiusKm">Service area radius</Label>
+            <RadiusSelect id="radiusKm" name="radiusKm" storedKm={area?.radiusKm ?? null} defaultValue={area ? String(area.radiusKm) : DEFAULT_RADIUS_KM} />
           </div>
         </div>
         <p className="text-muted-foreground">In Google Maps, right-click the business location and click the coordinates to copy them.</p>

@@ -35,7 +35,18 @@ describe('RankSettingsSheet', () => {
     open();
     expect((screen.getByRole('radio', { name: '5×5' }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole('radio', { name: '7×7' }) as HTMLInputElement).checked).toBe(false);
-    expect((screen.getByLabelText('Radius (km)') as HTMLInputElement).value).toBe('12.5');
+    expect((screen.getByLabelText('Radius') as HTMLSelectElement).value).toBe('12.5');
+  });
+
+  it('legacy 7 km shows ≈ 4 mi (custom) and saves 7 unchanged', async () => {
+    saveRankSettings.mockResolvedValue({ ok: true, message: 'Saved.' });
+    render(<RankSettingsSheet clientId="c1" settings={{ ...settings, radiusKm: 7 }} />);
+    open();
+    const sel = screen.getByLabelText('Radius') as HTMLSelectElement;
+    expect(sel.options[0]?.textContent).toBe('≈ 4 mi (custom)');
+    expect(sel.value).toBe('7');
+    fireEvent.click(screen.getByRole('button', { name: 'Save settings' }));
+    await waitFor(() => expect(saveRankSettings).toHaveBeenCalledWith('c1', expect.objectContaining({ radiusKm: 7 })));
   });
 
   it('saves the chosen settings, closes, and shows the saved message outside the sheet', async () => {
@@ -44,11 +55,18 @@ describe('RankSettingsSheet', () => {
     open();
     fireEvent.click(box('hvac'));
     fireEvent.click(screen.getByRole('radio', { name: '5×5' }));
-    fireEvent.change(screen.getByLabelText('Radius (km)'), { target: { value: '15' } });
+    fireEvent.change(screen.getByLabelText('Radius'), { target: { value: '16.1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save settings' }));
     await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Saved. The next scan uses these settings.'));
-    expect(saveRankSettings).toHaveBeenCalledWith('c1', { keywords: ['ac repair', 'furnace repair', 'heat pump'], gridSize: 5, radiusKm: 15 });
+    expect(saveRankSettings).toHaveBeenCalledWith('c1', { keywords: ['ac repair', 'furnace repair', 'heat pump'], gridSize: 5, radiusKm: 16.1 });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('choosing 10 mi saves 16.1', () => {
+    render(<RankSettingsSheet clientId="c1" settings={settings} />);
+    open();
+    fireEvent.change(screen.getByLabelText('Radius'), { target: { value: '16.1' } });
+    expect((screen.getByLabelText('Radius') as HTMLSelectElement).selectedOptions[0]?.textContent).toBe('10 mi');
   });
 
   it('keeps the sheet open with the choices intact on a refusal', async () => {

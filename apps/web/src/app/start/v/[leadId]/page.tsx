@@ -8,6 +8,7 @@ import { dbs } from '@/server/db';
 import { agencyBrand, type IntakeBrand, NOINDEX, platformBrand } from '../../brand';
 import { IntakeShell, Panel } from '../../shell';
 import { PreviewPoller } from './poller';
+import { kmToMiles } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,7 +70,7 @@ function Body({ preview, agencyName }: { preview: LeadPreview; agencyName: strin
                 <TableHead>Business</TableHead>
                 <TableHead className="text-right">Rating</TableHead>
                 <TableHead className="text-right">Reviews</TableHead>
-                <TableHead className="text-right">Distance</TableHead>
+                <TableHead className="text-right">Distance (mi)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -78,7 +79,7 @@ function Body({ preview, agencyName }: { preview: LeadPreview; agencyName: strin
                   <TableCell className="font-medium">{n.name}</TableCell>
                   <TableCell className="text-right tabular-nums">{rating(n.rating)}</TableCell>
                   <TableCell className="text-right tabular-nums">{count(n.votes)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{n.distanceKm.toFixed(1)} km</TableCell>
+                  <TableCell className="text-right tabular-nums">{kmToMiles(n.distanceKm).toFixed(1)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -86,12 +86,12 @@ describe('BusinessStep Advanced disclosure', () => {
     expect(screen.getByLabelText('Google place id').getAttribute('aria-describedby')).toBe('placeId-hint');
     expect(document.getElementById('center-hint')!.textContent).toBeTruthy();
     expect(document.getElementById('placeId-hint')!.textContent).toBeTruthy();
-    expect(d.contains(screen.getByLabelText(/Radius/))).toBe(false);
+    expect(d.contains(screen.getByLabelText(/radius/i))).toBe(false);
   });
 
   it('opens when the save error is about the centre, stays closed for a radius error', () => {
     const view = baseView({ status: 'none' } as ClientSetupView['suggestions']);
-    const { rerender } = render(<BusinessStep view={view} profile={profile} pending={false} onSave={() => {}} error="Radius must be between 2 and 40 km." />);
+    const { rerender } = render(<BusinessStep view={view} profile={profile} pending={false} onSave={() => {}} error="Radius must be between 2 and 25 miles." />);
     expect(advanced().open).toBe(false);
     rerender(<BusinessStep view={view} profile={profile} pending={false} onSave={() => {}} error={'Enter the centre as "latitude, longitude" (e.g. 33.95, -84.33)'} />);
     expect(advanced().open).toBe(true);

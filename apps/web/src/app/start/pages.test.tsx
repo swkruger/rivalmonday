@@ -116,7 +116,7 @@ describe('/start/v/<leadId>', () => {
     const row = screen.getByRole('row', { name: /Jones Dental/ });
     expect(row.textContent).toContain('4.8 ★');
     expect(row.textContent).toContain('1,200');
-    expect(row.textContent).toContain('1.2 km');
+    expect(row.textContent).toContain('0.8');
     expect(screen.getByText('1 of 1 nearby dentists has more reviews than you.')).toBeTruthy();
     expect(screen.getByText('Jones Dental has more reviews.')).toBeTruthy();
     expect(screen.getByText('Smith Marketing will be in touch within one business day.')).toBeTruthy();

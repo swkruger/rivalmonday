@@ -1,7 +1,8 @@
 'use client';
-import { Button, Input, Label, Sheet, SheetContent, SheetTitle, SheetTrigger } from '@cs/ui';
+import { Button, Label, Sheet, SheetContent, SheetTitle, SheetTrigger } from '@cs/ui';
 import { useActionState, useEffect, useRef, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
+import { RadiusSelect, DEFAULT_RADIUS_KM } from '@/components/radius-select';
 import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { saveRankSettings } from './actions';
@@ -20,7 +21,7 @@ export function RankSettingsSheet({ clientId, settings }: { clientId: string; se
   const [open, setOpen] = useState(false);
   const [keywords, setKeywords] = useState<string[]>(settings.keywords);
   const [grid, setGrid] = useState<5 | 7>(settings.gridSize);
-  const [radius, setRadius] = useState(settings.radiusKm === null ? '' : String(settings.radiusKm));
+  const [radius, setRadius] = useState(settings.radiusKm === null ? DEFAULT_RADIUS_KM : String(settings.radiusKm));
   const [state, action, pending] = useActionState(
     async (_p: FormResult, fd: FormData) => saveRankSettings(clientId, {
       keywords: fd.getAll('keyword').map(String), gridSize: Number(fd.get('gridSize')), radiusKm: Number(fd.get('radiusKm')),
@@ -37,7 +38,7 @@ export function RankSettingsSheet({ clientId, settings }: { clientId: string; se
       // Each opening starts from the saved settings.
       setKeywords(settings.keywords);
       setGrid(settings.gridSize);
-      setRadius(settings.radiusKm === null ? '' : String(settings.radiusKm));
+      setRadius(settings.radiusKm === null ? DEFAULT_RADIUS_KM : String(settings.radiusKm));
     }
     setOpen(o);
   };
@@ -79,8 +80,8 @@ export function RankSettingsSheet({ clientId, settings }: { clientId: string; se
                 ))}
               </fieldset>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="rank-radius">Radius (km)</Label>
-                <Input id="rank-radius" name="radiusKm" type="number" required min={2} max={40} step="any" value={radius} onChange={(e) => setRadius(e.currentTarget.value)} className="w-28" />
+                <Label htmlFor="rank-radius">Radius</Label>
+                <RadiusSelect id="rank-radius" name="radiusKm" storedKm={settings.radiusKm} value={radius} onChange={(e) => setRadius(e.currentTarget.value)} />
               </div>
               {submitted && !state.ok && <ErrorNote compact focusKey={state}>{state.error}</ErrorNote>}
               <Button type="submit" disabled={pending || chosen.length === 0} className="self-start">Save settings</Button>

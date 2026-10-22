@@ -14,6 +14,7 @@ import { TIER_LABEL, TierChip } from '@/components/rival/tier-chip';
 import type { FormResult } from '@/server/forms';
 import { acceptSuggestionsAction, addCompetitorAction, dismissSuggestionAction, removeCompetitorAction, requestSuggestionsAction, type SearchState, type SearchStatus, searchStatusAction } from './actions';
 import { ErrorNote } from '@/components/form-error';
+import { kmToMiles } from '@/lib/format';
 
 function Message({ state }: { state: FormResult }) {
   if (!state.ok && state.error) {
@@ -172,7 +173,6 @@ const TIER_ORDER: Tier[] = ['top', 'watch', 'minor'];
 const TIER_BAR: Record<Tier, string> = { top: 'bg-ink', watch: 'bg-primary', minor: 'bg-muted-ink' };
 const TIER_HINT: Partial<Record<Tier, string>> = { top: 'close by, same services, active' };
 const TIER_RANK: Record<Tier, number> = { top: 0, watch: 1, minor: 2 };
-const KM_PER_MILE = 1.609344;
 
 const initialSelection = (list: SuggestionView[]) => new Set(list.filter((s) => s.preselected).map((s) => s.id));
 
@@ -187,7 +187,7 @@ function SuggestionCard({ suggestion: s, selectable, checked, checkDisabled, onT
   onToggle: () => void;
   dismiss: React.ReactNode;
 }) {
-  const meta = [s.category, s.distanceKm !== null ? `${(s.distanceKm / KM_PER_MILE).toFixed(1)} mi` : null, s.domain].filter(Boolean).join(' · ');
+  const meta = [s.category, s.distanceKm !== null ? `${kmToMiles(s.distanceKm).toFixed(1)} mi` : null, s.domain].filter(Boolean).join(' · ');
   return (
     <li className="flex items-start gap-3 rounded-lg border border-line p-3">
       {selectable && <input type="checkbox" className="mt-1.5 h-4 w-4 accent-primary" aria-label={`Track ${s.name}`} checked={checked} disabled={checkDisabled} onChange={onToggle} />}

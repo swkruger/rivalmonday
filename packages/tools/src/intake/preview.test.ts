@@ -31,12 +31,16 @@ describe('snapshotFacts', () => {
     expect(facts).toEqual([
       'You rank 2 of 3 for review count among you and the nearby dentist businesses that show one.',
       'You rank 2 of 3 for Google rating among you and the nearby dentist businesses that show one.',
-      'The closest competitor is Near Dental, 1.1 km away.',
+      'The closest competitor is Near Dental, 0.7 mi away.',
     ]);
+  });
+  it('lead preview fact uses miles', () => {
+    const facts = snapshotFacts({ self: { name: 'A', rating: null, votes: null }, category: '', nearby: [{ name: 'B', rating: 4, votes: 3, distanceKm: 16.1 }] });
+    expect(facts).toEqual(['The closest competitor is B, 10.0 mi away.']);
   });
   it('skips the review and rating facts when the business has no votes or rating', () => {
     const facts = snapshotFacts({ self: { name: 'A', rating: null, votes: null }, category: '', nearby: [{ name: 'B', rating: 4, votes: 3, distanceKm: 2 }] });
-    expect(facts).toEqual(['The closest competitor is B, 2.0 km away.']);
+    expect(facts).toEqual(['The closest competitor is B, 1.2 mi away.']);
   });
   it('ranks only against competitors that have the value and keeps acronym casing', () => {
     const facts = snapshotFacts({
@@ -57,7 +61,7 @@ describe('validateSummary', () => {
     ],
   };
   it('passes a clean summary, trimmed', () => {
-    expect(validateSummary(' Smith Dental has 12 reviews at 4.6, while Near Dental has 40 at 4.8 and sits 1.1 km away. ', snap)).toMatch(/^Smith Dental has 12/);
+    expect(validateSummary(' Smith Dental has 12 reviews at 4.6, while Near Dental has 40 at 4.8 and sits 0.7 mi away. ', snap)).toMatch(/^Smith Dental has 12/);
   });
   it('passes 4.6 / 12 / rounded forms', () => {
     expect(validateSummary('Your rating is 4.6 (about 5) from 12 reviews; Far Dental has 4.0.', snap)).not.toBeNull();

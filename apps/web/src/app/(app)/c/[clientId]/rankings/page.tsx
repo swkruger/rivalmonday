@@ -24,6 +24,7 @@ import { ScanNowButton } from './scan-now-button';
 import { ScanSlider } from './scan-slider';
 import { sovSeries } from './sov';
 import { type RankQuery, type RankTab, RankTabs } from './tabs';
+import { formatMiles } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Local rankings' };
@@ -207,7 +208,7 @@ export default async function RankingsPage({ params, searchParams }: {
                     <HelpTip tip="client.rankings.grid" />
                   </div>
                   <p className="mb-3 text-sm text-muted-foreground">
-                    {geo.scan && `Scan of ${fmtDate(geo.scan.finishedAt)} · `}Grid {geo.size}×{geo.size}{geo.radiusKm !== null && ` · ${geo.radiusKm} km radius`}
+                    {geo.scan && `Scan of ${fmtDate(geo.scan.finishedAt)} · `}Grid {geo.size}×{geo.size}{geo.radiusKm !== null && ` · ${formatMiles(geo.radiusKm)} radius`}
                   </p>
                   <p className="mb-3 font-semibold text-ink">{summary}</p>
                   <GeoGrid title={`Local rankings for ${geo.keyword}`} summary={summary} cells={geo.cells} businessName={chosenName} keyword={geo.keyword ?? ''} map={geo.map} lats={geo.lats} lngs={geo.lngs} />

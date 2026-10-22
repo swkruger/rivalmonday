@@ -3,11 +3,11 @@ import { Button, Input, Label } from '@cs/ui';
 import { useState } from 'react';
 import { FieldHint, useFieldHint } from '@/components/help/field-hint';
 import { HelpTip } from '@/components/help/help-tip';
+import { DEFAULT_RADIUS_KM, RadiusSelect } from '@/components/radius-select';
 import { WriteGuard } from '@/components/read-only';
 import type { ClientSetupView } from '../types';
 
 const areaClass = 'min-h-20 w-full max-w-xl rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
-const DEFAULT_RADIUS_KM = '15';
 
 export interface ProfileInitial {
   services: string[];
@@ -77,7 +77,7 @@ export function BusinessStep({ view, profile, pending, onSave, error = null }: {
   const [pickedNew, setPickedNew] = useState<Set<string>>(() => new Set());
   const [extra, setExtra] = useState('');
   const [center, setCenter] = useState(area ? `${area.center.lat}, ${area.center.lng}` : lookup ? `${lookup.lat}, ${lookup.lng}` : '');
-  const [radius, setRadius] = useState(area ? String(area.radiusKm) : lookup ? DEFAULT_RADIUS_KM : '');
+  const [radius, setRadius] = useState(area ? String(area.radiusKm) : DEFAULT_RADIUS_KM);
   const [zips, setZips] = useState(area?.zips.join(', ') ?? '');
   const [towns, setTowns] = useState(area?.towns?.length ? area.towns.join('\n') : (lookup?.city ?? ''));
   const [placeId, setPlaceId] = useState(profile.placeId ?? lookup?.placeId ?? '');
@@ -158,8 +158,8 @@ export function BusinessStep({ view, profile, pending, onSave, error = null }: {
         </legend>
         <div className="flex flex-wrap gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="radiusKm">Radius (km)</Label>
-            <Input id="radiusKm" name="radiusKm" type="number" min={2} max={40} step="any" inputMode="decimal" value={radius} onChange={(e) => setRadius(e.target.value)} className="w-28" />
+            <Label htmlFor="radiusKm">Service area radius</Label>
+            <RadiusSelect id="radiusKm" name="radiusKm" storedKm={area?.radiusKm ?? null} value={radius} onChange={(e) => setRadius(e.target.value)} />
           </div>
         </div>
         <Label htmlFor="zips">ZIP codes served</Label>

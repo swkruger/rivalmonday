@@ -30,6 +30,22 @@ describe('ClientProfileForm', () => {
     expect(screen.getByRole('button', { name: 'Create prospect' })).toBeTruthy();
   });
 
+  it('untouched custom radius keeps the stored km', () => {
+    const initial = { name: 'Comfort Air', verticalId: 'hvac_plumbing', services: [], keywords: [], placeId: null, serviceArea: { center: { lat: 33.95, lng: -84.33 }, radiusKm: 15, zips: ['30338'] } };
+    const { container } = render(<ClientProfileForm mode="edit" action={vi.fn()} verticals={verticals} clientId="c1" initial={initial} />);
+    const sel = screen.getByLabelText('Service area radius') as HTMLSelectElement;
+    expect(sel.options[0]?.textContent).toBe('≈ 9 mi (custom)');
+    expect(new FormData(container.querySelector('form') as HTMLFormElement).get('radiusKm')).toBe('15');
+  });
+
+  it('defaults to 10 mi and choosing 25 mi saves 40', () => {
+    const { container } = render(<ClientProfileForm mode="create" action={vi.fn()} verticals={verticals} timezoneOptions={['America/Chicago']} />);
+    const form = container.querySelector('form') as HTMLFormElement;
+    expect(new FormData(form).get('radiusKm')).toBe('16.1');
+    fireEvent.change(screen.getByLabelText('Service area radius'), { target: { value: '40' } });
+    expect(new FormData(form).get('radiusKm')).toBe('40');
+  });
+
   it('fixes the vertical and pre-fills values when editing', () => {
     render(
       <ClientProfileForm mode="edit" action={vi.fn()} verticals={verticals} clientId="c1"

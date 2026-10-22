@@ -25,7 +25,7 @@ describe('client input', () => {
     expect(problems).toEqual(expect.arrayContaining([
       'Name is required (up to 120 characters)', 'Unknown service: not_a_service', 'Use at most 5 keywords',
       'Keywords must be 2–60 characters', 'Google place id looks wrong', 'Latitude must be between -90 and 90',
-      'Radius must be 1–80 km', 'ZIP codes must be 5 digits: 1234',
+      'Radius must be 1–80 kilometres', 'ZIP codes must be 5 digits: 1234',
     ]));
   });
 

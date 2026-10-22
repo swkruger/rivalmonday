@@ -17,8 +17,8 @@ export const ServiceAreaInput = z.object({
   towns: z.array(z.string()).max(60).optional(),
 });
 export type ServiceAreaInput = z.infer<typeof ServiceAreaInput>;
-/** Write-side service area (create/update inputs): the radius is the rank-scan grid radius, 2-40 km (13b P14). Reads keep the lenient `ServiceAreaInput` so legacy rows still parse. */
-export const ServiceAreaWrite = ServiceAreaInput.extend({ radiusKm: z.number().min(2).max(40) });
+/** Write-side service area (create/update inputs): the radius is the rank-scan grid radius, 2-40 kilometres (13b P14). Reads keep the lenient `ServiceAreaInput` so legacy rows still parse. */
+export const ServiceAreaWrite = ServiceAreaInput.extend({ radiusKm: z.number().min(2).max(40).describe('Radius in kilometres (2-40)') });
 
 export const ClientProfile = ClientSummary.extend({
   services: z.array(z.string()),
