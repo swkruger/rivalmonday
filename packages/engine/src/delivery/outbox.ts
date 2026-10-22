@@ -2,7 +2,7 @@ import { type LinkTarget, MIN_LINK_SECRET_LENGTH } from '@cs/core';
 import { signLink } from '@cs/core/server';
 import { agencyServiceable, agency, agencyWebhook, alert, changeEvent, type Channel, contact, type Db, notification, type NotificationKind } from '@cs/db';
 import { type Branding, cleanCc, type EmailPayload, type EmailTransport, PermanentEmailError, renderEmail, resolveBranding } from '@cs/email';
-import { and, eq, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { type Audience, type Conn, contactsByIds, type Recipient, recipientsFor, replyToFor } from './contacts';
 import { quietUntil } from './time';
 
@@ -130,8 +130,19 @@ async function undeliverableReason(db: Db, n: NotificationRow): Promise<string |
   return null;
 }
 
+/** A pending row overdue by more than this is never sent (D18: a reactivated client must not get a week-old brief). */
+export const STALE_OUTBOX_DAYS = 7;
+
 /** Sends due outbox rows (decision 3). One replica; SKIP LOCKED keeps a second dispatcher run from double-claiming. */
-export async function dispatchDue(deps: { db: Db; senders: Partial<Record<Channel | 'sms', ChannelSender>> }, now: Date, limit = 50): Promise<{ sent: number; failed: number; retried: number }> {
+export async function dispatchDue(deps: { db: Db; senders: Partial<Record<Channel | 'sms', ChannelSender>> }, now: Date, limit = 50): Promise<{ sent: number; failed: number; retried: number; skipped: number }> {
+  // Stale pending rows become `skipped` whatever the client state (also paused/archived clients, whose rows are not claimed below).
+  // Backoff retries have a future not_before, so they are untouched.
+  const staleBefore = new Date(now.getTime() - STALE_OUTBOX_DAYS * 86_400_000);
+  const skippedRows = await deps.db
+    .update(notification)
+    .set({ status: 'skipped', error: 'stale' })
+    .where(and(eq(notification.status, 'pending'), lt(notification.notBefore, staleBefore)))
+    .returning({ id: notification.id });
   const stale = new Date(now.getTime() - SENDING_STALE_MINUTES * 60_000);
   const claimed = await deps.db
     .update(notification)
@@ -143,7 +154,7 @@ export async function dispatchDue(deps: { db: Db; senders: Partial<Record<Channe
         AND ((nn.status = 'pending' AND nn.not_before <= ${now.toISOString()}::timestamptz) OR (nn.status = 'sending' AND nn.claimed_at < ${stale.toISOString()}::timestamptz))
       ORDER BY nn.not_before, nn.id LIMIT ${limit} FOR UPDATE SKIP LOCKED)`)
     .returning();
-  const out = { sent: 0, failed: 0, retried: 0 };
+  const out = { sent: 0, failed: 0, retried: 0, skipped: skippedRows.length };
   for (const n of claimed) {
     const mine = and(eq(notification.id, n.id), eq(notification.status, 'sending'), eq(notification.claimedAt, now));
     try {

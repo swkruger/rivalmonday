@@ -45,7 +45,7 @@ export function createDeliveryJobs(deps: WorkerDeps, queue: DeliveryQueue) {
     handler: async () => {
       if (!ready()) return;
       const r = await deps.dispatchNotifications(new Date());
-      if (r.sent + r.failed + r.retried > 0) workerLog.info(`[notify-dispatch] ${JSON.stringify(r)}`);
+      if (r.sent + r.failed + r.retried + r.skipped > 0) workerLog.info(`[notify-dispatch] ${JSON.stringify(r)}`);
     },
   });
   const briefsDeliver = defineJob({

@@ -104,12 +104,14 @@ export async function runLeadPreview(
 const DAY = 86_400_000;
 const RETENTION_DAYS = 90;
 const RETRY_DAYS = 7;
+const VERIFIED_CAP_DAYS = 180; // O8: a verified lead nobody decided on is not kept forever
 const PENDING_STALE_MS = 15 * 60_000;
 const RETRY_LIMIT = 200;
 
 export type LeadsCleanupResult = {
   expired: number;
   deleted: number;
+  deletedVerified: number;
   scrubbed: number;
   ratePurged: number;
   staleFailed: number;
@@ -148,6 +150,10 @@ export async function runLeadsCleanup(d: { db: Db; email: LeadEmailDeps | null; 
     .where(and(inArray(lead.status, ['declined', 'expired']), olderThanRetention)).returning({ id: lead.id }), []);
   const scrubbed = await step('scrub', () => db.update(lead).set({ message: null, phone: null })
     .where(and(eq(lead.status, 'accepted'), olderThanRetention, or(isNotNull(lead.message), isNotNull(lead.phone)))).returning({ id: lead.id }), []);
+  // O8: verified leads with no decision (pool included) go after 180 days from verification, else the last update.
+  const deletedVerified = await step('verified', () => db.delete(lead)
+    .where(and(eq(lead.status, 'verified'), sql`coalesce(${lead.verifiedAt}, ${lead.updatedAt}) < ${ago(VERIFIED_CAP_DAYS * DAY).toISOString()}::timestamptz`))
+    .returning({ id: lead.id }), []);
   const ratePurged = await step('rate', () => db.delete(intakeRate).where(lt(intakeRate.windowStart, ago(2 * DAY))).returning({ key: intakeRate.key }), []);
   // A preview stuck `pending`, or never started (`none` on a verified lead: the enqueue was lost), becomes `failed` so the confirmation goes out.
   const staleFailed = await step('stale', () => db.update(lead).set({ preview: { status: 'failed' } })
@@ -179,7 +185,7 @@ export async function runLeadsCleanup(d: { db: Db; email: LeadEmailDeps | null; 
     await retry('agency_new', and(isNotNull(lead.agencyId), isNull(lead.agencyNotifiedAt), or(isNotNull(lead.assignedAt), previewDone), agencyServiceable(lead.agencyId)));
     await retry('pool_new', and(isNull(lead.agencyId), isNull(lead.poolNotifiedAt), previewDone));
   }
-  const result = { expired: expired.length, deleted: deleted.length, scrubbed: scrubbed.length, ratePurged: ratePurged.length, staleFailed: staleFailed.length, retried };
+  const result = { expired: expired.length, deleted: deleted.length, deletedVerified: deletedVerified.length, scrubbed: scrubbed.length, ratePurged: ratePurged.length, staleFailed: staleFailed.length, retried };
   workerLog.info(`[leads-cleanup] ${JSON.stringify(result)}`);
   if (failed.length > 0) throw new Error(`leads-cleanup steps failed: ${failed.join(', ')}`);
   return result;

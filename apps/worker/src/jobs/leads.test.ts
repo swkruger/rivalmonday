@@ -302,6 +302,33 @@ describe('leads-cleanup', () => {
     expect(transport.sent.filter((m) => m.tag === 'lead_confirmation')).toHaveLength(1);
   });
 
+  it('deletes a verified lead verified 181 days ago', async () => {
+    const id = await mk({ status: 'verified', verifiedAt: ago(181 * DAYS), updatedAt: ago(1 * DAYS) });
+    const r = await cleanup();
+    expect(r.deletedVerified).toBe(1);
+    expect(await dbs.service.select().from(lead).where(eq(lead.id, id))).toHaveLength(0);
+  });
+
+  it('keeps one verified 179 days ago', async () => {
+    const id = await mk({ status: 'verified', verifiedAt: ago(179 * DAYS), updatedAt: ago(179 * DAYS) });
+    expect((await cleanup()).deletedVerified).toBe(0);
+    expect(await dbs.service.select().from(lead).where(eq(lead.id, id))).toHaveLength(1);
+  });
+
+  it('falls back to updated_at when verified_at is null', async () => {
+    const old = await mk({ status: 'verified', verifiedAt: null, updatedAt: ago(181 * DAYS) });
+    const fresh = await mk({ status: 'verified', verifiedAt: null, updatedAt: ago(10 * DAYS) });
+    expect((await cleanup()).deletedVerified).toBe(1);
+    expect(await dbs.service.select().from(lead).where(eq(lead.id, old))).toHaveLength(0);
+    expect(await dbs.service.select().from(lead).where(eq(lead.id, fresh))).toHaveLength(1);
+  });
+
+  it('pool lead included', async () => {
+    const id = await mk({ status: 'verified', agencyId: null, verifiedAt: ago(200 * DAYS), updatedAt: ago(200 * DAYS) });
+    expect((await cleanup()).deletedVerified).toBe(1);
+    expect(await dbs.service.select().from(lead).where(eq(lead.id, id))).toHaveLength(0);
+  });
+
   it('one failing step does not stop the later steps, and the job still fails', async () => {
     const id = await mk({ preview: { status: 'pending' }, updatedAt: ago(20 * 60_000) });
     await dbs.service.insert(intakeRate).values({ key: 'old', windowStart: ago(3 * DAYS), count: 1 });
@@ -312,7 +339,7 @@ describe('leads-cleanup', () => {
         return Reflect.get(t, k, rcv);
       },
     }) as Db;
-    await expect(runLeadsCleanup({ db: broken, email: email() })).rejects.toThrow(/delete, rate/);
+    await expect(runLeadsCleanup({ db: broken, email: email() })).rejects.toThrow(/delete, verified, rate/);
     expect((await row(id)).preview).toEqual({ status: 'failed' });
     expect(transport.sent.filter((m) => m.tag === 'lead_confirmation')).toHaveLength(1);
   });

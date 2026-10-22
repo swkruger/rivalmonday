@@ -145,7 +145,7 @@ export interface WorkerDeps {
   sweepAlerts(now: Date): Promise<SweepResult>;
   processAlert(alertId: string, now: Date): Promise<{ status: string; release?: string }>;
   runAlertDigests(now: Date): Promise<{ clients: number; alerts: number; withdrawn: number }>;
-  dispatchNotifications(now: Date): Promise<{ sent: number; failed: number; retried: number }>;
+  dispatchNotifications(now: Date): Promise<{ sent: number; failed: number; retried: number; skipped: number }>;
   deliverDueBriefs(now: Date): Promise<{ sent: string[]; autoApproved: number; overdue: number }>;
   notifyBriefOutcome(result: BriefRunResult, now: Date): Promise<number>;
   renderBriefPdf(briefId: string): Promise<{ key: string } | { skipped: string }>;

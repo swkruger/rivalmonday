@@ -114,7 +114,7 @@ describe('dispatchDue', () => {
     const due = await pendingEmail();
     const later = await pendingEmail({ notBefore: new Date(NOW.getTime() + 60_000) });
     const r = await dispatchDue({ db: dbs.service, senders: { email: sender(async () => ({ providerId: 'p1' })) } }, NOW);
-    expect(r).toEqual({ sent: 1, failed: 0, retried: 0 });
+    expect(r).toEqual({ sent: 1, failed: 0, retried: 0, skipped: 0 });
     const [d] = await dbs.owner.select().from(notification).where(eq(notification.id, due.id));
     expect(d).toMatchObject({ status: 'sent', providerId: 'p1', attempts: 1 });
     expect((await dbs.owner.select().from(notification).where(eq(notification.id, later.id)))[0]!.status).toBe('pending');
@@ -123,12 +123,12 @@ describe('dispatchDue', () => {
   it('retries a transient failure with backoff, then fails after the last attempt', async () => {
     const n = await pendingEmail();
     const flaky = { email: sender(async () => { throw new Error('503'); }) };
-    expect(await dispatchDue({ db: dbs.service, senders: flaky }, NOW)).toEqual({ sent: 0, failed: 0, retried: 1 });
+    expect(await dispatchDue({ db: dbs.service, senders: flaky }, NOW)).toEqual({ sent: 0, failed: 0, retried: 1, skipped: 0 });
     let [row] = await dbs.owner.select().from(notification).where(eq(notification.id, n.id));
     expect(row).toMatchObject({ status: 'pending', attempts: 1, error: '503' });
     expect(row!.notBefore.toISOString()).toBe(new Date(NOW.getTime() + 2 * 60_000).toISOString());
     await dbs.owner.update(notification).set({ attempts: 4, notBefore: NOW }).where(eq(notification.id, n.id));
-    expect(await dispatchDue({ db: dbs.service, senders: flaky }, NOW)).toEqual({ sent: 0, failed: 1, retried: 0 });
+    expect(await dispatchDue({ db: dbs.service, senders: flaky }, NOW)).toEqual({ sent: 0, failed: 1, retried: 0, skipped: 0 });
     [row] = await dbs.owner.select().from(notification).where(eq(notification.id, n.id));
     expect(row).toMatchObject({ status: 'failed', attempts: 5 });
   });
@@ -137,7 +137,7 @@ describe('dispatchDue', () => {
     await pendingEmail();
     await pendingEmail({ channel: 'sms' });
     const r = await dispatchDue({ db: dbs.service, senders: { email: sender(async () => { throw new PermanentSendError('inactive recipient'); }) } }, NOW);
-    expect(r).toEqual({ sent: 0, failed: 2, retried: 0 });
+    expect(r).toEqual({ sent: 0, failed: 2, retried: 0, skipped: 0 });
   });
 
   it('re-claims a row stuck in sending only after 30 minutes (longer than a worst-case tick of 50 × 15 s)', async () => {
@@ -154,7 +154,7 @@ describe('dispatchDue', () => {
     const send = vi.fn(async () => ({ providerId: 'p' }));
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      expect(await dispatchDue({ db: dbs.service, senders: { email: sender(send) } }, NOW)).toEqual({ sent: 0, failed: 1, retried: 0 });
+      expect(await dispatchDue({ db: dbs.service, senders: { email: sender(send) } }, NOW)).toEqual({ sent: 0, failed: 1, retried: 0, skipped: 0 });
     } finally {
       warn.mockRestore();
     }
@@ -168,7 +168,7 @@ describe('dispatchDue', () => {
       const n = await pendingEmail({ kind, subjectType: 'setup' });
       await dbs.owner.update(contact).set({ active: false }).where(eq(contact.id, n.contactId!));
     }
-    expect(await dispatchDue({ db: dbs.service, senders: { email: sender(send) } }, NOW)).toEqual({ sent: 2, failed: 0, retried: 0 });
+    expect(await dispatchDue({ db: dbs.service, senders: { email: sender(send) } }, NOW)).toEqual({ sent: 2, failed: 0, retried: 0, skipped: 0 });
     expect(send).toHaveBeenCalledTimes(2);
   });
 
@@ -181,7 +181,7 @@ describe('dispatchDue', () => {
     const send = vi.fn(async () => ({ providerId: 'p' }));
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      expect(await dispatchDue({ db: dbs.service, senders: { email: sender(send) } }, NOW)).toEqual({ sent: 0, failed: kinds.length, retried: 0 });
+      expect(await dispatchDue({ db: dbs.service, senders: { email: sender(send) } }, NOW)).toEqual({ sent: 0, failed: kinds.length, retried: 0, skipped: 0 });
     } finally {
       warn.mockRestore();
     }
@@ -204,7 +204,7 @@ describe('dispatchDue', () => {
     const send = vi.fn(async () => ({ providerId: 'p' }));
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      expect(await dispatchDue({ db: dbs.service, senders: { email: sender(send) } }, NOW)).toEqual({ sent: 1, failed: 3, retried: 0 });
+      expect(await dispatchDue({ db: dbs.service, senders: { email: sender(send) } }, NOW)).toEqual({ sent: 1, failed: 3, retried: 0, skipped: 0 });
     } finally {
       warn.mockRestore();
     }
@@ -263,11 +263,11 @@ describe('dispatchDue and billing state (9a)', () => {
     }).returning();
     await pauseAgency(dbs.owner, IDS.agencyA);
     const send = vi.fn(async () => ({ providerId: 'p1' }));
-    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 0, failed: 0, retried: 0 });
+    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 0, failed: 0, retried: 0, skipped: 0 });
     expect(send).not.toHaveBeenCalled();
     expect((await dbs.owner.select().from(notification).where(eq(notification.id, n!.id)))[0]).toMatchObject({ status: 'pending', attempts: 0 });
     await dbs.owner.delete(agencyBilling).where(eq(agencyBilling.agencyId, IDS.agencyA));
-    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 1, failed: 0, retried: 0 });
+    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 1, failed: 0, retried: 0, skipped: 0 });
   });
 });
 
@@ -284,7 +284,7 @@ describe('dispatchDue and a paused client (9b)', () => {
     const [other] = await dbs.service.insert(notification).values(row({ clientId: IDS.clientA2, contactId: c2, dedupeKey: 'p9b-2' })).returning();
     await pauseClient(dbs.owner, IDS.clientA1);
     const send = vi.fn(async () => ({ providerId: 'p1' }));
-    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 1, failed: 0, retried: 0 });
+    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 1, failed: 0, retried: 0, skipped: 0 });
     expect(send).toHaveBeenCalledTimes(1);
     const status = async (id: string) => (await dbs.owner.select().from(notification).where(eq(notification.id, id)))[0];
     expect(await status(paused!.id)).toMatchObject({ status: 'pending', attempts: 0 });
@@ -296,12 +296,58 @@ describe('dispatchDue and a paused client (9b)', () => {
     const [archived] = await dbs.service.insert(notification).values(row({ clientId: IDS.clientA1, contactId: c1, dedupeKey: 'arch-1' })).returning();
     await dbs.service.update(client).set({ archivedAt: new Date() }).where(eq(client.id, IDS.clientA1));
     const send = vi.fn(async () => ({ providerId: 'p1' }));
-    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 0, failed: 0, retried: 0 });
+    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 0, failed: 0, retried: 0, skipped: 0 });
     expect(send).not.toHaveBeenCalled();
     const status = async (id: string) => (await dbs.owner.select().from(notification).where(eq(notification.id, id)))[0];
     expect(await status(archived!.id)).toMatchObject({ status: 'pending', attempts: 0 });
     await dbs.service.update(client).set({ archivedAt: null }).where(eq(client.id, IDS.clientA1));
-    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 1, failed: 0, retried: 0 });
+    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 1, failed: 0, retried: 0, skipped: 0 });
     expect(await status(archived!.id)).toMatchObject({ status: 'sent' });
+  });
+});
+
+describe('dispatchDue stale rows (D18)', () => {
+  async function row(o: Partial<typeof notification.$inferInsert>) {
+    const c = await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: `o${Math.random()}@a1.example` });
+    const [n] = await dbs.service.insert(notification).values({
+      agencyId: IDS.agencyA, clientId: IDS.clientA1, contactId: c, channel: 'email', kind: 'brief', subjectType: 'brief', subjectId: IDS.clientA1,
+      dedupeKey: `k${Math.random()}`, title: 'H', body: 'B', address: 'o@a1.example', payload: { ...payload('https://app.example/l/x'), replyTo: null }, status: 'pending', notBefore: NOW, ...o,
+    }).returning();
+    return n!;
+  }
+  const get = async (id: string) => (await dbs.owner.select().from(notification).where(eq(notification.id, id)))[0]!;
+  const daysAgo = (d: number) => new Date(NOW.getTime() - d * 86_400_000);
+
+  it('pending row due 8 days ago becomes skipped with error stale and is not sent', async () => {
+    const n = await row({ notBefore: daysAgo(8) });
+    const send = vi.fn(async () => ({ providerId: 'p' }));
+    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 0, failed: 0, retried: 0, skipped: 1 });
+    expect(send).not.toHaveBeenCalled();
+    expect(await get(n.id)).toMatchObject({ status: 'skipped', error: 'stale' });
+  });
+
+  it('row due 6 days ago is sent', async () => {
+    const n = await row({ notBefore: daysAgo(6) });
+    expect(await dispatchDue({ db: dbs.service, senders: { email: { send: async () => ({ providerId: 'p' }) } } }, NOW)).toEqual({ sent: 1, failed: 0, retried: 0, skipped: 0 });
+    expect((await get(n.id)).status).toBe('sent');
+  });
+
+  it('sending/failed rows untouched', async () => {
+    const sending = await row({ status: 'sending', claimedAt: NOW, notBefore: daysAgo(9) });
+    const failed = await row({ status: 'failed', error: 'x', notBefore: daysAgo(9) });
+    const r = await dispatchDue({ db: dbs.service, senders: { email: { send: async () => ({ providerId: 'p' }) } } }, NOW);
+    expect(r.skipped).toBe(0);
+    expect((await get(sending.id)).status).toBe('sending');
+    expect(await get(failed.id)).toMatchObject({ status: 'failed', error: 'x' });
+  });
+
+  it('stale pending rows of an archived client are skipped too; fresh ones stay pending', async () => {
+    await dbs.owner.update(client).set({ archivedAt: daysAgo(10) }).where(eq(client.id, IDS.clientA1));
+    const old = await row({ notBefore: daysAgo(8) });
+    const fresh = await row({ notBefore: daysAgo(2) });
+    const r = await dispatchDue({ db: dbs.service, senders: { email: { send: async () => ({ providerId: 'p' }) } } }, NOW);
+    expect(r).toEqual({ sent: 0, failed: 0, retried: 0, skipped: 1 });
+    expect((await get(old.id)).status).toBe('skipped');
+    expect((await get(fresh.id)).status).toBe('pending');
   });
 });
