@@ -14,10 +14,16 @@ export type ContactRole = 'agency_admin' | 'account_manager' | 'client_owner' | 
 export const CLIENT_KINDS = ['alert', 'alert_digest', 'brief', 'trend_report', 'client_invite', 'competitor_review'] as const;
 export const AGENCY_KINDS = ['am_alert', 'brief_ready', 'brief_failed', 'brief_overdue', 'setup_suggestions_ready', 'setup_client_changed', 'setup_idle', 'trend_report', 'rank_scan_skipped', 'contact_bounced'] as const;
 export type NotificationKind = (typeof CLIENT_KINDS)[number] | (typeof AGENCY_KINDS)[number];
+/** Mirrors alert_status_check / agency_webhook_kind_check / trend_report_status_check; keep in step with the CHECKs. */
+export const ALERT_STATUSES = ['drafting', 'pending_review', 'approved', 'delivered', 'dismissed', 'withdrawn', 'expired'] as const;
+export type AlertStatus = (typeof ALERT_STATUSES)[number];
+export const WEBHOOK_KINDS = ['slack', 'teams'] as const;
+export type WebhookKind = (typeof WEBHOOK_KINDS)[number];
+export const TREND_REPORT_STATUSES = ['ready', 'sent'] as const;
+export type TrendReportStatus = (typeof TREND_REPORT_STATUSES)[number];
 /** Phase 7a2: 'skipped' = never sent (suppressed address); reads like 'failed' wherever a status is shown or counted. */
 export type NotificationStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'skipped';
 export type AlertMode = 'direct' | 'after_am_check' | 'digest_only';
-export type AlertStatus = 'drafting' | 'pending_review' | 'approved' | 'delivered' | 'dismissed' | 'withdrawn' | 'expired';
 export type AlertDelivery = 'immediate' | 'digest';
 
 /** Local quiet window, 'HH:MM' 24-hour; may wrap midnight (21:00 → 07:00). */

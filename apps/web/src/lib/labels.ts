@@ -1,5 +1,6 @@
 import type { Role } from '@cs/core';
-import type { BillingState, ClientStatus } from '@cs/db';
+import type { AlertStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
+import type { CatalogStatus } from '@cs/verticals';
 import type { ChipTone } from '@cs/ui';
 
 /**
@@ -10,6 +11,9 @@ import type { ChipTone } from '@cs/ui';
  */
 export interface LabelEntry { label: string; tone: ChipTone }
 export type LabelMap<T extends string> = Record<T, LabelEntry>;
+
+type AskMessageStatus = (typeof askMessage.$inferSelect)['status'];
+type ProspectReportStatus = (typeof prospectReport.$inferSelect)['status'];
 
 const e = (label: string, tone: ChipTone = 'neutral'): LabelEntry => ({ label, tone });
 
@@ -42,7 +46,7 @@ export const CLIENT_STATUS: LabelMap<ClientStatus> = {
 };
 
 // LeadStatus (packages/db/src/schema/leads.ts)
-export const LEAD_STATUS: LabelMap<'unverified' | 'verified' | 'accepted' | 'declined' | 'expired'> = {
+export const LEAD_STATUS: LabelMap<LeadStatus> = {
   unverified: e('Not verified yet', 'info'),
   verified: e('Verified', 'info'),
   accepted: e('Accepted', 'success'),
@@ -50,8 +54,8 @@ export const LEAD_STATUS: LabelMap<'unverified' | 'verified' | 'accepted' | 'dec
   expired: e('Expired'),
 };
 
-// alert.status CHECK (packages/db/src/schema/delivery.ts; the column is a plain string, so the union is typed here)
-export const ALERT_STATUS: LabelMap<'drafting' | 'pending_review' | 'approved' | 'delivered' | 'dismissed' | 'withdrawn' | 'expired'> = {
+// ALERT_STATUSES (packages/db/src/schema/delivery.ts)
+export const ALERT_STATUS: LabelMap<AlertStatus> = {
   drafting: e('Being drafted', 'info'),
   pending_review: e('Waiting for review', 'warning'),
   approved: e('Approved', 'success'),
@@ -61,15 +65,15 @@ export const ALERT_STATUS: LabelMap<'drafting' | 'pending_review' | 'approved' |
   expired: e('Expired'),
 };
 
-// vertical / business-area catalogue review state (catalog.ts status CHECK; plain string column, union typed here)
-export const REVIEW_STATUS: LabelMap<'reviewed' | 'unreviewed' | 'merged'> = {
+// vertical / business-area catalogue review state (CatalogStatus, @cs/verticals)
+export const REVIEW_STATUS: LabelMap<CatalogStatus> = {
   reviewed: e('Reviewed', 'success'),
   unreviewed: e('Needs review', 'warning'),
   merged: e('Merged'),
 };
 
-// trend_report ('ready' | 'sent') and prospect_report ('running' | 'ready' | 'failed') statuses
-export const REPORT_STATUS: LabelMap<'running' | 'ready' | 'sent' | 'failed'> = {
+// TREND_REPORT_STATUSES (delivery.ts) and the prospect_report status column type (client-intel.ts)
+export const REPORT_STATUS: LabelMap<TrendReportStatus | ProspectReportStatus> = {
   running: e('Preparing', 'info'),
   ready: e('Ready', 'success'),
   sent: e('Sent', 'success'),
@@ -77,7 +81,7 @@ export const REPORT_STATUS: LabelMap<'running' | 'ready' | 'sent' | 'failed'> = 
 };
 
 // ask message status (packages/db/src/schema/ask.ts $type)
-export const ASK_MESSAGE_STATUS: LabelMap<'ok' | 'quota' | 'refused' | 'error' | 'cancelled'> = {
+export const ASK_MESSAGE_STATUS: LabelMap<AskMessageStatus> = {
   ok: e('Answered', 'success'),
   quota: e('Limit reached', 'warning'),
   refused: e("Couldn't answer", 'danger'),
@@ -85,16 +89,16 @@ export const ASK_MESSAGE_STATUS: LabelMap<'ok' | 'quota' | 'refused' | 'error' |
   cancelled: e('Stopped'),
 };
 
-// evidence artifact kind (packages/db/src/schema/evidence.ts; plain string column)
-export const EVIDENCE_KIND: LabelMap<'html' | 'text' | 'screenshot' | 'vendor_json'> = {
+// EVIDENCE_KINDS (packages/db/src/schema/evidence.ts)
+export const EVIDENCE_KIND: LabelMap<EvidenceKind> = {
   html: e('Saved page'),
   text: e('Page text'),
   screenshot: e('Screenshot'),
   vendor_json: e('Source data'),
 };
 
-// agency_webhook.kind CHECK (packages/db/src/schema/delivery.ts)
-export const WEBHOOK_KIND: LabelMap<'slack' | 'teams'> = {
+// WEBHOOK_KINDS (packages/db/src/schema/delivery.ts)
+export const WEBHOOK_KIND: LabelMap<WebhookKind> = {
   slack: e('Slack'),
   teams: e('Microsoft Teams'),
 };

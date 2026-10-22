@@ -3,6 +3,7 @@ import { join, relative, sep } from 'node:path';
 import { GLOSSARY } from '@cs/core';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { AGENCY_ONLY_TERMS } from '@/lib/agency-only-terms';
 import { CLIENT_AUDIENCE_MAPS } from '@/lib/labels';
 
 /**
@@ -149,7 +150,7 @@ describe('terminology: client-audience enum labels', () => {
     for (const map of CLIENT_AUDIENCE_MAPS) for (const [k, { label }] of Object.entries(map)) {
       expect(label, k).not.toMatch(THEME);
       expect(label, k).not.toMatch(/Friday/);
-      expect(label, k).not.toMatch(/(rival monday|jev|verifier|upsell|tenant)/i);
+      expect(label, k).not.toMatch(AGENCY_ONLY_TERMS);
     }
   });
 });

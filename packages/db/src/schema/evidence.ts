@@ -48,6 +48,10 @@ export const capture = pgTable(
   ],
 );
 
+/** Evidence artefact kinds (evidence.kind is a plain string column). */
+export const EVIDENCE_KINDS = ['html', 'text', 'screenshot', 'vendor_json'] as const;
+export type EvidenceKind = (typeof EVIDENCE_KINDS)[number];
+
 /** A stored artefact of a capture (html, text, screenshot, vendor json). Immutable. */
 export const evidence = pgTable(
   'evidence',
