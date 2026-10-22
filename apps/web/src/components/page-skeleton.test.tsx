@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import AgencyLoading from '@/app/(app)/agency/loading';
-import ClientLoading from '@/app/(app)/c/[clientId]/loading';
-import InboxLoading from '@/app/(app)/inbox/loading';
-import PlatformLoading from '@/app/(platform)/platform/loading';
 import { PageSkeleton } from './page-skeleton';
 
 afterEach(cleanup);
@@ -26,16 +24,19 @@ describe('PageSkeleton', () => {
   });
 });
 
-describe('loading.tsx files', () => {
-  it.each([
-    ['client', ClientLoading],
-    ['agency', AgencyLoading],
-    ['platform', PlatformLoading],
-    ['inbox', InboxLoading],
-  ])('each loading.tsx renders PageSkeleton (%s)', (_n, Loading) => {
-    const { container } = render(<Loading />);
-    expect(screen.getByRole('status').textContent).toContain('Loading…');
-    expect(container.querySelectorAll('[data-skeleton-card]').length).toBe(3);
-    cleanup();
+function findLoading(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? findLoading(join(dir, e.name)) : e.name === 'loading.tsx' ? [join(dir, e.name)] : [],
+  );
+}
+
+describe('no route-level loading.tsx', () => {
+  // A route loading.tsx makes Next stream the shell (HTTP 200) before the page runs, so a page's notFound() refusal
+  // would arrive as 200 instead of 404 ("page refusals -> 404", binding). Use <Suspense fallback={<PageSkeleton />}>
+  // inside the page, after its access checks, instead.
+  it('no loading.tsx under app/(app) or app/(platform)', () => {
+    const app = join(process.cwd(), 'src', 'app');
+    expect([...findLoading(join(app, '(app)')), ...findLoading(join(app, '(platform)'))]).toEqual([]);
   });
 });
