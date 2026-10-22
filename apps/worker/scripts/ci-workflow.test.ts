@@ -28,6 +28,7 @@ describe('ci workflow shape', () => {
   });
 
   it('deploy runs only on a push to main, in the production environment', () => {
+    expect(deploy.if).toContain("vars.DEPLOY_ENABLED == 'true'");
     expect(deploy.if).toContain("github.ref == 'refs/heads/main'");
     expect(deploy.if).toContain("github.event_name == 'push'");
     const env = deploy.environment;

@@ -13,7 +13,7 @@
 6. **Postmark:** account approval, live server token, sender `briefs@mail.rivalmonday.app`. Webhook (Bounce + Spam complaint, on the server): `https://postmark:<POSTMARK_WEBHOOK_SECRET>@rivalmonday.app/api/postmark/webhook` (basic auth; unset secret = 404; after auth it always answers 200).
 7. **Sentry:** projects for web and worker, alert rules (new issue, regression, cron check-in missed); an org auth token with release + source-map scope.
 8. **GitHub** environment `production` with the secrets below.
-9. **First deploy:** push to `main`, watch `test` → `image` → `deploy`.
+9. **First deploy:** repo variable `DEPLOY_ENABLED=true` (else skipped), push to `main`, watch `test` → `image` → `deploy`.
 10. **Bootstrap** (owner, from a shell with the prod env loaded, never committed): `pnpm --filter @cs/worker platform-admin add <email> --role owner` (uses `SERVICE_DATABASE_URL`); `pnpm --filter @cs/web admin create-agency --name <name>` then `admin invite --agency <id> --email <email> --role agency_admin`; then `pnpm kb:seed` against prod (prod `SERVICE_DATABASE_URL`) — re-run it whenever `docs/help` changes; embeddings fill on the hourly `kb-embed` sweep.
 11. Run the § Checklist.
 

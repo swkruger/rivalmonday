@@ -54,9 +54,10 @@ jobs:
         run: docker run --rm --network none rivalmonday-worker:ci pnpm --filter @cs/worker smoke:image
 
   # Gated migrate-then-deploy (docs/DEPLOY.md). Any failed step stops every later one.
+  # Off until the repo variable DEPLOY_ENABLED is 'true' (set once the prod accounts exist).
   deploy:
     needs: [test, image]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
     concurrency:
