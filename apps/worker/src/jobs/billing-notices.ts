@@ -92,6 +92,7 @@ export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJob
       }
       const db = deps.serviceDb();
       const mail = deps.billingEmail();
+      // 7a2 D16: no archived-agency filter. Such a notice can only come from a live Stripe subscription, and the archive CLI refuses while one is active.
       const pending = await db
         .select({ id: billingNotice.id })
         .from(billingNotice)

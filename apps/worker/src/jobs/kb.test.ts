@@ -1,6 +1,6 @@
 import type { RenderedPage } from '@cs/collectors';
-import { kbArticle, kbChunk } from '@cs/db';
-import { openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { agency, client, kbArticle, kbChunk } from '@cs/db';
+import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, isNull, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
@@ -234,6 +234,20 @@ describe('kb-sync', () => {
     const job = createKbJobs(importDeps({}).deps).sync;
     expect(job.name).toBe('kb-sync');
     expect(job.cron).toBe('0 5 * * 0');
+  });
+
+  it('skips url articles of an archived agency or client (7a2 D16)', async () => {
+    const ofAgency = await urlArticle({ level: 'agency', agencyId: IDS.agencyB });
+    const ofClient = await urlArticle({ level: 'client', agencyId: IDS.agencyA, clientId: IDS.clientA2 });
+    const live = await urlArticle({ level: 'client', agencyId: IDS.agencyA, clientId: IDS.clientA1 });
+    await dbs.service.update(agency).set({ archivedAt: new Date() }).where(eq(agency.id, IDS.agencyB));
+    await dbs.service.update(client).set({ archivedAt: new Date() }).where(eq(client.id, IDS.clientA2));
+    const { deps, render } = importDeps({});
+    await sync(deps);
+    expect(render).toHaveBeenCalledTimes(1);
+    expect((await get(ofAgency.id)).lastSyncedAt).toBeNull();
+    expect((await get(ofClient.id)).lastSyncedAt).toBeNull();
+    expect((await get(live.id)).lastSyncedAt).not.toBeNull();
   });
 
   it('a changed page keeps the previous body, rechunks and enqueues an embed', async () => {

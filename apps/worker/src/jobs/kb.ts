@@ -133,11 +133,15 @@ export function createKbJobs(deps: WorkerDeps, opts: { enqueueEmbed?: (articleId
     handler: async () => {
       if (!deps.kbImportEnabled()) return;
       const db = deps.serviceDb();
-      // source = 'url' only: seed and manual rows are never touched by sync.
+      // source = 'url' only: seed and manual rows are never touched by sync. 7a2 D16: skip archived agencies/clients.
       const rows = await db
         .select()
         .from(kbArticle)
-        .where(and(eq(kbArticle.status, 'published'), eq(kbArticle.autoSync, true), eq(kbArticle.source, 'url')));
+        .where(and(
+          eq(kbArticle.status, 'published'), eq(kbArticle.autoSync, true), eq(kbArticle.source, 'url'),
+          sql`NOT EXISTS (SELECT 1 FROM agency ax WHERE ax.id = ${kbArticle.agencyId} AND ax.archived_at IS NOT NULL)`,
+          sql`NOT EXISTS (SELECT 1 FROM client cx WHERE cx.id = ${kbArticle.clientId} AND cx.archived_at IS NOT NULL)`,
+        ));
       let changed = 0;
       for (const row of rows) {
         try {

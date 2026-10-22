@@ -290,4 +290,18 @@ describe('dispatchDue and a paused client (9b)', () => {
     expect(await status(paused!.id)).toMatchObject({ status: 'pending', attempts: 0 });
     expect(await status(other!.id)).toMatchObject({ status: 'sent' });
   });
+
+  it('does not claim an archived client due rows (7a2 D16); after an undo they are sent', async () => {
+    const c1 = await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@a1.example' });
+    const [archived] = await dbs.service.insert(notification).values(row({ clientId: IDS.clientA1, contactId: c1, dedupeKey: 'arch-1' })).returning();
+    await dbs.service.update(client).set({ archivedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    const send = vi.fn(async () => ({ providerId: 'p1' }));
+    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 0, failed: 0, retried: 0 });
+    expect(send).not.toHaveBeenCalled();
+    const status = async (id: string) => (await dbs.owner.select().from(notification).where(eq(notification.id, id)))[0];
+    expect(await status(archived!.id)).toMatchObject({ status: 'pending', attempts: 0 });
+    await dbs.service.update(client).set({ archivedAt: null }).where(eq(client.id, IDS.clientA1));
+    expect(await dispatchDue({ db: dbs.service, senders: { email: { send } } }, NOW)).toEqual({ sent: 1, failed: 0, retried: 0 });
+    expect(await status(archived!.id)).toMatchObject({ status: 'sent' });
+  });
 });
