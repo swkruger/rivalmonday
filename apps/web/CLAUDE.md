@@ -7,15 +7,15 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 
 ### Next.js / build
 - **Next.js 16 uses `proxy.ts`, not `middleware.ts`** (deprecated), and `params`/`cookies()`/`headers()` are async — always `await` them.
-- **Turbopack can't resolve `new URL('<relative>', import.meta.url)` file lookups:** any package `apps/web` imports must use `path.join(dirname(fileURLToPath(import.meta.url)), …)` (`@cs/db`, `@cs/verticals`, `@cs/ai` loaders).
-- **`next build` and `next dev` share `.next`:** never build while the dev server runs.
-- **One `sharp` version repo-wide (0.34.5):** two versions loaded in one process fail `next build` on Windows with `ERR_DLOPEN_FAILED`.
+- **Turbopack can't resolve `new URL('<relative>', import.meta.url)` file lookups:** any package `apps/web` imports must use `path.join(dirname(fileURLToPath(import.meta.url)), …)` (`@cs/db`, `@cs/verticals`, `@cs/ai` loaders; else authed pages 500).
+- **`next build` and `next dev` share `.next`:** never build while dev runs.
+- **One `sharp` version repo-wide (0.34.5):** two versions in one process fail `next build` on Windows (`ERR_DLOPEN_FAILED`).
 - **`AGENTS.md` is Next.js-managed** (`next dev` upserts its block); keep `@AGENTS.md` as this file's first line.
-- **Layouts don't re-render on client-side navigation:** the `x-rm-path` header is read once per full load. Path-dependent shell parts use `usePathname()` in a client component; a different *context* per area needs its own route group (`(app)` vs `(platform)`), never a header switch.
+- **Layouts don't re-render on client-side navigation:** the `x-rm-path` header is read once per full load. Path-dependent shell parts use `usePathname()` in a client component; a different *context* per area needs a route group (`(app)` vs `(platform)`), never a header switch.
 - **Never call `Intl.supportedValuesOf('timeZone')` in a `'use client'` component:** it lacks `'UTC'`, uses legacy names and differs Node vs browser — hydration mismatch and a stored `'UTC'` silently cleared on save. Build options server-side with `timezoneOptions(current)` (`@/server/timezones`) and pass as a prop.
 
 ### Tools, auth & access
-- **Every web write is a registered tool via `runTool(ctx, name, input)`:** maps `invalid_input` to its message and `not_found`/`permission_denied` to "Not found". Never call an engine/service mutator directly from `apps/web`.
+- **Every web write is a registered tool via `runTool(ctx, name, input)`:** maps `invalid_input` to its message and `not_found`/`permission_denied` to "Not found". Never call a service mutator directly.
 - **`callTool` turns every tool refusal into a 404**, never a 403 (spec §11). Exception: a stale `?event=`/`?move=` id renders "no longer available" via `tryCallTool`; page gates still 404.
 - **Better Auth owns schema `auth` (camelCase columns), never auto-migrated** (migration `0035`; `auth-schema.test.ts` is the drift test — a schema-changing upgrade needs a hand-written migration). Google keys optional; auth pages use `authBranding` (agency or neutral); emails keep `defaultBranding()`'s fallback.
 - **OAuth provider (migration `0041`):** the plugin seeds `auth."oauthResource"` once per instance — tests never truncate it (else `invalid_target`). Consent re-dispatches `/oauth2/authorize` *through hooks*, so an authorize before-hook must not undo it (`isConsentRequest`). Plugin endpoints aren't on `auth().api`'s type; call `auth().handler(new Request(...))`.
@@ -25,7 +25,7 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **A relative `EVIDENCE_FS_DIR` resolves against `apps/worker/`.**
 - **Guest cookies (`rm_guest`, 24 h, client contacts via `/l/<token>`) are re-checked every request** (`active`, `links_revoked_before` vs `iat`), so deactivation ends them on the next request.
 - **`/mcp` and `/.well-known/*` are public in `proxy.ts`** (Bearer token / public metadata; `/oauth/consent` stays behind the session). A new route under them needs its own auth; a new `/mcp`-adjacent path goes in the proxy `PUBLIC` list and the e2e rules.
-- **`POST /api/ask/turn` (SSE) is public in `proxy.ts` and authenticates itself:** one `final` event per response, `emit` never throws, membership by the body's `clientId` (`getViewerForClient`), new thread id in `x-ask-thread-id`.
+- **`POST /api/ask/turn` (SSE) is public in `proxy.ts` and authenticates itself:** one `final` event per response, `emit` never throws, membership by the body's `clientId` (`getViewerForClient`), thread id in `x-ask-thread-id`.
 - **Consent order (`/oauth/consent`):** `pickConsent` → plugin accept → `bindConsent` → redirect; a failed bind keeps the code server-side; authorize drops a consent with no binding.
 
 ### Platform & support sessions (8a/8b)
@@ -35,8 +35,8 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **Pages read via tools only** (direct reads skip support audit and masking; `server/theme.ts` aside); `/go`, `/files/*` call `recordSupportAccess`. `supportHidden` tools 404 in support: branch on `ctx.support`.
 
 ### UI patterns
-- **Action-result state must survive `revalidatePath`:** a `useActionState` message inside the triggering button/dialog vanishes when revalidation unmounts it. Hoist it to an always-mounted component (`ReviewFooter`, `AlertList`). Server-action switches use `useOptimistic` + `startTransition` (`AutoSendSwitch`).
-- **React 19 resets a `<form action>` after every action, error results included** — even controlled selects. Wizard forms control every field and add `onReset={e => e.preventDefault()}` (`(app)/onboarding/steps/*`), else a failed submit silently reverts choices.
+- **Action-result state must survive `revalidatePath`:** a `useActionState` message inside the triggering button/dialog vanishes when revalidation unmounts it. Hoist it to an always-mounted component (`ReviewFooter`, `AlertList`). Server-action switches use `useOptimistic` + `startTransition` (`AutoSendSwitch`), not `PinPageSwitch`'s ref/RAF hack.
+- **React 19 resets a `<form action>` after every action, error results included** — even controlled selects. Wizard forms control every field, add `onReset={e => e.preventDefault()}` (`(app)/onboarding/steps/*`), else a failed submit silently reverts choices.
 - **`LineChart` callers must pass series name-sorted:** colours follow position in the kept set.
 - **Formatting:** use `@/lib/format` (dates, money, distance) and `@/lib/labels` (enum labels, chip tones), never local formatters or raw enums. Distances: km stored, miles shown/typed via `lib/format/distance`.
 - **No `loading.tsx` under `app/(app)` or `app/(platform)`** — it turns `notFound()` into HTTP 200; use `<Suspense fallback={<PageSkeleton/>}>` inside pages after access checks.
