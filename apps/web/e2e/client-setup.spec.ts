@@ -58,7 +58,7 @@ test.describe('agency staff', () => {
     await page.getByLabel('Business type', { exact: true }).selectOption('dental');
     await page.getByLabel(/search keywords/i).fill('dentist');
     await page.getByLabel(/map centre/i).fill('33.95, -84.33');
-    await page.getByLabel(/radius/i).fill('10');
+    await page.getByLabel(/radius/i).selectOption({ label: '10 mi' });
     await page.getByRole('button', { name: 'Create prospect' }).click();
     await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/setup$/);
     await expect(page.getByRole('list', { name: 'Setup steps' })).toBeVisible();
@@ -126,7 +126,7 @@ test.describe('client owner', () => {
     await page.getByLabel('Add your own (one per line)').fill('emergency furnace repair');
     await page.getByText('Advanced', { exact: true }).click(); // map centre and place id live in the closed Advanced disclosure
     await page.getByLabel('Map centre (latitude, longitude)').fill('32.4, -97.79');
-    await page.getByLabel('Radius (km)').fill('20');
+    await page.getByLabel('Service area radius').selectOption({ label: '20 mi' });
     await page.getByLabel('ZIP codes served').fill('76048');
     await page.getByLabel('Google place id').fill('e2e-setup-owner-place');
     await page.getByRole('button', { name: 'Save and find competitors' }).click();

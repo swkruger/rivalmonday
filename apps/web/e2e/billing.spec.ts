@@ -55,7 +55,7 @@ test.describe.serial('billing', () => {
       await page.getByLabel('Business type', { exact: true }).selectOption('dental');
       await page.getByLabel(/search keywords/i).fill('dentist');
       await page.getByLabel(/map centre/i).fill('33.95, -84.33');
-      await page.getByLabel(/radius/i).fill('10');
+      await page.getByLabel(/radius/i).selectOption({ label: '10 mi' });
       await page.getByRole('button', { name: 'Create client' }).click();
       const alert = page.getByRole('alert').filter({ hasText: "You've used your 3 included clients. Upgrade to add more." });
       await expect(alert).toBeVisible();

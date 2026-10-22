@@ -19,7 +19,7 @@ test('an admin adds a client by hand, lands on its setup wizard, then uses its c
   await page.getByLabel('Business type', { exact: true }).selectOption('dental');
   await page.getByLabel(/search keywords/i).fill('dentist\nteeth cleaning');
   await page.getByLabel(/map centre/i).fill('33.95, -84.33');
-  await page.getByLabel(/radius/i).fill('10');
+  await page.getByLabel(/radius/i).selectOption({ label: '10 mi' });
   await page.getByRole('button', { name: 'Create client' }).click();
   // Phase 11a: every new client goes through the setup wizard, by-hand creates included.
   await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/setup$/);

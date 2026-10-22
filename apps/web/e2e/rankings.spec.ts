@@ -65,7 +65,7 @@ test('Rank settings opens for an agency admin and saves', { tag: ['@rankings'] }
   const sheet = page.getByRole('dialog', { name: 'Rank settings' });
   await expect(sheet).toBeVisible();
   await expect(sheet.getByRole('checkbox', { name: 'ac repair' })).toBeChecked();
-  await expect(sheet.getByLabel('Radius (km)')).toHaveValue('25');
+  await expect(sheet.getByLabel('Radius')).toHaveValue('25');
   await sheet.getByRole('radio', { name: '5×5' }).check();
   await sheet.getByRole('button', { name: 'Save settings' }).click();
   await expect(page.getByText('Saved. The next scan uses these settings.')).toBeVisible();
