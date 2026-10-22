@@ -54,11 +54,12 @@ async function clientFeatures(service: Db, clientId: string): Promise<Feature[]>
 
 /** Decision 3. Rebuilt on every request so a revoked membership or changed flag applies at once. */
 export async function accessContextFor(service: Db, userId: string, m: MembershipSummary): Promise<AccessContext> {
-  const planFeatures = await planFeaturesFor(service, m.agencyId); // 7a2 decision 1: always explicit
   if (isAgencyRole(m.role)) {
+    const planFeatures = await planFeaturesFor(service, m.agencyId); // 7a2 decision 1: always explicit
     return createAccessContext({ agencyId: m.agencyId, userId, role: m.role, clientScope: m.role === 'account_manager' && m.clientScope ? m.clientScope : 'all', features: [], planFeatures });
   }
-  return createAccessContext({ agencyId: m.agencyId, userId, role: m.role, clientScope: [m.clientId!], features: await clientFeatures(service, m.clientId!), planFeatures });
+  const [planFeatures, features] = await Promise.all([planFeaturesFor(service, m.agencyId), clientFeatures(service, m.clientId!)]);
+  return createAccessContext({ agencyId: m.agencyId, userId, role: m.role, clientScope: [m.clientId!], features, planFeatures });
 }
 
 export interface GuestSessionClaims {
@@ -71,18 +72,20 @@ export interface GuestSessionClaims {
 
 /** Decision 6: read-only access for a client contact who opened a signed email link; null when it must be refused. */
 export async function guestAccessFor(service: Db, g: GuestSessionClaims): Promise<AccessContext | null> {
-  const [c] = await service.select().from(contact).where(and(eq(contact.id, g.contactId), eq(contact.agencyId, g.agencyId)));
+  // Independent reads, run together; the refusal rules below are unchanged.
+  const [[c], [live], features, planFeatures] = await Promise.all([
+    service.select().from(contact).where(and(eq(contact.id, g.contactId), eq(contact.agencyId, g.agencyId))),
+    // 7a2 D16: an archived client or agency is deleted for its guests too.
+    service
+      .select({ id: client.id })
+      .from(client)
+      .innerJoin(agency, eq(agency.id, client.agencyId))
+      .where(and(eq(client.id, g.clientId), eq(client.agencyId, g.agencyId), isNull(client.archivedAt), isNull(agency.archivedAt))),
+    clientFeatures(service, g.clientId),
+    planFeaturesFor(service, g.agencyId),
+  ]);
   if (!c || !c.active || c.clientId === null || c.clientId !== g.clientId) return null;
   if (c.linksRevokedBefore && g.iat * 1000 < c.linksRevokedBefore.getTime()) return null;
-  // 7a2 D16: an archived client or agency is deleted for its guests too.
-  const [live] = await service
-    .select({ id: client.id })
-    .from(client)
-    .innerJoin(agency, eq(agency.id, client.agencyId))
-    .where(and(eq(client.id, g.clientId), eq(client.agencyId, g.agencyId), isNull(client.archivedAt), isNull(agency.archivedAt)));
   if (!live) return null;
-  return createAccessContext({
-    agencyId: g.agencyId, userId: `contact:${c.id}`, role: 'client_viewer', clientScope: [g.clientId],
-    features: await clientFeatures(service, g.clientId), planFeatures: await planFeaturesFor(service, g.agencyId),
-  });
+  return createAccessContext({ agencyId: g.agencyId, userId: `contact:${c.id}`, role: 'client_viewer', clientScope: [g.clientId], features, planFeatures });
 }
