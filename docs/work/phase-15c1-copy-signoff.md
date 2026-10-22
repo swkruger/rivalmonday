@@ -142,3 +142,4 @@ On-screen change: long dates are now short (Nov 13 instead of November 13, 2026)
 8. MEMBERSHIP_ROLE is in the client-audience list (role names are not agency-only wording). Move it out?
 9. Tone calls from review: dismissed alerts neutral (not warning); Ask cancelled neutral but billing cancelled danger (user choice vs lost access). Keep?
 10. Error pages say nothing about the product; the home button goes to "/". OK?
+11. The radius error says "Radius must be between 2 and 25 miles." but the server check is 2-40 km (2 km is about 1.2 mi), so the copy's floor is stricter than the check. Pick the wording: "between 1 and 25 miles", or keep.

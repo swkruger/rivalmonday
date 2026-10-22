@@ -6,10 +6,8 @@
 ## Status (overwrite)
 15c-1 built and reviewed on 2026-10-22; final whole-branch review next. 15c-2 and 15c-3 plans follow after 15c-1 merges.
 
-
 ## Next (overwrite)
 Final whole-branch review → owner verification → /rm-merge.
-
 
 ## Interfaces this branch adds or changes
 No migration (next free **0084**).
@@ -32,7 +30,6 @@ No migration (next free **0084**).
 - Route-level `loading.tsx` files dropped (404 regression); `PageSkeleton` stays for in-page Suspense in 15c-2.
 - Task 9 before/after screenshots waived; visual checks moved to owner verification.
 
-
 ## Assumes from other branches
 - **phase-7**: 7a2 must expose archive as a service function (not only CLI) for 15c-3's archive button; edits `nav-items.ts`, `server/nav.ts`, `/platform/health`, `agency/page.tsx`, agency settings `ai/billing/branding/slack-teams/team`, evidence, `rankings/page.tsx`, client `settings/{ai,delivery}`, `onboarding`, `ask/*`, `next.config.ts`; adds Sentry. Our `error.tsx` leaves it a capture seam.
 - **phase-15b3** (docs only so far): 3b renames `/platform/themes`→`/platform/topics`, `?theme=`, `ThemeQueue`, `ThemeHeatmap`, `pendingThemes`.
@@ -49,7 +46,6 @@ C1–C11 in the 15c spec §2 (split; neutral error pages now; miles in UI; small
 - 15c-2 / investigate: E2E web server logs "destination stream closed early" around `workspace.spec.ts`; compare with a main run.
 - Deferred minors (no target): one shared `ui-primitives.test.tsx`; ConfirmDialog input id should use `useId`; chip hex duplicated in `status-chip.tsx` and `styles.css`; `labelFor` value type collapses to string; `EVIDENCE_KINDS`/`ALERT_STATUSES` SQL parity not enforced; `global-error` lacks Inter; PageSkeleton title height; dead `showsClientBilling` re-export; "Other" series #94a3b8 fails dataviz checks (pre-existing); legacy stored radius >40 km shows custom and is rejected.
 
-
 ## Owner verification steps
 Chips and labels appear on pages in 15c-2; for now:
 1. Open an unknown URL and a client you can't access: "Page not found", HTTP 404.
@@ -58,7 +54,6 @@ Chips and labels appear on pages in 15c-2; for now:
 4. Newly visible 1px borders on dense lists look right.
 5. On a rankings chart, "You" (#2A6BAC) is distinguishable from the first competitor's blue.
 6. Sign off `docs/work/phase-15c1-copy-signoff.md` (move to `docs/archive/` at merge).
-
 
 ## Brief
 Scope, audit items and the owner's answered questions live in the [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) (§2 decisions C1-C11, §3 shared pieces) and the [audit](../research/2026-10-18-phase-15-ux-audit.md); the pre-split brief is in git history (`git show 9ddfae3c:docs/work/phase-15c.md`). Binding: CLAUDE.md (tokens, 1560px, SVG charts, reads via tools / writes via `runTool`, 404 refusals), 15b help-key and sign-off rules, 15b-3 D3 (no theme redirects). Related polish: Ask delete (6b), knowledge preview (6c), webhooks/`PrefSwitch` (5a), Usage/alert cap (5b), feed hex (5c-1), heatmap table (5c-2), costs strip (8c).
