@@ -1,4 +1,4 @@
-import { agencyBilling, client, contact, membership, plan } from '@cs/db';
+import { agency, agencyBilling, client, contact, membership, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -29,6 +29,19 @@ describe('listMemberships / pickMembership', () => {
     expect(pickMembership(list, list[1]!.id)?.clientName).toBe('A1 HVAC');
     expect(pickMembership(list, 'not-mine')?.agencyName).toBe('Agency B');
     expect(pickMembership([], undefined)).toBeNull();
+  });
+
+  it('listMemberships omits archived agency and archived client memberships (7a2 D16)', async () => {
+    await member({ role: 'client_owner', clientId: IDS.clientA1 });
+    await member({ role: 'client_viewer', clientId: IDS.clientA2 });
+    await member({ agencyId: IDS.agencyB, role: 'agency_admin' });
+    await member({ role: 'agency_admin' });
+    await dbs.service.update(client).set({ archivedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    await dbs.service.update(agency).set({ archivedAt: new Date() }).where(eq(agency.id, IDS.agencyB));
+    const list = await listMemberships(dbs.service, 'u1');
+    expect(list.map((m) => [m.agencyName, m.clientName]).sort()).toEqual([['Agency A', 'A2 Dental'], ['Agency A', null]].sort());
+    await dbs.service.update(agency).set({ archivedAt: new Date() }).where(eq(agency.id, IDS.agencyA));
+    expect(await listMemberships(dbs.service, 'u1')).toEqual([]);
   });
 });
 
@@ -118,5 +131,15 @@ describe('guestAccessFor', () => {
     const ok = await clientContact({ email: 'ok@e.co' });
     expect(await guestAccessFor(dbs.service, { contactId: ok.id, agencyId: IDS.agencyB, clientId: IDS.clientA1, iat })).toBeNull();
     expect(await guestAccessFor(dbs.service, { contactId: ok.id, agencyId: IDS.agencyA, clientId: IDS.clientA2, iat })).toBeNull();
+  });
+
+  it('refuses a guest of an archived client or agency (7a2 D16)', async () => {
+    const c = await clientContact();
+    const claims = { contactId: c.id, agencyId: IDS.agencyA, clientId: IDS.clientA1, iat };
+    await dbs.service.update(client).set({ archivedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    expect(await guestAccessFor(dbs.service, claims)).toBeNull();
+    await dbs.service.update(client).set({ archivedAt: null }).where(eq(client.id, IDS.clientA1));
+    await dbs.service.update(agency).set({ archivedAt: new Date() }).where(eq(agency.id, IDS.agencyA));
+    expect(await guestAccessFor(dbs.service, claims)).toBeNull();
   });
 });

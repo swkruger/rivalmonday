@@ -65,7 +65,7 @@ export const listPoolLeadsTool = defineTool({
           activeClients: sql<number>`(count(${client.id}) filter (where ${client.status} = 'active'))::int`,
         })
         .from(agency)
-        .leftJoin(client, eq(client.agencyId, agency.id))
+        .leftJoin(client, and(eq(client.agencyId, agency.id), isNull(client.archivedAt)))
         .where(agencyServiceable(agency.id))
         .groupBy(agency.id, agency.name)
         .orderBy(asc(agency.name));
@@ -73,7 +73,7 @@ export const listPoolLeadsTool = defineTool({
         .select({ leadId: lead.id, lookup: lead.lookup, agencyName: agency.name, assignedAt: lead.assignedAt })
         .from(lead)
         .innerJoin(agency, eq(agency.id, lead.agencyId))
-        .where(and(eq(lead.source, 'platform'), isNotNull(lead.assignedAt)))
+        .where(and(eq(lead.source, 'platform'), isNotNull(lead.assignedAt), isNull(agency.archivedAt)))
         .orderBy(desc(lead.assignedAt))
         .limit(20);
       return {

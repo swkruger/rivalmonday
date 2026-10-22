@@ -1,5 +1,5 @@
 import { agency, agencyDailyStat, type Db, type Tx } from '@cs/db';
-import { asc, sql } from 'drizzle-orm';
+import { asc, isNull, sql } from 'drizzle-orm';
 
 /** The worker's / seed's service-role connection (BYPASSRLS): agency_daily_stat is service-role only. */
 export type ServiceDb = Db;
@@ -104,8 +104,8 @@ export async function computeAgencyDay(db: ServiceDb, agencyId: string, day: str
   const [r] = [
     ...(await db.execute<DayRow>(sql`
       select
-        (select count(*)::int from client where agency_id = ${agencyId} and status = 'active' and paused_at is null and created_at < ${e}) as clients_active,
-        (select count(*)::int from client where agency_id = ${agencyId} and status = 'prospect' and created_at < ${e}) as clients_prospect,
+        (select count(*)::int from client where agency_id = ${agencyId} and status = 'active' and paused_at is null and archived_at is null and created_at < ${e}) as clients_active,
+        (select count(*)::int from client where agency_id = ${agencyId} and status = 'prospect' and archived_at is null and created_at < ${e}) as clients_prospect,
         (select count(distinct user_id)::int from membership where agency_id = ${agencyId} and role in ${AGENCY_ROLES} and created_at < ${e}) as agency_seats,
         (select count(distinct user_id)::int from membership where agency_id = ${agencyId} and role in ${CLIENT_ROLES} and created_at < ${e}) as client_seats,
         (select count(*)::int from brief where agency_id = ${agencyId} and status = 'sent' and sent_at >= ${s} and sent_at < ${e}) as briefs_sent,
@@ -195,7 +195,8 @@ export async function runDailyStats(db: ServiceDb, opts: RunDailyStatsOpts = {})
   const sources = await detectStatSources(db);
   const floor = addDays(today, -BACKFILL_MAX_DAYS);
 
-  const agencies = await db.select({ id: agency.id, createdAt: agency.createdAt }).from(agency).orderBy(asc(agency.createdAt));
+  // 7a2 D16: an archived agency is deleted for the nightly job (no new stat rows).
+  const agencies = await db.select({ id: agency.id, createdAt: agency.createdAt }).from(agency).where(isNull(agency.archivedAt)).orderBy(asc(agency.createdAt));
   const daysWritten = new Set<string>();
   let agencyCount = 0;
 

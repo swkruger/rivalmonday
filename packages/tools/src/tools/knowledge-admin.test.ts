@@ -1,5 +1,5 @@
 import { createAccessContext } from '@cs/core';
-import { auditLog, kbArticle, kbChunk } from '@cs/db';
+import { agency, auditLog, client, kbArticle, kbChunk } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -110,6 +110,13 @@ describe('knowledge admin tools', () => {
     const a = r.agencies.find((x) => x.id === IDS.agencyA);
     expect(a?.clients.map((c) => c.id)).toContain(IDS.clientA1);
     expect(r.agencies.find((x) => x.id === IDS.agencyB)?.clients.map((c) => c.id)).toContain(IDS.clientB1);
+  });
+
+  it('list_kb_targets leaves out archived agencies and clients (7a2 D16)', async () => {
+    await dbs.service.update(agency).set({ archivedAt: new Date() }).where(eq(agency.id, IDS.agencyB));
+    await dbs.service.update(client).set({ archivedAt: new Date() }).where(eq(client.id, IDS.clientA2));
+    const r = (await registry.invoke(op, 'list_kb_targets', {})) as { agencies: { id: string; clients: { id: string }[] }[] };
+    expect(r.agencies.map((a) => [a.id, a.clients.map((c) => c.id)])).toEqual([[IDS.agencyA, [IDS.clientA1]]]);
   });
 
   it('list_kb_articles flags lastSyncChanged only when the last write was a changing sync', async () => {

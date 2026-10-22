@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { isPublicHttpUrl } from '@cs/collectors';
 import { KB_KINDS, KB_LEVELS, KB_MAX_BODY_BYTES, toolkit, ToolError } from '@cs/core';
 import { agency, client, kbArticle } from '@cs/db';
-import { and, asc, desc, eq, ilike, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, isNull, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, jobStatusOf, type ToolDeps } from '../deps';
 import { IMPORT_ERRORS } from '../kb/import-error';
@@ -80,7 +80,8 @@ export const listKbArticles = defineTool({
     await requirePlatformOperator(deps, ctx);
     const limit = input.limit ?? 25;
     const offset = decodeOffset(input.cursor);
-    const conds: SQL[] = [];
+    // 7a2 D16: articles of an archived agency or client are deleted for the console (left joins: NULL for platform rows too).
+    const conds: SQL[] = [isNull(agency.archivedAt), isNull(client.archivedAt)];
     if (input.level) conds.push(eq(kbArticle.level, input.level));
     if (input.agencyId) conds.push(eq(kbArticle.agencyId, input.agencyId));
     if (input.clientId) conds.push(eq(kbArticle.clientId, input.clientId));
@@ -106,7 +107,7 @@ export const listKbArticles = defineTool({
       .from(kbArticle)
       .leftJoin(agency, eq(agency.id, kbArticle.agencyId))
       .leftJoin(client, eq(client.id, kbArticle.clientId))
-      .where(conds.length ? and(...conds) : undefined)
+      .where(and(...conds))
       .orderBy(desc(kbArticle.updatedAt), kbArticle.id)
       .limit(limit + 1)
       .offset(offset);
@@ -124,8 +125,8 @@ export const listKbTargets = defineTool({
   permission: 'agency',
   async handler(ctx, _input, deps) {
     await requirePlatformOperator(deps, ctx);
-    const agencies = await deps.service.select({ id: agency.id, name: agency.name }).from(agency).orderBy(asc(agency.name), agency.id);
-    const clients = await deps.service.select({ id: client.id, name: client.name, agencyId: client.agencyId }).from(client).orderBy(asc(client.name), client.id);
+    const agencies = await deps.service.select({ id: agency.id, name: agency.name }).from(agency).where(isNull(agency.archivedAt)).orderBy(asc(agency.name), agency.id);
+    const clients = await deps.service.select({ id: client.id, name: client.name, agencyId: client.agencyId }).from(client).where(isNull(client.archivedAt)).orderBy(asc(client.name), client.id);
     return { agencies: agencies.map((a) => ({ ...a, clients: clients.filter((c) => c.agencyId === a.id).map(({ id, name }) => ({ id, name })) })) };
   },
 });
@@ -226,10 +227,10 @@ export const importKbUrl = defineTool({
     if (input.level === 'client' && !input.clientId) throw new ToolError('invalid_input', 'A client is required');
     // Check the scope now, not when the job saves: a bad pair would otherwise fetch the page and fail late.
     if (input.level !== 'platform') {
-      const [ag] = await deps.service.select({ id: agency.id }).from(agency).where(eq(agency.id, input.agencyId!));
+      const [ag] = await deps.service.select({ id: agency.id }).from(agency).where(and(eq(agency.id, input.agencyId!), isNull(agency.archivedAt)));
       if (!ag) throw new ToolError('invalid_input', 'Agency not found');
       if (input.level === 'client') {
-        const [cl] = await deps.service.select({ id: client.id }).from(client).where(and(eq(client.id, input.clientId!), eq(client.agencyId, ag.id)));
+        const [cl] = await deps.service.select({ id: client.id }).from(client).where(and(eq(client.id, input.clientId!), eq(client.agencyId, ag.id), isNull(client.archivedAt)));
         if (!cl) throw new ToolError('invalid_input', 'Client not found in that agency');
       }
     }

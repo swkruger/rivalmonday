@@ -1,6 +1,6 @@
 import { type AccessContext, ToolError, toolkit } from '@cs/core';
 import { agency, supportSession } from '@cs/db';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { pageOf, pageResult } from '../paging';
@@ -56,7 +56,7 @@ function requireAgencyAdmin(ctx: AccessContext): void {
 }
 
 async function agencyExists(deps: Pick<ToolDeps, 'service'>, id: string): Promise<boolean> {
-  return UUID_RE.test(id) && (await deps.service.select({ id: agency.id }).from(agency).where(eq(agency.id, id)).limit(1)).length > 0;
+  return UUID_RE.test(id) && (await deps.service.select({ id: agency.id }).from(agency).where(and(eq(agency.id, id), isNull(agency.archivedAt))).limit(1)).length > 0;
 }
 
 export const startSupportSession = defineTool({

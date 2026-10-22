@@ -110,6 +110,23 @@ describe('list_platform_agencies', () => {
     expect(r.rows.find((x) => x.id === IDS.agencyB)).toMatchObject({ clientsActive: 0 });
   });
 
+  it('hides archived agencies and does not count archived clients (7a2 D16)', async () => {
+    await seedPlatform();
+    await dbs.service.update(agency).set({ archivedAt: new Date() }).where(eq(agency.id, IDS.agencyB));
+    await dbs.service.update(client).set({ archivedAt: new Date() }).where(eq(client.id, IDS.clientA2));
+    const r = (await registry.invoke(op, 'list_platform_agencies', {})) as AgencyList;
+    expect(r.rows.map((x) => x.id)).toEqual([IDS.agencyA]);
+    expect(r.rows[0]).toMatchObject({ clientsActive: 1, clientsProspect: 0 });
+    const overview = (await registry.invoke(op, 'platform_overview', { range: '12w' })) as Overview;
+    expect(overview.tiles.agencies.value).toBe(1);
+    await expect(registry.invoke(op, 'get_platform_agency', { agencyId: IDS.agencyB, range: '12w' })).rejects.toMatchObject({ code: 'not_found' });
+    const one = (await registry.invoke(op, 'get_platform_agency', { agencyId: IDS.agencyA, range: '12w' })) as { clients: { id: string }[] };
+    expect(one.clients.map((c) => c.id)).toEqual([IDS.clientA1]);
+    const feed = (await registry.invoke(op, 'list_platform_activity', {})) as { items: { agencyId: string; clientName?: string }[] };
+    expect(feed.items.some((i) => i.agencyId === IDS.agencyB)).toBe(false);
+    expect(feed.items.some((i) => i.clientName === 'A2 Dental')).toBe(false);
+  });
+
   it('billingState is the agency_billing state, pilot when there is no row', async () => {
     await seedPlatform();
     await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'past_due' });

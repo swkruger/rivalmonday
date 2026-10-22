@@ -3,7 +3,7 @@ import { agencyBilling, agencyOnboarding, client } from '@cs/db';
 import { IDS, openTestDbs } from '@cs/db/test-helpers';
 import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { assertCanActivateClient, billingAccess } from './access';
+import { assertCanActivateClient, billingAccess, countActiveClients } from './access';
 import { AGENCY, addClients, resetBilling, setBilling } from './test-util';
 
 const dbs = openTestDbs();
@@ -126,6 +126,12 @@ describe('seat counts and paused clients (9b)', () => {
     const [c] = await dbs.owner.select({ id: client.id }).from(client).where(eq(client.agencyId, AGENCY)).limit(1);
     await dbs.owner.update(client).set({ pausedAt: new Date(), pausedBy: 'auto' }).where(eq(client.id, c!.id));
     expect(await billingAccess(dbs.service, AGENCY)).toMatchObject({ activeClients: 2, canAddActiveClient: true });
+  });
+
+  it('countActiveClients excludes an archived client (7a2 D16)', async () => {
+    const [c] = await dbs.owner.select({ id: client.id }).from(client).where(eq(client.agencyId, AGENCY)).limit(1);
+    await dbs.owner.update(client).set({ archivedAt: new Date() }).where(eq(client.id, c!.id));
+    expect(await countActiveClients(dbs.service, AGENCY)).toBe(1);
   });
 });
 

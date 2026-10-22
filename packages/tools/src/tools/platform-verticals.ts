@@ -1,7 +1,7 @@
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { agency, businessArea, client, llmCall, vertical } from '@cs/db';
 import { GENERIC_VERTICAL_ID } from '@cs/verticals';
-import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { catalogOf } from '../catalog/access';
 import { mergeAreaTx, mergeVerticalTx } from '../catalog/merge';
@@ -59,9 +59,10 @@ export const listCatalogReviewTool = defineTool({
       const verticals = await db.select().from(vertical).where(and(ne(vertical.status, 'merged'), ne(vertical.id, GENERIC_VERTICAL_ID))).orderBy(asc(vertical.createdAt));
       const areas = await db.select().from(businessArea).where(ne(businessArea.status, 'merged')).orderBy(asc(businessArea.createdAt));
       const clientsOf = new Map<string, number>();
-      for (const r of await db.select({ v: client.verticalId, n: sql<number>`count(*)::int` }).from(client).groupBy(client.verticalId)) clientsOf.set(r.v, r.n);
+      // 7a2 D16: archived clients are deleted, so they do not count as users of an entry.
+      for (const r of await db.select({ v: client.verticalId, n: sql<number>`count(*)::int` }).from(client).where(isNull(client.archivedAt)).groupBy(client.verticalId)) clientsOf.set(r.v, r.n);
       const areaClients = new Map<string, number>();
-      const usage = await db.execute<{ v: string; s: string; n: number }>(sql`select c.vertical_id as v, e as s, count(*)::int as n from client c, jsonb_array_elements_text(c.services) as e group by 1, 2`);
+      const usage = await db.execute<{ v: string; s: string; n: number }>(sql`select c.vertical_id as v, e as s, count(*)::int as n from client c, jsonb_array_elements_text(c.services) as e where c.archived_at is null group by 1, 2`);
       for (const r of usage) areaClients.set(`${r.v}/${r.s}`, r.n);
       const costs = new Map<string, number>();
       for (const r of await db.select({ v: llmCall.verticalId, c: sql<number>`sum(${llmCall.costUsd})::float8` }).from(llmCall)

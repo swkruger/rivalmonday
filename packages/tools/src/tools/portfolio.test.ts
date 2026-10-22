@@ -25,6 +25,12 @@ beforeEach(async () => {
 });
 
 describe('get_portfolio', () => {
+  it('hides an archived client (7a2 D16)', async () => {
+    await dbs.service.update(client).set({ archivedAt: new Date() }).where(eq(client.id, IDS.clientA2));
+    const { items } = (await registry.invoke(admin, 'get_portfolio', {})) as { items: { clientId: string }[] };
+    expect(items.map((i) => i.clientId)).toEqual([IDS.clientA1]);
+  });
+
   it('summarises each visible client', async () => {
     const eventId = await scored(86, 'alert', 2);
     await scored(90, 'archive', 1); // archive never counts

@@ -110,7 +110,7 @@ export async function resolveSession(
       expiresAt: supportSession.expiresAt, endedAt: supportSession.endedAt, agencyName: agency.name,
     })
     .from(supportSession)
-    .innerJoin(agency, eq(agency.id, supportSession.agencyId))
+    .innerJoin(agency, and(eq(agency.id, supportSession.agencyId), isNull(agency.archivedAt))) // 7a2 D16
     .where(eq(supportSession.id, a.sessionId));
   if (!row || row.endedAt !== null || row.platformUserId !== a.userId) return { kind: 'invalid' };
   if (row.expiresAt.getTime() <= now.getTime()) {

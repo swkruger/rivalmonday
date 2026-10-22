@@ -27,7 +27,8 @@ const IsoDate = z.string().datetime();
 const logDegraded = (what: string, e: unknown) => console.error('[billing] gateway call failed', { what }, (e as { name?: string } | null)?.name);
 
 async function requireAgency(deps: ToolDeps, agencyId: string): Promise<void> {
-  const [a] = await deps.service.select({ id: agency.id }).from(agency).where(eq(agency.id, agencyId));
+  // 7a2 D16: an archived agency is deleted for the console.
+  const [a] = await deps.service.select({ id: agency.id }).from(agency).where(and(eq(agency.id, agencyId), isNull(agency.archivedAt)));
   if (!a) throw new ToolError('not_found', 'Agency not found');
 }
 
@@ -161,7 +162,7 @@ export const createDiscountCodeTool = defineTool({
       if ((input.duration === 'repeating') !== (input.durationMonths !== undefined)) throw new ToolError('invalid_input', 'durationMonths is required for (and only for) a repeating duration');
       const restricted = input.restrictedAgencyIds?.length ? [...new Set(input.restrictedAgencyIds)] : null;
       if (restricted) {
-        const found = await deps.service.select({ id: agency.id }).from(agency).where(inArray(agency.id, restricted));
+        const found = await deps.service.select({ id: agency.id }).from(agency).where(and(inArray(agency.id, restricted), isNull(agency.archivedAt)));
         if (found.length !== restricted.length) throw new ToolError('invalid_input', 'One or more restricted agencies do not exist');
       }
       const [dup] = await deps.service.select({ id: discountCode.id }).from(discountCode).where(sql`lower(${discountCode.code}) = lower(${input.code})`);
@@ -397,8 +398,9 @@ export const getBillingOverviewTool = defineTool({
         .select({ mrr: sql<number>`coalesce(sum(${d.mrrCents}), 0)::int`, seats: sql<number>`coalesce(sum(${d.paidSeats}), 0)::int` })
         .from(d)
         .where(eq(d.day, sql`(select max(day) from agency_daily_stat)`));
-      const counted = await deps.service.select({ state: agencyBilling.state, n: sql<number>`count(*)::int` }).from(agencyBilling).groupBy(agencyBilling.state);
-      const [{ total } = { total: 0 }] = await deps.service.select({ total: sql<number>`count(*)::int` }).from(agency);
+      const counted = await deps.service.select({ state: agencyBilling.state, n: sql<number>`count(*)::int` }).from(agencyBilling)
+        .innerJoin(agency, eq(agency.id, agencyBilling.agencyId)).where(isNull(agency.archivedAt)).groupBy(agencyBilling.state);
+      const [{ total } = { total: 0 }] = await deps.service.select({ total: sql<number>`count(*)::int` }).from(agency).where(isNull(agency.archivedAt));
       const byState: Record<string, number> = Object.fromEntries(BILLING_STATES.map((s) => [s, 0]));
       let withRow = 0;
       for (const c of counted) { byState[c.state] = c.n; withRow += c.n; }
@@ -590,13 +592,13 @@ export const getConnectOverviewTool = defineTool({
         .select({ agencyId: agencyConnect.agencyId, name: agency.name, status: agencyConnect.status, chargesEnabled: agencyConnect.chargesEnabled, fee: agencyConnect.applicationFeePercent })
         .from(agencyConnect)
         .innerJoin(agency, eq(agency.id, agencyConnect.agencyId))
-        .where(sql`${agencyConnect.status} <> 'disconnected'`)
+        .where(and(sql`${agencyConnect.status} <> 'disconnected'`, isNull(agency.archivedAt)))
         .orderBy(agency.name, agency.id);
       const counts = await deps.service
         .select({ agencyId: clientBilling.agencyId, state: clientBilling.state, n: sql<number>`count(*)::int` })
         .from(clientBilling)
         .innerJoin(client, eq(client.id, clientBilling.clientId))
-        .where(and(eq(clientBilling.enabled, true), eq(client.status, 'active'), inArray(clientBilling.state, ['active', 'payment_needed'])))
+        .where(and(eq(clientBilling.enabled, true), eq(client.status, 'active'), isNull(client.archivedAt), inArray(clientBilling.state, ['active', 'payment_needed'])))
         .groupBy(clientBilling.agencyId, clientBilling.state);
       const n = (agencyId: string, state: string) => counts.find((c) => c.agencyId === agencyId && c.state === state)?.n ?? 0;
       const agencies = [];

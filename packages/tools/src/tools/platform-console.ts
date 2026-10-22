@@ -1,6 +1,6 @@
 import { type AccessContext, ToolError, toolkit } from '@cs/core';
 import { agency, agencyBilling, agencyDailyStat, BILLING_STATES, auditLog, brief, client, membership, supportSession } from '@cs/db';
-import { and, eq, gte, inArray, lte, type SQL, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lte, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { pageOf, pageResult } from '../paging';
@@ -84,12 +84,13 @@ export async function liveAgencies(deps: Pick<ToolDeps, 'service'>, now: Date, a
   const d28 = addDays(today, -28);
   const members = sql`(select m.user_id from membership m where m.agency_id = a.id)`;
   const staff = sql`(select m.user_id from membership m where m.agency_id = a.id and m.role in ${AGENCY_ROLES})`;
-  const where: SQL = agencyId ? sql`where a.id = ${agencyId}` : sql``;
+  // 7a2 D16: archived agencies and clients are deleted for the console.
+  const where: SQL = agencyId ? sql`where a.archived_at is null and a.id = ${agencyId}` : sql`where a.archived_at is null`;
   const rows = [
     ...(await deps.service.execute<LiveRow>(sql`
       select a.id, a.name, a.created_at,
-        (select count(*)::int from client c where c.agency_id = a.id and c.status = 'active' and c.paused_at is null) as clients_active,
-        (select count(*)::int from client c where c.agency_id = a.id and c.status = 'prospect') as clients_prospect,
+        (select count(*)::int from client c where c.agency_id = a.id and c.status = 'active' and c.paused_at is null and c.archived_at is null) as clients_active,
+        (select count(*)::int from client c where c.agency_id = a.id and c.status = 'prospect' and c.archived_at is null) as clients_prospect,
         (select count(distinct m.user_id)::int from membership m where m.agency_id = a.id and m.role in ${AGENCY_ROLES}) as agency_seats,
         (select count(distinct m.user_id)::int from membership m where m.agency_id = a.id and m.role in ${CLIENT_ROLES}) as client_seats,
         (select count(distinct s."userId")::int from auth.session s where s."userId" in ${members} and ${SESSION_ACTIVITY_AT} >= ${weekStart}) as wau,
@@ -292,7 +293,7 @@ export const getPlatformAgency = defineTool({
   audit: 'skip-web',
   async handler(ctx: AccessContext, input, deps) {
     const role = await requirePlatformOperator(deps, ctx);
-    const exists = UUID_RE.test(input.agencyId) && (await deps.service.select({ id: agency.id }).from(agency).where(eq(agency.id, input.agencyId)).limit(1)).length > 0;
+    const exists = UUID_RE.test(input.agencyId) && (await deps.service.select({ id: agency.id }).from(agency).where(and(eq(agency.id, input.agencyId), isNull(agency.archivedAt))).limit(1)).length > 0;
     // Unknown agency: no target audit_log to write into (FK), so the not_found call lands on the platform log.
     return withPlatformAudit(deps, ctx, { tool: 'get_platform_agency', input, role, agencyId: exists ? input.agencyId : undefined }, async () => {
       if (!exists) throw new ToolError('not_found', 'Agency not found');
@@ -308,7 +309,7 @@ export const getPlatformAgency = defineTool({
         deps.service
           .select({ id: client.id, name: client.name, status: client.status, createdAt: client.createdAt })
           .from(client)
-          .where(eq(client.agencyId, input.agencyId))
+          .where(and(eq(client.agencyId, input.agencyId), isNull(client.archivedAt)))
           .orderBy(client.name, client.id),
       ]);
       const a = live[0];
@@ -383,8 +384,8 @@ export const listPlatformActivity = defineTool({
       const today = utcDay(new Date());
       const sinceDay = addDays(today, -AT_RISK_WINDOW_DAYS);
       const [agencies, clients, activations, firstBriefs, stats, supportStarts] = await Promise.all([
-        deps.service.select({ id: agency.id, name: agency.name, createdAt: agency.createdAt }).from(agency),
-        deps.service.select({ id: client.id, agencyId: client.agencyId, name: client.name, createdAt: client.createdAt }).from(client),
+        deps.service.select({ id: agency.id, name: agency.name, createdAt: agency.createdAt }).from(agency).where(isNull(agency.archivedAt)),
+        deps.service.select({ id: client.id, agencyId: client.agencyId, name: client.name, createdAt: client.createdAt }).from(client).where(isNull(client.archivedAt)),
         deps.service
           .select({ id: auditLog.id, agencyId: auditLog.agencyId, at: auditLog.createdAt })
           .from(auditLog)

@@ -47,7 +47,7 @@ export async function runSetupSuggestions(
     .select({ c: client, setup: clientSetup })
     .from(client)
     .innerJoin(clientSetup, eq(clientSetup.clientId, client.id))
-    .where(and(eq(client.id, clientId), agencyServiceable(client.agencyId)))
+    .where(and(eq(client.id, clientId), isNull(client.archivedAt), agencyServiceable(client.agencyId)))
     .limit(1);
   if (!row) return { skipped: 'client, setup row or serviceable agency not found' };
   const { c, setup } = row;
@@ -130,6 +130,7 @@ export async function runSetupReminders(d: { db: Db; delivery: DeliveryConfig },
         isNull(clientSetup.dismissedAt),
         inArray(client.status, ['active', 'prospect']),
         isNull(client.pausedAt),
+        isNull(client.archivedAt), // 7a2 D16
         agencyServiceable(client.agencyId),
       ),
     );

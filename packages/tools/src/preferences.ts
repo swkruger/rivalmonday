@@ -1,7 +1,7 @@
 import { ToolError } from '@cs/core';
 import { agency, AGENCY_KINDS, client, CLIENT_KINDS, contact, type Db, type NotificationKind, notificationPref, type QuietHours } from '@cs/db';
 import { parseHhmm, PERSONAL_CHANNELS, type PersonalChannel, setNotificationPref } from '@cs/engine';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { validTimezone } from './timezone';
 
 export interface MyContactSettings {
@@ -30,7 +30,7 @@ export async function myNotificationSettings(service: Db, userId: string): Promi
     .from(contact)
     .innerJoin(agency, eq(agency.id, contact.agencyId))
     .leftJoin(client, eq(client.id, contact.clientId))
-    .where(and(eq(contact.userId, userId), eq(contact.active, true)))
+    .where(and(eq(contact.userId, userId), eq(contact.active, true), isNull(agency.archivedAt), isNull(client.archivedAt))) // 7a2 D16
     .orderBy(asc(agency.name), asc(client.name));
   const out: MyContactSettings[] = [];
   for (const { c, agencyName, clientName } of rows) {

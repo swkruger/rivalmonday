@@ -3,10 +3,11 @@ import { client } from './schema/tenancy';
 
 /**
  * Phase 9a (P2): true when the agency may be serviced by worker schedulers. An agency without an
- * `agency_billing` row is serviceable; `read_only` and `suspended` are not. Pass the agency id column (or a raw `sql` fragment such as `sql.raw('cl.agency_id')` inside hand-written aliased SQL).
+ * `agency_billing` row is serviceable; `read_only` and `suspended` are not, nor is an archived agency (7a2 D16). Pass the agency id column (or a raw `sql` fragment such as `sql.raw('cl.agency_id')` inside hand-written aliased SQL).
  */
 export function agencyServiceable(agencyIdCol: AnyColumn | SQL): SQL {
-  return sql`NOT EXISTS (SELECT 1 FROM agency_billing ab WHERE ab.agency_id = ${agencyIdCol} AND ab.state IN ('read_only', 'suspended'))`;
+  return sql`(NOT EXISTS (SELECT 1 FROM agency_billing ab WHERE ab.agency_id = ${agencyIdCol} AND ab.state IN ('read_only', 'suspended'))
+    AND NOT EXISTS (SELECT 1 FROM agency ax WHERE ax.id = ${agencyIdCol} AND ax.archived_at IS NOT NULL))`;
 }
 
 /**
@@ -20,13 +21,25 @@ export function agencyReducedTrial(agencyIdCol: AnyColumn | SQL): SQL {
 }
 
 /**
- * Phase 9b (Q1): true when schedulers/seat counts may service the client: `status = 'active'` and not paused.
+ * Phase 9b (Q1): true when schedulers/seat counts may service the client: `status = 'active'`, not paused and not
+ * archived (7a2 D16: archived = deleted for schedulers).
  * Pass the Drizzle `client` table, or a SQL alias string (`'cl'`, `'c'`) for hand-written queries.
  */
 export function clientServiceable(t: typeof client | string): SQL {
   if (typeof t === 'string') {
     if (!/^[a-z_][a-z0-9_]*$/i.test(t)) throw new Error(`clientServiceable: invalid alias ${t}`);
-    return sql.raw(`(${t}.status = 'active' AND ${t}.paused_at IS NULL)`);
+    return sql.raw(`(${t}.status = 'active' AND ${t}.paused_at IS NULL AND ${t}.archived_at IS NULL)`);
   }
-  return sql`(${t.status} = 'active' AND ${t.pausedAt} IS NULL)`;
+  return sql`(${t.status} = 'active' AND ${t.pausedAt} IS NULL AND ${t.archivedAt} IS NULL)`;
+}
+
+/**
+ * 7a2 (D17): true when any `brief_item`, `recommendation` or `alert` cites the evidence id in its `evidence_ids`.
+ * Exported for future evidence pruning; nothing deletes evidence in 7a. Same argument forms as `agencyServiceable`.
+ */
+export function evidenceReferenced(evidenceIdCol: AnyColumn | SQL): SQL {
+  const col = evidenceIdCol;
+  return sql`(EXISTS (SELECT 1 FROM brief_item bi WHERE bi.evidence_ids @> jsonb_build_array((${col})::text))
+  OR EXISTS (SELECT 1 FROM recommendation r WHERE r.evidence_ids @> jsonb_build_array((${col})::text))
+  OR EXISTS (SELECT 1 FROM alert a WHERE a.evidence_ids @> jsonb_build_array((${col})::text)))`;
 }

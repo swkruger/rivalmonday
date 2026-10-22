@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { type AccessContext, ToolError } from '@cs/core';
 import { agency, askMessage, askThread, client, createAuditSink } from '@cs/db';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { ToolDeps } from './deps';
 import { MCP_MAX_LIMIT, pageResult } from './paging';
 
@@ -84,7 +84,7 @@ export async function listReviewableAskThreads(
     .from(askThread)
     .innerJoin(client, and(eq(client.id, askThread.clientId), eq(client.agencyId, askThread.agencyId)))
     .innerJoin(agency, eq(agency.id, askThread.agencyId))
-    .where(eq(client.askReviewAllowed, true))
+    .where(and(eq(client.askReviewAllowed, true), isNull(client.archivedAt), isNull(agency.archivedAt)))
     .orderBy(desc(askThread.createdAt), asc(askThread.id))
     .limit(limit + 1)
     .offset(offset);
@@ -125,7 +125,7 @@ export async function getReviewableAskThread(deps: ReviewDeps, ctx: AccessContex
         .from(askThread)
         .innerJoin(client, and(eq(client.id, askThread.clientId), eq(client.agencyId, askThread.agencyId)))
         .innerJoin(agency, eq(agency.id, askThread.agencyId))
-        .where(and(eq(askThread.id, threadId), eq(client.askReviewAllowed, true)))
+        .where(and(eq(askThread.id, threadId), eq(client.askReviewAllowed, true), isNull(client.archivedAt), isNull(agency.archivedAt)))
     : [];
   if (!t) throw new ToolError('not_found', 'Thread not found');
   const messages = await deps.service

@@ -733,7 +733,7 @@ export const listClientBillingStatusTool = defineTool({
       .select({ id: client.id, name: client.name, pausedAt: client.pausedAt, b: clientBilling })
       .from(client)
       .leftJoin(clientBilling, eq(clientBilling.clientId, client.id))
-      .where(and(eq(client.agencyId, ctx.agencyId), eq(client.status, 'active')))
+      .where(and(eq(client.agencyId, ctx.agencyId), eq(client.status, 'active'), isNull(client.archivedAt)))
       .orderBy(asc(client.name), asc(client.id));
     return {
       clients: rows.filter((r) => canAccessClient(ctx, r.id)).map((r) => ({
@@ -761,7 +761,7 @@ export const getClientRevenueTool = defineTool({
       .select({ state: clientBilling.state, billedPriceCents: clientBilling.billedPriceCents })
       .from(clientBilling)
       .innerJoin(client, eq(client.id, clientBilling.clientId))
-      .where(and(eq(clientBilling.agencyId, ctx.agencyId), eq(clientBilling.enabled, true), eq(client.status, 'active')));
+      .where(and(eq(clientBilling.agencyId, ctx.agencyId), eq(clientBilling.enabled, true), eq(client.status, 'active'), isNull(client.archivedAt)));
     const active = rows.filter((r) => r.state === 'active');
     const mrrCents = active.reduce((n, r) => n + (r.billedPriceCents ?? 0), 0);
     // Our cost is the 9a invoice before discounts: plan base + seats beyond the included ones; a pilot agency pays nothing.

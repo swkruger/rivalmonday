@@ -1,6 +1,6 @@
 import { type AccessContext, createAccessContext, type Feature, FEATURES, isAgencyRole, type Role } from '@cs/core';
 import { agency, client, contact, type Db, membership } from '@cs/db';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { planFeaturesFor } from './plan-features';
 
 export interface MembershipSummary {
@@ -15,13 +15,15 @@ export interface MembershipSummary {
   createdAt: Date;
 }
 
+/** 7a2 D16: memberships of an archived agency or client are dropped (sign-in lands on `/no-access`; MCP `tokenAccess` inherits it). */
 export async function listMemberships(service: Db, userId: string): Promise<MembershipSummary[]> {
   const rows = await service
     .select({ m: membership, agencyName: agency.name, clientName: client.name })
     .from(membership)
     .innerJoin(agency, eq(agency.id, membership.agencyId))
     .leftJoin(client, eq(client.id, membership.clientId))
-    .where(eq(membership.userId, userId))
+    // `client.archived_at` is NULL for agency-level memberships too (left join, no client row).
+    .where(and(eq(membership.userId, userId), isNull(agency.archivedAt), isNull(client.archivedAt)))
     .orderBy(asc(membership.createdAt), asc(membership.id));
   return rows.map(({ m, agencyName, clientName }) => ({
     id: m.id, agencyId: m.agencyId, agencyName, role: m.role as Role, clientId: m.clientId, clientName: clientName ?? null,
@@ -72,6 +74,13 @@ export async function guestAccessFor(service: Db, g: GuestSessionClaims): Promis
   const [c] = await service.select().from(contact).where(and(eq(contact.id, g.contactId), eq(contact.agencyId, g.agencyId)));
   if (!c || !c.active || c.clientId === null || c.clientId !== g.clientId) return null;
   if (c.linksRevokedBefore && g.iat * 1000 < c.linksRevokedBefore.getTime()) return null;
+  // 7a2 D16: an archived client or agency is deleted for its guests too.
+  const [live] = await service
+    .select({ id: client.id })
+    .from(client)
+    .innerJoin(agency, eq(agency.id, client.agencyId))
+    .where(and(eq(client.id, g.clientId), eq(client.agencyId, g.agencyId), isNull(client.archivedAt), isNull(agency.archivedAt)));
+  if (!live) return null;
   return createAccessContext({
     agencyId: g.agencyId, userId: `contact:${c.id}`, role: 'client_viewer', clientScope: [g.clientId],
     features: await clientFeatures(service, g.clientId), planFeatures: await planFeaturesFor(service, g.agencyId),

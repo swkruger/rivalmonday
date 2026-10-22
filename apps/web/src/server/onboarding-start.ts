@@ -1,4 +1,4 @@
-import { agencyOnboarding, type Db, membership } from '@cs/db';
+import { agency, agencyOnboarding, type Db, membership } from '@cs/db';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { openPendingSignup } from './pending-signup';
 
@@ -12,6 +12,7 @@ export async function onboardingStartTarget(
 ): Promise<{ path: '/onboarding'; membershipId: string } | { path: '/sign-up/problem' | '/agency' }> {
   const [open] = await service.select({ id: membership.id }).from(membership)
     .innerJoin(agencyOnboarding, eq(agencyOnboarding.agencyId, membership.agencyId))
+    .innerJoin(agency, and(eq(agency.id, membership.agencyId), isNull(agency.archivedAt))) // 7a2 D16
     .where(and(eq(membership.userId, user.id), eq(membership.role, 'agency_admin'), isNull(agencyOnboarding.completedAt), isNull(agencyOnboarding.dismissedAt)))
     .orderBy(desc(membership.createdAt)).limit(1);
   if (open) return { path: '/onboarding', membershipId: open.id };

@@ -18,14 +18,14 @@ export interface ConnectDailyResult {
 
 /**
  * The one client-MRR definition (shared with `get_client_revenue` and the daily stat): the summed `billed_price_cents`
- * of enabled `active` subscriptions of `active` clients. Paused clients still count (their subscription still bills).
+ * of enabled `active` subscriptions of `active`, non-archived clients. Paused clients still count (their subscription still bills).
  */
 export async function clientMrrCents(db: Db, agencyId: string): Promise<number> {
   const rows = await db
     .select({ billed: clientBilling.billedPriceCents })
     .from(clientBilling)
     .innerJoin(client, eq(client.id, clientBilling.clientId))
-    .where(and(eq(clientBilling.agencyId, agencyId), eq(clientBilling.enabled, true), eq(clientBilling.state, 'active'), eq(client.status, 'active')));
+    .where(and(eq(clientBilling.agencyId, agencyId), eq(clientBilling.enabled, true), eq(clientBilling.state, 'active'), eq(client.status, 'active'), isNull(client.archivedAt)));
   return rows.reduce((n, r) => n + (r.billed ?? 0), 0);
 }
 
@@ -107,7 +107,7 @@ async function autoPause(db: Db, agencyId: string, days: number, now: Date): Pro
     .where(and(
       eq(clientBilling.agencyId, agencyId), eq(clientBilling.state, 'payment_needed'), eq(clientBilling.enabled, true), lte(clientBilling.paymentFailedSince, cutoff),
       or(isNull(clientBilling.autoPausedFailureAt), ne(clientBilling.autoPausedFailureAt, clientBilling.paymentFailedSince)),
-      eq(client.status, 'active'), isNull(client.pausedAt),
+      eq(client.status, 'active'), isNull(client.pausedAt), isNull(client.archivedAt),
     ));
   let paused = 0;
   for (const { clientId, name } of due) {

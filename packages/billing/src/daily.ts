@@ -1,5 +1,5 @@
 import { type AgencyBillingRow, type Db, type PlanRow, agency, agencyBilling, agencyDailyStat, billingNotice } from '@cs/db';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { planFor } from './access';
 import { applyBillingSignal } from './apply';
 import { clientMrrCents, runConnectDaily } from './connect-daily';
@@ -84,7 +84,8 @@ export async function runBillingDaily(db: Db, gw: BillingGateway | null, now: Da
   const result: BillingDailyResult = { transitions: 0, reminders: 0, seatRetries: 0, drift: 0 };
   const yesterday = utcDay(new Date(now.getTime() - DAY_MS));
   let missingStats = 0;
-  const agencies = await db.select({ id: agency.id }).from(agency);
+  // 7a2 D16: an archived agency is deleted for schedulers (no reminders, timers or reconciliation).
+  const agencies = await db.select({ id: agency.id }).from(agency).where(isNull(agency.archivedAt));
 
   for (const { id: agencyId } of agencies) {
     try {
