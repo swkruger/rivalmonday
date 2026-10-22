@@ -90,7 +90,8 @@ const setupStaffCalls = (clientId: (ids: DemoIds) => string): CoverageCall[] => 
 const setupPending = (ids: DemoIds) => ids.clients.setupPending;
 
 /** Pages that only redirect (`/agency/settings` and `/c/[clientId]/settings` open their first tab): no seeded data to check. The two creation forms (`/agency/clients/new`, `/agency/prospects/new`) read only the page guide list (15b-2), added by `withGuideReads`. */
-export const NO_DATA_ROUTES = ['/agency/settings', '/c/[clientId]/settings'] as const;
+// '/e2e-throw' is an E2E-only page that throws on purpose (404 unless E2E_THROW_PAGE=1): no data to read.
+export const NO_DATA_ROUTES = ['/agency/settings', '/c/[clientId]/settings', '/e2e-throw'] as const;
 
 /**
  * Tools read by the shared shell (`components/shell/app-shell.tsx`, rendered by the `(app)` and `(platform)` layouts) on every page. They are checked once, in the screen entry named here, rather

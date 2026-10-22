@@ -22,9 +22,17 @@ test('unknown URL shows Page not found with status 404', { tag: ['@errors'] }, a
 test('a page that throws keeps the sidebar and shows Something went wrong', { tag: ['@errors'] }, async ({ page }) => {
   await page.goto('/e2e-throw');
   await expect(page.getByRole('heading', { level: 1, name: 'Something went wrong' })).toBeVisible();
+  await expect(page).toHaveTitle('Something went wrong');
   await expect(page.locator('aside')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Go to your home page' })).toBeVisible();
   await expect(page.getByText(/^Reference: \S+/)).toBeVisible();
   expect(await page.content()).not.toContain('secret detail');
+});
+
+test('a refused in-app URL is a 404 with the neutral page and bare title', { tag: ['@errors'] }, async ({ page }) => {
+  const response = await page.goto('/c/00000000-0000-4000-8000-0000000000aa/overview');
+  expect(response?.status()).toBe(404);
+  await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+  await expect(page).toHaveTitle('Page not found');
 });

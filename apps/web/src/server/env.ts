@@ -57,6 +57,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
   if (defaultAgencyId && !isUuid(defaultAgencyId)) problems.push('DEFAULT_AGENCY_ID must be a uuid');
   const askFake = env.ASK_FAKE_AI?.trim() ?? '';
   if (askFake && env.VERCEL_ENV?.trim() === 'production') problems.push('ASK_FAKE_AI must not be set in production');
+  if (env.E2E_THROW_PAGE?.trim() && env.VERCEL_ENV?.trim() === 'production') problems.push('E2E_THROW_PAGE must not be set in production');
   const setupFake = env.SETUP_FAKE_LOOKUP?.trim() ?? '';
   if (setupFake && env.VERCEL_ENV?.trim() === 'production') problems.push('SETUP_FAKE_LOOKUP must not be set in production');
   const billingFake = env.BILLING_FAKE_GATEWAY?.trim() || undefined;
