@@ -7,12 +7,11 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ## Phase 7 — Hardening & pilot
 
+### Launch gate (before 7a1 Task 12, the live deploy)
+- [ ] **HIGH - gates 7a1 Task 12:** shell DB stages: (app) shell ~12 sequential stages/page (max 22), (platform) 19-20 (`list_platform_costs` per-snapshot-row queries); target `--assert-db-stages 8`; also time the Better Auth pg pool and profile ask/[threadId], reports/[reportId], kb/[id] — *from 7a*
+
 ### Security & data
-- [ ] Soft-delete/archival before any delete feature — audit/ledger rows cascade-delete with agency/client today — *from Phase 1 review*
-- [ ] Least-privilege worker role (worker uses the owner `DATABASE_URL`); must cover the 8 Phase 4b delivery jobs; web `jobStatus` reads `pgboss.job` with the owner URL (least-privilege queue access) — *from Phase 1, 3d, 4b, 5b-1*
 - [ ] Retention keeps `brief_item.evidence_ids`, `recommendation.evidence_ids` and `alert.evidence_ids` evidence for the brief's/alert's lifetime — *from 4a/4b cross-phase*
-- [ ] Postmark bounce/complaint webhooks deactivate contacts (a hard bounce just fails that send today) — *from 4b*
-- [ ] Object store `put` can overwrite (fs `wx` flag; R2 `IfNoneMatch: '*'` once verified live) — *from 2a review*
 
 ### Budget & cost
 - [ ] Enforce caps (pause Ask/jobs at 100 %) and allocate shared collection cost to clients — *from 5b-2 (decision 18)*
@@ -29,25 +28,34 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Per-task AI HTTP timeouts (60 s × 3 worst case, `packages/ai/src/http.ts`) — *from Phase 1 review (Vercel)*
 
 ### Deployment
-- [ ] Vercel file tracing for `packages/ai/config/ai.yaml` — *from Phase 1 review*
-- [ ] `@cs/core` uses `node:crypto` (not Edge-safe) — *from Phase 1 review*
 - [ ] Deploy note: migration `0025`'s `client_score_thresholds_check` fails on any existing malformed row — check before applying to a DB with real clients — *from 3d final review*
 - [ ] Deploy note: `magicLink({ storeToken: 'hashed' })` invalidates links issued before the cutover (15-min window) — expect a few "expired" reports — *from 5b-2 final review Minor 7*
-- [ ] Align Postgres versions (Neon 18 vs CI/compose `pgvector/pgvector:pg16`) — *from Phase 1 review*
-- [ ] Add `drizzle-kit check` to CI — *from Phase 1 review*
 - [ ] Set `"agentGuidance": false` in `turbo.json` if AGENTS.md churns — *from Phase 1 review*
 
 ### Phase 6 follow-ups (MCP, Ask, knowledge base)
-- [ ] Renderer-level SSRF guard: Playwright `page.route` resolved-IP check or pinned resolver; covers KB import/sync (DNS-rebinding race accepted in 6c), competitor URLs, robots fetch, `www.`/port redirects; treat SIIT `::ffff:0:0/96` as non-public — *from 6c final review*
-- [ ] Tier gating of `mcp`/`ask`; MCP `manage` scope for client roles; ANN vector index (events, pages, `kb_chunk`) — *from 6a/6c*
+- [ ] MCP `manage` scope for client roles; ANN vector index (events, pages, `kb_chunk`) — *from 6a/6c*
 - [ ] MCP hardening: vector-only pages; unredacted model-written titles; uncapped `fetch` brief text; connector name `rival-monday` not white-labelled; screenshot mime hard-coded; `resources.ts` upsell offset-0; `add_recommendation` not one tx; `revoke_oauth_grant` partial failure; consent second-tab race; `clientScope[0]` assumption — *from 6a*
 - [ ] MCP tests: cross-agency, P18 scoped member, review cross-client leak, page-level `/sign-in` OAuth, exact client-role `tools/list` — *from 6a*
-- [ ] Ask hardening: widen composite FK to `(id,user_id,client_id,agency_id)`; allowlist `action.tool` vs `ASK_WRITE_TOOLS` + action `clientId` = thread's; unknown clientId → raw FK 23503; starters skipped if `notifyBriefOutcome` throws; `dataBlock tool=` unescaped; per-call model budget; trace args may quote tool text; `askReviewAllowed` write non-atomic — *from 6b*
-- [ ] Ask scope: generic `search`/`fetch` on the `ask` channel can still reach another in-scope client's events/evidence (knowledge part fixed in 6c) — pin `clientId` to the thread — *from 6b/6c*
-- [ ] Ask parked: lookalike markers as plain text; body parsed before feature/scope checks (400 vs 404); delete has no isUuid precheck; SSE `final.action` echoes proposed input; unseen thread after pre-persist error; `?q=` auto-send counts toward quota (auto-send known starters only); no content-type/Origin check on `/api/ask/turn`; `0044` relies on owner BYPASSRLS; request body-size cap — *from 6b*
+- [ ] Ask hardening: widen composite FK to `(id,user_id,client_id,agency_id)`; unknown clientId → raw FK 23503; starters skipped if `notifyBriefOutcome` throws; `dataBlock tool=` unescaped; per-call model budget; trace args may quote tool text; `askReviewAllowed` write non-atomic — *from 6b*
+- [ ] Ask parked: lookalike markers as plain text; delete has no isUuid precheck; SSE `final.action` echoes proposed input; unseen thread after pre-persist error; `?q=` auto-send counts toward quota (auto-send known starters only); `0044` relies on owner BYPASSRLS — *from 6b*
 - [ ] Ask grounding: sentence split on "1."/"e.g."; nested-bullet indent lost; empty-evidence verifier call; metadata-only fallback for html/screenshot evidence; pure how-to answers: uncited filler sentences now checked against empty `ev:` text (watch traces) — *from 6b/6c*
 - [ ] KB robustness: `kb-embed` should throw when the provider returns fewer vectors; validate scope before `kb-import` enqueue; `kb-sync` 7200 s expiry vs many articles; archived import jobs read as failed; seed-row guard into `saveArticle`; `previous_body_md` also set by manual edits; `get_kb_article` skips active-client check; `sourceUrl` not http(s)-restricted; `kbNamesFor` = 3rd copy of brand-name logic (invert into `@cs/tools`); KB hits pass no business names to redaction — *from 6c*
 - [ ] Multi-membership is resolved for Ask only; other routes still pick one membership — *from 6b*
+
+### 7a follow-ups
+- [ ] 7b: Ask turn deadline: a true AbortSignal through `chatWithTools` (today 90 s soft deadline, 45 s final-call reserve, route `maxDuration` 300) — *from 7a*
+- [ ] 7c: embeddings 8 s x2 also bound worker batch embedding; if `llm_call` shows embeddings ok=false at ~8 s, add an `embeddings_batch` task (30000x3, not request_path) — *from 7a*
+- [ ] 7c: `withQueueStatsReporting` default report path (logger + Sentry) untested; `EnvUrls.owner` -> `queue`; `withMonitor` should check in only for the cron payload; job retries re-capture to Sentry — *from 7a*
+- [ ] 7c: `ensureQueueGrants` is a single attempt and its failure is not in health state (web enqueues refused until restart while `/healthz` stays green) — *from 7a*
+- [ ] 7c: structured logging: `JSON.stringify` interpolated in messages; `redactForLog` may strip keys `text/content/body/output`; `tracesSampleRate` hard-coded 0.1; `main.ts` order/shutdown untested — *from 7a*
+- [ ] 7c: tests: predeploy missing/wrong-typed thresholds untested; `ci.yml` edits do not trigger the shape test under `test:affected`; e2e "destination stream closed early" noise — *from 7a*
+- [ ] 7a2/7c: `Sentry.captureException(raw pg error)` skips `redactForLog` (beforeSend still redacts); `scrubUrl` guard skips lowercase/prefixed transaction names, `ws:` URLs, leading whitespace; `tagRequest` only via `callTool` — *from 7a*
+- [ ] 7a2/7c: `app_user` INSERT on `client` can set service-only columns (WITH CHECK hardening); `notification.provider_id` index; `contact_bounced:<id>` dedupe is permanent (key by MessageID); sign-out/`/support/exit` end a session with no audit row; inbox + notification-settings pages read via service fns in support (unmasked?); platform overview sums keep archived agencies' daily-stat rows — *from 7a*
+- [ ] 7a2/7c: Ask: pinned-admin test for `update_recommendation_status`; a multi-agency user with a plan lacking Ask gets 404 for the other agency's client (Decision 4) — *from 7a*
+- [ ] 7a2/7c minors: T1 vacuous agency RLS update test; T3 support viewer gets the default plan, MCP tokens unrevocable in UI after a plan downgrade (revive on upgrade), `ask-support.test` mock re-implements `hasChannel`; T6 no quarterly PDF overwrite test; T7 no `support_view_pdf` subject kind, files audit tested only for evidence, notification settings page in support (consider `notFound()` like `/inbox`); T8 bounced contact looks inactive (`INACTIVE_OK_KINDS`; add `bounced_at`) — *from 7a*
+- [ ] 7a2/7c: purge dry-run counts are not one snapshot; no test for a purged-client + agency-level membership, a retried pending row with future `not_before`, or old accepted/unverified leads surviving; plan-off tests for agency `settings/ai` and evidence `canAsk` — *from 7a*
+- [ ] Later: orphaned Better Auth users after purge; evidence/object pruning via `evidenceReferenced`; guarded forward proxy / undici `connect.lookup` (DNS rebinding, `route.fetch` buffering), POST->GET on sub-resource 30x, script redirects after DOMContentLoaded, WebRTC/preconnect unrouted (SSRF guard) — *from 7a*
+- [ ] Later: `.pnpmfile.cjs` drops drizzle's optional `@opentelemetry/api` peer (revisit if drizzle needs OTel); `/bot` is dynamic (root layout reads cookies); migrate root `globalPassThroughEnv` to `global.passThroughEnv` — *from 7a*
 
 ### Model ops
 - [ ] Run `jev.live.test.ts` once with a real `TYPESAFE_API_KEY` (make `@cs/ai` tests load `.env`) to confirm 0- vs 1-based scores — *from Phase 1 review*
@@ -81,7 +89,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - Flaky test → `page-controls.test.tsx` PinPageSwitch "shows a refusal, falling back to the server value" failed once under the full suite (timing; passes alone 3/3). (Phase 11 merge)
 **Soon**
 - [ ] `@cs/billing access.test.ts` reduced-trial test is order-dependent; `start_search` retry bound is only the 10-min cooldown (<= $3); setup idle reminder has no cycle component; concurrent double "Done picking" errors; starting-point card shows checks pending during setup hold - *phase-11*
-- [ ] Owner decision: verified leads never accepted/declined (incl. pool) keep name/email/phone/message forever; set a retention cap (e.g. 180 d) - *11c*
 
 **Later**
 - [ ] 11b polish: no "billing on" success copy, `billingPrefill` live read per poll; setup stuck "5 of 5" (worker sweep); `clientBillingEligibility` import cycle; `invite_member` (client roles) allowed for paused agencies
@@ -169,7 +176,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Console UI: name sort `<` vs `localeCompare`; spend delta "up" tone; unused `email?` in `nav.ts` viewer type — *from 8a*
 - [ ] Console tests: CLI add/revoke SQL; 27/28-day health boundary; `tilesOf` ms28 filter + NULL-last sort; agency-cascade/`relforcerowsecurity` asserts; page-level tests; E2E audit before/after count — *from 8a*
 - [ ] Support sessions: member-less env-only platform owners can't reach `/platform` or open sessions; operator console list shows the raw platform user name (agency list falls back to "Rival Monday support"); a >64-char non-RFC email local part is only partly masked — *from 8b*
-- [ ] Support audit: direct service reads in sessions (`listTeam`, `listClientRecipients`, `getAgencyBranding`, `listWebhooks`, `/go`, evidence/PDF bytes) aren't session-audited themselves; `end_support_session` audit lands in the operator's home agency — *from 8b*
 - [ ] Support tests: `support_session` cascade-delete; ok-at-59-min resolve case — *from 8b*
 - [ ] Costs: Neon settings dialog wrongly shows "Warnings need a dollars-per-CU-hour rate." (gate the rate hint on `kind==='balance'`, fix `costs-components.test.tsx:328`); key present but no reading shows "Not configured" ("No reading yet" is clearer); Apify with no cap gets no hint — *from 8c*
 - [ ] Costs job: `evaluateAlerts` throw → job retry re-inserts the day's snapshots (wrap in try/catch); concurrent refresh + cron can double-email (conditional update before send) — *from 8c*
@@ -185,10 +191,14 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Quarterly report verified only by tests — no client predates a quarter yet; check the first real one — *from 4b live verification*
 
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
+- [ ] Prod accounts (O17: Vercel, Railway, Neon prod, Sentry, R2) before 7a1 Task 12; steps in `docs/DEPLOY.md` — *7a*
+- [ ] Sign off the `/platform/health` help copy (description, 4 status tips, operator guide) — *7a1*
+- [ ] Postmark webhook: answer 500 or 200 on handler errors (500 makes Postmark retry)? — *7a2 T8*
+- [ ] Purge anonymises `platform_support` rows: confirm — *7a2 T10*
+- [ ] Scope-`all` roles still see an archived client's `llm_call`/`vendor_call`/`audit_log` rows (0006 policies): accept or hide — *7a2*
 - [ ] Postmark broadcast stream (`POSTMARK_BROADCAST_STREAM`) must use unsubscribe handling **"None"** (else Postmark suppresses without setting `unsubscribed_at` and tips 406-retry) — *phase-10*
 - [ ] Support-session email says "Reply to this email" but `replyTo` is null (replies go to `EMAIL_FROM`) — needs a reply-to address/env var — *from 8b*
 - [ ] Register **rivalmonday.com** / **.ai**; trademark knockout search — *from HANDOVER §7*
-- [ ] Publish the bot page `https://rivalmonday.com/bot` — required before crawling any real competitor (never run `collect-once` without `--vendors` until then) — *from Phase 1/2 carry-over, HANDOVER §5 item 6*
 - [ ] Phase 0 validation before the Phase 7 pilot: GoHighLevel/Vendasta marketplace check, 5 agency letters of intent, US counsel review (crawling, review privacy, AI claims about named competitors) — *from roadmap Phase 0, HANDOVER §7*
 - [ ] Create an **R2** bucket + token before production (dev stores evidence on local disk) — *from HANDOVER §7*
 - [ ] Confirm Jev pricing (0.042 $/M input is a placeholder) before costs feed budget caps — *from Phase 1, HANDOVER §7*
