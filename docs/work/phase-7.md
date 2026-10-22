@@ -4,15 +4,15 @@
 **Plan/spec:** [7a spec](../superpowers/specs/2026-10-19-phase-7a-launch-production-security-design.md) (supersedes the parked 2026-10-12 spec); plans [7a1](../superpowers/plans/2026-10-19-phase-7a1-deploy-observability.md), [7a2](../superpowers/plans/2026-10-19-phase-7a2-security-data-lifecycle.md). Item lists: [phase-7-scope.md](phase-7-scope.md).
 
 ## Status (overwrite)
-2026-10-22: **7a1 Tasks 0-11 and all of 7a2 (Tasks 0-12) built and reviewed**, rebased on main 10ce242d; own test DB `cs_phase_7_test` (at 0082). **7a1 Task 12 (live deploy) waits on the owner's prod accounts (O17)** and the shell-DB-stages gate (backlog). 7a2 final whole-branch review and `/rm-merge` (owner go-ahead) are next. Owner signs off the drafted `/platform/health` help copy. 
+2026-10-22: **7a1 Tasks 0-11 and all of 7a2 built, reviewed, final review + fix wave done** (0083 archived visibility), on main 10ce242d; test DB `cs_phase_7_test` (at 0083). **7a1 Task 12 (live deploy) waits on the owner's prod accounts (O17)** and the shell-DB-stages gate. `/rm-merge` needs the owner's go-ahead.
 
 ## Next (overwrite)
-1. Final review (most capable model) + one fix wave; triage the Task 4/7 minors marked TRIAGE AT FINAL in the ledger.
+1. `/rm-merge` (owner go-ahead).
 2. Owner: prod accounts (O17); create `cs_worker`/`cs_web` on Neon dev (below) before `0081` reaches `cs_dev`.
 3. Fix shell DB stages (gate below), then 7a1 Task 12. 7b brainstorming may start any time (O1).
 
 ## Interfaces this branch adds or changes
-- **Migrations:** `0081_runtime_roles` (after 15b's `0080`); `0082_lifecycle`: `client`/`agency.archived_at`, `plan.features` (`ask`,`mcp`), notification status `skipped`, 5 ledger/audit FKs dropped (`audit_log`, `llm_call`, `vendor_call`), `client_isolation` archived clause.
+- **Migrations:** `0081_runtime_roles` (after 15b's `0080`); `0082_lifecycle`: `client`/`agency.archived_at`, `plan.features` (`ask`,`mcp`), notification status `skipped`, 5 ledger/audit FKs dropped (`audit_log`, `llm_call`, `vendor_call`), `client_isolation` archived clause; `0083_archived_client_visibility`: `app_client_visible()` false for an archived client (SECURITY DEFINER `app_client_archived()`).
 - **7a1:** `@cs/core/server` (logging/redaction), tool `get_platform_health`, pages `/platform/health`, `/bot`, `/robots.txt`, worker `/healthz`, `REQUIRED_PROD_ENV`, `profile:pages`, `predeploy-check`, `ensureQueueGrants`, `docs/DEPLOY.md`, worker Dockerfile + `railway.json`.
 - **7a2:** `@cs/collectors` `net/guard.ts` (sole URL fetch path; renderer `route.fetch` per hop); `hasChannel(ctx, 'ask'|'mcp')`, `planFeaturesFor`, `scopeToClient` (`@cs/core`); Ask route order 404 -> Origin -> 415 -> 413 (32 KB), Ask action allowlist + $0.30 turn budget; `ObjectStore.put` `{ overwrite }` (default refuse); `support_view_*` / `end_support_session` audit rows; `POST /api/postmark/webhook` (basic auth `postmark:<POSTMARK_WEBHOOK_SECRET>`; Bounce HardBounce + SpamComplaint; 200 after auth); CLIs `pnpm --filter @cs/worker archive <agency|client> <id> [--undo]` and `purge-archived --older-than <n>d [--dry-run]` (n >= 30; `docs/OPS.md`); daily jobs: verified leads deleted at 180 d, pending notifications > 7 d overdue -> `skipped`. E2E: `security.spec.ts`, one case in `support.spec.ts`.
 
@@ -27,38 +27,29 @@ At first deploy (`docs/DEPLOY.md`):
 6. Run `pnpm kb:seed` against prod.
 
 7a2 (owner adds `POSTMARK_WEBHOOK_SECRET` to Vercel; not in local `.env`):
-7. Postmark server -> Webhooks: `https://postmark:<secret>@rivalmonday.app/api/postmark/webhook`, Bounce + Spam complaint. Send a test bounce: the contact goes inactive and the agency gets a notice; a wrong password gets 401.
-8. R2 no-overwrite: re-putting an existing key fails (untested live; HEAD-then-put).
+7. Postmark server -> Webhooks: `https://postmark:<secret>@rivalmonday.app/api/postmark/webhook`, Bounce + Spam complaint. Send a Postmark test bounce to the deployed webhook: the contact goes inactive and the agency gets a notice; a wrong password gets 401.
+8. Live R2 no-overwrite put at deploy: re-putting an existing key fails (HEAD-then-put; untested live).
 9. Archive a throwaway client: `archive client <id>`, its pages 404; `--undo` restores; `purge-archived --older-than 90d --dry-run` lists nothing yet.
 10. Ask/MCP plan gate: a plan without `ask` hides Ask pages (default plans keep both).
+11. Sign off the `/platform/health` help copy (description, 4 status tips, operator guide) drafted during the rebase.
 
 ## Assumes from other branches
 - **phase-14b / 15b — merged:** `llm_call.vertical_id` (0078; 7b `cost_usd → numeric` must follow it), `0080_kb_help_key`, `packages/core/src/help/*`.
-- **13a** (plan approved on main, not started): `apps/web/src/proxy.ts` (host resolution, `/health` on any host), per-origin Better Auth (`auth.ts`, `authFor`), `senderFor`/`platformFrom` + per-agency Postmark domains (overlaps 7a Postmark webhooks + email env), `NEUTRAL_DOMAIN`/`VERCEL_*`/`POSTMARK_ACCOUNT_TOKEN` env, error pages, P22 titles, P23 Stripe name, `turbo.json`. Needs a Vercel project + wildcard → 7a deploy precedes 13a live.
-- **phase-15b2 — merged** (10ce242d): help coverage gate, e2e-affected guards.
+- **13a** (plan on main, not started): `proxy.ts` host resolution, per-origin Better Auth, `senderFor` + per-agency Postmark domains (overlaps 7a webhook/email env), new env, error pages, `turbo.json`; 7a deploy precedes 13a live.
+- **phase-15b2 — merged** (10ce242d).
 - **15c** (not started): error/404 pages overlap 13a + 7a error reporting.
 
 ## Decisions (owner-approved)
 Owner 2026-10-19 (brief Q1–Q17):
-1. Order 7a → 7b → 7c; 7b may start once the 7a spec is approved.
-2. 7a ‖ 13a with split files (7a: CI, Docker, tracing, logging, DB roles; 13a: proxy, auth host, email sender). 7a deploy before 13a's live-domain step.
-3. Hosting: Vercel iad1 + Railway worker + separate Neon prod; prod + local only; deploy job migrates then deploys.
-4. Canonical domain rivalmonday.app (crawler UA, /bot, sender, CLAUDE.md).
-5. Observability: Sentry (web + worker) + pino JSON logs + operator /platform/health.
-6. DB roles cs_worker + cs_web, explicit grants incl. pgboss; no owner URL in prod.
-7. archived_at on agency/client + operator purge CLI after N days; evidence kept while referenced.
-8. Unactioned verified leads: PII deleted after 180 days.
-9. Postmark hard bounce/complaint → contact deactivated + agency notified; soft bounces ignored.
-10. Client at 100% of cap: **warn only** (no pausing).
-11. Shared collection cost split evenly across active clients tracking the competitor.
-12. Queued notifications older than 7 days on reactivation are skipped.
-13. Ask/MCP per-plan flag, all on during the pilot.
-14. Worker: more concurrency in one worker; one-replica rule stays.
-15. Eval sets at spec §12 sizes, LLM pre-labelled, owner confirms.
-16. Pilot: runbook/checklist on existing screens; rename the dev agency/client.
-17. Owner sets up prod accounts (Vercel, Railway, Neon prod, R2, Postmark + DNS, Sentry, live Stripe/Turnstile) before the deploy task.
-18. 7a split into 7a1 (deploy/observability/roles) and 7a2 (security/data lifecycle); purge 90 d after archive.
-19. 7a1 + 7a2 plans approved incl. /bot copy (parked §3.5) and new env vars (Sentry, POSTMARK_WEBHOOK_SECRET, LOG_LEVEL, deploy secrets).
+1. Order 7a → 7b → 7c; 7b may start once the 7a spec is approved. 2. 7a ‖ 13a, split files (7a: CI, Docker, tracing, logging, DB roles; 13a: proxy, auth host, sender); 7a deploy before 13a's live domain.
+3. Vercel iad1 + Railway worker + separate Neon prod; prod + local only; deploy job migrates then deploys. 4. Canonical domain rivalmonday.app.
+5. Sentry (web + worker) + pino JSON logs + `/platform/health`. 6. DB roles cs_worker + cs_web, explicit grants incl. pgboss; no owner URL in prod.
+7. `archived_at` + operator purge CLI after N days; evidence kept. 8. Unactioned verified leads: PII deleted at 180 d.
+9. Postmark hard bounce/complaint → contact deactivated + agency notified; soft ignored. 10. Client at 100% of cap: warn only.
+11. Shared collection cost split evenly across active trackers. 12. Queued notifications > 7 d old on reactivation are skipped.
+13. Ask/MCP per-plan flag, all on in the pilot. 14. More concurrency in one worker; one replica. 15. Eval sets at spec §12 sizes, LLM pre-labelled, owner confirms.
+16. Pilot runbook on existing screens; rename dev agency/client. 17. Owner sets up prod accounts before the deploy task.
+18. 7a = 7a1 (deploy/observability/roles) + 7a2 (security/data lifecycle); purge 90 d after archive. 19. 7a1 + 7a2 plans approved incl. /bot copy and new env vars.
 
 ## New backlog (target -> item)
 - **High, pre-Task-12 gate (15b merged, now unblocked):** shell DB stages — (app) shell ~12 sequential stages/page (max 22), (platform) 19-20 (`list_platform_costs` per-snapshot-row queries); target `--assert-db-stages 8`; also time the Better Auth pg pool and profile ask/[threadId], reports/[reportId], kb/[id].
@@ -75,6 +66,6 @@ Owner 2026-10-19 (brief Q1–Q17):
 - Later: `/bot` is dynamic (root layout reads cookies); migrate root `globalPassThroughEnv` to `global.passThroughEnv`.
 - 7a2 later: orphaned Better Auth users after purge; evidence/object pruning via `evidenceReferenced`; guarded forward proxy / undici `connect.lookup` (DNS rebinding, `route.fetch` buffering), POST->GET on sub-resource 30x, script redirects after DOMContentLoaded, WebRTC/preconnect unrouted.
 - 7a2/7c: `app_user` INSERT on `client` can set service-only columns (WITH CHECK hardening); `notification.provider_id` index; `contact_bounced:<id>` dedupe is permanent (key by MessageID); sign-out/`/support/exit` end a session with no audit row; inbox + notification-settings pages read via service fns in support (unmasked?); platform overview sums keep archived agencies' daily-stat rows.
-- 7a2/7c: Ask: one null-cost call disables the $0.30 budget for the rest of the turn; pinned-admin test for `update_recommendation_status`; multi-agency user with a plan lacking Ask gets 404 for the other agency's client (Decision 4).
-- 7a2/7c: purge: `finally` audit insert can mask the original error, dry-run counts are not one snapshot, no test for a purged-client + agency-level membership; no tests for a retried pending row with future `not_before` or old accepted/unverified leads surviving; plan-off tests for agency `settings/ai` and evidence `canAsk`.
-- Owner ruling to confirm: Postmark webhook returns 200 after auth even on a handler/DB error (spec §4); 500 would make Postmark retry (idempotent) at the cost of retries.
+- 7a2/7c: Ask: pinned-admin test for `update_recommendation_status`; multi-agency user with a plan lacking Ask gets 404 for the other agency's client (Decision 4).
+- 7a2/7c minors: T1 vacuous agency RLS update test; T3 support viewer gets the default plan, MCP tokens unrevocable in UI after a plan downgrade (revive on upgrade), `ask-support.test` mock re-implements `hasChannel`; T6 no quarterly PDF overwrite test; T7 no `support_view_pdf` subject kind, files audit tested only for evidence, sign-out/`/support/exit` fallback unaudited, notification settings page in support (consider `notFound()` like `/inbox`); T8 bounced contact looks inactive (`INACTIVE_OK_KINDS`; add `bounced_at`); owner Qs: T10 purge anonymises `platform_support` rows, T8 500 on handler errors.
+- 7a2/7c: purge dry-run counts are not one snapshot, no test for a purged-client + agency-level membership; no tests for a retried pending row with future `not_before` or old accepted/unverified leads surviving; plan-off tests for agency `settings/ai` and evidence `canAsk`.
