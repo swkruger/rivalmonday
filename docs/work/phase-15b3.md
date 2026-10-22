@@ -1,0 +1,68 @@
+# phase-15b3 — rename review "theme" to "topic" in code, DB, tools and routes
+
+**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15b3   **Base:** main @ 10ce242d
+**Plan/spec:** none yet (spec: [15b-2 C7](../superpowers/specs/2026-10-20-phase-15b2-help-content-design.md))
+
+## Status (overwrite)
+Kickoff brief written. Nothing decided beyond C7.
+
+## Next (overwrite)
+Owner answers the open questions, then `superpowers:brainstorming` → spec → lean plan.
+
+## Interfaces this branch adds or changes
+TBD. Next free migration: **0083** (main ends at 0080; phase-7 holds 0081, 0082).
+
+## Assumes from other branches
+- **phase-7** (base 00e8e02a, 0081 `runtime_roles` + 0082 `lifecycle`): touches `nav-items.ts` (Health entry beside Topic proposals; AI-connections gate), `server/nav.ts`, `ai.yaml` (adds `request_path`/timeouts, new `runbook_retailor`), `tools/all.ts`, `channels.test.ts`, `mcp/server.test.ts`, `demo/coverage.ts`, `e2e/seed.ts`, `e2e-affected-rules.ts`, worker `jobs/reviews.ts`/`model-ops.ts` (logging). No `theme` renames. Whichever merges second rebases; this phase's migration is 0083+.
+- **phase-7-planning**: parked, docs only, no overlap.
+
+## Decisions (owner-approved)
+None yet. C7 (15b-2 spec) is binding.
+
+## New backlog (target → item)
+None yet.
+
+## Owner verification steps
+TBD.
+
+## Brief
+
+### 1. Scope
+- **C7** ([15b-2 spec §1](../superpowers/specs/2026-10-20-phase-15b2-help-content-design.md)): own sub-phase after 15b-2. Hand-written migration: `theme_proposal`→`topic_proposal` (+ `theme_id`, 3 indexes), `review_analysis.themes`→`topics`, `vertical.config` key `themes`→`topics`; rule/playbook ids `theme_weakness`/`theme_strength`/`fix_theme` → `topic_*` (incl. `runbook_item.item_key`, pack YAML, catalogue seed, together); `detected_change.details.theme(Name)` backfill or dual-read; tool `get_topic_benchmark` + `topicId`/`topics` with **old names as deprecated aliases**; route `/platform/topics` + `?topic=` with redirects; engine/web identifiers. **Stays:** LLM question keys `theme_<vertical>__<id>` and `model_batch` purpose/task names.
+- **C3**: user text already says "topic"; page key `page:platform.themes` renames with its route.
+- Core spec §6.4 (complaint spikes), §6.5 (review themes), §8.2 (tools), §8.5 (playbooks). Roadmap row 15: "15b-3 topic rename *to be written*".
+
+### 2. Already built — the `theme` footprint (review sense; UI-theme `themeVars`/`themeForViewer`/`@cs/ui` theme excluded)
+| Package | Files / lines (test files) | Key paths |
+|---|---|---|
+| engine | 33 / 332 (15) | `reviews/{themes,discovery,benchmark,complaints}.ts`, `briefs/{self-rules,playbooks,starting-point}.ts`, `moves/rules.ts`, `events/retract.ts`, `model-ops/report.ts` |
+| web | 50 / 211 (26) | `(platform)/platform/themes/*` (`ThemeQueue`), `charts/theme-heatmap.tsx`, `reviews/page.tsx` (`?theme=`), `competitors/[id]/sections.tsx`, `nav-items.ts`/`nav.ts` (`pendingThemes`, `counts.themes`), `server/vertical-draft.ts`, `new-business-type-model.ts`, `help/copy/platform.ts`, `terminology.test.ts` |
+| tools | 21 / 142 (9) | `tools/themes.ts`, `reputation.ts`, `schemas.ts` (`ThemeProposalView`, `ThemeBenchmarkView`), `verticals.ts`, `platform-verticals.ts`, `nav-counts.ts`, `catalog/merge.ts`, `workspace/labels.ts` |
+| db | 10 / 56 (2) + migrations 0022–0024, 0077 | `schema/insights.ts`, `schema/engine.ts` (`details.theme/themeName`), `catalog-seed.sql.ts` |
+| demo 10/57 · verticals 9/40 · ai 5/15 · worker 3/5 · core 2/2 · mcp 2/2 · ask 1/1 · collectors 1/1 | | `packs/*.yaml`, `verticals/src/{schema,draft}.ts`, `ai.yaml`, `core/domain.ts` `SELF_RULE_IDS`, `ask/labels.ts` |
+
+**DB:** table `theme_proposal` (col `theme_id`; idx `theme_proposal_live_unique`, `_pending_unique`, `_vertical_idx`; RLS enabled/forced, no policy, service-only), `review_analysis.themes` (jsonb), `ThemeProposalStatus` (TS type, no PG enum). No theme RLS policy names.
+**External contracts (need aliases/migrations):**
+- MCP + Ask tools: `get_theme_benchmark` (output `themes`, `themeId`), `search_reviews` (input `themeId`, output `themes`, error "Unknown theme"). Web-only: `list_theme_proposals`, `decide_theme_proposal`, `create_vertical`/`update_vertical` input `themes`, `get_platform_nav_counts` output `themes`, `list_catalog_review` output `themes`.
+- URLs: `/platform/themes`, `?theme=`; help key `page:platform.themes` (+ `docs/help/pages/platform.themes.operator.md`, KB rows via `kb:seed`).
+- Stored data: `vertical.config.themes` (agency-created verticals too), `detected_change.details.theme/themeName`, `brief_item`/`recommendation.playbook_id` and `playbook_override` PK = `fix_theme`, `runbook_item.item_key` `play:fix_theme`/`self_rule:theme_*` (+ `content` jsonb), **`{{theme}}` placeholder** in `PLAYBOOK_VARS` and agency-edited templates (`playbook_override.template`, runbook content), Ask message history naming the old tool.
+- Model-ops keys (C7: stay): `theme_<v>__<id>` in `decision_sample`/`gold_label`; `ai.yaml` tasks `theme_discovery(_batch)` (also `llm_call.task` cost history), `model_batch.purpose`, stage `review_themes` (stage ledger), JSON-schema name `theme_proposal`.
+
+### 3. Binding decisions
+C7, C3; never edit applied migrations; web writes via `runTool`, reads via tools; refusals 404; event readers filter `retracted_at IS NULL`; help keys `page:<context>.<page>`; HVAC/dental keep legacy pack plays (14); τ 0.85.
+
+### 4. Backlog to fold in
+- [ ] **15b-3** topic rename (identifiers) per [15b-2 spec](superpowers/specs/2026-10-20-phase-15b2-help-content-design.md) C7: DB/tools/packs/routes (`/platform/themes` → `/platform/topics`, key `page:platform.themes`, `?theme=`) with MCP aliases; also tool descriptions + 'Unknown theme' (`reputation.ts`), `nav-counts` description, `vertical-draft` prompt — *phase-15b2*
+- Related (optional): "batch theme discovery untagged; … generic theme `technician_professionalism…`" — *14a*; "theme approved mid-window not asked of older reviews" — *3c*; "`playbooks.ts:106` `themeName` fallback" — *4a*.
+
+### 5. In-flight workstreams
+See **Assumes from other branches** (textual conflicts only).
+
+### 6. Open questions for the owner
+1. **Split into sub-phases?** (a) one branch, one merge; (b) 15b-3a code/tools/routes with aliases + 15b-3b DB/stored-data migration; (c) skip DB, rename code only. **Rec: (a)** — ~150 files but mechanical; one migration, one alias window.
+2. **How deep for DB?** (a) full C7 (table, column, indexes, `review_analysis.themes`, config key); (b) code only, Drizzle maps `topicProposal` onto the old names; (c) rename tables but keep jsonb keys with dual-read. **Rec: (a)** per C7; small tables, hand-written `ALTER ... RENAME` + jsonb `UPDATE`.
+3. **MCP/Ask aliases:** (a) old tool `get_theme_benchmark` + `themeId` param + `themes` output kept as deprecated aliases (hidden from `tools/list`, still callable); (b) aliases listed with "deprecated" in description; (c) hard rename. **Rec: (a)** with a removal date (e.g. after the pilot); output emits both `topics` and `themes` during the window.
+4. **`{{theme}}` placeholder in agency-edited templates:** (a) migrate stored text to `{{topic}}` and accept both at render; (b) accept both, no data change; (c) keep `{{theme}}`. **Rec: (a).**
+5. **Stored ids (`fix_theme`, `self_rule:theme_*`, `details.theme`):** (a) backfill all rows in the migration (incl. `playbook_override`, `brief_item`, `recommendation`, `runbook_item`, `detected_change`); (b) dual-read new + old forever; (c) new rows only. **Rec: (a)**, readers dual-read only for `details.theme` if backfill size is a concern.
+6. **Model-ops keys (`theme_<v>__<id>`, `theme_discovery*`, `review_themes`, `model_batch.purpose`):** (a) keep per C7, document the exception; (b) rename with label migration. **Rec: (a)** (C7 is binding; listed for confirmation of the `ai.yaml` task names and stage name).
+7. **Routes:** (a) `/platform/topics` + permanent redirect from `/platform/themes`, `?theme=`→`?topic=`; (b) no redirects (operator-only page). **Rec: (a)** for `?theme=` (client bookmarks), cheap for both.
