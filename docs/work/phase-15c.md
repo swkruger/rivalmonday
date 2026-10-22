@@ -1,25 +1,25 @@
 # phase-15c — audit page fixes (UX/IA follow-up)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15c   **Base:** main @ 10ce242d
-**Plan/spec:** none yet ([15 spec](../superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) §4, [audit](../research/2026-10-18-phase-15-ux-audit.md))
+**Plan/spec:** [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) (awaiting owner approval); inputs [15 spec](../superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) §4, [audit](../research/2026-10-18-phase-15-ux-audit.md)
 
 ## Status (overwrite)
-Kicked off 2026-10-21; brief below.
+Brainstormed 2026-10-21; spec written + builder-checked, awaiting owner approval. Three sub-phases: 15c-1 shared pieces, 15c-2 page fixes + small features, 15c-3 agency management.
 
 ## Next (overwrite)
-Owner answers §6 → brainstorming → spec addendum (if new interfaces) → lean plan(s).
+Owner approves the spec → `superpowers:writing-plans` for **15c-1** (lean format) → owner approval → install + own test DB → SDD.
 
 ## Interfaces this branch adds or changes
 TBD. Likely no migration; next free **0084** (main 0080, phase-7 0081/0082, 15b-3 0083).
 
 ## Assumes from other branches
-- **phase-7**: edits `nav-items.ts`, `server/nav.ts`, `/platform/health`, `agency/page.tsx`, agency settings `ai/billing/branding/slack-teams/team`, evidence, `rankings/page.tsx`, client `settings/{ai,delivery}`, `onboarding`, `ask/*`, `next.config.ts`; adds Sentry. Our `error.tsx` leaves it a capture seam.
+- **phase-7**: 7a2 must expose archive as a service function (not only CLI) for 15c-3's archive button; edits `nav-items.ts`, `server/nav.ts`, `/platform/health`, `agency/page.tsx`, agency settings `ai/billing/branding/slack-teams/team`, evidence, `rankings/page.tsx`, client `settings/{ai,delivery}`, `onboarding`, `ask/*`, `next.config.ts`; adds Sentry. Our `error.tsx` leaves it a capture seam.
 - **phase-15b3** (docs only so far): 3b renames `/platform/themes`→`/platform/topics`, `?theme=`, `ThemeQueue`, `ThemeHeatmap`, `pendingThemes`.
 - **13a** (planned, unbuilt): root `app/{not-found,error,global-error}.tsx`, host-aware titles, `client-profile-form.tsx`, `/start*`. Overlaps our error pages and miles work.
 - **phase-7-planning**: parked, no overlap.
 
 ## Decisions (owner-approved)
-None yet.
+C1–C11 in the 15c spec §2 (split; neutral error pages now; miles in UI; small features incl. intake preview + page diff; agency management incl. separate plans; hold = read-only + billing paused; start now, theme pages last; tz rule; mobile sheet; mockups + copy sign-off per sub-phase).
 
 ## New backlog (target → item)
 None yet.
