@@ -59,10 +59,4 @@ C7, C3; never edit applied migrations; web writes via `runTool`, reads via tools
 See **Assumes from other branches** (textual conflicts only).
 
 ### 6. Open questions for the owner
-1. **Split into sub-phases?** (a) one branch, one merge; (b) 15b-3a code/tools/routes with aliases + 15b-3b DB/stored-data migration; (c) skip DB, rename code only. **Rec: (a)** — ~150 files but mechanical; one migration, one alias window.
-2. **How deep for DB?** (a) full C7 (table, column, indexes, `review_analysis.themes`, config key); (b) code only, Drizzle maps `topicProposal` onto the old names; (c) rename tables but keep jsonb keys with dual-read. **Rec: (a)** per C7; small tables, hand-written `ALTER ... RENAME` + jsonb `UPDATE`.
-3. **MCP/Ask aliases:** (a) old tool `get_theme_benchmark` + `themeId` param + `themes` output kept as deprecated aliases (hidden from `tools/list`, still callable); (b) aliases listed with "deprecated" in description; (c) hard rename. **Rec: (a)** with a removal date (e.g. after the pilot); output emits both `topics` and `themes` during the window.
-4. **`{{theme}}` placeholder in agency-edited templates:** (a) migrate stored text to `{{topic}}` and accept both at render; (b) accept both, no data change; (c) keep `{{theme}}`. **Rec: (a).**
-5. **Stored ids (`fix_theme`, `self_rule:theme_*`, `details.theme`):** (a) backfill all rows in the migration (incl. `playbook_override`, `brief_item`, `recommendation`, `runbook_item`, `detected_change`); (b) dual-read new + old forever; (c) new rows only. **Rec: (a)**, readers dual-read only for `details.theme` if backfill size is a concern.
-6. **Model-ops keys (`theme_<v>__<id>`, `theme_discovery*`, `review_themes`, `model_batch.purpose`):** (a) keep per C7, document the exception; (b) rename with label migration. **Rec: (a)** (C7 is binding; listed for confirmation of the `ai.yaml` task names and stage name).
-7. **Routes:** (a) `/platform/topics` + permanent redirect from `/platform/themes`, `?theme=`→`?topic=`; (b) no redirects (operator-only page). **Rec: (a)** for `?theme=` (client bookmarks), cheap for both.
+All answered 2026-10-21 — see spec §1 (D1–D6).
