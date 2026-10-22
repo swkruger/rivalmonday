@@ -1,4 +1,5 @@
 import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
@@ -34,19 +35,31 @@ export default async function PlatformHealthPage() {
         guide={guides.has(HELP_KEY)}
       />
       <section className={card}>
-        <h2 className="mb-3 font-semibold">Worker</h2>
+        <div className="mb-3 flex items-center gap-1.5">
+          <h2 className="font-semibold">Worker</h2>
+          <HelpTip tip="platform.health.worker" />
+        </div>
         <WorkerTable worker={data.worker} now={now} />
       </section>
       <section className={card}>
-        <h2 className="mb-3 font-semibold">Queues</h2>
+        <div className="mb-3 flex items-center gap-1.5">
+          <h2 className="font-semibold">Queues</h2>
+          <HelpTip tip="platform.health.queues" />
+        </div>
         <QueuesTable queues={data.queues} queueError={data.queueError} />
       </section>
       <section className={card}>
-        <h2 className="mb-3 font-semibold">Vendors</h2>
+        <div className="mb-3 flex items-center gap-1.5">
+          <h2 className="font-semibold">Vendors</h2>
+          <HelpTip tip="platform.health.vendors" />
+        </div>
         <VendorsTable vendors={data.vendors} now={now} />
       </section>
       <section className={card}>
-        <h2 className="mb-3 font-semibold">Sources</h2>
+        <div className="mb-3 flex items-center gap-1.5">
+          <h2 className="font-semibold">Sources</h2>
+          <HelpTip tip="platform.health.sources" />
+        </div>
         <SourcesTable sources={data.sources} now={now} />
       </section>
     </div>

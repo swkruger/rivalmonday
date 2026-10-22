@@ -102,6 +102,10 @@ const EMPTY_ANSWERS = (): Record<string, unknown> => ({
   list_catalog_review: { verticals: [], areas: [], count: 0 },
   list_verticals: { verticals: [] },
   get_runbook: { level: 'platform', items: [], vars: [], businessAreas: [], source: 'platform' },
+  get_platform_health: {
+    generatedAt: '2026-10-01T00:00:00Z', worker: { lastHeartbeatAt: null, status: 'down' }, queues: [], vendors: [],
+    sources: [{ kind: 'vendor_call', lastOkAt: null, status: 'down' }, { kind: 'capture', lastOkAt: null, status: 'down' }], sentryUrl: null, queueError: false,
+  },
 });
 
 /** [key, page, tips this render cannot show (they sit behind a condition tested separately)]. */
@@ -155,7 +159,7 @@ describe('platform short copy exists for every page', () => {
       const c = PAGE_COPY[key as keyof typeof PAGE_COPY] as PageCopy | undefined;
       expect(c, key).toBeTruthy();
       expect(c!.description.length, key).toBeGreaterThan(20);
-      if (key !== 'platform.health') expect(Object.keys(c!.tips ?? {}).length, key).toBeGreaterThan(0);
+      expect(Object.keys(c!.tips ?? {}).length, key).toBeGreaterThan(0);
     }
   });
 
@@ -419,10 +423,18 @@ describe('Knowledge', () => {
 });
 
 describe('Health', () => {
-  it('says it is a placeholder and points at the Agencies flags', async () => {
+  it('shows the four sections with their tips and points at Costs for spend', async () => {
     await show('platform.health');
-    expect(screen.getByText('Not available yet')).toBeTruthy();
-    expect(document.body.textContent).toMatch(/Agencies/);
+    for (const id of ['worker', 'queues', 'vendors', 'sources']) expect(hasTip(copyOf('platform.health').tips![id]!.title), id).toBe(true);
+    expect(document.body.textContent).toMatch(/Costs/);
+  });
+
+  it('the tips carry the thresholds the status rules use', async () => {
+    expect(await tipText('platform.health', 'worker')).toMatch(/11 minutes.*30 minutes/);
+    expect(await tipText('platform.health', 'queues')).toMatch(/30 minutes.*2 hours/);
+    const v = await tipText('platform.health', 'vendors');
+    for (const w of ['20%', '50%', '48 hours']) expect(v, w).toContain(w);
+    expect(await tipText('platform.health', 'sources')).toMatch(/26 hours.*72 hours/);
   });
 });
 

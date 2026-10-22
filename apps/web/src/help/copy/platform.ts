@@ -408,14 +408,36 @@ export const PLATFORM_COPY = {
     },
   },
   'platform.health': {
-    // source: apps/web/src/app/(platform)/platform/health/page.tsx (the page's existing description; the page has no content yet)
-    description: 'Platform health arrives with the deployment phase.',
-    tips: {},
-    empty: {
-      placeholder: {
-        title: 'Not available yet',
-        body: 'Nothing is measured here yet. Until it is built, see Agencies for each agency\'s health flag and, for platform owners, Costs for vendor balances.',
+    // source: apps/web/src/app/(platform)/platform/health/page.tsx (Phase 7a1: worker, queues, vendors and sources; spend lives on Costs)
+    description: 'Is the worker alive, are jobs flowing, and are the data sources fresh. Spend lives under Costs.',
+    tips: {
+      // source: apps/worker/src/health.ts (heartbeat cron every 5 minutes); packages/tools/src/platform/system-health.ts:healthStatuses (worker: Down with no heartbeat or over 30 minutes, Watch over 11 minutes)
+      worker: {
+        title: 'Worker status',
+        body: 'The background worker records a heartbeat every 5 minutes. OK: the last one is under 11 minutes old. Watch: 11 to 30 minutes. Down: over 30 minutes, or no heartbeat yet.',
         audience: 'operator',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/tools/src/platform/system-health.ts:healthStatuses (queue: Down when the oldest waiting job is over 2 h; Watch over 30 min or any failure in 24 h)
+      queues: {
+        title: 'Queue status',
+        body: 'One row per job queue. Watch: the oldest waiting job is over 30 minutes old, or a job failed in the last 24 hours. Down: the oldest waiting job is over 2 hours old. If the queue database cannot be read, the table says so and the worker shows Down.',
+        audience: 'operator',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/tools/src/platform/system-health.ts:healthStatuses (vendor: errors/calls over 24 h; Watch at 20%, Down at 50% or no successful call in 48 h)
+      vendors: {
+        title: 'Vendor status',
+        body: 'Vendors called in the last 48 hours. Watch: 20% or more of the calls in the last 24 hours failed. Down: 50% or more failed, or none succeeded in 48 hours.',
+        audience: 'operator',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/tools/src/platform/system-health.ts:healthStatuses (source: Watch over 26 h since the last success, Down over 72 h or never)
+      sources: {
+        title: 'Source freshness',
+        body: 'When data last arrived: the newest successful vendor call and the newest successful web capture. Watch: over 26 hours ago. Down: over 72 hours ago, or never.',
+        audience: 'operator',
+        guideAnchor: 'what-this-page-tells-you',
       },
     },
   },

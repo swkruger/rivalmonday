@@ -5,25 +5,28 @@ title: Health
 ---
 ## What this page tells you
 
-Nothing yet: platform health (jobs, queues, vendors) arrives with the deployment phase, and this page is a stub until then. It needs platform access to open, like every platform page.
+Whether the platform is running: the background worker, its job queues, the data vendors and how fresh the collected data is. Each row has a status: **OK**, **Watch** or **Down**. Spend and vendor balances live on the Costs page.
 
-What exists today instead:
-
-- **Each agency's health flag** (At risk, Idle, Growing, Steady) on the Agencies page and on an agency's own page.
-- **Vendor balances and warnings** on the Costs page, for platform owners.
-- **Low-balance warnings** as a strip at the top of every platform page for owners.
+- **Worker:** when the background worker last recorded a heartbeat. Watch after 11 minutes, Down after 30 minutes or with no heartbeat.
+- **Queues:** jobs waiting, running and failed in the last 24 hours, per queue. Watch when the oldest waiting job is over 30 minutes old or a job failed; Down over 2 hours.
+- **Vendors:** calls and errors in the last 24 hours for each vendor called in the last 48 hours. Watch at 20% errors; Down at 50%, or with no successful call in 48 hours.
+- **Sources:** the newest successful vendor call and web capture. Watch after 26 hours; Down after 72 hours or never.
 
 ## How to use it
 
-1. **For agency health**, open Agencies and read the Health column. Its tip lists the rules.
-2. **For vendor health**, open Costs (platform owners).
-3. **Check back after the deployment phase** for job, queue and error views here.
+1. **Start with the worker.** If it is Down, nothing else moves: queues fill up and sources go stale.
+2. **Then the queues.** A queue on Watch with failures points at one job type; the error tracker (Open Sentry, when configured) has the details.
+3. **Then vendors and sources.** A vendor on Down usually means an outage or an expired key; check its balance on Costs.
 
 ## Common questions
 
-### Why does Health show an empty page?
+### Why does a queue show Watch when nothing is waiting?
 
-It is intentionally a stub. Nothing here is broken.
+A job in that queue failed in the last 24 hours. The status clears once a day passes without failures.
+
+### Why is there no Open Sentry link?
+
+The link appears only when error tracking is configured for this deployment.
 
 ### Who can open it?
 
