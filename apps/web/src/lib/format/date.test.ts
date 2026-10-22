@@ -21,13 +21,17 @@ describe('formatDate', () => {
     expect(formatDate('2026-10-13', { tz: 'America/Los_Angeles', now })).toBe('Oct 13');
     expect(formatDate('2026-Q3', { tz: 'UTC', now })).toBe('2026-Q3');
     expect(formatDate('2026-10-14T02:00:00.000Z', { tz: 'Not/AZone', now })).toBe('Oct 14');
+    // Jan 1 02:00Z is still Dec 31 evening in Chicago, where "now" is 2026: a date-only 2026-12-31 shows no year.
+    expect(formatDate('2026-12-31', { tz: 'America/Chicago', now: new Date('2027-01-01T02:00:00Z') })).toBe('Dec 31');
   });
 });
 
 describe('formatDateTime', () => {
   it('labels CT and UTC', () => {
     expect(formatDateTime('2026-10-21T14:00:00Z', { tz: 'America/Chicago', now })).toBe('Oct 21, 9:00 AM');
-    expect(formatDateTime('2026-10-21T14:00:00Z', { tz: 'America/Chicago', zoneLabel: true, now })).toBe('Oct 21, 9:00 AM CDT');
+    expect(formatDateTime('2026-10-21T14:00:00Z', { tz: 'America/Chicago', zoneLabel: true, now })).toBe('Oct 21, 9:00 AM CT');
+    expect(formatDateTime('2026-10-21T14:00:00Z', { tz: 'America/New_York', zoneLabel: true, now })).toBe('Oct 21, 10:00 AM ET');
+    expect(formatDateTime('2026-10-21T14:00:00Z', { tz: 'Europe/London', zoneLabel: true, now })).not.toMatch(/United|GMT\+0/);
     expect(formatDateTime('2026-10-21T14:00:00Z', { tz: 'UTC', zoneLabel: true, now })).toBe('Oct 21, 2:00 PM UTC');
   });
 });
@@ -51,6 +55,7 @@ describe('formatRelative', () => {
     expect(formatRelative(at(30 * 60 * MIN), now)).toBe('yesterday');
     expect(formatRelative(at(4 * 24 * 60 * MIN), now)).toBe('4 days ago');
     expect(formatRelative('2026-07-01T12:00:00Z', now)).toBe('Jul 1');
+    expect(formatRelative(at(-30 * 60 * MIN), now)).toBe('tomorrow');
     expect(formatRelative(at(-3 * 24 * 60 * MIN - 1000), now)).toBe('in 3 days');
   });
 });

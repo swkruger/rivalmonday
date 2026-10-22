@@ -29,7 +29,7 @@ export function formatDate(v: string | Date, o: { tz: string; withYear?: 'auto' 
   const p = parse(v);
   if (!p) return String(v);
   const tz = zoneOf(o.tz, p.dateOnly);
-  const showYear = o.withYear === 'always' || yearIn(p.at, tz) !== yearIn(o.now ?? new Date(), tz);
+  const showYear = o.withYear === 'always' || yearIn(p.at, tz) !== yearIn(o.now ?? new Date(), zoneOf(o.tz, false));
   return p.at.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(showYear ? { year: 'numeric' } : {}), timeZone: tz });
 }
 
@@ -39,15 +39,24 @@ export function formatDateTime(v: string | Date, o: { tz: string; zoneLabel?: bo
   if (!p) return String(v);
   const tz = zoneOf(o.tz, false);
   const showYear = yearIn(p.at, tz) !== yearIn(o.now ?? new Date(), tz);
-  return p.at.toLocaleString('en-US', {
+  const text = p.at.toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
     ...(showYear ? { year: 'numeric' } : {}),
     hour: 'numeric',
     minute: '2-digit',
-    ...(o.zoneLabel ? { timeZoneName: 'short' } : {}),
     timeZone: tz,
   } as Intl.DateTimeFormatOptions).replace(' at ', ', ');
+  return o.zoneLabel ? `${text} ${zoneName(p.at, tz)}` : text;
+}
+
+/** "CT"/"ET" (generic, not "CDT"); UTC stays "UTC"; zones with no short generic name fall back to the short name. */
+function zoneName(at: Date, tz: string): string {
+  if (tz === 'UTC' || tz === 'Etc/UTC' || tz === 'Etc/GMT') return 'UTC';
+  const name = (style: 'shortGeneric' | 'short'): string =>
+    new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: style }).formatToParts(at).find((x) => x.type === 'timeZoneName')?.value ?? tz;
+  const generic = name('shortGeneric');
+  return generic.includes(' ') || generic.startsWith('GMT') ? name('short') : generic;
 }
 
 /** Server-safe relative time: "just now", "5 min ago", "3 h ago", "yesterday", "4 days ago", then a UTC date; future: "in 3 days". */
