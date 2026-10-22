@@ -61,6 +61,7 @@ export const modelBatch = pgTable(
     task: text('task').notNull(),
     provider: text('provider').notNull(),
     providerBatchId: text('provider_batch_id').notNull().unique(),
+    // kept: model-ops key (15b-3 C7)
     purpose: text('purpose').notNull(), // 'theme_discovery'
     status: text('status').$type<ModelBatchStatus>().notNull().default('submitted'),
     /** custom_id → the context needed to apply that request's result. */

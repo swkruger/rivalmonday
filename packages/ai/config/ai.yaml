@@ -32,6 +32,7 @@ tasks:
   ask_assistant:   { provider: openrouter, model: anthropic/claude-sonnet-5, fallbacks: [anthropic/claude-sonnet-4.6], max_tokens: 6000, request_path: true, timeout_ms: 20000, max_attempts: 2 }
   ask_starters:    { provider: openrouter, model: anthropic/claude-haiku-4.5, temperature: 0.5, max_tokens: 400 }
   value_extract:   { provider: openrouter, model: anthropic/claude-haiku-4.5 }
+  # kept: model-ops key (15b-3 C7)
   theme_discovery: { provider: openrouter, model: anthropic/claude-sonnet-4.6, fallbacks: [anthropic/claude-haiku-4.5] }
   llm_decisions:   { provider: openrouter, model: anthropic/claude-haiku-4.5, mode: decisions }
   # Per-use decision tasks (Phase 3c/3d): each decision type routes, escalates and is shadow-sampled on its own,
@@ -53,4 +54,5 @@ tasks:
   embeddings:      { provider: openrouter, model: openai/text-embedding-3-small, mode: embeddings, dimensions: 512, request_path: true, timeout_ms: 8000, max_attempts: 2 }
   # Opt-in (Phase 3d decision 9): used only when ANTHROPIC_API_KEY is set; otherwise theme discovery stays on theme_discovery.
   # Anthropic Message Batches: claude-sonnet-5 at batch prices ($2/$10 list → $1/$5 per MTok). Not OpenRouter ZDR-routed.
+  # kept: model-ops key (15b-3 C7)
   theme_discovery_batch: { provider: anthropic, model: claude-sonnet-5, mode: batch, max_tokens: 8000, input_usd_per_mtok: 1.0, output_usd_per_mtok: 5.0 }

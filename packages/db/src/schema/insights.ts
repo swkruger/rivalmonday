@@ -46,7 +46,7 @@ export const topicProposal = pgTable(
     name: text('name').notNull(),
     description: text('description').notNull(),
     status: text('status').$type<TopicProposalStatus>().notNull().default('proposed'),
-    /** Reviews with no topic ("other")  that triggered the proposal. */
+    /** Reviews with no topic ("other") that triggered the proposal. */
     otherCount: integer('other_count').notNull(),
     sampleReviewIds: jsonb('sample_review_ids').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     createdAt: ts('created_at').notNull().defaultNow(),

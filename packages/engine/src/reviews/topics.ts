@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { runStage, type StageOutcome } from '../stage';
 import { competitorVerticals, type PackLoader, singleVerticalScope } from '../tag/tag-stage';
 
+// kept: model-ops key (15b-3 C7)
 export const REVIEW_STAGE = 'review_themes';
 export const REVIEW_VERSION = 1;
 /** Two 90-day benchmark windows (current and previous, for the trend). */

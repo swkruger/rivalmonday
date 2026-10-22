@@ -36,4 +36,14 @@ describe('findTopicLeftovers', () => {
       VALUES ('theme_discovery_batch', 'anthropic', 'b2', 'theme_discovery', ${JSON.stringify({ hvac_plumbing: { topicIds: ['theme_hvac__x'] } })}::jsonb, 1)`);
     expect(await findTopicLeftovers(dbs.owner)).toEqual([]);
   });
+
+  it('reports a vertical whose config still has top-level themes', async () => {
+    await dbs.owner.execute(sql`INSERT INTO vertical (id, name, status, config) VALUES ('tv_old', 'Old', 'reviewed', ${JSON.stringify({ themes: [] })}::jsonb)`);
+    expect(await findTopicLeftovers(dbs.owner)).toEqual([{ table: 'vertical', column: 'config', rows: 1 }]);
+  });
+
+  it('reports a playbook_override that still uses fix_theme', async () => {
+    await dbs.owner.execute(sql`INSERT INTO playbook_override (agency_id, vertical_id, playbook_id, updated_by) VALUES (${IDS.agencyA}, 'hvac_plumbing', 'fix_theme', 't')`);
+    expect(await findTopicLeftovers(dbs.owner)).toEqual([{ table: 'playbook_override', column: 'playbook_id', rows: 1 }]);
+  });
 });
