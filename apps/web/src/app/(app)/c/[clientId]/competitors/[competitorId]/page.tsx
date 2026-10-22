@@ -1,3 +1,4 @@
+import { formatRelative } from '@/lib/format';
 import { canManageCompetitors, hasFeature, isAgencyRole, PAGE_TYPES } from '@cs/core';
 import type { AdList, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, TopicBenchmarkView, TimelineItem, TrackedPageView } from '@cs/tools';
 import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
@@ -19,7 +20,6 @@ import { WriteGuard } from '@/components/read-only';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
-import { relativeTime } from '@/server/format';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { AddPageForm, PinPageSwitch } from './page-controls';
@@ -217,7 +217,7 @@ export default async function CompetitorProfilePage({
                   <li key={s.source} className="flex items-baseline justify-between gap-2">
                     <span className="font-semibold text-ink">{s.label}</span>
                     <span className="text-muted-foreground">
-                      {s.lastRunAt ? `${relativeTime(s.lastRunAt, now)}${sourceStatusLabel(s.lastStatus) ? ` · ${sourceStatusLabel(s.lastStatus)}` : ''}` : 'Not run yet'}
+                      {s.lastRunAt ? `${formatRelative(s.lastRunAt, now)}${sourceStatusLabel(s.lastStatus) ? ` · ${sourceStatusLabel(s.lastStatus)}` : ''}` : 'Not run yet'}
                       {s.active ? '' : ' · paused'}
                     </span>
                   </li>

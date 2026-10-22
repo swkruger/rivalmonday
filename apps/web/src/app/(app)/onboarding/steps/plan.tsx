@@ -1,9 +1,9 @@
 'use client';
+import { formatDate } from '@/lib/format';
 import { Button } from '@cs/ui';
 import { useActionState } from 'react';
 import { FormError } from '@/components/form-error';
 import { WriteGuard } from '@/components/read-only';
-import { formatLongDate } from '@/components/billing/format';
 import type { FormResult } from '@/server/forms';
 import { continuePlanAction, startCheckoutAction } from '../actions';
 import { StepNav } from '../step-nav';
@@ -21,8 +21,8 @@ const STATE_LABEL: Record<PlanSummary['state'], string> = {
 };
 
 function endLine(s: PlanSummary): string | null {
-  if (s.state === 'pilot' && s.dates.pilotEndsAt) return `Pilot ends ${formatLongDate(s.dates.pilotEndsAt)}`;
-  if (s.state === 'trialing' && s.dates.trialEndsAt) return `Trial ends ${formatLongDate(s.dates.trialEndsAt)}`;
+  if (s.state === 'pilot' && s.dates.pilotEndsAt) return `Pilot ends ${formatDate(s.dates.pilotEndsAt, { tz: 'UTC' })}`;
+  if (s.state === 'trialing' && s.dates.trialEndsAt) return `Trial ends ${formatDate(s.dates.trialEndsAt, { tz: 'UTC' })}`;
   return null;
 }
 

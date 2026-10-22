@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({
   saveProfileAction: vi.fn(async () => ({ ok: true })),
@@ -32,6 +32,10 @@ const profile = {
   region: null, postalCode: null, country: 'US', timezone: 'America/Chicago', verticals: [], billingEmail: null, billingSameAsPostal: true,
   billingLine1: null, billingLine2: null, billingCity: null, billingRegion: null, billingPostalCode: null, billingCountry: null, taxId: null,
 };
+
+// The date formatter omits the current year, so pin "now" (Date only; timers stay real).
+beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-21T12:00:00Z')); });
+afterAll(() => { vi.useRealTimers(); });
 
 describe('Stepper', () => {
   it('shows the four steps with done/skipped state and marks the current one', () => {
@@ -140,7 +144,7 @@ describe('PlanStep', () => {
   it('shows state, trial end, clients included and discount; the reduced line only when reducedTrial', () => {
     const { rerender } = render(<PlanStep summary={summary({ discount: { code: 'PILOT50', couponId: 'c' } }) as never} />);
     expect(screen.getByText(/Free trial/)).toBeTruthy();
-    expect(screen.getByText(/November 1, 2026/)).toBeTruthy();
+    expect(screen.getByText(/Nov 1/)).toBeTruthy();
     expect(screen.getByText(/up to 3 clients/i)).toBeTruthy();
     expect(screen.getByText(/PILOT50/)).toBeTruthy();
     expect(screen.queryByText(/During your trial you can monitor 1 client/)).toBeNull();

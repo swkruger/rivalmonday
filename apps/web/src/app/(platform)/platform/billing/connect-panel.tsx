@@ -1,4 +1,4 @@
-import { formatUsd } from '@/components/billing/format';
+import { formatMoney } from '@/lib/format';
 import { Field, fieldCls, MiniForm } from '../_components/mini-form';
 import { setConnectFeeAction } from './actions';
 
@@ -28,7 +28,7 @@ export function ConnectPanel({ overview: o, canEdit }: { overview: ConnectOvervi
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div><dt className="text-muted-foreground">Connected agencies</dt><dd className="text-xl font-extrabold text-secondary">{o.totals.connectedAgencies}</dd></div>
         <div><dt className="text-muted-foreground">Paying clients</dt><dd className="text-xl font-extrabold text-secondary">{o.totals.payingClients}</dd></div>
-        <div><dt className="text-muted-foreground">Client MRR via Connect</dt><dd className="text-xl font-extrabold text-secondary">{formatUsd(o.totals.clientMrrCents)}</dd></div>
+        <div><dt className="text-muted-foreground">Client MRR via Connect</dt><dd className="text-xl font-extrabold text-secondary">{formatMoney(o.totals.clientMrrCents, { unit: 'cents', cents: true })}</dd></div>
         <div><dt className="text-muted-foreground">Default fee</dt><dd className="text-xl font-extrabold text-secondary">{pct(o.globalFeePercent)}</dd></div>
       </dl>
       {o.agencies.length === 0 ? (
@@ -50,7 +50,7 @@ export function ConnectPanel({ overview: o, canEdit }: { overview: ConnectOvervi
                   <td className="py-2 pr-3">{a.feeOverridePercent === null ? 'Default' : pct(a.feeOverridePercent)}</td>
                   <td className="py-2 pr-3">{a.payingClients}</td>
                   <td className="py-2 pr-3">{a.paymentNeededClients}</td>
-                  <td className="py-2 pr-3">{formatUsd(a.clientMrrCents)}</td>
+                  <td className="py-2 pr-3">{formatMoney(a.clientMrrCents, { unit: 'cents', cents: true })}</td>
                 </tr>
               ))}
             </tbody>

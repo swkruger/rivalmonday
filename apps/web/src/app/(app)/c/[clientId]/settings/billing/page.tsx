@@ -1,9 +1,9 @@
+import { formatMoney, formatDate } from '@/lib/format';
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import type { ClientProfile } from '@cs/tools';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PaymentButton } from '@/app/(app)/agency/settings/billing/payment-button';
-import { formatLongDate, formatUsd } from '@/components/billing/format';
 import { RefreshUntilChanged } from '@/components/billing/refresh-until-changed';
 import { clientSettingsCrumbs } from '@/components/client-crumbs';
 import { HelpText } from '@/components/help/help-context';
@@ -100,11 +100,11 @@ export default async function ClientBillingPage({ params, searchParams }: { para
           {!b.paused && b.nextChargeDate && (
             <p className="text-sm">
               <span className="text-muted-foreground">Next charge </span>
-              <span className="font-semibold">{b.nextChargeAmountCents !== null ? `${formatUsd(b.nextChargeAmountCents)} on ` : 'on '}{formatLongDate(b.nextChargeDate)}</span>
+              <span className="font-semibold">{b.nextChargeAmountCents !== null ? `${formatMoney(b.nextChargeAmountCents, { unit: 'cents', cents: true })} on ` : 'on '}{formatDate(b.nextChargeDate, { tz: 'UTC' })}</span>
             </p>
           )}
-          {!b.nextChargeDate && b.nextChargeAmountCents !== null && !b.endsOn && <p className="text-sm"><span className="text-muted-foreground">Monthly amount </span><span className="font-semibold">{formatUsd(b.nextChargeAmountCents)}</span></p>}
-          {b.endsOn && <p className="text-sm">Your plan ends on {formatLongDate(b.endsOn)}. There will be no further charges.</p>}
+          {!b.nextChargeDate && b.nextChargeAmountCents !== null && !b.endsOn && <p className="text-sm"><span className="text-muted-foreground">Monthly amount </span><span className="font-semibold">{formatMoney(b.nextChargeAmountCents, { unit: 'cents', cents: true })}</span></p>}
+          {b.endsOn && <p className="text-sm">Your plan ends on {formatDate(b.endsOn, { tz: 'UTC' })}. There will be no further charges.</p>}
           {b.canManagePayment && <PaymentButton action={managePaymentAction.bind(null, clientId)} label="Manage payment" />}
         </CardContent>
       </Card>

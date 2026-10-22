@@ -1,6 +1,6 @@
+import { formatMoney } from '@/lib/format';
 import { LineChart } from '@/components/charts/line-chart';
 import type { StatPill } from '@/components/stat-card';
-import { formatUsd } from '@/server/format';
 
 export interface Tile { value: number; delta28d: number | null }
 export interface Point { start: string; agencies: number | null; clientsActive: number | null; seats: number | null; wau: number | null; spendUsd: number | null }
@@ -41,7 +41,7 @@ export function PlatformCharts({ series, range, includeAgencies }: { series: Poi
         { key: 'seats', name: 'Seats', points: col('seats') },
         { key: 'wau', name: 'Weekly active users', points: col('wau') },
       ], 'total')}
-      {chart('Spend', [{ key: 'spendUsd', name: 'Spend', points: col('spendUsd') }], 'spend', formatUsd)}
+      {chart('Spend', [{ key: 'spendUsd', name: 'Spend', points: col('spendUsd') }], 'spend', (n: number) => formatMoney(n, { cents: true }))}
     </>
   );
 }

@@ -14,7 +14,7 @@ import { helpGuides } from '@/server/help';
 import { one, type SearchParams } from '@/server/search-params';
 import { callTool } from '@/server/tools';
 import { ALERT_STATUS, BRIEF_STATUS, type BriefsTab, REPORT_STATUS, TABS } from './copy';
-import { formatDay } from './format';
+import { formatDate } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Briefs & reports' };
@@ -129,7 +129,7 @@ export default async function BriefsPage({ params, searchParams }: { params: Pro
           {rows.map((r) => (
             <li key={r.id}>
               <Link href={r.href} className="flex min-w-0 items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted-surface">
-                <span className="w-28 shrink-0 font-semibold tabular-nums">{formatDay(r.date, profile.timezone)}</span>
+                <span className="w-28 shrink-0 font-semibold tabular-nums">{formatDate(r.date, { tz: profile.timezone })}</span>
                 {r.kind && <Badge variant="outline" className="shrink-0">{r.kind}</Badge>}
                 <span className="min-w-0 flex-1 truncate text-muted-foreground">{r.summary}</span>
                 {agency && <Badge variant="secondary" className="shrink-0">{r.status}</Badge>}

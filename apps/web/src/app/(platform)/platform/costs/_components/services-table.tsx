@@ -1,5 +1,5 @@
+import { formatRelative } from '@/lib/format';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
-import { relativeTime } from '@/server/format';
 import { daysLeftText, formatAmount } from './format';
 import { ServiceSettingsDialog } from './service-settings-dialog';
 import type { CostService, ServiceStatus } from './types';
@@ -44,7 +44,7 @@ export function ServicesTable({ services, now }: { services: CostService[]; now:
             <TableCell>{formatAmount(s)}</TableCell>
             <TableCell>{daysLeftText(s.daysLeft)}</TableCell>
             <TableCell>
-              {s.takenAt ? relativeTime(s.takenAt, now) : '—'}
+              {s.takenAt ? formatRelative(s.takenAt, now) : '—'}
               {s.status === 'error' && s.error && <div className="text-xs text-muted-foreground">{s.error}</div>}
             </TableCell>
             <TableCell className="text-right"><ServiceSettingsDialog service={s} /></TableCell>

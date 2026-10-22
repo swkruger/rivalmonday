@@ -1,22 +1,26 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { BillingBanner } from './billing-banner';
 
 afterEach(cleanup);
 const TRIAL = '2026-11-13T12:00:00Z';
 const PAUSE = '2026-10-31T09:00:00Z';
 
+// The date formatter omits the current year, so pin "now" (Date only; timers stay real).
+beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-21T12:00:00Z')); });
+afterAll(() => { vi.useRealTimers(); });
+
 describe('BillingBanner (billing, spec § Enforcement)', () => {
   it('agency admin, trialing: trial end date and a button to the billing page', () => {
     render(<BillingBanner role="agency_admin" state="trialing" trialEndsAt={TRIAL} pausesOn={null} />);
-    expect(screen.getByText('Your trial ends November 13, 2026. Add a payment method to keep going.')).toBeTruthy();
+    expect(screen.getByText('Your trial ends Nov 13. Add a payment method to keep going.')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Add payment method' }).getAttribute('href')).toBe('/agency/settings/billing');
   });
 
   it('agency admin, past_due: red payment-needed copy with the pause date', () => {
     const { container } = render(<BillingBanner role="agency_admin" state="past_due" trialEndsAt={null} pausesOn={PAUSE} />);
-    expect(screen.getByText('Payment needed — service pauses on October 31, 2026.')).toBeTruthy();
+    expect(screen.getByText('Payment needed — service pauses on Oct 31.')).toBeTruthy();
     expect(container.querySelector('[data-tone="danger"]')).not.toBeNull();
     expect(screen.getByRole('link').getAttribute('href')).toBe('/agency/settings/billing');
   });

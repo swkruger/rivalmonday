@@ -74,7 +74,7 @@ describe('ServicesTable', () => {
     expect(row('Neon').getByText('12.3 CU-hours ≈ $1.23')).toBeTruthy();
     expect(row('Anthropic').getByText('Error')).toBeTruthy();
     expect(row('Anthropic').getByText('HTTP 401')).toBeTruthy();
-    expect(row('Anthropic').getByText('Yesterday')).toBeTruthy();
+    expect(row('Anthropic').getByText('yesterday')).toBeTruthy();
     expect(row('DataForSEO').getByText('Not configured')).toBeTruthy();
     expect(row('Off one').getByText('Off')).toBeTruthy();
     expect(row('Off one').getAllByText('—').length).toBeGreaterThanOrEqual(2);

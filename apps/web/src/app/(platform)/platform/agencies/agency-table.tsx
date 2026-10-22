@@ -1,6 +1,6 @@
+import { formatMoney, formatRelative } from '@/lib/format';
 import { EmptyState } from '@/components/help/empty-state';
 import { PAGE_COPY } from '@/help/copy';
-import { formatUsd, relativeTime } from '@/server/format';
 import Link from 'next/link';
 import type { BillingState } from '@cs/db';
 import { BillingStatePill } from '../_components/billing-state-pill';
@@ -84,8 +84,8 @@ export function AgencyTable({ rows, sort, dir, now }: { rows: AgencyRow[]; sort:
                 <td className="px-3 py-2 text-right">{r.clientsProspect}</td>
                 <td className="px-3 py-2 text-right">{r.agencySeats + r.clientSeats}</td>
                 <td className="px-3 py-2 text-right">{r.wau ?? '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2">{r.lastActivityAt ? relativeTime(r.lastActivityAt, now) : '—'}</td>
-                <td className="px-3 py-2 text-right">{formatUsd(r.spendMonthUsd)}</td>
+                <td className="whitespace-nowrap px-3 py-2">{r.lastActivityAt ? formatRelative(r.lastActivityAt, now) : '—'}</td>
+                <td className="px-3 py-2 text-right">{formatMoney(r.spendMonthUsd, { cents: true })}</td>
                 <td className="px-3 py-2"><HealthPill health={r.health} /></td>
                 <td className="px-3 py-2"><BillingStatePill state={r.billingState} /></td>
               </tr>

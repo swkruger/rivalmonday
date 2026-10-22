@@ -1,5 +1,5 @@
+import { formatMoney, formatDate } from '@/lib/format';
 import type { BillingState } from '@cs/db';
-import { formatLongDate, formatUsd } from '@/components/billing/format';
 import { BillingStatePill } from '../../_components/billing-state-pill';
 import { Field, fieldCls, MiniForm } from '../../_components/mini-form';
 import { attachDiscountAction, endPilotAction, extendTrialAction, grantPilotAction, setSeatCapExemptAction } from './billing-actions';
@@ -22,7 +22,7 @@ export interface AgencyBilling {
 
 export type PanelRole = 'owner' | 'staff' | 'viewer';
 
-const dateOr = (iso: string | null) => (iso ? formatLongDate(iso) : '—');
+const dateOr = (iso: string | null) => (iso ? formatDate(iso, { tz: 'UTC' }) : '—');
 
 /** Billing panel on the agency detail page. Controls the role cannot use are not rendered (the tools enforce as well). */
 export function BillingPanel({ billing: b, role, codes }: { billing: AgencyBilling; role: PanelRole; codes: { id: string; code: string }[] }) {
@@ -90,7 +90,7 @@ export function BillingPanel({ billing: b, role, codes }: { billing: AgencyBilli
                 ) : (
                   <span>{i.number ?? i.id}</span>
                 )}
-                <span>{formatUsd(i.amountPaidCents)}</span>
+                <span>{formatMoney(i.amountPaidCents, { unit: 'cents', cents: true })}</span>
                 <span className="text-muted-foreground">{i.status ?? ''} · {i.created.slice(0, 10)}</span>
               </li>
             ))}

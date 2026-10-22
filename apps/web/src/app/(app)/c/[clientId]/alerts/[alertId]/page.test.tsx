@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const callTool = vi.fn();
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: { role: 'client_owner' } }) }));
@@ -23,6 +23,10 @@ const mount = (alert = detail('a2'), items: unknown[] | null = list) =>
   });
 const show = async (alertId: string) => render(await AlertPage({ params: Promise.resolve({ clientId: C, alertId }) }));
 
+// The date formatter omits the current year, so pin "now" (Date only; timers stay real).
+beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-21T12:00:00Z')); });
+afterAll(() => { vi.useRealTimers(); });
+
 describe('Alert page (15a §2.8)', () => {
   beforeEach(() => { callTool.mockReset(); });
 
@@ -33,7 +37,7 @@ describe('Alert page (15a §2.8)', () => {
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'Cool Air' }).getAttribute('href')).toBe(`/c/${C}`);
     expect(within(crumbs).getByRole('link', { name: 'Briefs & reports' }).getAttribute('href')).toBe(`/c/${C}/briefs?tab=alerts`);
-    expect(crumbs.textContent).toContain('Oct 13, 2026'); // 02:00 UTC on the 14th is the 13th in Chicago
+    expect(crumbs.textContent).toContain('Oct 13'); // 02:00 UTC on the 14th is the 13th in Chicago
     expect(await generateMetadata({ params: Promise.resolve({ clientId: C, alertId: 'a2' }) })).toEqual({ title: 'Headline a2' });
   });
 

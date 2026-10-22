@@ -7,12 +7,9 @@ import type { EventRow } from '@cs/tools';
 import { Button, Input } from '@cs/ui';
 import Link from 'next/link';
 import { HelpTip } from '@/components/help/help-tip';
+import { formatDate } from '@/lib/format';
 import type { WeekLabel } from './group';
 import { changesHref, type ChangesParams } from './params';
-
-function formatShortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-}
 
 const ROUTE_LABEL: Record<EventRow['route'], string> = { alert: 'Alert', brief: 'Brief', archive: 'Archived' };
 const ROUTE_TONE: Record<EventRow['route'], string> = {
@@ -123,11 +120,13 @@ export function FeedList({
   params,
   groups,
   selectedId,
+  timezone,
 }: {
   clientId: string;
   params: ChangesParams;
   groups: { label: WeekLabel; items: EventRow[] }[];
   selectedId?: string;
+  timezone: string;
 }) {
   return (
     <div className="flex flex-col">
@@ -153,7 +152,7 @@ export function FeedList({
                         {row.competitorName} · {row.summary}
                       </h4>
                       <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {row.typeLabel} · {row.channels.join(', ')} · {formatShortDate(row.occurredAt)}
+                        {row.typeLabel} · {row.channels.join(', ')} · {formatDate(row.occurredAt, { tz: timezone })}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">

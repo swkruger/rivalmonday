@@ -123,7 +123,7 @@ export default async function ChangesPage({
               </div>
             ) : (
               <>
-                <FeedList clientId={clientId} params={p} groups={groups} selectedId={selectedId} />
+                <FeedList clientId={clientId} params={p} groups={groups} selectedId={selectedId} timezone={profile.timezone} />
                 {feed.hasMore && (
                   <div className="border-t border-line p-3 text-center">
                     <Link href={changesHref(clientId, { ...p, offset: p.offset + 50, event: undefined })} className="font-semibold text-primary-soft-text">
@@ -143,6 +143,7 @@ export default async function ChangesPage({
               params={p}
               detail={detail}
               compare={compare}
+              timezone={profile.timezone}
               canGiveFeedback={hasPermission(ctx, 'feedback') && !ctx.userId.startsWith('contact:')}
             />
           ) : selectedId ? (

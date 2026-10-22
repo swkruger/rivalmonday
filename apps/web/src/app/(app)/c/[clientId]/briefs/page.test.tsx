@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { encodeCursor } from '@cs/tools';
 import { render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const callTool = vi.fn();
 const viewer = vi.hoisted(() => ({ role: 'client_owner' }));
@@ -30,10 +30,14 @@ const show = async (sp: Record<string, string> = {}) => render(await BriefsPage(
 const views = () => screen.getByRole('navigation', { name: 'Briefs and reports views' });
 const callOf = (name: string) => callTool.mock.calls.find((c) => c[1] === name)?.[2];
 
+// The date formatter omits the current year, so pin "now" (Date only; timers stay real).
+beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-21T12:00:00Z')); });
+afterAll(() => { vi.useRealTimers(); });
+
 describe('Briefs & reports (15a §2.8)', () => {
   beforeEach(() => { callTool.mockReset(); viewer.role = 'client_owner'; });
 
-  it('defaults to Weekly briefs: the first page of list_briefs, rows dated "Oct 13, 2026" and linked to the brief', async () => {
+  it('defaults to Weekly briefs: the first page of list_briefs, rows dated "Oct 13" and linked to the brief', async () => {
     mount({ list_briefs: { items: [brief('b2', '2026-10-13'), brief('b1', '2026-10-06', 'sent', 'starting_point')], nextCursor: null } });
     await show();
     expect(screen.getByRole('heading', { level: 1, name: 'Briefs & reports' })).toBeTruthy();
@@ -43,10 +47,10 @@ describe('Briefs & reports (15a §2.8)', () => {
     // The @cs/ui Tabs look, active state from aria-current (not a third tab style).
     expect(views().getAttribute('data-slot')).toBe('tabs-link-list');
     expect(within(views()).getAllByRole('link').map((l) => l.getAttribute('data-slot'))).toEqual(['tabs-link', 'tabs-link', 'tabs-link']);
-    const row = screen.getByRole('link', { name: /Oct 13, 2026/ });
+    const row = screen.getByRole('link', { name: /Oct 13/ });
     expect(row.getAttribute('href')).toBe(`/c/${C}/briefs/b2`);
     expect(row.textContent).toContain('Summary b2');
-    expect(screen.getByRole('link', { name: /Oct 6, 2026/ }).textContent).toContain('Starting point');
+    expect(screen.getByRole('link', { name: /Oct 6/ }).textContent).toContain('Starting point');
   });
 
   it('breadcrumb: client › Act › Briefs & reports', async () => {
@@ -62,7 +66,7 @@ describe('Briefs & reports (15a §2.8)', () => {
     const { unmount } = await show({ tab: 'alerts' });
     expect(within(views()).getByRole('link', { name: 'Alerts' }).getAttribute('aria-current')).toBe('page');
     expect(within(views()).getByRole('link', { name: 'Quarterly reports' }).getAttribute('href')).toBe(`/c/${C}/briefs?tab=reports`);
-    const row = screen.getByRole('link', { name: /Oct 13, 2026/ }); // 02:00 UTC on the 14th is the 13th in Chicago
+    const row = screen.getByRole('link', { name: /Oct 13/ }); // 02:00 UTC on the 14th is the 13th in Chicago
     expect(row.getAttribute('href')).toBe(`/c/${C}/alerts/a1`);
     expect(row.textContent).toContain('Smith HVAC — Headline a1');
     expect(callTool.mock.calls.map((c) => c[1])).not.toContain('list_briefs');

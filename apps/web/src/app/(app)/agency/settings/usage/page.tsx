@@ -1,3 +1,4 @@
+import { formatMoney } from '@/lib/format';
 import { isAgencyRole } from '@cs/core';
 import type { UsageRow } from '@cs/tools';
 import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
@@ -11,7 +12,6 @@ import { WriteGuard } from '@/components/read-only';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
-import { formatUsd } from '@/server/format';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { saveLimitsAction } from './actions';
@@ -112,7 +112,7 @@ export default async function UsagePage() {
                 )}
               </TableCell>
               <TableCell>
-                {formatUsd(row.spend.monthToDateUsd)} of {formatUsd(row.spend.capUsd)}
+                {formatMoney(row.spend.monthToDateUsd, { cents: true })} of {formatMoney(row.spend.capUsd, { cents: true })}
               </TableCell>
               <TableCell>
                 <SpendBadge spend={row.spend} />
@@ -138,7 +138,7 @@ export default async function UsagePage() {
 
       <p className="text-muted-ink">
         Shared monitoring of competitors (Google profile, reviews, ads) and the intelligence engine’s shared work are not yet split across clients; they’ll be allocated in a later release.
-        {agencyLevelUsd !== null && <> Agency-level spend not tied to a client: {formatUsd(agencyLevelUsd)}</>}
+        {agencyLevelUsd !== null && <> Agency-level spend not tied to a client: {formatMoney(agencyLevelUsd, { cents: true })}</>}
       </p>
     </>
   );

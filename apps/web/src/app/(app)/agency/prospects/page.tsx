@@ -1,3 +1,4 @@
+import { formatRelative } from '@/lib/format';
 import { isAgencyRole } from '@cs/core';
 import type { ProspectRow } from '@cs/tools';
 import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
@@ -10,7 +11,6 @@ import { WriteGuard } from '@/components/read-only';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
-import { relativeTime } from '@/server/format';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 
@@ -93,7 +93,7 @@ export default async function ProspectsPage() {
                 <TableCell>{row.competitors}</TableCell>
                 <TableCell>{isReady(row) ? '✓' : 'needs setup'}</TableCell>
                 <TableCell>{row.report ? <Badge variant={row.report.status === 'ready' ? 'secondary' : row.report.status === 'failed' ? 'destructive' : 'outline'}>{row.report.status}</Badge> : '—'}</TableCell>
-                <TableCell>{relativeTime(row.createdAt, now)}</TableCell>
+                <TableCell>{formatRelative(row.createdAt, now)}</TableCell>
               </TableRow>
             ))}
           </TableBody>

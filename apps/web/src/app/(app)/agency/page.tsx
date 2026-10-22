@@ -1,3 +1,4 @@
+import { formatRelative } from '@/lib/format';
 import { isAgencyRole } from '@cs/core';
 import type { PortfolioRow } from '@cs/tools';
 import { Button, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
@@ -17,7 +18,6 @@ import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
-import { relativeTime } from '@/server/format';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
@@ -140,7 +140,7 @@ export default async function AgencyPortfolioPage() {
                     <Field label="Alerts"><Alerts row={row} /></Field>
                     <Field label="Brief"><Brief row={row} /></Field>
                     <Field label="Open actions"><OpenActions row={row} /></Field>
-                    <Field label="Last activity">{relativeTime(row.lastActivityAt, now)}</Field>
+                    <Field label="Last activity">{row.lastActivityAt ? formatRelative(row.lastActivityAt, now) : 'No activity yet'}</Field>
                     <Field label="Billing"><Billing row={row} billing={billingBy.get(row.clientId)} role={billingRole} /></Field>
                   </dl>
                 </li>
@@ -169,7 +169,7 @@ export default async function AgencyPortfolioPage() {
                       <TableCell><Alerts row={row} /></TableCell>
                       <TableCell className="whitespace-normal"><Brief row={row} /></TableCell>
                       <TableCell><OpenActions row={row} /></TableCell>
-                      <TableCell>{relativeTime(row.lastActivityAt, now)}</TableCell>
+                      <TableCell>{row.lastActivityAt ? formatRelative(row.lastActivityAt, now) : 'No activity yet'}</TableCell>
                       <TableCell className="whitespace-normal"><Billing row={row} billing={billingBy.get(row.clientId)} role={billingRole} /></TableCell>
                     </TableRow>
                   ))}

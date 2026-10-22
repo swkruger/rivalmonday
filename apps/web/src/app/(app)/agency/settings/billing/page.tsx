@@ -1,7 +1,7 @@
+import { formatMoney, formatDate } from '@/lib/format';
 import type { BillingState } from '@cs/db';
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import { notFound } from 'next/navigation';
-import { formatLongDate, formatUsd } from '@/components/billing/format';
 import { RefreshUntilChanged } from '@/components/billing/refresh-until-changed';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
@@ -47,10 +47,10 @@ const STATE_TONE: Record<BillingState, 'default' | 'secondary' | 'destructive'> 
 
 function keyDate(s: Summary): string | null {
   const d = s.dates;
-  if (s.state === 'trialing' && d.trialEndsAt) return `Trial ends ${formatLongDate(d.trialEndsAt)}`;
-  if (s.state === 'pilot' && d.pilotEndsAt) return `Pilot ends ${formatLongDate(d.pilotEndsAt)}`;
-  if (s.state === 'past_due' && d.pausesOn) return `Service pauses ${formatLongDate(d.pausesOn)}`;
-  if (s.state === 'cancelled' && d.cancelAt) return `Access ends ${formatLongDate(d.cancelAt)}`;
+  if (s.state === 'trialing' && d.trialEndsAt) return `Trial ends ${formatDate(d.trialEndsAt, { tz: 'UTC' })}`;
+  if (s.state === 'pilot' && d.pilotEndsAt) return `Pilot ends ${formatDate(d.pilotEndsAt, { tz: 'UTC' })}`;
+  if (s.state === 'past_due' && d.pausesOn) return `Service pauses ${formatDate(d.pausesOn, { tz: 'UTC' })}`;
+  if (s.state === 'cancelled' && d.cancelAt) return `Access ends ${formatDate(d.cancelAt, { tz: 'UTC' })}`;
   return null;
 }
 
@@ -113,7 +113,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         <CardContent className="flex flex-col gap-2">
           {s.plan && (
             <p>
-              {formatUsd(s.plan.basePriceCents)} per month, includes {s.plan.includedSeats} {s.plan.includedSeats === 1 ? 'client' : 'clients'}; each extra client {formatUsd(s.plan.seatPriceCents)} per month.
+              {formatMoney(s.plan.basePriceCents, { unit: 'cents', cents: true })} per month, includes {s.plan.includedSeats} {s.plan.includedSeats === 1 ? 'client' : 'clients'}; each extra client {formatMoney(s.plan.seatPriceCents, { unit: 'cents', cents: true })} per month.
             </p>
           )}
           {date && <p className="font-semibold">{date}</p>}
@@ -125,8 +125,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           </p>
           {s.nextInvoice && (
             <p>
-              Next invoice: <strong>{formatUsd(s.nextInvoice.amountDueCents)}</strong> on {formatLongDate(s.nextInvoice.periodEnd)}
-              {s.nextInvoice.discountCents > 0 ? ` (includes ${formatUsd(s.nextInvoice.discountCents)} discount)` : ''}.
+              Next invoice: <strong>{formatMoney(s.nextInvoice.amountDueCents, { unit: 'cents', cents: true })}</strong> on {formatDate(s.nextInvoice.periodEnd, { tz: 'UTC' })}
+              {s.nextInvoice.discountCents > 0 ? ` (includes ${formatMoney(s.nextInvoice.discountCents, { unit: 'cents', cents: true })} discount)` : ''}.
             </p>
           )}
           {s.discount && <p>Discount: {s.discount.code ?? 'applied'}</p>}
@@ -161,8 +161,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
             <ul className="flex flex-col gap-2">
               {s.recentInvoices.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center gap-3">
-                  <span>{formatLongDate(i.created)}</span>
-                  <span>{formatUsd(i.amountPaidCents)}</span>
+                  <span>{formatDate(i.created, { tz: 'UTC' })}</span>
+                  <span>{formatMoney(i.amountPaidCents, { unit: 'cents', cents: true })}</span>
                   <span className="capitalize text-muted-foreground">{i.status ?? ''}</span>
                   {i.hostedInvoiceUrl && (
                     <a href={i.hostedInvoiceUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-soft-text underline">

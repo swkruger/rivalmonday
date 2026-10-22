@@ -1,10 +1,10 @@
 'use client';
+import { formatMoney } from '@/lib/format';
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { useActionState } from 'react';
 import { HelpEmpty } from '@/components/help/empty-state';
 import { useReadOnly, WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
-import { formatUsd } from '@/server/format';
 import { archiveCostItemAction } from '../actions';
 import { CostItemDialog } from './cost-item-dialog';
 import { FormMessage } from './form-bits';
@@ -63,8 +63,8 @@ export function CostItemsTable({ items }: { items: CostItem[] }) {
               {i.billingUrl ? <a href={i.billingUrl} target="_blank" rel="noopener noreferrer" className="underline">{i.name}</a> : i.name}
             </TableCell>
             <TableCell>{typeOf(i)}</TableCell>
-            <TableCell>{formatUsd(i.amountUsd)}</TableCell>
-            <TableCell>{i.monthlyUsd == null ? '—' : formatUsd(i.monthlyUsd)}</TableCell>
+            <TableCell>{formatMoney(i.amountUsd, { cents: true })}</TableCell>
+            <TableCell>{i.monthlyUsd == null ? '—' : formatMoney(i.monthlyUsd, { cents: true })}</TableCell>
             <TableCell>{dates(i)}</TableCell>
             {!readOnly && (
               <TableCell className="text-right">

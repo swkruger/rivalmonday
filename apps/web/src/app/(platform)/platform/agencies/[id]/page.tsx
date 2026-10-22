@@ -1,3 +1,4 @@
+import { formatMoney } from '@/lib/format';
 import { platformRole } from '@cs/tools';
 import type { Metadata } from 'next';
 import { cache } from 'react';
@@ -10,7 +11,6 @@ import { type SupportSessionRow, SupportSessionsTable } from '@/components/suppo
 import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
-import { formatUsd } from '@/server/format';
 import { helpGuides } from '@/server/help';
 import { platformAdmins } from '@/server/runtime-env';
 import { callTool } from '@/server/tools';
@@ -113,7 +113,7 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
         <StatCard title="Active clients" value={String(tiles.clientsActive.value)} pill={deltaPill(tiles.clientsActive)} hint="Last 28 days" />
         <StatCard title="Seats" value={String(tiles.seats.value)} pill={deltaPill(tiles.seats)} hint="Last 28 days" />
         <StatCard title="Weekly active users" value={String(tiles.wau.value)} pill={deltaPill(tiles.wau)} hint="Last 28 days" />
-        <StatCard title="Spend this month" value={formatUsd(tiles.spendMonthUsd.value)} pill={deltaPill(tiles.spendMonthUsd, formatUsd)} hint="Last 28 days" />
+        <StatCard title="Spend this month" value={formatMoney(tiles.spendMonthUsd.value, { cents: true })} pill={deltaPill(tiles.spendMonthUsd, (n: number) => formatMoney(n, { cents: true }))} hint="Last 28 days" />
       </div>
       <div className="grid gap-5 lg:grid-cols-2">
         <PlatformCharts series={series} range={range} includeAgencies={false} />

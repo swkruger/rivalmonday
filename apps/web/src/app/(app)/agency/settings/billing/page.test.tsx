@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ viewer: { kind: 'user' } as { kind: string }, ctx: { role: 'agency_admin' } as Record<string, unknown>, callTool: vi.fn(), runTool: vi.fn(), summary: {} as unknown, connect: {} as Record<string, unknown> }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ viewer: m.viewer, ctx: m.ctx }) }));
@@ -42,6 +42,10 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+// The date formatter omits the current year, so pin "now" (Date only; timers stay real).
+beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-21T12:00:00Z')); });
+afterAll(() => { vi.useRealTimers(); });
+
 describe('/agency/settings/billing', () => {
   it('shows plan, state, key date, seats, next invoice, discount, invoices and the CSV link', async () => {
     render(await page());
@@ -50,7 +54,7 @@ describe('/agency/settings/billing', () => {
     expect(screen.getByText('Standard')).toBeTruthy();
     expect(screen.getAllByText(/\$299\.00/).length).toBeGreaterThan(0);
     expect(screen.getByText('Trial')).toBeTruthy();
-    expect(screen.getByText(/Trial ends November 13, 2026/)).toBeTruthy();
+    expect(screen.getByText(/Trial ends Nov 13/)).toBeTruthy();
     expect(screen.getByText(/4 of 3 included/)).toBeTruthy();
     expect(screen.getByText(/1 extra/)).toBeTruthy();
     expect(screen.getByText('$348.00')).toBeTruthy();
@@ -103,7 +107,7 @@ describe('/agency/settings/billing', () => {
   it('shows the pause date when past due and the done notice for ?done=1', async () => {
     m.summary = (summary({ state: 'past_due', dates: { trialEndsAt: null, pilotEndsAt: null, pastDueSince: '2026-10-24T00:00:00Z', pausesOn: '2026-10-31T00:00:00Z', cancelAt: null } }));
     render(await page({ done: '1' }));
-    expect(screen.getByText(/Service pauses October 31, 2026/)).toBeTruthy();
+    expect(screen.getByText(/Service pauses Oct 31/)).toBeTruthy();
     expect(within(screen.getByRole('status')).getByText(/Thanks/)).toBeTruthy();
   });
 

@@ -14,7 +14,7 @@ import { PAGE_COPY, type TipKey } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
-import { formatDay } from '../format';
+import { formatDate } from '@/lib/format';
 import { neighbours } from '../neighbours';
 
 export const dynamic = 'force-dynamic';
@@ -48,7 +48,7 @@ const loadBrief = cache(async (clientId: string, briefId: string) => {
   return { ctx, brief, profile, list };
 });
 
-const titleOf = (brief: BriefDetail) => (brief.kind === 'starting_point' ? 'Your starting point' : `Week of ${formatDay(brief.deliveryDate)}`);
+const titleOf = (brief: BriefDetail) => (brief.kind === 'starting_point' ? 'Your starting point' : `Week of ${formatDate(brief.deliveryDate, { tz: 'UTC' })}`);
 
 export async function generateMetadata({ params }: { params: Promise<{ clientId: string; briefId: string }> }): Promise<Metadata> {
   const { clientId, briefId } = await params;
@@ -68,7 +68,7 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
     <>
       <PageHeader
         title={titleOf(brief)}
-        breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, { label: 'Briefs & reports', href: `/c/${clientId}/briefs` }, formatDay(brief.deliveryDate))}
+        breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, { label: 'Briefs & reports', href: `/c/${clientId}/briefs` }, formatDate(brief.deliveryDate, { tz: profile.timezone }))}
         description={<HelpText text={COPY.description} />}
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}

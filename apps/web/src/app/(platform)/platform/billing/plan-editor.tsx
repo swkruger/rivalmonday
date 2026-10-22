@@ -1,4 +1,4 @@
-import { formatUsd } from '@/components/billing/format';
+import { formatMoney } from '@/lib/format';
 import { Field, fieldCls, MiniForm } from '../_components/mini-form';
 import { createPlanVersionAction } from './actions';
 
@@ -33,9 +33,9 @@ export function PlanEditor({ plans, canEdit }: { plans: PlanRow[]; canEdit: bool
               <tr key={p.id} className="border-t border-[#EEF2F6]">
                 <td className="px-3 py-2 font-semibold">v{p.version}</td>
                 <td className="px-3 py-2">{p.name}</td>
-                <td className="px-3 py-2">{formatUsd(p.basePriceCents)}</td>
+                <td className="px-3 py-2">{formatMoney(p.basePriceCents, { unit: 'cents', cents: true })}</td>
                 <td className="px-3 py-2">{p.includedSeats}</td>
-                <td className="px-3 py-2">{formatUsd(p.seatPriceCents)}</td>
+                <td className="px-3 py-2">{formatMoney(p.seatPriceCents, { unit: 'cents', cents: true })}</td>
                 <td className="px-3 py-2">{p.trialDays}</td>
                 <td className="whitespace-nowrap px-3 py-2">{p.createdAt.slice(0, 10)}</td>
                 <td className="px-3 py-2">{p.isCurrent ? 'Current' : p.synced ? 'Superseded' : 'Not synced'}</td>

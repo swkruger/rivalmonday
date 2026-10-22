@@ -13,7 +13,7 @@ import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
-import { formatDay } from '../../briefs/format';
+import { formatDate } from '@/lib/format';
 import { neighbours } from '../../briefs/neighbours';
 
 export const dynamic = 'force-dynamic';
@@ -48,7 +48,7 @@ export default async function AlertPage({ params }: { params: Promise<{ clientId
   const guides = await helpGuides(ctx, 'client', clientId);
   const agency = isAgencyRole(ctx.role);
   const { previous, next } = neighbours(list?.items ?? null, alert.id, (id) => `/c/${clientId}/alerts/${id}`);
-  const date = formatDay(alert.deliveredAt ?? alert.createdAt, profile.timezone);
+  const date = formatDate(alert.deliveredAt ?? alert.createdAt, { tz: profile.timezone });
   return (
     <>
       <PageHeader

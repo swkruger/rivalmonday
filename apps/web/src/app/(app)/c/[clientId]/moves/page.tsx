@@ -13,6 +13,7 @@ import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
+import { formatDate } from '@/lib/format';
 import { changesHref } from '../changes/params';
 import { RoutePill } from '../changes/feed';
 import { MoveCard, movesHref } from './move-card';
@@ -37,10 +38,6 @@ function parseMoveId(v: string | string[] | undefined): string | undefined {
   return s && UUID.test(s) ? s : undefined;
 }
 
-function formatShortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-}
-
 function StatusLink({ clientId, status, current, label }: { clientId: string; status: Status; current: Status; label: string }) {
   const active = status === current;
   return (
@@ -54,13 +51,13 @@ function StatusLink({ clientId, status, current, label }: { clientId: string; st
   );
 }
 
-function MoveStatusRow({ move }: { move: MoveDetail }) {
+function MoveStatusRow({ move, timezone }: { move: MoveDetail; timezone: string }) {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
-        <span>First detected {formatShortDate(move.firstDetectedAt)}</span>
-        {move.lastEvidenceAt && <span>Latest evidence {formatShortDate(move.lastEvidenceAt)}</span>}
-        {move.closedAt && <span>Closed {formatShortDate(move.closedAt)}</span>}
+        <span>First detected {formatDate(move.firstDetectedAt, { tz: timezone })}</span>
+        {move.lastEvidenceAt && <span>Latest evidence {formatDate(move.lastEvidenceAt, { tz: timezone })}</span>}
+        {move.closedAt && <span>Closed {formatDate(move.closedAt, { tz: timezone })}</span>}
         <span>Confidence {Math.round(move.confidence * 100)}%</span>
       </div>
       <p className="text-xs text-muted-foreground">Confidence grows with each extra supporting change and each extra channel.</p>
@@ -68,7 +65,7 @@ function MoveStatusRow({ move }: { move: MoveDetail }) {
   );
 }
 
-function EvidenceChain({ clientId, move }: { clientId: string; move: MoveDetail }) {
+function EvidenceChain({ clientId, move, timezone }: { clientId: string; move: MoveDetail; timezone: string }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-1.5">
@@ -86,7 +83,7 @@ function EvidenceChain({ clientId, move }: { clientId: string; move: MoveDetail 
                 <p className="truncate text-sm font-semibold text-ink">
                   {e.typeLabel} · {e.summary}
                 </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{formatShortDate(e.occurredAt)}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(e.occurredAt, { tz: timezone })}</p>
               </div>
               <div className="flex flex-col items-end gap-1">
                 <span className={`font-extrabold ${e.route === 'archive' ? 'text-muted-foreground' : 'text-secondary'}`}>{e.score}</span>
@@ -175,7 +172,7 @@ export default async function MovesPage({
                     {detail.label} · {detail.competitorName}
                   </h2>
                 </div>
-                <MoveStatusRow move={detail} />
+                <MoveStatusRow move={detail} timezone={profile.timezone} />
                 {detail.facts.length > 0 && (
                   <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                     {detail.facts.map((f) => (
@@ -186,7 +183,7 @@ export default async function MovesPage({
                     ))}
                   </dl>
                 )}
-                <EvidenceChain clientId={clientId} move={detail} />
+                <EvidenceChain clientId={clientId} move={detail} timezone={profile.timezone} />
               </CardContent>
             </Card>
           ) : (

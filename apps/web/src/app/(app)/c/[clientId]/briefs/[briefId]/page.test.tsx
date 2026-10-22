@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const callTool = vi.fn();
 const viewer = vi.hoisted(() => ({ role: 'client_owner' }));
@@ -9,6 +9,10 @@ vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a)
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
 
 import BriefPage, { generateMetadata } from './page';
+
+// The date formatter omits the current year, so pin "now" (Date only; timers stay real).
+beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-21T12:00:00Z')); });
+afterAll(() => { vi.useRealTimers(); });
 
 const C = '00000000-0000-4000-8000-0000000000c1';
 const summary = (id: string, deliveryDate: string) => ({ id, clientId: C, deliveryDate, status: 'sent', kind: 'weekly', summary: 's', sentAt: null, hasPdf: false, generatedAt: null });
@@ -33,11 +37,11 @@ describe('Brief page (15a §2.8)', () => {
   it('one h1 naming the week, breadcrumb client › Briefs & reports › date, both neighbours from list_briefs at its max', async () => {
     mount();
     await show('b2');
-    expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual(['Week of Oct 13, 2026']);
+    expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual(['Week of Oct 13']);
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'Cool Air' }).getAttribute('href')).toBe(`/c/${C}`);
     expect(within(crumbs).getByRole('link', { name: 'Briefs & reports' }).getAttribute('href')).toBe(`/c/${C}/briefs`);
-    expect(crumbs.textContent).toContain('Oct 13, 2026');
+    expect(crumbs.textContent).toContain('Oct 13');
     expect(callTool.mock.calls.find((c) => c[1] === 'list_briefs')![2]).toEqual({ clientId: C, limit: 52 });
     expect(screen.getByRole('link', { name: '‹ Previous' }).getAttribute('href')).toBe(`/c/${C}/briefs/b1`);
     expect(screen.getByRole('link', { name: 'Next ›' }).getAttribute('href')).toBe(`/c/${C}/briefs/b3`);

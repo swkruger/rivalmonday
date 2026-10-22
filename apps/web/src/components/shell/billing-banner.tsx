@@ -1,6 +1,6 @@
+import { formatDate } from '@/lib/format';
 import type { BillingState } from '@cs/db';
 import Link from 'next/link';
-import { formatLongDate } from '@/components/billing/format';
 
 const BILLING_HREF = '/agency/settings/billing';
 
@@ -16,14 +16,14 @@ export function BillingBanner({ role, state, trialEndsAt, pausesOn }: { role: st
   if (state === 'trialing' && trialEndsAt) {
     return (
       <Bar tone="info" action="Add payment method">
-        Your trial ends {formatLongDate(trialEndsAt)}. Add a payment method to keep going.
+        Your trial ends {formatDate(trialEndsAt, { tz: 'UTC' })}. Add a payment method to keep going.
       </Bar>
     );
   }
   if (state === 'past_due') {
     return (
       <Bar tone="danger" action="Update payment method">
-        {pausesOn ? `Payment needed — service pauses on ${formatLongDate(pausesOn)}.` : 'Payment needed.'}
+        {pausesOn ? `Payment needed — service pauses on ${formatDate(pausesOn, { tz: 'UTC' })}.` : 'Payment needed.'}
       </Bar>
     );
   }

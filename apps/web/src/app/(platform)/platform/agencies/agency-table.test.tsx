@@ -22,7 +22,7 @@ describe('AgencyTable', () => {
     expect(screen.getByRole('link', { name: 'Acme' }).getAttribute('href')).toBe('/platform/agencies/a1');
     expect(screen.getByText('Steady')).toBeTruthy();
     expect(screen.getByText('$12.50')).toBeTruthy();
-    expect(screen.getByText('Yesterday')).toBeTruthy();
+    expect(screen.getByText('yesterday')).toBeTruthy();
   });
 
   it('has a Billing column with the state pill label', () => {

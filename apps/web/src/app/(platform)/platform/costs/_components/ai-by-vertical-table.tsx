@@ -1,7 +1,7 @@
+import { formatMoney } from '@/lib/format';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { EmptyState } from '@/components/help/empty-state';
 import { PAGE_COPY } from '@/help/copy';
-import { formatUsd } from '@/server/format';
 import type { AiVerticalCost } from './types';
 
 /** AI spend by business type for the last 30 days (owner-only page; the tool folds merged and draft ids). */
@@ -21,7 +21,7 @@ export function AiByVerticalTable({ rows }: { rows: AiVerticalCost[] }) {
           <TableRow key={r.verticalId}>
             <TableCell>{r.name}</TableCell>
             <TableCell className="text-right tabular-nums">{r.calls}</TableCell>
-            <TableCell className="text-right tabular-nums">{formatUsd(r.costUsd)}</TableCell>
+            <TableCell className="text-right tabular-nums">{formatMoney(r.costUsd, { cents: true })}</TableCell>
           </TableRow>
         ))}
       </TableBody>

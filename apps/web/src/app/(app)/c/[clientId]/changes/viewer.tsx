@@ -11,13 +11,10 @@ import { EvidenceImage } from '@/components/evidence-image';
 import { HelpTip } from '@/components/help/help-tip';
 import { submitFeedbackAction } from './actions';
 import { DiffText } from './diff-text';
+import { formatDate } from '@/lib/format';
 import { FeedbackButtons } from './feedback-buttons';
 import { RoutePill } from './feed';
 import { changesHref, type ChangesParams } from './params';
-
-function formatShortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-}
 
 function formatFullUtc(iso: string): string {
   return new Date(iso).toUTCString();
@@ -45,12 +42,12 @@ function FactorBar({ label, value, sub }: { label: string; value: number; sub?: 
   );
 }
 
-function Snapshot({ clientId, label, side, pageUrl }: { clientId: string; label: string; side: SnapshotSide | null; pageUrl: string | null }) {
+function Snapshot({ clientId, label, side, pageUrl, timezone }: { clientId: string; label: string; side: SnapshotSide | null; pageUrl: string | null; timezone: string }) {
   return (
     <div className="flex flex-col gap-2">
       <h3 className="text-sm font-semibold text-ink">
         {label}
-        {side ? ` · ${formatShortDate(side.capturedAt)}` : ''}
+        {side ? ` · ${formatDate(side.capturedAt, { tz: timezone })}` : ''}
       </h3>
       <div className="max-h-[560px] overflow-auto rounded-lg border border-line">
         {!side ? (
@@ -62,7 +59,7 @@ function Snapshot({ clientId, label, side, pageUrl }: { clientId: string; label:
             <EvidenceImage src={`/files/evidence/${clientId}/${side.screenshot.evidenceId}`} alt={`${label} snapshot of ${pageUrl ?? ''}`} loading="lazy" className="w-full" />
             {side.screenshot.fallback && (
               <p className="border-t border-line p-2 text-xs text-muted-foreground">
-                Page unchanged at this capture — showing the snapshot from {formatShortDate(side.screenshot.capturedAt)}
+                Page unchanged at this capture — showing the snapshot from {formatDate(side.screenshot.capturedAt, { tz: timezone })}
               </p>
             )}
           </>
@@ -132,12 +129,14 @@ export function EventViewer({
   detail,
   compare,
   canGiveFeedback,
+  timezone,
 }: {
   clientId: string;
   params: ChangesParams;
   detail: EventDetail;
   compare: CompareView | null;
   canGiveFeedback: boolean;
+  timezone: string;
 }) {
   const activeChange = detail.changes.find((c) => c.changeId === params.change) ?? detail.changes[0];
   const hasCaptures = !!compare?.before && !!compare?.after;
@@ -153,8 +152,8 @@ export function EventViewer({
                 <p className="mt-1 text-sm text-muted-foreground">
                   {activeChange.pageUrl ?? activeChange.channelLabel}
                   {hasCaptures
-                    ? ` · changed between ${formatShortDate(compare!.before!.capturedAt)} and ${formatShortDate(compare!.after!.capturedAt)}`
-                    : ` · detected ${formatShortDate(activeChange.detectedAt)}`}
+                    ? ` · changed between ${formatDate(compare!.before!.capturedAt, { tz: timezone })} and ${formatDate(compare!.after!.capturedAt, { tz: timezone })}`
+                    : ` · detected ${formatDate(activeChange.detectedAt, { tz: timezone })}`}
                   {detail.changes.length > 1 ? ` · also seen in ${detail.changes.length - 1} other places` : ''}
                 </p>
               )}
@@ -236,8 +235,8 @@ export function EventViewer({
                   </div>
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Snapshot clientId={clientId} label="Before" side={compare.before} pageUrl={compare.pageUrl} />
-                    <Snapshot clientId={clientId} label="After" side={compare.after} pageUrl={compare.pageUrl} />
+                    <Snapshot clientId={clientId} label="Before" side={compare.before} pageUrl={compare.pageUrl} timezone={timezone} />
+                    <Snapshot clientId={clientId} label="After" side={compare.after} pageUrl={compare.pageUrl} timezone={timezone} />
                   </div>
                 ))}
 

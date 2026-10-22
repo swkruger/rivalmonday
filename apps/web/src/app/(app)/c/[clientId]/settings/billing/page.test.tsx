@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ReadOnlyProvider } from '@/components/read-only';
 import { ClientBillingBanner } from '@/components/shell/client-billing-banner';
 
@@ -20,6 +20,10 @@ vi.mock('@/components/billing/refresh-until-changed', () => ({ RefreshUntilChang
 
 import ClientBillingPage from './page';
 
+// The date formatter omits the current year, so pin "now" (Date only; timers stay real).
+beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-21T12:00:00Z')); });
+afterAll(() => { vi.useRealTimers(); });
+
 afterEach(() => { cleanup(); m.refuse = false; m.calls = []; m.ctx = { role: 'client_owner' }; });
 const C = '00000000-0000-4000-8000-0000000000a1';
 const base = { agencyName: 'Cool Agency', state: 'active', paused: false, enabled: true, nextChargeDate: '2026-12-01T00:00:00.000Z', nextChargeAmountCents: 12900, endsOn: null, canManagePayment: true };
@@ -32,7 +36,7 @@ describe('client billing page (9b)', () => {
     render(await open());
     expect(text()).toContain('Cool Agency');
     expect(text()).toContain('Active');
-    expect(text()).toContain('$129.00 on December 1, 2026');
+    expect(text()).toContain('$129.00 on Dec 1');
     expect(screen.getByRole('button', { name: 'Manage payment' })).toBeTruthy();
     expect(m.calls[0]).toEqual([m.ctx, 'get_my_billing', { clientId: C }]);
   });
@@ -61,7 +65,7 @@ describe('client billing page (9b)', () => {
       [{ state: 'payment_needed' }, 'Your last payment did not go through. Please update your payment method.'],
       [{ paused: true }, 'Monitoring is paused. Please contact Cool Agency.'],
       [{ enabled: false, state: 'off', nextChargeDate: null, nextChargeAmountCents: null, canManagePayment: false }, 'Billing is not set up for this workspace.'],
-      [{ nextChargeDate: null, nextChargeAmountCents: null, endsOn: '2026-12-01T00:00:00.000Z' }, 'Your plan ends on December 1, 2026.'],
+      [{ nextChargeDate: null, nextChargeAmountCents: null, endsOn: '2026-12-01T00:00:00.000Z' }, 'Your plan ends on Dec 1.'],
     ];
     for (const [over, copy] of cases) {
       m.data = { ...base, ...over };

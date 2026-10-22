@@ -16,7 +16,8 @@ vi.mock('next/navigation', () => ({
 }));
 const { ClientBillingSection } = await import('./section');
 const { connectAction, disconnectAction, saveDefaultsAction } = await import('./actions');
-const { parseDollars, formatMoney } = await import('./money');
+const { parseDollars } = await import('./money');
+const { formatMoney } = await import('@/lib/format');
 
 const status = (over: Record<string, unknown> = {}) => ({
   status: 'connected', chargesEnabled: true, detailsSubmitted: true, defaultPriceCents: 29900, defaultSetupFeeCents: 5000, currency: 'usd',
@@ -39,8 +40,8 @@ describe('client-billing money', () => {
     expect(parseDollars('-5')).toBeNull();
   });
   it('shows two decimals only when cents are non-zero', () => {
-    expect(formatMoney(59800)).toBe('$598');
-    expect(formatMoney(4950)).toBe('$49.50');
+    expect(formatMoney(59800, { unit: 'cents' })).toBe('$598');
+    expect(formatMoney(4950, { unit: 'cents' })).toBe('$49.50');
   });
 });
 

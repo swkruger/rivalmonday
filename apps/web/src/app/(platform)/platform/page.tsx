@@ -1,10 +1,10 @@
+import { formatMoney } from '@/lib/format';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { StatCard } from '@/components/stat-card';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
-import { formatUsd } from '@/server/format';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { loadMoreActivity } from './actions';
@@ -56,7 +56,7 @@ export default async function PlatformOverviewPage({ searchParams }: { searchPar
         <StatCard title="Active clients" value={String(tiles.clientsActive.value)} pill={deltaPill(tiles.clientsActive)} hint="Last 28 days" />
         <StatCard title="Seats" value={String(tiles.seats.value)} pill={deltaPill(tiles.seats)} hint="Last 28 days" />
         <StatCard title="Weekly active users" value={String(tiles.wau.value)} pill={deltaPill(tiles.wau)} hint="Last 28 days" />
-        <StatCard title="Spend this month" value={formatUsd(tiles.spendMonthUsd.value)} pill={deltaPill(tiles.spendMonthUsd, formatUsd)} hint="Last 28 days" />
+        <StatCard title="Spend this month" value={formatMoney(tiles.spendMonthUsd.value, { cents: true })} pill={deltaPill(tiles.spendMonthUsd, (n: number) => formatMoney(n, { cents: true }))} hint="Last 28 days" />
       </div>
       <div className="grid gap-5 lg:grid-cols-2">
         <PlatformCharts series={series} range={range} includeAgencies />
