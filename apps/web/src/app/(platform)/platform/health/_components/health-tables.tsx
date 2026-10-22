@@ -1,6 +1,6 @@
 import type { PlatformHealth } from '@cs/tools';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
-import { relativeTime } from '@/server/format';
+import { formatRelative } from '@/lib/format';
 
 export type HealthData = PlatformHealth;
 export type HealthStatus = PlatformHealth['worker']['status'];
@@ -20,7 +20,7 @@ export const StatusChip = ({ status }: { status: HealthStatus }) => (
 /** Relative time with the absolute UTC time on hover; `now` is the server clock so hydration matches. */
 function When({ iso, now, never }: { iso: string | null; now: Date; never: string }) {
   if (!iso) return <span className="text-muted-foreground">{never}</span>;
-  return <time dateTime={iso} title={`${iso.slice(0, 16).replace('T', ' ')} UTC`}>{relativeTime(iso, now)}</time>;
+  return <time dateTime={iso} title={`${iso.slice(0, 16).replace('T', ' ')} UTC`}>{formatRelative(iso, now)}</time>;
 }
 
 function age(s: number | null): string {
