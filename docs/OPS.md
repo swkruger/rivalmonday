@@ -42,6 +42,14 @@ Creates the platform runbook, one per agency, and for every client (all statuses
 
 After the backfill nothing calls the model: backfilled clients stay `skipped`. A new client's runbook is created (and tailored by the `runbook-tailor` worker job, one OpenRouter call) when the setup wizard advances (`advance_client_setup`) or an agency admin uses "Create a runbook for this client"; `runbook.tailor_status` is `pending` / `done` / `failed` / `skipped` (a failed run leaves the agency runbook copy, editable). Check a client with `select tailor_status from runbook where client_id = '<id>'`. To roll back before dropping `playbook_override`, delete the client/agency runbook rows: clients fall back to the legacy view.
 
+## Archive and purge (7a2)
+Deleting a tenant is two steps (service role, `SERVICE_DATABASE_URL`; one `platform_audit_log` row per action):
+```
+pnpm --filter @cs/worker archive <agency|client> <id> [--undo]
+pnpm --filter @cs/worker purge-archived --older-than 90d [--dry-run]
+```
+`archive` hides the row everywhere at once (archived = deleted; `--undo` restores it losslessly). It **refuses** while a live Stripe/Connect subscription exists: cancel it in Stripe first. `purge-archived` hard-deletes agencies/clients archived more than n days ago (**n >= 30**, planned 90) and cascades; ledger and audit rows stay, detached and anonymised; evidence and captures are not pruned; Better Auth users stay (sign-in lands on `/no-access`). Always `--dry-run` first. Verified leads nobody actioned are deleted after 180 days and pending notifications over 7 days overdue become `skipped` by the daily jobs (no command).
+
 ## Crawler ban
 
 Don't point the web crawler at real competitors until `https://rivalmonday.app/bot` exists. That covers `collect-once` without `--vendors` and `collect-once` with `--web`. `--vendors` on its own calls only vendor APIs. `WEB_MONITORING_ENABLED` stays off.

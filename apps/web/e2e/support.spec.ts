@@ -153,6 +153,28 @@ test.describe('support sessions', () => {
     });
   });
 
+  test('opening an evidence file in a session adds an agency audit row', { tag: ['@support'] }, async ({ browser }, testInfo) => {
+    // Target Plumbing tracks Smith HVAC for this test only, so the seeded screenshot is visible to it.
+    const [link] = await withDb(async (db) => [...(await db.execute<{ shot: string }>(sql`
+      with c as (select id from competitor where name = 'Smith HVAC' limit 1),
+      ins as (insert into client_competitor (agency_id, client_id, competitor_id) select ${agencyId}, ${clientId}, c.id from c returning competitor_id)
+      select e.id as shot from evidence e join capture cp on cp.id = e.capture_id join ins on ins.competitor_id = cp.competitor_id
+      where e.kind = 'screenshot' limit 1`))]);
+    try {
+      const count = () => withDb(async (db) => [...(await db.execute<{ n: number }>(sql`
+        select count(*)::int as n from audit_log where agency_id = ${agencyId} and tool = 'support_view_evidence'`))][0]!.n);
+      const before = await count();
+      await as(browser, testInfo, 'staff', async (page) => {
+        await startSession(page, agencyId, 'Checking an evidence screenshot for the audit trail');
+        const res = await page.request.get(`/files/evidence/${clientId}/${link!.shot}`);
+        expect(res.status()).toBe(200);
+      });
+      expect(await count()).toBe(before + 1);
+    } finally {
+      await withDb((db) => db.execute(sql`delete from client_competitor where client_id = ${clientId}`));
+    }
+  });
+
   test('Exit returns to the console with the ended notice', { tag: ['@support'] }, async ({ browser }, testInfo) => {
     await as(browser, testInfo, 'staff', async (page) => {
       await startSession(page, agencyId, 'Quick look, then exit');

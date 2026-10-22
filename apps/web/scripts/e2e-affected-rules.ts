@@ -60,6 +60,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${WEB}(?:playwright\\.config\\.ts|package\\.json|next\\.config\\.[^/]+|tsconfig\\.json|postcss\\.config\\.[^/]+)$`), tags: 'all', why: 'web build/test config' },
   { pattern: re(`${APP}api/stripe/`), tags: [], why: 'Stripe webhook route (covered by its route test, no browser flow)' },
   { pattern: re(`${APP}api/postmark/`), tags: [], why: 'Postmark bounce webhook route (covered by its route test, no browser flow)' },
+  { pattern: /^packages\/collectors\/src\/(?:net\/|web\/renderer\.ts$)/, tags: [], why: 'SSRF guard and headless renderer (crawler-only; covered by collectors unit tests, no browser flow)' },
   { pattern: re(`${WEB}src/proxy\\.ts$`), tags: 'all', why: 'request proxy runs on every page' },
   { pattern: re(`${APP}(?:layout\\.tsx|globals\\.css|health/)`), tags: 'all', why: 'root layout/styles/health check' },
   { pattern: re(`${APP}(?:bot/|robots\\.ts$)`), tags: ['@ops'], why: 'public crawler page and robots.txt' },
