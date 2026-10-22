@@ -115,9 +115,9 @@ Neutral by design: no product name, wordmark or agency logo; the error message a
 | Service-area summary (client profile, Area row) | "N miles around the business · N ZIP codes · towns" |
 | Setup pick step | "N.N mi away" under 10 mi, "N mi away" from 10 mi |
 | Competitor suggestions | "N.N mi" in the meta line |
-| Rankings map line | "... · Grid 5x5 · 10 mi radius" (under 1 mi: one decimal) |
+| Rankings map line | "... · Grid 5×5 · 10 mi radius" (under 1 mi: one decimal) |
 | Lead page neighbours table | column "Distance (mi)", values with one decimal |
-| Intake preview fact | not shipped in 15c-1 (15c-3) |
+| Intake preview fact (agency intake page, `packages/tools/src/intake/preview.ts`) | "The closest competitor is {name}, {x.x} mi away." |
 
 ## Dates and times
 | Kind | Format | Example |
