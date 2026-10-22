@@ -44,7 +44,7 @@ describe('model-ops schema', () => {
     expect(await errorText(withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) => tx.insert(decisionLabel).values({ sampleId: s!.id, questionKey: 'x', value: 'y', source: 'human', labeledBy: 'me' })))).toMatch(/permission denied/i);
   });
 
-  it('theme proposals are invisible to tenant roles (platform data, approved through the service role)', async () => {
+  it('topic proposals are invisible to tenant roles (platform data, approved through the service role)', async () => {
     await dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'warranty', name: 'Warranty', description: 'd', status: 'proposed', otherCount: 20, sampleReviewIds: [] });
     const rows = await withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) => tx.select().from(topicProposal));
     expect(rows).toEqual([]);

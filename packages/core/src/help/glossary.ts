@@ -199,7 +199,7 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     seeAlso: ['review-velocity'],
   },
   {
-    // source: packages/engine/src/reviews/benchmark.ts:summarizeWindow (share = mentioning / asked), sentimentScore; topics (packs call them themes): packages/verticals/packs/*.yaml
+    // source: packages/engine/src/reviews/benchmark.ts:summarizeWindow (share = mentioning / asked), sentimentScore; topics (defined per business type in the packs): packages/verticals/packs/*.yaml
     id: 'topic',
     term: 'Topic',
     audience: 'all',

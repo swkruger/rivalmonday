@@ -45,8 +45,8 @@ export interface TopicDiscoveryContext {
 }
 
 /**
- * Spec §6.5 theme discovery for one vertical: when enough reviews analysed since the last proposal raised an
- * "other" topic and matched no theme, gathers the sample and prompt a model would need to propose one theme
+ * Spec §6.5 topic discovery for one vertical: when enough reviews analysed since the last proposal raised an
+ * "other" topic and matched no existing topic, gathers the sample and prompt a model would need to propose one topic
  * (or none) for AM approval. Shared by the synchronous path and batch submission.
  */
 export async function prepareTopicDiscovery(
@@ -62,7 +62,7 @@ export async function prepareTopicDiscovery(
     .from(modelBatch)
     .where(and(eq(modelBatch.status, 'submitted'), eq(modelBatch.purpose, THEME_BATCH_PURPOSE), sql`${modelBatch.items} ? ${verticalId}`))
     .limit(1);
-  if (inFlight) return { skipped: 'a theme-discovery batch is in flight' };
+  if (inFlight) return { skipped: 'a topic-discovery batch is in flight' };
   const [last] = await deps.db.select({ at: topicProposal.createdAt }).from(topicProposal).where(eq(topicProposal.verticalId, verticalId)).orderBy(desc(topicProposal.createdAt)).limit(1);
 
   const rows = await deps.db
@@ -78,11 +78,11 @@ export async function prepareTopicDiscovery(
       ),
     )
     .orderBy(desc(review.postedAt));
-  if (rows.length < TOPIC_DISCOVERY_MIN_OTHER) return { skipped: `${rows.length} unthemed review(s) since the last proposal` };
+  if (rows.length < TOPIC_DISCOVERY_MIN_OTHER) return { skipped: `${rows.length} untagged review(s) since the last proposal` };
 
   const pack = await deps.packs(verticalId);
   const topics = await topicsForVertical(deps.db, pack);
-  // Rejected proposals carry no DB-level block against a repeat (theme_proposal_live_unique only covers
+  // Rejected proposals carry no DB-level block against a repeat (topic_proposal_live_unique only covers
   // 'proposed'/'approved'), so without this the model can propose the exact same rejected topic every time
   // enough fresh "other" reviews accumulate. Tell it which ids are already rejected, and reject them again below.
   const rejectedIds = new Set(
@@ -94,6 +94,7 @@ export async function prepareTopicDiscovery(
     .join('\n');
   return {
     context: { verticalId, otherCount: rows.length, sampleReviewIds: sample.slice(0, SAMPLE_IDS_KEPT).map((r) => r.id), topicIds: topics.map((t) => t.id), rejectedIds: [...rejectedIds] },
+    // kept: model-ops key (15b-3 C7)
     jsonSchema: { name: 'theme_proposal', schema: proposalJson },
     messages: [
       { role: 'system', content: SYSTEM },
@@ -124,7 +125,7 @@ export async function applyTopicProposal(db: Db, ctx: TopicDiscoveryContext, tex
   if (valid && decided.some((d) => d.status === 'proposed')) return { skipped: 'a proposal is awaiting approval' };
   const status: TopicProposalStatus = valid ? 'proposed' : 'none';
   // The pending check above is check-then-insert (not transactional), so a concurrent run can slip a 'proposed'
-  // row in between: `theme_proposal_pending_unique` (one 'proposed' row per vertical) is the real guard, and a
+  // row in between: `topic_proposal_pending_unique` (one 'proposed' row per vertical) is the real guard, and a
   // violation here means we lost the race, not that something is wrong — treat it the same as the early check.
   try {
     const [row] = await db
@@ -149,6 +150,7 @@ export async function discoverTopic(
 ): Promise<{ status: 'proposed' | 'none'; proposalId: string } | { skipped: string }> {
   const prep = await prepareTopicDiscovery(deps, verticalId, opts);
   if ('skipped' in prep) return prep;
+  // kept: model-ops key (15b-3 C7)
   const res = await deps.ai.chat('theme_discovery', { jsonSchema: prep.jsonSchema, messages: prep.messages }, { ...PLATFORM, verticalId });
   return applyTopicProposal(deps.db, prep.context, res.text);
 }
@@ -156,13 +158,13 @@ export async function discoverTopic(
 /** The provider rejected the batch submission: nothing is in flight anywhere, so the caller may run the sync path instead. */
 export class BatchSubmitError extends Error {
   constructor(cause: unknown) {
-    super(`theme-discovery batch submit failed: ${cause instanceof Error ? `${cause.name}: ${cause.message.slice(0, 300)}` : String(cause).slice(0, 300)}`, { cause });
+    super(`topic-discovery batch submit failed: ${cause instanceof Error ? `${cause.name}: ${cause.message.slice(0, 300)}` : String(cause).slice(0, 300)}`, { cause });
     this.name = 'BatchSubmitError';
   }
 }
 
 /**
- * One batch for every vertical that has enough unthemed reviews and nothing in flight (custom_id = vertical id).
+ * One batch for every vertical that has enough reviews without a topic and nothing in flight (custom_id = vertical id).
  * Throws `BatchSubmitError` only when the provider submit itself fails; a failure after a successful submit (recording
  * the `model_batch` row) throws a plain error naming the provider batch id — that batch is in flight and must not be re-run.
  */
@@ -193,7 +195,7 @@ export async function submitTopicDiscoveryBatch(
   } catch (err) {
     const cause = (err as { cause?: unknown }).cause;
     const msg = cause instanceof Error ? cause.message : err instanceof Error ? err.message : String(err);
-    throw new Error(`theme-discovery batch ${batchId} was submitted but not recorded (reconcile it by hand): ${msg}`, { cause: err });
+    throw new Error(`topic-discovery batch ${batchId} was submitted but not recorded (reconcile it by hand): ${msg}`, { cause: err });
   }
   return { batchId, submitted: prepared.map((p) => p.context.verticalId), skipped };
 }
@@ -205,7 +207,7 @@ export async function decideTopicProposal(db: Db, proposalId: string, decision: 
     .set({ status: decision, decidedAt: new Date(), decidedBy })
     .where(and(eq(topicProposal.id, proposalId), eq(topicProposal.status, 'proposed')))
     .returning({ id: topicProposal.id });
-  if (rows.length === 0) throw new Error(`theme proposal ${proposalId} is not awaiting a decision`);
+  if (rows.length === 0) throw new Error(`topic proposal ${proposalId} is not awaiting a decision`);
 }
 
 export interface ReviewInsightsResult {
@@ -218,7 +220,7 @@ export interface ReviewInsightsResult {
   errors: number;
 }
 
-/** Nightly: complaint spikes for every competitor with analysed reviews, then theme discovery per vertical. One failure never stops the rest. */
+/** Nightly: complaint spikes for every competitor with analysed reviews, then topic discovery per vertical. One failure never stops the rest. */
 export async function runReviewInsights(deps: { db: Db; ai: Ai; packs: PackLoader }, opts: { now?: Date; competitorId?: string } = {}): Promise<ReviewInsightsResult> {
   const r: ReviewInsightsResult = { competitors: 0, spikes: 0, proposals: 0, batched: 0, batchFallbacks: 0, errors: 0 };
   const scope = opts.competitorId ? eq(reviewAnalysis.competitorId, opts.competitorId) : undefined;
@@ -240,7 +242,7 @@ export async function runReviewInsights(deps: { db: Db; ai: Ai; packs: PackLoade
     } catch (err) {
       if (err instanceof BatchSubmitError) {
         // The provider rejected the submission (e.g. a misconfigured key): nothing is in flight, so run the sync path tonight.
-        console.warn(`[review-insights] ${err.message}; running theme discovery synchronously`);
+        console.warn(`[review-insights] ${err.message}; running topic discovery synchronously`);
         r.batchFallbacks++;
         sync = true;
       } else {
@@ -257,7 +259,7 @@ export async function runReviewInsights(deps: { db: Db; ai: Ai; packs: PackLoade
         if ('status' in d && d.status === 'proposed') r.proposals++;
       } catch (err) {
         r.errors++;
-        console.error(`[review-insights] theme discovery for ${id} failed: ${err instanceof Error ? err.message : String(err)}`);
+        console.error(`[review-insights] topic discovery for ${id} failed: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }

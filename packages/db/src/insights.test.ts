@@ -52,7 +52,7 @@ describe('review and price insight tables', () => {
     });
   });
 
-  it('theme proposals and the price-block cache are service-only', async () => {
+  it('topic proposals and the price-block cache are service-only', async () => {
     await withTenant(dbs.app, A1, async (tx) => {
       expect(await tx.select().from(topicProposal)).toEqual([]);
       expect(await tx.select().from(priceBlockMap)).toEqual([]);
@@ -82,7 +82,7 @@ describe('review and price insight tables', () => {
     expect(await dbs.owner.select().from(pricePoint)).toHaveLength(2);
   });
 
-  it('one live (proposed or approved) proposal per vertical theme id; rejected and none rows may repeat', async () => {
+  it('one live (proposed or approved) proposal per vertical topic id; rejected and none rows may repeat', async () => {
     expect(await errorText(dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'warranty', name: 'W', description: 'd', otherCount: 1 }))).toMatch(
       /topic_proposal_live_unique/,
     );
@@ -92,10 +92,10 @@ describe('review and price insight tables', () => {
     ]);
   });
 
-  it('at most one proposed proposal per vertical, even for a different theme id; a none row is still insertable while one is pending', async () => {
+  it('at most one proposed proposal per vertical, even for a different topic id; a none row is still insertable while one is pending', async () => {
     // beforeEach already seeded a 'proposed' warranty row for hvac_plumbing.
     expect(
-      await errorText(dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'other_theme', name: 'Other', description: 'd', otherCount: 1 })),
+      await errorText(dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'other_topic', name: 'Other', description: 'd', otherCount: 1 })),
     ).toMatch(/topic_proposal_pending_unique/);
     await dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: '', name: '', description: '', status: 'none', otherCount: 22 });
   });

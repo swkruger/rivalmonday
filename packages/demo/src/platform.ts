@@ -3,8 +3,8 @@ import { DAY } from './clock';
 import type { SeedContext } from './context';
 import { DEMO_COLLECTOR } from './tenancy';
 
-/** Deviation 1: one pending proposal per vertical (theme_proposal_pending_unique), plus two recent decisions. */
-async function seedThemeProposals(ctx: SeedContext): Promise<void> {
+/** Deviation 1: one pending proposal per vertical (topic_proposal_pending_unique), plus two recent decisions. */
+async function seedTopicProposals(ctx: SeedContext): Promise<void> {
   const { db, ids, clock } = ctx;
   const samples = ids.sampleReviewIds;
   await db.insert(topicProposal).values([
@@ -44,6 +44,6 @@ async function seedDecisionReviews(ctx: SeedContext): Promise<void> {
 
 /** Spec §4.8 platform queues. */
 export async function seedPlatform(ctx: SeedContext): Promise<void> {
-  await seedThemeProposals(ctx);
+  await seedTopicProposals(ctx);
   await seedDecisionReviews(ctx);
 }

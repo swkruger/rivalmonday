@@ -108,7 +108,7 @@ test('an admin turns a client feature on and off on the profile page', { tag: ['
   await expect(page.getByLabel(/Alert rules/)).toBeChecked();
 });
 
-test('a platform operator approves a theme proposal', { tag: ['@platform', '@reviews'] }, async ({ page }) => {
+test('a platform operator approves a topic proposal', { tag: ['@platform', '@reviews'] }, async ({ page }) => {
   await page.goto('/platform/themes');
   await page.getByRole('button', { name: 'Approve E2E hidden fees' }).click();
   await expect(page.getByText('Approved “E2E hidden fees”.')).toBeVisible();

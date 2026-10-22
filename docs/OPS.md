@@ -10,6 +10,8 @@ What is built: [ARCHITECTURE.md](ARCHITECTURE.md). All commands run from the rep
 | `cs_test` | Test suites. Snapshot restore never targets a `_test` database. |
 | `cs_demo` | Fictional HVAC/plumbing demo data, rebuilt by `pnpm demo:reset`. |
 
+After migration `0081` (15b-3a topic rename): run `pnpm --filter @cs/db migrate`, then `pnpm --filter @cs/db topic-leftovers` against `cs_dev`; it prints nothing when the rename has fully landed (exit 1 and the table list otherwise).
+
 ## CS Dev Verification Agency / Client (`cs_dev`)
 
 - Agency `CS Dev Verification Agency` — id `aaf5e009-974b-4ce8-b7ec-b722c5c66b1c`.

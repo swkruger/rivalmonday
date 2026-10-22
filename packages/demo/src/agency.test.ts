@@ -1,4 +1,4 @@
-import { agency, agencyBilling, agencyWebhook, invitation, notification, notificationPref, prospectReport, topicProposal } from '@cs/db';
+import { agency, agencyBilling, agencyWebhook, findTopicLeftovers, invitation, notification, notificationPref, prospectReport, topicProposal } from '@cs/db';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { createPackLoader, listOpenReviews, reviewQuestions } from '@cs/engine';
 import { createMemoryStore } from '@cs/storage';
@@ -32,6 +32,10 @@ beforeAll(async () => {
 });
 
 describe('seedAgency', () => {
+  it('leaves no pre-rename review names anywhere in the demo seed (15b-3a)', async () => {
+    expect(await findTopicLeftovers(dbs.owner)).toEqual([]);
+  });
+
   it('seeds every agency as an exempt pilot so the seat cap never blocks the demo', async () => {
     const rows = await dbs.owner.select({ state: agencyBilling.state, exempt: agencyBilling.seatCapExempt, planId: agencyBilling.planId }).from(agency).leftJoin(agencyBilling, eq(agencyBilling.agencyId, agency.id));
     expect(rows.length).toBeGreaterThan(0);
@@ -67,7 +71,7 @@ describe('seedAgency', () => {
 });
 
 describe('seedPlatform', () => {
-  it('queues one pending theme proposal per vertical and keeps two recent decisions (deviation 1)', async () => {
+  it('queues one pending topic proposal per vertical and keeps two recent decisions (deviation 1)', async () => {
     const rows = await dbs.owner.select().from(topicProposal);
     expect(rows.filter((r) => r.status === 'proposed').map((r) => r.verticalId).sort()).toEqual(['dental', 'hvac_plumbing']);
     expect(rows.filter((r) => r.status === 'approved' || r.status === 'rejected')).toHaveLength(2);

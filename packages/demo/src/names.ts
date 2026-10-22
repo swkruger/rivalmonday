@@ -1,8 +1,8 @@
 import type { Rng } from './random';
 
-/** The 8 `hvac_plumbing` pack themes (reviews.test.ts checks them against the pack). */
-export const HVAC_THEMES = ['response_time', 'price_transparency', 'technician_professionalism', 'upsell_pressure', 'scheduling', 'fix_quality', 'communication', 'cleanliness'] as const;
-export type HvacTheme = (typeof HVAC_THEMES)[number];
+/** The 8 `hvac_plumbing` pack topics (reviews.test.ts checks them against the pack). */
+export const HVAC_TOPICS = ['response_time', 'price_transparency', 'technician_professionalism', 'upsell_pressure', 'scheduling', 'fix_quality', 'communication', 'cleanliness'] as const;
+export type HvacTopic = (typeof HVAC_TOPICS)[number];
 
 /** Spec §4.5: searchable in at least one review. */
 export const LATE_PHRASE = 'showed up two hours late';
@@ -10,7 +10,7 @@ export const LATE_PHRASE = 'showed up two hours late';
 export const FIRST_NAMES = ['James', 'Maria', 'Robert', 'Linda', 'Michael', 'Patricia', 'David', 'Jennifer', 'Carlos', 'Elizabeth', 'Daniel', 'Susan', 'Jose', 'Karen', 'Thomas', 'Nancy', 'Kevin', 'Lisa', 'Brian', 'Sandra', 'Luis', 'Ashley', 'Tyler', 'Megan', 'Ryan', 'Brenda', 'Jason', 'Amber', 'Eric', 'Rachel'] as const;
 export const LAST_INITIALS = 'ABCDEFGHJKLMNPRSTW'.split('');
 
-export const REVIEW_PHRASES: Record<HvacTheme, { pos: readonly string[]; neg: readonly string[] }> = {
+export const REVIEW_PHRASES: Record<HvacTopic, { pos: readonly string[]; neg: readonly string[] }> = {
   response_time: { pos: ['They answered right away and had someone out the same afternoon.', 'Called at 8am and the tech was here by 10.'], neg: ['Took three days just to get a call back.', 'Waited all day for someone to show.'] },
   price_transparency: { pos: ['Gave us the price upfront, no surprises on the bill.', 'The quote matched the final invoice exactly.'], neg: ['The final bill had fees nobody mentioned.', 'The price doubled once the work started.'] },
   technician_professionalism: { pos: ['The technician was polite and clearly knew his stuff.', 'Very professional crew, explained everything.'], neg: ['The tech was rude and in a hurry.', 'Did not seem to know what he was doing.'] },
@@ -26,9 +26,9 @@ const OPEN_NEG = ['Disappointed.', 'Not happy.', 'Would not recommend.', 'Frustr
 const OPEN_MID = ['It was fine overall.', 'Okay service.', 'Mixed experience.'];
 
 /** 4–5 stars: positive phrases; 1–2: negative; 3: one of each. */
-export function reviewText(rng: Rng, rating: number, themes: readonly HvacTheme[]): string {
+export function reviewText(rng: Rng, rating: number, topics: readonly HvacTopic[]): string {
   const parts = [rating >= 4 ? rng.pick(OPEN_POS) : rating <= 2 ? rng.pick(OPEN_NEG) : rng.pick(OPEN_MID)];
-  themes.forEach((t, i) => {
+  topics.forEach((t, i) => {
     const tone = rating >= 4 ? 'pos' : rating <= 2 ? 'neg' : i === 0 ? 'neg' : 'pos';
     parts.push(rng.pick(REVIEW_PHRASES[t][tone]));
   });

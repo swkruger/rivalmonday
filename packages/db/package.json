@@ -9,7 +9,8 @@
     "test": "vitest run",
     "generate": "drizzle-kit generate",
     "migrate": "tsx src/cli/migrate.ts",
-    "predeploy-check": "tsx src/cli/predeploy-check.ts"
+    "predeploy-check": "tsx src/cli/predeploy-check.ts",
+    "topic-leftovers": "tsx scripts/topic-leftovers.ts"
   },
   "dependencies": {
     "@cs/core": "workspace:*",

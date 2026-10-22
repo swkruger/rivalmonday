@@ -7,7 +7,7 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { EVENT_SPECS } from './changes';
 import { createSeedContext, type SeedContext } from './context';
-import { FIRST_NAMES, HVAC_THEMES, LAST_INITIALS, LATE_PHRASE } from './names';
+import { FIRST_NAMES, HVAC_TOPICS, LAST_INITIALS, LATE_PHRASE } from './names';
 import { seedReviews } from './reviews';
 import { seedTenancy } from './tenancy';
 import { countRows, resetDemoTables, TEST_SALT } from './test-support';
@@ -32,19 +32,19 @@ describe('seedReviews', () => {
     expect(await countRows(dbs.owner, sql`select count(*)::int as n from review where posted_at < now() - interval '366 days' or posted_at > now()`)).toBe(0);
   });
 
-  it('uses the pack’s theme ids, covers every theme, and leaves one business/theme cell empty on purpose', async () => {
+  it('uses the pack’s topic ids, covers every topic, and leaves one business/topic cell empty on purpose', async () => {
     const pack = await loadVerticalPack('hvac_plumbing');
-    expect([...HVAC_THEMES].sort()).toEqual(pack.topics.map((t) => t.id).sort());
-    const rows = await dbs.owner.select({ competitorId: reviewAnalysis.competitorId, asked: reviewAnalysis.asked, themes: reviewAnalysis.topics }).from(reviewAnalysis);
-    for (const t of HVAC_THEMES) expect(rows.some((r) => r.themes.includes(t))).toBe(true);
+    expect([...HVAC_TOPICS].sort()).toEqual(pack.topics.map((t) => t.id).sort());
+    const rows = await dbs.owner.select({ competitorId: reviewAnalysis.competitorId, asked: reviewAnalysis.asked, topics: reviewAnalysis.topics }).from(reviewAnalysis);
+    for (const t of HVAC_TOPICS) expect(rows.some((r) => r.topics.includes(t))).toBe(true);
     const hill = ctx.ids.competitors.loneStar[0]!.id;
     expect(rows.filter((r) => r.competitorId === hill).some((r) => r.asked.includes('cleanliness'))).toBe(false);
   });
 
-  it('pairs each analysis with its own review (theme phrases agree with the analysed themes)', async () => {
-    const rows = await dbs.owner.select({ text: review.text, themes: reviewAnalysis.topics }).from(reviewAnalysis).innerJoin(review, eq(review.id, reviewAnalysis.reviewId));
+  it('pairs each analysis with its own review (topic phrases agree with the analysed topics)', async () => {
+    const rows = await dbs.owner.select({ text: review.text, topics: reviewAnalysis.topics }).from(reviewAnalysis).innerJoin(review, eq(review.id, reviewAnalysis.reviewId));
     const late = rows.find((r) => r.text?.includes(LATE_PHRASE));
-    expect(late?.themes).toEqual(['scheduling', 'communication']);
+    expect(late?.topics).toEqual(['scheduling', 'communication']);
   });
 
   it('contains the searchable phrase once, leaves one competitor without reviews, and hashes reviewers with the salt', async () => {
@@ -69,15 +69,15 @@ describe('seedReviews', () => {
     expect(ctx.ids.sampleReviewIds).toHaveLength(3);
   });
 
-  it('backs every review_spike event with at least `count` low-rated reviews on its theme in the window', async () => {
+  it('backs every review_spike event with at least `count` low-rated reviews on its topic in the window', async () => {
     const spikes = EVENT_SPECS.filter((e) => e.type === 'review_spike');
     expect(spikes.length).toBeGreaterThan(0);
     for (const e of spikes) {
       const d = e.details as unknown as { topic: string; count: number; windowDays: number };
       const compId = ctx.ids.competitors[e.client][e.comp]!.id;
       const end = ctx.clock.now.getTime() - (e.days + 0.25) * 86_400_000;
-      const rows = await dbs.owner.select({ postedAt: review.postedAt, rating: review.rating, themes: reviewAnalysis.topics }).from(review).innerJoin(reviewAnalysis, eq(reviewAnalysis.reviewId, review.id)).where(eq(review.competitorId, compId));
-      const inWindow = rows.filter((r) => r.themes.includes(d.topic) && (r.rating ?? 5) <= 2 && r.postedAt!.getTime() <= end && r.postedAt!.getTime() >= end - d.windowDays * 86_400_000);
+      const rows = await dbs.owner.select({ postedAt: review.postedAt, rating: review.rating, topics: reviewAnalysis.topics }).from(review).innerJoin(reviewAnalysis, eq(reviewAnalysis.reviewId, review.id)).where(eq(review.competitorId, compId));
+      const inWindow = rows.filter((r) => r.topics.includes(d.topic) && (r.rating ?? 5) <= 2 && r.postedAt!.getTime() <= end && r.postedAt!.getTime() >= end - d.windowDays * 86_400_000);
       expect(inWindow.length).toBeGreaterThanOrEqual(d.count);
     }
   });

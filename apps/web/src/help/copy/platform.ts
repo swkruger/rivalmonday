@@ -238,14 +238,14 @@ export const PLATFORM_COPY = {
     // source: apps/web/src/app/(platform)/platform/themes/page.tsx (the page's existing description)
     description: 'New review topics found in reviews that didn’t fit any existing topic. Approved topics are asked for every review analysed from now on.',
     tips: {
-      // source: packages/engine/src/reviews/discovery.ts:THEME_DISCOVERY_MIN_OTHER (20), THEME_DISCOVERY_DAYS (90), SYSTEM prompt (at least a fifth of the reviews share it), runReviewInsights (nightly); one pending proposal per business type
+      // source: packages/engine/src/reviews/discovery.ts:TOPIC_DISCOVERY_MIN_OTHER (20), TOPIC_DISCOVERY_DAYS (90), SYSTEM prompt (at least a fifth of the reviews share it), runReviewInsights (nightly); one pending proposal per business type
       source: {
         title: 'Where proposals come from',
         body: 'Each night, for every business type, reviews that matched no topic are collected. With at least 20 of them from the last 90 days since the last proposal, a model looks for one recurring topic that at least a fifth of them share, and proposes it. A business type has one open proposal at a time. "N reviews with no topic" is how many it looked at.',
         audience: 'operator',
         guideAnchor: 'what-this-page-tells-you',
       },
-      // source: packages/engine/src/reviews/discovery.ts:decideThemeProposal (approved topics are asked for reviews analysed from now on), prepareThemeDiscovery (rejected ids are never proposed again)
+      // source: packages/engine/src/reviews/discovery.ts:decideTopicProposal (approved topics are asked for reviews analysed from now on), prepareTopicDiscovery (rejected ids are never proposed again)
       decide: {
         title: 'Approving or rejecting',
         body: 'Approve a topic and it is asked for every review analysed from now on in that business type. Reject it and it is not proposed again. A decision cannot be undone from this page, and a proposal someone else already decided shows an error.',

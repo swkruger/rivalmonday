@@ -63,7 +63,7 @@ describe('discoverTopic', () => {
   it('records "none" (no new theme, or an invalid one) so the same reviews are not sent again', async () => {
     await unthemed(20, day(-2));
     expect(await discoverTopic({ db: dbs.service, ai: proposing({ found: false, id: '', name: '', description: '' }), packs }, 'hvac_plumbing', { now })).toMatchObject({ status: 'none' });
-    expect(await discoverTopic({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now })).toEqual({ skipped: '0 unthemed review(s) since the last proposal' });
+    expect(await discoverTopic({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now })).toEqual({ skipped: '0 untagged review(s) since the last proposal' });
     // Analysed a day "in the future" so these rows are newer than the 'none' row's DB-clock created_at, whatever the clock skew.
     await unthemed(20, new Date(Date.now() + 86_400_000));
     expect(await discoverTopic({ db: dbs.service, ai: proposing({ ...WARRANTY, id: 'Price Transparency!' }), packs }, 'hvac_plumbing', { now })).toMatchObject({ status: 'none' });
@@ -86,7 +86,7 @@ describe('discoverTopic', () => {
 
   it('needs at least 20 unthemed reviews', async () => {
     await unthemed(19);
-    expect(await discoverTopic({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now })).toEqual({ skipped: '19 unthemed review(s) since the last proposal' });
+    expect(await discoverTopic({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now })).toEqual({ skipped: '19 untagged review(s) since the last proposal' });
   });
 
   it('loses a check-then-insert race to a concurrent run and skips instead of throwing or double-proposing', async () => {

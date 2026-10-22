@@ -63,10 +63,10 @@ const ads = (kind: 'ad_started' | 'ad_stopped', client: ActiveClientKey, comp: n
 /** The ad ids an ad_started / ad_stopped spec names in its details; seedAds writes ad rows with exactly these external ids. */
 export const adItemIds = (spec: EventSpec): string[] => ((spec.details as { items?: { id: string }[] } | undefined)?.items ?? []).map((x) => x.id);
 
-const spike = (client: ActiveClientKey, comp: number, days: number, score: number, theme: string, themeName: string): EventSpec => ({
+const spike = (client: ActiveClientKey, comp: number, days: number, score: number, topic: string, topicName: string): EventSpec => ({
   client, comp, days, score, service: null, source: 'google_reviews', type: 'review_spike',
-  summary: (n) => `${n}: complaints about ${themeName.toLowerCase()} spiked`,
-  details: { changeType: 'review_spike', topic: theme, topicName: themeName, verticalId: 'hvac_plumbing', windowDays: 14, count: 6 },
+  summary: (n) => `${n}: complaints about ${topicName.toLowerCase()} spiked`,
+  details: { changeType: 'review_spike', topic, topicName, verticalId: 'hvac_plumbing', windowDays: 14, count: 6 },
 });
 
 const rating = (client: ActiveClientKey, comp: number, days: number, score: number, before: number, after: number): EventSpec => ({

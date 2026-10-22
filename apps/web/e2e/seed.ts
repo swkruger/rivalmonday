@@ -13,7 +13,7 @@ import { ASK_FIXTURE_FILE, E2E_LINK_SECRET, MCP_CLIENTS_FILE, OUTBOX, OWNER_LINK
 
 /**
  * Seeds `cs_test` for the E2E smoke run: one agency, one client, one competitor, a sent brief, an invitation and a
- * client contact; plus (5b-2) near-cap spend, a prospect with a ready snapshot, and a pending theme proposal; plus
+ * client contact; plus (5b-2) near-cap spend, a prospect with a ready snapshot, and a pending topic proposal; plus
  * (6a) two more active clients with AI connections on, and an invited owner of both; plus (6b) the Ask clients (`seedAsk`).
  */
 export async function seed(): Promise<void> {
@@ -167,7 +167,7 @@ export async function seed(): Promise<void> {
       insert into platform_cost_item (name, kind, amount_usd, period, starts_on, created_by)
       values ('E2E Vercel Pro', 'recurring', 20, 'monthly', date_trunc('month', now() - interval '2 months')::date, 'e2e-seed')`);
 
-    // 5b-2: spend near the cap (decision 6), a prospect with a ready snapshot (decisions 8–11), a pending theme proposal (decision 4).
+    // 5b-2: spend near the cap (decision 6), a prospect with a ready snapshot (decisions 8–11), a pending topic proposal (decision 4).
     await db.insert(llmCall).values({ agencyId, clientId, task: 'brief_writer', provider: 'openrouter', model: 'm', inputTokens: 1, outputTokens: 1, costUsd: 13, latencyMs: 1, ok: true });
     const [prospect] = await db
       .insert(client)
