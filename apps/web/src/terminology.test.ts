@@ -3,6 +3,7 @@ import { join, relative, sep } from 'node:path';
 import { GLOSSARY } from '@cs/core';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { CLIENT_AUDIENCE_MAPS } from '@/lib/labels';
 
 /**
  * Phase 15b-2 C3 guard: "theme" (in the review sense) never appears in user-facing text; the word is "topic".
@@ -140,5 +141,15 @@ describe('terminology: the assistant name is never hard-coded', () => {
     }
     for (const e of GLOSSARY) if (/\bFriday\b/.test(`${e.term} ${e.short} ${e.long ?? ''}`)) hits.push({ where: `glossary:${e.id}`, text: e.short });
     expect(hits, `Hard-coded "Friday" in help content:\n${fmt(hits)}`).toEqual([]);
+  });
+});
+
+describe('terminology: client-audience enum labels', () => {
+  it('say neither theme nor a hard-coded assistant name, and no agency-only product words', () => {
+    for (const map of CLIENT_AUDIENCE_MAPS) for (const [k, { label }] of Object.entries(map)) {
+      expect(label, k).not.toMatch(THEME);
+      expect(label, k).not.toMatch(/Friday/);
+      expect(label, k).not.toMatch(/(rival monday|jev|verifier|upsell|tenant)/i);
+    }
   });
 });
