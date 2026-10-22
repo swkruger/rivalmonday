@@ -141,10 +141,15 @@ export async function purgeArchived(db: Db, o: { olderThanDays: number; dryRun: 
     return counts;
   } finally {
     if (!o.dryRun) {
-      await db.insert(platformAuditLog).values({
-        userId: CLI_USER, tool: 'purge_archived', inputHash: hashInput({ olderThanDays: o.olderThanDays }),
-        outcome, durationMs: Math.max(0, Date.now() - started),
-      });
+      // Logged, never thrown: a failing audit insert must not mask the purge's own error (or its result).
+      try {
+        await db.insert(platformAuditLog).values({
+          userId: CLI_USER, tool: 'purge_archived', inputHash: hashInput({ olderThanDays: o.olderThanDays }),
+          outcome, durationMs: Math.max(0, Date.now() - started),
+        });
+      } catch (err) {
+        console.error('[purge] platform audit insert failed', err instanceof Error ? err.message : err);
+      }
     }
   }
 }

@@ -1,8 +1,8 @@
 import { hashInput } from '@cs/core/server';
-import { agency, agencyBilling, auditLog, capture, client, clientBilling, contact, evidence, llmCall, membership, platformAuditLog, trackedPage, vendorCall } from '@cs/db';
+import { agency, agencyBilling, type Db, auditLog, capture, client, clientBilling, contact, evidence, llmCall, membership, platformAuditLog, trackedPage, vendorCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { archiveTenant, purgeArchived } from './purge';
 
 const dbs = openTestDbs();
@@ -214,6 +214,21 @@ describe('purgeArchived', () => {
     expect(await platformRows()).toHaveLength(0);
     // The real run reports the same counts.
     expect(await purgeArchived(dbs.service, { olderThanDays: 90, dryRun: false, now: NOW })).toEqual({ agencies: 1, clients: 1, auditAnonymised: 2 });
+  });
+
+  it('a failing audit insert never masks the original purge error (it is logged)', async () => {
+    const original = new Error('purge query failed');
+    const broken = {
+      execute: async () => { throw original; },
+      insert: () => ({ values: async () => { throw new Error('audit insert failed'); } }),
+    } as unknown as Db;
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await expect(purgeArchived(broken, { olderThanDays: 90, dryRun: false, now: NOW })).rejects.toBe(original);
+      expect(logged).toHaveBeenCalledWith('[purge] platform audit insert failed', 'audit insert failed');
+    } finally {
+      logged.mockRestore();
+    }
   });
 
   it('refuses fewer than 30 days', async () => {
