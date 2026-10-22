@@ -45,6 +45,8 @@ export const E2E_SERVER_ENV: Record<string, string> = {
   EVIDENCE_FS_DIR: fileURLToPath(new URL('./test-results/evidence', import.meta.url)),
   // 6b Q1: Ask answers from a deterministic script (never OpenRouter); refused when VERCEL_ENV=production.
   ASK_FAKE_AI: '1',
+  // 15c-1: enables the /e2e-throw page (a page that throws); it 404s everywhere else and in production.
+  E2E_THROW_PAGE: '1',
   // Phase 11a: the setup wizard's business lookup answers from a fixed fixture (never DataForSEO); refused when VERCEL_ENV=production.
   SETUP_FAKE_LOOKUP: '1',
   // I5/R27: E2E never reaches Stripe. Blank values win over the repo .env (`process.loadEnvFile` never overrides a set

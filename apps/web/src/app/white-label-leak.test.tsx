@@ -305,4 +305,13 @@ describe('help content a client can reach (15b-2)', () => {
     for (const e of GLOSSARY) if (visibleToClient(e.audience)) check(`glossary ${e.id}`, `${e.term} ${e.short} ${e.long ?? ''}`, problems);
     expect(problems, problems.join('\n')).toEqual([]);
   });
+
+  it('not-found and error pages contain no Rival Monday', async () => {
+    const NotFound = await import('@/app/not-found');
+    const { ErrorPanel } = await import('@/components/error-panel');
+    grab(<NotFound.default />);
+    grab(<ErrorPanel kind="error" digest="dg1" onRetry={() => {}} />);
+    out.push(JSON.stringify(NotFound.metadata.title));
+    expect(out.join(' ')).not.toMatch(LEAK);
+  });
 });

@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@runbook',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue', '@help', '@ops',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue', '@help', '@ops', '@errors',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -61,6 +61,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}api/stripe/`), tags: [], why: 'Stripe webhook route (covered by its route test, no browser flow)' },
   { pattern: re(`${APP}api/postmark/`), tags: [], why: 'Postmark bounce webhook route (covered by its route test, no browser flow)' },
   { pattern: /^packages\/collectors\/src\/(?:net\/|web\/renderer\.ts$)/, tags: [], why: 'SSRF guard and headless renderer (crawler-only; covered by collectors unit tests, no browser flow)' },
+  { pattern: re(`(?:${APP}(?:\\((?:app|platform)\\)/(?:platform/)?)?(?:error|not-found|global-error|e2e-throw/page)\\.tsx?$|${COMP}error-(?:panel|boundary-page)\\.tsx$|${WEB}src/lib/report-error\\.ts$)`), tags: ['@errors'], why: 'error and not-found pages, ErrorPanel (15c-1)' },
   { pattern: re(`${WEB}src/proxy\\.ts$`), tags: 'all', why: 'request proxy runs on every page' },
   { pattern: re(`${APP}(?:layout\\.tsx|globals\\.css|health/)`), tags: 'all', why: 'root layout/styles/health check' },
   { pattern: re(`${APP}(?:bot/|robots\\.ts$)`), tags: ['@ops'], why: 'public crawler page and robots.txt' },
