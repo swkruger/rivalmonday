@@ -12,7 +12,7 @@ const clientFk = (t: { clientId: AnyPgColumn; agencyId: AnyPgColumn }) =>
 export type Channel = 'in_app' | 'email' | 'slack' | 'teams';
 export type ContactRole = 'agency_admin' | 'account_manager' | 'client_owner' | 'client_viewer';
 export const CLIENT_KINDS = ['alert', 'alert_digest', 'brief', 'trend_report', 'client_invite', 'competitor_review'] as const;
-export const AGENCY_KINDS = ['am_alert', 'brief_ready', 'brief_failed', 'brief_overdue', 'setup_suggestions_ready', 'setup_client_changed', 'setup_idle', 'trend_report', 'rank_scan_skipped'] as const;
+export const AGENCY_KINDS = ['am_alert', 'brief_ready', 'brief_failed', 'brief_overdue', 'setup_suggestions_ready', 'setup_client_changed', 'setup_idle', 'trend_report', 'rank_scan_skipped', 'contact_bounced'] as const;
 export type NotificationKind = (typeof CLIENT_KINDS)[number] | (typeof AGENCY_KINDS)[number];
 /** Phase 7a2: 'skipped' = never sent (suppressed address); reads like 'failed' wherever a status is shown or counted. */
 export type NotificationStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'skipped';
@@ -127,7 +127,7 @@ export const notification = pgTable(
     webhookId: uuid('webhook_id').references(() => agencyWebhook.id, { onDelete: 'cascade' }),
     channel: text('channel').notNull(),
     kind: text('kind').notNull(),
-    subjectType: text('subject_type').notNull(), // 'alert' | 'brief' | 'digest' | 'trend_report' | 'setup' | 'rank_scan'
+    subjectType: text('subject_type').notNull(), // 'alert' | 'brief' | 'digest' | 'trend_report' | 'setup' | 'rank_scan' | 'contact'
     subjectId: uuid('subject_id').notNull(),
     /** Idempotency: the same message to the same recipient on the same channel is inserted once. */
     dedupeKey: text('dedupe_key').notNull(),

@@ -69,6 +69,12 @@ describe('parseWebEnv', () => {
     expect(parseWebEnv({ ...ok, POSTMARK_BROADCAST_STREAM: 'broadcast' } as unknown as NodeJS.ProcessEnv)).not.toHaveProperty('postmarkBroadcastStream');
   });
 
+  it('reads POSTMARK_WEBHOOK_SECRET as optional', () => {
+    expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).postmarkWebhookSecret).toBeUndefined();
+    expect(parseWebEnv({ ...ok, POSTMARK_WEBHOOK_SECRET: '  ' } as unknown as NodeJS.ProcessEnv).postmarkWebhookSecret).toBeUndefined();
+    expect(parseWebEnv({ ...ok, POSTMARK_WEBHOOK_SECRET: ' s3cret ' } as unknown as NodeJS.ProcessEnv).postmarkWebhookSecret).toBe('s3cret');
+  });
+
   it('parseWebEnv leaves sentry fields undefined when unset', () => {
     expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).sentry).toEqual({ dsn: undefined, publicDsn: undefined, environment: undefined, issuesUrl: undefined });
     const set = parseWebEnv({ ...ok, SENTRY_DSN: ' https://k@o.ingest.sentry.io/1 ', NEXT_PUBLIC_SENTRY_DSN: 'https://p@o.ingest.sentry.io/2', SENTRY_ENVIRONMENT: 'preview', SENTRY_ISSUES_URL: 'https://sentry.io/issues' } as unknown as NodeJS.ProcessEnv);

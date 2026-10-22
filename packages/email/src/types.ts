@@ -20,7 +20,7 @@ export interface DigestEmailProps extends Base {
   link: string;
 }
 export interface AgencyNoticeProps extends Base {
-  notice: 'am_alert' | 'brief_ready' | 'brief_failed' | 'brief_overdue' | 'setup_suggestions_ready' | 'setup_client_changed' | 'setup_idle' | 'rank_scan_skipped';
+  notice: 'am_alert' | 'brief_ready' | 'brief_failed' | 'brief_overdue' | 'setup_suggestions_ready' | 'setup_client_changed' | 'setup_idle' | 'rank_scan_skipped' | 'contact_bounced';
   title: string;
   lines: string[];
   link: string;

@@ -27,6 +27,8 @@ export interface WebEnv {
   supportReplyTo?: string;
   /** Phase 7a1: all optional; Sentry is inert without a DSN. */
   sentry?: { dsn?: string; publicDsn?: string; environment?: string; issuesUrl?: string };
+  /** Phase 7a2 (D19): Basic-auth password of `POST /api/postmark/webhook`; unset => the route answers 404. */
+  postmarkWebhookSecret?: string;
   /**
    * Phase 9a: Stripe settings, all optional, shaped for `gatewayFor` (R27: no key in DEV/production => no gateway, billing
    * not configured). `BILLING_FAKE_GATEWAY=1` selects the fake gateway (E2E only; refused on Vercel production).
@@ -79,6 +81,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
       environment: env.SENTRY_ENVIRONMENT?.trim() || undefined,
       issuesUrl: env.SENTRY_ISSUES_URL?.trim() || undefined,
     },
+    postmarkWebhookSecret: env.POSTMARK_WEBHOOK_SECRET?.trim() || undefined,
     stripe: {
       STRIPE_SECRET_KEY: env.STRIPE_SECRET_KEY?.trim() || undefined,
       STRIPE_WEBHOOK_SECRET: env.STRIPE_WEBHOOK_SECRET?.trim() || undefined,

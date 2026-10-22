@@ -19,6 +19,7 @@ const AGENCY_KIND_OPTIONS: { value: string; label: string }[] = [
   { value: 'setup_idle', label: 'Setup waiting on you' },
   { value: 'trend_report', label: 'Quarterly report' },
   { value: 'rank_scan_skipped', label: 'Rank scan skipped' },
+  { value: 'contact_bounced', label: 'Contact bouncing' },
 ];
 
 export function AddWebhookForm() {
