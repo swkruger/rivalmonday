@@ -1,13 +1,13 @@
 # phase-15b3 — rename review "theme" to "topic" in code, DB, tools and routes
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15b3   **Base:** main @ 10ce242d
-**Plan/spec:** spec [15b-3 design](../superpowers/specs/2026-10-21-phase-15b3-topic-rename-design.md); plan for 15b-3a to be written
+**Plan/spec:** spec [15b-3 design](../superpowers/specs/2026-10-21-phase-15b3-topic-rename-design.md) (approved 2026-10-21); plan [15b-3a](../superpowers/plans/2026-10-21-phase-15b3a-topic-rename-data.md)
 
 ## Status (overwrite)
-Design written (2026-10-21), awaiting owner approval. 15b-3a (data & engine) runs on this branch; 15b-3b (surfaces) gets its own kickoff after 3a merges.
+Spec approved 2026-10-21; 15b-3a plan written, awaiting owner approval. 15b-3a (data & engine) runs on this branch; 15b-3b (surfaces) gets its own kickoff after 3a merges.
 
 ## Next (overwrite)
-Owner approves the spec → `superpowers:writing-plans` (lean format) for 15b-3a.
+Owner approves the 15b-3a plan → Task 0 pre-flight → `superpowers:subagent-driven-development`.
 
 ## Interfaces this branch adds or changes
 TBD. Next free migration: **0083** (main ends at 0080; phase-7 holds 0081, 0082).
