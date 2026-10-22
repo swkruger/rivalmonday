@@ -326,8 +326,12 @@ export async function runTurn(
   const evidence = new Map<string, string>();
   const bodied = new Set<string>();
   const appData = new Map<string, AppDatum>();
+  // The trace's total is unknown once any call's cost is; the budget counts the known costs only (decision 5), so one
+  // unknown cost never disables it for the rest of the turn.
+  let knownCostUsd = 0;
   const addCost = (c: number | null) => {
     trace.costUsd = trace.costUsd === null || c === null ? null : trace.costUsd + c;
+    if (c !== null) knownCostUsd += c;
   };
 
   type Outcome = { role: 'assistant' | 'action'; content: string; status: 'ok' | 'error'; citations?: string[]; action?: AskAction };
@@ -348,12 +352,14 @@ export async function runTurn(
       // the forced final call must start while FINAL_CALL_RESERVE_MS of the budget is still left.
       const overDeadline = now().getTime() - started >= deadlineMs - Math.min(FINAL_CALL_RESERVE_MS, deadlineMs / 2);
       if (overDeadline) trace.deadlineHit = true;
-      const last = step >= stepLimit || overDeadline || trace.budgetHit;
+      // Decision 5: an unknown cost (null) never trips the budget; the step limit and deadline still bound the turn.
+      // budgetHit records only a final call the budget forced (not a turn that crossed it on its last call).
+      const overBudget = knownCostUsd >= ASK_TURN_BUDGET_USD;
+      if (overBudget) trace.budgetHit = true;
+      const last = step >= stepLimit || overDeadline || overBudget;
       const res = await deps.ai.chatWithTools('ask_assistant', { messages: [...chat], tools, toolChoice: last ? 'none' : 'auto' }, scope);
       trace.model = res.model;
       addCost(res.costUsd);
-      // Decision 5: an unknown cost (null) never trips the budget; the step limit and deadline still bound the turn.
-      if (trace.costUsd !== null && trace.costUsd >= ASK_TURN_BUDGET_USD) trace.budgetHit = true;
       if (last || res.toolCalls.length === 0) {
         draft = res.text;
         break;

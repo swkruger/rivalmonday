@@ -576,12 +576,40 @@ describe('runTurn budget (7a2)', () => {
     expect(trace.budgetHit).toBe(false);
   });
   it('null cost never forces', async () => {
+    // Every cost is unknown: the turn's cost stays unknown and only the step limit stops it (decision 5).
     const { ai, trace } = await turn([
-      // The first call's cost is unknown, later ones are large: the turn's cost stays unknown and only the step limit stops it.
-      { kind: 'chat', repeat: true, reply: (req) => (req.toolChoice === 'none' ? { text: `Done [ev:${EV1}].`, costUsd: 1 } : { toolCalls: [search], costUsd: req.messages.some((m) => m.role === 'tool') ? 1 : null }) },
+      { kind: 'chat', repeat: true, reply: (req) => (req.toolChoice === 'none' ? { text: `Done [ev:${EV1}].`, costUsd: null } : { toolCalls: [search], costUsd: null }) },
     ]);
     expect(ai.calls.chat).toHaveLength(9);
     expect(trace.costUsd).toBeNull();
+    expect(trace.budgetHit).toBe(false);
+  });
+  it('one unknown cost does not disable the budget: later known costs still force the final call', async () => {
+    const { ai, trace } = await turn([
+      { kind: 'chat', reply: { toolCalls: [search], costUsd: null } },
+      { kind: 'chat', reply: { toolCalls: [search], costUsd: 0.2 } },
+      { kind: 'chat', reply: { toolCalls: [search], costUsd: 0.15 } },
+      { kind: 'chat', reply: { text: `Done [ev:${EV1}].`, costUsd: 0.01 } },
+    ]);
+    expect(ai.calls.chat.map((c) => c.toolChoice)).toEqual(['auto', 'auto', 'auto', 'none']);
+    expect(trace.budgetHit).toBe(true);
+    expect(trace.costUsd).toBeNull(); // the trace still reports the turn's total cost as unknown
+  });
+  it('budgetHit stays false when the budget is crossed on the answering (no-tool) call', async () => {
+    const { ai, trace } = await turn([
+      { kind: 'chat', reply: { toolCalls: [search], costUsd: 0.2 } },
+      { kind: 'chat', reply: { text: `Done [ev:${EV1}].`, costUsd: 0.2 } },
+    ]);
+    expect(ai.calls.chat.map((c) => c.toolChoice)).toEqual(['auto', 'auto']);
+    expect(trace.costUsd).toBeCloseTo(0.4);
+    expect(trace.budgetHit).toBe(false);
+  });
+  it('budgetHit stays false when the budget is crossed on the step-limit final call', async () => {
+    const { ai, trace } = await turn([
+      { kind: 'chat', repeat: true, reply: (req) => (req.toolChoice === 'none' ? { text: `Done [ev:${EV1}].`, costUsd: 0.5 } : { toolCalls: [search], costUsd: 0.01 }) },
+    ]);
+    expect(ai.calls.chat).toHaveLength(9);
+    expect(ai.calls.chat.at(-1)!.toolChoice).toBe('none');
     expect(trace.budgetHit).toBe(false);
   });
 });
