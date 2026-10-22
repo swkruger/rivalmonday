@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { foldSeries, LineChart, OTHER_COLOR, SERIES_COLORS } from './line-chart';
+import { type ChartSeries, foldSeries, LineChart, OTHER_COLOR, SERIES_COLORS, seriesColor } from './line-chart';
 
 const labels = ['2026-09-17', '2026-09-24', '2026-10-01', '2026-10-08'];
 
@@ -156,13 +156,24 @@ describe('LineChart robustness', () => {
 });
 
 describe('You colour (P4)', () => {
-  it('draws the you series in var(--you) and keeps competitor slots from 0', () => {
+  it('draws the you series in var(--you) and starts competitors at slot 1 (slot 0 is too close to You)', () => {
     render(<LineChart title="Stars" valueLabel="stars" labels={['2026-09-01', '2026-09-08']} series={[
       { key: 'me', name: 'You', you: true, points: [4, 5] },
       { key: 'a', name: 'Acme', points: [3, 4] },
+      { key: 'b', name: 'Bolt', points: [2, 3] },
     ]} />);
     expect(document.querySelector('polyline[data-series="me"]')?.getAttribute('stroke')).toBe('var(--you)');
-    expect(document.querySelector('polyline[data-series="a"]')?.getAttribute('stroke')).toBe(SERIES_COLORS[0]);
+    expect(document.querySelector('polyline[data-series="a"]')?.getAttribute('stroke')).toBe(SERIES_COLORS[1]);
+    expect(document.querySelector('polyline[data-series="b"]')?.getAttribute('stroke')).toBe(SERIES_COLORS[2]);
+    const strokes = [...document.querySelectorAll('polyline')].map((p) => p.getAttribute('stroke'));
+    expect(strokes).not.toContain(SERIES_COLORS[0]);
+  });
+
+  it('seriesColor wraps over slots 1-4 when You is present', () => {
+    const you: ChartSeries = { key: 'me', name: 'You', you: true, points: [] };
+    const comps: ChartSeries[] = Array.from({ length: 5 }, (_, i) => ({ key: `c${i}`, name: `C${i}`, points: [] }));
+    const all = [you, ...comps];
+    expect(comps.map((c) => seriesColor(c, all))).toEqual([...SERIES_COLORS.slice(1), SERIES_COLORS[1]]);
   });
 
   it('no component uses a hex for the You marker', () => {

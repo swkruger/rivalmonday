@@ -12,11 +12,15 @@ export interface ChartSeries {
   you?: boolean;
 }
 
-/** Colour of one series: "You" and "Other" are fixed, the rest take the slots in order. */
+/**
+ * Colour of one series: "You" and "Other" are fixed, the rest take the slots in order. When a "You" series is drawn,
+ * competitors start at slot 1: slot 0 is a blue too close to the `--you` token to tell apart (dataviz check, 15c-1).
+ */
 export function seriesColor(s: ChartSeries, all: ChartSeries[]): string {
   if (s.you) return YOU_COLOR;
   if (s.key === 'other') return OTHER_COLOR;
-  return SERIES_COLORS[all.filter((x) => x.key !== 'other' && !x.you).indexOf(s) % SERIES_COLORS.length]!;
+  const slots = all.some((x) => x.you) ? SERIES_COLORS.slice(1) : SERIES_COLORS;
+  return slots[all.filter((x) => x.key !== 'other' && !x.you).indexOf(s) % slots.length]!;
 }
 
 const last = (p: (number | null)[]): number => {
