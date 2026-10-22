@@ -33,7 +33,7 @@ export function formatDate(v: string | Date, o: { tz: string; withYear?: 'auto' 
   return p.at.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(showYear ? { year: 'numeric' } : {}), timeZone: tz });
 }
 
-/** "Oct 21, 9:00 AM" (year added when not the current one); `zoneLabel` appends the short zone name ("CDT", "UTC"). */
+/** "Oct 21, 9:00 AM" (year added when not the current one); `zoneLabel` appends the short generic zone name ("CT", "UTC"). */
 export function formatDateTime(v: string | Date, o: { tz: string; zoneLabel?: boolean; now?: Date }): string {
   const p = parse(v);
   if (!p) return String(v);

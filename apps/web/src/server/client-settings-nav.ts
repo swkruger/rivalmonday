@@ -19,8 +19,6 @@ export async function clientSettingsSections(clientId: string): Promise<NavSecti
   return settingsNavFor('client', { ...flags, clientBilling }, clientId);
 }
 
-export { showsClientBilling };
-
 /** Whether `/c/<clientId>/settings` (the index) serves this viewer — false for guests — so a breadcrumb may link it. */
 export async function hasClientSettings(clientId: string): Promise<boolean> {
   return (await clientSettingsSections(clientId)).length > 0;

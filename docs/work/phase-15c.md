@@ -43,8 +43,13 @@ C1–C11 in the 15c spec §2 (split; neutral error pages now; miles in UI; small
 - 15c-2: `onboarding/steps/plan.tsx` calls `formatDate` without `now`.
 - 15c-2: ISO dates remain in `billing-panel.tsx`, `plan-editor.tsx`, `cost-items-table.tsx`, changes viewer `formatFullUtc`.
 - 15c-2: `formatWeekOf` has no caller yet; cents-unit billing keeps `$299.00` vs revenue card `$598`.
+- 15c-2: `formatRelative` falls back to UTC beyond 30 days on client pages.
+- 15c-2: leftover local date formatters / `.slice(0,10)` ISO dates: `agency/settings/team/page.tsx:29` (server zone, no `timeZone`), `competitors/[competitorId]/page.tsx:36`, `rankings/page.tsx:35,223`, `agency-table.tsx:44`, `ai-connections.tsx:28`, `report-view.tsx:6`, `prospect-landscape.tsx:48`, `pitch-snapshot/page.tsx:40`.
+- 15c-2: `KM_PER_MILE` duplicated in `packages/tools/src/intake/preview.ts:10` (move to `@cs/core`).
+- 15c-2: `TzCookie` first-visit refresh can wipe an in-progress form until pages read the zone.
+- 15c-2: sync test chip CSS ↔ `CHIP_COLOURS`; cwd-relative guard/hex-scan tests → `__dirname`.
 - 15c-2 / investigate: E2E web server logs "destination stream closed early" around `workspace.spec.ts`; compare with a main run.
-- Deferred minors (no target): one shared `ui-primitives.test.tsx`; ConfirmDialog input id should use `useId`; chip hex duplicated in `status-chip.tsx` and `styles.css`; `labelFor` value type collapses to string; `EVIDENCE_KINDS`/`ALERT_STATUSES` SQL parity not enforced; `global-error` lacks Inter; PageSkeleton title height; dead `showsClientBilling` re-export; "Other" series #94a3b8 fails dataviz checks (pre-existing); legacy stored radius >40 km shows custom and is rejected.
+- Deferred minors (no target): one shared `ui-primitives.test.tsx`; ConfirmDialog input id should use `useId`; chip hex duplicated in `status-chip.tsx` and `styles.css`; `labelFor` value type collapses to string; `EVIDENCE_KINDS`/`ALERT_STATUSES` SQL parity not enforced; `global-error` lacks Inter; PageSkeleton title height; "Other" series #94a3b8 fails dataviz checks (pre-existing); categorical slots pass dataviz adjacent-pair checks but fail the all-pairs normal floor (orange↔amber 13.7, orange↔pink 12.9; pre-existing); legacy stored radius >40 km shows custom and is rejected.
 
 ## Owner verification steps
 Chips and labels appear on pages in 15c-2; for now:
@@ -52,8 +57,9 @@ Chips and labels appear on pages in 15c-2; for now:
 2. Rank settings, profile and setup show radius in miles, including a legacy custom value ("≈ N mi (custom)").
 3. Dates read "Oct 21"-style on billing, briefs and changes.
 4. Newly visible 1px borders on dense lists look right.
-5. On a rankings chart, "You" (#2A6BAC) is distinguishable from the first competitor's blue.
-6. Sign off `docs/work/phase-15c1-copy-signoff.md` (move to `docs/archive/` at merge).
+5. Quick look at a rankings chart: "You" is blue and competitors start at orange (no second blue).
+6. Clients set up with the old 15 km default show "≈ 9 mi (custom)" until a round choice is picked (by design).
+7. Sign off `docs/work/phase-15c1-copy-signoff.md` (move to `docs/archive/` at merge).
 
 ## Brief
 Scope, audit items and the owner's answered questions live in the [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) (§2 decisions C1-C11, §3 shared pieces) and the [audit](../research/2026-10-18-phase-15-ux-audit.md); the pre-split brief is in git history (`git show 9ddfae3c:docs/work/phase-15c.md`). Binding: CLAUDE.md (tokens, 1560px, SVG charts, reads via tools / writes via `runTool`, 404 refusals), 15b help-key and sign-off rules, 15b-3 D3 (no theme redirects). Related polish: Ask delete (6b), knowledge preview (6c), webhooks/`PrefSwitch` (5a), Usage/alert cap (5b), feed hex (5c-1), heatmap table (5c-2), costs strip (8c).

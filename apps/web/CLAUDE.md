@@ -6,11 +6,11 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 ## Gotchas
 
 ### Next.js / build
-- **Next.js 16 uses `proxy.ts`, not `middleware.ts`** (deprecated), and `params`/`cookies()`/`headers()` are async — always `await` them.
+- **Next.js 16 uses `proxy.ts`, not `middleware.ts`**, and `params`/`cookies()`/`headers()` are async — `await` them.
 - **Turbopack can't resolve `new URL('<relative>', import.meta.url)` file lookups:** any package `apps/web` imports must use `path.join(dirname(fileURLToPath(import.meta.url)), …)` (`@cs/db`, `@cs/verticals`, `@cs/ai` loaders; else authed pages 500).
-- **`next build` and `next dev` share `.next`:** never build while dev runs.
+- **`next build` and `next dev` share `.next`:** don't build while dev runs.
 - **One `sharp` version repo-wide (0.34.5):** two versions in one process fail `next build` on Windows (`ERR_DLOPEN_FAILED`).
-- **`AGENTS.md` is Next.js-managed** (`next dev` upserts its block); keep `@AGENTS.md` as this file's first line.
+- **`AGENTS.md` is Next.js-managed** (`next dev` upserts its block); keep `@AGENTS.md` as line 1.
 - **Layouts don't re-render on client-side navigation:** the `x-rm-path` header is read once per full load. Path-dependent shell parts use `usePathname()` in a client component; a different *context* per area needs a route group (`(app)` vs `(platform)`), never a header switch.
 - **Never call `Intl.supportedValuesOf('timeZone')` in a `'use client'` component:** it lacks `'UTC'`, uses legacy names and differs Node vs browser — hydration mismatch and a stored `'UTC'` silently cleared on save. Build options server-side with `timezoneOptions(current)` (`@/server/timezones`) and pass as a prop.
 
@@ -40,25 +40,26 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **`LineChart` callers must pass series name-sorted:** colours follow position in the kept set.
 - **Formatting:** use `@/lib/format` (dates, money, distance) and `@/lib/labels` (enum labels, chip tones), never local formatters or raw enums. Distances: km stored, miles shown/typed via `lib/format/distance`.
 - **No `loading.tsx` under `app/(app)` or `app/(platform)`** — it turns `notFound()` into HTTP 200; use `<Suspense fallback={<PageSkeleton/>}>` inside pages after access checks.
-- **No mobile layout** (fixed 232px sidebar; 390px overview E2E is `test.fixme`).
+- **No mobile layout** (232px sidebar; 390px overview E2E is `fixme`).
 
 ### Help (15b)
 - **Help copy (`@/help/copy`) is `server-only`:** client components get it from `HelpProvider` context (shell), never by importing copy values (`help/copy-bundle.test.ts` fails). A `<PageHeader` outside `page.tsx` goes in `DELEGATED_HEADERS` (`help/coverage.test.ts`); reach lists: `help/reach.ts`.
 - **A `HelpTip`'s title is its accessible name:** Playwright `name:` matches substrings, so grep e2e locators for new tip titles; inside a heading, wrap the heading text in a `<span>`.
 
 ### Dev panel & environments
-- **Run with `pnpm dev:web`.** `DEV_PANEL` is set only by `scripts/dev.ts`, never by hand or in production. `RM_DEV_ENV_FILE` overrides the location of `.dev-env.json` (git-ignored; the selected database; ignored unless the guard holds).
+- **Run with `pnpm dev:web`.** `DEV_PANEL` is set only by `scripts/dev.ts`, never by hand or in prod. `RM_DEV_ENV_FILE` overrides the location of `.dev-env.json` (git-ignored; the selected database; ignored unless the guard holds).
 - **Dev panel code lives only in `src/dev-panel/`**; markers `data-rm-dev-panel`/`x-rm-dev-panel` appear nowhere else — `scripts/check-no-dev-panel.ts` (in `pnpm e2e`) fails the build scan if they leak.
 - **Per-environment factories (`perEnv`, `env-cache.ts`):** a new cached client in `src/server/` must use `perEnv`, and builders resolve dependencies **by the name given** (`dbs(name)`, `enqueueFor(name)`, …), never by re-reading the live environment (else a DEMO request mid-switch reaches cs_dev's queue). Routes needing several call `activeEnvName()` once and pass it.
 - **Enqueue is refused in DEMO and TEST** (else `cs_demo` ids reach the real worker and paid vendors): throws "Background jobs are switched off while browsing DEMO or TEST data."; job status reads "no job"; un-rendered PDFs show "PDF rendering is off…".
 - **Running the panel:** `next dev` binds `127.0.0.1` unless `-H`; panel POSTs need `x-rm-dev-panel: 1` and `Origin` = `Host`; demo sign-in via `/dev-panel/sign-in/<token>`. Use `localhost` (session cookie lost on `127.0.0.1`).
 
 ### E2E
-- **`pnpm --filter @cs/web e2e`** (Playwright smoke suite) is not part of `pnpm test`: it builds and starts a production server against `cs_test` (`playwright.config.ts` sets its own env), runs as its own CI job after `pnpm test`, and must never run concurrently with another `cs_test` run.
+- **`pnpm --filter @cs/web e2e`** (Playwright) is not part of `pnpm test`: it builds and starts a production server against `cs_test` (env from `playwright.config.ts`), runs as its own CI job, and never concurrently with another `cs_test` run.
 - **Reuse signed-in sessions; never add a magic-link sign-in:** Better Auth allows 5 magic-link requests/IP/60 s; full runs already hit it (`smoke.spec` :6/:41 fail in full suites only). Specs reuse storage states. `latestMagicLink()`/`newMagicLink()` filter by recipient after an outbox snapshot.
+- **A one-off "destination stream closed early" in the E2E server log is an infra flake** (seen before 15c) — re-run once.
 
 ### Affected-only E2E
 - **During development run `pnpm --filter @cs/web e2e:affected`** (`--dry-run`, `--base <ref>`, `--full`): tests whose tags the changed files map to (plus `@smoke`), rebuilds only when needed. It can pull one test out of a `describe.serial` file (false failure) — re-run the whole file. Full `e2e` only in `/rm-merge`.
 - **Every spec test carries tags:** `test('…', { tag: ['@pricing', …] }, …)`, one per module its steps touch; vocabulary in `KNOWN_TAGS` (`scripts/e2e-affected-rules.ts`). `@smoke` only on the two always-run smoke tests.
 - **A new route, component or module needs a rule** in `scripts/e2e-affected-rules.ts` (first match wins; `'all'` when unsure). `scripts/e2e-affected.test.ts` fails on untagged tests, unknown/dead tags and web files that only hit a catch-all; run it without the DB via `pnpm --filter @cs/web exec vitest run --config scripts/vitest.scripts.config.ts`.
-- **`findBy*` (1 s default) is too short for `next/dynamic` chunks under full-suite load:** pass `{ timeout: 15_000 }` (e.g. `PageGuide` via `PageHeader`).
+- **`findBy*`'s 1 s default is too short for `next/dynamic` chunks under load:** pass `{ timeout: 15_000 }` (e.g. `PageGuide`).
