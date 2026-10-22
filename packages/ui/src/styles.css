@@ -21,6 +21,17 @@
   --primary-soft: #E3F2FC;
   --primary-soft-text: #1F6FA8;
   --radius: 0.75rem;
+  /* Status chip tones (P2); keep in sync with CHIP_COLOURS in status-chip.tsx. */
+  --chip-neutral-bg: #EEF2F6;
+  --chip-neutral-text: #334155;
+  --chip-info-bg: #E3F2FC;
+  --chip-info-text: #1F5F8F;
+  --chip-success-bg: #E7F6EC;
+  --chip-success-text: #166534;
+  --chip-warning-bg: #FEF3C7;
+  --chip-warning-text: #92400E;
+  --chip-danger-bg: #FDECEC;
+  --chip-danger-text: #B91C1C;
 }
 
 @theme inline {
@@ -45,6 +56,16 @@
   --color-primary-soft-text: var(--primary-soft-text);
   --color-success: var(--success);
   --color-danger: var(--danger);
+  --color-chip-neutral-bg: var(--chip-neutral-bg);
+  --color-chip-neutral-text: var(--chip-neutral-text);
+  --color-chip-info-bg: var(--chip-info-bg);
+  --color-chip-info-text: var(--chip-info-text);
+  --color-chip-success-bg: var(--chip-success-bg);
+  --color-chip-success-text: var(--chip-success-text);
+  --color-chip-warning-bg: var(--chip-warning-bg);
+  --color-chip-warning-text: var(--chip-warning-text);
+  --color-chip-danger-bg: var(--chip-danger-bg);
+  --color-chip-danger-text: var(--chip-danger-text);
   /* shadcn/ui semantic names. `accent`/`accent-foreground` are the
      hover/focus surface shadcn components use (DropdownMenu/Select items,
      etc.) — mapped to the muted surface + ink, not to brand amber. */
