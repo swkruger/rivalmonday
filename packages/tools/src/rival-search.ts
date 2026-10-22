@@ -91,8 +91,8 @@ export async function latestDoneRun(db: Pick<Tx, 'select'>, clientId: string): P
  */
 export async function startCompetitorSearch(deps: ToolDeps, clientId: string, trigger: SearchTrigger, now: Date = new Date()): Promise<SearchStart> {
   const enqueue = enqueueOf(deps);
-  const [c] = await deps.service.select({ agencyId: client.agencyId, keywords: client.keywords, serviceArea: client.serviceArea, placeId: client.placeId, timezone: client.timezone }).from(client).where(eq(client.id, clientId));
-  if (!c) throw new ToolError('not_found', 'Client not found');
+  const [c] = await deps.service.select({ agencyId: client.agencyId, keywords: client.keywords, serviceArea: client.serviceArea, placeId: client.placeId, timezone: client.timezone, archivedAt: client.archivedAt }).from(client).where(eq(client.id, clientId));
+  if (!c || c.archivedAt !== null) throw new ToolError('not_found', 'Client not found'); // 7a2 D16: archived = deleted
   if (c.keywords.length === 0 || !c.serviceArea || !c.placeId) return { refused: 'missing_profile' };
 
   let started: SearchStart;

@@ -56,6 +56,13 @@ describe('startCompetitorSearch', () => {
     expect(enqueue).not.toHaveBeenCalled();
   });
 
+  it('an archived client is not_found and nothing is written (7a2 D16)', async () => {
+    await dbs.owner.update(client).set({ ...PROFILE, archivedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'auto')).rejects.toMatchObject({ code: 'not_found' });
+    expect(await runs(IDS.clientA1)).toEqual([]);
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
   it('inserts a queued run and enqueues rival-search under the client singleton', async () => {
     await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
     const r = await startCompetitorSearch(deps, IDS.clientA1, 'manual');

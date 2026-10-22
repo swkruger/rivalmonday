@@ -334,6 +334,16 @@ describe('runRivalSearch', () => {
     expect(await runRivalSearch(deps(vendors()), await newRun())).toEqual({ status: 'finalising' });
   });
 
+  it('an archived client → failed service_paused, no vendor calls (7a2 D16)', async () => {
+    const v = vendors();
+    const runId = await newRun();
+    await dbs.owner.update(client).set({ archivedAt: new Date() }).where(eq(client.id, IDS.clientA2));
+    expect(await runRivalSearch(deps(v), runId)).toEqual({ status: 'failed' });
+    expect(await runRow(runId)).toMatchObject({ status: 'failed', error: 'service_paused' });
+    expect(v.dfs.calls).toHaveLength(0);
+    expect(v.records).toHaveLength(0);
+  });
+
   it('still over the cost cap after shrinking → failed cost_cap, no vendor calls', async () => {
     const v = vendors();
     const runId = await newRun();

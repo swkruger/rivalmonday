@@ -110,8 +110,8 @@ async function execute(deps: RivalSearchDeps, run: DiscoveryRunRow): Promise<{ s
     return { status: 'failed' };
   }
   // 9a/9b: a run queued before its agency went read_only/suspended or its client was paused spends nothing.
-  // Prospects may search (12a D4), so this checks the pause, not `status = 'active'`.
-  if (c.pausedAt !== null || !(await agencyIsServiceable(db, run.agencyId))) {
+  // Prospects may search (12a D4), so this checks the pause, not `status = 'active'`. 7a2 D16: an archived client is deleted.
+  if (c.pausedAt !== null || c.archivedAt !== null || !(await agencyIsServiceable(db, run.agencyId))) {
     await finishFailed(db, run.id, 'service_paused');
     return { status: 'failed' };
   }
