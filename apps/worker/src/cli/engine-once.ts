@@ -58,8 +58,8 @@ try {
   if (args.client) {
     const bench = await reviewBenchmark({ db, packs }, args.client);
     for (const b of bench.businesses) {
-      const themes = b.themes.filter((t) => t.mentions > 0).map((t) => `${t.name} ${Math.round((t.share ?? 0) * 100)}% (${t.sentiment})`);
-      console.log(`[benchmark] ${b.self ? '*' : ' '} ${b.name}: ${b.reviews} reviews, avg ${b.avgRating} (prev ${b.prevReviews} / ${b.prevAvgRating}); ${themes.join(', ') || 'no themes yet'}`);
+      const topics = b.topics.filter((t) => t.mentions > 0).map((t) => `${t.name} ${Math.round((t.share ?? 0) * 100)}% (${t.sentiment})`);
+      console.log(`[benchmark] ${b.self ? '*' : ' '} ${b.name}: ${b.reviews} reviews, avg ${b.avgRating} (prev ${b.prevReviews} / ${b.prevAvgRating}); ${topics.join(', ') || 'no topics yet'}`);
     }
     const matrix = await priceMatrix({ db, packs }, args.client);
     const serviceNames = new Map(matrix.services.map((s) => [s.id, s.name]));

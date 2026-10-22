@@ -1,7 +1,7 @@
 import { agencyServiceable, clientServiceable, type Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
 import { PRICE_STAGE, PRICE_VERSION } from './prices/price-stage';
-import { MIN_REVIEW_CHARS, REVIEW_ANALYSIS_DAYS, REVIEW_STAGE, REVIEW_VERSION } from './reviews/themes';
+import { MIN_REVIEW_CHARS, REVIEW_ANALYSIS_DAYS, REVIEW_STAGE, REVIEW_VERSION } from './reviews/topics';
 import { scoreBackoff } from './score/score-stage';
 import { MAX_STAGE_ATTEMPTS, RETRY_BACKOFF_MINUTES } from './stage';
 import { RANK_DIFF_STAGE, RANK_DIFF_VERSION } from './structured/rank';
@@ -64,7 +64,7 @@ export async function findEngineWork(db: Db, opts: { limit: number; competitorId
         SELECT 1 FROM client_competitor cc JOIN client cl ON cl.id = cc.client_id
         WHERE cc.competitor_id = e.competitor_id
           AND (e.client_id IS NULL OR cc.client_id = e.client_id)
-          -- A complaint spike belongs to one vertical's theme list (3c): only that vertical's clients score it.
+          -- A complaint spike belongs to one vertical's topic list (3c): only that vertical's clients score it.
           AND (e.details->>'verticalId' IS NULL OR cl.vertical_id = e.details->>'verticalId')
           -- 5b-2 decision 9: prospects get no scores (so no alerts or brief content) until converted.
           AND ${clientServiceable('cl')} AND ${agencyServiceable(sql.raw('cl.agency_id'))}

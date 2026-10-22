@@ -6,7 +6,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeAi, noul, reviewResult, score } from '../../test/fake-ai';
 import { findEngineWork } from '../sweep';
 import { createPackLoader } from '../tag/tag-stage';
-import { analyzeReview, buildReviewQuestions, otherKey, resolveReviewAnalysis, reviewSubjectId, themeKey, themesForVertical } from './themes';
+import { analyzeReview, buildReviewQuestions, otherKey, resolveReviewAnalysis, reviewSubjectId, themeKey, topicsForVertical } from './topics';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -29,9 +29,9 @@ async function seedReview(over: Partial<typeof review.$inferInsert> = {}) {
 }
 
 describe('review questions', () => {
-  it('asks a sentiment score, one Noul per theme and an "other" Noul per vertical', async () => {
+  it('asks a sentiment score, one Noul per topic and an "other" Noul per vertical', async () => {
     const pack = await loadVerticalPack('hvac_plumbing');
-    const q = buildReviewQuestions([{ pack, themes: await themesForVertical(dbs.service, pack) }]);
+    const q = buildReviewQuestions([{ pack, topics: await topicsForVertical(dbs.service, pack) }]);
     expect(Object.keys(q)).toHaveLength(1 + pack.topics.length + 1);
     expect(q.sentiment).toMatchObject({ type: 'score', levels: ['very negative', 'negative', 'mixed or neutral', 'positive', 'very positive'] });
     expect(q[themeKey('hvac_plumbing', 'price_transparency')]?.type).toBe('noul');
@@ -40,11 +40,11 @@ describe('review questions', () => {
 
   it('drops low-confidence answers from the analysis instead of guessing', async () => {
     const pack = await loadVerticalPack('hvac_plumbing');
-    const themes = await themesForVertical(dbs.service, pack);
+    const topics = await topicsForVertical(dbs.service, pack);
     const answers = Object.fromEntries(
-      Object.keys(buildReviewQuestions([{ pack, themes }])).map((k) => [k, k === 'sentiment' ? score(1, 0.6) : noul(k.endsWith('__upsell_pressure'), 0.6)]),
+      Object.keys(buildReviewQuestions([{ pack, topics }])).map((k) => [k, k === 'sentiment' ? score(1, 0.6) : noul(k.endsWith('__upsell_pressure'), 0.6)]),
     );
-    const [row] = resolveReviewAnalysis({ answers, needsReview: ['sentiment', themeKey('hvac_plumbing', 'upsell_pressure')] }, [{ pack, themes }], {
+    const [row] = resolveReviewAnalysis({ answers, needsReview: ['sentiment', themeKey('hvac_plumbing', 'upsell_pressure')] }, [{ pack, topics }], {
       reviewId: 'r', competitorId: 'c', textSha: 's',
     });
     expect(row).toMatchObject({ verticalId: 'hvac_plumbing', sentiment: null, needsReview: true, topics: [] });
@@ -64,9 +64,9 @@ describe('review questions', () => {
 });
 
 describe('analyzeReview', () => {
-  it('stores themes and sentiment per vertical, from redacted text, via review_decisions', async () => {
+  it('stores topics and sentiment per vertical, from redacted text, via review_decisions', async () => {
     const id = await seedReview();
-    const ai = createFakeAi({ decide: reviewResult({ themes: ['price_transparency', 'technician_professionalism'], sentiment: 0 }) });
+    const ai = createFakeAi({ decide: reviewResult({ topics: ['price_transparency', 'technician_professionalism'], sentiment: 0 }) });
     expect(await analyzeReview({ db: dbs.service, ai, packs }, id)).toEqual({ ran: true, result: { rows: 1 } });
     const [row] = await dbs.owner.select().from(reviewAnalysis);
     expect(row).toMatchObject({
@@ -82,9 +82,9 @@ describe('analyzeReview', () => {
 
   it('re-analyses an edited review and replaces its row', async () => {
     const id = await seedReview();
-    await analyzeReview({ db: dbs.service, ai: createFakeAi({ decide: reviewResult({ themes: ['price_transparency'], sentiment: 0 }) }), packs }, id);
+    await analyzeReview({ db: dbs.service, ai: createFakeAi({ decide: reviewResult({ topics: ['price_transparency'], sentiment: 0 }) }), packs }, id);
     await dbs.service.update(review).set({ text: 'Update: they refunded the fee and apologised. Great follow-up.' }).where(eq(review.id, id));
-    const r = await analyzeReview({ db: dbs.service, ai: createFakeAi({ decide: reviewResult({ themes: ['communication'], sentiment: 3 }) }), packs }, id);
+    const r = await analyzeReview({ db: dbs.service, ai: createFakeAi({ decide: reviewResult({ topics: ['communication'], sentiment: 3 }) }), packs }, id);
     expect(r.ran).toBe(true);
     const rows = await dbs.owner.select().from(reviewAnalysis);
     expect(rows).toHaveLength(1);
@@ -94,10 +94,10 @@ describe('analyzeReview', () => {
   it('writes one row per vertical tracking the competitor', async () => {
     await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorX });
     const id = await seedReview();
-    await analyzeReview({ db: dbs.service, ai: createFakeAi({ decide: reviewResult({ themes: ['upsell_pressure'] }) }), packs }, id);
+    await analyzeReview({ db: dbs.service, ai: createFakeAi({ decide: reviewResult({ topics: ['upsell_pressure'] }) }), packs }, id);
     const rows = await dbs.owner.select().from(reviewAnalysis);
     expect(rows.map((r) => r.verticalId).sort()).toEqual(['dental', 'hvac_plumbing']);
-    expect(rows.every((r) => r.topics.includes('upsell_pressure'))).toBe(true); // both packs have an upsell_pressure theme
+    expect(rows.every((r) => r.topics.includes('upsell_pressure'))).toBe(true); // both packs have an upsell_pressure topic
   });
 });
 

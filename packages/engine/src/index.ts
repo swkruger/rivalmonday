@@ -21,7 +21,7 @@ export * from './prices/tracker';
 export * from './tag/questions';
 export * from './tag/tag-stage';
 export * from './tag/structured';
-export * from './reviews/themes';
+export * from './reviews/topics';
 export * from './reviews/benchmark';
 export * from './reviews/rating-trend';
 export * from './reviews/complaints';

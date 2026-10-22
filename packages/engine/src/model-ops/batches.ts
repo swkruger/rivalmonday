@@ -1,7 +1,7 @@
 import type { Ai } from '@cs/ai';
 import { type Db, modelBatch } from '@cs/db';
 import { asc, eq } from 'drizzle-orm';
-import { applyThemeProposal, THEME_BATCH_PURPOSE, type ThemeDiscoveryContext } from '../reviews/discovery';
+import { applyTopicProposal, THEME_BATCH_PURPOSE, type TopicDiscoveryContext } from '../reviews/discovery';
 
 /** Anthropic's batch limit is 24 h; a batch still unfinished after this is given up (its reviews are offered again). */
 export const BATCH_MAX_AGE_HOURS = 26;
@@ -32,13 +32,13 @@ export async function collectModelBatches(deps: { db: Db; ai: Ai }, opts: { now?
         continue;
       }
       for (const item of res.results) {
-        const ctx = b.items[item.customId] as ThemeDiscoveryContext | undefined;
+        const ctx = b.items[item.customId] as TopicDiscoveryContext | undefined;
         if (!item.ok || !ctx || b.purpose !== THEME_BATCH_PURPOSE) {
           r.failed++;
           console.warn(`[model-batch] ${b.providerBatchId}/${item.customId}: ${item.ok ? 'no context for this request' : item.error}`);
           continue;
         }
-        if ('status' in (await applyThemeProposal(deps.db, ctx, item.text))) r.applied++;
+        if ('status' in (await applyTopicProposal(deps.db, ctx, item.text))) r.applied++;
       }
       await deps.db.update(modelBatch).set({ status: 'ended', endedAt: now }).where(eq(modelBatch.id, b.id));
       r.ended++;

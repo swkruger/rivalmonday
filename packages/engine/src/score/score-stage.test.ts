@@ -106,7 +106,7 @@ describe('scoreEvent', () => {
     expect(await scoreEvent({ db: dbs.service, generic, packs: broken }, id, { now: NOW })).toMatchObject({ scored: 2, failed: 1 });
   });
 
-  it('never scores a complaint-theme spike for a client whose vertical differs from details.verticalId', async () => {
+  it('never scores a complaint-topic spike for a client whose vertical differs from details.verticalId', async () => {
     // A2 (dental) also tracks competitor X (e.g. a franchise competitor spanning HVAC + dental).
     await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorX });
     const id = await event({

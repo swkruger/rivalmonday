@@ -12,9 +12,9 @@ const packs = createPackLoader();
 const now = day(0);
 let n = 0;
 
-async function complaint(postedAt: Date, sentiment: number, theme = 'price_transparency') {
+async function complaint(postedAt: Date, sentiment: number, topic = 'price_transparency') {
   const [r] = await dbs.service.insert(review).values({ competitorId: IDS.competitorX, dedupeKey: `id:${n++}`, rating: 1, text: 'x', postedAt }).returning({ id: review.id });
-  await dbs.service.insert(reviewAnalysis).values({ reviewId: r!.id, verticalId: 'hvac_plumbing', competitorId: IDS.competitorX, textSha: 's', asked: [theme], topics: [theme], sentiment, confidence: 0.9, analysisVersion: 1 });
+  await dbs.service.insert(reviewAnalysis).values({ reviewId: r!.id, verticalId: 'hvac_plumbing', competitorId: IDS.competitorX, textSha: 's', asked: [topic], topics: [topic], sentiment, confidence: 0.9, analysisVersion: 1 });
 }
 
 beforeEach(async () => {
@@ -31,7 +31,7 @@ describe('complaintSpike', () => {
 });
 
 describe('detectComplaintSpikes', () => {
-  it('writes one review_spike change per spiking theme, citing the latest reviews capture, then cools down', async () => {
+  it('writes one review_spike change per spiking topic, citing the latest reviews capture, then cools down', async () => {
     const before = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_reviews', capturedAt: day(-8) });
     const latest = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_reviews', capturedAt: day(-1) });
     for (const d of [-3, -5, -8, -12]) await complaint(day(d), 0);

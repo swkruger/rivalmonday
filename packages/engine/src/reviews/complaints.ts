@@ -1,7 +1,7 @@
 import { capture, type Db, detectedChange } from '@cs/db';
 import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import { competitorVerticals, type PackLoader } from '../tag/tag-stage';
-import { themesForVertical } from './themes';
+import { topicsForVertical } from './topics';
 
 /** detected_change.stage_version of complaint-spike changes (they are written by the nightly review-insights run, not a stage_run stage). */
 export const COMPLAINT_STAGE_VERSION = 1;
@@ -9,23 +9,23 @@ export const COMPLAINT_WINDOW_DAYS = 30;
 /** Baseline: the three 30-day periods before the window. */
 export const COMPLAINT_BASELINE_PERIODS = 3;
 export const COMPLAINT_MIN = 3;
-/** One complaint spike per theme per competitor per 30 days. */
+/** One complaint spike per topic per competitor per 30 days. */
 export const COMPLAINT_COOLDOWN_DAYS = 30;
-/** Sentiment levels that make a theme mention a complaint: 0 very negative, 1 negative. */
+/** Sentiment levels that make a topic mention a complaint: 0 very negative, 1 negative. */
 export const COMPLAINT_MAX_SENTIMENT = 1;
 const DAY_MS = 86_400_000;
 const r2 = (x: number) => Math.round(x * 100) / 100;
 
-/** Spec §6.4 "complaint-theme spike": ≥ COMPLAINT_MIN and ≥ multiplier × the baseline monthly mean (floored at 1). `z` is a Poisson-style deviation for the size curve. */
+/** Spec §6.4 "complaint-topic spike": ≥ COMPLAINT_MIN and ≥ multiplier × the baseline monthly mean (floored at 1). `z` is a Poisson-style deviation for the size curve. */
 export function complaintSpike(current: number, baseline: number[], multiplier: number): { spike: boolean; baselineMean: number; z: number } {
   const mean = baseline.length > 0 ? baseline.reduce((a, b) => a + b, 0) / baseline.length : 0;
   return { spike: current >= COMPLAINT_MIN && current >= multiplier * Math.max(mean, 1), baselineMean: r2(mean), z: r2((current - mean) / Math.max(Math.sqrt(mean), 1)) };
 }
 
-export const complaintBlockKey = (verticalId: string, themeId: string) => `reviews:complaints:${verticalId}:${themeId}`;
+export const complaintBlockKey = (verticalId: string, topicId: string) => `reviews:complaints:${verticalId}:${topicId}`;
 
 /**
- * Writes a `review_spike` detected change per (vertical, theme) whose complaints spiked in the last 30 days.
+ * Writes a `review_spike` detected change per (vertical, topic) whose complaints spiked in the last 30 days.
  * The change cites the competitor's latest ok google_reviews capture (no evidence, no claim) and flows through
  * the normal structured tag → score → moves pipeline. Review text never enters the change: counts only.
  */
@@ -44,18 +44,18 @@ export async function detectComplaintSpikes(deps: { db: Db; packs: PackLoader },
   for (const verticalId of await competitorVerticals(deps.db, competitorId)) {
     const pack = await deps.packs(verticalId);
     const rows = (await deps.db.execute(sql`
-      SELECT t.theme, floor(extract(epoch FROM (${at}::timestamptz - r.posted_at)) / ${COMPLAINT_WINDOW_DAYS * 86_400}::int)::int AS period, count(*)::int AS n
+      SELECT t.topic, floor(extract(epoch FROM (${at}::timestamptz - r.posted_at)) / ${COMPLAINT_WINDOW_DAYS * 86_400}::int)::int AS period, count(*)::int AS n
       FROM review_analysis a
       JOIN review r ON r.id = a.review_id
-      CROSS JOIN LATERAL jsonb_array_elements_text(a.topics) AS t(theme)
+      CROSS JOIN LATERAL jsonb_array_elements_text(a.topics) AS t(topic)
       WHERE a.competitor_id = ${competitorId}::uuid AND a.vertical_id = ${verticalId} AND a.sentiment <= ${COMPLAINT_MAX_SENTIMENT}::int
         AND r.posted_at > ${at}::timestamptz - make_interval(days => ${span}::int) AND r.posted_at <= ${at}::timestamptz
-      GROUP BY 1, 2`)) as unknown as { theme: string; period: number; n: number }[];
-    for (const theme of await themesForVertical(deps.db, pack)) {
-      const count = (p: number) => Number(rows.find((r) => r.theme === theme.id && Number(r.period) === p)?.n ?? 0);
+      GROUP BY 1, 2`)) as unknown as { topic: string; period: number; n: number }[];
+    for (const topic of await topicsForVertical(deps.db, pack)) {
+      const count = (p: number) => Number(rows.find((r) => r.topic === topic.id && Number(r.period) === p)?.n ?? 0);
       const s = complaintSpike(count(0), Array.from({ length: COMPLAINT_BASELINE_PERIODS }, (_, i) => count(i + 1)), pack.move_thresholds.complaint_spike_multiplier);
       if (!s.spike) continue;
-      const blockKey = complaintBlockKey(verticalId, theme.id);
+      const blockKey = complaintBlockKey(verticalId, topic.id);
       const [recent] = await deps.db
         .select({ id: detectedChange.id })
         .from(detectedChange)
@@ -66,10 +66,10 @@ export async function detectComplaintSpikes(deps: { db: Db; packs: PackLoader },
         .insert(detectedChange)
         .values({
           competitorId, source: 'google_reviews', kind: 'modified', beforeCaptureId: prev?.id ?? null, afterCaptureId: latest.id, blockKey,
-          beforeText: `${s.baselineMean} complaints a month about ${theme.name} over the previous ${COMPLAINT_WINDOW_DAYS * COMPLAINT_BASELINE_PERIODS} days`,
-          afterText: `${count(0)} complaints about ${theme.name} in the last ${COMPLAINT_WINDOW_DAYS} days`,
+          beforeText: `${s.baselineMean} complaints a month about ${topic.name} over the previous ${COMPLAINT_WINDOW_DAYS * COMPLAINT_BASELINE_PERIODS} days`,
+          afterText: `${count(0)} complaints about ${topic.name} in the last ${COMPLAINT_WINDOW_DAYS} days`,
           details: {
-            changeType: 'review_spike', topic: theme.id, topicName: theme.name, verticalId, count: count(0), baselineMean: s.baselineMean, windowDays: COMPLAINT_WINDOW_DAYS, z: s.z,
+            changeType: 'review_spike', topic: topic.id, topicName: topic.name, verticalId, count: count(0), baselineMean: s.baselineMean, windowDays: COMPLAINT_WINDOW_DAYS, z: s.z,
           },
           stageVersion: COMPLAINT_STAGE_VERSION, detectedAt: now,
         })

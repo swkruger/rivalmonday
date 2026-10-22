@@ -1,6 +1,6 @@
 import { toolkit, ToolError } from '@cs/core';
 import { review, topicProposal } from '@cs/db';
-import { decideThemeProposal } from '@cs/engine';
+import { decideTopicProposal } from '@cs/engine';
 import { and, count, desc, eq, gte, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { catalogPacks } from '../catalog/access';
@@ -56,7 +56,7 @@ export const listThemeProposals = defineTool({
   },
 });
 
-export const decideThemeProposalTool = defineTool({
+export const decideTopicProposalTool = defineTool({
   name: 'decide_theme_proposal',
   access: 'write',
   description: 'Platform operators: approve or reject a proposed review topic.',
@@ -66,7 +66,7 @@ export const decideThemeProposalTool = defineTool({
   async handler(ctx, { proposalId, decision }, deps) {
     await requirePlatformOperator(deps, ctx);
     try {
-      await decideThemeProposal(deps.service, proposalId, decision, ctx.userId);
+      await decideTopicProposal(deps.service, proposalId, decision, ctx.userId);
     } catch (e) {
       if (e instanceof Error && /not awaiting a decision/.test(e.message)) throw new ToolError('invalid_input', 'This proposal was already decided');
       throw e;
@@ -75,4 +75,4 @@ export const decideThemeProposalTool = defineTool({
   },
 });
 
-export const themeTools = [listThemeProposals, decideThemeProposalTool];
+export const themeTools = [listThemeProposals, decideTopicProposalTool];

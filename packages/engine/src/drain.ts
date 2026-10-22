@@ -4,7 +4,7 @@ import type { VerticalPack } from '@cs/verticals';
 import type { ObjectStore } from '@cs/storage';
 import { diffCapture } from './diff';
 import { extractPrices } from './prices/price-stage';
-import { analyzeReview } from './reviews/themes';
+import { analyzeReview } from './reviews/topics';
 import { scoreEvent } from './score/score-stage';
 import { diffRankScan } from './structured/rank';
 import { findEngineWork } from './sweep';

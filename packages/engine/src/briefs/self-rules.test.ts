@@ -1,6 +1,6 @@
 import { loadVerticalPack } from '@cs/verticals';
 import { describe, expect, it } from 'vitest';
-import type { BenchmarkBusiness, BenchmarkTheme } from '../reviews/benchmark';
+import type { BenchmarkBusiness, TopicShare } from '../reviews/benchmark';
 import type { Scorecard } from './scorecard';
 import { evaluateSelfRules, type SelfRuleInput } from './self-rules';
 
@@ -10,10 +10,10 @@ type Vals = Partial<Scorecard['rows'][number]['values']>;
 const vals = (v: Vals): Scorecard['rows'][number]['values'] => ({ rating: null, reviews90d: null, replyRate: null, mapTop3Share: null, adsActive: null, metaAdsActive: null, ...v });
 const row = (n: number, name: string, v: Vals, self = false): Scorecard['rows'][number] => ({ competitorId: ID(n), name, self, tier: self ? null : 'top', values: vals(v) });
 const card = (rows: Scorecard['rows']): Scorecard => ({ asOf: '2026-10-14T00:00:00Z', baselineBriefId: null, tiles: [] as never, rows, evidenceIds: [], openFirstMoves: [] });
-const theme = (themeId: string, share: number | null, sentiment: number | null): BenchmarkTheme =>
-  ({ themeId, name: themeId === 'wait_time' ? 'Wait time' : 'Staff friendliness', mentions: 5, asked: 10, share, sentiment, prevShare: null, prevSentiment: null, shareDelta: null, sentimentDelta: null });
-const biz = (n: number, self: boolean, themes: BenchmarkTheme[]): BenchmarkBusiness =>
-  ({ competitorId: ID(n), name: `B${n}`, self, reviews: 10, avgRating: 4, prevReviews: 0, prevAvgRating: null, themes });
+const theme = (topicId: string, share: number | null, sentiment: number | null): TopicShare =>
+  ({ topicId, name: topicId === 'wait_time' ? 'Wait time' : 'Staff friendliness', mentions: 5, asked: 10, share, sentiment, prevShare: null, prevSentiment: null, shareDelta: null, sentimentDelta: null });
+const biz = (n: number, self: boolean, themes: TopicShare[]): BenchmarkBusiness =>
+  ({ competitorId: ID(n), name: `B${n}`, self, reviews: 10, avgRating: 4, prevReviews: 0, prevAvgRating: null, topics: themes });
 
 const ALL_OK = { claimed: true, hasHours: true, categoryCount: 3 };
 const evidence = Object.fromEntries([1, 2, 3, 4].map((n) => [ID(n), [ID(100 + n)]]));

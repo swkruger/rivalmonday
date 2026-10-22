@@ -38,6 +38,22 @@ describe('get_theme_benchmark', () => {
   });
 });
 
+describe('legacy MCP shape (15b-3a snapshot: keys stay theme-named until 15b-3b)', () => {
+  it('get_theme_benchmark and search_reviews expose exactly the pre-rename keys', async () => {
+    const selfId = await seedSelf();
+    await seedReview({ competitorId: selfId, rating: 5, text: 'Fast', postedAt: ago(3), analysis: { asked: ['response_time'], themes: ['response_time'], sentiment: 4 } });
+    const b = (await registry.invoke(owner, 'get_theme_benchmark', { clientId: IDS.clientA1 })) as Record<string, unknown> & { themes: object[]; businesses: { themes: object[] }[] };
+    expect(Object.keys(b).sort()).toEqual(['businesses', 'from', 'themes', 'to', 'windowDays']);
+    expect(Object.keys(b.themes[0]!).sort()).toEqual(['id', 'name']);
+    expect(Object.keys(b.businesses[0]!).sort()).toEqual(['avgRating', 'competitorId', 'name', 'prevAvgRating', 'prevReviews', 'reviews', 'self', 'themes']);
+    expect(Object.keys(b.businesses[0]!.themes[0]!).sort()).toEqual(['asked', 'mentions', 'sentiment', 'sentimentDelta', 'share', 'shareDelta', 'themeId']);
+    const r = (await registry.invoke(owner, 'search_reviews', { clientId: IDS.clientA1, detail: 'full' })) as { items: Record<string, unknown>[] };
+    expect(Object.keys(r.items[0]!).sort()).toEqual(['competitorId', 'name', 'ownerAnswer', 'postedAt', 'rating', 'reviewId', 'self', 'sentiment', 'text', 'themes']);
+    expect(r.items[0]!.themes).toEqual([{ id: 'response_time', name: 'Response time' }]);
+    await expect(registry.invoke(owner, 'search_reviews', { clientId: IDS.clientA1, themeId: 'nope' })).rejects.toMatchObject({ code: 'invalid_input', message: 'Unknown theme' });
+  });
+});
+
 describe('monthKeys', () => {
   it('lists UTC calendar months ending with the current one', () => {
     expect(monthKeys(new Date('2026-01-15T12:00:00Z'), 3)).toEqual(['2025-11', '2025-12', '2026-01']);

@@ -26,14 +26,14 @@ export const score = (value: number, confidence = 0.95): ResolvedAnswer => ({
 
 export type DecideFn = (state: unknown, questions: Record<string, DecisionQuestion>) => DecisionResult<string> | Promise<DecisionResult<string>>;
 
-/** Answers review questions: `sentiment` (level), `theme_<v>__<id>` true for the listed theme ids, `other_<v>`. */
-export function reviewResult(input: { themes?: string[]; other?: boolean; sentiment?: number; confidence?: number; needsReview?: string[] }): DecideFn {
+/** Answers review questions: `sentiment` (level), `theme_<v>__<id>` true for the listed topic ids, `other_<v>`. */
+export function reviewResult(input: { topics?: string[]; other?: boolean; sentiment?: number; confidence?: number; needsReview?: string[] }): DecideFn {
   return (_state, questions) => {
     const answers: Record<string, ResolvedAnswer> = {};
     for (const key of Object.keys(questions)) {
       if (key === 'sentiment') answers[key] = score(input.sentiment ?? 3, input.confidence);
       else if (key.startsWith('other_')) answers[key] = noul(input.other ?? false, input.confidence);
-      else answers[key] = noul((input.themes ?? []).includes(key.split('__')[1] ?? ''), input.confidence);
+      else answers[key] = noul((input.topics ?? []).includes(key.split('__')[1] ?? ''), input.confidence);
     }
     return { answers, needsReview: input.needsReview ?? [] };
   };

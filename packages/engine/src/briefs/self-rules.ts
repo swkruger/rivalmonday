@@ -125,10 +125,10 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
         if (!selfTheme || rivalThemes.length === 0) break;
         const threshold = param(rule, 'gap', 0.1);
         let best: { name: string; you: number; med: number; gap: number; sentiment: number; rivalIds: string[] } | null = null;
-        for (const t of selfTheme.themes) {
+        for (const t of selfTheme.topics) {
           if (t.share === null || t.sentiment === null) continue;
           const rs = rivalThemes
-            .map((b) => ({ id: b.competitorId, share: b.themes.find((x) => x.themeId === t.themeId)?.share ?? null }))
+            .map((b) => ({ id: b.competitorId, share: b.topics.find((x) => x.topicId === t.topicId)?.share ?? null }))
             .filter((x): x is { id: string; share: number } => x.share !== null);
           const med = median(rs.map((x) => x.share));
           if (med === null) continue;

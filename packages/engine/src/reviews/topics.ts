@@ -15,18 +15,19 @@ export const MIN_REVIEW_CHARS = 10;
 export const MAX_REVIEW_CHARS = 2000;
 export const SENTIMENT_LEVELS = ['very negative', 'negative', 'mixed or neutral', 'positive', 'very positive'];
 
-export interface Theme {
+export interface TopicDef {
   id: string;
   name: string;
   description: string;
 }
 
-export interface VerticalThemes {
+export interface VerticalTopics {
   pack: VerticalPack;
-  themes: Theme[];
+  topics: TopicDef[];
 }
 
-export const themeKey = (verticalId: string, themeId: string) => `theme_${verticalId}__${themeId}`;
+// kept: model-ops key (15b-3 C7) — the question key format is stored in review_decisions
+export const themeKey = (verticalId: string, topicId: string) => `theme_${verticalId}__${topicId}`;
 export const otherKey = (verticalId: string) => `other_${verticalId}`;
 
 /** Stage subject of a review *version*: `md5(review_id || '|' || text)` as a uuid — the sweep computes the same in SQL, so an edit re-runs the stage. */
@@ -35,9 +36,9 @@ export function reviewSubjectId(reviewId: string, text: string): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
-/** A vertical's review themes: the pack's seed themes, then AM-approved discovered themes in approval order. */
-export async function themesForVertical(db: Db, pack: VerticalPack): Promise<Theme[]> {
-  const seed: Theme[] = pack.topics.map((t) => ({ id: t.id, name: t.name, description: t.description }));
+/** A vertical's review topics: the pack's seed topics, then AM-approved discovered topics in approval order. */
+export async function topicsForVertical(db: Db, pack: VerticalPack): Promise<TopicDef[]> {
+  const seed: TopicDef[] = pack.topics.map((t) => ({ id: t.id, name: t.name, description: t.description }));
   const approved = await db
     .select({ id: topicProposal.topicId, name: topicProposal.name, description: topicProposal.description })
     .from(topicProposal)
@@ -46,13 +47,13 @@ export async function themesForVertical(db: Db, pack: VerticalPack): Promise<The
   return [...seed, ...approved.filter((a) => !seed.some((s) => s.id === a.id))];
 }
 
-/** Spec §6.5: one call per review — a sentiment Score plus one Noul per theme (and "other") per vertical. */
-export function buildReviewQuestions(verticals: VerticalThemes[]): Record<string, DecisionQuestion> {
+/** Spec §6.5: one call per review — a sentiment Score plus one Noul per topic (and "other") per vertical. */
+export function buildReviewQuestions(verticals: VerticalTopics[]): Record<string, DecisionQuestion> {
   const q: Record<string, DecisionQuestion> = {
     sentiment: { type: 'score', instructions: 'Overall, how does the reviewer feel about the business?', levels: SENTIMENT_LEVELS },
   };
-  for (const { pack, themes } of verticals) {
-    for (const t of themes) {
+  for (const { pack, topics } of verticals) {
+    for (const t of topics) {
       q[themeKey(pack.id, t.id)] = {
         type: 'noul',
         instructions: `Does the review talk about ${t.name.toLowerCase()} (${t.description.toLowerCase()}) — as praise or as a complaint?`,
@@ -60,7 +61,7 @@ export function buildReviewQuestions(verticals: VerticalThemes[]): Record<string
     }
     q[otherKey(pack.id)] = {
       type: 'noul',
-      instructions: `Does the review raise a specific aspect of this ${pack.name} business that none of these topics covers: ${themes.map((t) => t.name).join(', ')}?`,
+      instructions: `Does the review raise a specific aspect of this ${pack.name} business that none of these topics covers: ${topics.map((t) => t.name).join(', ')}?`,
     };
   }
   return q;
@@ -69,7 +70,7 @@ export function buildReviewQuestions(verticals: VerticalThemes[]): Record<string
 /** One analysis row per vertical. Answers still below threshold after the cascade are left out (not asked / null sentiment), never guessed. */
 export function resolveReviewAnalysis(
   result: DecisionResult<string>,
-  verticals: VerticalThemes[],
+  verticals: VerticalTopics[],
   base: { reviewId: string; competitorId: string; textSha: string },
 ): (typeof reviewAnalysis.$inferInsert)[] {
   const low = new Set(result.needsReview);
@@ -81,8 +82,8 @@ export function resolveReviewAnalysis(
   const s = a.sentiment;
   const sentiment = s?.type === 'score' && !low.has('sentiment') ? s.value : null;
   const confidence = Math.round(Math.min(...Object.values(a).map((x) => x.confidence)) * 100) / 100;
-  return verticals.map(({ pack, themes }) => {
-    const asked = themes.map((t) => t.id).filter((id) => a[themeKey(pack.id, id)] !== undefined && !low.has(themeKey(pack.id, id)));
+  return verticals.map(({ pack, topics }) => {
+    const asked = topics.map((t) => t.id).filter((id) => a[themeKey(pack.id, id)] !== undefined && !low.has(themeKey(pack.id, id)));
     return {
       ...base, verticalId: pack.id, asked, topics: asked.filter((id) => yes(themeKey(pack.id, id))), other: yes(otherKey(pack.id)),
       sentiment, confidence, needsReview: low.size > 0, analysisVersion: REVIEW_VERSION,
@@ -90,7 +91,7 @@ export function resolveReviewAnalysis(
   });
 }
 
-/** Spec §6.5 review themes + sentiment for one review version. Review text reaches the model only through `redactForModel`. */
+/** Spec §6.5 review topics + sentiment for one review version. Review text reaches the model only through `redactForModel`. */
 export async function analyzeReview(deps: { db: Db; ai: Ai; packs: PackLoader }, reviewId: string): Promise<StageOutcome<{ rows: number }>> {
   const [row] = await deps.db
     .select({ r: review, competitorName: competitor.name })
@@ -110,7 +111,7 @@ export async function analyzeReview(deps: { db: Db; ai: Ai; packs: PackLoader },
       const verticals = await Promise.all(
         verticalIds.map(async (id) => {
           const pack = await deps.packs(id);
-          return { pack, themes: await themesForVertical(deps.db, pack) };
+          return { pack, topics: await topicsForVertical(deps.db, pack) };
         }),
       );
       const state = {

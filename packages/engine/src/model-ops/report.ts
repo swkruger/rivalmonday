@@ -34,6 +34,7 @@ export interface ReportRow {
 /** Per-vertical question keys share a family so verticals pool their labels. */
 export function questionFamily(key: string): string {
   if (key.startsWith('service_')) return 'service';
+  // kept: model-ops key (15b-3 C7) — question-key family names stay theme_*
   if (key.startsWith('theme_')) return 'theme';
   if (key.startsWith('other_')) return 'other';
   if (/^same_\d+$/.test(key)) return 'same_offer';

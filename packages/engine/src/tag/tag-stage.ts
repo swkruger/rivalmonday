@@ -47,7 +47,7 @@ export function createPackLoader(load: (id: string) => Promise<VerticalPack> = (
   };
 }
 
-/** Verticals of every client tracking the competitor or owning it as its self business (service mapping and review themes are per vertical). */
+/** Verticals of every client tracking the competitor or owning it as its self business (service mapping and review topics are per vertical). */
 export async function competitorVerticals(db: Db, competitorId: string): Promise<string[]> {
   const tracked = await db
     .selectDistinct({ verticalId: client.verticalId })

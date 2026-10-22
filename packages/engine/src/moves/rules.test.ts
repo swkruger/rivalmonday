@@ -103,7 +103,7 @@ describe('detectMoves', () => {
     expect(ratingDrawdown([b, a, c])).toBe(2);
   });
 
-  it('reputation slump: a complaint-theme spike for the client vertical in the last 30 days', () => {
+  it('reputation slump: a complaint-topic spike for the client vertical in the last 30 days', () => {
     const spike = (over: Partial<MoveEvent> = {}) =>
       ev({ changeType: 'review_spike', channels: ['google_reviews'], details: { topic: 'price_transparency', topicName: 'Price transparency', verticalId: 'hvac_plumbing', count: 4 }, ...over });
     expect(detectMoves([spike()], ctx()).find((f) => f.type === 'reputation_slump')).toMatchObject({
