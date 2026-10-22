@@ -12,7 +12,7 @@
 - Tests on the local test cluster (`scripts/local-test-db.sh`, port 5444). At the 15b-2 merge (2026-10-21): full unit suite 6,447 tests, 15/16 packages first pass (59 min) - the one `@cs/web` failure, PinPageSwitch, passes alone 4/4 (load flake, BACKLOG); full E2E 121/121 (8.7 min).
 - Switches: `KB_IMPORT_ENABLED`, `ASK_FAKE_AI`, `BILLING_FAKE_GATEWAY`, `SETUP_FAKE_LOOKUP` (E2E only). Billing off until `STRIPE_SECRET_KEY`; Turnstile faked until its keys; `STADIA_API_KEY` set in `.env` (dev); unset = rank grids without a map; existing maps refetch once (style change) on the next Sunday `rank-schedule` or a rank-settings save. Worker env `NEON_API_KEY`, `NEON_ORG_ID` not set yet.
 - **In flight:** `phase-7` must **rebase onto main** and renumber its migrations to **0081+** (plus `llm_call.vertical_id`, catalogue/runbook tools and `runbook-tailor` in the isolation suite, and the new help tools `get_page_guide`/`list_help_guides`). Next: 15b-3 (topic rename), 15c (rebases on 15b-2). 13a (white-label hosts) not started. `phase-7-planning` parked.
-- **`main` not pushed** (15b/15b-2 merges + earlier commits ahead of `origin/main`): owner runs `git push origin main`.
+- `main` pushed to `origin/main` 2026-10-21 (through the 15b-2 merge).
 - Built: [ARCHITECTURE.md](ARCHITECTURE.md). Runbook: [OPS.md](OPS.md).
 
 ## Next up
