@@ -11,7 +11,7 @@
 - Migrations run through **`0083`** (next free `0084`). `cs_dev` was at 0080 + `kb:seed` (2026-10-21): run 0081-0083 + `kb:seed` (below). `cs_demo` is seeded by `pnpm demo:reset` (re-run before demoing).
 - Tests on the local test cluster (`scripts/local-test-db.sh`, port 5444). Last full runs (15b-2 merge, 2026-10-21): unit 6,447 tests (59 min; one load-flake, PinPageSwitch), E2E 121/121.
 - Switches: `KB_IMPORT_ENABLED`, `ASK_FAKE_AI`, `BILLING_FAKE_GATEWAY`, `SETUP_FAKE_LOOKUP` (E2E only). Billing off until `STRIPE_SECRET_KEY`; Turnstile faked until its keys; `STADIA_API_KEY` in `.env` (dev). Worker env `NEON_API_KEY`, `NEON_ORG_ID` not set yet. `POSTMARK_WEBHOOK_SECRET` is added on Vercel only.
-- **In flight (unmerged):** `phase-15b3` (topic rename), `phase-15c` (audit page fixes); `phase-7-planning` parked. 13a (white-label hosts) not started; it overlaps 7a on webhook/email env, error pages and `turbo.json`, and 7a's deploy precedes 13a live.
+- **In flight (unmerged):** `phase-15b3` (topic rename) and `phase-15c` (audit page fixes) must rebase onto 7a: 15b3's migration becomes `0084`; 15c's archive button needs archive exposed as a tool (7a2 built only the worker CLI `archiveTenant`). Cleanup pending (owner OK): `../CompetitorSpy-wt/phase-7` worktree + `cs_phase_7_test`, branches `phase-7`, `phase-7-planning`. `main` pushed at `76c9809d` (2026-10-22); CI `deploy` skipped until repo var `DEPLOY_ENABLED=true`. 13a (white-label hosts) not started; it overlaps 7a on webhook/email env, error pages and `turbo.json`, and 7a's deploy precedes 13a live.
 - Built: [ARCHITECTURE.md](ARCHITECTURE.md). Runbooks: [OPS.md](OPS.md), [DEPLOY.md](DEPLOY.md).
 
 ## Next up
