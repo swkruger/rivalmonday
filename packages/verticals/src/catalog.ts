@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import { type VerticalPack, verticalPackSchema } from './schema';
 
-export type CatalogStatus = 'reviewed' | 'unreviewed' | 'merged';
+/** Mirrors vertical_status_check / business_area_status_check in @cs/db (db depends on this package, so the array lives here). */
+export const CATALOG_STATUSES = ['reviewed', 'unreviewed', 'merged'] as const;
+export type CatalogStatus = (typeof CATALOG_STATUSES)[number];
 
 export interface VerticalRow {
   id: string;

@@ -1,4 +1,4 @@
-import { ALERT_STATUSES, BILLING_STATES, CLIENT_STATUSES, EVIDENCE_KINDS, TREND_REPORT_STATUSES, WEBHOOK_KINDS } from '@cs/db';
+import { ALERT_STATUSES, BILLING_STATES, CATALOG_STATUSES, CLIENT_STATUSES, EVIDENCE_KINDS, TREND_REPORT_STATUSES, WEBHOOK_KINDS } from '@cs/db';
 import { AGENCY_ONLY_TERMS } from './agency-only-terms';
 import { ROLES } from '@cs/core';
 import { describe, expect, it } from 'vitest';
@@ -21,11 +21,12 @@ describe('every enum value has a label', () => {
   it('every const-backed enum value', () => {
     for (const v of ALERT_STATUSES) expect(ALERT_STATUS[v].label, v).toBeTruthy();
     for (const v of EVIDENCE_KINDS) expect(EVIDENCE_KIND[v].label, v).toBeTruthy();
+    for (const v of CATALOG_STATUSES) expect(REVIEW_STATUS[v].label, v).toBeTruthy();
     for (const v of WEBHOOK_KINDS) expect(WEBHOOK_KIND[v].label, v).toBeTruthy();
     for (const v of TREND_REPORT_STATUSES) expect(REPORT_STATUS[v].label, v).toBeTruthy();
   });
   it('the union-typed maps (checked by the compiler) still have entries', () => {
-    for (const map of [LEAD_STATUS, REVIEW_STATUS, ASK_MESSAGE_STATUS, REPORT_STATUS]) expect(Object.keys(map).length).toBeGreaterThan(2);
+    for (const map of [LEAD_STATUS, ASK_MESSAGE_STATUS, REPORT_STATUS]) expect(Object.keys(map).length).toBeGreaterThan(2);
   });
   it('labels are non-empty, sentence case (no snake_case) and short', () => {
     for (const map of [BILLING_STATE, CLIENT_STATUS, LEAD_STATUS, ALERT_STATUS, REVIEW_STATUS, REPORT_STATUS, ASK_MESSAGE_STATUS, EVIDENCE_KIND, WEBHOOK_KIND, MEMBERSHIP_ROLE] as Record<string, { label: string }>[])

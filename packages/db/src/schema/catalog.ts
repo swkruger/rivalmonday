@@ -1,6 +1,9 @@
 import { sql } from 'drizzle-orm';
 import { type AnyPgColumn, check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import type { CatalogStatus } from '@cs/verticals';
+
+/** Re-exported so `@cs/db` consumers can key on the catalogue statuses (source: @cs/verticals; mirrors the two status CHECKs below). */
+export { CATALOG_STATUSES } from '@cs/verticals';
 import { agency } from './tenancy';
 
 const ts = (name: string) => timestamp(name, { withTimezone: true });
