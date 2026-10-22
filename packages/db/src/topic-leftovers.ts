@@ -46,6 +46,9 @@ export async function findTopicLeftovers(db: Db): Promise<TopicLeftover[]> {
     add(table, column, await count(sql`SELECT count(*)::int AS n FROM ${id(table)} WHERE ${id(column)} ~ ${LEGACY}`));
   }
   add('vertical', 'config', await count(sql`SELECT count(*)::int AS n FROM vertical WHERE config ? 'themes'`));
+  add('vertical', 'draft_evidence', await count(sql`SELECT count(*)::int AS n FROM vertical WHERE jsonb_typeof(draft_evidence) = 'object' AND draft_evidence ? 'themes'`));
+  add('vertical_draft', 'draft', await count(sql`SELECT count(*)::int AS n FROM vertical_draft WHERE jsonb_typeof(draft) = 'object' AND draft ? 'themes'`));
+  add('move', 'details', await count(sql`SELECT count(*)::int AS n FROM move WHERE details #> '{facts,theme}' IS NOT NULL`));
   for (const table of ['detected_change', 'event']) {
     add(table, 'details', await count(sql`SELECT count(*)::int AS n FROM ${id(table)} WHERE details ? 'theme' OR details ? 'themeName'`));
   }

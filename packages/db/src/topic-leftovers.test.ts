@@ -46,4 +46,20 @@ describe('findTopicLeftovers', () => {
     await dbs.owner.execute(sql`INSERT INTO playbook_override (agency_id, vertical_id, playbook_id, updated_by) VALUES (${IDS.agencyA}, 'hvac_plumbing', 'fix_theme', 't')`);
     expect(await findTopicLeftovers(dbs.owner)).toEqual([{ table: 'playbook_override', column: 'playbook_id', rows: 1 }]);
   });
+
+  it('reports a vertical whose draft_evidence still has themes', async () => {
+    await dbs.owner.execute(sql`INSERT INTO vertical (id, name, status, draft_evidence) VALUES ('tv_ev', 'Ev', 'reviewed', ${JSON.stringify({ themes: [] })}::jsonb)`);
+    expect(await findTopicLeftovers(dbs.owner)).toEqual([{ table: 'vertical', column: 'draft_evidence', rows: 1 }]);
+  });
+
+  it('reports a vertical_draft whose draft still has themes', async () => {
+    await dbs.owner.execute(sql`INSERT INTO vertical_draft (place_id, agency_id, draft) VALUES ('p1', ${IDS.agencyA}, ${JSON.stringify({ themes: [] })}::jsonb)`);
+    expect(await findTopicLeftovers(dbs.owner)).toEqual([{ table: 'vertical_draft', column: 'draft', rows: 1 }]);
+  });
+
+  it('reports a move whose details.facts still has theme', async () => {
+    await dbs.owner.execute(sql`INSERT INTO move (agency_id, client_id, competitor_id, move_type, status, confidence, summary, details, rule_version, last_held_at, last_evidence_at)
+      VALUES (${IDS.agencyA}, ${IDS.clientA1}, ${IDS.competitorX}, 't', 'open', 0.5, 's', ${JSON.stringify({ eventCount: 0, channels: [], facts: { theme: 'x' } })}::jsonb, 1, now(), now())`);
+    expect(await findTopicLeftovers(dbs.owner)).toEqual([{ table: 'move', column: 'details', rows: 1 }]);
+  });
 });

@@ -82,6 +82,8 @@ describe('play schema', () => {
     expect(playContentSchema.safeParse({ ...ok, title: 'a {{competitor}}' }).success).toBe(false);
     expect(playContentSchema.safeParse({ ...ok, template: '{{bogus}}' }).success).toBe(false);
     expect(playContentSchema.safeParse({ ...ok, template: 'x'.repeat(2001) }).success).toBe(false);
+    expect(playContentSchema.safeParse({ ...ok, template: 'Fix {{theme}}' }).success).toBe(false);
+    expect(playContentSchema.safeParse({ ...ok, template: 'Fix {{topic}}' }).success).toBe(true);
     expect(parseItemContent('knob', 'knob:thresholds', { alert: 40, brief: 50 }).ok).toBe(false);
     expect(parseItemContent('knob', 'knob:nope', {}).ok).toBe(false);
   });
