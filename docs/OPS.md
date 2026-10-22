@@ -10,10 +10,9 @@ What is built: [ARCHITECTURE.md](ARCHITECTURE.md). All commands run from the rep
 | `cs_test` | Test suites. Snapshot restore never targets a `_test` database. |
 | `cs_demo` | Fictional HVAC/plumbing demo data, rebuilt by `pnpm demo:reset`. |
 
-After migration `0081` (15b-3a topic rename): run `pnpm --filter @cs/db migrate`, then `pnpm --filter @cs/db topic-leftovers` against `cs_dev`; it prints nothing when the rename has fully landed (exit 1 and the table list otherwise).
+After migration `0084` (15b-3a topic rename): run `pnpm --filter @cs/db migrate`, then `pnpm --filter @cs/db topic-leftovers` against `cs_dev`; it prints nothing when the rename has fully landed (exit 1 and the table list otherwise).
 - Pre-check before migrating `cs_dev`: `SELECT v.id, t->>'id' FROM vertical v, jsonb_array_elements(CASE WHEN jsonb_typeof(v.config->'themes') = 'array' THEN v.config->'themes' ELSE '[]' END) t WHERE t->>'id' IN ('fix_theme','theme_weakness','theme_strength');` must return no rows (a topic with such a literal id would be rewritten).
 - Order: stop the worker, migrate, deploy web + worker together, then run `topic-leftovers`. The backfill blocks are idempotent; re-run the migration's SQL if an old worker wrote old-shape rows.
-- If phase-7 merges first, renumber the migration: file, journal tag, the hard-coded filename in `topic-rename.test.ts`, and the `0081` mention above.
 
 ## CS Dev Verification Agency / Client (`cs_dev`)
 

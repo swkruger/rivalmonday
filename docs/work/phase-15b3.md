@@ -7,10 +7,10 @@
 15b-3a built 2026-10-22 (Tasks 0–6 + final-review fix wave; HEAD 28ed2346). Final review: ready to merge, 0 Critical/Important; `test:affected` 15/15 and `e2e:affected` 121 green. 15b-3b (surfaces) not started. 15b-3a (data & engine) runs on this branch; 15b-3b (surfaces) gets its own kickoff after 3a merges.
 
 ## Next (overwrite)
-Owner go-ahead → `/rm-merge phase-15b3` (renumber migration 0081 if phase-7 merges first). Then `/rm-kickoff phase-15b3b` (routes, page key, MCP/Ask tool names; delete `toLegacyThemeFields`).
+Owner go-ahead → `/rm-merge phase-15b3`. Then `/rm-kickoff phase-15b3b` (routes, page key, MCP/Ask tool names; delete `toLegacyThemeFields`).
 
 ## Interfaces this branch adds or changes
-Migration `0081_topic_rename` (local number): `topic_proposal`, `review_analysis.topics`, backfilled ids/keys. Tools `list_topic_proposals`, `decide_topic_proposal` (input `proposalId`), `get_platform_nav_counts` → `topics`. `findTopicLeftovers` + `pnpm --filter @cs/db topic-leftovers`. MCP `get_theme_benchmark`/`search_reviews` unchanged (legacy mapping); `get_move` fact label now reads "Topic". Next free migration: **0083** (main ends at 0080; phase-7 holds 0081, 0082).
+Migration `0084_topic_rename` (renumbered after phase-7 took 0081-0083): `topic_proposal`, `review_analysis.topics`, backfilled ids/keys. Tools `list_topic_proposals`, `decide_topic_proposal` (input `proposalId`), `get_platform_nav_counts` → `topics`. `findTopicLeftovers` + `pnpm --filter @cs/db topic-leftovers`. MCP `get_theme_benchmark`/`search_reviews` unchanged (legacy mapping); `get_move` fact label now reads "Topic". Next free migration: **0083** (main ends at 0080; phase-7 holds 0081, 0082).
 
 ## Assumes from other branches
 - **phase-7** (base 00e8e02a, 0081 `runtime_roles` + 0082 `lifecycle`): touches `nav-items.ts` (Health entry beside Topic proposals; AI-connections gate), `server/nav.ts`, `ai.yaml` (adds `request_path`/timeouts, new `runbook_retailor`), `tools/all.ts`, `channels.test.ts`, `mcp/server.test.ts`, `demo/coverage.ts`, `e2e/seed.ts`, `e2e-affected-rules.ts`, worker `jobs/reviews.ts`/`model-ops.ts` (logging). No `theme` renames. Whichever merges second rebases; this phase's migration is 0083+.
