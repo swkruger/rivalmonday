@@ -61,8 +61,8 @@ export function scorecardEvidenceText(sc: Scorecard, findings: SelfFinding[]): s
     lines.push(`Rival median: rating ${fmt(med('rating'), rating)}; new reviews in 90 days ${fmt(med('reviews90d'), String)}; reply rate ${fmt(med('replyRate'), pct)}; map top-3 share ${fmt(med('mapTop3Share'), pct)}.`);
   }
   for (const f of findings) {
-    if (typeof f.values.theme === 'string' && typeof f.values.you === 'number' && typeof f.values.median === 'number') {
-      lines.push(`Topic ${f.values.theme}: your share ${pct(f.values.you)}; rival median ${pct(f.values.median)}.`);
+    if (typeof f.values.topic === 'string' && typeof f.values.you === 'number' && typeof f.values.median === 'number') {
+      lines.push(`Topic ${f.values.topic}: your share ${pct(f.values.you)}; rival median ${pct(f.values.median)}.`);
     }
   }
   return lines.join('\n');
@@ -215,7 +215,7 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
         dropped.items++;
         continue;
       }
-      kept.push({ f, title: pb.title, action: renderPlaybook(pb.template, { topic: String(f.values.theme ?? '') }) });
+      kept.push({ f, title: pb.title, action: renderPlaybook(pb.template, { topic: String(f.values.topic ?? '') }) });
     }
 
     const why = new Map<string, string>();

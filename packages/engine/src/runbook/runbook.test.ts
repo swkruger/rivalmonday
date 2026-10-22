@@ -34,6 +34,15 @@ describe('compareWithParent', () => {
   });
 });
 
+describe('compareWithParent after the topic rename backfill', () => {
+  it('reports no upstream change when platform item and agency copy both use the new ids', () => {
+    const content = { trigger: 'self_rule:topic_weakness', title: 'Fix {{topic}}', template: 'Look at {{topic}}.' };
+    const parent = [item('play:fix_topic', { version: 3, content })];
+    const child = [item('play:fix_topic', { upstreamVersion: 3, content, upstreamSnapshot: { content, enabled: true, businessAreaIds: null } })];
+    expect(states(child, parent)).toEqual({ 'play:fix_topic': 'in_sync' });
+  });
+});
+
 describe('copyItems', () => {
   it('snapshots the parent', () => {
     const [c] = copyItems([item('a', { version: 4, businessAreaIds: ['x'] })]);

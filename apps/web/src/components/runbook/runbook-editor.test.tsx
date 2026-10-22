@@ -15,7 +15,7 @@ const play = (id: string, title: string, over: Partial<RunbookItemData> = {}, te
 const withState = (state: ItemState, over: Partial<RunbookItemData> = {}) => ({ state, ...over });
 
 const data = (items: RunbookItemData[], over: Partial<RunbookData> = {}): RunbookData => ({
-  level: 'agency', tailorStatus: null, items, vars: ['competitor', 'service', 'new_price', 'areas', 'theme'], businessAreas: [], ...over,
+  level: 'agency', tailorStatus: null, items, vars: ['competitor', 'service', 'new_price', 'areas', 'topic'], businessAreas: [], ...over,
 });
 const ok: RunbookAction = vi.fn(async () => ({ ok: true as const }));
 

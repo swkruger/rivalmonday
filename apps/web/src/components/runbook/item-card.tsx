@@ -17,7 +17,7 @@ export interface PlayContent {
 const area = 'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
 const LEVEL_WORD = { L: 'Low', M: 'Medium', H: 'High' } as const;
 /** The same fallbacks `renderPlaybook` (engine) uses when a brief has no value for a placeholder. */
-const FALLBACK: Record<string, string> = { competitor: 'the competitor', service: 'this service', new_price: 'a lower price', areas: 'new areas', theme: 'this topic' };
+const FALLBACK: Record<string, string> = { competitor: 'the competitor', service: 'this service', new_price: 'a lower price', areas: 'new areas', topic: 'this topic' };
 
 export const renderPreview = (template: string): string => template.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_, k: string) => FALLBACK[k] ?? 'this');
 const pretty = (id: string) => id.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());

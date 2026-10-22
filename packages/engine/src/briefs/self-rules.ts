@@ -141,7 +141,7 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
         const fact = rule.id === 'topic_weakness'
           ? `${best.name} comes up in ${pct(best.you)}% of your reviews vs ${pct(best.med)}% for rivals.`
           : `${capitalise(input.audienceNoun)} mention ${lowerFirst(best.name)} in ${pct(best.you)}% of your reviews vs ${pct(best.med)}% for rivals.`;
-        push(rule, score(rule, best.gap, 0.3), fact, { theme: best.name, you: best.you, median: best.med, sentiment: best.sentiment }, evidenceOf([selfId, ...best.rivalIds]));
+        push(rule, score(rule, best.gap, 0.3), fact, { topic: best.name, you: best.you, median: best.med, sentiment: best.sentiment }, evidenceOf([selfId, ...best.rivalIds]));
         break;
       }
       case 'map_visibility_gap': {
