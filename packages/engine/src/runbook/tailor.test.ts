@@ -32,6 +32,10 @@ describe('applyTailoring', () => {
     expect(applyTailoring([BASE], out({ template: 'x {{bogus}}' }), ctx).rejected).toEqual(['play:a']);
     expect(applyTailoring([BASE], out({ template: 'x {{topic}}' }), ctx).rejected).toEqual(['play:a']); // valid var, but not in the base
   });
+  it('accepts {{topic}} when the base also uses it', () => {
+    const withTopic = play('play:a', { trigger: 'price_change', title: 'T', template: 'Fix {{topic}}.', effort: 'M' });
+    expect(applyTailoring([withTopic], out({ template: 'Work on {{topic}} now.' }), ctx).rejected).toEqual([]);
+  });
   it('rejects {{theme}}, which is no longer a placeholder, even when the base uses it', () => {
     const legacy = play('play:a', { trigger: 'price_change', title: 'T', template: 'Fix {{theme}}.', effort: 'M' });
     expect(applyTailoring([legacy], out({ template: 'Fix {{theme}}.' }), ctx).rejected).toEqual(['play:a']);

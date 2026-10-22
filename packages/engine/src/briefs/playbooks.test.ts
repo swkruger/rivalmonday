@@ -22,6 +22,12 @@ describe('playbooks', () => {
       .toBe('Smith HVAC cut AC tune-up to a lower price in new areas.');
   });
 
+  it('renders {{topic}}, falls back to "this topic", and treats {{theme}} as unknown', () => {
+    expect(renderPlaybook('fix {{topic}}', { topic: 'Wait time' })).toBe('fix Wait time');
+    expect(renderPlaybook('fix {{topic}}', {})).toContain('this topic');
+    expect(unknownPlaybookVars('x {{theme}}')).toEqual(['theme']);
+  });
+
   it('fills {{topic}} from the topic name, falling back to the topic id', () => {
     const ev = (details: Record<string, string>) => ({ kind: 'event', competitorName: 'Smith HVAC', facts: [], zips: [], serviceName: null, details }) as unknown as EventCandidate;
     expect(playbookVars(ev({ topicName: 'Late arrivals', topic: 'late_arrival' })).topic).toBe('Late arrivals');

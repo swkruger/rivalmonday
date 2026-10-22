@@ -48,7 +48,7 @@ const escapeBlock = (s: string) => s.replace(/<(\/?)(finding|facts|evidence|cand
 
 /**
  * The verifier's evidence for self findings: the computed scorecard figures written the way the fact templates write them
- * (whole percentages, ratings with one and two decimals), plus each theme finding's shares. Numbers in a fact or model sentence
+ * (whole percentages, ratings with one and two decimals), plus each topic finding's shares. Numbers in a fact or model sentence
  * must appear here; dates are the scorecard's own.
  */
 export function scorecardEvidenceText(sc: Scorecard, findings: SelfFinding[]): string {
@@ -189,11 +189,11 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
     const pack = await deps.packs(c.verticalId);
     const scorecard = await buildScorecard(deps, clientId, { now });
     const trend = await ratingTrend(deps, clientId, { now });
-    const themes = (await reviewBenchmark(deps, clientId, { now })).businesses;
+    const topics = (await reviewBenchmark(deps, clientId, { now })).businesses;
     const rankEvidenceIds = await rankEvidence(deps.db, clientId);
     const runbook = await loadClientRunbook(deps, clientId);
     const findings = evaluateSelfRules({
-      scorecard, themes, profile: await selfProfile(deps.db, row.selfCompetitorId), rules: runbook.selfRules, playbooks: runbook.plays,
+      scorecard, topics, profile: await selfProfile(deps.db, row.selfCompetitorId), rules: runbook.selfRules, playbooks: runbook.plays,
       rankHasEvidence: rankEvidenceIds.length > 0, audienceNoun: pack.audience_noun, rankEvidenceIds,
       evidenceByCompetitor: Object.fromEntries(trend.businesses.map((b) => [b.competitorId, b.evidenceIds])),
       adEvidenceByCompetitor: await adEvidence(deps.db, scorecard.rows.flatMap((r) => (r.competitorId ? [r.competitorId] : []))),

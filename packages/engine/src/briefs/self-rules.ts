@@ -17,7 +17,7 @@ export type SelfFinding = {
 
 export interface SelfRuleInput {
   scorecard: Scorecard;
-  themes: BenchmarkBusiness[];
+  topics: BenchmarkBusiness[];
   profile: { claimed: boolean | null; hasHours: boolean | null; categoryCount: number | null };
   rules: PackSelfRule[];
   /** The pack's `playbooks`; each rule's playbook supplies the finding's effort and impact. */
@@ -53,7 +53,7 @@ const ratings = (a: number, b: number): [string, string] => {
 };
 
 /**
- * Spec § Self-rules: a closed set of named predicates over the scorecard, review themes and profile facts. Each qualifying rule yields
+ * Spec § Self-rules: a closed set of named predicates over the scorecard, review topics and profile facts. Each qualifying rule yields
  * a fixed-template fact with its own evidence; findings are ranked by `weight × min(1, |gap| / normaliser)`, at most 5, at most one strength.
  */
 export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
@@ -69,8 +69,8 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
   const you = (m: ScorecardMetric) => self?.values[m] ?? null;
   const rivalMedian = (m: ScorecardMetric) => median(rivals.map((r) => r.values[m]));
   const selfId = self?.competitorId ?? null;
-  const selfTheme = input.themes.find((b) => b.self);
-  const rivalThemes = input.themes.filter((b) => !b.self);
+  const selfTopic = input.topics.find((b) => b.self);
+  const rivalTopics = input.topics.filter((b) => !b.self);
 
   const out: SelfFinding[] = [];
   const push = (rule: PackSelfRule, s: number, fact: string, values: Record<string, number | string>, evidenceIds: string[]) => {
@@ -122,18 +122,18 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
       }
       case 'topic_weakness':
       case 'topic_strength': {
-        if (!selfTheme || rivalThemes.length === 0) break;
+        if (!selfTopic || rivalTopics.length === 0) break;
         const threshold = param(rule, 'gap', 0.1);
         let best: { name: string; you: number; med: number; gap: number; sentiment: number; rivalIds: string[] } | null = null;
-        for (const t of selfTheme.topics) {
+        for (const t of selfTopic.topics) {
           if (t.share === null || t.sentiment === null) continue;
-          const rs = rivalThemes
+          const rs = rivalTopics
             .map((b) => ({ id: b.competitorId, share: b.topics.find((x) => x.topicId === t.topicId)?.share ?? null }))
             .filter((x): x is { id: string; share: number } => x.share !== null);
           const med = median(rs.map((x) => x.share));
           if (med === null) continue;
           const gap = t.share - med;
-          // The client is mentioned at least `threshold` more than rivals for the theme; the sentiment decides weakness (negative) or strength (positive).
+          // The client is mentioned at least `threshold` more than rivals for the topic; the sentiment decides weakness (negative) or strength (positive).
           const ok = gap >= threshold && (rule.id === 'topic_weakness' ? t.sentiment < 0 : t.sentiment > 0);
           if (ok && (best === null || Math.abs(gap) > Math.abs(best.gap))) best = { name: t.name, you: t.share, med, gap, sentiment: t.sentiment, rivalIds: rs.map((x) => x.id) };
         }
