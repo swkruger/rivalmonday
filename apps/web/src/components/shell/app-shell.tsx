@@ -16,6 +16,7 @@ import type { NavFallback } from '@/components/shell/sidebar-nav';
 import { ShellTheme } from '@/components/shell/shell-theme';
 import { SupportBanner } from '@/components/shell/support-banner';
 import { TopBar } from '@/components/shell/top-bar';
+import { TzCookie } from '@/components/shell/tz-cookie';
 import type { BillingSnapshot } from '@/server/billing-state';
 import { clientBillingNoticeOf } from '@/server/client-billing-state';
 import { dbs } from '@/server/db';
@@ -115,6 +116,7 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
     <ReadOnlyProvider readOnly={support !== null}>
       <HelpProvider value={help}>
       <ShellTheme vars={style} />
+      <TzCookie />
       <div data-shell-theme="" className="contents" style={style as React.CSSProperties}>
         {support && <SupportBanner sessionId={support.id} agencyName={support.agencyName} reason={support.reason} expiresAt={support.expiresAt.toISOString()} />}
         <div className={`flex min-h-screen bg-canvas${support ? ` ${BANNER_OFFSET}` : ''}`}>

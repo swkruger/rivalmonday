@@ -8,7 +8,7 @@ const m = vi.hoisted(() => ({
   logoUrl: null as string | null, realSidebar: false, clients: [] as { id: string; name: string; verticalId: string }[], counts: vi.fn(async (_ctx: unknown, _opts: { agency: boolean; operator: boolean; leads: boolean }) => ({ leads: 2 } as Record<string, number>)),
 }));
 let pathname = '/agency';
-vi.mock('next/navigation', () => ({ usePathname: () => pathname, useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('next/navigation', () => ({ usePathname: () => pathname, useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 // The support viewer's ctx is the target agency's; a user viewer here is the operator's own agency.
 vi.mock('@/server/theme', () => ({
   themeForViewer: async (v: { kind: string }) => {
