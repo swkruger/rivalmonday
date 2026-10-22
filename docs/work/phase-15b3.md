@@ -1,13 +1,13 @@
 # phase-15b3 — rename review "theme" to "topic" in code, DB, tools and routes
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15b3   **Base:** main @ 10ce242d
-**Plan/spec:** none yet (spec: [15b-2 C7](../superpowers/specs/2026-10-20-phase-15b2-help-content-design.md))
+**Plan/spec:** spec [15b-3 design](../superpowers/specs/2026-10-21-phase-15b3-topic-rename-design.md); plan for 15b-3a to be written
 
 ## Status (overwrite)
-Kickoff brief written. Nothing decided beyond C7.
+Design written (2026-10-21), awaiting owner approval. 15b-3a (data & engine) runs on this branch; 15b-3b (surfaces) gets its own kickoff after 3a merges.
 
 ## Next (overwrite)
-Owner answers the open questions, then `superpowers:brainstorming` → spec → lean plan.
+Owner approves the spec → `superpowers:writing-plans` (lean format) for 15b-3a.
 
 ## Interfaces this branch adds or changes
 TBD. Next free migration: **0083** (main ends at 0080; phase-7 holds 0081, 0082).
@@ -17,7 +17,7 @@ TBD. Next free migration: **0083** (main ends at 0080; phase-7 holds 0081, 0082)
 - **phase-7-planning**: parked, docs only, no overlap.
 
 ## Decisions (owner-approved)
-None yet. C7 (15b-2 spec) is binding.
+D1–D6 in the 15b-3 spec §1: two sub-phases (3a data & engine, 3b surfaces); full DB rename; no aliases/redirects (no live users; supersedes C7); one-time backfill, no dual-read; `{{theme}}`→`{{topic}}`; C7 model-ops exceptions stay.
 
 ## New backlog (target → item)
 None yet.
