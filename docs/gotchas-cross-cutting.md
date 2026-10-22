@@ -46,7 +46,7 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 
 ## Security & lifecycle (7a2)
 - **One URL fetch path:** every user- or page-supplied URL goes through the SSRF guard (`@cs/collectors` `net/guard.ts`); never `fetch` one directly. Only a non-public address/URL is `ssrf_blocked`; DNS failures stay ordinary fetch errors.
-- **Archived = deleted:** `client`/`agency.archived_at` hides the row everywhere (filters, memberships, guests, outbox, kb-sync; `client_isolation` RLS clause). A new reader without it leaks a deleted tenant. Purge (`purge-archived`) keeps ledger/audit rows detached.
+- **Archived = deleted:** `client`/`agency.archived_at` hides the row everywhere (filters, memberships, guests, outbox, kb-sync; RLS via `app_client_visible()`, 0083). A new reader without it leaks a deleted tenant. Purge (`purge-archived`) keeps ledger/audit rows detached.
 - **`notification.status = 'skipped'`** (pending > 7 d overdue) reads like `failed` wherever status is shown or counted.
 - **`ObjectStore.put` refuses to overwrite** unless `{ overwrite: true }` (seeds, deterministic keys); capture/evidence keys must be unique per call.
 

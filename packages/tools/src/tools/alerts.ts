@@ -1,10 +1,11 @@
-import { appLinkFor, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
+import { appLinkFor, isAgencyRole, toolkit } from '@cs/core';
 import { alert, competitor, withTenant } from '@cs/db';
 import { getAlert } from '@cs/engine';
 import { and, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { detailOf, pageOf, pageResult } from '../paging';
 import type { ToolDeps } from '../registry';
+import { workspaceClient } from '../workspace/scope';
 import { AlertDetail, AlertSummary, pagedItems, pagedListInput, toIso } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -19,7 +20,7 @@ export const listAlerts = defineTool({
   channels: ['web', 'mcp', 'ask'],
   async handler(ctx, input, deps, meta) {
     const { clientId } = input;
-    if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+    await workspaceClient(deps, ctx, clientId); // in scope and visible through RLS (7a2 D16: an archived client is not_found)
     const where = isAgencyRole(ctx.role) ? eq(alert.clientId, clientId) : and(eq(alert.clientId, clientId), eq(alert.status, 'delivered'));
     const { offset, limit } = pageOf(input, meta, 20);
     const fetched = await withTenant(deps.app, ctx, (tx) =>

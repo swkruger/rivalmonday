@@ -1,6 +1,6 @@
 import { ASK_COPY, type AskAction } from '@cs/ask';
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { askMessage, askThread } from '@cs/db';
+import { askMessage, askThread, client } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
@@ -157,6 +157,15 @@ describe('confirmAskAction pinning (7a2 D12)', () => {
     m.ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'u1', role: 'client_owner', clientScope: [IDS.clientA2], features: ['ask', 'dashboard'] });
     const { messageId } = await seedAction();
     // RLS already hides the other client's message (the in-action scope check is defence in depth).
+    await expect(confirmAskAction(messageId, 'confirm')).resolves.toEqual({ ok: false, error: 'Not found' });
+    expect((await actionOf(messageId)).state).toBe('proposed');
+    expect(m.runTool).not.toHaveBeenCalled();
+  });
+
+  it("an archived client's proposed action is not found for an agency admin and never runs (7a2 D16)", async () => {
+    m.ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'u1', role: 'agency_admin', clientScope: 'all', features: [] });
+    const { messageId } = await seedAction();
+    await dbs.owner.update(client).set({ archivedAt: new Date() }).where(eq(client.id, IDS.clientA1));
     await expect(confirmAskAction(messageId, 'confirm')).resolves.toEqual({ ok: false, error: 'Not found' });
     expect((await actionOf(messageId)).state).toBe('proposed');
     expect(m.runTool).not.toHaveBeenCalled();

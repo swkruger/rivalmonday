@@ -5,6 +5,7 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { detailOf, pageOf, pageResult } from '../paging';
 import type { ToolDeps } from '../registry';
+import { workspaceClient } from '../workspace/scope';
 import { BriefDetail, BriefSummary, StartingPointStatus, pagedItems, pagedListInput, toIso } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -24,7 +25,7 @@ export const listBriefs = defineTool({
   channels: ['web', 'mcp', 'ask'],
   async handler(ctx, input, deps, meta) {
     const { clientId } = input;
-    if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+    await workspaceClient(deps, ctx, clientId); // in scope and visible through RLS (7a2 D16: an archived client is not_found)
     const { offset, limit } = pageOf(input, meta, 20);
     const where = isAgencyRole(ctx.role) ? eq(brief.clientId, clientId) : and(eq(brief.clientId, clientId), inArray(brief.status, CLIENT_VISIBLE));
     const fetched = await withTenant(deps.app, ctx, (tx) => tx.select().from(brief).where(where).orderBy(desc(brief.deliveryDate), desc(brief.id)).offset(offset).limit(limit + 1));

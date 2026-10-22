@@ -94,3 +94,17 @@ describe('get_starting_point_status', () => {
     await expect(registry.invoke(admin, 'get_starting_point_status', { clientId: IDS.clientA1 }, mcp)).rejects.toThrow();
   });
 });
+
+describe('7a2 D16: archived client', () => {
+  it('get_brief and list_briefs for an archived client are not_found for an agency admin; undo restores them', async () => {
+    const a2 = { agencyId: IDS.agencyA, clientId: IDS.clientA2 };
+    const [b] = await dbs.owner.insert(brief).values({ ...a2, ...period, deliveryDate: '2026-10-05', status: 'sent', summary: 'Sent' }).returning();
+    await dbs.owner.update(client).set({ archivedAt: new Date() }).where(eq(client.id, IDS.clientA2));
+    await expect(registry.invoke(admin, 'get_brief', { briefId: b!.id })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(admin, 'get_brief', { briefId: b!.id }, mcp)).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(admin, 'list_briefs', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
+    await dbs.owner.update(client).set({ archivedAt: null }).where(eq(client.id, IDS.clientA2));
+    await expect(registry.invoke(admin, 'get_brief', { briefId: b!.id })).resolves.toMatchObject({ id: b!.id });
+    expect(((await registry.invoke(admin, 'list_briefs', { clientId: IDS.clientA2 })) as { items: unknown[] }).items).toHaveLength(1);
+  });
+});
