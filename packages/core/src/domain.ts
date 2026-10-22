@@ -18,7 +18,7 @@ export type MoveType = (typeof MOVE_TYPES)[number];
 
 /** Findings about the client's own business versus its rivals (Phase 12b starting point); their playbooks share the pack `playbooks` list. */
 export const SELF_RULE_IDS = [
-  'review_velocity_gap', 'reply_rate_gap', 'rating_gap', 'rival_only_advertiser', 'theme_weakness', 'theme_strength', 'map_visibility_gap', 'profile_gap',
+  'review_velocity_gap', 'reply_rate_gap', 'rating_gap', 'rival_only_advertiser', 'topic_weakness', 'topic_strength', 'map_visibility_gap', 'profile_gap',
 ] as const;
 export type SelfRuleId = (typeof SELF_RULE_IDS)[number];
 

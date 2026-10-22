@@ -17,7 +17,7 @@ export const verticalDraftJsonSchema: JsonSchemaFormat = {
   schema: {
     type: 'object',
     additionalProperties: false,
-    required: ['name', 'audienceNoun', 'areas', 'seedKeywords', 'categories', 'relatedCategories', 'themes'],
+    required: ['name', 'audienceNoun', 'areas', 'seedKeywords', 'categories', 'relatedCategories', 'topics'],
     properties: {
       name: quoted(),
       audienceNoun: quoted(),
@@ -25,13 +25,13 @@ export const verticalDraftJsonSchema: JsonSchemaFormat = {
       seedKeywords: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['value', 'quote'], properties: { value: quoted(), quote: quoted() } } },
       categories: { type: 'array', items: quoted() },
       relatedCategories: { type: 'array', items: quoted() },
-      themes: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['name', 'quote'], properties: { name: quoted(), quote: quoted() } } },
+      topics: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['name', 'quote'], properties: { name: quoted(), quote: quoted() } } },
     },
   },
 };
 
 export const DRAFT_SYSTEM_PROMPT =
-  'You describe a type of local business so a competitor-monitoring tool can track it. From the Google profile text below, propose: a short business-type name (no business names, places or people), the word for its customers, 3–12 service offers with common alternative names, up to 5 search keywords customers use, review themes, and which of the listed Google categories belong to this type. Quote the exact words from the text that support every service, keyword and theme. Use only the text given.';
+  'You describe a type of local business so a competitor-monitoring tool can track it. From the Google profile text below, propose: a short business-type name (no business names, places or people), the word for its customers, 3–12 service offers with common alternative names, up to 5 search keywords customers use, review topics, and which of the listed Google categories belong to this type. Quote the exact words from the text that support every service, keyword and topic. Use only the text given.';
 
 /** One AI call over the profile text. Any failure (vendor, model, bad JSON) is `draft: null`, never a throw: the UI then shows the manual form. */
 export function createVerticalDrafter(d: { dfs: () => DataForSeoClient; ai: () => Promise<Ai>; catalogue: () => Promise<{ id: string; name: string; categories: string[] }[]> }): VerticalDrafter {

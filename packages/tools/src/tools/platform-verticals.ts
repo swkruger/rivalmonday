@@ -40,7 +40,7 @@ export const listCatalogReviewTool = defineTool({
       /** What the Edit form starts from (update_vertical leaves omitted fields unchanged, so the form sends back what it shows). */
       detail: z.object({
         audienceNoun: z.string(), seedKeywords: z.array(z.string()), primaryCategories: z.array(z.string()), relatedCategories: z.array(z.string()),
-        themes: z.array(z.string()), areas: z.array(z.object({ id: z.string(), name: z.string(), aliases: z.array(z.string()) })),
+        topics: z.array(z.string()), areas: z.array(z.object({ id: z.string(), name: z.string(), aliases: z.array(z.string()) })),
       }),
     })),
     areas: z.array(z.object({
@@ -81,7 +81,7 @@ export const listCatalogReviewTool = defineTool({
             audienceNoun: typeof v.config.audience_noun === 'string' ? v.config.audience_noun : '',
             seedKeywords: strings((v.config.discovery as { seed_keywords?: unknown } | undefined)?.seed_keywords),
             primaryCategories: v.gbpCategories, relatedCategories: v.gbpRelatedCategories,
-            themes: Array.isArray(v.config.themes) ? (v.config.themes as { name?: unknown }[]).flatMap((t) => (typeof t.name === 'string' ? [t.name] : [])) : [],
+            topics: Array.isArray(v.config.topics) ? (v.config.topics as { name?: unknown }[]).flatMap((t) => (typeof t.name === 'string' ? [t.name] : [])) : [],
             areas: areas.filter((a) => a.verticalId === v.id && a.status !== 'merged').map((a) => ({ id: a.id, name: a.name, aliases: a.aliases })),
           },
         })),

@@ -5,7 +5,7 @@ const source = { text: 'We offer “Barrel tastings” and café-style tours.\nC
 const base = {
   name: 'Craft distilleries', audienceNoun: 'guests',
   areas: [{ name: 'Tastings', aliases: [], quote: 'barrel tastings' }],
-  seedKeywords: [], categories: ['distillery'], relatedCategories: [], themes: [],
+  seedKeywords: [], categories: ['distillery'], relatedCategories: [], topics: [],
 };
 
 describe('validateDraft', () => {
@@ -18,10 +18,10 @@ describe('validateDraft', () => {
     const d = validateDraft({
       ...base,
       areas: [{ name: 'Tastings', aliases: [], quote: '"Barrel tastings"' }, { name: 'Tours', aliases: [], quote: 'CAFÉ-style tours' }, { name: 'Rye', aliases: [], quote: 'rye whiskey' }],
-      themes: [{ name: 'Social', quote: 'Follow us 🥃 for' }],
+      topics: [{ name: 'Social', quote: 'Follow us 🥃 for' }],
     }, source);
     expect(d?.areas).toHaveLength(3);
-    expect(d?.themes).toHaveLength(1);
+    expect(d?.topics).toHaveLength(1);
   });
 
   it('drops categories that are not in the source list', () => {

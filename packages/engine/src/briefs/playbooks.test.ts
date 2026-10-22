@@ -22,10 +22,10 @@ describe('playbooks', () => {
       .toBe('Smith HVAC cut AC tune-up to a lower price in new areas.');
   });
 
-  it('fills {{theme}} from the theme name, falling back to the theme id', () => {
+  it('fills {{topic}} from the topic name, falling back to the topic id', () => {
     const ev = (details: Record<string, string>) => ({ kind: 'event', competitorName: 'Smith HVAC', facts: [], zips: [], serviceName: null, details }) as unknown as EventCandidate;
-    expect(playbookVars(ev({ topicName: 'Late arrivals', topic: 'late_arrival' })).theme).toBe('Late arrivals');
-    expect(playbookVars(ev({ topic: 'late_arrival' })).theme).toBe('late_arrival');
+    expect(playbookVars(ev({ topicName: 'Late arrivals', topic: 'late_arrival' })).topic).toBe('Late arrivals');
+    expect(playbookVars(ev({ topic: 'late_arrival' })).topic).toBe('late_arrival');
   });
 
   it('every built-in playbook uses only the known placeholders, so its standard text can be saved as an edit', async () => {

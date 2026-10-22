@@ -2,7 +2,7 @@ import type { Ai } from '@cs/ai';
 import type { DataForSeoClient } from '@cs/collectors';
 import type { Catalog } from '@cs/verticals';
 import { describe, expect, it, vi } from 'vitest';
-import { createVerticalDrafter, fixtureVerticalDrafter, verticalDrafterFor } from './vertical-draft';
+import { DRAFT_SYSTEM_PROMPT, createVerticalDrafter, fixtureVerticalDrafter, verticalDraftJsonSchema, verticalDrafterFor } from './vertical-draft';
 
 vi.mock('@cs/collectors', async (orig) => ({
   ...(await orig<typeof import('@cs/collectors')>()),
@@ -16,7 +16,7 @@ const scope = { agencyId: 'a', clientId: null, verticalId: 'draft:p1' };
 const answer = (text: string) => ({ chat: vi.fn(async () => ({ text })) }) as unknown as Ai & { chat: ReturnType<typeof vi.fn> };
 const good = JSON.stringify({
   name: 'Craft distilleries', audienceNoun: 'guests', areas: [{ name: 'Tastings', aliases: [], quote: 'Barrel tastings every Friday' }, { name: 'Weddings', aliases: [], quote: 'wedding hire' }],
-  seedKeywords: [], categories: ['Distillery', 'Brewery'], relatedCategories: ['Liquor store'], themes: [],
+  seedKeywords: [], categories: ['Distillery', 'Brewery'], relatedCategories: ['Liquor store'], topics: [],
 });
 const make = (ai: Ai) => createVerticalDrafter({
   dfs: () => ({}) as DataForSeoClient, ai: async () => ai,
@@ -57,5 +57,14 @@ describe('verticalDrafterFor', () => {
   });
   it('is absent in dev without credentials', () => {
     expect(verticalDrafterFor('dev', svc, cat, { fake: false, processEnv: {} as NodeJS.ProcessEnv })).toBeUndefined();
+  });
+});
+
+describe('draft wording', () => {
+  it('asks the model for topics, not themes', () => {
+    expect(DRAFT_SYSTEM_PROMPT).toMatch(/topic/);
+    expect(DRAFT_SYSTEM_PROMPT).not.toMatch(/theme/i);
+    expect(JSON.stringify(verticalDraftJsonSchema)).toContain('"topics"');
+    expect(JSON.stringify(verticalDraftJsonSchema)).not.toMatch(/theme/i);
   });
 });

@@ -36,7 +36,7 @@ version: 1
 services:
   - { id: tune_up, name: Tune-up, aliases: [tuneup] }
   - { id: repair, name: Repair }
-themes:
+topics:
   - { id: response_time, name: Response time, description: How fast they respond }
 type_weights:${weights}
 move_thresholds:
@@ -56,6 +56,10 @@ describe('parseVerticalPack', () => {
     const pack = parseVerticalPack(valid, 'test.yaml');
     expect(pack.services[1]?.aliases).toEqual([]);
     expect(pack.type_weights.price_change).toBe(1);
+  });
+
+  it('rejects a pack that still uses the old themes key', () => {
+    expect(() => parseVerticalPack(valid.replace(/^topics:/m, 'themes:'), 'test.yaml')).toThrow();
   });
 
   it('applies scoring defaults when a pack omits the scoring section', () => {

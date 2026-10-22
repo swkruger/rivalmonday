@@ -46,7 +46,7 @@ describe.skipIf(!key)('engine models (live)', () => {
   it('review decisions: a hidden-fee complaint is about price transparency and negative', async () => {
     const ai = createAiFromEnv(process.env, await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH), ledger);
     const pack = await loadVerticalPack('hvac_plumbing');
-    const verticals = [{ pack, themes: pack.themes.map((t) => ({ id: t.id, name: t.name, description: t.description })) }];
+    const verticals = [{ pack, themes: pack.topics.map((t) => ({ id: t.id, name: t.name, description: t.description })) }];
     const text = 'Quoted $150 on the phone but the bill was $400 with fees nobody mentioned. Thanks Mike for being polite, I guess.';
     const state = { business_type: pack.name, rating: 1, review: redactForModel(text, { businessNames: ['Smith HVAC'] }) };
     expect(state.review).not.toContain('Mike');

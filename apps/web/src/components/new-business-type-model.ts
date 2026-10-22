@@ -8,7 +8,7 @@ export interface NewTypeForm {
   keywords: { value: string; quote?: string }[];
   categories: { value: string; checked: boolean }[];
   relatedCategories: string[];
-  themes: string[];
+  topics: string[];
 }
 
 export interface CreateVerticalInput {
@@ -18,7 +18,7 @@ export interface CreateVerticalInput {
   seedKeywords?: string[];
   categories: string[];
   relatedCategories?: string[];
-  themes?: { name: string }[];
+  topics?: { name: string }[];
   draftPlaceId?: string;
   /** The business being onboarded: not a client yet, so the tool checks names against it (D3). */
   businessName?: string;
@@ -34,13 +34,13 @@ export function formFromDraft(d: VerticalDraft): NewTypeForm {
     keywords: d.seedKeywords.map((k) => ({ value: k.value, quote: k.quote })),
     categories: d.categories.map((value) => ({ value, checked: true })),
     relatedCategories: d.relatedCategories,
-    themes: d.themes.map((t) => t.name),
+    topics: d.topics.map((t) => t.name),
   };
 }
 
 /** Draft unavailable: name and areas blank, the place's own Google category as the only category. */
 export function manualForm(category: string | null): NewTypeForm {
-  return { name: '', audienceNoun: '', areas: [], keywords: [], categories: category ? [{ value: category, checked: true }] : [], relatedCategories: [], themes: [] };
+  return { name: '', audienceNoun: '', areas: [], keywords: [], categories: category ? [{ value: category, checked: true }] : [], relatedCategories: [], topics: [] };
 }
 
 export function canCreate(f: NewTypeForm): boolean {
@@ -58,7 +58,7 @@ export function toCreateInput(f: NewTypeForm, placeId: string | null, businessNa
     ...(keywords.length ? { seedKeywords: keywords } : {}),
     categories: f.categories.filter((c) => c.checked).map((c) => c.value),
     ...(f.relatedCategories.length ? { relatedCategories: f.relatedCategories } : {}),
-    ...(f.themes.length ? { themes: f.themes.map((name) => ({ name })) } : {}),
+    ...(f.topics.length ? { topics: f.topics.map((name) => ({ name })) } : {}),
     ...(placeId ? { draftPlaceId: placeId } : {}),
     ...(businessName?.trim() ? { businessName: businessName.trim().slice(0, 200) } : {}),
   };

@@ -37,7 +37,7 @@ export function reviewSubjectId(reviewId: string, text: string): string {
 
 /** A vertical's review themes: the pack's seed themes, then AM-approved discovered themes in approval order. */
 export async function themesForVertical(db: Db, pack: VerticalPack): Promise<Theme[]> {
-  const seed: Theme[] = pack.themes.map((t) => ({ id: t.id, name: t.name, description: t.description }));
+  const seed: Theme[] = pack.topics.map((t) => ({ id: t.id, name: t.name, description: t.description }));
   const approved = await db
     .select({ id: topicProposal.topicId, name: topicProposal.name, description: topicProposal.description })
     .from(topicProposal)

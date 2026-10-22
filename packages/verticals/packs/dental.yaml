@@ -18,7 +18,7 @@ services:
   - { id: membership_plan, name: In-house membership plan, aliases: [dental savings plan, no insurance plan] }
   - { id: sedation, name: Sedation dentistry, aliases: [sleep dentistry, nitrous] }
 
-themes:
+topics:
   - { id: wait_time, name: Wait time, description: Time spent waiting in the office past the appointment time }
   - { id: billing_insurance, name: Billing & insurance, description: Surprise bills, insurance handling, cost clarity }
   - { id: staff_friendliness, name: Staff friendliness, description: Warmth and helpfulness of front desk and clinical staff }
@@ -114,7 +114,7 @@ playbooks:
     trigger: reputation_slump
     title: Win patients unhappy with a competitor
     template: >-
-      {{competitor}}'s reviews show rising complaints about {{theme}}. Emphasise your strength on {{theme}} in ads
+      {{competitor}}'s reviews show rising complaints about {{topic}}. Emphasise your strength on {{topic}} in ads
       and on your homepage, backed by recent reviews that mention it.
   - id: ad_surge_watch
     trigger: ad_surge
@@ -157,20 +157,20 @@ playbooks:
     title: Try a small Google search ads budget
     template: >-
       Run a small Google search campaign for "dentist near me" in your town so new patients can find you next to those rivals.
-  - id: fix_theme
+  - id: fix_topic
     effort: M
     impact: M
-    trigger: theme_weakness
+    trigger: topic_weakness
     title: Address a weak spot patients notice
     template: >-
-      Name one change to fix {{theme}}, tell your team, and ask happy patients who notice it to say so in their review.
+      Name one change to fix {{topic}}, tell your team, and ask happy patients who notice it to say so in their review.
   - id: promote_strength
     effort: L
     impact: M
-    trigger: theme_strength
+    trigger: topic_strength
     title: Promote what patients praise
     template: >-
-      Feature {{theme}} as a strength on your website and Google profile, with a short quote from a patient review.
+      Feature {{topic}} as a strength on your website and Google profile, with a short quote from a patient review.
   - id: improve_map_rank
     effort: M
     impact: H
@@ -191,7 +191,7 @@ self_rules:
   - { id: reply_rate_gap, weight: 0.8, playbook: reply_to_reviews, params: { gap: 0.25 } }
   - { id: rating_gap, weight: 0.9, playbook: fix_top_complaint, params: { gap: 0.2 } }
   - { id: rival_only_advertiser, weight: 0.6, playbook: consider_search_ads }
-  - { id: theme_weakness, weight: 0.7, playbook: fix_theme, params: { gap: 0.1 } }
-  - { id: theme_strength, weight: 0.5, playbook: promote_strength, strength: true, params: { gap: 0.1 } }
+  - { id: topic_weakness, weight: 0.7, playbook: fix_topic, params: { gap: 0.1 } }
+  - { id: topic_strength, weight: 0.5, playbook: promote_strength, strength: true, params: { gap: 0.1 } }
   - { id: map_visibility_gap, weight: 0.8, playbook: improve_map_rank, params: { gap: 0.1 } }
   - { id: profile_gap, weight: 0.7, playbook: complete_profile, params: { min_categories: 2 } }

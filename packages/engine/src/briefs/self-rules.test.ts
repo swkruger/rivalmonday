@@ -92,32 +92,32 @@ describe('evaluateSelfRules', () => {
     for (const scorecard of [mine, unchecked, none]) expect(find(evaluateSelfRules(await base({ scorecard })), 'rival_only_advertiser')).toBeUndefined();
   });
 
-  it('theme_weakness fires when a negatively felt theme is mentioned 10+ points more than rivals (positive)', async () => {
+  it('topic_weakness fires when a negatively felt theme is mentioned 10+ points more than rivals (positive)', async () => {
     const themes = [biz(1, true, [theme('wait_time', 0.45, -0.5)]), biz(2, false, [theme('wait_time', 0.3, 0)]), biz(3, false, [theme('wait_time', 0.2, 0)])];
-    const f = find(evaluateSelfRules(await base({ themes })), 'theme_weakness')!;
+    const f = find(evaluateSelfRules(await base({ themes })), 'topic_weakness')!;
     expect(f.fact).toBe('Wait time comes up in 45% of your reviews vs 25% for rivals.');
     expect(f.score).toBeCloseTo(0.7 * Math.min(1, 0.2 / 0.3), 2);
-    expect(f).toMatchObject({ effort: 'M', impact: 'M', playbookId: 'fix_theme' });
+    expect(f).toMatchObject({ effort: 'M', impact: 'M', playbookId: 'fix_topic' });
   });
-  it('theme_weakness stays quiet for positive sentiment or a small gap (negative)', async () => {
+  it('topic_weakness stays quiet for positive sentiment or a small gap (negative)', async () => {
     const pos = [biz(1, true, [theme('wait_time', 0.45, 0.5)]), biz(2, false, [theme('wait_time', 0.25, 0)])];
     const small = [biz(1, true, [theme('wait_time', 0.3, -0.5)]), biz(2, false, [theme('wait_time', 0.25, 0)])];
     const less = [biz(1, true, [theme('wait_time', 0.1, -0.5)]), biz(2, false, [theme('wait_time', 0.35, 0)])];
-    for (const themes of [pos, small, less]) expect(find(evaluateSelfRules(await base({ themes })), 'theme_weakness')).toBeUndefined();
+    for (const themes of [pos, small, less]) expect(find(evaluateSelfRules(await base({ themes })), 'topic_weakness')).toBeUndefined();
   });
 
-  it('theme_strength uses the audience noun and a lower-cased theme (positive)', async () => {
+  it('topic_strength uses the audience noun and a lower-cased theme (positive)', async () => {
     const themes = [biz(1, true, [theme('staff', 0.5, 0.8)]), biz(2, false, [theme('staff', 0.2, 0)])];
-    const f = find(evaluateSelfRules(await base({ themes })), 'theme_strength')!;
+    const f = find(evaluateSelfRules(await base({ themes })), 'topic_strength')!;
     expect(f.strength).toBe(true);
     expect(f.fact).toBe('Patients mention staff friendliness in 50% of your reviews vs 20% for rivals.');
     const hv = await loadVerticalPack('hvac_plumbing');
-    const g = find(evaluateSelfRules(await base({ themes, rules: hv.self_rules, audienceNoun: hv.audience_noun })), 'theme_strength')!;
+    const g = find(evaluateSelfRules(await base({ themes, rules: hv.self_rules, audienceNoun: hv.audience_noun })), 'topic_strength')!;
     expect(g.fact.startsWith('Customers mention')).toBe(true);
   });
-  it('theme_strength stays quiet for negative sentiment (negative)', async () => {
+  it('topic_strength stays quiet for negative sentiment (negative)', async () => {
     const themes = [biz(1, true, [theme('staff', 0.5, -0.4)]), biz(2, false, [theme('staff', 0.2, 0)])];
-    expect(find(evaluateSelfRules(await base({ themes })), 'theme_strength')).toBeUndefined();
+    expect(find(evaluateSelfRules(await base({ themes })), 'topic_strength')).toBeUndefined();
   });
 
   it('map_visibility_gap fires 10+ points below the rival median and cites the map captures (positive)', async () => {
@@ -154,7 +154,7 @@ describe('evaluateSelfRules', () => {
     const sc = card([row(1, 'Me', { reviews90d: 0, replyRate: 0, rating: 3.5, mapTop3Share: 0, adsActive: 0 }, true), row(2, 'A', { reviews90d: 20, replyRate: 0.9, rating: 4.8, mapTop3Share: 0.6, adsActive: 2 }), row(3, 'B', { reviews90d: 10, replyRate: 0.9, rating: 4.8, mapTop3Share: 0.6, adsActive: 0 })]);
     const themes = [biz(1, true, [theme('wait_time', 0.6, -0.5), theme('staff', 0.5, 0.8)]), biz(2, false, [theme('wait_time', 0.1, 0), theme('staff', 0.1, 0)])];
     const base0 = await base({ scorecard: sc, themes, profile: { claimed: false, hasHours: false, categoryCount: 1 } });
-    const r = evaluateSelfRules({ ...base0, rules: [...base0.rules, { ...base0.rules.find((x) => x.id === 'theme_strength')!, params: { gap: 0.05 } }] });
+    const r = evaluateSelfRules({ ...base0, rules: [...base0.rules, { ...base0.rules.find((x) => x.id === 'topic_strength')!, params: { gap: 0.05 } }] });
     expect(r.length).toBe(5);
     expect(r.map((f) => f.score)).toEqual([...r.map((f) => f.score)].sort((a, b) => b - a));
     expect(r.filter((f) => f.strength).length).toBeLessThanOrEqual(1);

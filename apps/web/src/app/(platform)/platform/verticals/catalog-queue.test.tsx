@@ -12,7 +12,7 @@ const v: ReviewVertical = {
   services: [{ id: 'tasting_room', name: 'Tasting room' }, { id: 'tours', name: 'Distillery tours' }],
   createdBy: { agencyId: 'a', name: 'Agency A' }, clientCount: 1, draftCostUsd: 0.031, categories: ['Distillery'],
   evidence: { areas: [{ name: 'Tasting room', quote: 'Tasting room open Thursday' }] },
-  detail: { audienceNoun: 'guests', seedKeywords: ['distillery tour'], primaryCategories: ['Distillery'], relatedCategories: [], themes: ['Tour quality'], areas: [{ id: 'tasting_room', name: 'Tasting room', aliases: ['tastings'] }, { id: 'tours', name: 'Distillery tours', aliases: [] }] },
+  detail: { audienceNoun: 'guests', seedKeywords: ['distillery tour'], primaryCategories: ['Distillery'], relatedCategories: [], topics: ['Tour quality'], areas: [{ id: 'tasting_room', name: 'Tasting room', aliases: ['tastings'] }, { id: 'tours', name: 'Distillery tours', aliases: [] }] },
 };
 const area: ReviewArea = { verticalId: 'dental', verticalName: 'Dental', id: 'sedation', name: 'Sedation', aliases: [], createdBy: null, clientCount: 0, evidence: null };
 const targets = [{ id: 'dental', name: 'Dental', status: 'reviewed', services: [{ id: 'sedation', name: 'Sedation' }, { id: 'cleanings', name: 'Cleanings' }] }];

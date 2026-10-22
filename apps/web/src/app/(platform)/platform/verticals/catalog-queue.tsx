@@ -18,7 +18,7 @@ export interface ReviewVertical {
   evidence: unknown;
   draftCostUsd: number | null;
   categories: string[];
-  detail: { audienceNoun: string; seedKeywords: string[]; primaryCategories: string[]; relatedCategories: string[]; themes: string[]; areas: { id: string; name: string; aliases: string[] }[] };
+  detail: { audienceNoun: string; seedKeywords: string[]; primaryCategories: string[]; relatedCategories: string[]; topics: string[]; areas: { id: string; name: string; aliases: string[] }[] };
 }
 export interface ReviewArea {
   verticalId: string;
@@ -49,7 +49,7 @@ const card = 'flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card';
 const selectClass = 'h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
 const chip = 'inline-flex items-center rounded-full bg-muted-surface px-3 py-1 text-sm font-semibold text-ink';
 
-/** Every `quote` string in a draft's evidence (areas, keywords, themes), deduplicated. */
+/** Every `quote` string in a draft's evidence (areas, keywords, topics), deduplicated. */
 export function quotesOf(evidence: unknown): string[] {
   const out = new Set<string>();
   const walk = (x: unknown, depth: number) => {
@@ -195,11 +195,11 @@ function EditForm({ v, formAction, busy, onDone }: { v: ReviewVertical; formActi
   const [keywords, setKeywords] = useState(d.seedKeywords.join(', '));
   const [primary, setPrimary] = useState(d.primaryCategories.join(', '));
   const [related, setRelated] = useState(d.relatedCategories.join(', '));
-  const [themes, setThemes] = useState(d.themes.join(', '));
+  const [topics, setTopics] = useState(d.topics.join(', '));
   const [areaRows, setAreaRows] = useState(d.areas.map((a) => ({ ...a, aliasText: a.aliases.join(', '), keep: true })));
   const [added, setAdded] = useState('');
 
-  // Only what changed is sent: update_vertical leaves omitted fields as they are (a theme rewrite would drop its descriptions).
+  // Only what changed is sent: update_vertical leaves omitted fields as they are (a topic rewrite would drop its descriptions).
   const payload = (): Record<string, unknown> => {
     const p: Record<string, unknown> = {};
     if (name.trim() !== v.name) p.name = name.trim();
@@ -207,7 +207,7 @@ function EditForm({ v, formAction, busy, onDone }: { v: ReviewVertical; formActi
     if (!same(list(keywords), d.seedKeywords)) p.seedKeywords = list(keywords);
     if (!same(list(primary), d.primaryCategories)) p.categories = list(primary);
     if (!same(list(related), d.relatedCategories)) p.relatedCategories = list(related);
-    if (!same(list(themes), d.themes)) p.themes = list(themes).map((t) => ({ name: t }));
+    if (!same(list(topics), d.topics)) p.topics = list(topics).map((t) => ({ name: t }));
     const rows = areaRows.filter((r) => r.keep).map((r) => ({ id: r.id, name: r.name.trim(), aliases: list(r.aliasText) }));
     const fresh = list(added).map((n) => ({ name: n }));
     const original = d.areas.map((a) => ({ id: a.id, name: a.name, aliases: a.aliases }));
@@ -225,7 +225,7 @@ function EditForm({ v, formAction, busy, onDone }: { v: ReviewVertical; formActi
         <div className="flex flex-col gap-1"><Label htmlFor={`e-kw-${v.id}`}>Keywords (comma separated, up to 5)</Label><Input id={`e-kw-${v.id}`} value={keywords} onChange={(e) => setKeywords(e.target.value)} /></div>
         <div className="flex flex-col gap-1"><Label htmlFor={`e-cat-${v.id}`}>Google categories</Label><Input id={`e-cat-${v.id}`} value={primary} onChange={(e) => setPrimary(e.target.value)} /></div>
         <div className="flex flex-col gap-1"><Label htmlFor={`e-rel-${v.id}`}>Related Google categories</Label><Input id={`e-rel-${v.id}`} value={related} onChange={(e) => setRelated(e.target.value)} /></div>
-        <div className="flex flex-col gap-1"><Label htmlFor={`e-th-${v.id}`}>Review topics (comma separated)</Label><Input id={`e-th-${v.id}`} value={themes} onChange={(e) => setThemes(e.target.value)} /></div>
+        <div className="flex flex-col gap-1"><Label htmlFor={`e-th-${v.id}`}>Review topics (comma separated)</Label><Input id={`e-th-${v.id}`} value={topics} onChange={(e) => setTopics(e.target.value)} /></div>
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-semibold">Services</legend>
           {areaRows.map((r, i) => (

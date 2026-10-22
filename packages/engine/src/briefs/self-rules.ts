@@ -120,8 +120,8 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
           evidenceOf([selfId, ...named.map((r) => r.competitorId)], input.adEvidenceByCompetitor));
         break;
       }
-      case 'theme_weakness':
-      case 'theme_strength': {
+      case 'topic_weakness':
+      case 'topic_strength': {
         if (!selfTheme || rivalThemes.length === 0) break;
         const threshold = param(rule, 'gap', 0.1);
         let best: { name: string; you: number; med: number; gap: number; sentiment: number; rivalIds: string[] } | null = null;
@@ -134,11 +134,11 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
           if (med === null) continue;
           const gap = t.share - med;
           // The client is mentioned at least `threshold` more than rivals for the theme; the sentiment decides weakness (negative) or strength (positive).
-          const ok = gap >= threshold && (rule.id === 'theme_weakness' ? t.sentiment < 0 : t.sentiment > 0);
+          const ok = gap >= threshold && (rule.id === 'topic_weakness' ? t.sentiment < 0 : t.sentiment > 0);
           if (ok && (best === null || Math.abs(gap) > Math.abs(best.gap))) best = { name: t.name, you: t.share, med, gap, sentiment: t.sentiment, rivalIds: rs.map((x) => x.id) };
         }
         if (!best) break;
-        const fact = rule.id === 'theme_weakness'
+        const fact = rule.id === 'topic_weakness'
           ? `${best.name} comes up in ${pct(best.you)}% of your reviews vs ${pct(best.med)}% for rivals.`
           : `${capitalise(input.audienceNoun)} mention ${lowerFirst(best.name)} in ${pct(best.you)}% of your reviews vs ${pct(best.med)}% for rivals.`;
         push(rule, score(rule, best.gap, 0.3), fact, { theme: best.name, you: best.you, median: best.med, sentiment: best.sentiment }, evidenceOf([selfId, ...best.rivalIds]));

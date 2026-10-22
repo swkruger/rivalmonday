@@ -22,7 +22,7 @@ export const lockCatalogue = (tx: Tx) => tx.execute(sql`select pg_advisory_xact_
 const aliasesSchema = z.array(z.string().trim().min(1).max(80)).max(8);
 const areaInput = z.object({ name: z.string().trim().min(2).max(80), aliases: aliasesSchema.optional() });
 const categoriesSchema = z.array(z.string().trim().min(1).max(120));
-const themeInput = z.object({ name: z.string().trim().min(2).max(80), description: z.string().trim().max(300).optional() });
+const topicInput = z.object({ name: z.string().trim().min(2).max(80), description: z.string().trim().max(300).optional() });
 const seedKeywordsSchema = z.array(z.string().trim().min(2).max(60)).max(5);
 const audienceNounSchema = z.string().trim().min(1).max(40);
 
@@ -120,13 +120,13 @@ function assertValidPack(row: VerticalRow, areas: BusinessAreaRow[], generic: Ve
   }
 }
 
-function buildConfig(base: Record<string, unknown>, input: { audienceNoun?: string | undefined; seedKeywords?: string[] | undefined; themes?: { name: string; description?: string | undefined }[] | undefined }): Record<string, unknown> {
+function buildConfig(base: Record<string, unknown>, input: { audienceNoun?: string | undefined; seedKeywords?: string[] | undefined; topics?: { name: string; description?: string | undefined }[] | undefined }): Record<string, unknown> {
   const config = { ...base };
   if (input.audienceNoun !== undefined) config.audience_noun = input.audienceNoun;
-  if (input.themes !== undefined) {
+  if (input.topics !== undefined) {
     const taken = new Set<string>();
-    config.themes = input.themes.map((t) => {
-      const id = uniqueSlug(slugOf(t.name, 'keep') ?? 'theme', taken);
+    config.topics = input.topics.map((t) => {
+      const id = uniqueSlug(slugOf(t.name, 'keep') ?? 'topic', taken);
       taken.add(id);
       return { id, name: t.name, description: t.description || t.name };
     });
@@ -194,7 +194,7 @@ export const createVertical = defineTool({
     seedKeywords: seedKeywordsSchema.optional(),
     categories: categoriesSchema.min(1).max(10),
     relatedCategories: categoriesSchema.max(10).optional(),
-    themes: z.array(themeInput).max(12).optional(),
+    topics: z.array(topicInput).max(12).optional(),
     draftPlaceId: z.string().max(300).optional(),
     /** The business being onboarded (not a client yet): its name is checked like a client name (D3). */
     businessName: z.string().trim().max(200).optional(),
@@ -203,7 +203,7 @@ export const createVertical = defineTool({
   permission: 'manage',
   async handler(ctx, input, deps) {
     requireAgencyStaff(ctx);
-    await refuseClientData(deps, ctx, [input.name, ...input.areas.flatMap((a) => [a.name, ...(a.aliases ?? [])]), ...(input.themes ?? []).map((t) => t.name)], input.businessName ? [input.businessName] : []);
+    await refuseClientData(deps, ctx, [input.name, ...input.areas.flatMap((a) => [a.name, ...(a.aliases ?? [])]), ...(input.topics ?? []).map((t) => t.name)], input.businessName ? [input.businessName] : []);
     const slug = slugOf(input.name, 'drop');
     if (!slug) throw new ToolError('invalid_input', 'Use a more specific business type name.', { userFacing: true });
 
@@ -282,14 +282,14 @@ export const updateVertical = defineTool({
     seedKeywords: seedKeywordsSchema.optional(),
     categories: categoriesSchema.min(1).max(10).optional(),
     relatedCategories: categoriesSchema.max(10).optional(),
-    themes: z.array(themeInput).max(12).optional(),
+    topics: z.array(topicInput).max(12).optional(),
     areas: z.array(z.object({ id: z.string().max(40).optional(), name: z.string().trim().min(2).max(80), aliases: aliasesSchema.optional() })).max(MAX_AREAS).optional(),
   }),
   output: z.object({ verticalId: z.string(), version: z.number().int() }),
   permission: 'manage',
   async handler(ctx, input, deps) {
     requireAgencyStaff(ctx);
-    await refuseClientData(deps, ctx, [...(input.name ? [input.name] : []), ...(input.areas ?? []).flatMap((a) => [a.name, ...(a.aliases ?? [])]), ...(input.themes ?? []).map((t) => t.name)]);
+    await refuseClientData(deps, ctx, [...(input.name ? [input.name] : []), ...(input.areas ?? []).flatMap((a) => [a.name, ...(a.aliases ?? [])]), ...(input.topics ?? []).map((t) => t.name)]);
 
     const out = await deps.service.transaction(async (tx) => {
       await lockCatalogue(tx);
@@ -297,7 +297,7 @@ export const updateVertical = defineTool({
       if (!v || v.id === GENERIC_VERTICAL_ID || !(await canEditVertical(deps, ctx, v))) throw new ToolError('permission_denied', 'This business type cannot be edited');
       // Platform staff may edit another agency's entry: D3 also applies against the creating agency's client names.
       if (v.createdByAgencyId && v.createdByAgencyId !== ctx.agencyId) {
-        await refuseClientDataFor(deps, v.createdByAgencyId, [...(input.name ? [input.name] : []), ...(input.areas ?? []).flatMap((a) => [a.name, ...(a.aliases ?? [])]), ...(input.themes ?? []).map((t) => t.name)]);
+        await refuseClientDataFor(deps, v.createdByAgencyId, [...(input.name ? [input.name] : []), ...(input.areas ?? []).flatMap((a) => [a.name, ...(a.aliases ?? [])]), ...(input.topics ?? []).map((t) => t.name)]);
       }
       const existing = (await tx.select().from(businessArea).where(eq(businessArea.verticalId, v.id))).map(toAreaRow);
 

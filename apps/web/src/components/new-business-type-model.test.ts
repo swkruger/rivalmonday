@@ -5,7 +5,7 @@ const draft = {
   name: 'Craft distilleries', audienceNoun: 'guests',
   areas: [{ name: 'Tasting room', aliases: ['tastings'], quote: 'Tasting room open' }, { name: 'Tours', aliases: [], quote: 'Guided tours' }],
   seedKeywords: [{ value: 'distillery tour', quote: 'Guided tours' }],
-  categories: ['Distillery'], relatedCategories: ['Liquor store'], themes: [{ name: 'Tour quality', quote: 'Guided tours' }],
+  categories: ['Distillery'], relatedCategories: ['Liquor store'], topics: [{ name: 'Tour quality', quote: 'Guided tours' }],
 };
 
 describe('new business type mapping', () => {
@@ -13,7 +13,7 @@ describe('new business type mapping', () => {
     expect(toCreateInput(formFromDraft(draft), 'pl-1')).toEqual({
       name: 'Craft distilleries', audienceNoun: 'guests',
       areas: [{ name: 'Tasting room', aliases: ['tastings'] }, { name: 'Tours', aliases: [] }],
-      seedKeywords: ['distillery tour'], categories: ['Distillery'], relatedCategories: ['Liquor store'], themes: [{ name: 'Tour quality' }], draftPlaceId: 'pl-1',
+      seedKeywords: ['distillery tour'], categories: ['Distillery'], relatedCategories: ['Liquor store'], topics: [{ name: 'Tour quality' }], draftPlaceId: 'pl-1',
     });
   });
 

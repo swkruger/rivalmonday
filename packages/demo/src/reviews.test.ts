@@ -34,7 +34,7 @@ describe('seedReviews', () => {
 
   it('uses the pack’s theme ids, covers every theme, and leaves one business/theme cell empty on purpose', async () => {
     const pack = await loadVerticalPack('hvac_plumbing');
-    expect([...HVAC_THEMES].sort()).toEqual(pack.themes.map((t) => t.id).sort());
+    expect([...HVAC_THEMES].sort()).toEqual(pack.topics.map((t) => t.id).sort());
     const rows = await dbs.owner.select({ competitorId: reviewAnalysis.competitorId, asked: reviewAnalysis.asked, themes: reviewAnalysis.topics }).from(reviewAnalysis);
     for (const t of HVAC_THEMES) expect(rows.some((r) => r.themes.includes(t))).toBe(true);
     const hill = ctx.ids.competitors.loneStar[0]!.id;

@@ -50,10 +50,10 @@ export const verticalPackSchema = z.object({
     .min(1)
     .max(255)
     .superRefine(uniqueIds('service')),
-  themes: z
+  topics: z
     .array(z.object({ id: slug, name: z.string().min(1), description: z.string().min(1) }))
     .min(1)
-    .superRefine(uniqueIds('theme')),
+    .superRefine(uniqueIds('topic')),
   type_weights: typeWeights,
   move_thresholds: z.object({
     hiring_push_postings_30d: z.number().int().positive(),

@@ -6,7 +6,7 @@ audience_noun: customers
 services:
   - { id: general, name: General service, aliases: [] }
 
-themes:
+topics:
   - { id: response_time, name: Response time, description: How quickly the business answers, schedules and shows up }
   - { id: price_transparency, name: Price transparency, description: Clear quotes, no surprise or hidden fees }
   - { id: technician_professionalism, name: Staff professionalism, description: Courtesy, expertise and conduct of the staff }
@@ -100,7 +100,7 @@ playbooks:
     trigger: reputation_slump
     title: Win customers unhappy with a competitor
     template: >-
-      {{competitor}}'s reviews show rising complaints about {{theme}}. Highlight your strength on {{theme}} in ads and
+      {{competitor}}'s reviews show rising complaints about {{topic}}. Highlight your strength on {{topic}} in ads and
       on your homepage, backed by your own recent reviews that mention it.
   - id: ad_surge_watch
     trigger: ad_surge
@@ -143,20 +143,20 @@ playbooks:
     title: Try a small Google search ads budget
     template: >-
       Run a small Google search campaign for your main service in your service area so you show up next to those rivals.
-  - id: fix_theme
+  - id: fix_topic
     effort: M
     impact: M
-    trigger: theme_weakness
+    trigger: topic_weakness
     title: Address a weak spot customers notice
     template: >-
-      Name one change to fix {{theme}}, tell your team, and ask happy customers who notice it to say so in their review.
+      Name one change to fix {{topic}}, tell your team, and ask happy customers who notice it to say so in their review.
   - id: promote_strength
     effort: L
     impact: M
-    trigger: theme_strength
+    trigger: topic_strength
     title: Promote what customers praise
     template: >-
-      Feature {{theme}} as a strength on your website and Google profile, with a short quote from a customer review.
+      Feature {{topic}} as a strength on your website and Google profile, with a short quote from a customer review.
   - id: improve_map_rank
     effort: M
     impact: H
@@ -177,7 +177,7 @@ self_rules:
   - { id: reply_rate_gap, weight: 0.8, playbook: reply_to_reviews, params: { gap: 0.25 } }
   - { id: rating_gap, weight: 0.9, playbook: fix_top_complaint, params: { gap: 0.2 } }
   - { id: rival_only_advertiser, weight: 0.6, playbook: consider_search_ads }
-  - { id: theme_weakness, weight: 0.7, playbook: fix_theme, params: { gap: 0.1 } }
-  - { id: theme_strength, weight: 0.5, playbook: promote_strength, strength: true, params: { gap: 0.1 } }
+  - { id: topic_weakness, weight: 0.7, playbook: fix_topic, params: { gap: 0.1 } }
+  - { id: topic_strength, weight: 0.5, playbook: promote_strength, strength: true, params: { gap: 0.1 } }
   - { id: map_visibility_gap, weight: 0.8, playbook: improve_map_rank, params: { gap: 0.1 } }
   - { id: profile_gap, weight: 0.7, playbook: complete_profile, params: { min_categories: 2 } }

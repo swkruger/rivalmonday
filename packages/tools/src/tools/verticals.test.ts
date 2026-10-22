@@ -29,7 +29,7 @@ const distillery = {
   seedKeywords: ['distillery near me'],
   categories: ['Distillery', ' Whisky Distillery '],
   relatedCategories: ['Liquor store'],
-  themes: [{ name: 'Tour quality', description: 'How good the tour is' }],
+  topics: [{ name: 'Tour quality', description: 'How good the tour is' }],
 };
 type Created = { verticalId: string; droppedCategories: string[] };
 const create = (c: AccessContext, input: Record<string, unknown> = distillery) => registry.invoke(c, 'create_vertical', input) as Promise<Created>;
@@ -47,7 +47,7 @@ describe('create_vertical', () => {
     const [v] = await q<{ status: string; created_by_agency_id: string; version: number; gbp_categories: string[]; gbp_related_categories: string[]; config: Record<string, unknown> }>(
       sql`select * from vertical where id = 'distillery'`);
     expect(v).toMatchObject({ status: 'unreviewed', created_by_agency_id: IDS.agencyA, version: 1, gbp_categories: ['distillery', 'whisky distillery'], gbp_related_categories: ['liquor store'] });
-    expect(v!.config).toEqual({ audience_noun: 'guests', themes: [{ id: 'tour_quality', name: 'Tour quality', description: 'How good the tour is' }], discovery: { seed_keywords: ['distillery near me'] } });
+    expect(v!.config).toEqual({ audience_noun: 'guests', topics: [{ id: 'tour_quality', name: 'Tour quality', description: 'How good the tour is' }], discovery: { seed_keywords: ['distillery near me'] } });
     const areas = await q<{ id: string; status: string; aliases: string[] }>(sql`select id, status, aliases from business_area where vertical_id = 'distillery' order by id`);
     expect(areas).toEqual([{ id: 'bottle_sales', status: 'unreviewed', aliases: [] }, { id: 'tasting_room', status: 'unreviewed', aliases: ['tastings'] }]);
     const cats = await q<{ category_lc: string; kind: string }>(sql`select category_lc, kind from vertical_category where vertical_id = 'distillery' order by category_lc`);
@@ -247,7 +247,7 @@ describe('draft_vertical', () => {
   const sample = {
     name: 'Craft distilleries', audienceNoun: 'guests',
     areas: [{ name: 'Tastings', aliases: [], quote: 'barrel tastings' }],
-    seedKeywords: [], categories: ['Distillery'], relatedCategories: [], themes: [],
+    seedKeywords: [], categories: ['Distillery'], relatedCategories: [], topics: [],
   };
   let calls: { placeId: string; nearbyCategories: string[] }[] = [];
   let behaviour: () => Promise<{ draft: typeof sample | null; similar: { id: string; name: string }[] }> = async () => ({ draft: sample, similar: [] });

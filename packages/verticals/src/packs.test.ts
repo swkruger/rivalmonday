@@ -13,7 +13,7 @@ describe('pilot vertical packs', () => {
   it.each(['hvac_plumbing', 'dental'])('%s loads with a playbook for every move type', async (id) => {
     const pack = await loadVerticalPack(id);
     expect(pack.services.length).toBeGreaterThanOrEqual(10);
-    expect(pack.themes.length).toBeGreaterThanOrEqual(6);
+    expect(pack.topics.length).toBeGreaterThanOrEqual(6);
     expect(pack.type_weights.cosmetic).toBe(0);
     const triggers = new Set(pack.playbooks.map((p) => p.trigger));
     for (const move of MOVE_TYPES) expect(triggers).toContain(move);
@@ -65,7 +65,7 @@ describe('pack self rules (Phase 12b)', () => {
       expect(pb?.effort).toMatch(/^[LMH]$/);
       expect(pb?.impact).toMatch(/^[LMH]$/);
     }
-    expect(pack.self_rules.filter((r) => r.strength).map((r) => r.id)).toEqual(['theme_strength']);
+    expect(pack.self_rules.filter((r) => r.strength).map((r) => r.id)).toEqual(['topic_strength']);
   });
 });
 
@@ -78,5 +78,23 @@ describe('Phase 3b pack knobs', () => {
     expect(p.scoring.size).toMatchObject({ ads_for_full: 5, jobs_for_full: 5, review_z_for_full: 4, rating_delta_for_full: 0.3, rank_delta_for_full: 5, structured_min: 0.3 });
     expect(p.scoring.alert_max_age_days).toBe(7);
     expect(p.move_thresholds).toMatchObject({ price_war_cuts_90d: 2, ad_burst_starts_30d: 3, promo_blitz_window_days: 14 });
+  });
+});
+
+describe('topic naming', () => {
+  it.each(['hvac_plumbing', 'dental', 'generic'])('%s has unique topic ids and no theme keys', async (id) => {
+    const pack = await loadVerticalPack(id);
+    expect(pack.topics.length).toBeGreaterThan(0);
+    expect(new Set(pack.topics.map((t) => t.id)).size).toBe(pack.topics.length);
+    const raw = await readFile(join(PACKS_DIR, `${id}.yaml`), 'utf8');
+    expect(raw).not.toMatch(/theme/i);
+  });
+});
+
+describe('catalogue seed', () => {
+  it('is regenerated with topics, not themes', async () => {
+    const sql = await readFile(join(PACKS_DIR, '../../db/src/catalog-seed.sql.ts'), 'utf8');
+    expect(sql).toContain('\\"topics\\":');
+    expect(sql).not.toMatch(/theme/i);
   });
 });

@@ -11,12 +11,12 @@ export const verticalDraftSchema = z.strictObject({
   seedKeywords: z.array(z.strictObject({ value: z.string().min(2).max(60), quote: z.string().min(3).max(300) })).max(5),
   categories: z.array(z.string().min(2).max(80)).min(1).max(10),
   relatedCategories: z.array(z.string().min(2).max(80)).max(10),
-  themes: z.array(z.strictObject({ name: z.string().min(2).max(60), quote: z.string().min(3).max(300) })).max(12),
+  topics: z.array(z.strictObject({ name: z.string().min(2).max(60), quote: z.string().min(3).max(300) })).max(12),
 });
 export type VerticalDraft = z.infer<typeof verticalDraftSchema>;
 
 /**
- * Deterministic gate on the model's draft (*no evidence, no claim*): drops areas, keywords and themes whose quote is not
+ * Deterministic gate on the model's draft (*no evidence, no claim*): drops areas, keywords and topics whose quote is not
  * in `source.text`; categories must be in the source category list; null when the shape is wrong, no area survives
  * or no category survives.
  */
@@ -40,6 +40,6 @@ export function validateDraft(raw: unknown, source: { text: string; categories: 
     seedKeywords: d.seedKeywords.filter((k) => quoted(k.quote)),
     categories,
     relatedCategories: cats(d.relatedCategories).filter((c) => !categories.includes(c)),
-    themes: d.themes.filter((t) => quoted(t.quote)),
+    topics: d.topics.filter((t) => quoted(t.quote)),
   };
 }

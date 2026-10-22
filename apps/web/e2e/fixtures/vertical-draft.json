@@ -14,7 +14,7 @@
   ],
   "categories": ["Distillery", "Whiskey distillery"],
   "relatedCategories": ["Liquor store"],
-  "themes": [
+  "topics": [
     { "name": "Tour quality", "quote": "Guided distillery tours every hour" },
     { "name": "Cocktail quality", "quote": "Craft cocktails made with our own spirits" }
   ]

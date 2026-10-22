@@ -7,7 +7,7 @@ import type { BriefCandidate } from './gather';
 export const PLAYBOOK_TEMPLATE_MAX = 2000;
 
 /** Placeholders a playbook template may use (5b-2 decision 5); `renderPlaybook` fills them from the evidence. */
-export const PLAYBOOK_VARS = ['competitor', 'service', 'new_price', 'areas', 'theme'] as const;
+export const PLAYBOOK_VARS = ['competitor', 'service', 'new_price', 'areas', 'topic'] as const;
 export type PlaybookVar = (typeof PLAYBOOK_VARS)[number];
 export const PLAYBOOK_TITLE_MAX = 200;
 
@@ -20,7 +20,7 @@ export interface Playbook {
 }
 
 const FALLBACK: Record<string, string> = {
-  competitor: 'the competitor', service: 'this service', new_price: 'a lower price', areas: 'new areas', theme: 'this topic',
+  competitor: 'the competitor', service: 'this service', new_price: 'a lower price', areas: 'new areas', topic: 'this topic',
 } satisfies Record<PlaybookVar, string>;
 
 export function renderPlaybook(template: string, vars: Record<string, string | undefined>): string {
@@ -44,7 +44,7 @@ export function playbookVars(c: BriefCandidate): Record<string, string | undefin
     service: events.find((e) => e.serviceName)?.serviceName ?? undefined,
     new_price: price?.after?.raw,
     areas: zips.length > 0 ? zips.slice(0, 5).join(', ') : undefined,
-    theme: events.map((e) => e.details.topicName ?? e.details.topic).find(Boolean),
+    topic: events.map((e) => e.details.topicName ?? e.details.topic).find(Boolean),
   };
 }
 

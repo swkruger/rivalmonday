@@ -32,7 +32,7 @@ describe('review questions', () => {
   it('asks a sentiment score, one Noul per theme and an "other" Noul per vertical', async () => {
     const pack = await loadVerticalPack('hvac_plumbing');
     const q = buildReviewQuestions([{ pack, themes: await themesForVertical(dbs.service, pack) }]);
-    expect(Object.keys(q)).toHaveLength(1 + pack.themes.length + 1);
+    expect(Object.keys(q)).toHaveLength(1 + pack.topics.length + 1);
     expect(q.sentiment).toMatchObject({ type: 'score', levels: ['very negative', 'negative', 'mixed or neutral', 'positive', 'very positive'] });
     expect(q[themeKey('hvac_plumbing', 'price_transparency')]?.type).toBe('noul');
     expect(q[otherKey('hvac_plumbing')]?.instructions).toContain('Price transparency');
@@ -49,7 +49,7 @@ describe('review questions', () => {
     });
     expect(row).toMatchObject({ verticalId: 'hvac_plumbing', sentiment: null, needsReview: true, topics: [] });
     expect(row!.asked).not.toContain('upsell_pressure');
-    expect(row!.asked).toHaveLength(pack.themes.length - 1);
+    expect(row!.asked).toHaveLength(pack.topics.length - 1);
   });
 
   it('reviewSubjectId matches the SQL the sweep uses and changes when the text is edited', async () => {

@@ -56,10 +56,10 @@ describe('splitPack / assemblePack', () => {
 
   it('deep merge replaces arrays and merges objects', async () => {
     const generic = toRows(await loadVerticalPack('generic')).row;
-    const row: VerticalRow = { ...generic, id: 'x', name: 'X', gbpCategories: ['X'], config: { themes: [{ id: 't', name: 'T', description: 'D' }], scoring: { routing: { alert: 80 } } } };
+    const row: VerticalRow = { ...generic, id: 'x', name: 'X', gbpCategories: ['X'], config: { topics: [{ id: 't', name: 'T', description: 'D' }], scoring: { routing: { alert: 80 } } } };
     const area: BusinessAreaRow = { verticalId: 'x', id: 'a', name: 'A', aliases: [], status: 'reviewed', mergedInto: null, evidence: null, createdByAgencyId: null };
     const pack = assemblePack(row, [area], generic);
-    expect(pack.themes).toEqual([{ id: 't', name: 'T', description: 'D' }]);
+    expect(pack.topics).toEqual([{ id: 't', name: 'T', description: 'D' }]);
     expect(pack.scoring.routing).toEqual({ alert: 80, brief: 40 });
     expect(pack.scoring.size.default).toBe(0.6);
   });

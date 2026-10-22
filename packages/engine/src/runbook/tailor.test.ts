@@ -30,7 +30,7 @@ describe('applyTailoring', () => {
   });
   it('rejects an unknown or added placeholder', () => {
     expect(applyTailoring([BASE], out({ template: 'x {{bogus}}' }), ctx).rejected).toEqual(['play:a']);
-    expect(applyTailoring([BASE], out({ template: 'x {{theme}}' }), ctx).rejected).toEqual(['play:a']); // valid var, but not in the base
+    expect(applyTailoring([BASE], out({ template: 'x {{topic}}' }), ctx).rejected).toEqual(['play:a']); // valid var, but not in the base
   });
   it('rejects a title with {{', () => {
     const r = applyTailoring([BASE], out({ title: 'Hi {{competitor}}' }), ctx);

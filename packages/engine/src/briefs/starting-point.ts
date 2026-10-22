@@ -32,8 +32,8 @@ export const SELF_WHY_IT_MATTERS: Record<SelfRuleId, string> = {
   reply_rate_gap: 'People comparing businesses read the replies, and replying shows you are active and care.',
   rating_gap: 'Most people compare star ratings before they call, so a lower rating can cost you calls.',
   rival_only_advertiser: 'Ads put rivals above the map results for searches you could be winning.',
-  theme_weakness: 'A complaint that keeps coming up is what new customers notice first when they read your reviews.',
-  theme_strength: 'Something reviewers keep praising is a reason to choose you, and it is worth saying out loud.',
+  topic_weakness: 'A complaint that keeps coming up is what new customers notice first when they read your reviews.',
+  topic_strength: 'Something reviewers keep praising is a reason to choose you, and it is worth saying out loud.',
   map_visibility_gap: 'Businesses in the map top three are the ones people see first when they search nearby.',
   profile_gap: 'A complete profile helps Google show you for more searches and helps people decide to call.',
 };
@@ -215,7 +215,7 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
         dropped.items++;
         continue;
       }
-      kept.push({ f, title: pb.title, action: renderPlaybook(pb.template, { theme: String(f.values.theme ?? '') }) });
+      kept.push({ f, title: pb.title, action: renderPlaybook(pb.template, { topic: String(f.values.theme ?? '') }) });
     }
 
     const why = new Map<string, string>();
