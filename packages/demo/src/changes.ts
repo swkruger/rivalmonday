@@ -66,7 +66,7 @@ export const adItemIds = (spec: EventSpec): string[] => ((spec.details as { item
 const spike = (client: ActiveClientKey, comp: number, days: number, score: number, theme: string, themeName: string): EventSpec => ({
   client, comp, days, score, service: null, source: 'google_reviews', type: 'review_spike',
   summary: (n) => `${n}: complaints about ${themeName.toLowerCase()} spiked`,
-  details: { changeType: 'review_spike', theme, themeName, verticalId: 'hvac_plumbing', windowDays: 14, count: 6 },
+  details: { changeType: 'review_spike', topic: theme, topicName: themeName, verticalId: 'hvac_plumbing', windowDays: 14, count: 6 },
 });
 
 const rating = (client: ActiveClientKey, comp: number, days: number, score: number, before: number, after: number): EventSpec => ({

@@ -83,8 +83,8 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
       s = `Google rating ${d.ratingBefore} → ${d.ratingAfter}${d.votesAfter != null ? ` (${d.votesAfter} reviews)` : ''}`;
       break;
     case 'review_spike':
-      s = d.theme
-        ? `Complaints about ${d.themeName ?? d.theme} up: ${d.count} in ${d.windowDays} days vs ${d.baselineMean} a month before`
+      s = d.topic
+        ? `Complaints about ${d.topicName ?? d.topic} up: ${d.count} in ${d.windowDays} days vs ${d.baselineMean} a month before`
         : `${d.count} new Google reviews in ${d.windowDays} days (${d.z}σ above the usual ${d.baselineMean}/week)${d.avgRating != null ? `, average rating ${d.avgRating}` : ''}`;
       break;
     case 'rank_change':

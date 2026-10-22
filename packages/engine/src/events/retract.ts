@@ -67,14 +67,14 @@ export type SupersedeSubject = { afterCaptureId: string; source: string } | { ra
 /**
  * Phase 3d decision 7: when a diff stage re-runs a subject under a newer stage version, that subject's changes from
  * older versions are superseded and withdrawn from their events, and their open AM reviews are closed as moot
- * (`resolved_by = 'system:superseded'`). Complaint spikes (`details.theme`, written by the
+ * (`resolved_by = 'system:superseded'`). Complaint spikes (`details.topic`, written by the
  * nightly review-insights run against a reviews capture) are not diff output and are never touched.
  */
 export async function supersedePriorChanges(tx: Tx, subject: SupersedeSubject, version: number): Promise<{ superseded: number; retracted: number }> {
   const scope =
     'rankScanId' in subject
       ? and(eq(detectedChange.rankScanId, subject.rankScanId), like(detectedChange.blockKey, 'rank:%')) // never the 'tier:' rows (P9)
-      : and(eq(detectedChange.afterCaptureId, subject.afterCaptureId), eq(detectedChange.source, subject.source), sql`NOT (${detectedChange.details} ? 'theme')`);
+      : and(eq(detectedChange.afterCaptureId, subject.afterCaptureId), eq(detectedChange.source, subject.source), sql`NOT (${detectedChange.details} ? 'topic')`);
   const old = await tx
     .update(detectedChange)
     .set({ status: 'superseded' })

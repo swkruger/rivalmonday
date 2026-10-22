@@ -113,7 +113,7 @@ export async function mergeVerticalTx(tx: Tx, sourceId: string, targetId: string
   // 5. derived analyses are dropped, the next run re-derives them under the target (P8)
   await tx.execute(sql`DELETE FROM review_analysis WHERE vertical_id = ${sourceId}`);
   await tx.execute(sql`DELETE FROM price_block_map WHERE vertical_id = ${sourceId}`);
-  await tx.execute(sql`DELETE FROM theme_proposal WHERE vertical_id = ${sourceId} AND status = 'proposed'`);
+  await tx.execute(sql`DELETE FROM topic_proposal WHERE vertical_id = ${sourceId} AND status = 'proposed'`);
   // 6. agency settings
   await tx.execute(sql`DELETE FROM playbook_override o WHERE o.vertical_id = ${sourceId} AND EXISTS (
     SELECT 1 FROM playbook_override t WHERE t.agency_id = o.agency_id AND t.vertical_id = ${targetId} AND t.playbook_id = o.playbook_id)`);

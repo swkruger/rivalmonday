@@ -1,5 +1,5 @@
 import { toolkit, ToolError } from '@cs/core';
-import { review, themeProposal } from '@cs/db';
+import { review, topicProposal } from '@cs/db';
 import { decideThemeProposal } from '@cs/engine';
 import { and, count, desc, eq, gte, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
@@ -14,11 +14,11 @@ const DECIDED_WINDOW_DAYS = 30;
 
 /** The proposal rows `list_theme_proposals` reads: every proposed one plus decisions from the last 30 days ('none' rows never). */
 export const themeProposalsWhere = (now = Date.now()) =>
-  or(eq(themeProposal.status, 'proposed'), and(inArray(themeProposal.status, ['approved', 'rejected']), gte(themeProposal.decidedAt, new Date(now - DECIDED_WINDOW_DAYS * 86_400_000))));
+  or(eq(topicProposal.status, 'proposed'), and(inArray(topicProposal.status, ['approved', 'rejected']), gte(topicProposal.decidedAt, new Date(now - DECIDED_WINDOW_DAYS * 86_400_000))));
 
 /** The Theme proposals badge: the list's `pending` rows (status `proposed`). Service role — proposals are platform-wide. */
 export async function countPendingThemeProposals(db: ToolDeps['service']): Promise<number> {
-  const [row] = await db.select({ n: count() }).from(themeProposal).where(and(themeProposalsWhere(), eq(themeProposal.status, 'proposed')));
+  const [row] = await db.select({ n: count() }).from(topicProposal).where(and(themeProposalsWhere(), eq(topicProposal.status, 'proposed')));
   return row?.n ?? 0;
 }
 
@@ -34,9 +34,9 @@ export const listThemeProposals = defineTool({
     // 'none' rows (the model found nothing) are never listed.
     const rows = await deps.service
       .select()
-      .from(themeProposal)
+      .from(topicProposal)
       .where(themeProposalsWhere())
-      .orderBy(desc(themeProposal.createdAt))
+      .orderBy(desc(topicProposal.createdAt))
       .limit(50);
     const sampleIds = [...new Set(rows.flatMap((r) => r.sampleReviewIds.slice(0, 3)))];
     const texts = sampleIds.length ? await deps.service.select({ id: review.id, text: review.text }).from(review).where(inArray(review.id, sampleIds)) : [];
@@ -44,7 +44,7 @@ export const listThemeProposals = defineTool({
     const packs = await catalogPacks(deps);
     const names = new Map(packs.map((p) => [p.id, p.name]));
     const toView = (r: (typeof rows)[number]): z.input<typeof ThemeProposalView> => ({
-      id: r.id, verticalId: r.verticalId, verticalName: names.get(r.verticalId) ?? r.verticalId, themeId: r.themeId, name: r.name, description: r.description,
+      id: r.id, verticalId: r.verticalId, verticalName: names.get(r.verticalId) ?? r.verticalId, themeId: r.topicId, name: r.name, description: r.description,
       status: r.status as 'proposed' | 'approved' | 'rejected', otherCount: r.otherCount, createdAt: r.createdAt.toISOString(), decidedAt: r.decidedAt?.toISOString() ?? null,
       samples: r.sampleReviewIds
         .slice(0, 3)

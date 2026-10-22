@@ -31,7 +31,7 @@ export function detailLines(d: ChangeDetails | null | undefined): DetailLine[] {
   if (d.field) out.push({ label: 'Field', value: humanise(d.field) });
   if (d.ratingBefore !== undefined || d.ratingAfter !== undefined) out.push({ label: 'Rating', value: pair(d.ratingBefore, d.ratingAfter) });
   if (d.votesBefore !== undefined || d.votesAfter !== undefined) out.push({ label: 'Reviews', value: pair(d.votesBefore, d.votesAfter) });
-  if (d.themeName) out.push({ label: 'Topic', value: d.themeName });
+  if (d.topicName) out.push({ label: 'Topic', value: d.topicName });
   if (d.keyword) out.push({ label: 'Keyword', value: d.keyword });
   if (d.avgRankBefore !== undefined || d.avgRankAfter !== undefined) out.push({ label: 'Average rank', value: pair(d.avgRankBefore, d.avgRankAfter) });
   if (d.top3Before !== undefined || d.top3After !== undefined) out.push({ label: 'Top-3 points', value: pair(d.top3Before, d.top3After) });

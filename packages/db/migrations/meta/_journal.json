@@ -589,6 +589,13 @@
       "when": 1792651308141,
       "tag": "0083_archived_client_visibility",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1792711815846,
+      "tag": "0084_topic_rename",
+      "breakpoints": true
     }
   ]
 }

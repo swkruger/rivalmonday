@@ -105,11 +105,11 @@ describe('detectMoves', () => {
 
   it('reputation slump: a complaint-theme spike for the client vertical in the last 30 days', () => {
     const spike = (over: Partial<MoveEvent> = {}) =>
-      ev({ changeType: 'review_spike', channels: ['google_reviews'], details: { theme: 'price_transparency', themeName: 'Price transparency', verticalId: 'hvac_plumbing', count: 4 }, ...over });
+      ev({ changeType: 'review_spike', channels: ['google_reviews'], details: { topic: 'price_transparency', topicName: 'Price transparency', verticalId: 'hvac_plumbing', count: 4 }, ...over });
     expect(detectMoves([spike()], ctx()).find((f) => f.type === 'reputation_slump')).toMatchObject({
-      summary: 'Rising complaints about Price transparency', facts: { theme: 'Price transparency' },
+      summary: 'Rising complaints about Price transparency', facts: { topic: 'Price transparency' },
     });
-    expect(types([spike({ details: { theme: 'wait_time', themeName: 'Wait time', verticalId: 'dental', count: 4 } })])).not.toContain('reputation_slump');
+    expect(types([spike({ details: { topic: 'wait_time', topicName: 'Wait time', verticalId: 'dental', count: 4 } })])).not.toContain('reputation_slump');
     expect(types([spike({ occurredAt: day(60) })])).not.toContain('reputation_slump'); // 40 days old
     expect(types([ev({ changeType: 'review_spike', channels: ['google_reviews'], details: { count: 9, z: 3 } })])).not.toContain('reputation_slump'); // a velocity spike is not a complaint
   });

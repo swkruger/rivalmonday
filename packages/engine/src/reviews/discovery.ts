@@ -1,6 +1,6 @@
 import type { Ai, ChatMessage, JsonSchemaFormat } from '@cs/ai';
 import { isUniqueViolation, redactForModel } from '@cs/collectors';
-import { competitor, type Db, modelBatch, review, reviewAnalysis, themeProposal, type ThemeProposalStatus } from '@cs/db';
+import { competitor, type Db, modelBatch, review, reviewAnalysis, topicProposal, type TopicProposalStatus } from '@cs/db';
 import { and, desc, eq, gt, lte, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { PackLoader } from '../tag/tag-stage';
@@ -39,7 +39,7 @@ export interface ThemeDiscoveryContext {
   verticalId: string;
   otherCount: number;
   sampleReviewIds: string[];
-  themeIds: string[];
+  topicIds: string[];
   rejectedIds: string[];
 }
 
@@ -54,7 +54,7 @@ export async function prepareThemeDiscovery(
   opts: { now?: Date } = {},
 ): Promise<{ context: ThemeDiscoveryContext; messages: ChatMessage[]; jsonSchema: JsonSchemaFormat } | { skipped: string }> {
   const now = opts.now ?? new Date();
-  const [pending] = await deps.db.select({ id: themeProposal.id }).from(themeProposal).where(and(eq(themeProposal.verticalId, verticalId), eq(themeProposal.status, 'proposed'))).limit(1);
+  const [pending] = await deps.db.select({ id: topicProposal.id }).from(topicProposal).where(and(eq(topicProposal.verticalId, verticalId), eq(topicProposal.status, 'proposed'))).limit(1);
   if (pending) return { skipped: 'a proposal is awaiting approval' };
   const [inFlight] = await deps.db
     .select({ id: modelBatch.id })
@@ -62,7 +62,7 @@ export async function prepareThemeDiscovery(
     .where(and(eq(modelBatch.status, 'submitted'), eq(modelBatch.purpose, THEME_BATCH_PURPOSE), sql`${modelBatch.items} ? ${verticalId}`))
     .limit(1);
   if (inFlight) return { skipped: 'a theme-discovery batch is in flight' };
-  const [last] = await deps.db.select({ at: themeProposal.createdAt }).from(themeProposal).where(eq(themeProposal.verticalId, verticalId)).orderBy(desc(themeProposal.createdAt)).limit(1);
+  const [last] = await deps.db.select({ at: topicProposal.createdAt }).from(topicProposal).where(eq(topicProposal.verticalId, verticalId)).orderBy(desc(topicProposal.createdAt)).limit(1);
 
   const rows = await deps.db
     .select({ id: review.id, text: review.text, competitorName: competitor.name })
@@ -71,7 +71,7 @@ export async function prepareThemeDiscovery(
     .innerJoin(competitor, eq(competitor.id, review.competitorId))
     .where(
       and(
-        eq(reviewAnalysis.verticalId, verticalId), eq(reviewAnalysis.other, true), sql`jsonb_array_length(${reviewAnalysis.themes}) = 0`,
+        eq(reviewAnalysis.verticalId, verticalId), eq(reviewAnalysis.other, true), sql`jsonb_array_length(${reviewAnalysis.topics}) = 0`,
         last ? gt(reviewAnalysis.analyzedAt, last.at) : undefined,
         gt(review.postedAt, new Date(now.getTime() - THEME_DISCOVERY_DAYS * DAY_MS)), lte(review.postedAt, now),
       ),
@@ -85,14 +85,14 @@ export async function prepareThemeDiscovery(
   // 'proposed'/'approved'), so without this the model can propose the exact same rejected topic every time
   // enough fresh "other" reviews accumulate. Tell it which ids are already rejected, and reject them again below.
   const rejectedIds = new Set(
-    (await deps.db.selectDistinct({ id: themeProposal.themeId }).from(themeProposal).where(and(eq(themeProposal.verticalId, verticalId), eq(themeProposal.status, 'rejected')))).map((r) => r.id),
+    (await deps.db.selectDistinct({ id: topicProposal.topicId }).from(topicProposal).where(and(eq(topicProposal.verticalId, verticalId), eq(topicProposal.status, 'rejected')))).map((r) => r.id),
   );
   const sample = rows.slice(0, THEME_DISCOVERY_SAMPLE);
   const listed = sample
     .map((r, i) => `${i + 1}. ${redactForModel(r.text ?? '', { businessNames: [r.competitorName] }).slice(0, SAMPLE_CHARS).replace(/<(\/?)reviews/gi, '&lt;$1reviews')}`)
     .join('\n');
   return {
-    context: { verticalId, otherCount: rows.length, sampleReviewIds: sample.slice(0, SAMPLE_IDS_KEPT).map((r) => r.id), themeIds: themes.map((t) => t.id), rejectedIds: [...rejectedIds] },
+    context: { verticalId, otherCount: rows.length, sampleReviewIds: sample.slice(0, SAMPLE_IDS_KEPT).map((r) => r.id), topicIds: themes.map((t) => t.id), rejectedIds: [...rejectedIds] },
     jsonSchema: { name: 'theme_proposal', schema: proposalJson },
     messages: [
       { role: 'system', content: SYSTEM },
@@ -114,25 +114,25 @@ export async function applyThemeProposal(db: Db, ctx: ThemeDiscoveryContext, tex
     parsed = null;
   }
   // A batch result can arrive after an AM decision: re-read the vertical's live and rejected ids now.
-  const decided = await db.select({ id: themeProposal.themeId, status: themeProposal.status }).from(themeProposal).where(eq(themeProposal.verticalId, ctx.verticalId));
-  const taken = new Set([...ctx.themeIds, ...decided.filter((d) => d.status === 'approved').map((d) => d.id)]);
+  const decided = await db.select({ id: topicProposal.topicId, status: topicProposal.status }).from(topicProposal).where(eq(topicProposal.verticalId, ctx.verticalId));
+  const taken = new Set([...ctx.topicIds, ...decided.filter((d) => d.status === 'approved').map((d) => d.id)]);
   const rejected = new Set([...ctx.rejectedIds, ...decided.filter((d) => d.status === 'rejected').map((d) => d.id)]);
   const name = parsed?.name.trim().slice(0, 60) ?? '';
   const description = parsed?.description.trim().slice(0, 200) ?? '';
   const valid = parsed !== null && parsed.found && SLUG.test(parsed.id) && !taken.has(parsed.id) && !rejected.has(parsed.id) && name.length > 0 && description.length > 0;
   if (valid && decided.some((d) => d.status === 'proposed')) return { skipped: 'a proposal is awaiting approval' };
-  const status: ThemeProposalStatus = valid ? 'proposed' : 'none';
+  const status: TopicProposalStatus = valid ? 'proposed' : 'none';
   // The pending check above is check-then-insert (not transactional), so a concurrent run can slip a 'proposed'
   // row in between: `theme_proposal_pending_unique` (one 'proposed' row per vertical) is the real guard, and a
   // violation here means we lost the race, not that something is wrong — treat it the same as the early check.
   try {
     const [row] = await db
-      .insert(themeProposal)
+      .insert(topicProposal)
       .values({
-        verticalId: ctx.verticalId, themeId: valid ? parsed!.id : '', name: valid ? name : '', description: valid ? description : '', status,
+        verticalId: ctx.verticalId, topicId: valid ? parsed!.id : '', name: valid ? name : '', description: valid ? description : '', status,
         otherCount: ctx.otherCount, sampleReviewIds: ctx.sampleReviewIds,
       })
-      .returning({ id: themeProposal.id });
+      .returning({ id: topicProposal.id });
     return { status, proposalId: row!.id };
   } catch (err) {
     if (valid && isUniqueViolation(err)) return { skipped: 'a proposal is awaiting approval' };
@@ -200,10 +200,10 @@ export async function submitThemeDiscoveryBatch(
 /** The AM's decision on a pending proposal (UI in Phase 5). Approved themes are asked for reviews analysed from now on. */
 export async function decideThemeProposal(db: Db, proposalId: string, decision: 'approved' | 'rejected', decidedBy: string): Promise<void> {
   const rows = await db
-    .update(themeProposal)
+    .update(topicProposal)
     .set({ status: decision, decidedAt: new Date(), decidedBy })
-    .where(and(eq(themeProposal.id, proposalId), eq(themeProposal.status, 'proposed')))
-    .returning({ id: themeProposal.id });
+    .where(and(eq(topicProposal.id, proposalId), eq(topicProposal.status, 'proposed')))
+    .returning({ id: topicProposal.id });
   if (rows.length === 0) throw new Error(`theme proposal ${proposalId} is not awaiting a decision`);
 }
 

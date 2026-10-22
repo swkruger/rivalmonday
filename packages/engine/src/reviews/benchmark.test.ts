@@ -1,4 +1,4 @@
-import { client, competitor, review, reviewAnalysis, themeProposal } from '@cs/db';
+import { client, competitor, review, reviewAnalysis, topicProposal } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -18,7 +18,7 @@ async function add(competitorId: string, postedAt: Date, rating: number | null, 
   const [r] = await dbs.service.insert(review).values({ competitorId, dedupeKey: `id:${n++}`, rating, text: analysis ? 'some review text' : null, postedAt }).returning({ id: review.id });
   if (analysis) {
     await dbs.service.insert(reviewAnalysis).values({
-      reviewId: r!.id, verticalId: 'hvac_plumbing', competitorId, textSha: 's', asked: analysis.asked ?? SEED, themes: analysis.themes, sentiment: analysis.sentiment, confidence: 0.9, analysisVersion: 1,
+      reviewId: r!.id, verticalId: 'hvac_plumbing', competitorId, textSha: 's', asked: analysis.asked ?? SEED, topics: analysis.themes, sentiment: analysis.sentiment, confidence: 0.9, analysisVersion: 1,
     });
   }
 }
@@ -78,7 +78,7 @@ describe('reviewBenchmark', () => {
   });
 
   it('a theme approved mid-window counts only reviews where it was asked', async () => {
-    await dbs.service.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'warranty', name: 'Warranty', description: 'Honouring warranties', status: 'approved', otherCount: 20, decidedAt: day(-6) });
+    await dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'warranty', name: 'Warranty', description: 'Honouring warranties', status: 'approved', otherCount: 20, decidedAt: day(-6) });
     await add(IDS.competitorX, day(-3), 2, { themes: ['warranty'], sentiment: 1, asked: [...SEED, 'warranty'] });
     await add(IDS.competitorX, day(-30), 4, { themes: [], sentiment: 3 });
     await add(IDS.competitorX, day(-40), 4, { themes: [], sentiment: 3 });

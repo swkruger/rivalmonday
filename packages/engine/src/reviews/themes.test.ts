@@ -47,7 +47,7 @@ describe('review questions', () => {
     const [row] = resolveReviewAnalysis({ answers, needsReview: ['sentiment', themeKey('hvac_plumbing', 'upsell_pressure')] }, [{ pack, themes }], {
       reviewId: 'r', competitorId: 'c', textSha: 's',
     });
-    expect(row).toMatchObject({ verticalId: 'hvac_plumbing', sentiment: null, needsReview: true, themes: [] });
+    expect(row).toMatchObject({ verticalId: 'hvac_plumbing', sentiment: null, needsReview: true, topics: [] });
     expect(row!.asked).not.toContain('upsell_pressure');
     expect(row!.asked).toHaveLength(pack.themes.length - 1);
   });
@@ -70,7 +70,7 @@ describe('analyzeReview', () => {
     expect(await analyzeReview({ db: dbs.service, ai, packs }, id)).toEqual({ ran: true, result: { rows: 1 } });
     const [row] = await dbs.owner.select().from(reviewAnalysis);
     expect(row).toMatchObject({
-      reviewId: id, verticalId: 'hvac_plumbing', competitorId: IDS.competitorX, themes: ['price_transparency', 'technician_professionalism'], other: false, sentiment: 0, needsReview: false,
+      reviewId: id, verticalId: 'hvac_plumbing', competitorId: IDS.competitorX, topics: ['price_transparency', 'technician_professionalism'], other: false, sentiment: 0, needsReview: false,
     });
     expect(row!.asked).toHaveLength(8);
     expect(ai.calls.decide[0]!.task).toBe('review_decisions');
@@ -88,7 +88,7 @@ describe('analyzeReview', () => {
     expect(r.ran).toBe(true);
     const rows = await dbs.owner.select().from(reviewAnalysis);
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ themes: ['communication'], sentiment: 3 });
+    expect(rows[0]).toMatchObject({ topics: ['communication'], sentiment: 3 });
   });
 
   it('writes one row per vertical tracking the competitor', async () => {
@@ -97,7 +97,7 @@ describe('analyzeReview', () => {
     await analyzeReview({ db: dbs.service, ai: createFakeAi({ decide: reviewResult({ themes: ['upsell_pressure'] }) }), packs }, id);
     const rows = await dbs.owner.select().from(reviewAnalysis);
     expect(rows.map((r) => r.verticalId).sort()).toEqual(['dental', 'hvac_plumbing']);
-    expect(rows.every((r) => r.themes.includes('upsell_pressure'))).toBe(true); // both packs have an upsell_pressure theme
+    expect(rows.every((r) => r.topics.includes('upsell_pressure'))).toBe(true); // both packs have an upsell_pressure theme
   });
 });
 

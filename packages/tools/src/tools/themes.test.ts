@@ -1,5 +1,5 @@
 import { createAccessContext } from '@cs/core';
-import { review, themeProposal } from '@cs/db';
+import { review, topicProposal } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -24,7 +24,7 @@ beforeEach(async () => {
   await seedUser(dbs.owner, 'op', 'op@example.com');
   await seedUser(dbs.owner, 'admin', 'admin@example.com');
   const [rv] = await dbs.service.insert(review).values({ competitorId: IDS.competitorX, dedupeKey: 'k1', rating: 2, text: 'They charged a trip fee nobody mentioned.' }).returning();
-  const [p] = await dbs.service.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'hidden_fees', name: 'Hidden fees', description: 'Unexpected trip or diagnostic fees', otherCount: 14, sampleReviewIds: [rv!.id] }).returning();
+  const [p] = await dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'hidden_fees', name: 'Hidden fees', description: 'Unexpected trip or diagnostic fees', otherCount: 14, sampleReviewIds: [rv!.id] }).returning();
   proposalId = p!.id;
 });
 
@@ -45,7 +45,7 @@ describe('theme proposals (Review Focus 2)', () => {
       await expect(registry.invoke(ctx, 'list_theme_proposals', {})).rejects.toMatchObject({ code: 'not_found' });
       await expect(registry.invoke(ctx, 'decide_theme_proposal', { proposalId, decision: 'approved' })).rejects.toMatchObject({ code: 'not_found' });
     }
-    expect((await dbs.owner.select().from(themeProposal).where(eq(themeProposal.id, proposalId)))[0]).toMatchObject({ status: 'proposed', decidedBy: null });
+    expect((await dbs.owner.select().from(topicProposal).where(eq(topicProposal.id, proposalId)))[0]).toMatchObject({ status: 'proposed', decidedBy: null });
   });
 
   it('refuses everyone when no operators are configured', async () => {
@@ -55,7 +55,7 @@ describe('theme proposals (Review Focus 2)', () => {
 
   it('approves once; a second decision is invalid_input', async () => {
     await registry.invoke(op, 'decide_theme_proposal', { proposalId, decision: 'approved' });
-    const [row] = await dbs.owner.select().from(themeProposal).where(eq(themeProposal.id, proposalId));
+    const [row] = await dbs.owner.select().from(topicProposal).where(eq(topicProposal.id, proposalId));
     expect(row).toMatchObject({ status: 'approved', decidedBy: 'op' });
     await expect(registry.invoke(op, 'decide_theme_proposal', { proposalId, decision: 'rejected' })).rejects.toMatchObject({ code: 'invalid_input' });
     const r = (await registry.invoke(op, 'list_theme_proposals', {})) as { pending: unknown[]; decided: { id: string; status: string }[] };

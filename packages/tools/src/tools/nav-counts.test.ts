@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { alert, brief, capture, changeEvent, decisionReview, detectedChange, lead, review, themeProposal, trackedPage } from '@cs/db';
+import { alert, brief, capture, changeEvent, decisionReview, detectedChange, lead, review, topicProposal, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
@@ -122,10 +122,10 @@ describe('get_platform_nav_counts', () => {
     await mkDecisionReview('superseded');
     // Theme proposals: two proposed, one approved recently (listed as decided, not pending).
     const [rv] = await dbs.service.insert(review).values({ competitorId: IDS.competitorX, dedupeKey: 'k1', rating: 2, text: 'Trip fee.' }).returning();
-    await dbs.service.insert(themeProposal).values([
-      { verticalId: 'hvac_plumbing', themeId: 'hidden_fees', name: 'Hidden fees', description: 'd', otherCount: 14, sampleReviewIds: [rv!.id] },
-      { verticalId: 'dental', themeId: 'parking', name: 'Parking', description: 'd', otherCount: 9, sampleReviewIds: [] },
-      { verticalId: 'hvac_plumbing', themeId: 'late', name: 'Late', description: 'd', otherCount: 3, sampleReviewIds: [], status: 'approved', decidedAt: new Date(), decidedBy: 'op' },
+    await dbs.service.insert(topicProposal).values([
+      { verticalId: 'hvac_plumbing', topicId: 'hidden_fees', name: 'Hidden fees', description: 'd', otherCount: 14, sampleReviewIds: [rv!.id] },
+      { verticalId: 'dental', topicId: 'parking', name: 'Parking', description: 'd', otherCount: 9, sampleReviewIds: [] },
+      { verticalId: 'hvac_plumbing', topicId: 'late', name: 'Late', description: 'd', otherCount: 3, sampleReviewIds: [], status: 'approved', decidedAt: new Date(), decidedBy: 'op' },
     ]);
   });
 

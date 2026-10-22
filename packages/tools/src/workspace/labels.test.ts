@@ -7,7 +7,7 @@ describe('workspace labels', () => {
     expect(channelLabel('some_new_thing')).toBe('Some new thing');
   });
   it('labels a review topic "Topic", never "Theme"', () => {
-    expect(detailLines({ themeName: 'Response time' })).toEqual([{ label: 'Topic', value: 'Response time' }]);
+    expect(detailLines({ topicName: 'Response time' })).toEqual([{ label: 'Topic', value: 'Response time' }]);
   });
   it('turns structured details into readable lines', () => {
     expect(detailLines({ count: 6, items: [{ id: '1', label: '$79 Tune-Up' }], ratingBefore: 4.4, ratingAfter: 4.1, keyword: 'ac repair' })).toEqual([

@@ -44,7 +44,7 @@ export function playbookVars(c: BriefCandidate): Record<string, string | undefin
     service: events.find((e) => e.serviceName)?.serviceName ?? undefined,
     new_price: price?.after?.raw,
     areas: zips.length > 0 ? zips.slice(0, 5).join(', ') : undefined,
-    theme: events.map((e) => e.details.themeName ?? e.details.theme).find(Boolean),
+    theme: events.map((e) => e.details.topicName ?? e.details.topic).find(Boolean),
   };
 }
 

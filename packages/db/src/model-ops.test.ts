@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { errorText, IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
 import { createDecisionSampleSink } from './ledger';
-import { changeEvent, client, decisionLabel, decisionSample, modelBatch, scoreFailure, themeProposal } from './schema';
+import { changeEvent, client, decisionLabel, decisionSample, modelBatch, scoreFailure, topicProposal } from './schema';
 import { withTenant } from './tenant';
 
 const dbs = openTestDbs();
@@ -45,8 +45,8 @@ describe('model-ops schema', () => {
   });
 
   it('theme proposals are invisible to tenant roles (platform data, approved through the service role)', async () => {
-    await dbs.service.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'warranty', name: 'Warranty', description: 'd', status: 'proposed', otherCount: 20, sampleReviewIds: [] });
-    const rows = await withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) => tx.select().from(themeProposal));
+    await dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'warranty', name: 'Warranty', description: 'd', status: 'proposed', otherCount: 20, sampleReviewIds: [] });
+    const rows = await withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) => tx.select().from(topicProposal));
     expect(rows).toEqual([]);
   });
 

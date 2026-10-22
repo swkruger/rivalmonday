@@ -47,7 +47,7 @@ export async function detectComplaintSpikes(deps: { db: Db; packs: PackLoader },
       SELECT t.theme, floor(extract(epoch FROM (${at}::timestamptz - r.posted_at)) / ${COMPLAINT_WINDOW_DAYS * 86_400}::int)::int AS period, count(*)::int AS n
       FROM review_analysis a
       JOIN review r ON r.id = a.review_id
-      CROSS JOIN LATERAL jsonb_array_elements_text(a.themes) AS t(theme)
+      CROSS JOIN LATERAL jsonb_array_elements_text(a.topics) AS t(theme)
       WHERE a.competitor_id = ${competitorId}::uuid AND a.vertical_id = ${verticalId} AND a.sentiment <= ${COMPLAINT_MAX_SENTIMENT}::int
         AND r.posted_at > ${at}::timestamptz - make_interval(days => ${span}::int) AND r.posted_at <= ${at}::timestamptz
       GROUP BY 1, 2`)) as unknown as { theme: string; period: number; n: number }[];
@@ -69,7 +69,7 @@ export async function detectComplaintSpikes(deps: { db: Db; packs: PackLoader },
           beforeText: `${s.baselineMean} complaints a month about ${theme.name} over the previous ${COMPLAINT_WINDOW_DAYS * COMPLAINT_BASELINE_PERIODS} days`,
           afterText: `${count(0)} complaints about ${theme.name} in the last ${COMPLAINT_WINDOW_DAYS} days`,
           details: {
-            changeType: 'review_spike', theme: theme.id, themeName: theme.name, verticalId, count: count(0), baselineMean: s.baselineMean, windowDays: COMPLAINT_WINDOW_DAYS, z: s.z,
+            changeType: 'review_spike', topic: theme.id, topicName: theme.name, verticalId, count: count(0), baselineMean: s.baselineMean, windowDays: COMPLAINT_WINDOW_DAYS, z: s.z,
           },
           stageVersion: COMPLAINT_STAGE_VERSION, detectedAt: now,
         })

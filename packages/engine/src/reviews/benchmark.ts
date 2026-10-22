@@ -108,7 +108,7 @@ export async function reviewBenchmark(deps: { db: Db; packs: PackLoader }, clien
   if (businesses.length === 0) return result;
 
   const rows = (await deps.db.execute(sql`
-    SELECT r.competitor_id, r.posted_at, r.rating, coalesce(a.asked, '[]'::jsonb) AS asked, coalesce(a.themes, '[]'::jsonb) AS themes, a.sentiment
+    SELECT r.competitor_id, r.posted_at, r.rating, coalesce(a.asked, '[]'::jsonb) AS asked, coalesce(a.topics, '[]'::jsonb) AS themes, a.sentiment
     FROM review r
     LEFT JOIN review_analysis a ON a.review_id = r.id AND a.vertical_id = ${c.verticalId}
     WHERE r.competitor_id = ANY(ARRAY[${sql.join(businesses.map((b) => sql`${b.id}`), sql`, `)}]::uuid[])

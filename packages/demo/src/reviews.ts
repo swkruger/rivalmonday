@@ -80,7 +80,7 @@ export async function seedReviews(ctx: SeedContext): Promise<void> {
     // Spike reviews: at least `count` low-rated reviews on the theme inside the `windowDays` ending at the event.
     for (const e of mine('review_spike')) {
       const d = detail(e);
-      for (let k = 0; k < Number(d.count); k++) plan.push({ days: e.days + 0.25 + 0.2 + rng.next() * (Number(d.windowDays) - 0.4), rating: rng.int(1, 2), themes: [String(d.theme) as HvacTheme], fixed: true });
+      for (let k = 0; k < Number(d.count); k++) plan.push({ days: e.days + 0.25 + 0.2 + rng.next() * (Number(d.windowDays) - 0.4), rating: rng.int(1, 2), themes: [String(d.topic) as HvacTheme], fixed: true });
     }
     for (let n = 0; n < t.count; n++) {
       // A rating_change business keeps 24 regular reviews after the event so its post-event mean can be shaped.
@@ -118,7 +118,7 @@ export async function seedReviews(ctx: SeedContext): Promise<void> {
       await ctx.db.insert(reviewAnalysis).values(inserted.map((r) => {
         const a = analyses.get(r.dedupeKey)!;
         return {
-          reviewId: r.id, verticalId: 'hvac_plumbing', competitorId: t.competitorId, textSha: sha(a.text), asked: [...pool], themes: a.themes,
+          reviewId: r.id, verticalId: 'hvac_plumbing', competitorId: t.competitorId, textSha: sha(a.text), asked: [...pool], topics: a.themes,
           other: false, sentiment: a.rating - 1, confidence: 0.9, needsReview: false, analysisVersion: 1, analyzedAt: a.analyzedAt,
         };
       }));

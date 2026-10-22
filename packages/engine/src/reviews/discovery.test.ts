@@ -1,5 +1,5 @@
 import type { Ai, BatchItemResult } from '@cs/ai';
-import { modelBatch, review, reviewAnalysis, themeProposal } from '@cs/db';
+import { modelBatch, review, reviewAnalysis, topicProposal } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,7 +22,7 @@ async function unthemed(count: number, analyzedAt = day(-1)) {
       .insert(review)
       .values({ competitorId: IDS.competitorX, dedupeKey: `id:${n++}`, rating: 2, text: `Thanks Mike, but the warranty claim was refused (${i})`, postedAt: day(-10) })
       .returning({ id: review.id });
-    await dbs.service.insert(reviewAnalysis).values({ reviewId: r!.id, verticalId: 'hvac_plumbing', competitorId: IDS.competitorX, textSha: 's', asked: [], themes: [], other: true, sentiment: 1, confidence: 0.9, analysisVersion: 1, analyzedAt });
+    await dbs.service.insert(reviewAnalysis).values({ reviewId: r!.id, verticalId: 'hvac_plumbing', competitorId: IDS.competitorX, textSha: 's', asked: [], topics: [], other: true, sentiment: 1, confidence: 0.9, analysisVersion: 1, analyzedAt });
   }
 }
 
@@ -43,8 +43,8 @@ describe('discoverTheme', () => {
     expect(ai.calls.chat[0]!.task).toBe('theme_discovery');
     expect(ai.calls.chat[0]!.content).not.toContain('Mike');
     expect(ai.calls.chat[0]!.content).toContain('price_transparency (Price transparency)');
-    const [p] = await dbs.owner.select().from(themeProposal);
-    expect(p).toMatchObject({ verticalId: 'hvac_plumbing', themeId: 'warranty_claims', name: 'Warranty claims', status: 'proposed', otherCount: 20 });
+    const [p] = await dbs.owner.select().from(topicProposal);
+    expect(p).toMatchObject({ verticalId: 'hvac_plumbing', topicId: 'warranty_claims', name: 'Warranty claims', status: 'proposed', otherCount: 20 });
     expect(p!.sampleReviewIds).toHaveLength(10);
     expect(await discoverTheme({ db: dbs.service, ai, packs }, 'hvac_plumbing', { now })).toEqual({ skipped: 'a proposal is awaiting approval' });
   });
@@ -80,8 +80,8 @@ describe('discoverTheme', () => {
     expect(second).toMatchObject({ status: 'none' }); // treated as invalid despite the model saying found=true
     expect(ai.calls.chat[0]!.content).toContain('REJECTED topics');
     expect(ai.calls.chat[0]!.content).toContain('warranty_claims');
-    const [p] = await dbs.owner.select().from(themeProposal).where(eq(themeProposal.id, (second as { proposalId: string }).proposalId));
-    expect(p).toMatchObject({ themeId: '', status: 'none' });
+    const [p] = await dbs.owner.select().from(topicProposal).where(eq(topicProposal.id, (second as { proposalId: string }).proposalId));
+    expect(p).toMatchObject({ topicId: '', status: 'none' });
   });
 
   it('needs at least 20 unthemed reviews', async () => {
@@ -95,7 +95,7 @@ describe('discoverTheme', () => {
     // theme id — before this run's own insert, simulated by racing it from inside the fake chat call.
     const raceAi: Ai = {
       async chat() {
-        await dbs.service.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'other_theme', name: 'Other', description: 'd', status: 'proposed', otherCount: 1 });
+        await dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'other_theme', name: 'Other', description: 'd', status: 'proposed', otherCount: 1 });
         return { text: JSON.stringify(WARRANTY), model: 'fake', inputTokens: 0, outputTokens: 0, costUsd: 0, cachedTokens: 0, toolCalls: [], finishReason: null };
       },
       async chatWithTools() {
@@ -112,9 +112,9 @@ describe('discoverTheme', () => {
       async collectBatch() { throw new Error('not used by this test'); },
     };
     expect(await discoverTheme({ db: dbs.service, ai: raceAi, packs }, 'hvac_plumbing', { now })).toEqual({ skipped: 'a proposal is awaiting approval' });
-    const proposed = await dbs.owner.select().from(themeProposal).where(eq(themeProposal.status, 'proposed'));
+    const proposed = await dbs.owner.select().from(topicProposal).where(eq(topicProposal.status, 'proposed'));
     expect(proposed).toHaveLength(1);
-    expect(proposed[0]).toMatchObject({ themeId: 'other_theme' });
+    expect(proposed[0]).toMatchObject({ topicId: 'other_theme' });
   });
 });
 
@@ -157,7 +157,7 @@ describe('batched theme discovery (Phase 3d decision 10)', () => {
     expect(ai.calls.batches).toHaveLength(1);
     expect(ai.calls.chat.map((c) => c.task)).toEqual(['theme_discovery']);
     expect(await dbs.service.select().from(modelBatch)).toEqual([]);
-    const [p] = await dbs.service.select().from(themeProposal);
+    const [p] = await dbs.service.select().from(topicProposal);
     expect(p).toMatchObject({ verticalId: 'hvac_plumbing', status: 'proposed' });
   });
 
@@ -183,7 +183,7 @@ describe('batched theme discovery (Phase 3d decision 10)', () => {
     expect(ai.calls.batches).toHaveLength(1);
     expect(ai.calls.chat).toEqual([]);
     expect(errors.join(' ')).toContain('msgbatch_orphan');
-    expect(await dbs.service.select().from(themeProposal)).toEqual([]);
+    expect(await dbs.service.select().from(topicProposal)).toEqual([]);
   });
 
   it('applies an ended batch: proposes the theme and closes the batch', async () => {
@@ -191,7 +191,7 @@ describe('batched theme discovery (Phase 3d decision 10)', () => {
     await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
     const ai = batching(() => ({ status: 'ended', results: [{ customId: 'hvac_plumbing', ok: true, text: JSON.stringify(WARRANTY), model: 'claude-sonnet-5', inputTokens: 1, outputTokens: 1 }] }));
     expect(await collectModelBatches({ db: dbs.service, ai }, { now })).toEqual({ checked: 1, ended: 1, applied: 1, failed: 0, expired: 0 });
-    expect((await dbs.owner.select().from(themeProposal))[0]).toMatchObject({ themeId: 'warranty_claims', status: 'proposed', otherCount: 20 });
+    expect((await dbs.owner.select().from(topicProposal))[0]).toMatchObject({ topicId: 'warranty_claims', status: 'proposed', otherCount: 20 });
     expect((await dbs.owner.select().from(modelBatch))[0]?.status).toBe('ended');
   });
 
@@ -199,17 +199,17 @@ describe('batched theme discovery (Phase 3d decision 10)', () => {
     await unthemed(20);
     await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
     await collectModelBatches({ db: dbs.service, ai: batching(() => ({ status: 'ended', results: [{ customId: 'hvac_plumbing', ok: false, error: 'expired' }] })) }, { now });
-    expect(await dbs.owner.select().from(themeProposal)).toEqual([]);
+    expect(await dbs.owner.select().from(topicProposal)).toEqual([]);
     expect((await discoverTheme({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now }))).toMatchObject({ status: 'proposed' });
   });
 
   it('a result for a vertical that got a pending proposal meanwhile is skipped, never a second pending row', async () => {
     await unthemed(20);
     await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
-    await dbs.service.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'other_theme', name: 'Other', description: 'd', status: 'proposed', otherCount: 1 });
+    await dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'other_theme', name: 'Other', description: 'd', status: 'proposed', otherCount: 1 });
     const ai = batching(() => ({ status: 'ended', results: [{ customId: 'hvac_plumbing', ok: true, text: JSON.stringify(WARRANTY), model: 'm', inputTokens: 1, outputTokens: 1 }] }));
     expect(await collectModelBatches({ db: dbs.service, ai }, { now })).toMatchObject({ ended: 1, applied: 0 });
-    expect((await dbs.owner.select().from(themeProposal)).filter((p) => p.status === 'proposed')).toHaveLength(1);
+    expect((await dbs.owner.select().from(topicProposal)).filter((p) => p.status === 'proposed')).toHaveLength(1);
   });
 
   it('marks a batch still unfinished after 26 hours as failed', async () => {

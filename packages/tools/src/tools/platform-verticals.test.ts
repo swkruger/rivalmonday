@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { capture, catalogRows, clientSetup, changeEvent, client, platformAdmin, playbookOverride, priceBlockMap, pricePoint, review, reviewAnalysis, themeProposal, trackedPage, agencyProfile, llmCall } from '@cs/db';
+import { capture, catalogRows, clientSetup, changeEvent, client, platformAdmin, playbookOverride, priceBlockMap, pricePoint, review, reviewAnalysis, topicProposal, trackedPage, agencyProfile, llmCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createCatalog } from '@cs/verticals';
 import { eq, sql } from 'drizzle-orm';
@@ -63,9 +63,9 @@ async function seedMergeData(): Promise<void> {
   const [r] = await dbs.owner.insert(review).values({ competitorId: IDS.competitorX, dedupeKey: 'id:r1', rating: 4, text: 'Nice' }).returning({ id: review.id });
   await dbs.owner.insert(reviewAnalysis).values({ reviewId: r!.id, verticalId: 'distillery', competitorId: IDS.competitorX, textSha: 's', confidence: 0.9, analysisVersion: 1 });
   await dbs.owner.insert(priceBlockMap).values({ textSha: 'abc', verticalId: 'distillery', serviceId: 'tasting_room', confidence: 0.9 });
-  await dbs.owner.insert(themeProposal).values([
-    { verticalId: 'distillery', themeId: 'tours', name: 'Tours', description: 'd', otherCount: 20 },
-    { verticalId: 'distillery', themeId: 'old', name: 'Old', description: 'd', otherCount: 20, status: 'approved' },
+  await dbs.owner.insert(topicProposal).values([
+    { verticalId: 'distillery', topicId: 'tours', name: 'Tours', description: 'd', otherCount: 20 },
+    { verticalId: 'distillery', topicId: 'old', name: 'Old', description: 'd', otherCount: 20, status: 'approved' },
   ]);
   await dbs.owner.insert(playbookOverride).values([
     { agencyId: IDS.agencyA, verticalId: 'distillery', playbookId: 'pb1', title: 'src', updatedBy: 'x' },
@@ -116,7 +116,7 @@ describe('merge_vertical', () => {
 
     expect(await q(sql`select 1 from review_analysis`)).toHaveLength(0);
     expect(await q(sql`select 1 from price_block_map`)).toHaveLength(0);
-    expect(await q<{ status: string }>(sql`select status from theme_proposal`)).toEqual([{ status: 'approved' }]);
+    expect(await q<{ status: string }>(sql`select status from topic_proposal`)).toEqual([{ status: 'approved' }]);
 
     const pbs = await q<{ vertical_id: string; playbook_id: string; title: string }>(sql`select vertical_id, playbook_id, title from playbook_override order by playbook_id`);
     expect(pbs).toEqual([

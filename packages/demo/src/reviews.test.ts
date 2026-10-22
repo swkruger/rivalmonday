@@ -35,14 +35,14 @@ describe('seedReviews', () => {
   it('uses the pack’s theme ids, covers every theme, and leaves one business/theme cell empty on purpose', async () => {
     const pack = await loadVerticalPack('hvac_plumbing');
     expect([...HVAC_THEMES].sort()).toEqual(pack.themes.map((t) => t.id).sort());
-    const rows = await dbs.owner.select({ competitorId: reviewAnalysis.competitorId, asked: reviewAnalysis.asked, themes: reviewAnalysis.themes }).from(reviewAnalysis);
+    const rows = await dbs.owner.select({ competitorId: reviewAnalysis.competitorId, asked: reviewAnalysis.asked, themes: reviewAnalysis.topics }).from(reviewAnalysis);
     for (const t of HVAC_THEMES) expect(rows.some((r) => r.themes.includes(t))).toBe(true);
     const hill = ctx.ids.competitors.loneStar[0]!.id;
     expect(rows.filter((r) => r.competitorId === hill).some((r) => r.asked.includes('cleanliness'))).toBe(false);
   });
 
   it('pairs each analysis with its own review (theme phrases agree with the analysed themes)', async () => {
-    const rows = await dbs.owner.select({ text: review.text, themes: reviewAnalysis.themes }).from(reviewAnalysis).innerJoin(review, eq(review.id, reviewAnalysis.reviewId));
+    const rows = await dbs.owner.select({ text: review.text, themes: reviewAnalysis.topics }).from(reviewAnalysis).innerJoin(review, eq(review.id, reviewAnalysis.reviewId));
     const late = rows.find((r) => r.text?.includes(LATE_PHRASE));
     expect(late?.themes).toEqual(['scheduling', 'communication']);
   });
@@ -73,11 +73,11 @@ describe('seedReviews', () => {
     const spikes = EVENT_SPECS.filter((e) => e.type === 'review_spike');
     expect(spikes.length).toBeGreaterThan(0);
     for (const e of spikes) {
-      const d = e.details as unknown as { theme: string; count: number; windowDays: number };
+      const d = e.details as unknown as { topic: string; count: number; windowDays: number };
       const compId = ctx.ids.competitors[e.client][e.comp]!.id;
       const end = ctx.clock.now.getTime() - (e.days + 0.25) * 86_400_000;
-      const rows = await dbs.owner.select({ postedAt: review.postedAt, rating: review.rating, themes: reviewAnalysis.themes }).from(review).innerJoin(reviewAnalysis, eq(reviewAnalysis.reviewId, review.id)).where(eq(review.competitorId, compId));
-      const inWindow = rows.filter((r) => r.themes.includes(d.theme) && (r.rating ?? 5) <= 2 && r.postedAt!.getTime() <= end && r.postedAt!.getTime() >= end - d.windowDays * 86_400_000);
+      const rows = await dbs.owner.select({ postedAt: review.postedAt, rating: review.rating, themes: reviewAnalysis.topics }).from(review).innerJoin(reviewAnalysis, eq(reviewAnalysis.reviewId, review.id)).where(eq(review.competitorId, compId));
+      const inWindow = rows.filter((r) => r.themes.includes(d.topic) && (r.rating ?? 5) <= 2 && r.postedAt!.getTime() <= end && r.postedAt!.getTime() >= end - d.windowDays * 86_400_000);
       expect(inWindow.length).toBeGreaterThanOrEqual(d.count);
     }
   });

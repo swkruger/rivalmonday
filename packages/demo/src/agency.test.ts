@@ -1,4 +1,4 @@
-import { agency, agencyBilling, agencyWebhook, invitation, notification, notificationPref, prospectReport, themeProposal } from '@cs/db';
+import { agency, agencyBilling, agencyWebhook, invitation, notification, notificationPref, prospectReport, topicProposal } from '@cs/db';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { createPackLoader, listOpenReviews, reviewQuestions } from '@cs/engine';
 import { createMemoryStore } from '@cs/storage';
@@ -68,7 +68,7 @@ describe('seedAgency', () => {
 
 describe('seedPlatform', () => {
   it('queues one pending theme proposal per vertical and keeps two recent decisions (deviation 1)', async () => {
-    const rows = await dbs.owner.select().from(themeProposal);
+    const rows = await dbs.owner.select().from(topicProposal);
     expect(rows.filter((r) => r.status === 'proposed').map((r) => r.verticalId).sort()).toEqual(['dental', 'hvac_plumbing']);
     expect(rows.filter((r) => r.status === 'approved' || r.status === 'rejected')).toHaveLength(2);
   });

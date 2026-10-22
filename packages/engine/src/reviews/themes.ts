@@ -1,6 +1,6 @@
 import type { Ai, DecisionQuestion, DecisionResult } from '@cs/ai';
 import { redactForModel, sha256Hex } from '@cs/collectors';
-import { competitor, type Db, review, reviewAnalysis, themeProposal } from '@cs/db';
+import { competitor, type Db, review, reviewAnalysis, topicProposal } from '@cs/db';
 import type { VerticalPack } from '@cs/verticals';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
@@ -39,10 +39,10 @@ export function reviewSubjectId(reviewId: string, text: string): string {
 export async function themesForVertical(db: Db, pack: VerticalPack): Promise<Theme[]> {
   const seed: Theme[] = pack.themes.map((t) => ({ id: t.id, name: t.name, description: t.description }));
   const approved = await db
-    .select({ id: themeProposal.themeId, name: themeProposal.name, description: themeProposal.description })
-    .from(themeProposal)
-    .where(and(eq(themeProposal.verticalId, pack.id), eq(themeProposal.status, 'approved')))
-    .orderBy(asc(themeProposal.decidedAt));
+    .select({ id: topicProposal.topicId, name: topicProposal.name, description: topicProposal.description })
+    .from(topicProposal)
+    .where(and(eq(topicProposal.verticalId, pack.id), eq(topicProposal.status, 'approved')))
+    .orderBy(asc(topicProposal.decidedAt));
   return [...seed, ...approved.filter((a) => !seed.some((s) => s.id === a.id))];
 }
 
@@ -84,7 +84,7 @@ export function resolveReviewAnalysis(
   return verticals.map(({ pack, themes }) => {
     const asked = themes.map((t) => t.id).filter((id) => a[themeKey(pack.id, id)] !== undefined && !low.has(themeKey(pack.id, id)));
     return {
-      ...base, verticalId: pack.id, asked, themes: asked.filter((id) => yes(themeKey(pack.id, id))), other: yes(otherKey(pack.id)),
+      ...base, verticalId: pack.id, asked, topics: asked.filter((id) => yes(themeKey(pack.id, id))), other: yes(otherKey(pack.id)),
       sentiment, confidence, needsReview: low.size > 0, analysisVersion: REVIEW_VERSION,
     };
   });
@@ -129,7 +129,7 @@ export async function analyzeReview(deps: { db: Db; ai: Ai; packs: PackLoader },
           .onConflictDoUpdate({
             target: [reviewAnalysis.reviewId, reviewAnalysis.verticalId],
             set: {
-              textSha: r.textSha, asked: r.asked, themes: r.themes, other: r.other, sentiment: r.sentiment, confidence: r.confidence,
+              textSha: r.textSha, asked: r.asked, topics: r.topics, other: r.other, sentiment: r.sentiment, confidence: r.confidence,
               needsReview: r.needsReview, analysisVersion: r.analysisVersion, analyzedAt: sql`now()`,
             },
           });

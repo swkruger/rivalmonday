@@ -14,7 +14,7 @@ let n = 0;
 
 async function complaint(postedAt: Date, sentiment: number, theme = 'price_transparency') {
   const [r] = await dbs.service.insert(review).values({ competitorId: IDS.competitorX, dedupeKey: `id:${n++}`, rating: 1, text: 'x', postedAt }).returning({ id: review.id });
-  await dbs.service.insert(reviewAnalysis).values({ reviewId: r!.id, verticalId: 'hvac_plumbing', competitorId: IDS.competitorX, textSha: 's', asked: [theme], themes: [theme], sentiment, confidence: 0.9, analysisVersion: 1 });
+  await dbs.service.insert(reviewAnalysis).values({ reviewId: r!.id, verticalId: 'hvac_plumbing', competitorId: IDS.competitorX, textSha: 's', asked: [theme], topics: [theme], sentiment, confidence: 0.9, analysisVersion: 1 });
 }
 
 beforeEach(async () => {
@@ -44,7 +44,7 @@ describe('detectComplaintSpikes', () => {
     const [c] = await dbs.owner.select().from(detectedChange);
     expect(c).toMatchObject({
       source: 'google_reviews', kind: 'modified', beforeCaptureId: before, afterCaptureId: latest, blockKey: 'reviews:complaints:hvac_plumbing:price_transparency', status: 'pending',
-      details: { changeType: 'review_spike', theme: 'price_transparency', themeName: 'Price transparency', verticalId: 'hvac_plumbing', count: 4, baselineMean: 0.67, windowDays: 30, z: 3.33 },
+      details: { changeType: 'review_spike', topic: 'price_transparency', topicName: 'Price transparency', verticalId: 'hvac_plumbing', count: 4, baselineMean: 0.67, windowDays: 30, z: 3.33 },
     });
     expect(c!.afterText).toBe('4 complaints about Price transparency in the last 30 days');
     expect(await detectComplaintSpikes({ db: dbs.service, packs }, IDS.competitorX, { now })).toEqual([]);

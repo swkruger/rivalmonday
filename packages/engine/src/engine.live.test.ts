@@ -52,8 +52,8 @@ describe.skipIf(!key)('engine models (live)', () => {
     expect(state.review).not.toContain('Mike');
     const result = await ai.decide('review_decisions', state, buildReviewQuestions(verticals), scope);
     const [row] = resolveReviewAnalysis(result, verticals, { reviewId: 'live', competitorId: 'live', textSha: 'live' });
-    console.log(`[live] review ${JSON.stringify({ themes: row!.themes, sentiment: row!.sentiment, providers: Object.fromEntries(Object.entries(result.answers).map(([k, v]) => [k, `${v.provider}:${v.confidence.toFixed(2)}`])) })}`);
-    expect(row!.themes).toContain('price_transparency');
+    console.log(`[live] review ${JSON.stringify({ themes: row!.topics, sentiment: row!.sentiment, providers: Object.fromEntries(Object.entries(result.answers).map(([k, v]) => [k, `${v.provider}:${v.confidence.toFixed(2)}`])) })}`);
+    expect(row!.topics).toContain('price_transparency');
     expect(row!.sentiment).not.toBeNull();
     expect(row!.sentiment!).toBeLessThanOrEqual(1);
   }, 60_000);

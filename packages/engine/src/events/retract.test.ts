@@ -128,7 +128,7 @@ describe('stage-version supersede (Phase 3d decision 7)', () => {
     const { cap } = await webCapture();
     const current = await change(cap, { stageVersion: WEB_DIFF_VERSION, blockKey: 'body>p#1' });
     const reviews = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_reviews', capturedAt: day(1) });
-    const spike = await change(reviews, { source: 'google_reviews', blockKey: 'complaint:hvac_plumbing:response_time', stageVersion: 1, details: { changeType: 'review_spike', theme: 'response_time' } });
+    const spike = await change(reviews, { source: 'google_reviews', blockKey: 'complaint:hvac_plumbing:response_time', stageVersion: 1, details: { changeType: 'review_spike', topic: 'response_time' } });
     const r = await dbs.service.transaction(async (tx) => ({
       web: await supersedePriorChanges(tx, { afterCaptureId: cap, source: 'web' }, WEB_DIFF_VERSION),
       vendor: await supersedePriorChanges(tx, { afterCaptureId: reviews, source: 'google_reviews' }, 99),

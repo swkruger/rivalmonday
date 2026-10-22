@@ -7,7 +7,7 @@ import { competitor } from './tenancy';
 const ts = (name: string) => timestamp(name, { withTimezone: true });
 const competitorRef = () => uuid('competitor_id').notNull().references(() => competitor.id, { onDelete: 'cascade' });
 
-export type ThemeProposalStatus = 'proposed' | 'approved' | 'rejected' | 'none';
+export type TopicProposalStatus = 'proposed' | 'approved' | 'rejected' | 'none';
 export type PriceQualifier = 'exact' | 'from' | 'up_to';
 
 /** Themes and sentiment of one review for one vertical (spec §6.5). Global, derived; written by the review_themes stage. */
@@ -22,7 +22,7 @@ export const reviewAnalysis = pgTable(
     /** Theme ids asked with enough confidence — the denominator of a theme's share. */
     asked: jsonb('asked').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     /** Theme ids the review talks about (subset of `asked`). */
-    themes: jsonb('themes').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    topics: jsonb('topics').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     /** Raises a topic none of the asked themes covers (feeds theme discovery). */
     other: boolean('other').notNull().default(false),
     /** 0 very negative … 4 very positive; null when below confidence. */
@@ -36,16 +36,16 @@ export const reviewAnalysis = pgTable(
 );
 
 /** An LLM-proposed review theme awaiting AM approval (spec §6.5 theme discovery). Per vertical, platform-wide. Service role only. */
-export const themeProposal = pgTable(
-  'theme_proposal',
+export const topicProposal = pgTable(
+  'topic_proposal',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     verticalId: text('vertical_id').notNull(),
     /** Slug; '' for a 'none' row (the model found no new theme). */
-    themeId: text('theme_id').notNull(),
+    topicId: text('topic_id').notNull(),
     name: text('name').notNull(),
     description: text('description').notNull(),
-    status: text('status').$type<ThemeProposalStatus>().notNull().default('proposed'),
+    status: text('status').$type<TopicProposalStatus>().notNull().default('proposed'),
     /** Unthemed "other" reviews that triggered the proposal. */
     otherCount: integer('other_count').notNull(),
     sampleReviewIds: jsonb('sample_review_ids').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
@@ -54,10 +54,10 @@ export const themeProposal = pgTable(
     decidedBy: text('decided_by'),
   },
   (t) => [
-    uniqueIndex('theme_proposal_live_unique').on(t.verticalId, t.themeId).where(sql`status IN ('proposed', 'approved')`),
+    uniqueIndex('topic_proposal_live_unique').on(t.verticalId, t.topicId).where(sql`status IN ('proposed', 'approved')`),
     /** At most one proposal awaiting a decision per vertical, regardless of theme id — closes the discoverTheme check-then-insert race. */
-    uniqueIndex('theme_proposal_pending_unique').on(t.verticalId).where(sql`status = 'proposed'`),
-    index('theme_proposal_vertical_idx').on(t.verticalId, t.createdAt),
+    uniqueIndex('topic_proposal_pending_unique').on(t.verticalId).where(sql`status = 'proposed'`),
+    index('topic_proposal_vertical_idx').on(t.verticalId, t.createdAt),
   ],
 );
 

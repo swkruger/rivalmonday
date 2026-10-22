@@ -203,16 +203,16 @@ export function detectMoves(all: MoveEvent[], ctx: MoveContext): MoveFinding[] {
   const drop = ratingDrawdown(ratings);
   const ratingSlump = ratings.length > 0 && drop >= t.rating_drop_90d;
   const complaints = events.filter(
-    (e) => e.changeType === 'review_spike' && e.details.theme !== undefined && (e.details.verticalId ?? ctx.verticalId) === ctx.verticalId && within(e, now, COMPLAINT_WINDOW_DAYS),
+    (e) => e.changeType === 'review_spike' && e.details.topic !== undefined && (e.details.verticalId ?? ctx.verticalId) === ctx.verticalId && within(e, now, COMPLAINT_WINDOW_DAYS),
   );
-  const themeNames = [...new Set(complaints.map((e) => e.details.themeName ?? e.details.theme!))];
+  const themeNames = [...new Set(complaints.map((e) => e.details.topicName ?? e.details.topic!))];
   if (ratingSlump || complaints.length > 0) {
     const parts = [...(ratingSlump ? [`Google rating down ${drop} in 90 days`] : []), ...(themeNames.length > 0 ? [`rising complaints about ${themeNames.join(', ')}`] : [])];
     const summary = parts.join('; ');
     out.push(
       finding('reputation_slump', [...(ratingSlump ? ratings : []), ...complaints], 1, summary.charAt(0).toUpperCase() + summary.slice(1), {
         ...(ratingSlump ? { ratingDrop: drop } : {}),
-        ...(themeNames.length > 0 ? { theme: themeNames.join(', ') } : {}),
+        ...(themeNames.length > 0 ? { topic: themeNames.join(', ') } : {}),
       }),
     );
   }

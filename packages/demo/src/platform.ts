@@ -1,4 +1,4 @@
-import { capture, decisionReview, detectedChange, themeProposal } from '@cs/db';
+import { capture, decisionReview, detectedChange, topicProposal } from '@cs/db';
 import { DAY } from './clock';
 import type { SeedContext } from './context';
 import { DEMO_COLLECTOR } from './tenancy';
@@ -7,11 +7,11 @@ import { DEMO_COLLECTOR } from './tenancy';
 async function seedThemeProposals(ctx: SeedContext): Promise<void> {
   const { db, ids, clock } = ctx;
   const samples = ids.sampleReviewIds;
-  await db.insert(themeProposal).values([
-    { verticalId: 'hvac_plumbing', themeId: 'warranty_handling', name: 'Warranty handling', description: 'How the company honours parts and labour warranties', status: 'proposed', otherCount: 14, sampleReviewIds: samples, createdAt: clock.daysAgo(3) },
-    { verticalId: 'dental', themeId: 'parking_access', name: 'Parking & access', description: 'Parking, step-free access and finding the office', status: 'proposed', otherCount: 9, sampleReviewIds: [], createdAt: clock.daysAgo(4) },
-    { verticalId: 'hvac_plumbing', themeId: 'financing_clarity', name: 'Financing clarity', description: 'Clear terms on financing offers', status: 'approved', otherCount: 11, sampleReviewIds: [], createdAt: clock.daysAgo(9), decidedAt: clock.daysAgo(5), decidedBy: ids.users.operator.userId },
-    { verticalId: 'hvac_plumbing', themeId: 'noise_level', name: 'Noise level', description: 'Noise of new equipment after install', status: 'rejected', otherCount: 6, sampleReviewIds: [], createdAt: clock.daysAgo(15), decidedAt: clock.daysAgo(12), decidedBy: ids.users.operator.userId },
+  await db.insert(topicProposal).values([
+    { verticalId: 'hvac_plumbing', topicId: 'warranty_handling', name: 'Warranty handling', description: 'How the company honours parts and labour warranties', status: 'proposed', otherCount: 14, sampleReviewIds: samples, createdAt: clock.daysAgo(3) },
+    { verticalId: 'dental', topicId: 'parking_access', name: 'Parking & access', description: 'Parking, step-free access and finding the office', status: 'proposed', otherCount: 9, sampleReviewIds: [], createdAt: clock.daysAgo(4) },
+    { verticalId: 'hvac_plumbing', topicId: 'financing_clarity', name: 'Financing clarity', description: 'Clear terms on financing offers', status: 'approved', otherCount: 11, sampleReviewIds: [], createdAt: clock.daysAgo(9), decidedAt: clock.daysAgo(5), decidedBy: ids.users.operator.userId },
+    { verticalId: 'hvac_plumbing', topicId: 'noise_level', name: 'Noise level', description: 'Noise of new equipment after install', status: 'rejected', otherCount: 6, sampleReviewIds: [], createdAt: clock.daysAgo(15), decidedAt: clock.daysAgo(12), decidedBy: ids.users.operator.userId },
   ]);
 }
 

@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { errorText, IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
-import { capture, client, competitor, priceBlockMap, pricePoint, review, reviewAnalysis, themeProposal, trackedPage } from './schema';
+import { capture, client, competitor, priceBlockMap, pricePoint, review, reviewAnalysis, topicProposal, trackedPage } from './schema';
 import { withTenant } from './tenant';
 
 const dbs = openTestDbs();
@@ -26,9 +26,9 @@ beforeEach(async () => {
     ])
     .returning({ id: review.id, competitorId: review.competitorId });
   await dbs.service.insert(reviewAnalysis).values(
-    reviews.map((r) => ({ reviewId: r.id, verticalId: 'hvac_plumbing', competitorId: r.competitorId, textSha: 'sha', asked: ['price_transparency'], themes: ['price_transparency'], sentiment: 1, confidence: 0.9, analysisVersion: 1 })),
+    reviews.map((r) => ({ reviewId: r.id, verticalId: 'hvac_plumbing', competitorId: r.competitorId, textSha: 'sha', asked: ['price_transparency'], topics: ['price_transparency'], sentiment: 1, confidence: 0.9, analysisVersion: 1 })),
   );
-  await dbs.service.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'warranty', name: 'Warranty', description: 'Honouring warranties', otherCount: 25 });
+  await dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'warranty', name: 'Warranty', description: 'Honouring warranties', otherCount: 25 });
   await dbs.service.insert(priceBlockMap).values({ textSha: 'abc', verticalId: 'hvac_plumbing', serviceId: 'ac_tune_up', confidence: 0.95 });
   await dbs.service.insert(trackedPage).values({ id: PAGE_X, competitorId: IDS.competitorX, url: 'https://smithhvac.example/pricing', pageType: 'pricing', source: 'manual', cadence: 'daily' });
   await dbs.service.insert(capture).values({ id: CAP_X, competitorId: IDS.competitorX, trackedPageId: PAGE_X, source: 'web', status: 'ok', collectorVersion: 'web/1' });
@@ -54,7 +54,7 @@ describe('review and price insight tables', () => {
 
   it('theme proposals and the price-block cache are service-only', async () => {
     await withTenant(dbs.app, A1, async (tx) => {
-      expect(await tx.select().from(themeProposal)).toEqual([]);
+      expect(await tx.select().from(topicProposal)).toEqual([]);
       expect(await tx.select().from(priceBlockMap)).toEqual([]);
     });
   });
@@ -83,20 +83,20 @@ describe('review and price insight tables', () => {
   });
 
   it('one live (proposed or approved) proposal per vertical theme id; rejected and none rows may repeat', async () => {
-    expect(await errorText(dbs.service.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'warranty', name: 'W', description: 'd', otherCount: 1 }))).toMatch(
-      /theme_proposal_live_unique/,
+    expect(await errorText(dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'warranty', name: 'W', description: 'd', otherCount: 1 }))).toMatch(
+      /topic_proposal_live_unique/,
     );
-    await dbs.service.insert(themeProposal).values([
-      { verticalId: 'hvac_plumbing', themeId: '', name: '', description: '', status: 'none', otherCount: 20 },
-      { verticalId: 'hvac_plumbing', themeId: '', name: '', description: '', status: 'none', otherCount: 21 },
+    await dbs.service.insert(topicProposal).values([
+      { verticalId: 'hvac_plumbing', topicId: '', name: '', description: '', status: 'none', otherCount: 20 },
+      { verticalId: 'hvac_plumbing', topicId: '', name: '', description: '', status: 'none', otherCount: 21 },
     ]);
   });
 
   it('at most one proposed proposal per vertical, even for a different theme id; a none row is still insertable while one is pending', async () => {
     // beforeEach already seeded a 'proposed' warranty row for hvac_plumbing.
     expect(
-      await errorText(dbs.service.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'other_theme', name: 'Other', description: 'd', otherCount: 1 })),
-    ).toMatch(/theme_proposal_pending_unique/);
-    await dbs.service.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: '', name: '', description: '', status: 'none', otherCount: 22 });
+      await errorText(dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'other_theme', name: 'Other', description: 'd', otherCount: 1 })),
+    ).toMatch(/topic_proposal_pending_unique/);
+    await dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: '', name: '', description: '', status: 'none', otherCount: 22 });
   });
 });

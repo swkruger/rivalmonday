@@ -120,7 +120,7 @@ describe('findEngineWork', () => {
     // A2 is dental and tracks Y; a hvac complaint spike on Y has no hvac client to score it for.
     const [ev] = await dbs.service
       .insert(changeEvent)
-      .values({ competitorId: IDS.competitorY, changeType: 'review_spike', summary: 's', confidence: 1, occurredAt: new Date(), details: { verticalId: 'hvac_plumbing', theme: 'response_time' } })
+      .values({ competitorId: IDS.competitorY, changeType: 'review_spike', summary: 's', confidence: 1, occurredAt: new Date(), details: { verticalId: 'hvac_plumbing', topic: 'response_time' } })
       .returning({ id: changeEvent.id });
     expect((await findEngineWork(dbs.service, { limit: 10 })).score).not.toContain(ev!.id);
   });

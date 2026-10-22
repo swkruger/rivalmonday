@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { currentStandardPlan, ensureExemptPilot } from '@cs/billing';
 import { signLink } from '@cs/core/server';
-import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, businessArea, catalogRows, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, intakeLink, lead, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankMapImage, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, themeProposal, trackedPage, vertical } from '@cs/db';
+import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, businessArea, catalogRows, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, intakeLink, lead, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankMapImage, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, topicProposal, trackedPage, vertical } from '@cs/db';
 import { copyItems, createClientRunbookIfAbsent, ensureAgencyRunbook, readRunbookItems } from '@cs/engine';
 import { createStoreFromEnv } from '@cs/storage';
 import { createCatalog } from '@cs/verticals';
@@ -182,7 +182,7 @@ export async function seed(): Promise<void> {
         businesses: [{ competitorId: rival!.id, name: 'Bright Smiles E2E', self: false, gbp: { rating: 4.4, reviews: 120, category: 'Dentist', extraCategories: 1 }, ads: { google: 2, meta: null }, ranks: [{ keyword: 'dentist', found: 5, top3: 2, averageRank: 3.4 }] }],
       },
     });
-    await db.insert(themeProposal).values({ verticalId: 'hvac_plumbing', themeId: 'e2e_hidden_fees', name: 'E2E hidden fees', description: 'Unexpected trip fees', otherCount: 12, sampleReviewIds: [] });
+    await db.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'e2e_hidden_fees', name: 'E2E hidden fees', description: 'Unexpected trip fees', otherCount: 12, sampleReviewIds: [] });
 
     const [ownerContact] = await db.insert(contact).values({ agencyId, clientId, role: 'client_owner', email: 'owner@e2e.test' }).returning();
 
@@ -306,8 +306,8 @@ async function seedWorkspace(
   const [r1] = await db.insert(review).values({ competitorId, dedupeKey: 'e2e-r1', rating: 2, text: 'The technician was late and pushy.', reviewerHash: 'e2e-hash-1', postedAt: ago(3) }).returning();
   const [r2] = await db.insert(review).values({ competitorId: self!.id, dedupeKey: 'e2e-r2', rating: 5, text: 'Fast and friendly service.', reviewerHash: 'e2e-hash-2', postedAt: ago(4) }).returning();
   await db.insert(reviewAnalysis).values([
-    { reviewId: r1!.id, verticalId: 'hvac_plumbing', competitorId, textSha: 'e2e', asked: ['response_time', 'upsell_pressure'], themes: ['response_time', 'upsell_pressure'], sentiment: 0, confidence: 0.9, analysisVersion: 1 },
-    { reviewId: r2!.id, verticalId: 'hvac_plumbing', competitorId: self!.id, textSha: 'e2e', asked: ['response_time'], themes: ['response_time'], sentiment: 4, confidence: 0.9, analysisVersion: 1 },
+    { reviewId: r1!.id, verticalId: 'hvac_plumbing', competitorId, textSha: 'e2e', asked: ['response_time', 'upsell_pressure'], topics: ['response_time', 'upsell_pressure'], sentiment: 0, confidence: 0.9, analysisVersion: 1 },
+    { reviewId: r2!.id, verticalId: 'hvac_plumbing', competitorId: self!.id, textSha: 'e2e', asked: ['response_time'], topics: ['response_time'], sentiment: 4, confidence: 0.9, analysisVersion: 1 },
   ]);
 
   // Phase 13b: three weekly scans (the oldest with a 5×5 grid, so Compare refuses it against the others) and, newest, a

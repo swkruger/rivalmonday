@@ -106,10 +106,10 @@ export const searchReviews = defineTool({
     const conds: SQL[] = [inArray(review.competitorId, [...byId.keys()]), gte(review.postedAt, new Date(Date.now() - input.days * DAY))];
     if (input.stars) conds.push(eq(review.rating, input.stars));
     if (input.text) conds.push(ilike(review.text, `%${escapeLike(input.text)}%`));
-    if (input.themeId) conds.push(sql`${reviewAnalysis.themes} @> ${JSON.stringify([input.themeId])}::jsonb`);
+    if (input.themeId) conds.push(sql`${reviewAnalysis.topics} @> ${JSON.stringify([input.themeId])}::jsonb`);
     // Global review rows - visibility proved by workspaceBusinesses (RLS). reviewer_hash is never selected (spec 4.5).
     const rows = await deps.service
-      .select({ id: review.id, competitorId: review.competitorId, rating: review.rating, text: review.text, postedAt: review.postedAt, ownerAnswer: review.ownerAnswer, themes: reviewAnalysis.themes, sentiment: reviewAnalysis.sentiment })
+      .select({ id: review.id, competitorId: review.competitorId, rating: review.rating, text: review.text, postedAt: review.postedAt, ownerAnswer: review.ownerAnswer, themes: reviewAnalysis.topics, sentiment: reviewAnalysis.sentiment })
       .from(review)
       .leftJoin(reviewAnalysis, and(eq(reviewAnalysis.reviewId, review.id), eq(reviewAnalysis.verticalId, c.verticalId)))
       .where(and(...conds))

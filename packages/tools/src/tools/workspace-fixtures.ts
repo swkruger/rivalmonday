@@ -293,7 +293,7 @@ export async function seedReview(o: SeedReviewOptions = {}): Promise<string> {
   }).returning();
   if (o.analysis) {
     await dbs.owner.insert(reviewAnalysis).values({
-      reviewId: r!.id, verticalId: o.verticalId ?? 'hvac_plumbing', competitorId, textSha: 'sha', asked: o.analysis.asked, themes: o.analysis.themes,
+      reviewId: r!.id, verticalId: o.verticalId ?? 'hvac_plumbing', competitorId, textSha: 'sha', asked: o.analysis.asked, topics: o.analysis.themes,
       sentiment: o.analysis.sentiment, confidence: 0.9, analysisVersion: 1,
     });
   }
