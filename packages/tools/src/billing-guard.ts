@@ -8,7 +8,7 @@ import { platformConsoleTools } from './tools/platform-console';
 import { platformCostTools } from './tools/platform-costs';
 import { platformSignupsTools } from './tools/platform-signups';
 import { supportTools } from './tools/support';
-import { themeTools } from './tools/themes';
+import { topicTools } from './tools/topics';
 
 export const SERVICE_PAUSED_MESSAGE = 'Service is paused. Update your payment method to resume.';
 const PAUSED_AGENCY_STAFF_MESSAGE = ACCOUNT_NEEDS_ATTENTION_MESSAGE;
@@ -29,7 +29,7 @@ export async function postCommitSeatSync(deps: ToolDeps, agencyId: string): Prom
 }
 
 /** Platform-operator tools act on the platform, not on a paying agency, so a paused home agency never blocks them. Derived from the module arrays, not guessed names. */
-const PLATFORM_TOOLS: readonly string[] = [...platformConsoleTools, ...platformBillingTools, ...platformSignupsTools, ...platformCostTools, ...modelOpsTools, ...knowledgeAdminTools, ...supportTools, ...themeTools].map((t) => t.name);
+const PLATFORM_TOOLS: readonly string[] = [...platformConsoleTools, ...platformBillingTools, ...platformSignupsTools, ...platformCostTools, ...modelOpsTools, ...knowledgeAdminTools, ...supportTools, ...topicTools].map((t) => t.name);
 
 /**
  * Writes that stay open while the agency is `read_only`/`suspended`: paying to resume, managing who has access, and

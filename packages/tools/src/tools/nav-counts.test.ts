@@ -20,7 +20,7 @@ const supportA = mk('op', 'agency_admin', 'all', { support: { sessionId: '000000
 
 const call = <T>(ctx: AccessContext, tool: string) => registry.invoke(ctx, tool, {}) as Promise<T>;
 type AgencyCounts = { approvals: number; alerts: number; leads: number };
-type PlatformCounts = { modelReviews: number; themes: number };
+type PlatformCounts = { modelReviews: number; topics: number };
 
 const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
 
@@ -120,7 +120,7 @@ describe('get_platform_nav_counts', () => {
     await mkDecisionReview('cosmetic');
     await mkDecisionReview('cosmetic', true);
     await mkDecisionReview('superseded');
-    // Theme proposals: two proposed, one approved recently (listed as decided, not pending).
+    // Topic proposals: two proposed, one approved recently (listed as decided, not pending).
     const [rv] = await dbs.service.insert(review).values({ competitorId: IDS.competitorX, dedupeKey: 'k1', rating: 2, text: 'Trip fee.' }).returning();
     await dbs.service.insert(topicProposal).values([
       { verticalId: 'hvac_plumbing', topicId: 'hidden_fees', name: 'Hidden fees', description: 'd', otherCount: 14, sampleReviewIds: [rv!.id] },
@@ -131,10 +131,10 @@ describe('get_platform_nav_counts', () => {
 
   it('counts exactly the open rows the platform queue pages list', async () => {
     const counts = await call<PlatformCounts>(op, 'get_platform_nav_counts');
-    expect(counts).toEqual({ modelReviews: 2, themes: 2 });
+    expect(counts).toEqual({ modelReviews: 2, topics: 2 });
     const reviews = (await call<{ items: unknown[] }>(op, 'list_decision_reviews')).items;
-    const themes = (await call<{ pending: unknown[] }>(op, 'list_theme_proposals')).pending;
-    expect(counts).toEqual({ modelReviews: reviews.length, themes: themes.length });
+    const topics = (await call<{ pending: unknown[] }>(op, 'list_topic_proposals')).pending;
+    expect(counts).toEqual({ modelReviews: reviews.length, topics: topics.length });
   });
 
   it('looks unknown to non-operators (agency admins, client users)', async () => {

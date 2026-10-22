@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { FormResult } from '@/server/forms';
 import { ThemeQueue } from './theme-queue';
 
-const p = { id: 'p1', verticalId: 'hvac_plumbing', verticalName: 'HVAC & Plumbing', themeId: 'hidden_fees', name: 'Hidden fees', description: 'Unexpected fees', status: 'proposed' as const, otherCount: 14, createdAt: '2026-10-07T00:00:00.000Z', decidedAt: null, samples: ['They charged a trip fee.'] };
+const p = { id: 'p1', verticalId: 'hvac_plumbing', verticalName: 'HVAC & Plumbing', topicId: 'hidden_fees', name: 'Hidden fees', description: 'Unexpected fees', status: 'proposed' as const, otherCount: 14, createdAt: '2026-10-07T00:00:00.000Z', decidedAt: null, samples: ['They charged a trip fee.'] };
 
 describe('ThemeQueue', () => {
   it('approves a proposal and keeps the message after it moves to the decided list', async () => {

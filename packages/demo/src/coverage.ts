@@ -362,7 +362,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'count_catalog_review', input: none, path: 'count', expect: 'empty', why: 'nothing waits for review in the demo' },
     ],
   },
-  { route: '/platform/themes', as: 'operator', calls: [{ tool: 'list_theme_proposals', input: none, path: 'pending' }, { tool: 'list_theme_proposals', input: none, path: 'decided' }] },
+  { route: '/platform/themes', as: 'operator', calls: [{ tool: 'list_topic_proposals', input: none, path: 'pending' }, { tool: 'list_topic_proposals', input: none, path: 'decided' }] },
   // 15b-1: the Help pages. The docs/help guides (loaded by `demo:reset` through `seedKnowledge`) cover every context; the search finds the demo article.
   { route: '/agency/help', as: 'admin', calls: [helpGuides(() => ({ context: 'agency' })), helpSearch(none)] },
   { route: '/c/[clientId]/help', as: 'admin', calls: [lsGuides, helpSearch((ids) => ({ clientId: ls(ids) })), lsProfile] },

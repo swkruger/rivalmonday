@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { createToolRegistry } from '../registry';
+import { allTools } from './all';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -28,37 +29,44 @@ beforeEach(async () => {
   proposalId = p!.id;
 });
 
-describe('theme proposals (Review Focus 2)', () => {
+describe('topic proposals (Review Focus 2)', () => {
   it('lists pending proposals with sample reviews', async () => {
-    const r = (await registry.invoke(op, 'list_theme_proposals', {})) as { pending: { id: string; verticalName: string; samples: string[] }[]; decided: unknown[] };
-    expect(r.pending).toEqual([expect.objectContaining({ id: proposalId, verticalName: 'HVAC & Plumbing', samples: ['They charged a trip fee nobody mentioned.'] })]);
+    const r = (await registry.invoke(op, 'list_topic_proposals', {})) as { pending: { id: string; topicId: string; verticalName: string; samples: string[] }[]; decided: unknown[] };
+    expect(r.pending).toEqual([expect.objectContaining({ id: proposalId, topicId: 'hidden_fees', verticalName: 'HVAC & Plumbing', samples: ['They charged a trip fee nobody mentioned.'] })]);
     expect(r.decided).toEqual([]);
+  });
+
+  it('has the topic tool names and none of the old theme names', () => {
+    const names = allTools.map((t) => t.name);
+    expect(names).toEqual(expect.arrayContaining(['list_topic_proposals', 'decide_topic_proposal']));
+    expect(names).not.toContain('list_theme_proposals');
+    expect(names).not.toContain('decide_theme_proposal');
   });
 
   it('refuses every operator tool to non-operator admins, AMs, client users and guests; nothing changes', async () => {
     // Admins and AMs reach the handler (permission_denied); owners and guests never see the tool (not_found).
     for (const ctx of [admin, am]) {
-      await expect(registry.invoke(ctx, 'list_theme_proposals', {})).rejects.toMatchObject({ code: 'permission_denied' });
-      await expect(registry.invoke(ctx, 'decide_theme_proposal', { proposalId, decision: 'approved' })).rejects.toMatchObject({ code: 'permission_denied' });
+      await expect(registry.invoke(ctx, 'list_topic_proposals', {})).rejects.toMatchObject({ code: 'permission_denied' });
+      await expect(registry.invoke(ctx, 'decide_topic_proposal', { proposalId, decision: 'approved' })).rejects.toMatchObject({ code: 'permission_denied' });
     }
     for (const ctx of [owner, guest]) {
-      await expect(registry.invoke(ctx, 'list_theme_proposals', {})).rejects.toMatchObject({ code: 'not_found' });
-      await expect(registry.invoke(ctx, 'decide_theme_proposal', { proposalId, decision: 'approved' })).rejects.toMatchObject({ code: 'not_found' });
+      await expect(registry.invoke(ctx, 'list_topic_proposals', {})).rejects.toMatchObject({ code: 'not_found' });
+      await expect(registry.invoke(ctx, 'decide_topic_proposal', { proposalId, decision: 'approved' })).rejects.toMatchObject({ code: 'not_found' });
     }
     expect((await dbs.owner.select().from(topicProposal).where(eq(topicProposal.id, proposalId)))[0]).toMatchObject({ status: 'proposed', decidedBy: null });
   });
 
   it('refuses everyone when no operators are configured', async () => {
     const none = createToolRegistry({ app: dbs.app, service: dbs.service }, { audit: { record: async () => {} } });
-    await expect(none.invoke(op, 'list_theme_proposals', {})).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(none.invoke(op, 'list_topic_proposals', {})).rejects.toMatchObject({ code: 'permission_denied' });
   });
 
   it('approves once; a second decision is invalid_input', async () => {
-    await registry.invoke(op, 'decide_theme_proposal', { proposalId, decision: 'approved' });
+    await registry.invoke(op, 'decide_topic_proposal', { proposalId, decision: 'approved' });
     const [row] = await dbs.owner.select().from(topicProposal).where(eq(topicProposal.id, proposalId));
     expect(row).toMatchObject({ status: 'approved', decidedBy: 'op' });
-    await expect(registry.invoke(op, 'decide_theme_proposal', { proposalId, decision: 'rejected' })).rejects.toMatchObject({ code: 'invalid_input' });
-    const r = (await registry.invoke(op, 'list_theme_proposals', {})) as { pending: unknown[]; decided: { id: string; status: string }[] };
+    await expect(registry.invoke(op, 'decide_topic_proposal', { proposalId, decision: 'rejected' })).rejects.toMatchObject({ code: 'invalid_input' });
+    const r = (await registry.invoke(op, 'list_topic_proposals', {})) as { pending: unknown[]; decided: { id: string; status: string }[] };
     expect(r.pending).toEqual([]);
     expect(r.decided[0]).toMatchObject({ id: proposalId, status: 'approved' });
   });

@@ -7,7 +7,7 @@ import { runTool } from '@/server/run-tool';
 export async function decideThemeAction(_p: FormResult, fd: FormData): Promise<FormResult> {
   const { ctx } = await requireOperatorContext();
   const decision = String(fd.get('decision') ?? '');
-  const r = await runTool(ctx, 'decide_theme_proposal', { proposalId: String(fd.get('proposalId') ?? ''), decision });
+  const r = await runTool(ctx, 'decide_topic_proposal', { proposalId: String(fd.get('proposalId') ?? ''), decision });
   if (!r.ok) return r;
   revalidatePath('/platform/themes');
   const name = String(fd.get('name') ?? 'the topic');

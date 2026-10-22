@@ -8,7 +8,7 @@ import { detailOf, pageOf, pageResult } from '../paging';
 import { pickBusiness, workspaceBusinesses } from '../workspace/business';
 import { forChannel } from '../workspace/model-text';
 import { escapeLike, workspaceClient } from '../workspace/scope';
-import { BusinessKey, pageFields, RatingTrendView, ReviewPage, ThemeBenchmarkView } from './schemas';
+import { BusinessKey, pageFields, RatingTrendView, ReviewPage, TopicBenchmarkView } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -24,7 +24,7 @@ export const getThemeBenchmark = defineTool({
   access: 'read',
   description: 'Review themes, your business vs each tracked competitor: how often each theme comes up and how positively, last 90 days vs the 90 before.',
   input: z.object({ clientId: uuid }),
-  output: ThemeBenchmarkView,
+  output: TopicBenchmarkView,
   permission: 'read',
   channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',

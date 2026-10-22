@@ -1,4 +1,4 @@
-import type { AdList, GeoGridView, PriceMatrixView, ThemeBenchmarkView } from '@cs/tools';
+import type { AdList, GeoGridView, PriceMatrixView, TopicBenchmarkView } from '@cs/tools';
 import Link from 'next/link';
 import { formatPrice, pricingHref } from '../../pricing/format';
 
@@ -54,7 +54,7 @@ export function AdsSection({ clientId, competitorId, ads }: { clientId: string; 
   );
 }
 
-export function ReviewsSection({ clientId, competitorId, benchmark }: { clientId: string; competitorId: string; benchmark: ThemeBenchmarkView }) {
+export function ReviewsSection({ clientId, competitorId, benchmark }: { clientId: string; competitorId: string; benchmark: TopicBenchmarkView }) {
   const me = benchmark.businesses.find((b) => b.competitorId === competitorId);
   const you = benchmark.businesses.find((b) => b.self);
   const names = new Map(benchmark.themes.map((t) => [t.id, t.name]));

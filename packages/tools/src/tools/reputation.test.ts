@@ -3,7 +3,7 @@ import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { monthKeys } from './reputation';
-import type { RatingTrendView, ReviewList, ThemeBenchmarkView } from './schemas';
+import type { RatingTrendView, ReviewList, TopicBenchmarkView } from './schemas';
 import { ago, ctx, dbs, registry, resetWorkspace, seedGbpRating, seedReview, seedSelf } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
@@ -20,7 +20,7 @@ describe('get_theme_benchmark', () => {
     await seedReview({ rating: 1, postedAt: ago(5), analysis: { asked: ['response_time', 'price_transparency'], themes: ['response_time'], sentiment: 0 } });
     await seedReview({ rating: 5, postedAt: ago(6), analysis: { asked: ['response_time'], themes: [], sentiment: 4 } });
     await seedReview({ competitorId: IDS.competitorY, postedAt: ago(2), analysis: { asked: ['response_time'], themes: ['response_time'], sentiment: 4 } });
-    const r = (await registry.invoke(owner, 'get_theme_benchmark', { clientId: IDS.clientA1 })) as ThemeBenchmarkView;
+    const r = (await registry.invoke(owner, 'get_theme_benchmark', { clientId: IDS.clientA1 })) as TopicBenchmarkView;
     expect(r.windowDays).toBe(90);
     expect(r.themes.slice(0, 2)).toEqual([{ id: 'response_time', name: 'Response time' }, { id: 'price_transparency', name: 'Price transparency' }]);
     expect(r.businesses.map((b) => [b.name, b.self, b.reviews, b.avgRating])).toEqual([['A1 HVAC', true, 1, 5], ['Smith HVAC', false, 2, 3]]);
@@ -31,7 +31,7 @@ describe('get_theme_benchmark', () => {
   });
 
   it('works without a self business, refuses another agency and needs dashboard', async () => {
-    const r = (await registry.invoke(am, 'get_theme_benchmark', { clientId: IDS.clientA1 })) as ThemeBenchmarkView;
+    const r = (await registry.invoke(am, 'get_theme_benchmark', { clientId: IDS.clientA1 })) as TopicBenchmarkView;
     expect(r.businesses.map((b) => b.self)).toEqual([false]);
     await expect(registry.invoke(otherAgency, 'get_theme_benchmark', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(ownerNoDash, 'get_theme_benchmark', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });

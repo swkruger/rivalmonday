@@ -51,7 +51,7 @@ describe('navFor platform', () => {
   });
 
   it('puts queue counts on the quality items and hides badges at 0', () => {
-    const s = navFor('platform', operator, null, { modelReviews: 4, themes: 0 });
+    const s = navFor('platform', operator, null, { modelReviews: 4, topics: 0 });
     expect(item(s, 'Model reviews')).toMatchObject({ count: 4 });
     expect(item(s, 'Topic proposals')).not.toHaveProperty('count');
     expect(item(s, 'Ask reviews')).not.toHaveProperty('count'); // no Ask reviews badge (no reviewed state to count)

@@ -252,7 +252,7 @@ export const PLATFORM_COPY = {
         audience: 'operator',
         guideAnchor: 'how-to-use-it',
       },
-      // source: packages/tools/src/tools/themes.ts:DECIDED_WINDOW_DAYS (30)
+      // source: packages/tools/src/tools/topics.ts:DECIDED_WINDOW_DAYS (30)
       decided: {
         title: 'Recently decided',
         body: 'The table lists proposals approved or rejected in the last 30 days, with the business type, the decision and the date.',

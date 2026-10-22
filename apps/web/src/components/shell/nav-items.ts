@@ -12,7 +12,7 @@ export { clientIdFromPath, contextOf, NAV_CTX_COOKIE, type NavContext, parseNavC
 
 export type IconKey =
   | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
-  | 'alertRules' | 'ai' | 'usage' | 'runbook' | 'reviews' | 'themes' | 'prospects' | 'ask' | 'knowledge'
+  | 'alertRules' | 'ai' | 'usage' | 'runbook' | 'reviews' | 'topics' | 'prospects' | 'ask' | 'knowledge'
   | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing' | 'leads' | 'intake' | 'briefs' | 'settings' | 'catalogue';
 
 export interface NavItem {
@@ -41,7 +41,7 @@ export interface NavCounts {
   alerts?: number;
   leads?: number;
   modelReviews?: number;
-  themes?: number;
+  topics?: number;
   /** Phase 14a: business types and services waiting for operator review (Business types badge). */
   catalog?: number;
 }
@@ -119,7 +119,7 @@ function platformNav(flags: NavRoleFlags, counts: NavCounts): NavSection[] {
     section('revenue', 'Revenue', (add) => add('/platform/billing', 'Billing & plans', 'billing')),
     section('quality', 'Quality', (add) => {
       add('/platform/reviews', 'Model reviews', 'reviews', { count: counts.modelReviews });
-      add('/platform/themes', 'Topic proposals', 'themes', { count: counts.themes });
+      add('/platform/themes', 'Topic proposals', 'topics', { count: counts.topics });
       add('/platform/ask', 'Ask reviews', 'ask');
     }),
     section('content', 'Content', (add) => {

@@ -1,4 +1,4 @@
-import type { ThemeBenchmarkView } from '@cs/tools';
+import type { TopicBenchmarkView } from '@cs/tools';
 
 const INK = '#0B2540';
 const WHITE = '#FFFFFF';
@@ -24,7 +24,7 @@ const signed = (x: number) => `${x > 0 ? '+' : ''}${x.toFixed(1)}`;
 const short = (s: string, n = 16) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /** Module 6 heatmap: rows = themes, columns = businesses (you first). Colour = sentiment of mentions, number = mention share. */
-export function ThemeHeatmap({ title, benchmark }: { title: string; benchmark: Pick<ThemeBenchmarkView, 'themes' | 'businesses'> }) {
+export function ThemeHeatmap({ title, benchmark }: { title: string; benchmark: Pick<TopicBenchmarkView, 'themes' | 'businesses'> }) {
   const { themes, businesses } = benchmark;
   if (themes.length === 0 || businesses.length === 0) return <p className="text-sm text-muted-foreground">No reviews analysed yet.</p>;
   const LABEL_W = 200;

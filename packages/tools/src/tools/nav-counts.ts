@@ -7,7 +7,7 @@ import { requirePlatformOperator } from '../platform';
 import { countAlertsAwaitingReview } from './alert-queue';
 import { countNewLeads } from './leads';
 import { countBriefsAwaitingReview } from './review';
-import { countPendingThemeProposals } from './themes';
+import { countPendingTopicProposals } from './topics';
 
 // Phase 15a P2: the sidebar's badge counts, one audited web call per shell render each (never a `list_*` per queue).
 // Every count reuses the WHERE helper of the list its page shows, so a badge never disagrees with the page. Ask reviews
@@ -37,9 +37,9 @@ export const getNavCounts = defineTool({
 export const getPlatformNavCounts = defineTool({
   name: 'get_platform_nav_counts',
   access: 'read',
-  description: 'Platform operators: badge counts for the platform menu — open model reviews and pending theme proposals.',
+  description: 'Platform operators: badge counts for the platform menu — open model reviews and pending topic proposals.',
   input: z.object({}),
-  output: z.object({ modelReviews: n, themes: n }),
+  output: z.object({ modelReviews: n, topics: n }),
   permission: 'agency',
   async handler(ctx, _input, deps) {
     try {
@@ -51,7 +51,7 @@ export const getPlatformNavCounts = defineTool({
     }
     return {
       modelReviews: await countOpenReviews(deps.service),
-      themes: await countPendingThemeProposals(deps.service),
+      topics: await countPendingTopicProposals(deps.service),
     };
   },
 });

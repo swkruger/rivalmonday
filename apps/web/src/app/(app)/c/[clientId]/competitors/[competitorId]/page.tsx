@@ -1,5 +1,5 @@
 import { canManageCompetitors, hasFeature, isAgencyRole, PAGE_TYPES } from '@cs/core';
-import type { AdList, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, ThemeBenchmarkView, TimelineItem, TrackedPageView } from '@cs/tools';
+import type { AdList, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, TopicBenchmarkView, TimelineItem, TrackedPageView } from '@cs/tools';
 import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -84,7 +84,7 @@ export default async function CompetitorProfilePage({
     callTool<{ items: TrackedPageView[] }>(ctx, 'list_tracked_pages', { clientId, competitorId }),
     callTool<PriceMatrixView>(ctx, 'get_price_matrix', { clientId, competitorId }),
     callTool<AdList>(ctx, 'list_ads', { clientId, competitorId, limit: 3 }),
-    callTool<ThemeBenchmarkView>(ctx, 'get_theme_benchmark', { clientId }),
+    callTool<TopicBenchmarkView>(ctx, 'get_theme_benchmark', { clientId }),
     callTool<GeoGridView>(ctx, 'get_geogrid', { clientId, business: competitorId }),
     callTool<{ competitors: CompetitorSignalView[] }>(ctx, 'get_competitor_signals', { clientId }),
     manageAds

@@ -40,7 +40,7 @@ export function navForViewer(v: { kind: 'user' | 'guest' | 'support'; ctx: Acces
 }
 
 type AgencyCounts = { approvals: number; alerts: number; leads: number };
-type PlatformCounts = { modelReviews: number; themes: number };
+type PlatformCounts = { modelReviews: number; topics: number };
 
 /**
  * 15a P2: the sidebar's badge counts — one `get_nav_counts` read (agency viewers) and one `get_platform_nav_counts` read
@@ -67,7 +67,7 @@ export async function navCounts(ctx: AccessContext, opts: { agency: boolean; ope
     out.alerts = agency.alerts;
     if (opts.leads) out.leads = agency.leads;
   }
-  if (platform) Object.assign(out, { modelReviews: platform.modelReviews, themes: platform.themes });
+  if (platform) Object.assign(out, { modelReviews: platform.modelReviews, topics: platform.topics });
   if (catalog) out.catalog = catalog.count;
   return out;
 }

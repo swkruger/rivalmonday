@@ -184,11 +184,11 @@ export const DecisionReviewView = z.object({
 });
 export type DecisionReviewView = z.infer<typeof DecisionReviewView>;
 
-export const ThemeProposalView = z.object({
-  id: uuid, verticalId: z.string(), verticalName: z.string(), themeId: z.string(), name: z.string(), description: z.string(),
+export const TopicProposalView = z.object({
+  id: uuid, verticalId: z.string(), verticalName: z.string(), topicId: z.string(), name: z.string(), description: z.string(),
   status: z.enum(['proposed', 'approved', 'rejected']), otherCount: z.number().int(), createdAt: iso, decidedAt: iso.nullable(), samples: z.array(z.string()),
 });
-export type ThemeProposalView = z.infer<typeof ThemeProposalView>;
+export type TopicProposalView = z.infer<typeof TopicProposalView>;
 
 const ProspectRankView = z.object({ keyword: z.string(), found: z.number().int(), top3: z.number().int(), averageRank: z.number().nullable() });
 const ProspectBusinessView = z.object({
@@ -339,7 +339,7 @@ export const AdList = z.object({ items: z.array(AdView), hasMore: z.boolean() })
 /** The tool's output: full rows (web, `detail=full`) or summary rows. */
 export const AdPage = z.object({ items: pagedItems(AdView), hasMore: z.boolean(), nextCursor: z.string().nullable().optional() });
 export type AdList = z.infer<typeof AdList>;
-export const ThemeBenchmarkView = z.object({
+export const TopicBenchmarkView = z.object({
   windowDays: z.number().int(), from: iso, to: iso,
   themes: z.array(z.object({ id: z.string(), name: z.string() })),
   businesses: z.array(z.object({
@@ -351,7 +351,7 @@ export const ThemeBenchmarkView = z.object({
     })),
   })),
 });
-export type ThemeBenchmarkView = z.infer<typeof ThemeBenchmarkView>;
+export type TopicBenchmarkView = z.infer<typeof TopicBenchmarkView>;
 
 export const RatingTrendView = z.object({
   months: z.array(z.string()),

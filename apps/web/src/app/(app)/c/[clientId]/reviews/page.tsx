@@ -1,5 +1,5 @@
 import { hasFeature, isAgencyRole } from '@cs/core';
-import type { ClientProfile, RatingTrendView, ReviewList, ThemeBenchmarkView } from '@cs/tools';
+import type { ClientProfile, RatingTrendView, ReviewList, TopicBenchmarkView } from '@cs/tools';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -51,7 +51,7 @@ export default async function ReviewsPage({ params, searchParams }: {
 
   const [profile, benchmark, trend, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
-    callTool<ThemeBenchmarkView>(ctx, 'get_theme_benchmark', { clientId }),
+    callTool<TopicBenchmarkView>(ctx, 'get_theme_benchmark', { clientId }),
     callTool<RatingTrendView>(ctx, 'get_rating_trend', { clientId, months: 12 }),
     helpGuides(ctx, 'client', clientId),
   ]);

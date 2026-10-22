@@ -1,4 +1,4 @@
-import type { ThemeProposalView } from '@cs/tools';
+import type { TopicProposalView } from '@cs/tools';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
@@ -20,7 +20,7 @@ const COPY = PAGE_COPY['platform.themes'];
 export default async function ThemeProposalsPage() {
   const { ctx } = await requireOperatorContext();
   const [{ pending, decided }, guides] = await Promise.all([
-    callTool<{ pending: ThemeProposalView[]; decided: ThemeProposalView[] }>(ctx, 'list_theme_proposals', {}),
+    callTool<{ pending: TopicProposalView[]; decided: TopicProposalView[] }>(ctx, 'list_topic_proposals', {}),
     helpGuides(ctx, 'platform'),
   ]);
   return (

@@ -92,7 +92,7 @@ const EMPTY_ANSWERS = (): Record<string, unknown> => ({
   get_connect_overview: connect,
   list_pool_leads: { leads: [], agencies: [], recentAssignments: [] },
   list_decision_reviews: { items: [] },
-  list_theme_proposals: { pending: [], decided: [] },
+  list_topic_proposals: { pending: [], decided: [] },
   ask_list: { items: [], nextCursor: null },
   ask_thread: { id: 't1', title: 'A thread', agencyName: 'Acme', clientName: 'Lone Star', createdAt: new Date('2026-10-01T00:00:00Z'), messages: [{ id: 'm1', role: 'assistant', content: 'Hello', citations: [`kb:${KB}`], status: 'ok', action: null, trace: { a: 1 }, createdAt: new Date('2026-10-01T00:00:00Z') }] },
   list_kb_articles: { items: [], nextCursor: null },

@@ -1,5 +1,5 @@
 'use client';
-import type { ThemeProposalView } from '@cs/tools';
+import type { TopicProposalView } from '@cs/tools';
 import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { useActionState } from 'react';
 import type { FormResult } from '@/server/forms';
@@ -15,7 +15,7 @@ type Action = (prev: FormResult, fd: FormData) => Promise<FormResult>;
  * same shape as `AlertList`'s separate Approve/Dismiss forms — the decision never depends on which button a
  * `FormData(form, submitter)` resolves to.
  */
-export function ThemeQueue({ pending, decided, action }: { pending: ThemeProposalView[]; decided: ThemeProposalView[]; action: Action }) {
+export function ThemeQueue({ pending, decided, action }: { pending: TopicProposalView[]; decided: TopicProposalView[]; action: Action }) {
   const [result, formAction, busy] = useActionState(action, { ok: true } as FormResult);
   return (
     <div className="flex flex-col gap-5">
@@ -25,7 +25,7 @@ export function ThemeQueue({ pending, decided, action }: { pending: ThemeProposa
       {pending.map((p) => (
         <div key={p.id} className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
           <div className="text-sm text-muted-ink">{p.verticalName} · {p.otherCount} reviews with no topic</div>
-          <h3 className="text-lg font-bold">{p.name} <span className="font-mono text-xs text-muted-ink">{p.themeId}</span></h3>
+          <h3 className="text-lg font-bold">{p.name} <span className="font-mono text-xs text-muted-ink">{p.topicId}</span></h3>
           <p>{p.description}</p>
           {p.samples.length > 0 && (
             <ul className="flex flex-col gap-1 text-sm">
