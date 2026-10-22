@@ -3,6 +3,7 @@ import { agency, agencyBilling, type Db, auditLog, capture, client, clientBillin
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { workerLog } from './log';
 import { archiveTenant, purgeArchived } from './purge';
 
 const dbs = openTestDbs();
@@ -222,10 +223,10 @@ describe('purgeArchived', () => {
       execute: async () => { throw original; },
       insert: () => ({ values: async () => { throw new Error('audit insert failed'); } }),
     } as unknown as Db;
-    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const logged = vi.spyOn(workerLog, 'error').mockImplementation(() => {});
     try {
       await expect(purgeArchived(broken, { olderThanDays: 90, dryRun: false, now: NOW })).rejects.toBe(original);
-      expect(logged).toHaveBeenCalledWith('[purge] platform audit insert failed', 'audit insert failed');
+      expect(logged).toHaveBeenCalledWith({ err: expect.objectContaining({ message: 'audit insert failed' }) }, 'purge: platform audit insert failed');
     } finally {
       logged.mockRestore();
     }

@@ -2,6 +2,7 @@ import { hashInput } from '@cs/core/server';
 import { type Db, platformAuditLog, type Tx } from '@cs/db';
 import { type SQL, sql } from 'drizzle-orm';
 import { MIN_PURGE_DAYS } from './cli/purge-args';
+import { workerLog } from './log';
 
 /**
  * Spec D16/D17 (7a2): operator-only archive and purge of agencies/clients. Archived rows read as deleted everywhere
@@ -148,7 +149,7 @@ export async function purgeArchived(db: Db, o: { olderThanDays: number; dryRun: 
           outcome, durationMs: Math.max(0, Date.now() - started),
         });
       } catch (err) {
-        console.error('[purge] platform audit insert failed', err instanceof Error ? err.message : err);
+        workerLog.error({ err }, 'purge: platform audit insert failed');
       }
     }
   }
