@@ -1,26 +1,31 @@
 # phase-15b3 — rename review "theme" to "topic" in code, DB, tools and routes
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15b3   **Base:** main @ 10ce242d
+**Kind:** implementation (15b-3a)   **Worktree:** ../CompetitorSpy-wt/phase-15b3   **Base:** main @ 55964738 (rebased on 7a)
 **Plan/spec:** spec [15b-3 design](../superpowers/specs/2026-10-21-phase-15b3-topic-rename-design.md) (approved 2026-10-21); plan [15b-3a](../superpowers/plans/2026-10-21-phase-15b3a-topic-rename-data.md)
 
 ## Status (overwrite)
-15b-3a built 2026-10-22 (Tasks 0–6 + final-review fix wave; HEAD 28ed2346). Final review: ready to merge, 0 Critical/Important; `test:affected` 15/15 and `e2e:affected` 121 green. 15b-3b (surfaces) not started. 15b-3a (data & engine) runs on this branch; 15b-3b (surfaces) gets its own kickoff after 3a merges.
+15b-3a built and reviewed (Tasks 0–6 + final fix wave), rebased onto main 55964738 (7a merged) on 2026-10-22: migration renumbered to `0084`, `generate` = no changes, `drizzle-kit check` OK; typecheck 16/16, `test:affected --base main` 15/15 packages green (all packages ran). E2E not re-run since the rebase (owner: after 15c merges). Tree clean, not pushed. 15b-3b (surfaces) not started.
 
 ## Next (overwrite)
-Owner go-ahead → `/rm-merge phase-15b3`. Then `/rm-kickoff phase-15b3b` (routes, page key, MCP/Ask tool names; delete `toLegacyThemeFields`).
+1. Owner go-ahead → `/rm-merge phase-15b3` (fold work file → shared docs, merge, push). Full E2E deferred until after 15c merges (owner, 2026-10-22).
+2. With owner OK after merge: `cs_dev` steps below, then `kb:seed`.
+3. `/rm-kickoff phase-15b3b` (routes, page key, MCP/Ask tool names; delete `toLegacyThemeFields`).
 
 ## Interfaces this branch adds or changes
-Migration `0084_topic_rename` (renumbered after phase-7 took 0081-0083): `topic_proposal`, `review_analysis.topics`, backfilled ids/keys. Tools `list_topic_proposals`, `decide_topic_proposal` (input `proposalId`), `get_platform_nav_counts` → `topics`. `findTopicLeftovers` + `pnpm --filter @cs/db topic-leftovers`. MCP `get_theme_benchmark`/`search_reviews` unchanged (legacy mapping); `get_move` fact label now reads "Topic". Next free migration: **0083** (main ends at 0080; phase-7 holds 0081, 0082).
+Migration `0084_topic_rename` (renumbered after phase-7 took 0081-0083): `topic_proposal`, `review_analysis.topics`, backfilled ids/keys. Tools `list_topic_proposals`, `decide_topic_proposal` (input `proposalId`), `get_platform_nav_counts` → `topics`. `findTopicLeftovers` + `pnpm --filter @cs/db topic-leftovers`. MCP `get_theme_benchmark`/`search_reviews` unchanged (legacy mapping); `get_move` fact label now reads "Topic". Next free migration after merge: **0085**.
 
 ## Assumes from other branches
-- **phase-7** (base 00e8e02a, 0081 `runtime_roles` + 0082 `lifecycle`): touches `nav-items.ts` (Health entry beside Topic proposals; AI-connections gate), `server/nav.ts`, `ai.yaml` (adds `request_path`/timeouts, new `runbook_retailor`), `tools/all.ts`, `channels.test.ts`, `mcp/server.test.ts`, `demo/coverage.ts`, `e2e/seed.ts`, `e2e-affected-rules.ts`, worker `jobs/reviews.ts`/`model-ops.ts` (logging). No `theme` renames. Whichever merges second rebases; this phase's migration is 0083+.
-- **phase-7-planning**: parked, docs only, no overlap.
+- **phase-7 (7a)**: merged to main 2026-10-22 (0081–0083); this branch is rebased on it, no assumptions left.
+- **phase-15c** (in flight, no migration): touches `theme-heatmap.tsx` and `@cs/ui` theme (UI sense) — no overlap with 3a; its "next free 0084" note becomes 0085 once this merges.
 
 ## Decisions (owner-approved)
 D1–D6 in the 15b-3 spec §1: two sub-phases (3a data & engine, 3b surfaces); full DB rename; no aliases/redirects (no live users; supersedes C7); one-time backfill, no dual-read; `{{theme}}`→`{{topic}}`; C7 model-ops exceptions stay.
+7. Merge order 7a → 15b-3a → 15c (fewest migration renumbers).
+8. Full E2E for this merge deferred until after 15c merges; unit coverage = `test:affected` (all packages).
 
 ## New backlog (target → item)
-None yet.
+- 15b-3b → `workspace-fixtures.ts` `seedReview` input `analysis.themes` → `topics` (test-only; with `reputation.test.ts`).
+- Polish → `docs/OPS.md:9` says "Latest migration `0037`" (stale).
 
 ## Owner verification steps
 After merge, on `cs_dev` per `docs/OPS.md`: run the `fix_theme`-slug pre-check, stop the worker, migrate, deploy web + worker together, then `pnpm --filter @cs/db topic-leftovers` (expect no output).

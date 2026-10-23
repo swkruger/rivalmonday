@@ -25,13 +25,13 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 - **Root `.pnpmfile.cjs` ships with every install** (CI, Docker, Vercel; lockfile checksums it): drops drizzle-orm's `@opentelemetry/api` peer so `@sentry/nextjs` doesn't fork drizzle-orm.
 
 ## Testing
-- **Use the local test cluster, not Neon, for tests:** `bash scripts/local-test-db.sh setup` once (PG18 + pgvector v0.8.1 built with VS 2022 Build Tools, under `D:\rm-pg`, port 5444, superuser like CI), `start` after a reboot (also creates runtime roles `cs_worker`/`cs_web`, needed by migration `0081`; Neon: `docs/DEPLOY.md` § Roles), `env` prints the three `TEST_*` lines. Neon costs ~50 ms per query and ~1.7 s per connection.
+- **Use the local test cluster, not Neon, for tests:** `bash scripts/local-test-db.sh setup` once (PG18 + pgvector v0.8.1 built with VS 2022 Build Tools, under `D:\rm-pg`, port 5444, superuser like CI), `start` after a reboot (also creates runtime roles `cs_worker`/`cs_web`, needed by migration `0081`; Neon: `docs/DEPLOY.md` § Roles), `env` prints the three `TEST_*` lines. Neon is ~50 ms/query, ~1.7 s/connection.
 - **Timing (local cluster):** full unit suite ~45-60 min, full E2E ~7-9 min. After a rebase `next build` can exceed Playwright's 300 s webServer timeout — use `e2e:affected --full` (builds first, then `E2E_SKIP_BUILD=1`).
 - **Run the full suite with `run_in_background`** (exceeds the 10-min cap). **Never run two test runs against the same database** (incl. E2E): they collide (FK/duplicate-key errors, deadlocks). Wait for the completion notice, not turbo's first "Tasks: N successful". Each worktree gets its own `cs_<branch>_test` (name **must end in `_test`**) and E2E port (`E2E_PORT=3101`; default 3100).
 - **Global setup resets once:** it wipes + migrates only when the migration files' fingerprint changed (stored in schema `cs_test_meta`); otherwise it empties the tables. Force a rebuild with `TEST_DB_FULL_RESET=1`.
 - **`truncateAll` is a DELETE** with `session_replication_role = replica` when the owner is a superuser (local, CI); on Neon it falls back to one `TRUNCATE` statement. Don't reintroduce per-table TRUNCATE loops (slow on Windows).
-- **Focused runs:** `pnpm --filter <pkg> exec vitest run <pattern>`. `pnpm --filter <pkg> test -- <pattern>` does *not* narrow. `pnpm test:affected --base <sha>` selects no tests — use the default merge-base.
-- **Keep going past failures:** `npx turbo run test --concurrency=1 --continue` (not `pnpm test -- --continue`).
+- **Focused runs:** `pnpm --filter <pkg> exec vitest run <pattern>` (in `@cs/engine`/`@cs/demo` it can fail "vitest not found": run `npx vitest run <pattern>` from the package dir). `pnpm --filter <pkg> test -- <pattern>` does *not* narrow. `pnpm test:affected --base <sha>` selects no tests — use the default merge-base.
+- **Keep going past failures:** `npx turbo run test --concurrency=1 --continue`.
 - **Flakes:** only `ETIMEDOUT`/`ECONNRESET`/timeouts (Neon) → re-run that package once; web `page-controls` PinPageSwitch and collectors `renderer` "reports timeouts" flake under load → re-run focused.
 - **Subagents:** run focused tests in the foreground (`timeout: 600000`); **never hand back while a test run is still running**. On API timeouts, resume rather than restart.
 
