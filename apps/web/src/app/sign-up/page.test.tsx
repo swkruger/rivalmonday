@@ -21,6 +21,12 @@ describe('/sign-up', () => {
     expect(screen.getByText('sign-up-form')).toBeTruthy();
   });
 
+  it('sign-up links to sign in and to the privacy policy', async () => {
+    render(await Page({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByRole('link', { name: 'Sign in' }).getAttribute('href')).toBe('/sign-in');
+    expect(screen.getByRole('link', { name: 'privacy policy' }).getAttribute('href')).toBe('https://rivalmonday.app/privacy');
+  });
+
   it('shows the paused copy instead of the form when paused', async () => {
     m.paused = true;
     render(await Page({ searchParams: Promise.resolve({}) }));

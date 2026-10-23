@@ -35,6 +35,11 @@ describe('inbox', () => {
     expect(await unreadCount(dbs.service, { userId: 'u1' })).toBe(2);
   });
 
+  it('carries the client name per row', async () => {
+    const [first] = await listInbox(dbs.service, { userId: 'u1' });
+    expect(first?.clientName).toEqual(expect.any(String));
+  });
+
   it('marks one or all read, never another person’s', async () => {
     const [first] = await listInbox(dbs.service, { userId: 'u1' });
     const [other] = await listInbox(dbs.service, { userId: 'u2' });

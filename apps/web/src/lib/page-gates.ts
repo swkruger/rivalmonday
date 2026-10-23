@@ -96,6 +96,8 @@ export const GATED_PATHS: string[] = [
   'components/ai-connections.tsx',
   'app/(app)/agency/settings/slack-teams',
   'app/(app)/agency/settings/team',
+  'app/(app)/inbox',
+  'app/start',
 ];
 
 const ESCAPE = /format-gate:\s*\S/;

@@ -1,8 +1,9 @@
 'use client';
-import { Button, Input, Label } from '@cs/ui';
-import { useActionState } from 'react';
+import { Input, Label, SaveBar } from '@cs/ui';
+import { useActionState, useRef, useState } from 'react';
+import { FormError } from '@/components/form-error';
+import type { FormResult } from '@/server/forms';
 import { updateContactAction } from './actions';
-import { ErrorNote } from '@/components/form-error';
 
 export function ContactForm({
   contactId,
@@ -19,20 +20,27 @@ export function ContactForm({
    * stored zone missing from the browser's list on save). */
   timezoneOptions: string[];
 }) {
-  const [state, formAction, pending] = useActionState(updateContactAction, { error: null });
+  const [dirty, setDirty] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [state, formAction, pending] = useActionState(async (prev: FormResult, fd: FormData) => {
+    const r = await updateContactAction(prev, fd);
+    if (r.ok) setDirty(false);
+    return r;
+  }, { ok: true } as FormResult);
+  // Several cards share the page, so every id carries the contact id.
+  const tzId = `${contactId}-timezone`;
+  const startId = `${contactId}-quiet-start`;
+  const endId = `${contactId}-quiet-end`;
+  const noteId = `${contactId}-quiet-note`;
 
   return (
-    <form action={formAction} className="flex flex-col gap-4 border-t border-line pt-5">
+    <form ref={formRef} action={formAction} onChange={() => setDirty(true)} className="flex flex-col gap-4 border-t border-line pt-5">
       <input type="hidden" name="contactId" value={contactId} />
-      {state.error && (
-        <ErrorNote focusKey={state}>
-          {state.error}
-        </ErrorNote>
-      )}
+      <FormError state={state} />
       <div className="flex flex-col gap-2">
-        <Label htmlFor="timezone">Time zone</Label>
+        <Label htmlFor={tzId}>Time zone</Label>
         <select
-          id="timezone"
+          id={tzId}
           name="timezone"
           defaultValue={timezone ?? ''}
           className="h-9 w-full max-w-sm rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -47,18 +55,25 @@ export function ContactForm({
       </div>
       <div className="flex flex-wrap items-end gap-4">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="quietStart">Quiet hours start</Label>
-          <Input id="quietStart" name="quietStart" type="time" defaultValue={quietHours?.start ?? ''} className="w-36" />
+          <Label htmlFor={startId}>Quiet hours start</Label>
+          <Input id={startId} name="quietStart" type="time" aria-describedby={noteId} defaultValue={quietHours?.start ?? ''} className="w-36" />
         </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="quietEnd">Quiet hours end</Label>
-          <Input id="quietEnd" name="quietEnd" type="time" defaultValue={quietHours?.end ?? ''} className="w-36" />
+          <Label htmlFor={endId}>Quiet hours end</Label>
+          <Input id={endId} name="quietEnd" type="time" aria-describedby={noteId} defaultValue={quietHours?.end ?? ''} className="w-36" />
         </div>
       </div>
-      <p className="text-sm text-muted-foreground">Emails in this window are held and sent when it ends (in-app notices still arrive at once).</p>
-      <Button type="submit" disabled={pending} className="self-start">
-        Save
-      </Button>
+      <p id={noteId} className="text-sm text-muted-foreground">Emails in this window are held and sent when it ends (in-app notices still arrive at once).</p>
+      {state.ok && !dirty && state.message && <p role="status" className="text-sm text-ink">{state.message}</p>}
+      <SaveBar
+        dirty={dirty}
+        pending={pending}
+        saveLabel="Save"
+        onReset={() => {
+          formRef.current?.reset();
+          setDirty(false);
+        }}
+      />
     </form>
   );
 }

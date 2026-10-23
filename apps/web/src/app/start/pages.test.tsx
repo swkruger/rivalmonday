@@ -118,13 +118,22 @@ describe('/start/v/<leadId>', () => {
     const row = screen.getByRole('row', { name: /Jones Dental/ });
     expect(row.textContent).toContain('4.8 ★');
     expect(row.textContent).toContain('1,200');
-    expect(row.textContent).toContain('0.8');
+    expect(row.textContent).toContain('0.8 mi');
+    expect(screen.getByRole('columnheader', { name: 'Distance' })).toBeTruthy();
     expect(screen.getByText('1 of 1 nearby dentists has more reviews than you.')).toBeTruthy();
     expect(screen.getByText('Jones Dental has more reviews.')).toBeTruthy();
-    expect(screen.getByText('Smith Marketing will be in touch within one business day.')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'What happens next' })).toBeTruthy();
+    expect(screen.getByText('Smith Marketing has your details and will be in touch about next steps.')).toBeTruthy();
     expect(container.textContent).not.toMatch(/rival\s*monday/i);
     const meta = await previewMeta({ params: Promise.resolve({ leadId: LEAD }), searchParams: sp({ t: 'V-ready' }) });
     expect(meta).toMatchObject({ title: 'Your competitor snapshot · Smith Marketing', referrer: 'no-referrer', robots: { index: false, follow: false } });
+  });
+
+  it('lead view shows miles via formatMiles', async () => {
+    m.preview.mockResolvedValue({ businessName: 'Smith Dental', preview: { ...ready, nearby: [{ name: 'Far Dental', rating: 4, votes: 5, distanceKm: 16.1 }] }, branding: 'platform', agencyBranding: null });
+    render(await open('V-mi'));
+    expect(screen.getByRole('row', { name: /Far Dental/ }).textContent).toContain('10 mi');
+    expect(screen.getByRole('link', { name: 'Back to the start page' }).getAttribute('href')).toBe('/start');
   });
 
   it('ready (platform) carries the platform line; failed shows the fallback copy', async () => {
@@ -169,6 +178,25 @@ describe('IntakeLanding preview', () => {
     expect(screen.getAllByText('Disabled in preview').length).toBeGreaterThan(0);
     expect(container.querySelector('.cf-turnstile')).toBeNull();
     expect(container.querySelector('input[name="lookup"]')).toBeNull();
+  });
+
+  it('start moves focus to stage 2', async () => {
+    const { lookupBusinessAction } = await import('./actions');
+    const place = { placeId: 'p2', cid: null, title: 'Smith Dental', address: null, city: null, category: 'Dentist', phone: null, domain: null, rating: 4.5, votes: 10, lat: 1, lng: 2 };
+    vi.mocked(lookupBusinessAction).mockResolvedValue({ ok: true, places: [{ place, exp: 1, sig: 's', isClaimed: false, possibleDuplicate: false }] } as never);
+    render(<IntakeLanding brand={{ kind: 'platform', displayName: 'Rival Monday', logoUrl: null, style: {} }} slug={null} refCode={null} siteKey={null} />);
+    fireEvent.change(screen.getByLabelText('Business name'), { target: { value: 'Smith' } });
+    fireEvent.change(screen.getByLabelText('City and state, or ZIP'), { target: { value: 'Austin' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Find my business' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Smith Dental/ }));
+    const h = screen.getByRole('heading', { name: 'Your details' });
+    expect(document.activeElement).toBe(h);
+    expect(screen.getByRole('link', { name: 'Privacy policy' }).getAttribute('href')).toBe('https://rivalmonday.app/privacy');
+  });
+
+  it('an agency intake page shows no privacy link', () => {
+    render(<IntakeLanding brand={agencyBrand(agencyB)} slug="smith-co" refCode={null} siteKey={null} preview />);
+    expect(screen.queryByRole('link', { name: 'Privacy policy' })).toBeNull();
   });
 
   it('without preview the contact stage waits for a picked business and Turnstile is untouched', () => {

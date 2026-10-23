@@ -20,7 +20,7 @@ const textareaClass = 'min-h-20 w-full rounded-md border border-input bg-transpa
  * details, consent and the Turnstile check. Every field is controlled and `onReset` is cancelled, so React 19's post-action
  * form reset never wipes what the visitor typed. The Turnstile widget loads only when the server passes a site key.
  */
-export function IntakeForm({ slug, refCode, siteKey, preview = false }: { slug: string | null; refCode: string | null; siteKey: string | null; preview?: boolean }) {
+export function IntakeForm({ slug, refCode, siteKey, preview = false, privacyUrl = null }: { slug: string | null; refCode: string | null; siteKey: string | null; preview?: boolean; privacyUrl?: string | null }) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [places, setPlaces] = useState<IntakePlaceOption[] | null>(null);
@@ -98,9 +98,9 @@ export function IntakeForm({ slug, refCode, siteKey, preview = false }: { slug: 
         </ul>
       )}
 
-      {preview && <ContactForm place={null} slug={slug} refCode={refCode} siteKey={null} state={state} submit={submit} submitting={false} preview />}
+      {preview && <ContactForm place={null} slug={slug} refCode={refCode} siteKey={null} state={state} submit={submit} submitting={false} privacyUrl={privacyUrl} preview />}
 
-      {picked && !preview && <ContactForm key={picked.place.placeId} place={picked} slug={slug} refCode={refCode} siteKey={siteKey} state={state} submit={submit} submitting={submitting} />}
+      {picked && !preview && <ContactForm key={picked.place.placeId} place={picked} slug={slug} refCode={refCode} siteKey={siteKey} state={state} submit={submit} submitting={submitting} privacyUrl={privacyUrl} />}
     </div>
   );
 }
@@ -110,16 +110,22 @@ function PreviewNote() {
   return <span className="text-sm text-muted-foreground">Disabled in preview</span>;
 }
 
-function ContactForm({ place, slug, refCode, siteKey, state, submit, submitting, preview = false }: {
+function ContactForm({ place, slug, refCode, siteKey, state, submit, submitting, privacyUrl = null, preview = false }: {
   place: IntakePlaceOption | null; slug: string | null; refCode: string | null; siteKey: string | null;
-  state: SubmitState; submit: (fd: FormData) => void; submitting: boolean; preview?: boolean;
+  state: SubmitState; submit: (fd: FormData) => void; submitting: boolean; privacyUrl?: string | null; preview?: boolean;
 }) {
+  // Stage 2 appears after a pick; focus moves to its heading so keyboard and screen-reader users land on it.
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (!preview) heading.current?.focus();
+  }, [preview]);
   const [f, setF] = useState({ contactName: '', email: '', phone: '', message: '', consent: false });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setF((o) => ({ ...o, [k]: k === 'consent' ? (e.target as HTMLInputElement).checked : e.target.value }));
 
   return (
     <form action={preview ? undefined : submit} onSubmit={preview ? (e) => e.preventDefault() : undefined} onReset={(e) => e.preventDefault()} className="flex flex-col gap-4 border-t border-muted-surface pt-6">
+      <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold outline-none">Your details</h2>
       {state.error && <ErrorNote focusKey={state}>{state.error}</ErrorNote>}
       {/* The signed lookup result, posted back unchanged: submitIntake refuses an edited or expired one. */}
       {place && <input type="hidden" name="lookup" value={JSON.stringify({ place: place.place, exp: place.exp, sig: place.sig } satisfies SignedIntakePlace)} />}
@@ -143,7 +149,15 @@ function ContactForm({ place, slug, refCode, siteKey, state, submit, submitting,
       </div>
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" name="consent" required checked={f.consent} onChange={set('consent')} className="mt-0.5 size-4" />
-        <span>I agree to be contacted about my request.</span>
+        <span>
+          I agree to be contacted about my request.
+          {privacyUrl && (
+            <>
+              {' '}
+              <a href={privacyUrl} className="underline" target="_blank" rel="noreferrer">Privacy policy</a>
+            </>
+          )}
+        </span>
       </label>
       {siteKey && !preview && <TurnstileWidget siteKey={siteKey} state={state} />}
       <div className="flex flex-wrap items-center gap-3">

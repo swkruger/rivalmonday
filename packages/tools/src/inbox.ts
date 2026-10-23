@@ -1,4 +1,4 @@
-import { contact, type Db, notification } from '@cs/db';
+import { client, contact, type Db, notification } from '@cs/db';
 import { and, count, desc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 
 export type InboxOwner = { userId: string } | { contactId: string };
@@ -9,6 +9,8 @@ export interface InboxItem {
   body: string;
   link: string | null;
   clientId: string;
+  /** The client the notice is about (the inbox shows it per row for people who work across clients). */
+  clientName: string | null;
   createdAt: Date;
   readAt: Date | null;
 }
@@ -28,8 +30,14 @@ async function scope(service: Db, owner: InboxOwner, extra?: SQL): Promise<SQL |
 export async function listInbox(service: Db, owner: InboxOwner, opts: { limit?: number; unreadOnly?: boolean } = {}): Promise<InboxItem[]> {
   const where = await scope(service, owner, opts.unreadOnly ? isNull(notification.readAt) : undefined);
   if (!where) return [];
-  const rows = await service.select().from(notification).where(where).orderBy(desc(notification.createdAt)).limit(Math.min(opts.limit ?? 50, 200));
-  return rows.map((n) => ({ id: n.id, kind: n.kind, title: n.title, body: n.body, link: n.link, clientId: n.clientId, createdAt: n.createdAt, readAt: n.readAt }));
+  const rows = await service
+    .select({ n: notification, clientName: client.name })
+    .from(notification)
+    .leftJoin(client, eq(client.id, notification.clientId))
+    .where(where)
+    .orderBy(desc(notification.createdAt))
+    .limit(Math.min(opts.limit ?? 50, 200));
+  return rows.map(({ n, clientName }) => ({ id: n.id, kind: n.kind, title: n.title, body: n.body, link: n.link, clientId: n.clientId, clientName, createdAt: n.createdAt, readAt: n.readAt }));
 }
 
 export async function unreadCount(service: Db, owner: InboxOwner): Promise<number> {

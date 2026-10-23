@@ -2,13 +2,14 @@ import type { LeadPreview } from '@cs/db';
 import { getPublicPreview, type PublicAgencyBranding } from '@cs/tools';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import { dbs } from '@/server/db';
 import { agencyBrand, type IntakeBrand, NOINDEX, platformBrand } from '../../brand';
 import { IntakeShell, Panel } from '../../shell';
 import { PreviewPoller } from './poller';
-import { kmToMiles } from '@/lib/format';
+import { formatMiles } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 }
 
 const rating = (r: number | null) => (r === null ? '—' : `${r} ★`);
-const count = (n: number | null) => (n === null ? '—' : n.toLocaleString('en-US'));
+const count = (n: number | null) => (n === null ? '—' : new Intl.NumberFormat('en-US').format(n));
 
 /** Phase 11c §3–§4: the free preview, reached from the verify link. Public, guarded by the view token. */
 export default async function PreviewPage({ params, searchParams }: Props) {
@@ -70,7 +71,7 @@ function Body({ preview, agencyName }: { preview: LeadPreview; agencyName: strin
                 <TableHead>Business</TableHead>
                 <TableHead className="text-right">Rating</TableHead>
                 <TableHead className="text-right">Reviews</TableHead>
-                <TableHead className="text-right">Distance (mi)</TableHead>
+                <TableHead className="text-right">Distance</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -79,7 +80,7 @@ function Body({ preview, agencyName }: { preview: LeadPreview; agencyName: strin
                   <TableCell className="font-medium">{n.name}</TableCell>
                   <TableCell className="text-right tabular-nums">{rating(n.rating)}</TableCell>
                   <TableCell className="text-right tabular-nums">{count(n.votes)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{kmToMiles(n.distanceKm).toFixed(1)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatMiles(n.distanceKm)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -96,9 +97,13 @@ function Body({ preview, agencyName }: { preview: LeadPreview; agencyName: strin
           {preview.summary && <p>{preview.summary}</p>}
         </Panel>
       )}
-      <p className="text-muted-foreground">
-        {agencyName ? `${agencyName} will be in touch within one business day.` : "We'll match you with a local marketing partner and they'll be in touch."}
-      </p>
+      <Panel>
+        <h2 className="text-lg font-semibold">What happens next</h2>
+        <p className="text-muted-foreground">
+          {agencyName ? `${agencyName} has your details and will be in touch about next steps.` : "We'll match you with a local marketing partner and they'll be in touch."}
+        </p>
+        {!agencyName && <p><Link href="/start" className="font-semibold underline">Back to the start page</Link></p>}
+      </Panel>
     </>
   );
 }

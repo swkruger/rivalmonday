@@ -179,3 +179,18 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | Buttons note | Disabled in preview (beside "Find my business" and "Get my free snapshot") |
 | Intake preview guide | New guide: what the preview shows, that it is not the live page, how to turn the link on |
 | Copied button HTML | Text colour now follows the agency colour (dark ink on light colours, white on dark); no wording change |
+
+### Account and public pages (T13)
+| Where | Copy |
+|---|---|
+| Inbox, unread row | Chip "New" (screen readers: "<title> (new), <time>, <client>. <body>") |
+| Notification settings, saved | "Saved." (under the quiet-hours form; a "Save" bar appears while it has unsaved changes) |
+| Notification settings, failed toggle | The refusal message from the save, shown beside the switch; the switch returns to its stored state |
+| Sign-up | "Already have an account? Sign in" |
+| Sign-up privacy line | "By creating an account you agree to how we handle your details, as described in our privacy policy." (links to https://rivalmonday.app/privacy, **owner to confirm the URL**) |
+| /start, stage 2 heading | "Your details" |
+| /start consent (platform page only) | "I agree to be contacted about my request. Privacy policy" (same URL; agency intake pages show no link) |
+| /start/v, new panel | Heading "What happens next" |
+| /start/v, agency | "<Agency> has your details and will be in touch about next steps." (replaces "will be in touch within one business day") |
+| /start/v, platform | "We'll match you with a local marketing partner and they'll be in touch." (unchanged) + link "Back to the start page" |
+| /start/v nearby table | Column "Distance" (values "0.8 mi", "3 mi"; was "Distance (mi)") |
