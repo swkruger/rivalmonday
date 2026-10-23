@@ -13,8 +13,8 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Topic proposals' };
 
-const HELP_KEY = 'page:platform.themes';
-const COPY = PAGE_COPY['platform.themes'];
+const HELP_KEY = 'page:platform.topics';
+const COPY = PAGE_COPY['platform.topics'];
 
 /** Non-operators get the tool's permission_denied → 404 (decision 2). */
 export default async function TopicProposalsPage() {
@@ -34,9 +34,9 @@ export default async function TopicProposalsPage() {
       />
       <TipRow
         items={[
-          { label: 'Where proposals come from', tip: 'platform.themes.source' },
-          { label: 'Approve or reject', tip: 'platform.themes.decide' },
-          { label: 'Recent decisions', tip: 'platform.themes.decided' },
+          { label: 'Where proposals come from', tip: 'platform.topics.source' },
+          { label: 'Approve or reject', tip: 'platform.topics.decide' },
+          { label: 'Recent decisions', tip: 'platform.topics.decided' },
         ]}
       />
       <TopicQueue pending={pending} decided={decided} action={decideTopicAction} />

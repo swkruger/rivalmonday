@@ -1,5 +1,5 @@
 ---
-help_key: page:platform.themes
+help_key: page:platform.topics
 audience: operator
 title: Topic proposals
 ---
@@ -12,14 +12,14 @@ A proposal appears like this: every night, for each business type, reviews that 
 ## How to use it
 
 1. **Read the name, description and sample quotes.** Is it a real, recurring topic for that business type, and not already covered?
-2. **Approve** to add it: it is asked for every review analysed from now on in that business type. **Reject** to turn it down: it is not proposed again.
+2. **Approve** to add it: it is asked for every new review in that business type, and reviews from the last **180 days** are checked for it too. **Reject** to turn it down: it is not proposed again.
 3. **Check Recently decided** for the last 30 days of decisions.
 
 ## Common questions
 
-### Does approving re-read old reviews?
+### Does approving check older reviews?
 
-No. Approved topics apply to reviews analysed from then on.
+Yes, back to 180 days. After you approve a topic, reviews of that business type from the last 180 days are checked for it in the background, after any new reviews and at most 2,000 reviews a day across the platform. Older reviews are not checked. Until the check is done, the topic's numbers are based on fewer reviews. The same check runs when a business type's topics are edited, and when a competitor starts being tracked for another business type.
 
 ### Can I undo a decision?
 

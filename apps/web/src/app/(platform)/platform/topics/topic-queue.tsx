@@ -21,7 +21,7 @@ export function TopicQueue({ pending, decided, action }: { pending: TopicProposa
     <div className="flex flex-col gap-5">
       {!result.ok && <ErrorNote focusKey={result}>{result.error}</ErrorNote>}
       {result.ok && result.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{result.message}</p>}
-      {pending.length === 0 && <HelpEmpty id="platform.themes.queue" guideAnchor="what-this-page-tells-you" />}
+      {pending.length === 0 && <HelpEmpty id="platform.topics.queue" guideAnchor="what-this-page-tells-you" />}
       {pending.map((p) => (
         <div key={p.id} className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
           <div className="text-sm text-muted-ink">{p.verticalName} · {p.otherCount} reviews with no topic</div>

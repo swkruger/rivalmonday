@@ -8,8 +8,8 @@ import { CLIENT_AUDIENCE_MAPS } from '@/lib/labels';
 
 /**
  * Phase 15b-2 C3 guard: "theme" (in the review sense) never appears in user-facing text; the word is "topic".
- * Identifiers, routes (`/platform/themes`), query params (`?theme=`), page keys (`page:platform.themes`) and DB/tool
- * names keep `theme` until 15b-3, so only string literals, template text, JSX text, guide Markdown and the glossary are
+ * Identifiers and DB names may keep `theme`, but the route (`/platform/themes`), query param (`?theme=`) and page key
+ * (`page:platform.themes`) were renamed in 15b-3b and are reported if they return, so only string literals, template text, JSX text, guide Markdown and the glossary are
  * scanned (comments and identifiers are not). A second guard keeps the assistant's name out of hard-coded strings.
  */
 const SRC = __dirname;
@@ -50,14 +50,17 @@ function textsOf(file: string): Text[] {
 const THEME = /\b(un)?theme(s|d)?\b/i;
 /**
  * Narrow allow-list for string literals that match THEME but are identifiers, not prose. A string is allowed only if it has
- * no whitespace and is all lowercase / route / query / key characters: `theme`, `themes`, `/platform/themes`, `?theme=`,
- * `page:platform.themes`. Prose and capitalised labels ("Theme", "All themes") are never allowed. JSX text is never allowed.
+ * no whitespace and is all lowercase / route / query / key characters: `theme`, `themes`. Prose and capitalised labels ("Theme", "All themes") are never allowed. JSX text is never allowed.
  */
 const IDENTIFIER_LIKE = /^[a-z0-9_:/.?=&#[\]-]+$/;
+/** Retired identifiers (15b-3b): the route, query param and help key were renamed to topic(s); none may come back. */
+const RETIRED_IDENTIFIER = /platform\/themes|platform\.themes|\?theme=/;
+/** True when a string literal is an allowed identifier-like use of "theme" (not prose, not a retired route/key). */
+export const isAllowedThemeString = (text: string) => IDENTIFIER_LIKE.test(text) && !RETIRED_IDENTIFIER.test(text);
 /** UI-theme senses (brand colours, dark/light) that legitimately use the word inside a string: none today; add a snippet here with a reason. */
 const UI_THEME_STRINGS: string[] = [];
-/** Model-facing prompt text, never shown to users; the model's output field is still named `themes` (renamed with the tool rename in 15b-3). */
-const MODEL_PROMPT_FILES = new Set(['apps/web/src/server/vertical-draft.ts']);
+/** Model-facing prompt files exempt from the scan: none (vertical-draft.ts no longer says "theme"). */
+const MODEL_PROMPT_FILES = new Set<string>();
 
 const rel = (f: string) => relative(ROOT, f).split(sep).join('/');
 
@@ -67,7 +70,7 @@ function themeHits(files: string[]): Hit[] {
     if (MODEL_PROMPT_FILES.has(rel(f))) continue;
     for (const t of textsOf(f)) {
       if (!THEME.test(t.text)) continue;
-      if (t.kind === 'string' && IDENTIFIER_LIKE.test(t.text)) continue;
+      if (t.kind === 'string' && isAllowedThemeString(t.text)) continue;
       if (UI_THEME_STRINGS.some((s) => t.text.includes(s))) continue;
       hits.push({ where: `${rel(f)}:${t.line}`, text: t.text.slice(0, 100) });
     }
@@ -78,6 +81,11 @@ function themeHits(files: string[]): Hit[] {
 const fmt = (hits: Hit[]) => hits.map((h) => `${h.where}  ${JSON.stringify(h.text)}`).join('\n');
 
 describe('terminology: "theme" is "topic" in user-facing text (C3)', () => {
+  it('reports the retired route, query param and help key', () => {
+    for (const t of ['/platform/themes', 'page:platform.themes', '/platform/themes?theme=x', '?theme=']) expect(isAllowedThemeString(t), t).toBe(false);
+    for (const t of ['theme', 'themes', '/platform/topics']) expect(isAllowedThemeString(t), t).toBe(true);
+  });
+
   it('no string literal, template text or JSX text under apps/web/src says theme', () => {
     const hits = themeHits(walk(SRC));
     expect(hits, `Found "theme" in user-facing text; say "topic":\n${fmt(hits)}`).toEqual([]);
@@ -95,8 +103,6 @@ describe('terminology: "theme" is "topic" in user-facing text (C3)', () => {
     const hits: Hit[] = [];
     for (const name of readdirSync(dir).filter((n) => n.endsWith('.md'))) {
       readFileSync(join(dir, name), 'utf8').split('\n').forEach((line, i) => {
-        // The front-matter key is an identifier (`page:platform.themes` stays until 15b-3), not prose.
-        if (/^help_key:\s*page:[a-z0-9.-]+\s*$/.test(line)) return;
         if (THEME.test(line)) hits.push({ where: `docs/help/pages/${name}:${i + 1}`, text: line }); });
     }
     expect(hits, `Found "theme" in a guide:\n${fmt(hits)}`).toEqual([]);

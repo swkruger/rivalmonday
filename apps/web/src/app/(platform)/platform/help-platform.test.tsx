@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HelpProvider } from '@/components/help/help-provider';
@@ -116,7 +118,7 @@ const PAGES: [string, () => Promise<React.ReactNode>, string[]][] = [
   ['platform.billing', () => Billing({ searchParams: Promise.resolve({}) }), []],
   ['platform.leads', () => Leads(), []],
   ['platform.reviews', () => Reviews(), []],
-  ['platform.themes', () => Topics(), []],
+  ['platform.topics', () => Topics(), []],
   ['platform.ask', () => Ask({ searchParams: Promise.resolve({}) }), []],
   ['platform.ask.thread', () => AskThread({ params: Promise.resolve({ threadId: 't1' }) }), []],
   ['platform.knowledge', () => Knowledge({ searchParams: Promise.resolve({}) }), []],
@@ -352,21 +354,32 @@ describe('Model reviews', () => {
 
 describe('Topic proposals', () => {
   it('uses "topic" everywhere: the page title, tips and description', async () => {
-    await show('platform.themes');
+    await show('platform.topics');
     expect(screen.getByRole('heading', { name: 'Topic proposals', level: 1 })).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/\bthemes?\b/i);
   });
 
-  it('the source tip gives 20 reviews, 90 days and a fifth; the decide tip says approved topics apply from now on', async () => {
-    const s = await tipText('platform.themes', 'source');
+  it('the source tip gives 20 reviews, 90 days and a fifth; the decide tip says approved topics also re-check the last 180 days', async () => {
+    const s = await tipText('platform.topics', 'source');
     for (const w of ['20', '90 days', 'fifth']) expect(s, w).toContain(w);
-    expect(await tipText('platform.themes', 'decide')).toMatch(/from now on/);
-    expect(await tipText('platform.themes', 'decided')).toContain('30 days');
+    expect(await tipText('platform.topics', 'decide')).toMatch(/180 days/);
+    expect(await tipText('platform.topics', 'decided')).toContain('30 days');
   });
 
   it('with no proposals: a teaching empty state', async () => {
-    await show('platform.themes');
+    await show('platform.topics');
     expect(screen.getByText('No proposals waiting')).toBeTruthy();
+  });
+
+  it('every tip and empty id used by /platform/topics exists in PAGE_COPY', () => {
+    const dir = join(__dirname, 'topics');
+    const src = ['page.tsx', 'topic-queue.tsx'].map((f) => readFileSync(join(dir, f), 'utf8')).join(' ');
+    const c = (PAGE_COPY as Record<string, PageCopy>)['platform.topics']!;
+    expect(c).toBeTruthy();
+    expect(src).not.toMatch(/platform\.themes/);
+    const ids = [...src.matchAll(/platform\.topics\.([a-z]+)/g)].map((m) => m[1]!);
+    expect(ids.length).toBeGreaterThanOrEqual(4);
+    for (const id of ids) expect(c.tips?.[id] ?? c.empty?.[id], id).toBeTruthy();
   });
 });
 

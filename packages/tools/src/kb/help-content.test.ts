@@ -39,10 +39,9 @@ const AGENCY_A = ['page:agency.portfolio', 'page:agency.clients.new', 'page:agen
 const AGENCY_B = ['page:agency.settings.ai', 'page:agency.settings.billing', 'page:agency.settings.branding', 'page:agency.settings.intake', 'page:agency.settings.platform-access', 'page:agency.settings.runbook', 'page:agency.settings.slack-teams', 'page:agency.settings.team', 'page:agency.settings.usage'];
 /**
  * 15b-2 Task 9a, platform pages: operator-only (`requireOperatorContext`), so every page has one `operator` guide and nothing else.
- * Themes is the Topic proposals page (key unchanged, text says "topic").
  */
 const PLATFORM_KEYS = [
-  'overview', 'agencies', 'agencies.detail', 'billing', 'leads', 'reviews', 'themes', 'ask', 'ask.thread', 'knowledge', 'knowledge.new', 'knowledge.detail', 'health', 'costs', 'verticals', 'runbook',
+  'overview', 'agencies', 'agencies.detail', 'billing', 'leads', 'reviews', 'topics', 'ask', 'ask.thread', 'knowledge', 'knowledge.new', 'knowledge.detail', 'health', 'costs', 'verticals', 'runbook',
 ].map((k) => `page:platform.${k}`).sort();
 /**
  * 15b-2 Task 9b, account pages: listed in every context (`page:account.%`, `list_help_guides`) and audience-filtered. Inbox and Notification
@@ -375,7 +374,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
       billing: ['agency ids', '100', '1,000', '1 to 90', '14 if blank', '1 to 36', '30 or 90 days', 'shown once'],
       leads: ['200', 'Declined by an agency', 'Assign', '20'],
       reviews: ['Jev', '0.85', 'language model', 'Model said', 'gold labels', '50'],
-      themes: ['topic', '20', '90 days', 'fifth', '30 days'],
+      topics: ['topic', '20', '90 days', 'fifth', '30 days', '180 days'],
       ask: ['audit log', 'quota', '25'],
       'ask.thread': ['Citations', 'Trace', 'cancelled'],
       knowledge: ['Managed in repo', 'kb:seed', 'Sunday at 05:00 UTC', 'Published'],
@@ -392,6 +391,8 @@ describe('help content (real docs/help + GLOSSARY)', () => {
       expect(t, k).not.toMatch(/\bthemes?\b/i);
       expect(t, k).not.toContain('{{');
     }
+    expect(PLATFORM_KEYS).not.toContain('page:platform.themes');
+    expect(await opRegistry.invoke(op, 'get_page_guide', { helpKey: 'page:platform.themes', context: 'platform' })).toBeNull();
   });
 
   it('account batch (Task 9b): Inbox and Notification settings give each audience its own guide; the wizard has an agency guide only; all have the three standard sections', async () => {

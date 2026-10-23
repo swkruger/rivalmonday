@@ -5,8 +5,8 @@ import type { PageCopy } from '.';
  * differences: platform pages are operator-only (`requireOperatorContext`), so internals (thresholds, vendors, costs,
  * the Jev cascade) may be stated. Tips and empty states that carry internals are marked `audience: 'operator'`; an
  * operator's help audience reads `all`, `agency` and `operator` (`visibleAudiences`). The short copy never spells the
- * product name (the shared copy test forbids it); guides use `{{product}}`. The page key `platform.themes` is the
- * Topic proposals page (identifiers keep "theme", user-facing text says "topic").
+ * product name (the shared copy test forbids it); guides use `{{product}}`. The page key `platform.topics` is the
+ * Topic proposals page.
  */
 export const PLATFORM_COPY = {
   'platform.overview': {
@@ -234,9 +234,9 @@ export const PLATFORM_COPY = {
       },
     },
   },
-  'platform.themes': {
-    // source: apps/web/src/app/(platform)/platform/themes/page.tsx (the page's existing description)
-    description: 'New review topics found in reviews that didn’t fit any existing topic. Approved topics are asked for every review analysed from now on.',
+  'platform.topics': {
+    // source: apps/web/src/app/(platform)/platform/topics/page.tsx (the page's existing description)
+    description: 'New review topics found in reviews that didn’t fit any existing topic. An approved topic is asked for every new review, and reviews from the last 180 days are checked for it too.',
     tips: {
       // source: packages/engine/src/reviews/discovery.ts:TOPIC_DISCOVERY_MIN_OTHER (20), TOPIC_DISCOVERY_DAYS (90), SYSTEM prompt (at least a fifth of the reviews share it), runReviewInsights (nightly); one pending proposal per business type
       source: {
@@ -245,10 +245,10 @@ export const PLATFORM_COPY = {
         audience: 'operator',
         guideAnchor: 'what-this-page-tells-you',
       },
-      // source: packages/engine/src/reviews/discovery.ts:decideTopicProposal (approved topics are asked for reviews analysed from now on), prepareTopicDiscovery (rejected ids are never proposed again)
+      // source: packages/engine/src/reviews/discovery.ts:decideTopicProposal (approved topics are asked for new reviews); packages/engine/src/reviews/topics.ts:reaskReview (reviews from the last 180 days are re-checked after approval), prepareTopicDiscovery (rejected ids are never proposed again)
       decide: {
         title: 'Approving or rejecting',
-        body: 'Approve a topic and it is asked for every review analysed from now on in that business type. Reject it and it is not proposed again. A decision cannot be undone from this page, and a proposal someone else already decided shows an error.',
+        body: 'Approve a topic and it is asked for every new review in that business type, and reviews from the last 180 days are checked for it in the background. Reject it and it is not proposed again. A decision cannot be undone from this page, and a proposal someone else already decided shows an error.',
         audience: 'operator',
         guideAnchor: 'how-to-use-it',
       },
