@@ -12,3 +12,15 @@ export function PrevNext({ previous, next }: { previous: string | null; next: st
     </nav>
   );
 }
+
+/**
+ * A paged list whose page came back empty although the list is not (a stale cursor, or the last items on it were
+ * handled): say so and link to the first page, instead of the list's "nothing here at all" empty state.
+ */
+export function OffPageNotice({ firstHref }: { firstHref: string }) {
+  return (
+    <p className="text-sm text-muted-foreground">
+      Nothing on this page. <Link href={firstHref} className={linkCls}>Go to the first page</Link>
+    </p>
+  );
+}

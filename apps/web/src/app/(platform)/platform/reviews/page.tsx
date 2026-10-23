@@ -52,7 +52,7 @@ export default async function ModelReviewsPage({ searchParams }: { searchParams:
           { label: 'How to answer', tip: 'platform.reviews.answer' },
         ]}
       />
-      <ReviewQueue items={cards} total={total} action={resolveReviewAction} />
+      <ReviewQueue items={cards} total={total} offPage={items.length === 0 && (total > 0 || prevCursor !== null)} action={resolveReviewAction} />
       <PrevNext previous={prevCursor ? reviewsHref(prevCursor) : null} next={nextCursor ? reviewsHref(nextCursor) : null} />
     </>
   );

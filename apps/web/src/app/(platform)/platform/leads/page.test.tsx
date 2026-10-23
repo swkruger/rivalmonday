@@ -50,6 +50,19 @@ describe('platform leads page', () => {
     expect(row.querySelectorAll('td')[2]!.textContent).toBe('—');
   });
 
+  it('an empty page of a non-empty pool says so and links to the first page; an empty pool keeps its empty state', async () => {
+    m.answer = { ...m.answer, leads: [], nextCursor: null, total: 2 };
+    await show({ cursor: 'CUR' });
+    expect(screen.getByText(/Nothing on this page\./)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Go to the first page' }).getAttribute('href')).toBe('/platform/leads');
+    expect(screen.queryByText('The pool is empty')).toBeNull();
+    cleanup();
+    m.answer = { ...m.answer, leads: [], nextCursor: null, prevCursor: null, total: 0 };
+    await show();
+    expect(screen.getByText('The pool is empty')).toBeTruthy();
+    expect(screen.queryByText(/Nothing on this page/)).toBeNull();
+  });
+
   it('verified column shows the date in the viewer zone', async () => {
     await show();
     expect(screen.getByText(/^Oct 5/)).toBeTruthy();

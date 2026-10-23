@@ -21,14 +21,22 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/platform/reviews', useR
 const { default: Reviews } = await import('./page');
 
 const item = {
-  id: 'r1', createdAt: new Date().toISOString(), competitorName: 'Smith HVAC', source: 'web', kind: 'modified', beforeText: 'a', afterText: 'b',
+  id: 'r1', createdAt: '2026-10-23T11:59:50Z', competitorName: 'Smith HVAC', source: 'web', kind: 'modified', beforeText: 'a', afterText: 'b',
   questions: [],
 };
 const show = async (sp: Record<string, string> = {}) =>
   render(<HelpProvider value={{ audience: 'operator', names: { agency: 'your agency', assistant: 'Sunny' } }}>{await Reviews({ searchParams: Promise.resolve(sp) })}</HelpProvider>);
 
-beforeEach(() => { m.calls = []; m.answer = { items: [item], nextCursor: 'NEXT', prevCursor: 'PREV', total: 60 }; });
-afterEach(cleanup);
+// A fixed clock: the card age is computed against the page's `new Date()`.
+beforeEach(() => {
+  vi.useFakeTimers({ now: new Date('2026-10-23T12:00:00Z'), toFake: ['Date'] });
+  m.calls = [];
+  m.answer = { items: [item], nextCursor: 'NEXT', prevCursor: 'PREV', total: 60 };
+});
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe('platform reviews page', () => {
   it('shows the count, a card header with labels and age, and Previous/Next with ?cursor=', async () => {
@@ -38,5 +46,17 @@ describe('platform reviews page', () => {
     expect(screen.getByRole('link', { name: /Previous/ }).getAttribute('href')).toBe('/platform/reviews?cursor=PREV');
     expect(screen.getByRole('link', { name: /Next/ }).getAttribute('href')).toBe('/platform/reviews?cursor=NEXT');
     expect(m.calls.find(([n]) => n === 'list_decision_reviews')![1]).toEqual({ cursor: 'CUR' });
+  });
+
+  it('an empty page of a non-empty queue says so and links to the first page; an empty queue keeps its empty state', async () => {
+    m.answer = { items: [], nextCursor: null, prevCursor: 'PREV', total: 3 };
+    await show({ cursor: 'CUR' });
+    expect(screen.getByText(/Nothing on this page\./)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Go to the first page' }).getAttribute('href')).toBe('/platform/reviews');
+    cleanup();
+    m.answer = { items: [], nextCursor: null, prevCursor: null, total: 0 };
+    await show();
+    expect(screen.queryByText(/Nothing on this page/)).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Go to the first page' })).toBeNull();
   });
 });

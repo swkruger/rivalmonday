@@ -4,7 +4,7 @@ import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
-import { PrevNext } from '@/components/prev-next';
+import { OffPageNotice, PrevNext } from '@/components/prev-next';
 import { formatDate } from '@/lib/format';
 import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
@@ -88,7 +88,9 @@ export default async function PlatformLeadsPage({ searchParams }: { searchParams
         </CardHeader>
         <CardContent>
           <AssignScope>
-          {leads.length === 0 ? (
+          {leads.length === 0 && (total > 0 || prevCursor) ? (
+            <OffPageNotice firstHref="/platform/leads" />
+          ) : leads.length === 0 ? (
             <EmptyState {...COPY.empty.pool} guideAnchor="what-this-page-tells-you" />
           ) : (
             <Table>
