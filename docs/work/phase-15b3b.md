@@ -7,7 +7,7 @@
 Spec owner-approved 2026-10-23 (E1–E6); lean plan written (Tasks 0–9), awaiting owner approval. No code.
 
 ## Next (overwrite)
-Task 0 done -> Task 1 (copy sign-off doc) -> SDD. Owner signs off the copy doc (Task 1) before merge.
+Tasks 0-1 done (copy doc `docs/work/phase-15b3b-copy-signoff.md` drafted) -> Task 6 applies the copy. Owner signs copy before merge.
 
 ## Pre-flight (Task 0, 2026-10-23)
 - Rebased on `main` `b93f7ff4` (confirmed ancestor). 7b1: unmerged, docs-only commits, claims 0085 ledger_cost_numeric / 0086 spend_guard / 0087 retry_backoff; 15c2: docs-only, may claim 0085 (`ask_thread.deleted_at`). `main` + `cs_dev` at 0084. Our N = next free at execution (0085/0086 if 7b1 still unmerged, else 0088/0089); second merger renumbers. 7b1 unmerged: Task 3 stays full, Task 8 `usesAi` stays conditional.
