@@ -202,3 +202,13 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | After any resend click | Button "Resend in {n} s" (disabled, counts down from 60) |
 | Result line (every outcome: sent, unknown address, limit reached) | "If that address can sign in, a new email is on its way." |
 | Resend after the 15-minute window | The button becomes a link "Start again" (to `/sign-in` or `/sign-up`) |
+
+### Platform > Topic proposals (T16)
+| Where | Copy |
+|---|---|
+| Status chips (TOPIC_PROPOSAL_STATUS) | Waiting for review (proposed) · Approved · Rejected |
+| Pending card line | {Status chip} {Business type} · {n} reviews with no topic · Proposed {2 days ago} |
+| Approve: title / body / confirm | Approve {name}? / It becomes a topic that reviews are sorted into, and the last 180 days of reviews with no topic are checked against it. / Approve |
+| Reject: title / body / confirm | Reject {name}? / It is not added to the topic list. This cannot be undone. / Reject (danger) |
+| Recently decided | Decision as a chip; date as "Oct 7" (viewer's zone) |
+| Knowledge article "Updated" line | Shared formatter: "Updated Oct 1, 2026" (unchanged, year always shown) |

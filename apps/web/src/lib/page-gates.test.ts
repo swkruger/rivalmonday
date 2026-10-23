@@ -61,9 +61,8 @@ describe('page gates over the tree', () => {
   it('GATED_PATHS ⊆ AREAS_2A', () => {
     for (const p of GATED_PATHS) expect(AREAS_2A.some((a) => p === a || p.startsWith(`${a}/`)), p).toBe(true);
   });
-  it('report: hit counts for 2a areas not yet gated (progress view)', () => {
-    const lines = AREAS_2A.filter((p) => !GATED_PATHS.includes(p)).map((p) => `${String(scanPaths([p]).length).padStart(4)}  ${p}`);
-    console.log(`page-gates report (ungated 2a areas):\n${lines.join('\n')}`);
-    expect(true).toBe(true);
+  it('gated paths cover AREAS_2A', () => {
+    // Every 2a area is gated: it equals a gated entry or sits under one.
+    for (const a of AREAS_2A) expect(GATED_PATHS.some((g) => a === g || a.startsWith(`${g}/`)), a).toBe(true);
   });
 });

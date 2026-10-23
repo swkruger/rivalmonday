@@ -119,6 +119,7 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
       <ShellTheme vars={style} />
       <TzCookie />
       <div data-shell-theme="" className="contents" style={style as React.CSSProperties}>
+        {/* format-gate: machine value, SupportBanner formats it for display */}
         {support && <SupportBanner sessionId={support.id} agencyName={support.agencyName} reason={support.reason} expiresAt={support.expiresAt.toISOString()} />}
         <div className={`flex min-h-screen bg-canvas${support ? ` ${BANNER_OFFSET}` : ''}`}>
           <Sidebar branding={branding} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} switcher={switcher} offsetTop={support !== null} />

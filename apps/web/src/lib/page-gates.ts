@@ -1,5 +1,5 @@
 // Page-fix grep gates (15c-2a spec §5, gates 1-4) with a ratchet: gates are enforced only over
-// GATED_PATHS; each area task appends its folders (and fixes every hit); the last task asserts
+// GATED_PATHS; each area task appends its folders (and fixes every hit); the last task (T16) asserts
 // GATED_PATHS ⊇ AREAS_2A. Regexes are deliberately simple line matchers; a false positive is fixed
 // with an escape comment that names its reason: `// format-gate: <reason>` or `{/* format-gate: <reason> */}`
 // on the same or the previous line (an empty reason does not count).
@@ -42,63 +42,8 @@ export const AREAS_2A: readonly string[] = [
   'components/shell',
 ];
 
-/** Folders (or files) currently enforced, relative to apps/web/src. Area tasks append here. Seeded with the 2a folders that had zero hits when the gates landed (T2). */
-export const GATED_PATHS: string[] = [
-  'app/(app)/settings',
-  'app/(app)/onboarding',
-  'app/(app)/kb',
-  'app/(app)/paused',
-  'app/sign-up',
-  'app/sign-in',
-  'app/join',
-  'app/link-expired',
-  'app/link-other-account',
-  'app/no-access',
-  'app/u',
-  'app/oauth',
-  'app/onboarding',
-  'components/agency',
-  'app/(app)/agency/alerts',
-  'app/(app)/agency/page.tsx',
-  'app/(app)/agency/approvals',
-  'app/(app)/agency/prospects',
-  'app/(app)/agency/leads',
-  'app/(app)/agency/clients',
-  'app/(app)/agency/help',
-  'components/billing/client-billing-controls.tsx',
-  'app/(app)/agency/settings/intake',
-  // The platform console minus `topics` (T16 owns it), listed folder by folder
-  'app/(platform)/platform/_components',
-  'app/(platform)/platform/actions.ts',
-  'app/(platform)/platform/agencies',
-  'app/(platform)/platform/ask',
-  'app/(platform)/platform/billing',
-  'app/(platform)/platform/costs',
-  'app/(platform)/platform/error.tsx',
-  'app/(platform)/platform/health',
-  'app/(platform)/platform/help',
-  'app/(platform)/platform/knowledge',
-  'app/(platform)/platform/leads',
-  'app/(platform)/platform/page.tsx',
-  'app/(platform)/platform/reviews',
-  'app/(platform)/platform/runbook',
-  'app/(platform)/platform/verticals',
-  'components/runbook',
-  'components/support-sessions-table.tsx',
-  'app/(app)/agency/settings/page.tsx',
-  'app/(app)/agency/settings/layout.tsx',
-  'app/(app)/agency/settings/ai',
-  'app/(app)/agency/settings/billing',
-  'app/(app)/agency/settings/branding',
-  'app/(app)/agency/settings/platform-access',
-  'app/(app)/agency/settings/runbook',
-  'app/(app)/agency/settings/usage',
-  'components/ai-connections.tsx',
-  'app/(app)/agency/settings/slack-teams',
-  'app/(app)/agency/settings/team',
-  'app/(app)/inbox',
-  'app/start',
-];
+/** Folders (or files) enforced, relative to apps/web/src: all of 2a since T16 (the ratchet is complete). */
+export const GATED_PATHS: string[] = [...AREAS_2A];
 
 const ESCAPE = /format-gate:\s*\S/;
 const DATE_RE = /\.slice\(\s*0\s*,\s*10\s*\)|toLocaleDateString\(|toLocaleTimeString\(|toLocaleString\(|toISOString\(\)/;

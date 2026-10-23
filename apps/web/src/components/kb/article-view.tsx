@@ -1,5 +1,6 @@
 import type { KbKind, KbLevel } from '@cs/core';
 import Markdown from 'react-markdown';
+import { formatDate as formatDay } from '@/lib/format';
 
 export type KbArticle = { kbId: string; title: string; kind: KbKind; level: KbLevel; bodyMd: string; sourceUrl: string | null; updatedAt: string };
 
@@ -8,9 +9,8 @@ export const KB_LEVEL_LABEL: Record<KbLevel, string> = { platform: 'Help', agenc
 export const KB_MISSING = 'This article is no longer available.';
 const KIND_LABEL: Record<KbKind, string> = { help: 'Help article', playbook: 'Playbook', qa: 'Q&A', blog: 'Blog post', fact: 'Fact' };
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-}
+// Article stamps have no viewer zone here (shared by server and client trees): the day is UTC.
+const formatDate = (iso: string) => formatDay(iso, { tz: 'UTC', withYear: 'always' });
 
 /** Markdown only (raw HTML is not rendered); links open in a new tab. Shared by the article view and the page guide sheet. */
 export function KbMarkdown({ children }: { children: string }) {

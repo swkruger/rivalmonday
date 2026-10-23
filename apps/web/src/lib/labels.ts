@@ -178,6 +178,13 @@ export const BILLING_EVENT_REASON: Record<string, string> = {
 /** Plain-words reason for a billing event; an unknown one drops its "signal:" / "timer:" / "admin:" prefix and falls back to sentence case. */
 export const billingReasonLabel = (reason: string): string => BILLING_EVENT_REASON[reason] ?? sentenceCase(reason.replace(/^[a-z]+:/, ''));
 
+// topic_proposal.status (TopicProposalView, list_topic_proposals): platform console only
+export const TOPIC_PROPOSAL_STATUS: LabelMap<'proposed' | 'approved' | 'rejected'> = {
+  proposed: e('Waiting for review', 'warning'),
+  approved: e('Approved', 'success'),
+  rejected: e('Rejected'),
+};
+
 // KB article status (list_kb_articles): platform console only
 export const KB_ARTICLE_STATUS: LabelMap<'draft' | 'published'> = {
   draft: e('Draft'),
