@@ -9,7 +9,7 @@ import type { CaptureStatus } from '@cs/core';
 import { type AgencyBranding, competitor, catalogRows, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import { createCatalog } from '@cs/verticals';
 import {
-  analyzeReview as runAnalyzeReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
+  analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
   type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
@@ -67,6 +67,7 @@ export interface WorkerDeps {
   scoreEvent(eventId: string): Promise<{ scored: number; failed: number }>;
   findEngineWork(limit: number): Promise<EngineWork>;
   analyzeReview(reviewId: string): Promise<{ ran: boolean }>;
+  reaskReview(reviewId: string): Promise<{ ran: boolean; questions: number }>;
   extractPrices(captureId: string): Promise<{ ran: boolean; points: number; ended: number }>;
   runReviewInsights(): Promise<ReviewInsightsResult>;
   collectModelBatches(): Promise<BatchCollectResult>;
@@ -310,6 +311,10 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
     findEngineWork: (limit) => findEngineWork(getDb(), { limit }),
     async analyzeReview(reviewId) {
       return { ran: (await runAnalyzeReview({ db: getDb(), ai: await getAi(), packs }, reviewId)).ran };
+    },
+    async reaskReview(reviewId) {
+      const r = await runReaskReview({ db: getDb(), ai: await getAi(), packs }, reviewId);
+      return { ran: r.ran, questions: r.questions };
     },
     async extractPrices(captureId) {
       const r = await runExtractPrices({ db: getDb(), store: getStore(), ai: await getAi(), packs }, captureId);

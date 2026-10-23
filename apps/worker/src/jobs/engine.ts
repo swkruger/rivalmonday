@@ -23,6 +23,7 @@ export function createEngineJobs(
     enqueueScore(eventId: string): Promise<void>;
     enqueueReview(reviewId: string): Promise<void>;
     enqueuePrice(captureId: string): Promise<void>;
+    enqueueReask(reviewId: string): Promise<void>;
   },
 ) {
   let warnedUnconfigured = false;
@@ -43,10 +44,11 @@ export function createEngineJobs(
       for (const id of w.tag) await queue.enqueueTag(id);
       for (const id of w.score) await queue.enqueueScore(id);
       for (const id of w.reviews) await queue.enqueueReview(id);
+      for (const id of w.reask) await queue.enqueueReask(id);
       for (const id of w.prices) await queue.enqueuePrice(id);
-      if (w.diff.length + w.rankDiff.length + w.tag.length + w.score.length + w.reviews.length + w.prices.length > 0)
+      if (w.diff.length + w.rankDiff.length + w.tag.length + w.score.length + w.reviews.length + w.reask.length + w.prices.length > 0)
         workerLog.info(
-          `[engine-sweep] enqueued diff ${w.diff.length}, rank ${w.rankDiff.length}, tag ${w.tag.length}, score ${w.score.length}, review ${w.reviews.length}, price ${w.prices.length}`,
+          `[engine-sweep] enqueued diff ${w.diff.length}, rank ${w.rankDiff.length}, tag ${w.tag.length}, score ${w.score.length}, review ${w.reviews.length}, reask ${w.reask.length}, price ${w.prices.length}`,
         );
     },
   });
@@ -85,6 +87,13 @@ export function createEngineJobs(
       await deps.analyzeReview(reviewId);
     },
   });
+  const reask = defineJob({
+    name: 'engine-reask', schema: z.object({ reviewId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
+    handler: async ({ reviewId }) => {
+      const r = await deps.reaskReview(reviewId);
+      if (r.questions > 0) workerLog.info(`[engine-reask] ${reviewId} → ${r.questions} question(s)`);
+    },
+  });
   const price = defineJob({
     name: 'engine-price', schema: z.object({ captureId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
     handler: async ({ captureId }) => {
@@ -92,5 +101,5 @@ export function createEngineJobs(
       if (r.ran && r.points + r.ended > 0) workerLog.info(`[engine-price] ${captureId} → ${r.points} new, ${r.ended} ended`);
     },
   });
-  return { sweep, diff, rankDiff, tag, score, review, price };
+  return { sweep, diff, rankDiff, tag, score, review, reask, price };
 }

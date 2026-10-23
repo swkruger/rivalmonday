@@ -95,6 +95,9 @@ const engine = createEngineJobs(deps, {
   enqueueReview: async (reviewId) => {
     await enqueue(boss, engine.review, { reviewId }, { singletonKey: reviewId });
   },
+  enqueueReask: async (reviewId) => {
+    await enqueue(boss, engine.reask, { reviewId }, { singletonKey: `reask:${reviewId}` });
+  },
   enqueuePrice: async (captureId) => {
     await enqueue(boss, engine.price, { captureId }, { singletonKey: captureId });
   },
@@ -186,7 +189,7 @@ const delivery = createDeliveryJobs(deps, {
 await registerJobs(boss, [
   heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, rankMap.refresh, prospects.snapshot,
   rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly, rivals.monthly, rivals.monthlyClient,
-  engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.price, reviews.nightly, moves.nightly, moves.client,
+  engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.reask, engine.price, reviews.nightly, moves.nightly, moves.client,
   modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, onboarding.nudges, setup.suggestions, setup.reminders, runbooks.tailor, leads.preview, leads.cleanup, platformCosts.snapshot, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
   delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,
 ]);

@@ -10,13 +10,14 @@ const queue = () => ({
   enqueueScore: vi.fn(async (_id: string) => {}),
   enqueueReview: vi.fn(async (_id: string) => {}),
   enqueuePrice: vi.fn(async (_id: string) => {}),
+  enqueueReask: vi.fn(async (_id: string) => {}),
 });
 
 describe('engine jobs', () => {
   it('sweeps every 5 minutes and enqueues all found work', async () => {
     const deps = {
       engineConfigured: () => true,
-      findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)], reviews: [U(5)], prices: [U(6)], reask: [] })),
+      findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)], reviews: [U(5)], prices: [U(6)], reask: [U(7)] })),
     } as unknown as WorkerDeps;
     const q = queue();
     const jobs = createEngineJobs(deps, q);
@@ -25,6 +26,7 @@ describe('engine jobs', () => {
     expect([q.enqueueDiff.mock.calls, q.enqueueTag.mock.calls, q.enqueueScore.mock.calls, q.enqueueRankDiff.mock.calls]).toEqual([[[U(1)]], [[U(2)]], [[U(3)]], [[U(4)]]]);
     expect(q.enqueueReview.mock.calls).toEqual([[U(5)]]);
     expect(q.enqueuePrice.mock.calls).toEqual([[U(6)]]);
+    expect(q.enqueueReask.mock.calls).toEqual([[U(7)]]);
   });
 
   it('skips the sweep without an OpenRouter key', async () => {
@@ -87,5 +89,15 @@ describe('engine jobs', () => {
     expect(deps.extractPrices).toHaveBeenCalledWith(U(6));
     for (const job of [jobs.review, jobs.price]) expect(job.queue).toMatchObject({ retryLimit: 0, policy: 'short' });
     expect(() => jobs.review.schema.parse({ reviewId: 'x' })).toThrow();
+  });
+
+  it('engine-reask calls deps.reaskReview and uses ENGINE_STAGE_QUEUE', async () => {
+    const deps = { reaskReview: vi.fn(async () => ({ ran: true, questions: 2 })) } as unknown as WorkerDeps;
+    const jobs = createEngineJobs(deps, queue());
+    await jobs.reask.handler({ reviewId: U(7) });
+    expect(deps.reaskReview).toHaveBeenCalledWith(U(7));
+    expect(jobs.reask.name).toBe('engine-reask');
+    expect(jobs.reask.queue).toMatchObject({ retryLimit: 0, policy: 'short' });
+    expect(() => jobs.reask.schema.parse({ reviewId: 'x' })).toThrow();
   });
 });
