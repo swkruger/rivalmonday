@@ -20,6 +20,7 @@
   --muted-surface-2: #E2E8F0;
   --success: #16A34A;
   --danger: #DC2626;
+  --primary-foreground: #0B2540;
   --primary-soft: #E3F2FC;
   --primary-soft-text: #1F6FA8;
   --radius: 0.75rem;
@@ -39,7 +40,7 @@
 @theme inline {
   --font-sans: var(--font-inter), Inter, system-ui, sans-serif;
   --color-primary: var(--primary);
-  --color-primary-foreground: #FFFFFF;
+  --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: #FFFFFF;
   /* Brand amber (fixed, never agency-overridable) — "monday" in the wordmark,
