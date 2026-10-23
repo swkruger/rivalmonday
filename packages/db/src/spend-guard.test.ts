@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { eq, sql } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { errorText, IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
 import { client, platformSetting, spendGuardEvent, withTenant } from './index';
 import {
@@ -54,7 +54,12 @@ describe('SpendGuardSettings', () => {
     await dbs.owner.insert(platformSetting).values({ key: SPEND_GUARD_SETTINGS_KEY, value: { clientMonthlyLimitUsd: 20 }, updatedBy: 't' });
     expect((await readSpendGuardSettings(dbs.service)).clientMonthlyLimitUsd).toBe(20);
     await dbs.owner.update(platformSetting).set({ value: { clientMonthlyLimitUsd: -1 } }).where(eq(platformSetting.key, SPEND_GUARD_SETTINGS_KEY));
-    expect(await readSpendGuardSettings(dbs.service)).toEqual(DEFAULTS);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {}); // warn-once: may already have fired in this process
+    try {
+      expect(await readSpendGuardSettings(dbs.service)).toEqual(DEFAULTS);
+    } finally {
+      warn.mockRestore();
+    }
   });
   it('writeAiGuardState upserts and round-trips', async () => {
     await writeAiGuardState(dbs.service, { state: 'warn', scope: 'total', observedUsd: 12 }, 'system');

@@ -27,7 +27,7 @@ CREATE INDEX "llm_call_competitor_created_idx" ON "llm_call" USING btree ("compe
 CREATE INDEX "vendor_call_competitor_created_idx" ON "vendor_call" USING btree ("competitor_id","created_at") WHERE competitor_id IS NOT NULL;--> statement-breakpoint
 ALTER TABLE "client" ADD CONSTRAINT "client_spend_limit_check" CHECK (spend_limit_usd > 0 AND spend_limit_usd <= 10000);--> statement-breakpoint
 ALTER TABLE "client" DROP CONSTRAINT "client_monthly_cap_check";--> statement-breakpoint
-ALTER TABLE "client" DROP COLUMN "monthly_cap_usd";;--> statement-breakpoint
+ALTER TABLE "client" DROP COLUMN "monthly_cap_usd";--> statement-breakpoint
 ALTER TABLE "spend_guard_event" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "spend_guard_event" FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 REVOKE ALL ON "spend_guard_event" FROM app_user;--> statement-breakpoint
