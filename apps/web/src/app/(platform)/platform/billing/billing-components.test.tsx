@@ -58,6 +58,12 @@ describe('PlanEditor confirms and dates', () => {
   it('publish plan needs a confirm: click opens the dialog, confirming calls the action once with the form values', async () => {
     render(<PlanEditor plans={[]} canEdit tz="UTC" />);
     fireEvent.change(screen.getByLabelText('Base price ($/month)'), { target: { value: '299' } });
+    // ConfirmForm: with required fields still empty the dialog does not open.
+    fireEvent.click(screen.getByRole('button', { name: 'Publish new version' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Included seats'), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText('Extra seat ($/month)'), { target: { value: '99' } });
+    fireEvent.change(screen.getByLabelText('Trial days'), { target: { value: '30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Publish new version' }));
     expect(m.createPlanVersionAction).not.toHaveBeenCalled();
     const dialog = await screen.findByRole('dialog');

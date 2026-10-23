@@ -9,6 +9,8 @@ vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => 
 vi.mock('@/server/tools', () => ({ toolDeps: () => ({}), isHiddenToolError: (e: unknown) => e instanceof ToolError && ['not_found', 'permission_denied', 'invalid_input'].includes(e.code) }));
 vi.mock('@cs/tools', () => ({ listReviewableAskThreads: (...a: unknown[]) => list(...a), getReviewableAskThread: (...a: unknown[]) => get(...a) }));
 vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
+vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
+vi.mock('@/server/ask', () => ({ assistantNameFor: async () => 'Friday' }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
 
 import ThreadPage from './[threadId]/page';
