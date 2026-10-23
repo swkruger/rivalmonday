@@ -32,6 +32,7 @@ vi.mock('@cs/tools', () => ({
   myNotificationSettings: async () => m.settings,
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
+vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'America/Chicago' }));
 vi.mock('@/server/timezones', () => ({ timezoneOptions: () => ['UTC'] }));
 vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [] }));
 const tool = async (_ctx: unknown, name: string, input: unknown) => {

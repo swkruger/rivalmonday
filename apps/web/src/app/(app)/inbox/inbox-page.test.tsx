@@ -10,7 +10,7 @@ vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'America/Chic
 vi.mock('@cs/tools', () => ({ listInbox: async () => m.items }));
 vi.mock('./actions', () => ({ markAllReadAction: vi.fn(), openNotification: vi.fn() }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
-vi.mock('@/components/page-header', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
+vi.mock('@/components/page-header', () => ({ PageHeader: ({ title }: { title: string }) => <div role="heading" aria-level={1}>{title}</div> }));
 vi.mock('@/components/help/tip-row', () => ({ TipRow: () => null }));
 vi.mock('@/components/help/empty-state', () => ({ EmptyState: () => null }));
 vi.mock('@/components/help/help-context', () => ({ HelpText: () => null }));

@@ -1,4 +1,5 @@
 'use server';
+import { createLogger } from '@cs/core/server';
 import { cookies, headers } from 'next/headers';
 import { z } from 'zod';
 import { keepNext } from '@/lib/keep-next';
@@ -15,6 +16,7 @@ const MIN_MS = 400;
 const SENT: ResendState = { status: 'sent', message: 'If that address can sign in, a new email is on its way.' };
 const SIGNUP_CALLBACK = '/onboarding/start';
 const emailCheck = z.string().trim().email().max(254);
+const log = createLogger(process.env.VITEST ? { pretty: false } : {}).child({ role: 'web' });
 
 interface MagicLinkApi {
   signInMagicLink(a: { body: { email: string; callbackURL: string; errorCallbackURL: string }; headers: Headers }): Promise<unknown>;
@@ -62,7 +64,7 @@ export async function resendEmailAction(_prev: ResendState, _fd: FormData): Prom
       }
     } catch (e) {
       // Never log the email, link or token.
-      console.error(`[resend] sign-in link step failed: ${e instanceof Error ? e.name : typeof e}`);
+      log.error({ error: e instanceof Error ? e.name : typeof e }, 'resend: sign-in link step failed');
     }
   }
   await new Promise((r) => setTimeout(r, Math.max(0, MIN_MS - (Date.now() - started))));
