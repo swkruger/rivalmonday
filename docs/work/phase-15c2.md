@@ -4,10 +4,10 @@
 **Plan/spec:** [15c-2 spec](../superpowers/specs/2026-10-23-phase-15c2-page-fixes-design.md) (D1-D8); [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §2 (C1-C11), §4; plan *to be written*. Inputs: [UX audit](../research/2026-10-18-phase-15-ux-audit.md), pre-split brief `git show 9ddfae3c:docs/work/phase-15c.md` §1 (per-area list).
 
 ## Status (overwrite)
-Brainstormed 2026-10-23; spec written + builder-checked, awaiting owner approval. No code.
+Spec approved 2026-10-23; 2a mockups picked (segmented tabs, framed preview); 15c-2a plan written, awaiting owner approval. No code.
 
 ## Next (overwrite)
-Owner approves spec → mockups (C10: sheet, tabs, intake preview, page diff) → lean plan 15c-2a, then 15c-2b.
+Owner approves the 15c-2a plan → execution (SDD). 15c-2b plan + mockups (sheet, page diff) after 2a.
 
 ## Interfaces this branch adds or changes
 Spec §3, §6, §7: `delete_ask_thread` (replaces `delete_my_ask_thread`), `ask_thread.deleted_at` (next free migration, 0085 today), `delete_webhook`, `test_webhook`, `resend_invitation` + `resendInvitation` in `access/team.ts`, `team_invite` email, `rm_pending_email` cookie, `list_platform_agencies.query`, `list_alert_queue.clientId`/`capped`, paging on `list_pool_leads`/`list_decision_reviews`, `compare_captures`, `components/list-detail.tsx`, route `/agency/settings/intake/preview`, `IntakeLanding.preview`, grep gates (spec §5).
