@@ -4,7 +4,7 @@ import { redactContactInfo } from './privacy';
 /**
  * Serious health conditions (spec §4.5: "PII and health details stripped before any model call").
  * Service and product terms of any vertical are deliberately absent — "root canal", "sedation", "pain",
- * "AC repair" are what themes, tags and service mapping analyse.
+ * "AC repair" are what topics, tags and service mapping analyse.
  */
 const HEALTH = new RegExp(
   String.raw`\b(?:diabet(?:es|ic)|cancer|chemo(?:therapy)?|pregnan(?:t|cy)|miscarriage|hepatitis|heart attack|stroke|seizures?|epilep(?:sy|tic)|dementia|alzheimer'?s|autis(?:m|tic)|adhd|depression|bipolar|ptsd|schizophreni(?:a|c)|parkinson'?s|multiple sclerosis|chronic (?:illness|pain)|disabilit(?:y|ies)|disabled)\b`,

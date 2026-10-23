@@ -28,13 +28,13 @@ describe('competitor profile sections (decision 13)', () => {
   });
 
   it('compares its top topics with yours', () => {
-    const theme = (topicId: string, share: number | null) => ({ topicId, mentions: 1, asked: 2, share, sentiment: 0, shareDelta: null, sentimentDelta: null });
+    const topic = (topicId: string, share: number | null) => ({ topicId, mentions: 1, asked: 2, share, sentiment: 0, shareDelta: null, sentimentDelta: null });
     render(<ReviewsSection clientId={C} competitorId={X} benchmark={{
       windowDays: 90, from: '', to: '',
       topics: [{ id: 'response_time', name: 'Response time' }, { id: 'upsell_pressure', name: 'Upsell pressure' }],
       businesses: [
-        { competitorId: 's', name: 'A1 HVAC', self: true, reviews: 4, avgRating: 4.5, prevReviews: 0, prevAvgRating: null, topics: [theme('response_time', 0.1), theme('upsell_pressure', null)] },
-        { competitorId: X, name: 'Smith HVAC', self: false, reviews: 2, avgRating: 3, prevReviews: 0, prevAvgRating: null, topics: [theme('response_time', 0.5), theme('upsell_pressure', 0.25)] },
+        { competitorId: 's', name: 'A1 HVAC', self: true, reviews: 4, avgRating: 4.5, prevReviews: 0, prevAvgRating: null, topics: [topic('response_time', 0.1), topic('upsell_pressure', null)] },
+        { competitorId: X, name: 'Smith HVAC', self: false, reviews: 2, avgRating: 3, prevReviews: 0, prevAvgRating: null, topics: [topic('response_time', 0.5), topic('upsell_pressure', 0.25)] },
       ],
     }} />);
     expect(screen.getByText('3.0 ★ average · 2 reviews in 90 days')).toBeTruthy();

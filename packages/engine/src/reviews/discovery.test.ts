@@ -35,7 +35,7 @@ beforeEach(async () => {
 });
 
 describe('discoverTopic', () => {
-  it('proposes a theme from enough unmatched reviews, with redacted samples, then waits for the AM', async () => {
+  it('proposes a topic from enough unmatched reviews, with redacted samples, then waits for the AM', async () => {
     await unmatched(20);
     const ai = proposing(WARRANTY);
     const r = await discoverTopic({ db: dbs.service, ai, packs }, 'hvac_plumbing', { now });
@@ -49,7 +49,7 @@ describe('discoverTopic', () => {
     expect(await discoverTopic({ db: dbs.service, ai, packs }, 'hvac_plumbing', { now })).toEqual({ skipped: 'a proposal is awaiting approval' });
   });
 
-  it('an approved theme joins the vertical theme list and the review questions', async () => {
+  it('an approved topic joins the vertical topic list and the review questions', async () => {
     await unmatched(20);
     const r = await discoverTopic({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now });
     await decideTopicProposal(dbs.service, (r as { proposalId: string }).proposalId, 'approved', 'am@agency.example');
@@ -60,7 +60,7 @@ describe('discoverTopic', () => {
     await expect(decideTopicProposal(dbs.service, (r as { proposalId: string }).proposalId, 'rejected', 'x')).rejects.toThrow(/not awaiting a decision/);
   });
 
-  it('records "none" (no new theme, or an invalid one) so the same reviews are not sent again', async () => {
+  it('records "none" (no new topic, or an invalid one) so the same reviews are not sent again', async () => {
     await unmatched(20, day(-2));
     expect(await discoverTopic({ db: dbs.service, ai: proposing({ found: false, id: '', name: '', description: '' }), packs }, 'hvac_plumbing', { now })).toMatchObject({ status: 'none' });
     expect(await discoverTopic({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now })).toEqual({ skipped: '0 untagged review(s) since the last proposal' });
@@ -69,7 +69,7 @@ describe('discoverTopic', () => {
     expect(await discoverTopic({ db: dbs.service, ai: proposing({ ...WARRANTY, id: 'Price Transparency!' }), packs }, 'hvac_plumbing', { now })).toMatchObject({ status: 'none' });
   });
 
-  it('never re-proposes a rejected theme id, and tells the model it was rejected', async () => {
+  it('never re-proposes a rejected topic id, and tells the model it was rejected', async () => {
     await unmatched(20, day(-2));
     const first = await discoverTopic({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now });
     await decideTopicProposal(dbs.service, (first as { proposalId: string }).proposalId, 'rejected', 'am@agency.example');
@@ -92,7 +92,7 @@ describe('discoverTopic', () => {
   it('loses a check-then-insert race to a concurrent run and skips instead of throwing or double-proposing', async () => {
     await unmatched(20);
     // The pending check passes (no 'proposed' row yet), but a concurrent run commits one — for a *different*
-    // theme id — before this run's own insert, simulated by racing it from inside the fake chat call.
+    // topic id — before this run's own insert, simulated by racing it from inside the fake chat call.
     const raceAi: Ai = {
       async chat() {
         await dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'other_topic', name: 'Other', description: 'd', status: 'proposed', otherCount: 1 });
@@ -129,7 +129,7 @@ describe('runReviewInsights', () => {
 type Collect = (task: string, batchId: string) => { status: 'in_progress' } | { status: 'ended'; results: BatchItemResult[] };
 const batching = (collect?: Collect) => createFakeAi({ batch: { submit: () => 'msgbatch_1', collect } });
 
-describe('batched theme discovery (Phase 3d decision 10)', () => {
+describe('batched topic discovery (Phase 3d decision 10)', () => {
   it('submits one request per eligible vertical and records the batch instead of calling chat', async () => {
     await unmatched(20);
     const ai = batching();
@@ -187,7 +187,7 @@ describe('batched theme discovery (Phase 3d decision 10)', () => {
     expect(await dbs.service.select().from(topicProposal)).toEqual([]);
   });
 
-  it('applies an ended batch: proposes the theme and closes the batch', async () => {
+  it('applies an ended batch: proposes the topic and closes the batch', async () => {
     await unmatched(20);
     await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
     const ai = batching(() => ({ status: 'ended', results: [{ customId: 'hvac_plumbing', ok: true, text: JSON.stringify(WARRANTY), model: 'claude-sonnet-5', inputTokens: 1, outputTokens: 1 }] }));

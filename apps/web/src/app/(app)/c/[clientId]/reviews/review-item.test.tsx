@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { ReviewItem } from './review-item';
 
 describe('ReviewItem', () => {
-  it('shows stars, business, text as published, themes and the owner reply — never a reviewer name (decision 6)', () => {
+  it('shows stars, business, text as published, topics and the owner reply — never a reviewer name (decision 6)', () => {
     render(
       <ReviewItem
         review={{
