@@ -162,6 +162,7 @@ export interface ReaskGap {
 export interface ReaskOutcome {
   ran: boolean;
   questions: number;
+  /** review_analysis rows written, including marker-only (`checked_at`) writes. */
   rows: number;
 }
 
@@ -256,9 +257,13 @@ export async function reaskReview(deps: { db: Db; ai: Ai; packs: PackLoader; now
   if (verticalIds.length === 0) return { ran: true, questions: 0, rows: 0 };
   const current = and(eq(reviewAnalysis.reviewId, reviewId), inArray(reviewAnalysis.verticalId, verticalIds));
   const rows = await db.select().from(reviewAnalysis).where(current);
+  const textSha = sha256Hex(text);
   const gaps: ReaskGap[] = [];
   for (const v of verticalIds) {
-    const g = reaskGap(v, rows.find((r) => r.verticalId === v) ?? null, await reaskTopics(db, v));
+    // R5: a row analysed from an older text (its vertical stopped tracking during the edit, then came back) counts as
+    // missing — a (b) gap that re-analyses it in full — otherwise the write would skip it and the sweep re-offer it forever.
+    const r = rows.find((x) => x.verticalId === v && x.textSha === textSha) ?? null;
+    const g = reaskGap(v, r, await reaskTopics(db, v));
     if (g) gaps.push(g);
   }
   if (gaps.length === 0) {
@@ -274,7 +279,6 @@ export async function reaskReview(deps: { db: Db; ai: Ai; packs: PackLoader; now
     review: redactForModel(text, { businessNames: [row.competitorName] }).slice(0, MAX_REVIEW_CHARS),
   };
   const result = await deps.ai.decide('review_decisions', state, questions, singleVerticalScope(gaps.map((g) => g.verticalId)));
-  const textSha = sha256Hex(text);
   const low = new Set(result.needsReview);
   const a = result.answers;
 
@@ -313,7 +317,16 @@ export async function reaskReview(deps: { db: Db; ai: Ai; packs: PackLoader; now
       const inserted = await tx
         .insert(reviewAnalysis)
         .values(fresh.map((r) => ({ ...r, checkedAt: startedAt })))
-        .onConflictDoNothing()
+        // A stale row (older text_sha, R5) is replaced whole; a row a concurrent analysis just wrote for this text is kept.
+        .onConflictDoUpdate({
+          target: [reviewAnalysis.reviewId, reviewAnalysis.verticalId],
+          set: {
+            textSha: sql`excluded.text_sha`, asked: sql`excluded.asked`, topics: sql`excluded.topics`, other: sql`excluded.other`,
+            sentiment: sql`excluded.sentiment`, confidence: sql`excluded.confidence`, needsReview: sql`excluded.needs_review`,
+            analysisVersion: sql`excluded.analysis_version`, analyzedAt: sql`now()`, checkedAt: sql`excluded.checked_at`,
+          },
+          setWhere: sql`${reviewAnalysis.textSha} <> excluded.text_sha`,
+        })
         .returning({ v: reviewAnalysis.verticalId });
       n += inserted.length;
     }

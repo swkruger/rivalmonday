@@ -213,6 +213,32 @@ describe('re-ask (15b-3b §5)', () => {
     expect(await sweep()).toEqual([]);
   });
 
+  it('a stale row of a re-tracked vertical is replaced by a full analysis of the current text', async () => {
+    await track(IDS.clientA2, IDS.competitorX); // X tracked by hvac and dental
+    const r = await seedReview();
+    await analyse(r, { sentiment: 1, needsReview: [themeKey('dental', 'wait_time')] });
+    const stale = await rowOf(r, 'dental');
+    await untrack(IDS.clientA2, IDS.competitorX);
+    await dbs.service.update(review).set({ text: 'Edited: the dentist called back and fixed the bill.' }).where(eq(review.id, r));
+    await analyse(r, {}, 60); // only hvac is current: dental keeps the old text's row
+    await track(IDS.clientA2, IDS.competitorX);
+    await editVertical('dental'); // a trigger, so the sweep offers it
+    expect(await sweep()).toEqual([r]);
+    const { ai, run } = reask(r, reviewResult({ topics: ['wait_time'], sentiment: 4, other: true }));
+    expect(await run).toMatchObject({ ran: true, rows: 2 });
+    const keys = Object.keys(ai.calls.decide[0]!.questions);
+    expect(keys).toContain('sentiment');
+    expect(keys).toContain(otherKey('dental'));
+    expect(keys.some((k) => k.includes('hvac_plumbing'))).toBe(false);
+    const fresh = await rowOf(r, 'dental');
+    expect(fresh.textSha).not.toBe(stale.textSha);
+    expect(fresh).toMatchObject({ sentiment: 4, other: true, topics: ['wait_time'], needsReview: false });
+    expect(fresh.asked).toContain('wait_time');
+    expect(fresh.checkedAt).not.toBeNull();
+    expect(fresh.analyzedAt.getTime()).toBeGreaterThan(stale.analyzedAt.getTime());
+    expect(await sweep()).toEqual([]);
+  });
+
   it('(a) keeps analyzed_at, sentiment, other, analysis_version', async () => {
     const r = await seedReview();
     await analyse(r, { topics: ['price_transparency'], sentiment: 1, other: false });
@@ -310,15 +336,24 @@ describe('re-ask (15b-3b §5)', () => {
     await analyse(newVertical, {}, 10);
     const removed = await seedReview({ competitorId: v }); // dental row has a gap, but dental no longer tracks V → none
     await analyse(removed, { needsReview: [waitTime] }, 60);
+    const u = await addCompetitor('Umber'); // stale row of a re-tracked vertical → asked once (R5)
+    await track(IDS.clientA1, u);
+    await track(IDS.clientA2, u);
+    const staleRow = await seedReview({ competitorId: u });
+    await analyse(staleRow, { needsReview: [waitTime] }, 60);
+    await untrack(IDS.clientA2, u);
+    await dbs.service.update(review).set({ text: 'Edited: they made it right in the end.' }).where(eq(review.id, staleRow));
+    await analyzeReview({ db: dbs.service, ai: createFakeAi({ decide: reviewResult({}) }), packs }, staleRow); // hvac only; dental keeps its 60-min-old stale row
+    await track(IDS.clientA2, u);
     await editVertical('dental', 30);
     await editVertical('generic', 30);
     await track(IDS.clientA2, w);
     await untrack(IDS.clientA2, v);
 
     const swept = (await sweep()).sort();
-    expect(swept).toEqual([approvedAfter, editMissing, inheriting, newVertical].sort());
+    expect(swept).toEqual([approvedAfter, editMissing, inheriting, newVertical, staleRow].sort());
     const jsGap: string[] = [];
-    for (const id of [approvedAfter, approvedBefore, editMissing, editComplete, inheriting, newVertical, removed]) {
+    for (const id of [approvedAfter, approvedBefore, editMissing, editComplete, inheriting, newVertical, removed, staleRow]) {
       if ((await reask(id).run).questions > 0) jsGap.push(id);
     }
     expect(jsGap.sort()).toEqual(swept);
