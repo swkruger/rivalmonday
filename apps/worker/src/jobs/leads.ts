@@ -8,7 +8,7 @@ import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
 import { workerLog } from '../log';
 
-// Phase 11c Task 29 (spec �§4): builds the free competitive preview for a verified lead, then sends the lead emails.
+// Phase 11c Task 29 (spec §4): builds the free competitive preview for a verified lead, then sends the lead emails.
 // Platform cost: Maps and AI calls ledger with agency_id NULL (ruling A) so a public visitor cannot spend an agency's caps.
 
 export type LeadPreviewOutcome = { status: 'ready' | 'failed' } | { skipped: string };
