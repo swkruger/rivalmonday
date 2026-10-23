@@ -15,7 +15,7 @@ type Action = (prev: FormResult, fd: FormData) => Promise<FormResult>;
  * same shape as `AlertList`'s separate Approve/Dismiss forms — the decision never depends on which button a
  * `FormData(form, submitter)` resolves to.
  */
-export function ThemeQueue({ pending, decided, action }: { pending: TopicProposalView[]; decided: TopicProposalView[]; action: Action }) {
+export function TopicQueue({ pending, decided, action }: { pending: TopicProposalView[]; decided: TopicProposalView[]; action: Action }) {
   const [result, formAction, busy] = useActionState(action, { ok: true } as FormResult);
   return (
     <div className="flex flex-col gap-5">

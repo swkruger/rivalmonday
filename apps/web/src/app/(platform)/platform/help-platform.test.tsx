@@ -53,7 +53,7 @@ const { default: AgencyDetail } = await import('./agencies/[id]/page');
 const { default: Billing } = await import('./billing/page');
 const { default: Leads } = await import('./leads/page');
 const { default: Reviews } = await import('./reviews/page');
-const { default: Themes } = await import('./themes/page');
+const { default: Topics } = await import('./topics/page');
 const { default: Ask } = await import('./ask/page');
 const { default: AskThread } = await import('./ask/[threadId]/page');
 const { default: Knowledge } = await import('./knowledge/page');
@@ -116,7 +116,7 @@ const PAGES: [string, () => Promise<React.ReactNode>, string[]][] = [
   ['platform.billing', () => Billing({ searchParams: Promise.resolve({}) }), []],
   ['platform.leads', () => Leads(), []],
   ['platform.reviews', () => Reviews(), []],
-  ['platform.themes', () => Themes(), []],
+  ['platform.themes', () => Topics(), []],
   ['platform.ask', () => Ask({ searchParams: Promise.resolve({}) }), []],
   ['platform.ask.thread', () => AskThread({ params: Promise.resolve({ threadId: 't1' }) }), []],
   ['platform.knowledge', () => Knowledge({ searchParams: Promise.resolve({}) }), []],

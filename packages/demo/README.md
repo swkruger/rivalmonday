@@ -94,7 +94,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/platform/knowledge/[id]` | operator | `get_kb_article_admin`, `list_kb_targets`, `list_help_guides` | — |
 | `/platform/reviews` | operator | `list_decision_reviews`, `list_help_guides` | — |
 | `/platform/verticals` | operator | `list_verticals`, `list_help_guides` | `list_catalog_review`: the demo agencies add no business types; `list_catalog_review`: the demo agencies add no services; `count_catalog_review`: nothing waits for review in the demo |
-| `/platform/themes` | operator | `list_topic_proposals`, `list_help_guides` | — |
+| `/platform/topics` | operator | `list_topic_proposals`, `list_help_guides` | — |
 | `/agency/help` | admin | `list_help_guides`, `search_knowledge` | — |
 | `/c/[clientId]/help` | admin | `list_help_guides`, `search_knowledge`, `get_client_profile` | — |
 | `/c/[clientId]/help (client owner)` | ownerLoneStar | `list_help_guides`, `search_knowledge`, `get_client_profile` | — |

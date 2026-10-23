@@ -363,7 +363,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'count_catalog_review', input: none, path: 'count', expect: 'empty', why: 'nothing waits for review in the demo' },
     ],
   },
-  { route: '/platform/themes', as: 'operator', calls: [{ tool: 'list_topic_proposals', input: none, path: 'pending' }, { tool: 'list_topic_proposals', input: none, path: 'decided' }] },
+  { route: '/platform/topics', as: 'operator', calls: [{ tool: 'list_topic_proposals', input: none, path: 'pending' }, { tool: 'list_topic_proposals', input: none, path: 'decided' }] },
   // 15b-1: the Help pages. The docs/help guides (loaded by `demo:reset` through `seedKnowledge`) cover every context; the search finds the demo article.
   { route: '/agency/help', as: 'admin', calls: [helpGuides(() => ({ context: 'agency' })), helpSearch(none)] },
   { route: '/c/[clientId]/help', as: 'admin', calls: [lsGuides, helpSearch((ids) => ({ clientId: ls(ids) })), lsProfile] },
@@ -390,7 +390,7 @@ const GUIDE_ROUTES: readonly string[] = [
   '/c/[clientId]/settings/runbook', '/c/[clientId]/setup',
   '/platform', '/platform/agencies', '/platform/agencies/[id]', '/platform/ask', '/platform/ask/[threadId]', '/platform/billing', '/platform/costs',
   '/platform/health', '/platform/knowledge', '/platform/knowledge/new', '/platform/knowledge/[id]', '/platform/leads', '/platform/reviews',
-  '/platform/runbook', '/platform/themes', '/platform/verticals',
+  '/platform/runbook', '/platform/topics', '/platform/verticals',
 ];
 const guideCallFor = (route: string): CoverageCall =>
   route.startsWith('/c/') ? lsGuides

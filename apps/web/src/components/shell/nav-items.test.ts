@@ -30,7 +30,7 @@ describe('navFor platform', () => {
       ['quality', 'Quality', ['Model reviews', 'Topic proposals', 'Ask reviews']],
       ['content', 'Content', ['Knowledge', 'Business types', 'Runbook']],
     ]);
-    expect(hrefs(s)).toEqual(['/platform', '/platform/agencies', '/platform/leads', '/platform/billing', '/platform/reviews', '/platform/themes', '/platform/ask', '/platform/knowledge', '/platform/verticals', '/platform/runbook']);
+    expect(hrefs(s)).toEqual(['/platform', '/platform/agencies', '/platform/leads', '/platform/billing', '/platform/reviews', '/platform/topics', '/platform/ask', '/platform/knowledge', '/platform/verticals', '/platform/runbook']);
     expect(s[0]!.placement).toBe('top');
   });
 

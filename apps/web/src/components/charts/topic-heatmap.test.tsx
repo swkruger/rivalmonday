@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { sentimentFill, ThemeHeatmap } from './theme-heatmap';
+import { sentimentFill, TopicHeatmap } from './topic-heatmap';
 
 const t = (topicId: string, share: number | null, sentiment: number | null, shareDelta: number | null = null) =>
   ({ topicId, mentions: 1, asked: 2, share, sentiment, shareDelta, sentimentDelta: null });
@@ -26,9 +26,9 @@ describe('sentimentFill (decision 12)', () => {
   });
 });
 
-describe('ThemeHeatmap', () => {
+describe('TopicHeatmap', () => {
   it('prints the share in each cell, "—" when the topic was never asked, and an arrow for a big change', () => {
-    render(<ThemeHeatmap title="What customers talk about" benchmark={benchmark} />);
+    render(<TopicHeatmap title="What customers talk about" benchmark={benchmark} />);
     const svg = screen.getByRole('img', { name: /What customers talk about/ });
     const texts = [...svg.querySelectorAll('text[data-cell]')].map((n) => n.textContent);
     expect(texts).toEqual(['34% ▲', '50%', '—', '20%']);
@@ -37,7 +37,7 @@ describe('ThemeHeatmap', () => {
   });
 
   it('has a legend and a table view with a caption', () => {
-    render(<ThemeHeatmap title="What customers talk about" benchmark={benchmark} />);
+    render(<TopicHeatmap title="What customers talk about" benchmark={benchmark} />);
     expect(screen.getByText('Very negative')).toBeTruthy();
     expect(screen.getByText('Very positive')).toBeTruthy();
     const table = screen.getByRole('table');
@@ -46,7 +46,7 @@ describe('ThemeHeatmap', () => {
   });
 
   it('explains the cell colour, the number and the 5-point arrows in a legend', () => {
-    render(<ThemeHeatmap title="What customers talk about" benchmark={benchmark} />);
+    render(<TopicHeatmap title="What customers talk about" benchmark={benchmark} />);
     const legend = screen.getByTestId('heatmap-legend');
     expect(legend.textContent).toContain('Color shows how positive the mentions are');
     expect(legend.textContent).toContain('share of reviews checked for the topic that mention it');
@@ -56,7 +56,7 @@ describe('ThemeHeatmap', () => {
   });
 
   it('says so when there is nothing to show', () => {
-    render(<ThemeHeatmap title="T" benchmark={{ topics: [], businesses: [] }} />);
+    render(<TopicHeatmap title="T" benchmark={{ topics: [], businesses: [] }} />);
     expect(screen.getByText('No reviews analysed yet.')).toBeTruthy();
   });
 });

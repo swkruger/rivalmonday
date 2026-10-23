@@ -84,7 +84,7 @@ export const CLIENT_COPY = {
     tips: {
       // source: packages/engine/src/reviews/rating-trend.ts:ratingStats (reviews90d)
       newReviews: { title: 'New reviews (90 days)', body: "Reviews posted on {client}'s Google profile in the last 90 days." },
-      // source: packages/engine/src/reviews/benchmark.ts:summarizeWindow; apps/web/src/components/charts/theme-heatmap.tsx:sentimentFill
+      // source: packages/engine/src/reviews/benchmark.ts:summarizeWindow; apps/web/src/components/charts/topic-heatmap.tsx:sentimentFill
       heatmap: {
         title: 'Reading the heatmap',
         body: "Rows are review topics; columns are businesses, {client} first. The number is the share of the reviews checked for that topic in the last 90 days that mention it. The color is how positive those mentions are: blue is positive, red is negative, gray is neutral. A dash means there are not enough reviews, and ▲▼ marks a change of 5 points or more since the previous 90 days.",

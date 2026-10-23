@@ -179,7 +179,7 @@ describe('You colour (P4)', () => {
   it('no component uses a hex for the You marker', () => {
     const dir = join(process.cwd(), 'src', 'components', 'charts', '/');
     const root = join(process.cwd(), 'src', 'app', '(app)', 'c', '[clientId]', '/');
-    const files = [`${dir}line-chart.tsx`, `${dir}rank-trend.tsx`, `${dir}theme-heatmap.tsx`, `${root}rankings/page.tsx`, `${root}reviews/page.tsx`, `${root}reviews/review-item.tsx`];
+    const files = [`${dir}line-chart.tsx`, `${dir}rank-trend.tsx`, `${dir}topic-heatmap.tsx`, `${root}rankings/page.tsx`, `${root}reviews/page.tsx`, `${root}reviews/review-item.tsx`];
     for (const f of files) expect(readFileSync(f, 'utf8'), f).not.toMatch(/#2A6BAC|#47A8E7/i);
   });
 });

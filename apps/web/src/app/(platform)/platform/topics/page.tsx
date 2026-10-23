@@ -6,8 +6,8 @@ import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
-import { decideThemeAction } from './actions';
-import { ThemeQueue } from './theme-queue';
+import { decideTopicAction } from './actions';
+import { TopicQueue } from './topic-queue';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +17,7 @@ const HELP_KEY = 'page:platform.themes';
 const COPY = PAGE_COPY['platform.themes'];
 
 /** Non-operators get the tool's permission_denied → 404 (decision 2). */
-export default async function ThemeProposalsPage() {
+export default async function TopicProposalsPage() {
   const { ctx } = await requireOperatorContext();
   const [{ pending, decided }, guides] = await Promise.all([
     callTool<{ pending: TopicProposalView[]; decided: TopicProposalView[] }>(ctx, 'list_topic_proposals', {}),
@@ -39,7 +39,7 @@ export default async function ThemeProposalsPage() {
           { label: 'Recent decisions', tip: 'platform.themes.decided' },
         ]}
       />
-      <ThemeQueue pending={pending} decided={decided} action={decideThemeAction} />
+      <TopicQueue pending={pending} decided={decided} action={decideTopicAction} />
     </>
   );
 }

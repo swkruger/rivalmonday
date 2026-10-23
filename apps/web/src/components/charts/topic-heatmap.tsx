@@ -24,7 +24,7 @@ const signed = (x: number) => `${x > 0 ? '+' : ''}${x.toFixed(1)}`;
 const short = (s: string, n = 16) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /** Module 6 heatmap: rows = topics, columns = businesses (you first). Colour = sentiment of mentions, number = mention share. */
-export function ThemeHeatmap({ title, benchmark }: { title: string; benchmark: Pick<TopicBenchmarkView, 'topics' | 'businesses'> }) {
+export function TopicHeatmap({ title, benchmark }: { title: string; benchmark: Pick<TopicBenchmarkView, 'topics' | 'businesses'> }) {
   const { topics, businesses } = benchmark;
   if (topics.length === 0 || businesses.length === 0) return <p className="text-sm text-muted-foreground">No reviews analysed yet.</p>;
   const LABEL_W = 200;
@@ -48,24 +48,24 @@ export function ThemeHeatmap({ title, benchmark }: { title: string; benchmark: P
               </text>
             </g>
           ))}
-          {topics.map((th, i) => (
-            <g key={th.id}>
-              <text x={LABEL_W - 10} y={HEAD_H + i * ROW_H + ROW_H / 2 + 4} textAnchor="end" fontSize={12} fill={INK}>{short(th.name, 28)}</text>
+          {topics.map((tp, i) => (
+            <g key={tp.id}>
+              <text x={LABEL_W - 10} y={HEAD_H + i * ROW_H + ROW_H / 2 + 4} textAnchor="end" fontSize={12} fill={INK}>{short(tp.name, 28)}</text>
               {businesses.map((b, j) => {
-                const c = cell(b, th.id);
+                const c = cell(b, tp.id);
                 const share = c?.share ?? null;
                 const f = sentimentFill(c?.sentiment ?? null, share);
                 const arrow = c?.shareDelta != null && Math.abs(c.shareDelta) >= 0.05 ? (c.shareDelta > 0 ? ' ▲' : ' ▼') : '';
                 const label = share === null ? '—' : `${pct(share)}${arrow}`;
                 const tip = share === null
-                  ? `${b.name}: ${th.name} — not enough reviews`
-                  : `${b.name}: ${th.name} — mentioned in ${pct(share)} of reviews that could mention it${c?.sentiment != null ? `, sentiment ${signed(c.sentiment)}` : ''}${c?.shareDelta != null ? ` (${signed(c.shareDelta * 100)} points vs the previous 90 days)` : ''}`;
+                  ? `${b.name}: ${tp.name} — not enough reviews`
+                  : `${b.name}: ${tp.name} — mentioned in ${pct(share)} of reviews that could mention it${c?.sentiment != null ? `, sentiment ${signed(c.sentiment)}` : ''}${c?.shareDelta != null ? ` (${signed(c.shareDelta * 100)} points vs the previous 90 days)` : ''}`;
                 return (
                   <g key={b.competitorId}>
                     <rect x={LABEL_W + j * COL_W + GAP / 2} y={HEAD_H + i * ROW_H + GAP / 2} width={COL_W - GAP} height={ROW_H - GAP} rx={4} fill={f.fill} stroke={f.stroke ?? 'none'} strokeWidth={f.stroke ? 1 : 0}>
                       <title>{tip}</title>
                     </rect>
-                    <text data-cell={`${th.id}|${b.competitorId}`} x={LABEL_W + j * COL_W + COL_W / 2} y={HEAD_H + i * ROW_H + ROW_H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill={f.text} pointerEvents="none">
+                    <text data-cell={`${tp.id}|${b.competitorId}`} x={LABEL_W + j * COL_W + COL_W / 2} y={HEAD_H + i * ROW_H + ROW_H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill={f.text} pointerEvents="none">
                       {label}
                     </text>
                   </g>
@@ -103,11 +103,11 @@ export function ThemeHeatmap({ title, benchmark }: { title: string; benchmark: P
               </tr>
             </thead>
             <tbody>
-              {topics.map((th) => (
-                <tr key={th.id}>
-                  <th scope="row" className="font-normal">{th.name}</th>
+              {topics.map((tp) => (
+                <tr key={tp.id}>
+                  <th scope="row" className="font-normal">{tp.name}</th>
                   {businesses.map((b) => {
-                    const c = cell(b, th.id);
+                    const c = cell(b, tp.id);
                     return <td key={b.competitorId}>{c?.share == null ? '—' : `${pct(c.share)}${c.sentiment != null ? ` · ${signed(c.sentiment)}` : ''}`}</td>;
                   })}
                 </tr>

@@ -120,7 +120,7 @@ function platformNav(flags: NavRoleFlags, counts: NavCounts): NavSection[] {
     section('revenue', 'Revenue', (add) => add('/platform/billing', 'Billing & plans', 'billing')),
     section('quality', 'Quality', (add) => {
       add('/platform/reviews', 'Model reviews', 'reviews', { count: counts.modelReviews });
-      add('/platform/themes', 'Topic proposals', 'topics', { count: counts.topics });
+      add('/platform/topics', 'Topic proposals', 'topics', { count: counts.topics });
       add('/platform/ask', 'Ask reviews', 'ask');
     }),
     section('content', 'Content', (add) => {

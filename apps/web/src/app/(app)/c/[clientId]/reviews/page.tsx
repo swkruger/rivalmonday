@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
-import { ThemeHeatmap } from '@/components/charts/theme-heatmap';
+import { TopicHeatmap } from '@/components/charts/topic-heatmap';
 import { StatCard } from '@/components/stat-card';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
@@ -27,7 +27,7 @@ export const metadata: Metadata = { title: 'Reviews' };
 const PAGE = 20;
 const HELP_KEY = 'page:client.reviews';
 const COPY = PAGE_COPY['client.reviews'];
-const THEME = /^[a-z0-9_]{1,64}$/;
+const TOPIC = /^[a-z0-9_]{1,64}$/;
 
 /** Module 6 (mockup 03, decisions 6–8). */
 export default async function ReviewsPage({ params, searchParams }: {
@@ -40,8 +40,8 @@ export default async function ReviewsPage({ params, searchParams }: {
   if (!hasFeature(ctx, 'dashboard')) notFound();
 
   const business = one(sp.business) === 'self' ? 'self' : uuidParam(sp, 'business');
-  const themeParam = one(sp.theme);
-  const themeRaw = themeParam && THEME.test(themeParam) ? themeParam : undefined;
+  const topicParam = one(sp.topic);
+  const topicRaw = topicParam && TOPIC.test(topicParam) ? topicParam : undefined;
   const starsN = Number(one(sp.stars));
   const stars = Number.isInteger(starsN) && starsN >= 1 && starsN <= 5 ? starsN : undefined;
   const text = one(sp.q)?.slice(0, 100);
@@ -55,14 +55,14 @@ export default async function ReviewsPage({ params, searchParams }: {
     callTool<RatingTrendView>(ctx, 'get_rating_trend', { clientId, months: 12 }),
     helpGuides(ctx, 'client', clientId),
   ]);
-  // An unknown theme id (hand-edited URL, retired theme) is dropped rather than hiding the whole list.
-  const topicId = themeRaw && benchmark.topics.some((t) => t.id === themeRaw) ? themeRaw : undefined;
+  // An unknown topic id (hand-edited URL, retired topic) is dropped rather than hiding the whole list.
+  const topicId = topicRaw && benchmark.topics.some((t) => t.id === topicRaw) ? topicRaw : undefined;
   const reviews = await tryCallTool<ReviewList>(ctx, 'search_reviews', {
     clientId, ...(business ? { business } : {}), ...(topicId ? { topicId } : {}), ...(stars ? { stars } : {}), ...(text ? { text } : {}), days, offset,
   });
   const self = trend.businesses.find((b) => b.self) ?? null;
   const more = new URLSearchParams({
-    ...(business ? { business } : {}), ...(topicId ? { theme: topicId } : {}), ...(stars ? { stars: String(stars) } : {}), ...(text ? { q: text } : {}),
+    ...(business ? { business } : {}), ...(topicId ? { topic: topicId } : {}), ...(stars ? { stars: String(stars) } : {}), ...(text ? { q: text } : {}),
     days: String(days), offset: String(offset + PAGE),
   });
   const trendSeriesList = trendSeries(trend);
@@ -94,7 +94,7 @@ export default async function ReviewsPage({ params, searchParams }: {
           <HelpTip tip="client.reviews.heatmap" />
         </div>
         <p className="mb-3 text-sm text-muted-foreground">Last 90 days. The number is how often a topic comes up; the colour is how positive those mentions are.</p>
-        <ThemeHeatmap title="What customers talk about" benchmark={benchmark} />
+        <TopicHeatmap title="What customers talk about" benchmark={benchmark} />
       </section>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
@@ -126,7 +126,7 @@ export default async function ReviewsPage({ params, searchParams }: {
           </label>
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-semibold text-ink">Topic</span>
-            <select name="theme" defaultValue={topicId ?? ''} className="rounded-md border border-line bg-surface px-2 py-1.5">
+            <select name="topic" defaultValue={topicId ?? ''} className="rounded-md border border-line bg-surface px-2 py-1.5">
               <option value="">All topics</option>
               {benchmark.topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>

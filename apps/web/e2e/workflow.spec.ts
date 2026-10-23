@@ -109,9 +109,12 @@ test('an admin turns a client feature on and off on the profile page', { tag: ['
 });
 
 test('a platform operator approves a topic proposal', { tag: ['@platform', '@reviews'] }, async ({ page }) => {
-  await page.goto('/platform/themes');
+  await page.goto('/platform/topics');
   await page.getByRole('button', { name: 'Approve E2E hidden fees' }).click();
   await expect(page.getByText('Approved “E2E hidden fees”.')).toBeVisible();
+  const old = await page.goto('/platform/themes');
+  expect(old?.status()).toBe(404);
+  await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
 });
 
 test('a prospect’s landscape report shows and the prospect converts to a client', { tag: ['@prospects', '@clients'] }, async ({ page }) => {

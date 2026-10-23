@@ -41,6 +41,13 @@ test('reviews shows the heatmap and searches review text', { tag: ['@reviews'] }
   await expect(page.getByText('The technician was late and pushy.')).toBeVisible();
   await page.goto(`/c/${clientId}/reviews?q=zzz`);
   await expect(page.getByRole('heading', { name: 'No reviews match' })).toBeVisible();
+  await page.goto(`/c/${clientId}/reviews?topic=upsell_pressure`);
+  await expect(page.getByText('The technician was late and pushy.')).toBeVisible();
+  await expect(page.getByText('Fast and friendly service.')).toHaveCount(0);
+  await expect(page.locator('select[name="topic"]')).toHaveValue('upsell_pressure');
+  await page.goto(`/c/${clientId}/reviews?theme=upsell_pressure`);
+  await expect(page.getByText('The technician was late and pushy.')).toBeVisible();
+  await expect(page.getByText('Fast and friendly service.')).toBeVisible();
 });
 
 test('local rankings draws the geo-grid and share of voice', { tag: ['@rankings'] }, async ({ page }) => {
