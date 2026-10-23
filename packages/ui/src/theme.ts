@@ -22,9 +22,9 @@ export function contrastRatio(a: string, b: string): number {
   return (hi! + 0.05) / (lo! + 0.05);
 }
 
-/** White text when its contrast on `bg` is at least 2.6 (keeps white on the decided default #47A8E7, 2.62), else the ink colour. */
+/** Whichever of white / ink (#0B2540) has the higher contrast on `bg` (ties go to ink); design system v1 puts an ink label on the default #47A8E7. */
 export function readableTextOn(bg: string): '#FFFFFF' | '#0B2540' {
-  return contrastRatio('#FFFFFF', bg) >= 2.6 ? '#FFFFFF' : '#0B2540';
+  return contrastRatio('#FFFFFF', bg) > contrastRatio('#0B2540', bg) ? '#FFFFFF' : '#0B2540';
 }
 
 const DEFAULT_SOFT = { soft: '#E3F2FC', text: '#1F6FA8' };
