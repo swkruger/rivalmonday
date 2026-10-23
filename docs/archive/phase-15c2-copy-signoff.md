@@ -7,7 +7,7 @@ Owner: tick or edit each item. Source of truth is the code named per item.
 Page groups below: Platform, Agency, Account and public. Task numbers (T3-T16) point to the plan. Source of truth is the code; each table names the page it lives on.
 
 ### Owner decisions (open copy and policy questions)
-Tick, or reply with the change.
+**Signed off by the owner 2026-10-23: all copy approved as written; proposals in 3 (drop the contrast line), 6 ("Download client report (CSV)") and 8 (drop "Sent" from the cell) accepted — applied in 15c-2b Task 0. Everything else stays as built.**
 1. **Privacy URL (B12).** Sign-up and platform /start link to `https://rivalmonday.app/privacy`. Confirm the URL (the page must exist before launch). Agencies have no privacy URL of their own yet (backlog).
 2. **"as Agency admin" grammar.** The invite email reads "invited you to join {agency} as Agency admin" / "as Account manager". Keep, or switch to "as an Agency admin"?
 3. **Branding contrast line.** "Buttons will use dark text so they stay readable." now also shows for the default blue #47A8E7 (ink label on primary, design system v1). Proposal: drop the line.

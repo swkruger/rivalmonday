@@ -64,6 +64,7 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **Reuse signed-in sessions; never add a magic-link sign-in:** Better Auth allows 5 magic-link requests/IP/60 s; full runs already hit it (`smoke.spec` :6/:41 fail in full suites only). Specs reuse storage states. `latestMagicLink()`/`newMagicLink()` filter by recipient after an outbox snapshot.
 - **"destination stream closed early" in the E2E server log is noise** (digest `3686933289`, no app frame): the browser closes the page mid-RSC/prefetch stream between tests; tests still pass (reproduced 3/3 runs of `workspace.spec`, 15c-2 T15). Ignore it unless an assertion fails.
 - **`WEBHOOK_FAKE_SEND` is E2E-only;** never set it outside Playwright's web server.
+- **Running one spec by hand:** the production build takes ~8–10 min on the Windows box, past Playwright's 300 s webServer timeout. Build first (as `e2e:affected` does), then run `playwright test <spec>` with `E2E_SKIP_BUILD=1`.
 
 ### Affected-only E2E
 - **During development run `pnpm --filter @cs/web e2e:affected`** (`--dry-run`, `--base <ref>`, `--full`): tests whose tags the changed files map to (plus `@smoke`), rebuilds only when needed. It can pull one test out of a `describe.serial` file (false failure) — re-run the whole file. Full `e2e` only in `/rm-merge`.
