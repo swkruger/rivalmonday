@@ -1,23 +1,24 @@
 # phase-15b3b — topic rename, surfaces (MCP/Ask tools, routes, help key, web names)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15b3b   **Base:** main @ bf4ce990
-**Plan/spec:** [15b-3 spec](../superpowers/specs/2026-10-21-phase-15b3-topic-rename-design.md) §4 (D1–D6, §3); plan *to be written* (lean, short).
+**Plan/spec:** [spec](../superpowers/specs/2026-10-23-phase-15b3b-topic-surfaces-design.md) (builds on [15b-3 spec](../superpowers/specs/2026-10-21-phase-15b3-topic-rename-design.md) §4) · [plan](../superpowers/plans/2026-10-23-phase-15b3b-topic-surfaces.md)
 
 ## Status (overwrite)
-Kicked off 2026-10-23; brief below. No code.
+Spec owner-approved 2026-10-23 (E1–E6); lean plan written (Tasks 0–9), awaiting owner approval. No code.
 
 ## Next (overwrite)
-Owner answers Brief §6 → spec addendum only if needed (spec §4 already decides most) → lean plan.
+Owner approves the plan → Task 0 pre-flight (rebase on main `b93f7ff4`+, cs_dev read-only counts) → subagent-driven development. Owner signs off the copy doc (Task 1) before merge.
 
 ## Interfaces this branch adds or changes
-Planned (no aliases): `get_topic_benchmark` (was `get_theme_benchmark`), `search_reviews.topicId`, `/platform/topics`, `?topic=`, `page:platform.topics`. No migration expected.
+No aliases: `get_topic_benchmark` (was `get_theme_benchmark`), `search_reviews.topicId`, `TopicBenchmarkView.topics[].topicId`, `/platform/topics`, `?topic=`, `page:platform.topics`, tips `platform.topics.*`. `@cs/ai` `collectBatch(…, scopeFor?)`. Engine `reaskReview`, `EngineWork.reask`, job `engine-reask` (singletonKey `reask:<id>`), `REASK_DAILY_MAX = 2000`. Two migrations at next free numbers: `review_analysis.checked_at`, `generic_topic_id` (generic `technician_professionalism` → `staff_professionalism`).
 
 ## Assumes from other branches
-- **phase-15c2** (planning, docs only): its theme-file tasks (`/platform/themes`, `theme-heatmap.tsx`, Reviews `?theme=`) go last (15c C7); second to merge rebases.
-- **phase-7-planning** (docs only): 7c isolation suite / MCP `tools/list` / Ask evals must use the new tool names if they land after us.
+- **phase-7b1** (executing; claims 0085–0087): same `collectBatch` `scopeFor` change (second merger keeps one); edits `batches.ts`, worker `jobs`/`main.ts`, adds `usesAi` to AI jobs — `engine-reask` needs it if 7b1 merges first.
+- **phase-15c2** (2a plan awaiting approval): rebases on our renames (E2); may claim a migration (`ask_thread.deleted_at`).
+- **phase-7c1/7c2** (planned): use the new tool names; `engine-reask` stays at default concurrency.
 
 ## Decisions (owner-approved)
-None new yet; 15b-3 D1–D6 bind.
+Spec E1–E6 (2026-10-23): one branch; before 15c-2; E3 full field rename; fold in all three topic backlog items; tip ids renamed + guide/copy reviewed with sign-off doc; automatic re-ask (180 d, gap only, Jev first, capped).
 
 ## New backlog (target → item)
 None yet.
