@@ -2,11 +2,6 @@ import type { RankScanSkipped } from '@cs/collectors';
 import type { Db } from '@cs/db';
 import { type DeliveryConfig, loadBranding, notify } from './outbox';
 
-/** `$15` for a whole-dollar cap, `$12.50` otherwise. */
-export function formatCap(usd: number): string {
-  return Number.isInteger(usd) ? `$${usd}` : `$${usd.toFixed(2)}`;
-}
-
 /** ISO date (UTC) of the Monday that starts `now`'s week. */
 function mondayOfUtcWeek(now: Date): string {
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
@@ -14,11 +9,11 @@ function mondayOfUtcWeek(now: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Agency notice for a rank scan skipped by the monthly cost cap; at most one per client per UTC week. */
+/** Agency notice for a rank scan skipped by the monthly credit limit; at most one per client per UTC week. */
 export async function notifyRankScanSkipped(deps: { db: Db; delivery: DeliveryConfig }, s: RankScanSkipped, now: Date = new Date()): Promise<number> {
   const branding = await loadBranding(deps.db, s.agencyId);
   const title = `Rank scan skipped: ${s.clientName}`;
-  const lines = [`This scan would exceed ${s.clientName}'s monthly cost cap (${formatCap(s.capUsd)}). Raise the cap in Usage or wait until next month.`];
+  const lines = [`${s.clientName} is close to this month's credit limit, so this scan can't run until next month.`];
   const n = await notify(deps.db, deps.delivery, {
     agencyId: s.agencyId, clientId: s.clientId, kind: 'rank_scan_skipped', audience: 'agency', subjectType: 'rank_scan', subjectId: s.scanId,
     dedupe: `rank_scan_skipped:${s.clientId}:${mondayOfUtcWeek(now)}`, link: { t: 'notifications', id: s.scanId }, now,

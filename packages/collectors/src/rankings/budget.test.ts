@@ -31,13 +31,16 @@ describe('rank scan estimate and budget', () => {
     expect(e.calls).toBe(245);
     expect(e.usd).toBeCloseTo(245 * DISCOVERY_CALL_COST_USD.maps);
   });
-  it('budget ok at exactly the cap', async () => {
-    await dbs.owner.insert(vendorCall).values(vendor(6, now));
+  it('rank budget allows up to 130 % of the limit and refuses beyond', async () => {
+    // limit 10 -> pause threshold 13
+    await dbs.owner.insert(vendorCall).values(vendor(9, now));
     expect(await checkRankScanBudget(dbs.service, IDS.clientA1, 4, now)).toEqual({ ok: true });
+    expect(await checkRankScanBudget(dbs.service, IDS.clientA1, 4.01, now)).toEqual({ ok: false, reason: 'cap' });
   });
-  it('budget refuses one cent over with spent and cap', async () => {
-    await dbs.owner.insert(vendorCall).values(vendor(6, now));
-    expect(await checkRankScanBudget(dbs.service, IDS.clientA1, 4.01, now)).toEqual({ ok: false, reason: 'cap', spentUsd: 6, capUsd: 10 });
+  it('uses the platform default limit when there is no override', async () => {
+    await dbs.owner.update(client).set({ spendLimitUsd: null }).where(eq(client.id, IDS.clientA1)); // default 15 -> 19.5
+    expect(await checkRankScanBudget(dbs.service, IDS.clientA1, 19.5, now)).toEqual({ ok: true });
+    expect(await checkRankScanBudget(dbs.service, IDS.clientA1, 19.51, now)).toEqual({ ok: false, reason: 'cap' });
   });
   it('counts llm and vendor rows of this month only', async () => {
     await dbs.owner.insert(vendorCall).values([vendor(3, now), vendor(50, new Date('2026-09-30T23:00:00Z'))]);
@@ -54,6 +57,7 @@ describe('rank scan estimate and budget', () => {
       ok: true,
       createdAt: now,
     });
-    expect(await checkRankScanBudget(dbs.service, IDS.clientA1, 6, now)).toEqual({ ok: false, reason: 'cap', spentUsd: 5, capUsd: 10 });
+    expect(await checkRankScanBudget(dbs.service, IDS.clientA1, 8, now)).toEqual({ ok: true });
+    expect(await checkRankScanBudget(dbs.service, IDS.clientA1, 8.01, now)).toEqual({ ok: false, reason: 'cap' });
   });
 });

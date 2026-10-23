@@ -196,7 +196,8 @@ get_nav_counts (nav-counts.ts) | read | read-only counts (agency menu badges)
 get_platform_nav_counts (nav-counts.ts) | read | read-only counts; platform operator
 decide_theme_proposal (themes.ts) | write | decides proposal
 get_usage (usage.ts) | read | read-only
-set_client_limits (usage.ts) | write | updates client
+set_client_limits (usage.ts) | write | updates client limits; platform staff only, supportHidden; lifts a spend pause + writes spend_guard_event in one tx (7b1)
+get_client_limits (usage.ts) | read | read-only; platform operator, supportHidden (7b1)
 start_support_session (support.ts) | write | opens a session row + audit; operator ctx only
 end_support_session (support.ts) | write | ends the caller's open session; audited under the session's agency (7a2)
 list_support_sessions (support.ts) | read | read-only; agency_admin; supportHidden

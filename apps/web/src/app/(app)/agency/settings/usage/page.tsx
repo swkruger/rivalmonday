@@ -7,15 +7,12 @@ import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { SpendBadge } from '@/components/spend-badge';
-import { WriteGuard } from '@/components/read-only';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { CLIENT_STATUS, labelFor } from '@/lib/labels';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
-import { saveLimitsAction } from './actions';
-import { LimitsForm } from './limits-form';
 import { QuestionsCell } from './questions-cell';
 
 export const dynamic = 'force-dynamic';
@@ -88,16 +85,6 @@ export default async function UsagePage() {
                 <HelpTip tip="agency.settings.usage.questions" />
               </span>
             </TableHead>
-            {ctx.role === 'agency_admin' && (
-              <WriteGuard>
-                <TableHead>
-                  <span className="inline-flex items-center gap-1.5">
-                    Limits
-                    <HelpTip tip="agency.settings.usage.limits" />
-                  </span>
-                </TableHead>
-              </WriteGuard>
-            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -126,13 +113,6 @@ export default async function UsagePage() {
               <TableCell>
                 <QuestionsCell questions={row.questions} />
               </TableCell>
-              {ctx.role === 'agency_admin' && (
-                <WriteGuard>
-                  <TableCell>
-                    <LimitsForm key={row.clientId} action={saveLimitsAction} clientId={row.clientId} clientName={row.name} capUsd={row.credits.limit / 100 /* temporary until Task 5/11: the limits form still writes dollars */} competitorLimit={row.competitorLimit} askQuota={row.questions.quota} />
-                  </TableCell>
-                </WriteGuard>
-              )}
             </TableRow>
           ))}
         </TableBody>

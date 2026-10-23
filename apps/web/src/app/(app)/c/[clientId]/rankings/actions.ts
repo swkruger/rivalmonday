@@ -41,7 +41,7 @@ function refusalCopy(reason: RankScanRefusal, nextAvailableAt: string | undefine
     case 'agency_daily_limit':
       return `Your agency has used today's ${RANK_MANUAL_PER_AGENCY_DAY} manual scans.`;
     case 'cap':
-      return scan?.state === 'cap' && scan.label ? scan.label : "This scan would exceed this client's monthly cost cap. Raise the cap in Usage or wait until next month.";
+      return scan?.state === 'cap' && scan.label ? scan.label : "This client is close to this month's credit limit, so this scan can't run until next month.";
     case 'not_ready':
       return scan?.state === 'running' ? 'A rank scan is already running for this client.' : 'Add keywords and a service area (and an active client) before scanning.';
   }

@@ -205,7 +205,9 @@ describe('scanRankings settings, trigger and skip (13b)', () => {
     expect(scan!.finishedAt).toBeInstanceOf(Date);
     expect(await dbs.service.select().from(rankSnapshot)).toEqual([]);
     expect(seen).toHaveLength(1);
-    expect(seen[0]).toMatchObject({ scanId: r.scanId, agencyId: IDS.agencyA, clientId: IDS.clientA1, capUsd: 0.01 });
+    expect(seen[0]).toMatchObject({ scanId: r.scanId, agencyId: IDS.agencyA, clientId: IDS.clientA1, clientName: expect.any(String) });
+    expect(seen[0]).not.toHaveProperty('capUsd');
+    expect(seen[0]).not.toHaveProperty('spentUsd');
   });
 
   it('cap on an adopted manual row updates that row to skipped', async () => {

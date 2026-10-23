@@ -35,7 +35,7 @@ describe('requestRankScan', () => {
     refuse({ reason: 'agency_daily_limit', nextAvailableAt: '2026-10-18T00:00:00.000Z' }, settings('agency_daily_limit', "Your agency has used today's 10 manual scans."));
     await expect(requestRankScan(C)).resolves.toEqual({ ok: false, error: "Your agency has used today's 10 manual scans." });
 
-    const cap = "This scan would exceed Cool Air's monthly cost cap ($15). Raise the cap in Usage or wait until next month.";
+    const cap = "Cool Air is close to this month's credit limit, so this scan can't run until next month.";
     refuse({ reason: 'cap' }, settings('cap', cap));
     await expect(requestRankScan(C)).resolves.toEqual({ ok: false, error: cap });
 

@@ -2,7 +2,6 @@ import { checkRankScanBudget, estimateRankScanUsd, failStaleRankScans, RANK_SCAN
 import { ToolError } from '@cs/core';
 import { agency, agencyServiceable, client, clientServiceable, type Db, rankScan, type Tx } from '@cs/db';
 import { and, count, desc, eq, gt, gte, ne, sql } from 'drizzle-orm';
-import { formatCap } from '@cs/engine';
 import { enqueueOf, type ToolDeps } from './deps';
 import { RANK_MANUAL_PER_AGENCY_DAY, RANK_MANUAL_PER_CLIENT_DAYS } from './limits';
 import { searchDayLabelAt } from './rival-search';
@@ -12,7 +11,7 @@ import { searchDayLabelAt } from './rival-search';
  * read keeps it so the button can say a scan is in progress.
  */
 export type RankScanState = 'available' | 'weekly_limit' | 'agency_daily_limit' | 'cap' | 'running' | 'not_ready';
-export type RankScanAvailability = { state: RankScanState; nextAvailableAt?: string; capUsd?: number };
+export type RankScanAvailability = { state: RankScanState; nextAvailableAt?: string };
 export type RankScanRequest =
   | { queued: true; scanEtaMinutes: number }
   | { queued: false; reason: 'weekly_limit' | 'agency_daily_limit' | 'cap' | 'not_ready'; nextAvailableAt?: string };
@@ -53,7 +52,7 @@ export async function rankScanAvailability(db: Db | Tx, c: { id: string; agencyI
   if ((today?.n ?? 0) >= RANK_MANUAL_PER_AGENCY_DAY) return { state: 'agency_daily_limit', nextAvailableAt: new Date(dayStart.getTime() + DAY_MS).toISOString() };
 
   const budget = await checkRankScanBudget(db, c.id, estimateRankScanUsd(row).usd, now);
-  if (!budget.ok) return { state: 'cap', capUsd: budget.capUsd };
+  if (!budget.ok) return { state: 'cap' };
   return { state: 'available' };
 }
 
@@ -62,7 +61,7 @@ export function rankScanRefusalMessage(a: RankScanAvailability, c: { name: strin
   switch (a.state) {
     case 'weekly_limit': return `Next manual scan available ${searchDayLabelAt(a.nextAvailableAt!, c.timezone)}.`;
     case 'agency_daily_limit': return `Your agency has used today's ${RANK_MANUAL_PER_AGENCY_DAY} manual scans.`;
-    case 'cap': return `This scan would exceed ${c.name}'s monthly cost cap (${formatCap(a.capUsd!)}). Raise the cap in Usage or wait until next month.`;
+    case 'cap': return `${c.name} is close to this month's credit limit, so this scan can't run until next month.`;
     case 'running': return 'A rank scan is already running for this client.';
     case 'not_ready': return 'Add keywords and a service area (and an active client) before scanning.';
     default: return null;

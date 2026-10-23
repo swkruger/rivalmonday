@@ -64,13 +64,15 @@ test('an admin dismisses a pending alert with a reason', { tag: ['@alerts'] }, a
   await expect(page.getByText('No alerts waiting — nice.')).toBeVisible();
 });
 
-test('usage shows the near-cap warning and an admin raises the cap', { tag: ['@usage'] }, async ({ page }) => {
+test('usage shows credits and the near-limit badge (read-only)', { tag: ['@usage'] }, async ({ page }) => {
   await page.goto('/agency/settings/usage');
-  await expect(page.getByText(/87% · near cap/)).toBeVisible();
-  await page.getByLabel('Monthly cap for E2E HVAC (USD)').fill('30');
-  await page.getByRole('button', { name: 'Save limits for E2E HVAC' }).click();
-  await expect(page.getByText('Limits saved.')).toBeVisible();
-  await expect(page.getByText(/43%/)).toBeVisible();
+  // Seed: $13 spent against the $15 default limit = 1300 of 1500 credits (only platform staff change limits).
+  await expect(page.getByText('1300 of 1500 credits')).toBeVisible();
+  await expect(page.getByText(/87% · near limit/)).toBeVisible();
+  await expect(page.getByRole('textbox')).toHaveCount(0);
+  await expect(page.getByRole('spinbutton')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /save/i })).toHaveCount(0);
+  await expect(page.locator('main')).not.toContainText('$');
 });
 
 test('an admin edits a runbook play and an unknown placeholder is refused', { tag: ['@runbook'] }, async ({ page }) => {

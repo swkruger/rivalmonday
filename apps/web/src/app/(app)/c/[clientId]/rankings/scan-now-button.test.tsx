@@ -9,7 +9,7 @@ vi.mock('./actions', () => ({ requestRankScan: (...a: unknown[]) => requestRankS
 const { ScanNowButton } = await import('./scan-now-button');
 
 const scan = (state: RankScanInfo['state'], label: string | null = null): RankScanInfo => ({ state, nextAvailableAt: null, label });
-const CAP = "This scan would exceed Cool Air's monthly cost cap ($15). Raise the cap in Usage or wait until next month.";
+const CAP = "Cool Air is close to this month's credit limit, so this scan can't run until next month.";
 const DAILY = "Your agency has used today's 10 manual scans.";
 
 beforeEach(() => requestRankScan.mockReset());

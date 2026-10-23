@@ -172,9 +172,11 @@ describe('request_rank_scan', () => {
 
 describe('rank scan copy', () => {
   const c = { name: 'A1 HVAC', timezone: 'America/Chicago' };
-  it('formats the cap like the decided notice copy ($15, $12.50)', () => {
-    expect(rankScanRefusalMessage({ state: 'cap', capUsd: 12.5 }, c)).toBe("This scan would exceed A1 HVAC's monthly cost cap ($12.50). Raise the cap in Usage or wait until next month.");
-    expect(rankScanRefusalMessage({ state: 'cap', capUsd: 15 }, c)).toContain('cap ($15).');
+  it('refusal and notice copy contain no $', () => {
+    const msg = rankScanRefusalMessage({ state: 'cap' }, c);
+    expect(msg).toBe("A1 HVAC is close to this month's credit limit, so this scan can't run until next month.");
+    expect(msg).not.toContain('$');
+    expect(rankScanLabel({ state: 'cap' }, c)).toBe(msg);
   });
   it('running label has the ellipsis; not_ready has no label', () => {
     expect(rankScanLabel({ state: 'running' }, c)).toBe('Scan running…');

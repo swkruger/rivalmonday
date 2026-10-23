@@ -9,7 +9,7 @@ import { type DataForSeoClient, VendorError } from '../vendors/dataforseo';
 import { checkRankScanBudget, estimateRankScanUsd } from './budget';
 import { RANK_MAX_KEYWORDS, rankKeywordsFor, rankMapSettingsHash, rankRadiusKm } from './settings';
 
-export interface RankScanSkipped { scanId: string; agencyId: string; clientId: string; clientName: string; spentUsd: number; capUsd: number; estimatedUsd: number }
+export interface RankScanSkipped { scanId: string; agencyId: string; clientId: string; clientName: string; estimatedUsd: number }
 
 /** Postgres unique violation on the one-running-scan-per-client index (drizzle may wrap the driver error in `cause`). */
 function isRunningUniqueViolation(err: unknown): boolean {
@@ -55,10 +55,10 @@ export async function scanRankings(
   const estimatedUsd = estimateRankScanUsd({ ...c, rankKeywords: keywords, rankGridSize: gridSize }).usd;
   const settings = { gridSize, radiusKm, keywords, estimatedUsd, trigger: prospect ? ('scheduled' as const) : opts.trigger, requestedBy: opts.requestedBy ?? null };
 
-  let skip: { spentUsd: number; capUsd: number } | null = null;
+  let skip = false;
   if (!prospect) {
     const budget = await checkRankScanBudget(deps.db, clientId, estimatedUsd);
-    if (!budget.ok) skip = budget;
+    if (!budget.ok) skip = true;
   }
 
   // Adopt the pre-created manual row (a stale sweep may have failed one still waiting in the queue: re-claimed once),
@@ -91,7 +91,7 @@ export async function scanRankings(
   }
   if (skip) {
     try {
-      await deps.onSkipped?.({ scanId, agencyId: c.agencyId, clientId: c.id, clientName: c.name, spentUsd: skip.spentUsd, capUsd: skip.capUsd, estimatedUsd });
+      await deps.onSkipped?.({ scanId, agencyId: c.agencyId, clientId: c.id, clientName: c.name, estimatedUsd });
     } catch (err) {
       console.warn(`[rank-scan] ${clientId}: skip notice failed (${err instanceof Error ? err.message : String(err)})`);
     }
