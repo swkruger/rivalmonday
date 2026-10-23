@@ -109,6 +109,8 @@ export interface ReviewableAskMessage {
 export interface ReviewableAskThread {
   id: string;
   title: string;
+  /** The thread's agency (its branding names the assistant on the review page). */
+  agencyId: string;
   agencyName: string;
   clientName: string;
   createdAt: Date;
@@ -121,7 +123,7 @@ export async function getReviewableAskThread(deps: ReviewDeps, ctx: AccessContex
   const valid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(threadId);
   const [t] = valid
     ? await deps.service
-        .select({ id: askThread.id, title: askThread.title, createdAt: askThread.createdAt, agencyName: agency.name, clientName: client.name })
+        .select({ id: askThread.id, title: askThread.title, createdAt: askThread.createdAt, agencyId: askThread.agencyId, agencyName: agency.name, clientName: client.name })
         .from(askThread)
         .innerJoin(client, and(eq(client.id, askThread.clientId), eq(client.agencyId, askThread.agencyId)))
         .innerJoin(agency, eq(agency.id, askThread.agencyId))

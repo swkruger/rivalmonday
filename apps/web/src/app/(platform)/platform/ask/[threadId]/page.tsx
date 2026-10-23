@@ -9,8 +9,10 @@ import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { formatDateTime } from '@/lib/format';
-import { ASK_MESSAGE_STATUS, labelFor } from '@/lib/labels';
+import { ASK_MESSAGE_STATUS, labelFor, sentenceCase } from '@/lib/labels';
+import { assistantNameFor } from '@/server/ask';
 import { requireOperatorContext } from '@/server/current-viewer';
+import { dbs } from '@/server/db';
 import { helpGuides } from '@/server/help';
 import { isHiddenToolError, toolDeps } from '@/server/tools';
 import { viewerTimeZone } from '@/server/viewer-tz';
@@ -20,8 +22,9 @@ export const dynamic = 'force-dynamic';
 const HELP_KEY = 'page:platform.ask.thread';
 const COPY = PAGE_COPY['platform.ask.thread'];
 
-/** Who spoke, in the reviewer's words. The assistant shows its default name, as everywhere else in web (server/theme.ts): the thread does not carry a renamed one. */
-const ROLE_LABEL: Record<string, string> = { user: 'Client', assistant: 'Friday', action: 'Tool' };
+/** Who spoke, in the reviewer's words: the assistant goes by the thread agency's own name for it (`assistantNameFor`). */
+const roleLabel = (role: string, assistant: string): string =>
+  role === 'user' ? 'Client' : role === 'assistant' ? assistant : role === 'action' ? 'Tool' : sentenceCase(role);
 
 /** One read per request (each read is audit-logged), shared by the tab title and the page. */
 const loadThread = cache(async (threadId: string) => {
@@ -42,7 +45,7 @@ export async function generateMetadata({ params }: { params: Promise<{ threadId:
 export default async function PlatformAskThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const thread = await loadThread((await params).threadId);
   const { ctx } = await requireOperatorContext();
-  const [guides, tz] = await Promise.all([helpGuides(ctx, 'platform'), viewerTimeZone()]);
+  const [guides, tz, assistant] = await Promise.all([helpGuides(ctx, 'platform'), viewerTimeZone(), assistantNameFor(dbs().service, thread.agencyId)]);
   return (
     <>
       <PageHeader
@@ -66,7 +69,7 @@ export default async function PlatformAskThreadPage({ params }: { params: Promis
         {thread.messages.map((m) => (
           <li key={m.id} className="rounded-lg border bg-card p-4">
             <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="font-semibold text-ink">{ROLE_LABEL[m.role] ?? labelFor(ASK_MESSAGE_STATUS, m.role).label}</span>
+              <span className="font-semibold text-ink">{roleLabel(m.role, assistant)}</span>
               <StatusChip tone={labelFor(ASK_MESSAGE_STATUS, m.status).tone}>{labelFor(ASK_MESSAGE_STATUS, m.status).label}</StatusChip>
               {/* format-gate: machine-readable dateTime attribute */}
               <time dateTime={new Date(m.createdAt).toISOString()}>{formatDateTime(m.createdAt, { tz, zoneLabel: true })}</time>

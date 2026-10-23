@@ -125,7 +125,6 @@ describe('terminology: the assistant name is never hard-coded', () => {
     'apps/web/src/server/theme.ts',
     'apps/web/src/server/nav.ts',
     'apps/web/src/server/ask.ts',
-    'apps/web/src/app/(platform)/platform/ask/[threadId]/page.tsx',
     'apps/web/src/components/shell/app-shell.tsx',
     'apps/web/src/components/shell/nav-items.ts',
     'apps/web/src/components/agency/branding-editor.tsx',

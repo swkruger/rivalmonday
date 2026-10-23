@@ -37,6 +37,7 @@ vi.mock('@cs/tools', () => ({
   getReviewableAskThread: async () => m.answers.ask_thread,
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ app: {}, service: {} }) }));
+vi.mock('@/server/ask', () => ({ assistantNameFor: async (_db: unknown, agencyId: string) => (agencyId === 'ag1' ? 'Sunny' : 'Friday') }));
 vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [] }));
 vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
@@ -100,7 +101,7 @@ const EMPTY_ANSWERS = (): Record<string, unknown> => ({
   list_decision_reviews: { items: [], nextCursor: null, prevCursor: null, total: 0 },
   list_topic_proposals: { pending: [], decided: [] },
   ask_list: { items: [], nextCursor: null },
-  ask_thread: { id: 't1', title: 'A thread', agencyName: 'Acme', clientName: 'Lone Star', createdAt: new Date('2026-10-01T00:00:00Z'), messages: [{ id: 'm1', role: 'assistant', content: 'Hello', citations: [`kb:${KB}`], status: 'ok', action: null, trace: { a: 1 }, createdAt: new Date('2026-10-01T00:00:00Z') }] },
+  ask_thread: { id: 't1', title: 'A thread', agencyId: 'ag1', agencyName: 'Acme', clientName: 'Lone Star', createdAt: new Date('2026-10-01T00:00:00Z'), messages: [{ id: 'm1', role: 'assistant', content: 'Hello', citations: [`kb:${KB}`], status: 'ok', action: null, trace: { a: 1 }, createdAt: new Date('2026-10-01T00:00:00Z') }] },
   list_kb_articles: { items: [], nextCursor: null },
   list_kb_targets: { agencies: [] },
   get_kb_article_admin: article(),
@@ -409,6 +410,8 @@ describe('Ask reviews', () => {
     await show('platform.ask.thread');
     expect(document.body.textContent).toContain('Lone Star · Acme');
     expect(hasTip('Citations and trace')).toBe(true);
+    // The assistant goes by the thread agency's name for it, not a hard-coded default.
+    expect(screen.getByText('Sunny', { selector: 'span' })).toBeTruthy();
   });
 });
 
