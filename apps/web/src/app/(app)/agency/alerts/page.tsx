@@ -1,6 +1,7 @@
 import { isAgencyRole } from '@cs/core';
-import type { AlertQueueRow } from '@cs/tools';
+import type { AlertQueueClient, AlertQueueRow } from '@cs/tools';
 import { notFound } from 'next/navigation';
+import { z } from 'zod';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
@@ -10,7 +11,8 @@ import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
-import { AlertList } from './alert-controls';
+import { viewerTimeZone } from '@/server/viewer-tz';
+import { AlertFilter, AlertList, CapNotice } from './alert-controls';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,13 +21,16 @@ export const metadata = { title: 'Alert review' };
 const HELP_KEY = 'page:agency.alerts';
 const COPY = PAGE_COPY['agency.alerts'];
 
-export default async function AlertReviewPage() {
+export default async function AlertReviewPage({ searchParams }: { searchParams: Promise<{ client?: string | string[] }> }) {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const [{ items }, assistantName, guides] = await Promise.all([
-    callTool<{ items: AlertQueueRow[] }>(ctx, 'list_alert_queue', {}),
+  const raw = (await searchParams).client;
+  const picked = typeof raw === 'string' && z.string().uuid().safeParse(raw).success ? raw : null;
+  const [{ items, capped, clients }, assistantName, guides, tz] = await Promise.all([
+    callTool<{ items: AlertQueueRow[]; capped: boolean; clients: AlertQueueClient[] }>(ctx, 'list_alert_queue', picked ? { clientId: picked } : {}),
     assistantNameFor(dbs().service, ctx.agencyId),
     helpGuides(ctx, 'agency'),
+    viewerTimeZone(),
   ]);
 
   return (
@@ -44,7 +49,9 @@ export default async function AlertReviewPage() {
           { label: 'Wording', tip: 'agency.alerts.template' },
         ]}
       />
-      <AlertList items={items} assistantName={assistantName} />
+      <AlertFilter clients={clients} selected={picked} />
+      <CapNotice capped={capped} />
+      <AlertList items={items} assistantName={assistantName} tz={tz} nowMs={Date.now()} />
     </>
   );
 }

@@ -58,6 +58,7 @@ export const GATED_PATHS: string[] = [
   'app/oauth',
   'app/onboarding',
   'components/agency',
+  'app/(app)/agency/alerts',
   // The platform console minus `themes` (T16 owns it), listed folder by folder
   'app/(platform)/platform/_components',
   'app/(platform)/platform/actions.ts',

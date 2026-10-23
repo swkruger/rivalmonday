@@ -24,6 +24,7 @@ vi.mock('@/server/current-viewer', () => ({
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/ask', () => ({ assistantNameFor: async () => 'Sunny' }));
+vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [{ id: 'hvac_plumbing', name: 'HVAC & plumbing', services: [] }] }));
 vi.mock('@/server/timezones', () => ({ timezoneOptions: () => ['America/Chicago'] }));
 vi.mock('@/components/spend-badge', () => ({ SpendBadge: () => <span /> }));
@@ -60,7 +61,7 @@ const tool = async (_ctx: unknown, name: string, input: Record<string, unknown>)
     case 'get_billing_summary': return { state: 'trialing' };
     case 'list_brief_queue': return { items: m.queue };
     case 'get_brief_review': return BRIEF;
-    case 'list_alert_queue': return { items: m.alerts };
+    case 'list_alert_queue': return { items: m.alerts, capped: false, clients: [] };
     case 'list_prospects': return { items: m.prospects };
     case 'get_client_profile': return PROFILE;
     case 'list_client_competitors': return { items: [], limit: 5 };
@@ -90,7 +91,7 @@ const PAGES = [
   ['agency.clients.new', () => NewClient()],
   ['agency.approvals', () => Approvals()],
   ['agency.approvals.detail', () => ApprovalReview({ params: Promise.resolve({ briefId: 'b1' }) })],
-  ['agency.alerts', () => Alerts()],
+  ['agency.alerts', () => Alerts({ searchParams: Promise.resolve({}) })],
   ['agency.prospects', () => Prospects()],
   ['agency.prospects.new', () => NewProspect()],
   ['agency.prospects.detail', () => Prospect({ params: Promise.resolve({ clientId: C }) })],

@@ -80,3 +80,15 @@ Note: "Invite links still work" while sign-ups are paused is confirmed in `packa
 | Dates | Overview activity: "Oct 21, 9:00 AM CT"; support sessions, health "last success" tooltip, knowledge "Synced Oct 5" in the viewer's zone |
 
 Not changed: the "Agency management is coming soon" line (15c-3). Overview charts still pass ISO keys to LineChart, which already prints "Oct 20" and "Oct 2026" (checked, nothing to change).
+
+### Agency > Alert review (T7)
+| Where | Copy |
+|---|---|
+| Client filter label / default option | Client / All clients (options "{client} ({n})") |
+| Filter button | Show |
+| Cap notice (only when 200 rows are shown) | Showing the oldest 200 — filter by client to see more |
+| Age on each alert | Waiting {3 days / yesterday / 5 h} |
+| Expiry hint (alerts waiting for review only) | Expires if not reviewed within 7 days |
+| Status chip | Waiting for review / Approved (ALERT_STATUS) plus "Held for the 17:00 digest" |
+| Dismiss dialog | Title "Dismiss this alert?"; body "Nothing is sent to the client." + field "Reason" (required, up to 500); buttons Cancel / Dismiss |
+| Page description (added sentence) | ...The list shows the oldest 200; filter by client to see more. |

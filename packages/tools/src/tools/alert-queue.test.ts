@@ -30,7 +30,54 @@ beforeEach(async () => {
   await mkAlert('delivered', 'immediate');
 });
 
+type Queue = { items: { clientId: string }[]; capped: boolean; clients: { id: string; name: string; count: number }[] };
+const queue = (c: AccessContext, input: object = {}) => registry.invoke(c, 'list_alert_queue', input) as Promise<Queue>;
+const admin = ctx('agency_admin', 'all');
+
+/** Queue rows for a client in bulk, without the per-row helper's round trips. */
+async function bulkAlerts(clientId: string, n: number): Promise<void> {
+  const events = await dbs.owner.insert(changeEvent).values(Array.from({ length: n }, () => ({ competitorId: IDS.competitorX, changeType: 'price_change', summary: 's', confidence: 0.9, occurredAt: new Date() }))).returning();
+  await dbs.owner.insert(alert).values(events.map((e, i) => ({ agencyId: IDS.agencyA, clientId, competitorId: IDS.competitorX, eventId: e.id, score: 70, headline: `h${i}`, body: 'b', status: 'pending_review', mode: 'after_am_check', evidenceIds: [] })));
+}
+
 describe('alert queue', () => {
+  it('capped is true with 201 queued alerts and items has 200', async () => {
+    await bulkAlerts(IDS.clientA1, 199); // + the 2 queued by beforeEach = 201
+    const r = await queue(admin);
+    expect(r.items).toHaveLength(200);
+    expect(r.capped).toBe(true);
+  });
+
+  it('capped is false at exactly 200', async () => {
+    await bulkAlerts(IDS.clientA1, 198);
+    const r = await queue(admin);
+    expect(r.items).toHaveLength(200);
+    expect(r.capped).toBe(false);
+  });
+
+  it('clientId filters', async () => {
+    await bulkAlerts(IDS.clientA2, 1);
+    const r = await queue(admin, { clientId: IDS.clientA2 });
+    expect(r.items).toHaveLength(1);
+    expect(r.items.every((i) => i.clientId === IDS.clientA2)).toBe(true);
+  });
+
+  it('clients lists every client with queue rows even when capped', async () => {
+    await bulkAlerts(IDS.clientA1, 250);
+    await bulkAlerts(IDS.clientA2, 1);
+    const r = await queue(admin);
+    expect(r.capped).toBe(true);
+    expect(r.clients.map((c) => [c.id, c.count])).toEqual(expect.arrayContaining([[IDS.clientA1, 252], [IDS.clientA2, 1]]));
+    expect(r.clients).toHaveLength(2);
+    const names = r.clients.map((c) => c.name);
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+  });
+
+  it('invisible clientId returns empty', async () => {
+    const r = await queue(amA2, { clientId: IDS.clientA1 });
+    expect(r).toMatchObject({ items: [], capped: false, clients: [] });
+  });
+
   it('lists alerts waiting for review and digest-held ones, scoped', async () => {
     const { items } = (await registry.invoke(am, 'list_alert_queue', {})) as { items: { status: string; heldForDigest: boolean; clientName: string; evidenceCount: number }[] };
     expect(items.map((i) => [i.status, i.heldForDigest])).toEqual([['pending_review', false], ['approved', true]]);

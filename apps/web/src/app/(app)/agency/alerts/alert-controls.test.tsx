@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./actions', () => ({ approveAlertAction: vi.fn(), dismissAlertAction: vi.fn() }));
 const { approveAlertAction, dismissAlertAction } = await import('./actions');
-const { AlertList } = await import('./alert-controls');
+const { AlertList, AlertFilter, CapNotice } = await import('./alert-controls');
 const { HelpProvider } = await import('@/components/help/help-provider');
 /** The shell's help provider for agency staff: the empty state reads its copy from it (final review I1). */
 const asAgency = ({ children }: { children: React.ReactNode }) => <HelpProvider value={{ audience: 'agency', names: { agency: 'Acme', assistant: 'Friday' } }}>{children}</HelpProvider>;
@@ -101,5 +101,68 @@ describe('AlertList', () => {
     render(<AlertList items={[base]} assistantName="Friday" />);
     fireEvent.click(screen.getByRole('button', { name: /approve/i }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Not found'));
+  });
+
+  it('dismiss needs a reason and a confirm', async () => {
+    dismissMock.mockResolvedValue({ ok: true, message: 'Dismissed.' });
+    render(<AlertList items={[base]} assistantName="Friday" />);
+    fireEvent.click(screen.getByRole('button', { name: /^dismiss$/i }));
+    expect(dismissMock).not.toHaveBeenCalled(); // opening the dialog is not the confirm
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('Dismiss this alert?')).toBeTruthy();
+    expect(within(dialog).getByText('Nothing is sent to the client.')).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: /^dismiss$/i }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(dismissMock).not.toHaveBeenCalled(); // blank reason is blocked by the required field
+    fireEvent.change(within(dialog).getByLabelText('Reason'), { target: { value: 'Not relevant' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^dismiss$/i }));
+    await waitFor(() => expect(dismissMock).toHaveBeenCalledTimes(1));
+    const fd = dismissMock.mock.calls[0]![1] as FormData;
+    expect([fd.get('alertId'), fd.get('reason'), fd.get('intent')]).toEqual(['a1', 'Not relevant', 'dismiss']);
+  });
+
+  it('refusal text clears on reopen', async () => {
+    dismissMock.mockResolvedValueOnce({ ok: false, error: 'This alert was already handled' });
+    render(<AlertList items={[base]} assistantName="Friday" />);
+    fireEvent.click(screen.getByRole('button', { name: /^dismiss$/i }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Reason'), { target: { value: 'x' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^dismiss$/i }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('This alert was already handled'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: /^dismiss$/i }));
+    expect(screen.queryByText('This alert was already handled')).toBeNull();
+  });
+
+  it('shows the age, expiry hint and status chip', () => {
+    render(<AlertList items={[base]} assistantName="Friday" nowMs={Date.parse("2026-10-04T00:00:00.000Z")} />);
+    expect(screen.getByText('Waiting 3 days')).toBeTruthy();
+    expect(screen.getByText('Expires if not reviewed within 7 days')).toBeTruthy();
+    expect(screen.getByText('Waiting for review')).toBeTruthy();
+  });
+});
+
+describe('alert filters', () => {
+  const clients = [{ id: 'c1', name: 'A1 HVAC', count: 3 }, { id: 'c2', name: 'B Plumbing', count: 1 }];
+
+  it('shows cap notice only when capped', () => {
+    const { rerender } = render(<CapNotice capped={false} />);
+    expect(screen.queryByText(/Showing the oldest 200/)).toBeNull();
+    rerender(<CapNotice capped />);
+    expect(screen.getByText('Showing the oldest 200 — filter by client to see more')).toBeTruthy();
+  });
+
+  it('select keeps the chosen client', () => {
+    render(<AlertFilter clients={clients} selected="c2" />);
+    const select = screen.getByLabelText('Client') as HTMLSelectElement;
+    expect(select.name).toBe('client');
+    expect(select.value).toBe('c2');
+    expect(within(select).getByRole('option', { name: 'All clients' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Show' })).toBeTruthy();
+  });
+
+  it('select defaults to All clients', () => {
+    render(<AlertFilter clients={clients} selected={null} />);
+    expect((screen.getByLabelText('Client') as HTMLSelectElement).value).toBe('');
   });
 });

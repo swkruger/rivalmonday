@@ -82,6 +82,10 @@ export const AlertQueueRow = z.object({
 });
 export type AlertQueueRow = z.infer<typeof AlertQueueRow>;
 
+/** Every client with queue rows (so the page's client select is complete when the list is capped). */
+export const AlertQueueClient = z.object({ id: uuid, name: z.string(), count: z.number().int() });
+export type AlertQueueClient = z.infer<typeof AlertQueueClient>;
+
 export const ReportSummary = z.object({ id: uuid, clientId: uuid, quarter: z.string(), status: z.string(), sentAt: iso.nullable(), hasPdf: z.boolean() });
 export type ReportSummary = z.infer<typeof ReportSummary>;
 

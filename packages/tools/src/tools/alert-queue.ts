@@ -4,7 +4,7 @@ import { approveAlert, dismissAlert } from '@cs/engine';
 import { and, asc, count, eq, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
-import { AlertQueueRow } from './schemas';
+import { AlertQueueClient, AlertQueueRow } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -18,28 +18,42 @@ export async function countAlertsAwaitingReview(tx: Tx): Promise<number> {
   return row?.n ?? 0;
 }
 
+/** The most queue rows `list_alert_queue` returns; one more is fetched to tell whether the list was cut. */
+export const ALERT_QUEUE_CAP = 200;
+
 export const listAlertQueue = defineTool({
   name: 'list_alert_queue',
   access: 'read',
-  description: 'Alerts waiting for an account manager’s check, and approved alerts held for the 17:00 digest, oldest first.',
-  input: z.object({}),
-  output: z.object({ items: z.array(AlertQueueRow) }),
+  description: 'Alerts waiting for an account manager’s check, and approved alerts held for the 17:00 digest, oldest first (at most 200; `capped` says more exist). Optional clientId narrows to one client; `clients` lists every client with queue rows and its count.',
+  input: z.object({ clientId: uuid.optional() }),
+  output: z.object({ items: z.array(AlertQueueRow), capped: z.boolean(), clients: z.array(AlertQueueClient) }),
   permission: 'agency',
-  async handler(ctx, _input, deps) {
-    const rows = await withTenant(deps.app, ctx, (tx) =>
-      tx
+  async handler(ctx, { clientId }, deps) {
+    const { rows, clients } = await withTenant(deps.app, ctx, async (tx) => {
+      const rows = await tx
         .select({ a: alert, clientName: client.name, competitorName: competitor.name })
         .from(alert)
         .innerJoin(client, eq(client.id, alert.clientId))
         .leftJoin(competitor, eq(competitor.id, alert.competitorId))
-        .where(alertQueueWhere())
+        .where(clientId ? and(alertQueueWhere(), eq(alert.clientId, clientId)) : alertQueueWhere())
         .orderBy(asc(alert.createdAt))
-        .limit(200));
+        .limit(ALERT_QUEUE_CAP + 1);
+      const clients = await tx
+        .select({ id: client.id, name: client.name, count: count() })
+        .from(alert)
+        .innerJoin(client, eq(client.id, alert.clientId))
+        .where(alertQueueWhere())
+        .groupBy(client.id, client.name)
+        .orderBy(asc(client.name));
+      return { rows, clients };
+    });
     return {
-      items: rows.map(({ a, clientName, competitorName }) => ({
+      items: rows.slice(0, ALERT_QUEUE_CAP).map(({ a, clientName, competitorName }) => ({
         id: a.id, clientId: a.clientId, clientName, competitorName: competitorName ?? 'Competitor', headline: a.headline, body: a.body, score: a.score, status: a.status,
         heldForDigest: a.status === 'approved', written: a.written, evidenceCount: a.evidenceIds.length, createdAt: a.createdAt.toISOString(),
       })),
+      capped: rows.length > ALERT_QUEUE_CAP,
+      clients,
     };
   },
 });
