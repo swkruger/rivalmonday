@@ -13,7 +13,7 @@ Before the first pilot invite we must be able to show four things: no cross-tena
 ## 3. Decisions
 Owner decisions of 2026-10-22 are binding and only cited here: O14–O16; the pilot bar; pilot size **20 agencies × ≤ 3 clients = 60** (supersedes §1.4's 10–15); blocking vs report-only gates; eval cadence and data; isolation-suite shape; email feedback with white-label routing; the 7c1/7c2 split and ordering; ANN deferred.
 
-All below are *my call* except 19.
+All below are *my call* except 19 (owner).
 1. **Rehearsal:** 120 clients (40 agencies × 3) + 12 starting points in the same week.
    - Clients are seeded as **established**: starting point sent, rivals tracked, ~4 weeks of history. No discovery or setup runs during the rehearsal except for the 12 new starting points.
    - Fixture hosts change their content on a schedule: each page's variant is picked by `hash(path, ISO week) mod 10`, and variants 0–6 swap in a price, rewording or offer mutation. This makes ~70 % of weekly briefs standard (writer + verifier run) and ~30 % quiet scorecards.
@@ -47,7 +47,7 @@ All below are *my call* except 19.
 16. **Feedback:** the client link is a `mailto:` to `replyToFor` (the AM, else the agency admin), hidden when there is none. A null name falls back to "your agency" wording. Agencies get `SUPPORT_REPLY_TO ?? support@rivalmonday.app`.
 17. **`cs_dev` fixture:** `CS Dev Verification Agency`/`Client` renamed to `Internal QA Agency`/`Client` (same ids). The runbook checks that prod has none.
 18. **Not folded:** `WORKER_ROLES` (O14); flaky-Neon tests; the 7a embeddings batch unless the rehearsal shows timeouts.
-19. **Staging** = Vercel Preview + Neon staging branch (schema-only) + a second Railway worker (1 replica), `SENTRY_ENVIRONMENT=staging`, a Postmark test-server token, its own R2 bucket. *(owner, pending; needed before 7c2 Task 8)*
+19. **Staging** = Vercel Preview + Neon staging branch (schema-only) + a second Railway worker (1 replica), `SENTRY_ENVIRONMENT=staging`, a Postmark test-server token, its own R2 bucket. *(owner, 2026-10-23: Railway worker, to see how prod will perform; staging compute and worker size = planned prod; needed before 7c2 Task 8)*
 20. **DB connections:** worker app queries use the Neon **pooled** (PgBouncer) URL with `max` = Σ(localConcurrency − 1 over raised queues) + 10 (today `createDb` is fixed at 5). pg-boss keeps its own direct pool (today the `pg` default of 10; `createBoss` doesn't set it).
 
 ## 4. Interfaces
