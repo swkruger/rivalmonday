@@ -154,7 +154,8 @@ describe('migration generic_topic_id', () => {
     const got = await rows<Row>(sql`SELECT id, state, questions, primary_answers, fallback_answers, final_answers, needs_review FROM decision_sample`);
     const by = Object.fromEntries(got.map((r) => [r.id, r]));
     const gNew = key('generic', NEW);
-    expect(by[full!.id]).toMatchObject({
+    expect(by[full!.id]).toEqual({
+      id: full!.id,
       state: { note: OLD },
       questions: { [gNew]: 'q', [h]: 'q2' },
       primary_answers: { provider: 'jev', answers: { [gNew]: true, [h]: false } },
@@ -162,8 +163,8 @@ describe('migration generic_topic_id', () => {
       final_answers: { [dNew]: false },
       needs_review: [gNew, h],
     });
-    expect(by[nulls!.id]).toMatchObject({ questions: { [gNew]: 'q' }, primary_answers: null, fallback_answers: null, final_answers: { [gNew]: true }, needs_review: [gNew] });
-    expect(by[other!.id]).toMatchObject({ questions: { [h]: 'q' }, primary_answers: null, fallback_answers: null, final_answers: { [h]: true }, needs_review: [] });
+    expect(by[nulls!.id]).toEqual({ id: nulls!.id, state: {}, questions: { [gNew]: 'q' }, primary_answers: null, fallback_answers: null, final_answers: { [gNew]: true }, needs_review: [gNew] });
+    expect(by[other!.id]).toEqual({ id: other!.id, state: {}, questions: { [h]: 'q' }, primary_answers: null, fallback_answers: null, final_answers: { [h]: true }, needs_review: [] });
   });
 
   it('renames decision_review keys, answers and resolution', async () => {
@@ -244,11 +245,25 @@ describe('migration generic_topic_id', () => {
     await dbs.owner.execute(sql`INSERT INTO decision_sample (task, reason, state, questions, final_answers, needs_review)
       VALUES ('review_topics', 'shadow', '{}'::jsonb, ${j({ [key('generic', OLD)]: 'q' })}, ${j({ [key('generic', OLD)]: true })}, ${j([key('generic', OLD)])})`);
     await dbs.owner.execute(sql`INSERT INTO topic_proposal (vertical_id, topic_id, name, description, status, other_count) VALUES ('distillery', ${OLD}, 'O', 'd', 'approved', 1)`);
+    const g = key('generic', OLD);
+    const [ls] = await rows<{ id: string }>(sql`SELECT id FROM decision_sample`);
+    await dbs.owner.execute(sql`INSERT INTO decision_label (sample_id, question_key, value, source, labeled_by) VALUES (${ls!.id}, ${g}, 'true', 'human', 't')`);
+    await dbs.owner.execute(sql`INSERT INTO decision_review (subject_type, subject_id, keys, answers) VALUES ('detected_change', ${rid(2)}, ${j([g])}, ${j({ [g]: true })})`);
+    await seedLegacy(async (tx) => {
+      await tx.execute(sql`INSERT INTO detected_change (competitor_id, source, kind, after_capture_id, block_key, stage_version, details)
+        VALUES (${IDS.competitorX}, 'google_reviews', 'modified', ${rid(7)}, ${`reviews:complaints:distillery:${OLD}`}, 1, ${j({ topic: OLD, verticalId: 'distillery' })})`);
+    });
+    await dbs.owner.execute(sql`INSERT INTO model_batch (task, provider, provider_batch_id, purpose, items, request_count)
+      VALUES ('theme_discovery_batch', 'anthropic', 'b9', 'theme_discovery', ${j({ distillery: { topicIds: [OLD] } })}, 1)`);
     const snapshot = async () => ({
       v: await rows(sql`SELECT id, config FROM vertical ORDER BY id`),
       ra: await rows(sql`SELECT asked, topics FROM review_analysis`),
       ds: await rows(sql`SELECT questions, final_answers, needs_review FROM decision_sample`),
       tp: await rows(sql`SELECT vertical_id, topic_id FROM topic_proposal`),
+      dl: await rows(sql`SELECT question_key, value FROM decision_label ORDER BY question_key`),
+      dr: await rows(sql`SELECT keys, answers, resolution FROM decision_review`),
+      dc: await rows(sql`SELECT block_key, details FROM detected_change`),
+      mb: await rows(sql`SELECT items FROM model_batch`),
     });
     await backfill();
     const first = await snapshot();
@@ -256,6 +271,9 @@ describe('migration generic_topic_id', () => {
     expect(await snapshot()).toEqual(first);
     expect(first.ra).toEqual([{ asked: [NEW], topics: [NEW] }]);
     expect(first.tp).toEqual([{ vertical_id: 'distillery', topic_id: NEW }]);
+    expect(first.dl).toEqual([{ question_key: key('generic', NEW), value: 'true' }]);
+    expect(first.dc).toEqual([{ block_key: `reviews:complaints:distillery:${NEW}`, details: { topic: NEW, verticalId: 'distillery' } }]);
+    expect(first.mb).toEqual([{ items: { distillery: { topicIds: [NEW] } } }]);
   });
 
   it('drops its helper functions', async () => {
