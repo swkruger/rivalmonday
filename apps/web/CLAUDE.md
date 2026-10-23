@@ -65,3 +65,7 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **Every spec test carries tags:** `test('…', { tag: ['@pricing', …] }, …)`, one per module its steps touch; vocabulary in `KNOWN_TAGS` (`scripts/e2e-affected-rules.ts`). `@smoke` only on the two always-run smoke tests.
 - **A new route, component or module needs a rule** in `scripts/e2e-affected-rules.ts` (first match wins; `'all'` when unsure). `scripts/e2e-affected.test.ts` fails on untagged tests, unknown/dead tags and web files that only hit a catch-all; run it without the DB via `pnpm --filter @cs/web exec vitest run --config scripts/vitest.scripts.config.ts`.
 - **`findBy*`'s 1 s default is too short for `next/dynamic` chunks under load:** pass `{ timeout: 15_000 }` (e.g. `PageGuide`).
+- `rm_pending_email` is a signed cookie holding the address for the check-email resend; read it only server-side, never trust a query param.
+- Gates ratchet: `lib/page-gates.ts` `GATED_PATHS = [...AREAS_2A]`; new pages in those areas are gated automatically. Escape a hit with `// format-gate: <reason>` (a reason is required).
+- `WEBHOOK_FAKE_SEND` is E2E-only; never set it outside Playwright's web server.
+- Confirm + result line: use `components/confirm-form.tsx` (`ConfirmForm`), not a bare `ConfirmDialog` plus local state.

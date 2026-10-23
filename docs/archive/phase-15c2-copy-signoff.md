@@ -4,16 +4,36 @@ Owner: tick or edit each item. Source of truth is the code named per item.
 
 ## 15c-2a
 
-### Platform > Agencies (T3)
+Page groups below: Platform, Agency, Account and public. Task numbers (T3-T16) point to the plan. Source of truth is the code; each table names the page it lives on.
+
+### Owner decisions (open copy and policy questions)
+Tick, or reply with the change.
+1. **Privacy URL (B12).** Sign-up and platform /start link to `https://rivalmonday.app/privacy`. Confirm the URL (the page must exist before launch). Agencies have no privacy URL of their own yet (backlog).
+2. **"as Agency admin" grammar.** The invite email reads "invited you to join {agency} as Agency admin" / "as Account manager". Keep, or switch to "as an Agency admin"?
+3. **Branding contrast line.** "Buttons will use dark text so they stay readable." now also shows for the default blue #47A8E7 (ink label on primary, design system v1). Proposal: drop the line.
+4. **"Waiting …" age wording** on alert review ("Waiting 3 days", "yesterday", "5 h"). Edge cases (just now, older dates, alerts held for the digest) are not yet worded. OK as is?
+5. **Agency /start/v "What happens next".** "{Agency} has your details and will be in touch about next steps." replaces "within one business day". The agency has no site link, so the panel has no button (backlog: agency site URL).
+6. **"Download seat report (CSV)"** on agency billing: the page now says "Clients" everywhere else. Rename to "Download client report (CSV)"?
+7. **Topic proposal approve copy (T16).** "...reviews with no topic are checked against it" and the sweep selection (last 180 days): confirm the wording.
+8. **Team page "Sent" header** and the cell "Sent {date} · expires {date}" repeat the word. Drop it from the cell?
+9. **Resend inviter.** A resent invite names the person who pressed Resend as the inviter (and reply-to), not the original inviter. OK?
+10. **Webhook test, "network" line.** "Test failed — couldn't reach {Slack / Teams}." was added (not in the mockup). OK?
+11. **No "Webhook deleted." line.** After Delete the row just disappears; no confirmation message. OK, or add one?
+12. **Resend result when the email fails** ("Invite renewed for 14 days, but the email couldn't be sent…") was added (not in the mockup). OK?
+
+
+### Platform
+
+#### Platform > Agencies (T3)
 | Where | Copy |
 |---|---|
 | Search label | Search agencies |
 | Search button / clear link | Search / Clear |
-| No match | No agencies match "{q}". |
+| No match | No agencies match “{q}”. |
 | Created / last activity | "Oct 21" in the current year, "Oct 21, 2025" otherwise; last activity relative ("yesterday", "4 days ago") then a date; in the viewer's time zone |
 | Previous / Next | ‹ Previous / Next › |
 
-### AGENCY_HEALTH (`apps/web/src/lib/labels.ts`)
+#### AGENCY_HEALTH (`apps/web/src/lib/labels.ts`)
 | Value | Label | Tone |
 |---|---|---|
 | at_risk | At risk | danger |
@@ -23,7 +43,7 @@ Owner: tick or edit each item. Source of truth is the code named per item.
 
 The Billing column now uses BILLING_STATE labels (Free trial, Payment overdue, Read-only, ...) instead of the old platform pill words (Trial, Past due, Paused).
 
-### Platform > Lead pool and Model reviews (T4)
+#### Platform > Lead pool and Model reviews (T4)
 | Where | Copy |
 |---|---|
 | Lead pool card title | Pool ({total}) |
@@ -38,7 +58,7 @@ The Billing column now uses BILLING_STATE labels (Free trial, Payment overdue, R
 | Lead pool tip "What is in the pool" | ...The list is newest first, 25 at a time; use Previous and Next for more. |
 | Model reviews tip "Answering a review" | ...The queue is oldest first, 25 at a time; use Previous and Next for more. |
 
-### Platform > Billing & plans (T5)
+#### Platform > Billing & plans (T5)
 | Where | Copy |
 |---|---|
 | Tabs (`?tab=`, order) | Overview · Plans · Discount codes · Sign-up & invites · Stripe Connect |
@@ -56,7 +76,7 @@ The Billing column now uses BILLING_STATE labels (Free trial, Payment overdue, R
 
 Note: "Invite links still work" while sign-ups are paused is confirmed in `packages/tools/src/access/signup.ts` (only the open sign-up path checks `signupsPaused`).
 
-### Platform > other pages sweep (T6)
+#### Platform > other pages sweep (T6)
 | Where | Copy |
 |---|---|
 | HEALTH_STATUS chips (Health page) | Working (ok) · Slow (warn) · Down (down); tips and guide reworded from OK / Watch to Working / Slow |
@@ -81,7 +101,20 @@ Note: "Invite links still work" while sign-ups are paused is confirmed in `packa
 
 Not changed: the "Agency management is coming soon" line (15c-3). Overview charts still pass ISO keys to LineChart, which already prints "Oct 20" and "Oct 2026" (checked, nothing to change).
 
-### Agency > Alert review (T7)
+#### Platform > Topic proposals (T16)
+| Where | Copy |
+|---|---|
+| Status chips (TOPIC_PROPOSAL_STATUS) | Waiting for review (proposed) · Approved · Rejected |
+| Pending card line | {Status chip} {Business type} · {n} reviews with no topic · Proposed {2 days ago} |
+| Approve: title / body / confirm | Approve {name}? / It becomes a topic that reviews are sorted into, and the last 180 days of reviews with no topic are checked against it. / Approve |
+| Reject: title / body / confirm | Reject {name}? / It is not added to the topic list. This cannot be undone. / Reject (danger) |
+| Recently decided | Decision as a chip; date as "Oct 7" (viewer's zone) |
+| Knowledge article "Updated" line | Shared formatter: "Updated Oct 1, 2026" (unchanged, year always shown) |
+
+
+### Agency
+
+#### Agency > Alert review (T7)
 | Where | Copy |
 |---|---|
 | Client filter label / default option | Client / All clients (options "{client} ({n})") |
@@ -93,7 +126,7 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | Dismiss dialog | Title "Dismiss this alert?"; body "Nothing is sent to the client." + field "Reason" (required, up to 500); buttons Cancel / Dismiss |
 | Page description (added sentence) | ...The list shows the oldest 200; filter by client to see more. |
 
-### Agency > Portfolio, Approvals, Prospects, Leads (T8)
+#### Agency > Portfolio, Approvals, Prospects, Leads (T8)
 | Where | Copy |
 |---|---|
 | Portfolio approve link | Approve Week of Oct 12 (was the ISO date) |
@@ -111,7 +144,7 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | Leads | Chip with the lead status (Verified / Accepted / Declined); date "Oct 1" in your time zone |
 | KPI tiles | Same titles; "Alerts waiting" and "Briefs to approve" are links with an arrow |
 
-### Agency settings and onboarding (T9)
+#### Agency settings and onboarding (T9)
 | Where | Copy |
 |---|---|
 | Billing status chip | BILLING_STATE labels: Pilot, Free trial, Active, Payment overdue, Read-only, Suspended, Cancelled (was Trial / Paused on this page) |
@@ -132,7 +165,7 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | Onboarding plan step | Plan state as chip (Read-only, not Paused); new line "{price} per month, includes {n} clients; each extra client {price} per month." |
 | Billing guide / tips | "Seats" renamed "Clients"; "Paused" state renamed "Read-only"; "Trial" renamed "Free trial" (guide and help tips) |
 
-### Agency settings > Slack & Teams (T10)
+#### Agency settings > Slack & Teams (T10)
 | Where | Copy |
 |---|---|
 | Webhook row, kind chip | WEBHOOK_KIND labels: Slack, Microsoft Teams |
@@ -149,7 +182,7 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | Message posted to the channel | Title "Test message from {agency display name}", body "Briefs and alerts from {agency display name} will appear in this channel." (no link) |
 | Switch refused | The switch flips back and shows the refusal beside it (was silently ignored) |
 
-### Agency settings > Team: resend + `team_invite` email (T11)
+#### Agency settings > Team: resend + `team_invite` email (T11)
 | Where | Copy |
 |---|---|
 | `team_invite` email, subject | {inviterName} invited you to {agencyName} |
@@ -168,7 +201,7 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | Invitations tip | An invitation is an email asking the person to sign in with that address; it works for 14 days. Each row shows when it was sent and when it expires. Resend emails it again and gives it another 14 days, up to 3 times a day. Revoke cancels it. Someone who already has access at that level cannot be invited again: remove them first to change their role. |
 | Team guide | "Agency admin" in the roles list; step 3 now explains Resend (another 14 days, up to 3 times a day); the "expired invitation" answer adds "To keep an invitation from expiring, use *Resend* before the date shown." |
 
-### Agency settings > Intake preview (T12)
+#### Agency settings > Intake preview (T12)
 | Where | Copy |
 |---|---|
 | Intake link card | Button "Preview your page" (opens the preview) |
@@ -180,7 +213,10 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | Intake preview guide | New guide: what the preview shows, that it is not the live page, how to turn the link on |
 | Copied button HTML | Text colour now follows the agency colour (dark ink on light colours, white on dark); no wording change |
 
-### Account and public pages (T13)
+
+### Account and public
+
+#### Account and public pages (T13)
 | Where | Copy |
 |---|---|
 | Inbox, unread row | Chip "New" (screen readers: "<title> (new), <time>, <client>. <body>") |
@@ -195,20 +231,10 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | /start/v, platform | "We'll match you with a local marketing partner and they'll be in touch." (unchanged) + link "Back to the start page" |
 | /start/v nearby table | Column "Distance" (values "0.8 mi", "3 mi"; was "Distance (mi)") |
 
-### Sign-in / sign-up: resend email (T14)
+#### Sign-in / sign-up: resend email (T14)
 | Where | Copy |
 |---|---|
 | Check your email (sign-in and sign-up) | Button "Resend email" (outline, under the existing copy) |
 | After any resend click | Button "Resend in {n} s" (disabled, counts down from 60) |
 | Result line (every outcome: sent, unknown address, limit reached) | "If that address can sign in, a new email is on its way." |
 | Resend after the 15-minute window | The button becomes a link "Start again" (to `/sign-in` or `/sign-up`) |
-
-### Platform > Topic proposals (T16)
-| Where | Copy |
-|---|---|
-| Status chips (TOPIC_PROPOSAL_STATUS) | Waiting for review (proposed) · Approved · Rejected |
-| Pending card line | {Status chip} {Business type} · {n} reviews with no topic · Proposed {2 days ago} |
-| Approve: title / body / confirm | Approve {name}? / It becomes a topic that reviews are sorted into, and the last 180 days of reviews with no topic are checked against it. / Approve |
-| Reject: title / body / confirm | Reject {name}? / It is not added to the topic list. This cannot be undone. / Reject (danger) |
-| Recently decided | Decision as a chip; date as "Oct 7" (viewer's zone) |
-| Knowledge article "Updated" line | Shared formatter: "Updated Oct 1, 2026" (unchanged, year always shown) |
