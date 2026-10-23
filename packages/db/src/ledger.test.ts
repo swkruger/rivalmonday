@@ -6,6 +6,7 @@ import { errorText, IDS, openTestDbs, seedTenancy, truncateAll } from '../test/h
 import { createAuditSink } from './audit';
 import { createLedgerSink } from './ledger';
 import { auditLog, llmCall, vendorCall } from './schema';
+import { monthStart, spendByClient } from './spend';
 import { withTenant } from './tenant';
 
 const dbs = openTestDbs();
@@ -43,6 +44,40 @@ describe('ledger sink', () => {
     await expect(
       sink.recordVendorCall({ agencyId: null, clientId: null, vendor: 'dataforseo', operation: 'reviews', units: 10, costUsd: null, latencyMs: 5, ok: true }),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('ledger cost precision', () => {
+  it('ledger rows keep 6 decimal places', async () => {
+    const sink = createLedgerSink(dbs.service);
+    await sink.recordLlmCall({ ...base, costUsd: 0.0000042, agencyId: null, clientId: null });
+    await sink.recordVendorCall({ agencyId: null, clientId: null, vendor: 'dataforseo', operation: 'reviews', units: 1, costUsd: 0.0000042, latencyMs: 5, ok: true });
+    const [l] = await dbs.service.select({ c: llmCall.costUsd }).from(llmCall);
+    const [v] = await dbs.service.select({ c: vendorCall.costUsd }).from(vendorCall);
+    expect(l?.c).toBe(0.000004);
+    expect(v?.c).toBe(0.000004);
+  });
+
+  it('costUsd reads back as a number', async () => {
+    const sink = createLedgerSink(dbs.service);
+    await sink.recordLlmCall({ ...base, costUsd: 1.234567, agencyId: null, clientId: null });
+    await sink.recordLlmCall({ ...base, costUsd: null, agencyId: null, clientId: null });
+    const rows = await dbs.service.select({ c: llmCall.costUsd }).from(llmCall);
+    const vals = rows.map((r) => r.c);
+    expect(vals).toContain(null);
+    const n = vals.find((c) => c !== null);
+    expect(typeof n).toBe('number');
+    expect(n).toBe(1.234567);
+  });
+
+  it('sum over numeric matches the float total within 1e-6', async () => {
+    const sink = createLedgerSink(dbs.service);
+    const costs = [0.000123, 0.000456, 0.001, 0.0000042, 2.5];
+    for (const costUsd of costs) await sink.recordLlmCall({ ...base, costUsd, agencyId: IDS.agencyA, clientId: IDS.clientA1 });
+    const got = (await spendByClient(dbs.service, [IDS.clientA1], monthStart(new Date(Date.now() - 40 * 86_400_000)))).get(IDS.clientA1) ?? 0;
+    const expected = costs.reduce((a, b) => a + Math.round(b * 1e6) / 1e6, 0);
+    expect(typeof got).toBe('number');
+    expect(Math.abs(got - expected)).toBeLessThan(1e-6);
   });
 });
 

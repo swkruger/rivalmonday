@@ -1,6 +1,6 @@
 import type { ToolChannel } from '@cs/core';
 import { sql } from 'drizzle-orm';
-import { boolean, check, doublePrecision, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, check, index, integer, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
@@ -44,7 +44,7 @@ export const llmCall = pgTable(
     model: text('model').notNull(),
     inputTokens: integer('input_tokens').notNull(),
     outputTokens: integer('output_tokens').notNull(),
-    costUsd: doublePrecision('cost_usd'),
+    costUsd: numeric('cost_usd', { precision: 14, scale: 6, mode: 'number' }),
     latencyMs: integer('latency_ms').notNull(),
     ok: boolean('ok').notNull(),
     verticalId: text('vertical_id'),
@@ -66,7 +66,7 @@ export const vendorCall = pgTable(
     vendor: text('vendor').notNull(),
     operation: text('operation').notNull(),
     units: integer('units').notNull(),
-    costUsd: doublePrecision('cost_usd'),
+    costUsd: numeric('cost_usd', { precision: 14, scale: 6, mode: 'number' }),
     latencyMs: integer('latency_ms').notNull(),
     ok: boolean('ok').notNull(),
     createdAt: createdAt(),
