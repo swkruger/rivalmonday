@@ -11,7 +11,8 @@ Tick, or reply with the change.
 1. **Privacy URL (B12).** Sign-up and platform /start link to `https://rivalmonday.app/privacy`. Confirm the URL (the page must exist before launch). Agencies have no privacy URL of their own yet (backlog).
 2. **"as Agency admin" grammar.** The invite email reads "invited you to join {agency} as Agency admin" / "as Account manager". Keep, or switch to "as an Agency admin"?
 3. **Branding contrast line.** "Buttons will use dark text so they stay readable." now also shows for the default blue #47A8E7 (ink label on primary, design system v1). Proposal: drop the line.
-4. **"Waiting …" age wording** on alert review ("Waiting 3 days", "yesterday", "5 h"). Edge cases (just now, older dates, alerts held for the digest) are not yet worded. OK as is?
+4. **"Waiting …" age wording** on alert review (final fix wave): from elapsed time — "Waiting under an hour", "Waiting 1 hour" / "Waiting 3 hours", "Waiting 1 day" / "Waiting 2 days". Alerts already approved and held for the digest show no age. OK?
+13. **Team invite cap (final-review ruling).** Agency staff invites are capped at 20 per agency in 24 hours (new invites and resends together); the 21st reads "You've sent a lot of invites today. Try again tomorrow." Keep 20 and the wording?
 5. **Agency /start/v "What happens next".** "{Agency} has your details and will be in touch about next steps." replaces "within one business day". The agency has no site link, so the panel has no button (backlog: agency site URL).
 6. **"Download seat report (CSV)"** on agency billing: the page now says "Clients" everywhere else. Rename to "Download client report (CSV)"?
 7. **Topic proposal approve copy (T16).** "...reviews with no topic are checked against it" and the sweep selection (last 180 days): confirm the wording.
@@ -55,6 +56,7 @@ The Billing column now uses BILLING_STATE labels (Free trial, Payment overdue, R
 | Model reviews heading | Waiting for review ({total}) |
 | Review card header | {competitor} · {source label} · {change kind} · {age, e.g. "3 days ago"} |
 | Paging | ‹ Previous / Next ›, 25 per page |
+| Empty page of a non-empty list (stale link; lead pool and model reviews) | Nothing on this page. Go to the first page (link) — the real empty state stays for an empty list |
 | Lead pool tip "What is in the pool" | ...The list is newest first, 25 at a time; use Previous and Next for more. |
 | Model reviews tip "Answering a review" | ...The queue is oldest first, 25 at a time; use Previous and Next for more. |
 
@@ -89,7 +91,7 @@ Note: "Invite links still work" while sign-ups are paused is confirmed in `packa
 | Attach discount: title / body / confirm | Attach this discount? / The discount applies to this agency's subscription, or at checkout if it has none yet. / Attach discount |
 | Pilot client cap: title / body / confirm | Lift the pilot client cap? / The agency can add more clients than the standard cap while it is in pilot. / Lift cap (restore: Restore the pilot client cap? / The agency goes back to the standard client cap while it is in pilot. / Restore cap) |
 | Ask reviews chips | {n} removed · Something went wrong · Couldn't answer · Limit reached (replace "error", "refused", "quota"); tip renamed "The status chips" and reworded to match |
-| Ask thread | Speaker: Client / Friday (the default assistant name) / Tool; status chip from ASK_MESSAGE_STATUS (Answered, Limit reached, Couldn't answer, Something went wrong, Stopped); message time in the viewer's zone; "Action" and "Trace" JSON now inside a closed "Technical details" toggle; tip "Citations and technical details" reworded |
+| Ask thread | Speaker: Client / {the agency's assistant name, default Friday} / Tool (any other role in sentence case); status chip from ASK_MESSAGE_STATUS (Answered, Limit reached, Couldn't answer, Something went wrong, Stopped); message time in the viewer's zone; "Action" and "Trace" JSON now inside a closed "Technical details" toggle; tip "Citations and technical details" reworded |
 | Business types: Approve vertical / service | Approve {name}? / It joins the business type list that every agency can choose from. (service: ...the {type} service list...) / Approve |
 | Business types: Merge vertical / service | Merge {name} into {target}? / Agencies and clients using it move to the other business type. This cannot be undone. (service: Clients using it move to the other service. ...) / Merge |
 | Runbook: switch off | Switch off {item}? / It stops applying to briefs and alerts until you switch it back on. / Switch off |
@@ -119,8 +121,9 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 |---|---|
 | Client filter label / default option | Client / All clients (options "{client} ({n})") |
 | Filter button | Show |
-| Cap notice (only when 200 rows are shown) | Showing the oldest 200 — filter by client to see more |
-| Age on each alert | Waiting {3 days / yesterday / 5 h} |
+| Cap notice (only when 200 rows are shown) | Showing the oldest 200 — filter by client to see more; with a client chosen: "Showing the oldest 200 for this client." |
+| Client filter, chosen client with nothing queued | The select keeps it selected, named "{client}" when known, else "This client" (never "All clients") |
+| Age on each alert (waiting for review only) | Waiting under an hour / Waiting {n} hour(s) / Waiting {n} day(s); none on alerts held for the digest |
 | Expiry hint (alerts waiting for review only) | Expires if not reviewed within 7 days |
 | Status chip | Waiting for review / Approved (ALERT_STATUS) plus "Held for the 17:00 digest" |
 | Dismiss dialog | Title "Dismiss this alert?"; body "Nothing is sent to the client." + field "Reason" (required, up to 500); buttons Cancel / Dismiss |
@@ -139,6 +142,7 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | Approvals columns | Week column reads "Week of Oct 12"; last (flag) column named "Actions" for screen readers |
 | Brief review title | "{client} · Week of Oct 26" |
 | Send time | Approve button "Approve · send Monday 7:00 AM CT"; switch "Send untouched briefs automatically on Monday 7:00 AM CT" (zone = the client's) |
+| After approving a weekly brief | Approved — it goes out Monday 7:00 AM CT. {n} recommendation(s) created. (zone = the client's; was "Monday 07:00") |
 | Rating buttons | Useful / Not useful, announced as pressed once saved |
 | Prospects | "Ready" / "Needs setup" chips; snapshot chip Preparing / Ready / Sent / Failed (REPORT_STATUS) |
 | Leads | Chip with the lead status (Verified / Accepted / Declined); date "Oct 1" in your time zone |
@@ -195,6 +199,7 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | Resend result | Invite sent again. |
 | Resend, email not sent (new, not in the mockup) | Invite renewed for 14 days, but the email couldn't be sent. Ask them to sign in at {appUrl}/sign-in with this email. |
 | Resend refused, 4th in 24 h | You can resend this invite again tomorrow. |
+| Invite or resend refused, 21st agency staff invite email in 24 h (final-review ruling) | You've sent a lot of invites today. Try again tomorrow. |
 | Revoke dialog | Title "Revoke the invitation to {email}?", body "They will no longer be able to accept it.", confirm "Revoke" (red, inside the dialog) — unchanged wording, now `ConfirmDialog` |
 | Remove dialog | Title "Remove {name}?", body unchanged, confirm "Remove" (red, inside the dialog); a refusal (last admin) shows beside the button |
 | Role labels (MEMBERSHIP_ROLE, B14) | Agency admin (was "Admin"), Account manager, Client owner, Client viewer — Team page, invite form, help tip and guide |

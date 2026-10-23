@@ -30,6 +30,8 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **`POST /api/ask/turn` (SSE) is public in `proxy.ts` and authenticates itself:** one `final` event per response, `emit` never throws, membership by the body's `clientId` (`getViewerForClient`), thread id in `x-ask-thread-id`.
 - **Consent order (`/oauth/consent`):** `pickConsent` → plugin accept → `bindConsent` → redirect; a failed bind keeps the code server-side; authorize drops a consent with no binding.
 
+- **`rm_pending_email`** is a signed cookie holding the address for the check-email resend; read it only server-side, never trust a query param.
+
 ### Platform & support sessions (8a/8b)
 - **`/platform/**` lives in `app/(platform)/` and every page/action there uses `requireOperatorContext()`** (operator's own ctx, ignores `rm_support`); `/agency`, `/c` use `requireContext()`, which returns the synthetic support ctx during a session. Start/Exit/sign-out must use the operator ctx (a support ctx refuses every write).
 - **Never set/clear cookies during render (Next 16):** support-cookie problems redirect to `GET /support/end?sid=…`; only that route (and `POST /support/exit`, sign-out) touches `rm_support`, and render passes `endStale: false`.
@@ -41,6 +43,8 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **React 19 resets a `<form action>` after every action, error results included** — even controlled selects. Wizard forms control every field, add `onReset={e => e.preventDefault()}` (`(app)/onboarding/steps/*`), else a failed submit silently reverts choices.
 - **`LineChart` callers must pass series name-sorted:** colours follow position in the kept set.
 - **Formatting:** use `@/lib/format` (dates, money, distance) and `@/lib/labels` (enum labels, chip tones), never local formatters or raw enums. Distances: km stored, miles shown/typed via `lib/format/distance`.
+- **Confirms with a result line:** `ConfirmForm` (`components/confirm-form.tsx`) for forms with visible fields; `ConfirmDialog` + `fields` + row-keyed result lines for row actions (`AlertList`, `TopicQueue`). Never a bare `ConfirmDialog` plus state inside the row.
+- **Gates ratchet:** `lib/page-gates.ts` `GATED_PATHS = [...AREAS_2A]`; new pages in those areas are gated automatically. Escape a hit with `// format-gate: <reason>` (a reason is required).
 - **No `loading.tsx` under `app/(app)` or `app/(platform)`** — it turns `notFound()` into HTTP 200; use `<Suspense fallback={<PageSkeleton/>}>` inside pages after access checks.
 - **No mobile layout** (232px sidebar; 390px overview E2E is `fixme`).
 
@@ -59,13 +63,10 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **`pnpm --filter @cs/web e2e`** (Playwright) is not part of `pnpm test`: it builds and starts a production server against `cs_test` (env from `playwright.config.ts`), runs as its own CI job, and never concurrently with another `cs_test` run.
 - **Reuse signed-in sessions; never add a magic-link sign-in:** Better Auth allows 5 magic-link requests/IP/60 s; full runs already hit it (`smoke.spec` :6/:41 fail in full suites only). Specs reuse storage states. `latestMagicLink()`/`newMagicLink()` filter by recipient after an outbox snapshot.
 - **"destination stream closed early" in the E2E server log is noise** (digest `3686933289`, no app frame): the browser closes the page mid-RSC/prefetch stream between tests; tests still pass (reproduced 3/3 runs of `workspace.spec`, 15c-2 T15). Ignore it unless an assertion fails.
+- **`WEBHOOK_FAKE_SEND` is E2E-only;** never set it outside Playwright's web server.
 
 ### Affected-only E2E
 - **During development run `pnpm --filter @cs/web e2e:affected`** (`--dry-run`, `--base <ref>`, `--full`): tests whose tags the changed files map to (plus `@smoke`), rebuilds only when needed. It can pull one test out of a `describe.serial` file (false failure) — re-run the whole file. Full `e2e` only in `/rm-merge`.
 - **Every spec test carries tags:** `test('…', { tag: ['@pricing', …] }, …)`, one per module its steps touch; vocabulary in `KNOWN_TAGS` (`scripts/e2e-affected-rules.ts`). `@smoke` only on the two always-run smoke tests.
 - **A new route, component or module needs a rule** in `scripts/e2e-affected-rules.ts` (first match wins; `'all'` when unsure). `scripts/e2e-affected.test.ts` fails on untagged tests, unknown/dead tags and web files that only hit a catch-all; run it without the DB via `pnpm --filter @cs/web exec vitest run --config scripts/vitest.scripts.config.ts`.
 - **`findBy*`'s 1 s default is too short for `next/dynamic` chunks under load:** pass `{ timeout: 15_000 }` (e.g. `PageGuide`).
-- `rm_pending_email` is a signed cookie holding the address for the check-email resend; read it only server-side, never trust a query param.
-- Gates ratchet: `lib/page-gates.ts` `GATED_PATHS = [...AREAS_2A]`; new pages in those areas are gated automatically. Escape a hit with `// format-gate: <reason>` (a reason is required).
-- `WEBHOOK_FAKE_SEND` is E2E-only; never set it outside Playwright's web server.
-- Confirm + result line: use `components/confirm-form.tsx` (`ConfirmForm`), not a bare `ConfirmDialog` plus local state.

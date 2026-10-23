@@ -32,6 +32,7 @@ Execution rulings (2a): **R-DS1** `readableTextOn` = higher contrast of white vs
 - Team invite From address is the lead-mail from-address (rivalmonday envelope for white-label) → 13a neutral domain.
 - Deferred minors from task reviews are listed in `.superpowers/sdd/.../progress.md` (not committed); the final review fixes the FIX IN FINAL ones.
 - E2E stream message (T15): infra/noise, no action (finding below).
+- Webhook test limit is per webhook (per-agency cap → backlog).
 
 ## Owner verification steps
 1. Webhooks (`/agency/settings/slack-teams`): add a real Slack URL, press Send test, see the message in the channel; Delete shows the confirm.

@@ -47,4 +47,4 @@ Change-detection pipeline (diff, tag, events, scoring, moves, prices, reviews) p
 - **The dispatcher re-checks liveness right before sending:** `dispatchDue`'s `undeliverableReason` (contact still active; for `alert` rows the alert exists, is not `withdrawn`/`dismissed`, and its primary event is not retracted) fails a stale row once, permanently, instead of retrying.
 - **Webhook URLs are re-checked at send, not only at save:** `https`-only, allowlist `hooks.slack.com`/`.webhook.office.com`/`.logic.azure.com`/`.environment.api.powerplatform.com`, no redirects followed — in case DNS now resolves elsewhere.
 - **The root barrel imports `node:crypto`** (`structured/rank.ts` `rankSettingsKey`): client components never import `@cs/engine`; shared pure math (geo projection) lives in `@cs/core`.
-- `postWebhook` is the only webhook POST path (SSRF guard, 5 s timeout, no redirects); the sender and `test_webhook` both use it.
+- `postWebhook` is the only webhook POST path (the Slack/Teams host allow-list `webhookUrlProblem`, not the SSRF guard; no redirects; timeout 10 s in the outbox sender, 5 s for `test_webhook`); the sender and `test_webhook` both use it.
