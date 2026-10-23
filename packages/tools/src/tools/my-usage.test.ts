@@ -31,6 +31,7 @@ describe('get_my_usage', () => {
     expect(a.month).toMatch(/^\d{4}-\d{2}$/);
     expect(a.credits).toMatchObject({ used: 1200, limit: 1500, level: 'near' });
     expect(a.questions).toEqual({ used: 0, quota: 100 });
+    expect(JSON.stringify(a)).not.toMatch(noMoney);
     expect(await registry.invoke(am, 'get_my_usage', { clientId: A1 })).toMatchObject({ credits: { used: 1200 } });
     const o = (await registry.invoke(owner, 'get_my_usage', { clientId: A1 })) as { questions: unknown };
     expect(o.questions).toBeNull(); // client_owner gets questions null

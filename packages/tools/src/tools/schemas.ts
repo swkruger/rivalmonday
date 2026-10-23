@@ -137,7 +137,7 @@ export const RecommendationView = z.object({
 });
 export type RecommendationView = z.infer<typeof RecommendationView>;
 
-/** 7b1: what tenants see of spend — integer credits and a calm level, never dollars. */
+/** 7b1: what tenants see of spend: integer credits and a calm level, never dollars. */
 export const SpendCredits = z.object({ used: z.number().int(), limit: z.number().int(), ratio: z.number(), level: z.enum(['ok', 'near', 'reached', 'paused']) });
 export type SpendCredits = z.infer<typeof SpendCredits>;
 
