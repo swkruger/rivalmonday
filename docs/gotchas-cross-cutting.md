@@ -13,7 +13,8 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 - **Windows native crash `3221226505` / `0xC0000409`** (or heap OOM at ~190 MB) from `tsc`/`next build` in `apps/web` means the machine is short of **commit** memory, not a code bug (`FreeVirtualMemory` ≥ ~12 GB is enough); `--max-old-space-size=8192` doesn't help.
 - `cs_dev` fixture: `CS Dev Verification Agency` (`aaf5e009-974b-4ce8-b7ec-b722c5c66b1c`) / `CS Dev Verification Client` (`25f99947-4559-4150-ab5d-dd432540aca0`, vertical `hvac_plumbing`, no `place_id`) tracks `aireserv.com` (`e9f9cbd3-8834-43a4-a1af-a31224ca43d3`). Not live-verified: self-business benchmark (needs `place_id`), pricing tracker (needs a real `web` capture).
 - **Support Exit checks `Origin` against `APP_URL`**: any other host (`127.0.0.1`, a preview alias) gets 403 and `rm_support` stays until its 60-min expiry or sign-out.
-- Mockups: `.superpowers/brainstorm/` (gitignored), keepers in `docs/brand/mockups/`; companion `EACCES` → `BRAINSTORM_PORT=47321`.
+- Mockups: `.superpowers/brainstorm/` (gitignored), keepers in `docs/brand/mockups/`; the visual companion (`start-server.sh`) can fail on Windows with `listen EACCES` on its random port (excluded port ranges): start it with `BRAINSTORM_PORT=4817` (any fixed free port).
+- **Stopping a background `pnpm dev` can leave the Next.js node process holding port 3000:** kill the process listening on 3000 (check its command line points at the right worktree first) before restarting.
 
 ## Commands
 - `pnpm install` · `pnpm typecheck` · `pnpm test` (turbo, `--concurrency=1`) · `pnpm db:migrate` (applies to `cs_dev`) · `pnpm --filter <pkg> test` · `pnpm --filter @cs/web e2e` · `pnpm dev:web` · `pnpm demo:reset` / `pnpm demo:links` · `db:snapshot` / `db:restore`.
