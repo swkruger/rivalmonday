@@ -26,10 +26,10 @@ describe('drainEngine', () => {
     const deps = { db: dbs.service, store, ai, packs: createPackLoader(), generic };
     // The HVAC fixtures each have one priced block (the AC tune-up), so the drain also runs price_extract
     // on both captures: $89 opens a span, then $69 ends it and opens a new one (2 price points).
-    expect(await drainEngine(deps)).toEqual({ diffs: 2, changes: 1, tagged: 1, events: 1, scored: 2, rankDiffs: 0, reviews: 0, prices: 2, errors: 0 });
+    expect(await drainEngine(deps)).toEqual({ diffs: 2, changes: 1, tagged: 1, events: 1, scored: 2, rankDiffs: 0, reviews: 0, prices: 2, reasked: 0, errors: 0 });
     expect(await dbs.owner.select().from(changeEvent)).toHaveLength(1);
     expect(await dbs.owner.select().from(eventScore)).toHaveLength(2);
-    expect(await drainEngine(deps)).toEqual({ diffs: 0, changes: 0, tagged: 0, events: 0, scored: 0, rankDiffs: 0, reviews: 0, prices: 0, errors: 0 });
+    expect(await drainEngine(deps)).toEqual({ diffs: 0, changes: 0, tagged: 0, events: 0, scored: 0, rankDiffs: 0, reviews: 0, prices: 0, reasked: 0, errors: 0 });
   });
 
   it('counts errors and keeps going when tagging fails, then backs off instead of retrying immediately', async () => {

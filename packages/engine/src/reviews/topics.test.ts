@@ -6,7 +6,9 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeAi, noul, reviewResult, score } from '../../test/fake-ai';
 import { findEngineWork } from '../sweep';
 import { createPackLoader } from '../tag/tag-stage';
-import { analyzeReview, buildReviewQuestions, otherKey, resolveReviewAnalysis, reviewSubjectId, themeKey, topicsForVertical } from './topics';
+import {
+  analyzeReview, buildReaskQuestions, buildReviewQuestions, otherKey, type ReaskTopics, reaskGap, resolveReviewAnalysis, reviewSubjectId, themeKey, topicsForVertical,
+} from './topics';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -91,6 +93,16 @@ describe('analyzeReview', () => {
     expect(rows[0]).toMatchObject({ topics: ['communication'], sentiment: 3 });
   });
 
+  it("an edited review's upsert clears checked_at", async () => {
+    const id = await seedReview();
+    await analyzeReview({ db: dbs.service, ai: createFakeAi({ decide: reviewResult({}) }), packs }, id);
+    await dbs.owner.update(reviewAnalysis).set({ checkedAt: new Date() }).where(eq(reviewAnalysis.reviewId, id));
+    await dbs.service.update(review).set({ text: 'Update: they came back and fixed it for free.' }).where(eq(review.id, id));
+    expect((await analyzeReview({ db: dbs.service, ai: createFakeAi({ decide: reviewResult({}) }), packs }, id)).ran).toBe(true);
+    const [row] = await dbs.owner.select().from(reviewAnalysis).where(eq(reviewAnalysis.reviewId, id));
+    expect(row!.checkedAt).toBeNull();
+  });
+
   it('writes one row per vertical tracking the competitor', async () => {
     await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: IDS.competitorX });
     const id = await seedReview();
@@ -112,5 +124,38 @@ describe('sweep: reviews', () => {
     expect(work.reviews).toContain(fresh);
     await analyzeReview({ db: dbs.service, ai: createFakeAi({ decide: reviewResult({}) }), packs }, fresh);
     expect((await findEngineWork(dbs.service, { limit: 50 })).reviews).not.toContain(fresh);
+  });
+});
+
+describe('re-ask gap (unit)', () => {
+  const T = (id: string) => ({ id, name: id.toUpperCase(), description: `about ${id}` });
+  const at = (h: number) => new Date(Date.UTC(2026, 9, 20, h));
+  const t: ReaskTopics = { seed: [T('a'), T('b')], seedEditedAt: at(1), approved: [{ ...T('c'), decidedAt: at(5) }, { ...T('d'), decidedAt: at(1) }] };
+
+  it('(b) without a row: every seed and approved topic', () => {
+    expect(reaskGap('v', null, t)).toEqual({ kind: 'b', verticalId: 'v', topics: [T('a'), T('b'), T('c'), T('d')] });
+  });
+
+  it('(a) approved after the marker and not asked; seed only when edited after the marker', () => {
+    expect(reaskGap('v', { asked: ['a'], analyzedAt: at(3), checkedAt: null }, t)).toEqual({ kind: 'a', verticalId: 'v', topics: [T('c')] });
+    expect(reaskGap('v', { asked: ['a'], analyzedAt: at(0), checkedAt: null }, t)).toEqual({ kind: 'a', verticalId: 'v', topics: [T('b'), T('c'), T('d')] });
+  });
+
+  it('none when the marker is newer than every trigger or every gap topic is asked', () => {
+    expect(reaskGap('v', { asked: [], analyzedAt: at(0), checkedAt: at(6) }, t)).toBeNull();
+    expect(reaskGap('v', { asked: ['a', 'b', 'c', 'd'], analyzedAt: at(0), checkedAt: null }, t)).toBeNull();
+  });
+
+  it('buildReaskQuestions asks sentiment and other only for a (b) gap', async () => {
+    const hvac = await loadVerticalPack('hvac_plumbing');
+    const dental = await loadVerticalPack('dental');
+    const map = new Map([['hvac_plumbing', hvac], ['dental', dental]]);
+    const only = buildReaskQuestions([{ kind: 'a', verticalId: 'hvac_plumbing', topics: [T('warranty_claims')] }], map);
+    expect(Object.keys(only)).toEqual([themeKey('hvac_plumbing', 'warranty_claims')]);
+    expect(only[themeKey('hvac_plumbing', 'warranty_claims')]).toEqual(
+      buildReviewQuestions([{ pack: hvac, topics: [T('warranty_claims')] }])[themeKey('hvac_plumbing', 'warranty_claims')],
+    );
+    const both = buildReaskQuestions([{ kind: 'a', verticalId: 'hvac_plumbing', topics: [T('x')] }, { kind: 'b', verticalId: 'dental', topics: [T('y')] }], map);
+    expect(Object.keys(both).sort()).toEqual([otherKey('dental'), 'sentiment', themeKey('dental', 'y'), themeKey('hvac_plumbing', 'x')].sort());
   });
 });

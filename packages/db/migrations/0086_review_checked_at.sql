@@ -1,0 +1,1 @@
+ALTER TABLE "review_analysis" ADD COLUMN "checked_at" timestamp with time zone;

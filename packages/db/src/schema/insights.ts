@@ -31,6 +31,8 @@ export const reviewAnalysis = pgTable(
     needsReview: boolean('needs_review').notNull().default(false),
     analysisVersion: integer('analysis_version').notNull(),
     analyzedAt: ts('analyzed_at').notNull().defaultNow(),
+    /** Last re-ask check (spec 15b-3b §5); null = as of analyzed_at. */
+    checkedAt: ts('checked_at'),
   },
   (t) => [primaryKey({ columns: [t.reviewId, t.verticalId] }), index('review_analysis_competitor_idx').on(t.competitorId, t.verticalId)],
 );

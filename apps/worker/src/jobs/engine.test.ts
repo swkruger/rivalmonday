@@ -16,7 +16,7 @@ describe('engine jobs', () => {
   it('sweeps every 5 minutes and enqueues all found work', async () => {
     const deps = {
       engineConfigured: () => true,
-      findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)], reviews: [U(5)], prices: [U(6)] })),
+      findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)], reviews: [U(5)], prices: [U(6)], reask: [] })),
     } as unknown as WorkerDeps;
     const q = queue();
     const jobs = createEngineJobs(deps, q);
