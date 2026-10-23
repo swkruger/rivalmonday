@@ -1,15 +1,15 @@
 'use client';
 import type { Role } from '@cs/core';
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label } from '@cs/ui';
-import { useActionState, useState } from 'react';
-import { useReadOnly } from '@/components/read-only';
-import type { FormResult } from '@/server/forms';
-import { inviteAction, revokeInvitationAction, revokeMembershipAction } from './actions';
+import { Button, ConfirmDialog, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { useActionState, useState, useTransition } from 'react';
 import { ErrorNote } from '@/components/form-error';
+import { useReadOnly } from '@/components/read-only';
+import { labelFor, MEMBERSHIP_ROLE } from '@/lib/labels';
+import type { FormResult } from '@/server/forms';
+import { inviteAction, resendInvitationAction, revokeInvitationAction, revokeMembershipAction } from './actions';
 
-const selectClass = 'h-9 w-full max-w-sm rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
+const selectClass = 'h-9 w-full max-w-sm rounded-sm border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
-const ROLE_LABELS: Record<Role, string> = { agency_admin: 'Admin', account_manager: 'Account manager', client_owner: 'Client owner', client_viewer: 'Client viewer' };
 const AGENCY_ROLE_OPTIONS: Role[] = ['agency_admin', 'account_manager', 'client_owner', 'client_viewer'];
 const CLIENT_ROLE_OPTIONS: Role[] = ['client_owner', 'client_viewer'];
 
@@ -29,7 +29,7 @@ export function InviteForm({ clients, canInviteAgencyRoles }: { clients: { id: s
           {state.error}
         </ErrorNote>
       )}
-      {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
+      {state.ok && state.message && <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
       <div className="flex flex-wrap items-end gap-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="invite-email">Email</Label>
@@ -40,7 +40,7 @@ export function InviteForm({ clients, canInviteAgencyRoles }: { clients: { id: s
           <select id="invite-role" name="role" className={selectClass} value={role} onChange={(e) => setRole(e.target.value as Role)}>
             {roleOptions.map((r) => (
               <option key={r} value={r}>
-                {ROLE_LABELS[r]}
+                {labelFor(MEMBERSHIP_ROLE, r).label}
               </option>
             ))}
           </select>
@@ -79,78 +79,104 @@ export function InviteForm({ clients, canInviteAgencyRoles }: { clients: { id: s
   );
 }
 
-function ConfirmButton({
-  hidden,
-  action,
-  title,
-  description,
-  confirmLabel,
-  triggerLabel,
-}: {
-  hidden: Record<string, string>;
-  action: (prev: FormResult, fd: FormData) => Promise<FormResult>;
-  title: string;
-  description: string;
-  confirmLabel: string;
-  triggerLabel: string;
-}) {
-  const [state, formAction, pending] = useActionState(action, { ok: true } as FormResult);
-  const readOnly = useReadOnly();
-  if (readOnly) return null;
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          {triggerLabel}
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        {!state.ok && state.error && (
-          <ErrorNote focusKey={state}>
-            {state.error}
-          </ErrorNote>
-        )}
-        <form action={formAction}>
-          {Object.entries(hidden).map(([k, v]) => (
-            <input key={k} type="hidden" name={k} value={v} />
-          ))}
-          <DialogFooter>
-            <Button type="submit" variant="destructive" disabled={pending}>
-              {confirmLabel}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
+type RowResult = { ok: boolean; text: string };
+
+function ResultLine({ result }: { result: RowResult | undefined }) {
+  if (!result) return null;
+  if (!result.ok) return <ErrorNote compact focusKey={result} className="mt-1">{result.text}</ErrorNote>;
+  return <p role="status" className="mt-1 text-sm text-ink">{result.text}</p>;
 }
 
+/** Remove behind a ConfirmDialog; a refusal (the last admin) shows beside the button — the row stays, nothing revalidated. */
 export function RemoveMemberButton({ membershipId, name }: { membershipId: string; name: string }) {
+  const [result, setResult] = useState<RowResult | undefined>();
+  if (useReadOnly()) return null;
   return (
-    <ConfirmButton
-      hidden={{ membershipId }}
-      action={revokeMembershipAction}
-      title={`Remove ${name}?`}
-      description="They lose access to this agency immediately. Any links already sent to them stop working."
-      confirmLabel="Remove"
-      triggerLabel="Remove"
-    />
+    <span className="inline-flex flex-col items-end">
+      <ConfirmDialog
+        trigger={<Button type="button" variant="outline" size="sm" aria-label={`Remove ${name}`}>Remove</Button>}
+        title={`Remove ${name}?`}
+        body="They lose access to this agency immediately. Any links already sent to them stop working."
+        confirmLabel="Remove"
+        tone="danger"
+        fields={{ membershipId }}
+        action={async (fd) => {
+          const r = await revokeMembershipAction({ ok: true }, fd);
+          setResult(r.ok ? undefined : { ok: false, text: r.error });
+        }}
+      />
+      <ResultLine result={result} />
+    </span>
   );
 }
 
-export function RevokeInvitationButton({ invitationId, email }: { invitationId: string; email: string }) {
+/** One pending invitation, display-ready (the page formats dates in the viewer's zone and resolves labels). */
+export interface InvitationRow { id: string; email: string; roleLabel: string; clientLabel: string; dates: string }
+
+function InvitationActions({ row, onResult }: { row: InvitationRow; onResult: (id: string, r: RowResult | undefined) => void }) {
+  const [pending, startTransition] = useTransition();
+  const resend = () =>
+    startTransition(async () => {
+      onResult(row.id, undefined);
+      const r = await resendInvitationAction({ id: row.id });
+      onResult(row.id, r.ok ? { ok: true, text: r.message ?? 'Invite sent again.' } : { ok: false, text: r.error });
+    });
   return (
-    <ConfirmButton
-      hidden={{ invitationId }}
-      action={revokeInvitationAction}
-      title={`Revoke the invitation to ${email}?`}
-      description="They will no longer be able to accept it."
-      confirmLabel="Revoke"
-      triggerLabel="Revoke"
-    />
+    <span className="inline-flex items-center gap-2">
+      <Button type="button" variant="outline" size="sm" disabled={pending} onClick={resend} aria-label={`Resend invite to ${row.email}`}>Resend</Button>
+      <ConfirmDialog
+        trigger={<Button type="button" variant="outline" size="sm" aria-label={`Revoke invite to ${row.email}`}>Revoke</Button>}
+        title={`Revoke the invitation to ${row.email}?`}
+        body="They will no longer be able to accept it."
+        confirmLabel="Revoke"
+        tone="danger"
+        fields={{ invitationId: row.id }}
+        action={async (fd) => {
+          const r = await revokeInvitationAction({ ok: true }, fd);
+          onResult(row.id, r.ok ? undefined : { ok: false, text: r.error });
+        }}
+      />
+    </span>
+  );
+}
+
+/**
+ * Pending invitations. Result lines (resend sent / refused, a refused revoke) live here, keyed by invitation, because this
+ * component stays mounted across `revalidatePath` (apps/web/CLAUDE.md, UI patterns); each shows under its own row's email.
+ */
+export function InvitationTable({ invitations }: { invitations: InvitationRow[] }) {
+  const readOnly = useReadOnly();
+  const [results, setResults] = useState<Record<string, RowResult | undefined>>({});
+  const onResult = (id: string, r: RowResult | undefined) => setResults((prev) => ({ ...prev, [id]: r }));
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Email</TableHead>
+          <TableHead>Role</TableHead>
+          <TableHead>Client</TableHead>
+          <TableHead>Sent</TableHead>
+          {!readOnly && <TableHead><span className="sr-only">Actions</span></TableHead>}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {invitations.map((i) => (
+          <TableRow key={i.id}>
+            <TableCell>
+              {i.email}
+              <ResultLine result={results[i.id]} />
+            </TableCell>
+            <TableCell>{i.roleLabel}</TableCell>
+            <TableCell>{i.clientLabel}</TableCell>
+            <TableCell>{i.dates}</TableCell>
+            {!readOnly && (
+              <TableCell className="text-right">
+                <InvitationActions row={i} onResult={onResult} />
+              </TableCell>
+            )}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }

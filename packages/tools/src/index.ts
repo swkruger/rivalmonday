@@ -9,6 +9,7 @@ export * from './access/memberships';
 export * from './access/plan-features';
 export * from './access/oauth';
 export * from './access/team';
+export { sendTeamInviteEmail } from './access/team-invite-email';
 export * from './access/unsubscribe';
 export { assertAgencyServiceable, pausedMessage } from './billing-guard';
 export * from './client-input';

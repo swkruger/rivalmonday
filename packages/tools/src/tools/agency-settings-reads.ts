@@ -23,7 +23,7 @@ const TeamMember = z.object({
   clientName: z.string().nullable(),
   clientScope: z.array(z.string()).nullable(),
 });
-const PendingInvite = z.object({ id: z.string(), email: z.string(), role, clientId: z.string().nullable(), clientName: z.string().nullable(), expiresAt: z.date() });
+const PendingInvite = z.object({ id: z.string(), email: z.string(), role, clientId: z.string().nullable(), clientName: z.string().nullable(), expiresAt: z.date(), sentAt: z.string() });
 
 const AgencyBranding = z.object({
   displayName: z.string().optional(),

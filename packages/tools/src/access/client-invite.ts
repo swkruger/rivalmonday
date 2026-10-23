@@ -16,7 +16,7 @@ async function landingPath(tx: Tx, clientId: string, role: ClientInviteRole, now
 }
 
 /** Reuses the (agency, client, lower(email)) contact — the `contact_email_unique` key — or inserts an inactive one. An active contact stays active. */
-async function upsertContact(tx: Tx, agencyId: string, clientId: string, email: string, name: string | null, role: ClientInviteRole): Promise<string> {
+export async function upsertContact(tx: Tx, agencyId: string, clientId: string, email: string, name: string | null, role: ClientInviteRole): Promise<string> {
   const find = () =>
     tx.select({ id: contact.id, name: contact.name }).from(contact)
       .where(and(eq(contact.agencyId, agencyId), eq(contact.clientId, clientId), sql`lower(${contact.email}) = ${email}`)).for('update');
@@ -46,6 +46,41 @@ async function revokeReplacedOwnerInvite(tx: Tx, agencyId: string, clientId: str
 }
 
 /**
+ * Queues the `client_invite` email for one invitation in the caller's transaction (11b §6). Shared by the invite and by
+ * `resendInvitation` (15c-2a), which passes its own `dedupe` so the outbox's unique key never swallows a resend.
+ * `deps.delivery` null: nothing is queued (logged by client id only) and it answers false.
+ */
+export async function sendClientInvite(
+  tx: Tx,
+  deps: ToolDeps,
+  i: { ctx: AccessContext; clientId: string; clientName: string; contactId: string; email: string; role: ClientInviteRole; dedupe: string; now: Date },
+): Promise<boolean> {
+  const { ctx, now } = i;
+  if (!deps.delivery) {
+    console.warn('[invite] email delivery is not configured (APP_URL / LINK_SIGNING_SECRET); invitation created without an email', { clientId: i.clientId });
+    return false;
+  }
+  const cfg = deps.delivery;
+  const branding = await loadBranding(tx, ctx.agencyId);
+  const rows = await tx.execute<{ email: string }>(sql`select email from auth."user" where id = ${ctx.userId}`);
+  const inviterEmail = [...rows][0]?.email;
+  // Built from validated ids only (never request input); the sign-in page re-checks `next` with `safeNext`.
+  const startUrl = `${cfg.appUrl}/sign-in?email=${encodeURIComponent(i.email)}&next=${encodeURIComponent(await landingPath(tx, i.clientId, i.role, now))}`;
+  const props = { branding, businessName: i.clientName, agencyName: branding.displayName, startUrl };
+  await notify(tx, cfg, {
+    agencyId: ctx.agencyId, clientId: i.clientId, kind: 'client_invite', audience: 'client', subjectType: 'setup', subjectId: i.clientId,
+    dedupe: i.dedupe, link: { t: 'setup', id: i.clientId }, now, contactIds: [i.contactId], cc: inviterEmail ? [inviterEmail] : [],
+    // Row title/body mirror the template's binding subject and core line (spec §6); the email itself renders from `props`.
+    build: () => ({
+      title: `${props.agencyName} invited you to see your competitors`,
+      body: `${props.agencyName} is setting up weekly competitor reports for ${props.businessName}.`,
+      email: { template: 'client_invite', props },
+    }),
+  });
+  return true;
+}
+
+/**
  * Phase 11b §4 (security-sensitive): invites a client user and emails them a sign-in link, in one transaction that
  * first locks the `client` row, so a parallel wizard + team invite serialise (the second revokes the first's pending
  * invitation instead of hitting `invitation_pending_unique`). Rights exactly as `inviteMember`; guests refused;
@@ -56,7 +91,7 @@ export async function inviteClientUser(
   deps: ToolDeps,
   input: { clientId: string; email: string; name: string | null; role: ClientInviteRole; replaceInvitedOwner?: boolean },
   now: Date,
-): Promise<{ invitationId: string; expiresAt: Date; contactId: string }> {
+): Promise<{ invitationId: string; expiresAt: Date; contactId: string; emailSent: boolean }> {
   if (ctx.userId.startsWith('contact:')) throw new ToolError('permission_denied', 'Sign in to invite people');
   if (!isAgencyRole(ctx.role)) throw new ToolError('permission_denied', 'Only agency roles invite people');
   if (!canAccessClient(ctx, input.clientId)) throw new ToolError('not_found', 'Client not found');
@@ -79,27 +114,9 @@ export async function inviteClientUser(
       await completeIfDone(tx, c.id, now);
     }
 
-    if (!deps.delivery) {
-      console.warn('[invite] email delivery is not configured (APP_URL / LINK_SIGNING_SECRET); invitation created without an email', { clientId: c.id });
-      return { invitationId: inv.id, expiresAt: inv.expiresAt, contactId };
-    }
-    const cfg = deps.delivery;
-    const branding = await loadBranding(tx, ctx.agencyId);
-    const rows = await tx.execute<{ email: string }>(sql`select email from auth."user" where id = ${ctx.userId}`);
-    const inviterEmail = [...rows][0]?.email;
-    // Built from validated ids only (never request input); the sign-in page re-checks `next` with `safeNext`.
-    const startUrl = `${cfg.appUrl}/sign-in?email=${encodeURIComponent(email)}&next=${encodeURIComponent(await landingPath(tx, c.id, input.role, now))}`;
-    const props = { branding, businessName: c.name, agencyName: branding.displayName, startUrl };
-    await notify(tx, cfg, {
-      agencyId: ctx.agencyId, clientId: c.id, kind: 'client_invite', audience: 'client', subjectType: 'setup', subjectId: c.id,
-      dedupe: `client-invite:${inv.id}`, link: { t: 'setup', id: c.id }, now, contactIds: [contactId], cc: inviterEmail ? [inviterEmail] : [],
-      // Row title/body mirror the template's binding subject and core line (spec §6); the email itself renders from `props`.
-      build: () => ({
-        title: `${props.agencyName} invited you to see your competitors`,
-        body: `${props.agencyName} is setting up weekly competitor reports for ${props.businessName}.`,
-        email: { template: 'client_invite', props },
-      }),
+    const emailSent = await sendClientInvite(tx, deps, {
+      ctx, clientId: c.id, clientName: c.name, contactId, email, role: input.role, dedupe: `client-invite:${inv.id}`, now,
     });
-    return { invitationId: inv.id, expiresAt: inv.expiresAt, contactId };
+    return { invitationId: inv.id, expiresAt: inv.expiresAt, contactId, emailSent };
   });
 }

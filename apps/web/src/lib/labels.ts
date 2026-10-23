@@ -128,7 +128,7 @@ export const AGENCY_NOTICE_KIND: LabelMap<(typeof AGENCY_KINDS)[number]> = {
 
 // ROLES (packages/core/src/access.ts); wording matches the team page / invite form
 export const MEMBERSHIP_ROLE: LabelMap<Role> = {
-  agency_admin: e('Admin'),
+  agency_admin: e('Agency admin'),
   account_manager: e('Account manager'),
   client_owner: e('Client owner'),
   client_viewer: e('Client viewer'),

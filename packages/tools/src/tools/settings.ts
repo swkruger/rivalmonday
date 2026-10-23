@@ -3,7 +3,8 @@ import { AGENCY_KINDS, CLIENT_KINDS, type NotificationKind } from '@cs/db';
 import { ALERT_MODES, PERSONAL_CHANNELS } from '@cs/engine';
 import { z } from 'zod';
 import { inviteClientUser } from '../access/client-invite';
-import { inviteMember, revokeInvitation, revokeMembership } from '../access/team';
+import { inviteMember, resendInvitation, revokeInvitation, revokeMembership } from '../access/team';
+import { sendTeamInviteEmail } from '../access/team-invite-email';
 import type { ToolDeps } from '../deps';
 import { setMyNotificationPref, updateMyContact } from '../preferences';
 import { addClientRecipient, addWebhook, deactivateRecipient, deleteWebhook, setWebhookActive, testWebhook, updateAgencyBranding, updateClientDeliverySettings } from '../settings';
@@ -25,18 +26,35 @@ export const inviteMemberTool = defineTool({
   access: 'write',
   description: 'Invite someone to this agency or one of its clients.',
   input: z.object({ email: z.string().max(320), role: z.enum(ROLES), clientId: uuid.nullable().optional(), clientScope: z.array(uuid).max(500).nullable().optional() }),
-  output: z.object({ invitationId: uuid, expiresAt: z.string() }),
+  output: z.object({ invitationId: uuid, expiresAt: z.string(), emailSent: z.boolean() }),
   permission: 'agency',
+  supportMask: ['emailSent'], // a boolean (nothing to mask); listed because the key matches /email/i
   async handler(ctx, input, deps) {
-    // 11b Q4: client roles go through the shared client invite (contact + `client_invite` email); agency roles unchanged.
+    // 11b Q4: client roles go through the shared client invite (contact + queued `client_invite` email).
     if (!isAgencyRole(input.role)) {
       if (!input.clientId) throw new ToolError('invalid_input', 'Client roles need a client');
       if (input.clientScope != null) throw new ToolError('invalid_input', 'Only account managers have a client scope');
       const r = await inviteClientUser(ctx, deps, { clientId: input.clientId, email: input.email, name: null, role: input.role as 'client_owner' | 'client_viewer' }, new Date());
-      return { invitationId: r.invitationId, expiresAt: r.expiresAt.toISOString() };
+      return { invitationId: r.invitationId, expiresAt: r.expiresAt.toISOString(), emailSent: r.emailSent };
     }
     const r = await inviteMember(deps.service, ctx, input);
-    return { invitationId: r.id, expiresAt: r.expiresAt.toISOString() };
+    // 15c-2a D7 / B1: agency staff get `team_invite` directly, after the invitation committed; a failed send keeps it.
+    const emailSent = await sendTeamInviteEmail(deps, { agencyId: ctx.agencyId, to: input.email, role: input.role as 'agency_admin' | 'account_manager', inviterUserId: ctx.userId, expiresAt: r.expiresAt });
+    return { invitationId: r.id, expiresAt: r.expiresAt.toISOString(), emailSent };
+  },
+});
+
+export const resendInvitationTool = defineTool({
+  name: 'resend_invitation',
+  access: 'write', // sends an email
+  description: 'Send a pending invitation again and restart its 14 days; at most 3 per invitation in 24 hours.',
+  input: z.object({ invitationId: uuid }),
+  output: z.object({ sentAt: z.string(), expiresAt: z.string(), emailSent: z.boolean() }),
+  permission: 'agency',
+  supportMask: ['emailSent'], // a boolean (nothing to mask); listed because the key matches /email/i
+  async handler(ctx, { invitationId }, deps) {
+    const r = await resendInvitation(ctx, deps, invitationId);
+    return { sentAt: r.sentAt.toISOString(), expiresAt: r.expiresAt.toISOString(), emailSent: r.emailSent };
   },
 });
 
@@ -199,6 +217,7 @@ export const settingsTools = [
   inviteMemberTool,
   revokeMembershipTool,
   revokeInvitationTool,
+  resendInvitationTool,
   updateAgencyBrandingTool,
   addWebhookTool,
   setWebhookActiveTool,

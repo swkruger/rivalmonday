@@ -57,6 +57,13 @@ describe('agency settings read tools (7a2 Task 7)', () => {
     expect(JSON.stringify([team, branding, rec])).not.toMatch(/admin@|new@|briefs@|owner@/);
   });
 
+  it('get_team sentAt = expiresAt − 14 d (B3)', async () => {
+    const team = (await registry.invoke(admin, 'get_team', {})) as { invitations: { expiresAt: Date; sentAt: string }[] };
+    const [i] = team.invitations;
+    expect(new Date(i!.expiresAt).getTime() - new Date(i!.sentAt).getTime()).toBe(14 * 86_400_000);
+    expect(i!.sentAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
   it('keeps the service functions’ own role checks (refusals stay not_found)', async () => {
     await expect(registry.invoke(owner, 'get_team', {})).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(am, 'list_webhooks', {})).rejects.toMatchObject({ code: 'permission_denied' });

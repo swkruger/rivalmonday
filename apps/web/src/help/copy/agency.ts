@@ -458,10 +458,10 @@ export const AGENCY_COPY = {
   'agency.settings.team': {
     description: 'Who can work in your agency and what they can do. Invite people by email and choose a role.',
     tips: {
-      // source: apps/web/src/app/(app)/agency/settings/team/invite-form.tsx:ROLE_LABELS; packages/tools/src/access/team.ts:canManage, inviteMember (admins manage everyone; account managers manage client roles of clients they cover)
+      // source: apps/web/src/lib/labels.ts:MEMBERSHIP_ROLE; packages/tools/src/access/team.ts:canManage, inviteMember (admins manage everyone; account managers manage client roles of clients they cover)
       roles: {
         title: 'Roles',
-        body: 'Admin: runs the agency, including billing, branding and the team. Account manager: works with clients, and can be limited to chosen clients. Client owner and Client viewer: people at one client; an owner can do more than a viewer, and both see only their own client. Admins manage everyone. Account managers manage the client owners and viewers of the clients they cover, so that is all they see here.',
+        body: 'Agency admin: runs the agency, including billing, branding and the team. Account manager: works with clients, and can be limited to chosen clients. Client owner and Client viewer: people at one client; an owner can do more than a viewer, and both see only their own client. Admins manage everyone. Account managers manage the client owners and viewers of the clients they cover, so that is all they see here.',
         guideAnchor: 'what-this-page-tells-you',
       },
       // source: apps/web/src/app/(app)/agency/settings/team/invite-form.tsx (Assigned clients, none ticked = all clients); team/page.tsx:scopeLabel; apps/web/src/app/(app)/agency/clients/new/page.tsx and leads/page.tsx (clientScope all)
@@ -470,10 +470,10 @@ export const AGENCY_COPY = {
         body: 'When you invite an account manager, tick the clients they cover, or tick none to cover all clients. An account manager who covers only some clients sees only those clients, and cannot add clients or prospects or see leads.',
         guideAnchor: 'how-to-use-it',
       },
-      // source: packages/tools/src/access/invitations.ts:INVITATION_TTL_DAYS (14); packages/tools/src/access/team.ts:inviteMember (already has access at that scope)
+      // source: packages/tools/src/access/invitations.ts:INVITATION_TTL_DAYS (14); packages/tools/src/access/team.ts:inviteMember (already has access at that scope), resendInvitation, RESEND_LIMIT (3 per 24 h)
       invitations: {
         title: 'Invitations',
-        body: 'An invitation is an emailed link that works for 14 days; the Expires column shows the date. Revoke cancels it. Someone who already has access at that level cannot be invited again: remove them first to change their role.',
+        body: 'An invitation is an email asking the person to sign in with that address; it works for 14 days. Each row shows when it was sent and when it expires. Resend emails it again and gives it another 14 days, up to 3 times a day. Revoke cancels it. Someone who already has access at that level cannot be invited again: remove them first to change their role.',
         guideAnchor: 'common-questions',
       },
       // source: apps/web/src/app/(app)/agency/settings/team/invite-form.tsx:RemoveMemberButton (dialog text); packages/tools/src/access/team.ts:revokeMembership (an agency needs at least one admin)

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { resolveBranding } from '@cs/email';
+import { renderEmail, resolveBranding } from '@cs/email';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { Metadata } from 'next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -236,6 +236,15 @@ describe('white-label leak guard (15a §2.10)', () => {
       unmount();
     }
     expect(out.join('\n')).not.toMatch(LEAK);
+  });
+
+  it("the team_invite email to a white-label agency's new staff (15c-2a D7)", async () => {
+    const out = await renderEmail({ template: 'team_invite', props: {
+      branding: WHITE_LABEL, inviterName: 'Olive Owner', agencyName: WHITE_LABEL.displayName, roleLabel: 'Account manager', expiryDate: 'Nov 6, 2026',
+      signInUrl: 'https://app.example/sign-in?email=new%40example.com&next=%2Fagency',
+    } });
+    expect(out.subject).toBe('Olive Owner invited you to Cool Comfort');
+    for (const s of [out.subject, out.html, out.text]) expect(s).not.toMatch(LEAK);
   });
 });
 

@@ -148,3 +148,22 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | Test refused, 6th in 10 minutes | You can send another test in a few minutes. |
 | Message posted to the channel | Title "Test message from {agency display name}", body "Briefs and alerts from {agency display name} will appear in this channel." (no link) |
 | Switch refused | The switch flips back and shows the refusal beside it (was silently ignored) |
+
+### Agency settings > Team: resend + `team_invite` email (T11)
+| Where | Copy |
+|---|---|
+| `team_invite` email, subject | {inviterName} invited you to {agencyName} |
+| `team_invite` email, body | {inviterName} has invited you to join {agencyName} as {roleLabel}. Sign in with this email address to accept. This invite expires on {expiryDate}. ({roleLabel} = "Agency admin" / "Account manager"; {expiryDate} e.g. "Nov 6, 2026", UTC; {inviterName} = the inviter's name, else their email) |
+| `team_invite` email, button / footer | Sign in · footer "Invitation from {agency display name}" (same footer as `client_invite`); reply-to is the inviter |
+| Invite sent (any role) | Invitation sent to {email}. (agency staff now get an email too; was "Invitation created. Ask them to sign in …") |
+| Invite created, email not sent | Invitation created, but the email couldn't be sent. Ask them to sign in at {appUrl}/sign-in with this email. |
+| Pending invitations, date column | Header "Sent"; cell "Sent {date} · expires {date}" (viewer's time zone; was an "Expires" column) |
+| Invite row buttons | Resend · Revoke (screen readers: "Resend invite to {email}", "Revoke invite to {email}") |
+| Resend result | Invite sent again. |
+| Resend, email not sent (new, not in the mockup) | Invite renewed for 14 days, but the email couldn't be sent. Ask them to sign in at {appUrl}/sign-in with this email. |
+| Resend refused, 4th in 24 h | You can resend this invite again tomorrow. |
+| Revoke dialog | Title "Revoke the invitation to {email}?", body "They will no longer be able to accept it.", confirm "Revoke" (red, inside the dialog) — unchanged wording, now `ConfirmDialog` |
+| Remove dialog | Title "Remove {name}?", body unchanged, confirm "Remove" (red, inside the dialog); a refusal (last admin) shows beside the button |
+| Role labels (MEMBERSHIP_ROLE, B14) | Agency admin (was "Admin"), Account manager, Client owner, Client viewer — Team page, invite form, help tip and guide |
+| Invitations tip | An invitation is an email asking the person to sign in with that address; it works for 14 days. Each row shows when it was sent and when it expires. Resend emails it again and gives it another 14 days, up to 3 times a day. Revoke cancels it. Someone who already has access at that level cannot be invited again: remove them first to change their role. |
+| Team guide | "Agency admin" in the roles list; step 3 now explains Resend (another 14 days, up to 3 times a day); the "expired invitation" answer adds "To keep an invitation from expiring, use *Resend* before the date shown." |

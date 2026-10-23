@@ -26,7 +26,7 @@ const GUARD = {
 } as const;
 const GUARD_KEY = { confirmation: 'confirmationSentAt', declined: 'declinedNotifiedAt', agency_new: 'agencyNotifiedAt', pool_new: 'poolNotifiedAt' } as const;
 
-const quoteName = (s: string) => `"${s.replace(/["\\\r\n]/g, '')}"`;
+export const quoteName = (s: string) => `"${s.replace(/["\\\r\n]/g, '')}"`;
 const base = (appUrl: string) => appUrl.replace(/\/+$/, '');
 
 /** Agency admins plus account managers who cover every client (`client_scope` null). */

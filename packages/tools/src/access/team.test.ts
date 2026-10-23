@@ -1,10 +1,16 @@
 import { createAccessContext } from '@cs/core';
-import { contact, invitation, membership } from '@cs/db';
+import { hashInput } from '@cs/core/server';
+import { agency, auditLog, contact, invitation, membership, notification } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import type { DeliveryConfig } from '@cs/engine';
+import { createMemoryTransport, type EmailTransport } from '@cs/email';
+import { and, eq, sql } from 'drizzle-orm';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
-import { inviteMember, listTeam, revokeInvitation, revokeMembership } from './team';
+import type { ToolDeps } from '../deps';
+import { createToolRegistry } from '../registry';
+import { inviteClientUser } from './client-invite';
+import { inviteMember, listTeam, RESEND_LIMIT, resendInvitation, revokeInvitation, revokeMembership } from './team';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -96,5 +102,123 @@ describe('revokeInvitation', () => {
     await revokeInvitation(dbs.service, am, id, NOW);
     const [row] = await dbs.service.select().from(invitation).where(eq(invitation.id, id));
     expect(row!.revokedAt).not.toBeNull();
+  });
+});
+
+describe('resend + team_invite (15c-2a T11)', () => {
+  const DAY = 86_400_000;
+  const delivery: DeliveryConfig = { appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)], fromAddress: 'briefs@app.test' };
+  let transport: ReturnType<typeof createMemoryTransport>;
+  const deps = (t: EmailTransport = transport, over: Partial<ToolDeps> = {}): ToolDeps => ({
+    app: dbs.app, service: dbs.service, delivery,
+    leadEmail: { transport: t, appUrl: 'https://app.test/', fromAddress: 'team@app.test', platformAdmins: [] }, ...over,
+  });
+  // The real audit sink: the resend limit counts audit_log rows (B2).
+  const registry = (d: ToolDeps = deps()) => createToolRegistry(d);
+  const auditRow = (invitationId: string, outcome: string, ageHours = 0) => ({
+    agencyId: IDS.agencyA, userId: 'admin', role: 'agency_admin', tool: 'resend_invitation', inputHash: hashInput({ invitationId }), outcome, rowCount: null, durationMs: 1,
+    createdAt: new Date(Date.now() - ageHours * 3_600_000),
+  });
+  const failing: EmailTransport = { kind: 'memory', send: async () => { throw new Error('boom'); } };
+
+  beforeEach(async () => {
+    transport = createMemoryTransport();
+    await dbs.owner.execute(sql`update auth."user" set name = 'Pat Lee' where id = 'admin'`);
+    await dbs.owner.update(agency).set({ branding: { displayName: 'Peak Digital' } }).where(eq(agency.id, IDS.agencyA));
+  });
+
+  it('resend resets expires_at to now + 14 days', async () => {
+    const { id } = await inviteMember(dbs.service, admin, { email: 'x@e.co', role: 'account_manager' }, NOW);
+    const later = new Date(NOW.getTime() + 5 * DAY);
+    const r = await resendInvitation(admin, deps(), id, later);
+    expect(r).toEqual({ sentAt: later, expiresAt: new Date(later.getTime() + 14 * DAY), emailSent: true });
+    const [row] = await dbs.service.select().from(invitation).where(eq(invitation.id, id));
+    expect(row!.expiresAt.toISOString()).toBe(new Date(later.getTime() + 14 * DAY).toISOString());
+    expect(RESEND_LIMIT).toEqual({ max: 3, windowHours: 24 });
+  });
+
+  it('resend refuses the 4th within 24h and ignores refused rows', async () => {
+    const { id } = await inviteMember(dbs.service, admin, { email: 'x@e.co', role: 'account_manager' });
+    await dbs.owner.insert(auditLog).values([
+      ...Array.from({ length: 4 }, () => auditRow(id, 'rate_limited')),
+      ...Array.from({ length: 4 }, () => auditRow(id, 'not_found')),
+      ...Array.from({ length: 4 }, () => auditRow(id, 'ok', 25)),
+    ]);
+    const reg = registry();
+    for (let i = 0; i < 3; i++) expect(await reg.invoke(admin, 'resend_invitation', { invitationId: id })).toMatchObject({ emailSent: true });
+    const err = await reg.invoke(admin, 'resend_invitation', { invitationId: id }).catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: 'rate_limited', message: 'You can resend this invite again tomorrow.', userFacing: true });
+    expect(transport.sent).toHaveLength(3);
+    // The limit is per invitation: another invite still resends.
+    const other = await inviteMember(dbs.service, admin, { email: 'y@e.co', role: 'account_manager' });
+    expect(await reg.invoke(admin, 'resend_invitation', { invitationId: other.id })).toMatchObject({ emailSent: true });
+  });
+
+  it('client role resend writes a new outbox row each time (dedupe differs)', async () => {
+    const { invitationId, contactId } = await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'o@x.co', name: null, role: 'client_viewer' }, new Date());
+    const reg = registry();
+    expect(await reg.invoke(admin, 'resend_invitation', { invitationId })).toMatchObject({ emailSent: true });
+    expect(await reg.invoke(admin, 'resend_invitation', { invitationId })).toMatchObject({ emailSent: true });
+    const rows = await dbs.service.select().from(notification).where(eq(notification.kind, 'client_invite'));
+    expect(rows.map((n) => n.dedupeKey).sort()).toEqual([
+      `client-invite:${invitationId}:${contactId}:email`,
+      `client-invite:${invitationId}:resend:1:${contactId}:email`,
+      `client-invite:${invitationId}:resend:2:${contactId}:email`,
+    ]);
+    expect(rows.every((n) => n.address === 'o@x.co' && n.contactId === contactId)).toBe(true);
+    expect(transport.sent).toHaveLength(0); // client roles go through the outbox, never the direct send
+  });
+
+  it('agency role resend sends team_invite', async () => {
+    const { id } = await inviteMember(dbs.service, admin, { email: 'New@E.co', role: 'agency_admin' });
+    const r = (await registry().invoke(admin, 'resend_invitation', { invitationId: id })) as { sentAt: string; expiresAt: string; emailSent: boolean };
+    expect(new Date(r.expiresAt).getTime() - new Date(r.sentAt).getTime()).toBe(14 * DAY);
+    expect(transport.sent).toHaveLength(1);
+    const m = transport.sent[0]!;
+    expect(m).toMatchObject({ to: 'new@e.co', from: '"Peak Digital" <team@app.test>', subject: 'Pat Lee invited you to Peak Digital', tag: 'team_invite' });
+    expect(m.text).toContain('Pat Lee has invited you to join Peak Digital as Agency admin. Sign in with this email address to accept.');
+    expect(m.html).toContain('href="https://app.test/sign-in?email=new%40e.co&amp;next=%2Fagency"');
+    expect(await dbs.service.select().from(notification)).toHaveLength(0);
+  });
+
+  it('account manager cannot resend an agency invite (not_found)', async () => {
+    const { id } = await inviteMember(dbs.service, admin, { email: 'x@e.co', role: 'account_manager' }, NOW);
+    await expect(resendInvitation(am, deps(), id, NOW)).rejects.toMatchObject({ code: 'not_found' });
+    // Revoked, expired and other-agency invitations are not_found too.
+    await revokeInvitation(dbs.service, admin, id, NOW);
+    await expect(resendInvitation(admin, deps(), id, NOW)).rejects.toMatchObject({ code: 'not_found' });
+    const fresh = await inviteMember(dbs.service, admin, { email: 'z@e.co', role: 'account_manager' }, NOW);
+    await expect(resendInvitation(admin, deps(), fresh.id, new Date(NOW.getTime() + 15 * DAY))).rejects.toMatchObject({ code: 'not_found' });
+    const adminB = createAccessContext({ agencyId: IDS.agencyB, userId: 'admin', role: 'agency_admin', clientScope: 'all', features: [] });
+    await expect(resendInvitation(adminB, deps(), fresh.id, NOW)).rejects.toMatchObject({ code: 'not_found' });
+    expect(transport.sent).toHaveLength(0);
+  });
+
+  it('inviteMember for agency_admin sends team_invite', async () => {
+    const r = (await registry().invoke(admin, 'invite_member', { email: 'boss@e.co', role: 'agency_admin' })) as { invitationId: string; expiresAt: string; emailSent: boolean };
+    expect(r.emailSent).toBe(true);
+    expect(transport.sent).toHaveLength(1);
+    const expiry = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(r.expiresAt));
+    expect(transport.sent[0]).toMatchObject({ to: 'boss@e.co', subject: 'Pat Lee invited you to Peak Digital' });
+    expect(transport.sent[0]!.text).toContain(`This invite expires on ${expiry}.`);
+  });
+
+  it('send failure still creates the invitation and returns emailSent false', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const r = (await registry(deps(failing)).invoke(admin, 'invite_member', { email: 'boss@e.co', role: 'account_manager' })) as { invitationId: string; emailSent: boolean };
+      expect(r.emailSent).toBe(false);
+      expect(await dbs.service.select().from(invitation).where(and(eq(invitation.id, r.invitationId), eq(invitation.email, 'boss@e.co')))).toHaveLength(1);
+      // Not configured: same outcome, nothing sent.
+      const n = (await registry(deps(transport, { leadEmail: null })).invoke(admin, 'resend_invitation', { invitationId: r.invitationId })) as { emailSent: boolean };
+      expect(n.emailSent).toBe(false);
+      expect(transport.sent).toHaveLength(0);
+      // Never logs the address or the URL.
+      expect(JSON.stringify([...err.mock.calls, ...warn.mock.calls])).not.toMatch(/boss|sign-in/);
+    } finally {
+      err.mockRestore();
+      warn.mockRestore();
+    }
   });
 });

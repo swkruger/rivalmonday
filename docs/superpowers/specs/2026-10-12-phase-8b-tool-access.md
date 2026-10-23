@@ -111,6 +111,7 @@ search (search.ts) | read | read; embedding skipped under support ctx
 invite_member (settings.ts) | write | creates invitation (email)
 revoke_membership (settings.ts) | write | revokes
 revoke_invitation (settings.ts) | write | revokes
+resend_invitation (settings.ts) | write | resets the 14-day expiry and emails the invite again (`client_invite` via the outbox, `team_invite` directly); 3 per invitation / 24 h (15c-2a)
 update_agency_branding (settings.ts) | write | updates agency
 get_team (agency-settings-reads.ts) | read | read-only; agency roles; masks members[].email/name, invitations[].email (7a2)
 get_agency_branding (agency-settings-reads.ts) | read | read-only; agency_admin; masks stored/resolved.fromEmail (7a2)

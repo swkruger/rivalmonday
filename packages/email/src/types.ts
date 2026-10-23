@@ -107,6 +107,19 @@ export interface BillingNoticeProps {
   date?: string;
   billingUrl: string;
 }
+/** 15c-2a D7: an agency-role (admin / account manager) invitation; sent directly, not via the outbox (B1). */
+export interface TeamInviteProps {
+  branding: Branding;
+  /** The inviter's name, or their email when they have none. */
+  inviterName: string;
+  agencyName: string;
+  /** e.g. "Agency admin", "Account manager". */
+  roleLabel: string;
+  /** Already formatted, e.g. "Nov 6, 2026" (UTC, year always shown). */
+  expiryDate: string;
+  /** `/sign-in?email=…&next=/agency`; carries the address, so never log it. */
+  signInUrl: string;
+}
 export interface ClientInviteProps {
   branding: Branding;
   businessName: string;
@@ -220,6 +233,7 @@ export type EmailPayload =
   | { template: 'platform_cost_low'; props: PlatformCostLowProps }
   | { template: 'billing_notice'; props: BillingNoticeProps }
   | { template: 'client_invite'; props: ClientInviteProps }
+  | { template: 'team_invite'; props: TeamInviteProps }
   | { template: 'competitor_review'; props: CompetitorReviewProps }
   | { template: 'client_billing_notice'; props: ClientBillingNoticeProps }
   | { template: 'agency_client_billing_notice'; props: AgencyClientBillingNoticeProps }

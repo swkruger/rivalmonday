@@ -1,4 +1,4 @@
-import { isAgencyRole, type Role } from '@cs/core';
+import { isAgencyRole } from '@cs/core';
 import type { ClientSummary, PendingInvite, TeamMember } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { notFound } from 'next/navigation';
@@ -8,10 +8,13 @@ import { TipRow } from '@/components/help/tip-row';
 import { WriteGuard } from '@/components/read-only';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
+import { formatDate } from '@/lib/format';
+import { labelFor, MEMBERSHIP_ROLE } from '@/lib/labels';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
-import { InviteForm, RemoveMemberButton, RevokeInvitationButton } from './invite-form';
+import { viewerTimeZone } from '@/server/viewer-tz';
+import { InvitationTable, InviteForm, RemoveMemberButton } from './invite-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,20 +23,15 @@ export const metadata = { title: 'Team' };
 const HELP_KEY = 'page:agency.settings.team';
 const COPY = PAGE_COPY['agency.settings.team'];
 
-const ROLE_LABELS: Record<Role, string> = { agency_admin: 'Admin', account_manager: 'Account manager', client_owner: 'Client owner', client_viewer: 'Client viewer' };
-
-function formatDate(d: Date): string {
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
 export default async function TeamPage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
   // 7a2: a registered read (audited in a support session); 8b masks its emails there before anything reaches a client component.
-  const [{ members, invitations }, { items: clients }, guides] = await Promise.all([
+  const [{ members, invitations }, { items: clients }, guides, tz] = await Promise.all([
     callTool<{ members: TeamMember[]; invitations: PendingInvite[] }>(ctx, 'get_team', {}),
     callTool<{ items: ClientSummary[] }>(ctx, 'list_clients', {}),
     helpGuides(ctx, 'agency'),
+    viewerTimeZone(),
   ]);
   const clientName = new Map(clients.map((c) => [c.id, c.name]));
 
@@ -85,7 +83,7 @@ export default async function TeamPage() {
                   <TableRow key={m.membershipId}>
                     <TableCell className="font-medium">{m.name || m.email}</TableCell>
                     <TableCell>{m.email}</TableCell>
-                    <TableCell>{ROLE_LABELS[m.role]}</TableCell>
+                    <TableCell>{labelFor(MEMBERSHIP_ROLE, m.role).label}</TableCell>
                     <TableCell>{scopeLabel(m)}</TableCell>
                     <WriteGuard>
                       <TableCell>
@@ -112,34 +110,15 @@ export default async function TeamPage() {
           {invitations.length === 0 ? (
             <EmptyState {...COPY.empty.noInvites} guideAnchor="common-questions" />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Expires</TableHead>
-                  <WriteGuard>
-                    <TableHead />
-                  </WriteGuard>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invitations.map((i) => (
-                  <TableRow key={i.id}>
-                    <TableCell>{i.email}</TableCell>
-                    <TableCell>{ROLE_LABELS[i.role]}</TableCell>
-                    <TableCell>{i.clientId ? i.clientName ?? 'Unknown client' : 'All clients'}</TableCell>
-                    <TableCell>{formatDate(i.expiresAt)}</TableCell>
-                    <WriteGuard>
-                      <TableCell>
-                        <RevokeInvitationButton invitationId={i.id} email={i.email} />
-                      </TableCell>
-                    </WriteGuard>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <InvitationTable
+              invitations={invitations.map((i) => ({
+                id: i.id,
+                email: i.email,
+                roleLabel: labelFor(MEMBERSHIP_ROLE, i.role).label,
+                clientLabel: i.clientId ? (i.clientName ?? 'Unknown client') : 'All clients',
+                dates: `Sent ${formatDate(i.sentAt, { tz })} · expires ${formatDate(i.expiresAt, { tz })}`,
+              }))}
+            />
           )}
         </CardContent>
       </Card>

@@ -19,6 +19,7 @@ import { LeadNewEmail, leadNewSubject } from './templates/lead-new';
 import { LeadVerifyEmail, leadVerifySubject } from './templates/lead-verify';
 import { PlatformCostLowEmail, platformCostLowSubject } from './templates/platform-cost-low';
 import { SignInEmail, signInSubject } from './templates/sign-in';
+import { TeamInviteEmail, teamInviteSubject } from './templates/team-invite';
 import { SupportSessionStartedEmail, supportSessionStartedSubject } from './templates/support-session-started';
 import { TrendReportEmail, trendReportSubject } from './templates/trend-report';
 import type { EmailPayload, RenderedEmail } from './types';
@@ -45,6 +46,8 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
       return { el: createElement(ClientBillingNoticeEmail, p.props), subject: clientBillingNoticeSubject(p.props) };
     case 'client_invite':
       return { el: createElement(ClientInviteEmail, p.props), subject: clientInviteSubject(p.props) };
+    case 'team_invite':
+      return { el: createElement(TeamInviteEmail, p.props), subject: teamInviteSubject(p.props) };
     case 'competitor_review':
       return { el: createElement(CompetitorReviewEmail, p.props), subject: competitorReviewSubject(p.props) };
     case 'agency_client_billing_notice':
