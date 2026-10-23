@@ -48,7 +48,7 @@ async function revokeReplacedOwnerInvite(tx: Tx, agencyId: string, clientId: str
 /**
  * Queues the `client_invite` email for one invitation in the caller's transaction (11b §6). Shared by the invite and by
  * `resendInvitation` (15c-2a), which passes its own `dedupe` so the outbox's unique key never swallows a resend.
- * `deps.delivery` null: nothing is queued (logged by client id only) and it answers false.
+ * `deps.delivery` null, or no row inserted (dedupe key already used): nothing is queued and it answers false.
  */
 export async function sendClientInvite(
   tx: Tx,
@@ -67,7 +67,7 @@ export async function sendClientInvite(
   // Built from validated ids only (never request input); the sign-in page re-checks `next` with `safeNext`.
   const startUrl = `${cfg.appUrl}/sign-in?email=${encodeURIComponent(i.email)}&next=${encodeURIComponent(await landingPath(tx, i.clientId, i.role, now))}`;
   const props = { branding, businessName: i.clientName, agencyName: branding.displayName, startUrl };
-  await notify(tx, cfg, {
+  const queued = await notify(tx, cfg, {
     agencyId: ctx.agencyId, clientId: i.clientId, kind: 'client_invite', audience: 'client', subjectType: 'setup', subjectId: i.clientId,
     dedupe: i.dedupe, link: { t: 'setup', id: i.clientId }, now, contactIds: [i.contactId], cc: inviterEmail ? [inviterEmail] : [],
     // Row title/body mirror the template's binding subject and core line (spec §6); the email itself renders from `props`.
@@ -77,7 +77,8 @@ export async function sendClientInvite(
       email: { template: 'client_invite', props },
     }),
   });
-  return true;
+  // The outbox drops a repeated dedupe key silently: a swallowed insert is never reported as sent.
+  return queued > 0;
 }
 
 /**

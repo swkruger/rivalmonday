@@ -9,7 +9,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import type { ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
-import { inviteClientUser } from './client-invite';
+import { inviteClientUser, sendClientInvite } from './client-invite';
 import { inviteMember, listTeam, RESEND_LIMIT, resendInvitation, revokeInvitation, revokeMembership } from './team';
 
 const dbs = openTestDbs();
@@ -160,13 +160,36 @@ describe('resend + team_invite (15c-2a T11)', () => {
     expect(await reg.invoke(admin, 'resend_invitation', { invitationId })).toMatchObject({ emailSent: true });
     expect(await reg.invoke(admin, 'resend_invitation', { invitationId })).toMatchObject({ emailSent: true });
     const rows = await dbs.service.select().from(notification).where(eq(notification.kind, 'client_invite'));
-    expect(rows.map((n) => n.dedupeKey).sort()).toEqual([
-      `client-invite:${invitationId}:${contactId}:email`,
-      `client-invite:${invitationId}:resend:1:${contactId}:email`,
-      `client-invite:${invitationId}:resend:2:${contactId}:email`,
-    ]);
+    const keys = rows.map((n) => n.dedupeKey);
+    expect(keys).toHaveLength(3);
+    expect(new Set(keys).size).toBe(3);
+    expect(keys).toContain(`client-invite:${invitationId}:${contactId}:email`);
+    const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+    expect(keys.filter((k) => new RegExp(`^client-invite:${invitationId}:resend:${UUID}:${contactId}:email$`).test(k))).toHaveLength(2);
     expect(rows.every((n) => n.address === 'o@x.co' && n.contactId === contactId)).toBe(true);
     expect(transport.sent).toHaveLength(0); // client roles go through the outbox, never the direct send
+  });
+
+  it('client role resend after the 24h window still writes a new outbox row', async () => {
+    const { invitationId, contactId } = await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'o@x.co', name: null, role: 'client_viewer' }, new Date());
+    // Yesterday's three resends: their audit rows (outside the window) and their outbox rows under count-style keys.
+    await dbs.owner.insert(auditLog).values(Array.from({ length: 3 }, () => auditRow(invitationId, 'ok', 25)));
+    await dbs.service.transaction(async (tx) => {
+      for (const n of [1, 2, 3]) {
+        await sendClientInvite(tx, deps(), { ctx: admin, clientId: IDS.clientA1, clientName: 'A1 HVAC', contactId, email: 'o@x.co', role: 'client_viewer', dedupe: `client-invite:${invitationId}:resend:${n}`, now: new Date() });
+      }
+    });
+    expect(await registry().invoke(admin, 'resend_invitation', { invitationId })).toMatchObject({ emailSent: true });
+    expect(await dbs.service.select().from(notification).where(eq(notification.kind, 'client_invite'))).toHaveLength(5);
+  });
+
+  it('swallowed outbox insert reports emailSent false', async () => {
+    const { invitationId, contactId } = await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'o@x.co', name: null, role: 'client_viewer' }, new Date());
+    // The same dedupe key as the original invite: the outbox's unique key drops the row.
+    const sent = await dbs.service.transaction((tx) =>
+      sendClientInvite(tx, deps(), { ctx: admin, clientId: IDS.clientA1, clientName: 'A1 HVAC', contactId, email: 'o@x.co', role: 'client_viewer', dedupe: `client-invite:${invitationId}`, now: new Date() }));
+    expect(sent).toBe(false);
+    expect(await dbs.service.select().from(notification).where(eq(notification.kind, 'client_invite'))).toHaveLength(1);
   });
 
   it('agency role resend sends team_invite', async () => {

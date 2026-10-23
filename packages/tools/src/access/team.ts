@@ -1,4 +1,5 @@
 import { type AccessContext, canAccessClient, isAgencyRole, type Role, ToolError } from '@cs/core';
+import { randomUUID } from 'node:crypto';
 import { hashInput } from '@cs/core/server';
 import { auditLog, client, contact, type Db, invitation, membership, type Tx } from '@cs/db';
 import { and, asc, count, eq, gt, isNull, sql } from 'drizzle-orm';
@@ -131,9 +132,11 @@ async function priorResends(db: Db | Tx, agencyId: string, invitationId: string)
 /**
  * 15c-2a (15c-3 reuses it): sends a pending invitation again. Invitations carry no token (sign-in matches by email), so this
  * resets `expires_at` to `now + INVITATION_TTL_DAYS` and re-sends: client roles queue `client_invite` in the same transaction
- * (dedupe `client-invite:<id>:resend:<n>`), agency roles get `team_invite` directly after commit (B1). Pending = this agency's,
+ * (dedupe `client-invite:<id>:resend:<uuid>`, unique per call: a count would repeat once the window rolls over), agency roles get `team_invite` directly after commit (B1). Pending = this agency's,
  * not accepted/revoked, not expired; rights as `canManage` — anything else is `not_found`. A failed or unconfigured send
  * never undoes the reset (`emailSent: false`).
+ * Callers (15c-3 included) must go through the `resend_invitation` tool: the 3 / 24 h limit counts that tool's audit rows, so
+ * calling this function directly bypasses it.
  */
 export async function resendInvitation(ctx: AccessContext, deps: ToolDeps, invitationId: string, now = new Date()): Promise<{ sentAt: Date; expiresAt: Date; emailSent: boolean }> {
   if (ctx.userId.startsWith('contact:')) throw new ToolError('not_found', 'Invitation not found');
@@ -147,13 +150,13 @@ export async function resendInvitation(ctx: AccessContext, deps: ToolDeps, invit
       : [];
     const [i] = await tx.select().from(invitation).where(pending).for('update');
     if (!i || !canManage(ctx, i.role as Role, i.clientId) || (i.clientId && !c)) throw new ToolError('not_found', 'Invitation not found');
-    const prior = await priorResends(tx, ctx.agencyId, i.id);
-    if (prior >= RESEND_LIMIT.max) throw new ToolError('rate_limited', 'You can resend this invite again tomorrow.', { userFacing: true });
+    // Check-then-act: concurrent posts can exceed the limit (the Resend button disables while pending).
+    if ((await priorResends(tx, ctx.agencyId, i.id)) >= RESEND_LIMIT.max) throw new ToolError('rate_limited', 'You can resend this invite again tomorrow.', { userFacing: true });
     await tx.update(invitation).set({ expiresAt }).where(eq(invitation.id, i.id));
     if (!c) return { i, emailSent: false };
     const role = i.role as ClientInviteRole;
     const contactId = await upsertContact(tx, ctx.agencyId, c.id, i.email, null, role);
-    const emailSent = await sendClientInvite(tx, deps, { ctx, clientId: c.id, clientName: c.name, contactId, email: i.email, role, dedupe: `client-invite:${i.id}:resend:${prior + 1}`, now });
+    const emailSent = await sendClientInvite(tx, deps, { ctx, clientId: c.id, clientName: c.name, contactId, email: i.email, role, dedupe: `client-invite:${i.id}:resend:${randomUUID()}`, now });
     return { i, emailSent };
   });
   const emailSent = isAgencyRole(done.i.role as Role)
