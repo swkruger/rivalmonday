@@ -1,5 +1,5 @@
 import { toolkit } from '@cs/core';
-import { alert, brief, client, clientSetup, eventScore, recommendation, withTenant } from '@cs/db';
+import { alert, brief, client, clientSetup, effectiveLimitUsd, eventScore, readSpendGuardSettings, recommendation, withTenant } from '@cs/db';
 import { and, asc, count, desc, eq, gte, inArray, isNull, max, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
@@ -27,9 +27,10 @@ export const getPortfolio = defineTool({
     const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
     const since = monthStart(now);
     return withTenant(deps.app, ctx, async (tx) => {
-      const clients = await tx.select({ id: client.id, name: client.name, verticalId: client.verticalId, cap: client.monthlyCapUsd }).from(client).where(eq(client.status, 'active')).orderBy(asc(client.name));
+      const clients = await tx.select({ id: client.id, name: client.name, verticalId: client.verticalId, cap: client.spendLimitUsd }).from(client).where(eq(client.status, 'active')).orderBy(asc(client.name));
       const ids = clients.map((c) => c.id);
       if (ids.length === 0) return { items: [] };
+      const settings = await readSpendGuardSettings(deps.service);
       const [pending, delivered, ready, recs, lastScore, lastAlert, lastSent, pressure, spend, openSetups] = await Promise.all([
         tx.select({ id: alert.clientId, n: count() }).from(alert).where(and(inArray(alert.clientId, ids), eq(alert.status, 'pending_review'))).groupBy(alert.clientId),
         tx.select({ id: alert.clientId, n: count() }).from(alert).where(and(inArray(alert.clientId, ids), eq(alert.status, 'delivered'), gte(alert.deliveredAt, weekAgo))).groupBy(alert.clientId),
@@ -61,7 +62,7 @@ export const getPortfolio = defineTool({
             alertsPending: p.get(c.id)?.n ?? 0, alertsDelivered7d: d.get(c.id)?.n ?? 0,
             briefToApprove: readyBrief ? { id: readyBrief.id, deliveryDate: readyBrief.deliveryDate } : null,
             openRecommendations: r.get(c.id)?.n ?? 0, lastActivityAt: last ? last.toISOString() : null,
-            spend: spendView(spend.get(c.id) ?? 0, c.cap), setup: setupBy.get(c.id) ?? null,
+            spend: spendView(spend.get(c.id) ?? 0, effectiveLimitUsd(c.cap, settings)), setup: setupBy.get(c.id) ?? null,
           };
         }),
       };

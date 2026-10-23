@@ -8,5 +8,6 @@ export * from './migrate';
 export * from './reset';
 export * from './schema';
 export * from './spend';
+export * from './spend-guard';
 export * from './tenant';
 export * from './topic-leftovers';

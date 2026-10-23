@@ -34,6 +34,18 @@ export function clientServiceable(t: typeof client | string): SQL {
 }
 
 /**
+ * 7b1: `clientServiceable` plus "not auto-paused by the spend guard" (`spend_paused_at IS NULL`). Use for AI / recurring client
+ * work; seats, billing and the dashboards keep `clientServiceable`. Same argument forms as `clientServiceable`.
+ */
+export function clientWorkAllowed(t: typeof client | string): SQL {
+  if (typeof t === 'string') {
+    if (!/^[a-z_][a-z0-9_]*$/i.test(t)) throw new Error(`clientWorkAllowed: invalid alias ${t}`);
+    return sql.raw(`(${t}.status = 'active' AND ${t}.paused_at IS NULL AND ${t}.archived_at IS NULL AND ${t}.spend_paused_at IS NULL)`);
+  }
+  return sql`(${clientServiceable(t)} AND ${t.spendPausedAt} IS NULL)`;
+}
+
+/**
  * 7a2 (D17): true when any `brief_item`, `recommendation` or `alert` cites the evidence id in its `evidence_ids`.
  * Exported for future evidence pruning; nothing deletes evidence in 7a. Same argument forms as `agencyServiceable`.
  */

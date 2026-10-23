@@ -193,7 +193,7 @@ describe('scanRankings settings, trigger and skip (13b)', () => {
   });
 
   it('cap -> skipped row, no snapshot, no dfs call, onSkipped once', async () => {
-    await set({ monthlyCapUsd: 0.01 });
+    await set({ spendLimitUsd: 0.01 });
     let calls = 0;
     const dfs = fakeDfs(() => { calls++; return [dfsTask([{ items: [] }])]; });
     const seen: RankScanSkipped[] = [];
@@ -209,7 +209,7 @@ describe('scanRankings settings, trigger and skip (13b)', () => {
   });
 
   it('cap on an adopted manual row updates that row to skipped', async () => {
-    await set({ monthlyCapUsd: 0.01 });
+    await set({ spendLimitUsd: 0.01 });
     const [row] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'manual', requestedBy: USER }).returning();
     const r = await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs: ok() }, IDS.clientA1, { trigger: 'manual', scanId: row!.id });
     expect(r).toMatchObject({ scanId: row!.id, skipped: 'cap' });
@@ -217,7 +217,7 @@ describe('scanRankings settings, trigger and skip (13b)', () => {
   });
 
   it('prospect override skips the budget check', async () => {
-    await set({ monthlyCapUsd: 0.01 });
+    await set({ spendLimitUsd: 0.01 });
     const onSkipped = vi.fn();
     const r = await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs: ok(), onSkipped }, IDS.clientA1, { trigger: 'manual', prospect: { gridSize: 3, maxKeywords: 3 } });
     expect(r).toMatchObject({ snapshots: 9 });

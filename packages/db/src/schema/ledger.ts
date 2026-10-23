@@ -48,10 +48,14 @@ export const llmCall = pgTable(
     latencyMs: integer('latency_ms').notNull(),
     ok: boolean('ok').notNull(),
     verticalId: text('vertical_id'),
+    /** 7b1: the competitor a (split) call was attributed to; no FK. */
+    competitorId: uuid('competitor_id'),
     createdAt: createdAt(),
   },
   (t) => [
     index('llm_call_agency_created_idx').on(t.agencyId, t.createdAt),
+    index('llm_call_created_idx').on(t.createdAt),
+    index('llm_call_competitor_created_idx').on(t.competitorId, t.createdAt).where(sql`competitor_id IS NOT NULL`),
     index('llm_call_vertical_created_idx').on(t.verticalId, t.createdAt).where(sql`vertical_id IS NOT NULL`),
   ],
 );
@@ -69,7 +73,12 @@ export const vendorCall = pgTable(
     costUsd: numeric('cost_usd', { precision: 14, scale: 6, mode: 'number' }),
     latencyMs: integer('latency_ms').notNull(),
     ok: boolean('ok').notNull(),
+    /** 7b1: the competitor a (split) call was attributed to; no FK. */
+    competitorId: uuid('competitor_id'),
     createdAt: createdAt(),
   },
-  (t) => [index('vendor_call_agency_created_idx').on(t.agencyId, t.createdAt)],
+  (t) => [
+    index('vendor_call_agency_created_idx').on(t.agencyId, t.createdAt),
+    index('vendor_call_competitor_created_idx').on(t.competitorId, t.createdAt).where(sql`competitor_id IS NOT NULL`),
+  ],
 );

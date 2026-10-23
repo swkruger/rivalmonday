@@ -71,5 +71,35 @@ export const platformAuditLog = pgTable(
   (t) => [index('platform_audit_log_created_idx').on(t.createdAt)],
 );
 
+/**
+ * 7b1: append-only log of spend-guard transitions (client limit reached / paused / unpaused, platform spike warn / pause / reset).
+ * Service role only (forced RLS, no policy, every privilege revoked from app_user). No FKs: rows outlive a purge.
+ */
+export const spendGuardEvent = pgTable(
+  'spend_guard_event',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind').notNull(),
+    agencyId: uuid('agency_id'),
+    clientId: uuid('client_id'),
+    month: date('month'),
+    scope: text('scope'),
+    observedUsd: numeric('observed_usd', { precision: 14, scale: 6, mode: 'number' }),
+    baselineUsd: numeric('baseline_usd', { precision: 14, scale: 6, mode: 'number' }),
+    limitUsd: numeric('limit_usd', { precision: 10, scale: 2, mode: 'number' }),
+    actor: text('actor').notNull().default('system'),
+    note: text('note'),
+    createdAt: ts('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    check('spend_guard_event_kind_check', sql`kind IN ('client_reached','client_paused','client_unpaused','spike_warn','spike_paused','spike_reset')`),
+    check('spend_guard_event_scope_check', sql`scope IN ('total','openrouter','anthropic')`),
+    check('spend_guard_event_note_check', sql`length(note) <= 200`),
+    uniqueIndex('spend_guard_event_client_once').on(t.clientId, t.kind, t.month).where(sql`kind IN ('client_reached','client_paused')`),
+    index('spend_guard_event_created_idx').on(t.createdAt.desc()),
+  ],
+);
+
 export type PlatformAdminRow = typeof platformAdmin.$inferSelect;
+export type SpendGuardEventRow = typeof spendGuardEvent.$inferSelect;
 export type AgencyDailyStatRow = typeof agencyDailyStat.$inferSelect;

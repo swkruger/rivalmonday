@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
-import { agencyServiceable, clientServiceable, evidenceReferenced } from './filters';
+import { agencyServiceable, clientServiceable, clientWorkAllowed, evidenceReferenced } from './filters';
 import { agency, alert, brief, briefItem, changeEvent, client, recommendation } from './schema';
 
 const dbs = openTestDbs();
@@ -32,6 +32,24 @@ describe('archival filters (7a2 D16)', () => {
     const viaClient = ((await dbs.service.execute(sql`SELECT cl.id FROM client cl WHERE ${agencyServiceable(sql.raw('cl.agency_id'))}`)) as unknown as { id: string }[]).map((r) => r.id);
     expect(viaClient).not.toContain(IDS.clientB1);
     expect(viaClient).toContain(IDS.clientA1);
+  });
+});
+
+describe('clientWorkAllowed (7b1)', () => {
+  it('excludes a spend-paused client but clientServiceable keeps it', async () => {
+    await dbs.service.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA2));
+    type F = ReturnType<typeof clientWorkAllowed>;
+    const ids = async (f: F) => (await dbs.service.select({ id: client.id }).from(client).where(f)).map((r) => r.id);
+    const aliased = async (f: F) => ((await dbs.service.execute(sql`SELECT cl.id FROM client cl WHERE ${f}`)) as unknown as { id: string }[]).map((r) => r.id);
+    for (const got of [await ids(clientWorkAllowed(client)), await aliased(clientWorkAllowed('cl'))]) {
+      expect(got).not.toContain(IDS.clientA2);
+      expect(got).toContain(IDS.clientA1);
+    }
+    expect(await ids(clientServiceable(client))).toContain(IDS.clientA2);
+  });
+
+  it('alias form rejects "c; drop"', () => {
+    expect(() => clientWorkAllowed('c; drop')).toThrow(/invalid alias/);
   });
 });
 

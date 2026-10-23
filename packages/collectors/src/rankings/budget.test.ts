@@ -11,7 +11,7 @@ const now = new Date('2026-10-07T12:00:00Z');
 beforeEach(async () => {
   await truncateAll(dbs.owner);
   await seedTenancy(dbs.owner);
-  await dbs.owner.update(client).set({ monthlyCapUsd: 10 }).where(eq(client.id, IDS.clientA1));
+  await dbs.owner.update(client).set({ spendLimitUsd: 10 }).where(eq(client.id, IDS.clientA1));
 });
 const vendor = (costUsd: number, createdAt: Date) => ({
   agencyId: IDS.agencyA,

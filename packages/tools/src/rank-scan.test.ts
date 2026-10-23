@@ -127,7 +127,7 @@ describe('request_rank_scan', () => {
   });
 
   it('cap → cap, no row', async () => {
-    await dbs.owner.update(client).set({ monthlyCapUsd: 0.01 }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ spendLimitUsd: 0.01 }).where(eq(client.id, IDS.clientA1));
     expect(await request()).toMatchObject({ queued: false, reason: 'cap' });
     expect(await scans(IDS.clientA1)).toEqual([]);
     expect(enqueue).not.toHaveBeenCalled();

@@ -22,7 +22,7 @@ type Usage = { month: string; items: { clientId: string; spend: { monthToDateUsd
 
 describe('get_usage', () => {
   it('shows spend vs cap per client in scope; agency-level spend only for scope all', async () => {
-    await dbs.owner.update(client).set({ monthlyCapUsd: 10 }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ spendLimitUsd: 10 }).where(eq(client.id, IDS.clientA1));
     await dbs.owner.insert(llmCall).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, task: 't', provider: 'p', model: 'm', inputTokens: 1, outputTokens: 1, costUsd: 8.5, latencyMs: 1, ok: true });
     const all = (await registry.invoke(admin, 'get_usage', {})) as Usage;
     const a1 = all.items.find((i) => i.clientId === IDS.clientA1)!;
@@ -82,7 +82,7 @@ describe('set_client_limits (Review Focus 4)', () => {
     const r = await registry.invoke(admin, 'set_client_limits', { clientId: IDS.clientA1, monthlyCapUsd: 22.499, competitorLimit: 8 });
     expect(r).toEqual({ clientId: IDS.clientA1, monthlyCapUsd: 22.5, competitorLimit: 8 });
     const [c] = await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1));
-    expect(c).toMatchObject({ monthlyCapUsd: 22.5, competitorLimit: 8 });
+    expect(c).toMatchObject({ spendLimitUsd: 22.5, competitorLimit: 8 });
   });
 
   it('refuses bad numbers, AMs, client roles and other agencies’ clients, changing nothing', async () => {
@@ -93,7 +93,7 @@ describe('set_client_limits (Review Focus 4)', () => {
     await expect(registry.invoke(owner, 'set_client_limits', { clientId: IDS.clientA1, competitorLimit: 6 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(admin, 'set_client_limits', { clientId: IDS.clientB1, competitorLimit: 6 })).rejects.toMatchObject({ code: 'not_found' });
     const [c] = await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1));
-    expect(c).toMatchObject({ monthlyCapUsd: 15, competitorLimit: 5 });
+    expect(c).toMatchObject({ spendLimitUsd: null, competitorLimit: 5 });
   });
 });
 

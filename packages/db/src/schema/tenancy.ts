@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { type AnyPgColumn, boolean, check, doublePrecision, foreignKey, index, integer, jsonb, pgTable, primaryKey, smallint, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { type AnyPgColumn, boolean, check, doublePrecision, foreignKey, index, integer, jsonb, numeric, pgTable, primaryKey, smallint, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 import type { AgencyBranding } from './delivery';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
@@ -61,8 +61,10 @@ export const client = pgTable(
     pausedAt: timestamp('paused_at', { withTimezone: true }),
     /** Phase 9b: 'auto' (unpaid) or the pausing user id. Service role only. */
     pausedBy: text('paused_by'),
-    /** 5b-2 decision 6: monthly AI + vendor spend cap in USD (warning at 80 %; enforcement is Phase 7). Service role only. */
-    monthlyCapUsd: doublePrecision('monthly_cap_usd').notNull().default(15),
+    /** 7b1: per-client monthly spend-limit override in USD (NULL = the platform default in `spend_guard_settings`). Service role only. */
+    spendLimitUsd: numeric('spend_limit_usd', { precision: 10, scale: 2, mode: 'number' }),
+    /** 7b1: set when the spend guard auto-paused this client's AI/recurring work (130 %). Never touches `paused_at`. Service role only. */
+    spendPausedAt: timestamp('spend_paused_at', { withTimezone: true }),
     /** 5b-2 decision 6: how many competitors this client may track (spec §4.1 "tier limit configurable"). Service role only. */
     competitorLimit: integer('competitor_limit').notNull().default(5),
     /** Phase 6b: Ask questions per month for client roles (service role only). */
@@ -100,7 +102,7 @@ export const client = pgTable(
     check('client_timezone_check', sql`timezone ~ '^[A-Za-z]+(/[A-Za-z0-9_+-]+){1,2}$' OR timezone = 'UTC'`),
     check('client_alert_mode_check', sql`alert_mode IN ('direct', 'after_am_check', 'digest_only')`),
     check('client_status_check', sql`status IN ('active', 'prospect')`),
-    check('client_monthly_cap_check', sql`monthly_cap_usd > 0 AND monthly_cap_usd <= 10000`),
+    check('client_spend_limit_check', sql`spend_limit_usd > 0 AND spend_limit_usd <= 10000`),
     check('client_competitor_limit_check', sql`competitor_limit BETWEEN 1 AND 10`),
     check('client_ask_monthly_quota_check', sql`ask_monthly_quota BETWEEN 0 AND 100000`),
     check('client_rank_grid_size_check', sql`rank_grid_size IN (5, 7)`),
