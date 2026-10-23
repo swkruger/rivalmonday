@@ -131,3 +131,20 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | Onboarding last step button | Save and finish (was Save and continue) |
 | Onboarding plan step | Plan state as chip (Read-only, not Paused); new line "{price} per month, includes {n} clients; each extra client {price} per month." |
 | Billing guide / tips | "Seats" renamed "Clients"; "Paused" state renamed "Read-only"; "Trial" renamed "Free trial" (guide and help tips) |
+
+### Agency settings > Slack & Teams (T10)
+| Where | Copy |
+|---|---|
+| Webhook row, kind chip | WEBHOOK_KIND labels: Slack, Microsoft Teams |
+| Webhook row, state chip | On / Off (beside the switch; a read-only support session sees only the chip) |
+| Notices column and the add form's checkboxes | AGENCY_NOTICE_KIND labels: Client alerts (agency), Brief ready for review, Brief failed, Brief overdue, Competitor suggestions ready, Client updated their setup, Setup waiting on you, Quarterly report, Rank scan skipped, Contact bouncing (unchanged wording, now one map); none ticked = "All agency notices" |
+| Row buttons | Send test · Delete |
+| Delete dialog | Title "Delete this webhook?", body "Briefs and alerts stop going to this {Slack channel / Teams channel}. You can add it again later.", confirm "Delete" (red, inside the dialog) |
+| Test result, sent | Test sent — {Slack / Teams} answered {status}. |
+| Test result, timeout | Test failed — {Slack / Teams} didn't answer within 5 seconds. |
+| Test result, address refused | Test failed — this address isn't a Slack or Teams webhook. |
+| Test result, other status (incl. a redirect) | Test failed — {Slack / Teams} answered {status}. |
+| Test result, unreachable (new, not in the mockup) | Test failed — couldn't reach {Slack / Teams}. |
+| Test refused, 6th in 10 minutes | You can send another test in a few minutes. |
+| Message posted to the channel | Title "Test message from {agency display name}", body "Briefs and alerts from {agency display name} will appear in this channel." (no link) |
+| Switch refused | The switch flips back and shows the refusal beside it (was silently ignored) |

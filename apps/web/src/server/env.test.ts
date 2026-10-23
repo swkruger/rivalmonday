@@ -57,6 +57,13 @@ describe('parseWebEnv', () => {
     expect(() => parseWebEnv({ ...ok, SETUP_FAKE_LOOKUP: '1', VERCEL_ENV: 'production' } as unknown as NodeJS.ProcessEnv)).toThrow(/SETUP_FAKE_LOOKUP/);
   });
 
+  it('env refuses WEBHOOK_FAKE_SEND in production', () => {
+    expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).webhookFakeSend).toBe(false);
+    expect(parseWebEnv({ ...ok, WEBHOOK_FAKE_SEND: '1' } as unknown as NodeJS.ProcessEnv).webhookFakeSend).toBe(true);
+    expect(parseWebEnv({ ...ok, WEBHOOK_FAKE_SEND: '1', VERCEL_ENV: 'preview' } as unknown as NodeJS.ProcessEnv).webhookFakeSend).toBe(true);
+    expect(() => parseWebEnv({ ...ok, WEBHOOK_FAKE_SEND: '1', VERCEL_ENV: 'production' } as unknown as NodeJS.ProcessEnv)).toThrow(/WEBHOOK_FAKE_SEND/);
+  });
+
   it('reads ASK_FAKE_AI and refuses it in production', () => {
     expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).askFakeAi).toBe(false);
     expect(parseWebEnv({ ...ok, ASK_FAKE_AI: '1' } as unknown as NodeJS.ProcessEnv).askFakeAi).toBe(true);

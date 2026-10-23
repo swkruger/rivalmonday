@@ -1,5 +1,5 @@
 import type { Role } from '@cs/core';
-import type { AlertStatus, BriefStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
+import type { AGENCY_KINDS, AlertStatus, BriefStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
 import type { CatalogStatus } from '@cs/verticals';
 import type { ChipTone } from '@cs/ui';
 
@@ -110,6 +110,20 @@ export const EVIDENCE_KIND: LabelMap<EvidenceKind> = {
 export const WEBHOOK_KIND: LabelMap<WebhookKind> = {
   slack: e('Slack'),
   teams: e('Microsoft Teams'),
+};
+
+// AGENCY_KINDS (packages/db/src/schema/delivery.ts): agency notices a Slack/Teams webhook can carry
+export const AGENCY_NOTICE_KIND: LabelMap<(typeof AGENCY_KINDS)[number]> = {
+  am_alert: e('Client alerts (agency)'),
+  brief_ready: e('Brief ready for review'),
+  brief_failed: e('Brief failed'),
+  brief_overdue: e('Brief overdue'),
+  setup_suggestions_ready: e('Competitor suggestions ready'),
+  setup_client_changed: e('Client updated their setup'),
+  setup_idle: e('Setup waiting on you'),
+  trend_report: e('Quarterly report'),
+  rank_scan_skipped: e('Rank scan skipped'),
+  contact_bounced: e('Contact bouncing'),
 };
 
 // ROLES (packages/core/src/access.ts); wording matches the team page / invite form

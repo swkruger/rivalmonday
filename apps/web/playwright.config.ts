@@ -49,6 +49,8 @@ export const E2E_SERVER_ENV: Record<string, string> = {
   E2E_THROW_PAGE: '1',
   // Phase 11a: the setup wizard's business lookup answers from a fixed fixture (never DataForSEO); refused when VERCEL_ENV=production.
   SETUP_FAKE_LOOKUP: '1',
+  // 15c-2a T10: "Send test" on Slack & Teams posts to an in-process fake receiver (never Slack/Teams); refused when VERCEL_ENV=production.
+  WEBHOOK_FAKE_SEND: '1',
   // I5/R27: E2E never reaches Stripe. Blank values win over the repo .env (`process.loadEnvFile` never overrides a set
   // variable, even an empty one). `next start` runs with NODE_ENV=production and env name 'dev', which without a key
   // would mean "billing not configured" (no gateway); the explicit flag selects the in-memory fake gateway instead.

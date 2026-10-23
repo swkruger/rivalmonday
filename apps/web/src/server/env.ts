@@ -22,6 +22,8 @@ export interface WebEnv {
   askFakeAi: boolean;
   /** Phase 11a: `find_business` answers from a fixed fixture (E2E only; refused when VERCEL_ENV=production). DEMO/TEST always use the fixture regardless. */
   setupFakeLookup: boolean;
+  /** 15c-2a T10: `test_webhook` posts to an in-process fake receiver instead of Slack/Teams (E2E only; refused when VERCEL_ENV=production). */
+  webhookFakeSend: boolean;
   /** Phase 10: all optional. No Turnstile secret => the fake verifier; `supportReplyTo` is the Reply-To of lifecycle emails. */
   turnstile?: { siteKey?: string; secretKey?: string };
   supportReplyTo?: string;
@@ -60,6 +62,8 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
   if (env.E2E_THROW_PAGE?.trim() && env.VERCEL_ENV?.trim() === 'production') problems.push('E2E_THROW_PAGE must not be set in production');
   const setupFake = env.SETUP_FAKE_LOOKUP?.trim() ?? '';
   if (setupFake && env.VERCEL_ENV?.trim() === 'production') problems.push('SETUP_FAKE_LOOKUP must not be set in production');
+  const webhookFake = env.WEBHOOK_FAKE_SEND?.trim() ?? '';
+  if (webhookFake && env.VERCEL_ENV?.trim() === 'production') problems.push('WEBHOOK_FAKE_SEND must not be set in production');
   const billingFake = env.BILLING_FAKE_GATEWAY?.trim() || undefined;
   if (billingFake && env.VERCEL_ENV?.trim() === 'production') problems.push('BILLING_FAKE_GATEWAY must not be set in production');
   const parsed: WebEnv = {
@@ -74,6 +78,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
     askFakeAi: askFake === '1',
     setupFakeLookup: setupFake === '1',
+    webhookFakeSend: webhookFake === '1',
     turnstile: { siteKey: env.TURNSTILE_SITE_KEY?.trim() || undefined, secretKey: env.TURNSTILE_SECRET_KEY?.trim() || undefined },
     supportReplyTo: env.SUPPORT_REPLY_TO?.trim() || undefined,
     sentry: {

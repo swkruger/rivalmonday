@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@runbook',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue', '@help', '@ops', '@errors',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue', '@help', '@ops', '@errors', '@settings',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -26,7 +26,7 @@ const re = (s: string) => new RegExp(`^${s}`);
 
 const GUEST_FILES = ['@guest', '@evidence', '@briefs'];
 /** Every tag whose tests open an agency settings page (`/agency/settings/*`). */
-const SETTINGS_PAGES = ['@usage', '@runbook', '@support', '@billing', '@client-billing', '@leads', '@ai-connections', '@navigation'];
+const SETTINGS_PAGES = ['@usage', '@runbook', '@support', '@billing', '@client-billing', '@leads', '@ai-connections', '@navigation', '@settings'];
 /** Every tag whose tests open a client settings page (`/c/<id>/settings/*`). */
 const CLIENT_SETTINGS_PAGES = ['@profile', '@clients', '@ask', '@support', '@billing', '@client-billing', '@setup', '@alert-rules', '@ai-connections', '@navigation', '@runbook'];
 
@@ -120,7 +120,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}settings/branding/logo/`), tags: ['@onboarding'], why: 'logo upload route (the wizard branding step uploads a logo)' },
   { pattern: re(`${AGENCY}settings/team/`), tags: ['@support', '@navigation'], why: 'agency team page (a support session opens it; old /agency/team redirects here)' },
   { pattern: re(`${AGENCY}settings/branding/`), tags: ['@navigation'], why: 'agency branding page (old /agency/branding redirects here)' },
-  { pattern: re(`${AGENCY}settings/slack-teams/`), tags: [], why: 'no E2E covers this agency page' },
+  { pattern: re(`${AGENCY}settings/slack-teams/`), tags: ['@settings'], why: 'Slack & Teams webhooks (add, send test, delete)' },
   { pattern: re(`${AGENCY}settings/(?:layout|page)\\.tsx$`), tags: SETTINGS_PAGES, why: 'agency settings layout and index redirect (wrap every agency settings page)' },
   { pattern: re(`${C}settings/(?:layout|page)\\.tsx$|${SERVER}client-settings-nav\\.ts$`), tags: CLIENT_SETTINGS_PAGES, why: 'client settings layout, index redirect and tab list (wrap every client settings page)' },
   { pattern: re(`${COMP}settings-nav\\.tsx$`), tags: [...new Set([...SETTINGS_PAGES, ...CLIENT_SETTINGS_PAGES])], why: 'settings sub-nav (every agency and client settings page)' },
@@ -134,6 +134,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}billing/`), tags: ['@billing', '@client-billing'], why: 'billing display formatting and client billing pill/actions shown on the billing pages' },
   { pattern: re(`${COMP}new-business-type(?:-model)?\\.tsx?$`), tags: ['@clients', '@leads', '@catalogue'], why: 'New business type panel (agency lookup step, lead accept)' },
   { pattern: re(`${COMP}place-summary\\.tsx$`), tags: ['@clients', '@leads'], why: 'lookup result card (agency lookup step, public intake form)' },
+  { pattern: re(`${COMP}confirm-form\\.tsx$`), tags: ['@billing', '@platform', '@support'], why: 'ConfirmForm: confirm-first MiniForm on the platform billing console and the platform agency billing panel' },
   { pattern: re(`${COMP}form-error\\.tsx$`), tags: 'all', why: 'ErrorNote/FormError: the one error primitive, rendered by form and action errors on almost every surface (incl. the seat-cap Upgrade link)' },
   { pattern: re(`${COMP}page-header\\.tsx$`), tags: 'all', why: 'PageHeader: the h1, breadcrumb and actions of almost every signed-in page (15a §2.7)' },
   { pattern: re(`${APP}\\(app\\)/c/\\[clientId\\]/layout\\.tsx$|${COMP}help/client-help-name\\.tsx$`), tags: 'all', why: 'pass-through layout wrapping every client page in the help-name provider (15b-1 R8)' },

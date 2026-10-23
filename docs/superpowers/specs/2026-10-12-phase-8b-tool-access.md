@@ -181,6 +181,8 @@ get_signup_funnel (platform-signups.ts) | read | read-only aggregate counts; pla
 set_signups_paused (platform-signups.ts) | write | upserts platform_setting; platform owner
 add_webhook (settings.ts) | write | inserts webhook
 set_webhook_active (settings.ts) | write | updates webhook
+delete_webhook (settings.ts) | write | deletes webhook (notifications cascade); agency_admin (15c-2a)
+test_webhook (settings.ts) | write | sends one test message to the webhook (host allow-list, no redirects, 5 s); agency_admin; 5 per webhook / 10 min (15c-2a)
 add_client_recipient (settings.ts) | write | inserts recipient
 deactivate_recipient (settings.ts) | write | updates recipient
 update_client_delivery (settings.ts) | write | updates delivery settings

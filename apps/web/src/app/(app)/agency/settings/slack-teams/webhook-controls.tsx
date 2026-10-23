@@ -1,26 +1,36 @@
 'use client';
-import { Button, Input, Label, Switch } from '@cs/ui';
-import { useActionState, useOptimistic, useState, useTransition } from 'react';
-import { useReadOnly } from '@/components/read-only';
-import type { FormResult } from '@/server/forms';
-import { addWebhookAction, toggleWebhookAction } from './actions';
+import { Button, ConfirmDialog, Input, Label, StatusChip, Switch, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { type ReactNode, useActionState, useOptimistic, useState, useTransition } from 'react';
 import { ErrorNote } from '@/components/form-error';
+import { useReadOnly } from '@/components/read-only';
+import { AGENCY_NOTICE_KIND, labelFor, WEBHOOK_KIND } from '@/lib/labels';
+import type { FormResult } from '@/server/forms';
+import { addWebhookAction, deleteWebhookAction, testWebhookAction, toggleWebhookAction, type WebhookTestOutcome } from './actions';
 
-const selectClass = 'h-9 w-full max-w-[160px] rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
+const selectClass = 'h-9 w-full max-w-40 rounded-sm border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
-/** Mirrors `AGENCY_KINDS` (`@cs/db`) — kept local so this client bundle never imports the db package (it pulls in a Postgres driver). */
-const AGENCY_KIND_OPTIONS: { value: string; label: string }[] = [
-  { value: 'am_alert', label: 'Client alerts (agency)' },
-  { value: 'brief_ready', label: 'Brief ready for review' },
-  { value: 'brief_failed', label: 'Brief failed' },
-  { value: 'brief_overdue', label: 'Brief overdue' },
-  { value: 'setup_suggestions_ready', label: 'Competitor suggestions ready' },
-  { value: 'setup_client_changed', label: 'Client updated their setup' },
-  { value: 'setup_idle', label: 'Setup waiting on you' },
-  { value: 'trend_report', label: 'Quarterly report' },
-  { value: 'rank_scan_skipped', label: 'Rank scan skipped' },
-  { value: 'contact_bounced', label: 'Contact bouncing' },
-];
+/** The agency notices a webhook can carry, in `AGENCY_KINDS` order, worded by the label map (no raw slugs). */
+const AGENCY_KIND_OPTIONS = Object.entries(AGENCY_NOTICE_KIND).map(([value, { label }]) => ({ value, label }));
+
+type Kind = 'slack' | 'teams';
+/** Short product names for the result and confirm copy (the chip uses `WEBHOOK_KIND`). */
+const KIND_NAME: Record<Kind, string> = { slack: 'Slack', teams: 'Teams' };
+
+export interface WebhookRow { id: string; kind: Kind; host: string; kinds: string[] | null; active: boolean }
+
+/** The inline line under a webhook after "Send test" (copy for the owner's sign-off). */
+export function testResultLine(kind: Kind, r: WebhookTestOutcome): { ok: boolean; text: string } {
+  const name = KIND_NAME[kind];
+  if (r.ok) return { ok: true, text: `Test sent — ${name} answered ${r.status}.` };
+  switch (r.error) {
+    case 'timeout': return { ok: false, text: `Test failed — ${name} didn't answer within 5 seconds.` };
+    case 'blocked': return { ok: false, text: "Test failed — this address isn't a Slack or Teams webhook." };
+    case 'http': return { ok: false, text: `Test failed — ${name} answered ${r.status}.` };
+    default: return { ok: false, text: `Test failed — couldn't reach ${name}.` };
+  }
+}
+
+const noticesLabel = (kinds: string[] | null) => (kinds && kinds.length ? kinds.map((k) => labelFor(AGENCY_NOTICE_KIND, k).label).join(', ') : 'All agency notices');
 
 export function AddWebhookForm() {
   const [state, formAction, pending] = useActionState(addWebhookAction, { ok: true } as FormResult);
@@ -32,7 +42,7 @@ export function AddWebhookForm() {
           {state.error}
         </ErrorNote>
       )}
-      {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
+      {state.ok && state.message && <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
       <div className="flex flex-wrap items-end gap-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="webhook-kind">Kind</Label>
@@ -69,10 +79,12 @@ export function WebhookToggle({ id, active, label }: { id: string; active: boole
   const [checked, setChecked] = useOptimistic(active);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
-  // The switch is a write control: in a support session the state shows as plain text (the action would refuse).
-  if (readOnly) return <span>{active ? 'On' : 'Off'}</span>;
+  const chip = <StatusChip tone={checked ? 'success' : 'neutral'}>{checked ? 'On' : 'Off'}</StatusChip>;
+  // The switch is a write control: in a support session only the On/Off chip shows (the action would refuse).
+  if (readOnly) return chip;
   return (
     <span className="inline-flex items-center gap-2">
+      {chip}
       <Switch
         checked={checked}
         aria-label={label}
@@ -90,5 +102,86 @@ export function WebhookToggle({ id, active, label }: { id: string; active: boole
         </ErrorNote>
       )}
     </span>
+  );
+}
+
+type RowResult = { ok: boolean; text: string };
+
+function ResultLine({ result }: { result: RowResult | undefined }) {
+  if (!result) return null;
+  if (!result.ok) return <ErrorNote compact focusKey={result} className="mt-1">{result.text}</ErrorNote>;
+  return <p role="status" className="mt-1 text-sm text-ink">{result.text}</p>;
+}
+
+function RowActions({ row, onResult }: { row: WebhookRow; onResult: (id: string, r: RowResult | undefined) => void }) {
+  const [pending, startTransition] = useTransition();
+  const sendTest = () =>
+    startTransition(async () => {
+      onResult(row.id, undefined);
+      const r = await testWebhookAction({ id: row.id });
+      onResult(row.id, r.ok ? testResultLine(row.kind, r.result) : { ok: false, text: r.error });
+    });
+  return (
+    <span className="inline-flex items-center gap-2">
+      <Button type="button" variant="outline" size="sm" disabled={pending} onClick={sendTest}>Send test</Button>
+      <ConfirmDialog
+        trigger={<Button type="button" variant="outline" size="sm">Delete</Button>}
+        title="Delete this webhook?"
+        body={`Briefs and alerts stop going to this ${KIND_NAME[row.kind]} channel. You can add it again later.`}
+        confirmLabel="Delete"
+        tone="danger"
+        fields={{ webhookId: row.id }}
+        action={async (fd) => {
+          const r = await deleteWebhookAction({ ok: true }, fd);
+          onResult(row.id, r.ok ? undefined : { ok: false, text: r.error });
+        }}
+      />
+    </span>
+  );
+}
+
+/**
+ * The webhook list. Result lines (test outcome, a refused delete) live here, keyed by webhook, because this component stays
+ * mounted across `revalidatePath` (apps/web/CLAUDE.md, UI patterns); each row shows its own line under the host.
+ */
+export function WebhookTable({ webhooks, activeHeader }: { webhooks: WebhookRow[]; activeHeader?: ReactNode }) {
+  const readOnly = useReadOnly();
+  const [results, setResults] = useState<Record<string, RowResult | undefined>>({});
+  const onResult = (id: string, r: RowResult | undefined) => setResults((prev) => ({ ...prev, [id]: r }));
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Kind</TableHead>
+          <TableHead>Host</TableHead>
+          <TableHead>Notices</TableHead>
+          <TableHead>{activeHeader ?? 'Active'}</TableHead>
+          {!readOnly && <TableHead><span className="sr-only">Actions</span></TableHead>}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {webhooks.map((w) => {
+          const kind = labelFor(WEBHOOK_KIND, w.kind);
+          return (
+            <TableRow key={w.id}>
+              <TableCell><StatusChip tone={kind.tone}>{kind.label}</StatusChip></TableCell>
+              <TableCell>
+                {w.host}
+                <ResultLine result={results[w.id]} />
+              </TableCell>
+              <TableCell className="whitespace-normal">{noticesLabel(w.kinds)}</TableCell>
+              <TableCell>
+                <WebhookToggle id={w.id} active={w.active} label={`${kind.label} webhook active`} />
+              </TableCell>
+              {!readOnly && (
+                <TableCell className="text-right">
+                  <RowActions row={w} onResult={onResult} />
+                </TableCell>
+              )}
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 }

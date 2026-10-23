@@ -141,8 +141,8 @@ describe('resolveAffected', () => {
     expect(resolve('apps/web/e2e/new.spec.ts').mode).toBe('all');
   });
 
-  it('runs only @smoke for a page no test covers', () => {
-    expect(resolve('apps/web/src/app/(app)/agency/settings/slack-teams/page.tsx')).toMatchObject({ mode: 'some', tags: ['@smoke'] });
+  it('maps the Slack & Teams page to @settings (15c-2a)', () => {
+    expect(resolve('apps/web/src/app/(app)/agency/settings/slack-teams/page.tsx')).toMatchObject({ mode: 'some', tags: ['@settings', '@smoke'] });
   });
 
   it('maps the moved agency settings pages and the shared settings layout (15a)', () => {
@@ -154,7 +154,7 @@ describe('resolveAffected', () => {
     expect(resolve('apps/web/src/app/(app)/agency/settings/team/page.tsx').tags).toEqual(['@navigation', '@smoke', '@support']);
     expect(resolve('apps/web/src/app/(app)/agency/settings/branding/page.tsx').tags).toEqual(['@navigation', '@smoke']);
     for (const f of ['apps/web/src/app/(app)/agency/settings/layout.tsx', 'apps/web/src/app/(app)/agency/settings/page.tsx']) {
-      expect(resolve(f).tags, f).toEqual(['@ai-connections', '@billing', '@client-billing', '@leads', '@navigation', '@runbook', '@smoke', '@support', '@usage']);
+      expect(resolve(f).tags, f).toEqual(['@ai-connections', '@billing', '@client-billing', '@leads', '@navigation', '@runbook', '@settings', '@smoke', '@support', '@usage']);
     }
   });
 
@@ -163,7 +163,7 @@ describe('resolveAffected', () => {
     for (const f of ['apps/web/src/app/(app)/c/[clientId]/settings/layout.tsx', 'apps/web/src/app/(app)/c/[clientId]/settings/page.tsx', 'apps/web/src/server/client-settings-nav.ts']) {
       expect(resolve(f).tags, f).toEqual(client);
     }
-    expect(resolve('apps/web/src/components/settings-nav.tsx').tags).toEqual(['@ai-connections', '@alert-rules', '@ask', '@billing', '@client-billing', '@clients', '@leads', '@navigation', '@profile', '@runbook', '@setup', '@smoke', '@support', '@usage']);
+    expect(resolve('apps/web/src/components/settings-nav.tsx').tags).toEqual(['@ai-connections', '@alert-rules', '@ask', '@billing', '@client-billing', '@clients', '@leads', '@navigation', '@profile', '@runbook', '@settings', '@setup', '@smoke', '@support', '@usage']);
   });
 
   it('maps the shell, page header and Briefs & reports to @navigation (15a)', () => {

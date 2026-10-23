@@ -58,6 +58,8 @@ export interface ToolDeps {
   setupLookup?: (q: { keyword: string; locationName: string }, scope: CallScope) => Promise<MapsPlace[]>;
   /** Phase 11c (plan R1): direct lead mail after commit (`decline_lead`, `assign_lead`). Null or absent: the decision still commits and the send is skipped with a log line (the leads-cleanup job retries guarded pool/agency notices). */
   leadEmail?: Omit<LeadEmailDeps, 'service'> | null;
+  /** 15c-2a T10: the `fetch` the settings "Send test" (`test_webhook`) posts with; absent: global `fetch`. The web app sets an in-process fake under WEBHOOK_FAKE_SEND=1 (E2E only). */
+  webhookFetch?: typeof fetch;
   /** Object storage (evidence adapter, `ObjectStore` shape): `get` for `fetch` and the MCP evidence resources; `put` for agency logos (Phase 10 R9). */
   evidenceStore?: {
     get(key: string): Promise<Uint8Array | null>;

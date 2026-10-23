@@ -1,8 +1,9 @@
 import { type AccessContext, canAccessClient, isAgencyRole, ToolError } from '@cs/core';
-import { agency, type AgencyBranding, agencyWebhook, type AlertMode, client, contact, type Db } from '@cs/db';
+import { hashInput } from '@cs/core/server';
+import { agency, type AgencyBranding, agencyWebhook, type AlertMode, auditLog, client, contact, type Db } from '@cs/db';
 import { type Branding, resolveBranding } from '@cs/email';
-import { addAgencyWebhook, addContact, ALERT_MODES, updateClientDelivery, webhookUrlProblem } from '@cs/engine';
-import { and, asc, eq, isNotNull, sql } from 'drizzle-orm';
+import { addAgencyWebhook, addContact, ALERT_MODES, loadBranding, postWebhook, updateClientDelivery, type WebhookPostResult, webhookUrlProblem } from '@cs/engine';
+import { and, asc, count, eq, gt, isNotNull, sql } from 'drizzle-orm';
 import { validTimezone } from './timezone';
 
 const requireAdmin = (ctx: AccessContext) => {
@@ -96,6 +97,51 @@ export async function setWebhookActive(service: Db, ctx: AccessContext, id: stri
   requireAdmin(ctx);
   const rows = await service.update(agencyWebhook).set({ active }).where(and(eq(agencyWebhook.id, id), eq(agencyWebhook.agencyId, ctx.agencyId))).returning({ id: agencyWebhook.id });
   if (rows.length === 0) throw new ToolError('not_found', 'Webhook not found');
+}
+
+/** 15c-2a T10: hard delete; the webhook's notification rows go with it (FK `ON DELETE CASCADE`). */
+export async function deleteWebhook(service: Db, ctx: AccessContext, id: string): Promise<void> {
+  requireAdmin(ctx);
+  const rows = await service.delete(agencyWebhook).where(and(eq(agencyWebhook.id, id), eq(agencyWebhook.agencyId, ctx.agencyId))).returning({ id: agencyWebhook.id });
+  if (rows.length === 0) throw new ToolError('not_found', 'Webhook not found');
+}
+
+/** Spec §6: at most 5 test sends per webhook in any 10 minutes. */
+export const WEBHOOK_TEST_LIMIT = { max: 5, windowMinutes: 10 };
+const TEST_WEBHOOK_TOOL = 'test_webhook';
+const WEBHOOK_TEST_TIMEOUT_MS = 5_000;
+
+/**
+ * 15c-2a B2: prior successful `test_webhook` calls for this webhook, counted from the registry's audit rows (same agency,
+ * tool and input hash of the parsed input `{ webhookId }`, `outcome = 'ok'`, inside the window). Refused calls are
+ * audited with their error code, so they never count. The current call's own row is written after the handler.
+ */
+async function recentWebhookTests(service: Db, agencyId: string, webhookId: string): Promise<number> {
+  const [row] = await service.select({ n: count() }).from(auditLog).where(and(
+    eq(auditLog.agencyId, agencyId),
+    eq(auditLog.tool, TEST_WEBHOOK_TOOL),
+    eq(auditLog.inputHash, hashInput({ webhookId })),
+    eq(auditLog.outcome, 'ok'),
+    gt(auditLog.createdAt, sql`now() - make_interval(mins => ${WEBHOOK_TEST_LIMIT.windowMinutes})`),
+  ));
+  return Number(row?.n ?? 0);
+}
+
+/**
+ * 15c-2a T10 / B9: posts one test message to the agency's own webhook (active or not) and reports what the receiver said.
+ * Never writes a `notification` row. The URL goes through the host allow-list inside `postWebhook` (not the SSRF guard:
+ * the allow-list is stricter), and redirects are never followed.
+ */
+export async function testWebhook(deps: { service: Db; webhookFetch?: typeof fetch }, ctx: AccessContext, id: string): Promise<WebhookPostResult> {
+  requireAdmin(ctx);
+  const [h] = await deps.service.select({ kind: agencyWebhook.kind, url: agencyWebhook.url }).from(agencyWebhook).where(and(eq(agencyWebhook.id, id), eq(agencyWebhook.agencyId, ctx.agencyId)));
+  if (!h) throw new ToolError('not_found', 'Webhook not found');
+  if ((await recentWebhookTests(deps.service, ctx.agencyId, id)) >= WEBHOOK_TEST_LIMIT.max) {
+    throw new ToolError('rate_limited', 'You can send another test in a few minutes.', { userFacing: true });
+  }
+  const name = (await loadBranding(deps.service, ctx.agencyId)).displayName;
+  const msg = { title: `Test message from ${name}`, body: `Briefs and alerts from ${name} will appear in this channel.`, link: null };
+  return postWebhook(h.kind as 'slack' | 'teams', h.url, msg, { ...(deps.webhookFetch ? { fetch: deps.webhookFetch } : {}), timeoutMs: WEBHOOK_TEST_TIMEOUT_MS });
 }
 
 // ---- client recipients (email-only contacts; members get theirs from acceptInvitations) ----

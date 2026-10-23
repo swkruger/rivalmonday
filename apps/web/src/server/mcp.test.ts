@@ -24,7 +24,7 @@ const links: string[] = [];
 const background: Promise<unknown>[] = [];
 const flush = () => Promise.all(background.splice(0));
 const testAuth = betterAuth(buildAuthOptions({
-  env: { appUrl: 'https://app.example', appDatabaseUrl: testUrls.app, serviceDatabaseUrl: testUrls.service, queueDatabaseUrl: testUrls.owner, authSecret: 's'.repeat(40), linkSecrets: ['l'.repeat(40)], emailFrom: 'f@e.co', google: null, defaultAgencyId: null, webMonitoring: false, kbImport: false, platformAdmins: [], askFakeAi: false, setupFakeLookup: false },
+  env: { appUrl: 'https://app.example', appDatabaseUrl: testUrls.app, serviceDatabaseUrl: testUrls.service, queueDatabaseUrl: testUrls.owner, authSecret: 's'.repeat(40), linkSecrets: ['l'.repeat(40)], emailFrom: 'f@e.co', google: null, defaultAgencyId: null, webMonitoring: false, kbImport: false, platformAdmins: [], askFakeAi: false, setupFakeLookup: false, webhookFakeSend: false },
   service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null),
   runInBackground: (task) => void background.push(task), sendEmail: async () => {}, onMagicLink: (_e, url) => void links.push(url),
 }));

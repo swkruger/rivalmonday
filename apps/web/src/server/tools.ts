@@ -41,6 +41,17 @@ function embedQueryFor(name: EnvName, service: Db): ToolDeps['embedQuery'] {
 }
 
 /**
+ * 15c-2a T10: the E2E receiver behind `WEBHOOK_FAKE_SEND=1` (refused in production by `parseWebEnv`). Nothing leaves the
+ * process: a `*.webhook.office.com` URL whose path contains `/slow` never answers (so the 5 s timeout copy shows), anything
+ * else answers 200. `test_webhook`'s host allow-list still runs before this is called.
+ */
+export const fakeWebhookFetch = (async (input: string | URL | Request) => {
+  const url = new URL(input instanceof Request ? input.url : String(input));
+  if (url.hostname.endsWith('.webhook.office.com') && url.pathname.includes('/slow')) return new Promise<Response>(() => {});
+  return new Response('ok', { status: 200 });
+}) as typeof fetch;
+
+/**
  * Final-review I1: every dependency is resolved by the environment the registry is built for, never by the live
  * one at call time — a DEMO request still in flight when the owner switches to DEV must not enqueue on cs_dev.
  * Also handed to the MCP server.
@@ -69,6 +80,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     setupLookup: setupLookupFor(name, service, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
     verticalDrafter: verticalDrafterFor(name, service, catalog, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
     runbookTailorer: runbookTailorerFor(name, service, catalog, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
+    ...(webEnv().webhookFakeSend ? { webhookFetch: fakeWebhookFetch } : {}),
     billing: gatewayFor(webEnv().stripe ?? {}, name) ?? undefined, // R27: absent = billing not configured
   };
 });

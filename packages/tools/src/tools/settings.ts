@@ -6,7 +6,7 @@ import { inviteClientUser } from '../access/client-invite';
 import { inviteMember, revokeInvitation, revokeMembership } from '../access/team';
 import type { ToolDeps } from '../deps';
 import { setMyNotificationPref, updateMyContact } from '../preferences';
-import { addClientRecipient, addWebhook, deactivateRecipient, setWebhookActive, updateAgencyBranding, updateClientDeliverySettings } from '../settings';
+import { addClientRecipient, addWebhook, deactivateRecipient, deleteWebhook, setWebhookActive, testWebhook, updateAgencyBranding, updateClientDeliverySettings } from '../settings';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -104,6 +104,31 @@ export const setWebhookActiveTool = defineTool({
   },
 });
 
+export const deleteWebhookTool = defineTool({
+  name: 'delete_webhook',
+  access: 'write',
+  description: 'Delete a Slack/Teams webhook; its queued notices go with it (agency admins).',
+  input: z.object({ webhookId: uuid }),
+  output: z.object({ deleted: z.literal(true) }),
+  permission: 'agency',
+  async handler(ctx, { webhookId }, deps) {
+    await deleteWebhook(deps.service, ctx, webhookId);
+    return { deleted: true as const };
+  },
+});
+
+export const testWebhookTool = defineTool({
+  name: 'test_webhook',
+  access: 'write', // sends a message
+  description: 'Send one test message to a Slack/Teams webhook and report the answer; at most 5 per webhook in 10 minutes (agency admins).',
+  input: z.object({ webhookId: uuid }),
+  output: z.object({ ok: z.boolean(), status: z.number().int().optional(), error: z.enum(['timeout', 'blocked', 'http', 'network']).optional() }),
+  permission: 'agency',
+  async handler(ctx, { webhookId }, deps) {
+    return testWebhook(deps, ctx, webhookId);
+  },
+});
+
 export const addClientRecipientTool = defineTool({
   name: 'add_client_recipient',
   access: 'write',
@@ -177,6 +202,8 @@ export const settingsTools = [
   updateAgencyBrandingTool,
   addWebhookTool,
   setWebhookActiveTool,
+  deleteWebhookTool,
+  testWebhookTool,
   addClientRecipientTool,
   deactivateRecipientTool,
   updateClientDeliveryTool,
