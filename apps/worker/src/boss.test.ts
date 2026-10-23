@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
+import { AiPausedError } from '@cs/core';
 import { createBoss, enqueue, registerJobs } from './boss';
 import { defineJob } from './jobs';
 import { workerLog } from './log';
@@ -34,6 +35,9 @@ const plainRan: string[] = [];
 const aiJob = defineJob({ name: 'test-ai', schema: z.object({ id: z.string() }), usesAi: true, handler: async (d) => { aiRan.push(d.id); }, queue: { retryLimit: 0, policy: 'short' } });
 const plainJob = defineJob({ name: 'test-plain', schema: z.object({ id: z.string() }), handler: async (d) => { plainRan.push(d.id); }, queue: { retryLimit: 0 } });
 const aiState = { paused: false };
+const cronRan: string[] = [];
+const cronAiJob = defineJob({ name: 'test-cron-ai', schema: z.object({ id: z.string() }), usesAi: true, cron: '0 0 1 1 *', handler: async (d) => { cronRan.push(d.id); }, queue: { retryLimit: 0 } });
+const pausedThrowJob = defineJob({ name: 'test-throws-paused', schema: z.object({ id: z.string() }), handler: async () => { throw new AiPausedError('platform'); }, queue: { retryLimit: 0, policy: 'short' } });
 
 const failJob = defineJob({ name: 'test-fail', schema: z.object({}), handler: async () => { throw new Error('nope'); }, queue: { retryLimit: 0 } });
 
@@ -41,7 +45,7 @@ const shortJob = defineJob({ name: 'test-short', schema: z.object({ id: z.string
 
 beforeAll(async () => {
   await boss.start();
-  await registerJobs(boss, [echoJob, singleShotJob, shortJob, outputJob, failJob, aiJob, plainJob], { pollingIntervalSeconds: 0.5, aiPaused: async () => aiState.paused });
+  await registerJobs(boss, [echoJob, singleShotJob, shortJob, outputJob, failJob, aiJob, plainJob, cronAiJob, pausedThrowJob], { pollingIntervalSeconds: 0.5, aiPaused: async () => aiState.paused });
 });
 afterAll(async () => {
   await boss.stop({ graceful: false });
@@ -163,5 +167,32 @@ describe('AI pause (Phase 7b1)', () => {
   it('usesAi job runs once the pause lifts', async () => {
     await boss.send(aiJob.name, { id: 'r1' });
     await waitFor(() => aiRan.includes('r1'));
+  });
+
+  it('cron-scheduled usesAi job deferred while paused is not re-sent (the next tick runs it; standard queues do not dedupe singletonKey)', async () => {
+    aiState.paused = true;
+    const realSend = boss.send.bind(boss) as (...a: unknown[]) => Promise<string | null>;
+    const send = vi.spyOn(boss, 'send').mockImplementation((async (...a: unknown[]) => ((a[2] as { startAfter?: number } | undefined)?.startAfter ? 'resent' : realSend(...a))) as never);
+    const id = (await boss.send(cronAiJob.name, { id: 'c1' })) as string;
+    const deadline = Date.now() + 15_000;
+    for (;;) {
+      const job = await boss.getJobById(cronAiJob.name, id);
+      if (job?.state === 'completed') {
+        expect(job.output).toEqual({ deferred: 'ai_paused' });
+        break;
+      }
+      if (Date.now() > deadline) throw new Error('timeout');
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    expect(send.mock.calls.filter((c) => (c[2] as { startAfter?: number } | undefined)?.startAfter)).toHaveLength(0);
+    expect(cronRan).not.toContain('c1');
+  });
+
+  it('a platform AiPausedError from a job not flagged usesAi is still re-sent', async () => {
+    const realSend = boss.send.bind(boss) as (...a: unknown[]) => Promise<string | null>;
+    const send = vi.spyOn(boss, 'send').mockImplementation((async (...a: unknown[]) => ((a[2] as { startAfter?: number } | undefined)?.startAfter ? 'resent' : realSend(...a))) as never);
+    await boss.send(pausedThrowJob.name, { id: 't1' }, { singletonKey: 'tk' });
+    await waitFor(() => send.mock.calls.some((c) => (c[2] as { startAfter?: number } | undefined)?.startAfter === 600));
+    expect(send).toHaveBeenCalledWith(pausedThrowJob.name, { id: 't1' }, { startAfter: 600, singletonKey: 'tk' });
   });
 });

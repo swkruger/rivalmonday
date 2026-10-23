@@ -26,7 +26,11 @@ export async function registerJobs(
     if (job.queue) await boss.updateQueue(job.name, { name: job.name, ...job.queue });
     await boss.work(job.name, { pollingIntervalSeconds: opts.pollingIntervalSeconds ?? 2, includeMetadata: true }, async (batch) => {
       // Re-sent with the same singleton key (a short queue keeps one *queued* job per key; this one is active).
+      // Cron-scheduled jobs are never re-sent: pg-boss only dedupes singletonKey on short/singleton/stately queues, so
+      // on a standard queue every tick would start another 10-minute chain (N paid runs when a long pause lifts);
+      // the next cron tick is the retry.
       const resendItem = (item: (typeof batch)[number]) => async (startAfter: number) => {
+        if (job.cron) return;
         await boss.send(job.name, item.data as object, { startAfter, singletonKey: item.singletonKey ?? undefined });
       };
       if (job.usesAi && (await opts.aiPaused?.())) {
@@ -36,7 +40,7 @@ export async function registerJobs(
       }
       let result: void | Record<string, unknown> = undefined;
       for (const item of batch) {
-        result = await runJob(job, item.id, job.schema.parse(item.data), job.handler, workerLog, job.usesAi ? { resend: resendItem(item) } : {});
+        result = await runJob(job, item.id, job.schema.parse(item.data), job.handler, workerLog, { resend: resendItem(item) });
       }
       return result ?? undefined;
     });

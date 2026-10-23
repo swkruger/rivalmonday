@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Ai, ChatMessage, ChatTool, DecisionQuestion } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
-import { type AccessContext, type AiGuard, type AuditSink, type CallScope, canAccessClient, countRows, scopeToClient, ToolError, type ToolRegistry } from '@cs/core';
+import { type AccessContext, type AiGuard, AiPausedError, type AuditSink, type CallScope, canAccessClient, countRows, scopeToClient, ToolError, type ToolRegistry } from '@cs/core';
 import { agency, askMessage, askThread, client, clientCompetitor, competitor, createAuditSink, type Db, withTenant } from '@cs/db';
 import { ASK_WRITE_TOOLS, fetchItem, type ToolDeps } from '@cs/tools';
 import { and, asc, eq } from 'drizzle-orm';
@@ -341,8 +341,13 @@ export async function runTurn(
   try {
     outcome = await loop();
   } catch (err) {
-    console.error('[ask] turn failed', err instanceof Error ? err.message : err);
-    outcome = { role: 'assistant', content: ASK_COPY.error(assistantName), status: 'error' };
+    // 7b1: a pause that begins mid-turn (a model call refused by the guard) gets the pause copy, not the generic error.
+    if (err instanceof AiPausedError) {
+      outcome = { role: 'assistant', content: err.reason === 'platform' ? ASK_COPY.busy : ASK_COPY.paused, status: 'error' };
+    } else {
+      console.error('[ask] turn failed', err instanceof Error ? err.message : err);
+      outcome = { role: 'assistant', content: ASK_COPY.error(assistantName), status: 'error' };
+    }
   }
   await finish(outcome);
 

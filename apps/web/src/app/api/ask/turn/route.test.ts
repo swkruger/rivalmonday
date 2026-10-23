@@ -382,4 +382,17 @@ describe('POST /api/ask/turn and the AI guard (7b1)', () => {
     const evs = await events(await post({ clientId: IDS.clientA1, question: 'What changed?' }));
     expect(evs.at(-1)).toMatchObject({ type: 'final', status: 'ok' });
   });
+  it('a client pause that surfaces mid-turn (after the pre-turn check passed) ends with one final carrying the C4 copy', async () => {
+    m.guard = { assertAllowed: async () => {} } satisfies AiGuard;
+    m.script = [{ kind: 'chat', reply: () => { throw new AiPausedError('client'); } }];
+    const evs = await events(await post({ clientId: IDS.clientA1, question: 'What changed?' }));
+    expect(evs.filter((e) => e.type === 'final')).toHaveLength(1);
+    expect(evs.at(-1)).toMatchObject({ type: 'final', content: ASK_COPY.paused, status: 'error' });
+  });
+  it('a platform pause that surfaces mid-turn ends with the C5 busy copy', async () => {
+    m.guard = { assertAllowed: async () => {} } satisfies AiGuard;
+    m.script = [{ kind: 'chat', reply: () => { throw new AiPausedError('platform'); } }];
+    const evs = await events(await post({ clientId: IDS.clientA1, question: 'What changed?' }));
+    expect(evs.at(-1)).toMatchObject({ type: 'final', content: ASK_COPY.busy, status: 'error' });
+  });
 });
