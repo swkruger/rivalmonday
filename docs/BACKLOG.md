@@ -114,7 +114,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Pre-existing on main: `apps/worker/src/jobs/leads.ts` fails the UTF-8 check (polish) — *found at 13b merge*
 
 ## Phase 15 follow-ups (UX & information architecture)
-- [ ] **15b-3** topic rename (identifiers) per [15b-2 spec](superpowers/specs/2026-10-20-phase-15b2-help-content-design.md) C7: DB/tools/packs/routes (`/platform/themes` → `/platform/topics`, key `page:platform.themes`, `?theme=`) with MCP aliases; also tool descriptions + 'Unknown theme' (`reputation.ts`), `nav-counts` description, `vertical-draft` prompt — *phase-15b2*
+- [ ] **15b-3b** topic rename, surfaces (3a data & engine merged): routes `/platform/themes` → `/platform/topics` + `?theme=` → `?topic=`, help key `page:platform.themes` (+ guide file, `kb:seed`), MCP/Ask tool names (`get_theme_benchmark`, `search_reviews` `themeId`), delete `toLegacyThemeFields`; `workspace-fixtures.ts` `seedReview` `analysis.themes` → `topics` (test-only, with `reputation.test.ts`); tool descriptions + 'Unknown theme' (`reputation.ts`), `nav-counts` description, `vertical-draft` prompt — *phase-15b3*
 - [ ] Soon (15b-2 help hardening): filter agency-only `TipRow` labels out of client payloads server-side (alerts/profile/notifications pages pass literal labels); `@cs/core/glossary` subpath + bundle gate (agency-only terms `routing`/`seat`/`paused`/`upsell-tag` kept out of client bundles only by tree-shaking); `account.onboarding.skip` → `audience: 'agency'`; coverage reach lists not cross-checked against page role gates; Help pages list guides for pages the viewer can't open; spread-header helpKey check is per file; strip Markdown from Help search excerpts; Help search button focus ring — *phase-15b2*
 - [ ] Owner decision (15b-2 sign-off): scorecard/briefs-detail say "First moves still open" vs glossary "First steps" — *phase-15b2*
 - [ ] Flaky: `competitors/[competitorId]/page-controls.test.tsx` PinPageSwitch "falls back to the server value" failed once in the 15b-2 full suite (expected 'true' to be 'false'), passes alone 4/4 — RAF timing under load (see `apps/web/CLAUDE.md` PinPageSwitch note) — *phase-15b2 merge*
@@ -127,6 +127,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Unscheduled (15b): console editor for platform guides; help-usage analytics; first-visit "new" hints — *phase-15b*
 
 ## Polish (small UI/UX fixes, any time)
+- [ ] `docs/OPS.md:9` says "Latest migration `0037`" (stale) — *phase-15b3*
 
 ### Phase 14 follow-ups (verticals & runbooks)
 - [ ] 14b: prospects never tailored on activation; paid `retailor_runbook_item` has no rate limit; "Keep"/"Not now" not persisted; preview lacks candidate vars
