@@ -185,6 +185,17 @@ describe('9b client billing notices', () => {
   });
 });
 
+describe('7b1 client_spend_paused agency notice', () => {
+  it('goes to agency admins only, with the client, the resume date and the usage page', async () => {
+    await dbs.owner.insert(billingNotice).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, audience: 'agency', kind: 'client_spend_paused', params: { clientName: 'Smith HVAC', until: 'November 1' }, dedupeKey: 'spend_paused:x:2026-10' });
+    await run();
+    expect(sentClient).toHaveLength(0);
+    expect(sentAgencyClient.map((s) => s.to).sort()).toEqual(['ann@agency-a.test', 'ben@agency-a.test']);
+    expect(sentAgencyClient[0]!.props).toMatchObject({ kind: 'client_spend_paused', clientName: 'Smith HVAC', until: 'November 1', billingUrl: 'https://app.rm.test/agency/settings/usage' });
+    expect(await dbs.owner.select().from(billingNotice).where(sql`sent_at is null`)).toHaveLength(0);
+  });
+});
+
 describe('Phase 10 onboarding kinds (R5)', () => {
   const pending = (over: Partial<PendingSignupRow> = {}) =>
     ({ agencyName: 'Acme Agency', contactName: 'Jo Smith', email: 'jo@acme.test', source: 'open', ...over }) as PendingSignupRow;

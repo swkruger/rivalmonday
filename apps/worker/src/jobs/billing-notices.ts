@@ -20,7 +20,7 @@ type Recipient = { id: string; email: string };
 /** Client-facing (agency-branded) kinds, delivered to the client's owners. */
 const CLIENT_KINDS = new Set(['client-payment-link', 'client-payment-needed']);
 /** Agency-facing (Rival Monday-branded) kinds about one client, delivered to agency admins. */
-const AGENCY_CLIENT_KINDS = new Set(['client-payment-failed', 'client-paid', 'client-auto-paused']);
+const AGENCY_CLIENT_KINDS = new Set(['client-payment-failed', 'client-paid', 'client-auto-paused', 'client_spend_paused']);
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 
@@ -194,7 +194,12 @@ export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJob
                 const admins = await adminsOf();
                 if (admins.length === 0) workerLog.warn(`[billing-notices] no agency admins for agency ${row.agencyId}`);
                 const n = typeof params.n === 'number' ? params.n : undefined;
-                const props = { kind: row.kind as 'client-payment-failed' | 'client-paid' | 'client-auto-paused', clientName, ...(n !== undefined && { n }), billingUrl: `${mail.appUrl}/agency/settings/billing` };
+                const until = str(params.until);
+                const props = {
+                  kind: row.kind as Parameters<typeof mail.sendAgencyClient>[2]['kind'], clientName, ...(n !== undefined && { n }), ...(until && { until }),
+                  // 7b1: a spend pause points at the usage page, not billing.
+                  billingUrl: `${mail.appUrl}${row.kind === 'client_spend_paused' ? '/agency/settings/usage' : '/agency/settings/billing'}`,
+                };
                 await deliver(admins, `admin (agency ${row.agencyId})`, (to) => mail.sendAgencyClient(to, row.agencyId, props));
               }
             } else {

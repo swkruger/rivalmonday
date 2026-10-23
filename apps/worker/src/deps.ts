@@ -20,7 +20,7 @@ import {
   type AgencyClientBillingNoticeProps, type AgencyWelcomeProps, type BillingNoticeProps, type ClientBillingNoticeProps, createEmailTransportFromEnv, type OnboardingTipProps,
   type PlatformSignupNoticeProps, renderEmail, resolveBranding,
 } from '@cs/email';
-import { type LeadEmailDeps, listMonthlyRivalClients, normalizeAdminEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps, unsubscribeToken } from '@cs/tools';
+import { type LeadEmailDeps, listMonthlyRivalClients, normalizeAdminEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps, type PlatformSpendAlertPayload, type SpendGuardDeps, unsubscribeToken } from '@cs/tools';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { lookup } from 'node:dns/promises';
@@ -163,6 +163,8 @@ export interface WorkerDeps {
   serviceDb(): Db;
   /** Phase 8c: everything snapshotAll needs (vendor keys, owners, low-balance email sender). */
   platformCosts(): PlatformCostSnapshotDeps;
+  /** 7b1: the hourly spend guard's inputs (service db, APP_URL, staff list, platform-branded staff email sender). */
+  spendGuard(): SpendGuardDeps;
   /** Phase 9a: platform-branded billing lifecycle email sender (direct transport send, outside the client outbox). */
   billingEmail(): BillingEmailSender;
   /** Phase 6c: KB_IMPORT_ENABLED === 'true'; gates kb-import and kb-sync. */
@@ -492,6 +494,17 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
         if (!from) throw new Error('EMAIL_FROM is required');
         const r = await renderEmail({ template: 'platform_cost_low', props: { ...p, branding: resolveBranding('Rival Monday', null) } });
         await getEmailTransport().send({ from: `"Rival Monday" <${from}>`, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'platform_cost_low', metadata: {} }, { agencyId: null, clientId: null });
+      },
+    }),
+    spendGuard: () => ({
+      service: getDb(),
+      appUrl: env.APP_URL ?? '',
+      platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
+      sendStaffEmail: async (to: string, p: PlatformSpendAlertPayload) => {
+        const from = delivery?.fromAddress ?? env.EMAIL_FROM;
+        if (!from) throw new Error('EMAIL_FROM is required');
+        const r = await renderEmail({ template: 'platform_spend_alert', props: { ...p, branding: resolveBranding('Rival Monday', null) } });
+        await getEmailTransport().send({ from: `"Rival Monday" <${from}>`, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'platform_spend_alert', metadata: {} }, { agencyId: null, clientId: null });
       },
     }),
     billingEmail: () => ({

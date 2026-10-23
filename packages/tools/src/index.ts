@@ -21,6 +21,7 @@ export * from './preferences';
 export * from './pressure';
 export * from './registry';
 export * from './settings';
+export * from './spend-guard';
 export * from './timezone';
 export * from './usage';
 // Workspace internals (scope, evidence access, ad series, event reads) are DB-touching and stay private: apps read

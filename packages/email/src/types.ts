@@ -79,6 +79,14 @@ export interface SupportSessionStartedProps {
   date: string;
   reason: string;
 }
+/** 7b1: staff alert for a client spend pause or a platform spike (USD allowed: platform staff only). */
+export interface PlatformSpendAlertProps {
+  branding: Branding;
+  kind: 'client_paused' | 'spike_warn' | 'spike_paused';
+  title: string;
+  lines: string[];
+  url: string;
+}
 export interface PlatformCostLowProps {
   branding: Branding;
   label: string;
@@ -144,7 +152,7 @@ export interface ClientBillingNoticeProps {
   /** The button target: the Stripe Checkout link (client-payment-link) or the client's billing page (client-payment-needed). */
   actionUrl: string;
 }
-export type AgencyClientBillingNoticeKind = 'client-payment-failed' | 'client-paid' | 'client-auto-paused';
+export type AgencyClientBillingNoticeKind = 'client-payment-failed' | 'client-paid' | 'client-auto-paused' | 'client_spend_paused';
 /** Phase 9b Task 8: agency admins, Rival Monday branding. */
 export interface AgencyClientBillingNoticeProps {
   branding: Branding;
@@ -152,6 +160,9 @@ export interface AgencyClientBillingNoticeProps {
   clientName: string;
   /** Days without payment (client-auto-paused). */
   n?: number;
+  /** Spend pause (7b1): the date AI work resumes, e.g. "November 1". */
+  until?: string;
+  /** The button target: client billing, or the usage page for `client_spend_paused`. */
   billingUrl: string;
 }
 /** Phase 10 Task 11: all four are Rival Monday branded (platform, not white label). */
@@ -231,6 +242,7 @@ export type EmailPayload =
   | { template: 'sign_in'; props: SignInEmailProps }
   | { template: 'support_session_started'; props: SupportSessionStartedProps }
   | { template: 'platform_cost_low'; props: PlatformCostLowProps }
+  | { template: 'platform_spend_alert'; props: PlatformSpendAlertProps }
   | { template: 'billing_notice'; props: BillingNoticeProps }
   | { template: 'client_invite'; props: ClientInviteProps }
   | { template: 'team_invite'; props: TeamInviteProps }

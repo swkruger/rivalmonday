@@ -30,6 +30,7 @@ import { createLeadJobs } from './jobs/leads';
 import { createRunbookJobs } from './jobs/runbooks';
 import { createSetupJobs } from './jobs/setup';
 import { createPlatformCostsJobs } from './jobs/platform-costs';
+import { createSpendGuardJobs } from './jobs/spend-guard';
 import { createPlatformStatsJobs } from './jobs/platform-stats';
 import { createProspectJobs } from './jobs/prospects';
 import { createReviewJobs } from './jobs/reviews';
@@ -76,6 +77,7 @@ const deps = createWorkerDeps(process.env);
 const liveEnvName = resolveActiveEnvName(process.env, fileURLToPath(new URL('../../../', import.meta.url)));
 const billing = createBillingJobs(deps, { envName: liveEnvName, env: process.env });
 const billingNotices = createBillingNoticeJobs(deps, { envName: liveEnvName });
+const spendGuard = createSpendGuardJobs(deps, { envName: liveEnvName });
 const onboarding = createOnboardingJobs(deps, { envName: liveEnvName });
 const setup = createSetupJobs(deps, { envName: liveEnvName });
 const runbooks = createRunbookJobs(deps, { envName: liveEnvName });
@@ -201,7 +203,7 @@ await registerJobs(boss, [
   heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, rankMap.refresh, prospects.snapshot,
   rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly, rivals.monthly, rivals.monthlyClient,
   engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.reask, engine.price, reviews.nightly, moves.nightly, moves.client,
-  modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, onboarding.nudges, setup.suggestions, setup.reminders, runbooks.tailor, leads.preview, leads.cleanup, platformCosts.snapshot, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
+  modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, onboarding.nudges, setup.suggestions, setup.reminders, runbooks.tailor, leads.preview, leads.cleanup, platformCosts.snapshot, spendGuard.guard, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
   delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,
 ], { aiPaused });
 workerLog.info('worker started');

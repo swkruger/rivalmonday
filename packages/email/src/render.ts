@@ -18,6 +18,7 @@ import { LeadDeclinedEmail, leadDeclinedSubject } from './templates/lead-decline
 import { LeadNewEmail, leadNewSubject } from './templates/lead-new';
 import { LeadVerifyEmail, leadVerifySubject } from './templates/lead-verify';
 import { PlatformCostLowEmail, platformCostLowSubject } from './templates/platform-cost-low';
+import { PlatformSpendAlertEmail, platformSpendAlertSubject } from './templates/platform-spend-alert';
 import { SignInEmail, signInSubject } from './templates/sign-in';
 import { TeamInviteEmail, teamInviteSubject } from './templates/team-invite';
 import { SupportSessionStartedEmail, supportSessionStartedSubject } from './templates/support-session-started';
@@ -38,6 +39,8 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
       return { el: createElement(SignInEmail, p.props), subject: signInSubject(p.props) };
     case 'support_session_started':
       return { el: createElement(SupportSessionStartedEmail, p.props), subject: supportSessionStartedSubject() };
+    case 'platform_spend_alert':
+      return { el: createElement(PlatformSpendAlertEmail, p.props), subject: platformSpendAlertSubject(p.props) };
     case 'platform_cost_low':
       return { el: createElement(PlatformCostLowEmail, p.props), subject: platformCostLowSubject(p.props) };
     case 'billing_notice':
