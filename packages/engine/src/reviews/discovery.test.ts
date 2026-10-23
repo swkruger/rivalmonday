@@ -16,7 +16,7 @@ const packs = createPackLoader();
 const now = day(0);
 let n = 0;
 
-async function unthemed(count: number, analyzedAt = day(-1)) {
+async function unmatched(count: number, analyzedAt = day(-1)) {
   for (let i = 0; i < count; i++) {
     const [r] = await dbs.service
       .insert(review)
@@ -35,8 +35,8 @@ beforeEach(async () => {
 });
 
 describe('discoverTopic', () => {
-  it('proposes a theme from enough unthemed reviews, with redacted samples, then waits for the AM', async () => {
-    await unthemed(20);
+  it('proposes a theme from enough unmatched reviews, with redacted samples, then waits for the AM', async () => {
+    await unmatched(20);
     const ai = proposing(WARRANTY);
     const r = await discoverTopic({ db: dbs.service, ai, packs }, 'hvac_plumbing', { now });
     expect(r).toMatchObject({ status: 'proposed' });
@@ -50,7 +50,7 @@ describe('discoverTopic', () => {
   });
 
   it('an approved theme joins the vertical theme list and the review questions', async () => {
-    await unthemed(20);
+    await unmatched(20);
     const r = await discoverTopic({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now });
     await decideTopicProposal(dbs.service, (r as { proposalId: string }).proposalId, 'approved', 'am@agency.example');
     const pack = await packs('hvac_plumbing');
@@ -61,20 +61,20 @@ describe('discoverTopic', () => {
   });
 
   it('records "none" (no new theme, or an invalid one) so the same reviews are not sent again', async () => {
-    await unthemed(20, day(-2));
+    await unmatched(20, day(-2));
     expect(await discoverTopic({ db: dbs.service, ai: proposing({ found: false, id: '', name: '', description: '' }), packs }, 'hvac_plumbing', { now })).toMatchObject({ status: 'none' });
     expect(await discoverTopic({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now })).toEqual({ skipped: '0 untagged review(s) since the last proposal' });
     // Analysed a day "in the future" so these rows are newer than the 'none' row's DB-clock created_at, whatever the clock skew.
-    await unthemed(20, new Date(Date.now() + 86_400_000));
+    await unmatched(20, new Date(Date.now() + 86_400_000));
     expect(await discoverTopic({ db: dbs.service, ai: proposing({ ...WARRANTY, id: 'Price Transparency!' }), packs }, 'hvac_plumbing', { now })).toMatchObject({ status: 'none' });
   });
 
   it('never re-proposes a rejected theme id, and tells the model it was rejected', async () => {
-    await unthemed(20, day(-2));
+    await unmatched(20, day(-2));
     const first = await discoverTopic({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now });
     await decideTopicProposal(dbs.service, (first as { proposalId: string }).proposalId, 'rejected', 'am@agency.example');
     // Analysed a day "in the future" so these rows are newer than the rejected proposal's DB-clock created_at, whatever the clock skew.
-    await unthemed(20, new Date(Date.now() + 86_400_000));
+    await unmatched(20, new Date(Date.now() + 86_400_000));
     const ai = proposing(WARRANTY); // the model (incorrectly) proposes the same rejected id again
     const second = await discoverTopic({ db: dbs.service, ai, packs }, 'hvac_plumbing', { now });
     expect(second).toMatchObject({ status: 'none' }); // treated as invalid despite the model saying found=true
@@ -84,18 +84,18 @@ describe('discoverTopic', () => {
     expect(p).toMatchObject({ topicId: '', status: 'none' });
   });
 
-  it('needs at least 20 unthemed reviews', async () => {
-    await unthemed(19);
+  it('needs at least 20 unmatched reviews', async () => {
+    await unmatched(19);
     expect(await discoverTopic({ db: dbs.service, ai: proposing(WARRANTY), packs }, 'hvac_plumbing', { now })).toEqual({ skipped: '19 untagged review(s) since the last proposal' });
   });
 
   it('loses a check-then-insert race to a concurrent run and skips instead of throwing or double-proposing', async () => {
-    await unthemed(20);
+    await unmatched(20);
     // The pending check passes (no 'proposed' row yet), but a concurrent run commits one — for a *different*
     // theme id — before this run's own insert, simulated by racing it from inside the fake chat call.
     const raceAi: Ai = {
       async chat() {
-        await dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'other_theme', name: 'Other', description: 'd', status: 'proposed', otherCount: 1 });
+        await dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'other_topic', name: 'Other', description: 'd', status: 'proposed', otherCount: 1 });
         return { text: JSON.stringify(WARRANTY), model: 'fake', inputTokens: 0, outputTokens: 0, costUsd: 0, cachedTokens: 0, toolCalls: [], finishReason: null };
       },
       async chatWithTools() {
@@ -114,13 +114,13 @@ describe('discoverTopic', () => {
     expect(await discoverTopic({ db: dbs.service, ai: raceAi, packs }, 'hvac_plumbing', { now })).toEqual({ skipped: 'a proposal is awaiting approval' });
     const proposed = await dbs.owner.select().from(topicProposal).where(eq(topicProposal.status, 'proposed'));
     expect(proposed).toHaveLength(1);
-    expect(proposed[0]).toMatchObject({ topicId: 'other_theme' });
+    expect(proposed[0]).toMatchObject({ topicId: 'other_topic' });
   });
 });
 
 describe('runReviewInsights', () => {
   it('runs complaint detection per analysed competitor and discovery per vertical, counting errors', async () => {
-    await unthemed(20);
+    await unmatched(20);
     const r = await runReviewInsights({ db: dbs.service, ai: proposing(WARRANTY), packs }, { now });
     expect(r).toEqual({ competitors: 1, spikes: 0, proposals: 1, errors: 0, batched: 0, batchFallbacks: 0 });
   });
@@ -131,7 +131,7 @@ const batching = (collect?: Collect) => createFakeAi({ batch: { submit: () => 'm
 
 describe('batched theme discovery (Phase 3d decision 10)', () => {
   it('submits one request per eligible vertical and records the batch instead of calling chat', async () => {
-    await unthemed(20);
+    await unmatched(20);
     const ai = batching();
     const r = await runReviewInsights({ db: dbs.service, ai, packs }, { now });
     expect(r).toMatchObject({ batched: 1, proposals: 0, errors: 0 });
@@ -148,7 +148,7 @@ describe('batched theme discovery (Phase 3d decision 10)', () => {
   });
 
   it('falls back to the synchronous path when the batch submit throws, recording the proposal without an error', async () => {
-    await unthemed(20);
+    await unmatched(20);
     const ai = createFakeAi({
       chat: () => JSON.stringify(WARRANTY),
       batch: { submit: () => { throw new Error('400 invalid_request_error: key not scoped to a workspace'); } },
@@ -163,7 +163,7 @@ describe('batched theme discovery (Phase 3d decision 10)', () => {
   });
 
   it('an error after a successful submit (recording the batch) is counted and never re-run synchronously', async () => {
-    await unthemed(20);
+    await unmatched(20);
     const ai = createFakeAi({ chat: () => JSON.stringify(WARRANTY), batch: { submit: () => 'msgbatch_orphan' } });
     // Wrap the service db so only the model_batch insert fails; every read goes through unchanged.
     const db = new Proxy(dbs.service, {
@@ -188,7 +188,7 @@ describe('batched theme discovery (Phase 3d decision 10)', () => {
   });
 
   it('applies an ended batch: proposes the theme and closes the batch', async () => {
-    await unthemed(20);
+    await unmatched(20);
     await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
     const ai = batching(() => ({ status: 'ended', results: [{ customId: 'hvac_plumbing', ok: true, text: JSON.stringify(WARRANTY), model: 'claude-sonnet-5', inputTokens: 1, outputTokens: 1 }] }));
     expect(await collectModelBatches({ db: dbs.service, ai }, { now })).toEqual({ checked: 1, ended: 1, applied: 1, failed: 0, expired: 0 });
@@ -196,8 +196,20 @@ describe('batched theme discovery (Phase 3d decision 10)', () => {
     expect((await dbs.owner.select().from(modelBatch))[0]?.status).toBe('ended');
   });
 
+  it('applying a discovery batch passes a per-vertical scope', async () => {
+    await unmatched(20);
+    await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
+    const ai = batching(() => ({ status: 'ended', results: [] }));
+    await collectModelBatches({ db: dbs.service, ai }, { now });
+    expect(ai.calls.collects[0]!.scopeFor!('dental')).toEqual({ verticalId: 'dental' });
+    await dbs.service.update(modelBatch).set({ status: 'submitted', purpose: 'other_purpose' });
+    const ai2 = batching(() => ({ status: 'ended', results: [] }));
+    await collectModelBatches({ db: dbs.service, ai: ai2 }, { now });
+    expect(ai2.calls.collects[0]!.scopeFor).toBeUndefined();
+  });
+
   it('a failed request writes nothing, so the same reviews are offered again next night', async () => {
-    await unthemed(20);
+    await unmatched(20);
     await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
     await collectModelBatches({ db: dbs.service, ai: batching(() => ({ status: 'ended', results: [{ customId: 'hvac_plumbing', ok: false, error: 'expired' }] })) }, { now });
     expect(await dbs.owner.select().from(topicProposal)).toEqual([]);
@@ -205,16 +217,16 @@ describe('batched theme discovery (Phase 3d decision 10)', () => {
   });
 
   it('a result for a vertical that got a pending proposal meanwhile is skipped, never a second pending row', async () => {
-    await unthemed(20);
+    await unmatched(20);
     await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
-    await dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'other_theme', name: 'Other', description: 'd', status: 'proposed', otherCount: 1 });
+    await dbs.service.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'other_topic', name: 'Other', description: 'd', status: 'proposed', otherCount: 1 });
     const ai = batching(() => ({ status: 'ended', results: [{ customId: 'hvac_plumbing', ok: true, text: JSON.stringify(WARRANTY), model: 'm', inputTokens: 1, outputTokens: 1 }] }));
     expect(await collectModelBatches({ db: dbs.service, ai }, { now })).toMatchObject({ ended: 1, applied: 0 });
     expect((await dbs.owner.select().from(topicProposal)).filter((p) => p.status === 'proposed')).toHaveLength(1);
   });
 
   it('marks a batch still unfinished after 26 hours as failed', async () => {
-    await unthemed(20);
+    await unmatched(20);
     await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
     const later = new Date(Date.now() + 27 * 3_600_000);
     expect(await collectModelBatches({ db: dbs.service, ai: batching(() => ({ status: 'in_progress' })) }, { now: later })).toMatchObject({ expired: 1 });

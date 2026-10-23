@@ -26,7 +26,7 @@ export interface Ai {
   embed(task: string, texts: string[], scope: CallScope): Promise<EmbeddingResult>;
   batchAvailable(task: string): boolean;
   submitBatch(task: string, requests: BatchRequest[], scope: CallScope): Promise<string>;
-  collectBatch(task: string, batchId: string, scope: CallScope): Promise<{ status: 'in_progress' } | { status: 'ended'; results: BatchItemResult[] }>;
+  collectBatch(task: string, batchId: string, scope: CallScope, scopeFor?: (customId: string) => Partial<CallScope>): Promise<{ status: 'in_progress' } | { status: 'ended'; results: BatchItemResult[] }>;
 }
 
 export interface AiDeps {
@@ -213,7 +213,7 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
     },
 
     /** Usage is ledgered when results are collected (one row per request), at the task's batch prices. */
-    async collectBatch(name, batchId, scope) {
+    async collectBatch(name, batchId, scope, scopeFor) {
       const t = task(name);
       if (t.provider !== 'anthropic') throw new Error(`Task ${name} is not a batch task`);
       if (!deps.batch) throw new Error(`Task ${name} needs ANTHROPIC_API_KEY`);
@@ -221,9 +221,9 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
       const results = await deps.batch.results(batchId);
       for (const r of results) {
         await safeRecord(deps.ledger, r.ok
-          ? { ...scope, task: name, provider: deps.batch.id, model: r.model, inputTokens: r.inputTokens, outputTokens: r.outputTokens,
+          ? { ...scope, ...scopeFor?.(r.customId), task: name, provider: deps.batch.id, model: r.model, inputTokens: r.inputTokens, outputTokens: r.outputTokens,
               costUsd: (r.inputTokens * t.input_usd_per_mtok + r.outputTokens * t.output_usd_per_mtok) / 1_000_000, latencyMs: 0, ok: true }
-          : { ...scope, task: name, provider: deps.batch.id, model: t.model, inputTokens: 0, outputTokens: 0, costUsd: null, latencyMs: 0, ok: false });
+          : { ...scope, ...scopeFor?.(r.customId), task: name, provider: deps.batch.id, model: t.model, inputTokens: 0, outputTokens: 0, costUsd: null, latencyMs: 0, ok: false });
       }
       return { status: 'ended', results };
     },

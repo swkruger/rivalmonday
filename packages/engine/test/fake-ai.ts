@@ -70,6 +70,7 @@ export interface FakeAi extends Ai {
     embed: string[][];
     embedScopes: CallScope[];
     batches: { task: string; requests: BatchRequest[] }[];
+    collects: { task: string; batchId: string; scope: CallScope; scopeFor?: (id: string) => Partial<CallScope> }[];
   };
 }
 
@@ -81,7 +82,7 @@ export function createFakeAi(opts: {
     collect?: (task: string, batchId: string) => { status: 'in_progress' } | { status: 'ended'; results: BatchItemResult[] };
   };
 } = {}): FakeAi {
-  const calls: FakeAi['calls'] = { chat: [], decide: [], embed: [], embedScopes: [], batches: [] };
+  const calls: FakeAi['calls'] = { chat: [], decide: [], embed: [], embedScopes: [], batches: [], collects: [] };
   return {
     calls,
     async chat(task, input, scope) {
@@ -109,7 +110,8 @@ export function createFakeAi(opts: {
       if (!opts.batch?.submit) throw new Error('fake ai: no batch submit handler');
       return opts.batch.submit(task, requests);
     },
-    async collectBatch(task, batchId) {
+    async collectBatch(task, batchId, scope, scopeFor) {
+      calls.collects.push({ task, batchId, scope, scopeFor });
       if (!opts.batch?.collect) throw new Error('fake ai: no batch collect handler');
       return opts.batch.collect(task, batchId);
     },

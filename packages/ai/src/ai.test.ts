@@ -153,6 +153,31 @@ describe('Ai facade', () => {
     await expect(ai.chat('theme_discovery_batch', { messages: [] }, scope)).rejects.toThrow(/not a chat task/);
   });
 
+  it('collectBatch tags each result row with scopeFor(customId)', async () => {
+    const provider = {
+      id: 'anthropic',
+      submit: vi.fn(async () => 'msgbatch_9'),
+      status: vi.fn(async () => 'ended' as const),
+      results: vi.fn(async () => [
+        { customId: 'hvac_plumbing', ok: true as const, text: '{}', model: 'claude-sonnet-5', inputTokens: 10, outputTokens: 10 },
+        { customId: 'dental', ok: false as const, error: 'expired' },
+      ]),
+    };
+    const records: LlmCallRecord[] = [];
+    const ledger: LedgerSink = { recordLlmCall: async (r) => { records.push(r); }, recordVendorCall: async () => {} };
+    const ai = createAi(config, { openrouter: { id: 'openrouter', complete: vi.fn() } as unknown as ChatProvider, jev: null, ledger, batch: provider });
+    await ai.collectBatch('theme_discovery_batch', 'msgbatch_9', scope, (id) => ({ verticalId: id }));
+    expect(records.map((x) => [x.verticalId, x.agencyId, x.clientId])).toEqual([
+      ['hvac_plumbing', scope.agencyId, scope.clientId],
+      ['dental', scope.agencyId, scope.clientId],
+    ]);
+    records.length = 0;
+    await ai.collectBatch('theme_discovery_batch', 'msgbatch_9', scope);
+    expect(records).toHaveLength(2);
+    for (const r of records) expect(r).toMatchObject(scope);
+    expect(records.every((r) => r.verticalId === undefined)).toBe(true);
+  });
+
   it('escalation uses the jev task\'s timing, and chat/embeddings pass their own task timing', async () => {
     const cfg = parseAiConfig(`
 tasks:

@@ -23,7 +23,10 @@ export async function collectModelBatches(deps: { db: Db; ai: Ai }, opts: { now?
   for (const b of open) {
     r.checked++;
     try {
-      const res = await deps.ai.collectBatch(b.task, b.providerBatchId, PLATFORM);
+      const res = await deps.ai.collectBatch(
+        b.task, b.providerBatchId, PLATFORM,
+        b.purpose === THEME_BATCH_PURPOSE ? (id) => ({ verticalId: id }) : undefined,
+      );
       if (res.status === 'in_progress') {
         if (now.getTime() - b.createdAt.getTime() > BATCH_MAX_AGE_HOURS * 3_600_000) {
           await deps.db.update(modelBatch).set({ status: 'failed', error: `expired: unfinished after ${BATCH_MAX_AGE_HOURS} h`, endedAt: now }).where(eq(modelBatch.id, b.id));
