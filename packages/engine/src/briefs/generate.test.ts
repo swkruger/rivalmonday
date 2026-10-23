@@ -1,5 +1,5 @@
 import { brief, briefItem, changeEvent, client, competitor, move, moveEvent, recommendation, review } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeAi, noul } from '../../test/fake-ai';
@@ -279,6 +279,15 @@ describe('listBriefDueClients and billing state (9a)', () => {
 describe('listBriefDueClients and a paused client (9b)', () => {
   it('excludes a paused client', async () => {
     await pauseClient(dbs.owner, IDS.clientA1);
+    const ids = await listBriefDueClients(dbs.service, NOW);
+    expect(ids).not.toContain(IDS.clientA1);
+    expect(ids).toContain(IDS.clientB1);
+  });
+});
+
+describe('listBriefDueClients and a spend-paused client (7b1)', () => {
+  it('spend-paused client is not offered a weekly brief', async () => {
+    await spendPauseClient(dbs.owner, IDS.clientA1);
     const ids = await listBriefDueClients(dbs.service, NOW);
     expect(ids).not.toContain(IDS.clientA1);
     expect(ids).toContain(IDS.clientB1);

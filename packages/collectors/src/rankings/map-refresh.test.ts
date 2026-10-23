@@ -1,6 +1,6 @@
 import { fitStaticMap, rankGridBounds } from '@cs/core';
 import { client, rankMapImage } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -59,5 +59,15 @@ describe('refreshRankMap', () => {
     const rows = await dbs.service.select().from(rankMapImage);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.settingsHash).toBe(rankMapSettingsHash({ center, radiusKm: 12, gridSize: 5 }));
+  });
+});
+
+describe('refreshRankMap and a spend-paused client (7b1)', () => {
+  it('spend-paused client is not offered a map refresh: no fetch, nothing stored', async () => {
+    await spendPauseClient(dbs.owner, IDS.clientA1);
+    const maps = fakeMaps();
+    expect(await refreshRankMap({ db: dbs.service, store: createMemoryStore(), maps }, IDS.clientA1)).toBe('skipped');
+    expect(maps.fetchStatic).not.toHaveBeenCalled();
+    expect(await dbs.service.select().from(rankMapImage)).toHaveLength(0);
   });
 });

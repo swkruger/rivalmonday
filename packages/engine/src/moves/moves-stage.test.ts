@@ -1,5 +1,5 @@
 import { ad, capture, changeEvent, client, eventScore, move, moveEvent, rankScan, withTenant } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedVendorCapture } from '../../test/seed';
@@ -180,6 +180,15 @@ describe('listMoveClients and billing state (9a)', () => {
 describe('listMoveClients and a paused client (9b)', () => {
   it('excludes a paused client', async () => {
     await pauseClient(dbs.owner, IDS.clientA1);
+    const ids = await listMoveClients(dbs.service);
+    expect(ids).not.toContain(IDS.clientA1);
+    expect(ids).toContain(IDS.clientB1);
+  });
+});
+
+describe('listMoveClients and a spend-paused client (7b1)', () => {
+  it('spend-paused client is not offered moves work', async () => {
+    await spendPauseClient(dbs.owner, IDS.clientA1);
     const ids = await listMoveClients(dbs.service);
     expect(ids).not.toContain(IDS.clientA1);
     expect(ids).toContain(IDS.clientB1);

@@ -1,6 +1,6 @@
 import type { Ai, JsonSchemaFormat } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
-import { agencyServiceable, client, clientServiceable, type Db, runbook, runbookItem } from '@cs/db';
+import { agencyServiceable, client, clientWorkAllowed, type Db, runbook, runbookItem } from '@cs/db';
 import type { PackLoader, VerticalPack } from '@cs/verticals';
 import { and, eq, sql } from 'drizzle-orm';
 import { isDeepStrictEqual } from 'node:util';
@@ -134,7 +134,7 @@ export async function tailorClientRunbook(
   d: { db: Db; ai: Ai; packs: PackLoader; generic: () => Promise<VerticalPack> },
   clientId: string,
 ): Promise<{ status: 'done' | 'failed' | 'skipped'; rejected: string[] }> {
-  const [row] = await d.db.select(clientCols).from(client).where(and(eq(client.id, clientId), clientServiceable(client), agencyServiceable(client.agencyId)));
+  const [row] = await d.db.select(clientCols).from(client).where(and(eq(client.id, clientId), clientWorkAllowed(client), agencyServiceable(client.agencyId)));
   if (!row) {
     await skipPendingRunbook(d.db, clientId);
     return { status: 'skipped', rejected: [] };

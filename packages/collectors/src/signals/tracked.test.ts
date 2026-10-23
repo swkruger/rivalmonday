@@ -1,5 +1,5 @@
 import { ad, capture, client, competitor, detectedChange, competitorSignal, competitorSource, competitorSuggestion, observation, rankScan, rankSnapshot, review } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, spendPauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import type { VerticalPack } from '@cs/verticals';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -205,6 +205,13 @@ describe('listSignalClients', () => {
 
   it('skips a paused client; its unpaused sibling still runs (9b)', async () => {
     await pauseClient(dbs.owner, IDS.clientA1);
+    expect((await listSignalClients(dbs.service)).sort()).toEqual([IDS.clientA2, IDS.clientB1].sort());
+  });
+});
+
+describe('listSignalClients and a spend-paused client (7b1)', () => {
+  it('spend-paused client is not offered signal work; its siblings still are', async () => {
+    await spendPauseClient(dbs.owner, IDS.clientA1);
     expect((await listSignalClients(dbs.service)).sort()).toEqual([IDS.clientA2, IDS.clientB1].sort());
   });
 });

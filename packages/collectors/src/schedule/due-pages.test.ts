@@ -1,5 +1,5 @@
 import { agencyBilling, agencyOnboarding, client, clientCompetitor, competitor, trackedPage } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, spendPauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { claimDuePages } from './due-pages';
@@ -141,5 +141,18 @@ describe('claimDuePages and the reduced trial allowance (phase 10 f12)', () => {
     const y = await dailyPage(IDS.competitorY, 'https://brightsmiles.example/');
     await claimDuePages(dbs.service, 10);
     expect(await hoursUntilDue(y)).toBe(24);
+  });
+});
+
+describe('claimDuePages and a spend-paused client (7b1)', () => {
+  it('shared competitor still collected while one tracker is workable', async () => {
+    await dbs.service.update(trackedPage).set({ nextDueAt: sql`now() - interval '1 minute'` });
+    for (const id of [IDS.clientA1, IDS.clientA2]) await spendPauseClient(dbs.owner, id);
+    expect((await claimDuePages(dbs.service, 10)).length).toBeGreaterThan(0); // B1 still tracks X
+  });
+  it('not collected when every tracker is spend-paused', async () => {
+    await dbs.service.update(trackedPage).set({ nextDueAt: sql`now() - interval '1 minute'` });
+    for (const id of [IDS.clientA1, IDS.clientA2, IDS.clientB1]) await spendPauseClient(dbs.owner, id);
+    expect(await claimDuePages(dbs.service, 10)).toEqual([]);
   });
 });

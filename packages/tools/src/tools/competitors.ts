@@ -1,4 +1,4 @@
-import { type AccessContext, appLinkFor, canAccessClient, toolkit, ToolError } from '@cs/core';
+import { type AccessContext, appLinkFor, canAccessClient, SPEND_PAUSED_COPY, toolkit, ToolError } from '@cs/core';
 import { ensureCompetitorSources, findExistingCompetitor, patchReusedCompetitor } from '@cs/collectors';
 import { ad, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, discoveryRun, type DiscoveryRunRow, trackedPage, type Tx, withTenant } from '@cs/db';
 import { and, asc, count, desc, eq, gt, inArray, ne, sql } from 'drizzle-orm';
@@ -143,6 +143,7 @@ export const REFUSAL: Record<Exclude<SearchRefusal, 'weekly_limit'>, string> = {
   cooldown: 'A search just finished — its suggestions are below. You can search again in a few minutes.',
   daily_cap: 'Daily search limit reached. Try again tomorrow.',
   service_paused: 'This client is paused. Resume it to search for competitors.',
+  spend_paused: SPEND_PAUSED_COPY,
   enqueue_failed: 'The search could not be started. Try again in a few minutes.',
 };
 

@@ -1,6 +1,6 @@
 import { createAccessContext } from '@cs/core';
 import { agencyBilling, brief, briefItem, changeEvent, client, feedback, notification } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
@@ -182,5 +182,15 @@ describe('deliverDueBriefs and a paused client (9b)', () => {
     expect(await deliverDueBriefs(deps(), MON_0705)).toEqual({ sent: [], autoApproved: 0, overdue: 0 });
     expect(await read(approved)).toMatchObject({ status: 'approved', sentAt: null });
     expect(await dbs.owner.select().from(notification)).toEqual([]);
+  });
+});
+
+describe('deliverDueBriefs and a spend-paused client (7b1)', () => {
+  it('approved brief still delivered: delivery of already-made work is not spend-gated', async () => {
+    const approved = await seedBrief('approved', [{ ord: 0, headline: 'H0' }]);
+    await spendPauseClient(dbs.owner, IDS.clientA1);
+    const r = await deliverDueBriefs(deps(), MON_0705);
+    expect(r.sent).toEqual([approved]);
+    expect(await read(approved)).toMatchObject({ status: 'sent' });
   });
 });

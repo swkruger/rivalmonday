@@ -1,9 +1,9 @@
 /** Phase 13b: shared types and copy for the Rank settings sheet and the Scan now button (no runtime imports, so client components can use it). */
-export type RankScanState = 'available' | 'weekly_limit' | 'agency_daily_limit' | 'cap' | 'running' | 'not_ready';
+export type RankScanState = 'available' | 'weekly_limit' | 'agency_daily_limit' | 'cap' | 'running' | 'not_ready' | 'spend_paused';
 export type RankScanInfo = { state: RankScanState; nextAvailableAt: string | null; label: string | null };
 /** `get_rank_settings` output. */
 export type RankSettingsView = { keywords: string[]; allKeywords: string[]; gridSize: 5 | 7; radiusKm: number | null; scan: RankScanInfo };
-export type RankScanRefusal = 'weekly_limit' | 'agency_daily_limit' | 'cap' | 'not_ready';
+export type RankScanRefusal = 'weekly_limit' | 'agency_daily_limit' | 'cap' | 'not_ready' | 'spend_paused';
 
 export const MAX_RANK_KEYWORDS = 5;
 export const SCAN_RUNNING = 'Scan running…';

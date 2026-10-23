@@ -1,5 +1,5 @@
 import { changeEvent, client, clientCompetitor, detectedChange, EMBEDDING_DIMENSIONS, eventScore, rankScan, scoreFailure, withTenant } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
 import { loadVerticalPack } from '@cs/verticals';
 import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -252,6 +252,16 @@ describe('scoring and a paused client (9b)', () => {
   it('scores nothing for a paused client but still scores another client tracking the competitor', async () => {
     const id = await event({ occurredAt: new Date() });
     await pauseClient(dbs.owner, IDS.clientA1);
+    expect((await findEngineWork(dbs.service, { limit: 50 })).score).toContain(id);
+    expect((await scoreEvent({ db: dbs.service, generic, packs }, id, { now: NOW })).scored).toBe(1);
+    expect((await dbs.owner.select({ c: eventScore.clientId }).from(eventScore)).map((r) => r.c)).toEqual([IDS.clientB1]);
+  });
+});
+
+describe('scoring and a spend-paused client (7b1)', () => {
+  it('shared competitor still scored while one tracker is workable; nothing is scored for the spend-paused client', async () => {
+    const id = await event({ occurredAt: new Date() });
+    await spendPauseClient(dbs.owner, IDS.clientA1);
     expect((await findEngineWork(dbs.service, { limit: 50 })).score).toContain(id);
     expect((await scoreEvent({ db: dbs.service, generic, packs }, id, { now: NOW })).scored).toBe(1);
     expect((await dbs.owner.select({ c: eventScore.clientId }).from(eventScore)).map((r) => r.c)).toEqual([IDS.clientB1]);

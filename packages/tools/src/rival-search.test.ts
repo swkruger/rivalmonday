@@ -1,4 +1,4 @@
-import { type AccessContext, createAccessContext } from '@cs/core';
+import { type AccessContext, createAccessContext, SPEND_PAUSED_COPY } from '@cs/core';
 import { agencyBilling, client, discoveryRun, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
@@ -248,6 +248,31 @@ describe('billing state (9a/9b)', () => {
     // The refusals used nothing: once resumed, this week's manual search is still available.
     await pause(IDS.clientA1, null);
     await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual')).resolves.toEqual({ runId: expect.any(String) });
+  });
+
+  it('listMonthlyRivalClients skips a spend-paused client; its unpaused sibling still runs', async () => {
+    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ ...PROFILE, placeId: 'ChIJa2hvacplace2' }).where(eq(client.id, IDS.clientA2));
+    await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    expect(await listMonthlyRivalClients(dbs.service)).toEqual([IDS.clientA2]);
+  });
+
+  it('a spend-paused client is refused spend_paused for every trigger: no run row, nothing queued; its sibling still starts', async () => {
+    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ ...PROFILE, placeId: 'ChIJa2hvacplace2' }).where(eq(client.id, IDS.clientA2));
+    await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    for (const t of TRIGGERS) await expect(startCompetitorSearch(deps, IDS.clientA1, t)).resolves.toEqual({ refused: 'spend_paused' });
+    expect(await runs(IDS.clientA1)).toEqual([]);
+    expect(enqueue).not.toHaveBeenCalled();
+    await expect(startCompetitorSearch(deps, IDS.clientA2, 'scheduled')).resolves.toEqual({ runId: expect.any(String) });
+  });
+
+  it('manual rival search on a spend-paused client refuses with S1 (no $, no product name)', async () => {
+    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    await expect(registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input', message: SPEND_PAUSED_COPY });
+    expect(SPEND_PAUSED_COPY).not.toMatch(/\$|rival ?monday/i);
+    expect(await runs(IDS.clientA1)).toEqual([]);
   });
 
   it('a read_only or suspended agency is refused service_paused for every trigger; another agency still starts', async () => {

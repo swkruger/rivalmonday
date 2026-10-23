@@ -1,5 +1,5 @@
 import {
-  ad, agencyServiceable, client, clientServiceable, clientCompetitor, competitor, competitorSignal, detectedChange, type CompetitorSignalRow, competitorSource, competitorSuggestion, type Db,
+  ad, agencyServiceable, client, clientWorkAllowed, clientCompetitor, competitor, competitorSignal, detectedChange, type CompetitorSignalRow, competitorSource, competitorSuggestion, type Db,
   observation, type RankResult, rankScan, rankSnapshot, review, vendorTask,
 } from '@cs/db';
 import { TIER_LABELS } from '@cs/core';
@@ -15,7 +15,7 @@ type Snapshot = { results: RankResult[] };
 
 /** Clients the weekly signals job rates: active only (prospects get no recurring work), never paused (9b) nor of a read_only/suspended agency (9a). */
 export async function listSignalClients(db: Db): Promise<string[]> {
-  return (await db.select({ id: client.id }).from(client).where(and(clientServiceable(client), agencyServiceable(client.agencyId)))).map((r) => r.id);
+  return (await db.select({ id: client.id }).from(client).where(and(clientWorkAllowed(client), agencyServiceable(client.agencyId)))).map((r) => r.id);
 }
 
 /** The snapshots of the client's most recent finished (`done`) rank scan; empty when it has none. */

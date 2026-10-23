@@ -133,6 +133,11 @@ export async function pauseClient(owner: Db, clientId: string, by = 'auto'): Pro
   await owner.update(client).set({ pausedAt: new Date(), pausedBy: by }).where(eq(client.id, clientId));
 }
 
+/** Phase 7b1: spend-pauses a client (`spend_paused_at` set; `paused_at` untouched) for scheduler-exclusion tests. */
+export async function spendPauseClient(owner: Db, clientId: string): Promise<void> {
+  await owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, clientId));
+}
+
 /** `testUrls.owner` with another role's credentials (local/CI roles use password = name), optionally another database. */
 export function roleUrl(role: string, database?: string): string {
   const u = new URL(testUrls.owner);

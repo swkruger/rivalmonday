@@ -1,6 +1,6 @@
 import type { Ai, ChatResult } from '@cs/ai';
 import { askStarter, changeEvent, client } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, spendPauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { GENERIC_STARTERS, generateStarters } from './starters';
@@ -115,6 +115,17 @@ describe('generateStarters and a paused client (9b)', () => {
   it('makes no model call and writes nothing for a paused client', async () => {
     await addEvent('/pricing: tune-up price changed from $89 to $69', 1);
     await pauseClient(dbs.owner, IDS.clientA1);
+    const { ai, calls } = fakeAi(JSON.stringify({ questions: GOOD }));
+    expect(await generateStarters({ service: dbs.owner, ai }, IDS.clientA1, NOW)).toBeNull();
+    expect(calls).toHaveLength(0);
+    expect(await rows()).toEqual([]);
+  });
+});
+
+describe('generateStarters and a spend-paused client (7b1)', () => {
+  it('spend-paused client is not offered starters: no model call, nothing written', async () => {
+    await addEvent('/pricing: tune-up price changed from $89 to $69', 1);
+    await spendPauseClient(dbs.owner, IDS.clientA1);
     const { ai, calls } = fakeAi(JSON.stringify({ questions: GOOD }));
     expect(await generateStarters({ service: dbs.owner, ai }, IDS.clientA1, NOW)).toBeNull();
     expect(calls).toHaveLength(0);

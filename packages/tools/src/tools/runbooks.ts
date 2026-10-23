@@ -1,5 +1,5 @@
-import { type AccessContext, isAgencyRole, toolkit, ToolError } from '@cs/core';
-import { agencyServiceable, client, clientServiceable, playbookOverride, runbookItem, runbook, withTenant } from '@cs/db';
+import { type AccessContext, isAgencyRole, SPEND_PAUSED_COPY, toolkit, ToolError } from '@cs/core';
+import { agencyServiceable, client, clientWorkAllowed, playbookOverride, runbookItem, runbook, withTenant } from '@cs/db';
 import {
   compareWithParent, copyItems, createClientRunbookIfAbsent, ensureAgencyRunbook, ensurePlatformRunbook, legacyClientItems, packUsesGenericPlays, PLAYBOOK_VARS,
   parseItemContent, readRunbookItems, type RunbookItem, type UpdateState, withColumnThresholds, writeItem,
@@ -326,7 +326,7 @@ export const dismissRunbookUpdate = defineTool({
 /** The client runbook is created pending, then tailored by the worker; the enqueue happens after the commit and never fails the call. */
 async function createClientRunbook(deps: ToolDeps, ctx: AccessContext, t: Target): Promise<void> {
   const c = t.client!;
-  const [live] = await deps.service.select({ id: client.id }).from(client).where(and(eq(client.id, c.id), clientServiceable(client), agencyServiceable(client.agencyId)));
+  const [live] = await deps.service.select({ id: client.id }).from(client).where(and(eq(client.id, c.id), clientWorkAllowed(client), agencyServiceable(client.agencyId)));
   // One transaction: the runbook, its items and `pending` (paused / inactive clients: untailored, no status, no job).
   const items = withColumnThresholds(t.items, await columnThresholds(deps, ctx, c.id), t.parent);
   const made = await createClientRunbookIfAbsent(deps.service, c.id, items, ctx.userId, live ? 'pending' : undefined);
@@ -400,6 +400,9 @@ export const retailorRunbookItem = defineTool({
     const t = await resolve(deps, ctx, input.owner, true);
     const up = t.parent?.find((i) => i.key === input.key);
     if (!up || up.kind !== 'play') throw NOT_FOUND();
+    // 7b1: one paid model call, so a spend-paused client is refused (S1) before it.
+    const [paused] = await deps.service.select({ at: client.spendPausedAt }).from(client).where(eq(client.id, t.client!.id));
+    if (paused?.at) throw new ToolError('spend_paused', SPEND_PAUSED_COPY, { userFacing: true });
     if (!deps.runbookTailorer) return { proposed: null };
     return { proposed: await deps.runbookTailorer({ clientId: t.client!.id, key: input.key, parentContent: up.content }) };
   },

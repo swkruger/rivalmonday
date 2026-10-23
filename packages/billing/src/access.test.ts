@@ -135,6 +135,16 @@ describe('seat counts and paused clients (9b)', () => {
   });
 });
 
+describe('seat counts and spend-paused clients (7b1)', () => {
+  it('seat count (countActiveClients) unchanged by a spend pause; the cap stays full', async () => {
+    await addClients(dbs.owner, 1); // 3 active = cap
+    const before = await countActiveClients(dbs.service, AGENCY);
+    await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.agencyId, AGENCY));
+    expect(await countActiveClients(dbs.service, AGENCY)).toBe(before);
+    expect(await billingAccess(dbs.service, AGENCY)).toMatchObject({ activeClients: before, canAddActiveClient: false });
+  });
+});
+
 describe('reduced trial allowance (phase 10 f12)', () => {
   const REDUCED = 'Your trial includes 1 active client. Add a payment method to monitor up to 3.';
   const source = (s: 'open' | 'invite' | 'legacy') => dbs.owner.insert(agencyOnboarding).values({ agencyId: AGENCY, source: s });

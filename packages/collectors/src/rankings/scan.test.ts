@@ -1,6 +1,6 @@
 import { capture, client, evidence, rankMapImage, rankScan, rankSnapshot } from '@cs/db';
 import type { RankScanSkipped } from './scan';
-import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, spendPauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -297,5 +297,15 @@ describe('rank schedule helpers', () => {
     });
     await dbs.owner.update(client).set({ serviceArea: null }).where(eq(client.id, IDS.clientA2));
     expect(await clientsNeedingRankMap(dbs.service, [IDS.clientA2])).toEqual([]);
+  });
+});
+
+describe('listRankClients and a spend-paused client (7b1)', () => {
+  it('spend-paused client is not offered rank scans; its sibling still is', async () => {
+    const area = { center: { lat: 32.44, lng: -97.79 }, radiusKm: 10, zips: [] };
+    await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: area }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: area }).where(eq(client.id, IDS.clientB1));
+    await spendPauseClient(dbs.owner, IDS.clientA1);
+    expect(await listRankClients(dbs.service)).toEqual([IDS.clientB1]);
   });
 });

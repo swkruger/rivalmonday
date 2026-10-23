@@ -1,5 +1,5 @@
 import { client, runbook, runbookItem } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -94,6 +94,14 @@ describe('tailorClientRunbook', () => {
     await dbs.owner.update(client).set({ pausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
     expect((await tailorClientRunbook(deps(ai), IDS.clientA1)).status).toBe('skipped');
     await dbs.owner.update(client).set({ pausedAt: null, status: 'prospect' }).where(eq(client.id, IDS.clientA1));
+    expect((await tailorClientRunbook(deps(ai), IDS.clientA1)).status).toBe('skipped');
+    expect(ai.calls.chat).toHaveLength(0);
+    expect(await clientRunbook()).toBeUndefined();
+  });
+
+  it('spend-paused client is not offered runbook tailoring: skipped, no model call (7b1)', async () => {
+    const ai = rewriteAll();
+    await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
     expect((await tailorClientRunbook(deps(ai), IDS.clientA1)).status).toBe('skipped');
     expect(ai.calls.chat).toHaveLength(0);
     expect(await clientRunbook()).toBeUndefined();

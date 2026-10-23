@@ -1,5 +1,5 @@
 import { fitStaticMap, rankGridBounds } from '@cs/core';
-import { agencyServiceable, client, clientServiceable, type Db, rankMapImage } from '@cs/db';
+import { agencyServiceable, client, clientWorkAllowed, type Db, rankMapImage } from '@cs/db';
 import { ObjectExistsError, type ObjectStore } from '@cs/storage';
 import { and, eq } from 'drizzle-orm';
 import { rankMapSettingsHash, rankRadiusKm } from './settings';
@@ -18,7 +18,7 @@ export async function refreshRankMap(
   const [c] = await deps.db
     .select()
     .from(client)
-    .where(and(eq(client.id, clientId), clientServiceable(client), agencyServiceable(client.agencyId)))
+    .where(and(eq(client.id, clientId), clientWorkAllowed(client), agencyServiceable(client.agencyId)))
     .limit(1);
   if (!c?.serviceArea) return 'skipped';
   const radiusKm = rankRadiusKm(c.serviceArea.radiusKm);

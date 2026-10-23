@@ -1,4 +1,4 @@
-import { agencyServiceable, brief, briefItem, client, clientServiceable, clientSetup, clientCompetitor, type Db, discoveryRun, observation, rankScan, recommendation, vendorTask } from '@cs/db';
+import { agencyServiceable, brief, briefItem, client, clientWorkAllowed, clientSetup, clientCompetitor, type Db, discoveryRun, observation, rankScan, recommendation, vendorTask } from '@cs/db';
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES } from './generate';
 import { startingPointClockStart } from './setup-clock';
@@ -64,7 +64,7 @@ export async function startingPointReadiness(db: Db, clientId: string, now: Date
  */
 export async function listStartingPointDue(db: Db, now: Date): Promise<string[]> {
   // 9a/9b: a read_only/suspended agency or a paused client gets no starting point (generation costs model calls).
-  const clients = await db.select({ id: client.id }).from(client).where(and(clientServiceable(client), agencyServiceable(client.agencyId))).orderBy(client.createdAt);
+  const clients = await db.select({ id: client.id }).from(client).where(and(clientWorkAllowed(client), agencyServiceable(client.agencyId))).orderBy(client.createdAt);
   const due: string[] = [];
   for (const c of clients) {
     const [b] = await db

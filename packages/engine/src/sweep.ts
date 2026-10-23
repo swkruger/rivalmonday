@@ -1,4 +1,4 @@
-import { agencyServiceable, clientServiceable, type Db } from '@cs/db';
+import { agencyServiceable, clientWorkAllowed, type Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
 import { PRICE_STAGE, PRICE_VERSION } from './prices/price-stage';
 import { MIN_REVIEW_CHARS, REVIEW_ANALYSIS_DAYS, REVIEW_STAGE, REVIEW_VERSION } from './reviews/topics';
@@ -75,7 +75,7 @@ export async function findEngineWork(
           -- A complaint spike belongs to one vertical's topic list (3c): only that vertical's clients score it.
           AND (e.details->>'verticalId' IS NULL OR cl.vertical_id = e.details->>'verticalId')
           -- 5b-2 decision 9: prospects get no scores (so no alerts or brief content) until converted.
-          AND ${clientServiceable('cl')} AND ${agencyServiceable(sql.raw('cl.agency_id'))}
+          AND ${clientWorkAllowed('cl')} AND ${agencyServiceable(sql.raw('cl.agency_id'))}
           -- Recent events, or recent history for a client linked recently (decision 12).
           AND (e.created_at >= now() - make_interval(days => ${window}::int)
                OR (cc.created_at >= now() - make_interval(days => ${window}::int)
@@ -90,7 +90,7 @@ export async function findEngineWork(
     ? []
     : await db.execute(sql`
         SELECT rs.id FROM rank_scan rs JOIN client cl ON cl.id = rs.client_id
-        WHERE rs.status = 'done' AND rs.finished_at IS NOT NULL AND ${clientServiceable('cl')} AND ${agencyServiceable(sql.raw('cl.agency_id'))}
+        WHERE rs.status = 'done' AND rs.finished_at IS NOT NULL AND ${clientWorkAllowed('cl')} AND ${agencyServiceable(sql.raw('cl.agency_id'))}
           AND NOT ${finished(RANK_DIFF_STAGE, RANK_DIFF_VERSION, 'rs.id')}
         ORDER BY rs.finished_at ASC LIMIT ${opts.limit}`);
 

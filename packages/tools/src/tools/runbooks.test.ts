@@ -1,4 +1,4 @@
-import { type AccessContext, createAccessContext } from '@cs/core';
+import { type AccessContext, createAccessContext, SPEND_PAUSED_COPY } from '@cs/core';
 import { catalogRows, client, platformAdmin, runbook, runbookItem } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createCatalog } from '@cs/verticals';
@@ -348,6 +348,22 @@ describe('client runbook', () => {
     await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
     const [rb] = await dbs.owner.select().from(runbook).where(eq(runbook.level, 'client'));
     expect(rb!.tailorStatus).toBe('pending');
+  });
+
+  it('retailor on a spend-paused client refuses spend_paused (S1) without calling the tailorer', async () => {
+    const key = await firstPlayKey(A);
+    await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    const e = await fails(call(am, 'retailor_runbook_item', { owner: C1, key }));
+    expect(e).toMatchObject({ code: 'spend_paused', message: SPEND_PAUSED_COPY, userFacing: true });
+    expect(tailorer).not.toHaveBeenCalled();
+  });
+
+  it('a spend-paused client gets the runbook untailored: no pending status, no job', async () => {
+    await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
+    const [rb] = await dbs.owner.select().from(runbook).where(eq(runbook.level, 'client'));
+    expect(rb!.tailorStatus).toBeNull();
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it('retailor proposes without saving; an absent tailorer answers null; unknown key and client roles are not_found', async () => {

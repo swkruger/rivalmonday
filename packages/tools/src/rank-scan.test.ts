@@ -1,4 +1,4 @@
-import { type AccessContext, createAccessContext, type Feature } from '@cs/core';
+import { type AccessContext, createAccessContext, type Feature, SPEND_PAUSED_COPY } from '@cs/core';
 import { client, rankScan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
@@ -144,6 +144,15 @@ describe('request_rank_scan', () => {
     expect(await scans(IDS.clientA1)).toEqual([]);
   });
 
+  it('spend-paused client → spend_paused before the budget check; no row, nothing queued, billing columns untouched', async () => {
+    await dbs.owner.update(client).set({ spendPausedAt: new Date(), spendLimitUsd: 0.01 }).where(eq(client.id, IDS.clientA1)); // the cap would also refuse
+    expect(await request()).toEqual({ queued: false, reason: 'spend_paused' });
+    expect(await scans(IDS.clientA1)).toEqual([]);
+    expect(enqueue).not.toHaveBeenCalled();
+    const [c] = await dbs.owner.select({ pausedAt: client.pausedAt, status: client.status }).from(client).where(eq(client.id, IDS.clientA1));
+    expect(c).toMatchObject({ pausedAt: null, status: 'active' });
+  });
+
   it('a stale running row does not block a new request', async () => {
     await dbs.owner.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'running', trigger: 'scheduled', startedAt: new Date(Date.now() - 4 * 3_600_000) });
     expect(await request()).toMatchObject({ queued: true });
@@ -184,7 +193,22 @@ describe('rank scan copy', () => {
   });
 });
 
+describe('spend_paused copy (S1)', () => {
+  const c = { name: 'A1 HVAC', timezone: 'America/Chicago' };
+  it('refusal message and label are S1, with no $ or product name', () => {
+    expect(rankScanRefusalMessage({ state: 'spend_paused' }, c)).toBe(SPEND_PAUSED_COPY);
+    expect(rankScanLabel({ state: 'spend_paused' }, c)).toBe(SPEND_PAUSED_COPY);
+    expect(SPEND_PAUSED_COPY).not.toMatch(/\$|rival ?monday/i);
+  });
+});
+
 describe('rankScanAvailability', () => {
+  it('a spend-paused client is spend_paused, not not_ready', async () => {
+    await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    expect((await rankScanAvailability(dbs.service, { id: IDS.clientA1, agencyId: IDS.agencyA }, new Date())).state).toBe('spend_paused');
+    await dbs.owner.update(client).set({ pausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    expect((await rankScanAvailability(dbs.service, { id: IDS.clientA1, agencyId: IDS.agencyA }, new Date())).state).toBe('not_ready');
+  });
   it('no keywords → not_ready', async () => {
     await setup({ keywords: [] });
     expect((await rankScanAvailability(dbs.service, { id: IDS.clientA1, agencyId: IDS.agencyA }, new Date())).state).toBe('not_ready');

@@ -21,7 +21,7 @@ export function ScanNowButton({ clientId, scan }: { clientId: string; scan: Rank
   const queued = state.ok && Boolean(state.message);
   const running = queued || scan.state === 'running';
   const label = running ? SCAN_RUNNING : scan.state === 'weekly_limit' && scan.label ? scan.label : 'Scan now';
-  const note = !running && (scan.state === 'agency_daily_limit' || scan.state === 'cap') ? scan.label : null;
+  const note = !running && (scan.state === 'agency_daily_limit' || scan.state === 'cap' || scan.state === 'spend_paused') ? scan.label : null;
   return (
     <WriteGuard>
       <div className="flex max-w-md flex-col items-end gap-1.5">

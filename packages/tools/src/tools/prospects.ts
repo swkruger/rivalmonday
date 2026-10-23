@@ -1,5 +1,5 @@
 import { assertCanActivateClient } from '@cs/billing';
-import { type AccessContext, canAccessClient, toolkit, ToolError } from '@cs/core';
+import { type AccessContext, canAccessClient, SPEND_PAUSED_COPY, toolkit, ToolError } from '@cs/core';
 import { failProspectReport, PROSPECT_STALE_HOURS } from '@cs/collectors';
 import { client, clientCompetitor, clientSetup, prospectReport, withTenant } from '@cs/db';
 import { and, count, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
@@ -78,6 +78,7 @@ export const runProspectSnapshotTool = defineTool({
     const reportId = await deps.service.transaction(async (tx) => {
       const [c] = await tx.select().from(client).where(and(eq(client.id, clientId), eq(client.agencyId, ctx.agencyId))).for('update');
       if (!c) throw new ToolError('not_found', 'Client not found');
+      if (c.spendPausedAt !== null) throw new ToolError('spend_paused', SPEND_PAUSED_COPY, { userFacing: true });
       if (c.status !== 'prospect') throw new ToolError('invalid_input', 'Snapshots are for prospects — this business is already a client');
       if (c.keywords.length === 0 || !c.serviceArea) throw new ToolError('invalid_input', 'Add at least one keyword and a service area to the profile first');
       const [links] = await tx.select({ n: count() }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId));

@@ -1,4 +1,4 @@
-import { type AccessContext, createAccessContext } from '@cs/core';
+import { type AccessContext, createAccessContext, SPEND_PAUSED_COPY } from '@cs/core';
 import { claimDueSources, ensureCompetitorSources } from '@cs/collectors';
 import { agencyConnect, client, clientCompetitor, clientSetup, prospectReport, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
@@ -50,6 +50,13 @@ describe('prospects (decisions 8–12, Review Focus 1)', () => {
     expect(await registry.invoke(admin, 'get_prospect_report', { clientId: IDS.clientA2 })).toMatchObject({ report: { status: 'failed', error: expect.stringMatching(/timed out/) } });
     await registry.invoke(admin, 'run_prospect_snapshot', { clientId: IDS.clientA2 });
     expect(queued).toHaveLength(2);
+  });
+
+  it('a spend-paused prospect is refused spend_paused (S1): no report row, nothing queued', async () => {
+    await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA2));
+    await expect(registry.invoke(admin, 'run_prospect_snapshot', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'spend_paused', message: SPEND_PAUSED_COPY, userFacing: true });
+    expect(queued).toEqual([]);
+    expect(await dbs.owner.select().from(prospectReport)).toEqual([]);
   });
 
   it('lets only one of two concurrent snapshot requests start (F6)', async () => {

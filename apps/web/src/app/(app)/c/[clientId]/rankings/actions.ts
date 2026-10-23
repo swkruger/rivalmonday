@@ -1,5 +1,5 @@
 'use server';
-import { type AccessContext, isAgencyRole, ToolError } from '@cs/core';
+import { type AccessContext, isAgencyRole, SPEND_PAUSED_COPY, ToolError } from '@cs/core';
 import { RANK_MANUAL_PER_AGENCY_DAY, searchDayLabelAt } from '@cs/tools';
 import { revalidatePath } from 'next/cache';
 import { notFound } from 'next/navigation';
@@ -42,6 +42,8 @@ function refusalCopy(reason: RankScanRefusal, nextAvailableAt: string | undefine
       return `Your agency has used today's ${RANK_MANUAL_PER_AGENCY_DAY} manual scans.`;
     case 'cap':
       return scan?.state === 'cap' && scan.label ? scan.label : "This client is close to this month's credit limit, so this scan can't run until next month.";
+    case 'spend_paused':
+      return SPEND_PAUSED_COPY;
     case 'not_ready':
       return scan?.state === 'running' ? 'A rank scan is already running for this client.' : 'Add keywords and a service area (and an active client) before scanning.';
   }

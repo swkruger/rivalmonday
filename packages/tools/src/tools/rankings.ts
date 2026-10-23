@@ -227,7 +227,7 @@ export const getShareOfVoice = defineTool({
 });
 
 const GridSize = z.union([z.literal(5), z.literal(7)]);
-const ScanState = z.enum(['available', 'weekly_limit', 'agency_daily_limit', 'cap', 'running', 'not_ready']);
+const ScanState = z.enum(['available', 'weekly_limit', 'agency_daily_limit', 'cap', 'running', 'not_ready', 'spend_paused']);
 
 /** The client in the caller's agency and scope, or the same `not_found` for unknown, other-agency and out-of-scope ids. */
 async function agencyClient(deps: ToolDeps, ctx: { agencyId: string; clientScope: 'all' | readonly string[] } & Parameters<typeof canAccessClient>[0], clientId: string) {
@@ -288,7 +288,7 @@ export const requestRankScanTool = defineTool({
   input: z.object({ clientId: uuid }),
   output: z.union([
     z.object({ queued: z.literal(true), scanEtaMinutes: z.number() }),
-    z.object({ queued: z.literal(false), reason: z.enum(['weekly_limit', 'agency_daily_limit', 'cap', 'not_ready']), nextAvailableAt: z.string().optional() }),
+    z.object({ queued: z.literal(false), reason: z.enum(['weekly_limit', 'agency_daily_limit', 'cap', 'not_ready', 'spend_paused']), nextAvailableAt: z.string().optional() }),
   ]),
   permission: 'agency',
   async handler(ctx, { clientId }, deps) {

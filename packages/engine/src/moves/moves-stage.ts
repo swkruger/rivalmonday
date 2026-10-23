@@ -1,5 +1,5 @@
 import type { ChangeType } from '@cs/core';
-import { agencyServiceable, clientServiceable, changeEvent, client, clientCompetitor, type Db, eventScore, move, type MoveDetails, moveEvent, type MoveStatus, rankScan } from '@cs/db';
+import { agencyServiceable, clientWorkAllowed, changeEvent, client, clientCompetitor, type Db, eventScore, move, type MoveDetails, moveEvent, type MoveStatus, rankScan } from '@cs/db';
 import { and, asc, eq, gte, isNull, lte, ne, sql } from 'drizzle-orm';
 import type { PackLoader } from '../tag/tag-stage';
 import { type AdActivity, detectMoves, MOVE_WINDOW_DAYS, type MoveEvent, type MoveFinding } from './rules';
@@ -58,7 +58,7 @@ export async function listMoveClients(db: Db): Promise<string[]> {
     .selectDistinct({ id: clientCompetitor.clientId })
     .from(clientCompetitor)
     .innerJoin(client, eq(client.id, clientCompetitor.clientId))
-    .where(and(clientServiceable(client), agencyServiceable(client.agencyId)));
+    .where(and(clientWorkAllowed(client), agencyServiceable(client.agencyId)));
   return rows.map((r) => r.id);
 }
 

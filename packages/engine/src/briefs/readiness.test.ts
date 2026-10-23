@@ -1,5 +1,5 @@
 import { brief, briefItem, capture, client, clientSetup, clientCompetitor, competitor, discoveryRun, evidence, observation, rankScan, recommendation, vendorTask } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -177,6 +177,12 @@ describe('listStartingPointDue', () => {
     it('skips a paused client; its unpaused sibling still runs', async () => {
       await due72h();
       await pauseClient(dbs.owner, IDS.clientA1);
+      expect(await sorted()).toEqual([IDS.clientA2, IDS.clientB1].sort());
+    });
+
+    it('spend-paused client is not offered starting-point work; its sibling still runs (7b1)', async () => {
+      await due72h();
+      await spendPauseClient(dbs.owner, IDS.clientA1);
       expect(await sorted()).toEqual([IDS.clientA2, IDS.clientB1].sort());
     });
   });

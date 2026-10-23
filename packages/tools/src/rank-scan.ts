@@ -1,5 +1,5 @@
 import { checkRankScanBudget, estimateRankScanUsd, failStaleRankScans, RANK_SCAN_STALE_HOURS, rankKeywordsFor, rankRadiusKm } from '@cs/collectors';
-import { ToolError } from '@cs/core';
+import { SPEND_PAUSED_COPY, ToolError } from '@cs/core';
 import { agency, agencyServiceable, client, clientServiceable, type Db, rankScan, type Tx } from '@cs/db';
 import { and, count, desc, eq, gt, gte, ne, sql } from 'drizzle-orm';
 import { enqueueOf, type ToolDeps } from './deps';
@@ -10,11 +10,11 @@ import { searchDayLabelAt } from './rival-search';
  * Phase 13b: the manual "Scan now" rules. `running` is reported to `request_rank_scan` as `not_ready`; the settings
  * read keeps it so the button can say a scan is in progress.
  */
-export type RankScanState = 'available' | 'weekly_limit' | 'agency_daily_limit' | 'cap' | 'running' | 'not_ready';
+export type RankScanState = 'available' | 'weekly_limit' | 'agency_daily_limit' | 'cap' | 'running' | 'not_ready' | 'spend_paused';
 export type RankScanAvailability = { state: RankScanState; nextAvailableAt?: string };
 export type RankScanRequest =
   | { queued: true; scanEtaMinutes: number }
-  | { queued: false; reason: 'weekly_limit' | 'agency_daily_limit' | 'cap' | 'not_ready'; nextAvailableAt?: string };
+  | { queued: false; reason: 'weekly_limit' | 'agency_daily_limit' | 'cap' | 'not_ready' | 'spend_paused'; nextAvailableAt?: string };
 
 const DAY_MS = 86_400_000;
 const utcMidnight = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -33,8 +33,11 @@ export async function rankScanAvailability(db: Db | Tx, c: { id: string; agencyI
   const [row] = await db.select({
     keywords: client.keywords, rankKeywords: client.rankKeywords, rankGridSize: client.rankGridSize, serviceArea: client.serviceArea,
     ok: sql<boolean>`${clientServiceable(client)} AND ${agencyServiceable(client.agencyId)}`,
+    spendPaused: sql<boolean>`${client.spendPausedAt} IS NOT NULL`,
   }).from(client).where(and(eq(client.id, c.id), eq(client.agencyId, c.agencyId)));
   if (!row || !row.ok || !row.serviceArea || rankKeywordsFor(row).length === 0) return { state: 'not_ready' };
+  // 7b1: a spend-paused client is told so (S1) before any other limit or the budget check.
+  if (row.spendPaused) return { state: 'spend_paused' };
 
   const staleBefore = new Date(now.getTime() - RANK_SCAN_STALE_HOURS * 3_600_000);
   const [running] = await db.select({ id: rankScan.id }).from(rankScan)
@@ -63,6 +66,7 @@ export function rankScanRefusalMessage(a: RankScanAvailability, c: { name: strin
     case 'agency_daily_limit': return `Your agency has used today's ${RANK_MANUAL_PER_AGENCY_DAY} manual scans.`;
     case 'cap': return `${c.name} is close to this month's credit limit, so this scan can't run until next month.`;
     case 'running': return 'A rank scan is already running for this client.';
+    case 'spend_paused': return SPEND_PAUSED_COPY;
     case 'not_ready': return 'Add keywords and a service area (and an active client) before scanning.';
     default: return null;
   }
@@ -73,6 +77,7 @@ export function rankScanLabel(a: RankScanAvailability, c: { name: string; timezo
   if (a.state === 'weekly_limit') return `Next scan available ${searchDayLabelAt(a.nextAvailableAt!, c.timezone)}`;
   if (a.state === 'agency_daily_limit') return rankScanRefusalMessage(a, c);
   if (a.state === 'cap') return rankScanRefusalMessage(a, c);
+  if (a.state === 'spend_paused') return rankScanRefusalMessage(a, c);
   if (a.state === 'running') return 'Scan running…';
   return null;
 }

@@ -1,4 +1,4 @@
-import { agencyServiceable, clientServiceable, client, competitor, type Db, observation } from '@cs/db';
+import { agencyServiceable, clientWorkAllowed, client, competitor, type Db, observation } from '@cs/db';
 import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { ensureCompetitorSources } from '../sources/ensure';
 import type { SourceKind } from '../sources/kinds';
@@ -37,13 +37,13 @@ export async function ensureSelfCompetitor(db: Db, clientId: string): Promise<{ 
  * Prospects are skipped (5b-2 decision 9) — the prospect snapshot links its own business via `ensureSelfCompetitor`.
  */
 export async function ensureSelfCompetitors(db: Db): Promise<number> {
-  const rows = await db.select({ id: client.id }).from(client).where(and(isNotNull(client.placeId), isNull(client.selfCompetitorId), clientServiceable(client), agencyServiceable(client.agencyId)));
+  const rows = await db.select({ id: client.id }).from(client).where(and(isNotNull(client.placeId), isNull(client.selfCompetitorId), clientWorkAllowed(client), agencyServiceable(client.agencyId)));
   let linked = 0;
   for (const { id } of rows) if ('competitorId' in (await ensureSelfCompetitor(db, id))) linked++;
   await db.execute(sql`
     INSERT INTO competitor_source (competitor_id, source)
     SELECT DISTINCT c.self_competitor_id, 'ads_google' FROM client c
-     WHERE ${clientServiceable('c')} AND ${agencyServiceable(sql.raw('c.agency_id'))} AND c.self_competitor_id IS NOT NULL
+     WHERE ${clientWorkAllowed('c')} AND ${agencyServiceable(sql.raw('c.agency_id'))} AND c.self_competitor_id IS NOT NULL
     ON CONFLICT DO NOTHING`);
   await fillSelfDomains(db);
   return linked;

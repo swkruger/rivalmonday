@@ -1,4 +1,4 @@
-import { agencyServiceable, clientServiceable, client, type Db, type RankResult, rankMapImage, rankScan, type RankScanTrigger, rankSnapshot } from '@cs/db';
+import { agencyServiceable, clientWorkAllowed, client, type Db, type RankResult, rankMapImage, rankScan, type RankScanTrigger, rankSnapshot } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { and, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import { recordVendorCapture } from '../evidence/vendor-capture';
@@ -143,7 +143,7 @@ export async function listRankClients(db: Db): Promise<string[]> {
   const rows = await db
     .select({ id: client.id })
     .from(client)
-    .where(sql`${client.serviceArea} IS NOT NULL AND jsonb_array_length(${client.keywords}) > 0 AND ${clientServiceable(client)} AND ${agencyServiceable(client.agencyId)}`);
+    .where(sql`${client.serviceArea} IS NOT NULL AND jsonb_array_length(${client.keywords}) > 0 AND ${clientWorkAllowed(client)} AND ${agencyServiceable(client.agencyId)}`);
   return rows.map((r) => r.id);
 }
 

@@ -1,5 +1,5 @@
 import { agencyBilling, client, competitor, competitorSource } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, spendPauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { claimDueSources, markSourceResult, releaseSources } from './due';
@@ -110,6 +110,20 @@ describe('claimDueSources and a paused client (9b)', () => {
     expect((await claimDueSources(dbs.service, 10)).length).toBeGreaterThan(0);
     await dbs.service.update(competitorSource).set({ nextDueAt: sql`now() - interval '1 minute'` });
     for (const id of [IDS.clientA1, IDS.clientA2, IDS.clientB1]) await pauseClient(dbs.owner, id);
+    expect(await claimDueSources(dbs.service, 10)).toEqual([]);
+  });
+});
+
+describe('claimDueSources and a spend-paused client (7b1)', () => {
+  it('shared competitor still collected while one tracker is workable', async () => {
+    for (const id of [IDS.clientA1, IDS.clientA2]) await spendPauseClient(dbs.owner, id);
+    expect(await claimDueSources(dbs.service, 10)).toEqual([{ competitorId: IDS.competitorX, source: 'gbp' }]);
+  });
+  it('not collected when every tracker is spend-paused (own-business sources too)', async () => {
+    const [sa] = await dbs.owner.insert(competitor).values({ name: 'A Self' }).returning();
+    await dbs.owner.update(client).set({ selfCompetitorId: sa!.id }).where(eq(client.id, IDS.clientA1));
+    await dbs.service.insert(competitorSource).values({ competitorId: sa!.id, source: 'gbp', nextDueAt: sql`now() - interval '1 minute'` });
+    for (const id of [IDS.clientA1, IDS.clientA2, IDS.clientB1]) await spendPauseClient(dbs.owner, id);
     expect(await claimDueSources(dbs.service, 10)).toEqual([]);
   });
 });
