@@ -6,13 +6,17 @@ What is built: [ARCHITECTURE.md](ARCHITECTURE.md). All commands run from the rep
 
 | DB | Use |
 |---|---|
-| `cs_dev` | Live dev data (real vendor pulls for Aire Serv). Owner verification runs here. Latest migration `0037`; run `pnpm db:migrate` if it is behind. |
+| `cs_dev` | Live dev data (real vendor pulls for Aire Serv). Owner verification runs here. Run `pnpm db:migrate` if it is behind. |
 | `cs_test` | Test suites. Snapshot restore never targets a `_test` database. |
 | `cs_demo` | Fictional HVAC/plumbing demo data, rebuilt by `pnpm demo:reset`. |
 
 After migration `0084` (15b-3a topic rename): run `pnpm --filter @cs/db migrate`, then `pnpm --filter @cs/db topic-leftovers` against `cs_dev`; it prints nothing when the rename has fully landed (exit 1 and the table list otherwise).
 - Pre-check before migrating `cs_dev`: `SELECT v.id, t->>'id' FROM vertical v, jsonb_array_elements(CASE WHEN jsonb_typeof(v.config->'themes') = 'array' THEN v.config->'themes' ELSE '[]' END) t WHERE t->>'id' IN ('fix_theme','theme_weakness','theme_strength');` must return no rows (a topic with such a literal id would be rewritten).
 - Order: stop the worker, migrate, deploy web + worker together, then run `topic-leftovers`. The backfill blocks are idempotent; re-run the migration's SQL if an old worker wrote old-shape rows.
+
+After 15b-3b (migrations `generic_topic_id` and `review_checked_at`, next free numbers): same order (stop worker, `pnpm --filter @cs/db migrate`, deploy web + worker), then `pnpm --filter @cs/db topic-leftovers` (prints nothing) and `pnpm kb:seed` (drops the old `page:platform.themes` row).
+- Expect a one-off re-ask wave: 0084 bumped `vertical.updated_at`, so about 1,375 reviews on `cs_dev` are re-asked once (`[engine-reask]` log lines, Jev first), capped at 2,000 reviews/day (`REASK_DAILY_MAX`), about 0.7 day.
+- Watch it: `SELECT count(DISTINCT review_id) FROM review_analysis WHERE checked_at >= date_trunc('day', now())`; `llm_call` rows with purpose `review_decisions` have `vertical_id` and no `client_id`.
 
 ## CS Dev Verification Agency / Client (`cs_dev`)
 
