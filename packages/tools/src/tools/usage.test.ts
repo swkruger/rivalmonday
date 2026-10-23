@@ -18,22 +18,62 @@ beforeEach(async () => {
   await seedTenancy(dbs.owner);
 });
 
-type Usage = { month: string; items: { clientId: string; spend: { monthToDateUsd: number; capUsd: number; level: string }; competitorLimit: number; competitors: number; questions: { used: number; quota: number } }[]; agencyLevelUsd: number | null };
+type Credits = { used: number; limit: number; ratio: number; level: string };
+type Usage = { month: string; items: { clientId: string; credits: Credits; competitorLimit: number; competitors: number; questions: { used: number; quota: number } }[]; agencyLevelCredits: number | null; totalCredits: number };
+const spendRow = (clientId: string | null, costUsd: number, provider = 'p') => ({ agencyId: IDS.agencyA, clientId, task: 't', provider, model: 'm', inputTokens: 1, outputTokens: 1, costUsd, latencyMs: 1, ok: true });
 
 describe('get_usage', () => {
-  it('shows spend vs cap per client in scope; agency-level spend only for scope all', async () => {
+  it('get_usage returns integer credits at 100 per USD; agency-level credits only for scope all', async () => {
     await dbs.owner.update(client).set({ spendLimitUsd: 10 }).where(eq(client.id, IDS.clientA1));
-    await dbs.owner.insert(llmCall).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, task: 't', provider: 'p', model: 'm', inputTokens: 1, outputTokens: 1, costUsd: 8.5, latencyMs: 1, ok: true });
+    await dbs.owner.insert(llmCall).values([spendRow(IDS.clientA1, 8.5), spendRow(null, 0.4)]);
     const all = (await registry.invoke(admin, 'get_usage', {})) as Usage;
     const a1 = all.items.find((i) => i.clientId === IDS.clientA1)!;
-    expect(a1.spend).toMatchObject({ monthToDateUsd: 8.5, capUsd: 10, level: 'warning' });
+    expect(a1.credits).toMatchObject({ used: 850, limit: 1000, level: 'near' });
+    expect(a1.credits.ratio).toBeCloseTo(0.85);
     expect(a1).toMatchObject({ competitorLimit: 5, competitors: 1, questions: { used: 0, quota: 100 } });
     expect(all.items.map((i) => i.clientId).sort()).toEqual([IDS.clientA1, IDS.clientA2].sort());
-    expect(all.agencyLevelUsd).toBe(0);
+    expect(all.agencyLevelCredits).toBe(40);
+    expect(all.totalCredits).toBe(850 + 0 + 40);
     const scoped = (await registry.invoke(am, 'get_usage', {})) as Usage;
     expect(scoped.items.map((i) => i.clientId)).toEqual([IDS.clientA1]);
-    expect(scoped.agencyLevelUsd).toBeNull();
+    expect(scoped.agencyLevelCredits).toBeNull();
+    expect(scoped.totalCredits).toBe(850);
     await expect(registry.invoke(owner, 'get_usage', {})).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('level near at 80 %, reached at 100 %, paused when spend_paused_at set', async () => {
+    await dbs.owner.update(client).set({ spendLimitUsd: 10, spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA2));
+    await dbs.owner.insert(llmCall).values([spendRow(IDS.clientA1, 7.99)]);
+    const lvl = async () => {
+      const r = (await registry.invoke(admin, 'get_usage', {})) as Usage;
+      return [r.items.find((i) => i.clientId === IDS.clientA1)!.credits.level, r.items.find((i) => i.clientId === IDS.clientA2)!.credits.level];
+    };
+    await dbs.owner.update(client).set({ spendLimitUsd: 10 }).where(eq(client.id, IDS.clientA1));
+    expect(await lvl()).toEqual(['ok', 'paused']);
+    await dbs.owner.insert(llmCall).values([spendRow(IDS.clientA1, 0.01)]);
+    expect((await lvl())[0]).toBe('near');
+    await dbs.owner.insert(llmCall).values([spendRow(IDS.clientA1, 2)]);
+    expect((await lvl())[0]).toBe('reached');
+  });
+
+  it('override limit used, else default', async () => {
+    await dbs.owner.update(client).set({ spendLimitUsd: 20 }).where(eq(client.id, IDS.clientA1));
+    const r = (await registry.invoke(admin, 'get_usage', {})) as Usage;
+    expect(r.items.find((i) => i.clientId === IDS.clientA1)!.credits.limit).toBe(2000);
+    expect(r.items.find((i) => i.clientId === IDS.clientA2)!.credits.limit).toBe(1500);
+  });
+
+  it('excludes Jev spend from credits', async () => {
+    await dbs.owner.insert(llmCall).values([spendRow(IDS.clientA1, 5, 'jev'), spendRow(null, 5, 'jev'), spendRow(IDS.clientA1, 1)]);
+    const r = (await registry.invoke(admin, 'get_usage', {})) as Usage;
+    expect(r.items.find((i) => i.clientId === IDS.clientA1)!.credits.used).toBe(100);
+    expect(r.agencyLevelCredits).toBe(0);
+  });
+
+  it('no usd keys or dollar text', async () => {
+    await dbs.owner.insert(llmCall).values([spendRow(IDS.clientA1, 3.3)]);
+    const out = JSON.stringify(await registry.invoke(admin, 'get_usage', {}));
+    expect(out).not.toMatch(/usd|\$|rival monday/i);
   });
 });
 
@@ -86,7 +126,7 @@ describe('set_client_limits (Review Focus 4)', () => {
   });
 
   it('refuses bad numbers, AMs, client roles and other agencies’ clients, changing nothing', async () => {
-    for (const bad of [{ monthlyCapUsd: 0 }, { monthlyCapUsd: -5 }, { monthlyCapUsd: 1e9 }, { monthlyCapUsd: Number.NaN }, { competitorLimit: 0 }, { competitorLimit: 11 }, { competitorLimit: 2.5 }, {}]) {
+    for (const bad of [{ monthlyCapUsd: 0 }, { monthlyCapUsd: -5 }, { monthlyCapUsd: 10_001 }, { monthlyCapUsd: Number.NaN }, { competitorLimit: 0 }, { competitorLimit: 11 }, { competitorLimit: 2.5 }, {}]) {
       await expect(registry.invoke(admin, 'set_client_limits', { clientId: IDS.clientA1, ...bad })).rejects.toMatchObject({ code: 'invalid_input' });
     }
     await expect(registry.invoke(am, 'set_client_limits', { clientId: IDS.clientA1, competitorLimit: 6 })).rejects.toMatchObject({ code: 'permission_denied' });

@@ -7,7 +7,7 @@ import { getSetupState } from '../setup/state';
 import { combinePressure, pressureByClient } from '../pressure';
 import { monthStart, spendByClient } from '../usage';
 import { PortfolioRow } from './schemas';
-import { spendView } from './usage';
+import { creditsView } from './usage';
 
 const { defineTool } = toolkit<ToolDeps>();
 /** Drizzle's `max()` over a timestamp can come back as a string depending on driver/dialect; normalise before comparing. */
@@ -27,7 +27,7 @@ export const getPortfolio = defineTool({
     const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
     const since = monthStart(now);
     return withTenant(deps.app, ctx, async (tx) => {
-      const clients = await tx.select({ id: client.id, name: client.name, verticalId: client.verticalId, cap: client.spendLimitUsd }).from(client).where(eq(client.status, 'active')).orderBy(asc(client.name));
+      const clients = await tx.select({ id: client.id, name: client.name, verticalId: client.verticalId, cap: client.spendLimitUsd, spendPausedAt: client.spendPausedAt }).from(client).where(eq(client.status, 'active')).orderBy(asc(client.name));
       const ids = clients.map((c) => c.id);
       if (ids.length === 0) return { items: [] };
       const settings = await readSpendGuardSettings(deps.service);
@@ -62,7 +62,7 @@ export const getPortfolio = defineTool({
             alertsPending: p.get(c.id)?.n ?? 0, alertsDelivered7d: d.get(c.id)?.n ?? 0,
             briefToApprove: readyBrief ? { id: readyBrief.id, deliveryDate: readyBrief.deliveryDate } : null,
             openRecommendations: r.get(c.id)?.n ?? 0, lastActivityAt: last ? last.toISOString() : null,
-            spend: spendView(spend.get(c.id) ?? 0, effectiveLimitUsd(c.cap, settings)), setup: setupBy.get(c.id) ?? null,
+            credits: creditsView(spend.get(c.id) ?? 0, effectiveLimitUsd(c.cap, settings), c.spendPausedAt, settings), setup: setupBy.get(c.id) ?? null,
           };
         }),
       };

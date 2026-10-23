@@ -84,7 +84,7 @@ const { default: Leads } = await import('./leads/page');
 
 const ROW = {
   clientId: C, name: 'Lone Star Cooling', verticalId: 'hvac_plumbing', pressure: { score: 12, level: 'low', reasons: ['Quiet'] }, topCompetitor: null,
-  spend: { monthToDateUsd: 1, capUsd: 20, ratio: 0.05, level: 'ok' }, alertsPending: 0, alertsDelivered7d: 0, briefToApprove: null, openRecommendations: 0, lastActivityAt: null, setup: null,
+  credits: { used: 100, limit: 2000, ratio: 0.05, level: 'ok' }, alertsPending: 0, alertsDelivered7d: 0, briefToApprove: null, openRecommendations: 0, lastActivityAt: null, setup: null,
 };
 const PAGES = [
   ['agency.portfolio', () => Portfolio()],

@@ -63,10 +63,11 @@ describe('get_portfolio', () => {
     await expect(registry.invoke(ctx('client_owner', [IDS.clientA1]), 'get_portfolio', {})).rejects.toMatchObject({ code: 'not_found' });
   });
 
-  it('includes month-to-date spend against the cap', async () => {
+  it('includes month-to-date credits against the limit, no dollars', async () => {
     await dbs.owner.insert(llmCall).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, task: 't', provider: 'p', model: 'm', inputTokens: 1, outputTokens: 1, costUsd: 16, latencyMs: 1, ok: true });
-    const { items } = (await registry.invoke(admin, 'get_portfolio', {})) as { items: { clientId: string; spend: { level: string; monthToDateUsd: number } }[] };
-    expect(items.find((i) => i.clientId === IDS.clientA1)!.spend).toMatchObject({ level: 'over', monthToDateUsd: 16 });
+    const { items } = (await registry.invoke(admin, 'get_portfolio', {})) as { items: { clientId: string; credits: { level: string; used: number; limit: number } }[] };
+    expect(items.find((i) => i.clientId === IDS.clientA1)!.credits).toMatchObject({ level: 'reached', used: 1600, limit: 1500 });
+    expect(JSON.stringify(items)).not.toMatch(/usd|\$|rival monday/i);
   });
 
   it('leaves prospects off the portfolio (5b-2 decision 9)', async () => {

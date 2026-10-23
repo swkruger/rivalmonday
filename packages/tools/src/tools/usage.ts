@@ -1,32 +1,42 @@
-import { canAccessClient, toolkit, ToolError } from '@cs/core';
-import { askMessage, client, clientCompetitor, effectiveLimitUsd, readSpendGuardSettings, withTenant } from '@cs/db';
+import { canAccessClient, spendLevel, toolkit, ToolError, usdToCredits } from '@cs/core';
+import { askMessage, client, clientCompetitor, effectiveLimitUsd, readSpendGuardSettings, type SpendGuardSettings, withTenant } from '@cs/db';
 import { and, asc, count, eq, gte, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
-import { MAX_COMPETITOR_LIMIT, MAX_MONTHLY_CAP_USD } from '../limits';
-import { agencyLevelSpend, monthStart, spendByClient, spendLevel } from '../usage';
-import { UsageRow } from './schemas';
+import { MAX_COMPETITOR_LIMIT } from '../limits';
+import { agencyLevelSpend, monthStart, spendByClient } from '../usage';
+import { SpendCredits, UsageRow } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
 const MAX_ASK_QUOTA = 100_000;
 const round2 = (n: number) => Math.round(n * 100) / 100;
+/** Until Task 5 replaces `set_client_limits` dollar input: the spec's per-client override bound (0, 10000]. */
+const MAX_LIMIT_USD = 10_000;
 
-export const spendView = (spent: number, cap: number) => ({ monthToDateUsd: round2(spent), capUsd: cap, ratio: cap > 0 ? spent / cap : 0, level: spendLevel(spent, cap) });
+/** What tenants see of one client's month: integer credits and a calm level (spec d1/d5). */
+export function creditsView(spentUsd: number, limitUsd: number, pausedAt: Date | null, s: SpendGuardSettings): SpendCredits {
+  return {
+    used: usdToCredits(spentUsd, s.creditsPerUsd),
+    limit: usdToCredits(limitUsd, s.creditsPerUsd),
+    ratio: limitUsd > 0 ? spentUsd / limitUsd : 0,
+    level: spendLevel(spentUsd, limitUsd, pausedAt),
+  };
+}
 
 export const getUsage = defineTool({
   name: 'get_usage',
   access: 'read',
-  description: 'This month’s AI and data spend per client against its monthly cap, plus competitor limits.',
+  description: 'This month’s credits used per client against its monthly credit limit, plus competitor limits.',
   input: z.object({}),
-  output: z.object({ month: z.string(), items: z.array(UsageRow), agencyLevelUsd: z.number().nullable() }),
+  output: z.object({ month: z.string(), items: z.array(UsageRow), agencyLevelCredits: z.number().int().nullable(), totalCredits: z.number().int() }),
   permission: 'agency',
   channels: ['web', 'mcp', 'ask'],
   async handler(ctx, _input, deps) {
     const now = new Date();
     const since = monthStart(now);
     const clients = await withTenant(deps.app, ctx, (tx) =>
-      tx.select({ id: client.id, name: client.name, status: client.status, cap: client.spendLimitUsd, limit: client.competitorLimit, askQuota: client.askMonthlyQuota }).from(client).orderBy(asc(client.name)));
+      tx.select({ id: client.id, name: client.name, status: client.status, cap: client.spendLimitUsd, limit: client.competitorLimit, askQuota: client.askMonthlyQuota, spendPausedAt: client.spendPausedAt }).from(client).orderBy(asc(client.name)));
     const ids = clients.map((c) => c.id);
     const settings = await readSpendGuardSettings(deps.service);
     const [spend, links, asked] = await Promise.all([
@@ -41,14 +51,12 @@ export const getUsage = defineTool({
     ]);
     const questionsUsed = new Map(asked.map((l) => [l.id, l.n]));
     const competitors = new Map(links.map((l) => [l.id, l.n]));
-    return {
-      month: since.toISOString().slice(0, 7),
-      items: clients.map((c) => ({
-        clientId: c.id, name: c.name, status: c.status, spend: spendView(spend.get(c.id) ?? 0, effectiveLimitUsd(c.cap, settings)), competitorLimit: c.limit, competitors: competitors.get(c.id) ?? 0,
-        questions: { used: questionsUsed.get(c.id) ?? 0, quota: c.askQuota },
-      })),
-      agencyLevelUsd: ctx.clientScope === 'all' ? round2(await agencyLevelSpend(deps.service, ctx.agencyId, since)) : null,
-    };
+    const items = clients.map((c) => ({
+      clientId: c.id, name: c.name, status: c.status, credits: creditsView(spend.get(c.id) ?? 0, effectiveLimitUsd(c.cap, settings), c.spendPausedAt, settings),
+      competitorLimit: c.limit, competitors: competitors.get(c.id) ?? 0, questions: { used: questionsUsed.get(c.id) ?? 0, quota: c.askQuota },
+    }));
+    const agencyLevelCredits = ctx.clientScope === 'all' ? usdToCredits(await agencyLevelSpend(deps.service, ctx.agencyId, since), settings.creditsPerUsd) : null;
+    return { month: since.toISOString().slice(0, 7), items, agencyLevelCredits, totalCredits: items.reduce((n, i) => n + i.credits.used, 0) + (agencyLevelCredits ?? 0) };
   },
 });
 
@@ -65,7 +73,7 @@ export const setClientLimits = defineTool({
     const patch: { spendLimitUsd?: number; competitorLimit?: number; askMonthlyQuota?: number } = {};
     if (input.monthlyCapUsd !== undefined) {
       const cap = round2(input.monthlyCapUsd);
-      if (!Number.isFinite(cap) || cap < 1 || cap > MAX_MONTHLY_CAP_USD) throw new ToolError('invalid_input', `The monthly cap must be between $1 and $${MAX_MONTHLY_CAP_USD}`);
+      if (!Number.isFinite(cap) || cap < 1 || cap > MAX_LIMIT_USD) throw new ToolError('invalid_input', `The monthly cap must be between $1 and $${MAX_LIMIT_USD}`);
       patch.spendLimitUsd = cap; // until Task 5: the monthlyCapUsd input writes the per-client override
     }
     if (input.competitorLimit !== undefined) {

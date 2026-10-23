@@ -4,12 +4,15 @@ import { describe, expect, it } from 'vitest';
 import { SpendBadge } from './spend-badge';
 
 describe('SpendBadge', () => {
-  it('shows the percentage and a warning/over label', () => {
-    const { rerender } = render(<SpendBadge spend={{ monthToDateUsd: 3, capUsd: 15, ratio: 0.2, level: 'ok' }} />);
+  it('shows the percentage and a near/reached/paused label, never red or orange', () => {
+    const { rerender, container } = render(<SpendBadge credits={{ used: 300, limit: 1500, ratio: 0.2, level: 'ok' }} />);
     expect(screen.getByText('20%')).toBeTruthy();
-    rerender(<SpendBadge spend={{ monthToDateUsd: 12.5, capUsd: 15, ratio: 12.5 / 15, level: 'warning' }} />);
-    expect(screen.getByText(/83% · near cap/)).toBeTruthy();
-    rerender(<SpendBadge spend={{ monthToDateUsd: 16, capUsd: 15, ratio: 16 / 15, level: 'over' }} />);
-    expect(screen.getByText(/107% · over cap/)).toBeTruthy();
+    rerender(<SpendBadge credits={{ used: 1250, limit: 1500, ratio: 1250 / 1500, level: 'near' }} />);
+    expect(screen.getByText(/83% · near limit/)).toBeTruthy();
+    rerender(<SpendBadge credits={{ used: 1600, limit: 1500, ratio: 1600 / 1500, level: 'reached' }} />);
+    expect(screen.getByText(/107% · limit reached/)).toBeTruthy();
+    rerender(<SpendBadge credits={{ used: 2000, limit: 1500, ratio: 2000 / 1500, level: 'paused' }} />);
+    expect(screen.getByText(/133% · paused/)).toBeTruthy();
+    expect(container.innerHTML).not.toMatch(/amber|destructive|orange|red/);
   });
 });

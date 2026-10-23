@@ -159,6 +159,8 @@ set_client_price (client-billing.ts) | write | creates connected price; updates 
 get_client_revenue (client-billing.ts) | read | stored client_billing + 9a plan read only; agency admin
 list_client_billing_status (client-billing.ts) | read | stored client_billing read only; AM payload has no amounts
 get_my_billing (my-billing.ts) | read | stored client_billing + optional live subscription read; client owner only
+get_my_usage (my-usage.ts) | read | read-only (ledger sums + client row); agency roles and the client owner, credits only
+get_spend_status (my-usage.ts) | read | read-only (client rows); credits-paused clients visible to the caller
 open_billing_portal (my-billing.ts) | write | creates connected portal session; client owner only
 list_plans (platform-billing.ts) | read | read-only; platform operator
 list_discount_codes (platform-billing.ts) | read | read-only; platform operator

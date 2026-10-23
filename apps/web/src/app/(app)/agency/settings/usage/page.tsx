@@ -1,4 +1,3 @@
-import { formatMoney } from '@/lib/format';
 import { isAgencyRole } from '@cs/core';
 import type { UsageRow } from '@cs/tools';
 import { StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
@@ -29,9 +28,9 @@ const COPY = PAGE_COPY['agency.settings.usage'];
 export default async function UsagePage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const [{ month, items, agencyLevelUsd }, guides] = await Promise.all([callTool<{ month: string; items: UsageRow[]; agencyLevelUsd: number | null }>(ctx, 'get_usage', {}), helpGuides(ctx, 'agency')]);
-  const atWarning = items.filter((r) => r.spend.level === 'warning').length;
-  const atOver = items.filter((r) => r.spend.level === 'over').length;
+  const [{ month, items, agencyLevelCredits }, guides] = await Promise.all([callTool<{ month: string; items: UsageRow[]; agencyLevelCredits: number | null; totalCredits: number }>(ctx, 'get_usage', {}), helpGuides(ctx, 'agency')]);
+  const atWarning = items.filter((r) => r.credits.level === 'near').length;
+  const atOver = items.filter((r) => (r.credits.level === 'reached' || r.credits.level === 'paused')).length;
 
   return (
     <>
@@ -115,10 +114,10 @@ export default async function UsagePage() {
                 )}
               </TableCell>
               <TableCell>
-                {formatMoney(row.spend.monthToDateUsd, { cents: true })} of {formatMoney(row.spend.capUsd, { cents: true })}
+                {row.credits.used} of {row.credits.limit} credits
               </TableCell>
               <TableCell>
-                <SpendBadge spend={row.spend} />
+                <SpendBadge credits={row.credits} />
               </TableCell>
               <TableCell>
                 {row.competitors} of {row.competitorLimit}
@@ -130,7 +129,7 @@ export default async function UsagePage() {
               {ctx.role === 'agency_admin' && (
                 <WriteGuard>
                   <TableCell>
-                    <LimitsForm key={row.clientId} action={saveLimitsAction} clientId={row.clientId} clientName={row.name} capUsd={row.spend.capUsd} competitorLimit={row.competitorLimit} askQuota={row.questions.quota} />
+                    <LimitsForm key={row.clientId} action={saveLimitsAction} clientId={row.clientId} clientName={row.name} capUsd={row.credits.limit / 100 /* temporary until Task 5/11: the limits form still writes dollars */} competitorLimit={row.competitorLimit} askQuota={row.questions.quota} />
                   </TableCell>
                 </WriteGuard>
               )}
@@ -142,7 +141,7 @@ export default async function UsagePage() {
 
       <p className="text-muted-ink">
         Shared monitoring of competitors (Google profile, reviews, ads) and the intelligence engine’s shared work are not yet split across clients; they’ll be allocated in a later release.
-        {agencyLevelUsd !== null && <> Agency-level spend not tied to a client: {formatMoney(agencyLevelUsd, { cents: true })}</>}
+        {agencyLevelCredits !== null && <> Agency-level credits not tied to a client: {agencyLevelCredits}</>}
       </p>
     </>
   );

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const A = '11111111-1111-4111-8111-111111111111';
 const C = '22222222-2222-4222-8222-222222222222';
-const row = { clientId: C, name: 'Target Plumbing', verticalId: 'dental', pressure: { score: 1, level: 'low', reasons: [] }, topCompetitor: null, spend: null, alertsPending: 0, alertsDelivered7d: 0, briefToApprove: null, openRecommendations: 0, lastActivityAt: null };
+const row = { clientId: C, name: 'Target Plumbing', verticalId: 'dental', pressure: { score: 1, level: 'low', reasons: [] }, topCompetitor: null, credits: null, alertsPending: 0, alertsDelivered7d: 0, briefToApprove: null, openRecommendations: 0, lastActivityAt: null };
 const state = { role: 'agency_admin' as 'agency_admin' | 'account_manager' };
 
 const callTool = vi.fn(async (_ctx: unknown, name: string): Promise<unknown> => {

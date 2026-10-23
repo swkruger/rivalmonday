@@ -1,7 +1,7 @@
 import { llmCall, vendorCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { agencyLevelSpend, monthStart, spendByClient, spendLevel } from './usage';
+import { agencyLevelSpend, monthStart, spendByClient } from './usage';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -22,11 +22,6 @@ describe('usage math', () => {
   it('starts the month at 00:00 UTC on the 1st', () => {
     expect(monthStart(new Date('2026-10-07T15:00:00Z')).toISOString()).toBe('2026-10-01T00:00:00.000Z');
     expect(monthStart(new Date('2026-01-01T00:00:00Z')).toISOString()).toBe('2026-01-01T00:00:00.000Z');
-  });
-  it('warns at 80 % and is over at 100 %', () => {
-    expect(spendLevel(11.99, 15)).toBe('ok');
-    expect(spendLevel(12, 15)).toBe('warning');
-    expect(spendLevel(15, 15)).toBe('over');
   });
 });
 

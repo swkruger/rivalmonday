@@ -60,7 +60,7 @@ const tool = async (_ctx: unknown, name: string) => {
     case 'get_agency_branding': return { stored: {}, resolved: { displayName: 'Cool Comfort' } };
     case 'list_webhooks': return { items: m.webhooks };
     case 'get_team': return m.team;
-    case 'get_usage': return { month: '2026-10', items: m.usage, agencyLevelUsd: null };
+    case 'get_usage': return { month: '2026-10', items: m.usage, agencyLevelCredits: null, totalCredits: 400 };
     default: return { items: [] };
   }
 };
@@ -76,7 +76,7 @@ const { default: SlackTeams } = await import('./settings/slack-teams/page');
 const { default: Team } = await import('./settings/team/page');
 const { default: Usage } = await import('./settings/usage/page');
 
-const USAGE_ROW = { clientId: 'c1', name: 'Lone Star Cooling', status: 'active', spend: { monthToDateUsd: 3, capUsd: 15, ratio: 0.2, level: 'ok' }, competitorLimit: 5, competitors: 2, questions: { used: 4, quota: 100 } };
+const USAGE_ROW = { clientId: 'c1', name: 'Lone Star Cooling', status: 'active', credits: { used: 300, limit: 1500, ratio: 0.2, level: 'ok' }, competitorLimit: 5, competitors: 2, questions: { used: 4, quota: 100 } };
 const PAGES = [
   ['agency.settings.ai', () => Ai(), 'agency'],
   ['agency.settings.billing', () => Billing({ searchParams: Promise.resolve({}) }), 'admin'],

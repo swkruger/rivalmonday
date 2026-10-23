@@ -12,3 +12,4 @@ export * from './tokens';
 export * from './invite-offer';
 export * from './help';
 export * from './units';
+export * from './spend';

@@ -127,7 +127,7 @@ export default async function AgencyPortfolioPage() {
                   <ClientName row={row} labels={verticalLabels} />
                   <Pressure row={row} />
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
-                    <Field label="Budget"><SpendBadge spend={row.spend} /></Field>
+                    <Field label="Budget"><SpendBadge credits={row.credits} /></Field>
                     <Field label="Alerts"><Alerts row={row} /></Field>
                     <Field label="Brief"><Brief row={row} /></Field>
                     <Field label="Open actions"><OpenActions row={row} /></Field>
@@ -156,7 +156,7 @@ export default async function AgencyPortfolioPage() {
                     <TableRow key={row.clientId}>
                       <TableCell><ClientName row={row} labels={verticalLabels} /></TableCell>
                       <TableCell className="whitespace-normal"><Pressure row={row} /></TableCell>
-                      <TableCell><SpendBadge spend={row.spend} /></TableCell>
+                      <TableCell><SpendBadge credits={row.credits} /></TableCell>
                       <TableCell><Alerts row={row} /></TableCell>
                       <TableCell className="whitespace-normal"><Brief row={row} /></TableCell>
                       <TableCell><OpenActions row={row} /></TableCell>

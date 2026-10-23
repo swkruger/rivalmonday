@@ -137,11 +137,12 @@ export const RecommendationView = z.object({
 });
 export type RecommendationView = z.infer<typeof RecommendationView>;
 
-export const SpendView = z.object({ monthToDateUsd: z.number(), capUsd: z.number(), ratio: z.number(), level: z.enum(['ok', 'warning', 'over']) });
-export type SpendView = z.infer<typeof SpendView>;
+/** 7b1: what tenants see of spend — integer credits and a calm level, never dollars. */
+export const SpendCredits = z.object({ used: z.number().int(), limit: z.number().int(), ratio: z.number(), level: z.enum(['ok', 'near', 'reached', 'paused']) });
+export type SpendCredits = z.infer<typeof SpendCredits>;
 
 export const UsageRow = z.object({
-  clientId: uuid, name: z.string(), status: z.enum(['active', 'prospect']), spend: SpendView, competitorLimit: z.number().int(), competitors: z.number().int(),
+  clientId: uuid, name: z.string(), status: z.enum(['active', 'prospect']), credits: SpendCredits, competitorLimit: z.number().int(), competitors: z.number().int(),
   /** Counting Ask questions this UTC month vs the client's monthly quota. Agency-only: get_usage never reaches client roles. */
   questions: z.object({ used: z.number().int(), quota: z.number().int() }),
 });
@@ -171,7 +172,7 @@ export const PressureView = z.object({ score: z.number().int(), level: z.enum(['
 export const PortfolioRow = z.object({
   clientId: uuid, name: z.string(), verticalId: z.string(), pressure: PressureView, topCompetitor: z.string().nullable(),
   alertsPending: z.number().int(), alertsDelivered7d: z.number().int(), briefToApprove: z.object({ id: uuid, deliveryDate: z.string() }).nullable(),
-  openRecommendations: z.number().int(), lastActivityAt: iso.nullable(), spend: SpendView,
+  openRecommendations: z.number().int(), lastActivityAt: iso.nullable(), credits: SpendCredits,
   /** Phase 11a/11b: set while the client's setup wizard is open (doneSteps counts done or skipped of totalSteps: 5, 4 for prospects); null otherwise. */
   setup: z.object({ open: z.literal(true), doneSteps: z.number().int().min(0).max(5), totalSteps: z.union([z.literal(4), z.literal(5)]) }).nullable(),
 });
