@@ -11,8 +11,8 @@ export function PlatformSpendAlertEmail(p: PlatformSpendAlertProps) {
   return (
     <Layout branding={p.branding} title={p.title} preview={p.title} footer="Platform spend alert">
       <Text style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>{p.title}</Text>
-      {p.lines.map((l) => (
-        <Text key={l}>{l}</Text>
+      {p.lines.map((l, i) => (
+        <Text key={i}>{l}</Text>
       ))}
       <Button href={p.url} style={button(p.branding)}>
         Open usage

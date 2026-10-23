@@ -13,15 +13,15 @@ const WRITE_TOOLS = [
   'revoke_invite_link', 'set_client_billing_defaults', 'set_client_price', 'set_connect_fee_percent', 'set_seat_cap_exempt', 'send_competitor_review', 'set_signups_paused', 'start_stripe_connect',
   'refresh_platform_costs', 'reorder_brief_items', 'request_competitor_suggestions', 'request_rank_scan', 'resend_invitation', 'resolve_decision_review', 'revoke_api_token', 'revoke_invitation',
   'revoke_membership', 'revoke_oauth_grant', 'run_prospect_snapshot', 'save_platform_cost_item', 'save_setup_profile', 'send_brief_now', 'set_alert_rules', 'set_brief_auto_send',
-  'set_client_limits', 'set_kb_auto_sync', 'set_my_notification_pref', 'set_page_pin', 'set_support_access_notify', 'set_webhook_active', 'start_support_session', 'submit_feedback', 'test_webhook',
-  'update_agency_branding', 'update_agency_profile', 'update_client_delivery', 'update_platform_cost_service', 'update_client_profile', 'update_client_rank_settings', 'update_intake_link', 'update_my_contact',
+  'reset_ai_pause', 'set_client_limits', 'set_kb_auto_sync', 'set_my_notification_pref', 'set_page_pin', 'set_support_access_notify', 'set_webhook_active', 'start_support_session', 'submit_feedback', 'test_webhook',
+  'update_agency_branding', 'update_agency_profile', 'update_spend_guard_settings', 'update_client_delivery', 'update_platform_cost_service', 'update_client_profile', 'update_client_rank_settings', 'update_intake_link', 'update_my_contact',
   'add_runbook_item', 'dismiss_runbook_update', 'pull_runbook_update', 'remove_runbook_item', 'retailor_runbook_item', 'set_runbook_item_enabled', 'update_runbook_item',
   'update_recommendation_status', 'update_vertical', 'draft_vertical', 'review_vertical', 'review_business_area', 'merge_vertical', 'merge_business_area', 'upload_agency_logo', 'upsert_kb_article',
 ].sort();
 
 const ASK_THREAD_TOOLS = ['delete_my_ask_thread', 'get_ask_starters', 'get_my_ask_thread', 'list_my_ask_threads'];
 const PLATFORM_COST_TOOLS = ['archive_platform_cost_item', 'list_platform_costs', 'refresh_platform_costs', 'save_platform_cost_item', 'update_platform_cost_service'];
-const SUPPORT_HIDDEN_TOOLS = [...ASK_THREAD_TOOLS, ...PLATFORM_COST_TOOLS, 'get_client_limits', 'set_client_limits', 'list_support_sessions', 'get_platform_health'].sort();
+const SUPPORT_HIDDEN_TOOLS = [...ASK_THREAD_TOOLS, ...PLATFORM_COST_TOOLS, 'get_client_limits', 'set_client_limits', 'get_spend_guard', 'get_ai_guard_state', 'update_spend_guard_settings', 'reset_ai_pause', 'list_support_sessions', 'get_platform_health'].sort();
 
 /** Every key matching /email/i in a zod schema, as a support-mask path (`[]` for arrays). `stack` holds ancestors only, so a reused sub-schema is walked at each use. */
 function emailPaths(schema: z.ZodType, prefix = '', stack: readonly unknown[] = [], keyMatches: (k: string) => boolean = (k) => /email/i.test(k)): string[] {

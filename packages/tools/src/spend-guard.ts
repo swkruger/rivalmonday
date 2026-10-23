@@ -1,8 +1,8 @@
 import {
-  type AiGuardState, agency, billingNotice, client, type Db, effectiveLimitUsd, monthStart, pauseThresholdUsd, readAiGuardState,
-  readSpendGuardSettings, spendByClient, spendGuardEvent,
+  type AiGuardState, agency, agencyDailyStat, billingNotice, client, clientServiceable, type Db, effectiveLimitUsd, llmCall, monthStart, pauseThresholdUsd, readAiGuardState,
+  readSpendGuardSettings, SPEND_GUARD_EXCLUDED_PROVIDERS, type SpendGuardSettings, spendByClient, spendGuardEvent, writeAiGuardState,
 } from '@cs/db';
-import { and, eq, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, isNull, lt, notInArray, sql } from 'drizzle-orm';
 import { platformOperatorEmails } from './platform/costs/alerts';
 
 /** 7b1 (C9): what platform staff are emailed about a pause (USD allowed: staff only). */
@@ -39,7 +39,7 @@ const ONCE_PER_MONTH = {
  * prospect, not archived) record `client_reached` at the limit and pause at the threshold, with one agency notice and one staff
  * email per pause; lift when spend is back under the threshold (limit raised outside the tool). Never touches `paused_at`,
  * `paused_by`, seats or billing. The unique index is the only race guard: a run that loses the insert sends nothing.
- * Step 3 (platform spike guard) is Task 10's: it slots in before the return.
+ * Step 3: the platform spike guard (readSpikes + the ok/warn/paused state machine, spec d9-d12).
  */
 export async function runSpendGuard(deps: SpendGuardDeps, now: Date): Promise<SpendGuardSummary> {
   const db = deps.service;
@@ -53,7 +53,7 @@ export async function runSpendGuard(deps: SpendGuardDeps, now: Date): Promise<Sp
     const rolled = await tx
       .update(client)
       .set({ spendPausedAt: null })
-      .where(and(lt(client.spendPausedAt, start), isNull(client.archivedAt)))
+      .where(lt(client.spendPausedAt, start))
       .returning({ id: client.id, agencyId: client.agencyId, limit: client.spendLimitUsd });
     if (rolled.length === 0) return;
     await tx.insert(spendGuardEvent).values(
@@ -140,7 +140,122 @@ export async function runSpendGuard(deps: SpendGuardDeps, now: Date): Promise<Sp
     }
   }
 
-  // 3. (Task 10 inserts the platform spike guard here.)
-  out.spike = (await readAiGuardState(db)).state;
+  // 3. Platform spike guard.
+  out.spike = await runSpikeGuard(deps, now, settings);
   return out;
+}
+
+// ---- Platform spike guard (7b1 d9-d12) ----
+
+export type SpikeScope = 'total' | 'openrouter' | 'anthropic';
+export const SPIKE_PROVIDERS: Record<Exclude<SpikeScope, 'total'>, readonly string[]> = { openrouter: ['openrouter', 'llm'], anthropic: ['anthropic'] };
+export interface SpikeReading { scope: SpikeScope; observedUsd: number; baselineUsd: number; ratioPercent: number; floorOnly: boolean }
+
+const SCOPES: readonly SpikeScope[] = ['total', 'openrouter', 'anthropic'];
+const SCOPE_LABEL: Record<SpikeScope, string> = { total: 'all providers', openrouter: 'OpenRouter', anthropic: 'Anthropic' };
+const H = 3_600_000;
+const D = 24 * H;
+const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+/** llm_call cost in [from, to): `total` = every provider except the excluded ones; vendor scopes = their providers. `vendor_call` never. */
+async function sumLlm(db: Db, scope: SpikeScope, from: number, to: number): Promise<number> {
+  const providers = scope === 'total' ? notInArray(llmCall.provider, [...SPEND_GUARD_EXCLUDED_PROVIDERS]) : inArray(llmCall.provider, [...SPIKE_PROVIDERS[scope]]);
+  const [row] = await db
+    .select({ usd: sql<number>`coalesce(sum(${llmCall.costUsd}), 0)::float8` })
+    .from(llmCall)
+    .where(and(providers, gte(llmCall.createdAt, new Date(from)), lt(llmCall.createdAt, new Date(to))));
+  return Number(row?.usd ?? 0);
+}
+
+/**
+ * Rolling-24 h spend against a baseline (spec d9): the higher of the 7-day and same-weekday per-client-day rates times today's
+ * serviceable client count, floored by `spikeFloorUsdPerClientDay x N` and `spikeFloorUsdPerDay`. With under 7 days of
+ * `agency_daily_stat` history only the floors apply.
+ */
+export async function readSpikes(db: Db, now: Date, s: SpendGuardSettings): Promise<SpikeReading[]> {
+  const day0 = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const [nRow] = await db.select({ n: sql<number>`count(*)::int` }).from(client).where(clientServiceable(client));
+  const n = Number(nRow?.n ?? 0);
+  // 8 days back: the same-weekday window's midpoint can fall one day before the 7 full days.
+  const rows = await db
+    .select({ day: agencyDailyStat.day, clients: sql<number>`coalesce(sum(${agencyDailyStat.clientsActive}), 0)::int` })
+    .from(agencyDailyStat)
+    .where(and(gte(agencyDailyStat.day, isoDay(day0 - 8 * D)), lt(agencyDailyStat.day, isoDay(day0))))
+    .groupBy(agencyDailyStat.day);
+  const days = new Map(rows.map((r) => [r.day, Number(r.clients)]));
+  const weekStart = isoDay(day0 - 7 * D);
+  const week = rows.filter((r) => r.day >= weekStart);
+  const clientDays7 = week.reduce((a, r) => a + Number(r.clients), 0);
+  const historyOk = week.length >= 7 && clientDays7 > 0;
+  const floor = Math.max(s.spikeFloorUsdPerClientDay * n, s.spikeFloorUsdPerDay);
+  const out: SpikeReading[] = [];
+  for (const scope of SCOPES) {
+    const observedUsd = await sumLlm(db, scope, now.getTime() - D, now.getTime());
+    let rate = 0;
+    if (historyOk) {
+      const rate7 = (await sumLlm(db, scope, day0 - 7 * D, day0)) / clientDays7;
+      const wEnd = now.getTime() - 7 * D;
+      const wClients = days.get(isoDay(wEnd - 12 * H)) ?? 0;
+      const rateW = wClients > 0 ? (await sumLlm(db, scope, wEnd - D, wEnd)) / wClients : 0;
+      rate = Math.max(rate7, rateW);
+    }
+    const baselineUsd = Math.max(rate * n, floor);
+    out.push({ scope, observedUsd, baselineUsd, ratioPercent: Math.round((observedUsd / baselineUsd - 1) * 100), floorOnly: rate * n <= floor });
+  }
+  return out;
+}
+
+/** One run of the state machine; returns the resulting state. `paused` only ever clears via `reset_ai_pause`. */
+async function runSpikeGuard(deps: SpendGuardDeps, now: Date, s: SpendGuardSettings): Promise<AiGuardState['state']> {
+  const db = deps.service;
+  const cur = await readAiGuardState(db);
+  if (cur.state === 'paused') return 'paused';
+  const readings = await readSpikes(db, now, s);
+  const top = readings.reduce((a, r) => (r.ratioPercent > a.ratioPercent ? r : a));
+  const snoozed = cur.snoozeUntil !== undefined && new Date(cur.snoozeUntil).getTime() > now.getTime();
+  const snap = { scope: top.scope, observedUsd: top.observedUsd, baselineUsd: top.baselineUsd };
+  const url = `${deps.appUrl.replace(/\/+$/, '')}/platform/health`;
+  const numbers = `Observed ${usd(top.observedUsd)} in the last 24 hours against a baseline of ${usd(top.baselineUsd)}.`;
+  const keep = cur.snoozeUntil ? { snoozeUntil: cur.snoozeUntil } : {};
+  let alert: PlatformSpendAlertPayload | null = null;
+  let event: 'spike_paused' | 'spike_warn' | null = null;
+  let next: AiGuardState;
+
+  if (top.ratioPercent >= s.spikePausePercent && !snoozed) {
+    next = { state: 'paused', since: now.toISOString(), ...snap, ...keep };
+    event = 'spike_paused';
+    alert = {
+      kind: 'spike_paused',
+      title: 'All AI calls are paused after a spend spike',
+      lines: [`All AI calls are paused after a spend spike (${SCOPE_LABEL[top.scope]}). Queued work is waiting — reset on Health.`, numbers],
+      url,
+    };
+  } else if (top.ratioPercent >= s.spikeWarnPercent) {
+    const entering = cur.state === 'ok';
+    next = { state: 'warn', since: cur.state === 'warn' && cur.since ? cur.since : now.toISOString(), ...snap, ...keep };
+    if (entering) {
+      event = 'spike_warn';
+      alert = { kind: 'spike_warn', title: 'AI spend spike', lines: [`AI spend is ${top.ratioPercent}% above normal (${SCOPE_LABEL[top.scope]}).`, numbers], url };
+    }
+  } else {
+    next = { state: 'ok', ...keep };
+  }
+  await db.transaction(async (tx) => {
+    if (event) await tx.insert(spendGuardEvent).values({ kind: event, ...snap });
+    await writeAiGuardState(tx, next, 'system');
+  });
+
+  if (alert) {
+    // Best-effort after the state is written, like the client part.
+    const to = await platformOperatorEmails({ service: db, platformAdmins: deps.platformAdmins }, ['owner', 'staff']);
+    for (const addr of to) {
+      try {
+        await deps.sendStaffEmail(addr, alert);
+      } catch {
+        // eslint-disable-next-line no-console -- best-effort
+        console.error('[spend-guard] staff email failed');
+      }
+    }
+  }
+  return next.state;
 }

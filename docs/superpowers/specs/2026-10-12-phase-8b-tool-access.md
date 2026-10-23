@@ -198,6 +198,10 @@ decide_theme_proposal (themes.ts) | write | decides proposal
 get_usage (usage.ts) | read | read-only
 set_client_limits (usage.ts) | write | updates client limits; platform staff only, supportHidden; lifts a spend pause + writes spend_guard_event in one tx (7b1)
 get_client_limits (usage.ts) | read | read-only; platform operator, supportHidden (7b1)
+get_spend_guard (spend-guard.ts) | read | read-only; platform operator, supportHidden, web only (7b1)
+get_ai_guard_state (spend-guard.ts) | read | read-only; platform operator, supportHidden, web only (7b1)
+update_spend_guard_settings (spend-guard.ts) | write | merges spend guard settings in platform_setting; platform owner only, supportHidden, web only (7b1)
+reset_ai_pause (spend-guard.ts) | write | clears the platform AI pause, snoozes the guard, writes a spike_reset event; platform staff, supportHidden, web only (7b1)
 start_support_session (support.ts) | write | opens a session row + audit; operator ctx only
 end_support_session (support.ts) | write | ends the caller's open session; audited under the session's agency (7a2)
 list_support_sessions (support.ts) | read | read-only; agency_admin; supportHidden

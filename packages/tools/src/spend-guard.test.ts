@@ -1,8 +1,8 @@
-import { billingNotice, client, llmCall, platformAdmin, spendGuardEvent } from '@cs/db';
+import { agencyDailyStat, billingNotice, client, llmCall, platformAdmin, readAiGuardState, SpendGuardSettings, spendGuardEvent, vendorCall, writeAiGuardState } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { type PlatformSpendAlertPayload, runSpendGuard, type SpendGuardDeps } from './spend-guard';
+import { type PlatformSpendAlertPayload, readSpikes, runSpendGuard, type SpendGuardDeps } from './spend-guard';
 
 
 const dbs = openTestDbs();
@@ -110,6 +110,13 @@ describe('runSpendGuard: client part', () => {
     expect(await events('client_unpaused')).toMatchObject([{ note: 'under threshold', actor: 'system', limitUsd: 30 }]);
   });
 
+  it('rollover also clears the pause of a client archived while paused', async () => {
+    await dbs.owner.update(client).set({ spendPausedAt: new Date('2026-09-20T00:00:00Z'), archivedAt: new Date('2026-10-01T00:00:00Z') }).where(eq(client.id, IDS.clientA1));
+    const out = await runSpendGuard(deps(), NOW);
+    expect(out.rolledOver).toBe(1);
+    expect((await clientRow(IDS.clientA1)).spendPausedAt).toBeNull();
+  });
+
   it('archived clients ignored, prospect guarded', async () => {
     await spend(IDS.clientA1, 20);
     await spend(IDS.clientA2, 20);
@@ -131,5 +138,104 @@ describe('runSpendGuard: client part', () => {
 
   it('reports the current platform guard state as spike (Task 10 adds the step)', async () => {
     expect((await runSpendGuard(deps(), NOW)).spike).toBe('ok');
+  });
+});
+
+const H = 3_600_000;
+const D = 24 * H;
+const DEFAULTS = SpendGuardSettings.parse({});
+const plat = (provider: string, costUsd: number, createdAt: Date) =>
+  dbs.owner.insert(llmCall).values({ agencyId: IDS.agencyA, clientId: null, task: 't', provider, model: 'm', inputTokens: 1, outputTokens: 1, costUsd, latencyMs: 1, ok: true, createdAt });
+const recent = new Date(NOW.getTime() - 2 * H);
+const stats = (clientsActive: number, from = new Date('2026-10-06T00:00:00Z'), days = 8) =>
+  dbs.owner.insert(agencyDailyStat).values(Array.from({ length: days }, (_, i) => ({ agencyId: IDS.agencyA, day: new Date(from.getTime() + i * D).toISOString().slice(0, 10), clientsActive })));
+const scope = async (s: 'total' | 'openrouter' | 'anthropic', settings = DEFAULTS) => (await readSpikes(dbs.service, NOW, settings)).find((r) => r.scope === s)!;
+
+describe('readSpikes', () => {
+  it('cold start (< 7 days of stats) uses the floor only', async () => {
+    await stats(2, new Date('2026-10-10T00:00:00Z'), 4);
+    await plat('openrouter', 100, new Date(NOW.getTime() - 3 * D)); // would inflate a rate if history counted
+    await plat('openrouter', 10, recent);
+    expect(await scope('total')).toMatchObject({ observedUsd: 10, baselineUsd: 5, ratioPercent: 100, floorOnly: true });
+  });
+
+  it('per-client-day floor × N beats the daily floor', async () => {
+    await plat('openrouter', 10, recent);
+    const r = await scope('total', SpendGuardSettings.parse({ spikeFloorUsdPerClientDay: 4 })); // 3 serviceable clients
+    expect(r.baselineUsd).toBe(12);
+    expect(r.ratioPercent).toBe(-17);
+  });
+
+  it('same-weekday window wins over a lower 7-day rate', async () => {
+    await stats(2); // Oct 6..13: full history
+    await plat('openrouter', 14, new Date('2026-10-10T12:00:00Z')); // 7-day rate: 14 / 14 client-days = 1
+    await plat('openrouter', 20, new Date('2026-10-06T18:00:00Z')); // the 24 h window ending a week ago (Oct 6 12:00 - Oct 7 12:00)
+    const r = await scope('total');
+    expect(r.baselineUsd).toBe(30); // rate7 = 1, rateW = 20 / 2 = 10; x N = 3 serviceable clients
+  });
+
+  it('jev and vendor_call excluded from observed', async () => {
+    await plat('jev', 50, recent);
+    await dbs.owner.insert(vendorCall).values({ agencyId: IDS.agencyA, clientId: null, vendor: 'v', operation: 'o', units: 1, costUsd: 50, latencyMs: 1, ok: true, createdAt: recent });
+    await plat('openrouter', 3, recent);
+    expect((await scope('total')).observedUsd).toBe(3);
+  });
+
+  it('openrouter scope sums openrouter + llm', async () => {
+    await plat('openrouter', 2, recent);
+    await plat('llm', 3, recent);
+    await plat('anthropic', 7, recent);
+    expect((await scope('openrouter')).observedUsd).toBe(5);
+    expect((await scope('anthropic')).observedUsd).toBe(7);
+    expect((await scope('total')).observedUsd).toBe(12);
+  });
+});
+
+describe('runSpendGuard: spike guard', () => {
+  const state = () => readAiGuardState(dbs.service);
+
+  it('+200 % pauses and emails once', async () => {
+    await plat('openrouter', 15, recent); // baseline 5 -> +200 %
+    const out = await runSpendGuard(deps(), NOW);
+    expect(out.spike).toBe('paused');
+    expect(await state()).toMatchObject({ state: 'paused', scope: 'total', observedUsd: 15, baselineUsd: 5, since: NOW.toISOString() });
+    expect(await events('spike_paused')).toMatchObject([{ scope: 'total', observedUsd: 15, baselineUsd: 5, actor: 'system' }]);
+    expect(staff).toHaveLength(1);
+    expect(staff[0]!.p).toMatchObject({ kind: 'spike_paused', url: 'https://app.rm.test/platform/health' });
+    expect(staff[0]!.p.lines[0]).toBe('All AI calls are paused after a spend spike (all providers). Queued work is waiting — reset on Health.');
+    staff = [];
+    await runSpendGuard(deps(), NOW);
+    expect(staff).toHaveLength(0);
+    expect(await events('spike_paused')).toHaveLength(1);
+  });
+
+  it('paused stays paused below threshold', async () => {
+    await writeAiGuardState(dbs.owner, { state: 'paused', since: NOW.toISOString(), scope: 'total' }, 'system');
+    const out = await runSpendGuard(deps(), NOW);
+    expect(out.spike).toBe('paused');
+    expect((await state()).state).toBe('paused');
+    expect(await events()).toHaveLength(0);
+  });
+
+  it('warn emails only on entry, and a quiet run returns to ok', async () => {
+    await plat('anthropic', 10, recent); // +100 %
+    expect((await runSpendGuard(deps(), NOW)).spike).toBe('warn');
+    expect(staff).toHaveLength(1);
+    expect(staff[0]!.p.kind).toBe('spike_warn');
+    expect(staff[0]!.p.lines[0]).toBe('AI spend is 100% above normal (all providers).');
+    await runSpendGuard(deps(), NOW);
+    expect(staff).toHaveLength(1);
+    expect(await events('spike_warn')).toHaveLength(1);
+    await dbs.owner.delete(llmCall);
+    expect((await runSpendGuard(deps(), NOW)).spike).toBe('ok');
+    expect(await events('spike_warn')).toHaveLength(1);
+  });
+
+  it('a snoozed pause-level reading gives warn, not paused', async () => {
+    await writeAiGuardState(dbs.owner, { state: 'ok', snoozeUntil: new Date(NOW.getTime() + 5 * H).toISOString() }, 'system');
+    await plat('openrouter', 17.5, recent); // +250 %
+    expect((await runSpendGuard(deps(), NOW)).spike).toBe('warn');
+    expect(await state()).toMatchObject({ state: 'warn', snoozeUntil: new Date(NOW.getTime() + 5 * H).toISOString() });
+    expect(await events('spike_paused')).toHaveLength(0);
   });
 });
