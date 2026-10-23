@@ -51,18 +51,18 @@ export default async function ReviewsPage({ params, searchParams }: {
 
   const [profile, benchmark, trend, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
-    callTool<TopicBenchmarkView>(ctx, 'get_theme_benchmark', { clientId }),
+    callTool<TopicBenchmarkView>(ctx, 'get_topic_benchmark', { clientId }),
     callTool<RatingTrendView>(ctx, 'get_rating_trend', { clientId, months: 12 }),
     helpGuides(ctx, 'client', clientId),
   ]);
   // An unknown theme id (hand-edited URL, retired theme) is dropped rather than hiding the whole list.
-  const themeId = themeRaw && benchmark.themes.some((t) => t.id === themeRaw) ? themeRaw : undefined;
+  const topicId = themeRaw && benchmark.topics.some((t) => t.id === themeRaw) ? themeRaw : undefined;
   const reviews = await tryCallTool<ReviewList>(ctx, 'search_reviews', {
-    clientId, ...(business ? { business } : {}), ...(themeId ? { themeId } : {}), ...(stars ? { stars } : {}), ...(text ? { text } : {}), days, offset,
+    clientId, ...(business ? { business } : {}), ...(topicId ? { topicId } : {}), ...(stars ? { stars } : {}), ...(text ? { text } : {}), days, offset,
   });
   const self = trend.businesses.find((b) => b.self) ?? null;
   const more = new URLSearchParams({
-    ...(business ? { business } : {}), ...(themeId ? { theme: themeId } : {}), ...(stars ? { stars: String(stars) } : {}), ...(text ? { q: text } : {}),
+    ...(business ? { business } : {}), ...(topicId ? { theme: topicId } : {}), ...(stars ? { stars: String(stars) } : {}), ...(text ? { q: text } : {}),
     days: String(days), offset: String(offset + PAGE),
   });
   const trendSeriesList = trendSeries(trend);
@@ -126,9 +126,9 @@ export default async function ReviewsPage({ params, searchParams }: {
           </label>
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-semibold text-ink">Topic</span>
-            <select name="theme" defaultValue={themeId ?? ''} className="rounded-md border border-line bg-surface px-2 py-1.5">
+            <select name="theme" defaultValue={topicId ?? ''} className="rounded-md border border-line bg-surface px-2 py-1.5">
               <option value="">All topics</option>
-              {benchmark.themes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {benchmark.topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">

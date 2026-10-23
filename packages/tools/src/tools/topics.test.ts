@@ -41,6 +41,8 @@ describe('topic proposals (Review Focus 2)', () => {
     expect(names).toEqual(expect.arrayContaining(['list_topic_proposals', 'decide_topic_proposal']));
     expect(names).not.toContain('list_theme_proposals');
     expect(names).not.toContain('decide_theme_proposal');
+    expect(names).toContain('get_topic_benchmark');
+    expect(names).not.toContain('get_theme_benchmark');
   });
 
   it('refuses every operator tool to non-operator admins, AMs, client users and guests; nothing changes', async () => {

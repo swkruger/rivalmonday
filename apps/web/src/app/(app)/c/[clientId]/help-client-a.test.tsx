@@ -52,7 +52,7 @@ const tool = async (_ctx: unknown, name: string, input: Record<string, unknown>)
     case 'get_competitor_timeline': return { items: [] };
     case 'list_tracked_pages': return { items: [{ id: 'p1', url: 'https://smithhvac.com/prices', pageType: 'pricing', source: 'sitemap', pinned: false, active: true, cadence: 'weekly', lastCapturedAt: null }] };
     case 'get_competitor_ad_matches': return { matched: [], pending: [] };
-    case 'get_theme_benchmark': return { windowDays: 90, from: '', to: '', themes: [], businesses: [] };
+    case 'get_topic_benchmark': return { windowDays: 90, from: '', to: '', topics: [], businesses: [] };
     // Pricing
     case 'get_price_matrix':
       return m.empty

@@ -341,12 +341,12 @@ export const AdPage = z.object({ items: pagedItems(AdView), hasMore: z.boolean()
 export type AdList = z.infer<typeof AdList>;
 export const TopicBenchmarkView = z.object({
   windowDays: z.number().int(), from: iso, to: iso,
-  themes: z.array(z.object({ id: z.string(), name: z.string() })),
+  topics: z.array(z.object({ id: z.string(), name: z.string() })),
   businesses: z.array(z.object({
     competitorId: uuid, name: z.string(), self: z.boolean(), reviews: z.number().int(), avgRating: z.number().nullable(),
     prevReviews: z.number().int(), prevAvgRating: z.number().nullable(),
-    themes: z.array(z.object({
-      themeId: z.string(), mentions: z.number().int(), asked: z.number().int(), share: z.number().nullable(), sentiment: z.number().nullable(),
+    topics: z.array(z.object({
+      topicId: z.string(), mentions: z.number().int(), asked: z.number().int(), share: z.number().nullable(), sentiment: z.number().nullable(),
       shareDelta: z.number().nullable(), sentimentDelta: z.number().nullable(),
     })),
   })),
@@ -366,7 +366,7 @@ export type RatingTrendView = z.infer<typeof RatingTrendView>;
 
 export const ReviewView = z.object({
   reviewId: uuid, competitorId: uuid, name: z.string(), self: z.boolean(), rating: z.number().int().nullable(), text: z.string().nullable(),
-  postedAt: iso.nullable(), themes: z.array(z.object({ id: z.string(), name: z.string() })), sentiment: z.number().nullable(), ownerAnswer: z.string().nullable(),
+  postedAt: iso.nullable(), topics: z.array(z.object({ id: z.string(), name: z.string() })), sentiment: z.number().nullable(), ownerAnswer: z.string().nullable(),
 });
 export type ReviewView = z.infer<typeof ReviewView>;
 export const ReviewList = z.object({ items: z.array(ReviewView), hasMore: z.boolean() });

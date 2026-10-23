@@ -14,15 +14,10 @@ const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
 const DAY = 86_400_000;
 
-// 15b-3b: delete — the engine speaks "topic"; the MCP/web contract keeps `themes`/`themeId` until the 15b-3b rename.
-export function toLegacyThemeFields(b: Awaited<ReturnType<typeof reviewBenchmark>>['businesses'][number]) {
-  return b.topics.map((t) => ({ themeId: t.topicId, mentions: t.mentions, asked: t.asked, share: t.share, sentiment: t.sentiment, shareDelta: t.shareDelta, sentimentDelta: t.sentimentDelta }));
-}
-
-export const getThemeBenchmark = defineTool({
-  name: 'get_theme_benchmark',
+export const getTopicBenchmark = defineTool({
+  name: 'get_topic_benchmark',
   access: 'read',
-  description: 'Review themes, your business vs each tracked competitor: how often each theme comes up and how positively, last 90 days vs the 90 before.',
+  description: 'Review topics, your business vs each tracked competitor: how often each topic comes up and how positively, last 90 days vs the 90 before.',
   input: z.object({ clientId: uuid }),
   output: TopicBenchmarkView,
   permission: 'read',
@@ -37,10 +32,10 @@ export const getThemeBenchmark = defineTool({
     const topics = await topicsForVertical(deps.service, await packs(c.verticalId));
     return {
       windowDays: b.windowDays, from: b.from.toISOString(), to: b.to.toISOString(),
-      themes: topics.map((t) => ({ id: t.id, name: t.name })),
+      topics: topics.map((t) => ({ id: t.id, name: t.name })),
       businesses: b.businesses.map((x) => ({
         competitorId: x.competitorId, name: x.name, self: x.self, reviews: x.reviews, avgRating: x.avgRating, prevReviews: x.prevReviews, prevAvgRating: x.prevAvgRating,
-        themes: toLegacyThemeFields(x),
+        topics: x.topics.map((t) => ({ topicId: t.topicId, mentions: t.mentions, asked: t.asked, share: t.share, sentiment: t.sentiment, shareDelta: t.shareDelta, sentimentDelta: t.sentimentDelta })),
       })),
     };
   },
@@ -79,11 +74,11 @@ export const getRatingTrend = defineTool({
 export const searchReviews = defineTool({
   name: 'search_reviews',
   access: 'read',
-  description: 'Search Google reviews of your business and tracked competitors by business, theme, stars or text. Reviewer identities are never returned.',
+  description: 'Search Google reviews of your business and tracked competitors by business, topic, stars or text. Reviewer identities are never returned.',
   input: z.object({
     clientId: uuid,
     business: BusinessKey.optional(),
-    themeId: z.string().regex(/^[a-z0-9_]{1,64}$/).optional(),
+    topicId: z.string().regex(/^[a-z0-9_]{1,64}$/).optional(),
     stars: z.number().int().min(1).max(5).optional(),
     text: z.string().trim().min(1).max(100).optional(),
     days: z.union([z.literal(30), z.literal(90), z.literal(365)]).default(90),
@@ -104,8 +99,8 @@ export const searchReviews = defineTool({
     const all = (await workspaceBusinesses(deps, ctx, c)).filter((b) => b.competitorId !== null);
     const scope = input.business ? [pickBusiness(all, input.business)] : all;
     const topics = await topicsForVertical(deps.service, await packsOf(deps)(c.verticalId));
-    const topicId = input.themeId; // 15b-3b: delete — input stays `themeId` until the rename
-    if (topicId && !topics.some((t) => t.id === topicId)) throw new ToolError('invalid_input', 'Unknown theme');
+    const topicId = input.topicId;
+    if (topicId && !topics.some((t) => t.id === topicId)) throw new ToolError('invalid_input', 'Unknown topic');
     if (scope.length === 0) return { items: [], hasMore: false };
     const byId = new Map(scope.map((b) => [b.competitorId!, b]));
     const topicName = new Map(topics.map((t) => [t.id, t.name]));
@@ -139,8 +134,8 @@ export const searchReviews = defineTool({
         const b = byId.get(r.competitorId)!;
         return {
           reviewId: r.id, competitorId: r.competitorId, name: b.name, self: b.self, rating: r.rating, text: forChannel(meta, r.text, [b.name]), postedAt: r.postedAt ? r.postedAt.toISOString() : null,
-          themes: (r.topics ?? []).map((id) => ({ id, name: topicName.get(id) ?? id })),
-          // Same -1..+1 scale as get_theme_benchmark (engine sentimentScore), not the raw 0-4 level.
+          topics: (r.topics ?? []).map((id) => ({ id, name: topicName.get(id) ?? id })),
+          // Same -1..+1 scale as get_topic_benchmark (engine sentimentScore), not the raw 0-4 level.
           sentiment: r.sentiment == null ? null : sentimentScore(r.sentiment), ownerAnswer: forChannel(meta, r.ownerAnswer, [b.name]),
         };
       }),
@@ -150,4 +145,4 @@ export const searchReviews = defineTool({
   },
 });
 
-export const reputationTools = [getThemeBenchmark, getRatingTrend, searchReviews];
+export const reputationTools = [getTopicBenchmark, getRatingTrend, searchReviews];

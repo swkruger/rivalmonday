@@ -57,8 +57,8 @@ export function AdsSection({ clientId, competitorId, ads }: { clientId: string; 
 export function ReviewsSection({ clientId, competitorId, benchmark }: { clientId: string; competitorId: string; benchmark: TopicBenchmarkView }) {
   const me = benchmark.businesses.find((b) => b.competitorId === competitorId);
   const you = benchmark.businesses.find((b) => b.self);
-  const names = new Map(benchmark.themes.map((t) => [t.id, t.name]));
-  const top = (me?.themes ?? []).filter((t) => t.share !== null && t.share > 0).sort((a, b) => b.share! - a.share!).slice(0, 3);
+  const names = new Map(benchmark.topics.map((t) => [t.id, t.name]));
+  const top = (me?.topics ?? []).filter((t) => t.share !== null && t.share > 0).sort((a, b) => b.share! - a.share!).slice(0, 3);
   return (
     <Section id="profile-reviews" title="Reviews">
       {!me || me.reviews === 0 ? <p className="text-sm text-muted-foreground">{`No reviews in the last ${benchmark.windowDays} days.`}</p> : (
@@ -67,8 +67,8 @@ export function ReviewsSection({ clientId, competitorId, benchmark }: { clientId
           {top.length > 0 && (
             <ul className="mt-2 flex flex-col gap-1 text-sm text-ink">
               {top.map((t) => (
-                <li key={t.themeId}>
-                  {`${names.get(t.themeId) ?? t.themeId} — ${pct(t.share)}${you ? ` (you ${pct(you.themes.find((y) => y.themeId === t.themeId)?.share ?? null)})` : ''}`}
+                <li key={t.topicId}>
+                  {`${names.get(t.topicId) ?? t.topicId} — ${pct(t.share)}${you ? ` (you ${pct(you.topics.find((y) => y.topicId === t.topicId)?.share ?? null)})` : ''}`}
                 </li>
               ))}
             </ul>

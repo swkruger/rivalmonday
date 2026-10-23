@@ -24,7 +24,7 @@ describe('CompetitorProfilePage', () => {
     const err = await result.then(() => null, (e: unknown) => e);
     expect((err as Error | null)?.message).toBe('NEXT_NOT_FOUND');
     expect(callTool.mock.calls.map((c) => c[1])).toEqual([
-      'get_competitor_profile', 'get_competitor_timeline', 'list_tracked_pages', 'get_price_matrix', 'list_ads', 'get_theme_benchmark', 'get_geogrid', 'get_competitor_signals', 'get_client_profile',
+      'get_competitor_profile', 'get_competitor_timeline', 'list_tracked_pages', 'get_price_matrix', 'list_ads', 'get_topic_benchmark', 'get_geogrid', 'get_competitor_signals', 'get_client_profile',
     ]);
     await new Promise((r) => setTimeout(r, 20));
     process.off('unhandledRejection', unhandled);
@@ -46,7 +46,7 @@ describe('CompetitorProfilePage', () => {
       case 'get_competitor_timeline': case 'list_tracked_pages': return { items: [] };
       case 'list_ads': return { items: [], hasMore: false };
       case 'get_price_matrix': return { services: [], rows: [] };
-      case 'get_theme_benchmark': return { windowDays: 90, from: '', to: '', themes: [], businesses: [] };
+      case 'get_topic_benchmark': return { windowDays: 90, from: '', to: '', topics: [], businesses: [] };
       case 'get_geogrid': return { setup: 'no_scan' };
       case 'get_competitor_signals': return { competitors: [{ competitorId: 'x', tier: 'watch', signals: NO_SIGNALS, computedAt: '2026-10-13T09:00:00.000Z' }] };
       case 'get_client_profile': return { id: 'c', name: 'Cool Air' };

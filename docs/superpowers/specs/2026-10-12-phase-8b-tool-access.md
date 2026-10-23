@@ -95,7 +95,7 @@ list_recommendations (recommendations.ts) | read | read-only
 update_recommendation_status (recommendations.ts) | write | updates status
 list_trend_reports (reports.ts) | read | read-only
 get_trend_report (reports.ts) | read | read-only
-get_theme_benchmark (reputation.ts) | read | read-only
+get_topic_benchmark (reputation.ts) | read | read-only
 get_rating_trend (reputation.ts) | read | read-only
 search_reviews (reputation.ts) | read | read-only
 list_brief_queue (review.ts) | read | read

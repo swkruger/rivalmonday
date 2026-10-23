@@ -19,7 +19,7 @@ const inProcessFetch = (url: string | URL, init?: RequestInit) => handleMcpReque
 
 const READ = [
   'list_clients', 'get_client_profile', 'list_client_competitors', 'get_competitor_profile', 'get_competitor_timeline', 'search_events', 'get_event',
-  'get_evidence', 'compare_snapshots', 'get_price_matrix', 'get_price_history', 'list_ads', 'get_ad_activity', 'get_theme_benchmark', 'search_reviews',
+  'get_evidence', 'compare_snapshots', 'get_price_matrix', 'get_price_history', 'list_ads', 'get_ad_activity', 'get_topic_benchmark', 'search_reviews',
   'get_rating_trend', 'get_geogrid', 'get_rank_trend', 'get_share_of_voice', 'list_moves', 'get_move', 'list_briefs', 'get_brief', 'list_recommendations', 'list_alerts', 'get_usage',
   'search', 'fetch', 'search_knowledge', 'get_competitor_signals', 'list_verticals',
 ];
@@ -109,6 +109,18 @@ describe('/mcp end to end with the SDK client', () => {
     expect(lists['owner/feedback']).toContain('submit_feedback');
     expect(lists['viewer/read']).toEqual(lists['owner/read']);
     for (const t of lists['owner/feedback']!) expect(lists['admin/feedback']).toContain(t);
+  });
+
+  it('exposes topicId (not themeId) on search_reviews, and the old get_theme_benchmark is an unknown tool', async () => {
+    const { token } = await mint('admin', 'read');
+    const c = await connect(token);
+    const sr = (await c.listTools()).tools.find((t) => t.name === 'search_reviews')!;
+    const props = Object.keys((sr.inputSchema as { properties: Record<string, unknown> }).properties);
+    expect(props).toContain('topicId');
+    expect(props).not.toContain('themeId');
+    const old = await call(c, 'get_theme_benchmark', { clientId: IDS.clientA1 }).then((r) => r, (e: Error) => ({ isError: true, content: [{ text: e.message }] }));
+    expect(old.isError).toBe(true);
+    expect(JSON.stringify(old)).toMatch(/unknown tool|not found|not_found/i);
   });
 
   it('tools/call writes an audit row with channel mcp and token_id', async () => {

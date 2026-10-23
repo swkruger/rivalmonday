@@ -23,7 +23,7 @@ const tool = async (_ctx: unknown, name: string, input: unknown) => {
     case 'get_ad_activity': return { weeks: [], series: [] };
     case 'get_starting_point_status': case 'get_client_setup': return null;
     case 'search_events': case 'search_reviews': return { items: [], hasMore: false };
-    case 'get_theme_benchmark': return { themes: [], businesses: [] };
+    case 'get_topic_benchmark': return { topics: [], businesses: [] };
     case 'get_rating_trend': return { months: [], businesses: [], selfPending: false };
     default: return { items: [] };
   }

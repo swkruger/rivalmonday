@@ -13,44 +13,44 @@ const otherAgency = ctx('agency_admin', 'all', [], IDS.agencyB);
 
 beforeEach(resetWorkspace);
 
-describe('get_theme_benchmark', () => {
-  it('compares theme share and sentiment, self first, with null for a theme never asked (decision 7, Review Focus 3)', async () => {
+describe('get_topic_benchmark', () => {
+  it('compares topic share and sentiment, self first, with null for a topic never asked (decision 7, Review Focus 3)', async () => {
     const selfId = await seedSelf();
-    await seedReview({ competitorId: selfId, rating: 5, postedAt: ago(3), analysis: { asked: ['response_time'], themes: ['response_time'], sentiment: 4 } });
-    await seedReview({ rating: 1, postedAt: ago(5), analysis: { asked: ['response_time', 'price_transparency'], themes: ['response_time'], sentiment: 0 } });
-    await seedReview({ rating: 5, postedAt: ago(6), analysis: { asked: ['response_time'], themes: [], sentiment: 4 } });
-    await seedReview({ competitorId: IDS.competitorY, postedAt: ago(2), analysis: { asked: ['response_time'], themes: ['response_time'], sentiment: 4 } });
-    const r = (await registry.invoke(owner, 'get_theme_benchmark', { clientId: IDS.clientA1 })) as TopicBenchmarkView;
+    await seedReview({ competitorId: selfId, rating: 5, postedAt: ago(3), analysis: { asked: ['response_time'], topics: ['response_time'], sentiment: 4 } });
+    await seedReview({ rating: 1, postedAt: ago(5), analysis: { asked: ['response_time', 'price_transparency'], topics: ['response_time'], sentiment: 0 } });
+    await seedReview({ rating: 5, postedAt: ago(6), analysis: { asked: ['response_time'], topics: [], sentiment: 4 } });
+    await seedReview({ competitorId: IDS.competitorY, postedAt: ago(2), analysis: { asked: ['response_time'], topics: ['response_time'], sentiment: 4 } });
+    const r = (await registry.invoke(owner, 'get_topic_benchmark', { clientId: IDS.clientA1 })) as TopicBenchmarkView;
     expect(r.windowDays).toBe(90);
-    expect(r.themes.slice(0, 2)).toEqual([{ id: 'response_time', name: 'Response time' }, { id: 'price_transparency', name: 'Price transparency' }]);
+    expect(r.topics.slice(0, 2)).toEqual([{ id: 'response_time', name: 'Response time' }, { id: 'price_transparency', name: 'Price transparency' }]);
     expect(r.businesses.map((b) => [b.name, b.self, b.reviews, b.avgRating])).toEqual([['A1 HVAC', true, 1, 5], ['Smith HVAC', false, 2, 3]]);
-    const smith = r.businesses[1]!.themes;
-    expect(smith.find((t) => t.themeId === 'response_time')).toMatchObject({ mentions: 1, asked: 2, share: 0.5, sentiment: -1 });
-    expect(smith.find((t) => t.themeId === 'price_transparency')).toMatchObject({ mentions: 0, asked: 1, share: 0, sentiment: null });
-    expect(smith.find((t) => t.themeId === 'upsell_pressure')).toMatchObject({ asked: 0, share: null });
+    const smith = r.businesses[1]!.topics;
+    expect(smith.find((t) => t.topicId === 'response_time')).toMatchObject({ mentions: 1, asked: 2, share: 0.5, sentiment: -1 });
+    expect(smith.find((t) => t.topicId === 'price_transparency')).toMatchObject({ mentions: 0, asked: 1, share: 0, sentiment: null });
+    expect(smith.find((t) => t.topicId === 'upsell_pressure')).toMatchObject({ asked: 0, share: null });
   });
 
   it('works without a self business, refuses another agency and needs dashboard', async () => {
-    const r = (await registry.invoke(am, 'get_theme_benchmark', { clientId: IDS.clientA1 })) as TopicBenchmarkView;
+    const r = (await registry.invoke(am, 'get_topic_benchmark', { clientId: IDS.clientA1 })) as TopicBenchmarkView;
     expect(r.businesses.map((b) => b.self)).toEqual([false]);
-    await expect(registry.invoke(otherAgency, 'get_theme_benchmark', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
-    await expect(registry.invoke(ownerNoDash, 'get_theme_benchmark', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(otherAgency, 'get_topic_benchmark', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(ownerNoDash, 'get_topic_benchmark', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
   });
 });
 
-describe('legacy MCP shape (15b-3a snapshot: keys stay theme-named until 15b-3b)', () => {
-  it('get_theme_benchmark and search_reviews expose exactly the pre-rename keys', async () => {
+describe('topic MCP shape (no theme aliases)', () => {
+  it('get_topic_benchmark and search_reviews expose exactly the topic keys', async () => {
     const selfId = await seedSelf();
-    await seedReview({ competitorId: selfId, rating: 5, text: 'Fast', postedAt: ago(3), analysis: { asked: ['response_time'], themes: ['response_time'], sentiment: 4 } });
-    const b = (await registry.invoke(owner, 'get_theme_benchmark', { clientId: IDS.clientA1 })) as Record<string, unknown> & { themes: object[]; businesses: { themes: object[] }[] };
-    expect(Object.keys(b).sort()).toEqual(['businesses', 'from', 'themes', 'to', 'windowDays']);
-    expect(Object.keys(b.themes[0]!).sort()).toEqual(['id', 'name']);
-    expect(Object.keys(b.businesses[0]!).sort()).toEqual(['avgRating', 'competitorId', 'name', 'prevAvgRating', 'prevReviews', 'reviews', 'self', 'themes']);
-    expect(Object.keys(b.businesses[0]!.themes[0]!).sort()).toEqual(['asked', 'mentions', 'sentiment', 'sentimentDelta', 'share', 'shareDelta', 'themeId']);
+    await seedReview({ competitorId: selfId, rating: 5, text: 'Fast', postedAt: ago(3), analysis: { asked: ['response_time'], topics: ['response_time'], sentiment: 4 } });
+    const b = (await registry.invoke(owner, 'get_topic_benchmark', { clientId: IDS.clientA1 })) as Record<string, unknown> & { topics: object[]; businesses: { topics: object[] }[] };
+    expect(Object.keys(b).sort()).toEqual(['businesses', 'from', 'to', 'topics', 'windowDays']);
+    expect(Object.keys(b.topics[0]!).sort()).toEqual(['id', 'name']);
+    expect(Object.keys(b.businesses[0]!).sort()).toEqual(['avgRating', 'competitorId', 'name', 'prevAvgRating', 'prevReviews', 'reviews', 'self', 'topics']);
+    expect(Object.keys(b.businesses[0]!.topics[0]!).sort()).toEqual(['asked', 'mentions', 'sentiment', 'sentimentDelta', 'share', 'shareDelta', 'topicId']);
     const r = (await registry.invoke(owner, 'search_reviews', { clientId: IDS.clientA1, detail: 'full' })) as { items: Record<string, unknown>[] };
-    expect(Object.keys(r.items[0]!).sort()).toEqual(['competitorId', 'name', 'ownerAnswer', 'postedAt', 'rating', 'reviewId', 'self', 'sentiment', 'text', 'themes']);
-    expect(r.items[0]!.themes).toEqual([{ id: 'response_time', name: 'Response time' }]);
-    await expect(registry.invoke(owner, 'search_reviews', { clientId: IDS.clientA1, themeId: 'nope' })).rejects.toMatchObject({ code: 'invalid_input', message: 'Unknown theme' });
+    expect(Object.keys(r.items[0]!).sort()).toEqual(['competitorId', 'name', 'ownerAnswer', 'postedAt', 'rating', 'reviewId', 'self', 'sentiment', 'text', 'topics']);
+    expect(r.items[0]!.topics).toEqual([{ id: 'response_time', name: 'Response time' }]);
+    await expect(registry.invoke(owner, 'search_reviews', { clientId: IDS.clientA1, topicId: 'nope' })).rejects.toMatchObject({ code: 'invalid_input', message: 'Unknown topic' });
   });
 });
 
@@ -140,8 +140,8 @@ describe('search_reviews', () => {
 
   beforeEach(async () => {
     const selfId = await seedSelf();
-    await seedReview({ competitorId: selfId, rating: 5, text: 'Fast and friendly', postedAt: ago(2), analysis: { asked: ['response_time'], themes: ['response_time'], sentiment: 4 } });
-    await seedReview({ rating: 2, text: 'Tech was late and pushy', postedAt: ago(1), ownerAnswer: 'Sorry!', analysis: { asked: ['response_time', 'upsell_pressure'], themes: ['response_time', 'upsell_pressure'], sentiment: 0 } });
+    await seedReview({ competitorId: selfId, rating: 5, text: 'Fast and friendly', postedAt: ago(2), analysis: { asked: ['response_time'], topics: ['response_time'], sentiment: 4 } });
+    await seedReview({ rating: 2, text: 'Tech was late and pushy', postedAt: ago(1), ownerAnswer: 'Sorry!', analysis: { asked: ['response_time', 'upsell_pressure'], topics: ['response_time', 'upsell_pressure'], sentiment: 0 } });
     await seedReview({ rating: 4, text: 'Fair price, 100% happy', postedAt: ago(100) });
     await seedReview({ competitorId: IDS.competitorY, text: 'Other client’s competitor', postedAt: ago(1) });
   });
@@ -149,16 +149,16 @@ describe('search_reviews', () => {
   it('returns text as published, never the reviewer, newest first, sentiment on the -1..+1 scale (decision 6)', async () => {
     const r = (await registry.invoke(owner, 'search_reviews', { clientId: IDS.clientA1 })) as ReviewList;
     expect(r.items.map((i) => [i.name, i.self, i.text])).toEqual([['Smith HVAC', false, 'Tech was late and pushy'], ['A1 HVAC', true, 'Fast and friendly']]);
-    expect(r.items[0]).toMatchObject({ rating: 2, ownerAnswer: 'Sorry!', sentiment: -1, themes: [{ id: 'response_time', name: 'Response time' }, { id: 'upsell_pressure', name: 'Upsell pressure' }] });
+    expect(r.items[0]).toMatchObject({ rating: 2, ownerAnswer: 'Sorry!', sentiment: -1, topics: [{ id: 'response_time', name: 'Response time' }, { id: 'upsell_pressure', name: 'Upsell pressure' }] });
     expect(r.items[1]?.sentiment).toBe(1);
     expect(JSON.stringify(r)).not.toContain('hash-secret');
     expect(r.hasMore).toBe(false);
   });
 
-  it('filters by business, theme, stars, text (escaped) and period', async () => {
+  it('filters by business, topic, stars, text (escaped) and period', async () => {
     const q = async (input: Record<string, unknown>) => ((await registry.invoke(am, 'search_reviews', { clientId: IDS.clientA1, ...input })) as ReviewList).items.map((i) => i.text);
     expect(await q({ business: 'self' })).toEqual(['Fast and friendly']);
-    expect(await q({ business: IDS.competitorX, themeId: 'upsell_pressure' })).toEqual(['Tech was late and pushy']);
+    expect(await q({ business: IDS.competitorX, topicId: 'upsell_pressure' })).toEqual(['Tech was late and pushy']);
     expect(await q({ stars: 5 })).toEqual(['Fast and friendly']);
     expect(await q({ text: 'LATE' })).toEqual(['Tech was late and pushy']);
     expect(await q({ text: '100%', days: 365 })).toEqual(['Fair price, 100% happy']);
@@ -166,8 +166,8 @@ describe('search_reviews', () => {
     expect(await q({ days: 365 })).toHaveLength(3);
   });
 
-  it('refuses an unknown theme, an untracked competitor and a missing self business (Review Focus 2)', async () => {
-    await expect(registry.invoke(am, 'search_reviews', { clientId: IDS.clientA1, themeId: 'nope' })).rejects.toMatchObject({ code: 'invalid_input', message: 'Unknown theme' });
+  it('refuses an unknown topic, an untracked competitor and a missing self business (Review Focus 2)', async () => {
+    await expect(registry.invoke(am, 'search_reviews', { clientId: IDS.clientA1, topicId: 'nope' })).rejects.toMatchObject({ code: 'invalid_input', message: 'Unknown topic' });
     await expect(registry.invoke(am, 'search_reviews', { clientId: IDS.clientA1, business: IDS.competitorY })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(ctx('account_manager', 'all'), 'search_reviews', { clientId: IDS.clientA2, business: 'self' })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(ownerNoDash, 'search_reviews', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });

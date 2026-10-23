@@ -228,7 +228,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'list_tracked_pages', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids) }), path: 'items' },
       { tool: 'get_price_matrix', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids) }), path: 'rows.*.cells.*.prices' },
       { tool: 'list_ads', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids), limit: 3 }), path: 'items' },
-      { tool: 'get_theme_benchmark', input: (ids) => ({ clientId: ls(ids) }), path: 'businesses.*.reviews' },
+      { tool: 'get_topic_benchmark', input: (ids) => ({ clientId: ls(ids) }), path: 'businesses.*.reviews' },
       { tool: 'get_geogrid', input: (ids) => ({ clientId: ls(ids), business: lsComp(ids) }), path: 'top3' },
       { tool: 'get_competitor_signals', input: (ids) => ({ clientId: ls(ids) }), path: 'competitors' },
       { tool: 'get_competitor_ad_matches', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids) }), path: 'pending' },
@@ -267,7 +267,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   { route: '/c/[clientId]/reports/[reportId]', as: 'admin', calls: [{ tool: 'get_trend_report', input: (ids) => ({ reportId: ids.reportId }), path: 'data' }, lsProfile, lsReports] },
   {
     route: '/c/[clientId]/reviews', as: 'admin', calls: [
-      { tool: 'get_theme_benchmark', input: (ids) => ({ clientId: ls(ids) }), path: 'businesses.*.reviews' },
+      { tool: 'get_topic_benchmark', input: (ids) => ({ clientId: ls(ids) }), path: 'businesses.*.reviews' },
       { tool: 'get_rating_trend', input: (ids) => ({ clientId: ls(ids) }), path: 'businesses.*.reviews90d' },
       { tool: 'search_reviews', input: (ids) => ({ clientId: ls(ids), text: 'showed up two hours late', days: 365 }), path: 'items' },
       lsProfile,

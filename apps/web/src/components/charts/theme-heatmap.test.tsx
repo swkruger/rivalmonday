@@ -3,14 +3,14 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { sentimentFill, ThemeHeatmap } from './theme-heatmap';
 
-const t = (themeId: string, share: number | null, sentiment: number | null, shareDelta: number | null = null) =>
-  ({ themeId, mentions: 1, asked: 2, share, sentiment, shareDelta, sentimentDelta: null });
+const t = (topicId: string, share: number | null, sentiment: number | null, shareDelta: number | null = null) =>
+  ({ topicId, mentions: 1, asked: 2, share, sentiment, shareDelta, sentimentDelta: null });
 
 const benchmark = {
-  themes: [{ id: 'response_time', name: 'Response time' }, { id: 'upsell_pressure', name: 'Upsell pressure' }],
+  topics: [{ id: 'response_time', name: 'Response time' }, { id: 'upsell_pressure', name: 'Upsell pressure' }],
   businesses: [
-    { competitorId: 's', name: 'A1 HVAC', self: true, reviews: 4, avgRating: 4.5, prevReviews: 2, prevAvgRating: 4, themes: [t('response_time', 0.34, 0.6, 0.08), t('upsell_pressure', null, null)] },
-    { competitorId: 'x', name: 'Smith HVAC', self: false, reviews: 3, avgRating: 3, prevReviews: 3, prevAvgRating: 3, themes: [t('response_time', 0.5, -1), t('upsell_pressure', 0.2, null)] },
+    { competitorId: 's', name: 'A1 HVAC', self: true, reviews: 4, avgRating: 4.5, prevReviews: 2, prevAvgRating: 4, topics: [t('response_time', 0.34, 0.6, 0.08), t('upsell_pressure', null, null)] },
+    { competitorId: 'x', name: 'Smith HVAC', self: false, reviews: 3, avgRating: 3, prevReviews: 3, prevAvgRating: 3, topics: [t('response_time', 0.5, -1), t('upsell_pressure', 0.2, null)] },
   ],
 };
 
@@ -27,7 +27,7 @@ describe('sentimentFill (decision 12)', () => {
 });
 
 describe('ThemeHeatmap', () => {
-  it('prints the share in each cell, "—" when the theme was never asked, and an arrow for a big change', () => {
+  it('prints the share in each cell, "—" when the topic was never asked, and an arrow for a big change', () => {
     render(<ThemeHeatmap title="What customers talk about" benchmark={benchmark} />);
     const svg = screen.getByRole('img', { name: /What customers talk about/ });
     const texts = [...svg.querySelectorAll('text[data-cell]')].map((n) => n.textContent);
@@ -56,7 +56,7 @@ describe('ThemeHeatmap', () => {
   });
 
   it('says so when there is nothing to show', () => {
-    render(<ThemeHeatmap title="T" benchmark={{ themes: [], businesses: [] }} />);
+    render(<ThemeHeatmap title="T" benchmark={{ topics: [], businesses: [] }} />);
     expect(screen.getByText('No reviews analysed yet.')).toBeTruthy();
   });
 });

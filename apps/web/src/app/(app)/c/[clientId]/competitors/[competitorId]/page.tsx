@@ -84,7 +84,7 @@ export default async function CompetitorProfilePage({
     callTool<{ items: TrackedPageView[] }>(ctx, 'list_tracked_pages', { clientId, competitorId }),
     callTool<PriceMatrixView>(ctx, 'get_price_matrix', { clientId, competitorId }),
     callTool<AdList>(ctx, 'list_ads', { clientId, competitorId, limit: 3 }),
-    callTool<TopicBenchmarkView>(ctx, 'get_theme_benchmark', { clientId }),
+    callTool<TopicBenchmarkView>(ctx, 'get_topic_benchmark', { clientId }),
     callTool<GeoGridView>(ctx, 'get_geogrid', { clientId, business: competitorId }),
     callTool<{ competitors: CompetitorSignalView[] }>(ctx, 'get_competitor_signals', { clientId }),
     manageAds

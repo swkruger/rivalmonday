@@ -17,9 +17,9 @@ export function ReviewItem({ review }: { review: ReviewView }) {
         <span className="text-xs text-muted-foreground">{meta}</span>
       </div>
       {review.text ? <p className="whitespace-pre-line text-sm text-ink">{review.text}</p> : <p className="text-sm text-muted-foreground">No written review.</p>}
-      {review.themes.length > 0 && (
+      {review.topics.length > 0 && (
         <ul className="flex flex-wrap gap-1.5">
-          {review.themes.map((t) => <li key={t.id} className="rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary-soft-text">{t.name}</li>)}
+          {review.topics.map((t) => <li key={t.id} className="rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary-soft-text">{t.name}</li>)}
         </ul>
       )}
       {review.ownerAnswer && <p className="rounded-md bg-muted-surface p-2 text-xs text-ink">Owner replied: {review.ownerAnswer}</p>}

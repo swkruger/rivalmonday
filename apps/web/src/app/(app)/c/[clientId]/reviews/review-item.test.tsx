@@ -9,7 +9,7 @@ describe('ReviewItem', () => {
       <ReviewItem
         review={{
           reviewId: 'r', competitorId: 'x', name: 'Smith HVAC', self: false, rating: 2, text: 'Tech was late', postedAt: '2026-10-03T00:00:00.000Z',
-          themes: [{ id: 'response_time', name: 'Response time' }], sentiment: 0, ownerAnswer: 'Sorry about that',
+          topics: [{ id: 'response_time', name: 'Response time' }], sentiment: 0, ownerAnswer: 'Sorry about that',
         }}
       />,
     );
@@ -21,7 +21,7 @@ describe('ReviewItem', () => {
   });
 
   it('names the self business "You" and handles a rating-only review', () => {
-    render(<ReviewItem review={{ reviewId: 'r', competitorId: 's', name: 'A1 HVAC', self: true, rating: null, text: null, postedAt: null, themes: [], sentiment: null, ownerAnswer: null }} />);
+    render(<ReviewItem review={{ reviewId: 'r', competitorId: 's', name: 'A1 HVAC', self: true, rating: null, text: null, postedAt: null, topics: [], sentiment: null, ownerAnswer: null }} />);
     expect(screen.getByText(/Google reviewer · You/)).toBeTruthy();
     expect(screen.getByText('No written review.')).toBeTruthy();
   });

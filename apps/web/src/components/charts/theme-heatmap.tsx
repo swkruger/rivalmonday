@@ -23,23 +23,23 @@ const pct = (x: number) => `${Math.round(x * 100)}%`;
 const signed = (x: number) => `${x > 0 ? '+' : ''}${x.toFixed(1)}`;
 const short = (s: string, n = 16) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-/** Module 6 heatmap: rows = themes, columns = businesses (you first). Colour = sentiment of mentions, number = mention share. */
-export function ThemeHeatmap({ title, benchmark }: { title: string; benchmark: Pick<TopicBenchmarkView, 'themes' | 'businesses'> }) {
-  const { themes, businesses } = benchmark;
-  if (themes.length === 0 || businesses.length === 0) return <p className="text-sm text-muted-foreground">No reviews analysed yet.</p>;
+/** Module 6 heatmap: rows = topics, columns = businesses (you first). Colour = sentiment of mentions, number = mention share. */
+export function ThemeHeatmap({ title, benchmark }: { title: string; benchmark: Pick<TopicBenchmarkView, 'topics' | 'businesses'> }) {
+  const { topics, businesses } = benchmark;
+  if (topics.length === 0 || businesses.length === 0) return <p className="text-sm text-muted-foreground">No reviews analysed yet.</p>;
   const LABEL_W = 200;
   const COL_W = 104;
   const ROW_H = 34;
   const HEAD_H = 40;
   const GAP = 2;
   const W = LABEL_W + businesses.length * COL_W;
-  const H = HEAD_H + themes.length * ROW_H;
+  const H = HEAD_H + topics.length * ROW_H;
   const colName = (b: (typeof businesses)[number]) => (b.self ? 'You' : b.name);
-  const cell = (b: (typeof businesses)[number], themeId: string) => b.themes.find((x) => x.themeId === themeId) ?? null;
+  const cell = (b: (typeof businesses)[number], topicId: string) => b.topics.find((x) => x.topicId === topicId) ?? null;
   return (
     <figure className="flex flex-col gap-2">
       <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${themes.length} topics for ${businesses.length} businesses; colour shows how positive mentions are, the number how often the topic comes up.`} style={{ minWidth: Math.round(W * 0.75) }} className="w-full">
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${topics.length} topics for ${businesses.length} businesses; colour shows how positive mentions are, the number how often the topic comes up.`} style={{ minWidth: Math.round(W * 0.75) }} className="w-full">
           {businesses.map((b, j) => (
             <g key={b.competitorId}>
               <title>{b.name}</title>
@@ -48,7 +48,7 @@ export function ThemeHeatmap({ title, benchmark }: { title: string; benchmark: P
               </text>
             </g>
           ))}
-          {themes.map((th, i) => (
+          {topics.map((th, i) => (
             <g key={th.id}>
               <text x={LABEL_W - 10} y={HEAD_H + i * ROW_H + ROW_H / 2 + 4} textAnchor="end" fontSize={12} fill={INK}>{short(th.name, 28)}</text>
               {businesses.map((b, j) => {
@@ -103,7 +103,7 @@ export function ThemeHeatmap({ title, benchmark }: { title: string; benchmark: P
               </tr>
             </thead>
             <tbody>
-              {themes.map((th) => (
+              {topics.map((th) => (
                 <tr key={th.id}>
                   <th scope="row" className="font-normal">{th.name}</th>
                   {businesses.map((b) => {

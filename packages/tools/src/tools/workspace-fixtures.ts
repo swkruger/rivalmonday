@@ -280,7 +280,7 @@ export interface SeedReviewOptions {
   /** Default 'hash-secret' — tests assert it never appears in tool output. */
   reviewerHash?: string;
   /** A `review_analysis` row for `verticalId` (default 'hvac_plumbing'); omit for an unanalysed review. */
-  analysis?: { asked: string[]; themes: string[]; sentiment: number | null };
+  analysis?: { asked: string[]; topics: string[]; sentiment: number | null };
   verticalId?: string;
 }
 
@@ -293,7 +293,7 @@ export async function seedReview(o: SeedReviewOptions = {}): Promise<string> {
   }).returning();
   if (o.analysis) {
     await dbs.owner.insert(reviewAnalysis).values({
-      reviewId: r!.id, verticalId: o.verticalId ?? 'hvac_plumbing', competitorId, textSha: 'sha', asked: o.analysis.asked, topics: o.analysis.themes,
+      reviewId: r!.id, verticalId: o.verticalId ?? 'hvac_plumbing', competitorId, textSha: 'sha', asked: o.analysis.asked, topics: o.analysis.topics,
       sentiment: o.analysis.sentiment, confidence: 0.9, analysisVersion: 1,
     });
   }
