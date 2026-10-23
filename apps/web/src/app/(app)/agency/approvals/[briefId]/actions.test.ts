@@ -19,9 +19,16 @@ beforeEach(() => {
 });
 
 describe('approveAction', () => {
-  it('weekly brief: goes out Monday', async () => {
-    m.runTool.mockResolvedValue({ ok: true, data: { recommendations: 2 } });
-    expect(await approveAction({ ok: true }, form({ briefId: B }))).toEqual({ ok: true, message: 'Approved — it goes out Monday 07:00. 2 recommendation(s) created.' });
+  it('weekly brief: goes out Monday at 7:00 AM in the client zone, as the button says', async () => {
+    m.runTool.mockImplementation(async (_c: unknown, name: string) =>
+      name === 'get_brief_review' ? { ok: true, data: { clientTimezone: 'America/Chicago' } } : { ok: true, data: { recommendations: 2 } });
+    expect(await approveAction({ ok: true }, form({ briefId: B }))).toEqual({ ok: true, message: 'Approved — it goes out Monday 7:00 AM CT. 2 recommendation(s) created.' });
+    expect(m.runTool).toHaveBeenCalledWith(m.ctx, 'get_brief_review', { briefId: B });
+  });
+
+  it('weekly brief: without the review read the message still names the time', async () => {
+    m.runTool.mockImplementation(async (_c: unknown, name: string) => (name === 'get_brief_review' ? { ok: false, error: 'x' } : { ok: true, data: { recommendations: 0 } }));
+    expect(await approveAction({ ok: true }, form({ briefId: B }))).toEqual({ ok: true, message: 'Approved — it goes out Monday 7:00 AM. 0 recommendation(s) created.' });
   });
 
   it('starting point: sent to the client (Ruling 13)', async () => {

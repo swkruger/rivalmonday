@@ -7,6 +7,7 @@ import { requireContext } from '@/server/current-viewer';
 import type { FormResult } from '@/server/forms';
 import { moveInOrder } from '@/server/order';
 import { runTool } from '@/server/run-tool';
+import { mondaySendTime } from './send-time';
 
 async function agencyCtx(): Promise<AccessContext> {
   const { ctx } = await requireContext();
@@ -55,13 +56,19 @@ export async function rateItemAction(_p: FormResult, fd: FormData): Promise<Form
   return r.ok ? { ok: true, message: 'Thanks — rating saved.' } : r;
 }
 
+/** The weekly send time in the client's own zone, as the Approve button names it ("Monday 7:00 AM CT"). */
+async function sendTimeOf(ctx: AccessContext, briefId: string): Promise<string> {
+  const view = await runTool<BriefReview>(ctx, 'get_brief_review', { briefId });
+  return view.ok && view.data.clientTimezone ? mondaySendTime(view.data.clientTimezone) : 'Monday 7:00 AM';
+}
+
 export async function approveAction(_p: FormResult, fd: FormData): Promise<FormResult> {
   const ctx = await agencyCtx();
   const r = await runTool<{ recommendations: number }>(ctx, 'approve_brief', { briefId: s(fd, 'briefId') });
   // A starting point whose send failed is still approved (the error says so): refresh so the page shows that state.
   refresh(s(fd, 'briefId'));
   if (!r.ok) return r;
-  const when = s(fd, 'kind') === 'starting_point' ? 'Approved — sent to the client.' : 'Approved — it goes out Monday 07:00.';
+  const when = s(fd, 'kind') === 'starting_point' ? 'Approved — sent to the client.' : `Approved — it goes out ${await sendTimeOf(ctx, s(fd, 'briefId'))}.`;
   return { ok: true, message: `${when} ${r.data.recommendations} recommendation(s) created.` };
 }
 
