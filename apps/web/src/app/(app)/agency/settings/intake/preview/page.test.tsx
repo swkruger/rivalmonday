@@ -36,6 +36,9 @@ describe('/agency/settings/intake/preview', () => {
     const { container } = render(await Page());
     expect(m.callTool).toHaveBeenCalledWith(m.ctx, 'get_intake_link', {});
     expect(screen.getByRole('heading', { level: 1, name: 'Intake preview' })).toBeTruthy();
+    // The embedded landing heading steps down so the page keeps one h1 (PageHeader's).
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 2, name: 'Get your free competitor snapshot' })).toBeTruthy();
     expect(screen.getByText('Preview — this is what visitors see')).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Find my business' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Get my free snapshot' }) as HTMLButtonElement).disabled).toBe(true);
