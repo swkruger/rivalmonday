@@ -6,6 +6,7 @@ Rules: new items go under their target; done items are deleted (git history keep
 Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text: [archive/2026-10-11-roadmap-full.md](archive/2026-10-11-roadmap-full.md)) and HANDOVER §5, §7, §8.
 
 ## Phase 7 — Hardening & pilot
+> 7b/7c planned 2026-10-23: items below are owned by the plans `2026-10-23-phase-7b1|7b2|7c1|7c2` (each plan's docs task lists the lines it closes). Not folded: Launch gate (standalone before the live deploy), ANN index (when pilot volume shows slow search).
 
 ### Launch gate (before 7a1 Task 12, the live deploy)
 - [ ] **HIGH - gates 7a1 Task 12:** shell DB stages: (app) shell ~12 sequential stages/page (max 22), (platform) 19-20 (`list_platform_costs` per-snapshot-row queries); target `--assert-db-stages 8`; also time the Better Auth pg pool and profile ask/[threadId], reports/[reportId], kb/[id] — *from 7a*
@@ -198,6 +199,9 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
 - [ ] Prod accounts (O17: Vercel, Railway, Neon prod, Sentry, R2) before 7a1 Task 12; steps in `docs/DEPLOY.md` — *7a*
 - [ ] Sign off the `/platform/health` help copy (description, 4 status tips, operator guide) — *7a1*
+- [ ] Sign off copy marked in the 7b1/7b2/7c2 plans before each task builds it (credit notices, pause/heavy-load banners, credit refusals, staff emails, duplicate-subscription notice, feedback links) — *phase-7-planning*
+- [ ] Confirm Jev's real price (`ai.yaml` placeholder); until then Jev is excluded from credit limits and the spike guard — *phase-7-planning*
+- [ ] Staging setup before 7c2 Task 12 (needs O17 prod Neon): Vercel Preview + Neon staging branch + Railway worker sized like prod + fixture-hosts service (5 custom domains); rehearsal ≤ \$5 AI, ~\$20 infra — *phase-7-planning*
 - [ ] Postmark webhook: answer 500 or 200 on handler errors (500 makes Postmark retry)? — *7a2 T8*
 - [ ] Purge anonymises `platform_support` rows: confirm — *7a2 T10*
 - [ ] Scope-`all` roles still see an archived client's `llm_call`/`vendor_call`/`audit_log` rows (0006 policies): accept or hide — *7a2*
