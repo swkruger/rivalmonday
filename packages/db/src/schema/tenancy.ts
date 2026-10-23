@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { type AnyPgColumn, boolean, check, doublePrecision, foreignKey, index, integer, jsonb, numeric, pgTable, primaryKey, smallint, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { type AnyPgColumn, boolean, check, foreignKey, index, integer, jsonb, numeric, pgTable, primaryKey, smallint, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 import type { AgencyBranding } from './delivery';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
