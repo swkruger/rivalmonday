@@ -68,9 +68,19 @@ describe('client billing section', () => {
     expect((screen.getByLabelText('Setup fee ($)') as HTMLInputElement).value).toBe('50');
     expect((screen.getByLabelText('Pause unpaid clients after (days)') as HTMLInputElement).value).toBe('14');
     expect(screen.getByText('You bill $598/mo · Rival Monday costs you $349/mo')).toBeTruthy();
+    // SaveBar: hidden while clean, "Save defaults" once a field changes
+    expect(screen.queryByRole('button', { name: 'Save defaults' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Monthly price ($)'), { target: { value: '310' } });
     expect(screen.getByRole('button', { name: 'Save defaults' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Disconnect Stripe' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Connect Stripe' })).toBeNull();
+  });
+
+  it('the setup-fee blank-vs-0 rule is the field help text (aria-describedby)', () => {
+    render(<ClientBillingSection status={status() as never} revenue={revenue} connect={undefined} />);
+    const setup = screen.getByLabelText('Setup fee ($)');
+    expect(document.getElementById(setup.getAttribute('aria-describedby')!)?.textContent).toBe('Leave blank to keep the current fee. Enter 0 for no setup fee.');
+    expect(screen.getByLabelText('Monthly price ($)').getAttribute('aria-required')).toBe('true');
   });
 
   it('?connect messages', () => {
@@ -108,14 +118,13 @@ describe('disabled while pending and in-dialog errors', () => {
     await act(async () => { release({ ok: false, error: 'x' }); });
   });
 
-  it('a disconnect failure shows its alert inside the dialog', async () => {
+  it('a disconnect failure shows its alert on the card after the dialog closes', async () => {
     m.runTool.mockResolvedValue({ ok: false, error: "Stripe couldn't complete that. Please try again." });
     render(<ClientBillingSection status={status() as never} revenue={revenue} connect={undefined} />);
     fireEvent.click(screen.getByRole('button', { name: 'Disconnect Stripe' }));
     await act(async () => { fireEvent.submit(screen.getByRole('button', { name: 'Yes, disconnect' }).closest('form')!); });
-    const alert = screen.getByRole('alert');
+    const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain("Stripe couldn't complete that");
-    expect(alert.closest('[role="dialog"]')).not.toBeNull();
   });
 });
 

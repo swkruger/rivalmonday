@@ -90,6 +90,11 @@ describe('ProfileStep', () => {
 });
 
 describe('TeamStep', () => {
+  it('team step defaults to Account manager', () => {
+    render(<TeamStep />);
+    expect((screen.getAllByLabelText(/Role/)[0] as HTMLSelectElement).value).toBe('account_manager');
+  });
+
   it('has a role select per row, adds rows, and submits to inviteTeamAction', async () => {
     render(<TeamStep />);
     expect(screen.getAllByLabelText(/Email/)).toHaveLength(1);
@@ -136,7 +141,7 @@ describe('TeamStep', () => {
 });
 
 const summary = (o: Record<string, unknown> = {}) => ({
-  state: 'trialing', plan: { name: 'Standard', includedSeats: 3 }, dates: { trialEndsAt: '2026-11-01T12:00:00Z', pilotEndsAt: null },
+  state: 'trialing', plan: { name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900 }, dates: { trialEndsAt: '2026-11-01T12:00:00Z', pilotEndsAt: null },
   reducedTrial: false, maxActiveClients: 3, discount: null, ...o,
 });
 
@@ -170,12 +175,45 @@ describe('PlanStep', () => {
   });
 });
 
+describe('PlanStep price and dates', () => {
+  it('shows the price and client line from the plan row', () => {
+    render(<PlanStep summary={summary() as never} />);
+    expect(screen.getByText('$229 per month, includes 3 clients; each extra client $99 per month.')).toBeTruthy();
+  });
+
+  it('plan step formatDate gets now (year boundary)', () => {
+    vi.setSystemTime(new Date('2026-12-31T23:00:00Z'));
+    try {
+      // Server "now" is already 2027: Feb 1, 2027 is the current year there, so no year is shown.
+      render(<PlanStep summary={summary({ dates: { trialEndsAt: '2027-02-01T12:00:00Z', pilotEndsAt: null } }) as never} now="2027-01-01T05:00:00Z" />);
+      expect(screen.getByText('Trial ends Feb 1')).toBeTruthy();
+      cleanup();
+      render(<PlanStep summary={summary({ dates: { trialEndsAt: '2027-02-01T12:00:00Z', pilotEndsAt: null } }) as never} />);
+      expect(screen.getByText('Trial ends Feb 1, 2027')).toBeTruthy();
+    } finally {
+      vi.setSystemTime(new Date('2026-10-21T12:00:00Z'));
+    }
+  });
+});
+
+describe('ProfileStep required fields', () => {
+  it('marks the required fields with aria-required and Required text', () => {
+    render(<ProfileStep initial={profile} timezones={['UTC']} verticalChoices={VERTICALS} />);
+    for (const l of ['Agency name', 'Contact name', 'Contact email', 'Phone']) {
+      const input = screen.getByLabelText(l);
+      expect(input.getAttribute('aria-required')).toBe('true');
+      expect(document.getElementById(input.getAttribute('aria-describedby')!)?.textContent).toBe('Required');
+    }
+    expect(screen.getByLabelText('Legal name').getAttribute('aria-required')).toBeNull();
+  });
+});
+
 describe('BrandingStep', () => {
   it('uses the shared editor and submits to saveBrandingStepAction', async () => {
     render(<BrandingStep initial={{ displayName: 'Acme' }} agencyName="Acme" />);
     expect(screen.getByLabelText('Display name')).toBeTruthy();
     expect(screen.getByLabelText('Upload logo')).toBeTruthy();
-    await submit(screen.getByRole('button', { name: 'Save and continue' }));
+    await submit(screen.getByRole('button', { name: 'Save and finish' }));
     await waitFor(() => expect(m.saveBrandingStepAction).toHaveBeenCalled());
     expect(lastArg(m.saveBrandingStepAction.mock.calls[0]).get('displayName')).toBe('Acme');
   });

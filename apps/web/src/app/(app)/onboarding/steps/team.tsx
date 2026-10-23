@@ -13,7 +13,7 @@ export function TeamStep() {
   const [state, formAction, pending] = useActionState(inviteTeamAction, { ok: true } as FormResult);
   const [rows, setRows] = useState([0]);
   const [emails, setEmails] = useState<Record<number, string>>({});
-  // Controlled: React 19 resets uncontrolled fields after a form action, errors included (a role must never snap back to admin).
+  // Controlled: React 19 resets uncontrolled fields after a form action, errors included (a role must never snap back to its default).
   const [roles, setRoles] = useState<Record<number, string>>({});
   const [asking, setAsking] = useState(false);
   const confirmedRef = useRef(false);
@@ -33,7 +33,7 @@ export function TeamStep() {
             setAsking(true);
           }
         }}
-        className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card"
+        className="flex flex-col gap-5 rounded-md border border-line bg-surface p-6"
       >
         <p className="text-muted-foreground">Add the people who will manage clients with you. You can invite more later from Team.</p>
         <FormError state={state} />
@@ -45,7 +45,7 @@ export function TeamStep() {
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor={`role-${id}`}>Role{rows.length > 1 ? ` ${i + 1}` : ''}</Label>
-              <select id={`role-${id}`} name="role" value={roles[id] ?? 'agency_admin'} onChange={(e) => setRoles((m) => ({ ...m, [id]: e.target.value }))} className={selectClass}>
+              <select id={`role-${id}`} name="role" value={roles[id] ?? 'account_manager'} onChange={(e) => setRoles((m) => ({ ...m, [id]: e.target.value }))} className={selectClass}>
                 <option value="agency_admin">Agency admin</option>
                 <option value="account_manager">Account manager</option>
               </select>

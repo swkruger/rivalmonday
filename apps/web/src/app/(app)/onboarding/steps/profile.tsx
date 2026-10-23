@@ -17,11 +17,12 @@ export interface ProfileValues {
 }
 
 
-function Field({ id, label, children, hint }: { id: string; label: string; children: React.ReactNode; hint?: string }) {
+function Field({ id, label, children, hint, required }: { id: string; label: string; children: React.ReactNode; hint?: string; required?: boolean }) {
   return (
     <div className="flex flex-col gap-2">
       <Label htmlFor={id}>{label}</Label>
       {children}
+      {required && <p id={`${id}-required`} className="text-xs text-muted-foreground">Required</p>}
       {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
     </div>
   );
@@ -39,14 +40,14 @@ export function ProfileStep({ initial, timezones, verticalChoices }: { initial: 
   const [verticals, setVerticals] = useState<string[]>(initial.verticals);
   const readOnly = useReadOnly();
   const text = (id: keyof ProfileValues, label: string, extra: React.ComponentProps<typeof Input> = {}) => (
-    <Field id={id} label={label}>
-      <Input id={id} name={id} value={vals[id] ?? ''} onChange={(e) => setVals((m) => ({ ...m, [id]: e.target.value }))} {...extra} />
+    <Field id={id} label={label} required={extra.required === true || extra['aria-required'] === true || extra['aria-required'] === 'true'}>
+      <Input id={id} name={id} value={vals[id] ?? ''} onChange={(e) => setVals((m) => ({ ...m, [id]: e.target.value }))} {...(extra.required || extra['aria-required'] ? { 'aria-required': true, 'aria-describedby': `${id}-required` } : {})} {...extra} />
     </Field>
   );
 
   return (
     <div className="flex flex-col gap-4">
-      <form action={formAction} onReset={(e) => e.preventDefault()} className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card">
+      <form action={formAction} onReset={(e) => e.preventDefault()} className="flex flex-col gap-5 rounded-md border border-line bg-surface p-6">
         <p className="text-muted-foreground">We use this to set up your account and invoices. To save this step we need your agency name, a contact name, contact email and phone — everything else is optional. You can also skip and finish later.</p>
         <FormError state={state} />
         <fieldset disabled={readOnly} className="contents">
@@ -54,10 +55,10 @@ export function ProfileStep({ initial, timezones, verticalChoices }: { initial: 
             {text('name', 'Agency name', { required: true, maxLength: 120 })}
             {text('legalName', 'Legal name', { maxLength: 200 })}
             {text('website', 'Website', { type: 'url', placeholder: 'https://example.com' })}
-            {text('contactName', 'Contact name', { maxLength: 120 })}
+            {text('contactName', 'Contact name', { maxLength: 120, 'aria-required': true })}
             {text('contactRole', 'Contact role', { maxLength: 120 })}
-            {text('contactEmail', 'Contact email', { type: 'email' })}
-            {text('phone', 'Phone', { type: 'tel', placeholder: '(404) 555-0100' })}
+            {text('contactEmail', 'Contact email', { type: 'email', 'aria-required': true })}
+            {text('phone', 'Phone', { type: 'tel', placeholder: '(404) 555-0100', 'aria-required': true })}
             <Field id="timezone" label="Time zone">
               <select id="timezone" name="timezone" value={vals.timezone ?? initial.timezone} onChange={(e) => setVals((m) => ({ ...m, timezone: e.target.value }))} className={selectClass}>
                 {timezones.map((tz) => <option key={tz} value={tz}>{tz}</option>)}

@@ -49,7 +49,8 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   } else if (step === 'team') {
     body = <TeamStep />;
   } else if (step === 'plan') {
-    body = <PlanStep summary={await callTool<PlanSummary>(ctx, 'get_billing_summary', {})} />;
+    // format-gate: serialises the server's "now" for the client component, which formats dates against it (never shown as text)
+    body = <PlanStep summary={await callTool<PlanSummary>(ctx, 'get_billing_summary', {})} now={new Date().toISOString()} />;
   } else {
     const { stored, resolved } = await callTool<{ stored: AgencyBranding; resolved: Branding }>(ctx, 'get_agency_branding', {});
     body = <BrandingStep initial={stored} agencyName={resolved.displayName} />;

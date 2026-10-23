@@ -46,10 +46,10 @@ export default async function PlatformAccessPage({ searchParams }: { searchParam
       />
       <Card>
         <CardHeader>
-          <CardTitle className="inline-flex items-center gap-1.5">
-            Notifications
+          <div className="inline-flex items-center gap-1.5">
+            <CardTitle>Notifications</CardTitle>
             <HelpTip tip="agency.settings.platform-access.notify" />
-          </CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           <NotifySwitch enabled={notifyEnabled} />
@@ -57,11 +57,11 @@ export default async function PlatformAccessPage({ searchParams }: { searchParam
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle className="inline-flex items-center gap-1.5">
-            Support sessions
+          <div className="inline-flex items-center gap-1.5">
+            <CardTitle>Support sessions</CardTitle>
             <HelpTip tip="agency.settings.platform-access.sessions" />
             <HelpTip tip="agency.settings.platform-access.endReasons" />
-          </CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           {rows.length === 0 ? <EmptyState {...COPY.empty.noSessions} guideAnchor="what-this-page-tells-you" /> : <SupportSessionsTable rows={rows} empty="" tz={tz} />}

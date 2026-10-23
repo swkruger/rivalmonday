@@ -16,6 +16,7 @@ import { helpGuides } from '@/server/help';
 import { themeForViewer } from '@/server/theme';
 import { webEnv } from '@/server/env';
 import { callTool } from '@/server/tools';
+import { viewerTimeZone } from '@/server/viewer-tz';
 import { createClientTokenAction, revokeClientGrantAction, revokeClientTokenAction } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -38,6 +39,7 @@ export default async function AiConnectionsPage({ params }: { params: Promise<{ 
   ]);
   const agency = isAgencyRole(ctx.role);
   const admin = ctx.role === 'agency_admin';
+  const tz = await viewerTimeZone();
   const hidden = { clientId };
 
   // 15a §2.10: the Claude Code command names the viewer's agency (cached branding read shared with the shell).
@@ -59,6 +61,7 @@ export default async function AiConnectionsPage({ params }: { params: Promise<{ 
         scopes={agency ? [] : grantableScopes(ctx.role)}
         tokens={tokens.items}
         showOwner={admin}
+        tz={tz}
         help={
           <>
             <HelpTip tip="client.settings.ai.tokens" />
@@ -83,7 +86,8 @@ export default async function AiConnectionsPage({ params }: { params: Promise<{ 
         }
       />
       <ConnectedAppsCard
-        grants={grants.items} showOwner={admin} revokeAction={revokeClientGrantAction} hidden={hidden}
+        grants={grants.items} showOwner={admin}
+        tz={tz} revokeAction={revokeClientGrantAction} hidden={hidden}
         help={<HelpTip tip="client.settings.ai.apps" />}
         empty={<EmptyState {...COPY.empty.noApps} guideAnchor="how-to-use-it" />}
       />

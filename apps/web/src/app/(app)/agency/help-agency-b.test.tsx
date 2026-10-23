@@ -25,6 +25,7 @@ vi.mock('@/server/current-viewer', () => ({
   },
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
+vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/ask', () => ({ assistantNameFor: async () => 'Sunny' }));
 vi.mock('@/server/theme', () => ({ themeForViewer: async () => ({ branding: { displayName: 'Cool Comfort', primary: '#47A8E7' }, style: {}, assistantName: 'Sunny' }) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.test' }) }));
@@ -164,7 +165,7 @@ describe('agency batch B: Billing', () => {
   it('the status tip uses the page labels and the 7 day pause', async () => {
     await show('agency.settings.billing');
     const s = open('Billing status');
-    for (const w of ['Pilot', 'Trial', 'Active', 'Payment overdue', 'Paused', 'Suspended', 'Cancelled', '7 days']) expect(s, w).toContain(w);
+    for (const w of ['Pilot', 'Free trial', 'Active', 'Payment overdue', 'Read-only', 'Suspended', 'Cancelled', '7 days']) expect(s, w).toContain(w);
     for (const t of ['Next invoice', 'About client billing', 'Discount codes']) expect(hasTip(t), t).toBe(true);
   });
 

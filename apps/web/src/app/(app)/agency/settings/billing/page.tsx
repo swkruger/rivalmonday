@@ -1,6 +1,6 @@
 import { formatMoney, formatDate } from '@/lib/format';
 import type { BillingState } from '@cs/db';
-import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { Card, CardContent, CardHeader, CardTitle, StatusChip } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { RefreshUntilChanged } from '@/components/billing/refresh-until-changed';
 import { EmptyState } from '@/components/help/empty-state';
@@ -8,6 +8,7 @@ import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
+import { BILLING_STATE, INVOICE_STATUS, labelFor } from '@/lib/labels';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import type { FormResult } from '@/server/forms';
@@ -37,13 +38,6 @@ interface Summary {
   recentInvoices: { id: string; number: string | null; amountPaidCents: number; status: string | null; hostedInvoiceUrl: string | null; created: string }[];
   hasSubscription: boolean;
 }
-
-const STATE_LABEL: Record<BillingState, string> = {
-  pilot: 'Pilot', trialing: 'Trial', active: 'Active', past_due: 'Payment overdue', read_only: 'Paused', suspended: 'Suspended', cancelled: 'Cancelled',
-};
-const STATE_TONE: Record<BillingState, 'default' | 'secondary' | 'destructive'> = {
-  pilot: 'secondary', trialing: 'secondary', active: 'default', past_due: 'destructive', read_only: 'destructive', suspended: 'destructive', cancelled: 'secondary',
-};
 
 function keyDate(s: Summary): string | null {
   const d = s.dates;
@@ -82,6 +76,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const revenue = connectStatus.status === 'connected' ? await callTool<Revenue>(ctx, 'get_client_revenue', {}) : null;
   const date = keyDate(s);
   const pay = paymentAction(s);
+  const state = labelFor(BILLING_STATE, s.state);
   return (
     <>
       <PageHeader
@@ -99,16 +94,16 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       )}
       <Card>
         <CardHeader>
-          <CardTitle className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1.5">
-              {s.plan?.name ?? 'No plan'}
+              <CardTitle>{s.plan?.name ?? 'No plan'}</CardTitle>
               <HelpTip tip="agency.settings.billing.plan" />
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <Badge variant={STATE_TONE[s.state]}>{STATE_LABEL[s.state]}</Badge>
+              <StatusChip tone={state.tone}>{state.label}</StatusChip>
               <HelpTip tip="agency.settings.billing.status" />
             </span>
-          </CardTitle>
+          </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {s.plan && (
@@ -118,7 +113,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           )}
           {date && <p className="font-semibold">{date}</p>}
           <p>
-            Seats: {s.seats.used} of {s.seats.included} included{s.seats.extra > 0 ? `, ${s.seats.extra} extra` : ''}.{' '}
+            Clients: {s.seats.used} of {s.seats.included} included{s.seats.extra > 0 ? `, ${s.seats.extra} extra` : ''}.{' '}
             <a href="/agency/settings/billing/seats.csv" className="font-semibold text-primary-soft-text underline">
               Download seat report (CSV)
             </a>
@@ -138,10 +133,10 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       <ClientBillingSection status={connectStatus} revenue={revenue} connect={connect} help={<HelpTip tip="agency.settings.billing.clientBilling" />} />
       <Card>
         <CardHeader>
-          <CardTitle className="inline-flex items-center gap-1.5">
-            Discount code
+          <div className="inline-flex items-center gap-1.5">
+            <CardTitle>Discount code</CardTitle>
             <HelpTip tip="agency.settings.billing.discount" />
-          </CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           <RedeemForm />
@@ -149,10 +144,10 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle className="inline-flex items-center gap-1.5">
-            Recent invoices
+          <div className="inline-flex items-center gap-1.5">
+            <CardTitle>Recent invoices</CardTitle>
             <HelpTip tip="agency.settings.billing.invoice" />
-          </CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           {s.recentInvoices.length === 0 ? (
@@ -163,7 +158,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                 <li key={i.id} className="flex flex-wrap items-center gap-3">
                   <span>{formatDate(i.created, { tz: 'UTC' })}</span>
                   <span>{formatMoney(i.amountPaidCents, { unit: 'cents' })}</span>
-                  <span className="capitalize text-muted-foreground">{i.status ?? ''}</span>
+                  <StatusChip tone={labelFor(INVOICE_STATUS, i.status).tone}>{labelFor(INVOICE_STATUS, i.status).label}</StatusChip>
                   {i.hostedInvoiceUrl && (
                     <a href={i.hostedInvoiceUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-soft-text underline">
                       Invoice {i.number ?? i.id}

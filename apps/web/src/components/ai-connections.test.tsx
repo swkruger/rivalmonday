@@ -60,7 +60,7 @@ describe('mcpServerName (15a §2.10)', () => {
 
 describe('AccessTokensCard', () => {
   it('offers only the grantable access levels and the decided field copy', () => {
-    render(<AccessTokensCard canCreate scopes={['read', 'feedback']} tokens={[]} showOwner={false} createAction={createAction} revokeAction={revokeTokenAction} />);
+    render(<AccessTokensCard tz="UTC" canCreate scopes={['read', 'feedback']} tokens={[]} showOwner={false} createAction={createAction} revokeAction={revokeTokenAction} />);
     const access = screen.getByLabelText('Access') as HTMLSelectElement;
     expect(Array.from(access.options).map((o) => o.textContent)).toEqual(['Read only', 'Read and feedback']);
     expect((screen.getByLabelText('Name') as HTMLInputElement).placeholder).toBe('e.g. Claude Code on my laptop');
@@ -69,13 +69,13 @@ describe('AccessTokensCard', () => {
   });
 
   it('hides the create form when the viewer cannot create tokens here', () => {
-    render(<AccessTokensCard canCreate={false} scopes={[]} tokens={[]} showOwner={false} createAction={createAction} revokeAction={revokeTokenAction} />);
+    render(<AccessTokensCard tz="UTC" canCreate={false} scopes={[]} tokens={[]} showOwner={false} createAction={createAction} revokeAction={revokeTokenAction} />);
     expect(screen.queryByRole('button', { name: 'Create token' })).toBeNull();
   });
 
   it('shows a new token once, with a copy button, until Done', async () => {
     states.set(createAction, { ok: true, id: 't1', token: TOKEN, prefix: TOKEN.slice(0, 12) });
-    render(<AccessTokensCard canCreate scopes={['read']} tokens={[token()]} showOwner={false} createAction={createAction} revokeAction={revokeTokenAction} />);
+    render(<AccessTokensCard tz="UTC" canCreate scopes={['read']} tokens={[token()]} showOwner={false} createAction={createAction} revokeAction={revokeTokenAction} />);
     expect(screen.getByText("Copy your token now. You won't be able to see it again.")).toBeTruthy();
     expect(screen.getByText(TOKEN)).toBeTruthy();
     expect(screen.getAllByRole('button', { name: 'Copy' })).toHaveLength(1);
@@ -85,25 +85,25 @@ describe('AccessTokensCard', () => {
 
   it('lists tokens with access, dates and "Never" for unused ones; Owner only for admins', () => {
     const { unmount } = render(
-      <AccessTokensCard canCreate={false} scopes={[]} showOwner={false} createAction={createAction} revokeAction={revokeTokenAction}
+      <AccessTokensCard tz="UTC" canCreate={false} scopes={[]} showOwner={false} createAction={createAction} revokeAction={revokeTokenAction}
         tokens={[token(), token({ id: '33333333-3333-4333-8333-333333333333', name: 'Script', scope: 'manage', lastUsedAt: '2026-10-05T08:00:00.000Z' })]} />,
     );
     const rows = screen.getAllByRole('row');
     expect(within(rows[1]!).getByText('Claude Code on my laptop')).toBeTruthy();
     expect(within(rows[1]!).getByText('Read only')).toBeTruthy();
-    expect(within(rows[1]!).getByText('2026-10-01')).toBeTruthy();
+    expect(within(rows[1]!).getByText('Oct 1')).toBeTruthy();
     expect(within(rows[1]!).getByText('Never')).toBeTruthy();
     expect(within(rows[2]!).getByText('Read, feedback and manage')).toBeTruthy();
-    expect(within(rows[2]!).getByText('2026-10-05')).toBeTruthy();
+    expect(within(rows[2]!).getByText('Oct 5')).toBeTruthy();
     expect(screen.queryByRole('columnheader', { name: 'Owner' })).toBeNull();
     unmount();
-    render(<AccessTokensCard canCreate={false} scopes={[]} showOwner tokens={[token()]} createAction={createAction} revokeAction={revokeTokenAction} />);
+    render(<AccessTokensCard tz="UTC" canCreate={false} scopes={[]} showOwner tokens={[token()]} createAction={createAction} revokeAction={revokeTokenAction} />);
     expect(screen.getByRole('columnheader', { name: 'Owner' })).toBeTruthy();
     expect(screen.getByText('Ana Admin')).toBeTruthy();
   });
 
   it('asks before revoking', async () => {
-    render(<AccessTokensCard canCreate={false} scopes={[]} showOwner={false} tokens={[token()]} createAction={createAction} revokeAction={revokeTokenAction} />);
+    render(<AccessTokensCard tz="UTC" canCreate={false} scopes={[]} showOwner={false} tokens={[token()]} createAction={createAction} revokeAction={revokeTokenAction} />);
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Revoke Claude Code on my laptop' })));
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByText('Revoke this token?')).toBeTruthy();
@@ -115,13 +115,13 @@ describe('AccessTokensCard', () => {
 
 describe('ConnectedAppsCard', () => {
   it('shows the empty state', () => {
-    render(<ConnectedAppsCard grants={[]} showOwner={false} revokeAction={revokeGrantAction} />);
+    render(<ConnectedAppsCard tz="UTC" grants={[]} showOwner={false} revokeAction={revokeGrantAction} />);
     expect(screen.getByText("Apps you've connected by signing in.")).toBeTruthy();
     expect(screen.getByText('No connected apps yet.')).toBeTruthy();
   });
 
   it('lists apps with workspace and asks before disconnecting', async () => {
-    render(<ConnectedAppsCard grants={[grant(), grant({ id: '44444444-4444-4444-8444-444444444444', appName: 'ChatGPT', clientId: null, clientName: null })]} showOwner revokeAction={revokeGrantAction} />);
+    render(<ConnectedAppsCard tz="UTC" grants={[grant(), grant({ id: '44444444-4444-4444-8444-444444444444', appName: 'ChatGPT', clientId: null, clientName: null })]} showOwner revokeAction={revokeGrantAction} />);
     expect(screen.getByRole('columnheader', { name: 'Owner' })).toBeTruthy();
     expect(screen.getByText('Lone Star Air')).toBeTruthy();
     expect(screen.getByText('All clients')).toBeTruthy();

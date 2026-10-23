@@ -23,10 +23,10 @@ export function ClientBillingSection({ status, revenue, connect, help }: { statu
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="inline-flex items-center gap-1.5">
-          <span>Client billing</span>
+        <div className="inline-flex items-center gap-1.5">
+          <CardTitle>Client billing</CardTitle>
           {help}
-        </CardTitle>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {!status.billingConfigured ? (

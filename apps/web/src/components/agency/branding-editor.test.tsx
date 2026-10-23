@@ -40,4 +40,33 @@ describe('BrandingEditor', () => {
     expect(screen.getByRole('button', { name: 'Save and continue' })).toBeTruthy();
     expect(screen.getByText('foot')).toBeTruthy();
   });
+
+  it('branding colour inputs are labelled', () => {
+    render(<BrandingEditor initial={{}} agencyName="Acme" action={action} />);
+    expect((screen.getByLabelText('Primary colour') as HTMLInputElement).placeholder).toBe('#47A8E7');
+    expect(screen.getByLabelText('Secondary colour')).toBeTruthy();
+  });
+
+  it('shows the dark-button line only when the primary gets dark text', () => {
+    render(<BrandingEditor initial={{ primary: '#F5D90A' }} agencyName="Acme" action={action} />);
+    const input = screen.getByLabelText('Primary colour');
+    expect(document.getElementById(input.getAttribute('aria-describedby')!)?.textContent).toBe('Buttons will use dark text so they stay readable.');
+    fireEvent.change(input, { target: { value: '#0B2540' } });
+    expect(screen.queryByText('Buttons will use dark text so they stay readable.')).toBeNull();
+  });
+
+  it('puts "or" between the logo URL and the upload', () => {
+    render(<BrandingEditor initial={{}} agencyName="Acme" action={action} />);
+    expect(screen.getByText('or')).toBeTruthy();
+  });
+
+  it('settings mode: Save changes appears in the save bar once something changes; Discard restores', () => {
+    render(<BrandingEditor initial={{ displayName: 'Acme' }} agencyName="Acme" action={action} />);
+    expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Acme 2' } });
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect((screen.getByLabelText('Display name') as HTMLInputElement).value).toBe('Acme');
+    expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull();
+  });
 });

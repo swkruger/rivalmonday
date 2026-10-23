@@ -6,6 +6,7 @@ import {
   Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@cs/ui';
 import { type ReactNode, useActionState, useEffect, useRef, useState } from 'react';
+import { formatDate } from '@/lib/format';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
@@ -25,7 +26,6 @@ type FormAction<S> = (prev: S, fd: FormData) => Promise<S>;
 
 export const ACCESS_LABEL: Record<TokenScope, string> = { read: 'Read only', feedback: 'Read and feedback', manage: 'Read, feedback and manage' };
 const selectClass = 'h-9 w-full max-w-[240px] rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
-const day = (iso: string) => iso.slice(0, 10);
 
 /** Extra hidden inputs every form on the card carries (the client page sends its `clientId` for revalidation). */
 type Hidden = Record<string, string>;
@@ -94,10 +94,10 @@ export function ConnectorUrlCard({ url, displayName, help }: { url: string; disp
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="inline-flex items-center gap-1.5">
-          Connector URL
+        <div className="inline-flex items-center gap-1.5">
+          <CardTitle>Connector URL</CardTitle>
           {help}
-        </CardTitle>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -173,11 +173,13 @@ function RevokeTokenButton({ item, action, pending, result, hidden }: { item: Ap
   );
 }
 
-export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, createAction, revokeAction, note, hidden, help, empty }: {
+export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, tz, createAction, revokeAction, note, hidden, help, empty }: {
   canCreate: boolean;
   scopes: TokenScope[];
   tokens: ApiTokenView[];
   showOwner: boolean;
+  /** The viewer's time zone (the page passes `await viewerTimeZone()`). */
+  tz: string;
   createAction: FormAction<CreateTokenResult>;
   revokeAction: FormAction<RowResult>;
   /** Shown instead of the create form (e.g. agency roles on a client page). */
@@ -202,10 +204,10 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, createA
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="inline-flex items-center gap-1.5">
-          Access tokens
+        <div className="inline-flex items-center gap-1.5">
+          <CardTitle>Access tokens</CardTitle>
           {help}
-        </CardTitle>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         <p className="text-ink">For Claude Code, scripts and tools that can&apos;t sign in. A token acts as you, with the access level you choose.</p>
@@ -266,8 +268,8 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, createA
                     <span className="ml-2 font-mono text-xs text-muted-foreground">{t.prefix}…</span>
                   </TableCell>
                   <TableCell>{ACCESS_LABEL[t.scope]}</TableCell>
-                  <TableCell>{day(t.createdAt)}</TableCell>
-                  <TableCell>{t.lastUsedAt ? day(t.lastUsedAt) : 'Never'}</TableCell>
+                  <TableCell>{formatDate(t.createdAt, { tz })}</TableCell>
+                  <TableCell>{t.lastUsedAt ? formatDate(t.lastUsedAt, { tz }) : 'Never'}</TableCell>
                   {showOwner && <TableCell>{t.ownerName ?? '—'}</TableCell>}
                   {!readOnly && (
                     <TableCell className="text-right">
@@ -317,16 +319,16 @@ function DisconnectButton({ item, action, pending, result, hidden }: { item: OAu
   );
 }
 
-export function ConnectedAppsCard({ grants, showOwner, revokeAction, hidden, help, empty }: { grants: OAuthGrantView[]; showOwner: boolean; revokeAction: FormAction<RowResult>; hidden?: Hidden; help?: ReactNode; empty?: ReactNode }) {
+export function ConnectedAppsCard({ grants, showOwner, tz, revokeAction, hidden, help, empty }: { grants: OAuthGrantView[]; showOwner: boolean; tz: string; revokeAction: FormAction<RowResult>; hidden?: Hidden; help?: ReactNode; empty?: ReactNode }) {
   const readOnly = useReadOnly();
   const [result, revoke, pending] = useActionState(revokeAction, { ok: true } as RowResult);
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="inline-flex items-center gap-1.5">
-          Connected apps
+        <div className="inline-flex items-center gap-1.5">
+          <CardTitle>Connected apps</CardTitle>
           {help}
-        </CardTitle>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         <p className="text-ink">Apps you&apos;ve connected by signing in.</p>
@@ -355,7 +357,7 @@ export function ConnectedAppsCard({ grants, showOwner, revokeAction, hidden, hel
                   <TableCell className="font-medium">{g.appName}</TableCell>
                   <TableCell>{ACCESS_LABEL[g.scope]}</TableCell>
                   <TableCell>{g.clientName ?? 'All clients'}</TableCell>
-                  <TableCell>{day(g.connectedAt)}</TableCell>
+                  <TableCell>{formatDate(g.connectedAt, { tz })}</TableCell>
                   {showOwner && <TableCell>{g.ownerName ?? '—'}</TableCell>}
                   {!readOnly && (
                     <TableCell className="text-right">

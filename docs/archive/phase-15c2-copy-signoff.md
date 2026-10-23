@@ -110,3 +110,24 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | Prospects | "Ready" / "Needs setup" chips; snapshot chip Preparing / Ready / Sent / Failed (REPORT_STATUS) |
 | Leads | Chip with the lead status (Verified / Accepted / Declined); date "Oct 1" in your time zone |
 | KPI tiles | Same titles; "Alerts waiting" and "Briefs to approve" are links with an arrow |
+
+### Agency settings and onboarding (T9)
+| Where | Copy |
+|---|---|
+| Billing status chip | BILLING_STATE labels: Pilot, Free trial, Active, Payment overdue, Read-only, Suspended, Cancelled (was Trial / Paused on this page) |
+| Billing count line | Clients: {used} of {included} included, {n} extra. (was "Seats: ...") |
+| Billing invoice status | Chip with INVOICE_STATUS label (was raw lower-case word) |
+| Client billing, price help | A new price applies to new sign-ups; existing subscriptions are unchanged. |
+| Client billing, setup fee help | Leave blank to keep the current fee. Enter 0 for no setup fee. |
+| Client billing, pause help | Leave blank to never pause automatically. |
+| Client billing save bar | Save defaults (appears when a field changes), Discard |
+| Disconnect Stripe dialog | Title "Disconnect Stripe?", body unchanged, confirm "Yes, disconnect" (red, inside the dialog) |
+| Branding, between logo URL and upload | or |
+| Branding, under Primary colour | Buttons will use dark text so they stay readable. (Shown whenever the chosen primary gets dark text. With design system v1 this now includes the default blue #47A8E7; propose dropping the line if you prefer.) |
+| Branding save bar | Save changes (appears when something changes), Discard |
+| AI connections dates | "Oct 21" / "Oct 21, 2025" in the viewer's time zone (was 2026-10-21) |
+| Onboarding, required fields | "Required" under Agency name, Contact name, Contact email, Phone |
+| Onboarding team step | Role defaults to Account manager |
+| Onboarding last step button | Save and finish (was Save and continue) |
+| Onboarding plan step | Plan state as chip (Read-only, not Paused); new line "{price} per month, includes {n} clients; each extra client {price} per month." |
+| Billing guide / tips | "Seats" renamed "Clients"; "Paused" state renamed "Read-only"; "Trial" renamed "Free trial" (guide and help tips) |

@@ -1,7 +1,7 @@
 import { formatMoney } from '@/lib/format';
 import { isAgencyRole } from '@cs/core';
 import type { UsageRow } from '@cs/tools';
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
@@ -11,6 +11,7 @@ import { SpendBadge } from '@/components/spend-badge';
 import { WriteGuard } from '@/components/read-only';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
+import { CLIENT_STATUS, labelFor } from '@/lib/labels';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
@@ -47,17 +48,19 @@ export default async function UsagePage() {
       />
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <div className="rounded-[14px] bg-surface p-6 shadow-card">
+        <div className="rounded-md border border-line bg-surface p-6">
           <h3 className="text-sm font-semibold">Near cap</h3>
-          <div className="mt-2 text-[34px] font-extrabold tracking-tight text-secondary">{atWarning}</div>
+          <div className="mt-2 text-[34px] font-bold tracking-tight text-secondary">{atWarning}</div>
         </div>
-        <div className="rounded-[14px] bg-surface p-6 shadow-card">
+        <div className="rounded-md border border-line bg-surface p-6">
           <h3 className="text-sm font-semibold">Over cap</h3>
-          <div className="mt-2 text-[34px] font-extrabold tracking-tight text-secondary">{atOver}</div>
+          <div className="mt-2 text-[34px] font-bold tracking-tight text-secondary">{atOver}</div>
         </div>
       </div>
 
-      {items.length === 0 && <EmptyState {...COPY.empty.noClients} guideAnchor="what-this-page-tells-you" />}
+      {items.length === 0 ? (
+        <EmptyState {...COPY.empty.noClients} guideAnchor="what-this-page-tells-you" />
+      ) : (
       <Table>
         <TableHeader>
           <TableRow>
@@ -106,9 +109,9 @@ export default async function UsagePage() {
                   {row.name}
                 </Link>
                 {row.status === 'prospect' && (
-                  <Badge variant="outline" className="ml-2">
-                    Prospect
-                  </Badge>
+                  <span className="ml-2 inline-block">
+                    <StatusChip tone={labelFor(CLIENT_STATUS, row.status).tone}>{labelFor(CLIENT_STATUS, row.status).label}</StatusChip>
+                  </span>
                 )}
               </TableCell>
               <TableCell>
@@ -135,6 +138,7 @@ export default async function UsagePage() {
           ))}
         </TableBody>
       </Table>
+      )}
 
       <p className="text-muted-ink">
         Shared monitoring of competitors (Google profile, reviews, ads) and the intelligence engine’s shared work are not yet split across clients; they’ll be allocated in a later release.

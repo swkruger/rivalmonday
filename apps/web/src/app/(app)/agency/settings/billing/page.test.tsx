@@ -53,7 +53,7 @@ describe('/agency/settings/billing', () => {
     expect(m.callTool).toHaveBeenCalledWith(m.ctx, 'get_connect_status', {});
     expect(screen.getByText('Standard')).toBeTruthy();
     expect(screen.getAllByText(/\$299/).length).toBeGreaterThan(0);
-    expect(screen.getByText('Trial')).toBeTruthy();
+    expect(screen.getByText('Free trial')).toBeTruthy();
     expect(screen.getByText(/Trial ends Nov 13/)).toBeTruthy();
     expect(screen.getByText(/4 of 3 included/)).toBeTruthy();
     expect(screen.getByText(/1 extra/)).toBeTruthy();
@@ -63,6 +63,20 @@ describe('/agency/settings/billing', () => {
     expect(inv.getAttribute('href')).toBe('https://invoice.stripe.com/i/1');
     expect(inv.getAttribute('target')).toBe('_blank');
     expect(screen.getByRole('link', { name: 'Download seat report (CSV)' }).getAttribute('href')).toBe('/agency/settings/billing/seats.csv');
+  });
+
+  it('billing shows Read-only, not Paused, for read_only', async () => {
+    m.summary = summary({ state: 'read_only', hasSubscription: true });
+    render(await page());
+    expect(screen.getByText('Read-only')).toBeTruthy();
+    expect(screen.queryByText('Paused')).toBeNull();
+  });
+
+  it('uses one word (clients) for the plan line and the count line', async () => {
+    render(await page());
+    expect(screen.getByText(/includes 3 clients/)).toBeTruthy();
+    expect(screen.getByText(/Clients: 4 of 3 included/)).toBeTruthy();
+    expect(screen.queryByText(/Seats:/)).toBeNull();
   });
 
   it('offers Subscribe until a subscription exists, then Manage billing', async () => {

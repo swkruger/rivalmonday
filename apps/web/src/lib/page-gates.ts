@@ -84,6 +84,15 @@ export const GATED_PATHS: string[] = [
   'app/(platform)/platform/verticals',
   'components/runbook',
   'components/support-sessions-table.tsx',
+  'app/(app)/agency/settings/page.tsx',
+  'app/(app)/agency/settings/layout.tsx',
+  'app/(app)/agency/settings/ai',
+  'app/(app)/agency/settings/billing',
+  'app/(app)/agency/settings/branding',
+  'app/(app)/agency/settings/platform-access',
+  'app/(app)/agency/settings/runbook',
+  'app/(app)/agency/settings/usage',
+  'components/ai-connections.tsx',
 ];
 
 const ESCAPE = /format-gate:\s*\S/;
