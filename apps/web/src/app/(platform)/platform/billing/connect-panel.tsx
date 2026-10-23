@@ -1,5 +1,6 @@
 import { formatMoney } from '@/lib/format';
-import { Field, fieldCls, MiniForm } from '../_components/mini-form';
+import { Field, fieldCls } from '../_components/mini-form';
+import { ConfirmForm } from './confirm-form';
 import { setConnectFeeAction } from './actions';
 
 export interface ConnectAgencyRow {
@@ -60,12 +61,26 @@ export function ConnectPanel({ overview: o, canEdit }: { overview: ConnectOvervi
       {canEdit && (
         <div className="flex flex-col gap-3 border-t border-[#EEF2F6] pt-4">
           <p className="text-sm text-muted-foreground">Fees apply to Checkout links created after the change; existing subscriptions keep their fee. 0 sends no fee.</p>
-          <MiniForm action={setConnectFeeAction} submit="Save default fee" variant="outline">
-            <input type="hidden" name="agencyId" value="" />
+          <ConfirmForm
+            action={setConnectFeeAction}
+            submit="Save default fee"
+            variant="outline"
+            title="Change the default platform fee?"
+            body="The new fee applies to Checkout links created from now on. Existing subscriptions keep their fee."
+            confirmLabel="Save fee"
+            fields={{ agencyId: '' }}
+          >
             <Field label="Default fee (%)" htmlFor="cf-global"><input id="cf-global" name="percent" inputMode="decimal" required defaultValue={String(o.globalFeePercent)} className={fieldCls} /></Field>
-          </MiniForm>
+          </ConfirmForm>
           {o.agencies.length > 0 && (
-            <MiniForm action={setConnectFeeAction} submit="Save agency fee" variant="outline">
+            <ConfirmForm
+              action={setConnectFeeAction}
+              submit="Save agency fee"
+              variant="outline"
+              title="Change this agency's platform fee?"
+              body="A blank fee clears the override so the default applies. A new fee applies to Checkout links created from now on; existing subscriptions keep their fee."
+              confirmLabel="Save fee"
+            >
               <Field label="Agency" htmlFor="cf-agency">
                 <select id="cf-agency" name="agencyId" required defaultValue="" className={fieldCls}>
                   <option value="" disabled>Choose…</option>
@@ -73,7 +88,7 @@ export function ConnectPanel({ overview: o, canEdit }: { overview: ConnectOvervi
                 </select>
               </Field>
               <Field label="Fee (%), blank for default" htmlFor="cf-pct"><input id="cf-pct" name="percent" inputMode="decimal" className={fieldCls} /></Field>
-            </MiniForm>
+            </ConfirmForm>
           )}
         </div>
       )}

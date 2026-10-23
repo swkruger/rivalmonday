@@ -115,7 +115,7 @@ export const PLATFORM_COPY = {
     },
   },
   'platform.billing': {
-    description: 'Revenue and plans: MRR, paid seats, agencies by billing state, sign-up controls, plan versions, discount codes, Stripe Connect and agency invite links.',
+    description: 'Revenue and plans in five tabs: Overview (MRR, paid seats, agencies by billing state), Plans, Discount codes, Sign-up & invites and Stripe Connect.',
     tips: {
       // source: packages/tools/src/tools/platform-billing.ts:getBillingOverviewTool (sums the newest agency_daily_stat day)
       money: {

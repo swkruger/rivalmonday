@@ -1,5 +1,5 @@
 'use client';
-import { formatMoney } from '@/lib/format';
+import { formatDate, formatMoney } from '@/lib/format';
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { useActionState } from 'react';
 import { HelpEmpty } from '@/components/help/empty-state';
@@ -12,7 +12,8 @@ import type { CostItem } from './types';
 
 const TYPE_LABEL = { monthly: 'Monthly', yearly: 'Yearly', one_off: 'One-off' } as const;
 const typeOf = (i: CostItem) => (i.kind === 'one_off' ? TYPE_LABEL.one_off : TYPE_LABEL[i.period ?? 'monthly']);
-const dates = (i: CostItem) => (i.kind === 'one_off' ? i.startsOn : `${i.startsOn} → ${i.endsOn ?? 'ongoing'}`);
+const day = (v: string) => formatDate(v, { tz: 'UTC' }); // date-only columns: the calendar day, never shifted
+const dates = (i: CostItem) => (i.kind === 'one_off' ? day(i.startsOn) : `${day(i.startsOn)} → ${i.endsOn ? day(i.endsOn) : 'ongoing'}`);
 
 function ArchiveButton({ item }: { item: CostItem }) {
   const [state, formAction, pending] = useActionState(archiveCostItemAction, { ok: true } as FormResult);

@@ -1,5 +1,6 @@
-import { formatMoney } from '@/lib/format';
+import { formatDate, formatMoney } from '@/lib/format';
 import { Field, fieldCls, MiniForm } from '../_components/mini-form';
+import { ConfirmForm } from './confirm-form';
 import { createDiscountCodeAction, revokeDiscountCodeAction } from './actions';
 
 export interface CodeRow {
@@ -23,14 +24,22 @@ const status = (c: CodeRow) => (c.revokedAt ? 'Revoked' : c.expiresAt && Date.pa
 
 export function RevokeButton({ id, action }: { id: string; action: typeof revokeDiscountCodeAction }) {
   return (
-    <MiniForm action={action} submit="Revoke" variant="outline" className="flex flex-wrap items-center gap-2">
-      <input type="hidden" name="id" value={id} />
-    </MiniForm>
+    <ConfirmForm
+      action={action}
+      submit="Revoke"
+      variant="outline"
+      title="Revoke this discount code?"
+      body="It can no longer be used. Subscriptions that already have it keep their discount."
+      confirmLabel="Revoke code"
+      tone="danger"
+      fields={{ id }}
+      className="flex flex-wrap items-center gap-2"
+    />
   );
 }
 
 /** Discount codes: everyone sees the list; owners can create and revoke. */
-export function Codes({ codes, canManage }: { codes: CodeRow[]; canManage: boolean }) {
+export function Codes({ codes, canManage, tz }: { codes: CodeRow[]; canManage: boolean; tz: string }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="overflow-x-auto">
@@ -50,7 +59,7 @@ export function Codes({ codes, canManage }: { codes: CodeRow[]; canManage: boole
                 <td className="px-3 py-2">{APPLIES[c.appliesTo]}</td>
                 <td className="px-3 py-2">{length(c)}</td>
                 <td className="px-3 py-2">{c.restrictedAgencyIds ? `${c.restrictedAgencyIds.length} agencies` : 'No'}</td>
-                <td className="whitespace-nowrap px-3 py-2">{c.expiresAt ? c.expiresAt.slice(0, 10) : '—'}</td>
+                <td className="whitespace-nowrap px-3 py-2">{c.expiresAt ? formatDate(c.expiresAt, { tz }) : '—'}</td>
                 <td className="px-3 py-2">{c.maxRedemptions ?? '—'}</td>
                 <td className="px-3 py-2">{status(c)}</td>
                 <td className="px-3 py-2">{canManage && !c.revokedAt && <RevokeButton id={c.id} action={revokeDiscountCodeAction} />}</td>

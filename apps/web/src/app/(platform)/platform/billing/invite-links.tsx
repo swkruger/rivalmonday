@@ -3,7 +3,9 @@ import { pilotLinkRefusal } from '@cs/core/invite-offer';
 import { Button } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
-import { Field, fieldCls, MiniForm } from '../_components/mini-form';
+import { formatDate } from '@/lib/format';
+import { Field, fieldCls } from '../_components/mini-form';
+import { ConfirmForm } from './confirm-form';
 import { createInviteLinkAction, type InviteLinkResult, revokeInviteLinkAction } from './actions';
 import { endOfDayIso, toInt } from './parse';
 
@@ -44,7 +46,7 @@ function CopyBox({ url }: { url: string }) {
 }
 
 /** Staff and owners: invite-link list (token prefix only) and create form. The full URL appears once, in this form's result. */
-export function InviteLinks({ links, codes }: { links: LinkRow[]; codes: { id: string; code: string }[] }) {
+export function InviteLinks({ links, codes, tz }: { links: LinkRow[]; codes: { id: string; code: string }[]; tz: string }) {
   const [state, formAction, pending] = useActionState<InviteLinkResult, FormData>(createInviteLinkAction, { ok: true });
   const [offer, setOffer] = useState<'pilot' | 'trial'>('pilot');
   const [pilotEnd, setPilotEnd] = useState('');
@@ -73,14 +75,22 @@ export function InviteLinks({ links, codes }: { links: LinkRow[]; codes: { id: s
                 <td className="px-3 py-2 font-mono">{l.tokenPrefix}…</td>
                 <td className="px-3 py-2">{l.offer === 'pilot' ? 'Pilot' : 'Trial'}</td>
                 <td className="px-3 py-2">{l.uses} / {l.maxUses}</td>
-                <td className="whitespace-nowrap px-3 py-2">{l.expiresAt.slice(0, 10)}</td>
+                <td className="whitespace-nowrap px-3 py-2">{formatDate(l.expiresAt, { tz })}</td>
                 <td className="px-3 py-2">{l.note ?? ''}</td>
                 <td className="px-3 py-2">{status(l)}</td>
                 <td className="px-3 py-2">
                   {!l.revokedAt && (
-                    <MiniForm action={revokeInviteLinkAction} submit="Revoke" variant="outline" className="flex flex-wrap items-center gap-2">
-                      <input type="hidden" name="id" value={l.id} />
-                    </MiniForm>
+                    <ConfirmForm
+                      action={revokeInviteLinkAction}
+                      submit="Revoke"
+                      variant="outline"
+                      title="Revoke this invite link?"
+                      body="Nobody can join through it afterwards. Agencies that already joined stay."
+                      confirmLabel="Revoke link"
+                      tone="danger"
+                      fields={{ id: l.id }}
+                      className="flex flex-wrap items-center gap-2"
+                    />
                   )}
                 </td>
               </tr>

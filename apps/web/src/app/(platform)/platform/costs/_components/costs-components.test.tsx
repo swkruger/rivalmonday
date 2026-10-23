@@ -136,6 +136,18 @@ describe('CostItemsTable', () => {
     expect(screen.getByText('Archive Domain?')).toBeTruthy();
     expect(screen.getByText('It stays in past months’ totals.')).toBeTruthy();
   });
+  it('cost item dates render "Oct 1 → ongoing" (no ISO)', () => {
+    const y = new Date().getUTCFullYear();
+    render(<CostItemsTable items={[
+      { ...items[0]!, id: 'd1', name: 'Hosting', startsOn: `${y}-10-01`, endsOn: null },
+      { ...items[0]!, id: 'd2', name: 'Trial tool', startsOn: `${y}-10-01`, endsOn: `${y}-12-31` },
+      { ...items[1]!, id: 'd3', name: 'Old domain', startsOn: '2024-03-02' },
+    ]} />);
+    const row = (n: string) => screen.getByText(n).closest('tr') as HTMLElement;
+    expect(within(row('Hosting')).getByText('Oct 1 → ongoing')).toBeTruthy();
+    expect(within(row('Trial tool')).getByText('Oct 1 → Dec 31')).toBeTruthy();
+    expect(within(row('Old domain')).getByText('Mar 2, 2024')).toBeTruthy();
+  });
   it('has no controls in a read-only session', () => {
     render(<ReadOnlyProvider readOnly><CostItemsTable items={items} /></ReadOnlyProvider>);
     expect(screen.queryByRole('button')).toBeNull();

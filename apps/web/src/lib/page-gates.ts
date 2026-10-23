@@ -63,6 +63,7 @@ export const GATED_PATHS: string[] = [
   'app/(platform)/platform/agencies/agency-table.tsx',
   'app/(platform)/platform/leads',
   'app/(platform)/platform/reviews',
+  'app/(platform)/platform/billing',
 ];
 
 const ESCAPE = /format-gate:\s*\S/;

@@ -82,7 +82,7 @@ test('a pilot invite link shows its offer, and the new agency is on the pilot', 
   await ensureAdminState(browser, testInfo);
   const pilotEnd = new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10);
   const url = await fresh(browser, testInfo, async (page) => {
-    await page.goto('/platform/billing');
+    await page.goto('/platform/billing?tab=signups');
     await page.getByLabel('Offer').selectOption('pilot');
     await page.getByLabel('Pilot ends').fill(pilotEnd);
     await page.getByLabel('Note (optional)').fill(`e2e pilot ${RUN}`);
@@ -109,7 +109,7 @@ test('a pilot link ending before it expires is refused', { tag: ['@billing', '@p
   await ensureAdminState(browser, testInfo);
   const today = new Date().toISOString().slice(0, 10);
   await fresh(browser, testInfo, async (page) => {
-    await page.goto('/platform/billing');
+    await page.goto('/platform/billing?tab=signups');
     await page.getByLabel('Offer').selectOption('pilot');
     await page.getByLabel('Pilot ends').fill(today);
     await page.getByLabel('Note (optional)').fill(`e2e pilot refused ${RUN}`);

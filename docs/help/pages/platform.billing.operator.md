@@ -7,13 +7,15 @@ title: Billing & plans
 
 Revenue, plans and sign-up controls for the whole platform. Everyone with platform access can read it; owners change things, staff can create invite links, viewers read only.
 
+The page has five tabs: **Overview**, **Plans**, **Discount codes**, **Sign-up & invites** and **Stripe Connect**. Pausing sign-ups, publishing a plan version, revoking a code or link and changing a Connect fee each ask you to confirm first.
+
 - **MRR** and **Paid seats** are summed over all agencies from the latest daily stats, so they can be up to a day behind.
 - **Agencies by state** counts agencies in each billing state: Pilot, Trial, Active, Past due, Paused, Suspended and Cancelled. Past due becomes Paused after 7 days, and Paused becomes Suspended 30 days later.
-- **Agency sign-up** shows whether open sign-up is open or paused (invite links work either way) and a funnel for the last 30 or 90 days: sign-ups, profiles completed, first clients added and cards added, split by open sign-up and invite link.
+- **Sign-up & invites** has the **Agency sign-up** panel, which shows whether open sign-up is open or paused (invite links work either way) and a funnel for the last 30 or 90 days: sign-ups, profiles completed, first clients added and cards added, split by open sign-up and invite link.
 - **Plans** lists every plan version. A new version becomes current for new subscriptions; existing subscriptions keep their prices. Trial days is the length of a new trial.
 - **Discount codes** take a percentage or a dollar amount off the base price, the seats or both, for the first invoice, for 1 to 36 months, or forever, with an optional expiry date and maximum number of uses.
 - **Stripe Connect** shows how many agencies have connected Stripe, their paying clients and client MRR, and the platform fee. An agency can have its own fee; leave it blank to use the default; 0 sends no fee. A change applies to Checkout links created afterwards.
-- **Agency invite links** (owners and staff) lists links by their first characters only.
+- **Agency invite links**, below it on the same tab (owners and staff), lists links by their first characters only.
 
 ## How to use it
 

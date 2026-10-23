@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { MiniForm } from '../_components/mini-form';
+import { ConfirmForm } from './confirm-form';
 import { setSignupsPausedAction } from './actions';
 
 export interface FunnelCounts { signups: number; profileDone: number; firstClient: number; cardAdded: number }
@@ -24,9 +24,16 @@ export function SignupsPanel({ paused, canEdit, days, funnel }: { paused: boolea
           Open sign-up is <strong>{paused ? 'paused' : 'open'}</strong>. Invite links work either way.
         </p>
         {canEdit && (
-          <MiniForm action={setSignupsPausedAction} submit={paused ? 'Resume sign-ups' : 'Pause sign-ups'} variant="outline" className="flex flex-wrap items-center gap-2">
-            <input type="hidden" name="paused" value={paused ? 'false' : 'true'} />
-          </MiniForm>
+          <ConfirmForm
+            action={setSignupsPausedAction}
+            submit={paused ? 'Resume sign-ups' : 'Pause sign-ups'}
+            variant="outline"
+            title={paused ? 'Resume sign-ups?' : 'Pause new sign-ups?'}
+            body={paused ? 'New agencies can sign up on their own again.' : "New agencies can't sign up until you resume. Invite links still work."}
+            confirmLabel={paused ? 'Resume sign-ups' : 'Pause sign-ups'}
+            fields={{ paused: paused ? 'false' : 'true' }}
+            className="flex flex-wrap items-center gap-2"
+          />
         )}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -35,7 +42,7 @@ export function SignupsPanel({ paused, canEdit, days, funnel }: { paused: boolea
           {([30, 90] as const).map((d) => (
             <Link
               key={d}
-              href={`/platform/billing?days=${d}`}
+              href={`/platform/billing?tab=signups&days=${d}`}
               aria-current={d === days ? 'true' : undefined}
               className={`rounded-full px-3 py-1 font-semibold ${d === days ? 'bg-surface text-secondary shadow-card' : 'text-ink'}`}
             >

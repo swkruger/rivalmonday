@@ -1,5 +1,6 @@
-import { formatMoney } from '@/lib/format';
-import { Field, fieldCls, MiniForm } from '../_components/mini-form';
+import { formatDate, formatMoney } from '@/lib/format';
+import { Field, fieldCls } from '../_components/mini-form';
+import { ConfirmForm } from './confirm-form';
 import { createPlanVersionAction } from './actions';
 
 export interface PlanRow {
@@ -16,7 +17,7 @@ export interface PlanRow {
 }
 
 /** Every plan version (read-only table); owners also get the "new version" form. Existing subscriptions keep their prices. */
-export function PlanEditor({ plans, canEdit }: { plans: PlanRow[]; canEdit: boolean }) {
+export function PlanEditor({ plans, canEdit, tz }: { plans: PlanRow[]; canEdit: boolean; tz: string }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="overflow-x-auto">
@@ -37,7 +38,7 @@ export function PlanEditor({ plans, canEdit }: { plans: PlanRow[]; canEdit: bool
                 <td className="px-3 py-2">{p.includedSeats}</td>
                 <td className="px-3 py-2">{formatMoney(p.seatPriceCents, { unit: 'cents' })}</td>
                 <td className="px-3 py-2">{p.trialDays}</td>
-                <td className="whitespace-nowrap px-3 py-2">{p.createdAt.slice(0, 10)}</td>
+                <td className="whitespace-nowrap px-3 py-2">{formatDate(p.createdAt, { tz })}</td>
                 <td className="px-3 py-2">{p.isCurrent ? 'Current' : p.synced ? 'Superseded' : 'Not synced'}</td>
               </tr>
             ))}
@@ -46,14 +47,21 @@ export function PlanEditor({ plans, canEdit }: { plans: PlanRow[]; canEdit: bool
         {plans.length === 0 && <p className="px-3 py-4 text-sm text-muted-foreground">No plans yet.</p>}
       </div>
       {canEdit && (
-        <MiniForm action={createPlanVersionAction} submit="Publish new version" className="flex flex-wrap items-end gap-3 border-t border-[#EEF2F6] pt-4">
+        <ConfirmForm
+          action={createPlanVersionAction}
+          submit="Publish new version"
+          title="Publish a new plan version?"
+          body="It becomes the current plan for new subscriptions. Existing subscriptions keep their prices."
+          confirmLabel="Publish version"
+          className="flex flex-wrap items-end gap-3 border-t border-[#EEF2F6] pt-4"
+        >
           <Field label="Name" htmlFor="plan-name"><input id="plan-name" name="name" required maxLength={80} defaultValue="Standard" className={fieldCls} /></Field>
           <Field label="Base price ($/month)" htmlFor="plan-base"><input id="plan-base" name="basePrice" required inputMode="decimal" className={`${fieldCls} w-32`} /></Field>
           <Field label="Included seats" htmlFor="plan-seats"><input id="plan-seats" name="includedSeats" required inputMode="numeric" className={`${fieldCls} w-28`} /></Field>
           <Field label="Extra seat ($/month)" htmlFor="plan-seat-price"><input id="plan-seat-price" name="seatPrice" required inputMode="decimal" className={`${fieldCls} w-32`} /></Field>
           <Field label="Trial days" htmlFor="plan-trial"><input id="plan-trial" name="trialDays" required inputMode="numeric" className={`${fieldCls} w-24`} /></Field>
           <p className="basis-full text-xs text-muted-foreground">A new version becomes current for new subscriptions. Existing subscriptions keep their prices.</p>
-        </MiniForm>
+        </ConfirmForm>
       )}
     </div>
   );

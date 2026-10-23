@@ -119,7 +119,7 @@ const PAGES: [string, () => Promise<React.ReactNode>, string[]][] = [
   ['platform.overview', () => Overview({ searchParams: Promise.resolve({}) }), []],
   ['platform.agencies', () => Agencies({ searchParams: Promise.resolve({}) }), []],
   ['platform.agencies.detail', () => AgencyDetail({ params: Promise.resolve({ id: AG }), searchParams: Promise.resolve({}) }), []],
-  ['platform.billing', () => Billing({ searchParams: Promise.resolve({}) }), []],
+  ['platform.billing', () => Billing({ searchParams: Promise.resolve({}) }), ['plans', 'codes', 'restrict', 'signup', 'links', 'connect']],
   ['platform.leads', () => Leads({ searchParams: Promise.resolve({}) }), []],
   ['platform.reviews', () => Reviews({ searchParams: Promise.resolve({}) }), []],
   ['platform.topics', () => Topics(), []],
@@ -134,6 +134,8 @@ const PAGES: [string, () => Promise<React.ReactNode>, string[]][] = [
   ['platform.runbook', () => Runbook(), []],
 ];
 const page = (key: string) => PAGES.find(([k]) => k === key)![1];
+/** Billing & plans shows one tab at a time; the tips that sit on another tab are checked on that tab. */
+const BILLING_TAB: Record<string, string> = { plans: 'plans', codes: 'codes', restrict: 'codes', signup: 'signups', links: 'signups', connect: 'connect' };
 const copyOf = (key: string) => (PAGE_COPY as Record<string, PageCopy>)[key]!;
 
 async function show(key: string, audience: 'operator' | 'agency' | 'client' = 'operator') {
@@ -150,7 +152,11 @@ const open = (name: string) => {
 /** Opens a tip of one page by its id and returns its text. */
 const tipText = async (key: string, id: string, audience: 'operator' | 'agency' = 'operator') => {
   cleanup();
-  await show(key, audience);
+  if (key === 'platform.billing' && BILLING_TAB[id]) {
+    render(<HelpProvider value={{ audience, names: { agency: 'your agency', assistant: 'Sunny' } }}>{await Billing({ searchParams: Promise.resolve({ tab: BILLING_TAB[id] }) })}</HelpProvider>);
+  } else {
+    await show(key, audience);
+  }
   return open(copyOf(key).tips![id]!.title);
 };
 
@@ -319,7 +325,7 @@ describe('Billing & plans', () => {
 
   it('a viewer sees the same tips (they read, they do not edit)', async () => {
     m.role = 'viewer';
-    await show('platform.billing');
+    render(<HelpProvider value={{ audience: 'operator', names: { agency: 'your agency', assistant: 'Sunny' } }}>{await Billing({ searchParams: Promise.resolve({ tab: 'plans' }) })}</HelpProvider>);
     expect(hasTip(copyOf('platform.billing').tips!.plans!.title)).toBe(true);
   });
 });

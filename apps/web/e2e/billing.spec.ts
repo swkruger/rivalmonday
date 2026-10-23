@@ -97,11 +97,13 @@ test.describe.serial('billing', () => {
     const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: ADMIN_STATE });
     try {
       const page = await context.newPage();
-      await page.goto('/platform/billing');
+      await page.goto('/platform/billing?tab=codes');
       await page.getByLabel('Code', { exact: true }).fill('E2E-SPRING');
       await page.getByLabel(/amount/i).fill('20');
       await page.getByRole('button', { name: 'Create code' }).click();
       await expect(page.getByRole('cell', { name: 'E2E-SPRING' })).toBeVisible();
+
+      await page.goto('/platform/billing?tab=signups');
 
       await page.getByLabel('Offer').selectOption('trial');
       await page.getByLabel('Note (optional)').fill('e2e invite');

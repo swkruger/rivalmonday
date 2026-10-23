@@ -2,11 +2,11 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ createInviteLinkAction: vi.fn(), noop: vi.fn(async () => ({ ok: true })) }));
+const m = vi.hoisted(() => ({ createInviteLinkAction: vi.fn(), createPlanVersionAction: vi.fn(async () => ({ ok: true })), revokeDiscountCodeAction: vi.fn(async () => ({ ok: true })), noop: vi.fn(async () => ({ ok: true })) }));
 vi.mock('./actions', () => ({
-  createPlanVersionAction: m.noop,
+  createPlanVersionAction: (...a: unknown[]) => (m.createPlanVersionAction as (...x: unknown[]) => unknown)(...a),
   createDiscountCodeAction: m.noop,
-  revokeDiscountCodeAction: m.noop,
+  revokeDiscountCodeAction: (...a: unknown[]) => (m.revokeDiscountCodeAction as (...x: unknown[]) => unknown)(...a),
   createInviteLinkAction: (...a: unknown[]) => m.createInviteLinkAction(...a),
   revokeInviteLinkAction: m.noop,
   setConnectFeeAction: m.noop,
@@ -32,35 +32,77 @@ const link = (over: Partial<LinkRow> = {}): LinkRow => ({
   expiresAt: '2026-11-01T00:00:00Z', note: 'For Acme', revokedAt: null, ...over,
 });
 
-beforeEach(() => m.createInviteLinkAction.mockReset());
+beforeEach(() => {
+  m.createInviteLinkAction.mockReset();
+  m.createPlanVersionAction.mockClear();
+  m.revokeDiscountCodeAction.mockClear();
+});
 afterEach(cleanup);
 
 describe('PlanEditor', () => {
   it('owner gets the new-version form', () => {
-    render(<PlanEditor plans={[plan()]} canEdit />);
+    render(<PlanEditor plans={[plan()]} canEdit tz="UTC" />);
     expect(screen.getByRole('button', { name: 'Publish new version' })).toBeTruthy();
     expect(screen.getByLabelText('Base price ($/month)')).toBeTruthy();
   });
 
   it.each([false])('billing amounts render $299 not $299.00; staff/viewer (canEdit=%s) see the read-only table only', (canEdit) => {
-    render(<PlanEditor plans={[plan(), plan({ id: 'p1', version: 1, isCurrent: false })]} canEdit={canEdit} />);
+    render(<PlanEditor plans={[plan(), plan({ id: 'p1', version: 1, isCurrent: false })]} canEdit={canEdit} tz="UTC" />);
     expect(screen.queryByRole('button', { name: 'Publish new version' })).toBeNull();
     expect(screen.getAllByText('$299')).toHaveLength(2);
     expect(screen.getByText('Current')).toBeTruthy();
   });
 });
 
+describe('PlanEditor confirms and dates', () => {
+  it('publish plan needs a confirm: click opens the dialog, confirming calls the action once with the form values', async () => {
+    render(<PlanEditor plans={[]} canEdit tz="UTC" />);
+    fireEvent.change(screen.getByLabelText('Base price ($/month)'), { target: { value: '299' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Publish new version' }));
+    expect(m.createPlanVersionAction).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Publish a new plan version?')).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publish version' }));
+    await waitFor(() => expect(m.createPlanVersionAction).toHaveBeenCalledTimes(1));
+    const fd = (m.createPlanVersionAction.mock.calls[0] as unknown as [unknown, FormData])[1];
+    expect(fd.get('basePrice')).toBe('299');
+    expect(fd.get('name')).toBe('Standard');
+  });
+
+  it('plan created date is not ISO', () => {
+    render(<PlanEditor plans={[plan({ createdAt: '2025-10-01T12:00:00Z' })]} canEdit={false} tz="America/Chicago" />);
+    expect(screen.getByText('Oct 1, 2025')).toBeTruthy();
+    expect(screen.queryByText(/2025-10-01/)).toBeNull();
+  });
+});
+
 describe('Codes', () => {
   it('owner sees create form and Revoke; says restricted codes have no promotion code', () => {
-    render(<Codes codes={[code()]} canManage />);
+    render(<Codes codes={[code()]} canManage tz="UTC" />);
     expect(screen.getByRole('button', { name: 'Create code' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Revoke' })).toBeTruthy();
     expect(screen.getByText(/Restricted codes have no promotion code/)).toBeTruthy();
     expect(screen.getByText('20% off')).toBeTruthy();
   });
 
+  it('revoking a code asks first, then calls the action once with the id', async () => {
+    render(<Codes codes={[code()]} canManage tz="UTC" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+    expect(m.revokeDiscountCodeAction).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Revoke this discount code?')).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Revoke code' }));
+    await waitFor(() => expect(m.revokeDiscountCodeAction).toHaveBeenCalledTimes(1));
+    expect(((m.revokeDiscountCodeAction.mock.calls[0] as unknown as [unknown, FormData])[1]).get('id')).toBe('d1');
+  });
+
+  it('shows the expiry as a short date, not ISO', () => {
+    render(<Codes codes={[code({ expiresAt: '2099-03-05T23:59:59Z' })]} canManage={false} tz="UTC" />);
+    expect(screen.getByText('Mar 5, 2099')).toBeTruthy();
+  });
+
   it('viewer/staff see the list without create or revoke', () => {
-    render(<Codes codes={[code(), code({ id: 'd2', code: 'OLD', revokedAt: '2026-10-02T00:00:00Z' })]} canManage={false} />);
+    render(<Codes codes={[code(), code({ id: 'd2', code: 'OLD', revokedAt: '2026-10-02T00:00:00Z' })]} canManage={false} tz="UTC" />);
     expect(screen.getByText('FRIEND')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Create code' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Revoke' })).toBeNull();
@@ -70,11 +112,11 @@ describe('Codes', () => {
 
 describe('InviteLinks', () => {
   it('lists prefix, offer, uses/max, expiry, note and a Revoke button; never a full URL', () => {
-    render(<InviteLinks links={[link()]} codes={[]} />);
+    render(<InviteLinks links={[link()]} codes={[]} tz="UTC" />);
     const row = screen.getByText('abc123…').closest('tr')!;
     expect(within(row).getByText('Pilot')).toBeTruthy();
     expect(within(row).getByText('1 / 3')).toBeTruthy();
-    expect(within(row).getByText('2026-11-01')).toBeTruthy();
+    expect(within(row).getByText('Nov 1')).toBeTruthy();
     expect(within(row).getByText('For Acme')).toBeTruthy();
     expect(within(row).getByText('Active')).toBeTruthy();
     expect(within(row).getByRole('button', { name: 'Revoke' })).toBeTruthy();
@@ -83,14 +125,14 @@ describe('InviteLinks', () => {
 
   it('shows the new link once, in a copy box with the one-time warning', async () => {
     m.createInviteLinkAction.mockResolvedValue({ ok: true, url: 'https://app.example/join/SECRET-TOKEN' });
-    const { unmount } = render(<InviteLinks links={[]} codes={[]} />);
+    const { unmount } = render(<InviteLinks links={[]} codes={[]} tz="UTC" />);
     fireEvent.change(screen.getByLabelText('Offer'), { target: { value: 'trial' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create link' }));
     await waitFor(() => expect(screen.getByText("Copy link — it won't be shown again.")).toBeTruthy());
     expect((screen.getByLabelText('New invite link') as HTMLInputElement).value).toBe('https://app.example/join/SECRET-TOKEN');
     expect(screen.getByRole('button', { name: 'Copy' })).toBeTruthy();
     unmount();
-    render(<InviteLinks links={[link()]} codes={[]} />);
+    render(<InviteLinks links={[link()]} codes={[]} tz="UTC" />);
     expect(screen.queryByText(/SECRET-TOKEN/)).toBeNull();
     expect(screen.queryByLabelText('New invite link')).toBeNull();
   });
@@ -103,25 +145,25 @@ describe('InviteLinks', () => {
     };
 
     it('shows a live hint when the pilot ends before the link expires', () => {
-      render(<InviteLinks links={[]} codes={[]} />);
+      render(<InviteLinks links={[]} codes={[]} tz="UTC" />);
       setDates(day(3), '14');
       expect(screen.getByRole('status').textContent).toContain('The pilot must end after this link expires');
     });
 
     it('shows none for valid dates', () => {
-      render(<InviteLinks links={[]} codes={[]} />);
+      render(<InviteLinks links={[]} codes={[]} tz="UTC" />);
       setDates(day(30), '14');
       expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('treats blank days as the 14-day default', () => {
-      render(<InviteLinks links={[]} codes={[]} />);
+      render(<InviteLinks links={[]} codes={[]} tz="UTC" />);
       setDates(day(3), '');
       expect(screen.getByRole('status').textContent).toContain('The pilot must end after this link expires');
     });
 
     it('hides the live hint while the server refusal shows the same sentence', async () => {
-      render(<InviteLinks links={[]} codes={[]} />);
+      render(<InviteLinks links={[]} codes={[]} tz="UTC" />);
       setDates(day(3), '14');
       const hint = screen.getByRole('status').textContent ?? '';
       m.createInviteLinkAction.mockResolvedValue({ ok: false, error: hint });
@@ -131,7 +173,7 @@ describe('InviteLinks', () => {
     });
 
     it('is hidden for a trial offer', () => {
-      render(<InviteLinks links={[]} codes={[]} />);
+      render(<InviteLinks links={[]} codes={[]} tz="UTC" />);
       setDates(day(3), '14');
       fireEvent.change(screen.getByLabelText('Offer'), { target: { value: 'trial' } });
       expect(screen.queryByRole('status')).toBeNull();
@@ -140,7 +182,7 @@ describe('InviteLinks', () => {
 
   it('shows a refusal from the action', async () => {
     m.createInviteLinkAction.mockResolvedValue({ ok: false, error: 'A pilot offer needs pilotEndsAt' });
-    render(<InviteLinks links={[]} codes={[]} />);
+    render(<InviteLinks links={[]} codes={[]} tz="UTC" />);
     fireEvent.click(screen.getByRole('button', { name: 'Create link' }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('pilot'));
   });
