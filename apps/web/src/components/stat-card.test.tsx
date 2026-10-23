@@ -11,4 +11,13 @@ describe('StatCard', () => {
     expect(screen.getByText('3 high')).toBeTruthy();
     expect(screen.getByText('Across websites')).toBeTruthy();
   });
+
+  it('the linked card follows design system v1 (border, rounded-md, no shadow) and pads p-4 on phones', () => {
+    render(<StatCard title="Alerts waiting" value="1" href="/agency/alerts" />);
+    const link = screen.getByRole('link', { name: /Alerts waiting/ });
+    expect(link.getAttribute('href')).toBe('/agency/alerts');
+    const cls = link.className.split(/\s+/);
+    expect(cls).toEqual(expect.arrayContaining(['rounded-md', 'border', 'border-line', 'p-4', 'sm:p-6']));
+    expect(link.className).not.toMatch(/shadow-card|rounded-\[14px\]/);
+  });
 });

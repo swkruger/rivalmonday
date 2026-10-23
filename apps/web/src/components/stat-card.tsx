@@ -17,7 +17,8 @@ const TONE: Record<StatPill['tone'], string> = {
 
 /**
  * Overview KPI card (mockup 01): title (an h2 under the page's h1), big number, optional tone pill, quiet hint. `help` (15b): a
- * `HelpTip` beside the title. `href` (15c-2a): the whole card is a link, with a hover state and an arrow so it reads as clickable.
+ * `HelpTip` beside the title. `href` (15c-2a): the whole card is a link, with a hover state and an arrow so it reads as clickable (design system v1: border,
+ * not shadow; the plain card keeps its pre-v1 look until the central migration). Padding is `p-4 sm:p-6` so tiles fit at 390 px.
  */
 export function StatCard({ title, value, pill, hint, help, href }: { title: string; value: string; pill?: StatPill | null; hint?: string; help?: React.ReactNode; href?: string }) {
   const body = (
@@ -39,11 +40,11 @@ export function StatCard({ title, value, pill, hint, help, href }: { title: stri
   );
   if (href) {
     return (
-      <Link href={href} className="group relative block rounded-[14px] bg-surface p-6 shadow-card hover:bg-muted-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+      <Link href={href} className="group relative block rounded-md border border-line bg-surface p-4 hover:border-secondary hover:bg-muted-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:p-6">
         {body}
         <span aria-hidden="true" className="absolute right-4 top-4 text-muted-foreground group-hover:text-secondary">→</span>
       </Link>
     );
   }
-  return <div className="rounded-[14px] bg-surface p-6 shadow-card">{body}</div>;
+  return <div className="rounded-[14px] bg-surface p-4 shadow-card sm:p-6">{body}</div>;
 }

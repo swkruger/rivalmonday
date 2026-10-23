@@ -77,7 +77,7 @@ describe('approval review controls', () => {
 
   it('keeps the approve message after the page revalidates to approved', async () => {
     approveMock.mockReset();
-    approveMock.mockResolvedValueOnce({ ok: true, message: 'Approved — it goes out Monday 07:00. 1 recommendation(s) created.' });
+    approveMock.mockResolvedValueOnce({ ok: true, message: 'Approved — it goes out Monday 7:00 AM CT. 1 recommendation(s) created.' });
     const { rerender } = render(<ReviewFooter sendTime="Monday 7:00 AM CT" briefId="b1" clientId="c1" status="ready" autoSend={false} />);
     fireEvent.click(screen.getByRole('button', { name: /approve/i }));
     await waitFor(() => expect(approveMock).toHaveBeenCalledTimes(1));
@@ -105,7 +105,7 @@ describe('approval review controls', () => {
   it('shows only the send message after approve then send now', async () => {
     approveMock.mockReset();
     sendNowMock.mockReset();
-    approveMock.mockResolvedValueOnce({ ok: true, message: 'Approved — it goes out Monday 07:00. 1 recommendation(s) created.' });
+    approveMock.mockResolvedValueOnce({ ok: true, message: 'Approved — it goes out Monday 7:00 AM CT. 1 recommendation(s) created.' });
     sendNowMock.mockResolvedValueOnce({ ok: true, message: 'Sent to 2 recipient(s). The PDF is being prepared.' });
     const { rerender } = render(<ReviewFooter sendTime="Monday 7:00 AM CT" briefId="b1" clientId="c1" status="ready" autoSend={false} />);
     fireEvent.click(screen.getByRole('button', { name: /approve/i }));
