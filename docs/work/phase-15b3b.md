@@ -7,7 +7,16 @@
 Spec owner-approved 2026-10-23 (E1–E6); lean plan written (Tasks 0–9), awaiting owner approval. No code.
 
 ## Next (overwrite)
-Owner approves the plan → Task 0 pre-flight (rebase on main `b93f7ff4`+, cs_dev read-only counts) → subagent-driven development. Owner signs off the copy doc (Task 1) before merge.
+Task 0 done -> Task 1 (copy sign-off doc) -> SDD. Owner signs off the copy doc (Task 1) before merge.
+
+## Pre-flight (Task 0, 2026-10-23)
+- Rebased on `main` `b93f7ff4` (confirmed ancestor). 7b1: unmerged, docs-only commits, claims 0085 ledger_cost_numeric / 0086 spend_guard / 0087 retry_backoff; 15c2: docs-only, may claim 0085 (`ask_thread.deleted_at`). `main` + `cs_dev` at 0084. Our N = next free at execution (0085/0086 if 7b1 still unmerged, else 0088/0089); second merger renumbers. 7b1 unmerged: Task 3 stays full, Task 8 `usesAi` stays conditional.
+- Conflict-scan: every non-C7, non-UI `theme` hit is in a task file list except `apps/web/src/components/charts/line-chart.test.tsx:182` (names `theme-heatmap.tsx`) -> added to Task 5. `e2e-affected-rules.ts` 170/195/217 and `demo/coverage.ts` 231/270/366/393 confirmed.
+- `cs_dev` (SELECT only) stored `technician_professionalism`: `decision_label.question_key` 10; `vertical.config` 2 (generic, hvac_plumbing); `review_analysis.topics` 635 / `.asked` 657; `decision_sample` questions/primary/final 1,079, fallback 508, needs_review 447. All hvac_plumbing except generic's config. No hits in topic_proposal, detected_change, event, model_batch, vertical_draft, decision_review, llm_call, any other text/jsonb column. No new stored location -> Task 2 SQL unchanged.
+- Inheriting set on `cs_dev` = `{generic}` only (generic, dental, hvac all have own `topics`); `generic` has 0 `review_analysis`/proposal/label rows. Collisions: review_analysis both ids 0; topic_proposal 0 (table empty); decision_label pairs 0; decision_sample both keys 0. The migration changes 1 row on `cs_dev` (generic config); inheriting-vertical logic is test-covered only.
+- User triggers on detected_change/event/decision_label/decision_sample: none (only `capture_immutable`, `evidence_immutable`).
+- Re-ask volume (Task 7 SQL, `analyzed_at` for `checked_at`): 1,635 reviews in done 180-day set; candidates 1,375 (gap_a 1,375; gap_b 0). One-off deploy wave: 0084 bumped `vertical.updated_at` (2026-10-20) past every `analyzed_at`, so rows missing a below-τ seed topic are re-asked once. Drain ~0.7 day at 2,000/day. cs_dev: 10,908 reviews, 1,719 review_analysis rows.
+- Rulings R1 (Task 7: `reask: []` in all `EngineWork` literals/fakes in worker) and R2 (Task 2: `coalesce(col::text,'')` on nullable columns + NULL-row tests) written into the plan.
 
 ## Interfaces this branch adds or changes
 No aliases: `get_topic_benchmark` (was `get_theme_benchmark`), `search_reviews.topicId`, `TopicBenchmarkView.topics[].topicId`, `/platform/topics`, `?topic=`, `page:platform.topics`, tips `platform.topics.*`. `@cs/ai` `collectBatch(…, scopeFor?)`. Engine `reaskReview`, `EngineWork.reask`, job `engine-reask` (singletonKey `reask:<id>`), `REASK_DAILY_MAX = 2000`. Two migrations at next free numbers: `review_analysis.checked_at`, `generic_topic_id` (generic `technician_professionalism` → `staff_professionalism`).
