@@ -55,4 +55,4 @@ Sections not shown (What this page tells you, step 1 and 3, "Can I undo a decisi
 5. Client-facing Reviews copy stays unchanged (it never promised "new reviews only"). Agree?
 6. MCP users: `get_theme_benchmark` and `themeId` simply disappear with no alias (decision D3). Announce this to anyone using them, or not?
 
-**Sign-off:** Approved as a whole / with changes: ______________________, date: __________
+**Sign-off:** Approved as a whole by the owner, 2026-10-23 (proposed text as shipped; all six owner decisions accepted as proposed).
