@@ -20,6 +20,8 @@ vi.mock('next/navigation', () => ({
 
 const { default: PlatformPage, metadata: platformMeta } = await import('./page');
 const { default: AgencyPage, generateMetadata: agencyMeta } = await import('./[slug]/page');
+const { IntakeLanding } = await import('./landing');
+const { agencyBrand } = await import('./brand');
 const { default: ExpiredPage } = await import('./verify/page');
 const { default: PreviewPage, generateMetadata: previewMeta } = await import('./v/[leadId]/page');
 
@@ -153,5 +155,25 @@ describe('intake form lookup field', () => {
     const hidden = container.querySelector('input[name="lookup"]') as HTMLInputElement;
     expect(Object.keys(JSON.parse(hidden.value)).sort()).toEqual(['exp', 'place', 'sig']);
     expect(screen.getByText('Owner-verified')).toBeTruthy();
+  });
+});
+
+describe('IntakeLanding preview', () => {
+  it('preview disables submit and renders no Turnstile', () => {
+    const { container } = render(<IntakeLanding brand={agencyBrand(agencyB)} slug="smith-co" refCode={null} siteKey="site" preview />);
+    for (const name of ['Find my business', 'Get my free snapshot']) {
+      const b = screen.getByRole('button', { name });
+      expect((b as HTMLButtonElement).disabled).toBe(true);
+      expect(b.getAttribute('aria-disabled')).toBe('true');
+    }
+    expect(screen.getAllByText('Disabled in preview').length).toBeGreaterThan(0);
+    expect(container.querySelector('.cf-turnstile')).toBeNull();
+    expect(container.querySelector('input[name="lookup"]')).toBeNull();
+  });
+
+  it('without preview the contact stage waits for a picked business and Turnstile is untouched', () => {
+    render(<IntakeLanding brand={agencyBrand(agencyB)} slug="smith-co" refCode={null} siteKey="site" />);
+    expect(screen.queryByRole('button', { name: 'Get my free snapshot' })).toBeNull();
+    expect((screen.getByRole('button', { name: 'Find my business' }) as HTMLButtonElement).disabled).toBe(false);
   });
 });

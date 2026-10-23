@@ -36,6 +36,20 @@ describe('IntakeLinkCard', () => {
     }
   });
 
+  it('buttonHtml uses dark text on a light primary', () => {
+    expect(buttonHtml(link.url)).toContain('color:#0B2540;');
+    expect(buttonHtml(link.url, '#F5D90A')).toContain('color:#0B2540;');
+  });
+
+  it('buttonHtml uses white on a dark primary (#0B2540)', () => {
+    expect(buttonHtml(link.url, '#0B2540')).toContain('color:#FFFFFF;');
+  });
+
+  it('links to the preview page', () => {
+    render(<IntakeLinkCard link={link} {...props} />);
+    expect(screen.getByRole('link', { name: 'Preview your page' }).getAttribute('href')).toBe('/agency/settings/intake/preview');
+  });
+
   it('Copy button HTML copies the snippet in the agency colour', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });

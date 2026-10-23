@@ -86,6 +86,7 @@ export const RULES: Rule[] = [
   // --- AI connections (MCP server, OAuth consent, AI settings pages) ---
   { pattern: /^packages\/mcp\//, tags: ['@ai-connections'], why: 'AI connections (MCP server)' },
   { pattern: re(`${APP}(?:mcp/|\\.well-known/|oauth/)`), tags: ['@ai-connections'], why: 'AI connections (MCP route, OAuth metadata/consent)' },
+  { pattern: re(`${COMP}agency/intake-link-card\\.`), tags: ['@leads'], why: 'intake link card and its button snippet (agency intake settings)' },
   { pattern: re(`${APP}\\(app\\)/(?:agency/settings|c/\\[clientId\\]/settings|settings)/ai/`), tags: ['@ai-connections'], why: 'AI connections settings' },
   { pattern: re(`${SERVER}(?:mcp|oauth-consent|ai-connections)\\.ts$`), tags: ['@ai-connections'], why: 'AI connections server module' },
   { pattern: re(`${COMP}ai-connections\\.tsx$`), tags: ['@ai-connections'], why: 'AI connections cards' },

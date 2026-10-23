@@ -362,6 +362,10 @@ export const AGENCY_COPY = {
       },
     },
   },
+  'agency.settings.intake.preview': {
+    description: 'What visitors see on your intake page. Nothing here can be submitted.',
+    tips: {},
+  },
   'agency.settings.platform-access': {
     description: 'Every time platform support opened a read-only session on your agency, and why.',
     tips: {

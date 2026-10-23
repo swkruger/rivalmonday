@@ -127,6 +127,23 @@ test.describe.serial('client intake and leads', () => {
     }
   });
 
+  test('preview renders with submit disabled', { tag: ['@leads'] }, async ({ browser }, testInfo) => {
+    await ensureSiAdmin(browser, testInfo);
+    const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: SI_STATE });
+    try {
+      const page = await context.newPage();
+      await page.goto('/agency/settings/intake');
+      await page.getByRole('link', { name: 'Preview your page' }).click();
+      await expect(page).toHaveURL(/\/agency\/settings\/intake\/preview$/);
+      await expect(page.getByRole('heading', { level: 1, name: 'Intake preview' })).toBeVisible();
+      await expect(page.getByText('Preview — this is what visitors see')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Find my business' })).toBeDisabled();
+      await expect(page.getByRole('button', { name: 'Get my free snapshot' })).toBeDisabled();
+    } finally {
+      await context.close();
+    }
+  });
+
   test('the agency accepts a lead, lands in its setup, and the contact is invited', { tag: ['@leads', '@setup', '@prospects'] }, async ({ browser }, testInfo) => {
     await ensureSiAdmin(browser, testInfo);
     const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: SI_STATE });

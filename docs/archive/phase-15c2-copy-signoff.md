@@ -167,3 +167,15 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | Role labels (MEMBERSHIP_ROLE, B14) | Agency admin (was "Admin"), Account manager, Client owner, Client viewer — Team page, invite form, help tip and guide |
 | Invitations tip | An invitation is an email asking the person to sign in with that address; it works for 14 days. Each row shows when it was sent and when it expires. Resend emails it again and gives it another 14 days, up to 3 times a day. Revoke cancels it. Someone who already has access at that level cannot be invited again: remove them first to change their role. |
 | Team guide | "Agency admin" in the roles list; step 3 now explains Resend (another 14 days, up to 3 times a day); the "expired invitation" answer adds "To keep an invitation from expiring, use *Resend* before the date shown." |
+
+### Agency settings > Intake preview (T12)
+| Where | Copy |
+|---|---|
+| Intake link card | Button "Preview your page" (opens the preview) |
+| Page title / breadcrumb | Intake preview · Agency settings › Intake link › Preview |
+| Page description (help) | What visitors see on your intake page. Nothing here can be submitted. |
+| Frame bar | Preview — this is what visitors see |
+| Frame bar, link off | Link is off · visitors can't open it yet |
+| Buttons note | Disabled in preview (beside "Find my business" and "Get my free snapshot") |
+| Intake preview guide | New guide: what the preview shows, that it is not the live page, how to turn the link on |
+| Copied button HTML | Text colour now follows the agency colour (dark ink on light colours, white on dark); no wording change |

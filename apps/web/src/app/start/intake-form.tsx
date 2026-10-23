@@ -20,7 +20,7 @@ const textareaClass = 'min-h-20 w-full rounded-md border border-input bg-transpa
  * details, consent and the Turnstile check. Every field is controlled and `onReset` is cancelled, so React 19's post-action
  * form reset never wipes what the visitor typed. The Turnstile widget loads only when the server passes a site key.
  */
-export function IntakeForm({ slug, refCode, siteKey }: { slug: string | null; refCode: string | null; siteKey: string | null }) {
+export function IntakeForm({ slug, refCode, siteKey, preview = false }: { slug: string | null; refCode: string | null; siteKey: string | null; preview?: boolean }) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [places, setPlaces] = useState<IntakePlaceOption[] | null>(null);
@@ -29,7 +29,7 @@ export function IntakeForm({ slug, refCode, siteKey }: { slug: string | null; re
   const [searching, startSearch] = useTransition();
   const [state, submit, submitting] = useActionState<SubmitState, FormData>(submitIntakeAction, { error: null, done: false });
 
-  if (state.done) {
+  if (state.done && !preview) {
     return (
       <p role="status" className="rounded-lg bg-muted-surface p-4 text-ink">
         Check your email — we sent a link to confirm it.
@@ -52,7 +52,12 @@ export function IntakeForm({ slug, refCode, siteKey }: { slug: string | null; re
 
   return (
     <div className="flex flex-col gap-6">
-      <form action={search} onReset={(e) => e.preventDefault()} className="flex flex-col gap-4">
+      <form
+        action={preview ? undefined : search}
+        onSubmit={preview ? (e) => e.preventDefault() : undefined}
+        onReset={(e) => e.preventDefault()}
+        className="flex flex-col gap-4"
+      >
         {lookupError && <ErrorNote>{lookupError}</ErrorNote>}
         <div className="flex flex-col gap-2">
           <Label htmlFor="businessName">Business name</Label>
@@ -62,7 +67,10 @@ export function IntakeForm({ slug, refCode, siteKey }: { slug: string | null; re
           <Label htmlFor="location">City and state, or ZIP</Label>
           <Input id="location" name="location" required minLength={2} maxLength={120} value={location} onChange={(e) => setLocation(e.target.value)} />
         </div>
-        <Button type="submit" disabled={searching} className="self-start">{searching ? 'Searching…' : 'Find my business'}</Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" disabled={searching || preview} aria-disabled={preview || undefined} className="self-start">{searching ? 'Searching…' : 'Find my business'}</Button>
+          {preview && <PreviewNote />}
+        </div>
       </form>
 
       {places && places.length === 0 && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">No businesses found. Check the spelling or try a ZIP code.</p>}
@@ -90,26 +98,33 @@ export function IntakeForm({ slug, refCode, siteKey }: { slug: string | null; re
         </ul>
       )}
 
-      {picked && <ContactForm key={picked.place.placeId} place={picked} slug={slug} refCode={refCode} siteKey={siteKey} state={state} submit={submit} submitting={submitting} />}
+      {preview && <ContactForm place={null} slug={slug} refCode={refCode} siteKey={null} state={state} submit={submit} submitting={false} preview />}
+
+      {picked && !preview && <ContactForm key={picked.place.placeId} place={picked} slug={slug} refCode={refCode} siteKey={siteKey} state={state} submit={submit} submitting={submitting} />}
     </div>
   );
 }
 
-function ContactForm({ place, slug, refCode, siteKey, state, submit, submitting }: {
-  place: IntakePlaceOption; slug: string | null; refCode: string | null; siteKey: string | null;
-  state: SubmitState; submit: (fd: FormData) => void; submitting: boolean;
+/** The agency preview: why the buttons do nothing. */
+function PreviewNote() {
+  return <span className="text-sm text-muted-foreground">Disabled in preview</span>;
+}
+
+function ContactForm({ place, slug, refCode, siteKey, state, submit, submitting, preview = false }: {
+  place: IntakePlaceOption | null; slug: string | null; refCode: string | null; siteKey: string | null;
+  state: SubmitState; submit: (fd: FormData) => void; submitting: boolean; preview?: boolean;
 }) {
   const [f, setF] = useState({ contactName: '', email: '', phone: '', message: '', consent: false });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setF((o) => ({ ...o, [k]: k === 'consent' ? (e.target as HTMLInputElement).checked : e.target.value }));
 
   return (
-    <form action={submit} onReset={(e) => e.preventDefault()} className="flex flex-col gap-4 border-t border-muted-surface pt-6">
+    <form action={preview ? undefined : submit} onSubmit={preview ? (e) => e.preventDefault() : undefined} onReset={(e) => e.preventDefault()} className="flex flex-col gap-4 border-t border-muted-surface pt-6">
       {state.error && <ErrorNote focusKey={state}>{state.error}</ErrorNote>}
       {/* The signed lookup result, posted back unchanged: submitIntake refuses an edited or expired one. */}
-      <input type="hidden" name="lookup" value={JSON.stringify({ place: place.place, exp: place.exp, sig: place.sig } satisfies SignedIntakePlace)} />
-      <input type="hidden" name="slug" value={slug ?? ''} />
-      {refCode && <input type="hidden" name="ref" value={refCode} />}
+      {place && <input type="hidden" name="lookup" value={JSON.stringify({ place: place.place, exp: place.exp, sig: place.sig } satisfies SignedIntakePlace)} />}
+      {!preview && <input type="hidden" name="slug" value={slug ?? ''} />}
+      {!preview && refCode && <input type="hidden" name="ref" value={refCode} />}
       <div className="flex flex-col gap-2">
         <Label htmlFor="contactName">Your name</Label>
         <Input id="contactName" name="contactName" autoComplete="name" required maxLength={120} value={f.contactName} onChange={set('contactName')} />
@@ -130,8 +145,11 @@ function ContactForm({ place, slug, refCode, siteKey, state, submit, submitting 
         <input type="checkbox" name="consent" required checked={f.consent} onChange={set('consent')} className="mt-0.5 size-4" />
         <span>I agree to be contacted about my request.</span>
       </label>
-      {siteKey && <TurnstileWidget siteKey={siteKey} state={state} />}
-      <Button type="submit" disabled={submitting} className="self-start">Get my free snapshot</Button>
+      {siteKey && !preview && <TurnstileWidget siteKey={siteKey} state={state} />}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" disabled={submitting || preview} aria-disabled={preview || undefined} className="self-start">Get my free snapshot</Button>
+        {preview && <PreviewNote />}
+      </div>
     </form>
   );
 }

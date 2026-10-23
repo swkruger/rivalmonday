@@ -5,9 +5,9 @@ import type { IntakeBrand } from './brand';
  * Centred column on the canvas for every public intake page. `brand.logoUrl` is only ever `https` or null
  * (`resolveBranding` drops anything else before it reaches this `<img src>`).
  */
-export function IntakeShell({ brand, wide = false, children }: { brand: IntakeBrand; wide?: boolean; children: React.ReactNode }) {
+export function IntakeShell({ brand, wide = false, embedded = false, children }: { brand: IntakeBrand; wide?: boolean; embedded?: boolean; children: React.ReactNode }) {
   return (
-    <div style={brand.style as React.CSSProperties} className="min-h-screen bg-canvas px-4 py-10 text-ink">
+    <div style={brand.style as React.CSSProperties} className={cn('bg-canvas px-4 py-10 text-ink', !embedded && 'min-h-screen')}>
       <main className={cn('mx-auto flex w-full flex-col gap-6', wide ? 'max-w-3xl' : 'max-w-xl')}>
         {brand.kind !== 'neutral' && (
           <header>

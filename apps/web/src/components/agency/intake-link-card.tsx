@@ -1,5 +1,6 @@
 'use client';
-import { Button, Card, CardContent, CardHeader, CardTitle, Switch } from '@cs/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, readableTextOn, Switch } from '@cs/ui';
+import Link from 'next/link';
 import { useActionState, useOptimistic, useState, useTransition } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
@@ -26,7 +27,7 @@ const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 /** 15a §2.10: the button wears the agency's primary colour — only a plain hex reaches the inline style (pasted into any site). */
 export function buttonHtml(url: string, primary?: string | null): string {
   const background = primary && HEX.test(primary) ? primary : DEFAULT_BUTTON_COLOR;
-  return `<a href="${escapeAttr(url)}" style="display:inline-block;background:${background};color:#ffffff;font-family:Inter,Arial,sans-serif;font-weight:700;font-size:16px;line-height:1;text-decoration:none;padding:14px 22px;border-radius:8px">${BUTTON_TEXT}</a>`;
+  return `<a href="${escapeAttr(url)}" style="display:inline-block;background:${background};color:${readableTextOn(background)};font-family:Inter,Arial,sans-serif;font-weight:700;font-size:16px;line-height:1;text-decoration:none;padding:14px 22px;border-radius:8px">${BUTTON_TEXT}</a>`;
 }
 
 function CopyButton({ text, label }: { text: string; label: string }) {
@@ -69,6 +70,7 @@ export function IntakeLinkCard({ link, save, toggle, primary = null }: { link: I
               <code className="rounded-md bg-muted-surface px-2 py-1 text-sm text-ink">{link.url}</code>
               <CopyButton text={link.url} label="Copy link" />
               <CopyButton text={buttonHtml(link.url, primary)} label="Copy button HTML" />
+              <Button asChild variant="outline"><Link href="/agency/settings/intake/preview">Preview your page</Link></Button>
             </div>
             <div className="flex items-center gap-3">
               <Switch
@@ -88,7 +90,10 @@ export function IntakeLinkCard({ link, save, toggle, primary = null }: { link: I
             {!toggled.ok && <ErrorNote focusKey={toggled}>{toggled.error}</ErrorNote>}
           </div>
         ) : (
-          <p className="text-sm">No link yet. Choose a name below, or leave it empty and we will use your agency name.</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm">No link yet. Choose a name below, or leave it empty and we will use your agency name.</p>
+            <Button asChild variant="outline"><Link href="/agency/settings/intake/preview">Preview your page</Link></Button>
+          </div>
         )}
         {!readOnly && (
           <form action={saveAction} onReset={(e) => e.preventDefault()} className="flex flex-wrap items-end gap-2">
