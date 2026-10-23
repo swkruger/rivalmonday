@@ -5,7 +5,7 @@ title: Lead pool
 ---
 ## What this page tells you
 
-Verified requests from the platform's own request page that no agency holds yet. Only requests whose email address is verified appear. The list shows the newest 200.
+Verified requests from the platform's own request page that no agency holds yet. Only requests whose email address is verified appear. The list is newest first, 25 at a time, with Previous and Next links.
 
 Each row shows the business, its address and category, the visitor's message and contact details, a reference and the date it was verified. A **Declined by an agency** badge means an agency was given the lead and sent it back; it is in the pool again.
 

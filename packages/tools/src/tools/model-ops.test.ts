@@ -55,6 +55,23 @@ describe('decision-review queue (Review Focus 2)', () => {
     expect(items[0]!.questions[0]!.options.map((o) => o.value)).toEqual(['true', 'false']);
   });
 
+  it('decision reviews page by offset, total = open count', async () => {
+    const [base] = await dbs.service.select().from(detectedChange).where(eq(detectedChange.id, changeId));
+    for (const n of [1, 2]) {
+      const [ch] = await dbs.service.insert(detectedChange).values({ ...base!, id: undefined, blockKey: `p#${n}` }).returning({ id: detectedChange.id });
+      await dbs.service.insert(decisionReview).values({ subjectType: 'detected_change', subjectId: ch!.id, keys: ['meaningful'], answers: {} });
+    }
+    type Page = { items: { id: string }[]; nextCursor: string | null; prevCursor: string | null; total: number };
+    const p1 = (await registry.invoke(op, 'list_decision_reviews', { limit: 2 })) as Page;
+    expect([p1.items.length, p1.total, p1.prevCursor]).toEqual([2, 3, null]);
+    expect(p1.items[0]!.id).toBe(reviewId);
+    const p2 = (await registry.invoke(op, 'list_decision_reviews', { limit: 2, cursor: p1.nextCursor! })) as Page;
+    expect([p2.items.length, p2.nextCursor, p2.total]).toEqual([1, null, 3]);
+    const back = (await registry.invoke(op, 'list_decision_reviews', { limit: 2, cursor: p2.prevCursor! })) as Page;
+    expect(back.items.map((i) => i.id)).toEqual(p1.items.map((i) => i.id));
+    await expect(registry.invoke(op, 'list_decision_reviews', { limit: 101 })).rejects.toMatchObject({ code: 'invalid_input' });
+  });
+
   it('refuses every operator tool to non-operator admins, AMs, client users and guests; malformed input is invalid_input', async () => {
     const resolve = { reviewId, answers: { meaningful: 'true' } };
     // Admins and AMs reach the handler (permission_denied); owners and guests never see the tool (not_found).

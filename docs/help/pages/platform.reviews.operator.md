@@ -21,7 +21,7 @@ Each card shows the competitor, the source and kind of change, and the text befo
 
 1. **Read the before and after text.** Then answer each question in the list.
 2. **Press Resolve.** The event is created, corrected or removed as your answers imply, and your answers are saved as gold labels. Nothing on this page changes the thresholds.
-3. **Work oldest first.** The queue is ordered by age and shows up to 50 at a time. Items whose change was superseded or suppressed are not listed.
+3. **Work oldest first.** The queue is ordered by age and shows 25 at a time, with Previous and Next links. Items whose change was superseded or suppressed are not listed.
 
 ## Common questions
 

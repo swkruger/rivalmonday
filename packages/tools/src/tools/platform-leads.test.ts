@@ -64,6 +64,43 @@ describe('list_pool_leads', () => {
   });
 });
 
+describe('list_pool_leads paging', () => {
+  type Page = { leads: { id: string }[]; nextCursor: string | null; prevCursor: string | null; total: number };
+  const seed = async (n: number) => {
+    const ids: string[] = [];
+    // newest first: index 0 is the newest
+    for (let i = 0; i < n; i++) ids.push(await mkLead({ email: `p${i}@y.co`, createdAt: new Date(Date.UTC(2026, 9, 1, 0, 0, 0) - i * 60_000) }));
+    return ids;
+  };
+
+  it('pool leads page 2 starts after 25 and prevCursor returns to 0', async () => {
+    const ids = await seed(27);
+    const p1 = await call<Page>(viewer, 'list_pool_leads');
+    expect(p1.leads.map((l) => l.id)).toEqual(ids.slice(0, 25));
+    expect(p1.prevCursor).toBeNull();
+    expect(p1.nextCursor).toBeTruthy();
+    const p2 = await call<Page>(viewer, 'list_pool_leads', { cursor: p1.nextCursor! });
+    expect(p2.leads.map((l) => l.id)).toEqual(ids.slice(25));
+    expect(p2.nextCursor).toBeNull();
+    const back = await call<Page>(viewer, 'list_pool_leads', { cursor: p2.prevCursor! });
+    expect(back.leads.map((l) => l.id)).toEqual(ids.slice(0, 25));
+    expect(back.prevCursor).toBeNull();
+  });
+
+  it('limit over 100 refused', async () => {
+    expect((await fails(call(viewer, 'list_pool_leads', { limit: 101 }))).code).toBe('invalid_input');
+    expect((await fails(call(viewer, 'list_pool_leads', { limit: 0 }))).code).toBe('invalid_input');
+  });
+
+  it('total counts all verified unassigned leads', async () => {
+    await seed(3);
+    await mkLead({ email: 'u@y.co', status: 'unverified' });
+    await mkLead({ email: 'a@y.co', agencyId: IDS.agencyA, source: 'agency_link' });
+    const out = await call<Page>(viewer, 'list_pool_leads', { limit: 2 });
+    expect([out.leads.length, out.total]).toEqual([2, 3]);
+  });
+});
+
 describe('list_pool_leads declinedBack', () => {
   it('flags a pool lead an agency declined back (decided_at kept) and not a fresh one', async () => {
     const fresh = await mkLead({ email: 'f@y.co' });

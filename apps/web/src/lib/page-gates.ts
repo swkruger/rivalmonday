@@ -61,6 +61,8 @@ export const GATED_PATHS: string[] = [
   // T6 owns agencies/[id]; until then the non-[id] files are listed one by one
   'app/(platform)/platform/agencies/page.tsx',
   'app/(platform)/platform/agencies/agency-table.tsx',
+  'app/(platform)/platform/leads',
+  'app/(platform)/platform/reviews',
 ];
 
 const ESCAPE = /format-gate:\s*\S/;

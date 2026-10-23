@@ -1,9 +1,10 @@
 import type { DecisionQuestion } from '@cs/ai';
 import { toolkit } from '@cs/core';
-import { listOpenReviews, resolveDecisionReview, reviewQuestions } from '@cs/engine';
+import { countOpenReviews, listOpenReviews, resolveDecisionReview, reviewQuestions } from '@cs/engine';
 import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
 import { catalogOf } from '../catalog/access';
+import { pageOf, pageResult, prevCursorOf } from '../paging';
 import { requirePlatformOperator } from '../platform';
 import { DecisionReviewView } from './schemas';
 
@@ -20,13 +21,16 @@ function options(q: DecisionQuestion): { value: string; label: string }[] {
 export const listDecisionReviews = defineTool({
   name: 'list_decision_reviews',
   access: 'read',
-  description: 'Platform operators: model decisions below the confidence threshold, waiting for a human answer (oldest first).',
-  input: z.object({}),
-  output: z.object({ items: z.array(DecisionReviewView) }),
+  description: 'Platform operators: model decisions below the confidence threshold, waiting for a human answer (oldest first, 25 per page on the web, at most 100). `total` counts every open review.',
+  input: z.object({ cursor: z.string().max(200).optional(), limit: z.number().int().min(1).max(100).optional() }),
+  output: z.object({ items: z.array(DecisionReviewView), nextCursor: z.string().nullable(), prevCursor: z.string().nullable(), total: z.number().int() }),
   permission: 'agency',
-  async handler(ctx, _input, deps) {
+  async handler(ctx, input, deps, meta) {
     await requirePlatformOperator(deps, ctx);
-    const open = await listOpenReviews(deps.service, 50);
+    // Offsets are over DB rows: an item skipped below (F8) leaves its page short instead of shifting the next one.
+    const { offset, limit } = pageOf(input, meta, 25);
+    const { rows: open, nextCursor } = pageResult(await listOpenReviews(deps.service, limit + 1, offset), limit, offset);
+    const total = await countOpenReviews(deps.service);
     const items: z.input<typeof DecisionReviewView>[] = [];
     for (const r of open) {
       let qs: Awaited<ReturnType<typeof reviewQuestions>>;
@@ -46,7 +50,7 @@ export const listDecisionReviews = defineTool({
         })),
       });
     }
-    return { items };
+    return { items, nextCursor, prevCursor: prevCursorOf(offset, limit), total };
   },
 });
 

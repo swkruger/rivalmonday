@@ -8,7 +8,7 @@ import { day, seedPage, seedVendorCapture, seedWebCapture } from '../../test/see
 import { supersedePriorChanges } from '../events/retract';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
 import { createPackLoader } from '../tag/tag-stage';
-import { listOpenReviews, resolveDecisionReview, reviewQuestions } from './resolve';
+import { countOpenReviews, listOpenReviews, resolveDecisionReview, reviewQuestions } from './resolve';
 import { loadVerticalPack } from '@cs/verticals';
 const generic = () => loadVerticalPack('generic');
 
@@ -66,6 +66,23 @@ describe('resolveDecisionReview (Phase 3d decision 8)', () => {
     await review(ch, ['meaningful'], modelSaid(false, 'cosmetic'));
     const open = await listOpenReviews(dbs.service);
     expect(open.map((o) => [o.changeId, o.keys, o.competitorName])).toEqual([[ch, ['meaningful'], 'Smith HVAC']]);
+  });
+
+  it('listOpenReviews offset skips rows', async () => {
+    const a = await webChange('cosmetic', 'First change text');
+    const [base] = await dbs.service.select().from(detectedChange).where(eq(detectedChange.id, a));
+    const more = async (blockKey: string) => (await dbs.service.insert(detectedChange).values({ ...base!, id: undefined, blockKey }).returning({ id: detectedChange.id }))[0]!.id;
+    const b = await more('body>p#1');
+    const c = await more('body>p#2');
+    for (const [i, ch] of [a, b, c].entries()) {
+      const id = await review(ch, ['meaningful'], modelSaid(false, 'cosmetic'));
+      await dbs.service.update(decisionReview).set({ createdAt: day(i + 1) }).where(eq(decisionReview.id, id));
+    }
+    const all = await listOpenReviews(dbs.service);
+    expect(all.map((o) => o.changeId)).toEqual([a, b, c]);
+    expect((await listOpenReviews(dbs.service, 2, 1)).map((o) => o.changeId)).toEqual([b, c]);
+    expect((await listOpenReviews(dbs.service, 1, 2)).map((o) => o.changeId)).toEqual([c]);
+    expect(await countOpenReviews(dbs.service)).toBe(3);
   });
 
   it('turns a cosmetic change the AM calls meaningful into a scored event and labels the sample', async () => {

@@ -7,6 +7,8 @@ import { ErrorNote } from '@/components/form-error';
 import { HelpEmpty } from '@/components/help/empty-state';
 
 const selectClass = 'h-9 w-full max-w-md rounded-md border border-input bg-transparent px-3 text-sm shadow-xs';
+/** A review plus the card header's display text (computed on the server: labels, age in the viewer's zone). */
+export type ReviewCard = DecisionReviewView & { sourceText: string; kindText: string; age: string };
 type Action = (prev: FormResult, fd: FormData) => Promise<FormResult>;
 
 /**
@@ -14,17 +16,18 @@ type Action = (prev: FormResult, fd: FormData) => Promise<FormResult>;
  * leaving the list on revalidate (HANDOVER §6; precedent `AlertList`). The dispatcher is handed straight to each
  * item's native `<form action={formAction}>`, so the browser/React build the submitted FormData, not this component.
  */
-export function ReviewQueue({ items, action }: { items: DecisionReviewView[]; action: Action }) {
+export function ReviewQueue({ items, total, action }: { items: ReviewCard[]; total: number; action: Action }) {
   const [result, formAction, pending] = useActionState(action, { ok: true } as FormResult);
   return (
     <div className="flex flex-col gap-5">
       {!result.ok && <ErrorNote focusKey={result}>{result.error}</ErrorNote>}
       {result.ok && result.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{result.message}</p>}
+      {total > 0 && <h2 className="text-lg font-semibold">Waiting for review ({total})</h2>}
       {items.length === 0 && <HelpEmpty id="platform.reviews.queue" guideAnchor="what-this-page-tells-you" />}
       {items.map((item) => (
         <form key={item.id} action={formAction} className="flex flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card">
           <input type="hidden" name="reviewId" value={item.id} />
-          <div className="text-sm text-muted-ink">{item.competitorName} · {item.source} · {item.kind} · {item.createdAt.slice(0, 10)}</div>
+          <div className="text-sm text-muted-ink">{item.competitorName} · {item.sourceText} · {item.kindText} · {item.age}</div>
           <div className="grid gap-3 md:grid-cols-2">
             <div><div className="text-xs font-semibold uppercase text-muted-ink">Before</div><pre className="whitespace-pre-wrap rounded-lg bg-muted-surface p-3 text-sm">{item.beforeText ?? '—'}</pre></div>
             <div><div className="text-xs font-semibold uppercase text-muted-ink">After</div><pre className="whitespace-pre-wrap rounded-lg bg-muted-surface p-3 text-sm">{item.afterText ?? '—'}</pre></div>

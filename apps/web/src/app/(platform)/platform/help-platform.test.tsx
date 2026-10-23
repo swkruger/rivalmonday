@@ -30,11 +30,14 @@ vi.mock('@/server/tools', () => ({
 }));
 vi.mock('@cs/tools', () => ({
   platformRole: async () => m.role,
+  sourceLabel: (s: string) => s,
+  changeTypeOptions: () => [],
   isPlatformOperator: async () => true,
   listReviewableAskThreads: async () => m.answers.ask_list,
   getReviewableAskThread: async () => m.answers.ask_thread,
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ app: {}, service: {} }) }));
+vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [] }));
 vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ get kbImport() { return m.kbImport; }, webMonitoring: false, appUrl: 'http://localhost' }) }));
@@ -93,8 +96,8 @@ const EMPTY_ANSWERS = (): Record<string, unknown> => ({
   get_signups_paused: { paused: false },
   get_signup_funnel: { open: funnel, invite: funnel },
   get_connect_overview: connect,
-  list_pool_leads: { leads: [], agencies: [], recentAssignments: [] },
-  list_decision_reviews: { items: [] },
+  list_pool_leads: { leads: [], agencies: [], recentAssignments: [], nextCursor: null, prevCursor: null, total: 0 },
+  list_decision_reviews: { items: [], nextCursor: null, prevCursor: null, total: 0 },
   list_topic_proposals: { pending: [], decided: [] },
   ask_list: { items: [], nextCursor: null },
   ask_thread: { id: 't1', title: 'A thread', agencyName: 'Acme', clientName: 'Lone Star', createdAt: new Date('2026-10-01T00:00:00Z'), messages: [{ id: 'm1', role: 'assistant', content: 'Hello', citations: [`kb:${KB}`], status: 'ok', action: null, trace: { a: 1 }, createdAt: new Date('2026-10-01T00:00:00Z') }] },
@@ -117,8 +120,8 @@ const PAGES: [string, () => Promise<React.ReactNode>, string[]][] = [
   ['platform.agencies', () => Agencies({ searchParams: Promise.resolve({}) }), []],
   ['platform.agencies.detail', () => AgencyDetail({ params: Promise.resolve({ id: AG }), searchParams: Promise.resolve({}) }), []],
   ['platform.billing', () => Billing({ searchParams: Promise.resolve({}) }), []],
-  ['platform.leads', () => Leads(), []],
-  ['platform.reviews', () => Reviews(), []],
+  ['platform.leads', () => Leads({ searchParams: Promise.resolve({}) }), []],
+  ['platform.reviews', () => Reviews({ searchParams: Promise.resolve({}) }), []],
   ['platform.topics', () => Topics(), []],
   ['platform.ask', () => Ask({ searchParams: Promise.resolve({}) }), []],
   ['platform.ask.thread', () => AskThread({ params: Promise.resolve({ threadId: 't1' }) }), []],
@@ -322,10 +325,10 @@ describe('Billing & plans', () => {
 });
 
 describe('Lead pool', () => {
-  it('the giving tip names who can give a lead and the email; the pool tip says 200', async () => {
+  it('the giving tip names who can give a lead and the email; the pool tip says 25 at a time', async () => {
     const g = await tipText('platform.leads', 'giving');
     for (const w of ['owners and staff', 'emailed']) expect(g, w).toContain(w);
-    expect(await tipText('platform.leads', 'pool')).toContain('200');
+    expect(await tipText('platform.leads', 'pool')).toContain('25 at a time');
   });
 
   it('with an empty pool and no assignments: both teach', async () => {

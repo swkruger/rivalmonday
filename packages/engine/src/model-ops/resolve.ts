@@ -42,8 +42,8 @@ export async function countOpenReviews(db: Db): Promise<number> {
   return row?.n ?? 0;
 }
 
-/** The AM review queue (spec §7.3), oldest first. Phase 5 puts a screen on this. */
-export async function listOpenReviews(db: Db, limit = 50): Promise<OpenReview[]> {
+/** The AM review queue (spec §7.3), oldest first (id breaks ties so paging is stable); `offset` is over DB rows. */
+export async function listOpenReviews(db: Db, limit = 50, offset = 0): Promise<OpenReview[]> {
   return db
     .select({
       id: decisionReview.id, createdAt: decisionReview.createdAt, keys: decisionReview.keys, answers: decisionReview.answers, changeId: detectedChange.id,
@@ -53,8 +53,9 @@ export async function listOpenReviews(db: Db, limit = 50): Promise<OpenReview[]>
     .innerJoin(detectedChange, eq(detectedChange.id, decisionReview.subjectId))
     .innerJoin(competitor, eq(competitor.id, detectedChange.competitorId))
     .where(openReviewsWhere())
-    .orderBy(asc(decisionReview.createdAt))
-    .limit(limit);
+    .orderBy(asc(decisionReview.createdAt), asc(decisionReview.id))
+    .limit(limit)
+    .offset(offset);
 }
 
 /** An AM's answer as a certain decision; throws when the value is not one the question allows. */

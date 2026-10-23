@@ -1,16 +1,20 @@
 import { platformRole } from '@cs/tools';
-import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Card, CardContent, CardHeader, CardTitle, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { PrevNext } from '@/components/prev-next';
+import { formatDate } from '@/lib/format';
 import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { helpGuides } from '@/server/help';
 import { platformAdmins } from '@/server/runtime-env';
 import { callTool } from '@/server/tools';
-import { type AgencyOption, AssignForm } from './assign-form';
+import { verticalOptions } from '@/server/verticals';
+import { viewerTimeZone } from '@/server/viewer-tz';
+import { type AgencyOption, AssignForm, AssignScope } from './assign-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,16 +45,26 @@ interface Recent {
   assignedAt: Date | string;
 }
 
-const day = (d: Date | string | null) => (d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }) : '—');
+interface Search { cursor?: string | string[] }
+const leadsHref = (cursor: string) => `/platform/leads?cursor=${encodeURIComponent(cursor)}`;
 
 /** Phase 11c §6: the pool of verified platform leads. Operators only (a refusal is a 404); only owner and staff can assign. */
-export default async function PlatformLeadsPage() {
+export default async function PlatformLeadsPage({ searchParams }: { searchParams: Promise<Search> }) {
+  const sp = await searchParams;
+  const raw = Array.isArray(sp.cursor) ? sp.cursor[0] : sp.cursor;
+  const cursor = raw?.slice(0, 200) || undefined;
   const { ctx } = await requireOperatorContext();
-  const [{ leads, agencies, recentAssignments }, role, guides] = await Promise.all([
-    callTool<{ leads: PoolLead[]; agencies: AgencyOption[]; recentAssignments: Recent[] }>(ctx, 'list_pool_leads', {}),
+  const [pool, role, guides, tz, catalogue] = await Promise.all([
+    callTool<{ leads: PoolLead[]; agencies: AgencyOption[]; recentAssignments: Recent[]; nextCursor: string | null; prevCursor: string | null; total: number }>(ctx, 'list_pool_leads', cursor ? { cursor } : {}),
     platformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx),
     helpGuides(ctx, 'platform'),
+    viewerTimeZone(),
+    verticalOptions(),
   ]);
+  const { leads, recentAssignments, nextCursor, prevCursor, total } = pool;
+  // The picker shows business-type names, never slugs (an id the catalogue no longer lists falls back to itself).
+  const names = new Map(catalogue.map((v) => [v.id, v.name]));
+  const agencies = pool.agencies.map((a) => ({ ...a, verticals: a.verticals.map((v) => names.get(v) ?? v) }));
   const canAssign = role === 'owner' || role === 'staff';
   return (
     <>
@@ -70,9 +84,10 @@ export default async function PlatformLeadsPage() {
       />
       <Card>
         <CardHeader>
-          <CardTitle>Pool ({leads.length})</CardTitle>
+          <CardTitle>Pool ({total})</CardTitle>
         </CardHeader>
         <CardContent>
+          <AssignScope>
           {leads.length === 0 ? (
             <EmptyState {...COPY.empty.pool} guideAnchor="what-this-page-tells-you" />
           ) : (
@@ -90,7 +105,7 @@ export default async function PlatformLeadsPage() {
                   <TableRow key={l.id}>
                     <TableCell>
                       <div className="font-semibold">{l.businessName}</div>
-                      {l.declinedBack && <Badge variant="secondary">Declined by an agency</Badge>}
+                      {l.declinedBack && <StatusChip tone="warning">Declined by an agency</StatusChip>}
                       <div className="text-xs text-muted-foreground">{[l.address ?? l.city, l.category].filter(Boolean).join(' · ')}</div>
                       {l.message && <div className="mt-1 max-w-md whitespace-pre-wrap text-xs">{l.message}</div>}
                     </TableCell>
@@ -99,10 +114,10 @@ export default async function PlatformLeadsPage() {
                       <div className="text-xs text-muted-foreground">{l.email}{l.phone ? ` · ${l.phone}` : ''}</div>
                       {l.ref && <div className="text-xs text-muted-foreground">Ref {l.ref}</div>}
                     </TableCell>
-                    <TableCell>{day(l.verifiedAt ?? l.createdAt)}</TableCell>
+                    <TableCell>{l.verifiedAt ? formatDate(l.verifiedAt, { tz }) : '—'}</TableCell>
                     {canAssign && (
                       <TableCell>
-                        <AssignForm leadId={l.id} agencies={agencies} />
+                        <AssignForm leadId={l.id} leadName={l.businessName} agencies={agencies} />
                       </TableCell>
                     )}
                   </TableRow>
@@ -110,8 +125,10 @@ export default async function PlatformLeadsPage() {
               </TableBody>
             </Table>
           )}
+          </AssignScope>
         </CardContent>
       </Card>
+      <PrevNext previous={prevCursor ? leadsHref(prevCursor) : null} next={nextCursor ? leadsHref(nextCursor) : null} />
       <Card>
         <CardHeader>
           <CardTitle>Recent assignments</CardTitle>
@@ -133,7 +150,7 @@ export default async function PlatformLeadsPage() {
                   <TableRow key={r.leadId}>
                     <TableCell className="font-semibold">{r.businessName}</TableCell>
                     <TableCell>{r.agencyName}</TableCell>
-                    <TableCell>{day(r.assignedAt)}</TableCell>
+                    <TableCell>{formatDate(r.assignedAt, { tz })}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -172,10 +172,10 @@ export const PLATFORM_COPY = {
     // source: apps/web/src/app/(platform)/platform/leads/page.tsx (the page's existing description)
     description: 'Verified requests from the platform page that no agency holds yet. Assign one to an agency; it is notified by email.',
     tips: {
-      // source: packages/tools/src/tools/platform-leads.ts:listPoolLeadsTool (status verified, no agency, newest 200); apps/web/.../leads/page.tsx
+      // source: packages/tools/src/tools/platform-leads.ts:listPoolLeadsTool (status verified, no agency, newest first, paged 25); apps/web/.../leads/page.tsx
       pool: {
         title: 'What is in the pool',
-        body: 'Requests from the platform\'s own page whose email address is verified and that no agency holds. The list shows the newest 200. A lead stays here until an agency is given it.',
+        body: 'Requests from the platform\'s own page whose email address is verified and that no agency holds. The list is newest first, 25 at a time; use Previous and Next for more. A lead stays here until an agency is given it.',
         audience: 'operator',
         guideAnchor: 'what-this-page-tells-you',
       },
@@ -218,10 +218,10 @@ export const PLATFORM_COPY = {
         audience: 'operator',
         guideAnchor: 'what-this-page-tells-you',
       },
-      // source: apps/web/src/app/(platform)/platform/reviews/review-queue.tsx ("Model said", confidence %); packages/engine/src/model-ops/resolve.ts:resolveDecisionReview (updates the event, writes decision_label rows); packages/tools/src/tools/model-ops.ts:listDecisionReviews (oldest first, 50)
+      // source: apps/web/src/app/(platform)/platform/reviews/review-queue.tsx ("Model said", confidence %); packages/engine/src/model-ops/resolve.ts:resolveDecisionReview (updates the event, writes decision_label rows); packages/tools/src/tools/model-ops.ts:listDecisionReviews (oldest first, paged 25)
       answer: {
         title: 'Answering a review',
-        body: 'Each card shows the text before and after a competitor change, with one or more questions. "Model said" is the model\'s answer and its confidence; yours replaces it. Your answers fix the event and are stored as gold labels for measuring the models. The queue is oldest first, up to 50 at a time.',
+        body: 'Each card shows the text before and after a competitor change, with one or more questions. "Model said" is the model\'s answer and its confidence; yours replaces it. Your answers fix the event and are stored as gold labels for measuring the models. The queue is oldest first, 25 at a time; use Previous and Next for more.',
         audience: 'operator',
         guideAnchor: 'how-to-use-it',
       },

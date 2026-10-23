@@ -1,8 +1,9 @@
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { agency, agencyServiceable, client, lead, leadPreviewSchema } from '@cs/db';
-import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
+import { pageOf, pageResult, prevCursorOf } from '../paging';
 import { type PlatformRole, requirePlatformOperator } from '../platform';
 import { withPlatformAudit } from '../platform/audit';
 import { sendAfterCommit } from './leads';
@@ -43,20 +44,22 @@ const PoolAgency = z.object({ id: z.string().uuid(), name: z.string(), verticals
 export const listPoolLeadsTool = defineTool({
   name: 'list_pool_leads',
   access: 'read',
-  description: 'Platform operators: verified leads from the platform intake that no agency holds yet, plus the agencies that can take one (with their verticals and active-client counts) and the last 20 assignments.',
-  input: z.object({}),
-  output: z.object({ leads: z.array(PoolLead), agencies: z.array(PoolAgency), recentAssignments: z.array(RecentAssignment) }),
+  description: 'Platform operators: verified leads from the platform intake that no agency holds yet, plus the agencies that can take one (with their verticals and active-client counts) and the last 20 assignments. Leads are paged (newest first, 25 per page on the web, at most 100).',
+  input: z.object({ cursor: z.string().max(200).optional(), limit: z.number().int().min(1).max(100).optional() }),
+  output: z.object({
+    leads: z.array(PoolLead), nextCursor: z.string().nullable(), prevCursor: z.string().nullable(), total: z.number().int(),
+    agencies: z.array(PoolAgency), recentAssignments: z.array(RecentAssignment),
+  }),
   supportMask: ['leads[].email', 'leads[].phone', 'leads[].message'],
   permission: 'agency',
   audit: 'skip-web',
-  async handler(ctx: AccessContext, input, deps) {
+  async handler(ctx: AccessContext, input, deps, meta) {
     return operate(deps, ctx, 'viewer', 'list_pool_leads', input, async () => {
-      const rows = await deps.service
-        .select()
-        .from(lead)
-        .where(and(isNull(lead.agencyId), eq(lead.status, 'verified')))
-        .orderBy(desc(lead.createdAt))
-        .limit(200);
+      const { offset, limit } = pageOf(input, meta, 25);
+      const poolWhere = and(isNull(lead.agencyId), eq(lead.status, 'verified'));
+      const fetched = await deps.service.select().from(lead).where(poolWhere).orderBy(desc(lead.createdAt), asc(lead.id)).limit(limit + 1).offset(offset);
+      const { rows, nextCursor } = pageResult(fetched, limit, offset);
+      const [{ n: total } = { n: 0 }] = await deps.service.select({ n: count() }).from(lead).where(poolWhere);
       const agencies = await deps.service
         .select({
           id: agency.id,
@@ -77,6 +80,7 @@ export const listPoolLeadsTool = defineTool({
         .orderBy(desc(lead.assignedAt))
         .limit(20);
       return {
+        nextCursor, prevCursor: prevCursorOf(offset, limit), total,
         recentAssignments: assigned.map((r) => ({ leadId: r.leadId, businessName: r.lookup.title, agencyName: r.agencyName, assignedAt: r.assignedAt! })),
         leads: rows.map((r) => ({
           id: r.id, ref: r.ref, businessName: r.lookup.title, address: r.lookup.address, city: r.lookup.city, category: r.lookup.category,
