@@ -1,6 +1,6 @@
 import type { VendorCallRecord } from '@cs/core';
 import { client, competitorSuggestion, discoveryRun, review, vendorTask } from '@cs/db';
-import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import type { DiscoveryConfig, VerticalPack } from '@cs/verticals';
 import { eq } from 'drizzle-orm';
@@ -332,6 +332,16 @@ describe('runRivalSearch', () => {
     expect(v.dfs.calls).toHaveLength(0);
     await dbs.owner.update(client).set({ pausedAt: null, pausedBy: null, status: 'prospect' }).where(eq(client.id, IDS.clientA2));
     expect(await runRivalSearch(deps(vendors()), await newRun())).toEqual({ status: 'finalising' });
+  });
+
+  it('a queued run of a spend-paused client fails spend_paused without vendor calls (7b1)', async () => {
+    const v = vendors();
+    const runId = await newRun();
+    await spendPauseClient(dbs.owner, IDS.clientA2);
+    expect(await runRivalSearch(deps(v), runId)).toEqual({ status: 'failed' });
+    expect(await runRow(runId)).toMatchObject({ status: 'failed', error: 'spend_paused' });
+    expect(v.dfs.calls).toHaveLength(0);
+    expect(v.records).toHaveLength(0);
   });
 
   it('an archived client → failed service_paused, no vendor calls (7a2 D16)', async () => {

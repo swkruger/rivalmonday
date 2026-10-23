@@ -218,6 +218,25 @@ describe('scanRankings settings, trigger and skip (13b)', () => {
     expect(await dbs.service.select().from(rankScan)).toMatchObject([{ id: row!.id, status: 'skipped', trigger: 'manual', requestedBy: USER }]);
   });
 
+  it('a spend-paused client is not scanned: no row, no dfs call; an adopted manual row is failed', async () => {
+    await spendPauseClient(dbs.owner, IDS.clientA1);
+    let calls = 0;
+    const dfs = fakeDfs(() => { calls++; return [dfsTask([{ items: [] }])]; });
+    expect(await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs }, IDS.clientA1, SCHEDULED)).toEqual({ snapshots: 0, failed: 0, scanId: null });
+    const [row] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'manual', requestedBy: USER }).returning();
+    expect(await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs }, IDS.clientA1, { trigger: 'manual', scanId: row!.id })).toEqual({ snapshots: 0, failed: 0, scanId: null });
+    expect(calls).toBe(0);
+    expect(await dbs.service.select().from(rankScan)).toMatchObject([{ id: row!.id, status: 'failed' }]);
+  });
+
+  it('a paused client is not scanned either (queued before the pause)', async () => {
+    await pauseClient(dbs.owner, IDS.clientA1);
+    let calls = 0;
+    const dfs = fakeDfs(() => { calls++; return [dfsTask([{ items: [] }])]; });
+    expect(await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs }, IDS.clientA1, SCHEDULED)).toEqual({ snapshots: 0, failed: 0, scanId: null });
+    expect(calls).toBe(0);
+  });
+
   it('prospect override skips the budget check', async () => {
     await set({ spendLimitUsd: 0.01 });
     const onSkipped = vi.fn();

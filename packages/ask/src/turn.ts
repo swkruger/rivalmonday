@@ -203,6 +203,18 @@ function parseArgs(raw: string): { ok: true; value: unknown } | { ok: false } {
 }
 
 /**
+ * 7b1: the Ask-facing copy for a pause that surfaces mid-turn (a refused model call, or a tool refused the same way).
+ * A client spend pause is C4, a platform pause is C5; never the tool-facing S1 text, which names credits. The one
+ * mapping for `runTurn` and the web route's fallback.
+ */
+export function askPausedCopy(err: unknown): string | null {
+  if (err instanceof AiPausedError) return err.reason === 'platform' ? ASK_COPY.busy : ASK_COPY.paused;
+  if (err instanceof ToolError && err.userFacing && err.code === 'spend_paused') return ASK_COPY.paused;
+  if (err instanceof ToolError && err.userFacing && err.code === 'system_busy') return ASK_COPY.busy;
+  return null;
+}
+
+/**
  * One Ask turn (spec "Turn rules"): guard → ≤ stepLimit tool-calling steps over the `ask` registry tools → grounding →
  * persist → emit. A write tool call is never executed: it is stored as a `proposed` action and ends the turn.
  * The assistant/action message is persisted here (through `app_user` + RLS); the trace never holds tool result text.
@@ -342,8 +354,9 @@ export async function runTurn(
     outcome = await loop();
   } catch (err) {
     // 7b1: a pause that begins mid-turn (a model call refused by the guard) gets the pause copy, not the generic error.
-    if (err instanceof AiPausedError) {
-      outcome = { role: 'assistant', content: err.reason === 'platform' ? ASK_COPY.busy : ASK_COPY.paused, status: 'error' };
+    const paused = askPausedCopy(err);
+    if (paused) {
+      outcome = { role: 'assistant', content: paused, status: 'error' };
     } else {
       console.error('[ask] turn failed', err instanceof Error ? err.message : err);
       outcome = { role: 'assistant', content: ASK_COPY.error(assistantName), status: 'error' };

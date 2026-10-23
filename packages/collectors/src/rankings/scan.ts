@@ -47,6 +47,11 @@ export async function scanRankings(
     if (opts.scanId) await deps.db.update(rankScan).set({ status: 'failed', finishedAt: new Date() }).where(and(eq(rankScan.id, opts.scanId), eq(rankScan.clientId, clientId), eq(rankScan.status, 'running')));
     return none;
   }
+  // A scan queued before the client was paused / spend-paused / archived spends no vendor money (7b1; the job has no Ai guard).
+  if (c.pausedAt !== null || c.spendPausedAt !== null || c.archivedAt !== null) {
+    if (opts.scanId) await deps.db.update(rankScan).set({ status: 'failed', finishedAt: new Date() }).where(and(eq(rankScan.id, opts.scanId), eq(rankScan.clientId, clientId), eq(rankScan.status, 'running')));
+    return none;
+  }
   const prospect = opts.prospect;
   const gridSize = Math.min(prospect?.gridSize ?? c.rankGridSize, 7);
   const keywords = prospect ? rankKeywordsFor(c).slice(0, Math.min(prospect.maxKeywords, RANK_MAX_KEYWORDS)) : rankKeywordsFor(c);

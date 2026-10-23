@@ -115,6 +115,11 @@ async function execute(deps: RivalSearchDeps, run: DiscoveryRunRow): Promise<{ s
     await finishFailed(db, run.id, 'service_paused');
     return { status: 'failed' };
   }
+  // 7b1: a run queued before the client went spend-paused spends no vendor money (this job has no Ai, so no AI guard).
+  if (c.spendPausedAt !== null) {
+    await finishFailed(db, run.id, 'spend_paused');
+    return { status: 'failed' };
+  }
   const cfg = (await deps.packs(c.verticalId)).discovery;
   const { keywords, gridSize } = planSearch(planKeywords(c.keywords, cfg.seed_keywords), cfg);
   if (estimateCostUsd({ searches: keywords.length * gridSize * gridSize, shortlist: cfg.shortlist }) > cfg.cost_cap_usd) {

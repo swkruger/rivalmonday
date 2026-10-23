@@ -30,6 +30,9 @@ export async function registerJobs(
       // on a standard queue every tick would start another 10-minute chain (N paid runs when a long pause lifts);
       // the next cron tick is the retry.
       const resendItem = (item: (typeof batch)[number]) => async (startAfter: number) => {
+        // Trade-off: pg-boss 10 dedupes singletonKey only on short/singleton/stately queues, so re-sending a cron job on a
+        // standard queue would start a new 10-minute chain every tick during a long pause (N paid runs when it lifts).
+        // A cron job on a platform pause therefore waits for its next scheduled tick instead of retrying in 10 minutes.
         if (job.cron) return;
         await boss.send(job.name, item.data as object, { startAfter, singletonKey: item.singletonKey ?? undefined });
       };

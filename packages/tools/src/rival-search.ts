@@ -101,7 +101,7 @@ export async function startCompetitorSearch(deps: ToolDeps, clientId: string, tr
     started = await deps.service.transaction(async (tx): Promise<SearchStart> => {
       await tx.select({ id: agency.id }).from(agency).where(eq(agency.id, c.agencyId)).for('update');
       // 9a/9b: nothing paid starts for a paused client or a read_only/suspended agency. Prospects may search (12a D4),
-      // so this checks the pause, not `status = 'active'`. The rival-search job re-checks (state can change while queued).
+      // so this checks the pause, not `status = 'active'`. The rival-search job re-checks the pause, the spend pause and the agency (state can change while queued).
       const [svc] = await tx.select({ pausedAt: client.pausedAt, spendPausedAt: client.spendPausedAt, agencyOk: sql<boolean>`${agencyServiceable(client.agencyId)}` }).from(client).where(eq(client.id, clientId));
       if (!svc || svc.pausedAt !== null || !svc.agencyOk) return { refused: 'service_paused' };
       if (svc.spendPausedAt !== null) return { refused: 'spend_paused' }; // 7b1: prospects included (status is not checked here)

@@ -1,8 +1,8 @@
 import 'server-only';
 import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
-import { aiPauseOf, ASK_COPY, type AskDeps, type AskEvent, beginTurn, DEFAULT_ASSISTANT_NAME, runTurn } from '@cs/ask';
+import { aiPauseOf, ASK_COPY, askPausedCopy, type AskDeps, type AskEvent, beginTurn, DEFAULT_ASSISTANT_NAME, runTurn } from '@cs/ask';
 import { createScriptedAskAi, type ScriptedReply, type ScriptedStep } from '@cs/ask/testing';
-import { type AccessContext, type AiGuard, AiPausedError, canAccessClient, hasChannel, ToolError } from '@cs/core';
+import { type AccessContext, type AiGuard, canAccessClient, hasChannel, ToolError } from '@cs/core';
 import { agency, client, createAiGuard, createDecisionSampleSink, createLedgerSink, type Db, type EnvName, withTenant } from '@cs/db';
 import { assertAgencyServiceable } from '@cs/tools';
 import { eq } from 'drizzle-orm';
@@ -123,18 +123,6 @@ export async function askDeps(name?: EnvName): Promise<AskDeps> {
   const { app, service } = dbs(name);
   const ai = webEnv().askFakeAi ? createScriptedAskAi(E2E_SCRIPT) : await realAi(name)();
   return { app, service, ai, registry: registry(name), toolDeps: toolDeps(name), guard: guardFor(name)() };
-}
-
-/**
- * 7b1: the Ask-facing copy for a pause that surfaces mid-turn (a refused model call, or a tool refused the same way).
- * Same mapping as the pre-turn check in `beginTurn`: a client spend pause is C4, a platform pause is C5; never the
- * tool-facing S1 text, which names credits.
- */
-function askPausedCopy(err: unknown): string | null {
-  if (err instanceof AiPausedError) return err.reason === 'platform' ? ASK_COPY.busy : ASK_COPY.paused;
-  if (err instanceof ToolError && err.userFacing && err.code === 'spend_paused') return ASK_COPY.paused;
-  if (err instanceof ToolError && err.userFacing && err.code === 'system_busy') return ASK_COPY.busy;
-  return null;
 }
 
 /** e10: the agency's assistant name, "Friday" when unset or blank. */
