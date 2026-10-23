@@ -108,10 +108,10 @@ approve_brief (review.ts) | write | approves brief
 send_brief_now (review.ts) | write | sends brief, enqueues PDF
 set_brief_auto_send (review.ts) | write | updates client setting
 search (search.ts) | read | read; embedding skipped under support ctx
-invite_member (settings.ts) | write | creates invitation (email)
+invite_member (settings.ts) | write | creates invitation (email); agency-role invites send `team_invite` directly, capped with agency resends at 20 per agency / 24 h (15c-2a)
 revoke_membership (settings.ts) | write | revokes
 revoke_invitation (settings.ts) | write | revokes
-resend_invitation (settings.ts) | write | resets the 14-day expiry and emails the invite again (`client_invite` via the outbox, `team_invite` directly); 3 per invitation / 24 h (15c-2a)
+resend_invitation (settings.ts) | write | resets the 14-day expiry and emails the invite again (`client_invite` via the outbox, `team_invite` directly); 3 per invitation / 24 h, and agency-role resends count toward the 20 per agency / 24 h `team_invite` cap (15c-2a)
 update_agency_branding (settings.ts) | write | updates agency
 get_team (agency-settings-reads.ts) | read | read-only; agency roles; masks members[].email/name, invitations[].email (7a2)
 get_agency_branding (agency-settings-reads.ts) | read | read-only; agency_admin; masks stored/resolved.fromEmail (7a2)

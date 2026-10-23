@@ -10,7 +10,7 @@ import { seedUser, truncateAuth } from '../../test/fixtures';
 import type { ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
 import { inviteClientUser, sendClientInvite } from './client-invite';
-import { inviteMember, listTeam, RESEND_LIMIT, resendInvitation, revokeInvitation, revokeMembership } from './team';
+import { inviteMember, listTeam, RESEND_LIMIT, resendInvitation, revokeInvitation, revokeMembership, TEAM_INVITE_LIMIT } from './team';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -224,6 +224,34 @@ describe('resend + team_invite (15c-2a T11)', () => {
     const expiry = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(r.expiresAt));
     expect(transport.sent[0]).toMatchObject({ to: 'boss@e.co', subject: 'Pat Lee invited you to Peak Digital' });
     expect(transport.sent[0]!.text).toContain(`This invite expires on ${expiry}.`);
+  });
+
+  it('agency-role invites cap at 20 per agency per 24h (new + resent); the 21st is refused and creates nothing; client roles are unaffected', async () => {
+    expect(TEAM_INVITE_LIMIT).toEqual({ max: 20, windowHours: 24 });
+    const reg = registry();
+    const refusal = { code: 'rate_limited', message: "You've sent a lot of invites today. Try again tomorrow.", userFacing: true };
+    // An invite older than the window does not count.
+    await dbs.service.insert(invitation).values({ agencyId: IDS.agencyA, email: 'old@e.co', role: 'account_manager', invitedBy: 'admin', createdAt: new Date(Date.now() - 25 * 3_600_000), expiresAt: new Date(Date.now() + 13 * DAY) });
+    const first = (await reg.invoke(admin, 'invite_member', { email: 'm0@e.co', role: 'account_manager' })) as { invitationId: string };
+    for (let i = 1; i < 18; i++) await reg.invoke(admin, 'invite_member', { email: `m${i}@e.co`, role: i % 2 ? 'agency_admin' : 'account_manager' });
+    // Two resends of an agency invite count too (18 + 2 = 20).
+    for (let i = 0; i < 2; i++) await reg.invoke(admin, 'resend_invitation', { invitationId: first.invitationId });
+    expect(transport.sent).toHaveLength(20);
+    await expect(reg.invoke(admin, 'invite_member', { email: 'm20@e.co', role: 'account_manager' })).rejects.toMatchObject(refusal);
+    expect(await dbs.service.select().from(invitation).where(eq(invitation.email, 'm20@e.co'))).toHaveLength(0);
+    // An agency resend is refused too, and leaves the invitation's expiry as it was.
+    const [before] = await dbs.service.select().from(invitation).where(eq(invitation.id, first.invitationId));
+    await expect(reg.invoke(admin, 'resend_invitation', { invitationId: first.invitationId })).rejects.toMatchObject(refusal);
+    const [after] = await dbs.service.select().from(invitation).where(eq(invitation.id, first.invitationId));
+    expect(after!.expiresAt.toISOString()).toBe(before!.expiresAt.toISOString());
+    expect(transport.sent).toHaveLength(20);
+    // Client-role invites and resends are not part of the cap.
+    const c = (await reg.invoke(admin, 'invite_member', { email: 'own@x.co', role: 'client_owner', clientId: IDS.clientA1 })) as { invitationId: string; emailSent: boolean };
+    expect(c.emailSent).toBe(true);
+    expect(await reg.invoke(admin, 'resend_invitation', { invitationId: c.invitationId })).toMatchObject({ emailSent: true });
+    // Another agency has its own budget.
+    const adminB = createAccessContext({ agencyId: IDS.agencyB, userId: 'admin', role: 'agency_admin', clientScope: 'all', features: [] });
+    await expect(reg.invoke(adminB, 'invite_member', { email: 'b@e.co', role: 'account_manager' })).resolves.toMatchObject({ emailSent: expect.any(Boolean) });
   });
 
   it('send failure still creates the invitation and returns emailSent false', async () => {

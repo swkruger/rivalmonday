@@ -2,7 +2,7 @@ import { type AccessContext, canAccessClient, isAgencyRole, type Role, ToolError
 import { randomUUID } from 'node:crypto';
 import { hashInput } from '@cs/core/server';
 import { auditLog, client, contact, type Db, invitation, membership, type Tx } from '@cs/db';
-import { and, asc, count, eq, gt, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
 import { type ClientInviteRole, sendClientInvite, upsertContact } from './client-invite';
 import { createInvitation, INVITATION_TTL_DAYS, type NewInvitation, normalizeEmail } from './invitations';
@@ -85,6 +85,8 @@ export async function inviteMember(service: Db | Tx, ctx: AccessContext, input: 
   if (await hasMemberAtScope(service, ctx.agencyId, email, clientId)) {
     throw new ToolError('invalid_input', 'This person already has access at this scope; remove them first to change their role');
   }
+  // Final-review ruling: agency-role invites send `team_invite` (B1), capped per agency; over the cap nothing is created.
+  if (isAgencyRole(input.role)) await assertTeamInviteBudget(service, ctx.agencyId);
   return createInvitation(service, { ...input, agencyId: ctx.agencyId, invitedBy: ctx.userId }, now);
 }
 
@@ -129,6 +131,40 @@ async function priorResends(db: Db | Tx, agencyId: string, invitationId: string)
   return Number(row?.n ?? 0);
 }
 
+/** 15c-2a ruling (final review): at most 20 agency-role `team_invite` sends (new invitations + resends) per agency in any 24 hours. */
+export const TEAM_INVITE_LIMIT = { max: 20, windowHours: 24 };
+const TEAM_INVITE_REFUSAL = "You've sent a lot of invites today. Try again tomorrow.";
+const AGENCY_INVITE_ROLES = ['agency_admin', 'account_manager'];
+
+/**
+ * Agency-role invite emails this agency sent in the window, on the DB clock. `audit_log` keeps only the caller's role and an
+ * input hash, so the two sources are: new agency-role invitations (`invite_member` creates one row per send, a re-invite
+ * included; `client_id IS NULL` = agency role) and ok `resend_invitation` audit rows (B2) whose hash matches one of this
+ * agency's agency-role invitations resent in the window (a resend sets `expires_at = now + TTL`, so those are the ones
+ * expiring after `now + TTL - window`; a later revoke or accept keeps `expires_at`).
+ */
+async function teamInviteSends(db: Db | Tx, agencyId: string): Promise<number> {
+  const window = sql`now() - make_interval(hours => ${TEAM_INVITE_LIMIT.windowHours})`;
+  const [created] = await db.select({ n: count() }).from(invitation).where(and(
+    eq(invitation.agencyId, agencyId), isNull(invitation.clientId), gt(invitation.createdAt, window),
+  ));
+  const touched = await db.select({ id: invitation.id }).from(invitation).where(and(
+    eq(invitation.agencyId, agencyId), inArray(invitation.role, AGENCY_INVITE_ROLES),
+    gt(invitation.expiresAt, sql`now() + make_interval(days => ${INVITATION_TTL_DAYS}) - make_interval(hours => ${TEAM_INVITE_LIMIT.windowHours})`),
+  ));
+  if (touched.length === 0) return Number(created?.n ?? 0);
+  const [resent] = await db.select({ n: count() }).from(auditLog).where(and(
+    eq(auditLog.agencyId, agencyId), eq(auditLog.tool, RESEND_TOOL), eq(auditLog.outcome, 'ok'), gt(auditLog.createdAt, window),
+    inArray(auditLog.inputHash, touched.map((t) => hashInput({ invitationId: t.id }))),
+  ));
+  return Number(created?.n ?? 0) + Number(resent?.n ?? 0);
+}
+
+/** Refuses (`rate_limited`, user-facing) once the agency reached `TEAM_INVITE_LIMIT`. Check-then-act, like the resend limit. */
+export async function assertTeamInviteBudget(db: Db | Tx, agencyId: string): Promise<void> {
+  if ((await teamInviteSends(db, agencyId)) >= TEAM_INVITE_LIMIT.max) throw new ToolError('rate_limited', TEAM_INVITE_REFUSAL, { userFacing: true });
+}
+
 /**
  * 15c-2a (15c-3 reuses it): sends a pending invitation again. Invitations carry no token (sign-in matches by email), so this
  * resets `expires_at` to `now + INVITATION_TTL_DAYS` and re-sends: client roles queue `client_invite` in the same transaction
@@ -152,6 +188,7 @@ export async function resendInvitation(ctx: AccessContext, deps: ToolDeps, invit
     if (!i || !canManage(ctx, i.role as Role, i.clientId) || (i.clientId && !c)) throw new ToolError('not_found', 'Invitation not found');
     // Check-then-act: concurrent posts can exceed the limit (the Resend button disables while pending).
     if ((await priorResends(tx, ctx.agencyId, i.id)) >= RESEND_LIMIT.max) throw new ToolError('rate_limited', 'You can resend this invite again tomorrow.', { userFacing: true });
+    if (!c) await assertTeamInviteBudget(tx, ctx.agencyId);
     await tx.update(invitation).set({ expiresAt }).where(eq(invitation.id, i.id));
     if (!c) return { i, emailSent: false };
     const role = i.role as ClientInviteRole;
