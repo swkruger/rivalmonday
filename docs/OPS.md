@@ -16,7 +16,7 @@ After migration `0084` (15b-3a topic rename): run `pnpm --filter @cs/db migrate`
 
 After 15b-3b (migrations `generic_topic_id` and `review_checked_at`, next free numbers): same order (stop worker, `pnpm --filter @cs/db migrate`, deploy web + worker), then `pnpm --filter @cs/db topic-leftovers` (prints nothing) and `pnpm kb:seed` (drops the old `page:platform.themes` row).
 - Expect a one-off re-ask wave: 0084 bumped `vertical.updated_at`, so about 1,375 reviews on `cs_dev` are re-asked once (`[engine-reask]` log lines, Jev first), capped at 2,000 reviews/day (`REASK_DAILY_MAX`), about 0.7 day.
-- Watch it: `SELECT count(DISTINCT review_id) FROM review_analysis WHERE checked_at >= date_trunc('day', now())`; `llm_call` rows with purpose `review_decisions` have `vertical_id` and no `client_id`.
+- Watch it: `SELECT count(DISTINCT review_id) FROM review_analysis WHERE checked_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`; `llm_call` rows with `task = 'review_decisions'` have `vertical_id` and no `client_id`.
 
 ## CS Dev Verification Agency / Client (`cs_dev`)
 

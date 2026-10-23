@@ -1,6 +1,6 @@
 # phase-15b3b — topic rename, surfaces (MCP/Ask tools, routes, help key, web names)
 
-**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-15b3b   **Base:** main @ bf4ce990
+**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-15b3b   **Base:** main @ f37d14f1
 **Plan/spec:** [spec](../superpowers/specs/2026-10-23-phase-15b3b-topic-surfaces-design.md) (builds on [15b-3 spec](../superpowers/specs/2026-10-21-phase-15b3-topic-rename-design.md) §4) · [plan](../superpowers/plans/2026-10-23-phase-15b3b-topic-surfaces.md)
 
 ## Status (overwrite)
@@ -37,11 +37,14 @@ Spec E1–E6 (2026-10-23): one branch; before 15c-2; E3 full field rename; fold 
 - Polish -> `review_analysis.checked_at` has no index; the daily-cap count scans the table each idle sweep. Add one if volume grows.
 - Scale -> the re-ask sweep hashes 180 d of review text per idle sweep; a stored `review.text_sha` column would remove it.
 - Phase 7c -> `search_reviews` input is not `.strict()`: an old MCP client sending `themeId` gets unfiltered results silently. Decide whether tool inputs become strict.
+- Polish -> vertical-edit re-ask trigger fires on any `vertical.updated_at` bump (business-area version bumps, renames, reviewed status; a generic edit hits every inheriting vertical); on cs_dev ~84% of analysed reviews have a below-τ seed topic, so each bump re-asks most of that vertical's 180-day reviews and shares the 2,000/day cap with approval re-asks. Fix: topics-specific edit marker (`config->'topics'` hash or `topics_edited_at`) or order approval gaps first.
+- Polish -> duplicate `engine-reask` job can be queued while one runs (singleton `short` policy only covers queued jobs): at most one extra Jev call under backlog; data deduped under FOR UPDATE; optional `pg_try_advisory_xact_lock(hashtext('reask:'||id))` guard.
+- Process -> `scripts/local-test-db.sh env` prints `/cs_test`; the per-worktree DB name only comes from the kickoff sed, so a reviewer using the script's output hits the shared `cs_test`.
 - Close at merge: BACKLOG 15b-3b row, OPS `0037`, 14a batch discovery untagged, 14a generic `technician_professionalism`, 3c mid-window theme, 4a `playbooks.ts` `themeName`.
 
 
 ## Owner verification steps
-After merge, `cs_dev`, worker stopped (OPS order): `pnpm --filter @cs/db migrate`; `pnpm --filter @cs/db topic-leftovers` prints nothing; `pnpm kb:seed`. Then: `/platform/topics` works and `/platform/themes` 404s; Reviews `?topic=`; MCP `tools/list` shows `get_topic_benchmark`. Watch `[engine-reask]` log lines and `llm_call` `review_decisions` rows with `vertical_id` and no `client_id`; daily count: `SELECT count(DISTINCT review_id) FROM review_analysis WHERE checked_at >= date_trunc('day', now())`.
+After merge, `cs_dev`, worker stopped (OPS order): `pnpm --filter @cs/db migrate`; `pnpm --filter @cs/db topic-leftovers` prints nothing; `pnpm kb:seed`. Then: `/platform/topics` works and `/platform/themes` 404s; Reviews `?topic=`; MCP `tools/list` shows `get_topic_benchmark`. Watch `[engine-reask]` log lines and `llm_call` rows with `task = 'review_decisions'` with `vertical_id` and no `client_id`; daily count: `SELECT count(DISTINCT review_id) FROM review_analysis WHERE checked_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`.
 
 **Notes for the owner**
 - P9: a review whose decide keeps throwing (Jev and LLM both down) is re-offered every 5 min while no new reviews are pending (no backoff).
